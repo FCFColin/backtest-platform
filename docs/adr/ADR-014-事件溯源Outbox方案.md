@@ -1,0 +1,39 @@
+# ADR-014: 事件溯源/Outbox方案（PostgreSQL LISTEN/NOTIFY）
+
+## Status
+Proposed
+
+## Context
+当前系统存在两个可靠性问题：
+1. **审计日志可被篡改**：审计日志存储在普通数据库表中，无签名保护，具有数据库写权限的人可修改或删除审计记录
+2. **事件发送与业务数据写入非原子操作**：业务数据提交后发送事件通知，若进程在两步之间崩溃，事件丢失，下游系统状态不一致
+
+需要可靠的事件发布机制，保证：
+- 事件与业务数据的原子性（要么同时成功，要么同时失败）
+- 事件不丢失（崩溃恢复后可重新发送）
+- 审计日志完整性（防篡改）
+
+候选方案：
+- **PostgreSQL LISTEN/NOTIFY + Outbox表**：利用PostgreSQL原生功能，事件与业务数据同事务写入Outbox表
+- **pg-boss**：基于PostgreSQL的任务/事件库，封装了Outbox模式
+- **NATS/Kafka**：引入外部消息中间件
+
+## Decision
+采用PostgreSQL LISTEN/NOTIFY + Outbox表方案。
+
+实现方式：
+1. 业务事务中同时写入Outbox表（事件与业务数据同事务）
+2. 事务提交后，PostgreSQL触发LISTEN/NOTIFY通知应用层
+3. 应用层收到通知后从Outbox表读取未发送事件，发送到下游
+4. 发送成功后标记Outbox记录为已处理
+5. 定时任务扫描超时未处理的Outbox记录，补偿发送
+
+## Consequences
+- (+) 无新依赖——PostgreSQL已是主数据库，不引入额外中间件
+- (+) LISTEN/NOTIFY满足当前规模（单实例 < 1000 events/s），延迟在毫秒级
+- (+) Outbox表保证事务一致性——事件与业务数据同事务写入，崩溃后Outbox记录仍存在，可补偿发送
+- (+) 未来可平滑迁移到NATS/Kafka——消费者接口不变，只需替换Outbox轮询为消息订阅
+- (+) 审计日志可基于Outbox表实现追加写入+签名，防篡改
+- (-) LISTEN/NOTIFY不支持跨进程负载均衡——通知只发给当前连接的进程，多实例部署需配合Outbox表的行级锁（SELECT ... FOR UPDATE SKIP LOCKED）实现
+- (-) 放弃pg-boss——功能完整但抽象层过厚，与BullMQ（ADR-011）职责重叠，增加维护成本
+- (-) 放弃NATS/Kafka——当前规模过度设计，引入新中间件增加运维复杂度，待规模增长后再迁移

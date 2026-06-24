@@ -1,0 +1,49 @@
+# Enterprise Rationale: Enforcing a strict, shared lint configuration ensures
+# consistent code quality across the data-fetcher service, catches common Go
+# pitfalls early (error handling, security, performance), and reduces reviewer
+# burden by automating style and correctness checks.
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Report suspicious constructs
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Go vet on steroids
+    - unused        # Find unused declarations
+    - typecheck     # Type-check the package
+    - gocritic      # Opinionated linting for performance & style
+    - gosec         # Security-oriented checks
+    - revive        # Drop-in golint replacement with extra rules
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # Too noisy for most codebases
+
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: increment-decrement
+      - name: indent-error-flow
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: var-declaration
+      - name: var-naming
+
+issues:
+  exclude-use-default: false

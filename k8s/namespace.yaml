@@ -1,0 +1,8 @@
+# 企业理由：多租户 K8s 集群中，不同项目共享集群时需要命名空间隔离资源与权限。
+# 权衡：命名空间增加了跨服务发现的配置复杂度，但安全隔离收益远大于此。
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform

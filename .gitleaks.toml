@@ -1,0 +1,30 @@
+title = "Backtest Platform Custom Rules"
+
+[[rules]]
+id = "engine-auth-token"
+description = "Engine Auth Token"
+regex = '''ENGINE_AUTH_TOKEN\s*=\s*["']([^"']+)["']'''
+secretGroup = 1
+keywords = ["ENGINE_AUTH_TOKEN"]
+
+[[rules]]
+id = "data-service-auth-token"
+description = "Data Service Auth Token"
+regex = '''DATA_SERVICE_AUTH_TOKEN\s*=\s*["']([^"']+)["']'''
+secretGroup = 1
+keywords = ["DATA_SERVICE_AUTH_TOKEN"]
+
+[[rules]]
+id = "audit-hmac-key"
+description = "Audit HMAC Key"
+regex = '''AUDIT_HMAC_KEY\s*=\s*["']([^"']+)["']'''
+secretGroup = 1
+keywords = ["AUDIT_HMAC_KEY"]
+
+[allowlist]
+description = "Allowlisted paths"
+paths = [
+  '''^\.env\.example$''',
+  '''^\.gitleaks\.toml$''',
+  '''^docs/.*''',
+]

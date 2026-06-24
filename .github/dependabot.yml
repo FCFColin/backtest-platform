@@ -1,0 +1,71 @@
+# 企业理由：依赖漏洞持续披露，无自动化更新机制意味着版本固化。
+# Dependabot 自动检测依赖更新并创建 PR，团队 review 后合并即可。
+# 多生态配置确保 npm/Go/Cargo/Docker 四个依赖源都有自动更新。
+# 权衡：PR 噪音（每周可能产生多个更新 PR）vs 安全自动化。
+# 可通过 commit-message prefix 和 label 过滤管理噪音。
+version: 2
+updates:
+  # npm 依赖（Node.js API + 前端）
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - npm
+
+  # Go 依赖（data-fetcher）
+  - package-ecosystem: gomod
+    directory: /data-fetcher
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - go
+
+  # Go 依赖（engine-go）
+  - package-ecosystem: gomod
+    directory: /engine-go
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - go
+
+  # Rust 依赖（engine-rs）
+  - package-ecosystem: cargo
+    directory: /engine-rs
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - rust
+
+  # Docker 基础镜像
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - docker

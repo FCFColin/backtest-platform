@@ -1,0 +1,18 @@
+# 企业理由：非敏感配置集中管理，避免在每个 Deployment 中硬编码环境变量。
+# 修改配置只需更新 ConfigMap + 滚动重启，无需重新构建镜像。
+# 权衡：ConfigMap 不适合敏感数据（需用 Secret），且更新后需手动触发 Pod 重启。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backtest-config
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+data:
+  NODE_ENV: "production"
+  API_PORT: "5001"
+  GO_ENGINE_URL: "http://rust-engine:5002"
+  RUST_ENGINE_URL: "http://rust-engine:5002"
+  GO_DATA_SERVICE_URL: "http://go-data:5003"
+  CORS_ORIGINS: "https://backtest.local"
+  RUST_ENGINE_TIMEOUT_MS: "5000"

@@ -1,0 +1,42 @@
+# 企业理由：回测负载波动大（白天高峰/夜间低谷），固定副本数无法弹性应对。
+# HPA 基于 CPU 使用率自动扩缩，确保高峰期有足够计算能力，
+# 低谷期释放资源节省成本。CPU>70% 触发扩容，<30% 触发缩容。
+# 权衡：HPA 依赖 Metrics Server，冷启动扩容有延迟（约 30-60s），
+# 需配合 readinessProbe 确保新 Pod 就绪后才接收流量。
+#
+# 前置依赖：必须先部署 Metrics Server，HPA 才能工作：
+#   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60

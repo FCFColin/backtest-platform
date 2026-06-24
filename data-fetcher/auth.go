@@ -1,0 +1,48 @@
+package main
+
+import (
+	"crypto/subtle"
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
+
+// DataServiceAuthMiddleware 校验 X-Data-Service-Auth 请求头与 DATA_SERVICE_AUTH_TOKEN 环境变量是否一致。
+//
+// 企业理由：data-fetcher 暴露行情数据和 baostock 实时查询 API，
+// 无认证时任意调用方可消耗外部 API 配额（baostock 限流）和磁盘 I/O 资源。
+// 使用常量时间比较防止时序侧信道泄露 token 信息。
+//
+// 配置：通过 DATA_SERVICE_AUTH_TOKEN 环境变量注入共享密钥，
+// 生产环境必须设置为强随机值（>= 32 字符）。
+func DataServiceAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		expected := os.Getenv("DATA_SERVICE_AUTH_TOKEN")
+		// 未配置 token 时拒绝所有请求，避免无认证暴露
+		if expected == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "服务端未配置认证 token",
+			})
+			return
+		}
+
+		provided := c.GetHeader("X-Data-Service-Auth")
+		if provided == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "缺少 X-Data-Service-Auth 认证头",
+			})
+			return
+		}
+
+		// 常量时间比较，防止时序攻击
+		if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "认证失败",
+			})
+			return
+		}
+
+		c.Next()
+	}
+}

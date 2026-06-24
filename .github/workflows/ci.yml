@@ -1,0 +1,467 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  # Security: gitleaks密钥扫描
+  # 企业为何需要：pre-commit可被--no-verify跳过，CI扫描是强制防线
+  # 权衡：CI增加约30秒，但阻断密钥泄露的价值远超时间成本
+  gitleaks:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better detection
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  node:
+    name: Node.js
+    runs-on: ubuntu-latest
+    # 企业理由：PostgreSQL 服务容器用于集成测试，验证 API 与数据库的交互逻辑。
+    # CI 中使用服务容器而非外部数据库，确保测试环境隔离和可重现。
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: backtest
+          POSTGRES_PASSWORD: backtest
+          POSTGRES_DB: backtest_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+        env:
+          DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
+
+      # 企业理由：Shift-left security，依赖漏洞在 CI 发现而非上线后。
+      # 修复成本随发现时间指数增长（设计时1x→开发时10x→测试时100x→生产时1000x）。
+      # 不再使用 || true：高危漏洞必须阻断 CI，否则安全扫描形同虚设。
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+      - name: Coverage report
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/vitest/
+          retention-days: 7
+
+      - name: Build
+        run: npm run build
+
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine-rs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine-rs
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Test
+        run: cargo test --verbose
+
+      # 企业理由：Rust 依赖漏洞扫描，防止已知 CVE 通过依赖链引入。
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+      - name: Security audit
+        run: cargo audit
+
+  go:
+    name: Go
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data-fetcher
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: data-fetcher/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      # 企业理由：-race 检测数据竞争。Go 的并发是核心特性，数据竞争在生产环境
+      # 会导致难以复现的内存损坏。-race 是 Go 官方竞态检测器，企业 CI 必备。
+      # -count=1 禁用测试缓存，确保竞态检测始终运行。
+      # 权衡：-race 使测试慢 2-10 倍，但只在 CI 跑，不影响开发体验。
+      - name: Test
+        run: go test -race -count=1 ./...
+
+      # 企业理由：基准测试量化核心操作性能，无基准则无法判断优化效果、检测性能回归。
+      # 权衡：CI 增加约30秒，但防止性能退化。
+      - name: Benchmark
+        run: go test -bench=. -benchmem -count=1 -run=^$ ./...
+
+      # 企业理由：golangci-lint 汇总多个 linter（errcheck/gosec/staticcheck 等），
+      # 在 CI 强制执行代码质量。配置见 data-fetcher/.golangci.yml。
+      # 无 CI 强制时，linter 配置形同虚设，PR 不会被拦截。
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: data-fetcher
+
+      # 企业理由：Go 依赖漏洞扫描，govulncheck 是 Go 官方工具。
+      - name: Vulnerability check
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
+
+  # ============================================================
+  # Go 引擎服务 CI（T-ARCH-2.5）
+  # ============================================================
+  # 企业理由：engine-go 是从 Rust 引擎迁移到 Go 的新服务（ADR-008），
+  # 需要独立的 CI 流水线确保代码质量。与 data-fetcher 分离是因为
+  # 两者 Go 版本、依赖、工作目录均不同，合并会增加维护复杂度。
+  go-engine:
+    name: Go Engine
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine-go
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: engine-go/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      # 企业理由：-race 检测数据竞争。Go 引擎涉及并发计算（蒙特卡洛模拟），
+      # 数据竞争在生产环境会导致难以复现的内存损坏。-race 是 Go 官方竞态检测器。
+      # -count=1 禁用测试缓存，确保竞态检测始终运行。
+      - name: Test
+        run: go test -race -count=1 ./...
+
+      # 企业理由：基准测试量化核心操作性能，无基准则无法判断优化效果、检测性能回归。
+      # 权衡：CI 增加约30秒，但防止性能退化。
+      - name: Benchmark
+        run: go test -bench=. -benchmem -count=1 -run=^$ -timeout=120s ./...
+
+      # 企业理由：go vet 检测常见错误（printf 参数不匹配、未使用的变量等），
+      # 是 Go 官方静态分析工具，CI 必备。
+      - name: Vet
+        run: go vet ./...
+
+      # 企业理由：golangci-lint 汇总多个 linter（errcheck/gosec/staticcheck 等），
+      # 在 CI 强制执行代码质量。配置见 engine-go/.golangci.yml。
+      # 与 data-fetcher 分离是因为两者 Go 版本、工作目录均不同。
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: engine-go
+
+      # 企业理由：Go 依赖漏洞扫描，govulncheck 是 Go 官方工具。
+      # engine-go 是新迁移引擎（ADR-008），涉及蒙特卡洛并发计算，
+      # 漏洞扫描是 CI 安全基线。
+      # 权衡：CI 增加 1-2 分钟，换取安全拦截。
+      - name: Vulnerability check
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
+
+  consistency:
+    name: Engine Consistency (Rust ↔ JS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine-rs
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Rust engine
+        run: cargo build --release
+        working-directory: engine-rs
+
+      - name: Start Rust engine
+        run: |
+          cd engine-rs && cargo run --release &
+          sleep 3
+          curl -s http://127.0.0.1:5002/api/engine/health || true
+
+      - name: Run consistency tests
+        run: npx vitest run tests/consistency
+
+  e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Start dev server
+        run: npm run dev &
+        env:
+          PORT: 5176
+
+      - name: Wait for dev server
+        run: npx wait-on http://localhost:5176 --timeout 60000
+
+      - name: Run E2E tests
+        run: npx playwright test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
+
+  # 企业理由：迁移 down 函数从未测试，生产回滚可能锁死。
+  # CI 中验证 initSchema→rollbackSchema(0)→initSchema 循环，
+  # 确保迁移可安全回滚。
+  migration-rollback:
+    name: Migration Rollback Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: backtest
+          POSTGRES_PASSWORD: backtest
+          POSTGRES_DB: backtest_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test migration up→down→up cycle
+        run: |
+          node -e "
+            const { initSchema, rollbackSchema, closeDb } = require('./dist/db/index.js');
+            async function test() {
+              console.log('Step 1: initSchema (up)');
+              await initSchema();
+              console.log('Step 2: rollbackSchema(0) (down)');
+              await rollbackSchema(0);
+              console.log('Step 3: initSchema again (up)');
+              await initSchema();
+              console.log('Migration rollback test PASSED');
+              await closeDb();
+            }
+            test().catch(e => { console.error(e); process.exit(1); });
+          "
+        env:
+          DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
+
+  # ============================================================
+  # Docker 镜像构建 + Trivy 安全扫描（T-P1-4）
+  # ============================================================
+  # 企业理由：Shift-left security 要求在 CI 阶段扫描镜像漏洞，而非上线后。
+  # 镜像 tag 为 git SHA 保证可追溯（latest 是反模式：无法定位是哪次构建）。
+  # Trivy 扫描 HIGH/CRITICAL 漏洞并阻断 CI，防止带漏洞镜像进入生产。
+  # 权衡：CI 增加 3-5 分钟，换取供应链安全。
+  docker:
+    name: Docker Build & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 企业理由：使用 BuildKit 加速构建，支持多阶段构建缓存
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 企业理由：tag 为 git SHA 保证可追溯。
+      # latest 标签无法区分构建版本，回滚和审计困难。
+      - name: Build Node API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: backtest-api:${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Go data-fetcher image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./data-fetcher
+          file: ./data-fetcher/Dockerfile
+          tags: data-fetcher:${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Rust engine image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./engine-rs
+          file: ./engine-rs/Dockerfile
+          tags: engine-rs:${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Go engine image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./engine-go
+          file: ./engine-go/Dockerfile
+          tags: engine-go:${{ github.sha }}
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 企业理由：Trivy 是 CNCF 毕业项目，容器漏洞扫描行业标准。
+      # --severity HIGH,CRITICAL 只关注高危漏洞，避免 LOW/MEDIUM 噪音。
+      # --exit-code 1 使高危漏洞阻断 CI（shift-left security）。
+      # --ignore-unfixed 只报告已有修复方案的漏洞，减少无法处理的告警。
+      - name: Trivy scan Node API
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: backtest-api:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+
+      - name: Trivy scan Go data-fetcher
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: data-fetcher:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+
+      - name: Trivy scan Rust engine
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: engine-rs:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+
+      - name: Trivy scan Go engine
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: engine-go:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+
+      # Supply Chain: 生成软件物料清单（SBOM）
+      # 企业为何需要：EO 14028/EU CRA要求软件供应链透明度，SBOM是合规基础
+      # 权衡：CI增加约1分钟，但满足SLSA Level 2要求
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: backtest-api:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: sbom-backtest-api.json
+
+      # Supply Chain: 容器镜像签名，防止供应链攻击
+      # 企业为何需要：未签名镜像可被替换为恶意镜像，cosign是Sigstore标准
+      # 权衡：需管理cosign密钥，但签名验证是SLSA Level 2必要条件
+      - name: Sign container images
+        uses: sigstore/cosign-installer@v3
+      - run: |
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY backtest-api:${{ github.sha }}
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY data-fetcher:${{ github.sha }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}

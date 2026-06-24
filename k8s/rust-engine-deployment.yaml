@@ -1,0 +1,72 @@
+# 企业理由：Rust 回测引擎是 CPU 密集型服务，多副本确保高可用。
+# 单副本即单点故障——Pod 重启/迁移期间回测请求全部排队或失败。
+# 2 副本 + readinessProbe 确保滚动更新和节点故障时仍有实例可用。
+# 权衡：Rust 引擎资源消耗大（每副本 2Gi/2CPU），多副本成本高；
+# 但回测是核心功能，不可用直接影响用户，高可用优先于资源节省。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rust-engine
+  namespace: backtest-platform
+  labels:
+    app: rust-engine
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: rust-engine
+  template:
+    metadata:
+      labels:
+        app: rust-engine
+        app.kubernetes.io/part-of: backtest-platform
+    spec:
+      containers:
+        - name: rust-engine
+          image: backtest-platform/rust-engine
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 5002
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "1"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          startupProbe:
+            httpGet:
+              path: /api/engine/health
+              port: 5002
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /api/engine/health
+              port: 5002
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/engine/health
+              port: 5002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

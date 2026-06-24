@@ -1,0 +1,116 @@
+# =============================================================================
+# 回测平台 - 开发环境 Docker Compose
+#
+# 使用方法：
+#   docker compose up -d          # 启动所有服务
+#   docker compose up -d postgres # 仅启动 PostgreSQL
+#   docker compose down           # 停止所有服务
+#
+# 企业理由（ADR-007）：开发环境需本地 PostgreSQL，
+# docker-compose 提供一键启动，确保环境一致性。
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 - 主数据库（ADR-007）
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: backtest-postgres
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_USER: backtest
+      POSTGRES_PASSWORD: backtest
+      POSTGRES_DB: backtest
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backtest"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Go 引擎服务（T-ARCH-2.5, ADR-008）
+  # ---------------------------------------------------------------------------
+  # 企业理由：Go 引擎提供单资产分析、蒙特卡洛模拟、组合优化等计算密集型 API。
+  # 与 Node.js API 服务解耦，独立部署可按需水平扩展。
+  # 依赖 postgres 用于未来持久化（如缓存计算结果）。
+  engine-go:
+    build:
+      context: ./engine-go
+      dockerfile: Dockerfile
+    container_name: backtest-engine-go
+    ports:
+      - "127.0.0.1:5004:5004"
+    environment:
+      ENGINE_GO_PORT: "5004"
+      GIN_MODE: release
+      ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5004/api/engine/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Node.js API 服务
+  # ---------------------------------------------------------------------------
+  # 企业理由：API 服务依赖 postgres（数据库）和 engine-go（计算引擎），
+  # depends_on 确保启动顺序正确，避免连接失败。
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backtest-api
+    ports:
+      - "127.0.0.1:5001:5001"
+    environment:
+      NODE_ENV: production
+      API_PORT: "5001"
+      RUST_ENGINE_URL: http://engine-go:5004
+      GO_DATA_SERVICE_URL: http://data-fetcher:5003
+      DATABASE_URL: postgresql://backtest:backtest@postgres:5432/backtest
+      ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}
+      DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      engine-go:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5001/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Go 数据获取服务
+  # ---------------------------------------------------------------------------
+  data-fetcher:
+    build:
+      context: ./data-fetcher
+      dockerfile: Dockerfile
+    container_name: backtest-data-fetcher
+    ports:
+      - "127.0.0.1:5003:5003"
+    environment:
+      DATA_FETCHER_PORT: "5003"
+      GIN_MODE: release
+      DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5003/api/data/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  pgdata:
+    driver: local

@@ -1,0 +1,8 @@
+# Security: pre-commit密钥扫描，防止凭据泄露入库
+# 企业为何需要：代码审查无法100%捕获密钥泄露，自动化扫描是必要防线
+# 权衡：增加提交耗时约1-2秒，但阻断密钥泄露的价值远超时间成本
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks

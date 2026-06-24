@@ -1,0 +1,19 @@
+# ADR-011: 认证授权模型
+
+## Status: Accepted
+
+## Context
+API Key 是静态凭证，泄露后无法撤销且无法区分用户身份。
+需要支持会话管理（过期、刷新、角色嵌入）和细粒度权限控制。
+
+## Decision
+- 认证：JWT（jose 库，RS256 算法），保留 x-api-key 兼容模式（analyst 角色）
+- 授权：RBAC 三角色（ADMIN/ANALYST/READONLY）× 七权限
+- Token 生命周期：Access Token 15min + Refresh Token 7d + 轮换机制
+- Refresh Token 存储：Redis（支持多实例 + Token Family 复用检测）
+- 幂等性：Idempotency-Key 中间件，Redis 存储
+
+## Consequences
+- 优势：RS256 支持非对称密钥轮换和 OIDC/SSO 集成
+- 劣势：Redis 成为认证依赖，不可用时降级到内存模式
+- 风险：x-api-key 兼容模式仍存在（analyst 角色，非 admin）

@@ -1,0 +1,57 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# 环境变量与密钥文件（防止密钥泄漏）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# 构建产物
+coverage/
+.nyc_output/
+*.exe
+data-fetcher/*.exe
+
+# Rust 构建产物
+engine-rs/target/
+target/
+
+# Python 缓存
+__pycache__/
+*.pyc
+
+# 运行时数据缓存
+data/cache/
+data/market/tickers/
+
+# 临时/草稿文件
+temp_*
+scratch_*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vite

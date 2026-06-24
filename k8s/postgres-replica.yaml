@@ -1,0 +1,102 @@
+# 企业理由：100x 流量下连接池耗尽是最先崩溃点。
+# 读写分离将读查询（数据获取、搜索、验证）路由到只读副本，
+# 写查询（数据更新、迁移）仍走主库。PostgreSQL 流复制保证
+# 副本数据最终一致（延迟通常 <100ms）。
+# 权衡：读副本有复制延迟，不适合强一致性读场景。
+# 当前回测平台以读为主（90%+ 读操作），收益远大于风险。
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-replica
+  namespace: backtest-platform
+  labels:
+    app: postgres-replica
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  serviceName: postgres-replica
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-replica
+  template:
+    metadata:
+      labels:
+        app: postgres-replica
+    spec:
+      securityContext:
+        fsGroup: 999
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: backtest
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: backtest
+            # 企业理由：流复制配置，连接主库同步 WAL 日志
+            - name: POSTGRES_HOST
+              value: postgres
+          command:
+            - postgres
+          args:
+            - -c
+            - hot_standby=on
+            - -c
+            - primary_conninfo=host=postgres port=5432 user=backtest password=$(POSTGRES_PASSWORD)
+            - -c
+            - standby_mode=on
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 0.5
+            limits:
+              memory: 512Mi
+              cpu: 1
+          volumeMounts:
+            - name: postgres-replica-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+            initialDelaySeconds: 60
+            periodSeconds: 30
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-replica-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replica
+  namespace: backtest-platform
+  labels:
+    app: postgres-replica
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  selector:
+    app: postgres-replica
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

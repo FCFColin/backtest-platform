@@ -1,0 +1,18 @@
+# 企业理由：PodDisruptionBudget 确保自愿驱逐（kubectl drain/集群升级）时
+# 保持最小可用副本数，防止所有 Pod 同时被驱逐导致服务不可用。
+# PDB 是 K8s 高可用基线，生产环境 Deployment 必须配置。
+# 权衡：minAvailable 限制驱逐灵活性（节点维护时需等待 Pod 调度），
+# 但保障了服务可用性。当前 api replicas:2，minAvailable:1 意味着
+# 最多允许 1 个 Pod 被驱逐，确保始终有 1 个 Pod 服务流量。
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontend-api

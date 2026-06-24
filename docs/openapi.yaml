@@ -1,0 +1,3369 @@
+openapi: 3.0.3
+
+info:
+  title: 回测平台 API
+  version: 1.0.0
+  description: |
+    回测平台提供组合回测、资产分析、蒙特卡洛模拟、组合优化、有效前沿计算、
+    战术分配、信号分析、PCA 主成分分析、LETF 滑点分析、目标优化等量化投资工具。
+
+    ## 认证
+    - 管理端点（admin、data/manage）需要 `x-api-key` 请求头认证
+    - 计算密集型端点（backtest、backtest-optimizer）可选 `x-api-key`，有 Key 时验证身份，无 Key 时放行但记录匿名访问
+    - 健康检查和 metrics 端点不需要认证
+
+    ## 速率限制
+    - 普通 API：100 次/15 分钟/IP
+    - 计算密集型 API（backtest、backtest-optimizer）：10 次/分钟/IP
+
+servers:
+  - url: http://localhost:5001/api/v1
+    description: 本地开发环境
+
+tags:
+  - name: backtest
+    description: 回测引擎（组合回测、资产分析、蒙特卡洛模拟、组合优化、有效前沿）
+  - name: data
+    description: 数据查询（历史行情、搜索、CPI）
+  - name: data-manage
+    description: 数据引擎管理（状态、统计、更新、标的管理）
+  - name: admin
+    description: 管理后台（仪表盘统计、系统资源）
+  - name: health
+    description: 健康检查与监控指标
+  - name: tactical
+    description: 战术分配（信号驱动动态权重回测）
+  - name: tactical-grid
+    description: 战术网格搜索（参数空间遍历优化）
+  - name: pca
+    description: 主成分分析
+  - name: signal
+    description: 信号分析（单信号、双信号、多信号）
+  - name: letf
+    description: 杠杆 ETF 滑点分析
+  - name: goal-optimizer
+    description: 目标优化（蒙特卡洛模拟财务目标达成概率）
+  - name: backtest-optimizer
+    description: 回测参数优化器（遍历参数空间）
+  - name: auth
+    description: 认证鉴权（登录、令牌刷新、登出、身份查询）
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT 访问令牌，通过 /auth/login 获取
+
+  parameters:
+    # 企业理由：幂等性 Key 是 REST API 标准实践（Stripe、AWS 均采用），
+    # 管理端点的写操作在网络抖动或客户端超时重试时可能被重复执行，
+    # 导致数据重复创建或配置被反复覆盖。Idempotency-Key 让客户端能
+    # 安全重试而不产生副作用。将其定义为可复用参数，管理端点的 POST
+    # 操作统一引用。
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 128
+      description: |
+        幂等性 Key，用于防止管理端点写操作的重复执行。
+        - 客户端在 POST 请求中携带唯一的 Idempotency-Key
+        - 相同 Key 的请求在 1 小时内返回缓存结果，不重复执行业务逻辑
+        - 仅对 POST 写操作生效，GET 请求忽略此头
+        - Key 长度不能超过 128 字符
+        - 建议使用 UUID v4 格式
+
+  schemas:
+    # ===== 通用 =====
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          oneOf:
+            - type: string
+            - type: object
+              required:
+                - code
+                - message
+              properties:
+                code:
+                  type: string
+                  description: 机器可读错误码
+                message:
+                  type: string
+                  description: 人类可读错误描述
+
+    # ===== 认证鉴权 =====
+    # 企业理由：API 契约文档是前后端协作的唯一可靠依据。
+    # 认证流程涉及令牌签发、刷新、撤销，任何字段歧义都会导致集成故障，
+    # 因此必须将 LoginRequest / TokenResponse / UserInfo 等结构固化到 OpenAPI 规范中，
+    # 确保客户端与服务端对令牌生命周期管理达成一致理解。
+    LoginRequest:
+      type: object
+      required:
+        - apiKey
+      properties:
+        apiKey:
+          type: string
+          description: API 密钥，用于换取访问令牌
+
+    RefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          description: 刷新令牌，用于获取新的访问令牌
+
+    TokenResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          description: JWT 访问令牌，用于后续请求的 Bearer 认证
+        refreshToken:
+          type: string
+          description: 刷新令牌，用于获取新的访问令牌
+        expiresIn:
+          type: number
+          description: 访问令牌有效时长（秒）
+
+    UserInfo:
+      type: object
+      required:
+        - sub
+        - role
+        - iat
+        - exp
+      properties:
+        sub:
+          type: string
+          description: 用户唯一标识
+        role:
+          type: string
+          description: 用户角色
+          enum: [admin, analyst, readonly]
+        iat:
+          type: number
+          description: 令牌签发时间（Unix 时间戳，秒）
+        exp:
+          type: number
+          description: 令牌过期时间（Unix 时间戳，秒）
+
+    # RFC 7807 Problem Detail —— 认证端点统一错误格式
+    # 企业理由：采用 RFC 7807 标准化错误响应，使客户端能以统一逻辑解析所有 API 错误，
+    # 降低因错误格式不一致导致的集成风险和排障成本。
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          description: 错误类型的 URI 标识（RFC 7807）
+        title:
+          type: string
+          description: 人类可读的错误标题
+        status:
+          type: integer
+          description: HTTP 状态码
+        detail:
+          type: string
+          description: 错误详细描述
+        instance:
+          type: string
+          format: uri
+          description: 发生错误的具体请求路径
+
+    # ===== 资产与组合 =====
+    Asset:
+      type: object
+      required:
+        - ticker
+        - weight
+      properties:
+        id:
+          type: string
+        ticker:
+          type: string
+          description: 资产代码
+        weight:
+          type: number
+          description: 权重百分比
+
+    RebalanceBands:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        absoluteBand:
+          type: number
+          description: 绝对偏离百分比
+        relativeBand:
+          type: number
+          description: 相对偏离百分比
+        upperBand:
+          type: number
+          description: 上限偏离百分比
+        lowerBand:
+          type: number
+          description: 下限偏离百分比
+
+    Portfolio:
+      type: object
+      required:
+        - id
+        - name
+        - assets
+        - rebalanceFrequency
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+        rebalanceFrequency:
+          type: string
+          enum: [daily, weekly, monthly, quarterly, annual, none, threshold]
+        rebalanceThreshold:
+          type: number
+          description: 偏离调仓阈值（百分比），仅 threshold 模式有效
+        rebalanceOffset:
+          type: number
+          description: 调仓偏移（交易日）
+        rebalanceBands:
+          $ref: '#/components/schemas/RebalanceBands'
+        drag:
+          type: number
+          description: 年化拖累百分比，如 0.5 表示每年额外扣除 0.5%
+        totalReturn:
+          type: boolean
+          description: 是否将分红再投资
+        isGlidepath:
+          type: boolean
+        glidepathFrom:
+          type: string
+        glidepathTo:
+          type: string
+        glidepathYears:
+          type: number
+        glidepathToWeights:
+          type: array
+          items:
+            type: number
+
+    CashflowLeg:
+      type: object
+      required:
+        - id
+        - amount
+        - type
+        - frequency
+        - offset
+      properties:
+        id:
+          type: string
+        amount:
+          type: number
+        type:
+          type: string
+          enum: [contribution, withdrawal]
+        frequency:
+          type: string
+          enum: [yearly, monthly, quarterly, weekly]
+        offset:
+          type: number
+        until:
+          type: string
+          description: 结束日期
+
+    OneTimeCashflow:
+      type: object
+      required:
+        - id
+        - amount
+        - type
+        - date
+      properties:
+        id:
+          type: string
+        amount:
+          type: number
+        type:
+          type: string
+          enum: [contribution, withdrawal]
+        date:
+          type: string
+          format: date
+
+    BacktestParameters:
+      type: object
+      required:
+        - startDate
+        - endDate
+        - startingValue
+        - adjustForInflation
+        - rollingWindowMonths
+        - benchmarkTicker
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        startingValue:
+          type: number
+        baseCurrency:
+          type: string
+          enum: [usd, cny]
+          default: usd
+        adjustForInflation:
+          type: boolean
+        rollingWindowMonths:
+          type: number
+          default: 12
+        benchmarkTicker:
+          type: string
+        extendedWithdrawalStats:
+          type: boolean
+        cashflowLegs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashflowLeg'
+        oneTimeCashflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/OneTimeCashflow'
+
+    # ===== 统计 =====
+    Statistics:
+      type: object
+      properties:
+        cagr:
+          type: number
+        mwrr:
+          type: number
+        totalReturn:
+          type: number
+        bestYear:
+          type: number
+        worstYear:
+          type: number
+        avgYear:
+          type: number
+        stdev:
+          type: number
+        maxDrawdown:
+          type: number
+        maxDrawdownDuration:
+          type: number
+        sharpe:
+          type: number
+        sortino:
+          type: number
+        calmar:
+          type: number
+        ulcerIndex:
+          type: number
+        alpha:
+          type: number
+        beta:
+          type: number
+        rSquared:
+          type: number
+        trackingError:
+          type: number
+        informationRatio:
+          type: number
+        upsideCapture:
+          type: number
+        downsideCapture:
+          type: number
+        var5:
+          type: number
+        cvar5:
+          type: number
+        skewness:
+          type: number
+        excessKurtosis:
+          type: number
+        pctPositiveDays:
+          type: number
+        maxDailyReturn:
+          type: number
+        minDailyReturn:
+          type: number
+
+    DragResult:
+      type: object
+      properties:
+        totalDrag:
+          type: number
+        annualDrag:
+          type: number
+        dragSeries:
+          type: array
+          items:
+            type: number
+
+    PortfolioResult:
+      type: object
+      properties:
+        name:
+          type: string
+        growthCurve:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              value:
+                type: number
+        drawdownCurve:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              drawdown:
+                type: number
+        rollingReturns:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              return:
+                type: number
+        annualReturns:
+          type: array
+          items:
+            type: object
+            properties:
+              year:
+                type: integer
+              return:
+                type: number
+        monthlyReturns:
+          type: array
+          items:
+            type: object
+            properties:
+              year:
+                type: integer
+              month:
+                type: integer
+              return:
+                type: number
+        statistics:
+          $ref: '#/components/schemas/Statistics'
+        drag:
+          $ref: '#/components/schemas/DragResult'
+
+    BacktestResult:
+      type: object
+      properties:
+        portfolios:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioResult'
+        correlations:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        benchmarkGrowth:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              value:
+                type: number
+
+    # ===== 战术分配 =====
+    SignalCondition:
+      type: object
+      required:
+        - indicator
+        - period
+        - operator
+        - threshold
+      properties:
+        indicator:
+          type: string
+          enum: [sma, ema, rsi, macd, bollinger, momentum]
+        period:
+          type: number
+        operator:
+          type: string
+          enum: [gt, lt, cross_above, cross_below]
+        threshold:
+          type: number
+
+    TradingSignal:
+      type: object
+      required:
+        - id
+        - name
+        - conditions
+        - targetWeights
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SignalCondition'
+        targetWeights:
+          type: array
+          items:
+            type: object
+            required:
+              - ticker
+              - weight
+            properties:
+              ticker:
+                type: string
+              weight:
+                type: number
+
+    TacticalStrategy:
+      type: object
+      required:
+        - id
+        - name
+        - signals
+        - aggregationMethod
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/TradingSignal'
+        aggregationMethod:
+          type: string
+          enum: [weighted_average, rank, voting]
+        rankingConfig:
+          type: object
+          properties:
+            method:
+              type: string
+              enum: [fixed_share, risk_parity]
+            topN:
+              type: number
+
+    EmailAlertConfig:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+        email:
+          type: string
+          format: email
+        triggers:
+          type: array
+          items:
+            type: string
+            enum: [signal_change, rebalance, threshold]
+
+    # ===== 信号分析 =====
+    SignalAnalysisRequest:
+      type: object
+      required:
+        - ticker
+        - indicator
+        - period
+        - threshold
+        - startDate
+        - endDate
+        - signalType
+      properties:
+        ticker:
+          type: string
+        indicator:
+          type: string
+          description: "技术指标：sma, ema, rsi, macd, bollinger"
+        period:
+          type: number
+        threshold:
+          type: number
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        signalType:
+          type: string
+          enum: [entry, exit, both]
+
+    SignalAnalysisResult:
+      type: object
+      properties:
+        signals:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              type:
+                type: string
+                enum: [buy, sell]
+              price:
+                type: number
+        statistics:
+          type: object
+          properties:
+            totalSignals:
+              type: number
+            winRate:
+              type: number
+            avgReturn:
+              type: number
+            maxDrawdown:
+              type: number
+            sharpe:
+              type: number
+        equityCurve:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              value:
+                type: number
+
+    DualSignalConfig:
+      type: object
+      required:
+        - signal1
+        - signal2
+        - combinationMethod
+      properties:
+        signal1:
+          $ref: '#/components/schemas/SignalAnalysisRequest'
+        signal2:
+          $ref: '#/components/schemas/SignalAnalysisRequest'
+        combinationMethod:
+          type: string
+          enum: [and, or, xor]
+
+    MultiSignalConfig:
+      type: object
+      required:
+        - signals
+        - aggregationMethod
+      properties:
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/SignalAnalysisRequest'
+        aggregationMethod:
+          type: string
+          enum: [weighted, voting, rank]
+        weights:
+          type: array
+          items:
+            type: number
+
+    # ===== PCA =====
+    PCARequest:
+      type: object
+      required:
+        - tickers
+        - startDate
+        - endDate
+      properties:
+        tickers:
+          type: array
+          items:
+            type: string
+          minItems: 2
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        numComponents:
+          type: number
+          description: 保留的主成分数量，默认全部保留
+
+    PCAResult:
+      type: object
+      properties:
+        eigenvalues:
+          type: array
+          items:
+            type: number
+        cumulativeVariance:
+          type: array
+          items:
+            type: number
+        loadings:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        scores:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        tickers:
+          type: array
+          items:
+            type: string
+
+    # ===== LETF =====
+    LETFRequest:
+      type: object
+      required:
+        - letfTicker
+        - benchmarkTicker
+        - leverage
+        - startDate
+        - endDate
+      properties:
+        letfTicker:
+          type: string
+          description: 杠杆 ETF 代码
+        benchmarkTicker:
+          type: string
+          description: 基准指数代码
+        leverage:
+          type: number
+          description: 杠杆倍数（正数）
+          exclusiveMinimum: 0
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+
+    LETFResult:
+      type: object
+      properties:
+        slippageCurve:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              slippage:
+                type: number
+        annualDecay:
+          type: number
+          description: 年化拖累
+        effectiveLeverage:
+          type: array
+          items:
+            type: number
+        stats:
+          type: object
+          properties:
+            benchmarkReturn:
+              type: number
+            letfReturn:
+              type: number
+            expectedReturn:
+              type: number
+            slippage:
+              type: number
+
+    # ===== 目标优化 =====
+    GoalOptimizerRequest:
+      type: object
+      required:
+        - targetAmount
+        - initialAmount
+        - years
+        - assets
+      properties:
+        targetAmount:
+          type: number
+          description: 目标金额（正数）
+          exclusiveMinimum: 0
+        initialAmount:
+          type: number
+          description: 初始金额（正数）
+          exclusiveMinimum: 0
+        years:
+          type: number
+          description: 时间范围（年，正数）
+          exclusiveMinimum: 0
+        assets:
+          type: array
+          items:
+            type: object
+            required:
+              - ticker
+              - weight
+            properties:
+              ticker:
+                type: string
+              weight:
+                type: number
+          minItems: 1
+        constraints:
+          type: object
+          properties:
+            maxDrawdown:
+              type: number
+              description: 最大回撤约束（小数形式）
+            minSuccessRate:
+              type: number
+              description: 最低成功率约束
+            maxVolatility:
+              type: number
+              description: 最大波动率约束（年化，小数形式）
+        numSimulations:
+          type: number
+          description: 蒙特卡洛模拟次数，默认 1000，上限 10000
+          default: 1000
+          maximum: 10000
+
+    GoalOptimizerResult:
+      type: object
+      properties:
+        successProbability:
+          type: number
+          description: 达成目标的概率（0-1）
+        probabilityCurve:
+          type: array
+          items:
+            type: object
+            properties:
+              amount:
+                type: number
+              probability:
+                type: number
+        optimalPath:
+          type: array
+          items:
+            type: object
+            properties:
+              year:
+                type: number
+              median:
+                type: number
+              p10:
+                type: number
+              p90:
+                type: number
+        recommendation:
+          type: object
+          properties:
+            expectedReturn:
+              type: number
+            requiredContribution:
+              type: number
+              description: 建议每年定期投入金额
+            successRate:
+              type: number
+
+    # ===== 回测优化器 =====
+    OptimizeRequest:
+      type: object
+      required:
+        - tickers
+        - parameters
+      properties:
+        tickers:
+          type: array
+          items:
+            type: string
+          maxItems: 50
+        objective:
+          type: string
+          enum: [maxSharpe, minVolatility, maxReturn]
+          description: 优化目标
+        constraints:
+          type: object
+          properties:
+            minWeight:
+              type: number
+            maxWeight:
+              type: number
+        parameters:
+          $ref: '#/components/schemas/BacktestParameters'
+        riskFreeRate:
+          type: number
+        numIterations:
+          type: number
+          description: 迭代次数，上限 100000，默认 10000
+
+    BacktestOptimizerRequest:
+      type: object
+      required:
+        - portfolio
+        - parameterSpace
+        - parameters
+        - objective
+      properties:
+        portfolio:
+          type: object
+          required:
+            - assets
+          properties:
+            name:
+              type: string
+            assets:
+              type: array
+              items:
+                type: object
+                required:
+                  - ticker
+                  - weight
+                properties:
+                  ticker:
+                    type: string
+                  weight:
+                    type: number
+        parameterSpace:
+          type: object
+          required:
+            - rebalanceFrequencies
+            - initialCapital
+          properties:
+            rebalanceFrequencies:
+              type: array
+              items:
+                type: string
+                enum: [daily, weekly, monthly, quarterly, annual, none, threshold]
+            rebalanceThreshold:
+              type: object
+              properties:
+                min:
+                  type: number
+                max:
+                  type: number
+                step:
+                  type: number
+            initialCapital:
+              type: object
+              required:
+                - min
+                - max
+                - step
+              properties:
+                min:
+                  type: number
+                max:
+                  type: number
+                step:
+                  type: number
+        parameters:
+          type: object
+          required:
+            - startDate
+            - endDate
+          properties:
+            startDate:
+              type: string
+              format: date
+            endDate:
+              type: string
+              format: date
+            benchmarkTicker:
+              type: string
+            baseCurrency:
+              type: string
+              enum: [usd, cny]
+            adjustForInflation:
+              type: boolean
+        objective:
+          type: string
+          enum: [maxCagr, minMaxDrawdown, maxSharpe, maxSortino]
+        constraints:
+          type: object
+          properties:
+            maxDrawdown:
+              type: number
+              description: 最大回撤百分比，如 20 表示 20%
+            minCagr:
+              type: number
+              description: 最低年化收益百分比
+
+    # ===== 战术网格搜索 =====
+    TacticalGridRequest:
+      type: object
+      required:
+        - indicator
+        - param1
+        - param2
+        - tickers
+        - startDate
+        - endDate
+        - startingValue
+        - rebalanceFrequency
+        - objective
+      properties:
+        indicator:
+          type: string
+          enum: [sma, ema, rsi]
+        param1:
+          type: object
+          required:
+            - min
+            - max
+            - step
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+            step:
+              type: number
+          description: 参数1范围（周期）
+        param2:
+          type: object
+          required:
+            - min
+            - max
+            - step
+          properties:
+            min:
+              type: number
+            max:
+              type: number
+            step:
+              type: number
+          description: 参数2范围（阈值）
+        tickers:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        startingValue:
+          type: number
+        rebalanceFrequency:
+          type: string
+          enum: [daily, weekly, monthly, quarterly, annual, none]
+        objective:
+          type: string
+          enum: [maxCAGR, minDrawdown, maxSharpe]
+        topN:
+          type: number
+          default: 10
+          description: 返回 Top N 结果
+
+    # ===== 蒙特卡洛 =====
+    MonteCarloParams:
+      type: object
+      properties:
+        numSimulations:
+          type: number
+          description: 模拟次数
+        blockSize:
+          type: number
+          description: 区块大小
+        withReplacement:
+          type: boolean
+        confidenceLevel:
+          type: number
+        distribution:
+          type: string
+        seed:
+          type: number
+
+paths:
+  # ===== 认证鉴权 =====
+  # 企业理由：认证端点是系统安全边界的第一道关卡，
+  # 将其契约固化到 OpenAPI 规范中，确保令牌签发、刷新、撤销、
+  # 身份查询等流程的前后端实现严格一致，避免因接口理解偏差导致安全漏洞。
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: API 密钥登录
+      description: |
+        使用 API 密钥换取访问令牌和刷新令牌。
+        返回的 accessToken 用于后续请求的 Bearer 认证，
+        refreshToken 用于在 accessToken 过期后获取新的令牌对。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 登录成功，返回令牌对
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: API 密钥无效或已禁用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: 刷新访问令牌
+      description: |
+        使用刷新令牌获取新的访问令牌和刷新令牌对。
+        旧的刷新令牌在换取后立即失效（一次性使用），防止令牌重放攻击。
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: 刷新成功，返回新令牌对
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: 刷新令牌无效或已过期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /auth/logout:
+    delete:
+      tags: [auth]
+      summary: 登出并撤销令牌
+      description: |
+        撤销指定的刷新令牌，使其无法再用于获取新的访问令牌。
+        需要提供有效的 Bearer 访问令牌进行身份验证。
+
+        **HTTP 方法语义**：logout 语义为"删除/撤销会话令牌"，
+        对应 REST 中 DELETE 方法（RFC 9110 §9.3）。
+        DELETE 表示"删除目标资源"，logout 正是删除一个已存在的会话/令牌资源。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: 需要撤销的刷新令牌
+      responses:
+        '200':
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  message:
+                    type: string
+        '401':
+          description: 访问令牌无效或已过期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    post:
+      tags: [auth]
+      summary: "（已废弃）登出并撤销令牌"
+      deprecated: true
+      description: |
+        **已废弃**，请使用 DELETE /auth/logout 替代。
+
+        此端点将在 Sunset 日期后移除。迁移期间仍可使用，
+        但响应将包含 Deprecation 和 Sunset 头。
+
+        废弃原因：logout 语义为"删除会话/令牌"，应使用 DELETE 方法
+        而非 POST，以符合 RESTful 语义（RFC 9110 §9.3）。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: 需要撤销的刷新令牌
+      responses:
+        '200':
+          description: 登出成功（已废弃）
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                enum: ["true"]
+              description: "RFC 8594 - 此端点已废弃"
+            Sunset:
+              schema:
+                type: string
+                format: date
+              description: "RFC 8594 - 此端点将被移除的日期"
+            Link:
+              schema:
+                type: string
+              description: '指向替代端点，格式: </api/v1/auth/logout>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - message
+                properties:
+                  success:
+                    type: boolean
+                    enum: [true]
+                  message:
+                    type: string
+        '401':
+          description: 访问令牌无效或已过期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: 查询当前身份
+      description: |
+        返回当前 Bearer 令牌对应的用户身份信息，包括用户标识、角色、
+        令牌签发时间和过期时间。用于客户端验证令牌有效性及获取用户角色。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 当前用户身份信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '401':
+          description: 访问令牌无效或已过期
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # ===== 回测引擎 =====
+  /backtest/search:
+    get:
+      tags: [backtest]
+      summary: 搜索资产代码
+      description: 根据关键词搜索匹配的资产代码
+      security:
+        - ApiKeyAuth: []
+        - {}
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 搜索关键词
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: 返回结果数量上限
+      responses:
+        '200':
+          description: 搜索结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '400':
+          description: 缺少 query 参数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 搜索失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /backtest/portfolio:
+    post:
+      tags: [backtest]
+      summary: 运行组合回测
+      description: |
+        接收组合配置和回测参数，运行组合回测。
+        优先使用 Rust 引擎计算，失败时降级到 Node.js 引擎。
+        降级模式下响应会包含 `degraded: true` 和 `degradedWarning` 字段。
+      security:
+        - ApiKeyAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - portfolios
+                - parameters
+              properties:
+                portfolios:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Portfolio'
+                  maxItems: 50
+                parameters:
+                  $ref: '#/components/schemas/BacktestParameters'
+      responses:
+        '200':
+          description: 回测结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BacktestResult'
+                  degraded:
+                    type: boolean
+                    description: 是否降级到 Node.js 引擎
+                  degradedWarning:
+                    type: string
+                  warnings:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 回测运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /backtest/analysis:
+    post:
+      tags: [backtest]
+      summary: 运行资产分析
+      description: 对多个资产行情数据进行分析，计算收益率、相关性等统计指标
+      security:
+        - ApiKeyAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tickers
+                - parameters
+              properties:
+                tickers:
+                  oneOf:
+                    - type: array
+                      items:
+                        type: string
+                      maxItems: 50
+                    - type: string
+                      description: 空格或逗号分隔的 ticker 字符串
+                parameters:
+                  $ref: '#/components/schemas/BacktestParameters'
+      responses:
+        '200':
+          description: 分析结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      tickers:
+                        type: array
+                        items:
+                          type: object
+                      correlations:
+                        type: array
+                        items:
+                          type: array
+                          items:
+                            type: number
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 分析运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /backtest/monte-carlo:
+    post:
+      tags: [backtest]
+      summary: 运行蒙特卡洛模拟
+      description: 对投资组合运行蒙特卡洛模拟，支持单个或多个组合
+      security:
+        - ApiKeyAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                portfolio:
+                  $ref: '#/components/schemas/Portfolio'
+                  description: 单个组合（与 portfolios 二选一）
+                portfolios:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Portfolio'
+                  maxItems: 50
+                  description: 多个组合（与 portfolio 二选一）
+                parameters:
+                  $ref: '#/components/schemas/BacktestParameters'
+                mcParams:
+                  $ref: '#/components/schemas/MonteCarloParams'
+      responses:
+        '200':
+          description: 蒙特卡洛模拟结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 模拟运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /backtest/optimize:
+    post:
+      tags: [backtest]
+      summary: 运行组合优化
+      description: 根据目标函数和约束条件优化资产权重
+      security:
+        - ApiKeyAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizeRequest'
+      responses:
+        '200':
+          description: 优化结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 优化运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /backtest/efficient-frontier:
+    post:
+      tags: [backtest]
+      summary: 计算有效前沿
+      description: 计算给定资产集合的有效前沿曲线
+      security:
+        - ApiKeyAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tickers
+                - parameters
+              properties:
+                tickers:
+                  type: array
+                  items:
+                    type: string
+                  maxItems: 50
+                numPoints:
+                  type: number
+                  description: 有效前沿上的点数，默认 20
+                  default: 20
+                parameters:
+                  $ref: '#/components/schemas/BacktestParameters'
+                riskFreeRate:
+                  type: number
+                  default: 0.02
+                numIterations:
+                  type: number
+      responses:
+        '200':
+          description: 有效前沿结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 计算运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 数据查询 =====
+  /data/history:
+    get:
+      tags: [data]
+      summary: 获取历史行情数据
+      description: 获取指定资产的历史价格数据
+      parameters:
+        - name: tickers
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 逗号分隔的资产代码，如 SPY,VTI
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 开始日期
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 结束日期
+      responses:
+        '200':
+          description: 历史数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    description: "{ ticker: { date: price } }"
+                    additionalProperties:
+                      type: object
+                      additionalProperties:
+                        type: number
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 数据获取失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/search:
+    get:
+      tags: [data]
+      summary: 搜索资产代码
+      description: 根据关键词搜索资产代码，支持中英文搜索
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 搜索关键词
+        - name: market
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 市场筛选（如 A股）
+      responses:
+        '200':
+          description: 搜索结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '400':
+          description: 缺少 query 参数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 搜索失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/cpi/{country}:
+    get:
+      tags: [data]
+      summary: 获取 CPI 数据
+      description: 获取指定国家的消费者价格指数数据
+      parameters:
+        - name: country
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [us, cn]
+          description: 国家代码
+      responses:
+        '200':
+          description: CPI 数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                        value:
+                          type: number
+        '400':
+          description: 不支持的国家代码
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: CPI 数据文件不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 数据获取失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 数据引擎管理 =====
+  /data/manage/status:
+    get:
+      tags: [data-manage]
+      summary: 获取数据引擎状态
+      description: 返回数据引擎的当前运行状态
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: 引擎状态
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 获取状态失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/stats:
+    get:
+      tags: [data-manage]
+      summary: 获取详细统计
+      description: 返回数据引擎的详细统计信息，包括时间范围、数据量、质量指标
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: 详细统计
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      stats:
+                        type: object
+                        nullable: true
+                      universe:
+                        type: object
+                      scanning:
+                        type: boolean
+                        description: 是否正在后台扫描
+        '500':
+          description: 获取统计失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/tickers:
+    get:
+      tags: [data-manage]
+      summary: 获取标的列表
+      description: 返回所有已缓存的标的代码列表
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: 标的列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+        '500':
+          description: 获取列表失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/search:
+    get:
+      tags: [data-manage]
+      summary: 搜索标的
+      description: 在已缓存的标的中搜索
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 搜索关键词
+      responses:
+        '200':
+          description: 搜索结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '400':
+          description: 缺少 q 参数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 搜索失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/update/full:
+    put:
+      tags: [data-manage]
+      summary: 全量更新
+      description: |
+        触发数据引擎全量更新，替换所有数据。
+
+        **HTTP 方法语义**：全量更新语义为"替换所有数据"，
+        符合 PUT 的完整替换语义（RFC 9110 §9.6.3）。
+        PUT 天然幂等——重复调用不会产生不同结果，
+        客户端可安全重试，中间代理可缓存 PUT 响应。
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '202':
+          description: 触发成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 触发失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [data-manage]
+      summary: "（已废弃）全量更新"
+      deprecated: true
+      description: |
+        **已废弃**，请使用 PUT /data/manage/update/full 替代。
+
+        此端点将在 Sunset 日期后移除。迁移期间仍可使用，
+        但响应将包含 Deprecation 和 Sunset 头。
+
+        废弃原因：全量更新语义为"替换所有数据"，应使用 PUT 方法
+        而非 POST，以符合 RESTful 幂等语义（RFC 9110 §9.6.3）。
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: 触发成功（已废弃）
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                enum: ["true"]
+              description: "RFC 8594 - 此端点已废弃"
+            Sunset:
+              schema:
+                type: string
+                format: date
+              description: "RFC 8594 - 此端点将被移除的日期"
+            Link:
+              schema:
+                type: string
+              description: '指向替代端点，格式: </api/v1/data/manage/update/full>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 触发失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/update/inc:
+    patch:
+      tags: [data-manage]
+      summary: 增量更新
+      description: |
+        触发数据引擎增量更新，仅补充缺失数据。
+
+        **HTTP 方法语义**：增量更新语义为"仅补充缺失数据"，
+        是对现有数据集的部分修改，符合 PATCH 的部分更新语义（RFC 5789）。
+        与 PUT（完整替换）不同，PATCH 只影响缺失部分。
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '202':
+          description: 触发成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 触发失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [data-manage]
+      summary: "（已废弃）增量更新"
+      deprecated: true
+      description: |
+        **已废弃**，请使用 PATCH /data/manage/update/inc 替代。
+
+        此端点将在 Sunset 日期后移除。迁移期间仍可使用，
+        但响应将包含 Deprecation 和 Sunset 头。
+
+        废弃原因：增量更新语义为"部分修改"，应使用 PATCH 方法
+        而非 POST，以符合 RESTful 部分更新语义（RFC 5789）。
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: 触发成功（已废弃）
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                enum: ["true"]
+              description: "RFC 8594 - 此端点已废弃"
+            Sunset:
+              schema:
+                type: string
+                format: date
+              description: "RFC 8594 - 此端点将被移除的日期"
+            Link:
+              schema:
+                type: string
+              description: '指向替代端点，格式: </api/v1/data/manage/update/inc>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 触发失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/update/refetch:
+    put:
+      tags: [data-manage]
+      summary: 重新获取已有标的完整历史
+      description: |
+        触发重新获取所有已有标的的完整历史数据，完整替换现有数据。
+
+        **HTTP 方法语义**：refetch 语义为"完整替换已有标的的历史数据"，
+        符合 PUT 的完整替换语义（RFC 9110 §9.6.3）。幂等——重复调用最终产生相同数据状态。
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '202':
+          description: 触发成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 触发失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [data-manage]
+      summary: "（已废弃）重新获取已有标的完整历史"
+      deprecated: true
+      description: |
+        **已废弃**，请使用 PUT /data/manage/update/refetch 替代。
+
+        此端点将在 Sunset 日期后移除。迁移期间仍可使用，
+        但响应将包含 Deprecation 和 Sunset 头。
+
+        废弃原因：refetch 语义为"完整替换历史数据"，应使用 PUT 方法
+        而非 POST，以符合 RESTful 幂等语义（RFC 9110 §9.6.3）。
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: 触发成功（已废弃）
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                enum: ["true"]
+              description: "RFC 8594 - 此端点已废弃"
+            Sunset:
+              schema:
+                type: string
+                format: date
+              description: "RFC 8594 - 此端点将被移除的日期"
+            Link:
+              schema:
+                type: string
+              description: '指向替代端点，格式: </api/v1/data/manage/update/refetch>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 触发失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/resume:
+    patch:
+      tags: [data-manage]
+      summary: 恢复中断
+      description: |
+        恢复之前中断的数据更新任务，将任务状态从暂停修改为运行。
+
+        **HTTP 方法语义**：resume 语义为"将中断的任务状态从暂停修改为运行"，
+        是对任务状态的部分修改，符合 PATCH 语义（RFC 5789）。
+        不是完整替换任务，而是修改其 state 字段。
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '202':
+          description: 恢复成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 恢复失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [data-manage]
+      summary: "（已废弃）恢复中断"
+      deprecated: true
+      description: |
+        **已废弃**，请使用 PATCH /data/manage/resume 替代。
+
+        此端点将在 Sunset 日期后移除。迁移期间仍可使用，
+        但响应将包含 Deprecation 和 Sunset 头。
+
+        废弃原因：resume 语义为"部分修改任务状态"，应使用 PATCH 方法
+        而非 POST，以符合 RESTful 部分更新语义（RFC 5789）。
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: 恢复成功（已废弃）
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                enum: ["true"]
+              description: "RFC 8594 - 此端点已废弃"
+            Sunset:
+              schema:
+                type: string
+                format: date
+              description: "RFC 8594 - 此端点将被移除的日期"
+            Link:
+              schema:
+                type: string
+              description: '指向替代端点，格式: </api/v1/data/manage/resume>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 恢复失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/universe:
+    put:
+      tags: [data-manage]
+      summary: 刷新宇宙
+      description: |
+        刷新投资宇宙列表，完整替换现有宇宙数据。
+
+        **HTTP 方法语义**：universe refresh 语义为"完整替换投资宇宙列表"，
+        符合 PUT 的完整替换语义（RFC 9110 §9.6.3）。幂等——重复刷新产生相同的宇宙集合。
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '202':
+          description: 刷新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 刷新失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [data-manage]
+      summary: "（已废弃）刷新宇宙"
+      deprecated: true
+      description: |
+        **已废弃**，请使用 PUT /data/manage/universe 替代。
+
+        此端点将在 Sunset 日期后移除。迁移期间仍可使用，
+        但响应将包含 Deprecation 和 Sunset 头。
+
+        废弃原因：universe refresh 语义为"完整替换宇宙列表"，应使用 PUT 方法
+        而非 POST，以符合 RESTful 幂等语义（RFC 9110 §9.6.3）。
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: 刷新成功（已废弃）
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                enum: ["true"]
+              description: "RFC 8594 - 此端点已废弃"
+            Sunset:
+              schema:
+                type: string
+                format: date
+              description: "RFC 8594 - 此端点将被移除的日期"
+            Link:
+              schema:
+                type: string
+              description: '指向替代端点，格式: </api/v1/data/manage/universe>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '500':
+          description: 刷新失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/ticker/{id}:
+    get:
+      tags: [data-manage]
+      summary: 获取单个标的数据
+      description: 获取指定标的的详细数据
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[A-Z0-9._-]{1,20}$'
+          description: 标的代码
+      responses:
+        '200':
+          description: 标的数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '400':
+          description: ticker 参数格式非法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 标的不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 获取数据失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /data/manage/regenerate-meta:
+    put:
+      tags: [data-manage]
+      summary: 重新生成元数据文件
+      description: |
+        重新生成所有标的的元数据文件，完整替换现有元数据。
+
+        **HTTP 方法语义**：regenerate-meta 语义为"完整替换所有元数据文件"，
+        符合 PUT 的完整替换语义（RFC 9110 §9.6.3）。幂等——重复生成产生相同的元数据文件。
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: 生成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '500':
+          description: 生成失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [data-manage]
+      summary: "（已废弃）重新生成元数据文件"
+      deprecated: true
+      description: |
+        **已废弃**，请使用 PUT /data/manage/regenerate-meta 替代。
+
+        此端点将在 Sunset 日期后移除。迁移期间仍可使用，
+        但响应将包含 Deprecation 和 Sunset 头。
+
+        废弃原因：regenerate-meta 语义为"完整替换元数据文件"，应使用 PUT 方法
+        而非 POST，以符合 RESTful 幂等语义（RFC 9110 §9.6.3）。
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: 生成成功（已废弃）
+          headers:
+            Deprecation:
+              schema:
+                type: string
+                enum: ["true"]
+              description: "RFC 8594 - 此端点已废弃"
+            Sunset:
+              schema:
+                type: string
+                format: date
+              description: "RFC 8594 - 此端点将被移除的日期"
+            Link:
+              schema:
+                type: string
+              description: '指向替代端点，格式: </api/v1/data/manage/regenerate-meta>; rel="successor-version"'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '500':
+          description: 生成失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 管理后台 =====
+  /admin/stats:
+    get:
+      tags: [admin]
+      summary: 仪表盘统计数据
+      description: 返回服务健康状态、数据统计、系统信息等仪表盘数据
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: 仪表盘数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      services:
+                        type: object
+                        properties:
+                          rust_engine:
+                            type: object
+                            properties:
+                              status:
+                                type: string
+                                enum: [healthy, unhealthy]
+                              latency_ms:
+                                type: number
+                              version:
+                                type: string
+                              error:
+                                type: string
+                          go_data_service:
+                            type: object
+                            properties:
+                              status:
+                                type: string
+                                enum: [healthy, unhealthy]
+                              latency_ms:
+                                type: number
+                              version:
+                                type: string
+                              error:
+                                type: string
+                      data_stats:
+                        type: object
+                      system:
+                        type: object
+                        properties:
+                          memory:
+                            type: object
+                            properties:
+                              rss_mb:
+                                type: number
+                              heap_used_mb:
+                                type: number
+                              heap_total_mb:
+                                type: number
+                              external_mb:
+                                type: number
+                          uptime_seconds:
+                            type: number
+                          uptime_formatted:
+                            type: string
+                      backtest_history:
+                        type: array
+                        items:
+                          type: object
+        '500':
+          description: 获取统计数据失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/system:
+    get:
+      tags: [admin]
+      summary: 系统资源信息
+      description: 返回系统内存使用、运行时间、数据目录信息
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: 系统信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      memory:
+                        type: object
+                        properties:
+                          rss:
+                            type: number
+                          heap_total:
+                            type: number
+                          heap_used:
+                            type: number
+                          external:
+                            type: number
+                          array_buffers:
+                            type: number
+                          rss_mb:
+                            type: number
+                          heap_used_mb:
+                            type: number
+                          heap_total_mb:
+                            type: number
+                      uptime:
+                        type: object
+                        properties:
+                          seconds:
+                            type: number
+                          formatted:
+                            type: string
+                      data_directory:
+                        type: object
+                        properties:
+                          total_size_mb:
+                            type: number
+                          ticker_file_count:
+                            type: number
+                          total_data_points:
+                            type: number
+        '500':
+          description: 获取系统信息失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 健康检查 =====
+  /health:
+    get:
+      tags: [health]
+      summary: 健康检查
+      description: 检测各服务（Rust 引擎 / Node.js / Go 数据服务）连通性与状态
+      security: []
+      responses:
+        '200':
+          description: 健康状态
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [ok, degraded]
+                        description: "ok 表示 Rust 引擎可用，degraded 表示降级到 Node.js"
+                      timestamp:
+                        type: string
+                        format: date-time
+        '500':
+          description: 健康检查失败
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    enum: [false]
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [error]
+                      timestamp:
+                        type: string
+                        format: date-time
+
+  /metrics:
+    get:
+      tags: [health]
+      summary: Prometheus 指标端点
+      description: 返回 Prometheus 格式的监控指标
+      security: []
+      responses:
+        '200':
+          description: Prometheus text format 指标
+          content:
+            text/plain; version=0.0.4:
+              schema:
+                type: string
+        '500':
+          description: 指标生成失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 战术分配 =====
+  /tactical/backtest:
+    post:
+      tags: [tactical]
+      summary: 运行战术分配回测
+      description: |
+        接收战术策略配置，计算信号并运行动态权重回测。
+        同时运行等权基准回测作为对比。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - strategy
+                - startDate
+                - endDate
+                - startingValue
+                - rebalanceFrequency
+              properties:
+                strategy:
+                  $ref: '#/components/schemas/TacticalStrategy'
+                startDate:
+                  type: string
+                  format: date
+                endDate:
+                  type: string
+                  format: date
+                startingValue:
+                  type: number
+                rebalanceFrequency:
+                  type: string
+                  enum: [daily, weekly, monthly, quarterly, annual, none]
+      responses:
+        '200':
+          description: 战术回测结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      portfolio:
+                        $ref: '#/components/schemas/PortfolioResult'
+                      benchmark:
+                        $ref: '#/components/schemas/PortfolioResult'
+                      signalHistory:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            activeSignals:
+                              type: array
+                              items:
+                                type: string
+                            weights:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  ticker:
+                                    type: string
+                                  weight:
+                                    type: number
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 回测运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tactical/what-if:
+    post:
+      tags: [tactical]
+      summary: 实时价格查询与信号状态
+      description: 接收 ticker 列表，返回实时价格与当前信号状态
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tickers
+                - strategy
+              properties:
+                tickers:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                strategy:
+                  $ref: '#/components/schemas/TacticalStrategy'
+                endDate:
+                  type: string
+                  format: date
+                  description: 可选，默认当天
+      responses:
+        '200':
+          description: 实时信号状态
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ticker:
+                          type: string
+                        currentPrice:
+                          type: number
+                        signalDate:
+                          type: string
+                        signalType:
+                          type: string
+                          enum: [buy, sell, hold]
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 查询失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tactical/alerts:
+    post:
+      tags: [tactical]
+      summary: 保存邮件告警配置
+      description: 保存邮件告警配置（内存暂存，进程重启后丢失）
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - config
+              properties:
+                config:
+                  $ref: '#/components/schemas/EmailAlertConfig'
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      saved:
+                        type: boolean
+                      config:
+                        $ref: '#/components/schemas/EmailAlertConfig'
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 保存失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 战术网格搜索 =====
+  /tactical-grid/search:
+    post:
+      tags: [tactical-grid]
+      summary: 战术网格搜索
+      description: |
+        遍历参数网格（笛卡尔积），对每个参数组合计算信号并运行回测，
+        按优化目标排序返回 Top N 结果与热力图数据矩阵。
+        参数组合上限 200。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TacticalGridRequest'
+      responses:
+        '200':
+          description: 网格搜索结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      totalCombinations:
+                        type: number
+                      allMetrics:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            param1:
+                              type: number
+                            param2:
+                              type: number
+                            cagr:
+                              type: number
+                            maxDrawdown:
+                              type: number
+                            sharpe:
+                              type: number
+                            totalReturn:
+                              type: number
+                            stdev:
+                              type: number
+                            calmar:
+                              type: number
+                      topResults:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            param1:
+                              type: number
+                            param2:
+                              type: number
+                            cagr:
+                              type: number
+                            maxDrawdown:
+                              type: number
+                            sharpe:
+                              type: number
+                            totalReturn:
+                              type: number
+                            stdev:
+                              type: number
+                            calmar:
+                              type: number
+                            growthCurve:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  date:
+                                    type: string
+                                  value:
+                                    type: number
+                      heatmap:
+                        type: object
+                        properties:
+                          param1Label:
+                            type: string
+                          param2Label:
+                            type: string
+                          param1Values:
+                            type: array
+                            items:
+                              type: number
+                          param2Values:
+                            type: array
+                            items:
+                              type: number
+                          matrix:
+                            type: array
+                            items:
+                              type: array
+                              items:
+                                type: number
+                                nullable: true
+                          objective:
+                            type: string
+                      bestCombination:
+                        type: object
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 网格搜索运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== PCA =====
+  /pca/analyze:
+    post:
+      tags: [pca]
+      summary: 主成分分析
+      description: |
+        对多个资产的收益率序列进行主成分分析。
+        使用 Jacobi 方法进行特征值分解，返回特征值、载荷矩阵、得分矩阵与累计方差解释率。
+        至少需要 2 个资产。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PCARequest'
+      responses:
+        '200':
+          description: PCA 分析结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/PCAResult'
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: PCA 分析失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 信号分析 =====
+  /signal/analyze:
+    post:
+      tags: [signal]
+      summary: 单信号分析
+      description: |
+        对单个资产运行技术指标信号分析，生成买卖信号点、统计指标和权益曲线。
+        支持指标：SMA、EMA、RSI、MACD、Bollinger。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignalAnalysisRequest'
+      responses:
+        '200':
+          description: 信号分析结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SignalAnalysisResult'
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 未找到价格数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 信号分析失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /signal/dual:
+    post:
+      tags: [signal]
+      summary: 双信号分析
+      description: |
+        对两个信号进行组合分析，支持 AND/OR/XOR 组合方式。
+        返回各信号独立结果、组合结果和逐日对比。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DualSignalConfig'
+      responses:
+        '200':
+          description: 双信号分析结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      signal1:
+                        $ref: '#/components/schemas/SignalAnalysisResult'
+                      signal2:
+                        $ref: '#/components/schemas/SignalAnalysisResult'
+                      combined:
+                        $ref: '#/components/schemas/SignalAnalysisResult'
+                      comparison:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            signal1:
+                              type: string
+                              enum: [buy, sell]
+                              nullable: true
+                            signal2:
+                              type: string
+                              enum: [buy, sell]
+                              nullable: true
+                            combined:
+                              type: string
+                              enum: [buy, sell]
+                              nullable: true
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 未找到价格数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 双信号分析失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /signal/multi:
+    post:
+      tags: [signal]
+      summary: 多信号分析
+      description: |
+        对多个信号进行聚合分析，支持加权平均、投票、排名三种聚合方式。
+        各信号共享同一 ticker 与时间范围。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MultiSignalConfig'
+      responses:
+        '200':
+          description: 多信号分析结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      aggregated:
+                        $ref: '#/components/schemas/SignalAnalysisResult'
+                      contributions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            index:
+                              type: number
+                            indicator:
+                              type: string
+                            contribution:
+                              type: number
+                            statistics:
+                              type: object
+                              properties:
+                                totalSignals:
+                                  type: number
+                                winRate:
+                                  type: number
+                                avgReturn:
+                                  type: number
+                                maxDrawdown:
+                                  type: number
+                                sharpe:
+                                  type: number
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 未找到价格数据
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 多信号分析失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== LETF =====
+  /letf/analyze:
+    post:
+      tags: [letf]
+      summary: 杠杆 ETF 滑点分析
+      description: |
+        分析杠杆 ETF 相对基准指数的滑点拖累。
+        计算累积滑点、年化拖累、实际杠杆等指标。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LETFRequest'
+      responses:
+        '200':
+          description: LETF 滑点分析结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/LETFResult'
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 分析失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 目标优化 =====
+  /goal-optimizer/optimize:
+    post:
+      tags: [goal-optimizer]
+      summary: 目标优化
+      description: |
+        运行蒙特卡洛模拟，计算达成财务目标的概率与建议配置。
+        基于资产历史收益率统计生成模拟路径，支持最大回撤和波动率约束。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalOptimizerRequest'
+      responses:
+        '200':
+          description: 目标优化结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/GoalOptimizerResult'
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 优化失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== 回测优化器 =====
+  /backtest-optimizer/optimize:
+    post:
+      tags: [backtest-optimizer]
+      summary: 回测参数优化
+      description: |
+        遍历参数空间（再平衡频率 × 阈值 × 初始资金）运行组合回测，
+        按优化目标排序返回全部结果及最优组合的收益曲线。
+        参数组合上限 1000。
+      security:
+        - ApiKeyAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestOptimizerRequest'
+      responses:
+        '200':
+          description: 优化结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            rebalanceFrequency:
+                              type: string
+                            rebalanceThreshold:
+                              type: number
+                            initialCapital:
+                              type: number
+                            cagr:
+                              type: number
+                            maxDrawdown:
+                              type: number
+                            sharpe:
+                              type: number
+                            sortino:
+                              type: number
+                            stdev:
+                              type: number
+                            calmar:
+                              type: number
+                      best:
+                        type: object
+                        nullable: true
+                        description: 最优组合（含收益曲线）
+                      benchmarkGrowth:
+                        type: array
+                        nullable: true
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                            value:
+                              type: number
+                      totalCombinations:
+                        type: number
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 优化运行失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

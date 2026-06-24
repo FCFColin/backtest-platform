@@ -1,0 +1,37 @@
+# 企业理由：Ingress 提供基于域名的 HTTP 路由，是生产环境外部访问的标准方式。
+# 支持 TLS 终止、路径路由，统一入口简化运维。
+# 权衡：需要集群安装 Ingress Controller（如 nginx-ingress）+ cert-manager，
+# 且 backtest.local 是开发域名，生产需替换为真实域名 + TLS 证书。
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backtest-ingress
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # 企业理由：cert-manager 自动签发/续期 TLS 证书，避免手动管理证书过期。
+    # 权衡：需集群预先安装 cert-manager + ClusterIssuer。
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # 企业理由：强制 HTTPS 重定向，防止凭据明文传输。
+    # HSTS/CSP 仅在 HTTPS 下生效，HTTP 可被中间人剥离安全头。
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  # 企业理由：TLS 终止在 Ingress 层，后端服务无需自行处理 TLS 握手，
+  # 简化证书管理且统一安全策略。cert-manager 自动填充 secretName。
+  tls:
+    - hosts:
+        - backtest.local
+      secretName: backtest-tls
+  rules:
+    - host: backtest.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-api
+                port:
+                  number: 5001

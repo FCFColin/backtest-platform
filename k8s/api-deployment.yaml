@@ -1,0 +1,78 @@
+# 企业理由：生产环境需要多副本保证可用性，2 副本可在单 Pod 故障时仍能服务。
+# 资源限制防止异常 Pod 耗尽节点资源影响其他服务。
+# 权衡：2 副本增加资源开销，但保证了滚动更新零停机和单点故障恢复。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-api
+  namespace: backtest-platform
+  labels:
+    app: frontend-api
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-api
+  template:
+    metadata:
+      labels:
+        app: frontend-api
+        app.kubernetes.io/part-of: backtest-platform
+    spec:
+      containers:
+        - name: frontend-api
+          image: backtest-platform/frontend-api
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 5001
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "0.5"
+            limits:
+              memory: "1Gi"
+              cpu: "1"
+          # 企业理由：三类探针覆盖不同故障场景——
+          # startupProbe：应用启动期间允许慢（避免慢启动被 liveness 杀死）；
+          # livenessProbe：运行时死锁/无响应时自动重启；
+          # readinessProbe：暂时过载时从 Service 摘除流量但不重启。
+          # 权衡：探针配置不当会导致频繁重启或流量摘除，需根据实际启动时间调参。
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 5001
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          envFrom:
+            - configMapRef:
+                name: backtest-config
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

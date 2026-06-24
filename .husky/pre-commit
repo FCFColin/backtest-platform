@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Security: 密钥扫描 - 防止凭据泄露入库
+# 企业为何需要：pre-commit是阻止密钥泄露的最后一道防线
+# 权衡：增加约1-2秒提交耗时
+if command -v gitleaks &> /dev/null; then
+  gitleaks protect --source . --no-banner || { echo "ERROR: Potential secrets detected by gitleaks"; exit 1; }
+fi
+
+npx lint-staged

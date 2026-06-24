@@ -1,0 +1,220 @@
+# =============================================================================
+# PostgreSQL StatefulSet（ADR-007：SQLite → PostgreSQL 迁移）
+# =============================================================================
+#
+# 企业理由：PostgreSQL 必须使用 StatefulSet 而非 Deployment，原因有三：
+# 1. 持久化存储（Persistent Storage）：
+#    数据库数据必须跨 Pod 重启持久化。StatefulSet 的 PVC 与 Pod 一一绑定，
+#    删除 Pod 后 PVC 保留，新 Pod 自动挂载同一 PVC。Deployment 的 PVC
+#    随 ReplicaSet 随机重建，数据丢失风险极高。
+# 2. 稳定网络标识（Stable Network Identity）：
+#    StatefulSet 为每个 Pod 提供稳定的 DNS 名称（如 postgres-0），
+#    主从复制、故障转移依赖稳定的主机名。Deployment 的 Pod 名称随机，
+#    无法构建可靠的复制拓扑。
+# 3. 有序滚动更新（Ordered Rolling Updates）：
+#    数据库升级必须按序进行（先从后主），确保复制一致性。
+#    StatefulSet 默认逆序滚动更新，Deployment 并行更新可能破坏复制。
+#
+# 权衡：StatefulSet 扩缩容较慢（需按序），但数据库通常固定副本数，
+# 此限制可接受。开发环境 1 副本 + 1Gi 存储足够；生产环境需调大。
+# =============================================================================
+
+---
+# 数据库连接凭证（Secret）
+# 企业理由：数据库密码禁止硬编码或存入 ConfigMap，必须用 Secret 加密存储。
+# 生产环境应配合 External Secrets Operator 从 Vault/AWS Secrets Manager 注入。
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: backtest-platform
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: backtest-platform
+type: Opaque
+stringData:
+  # DATABASE_URL：Knex/Drizzle 连接串，包含用户名、密码、主机、端口、数据库名
+  # 生产环境必须覆盖为强密码 + TLS 连接（?sslmode=require）
+  DATABASE_URL: "postgresql://backtest:changeme@postgres:5432/backtest"
+  # 原始凭证供 Init Container 或脚本使用
+  POSTGRES_USER: "backtest"
+  POSTGRES_PASSWORD: "changeme"
+  POSTGRES_DB: "backtest"
+
+---
+# PG 初始化脚本 ConfigMap
+# 企业理由：数据库首次启动时需执行建表、迁移、种子数据等初始化脚本。
+# ConfigMap 挂载到 /docker-entrypoint-initdb.d/，PostgreSQL 镜像自动执行。
+# 修改脚本后需删除 PVC 重新初始化（仅开发环境可接受）。
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-scripts
+  namespace: backtest-platform
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: backtest-platform
+data:
+  # 引用说明：实际的 SQL 迁移脚本由 knex migrate:latest 生成，
+  # 此处仅提供基础初始化占位。生产环境应使用 Job 执行迁移。
+  01-init.sql: |
+    -- 基础权限配置：确保 backtest 用户拥有完整权限
+    GRANT ALL PRIVILEGES ON DATABASE backtest TO backtest;
+    -- 启用必要扩展
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+---
+# PersistentVolumeClaim 模板（嵌入 StatefulSet）
+# 企业理由：开发环境 1Gi 足够（约 10 万条回测记录），
+# 生产环境建议 10Gi+ 并使用 StorageClass 分配高性能 SSD。
+# PVC 与 Pod 生命周期解耦，Pod 重建后数据不丢失。
+
+# PostgreSQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: backtest-platform
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  serviceName: postgres  # 关联 Headless Service，提供稳定 DNS：postgres-0.postgres.backtest-platform.svc.cluster.local
+  replicas: 1            # 开发环境 1 副本；生产环境建议 3 副本（1 主 2 从）
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+        app.kubernetes.io/part-of: backtest-platform
+    spec:
+      # 安全上下文：以 postgres 用户（UID 70）运行，禁止 root
+      # 企业理由：容器以 root 运行是 K8s 安全基线违规（CIS Benchmark 5.2.6）。
+      # postgres:16-alpine 镜像内置 UID 70 的 postgres 用户，
+      # runAsNonRoot + runAsUser=70 确保即使镜像配置错误也无法提权。
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          # 资源限制：开发环境保守配置
+          # 企业理由：PostgreSQL 内存主要受 shared_buffers 影响，
+          # 256Mi 限制下 shared_buffers 应设为 64MB（默认 128MB 可能 OOM）。
+          # CPU 0.5 核对开发环境回测负载足够。
+          # 权衡：资源过低会导致 OOM Kill，过高浪费集群资源。
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "0.25"
+            limits:
+              memory: "256Mi"
+              cpu: "0.5"
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+            # PG 内存配置：适配 256Mi 限制
+            # 企业理由：shared_buffers 默认 128MB 在 256Mi 容器中会 OOM，
+            # 降至 64MB 留出内存给连接池和排序操作。
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+          # 存活探针：pg_isready 检查 PostgreSQL 进程是否存活
+          # 企业理由：pg_isready 是 PostgreSQL 官方健康检查工具，
+          # 比 TCP 探针更准确（能检测到"正在恢复"等中间状态）。
+          # 失败 3 次后 K8s 重启容器，恢复服务。
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - backtest
+                - -d
+                - backtest
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # 就绪探针：pg_isready 检查 PostgreSQL 是否可接受连接
+          # 企业理由：与 livenessProbe 使用相同命令但参数更宽松，
+          # 确保 Service 只将流量路由到完全就绪的实例。
+          # 区别：readiness 失败仅从 Service 摘除，不重启容器。
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - backtest
+                - -d
+                - backtest
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+              subPath: data  # subPath 避免挂载覆盖 PG 目录权限
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: init-scripts
+          configMap:
+            name: postgres-init-scripts
+  # PVC 模板：StatefulSet 特有，每个 Pod 自动创建独立 PVC
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-data
+      spec:
+        accessModes:
+          - ReadWriteOnce  # 单节点读写，PostgreSQL 单实例标准模式
+        resources:
+          requests:
+            storage: 1Gi  # 开发环境 1Gi；生产环境建议 10Gi+
+
+---
+# PostgreSQL Service（ClusterIP）
+# 企业理由：ClusterIP 提供集群内部稳定的访问端点，
+# 其他服务（API、迁移 Job）通过 postgres:5432 连接数据库。
+# 不使用 LoadBalancer/NodePort——数据库不应暴露到集群外部。
+# 如需外部访问，应通过 PortForward 或 VPN，而非直接暴露端口。
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: backtest-platform
+  labels:
+    app: postgres
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: postgres

@@ -1,0 +1,33 @@
+# Enterprise Rationale: A shared .editorconfig eliminates editor-specific
+# formatting inconsistencies across a polyglot codebase (TypeScript, Go, Rust,
+# Python), reducing diff noise and preventing "format wars" in code review.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{ts,tsx,js,jsx}]
+indent_style = space
+indent_size = 2
+
+[*.go]
+indent_style = tab
+
+[*.{rs,toml}]
+indent_style = space
+indent_size = 4
+
+[*.py]
+indent_style = space
+indent_size = 4
+
+[*.{md,yml,yaml,json}]
+indent_style = space
+indent_size = 2
+
+[Makefile]
+indent_style = tab

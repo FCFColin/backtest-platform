@@ -1,0 +1,181 @@
+# 企业理由：OTel Collector 是可观测性数据管道的核心组件，接收所有服务的 trace 数据
+# 并转发到后端（Jaeger/Tempo）。无 Collector 时，每个服务需直连后端，耦合度高，
+# 且无法统一采样、过滤和批处理策略。
+#
+# 架构：Node.js / Go / Rust 服务 → OTel Collector (gRPC:4317/HTTP:4318) → Jaeger/Tempo
+#
+# 权衡：Collector 增加了一跳延迟（<1ms），但解耦了服务与后端，支持热切换后端
+# 而无需重启任何业务服务。
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: backtest-platform
+  labels:
+    app: otel-collector
+    app.kubernetes.io/part-of: backtest-platform
+data:
+  relay: |
+    receivers:
+      otlp:
+        protocols:
+          # 企业理由：gRPC 协议是 OTel 默认推荐，性能优于 HTTP（protobuf 二进制 vs JSON）。
+          # Go/Rust 服务使用 otlptracegrpc，必须开放 4317 端口。
+          grpc:
+            endpoint: 0.0.0.0:4317
+          # 企业理由：HTTP 协议兼容性更广，部分 SDK/工具仅支持 HTTP。
+          # Node.js @opentelemetry/exporter-trace-otlp-http 使用 4318 端口。
+          http:
+            endpoint: 0.0.0.0:4318
+
+    processors:
+      # 企业理由：批量处理减少网络请求次数，降低后端写入压力。
+      # 无批处理时，每个 span 单独发送，高并发下网络 I/O 成为瓶颈。
+      batch:
+        send_batch_size: 1024
+        send_batch_max_size: 2048
+        timeout: 5s
+
+      # 企业理由：资源属性添加 K8s 元数据（pod名/命名空间），便于在 Jaeger/Tempo 中
+      # 按部署维度筛选 trace，而非仅按服务名。
+      resource:
+        attributes:
+          - key: collector.source
+            value: k8s
+            action: upsert
+
+    exporters:
+      # 企业理由：OTLP HTTP 导出器，兼容 Jaeger 1.35+ 和 Tempo 的 OTLP 接收端。
+      # 通过环境变量 OTLP_EXPORTER_ENDPOINT 配置后端地址，支持运行时切换。
+      # 默认指向 Jaeger all-in-one 的 OTLP HTTP 端点。
+      otlphttp:
+        endpoint: ${OTLP_EXPORTER_ENDPOINT}
+        # 企业理由：队列保证后端短暂不可用时 span 不丢失，内存队列最大 1000 批次。
+        sending_queue:
+          enabled: true
+          queue_size: 1000
+        # 企业理由：重试机制应对后端滚动更新或网络抖动。
+        retry_on_failure:
+          enabled: true
+          initial_interval: 5s
+          max_interval: 30s
+          max_elapsed_time: 300s
+
+      # 企业理由：日志导出器用于开发环境调试，生产环境应移除。
+      logging:
+        loglevel: warn
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch, resource]
+          exporters: [otlphttp, logging]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: backtest-platform
+  labels:
+    app: otel-collector
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  # 企业理由：Collector 无状态，1 副本满足当前 3 服务 × 低 QPS 的 trace 量。
+  # 权衡：1 副本无高可用，Collector 不可用时服务 span 缓冲在本地 SDK，
+  # SDK 批处理队列满后丢弃 span（降级但不影响业务）。
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+        app.kubernetes.io/part-of: backtest-platform
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.119.0
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+            - name: health
+              containerPort: 13133
+              protocol: TCP
+          env:
+            # 企业理由：通过环境变量配置后端地址，避免硬编码。
+            # 部署时根据后端选择设置：Jaeger → http://jaeger:4318，Tempo → http://tempo:4318
+            - name: OTLP_EXPORTER_ENDPOINT
+              value: "http://jaeger:4318"
+          resources:
+            # 企业理由：Collector 批处理后内存占用较低，256Mi 满足 3 服务 trace 量。
+            # CPU 0.25 核足够处理当前 QPS（<100 spans/s）。
+            requests:
+              memory: "128Mi"
+              cpu: "0.25"
+            limits:
+              memory: "256Mi"
+              cpu: "0.5"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol-contrib/config.yaml
+              subPath: relay
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: backtest-platform
+  labels:
+    app: otel-collector
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  # 企业理由：ClusterIP 仅集群内可访问，Collector 不需要暴露到公网。
+  # 所有业务服务通过 K8s DNS (otel-collector.backtest-platform.svc) 连接。
+  type: ClusterIP
+  selector:
+    app: otel-collector
+  ports:
+    - name: otlp-grpc
+      port: 4317
+      targetPort: otlp-grpc
+      protocol: TCP
+    - name: otlp-http
+      port: 4318
+      targetPort: otlp-http
+      protocol: TCP

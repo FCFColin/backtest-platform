@@ -16,6 +16,7 @@
 
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
+import type { PoolClient } from 'pg';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/index.js';
 
@@ -67,23 +68,34 @@ export function verifyPayload(payload: string, signature: string): boolean {
 }
 
 /**
- * 将审计事件写入 outbox 表（异步，不阻塞响应）
+ * 将审计事件写入 outbox 表
  *
- * Architecture: Audit Log + Outbox 双写模式
+ * Architecture: Audit Log + Outbox 双写模式（Task 11.2 支持事务双写）
  * 企业为何需要：直接发送事件可能在业务数据写入后、事件发送前崩溃，导致数据不一致。
  * Outbox 表与业务数据在同一事务中写入，保证最终一致性。
- * 当前实现为异步写入（非事务双写），因为审计中间件无法参与业务事务。
- * 完整的事务双写需要在业务 Service 层实现（使用 getClient() 获取事务连接）。
- * 权衡：异步写入存在极短窗口的不一致（日志写入成功但 outbox 写入失败），
- * 但 outbox 的核心价值在于事件消费者的幂等处理，而非与业务数据的强一致。
+ *
+ * 两种调用模式：
+ * 1. 独立模式（无 client）：使用连接池自行写入 + NOTIFY，向后兼容中间件异步调用。
+ *    存在极短窗口的不一致（日志写入成功但 outbox 写入失败），
+ *    但 outbox 的核心价值在于事件消费者的幂等处理，而非与业务数据的强一致。
+ * 2. 事务模式（传入 client）：参与调用方的事务，与业务数据原子提交。
+ *    不在此处发送 NOTIFY —— 事务内的 NOTIFY 会在 COMMIT 时才通知监听者，
+ *    避免回滚产生无效通知；调用方应在 COMMIT 后按需发送 NOTIFY。
+ *
+ * @param auditEntry - 审计日志条目
+ * @param client - 可选的事务连接。传入时参与调用方事务；不传时使用连接池（独立模式）
  */
-async function writeOutboxEvent(auditEntry: Record<string, unknown>): Promise<void> {
-  try {
-    const pool = getPool();
-    const payload = JSON.stringify(auditEntry);
-    const signature = signPayload(payload);
+export async function writeOutboxEvent(
+  auditEntry: Record<string, unknown>,
+  client?: PoolClient,
+): Promise<void> {
+  // 独立模式：使用连接池；事务模式：使用调用方传入的 client
+  const conn = client ?? getPool();
+  const payload = JSON.stringify(auditEntry);
+  const signature = signPayload(payload);
 
-    await pool.query(
+  try {
+    await conn.query(
       `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload)
        VALUES ($1, $2, $3, $4)`,
       [
@@ -94,13 +106,22 @@ async function writeOutboxEvent(auditEntry: Record<string, unknown>): Promise<vo
       ],
     );
 
-    // NOTIFY 不带 payload，由 OutboxPublisher 轮询 outbox 表读取新事件，
-    // 避免 payload 字符串拼接的潜在风险
-    await pool.query('NOTIFY outbox_channel');
+    // 仅在独立模式下发送 NOTIFY：
+    // 事务模式下 NOTIFY 应由调用方在 COMMIT 后发送，避免回滚产生无效通知
+    if (!client) {
+      // NOTIFY 不带 payload，由 OutboxPublisher 轮询 outbox 表读取新事件，
+      // 避免 payload 字符串拼接的潜在风险
+      await conn.query('NOTIFY outbox_channel');
+    }
 
-    logger.debug({ middleware: 'auditLog' }, '[auditLog] outbox 事件写入成功');
+    logger.debug({ middleware: 'auditLog', transactional: !!client }, '[auditLog] outbox 事件写入成功');
   } catch (err) {
-    // outbox 写入失败不应阻塞响应，仅记录警告
+    if (client) {
+      // 事务模式：让异常向上传播，触发调用方的 ROLLBACK，保证事务一致性
+      logger.error({ err, middleware: 'auditLog' }, '[auditLog] outbox 事务写入失败，将触发事务回滚');
+      throw err;
+    }
+    // 独立模式：outbox 写入失败不应阻塞响应，仅记录警告
     logger.warn({ err, middleware: 'auditLog' }, '[auditLog] outbox 事件写入失败，审计日志仍已记录到 pino 日志流');
   }
 }

@@ -1,0 +1,41 @@
+# SRE: Burn Rate告警规则
+# 企业为何需要：SLO定义了目标但无告警则形同虚设，Burn Rate是SLO告警的最佳实践
+# 权衡：快速燃烧(Page)可能误报，慢速燃烧(Ticket)可能延迟发现
+# 参考：https://sre.google/workbook/alerting-on-slos/
+
+groups:
+  - name: backtest-platform-slo
+    rules:
+      # Fast burn: 2% error budget consumed in 1h → Page immediately
+      - alert: HighErrorRateFastBurn
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[1h]))
+            /
+            sum(rate(http_requests_total[1h]))
+          ) > 0.001
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Fast burn rate detected"
+          description: "Error rate is consuming >2% of 30d error budget per hour. Current error rate: {{ $value | humanizePercentage }}"
+          runbook: "https://internal/backtest-platform/runbook#burn-rate-alert"
+
+      # Slow burn: 5% error budget consumed in 6h → Create ticket
+      - alert: HighErrorRateSlowBurn
+        expr: |
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[6h]))
+            /
+            sum(rate(http_requests_total[6h]))
+          ) > 0.000347
+        for: 30m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Slow burn rate detected"
+          description: "Error rate is consuming >5% of 30d error budget per 6h. Current error rate: {{ $value | humanizePercentage }}"
+          runbook: "https://internal/backtest-platform/runbook#burn-rate-alert"
