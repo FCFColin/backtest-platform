@@ -76,7 +76,7 @@
     "@vercel/node": "^5.3.6",
     "@vitejs/plugin-react": "^4.4.1",
     "@vitest/coverage-v8": "^2.1.9",
-    "autoprefixer": "^10.4.21",
+    "autoprefixer": "^10.5.1",
     "babel-plugin-react-dev-locator": "^1.0.0",
     "concurrently": "^9.2.0",
     "eslint": "^9.25.0",
