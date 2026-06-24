@@ -1,60 +1,13 @@
 /**
  * 对抗性测试：从真实需求和边界出发，试图找出代码中的bug
- * 
+ *
  * 设计思路：不是"确认代码能跑"，而是"如果我是用户，我会怎么搞坏它"
  * 每个测试都应该描述一个真实用户场景或一个合理的边界输入
  */
 import { describe, it, expect } from 'vitest';
 import { runPortfolioBacktest, type PriceData } from '../../api/engine/portfolio.js';
 import type { Portfolio, BacktestParameters } from '../../shared/types.js';
-
-// ===== 测试辅助 =====
-
-function makePriceData(
-  ticker: string, startDate: string, endDate: string, startPrice: number, dailyReturn: number,
-): Record<string, number> {
-  const prices: Record<string, number> = {};
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  let price = startPrice;
-  while (current <= end) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= (1 + dailyReturn);
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return prices;
-}
-
-function makeVolatilePriceData(
-  ticker: string, startDate: string, endDate: string, startPrice: number, returns: number[],
-): Record<string, number> {
-  const prices: Record<string, number> = {};
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  let price = startPrice;
-  let ri = 0;
-  while (current <= end && ri < returns.length) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= (1 + returns[ri]);
-      ri++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return prices;
-}
-
-function makeParams(overrides?: Partial<BacktestParameters>): BacktestParameters {
-  return {
-    startDate: '2020-01-02', endDate: '2020-12-31', startingValue: 10000,
-    adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: '',
-    ...overrides,
-  };
-}
+import { makePriceData, makeVolatilePriceData, makeParams } from '../helpers/fixtures.js';
 
 // ===== Bug hunt: 浮点精度 =====
 describe('Bug Hunt - 浮点精度', () => {

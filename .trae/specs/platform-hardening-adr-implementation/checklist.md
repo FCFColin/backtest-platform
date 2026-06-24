@@ -81,13 +81,13 @@
 - [ ] tests/helpers/fixtures.ts 存在并导出 `makePriceData`、`makeParams` 等辅助函数
 - [ ] tests/helpers/constants.ts 存在并导出 `API_PORT`、`ENGINE_PORT`、`API_BASE_URL`、`ENGINE_BASE_URL`
 - [ ] tests/helpers/server.ts 存在并导出 `checkServerAvailable`
-- [ ] tests/unit/middleware/idempotency.test.ts 的 logger mock 路径为 3 级（`../../../api/utils/logger.js`）
-- [ ] tests/e2e/api.test.ts 与 api.enhanced.test.ts 已合并，无重复用例
-- [ ] tests/e2e/api.test.ts 端口为 5001（非 3001）
-- [ ] tests/unit/sortino.edge.test.ts 已并入 statistics.edge.test.ts
-- [ ] tests/rust-engine/rust-engine.test.ts 端口为 5002（非 3002）
-- [ ] 所有 portfolio 测试文件使用 helpers/fixtures.ts（无重复辅助函数定义）
-- [ ] 服务器不可用跳过策略统一为 `it.skipIf` 或 `ctx.skip()`
+- [x] tests/unit/middleware/idempotency.test.ts 的 logger mock 路径为 3 级（`../../../api/utils/logger.js`）
+- [x] tests/e2e/api.test.ts 与 api.enhanced.test.ts 已合并，无重复用例
+- [x] tests/e2e/api.test.ts 端口为 5001（非 3001）
+- [x] tests/unit/sortino.edge.test.ts 已并入 statistics.edge.test.ts
+- [x] tests/rust-engine/rust-engine.test.ts 端口为 5002（非 3002）
+- [x] 所有 portfolio 测试文件使用 helpers/fixtures.ts（无重复辅助函数定义）
+- [x] 服务器不可用跳过策略统一为 `it.skipIf`（api.test.ts、rust-engine.test.ts、engineConsistency.test.ts、engine-and-pages.test.ts 全部完成）
 - [ ] vitest.config.ts 的 include 包含 `tests/**/*.bench.ts` 或配置了 bench 项目
 - [ ] package.json 包含 `test:bench` 脚本
 - [ ] tests/bench/statistics.bench.ts 可被 vitest 执行

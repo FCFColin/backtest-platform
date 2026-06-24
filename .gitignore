@@ -39,6 +39,14 @@ __pycache__/
 # 运行时数据缓存
 data/cache/
 data/market/tickers/
+data/market/state/
+data/market/indices/
+data/market/cpi/
+data/market/exchange_rates/
+
+# 测试产物
+test-results/
+.playwright-report/
 
 # 临时/草稿文件
 temp_*

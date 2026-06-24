@@ -1,46 +1,24 @@
 /**
  * Rust引擎集成测试 - 通过HTTP调用Rust引擎验证所有端点
- * 
- * 前提：Rust引擎必须在 http://127.0.0.1:3002 运行
+ *
+ * 前提：Rust引擎必须在 http://127.0.0.1:5002 运行
  * 启动方式：cd engine-rs && cargo run --release
  */
 import { describe, it, expect, beforeAll } from 'vitest';
+import { checkServerAvailable } from '../helpers/server.js';
+import { ENGINE_BASE_URL } from '../helpers/constants.js';
+import { makePriceData } from '../helpers/fixtures.js';
 
-const RUST_URL = process.env.RUST_ENGINE_URL || 'http://127.0.0.1:3002';
+const RUST_URL = ENGINE_BASE_URL;
 let engineAvailable = false;
 
-// 生成测试价格数据
-function makePriceData(
-  ticker: string, startDate: string, endDate: string, startPrice: number, dailyReturn: number,
-): Record<string, number> {
-  const prices: Record<string, number> = {};
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  let price = startPrice;
-  while (current <= end) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= (1 + dailyReturn);
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return prices;
-}
-
 beforeAll(async () => {
-  try {
-    const resp = await fetch(`${RUST_URL}/api/engine/health`);
-    if (resp.ok) engineAvailable = true;
-  } catch {
-    // ignore
-  }
+  engineAvailable = await checkServerAvailable(`${RUST_URL}/api/engine/health`);
 });
 
 // ===== Health =====
 describe('Rust引擎 - Health', () => {
-  it('健康检查应返回ok', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('健康检查应返回ok', async () => {
     const resp = await fetch(`${RUST_URL}/api/engine/health`);
     const data = await resp.json();
     expect(data.status).toBe('ok');
@@ -53,8 +31,7 @@ describe('Rust引擎 - Health', () => {
 
 // ===== 回测 =====
 describe('Rust引擎 - 回测', () => {
-  it('基本60/40组合回测', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('基本60/40组合回测', async () => {
     const vti = makePriceData('VTI', '2020-01-02', '2023-12-29', 150, 0.0004);
     const bnd = makePriceData('BND', '2020-01-02', '2023-12-29', 85, 0.0001);
 
@@ -89,8 +66,7 @@ describe('Rust引擎 - 回测', () => {
     expect(p.rollingReturns.length).toBeGreaterThan(0);
   });
 
-  it('空组合应返回空结果', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('空组合应返回空结果', async () => {
     const body = {
       portfolios: [{ name: '空', assets: [], rebalanceFrequency: 'quarterly' }],
       priceData: {},
@@ -109,8 +85,7 @@ describe('Rust引擎 - 回测', () => {
     expect(result.portfolios[0].statistics.cagr).toBe(0);
   });
 
-  it('爆仓组合应标记liquidated', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('爆仓组合应标记liquidated', async () => {
     // 做空100% + 做多100% = 初始价值0，立即爆仓
     const a = makePriceData('A', '2020-01-02', '2020-03-01', 100, -0.05);
     const body = {
@@ -135,8 +110,7 @@ describe('Rust引擎 - 回测', () => {
     expect(p.statistics.cagr).toBe(-1);
   });
 
-  it('多组合相关性矩阵', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('多组合相关性矩阵', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -163,8 +137,7 @@ describe('Rust引擎 - 回测', () => {
 
 // ===== 蒙特卡洛 =====
 describe('Rust引擎 - 蒙特卡洛', () => {
-  it('基本蒙特卡洛模拟', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('基本蒙特卡洛模拟', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const body = {
       portfolio: {
@@ -192,8 +165,7 @@ describe('Rust引擎 - 蒙特卡洛', () => {
 
 // ===== 优化器 =====
 describe('Rust引擎 - 优化器', () => {
-  it('最大Sharpe优化', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('最大Sharpe优化', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -212,8 +184,7 @@ describe('Rust引擎 - 优化器', () => {
     expect(result.sharpeRatio).toBeGreaterThan(0);
   });
 
-  it('有效前沿', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('有效前沿', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -237,8 +208,7 @@ describe('Rust引擎 - 优化器', () => {
 
 // ===== 偏离调仓 =====
 describe('Rust引擎 - 偏离调仓（threshold rebalance）', () => {
-  it('小权重过度敏感问题：5%小权重+5%阈值不应频繁触发', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('小权重过度敏感问题：5%小权重+5%阈值不应频繁触发', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0002);
     const body = {
@@ -264,8 +234,7 @@ describe('Rust引擎 - 偏离调仓（threshold rebalance）', () => {
     expect(p.statistics.cagr).toBeGreaterThan(0);
   });
 
-  it('偏离调仓 vs 不调仓：偏离调仓终值应更接近每日调仓', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('偏离调仓 vs 不调仓：偏离调仓终值应更接近每日调仓', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0002);
     const priceData = { A: a, B: b };
@@ -309,8 +278,7 @@ describe('Rust引擎 - 偏离调仓（threshold rebalance）', () => {
     );
   });
 
-  it('偏离调仓阈值100%等同于不调仓', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('偏离调仓阈值100%等同于不调仓', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0002);
     const priceData = { A: a, B: b };
@@ -346,8 +314,7 @@ describe('Rust引擎 - 偏离调仓（threshold rebalance）', () => {
 
 // ===== 浮点精度 =====
 describe('Rust引擎 - 浮点精度', () => {
-  it('权重60.1+39.9=100应被接受', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('权重60.1+39.9=100应被接受', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -373,8 +340,7 @@ describe('Rust引擎 - 浮点精度', () => {
     expect(p.statistics.cagr).toBeGreaterThan(0);
   });
 
-  it('权重33.33+33.33+33.34=100应被接受', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('权重33.33+33.33+33.34=100应被接受', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const c = makePriceData('C', '2020-01-02', '2022-12-30', 100, 0.0003);
@@ -406,8 +372,7 @@ describe('Rust引擎 - 浮点精度', () => {
 
 // ===== 再平衡频率对比 =====
 describe('Rust引擎 - 再平衡频率对比', () => {
-  it('daily/weekly/monthly/quarterly/annual/none 均可运行且结果合理', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('daily/weekly/monthly/quarterly/annual/none 均可运行且结果合理', async () => {
     const a = makePriceData('A', '2020-01-02', '2023-12-29', 100, 0.0008);
     const b = makePriceData('B', '2020-01-02', '2023-12-29', 100, 0.0002);
     const priceData = { A: a, B: b };
@@ -444,8 +409,7 @@ describe('Rust引擎 - 再平衡频率对比', () => {
     expect(Object.keys(results)).toHaveLength(6);
   });
 
-  it('高频率调仓应更接近目标权重，低频率允许更多漂移', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('高频率调仓应更接近目标权重，低频率允许更多漂移', async () => {
     const a = makePriceData('A', '2020-01-02', '2023-12-29', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2023-12-29', 100, 0.0001);
     const priceData = { A: a, B: b };
@@ -483,8 +447,7 @@ describe('Rust引擎 - 再平衡频率对比', () => {
 
 // ===== 爆仓 =====
 describe('Rust引擎 - 爆仓', () => {
-  it('爆仓后净值应为0且CAGR应为-1', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('爆仓后净值应为0且CAGR应为-1', async () => {
     const a = makePriceData('A', '2020-01-02', '2020-06-30', 100, -0.05);
     const body = {
       portfolios: [{
@@ -510,8 +473,7 @@ describe('Rust引擎 - 爆仓', () => {
     expect(postLiquidation.length).toBeGreaterThan(0);
   });
 
-  it('价格归零导致爆仓', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('价格归零导致爆仓', async () => {
     const crashReturns = new Array(30).fill(-0.15);
     const prices: Record<string, number> = {};
     const current = new Date('2020-01-02');
@@ -554,8 +516,7 @@ describe('Rust引擎 - 爆仓', () => {
 
 // ===== 基准对比 =====
 describe('Rust引擎 - 基准对比', () => {
-  it('benchmark_ticker不为空时应有benchmark_growth', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('benchmark_ticker不为空时应有benchmark_growth', async () => {
     const stock = makePriceData('STOCK', '2020-01-02', '2022-12-30', 100, 0.001);
     const bench = makePriceData('BENCH', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -582,8 +543,7 @@ describe('Rust引擎 - 基准对比', () => {
     expect(result.benchmarkGrowth.at(-1).value).toBeGreaterThan(10000);
   });
 
-  it('benchmark_ticker为空时不应有benchmark_growth', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('benchmark_ticker为空时不应有benchmark_growth', async () => {
     const stock = makePriceData('STOCK', '2020-01-02', '2022-12-30', 100, 0.001);
     const body = {
       portfolios: [{
@@ -608,8 +568,7 @@ describe('Rust引擎 - 基准对比', () => {
 
 // ===== 蒙特卡洛大数据 =====
 describe('Rust引擎 - 蒙特卡洛大数据', () => {
-  it('1000次模拟应正常完成', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('1000次模拟应正常完成', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -639,8 +598,7 @@ describe('Rust引擎 - 蒙特卡洛大数据', () => {
 
 // ===== 优化器不同目标 =====
 describe('Rust引擎 - 优化器不同目标', () => {
-  it('maxSharpe应返回最高Sharpe比率的权重', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('maxSharpe应返回最高Sharpe比率的权重', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -662,8 +620,7 @@ describe('Rust引擎 - 优化器不同目标', () => {
     expect(wA + wB).toBeCloseTo(1.0, 1);
   });
 
-  it('minVolatility应返回最低波动率的权重', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('minVolatility应返回最低波动率的权重', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -683,8 +640,7 @@ describe('Rust引擎 - 优化器不同目标', () => {
     expect(result.expectedReturn).toBeGreaterThan(0);
   });
 
-  it('maxReturn应将所有权重分配给收益最高的资产', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('maxReturn应将所有权重分配给收益最高的资产', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.002);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0002);
     const body = {
@@ -703,8 +659,7 @@ describe('Rust引擎 - 优化器不同目标', () => {
     expect(result.expectedReturn).toBeGreaterThan(0);
   });
 
-  it('三种目标结果不同', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('三种目标结果不同', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const priceData = { A: a, B: b };
@@ -733,8 +688,7 @@ describe('Rust引擎 - 优化器不同目标', () => {
 
 // ===== 有效前沿点数 =====
 describe('Rust引擎 - 有效前沿点数验证', () => {
-  it('指定numPoints=10应返回10个前沿点', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('指定numPoints=10应返回10个前沿点', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -756,8 +710,7 @@ describe('Rust引擎 - 有效前沿点数验证', () => {
     }
   });
 
-  it('默认numPoints应返回20个前沿点', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('默认numPoints应返回20个前沿点', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {
@@ -772,8 +725,7 @@ describe('Rust引擎 - 有效前沿点数验证', () => {
     expect(result.frontier).toHaveLength(20);
   });
 
-  it('前沿点权重之和应接近1', async () => {
-    if (!engineAvailable) return;
+  it.skipIf(!engineAvailable)('前沿点权重之和应接近1', async () => {
     const a = makePriceData('A', '2020-01-02', '2022-12-30', 100, 0.001);
     const b = makePriceData('B', '2020-01-02', '2022-12-30', 100, 0.0005);
     const body = {

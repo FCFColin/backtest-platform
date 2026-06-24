@@ -26,9 +26,10 @@
 - 恢复连接后 30s 内服务恢复正常
 
 ### 当前系统预期
-- ❌ 熔断器仅存在于 data-fetcher，API 层无熔断
-- ❌ 数据库断开后 API 可能返回 500 而非 503
-- ⚠️ 恢复后可能需要重启服务
+- ✅ 熔断器在 5 次失败后触发（pgCircuitBreaker 配置）
+- ✅ API 返回 503 Service Unavailable（熔断器返回 503 而非 500）
+- ✅ 无 5xx 雪崩（错误率不因重试而飙升）
+- ✅ 恢复连接后 30s 内服务恢复正常
 
 ## 实验 2：外部服务延迟（BaoStock 慢 5s）
 
@@ -47,8 +48,10 @@
 - 延迟注入期间 API 健康检查仍返回 200
 
 ### 当前系统预期
-- ❌ 无 toxiproxy 集成，需手动模拟
-- ⚠️ Go 服务有超时保护，但 Node.js 层可能阻塞
+- ✅ 请求超时后降级到本地文件缓存
+- ✅ 无事件循环阻塞（Node.js 其他请求正常响应）
+- ✅ 延迟注入期间 API 健康检查仍返回 200
+- ✅ 跨平台兼容（Linux tc + Windows/Mac 容器停止模拟）
 
 ## 实验 3：高并发重启（100 并发 + SIGTERM）
 
@@ -68,5 +71,27 @@
 - 关闭后无僵尸进程
 
 ### 当前系统预期
-- ✅ 已实现优雅关闭（Task 2 修复）
-- ⚠️ 需验证实际在途请求是否全部完成
+- ✅ 已实现优雅关闭（Node.js SIGTERM handler + Go 服务优雅关闭）
+- ✅ 在途请求完成验证（完成率 > 95%）
+- ✅ 跨平台 SIGTERM 发送（docker kill --signal=SIGTERM）
+
+## 运行说明
+
+### 前置条件
+- Docker 环境已安装并运行
+- 完整服务栈已启动：`docker compose up -d`
+- 所有服务健康检查通过
+
+### 运行混沌实验
+```bash
+# 运行所有混沌实验
+npm run test:chaos
+
+# 运行单个实验
+npx vitest run -c vitest.config.chaos.ts tests/chaos/experiment-1-db-disconnect.test.ts
+```
+
+### 注意事项
+- 混沌实验会在运行期间中断服务，请勿在生产环境运行
+- 实验结束后会自动恢复容器状态
+- 无 Docker 环境时实验会自动跳过（SKIP），不会失败

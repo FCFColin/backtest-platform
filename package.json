@@ -14,12 +14,14 @@
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:chaos": "vitest run -c vitest.config.chaos.ts",
-    "test:e2e": "vitest run tests/e2e",
+    "test:e2e": "vitest run tests/integration",
     "test:e2e:ui": "playwright test",
     "test:e2e:ui:headed": "playwright test --headed",
     "test:e2e:ui:coverage": "playwright test && npx nyc report --reporter=html --reporter=text --report-dir=coverage/playwright",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:bench": "vitest bench",
+    "import:market-data": "tsx -e \"import { importAllMarketData } from './api/db/import.js'; importAllMarketData().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
     "prepare": "husky"
   },
   "dependencies": {

@@ -10,45 +10,15 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { runPortfolioBacktest } from '../../api/engine/portfolio.js';
 import type { Portfolio, BacktestParameters } from '../../shared/types.js';
+import { checkServerAvailable } from '../helpers/server.js';
+import { ENGINE_BASE_URL } from '../helpers/constants.js';
+import { makePriceData } from '../helpers/fixtures.js';
 
-const RUST_ENGINE_URL = process.env.RUST_ENGINE_URL || 'http://127.0.0.1:5002';
+const RUST_ENGINE_URL = ENGINE_BASE_URL;
 let rustAvailable = false;
 
-/** 生成确定性测试价格数据（固定日收益率） */
-function makePriceData(
-  ticker: string,
-  startDate: string,
-  endDate: string,
-  startPrice: number,
-  dailyReturn: number,
-): Record<string, number> {
-  const prices: Record<string, number> = {};
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  let price = startPrice;
-  while (current <= end) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= 1 + dailyReturn;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return prices;
-}
-
 beforeAll(async () => {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
-    const resp = await fetch(`${RUST_ENGINE_URL}/api/engine/health`, {
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (resp.ok) rustAvailable = true;
-  } catch {
-    // Rust 引擎未运行，测试将跳过
-  }
+  rustAvailable = await checkServerAvailable(`${RUST_ENGINE_URL}/api/engine/health`);
 });
 
 /** 计算相对差异百分比 */
@@ -77,8 +47,7 @@ function assertMetricsClose(
 }
 
 describe('Rust ↔ JS 引擎一致性测试', () => {
-  it('基础回测：60/40 SPY/BND 10年回测', async () => {
-    if (!rustAvailable) return;
+  it.skipIf(!rustAvailable)('基础回测：60/40 SPY/BND 10年回测', async () => {
 
     // 生成 10 年测试数据（2014-01-02 ~ 2023-12-29）
     const spy = makePriceData('SPY', '2014-01-02', '2023-12-29', 180, 0.0004);
@@ -160,8 +129,7 @@ describe('Rust ↔ JS 引擎一致性测试', () => {
     expect(relativeDiff(rustFinalValue, nodeFinalValue)).toBeLessThan(0.0001);
   });
 
-  it('含现金流回测一致性', async () => {
-    if (!rustAvailable) return;
+  it.skipIf(!rustAvailable)('含现金流回测一致性', async () => {
 
     const spy = makePriceData('SPY', '2014-01-02', '2023-12-29', 180, 0.0004);
     const bnd = makePriceData('BND', '2014-01-02', '2023-12-29', 80, 0.0001);

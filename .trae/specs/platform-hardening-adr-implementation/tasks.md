@@ -73,11 +73,11 @@
   - [x] SubTask 10.3: api/server.ts 启动时调用 `OutboxPublisher.start()`，注册 SIGTERM 时 `OutboxPublisher.stop()`
   - [x] SubTask 10.4: 实现补偿扫描定时任务（setInterval 每 60s 扫描 `processed_at IS NULL AND created_at < NOW() - INTERVAL '5 minutes'`）
 
-- [ ] Task 11: Outbox 事务双写实现
-  - [ ] SubTask 11.1: 创建 api/services/outboxWriter.ts，提供 `writeEventInTransaction(client, event)` 函数，在业务事务内 INSERT outbox 记录
-  - [ ] SubTask 11.2: api/middleware/auditLog.ts 的 `writeOutboxEvent` 改为接受可选 `client` 参数，有 client 时用同事务写入，无 client 时回退到独立连接（向后兼容）
-  - [ ] SubTask 11.3: api/application/backtest-service.ts 的 `runBacktest` 在事务内同时写入业务数据和 outbox 事件（BacktestCompleted）
-  - [ ] SubTask 11.4: 编写事务双写单元测试（验证业务回滚时 outbox 也回滚）
+- [x] Task 11: Outbox 事务双写实现
+  - [x] SubTask 11.1: 创建 api/services/outboxWriter.ts，提供 `writeEventInTransaction(client, event)` 函数，在业务事务内 INSERT outbox 记录
+  - [x] SubTask 11.2: api/middleware/auditLog.ts 的 `writeOutboxEvent` 改为接受可选 `client` 参数，有 client 时用同事务写入，无 client 时回退到独立连接（向后兼容）
+  - [x] SubTask 11.3: api/application/backtest-service.ts 的 `runBacktest` 在事务内同时写入业务数据和 outbox 事件（BacktestCompleted）
+  - [x] SubTask 11.4: 编写事务双写单元测试（验证业务回滚时 outbox 也回滚）
 
 ## 阶段六：ADR-009/010/012 收尾
 
@@ -98,24 +98,24 @@
 
 ## 阶段七：测试体系重构
 
-- [ ] Task 15: 创建 tests/helpers/ 共享模块
-  - [ ] SubTask 15.1: tests/helpers/fixtures.ts——抽取 `makePriceData`、`makeLinearPriceData`、`makeVolatilePriceData`、`makeParams` 等辅助函数
-  - [ ] SubTask 15.2: tests/helpers/constants.ts——定义 `API_PORT=5001`、`ENGINE_PORT=5002`、`API_BASE_URL`、`ENGINE_BASE_URL`
-  - [ ] SubTask 15.3: tests/helpers/server.ts——封装 `checkServerAvailable(url)` 和 `it.skipIf` 跳过辅助函数
+- [x] Task 15: 创建 tests/helpers/ 共享模块
+  - [x] SubTask 15.1: tests/helpers/fixtures.ts——抽取 `makePriceData`、`makeLinearPriceData`、`makeVolatilePriceData`、`makeParams` 等辅助函数
+  - [x] SubTask 15.2: tests/helpers/constants.ts——定义 `API_PORT=5001`、`ENGINE_PORT=5002`、`API_BASE_URL`、`ENGINE_BASE_URL`
+  - [x] SubTask 15.3: tests/helpers/server.ts——封装 `checkServerAvailable(url)` 和 `it.skipIf` 跳过辅助函数
 
-- [ ] Task 16: 测试文件重构与合并
-  - [ ] SubTask 16.1: 修复 tests/unit/middleware/idempotency.test.ts 的 mock 路径（`../../api/utils/logger.js` → `../../../api/utils/logger.js`）
-  - [ ] SubTask 16.2: 合并 tests/e2e/api.test.ts + api.enhanced.test.ts → tests/e2e/api.test.ts，消除重复用例，修复端口（3001→5001）
-  - [ ] SubTask 16.3: 合并 tests/unit/sortino.edge.test.ts → tests/unit/statistics.edge.test.ts
-  - [ ] SubTask 16.4: 修复 tests/rust-engine/rust-engine.test.ts 端口（3002→5002），使用 helpers/constants.ts
-  - [ ] SubTask 16.5: 修复 tests/e2e/engine-and-pages.test.ts 使用 helpers/constants.ts
-  - [ ] SubTask 16.6: 所有 portfolio 测试文件（portfolio.test.ts、portfolio.edge.test.ts、portfolio.coverage.test.ts、bughunt.test.ts、engineConsistency.test.ts、rust-engine.test.ts）改用 helpers/fixtures.ts
-  - [ ] SubTask 16.7: 统一服务器不可用跳过策略为 `it.skipIf` 或 `beforeAll` + `ctx.skip()`
+- [x] Task 16: 测试文件重构与合并
+  - [x] SubTask 16.1: 修复 tests/unit/middleware/idempotency.test.ts 的 mock 路径（`../../api/utils/logger.js` → `../../../api/utils/logger.js`）
+  - [x] SubTask 16.2: 合并 tests/e2e/api.test.ts + api.enhanced.test.ts → tests/e2e/api.test.ts，消除重复用例，修复端口（3001→5001）
+  - [x] SubTask 16.3: 合并 tests/unit/sortino.edge.test.ts → tests/unit/statistics.edge.test.ts
+  - [x] SubTask 16.4: 修复 tests/rust-engine/rust-engine.test.ts 端口（3002→5002），使用 helpers/constants.ts
+  - [x] SubTask 16.5: 修复 tests/e2e/engine-and-pages.test.ts 使用 helpers/constants.ts（已改用 API_BASE_URL + checkServerAvailable，移除 throw Error，添加 it.skipIf）
+  - [x] SubTask 16.6: 所有 portfolio 测试文件（portfolio.test.ts、portfolio.edge.test.ts、portfolio.coverage.test.ts、bughunt.test.ts、engineConsistency.test.ts、rust-engine.test.ts）改用 helpers/fixtures.ts
+  - [x] SubTask 16.7: 统一服务器不可用跳过策略为 `it.skipIf`（api.test.ts、rust-engine.test.ts、engineConsistency.test.ts、engine-and-pages.test.ts 全部完成）
 
-- [ ] Task 17: vitest 配置与 bench 集成
-  - [ ] SubTask 17.1: vitest.config.ts 的 `include` 添加 `tests/**/*.bench.ts`，或单独配置 bench 项目
-  - [ ] SubTask 17.2: package.json 添加 `test:bench` 脚本（`vitest bench`）
-  - [ ] SubTask 17.3: 验证 tests/bench/statistics.bench.ts 可被 vitest 执行
+- [x] Task 17: vitest 配置与 bench 集成
+  - [x] SubTask 17.1: vitest.config.ts 的 `include` 添加 `tests/**/*.bench.ts`，或单独配置 bench 项目
+  - [x] SubTask 17.2: package.json 添加 `test:bench` 脚本（`vitest bench`）
+  - [x] SubTask 17.3: 验证 tests/bench/statistics.bench.ts 可被 vitest 执行
 
 - [ ] Task 18: 测试目录结构整理
   - [ ] SubTask 18.1: tests/rust-engine/ 重命名为 tests/engine-integration/（Rust 引擎已迁移到 Go，但一致性测试仍对比 Rust↔JS）
@@ -125,21 +125,21 @@
 
 ## 阶段八：文档更新
 
-- [ ] Task 19: 威胁模型文档更新
-  - [ ] SubTask 19.1: docs/threat-model.md 中 S-2 状态改为"✅ 已缓解"（engine-go 已添加认证+限流）
-  - [ ] SubTask 19.2: S-3 状态改为"✅ 已缓解"（data-fetcher 已添加认证）
-  - [ ] SubTask 19.3: I-2 状态改为"✅ 已缓解"（端口绑定 127.0.0.1）
-  - [ ] SubTask 19.4: R-2 状态改为"✅ 已缓解"（jobRoutes + backtest 路由已升级为 optionalJwtAuth）
-  - [ ] SubTask 19.5: S-4 状态改为"✅ 已缓解"（x-request-id 字符过滤）
-  - [ ] SubTask 19.6: R-3 状态改为"✅ 已缓解"（Python 子进程已消除，数据写入通过 outbox 审计）
-  - [ ] SubTask 19.7: 优先级列表中 P0（S-3、D-4）、P1（I-2、S-2、PG-1）全部移除或标记为已解决
-  - [ ] SubTask 19.8: 架构安全现状总结表更新评分
+- [x] Task 19: 威胁模型文档更新
+  - [x] SubTask 19.1: docs/threat-model.md 中 S-2 状态改为"✅ 已缓解"（engine-go 已添加认证+限流）
+  - [x] SubTask 19.2: S-3 状态改为"✅ 已缓解"（data-fetcher 已添加认证）
+  - [x] SubTask 19.3: I-2 状态改为"✅ 已缓解"（端口绑定 127.0.0.1）
+  - [x] SubTask 19.4: R-2 状态改为"✅ 已缓解"（jobRoutes + backtest 路由已升级为 optionalJwtAuth）
+  - [x] SubTask 19.5: S-4 状态改为"✅ 已缓解"（x-request-id 字符过滤）
+  - [x] SubTask 19.6: R-3 状态改为"✅ 已缓解"（Python 子进程已消除，数据写入通过 outbox 审计）
+  - [x] SubTask 19.7: 优先级列表中 P0（S-3、D-4）、P1（I-2、S-2、PG-1）全部移除或标记为已解决
+  - [x] SubTask 19.8: 架构安全现状总结表更新评分
 
-- [ ] Task 20: 混沌实验文档更新
-  - [ ] SubTask 20.1: docs/chaos-experiments.md 实验 1"当前系统预期"全部改为 ✅
-  - [ ] SubTask 20.2: 实验 2"当前系统预期"全部改为 ✅
-  - [ ] SubTask 20.3: 实验 3"当前系统预期"全部改为 ✅
-  - [ ] SubTask 20.4: 添加运行说明（`npm run test:chaos`）和前置条件（Docker 环境）
+- [x] Task 20: 混沌实验文档更新
+  - [x] SubTask 20.1: docs/chaos-experiments.md 实验 1"当前系统预期"全部改为 ✅
+  - [x] SubTask 20.2: 实验 2"当前系统预期"全部改为 ✅
+  - [x] SubTask 20.3: 实验 3"当前系统预期"全部改为 ✅
+  - [x] SubTask 20.4: 添加运行说明（`npm run test:chaos`）和前置条件（Docker 环境）
 
 # Task Dependencies
 

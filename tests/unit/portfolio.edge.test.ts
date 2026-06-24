@@ -1,54 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runPortfolioBacktest, type PriceData } from '../../api/engine/portfolio.js';
 import type { Portfolio, BacktestParameters } from '../../shared/types.js';
-
-// ===== 测试辅助 =====
-
-function makeLinearPriceData(
-  ticker: string, startDate: string, endDate: string, startPrice: number, dailyReturn: number,
-): Record<string, number> {
-  const prices: Record<string, number> = {};
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  let price = startPrice;
-  while (current <= end) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= (1 + dailyReturn);
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return prices;
-}
-
-function makeVolatilePriceData(
-  ticker: string, startDate: string, endDate: string, startPrice: number, returns: number[],
-): Record<string, number> {
-  const prices: Record<string, number> = {};
-  const current = new Date(startDate);
-  const end = new Date(endDate);
-  let price = startPrice;
-  let ri = 0;
-  while (current <= end && ri < returns.length) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= (1 + returns[ri]);
-      ri++;
-    }
-    current.setDate(current.getDate() + 1);
-  }
-  return prices;
-}
-
-function makeParams(overrides?: Partial<BacktestParameters>): BacktestParameters {
-  return {
-    startDate: '2020-01-02', endDate: '2020-12-31', startingValue: 10000,
-    adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: '',
-    ...overrides,
-  };
-}
+import { makeLinearPriceData, makeVolatilePriceData, makeParams } from '../helpers/fixtures.js';
 
 // ===== 边界：极端权重 =====
 describe('Portfolio引擎 - 极端权重', () => {

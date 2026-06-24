@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 
 // Mock logger 以避免 OTel/pino 初始化副作用
-vi.mock('../../api/utils/logger.js', () => ({
+vi.mock('../../../api/utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
