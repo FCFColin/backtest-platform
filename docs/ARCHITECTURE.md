@@ -61,7 +61,7 @@ flowchart TB
 - 连接拒绝（ECONNREFUSED）
 - HTTP 状态码非 2xx
 - 5 秒超时（`timeoutMs = 5000`）
-- 熔断器 Open 状态（见 [ADR-010](adr/010-circuit-breaker-strategy.md)）
+- 熔断器 Open 状态（见 [ADR-016](adr/ADR-016-熔断器策略.md)）
 
 **降级逻辑**：
 ```typescript
@@ -85,7 +85,7 @@ result = goResult || rustResult || runPortfolioBacktest(portfolios, priceData, p
 - 连接拒绝（ECONNREFUSED）
 - HTTP 状态码非 2xx
 - 30 秒超时（`timeoutMs = 30000`）
-- PostgreSQL 熔断器 Open 状态（见 [ADR-010](adr/010-circuit-breaker-strategy.md)）
+- PostgreSQL 熔断器 Open 状态（见 [ADR-016](adr/ADR-016-熔断器策略.md)）
 
 **降级逻辑**：
 - PostgreSQL 不可用 → 读取本地 `data/market/` JSON 文件（[api/services/dataService.ts](../api/services/dataService.ts)）
@@ -166,7 +166,7 @@ result = goResult || rustResult || runPortfolioBacktest(portfolios, priceData, p
 | `backtestRoutes.ts` | `/api/backtest` | 回测/分析/蒙特卡洛/优化/有效前沿 |
 | `adminRoutes.ts` | `/api/admin` | 管理后台接口 |
 
-> 注：认证授权已实现 JWT + RBAC 模型（见 [ADR-011](adr/011-auth-model.md)），保留 `x-api-key` 兼容模式（analyst 角色）。
+> 注：认证授权已实现 JWT + RBAC 模型（见 [ADR-017](adr/ADR-017-认证授权模型.md)），保留 `x-api-key` 兼容模式（analyst 角色）。
 
 ### 6.2 后端服务层 (`api/services/`)
 
@@ -238,11 +238,7 @@ result = goResult || rustResult || runPortfolioBacktest(portfolios, priceData, p
 ```
 data/
 ├── market/
-│   ├── cpi/              # CPI 数据 (cn_cpi.json, us_cpi.json)
-│   ├── exchange_rates/   # 汇率 (usd_cny.json)
-│   ├── indices/          # 指数行情 (IDX_GSPC.json 等)
-│   ├── state/            # 引擎状态 (progress.json, universe.json)
-│   └── tickers/          # 标的行情 (数千 JSON，如 AAPL.json)
+│   └── tickers/          # 标的行情 (数千 JSON，如 AAPL.json，由 data-fetcher 管理)
 └── cache/                # 运行时缓存 (gitignore)
 ```
 
@@ -274,7 +270,7 @@ data/
 ### 9.4 已知局限性
 - **Python 子进程信号量=3**：`dataService.ts:94` 限制 Python 子进程最大并发 3，高并发下排队（ADR-008 迁移至 Go 后消除）
 - **Rust 引擎过渡期**：Go 引擎上线后 Rust 引擎仍作为降级备选，过渡期双引擎并行运行
-- **x-api-key 兼容风险**：静态 API Key 仍可使用（analyst 角色），泄露后无法撤销（见 ADR-011）
+- **x-api-key 兼容风险**：静态 API Key 仍可使用（analyst 角色），泄露后无法撤销（见 ADR-017）
 - **Redis 依赖**：认证模块依赖 Redis 存储 Refresh Token，Redis 不可用时降级到内存模式（单实例可用，多实例会话不一致）
 
 ### 9.5 ADR 索引
@@ -288,15 +284,22 @@ data/
 | [ADR-006](adr/ADR-006-SQLite迁移决策.md) | JSON→SQLite 迁移 | 已取代（见 ADR-007） |
 | [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md) | SQLite→PostgreSQL 迁移 | 已接受 |
 | [ADR-008](adr/ADR-008-语言精简决策.md) | 4 语言→Go+TypeScript 精简 | 已接受 |
-| [ADR-009](adr/009-observability-selection.md) | 可观测性技术选型 | 已接受 |
-| [ADR-010](adr/010-circuit-breaker-strategy.md) | 熔断器策略 | 已接受 |
-| [ADR-011](adr/011-auth-model.md) | 认证授权模型 | 已接受 |
+| [ADR-009](adr/ADR-009-请求体校验库选型.md) | 请求体校验库选型（zod） | 已接受 |
+| [ADR-010](adr/ADR-010-密钥扫描工具选型.md) | 密钥扫描工具选型（gitleaks） | 已接受 |
+| [ADR-011](adr/ADR-011-长任务异步化方案.md) | 长任务异步化方案（BullMQ） | 已接受 |
+| [ADR-012](adr/ADR-012-SBOM与制品签名方案.md) | SBOM 与制品签名 | 已接受 |
+| [ADR-013](adr/ADR-013-领域模型重构策略.md) | 领域模型重构策略（DDD） | 已接受 |
+| [ADR-014](adr/ADR-014-事件溯源Outbox方案.md) | 事件溯源/Outbox 方案 | 已接受 |
+| [ADR-015](adr/ADR-015-可观测性技术选型.md) | 可观测性技术选型 | 已接受 |
+| [ADR-016](adr/ADR-016-熔断器策略.md) | 熔断器策略 | 已接受 |
+| [ADR-017](adr/ADR-017-认证授权模型.md) | 认证授权模型 | 已接受 |
+| [ADR-018](adr/ADR-018-Redis选型.md) | Redis 选型 | 已接受 |
 
 ---
 
 ## 10. 可观测性栈
 
-详见 [ADR-009](adr/009-observability-selection.md)。
+详见 [ADR-015](adr/ADR-015-可观测性技术选型.md)。
 
 | 支柱 | Node.js | Go | Rust |
 |------|---------|-----|------|
@@ -311,7 +314,7 @@ data/
 
 ## 11. 熔断器策略
 
-详见 [ADR-010](adr/010-circuit-breaker-strategy.md)。
+详见 [ADR-016](adr/ADR-016-熔断器策略.md)。
 
 | 服务 | 熔断器 | 保护目标 |
 |------|--------|---------|
@@ -326,7 +329,7 @@ data/
 
 ## 12. 认证授权模型
 
-详见 [ADR-011](adr/011-auth-model.md)。
+详见 [ADR-017](adr/ADR-017-认证授权模型.md)。
 
 | 维度 | 实现 |
 |------|------|

@@ -63,3 +63,6 @@ scratch_*
 *.sln
 *.sw?
 .vite
+
+# IDE 配置和规格文件
+.trae/

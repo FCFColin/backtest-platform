@@ -98,7 +98,7 @@ graph TB
 | T-1  | 攻击者通过 ticker 参数进行路径遍历读取任意文件      | 文件系统           | 高     | 已实现：Go 服务 `isValidTicker()` 正则校验 `^[A-Z0-9._-]{1,20}$`，拒绝 `..` `/` `\`          | ✅ 已缓解 |
 | T-2  | 攻击者篡改 JSON 数据文件（若挂载为读写）            | 行情数据           | 中     | 已实现：Docker Compose `volumes: ./data:/app/data:ro` 只读挂载                               | ✅ 已缓解 |
 | T-3  | 攻击者篡改请求体中的回测参数（如 starting_value）   | 计算结果           | 低     | 已实现：Rust 引擎 `validate_backtest_request()` 校验 portfolios 非空、starting_value > 0      | ✅ 已缓解 |
-| T-4  | 中间人篡改服务间 HTTP 通信                          | 引擎间通信         | 中     | [v2.0] Go 服务间通信可通过 PostgreSQL 连接的 TLS 加密（ADR-007），服务间 HTTP 仍依赖网络隔离 | ⚠️ 部分 |
+| T-4  | 中间人篡改服务间 HTTP 通信                          | 引擎间通信         | 中     | [v2.0] Go 服务间通信可通过 PostgreSQL 连接的 TLS 加密（ADR-007），服务间 HTTP 仍依赖网络隔离。已有缓解：服务间认证 token（ENGINE_AUTH_TOKEN、DATA_SERVICE_AUTH_TOKEN）提供身份验证；端口绑定 127.0.0.1（I-2）提供主机级隔离；Docker 默认 bridge 网络提供网络隔离。mTLS 需后续引入。 | ⚠️ 部分 |
 
 ### R — Repudiation（抵赖）
 
@@ -114,7 +114,7 @@ graph TB
 | ---- | -------------------------------------------------- | ------------------ | ------ | -------------------------------------------------------------------------------------------- | ------ |
 | I-1  | 生产环境错误详情泄露（堆栈、内部路径）              | 系统内部信息       | 中     | 已实现：生产环境返回 `'Server internal error'`，开发环境截断 200 字符                         | ✅ 已缓解 |
 | I-2  | Go/Rust 服务端口暴露到主机，同网段可探测            | 服务元信息         | 中     | **v2.1 已缓解**：所有 `docker-compose.yml` 端口映射已收紧为绑定 `127.0.0.1`（如 `127.0.0.1:5002:5002`、`127.0.0.1:5003:5003`），外部网络无法直接访问容器端口，仅本机回环接口可达；配合 S-2/S-3 的认证机制形成纵深防御 | ✅ 已缓解 |
-| I-3  | API Key 在日志中泄露                                | 认证凭据           | 高     | 已实现：pino 序列化器未配置排除敏感头，但 API Key 通过 `x-api-key` 请求头传递，pino-http 默认不记录请求头。[v2.0] Python 子进程已消除（ADR-008），API Key 仅通过 HTTP 请求头传递；PostgreSQL 凭据通过 K8s Secret 管理（ADR-007） | ⚠️ 部分：需确认 pino-http 的 req 序列化配置 |
+| I-3  | API Key 在日志中泄露                                | 认证凭据           | 高     | 已实现：pino logger 配置了 redact 脱敏规则，显式覆盖 req.headers.authorization、req.headers["x-api-key"]、req.headers.cookie，以及通配符路径 *.token、*.apiKey、*.secret、*.password。httpLogger 子日志实例继承父实例的 redact 配置。序列化器使用 pino.stdSerializers.req，redact 在序列化后执行移除敏感字段。[v2.0] Python 子进程已消除（ADR-008），API Key 仅通过 HTTP 请求头传递；PostgreSQL 凭据通过 K8s Secret 管理（ADR-007） | ✅ 已缓解 |
 | I-4  | CORS 配置不当导致跨域数据泄露                       | API 数据           | 中     | 已实现：生产环境 CORS 白名单配置，开发环境允许所有来源（有告警日志）                          | ✅ 已缓解 |
 | I-5  | 行情数据未授权访问（普通端点无认证）                | 业务数据           | 中     | 设计决策：行情数据为公开信息，非敏感数据，无需认证                                            | ✅ 可接受 |
 
@@ -155,11 +155,11 @@ graph TB
 | ~~P0~~ | ~~D-4~~ | ~~Go 数据服务无速率限制~~                       | ✅ 已解决：data-fetcher 已集成 `ulule/limiter` 速率限制（S-3 同步确认） |
 | ~~P1~~ | ~~I-2~~ | ~~Go 端口暴露到主机所有接口~~                   | ✅ 已解决（v2.1）：所有 docker-compose.yml 端口映射绑定 127.0.0.1 |
 | ~~P1~~ | ~~S-2~~ | ~~Go 引擎端口暴露，同网段可绕过 Node API~~      | ✅ 已解决（v2.1）：engine-go 添加 `X-Engine-Auth` 认证 + 30 req/min 限流 + 端口绑定 127.0.0.1 |
-| P1     | PG-1   | PostgreSQL 连接未加密（v2.0 新增）              | 生产环境 DATABASE_URL 必须使用 TLS（文档层面，需生产环境配置） |
-| P2     | T-4    | 服务间 HTTP 通信未加密                          | Docker 内部网络隔离已提供基础防护，mTLS 可后续引入          |
+| ~~P1~~ | ~~PG-1~~ | ~~PostgreSQL 连接未加密~~                       | ✅ 已解决：db/index.ts 生产环境强制 ssl: { rejectUnauthorized: true }，运维需配置 PG 证书 |
+| P2     | T-4    | 服务间 HTTP 通信未加密                          | Docker 内部网络隔离已提供基础防护，mTLS 可后续引入。已有缓解：服务间认证 token（ENGINE_AUTH_TOKEN、DATA_SERVICE_AUTH_TOKEN）提供身份验证；端口绑定 127.0.0.1（I-2）提供主机级隔离；Docker 默认 bridge 网络提供网络隔离。mTLS 需后续引入。 |
 | ~~P2~~ | ~~R-3~~ | ~~数据写入无审计记录~~                          | ✅ 已解决（v2.1）：Python 子进程消除（ADR-008）+ Outbox 审计（ADR-014）+ HMAC 签名 |
-| P2     | I-3    | API Key 可能在日志中泄露                        | 确认 pino-http req 序列化配置，排除敏感头                    |
-| P2     | PG-2   | DATABASE_URL 泄露（v2.0 新增）                  | K8s Secret 管理，禁止写入镜像或 git                          |
+| ~~P2~~ | ~~I-3~~ | ~~API Key 可能在日志中泄露~~                    | ✅ 已解决：pino redact 配置覆盖所有敏感请求头                  |
+| P2     | PG-2   | DATABASE_URL 泄露（v2.0 新增）                  | K8s Secret 管理，禁止写入镜像或 git；api-deployment.yaml 已补充 postgres-secret 引用 |
 | ~~P3~~ | ~~R-2~~ | ~~计算端点身份关联~~                            | ✅ 已解决（v2.1）：jobRoutes + backtest 路由升级为 `optionalJwtAuth` |
 | ~~P3~~ | ~~S-4~~ | ~~x-request-id 注入日志~~                       | ✅ 已解决（v2.1）：字符过滤正则 `/^[a-zA-Z0-9-]+$/` + 非法字符触发 UUID 重新生成 |
 

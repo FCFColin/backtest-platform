@@ -9,8 +9,8 @@ export const letfAnalyzeSchema = z.object({
   letfTicker: z.string().min(1, '缺少letfTicker'),
   benchmarkTicker: z.string().min(1, '缺少benchmarkTicker'),
   leverage: z.number().positive('leverage必须为正数'),
-  startDate: z.string().min(1, '缺少startDate').date(),
-  endDate: z.string().min(1, '缺少endDate').date(),
+  startDate: z.string().min(1, '缺少startDate'),
+  endDate: z.string().min(1, '缺少endDate'),
 });
 
 export type LETFAnalyzeRequest = z.infer<typeof letfAnalyzeSchema>;

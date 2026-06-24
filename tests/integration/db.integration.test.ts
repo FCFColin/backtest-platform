@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { execSync } from 'node:child_process';
 
 // Mock logger 打破 config ↔ logger 循环依赖，
 // 避免 config 模块加载时 logger 引用 config 导致 undefined
@@ -23,7 +24,17 @@ vi.mock('../../api/utils/logger.js', () => ({
 import { config } from '../../api/config/index.js';
 import { getPool, initSchema, rollbackSchema, closeDb, healthCheck } from '../../api/db/index.js';
 
-describe('PostgreSQL 集成测试（testcontainers）', () => {
+// Docker 可用性检查：testcontainers 依赖 Docker 守护进程
+// 通过执行 `docker info` 检测，失败则跳过整个测试套件
+let dockerAvailable = false;
+try {
+  execSync('docker info', { stdio: 'ignore', timeout: 5000 });
+  dockerAvailable = true;
+} catch {
+  dockerAvailable = false;
+}
+
+describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）', () => {
   let container: StartedPostgreSqlContainer;
 
   beforeAll(async () => {

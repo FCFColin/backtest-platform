@@ -18,7 +18,7 @@ import { logger } from '../utils/logger.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DATA_DIR = path.resolve(__dirname, '../../../data/market');
+const DATA_DIR = path.resolve(__dirname, '../../data/market');
 const TICKERS_DIR = path.join(DATA_DIR, 'tickers');
 
 interface PriceRecord {
@@ -29,6 +29,7 @@ interface PriceRecord {
   close: number;
   volume: number;
   adjustedClose?: number;
+  adj_close?: number;
 }
 
 /**
@@ -47,14 +48,15 @@ export async function importAllTickers(): Promise<{ imported: number; skipped: n
     return result;
   }
 
-  const files = fs.readdirSync(TICKERS_DIR).filter(f => f.endsWith('.json'));
+  const files = fs.readdirSync(TICKERS_DIR).filter(f => f.endsWith('.json') && !f.endsWith('.meta.json'));
   logger.info({ totalFiles: files.length }, '[import] 数据导入开始');
 
   for (const file of files) {
     const ticker = file.replace('.json', '');
     try {
       const filePath = path.join(TICKERS_DIR, file);
-      const data: PriceRecord[] = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const data: PriceRecord[] = Array.isArray(raw) ? raw : (raw.prices || []);
 
       if (!Array.isArray(data) || data.length === 0) {
         result.skipped++;
@@ -84,7 +86,7 @@ export async function importAllTickers(): Promise<{ imported: number; skipped: n
                close = EXCLUDED.close,
                volume = EXCLUDED.volume,
                adjusted_close = EXCLUDED.adjusted_close`,
-            [ticker, p.date, p.open, p.high, p.low, p.close, p.volume, p.adjustedClose ?? null]
+            [ticker, p.date, p.open, p.high, p.low, p.close, p.volume, p.adj_close ?? p.adjustedClose ?? null]
           );
         }
 

@@ -70,6 +70,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: backtest-config
+            - secretRef:
+                name: postgres-secret
           volumeMounts:
             - name: tmp
               mountPath: /tmp

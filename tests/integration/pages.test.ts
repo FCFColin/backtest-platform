@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { checkServerAvailable } from '../helpers/server.js';
 import { API_BASE_URL } from '../helpers/constants.js';
 
-// E2E 测试：数据引擎页面、引擎状态指示器、新增工具页面 API、布局验证
+// 集成测试：数据引擎页面、引擎状态指示器、新增工具页面 API、布局验证
 // 这些测试需要后端服务器运行（默认端口 5001），未运行时自动跳过
 
 const BASE_URL = API_BASE_URL;
@@ -232,21 +234,32 @@ describe('新增工具页面 API', () => {
 
 // ===== 4. 布局验证 =====
 describe('布局验证', () => {
-  it.skipIf(!serverAvailable)('导航栏包含所有工具页面入口', async () => {
-    // 获取前端 HTML（生产模式下 API 服务器托管 dist/）
-    const res = await fetch(`${BASE_URL}/`);
-    // 开发模式下 API 服务器不托管前端静态文件，返回 404 时跳过文本校验
-    if (!res.ok) return;
-    const html = await res.text();
-    // CSR 应用：验证 SPA 挂载点存在
-    expect(html).toContain('<div id="root">');
+  it('导航栏包含所有工具页面入口', () => {
+    // CSR应用：导航链接在客户端渲染，验证Navbar源码包含所有工具页面路由
+    const navbarSource = readFileSync(
+      resolve(process.cwd(), 'src/components/layout/Navbar.tsx'),
+      'utf-8',
+    );
+    // 验证关键导航路由存在（覆盖所有工具分组）
+    expect(navbarSource).toContain("to: '/'");
+    expect(navbarSource).toContain("to: '/backtest-optimizer'");
+    expect(navbarSource).toContain("to: '/analysis'");
+    expect(navbarSource).toContain("to: '/pca'");
+    expect(navbarSource).toContain("to: '/optimizer'");
+    expect(navbarSource).toContain("to: '/monte-carlo'");
+    expect(navbarSource).toContain("to: '/tactical'");
+    expect(navbarSource).toContain("to: '/letf-slippage'");
+    expect(navbarSource).toContain("to: '/data-engine'");
   });
 
-  it.skipIf(!serverAvailable)('页脚包含法律链接', async () => {
-    const res = await fetch(`${BASE_URL}/`);
-    if (!res.ok) return;
-    const html = await res.text();
-    // CSR 应用：验证 SPA 挂载点存在
-    expect(html).toContain('<div id="root">');
+  it('页脚包含法律链接', () => {
+    const footerSource = readFileSync(
+      resolve(process.cwd(), 'src/components/layout/Footer.tsx'),
+      'utf-8',
+    );
+    // 验证页脚包含法律相关链接
+    expect(footerSource).toContain('href="/help"');
+    expect(footerSource).toContain('href="/about"');
+    expect(footerSource).toContain('mailto:');
   });
 });

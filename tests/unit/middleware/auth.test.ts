@@ -187,3 +187,78 @@ describe('optionalApiKey 中间件', () => {
     expect(next).not.toHaveBeenCalled();
   });
 });
+
+describe('安全攻击用例', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.config.NODE_ENV = 'production';
+    mocks.config.ADMIN_API_KEY = 'secret-key-123';
+    mocks.config.REQUIRE_API_KEY = false;
+  });
+
+  it('SQL 注入作为 API Key 应被拒绝（403）', () => {
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': "' OR '1'='1" },
+    });
+    requireApiKey(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+    // 确保错误响应中不包含 SQL 注入载荷
+    const callArgs = (res.json as any).mock.calls[0]?.[0];
+    expect(JSON.stringify(callArgs)).not.toContain("OR '1'='1");
+  });
+
+  it('头注入（含 \\r\\n 字符）的 API Key 应被拒绝', () => {
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': 'secret-key-123\r\nX-Injected-Header: evil' },
+    });
+    requireApiKey(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('空字符串 API Key 应被拒绝（401）', () => {
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': '' },
+    });
+    requireApiKey(req, res, next);
+    // 空字符串是 falsy，应被 !apiKey 检查拦截
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('纯空白字符 API Key 应被拒绝（403）', () => {
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': '   ' },
+    });
+    requireApiKey(req, res, next);
+    // 纯空白字符串是 truthy，通过 !apiKey 检查后应在 timingSafeEqual 处失败
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('暴力破解：30+ 次连续失败尝试应全部被拒绝', () => {
+    mocks.config.ADMIN_API_KEY = 'secret-key-123';
+    let rejectedCount = 0;
+    let successCount = 0;
+
+    for (let i = 0; i < 35; i++) {
+      const { req, res, next } = createMockReqRes({
+        headers: { 'x-api-key': `wrong-key-${i}` },
+      });
+      requireApiKey(req, res, next);
+
+      if ((res.status as any).mock.calls.some((c: any[]) => c[0] === 403)) {
+        rejectedCount++;
+      } else if (next.mock.calls.length > 0) {
+        successCount++;
+      }
+    }
+
+    // 所有 35 次尝试都应被拒绝，无一成功
+    expect(rejectedCount).toBe(35);
+    expect(successCount).toBe(0);
+    // 确保每次都返回 403（非 401，因为 Key 存在但错误）
+    expect(rejectedCount).toBeGreaterThan(30);
+  });
+});

@@ -145,3 +145,77 @@ describe('auditLog 中间件', () => {
     );
   });
 });
+
+describe('安全攻击用例', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('SQL 注入作为 path 应被安全存储（参数化查询）', () => {
+    const sqlInjectionPath = "/api/users' OR '1'='1";
+    const { req, res, next } = createMockReqRes({
+      method: 'POST',
+      path: sqlInjectionPath,
+    });
+    auditLog(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
+
+    // 触发 finish 回调
+    const finishCb = (res as any)._finishCallback;
+    expect(finishCb).toBeDefined();
+    // 应不抛出异常地记录审计日志
+    expect(() => finishCb()).not.toThrow();
+
+    // 验证审计日志被记录（包含 SQL 注入路径，但通过参数化查询安全存储）
+    expect(mocks.childInfo).toHaveBeenCalled();
+    const loggedEntry = (mocks.childInfo as any).mock.calls[0]?.[0];
+    // path 应被原样记录（参数化查询防止注入执行）
+    expect(loggedEntry.path).toBe(sqlInjectionPath);
+  });
+
+  it('原型污染：headers 含 __proto__ 不应修改 Object.prototype', () => {
+    // 确保测试前 Object.prototype 未被污染
+    expect({}.admin).toBeUndefined();
+
+    // 使用 JSON.parse 模拟来自 HTTP 请求的 headers（__proto__ 作为自有属性）
+    const maliciousHeaders = JSON.parse('{"__proto__": {"admin": true}, "x-api-key": "test-key"}');
+
+    const { req, res, next } = createMockReqRes({
+      method: 'POST',
+      headers: maliciousHeaders,
+    });
+    auditLog(req, res, next);
+
+    const finishCb = (res as any)._finishCallback;
+    expect(() => finishCb()).not.toThrow();
+
+    // 关键安全断言：Object.prototype 未被污染
+    expect({}.admin).toBeUndefined();
+    // 审计日志应正常记录
+    expect(mocks.childInfo).toHaveBeenCalled();
+  });
+
+  it('超大 path（10KB）应被安全处理（不崩溃）', () => {
+    const oversizedPath = '/api/' + 'a'.repeat(10 * 1024); // 10KB 路径
+    const { req, res, next } = createMockReqRes({
+      method: 'POST',
+      path: oversizedPath,
+    });
+    auditLog(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+
+    const finishCb = (res as any)._finishCallback;
+    // 应不抛出异常地处理超大路径
+    expect(() => finishCb()).not.toThrow();
+
+    // 审计日志应被记录
+    expect(mocks.childInfo).toHaveBeenCalled();
+    const loggedEntry = (mocks.childInfo as any).mock.calls[0]?.[0];
+    // path 应被记录（可能被截断或完整存储，关键是进程不崩溃）
+    expect(loggedEntry.path).toBeDefined();
+    expect(typeof loggedEntry.path).toBe('string');
+  });
+});

@@ -108,9 +108,13 @@ describe('Graceful Shutdown (Task 5)', () => {
     process.removeAllListeners('SIGINT');
   });
 
-  it('setupGracefulShutdown 应为已导出的函数', async () => {
-    const serverModule = await import('../../../api/server.js');
-    expect(typeof serverModule.setupGracefulShutdown).toBe('function');
+  it('setupGracefulShutdown 应注册 SIGTERM 和 SIGINT 信号处理器', async () => {
+    const onSpy = vi.spyOn(process, 'on');
+    await import('../../../api/server.js');
+    // setupGracefulShutdown 应通过 process.on 注册 SIGTERM 和 SIGINT 处理器
+    expect(onSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
+    expect(onSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+    onSpy.mockRestore();
   });
 
   it('收到 SIGTERM 时应调用 server.close()', async () => {

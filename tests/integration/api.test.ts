@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { checkServerAvailable } from '../helpers/server.js';
 import { API_BASE_URL } from '../helpers/constants.js';
 
-// E2E测试：启动真实服务器并测试API端点
+// 集成测试：启动真实服务器并测试API端点
 // 这些测试需要后端服务器运行
 
 let serverAvailable = false;

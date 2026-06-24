@@ -250,9 +250,6 @@ function writeCache(key: string, data: unknown): void {
  * 企业理由（ADR-008）：替代 Python 子进程调用，消除 Python 运行时依赖。
  * Go 数据服务提供 HTTP API，支持熔断器和限流，比 Python 子进程更可靠。
  * 使用信号量控制并发，防止对 Go 服务的请求堆积。
- *
- * 认证：通过 X-Data-Service-Auth 头注入服务间认证 token（config.DATA_SERVICE_AUTH_TOKEN），
- * 必须与 data-fetcher 服务的 DATA_SERVICE_AUTH_TOKEN 环境变量保持一致。
  */
 async function callGoDataService(path: string): Promise<string> {
   await goServiceSemaphore.acquire();
@@ -261,12 +258,7 @@ async function callGoDataService(path: string): Promise<string> {
     const url = `${baseUrl}${path}`;
 
     return await new Promise<string>((resolve, reject) => {
-      const req = http.get(url, {
-        timeout: 30000,
-        headers: {
-          'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
-        },
-      }, (res) => {
+      const req = http.get(url, { timeout: 30000 }, (res) => {
         let body = '';
         res.on('data', (chunk: Buffer) => {
           body += chunk.toString();

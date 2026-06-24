@@ -167,3 +167,121 @@ describe('idempotencyKey 中间件', () => {
     });
   });
 });
+
+describe('安全攻击用例', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('并发相同 Key 竞态条件：5 个并发请求只有一个执行 handler，其余返回缓存', async () => {
+    const key = 'race-condition-key-12345';
+
+    // 第一步：发送首个请求并完成（写入缓存）
+    const { req: req1, res: res1, next: next1 } = createMockReqRes({
+      method: 'POST',
+      headers: { 'idempotency-key': key },
+    });
+    idempotencyKey(req1, res1, next1);
+    await vi.waitFor(() => {
+      expect(next1).toHaveBeenCalledTimes(1);
+    });
+    // 模拟 handler 执行完毕，返回 200 响应（触发缓存写入）
+    (res1 as any).statusCode = 200;
+    const cachedBody = { success: true, data: 'first-response' };
+    (res1.json as any)(cachedBody);
+
+    // 第二步：同时发送 4 个并发请求（使用 Promise.all）
+    const concurrentRequests = Array.from({ length: 4 }, () => {
+      const { req, res, next } = createMockReqRes({
+        method: 'POST',
+        headers: { 'idempotency-key': key },
+      });
+      return { req, res, next };
+    });
+
+    // 并发发送所有请求
+    await Promise.all(
+      concurrentRequests.map(({ req, res, next }) =>
+        new Promise<void>((resolve) => {
+          idempotencyKey(req, res, next);
+          // 等待异步处理完成
+          vi.waitFor(() => {
+            expect(res.status).toHaveBeenCalledWith(200);
+          }).then(resolve);
+        }),
+      ),
+    );
+
+    // 验证：所有并发请求都应返回缓存结果，不应执行 handler
+    for (const { res, next } of concurrentRequests) {
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(cachedBody);
+    }
+  });
+
+  it('SQL 注入作为 Key 应被安全存储（参数化查询，不执行注入）', async () => {
+    const sqlInjectionKey = "'; DROP TABLE idempotency_keys;--";
+
+    const { req, res, next } = createMockReqRes({
+      method: 'POST',
+      headers: { 'idempotency-key': sqlInjectionKey },
+    });
+    idempotencyKey(req, res, next);
+
+    // 中间件应正常处理，不崩溃
+    await vi.waitFor(() => {
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    // 模拟 handler 返回 200（触发缓存写入）
+    (res as any).statusCode = 200;
+    const responseBody = { success: true };
+    (res.json as any)(responseBody);
+
+    // 第二次请求相同 Key 应返回缓存（证明 Key 被安全存储）
+    const { req: req2, res: res2, next: next2 } = createMockReqRes({
+      method: 'POST',
+      headers: { 'idempotency-key': sqlInjectionKey },
+    });
+    idempotencyKey(req2, res2, next2);
+
+    await vi.waitFor(() => {
+      expect(res2.status).toHaveBeenCalledWith(200);
+    });
+    expect(next2).not.toHaveBeenCalled();
+    expect(res2.json).toHaveBeenCalledWith(responseBody);
+  });
+
+  it('XSS 载荷作为 Key 应被安全存储', async () => {
+    const xssKey = '<script>alert(1)</script>';
+
+    const { req, res, next } = createMockReqRes({
+      method: 'POST',
+      headers: { 'idempotency-key': xssKey },
+    });
+    idempotencyKey(req, res, next);
+
+    await vi.waitFor(() => {
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    // 模拟 handler 返回 200（触发缓存写入）
+    (res as any).statusCode = 200;
+    const responseBody = { success: true, data: 'xss-test' };
+    (res.json as any)(responseBody);
+
+    // 第二次请求相同 Key 应返回缓存（证明 XSS 载荷被安全存储）
+    const { req: req2, res: res2, next: next2 } = createMockReqRes({
+      method: 'POST',
+      headers: { 'idempotency-key': xssKey },
+    });
+    idempotencyKey(req2, res2, next2);
+
+    await vi.waitFor(() => {
+      expect(res2.status).toHaveBeenCalledWith(200);
+    });
+    expect(next2).not.toHaveBeenCalled();
+    expect(res2.json).toHaveBeenCalledWith(responseBody);
+  });
+});

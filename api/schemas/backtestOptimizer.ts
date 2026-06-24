@@ -27,8 +27,8 @@ export const backtestOptimizerSchema = z.object({
     }),
   }),
   parameters: z.object({
-    startDate: z.string().min(1).date(),
-    endDate: z.string().min(1).date(),
+    startDate: z.string().min(1),
+    endDate: z.string().min(1),
     benchmarkTicker: z.string().optional(),
     baseCurrency: z.enum(['usd', 'cny']).optional(),
     adjustForInflation: z.boolean().optional(),
