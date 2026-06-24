@@ -18,7 +18,7 @@ tracing-subscriber = { version = "0.3", features = ["json", "env-filter"] }
 # 企业理由：OpenTelemetry 是可观测性事实标准，跨服务 traceparent 传播
 # 使 Node.js → Go → Rust 全链路追踪成为可能。无此传播时，
 # 各服务日志无法关联，跨服务排障需人工比对时间戳，效率极低。
-opentelemetry = "0.29"
+opentelemetry = "0.32"
 opentelemetry-otlp = { version = "0.29", features = ["grpc-tonic"] }
 opentelemetry_sdk = "0.29"
 tracing-opentelemetry = "0.30"
