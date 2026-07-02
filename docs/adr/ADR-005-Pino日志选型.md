@@ -2,12 +2,12 @@
 
 > **企业理由**：日志是生产环境排障的唯一可靠依据。Pino 的结构化 JSON 输出和极低开销（比 winston 快 5-10 倍）确保日志不会成为性能瓶颈，同时 JSON 格式便于日志采集系统（ELK / Loki）消费和查询。
 
-| 字段     | 值                                   |
-| -------- | ------------------------------------ |
-| 状态     | 已接受                               |
-| 日期     | 2025-01-20                           |
-| 决策者   | 架构组                               |
-| 范围     | 日志系统                             |
+| 字段   | 值         |
+| ------ | ---------- |
+| 状态   | 已接受     |
+| 日期   | 2025-01-20 |
+| 决策者 | 架构组     |
+| 范围   | 日志系统   |
 
 ## Context（背景和驱动力）
 
@@ -21,15 +21,15 @@
 
 评估的候选库：
 
-| 维度           | pino              | winston           |
-| -------------- | ----------------- | ----------------- |
-| 性能（行/秒）  | ~30,000           | ~3,000            |
-| 输出格式       | JSON（原生）      | JSON / printf     |
-| HTTP 中间件    | pino-http         | express-winston   |
-| 子 logger      | logger.child()    | logger.child()    |
-| 美化输出       | pino-pretty       | winston-console   |
-| Bundle 大小    | ~50KB             | ~200KB            |
-| 维护状态       | 活跃              | 活跃              |
+| 维度          | pino           | winston         |
+| ------------- | -------------- | --------------- |
+| 性能（行/秒） | ~30,000        | ~3,000          |
+| 输出格式      | JSON（原生）   | JSON / printf   |
+| HTTP 中间件   | pino-http      | express-winston |
+| 子 logger     | logger.child() | logger.child()  |
+| 美化输出      | pino-pretty    | winston-console |
+| Bundle 大小   | ~50KB          | ~200KB          |
+| 维护状态      | 活跃           | 活跃            |
 
 ## Decision（决策内容）
 

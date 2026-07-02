@@ -8,9 +8,11 @@ info:
     战术分配、信号分析、PCA 主成分分析、LETF 滑点分析、目标优化等量化投资工具。
 
     ## 认证
-    - 管理端点（admin、data/manage）需要 `x-api-key` 请求头认证
-    - 计算密集型端点（backtest、backtest-optimizer）可选 `x-api-key`，有 Key 时验证身份，无 Key 时放行但记录匿名访问
-    - 健康检查和 metrics 端点不需要认证
+    - **生产环境（REQUIRE_API_KEY=true）**：所有计算端点（`/backtest/*`、`/tactical/*` 等）**必须**携带 JWT Bearer Token（`Authorization: Bearer <accessToken>`）
+    - **管理端点**（`/admin/*`、`/data/manage/*`）：JWT + RBAC 权限（如 `data:manage`、`admin:access`）
+    - **兼容模式**：`x-api-key` 请求头映射为 analyst 角色（过渡用，不推荐生产长期依赖）
+    - 认证流程：`POST /auth/login/password` → accessToken + refreshToken
+    - 健康检查 `/health` 与 `/metrics`（可配置 METRICS_AUTH_TOKEN）无需用户 JWT
 
     ## 速率限制
     - 普通 API：100 次/15 分钟/IP
@@ -621,7 +623,7 @@ components:
           type: string
         indicator:
           type: string
-          description: "技术指标：sma, ema, rsi, macd, bollinger"
+          description: '技术指标：sma, ema, rsi, macd, bollinger'
         period:
           type: number
         threshold:
@@ -1234,7 +1236,7 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
     post:
       tags: [auth]
-      summary: "（已废弃）登出并撤销令牌"
+      summary: '（已废弃）登出并撤销令牌'
       deprecated: true
       description: |
         **已废弃**，请使用 DELETE /auth/logout 替代。
@@ -1265,13 +1267,13 @@ paths:
             Deprecation:
               schema:
                 type: string
-                enum: ["true"]
-              description: "RFC 8594 - 此端点已废弃"
+                enum: ['true']
+              description: 'RFC 8594 - 此端点已废弃'
             Sunset:
               schema:
                 type: string
                 format: date
-              description: "RFC 8594 - 此端点将被移除的日期"
+              description: 'RFC 8594 - 此端点将被移除的日期'
             Link:
               schema:
                 type: string
@@ -1685,7 +1687,7 @@ paths:
                     type: boolean
                   data:
                     type: object
-                    description: "{ ticker: { date: price } }"
+                    description: '{ ticker: { date: price } }'
                     additionalProperties:
                       type: object
                       additionalProperties:
@@ -1965,7 +1967,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [data-manage]
-      summary: "（已废弃）全量更新"
+      summary: '（已废弃）全量更新'
       deprecated: true
       description: |
         **已废弃**，请使用 PUT /data/manage/update/full 替代。
@@ -1986,13 +1988,13 @@ paths:
             Deprecation:
               schema:
                 type: string
-                enum: ["true"]
-              description: "RFC 8594 - 此端点已废弃"
+                enum: ['true']
+              description: 'RFC 8594 - 此端点已废弃'
             Sunset:
               schema:
                 type: string
                 format: date
-              description: "RFC 8594 - 此端点将被移除的日期"
+              description: 'RFC 8594 - 此端点将被移除的日期'
             Link:
               schema:
                 type: string
@@ -2045,7 +2047,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [data-manage]
-      summary: "（已废弃）增量更新"
+      summary: '（已废弃）增量更新'
       deprecated: true
       description: |
         **已废弃**，请使用 PATCH /data/manage/update/inc 替代。
@@ -2066,13 +2068,13 @@ paths:
             Deprecation:
               schema:
                 type: string
-                enum: ["true"]
-              description: "RFC 8594 - 此端点已废弃"
+                enum: ['true']
+              description: 'RFC 8594 - 此端点已废弃'
             Sunset:
               schema:
                 type: string
                 format: date
-              description: "RFC 8594 - 此端点将被移除的日期"
+              description: 'RFC 8594 - 此端点将被移除的日期'
             Link:
               schema:
                 type: string
@@ -2124,7 +2126,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [data-manage]
-      summary: "（已废弃）重新获取已有标的完整历史"
+      summary: '（已废弃）重新获取已有标的完整历史'
       deprecated: true
       description: |
         **已废弃**，请使用 PUT /data/manage/update/refetch 替代。
@@ -2145,13 +2147,13 @@ paths:
             Deprecation:
               schema:
                 type: string
-                enum: ["true"]
-              description: "RFC 8594 - 此端点已废弃"
+                enum: ['true']
+              description: 'RFC 8594 - 此端点已废弃'
             Sunset:
               schema:
                 type: string
                 format: date
-              description: "RFC 8594 - 此端点将被移除的日期"
+              description: 'RFC 8594 - 此端点将被移除的日期'
             Link:
               schema:
                 type: string
@@ -2204,7 +2206,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [data-manage]
-      summary: "（已废弃）恢复中断"
+      summary: '（已废弃）恢复中断'
       deprecated: true
       description: |
         **已废弃**，请使用 PATCH /data/manage/resume 替代。
@@ -2225,13 +2227,13 @@ paths:
             Deprecation:
               schema:
                 type: string
-                enum: ["true"]
-              description: "RFC 8594 - 此端点已废弃"
+                enum: ['true']
+              description: 'RFC 8594 - 此端点已废弃'
             Sunset:
               schema:
                 type: string
                 format: date
-              description: "RFC 8594 - 此端点将被移除的日期"
+              description: 'RFC 8594 - 此端点将被移除的日期'
             Link:
               schema:
                 type: string
@@ -2283,7 +2285,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [data-manage]
-      summary: "（已废弃）刷新宇宙"
+      summary: '（已废弃）刷新宇宙'
       deprecated: true
       description: |
         **已废弃**，请使用 PUT /data/manage/universe 替代。
@@ -2304,13 +2306,13 @@ paths:
             Deprecation:
               schema:
                 type: string
-                enum: ["true"]
-              description: "RFC 8594 - 此端点已废弃"
+                enum: ['true']
+              description: 'RFC 8594 - 此端点已废弃'
             Sunset:
               schema:
                 type: string
                 format: date
-              description: "RFC 8594 - 此端点将被移除的日期"
+              description: 'RFC 8594 - 此端点将被移除的日期'
             Link:
               schema:
                 type: string
@@ -2408,7 +2410,7 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       tags: [data-manage]
-      summary: "（已废弃）重新生成元数据文件"
+      summary: '（已废弃）重新生成元数据文件'
       deprecated: true
       description: |
         **已废弃**，请使用 PUT /data/manage/regenerate-meta 替代。
@@ -2429,13 +2431,13 @@ paths:
             Deprecation:
               schema:
                 type: string
-                enum: ["true"]
-              description: "RFC 8594 - 此端点已废弃"
+                enum: ['true']
+              description: 'RFC 8594 - 此端点已废弃'
             Sunset:
               schema:
                 type: string
                 format: date
-              description: "RFC 8594 - 此端点将被移除的日期"
+              description: 'RFC 8594 - 此端点将被移除的日期'
             Link:
               schema:
                 type: string
@@ -2601,12 +2603,12 @@ paths:
   /health:
     get:
       tags: [health]
-      summary: 健康检查
-      description: 检测各服务（Rust 引擎 / Node.js / Go 数据服务）连通性与状态
+      summary: 轻量存活探针
+      description: 确认 API 进程可响应，不暴露依赖拓扑（K8s liveness）
       security: []
       responses:
         '200':
-          description: 健康状态
+          description: 存活状态
           content:
             application/json:
               schema:
@@ -2619,30 +2621,24 @@ paths:
                     properties:
                       status:
                         type: string
-                        enum: [ok, degraded]
-                        description: "ok 表示 Rust 引擎可用，degraded 表示降级到 Node.js"
+                        enum: [ok]
                       timestamp:
                         type: string
                         format: date-time
-        '500':
-          description: 健康检查失败
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    enum: [false]
-                  data:
-                    type: object
-                    properties:
-                      status:
-                        type: string
-                        enum: [error]
-                      timestamp:
-                        type: string
-                        format: date-time
+
+  /ready:
+    get:
+      tags: [health]
+      summary: 深度就绪检查
+      description: 探测引擎、数据库、Redis 等依赖；配置 METRICS_AUTH_TOKEN 时需 Bearer 鉴权
+      security: []
+      responses:
+        '200':
+          description: 就绪或降级
+        '401':
+          description: 未授权（已配置 METRICS_AUTH_TOKEN 时）
+        '503':
+          description: 核心依赖不可用
 
   /metrics:
     get:

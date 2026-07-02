@@ -1,36 +1,34 @@
 # 运维手册（Runbook）
 
-> 最后更新：2026-06-23
-> 适用版本：Phase 3 生产硬化后
+> 最后更新：2026-06-25  
+> 适用版本：企业级 Round 2 实施后
 
 ## 一、服务架构概览
 
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  前端 Vite   │───▶│  后端 API     │───▶│  Rust 引擎   │
-│  port 5175  │    │  Express      │    │  actix-web   │
-│  (开发)      │    │  port 5001    │    │  port 5002   │
-└─────────────┘    └──────┬───────┘    └─────────────┘
-                          │ fallback          ▲
-                          ▼                   │
-                   ┌──────────────┐    ┌──────┴──────┐
-                   │  Node.js 引擎 │    │  PostgreSQL  │
-                   │  (内置备用)    │    │  数据库存储   │
-                   └──────────────┘    └─────────────┘
-                          ▲                   ▲
-                          │                   │
-                   ┌──────┴───────┐           │
-                   │  Go 数据服务  │───────────┘
-                   │  port 5003   │
-                   └──────────────┘
+│  前端 Vite   │───▶│  后端 API     │───▶│  Go 引擎(主) │
+│  port 5173  │    │  Express      │    │  :5002/5004 │
+└─────────────┘    │  port 5001    │    └──────┬──────┘
+                   └──────┬───────┘           │ fallback
+                          │                   ▼
+                   ┌──────┴───────┐    ┌─────────────┐
+                   │  Go 数据服务  │    │ Rust→Node   │
+                   │  port 5003   │    │  降级链      │
+                   └──────┬───────┘    └─────────────┘
+                          ▼
+                   ┌─────────────┐    ┌─────────────┐
+                   │ PostgreSQL  │    │   Redis     │
+                   └─────────────┘    └─────────────┘
 ```
 
-| 服务 | 端口 | 启动命令 | 健康检查 |
-|---|---|---|---|
-| 前端（开发） | 5175 | `npm run client:dev` | `curl http://localhost:5175` |
-| 后端 API | 5001 | `npm run server:dev` | `curl http://localhost:5001/api/health` |
-| Rust 引擎 | 5002 | `cd engine-rs && cargo run --release` | `curl http://127.0.0.1:5002/api/engine/health` |
-| Go 数据服务 | 5003 | `cd data-fetcher && go run .` | `curl http://localhost:5003/api/data/health` |
+| 服务            | 端口      | 启动命令                              | 健康检查                                       |
+| --------------- | --------- | ------------------------------------- | ---------------------------------------------- |
+| 前端（开发）    | 5173      | `npm run client:dev`                  | `curl http://localhost:5173`                   |
+| 后端 API        | 5001      | `npm run server:dev`                  | `curl http://localhost:5001/api/health`        |
+| Go 引擎         | 5002/5004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:5002/api/engine/health` |
+| Rust 引擎（备） | 5002      | `cd engine-rs && cargo run --release` | 同上                                           |
+| Go 数据服务     | 5003      | `cd data-fetcher && go run .`         | `curl http://localhost:5003/api/data/health`   |
 
 ## 二、启动与停止
 
@@ -90,12 +88,12 @@ curl http://localhost:5003/api/data/health
 
 ### 关键指标
 
-| 指标 | 获取方式 | 告警阈值 |
-|---|---|---|
-| Rust 引擎可用率 | `/api/metrics` → `engine.rustAvailability` | < 0.95 |
-| Fallback 触发次数 | `/api/metrics` → `engine.fallbackToNodeTotal` | 持续增长 |
-| Rust 调用失败数 | `/api/metrics` → `engine.rustCallsFailed` | > 0 |
-| 数据引擎扫描耗时 | 后端日志 `[dataManageRoutes] /stats scanTickersStats 耗时` | > 5000ms |
+| 指标              | 获取方式                                                   | 告警阈值 |
+| ----------------- | ---------------------------------------------------------- | -------- |
+| Rust 引擎可用率   | `/api/metrics` → `engine.rustAvailability`                 | < 0.95   |
+| Fallback 触发次数 | `/api/metrics` → `engine.fallbackToNodeTotal`              | 持续增长 |
+| Rust 调用失败数   | `/api/metrics` → `engine.rustCallsFailed`                  | > 0      |
+| 数据引擎扫描耗时  | 后端日志 `[dataManageRoutes] /stats scanTickersStats 耗时` | > 5000ms |
 
 ## 四、常见故障排查
 
@@ -104,6 +102,7 @@ curl http://localhost:5003/api/data/health
 **症状**：`/api/health` 返回 `engine.rust: false`，`status: degraded`
 
 **排查步骤**：
+
 1. 检查 Rust 引擎进程是否运行：`Get-Process cargo`
 2. 检查端口 5002 是否监听：`netstat -ano | findstr 5002`
 3. 尝试手动启动：`cd engine-rs; cargo run --release`
@@ -117,6 +116,7 @@ curl http://localhost:5003/api/data/health
 **症状**：`/api/data/manage/stats` 响应时间 > 5 秒
 
 **排查步骤**：
+
 1. 检查后端日志中 `scanTickersStats 耗时` 标记
 2. 检查 `api/.cache/stats_cache.json` 是否存在（缓存命中应 < 100ms）
 3. 首次加载无缓存时返回 `{ scanning: true }` 是正常行为（后台异步扫描）
@@ -129,6 +129,7 @@ curl http://localhost:5003/api/data/health
 **症状**：访问页面显示空白
 
 **排查步骤**：
+
 1. 检查后端 API 是否运行：`curl http://localhost:5001/api/health`
 2. 检查浏览器控制台错误
 3. 检查前端构建产物：`npm run build`
@@ -139,6 +140,7 @@ curl http://localhost:5003/api/data/health
 **症状**：数据获取失败，降级到本地 JSON 文件
 
 **排查步骤**：
+
 1. 检查 Go 服务进程：`Get-Process go`
 2. 检查端口 5003：`netstat -ano | findstr 5003`
 3. 手动启动：`cd data-fetcher; go run .`
@@ -149,6 +151,7 @@ curl http://localhost:5003/api/data/health
 **症状**：接口返回异常数据、NaN 值、日期缺失、或前端图表显示异常
 
 **排查步骤**：
+
 1. 检查具体 ticker 数据文件：`Get-Content data/tickers/<TICKER>.json | ConvertFrom-Json | Select-Object -First 5`
 2. 检查缓存版本号：`Get-Content data/cache/.cache_version`
 3. 检查统计缓存是否过期：`Get-Item api/.cache/stats_cache.json | Select-Object LastWriteTime`
@@ -159,6 +162,7 @@ curl http://localhost:5003/api/data/health
 5. 检查 CPI/汇率文件完整性：`Get-Content data/market/cpi/us_cpi.json | ConvertFrom-Json | Measure-Object`
 
 **恢复**：
+
 - 清除统计缓存：`Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue`
 - 重新生成元数据：`POST /api/v1/data/manage/regenerate-meta`
 - 单个 ticker 重新获取：`POST /api/v1/data/manage/update/refetch`
@@ -175,12 +179,14 @@ curl http://localhost:5003/api/data/health
 **排查步骤**：
 
 1. **连接池耗尽**：查看 active/idle 连接数
+
    ```sql
    kubectl exec -it postgres-0 -- psql -U backtest -c \
      "SELECT count(*), state FROM pg_stat_activity GROUP BY state;"
    ```
 
 2. **慢查询定位**：找出长时间运行的活跃查询
+
    ```sql
    SELECT query, state, wait_event_type, wait_event,
           now()-query_start AS duration
@@ -194,6 +200,7 @@ curl http://localhost:5003/api/data/health
 **修复步骤**：
 
 1. **连接池耗尽**：临时 kill idle 事务
+
    ```sql
    SELECT pg_terminate_backend(pid)
    FROM pg_stat_activity
@@ -202,6 +209,7 @@ curl http://localhost:5003/api/data/health
    ```
 
 2. **迁移失败回滚**：调用 rollbackSchema 回退到指定版本
+
    ```powershell
    kubectl exec -it api-pod -- node -e \
      "const {rollbackSchema,closeDb}=require('./dist/db/index.js');rollbackSchema(0).then(closeDb)"
@@ -223,6 +231,7 @@ curl http://localhost:5003/api/data/health
    ```
 
 **预防**：
+
 - 配置 `statement_timeout` 防止慢查询占满连接
 - 添加 PostgreSQL 熔断器（opossum），避免级联故障
 - 引入 PgBouncer 作为外部连接池，控制最大连接数
@@ -239,11 +248,13 @@ curl http://localhost:5003/api/data/health
 ### 部署步骤
 
 1. **拉取代码**
+
    ```powershell
    git pull origin main
    ```
 
 2. **安装依赖**
+
    ```powershell
    npm ci
    cd engine-rs; cargo build --release; cd ..
@@ -251,11 +262,13 @@ curl http://localhost:5003/api/data/health
    ```
 
 3. **构建前端**
+
    ```powershell
    npm run build
    ```
 
 4. **验证构建**
+
    ```powershell
    npm run check    # TypeScript 类型检查
    npm run lint     # ESLint 检查
@@ -264,6 +277,7 @@ curl http://localhost:5003/api/data/health
    ```
 
 5. **配置环境变量**
+
    ```powershell
    # 创建 .env 文件
    Copy-Item .env.example .env
@@ -279,12 +293,14 @@ curl http://localhost:5003/api/data/health
    ```
 
 6. **初始化数据库 Schema**
+
    ```powershell
    # 部署 PostgreSQL 后，运行 initSchema 创建表结构
    node -e "const{initSchema,closeDb}=require('./dist/db/index.js');initSchema().then(closeDb)"
    ```
 
 7. **启动服务**（按顺序）
+
    ```powershell
    # 终端 1：Rust 引擎
    cd engine-rs; cargo run --release
@@ -360,44 +376,45 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 
 ## 七、环境变量参考
 
-| 变量 | 默认值 | 说明 |
-|---|---|---|
-| `NODE_ENV` | `development` | 运行环境（production 时需设 ADMIN_API_KEY） |
-| `API_PORT` | `5001` | 后端 API 端口 |
-| `RUST_ENGINE_URL` | `http://127.0.0.1:5002` | Rust 引擎地址 |
-| `RUST_ENGINE_TIMEOUT_MS` | `5000` | Rust 引擎调用超时（ms） |
-| `GO_DATA_SERVICE_URL` | `http://127.0.0.1:5003` | Go 数据服务地址 |
-| `CORS_ORIGINS` | `*`（允许所有） | CORS 白名单（逗号分隔） |
-| `ADMIN_API_KEY` | `""` | 管理后台 API 密钥（生产环境必需） |
-| `DATABASE_URL` | `""` | PostgreSQL 连接字符串（如 `postgresql://backtest:pass@localhost:5432/backtest`） |
-| `DB_POOL_MAX` | `20` | 连接池最大连接数 |
-| `DB_STATEMENT_TIMEOUT_MS` | `30000` | 查询超时毫秒数 |
+| 变量                      | 默认值                  | 说明                                                                             |
+| ------------------------- | ----------------------- | -------------------------------------------------------------------------------- |
+| `NODE_ENV`                | `development`           | 运行环境（production 时需设 ADMIN_API_KEY）                                      |
+| `API_PORT`                | `5001`                  | 后端 API 端口                                                                    |
+| `RUST_ENGINE_URL`         | `http://127.0.0.1:5002` | Rust 引擎地址                                                                    |
+| `RUST_ENGINE_TIMEOUT_MS`  | `5000`                  | Rust 引擎调用超时（ms）                                                          |
+| `GO_DATA_SERVICE_URL`     | `http://127.0.0.1:5003` | Go 数据服务地址                                                                  |
+| `CORS_ORIGINS`            | `*`（允许所有）         | CORS 白名单（逗号分隔）                                                          |
+| `ADMIN_API_KEY`           | `""`                    | 管理后台 API 密钥（生产环境必需）                                                |
+| `DATABASE_URL`            | `""`                    | PostgreSQL 连接字符串（如 `postgresql://backtest:pass@localhost:5432/backtest`） |
+| `DB_POOL_MAX`             | `20`                    | 连接池最大连接数                                                                 |
+| `DB_STATEMENT_TIMEOUT_MS` | `30000`                 | 查询超时毫秒数                                                                   |
 
 ## 八、测试命令速查
 
-| 命令 | 说明 |
-|---|---|
-| `npm run check` | TypeScript 类型检查 |
-| `npm run lint` | ESLint 检查 |
-| `npm run test:unit` | 单元测试（169 用例） |
-| `npm run test:e2e` | E2E 测试（需后端运行） |
+| 命令                               | 说明                               |
+| ---------------------------------- | ---------------------------------- |
+| `npm run check`                    | TypeScript 类型检查                |
+| `npm run lint`                     | ESLint 检查                        |
+| `npm run test:unit`                | 单元测试（169 用例）               |
+| `npm run test:e2e`                 | E2E 测试（需后端运行）             |
 | `npx vitest run tests/consistency` | 引擎一致性测试（需 Rust 引擎运行） |
-| `npm run build` | 构建前端 |
-| `cargo test`（engine-rs/） | Rust 测试（25 用例） |
-| `go test ./...`（data-fetcher/） | Go 测试 |
+| `npm run build`                    | 构建前端                           |
+| `cargo test`（engine-rs/）         | Rust 测试（25 用例）               |
+| `go test ./...`（data-fetcher/）   | Go 测试                            |
 
 ## 九、Escalation 路径
 
 > 企业理由：明确的升级路径避免事故时找不到负责人，缩短 MTTR（平均恢复时间）。
 > 权衡：层级越多响应越慢，3 层是 SRE 行业标准实践。
 
-| 层级 | 角色 | 职责 | 响应时间 | 联系方式 |
-|---|---|---|---|---|
-| L1 | 值班运维 | 告警确认、初步排查、执行已知修复方案 | 5 分钟 | 值班群 / PagerDuty |
-| L2 | 后端开发 | 复杂问题排查、代码级修复、配置变更 | 15 分钟 | 开发群 / 电话 |
-| L3 | 架构师 / Tech Lead | 架构级决策、跨团队协调、数据库迁移 | 30 分钟 | 紧急电话 |
+| 层级 | 角色               | 职责                                 | 响应时间 | 联系方式           |
+| ---- | ------------------ | ------------------------------------ | -------- | ------------------ |
+| L1   | 值班运维           | 告警确认、初步排查、执行已知修复方案 | 5 分钟   | 值班群 / PagerDuty |
+| L2   | 后端开发           | 复杂问题排查、代码级修复、配置变更   | 15 分钟  | 开发群 / 电话      |
+| L3   | 架构师 / Tech Lead | 架构级决策、跨团队协调、数据库迁移   | 30 分钟  | 紧急电话           |
 
 **升级规则**：
+
 - L1 在 15 分钟内无法解决 → 升级到 L2
 - L2 在 30 分钟内无法解决 → 升级到 L3
 - 任何 SEV0 事故 → 直接通知 L3
@@ -408,11 +425,11 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 > 权衡：过高的 SLO 目标会导致过度工程化，过低则失去用户信任。
 > 当前目标基于回测平台的实际使用模式（非实时交易系统）设定。
 
-| 指标 | SLO 目标 | 计算方式 | 告警阈值 |
-|---|---|---|---|
-| 可用性 | 99.5% | 成功请求 / 总请求（5 分钟窗口） | < 99.0% |
-| P95 延迟 | < 2s | 请求响应时间 P95（5 分钟窗口） | > 3s |
-| 错误率 | < 1% | 5xx 响应 / 总响应（5 分钟窗口） | > 2% |
+| 指标     | SLO 目标 | 计算方式                        | 告警阈值 |
+| -------- | -------- | ------------------------------- | -------- |
+| 可用性   | 99.5%    | 成功请求 / 总请求（5 分钟窗口） | < 99.0%  |
+| P95 延迟 | < 2s     | 请求响应时间 P95（5 分钟窗口）  | > 3s     |
+| 错误率   | < 1%     | 5xx 响应 / 总响应（5 分钟窗口） | > 2%     |
 
 **错误预算**：每月 0.5% 不可用时间 ≈ 3.6 小时。超出后冻结非紧急变更。
 
@@ -421,12 +438,12 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 > 企业理由：统一的事故分级确保资源按优先级分配，避免小事故占用大资源或大事故响应不足。
 > 权衡：分级是主观判断，需根据实际影响而非技术复杂度决定。
 
-| 级别 | 定义 | 影响范围 | 响应要求 | 示例 |
-|---|---|---|---|---|
-| SEV0 | 全面不可用 | 所有用户无法使用核心功能 | 立即响应，全员介入 | API 完全宕机、数据库损坏 |
-| SEV1 | 核心功能降级 | 大部分用户受影响，但有降级方案 | 15 分钟内响应 | Rust 引擎不可用（降级到 Node）、数据服务宕机 |
-| SEV2 | 非核心功能异常 | 少部分用户受影响 | 1 小时内响应 | 搜索功能异常、缓存命中率下降 |
-| SEV3 | 轻微问题 | 几乎无用户影响 | 下个工作日处理 | 日志格式错误、监控指标偏差 |
+| 级别 | 定义           | 影响范围                       | 响应要求           | 示例                                         |
+| ---- | -------------- | ------------------------------ | ------------------ | -------------------------------------------- |
+| SEV0 | 全面不可用     | 所有用户无法使用核心功能       | 立即响应，全员介入 | API 完全宕机、数据库损坏                     |
+| SEV1 | 核心功能降级   | 大部分用户受影响，但有降级方案 | 15 分钟内响应      | Rust 引擎不可用（降级到 Node）、数据服务宕机 |
+| SEV2 | 非核心功能异常 | 少部分用户受影响               | 1 小时内响应       | 搜索功能异常、缓存命中率下降                 |
+| SEV3 | 轻微问题       | 几乎无用户影响                 | 下个工作日处理     | 日志格式错误、监控指标偏差                   |
 
 ## 十二、Burn Rate Alert 响应步骤
 
@@ -473,14 +490,14 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 
 ## 事故时间线
 
-| 时间 | 事件 |
-|---|---|
-| HH:MM | 告警触发 |
-| HH:MM | L1 确认 |
+| 时间  | 事件      |
+| ----- | --------- |
+| HH:MM | 告警触发  |
+| HH:MM | L1 确认   |
 | HH:MM | 升级到 L2 |
-| HH:MM | 定位根因 |
-| HH:MM | 修复部署 |
-| HH:MM | 服务恢复 |
+| HH:MM | 定位根因  |
+| HH:MM | 修复部署  |
+| HH:MM | 服务恢复  |
 
 ## 根因分析
 
@@ -494,10 +511,10 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 
 ## 修复措施
 
-| 措施 | 负责人 | 截止日期 | 状态 |
-|---|---|---|---|
-| [短期修复] | @name | YYYY-MM-DD | ✅/⏳/❌ |
-| [长期预防] | @name | YYYY-MM-DD | ✅/⏳/❌ |
+| 措施       | 负责人 | 截止日期   | 状态     |
+| ---------- | ------ | ---------- | -------- |
+| [短期修复] | @name  | YYYY-MM-DD | ✅/⏳/❌ |
+| [长期预防] | @name  | YYYY-MM-DD | ✅/⏳/❌ |
 
 ## 经验教训
 

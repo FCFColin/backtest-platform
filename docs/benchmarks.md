@@ -6,22 +6,22 @@
 
 ## data-fetcher
 
-| Benchmark | ns/op | B/op | allocs/op |
-|-----------|-------|------|-----------|
-| BenchmarkHandleBatch | TBD | TBD | TBD |
-| BenchmarkHandleValidateTickers | TBD | TBD | TBD |
-| BenchmarkSearchTickers | TBD | TBD | TBD |
-| BenchmarkIsValidTicker | 99 | 0 | 0 |
+| Benchmark                      | ns/op | B/op | allocs/op |
+| ------------------------------ | ----- | ---- | --------- |
+| BenchmarkHandleBatch           | TBD   | TBD  | TBD       |
+| BenchmarkHandleValidateTickers | TBD   | TBD  | TBD       |
+| BenchmarkSearchTickers         | TBD   | TBD  | TBD       |
+| BenchmarkIsValidTicker         | 99    | 0    | 0         |
 
 ## engine-go
 
-| Benchmark | ns/op | B/op | allocs/op |
-|-----------|-------|------|-----------|
-| BenchmarkRunBacktest | 5,373,880 | 1,540,330 | 19,998 |
-| BenchmarkComputeGrowthCurve | TBD | TBD | TBD |
-| BenchmarkComputeStatistics | TBD | TBD | TBD |
-| BenchmarkRunMonteCarlo | TBD | TBD | TBD |
-| BenchmarkComputePortfolioDailyReturns | TBD | TBD | TBD |
+| Benchmark                             | ns/op     | B/op      | allocs/op |
+| ------------------------------------- | --------- | --------- | --------- |
+| BenchmarkRunBacktest                  | 5,373,880 | 1,540,330 | 19,998    |
+| BenchmarkComputeGrowthCurve           | TBD       | TBD       | TBD       |
+| BenchmarkComputeStatistics            | TBD       | TBD       | TBD       |
+| BenchmarkRunMonteCarlo                | TBD       | TBD       | TBD       |
+| BenchmarkComputePortfolioDailyReturns | TBD       | TBD       | TBD       |
 
 ## How to run benchmarks
 

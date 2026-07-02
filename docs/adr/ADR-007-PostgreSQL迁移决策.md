@@ -2,13 +2,13 @@
 
 > **企业理由**：SQLite 是单文件嵌入式数据库，无法支持多实例水平扩展、连接池共享和读副本。当系统需要从单实例演进到多副本 K8s 部署时，PostgreSQL 是企业级关系数据库的标准选择，提供 ACID 事务、连接池、流复制、全文搜索和成熟的运维生态。
 
-| 字段     | 值                                   |
-| -------- | ------------------------------------ |
-| 状态     | 已接受                               |
-| 日期     | 2026-06-23                           |
-| 决策者   | 架构组                               |
-| 范围     | 数据层                               |
-| 取代     | ADR-006（SQLite 迁移决策）           |
+| 字段   | 值                         |
+| ------ | -------------------------- |
+| 状态   | 已接受                     |
+| 日期   | 2026-06-23                 |
+| 决策者 | 架构组                     |
+| 范围   | 数据层                     |
+| 取代   | ADR-006（SQLite 迁移决策） |
 
 ## Context（背景和驱动力）
 
@@ -25,6 +25,7 @@ ADR-006 决定从 JSON 文件迁移到 SQLite（better-sqlite3），解决了 80
 5. **语言精简协同**：ADR-008 决定将 Rust 引擎迁移到 Go，Go 生态中 PostgreSQL 驱动（pgx）成熟度远超 SQLite 驱动，且 Go 的 database/sql 接口天然支持连接池。
 
 **当前状况**：
+
 - `api/db/index.ts` 已实现 SQLite schema（tickers/prices/cpi_data/exchange_rates），但 dataService.ts 仍主要使用 JSON 文件。
 - `api/db/import.ts` 提供 JSON→SQLite 导入工具。
 - K8s 部署配置 2 副本但 SQLite 文件无法共享，水平扩展被阻塞。
@@ -50,12 +51,14 @@ ADR-006 决定从 JSON 文件迁移到 SQLite（better-sqlite3），解决了 80
 8. **部署**：K8s StatefulSet + PVC（或云托管 RDS），ConfigMap/Secret 管理连接信息
 
 **不选择 MongoDB 的理由**：
+
 - 数据模型为高度结构化的金融时序数据（OHLCV + 元数据），关系模型更自然
 - 需要复杂 JOIN（标的+价格+汇率联合查询）、事务（批量导入原子性）、外键约束
 - PostgreSQL 的 JSONB 列可满足灵活 schema 需求，无需引入文档数据库
 - 金融数据对 ACID 事务有硬性要求，PostgreSQL 的 MVCC 比 MongoDB 的文档级锁更适合
 
 **不选择 SQLite + 外部共享存储的理由**：
+
 - NFS/Ceph 等共享文件系统引入额外运维复杂度和性能损耗
 - SQLite 在网络文件系统上 WAL 模式行为不可靠
 - 直接使用 PostgreSQL 是更简洁的架构选择
@@ -63,6 +66,7 @@ ADR-006 决定从 JSON 文件迁移到 SQLite（better-sqlite3），解决了 80
 ## Consequences（后果）
 
 **正面后果**：
+
 - 解除水平扩展阻塞：多副本 Deployment 可共享同一 PostgreSQL 实例
 - 获得连接池：pgxpool/pg Pool 复用连接，减少连接建立开销
 - 获得全文搜索：tsvector + GIN 索引替代线性扫描，标的搜索性能从 O(n) 降为 O(log n)
@@ -71,11 +75,13 @@ ADR-006 决定从 JSON 文件迁移到 SQLite（better-sqlite3），解决了 80
 - 为 Go 引擎迁移铺路：pgx 是 Go 生态最成熟的 PostgreSQL 驱动
 
 **负面后果**：
+
 - 引入 PostgreSQL 运维依赖（需独立数据库进程，Docker/K8s 中需额外部署）
 - 开发环境需本地 PostgreSQL（可通过 docker-compose 简化）
 - 比 SQLite 多一层网络开销（本地连接 ~0.1ms，可忽略）
 - 需维护数据库连接配置（DATABASE_URL、连接池参数）
 
 **后续考虑**：
+
 - 当数据量 > 100GB 或查询延迟 > 100ms 时，考虑引入 TimescaleDB（PostgreSQL 时序扩展）
 - 当需要实时数据推送时，利用 PostgreSQL LISTEN/NOTIFY 通知数据更新

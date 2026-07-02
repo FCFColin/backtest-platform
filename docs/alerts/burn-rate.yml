@@ -19,9 +19,9 @@ groups:
           severity: critical
           team: platform
         annotations:
-          summary: "Fast burn rate detected"
-          description: "Error rate is consuming >2% of 30d error budget per hour. Current error rate: {{ $value | humanizePercentage }}"
-          runbook: "https://internal/backtest-platform/runbook#burn-rate-alert"
+          summary: 'Fast burn rate detected'
+          description: 'Error rate is consuming >2% of 30d error budget per hour. Current error rate: {{ $value | humanizePercentage }}'
+          runbook: 'https://internal/backtest-platform/runbook#burn-rate-alert'
 
       # Slow burn: 5% error budget consumed in 6h → Create ticket
       - alert: HighErrorRateSlowBurn
@@ -36,6 +36,29 @@ groups:
           severity: warning
           team: platform
         annotations:
-          summary: "Slow burn rate detected"
-          description: "Error rate is consuming >5% of 30d error budget per 6h. Current error rate: {{ $value | humanizePercentage }}"
-          runbook: "https://internal/backtest-platform/runbook#burn-rate-alert"
+          summary: 'Slow burn rate detected'
+          description: 'Error rate is consuming >5% of 30d error budget per 6h. Current error rate: {{ $value | humanizePercentage }}'
+          runbook: 'https://internal/backtest-platform/runbook#burn-rate-alert'
+
+      # T-36: 延迟 SLO 燃尽（P95，与 runbook P95<2s 对齐）
+      - alert: HighLatencyFastBurn
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1h])) by (le)) > 2
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: 'Fast burn: P95 latency > 2s'
+          runbook: 'https://internal/backtest-platform/runbook#burn-rate-alert'
+
+      - alert: HighLatencySlowBurn
+        expr: |
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[6h])) by (le)) > 3
+        for: 30m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: 'Slow burn: P95 latency > 3s over 6h'
+          runbook: 'https://internal/backtest-platform/runbook#burn-rate-alert'
