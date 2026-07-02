@@ -3,5 +3,5 @@
   "compilerOptions": {
     "lib": ["ES2020"]
   },
-  "include": ["shared"]
+  "include": ["packages/shared"]
 }
