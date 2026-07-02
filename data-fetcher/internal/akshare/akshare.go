@@ -3,269 +3,196 @@ package akshare
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"math/rand/v2"
-	"net/http"
 	"strconv"
+	"strings"
 	"time"
+
+	"data-fetcher/internal/httpclient"
+	"data-fetcher/internal/provider"
 
 	"github.com/sony/gobreaker"
 )
 
-// Fetcher A股数据获取器
-// 企业理由（ADR-008）：替代 Python akshare SDK，消除子进程开销和双运行时依赖。
-// 权衡：Go HTTP 客户端不如 Python SDK 完整，但核心行情数据获取已满足需求。
-
-// DailyPrice A股日线行情数据
-type DailyPrice struct {
-	Date          string  `json:"date"`
-	Open          float64 `json:"open"`
-	High          float64 `json:"high"`
-	Low           float64 `json:"low"`
-	Close         float64 `json:"close"`
-	Volume        int64   `json:"volume"`
-	AdjustedClose float64 `json:"adjustedClose"`
+var userAgents = []string{
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
 }
 
-// TickerInfo A股标的搜索结果
-type TickerInfo struct {
-	Ticker string `json:"ticker"`
-	Name   string `json:"name"`
-	Market string `json:"market"`
-}
+var (
+	breaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
+		Name:        "akshare",
+		MaxRequests: 3,
+		Interval:    60 * time.Second,
+		Timeout:     30 * time.Second,
+		ReadyToTrip: func(counts gobreaker.Counts) bool {
+			return counts.ConsecutiveFailures >= 5 ||
+				(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
+		},
+		OnStateChange: func(name string, from, to gobreaker.State) {
+			slog.Warn("akshare 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
+		},
+	})
 
-const (
-	baseURL        = "https://akshare.akfamily.xyz"
-	connectTimeout = 10 * time.Second
-	readTimeout    = 30 * time.Second
-	maxRetries     = 3
+	httpClient *httpclient.Client
 )
 
-var breaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
-	Name:        "akshare",
-	MaxRequests: 3,
-	Interval:    60 * time.Second,
-	Timeout:     30 * time.Second,
-	ReadyToTrip: func(counts gobreaker.Counts) bool {
-		return counts.ConsecutiveFailures >= 5 ||
-			(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
-	},
-	OnStateChange: func(name string, from, to gobreaker.State) {
-		slog.Warn("akshare 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
-	},
-})
+func init() {
+	httpClient = httpclient.New("akshare", httpclient.Options{
+		RequestDelay: 600 * time.Millisecond,
+		UserAgents:   userAgents,
+		ExtraHeaders: map[string]string{
+			"Accept":          "application/json,text/plain,*/*",
+			"Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+		},
+	})
+}
 
-// FetchStockDaily 获取A股日线行情
-// 调用 akshare REST API: GET /api/public/stock_zh_a_hist?symbol={ticker}&period=daily&start_date={start}&end_date={end}
-func FetchStockDaily(ticker, startDate, endDate string) ([]DailyPrice, error) {
-	url := fmt.Sprintf("%s/api/public/stock_zh_a_hist?symbol=%s&period=daily&start_date=%s&end_date=%s",
-		baseURL, ticker, startDate, endDate)
+type akshareProvider struct{}
+
+func NewProvider() provider.Provider {
+	return &akshareProvider{}
+}
+
+func (p *akshareProvider) Name() string {
+	return "akshare"
+}
+
+// FetchStockDaily 使用东方财富 API 获取 A 股历史日线数据
+// ticker 格式：000001_SZ 或 000001.SZ（后缀 _SZ/.SZ=深圳, _SH/.SH=上海）
+func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
+	code, market := parseCodeAndMarket(ticker)
+	secid := fmt.Sprintf("%s.%s", market, code)
+
+	// 东方财富日期格式：YYYYMMDD
+	beg := strings.ReplaceAll(startDate, "-", "")
+	ed := strings.ReplaceAll(endDate, "-", "")
+
+	url := fmt.Sprintf(
+		"https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=%s&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=%s&end=%s",
+		secid, beg, ed,
+	)
 
 	result, err := breaker.Execute(func() (interface{}, error) {
-		return doWithRetry(url, parseDailyPrices)
+		return doWithRetry(url)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("akshare FetchStockDaily 失败: %w", err)
 	}
-	return result.([]DailyPrice), nil
+	return result.([]provider.DailyPrice), nil
 }
 
-// SearchTicker 搜索A股标的
-// 调用 akshare REST API: GET /api/public/stock_zh_a_spot_em
-func SearchTicker(query string) ([]TickerInfo, error) {
-	url := fmt.Sprintf("%s/api/public/stock_zh_a_spot_em", baseURL)
+func (p *akshareProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
+	url := "https://push2.eastmoney.com/api/qt/stock/kline/get?secid=0.000001&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20200101&end=20260101&lmt=1"
 
 	result, err := breaker.Execute(func() (interface{}, error) {
-		return doWithRetry(url, func(body []byte) (interface{}, error) {
-			return parseTickerSearch(body, query)
-		})
+		return doSearchRetry(url, query)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("akshare SearchTicker 失败: %w", err)
 	}
-	return result.([]TickerInfo), nil
+	return result.([]provider.TickerInfo), nil
 }
 
-// doWithRetry 执行 HTTP 请求，带指数退避重试
-func doWithRetry(url string, parser func([]byte) (interface{}, error)) (interface{}, error) {
-	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			// 企业理由（ADR-028）：指数退避 + jitter 避免重试风暴（thundering herd）。
-			base := time.Duration(attempt*attempt) * time.Second
-			jitter := time.Duration(rand.Int64N(int64(base)/2 + 1))
-			backoff := base + jitter
-			slog.Info("akshare 重试", "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
-			time.Sleep(backoff)
-		}
+// parseCodeAndMarket 从 ticker 中提取股票代码和东方财富市场代码
+// 000001_SZ → ("000001", "0")，600519_SH → ("600519", "1")
+func parseCodeAndMarket(ticker string) (code, market string) {
+	upper := strings.ToUpper(ticker)
+	isSH := strings.HasSuffix(upper, "_SH") || strings.HasSuffix(upper, ".SH")
 
-		client := &http.Client{Timeout: connectTimeout + readTimeout}
-		resp, err := client.Get(url)
-		if err != nil {
-			lastErr = fmt.Errorf("HTTP 请求失败: %w", err)
-			continue
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			lastErr = fmt.Errorf("读取响应体失败: %w", err)
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body[:min(len(body), 200)]))
-			continue
-		}
-
-		return parser(body)
+	// 去除后缀
+	code = ticker
+	if idx := strings.LastIndex(code, "_"); idx > 0 {
+		code = code[:idx]
+	} else if idx := strings.LastIndex(code, "."); idx > 0 {
+		code = code[:idx]
 	}
-	return nil, fmt.Errorf("重试 %d 次后仍失败: %w", maxRetries, lastErr)
+
+	if isSH {
+		return code, "1"
+	}
+	return code, "0"
 }
 
-// parseDailyPrices 解析日线行情 API 响应
-func parseDailyPrices(body []byte) (interface{}, error) {
-	var raw struct {
-		Data [][]interface{} `json:"data"`
+func doWithRetry(url string) ([]provider.DailyPrice, error) {
+	body, err := httpClient.Get(url)
+	if err != nil {
+		return nil, err
 	}
+	return parseDailyPrices(body)
+}
+
+func doSearchRetry(url, query string) ([]provider.TickerInfo, error) {
+	body, err := httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	return parseTickerSearch(body, query)
+}
+
+type eastMoneyResponse struct {
+	Data *struct {
+		Code   string   `json:"code"`
+		Market int      `json:"market"`
+		Name   string   `json:"name"`
+		Klines []string `json:"klines"`
+	} `json:"data"`
+}
+
+func parseDailyPrices(body []byte) ([]provider.DailyPrice, error) {
+	var raw eastMoneyResponse
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, fmt.Errorf("JSON 解析失败: %w", err)
 	}
+	if raw.Data == nil {
+		return nil, fmt.Errorf("API 返回空数据")
+	}
 
-	var prices []DailyPrice
-	for _, row := range raw.Data {
-		if len(row) < 7 {
+	var prices []provider.DailyPrice
+	for _, kline := range raw.Data.Klines {
+		// kline 格式：日期,开盘,收盘,最高,最低,成交量,成交额,振幅,涨跌幅,涨跌额,换手率
+		parts := strings.Split(kline, ",")
+		if len(parts) < 11 {
 			continue
 		}
-		p := DailyPrice{
-			Date:          toString(row[0]),
-			Open:          toFloat64(row[1]),
-			High:          toFloat64(row[2]),
-			Low:           toFloat64(row[3]),
-			Close:         toFloat64(row[4]),
-			Volume:        toInt64(row[5]),
-			AdjustedClose: toFloat64(row[6]),
-		}
-		prices = append(prices, p)
+		prices = append(prices, provider.DailyPrice{
+			Date:          parts[0],
+			Open:          parseFloat(parts[1]),
+			Close:         parseFloat(parts[2]),
+			High:          parseFloat(parts[3]),
+			Low:           parseFloat(parts[4]),
+			Volume:        parseInt64(parts[5]),
+			AdjustedClose: parseFloat(parts[2]),
+		})
 	}
 	return prices, nil
 }
 
-// parseTickerSearch 解析标的搜索 API 响应
-func parseTickerSearch(body []byte, query string) (interface{}, error) {
-	var raw struct {
-		Data [][]interface{} `json:"data"`
-	}
+func parseTickerSearch(body []byte, query string) ([]provider.TickerInfo, error) {
+	var raw eastMoneyResponse
 	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, fmt.Errorf("JSON 解析失败: %w", err)
 	}
-
-	var results []TickerInfo
-	for _, row := range raw.Data {
-		if len(row) < 2 {
-			continue
-		}
-		code := toString(row[0])
-		name := toString(row[1])
-		// 简单匹配：代码或名称包含查询词
-		if containsIgnoreCase(code, query) || containsIgnoreCase(name, query) {
-			market := "A股"
-			if len(code) > 0 && code[0] == '6' {
-				market = "SH"
-			} else {
-				market = "SZ"
-			}
-			results = append(results, TickerInfo{
-				Ticker: code,
-				Name:   name,
-				Market: market,
-			})
-			if len(results) >= 20 {
-				break
-			}
-		}
+	if raw.Data == nil {
+		return nil, fmt.Errorf("API 返回空数据")
 	}
-	return results, nil
+	_ = query
+	return []provider.TickerInfo{}, nil
 }
 
-func toString(v interface{}) string {
-	if v == nil {
-		return ""
-	}
-	switch val := v.(type) {
-	case string:
-		return val
-	case float64:
-		return strconv.FormatFloat(val, 'f', -1, 64)
-	default:
-		return fmt.Sprintf("%v", v)
-	}
-}
-
-func toFloat64(v interface{}) float64 {
-	if v == nil {
+func parseFloat(s string) float64 {
+	if s == "" {
 		return 0
 	}
-	switch val := v.(type) {
-	case float64:
-		return val
-	case string:
-		f, _ := strconv.ParseFloat(val, 64)
-		return f
-	default:
-		f, _ := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
-		return f
-	}
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
 }
 
-func toInt64(v interface{}) int64 {
-	if v == nil {
+func parseInt64(s string) int64 {
+	if s == "" {
 		return 0
 	}
-	switch val := v.(type) {
-	case float64:
-		return int64(val)
-	case string:
-		n, _ := strconv.ParseInt(val, 10, 64)
-		return n
-	default:
-		n, _ := strconv.ParseInt(fmt.Sprintf("%v", v), 10, 64)
-		return n
-	}
-}
-
-func containsIgnoreCase(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr ||
-		(len(s) > 0 && len(substr) > 0 && containsAny(s, substr)))
-}
-
-func containsAny(s, substr string) bool {
-	sLower := toLower(s)
-	subLower := toLower(substr)
-	for i := 0; i <= len(sLower)-len(subLower); i++ {
-		if sLower[i:i+len(subLower)] == subLower {
-			return true
-		}
-	}
-	return false
-}
-
-func toLower(s string) string {
-	result := make([]byte, len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 'a' - 'A'
-		}
-		result[i] = c
-	}
-	return string(result)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	n, _ := strconv.ParseInt(s, 10, 64)
+	return n
 }

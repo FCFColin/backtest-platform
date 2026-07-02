@@ -25,85 +25,29 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import { SignJWT, jwtVerify, importPKCS8, importSPKI, importJWK, generateKeyPair } from 'jose';
-import type { Request, Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
 import { config } from '../config/index.js';
 import { appRedis } from '../config/redis.js';
 import { getUserById } from '../services/userService.js';
-import { verifyApiKey } from '../services/apiKeyService.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
+import {
+  type AuthenticatedRequest,
+  type JwtPayload,
+  type TenantContext,
+  type OrgRole,
+  ACCESS_TOKEN_EXPIRES_IN_SEC,
+  attachAuthLogContext,
+  hashUserId,
+} from './authTypes.js';
+import { tryDevBypass } from './devBypass.js';
+import { handleApiKeyAuth, handleOptionalApiKey } from './apiKeyAuth.js';
 
-// jose 密钥类型：非对称密钥为 CryptoKey，对称密钥为 Uint8Array
-type JoseKey = CryptoKey | Uint8Array;
+// 为向后兼容重新导出类型
+export type { AuthenticatedRequest, JwtPayload, TenantContext, OrgRole } from './authTypes.js';
 
-/** 组织内成员角色（owner 为组织创建者） */
-export type OrgRole = 'owner' | 'admin' | 'analyst' | 'readonly';
-
-/**
- * 令牌中携带的多租户上下文（ADR-032）。
- *
- * 企业理由：多租户隔离要求每个请求都能确定"当前活跃租户"。将其嵌入 JWT
- * 使无状态鉴权链（中间件）无需额外 DB 往返即可解析租户，再交由 withTenant
- * 在事务内激活 RLS。org_role 为租户内角色，platform_admin 用于运营 SaaS 自身。
- */
-export interface TenantContext {
-  /** 活跃组织（租户）UUID */
-  tenantId?: string;
-  /** 在活跃组织内的成员角色 */
-  orgRole?: OrgRole;
-  /** 平台管理员标记（运营 SaaS 自身，区别于租户内 admin） */
-  platformAdmin?: boolean;
-}
-
-/** JWT payload 结构 */
-export interface JwtPayload {
-  /** 用户 ID */
-  sub: string;
-  /** 用户角色（全局/legacy RBAC 角色，由 org_role 派生以兼容既有 requirePermission） */
-  role: 'admin' | 'analyst' | 'readonly';
-  /** 活跃组织（租户）UUID — 多租户上下文，未加入任何组织时缺省 */
-  tenant_id?: string;
-  /** 在活跃组织内的成员角色 */
-  org_role?: OrgRole;
-  /** 平台管理员标记（运营 SaaS 自身） */
-  platform_admin?: boolean;
-  /** 签发时间（秒级时间戳） */
-  iat: number;
-  /** 过期时间（秒级时间戳） */
-  exp: number;
-}
-
-/** 扩展 Express Request，附加解码后的用户信息 */
-export interface AuthenticatedRequest extends Request {
-  user?: JwtPayload | null;
-  /** 由租户解析中间件注入的当前活跃租户（组织）UUID，供 withTenant 激活 RLS */
-  tenantId?: string;
-}
-
-/**
- * 为 pino-http 请求 logger 注入脱敏用户上下文（T-B2）。
- *
- * 企业理由：排障时需关联 user_id/role，但日志中不应出现明文 sub/email。
- */
-function hashUserId(sub: string | undefined): string | undefined {
-  if (!sub) return undefined;
-  return crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16);
-}
-
-function attachAuthLogContext(req: AuthenticatedRequest): void {
-  const sub = req.user?.sub;
-  if (!sub) return;
-  const reqWithLog = req as AuthenticatedRequest & {
-    log?: { child: (b: object) => { child: (b: object) => unknown } };
-  };
-  if (reqWithLog.log && typeof reqWithLog.log.child === 'function') {
-    const userId = hashUserId(sub);
-    reqWithLog.log = reqWithLog.log.child({
-      user_id: userId,
-      role: req.user?.role,
-    }) as typeof reqWithLog.log;
-  }
-}
+// jose 密钥类型：非对称密钥为 CryptoKey（Web Crypto API），对称密钥为 Uint8Array
+type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
 
 // ---------------------------------------------------------------------------
 // 配置常量
@@ -117,9 +61,6 @@ function attachAuthLogContext(req: AuthenticatedRequest): void {
  * 权衡：默认密钥仅用于开发，生产环境必须覆盖（validateConfig 校验）。
  */
 const JWT_SECRET = config.JWT_SECRET;
-
-/** Access Token 有效期（秒，从集中配置读取） */
-const ACCESS_TOKEN_EXPIRES_IN_SEC = config.JWT_ACCESS_TTL;
 
 /** Refresh Token 有效期（秒，从集中配置读取） */
 const REFRESH_TOKEN_EXPIRES_IN_SEC = config.JWT_REFRESH_TTL;
@@ -1059,57 +1000,6 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
   return verifyJwt(token);
 }
 
-/**
- * 将 x-api-key 解析为认证用户上下文（ADR-033）。
- *
- * 解析优先级：
- * 1. 按组织的 DB 密钥（api_keys 表）——主路径。命中则注入租户上下文
- *    `{ sub: 'apikey:<keyId>', role/org_role: 'analyst', tenant_id: orgId }`，
- *    交由 RLS 隔离数据。
- * 2. 可选的 `ADMIN_API_KEY` 破窗（break-glass）平台密钥——仅用于平台运维应急，
- *    注入 `platform_admin: true` 且不绑定租户。生产应优先用按组织密钥，
- *    将 ADMIN_API_KEY 视为最后手段并妥善保管。
- *
- * @param apiKey - 客户端提供的明文 x-api-key
- * @returns 解析出的 JwtPayload，无效时返回 null
- */
-async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
-  if (typeof apiKey !== 'string' || apiKey.length === 0 || apiKey.length > 128) {
-    return null;
-  }
-  const nowSec = Math.floor(Date.now() / 1000);
-
-  // 1) 按组织的 DB 密钥（主路径）
-  const verified = await verifyApiKey(apiKey);
-  if (verified) {
-    return {
-      sub: `apikey:${verified.keyId}`,
-      role: 'analyst',
-      tenant_id: verified.orgId,
-      org_role: 'analyst',
-      iat: nowSec,
-      exp: nowSec + ACCESS_TOKEN_EXPIRES_IN_SEC,
-    };
-  }
-
-  // 2) 可选 ADMIN_API_KEY 破窗平台密钥
-  if (config.ADMIN_API_KEY && apiKey.length === config.ADMIN_API_KEY.length) {
-    const a = Buffer.from(apiKey, 'utf-8');
-    const b = Buffer.from(config.ADMIN_API_KEY, 'utf-8');
-    if (crypto.timingSafeEqual(a, b)) {
-      return {
-        sub: 'platform:break-glass',
-        role: 'admin',
-        platform_admin: true,
-        iat: nowSec,
-        exp: nowSec + ACCESS_TOKEN_EXPIRES_IN_SEC,
-      };
-    }
-  }
-
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 // Express 中间件
 // ---------------------------------------------------------------------------
@@ -1128,57 +1018,50 @@ async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
  * 权衡：双模式增加了中间件复杂度，但避免了迁移期的认证中断。
  * 生产环境应逐步废弃 x-api-key，仅保留 JWT。
  */
-/** 开发旁路认证：仅开发环境且显式开启时注入 readonly 占位用户 */
-function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
-  if (
-    !(
-      config.NODE_ENV === 'development' &&
-      config.DEV_SKIP_AUTH &&
-      config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production'
-    )
-  ) {
-    return false;
-  }
-  logger.info({ middleware: 'jwtAuth', path: req.path }, '[jwtAuth] 开发旁路认证（readonly）');
-  req.user = {
-    sub: 'dev-user',
-    role: 'readonly',
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_EXPIRES_IN_SEC,
-  };
-  attachAuthLogContext(req);
-  next();
-  return true;
-}
 
 /** 处理 Bearer Token 认证流程（含吊销/停用检查） */
-function handleBearerTokenAuth(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): void {
+function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const token = req.headers.authorization!.slice(7).trim();
   verifyJwt(token)
     .then(async (payload) => {
       if (!payload) {
         logger.warn(
-          { middleware: 'jwtAuth', path: req.path, error: 'JWT token 无效或已过期', requestId: req.id },
+          {
+            middleware: 'jwtAuth',
+            path: req.path,
+            error: 'JWT token 无效或已过期',
+            requestId: req.id,
+          },
           '[jwtAuth] JWT 认证失败',
         );
-        sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', { detail: 'JWT token 无效或已过期' });
+        sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', {
+          detail: 'JWT token 无效或已过期',
+        });
         return;
       }
       if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
         logger.warn(
-          { middleware: 'jwtAuth', path: req.path, userId: hashUserId(payload.sub), requestId: req.id },
+          {
+            middleware: 'jwtAuth',
+            path: req.path,
+            userId: hashUserId(payload.sub),
+            requestId: req.id,
+          },
           '[jwtAuth] 会话已全局撤销，拒绝访问',
         );
-        sendProblem(res, 401, 'SESSION_REVOKED', 'Unauthorized', { detail: '会话已失效，请重新登录' });
+        sendProblem(res, 401, 'SESSION_REVOKED', 'Unauthorized', {
+          detail: '会话已失效，请重新登录',
+        });
         return;
       }
       if (!(await isUserSessionValid(payload.sub))) {
         logger.warn(
-          { middleware: 'jwtAuth', path: req.path, userId: hashUserId(payload.sub), requestId: req.id },
+          {
+            middleware: 'jwtAuth',
+            path: req.path,
+            userId: hashUserId(payload.sub),
+            requestId: req.id,
+          },
           '[jwtAuth] 用户已停用，拒绝访问',
         );
         sendProblem(res, 401, 'ACCOUNT_DISABLED', 'Unauthorized', { detail: '账户已停用或已删除' });
@@ -1187,7 +1070,13 @@ function handleBearerTokenAuth(
       req.user = payload;
       attachAuthLogContext(req);
       logger.info(
-        { middleware: 'jwtAuth', path: req.path, userId: hashUserId(req.user?.sub), role: req.user?.role, requestId: req.id },
+        {
+          middleware: 'jwtAuth',
+          path: req.path,
+          userId: hashUserId(req.user?.sub),
+          role: req.user?.role,
+          requestId: req.id,
+        },
         '[jwtAuth] JWT 认证通过',
       );
       next();
@@ -1198,31 +1087,6 @@ function handleBearerTokenAuth(
         '[jwtAuth] JWT 验证异常',
       );
       sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', { detail: 'JWT token 无效或已过期' });
-    });
-}
-
-/** 处理 x-api-key 兼容认证（DB 按组织密钥 + 可选破窗平台密钥，ADR-033） */
-function handleApiKeyAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  const apiKey = req.headers['x-api-key'] as string | undefined;
-  if (!apiKey) return;
-  resolveApiKeyUser(apiKey)
-    .then((user) => {
-      if (user) {
-        req.user = user;
-        attachAuthLogContext(req);
-        logger.info(
-          { middleware: 'jwtAuth', path: req.path, userId: hashUserId(req.user.sub), role: req.user.role, tenantId: req.user.tenant_id, requestId: req.id },
-          '[jwtAuth] API Key 认证通过',
-        );
-        next();
-        return;
-      }
-      logger.warn({ middleware: 'jwtAuth', path: req.path, error: 'API Key 无效', requestId: req.id }, '[jwtAuth] JWT 认证失败');
-      sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
-    })
-    .catch((err) => {
-      logger.warn({ middleware: 'jwtAuth', path: req.path, error: String(err), requestId: req.id }, '[jwtAuth] API Key 验证异常');
-      sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
     });
 }
 
@@ -1270,13 +1134,24 @@ function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunction): vo
         req.user = payload;
         attachAuthLogContext(req);
         logger.info(
-          { middleware: 'optionalJwtAuth', path: req.path, userId: hashUserId(req.user?.sub), role: req.user?.role, requestId: req.id },
+          {
+            middleware: 'optionalJwtAuth',
+            path: req.path,
+            userId: hashUserId(req.user?.sub),
+            role: req.user?.role,
+            requestId: req.id,
+          },
           '[jwtAuth] JWT 认证通过',
         );
       } else {
         req.user = null;
         logger.warn(
-          { middleware: 'optionalJwtAuth', path: req.path, error: 'JWT token 无效或已过期', requestId: req.id },
+          {
+            middleware: 'optionalJwtAuth',
+            path: req.path,
+            error: 'JWT token 无效或已过期',
+            requestId: req.id,
+          },
           '[jwtAuth] JWT 认证失败，可选认证放行',
         );
       }
@@ -1288,42 +1163,6 @@ function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunction): vo
         { middleware: 'optionalJwtAuth', path: req.path, error: 'JWT 验证异常', requestId: req.id },
         '[jwtAuth] JWT 认证失败，可选认证放行',
       );
-      next();
-    });
-}
-
-/** 可选模式：处理 x-api-key，失败时匿名放行 */
-function handleOptionalApiKey(req: AuthenticatedRequest, next: NextFunction): void {
-  const apiKey = req.headers['x-api-key'] as string | undefined;
-  if (!apiKey) {
-    req.user = null;
-    logger.info(
-      { middleware: 'optionalJwtAuth', path: req.path, requestId: req.id },
-      '[jwtAuth] 无 Bearer Token，匿名放行',
-    );
-    next();
-    return;
-  }
-  resolveApiKeyUser(apiKey)
-    .then((user) => {
-      if (user) {
-        req.user = user;
-        attachAuthLogContext(req);
-        logger.info(
-          { middleware: 'optionalJwtAuth', path: req.path, userId: hashUserId(req.user.sub), role: req.user.role, tenantId: req.user.tenant_id, requestId: req.id },
-          '[jwtAuth] API Key 认证通过',
-        );
-      } else {
-        req.user = null;
-        logger.info(
-          { middleware: 'optionalJwtAuth', path: req.path, requestId: req.id },
-          '[jwtAuth] API Key 无效，匿名放行',
-        );
-      }
-      next();
-    })
-    .catch(() => {
-      req.user = null;
       next();
     });
 }

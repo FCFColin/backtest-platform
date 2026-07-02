@@ -3,62 +3,69 @@ package yfinance
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"math/rand/v2"
-	"net/http"
 	"strconv"
 	"time"
+
+	"data-fetcher/internal/httpclient"
+	"data-fetcher/internal/provider"
 
 	"github.com/sony/gobreaker"
 )
 
-// Fetcher 美股数据获取器
-// 企业理由（ADR-008）：替代 Python yfinance SDK，统一运行时为 Go。
-
-// DailyPrice 美股日线行情数据
-type DailyPrice struct {
-	Date          string  `json:"date"`
-	Open          float64 `json:"open"`
-	High          float64 `json:"high"`
-	Low           float64 `json:"low"`
-	Close         float64 `json:"close"`
-	Volume        int64   `json:"volume"`
-	AdjustedClose float64 `json:"adjustedClose"`
+var userAgents = []string{
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
+	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Edg/125.0.0.0",
+	"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
 }
 
-// TickerInfo 美股标的搜索结果
-type TickerInfo struct {
-	Ticker string `json:"ticker"`
-	Name   string `json:"name"`
-	Market string `json:"market"`
-}
+var (
+	breaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
+		Name:        "yfinance",
+		MaxRequests: 3,
+		Interval:    60 * time.Second,
+		Timeout:     30 * time.Second,
+		ReadyToTrip: func(counts gobreaker.Counts) bool {
+			return counts.ConsecutiveFailures >= 5 ||
+				(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
+		},
+		OnStateChange: func(name string, from, to gobreaker.State) {
+			slog.Warn("yfinance 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
+		},
+	})
 
-const (
-	chartBaseURL   = "https://query1.finance.yahoo.com/v8/finance/chart"
-	searchBaseURL  = "https://query1.finance.yahoo.com/v1/finance/search"
-	connectTimeout = 10 * time.Second
-	readTimeout    = 30 * time.Second
-	maxRetries     = 3
+	httpClient *httpclient.Client
 )
 
-var breaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
-	Name:        "yfinance",
-	MaxRequests: 3,
-	Interval:    60 * time.Second,
-	Timeout:     30 * time.Second,
-	ReadyToTrip: func(counts gobreaker.Counts) bool {
-		return counts.ConsecutiveFailures >= 5 ||
-			(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
-	},
-	OnStateChange: func(name string, from, to gobreaker.State) {
-		slog.Warn("yfinance 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
-	},
-})
+func init() {
+	httpClient = httpclient.New("yfinance", httpclient.Options{
+		RequestDelay: 800 * time.Millisecond,
+		UserAgents:   userAgents,
+		ExtraHeaders: map[string]string{
+			"Accept":          "text/html,application/json,application/xml,*/*",
+			"Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+			"Origin":          "https://finance.yahoo.com",
+			"Referer":         "https://finance.yahoo.com/",
+		},
+	})
+}
 
-// FetchStockDaily 获取美股日线行情
-// Yahoo Finance API: GET https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?period1={start}&period2={end}&interval=1d
-func FetchStockDaily(ticker, startDate, endDate string) ([]DailyPrice, error) {
+type yahooProvider struct{}
+
+func NewProvider() provider.Provider {
+	return &yahooProvider{}
+}
+
+func (p *yahooProvider) Name() string {
+	return "yfinance"
+}
+
+func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
 	startUnix, err := dateToUnix(startDate)
 	if err != nil {
 		return nil, fmt.Errorf("无效的起始日期 %s: %w", startDate, err)
@@ -68,75 +75,46 @@ func FetchStockDaily(ticker, startDate, endDate string) ([]DailyPrice, error) {
 		return nil, fmt.Errorf("无效的结束日期 %s: %w", endDate, err)
 	}
 
-	url := fmt.Sprintf("%s/%s?period1=%d&period2=%d&interval=1d",
-		chartBaseURL, ticker, startUnix, endUnix)
+	url := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d",
+		ticker, startUnix, endUnix)
 
 	result, err := breaker.Execute(func() (interface{}, error) {
-		return doWithRetry(url, parseChartResponse)
+		return doWithRetry(url)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("yfinance FetchStockDaily 失败: %w", err)
 	}
-	return result.([]DailyPrice), nil
+	return result.([]provider.DailyPrice), nil
 }
 
-// SearchTicker 搜索美股标的
-// Yahoo Finance API: GET https://query1.finance.yahoo.com/v1/finance/search?q={query}
-func SearchTicker(query string) ([]TickerInfo, error) {
-	url := fmt.Sprintf("%s?q=%s&quotesCount=20&newsCount=0", searchBaseURL, query)
+func (p *yahooProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
+	url := fmt.Sprintf("https://query1.finance.yahoo.com/v1/finance/search?q=%s&quotesCount=20&newsCount=0", query)
 
 	result, err := breaker.Execute(func() (interface{}, error) {
-		return doWithRetry(url, parseSearchResponse)
+		return doSearchRetry(url)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("yfinance SearchTicker 失败: %w", err)
 	}
-	return result.([]TickerInfo), nil
+	return result.([]provider.TickerInfo), nil
 }
 
-// doWithRetry 执行 HTTP 请求，带指数退避重试
-func doWithRetry(url string, parser func([]byte) (interface{}, error)) (interface{}, error) {
-	var lastErr error
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		if attempt > 0 {
-			base := time.Duration(attempt*attempt) * time.Second
-			jitter := time.Duration(rand.Int64N(int64(base)/2 + 1))
-			backoff := base + jitter
-			slog.Info("yfinance 重试", "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
-			time.Sleep(backoff)
-		}
-
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			return nil, fmt.Errorf("创建请求失败: %w", err)
-		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-
-		client := &http.Client{Timeout: connectTimeout + readTimeout}
-		resp, err := client.Do(req)
-		if err != nil {
-			lastErr = fmt.Errorf("HTTP 请求失败: %w", err)
-			continue
-		}
-
-		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			lastErr = fmt.Errorf("读取响应体失败: %w", err)
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body[:min(len(body), 200)]))
-			continue
-		}
-
-		return parser(body)
+func doWithRetry(url string) ([]provider.DailyPrice, error) {
+	body, err := httpClient.Get(url)
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("重试 %d 次后仍失败: %w", maxRetries, lastErr)
+	return parseChartResponse(body)
 }
 
-// chartResponse Yahoo Chart API 响应结构
+func doSearchRetry(url string) ([]provider.TickerInfo, error) {
+	body, err := httpClient.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	return parseSearchResponse(body)
+}
+
 type chartResponse struct {
 	Chart struct {
 		Result []struct {
@@ -164,8 +142,7 @@ type chartResponse struct {
 	} `json:"chart"`
 }
 
-// parseChartResponse 解析 Yahoo Chart API 响应
-func parseChartResponse(body []byte) (interface{}, error) {
+func parseChartResponse(body []byte) ([]provider.DailyPrice, error) {
 	var resp chartResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("JSON 解析失败: %w", err)
@@ -175,19 +152,14 @@ func parseChartResponse(body []byte) (interface{}, error) {
 		return nil, fmt.Errorf("Yahoo API 错误: %v", resp.Chart.Error)
 	}
 
-	if len(resp.Chart.Result) == 0 {
-		return []DailyPrice{}, nil
+	if len(resp.Chart.Result) == 0 || len(resp.Chart.Result[0].Timestamp) == 0 {
+		return []provider.DailyPrice{}, nil
 	}
 
 	result := resp.Chart.Result[0]
-	timestamps := result.Timestamp
-	if len(timestamps) == 0 {
-		return []DailyPrice{}, nil
-	}
-
 	quotes := result.Indicators.Quote
 	if len(quotes) == 0 {
-		return []DailyPrice{}, nil
+		return []provider.DailyPrice{}, nil
 	}
 	quote := quotes[0]
 
@@ -196,17 +168,16 @@ func parseChartResponse(body []byte) (interface{}, error) {
 		adjClose = result.Indicators.Adjclose[0].Adjclose
 	}
 
-	var prices []DailyPrice
-	for i, ts := range timestamps {
+	var prices []provider.DailyPrice
+	for i, ts := range result.Timestamp {
 		if i >= len(quote.Close) {
 			break
 		}
 		closeVal := toFloat64(quote.Close[i])
 		if closeVal == 0 {
-			continue // 跳过空数据点
+			continue
 		}
-
-		p := DailyPrice{
+		p := provider.DailyPrice{
 			Date:          time.Unix(ts, 0).Format("2006-01-02"),
 			Open:          toFloat64Safe(quote.Open, i),
 			High:          toFloat64Safe(quote.High, i),
@@ -223,7 +194,6 @@ func parseChartResponse(body []byte) (interface{}, error) {
 	return prices, nil
 }
 
-// searchResponse Yahoo Search API 响应结构
 type searchResponse struct {
 	Quotes []struct {
 		Symbol    string `json:"symbol"`
@@ -234,20 +204,19 @@ type searchResponse struct {
 	} `json:"quotes"`
 }
 
-// parseSearchResponse 解析 Yahoo Search API 响应
-func parseSearchResponse(body []byte) (interface{}, error) {
+func parseSearchResponse(body []byte) ([]provider.TickerInfo, error) {
 	var resp searchResponse
 	if err := json.Unmarshal(body, &resp); err != nil {
 		return nil, fmt.Errorf("JSON 解析失败: %w", err)
 	}
 
-	var results []TickerInfo
+	var results []provider.TickerInfo
 	for _, q := range resp.Quotes {
 		name := q.ShortName
 		if name == "" {
 			name = q.LongName
 		}
-		results = append(results, TickerInfo{
+		results = append(results, provider.TickerInfo{
 			Ticker: q.Symbol,
 			Name:   name,
 			Market: "美股",
@@ -256,7 +225,6 @@ func parseSearchResponse(body []byte) (interface{}, error) {
 	return results, nil
 }
 
-// dateToUnix 将 YYYY-MM-DD 日期转为 Unix 时间戳
 func dateToUnix(dateStr string) (int64, error) {
 	t, err := time.Parse("2006-01-02", dateStr)
 	if err != nil {
@@ -300,11 +268,4 @@ func toInt64Safe(arr []interface{}, idx int) int64 {
 	default:
 		return 0
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

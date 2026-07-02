@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -21,6 +19,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sony/gobreaker"
 	"github.com/ulule/limiter/v3"
 	mgin "github.com/ulule/limiter/v3/drivers/middleware/gin"
@@ -30,11 +29,8 @@ import (
 
 var stockCodePattern = regexp.MustCompile(`^(sh|sz)\.\d{6}$`)
 
-// tickerPattern 校验通用 ticker 格式，防止路径遍历
-// 仅允许大写字母、数字、点、下划线、连字符，长度 1-20
 var tickerPattern = regexp.MustCompile(`^[A-Z0-9._-]{1,20}$`)
 
-// isValidTicker 校验 ticker 格式是否合法，拒绝含 .. / \ 等危险字符的输入
 func isValidTicker(ticker string) bool {
 	if ticker == "" || len(ticker) > 20 {
 		return false
@@ -50,67 +46,31 @@ func isValidTicker(ticker string) bool {
 // ============================================================
 
 type Config struct {
-	DataDir string
-	Port    string
+	Port        string
+	DatabaseURL string
 }
 
 func defaultConfig() *Config {
-	root := findProjectRoot()
 	return &Config{
-		DataDir: filepath.Join(root, "data", "market"),
-		Port:    "5003",
+		Port:        "5003",
+		DatabaseURL: os.Getenv("DATABASE_URL"),
 	}
-}
-
-func findProjectRoot() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		dir = "."
-	}
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "package.json")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return "."
 }
 
 // ============================================================
 // 数据结构
 // ============================================================
 
-type TickerInfo struct {
-	Code     string  `json:"code"`
-	Name     string  `json:"name"`
-	Market   string  `json:"market"`
-	Type     string  `json:"type"`
-	Currency string  `json:"currency"`
-	Exchange string  `json:"exchange"`
-	Active   bool    `json:"active"`
-}
-
 type PricePoint struct {
-	Date       string  `json:"date"`
-	Open       float64 `json:"open"`
-	High       float64 `json:"high"`
-	Low        float64 `json:"low"`
-	Close      float64 `json:"close"`
-	AdjClose   float64 `json:"adj_close"`
-	Volume     int64   `json:"volume"`
-	Dividend   float64 `json:"dividend"`
+	Date        string  `json:"date"`
+	Open        float64 `json:"open"`
+	High        float64 `json:"high"`
+	Low         float64 `json:"low"`
+	Close       float64 `json:"close"`
+	AdjClose    float64 `json:"adj_close"`
+	Volume      int64   `json:"volume"`
+	Dividend    float64 `json:"dividend"`
 	SplitFactor float64 `json:"split_factor"`
-}
-
-type TickerData struct {
-	Ticker  string       `json:"ticker"`
-	Market  string       `json:"market"`
-	Prices  []PricePoint `json:"prices"`
-	Updated string       `json:"updated"`
 }
 
 type SearchResult struct {
@@ -120,118 +80,135 @@ type SearchResult struct {
 }
 
 // ============================================================
-// 数据存储
+// 数据存储（PostgreSQL）
 // ============================================================
 
 type DataStore struct {
-	mu      sync.RWMutex
-	tickers map[string]*TickerInfo
-	prices  map[string]*TickerData // ticker -> price data
-	config  *Config
+	pool *pgxpool.Pool
 }
 
-func NewDataStore(cfg *Config) *DataStore {
-	ds := &DataStore{
-		tickers: make(map[string]*TickerInfo),
-		prices:  make(map[string]*TickerData),
-		config:  cfg,
+func NewDataStore(ctx context.Context, cfg *Config) (*DataStore, error) {
+	if cfg.DatabaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL 未设置")
 	}
-	ds.loadFromDisk()
-	return ds
-}
-
-func (ds *DataStore) loadFromDisk() {
-	// 加载标的列表
-	universeFile := filepath.Join(ds.config.DataDir, "state", "universe.json")
-	if data, err := os.ReadFile(universeFile); err == nil {
-		var tickers []TickerInfo
-		if err := json.Unmarshal(data, &tickers); err == nil {
-			for i := range tickers {
-				ds.tickers[tickers[i].Code] = &tickers[i]
-			}
-			slog.Info("加载标的", "module", "数据存储", "count", len(tickers))
-		}
-	}
-
-	// 加载价格数据
-	// 数据格式：tickers/A.json, tickers/BND.json 等
-	tickersDir := filepath.Join(ds.config.DataDir, "tickers")
-	entries, err := os.ReadDir(tickersDir)
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
-		slog.Info("标的目录不存在", "module", "数据存储", "path", tickersDir)
-		return
+		return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err)
 	}
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".json") {
-			ticker := strings.TrimSuffix(entry.Name(), ".json")
-			ds.prices[ticker] = &TickerData{Ticker: ticker}
-		}
-	}
-	slog.Info("发现标的价格文件", "module", "数据存储", "count", len(ds.prices))
-}
+	poolCfg.MaxConns = 10
 
-func (ds *DataStore) GetPriceData(ticker string) (*TickerData, error) {
-	ds.mu.RLock()
-	if td, ok := ds.prices[ticker]; ok && len(td.Prices) > 0 {
-		ds.mu.RUnlock()
-		return td, nil
-	}
-	ds.mu.RUnlock()
-
-	return ds.loadPriceFromDisk(ticker)
-}
-
-func (ds *DataStore) loadPriceFromDisk(ticker string) (*TickerData, error) {
-	ds.mu.Lock()
-	defer ds.mu.Unlock()
-
-	if td, ok := ds.prices[ticker]; ok && len(td.Prices) > 0 {
-		return td, nil
-	}
-
-	priceFile := filepath.Join(ds.config.DataDir, "tickers", ticker+".json")
-	data, err := os.ReadFile(priceFile)
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
+		return nil, fmt.Errorf("连接数据库失败: %w", err)
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("数据库 Ping 失败: %w", err)
+	}
+
+	slog.Info("数据存储初始化完成", "module", "数据存储")
+	return &DataStore{pool: pool}, nil
+}
+
+func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
+	query := `SELECT date, open, high, low, close, volume, adj_close FROM prices WHERE ticker = $1`
+	args := []interface{}{ticker}
+	argIdx := 2
+
+	if startDate != "" {
+		query += fmt.Sprintf(" AND date >= $%d", argIdx)
+		args = append(args, startDate)
+		argIdx++
+	}
+	if endDate != "" {
+		query += fmt.Sprintf(" AND date <= $%d", argIdx)
+		args = append(args, endDate)
+	}
+	query += " ORDER BY date"
+
+	rows, err := ds.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("查询价格数据失败: %w", err)
+	}
+	defer rows.Close()
+
+	var prices []PricePoint
+	for rows.Next() {
+		var p PricePoint
+		var date time.Time
+		var adjClose *float64
+		if err := rows.Scan(&date, &p.Open, &p.High, &p.Low, &p.Close, &p.Volume, &adjClose); err != nil {
+			return nil, fmt.Errorf("扫描价格行失败: %w", err)
+		}
+		p.Date = date.Format("2006-01-02")
+		if adjClose != nil {
+			p.AdjClose = *adjClose
+		}
+		prices = append(prices, p)
+	}
+
+	if len(prices) == 0 {
 		return nil, fmt.Errorf("标的数据不存在: %s", ticker)
 	}
-
-	var td TickerData
-	if err := json.Unmarshal(data, &td); err != nil {
-		var prices []PricePoint
-		if err2 := json.Unmarshal(data, &prices); err2 == nil {
-			td = TickerData{Ticker: ticker, Prices: prices}
-		} else {
-			return nil, fmt.Errorf("解析标的数据失败: %s, %v", ticker, err)
-		}
-	}
-
-	ds.prices[ticker] = &td
-	return &td, nil
+	return prices, nil
 }
 
-func (ds *DataStore) SearchTickers(query string, limit int) []SearchResult {
-	ds.mu.RLock()
-	defer ds.mu.RUnlock()
+func (ds *DataStore) SearchTickers(ctx context.Context, query string, limit int) ([]SearchResult, error) {
+	rows, err := ds.pool.Query(ctx, `
+		SELECT ticker, COALESCE(category, '') AS name, COALESCE(market, '') AS market
+		FROM tickers
+		WHERE ticker ILIKE $1 OR category ILIKE $1
+		ORDER BY ticker
+		LIMIT $2
+	`, "%"+query+"%", limit)
+	if err != nil {
+		return nil, fmt.Errorf("搜索标的失败: %w", err)
+	}
+	defer rows.Close()
 
-	query = strings.ToUpper(query)
 	var results []SearchResult
-	for _, t := range ds.tickers {
-		if !t.Active {
-			continue
+	for rows.Next() {
+		var r SearchResult
+		if err := rows.Scan(&r.Ticker, &r.Name, &r.Market); err != nil {
+			return nil, fmt.Errorf("扫描搜索结果失败: %w", err)
 		}
-		if strings.HasPrefix(strings.ToUpper(t.Code), query) ||
-			strings.Contains(strings.ToUpper(t.Name), query) {
-			results = append(results, SearchResult{
-				Ticker: t.Code,
-				Name:   t.Name,
-				Market: t.Market,
-			})
-			if len(results) >= limit {
-				break
-			}
+		results = append(results, r)
+	}
+	return results, nil
+}
+
+func (ds *DataStore) BatchValidateTickers(ctx context.Context, tickers []string) (valid []string, invalid []string, err error) {
+	if len(tickers) == 0 {
+		return nil, nil, nil
+	}
+
+	rows, err := ds.pool.Query(ctx, `
+		SELECT DISTINCT ticker FROM prices WHERE ticker = ANY($1)
+	`, tickers)
+	if err != nil {
+		return nil, nil, fmt.Errorf("校验标的失败: %w", err)
+	}
+	defer rows.Close()
+
+	validSet := make(map[string]bool, len(tickers))
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			return nil, nil, fmt.Errorf("扫描校验结果失败: %w", err)
+		}
+		validSet[t] = true
+	}
+
+	valid = make([]string, 0, len(tickers))
+	invalid = make([]string, 0)
+	for _, t := range tickers {
+		if validSet[t] {
+			valid = append(valid, t)
+		} else {
+			invalid = append(invalid, t)
 		}
 	}
-	return results
+	return
 }
 
 // ============================================================
@@ -246,7 +223,11 @@ func handleSearch(ds *DataStore) gin.HandlerFunc {
 			return
 		}
 		limit := 20
-		results := ds.SearchTickers(query, limit)
+		results, err := ds.SearchTickers(c.Request.Context(), query, limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "搜索失败: " + err.Error()})
+			return
+		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": results})
 	}
 }
@@ -258,28 +239,17 @@ func handlePriceData(ds *DataStore) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法，仅允许大写字母、数字、点、下划线、连字符，长度1-20"})
 			return
 		}
-		td, err := ds.GetPriceData(ticker)
+
+		startDate := c.Query("start")
+		endDate := c.Query("end")
+
+		prices, err := ds.GetPriceData(c.Request.Context(), ticker, startDate, endDate)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "标的数据不存在"})
 			return
 		}
 
-		startDate := c.Query("start")
-		endDate := c.Query("end")
-
-		// 过滤日期范围
-		var filtered []PricePoint
-		for _, p := range td.Prices {
-			if startDate != "" && p.Date < startDate {
-				continue
-			}
-			if endDate != "" && p.Date > endDate {
-				continue
-			}
-			filtered = append(filtered, p)
-		}
-
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": filtered})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": prices})
 	}
 }
 
@@ -297,10 +267,9 @@ func handleBatchPriceData(ds *DataStore) gin.HandlerFunc {
 			return
 		}
 
-		// 校验每个 ticker 格式，防止路径遍历
 		for _, t := range req.Tickers {
 			if !isValidTicker(t) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法: " + t + "，仅允许大写字母、数字、点、下划线、连字符，长度1-20"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法: " + t})
 				return
 			}
 		}
@@ -317,25 +286,13 @@ func handleBatchPriceData(ds *DataStore) gin.HandlerFunc {
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
-				td, err := ds.GetPriceData(t)
-				if err != nil {
-					mu.Lock()
-					result[t] = map[string]string{"error": "标的数据不可用"}
-					mu.Unlock()
-					return
-				}
-				var filtered []PricePoint
-				for _, p := range td.Prices {
-					if req.StartDate != "" && p.Date < req.StartDate {
-						continue
-					}
-					if req.EndDate != "" && p.Date > req.EndDate {
-						continue
-					}
-					filtered = append(filtered, p)
-				}
+				prices, err := ds.GetPriceData(c.Request.Context(), t, req.StartDate, req.EndDate)
 				mu.Lock()
-				result[t] = filtered
+				if err != nil {
+					result[t] = map[string]string{"error": "标的数据不可用"}
+				} else {
+					result[t] = prices
+				}
 				mu.Unlock()
 			}(ticker)
 		}
@@ -343,32 +300,6 @@ func handleBatchPriceData(ds *DataStore) gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 	}
-}
-
-// Performance: 解决N+1查询问题
-// 企业为何需要：N+1查询是性能反模式，循环内数据库查询导致延迟线性增长
-// 权衡：批量查询可能返回过多数据，但通过WHERE条件限制范围
-func (ds *DataStore) BatchValidateTickers(tickers []string) (valid []string, invalid []string) {
-	ds.mu.RLock()
-	defer ds.mu.RUnlock()
-
-	valid = make([]string, 0, len(tickers))
-	invalid = make([]string, 0)
-
-	for _, t := range tickers {
-		if td, ok := ds.prices[t]; ok && len(td.Prices) > 0 {
-			valid = append(valid, t)
-			continue
-		}
-		// 检查磁盘上是否有数据文件（不加载完整数据，仅检查存在性）
-		priceFile := filepath.Join(ds.config.DataDir, "tickers", t+".json")
-		if _, err := os.Stat(priceFile); err == nil {
-			valid = append(valid, t)
-		} else {
-			invalid = append(invalid, t)
-		}
-	}
-	return
 }
 
 func handleValidateTickers(ds *DataStore) gin.HandlerFunc {
@@ -383,18 +314,18 @@ func handleValidateTickers(ds *DataStore) gin.HandlerFunc {
 			return
 		}
 
-		// 校验每个 ticker 格式，防止路径遍历
 		for _, t := range req.Tickers {
 			if !isValidTicker(t) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法: " + t + "，仅允许大写字母、数字、点、下划线、连字符，长度1-20"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法: " + t})
 				return
 			}
 		}
 
-		// Performance: 解决N+1查询问题
-		// 企业为何需要：N+1查询是性能反模式，循环内数据库查询导致延迟线性增长
-		// 权衡：批量查询可能返回过多数据，但通过WHERE条件限制范围
-		valid, invalid := ds.BatchValidateTickers(req.Tickers)
+		valid, invalid, err := ds.BatchValidateTickers(c.Request.Context(), req.Tickers)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "校验失败"})
+			return
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
@@ -414,20 +345,35 @@ func handleCPI(ds *DataStore) gin.HandlerFunc {
 			return
 		}
 
-		fileName := "us_cpi.json"
-		if country == "cn" {
-			fileName = "cn_cpi.json"
-		}
-		cpiFile := filepath.Join(ds.config.DataDir, "cpi", fileName)
-		data, err := os.ReadFile(cpiFile)
+		rows, err := ds.pool.Query(c.Request.Context(), `
+			SELECT date, value FROM cpi_data
+			WHERE country = $1
+			ORDER BY date
+		`, strings.ToUpper(country))
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "CPI数据文件不存在: " + country})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "查询CPI数据失败"})
 			return
 		}
+		defer rows.Close()
 
-		var cpiData []map[string]interface{}
-		if err := json.Unmarshal(data, &cpiData); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "CPI数据解析失败"})
+		type cpiEntry struct {
+			Date  string  `json:"date"`
+			Value float64 `json:"value"`
+		}
+		var cpiData []cpiEntry
+		for rows.Next() {
+			var e cpiEntry
+			var date time.Time
+			if err := rows.Scan(&date, &e.Value); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "解析CPI数据失败"})
+				return
+			}
+			e.Date = date.Format("2006-01-02")
+			cpiData = append(cpiData, e)
+		}
+
+		if len(cpiData) == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "CPI数据不存在: " + country})
 			return
 		}
 
@@ -437,10 +383,19 @@ func handleCPI(ds *DataStore) gin.HandlerFunc {
 
 func handleHealth(ds *DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		ds.mu.RLock()
-		tickerCount := len(ds.tickers)
-		priceCount := len(ds.prices)
-		ds.mu.RUnlock()
+		var tickerCount, priceCount int
+		if err := ds.pool.QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM tickers").Scan(&tickerCount); err != nil {
+			c.JSON(http.StatusOK, gin.H{
+				"status":  "degraded",
+				"engine":  "go",
+				"version": "0.1.0",
+				"error":   "查询标的数失败",
+			})
+			return
+		}
+		if err := ds.pool.QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices").Scan(&priceCount); err != nil {
+			priceCount = 0
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"status":       "ok",
@@ -466,10 +421,6 @@ func securityHeadersMiddleware() gin.HandlerFunc {
 	}
 }
 
-// buildCorsConfig 构建 CORS 配置。
-//
-// 读取 `CORS_ORIGINS` 环境变量（逗号分隔），未设置时默认允许 `http://localhost:5173`。
-// 不再使用 AllowAllOrigins，生产环境须通过环境变量显式指定允许的前端来源。
 func buildCorsConfig() cors.Config {
 	raw := os.Getenv("CORS_ORIGINS")
 	var origins []string
@@ -494,9 +445,6 @@ func buildCorsConfig() cors.Config {
 }
 
 func main() {
-	// 企业理由：Go 服务纯文本日志无法被日志平台消费。
-	// slog 是 Go 1.21+ 标准库，零依赖，输出 JSON 格式，
-	// 包含 level/timestamp/msg 字段，便于 Loki/Elasticsearch 消费。
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
@@ -506,14 +454,16 @@ func main() {
 	if port := os.Getenv("DATA_FETCHER_PORT"); port != "" {
 		cfg.Port = port
 	}
-	if dir := os.Getenv("DATA_DIR"); dir != "" {
-		cfg.DataDir = dir
-	}
 
 	slog.Info("Go数据获取服务启动", "module", "main", "version", "0.1.0", "port", cfg.Port)
-	slog.Info("数据目录", "module", "main", "path", cfg.DataDir)
 
-	ds := NewDataStore(cfg)
+	ctx := context.Background()
+	ds, err := NewDataStore(ctx, cfg)
+	if err != nil {
+		slog.Error("数据存储初始化失败", "module", "main", "error", err)
+		os.Exit(1)
+	}
+	defer ds.pool.Close()
 
 	shutdownObs, metricsHandler := observability.MustInit("data-fetcher")
 	defer func() {
@@ -526,11 +476,8 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(securityHeadersMiddleware())
-	// 企业理由（ADR-015）：与 Node API trace 通过 traceparent 关联。
 	r.Use(otelgin.Middleware("data-fetcher"))
 
-	// 企业理由：Go 服务端口暴露到主机，无认证且无限流，
-	// 可被用于资源耗尽攻击。限流是 DoS 防御的基本手段。
 	rate, err := limiter.NewRateFromFormatted("60-M")
 	if err != nil {
 		slog.Error("解析限流配置失败", "module", "main", "error", err)
@@ -544,35 +491,24 @@ func main() {
 	corsConfig := buildCorsConfig()
 	r.Use(cors.New(corsConfig))
 
-	// 健康检查端点：无需认证，便于负载均衡器/K8s 探针访问
 	r.GET("/api/data/health", handleHealth(ds))
-	// Prometheus 指标（T-B5）
 	r.GET("/metrics", gin.WrapH(metricsHandler))
 
-	// 认证路由组：所有业务 API 强制校验 X-Data-Service-Auth 头
-	// 企业理由：data-fetcher 暴露行情数据和 baostock 实时查询 API，
-	// 无认证时任意调用方可消耗外部 API 配额和磁盘 I/O 资源。
 	authed := r.Group("/")
 	authed.Use(DataServiceAuthMiddleware())
 	{
-		// API路由 - 本地数据
 		authed.GET("/api/data/search", handleSearch(ds))
 		authed.GET("/api/data/price/:ticker", handlePriceData(ds))
 		authed.POST("/api/data/price/batch", handleBatchPriceData(ds))
 		authed.POST("/api/data/validate", handleValidateTickers(ds))
 		authed.GET("/api/data/cpi/:country", handleCPI(ds))
 
-		// API路由 - baostock实时获取
 		authed.GET("/api/baostock/test", handleBaoStockTest())
 		authed.GET("/api/baostock/kline", handleBaoStockKLine())
 		authed.GET("/api/baostock/all-stock", handleBaoStockAllStock())
 		authed.GET("/api/baostock/trade-dates", handleBaoStockTradeDates())
 	}
 
-	// Observability: pprof在线诊断端点，独立端口与业务隔离
-	// 企业为何需要：生产环境无法SSH时，通过pprof诊断CPU/内存/goroutine泄漏
-	// Security (T-29): pprof 暴露高敏诊断数据且 profile 采样可被滥用为 DoS。改为默认仅绑定
-	// 回环地址，且需显式 ENABLE_PPROF=true 才启动，消除"裸暴露 0.0.0.0 无认证"风险。
 	if os.Getenv("ENABLE_PPROF") == "true" {
 		go func() {
 			pprofAddr := os.Getenv("PPROF_ADDR")
@@ -592,13 +528,11 @@ func main() {
 		}()
 	}
 
-	// Reliability: 解决在途请求丢失。企业为何需要：K8s滚动更新发送SIGTERM，无优雅关闭则所有在途请求立即丢失。权衡：30s超时对齐请求超时，超时后强制退出防止僵尸进程。
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
 		Handler: r,
 	}
 
-	// Start server in goroutine
 	go func() {
 		slog.Info("Server starting", "port", cfg.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -607,13 +541,11 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	slog.Info("Shutting down server...")
 
-	// Graceful shutdown with 30s timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
@@ -626,24 +558,12 @@ func main() {
 // BaoStock Handlers
 // ============================================================
 
-// baoStockBreaker 是 baostock 调用的熔断器（T-P1-2.3）
-//
-// 企业理由：baostock 是外部 TCP 服务（public-api.baostock.com:10030），
-// 故障时每次请求等 TCP 超时（数十秒），高并发下 goroutine 堆积引发雪崩。
-// 熔断器在错误率超阈值时 Open，快速失败返回 503，避免拖垮服务。
-//
-// 配置说明：
-// - ReadyToTrip: 10s 窗口内错误率 > 50% 触发熔断（最少 5 次请求）
-// - Timeout: 30s 后进入 HalfOpen 探测
-//
-// 权衡：熔断 Open 期间所有 baostock 请求直接失败，但优于全量超时。
 var baoStockBreaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
 	Name:        "baostock",
-	MaxRequests: 5, // HalfOpen 状态允许的探测请求数
+	MaxRequests: 5,
 	Interval:    60 * time.Second,
 	Timeout:     30 * time.Second,
 	ReadyToTrip: func(counts gobreaker.Counts) bool {
-		// 至少 5 次请求且错误率 > 50% 才熔断
 		return counts.ConsecutiveFailures >= 5 ||
 			(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
 	},
@@ -652,9 +572,6 @@ var baoStockBreaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
 	},
 })
 
-// withBaoStockClient 创建 baostock 客户端并执行 fn，通过熔断器保护。
-//
-// 熔断器 Open 时返回 503 Service Unavailable，调用方应提示用户稍后重试。
 func withBaoStockClient(fn func(*baostock.Client, *gin.Context)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		result, err := baoStockBreaker.Execute(func() (interface{}, error) {
@@ -672,7 +589,6 @@ func withBaoStockClient(fn func(*baostock.Client, *gin.Context)) gin.HandlerFunc
 		})
 
 		if err != nil {
-			// 熔断器 Open 时返回 ErrOpenState
 			if err == gobreaker.ErrOpenState || err == gobreaker.ErrTooManyRequests {
 				c.JSON(http.StatusServiceUnavailable, gin.H{
 					"success": false,
