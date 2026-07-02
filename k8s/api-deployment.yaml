@@ -35,11 +35,11 @@ spec:
             - containerPort: 5001
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "0.5"
+              memory: '256Mi'
+              cpu: '0.5'
             limits:
-              memory: "1Gi"
-              cpu: "1"
+              memory: '1Gi'
+              cpu: '1'
           # 企业理由：三类探针覆盖不同故障场景——
           # startupProbe：应用启动期间允许慢（避免慢启动被 liveness 杀死）；
           # livenessProbe：运行时死锁/无响应时自动重启；

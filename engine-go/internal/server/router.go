@@ -7,18 +7,24 @@ import (
 	"net/http"
 
 	"engine-go/internal/analysis"
+	"engine-go/internal/engine"
 	"engine-go/internal/middleware"
 	"engine-go/internal/montecarlo"
 	"engine-go/internal/optimizer"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 // SetupRouter 初始化并返回 Gin 路由引擎。
-// 企业理由：集中管理所有 API 路由，便于维护和测试。
-func SetupRouter() *gin.Engine {
+// metricsHandler 为 Prometheus /metrics 处理器（T-B4）。
+func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(middleware.SecurityHeadersMiddleware())
+
+	// 企业理由（ADR-015）：otelgin 为每个 HTTP 请求创建 span，与 Node API trace 通过 traceparent 串联。
+	r.Use(otelgin.Middleware("engine-go"))
 
 	// 限流中间件：0.5 rps = 30 req/min，burst 30
 	// 企业理由：计算密集型 API 无限流时单个 IP 高频请求可耗尽 CPU 资源。
@@ -28,10 +34,19 @@ func SetupRouter() *gin.Engine {
 	// 健康检查端点：无需认证，便于负载均衡器/K8s 探针访问
 	r.GET("/api/engine/health", handleHealth)
 
+	// Prometheus 指标（T-B4）：与 Node API /api/metrics 对齐，供 Prometheus 抓取。
+	if metricsHandler != nil {
+		r.GET("/metrics", gin.WrapH(metricsHandler))
+	}
+
 	// 认证路由组：所有业务 API 强制校验 X-Engine-Auth 头
 	authed := r.Group("/")
 	authed.Use(middleware.EngineAuthMiddleware())
 	{
+		// 组合回测 API（ADR-008）：Go 主引擎暴露完整回测端点，
+		// 替代原 Rust-only 路径，支持现金流/glidepath/汇率/CPI/再平衡偏离带。
+		authed.POST("/api/engine/backtest", handleBacktest)
+
 		// 单资产分析 API（T-ARCH-2.5）
 		authed.POST("/api/engine/analysis", handleAnalysis)
 
@@ -55,13 +70,57 @@ func handleHealth(c *gin.Context) {
 	})
 }
 
+// handleBacktest 组合回测处理器（ADR-008）。
+//
+// 企业理由：Go 引擎作为主回测引擎暴露 HTTP 接口，接收前端/API 传入的
+// priceData、portfolios 与 params，调用 engine.RunBacktest 计算净值曲线、
+// 统计指标、回撤与相关性。无状态设计（priceData 由调用方传入）便于水平扩展，
+// 接口与 Rust 引擎 /api/engine/backtest 兼容，确保降级链路一致。
+func handleBacktest(c *gin.Context) {
+	var req engine.BacktestRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "请求解析失败，请检查请求格式",
+		})
+		return
+	}
+
+	if len(req.Portfolios) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "portfolios 不能为空",
+		})
+		return
+	}
+
+	if req.PriceData == nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "priceData 不能为空",
+		})
+		return
+	}
+
+	result, err := engine.RunBacktest(req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "回测计算失败",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
 // handleAnalysis 单资产分析处理器。
 // 企业理由：接收前端传入的 priceData 和参数，调用 analysis.RunAnalysis 计算结果。
 // priceData 由前端传入而非 Go 服务读取文件，保持无状态设计，便于水平扩展。
 func handleAnalysis(c *gin.Context) {
 	var req analysis.AnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
 		return
 	}
 
@@ -75,11 +134,10 @@ func handleAnalysis(c *gin.Context) {
 		return
 	}
 
-	// 验证每个 ticker 在 priceData 中存在
 	for _, ticker := range req.Tickers {
 		if _, ok := req.PriceData[ticker]; !ok {
 			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "ticker " + ticker + " 在 priceData 中不存在",
+				"error": "ticker 在 priceData 中不存在",
 			})
 			return
 		}
@@ -101,7 +159,7 @@ func handleOptimize(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "请求解析失败: " + err.Error(),
+			"error":   "请求解析失败，请检查请求格式",
 		})
 		return
 	}
@@ -110,7 +168,7 @@ func handleOptimize(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "优化计算失败: " + err.Error(),
+			"error":   "优化计算失败",
 		})
 		return
 	}
@@ -130,7 +188,7 @@ func handleEfficientFrontier(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "请求解析失败: " + err.Error(),
+			"error":   "请求解析失败，请检查请求格式",
 		})
 		return
 	}
@@ -139,7 +197,7 @@ func handleEfficientFrontier(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "有效前沿计算失败: " + err.Error(),
+			"error":   "有效前沿计算失败",
 		})
 		return
 	}
@@ -160,7 +218,7 @@ func handleMonteCarlo(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error":   "请求解析失败: " + err.Error(),
+			"error":   "请求解析失败，请检查请求格式",
 		})
 		return
 	}
@@ -169,7 +227,7 @@ func handleMonteCarlo(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "蒙特卡洛模拟失败: " + err.Error(),
+			"error":   "蒙特卡洛模拟失败",
 		})
 		return
 	}

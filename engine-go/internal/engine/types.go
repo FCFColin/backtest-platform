@@ -92,22 +92,53 @@ type BacktestRequest struct {
 
 // BacktestParams 回测参数。
 type BacktestParams struct {
-	StartDate           string  `json:"startDate"`
-	EndDate             string  `json:"endDate"`
-	StartingValue       float64 `json:"startingValue"`
-	AdjustForInflation  bool    `json:"adjustForInflation"`
-	RollingWindowMonths int     `json:"rollingWindowMonths"`
-	BenchmarkTicker     string  `json:"benchmarkTicker"`
+	StartDate               string            `json:"startDate"`
+	EndDate                 string            `json:"endDate"`
+	StartingValue           float64           `json:"startingValue"`
+	AdjustForInflation      bool              `json:"adjustForInflation"`
+	RollingWindowMonths     int               `json:"rollingWindowMonths"`
+	BenchmarkTicker         string            `json:"benchmarkTicker"`
+	ExtendedWithdrawalStats bool              `json:"extendedWithdrawalStats"`
+	CashflowLegs            []CashflowLeg     `json:"cashflowLegs"`
+	OneTimeCashflows        []OneTimeCashflow `json:"oneTimeCashflows"`
 }
 
 // PortfolioInput 组合输入。
 type PortfolioInput struct {
-	Name                string       `json:"name"`
-	Assets              []AssetInput `json:"assets"`
-	RebalanceFrequency  string       `json:"rebalanceFrequency"`
-	RebalanceThreshold  float64      `json:"rebalanceThreshold"`
-	Drag                float64      `json:"drag"`
-	TotalReturn         bool         `json:"totalReturn"`
+	Name               string          `json:"name"`
+	Assets             []AssetInput    `json:"assets"`
+	RebalanceFrequency string          `json:"rebalanceFrequency"`
+	RebalanceThreshold float64         `json:"rebalanceThreshold"`
+	RebalanceOffset    int             `json:"rebalanceOffset"`
+	Drag               float64         `json:"drag"`
+	TotalReturn        bool            `json:"totalReturn"`
+	RebalanceBands     *RebalanceBands `json:"rebalanceBands"`
+	GlidepathToWeights []float64       `json:"glidepathToWeights"`
+	GlidepathYears     int             `json:"glidepathYears"`
+}
+
+// RebalanceBands 再平衡阈值带，支持绝对/相对两种触发方式。
+// 企业理由：与 Rust 引擎 RebalanceBands 对齐，确保 Go 主引擎计算结果一致。
+type RebalanceBands struct {
+	Absolute *float64 `json:"absolute"`
+	Relative *float64 `json:"relative"`
+}
+
+// CashflowLeg 定期现金流的一条腿（leg）。
+// 企业理由：支持定投/定额提取等周期性现金流，是退休提款回测的核心输入。
+type CashflowLeg struct {
+	Amount    float64 `json:"amount"`
+	Type      string  `json:"type"`
+	Frequency string  `json:"frequency"`
+	Offset    int     `json:"offset"`
+	Until     string  `json:"until"`
+}
+
+// OneTimeCashflow 一次性现金流，在指定日期发生。
+type OneTimeCashflow struct {
+	Amount float64 `json:"amount"`
+	Type   string  `json:"type"`
+	Date   string  `json:"date"`
 }
 
 // AssetInput 单个资产输入。
@@ -151,13 +182,6 @@ type DrawdownEpisode struct {
 	RecoveryDate string  `json:"recoveryDate"`
 	Drawdown     float64 `json:"drawdown"`
 	Duration     int     `json:"duration"`
-}
-
-// dailyState 回测日迭代状态（内部使用）。
-type dailyState struct {
-	value   float64
-	shares  map[string]float64
-	weights map[string]float64
 }
 
 // tradingDays 年交易日数常量。

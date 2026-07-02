@@ -1,0 +1,14 @@
+# 企业理由（T-H2）：滚动更新/节点 drain 时保证至少 1 个 Go 引擎 Pod 可用，
+# 避免 compute 路径全量降级到 Node 备用引擎。
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: engine-go-pdb
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: engine-go

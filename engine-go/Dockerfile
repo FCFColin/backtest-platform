@@ -2,12 +2,8 @@
 # Go 引擎服务 - 多阶段构建（T-ARCH-2.5）
 # =============================================================================
 # Stage 1: builder
-# 使用 golang:1.23-alpine 编译静态二进制
-# =============================================================================
-# Supply Chain: 基础镜像digest pin，防止供应链攻击
-# 企业为何需要：tag是可变的（golang:1.23-alpine可指向不同镜像），digest是不可变的
-# 权衡：需定期更新digest（可通过Renovate自动化），但防止tag碰撞攻击
-FROM golang:1.23-alpine@sha256:383395b794dffa5b53012a212365d40c8e37109a626ca30d6151c8348d380b5f AS builder
+# 使用 golang:1.25-alpine 编译静态二进制（与 go.mod 对齐）
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /build
 

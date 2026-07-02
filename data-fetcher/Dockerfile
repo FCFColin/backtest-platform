@@ -43,7 +43,6 @@ COPY --from=builder /data-fetcher /app/data-fetcher
 # 运行环境配置
 ENV DATA_FETCHER_PORT=5003 \
     DATA_DIR=/app/data/market \
-    RUST_ENGINE_URL=http://rust-engine:5002 \
     GIN_MODE=release
 
 # 暴露数据服务端口

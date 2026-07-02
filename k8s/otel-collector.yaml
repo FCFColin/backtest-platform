@@ -120,16 +120,16 @@ spec:
             # 企业理由：通过环境变量配置后端地址，避免硬编码。
             # 部署时根据后端选择设置：Jaeger → http://jaeger:4318，Tempo → http://tempo:4318
             - name: OTLP_EXPORTER_ENDPOINT
-              value: "http://jaeger:4318"
+              value: 'http://jaeger:4318'
           resources:
             # 企业理由：Collector 批处理后内存占用较低，256Mi 满足 3 服务 trace 量。
             # CPU 0.25 核足够处理当前 QPS（<100 spans/s）。
             requests:
-              memory: "128Mi"
-              cpu: "0.25"
+              memory: '128Mi'
+              cpu: '0.25'
             limits:
-              memory: "256Mi"
-              cpu: "0.5"
+              memory: '256Mi'
+              cpu: '0.5'
           volumeMounts:
             - name: config
               mountPath: /etc/otelcol-contrib/config.yaml

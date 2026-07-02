@@ -9,10 +9,9 @@ metadata:
   labels:
     app.kubernetes.io/part-of: backtest-platform
 data:
-  NODE_ENV: "production"
-  API_PORT: "5001"
-  GO_ENGINE_URL: "http://rust-engine:5002"
-  RUST_ENGINE_URL: "http://rust-engine:5002"
-  GO_DATA_SERVICE_URL: "http://go-data:5003"
-  CORS_ORIGINS: "https://backtest.local"
-  RUST_ENGINE_TIMEOUT_MS: "5000"
+  NODE_ENV: 'production'
+  API_PORT: '5001'
+  GO_ENGINE_URL: 'http://engine-go:5004'
+  GO_DATA_SERVICE_URL: 'http://go-data:5003'
+  CORS_ORIGINS: 'https://backtest.local'
+  ENGINE_TIMEOUT_MS: '5000'

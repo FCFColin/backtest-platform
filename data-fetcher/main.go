@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"data-fetcher/baostock"
+	"data-fetcher/internal/observability"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,7 @@ import (
 	"github.com/ulule/limiter/v3"
 	mgin "github.com/ulule/limiter/v3/drivers/middleware/gin"
 	"github.com/ulule/limiter/v3/drivers/store/memory"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 var stockCodePattern = regexp.MustCompile(`^(sh|sz)\.\d{6}$`)
@@ -48,17 +50,15 @@ func isValidTicker(ticker string) bool {
 // ============================================================
 
 type Config struct {
-	DataDir       string
-	Port          string
-	RustEngineURL string
+	DataDir string
+	Port    string
 }
 
 func defaultConfig() *Config {
 	root := findProjectRoot()
 	return &Config{
-		DataDir:       filepath.Join(root, "data", "market"),
-		Port:          "5003",
-		RustEngineURL: "http://127.0.0.1:5002",
+		DataDir: filepath.Join(root, "data", "market"),
+		Port:    "5003",
 	}
 }
 
@@ -260,7 +260,7 @@ func handlePriceData(ds *DataStore) gin.HandlerFunc {
 		}
 		td, err := ds.GetPriceData(ticker)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			c.JSON(http.StatusNotFound, gin.H{"error": "标的数据不存在"})
 			return
 		}
 
@@ -320,7 +320,7 @@ func handleBatchPriceData(ds *DataStore) gin.HandlerFunc {
 				td, err := ds.GetPriceData(t)
 				if err != nil {
 					mu.Lock()
-					result[t] = map[string]string{"error": err.Error()}
+					result[t] = map[string]string{"error": "标的数据不可用"}
 					mu.Unlock()
 					return
 				}
@@ -456,6 +456,16 @@ func handleHealth(ds *DataStore) gin.HandlerFunc {
 // 主函数
 // ============================================================
 
+func securityHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("X-XSS-Protection", "0")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Next()
+	}
+}
+
 // buildCorsConfig 构建 CORS 配置。
 //
 // 读取 `CORS_ORIGINS` 环境变量（逗号分隔），未设置时默认允许 `http://localhost:5173`。
@@ -499,18 +509,25 @@ func main() {
 	if dir := os.Getenv("DATA_DIR"); dir != "" {
 		cfg.DataDir = dir
 	}
-	if rustEngineURL := os.Getenv("RUST_ENGINE_URL"); rustEngineURL != "" {
-		cfg.RustEngineURL = rustEngineURL
-	}
 
 	slog.Info("Go数据获取服务启动", "module", "main", "version", "0.1.0", "port", cfg.Port)
 	slog.Info("数据目录", "module", "main", "path", cfg.DataDir)
 
 	ds := NewDataStore(cfg)
 
+	shutdownObs, metricsHandler := observability.MustInit("data-fetcher")
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdownObs(ctx)
+	}()
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
+	r.Use(securityHeadersMiddleware())
+	// 企业理由（ADR-015）：与 Node API trace 通过 traceparent 关联。
+	r.Use(otelgin.Middleware("data-fetcher"))
 
 	// 企业理由：Go 服务端口暴露到主机，无认证且无限流，
 	// 可被用于资源耗尽攻击。限流是 DoS 防御的基本手段。
@@ -529,6 +546,8 @@ func main() {
 
 	// 健康检查端点：无需认证，便于负载均衡器/K8s 探针访问
 	r.GET("/api/data/health", handleHealth(ds))
+	// Prometheus 指标（T-B5）
+	r.GET("/metrics", gin.WrapH(metricsHandler))
 
 	// 认证路由组：所有业务 API 强制校验 X-Data-Service-Auth 头
 	// 企业理由：data-fetcher 暴露行情数据和 baostock 实时查询 API，
@@ -552,19 +571,26 @@ func main() {
 
 	// Observability: pprof在线诊断端点，独立端口与业务隔离
 	// 企业为何需要：生产环境无法SSH时，通过pprof诊断CPU/内存/goroutine泄漏
-	// 权衡：独立端口避免暴露到公网，仅内网可访问
-	go func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/debug/pprof/", pprof.Index)
-		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-		slog.Info("pprof server starting", "port", "6060")
-		if err := http.ListenAndServe(":6060", mux); err != nil {
-			slog.Error("pprof server failed", "error", err)
-		}
-	}()
+	// Security (T-29): pprof 暴露高敏诊断数据且 profile 采样可被滥用为 DoS。改为默认仅绑定
+	// 回环地址，且需显式 ENABLE_PPROF=true 才启动，消除"裸暴露 0.0.0.0 无认证"风险。
+	if os.Getenv("ENABLE_PPROF") == "true" {
+		go func() {
+			pprofAddr := os.Getenv("PPROF_ADDR")
+			if pprofAddr == "" {
+				pprofAddr = "127.0.0.1:6060"
+			}
+			mux := http.NewServeMux()
+			mux.HandleFunc("/debug/pprof/", pprof.Index)
+			mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+			slog.Info("pprof server starting", "addr", pprofAddr)
+			if err := http.ListenAndServe(pprofAddr, mux); err != nil {
+				slog.Error("pprof server failed", "error", err)
+			}
+		}()
+	}
 
 	// Reliability: 解决在途请求丢失。企业为何需要：K8s滚动更新发送SIGTERM，无优雅关闭则所有在途请求立即丢失。权衡：30s超时对齐请求超时，超时后强制退出防止僵尸进程。
 	srv := &http.Server{
@@ -654,7 +680,7 @@ func withBaoStockClient(fn func(*baostock.Client, *gin.Context)) gin.HandlerFunc
 				})
 				return
 			}
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "baostock 服务内部错误"})
 			return
 		}
 		_ = result
@@ -670,7 +696,7 @@ func handleBaoStockTest() gin.HandlerFunc {
 		)
 		elapsed := time.Since(start).Milliseconds()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error(), "elapsed_ms": elapsed})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "baostock 测试请求失败", "elapsed_ms": elapsed})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
@@ -698,7 +724,7 @@ func handleBaoStockKLine() gin.HandlerFunc {
 
 		data, err := client.QueryHistoryKDataPlus(code, fields, startDate, endDate, frequency, adjustFlag)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "K线数据获取失败"})
 			return
 		}
 
@@ -712,7 +738,7 @@ func handleBaoStockAllStock() gin.HandlerFunc {
 
 		stocks, err := client.QueryAllStock(date)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "股票列表获取失败"})
 			return
 		}
 
@@ -736,7 +762,7 @@ func handleBaoStockTradeDates() gin.HandlerFunc {
 
 		dates, err := client.QueryTradeDates(startDate, endDate)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "交易日数据获取失败"})
 			return
 		}
 

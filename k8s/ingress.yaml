@@ -16,7 +16,7 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     # 企业理由：强制 HTTPS 重定向，防止凭据明文传输。
     # HSTS/CSP 仅在 HTTPS 下生效，HTTP 可被中间人剥离安全头。
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
 spec:
   # 企业理由：TLS 终止在 Ingress 层，后端服务无需自行处理 TLS 握手，
   # 简化证书管理且统一安全策略。cert-manager 自动填充 secretName。

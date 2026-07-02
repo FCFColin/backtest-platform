@@ -4,11 +4,16 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/http/pprof"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
+	"engine-go/internal/observability"
 	"engine-go/internal/server"
 )
 
@@ -23,27 +28,53 @@ func main() {
 		port = "5004"
 	}
 
-	r := server.SetupRouter()
+	shutdownObs, metricsHandler := observability.MustInit("engine-go")
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdownObs(ctx)
+	}()
+
+	r := server.SetupRouter(metricsHandler)
 
 	// Observability: pprof在线诊断端点，独立端口与业务隔离
 	// 企业为何需要：生产环境无法SSH时，通过pprof诊断CPU/内存/goroutine泄漏
-	// 权衡：独立端口避免暴露到公网，仅内网可访问
-	go func() {
-		mux := http.NewServeMux()
-		mux.HandleFunc("/debug/pprof/", pprof.Index)
-		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-		logger.Info("pprof server starting", "port", "6061")
-		if err := http.ListenAndServe(":6061", mux); err != nil {
-			logger.Error("pprof server failed", "error", err)
-		}
-	}()
+	// Security (T-29): pprof 暴露堆/goroutine/CPU 等高敏诊断数据，且 /debug/pprof/profile
+	// 会触发持续 CPU 采样（可被滥用为 DoS）。此前绑定 ":6061"（0.0.0.0）且无认证，与注释
+	// 声称的"仅内网"不符。改为：默认仅绑定回环地址（127.0.0.1），且需显式 ENABLE_PPROF=true 才启动。
+	// 生产如需远程采集，应经由 sidecar/端口转发或在 PPROF_ADDR 前置鉴权代理，而非裸暴露。
+	if os.Getenv("ENABLE_PPROF") == "true" {
+		go func() {
+			pprofAddr := os.Getenv("PPROF_ADDR")
+			if pprofAddr == "" {
+				pprofAddr = "127.0.0.1:6061"
+			}
+			mux := http.NewServeMux()
+			mux.HandleFunc("/debug/pprof/", pprof.Index)
+			mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+			logger.Info("pprof server starting", "addr", pprofAddr)
+			if err := http.ListenAndServe(pprofAddr, mux); err != nil {
+				logger.Error("pprof server failed", "error", err)
+			}
+		}()
+	}
 
 	slog.Info("Go引擎服务启动", "port", port, "version", "0.1.0")
-	if err := r.Run(":" + port); err != nil {
-		slog.Error("启动失败", "error", err)
-		os.Exit(1)
-	}
+	// 优雅关闭：SIGTERM 时 flush OTel span
+	srv := &http.Server{Addr: ":" + port, Handler: r}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("启动失败", "error", err)
+			os.Exit(1)
+		}
+	}()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_ = srv.Shutdown(ctx)
 }

@@ -1,0 +1,77 @@
+# 企业理由：Go 回测引擎是平台唯一的 CPU 密集型计算服务（ADR-008，Rust 已退役）。
+# 单副本即单点故障——Pod 重启/迁移期间回测请求 fail-closed 返回 503（ADR-031）。
+# 2 副本 + readinessProbe + PDB（engine-go-pdb）确保滚动更新和节点故障时仍有实例可用。
+# 权衡：引擎资源消耗大（每副本上限 2Gi/2CPU），多副本成本高；
+# 但回测是核心功能，不可用直接影响用户，高可用优先于资源节省。
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: engine-go
+  namespace: backtest-platform
+  labels:
+    app: engine-go
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: engine-go
+  template:
+    metadata:
+      labels:
+        app: engine-go
+        app.kubernetes.io/part-of: backtest-platform
+    spec:
+      containers:
+        - name: engine-go
+          image: backtest-platform/engine-go
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 5004
+          # ENGINE_AUTH_TOKEN 必须与 API 服务一致（服务间认证）。两者共享 backtest-config，
+          # 默认值一致即可联通；生产环境请在 backtest-config/Secret 中覆盖为非默认强随机值。
+          envFrom:
+            - configMapRef:
+                name: backtest-config
+          resources:
+            requests:
+              memory: '512Mi'
+              cpu: '1'
+            limits:
+              memory: '2Gi'
+              cpu: '2'
+          startupProbe:
+            httpGet:
+              path: /api/engine/health
+              port: 5004
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /api/engine/health
+              port: 5004
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/engine/health
+              port: 5004
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

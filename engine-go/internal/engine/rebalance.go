@@ -1,108 +1,106 @@
 package engine
 
 import (
+	"math"
 	"time"
 )
 
 // 企业理由：再平衡是投资组合管理的核心操作。不同频率和阈值的再平衡策略
 // 直接影响组合的收益和风险特征。将再平衡逻辑独立出来便于单元测试和复用。
-
-// shouldRebalance 判断当前日期是否需要再平衡
 //
-// frequency 支持: daily, weekly, monthly, quarterly, annual, none, threshold
-// lastRebalance 上次再平衡日期
-// thresholdDrift 当前权重与目标权重的最大偏差（仅 threshold 模式使用）
-func shouldRebalance(frequency string, currentDate, lastRebalance time.Time, thresholdDrift float64) bool {
+// ADR-008：本判定逻辑与 Rust 引擎 should_rebalance 完全对齐，确保 Go 主引擎
+// 与 Rust 回退引擎在频率触发、阈值触发与偏离带（bands）触发上计算结果一致。
+
+// shouldRebalance 判断当前交易日是否需要再平衡。
+//
+// frequency 支持: daily, weekly, monthly, quarterly, annual, none, threshold。
+// prevDate 为上一交易日（非上次再平衡日），与 Rust 引擎一致：频率触发以"日历自然边界变化"为准。
+// threshold 为相对偏离阈值（百分比，>0 生效），holdings 为各资产持仓市值，
+// weights 为当前目标权重（含 glidepath 插值），pv 为组合总市值，bands 为偏离带配置。
+func shouldRebalance(
+	frequency, prevDate, currDate string,
+	threshold float64,
+	holdings, weights []float64,
+	pv float64,
+	bands *RebalanceBands,
+) bool {
+	parse := func(s string) (time.Time, bool) {
+		t, err := time.Parse("2006-01-02", s)
+		return t, err == nil
+	}
+
+	freqTrigger := false
 	switch frequency {
+	case "daily":
+		freqTrigger = true
 	case "none":
 		return false
-	case "daily":
-		return true
 	case "weekly":
-		// 企业理由：按周再平衡——每周一执行，与日历周对齐
-		return currentDate.Weekday() == time.Monday
+		p, okp := parse(prevDate)
+		c, okc := parse(currDate)
+		if okp && okc {
+			_, pw := p.ISOWeek()
+			_, cw := c.ISOWeek()
+			freqTrigger = cw != pw || c.Year() != p.Year()
+		}
 	case "monthly":
-		// 企业理由：按月再平衡——每月首个交易日执行
-		// 简化实现：日期在1-3日之间且月份与上次不同
-		return currentDate.Day() <= 3 && currentDate.Month() != lastRebalance.Month()
+		p, okp := parse(prevDate)
+		c, okc := parse(currDate)
+		if okp && okc {
+			freqTrigger = c.Month() != p.Month() || c.Year() != p.Year()
+		}
 	case "quarterly":
-		// 企业理由：按季再平衡——每季度首月执行
-		month := int(currentDate.Month())
-		isQuarterStart := month == 1 || month == 4 || month == 7 || month == 10
-		return isQuarterStart && currentDate.Day() <= 3 && (currentDate.Month() != lastRebalance.Month() || currentDate.Year() != lastRebalance.Year())
+		p, okp := parse(prevDate)
+		c, okc := parse(currDate)
+		if okp && okc {
+			pq := (int(p.Month()) - 1) / 3
+			cq := (int(c.Month()) - 1) / 3
+			freqTrigger = pq != cq || p.Year() != c.Year()
+		}
 	case "annual":
-		// 企业理由：按年再平衡——每年1月执行
-		return currentDate.Month() == time.January && currentDate.Day() <= 3 && currentDate.Year() != lastRebalance.Year()
+		p, okp := parse(prevDate)
+		c, okc := parse(currDate)
+		if okp && okc {
+			freqTrigger = p.Year() != c.Year()
+		}
 	case "threshold":
-		// 企业理由：阈值再平衡——当权重偏差超过阈值时触发
-		// 这是最灵活的策略，避免不必要的交易成本
-		return thresholdDrift > 0
+		if threshold > 0 && pv > 0 {
+			for j := range holdings {
+				if weights[j] == 0 {
+					continue
+				}
+				actual := holdings[j] / pv
+				dev := math.Abs(actual-weights[j]) / math.Abs(weights[j]) * 100
+				if dev >= threshold {
+					return true
+				}
+			}
+		}
+		return false
 	default:
 		return false
 	}
-}
 
-// maxWeightDrift 计算当前权重与目标权重的最大偏差
-//
-// 企业理由：阈值再平衡需要量化权重偏离程度，取各资产偏差的最大值
-// 作为触发条件，确保组合不会过度偏离目标配置。
-func maxWeightDrift(currentWeights, targetWeights map[string]float64) float64 {
-	maxDrift := 0.0
-	for ticker, target := range targetWeights {
-		current := currentWeights[ticker]
-		drift := abs64(current - target)
-		if drift > maxDrift {
-			maxDrift = drift
+	if freqTrigger {
+		return true
+	}
+
+	// 频率未触发时，检查偏离带（bands）。
+	if bands != nil {
+		for i, w := range weights {
+			actual := 0.0
+			if pv > 0 {
+				actual = holdings[i] / pv
+			}
+			drift := actual - w
+			if bands.Absolute != nil && math.Abs(drift) > *bands.Absolute/100 {
+				return true
+			}
+			if bands.Relative != nil && w > 0 && math.Abs(drift)/w > *bands.Relative/100 {
+				return true
+			}
 		}
 	}
-	return maxDrift
-}
 
-// computeCurrentWeights 根据当前价格和持有份额计算各资产当前权重
-func computeCurrentWeights(shares map[string]float64, prices map[string]float64) map[string]float64 {
-	total := 0.0
-	values := make(map[string]float64, len(shares))
-	for ticker, s := range shares {
-		price := prices[ticker]
-		val := s * price
-		values[ticker] = val
-		total += val
-	}
-	weights := make(map[string]float64, len(shares))
-	if total == 0 {
-		return weights
-	}
-	for ticker, val := range values {
-		weights[ticker] = val / total
-	}
-	return weights
-}
-
-// rebalance 执行再平衡，调整份额使权重回到目标
-//
-// 企业理由：再平衡通过卖出超配资产、买入低配资产实现。
-// 假设无交易成本（drag 已在增长曲线迭代中单独处理），
-// 直接按目标权重重新分配组合价值。
-func rebalance(state *dailyState, prices map[string]float64) {
-	totalValue := 0.0
-	for ticker, s := range state.shares {
-		totalValue += s * prices[ticker]
-	}
-	if totalValue <= 0 {
-		return
-	}
-	// 按目标权重重新计算份额
-	for ticker, w := range state.weights {
-		price := prices[ticker]
-		if price > 0 {
-			state.shares[ticker] = (totalValue * w) / price
-		}
-	}
-}
-
-func abs64(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
+	return false
 }

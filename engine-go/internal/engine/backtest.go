@@ -7,6 +7,7 @@ package engine
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"time"
 )
@@ -105,8 +106,12 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 // computeGrowthCurve 计算组合增长曲线——回测的核心算法
 //
 // 企业理由：逐日迭代是回测引擎的核心。每天根据各资产价格更新持有份额，
-// 处理再平衡、拖累（drag）、通胀调整等操作。这是与 Rust 引擎
-// 计算结果一致性的关键函数。
+// 处理再平衡、拖累（drag）、汇率换算、现金流、glidepath 与通胀调整等操作。
+//
+// ADR-008：本实现与 Rust 引擎 run_single 的净值生成逻辑逐行对齐，
+// 涵盖复利拖累 (1-drag/100)^(1/252)、汇率换算（含回溯查找）、CPI 通胀调整、
+// 定期/一次性现金流、glidepath 线性插值、再平衡偏离带与清算处理，
+// 确保 Go 主引擎与 Rust 回退引擎计算结果一致（一致性测试 < 0.01%）。
 func computeGrowthCurve(
 	pf PortfolioInput,
 	priceData PriceDataMap,
@@ -121,115 +126,344 @@ func computeGrowthCurve(
 		startValue = 10000
 	}
 
-	// 构建目标权重映射
-	targetWeights := make(map[string]float64, len(pf.Assets))
-	for _, a := range pf.Assets {
-		targetWeights[a.Ticker] = a.Weight / 100.0 // 企业理由：前端传入百分比（如60），内部转换为小数（0.6）
+	n := len(pf.Assets)
+	if n == 0 {
+		return nil, nil, fmt.Errorf("组合 %s 无资产", pf.Name)
 	}
 
-	// 初始化持有份额
-	shares := make(map[string]float64, len(pf.Assets))
-	firstPrices := make(map[string]float64, len(pf.Assets))
-	for _, a := range pf.Assets {
-		price := getPrice(priceData, a.Ticker, tradingDates[0])
-		if price <= 0 {
-			return nil, nil, fmt.Errorf("资产 %s 在 %s 无有效价格", a.Ticker, tradingDates[0].Format("2006-01-02"))
+	// 归一化权重（与 Rust run_single 一致）：前端传入百分比，
+	// 转为小数后按总和归一化；总和为 0 时退化为等权重。
+	weights := make([]float64, n)
+	rawSum := 0.0
+	for i, a := range pf.Assets {
+		weights[i] = a.Weight / 100.0
+		rawSum += weights[i]
+	}
+	if rawSum == 0 {
+		for i := range weights {
+			weights[i] = 1.0 / float64(n)
 		}
-		firstPrices[a.Ticker] = price
-		weight := targetWeights[a.Ticker]
-		shares[a.Ticker] = (startValue * weight) / price
+	} else {
+		for i := range weights {
+			weights[i] /= rawSum
+		}
 	}
 
-	curve := make([]DataPoint, 0, len(tradingDates))
-	allocHistory := make([]AllocationPoint, 0, len(tradingDates))
-
-	state := &dailyState{
-		value:   startValue,
-		shares:  shares,
-		weights: targetWeights,
+	// 交易日序列（字符串），来源于已按日期范围过滤的 tradingDates。
+	dates := make([]string, len(tradingDates))
+	for i, d := range tradingDates {
+		dates[i] = d.Format("2006-01-02")
+	}
+	if len(dates) == 0 {
+		return nil, nil, fmt.Errorf("组合 %s 日期范围内无数据", pf.Name)
 	}
 
-	lastRebalanceDate := tradingDates[0]
-
-	for i, date := range tradingDates {
-		dateStr := date.Format("2006-01-02")
-
-		// 获取当日各资产价格
-		prices := make(map[string]float64, len(pf.Assets))
-		for _, a := range pf.Assets {
-			prices[a.Ticker] = getPrice(priceData, a.Ticker, date)
+	// 汇率换算价格获取：若提供汇率数据，将原始价格乘以当日汇率；
+	// 当日缺失时向前回溯最多 10 天查找最近汇率（与 Rust gp 闭包一致）。
+	gp := func(ticker, date string) float64 {
+		raw := 0.0
+		if td, ok := priceData[ticker]; ok {
+			raw = td[date]
 		}
-
-		// 计算组合总价值
-		totalValue := 0.0
-		for _, a := range pf.Assets {
-			totalValue += state.shares[a.Ticker] * prices[a.Ticker]
+		if raw <= 0 {
+			return 0
 		}
-
-		// 企业理由：汇率调整——如果提供了汇率数据，将组合价值转换为目标货币
-		// TODO: 汇率转换逻辑待实现，当前仅占位
-		if _, ok := exchangeRates[dateStr]; ok {
-			// 汇率转换待实现
-		}
-
-		// 企业理由：拖累（drag）——模拟管理费、交易成本等持续性损耗
-		// 每日扣除 drag/252 的比例
-		if pf.Drag > 0 && i > 0 {
-			dailyDrag := 1.0 - pf.Drag/float64(tradingDays)
-			for ticker := range state.shares {
-				state.shares[ticker] *= dailyDrag
+		if len(exchangeRates) > 0 {
+			if rate, ok := exchangeRates[date]; ok {
+				return raw * rate
 			}
-			totalValue *= dailyDrag
-		}
-
-		// 通胀调整
-		if params.AdjustForInflation {
-			if _, ok := cpiData[dateStr]; ok {
-				// TODO: CPI 通胀调整逻辑待实现，当前仅占位
+			if d, err := time.Parse("2006-01-02", date); err == nil {
+				search := d
+				for k := 0; k < 10; k++ {
+					search = search.AddDate(0, 0, -1)
+					if rate, ok := exchangeRates[search.Format("2006-01-02")]; ok {
+						return raw * rate
+					}
+				}
 			}
 		}
+		return raw
+	}
 
-		// 记录当前权重
-		currentWeights := computeCurrentWeights(state.shares, prices)
-		weightSlice := make([]float64, 0, len(pf.Assets))
-		for _, a := range pf.Assets {
-			weightSlice = append(weightSlice, currentWeights[a.Ticker])
+	holdings := make([]float64, n)
+	for i := range holdings {
+		holdings[i] = startValue * weights[i]
+	}
+
+	initPrices := make([]float64, n)
+	for i, a := range pf.Assets {
+		initPrices[i] = gp(a.Ticker, dates[0])
+	}
+	shares := make([]float64, n)
+	for i := range shares {
+		if initPrices[i] > 0 {
+			shares[i] = holdings[i] / initPrices[i]
+		}
+	}
+	lastPrices := make([]float64, n)
+
+	// 复利日拖累因子：年化 drag 百分比转为日因子 (1-drag/100)^(1/252)。
+	dailyDrag := 1.0
+	if pf.Drag > 0 {
+		dailyDrag = math.Pow(1.0-pf.Drag/100.0, 1.0/float64(tradingDays))
+	}
+
+	// Glidepath：目标权重需与资产数一致才启用，渐变年数默认 10。
+	var glidepathTo []float64
+	if len(pf.GlidepathToWeights) == n {
+		glidepathTo = pf.GlidepathToWeights
+	}
+	glidepathYears := float64(pf.GlidepathYears)
+	if glidepathYears == 0 {
+		glidepathYears = 10
+	}
+
+	// 现金流预处理：一次性按日期索引，周期性展开为日期->金额映射。
+	otcMap := make(map[string]float64)
+	for _, cf := range params.OneTimeCashflows {
+		amt := cf.Amount
+		if cf.Type == "withdrawal" {
+			amt = -amt
+		}
+		if amt != 0 {
+			otcMap[cf.Date] += amt
+		}
+	}
+	cfMap := buildPeriodicCashflowMap(params.CashflowLegs, dates)
+
+	curve := make([]DataPoint, 0, len(dates))
+	allocHistory := make([]AllocationPoint, 0)
+	vals := make([]float64, 0, len(dates))
+	liquidated := false
+	prev := dates[0]
+	lastRebalanceDi := 0
+
+	for di, date := range dates {
+		if liquidated {
+			curve = append(curve, DataPoint{Date: date, Value: 0})
+			vals = append(vals, 0)
+			prev = date
+			continue
 		}
 
-		// 再平衡判断
-		thresholdDrift := 0.0
-		if pf.RebalanceFrequency == "threshold" && pf.RebalanceThreshold > 0 {
-			thresholdDrift = maxWeightDrift(currentWeights, targetWeights) - pf.RebalanceThreshold
-		}
-
-		if i > 0 && shouldRebalance(pf.RebalanceFrequency, date, lastRebalanceDate, thresholdDrift) {
-			rebalance(state, prices)
-			lastRebalanceDate = date
-			totalValue = 0.0
-			for _, a := range pf.Assets {
-				totalValue += state.shares[a.Ticker] * prices[a.Ticker]
+		for i, a := range pf.Assets {
+			pr := gp(a.Ticker, date)
+			if pr > 0 {
+				lastPrices[i] = pr
 			}
-			// 更新权重记录
-			currentWeights = computeCurrentWeights(state.shares, prices)
-			weightSlice = make([]float64, 0, len(pf.Assets))
-			for _, a := range pf.Assets {
-				weightSlice = append(weightSlice, currentWeights[a.Ticker])
+			eff := pr
+			if eff <= 0 {
+				eff = lastPrices[i]
+			}
+			if eff > 0 {
+				holdings[i] = shares[i] * eff
+			}
+		}
+		pv := sumFloat(holdings)
+
+		// 复利拖累
+		if dailyDrag != 1.0 {
+			for i := range holdings {
+				holdings[i] *= dailyDrag
+			}
+			pv = sumFloat(holdings)
+		}
+
+		// 当日目标权重（glidepath 线性插值）
+		currentWeights := make([]float64, n)
+		if glidepathTo != nil {
+			progress := (float64(di) / float64(tradingDays)) / glidepathYears
+			if progress > 1 {
+				progress = 1
+			}
+			for i := range currentWeights {
+				currentWeights[i] = weights[i] + (glidepathTo[i]-weights[i])*progress
+			}
+		} else {
+			copy(currentWeights, weights)
+		}
+
+		// 现金流（周期性 + 一次性）
+		cfAmount := cfMap[date] + otcMap[date]
+		if cfAmount != 0 {
+			pv += cfAmount
+			if pv <= 0 {
+				liquidated = true
+				for i := range holdings {
+					holdings[i] = 0
+				}
+				curve = append(curve, DataPoint{Date: date, Value: 0})
+				vals = append(vals, 0)
+				prev = date
+				continue
+			}
+			for i := range holdings {
+				holdings[i] = pv * currentWeights[i]
+			}
+			for i, a := range pf.Assets {
+				pr := gp(a.Ticker, date)
+				if pr > 0 {
+					lastPrices[i] = pr
+				}
+				eff := pr
+				if eff <= 0 {
+					eff = lastPrices[i]
+				}
+				if eff > 0 {
+					shares[i] = holdings[i] / eff
+				} else {
+					shares[i] = 0
+				}
 			}
 		}
 
-		// Total Return 模式：将分红再投资
-		// 企业理由：totalReturn=true 时假设分红全部再投资，反映总回报
-		// Intentional: 当前价格数据已包含分红调整（复权价格），无需额外再投资计算；
-		// 保留此分支以便未来切换到未复权数据源时插入分红再投资逻辑。
-		if pf.TotalReturn && i > 0 {
+		if pv <= 0 {
+			liquidated = true
+			for i := range holdings {
+				holdings[i] = 0
+			}
+			curve = append(curve, DataPoint{Date: date, Value: 0})
+			vals = append(vals, 0)
+			prev = date
+			continue
 		}
 
-		curve = append(curve, DataPoint{Date: dateStr, Value: totalValue})
-		allocHistory = append(allocHistory, AllocationPoint{Date: dateStr, Weights: weightSlice})
-		state.value = totalValue
+		if di > 0 && shouldRebalance(pf.RebalanceFrequency, prev, date, pf.RebalanceThreshold, holdings, currentWeights, pv, pf.RebalanceBands) {
+			for i := range holdings {
+				holdings[i] = pv * currentWeights[i]
+			}
+			for i, a := range pf.Assets {
+				pr := gp(a.Ticker, date)
+				if pr > 0 {
+					lastPrices[i] = pr
+				}
+				eff := pr
+				if eff <= 0 {
+					eff = lastPrices[i]
+				}
+				if eff > 0 {
+					shares[i] = holdings[i] / eff
+				} else {
+					shares[i] = 0
+				}
+			}
+			lastRebalanceDi = di
+		}
+
+		curve = append(curve, DataPoint{Date: date, Value: pv})
+		vals = append(vals, pv)
+
+		// 权重快照：每 20 个交易日或调仓日记录一次（与 Rust 采样策略一致）。
+		if di%20 == 0 || (di == lastRebalanceDi && di > 0) {
+			snapshot := make([]float64, n)
+			if pv > 0 {
+				for i := range holdings {
+					snapshot[i] = holdings[i] / pv
+				}
+			}
+			allocHistory = append(allocHistory, AllocationPoint{Date: date, Weights: snapshot})
+		}
+
+		prev = date
+	}
+
+	// 通胀调整：用 CPI 将名义净值折算为实际净值（基期为首个交易日）。
+	if params.AdjustForInflation && len(cpiData) > 0 {
+		startCPI := findCPIForDate(dates[0], cpiData)
+		if startCPI > 0 {
+			for i, date := range dates {
+				dateCPI := findCPIForDate(date, cpiData)
+				if dateCPI > 0 {
+					curve[i].Value = vals[i] * (startCPI / dateCPI)
+				}
+			}
+		}
 	}
 
 	return curve, allocHistory, nil
+}
+
+// sumFloat 求浮点切片之和。
+func sumFloat(xs []float64) float64 {
+	s := 0.0
+	for _, x := range xs {
+		s += x
+	}
+	return s
+}
+
+// buildPeriodicCashflowMap 将周期性现金流腿展开为 日期 -> 净金额 映射。
+//
+// 企业理由：与 Rust build_periodic_cashflow_map 对齐——按交易日步长（周 5/月 21/
+// 季 63/年 252）推进，从首个步长处开始计入，withdrawal 取负，until 之后停止。
+func buildPeriodicCashflowMap(legs []CashflowLeg, dates []string) map[string]float64 {
+	m := make(map[string]float64)
+	for _, leg := range legs {
+		if leg.Amount == 0 {
+			continue
+		}
+		amt := leg.Amount
+		if leg.Type == "withdrawal" {
+			amt = -amt
+		}
+		freqDays := 252
+		switch leg.Frequency {
+		case "weekly":
+			freqDays = 5
+		case "monthly":
+			freqDays = 21
+		case "quarterly":
+			freqDays = 63
+		case "yearly":
+			freqDays = 252
+		}
+		until := leg.Until
+		if until == "" {
+			until = "9999-99-99"
+		}
+		nextIdx := 0
+		for nextIdx < len(dates) {
+			idx := nextIdx
+			if idx+freqDays < len(dates) {
+				nextIdx = idx + freqDays
+			} else {
+				break
+			}
+			if dates[nextIdx] > until {
+				break
+			}
+			m[dates[nextIdx]] += amt
+		}
+	}
+	return m
+}
+
+// findCPIForDate 查找给定日期对应的 CPI 值（月度数据）。
+//
+// 企业理由：与 Rust find_cpi_for_date 对齐——先精确匹配，再尝试同月 1 号，
+// 最后逐日回溯最多 24 个月查找最近月份的 CPI 值。
+func findCPIForDate(date string, cpiData map[string]float64) float64 {
+	if v, ok := cpiData[date]; ok {
+		return v
+	}
+	if len(date) < 7 {
+		return 0
+	}
+	monthStart := date[:7] + "-01"
+	if v, ok := cpiData[monthStart]; ok {
+		return v
+	}
+	if d, err := time.Parse("2006-01-02", date); err == nil {
+		search := d
+		for k := 0; k < 24; k++ {
+			search = search.AddDate(0, 0, -1)
+			key := search.Format("2006-01") + "-01"
+			if v, ok := cpiData[key]; ok {
+				return v
+			}
+		}
+	}
+	return 0
 }
 
 // computeBenchmarkGrowth 计算基准增长曲线

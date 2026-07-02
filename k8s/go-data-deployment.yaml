@@ -37,11 +37,11 @@ spec:
             - containerPort: 5003
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "0.5"
+              memory: '256Mi'
+              cpu: '0.5'
             limits:
-              memory: "512Mi"
-              cpu: "1"
+              memory: '512Mi'
+              cpu: '1'
           startupProbe:
             httpGet:
               path: /api/data/health

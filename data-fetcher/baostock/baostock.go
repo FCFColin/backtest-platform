@@ -98,7 +98,7 @@ func NewClient() *Client {
 }
 
 func (c *Client) Connect() error {
-	addr := fmt.Sprintf("%s:%d", ServerIP, ServerPort)
+	addr := net.JoinHostPort(ServerIP, strconv.Itoa(ServerPort))
 	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
 	if err != nil {
 		return fmt.Errorf("连接baostock服务器失败: %w", err)

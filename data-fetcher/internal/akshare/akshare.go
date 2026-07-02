@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand/v2"
 	"net/http"
 	"strconv"
 	"time"
@@ -91,7 +92,10 @@ func doWithRetry(url string, parser func([]byte) (interface{}, error)) (interfac
 	var lastErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		if attempt > 0 {
-			backoff := time.Duration(attempt*attempt) * time.Second
+			// 企业理由（ADR-028）：指数退避 + jitter 避免重试风暴（thundering herd）。
+			base := time.Duration(attempt*attempt) * time.Second
+			jitter := time.Duration(rand.Int64N(int64(base)/2 + 1))
+			backoff := base + jitter
 			slog.Info("akshare 重试", "attempt", attempt+1, "backoff_ms", backoff.Milliseconds())
 			time.Sleep(backoff)
 		}
