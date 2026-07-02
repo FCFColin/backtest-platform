@@ -1,0 +1,42 @@
+# Build artifacts
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Dependencies
+node_modules/
+
+# Data & cache
+data/
+.cache/
+
+# Go / Rust engine directories (non-JS code)
+data-fetcher/
+engine-go/
+engine-rs/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Lock files (auto-generated, do not format)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Minified / generated files
+*.min.js
+*.min.css
+
+# Markdown lint results (generated)
+eslint-*.json
+eslint-*.txt
+lint-*.txt
+lint-*.json
+*.check.txt
+medium-check.txt
+simple-check.txt
+
+# Git
+.git/

@@ -15,18 +15,37 @@ services:
   # PostgreSQL 16 - 主数据库（ADR-007）
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:16-alpine
+    # T-40：pin digest 防供应链浮动 tag
+    image: postgres:16-alpine@sha256:e013e867e712fec275706a6c51c966f0bb0c93cfa8f51000f85a15f9865a28cb
     container_name: backtest-postgres
     ports:
-      - "127.0.0.1:5432:5432"
+      - '127.0.0.1:5432:5432'
     environment:
       POSTGRES_USER: backtest
       POSTGRES_PASSWORD: backtest
       POSTGRES_DB: backtest
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U backtest"]
+      test: ['CMD-SHELL', 'pg_isready -U backtest']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 - 会话/限流/缓存/任务队列（ADR-018）
+  # ---------------------------------------------------------------------------
+  # 企业理由：Refresh Token、限流计数、幂等键、BullMQ 队列均依赖 Redis。
+  # 此前 docker-compose 缺失 Redis，导致本地无法完整复现生产拓扑（弹性/混沌测试缺口）。
+  redis:
+    image: redis:7-alpine
+    container_name: backtest-redis
+    ports:
+      - '127.0.0.1:6379:6379'
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -43,16 +62,16 @@ services:
       dockerfile: Dockerfile
     container_name: backtest-engine-go
     ports:
-      - "127.0.0.1:5004:5004"
+      - '127.0.0.1:5004:5004'
     environment:
-      ENGINE_GO_PORT: "5004"
+      ENGINE_GO_PORT: '5004'
       GIN_MODE: release
       ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5004/api/engine/health"]
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5004/api/engine/health']
       interval: 30s
       timeout: 5s
       start_period: 10s
@@ -69,13 +88,13 @@ services:
       dockerfile: Dockerfile
     container_name: backtest-api
     ports:
-      - "127.0.0.1:5001:5001"
+      - '127.0.0.1:5001:5001'
     environment:
       NODE_ENV: production
-      API_PORT: "5001"
-      RUST_ENGINE_URL: http://engine-go:5004
+      API_PORT: '5001'
+      GO_ENGINE_URL: http://engine-go:5004
       GO_DATA_SERVICE_URL: http://data-fetcher:5003
-      DATABASE_URL: postgresql://backtest:backtest@postgres:5432/backtest
+      DATABASE_URL: postgresql://backtest_app:backtest_app_dev@postgres:5432/backtest
       ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}
       DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
     depends_on:
@@ -84,7 +103,7 @@ services:
       engine-go:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5001/api/health"]
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5001/api/health']
       interval: 30s
       timeout: 5s
       start_period: 15s
@@ -99,13 +118,13 @@ services:
       dockerfile: Dockerfile
     container_name: backtest-data-fetcher
     ports:
-      - "127.0.0.1:5003:5003"
+      - '127.0.0.1:5003:5003'
     environment:
-      DATA_FETCHER_PORT: "5003"
+      DATA_FETCHER_PORT: '5003'
       GIN_MODE: release
       DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5003/api/data/health"]
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5003/api/data/health']
       interval: 30s
       timeout: 5s
       start_period: 10s

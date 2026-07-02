@@ -15,6 +15,8 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import sonarjs from 'eslint-plugin-sonarjs';
+import eslintConfigPrettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default tseslint.config(
@@ -25,11 +27,10 @@ export default tseslint.config(
       'node_modules/**',
       'coverage/**',
       'data/**',
-      'engine-rs/**',
       'data-fetcher/**',
-      'api/python/**',
       'playwright-report/**',
       'test-results/**',
+      'scripts/**',
     ],
   },
 
@@ -51,10 +52,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
 
@@ -71,6 +69,25 @@ export default tseslint.config(
     files: ['tests/**/*.ts'],
     languageOptions: {
       globals: { ...globals.node, ...globals.browser },
+    },
+  },
+
+  // 复杂度量化门控（ADR-021 / T-9）
+  //
+  // 企业为何需要：圈复杂度（McCabe）与嵌套深度是"代码难以测试/理解/维护"的客观度量。
+  // 单函数复杂度 > 15 是重构红线（分支爆炸，单测难以覆盖全路径）。无门控时复杂度只增不减，
+  // 最终形成无人敢动的"上帝函数"。
+  // 阈值依据企业基准：复杂度 15 / 深度 4 / 函数 80 行 / 参数 5 / 回调 3。
+  {
+    files: ['api/**/*.ts', 'src/**/*.{ts,tsx}'],
+    plugins: { sonarjs },
+    rules: {
+      complexity: ['warn', { max: 15 }],
+      'max-depth': ['warn', 4],
+      'max-lines-per-function': ['warn', { max: 80, skipBlankLines: true, skipComments: true }],
+      'max-params': ['warn', 5],
+      'max-nested-callbacks': ['warn', 3],
+      'sonarjs/cognitive-complexity': ['warn', 15],
     },
   },
 
@@ -92,4 +109,12 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
+
+  // Prettier 兼容配置（必须放在最后）
+  //
+  // 企业为何需要：ESLint 和 Prettier 都会检查代码格式，若两者规则冲突会导致
+  // `eslint --fix` 和 `prettier --write` 互相覆盖、无限循环。eslint-config-prettier
+  // 关闭所有与 Prettier 冲突的 ESLint 规则（如缩进、引号、分号等），
+  // 让 ESLint 专注代码质量，Prettier 专注代码格式，职责分离。
+  eslintConfigPrettier,
 );

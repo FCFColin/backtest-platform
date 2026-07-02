@@ -23,14 +23,14 @@
 
 ### 必备工具
 
-| 工具 | 最低版本 | 用途 |
-|------|---------|------|
-| Node.js | 20+ | 前端 / API 服务 |
-| Rust | stable (latest) | 高性能计算模块 |
-| Go | 1.22+ | 数据抓取服务 (data-fetcher) |
-| Python | 3.9+ | 数据分析 / 回测引擎 |
-| Docker | 20.10+ | 容器化构建与本地服务编排 |
-| Git | 2.40+ | 版本控制 |
+| 工具    | 最低版本 | 用途                                               |
+| ------- | -------- | -------------------------------------------------- |
+| Node.js | 20+      | 前端 / API 服务                                    |
+| Go      | 1.22+    | 计算引擎 (engine-go) + 数据抓取服务 (data-fetcher) |
+| Docker  | 20.10+   | 容器化构建与本地服务编排                           |
+| Git     | 2.40+    | 版本控制                                           |
+
+> Rust 计算引擎（engine-rs）与 Python 数据 CLI（api/python）已退役并删除（ADR-008），不再是开发前置条件。
 
 ### 搭建步骤
 
@@ -41,23 +41,18 @@ git clone <repo-url> && cd 回测平台
 # 2. 安装 Node.js 依赖
 npm install
 
-# 3. 安装 Go 依赖
+# 3. 安装 Go 依赖（计算引擎 engine-go + 数据服务 data-fetcher）
+cd engine-go && go mod download && cd ..
 cd data-fetcher && go mod download && cd ..
 
-# 4. 安装 Python 依赖
-pip install -r api/python/requirements.txt
-
-# 5. 安装 Rust 工具链（如需编译原生模块）
-rustup toolchain install stable
-
-# 6. 使用 Docker 启动本地依赖服务
+# 4. 使用 Docker 启动本地依赖服务
 docker compose up -d
 ```
 
 ### IDE 推荐
 
-- **VS Code**：安装项目推荐的扩展（TypeScript、Go、rust-analyzer、Python、EditorConfig）
-- **WebStorm / GoLand / RustRover**：JetBrains 全家桶均可
+- **VS Code**：安装项目推荐的扩展（TypeScript、Go、EditorConfig）
+- **WebStorm / GoLand**：JetBrains 全家桶均可
 
 ---
 
@@ -75,19 +70,7 @@ docker compose up -d
 
 - **格式化**：`gofmt`（Go 内置）
 - **Lint**：`golangci-lint`（配置见 `data-fetcher/.golangci.yml`）
-- 运行：`cd data-fetcher && golangci-lint run ./...`
-
-### Rust
-
-- **格式化**：`rustfmt`（`cargo fmt`）
-- **Lint**：`clippy`（`cargo clippy`）
-- 运行：`cargo fmt --check && cargo clippy -- -D warnings`
-
-### Python
-
-- **格式化**：`black`（行宽 88）
-- **Lint**：`ruff`
-- 运行：`black --check . && ruff check .`
+- 运行：`cd engine-go && golangci-lint run ./...`（data-fetcher 同理）
 
 > **原则**：提交前务必在本地运行对应语言的 lint 和格式化，确保 CI 不报错。
 
@@ -107,14 +90,14 @@ docker compose up -d
 
 ### Type 列表
 
-| Type | 说明 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | 修复 Bug |
-| `docs` | 文档变更 |
+| Type       | 说明                   |
+| ---------- | ---------------------- |
+| `feat`     | 新功能                 |
+| `fix`      | 修复 Bug               |
+| `docs`     | 文档变更               |
 | `refactor` | 重构（不改变外部行为） |
-| `test` | 新增或修改测试 |
-| `chore` | 构建、依赖、工具等杂项 |
+| `test`     | 新增或修改测试         |
+| `chore`    | 构建、依赖、工具等杂项 |
 
 ### 示例
 
@@ -160,9 +143,11 @@ main          ← 受保护，仅通过 PR 合入，禁止直接推送
 
 ```markdown
 ## 变更说明
+
 <!-- 简要描述本次 PR 做了什么 -->
 
 ## 变更类型
+
 - [ ] 新功能 (feat)
 - [ ] Bug 修复 (fix)
 - [ ] 重构 (refactor)
@@ -171,12 +156,15 @@ main          ← 受保护，仅通过 PR 合入，禁止直接推送
 - [ ] 杂项 (chore)
 
 ## 关联 Issue
+
 <!-- Closes #xxx -->
 
 ## 测试情况
+
 <!-- 说明如何验证本次变更 -->
 
 ## 检查清单
+
 - [ ] 本地 lint / format 已通过
 - [ ] 新增代码有对应测试
 - [ ] 无硬编码密钥或敏感信息
@@ -198,28 +186,26 @@ main          ← 受保护，仅通过 PR 合入，禁止直接推送
 - 每个模块须有单元测试，覆盖核心逻辑路径
 - Go：`go test ./...`，目标覆盖率 ≥ 70%
 - TypeScript：`npm run test`（Vitest），目标覆盖率 ≥ 70%
-- Python：`pytest`，目标覆盖率 ≥ 70%
-- Rust：`cargo test`
 
 ### 一致性测试
 
-- 涉及多语言实现的同一算法（如回测引擎的 TypeScript / Rust / Python 版本），须有一致性测试确保结果对齐
+- 回测引擎的 Go 实现与 Node 参考实现须有一致性测试确保结果对齐
 - 一致性测试用例放在 `tests/consistency/` 目录下
 
 ### 测试目录结构
 
 本项目按测试类型分目录组织，结构如下：
 
-| 测试类型 | 目录 | 说明 |
-|---------|------|------|
-| 单元测试 | `tests/unit/` | 模块级独立逻辑测试，mock 外部依赖 |
-| 集成测试 | `tests/integration/` | 多模块协作、API 与数据库交互验证 |
-| 一致性测试 | `tests/consistency/` | 多语言实现（TS/Rust/Python）的同一算法结果对齐 |
-| 契约测试 | `tests/contract/` | 服务间接口契约验证，防止破坏性变更 |
-| 混沌测试 | `tests/chaos/` | 故障注入下的系统韧性验证 |
-| 基准测试 | `tests/benchmark/` | 核心操作性能基线，检测性能回归 |
-| 模糊测试 | `tests/fuzz/` | 随机/异常输入的鲁棒性验证 |
-| E2E UI 测试 | `tests/e2e/ui/` | 关键业务流程的 Playwright 端到端 UI 测试 |
+| 测试类型    | 目录                 | 说明                                      |
+| ----------- | -------------------- | ----------------------------------------- |
+| 单元测试    | `tests/unit/`        | 模块级独立逻辑测试，mock 外部依赖         |
+| 集成测试    | `tests/integration/` | 多模块协作、API 与数据库交互验证          |
+| 一致性测试  | `tests/consistency/` | Go 引擎与 Node 参考实现的同一算法结果对齐 |
+| 契约测试    | `tests/contract/`    | 服务间接口契约验证，防止破坏性变更        |
+| 混沌测试    | `tests/chaos/`       | 故障注入下的系统韧性验证                  |
+| 基准测试    | `tests/benchmark/`   | 核心操作性能基线，检测性能回归            |
+| 模糊测试    | `tests/fuzz/`        | 随机/异常输入的鲁棒性验证                 |
+| E2E UI 测试 | `tests/e2e/ui/`      | 关键业务流程的 Playwright 端到端 UI 测试  |
 
 - E2E UI 测试覆盖关键业务流程（数据抓取 → 回测计算 → 结果输出）
 - 可使用 Docker Compose 搭建完整测试环境
@@ -238,21 +224,18 @@ Test<功能>_<场景>_<预期结果>
 
 ### 依赖管理
 
-| 语言 | 锁文件 | 命令 |
-|------|--------|------|
+| 语言       | 锁文件              | 命令          |
+| ---------- | ------------------- | ------------- |
 | TypeScript | `package-lock.json` | `npm install` |
-| Go | `go.sum` | `go mod tidy` |
-| Python | `requirements.txt` | `pip install -r requirements.txt` |
-| Rust | `Cargo.lock` | `cargo build` |
+| Go         | `go.sum`            | `go mod tidy` |
 
 - 新增依赖须在 PR 中说明理由，避免引入功能重复的包
 - 禁止引入带有已知安全漏洞的依赖版本
 
 ### 跨语言调用
 
-- TypeScript 调用 Rust：通过 `rustFallback.ts` 封装的 FFI / WASM 接口
-- TypeScript 调用 Python：通过子进程或 HTTP 接口
-- TypeScript 调用 Go：通过 HTTP API（data-fetcher 服务）
+- TypeScript 调用 Go 计算引擎（engine-go）：通过 HTTP API，封装于 `rustFallback.ts`（历史命名，现仅对接 Go 引擎），引擎不可用时 fail-closed 返回 503（ADR-031）
+- TypeScript 调用 Go 数据服务（data-fetcher）：通过 HTTP API
 
 ### 编码约定
 
@@ -263,7 +246,7 @@ Test<功能>_<场景>_<预期结果>
 
 ### 文档与注释
 
-- 公共 API 须有文档注释（TypeScript: JSDoc / Go: godoc / Rust: `///` / Python: docstring）
+- 公共 API 须有文档注释（TypeScript: JSDoc / Go: godoc）
 - 注释语言与代码上下文保持一致，公共文档使用中文
 
 ---
@@ -301,11 +284,11 @@ export COSIGN_PRIVATE_KEY=<your-key>
 
 CI（`.github/workflows/ci.yml`）已集成以下供应链安全步骤，无需本地手动执行：
 
-| 步骤 | 工具 | 说明 |
-|------|------|------|
-| 密钥扫描 | gitleaks | `gitleaks` job，全历史扫描防止凭据泄露入库 |
-| SBOM 生成 | anchore/sbom-action | `docker` job，为 `backtest-api` 镜像生成 CycloneDX SBOM |
-| 镜像签名 | sigstore/cosign | `docker` job，对 `backtest-api` 与 `data-fetcher` 镜像签名 |
-| 镜像漏洞扫描 | Trivy | `docker` job，扫描 HIGH/CRITICAL 漏洞并阻断 CI |
+| 步骤         | 工具                | 说明                                                       |
+| ------------ | ------------------- | ---------------------------------------------------------- |
+| 密钥扫描     | gitleaks            | `gitleaks` job，全历史扫描防止凭据泄露入库                 |
+| SBOM 生成    | anchore/sbom-action | `docker` job，为 `backtest-api` 镜像生成 CycloneDX SBOM    |
+| 镜像签名     | sigstore/cosign     | `docker` job，对 `backtest-api` 与 `data-fetcher` 镜像签名 |
+| 镜像漏洞扫描 | Trivy               | `docker` job，扫描 HIGH/CRITICAL 漏洞并阻断 CI             |
 
 > **参考**：详见 [ADR-012](docs/adr/ADR-012-SBOM与制品签名方案.md) 供应链安全决策记录。本地脚本与 CI 保持一致，便于开发者在提交前自查。

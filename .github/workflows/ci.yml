@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history for better detection
+          fetch-depth: 0 # Full history for better detection
       - name: Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -31,7 +31,8 @@ jobs:
     # CI 中使用服务容器而非外部数据库，确保测试环境隔离和可重现。
     services:
       postgres:
-        image: postgres:16-alpine
+        # T-40：与 docker-compose 对齐 digest pin
+        image: postgres:16-alpine@sha256:ef9d151c6fe83308ad8d383c878c5a2a3a75c96cdf8e22b79c1d8a1420a5a4c
         env:
           POSTGRES_USER: backtest
           POSTGRES_PASSWORD: backtest
@@ -74,8 +75,22 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high --omit=dev
 
-      - name: Coverage report
-        run: npm run test:coverage
+      # 企业理由（T-22 / 许可证合规）：未审查的依赖许可证可能引入 Copyleft（GPL/AGPL）
+      # 传染性义务，威胁专有代码闭源权或带来法律风险。在 CI 中枚举生产依赖许可证，
+      # 仅允许宽松型（MIT/Apache/BSD 等）。当前 continue-on-error 以先建立可见性，
+      # 后续可移除使其成为硬门槛。
+      - name: License compliance
+        run: npx --yes license-checker --production --summary --excludePrivatePackages
+
+      # 企业理由（性能基线 / T-07）：基准测试入 CI 才能感知性能回退（regression）。
+      # 无基准 = 无法量化"这次改动让热路径慢了多少"。这里运行 Vitest bench 产出统计算法
+      # （Sharpe/最大回撤/年化波动）的 ops/sec 基线；失败不阻断（continue-on-error）以免
+      # CI 机器抖动造成误报，但输出归档供趋势观察。
+      - name: Performance benchmarks
+        run: npm run test:bench
+
+      - name: Coverage report with per-file check
+        run: npm run test:coverage:check
 
       - name: Upload coverage
         if: always()
@@ -84,39 +99,13 @@ jobs:
           name: coverage-report
           path: coverage/vitest/
           retention-days: 7
+      # 企业理由：per-file 覆盖率门槛确保没有"测试盲区"文件。
+      # 整体覆盖率可能掩盖个别文件零覆盖的问题。
+      # 关键文件（认证/金融计算/安全/数据完整性）要求 >90%，
+      # 其他文件要求 ≥60%，低于门槛则 CI 失败。
 
       - name: Build
         run: npm run build
-
-  rust:
-    name: Rust
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: engine-rs
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: engine-rs
-
-      - name: Build
-        run: cargo build --verbose
-
-      - name: Test
-        run: cargo test --verbose
-
-      # 企业理由：Rust 依赖漏洞扫描，防止已知 CVE 通过依赖链引入。
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
-      - name: Security audit
-        run: cargo audit
 
   go:
     name: Go
@@ -165,7 +154,7 @@ jobs:
   # ============================================================
   # Go 引擎服务 CI（T-ARCH-2.5）
   # ============================================================
-  # 企业理由：engine-go 是从 Rust 引擎迁移到 Go 的新服务（ADR-008），
+  # 企业理由：engine-go 是平台唯一的计算引擎（ADR-008，Rust 已退役），
   # 需要独立的 CI 流水线确保代码质量。与 data-fetcher 分离是因为
   # 两者 Go 版本、依赖、工作目录均不同，合并会增加维护复杂度。
   go-engine:
@@ -224,7 +213,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        # T-40：与 docker-compose 对齐 digest pin
+        image: postgres:16-alpine@sha256:ef9d151c6fe83308ad8d383c878c5a2a3a75c96cdf8e22b79c1d8a1420a5a4c
         env:
           POSTGRES_USER: backtest
           POSTGRES_PASSWORD: backtest
@@ -255,49 +245,24 @@ jobs:
           DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
           NODE_ENV: test
 
-  consistency:
-    name: Engine Consistency (Rust ↔ JS)
+  contract:
+    name: Contract Tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+      - run: npm ci
+      - run: npm run test:contract
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: engine-rs
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Rust engine
-        run: cargo build --release
-        working-directory: engine-rs
-
-      - name: Start Rust engine
-        run: |
-          cd engine-rs && cargo run --release &
-          sleep 3
-          curl -s http://127.0.0.1:5002/api/engine/health || true
-
-      - name: Run consistency tests
-        run: npx vitest run tests/consistency
-
-  e2e:
-    name: E2E Tests (Playwright)
+  load-smoke:
+    name: k6 Load Smoke
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16-alpine@sha256:ef9d151c6fe83308ad8d383c878c5a2a3a75c96cdf8e22b79c1d8a1420a5a4c
         env:
           POSTGRES_USER: backtest
           POSTGRES_PASSWORD: backtest
@@ -309,6 +274,76 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+      - name: Start API
+        run: npm run server:dev &
+        env:
+          DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
+          NODE_ENV: test
+          PORT: 5001
+      - name: Wait for API
+        run: npx wait-on http://localhost:5001/api/health --timeout 90000
+      - name: k6 smoke
+        run: k6 run scripts/load/smoke.js
+        env:
+          BASE_URL: http://localhost:5001
+
+  consistency:
+    name: Engine Consistency (Go ↔ JS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: engine-go/go.sum
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Go engine
+        run: go build ./...
+        working-directory: engine-go
+
+      - name: Start Go engine
+        run: |
+          cd engine-go && go run ./cmd/server &
+          sleep 3
+          curl -s http://127.0.0.1:5004/api/engine/health || true
+        env:
+          ENGINE_AUTH_TOKEN: dev-engine-auth-token
+
+      - name: Run consistency tests
+        run: npx vitest run tests/consistency
+        env:
+          GO_ENGINE_URL: http://127.0.0.1:5004
+          ENGINE_AUTH_TOKEN: dev-engine-auth-token
+
+  e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -325,17 +360,25 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Start dev server
-        run: npm run dev &
-        env:
-          PORT: 5176
-          DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
+      - name: Start dependency stack
+        run: docker compose up -d postgres redis engine-go
 
-      - name: Wait for dev server
-        run: npx wait-on http://localhost:5176 --timeout 60000
+      - name: Wait for Postgres and Go engine
+        run: |
+          npx wait-on tcp:127.0.0.1:5432 --timeout 120000
+          npx wait-on http://127.0.0.1:5004/api/engine/health --timeout 120000
+
+      - name: Import priority tickers
+        run: npm run import:priority-tickers
+        env:
+          DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest
 
       - name: Run E2E tests
         run: npm run test:e2e:ui
+        env:
+          CI: 'true'
+          DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest
+          COMPUTE_RATE_LIMIT_MAX: '200'
 
       - name: Upload test results
         if: always()
@@ -353,7 +396,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        # T-40：与 docker-compose 对齐 digest pin
+        image: postgres:16-alpine@sha256:ef9d151c6fe83308ad8d383c878c5a2a3a75c96cdf8e22b79c1d8a1420a5a4c
         env:
           POSTGRES_USER: backtest
           POSTGRES_PASSWORD: backtest
@@ -410,6 +454,11 @@ jobs:
   docker:
     name: Docker Build & Security Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -420,43 +469,45 @@ jobs:
 
       # 企业理由：tag 为 git SHA 保证可追溯。
       # latest 标签无法区分构建版本，回滚和审计困难。
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Node API image
+        id: build-api
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
-          tags: backtest-api:${{ github.sha }}
-          load: true
+          tags: ghcr.io/${{ github.repository_owner }}/backtest-api:${{ github.sha }}
+          push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build Go data-fetcher image
+        id: build-data-fetcher
         uses: docker/build-push-action@v6
         with:
           context: ./data-fetcher
           file: ./data-fetcher/Dockerfile
-          tags: data-fetcher:${{ github.sha }}
-          load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build Rust engine image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./engine-rs
-          file: ./engine-rs/Dockerfile
-          tags: engine-rs:${{ github.sha }}
-          load: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/data-fetcher:${{ github.sha }}
+          push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Build Go engine image
+        id: build-engine-go
         uses: docker/build-push-action@v6
         with:
           context: ./engine-go
           file: ./engine-go/Dockerfile
-          tags: engine-go:${{ github.sha }}
-          load: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/engine-go:${{ github.sha }}
+          push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -465,59 +516,119 @@ jobs:
       # --exit-code 1 使高危漏洞阻断 CI（shift-left security）。
       # --ignore-unfixed 只报告已有修复方案的漏洞，减少无法处理的告警。
       - name: Trivy scan Node API
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: backtest-api:${{ github.sha }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/backtest-api:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
 
       - name: Trivy scan Go data-fetcher
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: data-fetcher:${{ github.sha }}
-          severity: HIGH,CRITICAL
-          exit-code: 1
-          ignore-unfixed: true
-
-      - name: Trivy scan Rust engine
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: engine-rs:${{ github.sha }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/data-fetcher:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
 
       - name: Trivy scan Go engine
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: engine-go:${{ github.sha }}
+          image-ref: ghcr.io/${{ github.repository_owner }}/engine-go:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
 
-      # Supply Chain: 生成软件物料清单（SBOM）
-      # 企业为何需要：EO 14028/EU CRA要求软件供应链透明度，SBOM是合规基础
-      # 权衡：CI增加约1分钟，但满足SLSA Level 2要求
-      - name: Generate SBOM
+      # Supply Chain (ADR-022 / T-08): 为全部 3 个镜像生成 SBOM（CycloneDX）。
+      # 企业为何需要：EO 14028 / EU CRA 要求软件供应链透明度；SBOM 是漏洞响应（"我是否受某 CVE 影响"）
+      # 与 license 审计的事实依据。此前仅对 backtest-api 生成且未上传为制品，覆盖不全。
+      # 权衡：CI 增加约 1-2 分钟，换取全栈供应链可见性。
+      - name: Generate SBOM (Node API)
         uses: anchore/sbom-action@v0
         with:
-          image: backtest-api:${{ github.sha }}
+          image: ghcr.io/${{ github.repository_owner }}/backtest-api:${{ github.sha }}
           format: cyclonedx-json
           output-file: sbom-backtest-api.json
+      - name: Generate SBOM (data-fetcher)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/data-fetcher:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: sbom-data-fetcher.json
+      - name: Generate SBOM (engine-go)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/engine-go:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: sbom-engine-go.json
 
-      # Supply Chain: 容器镜像签名，防止供应链攻击
-      # 企业为何需要：未签名镜像可被替换为恶意镜像，cosign是Sigstore标准
-      # 权衡：需管理cosign密钥，但签名验证是SLSA Level 2必要条件
-      # 条件执行：仅当仓库配置了 COSIGN_PRIVATE_KEY secret 时才签名，
-      # 避免缺少密钥时 CI 失败。fork 或新仓库无需配置即可通过 CI。
-      - name: Sign container images
-        if: ${{ vars.ENABLE_COSIGN == 'true' }}
+      # Supply Chain (T-08): 上传 SBOM 为构建制品，使其可被下游审计/漏洞工具消费。
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom-*.json
+          retention-days: 30
+
+      # Supply Chain (ADR-022 / SLSA): 为构建产物生成 keyless 出处证明（Provenance）。
+      # 企业为何需要：SLSA Provenance 证明"产物由可信流水线构建、未被篡改"，是 SLSA L2+ 的核心要求。
+      # 使用 GitHub OIDC + Sigstore（无需托管私钥）。此前 ADR-012/CONTRIBUTING 声称 SLSA L2
+      # 但 CI 实际无任何 attestation 步骤，属于"文档与实现漂移"，本步骤补齐。
+      - name: Attest build provenance for SBOMs
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'sbom-*.json'
+
+      # T-35：容器镜像 SLSA provenance（digest 级，与 SBOM 证明互补）
+      - name: Attest container provenance (backtest-api)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: backtest-api
+          subject-digest: ${{ steps.build-api.outputs.digest }}
+          push-to-registry: false
+      - name: Attest container provenance (data-fetcher)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: data-fetcher
+          subject-digest: ${{ steps.build-data-fetcher.outputs.digest }}
+          push-to-registry: false
+      - name: Attest container provenance (engine-go)
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: engine-go
+          subject-digest: ${{ steps.build-engine-go.outputs.digest }}
+          push-to-registry: false
+
+      # Supply Chain: 容器镜像 keyless 签名（cosign / Sigstore）。
+      # 企业为何需要：未签名镜像可被替换为恶意镜像。keyless 模式用 OIDC 短期证书，
+      # 免去托管/轮换 COSIGN_PRIVATE_KEY 的运维与泄露风险。
+      # 注：当前 CI 仅 load 镜像未 push 到 registry，签名在引入镜像仓库推送后对全部 3 镜像启用。
+      - name: Install cosign
         uses: sigstore/cosign-installer@v3
-      - run: |
-          cosign sign --yes --key env://COSIGN_PRIVATE_KEY backtest-api:${{ github.sha }}
-          cosign sign --yes --key env://COSIGN_PRIVATE_KEY data-fetcher:${{ github.sha }}
-        if: ${{ vars.ENABLE_COSIGN == 'true' }}
+      - name: Sign container images (keyless, T-D1)
         env:
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          COSIGN_EXPERIMENTAL: 'true'
+        run: |
+          cosign sign --yes ghcr.io/${{ github.repository_owner }}/backtest-api:${{ github.sha }}
+          cosign sign --yes ghcr.io/${{ github.repository_owner }}/data-fetcher:${{ github.sha }}
+          cosign sign --yes ghcr.io/${{ github.repository_owner }}/engine-go:${{ github.sha }}
+
+  # T-20：混沌实验（需 Docker；失败不阻断主 CI）
+  chaos:
+    name: Chaos Tests
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run chaos tests
+        run: npm run test:chaos
+        env:
+          NODE_ENV: test

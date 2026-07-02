@@ -54,6 +54,7 @@
     "save": "保存",
     "close": "关闭",
     "metric": "指标",
+    "date": "日期",
     "add": "添加",
     "remove": "删除",
     "copy": "复制",
@@ -116,6 +117,11 @@
     "savedScheme": "已保存方案",
     "loadedScheme": "已加载方案",
     "noResultsHint": "配置参数和组合后点击\"开始回测\"查看结果",
+    "emptyTickerWarning": "存在未填写的标的代码，请检查后再运行",
+    "weightSumWarning": "{{name}} 的权重合计为 {{total}}%，应为 100%",
+    "timeout": "回测请求超时，请稍后重试",
+    "networkError": "网络连接失败，请检查后端服务是否运行",
+    "runFailed": "回测运行失败，请检查标的代码是否正确",
     "growth": "组合增长",
     "drawdown": "回撤",
     "keyStatsSummary": "关键统计摘要",
@@ -250,10 +256,12 @@
     "cachedCount": "已缓存",
     "totalDataPoints": "数据点总数",
     "avgPointsPerTicker": "点/标的",
-    "timeRange": "时间范围",
+    "timeRange": "最早起始",
     "to": "至",
-    "diskUsage": "磁盘占用",
-    "jsonFiles": "个JSON文件",
+    "deepHistoryHighlight": "可追溯至 {{year}} 年，历史跨度 {{years}} 年",
+    "diskUsage": "数据库占用",
+    "dbStorageSub": "PostgreSQL 表空间（含索引）",
+    "cachedTickersLabel": "个已入库标的",
     "dataCoverage": "数据覆盖率",
     "totalCoverage": "总覆盖率",
     "fiveYearsPlus": "5年以上数据",
@@ -390,7 +398,11 @@
     "oneTimeCashflowInfo": "在指定日期发生的一次性投入或提取，可添加多条。",
     "type": "类型",
     "date": "日期",
-    "addOneTimeCashflow": "添加一次性现金流"
+    "addOneTimeCashflow": "添加一次性现金流",
+    "months": "月"
+  },
+  "charts": {
+    "logScale": "对数坐标"
   },
   "portfolio": {
     "title": "投资组合",

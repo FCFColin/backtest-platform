@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "回测平台 (Backtest Platform)",
+  "_comment": "T-26 / 维度7：一键开发环境。企业为何需要——多语言(TS/Go/Rust/Python)依赖在不同机器上版本漂移会导致'在我机器上能跑'问题。devcontainer 将工具链固化为代码，新成员打开即获得一致环境，缩短上手时间。",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": { "version": "1.22" },
+    "ghcr.io/devcontainers/features/rust:1": {},
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "forwardPorts": [5176, 5001, 5002, 5003, 5432, 6379],
+  "portsAttributes": {
+    "5176": { "label": "Frontend (Vite)" },
+    "5001": { "label": "API (Express)" },
+    "5002": { "label": "Engine (Go/Rust)" },
+    "5003": { "label": "Data service (Go)" },
+    "5432": { "label": "PostgreSQL" },
+    "6379": { "label": "Redis" }
+  },
+  "postCreateCommand": "npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "golang.go",
+        "rust-lang.rust-analyzer",
+        "ms-python.python"
+      ]
+    }
+  },
+  "remoteEnv": {
+    "DATABASE_URL": "postgresql://backtest:backtest@localhost:5432/backtest",
+    "REDIS_URL": "redis://localhost:6379"
+  }
+}

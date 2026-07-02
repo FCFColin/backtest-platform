@@ -54,6 +54,7 @@
     "save": "Save",
     "close": "Close",
     "metric": "Metric",
+    "date": "Date",
     "add": "Add",
     "remove": "Remove",
     "copy": "Copy",
@@ -116,6 +117,11 @@
     "savedScheme": "Scheme saved",
     "loadedScheme": "Scheme loaded",
     "noResultsHint": "Configure parameters and portfolios, then click \"Start Backtest\" to see results",
+    "emptyTickerWarning": "Some ticker symbols are empty. Please fill them in before running.",
+    "weightSumWarning": "{{name}} weights sum to {{total}}%, should be 100%",
+    "timeout": "Backtest request timed out. Please try again later.",
+    "networkError": "Network connection failed. Please check if the backend is running.",
+    "runFailed": "Backtest failed. Please check ticker symbols and parameters.",
     "growth": "Portfolio Growth",
     "drawdown": "Drawdown",
     "keyStatsSummary": "Key Statistics Summary",
@@ -250,10 +256,12 @@
     "cachedCount": "Cached",
     "totalDataPoints": "Total Data Points",
     "avgPointsPerTicker": "Pts/Ticker",
-    "timeRange": "Time Range",
+    "timeRange": "Earliest Start",
     "to": "to",
-    "diskUsage": "Disk Usage",
-    "jsonFiles": "JSON files",
+    "deepHistoryHighlight": "History back to {{year}} — {{years}} years of market data",
+    "diskUsage": "Database Size",
+    "dbStorageSub": "PostgreSQL tablespace (incl. indexes)",
+    "cachedTickersLabel": "cached tickers",
     "dataCoverage": "Data Coverage",
     "totalCoverage": "Total Coverage",
     "fiveYearsPlus": "5+ Years Data",
@@ -390,7 +398,11 @@
     "oneTimeCashflowInfo": "One-time contribution or withdrawal on a specified date. Multiple entries can be added.",
     "type": "Type",
     "date": "Date",
-    "addOneTimeCashflow": "Add One-Time Cashflow"
+    "addOneTimeCashflow": "Add One-Time Cashflow",
+    "months": "mo"
+  },
+  "charts": {
+    "logScale": "Log Scale"
   },
   "portfolio": {
     "title": "Portfolio",

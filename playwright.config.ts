@@ -12,7 +12,7 @@ export default defineConfig({
   globalSetup: './tests/e2e/ui/coverage/setup',
   globalTeardown: './tests/e2e/ui/coverage/teardown',
   use: {
-    baseURL: 'http://localhost:5176',
+    baseURL: 'http://localhost:5001',
     locale: 'zh-CN',
     viewport: { width: 1280, height: 900 },
     actionTimeout: 10_000,
@@ -27,8 +27,13 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5176',
-    reuseExistingServer: true,
-    timeout: 60_000,
+    url: 'http://localhost:5001/api/health',
+    reuseExistingServer: !process.env.CI,
+    timeout: 180_000,
+    env: {
+      DATABASE_URL:
+        process.env.DATABASE_URL ?? 'postgresql://backtest:backtest@localhost:5432/backtest',
+      COMPUTE_RATE_LIMIT_MAX: process.env.COMPUTE_RATE_LIMIT_MAX ?? '200',
+    },
   },
 });

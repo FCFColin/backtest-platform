@@ -28,13 +28,8 @@ coverage/
 *.exe
 data-fetcher/*.exe
 
-# Rust 构建产物
-engine-rs/target/
+# Go 构建产物
 target/
-
-# Python 缓存
-__pycache__/
-*.pyc
 
 # 运行时数据缓存
 data/cache/
@@ -51,6 +46,27 @@ test-results/
 # 临时/草稿文件
 temp_*
 scratch_*
+
+# Lint/检查输出产物
+eslint*.txt
+eslint*.json
+lint*.txt
+lint*.json
+all-*.txt
+*check.txt
+*result.txt
+*-current.txt
+*-remaining.txt
+*-warnings.txt
+*-unix.txt
+simple-check.txt
+medium-check.txt
+remaining-warnings.txt
+api-lint.txt
+server.err
+/parse-eslint.mjs
+/parse-lint.mjs
+/parse-pages.mjs
 
 # Editor directories and files
 .vscode/*

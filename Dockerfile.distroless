@@ -1,0 +1,23 @@
+# Distroless PoC（ADR-030）
+# 企业理由：无 shell 缩小攻击面；esbuild 单文件 JS 适合 distroless node 运行时。
+# 权衡：无 wget → 健康检查依赖 K8s HTTP probe，非 Dockerfile HEALTHCHECK。
+
+FROM node:20-alpine@sha256:fb4cd12c85ee03686f6af5362a0b0d56d50c58a04632e6c0fb8363f609372293 AS builder
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+RUN npx esbuild api/server.ts --bundle --platform=node --format=esm --outdir=dist
+
+FROM gcr.io/distroless/nodejs20-debian12:nonroot
+WORKDIR /app
+COPY --from=builder /app/dist/server.js ./dist/server.js
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/api ./api
+COPY --from=builder /app/shared ./shared
+ENV NODE_ENV=production
+EXPOSE 5001
+USER nonroot
+CMD ["dist/server.js"]

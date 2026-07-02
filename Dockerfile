@@ -25,10 +25,7 @@ RUN npm run build
 
 # 企业理由：生产容器中使用 tsx 运行 TypeScript 增加启动开销和内存占用。
 # esbuild 打包为单文件 JS，启动快、体积小、无运行时编译开销。
-# 权衡：打包后失去源码映射能力，但生产环境不需要。
-# better-sqlite3 是 native 模块，必须 --external 标记以避免打包失败；
-# canvas 也是可选 native 依赖，同样需要排除。
-RUN npx esbuild api/server.ts --bundle --platform=node --format=esm --outdir=dist --external:better-sqlite3 --external:canvas
+RUN npx esbuild api/server.ts --bundle --platform=node --format=esm --outdir=dist
 
 # =============================================================================
 # Stage 2: runner
@@ -44,7 +41,7 @@ WORKDIR /app
 # 运行环境与端口默认值（可被 docker-compose / -e 覆盖）
 ENV NODE_ENV=production \
     API_PORT=5001 \
-    RUST_ENGINE_URL=http://rust-engine:5002 \
+    GO_ENGINE_URL=http://engine-go:5004 \
     GO_DATA_SERVICE_URL=http://go-data:5003
 
 # 复制依赖清单与已安装的 node_modules（tsx 在 devDependencies，运行时需要）
@@ -57,7 +54,7 @@ COPY --from=builder /app/dist ./dist
 # 复制 esbuild 打包后的 API 服务端代码
 COPY --from=builder /app/dist/server.js ./dist/server.js
 
-# 复制 API 与共享类型源码（better-sqlite3 等 native 模块需要 node_modules）
+# 复制 API 与共享类型源码
 COPY api ./api
 COPY shared ./shared
 
