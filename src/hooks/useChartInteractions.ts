@@ -4,6 +4,13 @@
  */
 import { useState, useMemo, useCallback } from 'react';
 
+/** 主曲线图表最大渲染点数 */
+export const SYNC_CHART_POINTS = 400;
+/** 大数据集（散点/相关性等）降采样阈值 */
+export const DOWNSAMPLE_THRESHOLD = 10000;
+/** 大数据集降采样目标点数 */
+export const DOWNSAMPLE_TARGET = 1000;
+
 /**
  * 大数据集降采样
  *
@@ -37,7 +44,7 @@ export function downsample<T>(data: T[], maxPoints: number = 10000): T[] {
  */
 export function useZoomRange<T>(data: T[], initialRange?: [number, number]) {
   const [zoomRange, setZoomRange] = useState<[number, number] | null>(
-    initialRange ? [initialRange[0], initialRange[1]] : null
+    initialRange ? [initialRange[0], initialRange[1]] : null,
   );
 
   const visibleData = useMemo(() => {

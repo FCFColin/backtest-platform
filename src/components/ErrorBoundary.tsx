@@ -37,6 +37,39 @@ interface ErrorBoundaryState {
  * </ErrorBoundary>
  * ```
  */
+const ERROR_CONTAINER_STYLE: React.CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '100vh',
+  padding: '24px',
+  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  color: '#1f2937',
+  textAlign: 'center',
+};
+
+const ERROR_DETAIL_STYLE: React.CSSProperties = {
+  fontSize: '12px',
+  color: '#9ca3af',
+  margin: '0 0 16px',
+  maxWidth: '500px',
+  wordBreak: 'break-word',
+  fontFamily: 'monospace',
+};
+
+const REFRESH_BTN_STYLE: React.CSSProperties = {
+  padding: '10px 24px',
+  fontSize: '14px',
+  fontWeight: 500,
+  color: '#ffffff',
+  backgroundColor: '#2563eb',
+  border: 'none',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  transition: 'background-color 0.2s',
+};
+
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -69,116 +102,39 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   };
 
   render(): ReactNode {
-    if (this.state.hasError) {
-      return (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '100vh',
-            padding: '24px',
-            fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-            color: '#1f2937',
-            textAlign: 'center',
+    if (this.state.hasError) return this.renderErrorUI();
+    return this.props.children;
+  }
+
+  private renderErrorUI(): ReactNode {
+    return (
+      <div style={ERROR_CONTAINER_STYLE}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }} role="img" aria-label="出错提示">
+          ⚠️
+        </div>
+        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>页面出错了</h1>
+        <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 24px', maxWidth: '400px' }}>
+          抱歉，页面遇到了问题。请刷新页面，如果问题持续存在，请联系管理员。
+        </p>
+        {this.state.error && (
+          <p style={ERROR_DETAIL_STYLE}>
+            {this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={this.handleRefresh}
+          style={REFRESH_BTN_STYLE}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#1d4ed8';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#2563eb';
           }}
         >
-          <div
-            style={{
-              fontSize: '48px',
-              marginBottom: '16px',
-            }}
-            role="img"
-            aria-label="出错提示"
-          >
-            ⚠️
-          </div>
-          <h1
-            style={{
-              fontSize: '24px',
-              fontWeight: 600,
-              margin: '0 0 8px',
-            }}
-          >
-            页面出错了
-          </h1>
-          <p
-            style={{
-              fontSize: '14px',
-              color: '#6b7280',
-              margin: '0 0 24px',
-              maxWidth: '400px',
-            }}
-          >
-            抱歉，页面遇到了问题。请刷新页面重试，如果问题持续存在，请联系管理员。
-          </p>
-          {this.state.error && (
-            <p
-              style={{
-                fontSize: '12px',
-                color: '#9ca3af',
-                margin: '0 0 16px',
-                maxWidth: '500px',
-                wordBreak: 'break-word',
-                fontFamily: 'monospace',
-              }}
-            >
-              {this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}
-            </p>
-          )}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={() => this.setState({ hasError: false, error: null })}
-              style={{
-                padding: '10px 24px',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: '#2563eb',
-                backgroundColor: 'transparent',
-                border: '1px solid #2563eb',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#eff6ff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              重试
-            </button>
-            <button
-              type="button"
-              onClick={this.handleRefresh}
-              style={{
-                padding: '10px 24px',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: '#ffffff',
-                backgroundColor: '#2563eb',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'background-color 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#1d4ed8';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#2563eb';
-              }}
-            >
-              刷新页面
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
+          刷新页面
+        </button>
+      </div>
+    );
   }
 }

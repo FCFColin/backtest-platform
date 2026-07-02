@@ -26,6 +26,7 @@ export default function WeightInput({ value, onChange }: WeightInputProps) {
     if (isNaN(num) || Math.abs(num - value) > 0.001) {
       setRaw(String(value));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在外部 value 变化时同步，读取 raw 仅为比较，不作为触发条件
   }, [value]);
 
   return (

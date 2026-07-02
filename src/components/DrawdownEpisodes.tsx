@@ -5,35 +5,17 @@
 import { Fragment } from 'react';
 import type { PortfolioResult, DrawdownEpisode } from '../../shared/types';
 import { CHART_COLORS } from '../../shared/types';
+import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../utils/format';
 
 /** 回撤片段表 Props */
 interface DrawdownEpisodesProps {
   portfolios: PortfolioResult[];
 }
 
-/** 格式化日期字符串为简短格式 */
-function fmtDate(d?: string): string {
-  if (!d) return '—';
-  return d;
-}
-
-/** 格式化年份，如 1.42y */
-function fmtYears(v: number): string {
-  return `${v.toFixed(2)}y`;
-}
-
-/** 格式化百分比（小数转百分比） */
-function fmtPct(v: number): string {
-  return `${(v * 100).toFixed(2)}%`;
-}
-
-/** 格式化比率 */
-function fmtRatio(v: number): string {
-  return v.toFixed(2);
-}
-
 /** 计算一组数值的统计摘要 */
-function calcStats(values: number[]): { min: number; median: number; avg: number; max: number } | null {
+function calcStats(
+  values: number[],
+): { min: number; median: number; avg: number; max: number } | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
   const min = sorted[0];
@@ -44,14 +26,75 @@ function calcStats(values: number[]): { min: number; median: number; avg: number
   return { min, median, avg, max };
 }
 
-/** 统计摘要行定义 */
-interface SummaryField {
+/** 表头 + 数据列定义 */
+const HEADERS = [
+  {
+    label: '高点日期',
+    align: 'left',
+    key: 'peakDate' as const,
+    fmt: (ep: DrawdownEpisode) => fmtDate(ep.peakDate),
+  },
+  {
+    label: '低点日期',
+    align: 'left',
+    key: 'troughDate' as const,
+    fmt: (ep: DrawdownEpisode) => fmtDate(ep.troughDate),
+  },
+  {
+    label: '恢复日期',
+    align: 'left',
+    key: 'recoveryDate' as const,
+    fmt: (ep: DrawdownEpisode) => fmtDate(ep.recoveryDate),
+  },
+  {
+    label: '深度',
+    align: 'right',
+    key: 'depth' as const,
+    fmt: (ep: DrawdownEpisode) => fmtPct(ep.depth),
+  },
+  {
+    label: '到低点时间',
+    align: 'right',
+    key: 'timeToTrough' as const,
+    fmt: (ep: DrawdownEpisode) => fmtYears(ep.timeToTrough),
+  },
+  {
+    label: '恢复时间',
+    align: 'right',
+    key: 'recoveryTime' as const,
+    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.recoveryTime) : '—'),
+  },
+  {
+    label: '总时间',
+    align: 'right',
+    key: 'totalTime' as const,
+    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.totalTime) : '—'),
+  },
+  {
+    label: '恢复因子',
+    align: 'right',
+    key: 'recoveryFactor' as const,
+    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtRatio(ep.recoveryFactor) : '—'),
+  },
+  {
+    label: '期间CAGR',
+    align: 'right',
+    key: 'cagrDuring' as const,
+    fmt: (ep: DrawdownEpisode) => fmtPct(ep.cagrDuring),
+  },
+  {
+    label: '期间溃疡指数',
+    align: 'right',
+    key: 'ulcerDuring' as const,
+    fmt: (ep: DrawdownEpisode) => fmtRatio(ep.ulcerDuring),
+  },
+] as const;
+
+const SUMMARY_FIELDS: Array<{
   key: keyof DrawdownEpisode;
   label: string;
   fmt: (v: number) => string;
-}
-
-const SUMMARY_FIELDS: SummaryField[] = [
+}> = [
   { key: 'depth', label: 'Depth', fmt: fmtPct },
   { key: 'timeToTrough', label: 'Time to Trough', fmt: fmtYears },
   { key: 'recoveryTime', label: 'Recovery Time', fmt: fmtYears },
@@ -61,15 +104,133 @@ const SUMMARY_FIELDS: SummaryField[] = [
   { key: 'ulcerDuring', label: 'Ulcer During', fmt: fmtRatio },
 ];
 
+const STAT_LABELS = ['最小', '中位', '均值', '最大'] as const;
+const STAT_KEYS = ['min', 'median', 'avg', 'max'] as const;
+
+/** 统计摘要行 */
+function SummaryRow({
+  field,
+  stats,
+}: {
+  field: (typeof SUMMARY_FIELDS)[number];
+  stats: ReturnType<typeof calcStats>;
+}) {
+  return (
+    <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+      <td
+        colSpan={3}
+        className="text-[12px] italic py-1.5 px-3"
+        style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}
+      >
+        {field.label}
+      </td>
+      {stats ? (
+        <>
+          {STAT_LABELS.map((label, si) => (
+            <td
+              key={label}
+              className="text-[12px] text-right py-1.5 px-3 font-mono"
+              style={{
+                color: 'var(--text-body)',
+                borderBottom: '1px solid var(--border-soft)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}: {field.fmt(stats[STAT_KEYS[si]])}
+            </td>
+          ))}
+          <td
+            colSpan={3}
+            className="text-[12px] py-1.5 px-3"
+            style={{ borderBottom: '1px solid var(--border-soft)' }}
+          />
+        </>
+      ) : (
+        <td
+          colSpan={7}
+          className="text-[12px] py-1.5 px-3"
+          style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}
+        >
+          —
+        </td>
+      )}
+    </tr>
+  );
+}
+
+/** 单个组合的回撤事件分组 */
+function PortfolioDrawdownGroup({
+  portfolio,
+  colorIndex,
+}: {
+  portfolio: PortfolioResult;
+  colorIndex: number;
+}) {
+  const color = CHART_COLORS[colorIndex % CHART_COLORS.length];
+  const episodes = portfolio.drawdownEpisodes!;
+  const colSpan = 10;
+
+  const summaryStats = SUMMARY_FIELDS.map((field) => {
+    const values = episodes.map((e) => e[field.key]).filter((v): v is number => v != null);
+    return { ...field, stats: calcStats(values) };
+  });
+
+  return (
+    <Fragment key={portfolio.name}>
+      <tr style={{ backgroundColor: 'var(--bg-strong)' }}>
+        <td
+          colSpan={colSpan}
+          className="text-[12px] font-bold py-2 px-3"
+          style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
+        >
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+            style={{ backgroundColor: color }}
+          />
+          {portfolio.name}
+        </td>
+      </tr>
+      {summaryStats.map((field) => (
+        <SummaryRow key={`summary-${field.key}`} field={field} stats={field.stats} />
+      ))}
+      {episodes.map((ep, epIdx) => (
+        <tr
+          key={`${ep.peakDate}-${epIdx}`}
+          style={{ backgroundColor: epIdx % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
+        >
+          {HEADERS.map((h) => {
+            const isDepth = h.key === 'depth';
+            return (
+              <td
+                key={h.key}
+                className={`text-[13px] text-${h.align} py-2 px-3 font-mono${isDepth ? ' font-medium' : ''}`}
+                style={{
+                  color: isDepth ? 'var(--text-strong)' : 'var(--text-body)',
+                  borderBottom: '1px solid var(--border-soft)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {h.fmt(ep)}
+              </td>
+            );
+          })}
+        </tr>
+      ))}
+    </Fragment>
+  );
+}
+
 export default function DrawdownEpisodes({ portfolios }: DrawdownEpisodesProps) {
   const portfoliosWithEpisodes = portfolios.filter(
-    (p) => p.drawdownEpisodes && p.drawdownEpisodes.length > 0
+    (p) => p.drawdownEpisodes && p.drawdownEpisodes.length > 0,
   );
 
   if (portfoliosWithEpisodes.length === 0) {
     return (
       <div className="chart-card">
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>暂无回撤事件数据</div>
+        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+          暂无回撤事件数据
+        </div>
       </div>
     );
   }
@@ -81,150 +242,32 @@ export default function DrawdownEpisodes({ portfolios }: DrawdownEpisodesProps) 
         <table className="w-full border-collapse">
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-              <th className="text-[12px] font-semibold text-left py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                高点日期
-              </th>
-              <th className="text-[12px] font-semibold text-left py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                低点日期
-              </th>
-              <th className="text-[12px] font-semibold text-left py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                恢复日期
-              </th>
-              <th className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                深度
-              </th>
-              <th className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                到低点时间
-              </th>
-              <th className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                恢复时间
-              </th>
-              <th className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                总时间
-              </th>
-              <th className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                恢复因子
-              </th>
-              <th className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                期间CAGR
-              </th>
-              <th className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                期间溃疡指数
-              </th>
+              {HEADERS.map((h) => (
+                <th
+                  key={h.key}
+                  className={`text-[12px] font-semibold text-${h.align} py-2.5 px-3`}
+                  style={{
+                    color: 'var(--text-muted)',
+                    borderBottom: '2px solid var(--border-soft)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {h.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {portfoliosWithEpisodes.map((portfolio, pIdx) => {
-              const color = CHART_COLORS[pIdx % CHART_COLORS.length];
-              const episodes = portfolio.drawdownEpisodes!;
-              const colSpan = 10;
-
-              // 计算统计摘要
-              const summaryStats = SUMMARY_FIELDS.map((field) => {
-                const values = episodes.map((e) => e[field.key]).filter((v): v is number => v !== undefined && v !== null);
-                const stats = calcStats(values);
-                return { ...field, stats };
-              });
-
-              return (
-                <Fragment key={portfolio.name}>
-                  {/* 分组标题 */}
-                  <tr style={{ backgroundColor: 'var(--bg-strong)' }}>
-                    <td
-                      colSpan={colSpan}
-                      className="text-[12px] font-bold py-2 px-3"
-                      style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
-                    >
-                      <span
-                        className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-                        style={{ backgroundColor: color }}
-                      />
-                      {portfolio.name}
-                    </td>
-                  </tr>
-
-                  {/* 统计摘要 */}
-                  {summaryStats.map((field, sIdx) => {
-                    const isAlt = sIdx % 2 === 1;
-                    return (
-                      <tr key={`summary-${field.key}`} style={{ backgroundColor: isAlt ? 'var(--bg-subtle)' : 'transparent' }}>
-                        <td
-                          colSpan={3}
-                          className="text-[12px] italic py-1.5 px-3"
-                          style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}
-                        >
-                          {field.label}
-                        </td>
-                        {field.stats ? (
-                          <>
-                            <td className="text-[12px] text-right py-1.5 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                              最小: {field.fmt(field.stats.min)}
-                            </td>
-                            <td className="text-[12px] text-right py-1.5 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                              中位: {field.fmt(field.stats.median)}
-                            </td>
-                            <td className="text-[12px] text-right py-1.5 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                              均值: {field.fmt(field.stats.avg)}
-                            </td>
-                            <td className="text-[12px] text-right py-1.5 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                              最大: {field.fmt(field.stats.max)}
-                            </td>
-                            <td colSpan={3} className="text-[12px] py-1.5 px-3" style={{ borderBottom: '1px solid var(--border-soft)' }} />
-                          </>
-                        ) : (
-                          <td colSpan={7} className="text-[12px] py-1.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}>
-                            —
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-
-                  {/* 回撤事件行 */}
-                  {episodes.map((ep, epIdx) => {
-                    const isAlt = epIdx % 2 === 1;
-                    return (
-                      <tr key={`${ep.peakDate}-${epIdx}`} style={{ backgroundColor: isAlt ? 'var(--bg-subtle)' : 'transparent' }}>
-                        <td className="text-[13px] py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {fmtDate(ep.peakDate)}
-                        </td>
-                        <td className="text-[13px] py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {fmtDate(ep.troughDate)}
-                        </td>
-                        <td className="text-[13px] py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {fmtDate(ep.recoveryDate)}
-                        </td>
-                        <td className="text-[13px] text-right py-2 px-3 font-mono font-medium" style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {fmtPct(ep.depth)}
-                        </td>
-                        <td className="text-[13px] text-right py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {fmtYears(ep.timeToTrough)}
-                        </td>
-                        <td className="text-[13px] text-right py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {ep.recoveryDate ? fmtYears(ep.recoveryTime) : '—'}
-                        </td>
-                        <td className="text-[13px] text-right py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {ep.recoveryDate ? fmtYears(ep.totalTime) : '—'}
-                        </td>
-                        <td className="text-[13px] text-right py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {ep.recoveryDate ? fmtRatio(ep.recoveryFactor) : '—'}
-                        </td>
-                        <td className="text-[13px] text-right py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {fmtPct(ep.cagrDuring)}
-                        </td>
-                        <td className="text-[13px] text-right py-2 px-3 font-mono" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {fmtRatio(ep.ulcerDuring)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </Fragment>
-              );
-            })}
+            {portfoliosWithEpisodes.map((portfolio, pIdx) => (
+              <PortfolioDrawdownGroup
+                key={portfolio.name}
+                portfolio={portfolio}
+                colorIndex={pIdx}
+              />
+            ))}
           </tbody>
         </table>
       </div>
     </div>
   );
 }
-

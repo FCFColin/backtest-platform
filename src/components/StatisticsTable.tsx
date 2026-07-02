@@ -13,7 +13,7 @@ interface StatisticsTableProps {
   compact?: boolean;
 }
 
-type FmtType = 'pct' | 'ratio' | 'duration' | 'pct100';
+type FmtType = 'pct' | 'ratio' | 'duration';
 
 interface StatRow {
   key: keyof Statistics;
@@ -99,15 +99,15 @@ const STAT_GROUPS: StatGroup[] = [
   {
     title: '捕获率',
     rows: [
-      { key: 'upsideCapture', label: '上行捕获率 (月度)', fmt: 'pct100' },
-      { key: 'downsideCapture', label: '下行捕获率 (月度)', fmt: 'pct100' },
-      { key: 'captureSpread', label: '捕获差 (月度)', fmt: 'pct100' },
-      { key: 'upsideCaptureDaily', label: '上行捕获率 (日度)', fmt: 'pct100' },
-      { key: 'downsideCaptureDaily', label: '下行捕获率 (日度)', fmt: 'pct100' },
-      { key: 'captureSpreadDaily', label: '捕获差 (日度)', fmt: 'pct100' },
-      { key: 'upsideCaptureAnnual', label: '上行捕获率 (年度)', fmt: 'pct100' },
-      { key: 'downsideCaptureAnnual', label: '下行捕获率 (年度)', fmt: 'pct100' },
-      { key: 'captureSpreadAnnual', label: '捕获差 (年度)', fmt: 'pct100' },
+      { key: 'upsideCapture', label: '上行捕获率 (月度)', fmt: 'pct' },
+      { key: 'downsideCapture', label: '下行捕获率 (月度)', fmt: 'pct' },
+      { key: 'captureSpread', label: '捕获差 (月度)', fmt: 'pct' },
+      { key: 'upsideCaptureDaily', label: '上行捕获率 (日度)', fmt: 'pct' },
+      { key: 'downsideCaptureDaily', label: '下行捕获率 (日度)', fmt: 'pct' },
+      { key: 'captureSpreadDaily', label: '捕获差 (日度)', fmt: 'pct' },
+      { key: 'upsideCaptureAnnual', label: '上行捕获率 (年度)', fmt: 'pct' },
+      { key: 'downsideCaptureAnnual', label: '下行捕获率 (年度)', fmt: 'pct' },
+      { key: 'captureSpreadAnnual', label: '捕获差 (年度)', fmt: 'pct' },
     ],
   },
   {
@@ -223,25 +223,84 @@ const COMPACT_GROUPS: StatGroup[] = [
 ];
 
 function formatValue(v: number | undefined, fmt: FmtType): string {
-  if (v === undefined || v === null) return '—';
+  if (v == null) return '—';
   if (fmt === 'pct') return `${(v * 100).toFixed(2)}%`;
-  if (fmt === 'pct100') return `${(v * 100).toFixed(2)}%`;
   if (fmt === 'ratio') return v.toFixed(2);
   if (fmt === 'duration') return `${v} mo`;
   return v.toString();
+}
+
+/** 统计表表头 */
+function StatisticsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
+  return (
+    <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+      <th
+        className="text-[12px] font-semibold text-left py-2.5 px-3"
+        style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', minWidth: '320px' }}
+      >
+        指标
+      </th>
+      {portfolios.map((p, idx) => (
+        <th
+          key={p.name}
+          className="text-[12px] font-semibold text-right py-2.5 px-3"
+          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}
+        >
+          <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
+          {p.name}
+        </th>
+      ))}
+    </tr>
+  );
+}
+
+/** 统计表分组行 */
+function StatisticsGroupRows({ group, portfolios, colCount }: { group: typeof STAT_GROUPS[number]; portfolios: PortfolioResult[]; colCount: number }) {
+  let rowIdx = 0;
+  return (
+    <Fragment key={group.title}>
+      <tr style={{ backgroundColor: 'var(--bg-strong)' }}>
+        <td colSpan={colCount} className="text-[12px] font-bold py-2 px-3" style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}>
+          {group.title}
+        </td>
+      </tr>
+      {group.rows.map((row) => {
+        const hasAnyValue = portfolios.some((p) => p.statistics[row.key] !== undefined && p.statistics[row.key] !== null);
+        if (!hasAnyValue) return null;
+        const isAlt = rowIdx % 2 === 1;
+        rowIdx++;
+        return (
+          <tr key={row.key} style={{ backgroundColor: isAlt ? 'var(--bg-subtle)' : 'transparent' }}>
+            <td className="text-[13px] py-2 px-3" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}>
+              {row.label}
+            </td>
+            {portfolios.map((p) => {
+              const val = p.statistics[row.key];
+              return (
+                <td key={p.name} className="text-[13px] font-medium text-right py-2 px-3 font-mono" style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
+                  {formatValue(val, row.fmt)}
+                </td>
+              );
+            })}
+          </tr>
+        );
+      })}
+    </Fragment>
+  );
 }
 
 export default function StatisticsTable({ portfolios, compact }: StatisticsTableProps) {
   if (portfolios.length === 0) {
     return (
       <div className="chart-card">
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>暂无统计数据</div>
+        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+          暂无统计数据
+        </div>
       </div>
     );
   }
 
   const groups = compact ? COMPACT_GROUPS : STAT_GROUPS;
-
   const colCount = 1 + portfolios.length;
 
   return (
@@ -250,61 +309,12 @@ export default function StatisticsTable({ portfolios, compact }: StatisticsTable
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-              <th className="text-[12px] font-semibold text-left py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', minWidth: '320px' }}>
-                指标
-              </th>
-              {portfolios.map((p, idx) => (
-                <th key={p.name} className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-                    style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-                  />
-                  {p.name}
-                </th>
-              ))}
-            </tr>
+            <StatisticsTableHeader portfolios={portfolios} />
           </thead>
           <tbody>
-            {groups.map((group) => {
-              let rowIdx = 0;
-              return (
-                <Fragment key={group.title}>
-                  <tr style={{ backgroundColor: 'var(--bg-strong)' }}>
-                    <td
-                      colSpan={colCount}
-                      className="text-[12px] font-bold py-2 px-3"
-                      style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
-                    >
-                      {group.title}
-                    </td>
-                  </tr>
-                  {group.rows.map((row) => {
-                    const hasAnyValue = portfolios.some(
-                      (p) => p.statistics[row.key] !== undefined && p.statistics[row.key] !== null
-                    );
-                    if (!hasAnyValue) return null;
-                    const isAlt = rowIdx % 2 === 1;
-                    rowIdx++;
-                    return (
-                      <tr key={row.key} style={{ backgroundColor: isAlt ? 'var(--bg-subtle)' : 'transparent' }}>
-                        <td className="text-[13px] py-2 px-3" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}>
-                          {row.label}
-                        </td>
-                        {portfolios.map((p) => {
-                          const val = p.statistics[row.key];
-                          return (
-                            <td key={p.name} className="text-[13px] font-medium text-right py-2 px-3 font-mono" style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                              {formatValue(val, row.fmt)}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </Fragment>
-              );
-            })}
+            {groups.map((group) => (
+              <StatisticsGroupRows key={group.title} group={group} portfolios={portfolios} colCount={colCount} />
+            ))}
           </tbody>
         </table>
       </div>

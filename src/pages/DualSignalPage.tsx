@@ -6,8 +6,15 @@
 import { useState } from 'react';
 import { Play } from 'lucide-react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts';
 import { CHART_COLORS } from '../../shared/types';
 import type {
@@ -94,7 +101,9 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
           onChange={(e) => onChange({ ...cfg, indicator: e.target.value })}
         >
           {INDICATORS.map((ind) => (
-            <option key={ind} value={ind}>{ind}</option>
+            <option key={ind} value={ind}>
+              {ind}
+            </option>
           ))}
         </select>
       </div>
@@ -120,6 +129,341 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
         </div>
       </div>
     </>
+  );
+}
+
+// ===== 权益曲线合并 =====
+function buildEquityData(results: DualSignalResponse): Array<Record<string, number | string>> {
+  const dateMap = new Map<string, Record<string, number | string>>();
+  const series: Array<{ name: string; curve: SignalAnalysisResult['equityCurve'] }> = [
+    { name: '信号1', curve: results.signal1.equityCurve },
+    { name: '信号2', curve: results.signal2.equityCurve },
+    { name: '组合', curve: results.combined.equityCurve },
+  ];
+  for (const s of series) {
+    for (const p of s.curve) {
+      if (!dateMap.has(p.date)) dateMap.set(p.date, { date: p.date });
+      dateMap.get(p.date)![s.name] = p.value;
+    }
+  }
+  return Array.from(dateMap.values()).sort((a, b) =>
+    (a.date as string).localeCompare(b.date as string),
+  );
+}
+
+// ===== 统计列定义 =====
+const STAT_COLS: { key: string; label: string; fmt: 'int' | 'pct' | 'ratio' }[] = [
+  { key: 'totalSignals', label: '总信号数', fmt: 'int' },
+  { key: 'winRate', label: '胜率', fmt: 'pct' },
+  { key: 'avgReturn', label: '平均收益', fmt: 'pct' },
+  { key: 'maxDrawdown', label: '最大回撤', fmt: 'pct' },
+  { key: 'sharpe', label: '夏普', fmt: 'ratio' },
+];
+
+function formatStat(v: number, fmt: 'int' | 'pct' | 'ratio'): string {
+  if (fmt === 'int') return String(v);
+  if (fmt === 'pct') return fmtPct(v);
+  return fmtRatio(v);
+}
+
+// ===== 参数面板 =====
+interface DualSignalParamsProps {
+  cfg1: SignalCfg;
+  cfg2: SignalCfg;
+  combinationMethod: 'and' | 'or' | 'xor';
+  ticker: string;
+  startDate: string;
+  endDate: string;
+  isLoading: boolean;
+  onCfg1Change: (cfg: SignalCfg) => void;
+  onCfg2Change: (cfg: SignalCfg) => void;
+  onCombinationMethodChange: (m: 'and' | 'or' | 'xor') => void;
+  onTickerChange: (v: string) => void;
+  onStartDateChange: (v: string) => void;
+  onEndDateChange: (v: string) => void;
+  onRun: () => void;
+}
+
+function DualSignalParamsPanel({
+  cfg1,
+  cfg2,
+  combinationMethod,
+  ticker,
+  startDate,
+  endDate,
+  isLoading,
+  onCfg1Change,
+  onCfg2Change,
+  onCombinationMethodChange,
+  onTickerChange,
+  onStartDateChange,
+  onEndDateChange,
+  onRun,
+}: DualSignalParamsProps) {
+  return (
+    <ParamsPanel>
+      <ParamsSection title="信号 1 配置">
+        <SignalCfgFields cfg={cfg1} onChange={onCfg1Change} />
+      </ParamsSection>
+      <ParamsSection title="信号 2 配置">
+        <SignalCfgFields cfg={cfg2} onChange={onCfg2Change} />
+      </ParamsSection>
+      <ParamsSection title="组合方式">
+        <div className="param-field" style={{ marginBottom: 8 }}>
+          <span className="param-label">组合逻辑</span>
+          <select
+            className="param-input"
+            value={combinationMethod}
+            onChange={(e) => onCombinationMethodChange(e.target.value as 'and' | 'or' | 'xor')}
+          >
+            {COMBINATION_METHODS.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="param-field" style={{ marginBottom: 8 }}>
+          <span className="param-label">标的代码</span>
+          <input
+            type="text"
+            className="param-input"
+            value={ticker}
+            onChange={(e) => onTickerChange(e.target.value)}
+            placeholder="如 SPY"
+          />
+        </div>
+        <div className="params-row">
+          <div className="param-field">
+            <span className="param-label">开始日期</span>
+            <input
+              type="date"
+              className="param-input"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+            />
+          </div>
+          <div className="param-field">
+            <span className="param-label">结束日期</span>
+            <input
+              type="date"
+              className="param-input"
+              value={endDate}
+              onChange={(e) => onEndDateChange(e.target.value)}
+            />
+          </div>
+        </div>
+      </ParamsSection>
+      <div className="bt-action-row">
+        <LoadingButton isLoading={isLoading} onClick={onRun} loadingText="分析中...">
+          <Play className="w-4 h-4" />
+          开始分析
+        </LoadingButton>
+      </div>
+    </ParamsPanel>
+  );
+}
+
+// ===== 结果面板 =====
+interface DualSignalResultsProps {
+  results: DualSignalResponse | null;
+  error: string | null;
+  isLoading: boolean;
+}
+
+/** 统计对比表 */
+function StatsComparisonTable({
+  statRows,
+}: {
+  statRows: { name: string; stats: SignalAnalysisResult['statistics'] }[];
+}) {
+  return (
+    <div className="chart-card">
+      <div className="chart-card-title">组合信号统计 vs 单信号统计</div>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+              <th
+                className="text-[12px] font-semibold text-left py-2.5 px-3"
+                style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
+              >
+                指标
+              </th>
+              {statRows.map((r, idx) => (
+                <th
+                  key={r.name}
+                  className="text-[12px] font-semibold text-right py-2.5 px-3"
+                  style={{
+                    color: 'var(--text-muted)',
+                    borderBottom: '2px solid var(--border-soft)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+                    style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                  />
+                  {r.name}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {STAT_COLS.map((col, ri) => (
+              <tr
+                key={col.key}
+                style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
+              >
+                <td
+                  className="text-[13px] py-2 px-3"
+                  style={{
+                    color: 'var(--text-body)',
+                    borderBottom: '1px solid var(--border-soft)',
+                  }}
+                >
+                  {col.label}
+                </td>
+                {statRows.map((r) => (
+                  <td
+                    key={r.name}
+                    className="text-[13px] font-medium text-right py-2 px-3 font-mono"
+                    style={{
+                      color: 'var(--text-strong)',
+                      borderBottom: '1px solid var(--border-soft)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {formatStat((r.stats as Record<string, number>)[col.key], col.fmt)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/** 权益曲线图 */
+function EquityCurveChart({ equityData }: { equityData: Array<Record<string, number | string>> }) {
+  return (
+    <div className="chart-card">
+      <div className="chart-card-title">权益曲线对比</div>
+      <ResponsiveContainer width="100%" height={350}>
+        <LineChart data={equityData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <XAxis
+            dataKey="date"
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tickFormatter={(v: string) => v.slice(0, 7)}
+          />
+          <YAxis
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
+          />
+          <Tooltip
+            contentStyle={tooltipStyle}
+            labelFormatter={(label: string) => `日期: ${label}`}
+            formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
+          />
+          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+          <ReferenceLine y={10000} stroke="var(--text-muted)" strokeDasharray="4 4" />
+          {['信号1', '信号2', '组合'].map((name, idx) => (
+            <Line
+              key={name}
+              type="monotone"
+              dataKey={name}
+              stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+              strokeWidth={idx === 2 ? 2.5 : 1.5}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function DualSignalResultsPanel({ results, error, isLoading }: DualSignalResultsProps) {
+  const comparisonColumns: Column<DualSignalResponse['comparison'][number]>[] = [
+    { key: 'date', label: '日期', sortValue: (r) => r.date },
+    {
+      key: 'signal1',
+      label: '信号 1',
+      render: (r) => renderDir(r.signal1),
+      sortValue: (r) => r.signal1 ?? '',
+    },
+    {
+      key: 'signal2',
+      label: '信号 2',
+      render: (r) => renderDir(r.signal2),
+      sortValue: (r) => r.signal2 ?? '',
+    },
+    {
+      key: 'combined',
+      label: '组合信号',
+      render: (r) => renderDir(r.combined),
+      sortValue: (r) => r.combined ?? '',
+    },
+  ];
+
+  const statRows = results
+    ? [
+        { name: '信号 1', stats: results.signal1.statistics },
+        { name: '信号 2', stats: results.signal2.statistics },
+        { name: '组合', stats: results.combined.statistics },
+      ]
+    : [];
+
+  const equityData = results ? buildEquityData(results) : [];
+
+  return (
+    <div className="space-y-4">
+      {error && (
+        <div className="card" style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}>
+          分析失败：{error}
+        </div>
+      )}
+      {results && (
+        <>
+          <StatsComparisonTable statRows={statRows} />
+          <div className="chart-card">
+            <div className="chart-card-title">信号对比（{results.comparison.length}）</div>
+            {results.comparison.length > 0 ? (
+              <SortableTable
+                columns={comparisonColumns}
+                data={results.comparison}
+                initialSortKey="date"
+                initialSortDir="asc"
+              />
+            ) : (
+              <div
+                style={{
+                  color: 'var(--text-muted)',
+                  fontSize: 13,
+                  padding: '24px 0',
+                  textAlign: 'center',
+                }}
+              >
+                当前参数下未生成任何信号
+              </div>
+            )}
+          </div>
+          <EquityCurveChart equityData={equityData} />
+        </>
+      )}
+      {!results && !error && !isLoading && (
+        <div
+          className="card"
+          style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48, fontSize: 14 }}
+        >
+          设置参数后点击「开始分析」查看结果
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -166,209 +510,33 @@ export default function DualSignalPage() {
     });
   };
 
-  // ===== 对比表格列定义 =====
-  const comparisonColumns: Column<DualSignalResponse['comparison'][number]>[] = [
-    { key: 'date', label: '日期', sortValue: (r) => r.date },
-    { key: 'signal1', label: '信号 1', render: (r) => renderDir(r.signal1), sortValue: (r) => r.signal1 ?? '' },
-    { key: 'signal2', label: '信号 2', render: (r) => renderDir(r.signal2), sortValue: (r) => r.signal2 ?? '' },
-    { key: 'combined', label: '组合信号', render: (r) => renderDir(r.combined), sortValue: (r) => r.combined ?? '' },
-  ];
-
-  // ===== 统计对比表数据 =====
-  const statRows = results
-    ? [
-        { name: '信号 1', stats: results.signal1.statistics },
-        { name: '信号 2', stats: results.signal2.statistics },
-        { name: '组合', stats: results.combined.statistics },
-      ]
-    : [];
-
-  const statCols: { key: string; label: string; fmt: 'int' | 'pct' | 'ratio' }[] = [
-    { key: 'totalSignals', label: '总信号数', fmt: 'int' },
-    { key: 'winRate', label: '胜率', fmt: 'pct' },
-    { key: 'avgReturn', label: '平均收益', fmt: 'pct' },
-    { key: 'maxDrawdown', label: '最大回撤', fmt: 'pct' },
-    { key: 'sharpe', label: '夏普', fmt: 'ratio' },
-  ];
-
-  const formatStat = (v: number, fmt: 'int' | 'pct' | 'ratio') => {
-    if (fmt === 'int') return String(v);
-    if (fmt === 'pct') return fmtPct(v);
-    return fmtRatio(v);
-  };
-
-  // ===== 权益曲线对比数据 =====
-  const equityData = results
-    ? (() => {
-        const dateMap = new Map<string, Record<string, number | string>>();
-        const series: Array<{ name: string; curve: SignalAnalysisResult['equityCurve'] }> = [
-          { name: '信号1', curve: results.signal1.equityCurve },
-          { name: '信号2', curve: results.signal2.equityCurve },
-          { name: '组合', curve: results.combined.equityCurve },
-        ];
-        for (const s of series) {
-          for (const p of s.curve) {
-            if (!dateMap.has(p.date)) dateMap.set(p.date, { date: p.date });
-            dateMap.get(p.date)![s.name] = p.value;
-          }
-        }
-        return Array.from(dateMap.values()).sort((a, b) => (a.date as string).localeCompare(b.date as string));
-      })()
-    : [];
-
-  // ===== 左侧参数面板 =====
-  const paramsPanel = (
-    <ParamsPanel>
-      <ParamsSection title="信号 1 配置">
-        <SignalCfgFields cfg={cfg1} onChange={setCfg1} />
-      </ParamsSection>
-
-      <ParamsSection title="信号 2 配置">
-        <SignalCfgFields cfg={cfg2} onChange={setCfg2} />
-      </ParamsSection>
-
-      <ParamsSection title="组合方式">
-        <div className="param-field" style={{ marginBottom: 8 }}>
-          <span className="param-label">组合逻辑</span>
-          <select
-            className="param-input"
-            value={combinationMethod}
-            onChange={(e) => setCombinationMethod(e.target.value as 'and' | 'or' | 'xor')}
-          >
-            {COMBINATION_METHODS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="param-field" style={{ marginBottom: 8 }}>
-          <span className="param-label">标的代码</span>
-          <input
-            type="text"
-            className="param-input"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            placeholder="如 SPY"
-          />
-        </div>
-        <div className="params-row">
-          <div className="param-field">
-            <span className="param-label">开始日期</span>
-            <input type="date" className="param-input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </div>
-          <div className="param-field">
-            <span className="param-label">结束日期</span>
-            <input type="date" className="param-input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
-        </div>
-      </ParamsSection>
-
-      <div className="bt-action-row">
-        <LoadingButton isLoading={isLoading} onClick={runAnalysis} loadingText="分析中...">
-          <Play className="w-4 h-4" />
-          开始分析
-        </LoadingButton>
-      </div>
-    </ParamsPanel>
-  );
-
-  // ===== 右侧结果面板 =====
-  const resultsPanel = (
-    <div className="space-y-4">
-      {error && (
-        <div className="card" style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}>
-          分析失败：{error}
-        </div>
-      )}
-
-      {results && (
-        <>
-          {/* 统计对比表 */}
-          <div className="chart-card">
-            <div className="chart-card-title">组合信号统计 vs 单信号统计</div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-                    <th className="text-[12px] font-semibold text-left py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}>
-                      指标
-                    </th>
-                    {statRows.map((r, idx) => (
-                      <th key={r.name} className="text-[12px] font-semibold text-right py-2.5 px-3" style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                        <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
-                        {r.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {statCols.map((col, ri) => (
-                    <tr key={col.key} style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}>
-                      <td className="text-[13px] py-2 px-3" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}>
-                        {col.label}
-                      </td>
-                      {statRows.map((r) => (
-                        <td key={r.name} className="text-[13px] font-medium text-right py-2 px-3 font-mono" style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
-                          {formatStat((r.stats as Record<string, number>)[col.key], col.fmt)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* 信号对比表格 */}
-          <div className="chart-card">
-            <div className="chart-card-title">信号对比（{results.comparison.length}）</div>
-            {results.comparison.length > 0 ? (
-              <SortableTable
-                columns={comparisonColumns}
-                data={results.comparison}
-                initialSortKey="date"
-                initialSortDir="asc"
-              />
-            ) : (
-              <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '24px 0', textAlign: 'center' }}>
-                当前参数下未生成任何信号
-              </div>
-            )}
-          </div>
-
-          {/* 权益曲线对比图 */}
-          <div className="chart-card">
-            <div className="chart-card-title">权益曲线对比</div>
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={equityData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-                <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(v: string) => v.slice(0, 7)} />
-                <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={(label: string) => `日期: ${label}`} formatter={(value: number) => [`$${value.toLocaleString()}`, '']} />
-                <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
-                <ReferenceLine y={10000} stroke="var(--text-muted)" strokeDasharray="4 4" />
-                {['信号1', '信号2', '组合'].map((name, idx) => (
-                  <Line key={name} type="monotone" dataKey={name} stroke={CHART_COLORS[idx % CHART_COLORS.length]} strokeWidth={idx === 2 ? 2.5 : 1.5} dot={false} activeDot={{ r: 4 }} />
-                ))}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </>
-      )}
-
-      {!results && !error && !isLoading && (
-        <div className="card" style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48, fontSize: 14 }}>
-          设置参数后点击「开始分析」查看结果
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div className="bt-page">
       <div className="bt-page-header">
         <h1 className="bt-page-title">双信号对比</h1>
       </div>
-      <ToolPageLayout title="分析参数" params={paramsPanel} results={resultsPanel} />
+      <ToolPageLayout
+        title="分析参数"
+        params={
+          <DualSignalParamsPanel
+            cfg1={cfg1}
+            cfg2={cfg2}
+            combinationMethod={combinationMethod}
+            ticker={ticker}
+            startDate={startDate}
+            endDate={endDate}
+            isLoading={isLoading}
+            onCfg1Change={setCfg1}
+            onCfg2Change={setCfg2}
+            onCombinationMethodChange={setCombinationMethod}
+            onTickerChange={setTicker}
+            onStartDateChange={setStartDate}
+            onEndDateChange={setEndDate}
+            onRun={runAnalysis}
+          />
+        }
+        results={<DualSignalResultsPanel results={results} error={error} isLoading={isLoading} />}
+      />
     </div>
   );
 }

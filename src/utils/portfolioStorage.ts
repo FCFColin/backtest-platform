@@ -57,7 +57,11 @@ export interface SavedPortfolio {
 const SAVED_KEY = 'backtest-saved-configs';
 
 /** 保存当前配置为命名方案 */
-export function saveNamedConfig(name: string, portfolios: Portfolio[], parameters: BacktestParameters): void {
+export function saveNamedConfig(
+  name: string,
+  portfolios: Portfolio[],
+  parameters: BacktestParameters,
+): void {
   const configs = loadNamedConfigs();
   const newConfig: SavedPortfolio = {
     id: `config-${Date.now()}`,
@@ -88,7 +92,7 @@ export function loadNamedConfigs(): SavedPortfolio[] {
 /** 删除命名方案 */
 export function deleteNamedConfig(id: string): void {
   const configs = loadNamedConfigs();
-  const filtered = configs.filter(c => c.id !== id);
+  const filtered = configs.filter((c) => c.id !== id);
   try {
     localStorage.setItem(SAVED_KEY, JSON.stringify(filtered));
   } catch {

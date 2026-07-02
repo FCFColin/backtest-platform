@@ -15,86 +15,89 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '../../../shared/types';
 import type { PortfolioResult } from '../../../shared/types';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import ChartCard from '../ChartCard';
-import { downsample } from '../../hooks/useChartInteractions';
+import { ChartExporter } from '../ChartExporter';
+import { downsample, SYNC_CHART_POINTS } from '../../hooks/useChartInteractions';
+import { useTranslation } from 'react-i18next';
+import { mergePortfolioSeries } from '../../utils/chartDataMerge';
 
 /** 回撤面积图 Props */
 interface DrawdownChartProps {
   portfolios: PortfolioResult[];
+  /** 外层已提供 chart-card 标题时设为 true */
+  embedded?: boolean;
 }
 
-export default function DrawdownChart({ portfolios }: DrawdownChartProps) {
-  const mergedData = mergeDrawdownCurves(portfolios);
-  // 大数据集（>10000 点）降采样以保持渲染流畅，CSV 导出仍使用完整 mergedData
-  const chartData = mergedData.length > 10000 ? downsample(mergedData, 1000) : mergedData;
+export default function DrawdownChart({ portfolios, embedded = false }: DrawdownChartProps) {
+  const { t } = useTranslation();
+  const mergedData = mergePortfolioSeries(
+    portfolios,
+    (p) => p.drawdownCurve,
+    (pt) => pt.date,
+    (pt) => +(pt.drawdown * -100).toFixed(2),
+  );
+  const chartData =
+    mergedData.length > SYNC_CHART_POINTS ? downsample(mergedData, SYNC_CHART_POINTS) : mergedData;
 
-  return (
-    <ChartCard title="回撤" data={mergedData} csvFilename="drawdown">
-      <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
+  const chart = (
+    <ResponsiveContainer width="100%" height={300}>
+      <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tickFormatter={(v: string) => v.slice(0, 7)}
+        />
+        <YAxis
+          domain={['auto', 0]}
+          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tickFormatter={(v: number) => `${v.toFixed(0)}%`}
+        />
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
+          formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
+        />
+        <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+        {portfolios.map((p, idx) => (
+          <Area
+            key={p.name}
+            type="monotone"
+            dataKey={p.name}
+            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+            fill={CHART_COLORS[idx % CHART_COLORS.length]}
+            fillOpacity={0.12}
+            strokeWidth={1.5}
+          />
+        ))}
+        {chartData.length > 100 && (
+          <Brush
             dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            height={20}
+            stroke="var(--brand)"
+            travellerWidth={8}
             tickFormatter={(v: string) => v.slice(0, 7)}
           />
-          <YAxis
-            domain={['auto', 0]}
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-control)',
-              color: 'var(--text-body)',
-              fontSize: '12px',
-              boxShadow: 'var(--shadow-md)',
-            }}
-            labelFormatter={(label: string) => `日期: ${label}`}
-            formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-          />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
-          {portfolios.map((p, idx) => (
-            <Area
-              key={p.name}
-              type="monotone"
-              dataKey={p.name}
-              stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-              fill={CHART_COLORS[idx % CHART_COLORS.length]}
-              fillOpacity={0.12}
-              strokeWidth={1.5}
-            />
-          ))}
-          {chartData.length > 100 && (
-            <Brush
-              dataKey="date"
-              height={20}
-              stroke="var(--brand)"
-              travellerWidth={8}
-              tickFormatter={(v: string) => v.slice(0, 7)}
-            />
-          )}
-        </AreaChart>
-      </ResponsiveContainer>
-    </ChartCard>
+        )}
+      </AreaChart>
+    </ResponsiveContainer>
   );
-}
 
-function mergeDrawdownCurves(portfolios: PortfolioResult[]) {
-  if (portfolios.length === 0) return [];
-  const dateMap = new Map<string, Record<string, number | string>>();
-  for (const p of portfolios) {
-    for (const point of p.drawdownCurve) {
-      if (!dateMap.has(point.date)) {
-        dateMap.set(point.date, { date: point.date });
-      }
-      // 回撤值转为负数百分比（如 -27.65%）
-      dateMap.get(point.date)![p.name] = +(point.drawdown * -100).toFixed(2);
-    }
+  if (embedded) {
+    return (
+      <>
+        <div className="flex justify-end mb-2">
+          <ChartExporter data={mergedData} filename="drawdown" />
+        </div>
+        {chart}
+      </>
+    );
   }
-  return Array.from(dateMap.values()).sort(
-    (a, b) => (a.date as string).localeCompare(b.date as string)
+
+  return (
+    <ChartCard title={t('backtest.drawdown')} data={mergedData} csvFilename="drawdown">
+      {chart}
+    </ChartCard>
   );
 }

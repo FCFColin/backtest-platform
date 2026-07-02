@@ -99,6 +99,101 @@ function ResultRow({ label, value, color }: ResultRowProps) {
   );
 }
 
+const TOOLTIP_STYLE = {
+  background: 'var(--bg-elevated)',
+  border: '1px solid var(--border-strong)',
+  borderRadius: 8,
+  fontSize: 12,
+} as const;
+
+const INFO_BOX_STYLE: React.CSSProperties = {
+  marginTop: 10,
+  padding: '8px 12px',
+  background: 'var(--bg-subtle)',
+  borderRadius: 8,
+  fontSize: 12,
+  color: 'var(--text-muted)',
+};
+
+const COLLAPSIBLE_CARD_STYLE: React.CSSProperties = {
+  background: 'var(--bg-elevated)',
+  borderRadius: 'var(--radius-card)',
+  boxShadow: 'var(--shadow-card)',
+  border: '1px solid var(--border-soft)',
+  overflow: 'hidden',
+};
+
+const ICON_BOX_STYLE: React.CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 8,
+  background: 'var(--brand-soft)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+};
+
+const CARD_TITLE_STYLE: React.CSSProperties = {
+  fontSize: 16,
+  fontWeight: 700,
+  color: 'var(--text-strong)',
+  margin: 0,
+  flex: 1,
+  textAlign: 'left',
+};
+
+function InfoBox({ children }: { children: React.ReactNode }) {
+  return <div style={INFO_BOX_STYLE}>{children}</div>;
+}
+
+function CollapsibleCardHeader({
+  icon: Icon,
+  title,
+  open,
+  onToggle,
+}: {
+  icon: React.ElementType;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '100%',
+        padding: '16px 20px',
+        border: 'none',
+        background: hovered ? 'var(--bg-subtle)' : 'none',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        borderBottom: open ? '1px solid var(--border-soft)' : 'none',
+        transition: 'background-color .12s',
+      }}
+    >
+      <div style={ICON_BOX_STYLE}>
+        <Icon className="w-4 h-4" style={{ color: 'var(--brand)' }} />
+      </div>
+      <h3 style={CARD_TITLE_STYLE}>{title}</h3>
+      <ChevronDown
+        className="w-4 h-4"
+        style={{
+          color: 'var(--text-muted)',
+          transition: 'transform .2s',
+          transform: open ? 'rotate(180deg)' : 'rotate(0)',
+          flexShrink: 0,
+        }}
+      />
+    </button>
+  );
+}
+
 function CollapsibleCard({
   icon: Icon,
   title,
@@ -112,63 +207,13 @@ function CollapsibleCard({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div
-      style={{
-        background: 'var(--bg-elevated)',
-        borderRadius: 'var(--radius-card)',
-        boxShadow: 'var(--shadow-card)',
-        border: '1px solid var(--border-soft)',
-        overflow: 'hidden',
-      }}
-    >
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          width: '100%',
-          padding: '16px 20px',
-          border: 'none',
-          background: 'none',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          borderBottom: open ? '1px solid var(--border-soft)' : 'none',
-          transition: 'background-color .12s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'var(--bg-subtle)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-        }}
-      >
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: 'var(--brand-soft)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-        >
-          <Icon className="w-4 h-4" style={{ color: 'var(--brand)' }} />
-        </div>
-        <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', margin: 0, flex: 1, textAlign: 'left' }}>
-          {title}
-        </h3>
-        <ChevronDown
-          className="w-4 h-4"
-          style={{
-            color: 'var(--text-muted)',
-            transition: 'transform .2s',
-            transform: open ? 'rotate(180deg)' : 'rotate(0)',
-            flexShrink: 0,
-          }}
-        />
-      </button>
+    <div style={COLLAPSIBLE_CARD_STYLE}>
+      <CollapsibleCardHeader
+        icon={Icon}
+        title={title}
+        open={open}
+        onToggle={() => setOpen(!open)}
+      />
       {open && <div style={{ padding: '16px 20px' }}>{children}</div>}
     </div>
   );
@@ -204,7 +249,16 @@ function CAGRCalculator() {
       <div style={{ marginTop: 12 }}>
         <ResultRow label="CAGR" value={formatPct(cagr)} color="var(--brand)" />
       </div>
-      <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          marginTop: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-subtle)',
+          borderRadius: 8,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
         公式: CAGR = (终值 / 初始值)^(1/年数) - 1
       </div>
     </CollapsibleCard>
@@ -246,7 +300,11 @@ function FutureValueCalculator() {
       <div style={{ marginTop: 12 }}>
         <ResultRow label="终值" value={formatNum(finalValue)} color="var(--brand)" />
         <ResultRow label="总投入" value={formatNum(totalContributions)} />
-        <ResultRow label="投资收益" value={formatNum(finalValue - totalContributions)} color="var(--success)" />
+        <ResultRow
+          label="投资收益"
+          value={formatNum(finalValue - totalContributions)}
+          color="var(--success)"
+        />
       </div>
       <div style={{ height: 180, marginTop: 12 }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -286,7 +344,7 @@ function LeverageDecayCalculator() {
   const result = useMemo(() => {
     const sigma = baseVol / 100;
     const l = leverage;
-    const volDrag = (l * l - l) * sigma * sigma / 2;
+    const volDrag = ((l * l - l) * sigma * sigma) / 2;
     const totalDecay = volDrag * years;
     const effectiveReturn = -totalDecay;
     return { volDrag, totalDecay, effectiveReturn };
@@ -296,18 +354,71 @@ function LeverageDecayCalculator() {
     <CollapsibleCard icon={Layers} title="杠杆 ETF 衰减估算">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
         <Field label="标的年波动率" value={baseVol} onChange={setBaseVol} suffix="%" step={1} />
-        <Field label="杠杆倍数" value={leverage} onChange={setLeverage} suffix="x" step={0.5} min={1} />
+        <Field
+          label="杠杆倍数"
+          value={leverage}
+          onChange={setLeverage}
+          suffix="x"
+          step={0.5}
+          min={1}
+        />
         <Field label="持有年数" value={years} onChange={setYears} suffix="年" step={1} min={1} />
       </div>
       <div style={{ marginTop: 12 }}>
         <ResultRow label="年波动率拖累" value={formatPct(result.volDrag)} color="var(--warning)" />
-        <ResultRow label={`${years}年累计衰减`} value={formatPct(result.totalDecay)} color="var(--danger)" />
-        <ResultRow label="等效收益损失" value={formatPct(result.effectiveReturn)} color="var(--danger)" />
+        <ResultRow
+          label={`${years}年累计衰减`}
+          value={formatPct(result.totalDecay)}
+          color="var(--danger)"
+        />
+        <ResultRow
+          label="等效收益损失"
+          value={formatPct(result.effectiveReturn)}
+          color="var(--danger)"
+        />
       </div>
-      <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          marginTop: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-subtle)',
+          borderRadius: 8,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
         波动率拖累 = (L² - L) × σ² / 2。杠杆ETF在震荡市中因日再平衡产生衰减，长期持有需关注此效应。
       </div>
     </CollapsibleCard>
+  );
+}
+
+function SWRChart({ data }: { data: Array<{ year: number; ratio: number }> }) {
+  return (
+    <div style={{ height: 160, marginTop: 12 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+          <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+          <YAxis
+            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+            tickFormatter={(v: number) => v.toFixed(1)}
+          />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            formatter={(v: number) => [v.toFixed(3), '资产比']}
+          />
+          <Area
+            type="monotone"
+            dataKey="ratio"
+            stroke={CHART_COLORS[2]}
+            fill={CHART_COLORS[2]}
+            fillOpacity={0.12}
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -324,9 +435,9 @@ function SWRCalculator() {
     const pTarget = successTarget / 100;
     const zScore = 1.645 + (pTarget - 0.95) * 10 * 0.842;
     const baseRate = mu - 0.5 * sigma * sigma;
-    const safetyMargin = zScore * sigma / Math.sqrt(T);
+    const safetyMargin = (zScore * sigma) / Math.sqrt(T);
     const estimatedSWR = Math.max(0, baseRate - safetyMargin);
-    return Math.min(estimatedSWR, 0.10);
+    return Math.min(estimatedSWR, 0.1);
   }, [expectedReturn, volatility, retirementYears, successTarget]);
 
   const portfolioSurvival = useMemo(() => {
@@ -343,44 +454,45 @@ function SWRCalculator() {
   return (
     <CollapsibleCard icon={ShieldAlert} title="安全提款率估算 (SWR)">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field label="组合预期收益" value={expectedReturn} onChange={setExpectedReturn} suffix="%" step={0.5} />
+        <Field
+          label="组合预期收益"
+          value={expectedReturn}
+          onChange={setExpectedReturn}
+          suffix="%"
+          step={0.5}
+        />
         <Field label="波动率" value={volatility} onChange={setVolatility} suffix="%" step={1} />
-        <Field label="退休年限" value={retirementYears} onChange={setRetirementYears} suffix="年" step={1} min={1} />
-        <Field label="成功率目标" value={successTarget} onChange={setSuccessTarget} suffix="%" step={1} min={50} max={99} />
+        <Field
+          label="退休年限"
+          value={retirementYears}
+          onChange={setRetirementYears}
+          suffix="年"
+          step={1}
+          min={1}
+        />
+        <Field
+          label="成功率目标"
+          value={successTarget}
+          onChange={setSuccessTarget}
+          suffix="%"
+          step={1}
+          min={50}
+          max={99}
+        />
       </div>
       <div style={{ marginTop: 12 }}>
         <ResultRow label="估算 SWR" value={formatPct(swr)} color="var(--brand)" />
-        <ResultRow label="年度提款额 (每100万)" value={(swr * 1000000).toFixed(0)} color="var(--success)" />
+        <ResultRow
+          label="年度提款额 (每100万)"
+          value={(swr * 1000000).toFixed(0)}
+          color="var(--success)"
+        />
       </div>
-      <div style={{ height: 160, marginTop: 12 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={portfolioSurvival}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
-            <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-            <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v: number) => v.toFixed(1)} />
-            <Tooltip
-              contentStyle={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              formatter={(v: number) => [v.toFixed(3), '资产比']}
-            />
-            <Area
-              type="monotone"
-              dataKey="ratio"
-              stroke={CHART_COLORS[2]}
-              fill={CHART_COLORS[2]}
-              fillOpacity={0.12}
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
-        基于简化公式: SWR ≈ μ - σ²/2 - z·σ/√T，其中z为对应成功率目标的标准正态分位数。仅供参考，实际SWR应基于历史模拟。
-      </div>
+      <SWRChart data={portfolioSurvival} />
+      <InfoBox>
+        基于简化公式: SWR ≈ μ - σ²/2 -
+        z·σ/√T，其中z为对应成功率目标的标准正态分位数。仅供参考，实际SWR应基于历史模拟。
+      </InfoBox>
     </CollapsibleCard>
   );
 }
@@ -399,30 +511,68 @@ function AssetAllocationRiskCalculator() {
     const sB = bondVol / 100;
     const rho = correlation;
     const portfolioVol = Math.sqrt(
-      wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB
+      wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB,
     );
     const diversificationBenefit = wS * sS + wB * sB - portfolioVol;
-    const riskContributionStock = (wS * wS * sS * sS + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
-    const riskContributionBond = (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
+    const riskContributionStock =
+      (wS * wS * sS * sS + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
+    const riskContributionBond =
+      (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
     return { portfolioVol, diversificationBenefit, riskContributionStock, riskContributionBond };
   }, [stockPct, bondPct, stockVol, bondVol, correlation]);
 
   return (
     <CollapsibleCard icon={BarChart3} title="资产配置风险估算">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field label="股票占比" value={stockPct} onChange={setStockPct} suffix="%" step={5} min={0} max={100} />
-        <Field label="债券占比" value={bondPct} onChange={setBondPct} suffix="%" step={5} min={0} max={100} />
+        <Field
+          label="股票占比"
+          value={stockPct}
+          onChange={setStockPct}
+          suffix="%"
+          step={5}
+          min={0}
+          max={100}
+        />
+        <Field
+          label="债券占比"
+          value={bondPct}
+          onChange={setBondPct}
+          suffix="%"
+          step={5}
+          min={0}
+          max={100}
+        />
         <Field label="股票波动率" value={stockVol} onChange={setStockVol} suffix="%" step={1} />
         <Field label="债券波动率" value={bondVol} onChange={setBondVol} suffix="%" step={1} />
       </div>
-      <Field label="相关性" value={correlation} onChange={setCorrelation} step={0.05} min={-1} max={1} />
+      <Field
+        label="相关性"
+        value={correlation}
+        onChange={setCorrelation}
+        step={0.05}
+        min={-1}
+        max={1}
+      />
       <div style={{ marginTop: 8 }}>
         <ResultRow label="组合波动率" value={formatPct(result.portfolioVol)} color="var(--brand)" />
-        <ResultRow label="分散化收益" value={formatPct(result.diversificationBenefit)} color="var(--success)" />
+        <ResultRow
+          label="分散化收益"
+          value={formatPct(result.diversificationBenefit)}
+          color="var(--success)"
+        />
         <ResultRow label="股票风险贡献" value={formatPct(result.riskContributionStock)} />
         <ResultRow label="债券风险贡献" value={formatPct(result.riskContributionBond)} />
       </div>
-      <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          marginTop: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-subtle)',
+          borderRadius: 8,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
         组合波动率 = √(w₁²σ₁² + w₂²σ₂² + 2w₁w₂ρσ₁σ₂)。分散化收益 = 加权波动率之和 - 组合波动率。
       </div>
     </CollapsibleCard>
@@ -496,7 +646,7 @@ function LeverageETFCalculator() {
     const sigma = baseVol / 100;
     const l = leverage;
     const rBorrow = borrowSpread / 100;
-    const levCagr = l * mu - (l - 1) * rBorrow - (l * l - l) * sigma * sigma / 2;
+    const levCagr = l * mu - (l - 1) * rBorrow - ((l * l - l) * sigma * sigma) / 2;
     const levVol = l * sigma;
     return { levCagr, levVol };
   }, [baseCagr, baseVol, leverage, borrowSpread]);
@@ -506,7 +656,14 @@ function LeverageETFCalculator() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
         <Field label="基础资产 CAGR" value={baseCagr} onChange={setBaseCagr} suffix="%" />
         <Field label="基础资产波动率" value={baseVol} onChange={setBaseVol} suffix="%" />
-        <Field label="杠杆倍数" value={leverage} onChange={setLeverage} suffix="x" step={0.5} min={1} />
+        <Field
+          label="杠杆倍数"
+          value={leverage}
+          onChange={setLeverage}
+          suffix="x"
+          step={0.5}
+          min={1}
+        />
         <Field label="借贷利差" value={borrowSpread} onChange={setBorrowSpread} suffix="%" />
       </div>
       <div style={{ marginTop: 12 }}>
@@ -545,15 +702,126 @@ function KellyLeverageCalculator() {
         <Field label="无风险利率" value={riskFree} onChange={setRiskFree} suffix="%" />
       </div>
       <div style={{ marginTop: 12 }}>
-        <ResultRow label="Kelly 最优杠杆" value={result.kelly.toFixed(3) + 'x'} color="var(--brand)" />
-        <ResultRow label="半 Kelly 杠杆" value={result.halfKelly.toFixed(3) + 'x'} color="var(--support)" />
+        <ResultRow
+          label="Kelly 最优杠杆"
+          value={result.kelly.toFixed(3) + 'x'}
+          color="var(--brand)"
+        />
+        <ResultRow
+          label="半 Kelly 杠杆"
+          value={result.halfKelly.toFixed(3) + 'x'}
+          color="var(--support)"
+        />
         <ResultRow label="Kelly 预期 CAGR" value={formatPct(result.optimalCagr)} />
         <ResultRow label="半 Kelly 预期 CAGR" value={formatPct(result.halfKellyCagr)} />
       </div>
-      <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          marginTop: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-subtle)',
+          borderRadius: 8,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
         Kelly 公式: f* = (μ - Rf) / σ² 。半 Kelly 通常更稳健，建议优先参考。
       </div>
     </CollapsibleCard>
+  );
+}
+
+interface TwoFundFrontierResult {
+  frontier: Array<{ wA: number; cagr: number; vol: number }>;
+  minVarW: number;
+  minVarCagr: number;
+  minVarVol: number;
+}
+
+/** 计算两基金有效前沿及最小方差组合 */
+function computeTwoFundFrontier(
+  cagrA: number,
+  volA: number,
+  cagrB: number,
+  volB: number,
+  corr: number,
+): TwoFundFrontierResult {
+  const muA = cagrA / 100;
+  const muB = cagrB / 100;
+  const sA = volA / 100;
+  const sB = volB / 100;
+  const rho = corr;
+
+  const pts: Array<{ wA: number; cagr: number; vol: number }> = [];
+  for (let w = 0; w <= 100; w += 2) {
+    const wA = w / 100;
+    const wB = 1 - wA;
+    const pCagr = wA * muA + wB * muB;
+    const pVol = Math.sqrt(wA * wA * sA * sA + wB * wB * sB * sB + 2 * wA * wB * rho * sA * sB);
+    pts.push({ wA, cagr: pCagr * 100, vol: pVol * 100 });
+  }
+
+  const covAB = rho * sA * sB;
+  const denom = sA * sA + sB * sB - 2 * covAB;
+  let mwA = denom !== 0 ? (sB * sB - covAB) / denom : 0.5;
+  mwA = Math.max(0, Math.min(1, mwA));
+  const mvCagr = (mwA * muA + (1 - mwA) * muB) * 100;
+  const mvVol =
+    Math.sqrt(mwA * mwA * sA * sA + (1 - mwA) * (1 - mwA) * sB * sB + 2 * mwA * (1 - mwA) * covAB) *
+    100;
+
+  return { frontier: pts, minVarW: mwA, minVarCagr: mvCagr, minVarVol: mvVol };
+}
+
+function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
+  return (
+    <div style={{ height: 220, marginTop: 12 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+          <XAxis
+            dataKey="vol"
+            type="number"
+            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+            tickFormatter={(v: number) => v.toFixed(1) + '%'}
+            label={{
+              value: '波动率',
+              position: 'insideBottom',
+              offset: -4,
+              fontSize: 11,
+              fill: 'var(--text-muted)',
+            }}
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+            tickFormatter={(v: number) => v.toFixed(1) + '%'}
+            label={{
+              value: 'CAGR',
+              angle: -90,
+              position: 'insideLeft',
+              offset: 8,
+              fontSize: 11,
+              fill: 'var(--text-muted)',
+            }}
+          />
+          <Tooltip
+            contentStyle={TOOLTIP_STYLE}
+            formatter={(v: number, name: string) => [
+              v.toFixed(2) + '%',
+              name === 'cagr' ? 'CAGR' : name,
+            ]}
+            labelFormatter={(l: number) => '波动率: ' + l.toFixed(2) + '%'}
+          />
+          <Line
+            type="monotone"
+            dataKey="cagr"
+            stroke={CHART_COLORS[0]}
+            strokeWidth={2}
+            dot={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -564,38 +832,10 @@ function TwoFundPortfolioCalculator() {
   const [volB, setVolB] = useState(5);
   const [corr, setCorr] = useState(0.2);
 
-  const { frontier, minVarW, minVarCagr, minVarVol } = useMemo(() => {
-    const muA = cagrA / 100;
-    const muB = cagrB / 100;
-    const sA = volA / 100;
-    const sB = volB / 100;
-    const rho = corr;
-
-    const pts: Array<{ wA: number; cagr: number; vol: number }> = [];
-    for (let w = 0; w <= 100; w += 2) {
-      const wA = w / 100;
-      const wB = 1 - wA;
-      const pCagr = wA * muA + wB * muB;
-      const pVol = Math.sqrt(
-        wA * wA * sA * sA + wB * wB * sB * sB + 2 * wA * wB * rho * sA * sB
-      );
-      pts.push({ wA, cagr: pCagr * 100, vol: pVol * 100 });
-    }
-
-    const covAB = rho * sA * sB;
-    const denom = sA * sA + sB * sB - 2 * covAB;
-    let mwA = denom !== 0 ? (sB * sB - covAB) / denom : 0.5;
-    mwA = Math.max(0, Math.min(1, mwA));
-    const mvCagr = (mwA * muA + (1 - mwA) * muB) * 100;
-    const mvVol =
-      Math.sqrt(
-        mwA * mwA * sA * sA +
-          (1 - mwA) * (1 - mwA) * sB * sB +
-          2 * mwA * (1 - mwA) * covAB
-      ) * 100;
-
-    return { frontier: pts, minVarW: mwA, minVarCagr: mvCagr, minVarVol: mvVol };
-  }, [cagrA, volA, cagrB, volB, corr]);
+  const { frontier, minVarW, minVarCagr, minVarVol } = useMemo(
+    () => computeTwoFundFrontier(cagrA, volA, cagrB, volB, corr),
+    [cagrA, volA, cagrB, volB, corr],
+  );
 
   return (
     <CollapsibleCard icon={PieChart} title="两基金组合">
@@ -615,45 +855,7 @@ function TwoFundPortfolioCalculator() {
         <ResultRow label="最小方差 CAGR" value={minVarCagr.toFixed(2) + '%'} />
         <ResultRow label="最小方差波动率" value={minVarVol.toFixed(2) + '%'} />
       </div>
-      <div style={{ height: 220, marginTop: 12 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={frontier}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
-            <XAxis
-              dataKey="vol"
-              type="number"
-              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-              tickFormatter={(v: number) => v.toFixed(1) + '%'}
-              label={{ value: '波动率', position: 'insideBottom', offset: -4, fontSize: 11, fill: 'var(--text-muted)' }}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-              tickFormatter={(v: number) => v.toFixed(1) + '%'}
-              label={{ value: 'CAGR', angle: -90, position: 'insideLeft', offset: 8, fontSize: 11, fill: 'var(--text-muted)' }}
-            />
-            <Tooltip
-              contentStyle={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              formatter={(v: number, name: string) => [
-                v.toFixed(2) + '%',
-                name === 'cagr' ? 'CAGR' : name,
-              ]}
-              labelFormatter={(l: number) => '波动率: ' + l.toFixed(2) + '%'}
-            />
-            <Line
-              type="monotone"
-              dataKey="cagr"
-              stroke={CHART_COLORS[0]}
-              strokeWidth={2}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      <TwoFundChart data={frontier} />
     </CollapsibleCard>
   );
 }
@@ -665,13 +867,20 @@ function OptionLeverageCalculator() {
   const [contractMultiplier, setContractMultiplier] = useState(100);
 
   const result = useMemo(() => {
-    if (optionPrice <= 0 || spotPrice <= 0) return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
+    if (optionPrice <= 0 || spotPrice <= 0)
+      return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
     const intrinsic = Math.max(spotPrice - strikePrice, 0);
     const timeValue = optionPrice - intrinsic;
-    const approxDelta = Math.min(1, Math.max(0.01, (optionPrice / spotPrice) * (spotPrice / optionPrice > 1 ? 1 : spotPrice / optionPrice)));
+    const approxDelta = Math.min(
+      1,
+      Math.max(
+        0.01,
+        (optionPrice / spotPrice) * (spotPrice / optionPrice > 1 ? 1 : spotPrice / optionPrice),
+      ),
+    );
     const leverageRatio = (approxDelta * spotPrice) / (optionPrice > 0 ? optionPrice : 1);
     return { leverage: leverageRatio, delta: approxDelta, intrinsic, timeValue };
-  }, [spotPrice, strikePrice, optionPrice, contractMultiplier]);
+  }, [spotPrice, strikePrice, optionPrice]);
 
   return (
     <CollapsibleCard icon={Flame} title="期权杠杆">
@@ -679,7 +888,12 @@ function OptionLeverageCalculator() {
         <Field label="标的价" value={spotPrice} onChange={setSpotPrice} step={1} />
         <Field label="行权价" value={strikePrice} onChange={setStrikePrice} step={1} />
         <Field label="期权价" value={optionPrice} onChange={setOptionPrice} step={0.5} />
-        <Field label="合约乘数" value={contractMultiplier} onChange={setContractMultiplier} step={1} />
+        <Field
+          label="合约乘数"
+          value={contractMultiplier}
+          onChange={setContractMultiplier}
+          step={1}
+        />
       </div>
       <div style={{ marginTop: 12 }}>
         <ResultRow label="杠杆倍数" value={result.leverage.toFixed(2) + 'x'} color="var(--brand)" />
@@ -687,7 +901,16 @@ function OptionLeverageCalculator() {
         <ResultRow label="内在价值" value={result.intrinsic.toFixed(2)} />
         <ResultRow label="时间价值" value={result.timeValue.toFixed(2)} />
       </div>
-      <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--bg-subtle)', borderRadius: 8, fontSize: 12, color: 'var(--text-muted)' }}>
+      <div
+        style={{
+          marginTop: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-subtle)',
+          borderRadius: 8,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
         杠杆 = Δ × S / 期权费；Delta 采用简化近似估算。
       </div>
     </CollapsibleCard>
@@ -712,26 +935,40 @@ export default function CalculatorsPage() {
         <div className="bt-seo-features">
           <div className="bt-seo-feature">
             <div className="bt-seo-feature-title">基础计算</div>
-            <div className="bt-seo-feature-desc">CAGR估算器、终值计算器（含定投），快速验证投资增长假设。</div>
+            <div className="bt-seo-feature-desc">
+              CAGR估算器、终值计算器（含定投），快速验证投资增长假设。
+            </div>
           </div>
           <div className="bt-seo-feature">
             <div className="bt-seo-feature-title">杠杆与风险</div>
-            <div className="bt-seo-feature-desc">杠杆ETF衰减估算、安全提款率(SWR)、资产配置风险，评估杠杆与退休规划。</div>
+            <div className="bt-seo-feature-desc">
+              杠杆ETF衰减估算、安全提款率(SWR)、资产配置风险，评估杠杆与退休规划。
+            </div>
           </div>
           <div className="bt-seo-feature">
             <div className="bt-seo-feature-title">高级工具</div>
-            <div className="bt-seo-feature-desc">Kelly最优杠杆、两基金组合前沿、期权杠杆，对标testfol.io Calculator Suite。</div>
+            <div className="bt-seo-feature-desc">
+              Kelly最优杠杆、两基金组合前沿、期权杠杆，对标testfol.io Calculator Suite。
+            </div>
           </div>
         </div>
         <div className="bt-seo-related">
           <span className="bt-seo-related-label">相关工具：</span>
-          <Link to="/" className="link-blue" style={{ fontWeight: 700 }}>组合回测</Link>
+          <Link to="/" className="link-blue" style={{ fontWeight: 700 }}>
+            组合回测
+          </Link>
           <span style={{ color: 'var(--text-muted)' }}> · </span>
-          <Link to="/monte-carlo" className="link-blue" style={{ fontWeight: 700 }}>蒙特卡洛</Link>
+          <Link to="/monte-carlo" className="link-blue" style={{ fontWeight: 700 }}>
+            蒙特卡洛
+          </Link>
           <span style={{ color: 'var(--text-muted)' }}> · </span>
-          <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>组合优化</Link>
+          <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>
+            组合优化
+          </Link>
           <span style={{ color: 'var(--text-muted)' }}> · </span>
-          <Link to="/efficient-frontier" className="link-blue" style={{ fontWeight: 700 }}>有效前沿</Link>
+          <Link to="/efficient-frontier" className="link-blue" style={{ fontWeight: 700 }}>
+            有效前沿
+          </Link>
         </div>
       </div>
 

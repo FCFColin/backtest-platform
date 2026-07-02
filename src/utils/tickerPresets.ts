@@ -47,6 +47,6 @@ export function filterTickers(input: string, limit: number = 8): TickerPreset[] 
   if (!input || input.length < 1) return [];
   const upper = input.toUpperCase();
   return ALL_TICKER_PRESETS.filter(
-    (p) => p.ticker.startsWith(upper) || p.name.includes(input)
+    (p) => p.ticker.startsWith(upper) || p.name.includes(input),
   ).slice(0, limit);
 }

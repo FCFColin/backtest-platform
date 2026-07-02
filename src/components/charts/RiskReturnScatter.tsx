@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '../../../shared/types';
 import type { PortfolioResult } from '../../../shared/types';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import ChartCard from '../ChartCard';
 
 /** 风险收益散点图 Props */
@@ -29,17 +30,27 @@ interface ScatterPoint {
   sharpe: number;
 }
 
-export default function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
-  if (portfolios.length === 0) {
-    return (
-      <div className="chart-card">
-        <div className="chart-card-title">风险与收益</div>
-        <div style={{ color: 'var(--text-muted)', fontSize: '13px', padding: '40px 0', textAlign: 'center' }}>
-          暂无组合数据
-        </div>
+/** 空数据占位 */
+function EmptyScatter() {
+  return (
+    <div className="chart-card">
+      <div className="chart-card-title">风险与收益</div>
+      <div
+        style={{
+          color: 'var(--text-muted)',
+          fontSize: '13px',
+          padding: '40px 0',
+          textAlign: 'center',
+        }}
+      >
+        暂无组合数据
       </div>
-    );
-  }
+    </div>
+  );
+}
+
+export default function RiskReturnScatter({ portfolios }: RiskReturnScatterProps) {
+  if (portfolios.length === 0) return <EmptyScatter />;
 
   const data: ScatterPoint[] = portfolios.map((p) => ({
     name: p.name,
@@ -67,25 +78,28 @@ export default function RiskReturnScatter({ portfolios }: RiskReturnScatterProps
             dataKey="stdev"
             name="波动率"
             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            label={{ value: '年化波动率 (%)', position: 'insideBottom', offset: -10, style: { fill: 'var(--text-muted)', fontSize: 12 } }}
+            label={{
+              value: '年化波动率 (%)',
+              position: 'insideBottom',
+              offset: -10,
+              style: { fill: 'var(--text-muted)', fontSize: 12 },
+            }}
           />
           <YAxis
             type="number"
             dataKey="cagr"
             name="收益率"
             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            label={{ value: '年化收益率 (%)', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-muted)', fontSize: 12 } }}
+            label={{
+              value: '年化收益率 (%)',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fill: 'var(--text-muted)', fontSize: 12 },
+            }}
           />
           <ZAxis range={[80, 80]} />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-control)',
-              color: 'var(--text-body)',
-              fontSize: '12px',
-              boxShadow: 'var(--shadow-md)',
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(value: number, name: string) => {
               if (name === 'stdev') return [`${value.toFixed(2)}%`, '波动率'];
               if (name === 'cagr') return [`${value.toFixed(2)}%`, '收益率'];
@@ -94,12 +108,12 @@ export default function RiskReturnScatter({ portfolios }: RiskReturnScatterProps
             labelFormatter={() => ''}
           />
           {data.map((point, idx) => (
-            <Scatter
-              key={point.name}
-              data={[point]}
-              fill={CHART_COLORS[idx % CHART_COLORS.length]}
-            >
-              <LabelList dataKey="name" position="right" style={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+            <Scatter key={point.name} data={[point]} fill={CHART_COLORS[idx % CHART_COLORS.length]}>
+              <LabelList
+                dataKey="name"
+                position="right"
+                style={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              />
             </Scatter>
           ))}
         </ScatterChart>

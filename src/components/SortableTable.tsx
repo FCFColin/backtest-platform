@@ -35,6 +35,25 @@ export interface SortableTableProps<T> {
   initialSortDir?: 'asc' | 'desc';
 }
 
+/** 比较两行的排序值 */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 泛型约束需要 any 以兼容无索引签名的具体接口
+function sortRows<T extends Record<string, any>>(
+  a: T,
+  b: T,
+  sortKey: string | undefined,
+  sortDir: 'asc' | 'desc',
+  columns: Column<T>[],
+): number {
+  if (!sortKey) return 0;
+  const col = columns.find((c) => String(c.key) === sortKey);
+  if (!col) return 0;
+  const av = col.sortValue ? col.sortValue(a) : a[sortKey];
+  const bv = col.sortValue ? col.sortValue(b) : b[sortKey];
+  if (av === bv) return 0;
+  if (av < bv) return sortDir === 'asc' ? -1 : 1;
+  return sortDir === 'asc' ? 1 : -1;
+}
+
 /**
  * 可排序表格组件
  *
@@ -65,16 +84,7 @@ export function SortableTable<T extends Record<string, any>>({
   };
 
   /** 根据当前排序状态对数据进行排序 */
-  const sortedData = [...data].sort((a, b) => {
-    if (!sortKey) return 0;
-    const col = columns.find((c) => String(c.key) === sortKey);
-    if (!col) return 0;
-    const av = col.sortValue ? col.sortValue(a) : a[sortKey];
-    const bv = col.sortValue ? col.sortValue(b) : b[sortKey];
-    if (av === bv) return 0;
-    if (av < bv) return sortDir === 'asc' ? -1 : 1;
-    return sortDir === 'asc' ? 1 : -1;
-  });
+  const sortedData = [...data].sort((a, b) => sortRows(a, b, sortKey, sortDir, columns));
 
   return (
     <div className="overflow-x-auto">
@@ -98,9 +108,7 @@ export function SortableTable<T extends Record<string, any>>({
                   <span className="inline-flex items-center gap-1">
                     {col.label}
                     {isSorted && (
-                      <span style={{ color: 'var(--brand)' }}>
-                        {sortDir === 'asc' ? '▲' : '▼'}
-                      </span>
+                      <span style={{ color: 'var(--brand)' }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
                     )}
                   </span>
                 </th>

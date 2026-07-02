@@ -5,11 +5,7 @@
 import { useTranslation } from 'react-i18next';
 
 /** 页脚链接 - 复用统一悬停色 */
-function FooterLink({
-  href,
-  children,
-  ...rest
-}: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+function FooterLink({ href, children, ...rest }: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
   return (
     <a href={href} className="app-footer-link" {...rest}>
       {children}
@@ -21,18 +17,25 @@ function FooterLink({
 export function Footer() {
   const { t } = useTranslation();
   const today = new Date().toISOString().split('T')[0];
+  const leftLinks = [
+    { href: '/help', label: t('footer.help') },
+    { href: 'mailto:support@example.com', label: t('footer.contact') },
+    { href: '/about', label: t('footer.terms') },
+    { href: '/about', label: t('footer.privacy') },
+  ];
   return (
     <footer className="app-footer">
       <div className="app-footer-left">
-        <FooterLink href="/help">{t('footer.help')}</FooterLink>
+        {leftLinks.map((link, i) => (
+          <span key={i}>
+            {i > 0 && <span className="app-footer-sep">·</span>}
+            <FooterLink href={link.href}>{link.label}</FooterLink>
+          </span>
+        ))}
         <span className="app-footer-sep">·</span>
-        <FooterLink href="mailto:support@example.com">{t('footer.contact')}</FooterLink>
-        <span className="app-footer-sep">·</span>
-        <FooterLink href="/about">{t('footer.terms')}</FooterLink>
-        <span className="app-footer-sep">·</span>
-        <FooterLink href="/about">{t('footer.privacy')}</FooterLink>
-        <span className="app-footer-sep">·</span>
-        <span>{t('footer.marketDataUpdated')}: {today}</span>
+        <span>
+          {t('footer.marketDataUpdated')}: {today}
+        </span>
       </div>
       <div className="app-footer-right">
         <FooterLink href="https://github.com/issues" target="_blank" rel="noreferrer">

@@ -36,7 +36,7 @@ export function useAsyncAction(): UseAsyncActionResult {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const run = useCallback(async <T,>(task: () => Promise<T>): Promise<T | undefined> => {
+  const run = useCallback(async <T>(task: () => Promise<T>): Promise<T | undefined> => {
     setIsLoading(true);
     setError(null);
     try {

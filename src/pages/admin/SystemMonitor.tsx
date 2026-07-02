@@ -46,13 +46,150 @@ interface MonitorData {
 
 const defaultMonitorData: MonitorData = {
   services: [
-    { name: 'Rust 引擎', status: 'down', latency: 0 },
+    { name: 'Go 引擎', status: 'down', latency: 0 },
     { name: 'Go 数据服务', status: 'down', latency: 0 },
     { name: 'Node.js 服务', status: 'down', latency: 0 },
   ],
   system: { memoryMB: 0, heapUsedMB: 0, uptime: '-', uptimeSeconds: 0 },
   dataDir: { totalSizeMB: 0, tickerCount: 0, totalDataPoints: 0 },
 };
+
+/** 从 stats 接口单个服务响应构建 ServiceHealth */
+function buildServiceHealth(
+  name: string,
+  raw: { status?: string; latency_ms?: number; version?: string; error?: string } | undefined,
+  fallbackDown = true,
+): ServiceHealth {
+  if (!raw) {
+    return {
+      name,
+      status: fallbackDown ? 'down' : 'healthy',
+      latency: 0,
+      version: undefined,
+      message: undefined,
+    };
+  }
+  return {
+    name,
+    status: raw.status === 'healthy' ? 'healthy' : 'down',
+    latency: raw.latency_ms || 0,
+    version: raw.version,
+    message: raw.error,
+  };
+}
+
+/** 从 stats 接口获取服务健康状态 */
+async function fetchServices(): Promise<ServiceHealth[]> {
+  const statsRes = await apiFetch('/api/admin/stats');
+  if (!statsRes.ok) return defaultMonitorData.services;
+  const statsJson = await statsRes.json();
+  if (!statsJson.success || !statsJson.data) return defaultMonitorData.services;
+  const s = statsJson.data.services;
+  return [
+    buildServiceHealth('Go 引擎', s?.go_engine),
+    buildServiceHealth('Go 数据服务', s?.go_data_service),
+    buildServiceHealth('Node.js 服务', undefined, false),
+  ];
+}
+
+/** 从 system 接口响应构建 MonitorData */
+function buildMonitorData(d: Record<string, unknown>, services: ServiceHealth[]): MonitorData {
+  const mem = d.memory as Record<string, number> | undefined;
+  const up = d.uptime as Record<string, unknown> | undefined;
+  const dd = d.data_directory as Record<string, number> | undefined;
+  return {
+    services,
+    system: {
+      memoryMB: mem?.rss_mb || 0,
+      heapUsedMB: mem?.heap_used_mb || 0,
+      uptime: (up?.formatted as string) || '-',
+      uptimeSeconds: (up?.seconds as number) || 0,
+    },
+    dataDir: {
+      totalSizeMB: dd?.total_size_mb || 0,
+      tickerCount: dd?.ticker_file_count || 0,
+      totalDataPoints: dd?.total_data_points || 0,
+    },
+  };
+}
+
+/** 控制栏 */
+function ControlBar({
+  loading,
+  autoRefresh,
+  lastRefresh,
+  onRefresh,
+  onAutoRefreshChange,
+}: {
+  loading: boolean;
+  autoRefresh: boolean;
+  lastRefresh: string;
+  onRefresh: () => void;
+  onAutoRefreshChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
+        </button>
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={autoRefresh}
+            onChange={(e) => onAutoRefreshChange(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          自动刷新 (10s)
+        </label>
+      </div>
+      <div className="text-xs text-slate-400">
+        {lastRefresh ? `上次更新: ${lastRefresh}` : '未刷新'}
+      </div>
+    </div>
+  );
+}
+
+/** 内存使用详情 */
+function MemoryUsageSection({ data }: { data: MonitorData }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="mb-4 text-sm font-semibold text-slate-800">内存使用</h2>
+      <div className="space-y-4">
+        <MemoryBar
+          label="RSS (常驻内存)"
+          valueMB={data.system.memoryMB}
+          totalMB={data.system.memoryMB}
+        />
+        <MemoryBar
+          label="堆已使用"
+          valueMB={data.system.heapUsedMB}
+          totalMB={data.system.memoryMB}
+        />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="rounded-lg border border-slate-100 p-3">
+          <p className="text-xs text-slate-500">数据点总数</p>
+          <p className="text-lg font-bold text-slate-800">
+            {data.dataDir.totalDataPoints > 0
+              ? `${(data.dataDir.totalDataPoints / 1000000).toFixed(1)}M`
+              : '-'}
+          </p>
+        </div>
+        <div className="rounded-lg border border-slate-100 p-3">
+          <p className="text-xs text-slate-500">标的文件数</p>
+          <p className="text-lg font-bold text-slate-800">
+            {data.dataDir.tickerCount.toLocaleString()}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function SystemMonitor() {
   const [data, setData] = useState<MonitorData>(defaultMonitorData);
@@ -64,58 +201,11 @@ export default function SystemMonitor() {
     setLoading(true);
     try {
       const res = await apiFetch('/api/admin/system');
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          const d = json.data;
-
-          // 服务健康（从stats接口获取）
-          const statsRes = await apiFetch('/api/admin/stats');
-          let services = defaultMonitorData.services;
-          if (statsRes.ok) {
-            const statsJson = await statsRes.json();
-            if (statsJson.success && statsJson.data) {
-              const s = statsJson.data.services;
-              services = [
-                {
-                  name: 'Rust 引擎',
-                  status: s?.rust_engine?.status === 'healthy' ? 'healthy' : 'down',
-                  latency: s?.rust_engine?.latency_ms || 0,
-                  version: s?.rust_engine?.version,
-                  message: s?.rust_engine?.error,
-                },
-                {
-                  name: 'Go 数据服务',
-                  status: s?.go_data_service?.status === 'healthy' ? 'healthy' : 'down',
-                  latency: s?.go_data_service?.latency_ms || 0,
-                  version: s?.go_data_service?.version,
-                  message: s?.go_data_service?.error,
-                },
-                {
-                  name: 'Node.js 服务',
-                  status: 'healthy' as const,
-                  latency: 5,
-                },
-              ];
-            }
-          }
-
-          setData({
-            services,
-            system: {
-              memoryMB: d.memory?.rss_mb || 0,
-              heapUsedMB: d.memory?.heap_used_mb || 0,
-              uptime: d.uptime?.formatted || '-',
-              uptimeSeconds: d.uptime?.seconds || 0,
-            },
-            dataDir: {
-              totalSizeMB: d.data_directory?.total_size_mb || 0,
-              tickerCount: d.data_directory?.ticker_file_count || 0,
-              totalDataPoints: d.data_directory?.total_data_points || 0,
-            },
-          });
-        }
-      }
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!json.success || !json.data) return;
+      const services = await fetchServices();
+      setData(buildMonitorData(json.data, services));
     } catch (error) {
       console.error('Failed to fetch monitor data:', error);
       useToastStore.getState().addToast('error', '监控数据加载失败');
@@ -134,33 +224,14 @@ export default function SystemMonitor() {
 
   return (
     <div className="space-y-6">
-      {/* 控制栏 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={fetchMonitorData}
-            disabled={loading}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            刷新
-          </button>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300"
-            />
-            自动刷新 (10s)
-          </label>
-        </div>
-        <div className="text-xs text-slate-400">
-          {lastRefresh ? `上次更新: ${lastRefresh}` : '未刷新'}
-        </div>
-      </div>
+      <ControlBar
+        loading={loading}
+        autoRefresh={autoRefresh}
+        lastRefresh={lastRefresh}
+        onRefresh={fetchMonitorData}
+        onAutoRefreshChange={setAutoRefresh}
+      />
 
-      {/* 概览统计 */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           title="Node.js 内存"
@@ -184,7 +255,6 @@ export default function SystemMonitor() {
         />
       </div>
 
-      {/* 服务健康状态详情 */}
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
         <h2 className="mb-4 text-sm font-semibold text-slate-800">服务健康状态</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -194,38 +264,7 @@ export default function SystemMonitor() {
         </div>
       </div>
 
-      {/* 内存使用详情 */}
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold text-slate-800">内存使用</h2>
-        <div className="space-y-4">
-          <MemoryBar
-            label="RSS (常驻内存)"
-            valueMB={data.system.memoryMB}
-            totalMB={data.system.memoryMB}
-          />
-          <MemoryBar
-            label="堆已使用"
-            valueMB={data.system.heapUsedMB}
-            totalMB={data.system.memoryMB}
-          />
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-4">
-          <div className="rounded-lg border border-slate-100 p-3">
-            <p className="text-xs text-slate-500">数据点总数</p>
-            <p className="text-lg font-bold text-slate-800">
-              {data.dataDir.totalDataPoints > 0
-                ? `${(data.dataDir.totalDataPoints / 1000000).toFixed(1)}M`
-                : '-'}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-100 p-3">
-            <p className="text-xs text-slate-500">标的文件数</p>
-            <p className="text-lg font-bold text-slate-800">
-              {data.dataDir.tickerCount.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      </div>
+      <MemoryUsageSection data={data} />
     </div>
   );
 }
@@ -308,7 +347,15 @@ function ServiceHealthCard({ service }: { service: ServiceHealth }) {
   );
 }
 
-function MemoryBar({ label, valueMB, totalMB }: { label: string; valueMB: number; totalMB: number }) {
+function MemoryBar({
+  label,
+  valueMB,
+  totalMB,
+}: {
+  label: string;
+  valueMB: number;
+  totalMB: number;
+}) {
   const pct = totalMB > 0 ? Math.min((valueMB / totalMB) * 100, 100) : 0;
 
   return (

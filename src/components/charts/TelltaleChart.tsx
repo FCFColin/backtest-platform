@@ -16,8 +16,13 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '../../../shared/types';
 import type { PortfolioResult } from '../../../shared/types';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import ChartCard from '../ChartCard';
-import { downsample } from '../../hooks/useChartInteractions';
+import {
+  downsample,
+  DOWNSAMPLE_THRESHOLD,
+  DOWNSAMPLE_TARGET,
+} from '../../hooks/useChartInteractions';
 
 /** Telltale 走势对比图 Props */
 interface TelltaleChartProps {
@@ -29,7 +34,14 @@ export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
     return (
       <div className="chart-card">
         <div className="chart-card-title">述事图</div>
-        <div style={{ color: 'var(--text-muted)', fontSize: '13px', padding: '40px 0', textAlign: 'center' }}>
+        <div
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '13px',
+            padding: '40px 0',
+            textAlign: 'center',
+          }}
+        >
           至少需要2个组合才能显示述事图
         </div>
       </div>
@@ -38,7 +50,10 @@ export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
 
   const mergedData = computeTelltaleData(portfolios);
   // 大数据集（>10000 点）降采样以保持渲染流畅，CSV 导出仍使用完整 mergedData
-  const chartData = mergedData.length > 10000 ? downsample(mergedData, 1000) : mergedData;
+  const chartData =
+    mergedData.length > DOWNSAMPLE_THRESHOLD
+      ? downsample(mergedData, DOWNSAMPLE_TARGET)
+      : mergedData;
 
   return (
     <ChartCard title="述事图" data={mergedData} csvFilename="telltale">
@@ -53,17 +68,15 @@ export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
           <YAxis
             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
             tickFormatter={(v: number) => v.toFixed(3)}
-            label={{ value: '相对比率', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-muted)', fontSize: 12 } }}
+            label={{
+              value: '相对比率',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fill: 'var(--text-muted)', fontSize: 12 },
+            }}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-control)',
-              color: 'var(--text-body)',
-              fontSize: '12px',
-              boxShadow: 'var(--shadow-md)',
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
             labelFormatter={(label: string) => `日期: ${label}`}
             formatter={(value: number) => [value.toFixed(3), '']}
           />
@@ -116,7 +129,7 @@ function computeTelltaleData(portfolios: PortfolioResult[]) {
     }
   }
 
-  return Array.from(dateMap.values()).sort(
-    (a, b) => (a.date as string).localeCompare(b.date as string)
+  return Array.from(dateMap.values()).sort((a, b) =>
+    (a.date as string).localeCompare(b.date as string),
   );
 }

@@ -4,7 +4,7 @@ export type EngineStatus = 'ok' | 'degraded' | 'error' | 'loading';
 
 export interface EngineHealth {
   status: EngineStatus;
-  rust: boolean;
+  go: boolean;
   node: boolean;
   dataFetcher: boolean;
   dataFreshness: string | null;
@@ -12,7 +12,7 @@ export interface EngineHealth {
 
 const DEFAULT_HEALTH: EngineHealth = {
   status: 'loading',
-  rust: false,
+  go: false,
   node: true,
   dataFetcher: false,
   dataFreshness: null,
@@ -32,7 +32,7 @@ export function useEngineHealth(): EngineHealth & { refresh: () => void } {
         console.debug(`[useEngineHealth] /api/health 耗时 ${Date.now() - t0}ms`);
         setHealth({
           status: json.data.status,
-          rust: json.data.engine?.rust ?? false,
+          go: json.data.engine?.go ?? false,
           node: json.data.engine?.node ?? true,
           dataFetcher: json.data.dataFetcher ?? false,
           dataFreshness: json.data.dataFreshness ?? null,
@@ -41,7 +41,7 @@ export function useEngineHealth(): EngineHealth & { refresh: () => void } {
     } catch {
       setHealth({
         status: 'error',
-        rust: false,
+        go: false,
         node: false,
         dataFetcher: false,
         dataFreshness: null,

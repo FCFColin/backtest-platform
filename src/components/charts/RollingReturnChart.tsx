@@ -15,8 +15,14 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '../../../shared/types';
 import type { PortfolioResult } from '../../../shared/types';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import ChartCard from '../ChartCard';
-import { downsample } from '../../hooks/useChartInteractions';
+import {
+  downsample,
+  DOWNSAMPLE_THRESHOLD,
+  DOWNSAMPLE_TARGET,
+} from '../../hooks/useChartInteractions';
+import { mergePortfolioSeries } from '../../utils/chartDataMerge';
 
 /** 滚动收益折线图 Props */
 interface RollingReturnChartProps {
@@ -24,9 +30,17 @@ interface RollingReturnChartProps {
 }
 
 export default function RollingReturnChart({ portfolios }: RollingReturnChartProps) {
-  const mergedData = mergeRollingReturns(portfolios);
+  const mergedData = mergePortfolioSeries(
+    portfolios,
+    (p) => p.rollingReturns,
+    (pt) => pt.date,
+    (pt) => +(pt.return * 100).toFixed(2),
+  );
   // 大数据集（>10000 点）降采样以保持渲染流畅，CSV 导出仍使用完整 mergedData
-  const chartData = mergedData.length > 10000 ? downsample(mergedData, 1000) : mergedData;
+  const chartData =
+    mergedData.length > DOWNSAMPLE_THRESHOLD
+      ? downsample(mergedData, DOWNSAMPLE_TARGET)
+      : mergedData;
 
   return (
     <ChartCard title="滚动收益" data={mergedData} csvFilename="rolling-return">
@@ -43,14 +57,7 @@ export default function RollingReturnChart({ portfolios }: RollingReturnChartPro
             tickFormatter={(v: number) => `${v.toFixed(0)}%`}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-control)',
-              color: 'var(--text-body)',
-              fontSize: '12px',
-              boxShadow: 'var(--shadow-md)',
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
             labelFormatter={(label: string) => `日期: ${label}`}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
           />
@@ -78,22 +85,5 @@ export default function RollingReturnChart({ portfolios }: RollingReturnChartPro
         </LineChart>
       </ResponsiveContainer>
     </ChartCard>
-  );
-}
-
-function mergeRollingReturns(portfolios: PortfolioResult[]) {
-  if (portfolios.length === 0) return [];
-  const dateMap = new Map<string, Record<string, number | string>>();
-  for (const p of portfolios) {
-    for (const point of p.rollingReturns) {
-      if (!dateMap.has(point.date)) {
-        dateMap.set(point.date, { date: point.date });
-      }
-      // 转为百分比（如 0.03 → 3.00）
-      dateMap.get(point.date)![p.name] = +(point.return * 100).toFixed(2);
-    }
-  }
-  return Array.from(dateMap.values()).sort(
-    (a, b) => (a.date as string).localeCompare(b.date as string)
   );
 }

@@ -61,20 +61,8 @@ function formatPct(v: number | null): string {
   return `${(v * 100).toFixed(2)}%`;
 }
 
-export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps) {
-  const [taxRate, setTaxRate] = useState(20); // 税率假设，默认 20%
-
-  const rows: TurnoverRow[] = useMemo(() => {
-    return portfolios.map((p) => {
-      const { turnover, observations, years } = computeTurnover(p.allocationHistory);
-      const taxDrag = turnover != null ? turnover * (taxRate / 100) : null;
-      return { name: p.name, turnover, taxDrag, observations, years };
-    });
-  }, [portfolios, taxRate]);
-
-  const hasAnyTurnover = rows.some((r) => r.turnover != null);
-
-  const columns: Column<TurnoverRow>[] = [
+function buildTurnoverColumns(portfolios: PortfolioResult[]): Column<TurnoverRow>[] {
+  return [
     {
       key: 'name',
       label: '组合',
@@ -83,7 +71,10 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
         const color = CHART_COLORS[idx % CHART_COLORS.length];
         return (
           <span className="inline-flex items-center gap-1.5">
-            <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full"
+              style={{ backgroundColor: color }}
+            />
             {row.name}
           </span>
         );
@@ -103,7 +94,10 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
       key: 'taxDrag',
       label: '预估税务拖累/年',
       render: (row) => (
-        <span className="font-mono text-right block" style={{ color: row.taxDrag != null ? 'var(--danger)' : 'var(--text-muted)' }}>
+        <span
+          className="font-mono text-right block"
+          style={{ color: row.taxDrag != null ? 'var(--danger)' : 'var(--text-muted)' }}
+        >
           {formatPct(row.taxDrag)}
         </span>
       ),
@@ -130,33 +124,62 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
       sortValue: (row) => row.years,
     },
   ];
+}
+
+function TaxRateInput({
+  taxRate,
+  setTaxRate,
+}: {
+  taxRate: number;
+  setTaxRate: (v: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
+      <label className="param-label" style={{ marginBottom: 0 }}>
+        税率假设
+      </label>
+      <div className="param-input-suffix-wrap" style={{ width: 120 }}>
+        <input
+          type="number"
+          value={taxRate}
+          onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
+          min={0}
+          max={100}
+          step={1}
+          className="param-input param-input-with-suffix"
+        />
+        <span className="param-input-suffix">%</span>
+      </div>
+      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        （默认 20%，适用于长期资本利得/分红税率的简化假设）
+      </span>
+    </div>
+  );
+}
+
+export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps) {
+  const [taxRate, setTaxRate] = useState(20);
+
+  const rows: TurnoverRow[] = useMemo(() => {
+    return portfolios.map((p) => {
+      const { turnover, observations, years } = computeTurnover(p.allocationHistory);
+      const taxDrag = turnover != null ? turnover * (taxRate / 100) : null;
+      return { name: p.name, turnover, taxDrag, observations, years };
+    });
+  }, [portfolios, taxRate]);
+
+  const hasAnyTurnover = rows.some((r) => r.turnover != null);
+  const columns = buildTurnoverColumns(portfolios);
 
   return (
     <div className="chart-card">
       <div className="chart-card-title">周转率与税务报告</div>
       <div className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
-        年化周转率由组合配置历史（allocationHistory）的权重变动估算；税务拖累 = 年化周转率 × 税率假设。
+        年化周转率由组合配置历史（allocationHistory）的权重变动估算；税务拖累 = 年化周转率 ×
+        税率假设。
       </div>
 
-      {/* 税率假设输入 */}
-      <div className="flex items-center gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
-        <label className="param-label" style={{ marginBottom: 0 }}>税率假设</label>
-        <div className="param-input-suffix-wrap" style={{ width: 120 }}>
-          <input
-            type="number"
-            value={taxRate}
-            onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
-            min={0}
-            max={100}
-            step={1}
-            className="param-input param-input-with-suffix"
-          />
-          <span className="param-input-suffix">%</span>
-        </div>
-        <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-          （默认 20%，适用于长期资本利得/分红税率的简化假设）
-        </span>
-      </div>
+      <TaxRateInput taxRate={taxRate} setTaxRate={setTaxRate} />
 
       {hasAnyTurnover ? (
         <SortableTable
@@ -167,7 +190,8 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
         />
       ) : (
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          暂无配置历史数据（allocationHistory），无法计算周转率。该数据通常由 Rust 引擎在启用调仓时生成。
+          暂无配置历史数据（allocationHistory），无法计算周转率。该数据通常由 Go
+          引擎在启用调仓时生成。
         </div>
       )}
     </div>

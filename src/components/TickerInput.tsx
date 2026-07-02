@@ -124,87 +124,115 @@ const PRESET_SUGGESTIONS: TickerSuggestion[] = ALL_TICKER_PRESETS.map((p) => ({
 /** 合并后的本地建议池：预设优先，再补充 POPULAR_TICKERS 中未重复的标的 */
 const LOCAL_SUGGESTIONS: TickerSuggestion[] = [
   ...PRESET_SUGGESTIONS,
-  ...POPULAR_TICKERS.filter(
-    (pt) => !ALL_TICKER_PRESETS.some((pp) => pp.ticker === pt.ticker)
-  ),
+  ...POPULAR_TICKERS.filter((pt) => !ALL_TICKER_PRESETS.some((pp) => pp.ticker === pt.ticker)),
 ];
 
-export default function TickerInput({ value, onChange, placeholder }: TickerInputProps) {
-  const [focused, setFocused] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
+/** 下拉建议列表 */
+function TickerDropdown({
+  suggestions,
+  selectedIndex,
+  fetchingRemote,
+  onSelect,
+  onHover,
+}: {
+  suggestions: TickerSuggestion[];
+  selectedIndex: number;
+  fetchingRemote: boolean;
+  onSelect: (s: TickerSuggestion) => void;
+  onHover: (idx: number) => void;
+}) {
+  return (
+    <div className="ticker-dropdown">
+      {suggestions.map((s, i) => (
+        <div
+          key={s.ticker}
+          className={`ticker-dropdown-item ${i === selectedIndex ? 'selected' : ''}`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onSelect(s);
+          }}
+          onMouseEnter={() => onHover(i)}
+        >
+          <span className="ticker-dropdown-code">{s.ticker}</span>
+          <span className="ticker-dropdown-name">{s.name}</span>
+          <span className="ticker-dropdown-market">{s.market}</span>
+        </div>
+      ))}
+      {fetchingRemote && (
+        <div className="ticker-dropdown-item ticker-dropdown-loading">搜索中...</div>
+      )}
+    </div>
+  );
+}
+
+/** Ticker 搜索逻辑 Hook */
+function useTickerSearch() {
   const [suggestions, setSuggestions] = useState<TickerSuggestion[]>([]);
   const [fetchingRemote, setFetchingRemote] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // 过滤本地建议
   const filterLocal = useCallback((query: string): TickerSuggestion[] => {
     if (!query || query.length < 1) return [];
     const q = query.toUpperCase();
     return LOCAL_SUGGESTIONS.filter(
       (t) =>
-        t.ticker.toUpperCase().includes(q) ||
-        t.name.toLowerCase().includes(query.toLowerCase())
+        t.ticker.toUpperCase().includes(q) || t.name.toLowerCase().includes(query.toLowerCase()),
     ).slice(0, 8);
   }, []);
 
-  // 更新建议列表
-  const updateSuggestions = useCallback((query: string) => {
-    const local = filterLocal(query);
-    setSuggestions(local);
-    setSelectedIndex(-1);
-
-    // 如果本地没结果且输入>=2字符，尝试远程搜索
-    if (local.length === 0 && query.length >= 2) {
-      setFetchingRemote(true);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(async () => {
-        try {
-          const res = await fetch(`/api/backtest/search?query=${encodeURIComponent(query)}&limit=8`);
-          if (res.ok) {
-            const json = await res.json();
-            const data = json.data ?? json;
-            if (Array.isArray(data) && data.length > 0) {
-              setSuggestions(data);
-              setSelectedIndex(-1);
+  const updateSuggestions = useCallback(
+    (query: string) => {
+      const local = filterLocal(query);
+      setSuggestions(local);
+      setSelectedIndex(-1);
+      if (local.length === 0 && query.length >= 2) {
+        setFetchingRemote(true);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(async () => {
+          try {
+            const res = await fetch(`/api/backtest/search?query=${encodeURIComponent(query)}&limit=8`);
+            if (res.ok) {
+              const json = await res.json();
+              const data = json.data ?? json;
+              if (Array.isArray(data) && data.length > 0) {
+                setSuggestions(data);
+                setSelectedIndex(-1);
+              }
             }
+          } catch {
+            /* 远程搜索失败，静默忽略 */
+          } finally {
+            setFetchingRemote(false);
           }
-        } catch {
-          // 远程搜索失败，静默忽略
-        } finally {
-          setFetchingRemote(false);
-        }
-      }, 300);
-    } else {
-      setFetchingRemote(false);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    }
-  }, [filterLocal]);
+        }, 300);
+      } else {
+        setFetchingRemote(false);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+      }
+    },
+    [filterLocal],
+  );
 
-  // 点击外部关闭
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  return { suggestions, fetchingRemote, selectedIndex, setSelectedIndex, setSuggestions, updateSuggestions };
+}
+
+export default function TickerInput({ value, onChange, placeholder }: TickerInputProps) {
+  const [focused, setFocused] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { suggestions, fetchingRemote, selectedIndex, setSelectedIndex, setSuggestions, updateSuggestions } = useTickerSearch();
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node))
         setFocused(false);
-      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // 清理 debounce
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    onChange(val);
-    updateSuggestions(val);
-  };
 
   const handleSelect = (suggestion: TickerSuggestion) => {
     onChange(suggestion.ticker);
@@ -216,13 +244,12 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (suggestions.length === 0) return;
-
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((prev) => Math.min(prev + 1, suggestions.length - 1));
+      setSelectedIndex((p) => Math.min(p + 1, suggestions.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+      setSelectedIndex((p) => Math.max(p - 1, 0));
     } else if (e.key === 'Enter' && selectedIndex >= 0) {
       e.preventDefault();
       handleSelect(suggestions[selectedIndex]);
@@ -232,15 +259,16 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
     }
   };
 
-  const showDropdown = focused && suggestions.length > 0;
-
   return (
     <div ref={containerRef} style={{ position: 'relative', flex: 1 }}>
       <input
         ref={inputRef}
         type="text"
         value={value}
-        onChange={handleInputChange}
+        onChange={(e) => {
+          onChange(e.target.value);
+          updateSuggestions(e.target.value);
+        }}
         onFocus={() => {
           setFocused(true);
           if (value) updateSuggestions(value);
@@ -251,29 +279,14 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
         autoComplete="off"
         spellCheck={false}
       />
-      {showDropdown && (
-        <div className="ticker-dropdown">
-          {suggestions.map((s, i) => (
-            <div
-              key={s.ticker}
-              className={`ticker-dropdown-item ${i === selectedIndex ? 'selected' : ''}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                handleSelect(s);
-              }}
-              onMouseEnter={() => setSelectedIndex(i)}
-            >
-              <span className="ticker-dropdown-code">{s.ticker}</span>
-              <span className="ticker-dropdown-name">{s.name}</span>
-              <span className="ticker-dropdown-market">{s.market}</span>
-            </div>
-          ))}
-          {fetchingRemote && (
-            <div className="ticker-dropdown-item ticker-dropdown-loading">
-              搜索中...
-            </div>
-          )}
-        </div>
+      {focused && suggestions.length > 0 && (
+        <TickerDropdown
+          suggestions={suggestions}
+          selectedIndex={selectedIndex}
+          fetchingRemote={fetchingRemote}
+          onSelect={handleSelect}
+          onHover={setSelectedIndex}
+        />
       )}
     </div>
   );

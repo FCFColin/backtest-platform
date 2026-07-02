@@ -1,6 +1,6 @@
 /**
  * @file 图表 CSV 导出组件
- * @description 将图表数据导出为 CSV 文件，文件名带日期后缀。同时导出 toCSV 工具函数供其他组件使用。
+ * @description 将图表数据导出为 CSV 文件，文件名带日期后缀。
  * @example
  * <ChartExporter data={[{ date: '2024-01', value: 100 }]} filename="growth-chart" />
  */
@@ -24,7 +24,7 @@ export interface ChartExporterProps {
  * @param data 数据数组
  * @returns CSV 字符串，空数据返回空字符串
  */
-export function toCSV(data: Array<Record<string, string | number>>): string {
+function toCSV(data: Array<Record<string, string | number>>): string {
   if (data.length === 0) return '';
   const headers = Object.keys(data[0]);
   const escapeCell = (val: string | number | undefined): string => {
@@ -45,7 +45,11 @@ export function toCSV(data: Array<Record<string, string | number>>): string {
  * - 导出文件名格式：`{filename}-{YYYY-MM-DD}.csv`
  * - 按钮使用项目现有 toolbar-btn 样式，数据为空时禁用
  */
-export function ChartExporter({ data, filename = 'chart-data', label = '导出 CSV' }: ChartExporterProps) {
+export function ChartExporter({
+  data,
+  filename = 'chart-data',
+  label = '导出 CSV',
+}: ChartExporterProps) {
   const handleExport = () => {
     const csv = toCSV(data);
     if (!csv) return;

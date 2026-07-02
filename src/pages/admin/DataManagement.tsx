@@ -50,217 +50,144 @@ const defaultDataStats: DataStats = {
   marketBreakdown: {},
 };
 
-export default function DataManagement() {
-  const [sources, setSources] = useState<DataSource[]>(defaultDataSources);
-  const [stats, setStats] = useState<DataStats>(defaultDataStats);
-  const [loading, setLoading] = useState(false);
-  const [actionMsg, setActionMsg] = useState('');
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch('/api/data/manage/stats');
-      const json = await res.json();
-      if (json.success && json.data) {
-        const d = json.data;
-        const s = d.stats;
-        const u = d.universe;
-
-        // 从真实数据构建统计
-        const totalTickers = u?.total || 0;
-        const totalDataPoints = s?.data_quality?.total_data_points || 0;
-        const totalSizeMB = s?.data_quality?.total_size_mb || 0;
-        const dateRanges = s?.date_ranges || { earliest: '-', latest: '-' };
-
-        // 市场分布
-        const marketBreakdown: Record<string, number> = {};
-        if (s?.by_market) {
-          for (const [market, info] of Object.entries(s.by_market)) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const m = info as any;
-            marketBreakdown[market] = m.stocks || m.count || 0;
-          }
-        }
-
-        setStats({
-          totalTickers,
-          totalDataPoints,
-          dateRange: dateRanges,
-          totalSizeMB,
-          marketBreakdown,
-        });
-
-        // 更新数据源状态
-        const newSources = [...defaultDataSources];
-        newSources[0] = {
-          ...newSources[0],
-          status: 'active',
-          recordCount: totalDataPoints,
-          lastUpdated: dateRanges.latest || '-',
-        };
-        newSources[2] = {
-          ...newSources[2],
-          status: totalTickers > 0 ? 'active' : 'inactive',
-          recordCount: totalTickers,
-          lastUpdated: dateRanges.latest || '-',
-        };
-        setSources(newSources);
-      }
-    } catch (e) {
-      console.error('Failed to fetch data stats:', e);
-      useToastStore.getState().addToast('error', '数据统计信息加载失败');
-    }
-
-    // 检查Go服务状态
-    try {
-      const goRes = await fetch('/api/data/health');
-      if (goRes.ok) {
-        setSources(prev => prev.map((s, i) =>
-          i === 1 ? { ...s, status: 'active', lastUpdated: new Date().toISOString().slice(0, 19) } : s
-        ));
-      } else {
-        setSources(prev => prev.map((s, i) =>
-          i === 1 ? { ...s, status: 'inactive' } : s
-        ));
-      }
-    } catch {
-      setSources(prev => prev.map((s, i) =>
-        i === 1 ? { ...s, status: 'inactive' } : s
-      ));
-    }
-
-    setLoading(false);
+/** 从 API 响应构建 DataStats */
+function buildDataStats(d: Record<string, unknown>): DataStats {
+  const s = d.stats as Record<string, unknown> | undefined;
+  const u = d.universe as Record<string, unknown> | undefined;
+  const totalTickers = (u?.total as number) || 0;
+  const dq = s?.data_quality as Record<string, number> | undefined;
+  const totalDataPoints = dq?.total_data_points || 0;
+  const totalSizeMB = dq?.total_size_mb || 0;
+  const dateRanges = (s?.date_ranges as { earliest: string; latest: string }) || {
+    earliest: '-',
+    latest: '-',
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const doAction = async (url: string, label: string) => {
-    setActionMsg(`${label}中...`);
-    try {
-      const res = await apiFetch(url, { method: 'POST' });
-      const json = await res.json();
-      setActionMsg(json.success ? `${label}已触发` : `失败: ${json.error}`);
-      if (json.success) {
-        setTimeout(fetchData, 2000);
-      }
-    } catch {
-      setActionMsg(`${label}请求失败`);
+  const marketBreakdown: Record<string, number> = {};
+  const byMarket = s?.by_market as Record<string, Record<string, number>> | undefined;
+  if (byMarket) {
+    for (const [market, info] of Object.entries(byMarket)) {
+      marketBreakdown[market] = info.stocks || info.count || 0;
     }
-    setTimeout(() => setActionMsg(''), 5000);
-  };
+  }
 
+  return { totalTickers, totalDataPoints, dateRange: dateRanges, totalSizeMB, marketBreakdown };
+}
+
+/** 从统计更新数据源列表 */
+function buildSources(stats: DataStats): DataSource[] {
+  const sources = [...defaultDataSources];
+  sources[0] = {
+    ...sources[0],
+    status: 'active',
+    recordCount: stats.totalDataPoints,
+    lastUpdated: stats.dateRange.latest || '-',
+  };
+  sources[2] = {
+    ...sources[2],
+    status: stats.totalTickers > 0 ? 'active' : 'inactive',
+    recordCount: stats.totalTickers,
+    lastUpdated: stats.dateRange.latest || '-',
+  };
+  return sources;
+}
+
+/** 操作栏 */
+function ActionBar({
+  loading,
+  actionMsg,
+  onRefresh,
+  onAction,
+}: {
+  loading: boolean;
+  actionMsg: string;
+  onRefresh: () => void;
+  onAction: (url: string, label: string) => void;
+}) {
   return (
-    <div className="space-y-6">
-      {/* 操作栏 */}
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          刷新统计
-        </button>
-        <button
-          onClick={() => doAction('/api/data/manage/update/inc', '增量更新')}
-          className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700"
-        >
-          <Play className="h-4 w-4" />
-          增量更新
-        </button>
-        <button
-          onClick={() => doAction('/api/data/manage/update/full', '全量更新')}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
-        >
-          <Zap className="h-4 w-4" />
-          全量更新
-        </button>
-        {actionMsg && (
-          <span className="text-sm font-medium text-blue-600">{actionMsg}</span>
-        )}
-      </div>
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        onClick={onRefresh}
+        disabled={loading}
+        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
+      >
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> 刷新统计
+      </button>
+      <button
+        onClick={() => onAction('/api/data/manage/update/inc', '增量更新')}
+        className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700"
+      >
+        <Play className="h-4 w-4" /> 增量更新
+      </button>
+      <button
+        onClick={() => onAction('/api/data/manage/update/full', '全量更新')}
+        className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+      >
+        <Zap className="h-4 w-4" /> 全量更新
+      </button>
+      {actionMsg && <span className="text-sm font-medium text-blue-600">{actionMsg}</span>}
+    </div>
+  );
+}
 
-      {/* 概览统计 */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="标的总数"
-          value={stats.totalTickers.toLocaleString()}
-          icon={<BarChart3 className="h-5 w-5" />}
-          color="blue"
-        />
-        <StatCard
-          title="数据点总数"
-          value={stats.totalDataPoints > 0 ? `${(stats.totalDataPoints / 1000000).toFixed(1)}M` : '-'}
-          icon={<Database className="h-5 w-5" />}
-          color="green"
-        />
-        <StatCard
-          title="数据覆盖"
-          value={stats.dateRange.earliest !== '-' ? `${stats.dateRange.earliest} ~ ${stats.dateRange.latest}` : '-'}
-          icon={<Calendar className="h-5 w-5" />}
-          color="purple"
-        />
-        <StatCard
-          title="磁盘占用"
-          value={stats.totalSizeMB > 0 ? `${(stats.totalSizeMB / 1024).toFixed(1)} GB` : '-'}
-          icon={<HardDrive className="h-5 w-5" />}
-          color="orange"
-        />
-      </div>
-
-      {/* 数据源列表 */}
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold text-slate-800">数据源</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-                <th className="pb-2 font-medium">数据源</th>
-                <th className="pb-2 font-medium">类型</th>
-                <th className="pb-2 font-medium">状态</th>
-                <th className="pb-2 font-medium">记录数</th>
-                <th className="pb-2 font-medium">最后更新</th>
+/** 数据源表格 */
+function DataSourceTable({ sources }: { sources: DataSource[] }) {
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <h2 className="mb-4 text-sm font-semibold text-slate-800">数据源</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+              <th className="pb-2 font-medium">数据源</th>
+              <th className="pb-2 font-medium">类型</th>
+              <th className="pb-2 font-medium">状态</th>
+              <th className="pb-2 font-medium">记录数</th>
+              <th className="pb-2 font-medium">最后更新</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sources.map((source) => (
+              <tr key={source.name} className="border-b border-slate-100 last:border-0">
+                <td className="py-2.5">
+                  <div className="flex items-center gap-2">
+                    {source.type === 'api' ? (
+                      <Globe className="h-4 w-4 text-blue-500" />
+                    ) : (
+                      <FileSpreadsheet className="h-4 w-4 text-green-500" />
+                    )}
+                    <span className="font-medium text-slate-700">{source.name}</span>
+                  </div>
+                </td>
+                <td className="py-2.5">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                    {source.type === 'api' ? 'API' : '本地'}
+                  </span>
+                </td>
+                <td className="py-2.5">
+                  <SourceStatusBadge status={source.status} />
+                </td>
+                <td className="py-2.5 text-slate-500">
+                  {source.recordCount > 0 ? source.recordCount.toLocaleString() : '-'}
+                </td>
+                <td className="py-2.5 text-slate-500">
+                  {typeof source.lastUpdated === 'string' && source.lastUpdated.includes('T')
+                    ? source.lastUpdated.replace('T', ' ').slice(0, 19)
+                    : source.lastUpdated}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {sources.map((source) => (
-                <tr key={source.name} className="border-b border-slate-100 last:border-0">
-                  <td className="py-2.5">
-                    <div className="flex items-center gap-2">
-                      {source.type === 'api' ? (
-                        <Globe className="h-4 w-4 text-blue-500" />
-                      ) : (
-                        <FileSpreadsheet className="h-4 w-4 text-green-500" />
-                      )}
-                      <span className="font-medium text-slate-700">{source.name}</span>
-                    </div>
-                  </td>
-                  <td className="py-2.5">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                      {source.type === 'api' ? 'API' : '本地'}
-                    </span>
-                  </td>
-                  <td className="py-2.5">
-                    <SourceStatusBadge status={source.status} />
-                  </td>
-                  <td className="py-2.5 text-slate-500">
-                    {source.recordCount > 0 ? source.recordCount.toLocaleString() : '-'}
-                  </td>
-                  <td className="py-2.5 text-slate-500">
-                    {typeof source.lastUpdated === 'string' && source.lastUpdated.includes('T')
-                      ? source.lastUpdated.replace('T', ' ').slice(0, 19)
-                      : source.lastUpdated}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
+    </div>
+  );
+}
 
-      {/* 市场标的数量统计 */}
+/** 市场分布 + 日期覆盖范围 */
+function MarketAndDateSection({ stats }: { stats: DataStats }) {
+  return (
+    <>
       {Object.keys(stats.marketBreakdown).length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-4 text-sm font-semibold text-slate-800">市场标的数量</h2>
@@ -274,7 +201,6 @@ export default function DataManagement() {
         </div>
       )}
 
-      {/* 数据覆盖日期范围 */}
       {stats.dateRange.earliest !== '-' && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="mb-4 text-sm font-semibold text-slate-800">数据覆盖日期范围</h2>
@@ -297,6 +223,118 @@ export default function DataManagement() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+/** 统计卡片网格 */
+function StatsGrid({ stats }: { stats: DataStats }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StatCard
+        title="标的总数"
+        value={stats.totalTickers.toLocaleString()}
+        icon={<BarChart3 className="h-5 w-5" />}
+        color="blue"
+      />
+      <StatCard
+        title="数据点总数"
+        value={
+          stats.totalDataPoints > 0 ? `${(stats.totalDataPoints / 1000000).toFixed(1)}M` : '-'
+        }
+        icon={<Database className="h-5 w-5" />}
+        color="green"
+      />
+      <StatCard
+        title="数据覆盖"
+        value={
+          stats.dateRange.earliest !== '-'
+            ? `${stats.dateRange.earliest} ~ ${stats.dateRange.latest}`
+            : '-'
+        }
+        icon={<Calendar className="h-5 w-5" />}
+        color="purple"
+      />
+      <StatCard
+        title="磁盘占用"
+        value={stats.totalSizeMB > 0 ? `${(stats.totalSizeMB / 1024).toFixed(1)} GB` : '-'}
+        icon={<HardDrive className="h-5 w-5" />}
+        color="orange"
+      />
+    </div>
+  );
+}
+
+export default function DataManagement() {
+  const [sources, setSources] = useState<DataSource[]>(defaultDataSources);
+  const [stats, setStats] = useState<DataStats>(defaultDataStats);
+  const [loading, setLoading] = useState(false);
+  const [actionMsg, setActionMsg] = useState('');
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch('/api/data/manage/stats');
+      const json = await res.json();
+      if (json.success && json.data) {
+        const newStats = buildDataStats(json.data);
+        setStats(newStats);
+        setSources(buildSources(newStats));
+      }
+    } catch (e) {
+      console.error('Failed to fetch data stats:', e);
+      useToastStore.getState().addToast('error', '数据统计信息加载失败');
+    }
+
+    try {
+      const goRes = await fetch('/api/data/health');
+      const goStatus: 'active' | 'inactive' = goRes.ok ? 'active' : 'inactive';
+      setSources((prev) =>
+        prev.map((s, i) =>
+          i === 1
+            ? {
+                ...s,
+                status: goStatus,
+                lastUpdated: goRes.ok ? new Date().toISOString().slice(0, 19) : s.lastUpdated,
+              }
+            : s,
+        ),
+      );
+    } catch {
+      setSources((prev) => prev.map((s, i) => (i === 1 ? { ...s, status: 'inactive' } : s)));
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const doAction = async (url: string, label: string) => {
+    setActionMsg(`${label}中...`);
+    try {
+      const res = await apiFetch(url, { method: 'POST' });
+      const json = await res.json();
+      setActionMsg(json.success ? `${label}已触发` : `失败: ${json.error}`);
+      if (json.success) setTimeout(fetchData, 2000);
+    } catch {
+      setActionMsg(`${label}请求失败`);
+    }
+    setTimeout(() => setActionMsg(''), 5000);
+  };
+
+  return (
+    <div className="space-y-6">
+      <ActionBar
+        loading={loading}
+        actionMsg={actionMsg}
+        onRefresh={fetchData}
+        onAction={doAction}
+      />
+      <StatsGrid stats={stats} />
+      <DataSourceTable sources={sources} />
+      <MarketAndDateSection stats={stats} />
     </div>
   );
 }
@@ -342,7 +380,9 @@ function SourceStatusBadge({ status }: { status: 'active' | 'inactive' | 'unknow
   const { icon: Icon, label, className } = config[status];
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
+    >
       <Icon className="h-3 w-3" />
       {label}
     </span>

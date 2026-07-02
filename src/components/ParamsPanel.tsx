@@ -61,10 +61,7 @@ export function ParamsSection({ title, info, children, defaultOpen = true }: Par
             onClick={(e) => e.stopPropagation()}
             style={{ display: 'inline-flex' }}
           >
-            <Info
-              className="w-4 h-4 cursor-help"
-              style={{ color: 'var(--text-muted)' }}
-            />
+            <Info className="w-4 h-4 cursor-help" style={{ color: 'var(--text-muted)' }} />
             <div
               className="absolute right-0 top-6 hidden group-hover:block z-10"
               style={{

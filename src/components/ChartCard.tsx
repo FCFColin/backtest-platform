@@ -18,23 +18,27 @@ export interface ChartCardProps {
   data: Array<Record<string, string | number>>;
   /** 导出文件名（不含扩展名） */
   csvFilename?: string;
+  /** 标题栏额外操作按钮（如 log scale 切换），位于导出按钮左侧 */
+  headerExtra?: ReactNode;
   /** 图表内容 */
   children: ReactNode;
 }
 
-/**
- * 图表卡片容器
- *
- * - 卡片式布局（chart-card 样式）
- * - 标题居左，CSV 导出按钮居右
- * - children 为实际图表组件
- */
-export default function ChartCard({ title, data, csvFilename, children }: ChartCardProps) {
+export default function ChartCard({
+  title,
+  data,
+  csvFilename,
+  headerExtra,
+  children,
+}: ChartCardProps) {
   return (
     <div className="chart-card">
       <div className="flex items-center justify-between mb-3">
         <div className="chart-card-title mb-0">{title}</div>
-        <ChartExporter data={data} filename={csvFilename} />
+        <div className="flex items-center gap-2">
+          {headerExtra}
+          <ChartExporter data={data} filename={csvFilename} />
+        </div>
       </div>
       {children}
     </div>

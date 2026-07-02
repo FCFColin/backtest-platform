@@ -2,16 +2,10 @@
  * @file 投资组合饼图
  * @description 以饼图形式展示各投资组合的资产配置比例
  */
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { CHART_COLORS } from '../../../shared/types';
 import type { Portfolio } from '../../../shared/types';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import ChartCard from '../ChartCard';
 
 /** 投资组合饼图 Props */
@@ -23,7 +17,9 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   if (portfolios.length === 0) {
     return (
       <div className="chart-card">
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>暂无组合配置数据</div>
+        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+          暂无组合配置数据
+        </div>
       </div>
     );
   }
@@ -34,7 +30,9 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
     return (
       <div className="chart-card">
         <div className="chart-card-title">配置饼图</div>
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>组合中无资产</div>
+        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+          组合中无资产
+        </div>
       </div>
     );
   }
@@ -43,7 +41,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
 
   // 汇总所有组合的资产权重，用于 CSV 导出
   const exportData = portfoliosWithAssets.flatMap((p) =>
-    p.assets.map((a) => ({ portfolio: p.name, ticker: a.ticker, weight: a.weight }))
+    p.assets.map((a) => ({ portfolio: p.name, ticker: a.ticker, weight: a.weight })),
   );
 
   return (
@@ -72,30 +70,17 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                     label={({ name, value }) => `${name} ${value}%`}
                   >
                     {pieData.map((_, idx) => (
-                      <Cell
-                        key={`cell-${idx}`}
-                        fill={CHART_COLORS[idx % CHART_COLORS.length]}
-                      />
+                      <Cell key={`cell-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--bg-elevated)',
-                      border: '1px solid var(--border-soft)',
-                      borderRadius: 'var(--radius-control)',
-                      color: 'var(--text-body)',
-                      fontSize: '12px',
-                      boxShadow: 'var(--shadow-md)',
-                    }}
+                    contentStyle={CHART_TOOLTIP_STYLE}
                     formatter={(value: number, name: string) => [`${value}%`, name]}
                   />
                   <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
                 </PieChart>
               </ResponsiveContainer>
-              <div
-                className="text-[13px] font-medium mt-1"
-                style={{ color: 'var(--text-strong)' }}
-              >
+              <div className="text-[13px] font-medium mt-1" style={{ color: 'var(--text-strong)' }}>
                 {portfolio.name}
               </div>
             </div>
