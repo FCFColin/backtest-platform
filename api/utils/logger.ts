@@ -102,7 +102,12 @@ const httpLogger = pinoHttp({
     // Security: 仅允许 [a-zA-Z0-9-] 字符，防止日志注入
     // 企业为何需要：x-request-id 会被写入日志，若包含换行符或控制字符，
     // 攻击者可伪造日志条目绕过日志分析或注入恶意内容
-    if (typeof incoming === 'string' && incoming.length > 0 && incoming.length <= 128 && /^[a-zA-Z0-9-]+$/.test(incoming)) {
+    if (
+      typeof incoming === 'string' &&
+      incoming.length > 0 &&
+      incoming.length <= 128 &&
+      /^[a-zA-Z0-9-]+$/.test(incoming)
+    ) {
       return incoming;
     }
     return randomUUID();

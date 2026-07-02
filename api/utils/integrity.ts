@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 
 // Security: 数据文件完整性校验
 // 企业为何需要：缓存文件被篡改可导致错误的回测结果，影响投资决策
@@ -32,6 +33,40 @@ export async function verifyFile(filePath: string): Promise<boolean> {
       fs.readFile(filePath),
       fs.readFile(filePath + '.sig', 'utf-8'),
     ]);
+    const expected = crypto.createHmac('sha256', key).update(content).digest('hex');
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * signFile 的同步版本，供同步缓存写入热路径（dataService.readCache/writeCache）使用。
+ * 未配置 AUDIT_HMAC_KEY 时静默跳过。
+ *
+ * Security (T-06)：缓存文件写入后立即签名，使后续读取可检测离线篡改。
+ */
+export function signFileSync(filePath: string): void {
+  const key = process.env.AUDIT_HMAC_KEY;
+  if (!key) return;
+  const content = fsSync.readFileSync(filePath);
+  const signature = crypto.createHmac('sha256', key).update(content).digest('hex');
+  fsSync.writeFileSync(filePath + '.sig', signature);
+}
+
+/**
+ * verifyFile 的同步版本。未配置 AUDIT_HMAC_KEY 时返回 true（无密钥=不校验）。
+ * 内容与 .sig 不匹配、签名缺失或读取异常时返回 false。
+ *
+ * Security (T-06)：在读取缓存内容并据其产生回测结果前校验完整性，防止被篡改的缓存
+ * 污染投资决策（OWASP A08 软件与数据完整性失败）。
+ */
+export function verifyFileSync(filePath: string): boolean {
+  const key = process.env.AUDIT_HMAC_KEY;
+  if (!key) return true;
+  try {
+    const content = fsSync.readFileSync(filePath);
+    const signature = fsSync.readFileSync(filePath + '.sig', 'utf-8');
     const expected = crypto.createHmac('sha256', key).update(content).digest('hex');
     return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
   } catch {

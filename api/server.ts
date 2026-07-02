@@ -13,12 +13,14 @@ initTracing();
 import app from './app.js';
 import { config, validateConfig } from './config/index.js';
 import { logger } from './utils/logger.js';
-import { generateMetaFiles } from './services/engineService.js';
 import { initDb } from './services/dataService.js';
-import { startRustEngine, stopRustEngine } from './utils/rustEngineProcess.js';
 import { getPool, closeDb } from './db/index.js';
 import { OutboxPublisher } from './services/outboxPublisher.js';
-import { eventDispatcher, BacktestCompletedHandler, RebalanceTriggeredHandler } from './domain/events/index.js';
+import {
+  eventDispatcher,
+  BacktestCompletedHandler,
+  RebalanceTriggeredHandler,
+} from './domain/events/index.js';
 import type { Server } from 'http';
 
 // 启动时校验必需配置（生产环境下 ADMIN_API_KEY 必需）
@@ -39,7 +41,7 @@ const server = app.listen(PORT, async () => {
   try {
     await initDb();
   } catch (err) {
-    logger.warn({ err }, '[startup] 数据库初始化失败，将回退到 JSON 文件');
+    logger.warn({ err }, '[startup] 数据库初始化失败，行情服务将不可用直至 PostgreSQL 恢复');
   }
 
   // 注册领域事件处理器（Task 10.2）
@@ -56,21 +58,10 @@ const server = app.listen(PORT, async () => {
     logger.warn({ err }, '[startup] OutboxPublisher 启动失败');
   }
 
-  // 自动启动 Rust 引擎子进程
-  startRustEngine().catch((err) => {
-    logger.warn(`[startup] Rust 引擎自动启动失败: ${(err as Error).message}，将降级到 Node.js`);
-  });
+  // 计算引擎（Go, engine-go）作为独立服务部署/启动（见 README）。
+  // ADR-008/ADR-031：不再由 API 进程自动 spawn 引擎子进程；引擎不可用时
+  // 计算端点 fail-closed 返回 503 + Retry-After，而非静默降级。
 });
-
-// 服务启动后后台生成缺失的 meta 文件
-setTimeout(async () => {
-  try {
-    await generateMetaFiles();
-    logger.info('[startup] Meta files generated successfully');
-  } catch (err) {
-    logger.error({ err }, '[startup] Failed to generate meta files');
-  }
-}, 1000);
 
 // 端口占用时优雅处理，避免进程崩溃
 server.on('error', (error: NodeJS.ErrnoException) => {
@@ -117,9 +108,6 @@ export function setupGracefulShutdown(server: Server): void {
       logger.error('Graceful shutdown timed out after 30s, forcing exit');
       process.exit(1);
     }, 30000);
-
-    // 停止 Rust 引擎子进程
-    stopRustEngine();
 
     server.close(async () => {
       try {

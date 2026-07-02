@@ -30,18 +30,56 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual, randomBytes } from 'node:crypto';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { sendProblem } from '../utils/errors.js';
 import {
   generateToken,
   generateRefreshToken,
   refreshAccessToken,
   revokeRefreshToken,
+  revokeAllUserSessions,
+  jwtAuth,
   type AuthenticatedRequest,
+  type TenantContext,
 } from '../middleware/jwtAuth.js';
 import { Role } from '../middleware/rbac.js';
-import { verifyUser } from '../services/userService.js';
+
+function hashUserId(sub: string | undefined): string | undefined {
+  if (!sub) return undefined;
+  return createHash('sha256').update(sub).digest('hex').slice(0, 16);
+}
+import {
+  verifyUser,
+  createUserTx,
+  issueEmailVerificationToken,
+  verifyEmailToken,
+  getUserByEmail,
+} from '../services/userService.js';
+import { getClient } from '../db/index.js';
+import { sendVerificationEmail } from '../services/mailService.js';
+import { isLockedOut, recordFailure, clearFailures } from '../services/loginLockout.js';
+import {
+  resolveDefaultOrg,
+  getMembership,
+  getUserMemberships,
+  isPlatformAdmin,
+  orgRoleToGlobalRole,
+  type Membership,
+} from '../services/membershipService.js';
+
+/** 将成员关系序列化为响应中的组织摘要 */
+function orgSummary(m: Membership): Record<string, unknown> {
+  return {
+    orgId: m.orgId,
+    name: m.orgName,
+    slug: m.orgSlug,
+    plan: m.orgPlan,
+    status: m.orgStatus,
+    role: m.role,
+  };
+}
 
 const router = Router();
 
@@ -79,42 +117,34 @@ router.post('/login', async (req: Request, res: Response) => {
 
   // 生产环境必须验证 API Key
   if (!apiKey) {
-    res.status(401).json({
-      success: false,
-      error: { code: 'MISSING_API_KEY', message: '缺少 apiKey' },
-    });
+    sendProblem(res, 401, 'MISSING_API_KEY', 'Unauthorized', { detail: '缺少 apiKey' });
     return;
   }
 
-  // 常量时间比较防时序攻击
   if (apiKey.length > 128 || apiKey.length !== config.ADMIN_API_KEY.length) {
-    res.status(401).json({
-      success: false,
-      error: { code: 'INVALID_API_KEY', message: 'API Key 无效' },
-    });
+    sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
     return;
   }
 
   const a = Buffer.from(apiKey, 'utf-8');
   const b = Buffer.from(config.ADMIN_API_KEY, 'utf-8');
   if (!timingSafeEqual(a, b)) {
-    res.status(401).json({
-      success: false,
-      error: { code: 'INVALID_API_KEY', message: 'API Key 无效' },
-    });
+    sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
     return;
   }
 
-  // 验证通过，签发 token 对
-  const userId = 'api-key-user';
+  // 验证通过：ADMIN_API_KEY 现为破窗（break-glass）平台密钥（ADR-033），
+  // 签发携带 platform_admin 的令牌（不绑定具体租户），而非历史的租户内 admin。
+  const userId = 'platform:break-glass';
   const role = Role.ADMIN;
-  const accessToken = await generateToken(userId, role);
-  const refreshToken = await generateRefreshToken(userId, role);
+  const tenant: TenantContext = { platformAdmin: true };
+  const accessToken = await generateToken(userId, role, tenant);
+  const refreshToken = await generateRefreshToken(userId, role, undefined, tenant);
 
-  logger.info({ userId, role }, '[auth] 登录成功');
+  logger.info({ userId, role, platformAdmin: true }, '[auth] 破窗平台密钥登录成功');
   res.json({
     success: true,
-    data: { accessToken, refreshToken, role, userId },
+    data: { accessToken, refreshToken, role, userId, platformAdmin: true },
   });
 });
 
@@ -134,9 +164,17 @@ router.post('/login/password', async (req: Request, res: Response) => {
   const { username, password } = req.body as { username?: string; password?: string };
 
   if (!username || !password) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'MISSING_CREDENTIALS', message: '缺少用户名或密码' },
+    sendProblem(res, 422, 'MISSING_CREDENTIALS', 'Missing credentials', {
+      detail: '缺少用户名或密码',
+    });
+    return;
+  }
+
+  const lockRemaining = await isLockedOut(username);
+  if (lockRemaining > 0) {
+    logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
+    sendProblem(res, 429, 'ACCOUNT_LOCKED', 'Account locked', {
+      detail: '尝试次数过多，账户暂时锁定，请稍后再试',
     });
     return;
   }
@@ -146,22 +184,191 @@ router.post('/login/password', async (req: Request, res: Response) => {
   const user = await verifyUser(username, password);
 
   if (!user) {
-    // 不区分"用户不存在"和"密码错误"，防止用户名枚举
-    res.status(401).json({
-      success: false,
-      error: { code: 'INVALID_CREDENTIALS', message: '用户名或密码错误' },
-    });
+    // Security (T-12): 记录失败用于锁定计数。
+    await recordFailure(username);
+    sendProblem(res, 401, 'INVALID_CREDENTIALS', 'Unauthorized', { detail: '用户名或密码错误' });
     return;
   }
 
-  const accessToken = await generateToken(user.id, user.role);
-  const refreshToken = await generateRefreshToken(user.id, user.role);
+  // Security (T-12): 登录成功，清除失败计数与锁定。
+  await clearFailures(username);
 
-  logger.info({ userId: user.id, username: user.username, role: user.role }, '[auth] 密码登录成功');
+  // 多租户上下文解析（ADR-032）：登录时解析默认活跃组织并嵌入令牌。
+  // org 成员角色覆盖全局角色（owner→admin），使既有 RBAC 在租户内正确判权。
+  const platformAdmin = await isPlatformAdmin(user.id);
+  const membership = await resolveDefaultOrg(user.id);
+  let effectiveRole = user.role;
+  let tenant: TenantContext | undefined = platformAdmin ? { platformAdmin } : undefined;
+  if (membership) {
+    effectiveRole = orgRoleToGlobalRole(membership.role);
+    tenant = { tenantId: membership.orgId, orgRole: membership.role, platformAdmin };
+  }
+
+  const accessToken = await generateToken(user.id, effectiveRole, tenant);
+  const refreshToken = await generateRefreshToken(user.id, effectiveRole, undefined, tenant);
+
+  logger.info(
+    {
+      userId: user.id,
+      username: user.username,
+      role: effectiveRole,
+      tenantId: membership?.orgId,
+      platformAdmin,
+    },
+    '[auth] 密码登录成功',
+  );
   res.json({
     success: true,
-    data: { accessToken, refreshToken, role: user.role, userId: user.id },
+    data: {
+      accessToken,
+      refreshToken,
+      role: effectiveRole,
+      userId: user.id,
+      org: membership ? orgSummary(membership) : null,
+    },
   });
+});
+
+/** 由名称生成 URL 友好且唯一的 org slug（追加随机后缀避免碰撞）。 */
+function slugify(name: string): string {
+  const base =
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'org';
+  return `${base}-${randomBytes(3).toString('hex')}`;
+}
+
+/**
+ * POST /api/v1/auth/register - 自助注册（ADR-035）
+ *
+ * 请求体：{ username, password, email, orgName }
+ * 在单事务内创建：用户 + 组织 + owner 成员关系；随后签发邮箱验证令牌并发送验证邮件。
+ *
+ * 企业理由：SaaS 自助开通的核心入口。三者一并落库保证不出现"有用户无组织"的孤儿态；
+ * 邮箱验证（异步、不阻塞注册成功）用于防滥用与找回。返回不含令牌——引导用户登录/验证。
+ */
+router.post('/register', async (req: Request, res: Response) => {
+  const { username, password, email, orgName } = req.body as {
+    username?: string;
+    password?: string;
+    email?: string;
+    orgName?: string;
+  };
+
+  if (!username || !password || !email || !orgName) {
+    sendProblem(res, 422, 'MISSING_FIELDS', 'Missing fields', {
+      detail: '缺少 username/password/email/orgName',
+    });
+    return;
+  }
+  if (password.length < 8) {
+    sendProblem(res, 422, 'WEAK_PASSWORD', 'Weak password', { detail: '密码长度至少 8 位' });
+    return;
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    sendProblem(res, 422, 'INVALID_EMAIL', 'Invalid email', { detail: '邮箱格式不合法' });
+    return;
+  }
+
+  // 预检邮箱占用（最终唯一性仍由 DB 唯一索引兜底）
+  const existing = await getUserByEmail(email);
+  if (existing) {
+    sendProblem(res, 409, 'EMAIL_TAKEN', 'Conflict', { detail: '该邮箱已被注册' });
+    return;
+  }
+
+  const client = await getClient();
+  let userId = '';
+  try {
+    await client.query('BEGIN');
+    const user = await createUserTx(client, username, password, email, 'admin');
+    userId = user.id;
+    const slug = slugify(orgName);
+    const orgRes = await client.query(
+      `INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id`,
+      [orgName, slug],
+    );
+    const orgId = orgRes.rows[0].id as string;
+    await client.query(`INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')`, [
+      orgId,
+      userId,
+    ]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    const msg = String(err);
+    // 唯一约束冲突（用户名/邮箱/slug）
+    if (msg.includes('duplicate key') || msg.includes('unique')) {
+      sendProblem(res, 409, 'ACCOUNT_CONFLICT', 'Conflict', { detail: '用户名或邮箱已被占用' });
+      return;
+    }
+    logger.error({ err: msg }, '[auth] 注册失败');
+    sendProblem(res, 500, 'REGISTER_FAILED', 'Internal Server Error', { detail: '注册失败' });
+    return;
+  } finally {
+    client.release();
+  }
+
+  // 事务外发送验证邮件（失败不影响注册成功，用户可重发）
+  try {
+    const token = await issueEmailVerificationToken(userId);
+    await sendVerificationEmail(email, token);
+  } catch (err) {
+    logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败（可稍后重发）');
+  }
+
+  logger.info({ userId }, '[auth] 注册成功');
+  res.status(201).json({
+    success: true,
+    data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
+  });
+});
+
+/**
+ * POST /api/v1/auth/verify-email - 校验邮箱验证令牌（ADR-035）
+ *
+ * 请求体：{ token }
+ */
+router.post('/verify-email', async (req: Request, res: Response) => {
+  const { token } = req.body as { token?: string };
+  if (!token) {
+    sendProblem(res, 422, 'MISSING_TOKEN', 'Missing token', { detail: '缺少 token' });
+    return;
+  }
+  const userId = await verifyEmailToken(token);
+  if (!userId) {
+    sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN', 'Bad Request', {
+      detail: '验证链接无效或已过期',
+    });
+    return;
+  }
+  res.json({ success: true, data: { userId, verified: true } });
+});
+
+/**
+ * POST /api/v1/auth/resend-verification - 重发验证邮件（需登录，ADR-035）
+ */
+router.post('/resend-verification', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+    return;
+  }
+  const { email } = req.body as { email?: string };
+  if (!email) {
+    sendProblem(res, 422, 'MISSING_EMAIL', 'Missing email', { detail: '缺少 email' });
+    return;
+  }
+  try {
+    const token = await issueEmailVerificationToken(req.user.sub);
+    await sendVerificationEmail(email, token);
+  } catch (err) {
+    logger.warn({ err: String(err), userId: hashUserId(req.user.sub) }, '[auth] 重发验证邮件失败');
+  }
+  // 不泄露邮箱是否存在/有效，统一返回成功
+  res.json({ success: true, data: { message: '若邮箱有效，验证邮件已发送' } });
 });
 
 /**
@@ -178,18 +385,16 @@ router.post('/refresh', async (req: Request, res: Response) => {
   const { refreshToken } = req.body as { refreshToken?: string };
 
   if (!refreshToken) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'MISSING_REFRESH_TOKEN', message: '缺少 refreshToken' },
+    sendProblem(res, 422, 'MISSING_REFRESH_TOKEN', 'Missing refresh token', {
+      detail: '缺少 refreshToken',
     });
     return;
   }
 
   const result = await refreshAccessToken(refreshToken);
   if (!result) {
-    res.status(401).json({
-      success: false,
-      error: { code: 'INVALID_REFRESH_TOKEN', message: 'Refresh Token 无效或已过期' },
+    sendProblem(res, 401, 'INVALID_REFRESH_TOKEN', 'Unauthorized', {
+      detail: 'Refresh Token 无效或已过期',
     });
     return;
   }
@@ -234,12 +439,13 @@ router.delete('/logout', async (req: Request, res: Response) => {
  * 企业理由：前端通过此端点验证 token 有效性并获取角色信息，
  * 用于 UI 权限控制（如隐藏管理按钮）。
  */
-router.get('/me', (req: AuthenticatedRequest, res: Response) => {
+// Security (T-12 / OWASP A07): /me 显式挂载 jwtAuth。
+// 此前 auth 路由未挂认证中间件，/me 仅检查 req.user 而 req.user 从不会被填充，
+// 导致始终 401 或（在其他中间件残留 user 时）行为不确定。这里在路由级强制认证，
+// 使 req.user 被正确解析，同时不影响 login/refresh 等需匿名访问的端点。
+router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
   if (!req.user) {
-    res.status(401).json({
-      success: false,
-      error: { code: 'UNAUTHORIZED', message: '未认证' },
-    });
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
     return;
   }
 
@@ -248,9 +454,108 @@ router.get('/me', (req: AuthenticatedRequest, res: Response) => {
     data: {
       userId: req.user.sub,
       role: req.user.role,
+      tenantId: req.user.tenant_id ?? null,
+      orgRole: req.user.org_role ?? null,
+      platformAdmin: req.user.platform_admin === true,
       exp: req.user.exp,
     },
   });
+});
+
+/**
+ * GET /api/v1/auth/orgs - 列出当前用户所属的全部组织（org 切换器数据源）
+ *
+ * 企业理由：前端 org 切换器需要展示用户可进入的组织及其角色。
+ * 该列表来自 memberships 表，反映多对多归属关系。
+ */
+router.get('/orgs', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+    return;
+  }
+  const memberships = await getUserMemberships(req.user.sub);
+  res.json({
+    success: true,
+    data: {
+      activeOrgId: req.user.tenant_id ?? null,
+      orgs: memberships.map(orgSummary),
+    },
+  });
+});
+
+/**
+ * POST /api/v1/auth/switch-org - 切换活跃组织，签发携带新租户上下文的令牌
+ *
+ * 请求体：{ orgId: string }
+ * 响应：{ success: true, data: { accessToken, refreshToken, role, org } }
+ *
+ * 企业理由：一个用户可属于多个组织。切换组织即切换活跃租户，必须重新签发令牌
+ * 以更新 tenant_id/org_role。安全关键：服务端通过 getMembership 校验用户确属
+ * 目标组织，杜绝用户伪造 orgId 越权进入他租户（隔离的最终防线仍是 Postgres RLS）。
+ */
+router.post('/switch-org', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+    return;
+  }
+  const { orgId } = req.body as { orgId?: string };
+  if (!orgId) {
+    sendProblem(res, 422, 'MISSING_ORG_ID', 'Missing orgId', { detail: '缺少 orgId' });
+    return;
+  }
+
+  const membership = await getMembership(req.user.sub, orgId);
+  if (!membership) {
+    // 不区分"组织不存在"与"无权进入"，避免泄露他租户组织是否存在
+    logger.warn(
+      { userId: hashUserId(req.user.sub), orgId },
+      '[auth] switch-org 拒绝：非该组织成员',
+    );
+    sendProblem(res, 403, 'NOT_A_MEMBER', 'Forbidden', { detail: '无权进入该组织' });
+    return;
+  }
+  if (membership.orgStatus !== 'active') {
+    sendProblem(res, 403, 'ORG_INACTIVE', 'Forbidden', {
+      detail: `组织当前状态为 ${membership.orgStatus}，无法进入`,
+    });
+    return;
+  }
+
+  const platformAdmin = await isPlatformAdmin(req.user.sub);
+  const role = orgRoleToGlobalRole(membership.role);
+  const tenant: TenantContext = {
+    tenantId: membership.orgId,
+    orgRole: membership.role,
+    platformAdmin,
+  };
+
+  const accessToken = await generateToken(req.user.sub, role, tenant);
+  const refreshToken = await generateRefreshToken(req.user.sub, role, undefined, tenant);
+
+  logger.info({ userId: hashUserId(req.user.sub), orgId, role }, '[auth] 切换活跃组织成功');
+  res.json({
+    success: true,
+    data: { accessToken, refreshToken, role, org: orgSummary(membership) },
+  });
+});
+
+/**
+ * DELETE /api/v1/auth/me - 删除当前账户（GDPR Art.17 被遗忘权自助入口）
+ *
+ * 企业理由（ADR-023）：数据主体有权请求删除其个人数据。默认采用匿名化
+ * （保留引用完整性与聚合统计，抹除 PII），并撤销其所有会话令牌。
+ * 仅作用于当前认证用户自身，不可删除他人账户。
+ */
+router.delete('/me', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.user) {
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+    return;
+  }
+  const { anonymizeUser } = await import('../services/userService.js');
+  await revokeAllUserSessions(req.user.sub);
+  const ok = await anonymizeUser(req.user.sub);
+  logger.info({ userId: hashUserId(req.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
+  res.json({ success: true, data: { anonymized: ok } });
 });
 
 // ============================================================
@@ -267,7 +572,7 @@ router.post('/logout', async (req: Request, res: Response) => {
   res.setHeader('Sunset', SUNSET_DATE);
   res.setHeader('Link', '</api/v1/auth/logout>; rel="successor-version"');
   logger.warn(
-    `[DEPRECATED] 客户端调用了废弃端点 POST /logout，请迁移到 DELETE /logout。Sunset: ${SUNSET_DATE}`
+    `[DEPRECATED] 客户端调用了废弃端点 POST /logout，请迁移到 DELETE /logout。Sunset: ${SUNSET_DATE}`,
   );
 
   const { refreshToken } = req.body as { refreshToken?: string };

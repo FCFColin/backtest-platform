@@ -1,6 +1,5 @@
 // DDD: Portfolio Aggregate — 事务边界+业务规则
-// 企业为何需要：权重和校验（=1.0）散落各处，集中到Aggregate后规则一致
-// 权衡：Aggregate增加一层间接，但业务规则集中后修改只需改一处
+// T-30：权重和校验使用百分比（≈100），与引擎 shared/types + engine/portfolio 一致。
 
 import { Ticker } from '../value-objects/ticker.js';
 import { Weight } from '../value-objects/weight.js';
@@ -9,6 +8,9 @@ export interface PortfolioHolding {
   ticker: Ticker;
   weight: Weight;
 }
+
+/** 组合权重和容差（百分比点） */
+export const PORTFOLIO_WEIGHT_SUM_TOLERANCE = 1;
 
 export class Portfolio {
   private constructor(
@@ -33,14 +35,14 @@ export class Portfolio {
   }
 
   removeHolding(ticker: Ticker): Portfolio {
-    const newHoldings = this.holdings.filter(h => !h.ticker.equals(ticker));
+    const newHoldings = this.holdings.filter((h) => !h.ticker.equals(ticker));
     return new Portfolio(this.id, this.name, newHoldings);
   }
 
   private validateWeightSum(): void {
     const sum = this.holdings.reduce((acc, h) => acc + h.weight.value, 0);
-    if (Math.abs(sum - 1.0) > 0.01) {
-      throw new Error(`Portfolio weights must sum to 1.0, got ${sum.toFixed(4)}`);
+    if (Math.abs(sum - 100) > PORTFOLIO_WEIGHT_SUM_TOLERANCE) {
+      throw new Error(`Portfolio weights must sum to ~100 (percent), got ${sum.toFixed(2)}`);
     }
   }
 }

@@ -86,10 +86,7 @@ const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
     Permission.SIGNAL_READ,
     Permission.STRATEGY_MANAGE,
   ]),
-  [Role.READONLY]: new Set([
-    Permission.DATA_READ,
-    Permission.SIGNAL_READ,
-  ]),
+  [Role.READONLY]: new Set([Permission.DATA_READ, Permission.SIGNAL_READ]),
 };
 
 // ---------------------------------------------------------------------------
@@ -107,6 +104,25 @@ export function hasPermission(role: Role | string, permission: Permission): bool
   const perms = ROLE_PERMISSIONS[role as Role];
   if (!perms) return false;
   return perms.has(permission);
+}
+
+/**
+ * 解析请求的有效（org 作用域）RBAC 角色。
+ *
+ * 企业理由（ADR-032）：多租户下角色应以"用户在当前活跃组织内的成员角色"为准，
+ * 而非历史的全局角色。JWT 中携带 org_role（组织内角色），此处优先采用并把组织
+ * 创建者 owner 归并为 admin（拥有租户内全部权限）。无 org_role 时回退到 legacy
+ * 全局 role，保证迁移期/无组织令牌仍可工作。
+ *
+ * @param user - 解码后的 JWT 用户上下文
+ * @returns 用于权限判定的有效角色字符串
+ */
+function effectiveRole(user: NonNullable<AuthenticatedRequest['user']>): string {
+  const orgRole = user.org_role;
+  if (orgRole) {
+    return orgRole === 'owner' ? Role.ADMIN : orgRole;
+  }
+  return user.role;
 }
 
 /**
@@ -145,7 +161,17 @@ export function getRolePermissions(role: Role | string): Permission[] {
  */
 export function requirePermission(permission: Permission) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    logger.info({ middleware: 'rbac', permission, userId: req.user?.sub, role: req.user?.role, path: req.path, requestId: (req as any).id }, '[rbac] 权限检查');
+    logger.info(
+      {
+        middleware: 'rbac',
+        permission,
+        userId: req.user?.sub,
+        role: req.user?.role,
+        path: req.path,
+        requestId: req.id,
+      },
+      '[rbac] 权限检查',
+    );
 
     // 前置检查：确保认证中间件已执行
     if (!req.user) {
@@ -162,10 +188,36 @@ export function requirePermission(permission: Permission) {
       return;
     }
 
-    const userRole = req.user.role as Role;
+    // 平台管理员（运营 SaaS 自身）放行一切权限检查（ADR-032）。
+    // 企业理由：平台运维需跨租户访问后台/诊断端点，不应受单一租户内角色限制。
+    if (req.user.platform_admin === true) {
+      logger.info(
+        {
+          middleware: 'rbac',
+          permission,
+          userId: req.user.sub,
+          platformAdmin: true,
+          requestId: req.id,
+        },
+        '[rbac] 平台管理员放行',
+      );
+      next();
+      return;
+    }
+
+    const userRole = effectiveRole(req.user) as Role;
 
     if (!hasPermission(userRole, permission)) {
-      logger.warn({ middleware: 'rbac', permission, userId: req.user?.sub, role: req.user?.role, requestId: (req as any).id }, '[rbac] 权限不足，访问拒绝');
+      logger.warn(
+        {
+          middleware: 'rbac',
+          permission,
+          userId: req.user?.sub,
+          role: req.user?.role,
+          requestId: req.id,
+        },
+        '[rbac] 权限不足，访问拒绝',
+      );
       res.status(403).json({
         success: false,
         error: {
@@ -179,7 +231,16 @@ export function requirePermission(permission: Permission) {
       return;
     }
 
-    logger.info({ middleware: 'rbac', permission, userId: req.user?.sub, role: req.user?.role, requestId: (req as any).id }, '[rbac] 权限检查通过');
+    logger.info(
+      {
+        middleware: 'rbac',
+        permission,
+        userId: req.user?.sub,
+        role: req.user?.role,
+        requestId: req.id,
+      },
+      '[rbac] 权限检查通过',
+    );
     next();
   };
 }

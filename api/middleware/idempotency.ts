@@ -68,7 +68,10 @@ const cleanupTimer = setInterval(() => {
     }
   }
   if (expiredCount > 0) {
-    logger.info({ middleware: 'idempotency', cleanedCount: expiredCount }, '[idempotency] 内存回退模式过期 Key 清理');
+    logger.info(
+      { middleware: 'idempotency', cleanedCount: expiredCount },
+      '[idempotency] 内存回退模式过期 Key 清理',
+    );
   }
 }, CLEANUP_INTERVAL_MS);
 
@@ -193,7 +196,10 @@ async function handleWithRedis(
     const cached = await appRedis.get(redisKey);
     if (cached) {
       const result: CachedResult = JSON.parse(cached);
-      logger.info({ middleware: 'idempotency', key, path: req.path, requestId: (req as any).id }, '[idempotency] Redis 幂等性 Key 命中缓存，返回缓存结果');
+      logger.info(
+        { middleware: 'idempotency', key, path: req.path, requestId: req.id },
+        '[idempotency] Redis 幂等性 Key 命中缓存，返回缓存结果',
+      );
       res.status(result.statusCode).json(result.body);
       return;
     }
@@ -209,12 +215,19 @@ async function handleWithRedis(
           timestamp: Date.now(),
         };
         // SET NX + EX：原子操作，仅当 Key 不存在时设置，并带 TTL
-        appRedis.set(redisKey, JSON.stringify(cacheEntry), 'EX', KEY_TTL_SEC, 'NX')
+        appRedis
+          .set(redisKey, JSON.stringify(cacheEntry), 'EX', KEY_TTL_SEC, 'NX')
           .then(() => {
-            logger.info({ middleware: 'idempotency', key, path: req.path, requestId: (req as any).id }, '[idempotency] Redis 幂等性 Key 缓存写入');
+            logger.info(
+              { middleware: 'idempotency', key, path: req.path, requestId: req.id },
+              '[idempotency] Redis 幂等性 Key 缓存写入',
+            );
           })
           .catch((err: unknown) => {
-            logger.warn({ middleware: 'idempotency', key, err: String(err) }, '[idempotency] Redis 缓存写入失败，降级忽略');
+            logger.warn(
+              { middleware: 'idempotency', key, err: String(err) },
+              '[idempotency] Redis 缓存写入失败，降级忽略',
+            );
           });
       }
       return originalJson(body);
@@ -223,7 +236,10 @@ async function handleWithRedis(
     next();
   } catch (err) {
     // Redis 操作异常，降级到内存模式
-    logger.warn({ middleware: 'idempotency', key, err: String(err) }, '[idempotency] Redis 操作异常，降级到内存存储');
+    logger.warn(
+      { middleware: 'idempotency', key, err: String(err) },
+      '[idempotency] Redis 操作异常，降级到内存存储',
+    );
     redisAvailable = false;
     handleWithMemory(key, req, res, next);
   }
@@ -236,15 +252,13 @@ async function handleWithRedis(
  * 内存 Map 的 get+set 存在极短的并发竞态窗口，但对管理端点的
  * 低并发场景影响可忽略。生产环境应确保 Redis 可用以获得原子保证。
  */
-function handleWithMemory(
-  key: string,
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
+function handleWithMemory(key: string, req: Request, res: Response, next: NextFunction): void {
   const cached = fallbackStore.get(key);
   if (cached && Date.now() - cached.timestamp <= KEY_TTL_SEC * 1000) {
-    logger.info({ middleware: 'idempotency', key, path: req.path, requestId: (req as any).id }, '[idempotency] 内存回退模式幂等性 Key 命中缓存');
+    logger.info(
+      { middleware: 'idempotency', key, path: req.path, requestId: req.id },
+      '[idempotency] 内存回退模式幂等性 Key 命中缓存',
+    );
     res.status(cached.statusCode).json(cached.body);
     return;
   }
@@ -257,7 +271,10 @@ function handleWithMemory(
         body,
         timestamp: Date.now(),
       });
-      logger.info({ middleware: 'idempotency', key, path: req.path, requestId: (req as any).id }, '[idempotency] 内存回退模式幂等性 Key 缓存写入');
+      logger.info(
+        { middleware: 'idempotency', key, path: req.path, requestId: req.id },
+        '[idempotency] 内存回退模式幂等性 Key 缓存写入',
+      );
     }
     return originalJson(body);
   };

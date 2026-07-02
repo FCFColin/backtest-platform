@@ -62,7 +62,6 @@ export function verifyPayload(payload: string, signature: string): boolean {
   const expected = crypto.createHmac('sha256', key).update(payload).digest('hex');
   const sigBuf = Buffer.from(signature);
   const expBuf = Buffer.from(expected);
-  // 长度不一致时 timingSafeEqual 抛 RangeError，需
   if (sigBuf.length !== expBuf.length) return false;
   return crypto.timingSafeEqual(sigBuf, expBuf);
 }
@@ -98,12 +97,7 @@ export async function writeOutboxEvent(
     await conn.query(
       `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload)
        VALUES ($1, $2, $3, $4)`,
-      [
-        'audit',
-        String(auditEntry.userId || 'unknown'),
-        'AuditEvent',
-        { ...auditEntry, signature },
-      ],
+      ['audit', String(auditEntry.userId || 'unknown'), 'AuditEvent', { ...auditEntry, signature }],
     );
 
     // 仅在独立模式下发送 NOTIFY：
@@ -114,15 +108,24 @@ export async function writeOutboxEvent(
       await conn.query('NOTIFY outbox_channel');
     }
 
-    logger.debug({ middleware: 'auditLog', transactional: !!client }, '[auditLog] outbox 事件写入成功');
+    logger.debug(
+      { middleware: 'auditLog', transactional: !!client },
+      '[auditLog] outbox 事件写入成功',
+    );
   } catch (err) {
     if (client) {
       // 事务模式：让异常向上传播，触发调用方的 ROLLBACK，保证事务一致性
-      logger.error({ err, middleware: 'auditLog' }, '[auditLog] outbox 事务写入失败，将触发事务回滚');
+      logger.error(
+        { err, middleware: 'auditLog' },
+        '[auditLog] outbox 事务写入失败，将触发事务回滚',
+      );
       throw err;
     }
     // 独立模式：outbox 写入失败不应阻塞响应，仅记录警告
-    logger.warn({ err, middleware: 'auditLog' }, '[auditLog] outbox 事件写入失败，审计日志仍已记录到 pino 日志流');
+    logger.warn(
+      { err, middleware: 'auditLog' },
+      '[auditLog] outbox 事件写入失败，审计日志仍已记录到 pino 日志流',
+    );
   }
 }
 
@@ -141,7 +144,11 @@ export function auditLog(req: Request, res: Response, next: NextFunction): void 
 
   // 在响应完成后记录（此时 statusCode 可用）
   res.on('finish', () => {
-    const userId = hashApiKey(req.headers['x-api-key'] as string | undefined);
+    // Security (T-16 / OWASP A09): 审计身份优先取 JWT 主体（req.user.sub）。
+    // 企业为何需要：此前仅取 x-api-key 哈希，JWT 登录用户全部记为匿名，审计无法回溯到具体用户，
+    // 违背"可追溯性"（SOC 2 / GDPR Art.30）。优先 JWT 身份，回退到 API Key 哈希，再回退 anonymous。
+    const jwtSub = (req as Request & { user?: { sub?: string } }).user?.sub;
+    const userId = jwtSub ?? hashApiKey(req.headers['x-api-key'] as string | undefined);
     const auditEntry = {
       timestamp: new Date().toISOString(),
       method: req.method,
@@ -153,8 +160,22 @@ export function auditLog(req: Request, res: Response, next: NextFunction): void 
       result: res.statusCode < 400 ? 'success' : 'failure',
     };
 
-    logger.info({ middleware: 'auditLog', method: req.method, path: req.path, userId, statusCode: res.statusCode, requestId: (req as any).id, audit: true }, '[auditLog] 审计记录写入');
-    auditLogger.info(auditEntry, `[audit] ${req.method} ${req.originalUrl || req.url} → ${res.statusCode}`);
+    logger.info(
+      {
+        middleware: 'auditLog',
+        method: req.method,
+        path: req.path,
+        userId,
+        statusCode: res.statusCode,
+        requestId: req.id,
+        audit: true,
+      },
+      '[auditLog] 审计记录写入',
+    );
+    auditLogger.info(
+      auditEntry,
+      `[audit] ${req.method} ${req.originalUrl || req.url} → ${res.statusCode}`,
+    );
 
     // 异步写入 outbox 表（不阻塞响应）
     writeOutboxEvent(auditEntry);

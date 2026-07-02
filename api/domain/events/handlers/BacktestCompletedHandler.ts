@@ -16,24 +16,26 @@
  */
 
 import { logger } from '../../../utils/logger.js';
-import { getPool } from '../../../db/index.js';
 import type { EventHandler, DomainEvent } from '../EventDispatcher.js';
 
 /**
  * BacktestCompleted 事件处理器
  *
- * 订阅 'BacktestCompleted' 事件，记录日志并写入 outbox 表，
- * 保证回测完成事件可被 OutboxPublisher 异步消费（如通知、统计）。
+ * 订阅 'BacktestCompleted' 事件，仅执行**非 outbox** 的进程内副作用（结构化日志、监控指标）。
+ *
+ * ADR-024 / T-11：此处理器**不再写 outbox**。
+ * - 原因（Chesterton 围栏）：outbox 写入此前由本处理器以非事务方式承担，与
+ *   application/backtest-service 的事务性写入重复，且因 OutboxPublisher 会把读到的事件
+ *   再次 dispatch 给本处理器，形成 "读取→分发→再写→NOTIFY→再读取" 的反馈环（无限增长）。
+ * - 修复：outbox 的唯一写入点为 backtest-service 的事务写入（ADR-024）。本处理器退化为
+ *   纯观测副作用，既消除重复写入与反馈环，也使领域层处理器不再直接依赖数据库（分层更纯）。
  */
 export class BacktestCompletedHandler implements EventHandler {
   /** 订阅的事件类型，与 BacktestCompleted 接口的 type 字段一致 */
   readonly eventType = 'BacktestCompleted';
 
   /**
-   * 处理 BacktestCompleted 事件
-   *
-   * 1. 记录结构化日志（含关键指标，便于排障与监控）
-   * 2. 写入 outbox 表，由 OutboxPublisher 异步消费
+   * 处理 BacktestCompleted 事件：记录结构化日志（含关键指标，便于排障与监控）。
    *
    * @param event - 领域事件，payload 包含 totalReturn/maxDrawdown/sharpeRatio
    */
@@ -48,36 +50,5 @@ export class BacktestCompletedHandler implements EventHandler {
       },
       '[BacktestCompletedHandler] 回测完成事件已接收',
     );
-
-    try {
-      const pool = getPool();
-      await pool.query(
-        `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload)
-         VALUES ($1, $2, $3, $4)`,
-        [
-          event.aggregateType,
-          event.aggregateId,
-          'BacktestCompleted',
-          {
-            ...event.payload,
-            occurredAt: event.occurredAt.toISOString(),
-          },
-        ],
-      );
-
-      // NOTIFY 不带 payload，由 OutboxPublisher 轮询 outbox 表读取新事件
-      await pool.query('NOTIFY outbox_channel');
-
-      logger.debug(
-        { aggregateId: event.aggregateId },
-        '[BacktestCompletedHandler] outbox 事件写入成功',
-      );
-    } catch (err) {
-      // outbox 写入失败不阻塞事件分发，仅记录警告
-      logger.warn(
-        { err, aggregateId: event.aggregateId },
-        '[BacktestCompletedHandler] outbox 事件写入失败',
-      );
-    }
   }
 }

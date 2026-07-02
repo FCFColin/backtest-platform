@@ -1,7 +1,8 @@
 /**
- * 组合回测核心逻辑（Node.js降级后备）
- * 优先使用Rust引擎(localhost:5002)，此文件仅在Rust引擎不可用时启用
- * 对应Rust实现: engine-rs/src/engine.rs
+ * 组合回测核心逻辑（Node.js 参照实现）
+ * 主引擎为 Go(engine-go, localhost:5004)；本文件作为一致性测试的 parity 参照保留，
+ * 不用于线上降级（ADR-031 fail-closed）。
+ * 对应 Go 实现: engine-go/internal/engine/backtest.go
  */
 
 import type {
@@ -10,6 +11,7 @@ import type {
   PortfolioResult,
   BacktestResult,
   AssetAnalysisResult,
+  Statistics,
 } from '../../shared/types.js';
 import {
   calcCAGR,
@@ -42,7 +44,7 @@ import {
   calcExcessKurtosis,
   calcPWR,
 } from './statistics.js';
-import { filterDates } from './dateUtils.js';
+import { filterDates } from '../utils/dateUtils.js';
 import { shouldRebalance, getISOWeekNumber } from './rebalance.js';
 import { TRADING_DAYS_PER_YEAR } from '../../shared/constants.js';
 
@@ -126,14 +128,8 @@ function getPriceWithFx(
   return raw;
 }
 
-function shouldApplyCashflow(
-  frequency: string,
-  currentDate: string,
-  prevDate: string | null,
-  startDate: string,
-  offset: number,
-  until?: string,
-): boolean {
+function shouldApplyCashflow(opts: CashflowCheckOptions): boolean {
+  const { frequency, currentDate, prevDate, startDate, offset, until } = opts;
   if (until && currentDate > until) return false;
   const cur = new Date(currentDate);
   const start = new Date(startDate);
@@ -142,80 +138,267 @@ function shouldApplyCashflow(
   if (!prevDate) return true;
   const prev = new Date(prevDate);
   switch (frequency) {
-    case 'monthly': return cur.getMonth() !== prev.getMonth() || cur.getFullYear() !== prev.getFullYear();
-    case 'quarterly': { const cq = Math.floor(cur.getMonth() / 3), pq = Math.floor(prev.getMonth() / 3); return cq !== pq || cur.getFullYear() !== prev.getFullYear(); }
-    case 'annual': return cur.getFullYear() !== prev.getFullYear();
-    case 'weekly': { const cw = getISOWeekNumber(currentDate), pw = getISOWeekNumber(prevDate); return cw !== pw || cur.getFullYear() !== prev.getFullYear(); }
-    case 'daily': return true;
-    default: return false;
+    case 'monthly':
+      return cur.getMonth() !== prev.getMonth() || cur.getFullYear() !== prev.getFullYear();
+    case 'quarterly': {
+      const cq = Math.floor(cur.getMonth() / 3),
+        pq = Math.floor(prev.getMonth() / 3);
+      return cq !== pq || cur.getFullYear() !== prev.getFullYear();
+    }
+    case 'annual':
+      return cur.getFullYear() !== prev.getFullYear();
+    case 'weekly': {
+      const cw = getISOWeekNumber(currentDate),
+        pw = getISOWeekNumber(prevDate);
+      return cw !== pw || cur.getFullYear() !== prev.getFullYear();
+    }
+    case 'daily':
+      return true;
+    default:
+      return false;
   }
 }
 
 /**
- * 运行单个组合回测
+ * 再平衡钩子（T-30）：引擎在再平衡发生时通知应用层发布领域事件，避免 engine→domain 硬依赖。
  */
-function runSinglePortfolio(
-  portfolio: Portfolio,
-  priceData: PriceData,
-  dates: string[],
-  params: BacktestParameters,
-  benchmarkDailyReturns?: number[],
-  benchmarkCagr?: number,
-  cpiData?: DateValueMap,
-  exchangeRates?: DateValueMap,
-): PortfolioResult {
+export interface BacktestHooks {
+  onRebalance?: (info: {
+    portfolioId: string;
+    portfolioName: string;
+    date: string;
+    reason: string;
+    currentWeights: Record<string, number>;
+  }) => void;
+}
+
+/** runSinglePortfolio 参数对象（避免过多位置参数） */
+interface RunSinglePortfolioOptions {
+  portfolio: Portfolio;
+  priceData: PriceData;
+  dates: string[];
+  params: BacktestParameters;
+  benchmarkDailyReturns?: number[];
+  benchmarkCagr?: number;
+  cpiData?: DateValueMap;
+  exchangeRates?: DateValueMap;
+  hooks?: BacktestHooks;
+}
+
+/** shouldApplyCashflow 参数对象 */
+interface CashflowCheckOptions {
+  frequency: string;
+  currentDate: string;
+  prevDate: string | null;
+  startDate: string;
+  offset: number;
+  until?: string;
+}
+
+/** 增长曲线计算结果 */
+interface GrowthCurveResult {
+  growthCurve: Array<{ date: string; value: number }>;
+  values: number[];
+  mwrrCashflows: Array<{ value: number; time: number }>;
+}
+
+/**
+ * 创建空组合结果（资产为空时使用）
+ */
+function createEmptyPortfolioResult(name: string): PortfolioResult {
+  return {
+    name,
+    growthCurve: [],
+    drawdownCurve: [],
+    rollingReturns: [],
+    annualReturns: [],
+    monthlyReturns: [],
+    statistics: {
+      cagr: 0,
+      mwrr: 0,
+      stdev: 0,
+      sharpe: 0,
+      sortino: 0,
+      maxDrawdown: 0,
+      maxDrawdownDuration: 0,
+      bestYear: 0,
+      worstYear: 0,
+      avgYear: 0,
+      totalReturn: 0,
+      maxMonthlyReturn: 0,
+      minMonthlyReturn: 0,
+      avgDrawdown: 0,
+      ulcerIndex: 0,
+      calmar: 0,
+      ulcerPerformanceIndex: 0,
+      beta: 0,
+      alpha: 0,
+      rSquared: 0,
+      trackingError: 0,
+      informationRatio: 0,
+      upsideCapture: 0,
+      downsideCapture: 0,
+      var5: 0,
+      cvar5: 0,
+      skewness: 0,
+      excessKurtosis: 0,
+      pctPositiveDays: 0,
+      maxDailyReturn: 0,
+      minDailyReturn: 0,
+    },
+  };
+}
+
+/** 单日现金流处理上下文 */
+interface CashflowContext {
+  date: string;
+  prevDate: string | null;
+  dayIndex: number;
+  startDate: string;
+  portfolioValue: number;
+  weights: number[];
+  params: BacktestParameters;
+  mwrrCashflows: Array<{ value: number; time: number }>;
+}
+
+/**
+ * 处理单日现金流（周期性 + 一次性），返回当日现金流总额和更新后的持仓
+ */
+function applyCashflowsForDate(ctx: CashflowContext): { value: number; holdings: number[] | null } {
+  const { date, prevDate, dayIndex, startDate, portfolioValue, weights, params, mwrrCashflows } =
+    ctx;
+  const cfTime = dayIndex / TRADING_DAYS_PER_YEAR;
+  let value = portfolioValue;
+  let holdings: number[] | null = null;
+
+  /** 应用单笔现金流 */
+  const apply = (type: string, amount: number) => {
+    const sign = type === 'withdrawal' ? -1 : 1;
+    value += sign * amount;
+    holdings = weights.map((w) => value * w);
+    mwrrCashflows.push({ value: sign * amount, time: cfTime });
+  };
+
+  // 周期性现金流
+  for (const leg of params.cashflowLegs ?? []) {
+    if (
+      shouldApplyCashflow({
+        frequency: leg.frequency,
+        currentDate: date,
+        prevDate,
+        startDate,
+        offset: leg.offset ?? 0,
+        until: leg.until,
+      })
+    ) {
+      apply(leg.type, leg.amount);
+    }
+  }
+
+  // 一次性现金流
+  for (const cf of params.oneTimeCashflows ?? []) {
+    if (cf.date === date) apply(cf.type, cf.amount);
+  }
+
+  return { value, holdings };
+}
+
+/** updateHoldingsForDay 的参数 */
+interface UpdateHoldingsOpts {
+  holdings: number[];
+  tickers: string[];
+  priceData: PriceData;
+  date: string;
+  prevDate: string | null;
+  exchangeRates?: DateValueMap;
+}
+
+/** 计算各资产当日收益率并更新持仓，返回总价值 */
+function updateHoldingsForDay(opts: UpdateHoldingsOpts): number {
+  const { holdings, tickers, priceData, date, prevDate, exchangeRates } = opts;
+  let totalValue = 0;
+  for (let j = 0; j < tickers.length; j++) {
+    const price = getPriceWithFx(priceData, tickers[j], date, exchangeRates);
+    const prevPrice = prevDate
+      ? getPriceWithFx(priceData, tickers[j], prevDate, exchangeRates)
+      : null;
+    if (price !== null && prevPrice !== null && prevPrice > 0) {
+      const dailyReturn = (price - prevPrice) / prevPrice;
+      holdings[j] = holdings[j] * (1 + dailyReturn);
+    }
+    totalValue += holdings[j];
+  }
+  return totalValue;
+}
+
+/** handleRebalance 的参数 */
+interface RebalanceOpts {
+  portfolio: Portfolio;
+  weights: number[];
+  tickers: string[];
+  date: string;
+  prevDate: string | null;
+  holdings: number[];
+  portfolioValue: number;
+  hooks?: BacktestHooks;
+}
+
+/** 执行再平衡：将持仓重置为目标权重并触发回调 */
+function handleRebalance(opts: RebalanceOpts): number[] {
+  const { portfolio, weights, tickers, date, prevDate, holdings, portfolioValue, hooks } = opts;
+  if (
+    !shouldRebalance({
+      frequency: portfolio.rebalanceFrequency,
+      currentDate: date,
+      prevDate,
+      holdings,
+      weights,
+      portfolioValue,
+      threshold: portfolio.rebalanceThreshold,
+    })
+  ) {
+    return holdings;
+  }
+  const newHoldings = weights.map((w) => portfolioValue * w);
+  hooks?.onRebalance?.({
+    portfolioId: portfolio.id || portfolio.name,
+    portfolioName: portfolio.name,
+    date,
+    reason: portfolio.rebalanceFrequency,
+    currentWeights: Object.fromEntries(tickers.map((t, idx) => [t, weights[idx] * 100])),
+  });
+  return newHoldings;
+}
+
+/**
+ * 构建增长曲线：逐日计算持仓价值、处理现金流、再平衡和爆仓检测
+ */
+function buildGrowthCurve(opts: {
+  portfolio: Portfolio;
+  priceData: PriceData;
+  dates: string[];
+  params: BacktestParameters;
+  exchangeRates?: DateValueMap;
+  hooks?: BacktestHooks;
+}): GrowthCurveResult {
+  const { portfolio, priceData, dates, params, exchangeRates, hooks } = opts;
   const { startingValue } = params;
   const tickers = portfolio.assets.map((a) => a.ticker);
   const weights = portfolio.assets.map((a) => a.weight / 100);
 
-  // 空组合直接返回空结果
-  if (portfolio.assets.length === 0) {
-    return {
-      name: portfolio.name,
-      growthCurve: [],
-      drawdownCurve: [],
-      rollingReturns: [],
-      annualReturns: [],
-      monthlyReturns: [],
-      statistics: {
-        cagr: 0, mwrr: 0, stdev: 0, sharpe: 0, sortino: 0,
-        maxDrawdown: 0, maxDrawdownDuration: 0,
-        bestYear: 0, worstYear: 0, avgYear: 0,
-        totalReturn: 0,
-        maxMonthlyReturn: 0, minMonthlyReturn: 0,
-        avgDrawdown: 0, ulcerIndex: 0,
-        calmar: 0, ulcerPerformanceIndex: 0,
-        beta: 0, alpha: 0, rSquared: 0,
-        trackingError: 0, informationRatio: 0,
-        upsideCapture: 0, downsideCapture: 0,
-        var5: 0, cvar5: 0,
-        skewness: 0, excessKurtosis: 0,
-        pctPositiveDays: 0, maxDailyReturn: 0, minDailyReturn: 0,
-      },
-    };
-  }
-
-  // 构建净值曲线
   const growthCurve: Array<{ date: string; value: number }> = [];
   const values: number[] = [];
-
-  let portfolioValue = startingValue;
-  // 持仓数量（各资产的市值）
-  // weight 是百分比（如 60 表示 60%），需要除以 100
-  let holdings: number[] = portfolio.assets.map((a) => startingValue * a.weight / 100);
-  let liquidated = false; // 是否已爆仓
-
-  let prevDate: string | null = null;
-
-  // 收集 MWRR 所需的现金流（金额 + 时间点）
   const mwrrCashflows: Array<{ value: number; time: number }> = [
     { value: -startingValue, time: 0 },
   ];
 
+  let holdings: number[] = portfolio.assets.map((a) => (startingValue * a.weight) / 100);
+  let liquidated = false;
+  let prevDate: string | null = null;
+
   for (let i = 0; i < dates.length; i++) {
     const date = dates[i];
 
-    // 已爆仓则不再计算，组合价值归零
     if (liquidated) {
       growthCurve.push({ date, value: 0 });
       values.push(0);
@@ -223,50 +406,31 @@ function runSinglePortfolio(
       continue;
     }
 
-    // 计算各资产当日收益率并更新持仓
-    let totalValue = 0;
-    for (let j = 0; j < tickers.length; j++) {
-      const price = getPriceWithFx(priceData, tickers[j], date, exchangeRates);
-      const prevPrice = prevDate ? getPriceWithFx(priceData, tickers[j], prevDate, exchangeRates) : null;
+    const totalValue = updateHoldingsForDay({
+      holdings,
+      tickers,
+      priceData,
+      date,
+      prevDate,
+      exchangeRates,
+    });
+    let portfolioValue = totalValue;
 
-      if (price !== null && prevPrice !== null && prevPrice > 0) {
-        const dailyReturn = (price - prevPrice) / prevPrice;
-        holdings[j] = holdings[j] * (1 + dailyReturn);
-      }
-      totalValue += holdings[j];
-    }
+    // 处理现金流
+    const cfResult = applyCashflowsForDate({
+      date,
+      prevDate,
+      dayIndex: i,
+      startDate: dates[0],
+      portfolioValue,
+      weights,
+      params,
+      mwrrCashflows,
+    });
+    portfolioValue = cfResult.value;
+    if (cfResult.holdings) holdings = cfResult.holdings;
 
-    portfolioValue = totalValue;
-
-    // 处理现金流（周期性 + 一次性）
-    const cashflowLegs = params.cashflowLegs;
-    const oneTimeCashflows = params.oneTimeCashflows;
-
-    if (cashflowLegs && cashflowLegs.length > 0) {
-      for (const leg of cashflowLegs) {
-        const sign = leg.type === 'withdrawal' ? -1 : 1;
-        const apply = shouldApplyCashflow(leg.frequency, date, prevDate, dates[0], leg.offset ?? 0, leg.until);
-        if (apply) {
-          portfolioValue += sign * leg.amount;
-          holdings = weights.map((w) => portfolioValue * w);
-          const cfTime = i / TRADING_DAYS_PER_YEAR;
-          mwrrCashflows.push({ value: sign * leg.amount, time: cfTime });
-        }
-      }
-    }
-    if (oneTimeCashflows && oneTimeCashflows.length > 0) {
-      for (const cf of oneTimeCashflows) {
-        if (cf.date === date) {
-          const sign = cf.type === 'withdrawal' ? -1 : 1;
-          portfolioValue += sign * cf.amount;
-          holdings = weights.map((w) => portfolioValue * w);
-          const cfTime = i / TRADING_DAYS_PER_YEAR;
-          mwrrCashflows.push({ value: sign * cf.amount, time: cfTime });
-        }
-      }
-    }
-
-    // 爆仓检测：组合价值 <= 0 时清仓
+    // 爆仓检测
     if (portfolioValue <= 0) {
       liquidated = true;
       portfolioValue = 0;
@@ -278,105 +442,138 @@ function runSinglePortfolio(
     }
 
     // 再平衡
-    if (shouldRebalance({
-      frequency: portfolio.rebalanceFrequency,
-      currentDate: date,
+    holdings = handleRebalance({
+      portfolio,
+      weights,
+      tickers,
+      date,
       prevDate,
       holdings,
-      weights,
       portfolioValue,
-      threshold: portfolio.rebalanceThreshold,
-    })) {
-      holdings = weights.map((w) => portfolioValue * w);
-    }
+      hooks,
+    });
 
     growthCurve.push({ date, value: portfolioValue });
     values.push(portfolioValue);
     prevDate = date;
   }
 
-  // 通胀调整：将名义值转为实际值（对应 Rust: lines 1256-1269）
-  if (params.adjustForInflation && cpiData && Object.keys(cpiData).length > 0) {
-    const startCpi = findCpiForDate(dates[0], cpiData);
-    if (startCpi > 0) {
-      for (let i = 0; i < dates.length; i++) {
-        const dateCpi = findCpiForDate(dates[i], cpiData);
-        if (dateCpi > 0) {
-          const realValue = values[i] * (startCpi / dateCpi);
-          growthCurve[i].value = realValue;
-          values[i] = realValue;
-        }
-      }
+  return { growthCurve, values, mwrrCashflows };
+}
+
+/**
+ * 通胀调整：将名义值转为实际值
+ */
+function applyInflationAdjustment(
+  values: number[],
+  growthCurve: Array<{ date: string; value: number }>,
+  dates: string[],
+  cpiData?: DateValueMap,
+): void {
+  if (!cpiData || Object.keys(cpiData).length === 0) return;
+  const startCpi = findCpiForDate(dates[0], cpiData);
+  if (startCpi <= 0) return;
+  for (let i = 0; i < dates.length; i++) {
+    const dateCpi = findCpiForDate(dates[i], cpiData);
+    if (dateCpi > 0) {
+      const realValue = values[i] * (startCpi / dateCpi);
+      growthCurve[i].value = realValue;
+      values[i] = realValue;
     }
   }
+}
 
-  // 计算回撤曲线
-  const drawdownCurve = calcDrawdownCurve(values, dates);
+/** 基准相关指标计算结果 */
+interface BenchmarkMetrics {
+  beta: number;
+  alpha: number;
+  rSquared: number;
+  trackingError: number;
+  informationRatio: number;
+  upsideCapture: number;
+  downsideCapture: number;
+}
 
-  // 计算滚动收益
-  const rollingReturns = calcRollingReturns(values, dates, params.rollingWindowMonths);
+/** 计算基准相关指标（无基准时全部返回 0） */
+function calcBenchmarkMetrics(
+  dailyReturns: number[],
+  cagr: number,
+  benchmarkDailyReturns?: number[],
+  benchmarkCagr?: number,
+): BenchmarkMetrics {
+  const hasBenchmark =
+    benchmarkDailyReturns && benchmarkDailyReturns.length >= 2 && benchmarkCagr !== undefined;
+  if (!hasBenchmark) {
+    return {
+      beta: 0,
+      alpha: 0,
+      rSquared: 0,
+      trackingError: 0,
+      informationRatio: 0,
+      upsideCapture: 0,
+      downsideCapture: 0,
+    };
+  }
+  const bench = benchmarkDailyReturns!;
+  const beta = calcBeta(dailyReturns, bench);
+  const alpha = calcAlpha(cagr, beta, benchmarkCagr!);
+  const trackingError = calcTrackingError(dailyReturns, bench);
+  return {
+    beta,
+    alpha,
+    rSquared: calcRSquared(dailyReturns, bench),
+    trackingError,
+    informationRatio: calcInformationRatio(alpha, trackingError),
+    upsideCapture: calcUpsideCapture(dailyReturns, bench),
+    downsideCapture: calcDownsideCapture(dailyReturns, bench),
+  };
+}
 
-  // 计算年度收益
-  const annualReturns = calcAnnualReturns(values, dates);
-
-  // 计算月度收益
-  const monthlyReturns = calcMonthlyReturns(values, dates);
-
-  // 计算统计指标
-  const finalValue = values[values.length - 1];
-  const dailyReturns = calcDailyReturns(values);
-  const years = dates.length / TRADING_DAYS_PER_YEAR;
-  // 爆仓（finalValue <= 0）时 CAGR = -1 作为爆仓标志
-  const cagr = finalValue <= 0 ? -1 : calcCAGR(startingValue, finalValue, years);
-  const stdev = calcAnnualizedStdev(dailyReturns);
-  const { maxDrawdown, maxDrawdownDuration } = calcMaxDrawdown(values);
-
-  // MWRR: 使用收集到的所有现金流（初始投入 + 中间现金流 + 期末价值）
-  mwrrCashflows.push({ value: finalValue, time: years });
-  const mwrr = finalValue > 0 ? calcMWRR(mwrrCashflows) : -1;
-
-  // 年度/月度收益数组（纯数值）
-  const annualReturnValues = annualReturns.map((a) => a.return);
-  const monthlyReturnValues = monthlyReturns.map((m) => m.return);
-
-  // 基准相关指标（有基准时才计算）
-  const hasBenchmark = benchmarkDailyReturns && benchmarkDailyReturns.length >= 2 && benchmarkCagr !== undefined;
-  const beta = hasBenchmark ? calcBeta(dailyReturns, benchmarkDailyReturns!) : 0;
-  const alpha = hasBenchmark ? calcAlpha(cagr, beta, benchmarkCagr!) : 0;
-  const rSquared = hasBenchmark ? calcRSquared(dailyReturns, benchmarkDailyReturns!) : 0;
-  const trackingError = hasBenchmark ? calcTrackingError(dailyReturns, benchmarkDailyReturns!) : 0;
-  const informationRatio = hasBenchmark ? calcInformationRatio(alpha, trackingError) : 0;
-  const upsideCapture = hasBenchmark ? calcUpsideCapture(dailyReturns, benchmarkDailyReturns!) : 0;
-  const downsideCapture = hasBenchmark ? calcDownsideCapture(dailyReturns, benchmarkDailyReturns!) : 0;
-
-  // 回撤相关
+/** 构建完整的 Statistics 对象（从中间计算结果） */
+function buildStatisticsObject(args: {
+  cagr: number;
+  mwrr: number;
+  stdev: number;
+  dailyReturns: number[];
+  values: number[];
+  startingValue: number;
+  finalValue: number;
+  maxDrawdown: number;
+  maxDrawdownDuration: number;
+  annualReturnValues: number[];
+  monthlyReturnValues: number[];
+  benchmarkMetrics: ReturnType<typeof calcBenchmarkMetrics>;
+}): Statistics {
+  const {
+    cagr,
+    mwrr,
+    stdev,
+    dailyReturns,
+    values,
+    startingValue,
+    finalValue,
+    maxDrawdown,
+    maxDrawdownDuration,
+    annualReturnValues,
+    monthlyReturnValues,
+    benchmarkMetrics: bm,
+  } = args;
   const avgDrawdown = calcAvgDrawdown(values);
   const ulcerIndex = calcUlcerIndex(values);
-
-  // 风险调整比率
   const calmar = calcCalmar(cagr, maxDrawdown);
   const ulcerPerformanceIndex = calcUPI(cagr, ulcerIndex);
-
-  // VaR / CVaR (95% 置信度)
   const var5 = calcVaR(dailyReturns, 0.95);
   const cvar5 = calcCVaR(dailyReturns, 0.95);
-
-  // 分布特征
   const skewness = calcSkewness(dailyReturns);
   const excessKurtosis = calcExcessKurtosis(dailyReturns);
-
-  // 辅助指标
   const totalReturn = calcTotalReturn(startingValue, finalValue);
-  const pctPositiveDays = dailyReturns.length > 0
-    ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length
-    : 0;
+  const pctPositiveDays =
+    dailyReturns.length > 0 ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length : 0;
   const maxDailyReturn = dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0;
   const minDailyReturn = dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0;
-
-  // PWR（永续提款率）
   const pwr = calcPWR(annualReturnValues);
 
-  const statistics = {
+  return {
     cagr,
     mwrr,
     stdev,
@@ -386,9 +583,10 @@ function runSinglePortfolio(
     maxDrawdownDuration,
     bestYear: calcBestYear(annualReturnValues),
     worstYear: calcWorstYear(annualReturnValues),
-    avgYear: annualReturnValues.length > 0
-      ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
-      : 0,
+    avgYear:
+      annualReturnValues.length > 0
+        ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
+        : 0,
     totalReturn,
     maxMonthlyReturn: calcBestMonth(monthlyReturnValues),
     minMonthlyReturn: calcWorstMonth(monthlyReturnValues),
@@ -396,13 +594,13 @@ function runSinglePortfolio(
     ulcerIndex,
     calmar,
     ulcerPerformanceIndex,
-    beta,
-    alpha,
-    rSquared,
-    trackingError,
-    informationRatio,
-    upsideCapture,
-    downsideCapture,
+    beta: bm.beta,
+    alpha: bm.alpha,
+    rSquared: bm.rSquared,
+    trackingError: bm.trackingError,
+    informationRatio: bm.informationRatio,
+    upsideCapture: bm.upsideCapture,
+    downsideCapture: bm.downsideCapture,
     var5,
     cvar5,
     skewness,
@@ -412,6 +610,117 @@ function runSinglePortfolio(
     minDailyReturn,
     pwr,
   };
+}
+
+/**
+ * 计算组合统计指标
+ */
+function calculatePortfolioStatistics(opts: {
+  values: number[];
+  dates: string[];
+  startingValue: number;
+  dailyReturns: number[];
+  annualReturns: Array<{ year: number; return: number }>;
+  monthlyReturns: Array<{ year: number; month: number; return: number }>;
+  mwrrCashflows: Array<{ value: number; time: number }>;
+  benchmarkDailyReturns?: number[];
+  benchmarkCagr?: number;
+}): Statistics {
+  const {
+    values,
+    dates,
+    startingValue,
+    dailyReturns,
+    annualReturns,
+    monthlyReturns,
+    mwrrCashflows,
+    benchmarkDailyReturns,
+    benchmarkCagr,
+  } = opts;
+  const finalValue = values[values.length - 1];
+  const years = dates.length / TRADING_DAYS_PER_YEAR;
+  const cagr = finalValue <= 0 ? -1 : calcCAGR(startingValue, finalValue, years);
+  const stdev = calcAnnualizedStdev(dailyReturns);
+  const { maxDrawdown, maxDrawdownDuration } = calcMaxDrawdown(values);
+
+  mwrrCashflows.push({ value: finalValue, time: years });
+  const mwrr = finalValue > 0 ? calcMWRR(mwrrCashflows) : -1;
+
+  const annualReturnValues = annualReturns.map((a) => a.return);
+  const monthlyReturnValues = monthlyReturns.map((m) => m.return);
+
+  return buildStatisticsObject({
+    cagr,
+    mwrr,
+    stdev,
+    dailyReturns,
+    values,
+    startingValue,
+    finalValue,
+    maxDrawdown,
+    maxDrawdownDuration,
+    annualReturnValues,
+    monthlyReturnValues,
+    benchmarkMetrics: calcBenchmarkMetrics(dailyReturns, cagr, benchmarkDailyReturns, benchmarkCagr),
+  });
+}
+
+/**
+ * 运行单个组合回测
+ */
+function runSinglePortfolio(opts: RunSinglePortfolioOptions): PortfolioResult {
+  const {
+    portfolio,
+    priceData,
+    dates,
+    params,
+    benchmarkDailyReturns,
+    benchmarkCagr,
+    cpiData,
+    exchangeRates,
+    hooks,
+  } = opts;
+  const { startingValue } = params;
+
+  // 空组合直接返回空结果
+  if (portfolio.assets.length === 0) {
+    return createEmptyPortfolioResult(portfolio.name);
+  }
+
+  // 构建净值曲线
+  const { growthCurve, values, mwrrCashflows } = buildGrowthCurve({
+    portfolio,
+    priceData,
+    dates,
+    params,
+    exchangeRates,
+    hooks,
+  });
+
+  // 通胀调整：将名义值转为实际值
+  if (params.adjustForInflation) {
+    applyInflationAdjustment(values, growthCurve, dates, cpiData);
+  }
+
+  // 计算回撤/滚动/年度/月度曲线
+  const drawdownCurve = calcDrawdownCurve(values, dates);
+  const rollingReturns = calcRollingReturns(values, dates, params.rollingWindowMonths);
+  const annualReturns = calcAnnualReturns(values, dates);
+  const monthlyReturns = calcMonthlyReturns(values, dates);
+
+  // 计算统计指标
+  const dailyReturns = calcDailyReturns(values);
+  const statistics = calculatePortfolioStatistics({
+    values,
+    dates,
+    startingValue,
+    dailyReturns,
+    annualReturns,
+    monthlyReturns,
+    mwrrCashflows,
+    benchmarkDailyReturns,
+    benchmarkCagr,
+  });
 
   return {
     name: portfolio.name,
@@ -448,7 +757,7 @@ function calcRollingReturns(
   windowMonths: number,
 ): Array<{ date: string; return: number }> {
   const result: Array<{ date: string; return: number }> = [];
-  const windowDays = Math.round(windowMonths * TRADING_DAYS_PER_YEAR / 12);
+  const windowDays = Math.round((windowMonths * TRADING_DAYS_PER_YEAR) / 12);
 
   for (let i = windowDays; i < values.length; i++) {
     if (values[i - windowDays] > 0) {
@@ -522,7 +831,14 @@ function calcMonthlyReturns(
     }
   }
 
-  return result.sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month);
+  return result.sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
+}
+
+/** runPortfolioBacktest 的可选扩展参数 */
+interface BacktestOptions {
+  cpiData?: DateValueMap;
+  exchangeRates?: DateValueMap;
+  hooks?: BacktestHooks;
 }
 
 /**
@@ -532,9 +848,9 @@ export function runPortfolioBacktest(
   portfolios: Portfolio[],
   priceData: PriceData,
   params: BacktestParameters,
-  cpiData?: DateValueMap,
-  exchangeRates?: DateValueMap,
+  options?: BacktestOptions,
 ): BacktestResult {
+  const { cpiData, exchangeRates, hooks } = options ?? {};
   const dates = getSortedDates(priceData);
 
   // 过滤日期范围（空字符串视为不限制）
@@ -547,7 +863,10 @@ export function runPortfolioBacktest(
 
   if (params.benchmarkTicker && priceData[params.benchmarkTicker]) {
     const benchmarkPrices = filteredDates
-      .map((d) => ({ date: d, price: getPriceWithFx(priceData, params.benchmarkTicker!, d, exchangeRates) }))
+      .map((d) => ({
+        date: d,
+        price: getPriceWithFx(priceData, params.benchmarkTicker!, d, exchangeRates),
+      }))
       .filter((p) => p.price !== null);
 
     if (benchmarkPrices.length > 1) {
@@ -564,7 +883,17 @@ export function runPortfolioBacktest(
   }
 
   const portfolioResults: PortfolioResult[] = portfolios.map((p) =>
-    runSinglePortfolio(p, priceData, filteredDates, params, benchmarkDailyReturns, benchmarkCagr, cpiData, exchangeRates),
+    runSinglePortfolio({
+      portfolio: p,
+      priceData,
+      dates: filteredDates,
+      params,
+      benchmarkDailyReturns,
+      benchmarkCagr,
+      cpiData,
+      exchangeRates,
+      hooks,
+    }),
   );
 
   // 计算相关性矩阵
@@ -578,9 +907,7 @@ export function runPortfolioBacktest(
 }
 
 /** 计算相关性矩阵 */
-function calcCorrelationMatrix(
-  portfolioResults: PortfolioResult[],
-): number[][] {
+function calcCorrelationMatrix(portfolioResults: PortfolioResult[]): number[][] {
   const n = portfolioResults.length;
   const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
 
@@ -601,6 +928,147 @@ function calcCorrelationMatrix(
   return matrix;
 }
 
+/** 单标的分析参数 */
+interface AnalyzeTickerOptions {
+  ticker: string;
+  tIdx: number;
+  prices: number[];
+  dailyReturns: number[];
+  benchmarkReturns: number[];
+  filteredDates: string[];
+  params: BacktestParameters;
+}
+
+/**
+ * 分析单个标的的收益、风险和统计指标
+ */
+function analyzeSingleTicker(opts: AnalyzeTickerOptions): {
+  ticker: string;
+  growthCurve: Array<{ date: string; value: number }>;
+  drawdownCurve: Array<{ date: string; drawdown: number }>;
+  dailyReturns: number[];
+  annualReturns: Array<{ year: number; return: number }>;
+  monthlyReturns: Array<{ year: number; month: number; return: number }>;
+  rollingReturns: Array<{ date: string; return: number }>;
+  statistics: Record<string, number>;
+} {
+  const { ticker, tIdx, prices, dailyReturns, benchmarkReturns, filteredDates, params } = opts;
+
+  if (prices.length < 2) {
+    return {
+      ticker,
+      growthCurve: [],
+      drawdownCurve: [],
+      dailyReturns: [],
+      annualReturns: [],
+      monthlyReturns: [],
+      rollingReturns: [],
+      statistics: { cagr: 0, stdev: 0, sharpe: 0, maxDrawdown: 0 },
+    };
+  }
+
+  const dates = filteredDates.slice(0, prices.length);
+  const basePrice = prices[0];
+  const values = prices.map((p) => p / basePrice);
+  const scaledValues = values.map((v) => v * params.startingValue);
+
+  const growthCurve = dates.map((d, i) => ({ date: d, value: scaledValues[i] }));
+  const drawdownCurve = calcDrawdownCurve(values, dates);
+  const rollingReturns = calcRollingReturns(scaledValues, dates, params.rollingWindowMonths);
+  const annualReturns = calcAnnualReturns(scaledValues, dates);
+  const monthlyReturns = calcMonthlyReturns(scaledValues, dates);
+
+  const years = prices.length / TRADING_DAYS_PER_YEAR;
+  const cagr = calcCAGR(prices[0], prices[prices.length - 1], years);
+  const stdev = calcAnnualizedStdev(dailyReturns);
+  const { maxDrawdown, maxDrawdownDuration } = calcMaxDrawdown(prices);
+  const annualReturnValues = annualReturns.map((a) => a.return);
+  const monthlyReturnValues = monthlyReturns.map((m) => m.return);
+  const beta =
+    tIdx !== 0 && benchmarkReturns.length >= 2
+      ? calcBeta(dailyReturns, benchmarkReturns)
+      : tIdx === 0
+        ? 1
+        : 0;
+
+  return {
+    ticker,
+    growthCurve,
+    drawdownCurve,
+    dailyReturns,
+    annualReturns,
+    monthlyReturns,
+    rollingReturns,
+    statistics: buildTickerStatistics({
+      cagr,
+      stdev,
+      dailyReturns,
+      prices,
+      maxDrawdown,
+      maxDrawdownDuration,
+      annualReturnValues,
+      monthlyReturnValues,
+      beta,
+    }),
+  };
+}
+
+/** 构建单个标的的统计指标对象 */
+function buildTickerStatistics(args: {
+  cagr: number;
+  stdev: number;
+  dailyReturns: number[];
+  prices: number[];
+  maxDrawdown: number;
+  maxDrawdownDuration: number;
+  annualReturnValues: number[];
+  monthlyReturnValues: number[];
+  beta: number;
+}): Record<string, number> {
+  const {
+    cagr,
+    stdev,
+    dailyReturns,
+    prices,
+    maxDrawdown,
+    maxDrawdownDuration,
+    annualReturnValues,
+    monthlyReturnValues,
+    beta,
+  } = args;
+  const ulcerIndex = calcUlcerIndex(prices);
+  return {
+    cagr,
+    stdev,
+    sharpe: calcSharpe(cagr, stdev),
+    sortino: calcSortino(cagr, dailyReturns),
+    maxDrawdown,
+    maxDrawdownDuration,
+    avgDrawdown: calcAvgDrawdown(prices),
+    ulcerIndex,
+    calmar: calcCalmar(cagr, maxDrawdown),
+    ulcerPerformanceIndex: calcUPI(cagr, ulcerIndex),
+    beta,
+    skewness: calcSkewness(dailyReturns),
+    excessKurtosis: calcExcessKurtosis(dailyReturns),
+    bestYear: calcBestYear(annualReturnValues),
+    worstYear: calcWorstYear(annualReturnValues),
+    avgYear:
+      annualReturnValues.length > 0
+        ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
+        : 0,
+    totalReturn: calcTotalReturn(prices[0], prices[prices.length - 1]),
+    var5: calcVaR(dailyReturns, 0.95),
+    cvar5: calcCVaR(dailyReturns, 0.95),
+    pctPositiveDays:
+      dailyReturns.length > 0 ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length : 0,
+    maxDailyReturn: dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0,
+    minDailyReturn: dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0,
+    maxMonthlyReturn: calcBestMonth(monthlyReturnValues),
+    minMonthlyReturn: calcWorstMonth(monthlyReturnValues),
+  };
+}
+
 /**
  * 运行资产分析
  */
@@ -615,114 +1083,21 @@ export function runAnalysis(
 
   // 预计算所有资产的日收益率（用于Beta等基准相关指标）
   const allPrices = tickers.map((ticker) =>
-    filteredDates
-      .map((d) => getPrice(priceData, ticker, d))
-      .filter((p): p is number => p !== null)
+    filteredDates.map((d) => getPrice(priceData, ticker, d)).filter((p): p is number => p !== null),
   );
   const allReturns = allPrices.map((prices) => calcDailyReturns(prices));
 
-  const results = tickers.map((ticker, tIdx) => {
-    const prices = allPrices[tIdx];
-
-    if (prices.length < 2) {
-      return {
-        ticker,
-        growthCurve: [],
-        drawdownCurve: [],
-        dailyReturns: [],
-        annualReturns: [],
-        monthlyReturns: [],
-        rollingReturns: [],
-        statistics: { cagr: 0, stdev: 0, sharpe: 0, maxDrawdown: 0 },
-      };
-    }
-
-    // 净值曲线
-    const basePrice = prices[0];
-    const values = prices.map((p) => p / basePrice);
-    const growthCurve = filteredDates.slice(0, prices.length).map((d, i) => ({
-      date: d,
-      value: values[i] * params.startingValue,
-    }));
-
-    // 回撤曲线
-    const drawdownCurve = calcDrawdownCurve(values, filteredDates.slice(0, prices.length));
-
-    // 日收益率
-    const dailyReturns = allReturns[tIdx];
-
-    // 滚动收益
-    const rollingReturns = calcRollingReturns(values.map((v) => v * params.startingValue), filteredDates.slice(0, prices.length), params.rollingWindowMonths);
-
-    // 年度收益
-    const annualReturns = calcAnnualReturns(values.map((v) => v * params.startingValue), filteredDates.slice(0, prices.length));
-
-    // 月度收益
-    const monthlyReturns = calcMonthlyReturns(values.map((v) => v * params.startingValue), filteredDates.slice(0, prices.length));
-
-    // 统计
-    const years = prices.length / TRADING_DAYS_PER_YEAR;
-    const cagr = calcCAGR(prices[0], prices[prices.length - 1], years);
-    const stdev = calcAnnualizedStdev(dailyReturns);
-    const { maxDrawdown, maxDrawdownDuration } = calcMaxDrawdown(prices);
-    const avgDrawdown = calcAvgDrawdown(prices);
-    const ulcerIndex = calcUlcerIndex(prices);
-    const calmar = calcCalmar(cagr, maxDrawdown);
-    const ulcerPerformanceIndex = calcUPI(cagr, ulcerIndex);
-    const sortino = calcSortino(cagr, dailyReturns);
-    const skewness = calcSkewness(dailyReturns);
-    const excessKurtosis = calcExcessKurtosis(dailyReturns);
-
-    // Beta（相对第一个资产）
-    const benchmarkIdx = 0;
-    const beta = tIdx !== benchmarkIdx && allReturns[benchmarkIdx].length >= 2
-      ? calcBeta(dailyReturns, allReturns[benchmarkIdx])
-      : tIdx === benchmarkIdx ? 1 : 0;
-
-    // 年度/月度收益数组
-    const annualReturnValues = annualReturns.map((a) => a.return);
-    const monthlyReturnValues = monthlyReturns.map((m) => m.return);
-
-    return {
+  const results = tickers.map((ticker, tIdx) =>
+    analyzeSingleTicker({
       ticker,
-      growthCurve,
-      drawdownCurve,
-      dailyReturns,
-      annualReturns,
-      monthlyReturns,
-      rollingReturns,
-      statistics: {
-        cagr,
-        stdev,
-        sharpe: calcSharpe(cagr, stdev),
-        sortino,
-        maxDrawdown,
-        maxDrawdownDuration,
-        avgDrawdown,
-        ulcerIndex,
-        calmar,
-        ulcerPerformanceIndex,
-        beta,
-        skewness,
-        excessKurtosis,
-        bestYear: calcBestYear(annualReturnValues),
-        worstYear: calcWorstYear(annualReturnValues),
-        avgYear: annualReturnValues.length > 0
-          ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
-          : 0,
-        totalReturn: calcTotalReturn(prices[0], prices[prices.length - 1]),
-        var5: calcVaR(dailyReturns, 0.95),
-        cvar5: calcCVaR(dailyReturns, 0.95),
-        pctPositiveDays: dailyReturns.length > 0
-          ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length
-          : 0,
-        maxDailyReturn: dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0,
-        minDailyReturn: dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0,
-        maxMonthlyReturn: calcBestMonth(monthlyReturnValues),
-        minMonthlyReturn: calcWorstMonth(monthlyReturnValues),
-      },
-    };
-  });
+      tIdx,
+      prices: allPrices[tIdx],
+      dailyReturns: allReturns[tIdx],
+      benchmarkReturns: allReturns[0] ?? [],
+      filteredDates,
+      params,
+    }),
+  );
 
   // 相关性矩阵
   const n = tickers.length;

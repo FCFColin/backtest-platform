@@ -1,4 +1,5 @@
 import { Queue, Worker, Job } from 'bullmq';
+import type { RedisOptions } from 'ioredis';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -10,6 +11,10 @@ export interface BacktestJobData {
   type: 'optimizer' | 'grid-search';
   payload: Record<string, unknown>;
   userId?: string;
+  /** 提交任务的租户（组织）UUID，用于结果持久化的 RLS 隔离与所有权校验（ADR-034） */
+  tenantId?: string;
+  /** 提交者用户 UUID（区别于 API Key 调用方，后者为 null） */
+  ownerUserId?: string | null;
 }
 
 export interface BacktestJobResult {
@@ -20,15 +25,33 @@ export interface BacktestJobResult {
 
 const QUEUE_NAME = 'backtest-compute';
 
-// BullMQ连接配置：ioredis 原生支持 redis:// / rediss:// URL 格式（含密码、数据库号、TLS），
-// 直接传入 connectionString 避免手动解析遗漏字段
-const connectionOptions: { connectionString: string; maxRetriesPerRequest: null; enableReadyCheck: false } = {
-  connectionString: config.REDIS_URL,
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
+// BullMQ 连接配置：BullMQ/ioredis 的 connection 只接受标准 ioredis 选项（host/port/password/db/tls），
+// 没有 connectionString 字段——传入它会被忽略并回退到默认 127.0.0.1:6379。
+// 因此显式解析 REDIS_URL（支持 redis:// 与 rediss://、含凭证与库号）为 ioredis 选项。
+function parseRedisUrl(url: string): RedisOptions {
+  const parsed = new URL(url);
+  const options: RedisOptions = {
+    host: parsed.hostname,
+    port: parsed.port ? Number(parsed.port) : 6379,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+  };
+  if (parsed.username) options.username = decodeURIComponent(parsed.username);
+  if (parsed.password) options.password = decodeURIComponent(parsed.password);
+  const db = parsed.pathname.replace(/^\//, '');
+  if (db) options.db = Number(db);
+  if (parsed.protocol === 'rediss:') options.tls = {};
+  return options;
+}
 
-logger.info({ module: 'backtestQueue', redisUrl: config.REDIS_URL ? `${config.REDIS_URL.substring(0, 20)}...` : '[empty]' }, 'BullMQ connection configured');
+const connectionOptions: RedisOptions = parseRedisUrl(config.REDIS_URL);
+
+// Security (T-28 / 输出过滤)：不记录 Redis URL 的任何片段——substring(0,20) 仍可能泄露
+// `redis://user:pass@host` 中的凭证。仅记录是否已配置，凭证绝不进日志。
+logger.info(
+  { module: 'backtestQueue', redisConfigured: Boolean(config.REDIS_URL) },
+  'BullMQ connection configured',
+);
 
 export const backtestQueue = new Queue<BacktestJobData, BacktestJobResult>(QUEUE_NAME, {
   connection: connectionOptions,
@@ -48,7 +71,9 @@ backtestQueue.on('error', (err) => {
 });
 
 // Worker will be started separately
-export function createBacktestWorker(processFn: (job: Job<BacktestJobData>) => Promise<BacktestJobResult>) {
+export function createBacktestWorker(
+  processFn: (job: Job<BacktestJobData>) => Promise<BacktestJobResult>,
+) {
   logger.info({ module: 'backtestQueue', concurrency: 3 }, 'Creating BullMQ worker...');
 
   const worker = new Worker<BacktestJobData, BacktestJobResult>(QUEUE_NAME, processFn, {
@@ -57,11 +82,28 @@ export function createBacktestWorker(processFn: (job: Job<BacktestJobData>) => P
   });
 
   worker.on('completed', (job) => {
-    logger.info({ module: 'backtestQueue', jobId: job.id, type: job.data.type, durationMs: job.finishedOn ? job.finishedOn - job.processedOn! : undefined }, 'Backtest job completed');
+    logger.info(
+      {
+        module: 'backtestQueue',
+        jobId: job.id,
+        type: job.data.type,
+        durationMs: job.finishedOn ? job.finishedOn - job.processedOn! : undefined,
+      },
+      'Backtest job completed',
+    );
   });
 
   worker.on('failed', (job, err) => {
-    logger.error({ module: 'backtestQueue', jobId: job?.id, type: job?.data?.type, error: err.message, attemptsMade: job?.attemptsMade }, 'Backtest job failed');
+    logger.error(
+      {
+        module: 'backtestQueue',
+        jobId: job?.id,
+        type: job?.data?.type,
+        error: err.message,
+        attemptsMade: job?.attemptsMade,
+      },
+      'Backtest job failed',
+    );
   });
 
   worker.on('error', (err) => {

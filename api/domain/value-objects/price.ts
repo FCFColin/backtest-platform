@@ -1,5 +1,8 @@
 export class Price {
-  private constructor(public readonly value: number, public readonly currency: string = 'CNY') {
+  private constructor(
+    public readonly value: number,
+    public readonly currency: string = 'CNY',
+  ) {
     if (value < 0) throw new Error(`Price cannot be negative: ${value}`);
   }
 

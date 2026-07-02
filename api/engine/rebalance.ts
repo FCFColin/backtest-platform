@@ -37,20 +37,28 @@ export interface RebalanceParams {
  * - annual: 跨年时
  * - threshold: 持仓权重偏离目标权重超过阈值时
  */
-export function shouldRebalance(params: RebalanceParams): boolean {
-  const { frequency, currentDate, prevDate, holdings, weights, portfolioValue, threshold } = params;
+/** 检查阈值型再平衡：持仓权重偏离目标超过阈值时触发 */
+function checkThresholdRebalance(
+  holdings: number[],
+  weights: number[],
+  portfolioValue: number,
+  threshold: number,
+): boolean {
+  for (let j = 0; j < holdings.length; j++) {
+    if (weights[j] === 0) continue;
+    const actualWeight = holdings[j] / portfolioValue;
+    const deviation = (Math.abs(actualWeight - weights[j]) / Math.abs(weights[j])) * 100;
+    if (deviation >= threshold) return true;
+  }
+  return false;
+}
 
-  if (frequency === 'none') return false;
-  if (frequency === 'daily') return true;
-  if (!prevDate) return true;
-
-  const cur = new Date(currentDate);
-  const prev = new Date(prevDate);
-
+/** 按日期频率判断是否跨周期（周/月/季/年） */
+function crossesFrequencyBoundary(frequency: RebalanceFrequency, cur: Date, prev: Date): boolean {
   switch (frequency) {
     case 'weekly': {
-      const curWeek = getISOWeekNumber(currentDate);
-      const prevWeek = getISOWeekNumber(prevDate);
+      const curWeek = getISOWeekNumber(cur.toISOString());
+      const prevWeek = getISOWeekNumber(prev.toISOString());
       return curWeek !== prevWeek || cur.getFullYear() !== prev.getFullYear();
     }
     case 'monthly':
@@ -62,20 +70,27 @@ export function shouldRebalance(params: RebalanceParams): boolean {
     }
     case 'annual':
       return cur.getFullYear() !== prev.getFullYear();
-    case 'threshold': {
-      if (!threshold || threshold <= 0) return false;
-      if (!holdings || !weights || !portfolioValue) return false;
-      for (let j = 0; j < holdings.length; j++) {
-        if (weights[j] === 0) continue;
-        const actualWeight = holdings[j] / portfolioValue;
-        const deviation = Math.abs(actualWeight - weights[j]) / Math.abs(weights[j]) * 100;
-        if (deviation >= threshold) return true;
-      }
-      return false;
-    }
     default:
       return false;
   }
+}
+
+export function shouldRebalance(params: RebalanceParams): boolean {
+  const { frequency, currentDate, prevDate, holdings, weights, portfolioValue, threshold } = params;
+
+  if (frequency === 'none') return false;
+  if (frequency === 'daily') return true;
+  if (!prevDate) return true;
+
+  if (frequency === 'threshold') {
+    if (!threshold || threshold <= 0) return false;
+    if (!holdings || !weights || !portfolioValue) return false;
+    return checkThresholdRebalance(holdings, weights, portfolioValue, threshold);
+  }
+
+  const cur = new Date(currentDate);
+  const prev = new Date(prevDate);
+  return crossesFrequencyBoundary(frequency, cur, prev);
 }
 
 /** ISO 周号计算（与 portfolio.ts 原实现一致） */
@@ -84,5 +99,5 @@ export function getISOWeekNumber(dateStr: string): number {
   const dayNum = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }

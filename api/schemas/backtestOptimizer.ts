@@ -8,18 +8,26 @@ import { z } from 'zod';
 export const backtestOptimizerSchema = z.object({
   portfolio: z.object({
     name: z.string().optional(),
-    assets: z.array(z.object({
-      ticker: z.string().min(1),
-      weight: z.number(),
-    })).min(1, '组合至少需要一个资产'),
+    assets: z
+      .array(
+        z.object({
+          ticker: z.string().min(1),
+          weight: z.number(),
+        }),
+      )
+      .min(1, '组合至少需要一个资产'),
   }),
   parameterSpace: z.object({
-    rebalanceFrequencies: z.array(z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'annual', 'none', 'threshold'])).min(1),
-    rebalanceThreshold: z.object({
-      min: z.number(),
-      max: z.number(),
-      step: z.number().positive(),
-    }).optional(),
+    rebalanceFrequencies: z
+      .array(z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'annual', 'none', 'threshold']))
+      .min(1),
+    rebalanceThreshold: z
+      .object({
+        min: z.number(),
+        max: z.number(),
+        step: z.number().positive(),
+      })
+      .optional(),
     initialCapital: z.object({
       min: z.number(),
       max: z.number(),
@@ -34,10 +42,12 @@ export const backtestOptimizerSchema = z.object({
     adjustForInflation: z.boolean().optional(),
   }),
   objective: z.enum(['maxCagr', 'minMaxDrawdown', 'maxSharpe', 'maxSortino']),
-  constraints: z.object({
-    maxDrawdown: z.number().optional(),
-    minCagr: z.number().optional(),
-  }).optional(),
+  constraints: z
+    .object({
+      maxDrawdown: z.number().optional(),
+      minCagr: z.number().optional(),
+    })
+    .optional(),
 });
 
 export type BacktestOptimizerRequest = z.infer<typeof backtestOptimizerSchema>;

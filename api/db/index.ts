@@ -30,6 +30,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { registerPgPoolMetrics } from '../utils/metrics.js';
 
 const { Pool } = pg;
 
@@ -78,14 +79,14 @@ export function getPool(): pg.Pool {
 
   pool = new Pool({
     connectionString: databaseUrl,
-    // 连接池配置（从集中配置读取，支持环境变量覆盖）
     max: config.DB_POOL_MAX,
-    idleTimeoutMillis: 30000,     // 空闲连接超时 30s
-    connectionTimeoutMillis: 5000, // 连接超时 5s
+    min: config.DB_POOL_MIN,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 10000,
     // SSL 配置：生产环境强制 TLS
-    ssl: config.NODE_ENV === 'production'
-      ? { rejectUnauthorized: true }
-      : undefined,
+    ssl: config.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined,
   });
 
   // 企业理由：statement_timeout 在每个新连接上设置查询超时，
@@ -102,6 +103,10 @@ export function getPool(): pg.Pool {
   });
 
   logger.info({ durationMs: Date.now() - t0 }, '[db] PostgreSQL 连接池初始化完成');
+  registerPgPoolMetrics('primary', () => ({
+    waitingCount: pool!.waitingCount,
+    totalCount: pool!.totalCount,
+  }));
   return pool;
 }
 
@@ -126,9 +131,7 @@ export function getReadPool(): pg.Pool {
     max: config.DB_POOL_MAX,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
-    ssl: config.NODE_ENV === 'production'
-      ? { rejectUnauthorized: true }
-      : undefined,
+    ssl: config.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined,
   });
 
   readPool.on('error', (err: Error) => {
@@ -140,6 +143,10 @@ export function getReadPool(): pg.Pool {
   });
 
   logger.info({ durationMs: Date.now() - t0 }, '[db] PostgreSQL 只读连接池初始化完成');
+  registerPgPoolMetrics('read', () => ({
+    waitingCount: readPool!.waitingCount,
+    totalCount: readPool!.totalCount,
+  }));
   return readPool;
 }
 
@@ -165,6 +172,60 @@ export function getReadPool(): pg.Pool {
 export async function getClient(): Promise<pg.PoolClient> {
   const pool = getPool();
   return pool.connect();
+}
+
+// ---------------------------------------------------------------------------
+// 租户上下文（RLS 强制点，ADR-032）
+// ---------------------------------------------------------------------------
+
+/** UUID v4 校验（防御性，set_config 已通过 $1 参数化避免注入） */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 在租户上下文事务中执行回调（RLS 强制点，ADR-032）。
+ *
+ * 企业理由：多租户隔离的安全保证由 Postgres RLS 提供，而非靠每个查询都记得
+ * 加 `WHERE tenant_id=`。本助手在事务内通过 `set_config('app.current_tenant_id', $1, true)`
+ * （is_local=true，等价 SET LOCAL）注入当前租户，使 009 迁移定义的 RLS 策略生效。
+ *
+ * 关键纪律：
+ * - 必须使用事务级（SET LOCAL / is_local=true）而非会话级设置，否则在 PgBouncer
+ *   transaction-pooling 下连接复用会串租户。事务结束后该设置自动失效。
+ * - 所有租户作用域的查询都应经由本助手获得的 client 执行；脱离本助手的查询因
+ *   `app.current_tenant_id` 未设置而读到零行 / 写被拒绝（fail-safe）。
+ *
+ * @typeParam T - 回调返回类型
+ * @param tenantId - 当前租户（组织）UUID
+ * @param fn - 接收已设置租户上下文的事务 client 的回调
+ * @returns 回调结果
+ * @throws 当 tenantId 非法 UUID，或回调/事务失败（自动 ROLLBACK）时
+ */
+export async function withTenant<T>(
+  tenantId: string,
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  if (!UUID_RE.test(tenantId)) {
+    throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
+  }
+  const pool = getPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // 事务级设置（is_local=true）：随 COMMIT/ROLLBACK 自动复位，PgBouncer 安全
+    await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      logger.error({ err: rollbackErr }, '[db] withTenant ROLLBACK 失败');
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +293,48 @@ const migrations: Array<{
     upFile: '005_outbox.sql',
     downFile: '005_outbox_down.sql',
   },
+  {
+    version: 6,
+    description: 'Outbox 去重：event_id 唯一约束',
+    upFile: '006_outbox_dedup.sql',
+    downFile: '006_outbox_dedup_down.sql',
+  },
+  {
+    version: 7,
+    description: '最小权限 DB 角色 backtest_app',
+    upFile: '007_least_privilege.sql',
+    downFile: '007_least_privilege_down.sql',
+  },
+  {
+    version: 8,
+    description: 'CHECK 约束：价格/成交量/汇率合法性',
+    upFile: '008_checks.sql',
+    downFile: '008_checks_down.sql',
+  },
+  {
+    version: 9,
+    description: '多租户：organizations/memberships/api_keys + 租户数据表 + RLS（ADR-032）',
+    upFile: '009_tenancy.sql',
+    downFile: '009_tenancy_down.sql',
+  },
+  {
+    version: 10,
+    description: '自助注册与邀请：users.email + 邮箱验证令牌 + 组织邀请（ADR-035）',
+    upFile: '010_user_email.sql',
+    downFile: '010_user_email_down.sql',
+  },
+  {
+    version: 11,
+    description: 'Stripe 计费：stripe_customers + subscriptions（ADR-036）',
+    upFile: '011_billing.sql',
+    downFile: '011_billing_down.sql',
+  },
+  {
+    version: 12,
+    description: '用量计量与配额：usage_events + usage_counters + RLS（ADR-037）',
+    upFile: '012_usage.sql',
+    downFile: '012_usage_down.sql',
+  },
 ];
 
 /**
@@ -258,12 +361,10 @@ export async function initSchema(): Promise<void> {
     `);
 
     // 读取已应用的版本
-    const { rows } = await client.query(
-      'SELECT version FROM schema_migrations ORDER BY version'
-    );
+    const { rows } = await client.query('SELECT version FROM schema_migrations ORDER BY version');
     const appliedVersions = new Set(rows.map((r: { version: number }) => r.version));
 
-    const pendingMigrations = migrations.filter(m => !appliedVersions.has(m.version));
+    const pendingMigrations = migrations.filter((m) => !appliedVersions.has(m.version));
 
     if (pendingMigrations.length === 0) {
       const currentVersion = appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0;
@@ -271,10 +372,13 @@ export async function initSchema(): Promise<void> {
       return;
     }
 
-    logger.info({
-      currentVersion: appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0,
-      targetVersion: migrations[migrations.length - 1].version,
-    }, '[db] Schema 迁移开始');
+    logger.info(
+      {
+        currentVersion: appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0,
+        targetVersion: migrations[migrations.length - 1].version,
+      },
+      '[db] Schema 迁移开始',
+    );
 
     // 执行未应用的迁移
     for (const m of pendingMigrations) {
@@ -283,10 +387,10 @@ export async function initSchema(): Promise<void> {
       try {
         await client.query('BEGIN');
         await client.query(readMigrationFile(m.upFile));
-        await client.query(
-          'INSERT INTO schema_migrations (version, description) VALUES ($1, $2)',
-          [m.version, m.description]
-        );
+        await client.query('INSERT INTO schema_migrations (version, description) VALUES ($1, $2)', [
+          m.version,
+          m.description,
+        ]);
         await client.query('COMMIT');
       } catch (err) {
         await client.query('ROLLBACK');
@@ -295,11 +399,14 @@ export async function initSchema(): Promise<void> {
       }
     }
 
-    logger.info({
-      fromVersion: appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0,
-      toVersion: migrations[migrations.length - 1].version,
-      durationMs: Date.now() - t0,
-    }, '[db] Schema 迁移完成');
+    logger.info(
+      {
+        fromVersion: appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0,
+        toVersion: migrations[migrations.length - 1].version,
+        durationMs: Date.now() - t0,
+      },
+      '[db] Schema 迁移完成',
+    );
   } finally {
     client.release();
   }
@@ -320,13 +427,13 @@ export async function rollbackSchema(targetVersion: number): Promise<void> {
   try {
     // 获取已应用的迁移（降序排列）
     const { rows } = await client.query(
-      'SELECT version FROM schema_migrations ORDER BY version DESC'
+      'SELECT version FROM schema_migrations ORDER BY version DESC',
     );
     const appliedVersions = rows.map((r: { version: number }) => r.version);
 
     // 回滚高于目标版本的迁移
     const toRollback = migrations.filter(
-      m => appliedVersions.includes(m.version) && m.version > targetVersion
+      (m) => appliedVersions.includes(m.version) && m.version > targetVersion,
     );
 
     if (toRollback.length === 0) {
@@ -341,10 +448,7 @@ export async function rollbackSchema(targetVersion: number): Promise<void> {
       try {
         await client.query('BEGIN');
         await client.query(readMigrationFile(m.downFile));
-        await client.query(
-          'DELETE FROM schema_migrations WHERE version = $1',
-          [m.version]
-        );
+        await client.query('DELETE FROM schema_migrations WHERE version = $1', [m.version]);
         await client.query('COMMIT');
       } catch (err) {
         await client.query('ROLLBACK');

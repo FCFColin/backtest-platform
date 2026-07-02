@@ -28,6 +28,11 @@ export interface OutboxEvent {
   eventType: string;
   /** 事件负载，序列化为 JSONB 存储 */
   payload: Record<string, unknown>;
+  /**
+   * 去重键（ADR-024 / T-11）。提供时，重复写入相同 eventId 将被 ON CONFLICT 吞掉，
+   * 保证写入幂等。建议为每个逻辑事件生成一次 UUID（crypto.randomUUID()）。
+   */
+  eventId?: string;
 }
 
 /**
@@ -48,14 +53,17 @@ export async function writeEventInTransaction(
   client: PoolClient,
   event: OutboxEvent,
 ): Promise<void> {
+  // ADR-024 / T-11: 带去重键写入。event_id 冲突时 DO NOTHING，使重复写入幂等。
   await client.query(
-    `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload, created_at)
-     VALUES ($1, $2, $3, $4, NOW())`,
+    `INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload, event_id, created_at)
+     VALUES ($1, $2, $3, $4, $5, NOW())
+     ON CONFLICT (event_id) WHERE event_id IS NOT NULL DO NOTHING`,
     [
       event.aggregateType,
       event.aggregateId,
       event.eventType,
       JSON.stringify(event.payload),
+      event.eventId ?? null,
     ],
   );
   logger.debug(

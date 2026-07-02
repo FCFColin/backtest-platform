@@ -1,14 +1,10 @@
 /**
  * 数据服务模块
  *
- * 数据源优先级（T-ARCH-1.3）：PostgreSQL → JSON 文件 → Go 数据服务
+ * 数据源：PostgreSQL（唯一运行时源）；缺失数据可走 Go data-fetcher 实时拉取。
  *
- * 企业理由（ADR-007/ADR-008）：PostgreSQL 作为主数据源，JSON 文件作为本地回退，
- * Go 数据服务作为最后手段（仅用于实时数据尚未入库的场景）。
- * - PostgreSQL 提供连接池、ACID 事务、全文搜索，支持多实例水平扩展
- * - JSON 文件零依赖，开发/离线环境仍可运行
- * - Go 数据服务替代 Python 子进程（ADR-008），消除双运行时依赖和子进程开销
- * 权衡：增加 PostgreSQL 运维依赖，但解除水平扩展阻塞。
+ * 企业理由（ADR-007）：PostgreSQL 作为主数据源，支持多实例水平扩展。
+ * JSON 文件仅用于 `npm run import:tickers` 一次性导入，运行时不再读取。
  */
 
 import http from 'http';
@@ -17,9 +13,10 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import CircuitBreaker from 'opossum';
 import { validateTickerFormat } from '../utils/tickerValidation.js';
+import { signFileSync, verifyFileSync } from '../utils/integrity.js';
 import { logger } from '../utils/logger.js';
 import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../utils/metrics.js';
-import { getPool, getReadPool, initSchema } from '../db/index.js';
+import { getReadPool, initSchema } from '../db/index.js';
 import { config } from '../config/index.js';
 import { appRedis } from '../config/redis.js';
 interface TickerSearchResult {
@@ -52,7 +49,9 @@ function readCacheVersion(): number {
       const v = parseInt(fs.readFileSync(CACHE_VERSION_FILE, 'utf-8').trim(), 10);
       return isNaN(v) ? 0 : v;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 0;
 }
 
@@ -74,10 +73,10 @@ currentCacheVersion = readCacheVersion();
  * PostgreSQL 熔断器
  *
  * 企业理由：dbAvailable 布尔标记置 false 后永不自动恢复，
- * DB 短暂抖动后持续走 JSON 回退，需人工重启才能恢复。
+ * DB 短暂抖动后持续失败，需人工重启才能恢复。
  * 熔断器三态模型（Closed→Open→HalfOpen）提供自动恢复能力：
  * - Closed：正常查询，连续 5 次失败后进入 Open
- * - Open：直接走 JSON 回退，不尝试 DB 连接（避免雪崩）
+ * - Open：直接失败，不尝试 DB 连接（避免雪崩）
  * - HalfOpen：10s 后放行 1 次探测查询，成功则恢复 Closed
  * 权衡：熔断器增加复杂度，但自愈能力远优于手动恢复。
  */
@@ -90,17 +89,17 @@ const pgCircuitBreaker = new CircuitBreaker(
   },
   {
     name: 'postgres',
-    timeout: 10000,           // 单次查询超时 10s（与 statement_timeout 对齐）
+    timeout: 10000, // 单次查询超时 10s（与 statement_timeout 对齐）
     errorThresholdPercentage: 50, // 50% 失败率触发熔断
-    resetTimeout: 10000,      // 10s 后进入 HalfOpen 探测
-    rollingCountTimeout: 60000,   // 统计窗口 60s
-    rollingCountBuckets: 6,       // 6 个桶，每桶 10s
+    resetTimeout: 10000, // 10s 后进入 HalfOpen 探测
+    rollingCountTimeout: 60000, // 统计窗口 60s
+    rollingCountBuckets: 6, // 6 个桶，每桶 10s
   },
 );
 
 // 熔断器状态变更日志
 pgCircuitBreaker.on('open', () => {
-  logger.warn('[dataService] PostgreSQL 熔断器 OPEN：后续查询走 JSON 回退');
+  logger.warn('[dataService] PostgreSQL 熔断器 OPEN：后续查询将失败直至恢复');
 });
 pgCircuitBreaker.on('halfOpen', () => {
   logger.info('[dataService] PostgreSQL 熔断器 HALF-OPEN：放行探测查询');
@@ -121,16 +120,14 @@ function isDbAvailable(): boolean {
  * 初始化数据库连接和 schema
  *
  * 企业理由：应用启动时调用，确保 schema 就绪后再接受请求。
- * 如果数据库不可用，标记 dbAvailable=false，后续走 JSON 回退。
- * 权衡：启动时数据库不可用会导致全量回退到 JSON，
- * 但比阻塞启动更可取——用户仍可使用本地数据。
+ * 如果数据库不可用，后续查询将失败直至熔断器恢复。
  */
 export async function initDb(): Promise<void> {
   try {
     await initSchema();
     logger.info('[dataService] initDb: PostgreSQL schema 初始化完成');
   } catch (err) {
-    logger.warn({ err }, '[dataService] initDb: PostgreSQL 不可用，将回退到 JSON 文件');
+    logger.warn({ err }, '[dataService] initDb: PostgreSQL 不可用，行情查询将失败直至数据库恢复');
   }
 }
 
@@ -186,7 +183,9 @@ class Semaphore {
 const goServiceSemaphore = new Semaphore(10);
 
 // 注册信号量指标到 Prometheus（T-P1-1 Saturation）
-registerSemaphoreMetrics('go_data_service', goServiceSemaphore.total(), () => goServiceSemaphore.available());
+registerSemaphoreMetrics('go_data_service', goServiceSemaphore.total(), () =>
+  goServiceSemaphore.available(),
+);
 
 /** 确保缓存目录存在 */
 function ensureCacheDir(): void {
@@ -211,6 +210,15 @@ function readCache(key: string): unknown {
   const filePath = path.join(CACHE_DIR, key);
   if (fs.existsSync(filePath)) {
     try {
+      // Security (T-06 / OWASP A08)：读取前校验 HMAC 完整性。被篡改或签名缺失的缓存
+      // 视为不可信，当作缓存未命中（返回 null 触发重新拉取），避免污染回测结果。
+      if (!verifyFileSync(filePath)) {
+        logger.warn(
+          { service: 'dataService', file: key },
+          '[cache] 完整性校验失败，丢弃缓存并重新获取',
+        );
+        return null;
+      }
       const content = fs.readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(content);
       // 企业理由：缓存版本号不匹配说明数据已被其他进程/实例更新，
@@ -242,6 +250,8 @@ function writeCache(key: string, data: unknown): void {
     __data: data,
   };
   fs.writeFileSync(filePath, JSON.stringify(wrapper), 'utf-8');
+  // Security (T-06)：写入后生成 HMAC 签名，供后续读取校验完整性。未配置密钥时静默跳过。
+  signFileSync(filePath);
 }
 
 /**
@@ -267,7 +277,9 @@ async function callGoDataService(path: string): Promise<string> {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             resolve(body);
           } else {
-            reject(new Error(`Go data service returned HTTP ${res.statusCode}: ${body.slice(0, 200)}`));
+            reject(
+              new Error(`Go data service returned HTTP ${res.statusCode}: ${body.slice(0, 200)}`),
+            );
           }
         });
       });
@@ -286,153 +298,64 @@ async function callGoDataService(path: string): Promise<string> {
   }
 }
 
-// [弃用参考] 原 Python 子进程调用方式（ADR-008 迁移后已替换）
-// async function callPython(args: string[]): Promise<string> {
-//   await pythonSemaphore.acquire();
-//   try {
-//     return await new Promise<string>((resolve, reject) => {
-//       const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-//       const proc = spawn(pythonCmd, [PYTHON_SCRIPT, ...args], {
-//         stdio: ['pipe', 'pipe', 'pipe'],
-//       });
-//       let stdout = '';
-//       let stderr = '';
-//       let killed = false;
-//       const timeout = setTimeout(() => {
-//         killed = true;
-//         proc.kill('SIGKILL');
-//         reject(new Error('Python process timed out after 60 seconds'));
-//       }, 60000);
-//       proc.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
-//       proc.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
-//       proc.on('close', (code: number) => {
-//         clearTimeout(timeout);
-//         if (killed) return;
-//         if (code !== 0) {
-//           reject(new Error(`Python process exited with code ${code}: ${stderr}`));
-//         } else {
-//           resolve(stdout);
-//         }
-//       });
-//       proc.on('error', (err: Error) => { clearTimeout(timeout); reject(err); });
-//     });
-//   } finally {
-//     pythonSemaphore.release();
-//   }
-// }
-
 /**
  * 获取历史行情数据
  *
- * 数据源优先级（T-ARCH-1.3）：PostgreSQL → JSON 文件 → Go 数据服务
+ * 数据源：PostgreSQL；未入库标的可走 Go data-fetcher 实时拉取。
  * 返回格式: { [ticker]: { [date]: closePrice } }
  */
-export async function fetchHistoryData(
-  tickers: string[],
+/** 从 PostgreSQL 查询价格数据，返回已有数据和缺失 ticker 列表 */
+async function queryPricesFromDb(
+  validTickers: string[],
   startDate: string,
   endDate: string,
-): Promise<Record<string, Record<string, number>>> {
-  const fetchStart = Date.now();
+): Promise<{ result: Record<string, Record<string, number>>; missing: string[] }> {
   const result: Record<string, Record<string, number>> = {};
+  const missing: string[] = [];
 
-  // 0. 校验 ticker 格式，过滤非法输入
-  const { valid: validTickers } = validateTickerFormat(tickers);
-  if (validTickers.length === 0) {
-    logger.warn(`[dataService] fetchHistoryData: 全部 ${tickers.length} 个 ticker 非法，返回空结果`);
-    return result;
-  }
-  const missingTickers: string[] = [];
-
-  // ── 优先级 1：PostgreSQL 批量查询（T-ARCH-1.3 主数据源） ──
-  //
-  // 企业理由：PostgreSQL 单次查询可获取多 ticker 数据，
-  // 利用 idx_prices_ticker_date 索引，查询复杂度 O(log N)，
-  // 比 JSON 文件逐个读取快数个量级。参数化查询防止 SQL 注入。
-  if (isDbAvailable()) {
-    try {
-      const { rows } = await pgCircuitBreaker.fire(
-        'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3 ORDER BY date',
-        [validTickers, startDate, endDate],
-      );
-
-      // 按 ticker 分组
-      const grouped: Record<string, Record<string, number>> = {};
-      for (const row of rows) {
-        if (!grouped[row.ticker]) grouped[row.ticker] = {};
-        const dateStr = row.date instanceof Date
-          ? row.date.toISOString().slice(0, 10)
-          : String(row.date);
-        grouped[row.ticker][dateStr] = row.close;
-      }
-
-      // 将有数据的 ticker 放入结果
-      for (const ticker of validTickers) {
-        if (grouped[ticker] && Object.keys(grouped[ticker]).length > 0) {
-          result[ticker] = grouped[ticker];
-        } else {
-          missingTickers.push(ticker);
-        }
-      }
-
-      if (missingTickers.length === 0) {
-        logger.info(`[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), 0 missing, took ${Date.now() - fetchStart}ms`);
-        return result;
-      }
-
-      logger.info(`[dataService] fetchHistoryData: ${validTickers.length} tickers (DB partial), ${missingTickers.length} missing, trying JSON fallback`);
-    } catch (err) {
-      logger.warn({ err }, '[dataService] fetchHistoryData: PostgreSQL 查询失败，回退到 JSON 文件');
-
-      // DB 失败，所有 ticker 都需要走 JSON 回退
-      missingTickers.push(...validTickers);
-    }
-  } else {
-    // DB 不可用，所有 ticker 走 JSON 回退
-    missingTickers.push(...validTickers);
-  }
-
-  // ── 优先级 2：JSON 文件回退（loadFromBatchCache） ──
-  const stillMissing: string[] = [];
-  for (const ticker of missingTickers) {
-    const cached = await loadFromBatchCache(ticker);
-    if (cached) {
-      const filtered = filterByDateRange(cached, startDate, endDate);
-      if (Object.keys(filtered).length > 0) {
-        result[ticker] = filtered;
-        continue;
-      }
-    }
-    stillMissing.push(ticker);
-  }
-
-  // 如果全部命中，直接返回
-  if (stillMissing.length === 0) {
-    logger.info(`[dataService] fetchHistoryData: ${validTickers.length} tickers, 0 missing (JSON fallback hit), took ${Date.now() - fetchStart}ms`);
-    return result;
-  }
-
-  // ── 优先级 3：Go 数据服务（最后手段，仅用于实时数据） ──
-  const cacheKey = getCacheKey('history', {
-    tickers: stillMissing.sort().join(','),
-    start: startDate,
-    end: endDate,
-  });
-
-  const cached = readCache(cacheKey);
-  if (cached) {
-    Object.assign(result, cached);
-    logger.info(`[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing (cache hit), took ${Date.now() - fetchStart}ms`);
-    return result;
+  if (!isDbAvailable()) {
+    return { result, missing: [...validTickers] };
   }
 
   try {
-    // Performance: 解决N+1查询问题
-    // 企业为何需要：N+1查询是性能反模式，循环内数据库查询导致延迟线性增长
-    // 权衡：批量查询可能返回过多数据，但通过WHERE条件限制范围
-    // callGoDataService 仅支持 GET，无法调用 POST 批量接口，
-    // 因此使用 Promise.all 并发替代顺序循环，将延迟从 O(N) 降为 O(1)
-    const goResult: Record<string, Record<string, number>> = {};
+    const { rows } = await pgCircuitBreaker.fire(
+      'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3 ORDER BY date',
+      [validTickers, startDate, endDate],
+    );
 
+    const grouped: Record<string, Record<string, number>> = {};
+    for (const row of rows) {
+      if (!grouped[row.ticker]) grouped[row.ticker] = {};
+      const dateStr =
+        row.date instanceof Date ? row.date.toISOString().slice(0, 10) : String(row.date);
+      grouped[row.ticker][dateStr] = row.close;
+    }
+
+    for (const ticker of validTickers) {
+      if (grouped[ticker] && Object.keys(grouped[ticker]).length > 0) {
+        result[ticker] = grouped[ticker];
+      } else {
+        missing.push(ticker);
+      }
+    }
+  } catch (err) {
+    logger.warn({ err }, '[dataService] fetchHistoryData: PostgreSQL 查询失败');
+    return { result, missing: [...validTickers] };
+  }
+
+  return { result, missing };
+}
+
+/** 通过 Go 数据服务并发拉取缺失 ticker 的价格数据 */
+async function fetchMissingFromGoService(
+  stillMissing: string[],
+  startDate: string,
+  endDate: string,
+  cacheKey: string,
+): Promise<Record<string, Record<string, number>>> {
+  const goResult: Record<string, Record<string, number>> = {};
+
+  try {
     const goPromises = stillMissing.map(async (ticker) => {
       try {
         const response = await callGoDataService(
@@ -449,32 +372,90 @@ export async function fetchHistoryData(
           }
         }
       } catch (tickerErr) {
-        logger.warn(`[dataService] Go data service failed for ${ticker}: ${(tickerErr as Error).message}`);
+        logger.warn(
+          `[dataService] Go data service failed for ${ticker}: ${(tickerErr as Error).message}`,
+        );
       }
       return null;
     });
 
     const goResults = await Promise.all(goPromises);
     for (const r of goResults) {
-      if (r) {
-        goResult[r.ticker] = r.priceMap;
-      }
+      if (r) goResult[r.ticker] = r.priceMap;
     }
 
     if (Object.keys(goResult).length > 0) {
-      Object.assign(result, goResult);
       writeCache(cacheKey, goResult);
-      // 企业理由：数据写入后递增版本号，使其他实例的旧缓存自动失效。
-      // 权衡：每次写入都递增版本号可能导致频繁缓存失效，
-      // 但数据一致性比缓存命中率更重要。
       incrementCacheVersion();
     }
   } catch (err) {
-    // 不使用 mock 数据，让无效 ticker 的数据为空
     logger.warn(`[dataService] Go data service failed: ${(err as Error).message}`);
   }
 
-  logger.info(`[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing, took ${Date.now() - fetchStart}ms`);
+  return goResult;
+}
+
+export async function fetchHistoryData(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, Record<string, number>>> {
+  const fetchStart = Date.now();
+  const result: Record<string, Record<string, number>> = {};
+
+  const { valid: validTickers } = validateTickerFormat(tickers);
+  if (validTickers.length === 0) {
+    logger.warn(
+      `[dataService] fetchHistoryData: 全部 ${tickers.length} 个 ticker 非法，返回空结果`,
+    );
+    return result;
+  }
+
+  const { result: dbResult, missing: missingTickers } = await queryPricesFromDb(
+    validTickers,
+    startDate,
+    endDate,
+  );
+  Object.assign(result, dbResult);
+
+  if (missingTickers.length === 0) {
+    logger.info(
+      `[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), 0 missing, took ${Date.now() - fetchStart}ms`,
+    );
+    return result;
+  }
+
+  const stillMissing = missingTickers.filter(
+    (t) => !result[t] || Object.keys(result[t]).length === 0,
+  );
+  if (stillMissing.length === 0) {
+    logger.info(
+      `[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), took ${Date.now() - fetchStart}ms`,
+    );
+    return result;
+  }
+
+  const cacheKey = getCacheKey('history', {
+    tickers: stillMissing.sort().join(','),
+    start: startDate,
+    end: endDate,
+  });
+
+  const cached = readCache(cacheKey);
+  if (cached) {
+    Object.assign(result, cached);
+    logger.info(
+      `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
+    );
+    return result;
+  }
+
+  const goResult = await fetchMissingFromGoService(stillMissing, startDate, endDate, cacheKey);
+  Object.assign(result, goResult);
+
+  logger.info(
+    `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing, took ${Date.now() - fetchStart}ms`,
+  );
   return result;
 }
 
@@ -491,8 +472,6 @@ export async function fetchHistoryData(
  * 权衡：降级期间多实例缓存不一致，但单实例内仍有效，优于完全无缓存。
  */
 const priceDataCache = new Map<string, { data: Record<string, number>; mtimeMs: number }>();
-const PRICE_CACHE_MAX_SIZE = 500;
-const PRICE_CACHE_TTL_SEC = 3600; // 1 小时 TTL，替代 LRU 淘汰
 const PRICE_CACHE_REDIS_PREFIX = 'price_cache:';
 
 /** Redis 是否可用（检测后缓存结果，避免每次请求都检测） */
@@ -521,54 +500,6 @@ appRedis.on('error', () => {
   priceCacheRedisAvailable = false;
 });
 
-/** 从缓存获取价格数据（Redis 优先，内存降级） */
-async function getPriceCache(ticker: string): Promise<{ data: Record<string, number>; mtimeMs: number } | null> {
-  // 优先从 Redis 获取
-  const redisOk = await isPriceCacheRedisAvailable();
-  if (redisOk) {
-    try {
-      const raw = await appRedis.get(`${PRICE_CACHE_REDIS_PREFIX}${ticker}`);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { data: Record<string, number>; mtimeMs: number };
-        // 同步到内存缓存（加速后续降级场景）
-        priceDataCache.set(ticker, parsed);
-        return parsed;
-      }
-    } catch (err) {
-      logger.warn({ err, ticker }, '[dataService] Redis 价格缓存读取失败，降级到内存缓存');
-      priceCacheRedisAvailable = false;
-    }
-  }
-  // 降级到内存缓存
-  return priceDataCache.get(ticker) || null;
-}
-
-/** 写入价格数据缓存（Redis + 内存双写） */
-async function setPriceCache(ticker: string, value: { data: Record<string, number>; mtimeMs: number }): Promise<void> {
-  // 始终写入内存（作为降级后备）
-  if (priceDataCache.size >= PRICE_CACHE_MAX_SIZE) {
-    const firstKey = priceDataCache.keys().next().value;
-    if (firstKey !== undefined) priceDataCache.delete(firstKey);
-  }
-  priceDataCache.set(ticker, value);
-
-  // 尝试写入 Redis（带 TTL 自动过期）
-  const redisOk = await isPriceCacheRedisAvailable();
-  if (redisOk) {
-    try {
-      await appRedis.set(
-        `${PRICE_CACHE_REDIS_PREFIX}${ticker}`,
-        JSON.stringify(value),
-        'EX',
-        PRICE_CACHE_TTL_SEC,
-      );
-    } catch (err) {
-      logger.warn({ err, ticker }, '[dataService] Redis 价格缓存写入失败，仅使用内存缓存');
-      priceCacheRedisAvailable = false;
-    }
-  }
-}
-
 /** 删除价格数据缓存（Redis + 内存双删） */
 async function deletePriceCache(ticker: string): Promise<void> {
   priceDataCache.delete(ticker);
@@ -592,7 +523,13 @@ async function clearPriceCache(): Promise<void> {
       // 使用 SCAN 安全遍历并删除所有 price_cache:* 键
       let cursor = '0';
       do {
-        const [nextCursor, keys] = await appRedis.scan(cursor, 'MATCH', `${PRICE_CACHE_REDIS_PREFIX}*`, 'COUNT', 100);
+        const [nextCursor, keys] = await appRedis.scan(
+          cursor,
+          'MATCH',
+          `${PRICE_CACHE_REDIS_PREFIX}*`,
+          'COUNT',
+          100,
+        );
         if (keys.length > 0) {
           await appRedis.del(...keys);
         }
@@ -605,168 +542,10 @@ async function clearPriceCache(): Promise<void> {
   }
 }
 
-/** 按日期范围过滤（二分查找优化，利用日期已排序；空字符串视为不限制） */
-function filterByDateRange(
-  data: Record<string, number>,
-  startDate: string,
-  endDate: string,
-): Record<string, number> {
-  const keys = Object.keys(data);
-  if (keys.length === 0) return {};
-
-  // 空字符串视为不限制
-  const noStartLimit = !startDate;
-  const noEndLimit = !endDate;
-  if (noStartLimit && noEndLimit) return data;
-
-  // 如果数据量小，直接遍历更快
-  if (keys.length < 100) {
-    const filtered: Record<string, number> = {};
-    for (const date of keys) {
-      const afterStart = noStartLimit || date >= startDate;
-      const beforeEnd = noEndLimit || date <= endDate;
-      if (afterStart && beforeEnd) {
-        filtered[date] = data[date];
-      }
-    }
-    return filtered;
-  }
-
-  // 二分查找边界
-  let startIdx = 0;
-  if (!noStartLimit) {
-    let lo = 0;
-    let hi = keys.length - 1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (keys[mid] < startDate) lo = mid + 1;
-      else hi = mid - 1;
-    }
-    startIdx = lo;
-  }
-
-  let endIdx = keys.length - 1;
-  if (!noEndLimit) {
-    let lo = 0;
-    let hi = keys.length - 1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      if (keys[mid] <= endDate) lo = mid + 1;
-      else hi = mid - 1;
-    }
-    endIdx = hi;
-  }
-
-  if (startIdx > endIdx) return {};
-
-  const filtered: Record<string, number> = {};
-  for (let i = startIdx; i <= endIdx; i++) {
-    filtered[keys[i]] = data[keys[i]];
-  }
-  return filtered;
-}
-
-/** 从数据库或缓存获取标的数据，缓存未命中或文件已更新时重新读取 */
-async function loadFromBatchCache(ticker: string): Promise<Record<string, number> | null> {
-  // ── 优先级 1：PostgreSQL 查询（T-ARCH-1.3 主数据源） ──
-  //
-  // 企业理由：PostgreSQL 是结构化、可索引、可并发查询的数据源，
-  // 比 JSON 文件扫描快数个量级（索引 O(log N) vs 全文件读取 O(N)）。
-  // 多实例部署时，所有实例共享同一数据库，数据一致性天然保证。
-  // 权衡：首次查询有网络延迟（本地 ~0.1ms），但远优于 Go 数据服务远程调用（~100ms）。
-  if (isDbAvailable()) {
-    try {
-      const { rows } = await pgCircuitBreaker.fire(
-        'SELECT date, close FROM prices WHERE ticker = $1 ORDER BY date',
-        [ticker],
-      );
-      if (rows.length > 0) {
-        const prices: Record<string, number> = {};
-        for (const row of rows) {
-          // date 是 DATE 类型，pg 返回 Date 对象，转为 YYYY-MM-DD
-          const dateStr = row.date instanceof Date
-            ? row.date.toISOString().slice(0, 10)
-            : String(row.date);
-          prices[dateStr] = row.close;
-        }
-        // 写入 Redis + 内存缓存，加速后续请求
-        await setPriceCache(ticker, { data: prices, mtimeMs: Date.now() });
-        return prices;
-      }
-      // DB 查询成功但无数据，不回退到 JSON（DB 是权威数据源）
-      return null;
-    } catch (err) {
-      logger.warn({ err, ticker }, '[dataService] loadFromBatchCache: PostgreSQL 查询失败，回退到 JSON 文件');
-
-    }
-  }
-
-  // ── 优先级 2：JSON 文件回退 ──
-  // 1. 先从新引擎 tickers 目录读取
-  const engineDir = path.resolve(__dirname, '../../data/market/tickers');
-  const engineFile = path.join(engineDir, ticker.replace(/\./g, '_') + '.json');
-
-  // 2. 再从旧 flat 格式读取
-  const batchDir = path.resolve(__dirname, '../../data/market');
-  const fileName = ticker.replace(/\./g, '_') + '.json';
-  const filePath = path.join(batchDir, fileName);
-
-  // 确定要读取的文件路径
-  let targetFile: string | null = null;
-  if (fs.existsSync(engineFile)) {
-    targetFile = engineFile;
-  } else if (fs.existsSync(filePath)) {
-    targetFile = filePath;
-  }
-
-  if (!targetFile) return null;
-
-  // 检查缓存（Redis 优先，内存降级）
-  try {
-    const stat = fs.statSync(targetFile);
-    const cached = await getPriceCache(ticker);
-    if (cached && cached.mtimeMs === stat.mtimeMs) {
-      return cached.data;
-    }
-  } catch { /* ignore */ }
-
-  // 缓存未命中，从磁盘读取
-  try {
-    const raw = JSON.parse(fs.readFileSync(targetFile, 'utf-8'));
-    let prices: Record<string, number> | null = null;
-
-    // 新引擎格式: { meta, adjustment, prices: [{date, close, adj_close, ...}] }
-    if (raw.prices && Array.isArray(raw.prices)) {
-      prices = {};
-      for (const p of raw.prices) {
-        // 使用 close 价格（非 adj_close）。
-        // adj_close 是前复权价格，早期价格被调高，导致收益率被严重压缩。
-        // 日收益率 (close[t]-close[t-1])/close[t-1] 本身已正确反映分红影响
-        // （分红导致 close 跳空下跌，收益率自然包含分红收益）。
-        prices[p.date] = p.close;
-      }
-    }
-    // 旧 flat 格式: { "2024-01-02": 473.5, ... }
-    else if (typeof Object.values(raw)[0] === 'number') {
-      prices = raw;
-    }
-
-    if (prices && Object.keys(prices).length > 0) {
-      try {
-        const stat = fs.statSync(targetFile);
-        await setPriceCache(ticker, { data: prices, mtimeMs: stat.mtimeMs });
-      } catch { /* ignore stat failure */ }
-      return prices;
-    }
-  } catch { /* ignore parse failure */ }
-
-  return null;
-}
-
 /**
  * 验证 ticker 有效性
  *
- * 数据源优先级（T-ARCH-1.3）：PostgreSQL → JSON 文件
+ * 数据源：PostgreSQL tickers 表
  * 仅检查数据源中是否有记录，不做实时获取，保证快速返回
  */
 export async function validateTickers(
@@ -797,22 +576,12 @@ export async function validateTickers(
       }
       return { valid, invalid };
     } catch (err) {
-      logger.warn({ err }, '[dataService] validateTickers: PostgreSQL 查询失败，回退到 JSON 文件');
-
+      logger.warn({ err }, '[dataService] validateTickers: PostgreSQL 查询失败');
+      return { valid: [], invalid: tickers };
     }
   }
 
-  // ── 优先级 2：JSON 文件回退 ──
-  for (const ticker of tickers) {
-    const cached = await loadFromBatchCache(ticker);
-    if (cached && Object.keys(cached).length > 0) {
-      valid.push(ticker);
-    } else {
-      invalid.push(ticker);
-    }
-  }
-
-  return { valid, invalid };
+  return { valid: [], invalid: tickers };
 }
 
 /**
@@ -820,85 +589,81 @@ export async function validateTickers(
  *
  * 数据源优先级（T-ARCH-1.3）：PostgreSQL 全文搜索 → Go 数据服务 → mock
  */
-export async function searchTickers(
-  query: string,
-  market?: string,
-): Promise<TickerSearchResult[]> {
-  // 输入格式校验：防止命令注入
+/** 验证搜索输入，返回 true 表示合法 */
+function validateSearchQuery(query: string, market?: string): boolean {
   if (query.length > 100) {
     logger.warn(`[dataService] searchTickers: query 超过 100 字符限制 (${query.length})`);
-    return [];
+    return false;
   }
   if (!/^[\w\s\-.,\u4e00-\u9fff]+$/.test(query)) {
     logger.warn(`[dataService] searchTickers: query 包含非法字符: ${query.slice(0, 50)}`);
-    return [];
+    return false;
   }
   if (market) {
     if (market.length > 10) {
       logger.warn(`[dataService] searchTickers: market 超过 10 字符限制 (${market.length})`);
-      return [];
+      return false;
     }
     if (!/^[a-zA-Z\u4e00-\u9fff]+$/.test(market)) {
       logger.warn(`[dataService] searchTickers: market 包含非法字符: ${market}`);
-      return [];
+      return false;
     }
   }
+  return true;
+}
 
-  // ── 优先级 1：PostgreSQL 全文搜索（T-ARCH-1.3 主数据源） ──
-  //
-  // 企业理由：PostgreSQL tsvector + GIN 索引提供毫秒级全文搜索，
-  // 比 Go 数据服务远程调用（~100ms）快数个量级。
-  // to_tsquery('simple', ...) 使用 simple 配置支持中文分词。
-  // 参数化查询防止 SQL 注入。
-  // 权衡：simple 配置不做词干提取，但中文场景无需词干提取。
-  if (isDbAvailable()) {
-    try {
-      // 企业理由：搜索是读操作，走只读副本减轻主库压力
-      const pool = getReadPool();
-      // 将用户输入转为 tsquery 格式（空格分隔的词用 & 连接）
-      const tsQueryStr = query
-        .split(/\s+/)
-        .filter(w => w.length > 0)
-        .map(w => w.replace(/'/g, "''"))  // 转义单引号
-        .join(' & ');
+/** PostgreSQL 全文搜索 */
+async function searchTickersFromDb(
+  query: string,
+  market?: string,
+): Promise<TickerSearchResult[] | null> {
+  if (!isDbAvailable()) return null;
+  try {
+    const tsQueryStr = query
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+      .map((w) => w.replace(/'/g, "''"))
+      .join(' & ');
 
-      if (tsQueryStr.length > 0) {
-        let sql = 'SELECT ticker, category, market FROM tickers WHERE search_vector @@ to_tsquery($1, $2)';
-        const params: unknown[] = ['simple', tsQueryStr];
+    if (tsQueryStr.length === 0) return [];
 
-        if (market) {
-          sql += ' AND market = $3';
-          params.push(market);
-        }
-
-        sql += ' LIMIT 20';
-
-        const { rows } = await pgCircuitBreaker.fire(sql, params);
-
-        if (rows.length > 0) {
-          // 映射 category → name（tickers 表中 category 存储名称/分类信息）
-          return rows.map((r: { ticker: string; category: string; market: string }) => ({
-            ticker: r.ticker,
-            name: r.category,
-            market: r.market,
-          }));
-        }
-      }
-      // DB 查询成功但无结果，不回退到 Go 数据服务（DB 是权威数据源）
-      return [];
-    } catch (err) {
-      logger.warn({ err }, '[dataService] searchTickers: PostgreSQL 全文搜索失败，回退到 Go 数据服务');
-
+    let sql =
+      'SELECT ticker, category, market FROM tickers WHERE search_vector @@ to_tsquery($1, $2)';
+    const params: unknown[] = ['simple', tsQueryStr];
+    if (market) {
+      sql += ' AND market = $3';
+      params.push(market);
     }
-  }
+    sql += ' LIMIT 20';
 
-  // ── 优先级 2：磁盘缓存 ──
+    const { rows } = await pgCircuitBreaker.fire(sql, params);
+    if (rows.length > 0) {
+      return rows.map((r: { ticker: string; category: string; market: string }) => ({
+        ticker: r.ticker,
+        name: r.category,
+        market: r.market,
+      }));
+    }
+    return [];
+  } catch (err) {
+    logger.warn(
+      { err },
+      '[dataService] searchTickers: PostgreSQL 全文搜索失败，回退到 Go 数据服务',
+    );
+    return null;
+  }
+}
+
+export async function searchTickers(query: string, market?: string): Promise<TickerSearchResult[]> {
+  if (!validateSearchQuery(query, market)) return [];
+
+  const dbResult = await searchTickersFromDb(query, market);
+  if (dbResult !== null) return dbResult;
+
   const cacheKey = getCacheKey('search', { query, market: market || 'all' });
-
   const cached = readCache(cacheKey);
   if (cached) return cached as TickerSearchResult[];
 
-  // ── 优先级 3：Go 数据服务 ──
   try {
     const response = await callGoDataService(`/api/data/search?q=${encodeURIComponent(query)}`);
     const parsed = JSON.parse(response);
@@ -909,14 +674,12 @@ export async function searchTickers(
         market: r.market,
       }));
       writeCache(cacheKey, data);
-      // 企业理由：搜索结果写入后递增版本号，保证一致性。
       incrementCacheVersion();
       return data;
     }
     return [];
   } catch (err) {
     logger.warn(`Go data service search failed, using mock results: ${(err as Error).message}`);
-    // ── 优先级 4：mock 回退 ──
     return mockSearchResults(query);
   }
 }
@@ -977,7 +740,9 @@ export async function invalidateCache(ticker?: string): Promise<void> {
           fs.unlinkSync(path.join(CACHE_DIR, file));
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     logger.info(`[dataService] invalidateCache: ticker=${ticker}`);
   } else {

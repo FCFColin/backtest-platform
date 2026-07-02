@@ -11,7 +11,6 @@
  */
 
 import dotenv from 'dotenv';
-import { logger } from '../utils/logger.js';
 
 // 加载 .env 文件（若存在），使环境变量在 config 对象构造时可用
 dotenv.config();
@@ -60,6 +59,15 @@ export const config = {
   NODE_ENV: (process.env.NODE_ENV || 'development') as NodeEnv,
 
   /**
+   * 托管前端 dist/ 静态资源（与生产/Docker 一致）。
+   *
+   * 开发环境设 `SERVE_STATIC=true` 时，API 直接服务预构建产物，
+   * 避免 Vite dev 按需编译导致首屏 60s+。`npm run dev` 默认启用。
+   * @default false（显式开启或由 dev 脚本注入）
+   */
+  SERVE_STATIC: process.env.SERVE_STATIC === 'true',
+
+  /**
    * API 服务监听端口。
    *
    * 兼容旧变量 `PORT`（`API_PORT` 优先级更高）。
@@ -68,46 +76,38 @@ export const config = {
   API_PORT: parseInt(process.env.API_PORT || process.env.PORT || '5001', 10),
 
   /**
-   * Go 引擎服务地址（主回测引擎，ADR-008）。
+   * Go 引擎服务地址（唯一回测引擎，ADR-008 / ADR-031）。
    *
-   * 企业理由（ADR-008）：Go 引擎替代 Rust 引擎作为主回测引擎，
-   * 复用同一端口 5002，渐进式迁移确保零停机。
-   * Go 在并发模型（goroutine vs async）、开发效率和生态上优于 Rust，
-   * 同时保持与 Rust 引擎的 API 兼容性。
-   * 不可用时自动回退到 Rust 引擎，最终降级到 Node.js 备用引擎。
-   * @default "http://127.0.0.1:5002"
+   * 企业理由（ADR-008）：Go 引擎是平台唯一的回测/分析/优化/蒙特卡洛引擎，
+   * Go 服务默认监听 5004（见 engine-go/cmd/server/main.go 与 tests/helpers/constants.ts）。
+   * 此前默认值误写为 5002（Rust 引擎端口），导致 Go 引擎调用始终失败并静默降级到 Node，
+   * 现统一为 5004，消除端口矛盾。
+   * Go 在并发模型（goroutine vs async）、开发效率和生态上优于 Rust。
+   * 不可用时按 fail-closed 策略返回 503/重试（ADR-031），不再静默返回 Node 计算结果。
+   * @default "http://127.0.0.1:5004"
    */
-  GO_ENGINE_URL: process.env.GO_ENGINE_URL || 'http://127.0.0.1:5002',
+  GO_ENGINE_URL: process.env.GO_ENGINE_URL || 'http://127.0.0.1:5004',
 
   /**
-   * Rust 引擎服务地址（废弃中，ADR-008）。
+   * Go 引擎调用超时时间（毫秒）。
    *
-   * @deprecated 使用 GO_ENGINE_URL 替代。Rust 引擎保留作为二级回退，
-   * 迁移完成后将移除此配置项。当前仍需保留以确保迁移期间向后兼容。
-   * 不可用时自动降级到 Node.js 备用引擎。
-   * @default "http://127.0.0.1:5002"
-   */
-  RUST_ENGINE_URL: process.env.RUST_ENGINE_URL || 'http://127.0.0.1:5002',
-
-  /**
-   * Rust 引擎调用超时时间（毫秒）。
-   *
-   * 超时后自动降级到 Node.js 引擎。
+   * 企业理由（ADR-031）：超时后熔断器记一次失败；引擎持续不可用时 fail-closed
+   * 返回 503 + Retry-After，不再静默降级到 Node。
+   * 兼容旧变量名 RUST_ENGINE_TIMEOUT_MS（Rust 退役前的历史名）。
    * @default 5000
    */
-  RUST_ENGINE_TIMEOUT_MS: parseInt(
-    process.env.RUST_ENGINE_TIMEOUT_MS || '5000',
+  ENGINE_TIMEOUT_MS: parseInt(
+    process.env.ENGINE_TIMEOUT_MS || process.env.RUST_ENGINE_TIMEOUT_MS || '5000',
     10,
   ),
 
   /**
    * Go 数据服务地址（主数据源）。
    *
-   * 不可用时降级到 Python 子进程或本地 JSON 文件。
+   * 不可用时降级到 PostgreSQL（Go 服务不可用时由 API 直接查库）。
    * @default "http://127.0.0.1:5003"
    */
-  GO_DATA_SERVICE_URL:
-    process.env.GO_DATA_SERVICE_URL || 'http://127.0.0.1:5003',
+  GO_DATA_SERVICE_URL: process.env.GO_DATA_SERVICE_URL || 'http://127.0.0.1:5003',
 
   /**
    * Go 引擎认证 token（X-Engine-Auth 请求头）。
@@ -161,6 +161,13 @@ export const config = {
   REQUIRE_API_KEY: process.env.REQUIRE_API_KEY === 'true',
 
   /**
+   * 开发环境显式跳过 JWT 认证（ADR-026 / T-32）。
+   * 仅当 NODE_ENV=development 且为 true 时，jwtAuth 注入 readonly 占位用户。
+   * 生产环境忽略此开关。
+   */
+  DEV_SKIP_AUTH: process.env.DEV_SKIP_AUTH === 'true',
+
+  /**
    * JWT 签名密钥（T-P1-8）。
    *
    * 企业理由：JWT 提供有状态会话管理（过期、刷新、角色嵌入），
@@ -193,9 +200,9 @@ export const config = {
    * 开发环境默认 HS256（向后兼容），生产环境默认 RS256。
    * @default 'RS256'（生产）/ 'HS256'（开发）
    */
-  JWT_ALGORITHM: (process.env.JWT_ALGORITHM || (
-    (process.env.NODE_ENV || 'development') === 'production' ? 'RS256' : 'HS256'
-  )) as 'RS256' | 'HS256',
+  JWT_ALGORITHM: (process.env.JWT_ALGORITHM ||
+    ((process.env.NODE_ENV || 'development') === 'production' ? 'RS256' : 'HS256')) as
+    'RS256' | 'HS256',
 
   /**
    * RSA 私钥（PEM 格式）。
@@ -246,7 +253,8 @@ export const config = {
    * 开发环境使用本地 PostgreSQL（可通过 docker-compose 启动）。
    * @default "postgresql://backtest:backtest@localhost:5432/backtest"
    */
-  DATABASE_URL: process.env.DATABASE_URL || 'postgresql://backtest:backtest@localhost:5432/backtest',
+  DATABASE_URL:
+    process.env.DATABASE_URL || 'postgresql://backtest:backtest@localhost:5432/backtest',
 
   /**
    * PostgreSQL 只读副本连接 URL（读写分离）。
@@ -271,6 +279,12 @@ export const config = {
   DB_STATEMENT_TIMEOUT_MS: parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '10000', 10),
 
   /**
+   * 同步回测端点超时（T-19），防止超大请求长时间占用连接。
+   * @default 120000 (2 分钟)
+   */
+  BACKTEST_SYNC_TIMEOUT_MS: parseInt(process.env.BACKTEST_SYNC_TIMEOUT_MS || '120000', 10),
+
+  /**
    * Redis 连接 URL（BullMQ 任务队列）。
    *
    * Architecture: Redis连接配置，用于BullMQ任务队列
@@ -289,6 +303,64 @@ export const config = {
    * @default 20
    */
   DB_POOL_MAX: parseInt(process.env.DB_POOL_MAX || '20', 10),
+  /** 连接池最小空闲连接（T-2 性能） */
+  DB_POOL_MIN: parseInt(process.env.DB_POOL_MIN || '2', 10),
+
+  /**
+   * 反向代理跳数（Express trust proxy）。
+   *
+   * 企业理由：部署在 LB/Ingress 之后时须信任 X-Forwarded-For 以正确限流；
+   * 直连暴露时应设为 0，防止伪造 XFF 绕过限流。
+   * @default 1
+   */
+  TRUST_PROXY_HOPS: Number.parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10),
+
+  /**
+   * 计算密集型端点限流上限（次/分钟/IP）。
+   * E2E 测试可通过 COMPUTE_RATE_LIMIT_MAX 放宽。
+   * @default 10
+   */
+  COMPUTE_RATE_LIMIT_MAX: parseInt(process.env.COMPUTE_RATE_LIMIT_MAX || '10', 10),
+
+  /**
+   * 应用对外基础 URL（用于构造邮件中的验证 / 邀请链接，ADR-035）。
+   * @default "http://localhost:5173"
+   */
+  APP_BASE_URL: process.env.APP_BASE_URL || 'http://localhost:5173',
+
+  /**
+   * 邮件发送方式（ADR-035）。
+   * - `smtp`：经 SMTP 真实投递（需配置 EMAIL_SMTP_*）。
+   * - `console`：开发模式，将验证/邀请链接打印到日志，不实际发信（默认）。
+   * @default "console"（开发）/ 生产建议 "smtp"
+   */
+  EMAIL_TRANSPORT: (process.env.EMAIL_TRANSPORT || 'console') as 'smtp' | 'console',
+
+  /** 发件人地址（From 头），如 "Backtest <no-reply@backtest.platform>"。 */
+  EMAIL_FROM: process.env.EMAIL_FROM || 'Backtest Platform <no-reply@backtest.local>',
+
+  /** SMTP 主机（EMAIL_TRANSPORT=smtp 时必需）。 */
+  EMAIL_SMTP_HOST: process.env.EMAIL_SMTP_HOST || '',
+  /** SMTP 端口。@default 587 */
+  EMAIL_SMTP_PORT: parseInt(process.env.EMAIL_SMTP_PORT || '587', 10),
+  /** SMTP 是否使用 TLS（465 端口通常为 true）。@default false */
+  EMAIL_SMTP_SECURE: process.env.EMAIL_SMTP_SECURE === 'true',
+  /** SMTP 用户名（可空，取决于服务商）。 */
+  EMAIL_SMTP_USER: process.env.EMAIL_SMTP_USER || '',
+  /** SMTP 密码（可空）。 */
+  EMAIL_SMTP_PASS: process.env.EMAIL_SMTP_PASS || '',
+
+  /**
+   * Stripe 密钥与价格配置（ADR-036，Phase 6 计费）。
+   * 未配置时计费端点返回 503（计费未启用），不影响其余功能。
+   */
+  STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
+  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
+  STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || '',
+  /** Pro 方案的 Stripe Price ID（price_xxx）。 */
+  STRIPE_PRICE_PRO: process.env.STRIPE_PRICE_PRO || '',
+  /** Enterprise 方案的 Stripe Price ID。 */
+  STRIPE_PRICE_ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE || '',
 };
 
 /**
@@ -313,20 +385,15 @@ export const DEGRADED_WARNING = {
  *
  * @throws {Error} 当必需配置缺失时抛出，错误信息包含全部校验失败项
  */
-export function validateConfig(): void {
+/** 收集 JWT 相关配置校验错误 */
+function validateJwtConfig(): string[] {
   const errors: string[] = [];
-
-  if (config.NODE_ENV === 'production' && !config.ADMIN_API_KEY) {
-    errors.push('ADMIN_API_KEY 在生产环境必需，请通过环境变量设置');
-  }
-
-  // JWT_SECRET 生产环境校验（T-P1-8）
-  if (config.NODE_ENV === 'production' && config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production') {
+  if (config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production') {
     errors.push('JWT_SECRET 在生产环境必须修改默认值，请通过环境变量设置');
+  } else if (config.JWT_ALGORITHM === 'HS256' && config.JWT_SECRET.length < 32) {
+    errors.push('JWT_SECRET 在生产环境（HS256）长度必须 >= 32 字符以保证足够熵');
   }
-
-  // RS256 生产环境密钥校验
-  if (config.NODE_ENV === 'production' && config.JWT_ALGORITHM === 'RS256') {
+  if (config.JWT_ALGORITHM === 'RS256') {
     if (!config.JWT_PRIVATE_KEY && !config.JWT_PRIVATE_KEY_FILE) {
       errors.push('RS256 模式下 JWT_PRIVATE_KEY 或 JWT_PRIVATE_KEY_FILE 在生产环境必需');
     }
@@ -334,28 +401,94 @@ export function validateConfig(): void {
       errors.push('RS256 模式下 JWT_PUBLIC_KEY 或 JWT_PUBLIC_KEY_FILE 在生产环境必需');
     }
   }
+  return errors;
+}
 
-  // DATABASE_URL 生产环境校验（ADR-007）
-  if (config.NODE_ENV === 'production' && !process.env.DATABASE_URL) {
+/** 收集服务间认证 token 校验错误 */
+function validateServiceTokens(): string[] {
+  const errors: string[] = [];
+  if (!config.ENGINE_AUTH_TOKEN || config.ENGINE_AUTH_TOKEN === 'dev-engine-auth-token') {
+    errors.push('ENGINE_AUTH_TOKEN 在生产环境必须设置为非默认的强随机值（>= 32 字符）');
+  }
+  if (
+    !config.DATA_SERVICE_AUTH_TOKEN ||
+    config.DATA_SERVICE_AUTH_TOKEN === 'dev-data-service-auth-token'
+  ) {
+    errors.push('DATA_SERVICE_AUTH_TOKEN 在生产环境必须设置为非默认的强随机值（>= 32 字符）');
+  }
+  return errors;
+}
+
+/** 收集生产环境特有的配置校验错误 */
+function collectProductionErrors(): string[] {
+  if (config.NODE_ENV !== 'production') return [];
+  const errors: string[] = [];
+
+  if (!config.ADMIN_API_KEY) {
+    errors.push('ADMIN_API_KEY 在生产环境必需，请通过环境变量设置');
+  }
+
+  errors.push(...validateJwtConfig());
+
+  // DATABASE_URL 校验（ADR-007）
+  if (!process.env.DATABASE_URL) {
     errors.push('DATABASE_URL 在生产环境必须通过环境变量设置，禁止使用默认值');
   }
 
-  // 服务间认证 token 生产环境校验
-  // 企业理由：dev 默认 token 公开可见（源码/文档），生产环境使用默认值等于无认证。
-  if (config.NODE_ENV === 'production') {
-    if (!config.ENGINE_AUTH_TOKEN || config.ENGINE_AUTH_TOKEN === 'dev-engine-auth-token') {
-      errors.push('ENGINE_AUTH_TOKEN 在生产环境必须设置为非默认的强随机值（>= 32 字符）');
+  errors.push(...validateServiceTokens());
+
+  // 强制认证访问计算端点
+  if (!config.REQUIRE_API_KEY) {
+    errors.push('REQUIRE_API_KEY 在生产环境必须为 true，否则计算端点可被匿名调用引发 DoS');
+  }
+
+  // 禁止 CORS 通配
+  if (config.CORS_ORIGINS === true) {
+    errors.push('CORS_ORIGINS 在生产环境必须配置来源白名单，禁止使用通配（允许所有来源）');
+  }
+
+  // 审计/完整性 HMAC 密钥
+  const hmacKey = process.env.AUDIT_HMAC_KEY || '';
+  if (hmacKey.length < 32) {
+    errors.push('AUDIT_HMAC_KEY 在生产环境必需且长度 >= 32（用于审计日志与缓存完整性校验）');
+  }
+
+  // 反向代理跳数
+  if (process.env.TRUST_PROXY_HOPS === undefined) {
+    errors.push(
+      'TRUST_PROXY_HOPS 在生产环境必须显式设置（反向代理跳数）；API 可被客户端直连时请设为 0',
+    );
+  }
+
+  return errors;
+}
+
+export function validateConfig(): void {
+  const errors: string[] = collectProductionErrors();
+
+  // Security: 非生产环境（development/test）时若使用了 dev 默认密钥，输出警告
+  if (config.NODE_ENV !== 'production') {
+    if (config.ENGINE_AUTH_TOKEN === 'dev-engine-auth-token') {
+      console.warn('[config] 安全警告：ENGINE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用');
     }
-    if (!config.DATA_SERVICE_AUTH_TOKEN || config.DATA_SERVICE_AUTH_TOKEN === 'dev-data-service-auth-token') {
-      errors.push('DATA_SERVICE_AUTH_TOKEN 在生产环境必须设置为非默认的强随机值（>= 32 字符）');
+    if (config.DATA_SERVICE_AUTH_TOKEN === 'dev-data-service-auth-token') {
+      console.warn('[config] 安全警告：DATA_SERVICE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用');
+    }
+    if (config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production') {
+      console.warn('[config] 安全警告：JWT_SECRET 使用开发默认值，请勿在生产环境使用');
+    }
+    if (config.CORS_ORIGINS === true) {
+      console.warn('[config] 安全警告：CORS_ORIGINS 允许所有来源，生产环境应配置来源白名单');
     }
   }
 
-  // Security: 生产环境强制要求API Key访问计算端点
-  // 企业为何需要：optionalApiKey允许匿名调用计算资源，可被利用进行DoS攻击
-  // 权衡：开发环境保持optionalApiKey便利性，生产环境强制认证
-  if (config.NODE_ENV === 'production' && !config.REQUIRE_API_KEY) {
-    logger.warn('SECURITY: REQUIRE_API_KEY should be true in production. Compute endpoints are accessible without API Key.');
+  if (Number.isNaN(config.TRUST_PROXY_HOPS) || config.TRUST_PROXY_HOPS < 0) {
+    errors.push('TRUST_PROXY_HOPS 必须为非负整数');
+  }
+
+  // 邮件配置校验（ADR-035）：选择 SMTP 投递时必须提供主机，否则注册/邀请邮件静默丢失。
+  if (config.EMAIL_TRANSPORT === 'smtp' && !config.EMAIL_SMTP_HOST) {
+    errors.push('EMAIL_TRANSPORT=smtp 时必须设置 EMAIL_SMTP_HOST');
   }
 
   if (errors.length > 0) {

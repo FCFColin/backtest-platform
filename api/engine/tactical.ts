@@ -18,9 +18,18 @@ import type {
   TechnicalIndicator,
   WhatIfResult,
 } from '../../shared/types/tactical.js';
-import type { Portfolio, RebalanceFrequency, PortfolioResult, Statistics } from '../../shared/types/index.js';
-import { calcSMA, calcEMA, calcRSI, calcMACD, calcBollingerPctB, calcMomentum } from '../services/indicatorService.js';
+import type { RebalanceFrequency, PortfolioResult, Statistics } from '../../shared/types/index.js';
+import { createEmptyStatistics } from '../../shared/types/index.js';
+import {
+  calcSMA,
+  calcEMA,
+  calcRSI,
+  calcMACD,
+  calcBollingerPctB,
+  calcMomentum,
+} from '../services/indicatorService.js';
 import { shouldRebalance } from './rebalance.js';
+import { calcMaxDrawdown as calcMaxDrawdownStats, calcCalmar } from './statistics.js';
 import { TRADING_DAYS_PER_YEAR } from '../../shared/constants.js';
 
 // ===== 类型定义 =====
@@ -36,7 +45,11 @@ export interface BacktestRequest {
 export interface BacktestResponseData {
   portfolio: PortfolioResult;
   benchmark: PortfolioResult;
-  signalHistory: Array<{ date: string; activeSignals: string[]; weights: Array<{ ticker: string; weight: number }> }>;
+  signalHistory: Array<{
+    date: string;
+    activeSignals: string[];
+    weights: Array<{ ticker: string; weight: number }>;
+  }>;
 }
 
 export interface WhatIfRequest {
@@ -148,6 +161,50 @@ export function normalizeWeights(
  * - rank: 按累计权重排名取 TopN
  * - voting: 取第一个激活信号的目标权重
  */
+/** weighted_average 聚合 */
+function aggregateWeightedAverage(
+  activeSignals: TacticalStrategy['signals'],
+  allTickers: string[],
+): Array<{ ticker: string; weight: number }> {
+  const acc = new Map<string, number>();
+  for (const t of allTickers) acc.set(t, 0);
+  for (const sig of activeSignals) {
+    const norm = normalizeWeights(sig.targetWeights, allTickers);
+    for (const w of norm) acc.set(w.ticker, (acc.get(w.ticker) as number) + w.weight);
+  }
+  let total = 0;
+  for (const v of acc.values()) total += v;
+  return total > 0
+    ? allTickers.map((t) => ({ ticker: t, weight: (acc.get(t) as number) / total }))
+    : allTickers.map((t) => ({ ticker: t, weight: 1 / allTickers.length }));
+}
+
+/** rank 聚合 */
+function aggregateRank(
+  activeSignals: TacticalStrategy['signals'],
+  allTickers: string[],
+  rankingConfig: TacticalStrategy['rankingConfig'],
+): Array<{ ticker: string; weight: number }> {
+  const topN = Math.max(1, rankingConfig?.topN ?? 3);
+  const method = rankingConfig?.method ?? 'fixed_share';
+  const score = new Map<string, number>();
+  for (const t of allTickers) score.set(t, 0);
+  for (const sig of activeSignals) {
+    const norm = normalizeWeights(sig.targetWeights, allTickers);
+    for (const w of norm) score.set(w.ticker, (score.get(w.ticker) as number) + w.weight);
+  }
+  const ranked = allTickers
+    .map((t) => ({ ticker: t, score: score.get(t) as number }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN);
+  if (method === 'risk_parity') {
+    const inv = ranked.map((r) => (r.score > 0 ? 1 / r.score : 1));
+    const sumInv = inv.reduce((s, v) => s + v, 0);
+    return ranked.map((r, i) => ({ ticker: r.ticker, weight: inv[i] / sumInv }));
+  }
+  return ranked.map((r) => ({ ticker: r.ticker, weight: 1 / ranked.length }));
+}
+
 export function aggregateSignals(
   strategy: TacticalStrategy,
   activeFlags: Map<string, boolean[]>,
@@ -160,48 +217,65 @@ export function aggregateSignals(
     return allTickers.map((t) => ({ ticker: t, weight: 1 / allTickers.length }));
   }
 
-  switch (strategy.aggregationMethod) {
-    case 'weighted_average': {
-      const acc = new Map<string, number>();
-      for (const t of allTickers) acc.set(t, 0);
-      for (const sig of activeSignals) {
-        const norm = normalizeWeights(sig.targetWeights, allTickers);
-        for (const w of norm) acc.set(w.ticker, (acc.get(w.ticker) as number) + w.weight);
-      }
-      let total = 0;
-      for (const v of acc.values()) total += v;
-      return total > 0
-        ? allTickers.map((t) => ({ ticker: t, weight: (acc.get(t) as number) / total }))
-        : allTickers.map((t) => ({ ticker: t, weight: 1 / allTickers.length }));
-    }
-    case 'rank': {
-      const topN = Math.max(1, strategy.rankingConfig?.topN ?? 3);
-      const method = strategy.rankingConfig?.method ?? 'fixed_share';
-      const score = new Map<string, number>();
-      for (const t of allTickers) score.set(t, 0);
-      for (const sig of activeSignals) {
-        const norm = normalizeWeights(sig.targetWeights, allTickers);
-        for (const w of norm) score.set(w.ticker, (score.get(w.ticker) as number) + w.weight);
-      }
-      const ranked = allTickers
-        .map((t) => ({ ticker: t, score: score.get(t) as number }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, topN);
-      if (method === 'risk_parity') {
-        const inv = ranked.map((r) => (r.score > 0 ? 1 / r.score : 1));
-        const sumInv = inv.reduce((s, v) => s + v, 0);
-        return ranked.map((r, i) => ({ ticker: r.ticker, weight: inv[i] / sumInv }));
-      }
-      return ranked.map((r) => ({ ticker: r.ticker, weight: 1 / ranked.length }));
-    }
-    case 'voting':
-    default: {
-      return normalizeWeights(activeSignals[0].targetWeights, allTickers);
-    }
+  if (strategy.aggregationMethod === 'weighted_average') {
+    return aggregateWeightedAverage(activeSignals, allTickers);
   }
+  if (strategy.aggregationMethod === 'rank') {
+    return aggregateRank(activeSignals, allTickers, strategy.rankingConfig);
+  }
+  // voting 或 default
+  return normalizeWeights(activeSignals[0].targetWeights, allTickers);
 }
 
 // ===== 战术回测（动态权重） =====
+
+/** 计算所有信号的激活标志 */
+function computeActiveFlags(
+  strategy: TacticalStrategy,
+  priceData: Record<string, Record<string, number>>,
+  dates: string[],
+  allTickers: string[],
+): Map<string, boolean[]> {
+  const activeFlags = new Map<string, boolean[]>();
+  for (const signal of strategy.signals) {
+    const signalTicker =
+      [...signal.targetWeights].sort((a, b) => b.weight - a.weight)[0]?.ticker || allTickers[0];
+    const priceMap = priceData[signalTicker] || {};
+    let lastValid = 0;
+    const filledPrices: number[] = dates.map((d) => {
+      const p = priceMap[d];
+      if (p != null) lastValid = p;
+      return lastValid;
+    });
+    const conditionFlags: boolean[][] = signal.conditions.map((cond) => {
+      const values = computeIndicatorValue(cond.indicator, filledPrices, cond.period);
+      return evaluateCondition(cond, values);
+    });
+    const combined: boolean[] = dates.map((_, i) => conditionFlags.every((f) => f[i] === true));
+    activeFlags.set(signal.id, combined);
+  }
+  return activeFlags;
+}
+
+/** 更新单日持仓价值 */
+function updateHoldingsValue(
+  holdings: Record<string, number>,
+  allTickers: string[],
+  priceData: Record<string, Record<string, number>>,
+  date: string,
+  prevDate: string | null,
+): number {
+  let total = 0;
+  for (const ticker of allTickers) {
+    const priceToday = priceData[ticker]?.[date];
+    const pricePrev = prevDate ? priceData[ticker]?.[prevDate] : null;
+    if (priceToday != null && pricePrev != null && pricePrev > 0) {
+      holdings[ticker] = (holdings[ticker] || 0) * (priceToday / pricePrev);
+    }
+    total += holdings[ticker] || 0;
+  }
+  return total;
+}
 
 export function runTacticalBacktest(
   strategy: TacticalStrategy,
@@ -211,29 +285,8 @@ export function runTacticalBacktest(
   rebalanceFrequency: RebalanceFrequency,
 ): { result: PortfolioResult; signalHistory: BacktestResponseData['signalHistory'] } {
   const allTickers = collectTickers(strategy);
+  const activeFlags = computeActiveFlags(strategy, priceData, dates, allTickers);
 
-  // 1. 计算每个信号的条件评估结果（信号标的 = 权重最大的 ticker）
-  const activeFlags = new Map<string, boolean[]>();
-  for (const signal of strategy.signals) {
-    const signalTicker = [...signal.targetWeights].sort((a, b) => b.weight - a.weight)[0]?.ticker || allTickers[0];
-    const priceMap = priceData[signalTicker] || {};
-    // 用前值填充缺失价格，保持长度对齐
-    let lastValid = 0;
-    const filledPrices: number[] = dates.map((d) => {
-      const p = priceMap[d];
-      if (p != null) lastValid = p;
-      return lastValid;
-    });
-    // 信号激活 = 所有条件均满足（AND）
-    const conditionFlags: boolean[][] = signal.conditions.map((cond) => {
-      const values = computeIndicatorValue(cond.indicator, filledPrices, cond.period);
-      return evaluateCondition(cond, values);
-    });
-    const combined: boolean[] = dates.map((_, i) => conditionFlags.every((f) => f[i] === true));
-    activeFlags.set(signal.id, combined);
-  }
-
-  // 2. 逐日模拟组合净值
   const growthCurve: Array<{ date: string; value: number }> = [];
   const signalHistory: BacktestResponseData['signalHistory'] = [];
   let portfolioValue = startingValue;
@@ -250,16 +303,7 @@ export function runTacticalBacktest(
     const date = dates[i];
 
     if (initialized) {
-      let total = 0;
-      for (const ticker of allTickers) {
-        const priceToday = priceData[ticker]?.[date];
-        const pricePrev = prevDate ? priceData[ticker]?.[prevDate] : null;
-        if (priceToday != null && pricePrev != null && pricePrev > 0) {
-          holdings[ticker] = (holdings[ticker] || 0) * (priceToday / pricePrev);
-        }
-        total += holdings[ticker] || 0;
-      }
-      portfolioValue = total;
+      portfolioValue = updateHoldingsValue(holdings, allTickers, priceData, date, prevDate);
     }
 
     if (portfolioValue <= 0) {
@@ -272,7 +316,10 @@ export function runTacticalBacktest(
     }
 
     // 再平衡：切换到信号聚合后的目标权重
-    if (!initialized || shouldRebalance({ frequency: rebalanceFrequency, currentDate: date, prevDate })) {
+    if (
+      !initialized ||
+      shouldRebalance({ frequency: rebalanceFrequency, currentDate: date, prevDate })
+    ) {
       currentWeights = aggregateSignals(strategy, activeFlags, i, allTickers);
       for (const w of currentWeights) holdings[w.ticker] = portfolioValue * w.weight;
 
@@ -306,31 +353,12 @@ export function runTacticalBacktest(
   return { result, signalHistory };
 }
 
-export function computeSimpleStatistics(
-  growthCurve: Array<{ date: string; value: number }>,
-  startingValue: number,
-): Statistics {
-  const empty: Statistics = {
-    cagr: 0, mwrr: 0, stdev: 0, sharpe: 0, sortino: 0,
-    maxDrawdown: 0, maxDrawdownDuration: 0,
-    bestYear: 0, worstYear: 0, avgYear: 0, totalReturn: 0,
-    maxMonthlyReturn: 0, minMonthlyReturn: 0,
-    avgDrawdown: 0, ulcerIndex: 0,
-    calmar: 0, ulcerPerformanceIndex: 0,
-    beta: 0, alpha: 0, rSquared: 0,
-    trackingError: 0, informationRatio: 0,
-    upsideCapture: 0, downsideCapture: 0,
-    var5: 0, cvar5: 0, skewness: 0, excessKurtosis: 0,
-    pctPositiveDays: 0, maxDailyReturn: 0, minDailyReturn: 0,
-  };
-  if (growthCurve.length < 2) return empty;
-
-  const values = growthCurve.map((g) => g.value);
-  const finalValue = values[values.length - 1];
-  const years = values.length / TRADING_DAYS_PER_YEAR;
-  const cagr = finalValue > 0 && years > 0 ? Math.pow(finalValue / startingValue, 1 / years) - 1 : -1;
-  const totalReturn = startingValue > 0 ? finalValue / startingValue - 1 : 0;
-
+/** 从增长曲线计算日收益率和基本统计 */
+function calcDailyReturnStats(values: number[]): {
+  dailyReturns: number[];
+  mean: number;
+  stdev: number;
+} {
   const dailyReturns: number[] = [];
   for (let i = 1; i < values.length; i++) {
     if (values[i - 1] > 0) dailyReturns.push((values[i] - values[i - 1]) / values[i - 1]);
@@ -339,15 +367,29 @@ export function computeSimpleStatistics(
   const mean = n > 0 ? dailyReturns.reduce((s, v) => s + v, 0) / n : 0;
   const variance = n > 1 ? dailyReturns.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1) : 0;
   const stdev = Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+  return { dailyReturns, mean, stdev };
+}
+
+export function computeSimpleStatistics(
+  growthCurve: Array<{ date: string; value: number }>,
+  startingValue: number,
+): Statistics {
+  const empty: Statistics = createEmptyStatistics();
+  if (growthCurve.length < 2) return empty;
+
+  const values = growthCurve.map((g) => g.value);
+  const finalValue = values[values.length - 1];
+  const years = values.length / TRADING_DAYS_PER_YEAR;
+  const cagr =
+    finalValue > 0 && years > 0 ? Math.pow(finalValue / startingValue, 1 / years) - 1 : -1;
+  const totalReturn = startingValue > 0 ? finalValue / startingValue - 1 : 0;
+
+  const { dailyReturns, stdev } = calcDailyReturnStats(values);
+  const n = dailyReturns.length;
   const sharpe = stdev > 0 ? cagr / stdev : 0;
 
-  let peak = values[0];
-  let maxDrawdown = 0;
-  for (const v of values) {
-    if (v > peak) peak = v;
-    if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - v) / peak);
-  }
-  const calmar = maxDrawdown > 0 ? cagr / maxDrawdown : 0;
+  const maxDrawdown = calcMaxDrawdownStats(values).maxDrawdown;
+  const calmar = calcCalmar(cagr, maxDrawdown);
   const pctPositiveDays = n > 0 ? dailyReturns.filter((r) => r > 0).length / n : 0;
 
   return {

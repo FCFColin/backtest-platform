@@ -3,18 +3,16 @@
 // 分层后路由只负责 HTTP 适配，回测执行（引擎调用 + 事件发布）集中到服务层。
 // 权衡：增加一层间接调用，但分层后各层职责清晰，引擎调用与事件发布可独立测试。
 
-import { runPortfolioBacktest, type PriceData } from '../engine/portfolio.js';
-import { callRustWithFallback, unwrapFallbackResult } from '../utils/rustFallback.js';
-import { buildRustPortfolioBody, buildRustParams } from '../utils/rustBodyBuilder.js';
+import { randomUUID } from 'crypto';
+import { type PriceData } from '../engine/portfolio.js';
+import { callEngineStrict } from '../utils/engineClient.js';
+import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { eventDispatcher } from '../domain/events/index.js';
 import { getClient } from '../db/index.js';
 import { writeEventInTransaction } from '../services/outboxWriter.js';
 import { logger } from '../utils/logger.js';
-import type {
-  Portfolio,
-  BacktestParameters,
-  BacktestResult,
-} from '../../shared/types.js';
+import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
+import type { Portfolio, BacktestParameters, BacktestResult } from '../../shared/types.js';
 
 /** 回测执行入参 */
 export interface BacktestExecutionParams {
@@ -42,62 +40,121 @@ export class BacktestApplicationService {
   /**
    * 运行组合回测
    *
-   * 1. 构造 Rust 引擎请求体（过滤无关价格数据，减少序列化开销）
-   * 2. 通过 callRustWithFallback 调用引擎（Go → Rust → Node.js 降级链）
-   * 3. 解包降级响应，提取实际结果与降级标记
-   * 4. 发布 BacktestCompleted 领域事件（触发审计、通知等副作用）
+   * 1. 构造引擎请求体（过滤无关价格数据，减少序列化开销）
+   * 2. 通过 callEngineStrict 调用引擎（Go → Rust 迁移期；均不可用时 fail-closed 抛错）
+   * 3. 发布 BacktestCompleted 领域事件（触发审计、通知等副作用）
    *
    * @param params - 回测执行参数（组合、参数、价格数据、宏观数据）
-   * @returns 回测结果与降级标记
+   * @returns 回测结果（成功路径恒为引擎计算结果，degraded 恒为 false）
+   * @throws {EngineUnavailableError} 当 Go 与 Rust 引擎均不可用时（ADR-031 fail-closed）
    */
-  async runBacktest(params: BacktestExecutionParams): Promise<BacktestExecutionResult> {
-    const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
-
-    logger.info(
-      { portfolioCount: portfolios.length, startDate: parameters.startDate, endDate: parameters.endDate },
-      'Starting backtest',
-    );
-
-    // 收集所有 ticker（含 benchmark），用于过滤发送到 Rust 引擎的价格数据
+  /** 收集所有 ticker 并过滤价格数据 */
+  private collectTickersAndFilterPrices(
+    portfolios: Portfolio[],
+    benchmarkTicker: string,
+    priceData: Record<string, Record<string, number>>,
+  ): Record<string, Record<string, number>> {
     const allTickers = new Set<string>();
     for (const portfolio of portfolios) {
       for (const asset of portfolio.assets) {
         allTickers.add(asset.ticker);
       }
     }
-    if (parameters.benchmarkTicker) {
-      allTickers.add(parameters.benchmarkTicker);
+    if (benchmarkTicker) {
+      allTickers.add(benchmarkTicker);
     }
 
-    // 过滤价格数据，只保留需要的 ticker（减少 Rust 引擎序列化与传输开销）
     const filteredPriceData: Record<string, Record<string, number>> = {};
     for (const ticker of allTickers) {
       if (priceData[ticker]) {
         filteredPriceData[ticker] = priceData[ticker];
       }
     }
+    return filteredPriceData;
+  }
 
-    // 构造 Rust 引擎请求体
-    const rustBody = {
-      portfolios: portfolios.map(p => buildRustPortfolioBody(p)),
+  /** 异步发布 BacktestCompleted 领域事件（Outbox + EventDispatcher） */
+  private publishBacktestEvent(
+    aggregateId: string,
+    eventId: string,
+    eventPayload: Record<string, unknown>,
+  ): void {
+    void (async () => {
+      try {
+        const client = await getClient();
+        try {
+          await client.query('BEGIN');
+          await writeEventInTransaction(client, {
+            aggregateType: 'BacktestSession',
+            aggregateId,
+            eventType: 'BacktestCompleted',
+            payload: { ...eventPayload, occurredAt: new Date().toISOString() },
+            eventId,
+          });
+          await client.query('COMMIT');
+          await client.query('NOTIFY outbox_channel');
+        } catch (err) {
+          await client.query('ROLLBACK');
+          logger.error(
+            { err, aggregateId },
+            'Failed to write BacktestCompleted event to outbox (transactional)',
+          );
+        } finally {
+          client.release();
+        }
+      } catch (err) {
+        logger.error(
+          { err, aggregateId },
+          'Failed to acquire client for transactional outbox write',
+        );
+      }
+
+      try {
+        await eventDispatcher.dispatch({
+          eventType: 'BacktestCompleted',
+          aggregateType: 'BacktestSession',
+          aggregateId,
+          payload: eventPayload,
+          occurredAt: new Date(),
+        });
+      } catch (err) {
+        logger.error({ err, aggregateId }, 'BacktestCompleted event dispatch failed');
+      }
+    })();
+  }
+
+  async runBacktest(params: BacktestExecutionParams): Promise<BacktestExecutionResult> {
+    const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
+
+    logger.info(
+      {
+        portfolioCount: portfolios.length,
+        startDate: parameters.startDate,
+        endDate: parameters.endDate,
+      },
+      'Starting backtest',
+    );
+
+    const filteredPriceData = this.collectTickersAndFilterPrices(
+      portfolios,
+      parameters.benchmarkTicker,
+      priceData,
+    );
+
+    const engineBody = {
+      portfolios: portfolios.map((p) => buildEnginePortfolioBody(p)),
       priceData: filteredPriceData,
-      params: buildRustParams(parameters),
+      params: buildEngineParams(parameters),
       cpiData,
       exchangeRates,
     };
 
-    // 调用引擎：Go/Rust 优先，失败时降级到 Node.js（runPortfolioBacktest）
-    const rawResult = await callRustWithFallback(
-      '/api/engine/backtest',
-      rustBody,
-      () => runPortfolioBacktest(portfolios, priceData, parameters, cpiData, exchangeRates),
-    );
-    const { data: result, degraded } = unwrapFallbackResult(rawResult);
+    const result = await callEngineStrict<BacktestResult>('/api/engine/backtest', engineBody);
+    const degraded = false;
 
-    // 发布 BacktestCompleted 领域事件（ADR-013）
-    // 事件包含关键指标摘要，供审计处理器与 OutboxPublisher 消费
     const firstStats = result.portfolios[0]?.statistics;
     const aggregateId = `backtest-${Date.now()}`;
+    const eventId = randomUUID();
     const eventPayload = {
       startingValue: parameters.startingValue,
       portfolioCount: portfolios.length,
@@ -107,50 +164,13 @@ export class BacktestApplicationService {
       degraded,
     };
 
-    // Task 11.3：事务性 outbox 写入
-    // 企业为何需要：原实现通过 eventDispatcher → BacktestCompletedHandler 写 outbox，
-    // 该路径不在事务内，回测结果若未来落库则可能与事件不一致。
-    // 此处将 outbox 写入包裹在事务中，保证事件记录的原子性。
-    // 权衡：回测计算本身是内存操作（非 DB 写），当前事务仅包含 outbox 写入；
-    // 若未来回测结果落库，该写入应放入同一事务，实现真正的业务-事件双写一致。
-    // outbox 写入失败不阻塞回测主流程（仅记录错误），因为回测结果已计算完成。
-    try {
-      const client = await getClient();
-      try {
-        await client.query('BEGIN');
-        await writeEventInTransaction(client, {
-          aggregateType: 'BacktestSession',
-          aggregateId,
-          eventType: 'BacktestCompleted',
-          payload: { ...eventPayload, occurredAt: new Date().toISOString() },
-        });
-        await client.query('COMMIT');
-        // COMMIT 后发送 NOTIFY，唤醒 OutboxPublisher 处理新事件
-        // （事务内的 NOTIFY 只在 COMMIT 时生效，故放在 COMMIT 之后显式发送更清晰）
-        await client.query('NOTIFY outbox_channel');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        logger.error({ err, aggregateId }, 'Failed to write BacktestCompleted event to outbox (transactional)');
-      } finally {
-        client.release();
-      }
-    } catch (err) {
-      // getClient() 失败（连接池耗尽等）不阻塞回测主流程
-      logger.error({ err, aggregateId }, 'Failed to acquire client for transactional outbox write');
-    }
-
-    // 仍通过 eventDispatcher 分发事件给进程内处理器（日志、指标等非 outbox 副作用）
-    // 注意：BacktestCompletedHandler 仍会以非事务方式写一次 outbox（向后兼容），
-    // OutboxPublisher 的幂等处理（基于事件内容）可容忍重复事件。
-    await eventDispatcher.dispatch({
-      eventType: 'BacktestCompleted',
-      aggregateType: 'BacktestSession',
-      aggregateId,
-      payload: eventPayload,
-      occurredAt: new Date(),
-    });
+    this.publishBacktestEvent(aggregateId, eventId, eventPayload);
 
     logger.info('Backtest completed');
+    recordBacktestRequest('portfolio', 'sync', 'success');
+    if (degraded) {
+      recordDegradedResponse('portfolio', 'engine_fallback');
+    }
     return { result, degraded };
   }
 }

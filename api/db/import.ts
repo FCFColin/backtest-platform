@@ -12,6 +12,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import type { PoolClient } from 'pg';
 import { getPool, getClient } from './index.js';
 import { logger } from '../utils/logger.js';
 
@@ -38,9 +39,152 @@ interface PriceRecord {
  * 使用参数化 INSERT（防 SQL 注入），每个标的一个事务。
  * 对于大规模导入（> 10000 条），建议使用 COPY 命令。
  */
-export async function importAllTickers(): Promise<{ imported: number; skipped: number; errors: number }> {
+/** 每块最大行数（每行 8 个参数，1000 行 = 8000 参，远低于 PostgreSQL 65535 上限） */
+const PRICE_UPSERT_CHUNK = 1000;
+
+/**
+ * 分块多行 upsert 价格数据（N+1 修复，T-17）。
+ *
+ * @param client - 已开启事务的连接
+ * @param ticker - 标的代码
+ * @param data - 价格记录数组
+ */
+async function upsertPricesBatched(
+  client: PoolClient,
+  ticker: string,
+  data: PriceRecord[],
+): Promise<void> {
+  for (let i = 0; i < data.length; i += PRICE_UPSERT_CHUNK) {
+    const chunk = data.slice(i, i + PRICE_UPSERT_CHUNK);
+    const values: unknown[] = [];
+    const tuples = chunk.map((p, idx) => {
+      const base = idx * 8;
+      values.push(
+        ticker,
+        p.date,
+        p.open,
+        p.high,
+        p.low,
+        p.close,
+        p.volume,
+        p.adj_close ?? p.adjustedClose ?? null,
+      );
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
+    });
+    await client.query(
+      `INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
+       VALUES ${tuples.join(', ')}
+       ON CONFLICT (ticker, date) DO UPDATE SET
+         open = EXCLUDED.open,
+         high = EXCLUDED.high,
+         low = EXCLUDED.low,
+         close = EXCLUDED.close,
+         volume = EXCLUDED.volume,
+         adjusted_close = EXCLUDED.adjusted_close`,
+      values,
+    );
+  }
+}
+
+/** 汇率 upsert 分块大小（每行 4 参） */
+const FX_UPSERT_CHUNK = 1000;
+
+async function upsertExchangeRatesBatched(
+  client: PoolClient,
+  baseCurrency: string,
+  targetCurrency: string,
+  entries: [string, number][],
+): Promise<void> {
+  for (let i = 0; i < entries.length; i += FX_UPSERT_CHUNK) {
+    const chunk = entries.slice(i, i + FX_UPSERT_CHUNK);
+    const values: unknown[] = [];
+    const tuples = chunk.map(([date, rate], idx) => {
+      const base = idx * 4;
+      values.push(baseCurrency, targetCurrency, date, rate);
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
+    });
+    await client.query(
+      `INSERT INTO exchange_rates (base_currency, target_currency, date, rate)
+       VALUES ${tuples.join(', ')}
+       ON CONFLICT (base_currency, target_currency, date) DO UPDATE SET rate = EXCLUDED.rate`,
+      values,
+    );
+  }
+}
+
+/** 从单个 JSON 文件导入标的到 PostgreSQL */
+async function importTickerFromFile(file: string): Promise<'imported' | 'skipped' | 'error'> {
+  const ticker = file.replace('.json', '');
+  const filePath = path.join(TICKERS_DIR, file);
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const data: PriceRecord[] = Array.isArray(raw) ? raw : raw.prices || [];
+
+    if (!Array.isArray(data) || data.length === 0) {
+      return 'skipped';
+    }
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO tickers (ticker, category, market) VALUES ($1, $2, $3)
+         ON CONFLICT (ticker) DO UPDATE SET updated_at = NOW()`,
+        [ticker, '', ''],
+      );
+      await upsertPricesBatched(client, ticker, data);
+      await client.query('COMMIT');
+      logger.info({ ticker, priceCount: data.length }, '[import] 标的导入成功');
+      return 'imported';
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error({ err, ticker }, '[import] 导入失败');
+    return 'error';
+  }
+}
+
+/**
+ * 导入指定标的（默认组合与常用 benchmark），避免回测走 JSON 冷解析。
+ *
+ * @param symbols - 标的代码，如 VTI、BND、SPY
+ */
+export async function importTickersBySymbols(
+  symbols: string[],
+): Promise<{ imported: number; skipped: number; errors: number }> {
+  const result = { imported: 0, skipped: 0, errors: 0 };
+  if (!fs.existsSync(TICKERS_DIR)) {
+    logger.warn({ path: TICKERS_DIR }, '[import] 标的数据目录不存在');
+    return result;
+  }
+
+  for (const symbol of symbols) {
+    const file = `${symbol.replace(/\./g, '_')}.json`;
+    const filePath = path.join(TICKERS_DIR, file);
+    if (!fs.existsSync(filePath)) {
+      logger.warn({ symbol, file }, '[import] 标的文件不存在，跳过');
+      result.skipped++;
+      continue;
+    }
+    const status = await importTickerFromFile(file);
+    if (status === 'imported') result.imported++;
+    else if (status === 'skipped') result.skipped++;
+    else result.errors++;
+  }
+
+  return result;
+}
+
+export async function importAllTickers(): Promise<{
+  imported: number;
+  skipped: number;
+  errors: number;
+}> {
   const t0 = Date.now();
-  const pool = getPool();
   const result = { imported: 0, skipped: 0, errors: 0 };
 
   if (!fs.existsSync(TICKERS_DIR)) {
@@ -48,61 +192,16 @@ export async function importAllTickers(): Promise<{ imported: number; skipped: n
     return result;
   }
 
-  const files = fs.readdirSync(TICKERS_DIR).filter(f => f.endsWith('.json') && !f.endsWith('.meta.json'));
+  const files = fs
+    .readdirSync(TICKERS_DIR)
+    .filter((f) => f.endsWith('.json') && !f.endsWith('.meta.json'));
   logger.info({ totalFiles: files.length }, '[import] 数据导入开始');
 
   for (const file of files) {
-    const ticker = file.replace('.json', '');
-    try {
-      const filePath = path.join(TICKERS_DIR, file);
-      const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const data: PriceRecord[] = Array.isArray(raw) ? raw : (raw.prices || []);
-
-      if (!Array.isArray(data) || data.length === 0) {
-        result.skipped++;
-        continue;
-      }
-
-      const client = await getClient();
-      try {
-        await client.query('BEGIN');
-
-        // 插入/更新标的元数据
-        await client.query(
-          `INSERT INTO tickers (ticker, category, market) VALUES ($1, $2, $3)
-           ON CONFLICT (ticker) DO UPDATE SET updated_at = NOW()`,
-          [ticker, '', '']
-        );
-
-        // 批量插入价格数据（ON CONFLICT 更新）
-        for (const p of data) {
-          await client.query(
-            `INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             ON CONFLICT (ticker, date) DO UPDATE SET
-               open = EXCLUDED.open,
-               high = EXCLUDED.high,
-               low = EXCLUDED.low,
-               close = EXCLUDED.close,
-               volume = EXCLUDED.volume,
-               adjusted_close = EXCLUDED.adjusted_close`,
-            [ticker, p.date, p.open, p.high, p.low, p.close, p.volume, p.adj_close ?? p.adjustedClose ?? null]
-          );
-        }
-
-        await client.query('COMMIT');
-        result.imported++;
-        logger.info({ ticker, priceCount: data.length }, '[import] 标的导入成功');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
-    } catch (err) {
-      result.errors++;
-      logger.error({ err, ticker }, '[import] 导入失败');
-    }
+    const status = await importTickerFromFile(file);
+    if (status === 'imported') result.imported++;
+    else if (status === 'skipped') result.skipped++;
+    else result.errors++;
   }
 
   logger.info({ ...result, durationMs: Date.now() - t0 }, '[import] 数据导入完成');
@@ -130,17 +229,17 @@ export async function importViaCopy(
   await client.query(
     `INSERT INTO tickers (ticker, category, market) VALUES ($1, $2, $3)
      ON CONFLICT (ticker) DO NOTHING`,
-    [ticker, '', '']
+    [ticker, '', ''],
   );
 
   // 使用 COPY FROM STDIN 导入（动态 import 兼容 ESM）
-  // @ts-expect-error -- pg-copy-streams 无类型声明，动态 import 在运行时解析
-  const pgCopyStreams = await import('pg-copy-streams') as any;
-  const stream = client.query(
-    pgCopyStreams.from(
-      `COPY prices (ticker, date, open, high, low, close, volume, adjusted_close) FROM STDIN WITH (FORMAT csv)`
-    )
+  // 类型声明见 api/types/pg-copy-streams.d.ts
+  const pgCopyStreams = await import('pg-copy-streams');
+  const copyStream = pgCopyStreams.from(
+    `COPY prices (ticker, date, open, high, low, close, volume, adjusted_close) FROM STDIN WITH (FORMAT csv)`,
   );
+  // @ts-expect-error -- pg-copy-streams.from 返回 Submittable 兼容流，@types/pg 重载不匹配
+  const stream = client.query(copyStream) as NodeJS.WritableStream & { rowCount?: number };
 
   return new Promise<number>((resolve, reject) => {
     csvStream.pipe(stream);
@@ -192,6 +291,73 @@ interface IndexMeta {
   exchange: string;
 }
 
+/** 读取指数元数据文件，若不存在则返回默认值 */
+function readIndexMeta(metaPath: string, ticker: string): IndexMeta {
+  if (!fs.existsSync(metaPath)) return { ticker, name: ticker, market: '', exchange: '' };
+  const metaRaw = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+  return {
+    ticker: metaRaw.ticker || ticker,
+    name: metaRaw.name || ticker,
+    market: metaRaw.market || '',
+    exchange: metaRaw.exchange || '',
+  };
+}
+
+/** 导入单个指数文件到数据库（含事务） */
+async function importSingleIndex(
+  file: string,
+): Promise<{ ok: boolean; ticker: string; priceCount: number }> {
+  const ticker = file.replace('.json', '');
+  const filePath = path.join(INDICES_DIR, file);
+  const metaPath = path.join(INDICES_DIR, file.replace('.json', '.meta.json'));
+
+  const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const prices: IndexPriceRecord[] = raw.prices || raw;
+  if (!Array.isArray(prices) || prices.length === 0) return { ok: false, ticker, priceCount: 0 };
+
+  const meta = readIndexMeta(metaPath, ticker);
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO tickers (ticker, category, market) VALUES ($1, $2, $3)
+       ON CONFLICT (ticker) DO UPDATE SET updated_at = NOW()`,
+      [meta.ticker, meta.name, meta.exchange],
+    );
+    for (const p of prices) {
+      await client.query(
+        `INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (ticker, date) DO UPDATE SET
+           open = EXCLUDED.open,
+           high = EXCLUDED.high,
+           low = EXCLUDED.low,
+           close = EXCLUDED.close,
+           volume = EXCLUDED.volume,
+           adjusted_close = EXCLUDED.adjusted_close`,
+        [
+          meta.ticker,
+          p.date,
+          p.open,
+          p.high,
+          p.low,
+          p.close,
+          p.volume ?? null,
+          p.adj_close ?? null,
+        ],
+      );
+    }
+    await client.query('COMMIT');
+    logger.info({ ticker: meta.ticker, priceCount: prices.length }, '[import] 指数导入成功');
+    return { ok: true, ticker: meta.ticker, priceCount: prices.length };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * 导入指数数据到 prices 表
  *
@@ -207,72 +373,19 @@ export async function importIndices(): Promise<{ imported: number; errors: numbe
     return result;
   }
 
-  const files = fs.readdirSync(INDICES_DIR).filter(f => f.endsWith('.json') && !f.endsWith('.meta.json'));
+  const files = fs
+    .readdirSync(INDICES_DIR)
+    .filter((f) => f.endsWith('.json') && !f.endsWith('.meta.json'));
   logger.info({ totalFiles: files.length }, '[import] 指数数据导入开始');
 
   for (const file of files) {
-    const ticker = file.replace('.json', '');
     try {
-      const filePath = path.join(INDICES_DIR, file);
-      const metaPath = path.join(INDICES_DIR, file.replace('.json', '.meta.json'));
-
-      const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      const prices: IndexPriceRecord[] = raw.prices || raw;
-
-      if (!Array.isArray(prices) || prices.length === 0) {
-        result.errors++;
-        continue;
-      }
-
-      // 读取元数据
-      let meta: IndexMeta = { ticker, name: ticker, market: '', exchange: '' };
-      if (fs.existsSync(metaPath)) {
-        const metaRaw = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-        meta = {
-          ticker: metaRaw.ticker || ticker,
-          name: metaRaw.name || ticker,
-          market: metaRaw.market || '',
-          exchange: metaRaw.exchange || '',
-        };
-      }
-
-      const client = await getClient();
-      try {
-        await client.query('BEGIN');
-
-        await client.query(
-          `INSERT INTO tickers (ticker, category, market) VALUES ($1, $2, $3)
-           ON CONFLICT (ticker) DO UPDATE SET updated_at = NOW()`,
-          [meta.ticker, meta.name, meta.exchange]
-        );
-
-        for (const p of prices) {
-          await client.query(
-            `INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-             ON CONFLICT (ticker, date) DO UPDATE SET
-               open = EXCLUDED.open,
-               high = EXCLUDED.high,
-               low = EXCLUDED.low,
-               close = EXCLUDED.close,
-               volume = EXCLUDED.volume,
-               adjusted_close = EXCLUDED.adjusted_close`,
-            [meta.ticker, p.date, p.open, p.high, p.low, p.close, p.volume ?? null, p.adj_close ?? null]
-          );
-        }
-
-        await client.query('COMMIT');
-        result.imported++;
-        logger.info({ ticker: meta.ticker, priceCount: prices.length }, '[import] 指数导入成功');
-      } catch (err) {
-        await client.query('ROLLBACK');
-        throw err;
-      } finally {
-        client.release();
-      }
+      const { ok } = await importSingleIndex(file);
+      if (ok) result.imported++;
+      else result.errors++;
     } catch (err) {
       result.errors++;
-      logger.error({ err, ticker }, '[import] 指数导入失败');
+      logger.error({ err, ticker: file.replace('.json', '') }, '[import] 指数导入失败');
     }
   }
 
@@ -295,14 +408,16 @@ export async function importCpiData(): Promise<{ imported: number; errors: numbe
     return result;
   }
 
-  const files = fs.readdirSync(CPI_DIR).filter(f => f.endsWith('.json'));
+  const files = fs.readdirSync(CPI_DIR).filter((f) => f.endsWith('.json'));
   logger.info({ totalFiles: files.length }, '[import] CPI 数据导入开始');
 
   for (const file of files) {
     const country = file.replace('_cpi.json', '').toUpperCase();
     try {
       const filePath = path.join(CPI_DIR, file);
-      const data: Array<{ date: string; value: number }> = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const data: Array<{ date: string; value: number }> = JSON.parse(
+        fs.readFileSync(filePath, 'utf-8'),
+      );
 
       if (!Array.isArray(data) || data.length === 0) {
         result.errors++;
@@ -318,7 +433,7 @@ export async function importCpiData(): Promise<{ imported: number; errors: numbe
             `INSERT INTO cpi_data (country, date, value)
              VALUES ($1, $2, $3)
              ON CONFLICT (country, date) DO UPDATE SET value = EXCLUDED.value`,
-            [country, item.date, item.value]
+            [country, item.date, item.value],
           );
         }
 
@@ -356,7 +471,7 @@ export async function importExchangeRates(): Promise<{ imported: number; errors:
     return result;
   }
 
-  const files = fs.readdirSync(EXCHANGE_RATES_DIR).filter(f => f.endsWith('.json'));
+  const files = fs.readdirSync(EXCHANGE_RATES_DIR).filter((f) => f.endsWith('.json'));
   logger.info({ totalFiles: files.length }, '[import] 汇率数据导入开始');
 
   for (const file of files) {
@@ -383,18 +498,15 @@ export async function importExchangeRates(): Promise<{ imported: number; errors:
       try {
         await client.query('BEGIN');
 
-        for (const [date, rate] of entries) {
-          await client.query(
-            `INSERT INTO exchange_rates (base_currency, target_currency, date, rate)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (base_currency, target_currency, date) DO UPDATE SET rate = EXCLUDED.rate`,
-            [baseCurrency, targetCurrency, date, rate]
-          );
-        }
+        // Perf (T-17b)：批量 upsert，避免逐行 INSERT（N+1）。
+        await upsertExchangeRatesBatched(client, baseCurrency, targetCurrency, entries);
 
         await client.query('COMMIT');
         result.imported++;
-        logger.info({ baseCurrency, targetCurrency, dataCount: entries.length }, '[import] 汇率导入成功');
+        logger.info(
+          { baseCurrency, targetCurrency, dataCount: entries.length },
+          '[import] 汇率导入成功',
+        );
       } catch (err) {
         await client.query('ROLLBACK');
         throw err;
@@ -421,13 +533,21 @@ export async function importExchangeRates(): Promise<{ imported: number; errors:
 export async function importAllMarketData(): Promise<void> {
   logger.info('[import] 开始导入全部市场数据');
 
-  const indexResult = await importIndices();
-  const cpiResult = await importCpiData();
-  const fxResult = await importExchangeRates();
+  // Perf (T-17)：三类导入相互独立（指数/CPI/汇率，无数据依赖），并行执行缩短总时长。
+  // 各自内部使用独立连接与事务，互不干扰；任一失败不影响其他（Promise.all 会传播首个拒绝，
+  // 但每个导入函数内部已 try/catch 单文件错误，不会因单条数据中断整体）。
+  const [indexResult, cpiResult, fxResult] = await Promise.all([
+    importIndices(),
+    importCpiData(),
+    importExchangeRates(),
+  ]);
 
-  logger.info({
-    indices: indexResult,
-    cpi: cpiResult,
-    exchangeRates: fxResult,
-  }, '[import] 全部市场数据导入完成');
+  logger.info(
+    {
+      indices: indexResult,
+      cpi: cpiResult,
+      exchangeRates: fxResult,
+    },
+    '[import] 全部市场数据导入完成',
+  );
 }

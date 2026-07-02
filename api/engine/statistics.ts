@@ -1,7 +1,7 @@
 /**
  * 统计指标计算模块（Node.js降级后备）
- * 优先使用Rust引擎(localhost:5002)，此文件仅在Rust引擎不可用时启用
- * 对应Rust实现: engine-rs/src/engine.rs (Statistics struct)
+ * 主引擎为 Go(engine-go, localhost:5004)；本文件作为一致性参照保留，不用于线上降级（ADR-031）。
+ * 对应 Go 实现: engine-go/internal/engine (统计指标计算)
  */
 
 import { TRADING_DAYS_PER_YEAR } from '../../shared/constants.js';
@@ -11,7 +11,8 @@ import { TRADING_DAYS_PER_YEAR } from '../../shared/constants.js';
  * CAGR = (endValue / startValue) ^ (1 / years) - 1
  */
 export function calcCAGR(startValue: number, endValue: number, years: number): number {
-  if (!Number.isFinite(startValue) || !Number.isFinite(endValue) || !Number.isFinite(years)) return 0;
+  if (!Number.isFinite(startValue) || !Number.isFinite(endValue) || !Number.isFinite(years))
+    return 0;
   if (startValue <= 0 || endValue <= 0 || years <= 0) return 0;
   return Math.pow(endValue / startValue, 1 / years) - 1;
 }
@@ -71,19 +72,14 @@ export function calcSharpe(cagr: number, stdev: number, riskFreeRate = 0.02): nu
  * sortino = (cagr - riskFreeRate) / downsideDeviation
  * downsideDeviation 使用低于无风险日利率的收益率计算
  */
-export function calcSortino(
-  cagr: number,
-  dailyReturns: number[],
-  riskFreeRate = 0.02,
-): number {
+export function calcSortino(cagr: number, dailyReturns: number[], riskFreeRate = 0.02): number {
   if (dailyReturns.length < 2) return 0;
   const dailyRiskFree = Math.pow(1 + riskFreeRate, 1 / TRADING_DAYS_PER_YEAR) - 1;
   const downsideReturns = dailyReturns.filter((r) => r < dailyRiskFree);
   if (downsideReturns.length === 0) return cagr > riskFreeRate ? Infinity : 0;
 
   const downsideVariance =
-    downsideReturns.reduce((s, r) => s + Math.pow(r - dailyRiskFree, 2), 0) /
-    dailyReturns.length;
+    downsideReturns.reduce((s, r) => s + Math.pow(r - dailyRiskFree, 2), 0) / dailyReturns.length;
   const downsideDeviation = Math.sqrt(downsideVariance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 
   if (downsideDeviation === 0) return 0;
@@ -303,7 +299,12 @@ export function calcBeta(portfolioReturns: number[], benchmarkReturns: number[])
  * 计算 Alpha (Jensen's Alpha)
  * alpha = cagr - (riskFreeRate + beta * (benchmarkCagr - riskFreeRate))
  */
-export function calcAlpha(cagr: number, beta: number, benchmarkCagr: number, riskFreeRate = 0.02): number {
+export function calcAlpha(
+  cagr: number,
+  beta: number,
+  benchmarkCagr: number,
+  riskFreeRate = 0.02,
+): number {
   return cagr - (riskFreeRate + beta * (benchmarkCagr - riskFreeRate));
 }
 
@@ -357,8 +358,8 @@ export function calcUpsideCapture(portfolioReturns: number[], benchmarkReturns: 
 
   for (let i = 0; i < n; i++) {
     if (benchmarkReturns[i] > 0) {
-      portfolioProduct *= (1 + portfolioReturns[i]);
-      benchmarkProduct *= (1 + benchmarkReturns[i]);
+      portfolioProduct *= 1 + portfolioReturns[i];
+      benchmarkProduct *= 1 + benchmarkReturns[i];
       count++;
     }
   }
@@ -375,7 +376,10 @@ export function calcUpsideCapture(portfolioReturns: number[], benchmarkReturns: 
  * 计算下行捕获比 (Downside Capture)
  * 当基准收益为负时，组合收益与基准收益的几何平均之比
  */
-export function calcDownsideCapture(portfolioReturns: number[], benchmarkReturns: number[]): number {
+export function calcDownsideCapture(
+  portfolioReturns: number[],
+  benchmarkReturns: number[],
+): number {
   const n = Math.min(portfolioReturns.length, benchmarkReturns.length);
   if (n < 1) return 0;
 
@@ -385,8 +389,8 @@ export function calcDownsideCapture(portfolioReturns: number[], benchmarkReturns
 
   for (let i = 0; i < n; i++) {
     if (benchmarkReturns[i] < 0) {
-      portfolioProduct *= (1 + portfolioReturns[i]);
-      benchmarkProduct *= (1 + benchmarkReturns[i]);
+      portfolioProduct *= 1 + portfolioReturns[i];
+      benchmarkProduct *= 1 + benchmarkReturns[i];
       count++;
     }
   }
@@ -457,8 +461,10 @@ export function calcExcessKurtosis(returns: number[]): number {
   const stdev = Math.sqrt(variance);
   const sumFourth = returns.reduce((s, v) => s + Math.pow((v - mean) / stdev, 4), 0);
 
-  return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sumFourth
-    - (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3));
+  return (
+    ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sumFourth -
+    (3 * (n - 1) * (n - 1)) / ((n - 2) * (n - 3))
+  );
 }
 
 /**

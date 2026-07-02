@@ -1,12 +1,18 @@
 /**
  * 蒙特卡洛模拟模块（Node.js降级后备）
- * 优先使用Rust引擎(localhost:5002)，此文件仅在Rust引擎不可用时启用
- * 对应Rust实现: engine-rs/src/monte_carlo.rs
+ * 主引擎为 Go(engine-go, localhost:5004)；本文件作为一致性参照保留，不用于线上降级（ADR-031）。
+ * 对应 Go 实现: engine-go/internal/engine/montecarlo.go
  */
 
-import type { Portfolio, BacktestParameters, MonteCarloResult, PerPathMetrics } from '../../shared/types.js';
+import type {
+  Portfolio,
+  BacktestParameters,
+  MonteCarloResult,
+  PerPathMetrics,
+} from '../../shared/types.js';
 import type { PriceData } from './portfolio.js';
-import { getDateLimits } from './dateUtils.js';
+import { getDateLimits } from '../utils/dateUtils.js';
+import { calcCAGR, calcAnnualizedStdev, calcMaxDrawdown as calcMaxDrawdownStats } from './statistics.js';
 import { TRADING_DAYS_PER_YEAR } from '../../shared/constants.js';
 
 interface MonteCarloParams {
@@ -39,7 +45,14 @@ export function runMonteCarlo(
   mcParams?: Partial<MonteCarloParams>,
 ): MonteCarloResult {
   const config = { ...DEFAULT_MC_PARAMS, ...mcParams };
-  const { numSimulations, numYears, minBlockYears, maxBlockYears, withReplacement, successThreshold } = config;
+  const {
+    numSimulations,
+    numYears,
+    minBlockYears,
+    maxBlockYears,
+    withReplacement,
+    successThreshold,
+  } = config;
 
   // 获取组合历史日收益率
   const dailyReturns = getPortfolioDailyReturns(portfolio, priceData, params);
@@ -75,9 +88,8 @@ export function runMonteCarlo(
   // 统计
   const sortedFinal = [...finalValues].sort((a, b) => a - b);
   const mid = Math.floor(sortedFinal.length / 2);
-  const medianFinalValue = sortedFinal.length % 2 === 0
-    ? (sortedFinal[mid - 1] + sortedFinal[mid]) / 2
-    : sortedFinal[mid];
+  const medianFinalValue =
+    sortedFinal.length % 2 === 0 ? (sortedFinal[mid - 1] + sortedFinal[mid]) / 2 : sortedFinal[mid];
   const meanFinalValue = finalValues.reduce((s, v) => s + v, 0) / finalValues.length;
   const successCount = finalValues.filter((v) => v >= successThreshold).length;
   const successRate = successCount / finalValues.length;
@@ -124,16 +136,13 @@ export function runMonteCarlo(
 /**
  * 获取组合日收益率序列
  */
-function getPortfolioDailyReturns(
-  portfolio: Portfolio,
+/** 收集所有标的在日期范围内的交易日 */
+function collectTradingDates(
+  tickers: string[],
   priceData: PriceData,
-  params: BacktestParameters,
-): number[] {
-  const tickers = portfolio.assets.map((a) => a.ticker);
-  const weights = portfolio.assets.map((a) => a.weight);
-
-  // 获取所有日期（空字符串视为不限制）
-  const { startLimit, endLimit } = getDateLimits(params.startDate, params.endDate);
+  startLimit: string,
+  endLimit: string,
+): string[] {
   const dateSet = new Set<string>();
   for (const ticker of tickers) {
     if (priceData[ticker]) {
@@ -144,11 +153,22 @@ function getPortfolioDailyReturns(
       }
     }
   }
-  const dates = Array.from(dateSet).sort();
+  return Array.from(dateSet).sort();
+}
+
+function getPortfolioDailyReturns(
+  portfolio: Portfolio,
+  priceData: PriceData,
+  params: BacktestParameters,
+): number[] {
+  const tickers = portfolio.assets.map((a) => a.ticker);
+  const weights = portfolio.assets.map((a) => a.weight);
+
+  const { startLimit, endLimit } = getDateLimits(params.startDate, params.endDate);
+  const dates = collectTradingDates(tickers, priceData, startLimit, endLimit);
 
   if (dates.length < 2) return [];
 
-  // 计算每日组合收益率
   const dailyReturns: number[] = [];
   for (let i = 1; i < dates.length; i++) {
     let portfolioReturn = 0;
@@ -169,6 +189,19 @@ function getPortfolioDailyReturns(
 /**
  * 区块自举法模拟一条路径（支持变长区块）
  */
+/** 无放回采样：从尚未使用的起始位置中选取 */
+function pickStartIdxNoReplacement(usedStarts: Set<number>, maxStart: number): number {
+  if (usedStarts.size >= maxStart + 1) {
+    usedStarts.clear();
+  }
+  let startIdx: number;
+  do {
+    startIdx = Math.floor(Math.random() * (maxStart + 1));
+  } while (usedStarts.has(startIdx));
+  usedStarts.add(startIdx);
+  return startIdx;
+}
+
 function simulatePath(
   historicalReturns: number[],
   totalDays: number,
@@ -176,37 +209,27 @@ function simulatePath(
   maxBlockDays: number,
   withReplacement: boolean,
 ): number[] {
-  const path: number[] = [1.0]; // 起始为1
+  const path: number[] = [1.0];
   const n = historicalReturns.length;
-
-  // 无放回采样：追踪可用起始位置，避免重复选取同一区块
   const usedStarts = new Set<number>();
 
-  for (let day = 0; day < totalDays; ) {
-    // 随机选择区块长度（在 minBlockDays..maxBlockDays 之间）
-    const blockSize = maxBlockDays > minBlockDays
-      ? minBlockDays + Math.floor(Math.random() * (maxBlockDays - minBlockDays + 1))
-      : minBlockDays;
-    // 随机选择一个起始位置
+  for (let day = 0; day < totalDays;) {
+    const blockSize =
+      maxBlockDays > minBlockDays
+        ? minBlockDays + Math.floor(Math.random() * (maxBlockDays - minBlockDays + 1))
+        : minBlockDays;
+
     let startIdx: number;
     if (withReplacement) {
       startIdx = Math.floor(Math.random() * n);
     } else {
-      // 无放回：从尚未使用的起始位置中随机选取
       const maxStart = n - blockSize;
-      if (usedStarts.size >= maxStart + 1) {
-        // 所有可能的起始位置已用完，重置
-        usedStarts.clear();
-      }
-      do {
-        startIdx = Math.floor(Math.random() * (maxStart + 1));
-      } while (usedStarts.has(startIdx));
-      usedStarts.add(startIdx);
+      startIdx = pickStartIdxNoReplacement(usedStarts, maxStart);
     }
 
     for (let b = 0; b < blockSize && day < totalDays; b++) {
       const idx = startIdx + b;
-      if (idx >= n) break; // 截断而非环绕，避免跨区块拼接产生虚假相关性
+      if (idx >= n) break;
       const lastValue = path[path.length - 1];
       path.push(lastValue * (1 + historicalReturns[idx]));
       day++;
@@ -216,18 +239,20 @@ function simulatePath(
   return path;
 }
 
-/**
- * 计算单条路径的指标
- */
+/** 计算 Sortino 比率 */
+function calcSortino(dailyReturns: number[]): number {
+  const n = dailyReturns.length;
+  if (n <= 1) return 0;
+  const meanRet = dailyReturns.reduce((s, r) => s + r, 0) / n;
+  const downside = dailyReturns.reduce((s, r) => s + (r < 0 ? r * r : 0), 0) / n;
+  const downsideDev = Math.sqrt(downside) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+  return downsideDev > 0 ? (meanRet * TRADING_DAYS_PER_YEAR) / downsideDev : 0;
+}
+
 function calcPathMetrics(path: number[], numYears: number): PerPathMetrics {
   const finalValue = path[path.length - 1] || 1.0;
+  const cagr = calcCAGR(1, finalValue, numYears);
 
-  // CAGR
-  const cagr = finalValue > 0 && numYears > 0
-    ? Math.pow(finalValue, 1 / numYears) - 1
-    : 0;
-
-  // 日收益率
   const dailyReturns: number[] = [];
   for (let i = 1; i < path.length; i++) {
     if (path[i - 1] > 0) {
@@ -235,39 +260,10 @@ function calcPathMetrics(path: number[], numYears: number): PerPathMetrics {
     }
   }
 
-  // 最大回撤
-  let maxDrawdown = 0;
-  let peak = path[0];
-  for (const v of path) {
-    if (v > peak) peak = v;
-    if (peak > 0) {
-      const dd = (peak - v) / peak;
-      if (dd > maxDrawdown) maxDrawdown = dd;
-    }
-  }
-
-  // 波动率（年化）
-  const n = dailyReturns.length;
-  const volatility = n > 1
-    ? (() => {
-        const mean = dailyReturns.reduce((s, r) => s + r, 0) / n;
-        const variance = dailyReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1);
-        return Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
-      })()
-    : 0;
-
-  // 夏普比率（无风险利率=2%，与 portfolio.ts 保持一致）
+  const maxDrawdown = calcMaxDrawdownStats(path).maxDrawdown;
+  const volatility = calcAnnualizedStdev(dailyReturns);
   const sharpe = volatility > 0 ? (cagr - 0.02) / volatility : 0;
-
-  // Sortino 比率
-  const sortino = n > 1
-    ? (() => {
-        const meanRet = dailyReturns.reduce((s, r) => s + r, 0) / n;
-        const downside = dailyReturns.reduce((s, r) => s + (r < 0 ? r * r : 0), 0) / n;
-        const downsideDev = Math.sqrt(downside) * Math.sqrt(TRADING_DAYS_PER_YEAR);
-        return downsideDev > 0 ? (meanRet * TRADING_DAYS_PER_YEAR) / downsideDev : 0;
-      })()
-    : 0;
+  const sortino = calcSortino(dailyReturns);
 
   return { finalValue, cagr, maxDrawdown, volatility, sharpe, sortino };
 }
@@ -294,10 +290,7 @@ function downsampleMonthly(path: number[]): number[] {
 /**
  * 计算百分位路径
  */
-function calcPercentiles(
-  paths: number[][],
-  totalDays: number,
-): MonteCarloResult['percentiles'] {
+function calcPercentiles(paths: number[][], totalDays: number): MonteCarloResult['percentiles'] {
   const percentileKeys = ['p5', 'p10', 'p25', 'p50', 'p75', 'p90', 'p95'] as const;
   const percentileValues = [0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95];
   const result: Record<string, number[]> = {};
@@ -401,12 +394,24 @@ function createEmptyResponse(numYears: number): MonteCarloResult {
   const totalDays = Math.round(numYears * TRADING_DAYS_PER_YEAR);
   const zeros = Array(totalDays + 1).fill(0);
   return {
-    percentiles: { p5: zeros, p10: zeros, p25: zeros, p50: zeros, p75: zeros, p90: zeros, p95: zeros },
+    percentiles: {
+      p5: zeros,
+      p10: zeros,
+      p25: zeros,
+      p50: zeros,
+      p75: zeros,
+      p90: zeros,
+      p95: zeros,
+    },
     successProbability: zeros,
     finalDistribution: Array(50).fill(0),
     statistics: { medianFinalValue: 0, meanFinalValue: 0, successRate: 0 },
     perPathMetrics: [],
     representativePaths: { best: [], p25: [], median: [], p75: [], worst: [] },
-    successProbabilities: { survival: Array(numYears).fill(0), capitalPreservation: Array(numYears).fill(0), profit: Array(numYears).fill(0) },
+    successProbabilities: {
+      survival: Array(numYears).fill(0),
+      capitalPreservation: Array(numYears).fill(0),
+      profit: Array(numYears).fill(0),
+    },
   };
 }

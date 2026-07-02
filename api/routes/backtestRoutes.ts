@@ -8,37 +8,61 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import type {
-  Portfolio,
-  BacktestParameters,
-} from '../../shared/types.js';
+import type { Portfolio, BacktestParameters } from '../../shared/types.js';
 import { MAX_TICKERS } from '../../shared/constants.js';
-import { runAnalysis, calculateDrag } from '../engine/portfolio.js';
 import { backtestApplicationService } from '../application/backtest-service.js';
-import { runMonteCarlo } from '../engine/monteCarlo.js';
-import { optimizePortfolio, calcEfficientFrontier } from '../engine/optimizer.js';
+import {
+  preparePortfolioBacktest,
+  collectInvalidTickerWarnings,
+} from '../application/backtest-query-service.js';
+import {
+  compressBacktestResultForSync,
+  extractBacktestSeries,
+} from '../utils/compressBacktestResult.js';
+import {
+  backtestCacheKey,
+  getBacktestResultCache,
+  setBacktestResultCache,
+} from '../utils/backtestResultCache.js';
+import { withTimeout } from '../utils/timeout.js';
+import { config } from '../config/index.js';
 import { fetchHistoryData, searchTickers } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { buildRustPortfolioBody, buildRustParams } from '../utils/rustBodyBuilder.js';
-import { callRustWithFallback, unwrapFallbackResult } from '../utils/rustFallback.js';
-import { DEGRADED_WARNING } from '../config/index.js';
+import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
+import { callEngineStrict, EngineUnavailableError } from '../utils/engineClient.js';
 import { sanitizeLog } from '../utils/logSanitizer.js';
-import { isValidDate } from '../utils/dateUtils.js';
 import { validate } from '../middleware/validate.js';
 import {
   portfolioBacktestSchema,
+  portfolioSeriesSchema,
   analysisSchema,
   monteCarloSchema,
   optimizeSchema,
   efficientFrontierSchema,
 } from '../schemas/backtest.js';
-import fs from 'fs';
-import path from 'path';
+import { loadCpiMapFromDb, loadExchangeRatesFromDb } from '../db/macroData.js';
 
 const router = Router();
 
-/** 过滤 priceData，只保留指定 tickers 的数据（减少发送到 Rust 引擎的数据量） */
+/**
+ * 将引擎不可用错误翻译为 503 + Retry-After（ADR-027 fail-closed）。
+ *
+ * 企业理由：正确性关键计算的引擎不可用必须显式失败，而非静默返回 Node 不一致结果。
+ * @returns 若已处理该错误返回 true，调用方应 return。
+ */
+function handleEngineUnavailable(res: Response, error: unknown): boolean {
+  if (error instanceof EngineUnavailableError) {
+    sendProblem(res, 503, 'ENGINE_UNAVAILABLE', 'Service Unavailable', {
+      detail: error.message,
+      headers: { 'Retry-After': String(error.retryAfterSeconds) },
+    });
+    return true;
+  }
+  return false;
+}
+
+/** 过滤 priceData，只保留指定 tickers 的数据 */
 function filterPriceData(
   priceData: Record<string, Record<string, number>>,
   tickers: Set<string>,
@@ -52,53 +76,67 @@ function filterPriceData(
   return filtered;
 }
 
+function checkTickerLimit(res: Response, count: number): boolean {
+  if (count > MAX_TICKERS) {
+    sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED', 'Ticker limit exceeded', {
+      detail: `ticker 数量超过限制 (max ${MAX_TICKERS})`,
+    });
+    return false;
+  }
+  return true;
+}
+
+function fetchPriceData(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, Record<string, number>>> {
+  return withTimeout(fetchHistoryData(tickers, startDate, endDate), 60_000, 'fetch-history-data');
+}
+
 /** 加载宏观经济数据（CPI + 汇率），根据 parameters 统一处理 */
-function loadMacroData(parameters: BacktestParameters): { cpiData: Record<string, number>; exchangeRates: Record<string, number> } {
+async function loadMacroData(
+  parameters: BacktestParameters,
+): Promise<{ cpiData: Record<string, number>; exchangeRates: Record<string, number> }> {
   const baseCurrency = parameters.baseCurrency || 'usd';
   const cpiCountry = baseCurrency === 'cny' ? 'cn' : 'us';
-  const cpiData = parameters.adjustForInflation ? loadCPIData(cpiCountry) : {};
-  const exchangeRates = baseCurrency === 'cny' ? loadExchangeRates() : {};
+  const cpiData = parameters.adjustForInflation ? await loadCpiMapFromDb(cpiCountry) : {};
+  const exchangeRates = baseCurrency === 'cny' ? await loadExchangeRatesFromDb() : {};
   return { cpiData, exchangeRates };
 }
 
-// CPI数据缓存（按国家）
-const cpiDataCache: Record<string, Record<string, number>> = {};
+const MC_PARAMS_ALLOWED_KEYS = new Set([
+  'numSimulations',
+  'blockSize',
+  'withReplacement',
+  'confidenceLevel',
+  'distribution',
+  'seed',
+]);
 
-function loadCPIData(country: string = 'us'): Record<string, number> {
-  if (cpiDataCache[country]) return cpiDataCache[country];
-  const fileName = country === 'cn' ? 'cn_cpi.json' : 'us_cpi.json';
-  const cpiFilePath = path.resolve(process.cwd(), 'data', 'market', 'cpi', fileName);
-  if (fs.existsSync(cpiFilePath)) {
-    const raw = JSON.parse(fs.readFileSync(cpiFilePath, 'utf-8'));
-    // 将 [{date, value}] 转为 {date: value}
-    const map: Record<string, number> = {};
-    for (const item of raw) {
-      map[item.date] = item.value;
-    }
-    cpiDataCache[country] = map;
-    return map;
+/** 过滤 mcParams 中的未知键，仅保留白名单字段 */
+function sanitizeMcParams(mcParams: object | undefined): Record<string, unknown> {
+  if (!mcParams || typeof mcParams !== 'object' || Array.isArray(mcParams)) return {};
+  const raw = mcParams as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = {};
+  for (const key of Object.keys(raw)) {
+    if (MC_PARAMS_ALLOWED_KEYS.has(key)) sanitized[key] = raw[key];
   }
-  return {};
+  return sanitized;
 }
 
-// 汇率数据缓存
-let exchangeRateCache: Record<string, number> | null = null;
-
-function loadExchangeRates(): Record<string, number> {
-  if (exchangeRateCache) return exchangeRateCache;
-  const filePath = path.resolve(process.cwd(), 'data', 'market', 'exchange_rates', 'usd_cny.json');
-  if (fs.existsSync(filePath)) {
-    try {
-      const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      // usd_cny.json 已经是 {date: rate} 格式
-      exchangeRateCache = raw;
-      return raw;
-    } catch (err) {
-      logger.warn(`[loadExchangeRates] 读取汇率数据失败: ${(err as Error).message}`);
-      return {};
-    }
+/** 从组合列表中收集所有唯一 ticker 与资产总数 */
+function collectTickersFromPortfolios(portfolioList: Portfolio[]): {
+  tickers: string[];
+  totalAssets: number;
+} {
+  const allTickers = new Set<string>();
+  let totalAssets = 0;
+  for (const p of portfolioList) {
+    for (const asset of p.assets) allTickers.add(asset.ticker);
+    totalAssets += p.assets.length;
   }
-  return {};
+  return { tickers: Array.from(allTickers), totalAssets };
 }
 
 /**
@@ -111,7 +149,9 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
     const limit = parseInt(req.query.limit as string, 10) || 10;
 
     if (!query || query.trim().length === 0) {
-      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required parameter', 'Missing required query parameter: query');
+      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required parameter', {
+        detail: 'Missing required query parameter: query',
+      });
       return;
     }
 
@@ -119,7 +159,7 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
     res.json({ success: true, data: results.slice(0, limit) });
   } catch (error) {
     logger.error({ err: error as Error }, 'Ticker search error');
-    sendProblem(res, 500, 'SEARCH_ERROR', 'Search failed', 'Failed to search tickers');
+    sendProblem(res, 500, 'SEARCH_ERROR', 'Search failed', { detail: 'Failed to search tickers' });
   }
 });
 
@@ -128,200 +168,189 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
  * POST /api/backtest/portfolio
  * Body: { portfolios: Portfolio[], parameters: BacktestParameters }
  */
-router.post('/portfolio', validate(portfolioBacktestSchema), async (req: Request, res: Response): Promise<void> => {
-  const startTime = Date.now();
-  try {
-    const { portfolios, parameters } = req.body as {
-      portfolios: Portfolio[];
-      parameters: BacktestParameters;
-    };
+router.post(
+  '/portfolio',
+  validate(portfolioBacktestSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const startTime = Date.now();
+    try {
+      const { portfolios, parameters } = req.body as {
+        portfolios: Portfolio[];
+        parameters: BacktestParameters;
+      };
 
-    if (!portfolios || !parameters) {
-      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required fields', 'Missing required fields: portfolios, parameters');
-      return;
-    }
-
-    // 校验日期格式
-    if (!isValidDate(parameters.startDate) || !isValidDate(parameters.endDate)) {
-      sendProblem(res, 422, 'INVALID_DATE', 'Invalid date format', 'Invalid date format, expected YYYY-MM-DD');
-      return;
-    }
-
-    // 收集所有需要的 ticker
-    const allTickers = new Set<string>();
-    let totalAssets = 0;
-    for (const portfolio of portfolios) {
-      for (const asset of portfolio.assets) {
-        allTickers.add(asset.ticker);
+      let allTickers: Set<string>;
+      let warnings: string[];
+      try {
+        const prep = preparePortfolioBacktest(portfolios, parameters);
+        allTickers = prep.allTickers;
+        warnings = prep.warnings;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        sendProblem(res, 422, 'VALIDATION_ERROR', 'Validation failed', { detail: msg });
+        return;
       }
-      totalAssets += portfolio.assets.length;
-    }
 
-    // 校验 ticker 数量限制
-    if (portfolios.length > MAX_TICKERS || totalAssets > MAX_TICKERS) {
-      sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED', 'Ticker limit exceeded', `组合数量或资产总数超过限制 (max ${MAX_TICKERS})`);
-      return;
-    }
-    if (parameters.benchmarkTicker) {
-      allTickers.add(parameters.benchmarkTicker);
-    }
+      const priceData = await fetchPriceData(
+        Array.from(allTickers),
+        parameters.startDate,
+        parameters.endDate,
+      );
 
-    // 获取价格数据
-    const priceData = await fetchHistoryData(
-      Array.from(allTickers),
-      parameters.startDate,
-      parameters.endDate,
-    );
-
-    // 检查无效 ticker（priceData 中不存在或数据为空）
-    const warnings: string[] = [];
-    const invalidTickers: string[] = [];
-    for (const ticker of allTickers) {
-      if (!priceData[ticker] || Object.keys(priceData[ticker]).length === 0) {
-        warnings.push(`${sanitizeLog(ticker)}: 未找到数据`);
-        invalidTickers.push(ticker);
-      }
-    }
-
-    // 如果有无效 ticker，直接返回错误（不运行回测）
-    if (invalidTickers.length > 0) {
-      res.json({
-        success: false,
-        error: `以下标的代码无效：${invalidTickers.join(', ')}`,
-        warnings,
-      });
-      return;
-    }
-
-    // 运行回测：通过 Application Service 调用引擎（Go/Rust 优先，Node.js 降级）+ 发布领域事件
-    const { cpiData, exchangeRates } = loadMacroData(parameters);
-    const { result, degraded: isDegraded } = await backtestApplicationService.runBacktest({
-      portfolios,
-      parameters,
-      priceData,
-      cpiData,
-      exchangeRates,
-    });
-
-    const response: Record<string, unknown> = { success: true, data: result };
-    if (isDegraded) {
-      // 降级模式：对配置了 drag 的组合使用 JS polyfill 计算近似 drag
-      // drag 配置位于每个 Portfolio 上（年化百分比，如 0.5 表示 0.5%）
-      let dragApplied = false;
-      for (let i = 0; i < portfolios.length; i++) {
-        const portfolio = portfolios[i];
-        if (portfolio.drag && portfolio.drag > 0 && result.portfolios[i]) {
-          const portfolioValues = result.portfolios[i].growthCurve.map((g: { value: number }) => g.value);
-          const cashflows = (parameters.oneTimeCashflows || []).map((cf) => ({
-            date: cf.date,
-            amount: cf.amount,
-          }));
-          result.portfolios[i].drag = calculateDrag(
-            portfolioValues,
-            cashflows,
-            portfolio.rebalanceFrequency || 'none',
-            portfolio.drag / 100, // 百分比转小数（0.5% -> 0.005）
-          );
-          dragApplied = true;
+      const invalidTickers: string[] = [];
+      for (const ticker of allTickers) {
+        if (!priceData[ticker] || Object.keys(priceData[ticker]).length === 0) {
+          warnings.push(`${sanitizeLog(ticker)}: 未找到数据`);
+          invalidTickers.push(ticker);
         }
       }
-      response.degraded = true;
-      response.degradedCode = 'RUST_ENGINE_UNAVAILABLE';
-      response.degradedMessage = 'Rust 引擎不可用，已降级到 Node.js 备用引擎';
-      response.degradedWarning = dragApplied
-        ? DEGRADED_WARNING.WITH_DRAG
-        : DEGRADED_WARNING.WITHOUT_DRAG;
+      collectInvalidTickerWarnings(allTickers, priceData, warnings);
+
+      if (invalidTickers.length > 0) {
+        sendProblem(res, 422, 'INVALID_TICKERS', 'Invalid tickers', {
+          detail: `以下标的代码无效：${invalidTickers.join(', ')}`,
+        });
+        return;
+      }
+
+      const { cpiData, exchangeRates } = await loadMacroData(parameters);
+      const { result } = await withTimeout(
+        backtestApplicationService.runBacktest({
+          portfolios,
+          parameters,
+          priceData,
+          cpiData,
+          exchangeRates,
+        }),
+        config.BACKTEST_SYNC_TIMEOUT_MS,
+        'portfolio-backtest',
+      );
+
+      const cacheKey = backtestCacheKey(portfolios, parameters);
+      setBacktestResultCache(cacheKey, result);
+
+      const response: Record<string, unknown> = {
+        success: true,
+        data: compressBacktestResultForSync(result),
+      };
+      if (warnings.length > 0) {
+        response.warnings = warnings;
+      }
+      res.json(response);
+      logger.info(`[backtest] Portfolio backtest completed in ${Date.now() - startTime}ms`);
+    } catch (error) {
+      if (handleEngineUnavailable(res, error)) return;
+      const { TimeoutError } = await import('../utils/timeout.js');
+      if (error instanceof TimeoutError) {
+        sendProblem(res, 503, 'BACKTEST_TIMEOUT', 'Gateway Timeout', { detail: error.message });
+        return;
+      }
+      logger.error({ err: error as Error }, 'Portfolio backtest error');
+      logger.info(`[backtest] Portfolio backtest failed in ${Date.now() - startTime}ms`);
+      sendProblem(res, 500, 'BACKTEST_ERROR', 'Backtest failed', {
+        detail: 'Failed to run portfolio backtest',
+      });
     }
-    if (warnings.length > 0) {
-      response.warnings = warnings;
+  },
+);
+
+/**
+ * 从 LRU 缓存补全 tab 序列（rolling / turnover / drawdown episodes），零二次引擎调用。
+ * POST /api/backtest/portfolio/series
+ * Body: { portfolios, parameters, series: ('rollingReturns'|'allocationHistory'|'drawdownEpisodes')[] }
+ */
+router.post(
+  '/portfolio/series',
+  validate(portfolioSeriesSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { portfolios, parameters, series } = req.body as {
+        portfolios: Portfolio[];
+        parameters: BacktestParameters;
+        series: string[];
+      };
+
+      const cacheKey = backtestCacheKey(portfolios, parameters);
+      const cached = getBacktestResultCache(cacheKey);
+      if (!cached) {
+        sendProblem(res, 404, 'BACKTEST_CACHE_MISS', 'Cache miss', {
+          detail: '回测缓存已过期，请重新运行回测',
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          portfolios: extractBacktestSeries(cached, series),
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error as Error }, 'Portfolio series error');
+      sendProblem(res, 500, 'SERIES_ERROR', 'Series fetch failed', {
+        detail: 'Failed to fetch backtest series',
+      });
     }
-    res.json(response);
-    logger.info(`[backtest] Portfolio backtest completed in ${Date.now() - startTime}ms`);
-  } catch (error) {
-    logger.error({ err: error as Error }, 'Portfolio backtest error');
-    logger.info(`[backtest] Portfolio backtest failed in ${Date.now() - startTime}ms`);
-    sendProblem(res, 500, 'BACKTEST_ERROR', 'Backtest failed', 'Failed to run portfolio backtest');
-  }
-});
+  },
+);
 
 /**
  * 运行资产分析
  * POST /api/backtest/analysis
  * Body: { tickers: string[], parameters: BacktestParameters }
  */
-router.post('/analysis', validate(analysisSchema), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { parameters } = req.body as {
-      tickers: string[] | string;
-      parameters: BacktestParameters;
-    };
-    let { tickers } = req.body as {
-      tickers: string[] | string;
-      parameters: BacktestParameters;
-    };
+router.post(
+  '/analysis',
+  validate(analysisSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { parameters } = req.body as {
+        tickers: string[] | string;
+        parameters: BacktestParameters;
+      };
+      let { tickers } = req.body as {
+        tickers: string[] | string;
+        parameters: BacktestParameters;
+      };
 
-    if (!tickers || !parameters) {
-      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required fields', 'Missing required fields: tickers, parameters');
-      return;
+      // 支持tickers为空格/逗号分隔的字符串
+      if (typeof tickers === 'string') {
+        tickers = tickers
+          .split(/[\s,]+/)
+          .map((t: string) => t.trim())
+          .filter(Boolean);
+      }
+
+      if (!checkTickerLimit(res, tickers.length)) return;
+
+      const priceData = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+
+      const rustBody = {
+        tickers,
+        priceData,
+        params: buildEngineParams(parameters),
+      };
+      let result = await callEngineStrict('/api/engine/analysis', rustBody);
+
+      // 引擎返回 { assets: [...] }，前端期望 { tickers: [...] }，做字段映射
+      const resultAny = result as unknown as Record<string, unknown>;
+      if (resultAny && resultAny.assets && !resultAny.tickers) {
+        result = {
+          tickers: resultAny.assets,
+          correlations: resultAny.correlations || [],
+        } as unknown as typeof result;
+      }
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (handleEngineUnavailable(res, error)) return;
+      logger.error({ err: error as Error }, 'Analysis error');
+      sendProblem(res, 500, 'ANALYSIS_ERROR', 'Analysis failed', {
+        detail: 'Failed to run analysis',
+      });
     }
-
-    // 支持tickers为空格/逗号分隔的字符串
-    if (typeof tickers === 'string') {
-      tickers = tickers.split(/[\s,]+/).map((t: string) => t.trim()).filter(Boolean);
-    }
-
-    // 校验 ticker 数量限制
-    if (tickers.length > MAX_TICKERS) {
-      sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED', 'Ticker limit exceeded', `ticker 数量超过限制 (max ${MAX_TICKERS})`);
-      return;
-    }
-
-    // 校验日期格式
-    if (!isValidDate(parameters.startDate) || !isValidDate(parameters.endDate)) {
-      sendProblem(res, 422, 'INVALID_DATE', 'Invalid date format', 'Invalid date format, expected YYYY-MM-DD');
-      return;
-    }
-
-    const priceData = await fetchHistoryData(
-      tickers,
-      parameters.startDate,
-      parameters.endDate,
-    );
-
-    // 尝试 Rust 引擎，失败时降级到 Node.js
-    const rustBody = {
-      tickers,
-      priceData,
-      params: buildRustParams(parameters),
-    };
-    let result = await callRustWithFallback(
-      '/api/engine/analysis',
-      rustBody,
-      () => runAnalysis(tickers, priceData, parameters),
-    );
-
-    // 解包降级响应
-    const { data: analysisData, degraded: isAnalysisDegraded } = unwrapFallbackResult(result);
-    result = analysisData as typeof result;
-
-    // Rust 引擎返回 { assets: [...] }，前端期望 { tickers: [...] }，做字段映射
-    const resultAny = result as unknown as Record<string, unknown>;
-    if (resultAny && resultAny.assets && !resultAny.tickers) {
-      result = { tickers: resultAny.assets, correlations: resultAny.correlations || [] } as unknown as typeof result;
-    }
-
-    const response: Record<string, unknown> = { success: true, data: result };
-    if (isAnalysisDegraded) {
-      response.degraded = true;
-      response.degradedCode = 'RUST_ENGINE_UNAVAILABLE';
-      response.degradedMessage = 'Rust 引擎不可用，已降级到 Node.js 备用引擎';
-    }
-    res.json(response);
-  } catch (error) {
-    logger.error({ err: error as Error }, 'Analysis error');
-    sendProblem(res, 500, 'ANALYSIS_ERROR', 'Analysis failed', 'Failed to run analysis');
-  }
-});
+  },
+);
 
 /**
  * 运行蒙特卡洛模拟
@@ -329,247 +358,143 @@ router.post('/analysis', validate(analysisSchema), async (req: Request, res: Res
  * Body: { portfolio: Portfolio, parameters: BacktestParameters, mcParams?: object }
  *   或  { portfolios: Portfolio[], parameters: BacktestParameters, mcParams?: object }
  */
-router.post('/monte-carlo', validate(monteCarloSchema), async (req: Request, res: Response): Promise<void> => {
-  const startTime = Date.now();
-  try {
-    const { portfolio, portfolios, parameters, mcParams } = req.body as {
-      portfolio?: Portfolio;
-      portfolios?: Portfolio[];
-      parameters: BacktestParameters;
-      mcParams?: object;
-    };
+router.post(
+  '/monte-carlo',
+  validate(monteCarloSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const startTime = Date.now();
+    try {
+      const { portfolio, portfolios, parameters, mcParams } = req.body as {
+        portfolio?: Portfolio;
+        portfolios?: Portfolio[];
+        parameters: BacktestParameters;
+        mcParams?: object;
+      };
 
-    // 支持两种格式：portfolio（单个）或 portfolios（数组）
-    const portfolioList = portfolios || (portfolio ? [portfolio] : undefined);
+      // 支持两种格式：portfolio（单个）或 portfolios（数组）
+      const portfolioList = (portfolios || (portfolio ? [portfolio] : undefined))!;
 
-    if (!portfolioList || portfolioList.length === 0 || !parameters) {
-      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required fields', 'Missing required fields: portfolio (or portfolios), parameters');
-      return;
-    }
+      const { tickers: tickerArr, totalAssets } = collectTickersFromPortfolios(portfolioList);
+      const allTickers = new Set(tickerArr);
 
-    // 校验日期格式
-    if (!isValidDate(parameters.startDate) || !isValidDate(parameters.endDate)) {
-      sendProblem(res, 422, 'INVALID_DATE', 'Invalid date format', 'Invalid date format, expected YYYY-MM-DD');
-      return;
-    }
+      if (!checkTickerLimit(res, Math.max(portfolioList.length, totalAssets))) return;
+      const priceData = await fetchPriceData(tickerArr, parameters.startDate, parameters.endDate);
 
-    // 收集所有 ticker
-    const allTickers = new Set<string>();
-    let totalAssets = 0;
-    for (const p of portfolioList) {
-      for (const asset of p.assets) {
-        allTickers.add(asset.ticker);
-      }
-      totalAssets += p.assets.length;
-    }
+      const sanitizedMcParams = sanitizeMcParams(mcParams);
 
-    // 校验 ticker 数量限制
-    if (portfolioList.length > MAX_TICKERS || totalAssets > MAX_TICKERS) {
-      sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED', 'Ticker limit exceeded', `组合数量或资产总数超过限制 (max ${MAX_TICKERS})`);
-      return;
-    }
-    const tickerArr = Array.from(allTickers);
-    const priceData = await fetchHistoryData(
-      tickerArr,
-      parameters.startDate,
-      parameters.endDate,
-    );
+      // 调用引擎：fail-closed（ADR-027）。每个组合都走引擎，避免主引擎与 Node 混用导致结果不一致。
+      const { cpiData, exchangeRates } = await loadMacroData(parameters);
+      const results = await Promise.all(
+        portfolioList.map((p) =>
+          callEngineStrict('/api/engine/monte-carlo', {
+            portfolio: buildEnginePortfolioBody(p),
+            priceData: filterPriceData(priceData, allTickers),
+            params: buildEngineParams(parameters),
+            cpiData,
+            exchangeRates,
+            mcParams: sanitizedMcParams,
+          }),
+        ),
+      );
 
-    // 验证 mcParams 结构并过滤未知键
-    const MC_PARAMS_ALLOWED_KEYS = new Set(['numSimulations', 'blockSize', 'withReplacement', 'confidenceLevel', 'distribution', 'seed']);
-    const rawMcParams = (mcParams && typeof mcParams === 'object' && !Array.isArray(mcParams))
-      ? mcParams as Record<string, unknown>
-      : {};
-    const sanitizedMcParams: Record<string, unknown> = {};
-    for (const key of Object.keys(rawMcParams)) {
-      if (MC_PARAMS_ALLOWED_KEYS.has(key)) {
-        sanitizedMcParams[key] = rawMcParams[key];
-      }
-    }
-
-    // 优先Rust引擎（对第一个组合）
-    const firstPortfolio = portfolioList[0];
-    const { cpiData, exchangeRates } = loadMacroData(parameters);
-    const rustBody = {
-      portfolio: buildRustPortfolioBody(firstPortfolio),
-      priceData: filterPriceData(priceData, allTickers),
-      params: buildRustParams(parameters),
-      cpiData,
-      exchangeRates,
-      mcParams: sanitizedMcParams,
-    };
-    const firstRawResult = await callRustWithFallback(
-      '/api/engine/monte-carlo',
-      rustBody,
-      () => runMonteCarlo(firstPortfolio, priceData, parameters, sanitizedMcParams),
-    );
-    const { data: firstResult, degraded: isMcDegraded } = unwrapFallbackResult(firstRawResult);
-
-    // 如果只有一个组合，直接返回结果
-    if (portfolioList.length === 1) {
-      const response: Record<string, unknown> = { success: true, data: firstResult };
-      if (isMcDegraded) {
-        response.degraded = true;
-        response.degradedCode = 'RUST_ENGINE_UNAVAILABLE';
-        response.degradedMessage = 'Rust 引擎不可用，已降级到 Node.js 备用引擎';
-      }
-      res.json(response);
-    } else {
-      // 多个组合：第一个用Rust结果（如果可用），其余用Node降级
-      const finalResults = portfolioList.map((p, idx) => {
-        if (idx === 0) return firstResult;
-        return runMonteCarlo(p, priceData, parameters, mcParams);
+      // 单组合返回对象，多组合返回数组（保持原响应契约）。
+      res.json({ success: true, data: portfolioList.length === 1 ? results[0] : results });
+      logger.info(`[backtest] Monte Carlo completed in ${Date.now() - startTime}ms`);
+    } catch (error) {
+      if (handleEngineUnavailable(res, error)) return;
+      logger.error({ err: error as Error }, 'Monte Carlo simulation error');
+      sendProblem(res, 500, 'MONTE_CARLO_ERROR', 'Monte Carlo failed', {
+        detail: 'Failed to run Monte Carlo simulation',
       });
-      const response: Record<string, unknown> = { success: true, data: finalResults };
-      if (isMcDegraded) {
-        response.degraded = true;
-        response.degradedCode = 'RUST_ENGINE_UNAVAILABLE';
-        response.degradedMessage = 'Rust 引擎不可用，已降级到 Node.js 备用引擎';
-      }
-      res.json(response);
     }
-    logger.info(`[backtest] Monte Carlo completed in ${Date.now() - startTime}ms`);
-  } catch (error) {
-    logger.error({ err: error as Error }, 'Monte Carlo simulation error');
-    sendProblem(res, 500, 'MONTE_CARLO_ERROR', 'Monte Carlo failed', 'Failed to run Monte Carlo simulation');
-  }
-});
+  },
+);
 
 /**
  * 运行组合优化
  * POST /api/backtest/optimize
  * Body: { tickers: string[], objective: string, constraints?: object, parameters: BacktestParameters }
  */
-router.post('/optimize', validate(optimizeSchema), async (req: Request, res: Response): Promise<void> => {
-  const startTime = Date.now();
-  try {
-    const { tickers, objective, constraints, parameters, riskFreeRate, numIterations } = req.body as {
-      tickers: string[];
-      objective: 'maxSharpe' | 'minVolatility' | 'maxReturn';
-      constraints?: { minWeight?: number; maxWeight?: number };
-      parameters: BacktestParameters;
-      riskFreeRate?: number;
-      numIterations?: number;
-    };
+router.post(
+  '/optimize',
+  validate(optimizeSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    const startTime = Date.now();
+    try {
+      const { tickers, objective, constraints, parameters, numIterations } = req.body as {
+        tickers: string[];
+        objective: 'maxSharpe' | 'minVolatility' | 'maxReturn';
+        constraints?: { minWeight?: number; maxWeight?: number };
+        parameters: BacktestParameters;
+        numIterations?: number;
+      };
 
-    if (!tickers || !parameters) {
-      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required fields', 'Missing required fields: tickers, parameters');
-      return;
+      if (!checkTickerLimit(res, tickers.length)) return;
+
+      const cappedIterations = numIterations ? Math.min(numIterations, 100000) : 10000;
+
+      const priceData = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+
+      const rustBody = {
+        tickers,
+        priceData: filterPriceData(priceData, new Set(tickers)),
+        objective,
+        constraints: constraints || {},
+        numIterations: cappedIterations,
+      };
+      const result = await callEngineStrict('/api/engine/optimize', rustBody);
+
+      logger.info(`[backtest] Optimization completed in ${Date.now() - startTime}ms`);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (handleEngineUnavailable(res, error)) return;
+      logger.error({ err: error as Error }, 'Optimization error');
+      sendProblem(res, 500, 'OPTIMIZATION_ERROR', 'Optimization failed', {
+        detail: 'Failed to optimize portfolio',
+      });
     }
-
-    // 校验 ticker 数量限制
-    if (tickers.length > MAX_TICKERS) {
-      sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED', 'Ticker limit exceeded', `ticker 数量超过限制 (max ${MAX_TICKERS})`);
-      return;
-    }
-
-    // 校验日期格式
-    if (!isValidDate(parameters.startDate) || !isValidDate(parameters.endDate)) {
-      sendProblem(res, 422, 'INVALID_DATE', 'Invalid date format', 'Invalid date format, expected YYYY-MM-DD');
-      return;
-    }
-
-    // 限制 numIterations 上限
-    const cappedIterations = numIterations ? Math.min(numIterations, 100000) : 10000;
-
-    const priceData = await fetchHistoryData(
-      tickers,
-      parameters.startDate,
-      parameters.endDate,
-    );
-
-    // 优先 Rust 引擎，降级到 Node.js
-    const rustBody = {
-      tickers,
-      priceData: filterPriceData(priceData, new Set(tickers)),
-      objective,
-      constraints: constraints || {},
-      numIterations: cappedIterations,
-    };
-    const rawResult = await callRustWithFallback(
-      '/api/engine/optimize',
-      rustBody,
-      () => optimizePortfolio(tickers, priceData, objective, constraints, riskFreeRate, cappedIterations),
-    );
-    const { data: result, degraded: isOptDegraded } = unwrapFallbackResult(rawResult);
-
-    logger.info(`[backtest] Optimization completed in ${Date.now() - startTime}ms`);
-    const response: Record<string, unknown> = { success: true, data: result };
-    if (isOptDegraded) {
-      response.degraded = true;
-      response.degradedCode = 'RUST_ENGINE_UNAVAILABLE';
-      response.degradedMessage = 'Rust 引擎不可用，已降级到 Node.js 备用引擎';
-    }
-    res.json(response);
-  } catch (error) {
-    logger.error({ err: error as Error }, 'Optimization error');
-    sendProblem(res, 500, 'OPTIMIZATION_ERROR', 'Optimization failed', 'Failed to optimize portfolio');
-  }
-});
+  },
+);
 
 /**
  * 计算有效前沿
  * POST /api/backtest/efficient-frontier
  * Body: { tickers: string[], numPoints?: number, parameters: BacktestParameters }
  */
-router.post('/efficient-frontier', validate(efficientFrontierSchema), async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { tickers, numPoints, parameters, riskFreeRate, numIterations } = req.body as {
-      tickers: string[];
-      numPoints?: number;
-      parameters: BacktestParameters;
-      riskFreeRate?: number;
-      numIterations?: number;
-    };
+router.post(
+  '/efficient-frontier',
+  validate(efficientFrontierSchema),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { tickers, numPoints, parameters, riskFreeRate } = req.body as {
+        tickers: string[];
+        numPoints?: number;
+        parameters: BacktestParameters;
+        riskFreeRate?: number;
+      };
 
-    if (!tickers || !parameters) {
-      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required fields', 'Missing required fields: tickers, parameters');
-      return;
+      if (!checkTickerLimit(res, tickers.length)) return;
+
+      const priceData = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+
+      // 调用引擎：fail-closed（ADR-027）
+      const rustBody = {
+        tickers,
+        priceData: filterPriceData(priceData, new Set(tickers)),
+        numPoints: numPoints || 20,
+        riskFreeRate: riskFreeRate || 0.02,
+      };
+      const result = await callEngineStrict('/api/engine/efficient-frontier', rustBody);
+
+      res.json({ success: true, data: result });
+    } catch (error) {
+      if (handleEngineUnavailable(res, error)) return;
+      logger.error({ err: error as Error }, 'Efficient frontier error');
+      sendProblem(res, 500, 'EFFICIENT_FRONTIER_ERROR', 'Efficient frontier failed', {
+        detail: 'Failed to calculate efficient frontier',
+      });
     }
-
-    // 校验 ticker 数量限制
-    if (tickers.length > MAX_TICKERS) {
-      sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED', 'Ticker limit exceeded', `ticker 数量超过限制 (max ${MAX_TICKERS})`);
-      return;
-    }
-
-    // 校验日期格式
-    if (!isValidDate(parameters.startDate) || !isValidDate(parameters.endDate)) {
-      sendProblem(res, 422, 'INVALID_DATE', 'Invalid date format', 'Invalid date format, expected YYYY-MM-DD');
-      return;
-    }
-
-    const priceData = await fetchHistoryData(
-      tickers,
-      parameters.startDate,
-      parameters.endDate,
-    );
-
-    // 优先 Rust 引擎，降级到 Node.js
-    const rustBody = {
-      tickers,
-      priceData: filterPriceData(priceData, new Set(tickers)),
-      numPoints: numPoints || 20,
-      riskFreeRate: riskFreeRate || 0.02,
-    };
-    const rawResult = await callRustWithFallback(
-      '/api/engine/efficient-frontier',
-      rustBody,
-      () => calcEfficientFrontier(tickers, priceData, numPoints, riskFreeRate, numIterations),
-    );
-    const { data: result, degraded: isEfDegraded } = unwrapFallbackResult(rawResult);
-
-    const response: Record<string, unknown> = { success: true, data: result };
-    if (isEfDegraded) {
-      response.degraded = true;
-      response.degradedCode = 'RUST_ENGINE_UNAVAILABLE';
-      response.degradedMessage = 'Rust 引擎不可用，已降级到 Node.js 备用引擎';
-    }
-    res.json(response);
-  } catch (error) {
-    logger.error({ err: error as Error }, 'Efficient frontier error');
-    sendProblem(res, 500, 'EFFICIENT_FRONTIER_ERROR', 'Efficient frontier failed', 'Failed to calculate efficient frontier');
-  }
-});
+  },
+);
 
 export default router;

@@ -25,12 +25,11 @@ import { logger } from '../utils/logger.js';
  * @param res - Express 响应对象
  * @param next - Express next 函数
  */
-export function requireApiKey(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
-  logger.info({ middleware: 'requireApiKey', path: req.path, method: req.method, requestId: (req as any).id }, '[auth] API Key 认证检查');
+export function requireApiKey(req: Request, res: Response, next: NextFunction): void {
+  logger.info(
+    { middleware: 'requireApiKey', path: req.path, method: req.method, requestId: req.id },
+    '[auth] API Key 认证检查',
+  );
 
   // 开发环境且未配置 ADMIN_API_KEY 时跳过鉴权，方便本地开发
   if (!config.ADMIN_API_KEY) {
@@ -40,7 +39,9 @@ export function requireApiKey(
       return;
     }
     // 生产环境未配置 ADMIN_API_KEY，直接拒绝
-    res.status(401).json({ success: false, error: { code: 'MISSING_API_KEY', message: 'Missing API key' } });
+    res
+      .status(401)
+      .json({ success: false, error: { code: 'MISSING_API_KEY', message: 'Missing API key' } });
     return;
   }
 
@@ -48,34 +49,57 @@ export function requireApiKey(
 
   // 缺失 API Key
   if (!apiKey) {
-    logger.warn({ middleware: 'requireApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 缺失');
-    res.status(401).json({ success: false, error: { code: 'MISSING_API_KEY', message: 'Missing API key' } });
+    logger.warn(
+      { middleware: 'requireApiKey', path: req.path, requestId: req.id },
+      '[auth] API Key 缺失',
+    );
+    res
+      .status(401)
+      .json({ success: false, error: { code: 'MISSING_API_KEY', message: 'Missing API key' } });
     return;
   }
 
   // API Key 长度校验（防止 DoS）
   if (apiKey.length > 128) {
-    logger.warn({ middleware: 'requireApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 无效');
-    res.status(403).json({ success: false, error: { code: 'INVALID_API_KEY', message: 'Invalid API key' } });
+    logger.warn(
+      { middleware: 'requireApiKey', path: req.path, requestId: req.id },
+      '[auth] API Key 无效',
+    );
+    res
+      .status(403)
+      .json({ success: false, error: { code: 'INVALID_API_KEY', message: 'Invalid API key' } });
     return;
   }
 
   // 使用常量时间比较防止时序攻击
   const expected = config.ADMIN_API_KEY;
   if (apiKey.length !== expected.length) {
-    logger.warn({ middleware: 'requireApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 无效');
-    res.status(403).json({ success: false, error: { code: 'INVALID_API_KEY', message: 'Invalid API key' } });
+    logger.warn(
+      { middleware: 'requireApiKey', path: req.path, requestId: req.id },
+      '[auth] API Key 无效',
+    );
+    res
+      .status(403)
+      .json({ success: false, error: { code: 'INVALID_API_KEY', message: 'Invalid API key' } });
     return;
   }
   const a = Buffer.from(apiKey, 'utf-8');
   const b = Buffer.from(expected, 'utf-8');
   if (!crypto.timingSafeEqual(a, b)) {
-    logger.warn({ middleware: 'requireApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 无效');
-    res.status(403).json({ success: false, error: { code: 'INVALID_API_KEY', message: 'Invalid API key' } });
+    logger.warn(
+      { middleware: 'requireApiKey', path: req.path, requestId: req.id },
+      '[auth] API Key 无效',
+    );
+    res
+      .status(403)
+      .json({ success: false, error: { code: 'INVALID_API_KEY', message: 'Invalid API key' } });
     return;
   }
 
-  logger.info({ middleware: 'requireApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 认证通过');
+  logger.info(
+    { middleware: 'requireApiKey', path: req.path, requestId: req.id },
+    '[auth] API Key 认证通过',
+  );
   next();
 }
 
@@ -94,12 +118,11 @@ export function requireApiKey(
 // Security: optionalApiKey仅用于开发环境便利性
 // 企业为何需要：生产环境必须使用requireApiKey，否则计算端点可被匿名调用
 // 权衡：开发环境无API Key时仍可访问，提升开发体验
-export function optionalApiKey(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): void {
-  logger.info({ middleware: 'optionalApiKey', path: req.path, method: req.method, requestId: (req as any).id }, '[auth] 可选 API Key 检查');
+export function optionalApiKey(req: Request, res: Response, next: NextFunction): void {
+  logger.info(
+    { middleware: 'optionalApiKey', path: req.path, method: req.method, requestId: req.id },
+    '[auth] 可选 API Key 检查',
+  );
 
   // 如果配置了强制认证，退化为 requireApiKey
   if (config.REQUIRE_API_KEY) {
@@ -117,7 +140,10 @@ export function optionalApiKey(
 
   // 无 API Key 时放行（可选认证）
   if (!apiKey) {
-    logger.info({ middleware: 'optionalApiKey', path: req.path, requestId: (req as any).id }, '[auth] 无 API Key，匿名放行');
+    logger.info(
+      { middleware: 'optionalApiKey', path: req.path, requestId: req.id },
+      '[auth] 无 API Key，匿名放行',
+    );
     next();
     return;
   }
@@ -125,26 +151,38 @@ export function optionalApiKey(
   // 有 API Key 时验证
   if (apiKey.length > 128) {
     // Key 格式异常，但可选认证下不阻断，仅记录
-    logger.warn({ middleware: 'optionalApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 验证失败，可选认证放行');
+    logger.warn(
+      { middleware: 'optionalApiKey', path: req.path, requestId: req.id },
+      '[auth] API Key 验证失败，可选认证放行',
+    );
     next();
     return;
   }
 
   const expected = config.ADMIN_API_KEY;
   if (apiKey.length !== expected.length) {
-    logger.warn({ middleware: 'optionalApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 验证失败，可选认证放行');
+    logger.warn(
+      { middleware: 'optionalApiKey', path: req.path, requestId: req.id },
+      '[auth] API Key 验证失败，可选认证放行',
+    );
     next();
     return;
   }
   const a = Buffer.from(apiKey, 'utf-8');
   const b = Buffer.from(expected, 'utf-8');
   if (!crypto.timingSafeEqual(a, b)) {
-    logger.warn({ middleware: 'optionalApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 验证失败，可选认证放行');
+    logger.warn(
+      { middleware: 'optionalApiKey', path: req.path, requestId: req.id },
+      '[auth] API Key 验证失败，可选认证放行',
+    );
     next();
     return;
   }
 
   // 验证通过，标记为已认证
-  logger.info({ middleware: 'optionalApiKey', path: req.path, requestId: (req as any).id }, '[auth] API Key 验证通过');
+  logger.info(
+    { middleware: 'optionalApiKey', path: req.path, requestId: req.id },
+    '[auth] API Key 验证通过',
+  );
   next();
 }

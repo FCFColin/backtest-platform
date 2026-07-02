@@ -72,14 +72,12 @@ export function calcPortfolioDailyReturns(
 
   // 对齐日期交集
   const dateSets = validAssets.map((a) => {
-    const dates = Object.keys(priceData[a.ticker]).filter(
-      (d) => d >= startDate && d <= endDate,
-    );
+    const dates = Object.keys(priceData[a.ticker]).filter((d) => d >= startDate && d <= endDate);
     return new Set(dates);
   });
-  const commonDates = Array.from(dateSets[0]).filter((d) =>
-    dateSets.every((s) => s.has(d)),
-  ).sort();
+  const commonDates = Array.from(dateSets[0])
+    .filter((d) => dateSets.every((s) => s.has(d)))
+    .sort();
 
   if (commonDates.length < 2) return [];
 
@@ -143,9 +141,7 @@ export function runGoalSimulation(
     }
 
     const volatility =
-      dailyReturns.length > 1
-        ? std(dailyReturns) * Math.sqrt(TRADING_DAYS_PER_YEAR)
-        : 0;
+      dailyReturns.length > 1 ? std(dailyReturns) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
 
     paths.push(path);
     metrics.push({
@@ -236,8 +232,7 @@ export function calcRequiredContribution(
 
   const growthFactor =
     medianFinalValue > 0 && initialAmount > 0 ? medianFinalValue / initialAmount : 1;
-  const r =
-    years > 0 && growthFactor > 0 ? Math.pow(growthFactor, 1 / years) - 1 : 0;
+  const r = years > 0 && growthFactor > 0 ? Math.pow(growthFactor, 1 / years) - 1 : 0;
 
   const fvInitial = initialAmount * Math.pow(1 + r, years);
   const gap = targetAmount - fvInitial;
@@ -263,12 +258,7 @@ export function optimizeGoals(
   const validAssets = request.assets.filter((a) => a.ticker && a.ticker.trim());
 
   // 计算组合历史日收益率统计
-  const dailyReturns = calcPortfolioDailyReturns(
-    validAssets,
-    priceData,
-    startDateStr,
-    endDateStr,
-  );
+  const dailyReturns = calcPortfolioDailyReturns(validAssets, priceData, startDateStr, endDateStr);
 
   const dailyMean = mean(dailyReturns);
   const dailyStd = std(dailyReturns);
@@ -285,10 +275,7 @@ export function optimizeGoals(
   if (constraints) {
     const indices: number[] = [];
     for (let i = 0; i < metrics.length; i++) {
-      if (
-        constraints.maxDrawdown !== undefined &&
-        metrics[i].maxDrawdown > constraints.maxDrawdown
-      )
+      if (constraints.maxDrawdown !== undefined && metrics[i].maxDrawdown > constraints.maxDrawdown)
         continue;
       if (
         constraints.maxVolatility !== undefined &&
@@ -317,9 +304,7 @@ export function optimizeGoals(
 
   // 统计成功概率
   const finalValues = filteredMetrics.map((m) => m.finalValue);
-  const successCount = finalValues.filter(
-    (v) => v >= request.targetAmount,
-  ).length;
+  const successCount = finalValues.filter((v) => v >= request.targetAmount).length;
   const successProbability = successCount / finalValues.length;
 
   // 概率分布曲线

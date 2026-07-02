@@ -1,7 +1,7 @@
 /**
  * 组合优化模块（Node.js降级后备）
- * 优先使用Rust引擎(localhost:5002)，此文件仅在Rust引擎不可用时启用
- * 对应Rust实现: engine-rs/src/optimizer.rs
+ * 主引擎为 Go(engine-go, localhost:5004)；本文件作为一致性参照保留，不用于线上降级（ADR-031）。
+ * 对应 Go 实现: engine-go/internal/engine/optimizer.go
  *
  * 使用分析解法（二次规划）替代随机搜索，精确求解有效前沿。
  * 复杂度从 O(10000 × N²) 降到 O(N³)。
@@ -18,16 +18,24 @@ interface OptimizeConstraints {
   maxWeight?: number;
 }
 
+/** 有效前沿边界组合权重（用于目标收益率求解的迭代投影法） */
+interface BoundaryWeights {
+  minVolWeights: number[];
+  maxRetWeights: number[];
+  minVolReturn: number;
+  maxReturn: number;
+}
+
 /**
  * 计算各资产的年化收益率和协方差矩阵
  */
-function calcReturnAndCov(
+/** 收集各标的有效价格映射 */
+function collectTickerPrices(
   tickers: string[],
   priceData: PriceData,
-): { meanReturns: number[]; covMatrix: number[][]; validTickers: string[] } {
-  const validTickers: string[] = [];
+): Map<string, Map<string, number>> {
   const tickerDatePrices: Map<string, Map<string, number>> = new Map();
-
+  const validTickers: string[] = [];
   for (const ticker of tickers) {
     if (!priceData[ticker]) continue;
     const dateMap = new Map<string, number>();
@@ -38,16 +46,17 @@ function calcReturnAndCov(
     tickerDatePrices.set(ticker, dateMap);
     validTickers.push(ticker);
   }
+  return tickerDatePrices;
+}
 
-  if (validTickers.length === 0) {
-    return { meanReturns: [], covMatrix: [], validTickers: [] };
-  }
-
-  // 找到所有标的共有的交易日（按日期对齐，避免不同标的价格序列错位）
-  let commonDates: Set<string>;
+/** 求所有标的的共有交易日 */
+function findCommonDates(
+  validTickers: string[],
+  tickerDatePrices: Map<string, Map<string, number>>,
+): string[] {
   const firstTicker = validTickers[0];
   const firstMap = tickerDatePrices.get(firstTicker)!;
-  commonDates = new Set(firstMap.keys());
+  let commonDates: Set<string> = new Set(firstMap.keys());
   for (let i = 1; i < validTickers.length; i++) {
     const map = tickerDatePrices.get(validTickers[i])!;
     const newCommon = new Set<string>();
@@ -56,13 +65,15 @@ function calcReturnAndCov(
     }
     commonDates = newCommon;
   }
+  return Array.from(commonDates).sort();
+}
 
-  const sortedDates = Array.from(commonDates).sort();
-  if (sortedDates.length < 2) {
-    return { meanReturns: [], covMatrix: [], validTickers: [] };
-  }
-
-  // 按共有日期计算各标的的日收益率
+/** 计算各标的的日收益率序列 */
+function calcAllReturns(
+  validTickers: string[],
+  tickerDatePrices: Map<string, Map<string, number>>,
+  sortedDates: string[],
+): number[][] {
   const allReturns: number[][] = [];
   for (const ticker of validTickers) {
     const dateMap = tickerDatePrices.get(ticker)!;
@@ -76,20 +87,35 @@ function calcReturnAndCov(
     }
     allReturns.push(returns);
   }
+  return allReturns;
+}
 
-  const alignedReturns = allReturns;
+function calcReturnAndCov(
+  tickers: string[],
+  priceData: PriceData,
+): { meanReturns: number[]; covMatrix: number[][]; validTickers: string[] } {
+  const tickerDatePrices = collectTickerPrices(tickers, priceData);
+  const validTickers = Array.from(tickerDatePrices.keys());
+
+  if (validTickers.length === 0) {
+    return { meanReturns: [], covMatrix: [], validTickers: [] };
+  }
+
+  const sortedDates = findCommonDates(validTickers, tickerDatePrices);
+  if (sortedDates.length < 2) {
+    return { meanReturns: [], covMatrix: [], validTickers: [] };
+  }
+
+  const alignedReturns = calcAllReturns(validTickers, tickerDatePrices, sortedDates);
 
   const meanReturns = alignedReturns.map((r) => {
-    // 几何平均年化（复合年化收益率），而非算术平均
     let cumProd = 1;
-    for (const ret of r) cumProd *= (1 + ret);
-    const annualized = Math.pow(cumProd, TRADING_DAYS_PER_YEAR / r.length) - 1;
-    return annualized;
+    for (const ret of r) cumProd *= 1 + ret;
+    return Math.pow(cumProd, TRADING_DAYS_PER_YEAR / r.length) - 1;
   });
 
   const n = alignedReturns.length;
   const covMatrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
-
   for (let i = 0; i < n; i++) {
     for (let j = i; j < n; j++) {
       const cov = calcCovariance(alignedReturns[i], alignedReturns[j]);
@@ -103,7 +129,9 @@ function calcReturnAndCov(
 
 function calcCovariance(x: number[], y: number[]): number {
   if (x.length !== y.length) {
-    throw new Error(`Covariance calculation requires equal-length arrays, got ${x.length} and ${y.length}`);
+    throw new Error(
+      `Covariance calculation requires equal-length arrays, got ${x.length} and ${y.length}`,
+    );
   }
   const n = x.length;
   if (n < 2) return 0;
@@ -135,44 +163,58 @@ function calcPortfolioVolatility(weights: number[], covMatrix: number[][]): numb
 
 // ===== 矩阵运算 =====
 
+/** 条件数检查：最大对角元素 / 最小对角元素 */
+function isWellConditioned(result: number[][]): boolean {
+  const diagElements = result.map((row, i) => Math.abs(row[i]));
+  const maxDiag = Math.max(...diagElements);
+  const minDiag = Math.min(...diagElements);
+  return minDiag <= 0 || maxDiag / minDiag <= 1e10;
+}
+
+/** 找到列中绝对值最大的行（部分主元选择） */
+function findPivotRow(aug: number[][], col: number, n: number): number {
+  let maxRow = col;
+  for (let row = col + 1; row < n; row++) {
+    if (Math.abs(aug[row][col]) > Math.abs(aug[maxRow][col])) maxRow = row;
+  }
+  return maxRow;
+}
+
+/** 用主元除当前行，使主元位置变为 1 */
+function normalizePivotRow(aug: number[][], col: number, n: number): void {
+  const pivot = aug[col][col];
+  for (let j = 0; j < 2 * n; j++) aug[col][j] /= pivot;
+}
+
+/** 消去其他行在当前列的元素 */
+function eliminateColumn(aug: number[][], col: number, n: number): void {
+  for (let row = 0; row < n; row++) {
+    if (row === col) continue;
+    const factor = aug[row][col];
+    for (let j = 0; j < 2 * n; j++) aug[row][j] -= factor * aug[col][j];
+  }
+}
+
 /** 矩阵求逆（高斯-约旦消元法） */
 function invertMatrix(mat: number[][]): number[][] | null {
   const n = mat.length;
-  // 增广矩阵 [A | I]
   const aug: number[][] = mat.map((row, i) => [
     ...row,
     ...Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)),
   ]);
 
   for (let col = 0; col < n; col++) {
-    // 部分主元选取
-    let maxRow = col;
-    for (let row = col + 1; row < n; row++) {
-      if (Math.abs(aug[row][col]) > Math.abs(aug[maxRow][col])) maxRow = row;
-    }
+    const maxRow = findPivotRow(aug, col, n);
     [aug[col], aug[maxRow]] = [aug[maxRow], aug[col]];
 
-    if (Math.abs(aug[col][col]) < 1e-12) return null; // 奇异矩阵
+    if (Math.abs(aug[col][col]) < 1e-12) return null;
 
-    const pivot = aug[col][col];
-    for (let j = 0; j < 2 * n; j++) aug[col][j] /= pivot;
-
-    for (let row = 0; row < n; row++) {
-      if (row === col) continue;
-      const factor = aug[row][col];
-      for (let j = 0; j < 2 * n; j++) aug[row][j] -= factor * aug[col][j];
-    }
+    normalizePivotRow(aug, col, n);
+    eliminateColumn(aug, col, n);
   }
 
   const result = aug.map((row) => row.slice(n));
-
-  // 条件数检查：最大对角元素 / 最小对角元素
-  const diagElements = result.map((row, i) => Math.abs(row[i]));
-  const maxDiag = Math.max(...diagElements);
-  const minDiag = Math.min(...diagElements);
-  if (minDiag > 0 && maxDiag / minDiag > 1e10) return null; // 矩阵过于病态
-
-  return result;
+  return isWellConditioned(result) ? result : null;
 }
 
 /** 矩阵 × 向量 */
@@ -212,6 +254,63 @@ function solveMinVariance(covMatrix: number[][], n: number): number[] {
  * 对于 N≤15 的组合优化，2^N-1 次枚举完全可行（3 个资产仅 7 次），
  * 且保证找到全局最优解，不会陷入迭代投影法的局部最优。
  */
+/** 计算子集的无约束切线组合权重 */
+function solveTangentSubset(
+  subMean: number[],
+  subCov: number[][],
+  riskFreeRate: number,
+  activeN: number,
+): number[] | null {
+  const excessReturns = subMean.map((r) => r - riskFreeRate);
+  const subInv = invertMatrix(subCov);
+  if (!subInv) return null;
+
+  const subInvExcess = matVecMul(subInv, excessReturns);
+  const denom = dot(Array(activeN).fill(1), subInvExcess);
+  if (denom <= 1e-12) return null;
+
+  const subWeights = subInvExcess.map((v) => v / denom);
+  if (subWeights.some((w) => w < -1e-8)) return null;
+  return subWeights;
+}
+
+/** 评估单个子集的 Sharpe ratio，返回最优权重或 null */
+function evalSubsetSharpe(
+  mask: number,
+  n: number,
+  meanReturns: number[],
+  covMatrix: number[][],
+  riskFreeRate: number,
+): { sharpe: number; weights: number[] } | null {
+  const activeIdx: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (mask & (1 << i)) activeIdx.push(i);
+  }
+
+  const activeN = activeIdx.length;
+  const subMean = activeIdx.map((i) => meanReturns[i]);
+  const subCov: number[][] = activeIdx.map((i) => activeIdx.map((j) => covMatrix[i][j]));
+
+  let subWeights: number[];
+  if (activeN === 1) {
+    subWeights = [1];
+  } else {
+    const solved = solveTangentSubset(subMean, subCov, riskFreeRate, activeN);
+    if (!solved) return null;
+    subWeights = solved;
+  }
+
+  const portReturn = calcPortfolioReturn(subWeights, subMean);
+  const portVol = calcPortfolioVolatility(subWeights, subCov);
+  const sharpe = portVol > 0 ? (portReturn - riskFreeRate) / portVol : -Infinity;
+
+  const weights = Array(n).fill(0);
+  for (let k = 0; k < activeN; k++) {
+    weights[activeIdx[k]] = subWeights[k];
+  }
+  return { sharpe, weights };
+}
+
 function solveMaxSharpe(
   meanReturns: number[],
   covMatrix: number[][],
@@ -220,66 +319,21 @@ function solveMaxSharpe(
 ): number[] {
   if (n === 0) return [];
   if (n === 1) return [1];
-
-  // N>15 时回退到闭式解+投影法（实际组合优化 N 通常 ≤10）
   if (n > 15) return solveMaxSharpeClosedForm(meanReturns, covMatrix, riskFreeRate, n);
 
   let bestSharpe = -Infinity;
   let bestWeights: number[] | null = null;
 
-  // 枚举所有非空子集 (mask 从 1 到 2^N - 1)
-  for (let mask = 1; mask < (1 << n); mask++) {
-    const activeIdx: number[] = [];
-    for (let i = 0; i < n; i++) {
-      if (mask & (1 << i)) activeIdx.push(i);
-    }
-
-    const activeN = activeIdx.length;
-    const subMean = activeIdx.map((i) => meanReturns[i]);
-    const subCov: number[][] = activeIdx.map((i) =>
-      activeIdx.map((j) => covMatrix[i][j]),
-    );
-
-    let subWeights: number[];
-
-    if (activeN === 1) {
-      // 单资产组合
-      subWeights = [1];
-    } else {
-      // 无约束切线组合：w ∝ Σ⁻¹(μ - rf·1)
-      const excessReturns = subMean.map((r) => r - riskFreeRate);
-      const subInv = invertMatrix(subCov);
-      if (!subInv) continue;
-
-      const subInvExcess = matVecMul(subInv, excessReturns);
-      const denom = dot(Array(activeN).fill(1), subInvExcess);
-
-      // 超额收益之和 ≤ 0，此子集无有效切线组合
-      if (denom <= 1e-12) continue;
-
-      subWeights = subInvExcess.map((v) => v / denom);
-
-      // 有负权重，不满足非负约束，跳过
-      if (subWeights.some((w) => w < -1e-8)) continue;
-    }
-
-    // 计算 Sharpe ratio
-    const portReturn = calcPortfolioReturn(subWeights, subMean);
-    const portVol = calcPortfolioVolatility(subWeights, subCov);
-    const sharpe = portVol > 0 ? (portReturn - riskFreeRate) / portVol : -Infinity;
-
-    if (sharpe > bestSharpe) {
-      bestSharpe = sharpe;
-      bestWeights = Array(n).fill(0);
-      for (let k = 0; k < activeN; k++) {
-        bestWeights[activeIdx[k]] = subWeights[k];
-      }
+  for (let mask = 1; mask < 1 << n; mask++) {
+    const result = evalSubsetSharpe(mask, n, meanReturns, covMatrix, riskFreeRate);
+    if (result && result.sharpe > bestSharpe) {
+      bestSharpe = result.sharpe;
+      bestWeights = result.weights;
     }
   }
 
   if (bestWeights) return bestWeights;
 
-  // 回退：全仓最高收益资产
   const weights = Array(n).fill(0);
   weights[meanReturns.indexOf(Math.max(...meanReturns))] = 1;
   return weights;
@@ -327,11 +381,9 @@ function solveTargetReturn(
   meanReturns: number[],
   covMatrix: number[][],
   n: number,
-  minVolWeights?: number[],
-  maxRetWeights?: number[],
-  minVolReturn?: number,
-  maxReturn?: number,
+  boundary?: BoundaryWeights,
 ): number[] {
+  const { minVolWeights, maxRetWeights, minVolReturn, maxReturn } = boundary ?? {};
   const ones = Array(n).fill(1);
   const covInv = invertMatrix(covMatrix);
   if (!covInv) return Array(n).fill(1 / n);
@@ -339,8 +391,8 @@ function solveTargetReturn(
   const covInvOnes = matVecMul(covInv, ones);
   const covInvMu = matVecMul(covInv, meanReturns);
 
-  const a = dot(ones, covInvOnes);    // 1ᵀΣ⁻¹1
-  const b = dot(ones, covInvMu);       // 1ᵀΣ⁻¹μ
+  const a = dot(ones, covInvOnes); // 1ᵀΣ⁻¹1
+  const b = dot(ones, covInvMu); // 1ᵀΣ⁻¹μ
   const c = dot(meanReturns, covInvMu); // μᵀΣ⁻¹μ
 
   const det = a * c - b * b;
@@ -363,10 +415,12 @@ function solveTargetReturn(
 
   // 闭式解有负权重：使用迭代投影法替代线性插值
   if (minVolWeights && maxRetWeights && minVolReturn !== undefined && maxReturn !== undefined) {
-    const qpResult = solveTargetReturnQP(
-      targetReturn, meanReturns, covMatrix, n,
-      minVolWeights, maxRetWeights, minVolReturn, maxReturn,
-    );
+    const qpResult = solveTargetReturnQP(targetReturn, meanReturns, covMatrix, n, {
+      minVolWeights,
+      maxRetWeights,
+      minVolReturn,
+      maxReturn,
+    });
     if (qpResult) return qpResult;
   }
 
@@ -386,11 +440,9 @@ function solveTargetReturnQP(
   meanReturns: number[],
   covMatrix: number[][],
   n: number,
-  minVolWeights: number[],
-  maxRetWeights: number[],
-  minVolReturn: number,
-  maxReturn: number,
+  boundary: BoundaryWeights,
 ): number[] | null {
+  const { minVolWeights, maxRetWeights, minVolReturn, maxReturn } = boundary;
   const range = maxReturn - minVolReturn;
   if (range <= 1e-12) return null;
 
@@ -449,6 +501,62 @@ function solveTargetReturnQP(
 /**
  * 带非负约束的目标收益率最小方差（迭代投影法）
  */
+/** 对活跃子集求解目标收益率下的闭式权重 */
+function solveActiveSubset(
+  activeIdx: number[],
+  targetReturn: number,
+  meanReturns: number[],
+  covMatrix: number[][],
+): { weights: number[]; hasNegative: boolean } | null {
+  const activeN = activeIdx.length;
+  const subMean = activeIdx.map((i) => meanReturns[i]);
+  const subCov: number[][] = activeIdx.map((i) => activeIdx.map((j) => covMatrix[i][j]));
+
+  const subOnes = Array(activeN).fill(1);
+  const subInv = invertMatrix(subCov);
+  if (!subInv) return null;
+
+  const subInvOnes = matVecMul(subInv, subOnes);
+  const subInvMu = matVecMul(subInv, subMean);
+
+  const a = dot(subOnes, subInvOnes);
+  const b = dot(subOnes, subInvMu);
+  const c = dot(subMean, subInvMu);
+  const det = a * c - b * b;
+  if (Math.abs(det) < 1e-12) return null;
+
+  const lambda1 = (c - b * targetReturn) / det;
+  const lambda2 = (a * targetReturn - b) / det;
+  const subWeights = subInvOnes.map((v, i) => v * lambda1 + subInvMu[i] * lambda2);
+
+  let hasNegative = false;
+  for (let k = 0; k < activeN; k++) {
+    if (subWeights[k] < -1e-8) hasNegative = true;
+  }
+  return { weights: subWeights, hasNegative };
+}
+
+/** 从活跃子集结果构建全量权重数组并归一化 */
+function buildNormalizedWeights(activeIdx: number[], subWeights: number[], n: number): number[] {
+  const weights = Array(n).fill(0);
+  for (let k = 0; k < activeIdx.length; k++) {
+    weights[activeIdx[k]] = Math.max(0, subWeights[k]);
+  }
+  const sum = weights.reduce((s, w) => s + w, 0);
+  return sum > 0 ? weights.map((w) => w / sum) : Array(n).fill(1 / n);
+}
+
+/** 从活跃集中移除负权重资产 */
+function removeNegativeAssets(
+  activeSet: Set<number>,
+  activeIdx: number[],
+  weights: number[],
+): void {
+  for (let k = 0; k < activeIdx.length; k++) {
+    if (weights[k] < -1e-8) activeSet.delete(activeIdx[k]);
+  }
+}
+
 function clipNegativeWeights(
   targetReturn: number,
   meanReturns: number[],
@@ -461,54 +569,19 @@ function clipNegativeWeights(
     const activeIdx = Array.from(activeSet);
     const activeN = activeIdx.length;
     if (activeN < 2) {
-      // 只有一个活跃资产，无法达到目标收益
       const weights = Array(n).fill(0);
       if (activeN === 1) weights[activeIdx[0]] = 1;
       return weights;
     }
 
-    const subMean = activeIdx.map((i) => meanReturns[i]);
-    const subCov: number[][] = activeIdx.map((i) =>
-      activeIdx.map((j) => covMatrix[i][j]),
-    );
+    const result = solveActiveSubset(activeIdx, targetReturn, meanReturns, covMatrix);
+    if (!result) break;
 
-    const subOnes = Array(activeN).fill(1);
-    const subInv = invertMatrix(subCov);
-    if (!subInv) break;
-
-    const subInvOnes = matVecMul(subInv, subOnes);
-    const subInvMu = matVecMul(subInv, subMean);
-
-    const a = dot(subOnes, subInvOnes);
-    const b = dot(subOnes, subInvMu);
-    const c = dot(subMean, subInvMu);
-    const det = a * c - b * b;
-
-    if (Math.abs(det) < 1e-12) break;
-
-    const lambda1 = (c - b * targetReturn) / det;
-    const lambda2 = (a * targetReturn - b) / det;
-
-    const subWeights = subInvOnes.map((v, i) => v * lambda1 + subInvMu[i] * lambda2);
-
-    let hasNegative = false;
-    for (let k = 0; k < activeN; k++) {
-      if (subWeights[k] < -1e-8) {
-        activeSet.delete(activeIdx[k]);
-        hasNegative = true;
-      }
+    if (!result.hasNegative) {
+      return buildNormalizedWeights(activeIdx, result.weights, n);
     }
 
-    if (!hasNegative) {
-      const weights = Array(n).fill(0);
-      for (let k = 0; k < activeN; k++) {
-        weights[activeIdx[k]] = Math.max(0, subWeights[k]);
-      }
-      // 归一化
-      const sum = weights.reduce((s, w) => s + w, 0);
-      if (sum > 0) return weights.map((w) => w / sum);
-      return Array(n).fill(1 / n);
-    }
+    removeNegativeAssets(activeSet, activeIdx, result.weights);
   }
 
   return solveMinVariance(covMatrix, n);
@@ -523,7 +596,6 @@ export function optimizePortfolio(
   objective: OptimizeObjective = 'maxSharpe',
   constraints: OptimizeConstraints = {},
   riskFreeRate: number = 0.02,
-  _numIterations?: number, // 保留接口兼容，不再使用
 ): OptimizationResult {
   const { meanReturns, covMatrix, validTickers } = calcReturnAndCov(tickers, priceData);
 
@@ -564,7 +636,8 @@ export function optimizePortfolio(
 
   const expectedReturn = calcPortfolioReturn(weights, meanReturns);
   const expectedVolatility = calcPortfolioVolatility(weights, covMatrix);
-  const sharpeRatio = expectedVolatility > 0 ? (expectedReturn - riskFreeRate) / expectedVolatility : 0;
+  const sharpeRatio =
+    expectedVolatility > 0 ? (expectedReturn - riskFreeRate) / expectedVolatility : 0;
 
   return { optimalWeights, expectedReturn, expectedVolatility, sharpeRatio };
 }
@@ -604,7 +677,6 @@ export function calcEfficientFrontier(
   priceData: PriceData,
   numPoints: number = 20,
   riskFreeRate: number = 0.02,
-  _numIterations?: number, // 保留接口兼容，不再使用
 ): EfficientFrontierResult {
   const { meanReturns, covMatrix, validTickers } = calcReturnAndCov(tickers, priceData);
 
@@ -626,15 +698,18 @@ export function calcEfficientFrontier(
 
   // 在最小方差收益到最大收益之间均匀取点
   const frontier: EfficientFrontierResult['frontier'] = [];
-  const targetReturns = Array.from({ length: numPoints }, (_, i) =>
-    minVolReturn + (i / (numPoints - 1)) * (maxReturn - minVolReturn),
+  const targetReturns = Array.from(
+    { length: numPoints },
+    (_, i) => minVolReturn + (i / (numPoints - 1)) * (maxReturn - minVolReturn),
   );
 
   for (const targetReturn of targetReturns) {
-    const weights = solveTargetReturn(
-      targetReturn, meanReturns, covMatrix, n,
-      minVolWeights, maxRetWeights, minVolReturn, maxReturn,
-    );
+    const weights = solveTargetReturn(targetReturn, meanReturns, covMatrix, n, {
+      minVolWeights,
+      maxRetWeights,
+      minVolReturn,
+      maxReturn,
+    });
     const ret = calcPortfolioReturn(weights, meanReturns);
     const vol = calcPortfolioVolatility(weights, covMatrix);
     const sharpe = vol > 0 ? (ret - riskFreeRate) / vol : 0;
@@ -654,3 +729,17 @@ export function calcEfficientFrontier(
 
   return { frontier };
 }
+
+/**
+ * 单元测试专用导出（非公开 API）。
+ *
+ * 企业理由：clipNegativeWeights / applyWeightConstraints 等内部算法分支
+ * 仅能通过构造输入触发，集成测试难以稳定覆盖。
+ */
+export const __optimizerTestOnly = {
+  clipNegativeWeights,
+  solveTargetReturn,
+  solveMaxSharpeClosedForm,
+  calcCovariance,
+  applyWeightConstraints,
+};

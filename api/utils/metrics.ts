@@ -64,22 +64,22 @@ export const circuitBreakerState = new client.Gauge({
 });
 
 /**
- * Python 子进程信号量许可数
+ * 数据服务并发信号量许可数（T-25：从 python_* 改名为 data_service_*）
  *
- * 企业理由：信号量是 Python 子进程并发的饱和点（max=3）。
- * available 降至 0 表示所有许可被占用，新请求将排队，P95 延迟会劣化。
- * total 为常量（配置值），available 为动态值。
+ * 企业理由：ADR-008 后数据服务主路径为 Go（data-fetcher），该信号量限制的是对数据服务的
+ * 并发调用，而非 Python 子进程。旧名 `python_semaphore_*` 会误导排障者去查已退役的 Python 路径。
+ * 指标名应反映其当前真实语义。available 降至 0 表示并发饱和，新请求排队，P95 延迟劣化。
  */
-export const pythonSemaphoreAvailable = new client.Gauge({
-  name: 'python_semaphore_permits_available',
-  help: 'Available permits of Python subprocess semaphore',
+export const dataServiceSemaphoreAvailable = new client.Gauge({
+  name: 'data_service_semaphore_permits_available',
+  help: 'Available permits of data-service concurrency semaphore',
   labelNames: ['name'],
   registers: [register],
 });
 
-export const pythonSemaphoreTotal = new client.Gauge({
-  name: 'python_semaphore_permits_total',
-  help: 'Total permits of Python subprocess semaphore (configured max)',
+export const dataServiceSemaphoreTotal = new client.Gauge({
+  name: 'data_service_semaphore_permits_total',
+  help: 'Total permits of data-service concurrency semaphore (configured max)',
   labelNames: ['name'],
   registers: [register],
 });
@@ -106,25 +106,25 @@ export function registerCircuitBreakerMetrics(
   circuitBreakerState.set({ name }, 0);
 }
 
+/** 信号量采集刷新间隔（毫秒）：在 scrape 之间定时刷新动态许可数。 */
+const SEMAPHORE_REFRESH_INTERVAL_MS = 5_000;
+
 /**
- * 注册 Python 信号量采集器
+ * 注册数据服务信号量采集器
  *
- * 企业理由：信号量许可数为动态值，需通过 collect 函数在 scrape 时实时读取。
- * prom-client Gauge 的 collect 回调在每次 /metrics 请求时触发。
+ * 企业理由：信号量许可数为动态值，需通过定时刷新在 scrape 时反映最新值。
  */
 export function registerSemaphoreMetrics(
   name: string,
   total: number,
   getAvailable: () => number,
 ): void {
-  pythonSemaphoreTotal.set({ name }, total);
-  pythonSemaphoreAvailable.set({ name }, getAvailable());
-  // 使用 collect 回调确保每次 scrape 时获取最新值
-  pythonSemaphoreAvailable.set({ name }, 0); // 重置后由 collect 回调更新
-  // 注：prom-client Gauge 不支持 per-label collect，改用定时刷新
+  dataServiceSemaphoreTotal.set({ name }, total);
+  dataServiceSemaphoreAvailable.set({ name }, getAvailable());
+  // prom-client Gauge 不支持 per-label collect，改用定时刷新
   setInterval(() => {
-    pythonSemaphoreAvailable.set({ name }, getAvailable());
-  }, 5_000).unref();
+    dataServiceSemaphoreAvailable.set({ name }, getAvailable());
+  }, SEMAPHORE_REFRESH_INTERVAL_MS).unref();
 }
 
 // ─── HTTP 请求指标（黄金信号：Traffic + Latency + Errors） ───
@@ -185,6 +185,87 @@ export const fallbackToNodeTotal = new client.Counter({
   labelNames: ['reason'],
   registers: [register],
 });
+
+// ─── 业务指标（T-B3） ───
+
+/**
+ * 回测请求总数（按 sync/async 与结果状态分组）
+ *
+ * 企业理由：系统指标无法反映业务健康（如降级率飙升）。
+ * 业务指标是 SRE 与产品对齐 SLO 的基础（如「99% 回测在 2s 内完成且非降级」）。
+ */
+export const backtestRequestsTotal = new client.Counter({
+  name: 'backtest_requests_total',
+  help: 'Total backtest-related API requests',
+  labelNames: ['endpoint', 'mode', 'status'],
+  registers: [register],
+});
+
+/**
+ * 降级响应计数
+ *
+ * 企业理由：degraded=true 表示引擎/数据路径异常但仍有兜底响应，
+ * 持续升高是容量或依赖故障的早期信号，需在业务层告警而非只看 5xx。
+ */
+export const degradedResponsesTotal = new client.Counter({
+  name: 'degraded_responses_total',
+  help: 'Responses served in degraded mode',
+  labelNames: ['endpoint', 'reason'],
+  registers: [register],
+});
+
+/**
+ * PostgreSQL 连接池等待队列长度（T-B6 Saturation）
+ *
+ * 企业理由：100x 流量下 pool.waitingCount 先于 CPU 饱和，是 DB 瓶颈 leading indicator。
+ */
+export const pgPoolWaitingCount = new client.Gauge({
+  name: 'pg_pool_waiting_count',
+  help: 'Number of queued requests waiting for a pool connection',
+  labelNames: ['pool'],
+  registers: [register],
+});
+
+export const pgPoolTotalCount = new client.Gauge({
+  name: 'pg_pool_total_connections',
+  help: 'Total connections in the pool (idle + in use)',
+  labelNames: ['pool'],
+  registers: [register],
+});
+
+/** 记录回测请求（业务指标封装） */
+export function recordBacktestRequest(
+  endpoint: string,
+  mode: 'sync' | 'async',
+  status: 'success' | 'error' | 'timeout',
+): void {
+  backtestRequestsTotal.inc({ endpoint, mode, status });
+}
+
+/** 记录降级响应 */
+export function recordDegradedResponse(endpoint: string, reason: string): void {
+  const safeReason = reason.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+  degradedResponsesTotal.inc({ endpoint, reason: safeReason });
+}
+
+/**
+ * 注册 PostgreSQL 连接池饱和度采集（T-B6）
+ *
+ * @param poolName - 池标识 primary / read
+ * @param getStats - 返回 node-postgres Pool 统计
+ */
+export function registerPgPoolMetrics(
+  poolName: string,
+  getStats: () => { waitingCount: number; totalCount: number },
+): void {
+  const refresh = (): void => {
+    const stats = getStats();
+    pgPoolWaitingCount.set({ pool: poolName }, stats.waitingCount);
+    pgPoolTotalCount.set({ pool: poolName }, stats.totalCount);
+  };
+  refresh();
+  setInterval(refresh, 5_000).unref();
+}
 
 // ─── 兼容旧接口（渐进迁移） ───
 

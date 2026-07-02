@@ -28,74 +28,73 @@ import type { PCAResult } from '../../shared/types/pca.js';
  * @param tol     收敛阈值（非对角元绝对值小于此值即停止）
  * @returns eigenvalues[i] 为第 i 个特征值；eigenvectors[j][i] 为第 i 个特征向量的第 j 个分量
  */
+/** 寻找绝对值最大的非对角元 */
+function findMaxOffDiagonal(A: number[][], n: number): { p: number; q: number; maxVal: number } {
+  let maxVal = 0;
+  let p = 0;
+  let q = 1;
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const abs = Math.abs(A[i][j]);
+      if (abs > maxVal) {
+        maxVal = abs;
+        p = i;
+        q = j;
+      }
+    }
+  }
+  return { p, q, maxVal };
+}
+
+/** 应用一次 Jacobi 旋转（更新 A 和 V） */
+function applyJacobiRotation(A: number[][], V: number[][], p: number, q: number, n: number): void {
+  const app = A[p][p];
+  const aqq = A[q][q];
+  const apq = A[p][q];
+
+  const theta = 0.5 * Math.atan2(2 * apq, app - aqq);
+  const c = Math.cos(theta);
+  const s = Math.sin(theta);
+
+  A[p][p] = c * c * app + 2 * s * c * apq + s * s * aqq;
+  A[q][q] = s * s * app - 2 * s * c * apq + c * c * aqq;
+  A[p][q] = 0;
+  A[q][p] = 0;
+
+  for (let i = 0; i < n; i++) {
+    if (i !== p && i !== q) {
+      const aip = A[i][p];
+      const aiq = A[i][q];
+      A[i][p] = c * aip + s * aiq;
+      A[p][i] = A[i][p];
+      A[i][q] = -s * aip + c * aiq;
+      A[q][i] = A[i][q];
+    }
+  }
+
+  for (let i = 0; i < n; i++) {
+    const vip = V[i][p];
+    const viq = V[i][q];
+    V[i][p] = c * vip + s * viq;
+    V[i][q] = -s * vip + c * viq;
+  }
+}
+
 export function jacobiEigen(
   matrix: number[][],
   maxIter: number = 100,
   tol: number = 1e-10,
 ): { eigenvalues: number[]; eigenvectors: number[][] } {
   const n = matrix.length;
-  // 拷贝输入矩阵，避免修改原数据
   const A: number[][] = matrix.map((row) => [...row]);
-  // V 初始化为单位阵，累积所有旋转即为特征向量矩阵
   const V: number[][] = Array.from({ length: n }, (_, i) =>
     Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)),
   );
 
   for (let iter = 0; iter < maxIter; iter++) {
-    // 寻找绝对值最大的非对角元 A[p][q]
-    let maxVal = 0;
-    let p = 0;
-    let q = 1;
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const abs = Math.abs(A[i][j]);
-        if (abs > maxVal) {
-          maxVal = abs;
-          p = i;
-          q = j;
-        }
-      }
-    }
-
-    // 已收敛（所有非对角元足够小）
+    const { p, q, maxVal } = findMaxOffDiagonal(A, n);
     if (maxVal < tol) break;
-
-    const app = A[p][p];
-    const aqq = A[q][q];
-    const apq = A[p][q];
-
-    // 计算旋转角度 θ = 0.5 · atan2(2·apq, app - aqq)
-    const theta = 0.5 * Math.atan2(2 * apq, app - aqq);
-    const c = Math.cos(theta);
-    const s = Math.sin(theta);
-
-    // 更新对角元 A[p][p]、A[q][q]，并将 A[p][q] 置零
-    const newApp = c * c * app + 2 * s * c * apq + s * s * aqq;
-    const newAqq = s * s * app - 2 * s * c * apq + c * c * aqq;
-    A[p][p] = newApp;
-    A[q][q] = newAqq;
-    A[p][q] = 0;
-    A[q][p] = 0;
-
-    // 更新其余行列中涉及 p、q 的元素（保持对称性）
-    for (let i = 0; i < n; i++) {
-      if (i !== p && i !== q) {
-        const aip = A[i][p];
-        const aiq = A[i][q];
-        A[i][p] = c * aip + s * aiq;
-        A[p][i] = A[i][p];
-        A[i][q] = -s * aip + c * aiq;
-        A[q][i] = A[i][q];
-      }
-    }
-
-    // 累积旋转到 V
-    for (let i = 0; i < n; i++) {
-      const vip = V[i][p];
-      const viq = V[i][q];
-      V[i][p] = c * vip + s * viq;
-      V[i][q] = -s * vip + c * viq;
-    }
+    applyJacobiRotation(A, V, p, q, n);
   }
 
   const eigenvalues = A.map((row, i) => row[i]);
@@ -110,12 +109,11 @@ export function jacobiEigen(
  * @param numComponents 保留的主成分数量（可选，默认全部保留）
  * @returns PCAResult
  */
-export function performPCA(
+/** 对齐日期：取所有 ticker 都有数据的日期交集 */
+function alignDates(
   tickers: string[],
   priceData: Record<string, Record<string, number>>,
-  numComponents?: number,
-): PCAResult {
-  // 1. 对齐日期：取所有 ticker 都有数据的日期交集
+): string[] {
   const dateSets = tickers.map((t) => {
     const dates = priceData[t] ? Object.keys(priceData[t]) : [];
     return new Set(dates);
@@ -124,12 +122,15 @@ export function performPCA(
     ? Array.from(dateSets[0]).filter((d) => dateSets.every((s) => s.has(d)))
     : [];
   commonDates.sort();
+  return commonDates;
+}
 
-  if (commonDates.length < 2) {
-    throw new Error('有效价格数据不足，至少需要 2 个交易日');
-  }
-
-  // 2. 构建价格矩阵 prices[dateIdx][tickerIdx]
+/** 构建日收益率矩阵 */
+function buildReturns(
+  commonDates: string[],
+  tickers: string[],
+  priceData: Record<string, Record<string, number>>,
+): number[][] {
   const nDates = commonDates.length;
   const nTickers = tickers.length;
   const prices: number[][] = Array.from({ length: nDates }, () => Array(nTickers).fill(0));
@@ -139,8 +140,6 @@ export function performPCA(
       prices[i][j] = priceData[tickers[j]][date];
     }
   }
-
-  // 3. 计算日收益率矩阵 returns[i][j]，i = 0..nDates-2
   const nReturns = nDates - 1;
   const returns: number[][] = Array.from({ length: nReturns }, () => Array(nTickers).fill(0));
   for (let i = 0; i < nReturns; i++) {
@@ -150,8 +149,17 @@ export function performPCA(
       returns[i][j] = prev !== 0 ? (curr - prev) / prev : 0;
     }
   }
+  return returns;
+}
 
-  // 4. 标准化：每列减均值除标准差
+/** 标准化：每列减均值除标准差 */
+function standardize(returns: number[][]): {
+  stdReturns: number[][];
+  means: number[];
+  stds: number[];
+} {
+  const nReturns = returns.length;
+  const nTickers = returns[0].length;
   const means = Array(nTickers).fill(0);
   const stds = Array(nTickers).fill(0);
   for (let j = 0; j < nTickers; j++) {
@@ -163,20 +171,22 @@ export function performPCA(
       const diff = returns[i][j] - means[j];
       varSum += diff * diff;
     }
-    // 样本标准差（分母 n-1）；方差为 0 时置为 1 避免除零
     stds[j] = nReturns > 1 ? Math.sqrt(varSum / (nReturns - 1)) : 0;
     if (stds[j] === 0) stds[j] = 1;
   }
-
   const stdReturns: number[][] = Array.from({ length: nReturns }, () => Array(nTickers).fill(0));
   for (let i = 0; i < nReturns; i++) {
     for (let j = 0; j < nTickers; j++) {
       stdReturns[i][j] = (returns[i][j] - means[j]) / stds[j];
     }
   }
+  return { stdReturns, means, stds };
+}
 
-  // 5. 计算协方差矩阵 C[j][k] = Σ stdReturns[i][j]·stdReturns[i][k] / (n-1)
-  //    标准化后等价于相关系数矩阵
+/** 计算协方差矩阵 */
+function calcCovariance(stdReturns: number[][]): number[][] {
+  const nReturns = stdReturns.length;
+  const nTickers = stdReturns[0].length;
   const cov: number[][] = Array.from({ length: nTickers }, () => Array(nTickers).fill(0));
   for (let j = 0; j < nTickers; j++) {
     for (let k = 0; k < nTickers; k++) {
@@ -187,28 +197,70 @@ export function performPCA(
       cov[j][k] = nReturns > 1 ? sum / (nReturns - 1) : 0;
     }
   }
+  return cov;
+}
 
-  // 6. Jacobi 特征值分解
-  const { eigenvalues: rawEigenvalues, eigenvectors: rawEigenvectors } = jacobiEigen(cov);
-
-  // 7. 按特征值降序排列
-  const order = rawEigenvalues
-    .map((val, idx) => ({ val, idx }))
-    .sort((a, b) => b.val - a.val);
-
-  const sortedEigenvalues = order.map((o) => o.val);
-  // 载荷矩阵 loadings[tickerIdx][componentIdx] = 特征向量分量
-  const sortedEigenvectors: number[][] = Array.from({ length: nTickers }, () =>
-    Array(nTickers).fill(0),
-  );
+/** 按特征值降序排列，返回排序后的特征值和特征向量 */
+function sortEigendecomposition(
+  rawEigenvalues: number[],
+  rawEigenvectors: number[][],
+  nTickers: number,
+): { eigenvalues: number[]; eigenvectors: number[][] } {
+  const order = rawEigenvalues.map((val, idx) => ({ val, idx })).sort((a, b) => b.val - a.val);
+  const eigenvalues = order.map((o) => o.val);
+  const eigenvectors: number[][] = Array.from({ length: nTickers }, () => Array(nTickers).fill(0));
   for (let compIdx = 0; compIdx < nTickers; compIdx++) {
     const srcIdx = order[compIdx].idx;
     for (let tickerIdx = 0; tickerIdx < nTickers; tickerIdx++) {
-      sortedEigenvectors[tickerIdx][compIdx] = rawEigenvectors[tickerIdx][srcIdx];
+      eigenvectors[tickerIdx][compIdx] = rawEigenvectors[tickerIdx][srcIdx];
     }
   }
+  return { eigenvalues, eigenvectors };
+}
 
-  // 8. 计算累计方差解释率
+/** 计算主成分得分 */
+function calcScores(
+  stdReturns: number[][],
+  eigenvectors: number[][],
+  nTickers: number,
+): number[][] {
+  const nReturns = stdReturns.length;
+  const scores: number[][] = Array.from({ length: nReturns }, () => Array(nTickers).fill(0));
+  for (let i = 0; i < nReturns; i++) {
+    for (let compIdx = 0; compIdx < nTickers; compIdx++) {
+      let sum = 0;
+      for (let j = 0; j < nTickers; j++) {
+        sum += stdReturns[i][j] * eigenvectors[j][compIdx];
+      }
+      scores[i][compIdx] = sum;
+    }
+  }
+  return scores;
+}
+
+export function performPCA(
+  tickers: string[],
+  priceData: Record<string, Record<string, number>>,
+  numComponents?: number,
+): PCAResult {
+  const commonDates = alignDates(tickers, priceData);
+  if (commonDates.length < 2) {
+    throw new Error('有效价格数据不足，至少需要 2 个交易日');
+  }
+
+  const nTickers = tickers.length;
+  const returns = buildReturns(commonDates, tickers, priceData);
+  const { stdReturns } = standardize(returns);
+  const cov = calcCovariance(stdReturns);
+
+  // Jacobi 特征值分解
+  const { eigenvalues: rawEigenvalues, eigenvectors: rawEigenvectors } = jacobiEigen(cov);
+
+  // 按特征值降序排列
+  const { eigenvalues: sortedEigenvalues, eigenvectors: sortedEigenvectors } =
+    sortEigendecomposition(rawEigenvalues, rawEigenvectors, nTickers);
+
+  // 累计方差解释率
   const totalVar = sortedEigenvalues.reduce((s, v) => s + Math.max(v, 0), 0);
   const cumulativeVariance: number[] = [];
   let cumSum = 0;
@@ -217,19 +269,10 @@ export function performPCA(
     cumulativeVariance.push(totalVar > 0 ? cumSum / totalVar : 0);
   }
 
-  // 9. 计算主成分得分 scores[dateIdx][componentIdx] = Σ stdReturns[dateIdx][tickerIdx] · loadings[tickerIdx][componentIdx]
-  const scores: number[][] = Array.from({ length: nReturns }, () => Array(nTickers).fill(0));
-  for (let i = 0; i < nReturns; i++) {
-    for (let compIdx = 0; compIdx < nTickers; compIdx++) {
-      let sum = 0;
-      for (let j = 0; j < nTickers; j++) {
-        sum += stdReturns[i][j] * sortedEigenvectors[j][compIdx];
-      }
-      scores[i][compIdx] = sum;
-    }
-  }
+  // 主成分得分
+  const scores = calcScores(stdReturns, sortedEigenvectors, nTickers);
 
-  // 10. 按需截断主成分数量
+  // 按需截断主成分数量
   const keep = numComponents && numComponents > 0 ? Math.min(numComponents, nTickers) : nTickers;
 
   return {

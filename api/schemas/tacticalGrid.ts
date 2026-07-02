@@ -19,7 +19,15 @@ export const tacticalGridSearchSchema = z.object({
   startDate: z.string().min(1).date(),
   endDate: z.string().min(1).date(),
   startingValue: z.number().positive(),
-  rebalanceFrequency: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'annual', 'none', 'threshold']),
+  rebalanceFrequency: z.enum([
+    'daily',
+    'weekly',
+    'monthly',
+    'quarterly',
+    'annual',
+    'none',
+    'threshold',
+  ]),
   objective: z.enum(['maxCAGR', 'minDrawdown', 'maxSharpe']),
   topN: z.number().int().positive().optional(),
 });

@@ -28,12 +28,11 @@ const EFFECTIVE_LEVERAGE_WINDOW = 20;
  * @param leverage     杠杆倍数
  * @returns LETFResult
  */
-export function analyzeLetfSlippage(
+/** 对齐日期：取 LETF 与基准都有数据的日期交集 */
+function alignSeries(
   letfSeries: Array<{ date: string; price: number }>,
   benchSeries: Array<{ date: string; price: number }>,
-  leverage: number,
-): LETFResult {
-  // 1. 对齐日期：取两者都有数据的日期交集
+): Array<{ date: string; letfPrice: number; benchPrice: number }> {
   const benchMap = new Map(benchSeries.map((p) => [p.date, p.price]));
   const aligned: Array<{ date: string; letfPrice: number; benchPrice: number }> = [];
   for (const p of letfSeries) {
@@ -42,7 +41,45 @@ export function analyzeLetfSlippage(
       aligned.push({ date: p.date, letfPrice: p.price, benchPrice });
     }
   }
+  return aligned;
+}
 
+/** 计算日收益率 */
+function calcDailyReturn(prev: number, curr: number): number {
+  return prev !== 0 ? (curr - prev) / prev : 0;
+}
+
+/** 滚动窗口回归 Beta（实际杠杆） */
+function calcRollingBeta(letfReturns: number[], benchReturns: number[]): number {
+  const start = letfReturns.length - EFFECTIVE_LEVERAGE_WINDOW;
+  const n = EFFECTIVE_LEVERAGE_WINDOW;
+  let sumLetf = 0;
+  let sumBench = 0;
+  for (let j = start; j < letfReturns.length; j++) {
+    sumLetf += letfReturns[j];
+    sumBench += benchReturns[j];
+  }
+  const meanLetf = sumLetf / n;
+  const meanBench = sumBench / n;
+
+  let cov = 0;
+  let varBench = 0;
+  for (let j = start; j < letfReturns.length; j++) {
+    const dl = letfReturns[j] - meanLetf;
+    const db = benchReturns[j] - meanBench;
+    cov += dl * db;
+    varBench += db * db;
+  }
+  return varBench > 0 ? cov / varBench : NaN;
+}
+
+export function analyzeLetfSlippage(
+  letfSeries: Array<{ date: string; price: number }>,
+  benchSeries: Array<{ date: string; price: number }>,
+  leverage: number,
+): LETFResult {
+  // 1. 对齐日期
+  const aligned = alignSeries(letfSeries, benchSeries);
   if (aligned.length < 2) {
     throw new Error('有效价格数据不足，至少需要 2 个交易日');
   }
@@ -51,11 +88,10 @@ export function analyzeLetfSlippage(
   const slippageCurve: Array<{ date: string; slippage: number }> = [];
   const effectiveLeverage: number[] = [];
 
-  let cumBench = 1; // 累积基准净值
-  let cumLetf = 1; // 累积 LETF 净值
-  let cumExpected = 1; // 累积预期净值
+  let cumBench = 1;
+  let cumLetf = 1;
+  let cumExpected = 1;
 
-  // 滚动窗口缓存（用于实际杠杆计算）
   const letfReturns: number[] = [];
   const benchReturns: number[] = [];
 
@@ -63,48 +99,21 @@ export function analyzeLetfSlippage(
     const prev = aligned[i - 1];
     const curr = aligned[i];
 
-    const benchRet =
-      prev.benchPrice !== 0
-        ? (curr.benchPrice - prev.benchPrice) / prev.benchPrice
-        : 0;
-    const letfRet =
-      prev.letfPrice !== 0
-        ? (curr.letfPrice - prev.letfPrice) / prev.letfPrice
-        : 0;
+    const benchRet = calcDailyReturn(prev.benchPrice, curr.benchPrice);
+    const letfRet = calcDailyReturn(prev.letfPrice, curr.letfPrice);
     const expectedRet = benchRet * leverage;
 
     cumBench *= 1 + benchRet;
     cumLetf *= 1 + letfRet;
     cumExpected *= 1 + expectedRet;
 
-    // 累积滑点 = 累积预期收益 - 累积实际收益
     const cumSlippage = cumExpected - cumLetf;
     slippageCurve.push({ date: curr.date, slippage: cumSlippage });
 
-    // 实际杠杆（滚动窗口回归 Beta = cov(letf, bench) / var(bench)）
     letfReturns.push(letfRet);
     benchReturns.push(benchRet);
     if (letfReturns.length >= EFFECTIVE_LEVERAGE_WINDOW) {
-      const start = letfReturns.length - EFFECTIVE_LEVERAGE_WINDOW;
-      const n = EFFECTIVE_LEVERAGE_WINDOW;
-      let sumLetf = 0;
-      let sumBench = 0;
-      for (let j = start; j < letfReturns.length; j++) {
-        sumLetf += letfReturns[j];
-        sumBench += benchReturns[j];
-      }
-      const meanLetf = sumLetf / n;
-      const meanBench = sumBench / n;
-
-      let cov = 0;
-      let varBench = 0;
-      for (let j = start; j < letfReturns.length; j++) {
-        const dl = letfReturns[j] - meanLetf;
-        const db = benchReturns[j] - meanBench;
-        cov += dl * db;
-        varBench += db * db;
-      }
-      effectiveLeverage.push(varBench > 0 ? cov / varBench : NaN);
+      effectiveLeverage.push(calcRollingBeta(letfReturns, benchReturns));
     } else {
       effectiveLeverage.push(NaN);
     }

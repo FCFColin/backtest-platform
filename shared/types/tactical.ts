@@ -1,8 +1,7 @@
 // 战术分配（Tactical Allocation）类型定义
 
 /** 技术指标类型 */
-export type TechnicalIndicator =
-  | 'sma' | 'ema' | 'rsi' | 'macd' | 'bollinger' | 'momentum';
+export type TechnicalIndicator = 'sma' | 'ema' | 'rsi' | 'macd' | 'bollinger' | 'momentum';
 
 /** 信号条件 */
 export interface SignalCondition {

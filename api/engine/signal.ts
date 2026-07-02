@@ -12,14 +12,15 @@
  * - 模拟仅做多权益曲线
  */
 
-import { calcSMA, calcEMA, calcRSI, calcMACD, calcBollinger } from '../services/indicatorService.js';
+import {
+  calcSMA,
+  calcEMA,
+  calcRSI,
+  calcMACD,
+  calcBollinger,
+} from '../services/indicatorService.js';
 import { TRADING_DAYS_PER_YEAR } from '../../shared/constants.js';
-import type {
-  SignalAnalysisRequest,
-  SignalAnalysisResult,
-  DualSignalConfig,
-  MultiSignalConfig,
-} from '../../shared/types/signal.js';
+import type { SignalAnalysisRequest, SignalAnalysisResult } from '../../shared/types/signal.js';
 
 // ===== 内部类型 =====
 
@@ -73,6 +74,88 @@ const INITIAL_CAPITAL = 10000;
  * - Bollinger：标准差倍数（默认 2）
  * - SMA/EMA/MACD：交叉触发，threshold 不参与计算
  */
+/** 检测交叉信号：prev 前一帧、cur 当前帧，上穿生成 buy，下穿生成 sell */
+function detectCrossSignals(
+  data: PricePoint[],
+  prevVals: number[],
+  curVals: number[],
+  prices: number[],
+): SignalPoint[] {
+  const signals: SignalPoint[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    if (isNaN(curVals[i]) || isNaN(prevVals[i]) || isNaN(curVals[i - 1]) || isNaN(prevVals[i - 1]))
+      continue;
+    const crossedUp = prevVals[i - 1] <= curVals[i - 1] && prevVals[i] > curVals[i];
+    const crossedDown = prevVals[i - 1] >= curVals[i - 1] && prevVals[i] < curVals[i];
+    if (crossedUp) {
+      signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
+    } else if (crossedDown) {
+      signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
+    }
+  }
+  return signals;
+}
+
+/** 生成 MA（SMA/EMA）交叉信号 */
+function generateMaSignals(
+  ind: string,
+  prices: number[],
+  data: PricePoint[],
+  safePeriod: number,
+): SignalPoint[] {
+  const ma = ind === 'sma' ? calcSMA(prices, safePeriod) : calcEMA(prices, safePeriod);
+  return detectCrossSignals(data, prices, ma, prices);
+}
+
+/** 生成 RSI 超买超卖信号 */
+function generateRsiSignals(
+  prices: number[],
+  data: PricePoint[],
+  safePeriod: number,
+  threshold: number,
+): SignalPoint[] {
+  const rsi = calcRSI(prices, safePeriod);
+  const oversold = threshold > 0 ? threshold : 30;
+  const overbought = 100 - oversold;
+  const signals: SignalPoint[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    if (isNaN(rsi[i]) || isNaN(rsi[i - 1])) continue;
+    if (rsi[i - 1] >= oversold && rsi[i] < oversold) {
+      signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
+    } else if (rsi[i - 1] <= overbought && rsi[i] > overbought) {
+      signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
+    }
+  }
+  return signals;
+}
+
+/** 生成 MACD 金叉死叉信号 */
+function generateMacdSignals(prices: number[], data: PricePoint[]): SignalPoint[] {
+  const { macd, signal } = calcMACD(prices);
+  return detectCrossSignals(data, macd, signal, prices);
+}
+
+/** 生成布林带突破信号 */
+function generateBollingerSignals(
+  prices: number[],
+  data: PricePoint[],
+  safePeriod: number,
+  threshold: number,
+): SignalPoint[] {
+  const mult = threshold > 0 ? threshold : 2;
+  const { upper, lower } = calcBollinger(prices, safePeriod, mult);
+  const signals: SignalPoint[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    if (isNaN(upper[i]) || isNaN(lower[i]) || isNaN(upper[i - 1]) || isNaN(lower[i - 1])) continue;
+    if (prices[i - 1] >= lower[i - 1] && prices[i] < lower[i]) {
+      signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
+    } else if (prices[i - 1] <= upper[i - 1] && prices[i] > upper[i]) {
+      signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
+    }
+  }
+  return signals;
+}
+
 export function generateRawSignals(
   indicator: string,
   period: number,
@@ -80,64 +163,16 @@ export function generateRawSignals(
   data: PricePoint[],
 ): SignalPoint[] {
   const prices = data.map((d) => d.price);
-  const signals: SignalPoint[] = [];
-  if (prices.length < 2) return signals;
+  if (prices.length < 2) return [];
 
   const ind = indicator.toLowerCase();
   const safePeriod = Math.max(2, period);
 
-  if (ind === 'sma' || ind === 'ema') {
-    const ma = ind === 'sma' ? calcSMA(prices, safePeriod) : calcEMA(prices, safePeriod);
-    for (let i = 1; i < prices.length; i++) {
-      if (isNaN(ma[i]) || isNaN(ma[i - 1])) continue;
-      if (prices[i - 1] <= ma[i - 1] && prices[i] > ma[i]) {
-        signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
-      } else if (prices[i - 1] >= ma[i - 1] && prices[i] < ma[i]) {
-        signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
-      }
-    }
-  } else if (ind === 'rsi') {
-    const rsi = calcRSI(prices, safePeriod);
-    const oversold = threshold > 0 ? threshold : 30;
-    const overbought = 100 - oversold;
-    for (let i = 1; i < prices.length; i++) {
-      if (isNaN(rsi[i]) || isNaN(rsi[i - 1])) continue;
-      if (rsi[i - 1] >= oversold && rsi[i] < oversold) {
-        signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
-      } else if (rsi[i - 1] <= overbought && rsi[i] > overbought) {
-        signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
-      }
-    }
-  } else if (ind === 'macd') {
-    const { macd, signal } = calcMACD(prices);
-    for (let i = 1; i < prices.length; i++) {
-      if (
-        isNaN(macd[i]) || isNaN(signal[i]) ||
-        isNaN(macd[i - 1]) || isNaN(signal[i - 1])
-      ) continue;
-      if (macd[i - 1] <= signal[i - 1] && macd[i] > signal[i]) {
-        signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
-      } else if (macd[i - 1] >= signal[i - 1] && macd[i] < signal[i]) {
-        signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
-      }
-    }
-  } else if (ind === 'bollinger') {
-    const mult = threshold > 0 ? threshold : 2;
-    const { upper, lower } = calcBollinger(prices, safePeriod, mult);
-    for (let i = 1; i < prices.length; i++) {
-      if (
-        isNaN(upper[i]) || isNaN(lower[i]) ||
-        isNaN(upper[i - 1]) || isNaN(lower[i - 1])
-      ) continue;
-      if (prices[i - 1] >= lower[i - 1] && prices[i] < lower[i]) {
-        signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
-      } else if (prices[i - 1] <= upper[i - 1] && prices[i] > upper[i]) {
-        signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
-      }
-    }
-  }
-
-  return signals;
+  if (ind === 'sma' || ind === 'ema') return generateMaSignals(ind, prices, data, safePeriod);
+  if (ind === 'rsi') return generateRsiSignals(prices, data, safePeriod, threshold);
+  if (ind === 'macd') return generateMacdSignals(prices, data);
+  if (ind === 'bollinger') return generateBollingerSignals(prices, data, safePeriod, threshold);
+  return [];
 }
 
 /** 按 signalType 过滤信号（entry=仅买入，exit=仅卖出，both=全部） */
@@ -185,6 +220,28 @@ export function calcStatistics(signals: SignalPoint[]): SignalAnalysisResult['st
  * - 卖出信号：平仓
  * - 无信号时持有现金或持仓不变
  */
+/** 计算最大回撤 */
+function calcMaxDrawdown(equityCurve: Array<{ date: string; value: number }>): number {
+  let peak = -Infinity;
+  let maxDrawdown = 0;
+  for (const p of equityCurve) {
+    if (p.value > peak) peak = p.value;
+    const dd = peak > 0 ? (peak - p.value) / peak : 0;
+    if (dd > maxDrawdown) maxDrawdown = dd;
+  }
+  return maxDrawdown;
+}
+
+/** 计算年化夏普比率 */
+function calcSharpe(dailyReturns: number[]): number {
+  if (dailyReturns.length <= 1) return 0;
+  const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
+  const variance =
+    dailyReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (dailyReturns.length - 1);
+  const std = Math.sqrt(variance);
+  return std > 0 ? (mean / std) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
+}
+
 export function calcEquityCurve(
   signals: SignalPoint[],
   data: PricePoint[],
@@ -219,32 +276,20 @@ export function calcEquityCurve(
     prevEquity = equity;
   }
 
-  // 最大回撤
-  let peak = -Infinity;
-  let maxDrawdown = 0;
-  for (const p of equityCurve) {
-    if (p.value > peak) peak = p.value;
-    const dd = peak > 0 ? (peak - p.value) / peak : 0;
-    if (dd > maxDrawdown) maxDrawdown = dd;
-  }
-
-  // 年化夏普比率
-  let sharpe = 0;
-  if (dailyReturns.length > 1) {
-    const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-    const variance =
-      dailyReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (dailyReturns.length - 1);
-    const std = Math.sqrt(variance);
-    sharpe = std > 0 ? (mean / std) * Math.sqrt(TRADING_DAYS_PER_YEAR) : 0;
-  }
-
-  return { equityCurve, maxDrawdown, sharpe };
+  return {
+    equityCurve,
+    maxDrawdown: calcMaxDrawdown(equityCurve),
+    sharpe: calcSharpe(dailyReturns),
+  };
 }
 
 // ===== 主分析函数 =====
 
 /** 执行单信号分析，返回符合 SignalAnalysisResult 的结果 */
-export function analyzeSignal(req: SignalAnalysisRequest, data: PricePoint[]): SignalAnalysisResult {
+export function analyzeSignal(
+  req: SignalAnalysisRequest,
+  data: PricePoint[],
+): SignalAnalysisResult {
   const rawSignals = generateRawSignals(req.indicator, req.period, req.threshold, data);
   const signals = filterByType(rawSignals, req.signalType);
   const stats = calcStatistics(signals);
@@ -339,6 +384,64 @@ export function analyzeDualSignal(
 /**
  * 执行多信号分析
  */
+/** 单日期聚合上下文 */
+interface AggregationContext {
+  dirMaps: Map<string, SignalDir>[];
+  perSignal: SignalAnalysisResult[];
+  rawWeights: number[];
+  wSum: number;
+  configs: SignalAnalysisRequest[];
+}
+
+/** 计算单日期各信号的投票/权重/排名得分 */
+function computeDateScores(
+  date: string,
+  ctx: AggregationContext,
+): {
+  score: number;
+  buys: number;
+  sells: number;
+  bestDir: SignalDir | null;
+} {
+  let score = 0;
+  let buys = 0;
+  let sells = 0;
+  let bestRank = -1;
+  let bestDir: SignalDir | null = null;
+
+  for (let i = 0; i < ctx.configs.length; i++) {
+    const dir = ctx.dirMaps[i].get(date) ?? null;
+    const winRate = ctx.perSignal[i].statistics.winRate;
+    if (dir === 'buy') {
+      score += ctx.rawWeights[i] / ctx.wSum;
+      buys++;
+      if (winRate > bestRank) {
+        bestRank = winRate;
+        bestDir = 'buy';
+      }
+    } else if (dir === 'sell') {
+      score -= ctx.rawWeights[i] / ctx.wSum;
+      sells++;
+      if (winRate > bestRank) {
+        bestRank = winRate;
+        bestDir = 'sell';
+      }
+    }
+  }
+  return { score, buys, sells, bestDir };
+}
+
+/** 按聚合方法从得分推导信号方向 */
+function dirFromScores(
+  scores: { score: number; buys: number; sells: number; bestDir: SignalDir | null },
+  method: 'weighted' | 'voting' | 'rank',
+): SignalDir | null {
+  if (method === 'weighted') return scores.score > 0 ? 'buy' : scores.score < 0 ? 'sell' : null;
+  if (method === 'voting')
+    return scores.buys > scores.sells ? 'buy' : scores.sells > scores.buys ? 'sell' : null;
+  return scores.bestDir; // rank
+}
+
 export function analyzeMultiSignal(
   configs: SignalAnalysisRequest[],
   data: PricePoint[],
@@ -363,43 +466,11 @@ export function analyzeMultiSignal(
       : configs.map(() => 1 / configs.length);
   const wSum = rawWeights.reduce((a, b) => a + b, 0) || 1;
 
+  const ctx: AggregationContext = { dirMaps, perSignal, rawWeights, wSum, configs };
+
   for (const date of Array.from(allDates).sort()) {
-    let score = 0;
-    let buys = 0;
-    let sells = 0;
-    let bestRank = -1;
-    let bestDir: SignalDir | null = null;
-
-    for (let i = 0; i < configs.length; i++) {
-      const dir = dirMaps[i].get(date) ?? null;
-      const winRate = perSignal[i].statistics.winRate;
-      if (dir === 'buy') {
-        score += rawWeights[i] / wSum;
-        buys++;
-        if (winRate > bestRank) {
-          bestRank = winRate;
-          bestDir = 'buy';
-        }
-      } else if (dir === 'sell') {
-        score -= rawWeights[i] / wSum;
-        sells++;
-        if (winRate > bestRank) {
-          bestRank = winRate;
-          bestDir = 'sell';
-        }
-      }
-    }
-
-    let aggDir: SignalDir | null = null;
-    if (aggregationMethod === 'weighted') {
-      aggDir = score > 0 ? 'buy' : score < 0 ? 'sell' : null;
-    } else if (aggregationMethod === 'voting') {
-      aggDir = buys > sells ? 'buy' : sells > buys ? 'sell' : null;
-    } else if (aggregationMethod === 'rank') {
-      // 取历史胜率最高的触发信号方向
-      aggDir = bestDir;
-    }
-
+    const scores = computeDateScores(date, ctx);
+    const aggDir = dirFromScores(scores, aggregationMethod);
     if (aggDir && priceMap.has(date)) {
       aggregatedSignals.push({ date, type: aggDir, price: priceMap.get(date)! });
     }

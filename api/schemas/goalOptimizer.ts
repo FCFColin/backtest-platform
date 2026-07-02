@@ -9,15 +9,21 @@ export const goalOptimizerSchema = z.object({
   targetAmount: z.number().positive('targetAmount必须为正数'),
   initialAmount: z.number().positive('initialAmount必须为正数'),
   years: z.number().positive('years必须为正数'),
-  assets: z.array(z.object({
-    ticker: z.string().min(1),
-    weight: z.number(),
-  })).min(1, 'assets不能为空'),
-  constraints: z.object({
-    maxDrawdown: z.number().optional(),
-    minSuccessRate: z.number().optional(),
-    maxVolatility: z.number().optional(),
-  }).optional(),
+  assets: z
+    .array(
+      z.object({
+        ticker: z.string().min(1),
+        weight: z.number(),
+      }),
+    )
+    .min(1, 'assets不能为空'),
+  constraints: z
+    .object({
+      maxDrawdown: z.number().optional(),
+      minSuccessRate: z.number().optional(),
+      maxVolatility: z.number().optional(),
+    })
+    .optional(),
   numSimulations: z.number().int().positive().optional(),
 });
 

@@ -15,10 +15,14 @@ const tradingSignalSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   conditions: z.array(signalConditionSchema).min(1),
-  targetWeights: z.array(z.object({
-    ticker: z.string().min(1),
-    weight: z.number(),
-  })).min(1),
+  targetWeights: z
+    .array(
+      z.object({
+        ticker: z.string().min(1),
+        weight: z.number(),
+      }),
+    )
+    .min(1),
 });
 
 const tacticalStrategySchema = z.object({
@@ -26,10 +30,12 @@ const tacticalStrategySchema = z.object({
   name: z.string().min(1),
   signals: z.array(tradingSignalSchema).min(1),
   aggregationMethod: z.enum(['weighted_average', 'rank', 'voting']),
-  rankingConfig: z.object({
-    method: z.enum(['fixed_share', 'risk_parity']),
-    topN: z.number(),
-  }).optional(),
+  rankingConfig: z
+    .object({
+      method: z.enum(['fixed_share', 'risk_parity']),
+      topN: z.number(),
+    })
+    .optional(),
 });
 
 // POST /api/tactical/backtest
@@ -38,7 +44,15 @@ export const tacticalBacktestSchema = z.object({
   startDate: z.string().min(1),
   endDate: z.string().min(1),
   startingValue: z.number().positive(),
-  rebalanceFrequency: z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'annual', 'none', 'threshold']),
+  rebalanceFrequency: z.enum([
+    'daily',
+    'weekly',
+    'monthly',
+    'quarterly',
+    'annual',
+    'none',
+    'threshold',
+  ]),
 });
 
 // POST /api/tactical/what-if

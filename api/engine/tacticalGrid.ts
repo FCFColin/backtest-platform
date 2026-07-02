@@ -18,6 +18,7 @@
 
 import type { Portfolio, RebalanceFrequency } from '../../shared/types/index.js';
 import type { Statistics } from '../../shared/types/statistics.js';
+import { numericRange } from '../utils/numericRange.js';
 import { runPortfolioBacktest } from './portfolio.js';
 import { shouldRebalance } from './rebalance.js';
 
@@ -85,14 +86,9 @@ export interface TacticalGridResponse {
 
 // ===== 工具函数 =====
 
-/** 生成参数序列 [min, min+step, ..., max] */
+/** 生成参数序列 [min, min+step, ..., max]（T-24：复用共享 numericRange，精度 3 位保持原行为） */
 export function generateRange(min: number, max: number, step: number): number[] {
-  const result: number[] = [];
-  if (step <= 0) return [min];
-  for (let v = min; v <= max + 1e-9; v += step) {
-    result.push(Math.round(v * 1000) / 1000);
-  }
-  return result;
+  return numericRange(min, max, step, 3);
 }
 
 /** 计算简单移动平均 */
@@ -152,70 +148,116 @@ export function calcRSI(prices: number[], period: number): (number | null)[] {
   return result;
 }
 
+/** generateSignals 的信号参数 */
+interface SignalParams {
+  /** 均线周期 / RSI 周期 */
+  param1: number;
+  /** 突破阈值(%) / RSI 超卖线 */
+  param2: number;
+  /** 再平衡频率，仅在再平衡日允许切换仓位 */
+  rebalanceFrequency: RebalanceFrequency;
+}
+
 /**
  * 根据指标与参数生成持仓信号序列
  *
  * - sma/ema: 价格突破 均线*(1+threshold%) 时入场，跌破 均线*(1-threshold%) 时离场
  * - rsi: RSI < threshold 时入场（超卖），RSI > 100-threshold 时离场（超买）
- *
- * @param rebalanceFrequency 再平衡频率，仅在再平衡日允许切换仓位
  */
-export function generateSignals(
-  indicator: IndicatorType,
+/** MA 信号参数 */
+interface MaSignalOpts {
+  indicator: IndicatorType;
+  prices: number[];
+  dates: string[];
+  param1: number;
+  param2: number;
+  rebalanceFrequency: RebalanceFrequency;
+}
+
+/** MA 类指标（SMA/EMA）信号生成 */
+function generateMaSignals(opts: MaSignalOpts): boolean[] {
+  const { indicator, prices, dates, param1, param2, rebalanceFrequency } = opts;
+  const ma = indicator === 'sma' ? calcSMA(prices, param1) : calcEMA(prices, param1);
+  const threshold = param2 / 100;
+  const signals: boolean[] = new Array(prices.length).fill(false);
+  let inPosition = false;
+  let prevDate: string | null = null;
+
+  for (let i = 0; i < prices.length; i++) {
+    const canRebalance = shouldRebalance({
+      frequency: rebalanceFrequency,
+      currentDate: dates[i],
+      prevDate,
+    });
+    if (ma[i] == null) {
+      signals[i] = inPosition;
+      prevDate = dates[i];
+      continue;
+    }
+    const maVal = ma[i] as number;
+    const upperBand = maVal * (1 + threshold);
+    const lowerBand = maVal * (1 - threshold);
+    if (canRebalance) {
+      if (!inPosition && prices[i] > upperBand) inPosition = true;
+      else if (inPosition && prices[i] < lowerBand) inPosition = false;
+    }
+    signals[i] = inPosition;
+    prevDate = dates[i];
+  }
+  return signals;
+}
+
+/** RSI 指标信号生成 */
+function generateRsiSignals(
   prices: number[],
   dates: string[],
   param1: number,
   param2: number,
   rebalanceFrequency: RebalanceFrequency,
 ): boolean[] {
+  const rsi = calcRSI(prices, param1);
+  const oversold = param2;
+  const overbought = 100 - param2;
   const signals: boolean[] = new Array(prices.length).fill(false);
   let inPosition = false;
   let prevDate: string | null = null;
 
-  if (indicator === 'sma' || indicator === 'ema') {
-    const ma = indicator === 'sma' ? calcSMA(prices, param1) : calcEMA(prices, param1);
-    const threshold = param2 / 100;
-
-    for (let i = 0; i < prices.length; i++) {
-      const canRebalance = shouldRebalance({ frequency: rebalanceFrequency, currentDate: dates[i], prevDate });
-      if (ma[i] == null) {
-        signals[i] = inPosition;
-        prevDate = dates[i];
-        continue;
-      }
-      const maVal = ma[i] as number;
-      const upperBand = maVal * (1 + threshold);
-      const lowerBand = maVal * (1 - threshold);
-      if (canRebalance) {
-        if (!inPosition && prices[i] > upperBand) inPosition = true;
-        else if (inPosition && prices[i] < lowerBand) inPosition = false;
-      }
+  for (let i = 0; i < prices.length; i++) {
+    const canRebalance = shouldRebalance({
+      frequency: rebalanceFrequency,
+      currentDate: dates[i],
+      prevDate,
+    });
+    if (rsi[i] == null) {
       signals[i] = inPosition;
       prevDate = dates[i];
+      continue;
     }
-  } else if (indicator === 'rsi') {
-    const rsi = calcRSI(prices, param1);
-    const oversold = param2;
-    const overbought = 100 - param2;
-
-    for (let i = 0; i < prices.length; i++) {
-      const canRebalance = shouldRebalance({ frequency: rebalanceFrequency, currentDate: dates[i], prevDate });
-      if (rsi[i] == null) {
-        signals[i] = inPosition;
-        prevDate = dates[i];
-        continue;
-      }
-      const rsiVal = rsi[i] as number;
-      if (canRebalance) {
-        if (!inPosition && rsiVal < oversold) inPosition = true;
-        else if (inPosition && rsiVal > overbought) inPosition = false;
-      }
-      signals[i] = inPosition;
-      prevDate = dates[i];
+    const rsiVal = rsi[i] as number;
+    if (canRebalance) {
+      if (!inPosition && rsiVal < oversold) inPosition = true;
+      else if (inPosition && rsiVal > overbought) inPosition = false;
     }
+    signals[i] = inPosition;
+    prevDate = dates[i];
   }
-
   return signals;
+}
+
+export function generateSignals(
+  indicator: IndicatorType,
+  prices: number[],
+  dates: string[],
+  signalParams: SignalParams,
+): boolean[] {
+  const { param1, param2, rebalanceFrequency } = signalParams;
+  if (indicator === 'sma' || indicator === 'ema') {
+    return generateMaSignals({ indicator, prices, dates, param1, param2, rebalanceFrequency });
+  }
+  if (indicator === 'rsi') {
+    return generateRsiSignals(prices, dates, param1, param2, rebalanceFrequency);
+  }
+  return new Array(prices.length).fill(false);
 }
 
 /**
@@ -244,7 +286,9 @@ export function buildSyntheticPrices(
 }
 
 /** 从 Statistics 提取关键指标 */
-export function extractMetrics(stats: Statistics): Omit<GridCombinationMetrics, 'param1' | 'param2'> {
+export function extractMetrics(
+  stats: Statistics,
+): Omit<GridCombinationMetrics, 'param1' | 'param2'> {
   return {
     cagr: stats.cagr || 0,
     maxDrawdown: stats.maxDrawdown || 0,
@@ -256,7 +300,10 @@ export function extractMetrics(stats: Statistics): Omit<GridCombinationMetrics, 
 }
 
 /** 根据优化目标获取排序值（越大越优） */
-export function getObjectiveValue(metrics: GridCombinationMetrics, objective: ObjectiveType): number {
+export function getObjectiveValue(
+  metrics: GridCombinationMetrics,
+  objective: ObjectiveType,
+): number {
   switch (objective) {
     case 'maxCAGR':
       return metrics.cagr;
@@ -275,6 +322,99 @@ export function getObjectiveValue(metrics: GridCombinationMetrics, objective: Ob
  * 遍历参数网格（笛卡尔积），对每个参数组合计算信号并运行回测，
  * 按优化目标排序返回结果与热力图数据矩阵。
  */
+/** 单组合回测的输入参数 */
+interface SingleCombinationOpts {
+  p1: number;
+  p2: number;
+  indicator: IndicatorType;
+  prices: number[];
+  dates: string[];
+  tradingTicker: string;
+  startDate: string;
+  endDate: string;
+  startingValue: number;
+  rebalanceFrequency: RebalanceFrequency;
+}
+
+/** 构建网格回测用的组合与参数对象 */
+function buildGridPortfolioAndParams(opts: SingleCombinationOpts) {
+  const { p1, p2, tradingTicker, startDate, endDate, startingValue } = opts;
+  const portfolio: Portfolio = {
+    id: `grid-${p1}-${p2}`,
+    name: `p1=${p1}, p2=${p2}`,
+    assets: [{ ticker: tradingTicker, weight: 100 }],
+    rebalanceFrequency: 'none',
+  };
+  const btParams = {
+    startDate,
+    endDate,
+    startingValue,
+    adjustForInflation: false,
+    rollingWindowMonths: 12,
+    benchmarkTicker: '',
+    cashflowLegs: [],
+    oneTimeCashflows: [],
+  };
+  return { portfolio, btParams };
+}
+
+/** 运行单个参数组合的回测 */
+function runSingleCombination(opts: SingleCombinationOpts): {
+  metrics: GridCombinationMetrics;
+  result: TopCombinationResult;
+} {
+  const { p1, p2, indicator, prices, dates, tradingTicker, rebalanceFrequency } = opts;
+  const signals = generateSignals(indicator, prices, dates, {
+    param1: p1,
+    param2: p2,
+    rebalanceFrequency,
+  });
+  const syntheticPrices = buildSyntheticPrices(dates, prices, signals);
+  const syntheticPriceData = { [tradingTicker]: syntheticPrices };
+  const { portfolio, btParams } = buildGridPortfolioAndParams(opts);
+
+  try {
+    const btResult = runPortfolioBacktest([portfolio], syntheticPriceData, btParams);
+    const portfolioResult = btResult.portfolios[0];
+    const metrics = extractMetrics(portfolioResult.statistics);
+    return {
+      metrics: { param1: p1, param2: p2, ...metrics },
+      result: { param1: p1, param2: p2, ...metrics, growthCurve: portfolioResult.growthCurve },
+    };
+  } catch {
+    const fallback: GridCombinationMetrics = {
+      param1: p1,
+      param2: p2,
+      cagr: 0,
+      maxDrawdown: 0,
+      sharpe: 0,
+      totalReturn: 0,
+      stdev: 0,
+      calmar: 0,
+    };
+    return { metrics: fallback, result: { ...fallback, growthCurve: [] } };
+  }
+}
+
+/** 构建热力图矩阵 */
+function buildHeatmapMatrix(
+  param1Values: number[],
+  param2Values: number[],
+  allResults: TopCombinationResult[],
+  objective: ObjectiveType,
+): (number | null)[][] {
+  const matrix: (number | null)[][] = [];
+  for (const p1 of param1Values) {
+    const row: (number | null)[] = [];
+    for (const p2 of param2Values) {
+      const result = allResults.find((r) => r.param1 === p1 && r.param2 === p2);
+      row.push(result ? getObjectiveValue(result, objective) : null);
+    }
+    matrix.push(row);
+  }
+  return matrix;
+}
+
 export function runGridSearch(
   request: TacticalGridRequest,
   priceData: Record<string, Record<string, number>>,
@@ -294,94 +434,43 @@ export function runGridSearch(
     topN = 10,
   } = request;
 
-  // 1. 生成参数网格（笛卡尔积）
   const param1Values = generateRange(param1Range.min, param1Range.max, param1Range.step);
   const param2Values = generateRange(param2Range.min, param2Range.max, param2Range.step);
   const totalCombinations = param1Values.length * param2Values.length;
 
-  // 2. 遍历所有参数组合，计算信号 → 构建合成价格 → 运行回测
   const allMetrics: GridCombinationMetrics[] = [];
   const allResultsWithCurve: TopCombinationResult[] = [];
 
   for (const p1 of param1Values) {
     for (const p2 of param2Values) {
-      // 2a. 计算信号
-      const signals = generateSignals(indicator, prices, dates, p1, p2, rebalanceFrequency);
-
-      // 2b. 构建合成价格序列
-      const syntheticPrices = buildSyntheticPrices(dates, prices, signals);
-
-      // 2c. 使用 runPortfolioBacktest 运行回测
-      const syntheticPriceData = { [tradingTicker]: syntheticPrices };
-      const portfolio: Portfolio = {
-        id: `grid-${p1}-${p2}`,
-        name: `p1=${p1}, p2=${p2}`,
-        assets: [{ ticker: tradingTicker, weight: 100 }],
-        rebalanceFrequency: 'none',
-      };
-
-      const btParams = {
+      const { metrics, result } = runSingleCombination({
+        p1,
+        p2,
+        indicator,
+        prices,
+        dates,
+        tradingTicker,
         startDate,
         endDate,
         startingValue,
-        adjustForInflation: false,
-        rollingWindowMonths: 12,
-        benchmarkTicker: '',
-        cashflowLegs: [],
-        oneTimeCashflows: [],
-      };
-
-      try {
-        const btResult = runPortfolioBacktest([portfolio], syntheticPriceData, btParams);
-        const portfolioResult = btResult.portfolios[0];
-        const metrics = extractMetrics(portfolioResult.statistics);
-        allMetrics.push({ param1: p1, param2: p2, ...metrics });
-        allResultsWithCurve.push({
-          param1: p1,
-          param2: p2,
-          ...metrics,
-          growthCurve: portfolioResult.growthCurve,
-        });
-      } catch {
-        const fallback: GridCombinationMetrics = {
-          param1: p1,
-          param2: p2,
-          cagr: 0,
-          maxDrawdown: 0,
-          sharpe: 0,
-          totalReturn: 0,
-          stdev: 0,
-          calmar: 0,
-        };
-        allMetrics.push(fallback);
-        allResultsWithCurve.push({ ...fallback, growthCurve: [] });
-      }
+        rebalanceFrequency,
+      });
+      allMetrics.push(metrics);
+      allResultsWithCurve.push(result);
     }
   }
 
-  // 3. 按优化目标排序
   allMetrics.sort((a, b) => getObjectiveValue(b, objective) - getObjectiveValue(a, objective));
   allResultsWithCurve.sort(
     (a, b) => getObjectiveValue(b, objective) - getObjectiveValue(a, objective),
   );
 
-  // 4. 取 Top N
   const topResults = allResultsWithCurve.slice(0, Math.min(topN, allResultsWithCurve.length));
-  const bestCombination = topResults[0];
 
-  // 5. 构建热力图矩阵
   const param1Label = indicator === 'rsi' ? 'RSI 周期' : `${indicator.toUpperCase()} 周期`;
   const param2Label = indicator === 'rsi' ? '超卖阈值' : '突破阈值(%)';
-
-  const matrix: (number | null)[][] = [];
-  for (const p1 of param1Values) {
-    const row: (number | null)[] = [];
-    for (const p2 of param2Values) {
-      const result = allResultsWithCurve.find((r) => r.param1 === p1 && r.param2 === p2);
-      row.push(result ? getObjectiveValue(result, objective) : null);
-    }
-    matrix.push(row);
-  }
+  const matrix = buildHeatmapMatrix(param1Values, param2Values, allResultsWithCurve, objective);
+  const bestCombination = topResults[0];
 
   return {
     totalCombinations,
