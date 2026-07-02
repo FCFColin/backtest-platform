@@ -17,6 +17,8 @@ import {
   calcStatistics,
   calcEquityCurve,
   analyzeSignal,
+  analyzeDualSignal,
+  analyzeMultiSignal,
   buildSignalDirMap,
   combineDir,
 } from '../../../api/engine/signal.js';
@@ -146,9 +148,7 @@ describe('generateRawSignals - 边界与异常', () => {
   });
 
   it('单点数据应返回空数组（无法计算交叉）', () => {
-    const signals = generateRawSignals('sma', 5, 0, [
-      { date: '2020-01-02', price: 100 },
-    ]);
+    const signals = generateRawSignals('sma', 5, 0, [{ date: '2020-01-02', price: 100 }]);
     expect(signals).toEqual([]);
   });
 
@@ -240,9 +240,10 @@ describe('calcStatistics - 统计计算', () => {
     ];
     const stats = calcStatistics(signals);
     expect(stats.totalSignals).toBe(4);
-    expect(stats.completedTrades ?? 0).toBeGreaterThanOrEqual(0);
-    expect(stats.winRate).toBeGreaterThanOrEqual(0);
-    expect(stats.winRate).toBeLessThanOrEqual(1);
+    // 2 笔已完成交易：+10% 盈、-4.76% 亏 → 胜率精确为 0.5
+    expect(stats.winRate).toBeCloseTo(0.5, 10);
+    // 平均收益 = (0.10 + (-0.047619...)) / 2 ≈ 0.02619
+    expect(stats.avgReturn).toBeCloseTo((0.1 + (100 - 105) / 105) / 2, 6);
   });
 
   it('全盈利交易胜率应为 1', () => {
@@ -258,9 +259,7 @@ describe('calcStatistics - 统计计算', () => {
   });
 
   it('无配对交易（仅 buy）胜率应为 0', () => {
-    const signals: SignalPoint[] = [
-      { date: '2020-01-02', type: 'buy', price: 100 },
-    ];
+    const signals: SignalPoint[] = [{ date: '2020-01-02', type: 'buy', price: 100 }];
     const stats = calcStatistics(signals);
     expect(stats.winRate).toBe(0);
     expect(stats.avgReturn).toBe(0);
@@ -281,17 +280,17 @@ describe('calcStatistics - 统计计算', () => {
     ];
     const stats = calcStatistics(signals);
     expect(stats.totalSignals).toBe(3);
-    // 仅 1 笔已完成交易
-    expect(stats.winRate).toBe(1); // 唯一交易盈利
+    // 仅 1 笔已完成交易（最后的 buy 未平仓，不计入）；唯一交易盈利
+    expect(stats.winRate).toBe(1);
+    // 未平仓的 buy 不应拉低平均收益：avgReturn 仅来自唯一已完成交易 +10%
+    expect(stats.avgReturn).toBeCloseTo(0.1, 10);
   });
 });
 
 describe('calcEquityCurve - 权益曲线', () => {
   it('应返回与输入等长的权益曲线', () => {
     const data = makeUptrendPriceData(20);
-    const signals: SignalPoint[] = [
-      { date: data[0].date, type: 'buy', price: data[0].price },
-    ];
+    const signals: SignalPoint[] = [{ date: data[0].date, type: 'buy', price: data[0].price }];
     const { equityCurve } = calcEquityCurve(signals, data);
     expect(equityCurve).toHaveLength(20);
   });
@@ -306,9 +305,7 @@ describe('calcEquityCurve - 权益曲线', () => {
 
   it('买入后持有应随价格上涨', () => {
     const data = makeUptrendPriceData(10);
-    const signals: SignalPoint[] = [
-      { date: data[0].date, type: 'buy', price: data[0].price },
-    ];
+    const signals: SignalPoint[] = [{ date: data[0].date, type: 'buy', price: data[0].price }];
     const { equityCurve } = calcEquityCurve(signals, data);
     expect(equityCurve.at(-1)!.value).toBeGreaterThan(10000);
   });
@@ -392,5 +389,148 @@ describe('combineDir - 信号组合', () => {
     expect(combineDir(null, 'sell', 'xor')).toBe('sell');
     expect(combineDir('buy', 'buy', 'xor')).toBeNull();
     expect(combineDir(null, null, 'xor')).toBeNull();
+  });
+});
+
+describe('analyzeDualSignal - 双信号分析', () => {
+  it('and 组合应仅在同向信号时产生 combined 信号', () => {
+    const data = makeTrendPriceData();
+    const cfg1 = makeRequest({ indicator: 'sma', period: 5, signalType: 'both' });
+    const cfg2 = makeRequest({ indicator: 'ema', period: 5, signalType: 'both' });
+    const result = analyzeDualSignal(cfg1, cfg2, data, data, 'and');
+
+    expect(result.signal1.signals).toBeDefined();
+    expect(result.signal2.signals).toBeDefined();
+    expect(result.comparison.length).toBeGreaterThan(0);
+    expect(
+      result.combined.signals.every((s) =>
+        result.comparison.some((c) => c.date === s.date && c.combined === s.type),
+      ),
+    ).toBe(true);
+  });
+
+  it('or 组合应合并任一信号', () => {
+    const data = makeTrendPriceData();
+    const cfg1 = makeRequest({ indicator: 'sma', period: 5 });
+    const cfg2 = makeRequest({ indicator: 'ema', period: 5 });
+    const result = analyzeDualSignal(cfg1, cfg2, data, data, 'or');
+
+    // or 组合：任一信号触发即产生 combined，且 combined 必须来自 comparison 行
+    expect(result.combined.signals.length).toBe(result.comparison.filter((c) => c.combined).length);
+    for (const s of result.combined.signals) {
+      const row = result.comparison.find((c) => c.date === s.date);
+      expect(row?.combined).toBe(s.type);
+    }
+  });
+
+  it('xor 组合应仅在单信号触发时产生 combined', () => {
+    const data = makeTrendPriceData();
+    const cfg1 = makeRequest({ indicator: 'sma', period: 5 });
+    const cfg2 = makeRequest({ indicator: 'ema', period: 5 });
+    const result = analyzeDualSignal(cfg1, cfg2, data, data, 'xor');
+
+    for (const s of result.combined.signals) {
+      const row = result.comparison.find((c) => c.date === s.date);
+      const s1 = row?.signal1;
+      const s2 = row?.signal2;
+      expect(Boolean(s1) !== Boolean(s2)).toBe(true);
+    }
+  });
+
+  it('空数据应返回空 combined 信号', () => {
+    const cfg1 = makeRequest();
+    const cfg2 = makeRequest({ indicator: 'ema' });
+    const result = analyzeDualSignal(cfg1, cfg2, [], [], 'and');
+    expect(result.combined.signals).toEqual([]);
+    expect(result.combined.statistics.totalSignals).toBe(0);
+    expect(result.comparison).toEqual([]);
+  });
+
+  it('未知指标配置应不产生 combined 信号', () => {
+    const data = makeUptrendPriceData(15);
+    const cfg1 = makeRequest({ indicator: 'unknown' });
+    const cfg2 = makeRequest({ indicator: 'also-unknown' });
+    const result = analyzeDualSignal(cfg1, cfg2, data, data, 'or');
+    expect(result.combined.signals).toEqual([]);
+  });
+});
+
+describe('analyzeMultiSignal - 多信号分析', () => {
+  it('weighted 聚合应按权重合成信号', () => {
+    const data = makeTrendPriceData();
+    const configs = [
+      makeRequest({ indicator: 'sma', period: 5 }),
+      makeRequest({ indicator: 'ema', period: 5 }),
+    ];
+    const result = analyzeMultiSignal(configs, data, 'weighted', [0.7, 0.3]);
+    expect(result.aggregated.signals).toBeDefined();
+    expect(result.contributions).toHaveLength(2);
+    expect(result.contributions[0].indicator).toBe('sma');
+    expect(result.contributions[1].indicator).toBe('ema');
+  });
+
+  it('voting 聚合应按多数票决定方向', () => {
+    const data = makeTrendPriceData();
+    const configs = [
+      makeRequest({ indicator: 'sma', period: 5 }),
+      makeRequest({ indicator: 'ema', period: 5 }),
+      makeRequest({ indicator: 'rsi', period: 14, threshold: 30 }),
+    ];
+    const result = analyzeMultiSignal(configs, data, 'voting');
+    expect(result.contributions).toHaveLength(3);
+    expect(result.aggregated.equityCurve.length).toBe(data.length);
+  });
+
+  it('rank 聚合应使用历史胜率最高的信号', () => {
+    const data = makeTrendPriceData();
+    const configs = [
+      makeRequest({ indicator: 'sma', period: 5 }),
+      makeRequest({ indicator: 'ema', period: 5 }),
+    ];
+    const result = analyzeMultiSignal(configs, data, 'rank');
+    expect(result.aggregated.statistics).toBeDefined();
+    expect(result.contributions.every((c) => typeof c.contribution === 'number')).toBe(true);
+  });
+
+  it('空配置数组应返回空聚合结果', () => {
+    const data = makeUptrendPriceData(10);
+    const result = analyzeMultiSignal([], data, 'weighted');
+    expect(result.aggregated.signals).toEqual([]);
+    expect(result.contributions).toEqual([]);
+  });
+
+  it('恶意/负权重应被钳制为 0（等价于零权重 + 归一化）', () => {
+    const data = makeTrendPriceData();
+    const configs = [
+      makeRequest({ indicator: 'sma', period: 5 }),
+      makeRequest({ indicator: 'ema', period: 5 }),
+    ];
+    // [-1, 2] 负权重钳制为 0 → [0, 2] 归一化 → [0, 1]
+    // 因此聚合结果必须与显式 [0, 1] 完全一致（证明钳制真实生效，而非仅"不崩溃"）
+    const malicious = analyzeMultiSignal(configs, data, 'weighted', [-1, 2]);
+    const clamped = analyzeMultiSignal(configs, data, 'weighted', [0, 1]);
+    expect(malicious.aggregated.signals).toEqual(clamped.aggregated.signals);
+    // sma（被钳制为 0 权重）不应对聚合方向产生贡献，结果应等同仅用 ema
+    const emaOnly = analyzeMultiSignal([configs[1]], data, 'weighted', [1]);
+    expect(malicious.aggregated.signals.map((s) => `${s.date}:${s.type}`)).toEqual(
+      emaOnly.aggregated.signals.map((s) => `${s.date}:${s.type}`),
+    );
+  });
+
+  it('权重数量不匹配时应均分', () => {
+    const data = makeTrendPriceData();
+    const configs = [
+      makeRequest({ indicator: 'sma', period: 5 }),
+      makeRequest({ indicator: 'ema', period: 5 }),
+    ];
+    const withMismatch = analyzeMultiSignal(configs, data, 'weighted', [1]);
+    const withDefault = analyzeMultiSignal(configs, data, 'weighted');
+    expect(withMismatch.aggregated.signals).toEqual(withDefault.aggregated.signals);
+  });
+
+  it('period=1 边界应被提升为 safePeriod=2', () => {
+    const data = makeUptrendPriceData(10);
+    const configs = [makeRequest({ indicator: 'sma', period: 1 })];
+    expect(() => analyzeMultiSignal(configs, data, 'voting')).not.toThrow();
   });
 });

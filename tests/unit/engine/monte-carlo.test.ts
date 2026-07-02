@@ -15,12 +15,12 @@
 import { describe, it, expect } from 'vitest';
 import { runMonteCarlo } from '../../../api/engine/monteCarlo.js';
 import type { PriceData } from '../../../api/engine/portfolio.js';
-import type { Portfolio, BacktestParameters } from '../../../shared/types.js';
+import type { Portfolio } from '../../../shared/types.js';
 import { makeLinearPriceData, makeParams } from '../../helpers/fixtures.js';
 
 // 构造足够长的历史数据（>5 年交易日，满足 minBlockYears=5）
 function makeLongPriceData(): PriceData {
-  const up = Math.pow(1.10, 1 / 252) - 1; // 年化 10%
+  const up = Math.pow(1.1, 1 / 252) - 1; // 年化 10%
   return {
     STOCK: makeLinearPriceData('STOCK', '2010-01-02', '2020-12-31', 100, up),
   };
@@ -104,11 +104,18 @@ describe('runMonteCarlo - 正常模拟', () => {
       minBlockYears: 1,
       maxBlockYears: 1,
     });
-    expect(result.representativePaths.worst).toBeDefined();
-    expect(result.representativePaths.p25).toBeDefined();
-    expect(result.representativePaths.median).toBeDefined();
-    expect(result.representativePaths.p75).toBeDefined();
-    expect(result.representativePaths.best).toBeDefined();
+    const { worst, p25, median, p75, best } = result.representativePaths;
+    // 每条代表路径均为非空权益序列
+    for (const path of [worst, p25, median, p75, best]) {
+      expect(path.length).toBeGreaterThan(0);
+    }
+    // 代表路径按终值百分位选取，终值必须单调不减：worst ≤ p25 ≤ median ≤ p75 ≤ best
+    const finals = [worst, p25, median, p75, best].map((p) => p.at(-1)!);
+    for (let i = 1; i < finals.length; i++) {
+      expect(finals[i]).toBeGreaterThanOrEqual(finals[i - 1]);
+    }
+    // worst 终值应严格 ≤ best（30 条模拟下分布不应退化为常数）
+    expect(best.at(-1)!).toBeGreaterThanOrEqual(worst.at(-1)!);
   });
 
   it('successProbabilities 应包含 survival/capitalPreservation/profit', () => {

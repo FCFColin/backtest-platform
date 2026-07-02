@@ -49,11 +49,16 @@ describe('E2E - 回测API正常场景', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        portfolios: [{
-          name: 'Test',
-          assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }],
-          rebalanceFrequency: 'quarterly',
-        }],
+        portfolios: [
+          {
+            name: 'Test',
+            assets: [
+              { ticker: 'VTI', weight: 60 },
+              { ticker: 'BND', weight: 40 },
+            ],
+            rebalanceFrequency: 'quarterly',
+          },
+        ],
         parameters: {
           startDate: '2010-01-01',
           endDate: '2024-12-31',
@@ -78,8 +83,17 @@ describe('E2E - 回测API正常场景', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        portfolios: [{ name: 'SPY', assets: [{ ticker: 'SPY', weight: 100 }], rebalanceFrequency: 'none' }],
-        parameters: { startDate: '2010-01-01', endDate: '2024-12-31', startingValue: 10000, adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: '' },
+        portfolios: [
+          { name: 'SPY', assets: [{ ticker: 'SPY', weight: 100 }], rebalanceFrequency: 'none' },
+        ],
+        parameters: {
+          startDate: '2010-01-01',
+          endDate: '2024-12-31',
+          startingValue: 10000,
+          adjustForInflation: false,
+          rollingWindowMonths: 12,
+          benchmarkTicker: '',
+        },
       }),
     });
     const json = await res.json();
@@ -92,17 +106,33 @@ describe('E2E - 回测API正常场景', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         portfolios: [
-          { name: '保守', assets: [{ ticker: 'VTI', weight: 20 }, { ticker: 'BND', weight: 80 }], rebalanceFrequency: 'annual' },
+          {
+            name: '保守',
+            assets: [
+              { ticker: 'VTI', weight: 20 },
+              { ticker: 'BND', weight: 80 },
+            ],
+            rebalanceFrequency: 'annual',
+          },
           { name: '激进', assets: [{ ticker: 'VTI', weight: 100 }], rebalanceFrequency: 'annual' },
         ],
-        parameters: { startDate: '2010-01-01', endDate: '2024-12-31', startingValue: 10000, adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: '' },
+        parameters: {
+          startDate: '2010-01-01',
+          endDate: '2024-12-31',
+          startingValue: 10000,
+          adjustForInflation: false,
+          rollingWindowMonths: 12,
+          benchmarkTicker: '',
+        },
       }),
     });
     const json = await res.json();
     expect(json.data.portfolios).toHaveLength(2);
     expect(json.data.correlations).toHaveLength(2);
     // 激进组合CAGR > 保守组合
-    expect(json.data.portfolios[1].statistics.cagr).toBeGreaterThan(json.data.portfolios[0].statistics.cagr);
+    expect(json.data.portfolios[1].statistics.cagr).toBeGreaterThan(
+      json.data.portfolios[0].statistics.cagr,
+    );
   });
 });
 
@@ -113,14 +143,16 @@ describe('E2E - 回测API做空场景', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        portfolios: [{
-          name: 'Short Test',
-          assets: [
-            { ticker: 'VTI', weight: 200 },
-            { ticker: 'NVDA', weight: -100 },
-          ],
-          rebalanceFrequency: 'none',
-        }],
+        portfolios: [
+          {
+            name: 'Short Test',
+            assets: [
+              { ticker: 'VTI', weight: 200 },
+              { ticker: 'NVDA', weight: -100 },
+            ],
+            rebalanceFrequency: 'none',
+          },
+        ],
         parameters: {
           startDate: '2023-01-01',
           endDate: '2024-12-31',
@@ -144,8 +176,24 @@ describe('E2E - 回测API做空场景', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        portfolios: [{ name: '爆仓', assets: [{ ticker: 'SPY', weight: 300 }, { ticker: 'NVDA', weight: -200 }], rebalanceFrequency: 'none' }],
-        parameters: { startDate: '2023-01-01', endDate: '2024-12-31', startingValue: 10000, adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: '' },
+        portfolios: [
+          {
+            name: '爆仓',
+            assets: [
+              { ticker: 'SPY', weight: 300 },
+              { ticker: 'NVDA', weight: -200 },
+            ],
+            rebalanceFrequency: 'none',
+          },
+        ],
+        parameters: {
+          startDate: '2023-01-01',
+          endDate: '2024-12-31',
+          startingValue: 10000,
+          adjustForInflation: false,
+          rollingWindowMonths: 12,
+          benchmarkTicker: '',
+        },
       }),
     });
     const json = await res.json();
@@ -158,52 +206,57 @@ describe('E2E - 回测API做空场景', () => {
 
 // ===== 回测API - 偏离调仓 =====
 describe('E2E - 回测API偏离调仓', () => {
-  it.skipIf(!serverAvailable)('POST /api/backtest/portfolio - 偏离调仓不比季度调仓更易爆仓', async () => {
-    const baseBody = {
-      assets: [
-        { ticker: 'VTI', weight: 100 },
-        { ticker: 'BND', weight: 100 },
-        { ticker: 'AAPL', weight: -100 },
-      ],
-      parameters: {
-        startDate: '2010-01-01',
-        endDate: '2024-12-31',
-        startingValue: 10000,
-        adjustForInflation: false,
-        rollingWindowMonths: 12,
-        benchmarkTicker: '',
-      },
-    };
+  it.skipIf(!serverAvailable)(
+    'POST /api/backtest/portfolio - 偏离调仓不比季度调仓更易爆仓',
+    async () => {
+      const baseBody = {
+        assets: [
+          { ticker: 'VTI', weight: 100 },
+          { ticker: 'BND', weight: 100 },
+          { ticker: 'AAPL', weight: -100 },
+        ],
+        parameters: {
+          startDate: '2010-01-01',
+          endDate: '2024-12-31',
+          startingValue: 10000,
+          adjustForInflation: false,
+          rollingWindowMonths: 12,
+          benchmarkTicker: '',
+        },
+      };
 
-    // 季度调仓
-    const resQ = await fetch(`${API_BASE_URL}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        portfolios: [{ ...baseBody, name: 'Q', rebalanceFrequency: 'quarterly' }],
-        parameters: baseBody.parameters,
-      }),
-    });
-    const jsonQ = await resQ.json();
-    const qCagr = jsonQ.data.portfolios[0].statistics.cagr;
+      // 季度调仓
+      const resQ = await fetch(`${API_BASE_URL}/api/backtest/portfolio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          portfolios: [{ ...baseBody, name: 'Q', rebalanceFrequency: 'quarterly' }],
+          parameters: baseBody.parameters,
+        }),
+      });
+      const jsonQ = await resQ.json();
+      const qCagr = jsonQ.data.portfolios[0].statistics.cagr;
 
-    // 偏离调仓 5%
-    const resT = await fetch(`${API_BASE_URL}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        portfolios: [{ ...baseBody, name: 'T', rebalanceFrequency: 'threshold', rebalanceThreshold: 5 }],
-        parameters: baseBody.parameters,
-      }),
-    });
-    const jsonT = await resT.json();
-    const tCagr = jsonT.data.portfolios[0].statistics.cagr;
+      // 偏离调仓 5%
+      const resT = await fetch(`${API_BASE_URL}/api/backtest/portfolio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          portfolios: [
+            { ...baseBody, name: 'T', rebalanceFrequency: 'threshold', rebalanceThreshold: 5 },
+          ],
+          parameters: baseBody.parameters,
+        }),
+      });
+      const jsonT = await resT.json();
+      const tCagr = jsonT.data.portfolios[0].statistics.cagr;
 
-    // 如果季度没爆仓，偏离也不应该爆
-    if (qCagr !== -1) {
-      expect(tCagr).not.toBe(-1);
-    }
-  });
+      // 如果季度没爆仓，偏离也不应该爆
+      if (qCagr !== -1) {
+        expect(tCagr).not.toBe(-1);
+      }
+    },
+  );
 });
 
 // ===== 回测API - 错误处理 =====
@@ -213,11 +266,13 @@ describe('E2E - 回测API错误处理', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        portfolios: [{
-          name: 'Test',
-          assets: [{ ticker: 'INVALID_TICKER_XYZ', weight: 100 }],
-          rebalanceFrequency: 'none',
-        }],
+        portfolios: [
+          {
+            name: 'Test',
+            assets: [{ ticker: 'INVALID_TICKER_XYZ', weight: 100 }],
+            rebalanceFrequency: 'none',
+          },
+        ],
         parameters: {
           startDate: '2020-01-01',
           endDate: '2024-12-31',
@@ -237,11 +292,16 @@ describe('E2E - 回测API错误处理', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        portfolios: [{
-          name: 'Weight Test',
-          assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }],
-          rebalanceFrequency: 'none',
-        }],
+        portfolios: [
+          {
+            name: 'Weight Test',
+            assets: [
+              { ticker: 'VTI', weight: 60 },
+              { ticker: 'BND', weight: 40 },
+            ],
+            rebalanceFrequency: 'none',
+          },
+        ],
         parameters: {
           startDate: '2020-01-01',
           endDate: '2020-12-31',
@@ -273,17 +333,36 @@ describe('E2E - 回测API错误处理', () => {
 describe('E2E - 回测API数据一致性', () => {
   it.skipIf(!serverAvailable)('相同参数两次回测结果一致', async () => {
     const body = JSON.stringify({
-      portfolios: [{ name: 'Test', assets: [{ ticker: 'VTI', weight: 100 }], rebalanceFrequency: 'none' }],
-      parameters: { startDate: '2020-01-01', endDate: '2020-12-31', startingValue: 10000, adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: '' },
+      portfolios: [
+        { name: 'Test', assets: [{ ticker: 'VTI', weight: 100 }], rebalanceFrequency: 'none' },
+      ],
+      parameters: {
+        startDate: '2020-01-01',
+        endDate: '2020-12-31',
+        startingValue: 10000,
+        adjustForInflation: false,
+        rollingWindowMonths: 12,
+        benchmarkTicker: '',
+      },
     });
     const [res1, res2] = await Promise.all([
-      fetch(`${API_BASE_URL}/api/backtest/portfolio`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }),
-      fetch(`${API_BASE_URL}/api/backtest/portfolio`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }),
+      fetch(`${API_BASE_URL}/api/backtest/portfolio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }),
+      fetch(`${API_BASE_URL}/api/backtest/portfolio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      }),
     ]);
     const json1 = await res1.json();
     const json2 = await res2.json();
     expect(json1.data.portfolios[0].statistics.cagr).toBe(json2.data.portfolios[0].statistics.cagr);
-    expect(json1.data.portfolios[0].growthCurve.length).toBe(json2.data.portfolios[0].growthCurve.length);
+    expect(json1.data.portfolios[0].growthCurve.length).toBe(
+      json2.data.portfolios[0].growthCurve.length,
+    );
   });
 
   it.skipIf(!serverAvailable)('增长曲线首日价值≈startingValue', async () => {
@@ -291,8 +370,24 @@ describe('E2E - 回测API数据一致性', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        portfolios: [{ name: 'Test', assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }], rebalanceFrequency: 'none' }],
-        parameters: { startDate: '2020-01-01', endDate: '2020-12-31', startingValue: 10000, adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: '' },
+        portfolios: [
+          {
+            name: 'Test',
+            assets: [
+              { ticker: 'VTI', weight: 60 },
+              { ticker: 'BND', weight: 40 },
+            ],
+            rebalanceFrequency: 'none',
+          },
+        ],
+        parameters: {
+          startDate: '2020-01-01',
+          endDate: '2020-12-31',
+          startingValue: 10000,
+          adjustForInflation: false,
+          rollingWindowMonths: 12,
+          benchmarkTicker: '',
+        },
       }),
     });
     const json = await res.json();

@@ -23,7 +23,6 @@ import {
   analyzeWhatIf,
 } from '../../../api/engine/tactical.js';
 import type { TacticalStrategy } from '../../../shared/types/tactical.js';
-import type { RebalanceFrequency } from '../../../shared/types/index.js';
 
 // 构造上涨价格序列
 function makeUptrendPrices(n: number): number[] {
@@ -64,9 +63,7 @@ function makeStrategy(overrides?: Partial<TacticalStrategy>): TacticalStrategy {
       {
         id: 'sig-1',
         name: '均线突破',
-        conditions: [
-          { indicator: 'sma', period: 5, operator: 'gt', threshold: 0 },
-        ],
+        conditions: [{ indicator: 'sma', period: 5, operator: 'gt', threshold: 0 }],
         targetWeights: [{ ticker: 'STOCK', weight: 1 }],
       },
     ],
@@ -122,7 +119,7 @@ describe('computeIndicatorValue - 指标计算', () => {
 
   it('未知指标应返回全 null 数组', () => {
     const prices = makeUptrendPrices(10);
-    const values = computeIndicatorValue('unknown' as any, prices, 5);
+    const values = computeIndicatorValue('unknown' as unknown as never, prices, 5);
     expect(values.every((v) => v === null)).toBe(true);
   });
 
@@ -191,7 +188,7 @@ describe('evaluateCondition - 信号条件评估', () => {
   it('未知操作符应返回全 false', () => {
     const values: (number | null)[] = [1, 2, 3];
     const flags = evaluateCondition(
-      { indicator: 'sma', period: 5, operator: 'unknown' as any, threshold: 0 },
+      { indicator: 'sma', period: 5, operator: 'unknown' as unknown as never, threshold: 0 },
       values,
     );
     expect(flags).toEqual([false, false, false]);
@@ -309,9 +306,7 @@ describe('normalizeWeights - 权重归一化', () => {
 describe('aggregateSignals - 信号聚合', () => {
   it('无激活信号时应返回等权', () => {
     const strategy = makeStrategy();
-    const activeFlags = new Map<string, boolean[]>([
-      ['sig-1', [false, false, false]],
-    ]);
+    const activeFlags = new Map<string, boolean[]>([['sig-1', [false, false, false]]]);
     const result = aggregateSignals(strategy, activeFlags, 0, ['A', 'B']);
     expect(result).toHaveLength(2);
     expect(result[0].weight).toBeCloseTo(0.5, 6);
@@ -439,13 +434,7 @@ describe('runTacticalBacktest - 战术回测', () => {
   it('单日数据应返回单点曲线', () => {
     const strategy = makeStrategy();
     const priceData = { STOCK: { '2020-01-02': 100 } };
-    const { result } = runTacticalBacktest(
-      strategy,
-      priceData,
-      ['2020-01-02'],
-      10000,
-      'daily',
-    );
+    const { result } = runTacticalBacktest(strategy, priceData, ['2020-01-02'], 10000, 'daily');
     expect(result.growthCurve).toHaveLength(1);
   });
 });
@@ -470,10 +459,7 @@ describe('computeSimpleStatistics - 简单统计', () => {
   });
 
   it('单点曲线应返回零值统计', () => {
-    const stats = computeSimpleStatistics(
-      [{ date: '2020-01-02', value: 10000 }],
-      10000,
-    );
+    const stats = computeSimpleStatistics([{ date: '2020-01-02', value: 10000 }], 10000);
     expect(stats.cagr).toBe(0);
   });
 

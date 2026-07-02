@@ -6,21 +6,36 @@
  * - BacktestCompleted 领域事件被发布（确保审计链路不被遗漏）
  * - 引擎结果被正确返回（确保响应格式不变）
  *
- * 权衡：通过 mock callRustWithFallback 强制触发 Node.js 降级路径，
+ * 权衡：通过 mock callEngineStrict 强制触发引擎路径，
  * 使被 mock 的 runPortfolioBacktest 被实际调用，从而可验证参数透传。
  * 不测试 Rust/Go 引擎路径（属于集成测试范畴）。
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '../../../shared/types.js';
+import { mockLogger } from '../../helpers/mockFactories.js';
 
 // ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====
 const engineMocks = vi.hoisted(() => ({
-  runPortfolioBacktest: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
 const eventMocks = vi.hoisted(() => ({
   dispatch: vi.fn(async () => {}),
+}));
+
+// 事务型 outbox 写入与 DB 客户端 mock：
+// 服务以 fire-and-forget 异步 IIFE 写 outbox 后再 dispatch，
+// 测试需 mock getClient/writeEventInTransaction 使该异步链路可完成。
+const dbMocks = vi.hoisted(() => ({
+  getClient: vi.fn(async () => ({
+    query: vi.fn(async () => ({ rows: [] })),
+    release: vi.fn(),
+  })),
+}));
+
+const outboxMocks = vi.hoisted(() => ({
+  writeEventInTransaction: vi.fn(async () => {}),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -28,28 +43,19 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
+  child: vi.fn(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  })),
 }));
 
 // ===== Mock 模块 =====
 
-// Mock 引擎模块：仅 mock runPortfolioBacktest（服务调用的引擎入口）
-vi.mock('../../../api/engine/portfolio.js', () => ({
-  runPortfolioBacktest: engineMocks.runPortfolioBacktest,
-}));
-
-// Mock Rust 降级工具：模拟引擎不可用，强制触发 fallback（调用被 mock 的引擎）
-// unwrapFallbackResult 镜像真实逻辑，正确解包 DegradedResponse
-vi.mock('../../../api/utils/rustFallback.js', () => ({
-  callRustWithFallback: vi.fn(async (_endpoint: string, _body: unknown, fallbackFn: () => unknown) => {
-    const data = fallbackFn();
-    return { data, degraded: true, degradedCode: 'ENGINE_UNAVAILABLE', degradedMessage: 'test degraded' };
-  }),
-  unwrapFallbackResult: vi.fn((result: { data?: unknown; degraded?: boolean; degradedCode?: string; degradedMessage?: string }) => {
-    if (result && typeof result === 'object' && 'degraded' in result && result.degraded === true) {
-      return { data: result.data, degraded: true, degradedCode: result.degradedCode, degradedMessage: result.degradedMessage };
-    }
-    return { data: result, degraded: false };
-  }),
+// Mock 引擎调用：fail-closed（ADR-031），callEngineStrict 直接返回引擎结果
+vi.mock('../../../api/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
 }));
 
 // Mock 事件分发器：避免加载 handlers（依赖 db 连接）
@@ -59,15 +65,17 @@ vi.mock('../../../api/domain/events/index.js', () => ({
   },
 }));
 
-// Mock logger：避免 pino 初始化与 OTel 依赖
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: {
-    info: loggerMocks.info,
-    warn: loggerMocks.warn,
-    error: loggerMocks.error,
-    debug: loggerMocks.debug,
-  },
+// Mock DB 客户端与 outbox 写入：避免真实 Postgres 连接，使异步 outbox/事件链路可完成
+vi.mock('../../../api/db/index.js', () => ({
+  getClient: dbMocks.getClient,
 }));
+
+vi.mock('../../../api/services/outboxWriter.js', () => ({
+  writeEventInTransaction: outboxMocks.writeEventInTransaction,
+}));
+
+// Mock logger：避免 pino 初始化与 OTel 依赖
+vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
 
 import { BacktestApplicationService } from '../../../api/application/backtest-service.js';
 
@@ -138,7 +146,7 @@ describe('BacktestApplicationService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    engineMocks.runPortfolioBacktest.mockReturnValue(mockBacktestResult);
+    engineMocks.callEngineStrict.mockResolvedValue(mockBacktestResult);
     service = new BacktestApplicationService();
   });
 
@@ -151,16 +159,17 @@ describe('BacktestApplicationService', () => {
       exchangeRates: mockExchangeRates,
     });
 
-    // 引擎应被调用一次（通过 callRustWithFallback 的 fallback 路径）
-    expect(engineMocks.runPortfolioBacktest).toHaveBeenCalledTimes(1);
-    // 参数应原样透传：portfolios, priceData, parameters, cpiData, exchangeRates
-    expect(engineMocks.runPortfolioBacktest).toHaveBeenCalledWith(
-      [mockPortfolio],
-      mockPriceData,
-      mockParameters,
-      mockCpiData,
-      mockExchangeRates,
-    );
+    // 引擎应被 fail-closed 调用一次，指向 Go 回测端点
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
+    const [endpoint, body] = engineMocks.callEngineStrict.mock.calls[0];
+    expect(endpoint).toBe('/api/engine/backtest');
+    // 请求体应包含组合、价格数据、参数与宏观数据
+    expect(body).toMatchObject({
+      portfolios: expect.any(Array),
+      priceData: expect.objectContaining({ AAPL: expect.any(Object) }),
+      cpiData: mockCpiData,
+      exchangeRates: mockExchangeRates,
+    });
   });
 
   it('runBacktest 应分发 BacktestCompleted 领域事件', async () => {
@@ -172,8 +181,8 @@ describe('BacktestApplicationService', () => {
       exchangeRates: mockExchangeRates,
     });
 
-    // 事件分发器应被调用一次
-    expect(eventMocks.dispatch).toHaveBeenCalledTimes(1);
+    // 事件分发在 fire-and-forget 异步链路中完成（先写 outbox 再 dispatch），需等待
+    await vi.waitFor(() => expect(eventMocks.dispatch).toHaveBeenCalledTimes(1));
 
     const dispatchedEvent = eventMocks.dispatch.mock.calls[0][0];
     // 事件类型与聚合信息
@@ -187,7 +196,8 @@ describe('BacktestApplicationService', () => {
     expect(dispatchedEvent.payload.totalReturn).toBe(0.2);
     expect(dispatchedEvent.payload.maxDrawdown).toBe(0.15);
     expect(dispatchedEvent.payload.sharpeRatio).toBe(1.5);
-    expect(dispatchedEvent.payload.degraded).toBe(true);
+    // fail-closed：成功路径来自主引擎，非降级
+    expect(dispatchedEvent.payload.degraded).toBe(false);
   });
 
   it('runBacktest 应返回引擎结果', async () => {
@@ -201,7 +211,18 @@ describe('BacktestApplicationService', () => {
 
     // 返回的 result 应为引擎返回的同一对象（原样透传）
     expect(result.result).toBe(mockBacktestResult);
-    // degraded 标记应反映降级状态
-    expect(result.degraded).toBe(true);
+    // fail-closed：引擎成功返回，degraded 为 false
+    expect(result.degraded).toBe(false);
+  });
+
+  it('runBacktest 在引擎不可用时应抛出 EngineUnavailableError（fail-closed）', async () => {
+    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('ENGINE_UNAVAILABLE'));
+    await expect(
+      service.runBacktest({
+        portfolios: [mockPortfolio],
+        parameters: mockParameters,
+        priceData: mockPriceData,
+      }),
+    ).rejects.toThrow();
   });
 });

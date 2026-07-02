@@ -11,12 +11,17 @@ import {
 } from '../../../src/utils/portfolioStorage.js';
 import type { Portfolio, BacktestParameters } from '../../../shared/types.js';
 
-const validPortfolios: Portfolio[] = [{
-  id: 'p1',
-  name: 'Test Portfolio',
-  assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }],
-  rebalanceFrequency: 'quarterly',
-}];
+const validPortfolios: Portfolio[] = [
+  {
+    id: 'p1',
+    name: 'Test Portfolio',
+    assets: [
+      { ticker: 'VTI', weight: 60 },
+      { ticker: 'BND', weight: 40 },
+    ],
+    rebalanceFrequency: 'quarterly',
+  },
+];
 
 const validParams: BacktestParameters = {
   startDate: '2010-01-01',
@@ -32,9 +37,15 @@ function createLocalStorageMock() {
   let store: Record<string, string> = {};
   return {
     getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    clear: vi.fn(() => { store = {}; }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
   };
 }
 
@@ -73,9 +84,27 @@ describe('savePortfolios / loadPortfolios', () => {
 
   it('保存多个组合', () => {
     const portfolios: Portfolio[] = [
-      { id: 'p1', name: 'Portfolio 1', assets: [{ ticker: 'VTI', weight: 100 }], rebalanceFrequency: 'none' },
-      { id: 'p2', name: 'Portfolio 2', assets: [{ ticker: 'SPY', weight: 50 }, { ticker: 'BND', weight: 50 }], rebalanceFrequency: 'quarterly' },
-      { id: 'p3', name: 'Portfolio 3', assets: [{ ticker: 'QQQ', weight: 100 }], rebalanceFrequency: 'monthly' },
+      {
+        id: 'p1',
+        name: 'Portfolio 1',
+        assets: [{ ticker: 'VTI', weight: 100 }],
+        rebalanceFrequency: 'none',
+      },
+      {
+        id: 'p2',
+        name: 'Portfolio 2',
+        assets: [
+          { ticker: 'SPY', weight: 50 },
+          { ticker: 'BND', weight: 50 },
+        ],
+        rebalanceFrequency: 'quarterly',
+      },
+      {
+        id: 'p3',
+        name: 'Portfolio 3',
+        assets: [{ ticker: 'QQQ', weight: 100 }],
+        rebalanceFrequency: 'monthly',
+      },
     ];
     savePortfolios(portfolios);
     expect(loadPortfolios()).toEqual(portfolios);
@@ -83,9 +112,14 @@ describe('savePortfolios / loadPortfolios', () => {
 
   it('覆盖保存：第二次保存替换第一次', () => {
     savePortfolios(validPortfolios);
-    const newPortfolios: Portfolio[] = [{
-      id: 'p2', name: 'New', assets: [{ ticker: 'SPY', weight: 100 }], rebalanceFrequency: 'none',
-    }];
+    const newPortfolios: Portfolio[] = [
+      {
+        id: 'p2',
+        name: 'New',
+        assets: [{ ticker: 'SPY', weight: 100 }],
+        rebalanceFrequency: 'none',
+      },
+    ];
     savePortfolios(newPortfolios);
     expect(loadPortfolios()).toEqual(newPortfolios);
     expect(loadPortfolios()?.length).toBe(1);
@@ -212,9 +246,9 @@ describe('deleteNamedConfig', () => {
     deleteNamedConfig(idToDelete);
     const after = loadNamedConfigs();
     expect(after.length).toBe(2);
-    expect(after.find(c => c.id === idToDelete)).toBeUndefined();
-    expect(after.find(c => c.name === 'Config 1')).toBeTruthy();
-    expect(after.find(c => c.name === 'Config 3')).toBeTruthy();
+    expect(after.find((c) => c.id === idToDelete)).toBeUndefined();
+    expect(after.find((c) => c.name === 'Config 1')).toBeTruthy();
+    expect(after.find((c) => c.name === 'Config 3')).toBeTruthy();
   });
 
   it('空列表中删除不抛错', () => {
@@ -244,7 +278,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
   it('savePortfolios 在 localStorage 不可用时不抛错', () => {
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() => null),
-      setItem: vi.fn(() => { throw new Error('unavailable'); }),
+      setItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
       removeItem: vi.fn(),
     });
     expect(() => savePortfolios(validPortfolios)).not.toThrow();
@@ -252,7 +288,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
 
   it('loadPortfolios 在 localStorage 不可用时返回 null', () => {
     vi.stubGlobal('localStorage', {
-      getItem: vi.fn(() => { throw new Error('unavailable'); }),
+      getItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
     });
     expect(loadPortfolios()).toBeNull();
   });
@@ -260,7 +298,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
   it('saveParameters 在 localStorage 不可用时不抛错', () => {
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() => null),
-      setItem: vi.fn(() => { throw new Error('unavailable'); }),
+      setItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
       removeItem: vi.fn(),
     });
     expect(() => saveParameters(validParams)).not.toThrow();
@@ -268,7 +308,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
 
   it('loadParameters 在 localStorage 不可用时返回 null', () => {
     vi.stubGlobal('localStorage', {
-      getItem: vi.fn(() => { throw new Error('unavailable'); }),
+      getItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
     });
     expect(loadParameters()).toBeNull();
   });
@@ -276,7 +318,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
   it('saveNamedConfig 在 localStorage 不可用时不抛错', () => {
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() => null),
-      setItem: vi.fn(() => { throw new Error('unavailable'); }),
+      setItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
       removeItem: vi.fn(),
     });
     expect(() => saveNamedConfig('Test', validPortfolios, validParams)).not.toThrow();
@@ -284,7 +328,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
 
   it('loadNamedConfigs 在 localStorage 不可用时返回空数组', () => {
     vi.stubGlobal('localStorage', {
-      getItem: vi.fn(() => { throw new Error('unavailable'); }),
+      getItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
     });
     expect(loadNamedConfigs()).toEqual([]);
   });
@@ -292,7 +338,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
   it('deleteNamedConfig 在 localStorage 不可用时不抛错', () => {
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() => null),
-      setItem: vi.fn(() => { throw new Error('unavailable'); }),
+      setItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
       removeItem: vi.fn(),
     });
     expect(() => deleteNamedConfig('any-id')).not.toThrow();
@@ -302,7 +350,9 @@ describe('localStorage 不可用 - 优雅降级', () => {
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(() => null),
       setItem: vi.fn(),
-      removeItem: vi.fn(() => { throw new Error('unavailable'); }),
+      removeItem: vi.fn(() => {
+        throw new Error('unavailable');
+      }),
     });
     expect(() => clearAllData()).not.toThrow();
   });

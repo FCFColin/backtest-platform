@@ -20,12 +20,14 @@ vi.mock('react', () => ({
       const current = mockState.stateMap.get(index);
       mockState.stateMap.set(
         index,
-        typeof newValue === 'function' ? (newValue as (prev: unknown) => unknown)(current) : newValue,
+        typeof newValue === 'function'
+          ? (newValue as (prev: unknown) => unknown)(current)
+          : newValue,
       );
     };
     return [mockState.stateMap.get(index), setter];
   },
-  useCallback: <T,>(fn: T): T => fn,
+  useCallback: <T>(fn: T): T => fn,
 }));
 
 import { useAsyncAction } from '../../../src/hooks/useAsyncAction.js';
@@ -42,8 +44,12 @@ function renderHook() {
     reset: result.reset,
     setError: result.setError,
     // useState 调用顺序：isLoading=0, error=1
-    get isLoading() { return mockState.stateMap.get(0) as boolean; },
-    get error() { return mockState.stateMap.get(1) as string | null; },
+    get isLoading() {
+      return mockState.stateMap.get(0) as boolean;
+    },
+    get error() {
+      return mockState.stateMap.get(1) as string | null;
+    },
   };
 }
 
@@ -113,49 +119,65 @@ describe('useAsyncAction - 成功执行', () => {
 describe('useAsyncAction - 失败执行', () => {
   it('action 抛错时返回 undefined', async () => {
     const { run } = renderHook();
-    const result = await run(async () => { throw new Error('test error'); });
+    const result = await run(async () => {
+      throw new Error('test error');
+    });
     expect(result).toBeUndefined();
   });
 
   it('action 抛 Error 时 error 为 Error.message', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw new Error('custom error message'); });
+    await hook.run(async () => {
+      throw new Error('custom error message');
+    });
     expect(hook.error).toBe('custom error message');
   });
 
   it('action 抛非 Error 值时 error 为默认消息', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw 'string error'; });
+    await hook.run(async () => {
+      throw 'string error';
+    });
     expect(hook.error).toBe('操作失败');
   });
 
   it('action 抛 null 时 error 为默认消息', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw null; });
+    await hook.run(async () => {
+      throw null;
+    });
     expect(hook.error).toBe('操作失败');
   });
 
   it('action 抛 undefined 时 error 为默认消息', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw undefined; });
+    await hook.run(async () => {
+      throw undefined;
+    });
     expect(hook.error).toBe('操作失败');
   });
 
   it('action 抛数字时 error 为默认消息', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw 42; });
+    await hook.run(async () => {
+      throw 42;
+    });
     expect(hook.error).toBe('操作失败');
   });
 
   it('失败后 loading 为 false', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw new Error('fail'); });
+    await hook.run(async () => {
+      throw new Error('fail');
+    });
     expect(hook.isLoading).toBe(false);
   });
 
   it('失败后再次成功执行时 error 被清空', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw new Error('first error'); });
+    await hook.run(async () => {
+      throw new Error('first error');
+    });
     expect(hook.error).toBe('first error');
     await hook.run(async () => 'success');
     expect(hook.error).toBeNull();
@@ -177,8 +199,13 @@ describe('useAsyncAction - loading 状态', () => {
   it('执行过程中 loading 为 true', async () => {
     const hook = renderHook();
     let resolveFn: () => void;
-    const promise = new Promise<void>(resolve => { resolveFn = resolve; });
-    const runPromise = hook.run(async () => { await promise; return 'done'; });
+    const promise = new Promise<void>((resolve) => {
+      resolveFn = resolve;
+    });
+    const runPromise = hook.run(async () => {
+      await promise;
+      return 'done';
+    });
     // 在 promise resolve 前，loading 应为 true
     expect(hook.isLoading).toBe(true);
     resolveFn!();
@@ -189,12 +216,19 @@ describe('useAsyncAction - loading 状态', () => {
   it('执行前 error 被清空', async () => {
     const hook = renderHook();
     // 先制造一个错误
-    await hook.run(async () => { throw new Error('first error'); });
+    await hook.run(async () => {
+      throw new Error('first error');
+    });
     expect(hook.error).toBe('first error');
     // 再执行一个成功的 action，执行前 error 应被清空
     let resolveFn: () => void;
-    const promise = new Promise<void>(resolve => { resolveFn = resolve; });
-    const runPromise = hook.run(async () => { await promise; return 'success'; });
+    const promise = new Promise<void>((resolve) => {
+      resolveFn = resolve;
+    });
+    const runPromise = hook.run(async () => {
+      await promise;
+      return 'success';
+    });
     // 执行开始时 error 已被清空
     expect(hook.error).toBeNull();
     resolveFn!();
@@ -203,7 +237,9 @@ describe('useAsyncAction - loading 状态', () => {
 
   it('失败时 loading 最终为 false（finally 保证）', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw new Error('fail'); });
+    await hook.run(async () => {
+      throw new Error('fail');
+    });
     expect(hook.isLoading).toBe(false);
   });
 });
@@ -212,7 +248,9 @@ describe('useAsyncAction - loading 状态', () => {
 describe('useAsyncAction - reset', () => {
   it('reset 清空 error', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw new Error('test'); });
+    await hook.run(async () => {
+      throw new Error('test');
+    });
     expect(hook.error).toBe('test');
     hook.reset();
     expect(hook.error).toBeNull();
@@ -226,7 +264,9 @@ describe('useAsyncAction - reset', () => {
 
   it('reset 后可再次正常执行', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw new Error('fail'); });
+    await hook.run(async () => {
+      throw new Error('fail');
+    });
     hook.reset();
     const result = await hook.run(async () => 'success');
     expect(result).toBe('success');
@@ -244,7 +284,9 @@ describe('useAsyncAction - setError', () => {
 
   it('setError(null) 清空 error', async () => {
     const hook = renderHook();
-    await hook.run(async () => { throw new Error('auto error'); });
+    await hook.run(async () => {
+      throw new Error('auto error');
+    });
     hook.setError(null);
     expect(hook.error).toBeNull();
   });
@@ -276,7 +318,9 @@ describe('useAsyncAction - 并发调用与边界情况', () => {
 
   it('action 立即抛错（同步抛错）也能被捕获', async () => {
     const hook = renderHook();
-    const result = await hook.run(async () => { throw new Error('immediate'); });
+    const result = await hook.run(async () => {
+      throw new Error('immediate');
+    });
     expect(result).toBeUndefined();
     expect(hook.error).toBe('immediate');
   });
@@ -300,7 +344,9 @@ describe('useAsyncAction - 并发调用与边界情况', () => {
   it('连续失败执行多次', async () => {
     const hook = renderHook();
     for (let i = 0; i < 3; i++) {
-      const result = await hook.run(async () => { throw new Error(`error-${i}`); });
+      const result = await hook.run(async () => {
+        throw new Error(`error-${i}`);
+      });
       expect(result).toBeUndefined();
       expect(hook.error).toBe(`error-${i}`);
       expect(hook.isLoading).toBe(false);

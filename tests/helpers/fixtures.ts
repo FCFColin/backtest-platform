@@ -38,7 +38,7 @@ export function makeLinearPriceData(
     const day = current.getDay();
     if (day !== 0 && day !== 6) {
       prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= (1 + dailyReturn);
+      price *= 1 + dailyReturn;
     }
     current.setDate(current.getDate() + 1);
   }
@@ -82,7 +82,7 @@ export function makeVolatilePriceData(
     const day = current.getDay();
     if (day !== 0 && day !== 6) {
       prices[current.toISOString().slice(0, 10)] = Math.round(price * 1000) / 1000;
-      price *= (1 + returns[ri]);
+      price *= 1 + returns[ri];
       ri++;
     }
     current.setDate(current.getDate() + 1);

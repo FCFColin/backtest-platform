@@ -7,24 +7,42 @@ import {
   ADMIN_API_KEY_STORAGE,
 } from '../../../src/utils/apiClient.js';
 
-// ===== Mock localStorage =====
-function createLocalStorageMock() {
+// ===== Mock authTokens for auto-refresh tests =====
+const authTokensMocks = vi.hoisted(() => ({
+  getAccessToken: vi.fn(() => null),
+  refreshTokens: vi.fn(),
+}));
+
+vi.mock('../../../src/utils/authTokens.js', () => authTokensMocks);
+
+// ===== Mock localStorage + sessionStorage =====
+function createStorageMock() {
   let store: Record<string, string> = {};
   return {
     getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    clear: vi.fn(() => { store = {}; }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
   };
 }
 
-const localStorageMock = createLocalStorageMock();
+const localStorageMock = createStorageMock();
+const sessionStorageMock = createStorageMock();
 const mockFetch = vi.fn();
 
 beforeEach(() => {
   vi.stubGlobal('localStorage', localStorageMock);
+  vi.stubGlobal('sessionStorage', sessionStorageMock);
   vi.stubGlobal('fetch', mockFetch);
   localStorageMock.clear();
+  sessionStorageMock.clear();
+  clearApiKey();
   mockFetch.mockReset();
 });
 
@@ -69,19 +87,26 @@ describe('setApiKey', () => {
   it('保存 base64 编码的 API Key', () => {
     const key = 'my-secret-key';
     setApiKey(key);
-    expect(localStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(key));
+    expect(sessionStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(key));
+    expect(localStorage.getItem(ADMIN_API_KEY_STORAGE)).toBeNull();
   });
 
   it('空字符串也能保存', () => {
     setApiKey('');
-    expect(localStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(''));
+    expect(sessionStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(''));
   });
 
   it('特殊字符的 API Key 也能保存', () => {
     const key = 'key-with-!@#$%^&*()';
     setApiKey(key);
-    expect(localStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(key));
+    expect(sessionStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(key));
     expect(getApiKey()).toBe(key);
+  });
+
+  it('persist=true 时写入 localStorage', () => {
+    const key = 'persisted-key';
+    setApiKey(key, true);
+    expect(localStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(key));
   });
 
   it('localStorage 抛错时不抛异常', () => {
@@ -159,7 +184,7 @@ describe('apiFetch - 请求构造', () => {
     await apiFetch('https://example.com/api', {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer token',
+        Authorization: 'Bearer token',
       },
     });
 
@@ -302,5 +327,45 @@ describe('apiFetch - 边界情况', () => {
     for (const call of mockFetch.mock.calls) {
       expect(call[1].headers.get('x-api-key')).toBe('persisted-key');
     }
+  });
+});
+
+// ===== apiFetch - 自动刷新 =====
+describe('apiFetch - 自动刷新', () => {
+  beforeEach(() => {
+    authTokensMocks.getAccessToken.mockReturnValue('valid-token');
+    authTokensMocks.refreshTokens.mockReset();
+  });
+
+  it('401 + 有 Access Token 且刷新成功时自动重试', async () => {
+    const firstResponse = new Response('Unauthorized', { status: 401 });
+    const secondResponse = new Response('{"success":true}', { status: 200 });
+    mockFetch.mockResolvedValueOnce(firstResponse);
+    authTokensMocks.refreshTokens.mockResolvedValueOnce(true);
+    mockFetch.mockResolvedValueOnce(secondResponse);
+
+    const result = await apiFetch('https://example.com/api');
+    expect(result.status).toBe(200);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(authTokensMocks.refreshTokens).toHaveBeenCalledTimes(1);
+  });
+
+  it('401 + 有 Access Token 但刷新失败时不重试', async () => {
+    mockFetch.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
+    authTokensMocks.refreshTokens.mockResolvedValueOnce(false);
+
+    const result = await apiFetch('https://example.com/api');
+    expect(result.status).toBe(401);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('401 + 无 Access Token 时不尝试刷新', async () => {
+    authTokensMocks.getAccessToken.mockReturnValue(null);
+    mockFetch.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
+
+    const result = await apiFetch('https://example.com/api');
+    expect(result.status).toBe(401);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(authTokensMocks.refreshTokens).not.toHaveBeenCalled();
   });
 });

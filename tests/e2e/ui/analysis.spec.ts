@@ -4,7 +4,9 @@ test.describe('资产分析页面', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/analysis', { waitUntil: 'domcontentloaded', timeout: 90_000 });
     await expect(page.getByRole('navigation')).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByRole('heading', { name: /资产分析|Asset Analysis/ })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('heading', { name: /资产分析|Asset Analysis/ })).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   test('T12: 默认分析 — SPY+TLT+GLD', async ({ page }) => {
@@ -12,7 +14,9 @@ test.describe('资产分析页面', () => {
     await page.getByRole('button', { name: /开始分析|Start Analysis/ }).click();
 
     // 等待结果出现 — CAGR 指标在统计概览表格中
-    await expect(page.locator('tr').filter({ hasText: /CAGR/ }).first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('tr').filter({ hasText: /CAGR/ }).first()).toBeVisible({
+      timeout: 60_000,
+    });
 
     // 验证 CAGR 为正数
     const cagrRow = page.locator('tr').filter({ hasText: /CAGR/ }).first();
@@ -40,7 +44,9 @@ test.describe('资产分析页面', () => {
     await page.getByRole('button', { name: /开始分析|Start Analysis/ }).click();
 
     // 等待结果出现
-    await expect(page.locator('tr').filter({ hasText: /CAGR/ }).first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('tr').filter({ hasText: /CAGR/ }).first()).toBeVisible({
+      timeout: 60_000,
+    });
 
     // 验证 CAGR 为正数
     const cagrRow = page.locator('tr').filter({ hasText: /CAGR/ }).first();

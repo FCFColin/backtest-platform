@@ -4,7 +4,7 @@ import { useToastStore } from '../../../src/store/toastStore.js';
 beforeEach(() => {
   // 清空toast
   const { toasts } = useToastStore.getState();
-  toasts.forEach(t => useToastStore.getState().removeToast(t.id));
+  toasts.forEach((t) => useToastStore.getState().removeToast(t.id));
 });
 
 describe('ToastStore', () => {
@@ -23,7 +23,7 @@ describe('ToastStore', () => {
     const id = toasts[toasts.length - 1].id;
     useToastStore.getState().removeToast(id);
     const after = useToastStore.getState().toasts;
-    expect(after.find(t => t.id === id)).toBeUndefined();
+    expect(after.find((t) => t.id === id)).toBeUndefined();
   });
 
   it('多种类型通知', () => {
@@ -31,7 +31,7 @@ describe('ToastStore', () => {
     useToastStore.getState().addToast('warning', '警告');
     useToastStore.getState().addToast('error', '错误');
     const after = useToastStore.getState().toasts;
-    const types = after.slice(-3).map(t => t.type);
+    const types = after.slice(-3).map((t) => t.type);
     expect(types).toContain('success');
     expect(types).toContain('warning');
     expect(types).toContain('error');

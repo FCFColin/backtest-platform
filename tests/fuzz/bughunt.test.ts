@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { runPortfolioBacktest, type PriceData } from '../../api/engine/portfolio.js';
-import type { Portfolio, BacktestParameters } from '../../shared/types.js';
+import type { Portfolio } from '../../shared/types.js';
 import { makePriceData, makeVolatilePriceData, makeParams } from '../helpers/fixtures.js';
 
 // ===== Bug hunt: 浮点精度 =====
@@ -16,7 +16,7 @@ describe('Bug Hunt - 浮点精度', () => {
     // 这是拉伸功能的真实bug：Math.round(w / tw * 100 * 100) / 100 会丢失精度
     const weights = [1, 1, 1];
     const tw = weights.reduce((s, w) => s + w, 0);
-    const stretched = weights.map(w => Math.round(w / tw * 100 * 100) / 100);
+    const stretched = weights.map((w) => Math.round((w / tw) * 100 * 100) / 100);
     const sum = stretched.reduce((s, w) => s + w, 0);
     expect(sum).not.toBe(100); // BUG: 合计=99.99
     expect(Math.abs(sum - 100)).toBeLessThan(0.1); // 误差在0.1以内
@@ -28,8 +28,12 @@ describe('Bug Hunt - 浮点精度', () => {
       B: makePriceData('B', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'A', weight: 33.33 }, { ticker: 'B', weight: 66.67 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'A', weight: 33.33 },
+        { ticker: 'B', weight: 66.67 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -51,8 +55,12 @@ describe('Bug Hunt - 偏离调仓对小权重过度敏感', () => {
       SMALL: makePriceData('SMALL', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'BIG', weight: 99 }, { ticker: 'SMALL', weight: 1 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'BIG', weight: 99 },
+        { ticker: 'SMALL', weight: 1 },
+      ],
       rebalanceFrequency: 'threshold',
       rebalanceThreshold: 5,
     };
@@ -77,8 +85,12 @@ describe('Bug Hunt - 偏离调仓对小权重过度敏感', () => {
       SHORT: makePriceData('SHORT', '2020-01-02', '2020-12-31', 100, -0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'LONG', weight: 101 }, { ticker: 'SHORT', weight: -1 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'LONG', weight: 101 },
+        { ticker: 'SHORT', weight: -1 },
+      ],
       rebalanceFrequency: 'threshold',
       rebalanceThreshold: 5,
     };
@@ -97,14 +109,15 @@ describe('Bug Hunt - 价格为0（退市/停牌）', () => {
       A: makeVolatilePriceData('A', '2020-01-02', '2020-03-31', 100, returns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const gc = result.portfolios[0].growthCurve;
     // 价格归零后，所有value应该是有限数
-    const infiniteValues = gc.filter(p => !isFinite(p.value));
+    const infiniteValues = gc.filter((p) => !isFinite(p.value));
     expect(infiniteValues).toHaveLength(0);
   });
 
@@ -115,13 +128,14 @@ describe('Bug Hunt - 价格为0（退市/停牌）', () => {
       A: makeVolatilePriceData('A', '2020-01-02', '2020-03-31', 100, returns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const gc = result.portfolios[0].growthCurve;
-    const nanValues = gc.filter(p => isNaN(p.value));
+    const nanValues = gc.filter((p) => isNaN(p.value));
     expect(nanValues).toHaveLength(0);
   });
 });
@@ -133,13 +147,19 @@ describe('Bug Hunt - 日期边界', () => {
       A: makePriceData('A', '2020-01-02', '2020-01-02', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
-    const result = runPortfolioBacktest([portfolio], priceData, makeParams({
-      startDate: '2020-01-02', endDate: '2020-01-02',
-    }));
+    const result = runPortfolioBacktest(
+      [portfolio],
+      priceData,
+      makeParams({
+        startDate: '2020-01-02',
+        endDate: '2020-01-02',
+      }),
+    );
     // 只有1天数据，无法计算收益率
     // growthCurve应该只有1个点，statistics应该合理
     const gc = result.portfolios[0].growthCurve;
@@ -154,13 +174,19 @@ describe('Bug Hunt - 日期边界', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
-    const result = runPortfolioBacktest([portfolio], priceData, makeParams({
-      startDate: '2021-01-01', endDate: '2020-01-01', // 反了
-    }));
+    const result = runPortfolioBacktest(
+      [portfolio],
+      priceData,
+      makeParams({
+        startDate: '2021-01-01',
+        endDate: '2020-01-01', // 反了
+      }),
+    );
     // 应该返回空结果，不应崩溃
     expect(result.portfolios[0].growthCurve).toEqual([]);
   });
@@ -172,7 +198,8 @@ describe('Bug Hunt - 日期边界', () => {
     };
     const priceData: PriceData = { A: prices };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -188,20 +215,28 @@ describe('Bug Hunt - 再平衡放大做空风险', () => {
     // 做多100% + 做空-100%，初始=10000
     // 等等，100%+(-100%)=0，初始就爆仓
     // 改用150%+(-50%)
-    const longReturn = Math.pow(1.05, 1 / 252) - 1;  // 做多年化5%
-    const shortReturn = Math.pow(0.90, 1 / 252) - 1;  // 做空标的跌10%（做空赚）
+    const longReturn = Math.pow(1.05, 1 / 252) - 1; // 做多年化5%
+    const shortReturn = Math.pow(0.9, 1 / 252) - 1; // 做空标的跌10%（做空赚）
     const priceData: PriceData = {
       LONG: makePriceData('LONG', '2020-01-02', '2020-12-31', 100, longReturn),
       SHORT: makePriceData('SHORT', '2020-01-02', '2020-12-31', 100, shortReturn),
     };
     const noRebalance: Portfolio = {
-      id: 'p1', name: '不调仓',
-      assets: [{ ticker: 'LONG', weight: 150 }, { ticker: 'SHORT', weight: -50 }],
+      id: 'p1',
+      name: '不调仓',
+      assets: [
+        { ticker: 'LONG', weight: 150 },
+        { ticker: 'SHORT', weight: -50 },
+      ],
       rebalanceFrequency: 'none',
     };
     const monthlyRebalance: Portfolio = {
-      id: 'p2', name: '月度调仓',
-      assets: [{ ticker: 'LONG', weight: 150 }, { ticker: 'SHORT', weight: -50 }],
+      id: 'p2',
+      name: '月度调仓',
+      assets: [
+        { ticker: 'LONG', weight: 150 },
+        { ticker: 'SHORT', weight: -50 },
+      ],
       rebalanceFrequency: 'monthly',
     };
     const result = runPortfolioBacktest([noRebalance, monthlyRebalance], priceData, makeParams());
@@ -229,7 +264,8 @@ describe('Bug Hunt - 回撤曲线格式', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -247,14 +283,15 @@ describe('Bug Hunt - 回撤曲线格式', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const dd = result.portfolios[0].drawdownCurve;
     // 单调上涨，所有drawdown应该=0
-    const maxDd = Math.max(...dd.map(p => p.drawdown));
+    const maxDd = Math.max(...dd.map((p) => p.drawdown));
     expect(maxDd).toBe(0);
   });
 });
@@ -268,14 +305,18 @@ describe('Bug Hunt - 年度收益计算', () => {
       SHORT: makeVolatilePriceData('SHORT', '2020-01-02', '2020-12-31', 100, crashReturns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'LONG', weight: 200 }, { ticker: 'SHORT', weight: -100 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'LONG', weight: 200 },
+        { ticker: 'SHORT', weight: -100 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const annualReturns = result.portfolios[0].annualReturns;
     // 爆仓年份的收益应该是-1（-100%）
-    const badYear = annualReturns.find(a => a.return <= -0.99);
+    const badYear = annualReturns.find((a) => a.return <= -0.99);
     expect(badYear).toBeDefined();
     expect(badYear!.return).toBe(-1); // 精确-100%
   });
@@ -285,13 +326,19 @@ describe('Bug Hunt - 年度收益计算', () => {
       A: makePriceData('A', '2020-01-02', '2021-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
-    const result = runPortfolioBacktest([portfolio], priceData, makeParams({
-      startDate: '2020-01-02', endDate: '2021-12-31',
-    }));
+    const result = runPortfolioBacktest(
+      [portfolio],
+      priceData,
+      makeParams({
+        startDate: '2020-01-02',
+        endDate: '2021-12-31',
+      }),
+    );
     const annualReturns = result.portfolios[0].annualReturns;
     // 应该有2年的年度收益
     expect(annualReturns.length).toBe(2);
@@ -308,14 +355,15 @@ describe('Bug Hunt - 超大/超小数值', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams({ startingValue: 1 }));
     const gc = result.portfolios[0].growthCurve;
     // 不应出现Infinity或NaN
-    const badValues = gc.filter(p => !isFinite(p.value) || isNaN(p.value));
+    const badValues = gc.filter((p) => !isFinite(p.value) || isNaN(p.value));
     expect(badValues).toHaveLength(0);
     expect(gc[0].value).toBe(1);
   });
@@ -325,13 +373,18 @@ describe('Bug Hunt - 超大/超小数值', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
-    const result = runPortfolioBacktest([portfolio], priceData, makeParams({ startingValue: 1e12 }));
+    const result = runPortfolioBacktest(
+      [portfolio],
+      priceData,
+      makeParams({ startingValue: 1e12 }),
+    );
     const gc = result.portfolios[0].growthCurve;
-    const badValues = gc.filter(p => !isFinite(p.value));
+    const badValues = gc.filter((p) => !isFinite(p.value));
     expect(badValues).toHaveLength(0);
   });
 });
@@ -351,8 +404,12 @@ describe('Bug Hunt - Store验证逻辑', () => {
       B: makePriceData('B', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'A', weight: 100 }, { ticker: 'B', weight: 0 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'A', weight: 100 },
+        { ticker: 'B', weight: 0 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -367,8 +424,12 @@ describe('Bug Hunt - Store验证逻辑', () => {
       VTI: makePriceData('VTI', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'VTI', weight: 40 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'VTI', weight: 60 },
+        { ticker: 'VTI', weight: 40 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -390,8 +451,12 @@ describe('Bug Hunt - 偏离调仓阈值负数', () => {
       B: makePriceData('B', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'A', weight: 50 }, { ticker: 'B', weight: 50 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'A', weight: 50 },
+        { ticker: 'B', weight: 50 },
+      ],
       rebalanceFrequency: 'threshold',
       rebalanceThreshold: -5, // 负阈值
     };
@@ -409,13 +474,14 @@ describe('Bug Hunt - 统计指标一致性', () => {
       A: makeVolatilePriceData('A', '2020-01-02', '2020-06-30', 100, returns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const dd = result.portfolios[0].drawdownCurve;
-    const maxDdFromCurve = Math.max(...dd.map(p => p.drawdown));
+    const maxDdFromCurve = Math.max(...dd.map((p) => p.drawdown));
     const maxDrawdownStat = result.portfolios[0].statistics.maxDrawdown;
     // 两个值应该一致
     expect(maxDrawdownStat).toBeCloseTo(maxDdFromCurve, 5);
@@ -426,7 +492,8 @@ describe('Bug Hunt - 统计指标一致性', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -444,7 +511,8 @@ describe('Bug Hunt - 统计指标一致性', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -464,13 +532,18 @@ describe('Bug Hunt - 基准对比', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
-    const result = runPortfolioBacktest([portfolio], priceData, makeParams({
-      benchmarkTicker: 'NOTEXIST',
-    }));
+    const result = runPortfolioBacktest(
+      [portfolio],
+      priceData,
+      makeParams({
+        benchmarkTicker: 'NOTEXIST',
+      }),
+    );
     // 不应崩溃，benchmarkGrowth应该是undefined
     expect(result.benchmarkGrowth).toBeUndefined();
   });
@@ -480,13 +553,18 @@ describe('Bug Hunt - 基准对比', () => {
       VTI: makePriceData('VTI', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'VTI', weight: 100 }],
       rebalanceFrequency: 'none',
     };
-    const result = runPortfolioBacktest([portfolio], priceData, makeParams({
-      benchmarkTicker: 'VTI',
-    }));
+    const result = runPortfolioBacktest(
+      [portfolio],
+      priceData,
+      makeParams({
+        benchmarkTicker: 'VTI',
+      }),
+    );
     const portfolioGrowth = result.portfolios[0].growthCurve;
     const benchmarkGrowth = result.benchmarkGrowth!;
     // 两者应该完全一致
@@ -504,7 +582,8 @@ describe('Bug Hunt - 空组合', () => {
       A: makePriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Empty',
+      id: 'p1',
+      name: 'Empty',
       assets: [],
       rebalanceFrequency: 'none',
     };

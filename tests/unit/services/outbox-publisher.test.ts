@@ -14,6 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type pg from 'pg';
+import { mockLogger } from '../../helpers/mockFactories.js';
 
 // ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====
 const eventMocks = vi.hoisted(() => ({
@@ -25,6 +26,12 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
+  child: vi.fn(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  })),
 }));
 
 // 单例 mock pg.Client：所有 new pg.Client() 返回同一实例，便于断言
@@ -37,14 +44,7 @@ const mockClient = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: {
-    info: loggerMocks.info,
-    warn: loggerMocks.warn,
-    error: loggerMocks.error,
-    debug: loggerMocks.debug,
-  },
-}));
+vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
 
 vi.mock('../../../api/domain/events/index.js', () => ({
   eventDispatcher: {
@@ -64,25 +64,33 @@ vi.mock('pg', () => {
 import { OutboxPublisher } from '../../../api/services/outboxPublisher.js';
 
 /** 构造一个 mock pg.Pool，记录 query 调用 */
-function createMockPool(): pg.Pool & { query: ReturnType<typeof vi.fn>; options: { connectionString: string } } {
+function createMockPool(): pg.Pool & {
+  query: ReturnType<typeof vi.fn>;
+  options: { connectionString: string };
+} {
   return {
     query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
     connect: vi.fn(),
     end: vi.fn(),
     on: vi.fn(),
     options: { connectionString: 'postgresql://test:test@localhost:5432/test' },
-  } as unknown as pg.Pool & { query: ReturnType<typeof vi.fn>; options: { connectionString: string } };
+  } as unknown as pg.Pool & {
+    query: ReturnType<typeof vi.fn>;
+    options: { connectionString: string };
+  };
 }
 
 /** 构造一个 outbox 事件行（模拟 PostgreSQL 返回） */
-function createOutboxRow(overrides: Partial<{
-  id: number;
-  aggregate_type: string;
-  aggregate_id: string;
-  event_type: string;
-  payload: unknown;
-  created_at: Date;
-}> = {}) {
+function createOutboxRow(
+  overrides: Partial<{
+    id: number;
+    aggregate_type: string;
+    aggregate_id: string;
+    event_type: string;
+    payload: unknown;
+    created_at: Date;
+  }> = {},
+) {
   return {
     id: 1,
     aggregate_type: 'BacktestSession',
@@ -120,9 +128,7 @@ describe('OutboxPublisher', () => {
 
       await publisher.handleNotification();
 
-      expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('processed_at IS NULL'),
-      );
+      expect(mockPool.query).toHaveBeenCalledWith(expect.stringContaining('processed_at IS NULL'));
       const sql = mockPool.query.mock.calls[0][0] as string;
       expect(sql).toContain('ORDER BY created_at ASC');
       expect(sql).toContain('LIMIT 100');
@@ -163,16 +169,14 @@ describe('OutboxPublisher', () => {
 
     it('处理成功后应更新 processed_at = NOW()', async () => {
       const event = createOutboxRow({ id: 42 });
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [event] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockPool.query.mockResolvedValueOnce({ rows: [event] }).mockResolvedValueOnce({ rows: [] });
 
       await publisher.handleNotification();
 
       expect(mockPool.query).toHaveBeenNthCalledWith(
         2,
         expect.stringContaining('UPDATE outbox SET processed_at = NOW()'),
-        [42],
+        [[42]],
       );
     });
 
@@ -196,9 +200,7 @@ describe('OutboxPublisher', () => {
         id: 1,
         payload: '{"foo":"bar"}',
       });
-      mockPool.query
-        .mockResolvedValueOnce({ rows: [event] })
-        .mockResolvedValueOnce({ rows: [] });
+      mockPool.query.mockResolvedValueOnce({ rows: [event] }).mockResolvedValueOnce({ rows: [] });
 
       await publisher.handleNotification();
 
@@ -240,7 +242,8 @@ describe('OutboxPublisher', () => {
 
       // 验证补偿扫描 SQL 包含 5 分钟间隔条件
       const compensationCall = mockPool.query.mock.calls.find(
-        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes("INTERVAL '5 minutes'"),
+        (call: unknown[]) =>
+          typeof call[0] === 'string' && (call[0] as string).includes("INTERVAL '5 minutes'"),
       );
       expect(compensationCall).toBeDefined();
       const compensationSql = compensationCall![0] as string;
@@ -282,7 +285,8 @@ describe('OutboxPublisher', () => {
 
       // 应调用 LISTEN outbox_channel
       const listenCall = mockClient.query.mock.calls.find(
-        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('LISTEN outbox_channel'),
+        (call: unknown[]) =>
+          typeof call[0] === 'string' && (call[0] as string).includes('LISTEN outbox_channel'),
       );
       expect(listenCall).toBeDefined();
 
@@ -309,7 +313,8 @@ describe('OutboxPublisher', () => {
       await publisher.stop();
 
       const unlistenCall = mockClient.query.mock.calls.find(
-        (call: unknown[]) => typeof call[0] === 'string' && (call[0] as string).includes('UNLISTEN outbox_channel'),
+        (call: unknown[]) =>
+          typeof call[0] === 'string' && (call[0] as string).includes('UNLISTEN outbox_channel'),
       );
       expect(unlistenCall).toBeDefined();
       expect(mockClient.end).toHaveBeenCalled();
@@ -326,6 +331,58 @@ describe('OutboxPublisher', () => {
       expect(mockPool.query).toHaveBeenCalled();
 
       await publisher.stop();
+    });
+
+    it('收到 notification 时应触发 handleNotification', async () => {
+      mockClient.connect.mockResolvedValue(undefined);
+      mockClient.query.mockResolvedValue({ rows: [] });
+      let notificationHandler: ((msg: { channel: string }) => void) | undefined;
+      mockClient.on.mockImplementation(
+        (event: string, handler: (msg: { channel: string }) => void) => {
+          if (event === 'notification') notificationHandler = handler;
+        },
+      );
+
+      await publisher.start();
+      expect(notificationHandler).toBeDefined();
+
+      mockPool.query.mockResolvedValueOnce({ rows: [] });
+      await notificationHandler!({ channel: 'outbox_channel' });
+
+      expect(mockPool.query).toHaveBeenCalledWith(expect.stringContaining('processed_at IS NULL'));
+
+      await publisher.stop();
+    });
+
+    it('listener error/end 事件应记录日志', async () => {
+      mockClient.connect.mockResolvedValue(undefined);
+      mockClient.query.mockResolvedValue({ rows: [] });
+      let errorHandler: ((err: Error) => void) | undefined;
+      let endHandler: (() => void) | undefined;
+      mockClient.on.mockImplementation((event: string, handler: (...args: unknown[]) => void) => {
+        if (event === 'error') errorHandler = handler as (err: Error) => void;
+        if (event === 'end') endHandler = handler as () => void;
+      });
+
+      await publisher.start();
+      errorHandler!(new Error('connection reset'));
+      endHandler!();
+
+      expect(loggerMocks.error).toHaveBeenCalled();
+      expect(loggerMocks.warn).toHaveBeenCalled();
+
+      await publisher.stop();
+    });
+
+    it('stop 时 UNLISTEN 失败应记录 error 但不抛出', async () => {
+      mockClient.connect.mockResolvedValue(undefined);
+      mockClient.query
+        .mockResolvedValueOnce({ rows: [] }) // LISTEN
+        .mockRejectedValueOnce(new Error('unlisten failed'));
+
+      await publisher.start();
+      await expect(publisher.stop()).resolves.toBeUndefined();
+      expect(loggerMocks.error).toHaveBeenCalled();
     });
   });
 });

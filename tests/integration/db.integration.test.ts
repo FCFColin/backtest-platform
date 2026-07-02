@@ -50,7 +50,8 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     const connectionString = container.getConnectionUri();
     process.env.DATABASE_URL = connectionString;
     (config as { DATABASE_URL: string }).DATABASE_URL = connectionString;
-  }, 60000); // 60s 超时，容器启动可能较慢
+    await closeDb();
+  }, 60000);
 
   afterAll(async () => {
     await closeDb();
@@ -69,9 +70,7 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     const pool = getPool();
     // v3 的 down 文件删除了 CHECK 约束和冗余索引，
     // 验证 schema_migrations 中 v3 已被移除
-    const { rows } = await pool.query(
-      'SELECT version FROM schema_migrations ORDER BY version'
-    );
+    const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
     expect(versions).not.toContain(3);
     expect(versions).toContain(2);
@@ -83,11 +82,9 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     await rollbackSchema(1);
     await initSchema();
     const pool = getPool();
-    const { rows } = await pool.query(
-      'SELECT version FROM schema_migrations ORDER BY version'
-    );
+    const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
-    expect(versions).toEqual([1, 2, 3, 4, 5]);
+    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     const isHealthy = await healthCheck();
     expect(isHealthy).toBe(true);
   });
@@ -96,27 +93,29 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     await initSchema();
     const pool = getPool();
     // 先插入一个 ticker
-    await pool.query("INSERT INTO tickers (ticker, category, market) VALUES ('TEST', 'test', 'test') ON CONFLICT DO NOTHING");
+    await pool.query(
+      "INSERT INTO tickers (ticker, category, market) VALUES ('TEST', 'test', 'test') ON CONFLICT DO NOTHING",
+    );
 
     // 尝试插入 high < low 的非法数据
     await expect(
       pool.query(
-        "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-01', 100, 90, 110, 105, 1000)"
-      )
+        "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-01', 100, 90, 110, 105, 1000)",
+      ),
     ).rejects.toThrow('prices_ohlc_check');
 
-    // 尝试插入 volume < 0 的非法数据
+    // 尝试插入 volume < 0 的非法数据（v8 chk_prices_volume_nonnegative）
     await expect(
       pool.query(
-        "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-01', 100, 110, 90, 105, -1)"
-      )
-    ).rejects.toThrow('prices_ohlc_check');
+        "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-02', 100, 110, 90, 105, -1)",
+      ),
+    ).rejects.toThrow(/chk_prices_volume_nonnegative|prices_ohlc_check/);
 
     // 合法数据应成功插入
     await expect(
       pool.query(
-        "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-01', 100, 110, 90, 105, 1000)"
-      )
+        "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-01', 100, 110, 90, 105, 1000)",
+      ),
     ).resolves.toBeDefined();
   });
 });

@@ -65,7 +65,7 @@ describe('calcPortfolioDailyReturns - 组合日收益率', () => {
   it('多资产应按权重加权', () => {
     const priceData = {
       A: { '2020-01-02': 100, '2020-01-03': 110 }, // +10%
-      B: { '2020-01-02': 100, '2020-01-03': 90 },  // -10%
+      B: { '2020-01-02': 100, '2020-01-03': 90 }, // -10%
     };
     const returns = calcPortfolioDailyReturns(
       [
@@ -190,7 +190,7 @@ describe('runGoalSimulation - 蒙特卡洛模拟', () => {
 
   it('零波动率路径终值应确定（无随机性）', () => {
     const request = makeRequest({ numSimulations: 5, years: 1, initialAmount: 10000 });
-    const { paths, metrics } = runGoalSimulation(request, 0.0005, 0);
+    const { metrics } = runGoalSimulation(request, 0.0005, 0);
     // std=0 时所有路径相同
     const finalValues = metrics.map((m) => m.finalValue);
     const allSame = finalValues.every((v) => Math.abs(v - finalValues[0]) < 1e-6);
@@ -251,7 +251,7 @@ describe('buildOptimalPath - 最优路径', () => {
 
   it('p10 应 <= median <= p90', () => {
     const paths = Array.from({ length: 50 }, (_, k) =>
-      Array.from({ length: 1261 }, (_, i) => 10000 * (1 + i * 0.001 * (k + 1) / 50)),
+      Array.from({ length: 1261 }, (_, i) => 10000 * (1 + (i * 0.001 * (k + 1)) / 50)),
     );
     const result = buildOptimalPath(paths, 5);
     for (const point of result) {

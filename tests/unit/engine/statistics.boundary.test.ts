@@ -87,8 +87,10 @@ describe('calcAnnualizedStdev - 边界', () => {
     expect(stdev).toBeGreaterThan(0.5); // 波动率应该很大
   });
 
-  it('全部相同值', () => {
-    expect(calcAnnualizedStdev([0.005, 0.005, 0.005, 0.005])).toBe(0);
+  it('NaN 输入返回 NaN（区别于常数收益率返回0）', () => {
+    // 与 statistics.test.ts 中 "常数收益率波动率为0" 不同：此处测试 NaN 传播
+    const stdev = calcAnnualizedStdev([0.01, NaN, 0.02]);
+    expect(Number.isNaN(stdev)).toBe(true);
   });
 
   it('大量数据点', () => {
@@ -107,30 +109,37 @@ describe('calcSharpe - 边界', () => {
   });
 
   it('自定义无风险利率', () => {
-    const sharpe = calcSharpe(0.10, 0.15, 0.05);
+    const sharpe = calcSharpe(0.1, 0.15, 0.05);
     expect(sharpe).toBeCloseTo(0.333, 2);
   });
 
-  it('零波动率返回0', () => {
-    expect(calcSharpe(0.10, 0)).toBe(0);
-    expect(calcSharpe(-0.10, 0)).toBe(0);
+  it('NaN 输入返回 NaN（区别于零波动率返回0）', () => {
+    // 与 statistics.test.ts 中 "波动率为0返回0" 不同：此处测试 NaN 传播
+    const sharpe = calcSharpe(NaN, 0.15);
+    expect(Number.isNaN(sharpe)).toBe(true);
+  });
+
+  it('Infinity 波动率返回有限值', () => {
+    // 与零波动率不同：Infinity 波动率使 Sharpe 趋近于 0
+    const sharpe = calcSharpe(0.1, Infinity);
+    expect(sharpe).toBeCloseTo(0, 10);
   });
 });
 
 // ===== calcSortino 边界测试 =====
 describe('calcSortino - 边界', () => {
   it('全部正收益', () => {
-    const sortino = calcSortino(0.10, [0.01, 0.02, 0.015, 0.008]);
+    const sortino = calcSortino(0.1, [0.01, 0.02, 0.015, 0.008]);
     expect(sortino).toBeGreaterThan(0);
   });
 
   it('全部负收益', () => {
-    const sortino = calcSortino(-0.10, [-0.01, -0.02, -0.015]);
+    const sortino = calcSortino(-0.1, [-0.01, -0.02, -0.015]);
     expect(sortino).toBeLessThan(0);
   });
 
   it('空数组', () => {
-    expect(calcSortino(0.10, [])).toBe(0);
+    expect(calcSortino(0.1, [])).toBe(0);
   });
 });
 
@@ -140,7 +149,7 @@ describe('calcSortino - Infinity分支', () => {
     // 日无风险利率 ≈ 0.0000768
     // 所有日收益都大于无风险利率
     const dailyReturns = [0.01, 0.02, 0.015, 0.008, 0.012];
-    const sortino = calcSortino(0.20, dailyReturns);
+    const sortino = calcSortino(0.2, dailyReturns);
     expect(sortino).toBe(Infinity);
   });
 
@@ -190,6 +199,14 @@ describe('calcMaxDrawdown - 边界', () => {
     expect(maxDrawdownDuration).toBe(2); // idx3 - idx1 = 2
   });
 
+  it('NaN 输入：NaN 值不更新 peak，回撤计算受影响（区别于少于2个数据返回0）', () => {
+    // 与 statistics.test.ts 中 "少于2个数据返回0" 不同：此处测试 NaN 在序列中的行为
+    // NaN 与任何数比较都为 false，所以 NaN 不会成为 peak，也不会触发回撤更新
+    const { maxDrawdown } = calcMaxDrawdown([100, NaN, 90]);
+    // 90 < 100 (peak), dd = (100-90)/100 = 0.1
+    expect(maxDrawdown).toBeCloseTo(0.1, 3);
+  });
+
   it('两个数据点', () => {
     const { maxDrawdown } = calcMaxDrawdown([100, 90]);
     expect(maxDrawdown).toBeCloseTo(0.1, 3);
@@ -231,6 +248,15 @@ describe('calcDailyReturns - 边界', () => {
     expect(calcDailyReturns([0, 0, 0])).toEqual([0, 0]);
   });
 
+  it('负价格：前值为负数时返回0（区别于前值为0返回0）', () => {
+    // 与 statistics.test.ts 中 "前值为0返回0" 不同：此处测试负价格边界
+    // calcDailyReturns 仅检查 prev > 0，负价格不满足条件，返回0
+    expect(calcDailyReturns([-100, 110])).toEqual([0]);
+    expect(calcDailyReturns([100, -110])).toHaveLength(1);
+    // (−110 − 100) / 100 = −2.1
+    expect(calcDailyReturns([100, -110])[0]).toBeCloseTo(-2.1, 4);
+  });
+
   it('从0到正值', () => {
     expect(calcDailyReturns([0, 100])).toEqual([0]); // 前值为0返回0
   });
@@ -245,5 +271,50 @@ describe('calcDailyReturns - 边界', () => {
     expect(returns[0]).toBeCloseTo(0.1, 5);
     const returns2 = calcDailyReturns([100, 90]);
     expect(returns2[0]).toBeCloseTo(-0.1, 5);
+  });
+});
+
+// ===== 边界条件：非法输入与极端场景 =====
+describe('边界条件 - 非法输入与极端场景', () => {
+  it('calcCAGR 负年数返回0', () => {
+    expect(calcCAGR(10000, 20000, -1)).toBe(0);
+    expect(calcCAGR(10000, 20000, -5)).toBe(0);
+  });
+
+  it('calcCAGR 年数为0返回0', () => {
+    expect(calcCAGR(10000, 20000, 0)).toBe(0);
+  });
+
+  it('calcMWRR 全零现金流返回有限值', () => {
+    // 所有现金流为0时，NPV恒为0，二分法应返回区间中点
+    const mwrr = calcMWRR([
+      { value: 0, time: 0 },
+      { value: 0, time: 1 },
+      { value: 0, time: 2 },
+    ]);
+    // NPV恒为0，二分法返回 (low+high)/2 = (-0.5+1.0)/2 = 0.25
+    expect(mwrr).toBeCloseTo(0.25, 5);
+  });
+
+  it('calcCorrelation 长度为0数组返回0', () => {
+    expect(calcCorrelation([], [])).toBe(0);
+  });
+
+  it('calcCorrelation 长度为1数组返回0', () => {
+    expect(calcCorrelation([0.01], [0.02])).toBe(0);
+  });
+
+  it('calcDailyReturns 负价格序列', () => {
+    // 全为负价格：前值不满足 > 0，全部返回0
+    const returns = calcDailyReturns([-100, -110, -105]);
+    expect(returns).toEqual([0, 0]);
+  });
+
+  it('calcDailyReturns 混合正负价格', () => {
+    // 正→负：前值>0，计算收益率
+    // 负→正：前值<0，返回0
+    const returns = calcDailyReturns([100, -50, 200]);
+    expect(returns[0]).toBeCloseTo(-1.5, 4); // (-50-100)/100 = -1.5
+    expect(returns[1]).toBe(0); // 前值-50 < 0，返回0
   });
 });

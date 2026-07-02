@@ -66,13 +66,13 @@ describe('calcAnnualizedStdev', () => {
 
 describe('calcSharpe', () => {
   it('正常计算', () => {
-    const sharpe = calcSharpe(0.10, 0.15);
+    const sharpe = calcSharpe(0.1, 0.15);
     // (0.10 - 0.02) / 0.15 ≈ 0.533
     expect(sharpe).toBeCloseTo(0.533, 2);
   });
 
   it('波动率为0返回0', () => {
-    expect(calcSharpe(0.10, 0)).toBe(0);
+    expect(calcSharpe(0.1, 0)).toBe(0);
   });
 });
 
@@ -115,7 +115,7 @@ describe('calcDailyReturns', () => {
   it('正常计算', () => {
     const returns = calcDailyReturns([100, 110, 105]);
     expect(returns).toHaveLength(2);
-    expect(returns[0]).toBeCloseTo(0.1, 5);    // (110-100)/100
+    expect(returns[0]).toBeCloseTo(0.1, 5); // (110-100)/100
     expect(returns[1]).toBeCloseTo(-0.04545, 4); // (105-110)/110
   });
 

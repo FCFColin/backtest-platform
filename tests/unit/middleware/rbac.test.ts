@@ -6,44 +6,40 @@
  * Table-Driven 模式（it.each）使权限矩阵一目了然。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Response, NextFunction } from 'express';
-import { requirePermission, Permission, Role } from '../../../api/middleware/rbac.js';
-import type { AuthenticatedRequest } from '../../../api/middleware/jwtAuth.js';
+import { requirePermission, Permission } from '../../../api/middleware/rbac.js';
+import {
+  createMockRequest as createMockRequestBase,
+  createMockResponse,
+  createMockNext,
+} from '../../helpers/expressMocks.js';
 
-// vi.hoisted 确保 mock 变量在 vi.mock 提升前完成初始化
-const mocks = vi.hoisted(() => ({
+vi.mock('../../../api/utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn() })),
+    debug: vi.fn(),
+    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
   },
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: mocks.logger,
-}));
-
-// Helper: create mock request with user
-function createMockRequest(user: { sub: string; role: string } | null): AuthenticatedRequest {
-  return {
-    user: user ? { sub: user.sub, role: user.role as any, iat: 0, exp: 0 } : undefined,
+function createMockRequest(
+  user: { sub: string; role: string; org_role?: string; platform_admin?: boolean } | null,
+) {
+  return createMockRequestBase({
+    user: user
+      ? {
+          sub: user.sub,
+          role: user.role,
+          org_role: user.org_role,
+          platform_admin: user.platform_admin,
+          iat: 0,
+          exp: 0,
+        }
+      : undefined,
     path: '/test',
     method: 'GET',
-  } as AuthenticatedRequest;
-}
-
-// Helper: create mock response
-function createMockResponse(): Response {
-  return {
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-  } as unknown as Response;
-}
-
-// Helper: create mock next
-function createMockNext(): NextFunction {
-  return vi.fn() as NextFunction;
+  });
 }
 
 describe('RBAC requirePermission', () => {
@@ -162,6 +158,72 @@ describe('RBAC requirePermission', () => {
   });
 });
 
+describe('RBAC org_role 优先 + platform_admin 放行', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('org_role 应优先于 legacy role：legacy readonly + org_role analyst 可运行回测', () => {
+    const req = createMockRequest({ sub: 'u1', role: 'readonly', org_role: 'analyst' });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    requirePermission(Permission.BACKTEST_RUN)(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('org_role 应优先于 legacy role：legacy admin + org_role readonly 不能运行回测', () => {
+    const req = createMockRequest({ sub: 'u2', role: 'admin', org_role: 'readonly' });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    requirePermission(Permission.BACKTEST_RUN)(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('org_role owner 归并为 admin，拥有 ADMIN_ACCESS', () => {
+    const req = createMockRequest({ sub: 'u3', role: 'readonly', org_role: 'owner' });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    requirePermission(Permission.ADMIN_ACCESS)(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('platform_admin=true 应放行任意权限（即使 role/org_role 为只读）', () => {
+    const req = createMockRequest({
+      sub: 'platform-op',
+      role: 'readonly',
+      org_role: 'readonly',
+      platform_admin: true,
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    requirePermission(Permission.ADMIN_ACCESS)(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('platform_admin 优先于缺失用户检查之后执行（无 user 仍 401）', () => {
+    const req = createMockRequest(null);
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    requirePermission(Permission.ADMIN_ACCESS)(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+});
+
 describe('安全攻击用例', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -248,3 +310,4 @@ describe('安全攻击用例', () => {
     );
   });
 });
+

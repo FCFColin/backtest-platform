@@ -6,7 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Request, Response, NextFunction } from 'express';
+import { createMockMiddleware } from '../../helpers/expressMocks.js';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 // vi.hoisted 确保 mock 变量在 vi.mock 提升前完成初始化
 const mocks = vi.hoisted(() => ({
@@ -22,39 +23,19 @@ vi.mock('../../../api/config/index.js', () => ({
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn() })),
-  },
-}));
+vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import { requireApiKey, optionalApiKey } from '../../../api/middleware/auth.js';
 
-function createMockReqRes(opts: {
-  headers?: Record<string, string>;
-}) {
-  const req = {
+function createMockReqRes(opts: { headers?: Record<string, string> }) {
+  return createMockMiddleware({
     method: 'POST',
     headers: opts.headers || {},
     path: '/api/admin/test',
-    originalUrl: '/api/admin/test',
     url: '/api/admin/test',
     ip: '127.0.0.1',
     socket: { remoteAddress: '127.0.0.1' },
-  } as unknown as Request;
-
-  const res = {
-    statusCode: 200,
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-  } as unknown as Response;
-
-  const next = vi.fn() as NextFunction;
-
-  return { req, res, next };
+  });
 }
 
 describe('requireApiKey 中间件', () => {
@@ -135,6 +116,41 @@ describe('requireApiKey 中间件', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
   });
+
+  it('开发环境配置了 ADMIN_API_KEY 仍应要求认证', () => {
+    mocks.config.NODE_ENV = 'development';
+    mocks.config.ADMIN_API_KEY = 'dev-secret-key';
+    const { req, res, next } = createMockReqRes({});
+    requireApiKey(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('生产环境正确 Key 应返回 JSON 错误格式结构（成功时不调用）', () => {
+    mocks.config.NODE_ENV = 'production';
+    mocks.config.ADMIN_API_KEY = 'secret-key-123';
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': 'wrong' },
+    });
+    requireApiKey(req, res, next);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({ code: 'INVALID_API_KEY' }),
+      }),
+    );
+  });
+
+  it('大小写敏感的 API Key 应区分', () => {
+    mocks.config.NODE_ENV = 'production';
+    mocks.config.ADMIN_API_KEY = 'Secret-Key';
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': 'secret-key' },
+    });
+    requireApiKey(req, res, next);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
 });
 
 describe('optionalApiKey 中间件', () => {
@@ -186,6 +202,25 @@ describe('optionalApiKey 中间件', () => {
     expect(res.status).toHaveBeenCalledWith(401);
     expect(next).not.toHaveBeenCalled();
   });
+
+  it('超长 Key 在可选模式下应放行', () => {
+    mocks.config.ADMIN_API_KEY = 'secret-key-123';
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': 'a'.repeat(129) },
+    });
+    optionalApiKey(req, res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('正确 Key 在可选模式下应放行', () => {
+    mocks.config.ADMIN_API_KEY = 'secret-key-123';
+    const { req, res, next } = createMockReqRes({
+      headers: { 'x-api-key': 'secret-key-123' },
+    });
+    optionalApiKey(req, res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('安全攻击用例', () => {
@@ -204,7 +239,7 @@ describe('安全攻击用例', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
     // 确保错误响应中不包含 SQL 注入载荷
-    const callArgs = (res.json as any).mock.calls[0]?.[0];
+    const callArgs = (res.json as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0];
     expect(JSON.stringify(callArgs)).not.toContain("OR '1'='1");
   });
 
@@ -248,7 +283,11 @@ describe('安全攻击用例', () => {
       });
       requireApiKey(req, res, next);
 
-      if ((res.status as any).mock.calls.some((c: any[]) => c[0] === 403)) {
+      if (
+        (res.status as unknown as { mock: { calls: unknown[][] } }).mock.calls.some(
+          (c: unknown[]) => c[0] === 403,
+        )
+      ) {
         rejectedCount++;
       } else if (next.mock.calls.length > 0) {
         successCount++;
@@ -262,3 +301,4 @@ describe('安全攻击用例', () => {
     expect(rejectedCount).toBeGreaterThan(30);
   });
 });
+

@@ -9,12 +9,17 @@ import {
 } from '../../../src/utils/urlState.js';
 
 const validState: ShareableState = {
-  portfolios: [{
-    id: 'p1',
-    name: 'Test Portfolio',
-    assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }],
-    rebalanceFrequency: 'quarterly',
-  }],
+  portfolios: [
+    {
+      id: 'p1',
+      name: 'Test Portfolio',
+      assets: [
+        { ticker: 'VTI', weight: 60 },
+        { ticker: 'BND', weight: 40 },
+      ],
+      rebalanceFrequency: 'quarterly',
+    },
+  ],
   parameters: {
     startDate: '2010-01-01',
     endDate: '2024-12-31',
@@ -88,12 +93,14 @@ describe('encodeState', () => {
 
   it('包含中文的状态也能正确编码', () => {
     const state: ShareableState = {
-      portfolios: [{
-        id: 'p1',
-        name: '我的组合',
-        assets: [{ ticker: 'VTI', weight: 100 }],
-        rebalanceFrequency: 'none',
-      }],
+      portfolios: [
+        {
+          id: 'p1',
+          name: '我的组合',
+          assets: [{ ticker: 'VTI', weight: 100 }],
+          rebalanceFrequency: 'none',
+        },
+      ],
       parameters: validState.parameters,
     };
     const encoded = encodeState(state);
@@ -116,7 +123,9 @@ describe('decodeState', () => {
   it('非 JSON 字符串返回 null', () => {
     // 有效的 base64url 但内容不是 JSON
     const notJson = btoa('not a json string')
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
     expect(decodeState(notJson)).toBeNull();
   });
 
@@ -152,12 +161,14 @@ describe('decodeState', () => {
 
   it('portfolio 的 assets 为空数组返回 null', () => {
     const state: ShareableState = {
-      portfolios: [{
-        id: 'p1',
-        name: 'Empty',
-        assets: [],
-        rebalanceFrequency: 'none',
-      }],
+      portfolios: [
+        {
+          id: 'p1',
+          name: 'Empty',
+          assets: [],
+          rebalanceFrequency: 'none',
+        },
+      ],
       parameters: validState.parameters,
     };
     const encoded = encodeState(state);
@@ -166,9 +177,14 @@ describe('decodeState', () => {
 
   it('portfolio 的 assets 不是数组返回 null', () => {
     const state = {
-      portfolios: [{
-        id: 'p1', name: 'Bad', assets: 'not-array', rebalanceFrequency: 'none',
-      }],
+      portfolios: [
+        {
+          id: 'p1',
+          name: 'Bad',
+          assets: 'not-array',
+          rebalanceFrequency: 'none',
+        },
+      ],
       parameters: validState.parameters,
     };
     const encoded = encodeState(state as unknown as ShareableState);
@@ -253,12 +269,14 @@ describe('clearStateFromURL', () => {
 describe('特殊字符处理', () => {
   it('组合名称包含特殊字符能正确往返', () => {
     const state: ShareableState = {
-      portfolios: [{
-        id: 'p1',
-        name: 'Test & <>"\'#/\\组合',
-        assets: [{ ticker: 'VTI', weight: 100 }],
-        rebalanceFrequency: 'none',
-      }],
+      portfolios: [
+        {
+          id: 'p1',
+          name: 'Test & <>"\'#/\\组合',
+          assets: [{ ticker: 'VTI', weight: 100 }],
+          rebalanceFrequency: 'none',
+        },
+      ],
       parameters: validState.parameters,
     };
     const encoded = encodeState(state);
@@ -268,12 +286,14 @@ describe('特殊字符处理', () => {
 
   it('ticker 包含特殊字符能正确往返', () => {
     const state: ShareableState = {
-      portfolios: [{
-        id: 'p1',
-        name: 'Test',
-        assets: [{ ticker: 'A&B=C#D', weight: 100 }],
-        rebalanceFrequency: 'none',
-      }],
+      portfolios: [
+        {
+          id: 'p1',
+          name: 'Test',
+          assets: [{ ticker: 'A&B=C#D', weight: 100 }],
+          rebalanceFrequency: 'none',
+        },
+      ],
       parameters: validState.parameters,
     };
     const encoded = encodeState(state);
@@ -283,12 +303,14 @@ describe('特殊字符处理', () => {
 
   it('参数包含空格能正确往返', () => {
     const state: ShareableState = {
-      portfolios: [{
-        id: 'p1',
-        name: 'With Spaces',
-        assets: [{ ticker: 'VTI', weight: 100 }],
-        rebalanceFrequency: 'none',
-      }],
+      portfolios: [
+        {
+          id: 'p1',
+          name: 'With Spaces',
+          assets: [{ ticker: 'VTI', weight: 100 }],
+          rebalanceFrequency: 'none',
+        },
+      ],
       parameters: {
         ...validState.parameters,
         benchmarkTicker: 'SP Y',
@@ -302,9 +324,30 @@ describe('特殊字符处理', () => {
   it('多组合状态能正确往返', () => {
     const state: ShareableState = {
       portfolios: [
-        { id: 'p1', name: 'Portfolio 1', assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }], rebalanceFrequency: 'quarterly' },
-        { id: 'p2', name: 'Portfolio 2', assets: [{ ticker: 'SPY', weight: 100 }], rebalanceFrequency: 'none' },
-        { id: 'p3', name: 'Portfolio 3', assets: [{ ticker: 'QQQ', weight: 50 }, { ticker: 'GLD', weight: 50 }], rebalanceFrequency: 'monthly' },
+        {
+          id: 'p1',
+          name: 'Portfolio 1',
+          assets: [
+            { ticker: 'VTI', weight: 60 },
+            { ticker: 'BND', weight: 40 },
+          ],
+          rebalanceFrequency: 'quarterly',
+        },
+        {
+          id: 'p2',
+          name: 'Portfolio 2',
+          assets: [{ ticker: 'SPY', weight: 100 }],
+          rebalanceFrequency: 'none',
+        },
+        {
+          id: 'p3',
+          name: 'Portfolio 3',
+          assets: [
+            { ticker: 'QQQ', weight: 50 },
+            { ticker: 'GLD', weight: 50 },
+          ],
+          rebalanceFrequency: 'monthly',
+        },
       ],
       parameters: validState.parameters,
     };

@@ -1,21 +1,11 @@
 /**
- * EngineService 单元测试（Task 11）
+ * EngineService 单元测试
  *
- * 企业理由：EngineService 管理数据引擎（Python 子进程）的调用与缓存数据扫描，
- * 必须保证：
- * 1. triggerUniverseRefresh 正确调用 Python 引擎并处理成功/失败
- * 2. triggerFullUpdate 等异步触发函数正确 spawn 子进程并立即返回
- * 3. getEngineStatus 正确读取文件系统状态
- * 4. loadTickerData 拒绝非法 ticker（路径遍历防护）
- * 5. getTickerList 从 universe.json 读取，缺失时回退到 tickers 目录
- * 6. searchTickers 正确过滤
- * 7. 错误传播：Python 引擎非零退出时返回错误
- *
- * 权衡：mock child_process.spawn 与 fs，不验证真实 Python 进程行为。
+ * 行情读取与统计均来自 PostgreSQL；stats 缓存文件仅加速展示。
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventEmitter } from 'events';
+import { mockLogger } from '../../helpers/mockFactories.js';
 
 // ===== vi.hoisted =====
 const loggerMocks = vi.hoisted(() => ({
@@ -23,6 +13,12 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
+  child: vi.fn(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  })),
 }));
 
 const tickerValidationMocks = vi.hoisted(() => ({
@@ -34,27 +30,41 @@ const fsMocks = vi.hoisted(() => ({
   readFileSync: vi.fn(),
   statSync: vi.fn(),
   readdirSync: vi.fn().mockReturnValue([]),
-  writeFile: vi.fn(),
+  writeFileSync: vi.fn(),
   mkdirSync: vi.fn(),
 }));
 
-const spawnMocks = vi.hoisted(() => ({
-  spawn: vi.fn(),
+const pgMocks = vi.hoisted(() => ({
+  query: vi.fn(),
+}));
+
+const marketStatsMocks = vi.hoisted(() => ({
+  scanMarketStatsFromDb: vi.fn(),
+  getDbEngineStatus: vi.fn(),
+}));
+
+const fsPromisesMocks = vi.hoisted(() => ({
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  readdir: vi.fn().mockResolvedValue([]),
+  stat: vi.fn(),
 }));
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: {
-    info: loggerMocks.info,
-    warn: loggerMocks.warn,
-    error: loggerMocks.error,
-    debug: loggerMocks.debug,
-  },
-}));
+vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
 
 vi.mock('../../../api/utils/tickerValidation.js', () => ({
   isValidTicker: tickerValidationMocks.isValidTicker,
+}));
+
+vi.mock('../../../api/db/index.js', () => ({
+  getReadPool: () => ({ query: pgMocks.query }),
+}));
+
+vi.mock('../../../api/db/marketStats.js', () => ({
+  scanMarketStatsFromDb: marketStatsMocks.scanMarketStatsFromDb,
+  getDbEngineStatus: marketStatsMocks.getDbEngineStatus,
 }));
 
 vi.mock('fs', () => ({
@@ -63,180 +73,38 @@ vi.mock('fs', () => ({
     readFileSync: fsMocks.readFileSync,
     statSync: fsMocks.statSync,
     readdirSync: fsMocks.readdirSync,
+    writeFileSync: fsMocks.writeFileSync,
     mkdirSync: fsMocks.mkdirSync,
-    promises: {
-      readFile: vi.fn(),
-      writeFile: vi.fn(),
-      readdir: vi.fn().mockResolvedValue([]),
-      stat: vi.fn(),
-    },
+    promises: fsPromisesMocks,
   },
   existsSync: fsMocks.existsSync,
   readFileSync: fsMocks.readFileSync,
   statSync: fsMocks.statSync,
   readdirSync: fsMocks.readdirSync,
+  writeFileSync: fsMocks.writeFileSync,
   mkdirSync: fsMocks.mkdirSync,
-}));
-
-vi.mock('child_process', () => ({
-  spawn: spawnMocks.spawn,
 }));
 
 import {
   getEngineStatus,
-  triggerFullUpdate,
-  triggerIncrementalUpdate,
-  triggerRefetch,
-  triggerResume,
-  triggerUniverseRefresh,
   getTickerList,
   searchTickers,
   loadTickerData,
   getUniverseStats,
+  scanTickersStats,
+  scanTickersStatsAsync,
+  resolveUniverseFromCacheStats,
 } from '../../../api/services/engineService.js';
-
-/** 创建一个 mock 子进程（EventEmitter 模拟 stdout/stderr/close） */
-function createMockChildProcess(opts: { stdout?: string; stderr?: string; exitCode?: number; error?: Error } = {}) {
-  const proc = new EventEmitter() as any;
-  proc.stdout = new EventEmitter();
-  proc.stderr = new EventEmitter();
-  proc.unref = vi.fn();
-  proc.stdin = { end: vi.fn() };
-
-  // 异步触发事件（模拟真实进程行为）
-  queueMicrotask(() => {
-    if (opts.error) {
-      proc.emit('error', opts.error);
-      return;
-    }
-    if (opts.stdout) proc.stdout.emit('data', Buffer.from(opts.stdout));
-    if (opts.stderr) proc.stderr.emit('data', Buffer.from(opts.stderr));
-    proc.emit('close', opts.exitCode ?? 0);
-  });
-
-  return proc;
-}
-
-describe('triggerUniverseRefresh', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('Python 引擎正常退出时应返回 completed', async () => {
-    spawnMocks.spawn.mockReturnValue(createMockChildProcess({
-      stdout: '{"success": true}',
-      exitCode: 0,
-    }));
-
-    const result = await triggerUniverseRefresh();
-
-    expect(result.status).toBe('completed');
-    expect(result.message).toContain('已刷新');
-    // 验证 spawn 调用参数：python -m engine.main universe
-    expect(spawnMocks.spawn).toHaveBeenCalledWith(
-      expect.any(String), // python 或 python3
-      expect.arrayContaining(['-m', 'engine.main', 'universe']),
-      expect.objectContaining({ cwd: expect.any(String) }),
-    );
-  });
-
-  it('Python 引擎非零退出时应返回 error（错误传播）', async () => {
-    spawnMocks.spawn.mockReturnValue(createMockChildProcess({
-      stderr: 'ModuleNotFoundError: No module named engine',
-      exitCode: 1,
-    }));
-
-    const result = await triggerUniverseRefresh();
-
-    expect(result.status).toBe('error');
-    expect(result.message).toContain('刷新失败');
-    expect(result.message).toContain('Engine exited 1');
-  });
-
-  it('spawn error 事件应返回 error', async () => {
-    spawnMocks.spawn.mockReturnValue(createMockChildProcess({
-      error: new Error('spawn python ENOENT'),
-    }));
-
-    const result = await triggerUniverseRefresh();
-
-    expect(result.status).toBe('error');
-    expect(result.message).toContain('spawn python ENOENT');
-  });
-});
-
-describe('triggerFullUpdate / triggerIncrementalUpdate / triggerRefetch / triggerResume', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('triggerFullUpdate 应异步启动并立即返回 started', () => {
-    const mockProc = createMockChildProcess();
-    spawnMocks.spawn.mockReturnValue(mockProc);
-
-    const result = triggerFullUpdate();
-
-    expect(result.status).toBe('started');
-    expect(result.message).toContain('全量更新');
-    // 应调用 unref（异步启动，不等待）
-    expect(mockProc.unref).toHaveBeenCalled();
-    // 验证 spawn 参数包含 'full'
-    expect(spawnMocks.spawn).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['full']),
-      expect.objectContaining({ detached: true, stdio: 'ignore' }),
-    );
-  });
-
-  it('triggerIncrementalUpdate 应传入 incremental 参数', () => {
-    spawnMocks.spawn.mockReturnValue(createMockChildProcess());
-
-    const result = triggerIncrementalUpdate();
-
-    expect(result.status).toBe('started');
-    expect(spawnMocks.spawn).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['incremental']),
-      expect.any(Object),
-    );
-  });
-
-  it('triggerRefetch 应传入 refetch 参数', () => {
-    spawnMocks.spawn.mockReturnValue(createMockChildProcess());
-
-    const result = triggerRefetch();
-
-    expect(result.status).toBe('started');
-    expect(spawnMocks.spawn).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['refetch']),
-      expect.any(Object),
-    );
-  });
-
-  it('triggerResume 应传入 resume 参数', () => {
-    spawnMocks.spawn.mockReturnValue(createMockChildProcess());
-
-    const result = triggerResume();
-
-    expect(result.status).toBe('started');
-    expect(spawnMocks.spawn).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.arrayContaining(['resume']),
-      expect.any(Object),
-    );
-  });
-});
 
 describe('getEngineStatus', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('目录不存在时应返回零值状态', () => {
-    fsMocks.existsSync.mockReturnValue(false);
+  it('stats 缓存不存在时应返回零值状态', async () => {
+    marketStatsMocks.getDbEngineStatus.mockRejectedValue(new Error('db down'));
 
-    const status = getEngineStatus();
+    const status = await getEngineStatus();
 
     expect(status.totalTickers).toBe(0);
     expect(status.cachedTickers).toBe(0);
@@ -245,37 +113,19 @@ describe('getEngineStatus', () => {
     expect(status.universeAge).toBeNull();
   });
 
-  it('应统计已缓存标的数量并读取进度文件', () => {
-    // tickers 目录存在，有 2 个 JSON 文件
-    fsMocks.existsSync.mockImplementation((p: string) => {
-      const s = String(p);
-      return s.includes('tickers') || s.includes('progress.json') || s.includes('universe.json');
-    });
-    fsMocks.readdirSync.mockReturnValue(['AAPL.json', 'BND.json']);
-    fsMocks.statSync.mockReturnValue({ mtime: new Date('2024-01-01T00:00:00Z') });
-    fsMocks.readFileSync.mockImplementation((p: string) => {
-      const s = String(p);
-      if (s.includes('progress.json')) return JSON.stringify({ current: 5, total: 10 });
-      if (s.includes('universe.json')) return JSON.stringify({ tickers: [{ ticker: 'AAPL' }] });
-      return '{}';
+  it('应从 PostgreSQL 获取引擎状态', async () => {
+    marketStatsMocks.getDbEngineStatus.mockResolvedValue({
+      totalTickers: 42,
+      cachedTickers: 42,
+      lastUpdate: '2024-06-01T00:00:00Z',
     });
 
-    const status = getEngineStatus();
+    const status = await getEngineStatus();
 
-    expect(status.cachedTickers).toBe(2);
-    expect(status.totalTickers).toBe(1);
-    expect(status.lastUpdate).toBeDefined();
-    expect(status.progress).toEqual({ current: 5, total: 10 });
-  });
-
-  it('进度文件 JSON 损坏时应记录 warn 且 progress 为 null', () => {
-    fsMocks.existsSync.mockImplementation((p: string) => String(p).includes('progress.json'));
-    fsMocks.readFileSync.mockReturnValue('not valid json{{{');
-
-    const status = getEngineStatus();
-
+    expect(status.cachedTickers).toBe(42);
+    expect(status.totalTickers).toBe(42);
+    expect(status.lastUpdate).toBe('2024-06-01T00:00:00Z');
     expect(status.progress).toBeNull();
-    expect(loggerMocks.warn).toHaveBeenCalled();
   });
 });
 
@@ -284,57 +134,44 @@ describe('loadTickerData', () => {
     vi.clearAllMocks();
   });
 
-  it('合法 ticker 应读取对应 JSON 文件', () => {
+  it('合法 ticker 应从 PostgreSQL 读取', async () => {
     tickerValidationMocks.isValidTicker.mockReturnValue(true);
-    fsMocks.existsSync.mockReturnValue(true);
-    const mockData = { meta: { ticker: 'AAPL' }, prices: [{ date: '2024-01-02', close: 185.5 }] };
-    fsMocks.readFileSync.mockReturnValue(JSON.stringify(mockData));
+    pgMocks.query.mockResolvedValue({
+      rows: [
+        {
+          date: new Date('2024-01-02'),
+          open: 1,
+          high: 2,
+          low: 1,
+          close: 185.5,
+          volume: 100,
+          adjusted_close: 185.5,
+        },
+      ],
+    });
 
-    const result = loadTickerData('AAPL');
+    const result = await loadTickerData('AAPL');
 
-    expect(result).toEqual(mockData);
+    expect(result?.meta).toEqual({ ticker: 'AAPL' });
+    expect((result?.prices as Array<{ close: number }>)[0].close).toBe(185.5);
   });
 
-  it('非法 ticker 应返回 null（路径遍历防护）', () => {
+  it('非法 ticker 应返回 null（路径遍历防护）', async () => {
     tickerValidationMocks.isValidTicker.mockReturnValue(false);
 
-    const result = loadTickerData('../../../etc/passwd');
+    const result = await loadTickerData('../../../etc/passwd');
 
     expect(result).toBeNull();
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      expect.stringContaining('拒绝非法 ticker'),
-    );
+    expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining('拒绝非法 ticker'));
   });
 
-  it('文件不存在时应返回 null', () => {
+  it('无数据时应返回 null', async () => {
     tickerValidationMocks.isValidTicker.mockReturnValue(true);
-    fsMocks.existsSync.mockReturnValue(false);
+    pgMocks.query.mockResolvedValue({ rows: [] });
 
-    const result = loadTickerData('UNKNOWN');
+    const result = await loadTickerData('UNKNOWN');
 
     expect(result).toBeNull();
-  });
-
-  it('JSON 解析失败时应返回 null', () => {
-    tickerValidationMocks.isValidTicker.mockReturnValue(true);
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue('invalid json{{{');
-
-    const result = loadTickerData('AAPL');
-
-    expect(result).toBeNull();
-  });
-
-  it('ticker 中的点号应替换为下划线作为文件名', () => {
-    tickerValidationMocks.isValidTicker.mockReturnValue(true);
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue('{}');
-
-    loadTickerData('BRK.B');
-
-    // 验证文件路径使用 BRK_B.json（点号替换为下划线）
-    const readCall = fsMocks.readFileSync.mock.calls[0];
-    expect(String(readCall[0])).toContain('BRK_B.json');
   });
 });
 
@@ -343,56 +180,26 @@ describe('getTickerList', () => {
     vi.clearAllMocks();
   });
 
-  it('应从 universe.json 读取标的列表', async () => {
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-      tickers: [
-        { ticker: 'AAPL', name: 'Apple', category: 'STOCK', market: 'US' },
-        { ticker: 'BND', name: 'Vanguard Bond', category: 'ETF', market: 'US' },
+  it('应从 PostgreSQL 读取标的列表', async () => {
+    pgMocks.query.mockResolvedValue({
+      rows: [
+        { ticker: 'AAPL', category: 'Apple', market: 'US' },
+        { ticker: 'BND', category: 'ETF', market: 'US' },
       ],
-    }));
+    });
 
     const result = await getTickerList();
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({
-      ticker: 'AAPL',
-      name: 'Apple',
-      category: 'STOCK',
-      market: 'US',
-    });
+    expect(result[0].ticker).toBe('AAPL');
   });
 
-  it('universe.json 不存在时应从 tickers 目录回退', async () => {
-    fsMocks.existsSync.mockImplementation((p: string) => {
-      return String(p).includes('tickers') && !String(p).includes('universe');
-    });
-    fsMocks.readdirSync.mockReturnValue(['AAPL.json', 'BND.json', 'BRK_B.json']);
-
-    const result = await getTickerList();
-
-    expect(result).toHaveLength(3);
-    // 文件名中下划线应还原为点号
-    expect(result.find(t => t.ticker === 'BRK.B')).toBeDefined();
-  });
-
-  it('universe.json 与 tickers 目录都不存在时应返回空数组', async () => {
-    fsMocks.existsSync.mockReturnValue(false);
+  it('PostgreSQL 查询失败时应返回空数组', async () => {
+    pgMocks.query.mockRejectedValue(new Error('db down'));
 
     const result = await getTickerList();
 
     expect(result).toEqual([]);
-  });
-
-  it('universe.json JSON 损坏时应回退到 tickers 目录', async () => {
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue('invalid json{{{');
-    fsMocks.readdirSync.mockReturnValue(['AAPL.json']);
-
-    const result = await getTickerList();
-
-    expect(result).toHaveLength(1);
-    expect(result[0].ticker).toBe('AAPL');
   });
 });
 
@@ -402,14 +209,13 @@ describe('searchTickers', () => {
   });
 
   it('应根据 query 过滤标的（不区分大小写）', async () => {
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-      tickers: [
-        { ticker: 'AAPL', name: 'Apple', category: 'STOCK', market: 'US' },
-        { ticker: 'BND', name: 'Vanguard Bond', category: 'ETF', market: 'US' },
-        { ticker: 'SPY', name: 'S&P 500', category: 'ETF', market: 'US' },
+    pgMocks.query.mockResolvedValue({
+      rows: [
+        { ticker: 'AAPL', category: 'Apple', market: 'US' },
+        { ticker: 'BND', category: 'Vanguard Bond', market: 'US' },
+        { ticker: 'SPY', category: 'S&P 500', market: 'US' },
       ],
-    }));
+    });
 
     const result = await searchTickers('bond');
 
@@ -418,13 +224,12 @@ describe('searchTickers', () => {
   });
 
   it('应匹配 ticker/name/category/market 任一字段', async () => {
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-      tickers: [
-        { ticker: 'AAPL', name: 'Apple', category: 'STOCK', market: 'US' },
-        { ticker: '600519.SH', name: '贵州茅台', category: 'STOCK', market: 'CN' },
+    pgMocks.query.mockResolvedValue({
+      rows: [
+        { ticker: 'AAPL', category: 'Apple', market: 'US' },
+        { ticker: '600519.SH', category: '贵州茅台', market: 'CN' },
       ],
-    }));
+    });
 
     const result = await searchTickers('cn');
 
@@ -433,14 +238,13 @@ describe('searchTickers', () => {
   });
 
   it('结果应限制在 30 条以内', async () => {
-    fsMocks.existsSync.mockReturnValue(true);
-    const tickers = Array.from({ length: 50 }, (_, i) => ({
-      ticker: `STOCK${i}`,
-      name: `Stock ${i}`,
-      category: 'STOCK',
-      market: 'US',
-    }));
-    fsMocks.readFileSync.mockReturnValue(JSON.stringify({ tickers }));
+    pgMocks.query.mockResolvedValue({
+      rows: Array.from({ length: 50 }, (_, i) => ({
+        ticker: `STOCK${i}`,
+        category: `Stock ${i}`,
+        market: 'US',
+      })),
+    });
 
     const result = await searchTickers('stock');
 
@@ -453,38 +257,192 @@ describe('getUniverseStats', () => {
     vi.clearAllMocks();
   });
 
-  it('应从 universe.json 读取统计', () => {
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue(JSON.stringify({
-      total_count: 100,
-      updated_at: '2024-01-01T00:00:00Z',
-      stats: { US: 60, CN: 40 },
-    }));
+  it('应从 PostgreSQL 推导宇宙统计', async () => {
+    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue({
+      generated_at: '2024-01-01T00:00:00Z',
+      total_cached: 100,
+      by_market: {
+        US: { count: 60, stocks: 50, etfs: 10, indices: 0 },
+        CN: { count: 40, stocks: 35, etfs: 5, indices: 0 },
+      },
+      by_type: { STOCK: 85, ETF: 15 },
+      by_exchange: {},
+      date_ranges: { earliest: '1970-01-02', latest: '2024-01-01' },
+      by_decade: {},
+      by_year_count: {},
+      coverage: {
+        tickers_with_5y_plus: 0,
+        tickers_with_10y_plus: 0,
+        tickers_with_20y_plus: 0,
+        avg_data_points: 0,
+        median_data_points: 0,
+      },
+      data_quality: {
+        with_adj_close: 0,
+        with_dividends: 0,
+        with_splits: 0,
+        total_data_points: 0,
+        total_size_mb: 0,
+      },
+      recent_updates: [],
+      sample_tickers: {},
+    });
 
-    const result = getUniverseStats();
+    const result = await getUniverseStats();
 
     expect(result.total).toBe(100);
     expect(result.updated_at).toBe('2024-01-01T00:00:00Z');
-    expect(result.stats).toEqual({ US: 60, CN: 40 });
+    expect(result.stats.us).toBe(60);
+    expect(result.stats.cn).toBe(40);
   });
 
-  it('universe.json 不存在时应返回零值', () => {
-    fsMocks.existsSync.mockReturnValue(false);
+  it('stats 不存在时应返回零值', async () => {
+    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(null);
 
-    const result = getUniverseStats();
+    const result = await getUniverseStats();
 
     expect(result.total).toBe(0);
     expect(result.updated_at).toBe('');
     expect(result.stats).toEqual({});
   });
+});
 
-  it('JSON 损坏时应返回零值并记录 warn', () => {
-    fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockReturnValue('invalid json{{{');
+describe('resolveUniverseFromCacheStats', () => {
+  it('无 stats 时应返回零值', () => {
+    expect(resolveUniverseFromCacheStats(null)).toEqual({ total: 0, updated_at: '', stats: {} });
+  });
+});
 
-    const result = getUniverseStats();
+describe('scanTickersStats', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-    expect(result.total).toBe(0);
-    expect(loggerMocks.warn).toHaveBeenCalled();
+  it('应返回 PostgreSQL 统计数据', async () => {
+    const dbResult = {
+      generated_at: '2024-01-01T00:00:00Z',
+      total_cached: 5,
+      by_market: {},
+      by_type: {},
+      by_exchange: {},
+      date_ranges: { earliest: null, latest: null },
+      by_decade: {},
+      by_year_count: {},
+      coverage: {
+        tickers_with_5y_plus: 0,
+        tickers_with_10y_plus: 0,
+        tickers_with_20y_plus: 0,
+        avg_data_points: 0,
+        median_data_points: 0,
+      },
+      data_quality: {
+        with_adj_close: 0,
+        with_dividends: 0,
+        with_splits: 0,
+        total_data_points: 0,
+        total_size_mb: 0,
+      },
+      recent_updates: [],
+      sample_tickers: {},
+    };
+    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(dbResult);
+
+    const result = await scanTickersStats();
+
+    expect(result).toEqual(dbResult);
+  });
+
+  it('PostgreSQL 不可用时返回 null', async () => {
+    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(null);
+
+    expect(await scanTickersStats()).toBeNull();
+    expect(await scanTickersStats(true)).toBeNull();
+  });
+});
+
+describe('scanTickersStatsAsync', () => {
+  const dbStats = {
+    generated_at: '2024-06-01T00:00:00Z',
+    total_cached: 1,
+    by_market: { US: { count: 1, stocks: 1, etfs: 0, indices: 0 } },
+    by_type: { STOCK: 1 },
+    by_exchange: { '': 1 },
+    date_ranges: { earliest: '2014-01-02', latest: '2024-01-02' },
+    by_decade: { '2010s': 1 },
+    by_year_count: { '10-14年': 1 },
+    coverage: {
+      tickers_with_5y_plus: 1,
+      tickers_with_10y_plus: 1,
+      tickers_with_20y_plus: 0,
+      avg_data_points: 500,
+      median_data_points: 500,
+    },
+    data_quality: {
+      with_adj_close: 1,
+      with_dividends: 0,
+      with_splits: 0,
+      total_data_points: 500,
+      total_size_mb: 0.1,
+    },
+    recent_updates: [],
+    sample_tickers: {
+      us_stock: [
+        {
+          ticker: 'AAPL',
+          name: 'Apple',
+          first_date: '2014-01-02',
+          last_date: '2024-01-02',
+          data_points: 500,
+        },
+      ],
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fsMocks.existsSync.mockReturnValue(false);
+    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(dbStats);
+  });
+
+  it('应从 PostgreSQL 聚合统计', async () => {
+    const result = await scanTickersStatsAsync(true);
+
+    expect(result).not.toBeNull();
+    expect(result!.total_cached).toBe(1);
+    expect(result!.by_market.US.count).toBe(1);
+    expect(marketStatsMocks.scanMarketStatsFromDb).toHaveBeenCalled();
+  });
+
+  it('PostgreSQL 不可用时应抛出错误', async () => {
+    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(null);
+
+    await expect(scanTickersStatsAsync(true)).rejects.toThrow('数据库为空或连接失败');
+  });
+
+  it('应始终从 PostgreSQL 查询', async () => {
+    const result = await scanTickersStatsAsync(false);
+
+    expect(result.total_cached).toBe(1);
+    expect(marketStatsMocks.scanMarketStatsFromDb).toHaveBeenCalled();
+  });
+});
+
+describe('loadTickerData 路径遍历', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('应拒绝含路径遍历的 ticker', async () => {
+    tickerValidationMocks.isValidTicker.mockReturnValue(false);
+
+    expect(await loadTickerData('../../etc/passwd')).toBeNull();
+    expect(await loadTickerData('..\\..\\windows\\system32')).toBeNull();
+    expect(pgMocks.query).not.toHaveBeenCalled();
+  });
+
+  it('应拒绝空 ticker', async () => {
+    tickerValidationMocks.isValidTicker.mockReturnValue(false);
+
+    expect(await loadTickerData('')).toBeNull();
   });
 });

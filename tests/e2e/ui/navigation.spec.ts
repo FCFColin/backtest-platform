@@ -11,7 +11,9 @@ test.describe('导航栏交互', () => {
     await nav.getByRole('button', { name: /回测|Backtest/ }).click();
     await nav.getByRole('link', { name: /组合回测|Portfolio Backtest/ }).click();
     await expect(page).toHaveURL(/\/$/, { timeout: 60_000 });
-    await expect(page.getByText(/参数设置|Parameter Settings/).first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/参数设置|Parameter Settings/).first()).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   test('T10: 导航到优化页', async ({ page }) => {

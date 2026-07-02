@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import express from 'express';
+import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import type { Request, Response, NextFunction } from 'express';
 
 const mocks = vi.hoisted(() => ({
@@ -36,9 +36,26 @@ const mocks = vi.hoisted(() => ({
     generateRefreshToken: vi.fn(),
     refreshAccessToken: vi.fn(),
     revokeRefreshToken: vi.fn(),
+    revokeAllUserSessions: vi.fn(),
+    // T-12：/me 现挂 jwtAuth。测试中以 passthrough 模拟（不注入 req.user），
+    // 使 /me 处理器走 401 分支（验证未认证返回 401）。
+    jwtAuth: vi.fn((_req: Request, _res: Response, next: NextFunction) => next()),
   },
   userService: {
     verifyUser: vi.fn(),
+    anonymizeUser: vi.fn(),
+  },
+  loginLockout: {
+    isLockedOut: vi.fn().mockResolvedValue(0),
+    recordFailure: vi.fn().mockResolvedValue(undefined),
+    clearFailures: vi.fn().mockResolvedValue(undefined),
+  },
+  membershipService: {
+    resolveDefaultOrg: vi.fn().mockResolvedValue(null),
+    getMembership: vi.fn().mockResolvedValue(null),
+    getUserMemberships: vi.fn().mockResolvedValue([]),
+    isPlatformAdmin: vi.fn().mockResolvedValue(false),
+    orgRoleToGlobalRole: (r: string) => (r === 'owner' ? 'admin' : r),
   },
 }));
 
@@ -50,6 +67,10 @@ vi.mock('../../../api/config/index.js', () => ({
 vi.mock('../../../api/middleware/jwtAuth.js', () => mocks.jwtAuth);
 
 vi.mock('../../../api/services/userService.js', () => mocks.userService);
+
+vi.mock('../../../api/services/loginLockout.js', () => mocks.loginLockout);
+
+vi.mock('../../../api/services/membershipService.js', () => mocks.membershipService);
 
 vi.mock('../../../api/middleware/rbac.js', () => ({
   Role: { ADMIN: 'admin', ANALYST: 'analyst', READONLY: 'readonly' },
@@ -65,35 +86,13 @@ vi.mock('../../../api/config/redis.js', () => ({
   },
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn() })),
-  },
-}));
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
+vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import authRoutes from '../../../api/routes/authRoutes.js';
 
-async function startApp(): Promise<{ url: string; close: () => Promise<void> }> {
-  const app = express();
-  app.use(express.json());
-  app.use('/api/v1/auth', authRoutes);
-  return new Promise((resolve) => {
-    const server = app.listen(0, () => {
-      const addr = server.address();
-      const port = typeof addr === 'object' && addr ? addr.port : 0;
-      resolve({
-        url: `http://127.0.0.1:${port}`,
-        close: () => new Promise((res) => server.close(() => res())),
-      });
-    });
-  });
-}
-
 describe('authRoutes - 认证路由', () => {
-  let server: { url: string; close: () => Promise<void> };
+  let server: TestServer;
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -101,7 +100,7 @@ describe('authRoutes - 认证路由', () => {
     mocks.config.ADMIN_API_KEY = 'test-secret-key-123';
     mocks.jwtAuth.generateToken.mockResolvedValue('access-token-mock');
     mocks.jwtAuth.generateRefreshToken.mockResolvedValue('refresh-token-mock');
-    server = await startApp();
+    server = await startExpressApp((app) => app.use('/api/v1/auth', authRoutes));
   });
 
   afterEach(async () => {
@@ -133,8 +132,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.success).toBe(false);
-      expect(body.error.code).toBe('MISSING_API_KEY');
+      expect(body.code).toBe('MISSING_API_KEY');
     });
 
     it('错误 API Key 应返回 401', async () => {
@@ -146,8 +144,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.success).toBe(false);
-      expect(body.error.code).toBe('INVALID_API_KEY');
+      expect(body.code).toBe('INVALID_API_KEY');
     });
 
     it('超长 API Key（>128 字符）应返回 401', async () => {
@@ -220,8 +217,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.success).toBe(false);
-      expect(body.error.code).toBe('INVALID_CREDENTIALS');
+      expect(body.code).toBe('INVALID_CREDENTIALS');
     });
 
     it('不存在的用户应返回 401（相同错误码防枚举）', async () => {
@@ -235,7 +231,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.error.code).toBe('INVALID_CREDENTIALS');
+      expect(body.code).toBe('INVALID_CREDENTIALS');
     });
 
     it('缺失用户名应返回 400', async () => {
@@ -246,8 +242,8 @@ describe('authRoutes - 认证路由', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(400);
-      expect(body.error.code).toBe('MISSING_CREDENTIALS');
+      expect(res.status).toBe(422);
+      expect(body.code).toBe('MISSING_CREDENTIALS');
     });
 
     it('缺失密码应返回 400', async () => {
@@ -258,8 +254,8 @@ describe('authRoutes - 认证路由', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(400);
-      expect(body.error.code).toBe('MISSING_CREDENTIALS');
+      expect(res.status).toBe(422);
+      expect(body.code).toBe('MISSING_CREDENTIALS');
     });
 
     it('verifyUser 应使用 argon2id 哈希验证（通过 mock 验证调用）', async () => {
@@ -312,8 +308,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.success).toBe(false);
-      expect(body.error.code).toBe('INVALID_REFRESH_TOKEN');
+      expect(body.code).toBe('INVALID_REFRESH_TOKEN');
     });
 
     it('已撤销的 refresh token 应返回 401', async () => {
@@ -335,8 +330,8 @@ describe('authRoutes - 认证路由', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(400);
-      expect(body.error.code).toBe('MISSING_REFRESH_TOKEN');
+      expect(res.status).toBe(422);
+      expect(body.code).toBe('MISSING_REFRESH_TOKEN');
     });
   });
 
@@ -378,8 +373,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.success).toBe(false);
-      expect(body.error.code).toBe('UNAUTHORIZED');
+      expect(body.code).toBe('UNAUTHORIZED');
     });
   });
 
@@ -421,4 +415,290 @@ describe('authRoutes - 认证路由', () => {
       expect(healthRes.status).toBe(200);
     });
   });
+
+  describe('POST /login/password - 账户锁定', () => {
+    it('账户锁定时应返回 429', async () => {
+      mocks.loginLockout.isLockedOut.mockResolvedValueOnce(120);
+
+      const res = await fetch(`${server.url}/api/v1/auth/login/password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'locked-user', password: 'any' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(429);
+      expect(body.code).toBe('ACCOUNT_LOCKED');
+      expect(mocks.userService.verifyUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('DELETE /me - 自助匿名化', () => {
+    it('已认证用户应撤销会话并匿名化账户', async () => {
+      mocks.jwtAuth.jwtAuth.mockImplementation(
+        (req: Request, _res: Response, next: NextFunction) => {
+          (req as Request & { user?: { sub: string; role: string; exp: number } }).user = {
+            sub: 'user-delete-me',
+            role: 'analyst',
+            exp: Math.floor(Date.now() / 1000) + 3600,
+          };
+          next();
+        },
+      );
+      mocks.userService.anonymizeUser.mockResolvedValueOnce(true);
+
+      const res = await fetch(`${server.url}/api/v1/auth/me`, {
+        method: 'DELETE',
+        headers: { Authorization: 'Bearer valid-token' },
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.success).toBe(true);
+      expect(body.data.anonymized).toBe(true);
+      expect(mocks.jwtAuth.revokeAllUserSessions).toHaveBeenCalledWith('user-delete-me');
+      expect(mocks.userService.anonymizeUser).toHaveBeenCalledWith('user-delete-me');
+    });
+  });
+
+  describe('GET /me - 已认证', () => {
+    it('jwtAuth 注入 user 时应返回用户信息', async () => {
+      const exp = Math.floor(Date.now() / 1000) + 900;
+      mocks.jwtAuth.jwtAuth.mockImplementation(
+        (req: Request, _res: Response, next: NextFunction) => {
+          (req as Request & { user?: { sub: string; role: string; exp: number } }).user = {
+            sub: 'user-me',
+            role: 'admin',
+            exp,
+          };
+          next();
+        },
+      );
+
+      const res = await fetch(`${server.url}/api/v1/auth/me`, {
+        headers: { Authorization: 'Bearer valid-token' },
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.data.userId).toBe('user-me');
+      expect(body.data.role).toBe('admin');
+      expect(body.data.exp).toBe(exp);
+    });
+  });
+
+  describe('POST /login/password - 多租户上下文', () => {
+    it('解析到默认组织时应以组织角色签发并返回 org 摘要', async () => {
+      mocks.userService.verifyUser.mockResolvedValueOnce({
+        id: 'user-777',
+        username: 'orguser',
+        role: 'readonly',
+        createdAt: new Date(),
+        isActive: true,
+      });
+      mocks.membershipService.isPlatformAdmin.mockResolvedValueOnce(false);
+      mocks.membershipService.resolveDefaultOrg.mockResolvedValueOnce({
+        orgId: '11111111-1111-4111-8111-111111111111',
+        orgName: 'Acme',
+        orgSlug: 'acme',
+        orgPlan: 'pro',
+        orgStatus: 'active',
+        role: 'owner',
+      });
+
+      const res = await fetch(`${server.url}/api/v1/auth/login/password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'orguser', password: 'pass' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      // owner 映射为全局 admin 角色
+      expect(body.data.role).toBe('admin');
+      expect(body.data.org.orgId).toBe('11111111-1111-4111-8111-111111111111');
+      expect(body.data.org.role).toBe('owner');
+      // generateToken 应携带 tenant 上下文
+      expect(mocks.jwtAuth.generateToken).toHaveBeenCalledWith(
+        'user-777',
+        'admin',
+        expect.objectContaining({
+          tenantId: '11111111-1111-4111-8111-111111111111',
+          orgRole: 'owner',
+        }),
+      );
+    });
+
+    it('无组织成员关系时 org 为 null 且沿用全局角色', async () => {
+      mocks.userService.verifyUser.mockResolvedValueOnce({
+        id: 'user-888',
+        username: 'soloer',
+        role: 'analyst',
+        createdAt: new Date(),
+        isActive: true,
+      });
+
+      const res = await fetch(`${server.url}/api/v1/auth/login/password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: 'soloer', password: 'pass' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.data.role).toBe('analyst');
+      expect(body.data.org).toBeNull();
+    });
+  });
+
+  describe('POST /switch-org - 切换活跃组织', () => {
+    function injectUser(sub = 'user-switch') {
+      mocks.jwtAuth.jwtAuth.mockImplementation(
+        (req: Request, _res: Response, next: NextFunction) => {
+          (req as Request & { user?: { sub: string; role: string; exp: number } }).user = {
+            sub,
+            role: 'analyst',
+            exp: Math.floor(Date.now() / 1000) + 900,
+          };
+          next();
+        },
+      );
+    }
+
+    it('成员且组织 active 时应返回新 token 对', async () => {
+      injectUser();
+      mocks.membershipService.getMembership.mockResolvedValueOnce({
+        orgId: '22222222-2222-4222-8222-222222222222',
+        orgName: 'Beta',
+        orgSlug: 'beta',
+        orgPlan: 'free',
+        orgStatus: 'active',
+        role: 'admin',
+      });
+      mocks.membershipService.isPlatformAdmin.mockResolvedValueOnce(false);
+
+      const res = await fetch(`${server.url}/api/v1/auth/switch-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+        body: JSON.stringify({ orgId: '22222222-2222-4222-8222-222222222222' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.data.accessToken).toBe('access-token-mock');
+      expect(body.data.org.orgId).toBe('22222222-2222-4222-8222-222222222222');
+      expect(mocks.jwtAuth.generateToken).toHaveBeenCalledWith(
+        'user-switch',
+        'admin',
+        expect.objectContaining({
+          tenantId: '22222222-2222-4222-8222-222222222222',
+          orgRole: 'admin',
+        }),
+      );
+    });
+
+    it('非该组织成员应返回 403 NOT_A_MEMBER', async () => {
+      injectUser();
+      mocks.membershipService.getMembership.mockResolvedValueOnce(null);
+
+      const res = await fetch(`${server.url}/api/v1/auth/switch-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+        body: JSON.stringify({ orgId: '33333333-3333-4333-8333-333333333333' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(body.code).toBe('NOT_A_MEMBER');
+    });
+
+    it('组织非 active 应返回 403 ORG_INACTIVE', async () => {
+      injectUser();
+      mocks.membershipService.getMembership.mockResolvedValueOnce({
+        orgId: '44444444-4444-4444-8444-444444444444',
+        orgName: 'Gamma',
+        orgSlug: 'gamma',
+        orgPlan: 'free',
+        orgStatus: 'suspended',
+        role: 'owner',
+      });
+
+      const res = await fetch(`${server.url}/api/v1/auth/switch-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+        body: JSON.stringify({ orgId: '44444444-4444-4444-8444-444444444444' }),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(403);
+      expect(body.code).toBe('ORG_INACTIVE');
+    });
+
+    it('缺少 orgId 应返回 422', async () => {
+      injectUser();
+      const res = await fetch(`${server.url}/api/v1/auth/switch-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer t' },
+        body: JSON.stringify({}),
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(422);
+      expect(body.code).toBe('MISSING_ORG_ID');
+    });
+
+    it('未认证应返回 401', async () => {
+      // 显式恢复 passthrough（前序测试用 mockImplementation 注入了 user）
+      mocks.jwtAuth.jwtAuth.mockImplementation(
+        (_req: Request, _res: Response, next: NextFunction) => next(),
+      );
+      const res = await fetch(`${server.url}/api/v1/auth/switch-org`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orgId: '55555555-5555-4555-8555-555555555555' }),
+      });
+      expect(res.status).toBe(401);
+    });
+  });
+
+  describe('GET /orgs - 列出用户组织', () => {
+    it('应返回成员组织列表与活跃组织', async () => {
+      mocks.jwtAuth.jwtAuth.mockImplementation(
+        (req: Request, _res: Response, next: NextFunction) => {
+          (
+            req as Request & {
+              user?: { sub: string; role: string; tenant_id?: string; exp: number };
+            }
+          ).user = {
+            sub: 'user-orgs',
+            role: 'analyst',
+            tenant_id: '66666666-6666-4666-8666-666666666666',
+            exp: Math.floor(Date.now() / 1000) + 900,
+          };
+          next();
+        },
+      );
+      mocks.membershipService.getUserMemberships.mockResolvedValueOnce([
+        {
+          orgId: '66666666-6666-4666-8666-666666666666',
+          orgName: 'Delta',
+          orgSlug: 'delta',
+          orgPlan: 'pro',
+          orgStatus: 'active',
+          role: 'analyst',
+        },
+      ]);
+
+      const res = await fetch(`${server.url}/api/v1/auth/orgs`, {
+        headers: { Authorization: 'Bearer t' },
+      });
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.data.activeOrgId).toBe('66666666-6666-4666-8666-666666666666');
+      expect(body.data.orgs).toHaveLength(1);
+      expect(body.data.orgs[0].slug).toBe('delta');
+    });
+  });
 });
+

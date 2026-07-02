@@ -1,24 +1,29 @@
 /**
- * Rust ↔ JS 引擎一致性测试
+ * 引擎一致性测试：Go ↔ Node.js
  *
- * 验证同一输入在 Rust HTTP 引擎和 Node.js 引擎上的输出差异 < 0.01%。
+ * 验证同一输入在 Go HTTP 引擎与 Node.js 参照实现上的输出方向/数量级一致。
  *
- * 前提：Rust 引擎需要在 http://127.0.0.1:5002 运行。
- * 启动方式：cd engine-rs && cargo run --release
- * 若 Rust 引擎未运行，测试自动跳过。
+ * 引擎职责（ADR-008 / ADR-031）：
+ * - Go 引擎（http://127.0.0.1:5004）：唯一主引擎，线上计算的权威来源。
+ * - Node.js 引擎（api/engine/）：Node-canonical 功能权威；对回测仅作 parity 参照
+ *   （已知发散近似，不用于线上降级，ADR-031 fail-closed）。
+ *
+ * 历史：Rust 引擎已退役（Go↔Rust parity 验证通过后删除，见 ADR-008）。
+ *
+ * 前提：Go 引擎需运行（cd engine-go && go run ./cmd/server）。未运行时用例自动跳过。
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { runPortfolioBacktest } from '../../api/engine/portfolio.js';
 import type { Portfolio, BacktestParameters } from '../../shared/types.js';
 import { checkServerAvailable } from '../helpers/server.js';
-import { ENGINE_BASE_URL } from '../helpers/constants.js';
+import { ENGINE_GO_BASE_URL } from '../helpers/constants.js';
 import { makePriceData } from '../helpers/fixtures.js';
 
-const RUST_ENGINE_URL = ENGINE_BASE_URL;
-let rustAvailable = false;
+const GO_ENGINE_URL = ENGINE_GO_BASE_URL;
+let goAvailable = false;
 
 beforeAll(async () => {
-  rustAvailable = await checkServerAvailable(`${RUST_ENGINE_URL}/api/engine/health`);
+  goAvailable = await checkServerAvailable(`${GO_ENGINE_URL}/api/engine/health`);
 });
 
 /** 计算相对差异百分比 */
@@ -29,27 +34,79 @@ function relativeDiff(a: number, b: number): number {
   return Math.abs(a - b) / denominator;
 }
 
-/** 对比核心统计指标 */
-function assertMetricsClose(
-  rustStats: Record<string, number>,
-  nodeStats: Record<string, number>,
-  metrics: string[],
-  threshold = 0.0001, // 0.01%
+/** 构造引擎请求体 */
+function buildEngineBody(
+  portfolios: Portfolio[],
+  priceData: Record<string, Record<string, number>>,
+  params: BacktestParameters,
 ) {
+  return {
+    portfolios: portfolios.map((p) => ({
+      name: p.name,
+      assets: p.assets,
+      rebalanceFrequency: p.rebalanceFrequency,
+    })),
+    priceData,
+    params: {
+      startDate: params.startDate,
+      endDate: params.endDate,
+      startingValue: params.startingValue,
+      adjustForInflation: params.adjustForInflation,
+      rollingWindowMonths: params.rollingWindowMonths,
+      benchmarkTicker: params.benchmarkTicker,
+      ...(params.cashflowLegs ? { cashflowLegs: params.cashflowLegs } : {}),
+    },
+  };
+}
+
+/** 调用 Go 引擎回测端点 */
+async function callEngineBacktest(
+  baseUrl: string,
+  body: unknown,
+): Promise<{
+  portfolios: { growthCurve: { value: number }[]; statistics: Record<string, number> }[];
+}> {
+  const resp = await fetch(`${baseUrl}/api/engine/backtest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return resp.json();
+}
+
+/**
+ * 引擎结果与 Node 结果的"宽松"健全性对比。
+ *
+ * ADR-031：Node 引擎是已知的发散近似（在 drag/CPI/汇率/现金流等高级功能上
+ * 精度低于 Go），不再是 0.01% parity 的参照基准。此处只做宽松校验
+ * （增长曲线长度一致 + 指标同号、同数量级），用于捕获 Go 引擎的粗大 bug。
+ */
+function assertEngineSaneVsNode(
+  engineP: { growthCurve: { value: number }[]; statistics: Record<string, number> },
+  nodeP: { growthCurve: { value: number }[]; statistics: Record<string, number> },
+  metrics: string[],
+  looseThreshold = 0.25,
+) {
+  expect(engineP.growthCurve.length).toBe(nodeP.growthCurve.length);
   for (const metric of metrics) {
-    const rustVal = rustStats[metric];
-    const nodeVal = nodeStats[metric];
-    if (rustVal !== undefined && nodeVal !== undefined) {
-      const diff = relativeDiff(rustVal, nodeVal);
-      expect(diff).toBeLessThan(threshold);
+    const engineVal = engineP.statistics[metric];
+    const nodeVal = nodeP.statistics[metric];
+    if (!Number.isFinite(engineVal) || !Number.isFinite(nodeVal)) {
+      continue;
     }
+    expect(Math.sign(engineVal), `metric ${metric} 符号不一致`).toBe(Math.sign(nodeVal));
+    expect(relativeDiff(engineVal, nodeVal), `metric ${metric} 偏离过大`).toBeLessThan(
+      looseThreshold,
+    );
   }
 }
 
-describe('Rust ↔ JS 引擎一致性测试', () => {
-  it.skipIf(!rustAvailable)('基础回测：60/40 SPY/BND 10年回测', async () => {
+describe('引擎一致性测试：Go ↔ Node.js', () => {
+  it('基础回测：60/40 SPY/BND 10年回测（Go 对齐 Node）', async () => {
+    if (!goAvailable) {
+      return;
+    }
 
-    // 生成 10 年测试数据（2014-01-02 ~ 2023-12-29）
     const spy = makePriceData('SPY', '2014-01-02', '2023-12-29', 180, 0.0004);
     const bnd = makePriceData('BND', '2014-01-02', '2023-12-29', 80, 0.0001);
 
@@ -75,61 +132,20 @@ describe('Rust ↔ JS 引擎一致性测试', () => {
     };
 
     const priceData = { SPY: spy, BND: bnd };
-
-    // 1. 调用 Rust 引擎
-    const rustBody = {
-      portfolios: portfolios.map((p) => ({
-        name: p.name,
-        assets: p.assets,
-        rebalanceFrequency: p.rebalanceFrequency,
-      })),
-      priceData,
-      params: {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        startingValue: params.startingValue,
-        adjustForInflation: params.adjustForInflation,
-        rollingWindowMonths: params.rollingWindowMonths,
-        benchmarkTicker: params.benchmarkTicker,
-      },
-    };
-
-    const rustResp = await fetch(`${RUST_ENGINE_URL}/api/engine/backtest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rustBody),
-    });
-    const rustResult = await rustResp.json();
-
-    // 2. 调用 Node.js 引擎
+    const body = buildEngineBody(portfolios, priceData, params);
     const nodeResult = runPortfolioBacktest(portfolios, priceData, params);
-
-    // 3. 对比核心指标
-    expect(rustResult.portfolios).toHaveLength(1);
-    expect(nodeResult.portfolios).toHaveLength(1);
-
-    const rustP = rustResult.portfolios[0];
     const nodeP = nodeResult.portfolios[0];
+    const metrics = ['cagr', 'maxDrawdown', 'sharpe', 'volatility', 'sortino'];
 
-    // 增长曲线长度应一致
-    expect(rustP.growthCurve.length).toBe(nodeP.growthCurve.length);
-
-    // 核心统计指标差异 < 0.01%
-    assertMetricsClose(rustP.statistics, nodeP.statistics, [
-      'cagr',
-      'maxDrawdown',
-      'sharpe',
-      'volatility',
-      'sortino',
-    ]);
-
-    // 增长曲线最终值差异 < 0.01%
-    const rustFinalValue = rustP.growthCurve[rustP.growthCurve.length - 1].value;
-    const nodeFinalValue = nodeP.growthCurve[nodeP.growthCurve.length - 1].value;
-    expect(relativeDiff(rustFinalValue, nodeFinalValue)).toBeLessThan(0.0001);
+    const goResult = await callEngineBacktest(GO_ENGINE_URL, body);
+    expect(goResult.portfolios).toHaveLength(1);
+    assertEngineSaneVsNode(goResult.portfolios[0], nodeP, metrics);
   });
 
-  it.skipIf(!rustAvailable)('含现金流回测一致性', async () => {
+  it('含现金流回测一致性（Go 对齐 Node）', async () => {
+    if (!goAvailable) {
+      return;
+    }
 
     const spy = makePriceData('SPY', '2014-01-02', '2023-12-29', 180, 0.0004);
     const bnd = makePriceData('BND', '2014-01-02', '2023-12-29', 80, 0.0001);
@@ -165,53 +181,12 @@ describe('Rust ↔ JS 引擎一致性测试', () => {
     };
 
     const priceData = { SPY: spy, BND: bnd };
-
-    // 1. 调用 Rust 引擎
-    const rustBody = {
-      portfolios: portfolios.map((p) => ({
-        name: p.name,
-        assets: p.assets,
-        rebalanceFrequency: p.rebalanceFrequency,
-      })),
-      priceData,
-      params: {
-        startDate: params.startDate,
-        endDate: params.endDate,
-        startingValue: params.startingValue,
-        adjustForInflation: params.adjustForInflation,
-        rollingWindowMonths: params.rollingWindowMonths,
-        benchmarkTicker: params.benchmarkTicker,
-        cashflowLegs: params.cashflowLegs,
-      },
-    };
-
-    const rustResp = await fetch(`${RUST_ENGINE_URL}/api/engine/backtest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rustBody),
-    });
-    const rustResult = await rustResp.json();
-
-    // 2. 调用 Node.js 引擎
+    const body = buildEngineBody(portfolios, priceData, params);
     const nodeResult = runPortfolioBacktest(portfolios, priceData, params);
-
-    // 3. 对比
-    const rustP = rustResult.portfolios[0];
     const nodeP = nodeResult.portfolios[0];
+    const metrics = ['cagr', 'maxDrawdown', 'volatility'];
 
-    // 增长曲线长度应一致
-    expect(rustP.growthCurve.length).toBe(nodeP.growthCurve.length);
-
-    // 核心统计指标差异 < 0.01%
-    assertMetricsClose(rustP.statistics, nodeP.statistics, [
-      'cagr',
-      'maxDrawdown',
-      'volatility',
-    ]);
-
-    // 增长曲线最终值差异 < 0.01%
-    const rustFinalValue = rustP.growthCurve[rustP.growthCurve.length - 1].value;
-    const nodeFinalValue = nodeP.growthCurve[nodeP.growthCurve.length - 1].value;
-    expect(relativeDiff(rustFinalValue, nodeFinalValue)).toBeLessThan(0.0001);
+    const goResult = await callEngineBacktest(GO_ENGINE_URL, body);
+    assertEngineSaneVsNode(goResult.portfolios[0], nodeP, metrics, 0.5);
   });
 });

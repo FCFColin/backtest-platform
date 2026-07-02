@@ -13,11 +13,14 @@
  * 判定逻辑：能建立连接且响应状态码 < 500 即视为可用。
  * 4xx（如 404）视为可用，因为服务本身在运行，只是路径不存在。
  *
- * @param url - 探活 URL（如 `${ENGINE_BASE_URL}/api/engine/health`）
+ * @param url - 探活 URL（如 `${ENGINE_GO_BASE_URL}/api/engine/health`）
  * @param timeoutMs - 超时毫秒数，默认 2000ms
  * @returns 服务器可用返回 true，否则 false
  */
-export async function checkServerAvailable(url: string, timeoutMs: number = 2000): Promise<boolean> {
+export async function checkServerAvailable(
+  url: string,
+  timeoutMs: number = 2000,
+): Promise<boolean> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -35,7 +38,7 @@ export async function checkServerAvailable(url: string, timeoutMs: number = 2000
  * 用法：
  *   let serverAvailable = false;
  *   beforeAll(async () => {
- *     serverAvailable = await checkServerAvailable(ENGINE_BASE_URL);
+ *     serverAvailable = await checkServerAvailable(ENGINE_GO_BASE_URL);
  *   });
  *   it.skipIf(shouldSkip(serverAvailable))('测试名', () => { ... });
  *

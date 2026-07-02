@@ -72,32 +72,26 @@ describe('数据引擎页面', () => {
 
 // ===== 2. 引擎状态指示器测试 =====
 describe('引擎状态指示器', () => {
-  it.skipIf(!serverAvailable)('Rust 引擎可用时返回 ok', async () => {
-    // 调用 /api/health，验证返回 status 为 'ok' 或 'degraded'
-    const res = await fetch(`${BASE_URL}/api/health`);
+  it.skipIf(!serverAvailable)('Go 引擎可用时返回 ok', async () => {
+    const res = await fetch(`${BASE_URL}/api/ready`);
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.status).toMatch(/^(ok|degraded)$/);
     expect(json.data.engine).toBeDefined();
-    expect(json.data.engine.rust).toBeDefined();
-    expect(json.data.engine.node).toBeDefined();
-    // Rust 可用时 status 应为 ok
-    if (json.data.engine.rust === true) {
+    expect(json.data.engine.go).toBeDefined();
+    if (json.data.engine.go === true) {
       expect(json.data.status).toBe('ok');
     }
   });
 
-  it.skipIf(!serverAvailable)('Rust 引擎不可用时返回 degraded', async () => {
-    // 调用 /api/health，验证 engine.rust 为 false 时 status 为 'degraded'
-    const res = await fetch(`${BASE_URL}/api/health`);
+  it.skipIf(!serverAvailable)('Go 引擎不可用时返回 degraded', async () => {
+    const res = await fetch(`${BASE_URL}/api/ready`);
     const json = await res.json();
     expect(json.success).toBe(true);
-    // Rust 引擎不可用时整体降级，但仍可服务（Node.js 备用引擎）
-    if (json.data.engine.rust === false) {
+    // ADR-031 fail-closed：Go 引擎不可用时就绪降级，计算端点返回 503
+    if (json.data.engine.go === false) {
       expect(json.data.status).toBe('degraded');
     }
-    // Node.js 引擎即本进程，始终可用
-    expect(json.data.engine.node).toBe(true);
   });
 });
 
@@ -185,9 +179,7 @@ describe('新增工具页面 API', () => {
             {
               id: 'sig1',
               name: 'SMA50',
-              conditions: [
-                { indicator: 'sma', period: 50, operator: 'gt', threshold: 0 },
-              ],
+              conditions: [{ indicator: 'sma', period: 50, operator: 'gt', threshold: 0 }],
               targetWeights: [{ ticker: 'VTI', weight: 100 }],
             },
           ],
@@ -258,8 +250,8 @@ describe('布局验证', () => {
       'utf-8',
     );
     // 验证页脚包含法律相关链接
-    expect(footerSource).toContain('href="/help"');
-    expect(footerSource).toContain('href="/about"');
+    expect(footerSource).toContain("href: '/help'");
+    expect(footerSource).toContain("href: '/about'");
     expect(footerSource).toContain('mailto:');
   });
 });

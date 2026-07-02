@@ -3,13 +3,19 @@ import { test, expect } from '@playwright/test';
 test.describe('组合优化页面', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/optimizer', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: /组合优化|Portfolio Optimization/ })).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText(/参数设置|Parameter Settings/).first()).toBeVisible({ timeout: 30_000 });
+    await expect(
+      page.getByRole('heading', { name: /组合优化|Portfolio Optimization/ }),
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByText(/参数设置|Parameter Settings/).first()).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   // 辅助函数：等待优化结果加载
   async function waitForOptimizerResults(page: import('@playwright/test').Page) {
-    await expect(page.locator('tr').filter({ hasText: /CAGR/ }).first()).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('tr').filter({ hasText: /CAGR/ }).first()).toBeVisible({
+      timeout: 60_000,
+    });
   }
 
   test('T4: 默认 maxSharpe 优化 — VTI+VXUS+BND', async ({ page }) => {

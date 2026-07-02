@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { runPortfolioBacktest, type PriceData } from '../../../api/engine/portfolio.js';
-import type { Portfolio, BacktestParameters } from '../../../shared/types.js';
+import type { Portfolio } from '../../../shared/types.js';
 import { makeLinearPriceData, makeVolatilePriceData, makeParams } from '../../helpers/fixtures.js';
 
 // ===== 边界：极端权重 =====
@@ -11,8 +11,12 @@ describe('Portfolio引擎 - 极端权重', () => {
       B: makeLinearPriceData('B', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'A', weight: 0 }, { ticker: 'B', weight: 100 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'A', weight: 0 },
+        { ticker: 'B', weight: 100 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -26,7 +30,8 @@ describe('Portfolio引擎 - 极端权重', () => {
       A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 0 }],
       rebalanceFrequency: 'none',
     };
@@ -40,7 +45,8 @@ describe('Portfolio引擎 - 极端权重', () => {
       A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 1000 }],
       rebalanceFrequency: 'none',
     };
@@ -56,8 +62,12 @@ describe('Portfolio引擎 - 极端权重', () => {
       SHORT: makeLinearPriceData('SHORT', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'LONG', weight: 600 }, { ticker: 'SHORT', weight: -500 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'LONG', weight: 600 },
+        { ticker: 'SHORT', weight: -500 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -73,13 +83,15 @@ describe('Portfolio引擎 - 价格数据缺失', () => {
     const prices: Record<string, number> = {};
     const current = new Date('2020-01-02');
     for (let i = 0; i < 10; i++) {
-      while (current.getDay() === 0 || current.getDay() === 6) current.setDate(current.getDate() + 1);
+      while (current.getDay() === 0 || current.getDay() === 6)
+        current.setDate(current.getDate() + 1);
       prices[current.toISOString().slice(0, 10)] = 100 + i;
       current.setDate(current.getDate() + 1);
     }
     const priceData: PriceData = { A: prices };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -94,7 +106,8 @@ describe('Portfolio引擎 - 价格数据缺失', () => {
   it('完全无价格数据，组合价值=0', () => {
     const priceData: PriceData = {};
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'NOTEXIST', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -109,8 +122,12 @@ describe('Portfolio引擎 - 价格数据缺失', () => {
       A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'A', weight: 50 }, { ticker: 'MISSING', weight: 50 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'A', weight: 50 },
+        { ticker: 'MISSING', weight: 50 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -130,7 +147,8 @@ describe('Portfolio引擎 - 极端价格变化', () => {
       A: makeVolatilePriceData('A', '2020-01-02', '2020-02-28', 100, returns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -147,7 +165,8 @@ describe('Portfolio引擎 - 极端价格变化', () => {
       A: makeVolatilePriceData('A', '2020-01-02', '2020-02-28', 100, returns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -164,14 +183,15 @@ describe('Portfolio引擎 - 极端价格变化', () => {
       A: makeVolatilePriceData('A', '2020-01-02', '2020-02-28', 100, returns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'A', weight: 100 }],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     // 价格归零=爆仓
     const gc = result.portfolios[0].growthCurve;
-    const zeroPoints = gc.filter(p => p.value <= 0);
+    const zeroPoints = gc.filter((p) => p.value <= 0);
     expect(zeroPoints.length).toBeGreaterThan(0);
   });
 });
@@ -179,40 +199,67 @@ describe('Portfolio引擎 - 极端价格变化', () => {
 // ===== 边界：再平衡极端场景 =====
 describe('Portfolio引擎 - 再平衡边界', () => {
   it('每日调仓+做空：维持目标权重', () => {
-    const dailyReturn = Math.pow(1.20, 1 / 252) - 1;
+    const dailyReturn = Math.pow(1.2, 1 / 252) - 1;
     const priceData: PriceData = {
       LONG: makeLinearPriceData('LONG', '2020-01-02', '2020-12-31', 100, dailyReturn),
       SHORT: makeLinearPriceData('SHORT', '2020-01-02', '2020-12-31', 100, 0),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'LONG', weight: 150 }, { ticker: 'SHORT', weight: -50 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'LONG', weight: 150 },
+        { ticker: 'SHORT', weight: -50 },
+      ],
       rebalanceFrequency: 'daily',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const gc = result.portfolios[0].growthCurve;
     // 不应爆仓
-    const allPositive = gc.every(p => p.value > 0);
+    const allPositive = gc.every((p) => p.value > 0);
     expect(allPositive).toBe(true);
     // 每日调仓维持150/-50权重，组合日收益 ≈ 1.5 * LONG日收益
     // LONG年涨20%，组合CAGR应 > 20%（杠杆放大）
-    expect(result.portfolios[0].statistics.cagr).toBeGreaterThan(0.20);
+    expect(result.portfolios[0].statistics.cagr).toBeGreaterThan(0.2);
+    // 每日调仓下，首日组合价值应等于 startingValue * (150% + (-50%)) = 10000
+    expect(gc[0].value).toBeCloseTo(10000, 0);
+    // 每日调仓应产生与交易日数相同的曲线长度
+    expect(gc.length).toBeGreaterThan(200);
   });
 
-  it('偏离调仓阈值1%：几乎每天调仓', () => {
+  it('偏离调仓阈值1%：几乎每天调仓，终值接近每日调仓', () => {
     const priceData: PriceData = {
       A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.005),
       B: makeLinearPriceData('B', '2020-01-02', '2020-12-31', 100, 0),
     };
-    const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'A', weight: 50 }, { ticker: 'B', weight: 50 }],
-      rebalanceFrequency: 'threshold',
-      rebalanceThreshold: 1,
-    };
-    const result = runPortfolioBacktest([portfolio], priceData, makeParams());
-    // 1%阈值下几乎每天调仓，结果应接近每日调仓
-    expect(result.portfolios[0].statistics.cagr).toBeGreaterThan(0);
+    const baseAssets = [
+      { ticker: 'A', weight: 50 },
+      { ticker: 'B', weight: 50 },
+    ];
+    const resultTh1 = runPortfolioBacktest(
+      [
+        {
+          id: 'p1',
+          name: 'Th1',
+          assets: baseAssets,
+          rebalanceFrequency: 'threshold',
+          rebalanceThreshold: 1,
+        },
+      ],
+      priceData,
+      makeParams(),
+    );
+    const resultDaily = runPortfolioBacktest(
+      [{ id: 'p2', name: 'Daily', assets: baseAssets, rebalanceFrequency: 'daily' }],
+      priceData,
+      makeParams(),
+    );
+    // 1%阈值下几乎每天调仓，终值应接近每日调仓（差异 < 1%）
+    const finalTh1 = resultTh1.portfolios[0].growthCurve.at(-1)!.value;
+    const finalDaily = resultDaily.portfolios[0].growthCurve.at(-1)!.value;
+    const diff = Math.abs(finalTh1 - finalDaily) / finalDaily;
+    expect(diff).toBeLessThan(0.01); // 差异小于1%
+    expect(resultTh1.portfolios[0].statistics.cagr).toBeGreaterThan(0);
   });
 
   it('偏离调仓阈值100%：永远不调仓', () => {
@@ -220,14 +267,27 @@ describe('Portfolio引擎 - 再平衡边界', () => {
       A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.005),
       B: makeLinearPriceData('B', '2020-01-02', '2020-12-31', 100, 0),
     };
-    const baseAssets = [{ ticker: 'A', weight: 50 }, { ticker: 'B', weight: 50 }];
+    const baseAssets = [
+      { ticker: 'A', weight: 50 },
+      { ticker: 'B', weight: 50 },
+    ];
     const resultTh100 = runPortfolioBacktest(
-      [{ id: 'p1', name: 'Th100', assets: baseAssets, rebalanceFrequency: 'threshold', rebalanceThreshold: 100 }],
-      priceData, makeParams(),
+      [
+        {
+          id: 'p1',
+          name: 'Th100',
+          assets: baseAssets,
+          rebalanceFrequency: 'threshold',
+          rebalanceThreshold: 100,
+        },
+      ],
+      priceData,
+      makeParams(),
     );
     const resultNone = runPortfolioBacktest(
       [{ id: 'p2', name: 'None', assets: baseAssets, rebalanceFrequency: 'none' }],
-      priceData, makeParams(),
+      priceData,
+      makeParams(),
     );
     // 100%阈值=永远不调仓，终值应与不调仓完全相同
     const finalTh100 = resultTh100.portfolios[0].growthCurve.at(-1)!.value;
@@ -245,14 +305,18 @@ describe('Portfolio引擎 - 爆仓边界', () => {
       SHORT: makeVolatilePriceData('SHORT', '2020-01-02', '2020-12-31', 100, crashReturns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'LONG', weight: 200 }, { ticker: 'SHORT', weight: -100 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'LONG', weight: 200 },
+        { ticker: 'SHORT', weight: -100 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const dd = result.portfolios[0].drawdownCurve;
     // 爆仓后回撤应为1（100%）
-    const ddAfterLiquidation = dd.filter(p => p.drawdown >= 0.99);
+    const ddAfterLiquidation = dd.filter((p) => p.drawdown >= 0.99);
     expect(ddAfterLiquidation.length).toBeGreaterThan(0);
   });
 
@@ -263,14 +327,18 @@ describe('Portfolio引擎 - 爆仓边界', () => {
       SHORT: makeVolatilePriceData('SHORT', '2020-01-02', '2020-12-31', 100, crashReturns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'LONG', weight: 200 }, { ticker: 'SHORT', weight: -100 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'LONG', weight: 200 },
+        { ticker: 'SHORT', weight: -100 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     // 爆仓年份的收益应为-100%
     const annualReturns = result.portfolios[0].annualReturns;
-    const badYear = annualReturns.find(a => a.return <= -0.99);
+    const badYear = annualReturns.find((a) => a.return <= -0.99);
     expect(badYear).toBeDefined();
   });
 
@@ -282,8 +350,12 @@ describe('Portfolio引擎 - 爆仓边界', () => {
       SHORT: makeVolatilePriceData('SHORT', '2020-01-02', '2020-12-31', 100, returns),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
-      assets: [{ ticker: 'LONG', weight: 150 }, { ticker: 'SHORT', weight: -50 }],
+      id: 'p1',
+      name: 'Test',
+      assets: [
+        { ticker: 'LONG', weight: 150 },
+        { ticker: 'SHORT', weight: -50 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -295,35 +367,43 @@ describe('Portfolio引擎 - 爆仓边界', () => {
 // ===== 实际场景：经典投资组合 =====
 describe('Portfolio引擎 - 实际场景', () => {
   it('60/40股债组合：年化收益应为正', () => {
-    const stockReturn = Math.pow(1.10, 1 / 252) - 1; // 年化10%
-    const bondReturn = Math.pow(1.03, 1 / 252) - 1;  // 年化3%
+    const stockReturn = Math.pow(1.1, 1 / 252) - 1; // 年化10%
+    const bondReturn = Math.pow(1.03, 1 / 252) - 1; // 年化3%
     const priceData: PriceData = {
       STOCK: makeLinearPriceData('STOCK', '2020-01-02', '2020-12-31', 100, stockReturn),
       BOND: makeLinearPriceData('BOND', '2020-01-02', '2020-12-31', 100, bondReturn),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: '60/40',
-      assets: [{ ticker: 'STOCK', weight: 60 }, { ticker: 'BOND', weight: 40 }],
+      id: 'p1',
+      name: '60/40',
+      assets: [
+        { ticker: 'STOCK', weight: 60 },
+        { ticker: 'BOND', weight: 40 },
+      ],
       rebalanceFrequency: 'annual',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
     const cagr = result.portfolios[0].statistics.cagr;
     // 60%*10% + 40%*3% = 7.2%
     expect(cagr).toBeGreaterThan(0.05);
-    expect(cagr).toBeLessThan(0.10);
+    expect(cagr).toBeLessThan(0.1);
   });
 
   it('市场中性策略：做多涨+做空跌（盈利）', () => {
-    const longReturn = Math.pow(1.10, 1 / 252) - 1;  // 做多涨10%
-    const shortReturn = Math.pow(0.92, 1 / 252) - 1;  // 做空标的跌8%（做空赚8%）
+    const longReturn = Math.pow(1.1, 1 / 252) - 1; // 做多涨10%
+    const shortReturn = Math.pow(0.92, 1 / 252) - 1; // 做空标的跌8%（做空赚8%）
     const priceData: PriceData = {
       LONG: makeLinearPriceData('LONG', '2020-01-02', '2020-12-31', 100, longReturn),
       SHORT: makeLinearPriceData('SHORT', '2020-01-02', '2020-12-31', 100, shortReturn),
     };
     // 150%做多 + 50%做空 = 初始持仓 15000 + (-5000) = 10000
     const portfolio: Portfolio = {
-      id: 'p1', name: 'MarketNeutral',
-      assets: [{ ticker: 'LONG', weight: 150 }, { ticker: 'SHORT', weight: -50 }],
+      id: 'p1',
+      name: 'MarketNeutral',
+      assets: [
+        { ticker: 'LONG', weight: 150 },
+        { ticker: 'SHORT', weight: -50 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -332,16 +412,20 @@ describe('Portfolio引擎 - 实际场景', () => {
   });
 
   it('市场中性策略：做多涨+做空也涨（亏损）', () => {
-    const longReturn = Math.pow(1.10, 1 / 252) - 1;  // 做多涨10%
-    const shortReturn = Math.pow(1.08, 1 / 252) - 1;  // 做空标的涨8%（做空亏8%）
+    const longReturn = Math.pow(1.1, 1 / 252) - 1; // 做多涨10%
+    const shortReturn = Math.pow(1.08, 1 / 252) - 1; // 做空标的涨8%（做空亏8%）
     const priceData: PriceData = {
       LONG: makeLinearPriceData('LONG', '2020-01-02', '2020-12-31', 100, longReturn),
       SHORT: makeLinearPriceData('SHORT', '2020-01-02', '2020-12-31', 100, shortReturn),
     };
     // 150%做多 + 50%做空 = 初始持仓 15000 + (-5000) = 10000
     const portfolio: Portfolio = {
-      id: 'p1', name: 'MarketNeutral',
-      assets: [{ ticker: 'LONG', weight: 150 }, { ticker: 'SHORT', weight: -50 }],
+      id: 'p1',
+      name: 'MarketNeutral',
+      assets: [
+        { ticker: 'LONG', weight: 150 },
+        { ticker: 'SHORT', weight: -50 },
+      ],
       rebalanceFrequency: 'none',
     };
     const result = runPortfolioBacktest([portfolio], priceData, makeParams());
@@ -350,17 +434,18 @@ describe('Portfolio引擎 - 实际场景', () => {
     expect(cagr).toBeGreaterThan(0);
     // 不应出现负值
     const gc = result.portfolios[0].growthCurve;
-    const negativeValues = gc.filter(p => p.value < 0);
+    const negativeValues = gc.filter((p) => p.value < 0);
     expect(negativeValues).toHaveLength(0);
   });
 
   it('杠杆组合：200%股票', () => {
-    const stockReturn = Math.pow(1.10, 1 / 252) - 1;
+    const stockReturn = Math.pow(1.1, 1 / 252) - 1;
     const priceData: PriceData = {
       STOCK: makeLinearPriceData('STOCK', '2020-01-02', '2020-12-31', 100, stockReturn),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: '2xLeveraged',
+      id: 'p1',
+      name: '2xLeveraged',
       assets: [{ ticker: 'STOCK', weight: 200 }],
       rebalanceFrequency: 'none',
     };
@@ -371,28 +456,41 @@ describe('Portfolio引擎 - 实际场景', () => {
   });
 
   it('三组合对比：不同风险等级', () => {
-    const stockReturn = Math.pow(1.10, 1 / 252) - 1;
+    const stockReturn = Math.pow(1.1, 1 / 252) - 1;
     const bondReturn = Math.pow(1.03, 1 / 252) - 1;
     const priceData: PriceData = {
       STOCK: makeLinearPriceData('STOCK', '2020-01-02', '2020-12-31', 100, stockReturn),
       BOND: makeLinearPriceData('BOND', '2020-01-02', '2020-12-31', 100, bondReturn),
     };
     const conservative: Portfolio = {
-      id: 'p1', name: '保守',
-      assets: [{ ticker: 'STOCK', weight: 20 }, { ticker: 'BOND', weight: 80 }],
+      id: 'p1',
+      name: '保守',
+      assets: [
+        { ticker: 'STOCK', weight: 20 },
+        { ticker: 'BOND', weight: 80 },
+      ],
       rebalanceFrequency: 'annual',
     };
     const balanced: Portfolio = {
-      id: 'p2', name: '平衡',
-      assets: [{ ticker: 'STOCK', weight: 60 }, { ticker: 'BOND', weight: 40 }],
+      id: 'p2',
+      name: '平衡',
+      assets: [
+        { ticker: 'STOCK', weight: 60 },
+        { ticker: 'BOND', weight: 40 },
+      ],
       rebalanceFrequency: 'annual',
     };
     const aggressive: Portfolio = {
-      id: 'p3', name: '激进',
+      id: 'p3',
+      name: '激进',
       assets: [{ ticker: 'STOCK', weight: 100 }],
       rebalanceFrequency: 'annual',
     };
-    const result = runPortfolioBacktest([conservative, balanced, aggressive], priceData, makeParams());
+    const result = runPortfolioBacktest(
+      [conservative, balanced, aggressive],
+      priceData,
+      makeParams(),
+    );
     // 激进>平衡>保守
     const cagrC = result.portfolios[0].statistics.cagr;
     const cagrB = result.portfolios[1].statistics.cagr;
@@ -421,7 +519,8 @@ describe('Portfolio引擎 - 偏离调仓实际场景', () => {
     const params = makeParams();
 
     const quarterly: Portfolio = {
-      id: 'p1', name: 'Q',
+      id: 'p1',
+      name: 'Q',
       assets: [
         { ticker: 'VTI', weight: 100 },
         { ticker: 'BND', weight: 100 },
@@ -430,7 +529,8 @@ describe('Portfolio引擎 - 偏离调仓实际场景', () => {
       rebalanceFrequency: 'quarterly',
     };
     const threshold: Portfolio = {
-      id: 'p2', name: 'T5',
+      id: 'p2',
+      name: 'T5',
       assets: [
         { ticker: 'VTI', weight: 100 },
         { ticker: 'BND', weight: 100 },
@@ -458,14 +558,22 @@ describe('Portfolio引擎 - 偏离调仓实际场景', () => {
     const params = makeParams();
 
     const t5: Portfolio = {
-      id: 'p1', name: 'T5',
-      assets: [{ ticker: 'A', weight: 50 }, { ticker: 'B', weight: 50 }],
+      id: 'p1',
+      name: 'T5',
+      assets: [
+        { ticker: 'A', weight: 50 },
+        { ticker: 'B', weight: 50 },
+      ],
       rebalanceFrequency: 'threshold',
       rebalanceThreshold: 5,
     };
     const t50: Portfolio = {
-      id: 'p2', name: 'T50',
-      assets: [{ ticker: 'A', weight: 50 }, { ticker: 'B', weight: 50 }],
+      id: 'p2',
+      name: 'T50',
+      assets: [
+        { ticker: 'A', weight: 50 },
+        { ticker: 'B', weight: 50 },
+      ],
       rebalanceFrequency: 'threshold',
       rebalanceThreshold: 50,
     };
@@ -486,13 +594,14 @@ describe('Portfolio引擎 - 偏离调仓实际场景', () => {
 // ===== 基准对比 =====
 describe('Portfolio引擎 - 基准', () => {
   it('基准曲线正确生成', () => {
-    const stockReturn = Math.pow(1.10, 1 / 252) - 1;
+    const stockReturn = Math.pow(1.1, 1 / 252) - 1;
     const priceData: PriceData = {
       STOCK: makeLinearPriceData('STOCK', '2020-01-02', '2020-12-31', 100, stockReturn),
       BENCH: makeLinearPriceData('BENCH', '2020-01-02', '2020-12-31', 100, stockReturn * 0.8),
     };
     const portfolio: Portfolio = {
-      id: 'p1', name: 'Test',
+      id: 'p1',
+      name: 'Test',
       assets: [{ ticker: 'STOCK', weight: 100 }],
       rebalanceFrequency: 'none',
     };
@@ -500,5 +609,123 @@ describe('Portfolio引擎 - 基准', () => {
     const result = runPortfolioBacktest([portfolio], priceData, params);
     expect(result.benchmarkGrowth).toBeDefined();
     expect(result.benchmarkGrowth!.length).toBeGreaterThan(0);
+    // 基准首日应等于 startingValue
+    expect(result.benchmarkGrowth![0].value).toBeCloseTo(10000, 0);
+    // 基准年化收益为正
+    expect(result.benchmarkGrowth!.at(-1)!.value).toBeGreaterThan(10000);
+  });
+});
+
+// ===== 边界条件：空数组与非法输入 =====
+describe('Portfolio引擎 - 边界条件', () => {
+  it('空 portfolios 数组返回空结果', () => {
+    const priceData: PriceData = {
+      A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
+    };
+    const result = runPortfolioBacktest([], priceData, makeParams());
+    expect(result.portfolios).toEqual([]);
+    expect(result.correlations).toEqual([]);
+  });
+
+  it('空 assets 数组返回空 growthCurve 和零统计', () => {
+    const priceData: PriceData = {
+      A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
+    };
+    const portfolio: Portfolio = {
+      id: 'p1',
+      name: 'Empty',
+      assets: [],
+      rebalanceFrequency: 'none',
+    };
+    const result = runPortfolioBacktest([portfolio], priceData, makeParams());
+    expect(result.portfolios[0].growthCurve).toEqual([]);
+    expect(result.portfolios[0].drawdownCurve).toEqual([]);
+    expect(result.portfolios[0].annualReturns).toEqual([]);
+    expect(result.portfolios[0].statistics.cagr).toBe(0);
+    expect(result.portfolios[0].statistics.maxDrawdown).toBe(0);
+    expect(result.portfolios[0].statistics.stdev).toBe(0);
+  });
+
+  it('NaN 权重：组合价值变为 NaN 但不抛出', () => {
+    const priceData: PriceData = {
+      A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
+    };
+    const portfolio: Portfolio = {
+      id: 'p1',
+      name: 'NaN',
+      assets: [{ ticker: 'A', weight: NaN }],
+      rebalanceFrequency: 'none',
+    };
+    // 不应抛出，但持仓为 NaN
+    const result = runPortfolioBacktest([portfolio], priceData, makeParams());
+    const gc = result.portfolios[0].growthCurve;
+    expect(gc.length).toBeGreaterThan(0);
+    // NaN 权重导致初始持仓 = 10000 * NaN = NaN
+    expect(Number.isNaN(gc[0].value)).toBe(true);
+  });
+
+  it('Infinity 权重：组合价值变为 Infinity 但不抛出', () => {
+    const priceData: PriceData = {
+      A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0),
+    };
+    const portfolio: Portfolio = {
+      id: 'p1',
+      name: 'Inf',
+      assets: [{ ticker: 'A', weight: Infinity }],
+      rebalanceFrequency: 'none',
+    };
+    const result = runPortfolioBacktest([portfolio], priceData, makeParams());
+    const gc = result.portfolios[0].growthCurve;
+    expect(gc.length).toBeGreaterThan(0);
+    // Infinity 权重导致初始持仓 = 10000 * Infinity = Infinity
+    expect(gc[0].value).toBe(Infinity);
+  });
+
+  it('同一组合内重复 ticker：两个持仓独立计算', () => {
+    const priceData: PriceData = {
+      A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
+    };
+    const portfolio: Portfolio = {
+      id: 'p1',
+      name: 'Dup',
+      assets: [
+        { ticker: 'A', weight: 50 },
+        { ticker: 'A', weight: 50 },
+      ],
+      rebalanceFrequency: 'none',
+    };
+    const result = runPortfolioBacktest([portfolio], priceData, makeParams());
+    const finalValue = result.portfolios[0].growthCurve.at(-1)!.value;
+    // 两个 A 各 50%，等同于 A 100%，终值应与单资产100%相同
+    const singlePortfolio: Portfolio = {
+      id: 'p2',
+      name: 'Single',
+      assets: [{ ticker: 'A', weight: 100 }],
+      rebalanceFrequency: 'none',
+    };
+    const singleResult = runPortfolioBacktest([singlePortfolio], priceData, makeParams());
+    const singleFinal = singleResult.portfolios[0].growthCurve.at(-1)!.value;
+    expect(finalValue).toBeCloseTo(singleFinal, 0);
+  });
+
+  it('startDate > endDate：返回空 growthCurve', () => {
+    const priceData: PriceData = {
+      A: makeLinearPriceData('A', '2020-01-02', '2020-12-31', 100, 0.001),
+    };
+    const portfolio: Portfolio = {
+      id: 'p1',
+      name: 'Test',
+      assets: [{ ticker: 'A', weight: 100 }],
+      rebalanceFrequency: 'none',
+    };
+    const result = runPortfolioBacktest(
+      [portfolio],
+      priceData,
+      makeParams({
+        startDate: '2021-01-01',
+        endDate: '2020-01-01',
+      }),
+    );
+    expect(result.portfolios[0].growthCurve).toEqual([]);
   });
 });

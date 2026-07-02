@@ -14,6 +14,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type pg from 'pg';
+import { mockLogger } from '../../helpers/mockFactories.js';
 
 // ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====
 const dbMocks = vi.hoisted(() => ({
@@ -26,6 +27,12 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
+  child: vi.fn(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  })),
 }));
 
 const fsMocks = vi.hoisted(() => ({
@@ -37,14 +44,7 @@ const fsMocks = vi.hoisted(() => ({
 // ===== Mock 模块 =====
 
 // Mock logger
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: {
-    info: loggerMocks.info,
-    warn: loggerMocks.warn,
-    error: loggerMocks.error,
-    debug: loggerMocks.debug,
-  },
-}));
+vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
 
 // Mock db/index.js 的 getPool / getClient
 vi.mock('../../../api/db/index.js', () => ({
@@ -236,7 +236,8 @@ describe('importIndices', () => {
 
     // 验证 INSERT tickers 使用 meta 中的 name 与 exchange
     const tickersInsertCall = mockClient.query.mock.calls.find(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO tickers'),
+      (c: unknown[]) =>
+        typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO tickers'),
     ) as [string, unknown[]];
     expect(tickersInsertCall[1][0]).toBe('SPX'); // ticker
     expect(tickersInsertCall[1][1]).toBe('S&P 500'); // category = name
@@ -269,7 +270,8 @@ describe('importCpiData', () => {
 
     // 验证 CPI INSERT 调用
     const cpiInsertCalls = mockClient.query.mock.calls.filter(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO cpi_data'),
+      (c: unknown[]) =>
+        typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO cpi_data'),
     ) as Array<[string, unknown[]]>;
 
     expect(cpiInsertCalls).toHaveLength(2);
@@ -291,7 +293,8 @@ describe('importCpiData', () => {
     await importCpiData();
 
     const cpiInsertCall = mockClient.query.mock.calls.find(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO cpi_data'),
+      (c: unknown[]) =>
+        typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO cpi_data'),
     ) as [string, unknown[]];
     expect(cpiInsertCall[0]).toContain('ON CONFLICT (country, date) DO UPDATE');
     expect(cpiInsertCall[0]).toContain('EXCLUDED.value');
@@ -344,15 +347,20 @@ describe('importExchangeRates', () => {
     await importExchangeRates();
 
     const fxInsertCalls = mockClient.query.mock.calls.filter(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO exchange_rates'),
+      (c: unknown[]) =>
+        typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO exchange_rates'),
     ) as Array<[string, unknown[]]>;
 
-    expect(fxInsertCalls).toHaveLength(2);
-    // 第一条：base=USD, target=CNY（文件名 usd_cny.json → 大写）
+    expect(fxInsertCalls).toHaveLength(1);
+    // 批量 INSERT：单行 SQL 含两行 VALUES
     expect(fxInsertCalls[0][1][0]).toBe('USD');
     expect(fxInsertCalls[0][1][1]).toBe('CNY');
     expect(fxInsertCalls[0][1][2]).toBe('2024-01-01');
     expect(fxInsertCalls[0][1][3]).toBe(7.12);
+    expect(fxInsertCalls[0][1][4]).toBe('USD');
+    expect(fxInsertCalls[0][1][5]).toBe('CNY');
+    expect(fxInsertCalls[0][1][6]).toBe('2024-01-02');
+    expect(fxInsertCalls[0][1][7]).toBe(7.15);
   });
 
   it('SQL 应包含 ON CONFLICT (base_currency, target_currency, date) DO UPDATE', async () => {
@@ -364,9 +372,12 @@ describe('importExchangeRates', () => {
     await importExchangeRates();
 
     const fxInsertCall = mockClient.query.mock.calls.find(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO exchange_rates'),
+      (c: unknown[]) =>
+        typeof c[0] === 'string' && (c[0] as string).includes('INSERT INTO exchange_rates'),
     ) as [string, unknown[]];
-    expect(fxInsertCall[0]).toContain('ON CONFLICT (base_currency, target_currency, date) DO UPDATE');
+    expect(fxInsertCall[0]).toContain(
+      'ON CONFLICT (base_currency, target_currency, date) DO UPDATE',
+    );
     expect(fxInsertCall[0]).toContain('EXCLUDED.rate');
   });
 
@@ -434,9 +445,7 @@ describe('importAllMarketData', () => {
     await importAllMarketData();
 
     // 开始日志
-    expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.stringContaining('开始导入全部市场数据'),
-    );
+    expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('开始导入全部市场数据'));
     // 完成日志（包含三个子结果）
     expect(loggerMocks.info).toHaveBeenCalledWith(
       expect.objectContaining({

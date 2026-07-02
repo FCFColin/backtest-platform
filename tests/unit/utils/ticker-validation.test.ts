@@ -10,15 +10,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../api/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn() })),
-  },
-}));
+vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import {
   isValidTicker,
@@ -114,7 +108,7 @@ describe('isValidTicker', () => {
       ["' OR '1'='1", '万能密码'],
       ["admin'--", '注释掉密码校验'],
       ['"; DELETE FROM prices; --', '双引号删除'],
-      ["1; SELECT * FROM users", '堆叠查询'],
+      ['1; SELECT * FROM users', '堆叠查询'],
       ["' UNION SELECT * FROM users --", '联合查询'],
     ])('应拒绝 SQL 注入向量 %s', (ticker) => {
       expect(isValidTicker(ticker)).toBe(false);
@@ -223,9 +217,7 @@ describe('validateTickerFormat 批量校验', () => {
     const { logger } = await import('../../../api/utils/logger.js');
     validateTickerFormat(['aapl', '../evil']);
     expect(logger.warn).toHaveBeenCalledTimes(1);
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('aapl'),
-    );
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('aapl'));
   });
 
   it('全部合法时不应记录警告日志', async () => {
@@ -248,3 +240,4 @@ describe('validateTickerFormat 批量校验', () => {
     expect(result.invalid).toHaveLength(2);
   });
 });
+

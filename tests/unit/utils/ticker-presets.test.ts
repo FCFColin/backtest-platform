@@ -54,19 +54,19 @@ describe('TickerPresets - 数据完整性', () => {
 // ===== 无重复 ticker =====
 describe('TickerPresets - 无重复', () => {
   it('SIM_TICKERS 内无重复 ticker', () => {
-    const tickers = SIM_TICKERS.map(p => p.ticker);
+    const tickers = SIM_TICKERS.map((p) => p.ticker);
     const unique = new Set(tickers);
     expect(unique.size).toBe(tickers.length);
   });
 
   it('ETF_PRESETS 内无重复 ticker', () => {
-    const tickers = ETF_PRESETS.map(p => p.ticker);
+    const tickers = ETF_PRESETS.map((p) => p.ticker);
     const unique = new Set(tickers);
     expect(unique.size).toBe(tickers.length);
   });
 
   it('ALL_TICKER_PRESETS 内无重复 ticker', () => {
-    const tickers = ALL_TICKER_PRESETS.map(p => p.ticker);
+    const tickers = ALL_TICKER_PRESETS.map((p) => p.ticker);
     const unique = new Set(tickers);
     expect(unique.size).toBe(tickers.length);
   });
@@ -138,26 +138,26 @@ describe('filterTickers', () => {
   it('按 ticker 前缀匹配（大写输入）', () => {
     const result = filterTickers('SPY');
     expect(result.length).toBeGreaterThan(0);
-    expect(result.some(p => p.ticker === 'SPYSIM')).toBe(true);
-    expect(result.some(p => p.ticker === 'SPY')).toBe(true);
+    expect(result.some((p) => p.ticker === 'SPYSIM')).toBe(true);
+    expect(result.some((p) => p.ticker === 'SPY')).toBe(true);
   });
 
   it('按 ticker 前缀匹配（小写自动转大写）', () => {
     const result = filterTickers('spy');
-    expect(result.some(p => p.ticker === 'SPYSIM')).toBe(true);
-    expect(result.some(p => p.ticker === 'SPY')).toBe(true);
+    expect(result.some((p) => p.ticker === 'SPYSIM')).toBe(true);
+    expect(result.some((p) => p.ticker === 'SPY')).toBe(true);
   });
 
   it('按 name 包含匹配（中文）', () => {
     const result = filterTickers('债券');
     expect(result.length).toBeGreaterThan(0);
-    expect(result.some(p => p.name.includes('债券'))).toBe(true);
+    expect(result.some((p) => p.name.includes('债券'))).toBe(true);
   });
 
   it('按 name 包含匹配（英文）', () => {
     const result = filterTickers('ETF');
     expect(result.length).toBeGreaterThan(0);
-    expect(result.every(p => p.name.includes('ETF'))).toBe(true);
+    expect(result.every((p) => p.name.includes('ETF'))).toBe(true);
   });
 
   it('limit 参数限制返回数量', () => {
@@ -177,7 +177,7 @@ describe('filterTickers', () => {
   it('单字符输入也能匹配', () => {
     const result = filterTickers('V');
     expect(result.length).toBeGreaterThan(0);
-    expect(result.some(p => p.ticker.startsWith('V'))).toBe(true);
+    expect(result.some((p) => p.ticker.startsWith('V'))).toBe(true);
   });
 
   it('limit=0 返回空数组', () => {
@@ -188,7 +188,7 @@ describe('filterTickers', () => {
   it('同时按 ticker 和 name 匹配的结果合并', () => {
     // 'Bond' 匹配 name，'BND' 匹配 ticker
     const result = filterTickers('BND');
-    expect(result.some(p => p.ticker === 'BND')).toBe(true);
-    expect(result.some(p => p.ticker === 'BNDSIM')).toBe(true);
+    expect(result.some((p) => p.ticker === 'BND')).toBe(true);
+    expect(result.some((p) => p.ticker === 'BNDSIM')).toBe(true);
   });
 });

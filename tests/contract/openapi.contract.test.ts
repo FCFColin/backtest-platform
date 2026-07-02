@@ -1,9 +1,5 @@
 /**
- * OpenAPI 契约测试
- *
- * 企业理由：API 契约（OpenAPI spec）是前后端协作的基础，
- * 契约测试确保 API 实现与文档一致，防止文档漂移。
- * 权衡：维护契约测试成本 vs 避免前后端对接失败。
+ * OpenAPI 契约测试（T-E1 升级）
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
@@ -12,46 +8,61 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const openapiPath = path.resolve(__dirname, '../../docs/openapi.yaml');
+
+function extractPaths(yaml: string): Set<string> {
+  const paths = new Set<string>();
+  const re = /^ {2}(\/[^\s:]+):/gm;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(yaml)) !== null) {
+    paths.add(m[1]);
+  }
+  return paths;
+}
 
 describe('OpenAPI 契约测试', () => {
-  const openapiPath = path.resolve(__dirname, '../../docs/openapi.yaml');
+  const content = fs.readFileSync(openapiPath, 'utf-8');
+  const paths = extractPaths(content);
 
-  it('openapi.yaml 文件应存在', () => {
+  it('openapi.yaml 应存在且定义 ≥20 个 path', () => {
     expect(fs.existsSync(openapiPath)).toBe(true);
+    expect(paths.size).toBeGreaterThanOrEqual(20);
   });
 
-  it('应包含 /auth/login 端点', () => {
-    const content = fs.readFileSync(openapiPath, 'utf-8');
-    expect(content).toContain('/auth/login');
+  const requiredPaths = [
+    '/auth/login',
+    '/auth/refresh',
+    '/auth/logout',
+    '/auth/me',
+    '/backtest/portfolio',
+    '/backtest/monte-carlo',
+    '/backtest/search',
+    '/data/history',
+    '/data/search',
+    '/health',
+    '/ready',
+    '/metrics',
+    '/tactical/backtest',
+    '/signal/dual',
+    '/pca/analyze',
+    '/letf/analyze',
+    '/goal-optimizer/optimize',
+    '/backtest-optimizer/optimize',
+    '/admin/stats',
+    '/data/manage/status',
+  ];
+
+  it.each(requiredPaths)('应定义 path %s', (p) => {
+    expect(paths.has(p) || content.includes(`  ${p}:`)).toBe(true);
   });
 
-  it('应包含 /auth/refresh 端点', () => {
-    const content = fs.readFileSync(openapiPath, 'utf-8');
-    expect(content).toContain('/auth/refresh');
-  });
-
-  it('应包含 /auth/logout 端点', () => {
-    const content = fs.readFileSync(openapiPath, 'utf-8');
-    expect(content).toContain('/auth/logout');
-  });
-
-  it('应包含 /auth/me 端点', () => {
-    const content = fs.readFileSync(openapiPath, 'utf-8');
-    expect(content).toContain('/auth/me');
-  });
-
-  it('应包含 BearerAuth 安全方案', () => {
-    const content = fs.readFileSync(openapiPath, 'utf-8');
+  it('应包含 BearerAuth 与 ProblemDetail', () => {
     expect(content).toContain('BearerAuth');
-  });
-
-  it('应包含 IdempotencyKey 参数定义', () => {
-    const content = fs.readFileSync(openapiPath, 'utf-8');
+    expect(content).toContain('ProblemDetail');
     expect(content).toContain('IdempotencyKey');
   });
 
-  it('应包含 ProblemDetail schema', () => {
-    const content = fs.readFileSync(openapiPath, 'utf-8');
-    expect(content).toContain('ProblemDetail');
+  it('认证描述应提及 JWT', () => {
+    expect(content).toMatch(/JWT|Bearer|REQUIRE_API_KEY/);
   });
 });

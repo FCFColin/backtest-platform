@@ -6,26 +6,18 @@
  * - 有效输入通过校验并替换req.body为解析后的数据
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import { validate } from '../../../api/middleware/validate.js';
-import type { Request, Response, NextFunction } from 'express';
+import {
+  createMockRequest,
+  createMockResponse,
+  createMockNext as createMockNextFn,
+} from '../../helpers/expressMocks.js';
 
-function createMockReq(body: unknown): Request {
-  return { body } as Request;
-}
-
-function createMockRes(): Response {
-  const res = {
-    status: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-  } as unknown as Response;
-  return res;
-}
-
-function createMockNext(): NextFunction {
-  return vi.fn() as NextFunction;
-}
+const createMockReq = (body: unknown) => createMockRequest({ body });
+const createMockRes = createMockResponse;
+const createMockNext = createMockNextFn;
 
 describe('validate middleware', () => {
   const testSchema = z.object({
@@ -111,11 +103,13 @@ describe('安全攻击用例', () => {
     // 关键安全断言：Object.prototype 未被污染
     expect({}.admin).toBeUndefined();
     // 解析后的 body 不应包含 admin 属性
-    expect((req.body as any).admin).toBeUndefined();
+    expect((req.body as Record<string, unknown>).admin).toBeUndefined();
   });
 
   it('构造函数污染：body 含 constructor.prototype 不应修改 Object.prototype', () => {
-    const maliciousBody = JSON.parse('{"constructor": {"prototype": {"admin": true}}, "name": "test", "age": 25}');
+    const maliciousBody = JSON.parse(
+      '{"constructor": {"prototype": {"admin": true}}, "name": "test", "age": 25}',
+    );
 
     expect({}.admin).toBeUndefined();
 
@@ -128,7 +122,7 @@ describe('安全攻击用例', () => {
     expect(next).toHaveBeenCalled();
     // 关键安全断言：Object.prototype 未被污染
     expect({}.admin).toBeUndefined();
-    expect((req.body as any).admin).toBeUndefined();
+    expect((req.body as Record<string, unknown>).admin).toBeUndefined();
   });
 
   it('超大 body（1MB+）应被拒绝或安全处理', () => {
@@ -148,7 +142,7 @@ describe('安全攻击用例', () => {
 
   it('深度嵌套 body（1000 层）应被拒绝或安全处理', () => {
     // 构造 1000 层嵌套对象
-    let nested: any = { name: 'deep', age: 1 };
+    let nested: Record<string, unknown> = { name: 'deep', age: 1 };
     for (let i = 0; i < 1000; i++) {
       nested = { nested };
     }

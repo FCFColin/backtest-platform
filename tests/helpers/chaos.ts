@@ -24,6 +24,7 @@ export const CONTAINERS = {
   dataFetcher: 'backtest-data-fetcher',
   api: 'backtest-api',
   engineGo: 'backtest-engine-go',
+  redis: 'backtest-redis',
 } as const;
 
 /**
@@ -79,9 +80,7 @@ export async function isDockerAvailable(): Promise<boolean> {
  */
 export async function isContainerRunning(containerName: string): Promise<boolean> {
   try {
-    const { stdout } = await execAsync(
-      `docker inspect -f '{{.State.Running}}' ${containerName}`,
-    );
+    const { stdout } = await execAsync(`docker inspect -f '{{.State.Running}}' ${containerName}`);
     return stdout.trim() === 'true';
   } catch {
     return false;
@@ -104,9 +103,7 @@ export async function getCircuitBreakerState(
 ): Promise<number> {
   const response = await fetch(metricsUrl);
   const text = await response.text();
-  const regex = new RegExp(
-    `circuit_breaker_state\\{[^}]*name="${breakerName}"[^}]*\\}\\s+(\\d+)`,
-  );
+  const regex = new RegExp(`circuit_breaker_state\\{[^}]*name="${breakerName}"[^}]*\\}\\s+(\\d+)`);
   const match = text.match(regex);
   return match ? parseInt(match[1], 10) : -1; // -1 = not found, 0 = closed, 1 = open, 2 = halfOpen
 }

@@ -36,7 +36,11 @@ import {
   runGridSearch,
 } from '../../../api/engine/tacticalGrid.js';
 import type { Statistics } from '../../../shared/types/statistics.js';
-import type { GridCombinationMetrics, ObjectiveType, TacticalGridRequest } from '../../../api/engine/tacticalGrid.js';
+import type {
+  GridCombinationMetrics,
+  ObjectiveType,
+  TacticalGridRequest,
+} from '../../../api/engine/tacticalGrid.js';
 
 // ===== 辅助函数 =====
 
@@ -250,7 +254,11 @@ describe('generateSignals - 信号生成', () => {
   it('sma 指标：价格突破均线上沿应产生入场信号', () => {
     const prices = makeUptrendPrices(30);
     const dates = makeDates(30);
-    const signals = generateSignals('sma', prices, dates, 5, 0, 'daily');
+    const signals = generateSignals('sma', prices, dates, {
+      param1: 5,
+      param2: 0,
+      rebalanceFrequency: 'daily',
+    });
     // 上涨趋势中应最终持仓
     expect(signals.some((s) => s === true)).toBe(true);
     expect(signals[signals.length - 1]).toBe(true);
@@ -259,7 +267,11 @@ describe('generateSignals - 信号生成', () => {
   it('ema 指标：价格突破均线上沿应产生入场信号', () => {
     const prices = makeUptrendPrices(30);
     const dates = makeDates(30);
-    const signals = generateSignals('ema', prices, dates, 5, 0, 'daily');
+    const signals = generateSignals('ema', prices, dates, {
+      param1: 5,
+      param2: 0,
+      rebalanceFrequency: 'daily',
+    });
     expect(signals.some((s) => s === true)).toBe(true);
   });
 
@@ -267,26 +279,42 @@ describe('generateSignals - 信号生成', () => {
     const prices = makeDowntrendPrices(30);
     const dates = makeDates(30);
     // 超卖阈值 30，持续下跌 RSI < 30
-    const signals = generateSignals('rsi', prices, dates, 14, 30, 'daily');
+    const signals = generateSignals('rsi', prices, dates, {
+      param1: 14,
+      param2: 30,
+      rebalanceFrequency: 'daily',
+    });
     expect(signals.some((s) => s === true)).toBe(true);
   });
 
   it('信号长度应与 prices 长度一致', () => {
     const prices = makeUptrendPrices(20);
     const dates = makeDates(20);
-    const signals = generateSignals('sma', prices, dates, 5, 1, 'daily');
+    const signals = generateSignals('sma', prices, dates, {
+      param1: 5,
+      param2: 1,
+      rebalanceFrequency: 'daily',
+    });
     expect(signals).toHaveLength(20);
   });
 
   it('空数组应返回空信号', () => {
-    const signals = generateSignals('sma', [], [], 5, 1, 'daily');
+    const signals = generateSignals('sma', [], [], {
+      param1: 5,
+      param2: 1,
+      rebalanceFrequency: 'daily',
+    });
     expect(signals).toEqual([]);
   });
 
   it('none 再平衡频率应仅在首日允许切换', () => {
     const prices = makeUptrendPrices(20);
     const dates = makeDates(20);
-    const signals = generateSignals('sma', prices, dates, 5, 0, 'none');
+    const signals = generateSignals('sma', prices, dates, {
+      param1: 5,
+      param2: 0,
+      rebalanceFrequency: 'none',
+    });
     // none 模式下 prevDate=null 时首日可再平衡，之后不再触发
     expect(signals).toHaveLength(20);
   });
@@ -466,8 +494,8 @@ describe('runGridSearch - 网格搜索主流程', () => {
     mocks.runPortfolioBacktest
       .mockReturnValueOnce(makeBtResult(0.05, -0.1, 0.5))
       .mockReturnValueOnce(makeBtResult(0.15, -0.3, 1.5))
-      .mockReturnValueOnce(makeBtResult(0.10, -0.2, 1.0))
-      .mockReturnValueOnce(makeBtResult(0.20, -0.4, 2.0));
+      .mockReturnValueOnce(makeBtResult(0.1, -0.2, 1.0))
+      .mockReturnValueOnce(makeBtResult(0.2, -0.4, 2.0));
 
     const dates = makeDates(20);
     const prices = makeUptrendPrices(20);

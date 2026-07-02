@@ -13,11 +13,17 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 
-import { signFile, verifyFile } from '../../../api/utils/integrity.js';
+import {
+  signFile,
+  verifyFile,
+  signFileSync,
+  verifyFileSync,
+} from '../../../api/utils/integrity.js';
 
 describe('integrity - HMAC 签名校验', () => {
   let tmpDir: string;
@@ -80,10 +86,7 @@ describe('integrity - HMAC 签名校验', () => {
       await signFile(filePath);
 
       const sig = await fs.readFile(filePath + '.sig', 'utf-8');
-      const expected = crypto
-        .createHmac('sha256', testKey)
-        .update(content)
-        .digest('hex');
+      const expected = crypto.createHmac('sha256', testKey).update(content).digest('hex');
       expect(sig).toBe(expected);
     });
 
@@ -258,6 +261,83 @@ describe('integrity - HMAC 签名校验', () => {
 
       const ok = await verifyFile(filePath);
       expect(ok).toBe(true);
+    });
+  });
+
+  describe('verifyFile 失败分支', () => {
+    it('签名长度不匹配应返回 false（timingSafeEqual 异常）', async () => {
+      const filePath = path.join(tmpDir, 'data.json');
+      await fs.writeFile(filePath, 'content');
+      await signFile(filePath);
+      await fs.writeFile(filePath + '.sig', 'abc');
+
+      const ok = await verifyFile(filePath);
+      expect(ok).toBe(false);
+    });
+
+    it('签名含非 hex 字符应返回 false', async () => {
+      const filePath = path.join(tmpDir, 'data.json');
+      await fs.writeFile(filePath, 'content');
+      await signFile(filePath);
+      await fs.writeFile(filePath + '.sig', 'g'.repeat(64));
+
+      const ok = await verifyFile(filePath);
+      expect(ok).toBe(false);
+    });
+
+    it('仅差一字节的签名应返回 false', async () => {
+      const filePath = path.join(tmpDir, 'data.json');
+      await fs.writeFile(filePath, 'timing-attack-test');
+      await signFile(filePath);
+      const sig = await fs.readFile(filePath + '.sig', 'utf-8');
+      const tampered = sig.slice(0, -1) + (sig.endsWith('a') ? 'b' : 'a');
+      await fs.writeFile(filePath + '.sig', tampered);
+
+      const ok = await verifyFile(filePath);
+      expect(ok).toBe(false);
+    });
+  });
+
+  describe('signFileSync / verifyFileSync 同步路径', () => {
+    it('同步签名与校验应一致', () => {
+      const filePath = path.join(tmpDir, 'sync.json');
+      const content = '{"sync":true}';
+      fsSync.writeFileSync(filePath, content);
+      signFileSync(filePath);
+
+      const sig = fsSync.readFileSync(filePath + '.sig', 'utf-8');
+      expect(sig).toMatch(/^[0-9a-f]{64}$/);
+      expect(verifyFileSync(filePath)).toBe(true);
+    });
+
+    it('同步校验篡改文件应返回 false', () => {
+      const filePath = path.join(tmpDir, 'sync-tamper.json');
+      fsSync.writeFileSync(filePath, 'original');
+      signFileSync(filePath);
+      fsSync.writeFileSync(filePath, 'tampered');
+
+      expect(verifyFileSync(filePath)).toBe(false);
+    });
+
+    it('未配置密钥时 verifyFileSync 应返回 true', () => {
+      delete process.env.AUDIT_HMAC_KEY;
+      const filePath = path.join(tmpDir, 'no-key.json');
+      fsSync.writeFileSync(filePath, 'data');
+      expect(verifyFileSync(filePath)).toBe(true);
+    });
+
+    it('缺失 .sig 时 verifyFileSync 应返回 false', () => {
+      const filePath = path.join(tmpDir, 'no-sig.json');
+      fsSync.writeFileSync(filePath, 'data');
+      expect(verifyFileSync(filePath)).toBe(false);
+    });
+
+    it('未配置密钥时 signFileSync 应静默跳过', () => {
+      delete process.env.AUDIT_HMAC_KEY;
+      const filePath = path.join(tmpDir, 'skip-sign.json');
+      fsSync.writeFileSync(filePath, 'data');
+      signFileSync(filePath);
+      expect(() => fsSync.readFileSync(filePath + '.sig')).toThrow();
     });
   });
 });
