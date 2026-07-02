@@ -274,8 +274,15 @@ router.put('/regenerate-meta', requireDataManage, (_req: Request, res: Response)
 });
 
 // Post endpoints — 兼容旧版客户端，内部转发到相同逻辑
+function setDeprecationHeaders(res: Response, method: string, path: string): void {
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', SUNSET_DATE);
+  res.setHeader('Link', `<${path}>; rel="successor-version"`);
+}
+
 router.post('/update/full', requireDataManage, async (req: Request, res: Response): Promise<void> => {
   logger.warn(deprecationWarning('PUT /api/v1/data/manage/update/full', req.path));
+  setDeprecationHeaders(res, 'PUT', '/api/v1/data/manage/update/full');
   try {
     const result = await startUpdate('full');
     res.json({ success: result.success, data: result });
@@ -286,6 +293,7 @@ router.post('/update/full', requireDataManage, async (req: Request, res: Respons
 });
 router.post('/update/inc', requireDataManage, async (req: Request, res: Response): Promise<void> => {
   logger.warn(deprecationWarning('PATCH /api/v1/data/manage/update/inc', req.path));
+  setDeprecationHeaders(res, 'PATCH', '/api/v1/data/manage/update/inc');
   try {
     const result = await startUpdate('incremental');
     res.json({ success: result.success, data: result });
@@ -296,6 +304,7 @@ router.post('/update/inc', requireDataManage, async (req: Request, res: Response
 });
 router.post('/update/refetch', requireDataManage, async (req: Request, res: Response): Promise<void> => {
   logger.warn(deprecationWarning('PUT /api/v1/data/manage/update/refetch', req.path));
+  setDeprecationHeaders(res, 'PUT', '/api/v1/data/manage/update/refetch');
   try {
     const result = await startUpdate('full');
     res.json({ success: result.success, data: result });
@@ -306,6 +315,7 @@ router.post('/update/refetch', requireDataManage, async (req: Request, res: Resp
 });
 router.post('/resume', requireDataManage, async (req: Request, res: Response): Promise<void> => {
   logger.warn(deprecationWarning('PATCH /api/v1/data/manage/resume', req.path));
+  setDeprecationHeaders(res, 'PATCH', '/api/v1/data/manage/resume');
   try {
     const result = await startUpdate('incremental');
     res.json({ success: result.success, data: result });
@@ -316,6 +326,7 @@ router.post('/resume', requireDataManage, async (req: Request, res: Response): P
 });
 router.post('/universe', requireDataManage, async (req: Request, res: Response): Promise<void> => {
   logger.warn(deprecationWarning('PUT /api/v1/data/manage/universe', req.path));
+  setDeprecationHeaders(res, 'PUT', '/api/v1/data/manage/universe');
   try {
     const stats = await scanMarketStatsFromDb();
     res.json({ success: true, data: { message: '标的列表已实时可用', total: stats?.total_cached ?? 0 } });
@@ -324,8 +335,9 @@ router.post('/universe', requireDataManage, async (req: Request, res: Response):
     res.status(500).json({ success: false, error: { type: 'https://backtest.platform/errors/universe-error', title: 'Universe Error', status: 500, code: 'UNIVERSE_ERROR', detail: '获取标的列表失败' } });
   }
 });
-router.post('/regenerate-meta', requireDataManage, (_req: Request, res: Response): void => {
-  logger.warn(deprecationWarning('PUT /api/v1/data/manage/regenerate-meta', _req.path));
+router.post('/regenerate-meta', requireDataManage, (req: Request, res: Response): void => {
+  logger.warn(deprecationWarning('PUT /api/v1/data/manage/regenerate-meta', req.path));
+  setDeprecationHeaders(res, 'PUT', '/api/v1/data/manage/regenerate-meta');
   res.json({ success: true, data: { message: '元信息由 PostgreSQL 实时计算，无需重新生成。' } });
 });
 

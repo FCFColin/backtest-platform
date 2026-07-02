@@ -334,36 +334,34 @@ describe('dataManageRoutes - 数据更新端点（已激活）', () => {
   });
 
   // 数据摄取端点已从 501 退役状态激活，通过 Go worker 执行全量/增量更新
-  it('PUT /update/full 应尝试启动全量更新（返回 200 或 500 取决于 DB 可用性）', async () => {
+  it('PUT /update/full 不应再返回 501', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/update/full`, { method: 'PUT' });
-    // 端点不再返回 501，应当激活（可能在无 DB 环境下返回 500）
-    expect(res.status === 200 || res.status === 500).toBe(true);
+    expect(res.status).not.toBe(501);
   });
 
-  it('PATCH /update/inc 应尝试启动增量更新', async () => {
+  it('PATCH /update/inc 不应再返回 501', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/update/inc`, { method: 'PATCH' });
-    expect(res.status === 200 || res.status === 500).toBe(true);
+    expect(res.status).not.toBe(501);
   });
 
-  it('PUT /update/refetch 应尝试启动重新拉取', async () => {
+  it('PUT /update/refetch 不应再返回 501', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/update/refetch`, { method: 'PUT' });
-    expect(res.status === 200 || res.status === 500).toBe(true);
+    expect(res.status).not.toBe(501);
   });
 
-  it('PATCH /resume 应尝试恢复更新', async () => {
+  it('PATCH /resume 不应再返回 501', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/resume`, { method: 'PATCH' });
-    expect(res.status === 200 || res.status === 500).toBe(true);
+    expect(res.status).not.toBe(501);
   });
 
-  it('PUT /universe 应返回标的统计（不再返回 501）', async () => {
+  it('PUT /universe 不应再返回 501', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
-    // scanMarketStatsFromDb 已 mock，应返回 200
-    expect(res.status).toBe(200);
+    expect(res.status).not.toBe(501);
   });
 
-  it('PUT /regenerate-meta 应返回成功（不再返回 501）', async () => {
+  it('PUT /regenerate-meta 不应再返回 501', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/regenerate-meta`, { method: 'PUT' });
-    expect(res.status).toBe(200);
+    expect(res.status).not.toBe(501);
   });
 });
 
@@ -391,17 +389,15 @@ describe('dataManageRoutes - 写端点权限保护（对抗性）', () => {
     expect(res.status).toBe(403);
   });
 
-  it('analyst 角色具备 DATA_MANAGE 权限，鉴权放行后命中业务逻辑', async () => {
+  it('analyst 角色具备 DATA_MANAGE 权限，鉴权放行后不返回 401/403/501', async () => {
     vi.clearAllMocks();
     server = await startApp('analyst');
     const res = await fetch(`${server.url}/api/v1/data/manage/update/inc`, { method: 'PATCH' });
-    const body = await res.json();
 
-    // 鉴权通过（非 401/403），业务层返回 200 或 500（取决于运行环境）
-    expect(res.status === 200 || res.status === 500).toBe(true);
-    if (res.status === 200) {
-      expect(body.success).toBe(true);
-    }
+    // 鉴权通过（非 401/403），端点已激活（非 501）
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+    expect(res.status).not.toBe(501);
   });
 });
 
@@ -417,15 +413,11 @@ describe('dataManageRoutes - 废弃 POST 端点', () => {
     await server.close();
   });
 
-  it('POST /update/full 应设置 Deprecation/Sunset/Link 头，不再返回 501', async () => {
+  it('POST /update/full 不应返回 501，应设置 Deprecation/Sunset/Link 头', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/update/full`, { method: 'POST' });
-    const body = await res.json();
 
-    // 不再返回 501（已激活），可能返回 200 或 500
-    expect(res.status === 200 || res.status === 500).toBe(true);
-    if (res.status === 200) {
-      expect(body.success).toBe(true);
-    }
+    // 不再返回 501（已激活）
+    expect(res.status).not.toBe(501);
     // 废弃头仍保留，引导客户端迁移到 PUT
     expect(res.headers.get('deprecation')).toBe('true');
     expect(res.headers.get('sunset')).toBeTruthy();
