@@ -123,7 +123,7 @@ describe('authRoutes - 认证路由', () => {
       expect(body.data.role).toBe('admin');
     });
 
-    it('缺失 apiKey 应返回 401', async () => {
+    it('缺失 apiKey 应返回 400（zod 校验失败）', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,8 +131,8 @@ describe('authRoutes - 认证路由', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(401);
-      expect(body.code).toBe('MISSING_API_KEY');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('错误 API Key 应返回 401', async () => {
@@ -165,7 +165,7 @@ describe('authRoutes - 认证路由', () => {
       expect(res.status).toBe(401);
     });
 
-    it('开发环境未配置 ADMIN_API_KEY 应跳过鉴权', async () => {
+    it('开发环境未配置 ADMIN_API_KEY 应返回 400（zod 校验失败）', async () => {
       mocks.config.NODE_ENV = 'development';
       mocks.config.ADMIN_API_KEY = '';
 
@@ -176,9 +176,8 @@ describe('authRoutes - 认证路由', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(200);
-      expect(body.success).toBe(true);
-      expect(body.data.userId).toBe('dev-user');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -234,7 +233,7 @@ describe('authRoutes - 认证路由', () => {
       expect(body.code).toBe('INVALID_CREDENTIALS');
     });
 
-    it('缺失用户名应返回 400', async () => {
+    it('缺失用户名应返回 400（zod 校验失败）', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/login/password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,11 +241,11 @@ describe('authRoutes - 认证路由', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.code).toBe('MISSING_CREDENTIALS');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('缺失密码应返回 400', async () => {
+    it('缺失密码应返回 400（zod 校验失败）', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/login/password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -254,8 +253,8 @@ describe('authRoutes - 认证路由', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.code).toBe('MISSING_CREDENTIALS');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('verifyUser 应使用 argon2id 哈希验证（通过 mock 验证调用）', async () => {

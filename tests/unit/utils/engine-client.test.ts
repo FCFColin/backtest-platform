@@ -51,9 +51,9 @@ const loggerMocks = vi.hoisted(() => ({
 }));
 
 const metricsMocks = vi.hoisted(() => ({
-  recordRustCall: vi.fn(),
+  recordEngineCall: vi.fn(),
   recordFallbackToNode: vi.fn(),
-  rustEngineCallDuration: { observe: vi.fn() },
+  engineCallDuration: { observe: vi.fn() },
   registerCircuitBreakerMetrics: vi.fn(),
 }));
 
@@ -108,7 +108,7 @@ describe('callEngineStrict（fail-closed）', () => {
 
     expect(result).toEqual(goResult);
     expect(cbMocks.goCB.fire).toHaveBeenCalledWith('/api/engine/backtest', { test: true });
-    expect(metricsMocks.recordRustCall).toHaveBeenCalledWith(true);
+    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith(true);
   });
 
   it('Go 引擎不可用时应 fail-closed 抛出 EngineUnavailableError', async () => {
@@ -122,7 +122,7 @@ describe('callEngineStrict（fail-closed）', () => {
     const error = await catchPromise;
 
     expect(error).toBeInstanceOf(EngineUnavailableError);
-    expect(metricsMocks.recordRustCall).toHaveBeenCalledWith(false, expect.any(String));
+    expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith(false, expect.any(String));
   });
 });
 

@@ -366,8 +366,8 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
 
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.status).toBe(400);
-    expect(json.detail).toContain('validation failed');
+    expect(json.error.status).toBe(400);
+    expect(json.error.detail).toContain('validation failed');
     // 不应调用 Application Service
     expect(appServiceMocks.runBacktest).not.toHaveBeenCalled();
   });
@@ -649,7 +649,7 @@ describe('backtestRoutes - POST /api/backtest/analysis', () => {
 
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.detail).toContain('validation failed');
+    expect(json.error.detail).toContain('validation failed');
     expect(engineClientMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 

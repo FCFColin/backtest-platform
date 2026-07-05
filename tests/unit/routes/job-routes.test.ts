@@ -71,13 +71,13 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.id).toBe('job-123');
-    expect(body.type).toBe('optimizer');
-    expect(body.state).toBe('completed');
-    expect(body.createdAt).toBe(1700000000000);
-    expect(body.processedAt).toBe(1700000001000);
-    expect(body.finishedAt).toBe(1700000005000);
-    expect(body.result).toEqual({ best: { cagr: 0.12 } });
+    expect(body.data.id).toBe('job-123');
+    expect(body.data.type).toBe('optimizer');
+    expect(body.data.state).toBe('completed');
+    expect(body.data.createdAt).toBe(1700000000000);
+    expect(body.data.processedAt).toBe(1700000001000);
+    expect(body.data.finishedAt).toBe(1700000005000);
+    expect(body.data.result).toEqual({ best: { cagr: 0.12 } });
     expect(queueMocks.getJob).toHaveBeenCalledWith('job-123');
   });
 
@@ -98,11 +98,11 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.state).toBe('failed');
+    expect(body.data.state).toBe('failed');
     // T-28：不回传真实 failedReason，仅通用错误，避免泄露引擎/栈内部细节。
-    expect(body.error).toBe('Job execution failed');
-    expect(body.error).not.toContain('Engine timeout');
-    expect(body.result).toBeUndefined();
+    expect(body.data.error).toBe('Job execution failed');
+    expect(body.data.error).not.toContain('Engine timeout');
+    expect(body.data.result).toBeUndefined();
   });
 
   it('未认证时应返回 401', async () => {
@@ -255,8 +255,8 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.state).toBe('active');
-    expect(body.result).toBeUndefined();
-    expect(body.error).toBeUndefined();
+    expect(body.data.state).toBe('active');
+    expect(body.data.result).toBeUndefined();
+    expect(body.data.error).toBeUndefined();
   });
 });

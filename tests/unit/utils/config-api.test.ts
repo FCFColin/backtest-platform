@@ -116,6 +116,82 @@ describe('listNamedConfigs', () => {
     const result = await listNamedConfigs();
     expect(result).toHaveLength(1);
   });
+
+  it('服务端返回 ok 但无 data 字段时返回空数组', async () => {
+    mocks.apiFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+    const { listNamedConfigs } = await importMod();
+    const result = await listNamedConfigs();
+    expect(result).toEqual([]);
+  });
+
+  it('服务端返回 data 为 null 时返回空数组', async () => {
+    mocks.apiFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: null }),
+    });
+    const { listNamedConfigs } = await importMod();
+    const result = await listNamedConfigs();
+    expect(result).toEqual([]);
+  });
+
+  it('服务端返回 config 为 null 时使用空默认值', async () => {
+    mocks.apiFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: [{ id: 's1', name: 'null-config', config: null, createdAt: '2025-06-01T00:00:00Z' }],
+      }),
+    });
+    const { listNamedConfigs } = await importMod();
+    const result = await listNamedConfigs();
+    expect(result).toHaveLength(1);
+    expect(result[0].portfolios).toEqual([]);
+    expect(result[0].parameters).toEqual({});
+  });
+
+  it('服务端返回 config 含 null portfolios/parameters 时使用默认值', async () => {
+    mocks.apiFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            id: 's2',
+            name: 'partial-config',
+            config: { portfolios: null, parameters: null },
+            createdAt: '2025-06-01T00:00:00Z',
+          },
+        ],
+      }),
+    });
+    const { listNamedConfigs } = await importMod();
+    const result = await listNamedConfigs();
+    expect(result).toHaveLength(1);
+    expect(result[0].portfolios).toEqual([]);
+    expect(result[0].parameters).toEqual({});
+  });
+
+  it('服务端返回 config 缺 portfolios/parameters 时使用默认值', async () => {
+    mocks.apiFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            id: 's3',
+            name: 'missing-fields',
+            config: {},
+            createdAt: '2025-06-01T00:00:00Z',
+          },
+        ],
+      }),
+    });
+    const { listNamedConfigs } = await importMod();
+    const result = await listNamedConfigs();
+    expect(result).toHaveLength(1);
+    expect(result[0].portfolios).toEqual([]);
+    expect(result[0].parameters).toEqual({});
+  });
 });
 
 describe('saveNamedConfigApi', () => {

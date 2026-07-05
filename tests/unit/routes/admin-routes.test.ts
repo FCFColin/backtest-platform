@@ -16,7 +16,7 @@ const engineServiceMocks = vi.hoisted(() => ({
   getUniverseStats: vi.fn(),
 }));
 
-vi.mock('../../../api/routes/dataRoutes.js', () => ({
+vi.mock('../../../api/utils/httpClient.js', () => ({
   callService: callServiceMock,
 }));
 

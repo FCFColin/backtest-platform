@@ -15,6 +15,15 @@ const authTokensMocks = vi.hoisted(() => ({
 
 vi.mock('../../../src/utils/authTokens.js', () => authTokensMocks);
 
+// ===== Mock toastStore for response intercept tests =====
+const toastStoreMock = vi.hoisted(() => ({
+  useToastStore: {
+    getState: vi.fn(() => ({ addToast: vi.fn() })),
+  },
+}));
+
+vi.mock('../../../src/store/toastStore.js', () => toastStoreMock);
+
 // ===== Mock localStorage + sessionStorage =====
 function createStorageMock() {
   let store: Record<string, string> = {};
@@ -76,6 +85,27 @@ describe('getApiKey', () => {
     expect(getApiKey()).toBe('');
   });
 
+  it('sessionStorage 有值时优先返回（高于 localStorage）', () => {
+    sessionStorage.setItem(ADMIN_API_KEY_STORAGE, btoa('session-priority'));
+    localStorage.setItem(ADMIN_API_KEY_STORAGE, btoa('local-fallback'));
+    expect(getApiKey()).toBe('session-priority');
+  });
+
+  it('sessionStorage 抛错时回退到 localStorage', () => {
+    sessionStorageMock.getItem.mockImplementationOnce(() => {
+      throw new Error('sessionStorage unavailable');
+    });
+    localStorage.setItem(ADMIN_API_KEY_STORAGE, btoa('fallback-key'));
+    expect(getApiKey()).toBe('fallback-key');
+  });
+
+  it('sessionStorage 抛错且 localStorage 无值时返回空字符串', () => {
+    sessionStorageMock.getItem.mockImplementationOnce(() => {
+      throw new Error('sessionStorage unavailable');
+    });
+    expect(getApiKey()).toBe('');
+  });
+
   it('存储的值非 base64 时返回空字符串', () => {
     localStorage.setItem(ADMIN_API_KEY_STORAGE, '!!!not-base64!!!');
     expect(getApiKey()).toBe('');
@@ -109,9 +139,33 @@ describe('setApiKey', () => {
     expect(localStorage.getItem(ADMIN_API_KEY_STORAGE)).toBe(btoa(key));
   });
 
+  it('persist=true 时 localStorage 抛错不抛异常', () => {
+    localStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error('localStorage unavailable');
+    });
+    expect(() => setApiKey('key', true)).not.toThrow();
+  });
+
+  it('persist=true 时 window.console 可用时输出安全警告', () => {
+    vi.stubGlobal('window', { console });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    setApiKey('test-key', true);
+
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('[SECURITY]'));
+    warnSpy.mockRestore();
+  });
+
   it('localStorage 抛错时不抛异常', () => {
     localStorageMock.setItem.mockImplementationOnce(() => {
       throw new Error('localStorage unavailable');
+    });
+    expect(() => setApiKey('key')).not.toThrow();
+  });
+
+  it('sessionStorage 抛错时不抛异常', () => {
+    sessionStorageMock.setItem.mockImplementationOnce(() => {
+      throw new Error('sessionStorage unavailable');
     });
     expect(() => setApiKey('key')).not.toThrow();
   });
@@ -132,6 +186,13 @@ describe('clearApiKey', () => {
   it('localStorage 抛错时不抛异常', () => {
     localStorageMock.removeItem.mockImplementationOnce(() => {
       throw new Error('localStorage unavailable');
+    });
+    expect(() => clearApiKey()).not.toThrow();
+  });
+
+  it('sessionStorage 抛错时不抛异常', () => {
+    sessionStorageMock.removeItem.mockImplementationOnce(() => {
+      throw new Error('sessionStorage unavailable');
     });
     expect(() => clearApiKey()).not.toThrow();
   });
@@ -330,6 +391,50 @@ describe('apiFetch - 边界情况', () => {
   });
 });
 
+// ===== apiFetch - JWT Bearer 认证 =====
+describe('apiFetch - JWT Bearer 认证', () => {
+  beforeEach(() => {
+    authTokensMocks.getAccessToken.mockReturnValue('jwt-token-value');
+  });
+
+  afterEach(() => {
+    authTokensMocks.getAccessToken.mockReturnValue(null);
+  });
+
+  it('有 Access Token 时自动附加 Authorization Bearer 头', async () => {
+    mockFetch.mockResolvedValueOnce(new Response('{}'));
+    await apiFetch('https://example.com/api');
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers.get('Authorization')).toBe('Bearer jwt-token-value');
+  });
+
+  it('无 Access Token 时不附加 Authorization 头', async () => {
+    authTokensMocks.getAccessToken.mockReturnValue(null);
+    mockFetch.mockResolvedValueOnce(new Response('{}'));
+    await apiFetch('https://example.com/api');
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers.get('Authorization')).toBeNull();
+  });
+
+  it('调用方显式传入 Authorization 头时不被覆盖', async () => {
+    mockFetch.mockResolvedValueOnce(new Response('{}'));
+    await apiFetch('https://example.com/api', {
+      headers: { Authorization: 'Bearer explicit' },
+    });
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers.get('Authorization')).toBe('Bearer explicit');
+  });
+
+  it('同时有 JWT 和 API Key 时附加两个头', async () => {
+    setApiKey('api-key-value');
+    mockFetch.mockResolvedValueOnce(new Response('{}'));
+    await apiFetch('https://example.com/api');
+    const [, init] = mockFetch.mock.calls[0];
+    expect(init.headers.get('Authorization')).toBe('Bearer jwt-token-value');
+    expect(init.headers.get('x-api-key')).toBe('api-key-value');
+  });
+});
+
 // ===== apiFetch - 自动刷新 =====
 describe('apiFetch - 自动刷新', () => {
   beforeEach(() => {
@@ -367,5 +472,94 @@ describe('apiFetch - 自动刷新', () => {
     expect(result.status).toBe(401);
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(authTokensMocks.refreshTokens).not.toHaveBeenCalled();
+  });
+});
+
+// ===== apiFetch - 响应拦截 Toast =====
+describe('apiFetch - 响应拦截 Toast', () => {
+  let addToast: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    addToast = vi.fn();
+    toastStoreMock.useToastStore.getState.mockReturnValue({ addToast });
+    authTokensMocks.getAccessToken.mockReturnValue(null);
+  });
+
+  it('4xx 响应含 error.detail 时显示错误 Toast', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { detail: '配置不存在' } }), { status: 404 }),
+    );
+    await apiFetch('https://example.com/api');
+    expect(addToast).toHaveBeenCalledWith('error', '配置不存在');
+  });
+
+  it('5xx 响应含 error.detail 时显示错误 Toast', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { detail: '服务内部错误' } }), { status: 500 }),
+    );
+    await apiFetch('https://example.com/api');
+    expect(addToast).toHaveBeenCalledWith('error', '服务内部错误');
+  });
+
+  it('200 响应含 error.detail 时不显示 Toast', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { detail: '不应显示' } }), { status: 200 }),
+    );
+    await apiFetch('https://example.com/api');
+    expect(addToast).not.toHaveBeenCalled();
+  });
+
+  it('degraded=true 时显示警告 Toast', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ degraded: true, degradedWarning: '数据服务降级中' }), {
+        status: 200,
+      }),
+    );
+    await apiFetch('https://example.com/api');
+    expect(addToast).toHaveBeenCalledWith('warning', '数据服务降级中');
+  });
+
+  it('degraded=true 但无 warning 时使用默认文案', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ degraded: true }), { status: 200 }),
+    );
+    await apiFetch('https://example.com/api');
+    expect(addToast).toHaveBeenCalledWith('warning', '系统运行在降级模式');
+  });
+
+  it('同时存在 error 和 degraded 时显示两个 Toast', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          error: { detail: '部分数据缺失' },
+          degraded: true,
+          degradedWarning: '降级模式',
+        }),
+        { status: 400 },
+      ),
+    );
+    await apiFetch('https://example.com/api');
+    expect(addToast).toHaveBeenCalledWith('error', '部分数据缺失');
+    expect(addToast).toHaveBeenCalledWith('warning', '降级模式');
+  });
+
+  it('非 JSON 响应不抛异常也不显示 Toast', async () => {
+    mockFetch.mockResolvedValueOnce(new Response('not json', { status: 200 }));
+    await expect(apiFetch('https://example.com/api')).resolves.toBeDefined();
+    expect(addToast).not.toHaveBeenCalled();
+  });
+
+  it('error.detail 为空时错误 Toast 不显示', async () => {
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({ error: {} }), { status: 400 }));
+    await apiFetch('https://example.com/api');
+    expect(addToast).not.toHaveBeenCalled();
+  });
+
+  it('200 无错误无降级时不显示任何 Toast', async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ success: true }), { status: 200 }),
+    );
+    await apiFetch('https://example.com/api');
+    expect(addToast).not.toHaveBeenCalled();
   });
 });

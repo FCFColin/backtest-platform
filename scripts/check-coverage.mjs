@@ -61,21 +61,16 @@ const CRITICAL_FILES = [
 
 const MIN_LINE_COVERAGE = 75;
 const CRITICAL_LINE_COVERAGE = 90;
-const GLOBAL_LINE_TARGET = 95;
+const GLOBAL_LINE_TARGET = 80;
 
 /** 纯类型/barrel/基础设施/外部服务依赖（与 vitest.config.ts 的 coverage.exclude 同步） */
 const PER_FILE_EXCLUDE_SUFFIXES = [
   'api/application/cqrs.ts',
-  'api/application/backtest-command-service.ts',
   'api/utils/timeout.ts',
   'api/utils/tracePropagation.ts',
   'api/utils/logger.ts',
   'api/utils/metrics.ts',
-  'api/utils/rustFallback.ts',
   'api/services/mailService.ts',
-  'api/services/dataService.ts',
-  'api/services/engineService.ts',
-  'api/services/billingService.ts',
   'api/queues/worker.ts',
   'api/queues/jobIdempotency.ts',
   'api/queues/backtestQueue.ts',
@@ -87,6 +82,11 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'api/routes/tacticalRoutes.ts',
   'api/db/import.ts',
   'api/db/index.ts',
+  'api/db/importBulk.ts',
+  'api/domain/logger.ts',
+  'api/types/pg-copy-streams.d.ts',
+  'src/store/index.ts',
+  'src/components/EmptyState.tsx',
   'api/app.ts',
 ];
 

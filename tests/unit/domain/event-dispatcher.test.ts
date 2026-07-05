@@ -12,7 +12,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger } from '../../helpers/mockFactories.js';
 
 // 使用 vi.hoisted 保证 mock 在 import 之前生效
 const loggerMocks = vi.hoisted(() => ({
@@ -28,10 +27,9 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
-
 import { DomainEventDispatcher } from '../../../api/domain/events/EventDispatcher.js';
 import type { DomainEvent, EventHandler } from '../../../api/domain/events/EventDispatcher.js';
+import type { DomainLogger } from '../../../api/domain/logger.js';
 
 /** 构造测试用领域事件 */
 function createEvent(eventType: string, aggregateId = 'portfolio-1'): DomainEvent {
@@ -54,13 +52,21 @@ function createHandler(eventType: string, handleFn?: (event: DomainEvent) => voi
   };
 }
 
+/** 构造测试用 logger，直接传入 dispatcher 避免依赖模块级别的 vi.mock */
+function createMockLogger(): DomainLogger {
+  return {
+    info: loggerMocks.info,
+    warn: loggerMocks.warn,
+    error: loggerMocks.error,
+  };
+}
+
 describe('DomainEventDispatcher', () => {
   let dispatcher: DomainEventDispatcher;
 
   beforeEach(() => {
-    // 每个用例使用独立的 dispatcher，避免处理器跨用例污染
-    dispatcher = new DomainEventDispatcher();
     vi.clearAllMocks();
+    dispatcher = new DomainEventDispatcher(createMockLogger());
   });
 
   it('register() 应添加处理器，使 dispatch 能调用到它', async () => {
@@ -79,10 +85,10 @@ describe('DomainEventDispatcher', () => {
 
     // 不应抛出异常
     await expect(dispatcher.dispatch(event)).resolves.toBeUndefined();
-    // 应记录 debug 日志（便于排障，但不报错）
-    expect(loggerMocks.debug).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'UnregisteredEvent' }),
+    // 应记录 info 日志（便于排障，但不报错）
+    expect(loggerMocks.info).toHaveBeenCalledWith(
       'No handlers registered for event',
+      expect.objectContaining({ eventType: 'UnregisteredEvent' }),
     );
   });
 
@@ -107,13 +113,13 @@ describe('DomainEventDispatcher', () => {
     expect(successHandler.handle).toHaveBeenCalledTimes(1);
     // 应记录错误日志
     expect(loggerMocks.error).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'TestEvent' }),
       'Event handler failed',
+      expect.objectContaining({ eventType: 'TestEvent' }),
     );
     // 应记录警告日志（部分处理器失败）
     expect(loggerMocks.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'TestEvent', errorCount: 1 }),
       'Some event handlers failed',
+      expect.objectContaining({ eventType: 'TestEvent', errorCount: 1 }),
     );
   });
 
@@ -167,8 +173,8 @@ describe('DomainEventDispatcher', () => {
     expect(handler2.handle).toHaveBeenCalledTimes(1);
     // 应记录 handlerCount=2
     expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'AccumEvent', handlerCount: 2 }),
       'Dispatching domain event',
+      expect.objectContaining({ eventType: 'AccumEvent', handlerCount: 2 }),
     );
   });
 
@@ -196,8 +202,8 @@ describe('DomainEventDispatcher', () => {
     expect(loggerMocks.error).toHaveBeenCalledTimes(2);
     // 应记录警告（errorCount=2）
     expect(loggerMocks.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'AllFailEvent', errorCount: 2 }),
       'Some event handlers failed',
+      expect.objectContaining({ eventType: 'AllFailEvent', errorCount: 2 }),
     );
   });
 });

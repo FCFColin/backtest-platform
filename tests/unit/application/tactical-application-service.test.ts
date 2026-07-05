@@ -42,8 +42,10 @@ vi.mock('../../../api/engine/portfolio.js', () => ({
 
 import {
   executeTacticalBacktest,
+  executeTacticalWhatIf,
   saveTacticalAlertConfig,
 } from '../../../api/application/tactical-application-service.js';
+import { runPortfolioBacktest } from '../../../api/engine/portfolio.js';
 import type { TacticalStrategy } from '../../../shared/types/tactical.js';
 
 const strategy = {
@@ -88,5 +90,48 @@ describe('tactical-application-service', () => {
 
   it('saveTacticalAlertConfig 启用时无邮箱应抛错', () => {
     expect(() => saveTacticalAlertConfig({ enabled: true, triggers: [] })).toThrow('邮箱');
+  });
+
+  it('executeTacticalWhatIf 应委托给 analyzeWhatIf 并返回结果', () => {
+    const priceData = { SPY: { '2020-01-01': 100 } };
+    const result = executeTacticalWhatIf(['SPY'], strategy, priceData, '2020-01-02');
+    expect(result).toEqual([]);
+  });
+
+  it('benchmark 回测失败时应降级为空结果（日志警告）', () => {
+    vi.mocked(runPortfolioBacktest).mockImplementationOnce(() => {
+      throw new Error('benchmark error');
+    });
+
+    const priceData = { SPY: { '2020-01-01': 100, '2020-01-02': 101 } };
+    const result = executeTacticalBacktest(
+      {
+        strategy,
+        startDate: '2020-01-01',
+        endDate: '2020-01-02',
+        startingValue: 10000,
+        rebalanceFrequency: 'monthly',
+      },
+      priceData,
+    );
+    expect(result.benchmark).toBeDefined();
+    expect(result.benchmark.growthCurve).toEqual([]);
+    expect(result.benchmark.name).toBe('等权基准');
+  });
+
+  it('交易日不足 2 天时应抛出错误', () => {
+    const priceData = { SPY: { '2020-01-01': 100 } };
+    expect(() =>
+      executeTacticalBacktest(
+        {
+          strategy,
+          startDate: '2020-01-01',
+          endDate: '2020-01-01',
+          startingValue: 10000,
+          rebalanceFrequency: 'monthly',
+        },
+        priceData,
+      ),
+    ).toThrow('交易日');
   });
 });

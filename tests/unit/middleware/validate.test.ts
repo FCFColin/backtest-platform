@@ -35,10 +35,14 @@ describe('validate middleware', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://httpstatuses.com/400',
-        title: 'Bad Request',
-        status: 400,
-        detail: expect.stringContaining('Request validation failed'),
+        success: false,
+        error: expect.objectContaining({
+          type: 'https://httpstatuses.com/400',
+          title: 'Bad Request',
+          status: 400,
+          code: 'VALIDATION_ERROR',
+          detail: expect.stringContaining('Request validation failed'),
+        }),
       }),
     );
     expect(next).not.toHaveBeenCalled();

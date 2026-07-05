@@ -71,6 +71,88 @@ describe('useEngineHealth', () => {
     expect(result.current.status).toBe('loading');
   });
 
+  it('初始状态应为 loading', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise(() => {})),
+    ); // 永不 resolve
+    const { result } = renderHook(() => useEngineHealth());
+    expect(result.current.status).toBe('loading');
+  });
+
+  it('degraded 状态应正确解析', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          success: true,
+          data: {
+            status: 'degraded',
+            engine: { go: false, node: true },
+            dataFetcher: true,
+            dataFreshness: '2024-06-01',
+          },
+        }),
+      }),
+    );
+
+    const { result } = renderHook(() => useEngineHealth());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('degraded');
+    });
+
+    expect(result.current.go).toBe(false);
+    expect(result.current.node).toBe(true);
+    expect(result.current.dataFetcher).toBe(true);
+    expect(result.current.dataFreshness).toBe('2024-06-01');
+  });
+
+  it('缺少 engine 字段时 go 应为 false', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          success: true,
+          data: { status: 'ok', dataFetcher: true },
+        }),
+      }),
+    );
+
+    const { result } = renderHook(() => useEngineHealth());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ok');
+    });
+
+    expect(result.current.go).toBe(false);
+  });
+
+  it('dataFreshness 为 null 时应正确解析', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        json: async () => ({
+          success: true,
+          data: {
+            status: 'ok',
+            engine: { go: true, node: true },
+            dataFetcher: true,
+            dataFreshness: null,
+          },
+        }),
+      }),
+    );
+
+    const { result } = renderHook(() => useEngineHealth());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe('ok');
+    });
+
+    expect(result.current.dataFreshness).toBeNull();
+  });
+
   it('refresh 应重新请求健康检查', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       json: async () => ({
@@ -90,5 +172,29 @@ describe('useEngineHealth', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('卸载时应清除轮询定时器', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({
+        success: true,
+        data: { status: 'ok', engine: { go: true, node: true }, dataFetcher: true },
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { unmount } = renderHook(() => useEngineHealth());
+    // 等待初始 fetch 完成
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    fetchMock.mockClear();
+
+    unmount();
+
+    // 推进 30 秒，但此时已卸载，不应再调用 fetch
+    vi.advanceTimersByTime(30000);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 });

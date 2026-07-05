@@ -19,6 +19,14 @@ const engineServiceMocks = vi.hoisted(() => ({
 
 vi.mock('../../../api/services/engineService.js', () => engineServiceMocks);
 
+const dataFetchMocks = vi.hoisted(() => ({
+  startUpdate: vi.fn(),
+  stopUpdate: vi.fn(),
+  getUpdateStatus: vi.fn(),
+}));
+
+vi.mock('../../../api/services/dataFetchService.js', () => dataFetchMocks);
+
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
@@ -422,5 +430,342 @@ describe('dataManageRoutes - 废弃 POST 端点', () => {
     expect(res.headers.get('deprecation')).toBe('true');
     expect(res.headers.get('sunset')).toBeTruthy();
     expect(res.headers.get('link')).toContain('successor-version');
+  });
+});
+
+describe('dataManageRoutes - 更新状态查询', () => {
+  let server: TestServer;
+  const mockStatus = {
+    running: false,
+    workerPid: null,
+    mode: null,
+    startedAt: null,
+    completedTickers: 10,
+    totalTickers: 100,
+    lastError: null,
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    dataFetchMocks.getUpdateStatus.mockReturnValue(mockStatus);
+    server = await startExpressApp((app) => app.use('/api/v1/data/manage', dataManageRoutes));
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('GET /update/status 应返回更新状态', async () => {
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/status`);
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.completedTickers).toBe(10);
+    expect(body.data.totalTickers).toBe(100);
+  });
+});
+
+describe('dataManageRoutes - PUT /update/full', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('startUpdate 成功时应返回成功', async () => {
+    dataFetchMocks.startUpdate.mockResolvedValue({
+      success: true,
+      message: '全量更新已启动',
+      pid: 12345,
+    });
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/full`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.success).toBe(true);
+    expect(dataFetchMocks.startUpdate).toHaveBeenCalledWith('full');
+  });
+
+  it('startUpdate 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('启动失败'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/full`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+});
+
+describe('dataManageRoutes - PATCH /update/inc', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('startUpdate 成功时应返回成功', async () => {
+    dataFetchMocks.startUpdate.mockResolvedValue({ success: true, message: '增量更新已启动' });
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/inc`, { method: 'PATCH' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(dataFetchMocks.startUpdate).toHaveBeenCalledWith('incremental');
+  });
+
+  it('startUpdate 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('增量失败'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/inc`, { method: 'PATCH' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+});
+
+describe('dataManageRoutes - PUT /update/refetch', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('startUpdate 成功时应返回成功', async () => {
+    dataFetchMocks.startUpdate.mockResolvedValue({ success: true, message: '全量更新已启动' });
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/refetch`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(dataFetchMocks.startUpdate).toHaveBeenCalledWith('full');
+  });
+
+  it('startUpdate 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('refetch error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/refetch`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+});
+
+describe('dataManageRoutes - POST /update/stop', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('停止成功时应返回成功', async () => {
+    dataFetchMocks.stopUpdate.mockReturnValue({ success: true, message: '更新已停止' });
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/stop`, { method: 'POST' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.success).toBe(true);
+  });
+});
+
+describe('dataManageRoutes - PATCH /resume', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('startUpdate 成功时应返回成功', async () => {
+    dataFetchMocks.startUpdate.mockResolvedValue({ success: true, message: '增量更新已启动' });
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/resume`, { method: 'PATCH' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(dataFetchMocks.startUpdate).toHaveBeenCalledWith('incremental');
+  });
+
+  it('startUpdate 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('resume error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/resume`, { method: 'PATCH' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+});
+
+describe('dataManageRoutes - PUT /universe', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('正常时应返回标的信息', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(createMockStats());
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.total).toBe(50);
+    expect(body.data.message).toContain('PostgreSQL');
+  });
+
+  it('scanMarketStatsFromDb 抛错时应返回 500', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('universe error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UNIVERSE_ERROR');
+  });
+
+  it('stats 为 null 时 total 应为 0', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.total).toBe(0);
+  });
+});
+
+describe('dataManageRoutes - PUT /regenerate-meta', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('应直接返回成功（数据由 PostgreSQL 实时计算）', async () => {
+    const res = await fetch(`${server.url}/api/v1/data/manage/regenerate-meta`, { method: 'PUT' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.message).toContain('PostgreSQL');
+  });
+});
+
+describe('dataManageRoutes - 废弃 POST 端点错误路径', () => {
+  let server: TestServer;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('POST /update/full 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('post full error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/full`, { method: 'POST' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+
+  it('POST /update/inc 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('post inc error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/inc`, { method: 'POST' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+
+  it('POST /update/refetch 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('post refetch error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/refetch`, { method: 'POST' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+
+  it('POST /resume 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('post resume error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/resume`, { method: 'POST' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+
+  it('POST /universe 抛错时应返回 500', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('post universe error'));
+
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'POST' });
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UNIVERSE_ERROR');
+  });
+
+  it('POST /regenerate-meta 应直接返回成功', async () => {
+    const res = await fetch(`${server.url}/api/v1/data/manage/regenerate-meta`, { method: 'POST' });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.message).toContain('PostgreSQL');
   });
 });

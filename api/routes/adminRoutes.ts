@@ -5,7 +5,7 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { callService } from './dataRoutes.js';
+import { callService } from '../utils/httpClient.js';
 import { scanTickersStats, getUniverseStats } from '../services/engineService.js';
 import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';

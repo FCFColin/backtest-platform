@@ -33,6 +33,35 @@ describe('downsample', () => {
   it('空数组应返回空数组', () => {
     expect(downsample([], 100)).toEqual([]);
   });
+
+  it('单元素数组应原样返回', () => {
+    expect(downsample(['x'], 10)).toEqual(['x']);
+  });
+
+  it('最后一个点已被步长覆盖时不应重复追加', () => {
+    const data = Array.from({ length: 10 }, (_, i) => i);
+    const result = downsample(data, 5);
+    // step = ceil(10/5) = 2, indexes: 0,2,4,6,8 → last point 9 different from 8
+    expect(result).toEqual([0, 2, 4, 6, 8, 9]);
+  });
+
+  it('当最后一个点恰好被步长覆盖时不重复添加', () => {
+    const data = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const result = downsample(data, 10);
+    expect(result).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it('maxPoints=1 应返回首尾两个元素', () => {
+    const data = Array.from({ length: 5 }, (_, i) => i);
+    const result = downsample(data, 1);
+    expect(result[0]).toBe(0);
+    expect(result[result.length - 1]).toBe(4);
+  });
+
+  it('maxPoints 大于 data.length 时原样返回', () => {
+    const data = [1, 2, 3];
+    expect(downsample(data, 100)).toBe(data);
+  });
 });
 
 describe('useZoomRange', () => {
@@ -68,6 +97,41 @@ describe('useZoomRange', () => {
 
     act(() => {
       result.current.resetZoom();
+    });
+
+    expect(result.current.zoomRange).toBeNull();
+    expect(result.current.visibleData).toEqual(data);
+  });
+
+  it('空数据数组应返回空数组', () => {
+    const { result } = renderHook(() => useZoomRange([]));
+    expect(result.current.visibleData).toEqual([]);
+    expect(result.current.zoomRange).toBeNull();
+  });
+
+  it('单条数据应正常处理', () => {
+    const single = [{ id: 1 }];
+    const { result } = renderHook(() => useZoomRange(single));
+
+    expect(result.current.visibleData).toEqual(single);
+
+    act(() => {
+      result.current.setZoomRange([0, 0]);
+    });
+    expect(result.current.visibleData).toEqual(single);
+  });
+
+  it('zoomRange 超出数据边界时应返回实际可用切片', () => {
+    const { result } = renderHook(() => useZoomRange(data, [0, 100]));
+    // 只应有 20 条数据
+    expect(result.current.visibleData).toHaveLength(20);
+  });
+
+  it('setZoomRange(null) 应恢复完整数据', () => {
+    const { result } = renderHook(() => useZoomRange(data, [0, 3]));
+
+    act(() => {
+      result.current.setZoomRange(null as unknown as [number, number]);
     });
 
     expect(result.current.zoomRange).toBeNull();

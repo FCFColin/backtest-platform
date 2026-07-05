@@ -61,6 +61,54 @@ describe('useTheme', () => {
     expect(document.documentElement.classList.contains('dark')).toBe(true);
   });
 
+  it('无 localStorage 且 prefer-color-scheme light 时默认 light', () => {
+    matchDark = false;
+
+    const { result } = renderHook(() => useTheme());
+
+    expect(result.current.theme).toBe('light');
+    expect(result.current.isDark).toBe(false);
+  });
+
+  it('挂载时 light 主题应设置正确的 document class', () => {
+    storage.set('theme', 'light');
+    renderHook(() => useTheme());
+
+    expect(document.documentElement.classList.contains('light')).toBe(true);
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  });
+
+  it('切换主题后 localStorage 应更新', () => {
+    storage.set('theme', 'light');
+
+    const { result } = renderHook(() => useTheme());
+
+    act(() => {
+      result.current.toggleTheme();
+    });
+    expect(storage.get('theme')).toBe('dark');
+
+    act(() => {
+      result.current.toggleTheme();
+    });
+    expect(storage.get('theme')).toBe('light');
+  });
+
+  it('多次 toggle 正确循环 dark → light → dark', () => {
+    storage.set('theme', 'dark');
+    const { result } = renderHook(() => useTheme());
+
+    act(() => {
+      result.current.toggleTheme();
+    });
+    expect(result.current.theme).toBe('light');
+
+    act(() => {
+      result.current.toggleTheme();
+    });
+    expect(result.current.theme).toBe('dark');
+  });
+
   it('toggleTheme 应切换主题并写入 localStorage', () => {
     storage.set('theme', 'light');
 

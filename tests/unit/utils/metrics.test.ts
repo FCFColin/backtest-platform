@@ -4,7 +4,7 @@
  * 企业理由：Prometheus 指标是 K8s 生态监控告警的基础，指标注册失败
  * 会导致告警缺失。测试覆盖：
  * - 指标对象正确导出（Gauge/Counter/Histogram）
- * - recordRustCall 正确递增计数器
+ * - recordEngineCall 正确递增计数器
  * - recordFallbackToNode 正确递增计数器并清洗 reason
  * - registerCircuitBreakerMetrics 注册事件回调
  * - registerSemaphoreMetrics 设置初始值
@@ -21,10 +21,10 @@ import {
   dataServiceSemaphoreTotal,
   httpRequestDurationMicroseconds,
   httpRequestsTotal,
-  rustCallsTotal,
-  rustEngineCallDuration,
+  engineCallsTotal,
+  engineCallDuration,
   fallbackToNodeTotal,
-  recordRustCall,
+  recordEngineCall,
   recordFallbackToNode,
   registerCircuitBreakerMetrics,
   registerSemaphoreMetrics,
@@ -63,14 +63,14 @@ describe('指标对象导出', () => {
     expect(typeof httpRequestsTotal.inc).toBe('function');
   });
 
-  it('rustCallsTotal 应为带 result 标签的 Counter', () => {
-    expect(rustCallsTotal).toBeDefined();
-    expect(typeof rustCallsTotal.inc).toBe('function');
+  it('engineCallsTotal 应为带 result 标签的 Counter', () => {
+    expect(engineCallsTotal).toBeDefined();
+    expect(typeof engineCallsTotal.inc).toBe('function');
   });
 
-  it('rustEngineCallDuration 应为 Histogram', () => {
-    expect(rustEngineCallDuration).toBeDefined();
-    expect(typeof rustEngineCallDuration.observe).toBe('function');
+  it('engineCallDuration 应为 Histogram', () => {
+    expect(engineCallDuration).toBeDefined();
+    expect(typeof engineCallDuration.observe).toBe('function');
   });
 
   it('fallbackToNodeTotal 应为带 reason 标签的 Counter', () => {
@@ -93,39 +93,39 @@ async function metricValue(
   return match?.value;
 }
 
-describe('recordRustCall', () => {
+describe('recordEngineCall', () => {
   beforeEach(() => {
     resetMetrics();
   });
 
   it('success=true 应将 result=success 计数器递增到精确值', async () => {
-    recordRustCall(true);
-    recordRustCall(true);
-    expect(await metricValue(rustCallsTotal, { result: 'success' })).toBe(2);
+    recordEngineCall(true);
+    recordEngineCall(true);
+    expect(await metricValue(engineCallsTotal, { result: 'success' })).toBe(2);
     // 不应误增 fallback 维度
-    expect(await metricValue(rustCallsTotal, { result: 'fallback' })).toBeUndefined();
+    expect(await metricValue(engineCallsTotal, { result: 'fallback' })).toBeUndefined();
   });
 
   it('success=false 应递增 result=fallback 而非 success', async () => {
-    recordRustCall(false);
-    expect(await metricValue(rustCallsTotal, { result: 'fallback' })).toBe(1);
-    expect(await metricValue(rustCallsTotal, { result: 'success' })).toBeUndefined();
+    recordEngineCall(false);
+    expect(await metricValue(engineCallsTotal, { result: 'fallback' })).toBe(1);
+    expect(await metricValue(engineCallsTotal, { result: 'success' })).toBeUndefined();
   });
 
   it('success=false 且带 error 时应同时递增 fallbackToNodeTotal', async () => {
-    recordRustCall(false, 'engine_timeout');
-    expect(await metricValue(rustCallsTotal, { result: 'fallback' })).toBe(1);
+    recordEngineCall(false, 'engine_timeout');
+    expect(await metricValue(engineCallsTotal, { result: 'fallback' })).toBe(1);
     expect(await metricValue(fallbackToNodeTotal, { reason: 'engine_timeout' })).toBe(1);
   });
 
   it('error 含特殊字符时应被清洗为下划线后作为标签值', async () => {
-    recordRustCall(false, 'error: connection lost!');
+    recordEngineCall(false, 'error: connection lost!');
     // 非 [a-zA-Z0-9_-] 字符（: 空格 !）逐一替换为 _
     expect(await metricValue(fallbackToNodeTotal, { reason: 'error__connection_lost_' })).toBe(1);
   });
 
   it('success=false 但 error 为空时不应产生任何 fallbackToNode 序列', async () => {
-    recordRustCall(false);
+    recordEngineCall(false);
     const snapshot = await fallbackToNodeTotal.get();
     expect(snapshot.values).toHaveLength(0);
   });

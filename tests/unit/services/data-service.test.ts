@@ -83,7 +83,7 @@ const integrityMocks = vi.hoisted(() => ({
 }));
 
 const httpMocks = vi.hoisted(() => ({
-  get: vi.fn(),
+  request: vi.fn(),
 }));
 
 // ===== Mock 模块 =====
@@ -136,8 +136,8 @@ vi.mock('../../../api/utils/integrity.js', () => ({
 }));
 
 vi.mock('http', () => ({
-  default: { get: httpMocks.get },
-  get: httpMocks.get,
+  default: { request: httpMocks.request },
+  request: httpMocks.request,
 }));
 
 import { EventEmitter } from 'events';
@@ -149,9 +149,9 @@ import {
   invalidateCache,
 } from '../../../api/services/dataService.js';
 
-/** 模拟 http.get 成功响应（callGoDataService 三参数签名） */
+/** 模拟 http.request 成功响应 */
 function setupHttpGetSuccess(body: string, statusCode = 200): void {
-  httpMocks.get.mockImplementation(
+  httpMocks.request.mockImplementation(
     (
       _url: string,
       _opts: unknown,
@@ -160,9 +160,11 @@ function setupHttpGetSuccess(body: string, statusCode = 200): void {
       const req = new EventEmitter() as EventEmitter & {
         destroy: ReturnType<typeof vi.fn>;
         on: ReturnType<typeof vi.fn>;
+        end: ReturnType<typeof vi.fn>;
       };
       req.destroy = vi.fn();
       req.on = vi.fn();
+      req.end = vi.fn();
       const res = new EventEmitter() as EventEmitter & { statusCode: number };
       res.statusCode = statusCode;
       queueMicrotask(() => {
@@ -175,17 +177,19 @@ function setupHttpGetSuccess(body: string, statusCode = 200): void {
   );
 }
 
-/** 模拟 http.get 网络错误 */
+/** 模拟 http.request 网络错误 */
 function setupHttpGetError(message: string): void {
-  httpMocks.get.mockImplementation((_url: string, _opts: unknown, _callback: unknown) => {
+  httpMocks.request.mockImplementation((_url: string, _opts: unknown, _callback: unknown) => {
     const req = new EventEmitter() as EventEmitter & {
       destroy: ReturnType<typeof vi.fn>;
       on: ReturnType<typeof vi.fn>;
+      end: ReturnType<typeof vi.fn>;
     };
     req.destroy = vi.fn();
     req.on = vi.fn((event: string, handler: (err: Error) => void) => {
       if (event === 'error') queueMicrotask(() => handler(new Error(message)));
     });
+    req.end = vi.fn();
     return req;
   });
 }
@@ -442,7 +446,7 @@ describe('searchTickers', () => {
     const result = await searchTickers('不存在的标的');
 
     expect(result).toEqual([]);
-    expect(httpMocks.get).not.toHaveBeenCalled();
+    expect(httpMocks.request).not.toHaveBeenCalled();
   });
 
   it('恶意 SQL 注入式 query 应被拒绝并返回空数组', async () => {
@@ -496,7 +500,7 @@ describe('searchTickers', () => {
     const result = await searchTickers('AAPL');
 
     expect(result).toEqual([{ ticker: 'AAPL', name: 'Apple', market: '美股' }]);
-    expect(httpMocks.get).toHaveBeenCalled();
+    expect(httpMocks.request).toHaveBeenCalled();
     expect(integrityMocks.signFileSync).toHaveBeenCalled();
   });
 
@@ -666,7 +670,7 @@ describe('fetchHistoryData 扩展场景', () => {
     const result = await fetchHistoryData(['MSFT'], '2024-01-01', '2024-01-31');
 
     expect(result.MSFT).toEqual({ '2024-01-02': 400.0, '2024-01-03': 401.0 });
-    expect(httpMocks.get).toHaveBeenCalledWith(
+    expect(httpMocks.request).toHaveBeenCalledWith(
       expect.stringContaining('/api/data/price/MSFT'),
       expect.any(Object),
       expect.any(Function),
@@ -759,7 +763,7 @@ describe('fetchHistoryData 扩展场景', () => {
     const result = await fetchHistoryData(['CACHED'], '2024-01-01', '2024-01-31');
 
     expect(result.CACHED).toEqual({ '2024-01-02': 50.0 });
-    expect(httpMocks.get).not.toHaveBeenCalled();
+    expect(httpMocks.request).not.toHaveBeenCalled();
   });
 });
 
