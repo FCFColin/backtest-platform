@@ -5,7 +5,7 @@ export default defineConfig({
   testMatch: '*.spec.ts',
   timeout: 90_000,
   expect: { timeout: 15_000 },
-  fullyParallel: false,
+  fullyParallel: true,
   workers: 1,
   retries: 0,
   reporter: 'list',
@@ -23,6 +23,14 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
     },
   ],
   webServer: {

@@ -102,11 +102,7 @@ function assertEngineSaneVsNode(
 }
 
 describe('引擎一致性测试：Go ↔ Node.js', () => {
-  it('基础回测：60/40 SPY/BND 10年回测（Go 对齐 Node）', async () => {
-    if (!goAvailable) {
-      return;
-    }
-
+  it.skipIf(!goAvailable)('基础回测：60/40 SPY/BND 10年回测（Go 对齐 Node）', async () => {
     const spy = makePriceData('SPY', '2014-01-02', '2023-12-29', 180, 0.0004);
     const bnd = makePriceData('BND', '2014-01-02', '2023-12-29', 80, 0.0001);
 
@@ -168,14 +164,12 @@ describe('引擎一致性测试：Go ↔ Node.js', () => {
     // 同一输入产生相同结果
     expect(result1.portfolios[0].statistics.cagr).toBe(result2.portfolios[0].statistics.cagr);
     expect(result1.portfolios[0].statistics.sharpe).toBe(result2.portfolios[0].statistics.sharpe);
-    expect(result1.portfolios[0].statistics.maxDrawdown).toBe(result2.portfolios[0].statistics.maxDrawdown);
+    expect(result1.portfolios[0].statistics.maxDrawdown).toBe(
+      result2.portfolios[0].statistics.maxDrawdown,
+    );
   });
 
-  it('含现金流回测一致性（Go 对齐 Node）', async () => {
-    if (!goAvailable) {
-      return;
-    }
-
+  it.skipIf(!goAvailable)('含现金流回测一致性（Go 对齐 Node）', async () => {
     const spy = makePriceData('SPY', '2014-01-02', '2023-12-29', 180, 0.0004);
     const bnd = makePriceData('BND', '2014-01-02', '2023-12-29', 80, 0.0001);
 
@@ -217,5 +211,43 @@ describe('引擎一致性测试：Go ↔ Node.js', () => {
 
     const goResult = await callEngineBacktest(GO_ENGINE_URL, body);
     assertEngineSaneVsNode(goResult.portfolios[0], nodeP, metrics, 0.5);
+  });
+
+  it.skipIf(!goAvailable)('多资产回测：SPY/BND/GLD 40/30/30 年度再平衡', async () => {
+    const spy = makePriceData('SPY', '2018-01-02', '2022-12-30', 200, 0.0005);
+    const bnd = makePriceData('BND', '2018-01-02', '2022-12-30', 80, 0.0002);
+    const gld = makePriceData('GLD', '2018-01-02', '2022-12-30', 120, 0.0003);
+
+    const portfolios: Portfolio[] = [
+      {
+        id: 'p1',
+        name: '40/30/30',
+        assets: [
+          { ticker: 'SPY', weight: 40 },
+          { ticker: 'BND', weight: 30 },
+          { ticker: 'GLD', weight: 30 },
+        ],
+        rebalanceFrequency: 'yearly',
+      },
+    ];
+
+    const params: BacktestParameters = {
+      startDate: '2018-01-02',
+      endDate: '2022-12-30',
+      startingValue: 10000,
+      adjustForInflation: false,
+      rollingWindowMonths: 12,
+      benchmarkTicker: 'SPY',
+    };
+
+    const priceData = { SPY: spy, BND: bnd, GLD: gld };
+    const body = buildEngineBody(portfolios, priceData, params);
+    const nodeResult = runPortfolioBacktest(portfolios, priceData, params);
+    const nodeP = nodeResult.portfolios[0];
+    const metrics = ['cagr', 'maxDrawdown', 'sharpe', 'volatility'];
+
+    const goResult = await callEngineBacktest(GO_ENGINE_URL, body);
+    expect(goResult.portfolios).toHaveLength(1);
+    assertEngineSaneVsNode(goResult.portfolios[0], nodeP, metrics);
   });
 });

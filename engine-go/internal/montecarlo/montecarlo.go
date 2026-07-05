@@ -14,6 +14,7 @@ import (
 	"math"
 	"math/rand"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -469,7 +470,7 @@ func computePercentiles(paths [][]float64, totalDays int) MCPercentiles {
 		for i, path := range paths {
 			values[i] = path[day]
 		}
-		sort.Float64s(values)
+		slices.Sort(values)
 
 		for _, t := range targets {
 			idx := int(float64(numSims-1) * t.pct)
@@ -588,7 +589,7 @@ func computeFinalDistribution(paths [][]float64) []float64 {
 	// 排序以确定范围
 	sorted := make([]float64, len(finalValues))
 	copy(sorted, finalValues)
-	sort.Float64s(sorted)
+	slices.Sort(sorted)
 
 	minVal := sorted[0]
 	maxVal := sorted[len(sorted)-1]
@@ -710,7 +711,7 @@ func computeMCStatistics(paths [][]float64, threshold float64, startingValue flo
 		}
 	}
 
-	sort.Float64s(finalValues)
+	slices.Sort(finalValues)
 
 	n := len(finalValues)
 	medianIdx := n / 2
