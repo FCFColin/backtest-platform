@@ -88,6 +88,7 @@ type BacktestRequest struct {
 	CPIData       map[string]float64 `json:"cpiData"`
 	ExchangeRates map[string]float64 `json:"exchangeRates"`
 	Params        BacktestParams   `json:"params"`
+	Fingerprint   bool             `json:"fingerprint"`
 }
 
 // BacktestParams 回测参数。
@@ -154,6 +155,7 @@ type BacktestResult struct {
 	BenchmarkGrowth   []DataPoint       `json:"benchmarkGrowth"`
 	AssetTickers      []string          `json:"assetTickers"`
 	AssetCorrelations [][]float64       `json:"assetCorrelations"`
+	Fingerprint       string            `json:"fingerprint,omitempty"`
 }
 
 // PortfolioResult 单个组合的回测结果。

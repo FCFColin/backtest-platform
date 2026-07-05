@@ -148,7 +148,7 @@ jobRoutes.get('/jobs/:id', async (req: AuthenticatedRequest, res) => {
       return;
 
     const state = await job.getState();
-    res.json(buildJobResult(job, state));
+    res.json({ success: true, data: buildJobResult(job, state) });
   } catch (error) {
     logger.error(
       { middleware: 'jobRoutes', err: (error as Error).message },

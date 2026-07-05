@@ -21,6 +21,7 @@
  */
 
 import { getAccessToken, refreshTokens } from './authTokens';
+import { useToastStore } from '../store/toastStore';
 
 /** Storage 中存储 API Key 的键名 */
 export const ADMIN_API_KEY_STORAGE = 'admin_api_key';
@@ -148,6 +149,22 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     const refreshed = await refreshTokens();
     if (refreshed) {
       res = await doFetch();
+    }
+  }
+
+  // 响应拦截：错误 Toast + degraded 警告
+  if (res) {
+    const cloned = res.clone();
+    try {
+      const body = await cloned.json();
+      if (!res.ok && body?.error?.detail) {
+        useToastStore.getState().addToast('error', body.error.detail);
+      }
+      if (body?.degraded === true) {
+        useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
+      }
+    } catch {
+      // 非 JSON 响应，跳过拦截
     }
   }
 

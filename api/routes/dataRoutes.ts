@@ -93,7 +93,11 @@ export async function callService(
 }
 
 async function callGoDataService(endpoint: string, options?: RequestInit): Promise<unknown | null> {
-  return callService(config.GO_DATA_SERVICE_URL, endpoint, options);
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string> | undefined),
+    'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
+  };
+  return callService(config.GO_DATA_SERVICE_URL, endpoint, { ...options, headers });
 }
 
 /**

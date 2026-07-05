@@ -153,24 +153,24 @@ export const httpRequestsTotal = new client.Counter({
   registers: [register],
 });
 
-// ─── Rust 引擎指标（业务指标） ───
+// ─── Go 引擎指标（业务指标） ───
 
 /**
- * Rust 引擎调用总数
+ * Go 引擎调用总数
  */
-export const rustCallsTotal = new client.Counter({
-  name: 'rust_engine_calls_total',
-  help: 'Total number of calls to Rust engine',
+export const engineCallsTotal = new client.Counter({
+  name: 'go_engine_calls_total',
+  help: 'Total number of calls to Go engine',
   labelNames: ['result'], // 'success' | 'fallback'
   registers: [register],
 });
 
 /**
- * Rust 引擎调用耗时
+ * Go 引擎调用耗时
  */
-export const rustEngineCallDuration = new client.Histogram({
-  name: 'rust_engine_call_duration_seconds',
-  help: 'Duration of Rust engine calls in seconds',
+export const engineCallDuration = new client.Histogram({
+  name: 'go_engine_call_duration_seconds',
+  help: 'Duration of Go engine calls in seconds',
   labelNames: ['result'], // 'success' | 'fallback'
   buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 5],
   registers: [register],
@@ -270,14 +270,13 @@ export function registerPgPoolMetrics(
 // ─── 兼容旧接口（渐进迁移） ───
 
 /**
- * 记录 Rust 引擎调用结果
- * 兼容旧代码中的 recordRustCall(success, error) 调用
+ * 记录引擎调用结果
  */
-export function recordRustCall(success: boolean, error?: string): void {
+export function recordEngineCall(success: boolean, error?: string): void {
   if (success) {
-    rustCallsTotal.inc({ result: 'success' });
+    engineCallsTotal.inc({ result: 'success' });
   } else {
-    rustCallsTotal.inc({ result: 'fallback' });
+    engineCallsTotal.inc({ result: 'fallback' });
     if (error) {
       fallbackToNodeTotal.inc({ reason: error.replace(/[^a-zA-Z0-9_-]/g, '_') });
     }

@@ -245,12 +245,11 @@ func BenchmarkComputeStatistics(b *testing.B) {
 	req := newBenchBacktestRequest()
 	result, _ := RunBacktest(req)
 	curve := result.Portfolios[0].GrowthCurve
-	ddCurve := computeDrawdownCurve(curve)
 	episodes := detectDrawdownEpisodes(curve)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		computeStatistics(curve, ddCurve, episodes, nil)
+		computeStatistics(curve, episodes, nil)
 	}
 }

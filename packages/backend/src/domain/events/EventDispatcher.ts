@@ -17,7 +17,7 @@
  * - 不保证事件顺序（并发执行），需要顺序保证的场景应在同一处理器内串行处理。
  */
 
-import { logger } from '../../utils/logger.js';
+import type { DomainLogger } from '../logger.js';
 
 /**
  * 领域事件通用接口
@@ -59,6 +59,16 @@ export interface EventHandler {
  */
 export class DomainEventDispatcher {
   private handlers = new Map<string, EventHandler[]>();
+  private logger: DomainLogger;
+
+  constructor(logger?: DomainLogger) {
+    const noop: DomainLogger = { info: () => {}, error: () => {}, warn: () => {} };
+    this.logger = logger ?? noop;
+  }
+
+  setLogger(logger: DomainLogger): void {
+    this.logger = logger;
+  }
 
   /**
    * 注册事件处理器
@@ -71,7 +81,7 @@ export class DomainEventDispatcher {
     const existing = this.handlers.get(handler.eventType) ?? [];
     existing.push(handler);
     this.handlers.set(handler.eventType, existing);
-    logger.debug({ eventType: handler.eventType }, 'Event handler registered');
+    this.logger.info('Event handler registered', { eventType: handler.eventType });
   }
 
   /**
@@ -79,21 +89,22 @@ export class DomainEventDispatcher {
    *
    * 使用 Promise.allSettled 并发执行所有处理器，单个处理器失败
    * 不会中断其他处理器的执行，失败信息记录到日志。
-   * 无注册处理器时静默返回（debug 日志），便于新增事件类型时渐进迁移。
+   * 无注册处理器时静默返回，便于新增事件类型时渐进迁移。
    *
    * @param event - 领域事件
    */
   async dispatch(event: DomainEvent): Promise<void> {
     const handlers = this.handlers.get(event.eventType) ?? [];
     if (handlers.length === 0) {
-      logger.debug({ eventType: event.eventType }, 'No handlers registered for event');
+      this.logger.info('No handlers registered for event', { eventType: event.eventType });
       return;
     }
 
-    logger.info(
-      { eventType: event.eventType, aggregateId: event.aggregateId, handlerCount: handlers.length },
-      'Dispatching domain event',
-    );
+    this.logger.info('Dispatching domain event', {
+      eventType: event.eventType,
+      aggregateId: event.aggregateId,
+      handlerCount: handlers.length,
+    });
 
     const errors: Error[] = [];
     await Promise.allSettled(
@@ -101,20 +112,21 @@ export class DomainEventDispatcher {
         try {
           await handler.handle(event);
         } catch (err) {
-          logger.error(
-            { err, eventType: event.eventType, handler: handler.constructor.name },
-            'Event handler failed',
-          );
+          this.logger.error('Event handler failed', {
+            err,
+            eventType: event.eventType,
+            handler: handler.constructor.name,
+          });
           errors.push(err as Error);
         }
       }),
     );
 
     if (errors.length > 0) {
-      logger.warn(
-        { eventType: event.eventType, errorCount: errors.length },
-        'Some event handlers failed',
-      );
+      this.logger.warn('Some event handlers failed', {
+        eventType: event.eventType,
+        errorCount: errors.length,
+      });
     }
   }
 }

@@ -55,10 +55,12 @@ function findCommonDates(
   tickerDatePrices: Map<string, Map<string, number>>,
 ): string[] {
   const firstTicker = validTickers[0];
-  const firstMap = tickerDatePrices.get(firstTicker)!;
+  const firstMap = tickerDatePrices.get(firstTicker);
+  if (!firstMap) return [];
   let commonDates: Set<string> = new Set(firstMap.keys());
   for (let i = 1; i < validTickers.length; i++) {
-    const map = tickerDatePrices.get(validTickers[i])!;
+    const map = tickerDatePrices.get(validTickers[i]);
+    if (!map) continue;
     const newCommon = new Set<string>();
     for (const d of commonDates) {
       if (map.has(d)) newCommon.add(d);
@@ -76,11 +78,12 @@ function calcAllReturns(
 ): number[][] {
   const allReturns: number[][] = [];
   for (const ticker of validTickers) {
-    const dateMap = tickerDatePrices.get(ticker)!;
+    const dateMap = tickerDatePrices.get(ticker);
+    if (!dateMap) continue;
     const returns: number[] = [];
     for (let i = 1; i < sortedDates.length; i++) {
-      const prev = dateMap.get(sortedDates[i - 1])!;
-      const curr = dateMap.get(sortedDates[i])!;
+      const prev = dateMap.get(sortedDates[i - 1]) ?? 0;
+      const curr = dateMap.get(sortedDates[i]) ?? 0;
       if (prev > 0) {
         returns.push((curr - prev) / prev);
       }

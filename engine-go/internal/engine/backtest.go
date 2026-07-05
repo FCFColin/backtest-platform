@@ -17,6 +17,7 @@ import (
 // 企业理由：统一入口处理请求解析、增长曲线计算、统计指标计算、
 // 相关性计算等所有步骤。与 Rust 引擎的 RunBacktest 函数签名兼容，
 // 支持 A/B 测试验证计算结果一致性。
+// 当 req.Fingerprint == true 时，对每个组合计算 SHA-256 指纹并填充到 BacktestResult.Fingerprint。
 func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 	// 1. 解析并排序所有交易日
 	tradingDates, err := parseTradingDates(req.PriceData)
@@ -50,10 +51,10 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 		// 基准增长曲线（用于 Alpha/Beta 等指标）
 		var benchCurve []DataPoint
 		if req.Params.BenchmarkTicker != "" {
-			benchCurve = computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, req.ExchangeRates, tradingDates, req.Params)
+			benchCurve = computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, tradingDates, req.Params)
 		}
 
-		stats := computeStatistics(curve, ddCurve, episodes, benchCurve)
+		stats := computeStatistics(curve, episodes, benchCurve)
 
 		// 滚动收益
 		rollingReturns := computeRollingReturns(curve, req.Params.RollingWindowMonths)
@@ -83,7 +84,7 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 	// 6. 计算基准增长曲线
 	var benchmarkGrowth []DataPoint
 	if req.Params.BenchmarkTicker != "" {
-		benchmarkGrowth = computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, req.ExchangeRates, tradingDates, req.Params)
+		benchmarkGrowth = computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, tradingDates, req.Params)
 	}
 
 	// 7. 计算资产间相关性矩阵
@@ -94,13 +95,20 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 	}
 	assetCorrelations := computeCorrelationMatrix(assetDailyReturns)
 
-	return &BacktestResult{
+	result := &BacktestResult{
 		Portfolios:        portfolioResults,
 		Correlations:      correlations,
 		BenchmarkGrowth:   benchmarkGrowth,
 		AssetTickers:      assetTickers,
 		AssetCorrelations: assetCorrelations,
-	}, nil
+	}
+
+	// 8. 计算确定性指纹（可选）
+	if req.Fingerprint {
+		result.Fingerprint = ComputeResultFingerprint(result)
+	}
+
+	return result, nil
 }
 
 // computeGrowthCurve 计算组合增长曲线——回测的核心算法
@@ -467,11 +475,9 @@ func findCPIForDate(date string, cpiData map[string]float64) float64 {
 }
 
 // computeBenchmarkGrowth 计算基准增长曲线
-// TODO: exchangeRates 参数当前未使用，预留未来支持多币种基准换算
 func computeBenchmarkGrowth(
 	benchmarkTicker string,
 	priceData PriceDataMap,
-	exchangeRates map[string]float64, // TODO: 预留多币种换算，当前基准与组合同币种无需换算
 	tradingDates []time.Time,
 	params BacktestParams,
 ) []DataPoint {
@@ -530,7 +536,7 @@ func computeRollingReturns(curve []DataPoint, windowMonths int) []DataPoint {
 // ============================================================
 
 // parseTradingDates 从价格数据中提取所有交易日并排序
-// TODO: 当前始终返回 nil error；预留未来对日期格式异常的严格校验
+// 保留 error 返回值以保持兼容性，当前始终返回 nil
 func parseTradingDates(priceData PriceDataMap) ([]time.Time, error) {
 	dateSet := make(map[time.Time]bool)
 	for _, tickerData := range priceData {
@@ -644,8 +650,8 @@ func dailyReturns(curve []DataPoint) []float64 {
 
 // computeStatistics 从曲线和回撤数据计算统计指标
 // 企业理由：统一统计计算入口，确保所有指标口径一致。
-// TODO: ddCurve 参数当前未使用，预留未来按回撤曲线计算条件回撤等高级指标
-func computeStatistics(curve []DataPoint, ddCurve []DrawdownPoint, episodes []DrawdownEpisode, benchCurve []DataPoint) Statistics {
+// ddCurve 参数保留作为扩展点，用于未来按回撤曲线计算条件回撤等高级指标
+func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint) Statistics {
 	if len(curve) < 2 {
 		return Statistics{}
 	}

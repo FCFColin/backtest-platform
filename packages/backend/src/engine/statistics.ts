@@ -5,6 +5,7 @@
  */
 
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
+import type { Statistics } from '@backtest/shared/types.js';
 
 /**
  * 计算复合年化增长率 (CAGR)
@@ -76,7 +77,7 @@ export function calcSortino(cagr: number, dailyReturns: number[], riskFreeRate =
   if (dailyReturns.length < 2) return 0;
   const dailyRiskFree = Math.pow(1 + riskFreeRate, 1 / TRADING_DAYS_PER_YEAR) - 1;
   const downsideReturns = dailyReturns.filter((r) => r < dailyRiskFree);
-  if (downsideReturns.length === 0) return cagr > riskFreeRate ? Infinity : 0;
+  if (downsideReturns.length === 0) return cagr > riskFreeRate ? 99.9 : 0;
 
   const downsideVariance =
     downsideReturns.reduce((s, r) => s + Math.pow(r - dailyRiskFree, 2), 0) / dailyReturns.length;
@@ -506,4 +507,247 @@ function simulateWithdrawal(annualReturns: number[], withdrawalRate: number): bo
     if (portfolio <= 0) return false;
   }
   return true;
+}
+
+/** 基准相关指标计算结果 */
+interface BenchmarkMetrics {
+  beta: number;
+  alpha: number;
+  rSquared: number;
+  trackingError: number;
+  informationRatio: number;
+  upsideCapture: number;
+  downsideCapture: number;
+}
+
+/** 计算基准相关指标（无基准时全部返回 0） */
+function calcBenchmarkMetrics(
+  dailyReturns: number[],
+  cagr: number,
+  benchmarkDailyReturns?: number[],
+  benchmarkCagr?: number,
+): BenchmarkMetrics {
+  const hasBenchmark =
+    benchmarkDailyReturns && benchmarkDailyReturns.length >= 2 && benchmarkCagr !== undefined;
+  if (!hasBenchmark) {
+    return {
+      beta: 0,
+      alpha: 0,
+      rSquared: 0,
+      trackingError: 0,
+      informationRatio: 0,
+      upsideCapture: 0,
+      downsideCapture: 0,
+    };
+  }
+  const bench = benchmarkDailyReturns!;
+  const beta = calcBeta(dailyReturns, bench);
+  const alpha = calcAlpha(cagr, beta, benchmarkCagr!);
+  const trackingError = calcTrackingError(dailyReturns, bench);
+  return {
+    beta,
+    alpha,
+    rSquared: calcRSquared(dailyReturns, bench),
+    trackingError,
+    informationRatio: calcInformationRatio(alpha, trackingError),
+    upsideCapture: calcUpsideCapture(dailyReturns, bench),
+    downsideCapture: calcDownsideCapture(dailyReturns, bench),
+  };
+}
+
+/** 构建完整的 Statistics 对象（从中间计算结果） */
+function buildStatisticsObject(args: {
+  cagr: number;
+  mwrr: number;
+  stdev: number;
+  dailyReturns: number[];
+  values: number[];
+  startingValue: number;
+  finalValue: number;
+  maxDrawdown: number;
+  maxDrawdownDuration: number;
+  annualReturnValues: number[];
+  monthlyReturnValues: number[];
+  benchmarkMetrics: ReturnType<typeof calcBenchmarkMetrics>;
+}): Statistics {
+  const {
+    cagr,
+    mwrr,
+    stdev,
+    dailyReturns,
+    values,
+    startingValue,
+    finalValue,
+    maxDrawdown,
+    maxDrawdownDuration,
+    annualReturnValues,
+    monthlyReturnValues,
+    benchmarkMetrics: bm,
+  } = args;
+  const avgDrawdown = calcAvgDrawdown(values);
+  const ulcerIndex = calcUlcerIndex(values);
+  const calmar = calcCalmar(cagr, maxDrawdown);
+  const ulcerPerformanceIndex = calcUPI(cagr, ulcerIndex);
+  const var5 = calcVaR(dailyReturns, 0.95);
+  const cvar5 = calcCVaR(dailyReturns, 0.95);
+  const skewness = calcSkewness(dailyReturns);
+  const excessKurtosis = calcExcessKurtosis(dailyReturns);
+  const totalReturn = calcTotalReturn(startingValue, finalValue);
+  const pctPositiveDays =
+    dailyReturns.length > 0 ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length : 0;
+  const maxDailyReturn = dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0;
+  const minDailyReturn = dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0;
+  const pwr = calcPWR(annualReturnValues);
+
+  return {
+    cagr,
+    mwrr,
+    stdev,
+    sharpe: calcSharpe(cagr, stdev),
+    sortino: calcSortino(cagr, dailyReturns),
+    maxDrawdown,
+    maxDrawdownDuration,
+    bestYear: calcBestYear(annualReturnValues),
+    worstYear: calcWorstYear(annualReturnValues),
+    avgYear:
+      annualReturnValues.length > 0
+        ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
+        : 0,
+    totalReturn,
+    maxMonthlyReturn: calcBestMonth(monthlyReturnValues),
+    minMonthlyReturn: calcWorstMonth(monthlyReturnValues),
+    avgDrawdown,
+    ulcerIndex,
+    calmar,
+    ulcerPerformanceIndex,
+    beta: bm.beta,
+    alpha: bm.alpha,
+    rSquared: bm.rSquared,
+    trackingError: bm.trackingError,
+    informationRatio: bm.informationRatio,
+    upsideCapture: bm.upsideCapture,
+    downsideCapture: bm.downsideCapture,
+    var5,
+    cvar5,
+    skewness,
+    excessKurtosis,
+    pctPositiveDays,
+    maxDailyReturn,
+    minDailyReturn,
+    pwr,
+  };
+}
+
+/**
+ * 计算组合统计指标
+ */
+export function calculatePortfolioStatistics(opts: {
+  values: number[];
+  dates: string[];
+  startingValue: number;
+  dailyReturns: number[];
+  annualReturns: Array<{ year: number; return: number }>;
+  monthlyReturns: Array<{ year: number; month: number; return: number }>;
+  mwrrCashflows: Array<{ value: number; time: number }>;
+  benchmarkDailyReturns?: number[];
+  benchmarkCagr?: number;
+}): Statistics {
+  const {
+    values,
+    dates,
+    startingValue,
+    dailyReturns,
+    annualReturns,
+    monthlyReturns,
+    mwrrCashflows,
+    benchmarkDailyReturns,
+    benchmarkCagr,
+  } = opts;
+  const finalValue = values[values.length - 1];
+  const years = dates.length / TRADING_DAYS_PER_YEAR;
+  const cagr = finalValue <= 0 ? -1 : calcCAGR(startingValue, finalValue, years);
+  const stdev = calcAnnualizedStdev(dailyReturns);
+  const { maxDrawdown, maxDrawdownDuration } = calcMaxDrawdown(values);
+
+  mwrrCashflows.push({ value: finalValue, time: years });
+  const mwrr = finalValue > 0 ? calcMWRR(mwrrCashflows) : -1;
+
+  const annualReturnValues = annualReturns.map((a) => a.return);
+  const monthlyReturnValues = monthlyReturns.map((m) => m.return);
+
+  return buildStatisticsObject({
+    cagr,
+    mwrr,
+    stdev,
+    dailyReturns,
+    values,
+    startingValue,
+    finalValue,
+    maxDrawdown,
+    maxDrawdownDuration,
+    annualReturnValues,
+    monthlyReturnValues,
+    benchmarkMetrics: calcBenchmarkMetrics(
+      dailyReturns,
+      cagr,
+      benchmarkDailyReturns,
+      benchmarkCagr,
+    ),
+  });
+}
+
+/** 构建单个标的的统计指标对象 */
+export function buildTickerStatistics(args: {
+  cagr: number;
+  stdev: number;
+  dailyReturns: number[];
+  prices: number[];
+  maxDrawdown: number;
+  maxDrawdownDuration: number;
+  annualReturnValues: number[];
+  monthlyReturnValues: number[];
+  beta: number;
+}): Record<string, number> {
+  const {
+    cagr,
+    stdev,
+    dailyReturns,
+    prices,
+    maxDrawdown,
+    maxDrawdownDuration,
+    annualReturnValues,
+    monthlyReturnValues,
+    beta,
+  } = args;
+  const ulcerIndex = calcUlcerIndex(prices);
+  return {
+    cagr,
+    stdev,
+    sharpe: calcSharpe(cagr, stdev),
+    sortino: calcSortino(cagr, dailyReturns),
+    maxDrawdown,
+    maxDrawdownDuration,
+    avgDrawdown: calcAvgDrawdown(prices),
+    ulcerIndex,
+    calmar: calcCalmar(cagr, maxDrawdown),
+    ulcerPerformanceIndex: calcUPI(cagr, ulcerIndex),
+    beta,
+    skewness: calcSkewness(dailyReturns),
+    excessKurtosis: calcExcessKurtosis(dailyReturns),
+    bestYear: calcBestYear(annualReturnValues),
+    worstYear: calcWorstYear(annualReturnValues),
+    avgYear:
+      annualReturnValues.length > 0
+        ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
+        : 0,
+    totalReturn: calcTotalReturn(prices[0], prices[prices.length - 1]),
+    var5: calcVaR(dailyReturns, 0.95),
+    cvar5: calcCVaR(dailyReturns, 0.95),
+    pctPositiveDays:
+      dailyReturns.length > 0 ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length : 0,
+    maxDailyReturn: dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0,
+    minDailyReturn: dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0,
+    maxMonthlyReturn: calcBestMonth(monthlyReturnValues),
+    minMonthlyReturn: calcWorstMonth(monthlyReturnValues),
+  };
 }

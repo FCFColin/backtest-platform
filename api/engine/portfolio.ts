@@ -792,15 +792,13 @@ function calcAnnualReturns(
 
   for (let idx = 0; idx < sortedYears.length; idx++) {
     const year = sortedYears[idx];
-    const endValue = yearLastValue.get(year)!;
+    const endValue = yearLastValue.get(year) ?? 0;
     let startValue: number;
 
     if (idx === 0) {
-      // 第一年：使用第一个可用值
       startValue = values[0];
     } else {
-      // 非第一年：使用前一年最后交易日的值
-      startValue = yearLastValue.get(sortedYears[idx - 1])!;
+      startValue = yearLastValue.get(sortedYears[idx - 1]) ?? 0;
     }
 
     if (startValue > 0) {
@@ -825,7 +823,8 @@ function calcMonthlyReturns(
     if (!monthMap.has(key)) {
       monthMap.set(key, { firstValue: values[i], lastValue: values[i] });
     } else {
-      monthMap.get(key)!.lastValue = values[i];
+      const entry = monthMap.get(key);
+      if (entry) entry.lastValue = values[i];
     }
   }
 
@@ -968,11 +967,15 @@ function analyzeSingleTicker(opts: AnalyzeTickerOptions): {
       annualReturns: [],
       monthlyReturns: [],
       rollingReturns: [],
-      statistics: { cagr: 0, stdev: 0, sharpe: 0, maxDrawdown: 0 },
+      statistics: { cagr: 0, stdev: 0, sharpe: 0, sortino: 0, maxDrawdown: 0, maxDrawdownDuration: 0, avgDrawdown: 0, ulcerIndex: 0, calmar: 0, ulcerPerformanceIndex: 0, beta: 0, skewness: 0, excessKurtosis: 0, bestYear: 0, worstYear: 0, avgYear: 0, totalReturn: 0, var5: 0, cvar5: 0, pctPositiveDays: 0, maxDailyReturn: 0, minDailyReturn: 0, maxMonthlyReturn: 0, minMonthlyReturn: 0 },
     };
   }
 
   const dates = filteredDates.slice(0, prices.length);
+  if (dates.length !== prices.length) {
+    const len = Math.min(prices.length, filteredDates.length);
+    dates.length = len;
+  }
   const basePrice = prices[0];
   const values = prices.map((p) => p / basePrice);
   const scaledValues = values.map((v) => v * params.startingValue);

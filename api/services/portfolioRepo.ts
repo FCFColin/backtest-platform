@@ -62,10 +62,12 @@ const SELECT_COLS = 'id, name, assets, rebalance_frequency, owner_user_id, creat
  * @param tenantId - 活跃组织（租户）UUID
  * @returns 组合记录数组
  */
-export async function listPortfolios(tenantId: string): Promise<PortfolioRecord[]> {
+export async function listPortfolios(tenantId: string, limit: number = 50): Promise<PortfolioRecord[]> {
   return withTenant(tenantId, async (client) => {
+    const capped = Math.min(limit, 200);
     const { rows } = await client.query(
-      `SELECT ${SELECT_COLS} FROM portfolios ORDER BY updated_at DESC`,
+      `SELECT ${SELECT_COLS} FROM portfolios ORDER BY updated_at DESC LIMIT $1`,
+      [capped],
     );
     return rows.map(mapRow);
   });

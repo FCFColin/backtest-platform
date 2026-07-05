@@ -18,10 +18,14 @@ export function validate(schema: ZodSchema) {
     if (!result.success) {
       const errors = result.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
       res.status(400).json({
-        type: 'https://httpstatuses.com/400',
-        title: 'Bad Request',
-        status: 400,
-        detail: `Request validation failed: ${errors}`,
+        success: false,
+        error: {
+          type: 'https://httpstatuses.com/400',
+          title: 'Bad Request',
+          status: 400,
+          code: 'VALIDATION_ERROR',
+          detail: `Request validation failed: ${errors}`,
+        },
       });
       return;
     }
@@ -48,11 +52,14 @@ export function validateQuery(schema: ZodSchema) {
     if (!result.success) {
       const errors = result.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
       res.status(422).json({
-        type: 'https://httpstatuses.com/422',
-        title: 'Unprocessable Entity',
-        status: 422,
-        code: 'VALIDATION_ERROR',
-        detail: `Query validation failed: ${errors}`,
+        success: false,
+        error: {
+          type: 'https://httpstatuses.com/422',
+          title: 'Unprocessable Entity',
+          status: 422,
+          code: 'VALIDATION_ERROR',
+          detail: `Query validation failed: ${errors}`,
+        },
       });
       return;
     }

@@ -48,10 +48,12 @@ const SELECT_COLS = 'id, name, config, owner_user_id, created_at, updated_at';
  *
  * @param tenantId - 活跃组织 UUID
  */
-export async function listConfigs(tenantId: string): Promise<SavedConfigRecord[]> {
+export async function listConfigs(tenantId: string, limit: number = 50): Promise<SavedConfigRecord[]> {
   return withTenant(tenantId, async (client) => {
+    const capped = Math.min(limit, 200);
     const { rows } = await client.query(
-      `SELECT ${SELECT_COLS} FROM saved_configs ORDER BY updated_at DESC`,
+      `SELECT ${SELECT_COLS} FROM saved_configs ORDER BY updated_at DESC LIMIT $1`,
+      [capped],
     );
     return rows.map(mapRow);
   });

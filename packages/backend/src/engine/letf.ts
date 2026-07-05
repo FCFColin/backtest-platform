@@ -86,7 +86,7 @@ export function analyzeLetfSlippage(
 
   // 2. 逐日计算收益率、累积收益、滑点与实际杠杆
   const slippageCurve: Array<{ date: string; slippage: number }> = [];
-  const effectiveLeverage: number[] = [];
+  const effectiveLeverage: (number | null)[] = [];
 
   let cumBench = 1;
   let cumLetf = 1;
@@ -115,7 +115,7 @@ export function analyzeLetfSlippage(
     if (letfReturns.length >= EFFECTIVE_LEVERAGE_WINDOW) {
       effectiveLeverage.push(calcRollingBeta(letfReturns, benchReturns));
     } else {
-      effectiveLeverage.push(NaN);
+      effectiveLeverage.push(null);
     }
   }
 

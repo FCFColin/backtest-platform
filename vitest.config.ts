@@ -4,7 +4,7 @@ import path from 'path';
 export default defineConfig({
   test: {
     globals: true,
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'tests/property/**/*.pbt.ts'],
     // 企业理由（Task 17）：bench 文件通过 `vitest bench` 单独运行（npm run test:bench），
     // 不纳入 `vitest run` 的 include，避免 bench() 在普通测试模式报错。
     // 权衡：与单测共享 vitest.config.ts 的 resolve/alias，隔离执行入口。

@@ -76,7 +76,7 @@ export function calcSortino(cagr: number, dailyReturns: number[], riskFreeRate =
   if (dailyReturns.length < 2) return 0;
   const dailyRiskFree = Math.pow(1 + riskFreeRate, 1 / TRADING_DAYS_PER_YEAR) - 1;
   const downsideReturns = dailyReturns.filter((r) => r < dailyRiskFree);
-  if (downsideReturns.length === 0) return cagr > riskFreeRate ? Infinity : 0;
+  if (downsideReturns.length === 0) return cagr > riskFreeRate ? 99.9 : 0;
 
   const downsideVariance =
     downsideReturns.reduce((s, r) => s + Math.pow(r - dailyRiskFree, 2), 0) / dailyReturns.length;

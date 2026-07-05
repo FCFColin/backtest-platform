@@ -11,6 +11,7 @@ export type { BacktestCompleted } from './backtest-completed.js';
 
 // 事件分发器（ADR-013）
 export type { DomainEvent, EventHandler } from './EventDispatcher.js';
+export type { DomainLogger } from '../logger.js';
 export { DomainEventDispatcher, eventDispatcher } from './EventDispatcher.js';
 
 // 事件处理器

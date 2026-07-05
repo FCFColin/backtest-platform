@@ -268,21 +268,31 @@ async function callGoDataService(path: string): Promise<string> {
     const url = `${baseUrl}${path}`;
 
     return await new Promise<string>((resolve, reject) => {
-      const req = http.get(url, { timeout: 30000 }, (res) => {
-        let body = '';
-        res.on('data', (chunk: Buffer) => {
-          body += chunk.toString();
-        });
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(body);
-          } else {
-            reject(
-              new Error(`Go data service returned HTTP ${res.statusCode}: ${body.slice(0, 200)}`),
-            );
-          }
-        });
-      });
+      const req = http.request(
+        url,
+        {
+          method: 'GET',
+          timeout: 30000,
+          headers: {
+            'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
+          },
+        },
+        (res) => {
+          let body = '';
+          res.on('data', (chunk: Buffer) => {
+            body += chunk.toString();
+          });
+          res.on('end', () => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              resolve(body);
+            } else {
+              reject(
+                new Error(`Go data service returned HTTP ${res.statusCode}: ${body.slice(0, 200)}`),
+              );
+            }
+          });
+        },
+      );
 
       req.on('error', (err: Error) => {
         reject(new Error(`Go data service request failed: ${err.message}`));
@@ -292,6 +302,8 @@ async function callGoDataService(path: string): Promise<string> {
         req.destroy();
         reject(new Error('Go data service request timed out after 30 seconds'));
       });
+
+      req.end();
     });
   } finally {
     goServiceSemaphore.release();

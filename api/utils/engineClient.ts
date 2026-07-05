@@ -29,9 +29,9 @@ import { callService } from '../routes/dataRoutes.js';
 import { config } from '../config/index.js';
 import { logger } from './logger.js';
 import {
-  recordRustCall,
+  recordEngineCall,
   recordFallbackToNode,
-  rustEngineCallDuration,
+  engineCallDuration,
   registerCircuitBreakerMetrics,
 } from './metrics.js';
 
@@ -261,14 +261,14 @@ export async function callEngineStrict<T>(endpoint: string, body: unknown): Prom
     const t0 = Date.now();
     const result = await retryWithBackoff(() => goCircuitBreaker.fire(endpoint, body));
     const elapsed = Date.now() - t0;
-    recordRustCall(true);
-    rustEngineCallDuration.observe({ result: 'success' }, elapsed / 1000);
+    recordEngineCall(true);
+    engineCallDuration.observe({ result: 'success' }, elapsed / 1000);
     logger.info(`[callEngineStrict] ${endpoint} Go 引擎耗时 ${elapsed}ms`);
     return result as T;
   } catch (goErr) {
     const errMsg = goErr instanceof Error ? goErr.message : String(goErr);
-    recordRustCall(false, errMsg);
-    rustEngineCallDuration.observe({ result: 'unavailable' }, 0);
+    recordEngineCall(false, errMsg);
+    engineCallDuration.observe({ result: 'unavailable' }, 0);
     logger.error(
       { err: goErr },
       `[callEngineStrict] ${endpoint} Go 引擎不可用，fail-closed 返回 503`,

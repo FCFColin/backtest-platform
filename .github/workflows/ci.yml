@@ -7,6 +7,14 @@ on:
       - master
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # Security: gitleaks密钥扫描
   # 企业为何需要：pre-commit可被--no-verify跳过，CI扫描是强制防线
