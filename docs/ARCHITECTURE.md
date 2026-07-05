@@ -99,14 +99,12 @@ flowchart TB
    a. 收集所有 ticker（组合资产 + 基准）
    b. fetchHistoryData() 获取价格数据
       - 优先 PostgreSQL 查询（pg Pool）
-      - PostgreSQL 不可用降级 JSON 文件
-      - JSON 不可用降级 Go 数据服务
+      - Go 数据服务实时获取（缺失 ticker，ADR-007）
    c. 加载 CPI 数据（按 baseCurrency 选择 cn/us）
    d. 加载汇率数据（baseCurrency === 'cny' 时）
    e. callGoEngine('/api/engine/backtest', goBody)
-      - 失败降级 callRustEngine()（Rust 引擎）
-      - 再失败降级 runPortfolioBacktest()（Node 引擎）
-   f. 返回 { success, data, degraded?, warnings? }
+      - 失败返回 503 + Retry-After（fail-closed，ADR-031）
+   f. 返回 { success, data, warnings? }
 4. 前端渲染结果（增长图/回撤/统计/年度收益/月度收益/相关性）
 ```
 
@@ -129,28 +127,27 @@ flowchart TB
 | ----------- | ---- | ------------------------------ |
 | 前端 Vite   | 5173 | vite.config.ts                 |
 | 后端 API    | 5001 | `PORT` 环境变量 / server.ts    |
-| Go 引擎     | 5002 | engine-service/ (环境变量)     |
-| Rust 引擎   | 5002 | engine-rs/src/main.rs (硬编码) |
+| Go 引擎     | 5004 | engine-go/ (环境变量)          |
 | Go 数据服务 | 5003 | data-service/ (环境变量)       |
 | PostgreSQL  | 5432 | DATABASE_URL 环境变量          |
+| Redis       | 6379 | docker-compose.yml             |
 
 ---
 
 ## 5. 入口文件职责
 
-后端有 3 个入口文件，职责不同：
+后端有 2 个入口文件，职责不同：
 
-| 文件                              | 用途                   | 说明                                                      |
-| --------------------------------- | ---------------------- | --------------------------------------------------------- |
-| [api/app.ts](../api/app.ts)       | Express 应用配置       | 中间件、路由挂载、错误处理。被 server.ts 和 index.ts 引用 |
-| [api/server.ts](../api/server.ts) | 本地开发入口           | `app.listen()` 启动 HTTP 服务，处理 SIGTERM/SIGINT        |
-| [api/index.ts](../api/index.ts)   | Vercel Serverless 入口 | 导出 handler 函数，不调用 listen                          |
+| 文件                                              | 用途                   | 说明                                                      |
+| ------------------------------------------------- | ---------------------- | --------------------------------------------------------- |
+| [app.ts](../packages/backend/src/app.ts)           | Express 应用配置       | 中间件、路由挂载、错误处理。被 server.ts 引用             |
+| [server.ts](../packages/backend/src/server.ts)     | 本地开发/生产入口      | `app.listen()` 启动 HTTP 服务，处理 SIGTERM/SIGINT        |
 
 ---
 
 ## 6. 关键模块
 
-### 6.1 后端路由层 (`api/routes/`)
+### 6.1 后端路由层 (`packages/backend/src/routes/`)
 
 | 文件                  | 路径前缀           | 职责                             |
 | --------------------- | ------------------ | -------------------------------- |
@@ -161,24 +158,17 @@ flowchart TB
 
 > 注：认证授权已实现 JWT + RBAC 模型（见 [ADR-017](adr/ADR-017-认证授权模型.md)），保留 `x-api-key` 兼容模式（analyst 角色）。
 
-### 6.2 后端服务层 (`api/services/`)
+### 6.2 后端服务层 (`packages/backend/src/services/`)
 
 | 文件                  | 职责                                                   |
 | --------------------- | ------------------------------------------------------ |
-| `dataService.ts`      | 价格数据获取（Python 子进程 + JSON 缓存）、ticker 搜索 |
+| `dataService.ts`      | 价格数据获取（PostgreSQL + Go 数据服务降级）、ticker 搜索 |
 | `engineService.ts`    | 引擎调用封装                                           |
 | `batchDataService.ts` | 批量数据服务                                           |
 
-### 6.3 Node 降级引擎 (`api/engine/`)
+> 注：Node/Rust 降级引擎已根据 ADR-031 退役，所有计算仅通过 Go 引擎 (`engine-go`)。此节保留历史参考。`api/engine/` 中保留的 canonical 实现仅用作 eslint-disable 兼容性保留，运行时不会被调用。
 
-| 文件            | 对应 Go/Rust 实现                                          | 职责               |
-| --------------- | ---------------------------------------------------------- | ------------------ |
-| `portfolio.ts`  | `engine-service/` + `engine-rs/src/engine.rs`              | 组合回测、资产分析 |
-| `statistics.ts` | `engine-service/` + `engine-rs/src/engine.rs` (Statistics) | 统计指标计算       |
-| `monteCarlo.ts` | `engine-service/` + `engine-rs/src/monte_carlo.rs`         | 蒙特卡洛模拟       |
-| `optimizer.ts`  | `engine-service/` + `engine-rs/src/optimizer.rs`           | 组合优化、有效前沿 |
-
-### 6.4 Go 引擎 (`engine-service/`)
+### 6.3 Go 引擎 (`engine-go/`)
 
 | 模块     | 职责                                             |
 | -------- | ------------------------------------------------ |
@@ -186,16 +176,9 @@ flowchart TB
 | 蒙特卡洛 | 区块自举采样（gonum/stat/dist + sync.Pool 并行） |
 | 优化器   | Markowitz 优化、有效前沿（gonum/optimize）       |
 
-### 6.5 Rust 引擎 (`engine-rs/src/`)（降级备选）
+> **已退役 (ADR-031)**：Rust 引擎 `engine-rs/` 目录已删除。`engine-go` 是唯一计算引擎，不可用时返回 503。 |
 
-| 文件             | 职责                                        |
-| ---------------- | ------------------------------------------- |
-| `main.rs`        | actix-web 服务入口、请求校验、路由          |
-| `engine.rs`      | 回测核心算法、统计指标、SWR/PWR             |
-| `monte_carlo.rs` | 蒙特卡洛区块自举采样                        |
-| `optimizer.rs`   | Markowitz 优化、有效前沿（nalgebra 闭式解） |
-
-### 6.6 前端页面 (`src/pages/`)
+### 6.4 前端页面 (`packages/frontend/src/pages/`)
 
 | 页面                             | 路由                       | 功能             |
 | -------------------------------- | -------------------------- | ---------------- |
@@ -215,7 +198,7 @@ flowchart TB
 
 ## 7. 共享类型 (`shared/`)
 
-[shared/types.ts](../shared/types.ts) 定义前后端共享的类型，包括：
+[shared/types/index.ts](../packages/shared/types/index.ts) 定义前后端共享的类型，包括：
 
 - `Portfolio` / `Asset` / `RebalanceFrequency` - 组合定义
 - `BacktestParameters` / `CashflowLeg` / `OneTimeCashflow` - 回测参数
@@ -231,9 +214,8 @@ flowchart TB
 
 ```
 data/
-├── market/
-│   └── tickers/          # 标的行情 (数千 JSON，如 AAPL.json，由 data-fetcher 管理)
-└── cache/                # 运行时缓存 (gitignore)
+├── market/tickers/    # 标的行情 JSON（仅用于 npm run import:tickers 导入，非运行时降级）
+└── cache/             # 运行时缓存 (gitignore)
 ```
 
 ---

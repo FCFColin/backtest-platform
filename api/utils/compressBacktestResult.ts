@@ -118,7 +118,7 @@ export function compressBacktestResultForSync(result: BacktestResult): BacktestR
 export function extractBacktestSeries(
   result: BacktestResult,
   series: string[],
-): BacktestResult['portfolios'] {
+): Partial<PortfolioResult>[] {
   const want = new Set(series);
   return result.portfolios.map((p) => {
     const slice: Partial<PortfolioResult> & { name: string } = { name: p.name };
@@ -126,6 +126,6 @@ export function extractBacktestSeries(
     if (want.has('rollingReturns')) slice.rollingReturns = compressed.rollingReturns;
     if (want.has('allocationHistory')) slice.allocationHistory = compressed.allocationHistory;
     if (want.has('drawdownEpisodes')) slice.drawdownEpisodes = p.drawdownEpisodes;
-    return slice as PortfolioResult;
+    return slice;
   });
 }

@@ -150,7 +150,14 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
 
 /** 处理 Bearer Token 认证流程（含吊销/停用检查） */
 function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  const token = req.headers.authorization!.slice(7).trim();
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    sendProblem(res, 401, 'MISSING_CREDENTIALS', 'Unauthorized', {
+      detail: '缺少认证凭证',
+    });
+    return;
+  }
+  const token = authHeader.slice(7).trim();
   verifyJwt(token)
     .then(async (payload) => {
       if (!payload) {
@@ -256,7 +263,12 @@ export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunc
  */
 /** 可选模式：处理 Bearer Token，失败时匿名放行 */
 function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunction): void {
-  const token = req.headers.authorization!.slice(7).trim();
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+  const token = authHeader.slice(7).trim();
   verifyJwt(token)
     .then((payload) => {
       if (payload) {

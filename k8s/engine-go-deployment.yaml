@@ -35,11 +35,13 @@ spec:
                 - ALL
           ports:
             - containerPort: 5004
-          # ENGINE_AUTH_TOKEN 必须与 API 服务一致（服务间认证）。两者共享 backtest-config，
-          # 默认值一致即可联通；生产环境请在 backtest-config/Secret 中覆盖为非默认强随机值。
+          # ENGINE_AUTH_TOKEN 使用 auth-tokens Secret（见 k8s/auth-secret.yaml）
+          # 生产环境请通过 External Secrets Operator 注入强随机值（>=32 chars）
           envFrom:
             - configMapRef:
                 name: backtest-config
+            - secretRef:
+                name: auth-tokens
           resources:
             requests:
               memory: '512Mi'

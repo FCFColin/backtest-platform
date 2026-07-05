@@ -434,7 +434,7 @@ const dataManageAuth: express.RequestHandler[] = [
   dataManageRoutes,
 ];
 
-app.use('/api/v1/data', dataRoutes);
+app.use('/api/v1/data', optionalJwtAuth, assignGuestReadonly, dataRoutes);
 app.use('/api/v1/data/manage', ...dataManageAuth);
 // resolveTenant（ADR-032）：在认证之后软解析 JWT 的 tenant_id 到 req.tenantId，
 // 供路由内 withTenant 激活 RLS。无租户上下文时放行，强制要求租户的端点再叠加 requireTenant。
@@ -592,7 +592,7 @@ function deprecateRoute(path: string, v1Path: string, ...handlers: express.Reque
 }
 
 const routes: Record<string, [string, ...express.RequestHandler[]]> = {
-  '/api/data': ['/data', dataRoutes],
+  '/api/data': ['/data', optionalJwtAuth, assignGuestReadonly, dataRoutes],
   '/api/data/manage': [
     '/data/manage',
     optionalJwtAuth,

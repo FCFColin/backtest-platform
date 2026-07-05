@@ -72,6 +72,8 @@ spec:
                 name: backtest-config
             - secretRef:
                 name: postgres-secret
+            - secretRef:
+                name: auth-tokens
           volumeMounts:
             - name: tmp
               mountPath: /tmp

@@ -1,0 +1,15 @@
+# 企业理由：PodDisruptionBudget 确保自愿驱逐（kubectl drain/集群升级）时
+# go-data 服务保持最小可用副本数。数据服务不可用将导致数据请求降级。
+# 当前 go-data replicas:2，minAvailable:1 意味着最多允许 1 个 Pod 被驱逐。
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: go-data-pdb
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: go-data

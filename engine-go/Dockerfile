@@ -3,7 +3,8 @@
 # =============================================================================
 # Stage 1: builder
 # 使用 golang:1.25-alpine 编译静态二进制（与 go.mod 对齐）
-FROM golang:1.25-alpine AS builder
+# digest 应由 Renovate 自动化更新：docker pull golang:1.25-alpine 获取
+FROM golang:1.25-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000 AS builder
 
 WORKDIR /build
 
