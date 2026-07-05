@@ -45,6 +45,8 @@ import {
   type TenantContext,
 } from '../middleware/jwtAuth.js';
 import { Role } from '../middleware/rbac.js';
+import { validate } from '../middleware/validate.js';
+import { loginSchema, loginPasswordSchema, registerSchema } from '../schemas/auth.js';
 
 function hashUserId(sub: string | undefined): string | undefined {
   if (!sub) return undefined;
@@ -100,8 +102,8 @@ const SUNSET_DATE = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOStr
  * 共享 API Key 无法区分用户身份，不符合 SOC 2/ISO 27001 可追溯要求。
  * 所有用户迁移到用户名+密码认证后，此端点将被移除。
  */
-router.post('/login', async (req: Request, res: Response) => {
-  const { apiKey } = req.body as { apiKey?: string };
+router.post('/login', validate(loginSchema), async (req: Request, res: Response) => {
+  const { apiKey } = req.body;
 
   // 开发环境且未配置 ADMIN_API_KEY 时，允许直接登录（方便本地开发）
   if (config.NODE_ENV !== 'production' && !config.ADMIN_API_KEY) {
@@ -115,13 +117,7 @@ router.post('/login', async (req: Request, res: Response) => {
     return;
   }
 
-  // 生产环境必须验证 API Key
-  if (!apiKey) {
-    sendProblem(res, 401, 'MISSING_API_KEY', 'Unauthorized', { detail: '缺少 apiKey' });
-    return;
-  }
-
-  if (apiKey.length > 128 || apiKey.length !== config.ADMIN_API_KEY.length) {
+  if (apiKey.length !== config.ADMIN_API_KEY.length) {
     sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
     return;
   }
@@ -160,15 +156,8 @@ router.post('/login', async (req: Request, res: Response) => {
  * 验证失败不区分"用户不存在"和"密码错误"，防止用户名枚举攻击。
  * POST 语义正确——创建新的会话/令牌资源。
  */
-router.post('/login/password', async (req: Request, res: Response) => {
-  const { username, password } = req.body as { username?: string; password?: string };
-
-  if (!username || !password) {
-    sendProblem(res, 422, 'MISSING_CREDENTIALS', 'Missing credentials', {
-      detail: '缺少用户名或密码',
-    });
-    return;
-  }
+router.post('/login/password', validate(loginPasswordSchema), async (req: Request, res: Response) => {
+  const { username, password } = req.body;
 
   const lockRemaining = await isLockedOut(username);
   if (lockRemaining > 0) {
@@ -250,28 +239,8 @@ function slugify(name: string): string {
  * 企业理由：SaaS 自助开通的核心入口。三者一并落库保证不出现"有用户无组织"的孤儿态；
  * 邮箱验证（异步、不阻塞注册成功）用于防滥用与找回。返回不含令牌——引导用户登录/验证。
  */
-router.post('/register', async (req: Request, res: Response) => {
-  const { username, password, email, orgName } = req.body as {
-    username?: string;
-    password?: string;
-    email?: string;
-    orgName?: string;
-  };
-
-  if (!username || !password || !email || !orgName) {
-    sendProblem(res, 422, 'MISSING_FIELDS', 'Missing fields', {
-      detail: '缺少 username/password/email/orgName',
-    });
-    return;
-  }
-  if (password.length < 8) {
-    sendProblem(res, 422, 'WEAK_PASSWORD', 'Weak password', { detail: '密码长度至少 8 位' });
-    return;
-  }
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    sendProblem(res, 422, 'INVALID_EMAIL', 'Invalid email', { detail: '邮箱格式不合法' });
-    return;
-  }
+router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
+  const { username, password, email, orgName } = req.body;
 
   // 预检邮箱占用（最终唯一性仍由 DB 唯一索引兜底）
   const existing = await getUserByEmail(email);

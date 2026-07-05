@@ -25,7 +25,7 @@
  */
 
 import CircuitBreaker from 'opossum';
-import { callService } from '../routes/dataRoutes.js';
+import { callService } from './httpClient.js';
 import { config } from '../config/index.js';
 import { logger } from './logger.js';
 import {

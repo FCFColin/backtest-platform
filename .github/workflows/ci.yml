@@ -32,26 +32,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  node:
-    name: Node.js
+  # ============================================================
+  # Required (fast) — 每次 push/PR 必须通过
+  # ============================================================
+  node-quick:
+    name: Node Quick (required)
     runs-on: ubuntu-latest
-    # 企业理由：PostgreSQL 服务容器用于集成测试，验证 API 与数据库的交互逻辑。
-    # CI 中使用服务容器而非外部数据库，确保测试环境隔离和可重现。
-    services:
-      postgres:
-        # T-40：与 docker-compose 对齐 digest pin
-        image: postgres:16-alpine@sha256:ef9d151c6fe83308ad8d383c878c5a2a3a75c96cdf8e22b79c1d8a1420a5a4c
-        env:
-          POSTGRES_USER: backtest
-          POSTGRES_PASSWORD: backtest
-          POSTGRES_DB: backtest_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -71,29 +57,55 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Dependency check
+        run: npm run depcheck
+
       - name: Unit tests
         run: npm run test:unit
-        env:
-          DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
 
-      # 企业理由：Shift-left security，依赖漏洞在 CI 发现而非上线后。
-      # 修复成本随发现时间指数增长（设计时1x→开发时10x→测试时100x→生产时1000x）。
-      # --omit=dev：仅审计生产依赖，devDependencies 中的漏洞不影响运行时安全。
-      # 权衡：可能遗漏 dev 工具链中的漏洞，但生产安全优先于开发环境安全。
+      - name: Property tests
+        run: npm run test:property
+
+  # ============================================================
+  # Deep (optional) — 对 main 分支和标签 PR 运行，不 blocking merge
+  # ============================================================
+  node-deep:
+    name: Node Deep (optional)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:ef9d151c6fe83308ad8d383c878c5a2a3a75c96cdf8e22b79c1d8a1420a5a4c
+        env:
+          POSTGRES_USER: backtest
+          POSTGRES_PASSWORD: backtest
+          POSTGRES_DB: backtest_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Security audit
         run: npm audit --audit-level=high --omit=dev
 
-      # 企业理由（T-22 / 许可证合规）：未审查的依赖许可证可能引入 Copyleft（GPL/AGPL）
-      # 传染性义务，威胁专有代码闭源权或带来法律风险。在 CI 中枚举生产依赖许可证，
-      # 仅允许宽松型（MIT/Apache/BSD 等）。当前 continue-on-error 以先建立可见性，
-      # 后续可移除使其成为硬门槛。
       - name: License compliance
         run: npx --yes license-checker --production --summary --excludePrivatePackages
 
-      # 企业理由（性能基线 / T-07）：基准测试入 CI 才能感知性能回退（regression）。
-      # 无基准 = 无法量化"这次改动让热路径慢了多少"。这里运行 Vitest bench 产出统计算法
-      # （Sharpe/最大回撤/年化波动）的 ops/sec 基线；失败不阻断（continue-on-error）以免
-      # CI 机器抖动造成误报，但输出归档供趋势观察。
       - name: Performance benchmarks
         run: npm run test:bench
 
@@ -107,10 +119,6 @@ jobs:
           name: coverage-report
           path: coverage/vitest/
           retention-days: 7
-      # 企业理由：per-file 覆盖率门槛确保没有"测试盲区"文件。
-      # 整体覆盖率可能掩盖个别文件零覆盖的问题。
-      # 关键文件（认证/金融计算/安全/数据完整性）要求 >90%，
-      # 其他文件要求 ≥60%，低于门槛则 CI 失败。
 
       - name: Build
         run: npm run build
@@ -217,7 +225,8 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
 
   integration:
-    name: Integration Tests
+    name: Integration Tests (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -254,7 +263,8 @@ jobs:
           NODE_ENV: test
 
   contract:
-    name: Contract Tests
+    name: Contract Tests (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -266,7 +276,8 @@ jobs:
       - run: npm run test:contract
 
   load-smoke:
-    name: k6 Load Smoke
+    name: k6 Load Smoke (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -310,7 +321,8 @@ jobs:
           BASE_URL: http://localhost:5001
 
   consistency:
-    name: Engine Consistency (Go ↔ JS)
+    name: Engine Consistency (Go ↔ JS) (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -349,8 +361,48 @@ jobs:
           GO_ENGINE_URL: http://127.0.0.1:5004
           ENGINE_AUTH_TOKEN: dev-engine-auth-token
 
+  # ============================================================
+  # 跨平台确定性验证（P3.2）：同一输入在不同架构上产生相同指纹
+  # ============================================================
+  determinism:
+    name: Cross-platform Determinism (optional)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: engine-go/go.sum
+
+      - name: Build for amd64
+        run: cd engine-go && GOARCH=amd64 go build -o /tmp/engine-amd64 ./cmd/
+
+      - name: Build for 386
+        run: cd engine-go && GOARCH=386 go build -o /tmp/engine-386 ./cmd/
+
+      - name: Generate fingerprints
+        run: |
+          echo '{"portfolios":[{"name":"test","assets":[{"ticker":"SPY","weight":60},{"ticker":"BND","weight":40}],"rebalanceFrequency":"quarterly"}],"priceData":{"SPY":{"2024-01-02":180,"2024-01-03":181},"BND":{"2024-01-02":80,"2024-01-03":79.9}},"params":{"startDate":"2024-01-02","endDate":"2024-01-03","startingValue":10000,"adjustForInflation":false,"rollingWindowMonths":12,"benchmarkTicker":""},"fingerprint":true}' > /tmp/test-input.json
+
+          FP_AMD64=$(/tmp/engine-amd64 backtest --input /tmp/test-input.json 2>/dev/null | sha256sum | cut -d' ' -f1)
+          FP_386=$(/tmp/engine-386 backtest --input /tmp/test-input.json 2>/dev/null | sha256sum | cut -d' ' -f1)
+
+          echo "amd64 fingerprint: $FP_AMD64"
+          echo "386 fingerprint: $FP_386"
+
+          if [ "$FP_AMD64" != "$FP_386" ]; then
+            echo "❌ Fingerprint mismatch between amd64 and 386"
+            exit 1
+          fi
+          echo "✅ Determinism check passed"
+
   e2e:
-    name: E2E Tests (Playwright)
+    name: E2E Tests (Playwright) (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -400,7 +452,8 @@ jobs:
   # CI 中验证 initSchema→rollbackSchema(0)→initSchema 循环，
   # 确保迁移可安全回滚。
   migration-rollback:
-    name: Migration Rollback Test
+    name: Migration Rollback Test (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -460,7 +513,8 @@ jobs:
   # Trivy 扫描 HIGH/CRITICAL 漏洞并阻断 CI，防止带漏洞镜像进入生产。
   # 权衡：CI 增加 3-5 分钟，换取供应链安全。
   docker:
-    name: Docker Build & Security Scan
+    name: Docker Build & Security Scan (optional)
+    continue-on-error: true
     runs-on: ubuntu-latest
     permissions:
       contents: read

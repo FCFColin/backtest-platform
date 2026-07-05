@@ -142,6 +142,35 @@ describe('引擎一致性测试：Go ↔ Node.js', () => {
     assertEngineSaneVsNode(goResult.portfolios[0], nodeP, metrics);
   });
 
+  it('Node 端回测计算确定性验证（同一输入产生相同结果）', () => {
+    const spy = makePriceData('SPY', '2023-01-02', '2023-06-30', 180, 0.0004);
+    const priceData = { SPY: spy };
+    const portfolios: Portfolio[] = [
+      {
+        id: 'p1',
+        name: 'test',
+        assets: [{ ticker: 'SPY', weight: 100 }],
+        rebalanceFrequency: 'monthly',
+      },
+    ];
+    const params: BacktestParameters = {
+      startDate: '2023-01-02',
+      endDate: '2023-06-30',
+      startingValue: 10000,
+      adjustForInflation: false,
+      rollingWindowMonths: 12,
+      benchmarkTicker: '',
+    };
+
+    const result1 = runPortfolioBacktest(portfolios, priceData, params);
+    const result2 = runPortfolioBacktest(portfolios, priceData, params);
+
+    // 同一输入产生相同结果
+    expect(result1.portfolios[0].statistics.cagr).toBe(result2.portfolios[0].statistics.cagr);
+    expect(result1.portfolios[0].statistics.sharpe).toBe(result2.portfolios[0].statistics.sharpe);
+    expect(result1.portfolios[0].statistics.maxDrawdown).toBe(result2.portfolios[0].statistics.maxDrawdown);
+  });
+
   it('含现金流回测一致性（Go 对齐 Node）', async () => {
     if (!goAvailable) {
       return;

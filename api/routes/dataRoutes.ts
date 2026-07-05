@@ -8,10 +8,9 @@ import { Router, type Request, type Response } from 'express';
 import { fetchHistoryData, searchTickers } from '../services/dataService.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { getRequestId } from '../utils/requestContext.js';
-import { getTracePropagationHeaders } from '../utils/tracePropagation.js';
 import { registerCircuitBreakerMetrics, recordFallbackToNode } from '../utils/metrics.js';
 import { sendProblem } from '../utils/errors.js';
+import { callService } from '../utils/httpClient.js';
 import { MAX_TICKERS } from '../../shared/constants.js';
 import { validateQuery } from '../middleware/validate.js';
 import { historyQuerySchema, searchQuerySchema } from '../schemas/data.js';
@@ -27,71 +26,6 @@ interface PricePoint {
   adj_close?: number;
   volume: number;
 }
-
-/**
- * 调用外部 HTTP 服务（Go 数据服务 / Go 引擎等），统一封装超时与降级处理。
- *
- * 调用流程：
- * 1. 使用 AbortController 在 `timeoutMs` 毫秒后中断请求；
- * 2. 若 HTTP 状态非 2xx，记录告警并返回 `null`，由调用方走降级路径；
- * 3. 若发生超时（AbortError）或其他异常，记录告警并返回 `null`。
- *
- * 降级行为说明：
- * - 本函数**不抛异常**，任何失败均返回 `null`，调用方需通过判断 `null` 走降级逻辑
- *   （如 Go 数据服务失败时降级到 PostgreSQL）；
- * - 超时默认 30 秒（适用于 Go 数据服务的批量行情请求），调用方可按场景覆盖；
- * - 所有失败均通过 `logger.warn` 记录，便于排查降级原因。
- *
- * @param baseUrl - 目标服务基础地址，如 `http://127.0.0.1:5003`
- * @param endpoint - 接口路径（含 query string），会拼接在 `baseUrl` 之后
- * @param options - 透传给 `fetch` 的初始化参数（method/headers/body 等）
- * @param timeoutMs - 超时毫秒数，超时后触发 AbortController 中断请求，默认 30000ms
- * @returns 成功时返回解析后的 JSON 响应；失败（非 2xx / 超时 / 网络错误）时返回 `null`
- */
-export async function callService(
-  baseUrl: string,
-  endpoint: string,
-  options?: RequestInit,
-  timeoutMs = 30000,
-): Promise<unknown | null> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    // 企业理由：将 request_id 传播到下游服务（Go 引擎/数据服务），使其日志可与本服务关联。
-    // 无此传播时，下游服务日志无法定位属于哪个上游请求，跨服务排障断裂。
-    const requestId = getRequestId();
-    const headers: Record<string, string> = {
-      ...(options?.headers as Record<string, string> | undefined),
-      ...getTracePropagationHeaders(),
-    };
-    if (requestId) {
-      headers['x-request-id'] = requestId;
-    }
-    const resp = await fetch(`${baseUrl}${endpoint}`, {
-      ...options,
-      headers,
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => '');
-      logger.warn(
-        `[服务调用] ${baseUrl}${endpoint} HTTP ${resp.status}，响应体: ${body.slice(0, 500)}，降级到Node.js`,
-      );
-      return null;
-    }
-    return await resp.json();
-  } catch (err: unknown) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      logger.warn(`[服务调用] ${baseUrl} 不可用，降级到Node.js`);
-    } else {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      logger.warn(`[服务调用] ${baseUrl}${endpoint} 调用失败，降级到Node.js: ${errMsg}`);
-    }
-    return null;
-  }
-}
-
 async function callGoDataService(endpoint: string, options?: RequestInit): Promise<unknown | null> {
   const headers: Record<string, string> = {
     ...(options?.headers as Record<string, string> | undefined),

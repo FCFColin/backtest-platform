@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 )
 
-// ComputeFingerprint 计算回测结果的确定性指纹。
-// 只包含关键字段，按规范序列化确保跨平台一致性。
+// ComputeFingerprint 计算单个组合回测结果的确定性指纹。
+// 只包含关键统计指标和等间隔采样增长曲线，按规范序列化确保跨平台一致性。
 func ComputeFingerprint(result *PortfolioResult) string {
 	h := sha256.New()
 	encoder := json.NewEncoder(h)
@@ -30,6 +30,17 @@ func ComputeFingerprint(result *PortfolioResult) string {
 	sampled := sampleEvery(result.GrowthCurve, 20)
 	encoder.Encode(map[string]any{"growth_sampled": sampled})
 
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// ComputeResultFingerprint 计算全体回测结果的确定性指纹。
+// 将所有组合的指纹串联后再次哈希，得到一个整体指纹。
+func ComputeResultFingerprint(result *BacktestResult) string {
+	h := sha256.New()
+	for i := range result.Portfolios {
+		fp := ComputeFingerprint(&result.Portfolios[i])
+		h.Write([]byte(fp))
+	}
 	return hex.EncodeToString(h.Sum(nil))
 }
 

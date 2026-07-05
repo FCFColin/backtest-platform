@@ -8,6 +8,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:hmr": "concurrently \"pnpm --filter @backtest/frontend dev\" \"pnpm --filter @backtest/backend dev\"",
     "build": "pnpm --filter @backtest/frontend build",
+    "depcheck": "depcruise --config .dependency-cruiser.config.mjs api/ src/",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
