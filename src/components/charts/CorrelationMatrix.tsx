@@ -266,23 +266,66 @@ function RollingCorrelationControls({
   onSetWindow: (w: number) => void;
 }) {
   return (
-    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '12px' }}>
+    <div
+      style={{
+        display: 'flex',
+        gap: '12px',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        marginBottom: '12px',
+      }}
+    >
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>组合A:</span>
-        <select value={selectedPair ? selectedPair[0] : 0} onChange={(e) => { const i = parseInt(e.target.value); onSelectPair(selectedPair ? [i, selectedPair[1]] : [i, i === 0 ? 1 : 0]); }} style={selectStyle}>
-          {portfolios.map((p, idx) => (<option key={p.name} value={idx}>{p.name}</option>))}
+        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          组合A:
+        </span>
+        <select
+          value={selectedPair ? selectedPair[0] : 0}
+          onChange={(e) => {
+            const i = parseInt(e.target.value);
+            onSelectPair(selectedPair ? [i, selectedPair[1]] : [i, i === 0 ? 1 : 0]);
+          }}
+          style={selectStyle}
+        >
+          {portfolios.map((p, idx) => (
+            <option key={p.name} value={idx}>
+              {p.name}
+            </option>
+          ))}
         </select>
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>组合B:</span>
-        <select value={selectedPair ? selectedPair[1] : 1} onChange={(e) => { const j = parseInt(e.target.value); onSelectPair(selectedPair ? [selectedPair[0], j] : [0, j]); }} style={selectStyle}>
-          {portfolios.map((p, idx) => (<option key={p.name} value={idx}>{p.name}</option>))}
+        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          组合B:
+        </span>
+        <select
+          value={selectedPair ? selectedPair[1] : 1}
+          onChange={(e) => {
+            const j = parseInt(e.target.value);
+            onSelectPair(selectedPair ? [selectedPair[0], j] : [0, j]);
+          }}
+          style={selectStyle}
+        >
+          {portfolios.map((p, idx) => (
+            <option key={p.name} value={idx}>
+              {p.name}
+            </option>
+          ))}
         </select>
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>窗口(天):</span>
-        <select value={rollingWindow} onChange={(e) => onSetWindow(parseInt(e.target.value))} style={selectStyle}>
-          <option value={20}>20</option><option value={60}>60</option><option value={120}>120</option><option value={252}>252</option>
+        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          窗口(天):
+        </span>
+        <select
+          value={rollingWindow}
+          onChange={(e) => onSetWindow(parseInt(e.target.value))}
+          style={selectStyle}
+        >
+          <option value={20}>20</option>
+          <option value={60}>60</option>
+          <option value={120}>120</option>
+          <option value={252}>252</option>
         </select>
       </div>
     </div>
@@ -336,12 +379,18 @@ function RollingCorrelationSection({
         onSetWindow={onSetWindow}
       />
       {!selectedPair && (
-        <div className="text-[12px]" style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>
+        <div
+          className="text-[12px]"
+          style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
+        >
           请选择两个组合查看滚动相关性
         </div>
       )}
       {selectedPair && rollingCorrelationData.length === 0 && (
-        <div className="text-[12px]" style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>
+        <div
+          className="text-[12px]"
+          style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
+        >
           数据不足以计算滚动相关性（需要至少 {rollingWindow} 个交易日）
         </div>
       )}
@@ -349,15 +398,44 @@ function RollingCorrelationSection({
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={rollingChartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-            <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickFormatter={(v: string) => v.slice(0, 7)} interval="preserveStartEnd" />
-            <YAxis domain={[-1, 1]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(v: number) => v.toFixed(1)} />
-            <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [value.toFixed(4), '相关性']} labelFormatter={(label: string) => `日期: ${label}`} />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+              tickFormatter={(v: string) => v.slice(0, 7)}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              domain={[-1, 1]}
+              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+              tickFormatter={(v: number) => v.toFixed(1)}
+            />
+            <Tooltip
+              contentStyle={CHART_TOOLTIP_STYLE}
+              formatter={(value: number) => [value.toFixed(4), '相关性']}
+              labelFormatter={(label: string) => `日期: ${label}`}
+            />
             <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
             <ReferenceLine y={1} stroke="var(--border-soft)" strokeDasharray="1 3" />
             <ReferenceLine y={-1} stroke="var(--border-soft)" strokeDasharray="1 3" />
-            <Line type="monotone" dataKey="correlation" stroke={CHART_COLORS[0]} strokeWidth={1.5} dot={false} activeDot={{ r: 3 }} name={pairName} />
+            <Line
+              type="monotone"
+              dataKey="correlation"
+              stroke={CHART_COLORS[0]}
+              strokeWidth={1.5}
+              dot={false}
+              activeDot={{ r: 3 }}
+              name={pairName}
+            />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
-            {rollingChartData.length > 100 && (<Brush dataKey="date" height={20} stroke="var(--brand)" travellerWidth={8} tickFormatter={(v: string) => v.slice(0, 7)} />)}
+            {rollingChartData.length > 100 && (
+              <Brush
+                dataKey="date"
+                height={20}
+                stroke="var(--brand)"
+                travellerWidth={8}
+                tickFormatter={(v: string) => v.slice(0, 7)}
+              />
+            )}
           </LineChart>
         </ResponsiveContainer>
       )}
@@ -377,12 +455,10 @@ export default function CorrelationWithBeta({
   const betaData = useMemo(() => {
     if (portfolios.length < 2) return [];
     const baseReturns = computeDailyReturns(portfolios[0].growthCurve);
-    return portfolios
-      .slice(1)
-      .map((p) => ({
-        name: p.name,
-        beta: computeBeta(baseReturns, computeDailyReturns(p.growthCurve)),
-      }));
+    return portfolios.slice(1).map((p) => ({
+      name: p.name,
+      beta: computeBeta(baseReturns, computeDailyReturns(p.growthCurve)),
+    }));
   }, [portfolios]);
 
   const hasAssetCorrelation =

@@ -12,7 +12,11 @@ import type {
 } from '../../shared/types.js';
 import type { PriceData } from './portfolio.js';
 import { getDateLimits } from '../utils/dateUtils.js';
-import { calcCAGR, calcAnnualizedStdev, calcMaxDrawdown as calcMaxDrawdownStats } from './statistics.js';
+import {
+  calcCAGR,
+  calcAnnualizedStdev,
+  calcMaxDrawdown as calcMaxDrawdownStats,
+} from './statistics.js';
 import { TRADING_DAYS_PER_YEAR } from '../../shared/constants.js';
 
 interface MonteCarloParams {

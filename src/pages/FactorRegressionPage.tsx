@@ -636,19 +636,49 @@ function useFactorRegressionState() {
   };
 
   return {
-    startDate, endDate, returnFrequency, rfSource, selectedFactors, assets, totalWeight,
-    isLoading, error, result, runRegression,
-    setStartDate, setEndDate, setReturnFrequency, setRfSource, toggleFactor,
-    addAsset, removeAsset, updateAsset,
+    startDate,
+    endDate,
+    returnFrequency,
+    rfSource,
+    selectedFactors,
+    assets,
+    totalWeight,
+    isLoading,
+    error,
+    result,
+    runRegression,
+    setStartDate,
+    setEndDate,
+    setReturnFrequency,
+    setRfSource,
+    toggleFactor,
+    addAsset,
+    removeAsset,
+    updateAsset,
   };
 }
 
 export default function FactorRegressionPage() {
   const {
-    startDate, endDate, returnFrequency, rfSource, selectedFactors, assets, totalWeight,
-    isLoading, error, result, runRegression,
-    setStartDate, setEndDate, setReturnFrequency, setRfSource, toggleFactor,
-    addAsset, removeAsset, updateAsset,
+    startDate,
+    endDate,
+    returnFrequency,
+    rfSource,
+    selectedFactors,
+    assets,
+    totalWeight,
+    isLoading,
+    error,
+    result,
+    runRegression,
+    setStartDate,
+    setEndDate,
+    setReturnFrequency,
+    setRfSource,
+    toggleFactor,
+    addAsset,
+    removeAsset,
+    updateAsset,
   } = useFactorRegressionState();
 
   return (

@@ -140,9 +140,21 @@ function ConstraintsAndSimulation({
         defaultOpen={false}
       >
         <div className="params-row">
-          <ConstraintField label="最大回撤限制" value={maxDrawdown} onChange={onMaxDrawdownChange} />
-          <ConstraintField label="最小成功率" value={minSuccessRate} onChange={onMinSuccessRateChange} />
-          <ConstraintField label="最大波动率" value={maxVolatility} onChange={onMaxVolatilityChange} />
+          <ConstraintField
+            label="最大回撤限制"
+            value={maxDrawdown}
+            onChange={onMaxDrawdownChange}
+          />
+          <ConstraintField
+            label="最小成功率"
+            value={minSuccessRate}
+            onChange={onMinSuccessRateChange}
+          />
+          <ConstraintField
+            label="最大波动率"
+            value={maxVolatility}
+            onChange={onMaxVolatilityChange}
+          />
         </div>
       </ParamsSection>
       <ParamsSection
@@ -172,7 +184,15 @@ function GoalSettingsSection({
   onTargetAmountChange,
   onInitialAmountChange,
   onYearsChange,
-}: Pick<GoalParamsProps, 'targetAmount' | 'initialAmount' | 'years' | 'onTargetAmountChange' | 'onInitialAmountChange' | 'onYearsChange'>) {
+}: Pick<
+  GoalParamsProps,
+  | 'targetAmount'
+  | 'initialAmount'
+  | 'years'
+  | 'onTargetAmountChange'
+  | 'onInitialAmountChange'
+  | 'onYearsChange'
+>) {
   return (
     <ParamsSection title="目标设置" info="设定您的财务目标：目标金额、初始金额与投资时间范围">
       <div className="params-row">
@@ -226,7 +246,10 @@ function AssetConfigSection({
   onAddAsset,
   onRemoveAsset,
   onUpdateAsset,
-}: Pick<GoalParamsProps, 'assets' | 'totalWeight' | 'onAddAsset' | 'onRemoveAsset' | 'onUpdateAsset'>) {
+}: Pick<
+  GoalParamsProps,
+  'assets' | 'totalWeight' | 'onAddAsset' | 'onRemoveAsset' | 'onUpdateAsset'
+>) {
   return (
     <ParamsSection title="资产配置" info="添加标的与权重，权重合计需为 100%">
       <div className="portfolios-cards">
@@ -648,9 +671,13 @@ function useGoalOptimizerState() {
   const runOptimize = () => {
     const validAssets = assets.filter((a) => a.ticker.trim());
     const err = validateGoalInputs(validAssets, totalWeight, targetAmount, initialAmount, years);
-    if (err) { setError(err); return; }
+    if (err) {
+      setError(err);
+      return;
+    }
     run(async () => {
-      const constraints: { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number } = {};
+      const constraints: { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number } =
+        {};
       if (maxDrawdown !== '') constraints.maxDrawdown = maxDrawdown / 100;
       if (minSuccessRate !== '') constraints.minSuccessRate = minSuccessRate / 100;
       if (maxVolatility !== '') constraints.maxVolatility = maxVolatility / 100;
@@ -674,11 +701,29 @@ function useGoalOptimizerState() {
   };
 
   return {
-    targetAmount, initialAmount, years, assets, maxDrawdown, minSuccessRate,
-    maxVolatility, numSimulations, isLoading, error, results, totalWeight,
-    addAsset, removeAsset, updateAsset, runOptimize,
-    setTargetAmount, setInitialAmount, setYears,
-    setMaxDrawdown, setMinSuccessRate, setMaxVolatility, setNumSimulations,
+    targetAmount,
+    initialAmount,
+    years,
+    assets,
+    maxDrawdown,
+    minSuccessRate,
+    maxVolatility,
+    numSimulations,
+    isLoading,
+    error,
+    results,
+    totalWeight,
+    addAsset,
+    removeAsset,
+    updateAsset,
+    runOptimize,
+    setTargetAmount,
+    setInitialAmount,
+    setYears,
+    setMaxDrawdown,
+    setMinSuccessRate,
+    setMaxVolatility,
+    setNumSimulations,
   };
 }
 

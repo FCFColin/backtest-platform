@@ -555,9 +555,7 @@ function PortfolioNameRow({
           max={252}
           className="offset-input"
           title={t('portfolio.offsetTitle')}
-          onChange={(e) =>
-            onUpdate(portfolio.id, { rebalanceOffset: Number(e.target.value) || 0 })
-          }
+          onChange={(e) => onUpdate(portfolio.id, { rebalanceOffset: Number(e.target.value) || 0 })}
         />
         <span className="offset-suffix">{t('portfolio.offset')}</span>
       </div>
@@ -569,9 +567,7 @@ function PortfolioNameRow({
             min={1}
             max={50}
             className="threshold-input"
-            onChange={(e) =>
-              onUpdate(portfolio.id, { rebalanceThreshold: Number(e.target.value) })
-            }
+            onChange={(e) => onUpdate(portfolio.id, { rebalanceThreshold: Number(e.target.value) })}
           />
           <span className="threshold-suffix">%</span>
         </div>
@@ -713,11 +709,7 @@ function PortfolioCard({
   );
 }
 
-function handleSavePortfolio(
-  portfolio: StorePortfolio,
-  parameters: BacktestParameters,
-  t: TFunc,
-) {
+function handleSavePortfolio(portfolio: StorePortfolio, parameters: BacktestParameters, t: TFunc) {
   const data = { portfolios: [portfolio], parameters, exportedAt: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -771,16 +763,10 @@ function PortfolioEditorHeader({
       <button className="portfolios-add-btn" onClick={onAdd}>
         {t('portfolio.addEmpty')}
       </button>
-      <button
-        className="portfolios-add-btn portfolios-add-btn-secondary"
-        onClick={onAddGlidepath}
-      >
+      <button className="portfolios-add-btn portfolios-add-btn-secondary" onClick={onAddGlidepath}>
         {t('portfolio.addGlidepath')}
       </button>
-      <button
-        className="portfolios-add-btn portfolios-add-btn-secondary"
-        onClick={onShare}
-      >
+      <button className="portfolios-add-btn portfolios-add-btn-secondary" onClick={onShare}>
         <Share2 className="w-3.5 h-3.5" />
         {t('portfolio.shareLink')}
       </button>

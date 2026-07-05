@@ -94,7 +94,15 @@ function LetfEtfSelection({
   onLetfTickerChange,
   onBenchmarkTickerChange,
   onLeverageChange,
-}: Pick<LETFParamsProps, 'letfTicker' | 'benchmarkTicker' | 'leverage' | 'onLetfTickerChange' | 'onBenchmarkTickerChange' | 'onLeverageChange'>) {
+}: Pick<
+  LETFParamsProps,
+  | 'letfTicker'
+  | 'benchmarkTicker'
+  | 'leverage'
+  | 'onLetfTickerChange'
+  | 'onBenchmarkTickerChange'
+  | 'onLeverageChange'
+>) {
   return (
     <ParamsSection
       title="ETF 选择"

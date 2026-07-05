@@ -661,7 +661,12 @@ function calculatePortfolioStatistics(opts: {
     maxDrawdownDuration,
     annualReturnValues,
     monthlyReturnValues,
-    benchmarkMetrics: calcBenchmarkMetrics(dailyReturns, cagr, benchmarkDailyReturns, benchmarkCagr),
+    benchmarkMetrics: calcBenchmarkMetrics(
+      dailyReturns,
+      cagr,
+      benchmarkDailyReturns,
+      benchmarkCagr,
+    ),
   });
 }
 
@@ -1133,8 +1138,8 @@ export function runAnalysis(
  */
 export function calculateDrag(
   portfolioValue: number[],
-  cashflows: Array<{ date: string; amount: number }>,
-  rebalanceFrequency: string,
+  _cashflows: Array<{ date: string; amount: number }>,
+  _rebalanceFrequency: string,
   dragPct: number = 0.001,
 ): {
   totalDrag: number;

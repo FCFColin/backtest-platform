@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import type { Server } from 'http';
 
-vi.mock('../../api/config/redis.js', () => {
+vi.mock('../../packages/backend/src/config/redis.js', () => {
   const store = new Map<string, number>();
   return {
     appRedis: {
@@ -28,7 +28,7 @@ vi.mock('../../api/config/redis.js', () => {
   };
 });
 
-vi.mock('../../api/db/index.js', () => ({
+vi.mock('../../packages/backend/src/db/index.js', () => ({
   getPool: vi.fn(() => ({
     query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }),
     waitingCount: 0,
@@ -39,7 +39,7 @@ vi.mock('../../api/db/index.js', () => ({
   closeDb: vi.fn(),
 }));
 
-import app from '../../api/app.js';
+import app from '../../packages/backend/src/app.js';
 
 let server: Server;
 let baseUrl: string;

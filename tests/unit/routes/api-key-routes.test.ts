@@ -142,4 +142,3 @@ describe('apiKeyRoutes', () => {
     expect(body.code).toBe('API_KEY_REVOKE_FAILED');
   });
 });
-

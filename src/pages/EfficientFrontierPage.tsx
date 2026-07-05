@@ -270,34 +270,75 @@ function SelectField({
 }
 
 const SOLVE_SPEED_OPTIONS = [
-  { value: 'ultrafast', label: '极速' }, { value: 'fast', label: '快速' },
-  { value: 'medium', label: '中等' }, { value: 'slow', label: '慢速' },
+  { value: 'ultrafast', label: '极速' },
+  { value: 'fast', label: '快速' },
+  { value: 'medium', label: '中等' },
+  { value: 'slow', label: '慢速' },
 ];
 const REBALANCE_FREQ_OPTIONS = [
-  { value: 'daily', label: '每日' }, { value: 'weekly', label: '每周' },
-  { value: 'monthly', label: '每月' }, { value: 'quarterly', label: '每季度' },
+  { value: 'daily', label: '每日' },
+  { value: 'weekly', label: '每周' },
+  { value: 'monthly', label: '每月' },
+  { value: 'quarterly', label: '每季度' },
   { value: 'yearly', label: '每年' },
 ];
 const RETURN_OBJ_OPTIONS = [
-  { value: 'maxCagr', label: '最大化 CAGR' }, { value: 'minVolatility', label: '最小化波动率' },
+  { value: 'maxCagr', label: '最大化 CAGR' },
+  { value: 'minVolatility', label: '最小化波动率' },
 ];
 const SOLVER_OPTIONS = [
-  { value: 'markowitz', label: 'Markowitz' }, { value: 'nsga2', label: 'NSGA-II' },
+  { value: 'markowitz', label: 'Markowitz' },
+  { value: 'nsga2', label: 'NSGA-II' },
 ];
 
 function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
   return (
     <>
       <label className="param-check">
-        <input type="checkbox" checked={p.startDate === '' && p.endDate === ''} onChange={(e) => {
-          if (e.target.checked) { p.onStartDateChange(''); p.onEndDateChange(''); }
-          else { p.onStartDateChange('2010-01-01'); p.onEndDateChange('2024-12-31'); }
-        }} />
+        <input
+          type="checkbox"
+          checked={p.startDate === '' && p.endDate === ''}
+          onChange={(e) => {
+            if (e.target.checked) {
+              p.onStartDateChange('');
+              p.onEndDateChange('');
+            } else {
+              p.onStartDateChange('2010-01-01');
+              p.onEndDateChange('2024-12-31');
+            }
+          }}
+        />
         <span>全部历史</span>
       </label>
-      <div className="param-field"><span className="param-label">开始日期</span><input type="date" className="param-input" value={p.startDate} onChange={(e) => p.onStartDateChange(e.target.value)} /></div>
-      <div className="param-field"><span className="param-label">结束日期</span><input type="date" className="param-input" value={p.endDate} onChange={(e) => p.onEndDateChange(e.target.value)} /></div>
-      <div className="param-field"><span className="param-label">采样点数</span><input type="number" className="param-input" value={p.numPoints} onChange={(e) => p.onNumPointsChange(Number(e.target.value))} min={5} max={100} /></div>
+      <div className="param-field">
+        <span className="param-label">开始日期</span>
+        <input
+          type="date"
+          className="param-input"
+          value={p.startDate}
+          onChange={(e) => p.onStartDateChange(e.target.value)}
+        />
+      </div>
+      <div className="param-field">
+        <span className="param-label">结束日期</span>
+        <input
+          type="date"
+          className="param-input"
+          value={p.endDate}
+          onChange={(e) => p.onEndDateChange(e.target.value)}
+        />
+      </div>
+      <div className="param-field">
+        <span className="param-label">采样点数</span>
+        <input
+          type="number"
+          className="param-input"
+          value={p.numPoints}
+          onChange={(e) => p.onNumPointsChange(Number(e.target.value))}
+          min={5}
+          max={100}
+        />
+      </div>
     </>
   );
 }
@@ -305,18 +346,52 @@ function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
 function FrontierAdvancedFields({ p }: { p: FrontierParamsProps }) {
   return (
     <>
-      <SelectField label="求解速度" value={p.solveSpeed} onChange={(v) => p.onSolveSpeedChange(v as SolveSpeed)} options={SOLVE_SPEED_OPTIONS} />
+      <SelectField
+        label="求解速度"
+        value={p.solveSpeed}
+        onChange={(v) => p.onSolveSpeedChange(v as SolveSpeed)}
+        options={SOLVE_SPEED_OPTIONS}
+      />
       <div className="param-field param-field-rolling">
         <span className="param-label">最小包含权重</span>
         <div className="param-input-suffix-wrap">
-          <input type="number" className="param-input param-input-with-suffix" value={p.minInclusionWeight} onChange={(e) => p.onMinInclusionWeightChange(Number(e.target.value))} min={0} max={100} />
+          <input
+            type="number"
+            className="param-input param-input-with-suffix"
+            value={p.minInclusionWeight}
+            onChange={(e) => p.onMinInclusionWeightChange(Number(e.target.value))}
+            min={0}
+            max={100}
+          />
           <span className="param-input-suffix">%</span>
         </div>
       </div>
-      <SelectField label="调仓频率" value={p.rebalanceFrequency} onChange={p.onRebalanceFrequencyChange} options={REBALANCE_FREQ_OPTIONS} />
-      <SelectField label="收益目标" value={p.returnObjective} onChange={(v) => p.onReturnObjectiveChange(v as ReturnObjective)} options={RETURN_OBJ_OPTIONS} />
-      <SelectField label="求解器" value={p.solver} onChange={(v) => p.onSolverChange(v as FrontierSolver)} options={SOLVER_OPTIONS} />
-      <label className="param-check"><input type="checkbox" checked={p.allowCash} onChange={(e) => p.onAllowCashChange(e.target.checked)} /><span>允许现金分配</span></label>
+      <SelectField
+        label="调仓频率"
+        value={p.rebalanceFrequency}
+        onChange={p.onRebalanceFrequencyChange}
+        options={REBALANCE_FREQ_OPTIONS}
+      />
+      <SelectField
+        label="收益目标"
+        value={p.returnObjective}
+        onChange={(v) => p.onReturnObjectiveChange(v as ReturnObjective)}
+        options={RETURN_OBJ_OPTIONS}
+      />
+      <SelectField
+        label="求解器"
+        value={p.solver}
+        onChange={(v) => p.onSolverChange(v as FrontierSolver)}
+        options={SOLVER_OPTIONS}
+      />
+      <label className="param-check">
+        <input
+          type="checkbox"
+          checked={p.allowCash}
+          onChange={(e) => p.onAllowCashChange(e.target.checked)}
+        />
+        <span>允许现金分配</span>
+      </label>
     </>
   );
 }
@@ -355,11 +430,7 @@ function FrontierTickerList({ p }: { p: FrontierParamsProps }) {
                 className="ticker-input"
               />
               {p.tickers.length > 2 && (
-                <button
-                  onClick={() => p.onRemoveTicker(i)}
-                  className="row-remove-btn"
-                  title="删除"
-                >
+                <button onClick={() => p.onRemoveTicker(i)} className="row-remove-btn" title="删除">
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -517,13 +588,7 @@ function MetricCard({
   );
 }
 
-function WeightAllocation({
-  weights,
-  title,
-}: {
-  weights: Record<string, number>;
-  title: string;
-}) {
+function WeightAllocation({ weights, title }: { weights: Record<string, number>; title: string }) {
   return (
     <div>
       <div style={{ fontSize: 12, marginBottom: 8, color: 'var(--text-muted)' }}>{title}</div>
@@ -542,7 +607,11 @@ function WeightAllocation({
 }
 
 function FrontierScatterChartInner({
-  scatterData, sharpeRange, maxSharpe, frontier, onSelectPoint,
+  scatterData,
+  sharpeRange,
+  maxSharpe,
+  frontier,
+  onSelectPoint,
 }: {
   scatterData: FrontierResultsProps['scatterData'];
   sharpeRange: { min: number; max: number };
@@ -553,24 +622,69 @@ function FrontierScatterChartInner({
   return (
     <ScatterChart>
       <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-      <XAxis dataKey="expectedVolatility" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} label={{ value: '波动率 (%)', position: 'insideBottom', offset: -5, fontSize: 12, fill: 'var(--text-muted)' }} />
-      <YAxis dataKey="expectedReturn" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} label={{ value: '收益率 (%)', angle: -90, position: 'insideLeft', fontSize: 12, fill: 'var(--text-muted)' }} />
+      <XAxis
+        dataKey="expectedVolatility"
+        tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+        label={{
+          value: '波动率 (%)',
+          position: 'insideBottom',
+          offset: -5,
+          fontSize: 12,
+          fill: 'var(--text-muted)',
+        }}
+      />
+      <YAxis
+        dataKey="expectedReturn"
+        tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+        label={{
+          value: '收益率 (%)',
+          angle: -90,
+          position: 'insideLeft',
+          fontSize: 12,
+          fill: 'var(--text-muted)',
+        }}
+      />
       <ZAxis range={[60, 60]} />
-      <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={FRONTIER_TOOLTIP_STYLE} />
-      <Scatter data={scatterData} onClick={(data: { idx?: number }) => { if (data?.idx != null && frontier[data.idx]) onSelectPoint(frontier[data.idx]); }}>
+      <Tooltip
+        formatter={(v: number) => `${v.toFixed(2)}%`}
+        contentStyle={FRONTIER_TOOLTIP_STYLE}
+      />
+      <Scatter
+        data={scatterData}
+        onClick={(data: { idx?: number }) => {
+          if (data?.idx != null && frontier[data.idx]) onSelectPoint(frontier[data.idx]);
+        }}
+      >
         {scatterData.map((entry, index) => (
-          <Cell key={index} fill={sharpeToColor(entry.sharpeRatio, sharpeRange.min, sharpeRange.max)} />
+          <Cell
+            key={index}
+            fill={sharpeToColor(entry.sharpeRatio, sharpeRange.min, sharpeRange.max)}
+          />
         ))}
       </Scatter>
       {maxSharpe && (
-        <Scatter data={[{ expectedVolatility: maxSharpe.expectedVolatility, expectedReturn: maxSharpe.expectedReturn }]} fill={CHART_COLORS[0]} shape="star" />
+        <Scatter
+          data={[
+            {
+              expectedVolatility: maxSharpe.expectedVolatility,
+              expectedReturn: maxSharpe.expectedReturn,
+            },
+          ]}
+          fill={CHART_COLORS[0]}
+          shape="star"
+        />
       )}
     </ScatterChart>
   );
 }
 
 function FrontierScatterChart({
-  scatterData, sharpeRange, maxSharpe, frontier, onSelectPoint, onLoadInBacktester,
+  scatterData,
+  sharpeRange,
+  maxSharpe,
+  frontier,
+  onSelectPoint,
+  onLoadInBacktester,
 }: {
   scatterData: FrontierResultsProps['scatterData'];
   sharpeRange: { min: number; max: number };
@@ -581,12 +695,25 @@ function FrontierScatterChart({
 }) {
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 12,
+        }}
+      >
         <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)' }}>有效前沿</div>
         <LoadInBacktesterButton onClick={onLoadInBacktester} label="Load in backtester" />
       </div>
       <ResponsiveContainer width="100%" height={400}>
-        <FrontierScatterChartInner scatterData={scatterData} sharpeRange={sharpeRange} maxSharpe={maxSharpe} frontier={frontier} onSelectPoint={onSelectPoint} />
+        <FrontierScatterChartInner
+          scatterData={scatterData}
+          sharpeRange={sharpeRange}
+          maxSharpe={maxSharpe}
+          frontier={frontier}
+          onSelectPoint={onSelectPoint}
+        />
       </ResponsiveContainer>
     </>
   );
@@ -622,10 +749,7 @@ function FrontierAllocations({
             tickFormatter={(v: number) => `${v}%`}
             domain={[0, 100]}
           />
-          <Tooltip
-            formatter={(v: number) => `${v}%`}
-            contentStyle={FRONTIER_TOOLTIP_STYLE}
-          />
+          <Tooltip formatter={(v: number) => `${v}%`} contentStyle={FRONTIER_TOOLTIP_STYLE} />
           {allAssetTickers.map((ticker, i) => (
             <Area
               key={ticker}
@@ -675,7 +799,10 @@ function CorrelationMatrixView({
         <table className="border-collapse">
           <thead>
             <tr>
-              <th className="px-3 py-2 text-[11px] font-medium" style={{ color: 'var(--text-muted)' }} />
+              <th
+                className="px-3 py-2 text-[11px] font-medium"
+                style={{ color: 'var(--text-muted)' }}
+              />
               {correlations.tickers.map((t) => (
                 <th
                   key={t}
@@ -781,11 +908,7 @@ function SelectedPointDetail({
   );
 }
 
-function MaxSharpeSection({
-  maxSharpe,
-}: {
-  maxSharpe: EfficientFrontierPoint | undefined;
-}) {
+function MaxSharpeSection({ maxSharpe }: { maxSharpe: EfficientFrontierPoint | undefined }) {
   if (!maxSharpe) return null;
   return (
     <>
@@ -898,7 +1021,22 @@ function ParamsSummary({
 }
 
 function FrontierResults(props: FrontierResultsProps) {
-  const { results: r, scatterData, sharpeRange, maxSharpe, allocationData, allAssetTickers, correlations, selectedPoint, rebalanceFrequency, allowCash, returnObjective, solver, onSelectPoint, onLoadInBacktester } = props;
+  const {
+    results: r,
+    scatterData,
+    sharpeRange,
+    maxSharpe,
+    allocationData,
+    allAssetTickers,
+    correlations,
+    selectedPoint,
+    rebalanceFrequency,
+    allowCash,
+    returnObjective,
+    solver,
+    onSelectPoint,
+    onLoadInBacktester,
+  } = props;
   return (
     <div className="bt-results-card card">
       <FrontierScatterChart
@@ -954,18 +1092,32 @@ function useEfficientFrontierState(navigate: (path: string) => void) {
     setTickers(n);
   };
 
-  const { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers } = useMemo(() => computeFrontierDerivedData(results), [results]);
+  const { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers } = useMemo(
+    () => computeFrontierDerivedData(results),
+    [results],
+  );
 
   const runFrontier = () => {
     const validTickers = tickers.filter(Boolean);
-    if (validTickers.length < 2) { setError('请至少输入两个标的代码'); return; }
+    if (validTickers.length < 2) {
+      setError('请至少输入两个标的代码');
+      return;
+    }
     setSelectedPoint(null);
     setCorrelations(null);
     setCorrelationError(null);
     run(async () => {
       const data = await fetchFrontier({
-        validTickers, numPoints, solveSpeed, minInclusionWeight,
-        rebalanceFrequency, allowCash, returnObjective, solver, startDate, endDate,
+        validTickers,
+        numPoints,
+        solveSpeed,
+        minInclusionWeight,
+        rebalanceFrequency,
+        allowCash,
+        returnObjective,
+        solver,
+        startDate,
+        endDate,
       });
       setResults(data);
       const corr = await fetchCorrelations(validTickers, startDate, endDate);
@@ -985,30 +1137,72 @@ function useEfficientFrontierState(navigate: (path: string) => void) {
   };
 
   return {
-    tickers, startDate, endDate, numPoints, solveSpeed, minInclusionWeight,
-    isLoading, error, results, selectedPoint, correlations, correlationError,
-    rebalanceFrequency, allowCash, returnObjective, solver,
-    maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers,
-    addTicker, removeTicker, updateTicker, runFrontier, handleLoadInBacktester,
-    setStartDate, setEndDate, setNumPoints, setSolveSpeed, setMinInclusionWeight,
-    setRebalanceFrequency, setAllowCash, setReturnObjective, setSolver, setSelectedPoint,
+    tickers,
+    startDate,
+    endDate,
+    numPoints,
+    solveSpeed,
+    minInclusionWeight,
+    isLoading,
+    error,
+    results,
+    selectedPoint,
+    correlations,
+    correlationError,
+    rebalanceFrequency,
+    allowCash,
+    returnObjective,
+    solver,
+    maxSharpe,
+    sharpeRange,
+    scatterData,
+    allocationData,
+    allAssetTickers,
+    addTicker,
+    removeTicker,
+    updateTicker,
+    runFrontier,
+    handleLoadInBacktester,
+    setStartDate,
+    setEndDate,
+    setNumPoints,
+    setSolveSpeed,
+    setMinInclusionWeight,
+    setRebalanceFrequency,
+    setAllowCash,
+    setReturnObjective,
+    setSolver,
+    setSelectedPoint,
   };
 }
 
 function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
   const maxSharpe = results?.frontier.length
-    ? results.frontier.reduce((best, p) => (p.sharpeRatio > best.sharpeRatio ? p : best), results.frontier[0])
+    ? results.frontier.reduce(
+        (best, p) => (p.sharpeRatio > best.sharpeRatio ? p : best),
+        results.frontier[0],
+      )
     : undefined;
   const sharpeRange = results?.frontier.length
-    ? { min: Math.min(...results.frontier.map((p) => p.sharpeRatio)), max: Math.max(...results.frontier.map((p) => p.sharpeRatio)) }
+    ? {
+        min: Math.min(...results.frontier.map((p) => p.sharpeRatio)),
+        max: Math.max(...results.frontier.map((p) => p.sharpeRatio)),
+      }
     : { min: 0, max: 1 };
   const scatterData = results
-    ? results.frontier.map((p, idx) => ({ expectedVolatility: p.expectedVolatility, expectedReturn: p.expectedReturn, sharpeRatio: p.sharpeRatio, idx }))
+    ? results.frontier.map((p, idx) => ({
+        expectedVolatility: p.expectedVolatility,
+        expectedReturn: p.expectedReturn,
+        sharpeRatio: p.sharpeRatio,
+        idx,
+      }))
     : [];
   const allocationData = results
     ? results.frontier.map((point, idx) => {
         const row: Record<string, number | string> = { point: idx + 1 };
-        Object.entries(point.weights).forEach(([ticker, weight]) => { row[ticker] = Number((weight * 100).toFixed(1)); });
+        Object.entries(point.weights).forEach(([ticker, weight]) => {
+          row[ticker] = Number((weight * 100).toFixed(1));
+        });
         return row;
       })
     : [];
@@ -1038,13 +1232,21 @@ function FrontierSeoCard() {
       </div>
       <div className="bt-seo-related">
         <span className="bt-seo-related-label">相关工具：</span>
-        <Link to="/" className="link-blue" style={{ fontWeight: 700 }}>组合回测</Link>
+        <Link to="/" className="link-blue" style={{ fontWeight: 700 }}>
+          组合回测
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>组合优化</Link>
+        <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>
+          组合优化
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/analysis" className="link-blue" style={{ fontWeight: 700 }}>资产分析</Link>
+        <Link to="/analysis" className="link-blue" style={{ fontWeight: 700 }}>
+          资产分析
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/monte-carlo" className="link-blue" style={{ fontWeight: 700 }}>蒙特卡洛模拟</Link>
+        <Link to="/monte-carlo" className="link-blue" style={{ fontWeight: 700 }}>
+          蒙特卡洛模拟
+        </Link>
       </div>
     </div>
   );
@@ -1087,10 +1289,20 @@ export default function EfficientFrontierPage() {
         onRun={s.runFrontier}
       />
       {s.error && (
-        <div className="bt-results-card card" style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}>计算失败：{s.error}</div>
+        <div
+          className="bt-results-card card"
+          style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
+        >
+          计算失败：{s.error}
+        </div>
       )}
       {s.correlationError && !s.error && (
-        <div className="bt-results-card card" style={{ color: 'var(--warning, #f59e0b)', textAlign: 'center', padding: 16 }}>{s.correlationError}</div>
+        <div
+          className="bt-results-card card"
+          style={{ color: 'var(--warning, #f59e0b)', textAlign: 'center', padding: 16 }}
+        >
+          {s.correlationError}
+        </div>
       )}
       {s.results && s.results.frontier.length > 0 && (
         <FrontierResults

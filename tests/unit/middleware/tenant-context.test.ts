@@ -94,4 +94,3 @@ describe('requireTenant', () => {
     expect(res.body.code).toBe('NO_ACTIVE_TENANT');
   });
 });
-

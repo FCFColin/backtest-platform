@@ -17,7 +17,6 @@ function validateDateChange(
   field: 'startDate' | 'endDate',
   value: string,
   otherDate: string,
-  otherField: 'startDate' | 'endDate',
   t: TFunction,
 ): string | null {
   if (!value) return null;
@@ -65,7 +64,7 @@ function DateRangeFields({
           value={startDate}
           className="param-input"
           onChange={(e) => {
-            const err = validateDateChange('startDate', e.target.value, endDate, 'endDate', t);
+            const err = validateDateChange('startDate', e.target.value, endDate, t);
             if (err) {
               useToastStore.getState().addToast('warning', err);
               return;
@@ -81,7 +80,7 @@ function DateRangeFields({
           value={endDate}
           className="param-input"
           onChange={(e) => {
-            const err = validateDateChange('endDate', e.target.value, startDate, 'startDate', t);
+            const err = validateDateChange('endDate', e.target.value, startDate, t);
             if (err) {
               useToastStore.getState().addToast('warning', err);
               return;
@@ -134,9 +133,7 @@ function StartingValueField({ t }: { t: TFunction }) {
     <div className="param-field param-field-start-val">
       <label className="param-label">{t('params.startingValue')}</label>
       <div className="param-input-prefix-wrap">
-        <span className="param-input-prefix">
-          {parameters.baseCurrency === 'usd' ? '$' : '¥'}
-        </span>
+        <span className="param-input-prefix">{parameters.baseCurrency === 'usd' ? '$' : '¥'}</span>
         <input
           type="number"
           value={parameters.startingValue}

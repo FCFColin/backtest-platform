@@ -417,7 +417,7 @@ function buildHeatmapMatrix(
 
 export function runGridSearch(
   request: TacticalGridRequest,
-  priceData: Record<string, Record<string, number>>,
+  _priceData: Record<string, Record<string, number>>,
   dates: string[],
   prices: number[],
   tradingTicker: string,

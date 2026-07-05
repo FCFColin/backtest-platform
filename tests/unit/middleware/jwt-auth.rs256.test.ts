@@ -225,4 +225,3 @@ describe('jwtAuth RS256 路径', () => {
     await expect(mod.generateToken('prod-user', 'admin')).rejects.toThrow(/JWT_PRIVATE_KEY/);
   });
 });
-

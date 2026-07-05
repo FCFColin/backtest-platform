@@ -147,7 +147,10 @@ function AnnualReturnTableRow({
           <td
             key={p.name}
             className="text-[13px] font-medium text-right py-1.5 px-3 font-mono"
-            style={{ color: isNeg ? '#c94a4a' : 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
+            style={{
+              color: isNeg ? '#c94a4a' : 'var(--text-strong)',
+              borderBottom: '1px solid var(--border-soft)',
+            }}
           >
             {val !== undefined ? `${val.toFixed(2)}%` : '—'}
           </td>
@@ -176,9 +179,17 @@ function AnnualReturnTable({
             <AnnualReturnTableHeader portfolios={portfolios} />
           </thead>
           <tbody>
-            {data.slice().reverse().map((row, ri) => (
-              <AnnualReturnTableRow key={row.year as number} row={row} ri={ri} portfolios={portfolios} />
-            ))}
+            {data
+              .slice()
+              .reverse()
+              .map((row, ri) => (
+                <AnnualReturnTableRow
+                  key={row.year as number}
+                  row={row}
+                  ri={ri}
+                  portfolios={portfolios}
+                />
+              ))}
           </tbody>
         </table>
       </div>

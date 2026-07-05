@@ -16,18 +16,18 @@ const mocks = vi.hoisted(() => ({
   getOrg: vi.fn(),
   getMonthlyUsage: vi.fn(),
   recordUsage: vi.fn(),
-  loggerMocks: ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({
+  loggerMocks: {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
-  })),
-}),
+    child: vi.fn(() => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    })),
+  },
 }));
 
 vi.mock('../../../api/services/membershipService.js', () => ({ getOrg: mocks.getOrg }));
@@ -158,7 +158,12 @@ describe('enforceQuota', () => {
     const next = vi.fn();
     const res = mockRes();
     await enforceQuota('backtest')(
-      { tenantId: TENANT, user: {}, body: { tickers: ['A', 'B', 'C'] }, path: '/x' } as unknown as Request,
+      {
+        tenantId: TENANT,
+        user: {},
+        body: { tickers: ['A', 'B', 'C'] },
+        path: '/x',
+      } as unknown as Request,
       res,
       next,
     );

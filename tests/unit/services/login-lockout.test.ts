@@ -11,18 +11,18 @@ const redisMocks = vi.hoisted(() => ({
   expire: vi.fn(),
   set: vi.fn(),
   del: vi.fn(),
-  loggerMocks: ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({
+  loggerMocks: {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
-  })),
-}),
+    child: vi.fn(() => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    })),
+  },
 }));
 
 vi.mock('../../../api/config/redis.js', () => ({

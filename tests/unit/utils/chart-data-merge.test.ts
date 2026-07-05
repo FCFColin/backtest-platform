@@ -18,9 +18,7 @@ describe('mergePortfolioSeries', () => {
   });
 
   it('单组合单条目应正确合并', () => {
-    const portfolios: MockPortfolio[] = [
-      { name: 'A', values: [{ date: '2024-01-01', v: 100 }] },
-    ];
+    const portfolios: MockPortfolio[] = [{ name: 'A', values: [{ date: '2024-01-01', v: 100 }] }];
     const result = mergePortfolioSeries(
       portfolios,
       (p) => p.values,
@@ -47,7 +45,13 @@ describe('mergePortfolioSeries', () => {
   it('日期不同时应排序合并', () => {
     const portfolios: MockPortfolio[] = [
       { name: 'A', values: [{ date: '2024-01-03', v: 300 }] },
-      { name: 'B', values: [{ date: '2024-01-01', v: 100 }, { date: '2024-01-02', v: 200 }] },
+      {
+        name: 'B',
+        values: [
+          { date: '2024-01-01', v: 100 },
+          { date: '2024-01-02', v: 200 },
+        ],
+      },
     ];
     const result = mergePortfolioSeries(
       portfolios,
@@ -78,7 +82,13 @@ describe('mergePortfolioSeries', () => {
 
   it('使用 year 键名应正确排序数字键', () => {
     const portfolios: MockPortfolio[] = [
-      { name: 'A', values: [{ date: '2022', v: 200 }, { date: '2020', v: 100 }] },
+      {
+        name: 'A',
+        values: [
+          { date: '2022', v: 200 },
+          { date: '2020', v: 100 },
+        ],
+      },
     ];
     const result = mergePortfolioSeries(
       portfolios,
@@ -95,7 +105,13 @@ describe('mergePortfolioSeries', () => {
 
   it('多个条目每个组合应全部处理', () => {
     const portfolios: MockPortfolio[] = [
-      { name: 'A', values: [{ date: '2024-01-01', v: 100 }, { date: '2024-01-02', v: 200 }] },
+      {
+        name: 'A',
+        values: [
+          { date: '2024-01-01', v: 100 },
+          { date: '2024-01-02', v: 200 },
+        ],
+      },
       { name: 'B', values: [{ date: '2024-01-01', v: 300 }] },
     ];
     const result = mergePortfolioSeries(

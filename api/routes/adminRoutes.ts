@@ -63,7 +63,10 @@ function buildStatsResponseData(args: {
       total_tickers: tickerStats.total_cached,
       total_size_mb: tickerStats.data_quality.total_size_mb,
       total_data_points: tickerStats.data_quality.total_data_points,
-      date_range: { earliest: tickerStats.date_ranges.earliest, latest: tickerStats.date_ranges.latest },
+      date_range: {
+        earliest: tickerStats.date_ranges.earliest,
+        latest: tickerStats.date_ranges.latest,
+      },
       universe_total: universeStats.total,
       universe_updated_at: universeStats.updated_at,
       by_market: tickerStats.by_market,
@@ -180,16 +183,18 @@ router.get('/system', async (_req: Request, res: Response): Promise<void> => {
     const memUsage = process.memoryUsage();
     const uptimeSeconds = process.uptime();
 
-    const tickerStats = (await scanTickersStats()) ?? ({
-      total_cached: 0,
-      data_quality: {
-        with_adj_close: 0,
-        with_dividends: 0,
-        with_splits: 0,
-        total_data_points: 0,
-        total_size_mb: 0,
-      },
-    } as DbMarketStats);
+    const tickerStats =
+      (await scanTickersStats()) ??
+      ({
+        total_cached: 0,
+        data_quality: {
+          with_adj_close: 0,
+          with_dividends: 0,
+          with_splits: 0,
+          total_data_points: 0,
+          total_size_mb: 0,
+        },
+      } as DbMarketStats);
 
     res.json({
       success: true,

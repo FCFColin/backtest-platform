@@ -90,4 +90,3 @@ describe('tactical-application-service', () => {
     expect(() => saveTacticalAlertConfig({ enabled: true, triggers: [] })).toThrow('邮箱');
   });
 });
-

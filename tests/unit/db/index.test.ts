@@ -207,4 +207,3 @@ describe('db/index', () => {
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
   });
 });
-

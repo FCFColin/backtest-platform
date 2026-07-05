@@ -148,4 +148,3 @@ describe('writeOutboxEvent 事务双写', () => {
     });
   });
 });
-

@@ -198,11 +198,7 @@ function getCellDisplayValue(cell: number, objective: ObjectiveType): string {
 }
 
 /** 校验网格搜索参数，返回错误信息或 null */
-function validateGridParams(
-  ticker: string,
-  param1: ParamRange,
-  param2: ParamRange,
-): string | null {
+function validateGridParams(ticker: string, param1: ParamRange, param2: ParamRange): string | null {
   if (!ticker.trim()) return '请输入标的代码';
   if (param1.step <= 0 || param2.step <= 0) return '步长必须大于 0';
   if (param1.min > param1.max || param2.min > param2.max) return '参数最小值不能大于最大值';
@@ -707,9 +703,7 @@ function HeatmapCell({
   objectiveLabel: string;
 }) {
   if (cell == null) {
-    return (
-      <td style={{ ...heatmapCellStyle, color: 'var(--text-muted)' }}>—</td>
-    );
+    return <td style={{ ...heatmapCellStyle, color: 'var(--text-muted)' }}>—</td>;
   }
   const bg = getHeatmapColor(cell, range.min, range.max);
   const fg = getHeatmapTextColor(cell, range.min, range.max);

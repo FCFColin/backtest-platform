@@ -447,19 +447,17 @@ describe('createUserTx - 事务内创建用户', () => {
 
   it('应使用事务客户端插入并返回用户', async () => {
     const client = {
-      query: vi
-        .fn()
-        .mockResolvedValue({
-          rows: [
-            {
-              id: 'u1',
-              username: 'txuser',
-              role: 'analyst',
-              created_at: new Date('2026-01-01'),
-              is_active: true,
-            },
-          ],
-        }),
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          {
+            id: 'u1',
+            username: 'txuser',
+            role: 'analyst',
+            created_at: new Date('2026-01-01'),
+            is_active: true,
+          },
+        ],
+      }),
     };
     const user = await createUserTx(client as never, 'txuser', 'pass123', 'tx@test.com', 'analyst');
     expect(user).toMatchObject({ id: 'u1', username: 'txuser', role: 'analyst', isActive: true });
@@ -472,19 +470,17 @@ describe('createUserTx - 事务内创建用户', () => {
 
   it('email 为 null 时应传入 null', async () => {
     const client = {
-      query: vi
-        .fn()
-        .mockResolvedValue({
-          rows: [
-            {
-              id: 'u2',
-              username: 'nullemail',
-              role: 'readonly',
-              created_at: new Date(),
-              is_active: true,
-            },
-          ],
-        }),
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          {
+            id: 'u2',
+            username: 'nullemail',
+            role: 'readonly',
+            created_at: new Date(),
+            is_active: true,
+          },
+        ],
+      }),
     };
     const user = await createUserTx(client as never, 'nullemail', 'pass', null, 'readonly');
     expect(user.role).toBe('readonly');
@@ -496,13 +492,11 @@ describe('createUserTx - 事务内创建用户', () => {
 
   it('默认角色应为 analyst', async () => {
     const client = {
-      query: vi
-        .fn()
-        .mockResolvedValue({
-          rows: [
-            { id: 'u3', username: 'def', role: 'analyst', created_at: new Date(), is_active: true },
-          ],
-        }),
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          { id: 'u3', username: 'def', role: 'analyst', created_at: new Date(), is_active: true },
+        ],
+      }),
     };
     const user = await createUserTx(client as never, 'def', 'pass', null);
     expect(user.role).toBe('analyst');
@@ -620,4 +614,3 @@ describe('verifyEmailToken - 校验邮箱验证令牌', () => {
     expect(mocks.poolClient.release).toHaveBeenCalled();
   });
 });
-

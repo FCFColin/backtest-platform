@@ -24,6 +24,9 @@ FROM nginx:stable-alpine@sha256:67b3cf4d43f7fed5fea49e2bd7b78cfcb2366a45f6648cc0
 COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 
+# 显式声明非 root 用户（nginx 镜像默认以 nginx 用户运行，显式声明增强安全透明度）
+USER nginx
+
 EXPOSE 80
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \

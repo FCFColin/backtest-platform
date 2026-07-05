@@ -195,4 +195,3 @@ describe('adminRoutes - GET /api/admin/system', () => {
     expect(body.code).toBe('ADMIN_SYSTEM_ERROR');
   });
 });
-

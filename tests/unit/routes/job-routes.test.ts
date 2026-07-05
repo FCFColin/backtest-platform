@@ -260,4 +260,3 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     expect(body.error).toBeUndefined();
   });
 });
-

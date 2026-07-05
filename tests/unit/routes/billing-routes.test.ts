@@ -21,23 +21,26 @@ const mocks = vi.hoisted(() => ({
     constructWebhookEvent: vi.fn(),
     handleWebhookEvent: vi.fn(),
   },
-  loggerMocks: ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({
+  loggerMocks: {
     info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
     debug: vi.fn(),
-  })),
-}),
+    child: vi.fn(() => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    })),
+  },
 }));
 
 vi.mock('../../../api/services/billingService.js', () => mocks.svc);
 vi.mock('../../../api/config/index.js', () => ({
-  config: createConfigMocks({ STRIPE_PUBLISHABLE_KEY: 'pk_test_1', APP_BASE_URL: 'http://localhost:5173' }),
+  config: createConfigMocks({
+    STRIPE_PUBLISHABLE_KEY: 'pk_test_1',
+    APP_BASE_URL: 'http://localhost:5173',
+  }),
 }));
 vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(mocks.loggerMocks) }));
 

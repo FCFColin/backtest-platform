@@ -170,12 +170,10 @@ router.post(
       } catch (err) {
         logger.warn({ err: String(err), orgId, email }, '[orgRoutes] 邀请邮件发送失败');
       }
-      res
-        .status(201)
-        .json({
-          success: true,
-          data: { id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt },
-        });
+      res.status(201).json({
+        success: true,
+        data: { id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt },
+      });
     } catch (err) {
       logger.error({ err: String(err), orgId }, '[orgRoutes] 创建邀请失败');
       sendProblem(res, 500, 'INVITE_CREATE_FAILED', 'Internal Server Error', {

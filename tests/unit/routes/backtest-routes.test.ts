@@ -302,7 +302,6 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
     });
     expect(res.status).toBe(404);
   });
-
 });
 
 describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {

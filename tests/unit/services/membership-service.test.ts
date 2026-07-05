@@ -292,4 +292,3 @@ describe('updateOrgName', () => {
     expect(await updateOrgName('missing', 'X')).toBe(false);
   });
 });
-

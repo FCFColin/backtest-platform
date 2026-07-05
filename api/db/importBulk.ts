@@ -47,7 +47,9 @@ async function importSingleTickerViaCopy(
       'COPY prices (ticker, date, open, high, low, close, volume, adjusted_close) FROM STDIN WITH (FORMAT csv)',
     );
     // @ts-expect-error -- pg-copy-streams.from 返回 Submittable 兼容流，@types/pg 重载不匹配
-    const stream = client.query(copyStream) as unknown as NodeJS.WritableStream & { rowCount?: number };
+    const stream = client.query(copyStream) as unknown as NodeJS.WritableStream & {
+      rowCount?: number;
+    };
     stream.write(csvStr);
     stream.end();
     await new Promise<void>((resolve, reject) => {
@@ -67,9 +69,7 @@ async function worker(
   for (const file of files) {
     const ticker = file.replace('.json', '');
     try {
-      const raw = JSON.parse(
-        fs.readFileSync(path.join(TICKERS_DIR, file), 'utf-8'),
-      );
+      const raw = JSON.parse(fs.readFileSync(path.join(TICKERS_DIR, file), 'utf-8'));
       const data: PriceRecord[] = Array.isArray(raw) ? raw : raw.prices || [];
       if (data.length === 0) {
         progress.done++;
@@ -81,11 +81,22 @@ async function worker(
     } catch (err) {
       progress.errors++;
       if (progress.errors % 10 === 0) {
-        logger.error({ err, ticker, done: progress.done, total: progress.total, errors: progress.errors }, '[bulk-import] 导入失败');
+        logger.error(
+          { err, ticker, done: progress.done, total: progress.total, errors: progress.errors },
+          '[bulk-import] 导入失败',
+        );
       }
     }
     if (progress.done % 200 === 0 || progress.done === progress.total) {
-      logger.info({ done: progress.done, total: progress.total, rows: progress.rows, errors: progress.errors }, '[bulk-import] 进度');
+      logger.info(
+        {
+          done: progress.done,
+          total: progress.total,
+          rows: progress.rows,
+          errors: progress.errors,
+        },
+        '[bulk-import] 进度',
+      );
     }
   }
 }
@@ -113,7 +124,13 @@ export async function importAllViaCopy(): Promise<void> {
   await Promise.all(chunks.map((chunk) => worker(pool, chunk, progress)));
 
   logger.info(
-    { done: progress.done, total: progress.total, rows: progress.rows, errors: progress.errors, durationMs: Date.now() - t0 },
+    {
+      done: progress.done,
+      total: progress.total,
+      rows: progress.rows,
+      errors: progress.errors,
+      durationMs: Date.now() - t0,
+    },
     '[bulk-import] 批量 COPY 导入完成',
   );
 }

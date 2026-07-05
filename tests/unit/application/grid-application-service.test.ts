@@ -117,4 +117,3 @@ describe('executeGridSearch', () => {
     expect(loggerMocks.info).toHaveBeenCalled();
   });
 });
-

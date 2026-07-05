@@ -70,7 +70,9 @@ export function mockLogger(mocks: LoggerMocks) {
  * @param overrides - 要覆写的配置属性（支持全部 config 属性）
  * @returns 完整的 config mock 对象
  */
-export function createConfigMocks(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+export function createConfigMocks(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   return {
     NODE_ENV: 'test',
     SERVE_STATIC: false,

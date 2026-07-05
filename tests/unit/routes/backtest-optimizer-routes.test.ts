@@ -294,9 +294,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
 
   it('同步回退超时应返回 503', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    timeoutMocks.withTimeout.mockRejectedValueOnce(
-      new timeoutMocks.TimeoutError('计算超时'),
-    );
+    timeoutMocks.withTimeout.mockRejectedValueOnce(new timeoutMocks.TimeoutError('计算超时'));
 
     const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
       method: 'POST',

@@ -304,9 +304,7 @@ function ConditionRow({
         className="param-input"
         style={{ width: 100, height: 32, fontSize: 12, padding: '2px 6px' }}
         value={cond.operator}
-        onChange={(e) =>
-          onUpdate(ci, { operator: e.target.value as SignalCondition['operator'] })
-        }
+        onChange={(e) => onUpdate(ci, { operator: e.target.value as SignalCondition['operator'] })}
       >
         {OPERATOR_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
@@ -546,13 +544,22 @@ function SignalHistoryTable({
         <table className="w-full border-collapse">
           <thead style={{ position: 'sticky', top: 0 }}>
             <tr style={{ backgroundColor: 'var(--bg-elevated)' }}>
-              <th className="text-[12px] font-semibold text-left py-2 px-3" style={signalHistoryThStyle}>
+              <th
+                className="text-[12px] font-semibold text-left py-2 px-3"
+                style={signalHistoryThStyle}
+              >
                 日期
               </th>
-              <th className="text-[12px] font-semibold text-left py-2 px-3" style={signalHistoryThStyle}>
+              <th
+                className="text-[12px] font-semibold text-left py-2 px-3"
+                style={signalHistoryThStyle}
+              >
                 激活信号
               </th>
-              <th className="text-[12px] font-semibold text-right py-2 px-3" style={signalHistoryThStyle}>
+              <th
+                className="text-[12px] font-semibold text-right py-2 px-3"
+                style={signalHistoryThStyle}
+              >
                 目标权重
               </th>
             </tr>
@@ -590,10 +597,7 @@ function SignalHistoryTable({
 
 function BacktestResultTab({ results }: { results: BacktestResponse }) {
   const { portfolio, benchmark, signalHistory } = results;
-  const growthData = useMemo(
-    () => buildGrowthData(portfolio, benchmark),
-    [portfolio, benchmark],
-  );
+  const growthData = useMemo(() => buildGrowthData(portfolio, benchmark), [portfolio, benchmark]);
   const statRows = useMemo(() => buildStatRows(portfolio, benchmark), [portfolio, benchmark]);
   const statColumns: Column<StatRow>[] = [
     { key: 'metric', label: '指标' },
@@ -1131,9 +1135,7 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
 
 function BacktestEmptyState() {
   return (
-    <div
-      style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48, fontSize: 14 }}
-    >
+    <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48, fontSize: 14 }}>
       配置信号与参数后点击「运行战术回测」查看结果
     </div>
   );

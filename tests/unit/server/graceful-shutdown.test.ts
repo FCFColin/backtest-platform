@@ -162,4 +162,3 @@ describe('Graceful Shutdown (Task 5)', () => {
     expect(mocks.mockOutboxPublisher.start).toHaveBeenCalled();
   });
 });
-

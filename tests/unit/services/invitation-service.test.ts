@@ -174,4 +174,3 @@ describe('acceptInvitation', () => {
     expect(insertCall?.[1]).toEqual([ORG, USER, 'analyst']);
   });
 });
-

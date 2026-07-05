@@ -157,13 +157,38 @@ function SignalRow({
         onChange={(e) => onUpdateSignal(s.id, { indicator: e.target.value })}
       >
         {INDICATORS.map((ind) => (
-          <option key={ind} value={ind}>{ind}</option>
+          <option key={ind} value={ind}>
+            {ind}
+          </option>
         ))}
       </select>
-      <input type="number" className="param-input" style={inputStyle} value={s.period} min={2} title="周期" onChange={(e) => onUpdateSignal(s.id, { period: Number(e.target.value) })} />
-      <input type="number" className="param-input" style={inputStyle} value={s.threshold} title="阈值" onChange={(e) => onUpdateSignal(s.id, { threshold: Number(e.target.value) })} />
+      <input
+        type="number"
+        className="param-input"
+        style={inputStyle}
+        value={s.period}
+        min={2}
+        title="周期"
+        onChange={(e) => onUpdateSignal(s.id, { period: Number(e.target.value) })}
+      />
+      <input
+        type="number"
+        className="param-input"
+        style={inputStyle}
+        value={s.threshold}
+        title="阈值"
+        onChange={(e) => onUpdateSignal(s.id, { threshold: Number(e.target.value) })}
+      />
       {showWeight && (
-        <input type="number" step="0.1" className="param-input" style={{ ...inputStyle, width: 60 }} value={weight} title="权重" onChange={(e) => onUpdateWeight(idx, Number(e.target.value))} />
+        <input
+          type="number"
+          step="0.1"
+          className="param-input"
+          style={{ ...inputStyle, width: 60 }}
+          value={weight}
+          title="权重"
+          onChange={(e) => onUpdateWeight(idx, Number(e.target.value))}
+        />
       )}
       {canRemove && (
         <button onClick={() => onRemoveSignal(s.id)} className="row-remove-btn" title="删除">
@@ -175,17 +200,38 @@ function SignalRow({
 }
 
 function SignalListSection({
-  signals, weights, aggregationMethod, onAddSignal, onRemoveSignal, onUpdateSignal, onUpdateWeight,
-}: Pick<MultiSignalParamsProps, 'signals' | 'weights' | 'aggregationMethod' | 'onAddSignal' | 'onRemoveSignal' | 'onUpdateSignal' | 'onUpdateWeight'>) {
+  signals,
+  weights,
+  aggregationMethod,
+  onAddSignal,
+  onRemoveSignal,
+  onUpdateSignal,
+  onUpdateWeight,
+}: Pick<
+  MultiSignalParamsProps,
+  | 'signals'
+  | 'weights'
+  | 'aggregationMethod'
+  | 'onAddSignal'
+  | 'onRemoveSignal'
+  | 'onUpdateSignal'
+  | 'onUpdateWeight'
+>) {
   return (
     <ParamsSection title="信号列表" info="添加多个技术指标信号，可单独删除">
       <div className="portfolios-cards">
         <div className="portfolio-card">
           {signals.map((s, idx) => (
             <SignalRow
-              key={s.id} signal={s} idx={idx} weight={weights[idx] ?? 0}
-              showWeight={aggregationMethod === 'weighted'} canRemove={signals.length > 1}
-              onUpdateSignal={onUpdateSignal} onRemoveSignal={onRemoveSignal} onUpdateWeight={onUpdateWeight}
+              key={s.id}
+              signal={s}
+              idx={idx}
+              weight={weights[idx] ?? 0}
+              showWeight={aggregationMethod === 'weighted'}
+              canRemove={signals.length > 1}
+              onUpdateSignal={onUpdateSignal}
+              onRemoveSignal={onRemoveSignal}
+              onUpdateWeight={onUpdateWeight}
             />
           ))}
         </div>
@@ -198,7 +244,8 @@ function SignalListSection({
 }
 
 function AggregationSection({
-  aggregationMethod, onAggregationMethodChange,
+  aggregationMethod,
+  onAggregationMethodChange,
 }: Pick<MultiSignalParamsProps, 'aggregationMethod' | 'onAggregationMethodChange'>) {
   const descMap: Record<string, string> = {
     weighted: '加权：按权重对信号方向加权求和，正值买入、负值卖出。在信号列表中设置各信号权重。',
@@ -209,32 +256,68 @@ function AggregationSection({
     <ParamsSection title="聚合配置">
       <div className="param-field" style={{ marginBottom: 8 }}>
         <span className="param-label">聚合方式</span>
-        <select className="param-input" value={aggregationMethod} onChange={(e) => onAggregationMethodChange(e.target.value as 'weighted' | 'voting' | 'rank')}>
-          {AGGREGATION_METHODS.map((m) => (<option key={m.value} value={m.value}>{m.label}</option>))}
+        <select
+          className="param-input"
+          value={aggregationMethod}
+          onChange={(e) =>
+            onAggregationMethodChange(e.target.value as 'weighted' | 'voting' | 'rank')
+          }
+        >
+          {AGGREGATION_METHODS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
         </select>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>{descMap[aggregationMethod]}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+        {descMap[aggregationMethod]}
+      </div>
     </ParamsSection>
   );
 }
 
 function BacktestParamsSection({
-  ticker, startDate, endDate, onTickerChange, onStartDateChange, onEndDateChange,
-}: Pick<MultiSignalParamsProps, 'ticker' | 'startDate' | 'endDate' | 'onTickerChange' | 'onStartDateChange' | 'onEndDateChange'>) {
+  ticker,
+  startDate,
+  endDate,
+  onTickerChange,
+  onStartDateChange,
+  onEndDateChange,
+}: Pick<
+  MultiSignalParamsProps,
+  'ticker' | 'startDate' | 'endDate' | 'onTickerChange' | 'onStartDateChange' | 'onEndDateChange'
+>) {
   return (
     <ParamsSection title="回测参数">
       <div className="param-field" style={{ marginBottom: 8 }}>
         <span className="param-label">标的代码</span>
-        <input type="text" className="param-input" value={ticker} onChange={(e) => onTickerChange(e.target.value)} placeholder="如 SPY" />
+        <input
+          type="text"
+          className="param-input"
+          value={ticker}
+          onChange={(e) => onTickerChange(e.target.value)}
+          placeholder="如 SPY"
+        />
       </div>
       <div className="params-row">
         <div className="param-field">
           <span className="param-label">开始日期</span>
-          <input type="date" className="param-input" value={startDate} onChange={(e) => onStartDateChange(e.target.value)} />
+          <input
+            type="date"
+            className="param-input"
+            value={startDate}
+            onChange={(e) => onStartDateChange(e.target.value)}
+          />
         </div>
         <div className="param-field">
           <span className="param-label">结束日期</span>
-          <input type="date" className="param-input" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} />
+          <input
+            type="date"
+            className="param-input"
+            value={endDate}
+            onChange={(e) => onEndDateChange(e.target.value)}
+          />
         </div>
       </div>
     </ParamsSection>
@@ -278,9 +361,7 @@ function EquityCurveChart({ data }: { data: SignalAnalysisResult['equityCurve'] 
           />
           <YAxis
             tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) =>
-              v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)
-            }
+            tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
           />
           <Tooltip
             contentStyle={tooltipStyle}
@@ -323,7 +404,12 @@ function MultiSignalResultsPanel({ results, error, isLoading }: MultiSignalResul
                 <div className="card" key={r.label} style={{ padding: 12 }}>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.label}</div>
                   <div
-                    style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-strong)', marginTop: 4 }}
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 600,
+                      color: 'var(--text-strong)',
+                      marginTop: 4,
+                    }}
                   >
                     {r.value}
                   </div>
@@ -342,7 +428,12 @@ function MultiSignalResultsPanel({ results, error, isLoading }: MultiSignalResul
               />
             ) : (
               <div
-                style={{ color: 'var(--text-muted)', fontSize: 13, padding: '24px 0', textAlign: 'center' }}
+                style={{
+                  color: 'var(--text-muted)',
+                  fontSize: 13,
+                  padding: '24px 0',
+                  textAlign: 'center',
+                }}
               >
                 无贡献度数据
               </div>
@@ -402,8 +493,14 @@ function useMultiSignalState() {
   };
 
   const runAnalysis = () => {
-    if (!ticker.trim()) { setError('请输入标的代码'); return; }
-    if (signals.length === 0) { setError('请至少添加一个信号'); return; }
+    if (!ticker.trim()) {
+      setError('请输入标的代码');
+      return;
+    }
+    if (signals.length === 0) {
+      setError('请至少添加一个信号');
+      return;
+    }
     run(async () => {
       const reqSignals: SignalAnalysisRequest[] = signals.map((s) => ({
         ticker: ticker.trim().toUpperCase(),
@@ -432,9 +529,24 @@ function useMultiSignalState() {
   };
 
   return {
-    signals, weights, aggregationMethod, ticker, startDate, endDate,
-    isLoading, error, results, addSignal, removeSignal, updateSignal, updateWeight,
-    setAggregationMethod, setTicker, setStartDate, setEndDate, runAnalysis,
+    signals,
+    weights,
+    aggregationMethod,
+    ticker,
+    startDate,
+    endDate,
+    isLoading,
+    error,
+    results,
+    addSignal,
+    removeSignal,
+    updateSignal,
+    updateWeight,
+    setAggregationMethod,
+    setTicker,
+    setStartDate,
+    setEndDate,
+    runAnalysis,
   };
 }
 
@@ -468,7 +580,9 @@ export default function MultiSignalPage() {
             onRun={s.runAnalysis}
           />
         }
-        results={<MultiSignalResultsPanel results={s.results} error={s.error} isLoading={s.isLoading} />}
+        results={
+          <MultiSignalResultsPanel results={s.results} error={s.error} isLoading={s.isLoading} />
+        }
       />
     </div>
   );

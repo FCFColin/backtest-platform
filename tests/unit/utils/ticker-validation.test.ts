@@ -240,4 +240,3 @@ describe('validateTickerFormat 批量校验', () => {
     expect(result.invalid).toHaveLength(2);
   });
 });
-

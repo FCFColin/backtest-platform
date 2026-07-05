@@ -218,4 +218,3 @@ describe('orgRoutes', () => {
     expect(res.status).toBe(400);
   });
 });
-

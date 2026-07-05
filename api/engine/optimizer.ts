@@ -438,8 +438,8 @@ function solveTargetReturn(
 function solveTargetReturnQP(
   targetReturn: number,
   meanReturns: number[],
-  covMatrix: number[][],
-  n: number,
+  _covMatrix: number[][],
+  _n: number,
   boundary: BoundaryWeights,
 ): number[] | null {
   const { minVolWeights, maxRetWeights, minVolReturn, maxReturn } = boundary;

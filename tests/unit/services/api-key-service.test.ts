@@ -133,4 +133,3 @@ describe('revokeApiKey', () => {
     expect(params).toEqual([KEY_ID, ORG]);
   });
 });
-

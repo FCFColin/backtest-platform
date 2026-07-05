@@ -311,4 +311,3 @@ describe('dataRoutes - GET /api/data/cpi/:country', () => {
     expect(body.data['2024-01']).toBe(100.5);
   });
 });
-

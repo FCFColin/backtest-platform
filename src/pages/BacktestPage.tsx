@@ -91,68 +91,181 @@ function BacktestSeoCard() {
       </div>
       <div className="bt-seo-related">
         <span className="bt-seo-related-label">{t('backtest.relatedTools')}</span>
-        <Link to="/monte-carlo" className="link-blue" style={{ fontWeight: 700 }}>{t('nav.monteCarlo')}</Link>
+        <Link to="/monte-carlo" className="link-blue" style={{ fontWeight: 700 }}>
+          {t('nav.monteCarlo')}
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>{t('nav.portfolioOptimize')}</Link>
+        <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>
+          {t('nav.portfolioOptimize')}
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/efficient-frontier" className="link-blue" style={{ fontWeight: 700 }}>{t('nav.efficientFrontier')}</Link>
+        <Link to="/efficient-frontier" className="link-blue" style={{ fontWeight: 700 }}>
+          {t('nav.efficientFrontier')}
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/analysis" className="link-blue" style={{ fontWeight: 700 }}>{t('nav.assetAnalysis')}</Link>
+        <Link to="/analysis" className="link-blue" style={{ fontWeight: 700 }}>
+          {t('nav.assetAnalysis')}
+        </Link>
       </div>
     </div>
   );
 }
 
 function BacktestToolbar({
-  isLoading, runBacktest, showSaveInput, setShowSaveInput, configName, setConfigName,
-  handleSaveConfig, showLoadList, handleOpenLoadList, savedConfigs, handleLoadConfig,
-  handleDeleteConfig, handleShareLink,
+  isLoading,
+  runBacktest,
+  showSaveInput,
+  setShowSaveInput,
+  configName,
+  setConfigName,
+  handleSaveConfig,
+  showLoadList,
+  handleOpenLoadList,
+  savedConfigs,
+  handleLoadConfig,
+  handleDeleteConfig,
+  handleShareLink,
 }: {
-  isLoading: boolean; runBacktest: () => void;
-  showSaveInput: boolean; setShowSaveInput: (v: boolean) => void;
-  configName: string; setConfigName: (v: string) => void;
+  isLoading: boolean;
+  runBacktest: () => void;
+  showSaveInput: boolean;
+  setShowSaveInput: (v: boolean) => void;
+  configName: string;
+  setConfigName: (v: string) => void;
   handleSaveConfig: () => Promise<void>;
-  showLoadList: boolean; handleOpenLoadList: () => Promise<void>;
-  savedConfigs: SavedPortfolio[]; handleLoadConfig: (config: SavedPortfolio) => void;
-  handleDeleteConfig: (id: string) => Promise<void>; handleShareLink: () => Promise<void>;
+  showLoadList: boolean;
+  handleOpenLoadList: () => Promise<void>;
+  savedConfigs: SavedPortfolio[];
+  handleLoadConfig: (config: SavedPortfolio) => void;
+  handleDeleteConfig: (id: string) => Promise<void>;
+  handleShareLink: () => Promise<void>;
 }) {
   const { t } = useTranslation();
   return (
     <div className="bt-action-row">
-      <button onClick={runBacktest} disabled={isLoading} className="main-action-btn" style={{ width: '100%' }} data-testid="backtest-run">
+      <button
+        onClick={runBacktest}
+        disabled={isLoading}
+        className="main-action-btn"
+        style={{ width: '100%' }}
+        data-testid="backtest-run"
+      >
         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
         {isLoading ? t('backtest.running') : t('backtest.runButton')}
       </button>
       <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-        <button onClick={() => setShowSaveInput(!showSaveInput)} className="toolbar-btn" style={{ flex: 1, justifyContent: 'center' }}>
+        <button
+          onClick={() => setShowSaveInput(!showSaveInput)}
+          className="toolbar-btn"
+          style={{ flex: 1, justifyContent: 'center' }}
+        >
           <Save className="w-3.5 h-3.5" /> {t('backtest.savePortfolio')}
         </button>
-        <button onClick={() => void handleOpenLoadList()} className="toolbar-btn" style={{ flex: 1, justifyContent: 'center' }}>
+        <button
+          onClick={() => void handleOpenLoadList()}
+          className="toolbar-btn"
+          style={{ flex: 1, justifyContent: 'center' }}
+        >
           <FolderOpen className="w-3.5 h-3.5" /> {t('backtest.loadPortfolio')}
         </button>
-        <button onClick={handleShareLink} className="toolbar-btn" title={t('backtest.shareLink')} style={{ justifyContent: 'center' }}>
+        <button
+          onClick={handleShareLink}
+          className="toolbar-btn"
+          title={t('backtest.shareLink')}
+          style={{ justifyContent: 'center' }}
+        >
           <Share2 className="w-3.5 h-3.5" />
         </button>
       </div>
       {showSaveInput && (
         <div style={{ marginTop: '8px', display: 'flex', gap: '6px' }}>
-          <input type="text" value={configName} onChange={(e) => setConfigName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void handleSaveConfig(); }} placeholder={t('backtest.configNamePlaceholder')} className="param-input" style={{ flex: 1 }} autoFocus />
-          <button onClick={() => void handleSaveConfig()} className="toolbar-btn">{t('common.confirm')}</button>
-          <button onClick={() => { setShowSaveInput(false); setConfigName(''); }} className="row-remove-btn" title={t('common.cancel')}><X className="w-4 h-4" /></button>
+          <input
+            type="text"
+            value={configName}
+            onChange={(e) => setConfigName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleSaveConfig();
+            }}
+            placeholder={t('backtest.configNamePlaceholder')}
+            className="param-input"
+            style={{ flex: 1 }}
+            autoFocus
+          />
+          <button onClick={() => void handleSaveConfig()} className="toolbar-btn">
+            {t('common.confirm')}
+          </button>
+          <button
+            onClick={() => {
+              setShowSaveInput(false);
+              setConfigName('');
+            }}
+            className="row-remove-btn"
+            title={t('common.cancel')}
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
       {showLoadList && (
-        <div style={{ marginTop: '8px', maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-control)', background: 'var(--bg-subtle)' }}>
+        <div
+          style={{
+            marginTop: '8px',
+            maxHeight: '240px',
+            overflowY: 'auto',
+            border: '1px solid var(--border-soft)',
+            borderRadius: 'var(--radius-control)',
+            background: 'var(--bg-subtle)',
+          }}
+        >
           {savedConfigs.length === 0 ? (
-            <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: '12px', textAlign: 'center' }}>{t('backtest.noSavedSchemes')}</div>
+            <div
+              style={{
+                padding: '12px',
+                color: 'var(--text-muted)',
+                fontSize: '12px',
+                textAlign: 'center',
+              }}
+            >
+              {t('backtest.noSavedSchemes')}
+            </div>
           ) : (
             savedConfigs.map((config) => (
-              <div key={config.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px', borderBottom: '1px solid var(--border-soft)' }}>
-                <button onClick={() => handleLoadConfig(config)} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-body)', fontSize: '13px', padding: 0 }}>
+              <div
+                key={config.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 10px',
+                  borderBottom: '1px solid var(--border-soft)',
+                }}
+              >
+                <button
+                  onClick={() => handleLoadConfig(config)}
+                  style={{
+                    flex: 1,
+                    textAlign: 'left',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-body)',
+                    fontSize: '13px',
+                    padding: 0,
+                  }}
+                >
                   <div style={{ fontWeight: 500 }}>{config.name}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(config.savedAt).toLocaleString('zh-CN')} · {config.portfolios.length} {t('backtest.portfoliosCount')}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {new Date(config.savedAt).toLocaleString('zh-CN')} · {config.portfolios.length}{' '}
+                    {t('backtest.portfoliosCount')}
+                  </div>
                 </button>
-                <button onClick={() => void handleDeleteConfig(config.id)} className="row-remove-btn" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                <button
+                  onClick={() => void handleDeleteConfig(config.id)}
+                  className="row-remove-btn"
+                  title={t('common.delete')}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             ))
           )}
@@ -173,7 +286,11 @@ function TabBar() {
           <div className="tab-group-label">{t(group.groupKey)}</div>
           <div className="tab-group-tabs">
             {group.tabs.map((tab) => (
-              <button key={tab.key} className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>
+              <button
+                key={tab.key}
+                className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.key)}
+              >
                 {t(tab.labelKey)}
               </button>
             ))}
@@ -185,33 +302,85 @@ function TabBar() {
 }
 
 function LoadingFallback() {
-  return <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}><Loader2 className="w-5 h-5 animate-spin" style={{ display: 'inline-block' }} /></div>;
+  return (
+    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <Loader2 className="w-5 h-5 animate-spin" style={{ display: 'inline-block' }} />
+    </div>
+  );
 }
 
-
-type TabCtx = { pf: PortfolioResult[]; pfs: Portfolio[]; r: { assetTickers?: string[]; assetCorrelations?: number[][]; correlations?: number[][]; portfolios?: PortfolioResult[] } };
+type TabCtx = {
+  pf: PortfolioResult[];
+  pfs: Portfolio[];
+  r: {
+    assetTickers?: string[];
+    assetCorrelations?: number[][];
+    correlations?: number[][];
+    portfolios?: PortfolioResult[];
+  };
+};
 const TAB_RENDERERS: Record<string, (c: TabCtx) => React.ReactNode> = {
-  summary: ({ pf }) => <><GrowthChart portfolios={pf} /><DrawdownChart portfolios={pf} /><StatisticsTable portfolios={pf} /><DrawdownEpisodes portfolios={pf} /></>,
+  summary: ({ pf }) => (
+    <>
+      <GrowthChart portfolios={pf} />
+      <DrawdownChart portfolios={pf} />
+      <StatisticsTable portfolios={pf} />
+      <DrawdownEpisodes portfolios={pf} />
+    </>
+  ),
   metrics: ({ pf }) => <StatisticsTable portfolios={pf} />,
   myMetrics: ({ pf }) => <CustomMetricsTable portfolios={pf} />,
-  returns: ({ pf }) => <><AnnualReturnChart portfolios={pf} />{pf.map((x) => <MonthlyReturnHeatmap key={x.name} portfolio={x} />)}<ReturnsTabDailyChart portfolios={pf} bins={[]} /></>,
+  returns: ({ pf }) => (
+    <>
+      <AnnualReturnChart portfolios={pf} />
+      {pf.map((x) => (
+        <MonthlyReturnHeatmap key={x.name} portfolio={x} />
+      ))}
+      <ReturnsTabDailyChart portfolios={pf} bins={[]} />
+    </>
+  ),
   rolling: ({ pf }) => <RollingReturnChart portfolios={pf} />,
   seasonality: ({ pf }) => <SeasonalityChart portfolios={pf} />,
   riskReturn: ({ pf }) => <RiskReturnScatter portfolios={pf} />,
   cashflows: () => <CashflowsLog parameters={useBacktestStore.getState().parameters} />,
   rebalancing: ({ pfs }) => <RebalancingStats portfolios={pfs} />,
   turnover: ({ pf }) => <TurnoverTaxReport portfolios={pf} />,
-  allocation: ({ pf, pfs }) => <PortfolioAllocationChart portfolios={(pf ?? []).map((rp, idx) => ({ name: rp.name, assets: pfs[idx]?.assets ?? [], growthCurve: rp.growthCurve, allocationHistory: rp.allocationHistory } as never))} />,
+  allocation: ({ pf, pfs }) => (
+    <PortfolioAllocationChart
+      portfolios={(pf ?? []).map(
+        (rp, idx) =>
+          ({
+            name: rp.name,
+            assets: pfs[idx]?.assets ?? [],
+            growthCurve: rp.growthCurve,
+            allocationHistory: rp.allocationHistory,
+          }) as never,
+      )}
+    />
+  ),
   pies: ({ pfs }) => <PortfolioPiesChart portfolios={pfs} />,
-  correlation: ({ pf, r }) => <CorrelationWithBeta portfolios={pf} assetTickers={r?.assetTickers} assetCorrelations={r?.assetCorrelations} portfolioCorrelations={r?.correlations} />,
+  correlation: ({ pf, r }) => (
+    <CorrelationWithBeta
+      portfolios={pf}
+      assetTickers={r?.assetTickers}
+      assetCorrelations={r?.assetCorrelations}
+      portfolioCorrelations={r?.correlations}
+    />
+  ),
   telltale: ({ pf }) => <TelltaleChart portfolios={pf} />,
   regression: ({ pf }) => <RegressionChart portfolios={pf} />,
 };
 
 function TabContent({
-  activeTab, pfResults, portfolios, results,
+  activeTab,
+  pfResults,
+  portfolios,
+  results,
 }: {
-  activeTab: string; pfResults: PortfolioResult[]; portfolios: Portfolio[]; results: TabCtx['r'];
+  activeTab: string;
+  pfResults: PortfolioResult[];
+  portfolios: Portfolio[];
+  results: TabCtx['r'];
 }) {
   const renderer = TAB_RENDERERS[activeTab];
   return renderer ? <>{renderer({ pf: pfResults, pfs: portfolios, r: results })}</> : null;
@@ -228,18 +397,37 @@ function ResultsContent() {
   useEffect(() => {
     if (!results) return;
     if (activeTab === 'rolling') void enrichSeries(['rollingReturns']);
-    else if (activeTab === 'turnover' || activeTab === 'allocation') void enrichSeries(['allocationHistory']);
+    else if (activeTab === 'turnover' || activeTab === 'allocation')
+      void enrichSeries(['allocationHistory']);
     else if (activeTab === 'summary') void enrichSeries(['drawdownEpisodes']);
   }, [activeTab, results, enrichSeries]);
 
-  if (isLoading && !results) return <div className="bt-results-card card" style={{ textAlign: 'center', padding: 40 }}><Loader2 className="w-6 h-6 animate-spin" style={{ display: 'inline-block' }} /></div>;
-  if (!results || results.portfolios.length === 0) return <div className="bt-results-card card" style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>{t('backtest.noResults')}</div>;
+  if (isLoading && !results)
+    return (
+      <div className="bt-results-card card" style={{ textAlign: 'center', padding: 40 }}>
+        <Loader2 className="w-6 h-6 animate-spin" style={{ display: 'inline-block' }} />
+      </div>
+    );
+  if (!results || results.portfolios.length === 0)
+    return (
+      <div
+        className="bt-results-card card"
+        style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}
+      >
+        {t('backtest.noResults')}
+      </div>
+    );
 
   return (
     <div className="bt-results-card card">
       <TabBar />
       <Suspense fallback={<LoadingFallback />}>
-        <TabContent activeTab={activeTab} pfResults={results.portfolios} portfolios={portfolios} results={results as TabCtx['r']} />
+        <TabContent
+          activeTab={activeTab}
+          pfResults={results.portfolios}
+          portfolios={portfolios}
+          results={results as TabCtx['r']}
+        />
       </Suspense>
     </div>
   );
@@ -265,23 +453,34 @@ function useUrlShareLoader() {
       localStorage.removeItem('bt_load_from_optimizer');
       try {
         const data = JSON.parse(loadFromOptimizer);
-        const sharePortfolios: Portfolio[] = (data.portfolios || []).map((p: Portfolio) => ({ ...p, id: p.id || `portfolio-${Date.now()}` }));
+        const sharePortfolios: Portfolio[] = (data.portfolios || []).map((p: Portfolio) => ({
+          ...p,
+          id: p.id || `portfolio-${Date.now()}`,
+        }));
         const shareParameters: BacktestParameters = data.parameters;
-        if (sharePortfolios.length > 0 && shareParameters) loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
-      } catch { useToastStore.getState().addToast('warning', t('backtest.optimizerDataError')); }
+        if (sharePortfolios.length > 0 && shareParameters)
+          loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
+      } catch {
+        useToastStore.getState().addToast('warning', t('backtest.optimizerDataError'));
+      }
     }
     const hash = window.location.hash;
     if (hash.startsWith('#share=')) {
       try {
         const json = decodeURIComponent(atob(hash.slice(7)));
         const data = JSON.parse(json);
-        const sharePortfolios: Portfolio[] = (data.p || []).map((p: Portfolio) => ({ ...p, id: p.id || `portfolio-${Date.now()}` }));
+        const sharePortfolios: Portfolio[] = (data.p || []).map((p: Portfolio) => ({
+          ...p,
+          id: p.id || `portfolio-${Date.now()}`,
+        }));
         const shareParameters: BacktestParameters = data.params;
         if (sharePortfolios.length > 0 && shareParameters) {
           loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
           window.history.replaceState(null, '', window.location.pathname);
         }
-      } catch { useToastStore.getState().addToast('warning', t('backtest.shareDataError')); }
+      } catch {
+        useToastStore.getState().addToast('warning', t('backtest.shareDataError'));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在挂载时从 URL hash 加载分享数据
   }, [loadFromShare, hasLoadedFromShare, setHasLoadedFromShare]);
@@ -317,7 +516,9 @@ export default function BacktestPage() {
   };
 
   const handleLoadConfig = (config: SavedPortfolio) => {
-    useBacktestStore.getState().loadFromShare({ portfolios: config.portfolios, parameters: config.parameters });
+    useBacktestStore
+      .getState()
+      .loadFromShare({ portfolios: config.portfolios, parameters: config.parameters });
     useToastStore.getState().addToast('success', t('backtest.loadedScheme'));
     setShowLoadList(false);
   };
@@ -349,13 +550,19 @@ export default function BacktestPage() {
           <ParameterPanel />
           <PortfolioEditor />
           <BacktestToolbar
-            isLoading={isLoading} runBacktest={runBacktest}
-            showSaveInput={showSaveInput} setShowSaveInput={setShowSaveInput}
-            configName={configName} setConfigName={setConfigName}
+            isLoading={isLoading}
+            runBacktest={runBacktest}
+            showSaveInput={showSaveInput}
+            setShowSaveInput={setShowSaveInput}
+            configName={configName}
+            setConfigName={setConfigName}
             handleSaveConfig={handleSaveConfig}
-            showLoadList={showLoadList} handleOpenLoadList={handleOpenLoadList}
-            savedConfigs={savedConfigs} handleLoadConfig={handleLoadConfig}
-            handleDeleteConfig={handleDeleteConfig} handleShareLink={handleShareLink}
+            showLoadList={showLoadList}
+            handleOpenLoadList={handleOpenLoadList}
+            savedConfigs={savedConfigs}
+            handleLoadConfig={handleLoadConfig}
+            handleDeleteConfig={handleDeleteConfig}
+            handleShareLink={handleShareLink}
           />
         </div>
         <ResultsContent />

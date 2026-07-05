@@ -131,4 +131,3 @@ describe('writeEventInTransaction', () => {
     expect((mockClient as unknown as { release: () => void }).release).not.toHaveBeenCalled();
   });
 });
-

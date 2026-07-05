@@ -95,7 +95,10 @@ describe('compressBacktestResult - 边界情况', () => {
 
   it('drag 存在时正确降采样', () => {
     const p = makePortfolio('P1', 1000);
-    p.drag = { dragSeries: Array.from({ length: 1000 }, (_, i) => ({ date: `2020-01-${i + 1}`, value: i })), totalDrag: 0.05 };
+    p.drag = {
+      dragSeries: Array.from({ length: 1000 }, (_, i) => ({ date: `2020-01-${i + 1}`, value: i })),
+      totalDrag: 0.05,
+    };
     const result = compressBacktestResult({ portfolios: [p], correlations: [] });
     expect(result.portfolios[0].drag!.dragSeries.length).toBeLessThanOrEqual(800);
     expect(result.portfolios[0].drag!.totalDrag).toBe(0.05);
@@ -105,7 +108,10 @@ describe('compressBacktestResult - 边界情况', () => {
     const result = compressBacktestResult({
       portfolios: [makePortfolio('P1', 100)],
       correlations: [],
-      benchmarkGrowth: Array.from({ length: 1000 }, (_, i) => ({ date: `2020-01-${i + 1}`, value: 100 + i })),
+      benchmarkGrowth: Array.from({ length: 1000 }, (_, i) => ({
+        date: `2020-01-${i + 1}`,
+        value: 100 + i,
+      })),
     });
     expect(result.benchmarkGrowth!.length).toBeLessThanOrEqual(800);
   });

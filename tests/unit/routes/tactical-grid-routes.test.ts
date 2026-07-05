@@ -229,9 +229,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
 
   it('BullMQ 回退同步执行超时应返回 503', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    dataServiceMocks.fetchHistoryData.mockImplementation(
-      () => new Promise(() => {}),
-    );
+    dataServiceMocks.fetchHistoryData.mockImplementation(() => new Promise(() => {}));
 
     const res = await fetch(`${server.url}/api/tactical-grid/search`, {
       method: 'POST',

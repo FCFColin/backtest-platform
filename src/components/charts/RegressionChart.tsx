@@ -113,18 +113,66 @@ const TD_VAL_STYLE: React.CSSProperties = {
 };
 
 /** 回归散点图 */
-function RegressionScatterChart({ reg, baseName, color, scatterPoints }: {
-  reg: RegressionWithMeta; baseName: string; color: string; scatterPoints: typeof reg.points;
+function RegressionScatterChart({
+  reg,
+  baseName,
+  color,
+  scatterPoints,
+}: {
+  reg: RegressionWithMeta;
+  baseName: string;
+  color: string;
+  scatterPoints: typeof reg.points;
 }) {
   return (
     <div style={{ flex: '1 1 300px', minWidth: 0 }}>
       <ResponsiveContainer width="100%" height={400}>
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis type="number" dataKey="x" name="基准日收益率" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} label={{ value: `${baseName} 日收益率 (%)`, position: 'insideBottom', offset: -10, style: { fill: 'var(--text-muted)', fontSize: 12 } }} />
-          <YAxis type="number" dataKey="y" name="目标日收益率" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} label={{ value: `${reg.name} 日收益率 (%)`, angle: -90, position: 'insideLeft', style: { fill: 'var(--text-muted)', fontSize: 12 } }} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number, name: string) => { if (name === '基准日收益率' || name === 'x') return [`${value.toFixed(4)}%`, '基准日收益率']; if (name === '目标日收益率' || name === 'y') return [`${value.toFixed(4)}%`, '目标日收益率']; return [value, name]; }} labelFormatter={() => ''} />
-          <ReferenceLine segment={[{ x: reg.linePoints[0].x, y: reg.linePoints[0].y }, { x: reg.linePoints[1].x, y: reg.linePoints[1].y }]} stroke={color} strokeDasharray="6 3" strokeWidth={2} />
+          <XAxis
+            type="number"
+            dataKey="x"
+            name="基准日收益率"
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            label={{
+              value: `${baseName} 日收益率 (%)`,
+              position: 'insideBottom',
+              offset: -10,
+              style: { fill: 'var(--text-muted)', fontSize: 12 },
+            }}
+          />
+          <YAxis
+            type="number"
+            dataKey="y"
+            name="目标日收益率"
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            label={{
+              value: `${reg.name} 日收益率 (%)`,
+              angle: -90,
+              position: 'insideLeft',
+              style: { fill: 'var(--text-muted)', fontSize: 12 },
+            }}
+          />
+          <Tooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            formatter={(value: number, name: string) => {
+              if (name === '基准日收益率' || name === 'x')
+                return [`${value.toFixed(4)}%`, '基准日收益率'];
+              if (name === '目标日收益率' || name === 'y')
+                return [`${value.toFixed(4)}%`, '目标日收益率'];
+              return [value, name];
+            }}
+            labelFormatter={() => ''}
+          />
+          <ReferenceLine
+            segment={[
+              { x: reg.linePoints[0].x, y: reg.linePoints[0].y },
+              { x: reg.linePoints[1].x, y: reg.linePoints[1].y },
+            ]}
+            stroke={color}
+            strokeDasharray="6 3"
+            strokeWidth={2}
+          />
           <Scatter data={scatterPoints} fill={color} fillOpacity={0.4} r={2} />
         </ScatterChart>
       </ResponsiveContainer>
@@ -139,22 +187,47 @@ function RegressionStatsTable({ reg }: { reg: RegressionWithMeta }) {
       <table className="w-full border-collapse" style={{ minWidth: '200px' }}>
         <thead>
           <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <th className="text-[12px] font-semibold text-left py-2 px-3" style={TH_STYLE}>指标</th>
-            <th className="text-[12px] font-semibold text-right py-2 px-3" style={TH_STYLE}>值</th>
+            <th className="text-[12px] font-semibold text-left py-2 px-3" style={TH_STYLE}>
+              指标
+            </th>
+            <th className="text-[12px] font-semibold text-right py-2 px-3" style={TH_STYLE}>
+              值
+            </th>
           </tr>
         </thead>
         <tbody>
           <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>Alpha</td>
-            <td className="text-[13px] font-medium text-right py-2 px-3 font-mono" style={TD_VAL_STYLE}>{reg.alpha.toFixed(4)}%</td>
+            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>
+              Alpha
+            </td>
+            <td
+              className="text-[13px] font-medium text-right py-2 px-3 font-mono"
+              style={TD_VAL_STYLE}
+            >
+              {reg.alpha.toFixed(4)}%
+            </td>
           </tr>
           <tr>
-            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>Beta</td>
-            <td className="text-[13px] font-medium text-right py-2 px-3 font-mono" style={TD_VAL_STYLE}>{reg.beta.toFixed(4)}</td>
+            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>
+              Beta
+            </td>
+            <td
+              className="text-[13px] font-medium text-right py-2 px-3 font-mono"
+              style={TD_VAL_STYLE}
+            >
+              {reg.beta.toFixed(4)}
+            </td>
           </tr>
           <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>R²</td>
-            <td className="text-[13px] font-medium text-right py-2 px-3 font-mono" style={TD_VAL_STYLE}>{reg.rSquared.toFixed(4)}</td>
+            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>
+              R²
+            </td>
+            <td
+              className="text-[13px] font-medium text-right py-2 px-3 font-mono"
+              style={TD_VAL_STYLE}
+            >
+              {reg.rSquared.toFixed(4)}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -167,17 +240,54 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
   if (reg.residuals.length === 0) return null;
   return (
     <div>
-      <div className="chart-card-title" style={{ marginTop: '8px' }}>残差图</div>
-      <div className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>残差 = 实际收益 − 拟合收益，偏离0越远说明模型拟合越差</div>
+      <div className="chart-card-title" style={{ marginTop: '8px' }}>
+        残差图
+      </div>
+      <div className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>
+        残差 = 实际收益 − 拟合收益，偏离0越远说明模型拟合越差
+      </div>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={reg.residuals} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis dataKey="date" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickFormatter={(v: string) => v.slice(0, 7)} interval="preserveStartEnd" />
-          <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(2)}%`} label={{ value: '残差 (%)', angle: -90, position: 'insideLeft', style: { fill: 'var(--text-muted)', fontSize: 12 } }} />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value.toFixed(4)}%`, '残差']} labelFormatter={(label: string) => `日期: ${label}`} />
+          <XAxis
+            dataKey="date"
+            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+            tickFormatter={(v: string) => v.slice(0, 7)}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tickFormatter={(v: number) => `${v.toFixed(2)}%`}
+            label={{
+              value: '残差 (%)',
+              angle: -90,
+              position: 'insideLeft',
+              style: { fill: 'var(--text-muted)', fontSize: 12 },
+            }}
+          />
+          <Tooltip
+            contentStyle={CHART_TOOLTIP_STYLE}
+            formatter={(value: number) => [`${value.toFixed(4)}%`, '残差']}
+            labelFormatter={(label: string) => `日期: ${label}`}
+          />
           <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
-          <Line type="monotone" dataKey="residual" stroke={color} strokeWidth={1} dot={false} activeDot={{ r: 2 }} />
-          {reg.residuals.length > 100 && (<Brush dataKey="date" height={20} stroke="var(--brand)" travellerWidth={8} tickFormatter={(v: string) => v.slice(0, 7)} />)}
+          <Line
+            type="monotone"
+            dataKey="residual"
+            stroke={color}
+            strokeWidth={1}
+            dot={false}
+            activeDot={{ r: 2 }}
+          />
+          {reg.residuals.length > 100 && (
+            <Brush
+              dataKey="date"
+              height={20}
+              stroke="var(--brand)"
+              travellerWidth={8}
+              tickFormatter={(v: string) => v.slice(0, 7)}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -186,19 +296,40 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
 
 /** 单个回归面板：散点图 + 统计表 + 残差图 */
 function RegressionPanel({
-  reg, baseName, colorIdx, isLast,
-}: { reg: RegressionWithMeta; baseName: string; colorIdx: number; isLast: boolean }) {
+  reg,
+  baseName,
+  colorIdx,
+  isLast,
+}: {
+  reg: RegressionWithMeta;
+  baseName: string;
+  colorIdx: number;
+  isLast: boolean;
+}) {
   const color = CHART_COLORS[colorIdx % CHART_COLORS.length];
-  const scatterPoints = reg.points.length > DOWNSAMPLE_THRESHOLD ? downsample(reg.points, DOWNSAMPLE_TARGET) : reg.points;
+  const scatterPoints =
+    reg.points.length > DOWNSAMPLE_THRESHOLD
+      ? downsample(reg.points, DOWNSAMPLE_TARGET)
+      : reg.points;
 
   return (
     <div className="chart-card" style={{ marginBottom: isLast ? 0 : '16px' }}>
       <div className="flex items-center justify-between mb-3">
-        <div className="chart-card-title mb-0">回归分析: {baseName} vs {reg.name}</div>
-        <ChartExporter data={reg.points.map((p): Record<string, string | number> => ({ x: p.x, y: p.y }))} filename={`regression-${reg.name}`} />
+        <div className="chart-card-title mb-0">
+          回归分析: {baseName} vs {reg.name}
+        </div>
+        <ChartExporter
+          data={reg.points.map((p): Record<string, string | number> => ({ x: p.x, y: p.y }))}
+          filename={`regression-${reg.name}`}
+        />
       </div>
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
-        <RegressionScatterChart reg={reg} baseName={baseName} color={color} scatterPoints={scatterPoints} />
+        <RegressionScatterChart
+          reg={reg}
+          baseName={baseName}
+          color={color}
+          scatterPoints={scatterPoints}
+        />
         <RegressionStatsTable reg={reg} />
       </div>
       <RegressionResidualChart reg={reg} color={color} />

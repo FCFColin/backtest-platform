@@ -99,7 +99,8 @@ function getLoadStage(t: TFunc, count: number): string {
 function classifyError(t: TFunc, res: Response, json: Record<string, unknown> | null): string {
   const status = res.status || (typeof json?.status === 'number' ? json.status : 0);
   if (status === 401 || status === 403) return t('dataEngine.authFailed');
-  if (json?.errorType === 'scan_failed') return `${t('dataEngine.scanFailed')}：${json.error || t('dataEngine.unknown')}`;
+  if (json?.errorType === 'scan_failed')
+    return `${t('dataEngine.scanFailed')}：${json.error || t('dataEngine.unknown')}`;
   if (res.status >= 500) return t('dataEngine.serverError');
   return t('dataEngine.loadFailed');
 }
@@ -126,15 +127,21 @@ function handlePollSuccess(ctx: PollCtx, json: Record<string, unknown>) {
     ctx.pollCountRef.current += 1;
     ctx.setLoadStage(getLoadStage(ctx.t, ctx.pollCountRef.current));
     if (ctx.pollCountRef.current >= MAX_POLL) {
-      ctx.setScanning(false); ctx.setLoading(false); ctx.setError(ctx.t('dataEngine.loadTimeout'));
+      ctx.setScanning(false);
+      ctx.setLoading(false);
+      ctx.setError(ctx.t('dataEngine.loadTimeout'));
       return;
     }
     setTimeout(ctx.poll, 2000);
   } else {
     ctx.setStats((data?.stats ?? null) as Stats | null);
     ctx.setUniverse((data?.universe ?? null) as UniverseStats | null);
-    ctx.setScanning(false); ctx.setLoadStage(ctx.t('dataEngine.ready')); ctx.setLoading(false);
-    console.debug(`[DataEnginePage] fetchStats 总耗时 ${Date.now() - ctx.t0}ms (pollCount=${ctx.pollCountRef.current})`);
+    ctx.setScanning(false);
+    ctx.setLoadStage(ctx.t('dataEngine.ready'));
+    ctx.setLoading(false);
+    console.debug(
+      `[DataEnginePage] fetchStats 总耗时 ${Date.now() - ctx.t0}ms (pollCount=${ctx.pollCountRef.current})`,
+    );
   }
 }
 
@@ -144,36 +151,71 @@ async function createPoll(ctx: Omit<PollCtx, 'poll'>): Promise<void> {
     try {
       const statsUrl = ctx.force ? '/api/data/manage/stats?force=1' : '/api/data/manage/stats';
       const res = await apiFetch(statsUrl);
-      if (ctx.pollCountRef.current === 0 && Date.now() - ctx.fetchStartRef.current > INITIAL_TIMEOUT_MS) {
-        ctx.setLoading(false); ctx.setError(ctx.t('dataEngine.connectionTimeout'));
+      if (
+        ctx.pollCountRef.current === 0 &&
+        Date.now() - ctx.fetchStartRef.current > INITIAL_TIMEOUT_MS
+      ) {
+        ctx.setLoading(false);
+        ctx.setError(ctx.t('dataEngine.connectionTimeout'));
         return;
       }
       let json: Record<string, unknown> | null = null;
-      try { json = await res.json(); } catch {
-        ctx.setLoading(false); ctx.setError(ctx.t('dataEngine.serverAbnormal'));
+      try {
+        json = await res.json();
+      } catch {
+        ctx.setLoading(false);
+        ctx.setError(ctx.t('dataEngine.serverAbnormal'));
         return;
       }
       if (json && json.success) handlePollSuccess(fullCtx, json);
-      else { ctx.setLoading(false); ctx.setError(classifyError(ctx.t, res, json)); }
+      else {
+        ctx.setLoading(false);
+        ctx.setError(classifyError(ctx.t, res, json));
+      }
     } catch (e) {
       console.error('Failed to fetch stats:', e);
       useToastStore.getState().addToast('error', ctx.t('dataEngine.statsLoadFailed'));
       ctx.setLoading(false);
-      ctx.setError(e instanceof TypeError && e.message.includes('fetch') ? ctx.t('dataEngine.networkError') : ctx.t('dataEngine.loadFailed'));
+      ctx.setError(
+        e instanceof TypeError && e.message.includes('fetch')
+          ? ctx.t('dataEngine.networkError')
+          : ctx.t('dataEngine.loadFailed'),
+      );
     }
   };
   await poll();
 }
 
 async function doFetchStats(
-  t: TFunc, force: boolean,
-  refs: { pollCountRef: React.MutableRefObject<number>; fetchStartRef: React.MutableRefObject<number> },
-  setters: { setStats: (v: Stats | null) => void; setUniverse: (v: UniverseStats | null) => void; setLoading: (v: boolean) => void; setError: (v: string) => void; setLoadStage: (v: string) => void; setScanning: (v: boolean) => void },
+  t: TFunc,
+  force: boolean,
+  refs: {
+    pollCountRef: React.MutableRefObject<number>;
+    fetchStartRef: React.MutableRefObject<number>;
+  },
+  setters: {
+    setStats: (v: Stats | null) => void;
+    setUniverse: (v: UniverseStats | null) => void;
+    setLoading: (v: boolean) => void;
+    setError: (v: string) => void;
+    setLoadStage: (v: string) => void;
+    setScanning: (v: boolean) => void;
+  },
 ) {
   const t0 = Date.now();
   refs.fetchStartRef.current = t0;
-  setters.setLoading(true); setters.setError(''); setters.setLoadStage(t('dataEngine.connecting')); refs.pollCountRef.current = 0;
-  await createPoll({ t, force, t0, pollCountRef: refs.pollCountRef, fetchStartRef: refs.fetchStartRef, ...setters });
+  setters.setLoading(true);
+  setters.setError('');
+  setters.setLoadStage(t('dataEngine.connecting'));
+  refs.pollCountRef.current = 0;
+  await createPoll({
+    t,
+    force,
+    t0,
+    pollCountRef: refs.pollCountRef,
+    fetchStartRef: refs.fetchStartRef,
+    ...setters,
+  });
 }
 
 async function doActionFn(t: TFunc, url: string, label: string, setActionMsg: (v: string) => void) {
@@ -182,7 +224,9 @@ async function doActionFn(t: TFunc, url: string, label: string, setActionMsg: (v
     const res = await apiFetch(url, { method: 'POST' });
     const json = await res.json();
     setActionMsg(json.success ? `${label} ✓` : t('common.error'));
-  } catch { setActionMsg(t('common.error')); }
+  } catch {
+    setActionMsg(t('common.error'));
+  }
   setTimeout(() => setActionMsg(''), 5000);
 }
 
@@ -198,7 +242,13 @@ function useDataEngineState() {
   const pollCountRef = useRef(0);
   const fetchStartRef = useRef(0);
 
-  const fetchStats = (force = false) => doFetchStats(t, force, { pollCountRef, fetchStartRef }, { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning });
+  const fetchStats = (force = false) =>
+    doFetchStats(
+      t,
+      force,
+      { pollCountRef, fetchStartRef },
+      { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning },
+    );
 
   useEffect(() => {
     fetchStats();
@@ -210,18 +260,37 @@ function useDataEngineState() {
   return { stats, universe, actionMsg, error, loadStage, fetchStats, doAction };
 }
 
-function DataEngineLoading({ error, loadStage, onRetry }: { error: string; loadStage: string; onRetry: () => void }) {
+function DataEngineLoading({
+  error,
+  loadStage,
+  onRetry,
+}: {
+  error: string;
+  loadStage: string;
+  onRetry: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <div className="bt-page">
       <div className="bt-page-header">
         <h1 className="bt-page-title">{t('dataEngine.title')}</h1>
       </div>
-      <div className="bt-main-card card" style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div
+        className="bt-main-card card"
+        style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}
+      >
         {error ? (
           <>
-            <div style={{ marginBottom: 12, color: 'var(--danger)', fontSize: 14, lineHeight: 1.6 }}>{error}</div>
-            <button className="main-action-btn" style={{ fontSize: 12, minHeight: 36, padding: '0 18px', textTransform: 'none' }} onClick={onRetry}>
+            <div
+              style={{ marginBottom: 12, color: 'var(--danger)', fontSize: 14, lineHeight: 1.6 }}
+            >
+              {error}
+            </div>
+            <button
+              className="main-action-btn"
+              style={{ fontSize: 12, minHeight: 36, padding: '0 18px', textTransform: 'none' }}
+              onClick={onRetry}
+            >
               <RotateCcw className="w-3.5 h-3.5" /> {t('common.retry')}
             </button>
           </>
@@ -236,34 +305,71 @@ function DataEngineLoading({ error, loadStage, onRetry }: { error: string; loadS
   );
 }
 
-function DataEngineActions({ actionMsg, onRefresh, onAction }: { actionMsg: string; onRefresh: () => void; onAction: (url: string, label: string) => void }) {
+function DataEngineActions({
+  actionMsg,
+  onRefresh,
+  onAction,
+}: {
+  actionMsg: string;
+  onRefresh: () => void;
+  onAction: (url: string, label: string) => void;
+}) {
   const { t } = useTranslation();
-  const btnBase = { fontSize: 12, minHeight: 36, padding: '0 14px', textTransform: 'none' } as const;
+  const btnBase = {
+    fontSize: 12,
+    minHeight: 36,
+    padding: '0 14px',
+    textTransform: 'none',
+  } as const;
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <button className="main-action-btn" style={btnBase} onClick={onRefresh}>
           <RefreshCw className="w-3.5 h-3.5" /> {t('dataEngine.refreshStats')}
         </button>
-        <button className="main-action-btn" style={{ ...btnBase, background: 'var(--support)' }} onClick={() => onAction('/api/data/manage/update/inc', t('dataEngine.incrementalUpdate'))}>
+        <button
+          className="main-action-btn"
+          style={{ ...btnBase, background: 'var(--support)' }}
+          onClick={() => onAction('/api/data/manage/update/inc', t('dataEngine.incrementalUpdate'))}
+        >
           <Play className="w-3.5 h-3.5" /> {t('dataEngine.incrementalUpdate')}
         </button>
-        <button className="main-action-btn" style={{ ...btnBase, background: '#6366f1' }} onClick={() => onAction('/api/data/manage/update/refetch', t('dataEngine.refetch'))}>
+        <button
+          className="main-action-btn"
+          style={{ ...btnBase, background: '#6366f1' }}
+          onClick={() => onAction('/api/data/manage/update/refetch', t('dataEngine.refetch'))}
+        >
           <RotateCcw className="w-3.5 h-3.5" /> {t('dataEngine.refetch')}
         </button>
-        <button className="main-action-btn" style={{ ...btnBase, background: 'var(--warning)' }} onClick={() => onAction('/api/data/manage/update/full', t('dataEngine.fullUpdate'))}>
+        <button
+          className="main-action-btn"
+          style={{ ...btnBase, background: 'var(--warning)' }}
+          onClick={() => onAction('/api/data/manage/update/full', t('dataEngine.fullUpdate'))}
+        >
           <Zap className="w-3.5 h-3.5" /> {t('dataEngine.fullUpdate')}
         </button>
-        <button className="main-action-btn" style={{ ...btnBase, background: 'var(--text-muted)' }} onClick={() => onAction('/api/data/manage/universe', t('dataEngine.refreshUniverse'))}>
+        <button
+          className="main-action-btn"
+          style={{ ...btnBase, background: 'var(--text-muted)' }}
+          onClick={() => onAction('/api/data/manage/universe', t('dataEngine.refreshUniverse'))}
+        >
           <Database className="w-3.5 h-3.5" /> {t('dataEngine.refreshUniverse')}
         </button>
-        {actionMsg && <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 600 }}>{actionMsg}</span>}
+        {actionMsg && (
+          <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 600 }}>{actionMsg}</span>
+        )}
       </div>
     </div>
   );
 }
 
-function DataEngineOverviewCards({ stats, universe }: { stats: Stats; universe: UniverseStats | null }) {
+function DataEngineOverviewCards({
+  stats,
+  universe,
+}: {
+  stats: Stats;
+  universe: UniverseStats | null;
+}) {
   const { t } = useTranslation();
   const totalUniverse = universe?.total || stats.total_cached || 0;
   const totalCached = stats.total_cached || 0;
@@ -271,61 +377,169 @@ function DataEngineOverviewCards({ stats, universe }: { stats: Stats; universe: 
   const earliestDate = stats.date_ranges.earliest;
   const latestDate = stats.date_ranges.latest;
   const historyYears = historySpanYears(earliestDate, latestDate);
-  const timeRangeSub = historyYears != null && earliestDate
-    ? t('dataEngine.deepHistoryHighlight', { year: earliestDate.slice(0, 4), years: historyYears })
-    : `${t('dataEngine.to')} ${latestDate || '—'}`;
+  const timeRangeSub =
+    historyYears != null && earliestDate
+      ? t('dataEngine.deepHistoryHighlight', {
+          year: earliestDate.slice(0, 4),
+          years: historyYears,
+        })
+      : `${t('dataEngine.to')} ${latestDate || '—'}`;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, margin: '8px 0' }}>
-      <StatCard icon={<Database className="w-5 h-5" />} label={t('dataEngine.universeLabel')} value={fmt(totalUniverse)} sub={`${t('dataEngine.cached')} ${fmt(totalCached)} (${coverageBase > 0 ? ((totalCached / coverageBase) * 100).toFixed(1) : 0}%)`} />
-      <StatCard icon={<BarChart3 className="w-5 h-5" />} label={t('dataEngine.totalDataPoints')} value={fmt(stats.data_quality.total_data_points || 0)} sub={`${t('dataEngine.avgPointsPerTicker')} ${fmt(stats.coverage.avg_data_points || 0)}`} />
-      <StatCard icon={<Clock className="w-5 h-5" />} label={t('dataEngine.timeRange')} value={earliestDate || '—'} sub={timeRangeSub} />
-      <StatCard icon={<HardDrive className="w-5 h-5" />} label={t('dataEngine.diskUsage')} value={formatStorageMb(stats.data_quality.total_size_mb || 0)} sub={t('dataEngine.dbStorageSub')} />
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: 12,
+        margin: '8px 0',
+      }}
+    >
+      <StatCard
+        icon={<Database className="w-5 h-5" />}
+        label={t('dataEngine.universeLabel')}
+        value={fmt(totalUniverse)}
+        sub={`${t('dataEngine.cached')} ${fmt(totalCached)} (${coverageBase > 0 ? ((totalCached / coverageBase) * 100).toFixed(1) : 0}%)`}
+      />
+      <StatCard
+        icon={<BarChart3 className="w-5 h-5" />}
+        label={t('dataEngine.totalDataPoints')}
+        value={fmt(stats.data_quality.total_data_points || 0)}
+        sub={`${t('dataEngine.avgPointsPerTicker')} ${fmt(stats.coverage.avg_data_points || 0)}`}
+      />
+      <StatCard
+        icon={<Clock className="w-5 h-5" />}
+        label={t('dataEngine.timeRange')}
+        value={earliestDate || '—'}
+        sub={timeRangeSub}
+      />
+      <StatCard
+        icon={<HardDrive className="w-5 h-5" />}
+        label={t('dataEngine.diskUsage')}
+        value={formatStorageMb(stats.data_quality.total_size_mb || 0)}
+        sub={t('dataEngine.dbStorageSub')}
+      />
     </div>
   );
 }
 
-function DataEngineCoverageBars({ stats, universe }: { stats: Stats; universe: UniverseStats | null }) {
+function DataEngineCoverageBars({
+  stats,
+  universe,
+}: {
+  stats: Stats;
+  universe: UniverseStats | null;
+}) {
   const { t } = useTranslation();
   const totalUniverse = universe?.total || stats.total_cached || 0;
   const totalCached = stats.total_cached || 0;
   const coverageBase = totalUniverse > 0 ? totalUniverse : totalCached;
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.dataCoverage')}</div>
-      <ProgressBar label={t('dataEngine.totalCoverage')} current={totalCached} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.fiveYearsPlus')} current={stats.coverage.tickers_with_5y_plus || 0} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.tenYearsPlus')} current={stats.coverage.tickers_with_10y_plus || 0} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.twentyYearsPlus')} current={stats.coverage.tickers_with_20y_plus || 0} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.adjCloseData')} current={stats.data_quality.with_adj_close || 0} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.dividendData')} current={stats.data_quality.with_dividends || 0} total={coverageBase} />
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.dataCoverage')}
+      </div>
+      <ProgressBar
+        label={t('dataEngine.totalCoverage')}
+        current={totalCached}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.fiveYearsPlus')}
+        current={stats.coverage.tickers_with_5y_plus || 0}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.tenYearsPlus')}
+        current={stats.coverage.tickers_with_10y_plus || 0}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.twentyYearsPlus')}
+        current={stats.coverage.tickers_with_20y_plus || 0}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.adjCloseData')}
+        current={stats.data_quality.with_adj_close || 0}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.dividendData')}
+        current={stats.data_quality.with_dividends || 0}
+        total={coverageBase}
+      />
     </div>
   );
 }
 
-function MarketDistributionCard({ stats, universe }: { stats: Stats; universe: UniverseStats | null }) {
+function MarketDistributionCard({
+  stats,
+  universe,
+}: {
+  stats: Stats;
+  universe: UniverseStats | null;
+}) {
   const { t } = useTranslation();
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.byMarket')}</div>
-      {stats.by_market && Object.entries(stats.by_market).map(([market, data]) => (
-        <div key={market} style={{ marginBottom: 8 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ fontWeight: 600, color: 'var(--text-body)' }}>{market === 'US' ? t('dataEngine.usStock') : market === 'CN' ? t('dataEngine.cnStock') : market}</span>
-            <span style={{ color: 'var(--text-muted)' }}>{fmt(data.count)}</span>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.byMarket')}
+      </div>
+      {stats.by_market &&
+        Object.entries(stats.by_market).map(([market, data]) => (
+          <div key={market} style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+              <span style={{ fontWeight: 600, color: 'var(--text-body)' }}>
+                {market === 'US'
+                  ? t('dataEngine.usStock')
+                  : market === 'CN'
+                    ? t('dataEngine.cnStock')
+                    : market}
+              </span>
+              <span style={{ color: 'var(--text-muted)' }}>{fmt(data.count)}</span>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                marginLeft: 8,
+              }}
+            >
+              <span>
+                {t('dataEngine.stock')} {data.stocks}
+              </span>
+              <span>
+                {t('dataEngine.etf')} {data.etfs}
+              </span>
+              {data.indices > 0 && (
+                <span>
+                  {t('dataEngine.index')} {data.indices}
+                </span>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>
-            <span>{t('dataEngine.stock')} {data.stocks}</span>
-            <span>{t('dataEngine.etf')} {data.etfs}</span>
-            {data.indices > 0 && <span>{t('dataEngine.index')} {data.indices}</span>}
-          </div>
-        </div>
-      ))}
+        ))}
       {universe?.stats && (universe.stats.us != null || universe.stats.cn != null) && (
-        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-soft)', fontSize: 12, color: 'var(--text-muted)' }}>
+        <div
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: '1px solid var(--border-soft)',
+            fontSize: 12,
+            color: 'var(--text-muted)',
+          }}
+        >
           <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('dataEngine.universeVsCache')}</div>
-          <div>{t('dataEngine.usStocks')}: {fmt(universe.stats.us)} → {t('dataEngine.cached')} {fmt(stats.by_market?.US?.count)}</div>
-          <div>{t('dataEngine.cnStocks')}: {fmt(universe.stats.cn)} → {t('dataEngine.cached')} {fmt(stats.by_market?.CN?.count)}</div>
+          <div>
+            {t('dataEngine.usStocks')}: {fmt(universe.stats.us)} → {t('dataEngine.cached')}{' '}
+            {fmt(stats.by_market?.US?.count)}
+          </div>
+          <div>
+            {t('dataEngine.cnStocks')}: {fmt(universe.stats.cn)} → {t('dataEngine.cached')}{' '}
+            {fmt(stats.by_market?.CN?.count)}
+          </div>
         </div>
       )}
     </div>
@@ -336,13 +550,29 @@ function ExchangeDistributionCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.byExchange')}</div>
-      {stats.by_exchange && Object.entries(stats.by_exchange).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([exchange, count]) => (
-        <div key={exchange} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-          <span style={{ color: 'var(--text-body)' }}>{exchange || t('dataEngine.unknown')}</span>
-          <span style={{ color: 'var(--text-muted)' }}>{fmt(count)}</span>
-        </div>
-      ))}
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.byExchange')}
+      </div>
+      {stats.by_exchange &&
+        Object.entries(stats.by_exchange)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([exchange, count]) => (
+            <div
+              key={exchange}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: 13,
+                marginBottom: 4,
+              }}
+            >
+              <span style={{ color: 'var(--text-body)' }}>
+                {exchange || t('dataEngine.unknown')}
+              </span>
+              <span style={{ color: 'var(--text-muted)' }}>{fmt(count)}</span>
+            </div>
+          ))}
     </div>
   );
 }
@@ -351,19 +581,52 @@ function DecadeDistributionCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.byDecade')}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.byDecade')}
+      </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
-        {stats.by_decade && Object.entries(stats.by_decade).sort((a, b) => a[0].localeCompare(b[0])).map(([decade, count]) => {
-          const maxCount = Math.max(...Object.values(stats.by_decade));
-          const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-          return (
-            <div key={decade} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>{fmt(count)}</span>
-              <div style={{ width: '100%', maxWidth: 60, height: `${Math.max(heightPct, 2)}%`, background: 'var(--brand-soft)', border: '1px solid var(--brand)', borderRadius: '4px 4px 0 0' }} />
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, whiteSpace: 'nowrap' }}>{decade}</span>
-            </div>
-          );
-        })}
+        {stats.by_decade &&
+          Object.entries(stats.by_decade)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([decade, count]) => {
+              const maxCount = Math.max(...Object.values(stats.by_decade));
+              const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+              return (
+                <div
+                  key={decade}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>
+                    {fmt(count)}
+                  </span>
+                  <div
+                    style={{
+                      width: '100%',
+                      maxWidth: 60,
+                      height: `${Math.max(heightPct, 2)}%`,
+                      background: 'var(--brand-soft)',
+                      border: '1px solid var(--brand)',
+                      borderRadius: '4px 4px 0 0',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 10,
+                      color: 'var(--text-muted)',
+                      marginTop: 4,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {decade}
+                  </span>
+                </div>
+              );
+            })}
       </div>
     </div>
   );
@@ -373,19 +636,52 @@ function YearCountDistributionCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.byYearCount')}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.byYearCount')}
+      </div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100 }}>
-        {stats.by_year_count && Object.entries(stats.by_year_count).sort((a, b) => a[0].localeCompare(b[0])).map(([bucket, count]) => {
-          const maxCount = Math.max(...Object.values(stats.by_year_count));
-          const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-          return (
-            <div key={bucket} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>{fmt(count)}</span>
-              <div style={{ width: '100%', maxWidth: 50, height: `${Math.max(heightPct, 2)}%`, background: 'var(--support-soft)', border: '1px solid var(--support)', borderRadius: '4px 4px 0 0' }} />
-              <span style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 4, whiteSpace: 'nowrap' }}>{bucket}</span>
-            </div>
-          );
-        })}
+        {stats.by_year_count &&
+          Object.entries(stats.by_year_count)
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([bucket, count]) => {
+              const maxCount = Math.max(...Object.values(stats.by_year_count));
+              const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
+              return (
+                <div
+                  key={bucket}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>
+                    {fmt(count)}
+                  </span>
+                  <div
+                    style={{
+                      width: '100%',
+                      maxWidth: 50,
+                      height: `${Math.max(heightPct, 2)}%`,
+                      background: 'var(--support-soft)',
+                      border: '1px solid var(--support)',
+                      borderRadius: '4px 4px 0 0',
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: 9,
+                      color: 'var(--text-muted)',
+                      marginTop: 4,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {bucket}
+                  </span>
+                </div>
+              );
+            })}
       </div>
     </div>
   );
@@ -402,18 +698,40 @@ function SampleTickersCard({ stats }: { stats: Stats }) {
   };
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.sampleTickers')}</div>
-      {stats.sample_tickers && Object.entries(stats.sample_tickers).map(([category, items]) => items.length > 0 && (
-        <div key={category} style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand)', marginBottom: 4 }}>{categoryLabels[category] || category}</div>
-          {items.map((tk) => (
-            <div key={tk.ticker} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-body)', padding: '2px 0' }}>
-              <span style={{ fontWeight: 500 }}>{tk.ticker}</span>
-              <span style={{ color: 'var(--text-muted)' }}>{tk.first_date} ~ {tk.last_date} ({fmt(tk.data_points)}{t('common.days')})</span>
-            </div>
-          ))}
-        </div>
-      ))}
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.sampleTickers')}
+      </div>
+      {stats.sample_tickers &&
+        Object.entries(stats.sample_tickers).map(
+          ([category, items]) =>
+            items.length > 0 && (
+              <div key={category} style={{ marginBottom: 12 }}>
+                <div
+                  style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand)', marginBottom: 4 }}
+                >
+                  {categoryLabels[category] || category}
+                </div>
+                {items.map((tk) => (
+                  <div
+                    key={tk.ticker}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 12,
+                      color: 'var(--text-body)',
+                      padding: '2px 0',
+                    }}
+                  >
+                    <span style={{ fontWeight: 500 }}>{tk.ticker}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {tk.first_date} ~ {tk.last_date} ({fmt(tk.data_points)}
+                      {t('common.days')})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ),
+        )}
     </div>
   );
 }
@@ -422,11 +740,24 @@ function RecentUpdatesCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.recentUpdates')}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.recentUpdates')}
+      </div>
       {stats.recent_updates?.slice(0, 15).map((upd) => (
-        <div key={upd.ticker} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', borderBottom: '1px dashed var(--border-soft)' }}>
+        <div
+          key={upd.ticker}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            fontSize: 12,
+            padding: '3px 0',
+            borderBottom: '1px dashed var(--border-soft)',
+          }}
+        >
           <span style={{ fontWeight: 500, color: 'var(--text-body)' }}>{upd.ticker}</span>
-          <span style={{ color: 'var(--text-muted)' }}>{upd.updated.replace('T', ' ').slice(0, 19)}</span>
+          <span style={{ color: 'var(--text-muted)' }}>
+            {upd.updated.replace('T', ' ').slice(0, 19)}
+          </span>
         </div>
       ))}
     </div>
@@ -439,12 +770,36 @@ function DataQualityCard({ stats, universe }: { stats: Stats; universe: Universe
   const totalUniverse = universe?.total || totalCached;
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>{t('dataEngine.dataQuality')}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <QualityItem icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />} label={t('dataEngine.adjClosePrice')} value={pct(stats.data_quality.with_adj_close || 0, totalUniverse)} />
-        <QualityItem icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />} label={t('dataEngine.dividendData')} value={pct(stats.data_quality.with_dividends || 0, totalCached)} />
-        <QualityItem icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />} label={t('dataEngine.withSplits')} value={pct(stats.data_quality.with_splits || 0, totalCached)} />
-        <QualityItem icon={<BarChart3 className="w-4 h-4" style={{ color: 'var(--brand)' }} />} label={t('dataEngine.medianDataPoints')} value={fmt(stats.coverage.median_data_points || 0)} />
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('dataEngine.dataQuality')}
+      </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 12,
+        }}
+      >
+        <QualityItem
+          icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />}
+          label={t('dataEngine.adjClosePrice')}
+          value={pct(stats.data_quality.with_adj_close || 0, totalUniverse)}
+        />
+        <QualityItem
+          icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />}
+          label={t('dataEngine.dividendData')}
+          value={pct(stats.data_quality.with_dividends || 0, totalCached)}
+        />
+        <QualityItem
+          icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />}
+          label={t('dataEngine.withSplits')}
+          value={pct(stats.data_quality.with_splits || 0, totalCached)}
+        />
+        <QualityItem
+          icon={<BarChart3 className="w-4 h-4" style={{ color: 'var(--brand)' }} />}
+          label={t('dataEngine.medianDataPoints')}
+          value={fmt(stats.coverage.median_data_points || 0)}
+        />
       </div>
     </div>
   );
@@ -453,27 +808,46 @@ function DataQualityCard({ stats, universe }: { stats: Stats; universe: Universe
 function UniverseInfo({ universe }: { universe: UniverseStats }) {
   const { t } = useTranslation();
   return (
-    <div className="bt-seo-card card" style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)' }}>
-      {t('dataEngine.universeLastRefresh')}: {universe.updated_at ? new Date(universe.updated_at).toLocaleString('zh-CN') : t('dataEngine.notRefreshed')}
-      {' | '}{fmt(universe.total)} {t('dataEngine.totalTickers')}
-      {' | '}{t('dataEngine.stock')} {fmt(universe.stats?.stocks || 0)} + ETF {fmt(universe.stats?.etfs || 0)} + {t('dataEngine.index')} {fmt(universe.stats?.indices || 0)}
-      {' | '}{t('dataEngine.usStocks')} {fmt(universe.stats?.us || 0)} + {t('dataEngine.cnStocks')} {fmt(universe.stats?.cn || 0)}
+    <div
+      className="bt-seo-card card"
+      style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)' }}
+    >
+      {t('dataEngine.universeLastRefresh')}:{' '}
+      {universe.updated_at
+        ? new Date(universe.updated_at).toLocaleString('zh-CN')
+        : t('dataEngine.notRefreshed')}
+      {' | '}
+      {fmt(universe.total)} {t('dataEngine.totalTickers')}
+      {' | '}
+      {t('dataEngine.stock')} {fmt(universe.stats?.stocks || 0)} + ETF{' '}
+      {fmt(universe.stats?.etfs || 0)} + {t('dataEngine.index')} {fmt(universe.stats?.indices || 0)}
+      {' | '}
+      {t('dataEngine.usStocks')} {fmt(universe.stats?.us || 0)} + {t('dataEngine.cnStocks')}{' '}
+      {fmt(universe.stats?.cn || 0)}
     </div>
   );
 }
 
 export default function DataEnginePage() {
   const { t } = useTranslation();
-  const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } = useDataEngineState();
+  const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } =
+    useDataEngineState();
 
-  if (!stats) return <DataEngineLoading error={error} loadStage={loadStage} onRetry={() => fetchStats(true)} />;
+  if (!stats)
+    return (
+      <DataEngineLoading error={error} loadStage={loadStage} onRetry={() => fetchStats(true)} />
+    );
 
   return (
     <div className="bt-page">
       <div className="bt-page-header">
         <h1 className="bt-page-title">{t('dataEngine.title')}</h1>
       </div>
-      <DataEngineActions actionMsg={actionMsg} onRefresh={() => fetchStats(true)} onAction={doAction} />
+      <DataEngineActions
+        actionMsg={actionMsg}
+        onRefresh={() => fetchStats(true)}
+        onAction={doAction}
+      />
       <DataEngineOverviewCards stats={stats} universe={universe} />
       <DataEngineCoverageBars stats={stats} universe={universe} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, margin: '8px 0' }}>
@@ -492,14 +866,34 @@ export default function DataEnginePage() {
   );
 }
 
-function StatCard({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+}) {
   return (
     <div className="card" style={{ padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--brand)', marginBottom: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          color: 'var(--brand)',
+          marginBottom: 8,
+        }}
+      >
         {icon}
         <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{label}</span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-strong)', lineHeight: 1.2 }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-strong)', lineHeight: 1.2 }}>
+        {value}
+      </div>
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>
     </div>
   );
@@ -509,18 +903,41 @@ function ProgressBar({ label, current, total }: { label: string; current: number
   const pctVal = total > 0 ? (current / total) * 100 : 0;
   return (
     <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
+      <div
+        style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}
+      >
         <span style={{ color: 'var(--text-body)' }}>{label}</span>
-        <span style={{ color: 'var(--text-muted)' }}>{fmt(current)} / {fmt(total)} ({pctVal.toFixed(1)}%)</span>
+        <span style={{ color: 'var(--text-muted)' }}>
+          {fmt(current)} / {fmt(total)} ({pctVal.toFixed(1)}%)
+        </span>
       </div>
-      <div style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pctVal}%`, background: pctVal >= 80 ? 'var(--success)' : pctVal >= 40 ? 'var(--brand)' : 'var(--warning)', borderRadius: 4, transition: 'width 0.5s' }} />
+      <div
+        style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}
+      >
+        <div
+          style={{
+            height: '100%',
+            width: `${pctVal}%`,
+            background:
+              pctVal >= 80 ? 'var(--success)' : pctVal >= 40 ? 'var(--brand)' : 'var(--warning)',
+            borderRadius: 4,
+            transition: 'width 0.5s',
+          }}
+        />
       </div>
     </div>
   );
 }
 
-function QualityItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function QualityItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       {icon}

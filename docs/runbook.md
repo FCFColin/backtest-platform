@@ -378,16 +378,18 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 
 | 变量                      | 默认值                  | 说明                                                                             |
 | ------------------------- | ----------------------- | -------------------------------------------------------------------------------- |
-| `NODE_ENV`                | `development`           | 运行环境（production 时需设 ADMIN_API_KEY）                                      |
+| `NODE_ENV`                | `development`           | 运行环境                                                                         |
 | `API_PORT`                | `5001`                  | 后端 API 端口                                                                    |
-| `RUST_ENGINE_URL`         | `http://127.0.0.1:5002` | Rust 引擎地址                                                                    |
-| `RUST_ENGINE_TIMEOUT_MS`  | `5000`                  | Rust 引擎调用超时（ms）                                                          |
+| `GO_ENGINE_URL`           | `http://127.0.0.1:5004` | Go 引擎地址（替代已退役的 Rust/Node 引擎）                                       |
+| `GO_ENGINE_TIMEOUT_MS`    | `5000`                  | Go 引擎调用超时（ms）                                                            |
 | `GO_DATA_SERVICE_URL`     | `http://127.0.0.1:5003` | Go 数据服务地址                                                                  |
 | `CORS_ORIGINS`            | `*`（允许所有）         | CORS 白名单（逗号分隔）                                                          |
-| `ADMIN_API_KEY`           | `""`                    | 管理后台 API 密钥（生产环境必需）                                                |
 | `DATABASE_URL`            | `""`                    | PostgreSQL 连接字符串（如 `postgresql://backtest:pass@localhost:5432/backtest`） |
 | `DB_POOL_MAX`             | `20`                    | 连接池最大连接数                                                                 |
+| `DB_POOL_MIN`             | `2`                     | 连接池最小空闲连接数                                                             |
 | `DB_STATEMENT_TIMEOUT_MS` | `30000`                 | 查询超时毫秒数                                                                   |
+| `JWT_PUBLIC_KEY`          | `""`                    | JWT 公钥（RS256 验证，生产必需）                                                 |
+| `JWT_ISSUER`              | `backtest-platform`     | JWT 签发者                                                                       |
 
 ## 八、测试命令速查
 

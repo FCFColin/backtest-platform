@@ -53,38 +53,27 @@ flowchart TB
 
 ## 2. 降级链详解
 
-### 2.1 引擎降级（Go → Rust → Node）
+### 2.1 引擎降级（Go Fail-Closed，ADR-031）
 
-**降级链**：Go 引擎（主）→ Rust 引擎（备）→ Node 引擎（末）
+**决策**：Go 引擎不可用时直接返回 503 + Retry-After，不再静默降级到 Node/Rust 备用引擎。
 
-**触发条件**（见 [api/routes/backtestRoutes.ts](../api/routes/backtestRoutes.ts) 的引擎调用逻辑）：
+**触发条件**（见 [packages/backend/src/routes/backtestRoutes.ts](../packages/backend/src/routes/backtestRoutes.ts) 的引擎调用逻辑）：
 
 - 连接拒绝（ECONNREFUSED）
 - HTTP 状态码非 2xx
 - 5 秒超时（`timeoutMs = 5000`）
 - 熔断器 Open 状态（见 [ADR-016](adr/ADR-016-熔断器策略.md)）
 
-**降级逻辑**：
+**处理逻辑**：
+- `callEngineStrict()` → 失败 → `EngineUnavailableError` → HTTP 503 + `Retry-After: 30`
+- 熔断器（opossum）：50% 错误阈值，30s 半开重置，最小 5 请求窗口
+- 响应体格式：`{ success: false, error: { type, title, status, code, detail, retryAfterSeconds } }`
 
-```typescript
-const goResult = await callGoEngine('/api/engine/backtest', goBody);
-const rustResult = !goResult ? await callRustEngine('/api/engine/backtest', rustBody) : null;
-const isDegraded = !goResult || !rustResult;
-result = goResult || rustResult || runPortfolioBacktest(portfolios, priceData, parameters);
-// 降级时返回 degraded: true + degradedWarning
-```
+### 2.2 数据降级（PostgreSQL → Go 数据服务，ADR-007）
 
-**降级约束**：
+**降级链**：PostgreSQL（主）→ Go 数据服务（备，缺失 ticker 实时抓取）
 
-- Node 备用引擎（[api/engine/portfolio.ts](../api/engine/portfolio.ts)）不支持：通胀调整、汇率换算、drag、扩展提款统计
-- 降级时响应体包含 `degraded: true` 和 `degradedWarning` 字段
-- 前端收到降级标志须显示提示
-
-### 2.2 数据降级（PostgreSQL → JSON → Go 数据服务）
-
-**降级链**：PostgreSQL（主）→ JSON 文件（备）→ Go 数据服务（末）
-
-**触发条件**（见 [api/routes/dataRoutes.ts](../api/routes/dataRoutes.ts) 的 `callService`）：
+**触发条件**（见 [packages/backend/src/routes/dataRoutes.ts](../packages/backend/src/routes/dataRoutes.ts) 的 `callService`）：
 
 - 连接拒绝（ECONNREFUSED）
 - HTTP 状态码非 2xx
@@ -93,10 +82,9 @@ result = goResult || rustResult || runPortfolioBacktest(portfolios, priceData, p
 
 **降级逻辑**：
 
-- PostgreSQL 不可用 → 读取本地 `data/market/` JSON 文件（[api/services/dataService.ts](../api/services/dataService.ts)）
-- JSON 文件不可用 → Go 数据服务获取（baostock / HTTP API）
-- CPI 数据：PostgreSQL 失败 → 直接读取本地 `data/market/cpi/*.json`
-- 搜索：PostgreSQL 全文搜索失败 → `searchTickers()` 调用 Python 或本地索引
+- PostgreSQL 不可用 → 返回 503 + Retry-After（fail-closed，不再降级到 JSON 文件）
+- 查询缺失 ticker → Go 数据服务实时获取（baostock / HTTP API）
+- 搜索：PostgreSQL 全文搜索失败 → 降级到 ticker 前缀匹配扫描（不使用 Python）
 
 ---
 

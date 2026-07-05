@@ -12,7 +12,7 @@ import { execSync } from 'node:child_process';
 
 // Mock logger 打破 config ↔ logger 循环依赖，
 // 避免 config 模块加载时 logger 引用 config 导致 undefined
-vi.mock('../../api/utils/logger.js', () => ({
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -21,8 +21,14 @@ vi.mock('../../api/utils/logger.js', () => ({
   },
 }));
 
-import { config } from '../../api/config/index.js';
-import { getPool, initSchema, rollbackSchema, closeDb, healthCheck } from '../../api/db/index.js';
+import { config } from '../../packages/backend/src/config/index.js';
+import {
+  getPool,
+  initSchema,
+  rollbackSchema,
+  closeDb,
+  healthCheck,
+} from '../../packages/backend/src/db/index.js';
 
 // Docker 可用性检查：testcontainers 依赖 Docker 守护进程
 // 通过执行 `docker info` 检测，失败则跳过整个测试套件

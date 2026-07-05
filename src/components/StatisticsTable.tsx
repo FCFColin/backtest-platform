@@ -236,7 +236,11 @@ function StatisticsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }
     <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
       <th
         className="text-[12px] font-semibold text-left py-2.5 px-3"
-        style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', minWidth: '320px' }}
+        style={{
+          color: 'var(--text-muted)',
+          borderBottom: '2px solid var(--border-soft)',
+          minWidth: '320px',
+        }}
       >
         指标
       </th>
@@ -244,9 +248,16 @@ function StatisticsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }
         <th
           key={p.name}
           className="text-[12px] font-semibold text-right py-2.5 px-3"
-          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)', whiteSpace: 'nowrap' }}
+          style={{
+            color: 'var(--text-muted)',
+            borderBottom: '2px solid var(--border-soft)',
+            whiteSpace: 'nowrap',
+          }}
         >
-          <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
+          <span
+            className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+          />
           {p.name}
         </th>
       ))}
@@ -255,29 +266,54 @@ function StatisticsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }
 }
 
 /** 统计表分组行 */
-function StatisticsGroupRows({ group, portfolios, colCount }: { group: typeof STAT_GROUPS[number]; portfolios: PortfolioResult[]; colCount: number }) {
+function StatisticsGroupRows({
+  group,
+  portfolios,
+  colCount,
+}: {
+  group: (typeof STAT_GROUPS)[number];
+  portfolios: PortfolioResult[];
+  colCount: number;
+}) {
   let rowIdx = 0;
   return (
     <Fragment key={group.title}>
       <tr style={{ backgroundColor: 'var(--bg-strong)' }}>
-        <td colSpan={colCount} className="text-[12px] font-bold py-2 px-3" style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}>
+        <td
+          colSpan={colCount}
+          className="text-[12px] font-bold py-2 px-3"
+          style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
+        >
           {group.title}
         </td>
       </tr>
       {group.rows.map((row) => {
-        const hasAnyValue = portfolios.some((p) => p.statistics[row.key] !== undefined && p.statistics[row.key] !== null);
+        const hasAnyValue = portfolios.some(
+          (p) => p.statistics[row.key] !== undefined && p.statistics[row.key] !== null,
+        );
         if (!hasAnyValue) return null;
         const isAlt = rowIdx % 2 === 1;
         rowIdx++;
         return (
           <tr key={row.key} style={{ backgroundColor: isAlt ? 'var(--bg-subtle)' : 'transparent' }}>
-            <td className="text-[13px] py-2 px-3" style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}>
+            <td
+              className="text-[13px] py-2 px-3"
+              style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
+            >
               {row.label}
             </td>
             {portfolios.map((p) => {
               const val = p.statistics[row.key];
               return (
-                <td key={p.name} className="text-[13px] font-medium text-right py-2 px-3 font-mono" style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)', whiteSpace: 'nowrap' }}>
+                <td
+                  key={p.name}
+                  className="text-[13px] font-medium text-right py-2 px-3 font-mono"
+                  style={{
+                    color: 'var(--text-strong)',
+                    borderBottom: '1px solid var(--border-soft)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {formatValue(val, row.fmt)}
                 </td>
               );
@@ -313,7 +349,12 @@ export default function StatisticsTable({ portfolios, compact }: StatisticsTable
           </thead>
           <tbody>
             {groups.map((group) => (
-              <StatisticsGroupRows key={group.title} group={group} portfolios={portfolios} colCount={colCount} />
+              <StatisticsGroupRows
+                key={group.title}
+                group={group}
+                portfolios={portfolios}
+                colCount={colCount}
+              />
             ))}
           </tbody>
         </table>

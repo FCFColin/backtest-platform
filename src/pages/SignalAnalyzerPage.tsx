@@ -305,9 +305,7 @@ function SignalResultsPanel({ error, results, isLoading }: SignalResultsProps) {
           分析失败：{error}
         </div>
       )}
-      {results && (
-        <SignalResultsContent results={results} signalColumns={signalColumns} />
-      )}
+      {results && <SignalResultsContent results={results} signalColumns={signalColumns} />}
       {!results && !error && !isLoading && (
         <div
           className="card"
@@ -360,7 +358,14 @@ function SignalListSection({
           initialSortDir="asc"
         />
       ) : (
-        <div style={{ color: 'var(--text-muted)', fontSize: 13, padding: '24px 0', textAlign: 'center' }}>
+        <div
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: 13,
+            padding: '24px 0',
+            textAlign: 'center',
+          }}
+        >
           当前参数下未生成任何信号
         </div>
       )}
@@ -368,7 +373,11 @@ function SignalListSection({
   );
 }
 
-function EquityCurveSection({ equityCurve: data }: { equityCurve: SignalAnalysisResult['equityCurve'] }) {
+function EquityCurveSection({
+  equityCurve: data,
+}: {
+  equityCurve: SignalAnalysisResult['equityCurve'];
+}) {
   return (
     <div className="chart-card">
       <div className="chart-card-title">权益曲线</div>

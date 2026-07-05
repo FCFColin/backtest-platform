@@ -71,7 +71,7 @@ app.use(httpLogger);
  * 必须在 httpLogger 之后挂载（依赖 req.id）。
  * 权衡：ALS 有纳秒级开销，但避免了函数签名污染。
  */
-app.use((req: Request, res: Response, next: NextFunction) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   const requestId = req.id !== undefined ? String(req.id) : undefined;
   if (requestId) {
     requestContextStorage.run({ requestId }, () => next());
@@ -578,7 +578,7 @@ const SUNSET_DATE = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOStr
 function deprecateRoute(path: string, v1Path: string, ...handlers: express.RequestHandler[]) {
   app.use(
     path,
-    (req: Request, res: Response, next: NextFunction) => {
+    (_req: Request, res: Response, next: NextFunction) => {
       res.setHeader('Deprecation', 'true');
       res.setHeader('Sunset', SUNSET_DATE);
       res.setHeader(
@@ -706,7 +706,7 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   const distPath = path.resolve(__dirname, '../dist');
   app.use(express.static(distPath, { maxAge: config.NODE_ENV === 'production' ? '1y' : 0 }));
   // SPA 回退：非 /api/* 的 GET 请求返回 index.html
-  app.get(/^\/(?!api\/).*/, (req: Request, res: Response) => {
+  app.get(/^\/(?!api\/).*/, (_req: Request, res: Response) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
