@@ -35,16 +35,18 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/services/billingService.js', () => mocks.svc);
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/services/billingService.js', () => mocks.svc);
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     STRIPE_PUBLISHABLE_KEY: 'pk_test_1',
     APP_BASE_URL: 'http://localhost:5173',
   }),
 }));
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(mocks.loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(mocks.loggerMocks),
+}));
 
-import billingRoutes from '../../../api/routes/billingRoutes.js';
+import billingRoutes from '../../../packages/backend/src/routes/billingRoutes.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 

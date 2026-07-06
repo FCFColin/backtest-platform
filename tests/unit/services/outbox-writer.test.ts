@@ -16,9 +16,12 @@ import type { PoolClient } from 'pg';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 // Mock logger：避免 pino 初始化与 OTel 依赖
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import { writeEventInTransaction, type OutboxEvent } from '../../../api/services/outboxWriter.js';
+import {
+  writeEventInTransaction,
+  type OutboxEvent,
+} from '../../../packages/backend/src/services/outboxWriter.js';
 
 /** 构造一个 mock PoolClient，记录所有 query 调用 */
 function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {

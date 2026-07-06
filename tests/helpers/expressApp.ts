@@ -8,7 +8,7 @@
  *
  * 用法：
  *   import { startExpressApp } from '../helpers/expressApp.js';
- *   import healthRoutes from '../../../api/routes/healthRoutes.js';
+ *   import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
  *   const server = await startExpressApp(app => app.use('/api', healthRoutes));
  */
 

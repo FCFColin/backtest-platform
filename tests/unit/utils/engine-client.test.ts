@@ -63,13 +63,15 @@ vi.mock('opossum', () => ({
   default: vi.fn(() => cbMocks.factory()),
 }));
 
-vi.mock('../../../api/routes/dataRoutes.js', () => ({
+vi.mock('../../../packages/backend/src/routes/dataRoutes.js', () => ({
   callService: callServiceMocks.callService,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     GO_ENGINE_URL: 'http://127.0.0.1:5004',
     ENGINE_AUTH_TOKEN: 'test-token',
@@ -77,7 +79,7 @@ vi.mock('../../../api/config/index.js', () => ({
   }),
 }));
 
-vi.mock('../../../api/utils/metrics.js', () => metricsMocks);
+vi.mock('../../../packages/backend/src/utils/metrics.js', () => metricsMocks);
 
 import {
   callEngineStrict,
@@ -87,7 +89,7 @@ import {
   callGoEngineDirect,
   EngineUnavailableError,
   type DegradedResponse,
-} from '../../../api/utils/engineClient.js';
+} from '../../../packages/backend/src/utils/engineClient.js';
 
 describe('callEngineStrict（fail-closed）', () => {
   beforeEach(() => {

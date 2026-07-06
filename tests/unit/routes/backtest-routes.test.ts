@@ -69,20 +69,22 @@ const fsMocks = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/application/backtest-service.js', () => ({
+vi.mock('../../../packages/backend/src/application/backtest-service.js', () => ({
   backtestApplicationService: {
     runBacktest: appServiceMocks.runBacktest,
   },
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
   searchTickers: dataServiceMocks.searchTickers,
 }));
 
-vi.mock('../../../api/application/backtest-query-service.js', () => ({
+vi.mock('../../../packages/backend/src/application/backtest-query-service.js', () => ({
   preparePortfolioBacktest: vi.fn((portfolios, parameters: { benchmarkTicker?: string }) => {
     const allTickers = new Set(
       portfolios.flatMap((p: { assets: { ticker: string }[] }) => p.assets.map((a) => a.ticker)),
@@ -95,17 +97,17 @@ vi.mock('../../../api/application/backtest-query-service.js', () => ({
   collectInvalidTickerWarnings: vi.fn((_tickers, _data, warnings) => warnings),
 }));
 
-vi.mock('../../../api/utils/engineClient.js', () => ({
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineClientMocks.callEngineStrict,
   EngineUnavailableError: MockEngineUnavailableError,
 }));
 
-vi.mock('../../../api/utils/engineBodyBuilder.js', () => ({
+vi.mock('../../../packages/backend/src/utils/engineBodyBuilder.js', () => ({
   buildEnginePortfolioBody: engineBodyBuilderMocks.buildEnginePortfolioBody,
   buildEngineParams: engineBodyBuilderMocks.buildEngineParams,
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
     GO_ENGINE_URL: 'http://127.0.0.1:5004',
@@ -130,10 +132,10 @@ vi.mock('fs', () => ({
   readFileSync: fsMocks.readFileSync,
 }));
 
-import backtestRoutes from '../../../api/routes/backtestRoutes.js';
-import { clearBacktestResultCache } from '../../../api/utils/backtestResultCache.js';
-import { TimeoutError } from '../../../api/utils/timeout.js';
-import { preparePortfolioBacktest } from '../../../api/application/backtest-query-service.js';
+import backtestRoutes from '../../../packages/backend/src/routes/backtestRoutes.js';
+import { clearBacktestResultCache } from '../../../packages/backend/src/utils/backtestResultCache.js';
+import { TimeoutError } from '../../../packages/backend/src/utils/timeout.js';
+import { preparePortfolioBacktest } from '../../../packages/backend/src/application/backtest-query-service.js';
 
 /** 在随机端口启动 Express 应用 */
 async function startApp(): Promise<TestServer> {

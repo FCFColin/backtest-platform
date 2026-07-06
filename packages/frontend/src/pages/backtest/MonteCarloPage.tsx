@@ -13,26 +13,40 @@ import { buildPresets, PresetsCard } from '../components/monteCarlo/presets/Pres
 function MonteCarloSeoCard() {
   return (
     <div className="bt-seo-card card">
-      <p className="bt-seo-desc">本工具使用区块自举法对历史市场数据进行重采样，让您研究大量可能的组合路径，而非仅回放一段固定历史。</p>
+      <p className="bt-seo-desc">
+        本工具使用区块自举法对历史市场数据进行重采样，让您研究大量可能的组合路径，而非仅回放一段固定历史。
+      </p>
       <div className="bt-seo-features">
         <div className="bt-seo-feature">
           <div className="bt-seo-feature-title">可模拟内容</div>
-          <div className="bt-seo-feature-desc">退休提款策略、定投计划、固定提取方案，观察其在数千条模拟市场路径下的表现与存活概率。</div>
+          <div className="bt-seo-feature-desc">
+            退休提款策略、定投计划、固定提取方案，观察其在数千条模拟市场路径下的表现与存活概率。
+          </div>
         </div>
         <div className="bt-seo-feature">
           <div className="bt-seo-feature-title">输出结果</div>
-          <div className="bt-seo-feature-desc">分布统计表(Summary)、组合价值范围图、成功概率曲线、多指标分布直方图、代表性场景路径。</div>
+          <div className="bt-seo-feature-desc">
+            分布统计表(Summary)、组合价值范围图、成功概率曲线、多指标分布直方图、代表性场景路径。
+          </div>
         </div>
       </div>
       <div className="bt-seo-related">
         <span className="bt-seo-related-label">相关工具：</span>
-        <Link to="/" className="link-blue" style={{ fontWeight: 700 }}>组合回测</Link>
+        <Link to="/" className="link-blue" style={{ fontWeight: 700 }}>
+          组合回测
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>组合优化</Link>
+        <Link to="/optimizer" className="link-blue" style={{ fontWeight: 700 }}>
+          组合优化
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/efficient-frontier" className="link-blue" style={{ fontWeight: 700 }}>有效前沿</Link>
+        <Link to="/efficient-frontier" className="link-blue" style={{ fontWeight: 700 }}>
+          有效前沿
+        </Link>
         <span style={{ color: 'var(--text-muted)' }}> · </span>
-        <Link to="/analysis" className="link-blue" style={{ fontWeight: 700 }}>资产分析</Link>
+        <Link to="/analysis" className="link-blue" style={{ fontWeight: 700 }}>
+          资产分析
+        </Link>
       </div>
     </div>
   );

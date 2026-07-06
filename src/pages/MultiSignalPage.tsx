@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import { Play, Plus, X } from 'lucide-react';
+import { fmtPct, fmtRatio } from '@/utils/format';
 import {
   LineChart,
   Line,
@@ -61,17 +62,6 @@ interface SignalItem {
   indicator: string;
   period: number;
   threshold: number;
-}
-
-// ===== 工具函数 =====
-function fmtPct(v: number | undefined): string {
-  if (v === undefined || v === null) return '—';
-  return `${(v * 100).toFixed(2)}%`;
-}
-
-function fmtRatio(v: number | undefined): string {
-  if (v === undefined || v === null) return '—';
-  return v.toFixed(2);
 }
 
 const CONTRIBUTION_COLUMNS: Column<MultiSignalResponse['contributions'][number]>[] = [

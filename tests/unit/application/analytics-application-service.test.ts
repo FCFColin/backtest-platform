@@ -9,19 +9,19 @@ const engineMocks = vi.hoisted(() => ({
   optimizeGoals: vi.fn(),
 }));
 
-vi.mock('../../../api/engine/pca.js', () => ({
+vi.mock('../../../packages/backend/src/engine/pca.js', () => ({
   performPCA: engineMocks.performPCA,
 }));
 
-vi.mock('../../../api/engine/seriesUtils.js', () => ({
+vi.mock('../../../packages/backend/src/engine/seriesUtils.js', () => ({
   toSortedSeries: engineMocks.toSortedSeries,
 }));
 
-vi.mock('../../../api/engine/letf.js', () => ({
+vi.mock('../../../packages/backend/src/engine/letf.js', () => ({
   analyzeLetfSlippage: engineMocks.analyzeLetfSlippage,
 }));
 
-vi.mock('../../../api/engine/goalOptimizer.js', () => ({
+vi.mock('../../../packages/backend/src/engine/goalOptimizer.js', () => ({
   optimizeGoals: engineMocks.optimizeGoals,
 }));
 
@@ -32,7 +32,7 @@ import {
   executeLetfAnalyze,
   validateGoalOptimizerAssets,
   executeGoalOptimize,
-} from '../../../api/application/analytics-application-service.js';
+} from '../../../packages/backend/src/application/analytics-application-service.js';
 
 const mockPriceData: Record<string, Record<string, number>> = {
   AAPL: { '2020-01-02': 100, '2020-01-03': 101, '2020-01-06': 102 },

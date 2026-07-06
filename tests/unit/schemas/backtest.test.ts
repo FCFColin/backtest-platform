@@ -17,7 +17,7 @@ import {
   monteCarloSchema,
   optimizeSchema,
   efficientFrontierSchema,
-} from '../../../api/schemas/backtest.js';
+} from '../../../packages/backend/src/schemas/backtest.js';
 
 function makeValidPortfolio() {
   return {

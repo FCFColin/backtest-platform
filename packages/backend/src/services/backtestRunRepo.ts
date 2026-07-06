@@ -58,25 +58,16 @@ const SELECT_COLS = 'id, name, request, result, status, owner_user_id, created_a
  * 列出租户下的回测运行历史（按创建时间倒序，可限制条数）。
  *
  * @param tenantId - 活跃组织 UUID
- * @param limit - 返回上限（默认 100，最大 1000）
- * @param offset - 偏移量（默认 0）
+ * @param limit - 返回上限（默认 50，最大 200）
  */
-export async function listRuns(
-  tenantId: string,
-  limit = 100,
-  offset = 0,
-): Promise<{ rows: BacktestRunRecord[]; total: number }> {
-  const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 1000);
-  const safeOffset = Math.max(0, Math.trunc(offset));
+export async function listRuns(tenantId: string, limit = 50): Promise<BacktestRunRecord[]> {
+  const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 200);
   return withTenant(tenantId, async (client) => {
-    const [{ rows }, { rows: countRows }] = await Promise.all([
-      client.query(
-        `SELECT ${SELECT_COLS} FROM backtest_runs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
-        [safeLimit, safeOffset],
-      ),
-      client.query(`SELECT COUNT(*)::int AS total FROM backtest_runs`, []),
-    ]);
-    return { rows: rows.map(mapRow), total: countRows[0].total };
+    const { rows } = await client.query(
+      `SELECT ${SELECT_COLS} FROM backtest_runs ORDER BY created_at DESC LIMIT $1`,
+      [safeLimit],
+    );
+    return rows.map(mapRow);
   });
 }
 

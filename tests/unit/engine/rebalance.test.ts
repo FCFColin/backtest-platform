@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { shouldRebalance, getISOWeekNumber } from '../../../api/engine/rebalance.js';
+import {
+  shouldRebalance,
+  getISOWeekNumber,
+} from '../../../packages/backend/src/engine/rebalance.js';
 
 // ===== shouldRebalance 频率覆盖 =====
 describe('shouldRebalance - 频率覆盖', () => {

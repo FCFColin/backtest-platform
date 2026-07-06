@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   preparePortfolioBacktest,
   collectInvalidTickerWarnings,
-} from '../../../api/application/backtest-query-service.js';
+} from '../../../packages/backend/src/application/backtest-query-service.js';
 import type { Portfolio, BacktestParameters } from '../../../shared/types/index.js';
 import { MAX_TICKERS } from '../../../shared/constants.js';
 

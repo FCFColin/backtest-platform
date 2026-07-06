@@ -59,24 +59,27 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: mocks.config,
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/middleware/jwtAuth.js', () => mocks.jwtAuth);
+vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => mocks.jwtAuth);
 
-vi.mock('../../../api/services/userService.js', () => mocks.userService);
+vi.mock('../../../packages/backend/src/services/userService.js', () => mocks.userService);
 
-vi.mock('../../../api/services/loginLockout.js', () => mocks.loginLockout);
+vi.mock('../../../packages/backend/src/services/loginLockout.js', () => mocks.loginLockout);
 
-vi.mock('../../../api/services/membershipService.js', () => mocks.membershipService);
+vi.mock(
+  '../../../packages/backend/src/services/membershipService.js',
+  () => mocks.membershipService,
+);
 
-vi.mock('../../../api/middleware/rbac.js', () => ({
+vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
   Role: { ADMIN: 'admin', ANALYST: 'analyst', READONLY: 'readonly' },
 }));
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   appRedis: {
     ping: vi.fn().mockResolvedValue('PONG'),
     get: vi.fn(),
@@ -87,9 +90,9 @@ vi.mock('../../../api/config/redis.js', () => ({
 }));
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import authRoutes from '../../../api/routes/authRoutes.js';
+import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
 
 describe('authRoutes - 认证路由', () => {
   let server: TestServer;

@@ -53,6 +53,16 @@ export interface AuthenticatedRequest extends Request {
   tenantId?: string;
 }
 
+/**
+ * 已通过 requireTenant 中间件保证拥有租户上下文的请求。
+ * tenantId 为必填（string 而非 string | undefined），
+ * 使用 hasTenant() 类型守卫或直接断言以缩小类型。
+ */
+export interface TenantedRequest extends Request {
+  user?: JwtPayload | null;
+  tenantId: string;
+}
+
 /** Access Token 有效期（秒，从集中配置读取） */
 export const ACCESS_TOKEN_EXPIRES_IN_SEC = config.JWT_ACCESS_TTL;
 

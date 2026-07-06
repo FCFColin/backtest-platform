@@ -30,16 +30,20 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/services/membershipService.js', () => ({ getOrg: mocks.getOrg }));
-vi.mock('../../../api/services/usageService.js', () => ({
+vi.mock('../../../packages/backend/src/services/membershipService.js', () => ({
+  getOrg: mocks.getOrg,
+}));
+vi.mock('../../../packages/backend/src/services/usageService.js', () => ({
   getMonthlyUsage: mocks.getMonthlyUsage,
   recordUsage: mocks.recordUsage,
 }));
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(mocks.loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(mocks.loggerMocks),
+}));
 
 import type { Request } from 'express';
 
-import { enforceQuota } from '../../../api/middleware/quota.js';
+import { enforceQuota } from '../../../packages/backend/src/middleware/quota.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 

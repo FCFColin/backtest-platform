@@ -5,11 +5,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dispatchMock = vi.hoisted(() => vi.fn(async () => {}));
 
-vi.mock('../../../api/domain/events/EventDispatcher.js', () => ({
+vi.mock('../../../packages/backend/src/domain/events/EventDispatcher.js', () => ({
   eventDispatcher: { dispatch: dispatchMock },
 }));
 
-import { publishRebalanceTriggered } from '../../../api/domain/events/publish-rebalance.js';
+import { publishRebalanceTriggered } from '../../../packages/backend/src/domain/events/publish-rebalance.js';
 
 describe('publishRebalanceTriggered', () => {
   beforeEach(() => {

@@ -148,8 +148,7 @@ router.get('/stats', async (req: Request, res: Response): Promise<void> => {
     let backtestHistory: BacktestRunRecord[] = [];
     if (tenantId) {
       try {
-        const runsResult = await listRuns(tenantId, 20, 0);
-        backtestHistory = runsResult.rows;
+        backtestHistory = await listRuns(tenantId, 20);
       } catch (err) {
         logger.warn({ err: String(err), tenantId }, '[Admin Stats] 回测历史查询失败，返回空');
       }

@@ -10,7 +10,7 @@ const dbMocks = vi.hoisted(() => ({
   withTenant: vi.fn(),
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   withTenant: (tenantId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) => {
     dbMocks.withTenant(tenantId);
     return fn({ query: dbMocks.query });
@@ -23,7 +23,7 @@ import {
   getConfig,
   updateConfig,
   deleteConfig,
-} from '../../../api/services/savedConfigRepo.js';
+} from '../../../packages/backend/src/services/savedConfigRepo.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const CONFIG_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';

@@ -37,7 +37,7 @@ export default defineConfig({
     coverage: baseConfig.test?.coverage
       ? {
           ...baseConfig.test.coverage,
-          include: ['api/**/*.{ts,tsx}'],
+          include: ['packages/backend/src/**/*.{ts,tsx}'],
         }
       : undefined,
   },

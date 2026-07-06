@@ -5,7 +5,7 @@
  * 将前端传入的 Portfolio / BacktestParameters 转换为 Go 引擎所需的精简结构。
  */
 
-import type { Portfolio, BacktestParameters } from '@backtest/shared/types.js';
+import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
 
 /**
  * 构造引擎所需的组合（portfolio）对象。

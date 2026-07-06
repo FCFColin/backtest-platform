@@ -35,7 +35,10 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 	assetTickers := collectAssetTickers(req.PriceData)
 	sort.Strings(assetTickers)
 
-	// 4. 计算每个组合的增长曲线
+	// 4. 计算基准增长曲线（用于 Alpha/Beta 等指标和最终结果展示）
+	benchmarkGrowth := computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, tradingDates, req.Params)
+
+	// 5. 计算每个组合的增长曲线
 	portfolioResults := make([]PortfolioResult, 0, len(req.Portfolios))
 	portfolioDailyReturns := make([][]float64, 0, len(req.Portfolios))
 
@@ -48,13 +51,7 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 		ddCurve := computeDrawdownCurve(curve)
 		episodes := detectDrawdownEpisodes(curve)
 
-		// 基准增长曲线（用于 Alpha/Beta 等指标）
-		var benchCurve []DataPoint
-		if req.Params.BenchmarkTicker != "" {
-			benchCurve = computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, tradingDates, req.Params)
-		}
-
-		stats := computeStatistics(curve, episodes, benchCurve)
+		stats := computeStatistics(curve, episodes, benchmarkGrowth)
 
 		// 滚动收益
 		rollingReturns := computeRollingReturns(curve, req.Params.RollingWindowMonths)
@@ -81,13 +78,7 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 	// 5. 计算组合间相关性矩阵
 	correlations := computeCorrelationMatrix(portfolioDailyReturns)
 
-	// 6. 计算基准增长曲线
-	var benchmarkGrowth []DataPoint
-	if req.Params.BenchmarkTicker != "" {
-		benchmarkGrowth = computeBenchmarkGrowth(req.Params.BenchmarkTicker, req.PriceData, tradingDates, req.Params)
-	}
-
-	// 7. 计算资产间相关性矩阵
+	// 6. 计算资产间相关性矩阵
 	assetDailyReturns := make([][]float64, 0, len(assetTickers))
 	for _, ticker := range assetTickers {
 		prices := extractPrices(req.PriceData, ticker, tradingDates)
@@ -139,23 +130,7 @@ func computeGrowthCurve(
 		return nil, nil, fmt.Errorf("组合 %s 无资产", pf.Name)
 	}
 
-	// 归一化权重（与 Rust run_single 一致）：前端传入百分比，
-	// 转为小数后按总和归一化；总和为 0 时退化为等权重。
-	weights := make([]float64, n)
-	rawSum := 0.0
-	for i, a := range pf.Assets {
-		weights[i] = a.Weight / 100.0
-		rawSum += weights[i]
-	}
-	if rawSum == 0 {
-		for i := range weights {
-			weights[i] = 1.0 / float64(n)
-		}
-	} else {
-		for i := range weights {
-			weights[i] /= rawSum
-		}
-	}
+	weights := normalizeWeights(pf.Assets)
 
 	// 交易日序列（字符串），来源于已按日期范围过滤的 tradingDates。
 	dates := make([]string, len(tradingDates))
@@ -166,31 +141,8 @@ func computeGrowthCurve(
 		return nil, nil, fmt.Errorf("组合 %s 日期范围内无数据", pf.Name)
 	}
 
-	// 汇率换算价格获取：若提供汇率数据，将原始价格乘以当日汇率；
-	// 当日缺失时向前回溯最多 10 天查找最近汇率（与 Rust gp 闭包一致）。
 	gp := func(ticker, date string) float64 {
-		raw := 0.0
-		if td, ok := priceData[ticker]; ok {
-			raw = td[date]
-		}
-		if raw <= 0 {
-			return 0
-		}
-		if len(exchangeRates) > 0 {
-			if rate, ok := exchangeRates[date]; ok {
-				return raw * rate
-			}
-			if d, err := time.Parse("2006-01-02", date); err == nil {
-				search := d
-				for k := 0; k < 10; k++ {
-					search = search.AddDate(0, 0, -1)
-					if rate, ok := exchangeRates[search.Format("2006-01-02")]; ok {
-						return raw * rate
-					}
-				}
-			}
-		}
-		return raw
+		return getPriceWithFX(ticker, date, priceData, exchangeRates)
 	}
 
 	holdings := make([]float64, n)
@@ -277,19 +229,7 @@ func computeGrowthCurve(
 			pv = sumFloat(holdings)
 		}
 
-		// 当日目标权重（glidepath 线性插值）
-		currentWeights := make([]float64, n)
-		if glidepathTo != nil {
-			progress := (float64(di) / float64(tradingDays)) / glidepathYears
-			if progress > 1 {
-				progress = 1
-			}
-			for i := range currentWeights {
-				currentWeights[i] = weights[i] + (glidepathTo[i]-weights[i])*progress
-			}
-		} else {
-			copy(currentWeights, weights)
-		}
+		currentWeights := glidepathWeights(weights, glidepathTo, di, glidepathYears)
 
 		// 现金流（周期性 + 一次性）
 		cfAmount := cfMap[date] + otcMap[date]
@@ -297,39 +237,18 @@ func computeGrowthCurve(
 			pv += cfAmount
 			if pv <= 0 {
 				liquidated = true
-				for i := range holdings {
-					holdings[i] = 0
-				}
+				zeroHoldings(holdings)
 				curve = append(curve, DataPoint{Date: date, Value: 0})
 				vals = append(vals, 0)
 				prev = date
 				continue
 			}
-			for i := range holdings {
-				holdings[i] = pv * currentWeights[i]
-			}
-			for i, a := range pf.Assets {
-				pr := gp(a.Ticker, date)
-				if pr > 0 {
-					lastPrices[i] = pr
-				}
-				eff := pr
-				if eff <= 0 {
-					eff = lastPrices[i]
-				}
-				if eff > 0 {
-					shares[i] = holdings[i] / eff
-				} else {
-					shares[i] = 0
-				}
-			}
+			recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
 		}
 
 		if pv <= 0 {
 			liquidated = true
-			for i := range holdings {
-				holdings[i] = 0
-			}
+			zeroHoldings(holdings)
 			curve = append(curve, DataPoint{Date: date, Value: 0})
 			vals = append(vals, 0)
 			prev = date
@@ -337,24 +256,7 @@ func computeGrowthCurve(
 		}
 
 		if di > 0 && shouldRebalance(pf.RebalanceFrequency, prev, date, pf.RebalanceThreshold, holdings, currentWeights, pv, pf.RebalanceBands) {
-			for i := range holdings {
-				holdings[i] = pv * currentWeights[i]
-			}
-			for i, a := range pf.Assets {
-				pr := gp(a.Ticker, date)
-				if pr > 0 {
-					lastPrices[i] = pr
-				}
-				eff := pr
-				if eff <= 0 {
-					eff = lastPrices[i]
-				}
-				if eff > 0 {
-					shares[i] = holdings[i] / eff
-				} else {
-					shares[i] = 0
-				}
-			}
+			recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
 			lastRebalanceDi = di
 		}
 
@@ -375,20 +277,120 @@ func computeGrowthCurve(
 		prev = date
 	}
 
-	// 通胀调整：用 CPI 将名义净值折算为实际净值（基期为首个交易日）。
-	if params.AdjustForInflation && len(cpiData) > 0 {
-		startCPI := findCPIForDate(dates[0], cpiData)
-		if startCPI > 0 {
-			for i, date := range dates {
-				dateCPI := findCPIForDate(date, cpiData)
-				if dateCPI > 0 {
-					curve[i].Value = vals[i] * (startCPI / dateCPI)
+	adjustForInflation(curve, vals, dates, cpiData, params.AdjustForInflation)
+
+	return curve, allocHistory, nil
+}
+
+// recalculateShares 根据目标权重和当前价格重新计算持仓和份额。
+func recalculateShares(holdings []float64, shares *[]float64, lastPrices []float64, currentWeights []float64, pv float64, pf PortfolioInput, gp func(string, string) float64, date string) {
+	for i := range holdings {
+		holdings[i] = pv * currentWeights[i]
+	}
+	for i, a := range pf.Assets {
+		pr := gp(a.Ticker, date)
+		if pr > 0 {
+			lastPrices[i] = pr
+		}
+		eff := pr
+		if eff <= 0 {
+			eff = lastPrices[i]
+		}
+		if eff > 0 {
+			(*shares)[i] = holdings[i] / eff
+		} else {
+			(*shares)[i] = 0
+		}
+	}
+}
+
+// zeroHoldings 将所有持仓清零。
+func zeroHoldings(holdings []float64) {
+	for i := range holdings {
+		holdings[i] = 0
+	}
+}
+
+// getPriceWithFX 获取资产价格并乘以当日汇率（如有），当日缺失时回溯最多 10 天。
+func getPriceWithFX(ticker, date string, priceData PriceDataMap, exchangeRates map[string]float64) float64 {
+	raw := 0.0
+	if td, ok := priceData[ticker]; ok {
+		raw = td[date]
+	}
+	if raw <= 0 {
+		return 0
+	}
+	if len(exchangeRates) > 0 {
+		if rate, ok := exchangeRates[date]; ok {
+			return raw * rate
+		}
+		if d, err := time.Parse("2006-01-02", date); err == nil {
+			search := d
+			for k := 0; k < 10; k++ {
+				search = search.AddDate(0, 0, -1)
+				if rate, ok := exchangeRates[search.Format("2006-01-02")]; ok {
+					return raw * rate
 				}
 			}
 		}
 	}
+	return raw
+}
 
-	return curve, allocHistory, nil
+// normalizeWeights 将资产权重从百分比转为小数并归一化，总和为 0 时退化为等权重。
+// glidepathWeights 计算当日目标权重（glidepath 线性插值），无 glidepath 时返回原始权重。
+// adjustForInflation 用 CPI 将名义净值折算为实际净值（基期为首个交易日）。
+func adjustForInflation(curve []DataPoint, vals []float64, dates []string, cpiData map[string]float64, enabled bool) {
+	if !enabled || len(cpiData) == 0 {
+		return
+	}
+	startCPI := findCPIForDate(dates[0], cpiData)
+	if startCPI <= 0 {
+		return
+	}
+	for i, date := range dates {
+		dateCPI := findCPIForDate(date, cpiData)
+		if dateCPI > 0 {
+			curve[i].Value = vals[i] * (startCPI / dateCPI)
+		}
+	}
+}
+
+func glidepathWeights(initialWeights, targetWeights []float64, dayIndex int, glidepathYears float64) []float64 {
+	n := len(initialWeights)
+	result := make([]float64, n)
+	if targetWeights == nil {
+		copy(result, initialWeights)
+		return result
+	}
+	progress := (float64(dayIndex) / float64(tradingDays)) / glidepathYears
+	if progress > 1 {
+		progress = 1
+	}
+	for i := range result {
+		result[i] = initialWeights[i] + (targetWeights[i]-initialWeights[i])*progress
+	}
+	return result
+}
+
+func normalizeWeights(assets []AssetInput) []float64 {
+	n := len(assets)
+	weights := make([]float64, n)
+	rawSum := 0.0
+	for i, a := range assets {
+		weights[i] = a.Weight / 100.0
+		rawSum += weights[i]
+	}
+	if rawSum == 0 {
+		for i := range weights {
+			weights[i] = 1.0 / float64(n)
+		}
+	} else {
+		for i := range weights {
+			weights[i] /= rawSum
+		}
+	}
+	return weights
 }
 
 // sumFloat 求浮点切片之和。
@@ -661,12 +663,13 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	years := float64(len(curve)) / float64(tradingDays)
 
 	dailyRets := dailyReturns(curve)
+	values := extractValues(curve)
 
 	cagr := CalcCAGR(startValue, endValue, years)
 	stdev := CalcAnnualizedStdev(dailyRets)
-	mdResult := CalcMaxDrawdown(extractValues(curve))
-	avgDD := CalcAvgDrawdown(extractValues(curve))
-	ulcerIdx := CalcUlcerIndex(extractValues(curve))
+	mdResult := CalcMaxDrawdown(values)
+	avgDD := CalcAvgDrawdown(values)
+	ulcerIdx := CalcUlcerIndex(values)
 	calmar := CalcCalmar(cagr, mdResult.MaxDrawdown)
 	upi := CalcUPI(cagr, ulcerIdx)
 	sortino := CalcSortino(cagr, dailyRets)
@@ -730,41 +733,13 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 
 	// 辅助指标
 	totalReturn := CalcTotalReturn(startValue, endValue)
-	pctPositiveDays := 0.0
-	if len(dailyRets) > 0 {
-		positiveCount := 0
-		for _, r := range dailyRets {
-			if r > 0 {
-				positiveCount++
-			}
-		}
-		pctPositiveDays = float64(positiveCount) / float64(len(dailyRets))
-	}
-	maxDailyReturn := 0.0
-	minDailyReturn := 0.0
-	if len(dailyRets) > 0 {
-		maxDailyReturn = dailyRets[0]
-		minDailyReturn = dailyRets[0]
-		for _, r := range dailyRets[1:] {
-			if r > maxDailyReturn {
-				maxDailyReturn = r
-			}
-			if r < minDailyReturn {
-				minDailyReturn = r
-			}
-		}
-	}
+	pctPositiveDays := ratioPositive(dailyRets)
+	maxDailyReturn := maxValue(dailyRets)
+	minDailyReturn := minValue(dailyRets)
 
 	pwr := CalcPWR(annualReturnValues)
 
-	avgYear := 0.0
-	if len(annualReturnValues) > 0 {
-		sum := 0.0
-		for _, r := range annualReturnValues {
-			sum += r
-		}
-		avgYear = sum / float64(len(annualReturnValues))
-	}
+	avgYear := mean(annualReturnValues)
 
 	return Statistics{
 		CAGR:                  cagr,

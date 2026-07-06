@@ -2,8 +2,11 @@
  * optimizer 高级分支覆盖（有效前沿 / 大规模资产 / 奇异矩阵）
  */
 import { describe, it, expect } from 'vitest';
-import { optimizePortfolio, calcEfficientFrontier } from '../../../api/engine/optimizer.js';
-import type { PriceData } from '../../../api/engine/portfolio.js';
+import {
+  optimizePortfolio,
+  calcEfficientFrontier,
+} from '../../../packages/backend/src/engine/optimizer.js';
+import type { PriceData } from '../../../packages/backend/src/engine/portfolio.js';
 import { makeLinearPriceData, makeVolatilePriceData } from '../../helpers/fixtures.js';
 
 function makeManyTickers(

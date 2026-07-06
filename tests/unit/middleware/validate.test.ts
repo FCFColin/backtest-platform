@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { validate } from '../../../api/middleware/validate.js';
+import { validate } from '../../../packages/backend/src/middleware/validate.js';
 import {
   createMockRequest,
   createMockResponse,

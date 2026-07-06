@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import { Play } from 'lucide-react';
+import { fmtPct, fmtRatio } from '@/utils/format';
 import {
   LineChart,
   Line,
@@ -65,17 +66,6 @@ interface SignalCfg {
   indicator: string;
   period: number;
   threshold: number;
-}
-
-// ===== 工具函数 =====
-function fmtPct(v: number | undefined): string {
-  if (v === undefined || v === null) return '—';
-  return `${(v * 100).toFixed(2)}%`;
-}
-
-function fmtRatio(v: number | undefined): string {
-  if (v === undefined || v === null) return '—';
-  return v.toFixed(2);
 }
 
 function renderDir(d: SignalDir): React.ReactNode {

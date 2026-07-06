@@ -6,6 +6,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Play } from 'lucide-react';
+import { fmtPct } from '@/utils/format';
 import {
   LineChart,
   Line,
@@ -35,11 +36,6 @@ const tooltipStyle = {
   fontSize: '12px',
   boxShadow: 'var(--shadow-md)',
 };
-
-function fmtPct(v: number | undefined | null): string {
-  if (v === undefined || v === null || isNaN(v)) return '—';
-  return `${(v * 100).toFixed(2)}%`;
-}
 
 interface StatRow {
   metric: string;

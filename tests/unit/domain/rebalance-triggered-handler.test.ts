@@ -29,10 +29,12 @@ const loggerMocks = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import { RebalanceTriggeredHandler } from '../../../api/domain/events/handlers/RebalanceTriggeredHandler.js';
-import type { DomainEvent } from '../../../api/domain/events/EventDispatcher.js';
+import { RebalanceTriggeredHandler } from '../../../packages/backend/src/domain/events/handlers/RebalanceTriggeredHandler.js';
+import type { DomainEvent } from '../../../packages/backend/src/domain/events/EventDispatcher.js';
 
 function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
   return {

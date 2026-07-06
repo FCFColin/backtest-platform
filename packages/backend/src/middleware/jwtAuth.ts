@@ -28,7 +28,13 @@
  */
 
 // 为向后兼容重新导出类型
-export type { AuthenticatedRequest, JwtPayload, TenantContext, OrgRole } from './authTypes.js';
+export type {
+  AuthenticatedRequest,
+  TenantedRequest,
+  JwtPayload,
+  TenantContext,
+  OrgRole,
+} from './authTypes.js';
 
 // 重新导出子模块
 export { generateToken } from './jwtSigner.js';

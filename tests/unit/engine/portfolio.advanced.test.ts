@@ -7,7 +7,7 @@ import {
   runAnalysis,
   calculateDrag,
   type PriceData,
-} from '../../../api/engine/portfolio.js';
+} from '../../../packages/backend/src/engine/portfolio.js';
 import type { Portfolio } from '../../../shared/types/index.js';
 import { makeLinearPriceData, makeParams } from '../../helpers/fixtures.js';
 

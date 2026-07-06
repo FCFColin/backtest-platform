@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { tacticalGridSearchSchema } from '../../../api/schemas/tacticalGrid.js';
+import { tacticalGridSearchSchema } from '../../../packages/backend/src/schemas/tacticalGrid.js';
 
 function makeValidInput() {
   return {

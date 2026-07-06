@@ -16,16 +16,16 @@ const engineServiceMocks = vi.hoisted(() => ({
   getUniverseStats: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/httpClient.js', () => ({
+vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
   callService: callServiceMock,
 }));
 
-vi.mock('../../../api/services/engineService.js', () => ({
+vi.mock('../../../packages/backend/src/services/engineService.js', () => ({
   scanTickersStats: engineServiceMocks.scanTickersStats,
   getUniverseStats: engineServiceMocks.getUniverseStats,
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
     GO_ENGINE_URL: 'http://127.0.0.1:5004',
@@ -34,9 +34,9 @@ vi.mock('../../../api/config/index.js', () => ({
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import adminRoutes from '../../../api/routes/adminRoutes.js';
+import adminRoutes from '../../../packages/backend/src/routes/adminRoutes.js';
 
 function createMockTickerStats() {
   return {

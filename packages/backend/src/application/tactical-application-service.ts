@@ -3,12 +3,8 @@
  *
  * 路由层经此服务调用引擎，避免路由直接 import api/engine/*。
  */
-import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical.js';
-import type {
-  Portfolio,
-  RebalanceFrequency,
-  PortfolioResult,
-} from '@backtest/shared/types/index.js';
+import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical';
+import type { Portfolio, RebalanceFrequency, PortfolioResult } from '@backtest/shared/types/index';
 import {
   collectTickers,
   runTacticalBacktest,

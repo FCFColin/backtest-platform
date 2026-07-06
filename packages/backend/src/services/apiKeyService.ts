@@ -158,30 +158,18 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
  * 列出组织下的全部 API Key（含已吊销，用于审计）。
  *
  * @param orgId - 组织（租户）UUID
- * @param limit - 返回条数上限（默认 100，最大 1000）
- * @param offset - 偏移量（默认 0）
- * @returns 密钥元数据数组（不含明文/哈希）与总数
+ * @returns 密钥元数据数组（不含明文/哈希）
  */
-export async function listApiKeys(
-  orgId: string,
-  limit = 100,
-  offset = 0,
-): Promise<{ rows: ApiKeyRecord[]; total: number }> {
-  const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 1000);
-  const safeOffset = Math.max(0, Math.trunc(offset));
+export async function listApiKeys(orgId: string): Promise<ApiKeyRecord[]> {
   const pool = getPool();
-  const [{ rows }, { rows: countRows }] = await Promise.all([
-    pool.query(
-      `SELECT id, org_id, name, key_prefix, created_by, created_at, last_used_at, revoked_at
-         FROM api_keys
-        WHERE org_id = $1
-        ORDER BY created_at DESC
-        LIMIT $2 OFFSET $3`,
-      [orgId, safeLimit, safeOffset],
-    ),
-    pool.query(`SELECT COUNT(*)::int AS total FROM api_keys WHERE org_id = $1`, [orgId]),
-  ]);
-  return { rows: rows.map(mapRow), total: countRows[0].total };
+  const { rows } = await pool.query(
+    `SELECT id, org_id, name, key_prefix, created_by, created_at, last_used_at, revoked_at
+       FROM api_keys
+      WHERE org_id = $1
+      ORDER BY created_at DESC`,
+    [orgId],
+  );
+  return rows.map(mapRow);
 }
 
 /**

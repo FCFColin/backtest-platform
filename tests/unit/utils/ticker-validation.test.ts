@@ -12,13 +12,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import {
   isValidTicker,
   validateTickerFormat,
   TICKER_PATTERN,
-} from '../../../api/utils/tickerValidation.js';
+} from '../../../packages/backend/src/utils/tickerValidation.js';
 
 describe('isValidTicker', () => {
   describe('合法 ticker', () => {
@@ -214,14 +214,14 @@ describe('validateTickerFormat 批量校验', () => {
   });
 
   it('存在非法 ticker时应记录警告日志', async () => {
-    const { logger } = await import('../../../api/utils/logger.js');
+    const { logger } = await import('../../../packages/backend/src/utils/logger.js');
     validateTickerFormat(['aapl', '../evil']);
     expect(logger.warn).toHaveBeenCalledTimes(1);
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('aapl'));
   });
 
   it('全部合法时不应记录警告日志', async () => {
-    const { logger } = await import('../../../api/utils/logger.js');
+    const { logger } = await import('../../../packages/backend/src/utils/logger.js');
     validateTickerFormat(['AAPL', 'MSFT']);
     expect(logger.warn).not.toHaveBeenCalled();
   });

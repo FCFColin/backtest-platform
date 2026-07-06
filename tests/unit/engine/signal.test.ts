@@ -21,8 +21,8 @@ import {
   analyzeMultiSignal,
   buildSignalDirMap,
   combineDir,
-} from '../../../api/engine/signal.js';
-import type { PricePoint, SignalPoint } from '../../../api/engine/signal.js';
+} from '../../../packages/backend/src/engine/signal.js';
+import type { PricePoint, SignalPoint } from '../../../packages/backend/src/engine/signal.js';
 import type { SignalAnalysisRequest } from '../../../shared/types/signal.js';
 
 // 构造带趋势的价格序列：先跌后涨，产生 SMA 交叉

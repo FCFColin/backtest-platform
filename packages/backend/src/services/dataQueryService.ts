@@ -1,15 +1,46 @@
 import http from 'http';
 import CircuitBreaker from 'opossum';
 import { logger } from '../utils/logger.js';
-import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../utils/metrics.js';
-import { getReadPool } from '../db/index.js';
 import { config } from '../config/index.js';
+import { getReadPool } from '../db/index.js';
+import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../utils/metrics.js';
 import { writeCache, incrementCacheVersion } from './dataCacheService.js';
 
 interface TickerSearchResult {
   ticker: string;
   name: string;
   market: string;
+}
+
+const pgCircuitBreaker = new CircuitBreaker(
+  async (queryText: string, params?: unknown[]) => {
+    const pool = getReadPool();
+    return pool.query(queryText, params);
+  },
+  {
+    name: 'postgres',
+    timeout: 10000,
+    errorThresholdPercentage: 50,
+    resetTimeout: 10000,
+    rollingCountTimeout: 60000,
+    rollingCountBuckets: 6,
+  },
+);
+
+pgCircuitBreaker.on('open', () => {
+  logger.warn('[dataService] PostgreSQL 熔断器 OPEN：后续查询将失败直至恢复');
+});
+pgCircuitBreaker.on('halfOpen', () => {
+  logger.info('[dataService] PostgreSQL 熔断器 HALF-OPEN：放行探测查询');
+});
+pgCircuitBreaker.on('close', () => {
+  logger.info('[dataService] PostgreSQL 熔断器 CLOSED：PostgreSQL 恢复正常');
+});
+
+registerCircuitBreakerMetrics('postgres', pgCircuitBreaker);
+
+function isDbAvailable(): boolean {
+  return !pgCircuitBreaker.opened;
 }
 
 class Semaphore {
@@ -50,37 +81,6 @@ class Semaphore {
   }
 }
 
-const pgCircuitBreaker = new CircuitBreaker(
-  async (queryText: string, params?: unknown[]) => {
-    const pool = getReadPool();
-    return pool.query(queryText, params);
-  },
-  {
-    name: 'postgres',
-    timeout: 10000,
-    errorThresholdPercentage: 50,
-    resetTimeout: 10000,
-    rollingCountTimeout: 60000,
-    rollingCountBuckets: 6,
-  },
-);
-
-pgCircuitBreaker.on('open', () => {
-  logger.warn('[dataService] PostgreSQL 熔断器 OPEN：后续查询将失败直至恢复');
-});
-pgCircuitBreaker.on('halfOpen', () => {
-  logger.info('[dataService] PostgreSQL 熔断器 HALF-OPEN：放行探测查询');
-});
-pgCircuitBreaker.on('close', () => {
-  logger.info('[dataService] PostgreSQL 熔断器 CLOSED：PostgreSQL 恢复正常');
-});
-
-registerCircuitBreakerMetrics('postgres', pgCircuitBreaker);
-
-function isDbAvailable(): boolean {
-  return !pgCircuitBreaker.opened;
-}
-
 const goServiceSemaphore = new Semaphore(10);
 
 registerSemaphoreMetrics('go_data_service', goServiceSemaphore.total(), () =>
@@ -94,21 +94,31 @@ async function callGoDataService(path: string): Promise<string> {
     const url = `${baseUrl}${path}`;
 
     return await new Promise<string>((resolve, reject) => {
-      const req = http.get(url, { timeout: 30000 }, (res) => {
-        let body = '';
-        res.on('data', (chunk: Buffer) => {
-          body += chunk.toString();
-        });
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(body);
-          } else {
-            reject(
-              new Error(`Go data service returned HTTP ${res.statusCode}: ${body.slice(0, 200)}`),
-            );
-          }
-        });
-      });
+      const req = http.request(
+        url,
+        {
+          method: 'GET',
+          timeout: 30000,
+          headers: {
+            'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
+          },
+        },
+        (res) => {
+          let body = '';
+          res.on('data', (chunk: Buffer) => {
+            body += chunk.toString();
+          });
+          res.on('end', () => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              resolve(body);
+            } else {
+              reject(
+                new Error(`Go data service returned HTTP ${res.statusCode}: ${body.slice(0, 200)}`),
+              );
+            }
+          });
+        },
+      );
 
       req.on('error', (err: Error) => {
         reject(new Error(`Go data service request failed: ${err.message}`));
@@ -118,6 +128,8 @@ async function callGoDataService(path: string): Promise<string> {
         req.destroy();
         reject(new Error('Go data service request timed out after 30 seconds'));
       });
+
+      req.end();
     });
   } finally {
     goServiceSemaphore.release();
@@ -128,12 +140,16 @@ async function queryPricesFromDb(
   validTickers: string[],
   startDate: string,
   endDate: string,
-): Promise<{ result: Record<string, Record<string, number>>; missing: string[] }> {
+): Promise<{
+  result: Record<string, Record<string, number>>;
+  missing: string[];
+  dbDegraded: boolean;
+}> {
   const result: Record<string, Record<string, number>> = {};
   const missing: string[] = [];
 
   if (!isDbAvailable()) {
-    return { result, missing: [...validTickers] };
+    return { result, missing: [...validTickers], dbDegraded: true };
   }
 
   try {
@@ -159,10 +175,10 @@ async function queryPricesFromDb(
     }
   } catch (err) {
     logger.warn({ err }, '[dataService] fetchHistoryData: PostgreSQL 查询失败');
-    return { result, missing: [...validTickers] };
+    return { result, missing: [...validTickers], dbDegraded: true };
   }
 
-  return { result, missing };
+  return { result, missing, dbDegraded: false };
 }
 
 async function fetchMissingFromGoService(

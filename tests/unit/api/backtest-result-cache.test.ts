@@ -7,7 +7,7 @@ import {
   setBacktestResultCache,
   getBacktestResultCache,
   clearBacktestResultCache,
-} from '../../../api/utils/backtestResultCache.js';
+} from '../../../packages/backend/src/utils/backtestResultCache.js';
 import type { BacktestResult, Portfolio, BacktestParameters } from '../../../shared/types.js';
 
 const portfolios: Portfolio[] = [

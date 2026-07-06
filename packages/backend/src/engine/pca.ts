@@ -14,7 +14,7 @@
  *   6. 按特征值降序排列，返回特征值、载荷矩阵、得分矩阵与累计方差解释率
  */
 
-import type { PCAResult } from '@backtest/shared/types/pca.js';
+import type { PCAResult } from '@backtest/shared/types/pca';
 
 /**
  * Jacobi 特征值分解算法（适用于对称矩阵）

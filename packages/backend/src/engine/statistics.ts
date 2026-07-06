@@ -4,8 +4,8 @@
  * 对应 Go 实现: engine-go/internal/engine (统计指标计算)
  */
 
-import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
-import type { Statistics } from '@backtest/shared/types.js';
+import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
+import type { Statistics } from '@backtest/shared/types';
 
 /**
  * 计算复合年化增长率 (CAGR)
@@ -509,8 +509,41 @@ function simulateWithdrawal(annualReturns: number[], withdrawalRate: number): bo
   return true;
 }
 
-/** 基准相关指标计算结果 */
-interface BenchmarkMetrics {
+export function calcCovariance(x: number[], y: number[]): number {
+  if (x.length !== y.length) {
+    throw new Error(
+      `Covariance calculation requires equal-length arrays, got ${x.length} and ${y.length}`,
+    );
+  }
+  const n = x.length;
+  if (n < 2) return 0;
+
+  const meanX = x.reduce((s, v) => s + v, 0) / n;
+  const meanY = y.reduce((s, v) => s + v, 0) / n;
+
+  let cov = 0;
+  for (let i = 0; i < n; i++) {
+    cov += (x[i] - meanX) * (y[i] - meanY);
+  }
+  return cov / (n - 1);
+}
+
+export function calcPortfolioReturn(weights: number[], meanReturns: number[]): number {
+  return weights.reduce((s, w, i) => s + w * meanReturns[i], 0);
+}
+
+export function calcPortfolioVolatility(weights: number[], covMatrix: number[][]): number {
+  const n = weights.length;
+  let variance = 0;
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      variance += weights[i] * weights[j] * covMatrix[i][j];
+    }
+  }
+  return Math.sqrt(Math.max(0, variance));
+}
+
+export interface BenchmarkMetrics {
   beta: number;
   alpha: number;
   rSquared: number;
@@ -520,8 +553,7 @@ interface BenchmarkMetrics {
   downsideCapture: number;
 }
 
-/** 计算基准相关指标（无基准时全部返回 0） */
-function calcBenchmarkMetrics(
+export function calcBenchmarkMetrics(
   dailyReturns: number[],
   cagr: number,
   benchmarkDailyReturns?: number[],
@@ -555,8 +587,7 @@ function calcBenchmarkMetrics(
   };
 }
 
-/** 构建完整的 Statistics 对象（从中间计算结果） */
-function buildStatisticsObject(args: {
+export function buildStatisticsObject(args: {
   cagr: number;
   mwrr: number;
   stdev: number;
@@ -568,7 +599,7 @@ function buildStatisticsObject(args: {
   maxDrawdownDuration: number;
   annualReturnValues: number[];
   monthlyReturnValues: number[];
-  benchmarkMetrics: ReturnType<typeof calcBenchmarkMetrics>;
+  benchmarkMetrics: BenchmarkMetrics;
 }): Statistics {
   const {
     cagr,
@@ -638,9 +669,6 @@ function buildStatisticsObject(args: {
   };
 }
 
-/**
- * 计算组合统计指标
- */
 export function calculatePortfolioStatistics(opts: {
   values: number[];
   dates: string[];
@@ -694,60 +722,4 @@ export function calculatePortfolioStatistics(opts: {
       benchmarkCagr,
     ),
   });
-}
-
-/** 构建单个标的的统计指标对象 */
-export function buildTickerStatistics(args: {
-  cagr: number;
-  stdev: number;
-  dailyReturns: number[];
-  prices: number[];
-  maxDrawdown: number;
-  maxDrawdownDuration: number;
-  annualReturnValues: number[];
-  monthlyReturnValues: number[];
-  beta: number;
-}): Record<string, number> {
-  const {
-    cagr,
-    stdev,
-    dailyReturns,
-    prices,
-    maxDrawdown,
-    maxDrawdownDuration,
-    annualReturnValues,
-    monthlyReturnValues,
-    beta,
-  } = args;
-  const ulcerIndex = calcUlcerIndex(prices);
-  return {
-    cagr,
-    stdev,
-    sharpe: calcSharpe(cagr, stdev),
-    sortino: calcSortino(cagr, dailyReturns),
-    maxDrawdown,
-    maxDrawdownDuration,
-    avgDrawdown: calcAvgDrawdown(prices),
-    ulcerIndex,
-    calmar: calcCalmar(cagr, maxDrawdown),
-    ulcerPerformanceIndex: calcUPI(cagr, ulcerIndex),
-    beta,
-    skewness: calcSkewness(dailyReturns),
-    excessKurtosis: calcExcessKurtosis(dailyReturns),
-    bestYear: calcBestYear(annualReturnValues),
-    worstYear: calcWorstYear(annualReturnValues),
-    avgYear:
-      annualReturnValues.length > 0
-        ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
-        : 0,
-    totalReturn: calcTotalReturn(prices[0], prices[prices.length - 1]),
-    var5: calcVaR(dailyReturns, 0.95),
-    cvar5: calcCVaR(dailyReturns, 0.95),
-    pctPositiveDays:
-      dailyReturns.length > 0 ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length : 0,
-    maxDailyReturn: dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0,
-    minDailyReturn: dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0,
-    maxMonthlyReturn: calcBestMonth(monthlyReturnValues),
-    minMonthlyReturn: calcWorstMonth(monthlyReturnValues),
-  };
 }

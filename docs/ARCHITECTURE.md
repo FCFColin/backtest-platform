@@ -14,39 +14,33 @@ flowchart TB
     end
 
     subgraph APILayer["API 层 (端口 5001)"]
-        APP["Express App<br/>api/app.ts"]
-        ROUTES["路由层<br/>api/routes/"]
-        SERVICES["服务层<br/>api/services/"]
+        APP["Express App<br/>packages/backend/src/app.ts"]
+        ROUTES["路由层<br/>packages/backend/src/routes/"]
+        SERVICES["服务层<br/>packages/backend/src/services/"]
     end
 
     subgraph EngineLayer["引擎层"]
-        GO_ENG["Go 引擎 (主)<br/>engine-service/ :5002<br/>Gin + gonum"]
-        RUST["Rust 引擎 (备)<br/>engine-rs/ :5002<br/>actix-web"]
-        NODE["Node 引擎 (末)<br/>api/engine/<br/>降级模式"]
+        GO_ENG["Go 引擎 (唯一)<br/>engine-go/ :5004<br/>Gin + gonum"]
     end
 
     subgraph DataLayer["数据层"]
-        GO_DATA["Go 数据服务 (主)<br/>data-service/ :5003<br/>Gin + pgx"]
-        PY["Python/本地 (备)<br/>api/python/<br/>子进程/文件"]
+        GO_DATA["Go 数据服务<br/>data-fetcher/ :5003<br/>Gin + pgx"]
     end
 
     subgraph Storage["存储"]
         PG["PostgreSQL (主)<br/>pg / pgx"]
         JSON["JSON 文件 (备)<br/>data/market/"]
-        GO_DATA_FALLBACK["Go 数据服务 (末)<br/>降级数据获取"]
+        GO_DATA_FALLBACK["Go 数据服务 (备)<br/>实时获取缺失 ticker"]
     end
 
     UI -->|"HTTP /api/*"| APP
     APP --> ROUTES --> SERVICES
     SERVICES -->|"callGoEngine()"| GO_ENG
-    SERVICES -->|"降级"| RUST
-    SERVICES -->|"降级"| NODE
+    SERVICES -->|"失败 503 (ADR-031)"| GO_ENG
     SERVICES -->|"callGoDataService()"| GO_DATA
-    SERVICES -->|"降级"| PY
+    SERVICES -->|"callGoDataService()"| GO_DATA_FALLBACK
     GO_DATA --> PG
     GO_DATA -.->|"PG 不可用"| JSON
-    PY --> JSON
-    SERVICES --> GO_DATA_FALLBACK
 ```
 
 ---
@@ -65,6 +59,7 @@ flowchart TB
 - 熔断器 Open 状态（见 [ADR-016](adr/ADR-016-熔断器策略.md)）
 
 **处理逻辑**：
+
 - `callEngineStrict()` → 失败 → `EngineUnavailableError` → HTTP 503 + `Retry-After: 30`
 - 熔断器（opossum）：50% 错误阈值，30s 半开重置，最小 5 请求窗口
 - 响应体格式：`{ success: false, error: { type, title, status, code, detail, retryAfterSeconds } }`
@@ -114,8 +109,8 @@ flowchart TB
 1. 前端 POST /api/backtest/monte-carlo { portfolio|portfolios, parameters, mcParams }
 2. 后端:
    a. 获取价格数据
-   b. 对第一个组合调用 Go 引擎 /api/engine/monte-carlo
-   c. Go 引擎不可用时降级 Rust 引擎，再降级 Node 引擎
+    b. 调用 Go 引擎 /api/engine/monte-carlo
+    c. Go 引擎不可用时返回 503 + Retry-After（fail-closed，ADR-031）
 3. 返回百分位路径、成功概率、分布统计
 ```
 
@@ -123,14 +118,14 @@ flowchart TB
 
 ## 4. 端口分配
 
-| 服务        | 端口 | 配置位置                       |
-| ----------- | ---- | ------------------------------ |
-| 前端 Vite   | 5173 | vite.config.ts                 |
-| 后端 API    | 5001 | `PORT` 环境变量 / server.ts    |
-| Go 引擎     | 5004 | engine-go/ (环境变量)          |
-| Go 数据服务 | 5003 | data-service/ (环境变量)       |
-| PostgreSQL  | 5432 | DATABASE_URL 环境变量          |
-| Redis       | 6379 | docker-compose.yml             |
+| 服务        | 端口 | 配置位置                    |
+| ----------- | ---- | --------------------------- |
+| 前端 Vite   | 5173 | vite.config.ts              |
+| 后端 API    | 5001 | `PORT` 环境变量 / server.ts |
+| Go 引擎     | 5004 | engine-go/ (环境变量)       |
+| Go 数据服务 | 5003 | data-service/ (环境变量)    |
+| PostgreSQL  | 5432 | DATABASE_URL 环境变量       |
+| Redis       | 6379 | docker-compose.yml          |
 
 ---
 
@@ -138,10 +133,10 @@ flowchart TB
 
 后端有 2 个入口文件，职责不同：
 
-| 文件                                              | 用途                   | 说明                                                      |
-| ------------------------------------------------- | ---------------------- | --------------------------------------------------------- |
-| [app.ts](../packages/backend/src/app.ts)           | Express 应用配置       | 中间件、路由挂载、错误处理。被 server.ts 引用             |
-| [server.ts](../packages/backend/src/server.ts)     | 本地开发/生产入口      | `app.listen()` 启动 HTTP 服务，处理 SIGTERM/SIGINT        |
+| 文件                                           | 用途              | 说明                                               |
+| ---------------------------------------------- | ----------------- | -------------------------------------------------- |
+| [app.ts](../packages/backend/src/app.ts)       | Express 应用配置  | 中间件、路由挂载、错误处理。被 server.ts 引用      |
+| [server.ts](../packages/backend/src/server.ts) | 本地开发/生产入口 | `app.listen()` 启动 HTTP 服务，处理 SIGTERM/SIGINT |
 
 ---
 
@@ -160,11 +155,11 @@ flowchart TB
 
 ### 6.2 后端服务层 (`packages/backend/src/services/`)
 
-| 文件                  | 职责                                                   |
-| --------------------- | ------------------------------------------------------ |
+| 文件                  | 职责                                                      |
+| --------------------- | --------------------------------------------------------- |
 | `dataService.ts`      | 价格数据获取（PostgreSQL + Go 数据服务降级）、ticker 搜索 |
-| `engineService.ts`    | 引擎调用封装                                           |
-| `batchDataService.ts` | 批量数据服务                                           |
+| `engineService.ts`    | 引擎调用封装                                              |
+| `batchDataService.ts` | 批量数据服务                                              |
 
 > 注：Node/Rust 降级引擎已根据 ADR-031 退役，所有计算仅通过 Go 引擎 (`engine-go`)。此节保留历史参考。`api/engine/` 中保留的 canonical 实现仅用作 eslint-disable 兼容性保留，运行时不会被调用。
 
@@ -222,18 +217,16 @@ data/
 
 ## 9. 设计决策
 
-### 9.1 为什么用多语言而非单语言？
+### 9.1 为什么用 Go + TypeScript 而非单语言？
 
 - **Go**：计算密集型（回测/蒙特卡洛/优化）+ 数据服务（并发 HTTP + baostock），goroutine 并行模型适合 I/O+CPU 混合场景
-- **Rust**：作为引擎降级备选保留，过渡期并行运行（见 ADR-008）
-- **Python**：akshare/yfinance 生态丰富，用于数据抓取（逐步迁移至 Go，见 ADR-008）
 - **TypeScript**：前后端共享类型，前端 React 生态成熟
 
-### 9.2 为什么保留 Node 降级引擎？
+### 9.2 Go 引擎 fail-closed 策略
 
-- Go/Rust 引擎需要单独启动，开发时可能不运行
-- 降级保证核心功能可用（虽功能不完整）
-- 降级时明确警告用户
+- Go 引擎是唯一计算引擎（ADR-008/031），不可用时返回 503 + Retry-After
+- 不再保留备用引擎（Rust 已退役，Node-canonical 仅用于开发验证）
+- 降级时响应中包含 `degraded: true`
 
 ### 9.3 数据存储演进：JSON → SQLite → PostgreSQL
 
@@ -242,14 +235,13 @@ data/
 - 2026-06 中，从 SQLite 迁移至 PostgreSQL（pgx + pg 驱动，见 ADR-007）
   - 解除多实例水平扩展阻塞（SQLite 单文件无法跨 Pod 共享）
   - 获得连接池、全文搜索（tsvector + GIN）、流复制等企业级能力
-- `api/db/index.ts` 实现版本化 schema 迁移，`api/db/import.ts` 提供 JSON→PostgreSQL 导入
+- `packages/backend/src/db/` 实现版本化 schema 迁移和 JSON→PostgreSQL 导入
 - JSON 文件保留为数据源和降级 fallback（PostgreSQL 不可用时回退）
 - 迁移决策详见 [ADR-006](adr/ADR-006-SQLite迁移决策.md)、[ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)
 
 ### 9.4 已知局限性
 
-- **Go 数据服务信号量=10**：`dataService.ts:187` 限制对 data-fetcher 并发（ADR-027）
-- **Rust 引擎过渡期**：Go 为主，Rust 二级，Node 末级
+- **Go 数据服务信号量=10**：`packages/backend/src/services/dataService.ts:187` 限制对 data-fetcher 并发（ADR-027）
 - **x-api-key 兼容风险**：静态 Key 无法按用户撤销（ADR-017）
 - **Redis 依赖**：会话/限流/幂等；fail-closed 或内存回退
 
@@ -294,12 +286,12 @@ data/
 
 详见 [ADR-015](adr/ADR-015-可观测性技术选型.md)。
 
-| 支柱    | Node.js                           | Go                       | Rust                   |
-| ------- | --------------------------------- | ------------------------ | ---------------------- |
-| 日志    | pino（结构化 JSON）               | slog（结构化 JSON）      | tracing（结构化 JSON） |
-| 指标    | prom-client（Prometheus 格式）    | prometheus/client_golang | —                      |
-| 追踪    | @opentelemetry/sdk-node           | otelgin + OTLP（已接线） | opentelemetry crate    |
-| DB 追踪 | @opentelemetry/instrumentation-pg | pgx OTel 集成            | —                      |
+| 支柱    | Node.js                           | Go                       |
+| ------- | --------------------------------- | ------------------------ |
+| 日志    | pino（结构化 JSON）               | slog（结构化 JSON）      |
+| 指标    | prom-client（Prometheus 格式）    | prometheus/client_golang |
+| 追踪    | @opentelemetry/sdk-node           | otelgin + OTLP（已接线） |
+| DB 追踪 | @opentelemetry/instrumentation-pg | pgx OTel 集成            |
 
 **Collector 架构**：各服务 → OTel Collector → Jaeger/Tempo（追踪）+ Prometheus（指标）
 
@@ -309,12 +301,11 @@ data/
 
 详见 [ADR-016](adr/ADR-016-熔断器策略.md)。
 
-| 服务         | 熔断器                  | 保护目标                        |
-| ------------ | ----------------------- | ------------------------------- |
-| Go 引擎      | opossum（Node.js 侧）   | 引擎层降级：Go→Rust→Node        |
-| Rust 引擎    | opossum（Node.js 侧）   | 引擎层降级：Rust→Node           |
-| PostgreSQL   | opossum（Node.js 侧）   | 数据层降级：PG→JSON→Go 数据服务 |
-| BaoStock API | sony/gobreaker（Go 侧） | 数据获取降级                    |
+| 服务         | 熔断器                  | 保护目标                            |
+| ------------ | ----------------------- | ----------------------------------- |
+| Go 引擎      | opossum（Node.js 侧）   | 引擎 fail-closed（Go → 503）        |
+| PostgreSQL   | opossum（Node.js 侧）   | 数据层降级：PG → JSON → Go 数据服务 |
+| BaoStock API | sony/gobreaker（Go 侧） | 数据获取降级                        |
 
 **熔断器配置**：50% 失败率触发 Open，10s 后 HalfOpen 探测。PostgreSQL 熔断器替代原有 `dbAvailable` 布尔标记，提供自动恢复能力。
 

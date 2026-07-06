@@ -7,19 +7,19 @@
  * JSON 文件仅用于 `npm run import:tickers` 一次性导入，运行时不再读取。
  */
 
-import path from 'path';
-import fs from 'fs';
+import { readdirSync, unlinkSync } from 'fs';
+import { join } from 'path';
 import { validateTickerFormat } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
 import { initSchema } from '../db/index.js';
 import {
   CACHE_DIR,
   currentCacheVersion,
+  getCacheKey,
   readCache,
   writeCache,
-  getCacheKey,
-  ensureCacheDir,
   incrementCacheVersion,
+  ensureCacheDir,
   deletePriceCache,
   clearPriceCache,
 } from './dataCacheService.js';
@@ -44,6 +44,47 @@ export async function initDb(): Promise<void> {
   }
 }
 
+/**
+ * 历史数据查询结果，包含是否从降级路径获取。
+ *
+ * 企业理由（P1-11）：此前 fetchHistoryData 返回纯数据，Go 服务不可用时
+ * 静默返回空数据，调用方无法感知降级。包装返回类型后，调用方可选择
+ * 将 degraded 信息传播到 API 响应，让前端和监控系统感知降级。
+ */
+export interface HistoryDataResult {
+  data: Record<string, Record<string, number>>;
+  degraded: boolean;
+  degradedWarning?: string;
+}
+
+/** 全局最近一次 fetchHistoryData 调用的降级状态（非持久，用于同步感知） */
+let lastFetchDegraded = false;
+let lastFetchDegradedWarning: string | undefined;
+
+/** 读取并清除最近一次数据查询的降级状态 */
+export function consumeDegradedFlag(): { degraded: boolean; degradedWarning?: string } {
+  const d = { degraded: lastFetchDegraded, degradedWarning: lastFetchDegradedWarning };
+  lastFetchDegraded = false;
+  lastFetchDegradedWarning = undefined;
+  return d;
+}
+
+/**
+ * 获取历史价格数据，返回包含降级元数据的结果。
+ *
+ * 与 fetchHistoryData 签名一致，但返回类型包裹降级信息。
+ * 推荐新代码使用此函数。
+ */
+export async function fetchHistoryDataWithDegraded(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+): Promise<HistoryDataResult> {
+  const data = await fetchHistoryData(tickers, startDate, endDate);
+  const degradedInfo = consumeDegradedFlag();
+  return { data, ...degradedInfo };
+}
+
 export async function fetchHistoryData(
   tickers: string[],
   startDate: string,
@@ -60,12 +101,17 @@ export async function fetchHistoryData(
     return result;
   }
 
-  const { result: dbResult, missing: missingTickers } = await queryPricesFromDb(
-    validTickers,
-    startDate,
-    endDate,
-  );
+  const {
+    result: dbResult,
+    missing: missingTickers,
+    dbDegraded,
+  } = await queryPricesFromDb(validTickers, startDate, endDate);
   Object.assign(result, dbResult);
+
+  if (dbDegraded) {
+    lastFetchDegraded = true;
+    lastFetchDegradedWarning = '数据库不可用，部分数据可能缺失';
+  }
 
   if (missingTickers.length === 0) {
     logger.info(
@@ -101,6 +147,15 @@ export async function fetchHistoryData(
 
   const goResult = await fetchMissingFromGoService(stillMissing, startDate, endDate, cacheKey);
   Object.assign(result, goResult);
+
+  // Go 数据服务可能无法获取全部缺失 ticker，标记降级
+  const stillAfterGo = stillMissing.filter(
+    (t) => !result[t] || Object.keys(result[t]).length === 0,
+  );
+  if (stillAfterGo.length > 0) {
+    lastFetchDegraded = true;
+    lastFetchDegradedWarning = `Go 数据服务无法获取 ${stillAfterGo.length} 个标的的数据`;
+  }
 
   logger.info(
     `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing, took ${Date.now() - fetchStart}ms`,
@@ -175,11 +230,11 @@ export async function invalidateCache(ticker?: string): Promise<void> {
 
     ensureCacheDir();
     try {
-      const files = fs.readdirSync(CACHE_DIR);
+      const files = readdirSync(CACHE_DIR);
       const prefix = ticker.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 50);
       for (const file of files) {
         if (file.startsWith(`history_${prefix}=`) || file.includes(`=${prefix}&`)) {
-          fs.unlinkSync(path.join(CACHE_DIR, file));
+          unlinkSync(join(CACHE_DIR, file));
         }
       }
     } catch {

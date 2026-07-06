@@ -29,6 +29,11 @@ tags:
     description: 数据查询（历史行情、搜索、CPI）
   - name: data-manage
     description: 数据引擎管理（状态、统计、更新、标的管理）
+  - name: engine-go
+    description: |
+      Go 引擎内部端点（不对外暴露，仅供 Node.js API 内部调用）。
+      端点路径前缀 /api/engine/，受 X-Engine-Auth Token 保护。
+      所有计算端点无状态——priceData 由调用方传入，引擎不持久化数据。
   - name: admin
     description: 管理后台（仪表盘统计、系统资源）
   - name: health
@@ -45,8 +50,11 @@ tags:
     description: 杠杆 ETF 滑点分析
   - name: goal-optimizer
     description: 目标优化（蒙特卡洛模拟财务目标达成概率）
-  - name: backtest-optimizer
-    description: 回测参数优化器（遍历参数空间）
+  - name: engine-go
+    description: ｜
+      Go 引擎内部端点（不对外暴露，仅供 Node.js API 内部调用）。
+      端点路径前缀 /api/engine/，受 X-Engine-Auth Token 保护。
+      所有计算端点无状态——priceData 由调用方传入，引擎不持久化数据。
   - name: auth
     description: 认证鉴权（登录、令牌刷新、登出、身份查询）
 
@@ -909,6 +917,88 @@ components:
             successRate:
               type: number
 
+    # ===== Go 引擎内部契约 =====
+    EngineBacktestParams:
+      type: object
+      required:
+        - startDate
+        - endDate
+        - startingValue
+        - adjustForInflation
+        - rollingWindowMonths
+        - benchmarkTicker
+      properties:
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        startingValue:
+          type: number
+        adjustForInflation:
+          type: boolean
+        rollingWindowMonths:
+          type: number
+        benchmarkTicker:
+          type: string
+        extendedWithdrawalStats:
+          type: boolean
+        cashflowLegs:
+          type: array
+          items:
+            $ref: '#/components/schemas/CashflowLeg'
+        oneTimeCashflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/OneTimeCashflow'
+
+    EngineBacktestResponse:
+      type: object
+      properties:
+        portfolios:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              growthCurve:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                    value:
+                      type: number
+              drawdownCurve:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date:
+                      type: string
+                    drawdown:
+                      type: number
+              statistics:
+                $ref: '#/components/schemas/Statistics'
+        correlations:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        benchmarkGrowth:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              value:
+                type: number
+
     # ===== 回测优化器 =====
     OptimizeRequest:
       type: object
@@ -1491,11 +1581,345 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: 分析运行失败
+          description: 优化运行失败
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== Go 引擎内部端点 =====
+  # 以下端点由 Go engine-go 服务提供，Node.js API 内部调用（不对外暴露）。
+  # 路径前缀 /api/engine/，通过 X-Engine-Auth header 鉴权。
+  # Go 引擎所有计算端点无状态：priceData 由调用方传入，引擎不持久化。
+
+  /api/engine/backtest:
+    post:
+      tags: [engine-go]
+      summary: 组合回测（内部）
+      description: Go 引擎主回测接口。接收 priceData、portfolios 与 params，返回净值曲线、统计指标、回撤等。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - portfolios
+                - priceData
+                - params
+              properties:
+                portfolios:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      assets:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            ticker:
+                              type: string
+                            weight:
+                              type: number
+                      rebalanceFrequency:
+                        type: string
+                      rebalanceThreshold:
+                        type: number
+                      rebalanceOffset:
+                        type: number
+                      drag:
+                        type: number
+                      totalReturn:
+                        type: boolean
+                      rebalanceBands:
+                        type: object
+                        properties:
+                          absolute:
+                            type: number
+                          relative:
+                            type: number
+                      glidepathToWeights:
+                        type: array
+                        items:
+                          type: number
+                      glidepathYears:
+                        type: number
+                priceData:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: number
+                  description: '{ ticker: { date: close_price } }'
+                params:
+                  $ref: '#/components/schemas/EngineBacktestParams'
+                cpiData:
+                  type: object
+                  additionalProperties:
+                    type: number
+                exchangeRates:
+                  type: object
+                  additionalProperties:
+                    type: number
+      responses:
+        '200':
+          description: 回测结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngineBacktestResponse'
+        '400':
+          description: 请求参数错误
+        '500':
+          description: 引擎计算错误
+
+  /api/engine/analysis:
+    post:
+      tags: [engine-go]
+      summary: 单资产分析（内部）
+      description: 对多个资产行情数据计算收益率、相关性等统计指标（Go 引擎）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tickers
+                - priceData
+                - params
+              properties:
+                tickers:
+                  type: array
+                  items:
+                    type: string
+                priceData:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: number
+                params:
+                  $ref: '#/components/schemas/EngineBacktestParams'
+      responses:
+        '200':
+          description: 分析结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      assets:
+                        type: array
+                        items:
+                          type: object
+                      correlations:
+                        type: array
+                        items:
+                          type: array
+                          items:
+                            type: number
+
+  /api/engine/optimize:
+    post:
+      tags: [engine-go]
+      summary: 组合优化（内部）
+      description: 根据目标函数（最大夏普/最小波动/最大收益）优化资产权重（Go 引擎）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tickers
+                - priceData
+                - objective
+              properties:
+                tickers:
+                  type: array
+                  items:
+                    type: string
+                priceData:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: number
+                objective:
+                  type: string
+                  enum: [maxSharpe, minVolatility, maxReturn]
+                constraints:
+                  type: object
+                  properties:
+                    minWeight:
+                      type: number
+                    maxWeight:
+                      type: number
+                riskFreeRate:
+                  type: number
+                  default: 0.02
+                numIterations:
+                  type: number
+                  default: 10000
+      responses:
+        '200':
+          description: 优化结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '400':
+          description: 请求参数错误
+        '500':
+          description: 引擎计算错误
+
+  /api/engine/efficient-frontier:
+    post:
+      tags: [engine-go]
+      summary: 有效前沿（内部）
+      description: 计算有效前沿曲线（Go 引擎）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tickers
+                - priceData
+              properties:
+                tickers:
+                  type: array
+                  items:
+                    type: string
+                priceData:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: number
+                numPoints:
+                  type: number
+                  default: 20
+                riskFreeRate:
+                  type: number
+                  default: 0.02
+      responses:
+        '200':
+          description: 有效前沿结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+        '400':
+          description: 请求参数错误
+        '500':
+          description: 引擎计算错误
+
+  /api/engine/monte-carlo:
+    post:
+      tags: [engine-go]
+      summary: 蒙特卡洛模拟（内部）
+      description: 对投资组合运行蒙特卡洛模拟（Go 引擎）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - portfolio
+                - priceData
+                - params
+              properties:
+                portfolio:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    assets:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          ticker:
+                            type: string
+                          weight:
+                            type: number
+                    rebalanceFrequency:
+                      type: string
+                    rebalanceThreshold:
+                      type: number
+                    rebalanceOffset:
+                      type: number
+                    drag:
+                      type: number
+                    totalReturn:
+                      type: boolean
+                priceData:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties:
+                      type: number
+                params:
+                  $ref: '#/components/schemas/EngineBacktestParams'
+                cpiData:
+                  type: object
+                  additionalProperties:
+                    type: number
+                exchangeRates:
+                  type: object
+                  additionalProperties:
+                    type: number
+                mcParams:
+                  type: object
+                  properties:
+                    numSimulations:
+                      type: number
+                    blockSize:
+                      type: number
+                    withReplacement:
+                      type: boolean
+                    confidenceLevel:
+                      type: number
+                    distribution:
+                      type: string
+                    seed:
+                      type: number
+      responses:
+        '200':
+          description: 蒙特卡洛结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '400':
+          description: 请求参数错误
+        '500':
+          description: 引擎计算错误
 
   /backtest/monte-carlo:
     post:

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { validatePortfolioInvariants } from '../../../api/domain/aggregates/portfolio.js';
-import { Weight } from '../../../api/domain/value-objects/weight.js';
-import { Price } from '../../../api/domain/value-objects/price.js';
-import { invariant } from '../../../api/utils/invariant.js';
+import { validatePortfolioInvariants } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
+import { Weight } from '../../../packages/backend/src/domain/value-objects/weight.js';
+import { Price } from '../../../packages/backend/src/domain/value-objects/price.js';
+import { invariant } from '../../../packages/backend/src/utils/invariant.js';
 
 describe('invariant', () => {
   it('应该在不满足条件时抛出错误', () => {
@@ -32,9 +32,7 @@ describe('validatePortfolioInvariants', () => {
   });
 
   it('负权重时应该抛出', () => {
-    const holdings = [
-      { ticker: {} as any, weight: { value: -10 } },
-    ];
+    const holdings = [{ ticker: {} as any, weight: { value: -10 } }];
     expect(() => validatePortfolioInvariants({ holdings })).toThrow('Invariant violation');
   });
 });

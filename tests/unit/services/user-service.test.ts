@@ -53,12 +53,12 @@ vi.mock('crypto', () => ({
   createHash: mocks.crypto.createHash,
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: () => mocks.pool,
 }));
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import {
   createUser,
@@ -71,7 +71,7 @@ import {
   getUserByEmail,
   issueEmailVerificationToken,
   verifyEmailToken,
-} from '../../../api/services/userService.js';
+} from '../../../packages/backend/src/services/userService.js';
 
 describe('createUser - 用户创建', () => {
   beforeEach(() => {

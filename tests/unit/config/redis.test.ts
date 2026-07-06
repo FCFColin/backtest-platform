@@ -48,9 +48,11 @@ const ioredisMocks = vi.hoisted(() => {
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),
 }));
 
@@ -58,7 +60,7 @@ vi.mock('ioredis', () => ({
   default: ioredisMocks.IORedis,
 }));
 
-import { redisConnection, appRedis } from '../../../api/config/redis.js';
+import { redisConnection, appRedis } from '../../../packages/backend/src/config/redis.js';
 
 describe('redisConnection（BullMQ 专用）', () => {
   it('应导出 redisConnection 实例', () => {

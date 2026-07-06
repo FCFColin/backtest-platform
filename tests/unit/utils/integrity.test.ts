@@ -23,7 +23,7 @@ import {
   verifyFile,
   signFileSync,
   verifyFileSync,
-} from '../../../api/utils/integrity.js';
+} from '../../../packages/backend/src/utils/integrity.js';
 
 describe('integrity - HMAC 签名校验', () => {
   let tmpDir: string;

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { goalOptimizerSchema } from '../../../api/schemas/goalOptimizer.js';
+import { goalOptimizerSchema } from '../../../packages/backend/src/schemas/goalOptimizer.js';
 
 function makeValidInput() {
   return {

@@ -34,11 +34,15 @@ import { fmtPrice, buildGrowthData, buildStatRows } from './utils.js';
 import type { TacticalPageState } from '../../hooks/useTacticalState.js';
 
 function whatIfSignalColor(t: WhatIfResult['signalType']): string {
-  return t === 'buy' ? 'var(--success)' : t === 'sell' ? 'var(--danger)' : 'var(--text-muted)';
+  if (t === 'buy') return 'var(--success)';
+  if (t === 'sell') return 'var(--danger)';
+  return 'var(--text-muted)';
 }
 
 function whatIfSignalLabel(t: WhatIfResult['signalType']): string {
-  return t === 'buy' ? '买入' : t === 'sell' ? '卖出' : '持有';
+  if (t === 'buy') return '买入';
+  if (t === 'sell') return '卖出';
+  return '持有';
 }
 
 function buildWhatIfColumns(): Column<WhatIfResult>[] {

@@ -16,18 +16,18 @@ const dbMocks = vi.hoisted(() => ({
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import {
   createApiKey,
   verifyApiKey,
   listApiKeys,
   revokeApiKey,
-} from '../../../api/services/apiKeyService.js';
+} from '../../../packages/backend/src/services/apiKeyService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const KEY_ID = '22222222-2222-2222-2222-222222222222';

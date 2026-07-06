@@ -44,10 +44,12 @@ const fsMocks = vi.hoisted(() => ({
 // ===== Mock 模块 =====
 
 // Mock logger
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
 // Mock db/index.js 的 getPool / getClient
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: dbMocks.getPool,
   getClient: dbMocks.getClient,
 }));
@@ -69,7 +71,7 @@ import {
   importCpiData,
   importExchangeRates,
   importAllMarketData,
-} from '../../../api/db/import.js';
+} from '../../../packages/backend/src/db/import.js';
 
 /** 构造一个 mock PoolClient，记录 query 调用 */
 function createMockClient(): pg.PoolClient & {

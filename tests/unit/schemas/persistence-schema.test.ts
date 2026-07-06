@@ -3,7 +3,7 @@ import {
   portfolioBodySchema,
   savedConfigBodySchema,
   backtestRunBodySchema,
-} from '../../../api/schemas/persistence.js';
+} from '../../../packages/backend/src/schemas/persistence.js';
 
 describe('portfolioBodySchema', () => {
   const valid = { name: 'My Portfolio', assets: [{ ticker: 'VTI', weight: 60 }] };

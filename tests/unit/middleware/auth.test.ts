@@ -18,14 +18,14 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: mocks.config,
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import { requireApiKey, optionalApiKey } from '../../../api/middleware/auth.js';
+import { requireApiKey, optionalApiKey } from '../../../packages/backend/src/middleware/auth.js';
 
 function createMockReqRes(opts: { headers?: Record<string, string> }) {
   return createMockMiddleware({

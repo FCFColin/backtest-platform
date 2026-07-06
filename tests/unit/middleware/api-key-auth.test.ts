@@ -21,28 +21,31 @@ const mocks = vi.hoisted(() => ({
   hashUserId: vi.fn().mockReturnValue('hashed'),
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: mocks.config,
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../api/services/apiKeyService.js', () => ({
+vi.mock('../../../packages/backend/src/services/apiKeyService.js', () => ({
   verifyApiKey: mocks.verifyApiKey,
 }));
 
-vi.mock('../../../api/utils/errors.js', () => ({
+vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
   sendProblem: mocks.sendProblem,
 }));
 
-vi.mock('../../../api/middleware/authTypes.js', () => ({
+vi.mock('../../../packages/backend/src/middleware/authTypes.js', () => ({
   ACCESS_TOKEN_EXPIRES_IN_SEC: 900,
   attachAuthLogContext: mocks.attachAuthLogContext,
   hashUserId: mocks.hashUserId,
 }));
 
-import { handleApiKeyAuth, handleOptionalApiKey } from '../../../api/middleware/apiKeyAuth.js';
+import {
+  handleApiKeyAuth,
+  handleOptionalApiKey,
+} from '../../../packages/backend/src/middleware/apiKeyAuth.js';
 
 const ORG_ID = '11111111-1111-1111-1111-111111111111';
 const KEY_ID = '22222222-2222-2222-2222-222222222222';
@@ -191,7 +194,7 @@ describe('handleApiKeyAuth', () => {
 
 describe('handleOptionalApiKey', () => {
   it('缺失 API Key 应设 req.user=null 并放行', () => {
-    const { req, res, next } = createMockMiddleware({ headers: {} });
+    const { req, next } = createMockMiddleware({ headers: {} });
     handleOptionalApiKey(req, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toBeNull();
@@ -199,7 +202,7 @@ describe('handleOptionalApiKey', () => {
 
   it('有效 DB API Key 应认证通过并放行', async () => {
     mocks.verifyApiKey.mockResolvedValueOnce({ orgId: ORG_ID, keyId: KEY_ID });
-    const { req, res, next } = createMockMiddleware({
+    const { req, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_valid' },
     });
     handleOptionalApiKey(req, next);
@@ -214,7 +217,7 @@ describe('handleOptionalApiKey', () => {
   it('有效 ADMIN_API_KEY 应认证通过并放行', async () => {
     mocks.verifyApiKey.mockResolvedValueOnce(null);
     mocks.config.ADMIN_API_KEY = 'optional-admin-key';
-    const { req, res, next } = createMockMiddleware({
+    const { req, next } = createMockMiddleware({
       headers: { 'x-api-key': 'optional-admin-key' },
     });
     handleOptionalApiKey(req, next);
@@ -229,7 +232,7 @@ describe('handleOptionalApiKey', () => {
   it('无效 API Key 应设 req.user=null 并放行（可选不阻断）', async () => {
     mocks.verifyApiKey.mockResolvedValueOnce(null);
     mocks.config.ADMIN_API_KEY = '';
-    const { req, res, next } = createMockMiddleware({
+    const { req, next } = createMockMiddleware({
       headers: { 'x-api-key': 'invalid-key' },
     });
     handleOptionalApiKey(req, next);
@@ -240,7 +243,7 @@ describe('handleOptionalApiKey', () => {
 
   it('verifyApiKey 抛出异常应匿名放行', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('error'));
-    const { req, res, next } = createMockMiddleware({
+    const { req, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_key' },
     });
     handleOptionalApiKey(req, next);

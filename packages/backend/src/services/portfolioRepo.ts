@@ -60,26 +60,19 @@ const SELECT_COLS = 'id, name, assets, rebalance_frequency, owner_user_id, creat
  * 列出租户下的全部组合（按更新时间倒序）。
  *
  * @param tenantId - 活跃组织（租户）UUID
- * @param limit - 返回条数上限（默认 100，最大 1000）
- * @param offset - 偏移量（默认 0）
- * @returns 组合记录数组与总数
+ * @returns 组合记录数组
  */
 export async function listPortfolios(
   tenantId: string,
-  limit = 100,
-  offset = 0,
-): Promise<{ rows: PortfolioRecord[]; total: number }> {
+  limit: number = 50,
+): Promise<PortfolioRecord[]> {
   return withTenant(tenantId, async (client) => {
-    const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 1000);
-    const safeOffset = Math.max(0, Math.trunc(offset));
-    const [{ rows }, { rows: countRows }] = await Promise.all([
-      client.query(
-        `SELECT ${SELECT_COLS} FROM portfolios ORDER BY updated_at DESC LIMIT $1 OFFSET $2`,
-        [safeLimit, safeOffset],
-      ),
-      client.query(`SELECT COUNT(*)::int AS total FROM portfolios`, []),
-    ]);
-    return { rows: rows.map(mapRow), total: countRows[0].total };
+    const capped = Math.min(limit, 200);
+    const { rows } = await client.query(
+      `SELECT ${SELECT_COLS} FROM portfolios ORDER BY updated_at DESC LIMIT $1`,
+      [capped],
+    );
+    return rows.map(mapRow);
   });
 }
 

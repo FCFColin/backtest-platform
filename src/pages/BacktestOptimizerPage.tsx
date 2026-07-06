@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { Play, Loader2, Plus, X } from 'lucide-react';
+import { fmtPct, fmtNum } from '@/utils/format';
 import {
   LineChart,
   Line,
@@ -63,8 +64,6 @@ const FREQ_LABELS: Record<string, string> = {
   none: '不调仓',
 };
 
-const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
-const fmtNum = (v: number) => v.toFixed(2);
 const fmtMoney = (v: number) => `$${v.toLocaleString('en-US')}`;
 
 /** 目标到排序键的映射 */

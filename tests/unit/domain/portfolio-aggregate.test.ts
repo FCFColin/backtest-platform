@@ -2,9 +2,9 @@
  * Portfolio Aggregate 单元测试（百分比权重和 ≈100，T-30）
  */
 import { describe, it, expect } from 'vitest';
-import { Portfolio } from '../../../api/domain/aggregates/portfolio.js';
-import { Ticker } from '../../../api/domain/value-objects/ticker.js';
-import { Weight } from '../../../api/domain/value-objects/weight.js';
+import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
+import { Ticker } from '../../../packages/backend/src/domain/value-objects/ticker.js';
+import { Weight } from '../../../packages/backend/src/domain/value-objects/weight.js';
 
 function makeHolding(ticker: string, weight: number) {
   return {

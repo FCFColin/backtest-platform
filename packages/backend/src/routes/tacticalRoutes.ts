@@ -7,7 +7,7 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical.js';
+import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
@@ -32,7 +32,7 @@ interface BacktestRequest {
   startDate: string;
   endDate: string;
   startingValue: number;
-  rebalanceFrequency: import('@backtest/shared/types/index.js').RebalanceFrequency;
+  rebalanceFrequency: import('@backtest/shared/types/index').RebalanceFrequency;
 }
 
 interface WhatIfRequest {

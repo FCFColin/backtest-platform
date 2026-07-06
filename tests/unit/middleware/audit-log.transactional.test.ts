@@ -35,14 +35,16 @@ const poolMocks = vi.hoisted(() => ({
 }));
 
 // Mock logger
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
 // Mock db/index.js：getPool 返回带 mock query 的对象
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: () => ({ query: poolMocks.query }),
 }));
 
-import { writeOutboxEvent } from '../../../api/middleware/auditLog.js';
+import { writeOutboxEvent } from '../../../packages/backend/src/middleware/auditLog.js';
 
 /** 构造一个 mock PoolClient，记录所有 query 调用 */
 function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {

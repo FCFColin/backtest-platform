@@ -478,7 +478,7 @@ export function validateConfig(): void {
       console.warn('[config] 安全警告：JWT_SECRET 使用开发默认值，请勿在生产环境使用');
     }
     if (config.CORS_ORIGINS === true) {
-      console.error('[config] 安全警告：CORS_ORIGINS 允许所有来源，生产环境应配置来源白名单');
+      console.warn('[config] 安全警告：CORS_ORIGINS 允许所有来源，生产环境应配置来源白名单');
     }
   }
 
@@ -495,3 +495,5 @@ export function validateConfig(): void {
     throw new Error(`配置校验失败：\n  - ${errors.join('\n  - ')}`);
   }
 }
+
+export default config;

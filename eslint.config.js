@@ -24,6 +24,7 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
+      'packages/backend/dist/**',
       'node_modules/**',
       'coverage/**',
       'data/**',
@@ -42,7 +43,7 @@ export default tseslint.config(
 
   // 前端 React 配置
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['packages/frontend/src/**/*.{ts,tsx}', 'src/**/*.{ts,tsx}'],
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,

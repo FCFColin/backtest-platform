@@ -2,7 +2,7 @@
  * PCA 路由 — POST /api/pca/analyze
  */
 import { Router, type Request, type Response } from 'express';
-import type { PCARequest } from '@backtest/shared/types.js';
+import type { PCARequest } from '@backtest/shared/types';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';

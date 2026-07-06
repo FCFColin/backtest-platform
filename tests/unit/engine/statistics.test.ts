@@ -7,7 +7,7 @@ import {
   calcMaxDrawdown,
   calcCorrelation,
   calcDailyReturns,
-} from '../../../api/engine/statistics.js';
+} from '../../../packages/backend/src/engine/statistics.js';
 
 describe('calcCAGR', () => {
   it('计算正常CAGR', () => {

@@ -19,7 +19,7 @@ export interface LETFResult {
   /** 年化拖累 */
   annualDecay: number;
   /** 实际杠杆 vs 名义杠杆 */
-  effectiveLeverage: number[];
+  effectiveLeverage: (number | null)[];
   /** 对比统计 */
   stats: {
     benchmarkReturn: number;

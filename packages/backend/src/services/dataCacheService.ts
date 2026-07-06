@@ -1,23 +1,23 @@
-import path from 'path';
-import fs from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { signFileSync, verifyFileSync } from '../utils/integrity.js';
 import { logger } from '../utils/logger.js';
+import { signFileSync, verifyFileSync } from '../utils/integrity.js';
 import { appRedis } from '../config/redis.js';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = dirname(__filename);
 
-const CACHE_DIR = path.resolve(__dirname, '../../data/cache');
+const CACHE_DIR = resolve(__dirname, '../../data/cache');
 
-const CACHE_VERSION_FILE = path.join(CACHE_DIR, '.cache_version');
+const CACHE_VERSION_FILE = join(CACHE_DIR, '.cache_version');
 let currentCacheVersion = 0;
 
 function readCacheVersion(): number {
   try {
     ensureCacheDir();
-    if (fs.existsSync(CACHE_VERSION_FILE)) {
-      const v = parseInt(fs.readFileSync(CACHE_VERSION_FILE, 'utf-8').trim(), 10);
+    if (existsSync(CACHE_VERSION_FILE)) {
+      const v = parseInt(readFileSync(CACHE_VERSION_FILE, 'utf-8').trim(), 10);
       return isNaN(v) ? 0 : v;
     }
   } catch {
@@ -29,14 +29,14 @@ function readCacheVersion(): number {
 function incrementCacheVersion(): void {
   ensureCacheDir();
   currentCacheVersion = readCacheVersion() + 1;
-  fs.writeFileSync(CACHE_VERSION_FILE, String(currentCacheVersion), 'utf-8');
+  writeFileSync(CACHE_VERSION_FILE, String(currentCacheVersion), 'utf-8');
 }
 
 currentCacheVersion = readCacheVersion();
 
 function ensureCacheDir(): void {
-  if (!fs.existsSync(CACHE_DIR)) {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
+  if (!existsSync(CACHE_DIR)) {
+    mkdirSync(CACHE_DIR, { recursive: true });
   }
 }
 
@@ -51,8 +51,8 @@ function getCacheKey(prefix: string, params: Record<string, string>): string {
 
 function readCache(key: string): unknown {
   ensureCacheDir();
-  const filePath = path.join(CACHE_DIR, key);
-  if (fs.existsSync(filePath)) {
+  const filePath = join(CACHE_DIR, key);
+  if (existsSync(filePath)) {
     try {
       if (!verifyFileSync(filePath)) {
         logger.warn(
@@ -61,7 +61,7 @@ function readCache(key: string): unknown {
         );
         return null;
       }
-      const content = fs.readFileSync(filePath, 'utf-8');
+      const content = readFileSync(filePath, 'utf-8');
       const parsed = JSON.parse(content);
       if (parsed && typeof parsed === 'object' && '__cacheVersion' in parsed) {
         const latestVersion = readCacheVersion();
@@ -80,12 +80,12 @@ function readCache(key: string): unknown {
 
 function writeCache(key: string, data: unknown): void {
   ensureCacheDir();
-  const filePath = path.join(CACHE_DIR, key);
+  const filePath = join(CACHE_DIR, key);
   const wrapper = {
     __cacheVersion: currentCacheVersion,
     __data: data,
   };
-  fs.writeFileSync(filePath, JSON.stringify(wrapper), 'utf-8');
+  writeFileSync(filePath, JSON.stringify(wrapper), 'utf-8');
   signFileSync(filePath);
 }
 

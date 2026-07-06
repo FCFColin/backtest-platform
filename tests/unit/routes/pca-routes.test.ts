@@ -30,17 +30,19 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/engine/pca.js', () => ({
+vi.mock('../../../packages/backend/src/engine/pca.js', () => ({
   performPCA: engineMocks.performPCA,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import pcaRoutes from '../../../api/routes/pcaRoutes.js';
+import pcaRoutes from '../../../packages/backend/src/routes/pcaRoutes.js';
 
 function createValidRequest() {
   return {

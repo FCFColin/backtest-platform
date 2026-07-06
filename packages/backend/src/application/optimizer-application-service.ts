@@ -1,9 +1,7 @@
 /**
  * 回测优化器应用服务（T-30 / CQRS Command）
- * @note DDD pragmatism: imports fetchHistoryData directly from services.
- * Same approach as grid-application-service — refactor to port when extended.
  */
-import type { Portfolio, BacktestParameters, RebalanceFrequency } from '@backtest/shared/types.js';
+import type { Portfolio, BacktestParameters, RebalanceFrequency } from '@backtest/shared/types';
 import { runPortfolioBacktest } from '../engine/portfolio.js';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';

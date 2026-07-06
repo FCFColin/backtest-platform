@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // mock portfolio 模块，避免真实回测依赖
-vi.mock('../../../api/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
   runPortfolioBacktest: mocks.runPortfolioBacktest,
 }));
 
@@ -34,13 +34,13 @@ import {
   extractMetrics,
   getObjectiveValue,
   runGridSearch,
-} from '../../../api/engine/tacticalGrid.js';
+} from '../../../packages/backend/src/engine/tacticalGrid.js';
 import type { Statistics } from '../../../shared/types/statistics.js';
 import type {
   GridCombinationMetrics,
   ObjectiveType,
   TacticalGridRequest,
-} from '../../../api/engine/tacticalGrid.js';
+} from '../../../packages/backend/src/engine/tacticalGrid.js';
 
 // ===== 辅助函数 =====
 

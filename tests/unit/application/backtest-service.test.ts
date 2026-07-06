@@ -54,30 +54,32 @@ const loggerMocks = vi.hoisted(() => ({
 // ===== Mock 模块 =====
 
 // Mock 引擎调用：fail-closed（ADR-031），callEngineStrict 直接返回引擎结果
-vi.mock('../../../api/utils/engineClient.js', () => ({
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
 }));
 
 // Mock 事件分发器：避免加载 handlers（依赖 db 连接）
-vi.mock('../../../api/domain/events/index.js', () => ({
+vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({
   eventDispatcher: {
     dispatch: eventMocks.dispatch,
   },
 }));
 
 // Mock DB 客户端与 outbox 写入：避免真实 Postgres 连接，使异步 outbox/事件链路可完成
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getClient: dbMocks.getClient,
 }));
 
-vi.mock('../../../api/services/outboxWriter.js', () => ({
+vi.mock('../../../packages/backend/src/services/outboxWriter.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));
 
 // Mock logger：避免 pino 初始化与 OTel 依赖
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import { BacktestApplicationService } from '../../../api/application/backtest-service.js';
+import { BacktestApplicationService } from '../../../packages/backend/src/application/backtest-service.js';
 
 // ===== 测试数据 =====
 

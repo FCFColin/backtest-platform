@@ -1,6 +1,6 @@
 /**
  * 组合回测核心逻辑 — 回测执行器
- * 从 portfolio.ts 拆分而出
+ * 从 portfolio.ts 拆分而出，包含回测执行、增长曲线构建、曲线计算等
  */
 
 import type {
@@ -11,22 +11,20 @@ import type {
   AssetAnalysisResult,
 } from '@backtest/shared/types.js';
 import {
-  calcDailyReturns,
   calcCAGR,
+  calcDailyReturns,
   calcCorrelation,
-  calcAnnualizedStdev,
-  calcMaxDrawdown,
-  calcBeta,
   calculatePortfolioStatistics,
-  buildTickerStatistics,
 } from './statistics.js';
 import { filterDates } from '../utils/dateUtils.js';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
 import {
+  type PriceData,
+  type DateValueMap,
+  type BacktestHooks,
   getSortedDates,
   getPrice,
   getPriceWithFx,
-  type DateValueMap,
   buildGrowthCurve,
   applyInflationAdjustment,
   calcDrawdownCurve,
@@ -35,21 +33,9 @@ import {
   calcMonthlyReturns,
   createEmptyPortfolioResult,
 } from './growthCurve.js';
-
-/** 价格数据格式：{ [ticker]: { [date: string]: number } } */
-export interface PriceData {
-  [ticker: string]: Record<string, number>;
-}
-
-export interface BacktestHooks {
-  onRebalance?: (info: {
-    portfolioId: string;
-    portfolioName: string;
-    date: string;
-    reason: string;
-    currentWeights: Record<string, number>;
-  }) => void;
-}
+import { analyzeSingleTicker } from './tickerAnalysis.js';
+import { calcCorrelationMatrix } from './correlation.js';
+export type { PriceData, DateValueMap, BacktestHooks };
 
 interface RunSinglePortfolioOptions {
   portfolio: Portfolio;
@@ -188,108 +174,6 @@ export function runPortfolioBacktest(
   };
 }
 
-function calcCorrelationMatrix(portfolioResults: PortfolioResult[]): number[][] {
-  const n = portfolioResults.length;
-  const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0));
-
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      if (i === j) {
-        matrix[i][j] = 1;
-      } else if (j < i) {
-        matrix[i][j] = matrix[j][i];
-      } else {
-        const returns1 = calcDailyReturns(portfolioResults[i].growthCurve.map((g) => g.value));
-        const returns2 = calcDailyReturns(portfolioResults[j].growthCurve.map((g) => g.value));
-        matrix[i][j] = calcCorrelation(returns1, returns2);
-      }
-    }
-  }
-
-  return matrix;
-}
-
-interface AnalyzeTickerOptions {
-  ticker: string;
-  tIdx: number;
-  prices: number[];
-  dailyReturns: number[];
-  benchmarkReturns: number[];
-  filteredDates: string[];
-  params: BacktestParameters;
-}
-
-function analyzeSingleTicker(opts: AnalyzeTickerOptions): {
-  ticker: string;
-  growthCurve: Array<{ date: string; value: number }>;
-  drawdownCurve: Array<{ date: string; drawdown: number }>;
-  dailyReturns: number[];
-  annualReturns: Array<{ year: number; return: number }>;
-  monthlyReturns: Array<{ year: number; month: number; return: number }>;
-  rollingReturns: Array<{ date: string; return: number }>;
-  statistics: Record<string, number>;
-} {
-  const { ticker, tIdx, prices, dailyReturns, benchmarkReturns, filteredDates, params } = opts;
-
-  if (prices.length < 2) {
-    return {
-      ticker,
-      growthCurve: [],
-      drawdownCurve: [],
-      dailyReturns: [],
-      annualReturns: [],
-      monthlyReturns: [],
-      rollingReturns: [],
-      statistics: { cagr: 0, stdev: 0, sharpe: 0, maxDrawdown: 0 },
-    };
-  }
-
-  const dates = filteredDates.slice(0, prices.length);
-  const basePrice = prices[0];
-  const values = prices.map((p) => p / basePrice);
-  const scaledValues = values.map((v) => v * params.startingValue);
-
-  const growthCurve = dates.map((d, i) => ({ date: d, value: scaledValues[i] }));
-  const drawdownCurve = calcDrawdownCurve(values, dates);
-  const rollingReturns = calcRollingReturns(scaledValues, dates, params.rollingWindowMonths);
-  const annualReturns = calcAnnualReturns(scaledValues, dates);
-  const monthlyReturns = calcMonthlyReturns(scaledValues, dates);
-
-  const years = prices.length / TRADING_DAYS_PER_YEAR;
-  const cagr = calcCAGR(prices[0], prices[prices.length - 1], years);
-  const stdev = calcAnnualizedStdev(dailyReturns);
-  const { maxDrawdown, maxDrawdownDuration } = calcMaxDrawdown(prices);
-  const annualReturnValues = annualReturns.map((a) => a.return);
-  const monthlyReturnValues = monthlyReturns.map((m) => m.return);
-  const beta =
-    tIdx !== 0 && benchmarkReturns.length >= 2
-      ? calcBeta(dailyReturns, benchmarkReturns)
-      : tIdx === 0
-        ? 1
-        : 0;
-
-  return {
-    ticker,
-    growthCurve,
-    drawdownCurve,
-    dailyReturns,
-    annualReturns,
-    monthlyReturns,
-    rollingReturns,
-    statistics: buildTickerStatistics({
-      cagr,
-      stdev,
-      dailyReturns,
-      prices,
-      maxDrawdown,
-      maxDrawdownDuration,
-      annualReturnValues,
-      monthlyReturnValues,
-      beta,
-    }),
-  };
-}
-
 export function runAnalysis(
   tickers: string[],
   priceData: PriceData,
@@ -332,37 +216,4 @@ export function runAnalysis(
   return { tickers: results, correlations };
 }
 
-export function calculateDrag(
-  portfolioValue: number[],
-  _cashflows: Array<{ date: string; amount: number }>,
-  _rebalanceFrequency: string,
-  dragPct: number = 0.001,
-): {
-  totalDrag: number;
-  annualDrag: number;
-  dragSeries: number[];
-} {
-  if (portfolioValue.length === 0) {
-    return { totalDrag: 0, annualDrag: 0, dragSeries: [] };
-  }
-
-  const dragSeries: number[] = [];
-  let cumulativeDrag = 0;
-
-  for (let i = 0; i < portfolioValue.length; i++) {
-    const prevValue = i > 0 ? portfolioValue[i - 1] : portfolioValue[0];
-    const periodDrag = (prevValue * dragPct) / TRADING_DAYS_PER_YEAR;
-    cumulativeDrag += periodDrag;
-    dragSeries.push(cumulativeDrag);
-  }
-
-  const years = portfolioValue.length / TRADING_DAYS_PER_YEAR;
-  const finalValue = portfolioValue[portfolioValue.length - 1];
-  const annualDrag = years > 0 && finalValue !== 0 ? cumulativeDrag / years / finalValue : 0;
-
-  return {
-    totalDrag: cumulativeDrag,
-    annualDrag,
-    dragSeries,
-  };
-}
+export { calculateDrag } from './drag.js';

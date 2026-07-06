@@ -2,9 +2,8 @@
 # Go 引擎服务 - 多阶段构建（T-ARCH-2.5）
 # =============================================================================
 # Stage 1: builder
-# 使用 golang:1.25-alpine 编译静态二进制（与 go.mod 对齐）
-# digest 应由 Renovate 自动化更新：docker pull golang:1.25-alpine 获取
-FROM golang:1.25-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000 AS builder
+# 使用 golang:1.26-alpine 编译静态二进制（与 go.mod 对齐）
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /build
 

@@ -1,8 +1,5 @@
 /**
  * 战术网格搜索应用服务（T-30 / CQRS Command）
- * @note DDD pragmatism: imports fetchHistoryData directly from services layer
- * instead of through a repository interface. Acceptable for data-fetching
- * concerns; refactor to DataServicePort when adding more data sources.
  */
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';

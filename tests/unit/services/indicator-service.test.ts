@@ -21,7 +21,7 @@ import {
   calcBollinger,
   calcBollingerPctB,
   calcMomentum,
-} from '../../../api/services/indicatorService.js';
+} from '../../../packages/backend/src/services/indicatorService.js';
 
 describe('calcSMA', () => {
   it('应正确计算简单移动平均', () => {

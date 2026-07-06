@@ -5,7 +5,10 @@
  * 每个测试都应该描述一个真实用户场景或一个合理的边界输入
  */
 import { describe, it, expect } from 'vitest';
-import { runPortfolioBacktest, type PriceData } from '../../api/engine/portfolio.js';
+import {
+  runPortfolioBacktest,
+  type PriceData,
+} from '../../packages/backend/src/engine/portfolio.js';
 import type { Portfolio } from '../../shared/types.js';
 import { makePriceData, makeVolatilePriceData, makeParams } from '../helpers/fixtures.js';
 

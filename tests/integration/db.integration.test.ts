@@ -90,7 +90,7 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
     const pool = getPool();
     const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
-    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(versions).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     const isHealthy = await healthCheck();
     expect(isHealthy).toBe(true);
   });

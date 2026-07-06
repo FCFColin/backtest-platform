@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { DateRange } from '../../../api/domain/value-objects/date-range.js';
+import { DateRange } from '../../../packages/backend/src/domain/value-objects/date-range.js';
 
 describe('DateRange.create', () => {
   describe('合法日期范围', () => {

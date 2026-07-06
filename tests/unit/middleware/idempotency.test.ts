@@ -12,7 +12,7 @@ import { createMockRequest, createMockResponse } from '../../helpers/expressMock
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 // Mock logger 以避免 OTel/pino 初始化副作用
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 // Mock appRedis：默认内存回退；Redis 成功路径可切换
 const redisMocks = vi.hoisted(() => {
@@ -59,14 +59,14 @@ const redisMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   redisConnection: {},
   appRedis: redisMocks,
 }));
 
 redisMocks.useMemoryFallback();
 
-import { idempotencyKey } from '../../../api/middleware/idempotency.js';
+import { idempotencyKey } from '../../../packages/backend/src/middleware/idempotency.js';
 
 /** 创建 mock Express 三件套 */
 function createMockReqRes(opts: {

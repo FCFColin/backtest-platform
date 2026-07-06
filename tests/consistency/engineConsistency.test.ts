@@ -13,7 +13,7 @@
  * 前提：Go 引擎需运行（cd engine-go && go run ./cmd/server）。未运行时用例自动跳过。
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import { runPortfolioBacktest } from '../../api/engine/portfolio.js';
+import { runPortfolioBacktest } from '../../packages/backend/src/engine/portfolio.js';
 import type { Portfolio, BacktestParameters } from '../../shared/types.js';
 import { checkServerAvailable } from '../helpers/server.js';
 import { ENGINE_GO_BASE_URL } from '../helpers/constants.js';

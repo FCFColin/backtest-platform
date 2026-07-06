@@ -22,11 +22,11 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/services/apiKeyService.js', () => mocks.service);
+vi.mock('../../../packages/backend/src/services/apiKeyService.js', () => mocks.service);
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import apiKeyRoutes from '../../../api/routes/apiKeyRoutes.js';
+import apiKeyRoutes from '../../../packages/backend/src/routes/apiKeyRoutes.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const KEY_ID = '22222222-2222-2222-2222-222222222222';

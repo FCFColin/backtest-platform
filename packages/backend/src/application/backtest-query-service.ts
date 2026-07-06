@@ -4,8 +4,8 @@
  * 将原散落在 backtestRoutes 的校验与数据准备逻辑集中到应用层，
  * 路由仅做 HTTP 适配，不再直接编排引擎。
  */
-import type { Portfolio, BacktestParameters } from '@backtest/shared/types/index.js';
-import { MAX_TICKERS } from '@backtest/shared/constants.js';
+import type { Portfolio, BacktestParameters } from '@backtest/shared/types/index';
+import { MAX_TICKERS } from '@backtest/shared/constants';
 import { isValidDate } from '../utils/dateUtils.js';
 
 export interface PortfolioBacktestPrep {

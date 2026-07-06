@@ -21,7 +21,7 @@ import {
   buildOptimalPath,
   calcRequiredContribution,
   optimizeGoals,
-} from '../../../api/engine/goalOptimizer.js';
+} from '../../../packages/backend/src/engine/goalOptimizer.js';
 import type { GoalOptimizerRequest } from '../../../shared/types/goal.js';
 
 function makePriceData(): Record<string, Record<string, number>> {

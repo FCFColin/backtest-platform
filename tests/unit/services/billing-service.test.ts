@@ -32,7 +32,7 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     STRIPE_SECRET_KEY: 'sk_test_123',
     STRIPE_WEBHOOK_SECRET: 'whsec_123',
@@ -43,11 +43,13 @@ vi.mock('../../../api/config/index.js', () => ({
   }),
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
 vi.mock('stripe', () => ({
   default: class {
@@ -70,7 +72,7 @@ import {
   createCheckoutSession,
   createPortalSession,
   constructWebhookEvent,
-} from '../../../api/services/billingService.js';
+} from '../../../packages/backend/src/services/billingService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 

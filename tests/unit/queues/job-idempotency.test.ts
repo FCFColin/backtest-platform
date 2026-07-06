@@ -24,18 +24,20 @@ const redisMocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   appRedis: redisMocks,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(redisMocks.loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(redisMocks.loggerMocks),
+}));
 
 import {
   tryClaimJobProcessing,
   markJobProcessed,
   releaseJobClaim,
   getProcessedJobResult,
-} from '../../../api/queues/jobIdempotency.js';
+} from '../../../packages/backend/src/queues/jobIdempotency.js';
 
 describe('jobIdempotency', () => {
   beforeEach(() => {

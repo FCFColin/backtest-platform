@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Price } from '../../../api/domain/value-objects/price.js';
+import { Price } from '../../../packages/backend/src/domain/value-objects/price.js';
 
 describe('Price.create', () => {
   describe('合法价格', () => {

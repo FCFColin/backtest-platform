@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { toSortedSeries, toPriceSeries } from '../../../api/engine/seriesUtils.js';
+import { toSortedSeries, toPriceSeries } from '../../../packages/backend/src/engine/seriesUtils.js';
 
 describe('toSortedSeries', () => {
   it('应将 {date: price} 转为按日期升序的数组', () => {

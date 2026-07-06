@@ -10,8 +10,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { optimizePortfolio, calcEfficientFrontier } from '../../../api/engine/optimizer.js';
-import type { PriceData } from '../../../api/engine/portfolio.js';
+import {
+  optimizePortfolio,
+  calcEfficientFrontier,
+} from '../../../packages/backend/src/engine/optimizer.js';
+import type { PriceData } from '../../../packages/backend/src/engine/portfolio.js';
 import { makeLinearPriceData } from '../../helpers/fixtures.js';
 
 // 构造多资产价格数据（不同收益率与波动率）

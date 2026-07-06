@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { logger, httpLogger } from '../../../api/utils/logger.js';
+import { logger, httpLogger } from '../../../packages/backend/src/utils/logger.js';
 
 describe('logger', () => {
   it('应导出 logger 对象', () => {

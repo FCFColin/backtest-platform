@@ -4,9 +4,14 @@
  * 确保 index.ts 重导出路径可解析，避免 barrel 文件 0% 覆盖且运行时 import 失败。
  */
 import { describe, it, expect } from 'vitest';
-import { Portfolio } from '../../../api/domain/aggregates/index.js';
-import { Ticker, Price, DateRange, Weight } from '../../../api/domain/value-objects/index.js';
-import * as domain from '../../../api/domain/index.js';
+import { Portfolio } from '../../../packages/backend/src/domain/aggregates/index.js';
+import {
+  Ticker,
+  Price,
+  DateRange,
+  Weight,
+} from '../../../packages/backend/src/domain/value-objects/index.js';
+import * as domain from '../../../packages/backend/src/domain/index.js';
 
 describe('domain barrel exports', () => {
   it('aggregates/index 应导出 Portfolio', () => {

@@ -152,39 +152,24 @@ export interface OrgMember {
  * 列出组织成员（含基本身份信息）。
  *
  * @param orgId - 组织 UUID
- * @param limit - 返回条数上限（默认 100，最大 1000）
- * @param offset - 偏移量（默认 0）
- * @returns 成员数组与总数
+ * @returns 成员数组
  */
-export async function listOrgMembers(
-  orgId: string,
-  limit = 100,
-  offset = 0,
-): Promise<{ rows: OrgMember[]; total: number }> {
-  const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 1000);
-  const safeOffset = Math.max(0, Math.trunc(offset));
+export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
   const pool = getPool();
-  const [{ rows }, { rows: countRows }] = await Promise.all([
-    pool.query(
-      `SELECT m.user_id, m.role, m.created_at, u.username, u.email
-         FROM memberships m JOIN users u ON u.id = m.user_id
-        WHERE m.org_id = $1
-        ORDER BY m.created_at ASC
-        LIMIT $2 OFFSET $3`,
-      [orgId, safeLimit, safeOffset],
-    ),
-    pool.query(`SELECT COUNT(*)::int AS total FROM memberships WHERE org_id = $1`, [orgId]),
-  ]);
-  return {
-    rows: rows.map((r) => ({
-      userId: r.user_id,
-      username: r.username,
-      email: r.email ?? null,
-      role: r.role,
-      createdAt: new Date(r.created_at).toISOString(),
-    })),
-    total: countRows[0].total,
-  };
+  const { rows } = await pool.query(
+    `SELECT m.user_id, m.role, m.created_at, u.username, u.email
+       FROM memberships m JOIN users u ON u.id = m.user_id
+      WHERE m.org_id = $1
+      ORDER BY m.created_at ASC`,
+    [orgId],
+  );
+  return rows.map((r) => ({
+    userId: r.user_id,
+    username: r.username,
+    email: r.email ?? null,
+    role: r.role,
+    createdAt: new Date(r.created_at).toISOString(),
+  }));
 }
 
 /**

@@ -33,12 +33,12 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/services/membershipService.js', () => mocks.membership);
-vi.mock('../../../api/services/invitationService.js', () => mocks.invitation);
-vi.mock('../../../api/services/mailService.js', () => mocks.mail);
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/services/membershipService.js', () => mocks.membership);
+vi.mock('../../../packages/backend/src/services/invitationService.js', () => mocks.invitation);
+vi.mock('../../../packages/backend/src/services/mailService.js', () => mocks.mail);
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import orgRoutes from '../../../api/routes/orgRoutes.js';
+import orgRoutes from '../../../packages/backend/src/routes/orgRoutes.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const USER = '33333333-3333-3333-3333-333333333333';

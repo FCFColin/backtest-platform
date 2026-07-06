@@ -18,18 +18,20 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getReadPool: dbMocks.getReadPool,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
 import {
   bytesToMb,
   getMarketDataStorageBytes,
   scanMarketStatsFromDb,
   getDbEngineStatus,
-} from '../../../api/db/marketStats.js';
+} from '../../../packages/backend/src/db/marketStats.js';
 
 function createMockPool() {
   return {

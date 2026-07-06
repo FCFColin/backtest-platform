@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { performPCA, jacobiEigen } from '../../../api/engine/pca.js';
+import { performPCA, jacobiEigen } from '../../../packages/backend/src/engine/pca.js';
 
 // ===== performPCA 边界条件 =====
 describe('performPCA - 边界条件', () => {

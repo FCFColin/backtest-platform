@@ -2,7 +2,7 @@
  * Weight Value Object 单元测试（百分比语义 0–100，T-30）
  */
 import { describe, it, expect } from 'vitest';
-import { Weight } from '../../../api/domain/value-objects/weight.js';
+import { Weight } from '../../../packages/backend/src/domain/value-objects/weight.js';
 
 describe('Weight.create', () => {
   it.each([

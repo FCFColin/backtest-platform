@@ -20,6 +20,71 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.resolve(__dirname, '../../data/market');
+const TICKERS_DIR = path.join(DATA_DIR, 'tickers');
+
+interface PriceRecord {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  adjustedClose?: number;
+  adj_close?: number;
+}
+
+/**
+ * 导入所有标的的价格数据（PostgreSQL 版本）
+ *
+ * 使用参数化 INSERT（防 SQL 注入），每个标的一个事务。
+ * 对于大规模导入（> 10000 条），建议使用 COPY 命令。
+ */
+/** 每块最大行数（每行 8 个参数，1000 行 = 8000 参，远低于 PostgreSQL 65535 上限） */
+const PRICE_UPSERT_CHUNK = 1000;
+
+/**
+ * 分块多行 upsert 价格数据（N+1 修复，T-17）。
+ *
+ * @param client - 已开启事务的连接
+ * @param ticker - 标的代码
+ * @param data - 价格记录数组
+ */
+async function upsertPricesBatched(
+  client: PoolClient,
+  ticker: string,
+  data: PriceRecord[],
+): Promise<void> {
+  for (let i = 0; i < data.length; i += PRICE_UPSERT_CHUNK) {
+    const chunk = data.slice(i, i + PRICE_UPSERT_CHUNK);
+    const values: unknown[] = [];
+    const tuples = chunk.map((p, idx) => {
+      const base = idx * 8;
+      values.push(
+        ticker,
+        p.date,
+        p.open,
+        p.high,
+        p.low,
+        p.close,
+        p.volume,
+        p.adj_close ?? p.adjustedClose ?? null,
+      );
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8})`;
+    });
+    await client.query(
+      `INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
+       VALUES ${tuples.join(', ')}
+       ON CONFLICT (ticker, date) DO UPDATE SET
+         open = EXCLUDED.open,
+         high = EXCLUDED.high,
+         low = EXCLUDED.low,
+         close = EXCLUDED.close,
+         volume = EXCLUDED.volume,
+         adjusted_close = EXCLUDED.adjusted_close`,
+      values,
+    );
+  }
+}
 
 /** 汇率 upsert 分块大小（每行 4 参） */
 const FX_UPSERT_CHUNK = 1000;
@@ -45,6 +110,149 @@ async function upsertExchangeRatesBatched(
       values,
     );
   }
+}
+
+/** 从单个 JSON 文件导入标的到 PostgreSQL */
+async function importTickerFromFile(file: string): Promise<'imported' | 'skipped' | 'error'> {
+  const ticker = file.replace('.json', '');
+  const filePath = path.join(TICKERS_DIR, file);
+  try {
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    const data: PriceRecord[] = Array.isArray(raw) ? raw : raw.prices || [];
+
+    if (!Array.isArray(data) || data.length === 0) {
+      return 'skipped';
+    }
+
+    const client = await getClient();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO tickers (ticker, category, market) VALUES ($1, $2, $3)
+         ON CONFLICT (ticker) DO UPDATE SET updated_at = NOW()`,
+        [ticker, '', ''],
+      );
+      await upsertPricesBatched(client, ticker, data);
+      await client.query('COMMIT');
+      logger.info({ ticker, priceCount: data.length }, '[import] 标的导入成功');
+      return 'imported';
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    logger.error({ err, ticker }, '[import] 导入失败');
+    return 'error';
+  }
+}
+
+/**
+ * 导入指定标的（默认组合与常用 benchmark），避免回测走 JSON 冷解析。
+ *
+ * @param symbols - 标的代码，如 VTI、BND、SPY
+ */
+export async function importTickersBySymbols(
+  symbols: string[],
+): Promise<{ imported: number; skipped: number; errors: number }> {
+  const result = { imported: 0, skipped: 0, errors: 0 };
+  if (!fs.existsSync(TICKERS_DIR)) {
+    logger.warn({ path: TICKERS_DIR }, '[import] 标的数据目录不存在');
+    return result;
+  }
+
+  for (const symbol of symbols) {
+    const file = `${symbol.replace(/\./g, '_')}.json`;
+    const filePath = path.join(TICKERS_DIR, file);
+    if (!fs.existsSync(filePath)) {
+      logger.warn({ symbol, file }, '[import] 标的文件不存在，跳过');
+      result.skipped++;
+      continue;
+    }
+    const status = await importTickerFromFile(file);
+    if (status === 'imported') result.imported++;
+    else if (status === 'skipped') result.skipped++;
+    else result.errors++;
+  }
+
+  return result;
+}
+
+export async function importAllTickers(): Promise<{
+  imported: number;
+  skipped: number;
+  errors: number;
+}> {
+  const t0 = Date.now();
+  const result = { imported: 0, skipped: 0, errors: 0 };
+
+  if (!fs.existsSync(TICKERS_DIR)) {
+    logger.warn({ path: TICKERS_DIR }, '[import] 标的数据目录不存在');
+    return result;
+  }
+
+  const files = fs
+    .readdirSync(TICKERS_DIR)
+    .filter((f) => f.endsWith('.json') && !f.endsWith('.meta.json'));
+  logger.info({ totalFiles: files.length }, '[import] 数据导入开始');
+
+  for (const file of files) {
+    const status = await importTickerFromFile(file);
+    if (status === 'imported') result.imported++;
+    else if (status === 'skipped') result.skipped++;
+    else result.errors++;
+  }
+
+  logger.info({ ...result, durationMs: Date.now() - t0 }, '[import] 数据导入完成');
+  return result;
+}
+
+/**
+ * 使用 COPY 命令批量导入（高性能版本）
+ *
+ * 企业理由：PostgreSQL COPY 命令比 INSERT 快 10-100 倍，
+ * 是大规模数据导入的标准方式（ETL/数据仓库场景）。
+ * 适用于初始全量导入（> 10000 条记录）。
+ *
+ * @param ticker - 标的代码
+ * @param csvStream - CSV 格式的价格数据流
+ */
+export async function importViaCopy(
+  ticker: string,
+  csvStream: NodeJS.ReadableStream,
+): Promise<number> {
+  const pool = getPool();
+  const client = await pool.connect();
+
+  // 确保标的元数据存在
+  await client.query(
+    `INSERT INTO tickers (ticker, category, market) VALUES ($1, $2, $3)
+     ON CONFLICT (ticker) DO NOTHING`,
+    [ticker, '', ''],
+  );
+
+  // 使用 COPY FROM STDIN 导入（动态 import 兼容 ESM）
+  // 类型声明见 api/types/pg-copy-streams.d.ts
+  const pgCopyStreams = await import('pg-copy-streams');
+  const copyStream = pgCopyStreams.from(
+    `COPY prices (ticker, date, open, high, low, close, volume, adjusted_close) FROM STDIN WITH (FORMAT csv)`,
+  );
+  // @ts-expect-error -- pg-copy-streams.from 返回 Submittable 兼容流，@types/pg 重载不匹配
+  const stream = client.query(copyStream) as NodeJS.WritableStream & { rowCount?: number };
+
+  return new Promise<number>((resolve, reject) => {
+    csvStream.pipe(stream);
+    stream.on('finish', () => {
+      logger.info({ ticker }, '[import] COPY 导入完成');
+      resolve(stream.rowCount ?? 0);
+    });
+    stream.on('error', (err: unknown) => {
+      reject(err);
+    });
+  }).finally(() => {
+    client.release();
+  });
 }
 
 /**
@@ -290,6 +498,7 @@ export async function importExchangeRates(): Promise<{ imported: number; errors:
       try {
         await client.query('BEGIN');
 
+        // Perf (T-17b)：批量 upsert，避免逐行 INSERT（N+1）。
         await upsertExchangeRatesBatched(client, baseCurrency, targetCurrency, entries);
 
         await client.query('COMMIT');
@@ -324,6 +533,9 @@ export async function importExchangeRates(): Promise<{ imported: number; errors:
 export async function importAllMarketData(): Promise<void> {
   logger.info('[import] 开始导入全部市场数据');
 
+  // Perf (T-17)：三类导入相互独立（指数/CPI/汇率，无数据依赖），并行执行缩短总时长。
+  // 各自内部使用独立连接与事务，互不干扰；任一失败不影响其他（Promise.all 会传播首个拒绝，
+  // 但每个导入函数内部已 try/catch 单文件错误，不会因单条数据中断整体）。
   const [indexResult, cpiResult, fxResult] = await Promise.all([
     importIndices(),
     importCpiData(),

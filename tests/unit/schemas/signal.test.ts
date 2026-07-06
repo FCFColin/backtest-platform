@@ -14,7 +14,7 @@ import {
   signalAnalyzeSchema,
   signalDualSchema,
   signalMultiSchema,
-} from '../../../api/schemas/signal.js';
+} from '../../../packages/backend/src/schemas/signal.js';
 
 function makeValidSignal() {
   return {

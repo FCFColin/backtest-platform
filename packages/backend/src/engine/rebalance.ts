@@ -11,7 +11,7 @@
  *   - api/routes/tacticalGridRoutes.ts（仅基于日期的频率判断）
  */
 
-import type { RebalanceFrequency } from '@backtest/shared/types/index.js';
+import type { RebalanceFrequency } from '@backtest/shared/types/index';
 
 /** 基于频率与日期的再平衡判断参数 */
 export interface RebalanceParams {

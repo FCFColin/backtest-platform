@@ -30,7 +30,9 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
 // Mock dotenv：避免加载真实 .env 文件干扰测试
 vi.mock('dotenv', () => ({
@@ -38,7 +40,11 @@ vi.mock('dotenv', () => ({
   config: vi.fn(),
 }));
 
-import { config, validateConfig, DEGRADED_WARNING } from '../../../api/config/index.js';
+import {
+  config,
+  validateConfig,
+  DEGRADED_WARNING,
+} from '../../../packages/backend/src/config/index.js';
 
 describe('validateConfig - 开发环境（宽松校验）', () => {
   beforeEach(() => {

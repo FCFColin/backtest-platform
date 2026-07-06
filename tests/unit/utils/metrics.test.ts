@@ -30,7 +30,7 @@ import {
   registerSemaphoreMetrics,
   resetMetrics,
   getPrometheusRegister,
-} from '../../../api/utils/metrics.js';
+} from '../../../packages/backend/src/utils/metrics.js';
 
 describe('指标对象导出', () => {
   it('eventLoopLagSeconds 应为 Gauge 实例', () => {

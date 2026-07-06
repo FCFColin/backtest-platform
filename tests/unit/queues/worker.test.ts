@@ -20,25 +20,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 // mock logger，避免测试输出噪音
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 // mock backtestQueue，避免创建真实 Redis 连接的 Worker
-vi.mock('../../../api/queues/backtestQueue.js', () => ({
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   createBacktestWorker: vi.fn(() => ({
     close: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
 // mock executeOptimization，避免真实回测执行
-vi.mock('../../../api/application/optimizer-application-service.js', () => ({
+vi.mock('../../../packages/backend/src/application/optimizer-application-service.js', () => ({
   executeOptimization: vi.fn(),
 }));
 
-vi.mock('../../../api/application/grid-application-service.js', () => ({
+vi.mock('../../../packages/backend/src/application/grid-application-service.js', () => ({
   executeGridSearch: vi.fn(),
 }));
 
-vi.mock('../../../api/queues/jobIdempotency.js', () => ({
+vi.mock('../../../packages/backend/src/queues/jobIdempotency.js', () => ({
   tryClaimJobProcessing: vi.fn().mockResolvedValue('claimed'),
   getProcessedJobResult: vi.fn().mockResolvedValue(null),
   markJobProcessed: vi.fn().mockResolvedValue(undefined),
@@ -46,13 +46,13 @@ vi.mock('../../../api/queues/jobIdempotency.js', () => ({
 }));
 
 // mock backtestRunRepo（落库副作用隔离）
-vi.mock('../../../api/services/backtestRunRepo.js', () => ({
+vi.mock('../../../packages/backend/src/services/backtestRunRepo.js', () => ({
   createRun: vi.fn().mockResolvedValue({ id: 'run-1' }),
 }));
 
 // mock 组织查询（tenant-fair 并发上限解析）
 const membershipMocks = vi.hoisted(() => ({ getOrg: vi.fn() }));
-vi.mock('../../../api/services/membershipService.js', () => membershipMocks);
+vi.mock('../../../packages/backend/src/services/membershipService.js', () => membershipMocks);
 
 // mock 应用层 Redis，避免真实连接 + 控制在途计数
 const redisMocks = vi.hoisted(() => ({
@@ -60,26 +60,29 @@ const redisMocks = vi.hoisted(() => ({
   decr: vi.fn().mockResolvedValue(0),
   expire: vi.fn().mockResolvedValue(1),
 }));
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   appRedis: redisMocks,
   redisConnection: {},
 }));
 
 // ===== 导入被测对象（在 mock 之后）=====
 
-import { processBacktestJob } from '../../../api/queues/worker.js';
-import { executeOptimization } from '../../../api/application/optimizer-application-service.js';
-import { executeGridSearch } from '../../../api/application/grid-application-service.js';
+import { processBacktestJob } from '../../../packages/backend/src/queues/worker.js';
+import { executeOptimization } from '../../../packages/backend/src/application/optimizer-application-service.js';
+import { executeGridSearch } from '../../../packages/backend/src/application/grid-application-service.js';
 import {
   tryClaimJobProcessing,
   getProcessedJobResult,
   releaseJobClaim,
   markJobProcessed,
-} from '../../../api/queues/jobIdempotency.js';
-import { getOrg } from '../../../api/services/membershipService.js';
-import { appRedis } from '../../../api/config/redis.js';
+} from '../../../packages/backend/src/queues/jobIdempotency.js';
+import { getOrg } from '../../../packages/backend/src/services/membershipService.js';
+import { appRedis } from '../../../packages/backend/src/config/redis.js';
 import { DelayedError } from 'bullmq';
-import type { BacktestJobData, BacktestJobResult } from '../../../api/queues/backtestQueue.js';
+import type {
+  BacktestJobData,
+  BacktestJobResult,
+} from '../../../packages/backend/src/queues/backtestQueue.js';
 import type { Job } from 'bullmq';
 
 /** 构造 mock Job 对象 */

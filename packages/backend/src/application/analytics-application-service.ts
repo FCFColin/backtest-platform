@@ -1,8 +1,8 @@
 /**
  * 分析类应用服务（T-30）：PCA、LETF、目标优化
  */
-import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared/types/index.js';
-import type { LETFRequest } from '@backtest/shared/types/letf.js';
+import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared/types/index';
+import type { LETFRequest } from '@backtest/shared/types/letf';
 import { performPCA } from '../engine/pca.js';
 import { toSortedSeries } from '../engine/seriesUtils.js';
 import { analyzeLetfSlippage } from '../engine/letf.js';

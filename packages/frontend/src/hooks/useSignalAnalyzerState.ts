@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useAsyncAction } from './useAsyncAction';
-import type { SignalAnalysisRequest, SignalAnalysisResult, SignalType } from '@backtest/shared/types/signal';
+import type {
+  SignalAnalysisRequest,
+  SignalAnalysisResult,
+  SignalType,
+} from '@backtest/shared/types/signal';
 
 export function useSignalAnalyzerState() {
   const [ticker, setTicker] = useState('SPY');
@@ -41,14 +45,23 @@ export function useSignalAnalyzerState() {
   };
 
   return {
-    ticker, setTicker,
-    indicator, setIndicator,
-    period, setPeriod,
-    threshold, setThreshold,
-    signalType, setSignalType,
-    startDate, setStartDate,
-    endDate, setEndDate,
-    isLoading, error, results,
+    ticker,
+    setTicker,
+    indicator,
+    setIndicator,
+    period,
+    setPeriod,
+    threshold,
+    setThreshold,
+    signalType,
+    setSignalType,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isLoading,
+    error,
+    results,
     runAnalysis,
   };
 }

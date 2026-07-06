@@ -9,6 +9,7 @@ import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { hasTenant } from '../middleware/tenantContext.js';
 import { savedConfigBodySchema, type SavedConfigBody } from '../schemas/persistence.js';
 import {
   listConfigs,
@@ -28,12 +29,10 @@ function ownerOf(req: AuthenticatedRequest): string | null {
 }
 
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const tenantId = req.tenantId;
   try {
-    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 100), 1000);
-    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
-    const { rows, total } = await listConfigs(tenantId, limit, offset);
-    res.json({ success: true, data: rows, pagination: { total, limit, offset } });
+    res.json({ success: true, data: await listConfigs(tenantId) });
   } catch (err) {
     logger.error({ err: String(err), tenantId }, '[configRoutes] 列表失败');
     sendProblem(res, 500, 'CONFIG_LIST_FAILED', 'Internal Server Error', {
@@ -43,7 +42,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const tenantId = req.tenantId;
   if (!UUID_RE.test(req.params.id)) {
     sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
     return;
@@ -65,7 +65,8 @@ router.post(
   '/',
   validate(savedConfigBodySchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    const tenantId = req.tenantId as string;
+    if (!hasTenant(req)) return;
+    const tenantId = req.tenantId;
     try {
       const created = await createConfig(tenantId, ownerOf(req), req.body as SavedConfigBody);
       res.status(201).json({ success: true, data: created });
@@ -82,7 +83,8 @@ router.put(
   '/:id',
   validate(savedConfigBodySchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    const tenantId = req.tenantId as string;
+    if (!hasTenant(req)) return;
+    const tenantId = req.tenantId;
     if (!UUID_RE.test(req.params.id)) {
       sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
       return;
@@ -104,7 +106,8 @@ router.put(
 );
 
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const tenantId = req.tenantId;
   if (!UUID_RE.test(req.params.id)) {
     sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
     return;

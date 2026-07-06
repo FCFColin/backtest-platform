@@ -13,7 +13,7 @@
  *   onboarding 在尚无活跃组织时也需访问）。强制要求租户的路由再叠加 requireTenant。
  */
 import type { Response, NextFunction } from 'express';
-import type { AuthenticatedRequest } from './jwtAuth.js';
+import type { AuthenticatedRequest, TenantedRequest } from './jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
@@ -45,6 +45,14 @@ export function resolveTenant(req: AuthenticatedRequest, _res: Response, next: N
  *
  * 须挂在 resolveTenant 之后。
  */
+/**
+ * TypeScript 类型守卫：断言 req 的 tenantId 非空。
+ * 配合 requireTenant 使用，让 TS 流式分析 tenantId 的存在性。
+ */
+export function hasTenant(req: AuthenticatedRequest): req is TenantedRequest {
+  return typeof req.tenantId === 'string' && req.tenantId.length > 0;
+}
+
 export function requireTenant(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   if (!req.tenantId) {
     sendProblem(res, 400, 'NO_ACTIVE_TENANT', 'No active tenant', {

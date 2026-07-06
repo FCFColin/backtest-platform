@@ -8,7 +8,7 @@
  * 用法：
  *   import { createLoggerMocks, mockLogger } from '../helpers/mockFactories.js';
  *   const loggerMocks = createLoggerMocks();
- *   vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+ *   vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
  */
 
 import { vi } from 'vitest';
@@ -48,7 +48,7 @@ export function createLoggerMocks(): LoggerMocks {
  * 根据 LoggerMocks 构造 logger mock 对象（供 vi.mock 工厂使用）
  *
  * @param mocks - createLoggerMocks() 的返回值
- * @returns 可直接用于 vi.mock('../../../api/utils/logger.js', () => ({ logger: ... })) 的对象
+ * @returns 可直接用于 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: ... })) 的对象
  */
 export function mockLogger(mocks: LoggerMocks) {
   return {

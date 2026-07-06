@@ -8,7 +8,7 @@ import {
   calcMaxDrawdown,
   calcCorrelation,
   calcDailyReturns,
-} from '../../../api/engine/statistics.js';
+} from '../../../packages/backend/src/engine/statistics.js';
 
 // ===== calcCAGR 边界测试 =====
 describe('calcCAGR - 边界', () => {

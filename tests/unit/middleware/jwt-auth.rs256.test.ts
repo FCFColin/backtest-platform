@@ -41,19 +41,19 @@ vi.mock('fs', () => ({
   default: { readFileSync: fsMocks.readFileSync },
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: mocks.config,
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   redisConnection: {},
   appRedis: redisMocks,
 }));
 
-vi.mock('../../../api/services/userService.js', () => ({
+vi.mock('../../../packages/backend/src/services/userService.js', () => ({
   getUserById: vi.fn().mockImplementation(async (id: string) => ({
     id,
     username: 'test-user',
@@ -72,7 +72,7 @@ describe('jwtAuth RS256 路径', () => {
   });
 
   it('RS256 模式应签发并验证 access token', async () => {
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     const token = await mod.generateToken('rs256-user', 'admin');
     const payload = await mod.verifyToken(token);
     expect(payload).not.toBeNull();
@@ -81,7 +81,7 @@ describe('jwtAuth RS256 路径', () => {
   });
 
   it('RS256 refresh token 生命周期应完整', async () => {
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     const refresh = await mod.generateRefreshToken('rs256-refresh', 'analyst');
     const rotated = await mod.refreshAccessToken(refresh);
     expect(rotated).not.toBeNull();
@@ -89,7 +89,7 @@ describe('jwtAuth RS256 路径', () => {
   });
 
   it('jwtAuth verify 异常时应返回 INVALID_TOKEN', async () => {
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     const req = {
       method: 'GET',
       path: '/api/test',
@@ -123,13 +123,13 @@ describe('jwtAuth RS256 路径', () => {
     mocks.config.JWT_PRIVATE_KEY = '';
     mocks.config.JWT_PRIVATE_KEY_FILE = '';
     vi.resetModules();
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     await expect(mod.generateToken('prod-user', 'admin')).rejects.toThrow(/JWT_PRIVATE_KEY/);
   });
 
   it('getUserById 失败时 jwtAuth 应拒绝访问', async () => {
-    const mod = await import('../../../api/middleware/jwtAuth.js');
-    const { getUserById } = await import('../../../api/services/userService.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
+    const { getUserById } = await import('../../../packages/backend/src/services/userService.js');
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('db error'));
     const token = await mod.generateToken('user-db-error', 'admin');
     const req = {
@@ -167,7 +167,7 @@ describe('jwtAuth RS256 路径', () => {
     mocks.config.JWT_PUBLIC_KEY = await exportSPKI(publicKey);
     mocks.config.NODE_ENV = 'production';
     vi.resetModules();
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     const token = await mod.generateToken('inline-pem-user', 'analyst');
     const payload = await mod.verifyToken(token);
     expect(payload?.sub).toBe('inline-pem-user');
@@ -194,7 +194,7 @@ describe('jwtAuth RS256 路径', () => {
     mocks.config.JWT_PUBLIC_KEY_FILE = '/secrets/public.pem';
     mocks.config.NODE_ENV = 'production';
     vi.resetModules();
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     const token = await mod.generateToken('file-pem-user', 'readonly');
     expect(token.split('.')).toHaveLength(3);
     expect(fsMocks.readFileSync).toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('jwtAuth RS256 路径', () => {
     mocks.config.JWT_PUBLIC_KEY_FILE = '';
     mocks.config.NODE_ENV = 'production';
     vi.resetModules();
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     await expect(mod.generateToken('missing-pem', 'admin')).rejects.toThrow(/无法读取 PEM 文件/);
   });
 
@@ -221,7 +221,7 @@ describe('jwtAuth RS256 路径', () => {
     mocks.config.JWT_PUBLIC_KEY = '';
     mocks.config.JWT_PUBLIC_KEY_FILE = '';
     vi.resetModules();
-    const mod = await import('../../../api/middleware/jwtAuth.js');
+    const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     await expect(mod.generateToken('prod-user', 'admin')).rejects.toThrow(/JWT_PRIVATE_KEY/);
   });
 });

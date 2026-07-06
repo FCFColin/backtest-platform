@@ -65,14 +65,18 @@ const redisMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('../../../api/config/index.js', () => ({ config: mocks.config }));
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(createLoggerMocks()) }));
-vi.mock('../../../api/config/redis.js', () => ({ appRedis: redisMocks }));
-vi.mock('../../../api/services/userService.js', () => ({ getUserById: vi.fn() }));
-vi.mock('../../../api/middleware/jwtSigner.js', () => ({ generateToken: vi.fn() }));
+vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: mocks.config }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(createLoggerMocks()),
+}));
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({ appRedis: redisMocks }));
+vi.mock('../../../packages/backend/src/services/userService.js', () => ({ getUserById: vi.fn() }));
+vi.mock('../../../packages/backend/src/middleware/jwtSigner.js', () => ({
+  generateToken: vi.fn(),
+}));
 
-import { getUserById } from '../../../api/services/userService.js';
-import { generateToken } from '../../../api/middleware/jwtSigner.js';
+import { getUserById } from '../../../packages/backend/src/services/userService.js';
+import { generateToken } from '../../../packages/backend/src/middleware/jwtSigner.js';
 
 redisMocks.useMemoryFallback();
 
@@ -93,7 +97,8 @@ describe('refreshToken', () => {
   describe('generateRefreshToken', () => {
     it('should return a hex string token in memory mode', async () => {
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
       const token = await generateRefreshToken('user-1', 'admin');
       expect(token).toBeTruthy();
       expect(typeof token).toBe('string');
@@ -102,7 +107,8 @@ describe('refreshToken', () => {
 
     it('should create a token for each role', async () => {
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       for (const role of ['admin', 'analyst', 'readonly'] as const) {
         const token = await generateRefreshToken('user-role', role);
@@ -112,7 +118,8 @@ describe('refreshToken', () => {
 
     it('should accept existing familyId', async () => {
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const token = await generateRefreshToken('user-1', 'admin', 'existing-family-id');
       expect(token).toBeTruthy();
@@ -121,7 +128,8 @@ describe('refreshToken', () => {
     it('should store token in Redis when Redis is available', async () => {
       redisMocks.useRedisSuccess();
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const token = await generateRefreshToken('redis-user', 'analyst');
       expect(token).toBeTruthy();
@@ -132,7 +140,8 @@ describe('refreshToken', () => {
     it('should set Redis TTL from config', async () => {
       redisMocks.useRedisSuccess();
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       await generateRefreshToken('ttl-user', 'admin');
       const setCall = vi
@@ -146,7 +155,8 @@ describe('refreshToken', () => {
     it('should store token family in Redis', async () => {
       redisMocks.useRedisSuccess();
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const token = await generateRefreshToken('family-user', 'admin');
       const familyKey = [...redisMocks.store.keys()].find((k) => k.startsWith('token_family:'));
@@ -159,7 +169,8 @@ describe('refreshToken', () => {
     it('should add family to user families set in Redis', async () => {
       redisMocks.useRedisSuccess();
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       await generateRefreshToken('user-families', 'analyst');
       expect(redisMocks.sadd).toHaveBeenCalledWith(
@@ -172,7 +183,8 @@ describe('refreshToken', () => {
       redisMocks.useRedisSuccess();
       redisMocks.set.mockRejectedValueOnce(new Error('write failure'));
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const token = await generateRefreshToken('fallback-user', 'admin');
       expect(token).toBeTruthy();
@@ -180,7 +192,8 @@ describe('refreshToken', () => {
 
     it('should store tenant context in the entry', async () => {
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const token = await generateRefreshToken('tenant-user', 'admin', undefined, {
         tenantId: 'org-1',
@@ -192,7 +205,8 @@ describe('refreshToken', () => {
 
     it('should generate unique familyId each call when not provided', async () => {
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const token1 = await generateRefreshToken('user-uq', 'admin');
       const token2 = await generateRefreshToken('user-uq', 'admin');
@@ -205,7 +219,7 @@ describe('refreshToken', () => {
       it('should return new access and refresh tokens', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('user-1', 'admin');
         const result = await refreshAccessToken(rt);
@@ -218,7 +232,7 @@ describe('refreshToken', () => {
       it('should invalidate old token after refresh (rotation)', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('user-1', 'admin');
         const first = await refreshAccessToken(rt);
@@ -231,7 +245,7 @@ describe('refreshToken', () => {
       it('should allow chained refreshes with new tokens', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('chain-user', 'analyst');
         const r1 = await refreshAccessToken(rt);
@@ -246,7 +260,8 @@ describe('refreshToken', () => {
 
       it('should return null for nonexistent token', async () => {
         vi.resetModules();
-        const { refreshAccessToken } = await import('../../../api/middleware/refreshToken.js');
+        const { refreshAccessToken } =
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
         expect(await refreshAccessToken('nonexistent')).toBeNull();
       });
 
@@ -254,7 +269,7 @@ describe('refreshToken', () => {
         vi.useFakeTimers();
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('expired-user', 'admin');
         vi.advanceTimersByTime((mocks.config.JWT_REFRESH_TTL + 60) * 1000);
@@ -267,7 +282,7 @@ describe('refreshToken', () => {
       it('should detect token family reuse and revoke entire family', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('reuse-user', 'admin');
         const r1 = await refreshAccessToken(rt);
@@ -291,7 +306,7 @@ describe('refreshToken', () => {
 
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('disabled-user', 'readonly');
         const result = await refreshAccessToken(rt);
@@ -303,7 +318,7 @@ describe('refreshToken', () => {
 
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('db-error-user', 'admin');
         const result = await refreshAccessToken(rt);
@@ -313,7 +328,7 @@ describe('refreshToken', () => {
       it('should call generateToken with correct user, role, and tenant', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('tenant-refresh', 'analyst', undefined, {
           tenantId: 'org-42',
@@ -339,7 +354,7 @@ describe('refreshToken', () => {
       it('should return new token pair via Redis', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('redis-user', 'admin');
         const result = await refreshAccessToken(rt);
@@ -351,7 +366,7 @@ describe('refreshToken', () => {
       it('should delete old token and mark as used in Redis', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('used-user', 'admin');
         expect(redisMocks.store.has(`refresh_token:${rt}`)).toBe(true);
@@ -366,7 +381,7 @@ describe('refreshToken', () => {
       it('should detect token reuse via used marker and revoke family', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('reuse-redis', 'admin');
         const r1 = await refreshAccessToken(rt);
@@ -382,7 +397,7 @@ describe('refreshToken', () => {
       it('should return null for expired token and delete it', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('redis-expired', 'admin');
         const key = `refresh_token:${rt}`;
@@ -407,7 +422,7 @@ describe('refreshToken', () => {
 
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('redis-disabled', 'readonly');
         const result = await refreshAccessToken(rt);
@@ -417,7 +432,7 @@ describe('refreshToken', () => {
       it('should check token family revocation status', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('family-check', 'admin');
         const r1 = await refreshAccessToken(rt);
@@ -434,7 +449,7 @@ describe('refreshToken', () => {
         redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed'));
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('fallback-redis', 'admin');
 
@@ -446,7 +461,8 @@ describe('refreshToken', () => {
 
       it('should handle non-existent token that was not previously used', async () => {
         vi.resetModules();
-        const { refreshAccessToken } = await import('../../../api/middleware/refreshToken.js');
+        const { refreshAccessToken } =
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const result = await refreshAccessToken('totally-unknown-token');
         expect(result).toBeNull();
@@ -459,7 +475,7 @@ describe('refreshToken', () => {
       it('should revoke token and its family', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('revoke-user', 'admin');
         await revokeRefreshToken(rt);
@@ -471,7 +487,7 @@ describe('refreshToken', () => {
       it('should revoke used token as well', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('revoke-used', 'admin');
         const r1 = await refreshAccessToken(rt);
@@ -491,8 +507,8 @@ describe('refreshToken', () => {
 
       it('should revoke token and mark family as revoked', async () => {
         vi.resetModules();
-        const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
-          await import('../../../api/middleware/refreshToken.js');
+        const { generateRefreshToken, revokeRefreshToken } =
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('redis-revoke', 'admin');
         const raw = redisMocks.store.get(`refresh_token:${rt}`);
@@ -510,7 +526,7 @@ describe('refreshToken', () => {
       it('should handle used token revocation in Redis', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('redis-used-revoke', 'admin');
         await refreshAccessToken(rt);
@@ -524,7 +540,7 @@ describe('refreshToken', () => {
         redisMocks.get.mockRejectedValueOnce(new Error('read failed'));
         vi.resetModules();
         const { generateRefreshToken, revokeRefreshToken } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('redis-err-revoke', 'admin');
         await expect(revokeRefreshToken(rt)).resolves.toBeUndefined();
@@ -537,7 +553,7 @@ describe('refreshToken', () => {
       it('should revoke all refresh tokens for a user', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken, revokeAllUserSessions } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt1 = await generateRefreshToken('revoke-all-user', 'admin');
         const rt2 = await generateRefreshToken('revoke-all-user', 'analyst');
@@ -551,7 +567,7 @@ describe('refreshToken', () => {
       it('should mark revoked_at timestamp', async () => {
         vi.resetModules();
         const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const before = Math.floor(Date.now() / 1000);
         await revokeAllUserSessions('revoke-ts-user');
@@ -570,7 +586,7 @@ describe('refreshToken', () => {
       it('should revoke all sessions and set revoked_at', async () => {
         vi.resetModules();
         const { generateRefreshToken, refreshAccessToken, revokeAllUserSessions } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         const rt = await generateRefreshToken('redis-revoke-all', 'admin');
         await revokeAllUserSessions('redis-revoke-all');
@@ -585,7 +601,7 @@ describe('refreshToken', () => {
         redisMocks.smembers.mockRejectedValue(new Error('smembers failed'));
         vi.resetModules();
         const { generateRefreshToken, revokeAllUserSessions } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         await generateRefreshToken('redis-err-sessions', 'admin');
         await expect(revokeAllUserSessions('redis-err-sessions')).resolves.toBeUndefined();
@@ -594,7 +610,7 @@ describe('refreshToken', () => {
       it('should remove user families set from Redis', async () => {
         vi.resetModules();
         const { generateRefreshToken, revokeAllUserSessions } =
-          await import('../../../api/middleware/refreshToken.js');
+          await import('../../../packages/backend/src/middleware/refreshToken.js');
 
         await generateRefreshToken('redis-cleanup', 'admin');
         await revokeAllUserSessions('redis-cleanup');
@@ -610,7 +626,8 @@ describe('refreshToken', () => {
   describe('isUserSessionValid', () => {
     it('should return true for system user IDs', async () => {
       vi.resetModules();
-      const { isUserSessionValid } = await import('../../../api/middleware/refreshToken.js');
+      const { isUserSessionValid } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       for (const sysUser of ['dev-user', 'api-key-user']) {
         const result = await isUserSessionValid(sysUser);
@@ -629,7 +646,8 @@ describe('refreshToken', () => {
       });
 
       vi.resetModules();
-      const { isUserSessionValid } = await import('../../../api/middleware/refreshToken.js');
+      const { isUserSessionValid } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       expect(await isUserSessionValid('active-user')).toBe(true);
     });
@@ -644,7 +662,8 @@ describe('refreshToken', () => {
       });
 
       vi.resetModules();
-      const { isUserSessionValid } = await import('../../../api/middleware/refreshToken.js');
+      const { isUserSessionValid } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       expect(await isUserSessionValid('inactive-user')).toBe(false);
     });
@@ -653,7 +672,8 @@ describe('refreshToken', () => {
       vi.mocked(getUserById).mockRejectedValue(new Error('DB error'));
 
       vi.resetModules();
-      const { isUserSessionValid } = await import('../../../api/middleware/refreshToken.js');
+      const { isUserSessionValid } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       expect(await isUserSessionValid('error-user')).toBe(false);
     });
@@ -662,7 +682,8 @@ describe('refreshToken', () => {
       vi.mocked(getUserById).mockResolvedValue(null);
 
       vi.resetModules();
-      const { isUserSessionValid } = await import('../../../api/middleware/refreshToken.js');
+      const { isUserSessionValid } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       expect(await isUserSessionValid('nonexistent-user')).toBe(false);
     });
@@ -672,7 +693,7 @@ describe('refreshToken', () => {
     it('should return false when no revocation recorded', async () => {
       vi.resetModules();
       const { isAccessTokenRevokedForUser } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       expect(await isAccessTokenRevokedForUser('unrevoked-user', 1000)).toBe(false);
     });
@@ -680,7 +701,7 @@ describe('refreshToken', () => {
     it('should return true when token iat is before revocation time', async () => {
       vi.resetModules();
       const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       await revokeAllUserSessions('revoked-check-user');
       expect(await isAccessTokenRevokedForUser('revoked-check-user', 1)).toBe(true);
@@ -689,7 +710,7 @@ describe('refreshToken', () => {
     it('should return false when token iat is after revocation time', async () => {
       vi.resetModules();
       const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       await revokeAllUserSessions('revoked-after-user');
       const futureIat = Math.floor(Date.now() / 1000) + 3600;
@@ -700,7 +721,7 @@ describe('refreshToken', () => {
       redisMocks.useRedisSuccess();
       vi.resetModules();
       const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       await revokeAllUserSessions('redis-revoked-user');
       expect(await isAccessTokenRevokedForUser('redis-revoked-user', 1)).toBe(true);
@@ -718,7 +739,7 @@ describe('refreshToken', () => {
 
       vi.resetModules();
       const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       await revokeAllUserSessions('redis-fallback-check-user');
 
@@ -732,7 +753,7 @@ describe('refreshToken', () => {
     it('memory mode: reused token after rotation revokes entire family', async () => {
       vi.resetModules();
       const { generateRefreshToken, refreshAccessToken } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const rt = await generateRefreshToken('attack-user', 'admin');
       const r1 = await refreshAccessToken(rt);
@@ -749,7 +770,7 @@ describe('refreshToken', () => {
       redisMocks.useRedisSuccess();
       vi.resetModules();
       const { generateRefreshToken, refreshAccessToken } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const rt = await generateRefreshToken('redis-attack-user', 'admin');
       const r1 = await refreshAccessToken(rt);
@@ -765,7 +786,7 @@ describe('refreshToken', () => {
     it('memory mode: reuse after successful refresh should detect family reuse', async () => {
       vi.resetModules();
       const { generateRefreshToken, refreshAccessToken } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const rt = await generateRefreshToken('family-reuse-user', 'admin');
       const r1 = await refreshAccessToken(rt);
@@ -782,7 +803,8 @@ describe('refreshToken', () => {
   describe('edge cases', () => {
     it('should handle empty userId in isUserSessionValid', async () => {
       vi.resetModules();
-      const { isUserSessionValid } = await import('../../../api/middleware/refreshToken.js');
+      const { isUserSessionValid } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       vi.mocked(getUserById).mockRejectedValue(new Error('empty id'));
       expect(await isUserSessionValid('')).toBe(false);
@@ -791,14 +813,15 @@ describe('refreshToken', () => {
     it('isAccessTokenRevokedForUser should handle non-finite revokedAt', async () => {
       vi.resetModules();
       const { isAccessTokenRevokedForUser } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       expect(await isAccessTokenRevokedForUser('unknown-user', 100)).toBe(false);
     });
 
     it('generateRefreshToken should handle undefined tenant gracefully', async () => {
       vi.resetModules();
-      const { generateRefreshToken } = await import('../../../api/middleware/refreshToken.js');
+      const { generateRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const token = await generateRefreshToken('no-tenant-user', 'readonly');
       expect(token).toBeTruthy();
@@ -807,7 +830,7 @@ describe('refreshToken', () => {
     it('refreshAccessToken should return null for revoked family in memory mode', async () => {
       vi.resetModules();
       const { generateRefreshToken, refreshAccessToken } =
-        await import('../../../api/middleware/refreshToken.js');
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       const rt = await generateRefreshToken('revoked-family', 'admin');
       await refreshAccessToken(rt);
@@ -819,7 +842,7 @@ describe('refreshToken', () => {
   describe('Redis event handlers', () => {
     it('should register ready and error event handlers', async () => {
       vi.resetModules();
-      await import('../../../api/middleware/refreshToken.js');
+      await import('../../../packages/backend/src/middleware/refreshToken.js');
 
       expect(redisMocks.on).toHaveBeenCalledWith('ready', expect.any(Function));
       expect(redisMocks.on).toHaveBeenCalledWith('error', expect.any(Function));

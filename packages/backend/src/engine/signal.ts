@@ -19,8 +19,8 @@ import {
   calcMACD,
   calcBollinger,
 } from '../services/indicatorService.js';
-import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
-import type { SignalAnalysisRequest, SignalAnalysisResult } from '@backtest/shared/types/signal.js';
+import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
+import type { SignalAnalysisRequest, SignalAnalysisResult } from '@backtest/shared/types/signal';
 
 // ===== 内部类型 =====
 
@@ -436,9 +436,16 @@ function dirFromScores(
   scores: { score: number; buys: number; sells: number; bestDir: SignalDir | null },
   method: 'weighted' | 'voting' | 'rank',
 ): SignalDir | null {
-  if (method === 'weighted') return scores.score > 0 ? 'buy' : scores.score < 0 ? 'sell' : null;
-  if (method === 'voting')
-    return scores.buys > scores.sells ? 'buy' : scores.sells > scores.buys ? 'sell' : null;
+  if (method === 'weighted') {
+    if (scores.score > 0) return 'buy';
+    if (scores.score < 0) return 'sell';
+    return null;
+  }
+  if (method === 'voting') {
+    if (scores.buys > scores.sells) return 'buy';
+    if (scores.sells > scores.buys) return 'sell';
+    return null;
+  }
   return scores.bestDir; // rank
 }
 

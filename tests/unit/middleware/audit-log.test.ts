@@ -21,9 +21,11 @@ const loggerMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import { auditLog } from '../../../api/middleware/auditLog.js';
+import { auditLog } from '../../../packages/backend/src/middleware/auditLog.js';
 
 function createMockReqRes(opts: {
   method?: string;
@@ -233,13 +235,13 @@ describe('verifyPayload HMAC 签名', () => {
 
   it('未配置 AUDIT_HMAC_KEY 时应跳过验证（返回 true）', async () => {
     delete process.env.AUDIT_HMAC_KEY;
-    const { verifyPayload } = await import('../../../api/middleware/auditLog.js');
+    const { verifyPayload } = await import('../../../packages/backend/src/middleware/auditLog.js');
     expect(verifyPayload('{"a":1}', 'any-signature')).toBe(true);
   });
 
   it('签名长度不一致应返回 false（防 timingSafeEqual 抛错）', async () => {
     process.env.AUDIT_HMAC_KEY = 'test-hmac-key';
-    const { verifyPayload } = await import('../../../api/middleware/auditLog.js');
+    const { verifyPayload } = await import('../../../packages/backend/src/middleware/auditLog.js');
     expect(verifyPayload('payload', 'short')).toBe(false);
   });
 
@@ -248,7 +250,7 @@ describe('verifyPayload HMAC 签名', () => {
     const crypto = await import('crypto');
     const payload = '{"userId":"u1","action":"login"}';
     const sig = crypto.createHmac('sha256', 'test-hmac-key').update(payload).digest('hex');
-    const { verifyPayload } = await import('../../../api/middleware/auditLog.js');
+    const { verifyPayload } = await import('../../../packages/backend/src/middleware/auditLog.js');
     expect(verifyPayload(payload, sig)).toBe(true);
   });
 

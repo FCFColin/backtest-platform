@@ -4,7 +4,7 @@
  * 引擎按日频返回全量曲线（15 年 ≈ 4000 点/序列），JSON 可达 1MB+，
  * 浏览器解析与 Recharts 渲染成为瓶颈。统计指标已在全量数据上算完，降采样仅影响传输与绘图。
  */
-import type { BacktestResult, PortfolioResult } from '@backtest/shared/types.js';
+import type { BacktestResult, PortfolioResult } from '@backtest/shared/types';
 
 /** 图表序列最大点数（Recharts 在 800 点内与 4000 点视觉无差别） */
 export const MAX_CHART_POINTS = 800;
@@ -118,7 +118,7 @@ export function compressBacktestResultForSync(result: BacktestResult): BacktestR
 export function extractBacktestSeries(
   result: BacktestResult,
   series: string[],
-): BacktestResult['portfolios'] {
+): Partial<PortfolioResult>[] {
   const want = new Set(series);
   return result.portfolios.map((p) => {
     const slice: Partial<PortfolioResult> & { name: string } = { name: p.name };
@@ -126,6 +126,6 @@ export function extractBacktestSeries(
     if (want.has('rollingReturns')) slice.rollingReturns = compressed.rollingReturns;
     if (want.has('allocationHistory')) slice.allocationHistory = compressed.allocationHistory;
     if (want.has('drawdownEpisodes')) slice.drawdownEpisodes = p.drawdownEpisodes;
-    return slice as PortfolioResult;
+    return slice;
   });
 }

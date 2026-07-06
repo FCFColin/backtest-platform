@@ -12,11 +12,11 @@ const engineMocks = vi.hoisted(() => ({
   analyzeMultiSignal: vi.fn(),
 }));
 
-vi.mock('../../../api/engine/seriesUtils.js', () => ({
+vi.mock('../../../packages/backend/src/engine/seriesUtils.js', () => ({
   toPriceSeries: engineMocks.toPriceSeries,
 }));
 
-vi.mock('../../../api/engine/signal.js', () => ({
+vi.mock('../../../packages/backend/src/engine/signal.js', () => ({
   analyzeSignal: engineMocks.analyzeSignal,
   analyzeDualSignal: engineMocks.analyzeDualSignal,
   analyzeMultiSignal: engineMocks.analyzeMultiSignal,
@@ -26,7 +26,7 @@ import {
   executeSignalAnalyze,
   executeDualSignalAnalyze,
   executeMultiSignalAnalyze,
-} from '../../../api/application/signal-application-service.js';
+} from '../../../packages/backend/src/application/signal-application-service.js';
 
 const mockPriceSeries = [
   { date: '2020-01-02', value: 100 },

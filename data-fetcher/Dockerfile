@@ -7,7 +7,7 @@
 # Supply Chain: 基础镜像digest pin，防止供应链攻击
 # 企业为何需要：tag是可变的（golang:1.22-alpine可指向不同镜像），digest是不可变的
 # 权衡：需定期更新digest（可通过Renovate自动化），但防止tag碰撞攻击
-FROM golang:1.22-alpine@sha256:1699c10032ca2582ec89a24a1312d986a3f094aed3d5c1147b19880afe40e052 AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /build
 

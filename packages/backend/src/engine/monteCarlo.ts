@@ -9,7 +9,7 @@ import type {
   BacktestParameters,
   MonteCarloResult,
   PerPathMetrics,
-} from '@backtest/shared/types.js';
+} from '@backtest/shared/types';
 import type { PriceData } from './portfolio.js';
 import { getDateLimits } from '../utils/dateUtils.js';
 import {
@@ -17,7 +17,7 @@ import {
   calcAnnualizedStdev,
   calcMaxDrawdown as calcMaxDrawdownStats,
 } from './statistics.js';
-import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
+import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 
 interface MonteCarloParams {
   numSimulations: number;

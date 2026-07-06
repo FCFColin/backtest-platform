@@ -8,3 +8,10 @@ export {
 export type { BacktestSeriesField } from './backtestStore.js';
 export { useAuthStore } from './authStore.js';
 export type { OrgSummary, AuthUser } from './authStore.js';
+export { useAdminStore } from './adminStore.js';
+export type {
+  AdminDashboardData,
+  AdminDataStats,
+  AdminServiceHealth,
+  AdminSystemInfo,
+} from './adminStore.js';

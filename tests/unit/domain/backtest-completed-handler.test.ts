@@ -34,15 +34,17 @@ const poolMocks = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
 // db/getPool 仍 mock：用于断言处理器**不再**访问数据库。
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: vi.fn(() => poolMocks),
 }));
 
-import { BacktestCompletedHandler } from '../../../api/domain/events/handlers/BacktestCompletedHandler.js';
-import type { DomainEvent } from '../../../api/domain/events/EventDispatcher.js';
+import { BacktestCompletedHandler } from '../../../packages/backend/src/domain/events/handlers/BacktestCompletedHandler.js';
+import type { DomainEvent } from '../../../packages/backend/src/domain/events/EventDispatcher.js';
 
 function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
   return {

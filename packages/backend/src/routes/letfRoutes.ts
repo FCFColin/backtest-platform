@@ -2,7 +2,7 @@
  * LETF 滑点路由 — POST /api/letf/analyze
  */
 import { Router, type Request, type Response } from 'express';
-import type { LETFRequest } from '@backtest/shared/types/letf.js';
+import type { LETFRequest } from '@backtest/shared/types/letf';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';

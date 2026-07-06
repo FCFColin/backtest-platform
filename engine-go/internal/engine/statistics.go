@@ -56,13 +56,7 @@ func CalcAnnualizedStdev(dailyReturns []float64) float64 {
 	if len(dailyReturns) < 2 {
 		return 0
 	}
-	mean := mean(dailyReturns)
-	variance := 0.0
-	for _, r := range dailyReturns {
-		variance += (r - mean) * (r - mean)
-	}
-	variance /= float64(len(dailyReturns) - 1)
-	return math.Sqrt(variance) * math.Sqrt(tradingDaysPerYear)
+	return math.Sqrt(sampleVariance(dailyReturns)) * math.Sqrt(tradingDaysPerYear)
 }
 
 // CalcSharpe 计算夏普比率。
@@ -152,16 +146,7 @@ func CalcCorrelation(returns1, returns2 []float64) float64 {
 
 // CalcDailyReturns 计算日收益率序列。
 func CalcDailyReturns(prices []float64) []float64 {
-	if len(prices) < 2 {
-		return nil
-	}
-	returns := make([]float64, 0, len(prices)-1)
-	for i := 1; i < len(prices); i++ {
-		if prices[i-1] > 0 {
-			returns = append(returns, (prices[i]-prices[i-1])/prices[i-1])
-		}
-	}
-	return returns
+	return dailyReturnsFromPrices(prices)
 }
 
 // CalcTotalReturn 计算总收益率。
@@ -174,58 +159,22 @@ func CalcTotalReturn(startValue, endValue float64) float64 {
 
 // CalcBestYear 计算最佳年度收益。
 func CalcBestYear(annualReturns []float64) float64 {
-	if len(annualReturns) == 0 {
-		return 0
-	}
-	max := annualReturns[0]
-	for _, r := range annualReturns[1:] {
-		if r > max {
-			max = r
-		}
-	}
-	return max
+	return maxValue(annualReturns)
 }
 
 // CalcWorstYear 计算最差年度收益。
 func CalcWorstYear(annualReturns []float64) float64 {
-	if len(annualReturns) == 0 {
-		return 0
-	}
-	min := annualReturns[0]
-	for _, r := range annualReturns[1:] {
-		if r < min {
-			min = r
-		}
-	}
-	return min
+	return minValue(annualReturns)
 }
 
 // CalcBestMonth 计算最佳月度收益。
 func CalcBestMonth(monthlyReturns []float64) float64 {
-	if len(monthlyReturns) == 0 {
-		return 0
-	}
-	max := monthlyReturns[0]
-	for _, r := range monthlyReturns[1:] {
-		if r > max {
-			max = r
-		}
-	}
-	return max
+	return maxValue(monthlyReturns)
 }
 
 // CalcWorstMonth 计算最差月度收益。
 func CalcWorstMonth(monthlyReturns []float64) float64 {
-	if len(monthlyReturns) == 0 {
-		return 0
-	}
-	min := monthlyReturns[0]
-	for _, r := range monthlyReturns[1:] {
-		if r < min {
-			min = r
-		}
-	}
-	return min
+	return minValue(monthlyReturns)
 }
 
 // CalcAvgDrawdown 计算平均回撤深度。
@@ -339,13 +288,7 @@ func CalcTrackingError(portfolioReturns, benchmarkReturns []float64) float64 {
 	for i := 0; i < n; i++ {
 		diffs[i] = portfolioReturns[i] - benchmarkReturns[i]
 	}
-	m := mean(diffs)
-	var variance float64
-	for _, d := range diffs {
-		variance += (d - m) * (d - m)
-	}
-	variance /= float64(n - 1)
-	return math.Sqrt(variance) * math.Sqrt(tradingDaysPerYear)
+	return math.Sqrt(sampleVariance(diffs)) * math.Sqrt(tradingDaysPerYear)
 }
 
 // CalcInformationRatio 计算信息比率。
@@ -359,54 +302,12 @@ func CalcInformationRatio(alpha, trackingError float64) float64 {
 
 // CalcUpsideCapture 计算上行捕获比。
 func CalcUpsideCapture(portfolioReturns, benchmarkReturns []float64) float64 {
-	n := min(len(portfolioReturns), len(benchmarkReturns))
-	if n < 1 {
-		return 0
-	}
-	var portfolioProduct, benchmarkProduct float64 = 1, 1
-	count := 0
-	for i := 0; i < n; i++ {
-		if benchmarkReturns[i] > 0 {
-			portfolioProduct *= (1 + portfolioReturns[i])
-			benchmarkProduct *= (1 + benchmarkReturns[i])
-			count++
-		}
-	}
-	if count == 0 || benchmarkProduct <= 0 {
-		return 0
-	}
-	portfolioGeoMean := math.Pow(portfolioProduct, 1.0/float64(count)) - 1
-	benchmarkGeoMean := math.Pow(benchmarkProduct, 1.0/float64(count)) - 1
-	if benchmarkGeoMean == 0 {
-		return 0
-	}
-	return portfolioGeoMean / benchmarkGeoMean
+	return calcCaptureRatio(portfolioReturns, benchmarkReturns, func(r float64) bool { return r > 0 })
 }
 
 // CalcDownsideCapture 计算下行捕获比。
 func CalcDownsideCapture(portfolioReturns, benchmarkReturns []float64) float64 {
-	n := min(len(portfolioReturns), len(benchmarkReturns))
-	if n < 1 {
-		return 0
-	}
-	var portfolioProduct, benchmarkProduct float64 = 1, 1
-	count := 0
-	for i := 0; i < n; i++ {
-		if benchmarkReturns[i] < 0 {
-			portfolioProduct *= (1 + portfolioReturns[i])
-			benchmarkProduct *= (1 + benchmarkReturns[i])
-			count++
-		}
-	}
-	if count == 0 || benchmarkProduct <= 0 {
-		return 0
-	}
-	portfolioGeoMean := math.Pow(portfolioProduct, 1.0/float64(count)) - 1
-	benchmarkGeoMean := math.Pow(benchmarkProduct, 1.0/float64(count)) - 1
-	if benchmarkGeoMean == 0 {
-		return 0
-	}
-	return portfolioGeoMean / benchmarkGeoMean
+	return calcCaptureRatio(portfolioReturns, benchmarkReturns, func(r float64) bool { return r < 0 })
 }
 
 // CalcVaR 计算在险价值（历史模拟法）。
@@ -629,6 +530,70 @@ func CalcMonthlyReturns(values []float64, dates []string) []MonthlyReturn {
 
 // ---- 辅助函数 ----
 
+func maxValue(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	m := values[0]
+	for _, v := range values[1:] {
+		if v > m {
+			m = v
+		}
+	}
+	return m
+}
+
+func minValue(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	m := values[0]
+	for _, v := range values[1:] {
+		if v < m {
+			m = v
+		}
+	}
+	return m
+}
+
+func ratioPositive(values []float64) float64 {
+	if len(values) == 0 {
+		return 0
+	}
+	count := 0
+	for _, v := range values {
+		if v > 0 {
+			count++
+		}
+	}
+	return float64(count) / float64(len(values))
+}
+
+func calcCaptureRatio(portfolioReturns, benchmarkReturns []float64, filter func(float64) bool) float64 {
+	n := min(len(portfolioReturns), len(benchmarkReturns))
+	if n < 1 {
+		return 0
+	}
+	var portfolioProduct, benchmarkProduct float64 = 1, 1
+	count := 0
+	for i := 0; i < n; i++ {
+		if filter(benchmarkReturns[i]) {
+			portfolioProduct *= (1 + portfolioReturns[i])
+			benchmarkProduct *= (1 + benchmarkReturns[i])
+			count++
+		}
+	}
+	if count == 0 || benchmarkProduct <= 0 {
+		return 0
+	}
+	portfolioGeoMean := math.Pow(portfolioProduct, 1.0/float64(count)) - 1
+	benchmarkGeoMean := math.Pow(benchmarkProduct, 1.0/float64(count)) - 1
+	if benchmarkGeoMean == 0 {
+		return 0
+	}
+	return portfolioGeoMean / benchmarkGeoMean
+}
+
 func mean(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
@@ -675,12 +640,4 @@ func parseYearMonth(dateStr string) (int, int) {
 		m = int(dateStr[5]-'0')*10 + int(dateStr[6]-'0') - 1
 	}
 	return y, m
-}
-
-// min 返回两个整数中的较小值。
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

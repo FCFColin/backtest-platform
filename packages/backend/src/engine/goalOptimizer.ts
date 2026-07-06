@@ -13,8 +13,8 @@
  *   5. 若存在约束条件（最大回撤、最大波动率），过滤不满足约束的路径后重新统计
  */
 
-import type { GoalOptimizerRequest, GoalOptimizerResult } from '@backtest/shared/types/goal.js';
-import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
+import type { GoalOptimizerRequest, GoalOptimizerResult } from '@backtest/shared/types/goal';
+import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 
 // ===== 统计工具函数 =====
 

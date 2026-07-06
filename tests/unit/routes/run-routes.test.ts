@@ -11,26 +11,26 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/middleware/validate.js', () => ({
+vi.mock('../../../packages/backend/src/middleware/validate.js', () => ({
   validate: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-vi.mock('../../../api/utils/errors.js', () => ({
+vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
   sendProblem: vi.fn((res, status, _code, _title, _detail) => {
     res.status(status).json({ success: false, error: {} });
   }),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../api/services/backtestRunRepo.js', () => mocks.repo);
+vi.mock('../../../packages/backend/src/services/backtestRunRepo.js', () => mocks.repo);
 
-vi.mock('../../../api/schemas/persistence.js', () => ({
+vi.mock('../../../packages/backend/src/schemas/persistence.js', () => ({
   backtestRunBodySchema: {},
   BacktestRunBody: Object,
 }));
 
-import runRoutes from '../../../api/routes/runRoutes.js';
+import runRoutes from '../../../packages/backend/src/routes/runRoutes.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const ITEM_ID = '22222222-2222-2222-2222-222222222222';

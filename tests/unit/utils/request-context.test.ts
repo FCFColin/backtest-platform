@@ -10,7 +10,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { requestContextStorage, getRequestId } from '../../../api/utils/requestContext.js';
+import {
+  requestContextStorage,
+  getRequestId,
+} from '../../../packages/backend/src/utils/requestContext.js';
 
 describe('getRequestId', () => {
   it('请求链路外应返回 undefined', () => {

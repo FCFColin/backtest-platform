@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Plus, X } from 'lucide-react';
+import { fmtPct } from '@/utils/format';
 import {
   AreaChart,
   Area,
@@ -39,10 +40,6 @@ const tooltipStyle = {
 
 function fmtDollar(v: number): string {
   return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-}
-
-function fmtPct(v: number, decimals = 1): string {
-  return `${(v * 100).toFixed(decimals)}%`;
 }
 
 function getProbColor(prob: number | undefined): string {

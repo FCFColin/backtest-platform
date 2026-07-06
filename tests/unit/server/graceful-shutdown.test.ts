@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactories.js';
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 const mocks = vi.hoisted(() => {
   const mockServerClose = vi.fn((cb?: () => void) => {
@@ -34,11 +34,11 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('../../../api/tracing.js', () => ({
+vi.mock('../../../packages/backend/src/tracing.js', () => ({
   initTracing: vi.fn(),
 }));
 
-vi.mock('../../../api/app.js', () => ({
+vi.mock('../../../packages/backend/src/app.js', () => ({
   default: {
     listen: vi.fn((_port: number, cb?: () => void) => {
       if (cb) {
@@ -49,25 +49,25 @@ vi.mock('../../../api/app.js', () => ({
   },
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ API_PORT: 3000, NODE_ENV: 'test' }),
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   initDb: mocks.mockInitDb,
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   closeDb: mocks.mockCloseDb,
   getPool: mocks.mockGetPool,
 }));
 
-vi.mock('../../../api/services/outboxPublisher.js', () => ({
+vi.mock('../../../packages/backend/src/services/outboxPublisher.js', () => ({
   OutboxPublisher: vi.fn(() => mocks.mockOutboxPublisher),
 }));
 
-vi.mock('../../../api/domain/events/index.js', () => ({
+vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({
   eventDispatcher: { register: vi.fn() },
   BacktestCompletedHandler: vi.fn(),
   RebalanceTriggeredHandler: vi.fn(),
@@ -90,14 +90,14 @@ describe('Graceful Shutdown (Task 5)', () => {
 
   it('setupGracefulShutdown 应注册 SIGTERM 和 SIGINT 信号处理器', async () => {
     const onSpy = vi.spyOn(process, 'on');
-    await import('../../../api/server.js');
+    await import('../../../packages/backend/src/server.js');
     expect(onSpy).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
     expect(onSpy).toHaveBeenCalledWith('SIGINT', expect.any(Function));
     onSpy.mockRestore();
   });
 
   it('收到 SIGTERM 时应调用 server.close()', async () => {
-    await import('../../../api/server.js');
+    await import('../../../packages/backend/src/server.js');
 
     process.emit('SIGTERM');
 
@@ -110,7 +110,7 @@ describe('Graceful Shutdown (Task 5)', () => {
   });
 
   it('shuttingDown 标志位应防止多次触发', async () => {
-    await import('../../../api/server.js');
+    await import('../../../packages/backend/src/server.js');
 
     process.emit('SIGTERM');
     process.emit('SIGTERM');
@@ -120,7 +120,7 @@ describe('Graceful Shutdown (Task 5)', () => {
   });
 
   it('收到 SIGINT 时也应触发优雅关闭', async () => {
-    await import('../../../api/server.js');
+    await import('../../../packages/backend/src/server.js');
 
     process.emit('SIGINT');
 
@@ -133,7 +133,7 @@ describe('Graceful Shutdown (Task 5)', () => {
   });
 
   it('listen 回调应初始化 DB 与 OutboxPublisher', async () => {
-    await import('../../../api/server.js');
+    await import('../../../packages/backend/src/server.js');
 
     await vi.waitFor(() => {
       expect(mocks.mockInitDb).toHaveBeenCalled();
@@ -150,14 +150,14 @@ describe('Graceful Shutdown (Task 5)', () => {
       },
     );
 
-    await import('../../../api/server.js');
+    await import('../../../packages/backend/src/server.js');
 
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   it('initDb 失败时不应阻塞服务启动', async () => {
     mocks.mockInitDb.mockRejectedValueOnce(new Error('schema failed'));
-    await import('../../../api/server.js');
+    await import('../../../packages/backend/src/server.js');
     await vi.waitFor(() => expect(mocks.mockInitDb).toHaveBeenCalled());
     expect(mocks.mockOutboxPublisher.start).toHaveBeenCalled();
   });

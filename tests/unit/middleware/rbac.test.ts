@@ -6,14 +6,14 @@
  * Table-Driven 模式（it.each）使权限矩阵一目了然。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { requirePermission, Permission } from '../../../api/middleware/rbac.js';
+import { requirePermission, Permission } from '../../../packages/backend/src/middleware/rbac.js';
 import {
   createMockRequest as createMockRequestBase,
   createMockResponse,
   createMockNext,
 } from '../../helpers/expressMocks.js';
 
-vi.mock('../../../api/utils/logger.js', () => ({
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
     warn: vi.fn(),

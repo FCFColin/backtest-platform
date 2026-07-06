@@ -1,10 +1,8 @@
 {
-  "watch": ["api"],
+  "watch": ["packages/backend/src"],
   "ext": "ts,mts,js,json",
-  "ignore": ["api/dist/*"],
-  "exec": "tsx api/server.ts",
-  "env": {
-    "NODE_ENV": "development"
-  },
+  "ignore": ["packages/backend/dist/*"],
+  "exec": "tsx packages/backend/src/server.ts",
+  "env": { "NODE_ENV": "development" },
   "delay": 1000
 }

@@ -8,16 +8,14 @@ import { Router, type Request, type Response } from 'express';
 import { fetchHistoryData, searchTickers } from '../services/dataService.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { getRequestId } from '../utils/requestContext.js';
-import { getTracePropagationHeaders } from '../utils/tracePropagation.js';
 import { registerCircuitBreakerMetrics, recordFallbackToNode } from '../utils/metrics.js';
 import { sendProblem } from '../utils/errors.js';
-import { MAX_TICKERS } from '@backtest/shared/constants.js';
+import { callService } from '../utils/httpClient.js';
+import { MAX_TICKERS } from '@backtest/shared/constants';
 import { validateQuery } from '../middleware/validate.js';
 import { historyQuerySchema, searchQuerySchema } from '../schemas/data.js';
 import CircuitBreaker from 'opossum';
 import { loadCpiSeriesFromDb } from '../db/macroData.js';
-import { callService } from '../utils/httpClient.js';
 
 interface PricePoint {
   date: string;
@@ -28,9 +26,12 @@ interface PricePoint {
   adj_close?: number;
   volume: number;
 }
-
 async function callGoDataService(endpoint: string, options?: RequestInit): Promise<unknown | null> {
-  return callService(config.GO_DATA_SERVICE_URL, endpoint, options);
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string> | undefined),
+    'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
+  };
+  return callService(config.GO_DATA_SERVICE_URL, endpoint, { ...options, headers });
 }
 
 /**
@@ -183,29 +184,26 @@ router.get(
     try {
       const { query, market } = req.query as { query: string; market?: string };
 
-      const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 100), 1000);
-      const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
-
-      let results: unknown[];
+      let results;
       let degraded: boolean = false;
       const goResult = (await callGoDataServiceWithBreaker(
         `/api/data/search?q=${encodeURIComponent(query as string)}`,
-      )) as { success: boolean; data?: unknown[] } | null;
+      )) as { success: boolean; data?: unknown } | null;
       if (goResult && goResult.success && goResult.data) {
         results = goResult.data;
       } else {
+        /**
+         * Go 服务降级到 Node.js 本地搜索
+         *
+         * 企业理由：同 /history 降级逻辑，降级时必须标记，
+         * 让调用方感知数据可能不完整。
+         * 权衡：同上。
+         */
         degraded = true;
-        results = (await searchTickers(query, market)) as unknown[];
+        results = await searchTickers(query, market);
       }
 
-      const total = results.length;
-      const paged = results.slice(offset, offset + limit);
-
-      const response: Record<string, unknown> = {
-        success: true,
-        data: paged,
-        pagination: { total, limit, offset },
-      };
+      const response: Record<string, unknown> = { success: true, data: results };
       if (degraded) {
         response.degraded = true;
         response.degradedCode = 'GO_SERVICE_UNAVAILABLE';

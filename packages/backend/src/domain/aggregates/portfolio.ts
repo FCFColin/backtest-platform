@@ -3,6 +3,7 @@
 
 import { Ticker } from '../value-objects/ticker.js';
 import { Weight } from '../value-objects/weight.js';
+import { invariant } from '../../utils/invariant.js';
 
 export interface PortfolioHolding {
   ticker: Ticker;
@@ -44,5 +45,25 @@ export class Portfolio {
     if (Math.abs(sum - 100) > PORTFOLIO_WEIGHT_SUM_TOLERANCE) {
       throw new Error(`Portfolio weights must sum to ~100 (percent), got ${sum.toFixed(2)}`);
     }
+  }
+}
+
+export function validatePortfolioInvariants(portfolio: {
+  holdings: ReadonlyArray<{ ticker: unknown; weight: { value: number } }>;
+  cash?: number;
+  nav?: number;
+}): void {
+  const totalWeight = portfolio.holdings.reduce((s, h) => s + h.weight.value, 0);
+  invariant(
+    Math.abs(totalWeight - 100) <= PORTFOLIO_WEIGHT_SUM_TOLERANCE,
+    `Portfolio weights sum to ${totalWeight}, expected ~100`,
+  );
+
+  for (const holding of portfolio.holdings) {
+    invariant(holding.weight.value >= 0, `Negative weight: ${holding.weight.value}`);
+  }
+
+  if (portfolio.cash !== undefined && portfolio.nav !== undefined) {
+    invariant(portfolio.nav >= 0, `NAV must be non-negative: ${portfolio.nav}`);
   }
 }

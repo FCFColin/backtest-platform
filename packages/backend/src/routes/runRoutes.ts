@@ -11,6 +11,7 @@ import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { hasTenant } from '../middleware/tenantContext.js';
 import { backtestRunBodySchema, type BacktestRunBody } from '../schemas/persistence.js';
 import { listRuns, getRun, createRun, deleteRun } from '../services/backtestRunRepo.js';
 
@@ -24,12 +25,14 @@ function ownerOf(req: AuthenticatedRequest): string | null {
 }
 
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const tenantId = req.tenantId;
+  const limit = req.query.limit ? Number(req.query.limit) : 50;
   try {
-    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 100), 1000);
-    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
-    const { rows, total } = await listRuns(tenantId, limit, offset);
-    res.json({ success: true, data: rows, pagination: { total, limit, offset } });
+    res.json({
+      success: true,
+      data: await listRuns(tenantId, Number.isFinite(limit) ? limit : 50),
+    });
   } catch (err) {
     logger.error({ err: String(err), tenantId }, '[runRoutes] 列表失败');
     sendProblem(res, 500, 'RUN_LIST_FAILED', 'Internal Server Error', {
@@ -39,7 +42,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const tenantId = req.tenantId;
   if (!UUID_RE.test(req.params.id)) {
     sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
     return;
@@ -63,7 +67,8 @@ router.post(
   '/',
   validate(backtestRunBodySchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    const tenantId = req.tenantId as string;
+    if (!hasTenant(req)) return;
+    const tenantId = req.tenantId;
     try {
       const created = await createRun(tenantId, ownerOf(req), req.body as BacktestRunBody);
       res.status(201).json({ success: true, data: created });
@@ -77,7 +82,8 @@ router.post(
 );
 
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const tenantId = req.tenantId;
   if (!UUID_RE.test(req.params.id)) {
     sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
     return;

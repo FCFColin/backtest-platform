@@ -21,7 +21,6 @@ import {
   BacktestCompletedHandler,
   RebalanceTriggeredHandler,
 } from './domain/events/index.js';
-import type { DomainLogger } from './domain/logger.js';
 import type { Server } from 'http';
 
 // 启动时校验必需配置（生产环境下 ADMIN_API_KEY 必需）
@@ -47,12 +46,6 @@ const server = app.listen(PORT, async () => {
 
   // 注册领域事件处理器（Task 10.2）
   // OutboxPublisher.routeEvent 通过 eventDispatcher.dispatch 路由 outbox 事件到处理器
-  const domainLogger: DomainLogger = {
-    info: (msg, ...args) => logger.info(args[0] as Record<string, unknown> | undefined, msg),
-    error: (msg, ...args) => logger.error(args[0] as Record<string, unknown> | undefined, msg),
-    warn: (msg, ...args) => logger.warn(args[0] as Record<string, unknown> | undefined, msg),
-  };
-  eventDispatcher.setLogger(domainLogger);
   eventDispatcher.register(new BacktestCompletedHandler());
   eventDispatcher.register(new RebalanceTriggeredHandler());
 

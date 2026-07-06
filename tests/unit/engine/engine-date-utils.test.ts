@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { filterDates, getDateLimits } from '../../../api/utils/dateUtils.js';
+import { filterDates, getDateLimits } from '../../../packages/backend/src/utils/dateUtils.js';
 
 describe('filterDates', () => {
   it('应过滤出指定范围内的日期', () => {

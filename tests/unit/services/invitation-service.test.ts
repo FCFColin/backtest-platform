@@ -20,18 +20,18 @@ const dbMocks = vi.hoisted(() => ({
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: () => ({ query: dbMocks.query, connect: () => Promise.resolve(dbMocks.client) }),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import {
   createInvitation,
   listInvitations,
   revokeInvitation,
   acceptInvitation,
-} from '../../../api/services/invitationService.js';
+} from '../../../packages/backend/src/services/invitationService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const INV_ID = '22222222-2222-2222-2222-222222222222';

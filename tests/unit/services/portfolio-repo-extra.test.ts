@@ -10,7 +10,7 @@ const dbMocks = vi.hoisted(() => ({
   withTenant: vi.fn(),
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   withTenant: (tenantId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) => {
     dbMocks.withTenant(tenantId);
     return fn({ query: dbMocks.query });
@@ -21,7 +21,7 @@ import {
   listPortfolios,
   createPortfolio,
   updatePortfolio,
-} from '../../../api/services/portfolioRepo.js';
+} from '../../../packages/backend/src/services/portfolioRepo.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const PORTFOLIO_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -60,7 +60,8 @@ describe('portfolioRepo 空数据库', () => {
 
   it('getPortfolio 不存在应返回 null', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    const { getPortfolio } = await import('../../../api/services/portfolioRepo.js');
+    const { getPortfolio } =
+      await import('../../../packages/backend/src/services/portfolioRepo.js');
     expect(await getPortfolio(TENANT, PORTFOLIO_ID)).toBeNull();
   });
 });

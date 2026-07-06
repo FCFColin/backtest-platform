@@ -3,7 +3,7 @@ import {
   historyQuerySchema,
   searchQuerySchema,
   cpiQuerySchema,
-} from '../../../api/schemas/data.js';
+} from '../../../packages/backend/src/schemas/data.js';
 
 describe('historyQuerySchema', () => {
   it('应接受合法查询', () => {

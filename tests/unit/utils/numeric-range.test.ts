@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { numericRange } from '../../../api/utils/numericRange.js';
+import { numericRange } from '../../../packages/backend/src/utils/numericRange.js';
 
 describe('numericRange', () => {
   it('应生成递增等差序列', () => {

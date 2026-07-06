@@ -44,28 +44,30 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
   runPortfolioBacktest: portfolioMocks.runPortfolioBacktest,
 }));
 
-vi.mock('../../../api/queues/backtestQueue.js', () => ({
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   backtestQueue: {
     add: queueMocks.add,
   },
 }));
 
-vi.mock('../../../api/utils/timeout.js', () => ({
+vi.mock('../../../packages/backend/src/utils/timeout.js', () => ({
   withTimeout: timeoutMocks.withTimeout,
   TimeoutError: timeoutMocks.TimeoutError,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import backtestOptimizerRoutes from '../../../api/routes/backtestOptimizerRoutes.js';
+import backtestOptimizerRoutes from '../../../packages/backend/src/routes/backtestOptimizerRoutes.js';
 
 function createValidRequest() {
   return {

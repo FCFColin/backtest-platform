@@ -38,7 +38,7 @@ const { Pool } = pg;
 // 使用 import.meta.url + 逐级上溯定位项目根，兼容 npm run dev 和 npm run build。
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const MIGRATIONS_DIR = path.resolve(__dirname, '../../../../migrations');
+const MIGRATIONS_DIR = path.resolve(__dirname, '../../migrations');
 
 // ---------------------------------------------------------------------------
 // 连接池配置

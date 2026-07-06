@@ -18,7 +18,7 @@ import type {
   SignalAnalysisRequest,
   DualSignalConfig,
   MultiSignalConfig,
-} from '@backtest/shared/types/signal.js';
+} from '@backtest/shared/types/signal';
 
 const router = Router();
 

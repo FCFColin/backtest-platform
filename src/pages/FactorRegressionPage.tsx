@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Plus, X } from 'lucide-react';
 import { CHART_COLORS } from '../../shared/types';
+import { fmtPct, fmtNum } from '@/utils/format';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import LoadingButton from '../components/LoadingButton';
 import { useToastStore } from '@/store/toastStore';
@@ -63,14 +64,6 @@ function generateMockRegression(
     rSquared: 0.6 + pseudoRandom(5) * 0.3,
     residuals,
   };
-}
-
-function fmtPct(v: number): string {
-  return `${(v * 100).toFixed(2)}%`;
-}
-
-function fmtNum(v: number): string {
-  return v.toFixed(3);
 }
 
 /** 因子选择器 */
@@ -347,7 +340,7 @@ function RegressionResultTable({ result, selectedFactors }: RegressionResultProp
             <RegressionRow
               label="Beta (MKT-RF)"
               color={CHART_COLORS[1]}
-              value={fmtNum(result.beta)}
+              value={fmtNum(result.beta, 3)}
               valueStyle={{ color: 'var(--text-strong)' }}
               desc="市场敏感度，1.0 表示与市场同步波动"
               bg="var(--bg-subtle)"
@@ -356,7 +349,7 @@ function RegressionResultTable({ result, selectedFactors }: RegressionResultProp
               <RegressionRow
                 label="SMB"
                 color={CHART_COLORS[2]}
-                value={fmtNum(result.smb)}
+                value={fmtNum(result.smb, 3)}
                 valueStyle={{ color: 'var(--text-strong)' }}
                 desc="规模因子载荷，正值偏向小盘股"
                 bg="transparent"
@@ -366,7 +359,7 @@ function RegressionResultTable({ result, selectedFactors }: RegressionResultProp
               <RegressionRow
                 label="HML"
                 color={CHART_COLORS[3]}
-                value={fmtNum(result.hml)}
+                value={fmtNum(result.hml, 3)}
                 valueStyle={{ color: 'var(--text-strong)' }}
                 desc="价值因子载荷，正值偏向价值股"
                 bg="var(--bg-subtle)"
@@ -375,7 +368,7 @@ function RegressionResultTable({ result, selectedFactors }: RegressionResultProp
             <RegressionRow
               label="R²"
               color="transparent"
-              value={fmtNum(result.rSquared)}
+              value={fmtNum(result.rSquared, 3)}
               valueStyle={{ color: 'var(--text-strong)' }}
               desc="模型解释力，越接近1说明因子对收益的解释越充分"
               bg={selectedFactors.includes('hml') ? 'transparent' : 'var(--bg-subtle)'}

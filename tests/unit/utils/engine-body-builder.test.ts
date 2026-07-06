@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildEnginePortfolioBody,
   buildEngineParams,
-} from '../../../api/utils/engineBodyBuilder.js';
+} from '../../../packages/backend/src/utils/engineBodyBuilder.js';
 import type { Portfolio, BacktestParameters } from '../../../shared/types.js';
 
 function makeBasePortfolio(overrides: Partial<Portfolio> = {}): Portfolio {

@@ -37,22 +37,22 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
   runPortfolioBacktest: portfolioMocks.runPortfolioBacktest,
 }));
 
-vi.mock('../../../api/engine/tactical.js', () => ({
+vi.mock('../../../packages/backend/src/engine/tactical.js', () => ({
   collectTickers: tacticalMocks.collectTickers,
   runTacticalBacktest: tacticalMocks.runTacticalBacktest,
   computeSimpleStatistics: tacticalMocks.computeSimpleStatistics,
   analyzeWhatIf: tacticalMocks.analyzeWhatIf,
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
     ADMIN_API_KEY: '',
@@ -60,9 +60,11 @@ vi.mock('../../../api/config/index.js', () => ({
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import tacticalRoutes from '../../../api/routes/tacticalRoutes.js';
+import tacticalRoutes from '../../../packages/backend/src/routes/tacticalRoutes.js';
 
 function createValidStrategy() {
   return {

@@ -16,8 +16,16 @@ export default function OrgMembersPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<(typeof ROLES)[number]>('analyst');
   const {
-    members, invitations, loading, error, busy, load,
-    changeRole, removeMember, sendInvite, revokeInvite,
+    members,
+    invitations,
+    loading,
+    error,
+    busy,
+    load,
+    changeRole,
+    removeMember,
+    sendInvite,
+    revokeInvite,
   } = useOrgMembers(isAdmin);
 
   useEffect(() => {
@@ -35,7 +43,16 @@ export default function OrgMembersPage() {
     return (
       <div className="bt-page" style={{ maxWidth: 860, margin: '0 auto' }}>
         <div className="bt-main-card card" style={{ padding: 24, marginTop: 28 }}>
-          <div style={{ fontSize: 13, color: 'var(--danger, #dc2626)', padding: '8px 10px', background: 'var(--danger-soft, #fef2f2)', borderRadius: 8, marginBottom: 14 }}>
+          <div
+            style={{
+              fontSize: 13,
+              color: 'var(--danger, #dc2626)',
+              padding: '8px 10px',
+              background: 'var(--danger-soft, #fef2f2)',
+              borderRadius: 8,
+              marginBottom: 14,
+            }}
+          >
             {error}
           </div>
         </div>
@@ -46,8 +63,14 @@ export default function OrgMembersPage() {
   if (loading) {
     return (
       <div className="bt-page" style={{ maxWidth: 860, margin: '0 auto' }}>
-        <div className="bt-main-card card" style={{ padding: 24, marginTop: 28, textAlign: 'center' }}>
-          <Loader2 className="w-5 h-5 animate-spin" style={{ margin: '0 auto', color: 'var(--text-muted)' }} />
+        <div
+          className="bt-main-card card"
+          style={{ padding: 24, marginTop: 28, textAlign: 'center' }}
+        >
+          <Loader2
+            className="w-5 h-5 animate-spin"
+            style={{ margin: '0 auto', color: 'var(--text-muted)' }}
+          />
         </div>
       </div>
     );
@@ -66,14 +89,21 @@ export default function OrgMembersPage() {
           {org ? `组织：${org.name}` : '当前组织'}
         </p>
         <MembersTable
-          members={members} isAdmin={isAdmin} busy={busy}
-          onChangeRole={changeRole} onRemoveMember={removeMember}
+          members={members}
+          isAdmin={isAdmin}
+          busy={busy}
+          onChangeRole={changeRole}
+          onRemoveMember={removeMember}
         />
         {isAdmin && (
           <InviteSection
-            invitations={invitations} inviteEmail={inviteEmail} inviteRole={inviteRole}
-            busy={busy} onInviteEmailChange={setInviteEmail}
-            onInviteRoleChange={setInviteRole} onSendInvite={handleSubmitInvite}
+            invitations={invitations}
+            inviteEmail={inviteEmail}
+            inviteRole={inviteRole}
+            busy={busy}
+            onInviteEmailChange={setInviteEmail}
+            onInviteRoleChange={setInviteRole}
+            onSendInvite={handleSubmitInvite}
             onRevokeInvite={revokeInvite}
           />
         )}

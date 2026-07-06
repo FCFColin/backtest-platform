@@ -65,7 +65,8 @@ describe('strategies config loader', () => {
   });
 
   it('loadStrategiesConfig 应解析 JSON 并返回配置', async () => {
-    const { loadStrategiesConfig } = await import('../../../api/config/strategies/index.js');
+    const { loadStrategiesConfig } =
+      await import('../../../packages/backend/src/config/strategies/index.js');
     const config = loadStrategiesConfig();
     expect(config.strategies).toHaveLength(2);
     expect(config.strategies[0].id).toBe('momentum');
@@ -74,7 +75,8 @@ describe('strategies config loader', () => {
   });
 
   it('loadStrategiesConfig 第二次调用应使用缓存', async () => {
-    const { loadStrategiesConfig } = await import('../../../api/config/strategies/index.js');
+    const { loadStrategiesConfig } =
+      await import('../../../packages/backend/src/config/strategies/index.js');
     const config1 = loadStrategiesConfig();
     fsMocks.readFileSync.mockReturnValue(JSON.stringify({ strategies: [{ id: 'new' }] }));
     const config2 = loadStrategiesConfig();
@@ -84,7 +86,8 @@ describe('strategies config loader', () => {
   });
 
   it('getStrategyById 应返回匹配的策略', async () => {
-    const { getStrategyById } = await import('../../../api/config/strategies/index.js');
+    const { getStrategyById } =
+      await import('../../../packages/backend/src/config/strategies/index.js');
     const s = getStrategyById('equal-weight');
     expect(s).toBeDefined();
     expect(s!.name).toBe('等权重策略');
@@ -92,13 +95,15 @@ describe('strategies config loader', () => {
   });
 
   it('getStrategyById 不存在的 ID 应返回 undefined', async () => {
-    const { getStrategyById } = await import('../../../api/config/strategies/index.js');
+    const { getStrategyById } =
+      await import('../../../packages/backend/src/config/strategies/index.js');
     const s = getStrategyById('nonexistent');
     expect(s).toBeUndefined();
   });
 
   it('getAllStrategies 应返回全部策略数组', async () => {
-    const { getAllStrategies } = await import('../../../api/config/strategies/index.js');
+    const { getAllStrategies } =
+      await import('../../../packages/backend/src/config/strategies/index.js');
     const all = getAllStrategies();
     expect(all).toHaveLength(2);
     expect(all[0].id).toBe('momentum');
@@ -107,7 +112,7 @@ describe('strategies config loader', () => {
 
   it('getAllStrategies 也应使用缓存', async () => {
     const { loadStrategiesConfig, getAllStrategies } =
-      await import('../../../api/config/strategies/index.js');
+      await import('../../../packages/backend/src/config/strategies/index.js');
     loadStrategiesConfig();
     fsMocks.readFileSync.mockReturnValue(JSON.stringify({ strategies: [{ id: 'new' }] }));
     const all = getAllStrategies();

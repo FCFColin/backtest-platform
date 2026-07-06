@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { Ticker } from '../../../api/domain/value-objects/ticker.js';
+import { Ticker } from '../../../packages/backend/src/domain/value-objects/ticker.js';
 
 describe('Ticker.create', () => {
   describe('合法 ticker', () => {

@@ -34,21 +34,23 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/engine/seriesUtils.js', () => ({
+vi.mock('../../../packages/backend/src/engine/seriesUtils.js', () => ({
   toSortedSeries: seriesUtilsMocks.toSortedSeries,
 }));
 
-vi.mock('../../../api/engine/letf.js', () => ({
+vi.mock('../../../packages/backend/src/engine/letf.js', () => ({
   analyzeLetfSlippage: engineMocks.analyzeLetfSlippage,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import letfRoutes from '../../../api/routes/letfRoutes.js';
+import letfRoutes from '../../../packages/backend/src/routes/letfRoutes.js';
 
 function createValidRequest() {
   return {

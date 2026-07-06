@@ -30,17 +30,19 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/engine/goalOptimizer.js', () => ({
+vi.mock('../../../packages/backend/src/engine/goalOptimizer.js', () => ({
   optimizeGoals: engineMocks.optimizeGoals,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import goalOptimizerRoutes from '../../../api/routes/goalOptimizerRoutes.js';
+import goalOptimizerRoutes from '../../../packages/backend/src/routes/goalOptimizerRoutes.js';
 
 function createValidRequest() {
   return {

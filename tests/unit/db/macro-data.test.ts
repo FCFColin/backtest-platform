@@ -18,11 +18,13 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getReadPool: dbMocks.getReadPool,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
 function createMockPool() {
   return {
@@ -30,7 +32,7 @@ function createMockPool() {
   } as unknown as { query: ReturnType<typeof vi.fn> };
 }
 
-type MacroDataModule = typeof import('../../../api/db/macroData.js');
+type MacroDataModule = typeof import('../../../packages/backend/src/db/macroData.js');
 
 describe('loadCpiSeriesFromDb', () => {
   let macroData: MacroDataModule;
@@ -41,7 +43,7 @@ describe('loadCpiSeriesFromDb', () => {
     vi.resetModules();
     mockPool = createMockPool();
     dbMocks.getReadPool.mockReturnValue(mockPool);
-    macroData = await import('../../../api/db/macroData.js');
+    macroData = await import('../../../packages/backend/src/db/macroData.js');
   });
 
   it('should load CPI series for US from postgres', async () => {
@@ -88,7 +90,7 @@ describe('loadCpiMapFromDb', () => {
     vi.resetModules();
     mockPool = createMockPool();
     dbMocks.getReadPool.mockReturnValue(mockPool);
-    macroData = await import('../../../api/db/macroData.js');
+    macroData = await import('../../../packages/backend/src/db/macroData.js');
   });
 
   it('should build date->value map from CPI series', async () => {
@@ -129,7 +131,7 @@ describe('loadExchangeRatesFromDb', () => {
     vi.resetModules();
     mockPool = createMockPool();
     dbMocks.getReadPool.mockReturnValue(mockPool);
-    macroData = await import('../../../api/db/macroData.js');
+    macroData = await import('../../../packages/backend/src/db/macroData.js');
   });
 
   it('should build date->rate map with default USD/CNY', async () => {

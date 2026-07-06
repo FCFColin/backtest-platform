@@ -96,27 +96,15 @@ export async function createInvitation(
  * 列出组织的邀请（含已接受/待处理）。
  *
  * @param orgId - 组织 UUID
- * @param limit - 返回条数上限（默认 100，最大 1000）
- * @param offset - 偏移量（默认 0）
  */
-export async function listInvitations(
-  orgId: string,
-  limit = 100,
-  offset = 0,
-): Promise<{ rows: InvitationRecord[]; total: number }> {
-  const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 1000);
-  const safeOffset = Math.max(0, Math.trunc(offset));
+export async function listInvitations(orgId: string): Promise<InvitationRecord[]> {
   const pool = getPool();
-  const [{ rows }, { rows: countRows }] = await Promise.all([
-    pool.query(
-      `SELECT id, org_id, email, role, invited_by, expires_at, accepted_at, created_at
-         FROM invitations WHERE org_id = $1 ORDER BY created_at DESC
-        LIMIT $2 OFFSET $3`,
-      [orgId, safeLimit, safeOffset],
-    ),
-    pool.query(`SELECT COUNT(*)::int AS total FROM invitations WHERE org_id = $1`, [orgId]),
-  ]);
-  return { rows: rows.map(mapRow), total: countRows[0].total };
+  const { rows } = await pool.query(
+    `SELECT id, org_id, email, role, invited_by, expires_at, accepted_at, created_at
+       FROM invitations WHERE org_id = $1 ORDER BY created_at DESC`,
+    [orgId],
+  );
+  return rows.map(mapRow);
 }
 
 /**

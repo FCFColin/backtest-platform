@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { sendProblem } from '../../../api/utils/errors.js';
+import { sendProblem } from '../../../packages/backend/src/utils/errors.js';
 
 function createMockRes(path?: string) {
   return {

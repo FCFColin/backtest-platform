@@ -16,11 +16,11 @@ const dbMocks = vi.hoisted(() => ({
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import {
   orgRoleToGlobalRole,
@@ -33,7 +33,7 @@ import {
   removeMember,
   getOrg,
   updateOrgName,
-} from '../../../api/services/membershipService.js';
+} from '../../../packages/backend/src/services/membershipService.js';
 
 function row(orgId: string, role: string, status = 'active') {
   return {

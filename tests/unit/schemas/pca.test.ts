@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { pcaAnalyzeSchema } from '../../../api/schemas/pca.js';
+import { pcaAnalyzeSchema } from '../../../packages/backend/src/schemas/pca.js';
 
 function makeValidInput() {
   return {

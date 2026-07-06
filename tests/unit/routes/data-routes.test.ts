@@ -36,12 +36,12 @@ vi.mock('opossum', () => ({
   },
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
   searchTickers: dataServiceMocks.searchTickers,
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
     GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003',
@@ -51,9 +51,9 @@ vi.mock('../../../api/config/index.js', () => ({
 }));
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../api/utils/metrics.js', () => ({
+vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerCircuitBreakerMetrics: vi.fn(),
   recordFallbackToNode: vi.fn(),
 }));
@@ -62,7 +62,7 @@ const macroDataMocks = vi.hoisted(() => ({
   loadCpiSeriesFromDb: vi.fn(),
 }));
 
-vi.mock('../../../api/db/macroData.js', () => macroDataMocks);
+vi.mock('../../../packages/backend/src/db/macroData.js', () => macroDataMocks);
 
 vi.mock('fs', () => ({
   default: {
@@ -73,7 +73,7 @@ vi.mock('fs', () => ({
   readFileSync: fsMocks.readFileSync,
 }));
 
-import dataRoutes from '../../../api/routes/dataRoutes.js';
+import dataRoutes from '../../../packages/backend/src/routes/dataRoutes.js';
 
 /** 创建 fetch mock：仅拦截 Go 服务 URL，其他请求走真实 fetch */
 function installFetchMock() {

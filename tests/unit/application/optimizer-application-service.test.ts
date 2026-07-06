@@ -8,24 +8,24 @@ const mocks = vi.hoisted(() => ({
   numericRange: vi.fn(),
 }));
 
-vi.mock('../../../api/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
   runPortfolioBacktest: mocks.runPortfolioBacktest,
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: mocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../api/utils/numericRange.js', () => ({
+vi.mock('../../../packages/backend/src/utils/numericRange.js', () => ({
   numericRange: mocks.numericRange,
 }));
 
 import {
   executeOptimization,
   MAX_OPTIMIZER_COMBINATIONS,
-} from '../../../api/application/optimizer-application-service.js';
+} from '../../../packages/backend/src/application/optimizer-application-service.js';
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {

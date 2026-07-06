@@ -18,25 +18,19 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/config/index.js', () => ({ config: mocks.config }));
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(createLoggerMocks()) }));
+vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: mocks.config }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(createLoggerMocks()),
+}));
 vi.mock('fs', () => ({
   default: { readFileSync: mocks.fs.readFileSync },
   readFileSync: mocks.fs.readFileSync,
 }));
 
-import { generateKeyPair, exportPKCS8, exportSPKI, importJWK, SignJWT, jwtVerify } from 'jose';
+import { generateKeyPair, exportPKCS8, exportSPKI, SignJWT, jwtVerify } from 'jose';
 
 function decodePayload(token: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
-}
-
-function base64urlEncode(input: string): string {
-  return Buffer.from(input, 'utf-8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
 }
 
 describe('jwtSigner', () => {
@@ -53,7 +47,8 @@ describe('jwtSigner', () => {
   describe('generateToken', () => {
     it('should generate a valid 3-part JWT for each role', async () => {
       vi.resetModules();
-      const { generateToken } = await import('../../../api/middleware/jwtSigner.js');
+      const { generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       for (const role of ['admin', 'analyst', 'readonly'] as const) {
         const token = await generateToken('user-1', role);
@@ -65,7 +60,8 @@ describe('jwtSigner', () => {
 
     it('should embed correct sub and role in payload', async () => {
       vi.resetModules();
-      const { generateToken } = await import('../../../api/middleware/jwtSigner.js');
+      const { generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('user-42', 'admin');
       const payload = decodePayload(token);
@@ -75,7 +71,8 @@ describe('jwtSigner', () => {
 
     it('should set iat and exp timestamps', async () => {
       vi.resetModules();
-      const { generateToken } = await import('../../../api/middleware/jwtSigner.js');
+      const { generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const before = Math.floor(Date.now() / 1000);
       const token = await generateToken('user-1', 'analyst');
@@ -89,7 +86,8 @@ describe('jwtSigner', () => {
 
     it('should embed tenant context when provided', async () => {
       vi.resetModules();
-      const { generateToken } = await import('../../../api/middleware/jwtSigner.js');
+      const { generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('user-1', 'admin', {
         tenantId: 'org-123',
@@ -104,7 +102,8 @@ describe('jwtSigner', () => {
 
     it('should omit tenant fields when no tenant context given', async () => {
       vi.resetModules();
-      const { generateToken } = await import('../../../api/middleware/jwtSigner.js');
+      const { generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('user-1', 'readonly');
       const payload = decodePayload(token);
@@ -115,7 +114,8 @@ describe('jwtSigner', () => {
 
     it('should embed only tenantId when orgRole alone is missing', async () => {
       vi.resetModules();
-      const { generateToken } = await import('../../../api/middleware/jwtSigner.js');
+      const { generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('user-1', 'admin', { tenantId: 'org-456' });
       const payload = decodePayload(token);
@@ -127,7 +127,7 @@ describe('jwtSigner', () => {
     it('should produce tokens verifiable with RS256 public key', async () => {
       vi.resetModules();
       const { generateToken, getOrCachePublicKey } =
-        await import('../../../api/middleware/jwtSigner.js');
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('verify-me', 'analyst');
       const publicKey = await getOrCachePublicKey();
@@ -140,7 +140,7 @@ describe('jwtSigner', () => {
       mocks.config.JWT_ALGORITHM = 'HS256';
       vi.resetModules();
       const { generateToken, getOrCacheHS256Key } =
-        await import('../../../api/middleware/jwtSigner.js');
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('hs256-user', 'admin');
       const key = await getOrCacheHS256Key();
@@ -151,7 +151,8 @@ describe('jwtSigner', () => {
 
     it('should handle long userId strings', async () => {
       vi.resetModules();
-      const { generateToken } = await import('../../../api/middleware/jwtSigner.js');
+      const { generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const longId = 'a'.repeat(200);
       const token = await generateToken(longId, 'readonly');
@@ -171,7 +172,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       const key = await getOrCachePrivateKey();
       expect(key).toBeTruthy();
     });
@@ -197,7 +199,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       const key = await getOrCachePrivateKey();
       expect(key).toBeTruthy();
       expect(mocks.fs.readFileSync).toHaveBeenCalledWith('/secrets/private.pem', 'utf-8');
@@ -209,7 +212,8 @@ describe('jwtSigner', () => {
       mocks.config.JWT_PRIVATE_KEY_FILE = '';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       const key = await getOrCachePrivateKey();
       expect(key).toBeTruthy();
     });
@@ -220,7 +224,8 @@ describe('jwtSigner', () => {
       mocks.config.JWT_PRIVATE_KEY_FILE = '';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       await expect(getOrCachePrivateKey()).rejects.toThrow(/JWT_PRIVATE_KEY/);
     });
 
@@ -228,7 +233,7 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'development';
 
       vi.resetModules();
-      const jwtSigner = await import('../../../api/middleware/jwtSigner.js');
+      const jwtSigner = await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const first = await jwtSigner.getOrCachePrivateKey();
       const second = await jwtSigner.getOrCachePrivateKey();
@@ -247,7 +252,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePublicKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePublicKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       const key = await getOrCachePublicKey();
       expect(key).toBeTruthy();
     });
@@ -273,7 +279,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePublicKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePublicKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       const key = await getOrCachePublicKey();
       expect(key).toBeTruthy();
       expect(mocks.fs.readFileSync).toHaveBeenCalledWith('/secrets/public.pem', 'utf-8');
@@ -283,7 +290,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'development';
 
       vi.resetModules();
-      const { getOrCachePublicKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePublicKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       const key = await getOrCachePublicKey();
       expect(key).toBeTruthy();
     });
@@ -294,7 +302,8 @@ describe('jwtSigner', () => {
       mocks.config.JWT_PUBLIC_KEY_FILE = '';
 
       vi.resetModules();
-      const { getOrCachePublicKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePublicKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       await expect(getOrCachePublicKey()).rejects.toThrow(/JWT_PUBLIC_KEY/);
     });
 
@@ -302,7 +311,7 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'development';
 
       vi.resetModules();
-      const jwtSigner = await import('../../../api/middleware/jwtSigner.js');
+      const jwtSigner = await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const first = await jwtSigner.getOrCachePublicKey();
       const second = await jwtSigner.getOrCachePublicKey();
@@ -319,8 +328,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePrivateKey, getOrCachePublicKey, generateToken } =
-        await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePublicKey, generateToken } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('roundtrip', 'admin');
       const pubKey = await getOrCachePublicKey();
@@ -335,7 +344,7 @@ describe('jwtSigner', () => {
 
       vi.resetModules();
       const { getOrCacheHS256Key, generateToken } =
-        await import('../../../api/middleware/jwtSigner.js');
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const key = await getOrCacheHS256Key();
       expect(key).toBeTruthy();
@@ -347,7 +356,7 @@ describe('jwtSigner', () => {
 
     it('should cache the HS256 key on repeated calls', async () => {
       vi.resetModules();
-      const jwtSigner = await import('../../../api/middleware/jwtSigner.js');
+      const jwtSigner = await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const first = await jwtSigner.getOrCacheHS256Key();
       const second = await jwtSigner.getOrCacheHS256Key();
@@ -368,7 +377,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       await expect(getOrCachePrivateKey()).rejects.toThrow(/无法读取 PEM 文件/);
     });
 
@@ -380,7 +390,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const readPemFile = mocks.fs.readFileSync as unknown as ReturnType<typeof vi.fn>;
       expect(readPemFile).toHaveBeenCalledTimes(0);
@@ -394,7 +405,7 @@ describe('jwtSigner', () => {
 
       vi.resetModules();
       const { getOrCachePrivateKey, getOrCachePublicKey } =
-        await import('../../../api/middleware/jwtSigner.js');
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const privKey = await getOrCachePrivateKey();
       const pubKey = await getOrCachePublicKey();
@@ -412,7 +423,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'development';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const first = await getOrCachePrivateKey();
       const second = await getOrCachePrivateKey();
@@ -432,7 +444,7 @@ describe('jwtSigner', () => {
 
       vi.resetModules();
       const { generateToken, getOrCachePublicKey } =
-        await import('../../../api/middleware/jwtSigner.js');
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('prod-user', 'analyst');
       const pubKey = await getOrCachePublicKey();
@@ -453,7 +465,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       await expect(getOrCachePrivateKey()).rejects.toThrow(
         /无法读取 PEM 文件.*\/etc\/secrets\/key\.pem/,
       );
@@ -469,7 +482,8 @@ describe('jwtSigner', () => {
       mocks.config.NODE_ENV = 'production';
 
       vi.resetModules();
-      const { getOrCachePrivateKey } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCachePrivateKey } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       await expect(getOrCachePrivateKey()).rejects.toThrow(/无法读取 PEM 文件/);
     });
   });
@@ -477,7 +491,8 @@ describe('jwtSigner', () => {
   describe('HS256 fallback key', () => {
     it('should be importable from JWK using JWT_SECRET', async () => {
       vi.resetModules();
-      const { getOrCacheHS256Key } = await import('../../../api/middleware/jwtSigner.js');
+      const { getOrCacheHS256Key } =
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
       const key = await getOrCacheHS256Key();
       expect(key).toBeTruthy();
     });
@@ -486,7 +501,7 @@ describe('jwtSigner', () => {
       mocks.config.JWT_ALGORITHM = 'HS256';
       vi.resetModules();
       const { generateToken, getOrCacheHS256Key } =
-        await import('../../../api/middleware/jwtSigner.js');
+        await import('../../../packages/backend/src/middleware/jwtSigner.js');
 
       const token = await generateToken('jwk-test', 'readonly');
       const key = await getOrCacheHS256Key();

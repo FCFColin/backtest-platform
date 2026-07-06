@@ -47,25 +47,18 @@ const SELECT_COLS = 'id, name, config, owner_user_id, created_at, updated_at';
  * 列出租户下全部命名配置（按更新时间倒序）。
  *
  * @param tenantId - 活跃组织 UUID
- * @param limit - 返回条数上限（默认 100，最大 1000）
- * @param offset - 偏移量（默认 0）
  */
 export async function listConfigs(
   tenantId: string,
-  limit = 100,
-  offset = 0,
-): Promise<{ rows: SavedConfigRecord[]; total: number }> {
+  limit: number = 50,
+): Promise<SavedConfigRecord[]> {
   return withTenant(tenantId, async (client) => {
-    const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 1000);
-    const safeOffset = Math.max(0, Math.trunc(offset));
-    const [{ rows }, { rows: countRows }] = await Promise.all([
-      client.query(
-        `SELECT ${SELECT_COLS} FROM saved_configs ORDER BY updated_at DESC LIMIT $1 OFFSET $2`,
-        [safeLimit, safeOffset],
-      ),
-      client.query(`SELECT COUNT(*)::int AS total FROM saved_configs`, []),
-    ]);
-    return { rows: rows.map(mapRow), total: countRows[0].total };
+    const capped = Math.min(limit, 200);
+    const { rows } = await client.query(
+      `SELECT ${SELECT_COLS} FROM saved_configs ORDER BY updated_at DESC LIMIT $1`,
+      [capped],
+    );
+    return rows.map(mapRow);
   });
 }
 

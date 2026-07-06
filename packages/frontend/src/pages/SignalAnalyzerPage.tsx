@@ -5,14 +5,23 @@ import { useSignalAnalyzerState } from '../hooks/useSignalAnalyzerState.js';
 
 export default function SignalAnalyzerPage() {
   const {
-    ticker, setTicker,
-    indicator, setIndicator,
-    period, setPeriod,
-    threshold, setThreshold,
-    signalType, setSignalType,
-    startDate, setStartDate,
-    endDate, setEndDate,
-    isLoading, error, results,
+    ticker,
+    setTicker,
+    indicator,
+    setIndicator,
+    period,
+    setPeriod,
+    threshold,
+    setThreshold,
+    signalType,
+    setSignalType,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isLoading,
+    error,
+    results,
     runAnalysis,
   } = useSignalAnalyzerState();
 

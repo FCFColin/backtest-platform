@@ -49,6 +49,12 @@ function StatCard({
   );
 }
 
+function progressColor(pct: number): string {
+  if (pct >= 80) return 'var(--success)';
+  if (pct >= 40) return 'var(--brand)';
+  return 'var(--warning)';
+}
+
 function ProgressBar({ label, current, total }: { label: string; current: number; total: number }) {
   const pctVal = total > 0 ? (current / total) * 100 : 0;
   return (
@@ -68,8 +74,7 @@ function ProgressBar({ label, current, total }: { label: string; current: number
           style={{
             height: '100%',
             width: `${pctVal}%`,
-            background:
-              pctVal >= 80 ? 'var(--success)' : pctVal >= 40 ? 'var(--brand)' : 'var(--warning)',
+            background: progressColor(pctVal),
             borderRadius: 4,
             transition: 'width 0.5s',
           }}

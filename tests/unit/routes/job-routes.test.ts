@@ -12,16 +12,16 @@ const queueMocks = vi.hoisted(() => ({
   getJob: vi.fn(),
 }));
 
-vi.mock('../../../api/queues/backtestQueue.js', () => ({
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   backtestQueue: {
     getJob: queueMocks.getJob,
   },
 }));
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import { jobRoutes } from '../../../api/routes/jobRoutes.js';
+import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
 
 describe('jobRoutes - GET /api/v1/jobs/:id', () => {
   let server: TestServer;

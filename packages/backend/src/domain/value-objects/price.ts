@@ -4,6 +4,7 @@ export class Price {
     public readonly currency: string = 'CNY',
   ) {
     if (value < 0) throw new Error(`Price cannot be negative: ${value}`);
+    if (!Number.isFinite(value)) throw new Error(`Price must be finite: ${value}`);
   }
 
   static create(value: number, currency?: string): Price {

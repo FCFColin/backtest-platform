@@ -27,9 +27,12 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-import { DomainEventDispatcher } from '../../../api/domain/events/EventDispatcher.js';
-import type { DomainEvent, EventHandler } from '../../../api/domain/events/EventDispatcher.js';
-import type { DomainLogger } from '../../../api/domain/logger.js';
+import { DomainEventDispatcher } from '../../../packages/backend/src/domain/events/EventDispatcher.js';
+import type {
+  DomainEvent,
+  EventHandler,
+} from '../../../packages/backend/src/domain/events/EventDispatcher.js';
+import type { DomainLogger } from '../../../packages/backend/src/domain/logger.js';
 
 /** 构造测试用领域事件 */
 function createEvent(eventType: string, aggregateId = 'portfolio-1'): DomainEvent {

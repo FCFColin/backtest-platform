@@ -4,9 +4,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../api/engine/tactical.js', () => ({
+vi.mock('../../../packages/backend/src/engine/tactical.js', () => ({
   collectTickers: vi.fn(() => ['SPY']),
   runTacticalBacktest: vi.fn(() => ({
     result: {
@@ -24,7 +24,7 @@ vi.mock('../../../api/engine/tactical.js', () => ({
   analyzeWhatIf: vi.fn(() => []),
 }));
 
-vi.mock('../../../api/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
   runPortfolioBacktest: vi.fn(() => ({
     portfolios: [
       {
@@ -44,8 +44,8 @@ import {
   executeTacticalBacktest,
   executeTacticalWhatIf,
   saveTacticalAlertConfig,
-} from '../../../api/application/tactical-application-service.js';
-import { runPortfolioBacktest } from '../../../api/engine/portfolio.js';
+} from '../../../packages/backend/src/application/tactical-application-service.js';
+import { runPortfolioBacktest } from '../../../packages/backend/src/engine/portfolio.js';
 import type { TacticalStrategy } from '../../../shared/types/tactical.js';
 
 const strategy = {

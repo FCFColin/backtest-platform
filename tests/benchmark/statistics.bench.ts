@@ -13,7 +13,7 @@ import {
   calcSharpe,
   calcMaxDrawdown,
   calcDailyReturns,
-} from '../../api/engine/statistics.js';
+} from '../../packages/backend/src/engine/statistics.js';
 
 // 企业理由：使用确定性随机数生成测试数据，确保基准测试可重现。
 // 权衡：确定性数据不代表真实市场分布，但基准测试关注的是计算性能而非统计准确性。

@@ -8,10 +8,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Response } from 'express';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import { resolveTenant, requireTenant } from '../../../api/middleware/tenantContext.js';
-import type { AuthenticatedRequest } from '../../../api/middleware/jwtAuth.js';
+import {
+  resolveTenant,
+  requireTenant,
+} from '../../../packages/backend/src/middleware/tenantContext.js';
+import type { AuthenticatedRequest } from '../../../packages/backend/src/middleware/jwtAuth.js';
 
 const VALID_UUID = '11111111-1111-4111-8111-111111111111';
 

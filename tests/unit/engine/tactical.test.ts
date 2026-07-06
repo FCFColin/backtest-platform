@@ -21,7 +21,7 @@ import {
   runTacticalBacktest,
   computeSimpleStatistics,
   analyzeWhatIf,
-} from '../../../api/engine/tactical.js';
+} from '../../../packages/backend/src/engine/tactical.js';
 import type { TacticalStrategy } from '../../../shared/types/tactical.js';
 
 // 构造上涨价格序列

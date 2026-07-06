@@ -17,13 +17,9 @@ import type {
   SignalCondition,
   TechnicalIndicator,
   WhatIfResult,
-} from '@backtest/shared/types/tactical.js';
-import type {
-  RebalanceFrequency,
-  PortfolioResult,
-  Statistics,
-} from '@backtest/shared/types/index.js';
-import { createEmptyStatistics } from '@backtest/shared/types/index.js';
+} from '@backtest/shared/types/tactical';
+import type { RebalanceFrequency, PortfolioResult, Statistics } from '@backtest/shared/types/index';
+import { createEmptyStatistics } from '@backtest/shared/types/index';
 import {
   calcSMA,
   calcEMA,
@@ -34,7 +30,7 @@ import {
 } from '../services/indicatorService.js';
 import { shouldRebalance } from './rebalance.js';
 import { calcMaxDrawdown as calcMaxDrawdownStats, calcCalmar } from './statistics.js';
-import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
+import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 
 // ===== 类型定义 =====
 
@@ -156,7 +152,7 @@ export function normalizeWeights(
   if (total <= 0) {
     return tickers.map((t) => ({ ticker: t, weight: 1 / tickers.length }));
   }
-  return tickers.map((t) => ({ ticker: t, weight: (map.get(t) as number) / total }));
+  return tickers.map((t) => ({ ticker: t, weight: (map.get(t) ?? 0) / total }));
 }
 
 /**
@@ -174,12 +170,12 @@ function aggregateWeightedAverage(
   for (const t of allTickers) acc.set(t, 0);
   for (const sig of activeSignals) {
     const norm = normalizeWeights(sig.targetWeights, allTickers);
-    for (const w of norm) acc.set(w.ticker, (acc.get(w.ticker) as number) + w.weight);
+    for (const w of norm) acc.set(w.ticker, (acc.get(w.ticker) ?? 0) + w.weight);
   }
   let total = 0;
   for (const v of acc.values()) total += v;
   return total > 0
-    ? allTickers.map((t) => ({ ticker: t, weight: (acc.get(t) as number) / total }))
+    ? allTickers.map((t) => ({ ticker: t, weight: (acc.get(t) ?? 0) / total }))
     : allTickers.map((t) => ({ ticker: t, weight: 1 / allTickers.length }));
 }
 
@@ -195,10 +191,10 @@ function aggregateRank(
   for (const t of allTickers) score.set(t, 0);
   for (const sig of activeSignals) {
     const norm = normalizeWeights(sig.targetWeights, allTickers);
-    for (const w of norm) score.set(w.ticker, (score.get(w.ticker) as number) + w.weight);
+    for (const w of norm) score.set(w.ticker, (score.get(w.ticker) ?? 0) + w.weight);
   }
   const ranked = allTickers
-    .map((t) => ({ ticker: t, score: score.get(t) as number }))
+    .map((t) => ({ ticker: t, score: score.get(t) ?? 0 }))
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
   if (method === 'risk_parity') {

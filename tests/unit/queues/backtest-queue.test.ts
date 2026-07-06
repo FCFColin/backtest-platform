@@ -40,9 +40,11 @@ const WorkerMock = vi.hoisted(() => vi.fn(() => workerInstanceMocks));
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),
 }));
 
@@ -51,7 +53,10 @@ vi.mock('bullmq', () => ({
   Worker: WorkerMock,
 }));
 
-import { backtestQueue, createBacktestWorker } from '../../../api/queues/backtestQueue.js';
+import {
+  backtestQueue,
+  createBacktestWorker,
+} from '../../../packages/backend/src/queues/backtestQueue.js';
 
 describe('backtestQueue', () => {
   it('应导出 Queue 实例', () => {

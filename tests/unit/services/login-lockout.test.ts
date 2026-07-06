@@ -25,13 +25,19 @@ const redisMocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   appRedis: redisMocks,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(redisMocks.loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(redisMocks.loggerMocks),
+}));
 
-import { isLockedOut, recordFailure, clearFailures } from '../../../api/services/loginLockout.js';
+import {
+  isLockedOut,
+  recordFailure,
+  clearFailures,
+} from '../../../packages/backend/src/services/loginLockout.js';
 
 describe('loginLockout', () => {
   beforeEach(() => {

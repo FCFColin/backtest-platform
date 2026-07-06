@@ -393,7 +393,6 @@ func generatePath(
 	maxBlockDays := mcParams.MaxBlockYears * mcTradingDays
 	n := len(historicalReturns)
 
-	// 企业理由：块长度不能超过历史数据长度
 	if minBlockDays > n {
 		minBlockDays = n
 	}
@@ -401,40 +400,8 @@ func generatePath(
 		maxBlockDays = n
 	}
 
-	// 企业理由：通过块自助法采样日收益率序列
-	simReturns := make([]float64, 0, totalDays)
-	for len(simReturns) < totalDays {
-		// 随机选择块长度（在 minBlockDays 和 maxBlockDays 之间）
-		blockLen := minBlockDays
-		if maxBlockDays > minBlockDays {
-			blockLen = minBlockDays + rng.Intn(maxBlockDays-minBlockDays+1)
-		}
-
-		// 随机选择起始位置
-		startPos := rng.Intn(n)
-
-		// 企业理由：截断到边界，不环绕（no wrap-around）
-		// 环绕会破坏时间序列的连续性，引入虚假的结构
-		end := startPos + blockLen
-		if end > n {
-			end = n
-		}
-
-		simReturns = append(simReturns, historicalReturns[startPos:end]...)
-	}
-
-	// 截断到目标长度
-	simReturns = simReturns[:totalDays]
-
-	// 将日收益率转换为价值路径
-	path[0] = startingValue
-	for i := 1; i < totalDays; i++ {
-		path[i] = path[i-1] * (1.0 + simReturns[i-1])
-		// 企业理由：价值不可能为负，设置下限为 0
-		if path[i] < 0 {
-			path[i] = 0
-		}
-	}
+	simReturns := blockBootstrapSample(historicalReturns, totalDays, minBlockDays, maxBlockDays, rng)
+	returnsToPath(path, simReturns, startingValue)
 }
 
 // computePercentiles 计算各百分位路径
@@ -631,64 +598,63 @@ func computePerPathMetrics(paths [][]float64, startingValue float64, numYears in
 	years := float64(numYears)
 
 	for i, path := range paths {
-		finalValue := path[len(path)-1]
-
-		// CAGR
-		cagr := 0.0
-		if startingValue > 0 && years > 0 && finalValue > 0 {
-			cagr = math.Pow(finalValue/startingValue, 1.0/years) - 1
-		}
-
-		// 日收益率序列
-		pathLen := len(path)
-		dailyRets := make([]float64, pathLen-1)
-		for j := 1; j < pathLen; j++ {
-			if path[j-1] > 0 {
-				dailyRets[j-1] = (path[j] - path[j-1]) / path[j-1]
-			}
-		}
-
-		// 最大回撤
-		maxDD := 0.0
-		peak := path[0]
-		for _, v := range path {
-			if v > peak {
-				peak = v
-			}
-			if peak > 0 {
-				dd := (peak - v) / peak
-				if dd > maxDD {
-					maxDD = dd
-				}
-			}
-		}
-
-		// 年化波动率
-		vol := 0.0
-		if len(dailyRets) > 1 {
-			vol = mcStdDev(dailyRets) * math.Sqrt(float64(mcTradingDays))
-		}
-
-		// 夏普比率
-		sharpe := 0.0
-		if vol > 0 {
-			sharpe = (cagr - mcRiskFreeRate) / vol
-		}
-
-		// 索提诺比率
-		sortino := mcSortino(dailyRets, cagr)
-
-		metrics[i] = PathMetrics{
-			FinalValue:  finalValue,
-			CAGR:        cagr,
-			MaxDrawdown: maxDD,
-			Volatility:  vol,
-			Sharpe:      sharpe,
-			Sortino:     sortino,
-		}
+		metrics[i] = calcPathMetrics(path, startingValue, years)
 	}
 
 	return metrics
+}
+
+// calcPathMetrics 计算单条模拟路径的指标
+func calcPathMetrics(path []float64, startingValue float64, years float64) PathMetrics {
+	finalValue := path[len(path)-1]
+
+	cagr := 0.0
+	if startingValue > 0 && years > 0 && finalValue > 0 {
+		cagr = math.Pow(finalValue/startingValue, 1.0/years) - 1
+	}
+
+	pathLen := len(path)
+	dailyRets := make([]float64, pathLen-1)
+	for j := 1; j < pathLen; j++ {
+		if path[j-1] > 0 {
+			dailyRets[j-1] = (path[j] - path[j-1]) / path[j-1]
+		}
+	}
+
+	maxDD := 0.0
+	peak := path[0]
+	for _, v := range path {
+		if v > peak {
+			peak = v
+		}
+		if peak > 0 {
+			dd := (peak - v) / peak
+			if dd > maxDD {
+				maxDD = dd
+			}
+		}
+	}
+
+	vol := 0.0
+	if len(dailyRets) > 1 {
+		vol = mcStdDev(dailyRets) * math.Sqrt(float64(mcTradingDays))
+	}
+
+	sharpe := 0.0
+	if vol > 0 {
+		sharpe = (cagr - mcRiskFreeRate) / vol
+	}
+
+	sortino := mcSortino(dailyRets, cagr)
+
+	return PathMetrics{
+		FinalValue:  finalValue,
+		CAGR:        cagr,
+		MaxDrawdown: maxDD,
+		Volatility:  vol,
+		Sharpe:      sharpe,
+		Sortino:     sortino,
+	}
 }
 
 // computeMCStatistics 计算蒙特卡洛统计摘要
@@ -764,32 +730,60 @@ func computeRepresentativePaths(paths [][]float64, totalDays int) MCRepresentati
 	p75Idx := int(float64(n) * 0.75)
 	bestIdx := n - 1
 
-	// 降采样到月度（每 21 个交易日取一个点）
-	downsample := func(pathIdx int) []float64 {
-		path := paths[pathIdx]
-		result := make([]float64, 0, len(path)/21+1)
-		for i := 0; i < len(path); i += 21 {
-			result = append(result, path[i])
-		}
-		// 确保包含最后一个点
-		if len(path) > 0 && (len(path)-1)%21 != 0 {
-			result = append(result, path[len(path)-1])
-		}
-		return result
-	}
-
 	return MCRepresentativePaths{
-		Worst:  downsample(sorted[worstIdx].idx),
-		P25:    downsample(sorted[p25Idx].idx),
-		Median: downsample(sorted[medianIdx].idx),
-		P75:    downsample(sorted[p75Idx].idx),
-		Best:   downsample(sorted[bestIdx].idx),
+		Worst:  downsampleMonthly(paths[sorted[worstIdx].idx]),
+		P25:    downsampleMonthly(paths[sorted[p25Idx].idx]),
+		Median: downsampleMonthly(paths[sorted[medianIdx].idx]),
+		P75:    downsampleMonthly(paths[sorted[p75Idx].idx]),
+		Best:   downsampleMonthly(paths[sorted[bestIdx].idx]),
 	}
 }
 
 // ============================================================
 // 辅助函数
 // ============================================================
+
+// downsampleMonthly 将路径降采样到月度（每 21 个交易日取一个点），确保包含最后一个点。
+func downsampleMonthly(path []float64) []float64 {
+	result := make([]float64, 0, len(path)/21+1)
+	for i := 0; i < len(path); i += 21 {
+		result = append(result, path[i])
+	}
+	if len(path) > 0 && (len(path)-1)%21 != 0 {
+		result = append(result, path[len(path)-1])
+	}
+	return result
+}
+
+// blockBootstrapSample 使用块自助法从历史收益率中采样指定天数的收益率序列。
+func blockBootstrapSample(historicalReturns []float64, totalDays int, minBlockDays, maxBlockDays int, rng *rand.Rand) []float64 {
+	n := len(historicalReturns)
+	result := make([]float64, 0, totalDays)
+	for len(result) < totalDays {
+		blockLen := minBlockDays
+		if maxBlockDays > minBlockDays {
+			blockLen = minBlockDays + rng.Intn(maxBlockDays-minBlockDays+1)
+		}
+		startPos := rng.Intn(n)
+		end := startPos + blockLen
+		if end > n {
+			end = n
+		}
+		result = append(result, historicalReturns[startPos:end]...)
+	}
+	return result[:totalDays]
+}
+
+// returnsToPath 将收益率序列转换为价值路径。
+func returnsToPath(path []float64, returns []float64, startingValue float64) {
+	path[0] = startingValue
+	for i := 1; i < len(path); i++ {
+		path[i] = path[i-1] * (1.0 + returns[i-1])
+		if path[i] < 0 {
+			path[i] = 0
+		}
+	}
+}
 
 // parseTradingDates 从价格数据中提取所有交易日并排序
 func parseTradingDates(priceData PriceDataMap) ([]time.Time, error) {

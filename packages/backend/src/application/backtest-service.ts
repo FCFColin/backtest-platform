@@ -9,13 +9,10 @@ import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { eventDispatcher } from '../domain/events/index.js';
 import { getClient } from '../db/index.js';
-// DDD pragmatism: outboxWriter is an infrastructure concern (transactional outbox),
-// imported directly as service. Acceptable for single-event-store setup;
-// refactor to OutboxPort interface when adding alternative event persistence.
 import { writeEventInTransaction } from '../services/outboxWriter.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
-import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared/types.js';
+import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared/types';
 
 /** 回测执行入参 */
 export interface BacktestExecutionParams {

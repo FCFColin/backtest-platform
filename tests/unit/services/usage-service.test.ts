@@ -33,14 +33,19 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   withTenant: (tenantId: string, fn: (c: unknown) => Promise<unknown>) =>
     dbMocks.withTenant(tenantId, fn),
 }));
-vi.mock('../../../api/config/redis.js', () => ({ appRedis: redisMocks }));
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({ appRedis: redisMocks }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import { recordUsage, getMonthlyUsage } from '../../../api/services/usageService.js';
+import {
+  recordUsage,
+  getMonthlyUsage,
+} from '../../../packages/backend/src/services/usageService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 

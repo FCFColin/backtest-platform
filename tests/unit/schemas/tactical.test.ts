@@ -14,7 +14,7 @@ import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,
   tacticalAlertSchema,
-} from '../../../api/schemas/tactical.js';
+} from '../../../packages/backend/src/schemas/tactical.js';
 
 function makeValidCondition() {
   return {

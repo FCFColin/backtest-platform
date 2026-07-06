@@ -16,8 +16,8 @@
  *   - rsi: RSI < threshold 时入场（超卖），RSI > 100-threshold 时离场（超买）
  */
 
-import type { Portfolio, RebalanceFrequency } from '@backtest/shared/types/index.js';
-import type { Statistics } from '@backtest/shared/types/statistics.js';
+import type { Portfolio, RebalanceFrequency } from '@backtest/shared/types/index';
+import type { Statistics } from '@backtest/shared/types/statistics';
 import { numericRange } from '../utils/numericRange.js';
 import { runPortfolioBacktest } from './portfolio.js';
 import { shouldRebalance } from './rebalance.js';

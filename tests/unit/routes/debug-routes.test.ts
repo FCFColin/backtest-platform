@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
-import debugRoutes from '../../../api/routes/debugRoutes.js';
+import debugRoutes from '../../../packages/backend/src/routes/debugRoutes.js';
 
 describe('debugRoutes - GET /api/v1/debug/health', () => {
   let server: TestServer;

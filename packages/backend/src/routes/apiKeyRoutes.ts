@@ -16,6 +16,7 @@ import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { hasTenant } from '../middleware/tenantContext.js';
 import { createApiKey, listApiKeys, revokeApiKey } from '../services/apiKeyService.js';
 
 const router = Router();
@@ -32,7 +33,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * 为当前组织创建一把新的 API Key，明文仅此响应返回一次。
  */
 router.post('/', validate(createKeySchema), async (req: AuthenticatedRequest, res: Response) => {
-  const orgId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const orgId = req.tenantId;
   const createdBy = req.user?.sub?.startsWith('apikey:') ? null : (req.user?.sub ?? null);
   try {
     const key = await createApiKey(orgId, (req.body as { name: string }).name, createdBy);
@@ -60,12 +62,11 @@ router.post('/', validate(createKeySchema), async (req: AuthenticatedRequest, re
  * 列出当前组织的全部 API Key（不含明文/哈希）。
  */
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  const orgId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const orgId = req.tenantId;
   try {
-    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 100), 1000);
-    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
-    const { rows, total } = await listApiKeys(orgId, limit, offset);
-    res.json({ success: true, data: rows, pagination: { total, limit, offset } });
+    const keys = await listApiKeys(orgId);
+    res.json({ success: true, data: keys });
   } catch (err) {
     logger.error({ err: String(err), orgId }, '[apiKeyRoutes] 列出 API Key 失败');
     sendProblem(res, 500, 'API_KEY_LIST_FAILED', 'Internal Server Error', {
@@ -79,7 +80,8 @@ router.get('/', async (req: AuthenticatedRequest, res: Response) => {
  * 吊销当前组织下的某把 API Key。
  */
 router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  const orgId = req.tenantId as string;
+  if (!hasTenant(req)) return;
+  const orgId = req.tenantId;
   const keyId = req.params.id;
   if (!UUID_RE.test(keyId)) {
     sendProblem(res, 400, 'INVALID_KEY_ID', 'Bad Request', { detail: 'API Key ID 必须为 UUID' });

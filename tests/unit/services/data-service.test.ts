@@ -88,34 +88,38 @@ const httpMocks = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: dbMocks.getPool,
   getReadPool: dbMocks.getReadPool,
   initSchema: dbMocks.initSchema,
 }));
 
-vi.mock('../../../api/utils/tickerValidation.js', () => ({
+vi.mock('../../../packages/backend/src/utils/tickerValidation.js', () => ({
   validateTickerFormat: tickerValidationMocks.validateTickerFormat,
 }));
 
-vi.mock('../../../api/utils/metrics.js', () => ({
+vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerSemaphoreMetrics: vi.fn(),
   registerCircuitBreakerMetrics: vi.fn(),
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003' }),
 }));
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   appRedis: redisMocks,
 }));
 
 // Mock opossum CircuitBreaker：返回可控实例
+// 同时提供 default 和 named export，兼容 default 和 named import
 vi.mock('opossum', () => ({
   default: vi.fn(() => circuitBreakerMocks.instance),
+  CircuitBreaker: vi.fn(() => circuitBreakerMocks.instance),
 }));
 
 // Mock fs：控制 JSON 文件回退行为
@@ -130,7 +134,7 @@ vi.mock('fs', () => ({
   unlinkSync: fsMocks.unlinkSync,
 }));
 
-vi.mock('../../../api/utils/integrity.js', () => ({
+vi.mock('../../../packages/backend/src/utils/integrity.js', () => ({
   signFileSync: integrityMocks.signFileSync,
   verifyFileSync: integrityMocks.verifyFileSync,
 }));
@@ -147,7 +151,7 @@ import {
   initDb,
   searchTickers,
   invalidateCache,
-} from '../../../api/services/dataService.js';
+} from '../../../packages/backend/src/services/dataService.js';
 
 /** 模拟 http.request 成功响应 */
 function setupHttpGetSuccess(body: string, statusCode = 200): void {

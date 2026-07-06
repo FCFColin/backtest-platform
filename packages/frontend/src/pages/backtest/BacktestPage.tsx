@@ -17,7 +17,6 @@ export default function BacktestPage() {
     configName,
     setConfigName,
     showLoadList,
-    setShowLoadList,
     savedConfigs,
     handleSaveConfig,
     handleOpenLoadList,

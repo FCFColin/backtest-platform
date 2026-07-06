@@ -52,17 +52,19 @@ const fsPromisesMocks = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/utils/tickerValidation.js', () => ({
+vi.mock('../../../packages/backend/src/utils/tickerValidation.js', () => ({
   isValidTicker: tickerValidationMocks.isValidTicker,
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getReadPool: () => ({ query: pgMocks.query }),
 }));
 
-vi.mock('../../../api/db/marketStats.js', () => ({
+vi.mock('../../../packages/backend/src/db/marketStats.js', () => ({
   scanMarketStatsFromDb: marketStatsMocks.scanMarketStatsFromDb,
   getDbEngineStatus: marketStatsMocks.getDbEngineStatus,
 }));
@@ -94,7 +96,7 @@ import {
   scanTickersStats,
   scanTickersStatsAsync,
   resolveUniverseFromCacheStats,
-} from '../../../api/services/engineService.js';
+} from '../../../packages/backend/src/services/engineService.js';
 
 describe('getEngineStatus', () => {
   beforeEach(() => {

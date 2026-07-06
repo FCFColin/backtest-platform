@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { letfAnalyzeSchema } from '../../../api/schemas/letf.js';
+import { letfAnalyzeSchema } from '../../../packages/backend/src/schemas/letf.js';
 
 function makeValidInput() {
   return {

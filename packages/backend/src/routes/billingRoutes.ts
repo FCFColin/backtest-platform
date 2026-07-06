@@ -13,7 +13,7 @@ import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { requireTenant } from '../middleware/tenantContext.js';
+import { requireTenant, hasTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import {
   isBillingEnabled,
@@ -32,7 +32,8 @@ router.use(requireTenant);
 
 /** GET /api/v1/billing/subscription - 当前组织订阅摘要（任意成员可见） */
 router.get('/subscription', async (req: AuthenticatedRequest, res: Response) => {
-  const summary = await getSubscriptionSummary(req.tenantId as string);
+  if (!hasTenant(req)) return;
+  const summary = await getSubscriptionSummary(req.tenantId);
   res.json({
     success: true,
     data: {
@@ -59,8 +60,9 @@ router.post(
     const { plan } = req.body as { plan: 'pro' | 'enterprise' };
     const base = config.APP_BASE_URL;
     try {
+      if (!hasTenant(req)) return;
       const url = await createCheckoutSession({
-        orgId: req.tenantId as string,
+        orgId: req.tenantId,
         plan,
         email: undefined,
         successUrl: `${base}/account?billing=success`,
@@ -88,7 +90,8 @@ router.post('/portal', requireAdmin, async (req: AuthenticatedRequest, res: Resp
     return;
   }
   try {
-    const url = await createPortalSession(req.tenantId as string, `${config.APP_BASE_URL}/account`);
+    if (!hasTenant(req)) return;
+    const url = await createPortalSession(req.tenantId, `${config.APP_BASE_URL}/account`);
     res.json({ success: true, data: { url } });
   } catch (err) {
     const msg = String(err);

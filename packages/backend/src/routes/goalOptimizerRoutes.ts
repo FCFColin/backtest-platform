@@ -2,7 +2,7 @@
  * 目标优化路由 — POST /api/goal-optimizer/optimize
  */
 import { Router, type Request, type Response } from 'express';
-import type { GoalOptimizerRequest } from '@backtest/shared/types.js';
+import type { GoalOptimizerRequest } from '@backtest/shared/types';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';

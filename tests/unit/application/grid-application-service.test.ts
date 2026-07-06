@@ -16,24 +16,26 @@ const mocks = vi.hoisted(() => ({
   runGridSearch: vi.fn(),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: mocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/utils/logSanitizer.js', () => ({
+vi.mock('../../../packages/backend/src/utils/logSanitizer.js', () => ({
   sanitizeLog: mocks.sanitizeLog,
 }));
 
-vi.mock('../../../api/engine/tacticalGrid.js', () => ({
+vi.mock('../../../packages/backend/src/engine/tacticalGrid.js', () => ({
   runGridSearch: mocks.runGridSearch,
 }));
 
 import {
   executeGridSearch,
   MAX_GRID_COMBINATIONS,
-} from '../../../api/application/grid-application-service.js';
+} from '../../../packages/backend/src/application/grid-application-service.js';
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {

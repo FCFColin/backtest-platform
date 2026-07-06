@@ -1,17 +1,16 @@
 /**
- * 组合增长曲线计算（Node.js 参照实现）
- * 主引擎为 Go(engine-go, localhost:5004)；本文件作为一致性测试的 parity 参照保留，
- * 不用于线上降级（ADR-031 fail-closed）。
- * 对应 Go 实现: engine-go/internal/engine/backtest.go
+ * 增长曲线计算
+ * 从 backtestRunner.ts 拆分而出，包含增长曲线构建、曲线计算等
  */
 
-import type { Portfolio, BacktestParameters, PortfolioResult } from '@backtest/shared/types.js';
-import type { PriceData, BacktestHooks } from './portfolio.js';
+import type { Portfolio, BacktestParameters, PortfolioResult } from '@backtest/shared/types';
 import { shouldRebalance, getISOWeekNumber } from './rebalance.js';
-import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
+import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 
-/** CPI/汇率数据格式：{ [date: string]: number } */
-export type DateValueMap = Record<string, number>;
+/** 价格数据格式：{ [ticker]: { [date: string]: number } } */
+export interface PriceData {
+  [ticker: string]: Record<string, number>;
+}
 
 /** getSortedDates 缓存 */
 const sortedDatesCache = new WeakMap<PriceData, string[]>();
@@ -37,30 +36,29 @@ export function getPrice(priceData: PriceData, ticker: string, date: string): nu
   return priceData[ticker]?.[date] ?? null;
 }
 
-/**
- * 查找指定日期的 CPI 值（带月初回溯）
- * 对应 Rust: find_cpi_for_date
- */
-function findCpiForDate(date: string, cpiData: DateValueMap): number {
-  if (date.length < 10) return 0;
-  if (cpiData[date] !== undefined) return cpiData[date];
-  // 回溯到月初查找
-  const monthStart = date.substring(0, 8) + '01';
-  if (cpiData[monthStart] !== undefined) return cpiData[monthStart];
-  // 向前查找最近 10 天
+/** CPI/汇率数据格式：{ [date: string]: number } */
+export type DateValueMap = Record<string, number>;
+
+/** 在 DateValueMap 中向前搜索最多 10 天，返回第一个匹配的日期；未找到返回 null */
+export function findClosestDate(date: string, data: DateValueMap): string | null {
   const d = new Date(date);
   for (let i = 0; i < 10; i++) {
     d.setDate(d.getDate() - 1);
     const key = d.toISOString().substring(0, 10);
-    if (cpiData[key] !== undefined) return cpiData[key];
+    if (data[key] !== undefined) return key;
   }
-  return 0;
+  return null;
 }
 
-/**
- * 获取价格并应用汇率转换（当 exchangeRates 非空时将 USD 转为 CNY）
- * 对应 Rust: gp 闭包中的汇率转换逻辑
- */
+export function findCpiForDate(date: string, cpiData: DateValueMap): number {
+  if (date.length < 10) return 0;
+  if (cpiData[date] !== undefined) return cpiData[date];
+  const monthStart = date.substring(0, 8) + '01';
+  if (cpiData[monthStart] !== undefined) return cpiData[monthStart];
+  const closest = findClosestDate(date, cpiData);
+  return closest !== null ? cpiData[closest] : 0;
+}
+
 export function getPriceWithFx(
   priceData: PriceData,
   ticker: string,
@@ -69,24 +67,14 @@ export function getPriceWithFx(
 ): number | null {
   const raw = getPrice(priceData, ticker, date);
   if (raw === null) return null;
-  // 无汇率数据时直接返回原始价格（包括 0 或负值，保持与原 getPrice 一致的行为）
   if (!exchangeRates || Object.keys(exchangeRates).length === 0) return raw;
-  // 价格 <= 0 时无需汇率转换
   if (raw <= 0) return raw;
-  // 精确日期匹配
   if (exchangeRates[date] !== undefined) return raw * exchangeRates[date];
-  // 回溯查找最近 10 天的汇率
-  const d = new Date(date);
-  for (let i = 0; i < 10; i++) {
-    d.setDate(d.getDate() - 1);
-    const key = d.toISOString().substring(0, 10);
-    if (exchangeRates[key] !== undefined) return raw * exchangeRates[key];
-  }
-  return raw;
+  const closest = findClosestDate(date, exchangeRates);
+  return closest !== null ? raw * exchangeRates[closest] : raw;
 }
 
-/** shouldApplyCashflow 参数对象 */
-interface CashflowCheckOptions {
+export interface CashflowCheckOptions {
   frequency: string;
   currentDate: string;
   prevDate: string | null;
@@ -95,7 +83,7 @@ interface CashflowCheckOptions {
   until?: string;
 }
 
-function shouldApplyCashflow(opts: CashflowCheckOptions): boolean {
+export function shouldApplyCashflow(opts: CashflowCheckOptions): boolean {
   const { frequency, currentDate, prevDate, startDate, offset, until } = opts;
   if (until && currentDate > until) return false;
   const cur = new Date(currentDate);
@@ -126,8 +114,17 @@ function shouldApplyCashflow(opts: CashflowCheckOptions): boolean {
   }
 }
 
-/** 单日现金流处理上下文 */
-interface CashflowContext {
+export interface BacktestHooks {
+  onRebalance?: (info: {
+    portfolioId: string;
+    portfolioName: string;
+    date: string;
+    reason: string;
+    currentWeights: Record<string, number>;
+  }) => void;
+}
+
+export interface CashflowContext {
   date: string;
   prevDate: string | null;
   dayIndex: number;
@@ -138,10 +135,10 @@ interface CashflowContext {
   mwrrCashflows: Array<{ value: number; time: number }>;
 }
 
-/**
- * 处理单日现金流（周期性 + 一次性），返回当日现金流总额和更新后的持仓
- */
-function applyCashflowsForDate(ctx: CashflowContext): { value: number; holdings: number[] | null } {
+export function applyCashflowsForDate(ctx: CashflowContext): {
+  value: number;
+  holdings: number[] | null;
+} {
   const { date, prevDate, dayIndex, startDate, portfolioValue, weights, params, mwrrCashflows } =
     ctx;
   const cfTime = dayIndex / TRADING_DAYS_PER_YEAR;
@@ -155,7 +152,6 @@ function applyCashflowsForDate(ctx: CashflowContext): { value: number; holdings:
     mwrrCashflows.push({ value: sign * amount, time: cfTime });
   };
 
-  // 周期性现金流
   for (const leg of params.cashflowLegs ?? []) {
     if (
       shouldApplyCashflow({
@@ -171,7 +167,6 @@ function applyCashflowsForDate(ctx: CashflowContext): { value: number; holdings:
     }
   }
 
-  // 一次性现金流
   for (const cf of params.oneTimeCashflows ?? []) {
     if (cf.date === date) apply(cf.type, cf.amount);
   }
@@ -179,8 +174,7 @@ function applyCashflowsForDate(ctx: CashflowContext): { value: number; holdings:
   return { value, holdings };
 }
 
-/** updateHoldingsForDay 的参数 */
-interface UpdateHoldingsOpts {
+export interface UpdateHoldingsOpts {
   holdings: number[];
   tickers: string[];
   priceData: PriceData;
@@ -189,8 +183,7 @@ interface UpdateHoldingsOpts {
   exchangeRates?: DateValueMap;
 }
 
-/** 计算各资产当日收益率并更新持仓，返回总价值 */
-function updateHoldingsForDay(opts: UpdateHoldingsOpts): number {
+export function updateHoldingsForDay(opts: UpdateHoldingsOpts): number {
   const { holdings, tickers, priceData, date, prevDate, exchangeRates } = opts;
   let totalValue = 0;
   for (let j = 0; j < tickers.length; j++) {
@@ -207,8 +200,7 @@ function updateHoldingsForDay(opts: UpdateHoldingsOpts): number {
   return totalValue;
 }
 
-/** handleRebalance 的参数 */
-interface RebalanceOpts {
+export interface RebalanceOpts {
   portfolio: Portfolio;
   weights: number[];
   tickers: string[];
@@ -219,8 +211,7 @@ interface RebalanceOpts {
   hooks?: BacktestHooks;
 }
 
-/** 执行再平衡：将持仓重置为目标权重并触发回调 */
-function handleRebalance(opts: RebalanceOpts): number[] {
+export function handleRebalance(opts: RebalanceOpts): number[] {
   const { portfolio, weights, tickers, date, prevDate, holdings, portfolioValue, hooks } = opts;
   if (
     !shouldRebalance({
@@ -246,129 +237,12 @@ function handleRebalance(opts: RebalanceOpts): number[] {
   return newHoldings;
 }
 
-/** 增长曲线计算结果 */
-interface GrowthCurveResult {
+export interface GrowthCurveResult {
   growthCurve: Array<{ date: string; value: number }>;
   values: number[];
   mwrrCashflows: Array<{ value: number; time: number }>;
 }
 
-/**
- * 构建增长曲线：逐日计算持仓价值、处理现金流、再平衡和爆仓检测
- */
-export function buildGrowthCurve(opts: {
-  portfolio: Portfolio;
-  priceData: PriceData;
-  dates: string[];
-  params: BacktestParameters;
-  exchangeRates?: DateValueMap;
-  hooks?: BacktestHooks;
-}): GrowthCurveResult {
-  const { portfolio, priceData, dates, params, exchangeRates, hooks } = opts;
-  const { startingValue } = params;
-  const tickers = portfolio.assets.map((a) => a.ticker);
-  const weights = portfolio.assets.map((a) => a.weight / 100);
-
-  const growthCurve: Array<{ date: string; value: number }> = [];
-  const values: number[] = [];
-  const mwrrCashflows: Array<{ value: number; time: number }> = [
-    { value: -startingValue, time: 0 },
-  ];
-
-  let holdings: number[] = portfolio.assets.map((a) => (startingValue * a.weight) / 100);
-  let liquidated = false;
-  let prevDate: string | null = null;
-
-  for (let i = 0; i < dates.length; i++) {
-    const date = dates[i];
-
-    if (liquidated) {
-      growthCurve.push({ date, value: 0 });
-      values.push(0);
-      prevDate = date;
-      continue;
-    }
-
-    const totalValue = updateHoldingsForDay({
-      holdings,
-      tickers,
-      priceData,
-      date,
-      prevDate,
-      exchangeRates,
-    });
-    let portfolioValue = totalValue;
-
-    // 处理现金流
-    const cfResult = applyCashflowsForDate({
-      date,
-      prevDate,
-      dayIndex: i,
-      startDate: dates[0],
-      portfolioValue,
-      weights,
-      params,
-      mwrrCashflows,
-    });
-    portfolioValue = cfResult.value;
-    if (cfResult.holdings) holdings = cfResult.holdings;
-
-    // 爆仓检测
-    if (portfolioValue <= 0) {
-      liquidated = true;
-      portfolioValue = 0;
-      holdings = holdings.map(() => 0);
-      growthCurve.push({ date, value: 0 });
-      values.push(0);
-      prevDate = date;
-      continue;
-    }
-
-    // 再平衡
-    holdings = handleRebalance({
-      portfolio,
-      weights,
-      tickers,
-      date,
-      prevDate,
-      holdings,
-      portfolioValue,
-      hooks,
-    });
-
-    growthCurve.push({ date, value: portfolioValue });
-    values.push(portfolioValue);
-    prevDate = date;
-  }
-
-  return { growthCurve, values, mwrrCashflows };
-}
-
-/**
- * 通胀调整：将名义值转为实际值
- */
-export function applyInflationAdjustment(
-  values: number[],
-  growthCurve: Array<{ date: string; value: number }>,
-  dates: string[],
-  cpiData?: DateValueMap,
-): void {
-  if (!cpiData || Object.keys(cpiData).length === 0) return;
-  const startCpi = findCpiForDate(dates[0], cpiData);
-  if (startCpi <= 0) return;
-  for (let i = 0; i < dates.length; i++) {
-    const dateCpi = findCpiForDate(dates[i], cpiData);
-    if (dateCpi > 0) {
-      const realValue = values[i] * (startCpi / dateCpi);
-      growthCurve[i].value = realValue;
-      values[i] = realValue;
-    }
-  }
-}
-
-/**
- * 创建空组合结果（资产为空时使用）
- */
 export function createEmptyPortfolioResult(name: string): PortfolioResult {
   return {
     name,
@@ -413,7 +287,110 @@ export function createEmptyPortfolioResult(name: string): PortfolioResult {
   };
 }
 
-/** 计算回撤曲线 */
+export function buildGrowthCurve(opts: {
+  portfolio: Portfolio;
+  priceData: PriceData;
+  dates: string[];
+  params: BacktestParameters;
+  exchangeRates?: DateValueMap;
+  hooks?: BacktestHooks;
+}): GrowthCurveResult {
+  const { portfolio, priceData, dates, params, exchangeRates, hooks } = opts;
+  const { startingValue } = params;
+  const tickers = portfolio.assets.map((a) => a.ticker);
+  const weights = portfolio.assets.map((a) => a.weight / 100);
+
+  const growthCurve: Array<{ date: string; value: number }> = [];
+  const values: number[] = [];
+  const mwrrCashflows: Array<{ value: number; time: number }> = [
+    { value: -startingValue, time: 0 },
+  ];
+
+  let holdings: number[] = portfolio.assets.map((a) => (startingValue * a.weight) / 100);
+  let liquidated = false;
+  let prevDate: string | null = null;
+
+  for (let i = 0; i < dates.length; i++) {
+    const date = dates[i];
+
+    if (liquidated) {
+      growthCurve.push({ date, value: 0 });
+      values.push(0);
+      prevDate = date;
+      continue;
+    }
+
+    const totalValue = updateHoldingsForDay({
+      holdings,
+      tickers,
+      priceData,
+      date,
+      prevDate,
+      exchangeRates,
+    });
+    let portfolioValue = totalValue;
+
+    const cfResult = applyCashflowsForDate({
+      date,
+      prevDate,
+      dayIndex: i,
+      startDate: dates[0],
+      portfolioValue,
+      weights,
+      params,
+      mwrrCashflows,
+    });
+    portfolioValue = cfResult.value;
+    if (cfResult.holdings) holdings = cfResult.holdings;
+
+    if (portfolioValue <= 0) {
+      liquidated = true;
+      portfolioValue = 0;
+      holdings = holdings.map(() => 0);
+      growthCurve.push({ date, value: 0 });
+      values.push(0);
+      prevDate = date;
+      continue;
+    }
+
+    holdings = handleRebalance({
+      portfolio,
+      weights,
+      tickers,
+      date,
+      prevDate,
+      holdings,
+      portfolioValue,
+      hooks,
+    });
+
+    growthCurve.push({ date, value: portfolioValue });
+    values.push(portfolioValue);
+    prevDate = date;
+  }
+
+  return { growthCurve, values, mwrrCashflows };
+}
+
+export function applyInflationAdjustment(
+  values: number[],
+  growthCurve: Array<{ date: string; value: number }>,
+  dates: string[],
+  cpiData?: DateValueMap,
+): void {
+  if (!cpiData || Object.keys(cpiData).length === 0) return;
+  const startCpi = findCpiForDate(dates[0], cpiData);
+  if (startCpi <= 0) return;
+  for (let i = 0; i < dates.length; i++) {
+    const dateCpi = findCpiForDate(dates[i], cpiData);
+    if (dateCpi > 0) {
+      const realValue = values[i] * (startCpi / dateCpi);
+      growthCurve[i].value = realValue;
+      values[i] = realValue;
+    }
+  }
+}
+
 export function calcDrawdownCurve(
   values: number[],
   dates: string[],
@@ -430,7 +407,6 @@ export function calcDrawdownCurve(
   return result;
 }
 
-/** 计算滚动收益 */
 export function calcRollingReturns(
   values: number[],
   dates: string[],
@@ -449,14 +425,12 @@ export function calcRollingReturns(
   return result;
 }
 
-/** 计算年度收益（使用前一年最后交易日的值作为起始值） */
 export function calcAnnualReturns(
   values: number[],
   dates: string[],
 ): Array<{ year: number; return: number }> {
   const result: Array<{ year: number; return: number }> = [];
 
-  // 先收集每年的最后交易日的值
   const yearLastValue = new Map<number, number>();
   for (let i = 0; i < values.length; i++) {
     const year = new Date(dates[i]).getFullYear();
@@ -467,15 +441,13 @@ export function calcAnnualReturns(
 
   for (let idx = 0; idx < sortedYears.length; idx++) {
     const year = sortedYears[idx];
-    const endValue = yearLastValue.get(year)!;
+    const endValue = yearLastValue.get(year) ?? 0;
     let startValue: number;
 
     if (idx === 0) {
-      // 第一年：使用第一个可用值
       startValue = values[0];
     } else {
-      // 非第一年：使用前一年最后交易日的值
-      startValue = yearLastValue.get(sortedYears[idx - 1])!;
+      startValue = yearLastValue.get(sortedYears[idx - 1]) ?? 0;
     }
 
     if (startValue > 0) {
@@ -486,7 +458,6 @@ export function calcAnnualReturns(
   return result;
 }
 
-/** 计算月度收益 */
 export function calcMonthlyReturns(
   values: number[],
   dates: string[],
@@ -500,7 +471,8 @@ export function calcMonthlyReturns(
     if (!monthMap.has(key)) {
       monthMap.set(key, { firstValue: values[i], lastValue: values[i] });
     } else {
-      monthMap.get(key)!.lastValue = values[i];
+      const entry = monthMap.get(key);
+      if (entry) entry.lastValue = values[i];
     }
   }
 

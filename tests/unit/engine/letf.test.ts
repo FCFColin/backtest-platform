@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeLetfSlippage } from '../../../api/engine/letf.js';
+import { analyzeLetfSlippage } from '../../../packages/backend/src/engine/letf.js';
 
 // ===== 边界条件 =====
 describe('analyzeLetfSlippage - 边界条件', () => {

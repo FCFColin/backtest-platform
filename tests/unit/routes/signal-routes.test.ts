@@ -36,23 +36,25 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/engine/seriesUtils.js', () => ({
+vi.mock('../../../packages/backend/src/engine/seriesUtils.js', () => ({
   toPriceSeries: seriesUtilsMocks.toPriceSeries,
 }));
 
-vi.mock('../../../api/engine/signal.js', () => ({
+vi.mock('../../../packages/backend/src/engine/signal.js', () => ({
   analyzeSignal: engineMocks.analyzeSignal,
   analyzeDualSignal: engineMocks.analyzeDualSignal,
   analyzeMultiSignal: engineMocks.analyzeMultiSignal,
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import signalRoutes from '../../../api/routes/signalRoutes.js';
+import signalRoutes from '../../../packages/backend/src/routes/signalRoutes.js';
 
 function createSignalConfig(ticker = 'SPY') {
   return {

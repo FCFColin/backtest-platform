@@ -35,12 +35,12 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: mocks.config,
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 // Mock appRedis：默认回退内存；Redis 成功路径测试可切换 ping/get/set/del
 const redisMocks = vi.hoisted(() => {
@@ -99,12 +99,12 @@ const redisMocks = vi.hoisted(() => {
   };
 });
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   redisConnection: {},
   appRedis: redisMocks,
 }));
 
-vi.mock('../../../api/services/userService.js', () => ({
+vi.mock('../../../packages/backend/src/services/userService.js', () => ({
   getUserById: vi.fn().mockImplementation(async (id: string) => ({
     id,
     username: 'test-user',
@@ -118,7 +118,7 @@ vi.mock('../../../api/services/userService.js', () => ({
 const apiKeyMocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(async () => null),
 }));
-vi.mock('../../../api/services/apiKeyService.js', () => ({
+vi.mock('../../../packages/backend/src/services/apiKeyService.js', () => ({
   verifyApiKey: apiKeyMocks.verifyApiKey,
 }));
 
@@ -134,8 +134,8 @@ import {
   jwtAuth,
   optionalJwtAuth,
   type AuthenticatedRequest,
-} from '../../../api/middleware/jwtAuth.js';
-import { getUserById } from '../../../api/services/userService.js';
+} from '../../../packages/backend/src/middleware/jwtAuth.js';
+import { getUserById } from '../../../packages/backend/src/services/userService.js';
 
 // jwtAuth 模块加载时注册的 Redis 事件处理器（beforeEach clearAllMocks 会清空 mock.calls）
 const capturedRedisHandlers = (() => {

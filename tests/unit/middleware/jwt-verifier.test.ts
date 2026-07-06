@@ -33,15 +33,20 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../api/config/index.js', () => ({ config: mocks.config }));
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(createLoggerMocks()) }));
-vi.mock('../../../api/middleware/jwtSigner.js', () => jwtSignerMocks);
-vi.mock('../../../api/middleware/refreshToken.js', () => refreshTokenMocks);
-vi.mock('../../../api/middleware/devBypass.js', () => devBypassMocks);
-vi.mock('../../../api/middleware/apiKeyAuth.js', () => apiKeyMocks);
+vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: mocks.config }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(createLoggerMocks()),
+}));
+vi.mock('../../../packages/backend/src/middleware/jwtSigner.js', () => jwtSignerMocks);
+vi.mock('../../../packages/backend/src/middleware/refreshToken.js', () => refreshTokenMocks);
+vi.mock('../../../packages/backend/src/middleware/devBypass.js', () => devBypassMocks);
+vi.mock('../../../packages/backend/src/middleware/apiKeyAuth.js', () => apiKeyMocks);
 
 import { SignJWT, generateKeyPair, importJWK } from 'jose';
-import type { AuthenticatedRequest, JwtPayload } from '../../../api/middleware/authTypes.js';
+import type {
+  AuthenticatedRequest,
+  JwtPayload,
+} from '../../../packages/backend/src/middleware/authTypes.js';
 
 let rs256PrivateKey: CryptoKey;
 let rs256PublicKey: CryptoKey;
@@ -138,7 +143,8 @@ describe('jwtVerifier', () => {
   describe('verifyToken', () => {
     it('should return payload for a valid RS256 token', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
       const token = await signRS256(validPayload());
       const payload = await verifyToken(token);
       expect(payload).not.toBeNull();
@@ -148,7 +154,8 @@ describe('jwtVerifier', () => {
 
     it('should return payload for each valid role', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       for (const role of ['admin', 'analyst', 'readonly'] as const) {
         const token = await signRS256(validPayload({ role }));
@@ -160,19 +167,22 @@ describe('jwtVerifier', () => {
 
     it('should return null for empty token', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
       expect(await verifyToken('')).toBeNull();
     });
 
     it('should return null for malformed token', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
       expect(await verifyToken('not-a-jwt')).toBeNull();
     });
 
     it('should return null for tampered signature', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
       const token = await signRS256(validPayload());
       const tampered = token.slice(0, -10) + 'X'.repeat(10);
       expect(await verifyToken(tampered)).toBeNull();
@@ -180,7 +190,8 @@ describe('jwtVerifier', () => {
 
     it('should reject alg=none attack', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
       const payload = Buffer.from(
@@ -192,7 +203,8 @@ describe('jwtVerifier', () => {
 
     it('should reject token with tampered payload', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const parts = token.split('.');
@@ -205,7 +217,8 @@ describe('jwtVerifier', () => {
 
     it('should reject expired token', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const expiredToken = await new SignJWT(validPayload())
         .setProtectedHeader({ alg: 'RS256' })
@@ -218,7 +231,8 @@ describe('jwtVerifier', () => {
 
     it('should reject missing sub claim', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const { sub: _, ...noSub } = validPayload();
       const token = await signRS256(noSub);
@@ -227,7 +241,8 @@ describe('jwtVerifier', () => {
 
     it('should reject empty sub claim', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload({ sub: '' }));
       expect(await verifyToken(token)).toBeNull();
@@ -235,7 +250,8 @@ describe('jwtVerifier', () => {
 
     it('should reject missing role claim', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const { role: _, ...noRole } = validPayload();
       const token = await signRS256(noRole);
@@ -244,7 +260,8 @@ describe('jwtVerifier', () => {
 
     it('should reject invalid role claim', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload({ role: 'superadmin' }));
       expect(await verifyToken(token)).toBeNull();
@@ -252,7 +269,8 @@ describe('jwtVerifier', () => {
 
     it('should reject missing exp claim', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await new SignJWT({ sub: 'user-1', role: 'admin' })
         .setProtectedHeader({ alg: 'RS256' })
@@ -265,7 +283,8 @@ describe('jwtVerifier', () => {
     it('should reject revoked access token', async () => {
       refreshTokenMocks.isAccessTokenRevokedForUser.mockResolvedValue(true);
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       expect(await verifyToken(token)).toBeNull();
@@ -277,7 +296,8 @@ describe('jwtVerifier', () => {
 
     it('should pass revocation check for non-revoked token', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const payload = await verifyToken(token);
@@ -287,7 +307,8 @@ describe('jwtVerifier', () => {
     it('should verify HS256 token when configured for HS256', async () => {
       mocks.config.JWT_ALGORITHM = 'HS256';
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signHS256(validPayload());
       const payload = await verifyToken(token);
@@ -300,7 +321,8 @@ describe('jwtVerifier', () => {
       mocks.config.JWT_ALGORITHM = 'HS256';
       jwtSignerMocks.getOrCachePublicKey.mockResolvedValue(rs256PublicKey);
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signHS256(validPayload());
       const payload = await verifyToken(token);
@@ -311,7 +333,8 @@ describe('jwtVerifier', () => {
     it('should not fall back to HS256 when algorithm is RS256', async () => {
       mocks.config.JWT_ALGORITHM = 'RS256';
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signHS256(validPayload());
       expect(await verifyToken(token)).toBeNull();
@@ -319,7 +342,8 @@ describe('jwtVerifier', () => {
 
     it('should accept token with null byte in sub', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload({ sub: 'user\0admin' }));
       const payload = await verifyToken(token);
@@ -331,7 +355,7 @@ describe('jwtVerifier', () => {
   describe('jwtAuth middleware', () => {
     it('should call next and set req.user for valid Bearer token', async () => {
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const req = createMockReq({ headers: { authorization: `Bearer ${token}` } });
@@ -352,7 +376,7 @@ describe('jwtVerifier', () => {
 
     it('should return 401 for invalid Bearer token', async () => {
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq({ headers: { authorization: 'Bearer invalid-token' } });
       const res = createMockRes();
@@ -380,7 +404,7 @@ describe('jwtVerifier', () => {
         .sign(rs256PrivateKey);
 
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq({ headers: { authorization: `Bearer ${expiredToken}` } });
       const res = createMockRes();
@@ -403,7 +427,7 @@ describe('jwtVerifier', () => {
     it('should return 401 for revoked session', async () => {
       refreshTokenMocks.isAccessTokenRevokedForUser.mockResolvedValue(true);
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const req = createMockReq({ headers: { authorization: `Bearer ${token}` } });
@@ -427,7 +451,7 @@ describe('jwtVerifier', () => {
     it('should return 401 for disabled account', async () => {
       refreshTokenMocks.isUserSessionValid.mockResolvedValue(false);
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const req = createMockReq({ headers: { authorization: `Bearer ${token}` } });
@@ -450,7 +474,7 @@ describe('jwtVerifier', () => {
 
     it('should return 401 for missing auth header', async () => {
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq();
       const res = createMockRes();
@@ -464,7 +488,7 @@ describe('jwtVerifier', () => {
 
     it('should return 401 for Bearer without token', async () => {
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq({ headers: { authorization: 'Bearer ' } });
       const res = createMockRes();
@@ -493,7 +517,7 @@ describe('jwtVerifier', () => {
       );
 
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq({ headers: { 'x-api-key': 'some-api-key' } });
       const res = createMockRes();
@@ -515,7 +539,7 @@ describe('jwtVerifier', () => {
       );
 
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq();
       const res = createMockRes();
@@ -530,7 +554,7 @@ describe('jwtVerifier', () => {
 
     it('should prioritize Bearer token over x-api-key', async () => {
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const req = createMockReq({
@@ -556,7 +580,7 @@ describe('jwtVerifier', () => {
 
     it('should handle concurrent jwtAuth calls independently', async () => {
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const tokens = await Promise.all([
         signRS256(validPayload({ sub: 'user-1', role: 'admin' })),
@@ -590,7 +614,8 @@ describe('jwtVerifier', () => {
   describe('optionalJwtAuth middleware', () => {
     it('should set req.user and call next for valid Bearer token', async () => {
       vi.resetModules();
-      const { optionalJwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { optionalJwtAuth } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const req = createMockReq({ headers: { authorization: `Bearer ${token}` } });
@@ -610,7 +635,8 @@ describe('jwtVerifier', () => {
 
     it('should set null user and call next for invalid Bearer token', async () => {
       vi.resetModules();
-      const { optionalJwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { optionalJwtAuth } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq({ headers: { authorization: 'Bearer invalid' } });
       const res = createMockRes();
@@ -629,7 +655,8 @@ describe('jwtVerifier', () => {
 
     it('should call next with null user when no auth header', async () => {
       vi.resetModules();
-      const { optionalJwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { optionalJwtAuth } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq();
       const res = createMockRes();
@@ -645,7 +672,8 @@ describe('jwtVerifier', () => {
     it('should not throw when verifyJwt throws unexpected error', async () => {
       jwtSignerMocks.getOrCachePublicKey.mockRejectedValue(new Error('unexpected crypto error'));
       vi.resetModules();
-      const { optionalJwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { optionalJwtAuth } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq({ headers: { authorization: 'Bearer some-token' } });
       const res = createMockRes();
@@ -666,7 +694,8 @@ describe('jwtVerifier', () => {
   describe('assignGuestReadonly', () => {
     it('should assign guest user when req.user is undefined', async () => {
       vi.resetModules();
-      const { assignGuestReadonly } = await import('../../../api/middleware/jwtVerifier.js');
+      const { assignGuestReadonly } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq();
       const res = createMockRes();
@@ -682,7 +711,8 @@ describe('jwtVerifier', () => {
 
     it('should assign guest user when req.user is null', async () => {
       vi.resetModules();
-      const { assignGuestReadonly } = await import('../../../api/middleware/jwtVerifier.js');
+      const { assignGuestReadonly } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq({ user: null });
       const res = createMockRes();
@@ -698,7 +728,8 @@ describe('jwtVerifier', () => {
 
     it('should preserve existing user when already set', async () => {
       vi.resetModules();
-      const { assignGuestReadonly } = await import('../../../api/middleware/jwtVerifier.js');
+      const { assignGuestReadonly } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const existingUser: JwtPayload = { sub: 'real-user', role: 'admin', iat: 123, exp: 456 };
       const req = createMockReq({ user: existingUser });
@@ -714,7 +745,8 @@ describe('jwtVerifier', () => {
 
     it('should always call next', async () => {
       vi.resetModules();
-      const { assignGuestReadonly } = await import('../../../api/middleware/jwtVerifier.js');
+      const { assignGuestReadonly } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const req = createMockReq();
       const res = createMockRes();
@@ -729,7 +761,8 @@ describe('jwtVerifier', () => {
   describe('verifyToken edge cases', () => {
     it('should return null for token with non-finite exp', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await new SignJWT(validPayload({ exp: Infinity }))
         .setProtectedHeader({ alg: 'RS256' })
@@ -741,7 +774,8 @@ describe('jwtVerifier', () => {
 
     it('should check revoked status with correct iat', async () => {
       vi.resetModules();
-      const { verifyToken } = await import('../../../api/middleware/jwtVerifier.js');
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const specificIat = Math.floor(Date.now() / 1000);
       const token = await new SignJWT(validPayload())
@@ -761,7 +795,7 @@ describe('jwtVerifier', () => {
     it('should check user session validity via jwtAuth middleware', async () => {
       refreshTokenMocks.isUserSessionValid.mockResolvedValue(false);
       vi.resetModules();
-      const { jwtAuth } = await import('../../../api/middleware/jwtVerifier.js');
+      const { jwtAuth } = await import('../../../packages/backend/src/middleware/jwtVerifier.js');
 
       const token = await signRS256(validPayload());
       const req = createMockReq({ headers: { authorization: `Bearer ${token}` } });

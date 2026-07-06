@@ -13,18 +13,18 @@ npm run test:unit    # Unit tests only
 
 ## Tech Stack
 
-| Layer                   | Technology                                                                         |
-| ----------------------- | ---------------------------------------------------------------------------------- |
-| Frontend                | React 18 + TypeScript + Vite 6 + Tailwind CSS 3 + Zustand + Recharts               |
-| Backend API             | Express 4 + TypeScript (ESM) + tsx                                                 |
-| Engine (only)           | Go (engine-go, gin + gonum) — Rust/Node fallbacks retired (ADR-008/031)            |
-| Engine (Node-canonical) | Node.js (api/engine/) for tactical/tacticalGrid/signal/goalOptimizer/pca/letf only |
-| Data service (primary)  | Go (data-fetcher, gin)                                                             |
-| Data service (fallback) | Go data-fetcher (live fetch for missing tickers)                                   |
-| Database                | PostgreSQL (pg, node-postgres)                                                     |
-| Cache/Auth              | Redis (ioredis + BullMQ)                                                           |
-| Validation              | Zod (zod v4)                                                                       |
-| Observability           | pino + OpenTelemetry + prom-client                                                 |
+| Layer                   | Technology                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------------- |
+| Frontend                | React 18 + TypeScript + Vite 6 + Tailwind CSS 3 + Zustand + Recharts                                |
+| Backend API             | Express 4 + TypeScript (ESM) + tsx                                                                  |
+| Engine (only)           | Go (engine-go, gin + gonum) — Rust/Node fallbacks retired (ADR-008/031)                             |
+| Engine (Node-canonical) | Node.js (packages/backend/src/engine/) for tactical/tacticalGrid/signal/goalOptimizer/pca/letf only |
+| Data service (primary)  | Go (data-fetcher, gin)                                                                              |
+| Data service (fallback) | Go data-fetcher (live fetch for missing tickers)                                                    |
+| Database                | PostgreSQL (pg, node-postgres)                                                                      |
+| Cache/Auth              | Redis (ioredis + BullMQ)                                                                            |
+| Validation              | Zod (zod v4)                                                                                        |
+| Observability           | pino + OpenTelemetry + prom-client                                                                  |
 
 ## Architecture
 
@@ -53,9 +53,9 @@ npm run test:unit    # Unit tests only
 | Constants  | UPPER_SNAKE | `MAX_TICKERS`               |
 | Routes     | kebab-case  | `/api/backtest/monte-carlo` |
 
-### Shared Types (`shared/types/`)
+### Shared Types (`packages/shared/types/`)
 
-- Barrel export from `shared/types/index.ts`
+- Barrel export from `packages/shared/types/index.ts`
 - Import from specific module: `import { Portfolio } from './types/portfolio.js'`
 - All interfaces need JSDoc comments explaining non-obvious fields
 

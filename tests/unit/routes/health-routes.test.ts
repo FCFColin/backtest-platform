@@ -15,9 +15,9 @@ import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactorie
 
 const originalFetch = globalThis.fetch;
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../api/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
     GO_ENGINE_URL: 'http://127.0.0.1:5001',
@@ -26,15 +26,15 @@ vi.mock('../../../api/config/index.js', () => ({
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../api/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/index.js', () => ({
   getPool: vi.fn(() => ({ query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }) })),
 }));
 
-vi.mock('../../../api/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   appRedis: { ping: vi.fn().mockResolvedValue('PONG') },
 }));
 
-import healthRoutes from '../../../api/routes/healthRoutes.js';
+import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
 
 /**
  * 创建拦截外部引擎/数据服务 URL 的 fetch mock，

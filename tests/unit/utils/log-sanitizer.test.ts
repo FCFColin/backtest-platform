@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { sanitizeLog } from '../../../api/utils/logSanitizer.js';
+import { sanitizeLog } from '../../../packages/backend/src/utils/logSanitizer.js';
 
 describe('sanitizeLog', () => {
   describe('移除换行符', () => {

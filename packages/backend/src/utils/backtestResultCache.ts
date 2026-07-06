@@ -2,7 +2,7 @@
  * 回测结果短期内存 LRU 缓存（sync 响应裁剪后，tab 切换零二次引擎调用）
  */
 import crypto from 'node:crypto';
-import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared/types.js';
+import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared/types';
 
 const TTL_MS = 5 * 60 * 1000;
 const MAX_ENTRIES = 50;

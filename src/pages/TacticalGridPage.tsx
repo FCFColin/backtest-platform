@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Play } from 'lucide-react';
+import { fmtPct, fmtNum } from '@/utils/format';
 import {
   LineChart,
   Line,
@@ -128,23 +129,6 @@ interface TacticalGridResponse {
   topResults: TopCombinationResult[];
   heatmap: HeatmapData;
   bestCombination: TopCombinationResult;
-}
-
-// ===== 工具函数 =====
-
-function fmtPct(v: number | undefined | null): string {
-  if (v == null) return '—';
-  return `${(v * 100).toFixed(2)}%`;
-}
-
-function fmtRatio(v: number | undefined | null): string {
-  if (v == null) return '—';
-  return v.toFixed(3);
-}
-
-function fmtNum(v: number | undefined | null, digits = 2): string {
-  if (v == null) return '—';
-  return v.toFixed(digits);
 }
 
 /** 根据指标类型返回参数标签 */
@@ -540,7 +524,7 @@ function ResultsSummary({
       <SummaryItem label={`最优 ${paramLabels.p1}`} value={best.param1} color="var(--brand)" />
       <SummaryItem label={`最优 ${paramLabels.p2}`} value={best.param2} color="var(--brand)" />
       <SummaryItem label="最优 CAGR" value={fmtPct(best.cagr)} color="var(--success)" />
-      <SummaryItem label="最优 Sharpe" value={fmtRatio(best.sharpe)} color="var(--success)" />
+      <SummaryItem label="最优 Sharpe" value={fmtNum(best.sharpe, 3)} color="var(--success)" />
     </div>
   );
 }
@@ -567,7 +551,7 @@ function TopCombinationsTable({
     {
       key: 'sharpe',
       label: 'Sharpe',
-      render: (r) => fmtRatio(r.sharpe),
+      render: (r) => fmtNum(r.sharpe, 3),
       sortValue: (r) => r.sharpe,
     },
     {
@@ -579,7 +563,7 @@ function TopCombinationsTable({
     {
       key: 'calmar',
       label: 'Calmar',
-      render: (r) => fmtRatio(r.calmar),
+      render: (r) => fmtNum(r.calmar, 3),
       sortValue: (r) => r.calmar,
     },
     {

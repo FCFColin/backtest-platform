@@ -39,27 +39,29 @@ vi.hoisted(() => {
   process.env.SYNC_COMPUTE_TIMEOUT_MS = '500';
 });
 
-vi.mock('../../../api/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../api/queues/backtestQueue.js', () => ({
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   backtestQueue: {
     add: queueMocks.add,
   },
 }));
 
-vi.mock('../../../api/engine/tacticalGrid.js', () => ({
+vi.mock('../../../packages/backend/src/engine/tacticalGrid.js', () => ({
   runGridSearch: engineMocks.runGridSearch,
 }));
 
-vi.mock('../../../api/utils/logSanitizer.js', () => ({
+vi.mock('../../../packages/backend/src/utils/logSanitizer.js', () => ({
   sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
 }));
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-import tacticalGridRoutes from '../../../api/routes/tacticalGridRoutes.js';
+import tacticalGridRoutes from '../../../packages/backend/src/routes/tacticalGridRoutes.js';
 
 function createValidRequest() {
   return {

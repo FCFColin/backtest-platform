@@ -44,9 +44,11 @@ const mockClient = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../api/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: mockLogger(loggerMocks),
+}));
 
-vi.mock('../../../api/domain/events/index.js', () => ({
+vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({
   eventDispatcher: {
     dispatch: eventMocks.dispatch,
   },
@@ -61,7 +63,7 @@ vi.mock('pg', () => {
   };
 });
 
-import { OutboxPublisher } from '../../../api/services/outboxPublisher.js';
+import { OutboxPublisher } from '../../../packages/backend/src/services/outboxPublisher.js';
 
 /** 构造一个 mock pg.Pool，记录 query 调用 */
 function createMockPool(): pg.Pool & {

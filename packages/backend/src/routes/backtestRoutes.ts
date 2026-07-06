@@ -8,8 +8,8 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import type { Portfolio, BacktestParameters } from '@backtest/shared/types.js';
-import { MAX_TICKERS } from '@backtest/shared/constants.js';
+import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
+import { MAX_TICKERS } from '@backtest/shared/constants';
 import { backtestApplicationService } from '../application/backtest-service.js';
 import {
   preparePortfolioBacktest,
@@ -141,13 +141,12 @@ function collectTickersFromPortfolios(portfolioList: Portfolio[]): {
 
 /**
  * 搜索 ticker
- * GET /api/backtest/search?query=aap&limit=10&offset=0
+ * GET /api/backtest/search?query=aap&limit=10
  */
 router.get('/search', async (req: Request, res: Response): Promise<void> => {
   try {
     const query = req.query.query as string;
-    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 100), 1000);
-    const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
+    const limit = parseInt(req.query.limit as string, 10) || 10;
 
     if (!query || query.trim().length === 0) {
       sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required parameter', {
@@ -157,9 +156,7 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
     }
 
     const results = await searchTickers(query.trim());
-    const total = results.length;
-    const paged = results.slice(offset, offset + limit);
-    res.json({ success: true, data: paged, pagination: { total, limit, offset } });
+    res.json({ success: true, data: results.slice(0, limit) });
   } catch (error) {
     logger.error({ err: error as Error }, 'Ticker search error');
     sendProblem(res, 500, 'SEARCH_ERROR', 'Search failed', { detail: 'Failed to search tickers' });

@@ -7,7 +7,7 @@ import type {
   SignalAnalysisRequest,
   DualSignalConfig,
   MultiSignalConfig,
-} from '@backtest/shared/types/signal.js';
+} from '@backtest/shared/types/signal';
 import { toPriceSeries } from '../engine/seriesUtils.js';
 import { analyzeSignal, analyzeDualSignal, analyzeMultiSignal } from '../engine/signal.js';
 

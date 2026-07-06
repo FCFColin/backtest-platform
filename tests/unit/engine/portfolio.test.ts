@@ -3,7 +3,7 @@ import {
   runPortfolioBacktest,
   runAnalysis,
   type PriceData,
-} from '../../../api/engine/portfolio.js';
+} from '../../../packages/backend/src/engine/portfolio.js';
 import type { Portfolio } from '../../../shared/types.js';
 import { makeLinearPriceData, makeVolatilePriceData, makeParams } from '../../helpers/fixtures.js';
 

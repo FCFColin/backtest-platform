@@ -17,7 +17,7 @@ const engineServiceMocks = vi.hoisted(() => ({
   resolveUniverseFromCacheStats: vi.fn(),
 }));
 
-vi.mock('../../../api/services/engineService.js', () => engineServiceMocks);
+vi.mock('../../../packages/backend/src/services/engineService.js', () => engineServiceMocks);
 
 const dataFetchMocks = vi.hoisted(() => ({
   startUpdate: vi.fn(),
@@ -25,12 +25,12 @@ const dataFetchMocks = vi.hoisted(() => ({
   getUpdateStatus: vi.fn(),
 }));
 
-vi.mock('../../../api/services/dataFetchService.js', () => dataFetchMocks);
+vi.mock('../../../packages/backend/src/services/dataFetchService.js', () => dataFetchMocks);
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-vi.mock('../../../api/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import dataManageRoutes from '../../../api/routes/dataManageRoutes.js';
+import dataManageRoutes from '../../../packages/backend/src/routes/dataManageRoutes.js';
 
 /**
  * 启动测试用 Express 服务。

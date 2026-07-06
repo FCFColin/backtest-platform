@@ -14,8 +14,8 @@
  *   6. 实际杠杆 = 滚动窗口内 LETF 日收益对基准日收益的回归 Beta
  */
 
-import type { LETFResult } from '@backtest/shared/types/letf.js';
-import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
+import type { LETFResult } from '@backtest/shared/types/letf';
+import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 
 /** 实际杠杆滚动窗口天数 */
 const EFFECTIVE_LEVERAGE_WINDOW = 20;

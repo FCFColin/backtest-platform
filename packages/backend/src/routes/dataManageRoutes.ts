@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
+import { validateQuery } from '../middleware/validate.js';
+import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/dataManage.js';
 import {
   getEngineStatus,
   getTickerList,
@@ -75,55 +77,63 @@ router.get('/stats', async (_req: Request, res: Response): Promise<void> => {
 });
 
 /** 标的列表（分页） */
-router.get('/tickers', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const tickers = await getTickerList();
-    const total = tickers.length;
-    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-    const MAX_LIMIT = 200;
-    const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
-    const totalPages = Math.ceil(total / limit);
-    const start = (page - 1) * limit;
-    const end = start + limit;
-    const paginatedData = tickers.slice(start, end);
+router.get(
+  '/tickers',
+  validateQuery(tickerListQuerySchema),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const tickers = await getTickerList();
+      const total = tickers.length;
+      const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+      const MAX_LIMIT = 200;
+      const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+      const totalPages = Math.ceil(total / limit);
+      const start = (page - 1) * limit;
+      const end = start + limit;
+      const paginatedData = tickers.slice(start, end);
 
-    res.json({
-      success: true,
-      data: paginatedData,
-      pagination: { page, limit, total, totalPages },
-    });
-  } catch {
-    res.status(500).json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/ticker-list-error',
-        title: 'Ticker List Error',
-        status: 500,
-        code: 'TICKER_LIST_ERROR',
-        detail: 'Failed to get ticker list',
-      },
-    });
-  }
-});
+      res.json({
+        success: true,
+        data: paginatedData,
+        pagination: { page, limit, total, totalPages },
+      });
+    } catch {
+      res.status(500).json({
+        success: false,
+        error: {
+          type: 'https://backtest.platform/errors/ticker-list-error',
+          title: 'Ticker List Error',
+          status: 500,
+          code: 'TICKER_LIST_ERROR',
+          detail: 'Failed to get ticker list',
+        },
+      });
+    }
+  },
+);
 
 /** 搜索标的 */
-router.get('/search', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const query = req.query.q as string;
-    if (!query) {
-      sendProblem(res, 422, 'MISSING_PARAMS', 'Missing query parameter', {
-        detail: 'Missing query parameter: q',
+router.get(
+  '/search',
+  validateQuery(tickerSearchQuerySchema),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const query = req.query.q as string;
+      if (!query) {
+        sendProblem(res, 422, 'MISSING_PARAMS', 'Missing query parameter', {
+          detail: 'Missing query parameter: q',
+        });
+        return;
+      }
+      const results = await searchTickers(query);
+      res.json({ success: true, data: results });
+    } catch {
+      sendProblem(res, 500, 'SEARCH_ERROR', 'Search failed', {
+        detail: 'Failed to search',
       });
-      return;
     }
-    const results = await searchTickers(query);
-    res.json({ success: true, data: results });
-  } catch {
-    sendProblem(res, 500, 'SEARCH_ERROR', 'Search failed', {
-      detail: 'Failed to search',
-    });
-  }
-});
+  },
+);
 
 /** 更新状态查询 */
 router.get('/update/status', (_req: Request, res: Response): void => {

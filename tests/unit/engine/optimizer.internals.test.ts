@@ -2,7 +2,7 @@
  * optimizer 内部算法直接单测（构造输入覆盖 clipNegativeWeights 等分支）
  */
 import { describe, it, expect } from 'vitest';
-import { __optimizerTestOnly } from '../../../api/engine/optimizer.js';
+import { __optimizerTestOnly } from '../../../packages/backend/src/engine/optimizer.js';
 
 const {
   clipNegativeWeights,

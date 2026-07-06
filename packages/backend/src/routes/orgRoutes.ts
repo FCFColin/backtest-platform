@@ -12,7 +12,7 @@ import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { requireTenant } from '../middleware/tenantContext.js';
+import { requireTenant, hasTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import {
   getOrg,
@@ -66,7 +66,8 @@ router.use(requireTenant);
 
 /** GET /api/v1/orgs/current - 当前组织信息（任意成员可见） */
 router.get('/current', async (req: AuthenticatedRequest, res: Response) => {
-  const org = await getOrg(req.tenantId as string);
+  if (!hasTenant(req)) return;
+  const org = await getOrg(req.tenantId);
   if (!org) {
     sendProblem(res, 404, 'ORG_NOT_FOUND', 'Not Found', { detail: '组织不存在' });
     return;
@@ -81,7 +82,8 @@ router.patch(
   requireAdmin,
   validate(updateOrgSchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    const ok = await updateOrgName(req.tenantId as string, (req.body as { name: string }).name);
+    if (!hasTenant(req)) return;
+    const ok = await updateOrgName(req.tenantId, (req.body as { name: string }).name);
     if (!ok) {
       sendProblem(res, 404, 'ORG_NOT_FOUND', 'Not Found', { detail: '组织不存在' });
       return;
@@ -92,10 +94,8 @@ router.patch(
 
 /** GET /api/v1/orgs/members - 成员列表（任意成员可见） */
 router.get('/members', async (req: AuthenticatedRequest, res: Response) => {
-  const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 100), 1000);
-  const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
-  const { rows, total } = await listOrgMembers(req.tenantId as string, limit, offset);
-  res.json({ success: true, data: rows, pagination: { total, limit, offset } });
+  if (!hasTenant(req)) return;
+  res.json({ success: true, data: await listOrgMembers(req.tenantId) });
 });
 
 /** PATCH /api/v1/orgs/members/:userId - 修改成员角色（admin） */
@@ -109,8 +109,9 @@ router.patch(
       sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'userId 必须为 UUID' });
       return;
     }
+    if (!hasTenant(req)) return;
     const result = await updateMemberRole(
-      req.tenantId as string,
+      req.tenantId,
       req.params.userId,
       (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
     );
@@ -135,7 +136,8 @@ router.delete(
       sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'userId 必须为 UUID' });
       return;
     }
-    const result = await removeMember(req.tenantId as string, req.params.userId);
+    if (!hasTenant(req)) return;
+    const result = await removeMember(req.tenantId, req.params.userId);
     if (result === 'not_found') {
       sendProblem(res, 404, 'MEMBER_NOT_FOUND', 'Not Found', { detail: '成员不存在' });
       return;
@@ -150,10 +152,8 @@ router.delete(
 
 /** GET /api/v1/orgs/invitations - 邀请列表（admin） */
 router.get('/invitations', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
-  const limit = Math.min(Math.max(1, parseInt(req.query.limit as string, 10) || 100), 1000);
-  const offset = Math.max(0, parseInt(req.query.offset as string, 10) || 0);
-  const { rows, total } = await listInvitations(req.tenantId as string, limit, offset);
-  res.json({ success: true, data: rows, pagination: { total, limit, offset } });
+  if (!hasTenant(req)) return;
+  res.json({ success: true, data: await listInvitations(req.tenantId) });
 });
 
 /** POST /api/v1/orgs/invitations - 创建邀请并发送邮件（admin） */
@@ -166,7 +166,8 @@ router.post(
   requireAdmin,
   validate(inviteSchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    const orgId = req.tenantId as string;
+    if (!hasTenant(req)) return;
+    const orgId = req.tenantId;
     const { email, role } = req.body as { email: string; role: 'admin' | 'analyst' | 'readonly' };
     try {
       const inv = await createInvitation(orgId, email, role, req.user?.sub ?? null);
@@ -198,7 +199,8 @@ router.delete(
       sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'id 必须为 UUID' });
       return;
     }
-    const ok = await revokeInvitation(req.tenantId as string, req.params.id);
+    if (!hasTenant(req)) return;
+    const ok = await revokeInvitation(req.tenantId, req.params.id);
     if (!ok) {
       sendProblem(res, 404, 'INVITATION_NOT_FOUND', 'Not Found', {
         detail: '邀请不存在或已被接受',

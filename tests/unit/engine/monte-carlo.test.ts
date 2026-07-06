@@ -13,8 +13,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { runMonteCarlo } from '../../../api/engine/monteCarlo.js';
-import type { PriceData } from '../../../api/engine/portfolio.js';
+import { runMonteCarlo } from '../../../packages/backend/src/engine/monteCarlo.js';
+import type { PriceData } from '../../../packages/backend/src/engine/portfolio.js';
 import type { Portfolio } from '../../../shared/types.js';
 import { makeLinearPriceData, makeParams } from '../../helpers/fixtures.js';
 

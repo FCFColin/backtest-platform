@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isValidDate } from '../../../api/utils/dateUtils.js';
+import { isValidDate } from '../../../packages/backend/src/utils/dateUtils.js';
 
 describe('isValidDate', () => {
   describe('合法输入', () => {
