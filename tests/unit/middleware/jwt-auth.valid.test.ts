@@ -415,41 +415,6 @@ describe('optionalJwtAuth 中间件', () => {
   });
 });
 
-describe('jwtAuth 会话撤销与账户停用', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
-    mocks.config.NODE_ENV = 'production';
-    mocks.config.JWT_SECRET = 'test-jwt-secret-for-unit-tests';
-    mocks.config.ADMIN_API_KEY = '';
-    mocks.config.JWT_ALGORITHM = 'HS256';
-  });
-
-  async function jwtAuthWithToken(token: string): Promise<{
-    req: ReturnType<typeof createMockRequest>;
-    res: ReturnType<typeof createMockResponse>;
-    next: ReturnType<typeof createMockNext>;
-  }> {
-    const req = createMockRequest({
-      headers: { authorization: `Bearer ${token}` },
-    } as Record<string, unknown>);
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    await new Promise<void>((resolve) => {
-      const originalJson = res.json.bind(res);
-      res.json = vi.fn((...args: unknown[]) => {
-        originalJson(...args);
-        resolve();
-        return res;
-      }) as typeof res.json;
-      jwtAuth(req, res, next);
-    });
-
-    return { req, res, next };
-  }
-});
-
 describe('jwtAuth Redis 边界与 PEM 路径', () => {
   beforeEach(() => {
     vi.clearAllMocks();
