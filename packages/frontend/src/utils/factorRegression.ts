@@ -204,8 +204,14 @@ export function runFFRegression(
   const Xt = transpose(X);
   const XtX = matMul(Xt, X);
   const XtX_inv = invert2D(XtX);
-  const XtY = matMul(Xt, [Y.map((y) => [y])]).map((r) => r[0]);
-  const beta = matMul(XtX_inv, [XtY.map((v) => [v])]).map((r) => r[0]);
+  const XtY = matMul(
+    Xt,
+    Y.map((y) => [y]),
+  ).map((r) => r[0]);
+  const beta = matMul(
+    XtX_inv,
+    XtY.map((v) => [v]),
+  ).map((r) => r[0]);
 
   const { rSquared, residuals } = computeFitStats(X, Y, beta, activeFactors);
   const coeffs = extractFactorCoeffs(beta, activeFactors);
