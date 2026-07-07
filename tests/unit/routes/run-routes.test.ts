@@ -63,21 +63,21 @@ describe('runRoutes', () => {
       expect(res.status).toBe(200);
       expect(body.success).toBe(true);
       expect(body.data).toEqual([MOCK_ITEM]);
-      expect(mocks.repo.listRuns).toHaveBeenCalledWith(TENANT, 50);
+      expect(mocks.repo.listRuns).toHaveBeenCalledWith(TENANT, 50, 0);
     });
 
     it('should respect limit query parameter', async () => {
       mocks.repo.listRuns.mockResolvedValueOnce([]);
       const res = await fetch(`${server.url}/api/v1/runs?limit=10`);
       await res.json();
-      expect(mocks.repo.listRuns).toHaveBeenCalledWith(TENANT, 10);
+      expect(mocks.repo.listRuns).toHaveBeenCalledWith(TENANT, 10, 0);
     });
 
     it('should fallback to default limit when limit is NaN', async () => {
       mocks.repo.listRuns.mockResolvedValueOnce([]);
       const res = await fetch(`${server.url}/api/v1/runs?limit=abc`);
       await res.json();
-      expect(mocks.repo.listRuns).toHaveBeenCalledWith(TENANT, 50);
+      expect(mocks.repo.listRuns).toHaveBeenCalledWith(TENANT, 50, 0);
     });
 
     it('should return empty list when no runs', async () => {

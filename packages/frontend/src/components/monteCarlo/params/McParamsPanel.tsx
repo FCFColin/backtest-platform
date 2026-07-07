@@ -75,104 +75,128 @@ function PortfolioConfigSection({ s }: { s: McState }) {
   );
 }
 
+function SimBasicFields({ s }: { s: McState }) {
+  return (
+    <>
+      <label className="param-check">
+        <input type="checkbox" />
+        <span>全部历史</span>
+      </label>
+      <div className="param-field">
+        <span className="param-label">开始日期</span>
+        <input
+          type="date"
+          className="param-input"
+          value={s.startDate}
+          onChange={(e) => s.setStartDate(e.target.value)}
+        />
+      </div>
+      <div className="param-field">
+        <span className="param-label">结束日期</span>
+        <input
+          type="date"
+          className="param-input"
+          value={s.endDate}
+          onChange={(e) => s.setEndDate(e.target.value)}
+        />
+      </div>
+      <div className="param-field">
+        <span className="param-label">模拟年数</span>
+        <input
+          type="number"
+          className="param-input"
+          value={s.numYears}
+          onChange={(e) => s.setNumYears(Number(e.target.value))}
+        />
+      </div>
+      <div className="param-field">
+        <span className="param-label">模拟次数</span>
+        <input
+          type="number"
+          className="param-input"
+          value={s.numSimulations}
+          onChange={(e) => s.setNumSimulations(Number(e.target.value))}
+        />
+      </div>
+    </>
+  );
+}
+
+function SimAdvancedFields({ s }: { s: McState }) {
+  return (
+    <>
+      <div className="param-field param-field-start-val">
+        <span className="param-label">初始资金</span>
+        <div className="param-input-prefix-wrap">
+          <span className="param-input-prefix">$</span>
+          <input
+            type="number"
+            className="param-input param-input-with-prefix"
+            value={s.startingValue}
+            onChange={(e) => s.setStartingValue(Number(e.target.value))}
+          />
+        </div>
+      </div>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">最小区块</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            className="param-input param-input-with-suffix"
+            value={s.minBlock}
+            onChange={(e) => s.setMinBlock(Number(e.target.value))}
+          />
+          <span className="param-input-suffix">年</span>
+        </div>
+      </div>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">最大区块</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            className="param-input param-input-with-suffix"
+            value={s.maxBlock}
+            onChange={(e) => s.setMaxBlock(Number(e.target.value))}
+          />
+          <span className="param-input-suffix">年</span>
+        </div>
+      </div>
+      <div className="param-field">
+        <span className="param-label">随机种子</span>
+        <input
+          type="number"
+          className="param-input"
+          value={s.randomSeed}
+          onChange={(e) => s.setRandomSeed(e.target.value)}
+          placeholder="留空则随机"
+        />
+      </div>
+      <label className="param-check">
+        <input
+          type="checkbox"
+          checked={s.withReplacement}
+          onChange={(e) => s.setWithReplacement(e.target.checked)}
+        />
+        <span>有放回抽样</span>
+      </label>
+    </>
+  );
+}
+
+function SimDateFields({ s }: { s: McState }) {
+  return (
+    <>
+      <SimBasicFields s={s} />
+      <SimAdvancedFields s={s} />
+    </>
+  );
+}
+
 function SimParamsSection({ s }: { s: McState }) {
   return (
     <ParamsSection title="模拟参数" info="区块自举法参数：从历史数据中随机抽取区块拼接为模拟路径">
       <div className="params-row">
-        <label className="param-check">
-          <input type="checkbox" />
-          <span>全部历史</span>
-        </label>
-        <div className="param-field">
-          <span className="param-label">开始日期</span>
-          <input
-            type="date"
-            className="param-input"
-            value={s.startDate}
-            onChange={(e) => s.setStartDate(e.target.value)}
-          />
-        </div>
-        <div className="param-field">
-          <span className="param-label">结束日期</span>
-          <input
-            type="date"
-            className="param-input"
-            value={s.endDate}
-            onChange={(e) => s.setEndDate(e.target.value)}
-          />
-        </div>
-        <div className="param-field">
-          <span className="param-label">模拟年数</span>
-          <input
-            type="number"
-            className="param-input"
-            value={s.numYears}
-            onChange={(e) => s.setNumYears(Number(e.target.value))}
-          />
-        </div>
-        <div className="param-field">
-          <span className="param-label">模拟次数</span>
-          <input
-            type="number"
-            className="param-input"
-            value={s.numSimulations}
-            onChange={(e) => s.setNumSimulations(Number(e.target.value))}
-          />
-        </div>
-        <div className="param-field param-field-start-val">
-          <span className="param-label">初始资金</span>
-          <div className="param-input-prefix-wrap">
-            <span className="param-input-prefix">$</span>
-            <input
-              type="number"
-              className="param-input param-input-with-prefix"
-              value={s.startingValue}
-              onChange={(e) => s.setStartingValue(Number(e.target.value))}
-            />
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">最小区块</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={s.minBlock}
-              onChange={(e) => s.setMinBlock(Number(e.target.value))}
-            />
-            <span className="param-input-suffix">年</span>
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">最大区块</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={s.maxBlock}
-              onChange={(e) => s.setMaxBlock(Number(e.target.value))}
-            />
-            <span className="param-input-suffix">年</span>
-          </div>
-        </div>
-        <div className="param-field">
-          <span className="param-label">随机种子</span>
-          <input
-            type="number"
-            className="param-input"
-            value={s.randomSeed}
-            onChange={(e) => s.setRandomSeed(e.target.value)}
-            placeholder="留空则随机"
-          />
-        </div>
-        <label className="param-check">
-          <input
-            type="checkbox"
-            checked={s.withReplacement}
-            onChange={(e) => s.setWithReplacement(e.target.checked)}
-          />
-          <span>有放回抽样</span>
-        </label>
+        <SimDateFields s={s} />
       </div>
     </ParamsSection>
   );

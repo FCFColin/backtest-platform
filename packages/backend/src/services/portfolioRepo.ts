@@ -65,12 +65,14 @@ const SELECT_COLS = 'id, name, assets, rebalance_frequency, owner_user_id, creat
 export async function listPortfolios(
   tenantId: string,
   limit: number = 50,
+  offset: number = 0,
 ): Promise<PortfolioRecord[]> {
   return withTenant(tenantId, async (client) => {
     const capped = Math.min(limit, 200);
+    const offsetSafe = Math.max(0, offset);
     const { rows } = await client.query(
-      `SELECT ${SELECT_COLS} FROM portfolios ORDER BY updated_at DESC LIMIT $1`,
-      [capped],
+      `SELECT ${SELECT_COLS} FROM portfolios ORDER BY updated_at DESC LIMIT $1 OFFSET $2`,
+      [capped, offsetSafe],
     );
     return rows.map(mapRow);
   });

@@ -2,8 +2,8 @@
  * @file 调仓统计组件
  * @description 展示各投资组合的调仓频率、阈值及带宽等配置信息
  */
-import type { Portfolio, RebalanceFrequency } from '@backtest/shared/types';
-import { CHART_COLORS } from '@backtest/shared/types';
+import type { Portfolio, RebalanceFrequency } from '@backtest/shared';
+import { CHART_COLORS } from '@backtest/shared';
 
 /** 调仓统计组件 Props */
 interface RebalancingStatsProps {

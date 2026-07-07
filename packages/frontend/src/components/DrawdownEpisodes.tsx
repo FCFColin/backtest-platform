@@ -3,8 +3,8 @@
  * @description 列出投资组合历史中的重大回撤事件，含起止日期、深度及恢复时长
  */
 import { Fragment } from 'react';
-import type { PortfolioResult, DrawdownEpisode } from '@backtest/shared/types';
-import { CHART_COLORS } from '@backtest/shared/types';
+import type { PortfolioResult, DrawdownEpisode } from '@backtest/shared';
+import { CHART_COLORS } from '@backtest/shared';
 import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../utils/format';
 
 /** 回撤片段表 Props */

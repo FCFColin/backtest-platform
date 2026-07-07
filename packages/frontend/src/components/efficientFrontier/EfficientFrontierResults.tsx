@@ -13,8 +13,8 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { EfficientFrontierPoint } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { EfficientFrontierPoint } from '@backtest/shared';
 import {
   sharpeToColor,
   getCorrelationColor,
@@ -372,7 +372,7 @@ function CorrelationMatrixView({
                       className="text-[12px] text-center cursor-default"
                       style={{
                         backgroundColor: getCorrelationColor(val),
-                        color: Math.abs(val) > 0.5 ? '#fff' : 'var(--text-body)',
+                        color: Math.abs(val) > 0.6 ? '#fff' : '#000',
                         width: `${Math.max(48, 600 / correlations.tickers.length)}px`,
                         height: `${Math.max(36, 400 / correlations.tickers.length)}px`,
                       }}

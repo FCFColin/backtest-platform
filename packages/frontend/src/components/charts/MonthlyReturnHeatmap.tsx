@@ -3,7 +3,7 @@
  * @description 以热力图形式展示投资组合逐月收益，颜色深浅表示收益正负与大小
  */
 import { useMemo } from 'react';
-import type { PortfolioResult } from '@backtest/shared/types';
+import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard';
 
 /** 月度收益热力图 Props */

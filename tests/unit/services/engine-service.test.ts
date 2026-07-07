@@ -96,7 +96,7 @@ import {
   scanTickersStats,
   scanTickersStatsAsync,
   resolveUniverseFromCacheStats,
-} from '../../../packages/backend/src/services/engineService.js';
+} from '../../../packages/backend/src/services/tickerDataService.js';
 
 describe('getEngineStatus', () => {
   beforeEach(() => {

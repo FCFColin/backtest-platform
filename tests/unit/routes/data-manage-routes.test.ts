@@ -17,7 +17,7 @@ const engineServiceMocks = vi.hoisted(() => ({
   resolveUniverseFromCacheStats: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/services/engineService.js', () => engineServiceMocks);
+vi.mock('../../../packages/backend/src/services/tickerDataService.js', () => engineServiceMocks);
 
 const dataFetchMocks = vi.hoisted(() => ({
   startUpdate: vi.fn(),

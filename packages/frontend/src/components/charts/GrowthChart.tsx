@@ -15,11 +15,11 @@ import {
   ResponsiveContainer,
   Brush,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { PortfolioResult, BaseCurrency } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { PortfolioResult, BaseCurrency } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import { ChartExporter } from '../ChartExporter';
-import { downsample, SYNC_CHART_POINTS } from '../../hooks/useChartInteractions';
+import { useChartData, CHART_MAX_POINTS } from '../../hooks/useChartInteractions';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge';
 import ChartCard from '../ChartCard';
 
@@ -49,8 +49,7 @@ export default function GrowthChart({
     (pt) => pt.date,
     (pt) => pt.value,
   );
-  const chartData =
-    mergedData.length > SYNC_CHART_POINTS ? downsample(mergedData, SYNC_CHART_POINTS) : mergedData;
+  const chartData = useChartData(mergedData, CHART_MAX_POINTS);
 
   const logToggle = (
     <button

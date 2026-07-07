@@ -1,5 +1,5 @@
 /** @file Optimizer utility functions */
-import type { Statistics } from '@backtest/shared/types';
+import type { Statistics } from '@backtest/shared';
 import type { OptimizerState, OptimizerResultExt } from './types.js';
 import { BASE_PARAMS } from './types.js';
 

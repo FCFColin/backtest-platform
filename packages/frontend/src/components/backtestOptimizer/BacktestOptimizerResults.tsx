@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import { SortableTable } from '../SortableTable';
 import type { OptimizerState, BestResultItem } from './types.js';
 import { TABLE_COLUMNS, OBJECTIVE_SORT_KEY, buildChartData, buildBestMetrics } from './utils.js';

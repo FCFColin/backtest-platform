@@ -27,11 +27,12 @@ function ownerOf(req: AuthenticatedRequest): string | null {
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   if (!hasTenant(req)) return;
   const tenantId = req.tenantId;
-  const limit = req.query.limit ? Number(req.query.limit) : 50;
+  const limit = req.query.limit ? Math.min(Number(req.query.limit) || 50, 200) : 50;
+  const offset = req.query.offset ? Math.max(Number(req.query.offset) || 0, 0) : 0;
   try {
     res.json({
       success: true,
-      data: await listRuns(tenantId, Number.isFinite(limit) ? limit : 50),
+      data: await listRuns(tenantId, Math.max(1, limit), offset),
     });
   } catch (err) {
     logger.error({ err: String(err), tenantId }, '[runRoutes] 列表失败');

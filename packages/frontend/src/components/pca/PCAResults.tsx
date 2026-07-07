@@ -14,8 +14,8 @@ import {
   ReferenceLine,
   ZAxis,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { PCAResult } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { PCAResult } from '@backtest/shared';
 import type { PCAResultsProps } from './types.js';
 import { getLoadingColor, tooltipStyle } from './utils.js';
 
@@ -114,7 +114,7 @@ function LoadingMatrix({ results }: { results: PCAResult }) {
                       className="text-[12px] text-center cursor-default"
                       style={{
                         backgroundColor: getLoadingColor(val),
-                        color: Math.abs(val) > 0.5 ? '#fff' : 'var(--text-body)',
+                        color: Math.abs(val) > 0.6 ? '#fff' : '#000',
                         width: `${Math.max(56, 600 / results.eigenvalues.length)}px`,
                         height: `${Math.max(36, 400 / results.tickers.length)}px`,
                       }}

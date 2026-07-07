@@ -6,8 +6,6 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { config } from './config/index.js';
 import { jwtAuth, optionalJwtAuth, assignGuestReadonly } from './middleware/jwtAuth.js';
 import { resolveTenant, requireTenant } from './middleware/tenantContext.js';
@@ -25,6 +23,7 @@ import {
   adminLimiter,
   loginLimiter,
   refreshLimiter,
+  registerLimiter,
 } from './utils/rateLimiter.js';
 import dataRoutes from './routes/dataRoutes.js';
 import dataManageRoutes from './routes/dataManageRoutes.js';
@@ -48,10 +47,6 @@ import healthRoutes from './routes/healthRoutes.js';
 import debugRoutes from './routes/debugRoutes.js';
 import { jobRoutes } from './routes/jobRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-
-// for esm mode
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app: express.Application = express();
 
@@ -202,6 +197,7 @@ app.use('/api/v1/admin', adminLimiter);
 app.use('/api/v1/data/manage', adminLimiter);
 // 认证端点独立限流器（10次/15分钟，防暴力破解）
 app.use('/api/v1/auth/login', loginLimiter);
+app.use('/api/v1/auth/register', registerLimiter);
 app.use('/api/v1/auth/refresh', refreshLimiter);
 // 健康检查与 Prometheus 指标必须在全局限流器之前挂载。
 // 否则 Redis 限流存储异常时 passOnStoreError:false 会在探活处理器之前返回 429，
@@ -530,11 +526,14 @@ app.use('/api/v1', debugRoutes);
  * 未匹配的 GET 请求回退到前端 SPA，由 react-router 接管路由。
  */
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
-  const distPath = path.resolve(__dirname, '../dist');
-  app.use(express.static(distPath, { maxAge: config.NODE_ENV === 'production' ? '1y' : 0 }));
+  app.use(
+    express.static(config.FRONTEND_DIST_DIR, {
+      maxAge: config.NODE_ENV === 'production' ? '1y' : 0,
+    }),
+  );
   // SPA 回退：非 /api/* 的 GET 请求返回 index.html
   app.get(/^\/(?!api\/).*/, (_req: Request, res: Response) => {
-    res.sendFile(path.join(distPath, 'index.html'));
+    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html');
   });
 }
 

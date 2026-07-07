@@ -5,7 +5,7 @@ import { Router, type Request, type Response } from 'express';
 import type { PCARequest } from '@backtest/shared/types';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, errorMessage } from '../utils/errors.js';
 import { validate } from '../middleware/validate.js';
 import { pcaAnalyzeSchema } from '../schemas/pca.js';
 import {
@@ -36,7 +36,7 @@ router.post(
       );
       res.json({ success: true, data: result });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       if (
         message.includes('Missing') ||
         message.includes('至少需要') ||

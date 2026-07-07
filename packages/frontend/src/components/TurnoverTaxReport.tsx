@@ -4,8 +4,8 @@
  * 并按假设税率推算税务拖累。使用 SortableTable 展示，支持按列排序。
  */
 import { useMemo, useState } from 'react';
-import type { PortfolioResult } from '@backtest/shared/types';
-import { CHART_COLORS } from '@backtest/shared/types';
+import type { PortfolioResult } from '@backtest/shared';
+import { CHART_COLORS } from '@backtest/shared';
 import { SortableTable, type Column } from './SortableTable';
 
 /** 周转率与税务报告 Props */

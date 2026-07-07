@@ -3,7 +3,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { downsample, useZoomRange } from '../../../src/hooks/useChartInteractions.js';
+import {
+  downsample,
+  useZoomRange,
+} from '../../../packages/frontend/src/hooks/useChartInteractions.js';
 
 describe('downsample', () => {
   it('数据量未超 maxPoints 时应原样返回', () => {

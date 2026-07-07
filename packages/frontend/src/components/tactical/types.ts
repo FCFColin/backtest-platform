@@ -1,7 +1,7 @@
 /**
  * @file Tactical page shared types, constants, and factory functions
  */
-import type { RebalanceFrequency, PortfolioResult } from '@backtest/shared/types';
+import type { RebalanceFrequency, PortfolioResult } from '@backtest/shared';
 import type {
   TacticalStrategy,
   TradingSignal,

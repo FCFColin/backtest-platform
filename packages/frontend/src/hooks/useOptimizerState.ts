@@ -1,6 +1,6 @@
 /** @file Optimizer state management hook */
 import { useState } from 'react';
-import type { Statistics } from '@backtest/shared/types';
+import type { Statistics } from '@backtest/shared';
 import type {
   OptimizerState,
   OptimizerResultExt,
@@ -9,10 +9,7 @@ import type {
 import { BASE_PARAMS } from '../components/optimizer/types.js';
 import { runOptimizeApi, fetchStats } from '../components/optimizer/utils.js';
 
-export function useOptimizerState(
-  t: (k: string) => string,
-  navigate: (path: string) => void,
-): OptimizerState {
+function useOptimizerStateInner() {
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND']);
   const [objective, setObjective] = useState('maxSharpe');
   const [startDate, setStartDate] = useState('2010-01-01');
@@ -38,8 +35,7 @@ export function useOptimizerState(
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<OptimizerResultExt | null>(null);
   const [backtestStats, setBacktestStats] = useState<Statistics | null>(null);
-
-  const state: OptimizerState = {
+  return {
     tickers,
     setTickers,
     objective,
@@ -81,41 +77,65 @@ export function useOptimizerState(
     enableMaxVol,
     setEnableMaxVol,
     isLoading,
+    setIsLoading,
     isCalculatingStats,
+    setIsCalculatingStats,
     error,
+    setError,
     results,
+    setResults,
     backtestStats,
-    runOptimize: async () => {
-      if (tickers.filter(Boolean).length < 2) {
-        setError(t('optimizer.errorMinTwoTickers'));
-        return;
-      }
-      if (minWeight > maxWeight) {
-        setError(t('optimizer.errorMinGtMax'));
-        return;
-      }
-      setIsLoading(true);
-      setError(null);
-      setBacktestStats(null);
+    setBacktestStats,
+  };
+}
+
+export function useOptimizerState(
+  t: (k: string) => string,
+  navigate: (path: string) => void,
+): OptimizerState {
+  const s = useOptimizerStateInner();
+  const runOptimize = async () => {
+    if (s.tickers.filter(Boolean).length < 2) {
+      s.setError(t('optimizer.errorMinTwoTickers'));
+      return;
+    }
+    if (s.minWeight > s.maxWeight) {
+      s.setError(t('optimizer.errorMinGtMax'));
+      return;
+    }
+    s.setIsLoading(true);
+    s.setError(null);
+    s.setBacktestStats(null);
+    try {
+      const opt = await runOptimizeApi(
+        { ...s, runOptimize: async () => {}, handleLoadInBacktester: () => {} },
+        t,
+      );
+      s.setResults(opt);
+      s.setIsCalculatingStats(true);
       try {
-        const opt = await runOptimizeApi(state, t);
-        setResults(opt);
-        setIsCalculatingStats(true);
-        try {
-          setBacktestStats(await fetchStats(opt, state, t));
-        } finally {
-          setIsCalculatingStats(false);
-        }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : t('optimizer.optFailed'));
+        s.setBacktestStats(
+          await fetchStats(
+            opt,
+            { ...s, runOptimize: async () => {}, handleLoadInBacktester: () => {} },
+            t,
+          ),
+        );
       } finally {
-        setIsLoading(false);
+        s.setIsCalculatingStats(false);
       }
-    },
-    handleLoadInBacktester: () => {
-      if (!results) return;
-      const weights = Object.entries(results.optimalWeights);
-      const data = {
+    } catch (e) {
+      s.setError(e instanceof Error ? e.message : t('optimizer.optFailed'));
+    } finally {
+      s.setIsLoading(false);
+    }
+  };
+  const handleLoadInBacktester = () => {
+    if (!s.results) return;
+    const weights = Object.entries(s.results.optimalWeights);
+    localStorage.setItem(
+      'bt_load_from_optimizer',
+      JSON.stringify({
         portfolios: [
           {
             id: `portfolio-${Date.now()}-1`,
@@ -129,15 +149,14 @@ export function useOptimizerState(
         ],
         parameters: {
           ...BASE_PARAMS,
-          startDate,
-          endDate,
+          startDate: s.startDate,
+          endDate: s.endDate,
           startingValue: 10000,
           baseCurrency: 'usd',
         },
-      };
-      localStorage.setItem('bt_load_from_optimizer', JSON.stringify(data));
-      navigate('/');
-    },
+      }),
+    );
+    navigate('/');
   };
-  return state;
+  return { ...s, runOptimize, handleLoadInBacktester };
 }

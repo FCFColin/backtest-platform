@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared/types';
+import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 import type { FetchFrontierParams } from './types.js';
 
 const POSITIVE_CORR_COLORS: Array<[number, string]> = [

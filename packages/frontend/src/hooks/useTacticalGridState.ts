@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import type { RebalanceFrequency } from '@backtest/shared';
 import { useAsyncAction } from '../hooks/useAsyncAction.js';
 import type {
   IndicatorType,

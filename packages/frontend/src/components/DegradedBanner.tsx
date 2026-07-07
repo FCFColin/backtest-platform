@@ -1,6 +1,8 @@
+import { useTranslation } from 'react-i18next';
 import { useDegradedStore } from '../store/degradedStore';
 
 export function DegradedBanner() {
+  const { t } = useTranslation();
   const degraded = useDegradedStore((s) => s.degraded);
   const warning = useDegradedStore((s) => s.degradedWarning);
 
@@ -19,8 +21,8 @@ export function DegradedBanner() {
         textAlign: 'center',
       }}
     >
-      <span style={{ fontWeight: 600 }}>Degraded mode:</span>{' '}
-      {warning || 'Some features may be unavailable or using fallback data.'}
+      <span style={{ fontWeight: 600 }}>{t('errors.degradedMode')}</span>{' '}
+      {warning || t('errors.degradedDefaultWarning')}
     </div>
   );
 }

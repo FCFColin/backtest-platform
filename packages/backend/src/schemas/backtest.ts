@@ -62,8 +62,8 @@ const oneTimeCashflowSchema = z.object({
 
 const backtestParametersSchema = z
   .object({
-    startDate: z.string().date(),
-    endDate: z.string().date(),
+    startDate: z.string().date().or(z.literal('')),
+    endDate: z.string().date().or(z.literal('')),
     // 初始本金必须为正（负/零本金会导致收益率除零或无意义结果）。
     startingValue: z.number().positive().optional(),
     baseCurrency: z.enum(['usd', 'cny']).optional(),
@@ -76,7 +76,8 @@ const backtestParametersSchema = z
   })
   // Security (T-14)：日期区间必须 start <= end。否则下游产生空/倒序序列，
   // 轻则空结果，重则数组越界或被用于构造异常输入。ISO YYYY-MM-DD 可直接字典序比较。
-  .refine((data) => data.startDate <= data.endDate, {
+  // 空字符串表示"全部历史"，跳过日期范围校验。
+  .refine((data) => !data.startDate || !data.endDate || data.startDate <= data.endDate, {
     message: 'startDate 必须早于或等于 endDate',
     path: ['endDate'],
   });

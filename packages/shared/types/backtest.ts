@@ -33,6 +33,9 @@ export interface BacktestParameters {
   oneTimeCashflows?: OneTimeCashflow[];
 }
 
+/** 通用时间序列数据点 */
+export type TimeSeriesPoint = { date: string; value: number };
+
 /**
  * 回撤事件
  *
@@ -73,7 +76,7 @@ export interface DragResult {
 /** 单个组合的回测结果 */
 export interface PortfolioResult {
   name: string;
-  growthCurve: Array<{ date: string; value: number }>;
+  growthCurve: TimeSeriesPoint[];
   drawdownCurve: Array<{ date: string; drawdown: number }>;
   rollingReturns: Array<{ date: string; return: number }>;
   annualReturns: Array<{ year: number; return: number }>;
@@ -90,7 +93,7 @@ export interface PortfolioResult {
 export interface BacktestResult {
   portfolios: PortfolioResult[];
   correlations: number[][];
-  benchmarkGrowth?: Array<{ date: string; value: number }>;
+  benchmarkGrowth?: TimeSeriesPoint[];
   assetTickers?: string[];
   assetCorrelations?: number[][];
 }
@@ -99,7 +102,7 @@ export interface BacktestResult {
 export interface AssetAnalysisResult {
   tickers: Array<{
     ticker: string;
-    growthCurve: Array<{ date: string; value: number }>;
+    growthCurve: TimeSeriesPoint[];
     drawdownCurve: Array<{ date: string; drawdown: number }>;
     dailyReturns: number[];
     annualReturns: Array<{ year: number; return: number }>;

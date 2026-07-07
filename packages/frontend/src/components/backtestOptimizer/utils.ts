@@ -1,4 +1,4 @@
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import type { RebalanceFrequency } from '@backtest/shared';
 import type { Column } from '../SortableTable';
 import type { Objective, OptimizeResultItem, BestResultItem } from './types.js';
 

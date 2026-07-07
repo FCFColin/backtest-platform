@@ -8,7 +8,7 @@ import {
   loadNamedConfigs,
   deleteNamedConfig,
   clearAllData,
-} from '../../../src/utils/portfolioStorage.js';
+} from '../../../packages/frontend/src/utils/portfolioStorage.js';
 import type { Portfolio, BacktestParameters } from '../../../shared/types.js';
 
 const validPortfolios: Portfolio[] = [

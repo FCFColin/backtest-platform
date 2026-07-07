@@ -1,7 +1,7 @@
 /** @file MonteCarlo state management hook */
 import { useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { MonteCarloResult } from '@backtest/shared/types';
+import type { MonteCarloResult } from '@backtest/shared';
 import type {
   PortfolioMode,
   ResultTab,
@@ -142,7 +142,7 @@ async function executeSimulation(
   }
 }
 
-export function useMonteCarloState() {
+function useMonteCarloStateInner() {
   const [portfolioMode, setPortfolioMode] = useState<PortfolioMode>(1);
   const [numYears, setNumYears] = useState(20);
   const [numSimulations, setNumSimulations] = useState(500);
@@ -167,31 +167,6 @@ export function useMonteCarloState() {
   const [goal1, setGoal1] = useState('maxCagrPercentile');
   const [goal2, setGoal2] = useState('minMaxDrawdown');
   const [goalWeight, setGoalWeight] = useState(50);
-
-  const portfolioOps = usePortfolioOperations(portfolios, setPortfolios);
-  const runSimulation = () =>
-    executeSimulation(
-      {
-        portfolios,
-        portfolioMode,
-        ...portfolioOps,
-        numYears,
-        numSimulations,
-        minBlock,
-        maxBlock,
-        withReplacement,
-        randomSeed,
-        startDate,
-        endDate,
-        startingValue,
-        simMode,
-        goal1,
-        goal2,
-        goalWeight,
-      },
-      { setError, setIsLoading, setResults1, setResults2 },
-    );
-
   return {
     portfolioMode,
     setPortfolioMode,
@@ -214,14 +189,19 @@ export function useMonteCarloState() {
     randomSeed,
     setRandomSeed,
     isLoading,
+    setIsLoading,
     error,
+    setError,
     results1,
+    setResults1,
     results2,
+    setResults2,
     activeTab,
     setActiveTab,
     distMetric,
     setDistMetric,
     portfolios,
+    setPortfolios,
     simMode,
     setSimMode,
     goal1,
@@ -230,10 +210,40 @@ export function useMonteCarloState() {
     setGoal2,
     goalWeight,
     setGoalWeight,
-    setPortfolios,
-    ...portfolioOps,
-    runSimulation,
   };
+}
+
+export function useMonteCarloState() {
+  const s = useMonteCarloStateInner();
+  const portfolioOps = usePortfolioOperations(s.portfolios, s.setPortfolios);
+  const runSimulation = () =>
+    executeSimulation(
+      {
+        portfolios: s.portfolios,
+        portfolioMode: s.portfolioMode,
+        ...portfolioOps,
+        numYears: s.numYears,
+        numSimulations: s.numSimulations,
+        minBlock: s.minBlock,
+        maxBlock: s.maxBlock,
+        withReplacement: s.withReplacement,
+        randomSeed: s.randomSeed,
+        startDate: s.startDate,
+        endDate: s.endDate,
+        startingValue: s.startingValue,
+        simMode: s.simMode,
+        goal1: s.goal1,
+        goal2: s.goal2,
+        goalWeight: s.goalWeight,
+      },
+      {
+        setError: s.setError,
+        setIsLoading: s.setIsLoading,
+        setResults1: s.setResults1,
+        setResults2: s.setResults2,
+      },
+    );
+  return { ...s, ...portfolioOps, runSimulation };
 }
 
 export type McState = ReturnType<typeof useMonteCarloState>;

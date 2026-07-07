@@ -7,10 +7,6 @@
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import type { Statistics } from '@backtest/shared/types';
 
-/**
- * 计算复合年化增长率 (CAGR)
- * CAGR = (endValue / startValue) ^ (1 / years) - 1
- */
 export function calcCAGR(startValue: number, endValue: number, years: number): number {
   if (!Number.isFinite(startValue) || !Number.isFinite(endValue) || !Number.isFinite(years))
     return 0;
@@ -18,10 +14,6 @@ export function calcCAGR(startValue: number, endValue: number, years: number): n
   return Math.pow(endValue / startValue, 1 / years) - 1;
 }
 
-/**
- * 计算货币加权收益率 (MWRR) - 使用二分法近似内部收益率
- * cashflows: [{value, time}] 其中 value 为正表示投入，为负表示取出，time 为年数
- */
 export function calcMWRR(cashflows: Array<{ value: number; time: number }>): number {
   if (cashflows.length === 0) return 0;
 
@@ -47,10 +39,6 @@ export function calcMWRR(cashflows: Array<{ value: number; time: number }>): num
   return (low + high) / 2;
 }
 
-/**
- * 计算年化波动率 (标准差)
- * stdev = std(dailyReturns) * sqrt(252)
- */
 export function calcAnnualizedStdev(dailyReturns: number[]): number {
   if (dailyReturns.length < 2) return 0;
   const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
@@ -59,20 +47,11 @@ export function calcAnnualizedStdev(dailyReturns: number[]): number {
   return Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
 
-/**
- * 计算夏普比率
- * sharpe = (cagr - riskFreeRate) / stdev
- */
 export function calcSharpe(cagr: number, stdev: number, riskFreeRate = 0.02): number {
   if (stdev === 0) return 0;
   return (cagr - riskFreeRate) / stdev;
 }
 
-/**
- * 计算 Sortino 比率
- * sortino = (cagr - riskFreeRate) / downsideDeviation
- * downsideDeviation 使用低于无风险日利率的收益率计算
- */
 export function calcSortino(cagr: number, dailyReturns: number[], riskFreeRate = 0.02): number {
   if (dailyReturns.length < 2) return 0;
   const dailyRiskFree = Math.pow(1 + riskFreeRate, 1 / TRADING_DAYS_PER_YEAR) - 1;
@@ -87,10 +66,6 @@ export function calcSortino(cagr: number, dailyReturns: number[], riskFreeRate =
   return (cagr - riskFreeRate) / downsideDeviation;
 }
 
-/**
- * 计算最大回撤及最大回撤持续时间（天数）
- * 返回 { maxDrawdown, maxDrawdownDuration }
- */
 export function calcMaxDrawdown(values: number[]): {
   maxDrawdown: number;
   maxDrawdownDuration: number;
@@ -117,9 +92,6 @@ export function calcMaxDrawdown(values: number[]): {
   return { maxDrawdown: maxDD, maxDrawdownDuration: maxDDDuration };
 }
 
-/**
- * 计算皮尔逊相关系数
- */
 export function calcCorrelation(returns1: number[], returns2: number[]): number {
   const n = Math.min(returns1.length, returns2.length);
   if (n < 2) return 0;
@@ -150,9 +122,6 @@ export function calcCorrelation(returns1: number[], returns2: number[]): number 
   return sampleCov / Math.sqrt(sampleVar1 * sampleVar2);
 }
 
-/**
- * 计算日收益率序列
- */
 export function calcDailyReturns(prices: number[]): number[] {
   const returns: number[] = [];
   for (let i = 1; i < prices.length; i++) {
@@ -166,52 +135,32 @@ export function calcDailyReturns(prices: number[]): number[] {
   return returns;
 }
 
-/**
- * 计算总收益率
- * totalReturn = endValue / startValue - 1
- */
 export function calcTotalReturn(startValue: number, endValue: number): number {
   if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return 0;
   if (startValue <= 0) return 0;
   return endValue / startValue - 1;
 }
 
-/**
- * 计算最佳年度收益
- */
 export function calcBestYear(annualReturns: number[]): number {
   if (annualReturns.length === 0) return 0;
   return Math.max(...annualReturns);
 }
 
-/**
- * 计算最差年度收益
- */
 export function calcWorstYear(annualReturns: number[]): number {
   if (annualReturns.length === 0) return 0;
   return Math.min(...annualReturns);
 }
 
-/**
- * 计算最佳月度收益
- */
 export function calcBestMonth(monthlyReturns: number[]): number {
   if (monthlyReturns.length === 0) return 0;
   return Math.max(...monthlyReturns);
 }
 
-/**
- * 计算最差月度收益
- */
 export function calcWorstMonth(monthlyReturns: number[]): number {
   if (monthlyReturns.length === 0) return 0;
   return Math.min(...monthlyReturns);
 }
 
-/**
- * 计算平均回撤深度
- * 遍历净值序列，计算每个时点的回撤，取非零回撤的平均值
- */
 export function calcAvgDrawdown(values: number[]): number {
   if (values.length < 2) return 0;
   let peak = values[0];
@@ -232,10 +181,6 @@ export function calcAvgDrawdown(values: number[]): number {
   return drawdownCount > 0 ? totalDrawdown / drawdownCount : 0;
 }
 
-/**
- * 计算溃疡指数 (Ulcer Index)
- * UI = sqrt(sum(((peak - value) / peak)^2) / n)
- */
 export function calcUlcerIndex(values: number[]): number {
   if (values.length < 2) return 0;
   let peak = values[0];
@@ -252,28 +197,16 @@ export function calcUlcerIndex(values: number[]): number {
   return Math.sqrt(sumSquaredDD / values.length);
 }
 
-/**
- * 计算卡玛比率 (Calmar Ratio)
- * calmar = cagr / maxDrawdown
- */
 export function calcCalmar(cagr: number, maxDrawdown: number): number {
   if (maxDrawdown === 0) return 0;
   return cagr / maxDrawdown;
 }
 
-/**
- * 计算溃疡绩效指数 (UPI / Ulcer Performance Index)
- * upi = (cagr - riskFreeRate) / ulcerIndex
- */
 export function calcUPI(cagr: number, ulcerIndex: number, riskFreeRate = 0.02): number {
   if (ulcerIndex === 0) return 0;
   return (cagr - riskFreeRate) / ulcerIndex;
 }
 
-/**
- * 计算贝塔系数 (Beta)
- * beta = cov(portfolio, benchmark) / var(benchmark)
- */
 export function calcBeta(portfolioReturns: number[], benchmarkReturns: number[]): number {
   const n = Math.min(portfolioReturns.length, benchmarkReturns.length);
   if (n < 2) return 0;
@@ -296,10 +229,6 @@ export function calcBeta(portfolioReturns: number[], benchmarkReturns: number[])
   return cov / varB;
 }
 
-/**
- * 计算 Alpha (Jensen's Alpha)
- * alpha = cagr - (riskFreeRate + beta * (benchmarkCagr - riskFreeRate))
- */
 export function calcAlpha(
   cagr: number,
   beta: number,
@@ -309,19 +238,11 @@ export function calcAlpha(
   return cagr - (riskFreeRate + beta * (benchmarkCagr - riskFreeRate));
 }
 
-/**
- * 计算 R² (决定系数)
- * R² = correlation²
- */
 export function calcRSquared(portfolioReturns: number[], benchmarkReturns: number[]): number {
   const corr = calcCorrelation(portfolioReturns, benchmarkReturns);
   return corr * corr;
 }
 
-/**
- * 计算跟踪误差 (Tracking Error)
- * TE = std(portfolioReturns - benchmarkReturns) * sqrt(252)
- */
 export function calcTrackingError(portfolioReturns: number[], benchmarkReturns: number[]): number {
   const n = Math.min(portfolioReturns.length, benchmarkReturns.length);
   if (n < 2) return 0;
@@ -336,19 +257,11 @@ export function calcTrackingError(portfolioReturns: number[], benchmarkReturns: 
   return Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
 
-/**
- * 计算信息比率 (Information Ratio)
- * IR = alpha / trackingError
- */
 export function calcInformationRatio(alpha: number, trackingError: number): number {
   if (trackingError === 0) return 0;
   return alpha / trackingError;
 }
 
-/**
- * 计算上行捕获比 (Upside Capture)
- * 当基准收益为正时，组合收益与基准收益的几何平均之比
- */
 export function calcUpsideCapture(portfolioReturns: number[], benchmarkReturns: number[]): number {
   const n = Math.min(portfolioReturns.length, benchmarkReturns.length);
   if (n < 1) return 0;
@@ -373,10 +286,6 @@ export function calcUpsideCapture(portfolioReturns: number[], benchmarkReturns: 
   return portfolioGeoMean / benchmarkGeoMean;
 }
 
-/**
- * 计算下行捕获比 (Downside Capture)
- * 当基准收益为负时，组合收益与基准收益的几何平均之比
- */
 export function calcDownsideCapture(
   portfolioReturns: number[],
   benchmarkReturns: number[],
@@ -404,10 +313,6 @@ export function calcDownsideCapture(
   return portfolioGeoMean / benchmarkGeoMean;
 }
 
-/**
- * 计算在险价值 (Value at Risk) - 历史模拟法
- * confidence: 如 0.95 表示 95% 置信度，返回正值表示损失
- */
 export function calcVaR(dailyReturns: number[], confidence: number): number {
   if (dailyReturns.length < 2) return 0;
   const sorted = [...dailyReturns].sort((a, b) => a - b);
@@ -415,10 +320,6 @@ export function calcVaR(dailyReturns: number[], confidence: number): number {
   return -sorted[Math.max(0, index)];
 }
 
-/**
- * 计算条件在险价值 (CVaR / Expected Shortfall)
- * 置信度之外尾部收益的平均损失，返回正值表示损失
- */
 export function calcCVaR(dailyReturns: number[], confidence: number): number {
   if (dailyReturns.length < 2) return 0;
   const sorted = [...dailyReturns].sort((a, b) => a - b);
@@ -429,10 +330,6 @@ export function calcCVaR(dailyReturns: number[], confidence: number): number {
   return -avg;
 }
 
-/**
- * 计算偏度 (Skewness)
- * 使用样本偏度校正公式
- */
 export function calcSkewness(returns: number[]): number {
   const n = returns.length;
   if (n < 3) return 0;
@@ -447,10 +344,6 @@ export function calcSkewness(returns: number[]): number {
   return (n / ((n - 1) * (n - 2))) * sumCubed;
 }
 
-/**
- * 计算超额峰度 (Excess Kurtosis)
- * 使用 Fisher's 校正公式
- */
 export function calcExcessKurtosis(returns: number[]): number {
   const n = returns.length;
   if (n < 4) return 0;
@@ -468,13 +361,6 @@ export function calcExcessKurtosis(returns: number[]): number {
   );
 }
 
-/**
- * 计算永续提款率 (PWR - Perpetual Withdrawal Rate)
- * 使用二分查找：找到最大年化提款率，使得组合在给定年度收益序列下不会耗尽
- *
- * @param annualReturns - 年度收益率序列（小数形式，如 0.04 表示 4%）
- * @returns PWR（小数形式，如 0.04 表示 4%）
- */
 export function calcPWR(annualReturns: number[]): number {
   if (annualReturns.length === 0) return 0;
 
@@ -496,10 +382,6 @@ export function calcPWR(annualReturns: number[]): number {
   return low;
 }
 
-/**
- * 模拟给定提款率下组合是否不会耗尽
- * 初始值为 1，每年初提取 withdrawalRate，然后应用年度收益
- */
 function simulateWithdrawal(annualReturns: number[], withdrawalRate: number): boolean {
   let portfolio = 1.0;
   for (const ret of annualReturns) {
@@ -587,49 +469,64 @@ export function calcBenchmarkMetrics(
   };
 }
 
-export function buildStatisticsObject(args: {
+function calcDerivedStats(args: {
   cagr: number;
-  mwrr: number;
-  stdev: number;
-  dailyReturns: number[];
   values: number[];
+  dailyReturns: number[];
   startingValue: number;
   finalValue: number;
-  maxDrawdown: number;
-  maxDrawdownDuration: number;
   annualReturnValues: number[];
-  monthlyReturnValues: number[];
-  benchmarkMetrics: BenchmarkMetrics;
-}): Statistics {
+  maxDrawdown: number;
+}) {
+  const { cagr, values, dailyReturns, startingValue, finalValue, annualReturnValues } = args;
+  return {
+    avgDrawdown: calcAvgDrawdown(values),
+    ulcerIndex: calcUlcerIndex(values),
+    calmar: calcCalmar(cagr, args.maxDrawdown),
+    ulcerPerformanceIndex: calcUPI(cagr, calcUlcerIndex(values)),
+    var1: calcVaR(dailyReturns, 0.99),
+    var5: calcVaR(dailyReturns, 0.95),
+    var10: calcVaR(dailyReturns, 0.9),
+    cvar1: calcCVaR(dailyReturns, 0.99),
+    cvar5: calcCVaR(dailyReturns, 0.95),
+    cvar10: calcCVaR(dailyReturns, 0.9),
+    skewness: calcSkewness(dailyReturns),
+    excessKurtosis: calcExcessKurtosis(dailyReturns),
+    totalReturn: calcTotalReturn(startingValue, finalValue),
+    pctPositiveDays:
+      dailyReturns.length > 0 ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length : 0,
+    maxDailyReturn: dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0,
+    minDailyReturn: dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0,
+    pwr: calcPWR(annualReturnValues),
+  };
+}
+
+function buildStatsReturn(
+  d: ReturnType<typeof calcDerivedStats>,
+  args: {
+    cagr: number;
+    mwrr: number;
+    stdev: number;
+    dailyReturns: number[];
+    values: number[];
+    maxDrawdown: number;
+    maxDrawdownDuration: number;
+    annualReturnValues: number[];
+    monthlyReturnValues: number[];
+    benchmarkMetrics: BenchmarkMetrics;
+  },
+): Statistics {
   const {
     cagr,
     mwrr,
     stdev,
     dailyReturns,
-    values,
-    startingValue,
-    finalValue,
     maxDrawdown,
     maxDrawdownDuration,
     annualReturnValues,
     monthlyReturnValues,
     benchmarkMetrics: bm,
   } = args;
-  const avgDrawdown = calcAvgDrawdown(values);
-  const ulcerIndex = calcUlcerIndex(values);
-  const calmar = calcCalmar(cagr, maxDrawdown);
-  const ulcerPerformanceIndex = calcUPI(cagr, ulcerIndex);
-  const var5 = calcVaR(dailyReturns, 0.95);
-  const cvar5 = calcCVaR(dailyReturns, 0.95);
-  const skewness = calcSkewness(dailyReturns);
-  const excessKurtosis = calcExcessKurtosis(dailyReturns);
-  const totalReturn = calcTotalReturn(startingValue, finalValue);
-  const pctPositiveDays =
-    dailyReturns.length > 0 ? dailyReturns.filter((r) => r > 0).length / dailyReturns.length : 0;
-  const maxDailyReturn = dailyReturns.length > 0 ? Math.max(...dailyReturns) : 0;
-  const minDailyReturn = dailyReturns.length > 0 ? Math.min(...dailyReturns) : 0;
-  const pwr = calcPWR(annualReturnValues);
-
   return {
     cagr,
     mwrr,
@@ -644,13 +541,13 @@ export function buildStatisticsObject(args: {
       annualReturnValues.length > 0
         ? annualReturnValues.reduce((s, r) => s + r, 0) / annualReturnValues.length
         : 0,
-    totalReturn,
+    totalReturn: d.totalReturn,
     maxMonthlyReturn: calcBestMonth(monthlyReturnValues),
     minMonthlyReturn: calcWorstMonth(monthlyReturnValues),
-    avgDrawdown,
-    ulcerIndex,
-    calmar,
-    ulcerPerformanceIndex,
+    avgDrawdown: d.avgDrawdown,
+    ulcerIndex: d.ulcerIndex,
+    calmar: d.calmar,
+    ulcerPerformanceIndex: d.ulcerPerformanceIndex,
     beta: bm.beta,
     alpha: bm.alpha,
     rSquared: bm.rSquared,
@@ -658,15 +555,57 @@ export function buildStatisticsObject(args: {
     informationRatio: bm.informationRatio,
     upsideCapture: bm.upsideCapture,
     downsideCapture: bm.downsideCapture,
-    var5,
-    cvar5,
-    skewness,
-    excessKurtosis,
-    pctPositiveDays,
-    maxDailyReturn,
-    minDailyReturn,
-    pwr,
+    var: {
+      daily: { 1: d.var1, 5: d.var5, 10: d.var10 },
+      monthly: {
+        1: calcVaR(args.monthlyReturnValues, 0.99),
+        5: calcVaR(args.monthlyReturnValues, 0.95),
+        10: calcVaR(args.monthlyReturnValues, 0.9),
+      },
+      annual: {
+        1: calcVaR(args.annualReturnValues, 0.99),
+        5: calcVaR(args.annualReturnValues, 0.95),
+        10: calcVaR(args.annualReturnValues, 0.9),
+      },
+    },
+    cvar: {
+      daily: { 1: d.cvar1, 5: d.cvar5, 10: d.cvar10 },
+      monthly: {
+        1: calcCVaR(args.monthlyReturnValues, 0.99),
+        5: calcCVaR(args.monthlyReturnValues, 0.95),
+        10: calcCVaR(args.monthlyReturnValues, 0.9),
+      },
+      annual: {
+        1: calcCVaR(args.annualReturnValues, 0.99),
+        5: calcCVaR(args.annualReturnValues, 0.95),
+        10: calcCVaR(args.annualReturnValues, 0.9),
+      },
+    },
+    skewness: { daily: d.skewness, monthly: 0, annual: 0 },
+    excessKurtosis: { daily: d.excessKurtosis, monthly: 0, annual: 0 },
+    winRate: { daily: d.pctPositiveDays, monthly: 0, annual: 0 },
+    maxDailyReturn: d.maxDailyReturn,
+    minDailyReturn: d.minDailyReturn,
+    pwr: d.pwr,
   };
+}
+
+export function buildStatisticsObject(args: {
+  cagr: number;
+  mwrr: number;
+  stdev: number;
+  dailyReturns: number[];
+  values: number[];
+  startingValue: number;
+  finalValue: number;
+  maxDrawdown: number;
+  maxDrawdownDuration: number;
+  annualReturnValues: number[];
+  monthlyReturnValues: number[];
+  benchmarkMetrics: BenchmarkMetrics;
+}): Statistics {
+  const derived = calcDerivedStats(args);
+  return buildStatsReturn(derived, args);
 }
 
 export function calculatePortfolioStatistics(opts: {

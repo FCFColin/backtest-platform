@@ -83,16 +83,10 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 	return result.([]provider.DailyPrice), nil
 }
 
+// TODO: SearchTicker currently hits a kline endpoint instead of a proper search endpoint.
+// A proper search implementation (e.g., using EastMoney search API) is needed.
 func (p *akshareProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
-	url := "https://push2.eastmoney.com/api/qt/stock/kline/get?secid=0.000001&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=20200101&end=20260101&lmt=1"
-
-	result, err := breaker.Execute(func() (interface{}, error) {
-		return doSearchRetry(url, query)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("akshare SearchTicker 失败: %w", err)
-	}
-	return result.([]provider.TickerInfo), nil
+	return nil, fmt.Errorf("akshare SearchTicker 未实现（需要使用东方财富搜索接口）")
 }
 
 // parseCodeAndMarket 从 ticker 中提取股票代码和东方财富市场代码
@@ -121,14 +115,6 @@ func doWithRetry(url string) ([]provider.DailyPrice, error) {
 		return nil, err
 	}
 	return parseDailyPrices(body)
-}
-
-func doSearchRetry(url, query string) ([]provider.TickerInfo, error) {
-	body, err := httpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	return parseTickerSearch(body, query)
 }
 
 type eastMoneyResponse struct {
@@ -167,18 +153,6 @@ func parseDailyPrices(body []byte) ([]provider.DailyPrice, error) {
 		})
 	}
 	return prices, nil
-}
-
-func parseTickerSearch(body []byte, query string) ([]provider.TickerInfo, error) {
-	var raw eastMoneyResponse
-	if err := json.Unmarshal(body, &raw); err != nil {
-		return nil, fmt.Errorf("JSON 解析失败: %w", err)
-	}
-	if raw.Data == nil {
-		return nil, fmt.Errorf("API 返回空数据")
-	}
-	_ = query
-	return []provider.TickerInfo{}, nil
 }
 
 func parseFloat(s string) float64 {

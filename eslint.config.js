@@ -43,7 +43,7 @@ export default tseslint.config(
 
   // 前端 React 配置
   {
-    files: ['packages/frontend/src/**/*.{ts,tsx}', 'src/**/*.{ts,tsx}'],
+    files: ['packages/frontend/src/**/*.{ts,tsx}'],
     plugins: {
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
@@ -53,13 +53,13 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'react-refresh/only-export-components': ['error', { allowConstantExport: true }],
     },
   },
 
   // 后端 Node.js 配置
   {
-    files: ['api/**/*.ts'],
+    files: ['packages/backend/src/**/*.ts'],
     languageOptions: {
       globals: globals.node,
     },
@@ -80,15 +80,15 @@ export default tseslint.config(
   // 最终形成无人敢动的"上帝函数"。
   // 阈值依据企业基准：复杂度 15 / 深度 4 / 函数 80 行 / 参数 5 / 回调 3。
   {
-    files: ['api/**/*.ts', 'src/**/*.{ts,tsx}'],
+    files: ['packages/backend/src/**/*.ts', 'packages/frontend/src/**/*.{ts,tsx}'],
     plugins: { sonarjs },
     rules: {
-      complexity: ['warn', { max: 15 }],
-      'max-depth': ['warn', 4],
-      'max-lines-per-function': ['warn', { max: 80, skipBlankLines: true, skipComments: true }],
-      'max-params': ['warn', 5],
-      'max-nested-callbacks': ['warn', 3],
-      'sonarjs/cognitive-complexity': ['warn', 15],
+      complexity: ['error', { max: 15 }],
+      'max-depth': ['error', 4],
+      'max-lines-per-function': ['error', { max: 80, skipBlankLines: true, skipComments: true }],
+      'max-params': ['error', 5],
+      'max-nested-callbacks': ['error', 3],
+      'sonarjs/cognitive-complexity': ['error', 15],
     },
   },
 
@@ -99,15 +99,11 @@ export default tseslint.config(
       // typescript-eslint 官方建议：使用 TypeScript 时禁用 no-undef，
       // 因为 TS 编译器已通过类型系统检查未定义变量，no-undef 会误报 console 等 Node 全局变量。
       'no-undef': 'off',
-      // 渐进式 lint 策略：no-unused-vars 先设为 warn，避免一次性阻断 31 个存量 error。
-      // 企业引入 lint 到既有代码库的标准做法：先 warn 让团队逐步清理，清理完成后升级为 error。
-      // TODO(lint-cleanup): 存量 unused vars 清理后，升级回 'error'。
       '@typescript-eslint/no-unused-vars': [
-        'warn',
+        'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
-      // 允许 any 类型（渐进式迁移，避免一次性阻断过多）
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
 

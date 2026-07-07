@@ -1,5 +1,5 @@
 /** @file Rebalancing sensitivity analysis shared types */
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import type { RebalanceFrequency } from '@backtest/shared';
 
 export const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] = [
   { value: 'daily', label: '每日', color: '#2b63b8' },

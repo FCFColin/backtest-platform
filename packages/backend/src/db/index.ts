@@ -27,18 +27,13 @@
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { registerPgPoolMetrics } from '../utils/metrics.js';
 
 const { Pool } = pg;
 
-// 企业理由（I-3）：migrations 目录相对于项目根目录。
-// 使用 import.meta.url + 逐级上溯定位项目根，兼容 npm run dev 和 npm run build。
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const MIGRATIONS_DIR = path.resolve(__dirname, '../../migrations');
+const MIGRATIONS_DIR = config.MIGRATIONS_DIR;
 
 // ---------------------------------------------------------------------------
 // 连接池配置

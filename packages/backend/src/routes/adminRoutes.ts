@@ -4,14 +4,15 @@
  * GET /api/admin/system - 系统资源信息
  */
 
-import { Router, type Request, type Response } from 'express';
+import { Router, type Response } from 'express';
 import { callService } from '../utils/httpClient.js';
-import { scanTickersStats, getUniverseStats } from '../services/engineService.js';
+import { scanTickersStats, getUniverseStats } from '../services/tickerDataService.js';
 import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { requirePermission, Permission } from '../middleware/rbac.js';
 import { listRuns, type BacktestRunRecord } from '../services/backtestRunRepo.js';
 
 const router = Router();
@@ -134,98 +135,110 @@ function formatUptime(uptimeSeconds: number): string {
  * GET /api/admin/stats - 仪表盘统计数据
  * 包含：服务健康、数据统计、系统信息、回测历史（空）
  */
-router.get('/stats', async (req: Request, res: Response): Promise<void> => {
-  try {
-    // 并行检查服务健康（Go 引擎为唯一计算引擎，ADR-008）
-    const [engineHealth, goHealth] = await Promise.all([
-      checkServiceHealth(config.GO_ENGINE_URL, '/api/engine/health', 'Go引擎'),
-      checkServiceHealth(config.GO_DATA_SERVICE_URL, '/api/data/health', 'Go数据服务'),
-    ]);
+router.get(
+  '/stats',
+  jwtAuth,
+  requirePermission(Permission.ADMIN_ACCESS),
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      // 并行检查服务健康（Go 引擎为唯一计算引擎，ADR-008）
+      const [engineHealth, goHealth] = await Promise.all([
+        checkServiceHealth(config.GO_ENGINE_URL, '/api/engine/health', 'Go引擎'),
+        checkServiceHealth(config.GO_DATA_SERVICE_URL, '/api/data/health', 'Go数据服务'),
+      ]);
 
-    // 回测历史：当请求带有活跃租户时，返回该租户最近的运行记录（ADR-034）。
-    // 无租户上下文（如破窗平台密钥未选组织）时返回空数组，保持向后兼容。
-    const tenantId = (req as AuthenticatedRequest).tenantId;
-    let backtestHistory: BacktestRunRecord[] = [];
-    if (tenantId) {
-      try {
-        backtestHistory = await listRuns(tenantId, 20);
-      } catch (err) {
-        logger.warn({ err: String(err), tenantId }, '[Admin Stats] 回测历史查询失败，返回空');
+      // 回测历史：当请求带有活跃租户时，返回该租户最近的运行记录（ADR-034）。
+      // 无租户上下文（如破窗平台密钥未选组织）时返回空数组，保持向后兼容。
+      const tenantId = (req as AuthenticatedRequest).tenantId;
+      let backtestHistory: BacktestRunRecord[] = [];
+      if (tenantId) {
+        try {
+          backtestHistory = await listRuns(tenantId, 20);
+        } catch (err) {
+          logger.warn({ err: String(err), tenantId }, '[Admin Stats] 回测历史查询失败，返回空');
+        }
       }
+
+      const [tickerStats, universeStats] = await Promise.all([
+        scanTickersStats().then((s: DbMarketStats | null) => s ?? defaultTickerStats()),
+        getUniverseStats(),
+      ]);
+
+      res.json({
+        success: true,
+        data: buildStatsResponseData({
+          engineHealth,
+          goHealth,
+          tickerStats,
+          universeStats,
+          backtestHistory,
+        }),
+      });
+    } catch (error) {
+      logger.error({ err: error as Error }, '[Admin Stats] 获取统计数据失败');
+      sendProblem(res, 500, 'ADMIN_STATS_ERROR', 'Admin Stats Error', {
+        detail: '获取统计数据失败',
+      });
     }
-
-    const [tickerStats, universeStats] = await Promise.all([
-      scanTickersStats().then((s: DbMarketStats | null) => s ?? defaultTickerStats()),
-      getUniverseStats(),
-    ]);
-
-    res.json({
-      success: true,
-      data: buildStatsResponseData({
-        engineHealth,
-        goHealth,
-        tickerStats,
-        universeStats,
-        backtestHistory,
-      }),
-    });
-  } catch (error) {
-    logger.error({ err: error as Error }, '[Admin Stats] 获取统计数据失败');
-    sendProblem(res, 500, 'ADMIN_STATS_ERROR', 'Admin Stats Error', { detail: '获取统计数据失败' });
-  }
-});
+  },
+);
 
 /**
  * GET /api/admin/system - 系统资源信息
  */
-router.get('/system', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const memUsage = process.memoryUsage();
-    const uptimeSeconds = process.uptime();
+router.get(
+  '/system',
+  jwtAuth,
+  requirePermission(Permission.ADMIN_ACCESS),
+  async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const memUsage = process.memoryUsage();
+      const uptimeSeconds = process.uptime();
 
-    const tickerStats =
-      (await scanTickersStats()) ??
-      ({
-        total_cached: 0,
-        data_quality: {
-          with_adj_close: 0,
-          with_dividends: 0,
-          with_splits: 0,
-          total_data_points: 0,
-          total_size_mb: 0,
-        },
-      } as DbMarketStats);
+      const tickerStats =
+        (await scanTickersStats()) ??
+        ({
+          total_cached: 0,
+          data_quality: {
+            with_adj_close: 0,
+            with_dividends: 0,
+            with_splits: 0,
+            total_data_points: 0,
+            total_size_mb: 0,
+          },
+        } as DbMarketStats);
 
-    res.json({
-      success: true,
-      data: {
-        memory: {
-          rss: memUsage.rss,
-          heap_total: memUsage.heapTotal,
-          heap_used: memUsage.heapUsed,
-          external: memUsage.external,
-          array_buffers: memUsage.arrayBuffers,
-          rss_mb: Math.round((memUsage.rss / 1024 / 1024) * 10) / 10,
-          heap_used_mb: Math.round((memUsage.heapUsed / 1024 / 1024) * 10) / 10,
-          heap_total_mb: Math.round((memUsage.heapTotal / 1024 / 1024) * 10) / 10,
+      res.json({
+        success: true,
+        data: {
+          memory: {
+            rss: memUsage.rss,
+            heap_total: memUsage.heapTotal,
+            heap_used: memUsage.heapUsed,
+            external: memUsage.external,
+            array_buffers: memUsage.arrayBuffers,
+            rss_mb: Math.round((memUsage.rss / 1024 / 1024) * 10) / 10,
+            heap_used_mb: Math.round((memUsage.heapUsed / 1024 / 1024) * 10) / 10,
+            heap_total_mb: Math.round((memUsage.heapTotal / 1024 / 1024) * 10) / 10,
+          },
+          uptime: {
+            seconds: Math.round(uptimeSeconds),
+            formatted: formatUptime(uptimeSeconds),
+          },
+          data_directory: {
+            total_size_mb: tickerStats.data_quality.total_size_mb,
+            ticker_file_count: tickerStats.total_cached,
+            total_data_points: tickerStats.data_quality.total_data_points,
+          },
         },
-        uptime: {
-          seconds: Math.round(uptimeSeconds),
-          formatted: formatUptime(uptimeSeconds),
-        },
-        data_directory: {
-          total_size_mb: tickerStats.data_quality.total_size_mb,
-          ticker_file_count: tickerStats.total_cached,
-          total_data_points: tickerStats.data_quality.total_data_points,
-        },
-      },
-    });
-  } catch (error) {
-    logger.error({ err: error as Error }, '[Admin System] 获取系统信息失败');
-    sendProblem(res, 500, 'ADMIN_SYSTEM_ERROR', 'Admin System Error', {
-      detail: '获取系统信息失败',
-    });
-  }
-});
+      });
+    } catch (error) {
+      logger.error({ err: error as Error }, '[Admin System] 获取系统信息失败');
+      sendProblem(res, 500, 'ADMIN_SYSTEM_ERROR', 'Admin System Error', {
+        detail: '获取系统信息失败',
+      });
+    }
+  },
+);
 
 export default router;

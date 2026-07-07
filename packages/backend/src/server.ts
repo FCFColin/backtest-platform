@@ -134,4 +134,12 @@ export function setupGracefulShutdown(server: Server): void {
 // 注册优雅关闭处理器
 setupGracefulShutdown(server);
 
+// 防止未捕获的异常/拒绝导致进程崩溃（如 Redis 连接失败、OTel 超时等）
+process.on('uncaughtException', (err) => {
+  logger.error({ err }, '[server] 未捕获异常，服务继续运行');
+});
+process.on('unhandledRejection', (reason) => {
+  logger.warn({ err: reason }, '[server] 未处理 Promise 拒绝，服务继续运行');
+});
+
 export default app;

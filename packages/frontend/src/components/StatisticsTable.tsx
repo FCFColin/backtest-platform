@@ -3,8 +3,8 @@
  * @description 展示各投资组合的核心统计指标对比，支持完整与概览两种模式
  */
 import { Fragment } from 'react';
-import type { PortfolioResult, Statistics } from '@backtest/shared/types';
-import { CHART_COLORS } from '@backtest/shared/types';
+import type { PortfolioResult, Statistics } from '@backtest/shared';
+import { CHART_COLORS } from '@backtest/shared';
 
 /** 统计指标表格 Props */
 interface StatisticsTableProps {
@@ -303,7 +303,7 @@ function StatisticsGroupRows({
               {row.label}
             </td>
             {portfolios.map((p) => {
-              const val = p.statistics[row.key];
+              const val = p.statistics[row.key] as number | undefined;
               return (
                 <td
                   key={p.name}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAsyncAction } from './useAsyncAction';
+import i18n from '../i18n/index.js';
 import type { SignalAnalysisRequest, DualSignalConfig } from '@backtest/shared/types/signal';
 import type { SignalCfg, DualSignalResponse } from '../components/dualSignal/types.js';
 
@@ -15,7 +16,7 @@ export function useDualSignalState() {
 
   const runAnalysis = () => {
     if (!ticker.trim()) {
-      setError('请输入标的代码');
+      setError(i18n.t('errors.dualSignalTickerRequired'));
       return;
     }
     run(async () => {
@@ -40,7 +41,8 @@ export function useDualSignalState() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (json.success === false) throw new Error(json.error || '分析失败');
+      if (json.success === false)
+        throw new Error(json.error || i18n.t('errors.dualSignalAnalysisFailed'));
       setResults(json.data as DualSignalResponse);
     });
   };

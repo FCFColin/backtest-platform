@@ -3,15 +3,17 @@
  * @description 回测核心参数配置面板，包括标的、权重、日期范围及调仓策略等设置。
  * 使用 ParamsPanel/ParamsSection 组件组织可折叠分区，对标 testfol.io 参数区风格。
  */
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
+import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
 import { Plus, X } from 'lucide-react';
 import TickerInput from './TickerInput';
 import { ParamsPanel, ParamsSection } from './ParamsPanel';
-import type { RebalanceBands } from '@backtest/shared/types';
-import type { CashflowLeg } from '@backtest/shared/types';
+import type { RebalanceBands } from '@backtest/shared';
+import type { CashflowLeg } from '@backtest/shared';
 
 function validateDateChange(
   field: 'startDate' | 'endDate',
@@ -96,7 +98,7 @@ function DateRangeFields({
 /** 基本参数分区 */
 function BasicParamsSection() {
   const { t } = useTranslation();
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
 
   return (
@@ -127,7 +129,7 @@ function BasicParamsSection() {
 }
 
 function StartingValueField({ t }: { t: TFunction }) {
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
     <div className="param-field param-field-start-val">
@@ -150,7 +152,7 @@ function StartingValueField({ t }: { t: TFunction }) {
 }
 
 function CurrencyField({ t }: { t: TFunction }) {
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
     <div className="param-field" style={{ width: 90 }}>
@@ -168,7 +170,7 @@ function CurrencyField({ t }: { t: TFunction }) {
 }
 
 function InflationToggle({ t }: { t: TFunction }) {
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
     <>
@@ -192,7 +194,7 @@ function InflationToggle({ t }: { t: TFunction }) {
 }
 
 function RollingWindowField({ t }: { t: TFunction }) {
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
     <div className="param-field param-field-rolling">
@@ -215,7 +217,7 @@ function RollingWindowField({ t }: { t: TFunction }) {
 }
 
 function BenchmarkField({ t }: { t: TFunction }) {
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
     <>
@@ -325,7 +327,7 @@ function BandField({
 /** 组合高级设置分区 */
 function AdvancedSettingsSection() {
   const { t } = useTranslation();
-  const portfolios = useBacktestStore((s) => s.portfolios);
+  const portfolios = useBacktestStore(useShallow((s) => s.portfolios));
   const updatePortfolio = useBacktestStore((s) => s.updatePortfolio);
 
   return (
@@ -404,7 +406,7 @@ function AdvancedSettingsSection() {
 /** 周期性现金流分区 */
 function CashflowLegsSection() {
   const { t } = useTranslation();
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const addCashflowLeg = useBacktestStore((s) => s.addCashflowLeg);
 
   return (
@@ -534,7 +536,7 @@ function CashflowAmountField({
 /** 一次性现金流分区 */
 function OneTimeCashflowSection() {
   const { t } = useTranslation();
-  const parameters = useBacktestStore((s) => s.parameters);
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const addOneTimeCashflow = useBacktestStore((s) => s.addOneTimeCashflow);
   const removeOneTimeCashflow = useBacktestStore((s) => s.removeOneTimeCashflow);
   const updateOneTimeCashflow = useBacktestStore((s) => s.updateOneTimeCashflow);
@@ -607,7 +609,7 @@ function OneTimeCashflowSection() {
   );
 }
 
-export default function ParameterPanel() {
+const ParameterPanel = memo(function ParameterPanel() {
   const { t } = useTranslation();
   return (
     <div className="params-section">
@@ -620,4 +622,6 @@ export default function ParameterPanel() {
       </ParamsPanel>
     </div>
   );
-}
+});
+
+export default ParameterPanel;

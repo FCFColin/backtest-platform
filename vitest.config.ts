@@ -22,59 +22,28 @@ export default defineConfig({
       // 权衡：多生成一个文件，但 per-file 检查能发现整体覆盖率掩盖的"测试盲区"。
       reporter: ['html', 'lcov', 'text', 'json-summary'],
       reportsDirectory: 'coverage/vitest',
-      include: ['src/**/*.{ts,tsx}', 'api/**/*.{ts,tsx}'],
-      // 企业理由：React 组件和页面通过 Playwright E2E 测试覆盖（tests/e2e/ui/*.spec.ts），
-      // 不纳入单元测试覆盖率统计，避免 denominator 过大导致整体覆盖率失真。
-      // 入口文件（App.tsx/main.tsx/index.ts）和基础设施代码（tracing.ts）也排除。
+      include: ['packages/backend/src/**/*.{ts,tsx}', 'packages/frontend/src/**/*.{ts,tsx}'],
       exclude: [
-        'src/**/*.d.ts',
-        'src/**/*.test.{ts,tsx}',
-        'src/i18n/**',
-        'src/vite-env.d.ts',
-        'src/pages/**',
-        'src/components/**',
-        'src/components/EmptyState.tsx',
-        'src/App.tsx',
-        'src/main.tsx',
-        // 低ROI：纯 JSX 渲染 / 空文件
-        'src/components/EmptyState.tsx',
-        'api/index.ts',
-        'api/tracing.ts',
-        // 低ROI：barrel/index 无可执行语句
-        'api/domain/index.ts',
-        'api/domain/aggregates/index.ts',
-        'api/domain/events/index.ts',
-        'api/domain/value-objects/index.ts',
-        'api/application/cqrs.ts',
-        // 低ROI：基础设施代码
-        'api/utils/timeout.ts',
-        'api/utils/tracePropagation.ts',
-        'api/utils/logger.ts',
-        'api/utils/metrics.ts',
-        'api/utils/engineClient.ts',
-        'api/db/import.ts',
-        'api/db/index.ts',
-        // 低ROI：外部服务依赖真实 SMTP
-        'api/services/mailService.ts',
-        // 低ROI：Express 装配代码，被集成测试间接覆盖
-        'api/app.ts',
-        // 低ROI：外部服务依赖（真实 Go/HTTP/Stripe/SMTP）
-        'api/services/dataService.ts',
-        'api/services/engineService.ts',
-        'api/services/mailService.ts',
-        'api/services/billingService.ts',
-        // 低ROI：队列基础设施（依赖 Redis/BullMQ）
-        'api/queues/worker.ts',
-        'api/queues/jobIdempotency.ts',
-        'api/queues/backtestQueue.ts',
-        // 低ROI：纯事件定义，无可执行逻辑
-        'api/domain/events/backtest-completed.ts',
-        'api/domain/events/rebalance-triggered.ts',
-        // 低ROI：Express 路由装配（需集成测试环境）
-        'api/routes/authRoutes.ts',
-        'api/routes/orgRoutes.ts',
-        'api/routes/billingRoutes.ts',
-        'api/routes/tacticalRoutes.ts',
+        'packages/frontend/src/**/*.d.ts',
+        'packages/frontend/src/**/*.test.{ts,tsx}',
+        'packages/frontend/src/i18n/**',
+        'packages/frontend/src/vite-env.d.ts',
+        'packages/frontend/src/pages/**',
+        'packages/frontend/src/components/**',
+        'packages/frontend/src/App.tsx',
+        'packages/frontend/src/main.tsx',
+        'packages/backend/src/utils/logger.ts',
+        'packages/backend/src/utils/metrics.ts',
+        'packages/backend/src/utils/engineClient.ts',
+        'packages/backend/src/db/import.ts',
+        'packages/backend/src/app.ts',
+        'packages/backend/src/services/dataService.ts',
+        'packages/backend/src/services/engineService.ts',
+        'packages/backend/src/services/mailService.ts',
+        'packages/backend/src/services/billingService.ts',
+        'packages/backend/src/queues/worker.ts',
+        'packages/backend/src/queues/jobIdempotency.ts',
+        'packages/backend/src/queues/backtestQueue.ts',
       ],
       // 企业理由（AI Code Gate）：AI 编码频次增高后需要更严格的回归保障。
       // 目标：单元测试行覆盖率 95%，分支覆盖率 85%。
@@ -102,7 +71,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(__dirname, './packages/frontend/src'),
+      'react-router-dom': path.resolve(__dirname, 'tests/mocks/react-router-dom.tsx'),
     },
   },
 });

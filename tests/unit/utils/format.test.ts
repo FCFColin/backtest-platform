@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../../../src/utils/format.js';
+import {
+  fmtDate,
+  fmtYears,
+  fmtPct,
+  fmtRatio,
+} from '../../../packages/frontend/src/utils/format.js';
 
 describe('fmtDate', () => {
   it('undefined 应返回占位符', () => {

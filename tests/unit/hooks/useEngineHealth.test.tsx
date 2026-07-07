@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useEngineHealth } from '../../../src/hooks/useEngineHealth.js';
+import { useEngineHealth } from '../../../packages/frontend/src/hooks/useEngineHealth.js';
 
 describe('useEngineHealth', () => {
   beforeEach(() => {

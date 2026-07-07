@@ -7,7 +7,7 @@
  * JSON 文件仅用于 `npm run import:tickers` 一次性导入，运行时不再读取。
  */
 
-import { readdirSync, unlinkSync } from 'fs';
+import { readdir, unlink } from 'fs/promises';
 import { join } from 'path';
 import { validateTickerFormat } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
@@ -136,7 +136,7 @@ export async function fetchHistoryData(
     end: endDate,
   });
 
-  const cached = readCache(cacheKey);
+  const cached = await readCache(cacheKey);
   if (cached) {
     Object.assign(result, cached);
     logger.info(
@@ -201,7 +201,7 @@ export async function searchTickers(query: string, market?: string): Promise<Tic
   if (dbResult !== null) return dbResult;
 
   const cacheKey = getCacheKey('search', { query, market: market || 'all' });
-  const cached = readCache(cacheKey);
+  const cached = await readCache(cacheKey);
   if (cached) return cached as TickerSearchResult[];
 
   try {
@@ -213,8 +213,8 @@ export async function searchTickers(query: string, market?: string): Promise<Tic
         name: r.name,
         market: r.market,
       }));
-      writeCache(cacheKey, data);
-      incrementCacheVersion();
+      await writeCache(cacheKey, data);
+      await incrementCacheVersion();
       return data;
     }
     return [];
@@ -230,11 +230,11 @@ export async function invalidateCache(ticker?: string): Promise<void> {
 
     ensureCacheDir();
     try {
-      const files = readdirSync(CACHE_DIR);
+      const files = await readdir(CACHE_DIR);
       const prefix = ticker.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 50);
       for (const file of files) {
         if (file.startsWith(`history_${prefix}=`) || file.includes(`=${prefix}&`)) {
-          unlinkSync(join(CACHE_DIR, file));
+          await unlink(join(CACHE_DIR, file));
         }
       }
     } catch {
@@ -243,7 +243,7 @@ export async function invalidateCache(ticker?: string): Promise<void> {
 
     logger.info(`[dataService] invalidateCache: ticker=${ticker}`);
   } else {
-    incrementCacheVersion();
+    await incrementCacheVersion();
     await clearPriceCache();
 
     logger.info(`[dataService] invalidateCache: 全量失效, new version=${currentCacheVersion}`);

@@ -30,7 +30,7 @@ vi.mock('react', () => ({
   useCallback: <T>(fn: T): T => fn,
 }));
 
-import { useAsyncAction } from '../../../src/hooks/useAsyncAction.js';
+import { useAsyncAction } from '../../../packages/frontend/src/hooks/useAsyncAction.js';
 
 /**
  * 渲染 hook：重置状态后调用，返回带 getter 的包装对象

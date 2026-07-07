@@ -3,8 +3,8 @@
  * @description 以饼图形式展示各投资组合的资产配置比例
  */
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { Portfolio } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { Portfolio } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import ChartCard from '../ChartCard';
 

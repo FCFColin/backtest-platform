@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { PCAResult } from '@backtest/shared/types';
+import type { PCAResult } from '@backtest/shared';
 import { useAsyncAction } from './useAsyncAction.js';
 
 export function usePCAState() {

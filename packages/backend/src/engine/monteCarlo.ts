@@ -107,6 +107,7 @@ export function runMonteCarlo(
   const n = indexedFinals.length;
 
   const pick = (frac: number): number[] => {
+    if (n === 0) return [];
     const idx = Math.min(Math.floor(n * frac), n - 1);
     return downsampleMonthly(paths[indexedFinals[idx].idx]);
   };

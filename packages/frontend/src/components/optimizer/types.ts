@@ -1,5 +1,5 @@
 /** @file Optimizer shared types, constants */
-import type { OptimizationResult, Statistics } from '@backtest/shared/types';
+import type { OptimizationResult, Statistics } from '@backtest/shared';
 
 export type SolverType = 'markowitz' | 'ga';
 

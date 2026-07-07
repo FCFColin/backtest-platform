@@ -5,7 +5,7 @@ import {
   setApiKey,
   clearApiKey,
   ADMIN_API_KEY_STORAGE,
-} from '../../../src/utils/apiClient.js';
+} from '../../../packages/frontend/src/utils/apiClient.js';
 
 // ===== Mock authTokens for auto-refresh tests =====
 const authTokensMocks = vi.hoisted(() => ({
@@ -13,7 +13,7 @@ const authTokensMocks = vi.hoisted(() => ({
   refreshTokens: vi.fn(),
 }));
 
-vi.mock('../../../src/utils/authTokens.js', () => authTokensMocks);
+vi.mock('../../../packages/frontend/src/utils/authTokens.js', () => authTokensMocks);
 
 // ===== Mock toastStore for response intercept tests =====
 const toastStoreMock = vi.hoisted(() => ({
@@ -22,7 +22,7 @@ const toastStoreMock = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../src/store/toastStore.js', () => toastStoreMock);
+vi.mock('../../../packages/frontend/src/store/toastStore.js', () => toastStoreMock);
 
 // ===== Mock localStorage + sessionStorage =====
 function createStorageMock() {

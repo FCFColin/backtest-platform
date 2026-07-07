@@ -2,7 +2,7 @@
  * @file Tactical page state management hook
  */
 import { useState } from 'react';
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import type { RebalanceFrequency } from '@backtest/shared';
 import type { TacticalStrategy, TradingSignal } from '@backtest/shared/types/tactical';
 import { useAsyncAction } from './useAsyncAction.js';
 import { createDefaultStrategy, createDefaultSignal } from '../components/tactical/types.js';

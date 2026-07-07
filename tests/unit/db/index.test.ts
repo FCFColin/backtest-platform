@@ -37,6 +37,7 @@ const configMocks = vi.hoisted(() => ({
   DB_POOL_MIN: 1,
   DB_STATEMENT_TIMEOUT_MS: 10000,
   NODE_ENV: 'test' as string,
+  MIGRATIONS_DIR: 'migrations',
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: configMocks }));

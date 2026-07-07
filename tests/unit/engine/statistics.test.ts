@@ -4,6 +4,7 @@ import {
   calcMWRR,
   calcAnnualizedStdev,
   calcSharpe,
+  calcSortino,
   calcMaxDrawdown,
   calcCorrelation,
   calcDailyReturns,
@@ -57,11 +58,6 @@ describe('calcAnnualizedStdev', () => {
     const stdev = calcAnnualizedStdev([0.01, -0.02, 0.03, -0.01, 0.02]);
     expect(stdev).toBeGreaterThan(0);
   });
-
-  it('少于2个数据返回0', () => {
-    expect(calcAnnualizedStdev([0.01])).toBe(0);
-    expect(calcAnnualizedStdev([])).toBe(0);
-  });
 });
 
 describe('calcSharpe', () => {
@@ -73,6 +69,33 @@ describe('calcSharpe', () => {
 
   it('波动率为0返回0', () => {
     expect(calcSharpe(0.1, 0)).toBe(0);
+  });
+});
+
+describe('calcSortino', () => {
+  it('正常计算：混合正负收益', () => {
+    // cagr=0.12, 日收益率含正负
+    const sortino = calcSortino(0.12, [0.001, -0.002, 0.003, -0.001, 0.002]);
+    expect(sortino).toBeGreaterThan(0);
+  });
+
+  it('全部收益为正且 cagr>无风险利率返回 99.9', () => {
+    // 所有日收益率高于无风险日利率 → 下行波动为零
+    const sortino = calcSortino(0.15, [0.001, 0.002, 0.003, 0.0015, 0.0025]);
+    expect(sortino).toBe(99.9);
+  });
+
+  it('全部收益为正但 cagr<=无风险利率返回 0', () => {
+    const sortino = calcSortino(0.01, [0.001, 0.002, 0.003]);
+    expect(sortino).toBe(0);
+  });
+
+  it('空数组返回 0', () => {
+    expect(calcSortino(0.12, [])).toBe(0);
+  });
+
+  it('单个元素返回 0', () => {
+    expect(calcSortino(0.12, [0.001])).toBe(0);
   });
 });
 
@@ -89,10 +112,6 @@ describe('calcMaxDrawdown', () => {
     const { maxDrawdown } = calcMaxDrawdown([100, 120, 90, 110]);
     expect(maxDrawdown).toBeCloseTo(0.25, 3);
   });
-
-  it('少于2个数据返回0', () => {
-    expect(calcMaxDrawdown([100])).toEqual({ maxDrawdown: 0, maxDrawdownDuration: 0 });
-  });
 });
 
 describe('calcCorrelation', () => {
@@ -105,9 +124,20 @@ describe('calcCorrelation', () => {
     const r = calcCorrelation([1, 2, 3, 4], [8, 6, 4, 2]);
     expect(r).toBeCloseTo(-1, 5);
   });
+});
 
-  it('少于2个数据返回0', () => {
-    expect(calcCorrelation([1], [2])).toBe(0);
+describe('数据不足时的边缘情况', () => {
+  it.each([
+    { name: 'calcAnnualizedStdev([0.01])', fn: () => calcAnnualizedStdev([0.01]), expected: 0 },
+    { name: 'calcAnnualizedStdev([])', fn: () => calcAnnualizedStdev([]), expected: 0 },
+    {
+      name: 'calcMaxDrawdown([100])',
+      fn: () => calcMaxDrawdown([100]),
+      expected: { maxDrawdown: 0, maxDrawdownDuration: 0 },
+    },
+    { name: 'calcCorrelation([1], [2])', fn: () => calcCorrelation([1], [2]), expected: 0 },
+  ])('$name', ({ fn, expected }) => {
+    expect(fn()).toEqual(expected);
   });
 });
 

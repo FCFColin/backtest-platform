@@ -114,11 +114,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     ENGINE_AUTH_TOKEN: 'test-token',
     ENGINE_TIMEOUT_MS: 5000,
   }),
-  DEGRADED_WARNING: {
-    BASE: '降级模式',
-    WITH_DRAG: '降级模式（含 drag）',
-    WITHOUT_DRAG: '降级模式（无 drag）',
-  },
   validateConfig: vi.fn(),
 }));
 
@@ -520,8 +515,8 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
     expect(json.code).toBe('ENGINE_UNAVAILABLE');
-    // fail-closed：绝不返回降级的 Node 计算结果
-    expect(json.degraded).toBeUndefined();
+    // fail-closed response includes degraded: true to inform client (ADR-031)
+    expect(json.degraded).toBe(true);
   });
 });
 

@@ -2,7 +2,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBacktestStore } from '@/store/backtestStore';
-import type { Portfolio, PortfolioResult } from '@backtest/shared/types';
+import type { Portfolio, PortfolioResult } from '@backtest/shared';
 import type { TabCtx } from './types.js';
 
 import StatisticsTable from '@/components/StatisticsTable';
@@ -121,21 +121,19 @@ function TabBar() {
   const activeTab = useBacktestStore((s) => s.activeTab);
   const setActiveTab = useBacktestStore((s) => s.setActiveTab);
   return (
-    <div className="results-tabs">
+    <div className="result-tabs">
       {TAB_GROUPS.map((group) => (
-        <div key={group.groupKey} className="tab-group">
-          <div className="tab-group-label">{t(group.groupKey)}</div>
-          <div className="tab-group-tabs">
-            {group.tabs.map((tab) => (
-              <button
-                key={tab.key}
-                className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {t(tab.labelKey)}
-              </button>
-            ))}
-          </div>
+        <div key={group.groupKey} className="result-tab-group">
+          <div className="result-tab-group-label">{t(group.groupKey)}</div>
+          {group.tabs.map((tab) => (
+            <button
+              key={tab.key}
+              className={`result-tab ${activeTab === tab.key ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {t(tab.labelKey)}
+            </button>
+          ))}
         </div>
       ))}
     </div>

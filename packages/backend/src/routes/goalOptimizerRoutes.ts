@@ -5,7 +5,7 @@ import { Router, type Request, type Response } from 'express';
 import type { GoalOptimizerRequest } from '@backtest/shared/types';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, errorMessage } from '../utils/errors.js';
 import { validate } from '../middleware/validate.js';
 import { goalOptimizerSchema } from '../schemas/goalOptimizer.js';
 import { executeGoalOptimize } from '../application/analytics-application-service.js';
@@ -48,7 +48,7 @@ router.post(
       logger.info(`[GoalOptimizer] 完成, 耗时 ${Date.now() - startTime}ms`);
       res.json({ success: true, data: result });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       if (isClientFacingError(message)) {
         sendProblem(res, 422, 'GOAL_VALIDATION', 'Goal optimizer validation failed', {
           detail: message,

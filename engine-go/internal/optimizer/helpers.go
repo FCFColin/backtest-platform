@@ -153,6 +153,7 @@ func randomSearch(mu []float64, sigma [][]float64, c Constraints, objective stri
 	}
 	bestScore := math.Inf(-1)
 
+	// RNG is not concurrency-safe; wrap with sync.Mutex if called from multiple goroutines.
 	rng := rand.New(rand.NewSource(42))
 
 	for iter := 0; iter < numIter; iter++ {

@@ -68,6 +68,14 @@ const fsMocks = vi.hoisted(() => ({
   unlinkSync: vi.fn(),
 }));
 
+const fsPromisesMocks = vi.hoisted(() => ({
+  readFile: vi.fn(),
+  writeFile: vi.fn().mockResolvedValue(undefined),
+  access: vi.fn(),
+  readdir: vi.fn().mockResolvedValue([]),
+  unlink: vi.fn().mockResolvedValue(undefined),
+}));
+
 // CircuitBreaker mock：可控的 fire 与 opened 状态
 const circuitBreakerMocks = vi.hoisted(() => ({
   instance: {
@@ -80,6 +88,8 @@ const circuitBreakerMocks = vi.hoisted(() => ({
 const integrityMocks = vi.hoisted(() => ({
   signFileSync: vi.fn(),
   verifyFileSync: vi.fn().mockReturnValue(true),
+  signFile: vi.fn().mockResolvedValue(undefined),
+  verifyFile: vi.fn().mockResolvedValue(true),
 }));
 
 const httpMocks = vi.hoisted(() => ({
@@ -134,9 +144,20 @@ vi.mock('fs', () => ({
   unlinkSync: fsMocks.unlinkSync,
 }));
 
+vi.mock('fs/promises', () => ({
+  default: fsPromisesMocks,
+  readFile: fsPromisesMocks.readFile,
+  writeFile: fsPromisesMocks.writeFile,
+  access: fsPromisesMocks.access,
+  readdir: fsPromisesMocks.readdir,
+  unlink: fsPromisesMocks.unlink,
+}));
+
 vi.mock('../../../packages/backend/src/utils/integrity.js', () => ({
   signFileSync: integrityMocks.signFileSync,
   verifyFileSync: integrityMocks.verifyFileSync,
+  signFile: integrityMocks.signFile,
+  verifyFile: integrityMocks.verifyFile,
 }));
 
 vi.mock('http', () => ({
@@ -505,7 +526,7 @@ describe('searchTickers', () => {
 
     expect(result).toEqual([{ ticker: 'AAPL', name: 'Apple', market: '美股' }]);
     expect(httpMocks.request).toHaveBeenCalled();
-    expect(integrityMocks.signFileSync).toHaveBeenCalled();
+    expect(integrityMocks.signFile).toHaveBeenCalled();
   });
 
   it('Go 数据服务失败时应回退到 mock 搜索结果', async () => {
@@ -540,12 +561,12 @@ describe('invalidateCache', () => {
     redisMocks.ping.mockResolvedValue('PONG');
     redisMocks.emit('ready');
     fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readdirSync.mockReturnValue([]);
-    fsMocks.readFileSync.mockReturnValue('0');
+    fsPromisesMocks.readdir.mockResolvedValue([]);
+    fsPromisesMocks.readFile.mockResolvedValue('0');
   });
 
   it('按 ticker 失效时应清除内存缓存并删除相关磁盘文件', async () => {
-    fsMocks.readdirSync.mockReturnValue([
+    fsPromisesMocks.readdir.mockResolvedValue([
       'history_AAPL=tickers_AAPL&start=2024-01-01.json',
       'other.json',
     ]);
@@ -553,7 +574,7 @@ describe('invalidateCache', () => {
     await invalidateCache('AAPL');
 
     expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('ticker=AAPL'));
-    expect(fsMocks.unlinkSync).toHaveBeenCalledTimes(1);
+    expect(fsPromisesMocks.unlink).toHaveBeenCalledTimes(1);
     expect(redisMocks.del).toHaveBeenCalledWith('price_cache:AAPL');
   });
 
@@ -562,7 +583,7 @@ describe('invalidateCache', () => {
 
     await invalidateCache();
 
-    expect(fsMocks.writeFileSync).toHaveBeenCalled();
+    expect(fsPromisesMocks.writeFile).toHaveBeenCalled();
     expect(redisMocks.del).toHaveBeenCalledWith('price_cache:AAPL', 'price_cache:BND');
     expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('全量失效'));
   });
@@ -597,7 +618,9 @@ describe('fetchHistoryData 扩展场景', () => {
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
     tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: [], invalid: [] });
     integrityMocks.verifyFileSync.mockReturnValue(true);
+    integrityMocks.verifyFile.mockResolvedValue(true);
     fsMocks.existsSync.mockReturnValue(false);
+    fsPromisesMocks.access.mockRejectedValue(new Error('no file'));
     redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
     redisMocks.get.mockResolvedValue(null);
     // 重置模块级 Redis/内存价格缓存，避免前一用例污染后续断言
@@ -631,13 +654,18 @@ describe('fetchHistoryData 扩展场景', () => {
     fsMocks.existsSync.mockImplementation((p: string) => {
       const normalized = String(p).replace(/\\/g, '/');
       if (normalized.includes('.cache_version')) return false;
-      // 仅 history 磁盘缓存存在；批量 ticker JSON 不存在，避免内存/Redis 缓存短路
       if (normalized.includes('/data/cache') || normalized.includes('history_')) return true;
       return false;
     });
-    integrityMocks.verifyFileSync.mockImplementation(
-      (p: string) => !String(p).includes('history_'),
-    );
+    integrityMocks.verifyFile.mockResolvedValue(true);
+    integrityMocks.verifyFile.mockImplementation((p: string) => !String(p).includes('history_'));
+    fsPromisesMocks.access.mockRejectedValue(new Error('no file'));
+    // 让 history 缓存文件可通过 access 检查
+    fsPromisesMocks.access.mockImplementation((p: string) => {
+      const normalized = String(p).replace(/\\/g, '/');
+      if (normalized.includes('history_')) return Promise.resolve();
+      return Promise.reject(new Error('no file'));
+    });
     setupHttpGetSuccess(
       JSON.stringify({
         success: true,
@@ -661,6 +689,7 @@ describe('fetchHistoryData 扩展场景', () => {
     });
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
     fsMocks.existsSync.mockReturnValue(false);
+    fsPromisesMocks.access.mockRejectedValue(new Error('no file'));
     setupHttpGetSuccess(
       JSON.stringify({
         success: true,
@@ -679,7 +708,7 @@ describe('fetchHistoryData 扩展场景', () => {
       expect.any(Object),
       expect.any(Function),
     );
-    expect(fsMocks.writeFileSync).toHaveBeenCalled();
+    expect(fsPromisesMocks.writeFile).toHaveBeenCalled();
   });
 
   it('Go 数据服务 HTTP 非 2xx 时应记录 warn 并返回空', async () => {
@@ -757,11 +786,13 @@ describe('fetchHistoryData 扩展场景', () => {
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
     const cachedGo = { CACHED: { '2024-01-02': 50.0 } };
     fsMocks.existsSync.mockReturnValue(true);
-    fsMocks.readFileSync.mockImplementation((p: string) => {
+    fsPromisesMocks.access.mockResolvedValue(undefined);
+    integrityMocks.verifyFile.mockResolvedValue(true);
+    fsPromisesMocks.readFile.mockImplementation((p: string) => {
       if (String(p).includes('history_')) {
-        return JSON.stringify({ __cacheVersion: 0, __data: cachedGo });
+        return Promise.resolve(JSON.stringify({ __cacheVersion: 0, __data: cachedGo }));
       }
-      return '0';
+      return Promise.resolve('0');
     });
 
     const result = await fetchHistoryData(['CACHED'], '2024-01-01', '2024-01-31');

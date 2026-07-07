@@ -6,7 +6,7 @@
 import { Router, type Request, type Response } from 'express';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, errorMessage } from '../utils/errors.js';
 import { validate } from '../middleware/validate.js';
 import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from '../schemas/signal.js';
 import {
@@ -36,7 +36,7 @@ router.post(
       const result = executeSignalAnalyze(body, history);
       res.json({ success: true, data: result });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       if (message.includes('未找到')) {
         sendProblem(res, 404, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
         return;
@@ -65,7 +65,7 @@ router.post(
       const result = executeDualSignalAnalyze(body, history);
       res.json({ success: true, data: result });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       if (message.includes('未找到')) {
         sendProblem(res, 404, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
         return;
@@ -92,7 +92,7 @@ router.post(
       const result = executeMultiSignalAnalyze(body, history);
       res.json({ success: true, data: result });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errorMessage(err);
       if (message.includes('未找到')) {
         sendProblem(res, 404, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
         return;

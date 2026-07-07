@@ -21,8 +21,7 @@
  */
 
 import { getAccessToken, refreshTokens } from './authTokens';
-import { useDegradedStore } from '@/store/degradedStore';
-import { useToastStore } from '@/store/toastStore';
+import { useToastStore } from '../store/toastStore';
 
 /** Storage 中存储 API Key 的键名 */
 export const ADMIN_API_KEY_STORAGE = 'admin_api_key';
@@ -153,21 +152,20 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     }
   }
 
-  // 拦截 degraded 标志：代理 json() 方法，在解析时检查 degraded 字段，
-  // 自动写入全局 store 并弹出 toast 通知（ADR-008/031 降级模式约定）。
+  // 响应拦截：错误 Toast + degraded 警告
   if (res) {
-    const origJson = res.json.bind(res);
-    (res as Response & { __degradedPatched?: boolean }).json = async () => {
-      const data = await origJson();
-      if (data && typeof data === 'object' && (data as Record<string, unknown>).degraded === true) {
-        const warning = ((data as Record<string, unknown>).degradedWarning as string) || '';
-        useDegradedStore.getState().setDegraded(true, warning);
-        if (warning) {
-          useToastStore.getState().addToast('warning', warning);
-        }
+    const cloned = res.clone();
+    try {
+      const body = await cloned.json();
+      if (!res.ok && body?.error?.detail) {
+        useToastStore.getState().addToast('error', body.error.detail);
       }
-      return data;
-    };
+      if (body?.degraded === true) {
+        useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
+      }
+    } catch {
+      // 非 JSON 响应，跳过拦截
+    }
   }
 
   return res;

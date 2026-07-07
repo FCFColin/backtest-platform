@@ -4,7 +4,7 @@ import {
   ETF_PRESETS,
   ALL_TICKER_PRESETS,
   filterTickers,
-} from '../../../src/utils/tickerPresets.js';
+} from '../../../packages/frontend/src/utils/tickerPresets.js';
 
 // ===== 数据完整性 =====
 describe('TickerPresets - 数据完整性', () => {

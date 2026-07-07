@@ -188,7 +188,7 @@ function orgStatusFromSub(subStatus: string): 'active' | 'suspended' | 'canceled
 async function syncSubscription(orgId: string, sub: Stripe.Subscription): Promise<void> {
   const priceId = sub.items.data[0]?.price?.id ?? null;
   const plan = planForPriceId(priceId);
-  const periodEnd = sub.items.data[0]?.current_period_end ?? null;
+  const periodEnd = sub.current_period_end ?? null;
   const pool = getPool();
   await pool.query(
     `INSERT INTO subscriptions (org_id, stripe_subscription_id, plan, status, current_period_end, cancel_at_period_end)

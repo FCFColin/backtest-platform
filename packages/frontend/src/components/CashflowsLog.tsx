@@ -2,7 +2,7 @@
  * @file 现金流日志
  * @description 展示回测期间的资金流入流出明细，包括投入、分红及期末余额
  */
-import type { BacktestParameters } from '@backtest/shared/types';
+import type { BacktestParameters } from '@backtest/shared';
 
 /** 现金流日志 Props */
 interface CashflowsLogProps {

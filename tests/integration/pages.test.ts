@@ -229,7 +229,7 @@ describe('布局验证', () => {
   it('导航栏包含所有工具页面入口', () => {
     // CSR应用：导航链接在客户端渲染，验证Navbar源码包含所有工具页面路由
     const navbarSource = readFileSync(
-      resolve(process.cwd(), 'src/components/layout/Navbar.tsx'),
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
       'utf-8',
     );
     // 验证关键导航路由存在（覆盖所有工具分组）
@@ -246,7 +246,7 @@ describe('布局验证', () => {
 
   it('页脚包含法律链接', () => {
     const footerSource = readFileSync(
-      resolve(process.cwd(), 'src/components/layout/Footer.tsx'),
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/Footer.tsx'),
       'utf-8',
     );
     // 验证页脚包含法律相关链接

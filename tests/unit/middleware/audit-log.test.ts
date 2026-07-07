@@ -45,7 +45,7 @@ function createMockReqRes(opts: {
     ...createMockResponse(),
     on: vi.fn((event: string, cb: () => void) => {
       if (event === 'finish') {
-        (res as unknown as { _finishCallback?: () => void })._finishCallback = cb;
+        res._finishCallback = cb;
       }
     }),
   } as unknown as Response;
@@ -107,7 +107,7 @@ describe('auditLog 中间件', () => {
     });
     auditLog(req, res, next);
 
-    const finishCb = (res as unknown as { _finishCallback?: () => void })._finishCallback;
+    const finishCb = res._finishCallback;
     expect(finishCb).toBeDefined();
     finishCb();
 
@@ -122,7 +122,7 @@ describe('auditLog 中间件', () => {
     });
     auditLog(req, res, next);
 
-    const finishCb = (res as unknown as { _finishCallback?: () => void })._finishCallback;
+    const finishCb = res._finishCallback;
     finishCb();
 
     expect(loggerMocks.childInfo).toHaveBeenCalledWith(
@@ -138,7 +138,7 @@ describe('auditLog 中间件', () => {
     });
     auditLog(req, res, next);
 
-    const finishCb = (res as unknown as { _finishCallback?: () => void })._finishCallback;
+    const finishCb = res._finishCallback;
     finishCb();
 
     expect(loggerMocks.childInfo).toHaveBeenCalledWith(
@@ -165,7 +165,7 @@ describe('安全攻击用例', () => {
     expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
 
     // 触发 finish 回调
-    const finishCb = (res as unknown as { _finishCallback?: () => void })._finishCallback;
+    const finishCb = res._finishCallback;
     expect(finishCb).toBeDefined();
     // 应不抛出异常地记录审计日志
     expect(() => finishCb()).not.toThrow();
@@ -190,7 +190,7 @@ describe('安全攻击用例', () => {
     });
     auditLog(req, res, next);
 
-    const finishCb = (res as unknown as { _finishCallback?: () => void })._finishCallback;
+    const finishCb = res._finishCallback;
     expect(() => finishCb()).not.toThrow();
 
     // 关键安全断言：Object.prototype 未被污染
@@ -209,7 +209,7 @@ describe('安全攻击用例', () => {
 
     expect(next).toHaveBeenCalledTimes(1);
 
-    const finishCb = (res as unknown as { _finishCallback?: () => void })._finishCallback;
+    const finishCb = res._finishCallback;
     // 应不抛出异常地处理超大路径
     expect(() => finishCb()).not.toThrow();
 
@@ -262,7 +262,7 @@ describe('verifyPayload HMAC 签名', () => {
     (req as Request & { user?: { sub: string } }).user = { sub: 'jwt-user-42' };
 
     auditLog(req, res, next);
-    const finishCb = (res as unknown as { _finishCallback?: () => void })._finishCallback;
+    const finishCb = res._finishCallback;
     finishCb();
 
     expect(loggerMocks.childInfo).toHaveBeenCalledWith(

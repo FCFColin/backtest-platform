@@ -14,8 +14,8 @@ import {
   Line,
   ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { MonteCarloResult } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { MonteCarloResult } from '@backtest/shared';
 import type {
   ResultTab,
   DistMetric,
@@ -574,6 +574,28 @@ function ResultsDisplay({
   );
 }
 
+function McErrorState({ error }: { error: string }) {
+  return (
+    <div
+      className="bt-results-card card"
+      style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
+    >
+      模拟失败：{error}
+    </div>
+  );
+}
+
+function McEmptyState() {
+  return (
+    <div
+      className="bt-results-card card"
+      style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48 }}
+    >
+      配置左侧参数并点击「开始模拟」查看结果
+    </div>
+  );
+}
+
 export function MonteCarloResultsPanel({
   error,
   results1,
@@ -599,24 +621,8 @@ export function MonteCarloResultsPanel({
   distMetric: DistMetric;
   setDistMetric: (m: DistMetric) => void;
 }) {
-  if (error)
-    return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
-      >
-        模拟失败：{error}
-      </div>
-    );
-  if (!results1 && !results2)
-    return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48 }}
-      >
-        配置左侧参数并点击「开始模拟」查看结果
-      </div>
-    );
+  if (error) return <McErrorState error={error} />;
+  if (!results1 && !results2) return <McEmptyState />;
   return (
     <div className="bt-results-card card">
       {results1 && (
@@ -635,9 +641,10 @@ export function MonteCarloResultsPanel({
       )}
       {results2 && (
         <>
+          {' '}
           <div
             style={{ borderTop: '1px solid var(--border-soft)', marginTop: 24, paddingTop: 8 }}
-          />
+          />{' '}
           <ResultsDisplay
             r={results2}
             label={portfolios[1].name}
@@ -649,7 +656,7 @@ export function MonteCarloResultsPanel({
             distMetric={distMetric}
             setDistMetric={setDistMetric}
             onTabChange={setActiveTab}
-          />
+          />{' '}
         </>
       )}
     </div>

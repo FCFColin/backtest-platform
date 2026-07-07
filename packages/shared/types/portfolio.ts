@@ -73,6 +73,13 @@ export type CashflowFrequency = 'yearly' | 'monthly' | 'quarterly' | 'weekly';
 /** 现金流方向：contribution 为投入，withdrawal 为提取 */
 export type CashflowType = 'contribution' | 'withdrawal';
 
+/** 现金流公共字段 */
+export type CashflowBase = {
+  id: string;
+  amount: number;
+  type: CashflowType;
+};
+
 /**
  * 周期性现金流腿
  *
@@ -81,20 +88,14 @@ export type CashflowType = 'contribution' | 'withdrawal';
  * offset 用于模拟不在周期末发生的现金流（如月中发薪月中定投）。
  * until 为空时表示在整个回测期间持续发生。
  */
-export interface CashflowLeg {
-  id: string;
-  amount: number;
-  type: CashflowType;
+export interface CashflowLeg extends CashflowBase {
   frequency: CashflowFrequency;
   offset: number;
   until?: string;
 }
 
 /** 一次性现金流，例如初始投入或中途的大额提取 */
-export interface OneTimeCashflow {
-  id: string;
-  amount: number;
-  type: CashflowType;
+export interface OneTimeCashflow extends CashflowBase {
   date: string;
 }
 

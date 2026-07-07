@@ -20,7 +20,7 @@ vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
   callService: callServiceMock,
 }));
 
-vi.mock('../../../packages/backend/src/services/engineService.js', () => ({
+vi.mock('../../../packages/backend/src/services/tickerDataService.js', () => ({
   scanTickersStats: engineServiceMocks.scanTickersStats,
   getUniverseStats: engineServiceMocks.getUniverseStats,
 }));
@@ -32,6 +32,16 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003',
   }),
   validateConfig: vi.fn(),
+}));
+
+vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
+  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  AuthenticatedRequest: Object,
+}));
+
+vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
+  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  Permission: { ADMIN_ACCESS: 'admin:access' },
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));

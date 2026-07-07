@@ -4,7 +4,7 @@
  * 集中管理所有限流器定义与键生成函数，从 app.ts 拆分而来。
  */
 
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import crypto from 'crypto';
 import type { Request } from 'express';
@@ -53,7 +53,7 @@ function computeRateLimitKey(req: Request): string {
   if (typeof apiKey === 'string' && apiKey.length > 0) {
     return `apikey:${crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16)}`;
   }
-  return ipKeyGenerator(req.ip ?? '', 56);
+  return req.ip ?? '';
 }
 
 function authRateLimitKey(req: Request): string {
@@ -66,7 +66,7 @@ function authRateLimitKey(req: Request): string {
   if (body?.refreshToken) {
     return `refresh:${crypto.createHash('sha256').update(body.refreshToken).digest('hex').slice(0, 16)}`;
   }
-  return ipKeyGenerator(req.ip ?? '', 56);
+  return req.ip ?? '';
 }
 
 const RATE_LIMIT_MESSAGE = {
@@ -164,4 +164,24 @@ export const refreshLimiter = rateLimit({
   passOnStoreError: false,
   store: createRateLimiterStore('rl:auth-refresh:'),
   message: AUTH_REFRESH_RATE_LIMIT_MESSAGE,
+});
+
+export const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: authRateLimitKey,
+  passOnStoreError: false,
+  store: createRateLimiterStore('rl:register:'),
+  message: {
+    success: false,
+    error: {
+      type: 'https://backtest.platform/errors/rate-limited',
+      title: 'Too Many Requests',
+      status: 429,
+      code: 'REGISTER_RATE_LIMITED',
+      detail: '注册尝试过于频繁，请稍后再试',
+    },
+  },
 });

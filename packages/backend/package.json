@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon",
+    "server:dev": "tsx src/server.ts",
     "build": "esbuild src/server.ts --bundle --platform=node --format=esm --outdir=dist",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",

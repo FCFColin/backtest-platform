@@ -8,7 +8,7 @@
  *
  * config 负载结构：{ portfolios, parameters }，与回测请求一致，加载时直接回填。
  */
-import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
+import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { apiFetch } from './apiClient';
 import { useAuthStore } from '@/store/authStore';
 import {

@@ -1,7 +1,7 @@
 /** @file MonteCarlo utility functions and constants */
 import type { CSSProperties } from 'react';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { MonteCarloResult, PerPathMetrics } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { MonteCarloResult, PerPathMetrics } from '@backtest/shared';
 import type { DistMetric, RangeDataPoint } from './types.js';
 
 export function percentile(arr: number[], p: number): number {

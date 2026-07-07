@@ -13,7 +13,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Search, Mail, Bell } from 'lucide-react';
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import i18n from '../../i18n/index.js';
 import type {
   WhatIfResult,
   EmailAlertConfig,
@@ -40,24 +41,24 @@ function whatIfSignalColor(t: WhatIfResult['signalType']): string {
 }
 
 function whatIfSignalLabel(t: WhatIfResult['signalType']): string {
-  if (t === 'buy') return '买入';
-  if (t === 'sell') return '卖出';
-  return '持有';
+  if (t === 'buy') return i18n.t('common.buy');
+  if (t === 'sell') return i18n.t('common.sell');
+  return i18n.t('common.hold');
 }
 
 function buildWhatIfColumns(): Column<WhatIfResult>[] {
   return [
-    { key: 'ticker', label: '标的', sortValue: (r) => r.ticker },
+    { key: 'ticker', label: i18n.t('common.ticker'), sortValue: (r) => r.ticker },
     {
       key: 'currentPrice',
-      label: '最新价格',
+      label: i18n.t('common.latestPrice'),
       sortValue: (r) => r.currentPrice,
       render: (r) => <span className="font-mono">{fmtPrice(r.currentPrice)}</span>,
     },
-    { key: 'signalDate', label: '信号日期', sortValue: (r) => r.signalDate },
+    { key: 'signalDate', label: i18n.t('common.signalDate'), sortValue: (r) => r.signalDate },
     {
       key: 'signalType',
-      label: '信号状态',
+      label: i18n.t('common.signalStatus'),
       sortValue: (r) => r.signalType,
       render: (r) => (
         <span style={{ color: whatIfSignalColor(r.signalType), fontWeight: 600 }}>
@@ -71,7 +72,7 @@ function buildWhatIfColumns(): Column<WhatIfResult>[] {
 function GrowthChart({ growthData }: { growthData: Array<Record<string, number | string>> }) {
   return (
     <div className="chart-card">
-      <div className="chart-card-title">收益曲线</div>
+      <div className="chart-card-title">{i18n.t('tacticalResults.growthTitle')}</div>
       <ResponsiveContainer width="100%" height={380}>
         <LineChart data={growthData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
@@ -86,13 +87,13 @@ function GrowthChart({ growthData }: { growthData: Array<Record<string, number |
           />
           <Tooltip
             contentStyle={tooltipStyle}
-            labelFormatter={(label: string) => `日期: ${label}`}
+            labelFormatter={(label: string) => `${i18n.t('common.date')}: ${label}`}
             formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
           />
           <Legend wrapperStyle={{ fontSize: '12px' }} />
           <Line
             type="monotone"
-            dataKey="战术分配"
+            dataKey={i18n.t('tacticalResults.tactical')}
             stroke={CHART_COLORS[0]}
             strokeWidth={2}
             dot={false}
@@ -100,7 +101,7 @@ function GrowthChart({ growthData }: { growthData: Array<Record<string, number |
           />
           <Line
             type="monotone"
-            dataKey="等权基准"
+            dataKey={i18n.t('tacticalResults.equalWeight')}
             stroke={CHART_COLORS[1]}
             strokeWidth={2}
             dot={false}
@@ -120,7 +121,7 @@ function SignalHistoryTable({
 }) {
   return (
     <div className="chart-card">
-      <div className="chart-card-title">信号切换历史（再平衡日）</div>
+      <div className="chart-card-title">{i18n.t('tacticalResults.signalHistoryTitle')}</div>
       <div className="overflow-x-auto" style={{ maxHeight: 400, overflowY: 'auto' }}>
         <table className="w-full border-collapse">
           <thead style={{ position: 'sticky', top: 0 }}>
@@ -129,19 +130,19 @@ function SignalHistoryTable({
                 className="text-[12px] font-semibold text-left py-2 px-3"
                 style={signalHistoryThStyle}
               >
-                日期
+                {i18n.t('common.date')}
               </th>
               <th
                 className="text-[12px] font-semibold text-left py-2 px-3"
                 style={signalHistoryThStyle}
               >
-                激活信号
+                {i18n.t('tacticalResults.activeSignals')}
               </th>
               <th
                 className="text-[12px] font-semibold text-right py-2 px-3"
                 style={signalHistoryThStyle}
               >
-                目标权重
+                {i18n.t('tacticalResults.targetWeights')}
               </th>
             </tr>
           </thead>
@@ -158,7 +159,9 @@ function SignalHistoryTable({
                   {h.activeSignals.length > 0 ? (
                     h.activeSignals.join(', ')
                   ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>无（等权）</span>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      {i18n.t('tacticalResults.noneEqualWeight')}
+                    </span>
                   )}
                 </td>
                 <td
@@ -181,16 +184,20 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
   const growthData = useMemo(() => buildGrowthData(portfolio, benchmark), [portfolio, benchmark]);
   const statRows = useMemo(() => buildStatRows(portfolio, benchmark), [portfolio, benchmark]);
   const statColumns: Column<StatRow>[] = [
-    { key: 'metric', label: '指标' },
-    { key: 'tactical', label: '战术分配', sortValue: (r) => r._sortTactical },
-    { key: 'benchmark', label: '等权基准' },
+    { key: 'metric', label: i18n.t('common.metric') },
+    {
+      key: 'tactical',
+      label: i18n.t('tacticalResults.tactical'),
+      sortValue: (r) => r._sortTactical,
+    },
+    { key: 'benchmark', label: i18n.t('tacticalResults.equalWeight') },
   ];
 
   return (
     <div className="space-y-4">
       <GrowthChart growthData={growthData} />
       <div className="chart-card">
-        <div className="chart-card-title">统计指标</div>
+        <div className="chart-card-title">{i18n.t('tacticalResults.statsTitle')}</div>
         <SortableTable
           columns={statColumns}
           data={statRows}
@@ -215,7 +222,7 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
       .map((t) => t.trim().toUpperCase())
       .filter(Boolean);
     if (tickers.length === 0) {
-      setError('请输入至少一个标的代码');
+      setError(i18n.t('errors.tacticalTickerRequired'));
       return;
     }
     run(async () => {
@@ -234,9 +241,9 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
   return (
     <div className="space-y-4">
       <div className="chart-card">
-        <div className="chart-card-title">实时价格与信号查询</div>
+        <div className="chart-card-title">{i18n.t('tacticalResults.whatIfTitle')}</div>
         <div className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
-          输入标的代码（逗号或空格分隔），查询最新价格及当前策略信号状态
+          {i18n.t('tacticalResults.whatIfDesc')}
         </div>
         <div className="ticker-row" style={{ marginBottom: 12 }}>
           <input
@@ -245,17 +252,17 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
             style={{ flex: 1 }}
             value={tickerInput}
             onChange={(e) => setTickerInput(e.target.value)}
-            placeholder="如 SPY, TLT, GLD"
+            placeholder="SPY, TLT, GLD"
           />
           <LoadingButton
             isLoading={isLoading}
             onClick={handleQuery}
-            loadingText="查询中..."
+            loadingText={i18n.t('tacticalResults.whatIfQuerying')}
             className="main-action-btn"
             style={{ minHeight: 40, padding: '0 16px' }}
           >
             <Search className="w-4 h-4" />
-            查询
+            {i18n.t('tacticalResults.whatIfQuery')}
           </LoadingButton>
         </div>
         {error && (
@@ -273,7 +280,7 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
           <div
             style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 32, fontSize: 13 }}
           >
-            输入标的代码后点击「查询」查看结果
+            {i18n.t('tacticalResults.whatIfEmpty')}
           </div>
         )}
       </div>
@@ -292,7 +299,7 @@ function AlertEmailInput({
 }) {
   return (
     <div className="param-field" style={{ marginBottom: 16, maxWidth: 360 }}>
-      <span className="param-label">告警邮箱</span>
+      <span className="param-label">{i18n.t('tacticalResults.alertEmail')}</span>
       <div className="param-input-prefix-wrap">
         <Mail
           className="w-4 h-4"
@@ -328,7 +335,7 @@ function AlertTriggerOptions({
   return (
     <>
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 8 }}>
-        触发条件
+        {i18n.t('tacticalResults.alertTriggerLabel')}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360 }}>
         {ALERT_TRIGGER_OPTIONS.map((opt) => (
@@ -370,7 +377,7 @@ function AlertsTab() {
 
   const handleSave = () => {
     if (config.enabled && !config.email) {
-      setError('启用告警时必须填写邮箱');
+      setError(i18n.t('tacticalResults.alertEmailRequired'));
       return;
     }
     run(async () => {
@@ -389,13 +396,13 @@ function AlertsTab() {
 
   return (
     <div className="chart-card">
-      <div className="chart-card-title">邮件告警配置</div>
+      <div className="chart-card-title">{i18n.t('tacticalResults.alertTitle')}</div>
       <div className="text-[11px] mb-4" style={{ color: 'var(--text-muted)' }}>
-        配置信号触发时的邮件通知，配置暂存于服务端内存
+        {i18n.t('tacticalResults.alertDesc')}
       </div>
       <label className="param-toggle" style={{ marginBottom: 16 }}>
         <Bell className="w-4 h-4" style={{ color: 'var(--brand)' }} />
-        <span>启用邮件告警</span>
+        <span>{i18n.t('tacticalResults.alertEnable')}</span>
         <div
           className={`toggle-switch ${config.enabled ? 'active' : ''}`}
           onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
@@ -411,16 +418,18 @@ function AlertsTab() {
         <LoadingButton
           isLoading={isLoading}
           onClick={handleSave}
-          loadingText="保存中..."
+          loadingText={i18n.t('tacticalResults.alertSaving')}
           style={{ width: '100%' }}
         >
           <Bell className="w-4 h-4" />
-          保存告警配置
+          {i18n.t('tacticalResults.alertSave')}
         </LoadingButton>
       </div>
       {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{error}</div>}
       {saved && (
-        <div style={{ color: 'var(--success)', fontSize: 13, marginTop: 8 }}>告警配置已保存</div>
+        <div style={{ color: 'var(--success)', fontSize: 13, marginTop: 8 }}>
+          {i18n.t('tacticalResults.alertSaved')}
+        </div>
       )}
     </div>
   );
@@ -429,7 +438,7 @@ function AlertsTab() {
 function BacktestEmptyState() {
   return (
     <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48, fontSize: 14 }}>
-      配置信号与参数后点击「运行战术回测」查看结果
+      {i18n.t('tacticalResults.noResultsHint')}
     </div>
   );
 }
@@ -440,7 +449,7 @@ export function TacticalResultsPanel({ state }: { state: TacticalPageState }) {
     <div className="space-y-4">
       {error && (
         <div className="card" style={{ color: 'var(--danger)', textAlign: 'center', padding: 24 }}>
-          回测失败：{error}
+          {i18n.t('tacticalResults.backtestRunFailed', { error })}
         </div>
       )}
       <div className="card">

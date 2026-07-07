@@ -13,8 +13,8 @@ import {
   Legend,
   Brush,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { Portfolio } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { Portfolio } from '@backtest/shared';
 import { ChartExporter } from '../ChartExporter';
 import {
   downsample,

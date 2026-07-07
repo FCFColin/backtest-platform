@@ -1,8 +1,9 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
+import { readFile, writeFile, access } from 'fs/promises';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
-import { signFileSync, verifyFileSync } from '../utils/integrity.js';
+import { signFile, verifyFile } from '../utils/integrity.js';
 import { appRedis } from '../config/redis.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,11 +14,12 @@ const CACHE_DIR = resolve(__dirname, '../../data/cache');
 const CACHE_VERSION_FILE = join(CACHE_DIR, '.cache_version');
 let currentCacheVersion = 0;
 
-function readCacheVersion(): number {
+async function readCacheVersion(): Promise<number> {
   try {
     ensureCacheDir();
-    if (existsSync(CACHE_VERSION_FILE)) {
-      const v = parseInt(readFileSync(CACHE_VERSION_FILE, 'utf-8').trim(), 10);
+    const content = await readFile(CACHE_VERSION_FILE, 'utf-8').catch(() => null);
+    if (content !== null) {
+      const v = parseInt(content.trim(), 10);
       return isNaN(v) ? 0 : v;
     }
   } catch {
@@ -26,13 +28,13 @@ function readCacheVersion(): number {
   return 0;
 }
 
-function incrementCacheVersion(): void {
+async function incrementCacheVersion(): Promise<void> {
   ensureCacheDir();
-  currentCacheVersion = readCacheVersion() + 1;
-  writeFileSync(CACHE_VERSION_FILE, String(currentCacheVersion), 'utf-8');
+  currentCacheVersion = (await readCacheVersion()) + 1;
+  await writeFile(CACHE_VERSION_FILE, String(currentCacheVersion), 'utf-8');
 }
 
-currentCacheVersion = readCacheVersion();
+currentCacheVersion = await readCacheVersion();
 
 function ensureCacheDir(): void {
   if (!existsSync(CACHE_DIR)) {
@@ -49,44 +51,46 @@ function getCacheKey(prefix: string, params: Record<string, string>): string {
   return `${sanitize(prefix)}_${paramStr}.json`;
 }
 
-function readCache(key: string): unknown {
+async function readCache(key: string): Promise<unknown> {
   ensureCacheDir();
   const filePath = join(CACHE_DIR, key);
-  if (existsSync(filePath)) {
-    try {
-      if (!verifyFileSync(filePath)) {
-        logger.warn(
-          { service: 'dataService', file: key },
-          '[cache] 完整性校验失败，丢弃缓存并重新获取',
-        );
-        return null;
-      }
-      const content = readFileSync(filePath, 'utf-8');
-      const parsed = JSON.parse(content);
-      if (parsed && typeof parsed === 'object' && '__cacheVersion' in parsed) {
-        const latestVersion = readCacheVersion();
-        if (parsed.__cacheVersion !== latestVersion) {
-          return null;
-        }
-        return parsed.__data !== undefined ? parsed.__data : parsed;
-      }
-      return parsed;
-    } catch {
+  try {
+    await access(filePath);
+  } catch {
+    return null;
+  }
+  try {
+    if (!(await verifyFile(filePath))) {
+      logger.warn(
+        { service: 'dataService', file: key },
+        '[cache] 完整性校验失败，丢弃缓存并重新获取',
+      );
       return null;
     }
+    const content = await readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(content);
+    if (parsed && typeof parsed === 'object' && '__cacheVersion' in parsed) {
+      const latestVersion = await readCacheVersion();
+      if (parsed.__cacheVersion !== latestVersion) {
+        return null;
+      }
+      return parsed.__data !== undefined ? parsed.__data : parsed;
+    }
+    return parsed;
+  } catch {
+    return null;
   }
-  return null;
 }
 
-function writeCache(key: string, data: unknown): void {
+async function writeCache(key: string, data: unknown): Promise<void> {
   ensureCacheDir();
   const filePath = join(CACHE_DIR, key);
   const wrapper = {
     __cacheVersion: currentCacheVersion,
     __data: data,
   };
-  writeFileSync(filePath, JSON.stringify(wrapper), 'utf-8');
-  signFileSync(filePath);
+  await writeFile(filePath, JSON.stringify(wrapper), 'utf-8');
+  await signFile(filePath);
 }
 
 const priceDataCache = new Map<string, { data: Record<string, number>; mtimeMs: number }>();

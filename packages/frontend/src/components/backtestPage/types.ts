@@ -1,4 +1,4 @@
-import type { Portfolio, PortfolioResult } from '@backtest/shared/types';
+import type { Portfolio, PortfolioResult } from '@backtest/shared';
 
 export interface TabCtx {
   pf: PortfolioResult[];

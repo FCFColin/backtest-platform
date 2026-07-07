@@ -92,6 +92,18 @@ export interface Statistics {
   informationRatio?: number;
 
   // VaR / CVaR（不同时间维度 × 不同置信水平）
+  var?: {
+    daily: { [K in 1 | 5 | 10]: number };
+    monthly: { [K in 1 | 5 | 10]: number };
+    annual: { [K in 1 | 5 | 10]: number };
+  };
+  cvar?: {
+    daily: { [K in 1 | 5 | 10]: number };
+    monthly: { [K in 1 | 5 | 10]: number };
+    annual: { [K in 1 | 5 | 10]: number };
+  };
+
+  // 扁平 VaR/CVaR 字段（兼容表格访问）
   var5?: number;
   cvar5?: number;
   varDaily1?: number;
@@ -114,16 +126,29 @@ export interface Statistics {
   cvarAnnual10?: number;
 
   // 分布特征（偏度和超额峰度）
-  skewness?: number;
-  excessKurtosis?: number;
+  skewness?: {
+    daily: number;
+    monthly: number;
+    annual: number;
+  };
   skewnessDaily?: number;
   skewnessMonthly?: number;
   skewnessAnnual?: number;
+  excessKurtosis?: {
+    daily: number;
+    monthly: number;
+    annual: number;
+  };
   excessKurtosisDaily?: number;
   excessKurtosisMonthly?: number;
   excessKurtosisAnnual?: number;
 
-  // 正收益比例
+  // 正收益比例（按时间维度）
+  winRate?: {
+    daily: number;
+    monthly: number;
+    annual: number;
+  };
   pctPositiveDays?: number;
   pctPositiveMonths?: number;
   pctPositiveYears?: number;
@@ -208,11 +233,19 @@ export function createEmptyStatistics(): Statistics {
     informationRatio: 0,
     upsideCapture: 0,
     downsideCapture: 0,
-    var5: 0,
-    cvar5: 0,
-    skewness: 0,
-    excessKurtosis: 0,
-    pctPositiveDays: 0,
+    var: {
+      daily: { 1: 0, 5: 0, 10: 0 },
+      monthly: { 1: 0, 5: 0, 10: 0 },
+      annual: { 1: 0, 5: 0, 10: 0 },
+    },
+    cvar: {
+      daily: { 1: 0, 5: 0, 10: 0 },
+      monthly: { 1: 0, 5: 0, 10: 0 },
+      annual: { 1: 0, 5: 0, 10: 0 },
+    },
+    skewness: { daily: 0, monthly: 0, annual: 0 },
+    excessKurtosis: { daily: 0, monthly: 0, annual: 0 },
+    winRate: { daily: 0, monthly: 0, annual: 0 },
     maxDailyReturn: 0,
     minDailyReturn: 0,
   };

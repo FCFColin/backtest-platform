@@ -32,7 +32,7 @@ export interface MockRequestOverrides {
 /** Mock Response 方法集合 */
 export interface MockResponse {
   status: ReturnType<typeof vi.fn>;
-  json: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn> & { (body: unknown): void };
   send: ReturnType<typeof vi.fn>;
   end: ReturnType<typeof vi.fn>;
   set: ReturnType<typeof vi.fn>;
@@ -40,6 +40,7 @@ export interface MockResponse {
   get: ReturnType<typeof vi.fn>;
   statusCode: number;
   headersSent: boolean;
+  _finishCallback?: () => void;
   [key: string]: unknown;
 }
 

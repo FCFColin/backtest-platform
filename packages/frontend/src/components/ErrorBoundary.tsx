@@ -3,6 +3,7 @@
  * @description 捕获子组件树渲染异常，展示降级 UI 防止整页白屏
  */
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import i18n from '../i18n/index.js';
 
 /**
  * ErrorBoundary 组件的 Props。
@@ -112,9 +113,11 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
         <div style={{ fontSize: '48px', marginBottom: '16px' }} role="img" aria-label="出错提示">
           ⚠️
         </div>
-        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>页面出错了</h1>
+        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
+          {i18n.t('errors.pageErrorTitle')}
+        </h1>
         <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 24px', maxWidth: '400px' }}>
-          抱歉，页面遇到了问题。请刷新页面，如果问题持续存在，请联系管理员。
+          {i18n.t('errors.pageErrorMessage')}
         </p>
         {this.state.error && (
           <p style={ERROR_DETAIL_STYLE}>
@@ -132,7 +135,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             e.currentTarget.style.backgroundColor = '#2563eb';
           }}
         >
-          刷新页面
+          {i18n.t('errors.pageRefresh')}
         </button>
       </div>
     );

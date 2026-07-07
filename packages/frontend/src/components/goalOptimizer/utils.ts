@@ -1,4 +1,4 @@
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import type { GoalAsset } from './types.js';
 
 export function fmtDollar(v: number): string {

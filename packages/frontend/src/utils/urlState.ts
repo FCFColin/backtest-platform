@@ -7,7 +7,7 @@
  * 编码流程：state → JSON → UTF-8 → base64url
  * 解码流程：base64url → UTF-8 → JSON → state
  */
-import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
+import type { Portfolio, BacktestParameters } from '@backtest/shared';
 
 export interface ShareableState {
   portfolios: Portfolio[];

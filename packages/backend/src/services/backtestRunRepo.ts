@@ -60,12 +60,17 @@ const SELECT_COLS = 'id, name, request, result, status, owner_user_id, created_a
  * @param tenantId - 活跃组织 UUID
  * @param limit - 返回上限（默认 50，最大 200）
  */
-export async function listRuns(tenantId: string, limit = 50): Promise<BacktestRunRecord[]> {
+export async function listRuns(
+  tenantId: string,
+  limit = 50,
+  offset = 0,
+): Promise<BacktestRunRecord[]> {
   const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 200);
+  const safeOffset = Math.max(0, Math.trunc(offset));
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query(
-      `SELECT ${SELECT_COLS} FROM backtest_runs ORDER BY created_at DESC LIMIT $1`,
-      [safeLimit],
+      `SELECT ${SELECT_COLS} FROM backtest_runs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [safeLimit, safeOffset],
     );
     return rows.map(mapRow);
   });

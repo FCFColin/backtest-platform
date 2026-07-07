@@ -1,4 +1,4 @@
-import type { LETFResult } from '@backtest/shared/types';
+import type { LETFResult } from '@backtest/shared';
 
 export interface StatRow {
   metric: string;

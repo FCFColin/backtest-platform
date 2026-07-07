@@ -64,7 +64,7 @@ describe('configRoutes', () => {
       expect(res.status).toBe(200);
       expect(body.success).toBe(true);
       expect(body.data).toEqual([MOCK_ITEM]);
-      expect(mocks.repo.listConfigs).toHaveBeenCalledWith(TENANT);
+      expect(mocks.repo.listConfigs).toHaveBeenCalledWith(TENANT, 50, 0);
     });
 
     it('should return empty list when no configs', async () => {

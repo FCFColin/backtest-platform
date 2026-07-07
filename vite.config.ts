@@ -34,8 +34,8 @@ export default defineConfig(({ command }) => ({
     ...(enableCoverage && command === 'serve'
       ? [
           istanbul({
-            include: 'src/*',
-            exclude: ['node_modules', 'tests/**', 'src/i18n/**'],
+            include: ['packages/frontend/src/**'],
+            exclude: ['node_modules', 'tests/**', 'packages/frontend/src/i18n/**'],
             extension: ['.ts', '.tsx'],
             cypress: false,
             requireEnv: true,

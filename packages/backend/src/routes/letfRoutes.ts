@@ -5,7 +5,7 @@ import { Router, type Request, type Response } from 'express';
 import type { LETFRequest } from '@backtest/shared/types/letf';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, errorMessage } from '../utils/errors.js';
 import { validate } from '../middleware/validate.js';
 import { letfAnalyzeSchema } from '../schemas/letf.js';
 import { executeLetfAnalyze } from '../application/analytics-application-service.js';
@@ -33,7 +33,7 @@ router.post(
       logger.info(`[LETF] 分析完成, 耗时 ${Date.now() - startTime}ms`);
       res.json({ success: true, data: result });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       if (message.includes('未找到')) {
         sendProblem(res, 422, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
         return;

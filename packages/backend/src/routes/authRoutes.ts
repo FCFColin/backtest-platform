@@ -83,6 +83,17 @@ function orgSummary(m: Membership): Record<string, unknown> {
   };
 }
 
+function requireUser(
+  req: AuthenticatedRequest,
+  res: Response,
+): req is AuthenticatedRequest & { user: NonNullable<AuthenticatedRequest['user']> } {
+  if (!req.user) {
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+    return false;
+  }
+  return true;
+}
+
 const router = Router();
 
 /** 废弃端点过渡期截止日期（6 个月后），符合 RFC 8594 Sunset 头规范 */
@@ -156,67 +167,71 @@ router.post('/login', validate(loginSchema), async (req: Request, res: Response)
  * 验证失败不区分"用户不存在"和"密码错误"，防止用户名枚举攻击。
  * POST 语义正确——创建新的会话/令牌资源。
  */
-router.post('/login/password', validate(loginPasswordSchema), async (req: Request, res: Response) => {
-  const { username, password } = req.body;
+router.post(
+  '/login/password',
+  validate(loginPasswordSchema),
+  async (req: Request, res: Response) => {
+    const { username, password } = req.body;
 
-  const lockRemaining = await isLockedOut(username);
-  if (lockRemaining > 0) {
-    logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
-    sendProblem(res, 429, 'ACCOUNT_LOCKED', 'Account locked', {
-      detail: '尝试次数过多，账户暂时锁定，请稍后再试',
+    const lockRemaining = await isLockedOut(username);
+    if (lockRemaining > 0) {
+      logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
+      sendProblem(res, 429, 'ACCOUNT_LOCKED', 'Account locked', {
+        detail: '尝试次数过多，账户暂时锁定，请稍后再试',
+      });
+      return;
+    }
+
+    // 企业理由：verifyUser 内部使用 argon2id 常量时间比较，
+    // 且用户不存在时仍执行哈希运算防止时序攻击
+    const user = await verifyUser(username, password);
+
+    if (!user) {
+      // Security (T-12): 记录失败用于锁定计数。
+      await recordFailure(username);
+      sendProblem(res, 401, 'INVALID_CREDENTIALS', 'Unauthorized', { detail: '用户名或密码错误' });
+      return;
+    }
+
+    // Security (T-12): 登录成功，清除失败计数与锁定。
+    await clearFailures(username);
+
+    // 多租户上下文解析（ADR-032）：登录时解析默认活跃组织并嵌入令牌。
+    // org 成员角色覆盖全局角色（owner→admin），使既有 RBAC 在租户内正确判权。
+    const platformAdmin = await isPlatformAdmin(user.id);
+    const membership = await resolveDefaultOrg(user.id);
+    let effectiveRole = user.role;
+    let tenant: TenantContext | undefined = platformAdmin ? { platformAdmin } : undefined;
+    if (membership) {
+      effectiveRole = orgRoleToGlobalRole(membership.role);
+      tenant = { tenantId: membership.orgId, orgRole: membership.role, platformAdmin };
+    }
+
+    const accessToken = await generateToken(user.id, effectiveRole, tenant);
+    const refreshToken = await generateRefreshToken(user.id, effectiveRole, undefined, tenant);
+
+    logger.info(
+      {
+        userId: user.id,
+        username: user.username,
+        role: effectiveRole,
+        tenantId: membership?.orgId,
+        platformAdmin,
+      },
+      '[auth] 密码登录成功',
+    );
+    res.json({
+      success: true,
+      data: {
+        accessToken,
+        refreshToken,
+        role: effectiveRole,
+        userId: user.id,
+        org: membership ? orgSummary(membership) : null,
+      },
     });
-    return;
-  }
-
-  // 企业理由：verifyUser 内部使用 argon2id 常量时间比较，
-  // 且用户不存在时仍执行哈希运算防止时序攻击
-  const user = await verifyUser(username, password);
-
-  if (!user) {
-    // Security (T-12): 记录失败用于锁定计数。
-    await recordFailure(username);
-    sendProblem(res, 401, 'INVALID_CREDENTIALS', 'Unauthorized', { detail: '用户名或密码错误' });
-    return;
-  }
-
-  // Security (T-12): 登录成功，清除失败计数与锁定。
-  await clearFailures(username);
-
-  // 多租户上下文解析（ADR-032）：登录时解析默认活跃组织并嵌入令牌。
-  // org 成员角色覆盖全局角色（owner→admin），使既有 RBAC 在租户内正确判权。
-  const platformAdmin = await isPlatformAdmin(user.id);
-  const membership = await resolveDefaultOrg(user.id);
-  let effectiveRole = user.role;
-  let tenant: TenantContext | undefined = platformAdmin ? { platformAdmin } : undefined;
-  if (membership) {
-    effectiveRole = orgRoleToGlobalRole(membership.role);
-    tenant = { tenantId: membership.orgId, orgRole: membership.role, platformAdmin };
-  }
-
-  const accessToken = await generateToken(user.id, effectiveRole, tenant);
-  const refreshToken = await generateRefreshToken(user.id, effectiveRole, undefined, tenant);
-
-  logger.info(
-    {
-      userId: user.id,
-      username: user.username,
-      role: effectiveRole,
-      tenantId: membership?.orgId,
-      platformAdmin,
-    },
-    '[auth] 密码登录成功',
-  );
-  res.json({
-    success: true,
-    data: {
-      accessToken,
-      refreshToken,
-      role: effectiveRole,
-      userId: user.id,
-      org: membership ? orgSummary(membership) : null,
-    },
-  });
-});
+  },
+);
 
 /** 由名称生成 URL 友好且唯一的 org slug（追加随机后缀避免碰撞）。 */
 function slugify(name: string): string {
@@ -321,10 +336,7 @@ router.post('/verify-email', async (req: Request, res: Response) => {
  * POST /api/v1/auth/resend-verification - 重发验证邮件（需登录，ADR-035）
  */
 router.post('/resend-verification', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
-    return;
-  }
+  if (!requireUser(req, res)) return;
   const { email } = req.body as { email?: string };
   if (!email) {
     sendProblem(res, 422, 'MISSING_EMAIL', 'Missing email', { detail: '缺少 email' });
@@ -413,10 +425,7 @@ router.delete('/logout', async (req: Request, res: Response) => {
 // 导致始终 401 或（在其他中间件残留 user 时）行为不确定。这里在路由级强制认证，
 // 使 req.user 被正确解析，同时不影响 login/refresh 等需匿名访问的端点。
 router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
-    return;
-  }
+  if (!requireUser(req, res)) return;
 
   res.json({
     success: true,
@@ -438,10 +447,7 @@ router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
  * 该列表来自 memberships 表，反映多对多归属关系。
  */
 router.get('/orgs', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
-    return;
-  }
+  if (!requireUser(req, res)) return;
   const memberships = await getUserMemberships(req.user.sub);
   res.json({
     success: true,
@@ -463,10 +469,7 @@ router.get('/orgs', jwtAuth, async (req: AuthenticatedRequest, res: Response) =>
  * 目标组织，杜绝用户伪造 orgId 越权进入他租户（隔离的最终防线仍是 Postgres RLS）。
  */
 router.post('/switch-org', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
-    return;
-  }
+  if (!requireUser(req, res)) return;
   const { orgId } = req.body as { orgId?: string };
   if (!orgId) {
     sendProblem(res, 422, 'MISSING_ORG_ID', 'Missing orgId', { detail: '缺少 orgId' });
@@ -516,10 +519,7 @@ router.post('/switch-org', jwtAuth, async (req: AuthenticatedRequest, res: Respo
  * 仅作用于当前认证用户自身，不可删除他人账户。
  */
 router.delete('/me', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
-    return;
-  }
+  if (!requireUser(req, res)) return;
   const { anonymizeUser } = await import('../services/userService.js');
   await revokeAllUserSessions(req.user.sub);
   const ok = await anonymizeUser(req.user.sub);

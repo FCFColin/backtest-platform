@@ -1,4 +1,4 @@
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import type { RegressionResultProps } from './types.js';
 import { fmtPct, fmtNum } from './utils.js';
 

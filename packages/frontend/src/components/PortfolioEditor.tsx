@@ -13,7 +13,7 @@ import type {
   RebalanceBands,
   Portfolio,
   BacktestParameters,
-} from '@backtest/shared/types';
+} from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
 
 type StorePortfolio = ReturnType<typeof useBacktestStore.getState>['portfolios'][number];

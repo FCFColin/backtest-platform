@@ -10,8 +10,8 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { LETFResult } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { LETFResult } from '@backtest/shared';
 import { SortableTable, type Column } from '../SortableTable.js';
 import type { StatRow, LETFResultsProps } from './types.js';
 import { tooltipStyle, fmtPct, buildStatRows } from './utils.js';

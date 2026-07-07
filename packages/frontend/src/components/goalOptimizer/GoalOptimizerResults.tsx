@@ -11,7 +11,7 @@ import {
   Legend,
   ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import type { GoalOptimizerResult } from '@backtest/shared/types/goal.js';
 import { fmtDollar, fmtPct, getProbColor } from './utils.js';
 import { tooltipStyle } from './types.js';

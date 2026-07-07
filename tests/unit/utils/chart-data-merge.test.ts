@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergePortfolioSeries } from '../../../src/utils/chartDataMerge.js';
+import { mergePortfolioSeries } from '../../../packages/frontend/src/utils/chartDataMerge.js';
 
 interface MockPortfolio {
   name: string;

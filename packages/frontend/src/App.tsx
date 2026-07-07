@@ -4,25 +4,24 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import Toast from '@/components/Toast';
-import { DegradedBanner } from '@/components/DegradedBanner';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuthStore } from '@/store/authStore';
 
-const BacktestPage = lazy(() => import('@/pages/backtest/BacktestPage'));
-const AnalysisPage = lazy(() => import('@/pages/analysis/AnalysisPage'));
-const MonteCarloPage = lazy(() => import('@/pages/backtest/MonteCarloPage'));
+const BacktestPage = lazy(() => import('@/pages/BacktestPage'));
+const AnalysisPage = lazy(() => import('@/pages/AnalysisPage'));
+const MonteCarloPage = lazy(() => import('@/pages/MonteCarloPage'));
 const OptimizerPage = lazy(() => import('@/pages/OptimizerPage'));
-const EfficientFrontierPage = lazy(() => import('@/pages/analysis/EfficientFrontierPage'));
+const EfficientFrontierPage = lazy(() => import('@/pages/EfficientFrontierPage'));
 const DataEnginePage = lazy(() => import('@/pages/DataEnginePage'));
 const AboutPage = lazy(() => import('@/pages/AboutPage'));
 const ContactPage = lazy(() => import('@/pages/ContactPage'));
-const RebalancingSensitivityPage = lazy(() => import('@/pages/backtest/RebalancingSensitivityPage'));
+const RebalancingSensitivityPage = lazy(() => import('@/pages/RebalancingSensitivityPage'));
 const LumpSumVsDCAPage = lazy(() => import('@/pages/LumpSumVsDCAPage'));
-const FactorRegressionPage = lazy(() => import('@/pages/analysis/FactorRegressionPage'));
+const FactorRegressionPage = lazy(() => import('@/pages/FactorRegressionPage'));
 const CalculatorsPage = lazy(() => import('@/pages/CalculatorsPage'));
 const TacticalPage = lazy(() => import('@/pages/TacticalPage'));
-const BacktestOptimizerPage = lazy(() => import('@/pages/backtest/BacktestOptimizerPage'));
-const PCAPage = lazy(() => import('@/pages/analysis/PCAPage'));
+const BacktestOptimizerPage = lazy(() => import('@/pages/BacktestOptimizerPage'));
+const PCAPage = lazy(() => import('@/pages/PCAPage'));
 const SignalAnalyzerPage = lazy(() => import('@/pages/SignalAnalyzerPage'));
 const DualSignalPage = lazy(() => import('@/pages/DualSignalPage'));
 const MultiSignalPage = lazy(() => import('@/pages/MultiSignalPage'));
@@ -32,13 +31,13 @@ const GoalOptimizerPage = lazy(() => import('@/pages/GoalOptimizerPage'));
 const HelpPage = lazy(() => import('@/pages/HelpPage'));
 const ChangelogPage = lazy(() => import('@/pages/ChangelogPage'));
 const PricingPage = lazy(() => import('@/pages/PricingPage'));
-const AccountPage = lazy(() => import('@/pages/account/AccountPage'));
+const AccountPage = lazy(() => import('@/pages/AccountPage'));
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const SignupPage = lazy(() => import('@/pages/SignupPage'));
 const VerifyEmailPage = lazy(() => import('@/pages/VerifyEmailPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/AcceptInvitePage'));
-const OrgMembersPage = lazy(() => import('@/pages/account/OrgMembersPage'));
-const BillingPage = lazy(() => import('@/pages/account/BillingPage'));
+const OrgMembersPage = lazy(() => import('@/pages/OrgMembersPage'));
+const BillingPage = lazy(() => import('@/pages/BillingPage'));
 const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'));
 const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
 const SystemMonitor = lazy(() => import('@/pages/admin/SystemMonitor'));
@@ -133,7 +132,6 @@ function AppLayout() {
   return (
     <>
       {!isAdmin && <Navbar />}
-      <DegradedBanner />
       <Toast />
       <Suspense
         fallback={

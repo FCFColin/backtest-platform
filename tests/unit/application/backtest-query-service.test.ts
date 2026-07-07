@@ -9,8 +9,8 @@ import {
   preparePortfolioBacktest,
   collectInvalidTickerWarnings,
 } from '../../../packages/backend/src/application/backtest-query-service.js';
-import type { Portfolio, BacktestParameters } from '../../../shared/types/index.js';
-import { MAX_TICKERS } from '../../../shared/constants.js';
+import type { Portfolio, BacktestParameters } from '../../../packages/shared/types/index.js';
+import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
 function makePortfolio(id: string, tickers: string[]): Portfolio {
   return {

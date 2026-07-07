@@ -8,7 +8,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import { SortableTable, type Column } from '../SortableTable';
 import type { TacticalGridState } from '../../hooks/useTacticalGridState.js';
 import type { TacticalGridResponse, HeatmapData } from './types.js';

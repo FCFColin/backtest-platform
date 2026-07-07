@@ -6,7 +6,7 @@ import {
   writeStateToURL,
   clearStateFromURL,
   type ShareableState,
-} from '../../../src/utils/urlState.js';
+} from '../../../packages/frontend/src/utils/urlState.js';
 
 const validState: ShareableState = {
   portfolios: [

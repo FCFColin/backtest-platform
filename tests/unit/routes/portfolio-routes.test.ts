@@ -64,7 +64,7 @@ describe('portfolioRoutes', () => {
       expect(res.status).toBe(200);
       expect(body.success).toBe(true);
       expect(body.data).toEqual([MOCK_ITEM]);
-      expect(mocks.repo.listPortfolios).toHaveBeenCalledWith(TENANT);
+      expect(mocks.repo.listPortfolios).toHaveBeenCalledWith(TENANT, 50, 0);
     });
 
     it('should return empty list when no portfolios', async () => {

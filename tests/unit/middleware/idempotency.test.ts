@@ -139,7 +139,7 @@ describe('idempotencyKey 中间件', () => {
 
     // 中间件替换了 res.json，调用新函数不应抛异常
     const body = { success: true, data: 'result' };
-    expect(() => (res.json as unknown as (body: unknown) => void)(body)).not.toThrow();
+    expect(() => res.json(body)).not.toThrow();
   });
 
   it('相同 Key 第二次请求应返回缓存结果', async () => {
@@ -158,9 +158,9 @@ describe('idempotencyKey 中间件', () => {
     await vi.waitFor(() => {
       expect(next1).toHaveBeenCalledTimes(1);
     });
-    (res1 as unknown as { statusCode: number }).statusCode = 200;
+    res1.statusCode = 200;
     const cachedBody = { success: true, data: 'cached' };
-    (res1.json as unknown as (body: unknown) => void)(cachedBody);
+    res1.json(cachedBody);
 
     // 第二次请求：相同 Key
     const {
@@ -193,8 +193,8 @@ describe('idempotencyKey 中间件', () => {
     });
     idempotencyKey(req1, res1, next1);
     await vi.waitFor(() => expect(next1).toHaveBeenCalledTimes(1));
-    (res1 as unknown as { statusCode: number }).statusCode = 500;
-    (res1.json as unknown as (body: unknown) => void)({ success: false, error: 'internal' });
+    res1.statusCode = 500;
+    res1.json({ success: false, error: 'internal' });
 
     const {
       req: req2,
@@ -223,8 +223,8 @@ describe('idempotencyKey 中间件', () => {
     });
     idempotencyKey(req1, res1, next1);
     await vi.waitFor(() => expect(next1).toHaveBeenCalledTimes(1));
-    (res1 as unknown as { statusCode: number }).statusCode = 200;
-    (res1.json as unknown as (body: unknown) => void)({ success: true });
+    res1.statusCode = 200;
+    res1.json({ success: true });
 
     const {
       req: req2,
@@ -254,9 +254,9 @@ describe('idempotencyKey Redis 成功路径', () => {
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
 
-    (res as unknown as { statusCode: number }).statusCode = 201;
+    res.statusCode = 201;
     const body = { success: true, data: 'created' };
-    (res.json as unknown as (body: unknown) => void)(body);
+    res.json(body);
 
     await vi.waitFor(() => {
       expect(redisMocks.store.has(`idempotency:${key}`)).toBe(true);
@@ -277,8 +277,8 @@ describe('idempotencyKey Redis 成功路径', () => {
     });
     idempotencyKey(req1, res1, next1);
     await vi.waitFor(() => expect(next1).toHaveBeenCalledTimes(1));
-    (res1 as unknown as { statusCode: number }).statusCode = 200;
-    (res1.json as unknown as (body: unknown) => void)(cachedBody);
+    res1.statusCode = 200;
+    res1.json(cachedBody);
     await vi.waitFor(() => expect(redisMocks.store.has(`idempotency:${key}`)).toBe(true));
 
     const {
@@ -312,8 +312,8 @@ describe('idempotencyKey Redis 成功路径', () => {
     });
     idempotencyKey(req1, res1, next1);
     await vi.waitFor(() => expect(next1).toHaveBeenCalledTimes(1));
-    (res1 as unknown as { statusCode: number }).statusCode = 200;
-    (res1.json as unknown as (body: unknown) => void)(cachedBody);
+    res1.statusCode = 200;
+    res1.json(cachedBody);
     await vi.waitFor(() => expect(redisMocks.store.has(`idempotency:${key}`)).toBe(true));
 
     const concurrent = Array.from({ length: 4 }, () =>
@@ -351,8 +351,8 @@ describe('idempotencyKey Redis 成功路径', () => {
     });
     idempotencyKey(req1, res1, next1);
     await vi.waitFor(() => expect(next1).toHaveBeenCalledTimes(1));
-    (res1 as unknown as { statusCode: number }).statusCode = 503;
-    (res1.json as unknown as (body: unknown) => void)({ success: false });
+    res1.statusCode = 503;
+    res1.json({ success: false });
     expect(redisMocks.store.has(`idempotency:${key}`)).toBe(false);
 
     const {
@@ -376,9 +376,9 @@ describe('idempotencyKey Redis 成功路径', () => {
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
 
-    (res as unknown as { statusCode: number }).statusCode = 200;
+    res.statusCode = 200;
     const body = { success: true };
-    (res.json as unknown as (body: unknown) => void)(body);
+    res.json(body);
 
     const {
       req: req2,
@@ -405,7 +405,7 @@ describe('idempotencyKey Redis 成功路径', () => {
     });
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
-    expect(() => (res.json as unknown as (body: unknown) => void)({ success: true })).not.toThrow();
+    expect(() => res.json({ success: true })).not.toThrow();
   });
 });
 
@@ -432,9 +432,9 @@ describe('安全攻击用例', () => {
       expect(next1).toHaveBeenCalledTimes(1);
     });
     // 模拟 handler 执行完毕，返回 200 响应（触发缓存写入）
-    (res1 as unknown as { statusCode: number }).statusCode = 200;
+    res1.statusCode = 200;
     const cachedBody = { success: true, data: 'first-response' };
-    (res1.json as unknown as (body: unknown) => void)(cachedBody);
+    res1.json(cachedBody);
 
     // 第二步：同时发送 4 个并发请求（使用 Promise.all）
     const concurrentRequests = Array.from({ length: 4 }, () => {
@@ -482,9 +482,9 @@ describe('安全攻击用例', () => {
     });
 
     // 模拟 handler 返回 200（触发缓存写入）
-    (res as unknown as { statusCode: number }).statusCode = 200;
+    res.statusCode = 200;
     const responseBody = { success: true };
-    (res.json as unknown as (body: unknown) => void)(responseBody);
+    res.json(responseBody);
 
     // 第二次请求相同 Key 应返回缓存（证明 Key 被安全存储）
     const {
@@ -518,9 +518,9 @@ describe('安全攻击用例', () => {
     });
 
     // 模拟 handler 返回 200（触发缓存写入）
-    (res as unknown as { statusCode: number }).statusCode = 200;
+    res.statusCode = 200;
     const responseBody = { success: true, data: 'xss-test' };
-    (res.json as unknown as (body: unknown) => void)(responseBody);
+    res.json(responseBody);
 
     // 第二次请求相同 Key 应返回缓存（证明 XSS 载荷被安全存储）
     const {
@@ -548,9 +548,9 @@ describe('安全攻击用例', () => {
     });
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
-    (res as unknown as { statusCode: number }).statusCode = 200;
+    res.statusCode = 200;
     const body = { success: true, data: 'safe' };
-    (res.json as unknown as (body: unknown) => void)(body);
+    res.json(body);
 
     const {
       req: req2,
@@ -578,8 +578,8 @@ describe('安全攻击用例', () => {
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
 
-    (res as unknown as { statusCode: number }).statusCode = 200;
-    expect(() => (res.json as unknown as (body: unknown) => void)({ success: true })).not.toThrow();
+    res.statusCode = 200;
+    expect(() => res.json({ success: true })).not.toThrow();
     await vi.waitFor(() => expect(redisMocks.set).toHaveBeenCalled());
   });
 
@@ -609,8 +609,8 @@ describe('安全攻击用例', () => {
     });
     idempotencyKey(req1, res1, next1);
     await vi.waitFor(() => expect(next1).toHaveBeenCalledTimes(1));
-    (res1 as unknown as { statusCode: number }).statusCode = 200;
-    (res1.json as unknown as (body: unknown) => void)({ success: true, data: 'old' });
+    res1.statusCode = 200;
+    res1.json({ success: true, data: 'old' });
 
     vi.advanceTimersByTime(61 * 60 * 1000);
     vi.advanceTimersByTime(10 * 60 * 1000);

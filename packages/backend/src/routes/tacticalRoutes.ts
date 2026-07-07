@@ -10,7 +10,7 @@ import { Router, type Request, type Response } from 'express';
 import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, errorMessage } from '../utils/errors.js';
 import { requireApiKey } from '../middleware/auth.js';
 import { validate } from '../middleware/validate.js';
 import {
@@ -79,7 +79,7 @@ router.post(
       res.json({ success: true, data });
       logger.info(`[tactical] 回测完成，耗时 ${Date.now() - startTime}ms`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       if (message.includes('无效') || message.includes('交易日不足')) {
         sendProblem(res, 422, 'TACTICAL_VALIDATION', 'Tactical backtest validation failed', {
           detail: message,
@@ -141,7 +141,7 @@ router.post(
       logger.info(`[tactical] 告警配置已保存，启用状态: ${saved.enabled}`);
       res.json({ success: true, data: { saved: true, config: saved } });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorMessage(error);
       if (message.includes('邮箱')) {
         sendProblem(res, 422, 'MISSING_EMAIL', 'Email required when alerts enabled', {
           detail: message,

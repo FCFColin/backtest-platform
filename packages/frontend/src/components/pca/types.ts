@@ -1,4 +1,4 @@
-import type { PCAResult } from '@backtest/shared/types';
+import type { PCAResult } from '@backtest/shared';
 
 export interface PCAParamsProps {
   tickers: string[];

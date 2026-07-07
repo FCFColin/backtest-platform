@@ -10,6 +10,25 @@ export const SYNC_CHART_POINTS = 400;
 export const DOWNSAMPLE_THRESHOLD = 10000;
 /** 大数据集降采样目标点数 */
 export const DOWNSAMPLE_TARGET = 1000;
+/** 折线/面积图推荐最大渲染点数（分析页、回测页等通用） */
+export const CHART_MAX_POINTS = 500;
+
+/**
+ * 图表数据降采样 Hook
+ *
+ * 自动对超过阈值的数组降采样，避免 Recharts 渲染大量 DOM 元素导致卡顿。
+ * 所有展示时间序列折线/面积图的组件应统一使用此 Hook。
+ *
+ * @param data 原始数据
+ * @param maxPoints 目标点数，默认 CHART_MAX_POINTS (500)
+ * @returns 降采样后的数据（memoized，data 引用变化时重新计算）
+ */
+export function useChartData<T>(data: T[], maxPoints: number = CHART_MAX_POINTS): T[] {
+  return useMemo(
+    () => (data.length > maxPoints ? downsample(data, maxPoints) : data),
+    [data, maxPoints],
+  );
+}
 
 /**
  * 大数据集降采样

@@ -7,6 +7,7 @@
 import { getRequestId } from './requestContext.js';
 import { getTracePropagationHeaders } from './tracePropagation.js';
 import { logger } from './logger.js';
+import { errorMessage } from './errors.js';
 
 /**
  * 调用外部 HTTP 服务（Go 数据服务 / Go 引擎等），统一封装超时与降级处理。
@@ -63,7 +64,7 @@ export async function callService(
     if (err instanceof Error && err.name === 'AbortError') {
       logger.warn(`[服务调用] ${baseUrl} 不可用，降级到Node.js`);
     } else {
-      const errMsg = err instanceof Error ? err.message : String(err);
+      const errMsg = errorMessage(err);
       logger.warn(`[服务调用] ${baseUrl}${endpoint} 调用失败，降级到Node.js: ${errMsg}`);
     }
     return null;

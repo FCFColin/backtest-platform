@@ -5,9 +5,13 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./packages/frontend/src/*"],
+      "@backtest/shared": ["./packages/shared/types/index.ts"],
+      "@backtest/shared/types": ["./packages/shared/types/index.ts"],
+      "@backtest/shared/types/*": ["./packages/shared/types/*"],
+      "@backtest/shared/*": ["./packages/shared/*"]
     },
     "types": []
   },
-  "include": ["src", "packages/shared"]
+  "include": ["packages/frontend/src", "packages/shared"]
 }

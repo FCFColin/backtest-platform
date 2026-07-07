@@ -14,8 +14,8 @@ import {
   Scatter,
   ZAxis,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { Statistics } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { Statistics } from '@backtest/shared';
 import type { OptimizerState } from './types.js';
 import { METRICS_ROWS } from './types.js';
 
@@ -96,6 +96,93 @@ function ConstraintsSummary({ s }: { s: OptimizerState }) {
   );
 }
 
+function WeightBarChartHeader({ onLoadBacktester }: { onLoadBacktester: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)' }}>
+        {t('optimizer.optimalWeights')}
+      </div>
+      <button
+        onClick={onLoadBacktester}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 14px',
+          borderRadius: 'var(--radius-control)',
+          border: '1px solid var(--brand)',
+          backgroundColor: 'transparent',
+          color: 'var(--brand)',
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: 'pointer',
+          transition: 'all .15s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'var(--brand)';
+          e.currentTarget.style.color = '#fff';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = 'var(--brand)';
+        }}
+      >
+        <ArrowRight className="w-3.5 h-3.5" />
+        {t('optimizer.loadInBacktester')}
+      </button>
+    </div>
+  );
+}
+
+function WeightBarChartBody({
+  data,
+}: {
+  data: Array<{ ticker: string; weight: number; fill: string }>;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
+      <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" horizontal={false} />
+        <XAxis
+          type="number"
+          tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+          tickFormatter={(v: number) => `${v}%`}
+        />
+        <YAxis
+          type="category"
+          dataKey="ticker"
+          tick={{ fontSize: 13, fill: 'var(--text-strong)', fontWeight: 500 }}
+          width={56}
+        />
+        <Tooltip
+          formatter={(v: number) => `${v}%`}
+          contentStyle={{
+            fontSize: 12,
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-soft)',
+            borderRadius: 'var(--radius-control)',
+            color: 'var(--text-body)',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        />
+        <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
+          {data.map((entry, index) => (
+            <Cell key={index} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
 function WeightBarChart({
   data,
   onLoadBacktester,
@@ -103,81 +190,10 @@ function WeightBarChart({
   data: Array<{ ticker: string; weight: number; fill: string }>;
   onLoadBacktester: () => void;
 }) {
-  const { t } = useTranslation();
   return (
     <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)' }}>
-          {t('optimizer.optimalWeights')}
-        </div>
-        <button
-          onClick={onLoadBacktester}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 14px',
-            borderRadius: 'var(--radius-control)',
-            border: '1px solid var(--brand)',
-            backgroundColor: 'transparent',
-            color: 'var(--brand)',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all .15s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--brand)';
-            e.currentTarget.style.color = '#fff';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'var(--brand)';
-          }}
-        >
-          <ArrowRight className="w-3.5 h-3.5" />
-          {t('optimizer.loadInBacktester')}
-        </button>
-      </div>
-      <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
-        <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" horizontal={false} />
-          <XAxis
-            type="number"
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-            tickFormatter={(v: number) => `${v}%`}
-          />
-          <YAxis
-            type="category"
-            dataKey="ticker"
-            tick={{ fontSize: 13, fill: 'var(--text-strong)', fontWeight: 500 }}
-            width={56}
-          />
-          <Tooltip
-            formatter={(v: number) => `${v}%`}
-            contentStyle={{
-              fontSize: 12,
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-control)',
-              color: 'var(--text-body)',
-              boxShadow: 'var(--shadow-md)',
-            }}
-          />
-          <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
-            {data.map((entry, index) => (
-              <Cell key={index} fill={entry.fill} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <WeightBarChartHeader onLoadBacktester={onLoadBacktester} />
+      <WeightBarChartBody data={data} />
     </>
   );
 }
@@ -249,6 +265,23 @@ function MetricsTable({
   );
 }
 
+function FrontierChartTitle() {
+  const { t } = useTranslation();
+  return (
+    <div
+      style={{
+        fontWeight: 600,
+        fontSize: 14,
+        color: 'var(--text-strong)',
+        marginBottom: 12,
+        marginTop: 24,
+      }}
+    >
+      {t('optimizer.efficientFrontier')}
+    </div>
+  );
+}
+
 function FrontierChart({
   data,
   results,
@@ -260,17 +293,7 @@ function FrontierChart({
   if (data.length === 0) return null;
   return (
     <>
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: 14,
-          color: 'var(--text-strong)',
-          marginBottom: 12,
-          marginTop: 24,
-        }}
-      >
-        {t('optimizer.efficientFrontier')}
-      </div>
+      <FrontierChartTitle />
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />

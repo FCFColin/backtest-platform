@@ -1,4 +1,4 @@
-import type { Statistics } from '@backtest/shared/types';
+import type { Statistics } from '@backtest/shared';
 import type { CompareResult } from './types.js';
 
 export function extractStats(

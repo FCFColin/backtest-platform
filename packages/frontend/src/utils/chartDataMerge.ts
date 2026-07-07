@@ -1,4 +1,4 @@
-import type { PortfolioResult } from '@backtest/shared/types';
+import type { PortfolioResult } from '@backtest/shared';
 
 export function mergePortfolioSeries<T, P extends Pick<PortfolioResult, 'name'>>(
   portfolios: P[],

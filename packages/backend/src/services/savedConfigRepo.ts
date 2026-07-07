@@ -51,12 +51,14 @@ const SELECT_COLS = 'id, name, config, owner_user_id, created_at, updated_at';
 export async function listConfigs(
   tenantId: string,
   limit: number = 50,
+  offset: number = 0,
 ): Promise<SavedConfigRecord[]> {
   return withTenant(tenantId, async (client) => {
     const capped = Math.min(limit, 200);
+    const offsetSafe = Math.max(0, offset);
     const { rows } = await client.query(
-      `SELECT ${SELECT_COLS} FROM saved_configs ORDER BY updated_at DESC LIMIT $1`,
-      [capped],
+      `SELECT ${SELECT_COLS} FROM saved_configs ORDER BY updated_at DESC LIMIT $1 OFFSET $2`,
+      [capped, offsetSafe],
     );
     return rows.map(mapRow);
   });

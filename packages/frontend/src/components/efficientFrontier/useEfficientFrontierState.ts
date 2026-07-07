@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared/types';
+import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import type { SolveSpeed, ReturnObjective, FrontierSolver } from './types.js';
 import {
@@ -9,7 +9,7 @@ import {
   buildPortfolioData,
 } from './utils.js';
 
-export function useEfficientFrontierState(navigate: (path: string) => void) {
+function useEfficientFrontierStateInner() {
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
   const [startDate, setStartDate] = useState('2010-01-01');
   const [endDate, setEndDate] = useState('2024-12-31');
@@ -28,48 +28,86 @@ export function useEfficientFrontierState(navigate: (path: string) => void) {
   const [allowCash, setAllowCash] = useState(false);
   const [returnObjective, setReturnObjective] = useState<ReturnObjective>('maxCagr');
   const [solver, setSolver] = useState<FrontierSolver>('markowitz');
+  return {
+    tickers,
+    setTickers,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    numPoints,
+    setNumPoints,
+    solveSpeed,
+    setSolveSpeed,
+    minInclusionWeight,
+    setMinInclusionWeight,
+    isLoading,
+    error,
+    run,
+    setError,
+    results,
+    setResults,
+    selectedPoint,
+    setSelectedPoint,
+    correlations,
+    setCorrelations,
+    correlationError,
+    setCorrelationError,
+    rebalanceFrequency,
+    setRebalanceFrequency,
+    allowCash,
+    setAllowCash,
+    returnObjective,
+    setReturnObjective,
+    solver,
+    setSolver,
+  };
+}
 
-  const addTicker = () => setTickers([...tickers, '']);
+export function useEfficientFrontierState(navigate: (path: string) => void) {
+  const s = useEfficientFrontierStateInner();
+
+  const addTicker = () => s.setTickers([...s.tickers, '']);
   const removeTicker = (i: number) => {
-    if (tickers.length > 2) setTickers(tickers.filter((_, idx) => idx !== i));
+    if (s.tickers.length > 2) s.setTickers(s.tickers.filter((_, idx) => idx !== i));
   };
   const updateTicker = (i: number, val: string) => {
-    const n = [...tickers];
+    const n = [...s.tickers];
     n[i] = val;
-    setTickers(n);
+    s.setTickers(n);
   };
 
   const { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers } = useMemo(
-    () => computeFrontierDerivedData(results),
-    [results],
+    () => computeFrontierDerivedData(s.results),
+    [s.results],
   );
 
   const runFrontier = () => {
-    const validTickers = tickers.filter(Boolean);
+    const validTickers = s.tickers.filter(Boolean);
     if (validTickers.length < 2) {
-      setError('请至少输入两个标的代码');
+      s.setError('请至少输入两个标的代码');
       return;
     }
-    setSelectedPoint(null);
-    setCorrelations(null);
-    setCorrelationError(null);
-    run(async () => {
+    s.setSelectedPoint(null);
+    s.setCorrelations(null);
+    s.setCorrelationError(null);
+    s.run(async () => {
       const data = await fetchFrontier({
         validTickers,
-        numPoints,
-        solveSpeed,
-        minInclusionWeight,
-        rebalanceFrequency,
-        allowCash,
-        returnObjective,
-        solver,
-        startDate,
-        endDate,
+        numPoints: s.numPoints,
+        solveSpeed: s.solveSpeed,
+        minInclusionWeight: s.minInclusionWeight,
+        rebalanceFrequency: s.rebalanceFrequency,
+        allowCash: s.allowCash,
+        returnObjective: s.returnObjective,
+        solver: s.solver,
+        startDate: s.startDate,
+        endDate: s.endDate,
       });
-      setResults(data);
-      const corr = await fetchCorrelations(validTickers, startDate, endDate);
-      if (corr) setCorrelations(corr);
-      else setCorrelationError('相关性矩阵计算失败');
+      s.setResults(data);
+      const corr = await fetchCorrelations(validTickers, s.startDate, s.endDate);
+      if (corr) s.setCorrelations(corr);
+      else s.setCorrelationError('相关性矩阵计算失败');
     });
   };
 
@@ -78,47 +116,22 @@ export function useEfficientFrontierState(navigate: (path: string) => void) {
     if (!p) return;
     localStorage.setItem(
       'bt_load_from_optimizer',
-      JSON.stringify(buildPortfolioData(p, rebalanceFrequency, startDate, endDate)),
+      JSON.stringify(buildPortfolioData(p, s.rebalanceFrequency, s.startDate, s.endDate)),
     );
     navigate('/');
   };
 
   return {
-    tickers,
-    startDate,
-    endDate,
-    numPoints,
-    solveSpeed,
-    minInclusionWeight,
-    isLoading,
-    error,
-    results,
-    selectedPoint,
-    correlations,
-    correlationError,
-    rebalanceFrequency,
-    allowCash,
-    returnObjective,
-    solver,
+    ...s,
+    addTicker,
+    removeTicker,
+    updateTicker,
     maxSharpe,
     sharpeRange,
     scatterData,
     allocationData,
     allAssetTickers,
-    addTicker,
-    removeTicker,
-    updateTicker,
     runFrontier,
     handleLoadInBacktester,
-    setStartDate,
-    setEndDate,
-    setNumPoints,
-    setSolveSpeed,
-    setMinInclusionWeight,
-    setRebalanceFrequency,
-    setAllowCash,
-    setReturnObjective,
-    setSolver,
-    setSelectedPoint,
   };
 }

@@ -5,7 +5,7 @@ vi.mock('react', () => ({ startTransition: vi.fn((cb) => cb()) }));
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-vi.mock('../../../src/store/toastStore.js', () => ({
+vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
   useToastStore: {
     getState: () => ({
       addToast: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock('../../../src/store/toastStore.js', () => ({
   },
 }));
 
-import { useBacktestStore } from '../../../src/store/backtestStore.js';
+import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
 
 beforeEach(() => {
   mockFetch.mockReset();

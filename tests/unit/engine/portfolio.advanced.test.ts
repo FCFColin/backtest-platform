@@ -59,8 +59,8 @@ describe('portfolio 扩展覆盖', () => {
     expect(stats.upsideCapture).toBeDefined();
     expect(stats.downsideCapture).toBeDefined();
     expect(stats.informationRatio).toBeDefined();
-    expect(stats.var5).toBeDefined();
-    expect(stats.cvar5).toBeDefined();
+    expect(stats.var?.annual[5]).toBeDefined();
+    expect(stats.cvar?.annual[5]).toBeDefined();
   });
 
   it('双组合回测应产生非对角相关性', () => {

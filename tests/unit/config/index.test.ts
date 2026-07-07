@@ -40,11 +40,7 @@ vi.mock('dotenv', () => ({
   config: vi.fn(),
 }));
 
-import {
-  config,
-  validateConfig,
-  DEGRADED_WARNING,
-} from '../../../packages/backend/src/config/index.js';
+import { config, validateConfig } from '../../../packages/backend/src/config/index.js';
 
 describe('validateConfig - 开发环境（宽松校验）', () => {
   beforeEach(() => {
@@ -406,25 +402,6 @@ describe('CORS_ORIGINS', () => {
     // config 在模块加载时已构造
     // CORS_ORIGINS 为 true 或字符串数组
     expect(config.CORS_ORIGINS === true || Array.isArray(config.CORS_ORIGINS)).toBe(true);
-  });
-});
-
-describe('DEGRADED_WARNING', () => {
-  it('应包含 BASE、WITH_DRAG、WITHOUT_DRAG 三种文案', () => {
-    expect(DEGRADED_WARNING.BASE).toBeDefined();
-    expect(DEGRADED_WARNING.WITH_DRAG).toBeDefined();
-    expect(DEGRADED_WARNING.WITHOUT_DRAG).toBeDefined();
-    expect(typeof DEGRADED_WARNING.BASE).toBe('string');
-    expect(typeof DEGRADED_WARNING.WITH_DRAG).toBe('string');
-    expect(typeof DEGRADED_WARNING.WITHOUT_DRAG).toBe('string');
-  });
-
-  it('WITH_DRAG 文案应提及 drag', () => {
-    expect(DEGRADED_WARNING.WITH_DRAG).toContain('drag');
-  });
-
-  it('WITHOUT_DRAG 文案应提及 drag 或精度', () => {
-    expect(DEGRADED_WARNING.WITHOUT_DRAG.toLowerCase()).toMatch(/drag|精度/);
   });
 });
 

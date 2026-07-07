@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import type { SignalResultsPanelProps } from './types.js';
 import { tooltipStyle } from './types.js';
@@ -43,11 +43,7 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-function SignalListSection({
-  results,
-}: {
-  results: SignalAnalysisResult;
-}) {
+function SignalListSection({ results }: { results: SignalAnalysisResult }) {
   return (
     <div className="chart-card">
       <div className="chart-card-title">信号列表（{results.signals.length}）</div>
@@ -116,11 +112,7 @@ function EquityCurveSection({
   );
 }
 
-function SignalResultsContent({
-  results,
-}: {
-  results: SignalAnalysisResult;
-}) {
+function SignalResultsContent({ results }: { results: SignalAnalysisResult }) {
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

@@ -10,7 +10,7 @@ import {
   loadTickerData,
   scanMarketStatsFromDb,
   resolveUniverseFromCacheStats,
-} from '../services/engineService.js';
+} from '../services/tickerDataService.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import { startUpdate, stopUpdate, getUpdateStatus } from '../services/dataFetchService.js';

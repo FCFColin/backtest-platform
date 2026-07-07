@@ -28,7 +28,7 @@ import { withTimeout } from '../utils/timeout.js';
 import { config } from '../config/index.js';
 import { fetchHistoryData, searchTickers } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, errorMessage } from '../utils/errors.js';
 import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { callEngineStrict, EngineUnavailableError } from '../utils/engineClient.js';
 import { sanitizeLog } from '../utils/logSanitizer.js';
@@ -43,6 +43,21 @@ import {
 } from '../schemas/backtest.js';
 import { loadCpiMapFromDb, loadExchangeRatesFromDb } from '../db/macroData.js';
 
+function asyncRouteHandler(
+  fn: (req: Request, res: Response) => Promise<void>,
+  errorConfig: { logMsg: string; code: string; title: string; detail: string },
+) {
+  return async (req: Request, res: Response): Promise<void> => {
+    try {
+      await fn(req, res);
+    } catch (error) {
+      if (handleEngineUnavailable(res, error)) return;
+      logger.error({ err: error as Error }, errorConfig.logMsg);
+      sendProblem(res, 500, errorConfig.code, errorConfig.title, { detail: errorConfig.detail });
+    }
+  };
+}
+
 const router = Router();
 
 /**
@@ -56,6 +71,7 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
     sendProblem(res, 503, 'ENGINE_UNAVAILABLE', 'Service Unavailable', {
       detail: error.message,
       headers: { 'Retry-After': String(error.retryAfterSeconds) },
+      degraded: true,
     });
     return true;
   }
@@ -186,7 +202,7 @@ router.post(
         allTickers = prep.allTickers;
         warnings = prep.warnings;
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = errorMessage(err);
         sendProblem(res, 422, 'VALIDATION_ERROR', 'Validation failed', { detail: msg });
         return;
       }
@@ -262,8 +278,8 @@ router.post(
 router.post(
   '/portfolio/series',
   validate(portfolioSeriesSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
+  asyncRouteHandler(
+    async (req, res) => {
       const { portfolios, parameters, series } = req.body as {
         portfolios: Portfolio[];
         parameters: BacktestParameters;
@@ -285,13 +301,14 @@ router.post(
           portfolios: extractBacktestSeries(cached, series),
         },
       });
-    } catch (error) {
-      logger.error({ err: error as Error }, 'Portfolio series error');
-      sendProblem(res, 500, 'SERIES_ERROR', 'Series fetch failed', {
-        detail: 'Failed to fetch backtest series',
-      });
-    }
-  },
+    },
+    {
+      logMsg: 'Portfolio series error',
+      code: 'SERIES_ERROR',
+      title: 'Series fetch failed',
+      detail: 'Failed to fetch backtest series',
+    },
+  ),
 );
 
 /**
@@ -302,8 +319,8 @@ router.post(
 router.post(
   '/analysis',
   validate(analysisSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
+  asyncRouteHandler(
+    async (req, res) => {
       const { parameters } = req.body as {
         tickers: string[] | string;
         parameters: BacktestParameters;
@@ -332,24 +349,25 @@ router.post(
       };
       let result = await callEngineStrict('/api/engine/analysis', rustBody);
 
-      // 引擎返回 { assets: [...] }，前端期望 { tickers: [...] }，做字段映射
-      const resultAny = result as unknown as Record<string, unknown>;
-      if (resultAny && resultAny.assets && !resultAny.tickers) {
+      // 引擎返回 { success: true, data: { assets: [...], correlations: [...] } }，解开嵌套
+      const engineResp = result as { data?: { assets?: unknown[]; correlations?: unknown[][] } };
+      const engineData = engineResp?.data;
+      if (engineData && engineData.assets) {
         result = {
-          tickers: resultAny.assets,
-          correlations: resultAny.correlations || [],
+          tickers: engineData.assets,
+          correlations: engineData.correlations || [],
         } as unknown as typeof result;
       }
 
       res.json({ success: true, data: result });
-    } catch (error) {
-      if (handleEngineUnavailable(res, error)) return;
-      logger.error({ err: error as Error }, 'Analysis error');
-      sendProblem(res, 500, 'ANALYSIS_ERROR', 'Analysis failed', {
-        detail: 'Failed to run analysis',
-      });
-    }
-  },
+    },
+    {
+      logMsg: 'Analysis error',
+      code: 'ANALYSIS_ERROR',
+      title: 'Analysis failed',
+      detail: 'Failed to run analysis',
+    },
+  ),
 );
 
 /**
@@ -361,9 +379,9 @@ router.post(
 router.post(
   '/monte-carlo',
   validate(monteCarloSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    const startTime = Date.now();
-    try {
+  asyncRouteHandler(
+    async (req, res) => {
+      const startTime = Date.now();
       const { portfolio, portfolios, parameters, mcParams } = req.body as {
         portfolio?: Portfolio;
         portfolios?: Portfolio[];
@@ -400,14 +418,14 @@ router.post(
       // 单组合返回对象，多组合返回数组（保持原响应契约）。
       res.json({ success: true, data: portfolioList.length === 1 ? results[0] : results });
       logger.info(`[backtest] Monte Carlo completed in ${Date.now() - startTime}ms`);
-    } catch (error) {
-      if (handleEngineUnavailable(res, error)) return;
-      logger.error({ err: error as Error }, 'Monte Carlo simulation error');
-      sendProblem(res, 500, 'MONTE_CARLO_ERROR', 'Monte Carlo failed', {
-        detail: 'Failed to run Monte Carlo simulation',
-      });
-    }
-  },
+    },
+    {
+      logMsg: 'Monte Carlo simulation error',
+      code: 'MONTE_CARLO_ERROR',
+      title: 'Monte Carlo failed',
+      detail: 'Failed to run Monte Carlo simulation',
+    },
+  ),
 );
 
 /**
@@ -418,9 +436,9 @@ router.post(
 router.post(
   '/optimize',
   validate(optimizeSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    const startTime = Date.now();
-    try {
+  asyncRouteHandler(
+    async (req, res) => {
+      const startTime = Date.now();
       const { tickers, objective, constraints, parameters, numIterations } = req.body as {
         tickers: string[];
         objective: 'maxSharpe' | 'minVolatility' | 'maxReturn';
@@ -445,15 +463,17 @@ router.post(
       const result = await callEngineStrict('/api/engine/optimize', rustBody);
 
       logger.info(`[backtest] Optimization completed in ${Date.now() - startTime}ms`);
-      res.json({ success: true, data: result });
-    } catch (error) {
-      if (handleEngineUnavailable(res, error)) return;
-      logger.error({ err: error as Error }, 'Optimization error');
-      sendProblem(res, 500, 'OPTIMIZATION_ERROR', 'Optimization failed', {
-        detail: 'Failed to optimize portfolio',
-      });
-    }
-  },
+      // 引擎返回 { success: true, data: { optimalWeights, ... } }，解开嵌套
+      const engineResp = result as { data?: Record<string, unknown> };
+      res.json({ success: true, data: engineResp?.data ?? result });
+    },
+    {
+      logMsg: 'Optimization error',
+      code: 'OPTIMIZATION_ERROR',
+      title: 'Optimization failed',
+      detail: 'Failed to optimize portfolio',
+    },
+  ),
 );
 
 /**
@@ -464,8 +484,8 @@ router.post(
 router.post(
   '/efficient-frontier',
   validate(efficientFrontierSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
+  asyncRouteHandler(
+    async (req, res) => {
       const { tickers, numPoints, parameters, riskFreeRate } = req.body as {
         tickers: string[];
         numPoints?: number;
@@ -486,15 +506,17 @@ router.post(
       };
       const result = await callEngineStrict('/api/engine/efficient-frontier', rustBody);
 
-      res.json({ success: true, data: result });
-    } catch (error) {
-      if (handleEngineUnavailable(res, error)) return;
-      logger.error({ err: error as Error }, 'Efficient frontier error');
-      sendProblem(res, 500, 'EFFICIENT_FRONTIER_ERROR', 'Efficient frontier failed', {
-        detail: 'Failed to calculate efficient frontier',
-      });
-    }
-  },
+      // 引擎返回 { success: true, data: { frontier, ... } }，解开嵌套
+      const engineResp = result as { data?: Record<string, unknown> };
+      res.json({ success: true, data: engineResp?.data ?? result });
+    },
+    {
+      logMsg: 'Efficient frontier error',
+      code: 'EFFICIENT_FRONTIER_ERROR',
+      title: 'Efficient frontier failed',
+      detail: 'Failed to calculate efficient frontier',
+    },
+  ),
 );
 
 export default router;

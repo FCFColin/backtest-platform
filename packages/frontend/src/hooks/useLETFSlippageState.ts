@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAsyncAction } from './useAsyncAction';
-import type { LETFResult } from '@backtest/shared/types';
+import i18n from '../i18n/index.js';
+import type { LETFResult } from '@backtest/shared';
 
 export function useLETFSlippageState() {
   const [letfTicker, setLetfTicker] = useState('TQQQ');
@@ -13,7 +14,7 @@ export function useLETFSlippageState() {
 
   const runAnalysis = () => {
     if (!letfTicker.trim() || !benchmarkTicker.trim()) {
-      setError('请输入杠杆 ETF 和基准指数代码');
+      setError(i18n.t('errors.letfTickerRequired'));
       return;
     }
     run(async () => {
@@ -30,7 +31,8 @@ export function useLETFSlippageState() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (json.success === false) throw new Error(json.error || 'LETF 滑点分析失败');
+      if (json.success === false)
+        throw new Error(json.error || i18n.t('errors.letfAnalysisFailed'));
       setResults(json.data);
     });
   };

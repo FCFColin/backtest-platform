@@ -16,8 +16,8 @@ import {
   Line,
   Brush,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { PortfolioResult } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { PortfolioResult } from '@backtest/shared';
 import { ChartExporter } from '../ChartExporter';
 import {
   downsample,

@@ -159,21 +159,31 @@ export function getRolePermissions(role: Role | string): Permission[] {
  * @param permission - 路由所需权限
  * @returns Express 中间件
  */
+function logRbac(
+  level: 'info' | 'warn',
+  req: AuthenticatedRequest,
+  permission: Permission,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
+  logger[level](
+    {
+      middleware: 'rbac',
+      permission,
+      userId: req.user?.sub,
+      role: req.user?.role,
+      path: req.path,
+      requestId: req.id,
+      ...extra,
+    },
+    `[rbac] ${message}`,
+  );
+}
+
 export function requirePermission(permission: Permission) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    logger.info(
-      {
-        middleware: 'rbac',
-        permission,
-        userId: req.user?.sub,
-        role: req.user?.role,
-        path: req.path,
-        requestId: req.id,
-      },
-      '[rbac] 权限检查',
-    );
+    logRbac('info', req, permission, '权限检查');
 
-    // 前置检查：确保认证中间件已执行
     if (!req.user) {
       res.status(401).json({
         success: false,
@@ -188,19 +198,8 @@ export function requirePermission(permission: Permission) {
       return;
     }
 
-    // 平台管理员（运营 SaaS 自身）放行一切权限检查（ADR-032）。
-    // 企业理由：平台运维需跨租户访问后台/诊断端点，不应受单一租户内角色限制。
     if (req.user.platform_admin === true) {
-      logger.info(
-        {
-          middleware: 'rbac',
-          permission,
-          userId: req.user.sub,
-          platformAdmin: true,
-          requestId: req.id,
-        },
-        '[rbac] 平台管理员放行',
-      );
+      logRbac('info', req, permission, '平台管理员放行', { platformAdmin: true });
       next();
       return;
     }
@@ -208,16 +207,7 @@ export function requirePermission(permission: Permission) {
     const userRole = effectiveRole(req.user) as Role;
 
     if (!hasPermission(userRole, permission)) {
-      logger.warn(
-        {
-          middleware: 'rbac',
-          permission,
-          userId: req.user?.sub,
-          role: req.user?.role,
-          requestId: req.id,
-        },
-        '[rbac] 权限不足，访问拒绝',
-      );
+      logRbac('warn', req, permission, '权限不足，访问拒绝');
       res.status(403).json({
         success: false,
         error: {
@@ -231,16 +221,7 @@ export function requirePermission(permission: Permission) {
       return;
     }
 
-    logger.info(
-      {
-        middleware: 'rbac',
-        permission,
-        userId: req.user?.sub,
-        role: req.user?.role,
-        requestId: req.id,
-      },
-      '[rbac] 权限检查通过',
-    );
+    logRbac('info', req, permission, '权限检查通过');
     next();
   };
 }

@@ -34,14 +34,16 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    command: 'npx tsx packages/backend/src/server.ts',
     url: 'http://localhost:5001/api/health',
     reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
+    timeout: 60_000,
     env: {
       DATABASE_URL:
         process.env.DATABASE_URL ?? 'postgresql://backtest:backtest@localhost:5432/backtest',
       COMPUTE_RATE_LIMIT_MAX: process.env.COMPUTE_RATE_LIMIT_MAX ?? '200',
+      SERVE_STATIC: 'true',
+      OTEL_EXPORTER_OTLP_ENDPOINT: '',
     },
   },
 });

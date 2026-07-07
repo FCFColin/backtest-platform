@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useToastStore } from '../../../src/store/toastStore.js';
+import { useToastStore } from '../../../packages/frontend/src/store/toastStore.js';
 
 beforeEach(() => {
   // 清空toast

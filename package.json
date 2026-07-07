@@ -8,7 +8,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:hmr": "concurrently \"pnpm --filter @backtest/frontend dev\" \"pnpm --filter @backtest/backend dev\"",
     "build": "pnpm --filter @backtest/frontend build",
-    "depcheck": "depcruise --config .dependency-cruiser.config.mjs packages/backend/src/ src/",
+    "depcheck": "depcruise --config .dependency-cruiser.config.mjs packages/backend/src/ packages/frontend/src/ packages/shared/",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -21,6 +21,7 @@
     "test:unit:frontend": "vitest run -c vitest.config.frontend.ts",
     "test:unit:backend": "vitest run -c vitest.config.backend.ts",
     "test:unit:shared": "vitest run -c vitest.config.shared.ts",
+    "test:components": "vitest run --config vitest.config.frontend-components.ts",
     "test:chaos": "vitest run -c vitest.config.chaos.ts",
     "test:integration": "vitest run tests/integration",
     "test:consistency": "vitest run tests/consistency",
@@ -39,9 +40,7 @@
     "deadcode": "knip --no-exit-code",
     "audit:supply": "pnpm audit --audit-level=high --prod",
     "profile:flame": "npx --yes clinic flame -- node --import tsx packages/backend/src/server.ts",
-    "profile:flame:pkg": "npx --yes clinic flame -- node --import tsx packages/backend/src/server.ts",
     "profile:doctor": "npx --yes clinic doctor -- node --import tsx packages/backend/src/server.ts",
-    "profile:doctor:pkg": "npx --yes clinic doctor -- node --import tsx packages/backend/src/server.ts",
     "license:check": "license-checker --production --summary --onlyAllow 'MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;0BSD;CC0-1.0;Unlicense;Python-2.0;BlueOak-1.0.0' || true",
     "import:market-data": "tsx -e \"import { importAllMarketData } from './packages/backend/src/db/import.js'; importAllMarketData().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })\"",
     "prepare": "husky || true"
@@ -50,6 +49,12 @@
     "@backtest/shared": "workspace:*",
     "@eslint/js": "^9.25.0",
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.78.0",
+    "@opentelemetry/exporter-metrics-otlp-proto": "^0.220.0",
+    "@opentelemetry/exporter-trace-otlp-proto": "^0.220.0",
+    "@opentelemetry/instrumentation-pg": "^0.72.0",
+    "@opentelemetry/sdk-metrics": "^2.9.0",
+    "@opentelemetry/sdk-node": "^0.220.0",
     "@playwright/test": "^1.61.0",
     "@testcontainers/postgresql": "^12.0.3",
     "@testing-library/react": "^16.3.0",
@@ -57,6 +62,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.25",
     "@types/node": "^22.15.30",
+    "@types/nodemailer": "^8.0.1",
     "@types/opossum": "^8.1.9",
     "@types/pg": "^8.20.0",
     "@types/react": "^18.3.31",
@@ -97,6 +103,7 @@
     "pg": "^8.14.0",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
+    "pino-pretty": "^13.1.3",
     "prettier": "^3.9.1",
     "prom-client": "^15.1.0",
     "rate-limit-redis": "^4.2.0",
@@ -131,11 +138,11 @@
     "temp-dir": ".nyc_output",
     "report-dir": "coverage/playwright",
     "include": [
-      "src/**/*.{ts,tsx}"
+      "packages/frontend/src/**/*.{ts,tsx}"
     ],
     "exclude": [
-      "src/**/*.d.ts",
-      "src/i18n/**",
+      "packages/frontend/src/**/*.d.ts",
+      "packages/frontend/src/i18n/**",
       "tests/**"
     ]
   }

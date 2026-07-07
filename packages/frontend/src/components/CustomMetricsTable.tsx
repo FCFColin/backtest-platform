@@ -3,8 +3,8 @@
  * @description 展示各投资组合的自选统计指标对比表格
  */
 import { useState, useRef, useEffect } from 'react';
-import type { PortfolioResult, Statistics } from '@backtest/shared/types';
-import { CHART_COLORS } from '@backtest/shared/types';
+import type { PortfolioResult, Statistics } from '@backtest/shared';
+import { CHART_COLORS } from '@backtest/shared';
 
 /** 自定义指标表格 Props */
 interface CustomMetricsTableProps {

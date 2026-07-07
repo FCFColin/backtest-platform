@@ -28,6 +28,7 @@ import { getOrg } from '../services/membershipService.js';
 import { getPlanLimits } from '../config/planLimits.js';
 import { appRedis } from '../config/redis.js';
 import { logger } from '../utils/logger.js';
+import { errorMessage } from '../utils/errors.js';
 import type { Job } from 'bullmq';
 
 /** 租户在途任务计数键（tenant-fair 调度，ADR-037） */
@@ -139,7 +140,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   } catch (err) {
     if (err instanceof DelayedError) throw err;
     await releaseJobClaim(jobId);
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     logger.error({ jobId, error: message }, '[worker] 任务执行失败');
     return { status: 'failed', error: message };
   }

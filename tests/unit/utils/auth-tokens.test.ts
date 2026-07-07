@@ -27,7 +27,7 @@ import {
   setTokens,
   clearTokens,
   refreshTokens,
-} from '../../../src/utils/authTokens.js';
+} from '../../../packages/frontend/src/utils/authTokens.js';
 
 const originalFetch = globalThis.fetch;
 

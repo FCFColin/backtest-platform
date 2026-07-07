@@ -16,8 +16,8 @@ import {
   Brush,
 } from 'recharts';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { PortfolioResult } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { PortfolioResult } from '@backtest/shared';
 import { ChartExporter } from '../ChartExporter';
 import {
   downsample,
@@ -101,7 +101,7 @@ export function CorrelationMatrix({ tickers, correlations, title }: CorrelationM
                       className="text-[12px] text-center cursor-default"
                       style={{
                         backgroundColor: getCorrelationColor(val),
-                        color: Math.abs(val) > 0.5 ? '#fff' : 'var(--text-body)',
+                        color: Math.abs(val) > 0.6 ? '#fff' : '#000',
                         width: `${Math.max(48, 600 / tickers.length)}px`,
                         height: `${Math.max(36, 400 / tickers.length)}px`,
                       }}
@@ -332,7 +332,61 @@ function RollingCorrelationControls({
   );
 }
 
-/** 滚动相关性选择器 + 图表 */
+function RollingCorrelationLineChart({
+  data,
+  pairName,
+}: {
+  data: Array<{ date: string; correlation: number }>;
+  pairName: string;
+}) {
+  const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+          tickFormatter={(v: string) => v.slice(0, 7)}
+          interval="preserveStartEnd"
+        />
+        <YAxis
+          domain={[-1, 1]}
+          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tickFormatter={(v: number) => v.toFixed(1)}
+        />
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          formatter={(value: number) => [value.toFixed(4), '相关性']}
+          labelFormatter={(label: string) => `日期: ${label}`}
+        />
+        <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
+        <ReferenceLine y={1} stroke="var(--border-soft)" strokeDasharray="1 3" />
+        <ReferenceLine y={-1} stroke="var(--border-soft)" strokeDasharray="1 3" />
+        <Line
+          type="monotone"
+          dataKey="correlation"
+          stroke={CHART_COLORS[0]}
+          strokeWidth={1.5}
+          dot={false}
+          activeDot={{ r: 3 }}
+          name={pairName}
+        />
+        <Legend wrapperStyle={{ fontSize: '12px' }} />
+        {chartData.length > 100 && (
+          <Brush
+            dataKey="date"
+            height={20}
+            stroke="var(--brand)"
+            travellerWidth={8}
+            tickFormatter={(v: string) => v.slice(0, 7)}
+          />
+        )}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 function RollingCorrelationSection({
   portfolios,
   selectedPair,
@@ -355,11 +409,6 @@ function RollingCorrelationSection({
     const dates = portfolios[i].growthCurve.slice(1).map((p) => p.date);
     return computeRollingCorrelation(aReturns, bReturns, dates, rollingWindow);
   }, [portfolios, selectedPair, rollingWindow]);
-
-  const rollingChartData =
-    rollingCorrelationData.length > DOWNSAMPLE_THRESHOLD
-      ? downsample(rollingCorrelationData, DOWNSAMPLE_TARGET)
-      : rollingCorrelationData;
 
   const pairName = selectedPair
     ? `${portfolios[selectedPair[0]].name} vs ${portfolios[selectedPair[1]].name}`
@@ -395,49 +444,7 @@ function RollingCorrelationSection({
         </div>
       )}
       {selectedPair && rollingCorrelationData.length > 0 && (
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={rollingChartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-            <XAxis
-              dataKey="date"
-              tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-              tickFormatter={(v: string) => v.slice(0, 7)}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              domain={[-1, 1]}
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-              tickFormatter={(v: number) => v.toFixed(1)}
-            />
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number) => [value.toFixed(4), '相关性']}
-              labelFormatter={(label: string) => `日期: ${label}`}
-            />
-            <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
-            <ReferenceLine y={1} stroke="var(--border-soft)" strokeDasharray="1 3" />
-            <ReferenceLine y={-1} stroke="var(--border-soft)" strokeDasharray="1 3" />
-            <Line
-              type="monotone"
-              dataKey="correlation"
-              stroke={CHART_COLORS[0]}
-              strokeWidth={1.5}
-              dot={false}
-              activeDot={{ r: 3 }}
-              name={pairName}
-            />
-            <Legend wrapperStyle={{ fontSize: '12px' }} />
-            {rollingChartData.length > 100 && (
-              <Brush
-                dataKey="date"
-                height={20}
-                stroke="var(--brand)"
-                travellerWidth={8}
-                tickFormatter={(v: string) => v.slice(0, 7)}
-              />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
+        <RollingCorrelationLineChart data={rollingCorrelationData} pairName={pairName} />
       )}
     </div>
   );

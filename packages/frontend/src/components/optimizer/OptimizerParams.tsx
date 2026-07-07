@@ -54,117 +54,135 @@ function TickerEditor({ s }: { s: OptimizerState }) {
   );
 }
 
+function BasicDateFields({ s }: { s: OptimizerState }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <label className="param-check">
+        <input
+          type="checkbox"
+          checked={s.startDate === '' && s.endDate === ''}
+          onChange={(e) => {
+            if (e.target.checked) {
+              s.setStartDate('');
+              s.setEndDate('');
+            } else {
+              s.setStartDate('2010-01-01');
+              s.setEndDate('2024-12-31');
+            }
+          }}
+        />
+        <span>{t('optimizer.allHistory')}</span>
+      </label>
+      <div className="param-field">
+        <span className="param-label">{t('optimizer.startDate')}</span>
+        <input
+          type="date"
+          className="param-input"
+          value={s.startDate}
+          onChange={(e) => s.setStartDate(e.target.value)}
+        />
+      </div>
+      <div className="param-field">
+        <span className="param-label">{t('optimizer.endDate')}</span>
+        <input
+          type="date"
+          className="param-input"
+          value={s.endDate}
+          onChange={(e) => s.setEndDate(e.target.value)}
+        />
+      </div>
+    </>
+  );
+}
+
+function BasicNumberFields({ s }: { s: OptimizerState }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div className="param-field">
+        <span className="param-label">{t('optimizer.objective')}</span>
+        <select
+          className="param-input"
+          value={s.objective}
+          onChange={(e) => s.setObjective(e.target.value)}
+        >
+          <option value="maxSharpe">{t('optimizer.maxSharpe')}</option>
+          <option value="minVolatility">{t('optimizer.minVolatility')}</option>
+          <option value="maxReturn">{t('optimizer.maxReturn')}</option>
+        </select>
+      </div>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">{t('optimizer.minWeight')}</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            className="param-input param-input-with-suffix"
+            value={s.minWeight}
+            onChange={(e) => s.setMinWeight(Number(e.target.value))}
+            min={0}
+            max={100}
+          />
+          <span className="param-input-suffix">%</span>
+        </div>
+      </div>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">{t('optimizer.maxWeight')}</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            className="param-input param-input-with-suffix"
+            value={s.maxWeight}
+            onChange={(e) => s.setMaxWeight(Number(e.target.value))}
+            min={0}
+            max={100}
+          />
+          <span className="param-input-suffix">%</span>
+        </div>
+      </div>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">{t('optimizer.tbillRate')}</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            step="0.1"
+            className="param-input param-input-with-suffix"
+            value={s.tbillRate}
+            onChange={(e) => s.setTbillRate(Number(e.target.value))}
+          />
+          <span className="param-input-suffix">%</span>
+        </div>
+      </div>
+      <div className="param-field">
+        <span className="param-label">{t('optimizer.solver')}</span>
+        <select
+          className="param-input"
+          value={s.solver}
+          onChange={(e) => s.setSolver(e.target.value as SolverType)}
+        >
+          <option value="markowitz">{t('optimizer.solverMarkowitz')}</option>
+          <option value="ga">{t('optimizer.solverGA')}</option>
+        </select>
+      </div>
+      <label className="param-check">
+        <input
+          type="checkbox"
+          checked={s.allowShort}
+          onChange={(e) => s.setAllowShort(e.target.checked)}
+        />
+        <span>{t('optimizer.allowShort')}</span>
+      </label>
+    </>
+  );
+}
+
 function BasicParams({ s }: { s: OptimizerState }) {
   const { t } = useTranslation();
   return (
     <ParamsSection title={t('optimizer.basicParams')} info={t('optimizer.basicParamsInfo')}>
       <div className="params-row">
-        <label className="param-check">
-          <input
-            type="checkbox"
-            checked={s.startDate === '' && s.endDate === ''}
-            onChange={(e) => {
-              if (e.target.checked) {
-                s.setStartDate('');
-                s.setEndDate('');
-              } else {
-                s.setStartDate('2010-01-01');
-                s.setEndDate('2024-12-31');
-              }
-            }}
-          />
-          <span>{t('optimizer.allHistory')}</span>
-        </label>
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.startDate')}</span>
-          <input
-            type="date"
-            className="param-input"
-            value={s.startDate}
-            onChange={(e) => s.setStartDate(e.target.value)}
-          />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.endDate')}</span>
-          <input
-            type="date"
-            className="param-input"
-            value={s.endDate}
-            onChange={(e) => s.setEndDate(e.target.value)}
-          />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.objective')}</span>
-          <select
-            className="param-input"
-            value={s.objective}
-            onChange={(e) => s.setObjective(e.target.value)}
-          >
-            <option value="maxSharpe">{t('optimizer.maxSharpe')}</option>
-            <option value="minVolatility">{t('optimizer.minVolatility')}</option>
-            <option value="maxReturn">{t('optimizer.maxReturn')}</option>
-          </select>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.minWeight')}</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={s.minWeight}
-              onChange={(e) => s.setMinWeight(Number(e.target.value))}
-              min={0}
-              max={100}
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.maxWeight')}</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={s.maxWeight}
-              onChange={(e) => s.setMaxWeight(Number(e.target.value))}
-              min={0}
-              max={100}
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.tbillRate')}</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              step="0.1"
-              className="param-input param-input-with-suffix"
-              value={s.tbillRate}
-              onChange={(e) => s.setTbillRate(Number(e.target.value))}
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.solver')}</span>
-          <select
-            className="param-input"
-            value={s.solver}
-            onChange={(e) => s.setSolver(e.target.value as SolverType)}
-          >
-            <option value="markowitz">{t('optimizer.solverMarkowitz')}</option>
-            <option value="ga">{t('optimizer.solverGA')}</option>
-          </select>
-        </div>
-        <label className="param-check">
-          <input
-            type="checkbox"
-            checked={s.allowShort}
-            onChange={(e) => s.setAllowShort(e.target.checked)}
-          />
-          <span>{t('optimizer.allowShort')}</span>
-        </label>
+        <BasicDateFields s={s} />
+        <BasicNumberFields s={s} />
       </div>
     </ParamsSection>
   );

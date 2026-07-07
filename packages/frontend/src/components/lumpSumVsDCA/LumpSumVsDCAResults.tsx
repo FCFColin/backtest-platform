@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import type { CompareResult } from './types.js';
 import { STATS_ROWS, REQUIRED_KEYS } from './types.js';
 
@@ -48,10 +48,11 @@ function StatsTable({
         </thead>
         <tbody>
           {STATS_ROWS.map((row, rowIdx) => {
-            const hasAnyValue = results.some(
-              (r) => r[row.key] !== undefined && r[row.key] !== null,
-            );
-            if (!hasAnyValue && !REQUIRED_KEYS.has(row.key)) return null;
+            if (
+              !results.some((r) => r[row.key] !== undefined && r[row.key] !== null) &&
+              !REQUIRED_KEYS.has(row.key)
+            )
+              return null;
             return (
               <tr
                 key={row.key}
@@ -141,6 +142,38 @@ function GrowthCurveChart({ results }: { results: CompareResult[] }) {
   );
 }
 
+function ConclusionStatCard({
+  title,
+  value,
+  color,
+}: {
+  title: string;
+  value: React.ReactNode;
+  color?: string;
+}) {
+  return (
+    <div
+      style={{
+        padding: 12,
+        backgroundColor: 'var(--bg-elevated)',
+        borderRadius: 'var(--radius-control)',
+      }}
+    >
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{title}</div>
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 600,
+          fontFamily: 'monospace',
+          color: color ?? 'var(--text-body)',
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function ConclusionAnalysis({
   ls,
   dca,
@@ -181,68 +214,23 @@ function ConclusionAnalysis({
           marginBottom: 12,
         }}
       >
-        <div
-          style={{
-            padding: 12,
-            backgroundColor: 'var(--bg-elevated)',
-            borderRadius: 'var(--radius-control)',
-          }}
-        >
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>胜出策略</div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: lsWins ? CHART_COLORS[0] : CHART_COLORS[1],
-            }}
-          >
-            {lsWins ? '一次性投资' : '定投'}
-          </div>
-        </div>
-        <div
-          style={{
-            padding: 12,
-            backgroundColor: 'var(--bg-elevated)',
-            borderRadius: 'var(--radius-control)',
-          }}
-        >
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>终值差异</div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: 'var(--text-body)',
-            }}
-          >
-            {fmtMoney(finalValueDiff)}{' '}
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              ({finalValueDiffPct.toFixed(1)}%)
-            </span>
-          </div>
-        </div>
-        <div
-          style={{
-            padding: 12,
-            backgroundColor: 'var(--bg-elevated)',
-            borderRadius: 'var(--radius-control)',
-          }}
-        >
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-            最大回撤差异
-          </div>
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: 'var(--text-body)',
-            }}
-          >
-            {fmtPct(mddDiff)}
-          </div>
-        </div>
+        <ConclusionStatCard
+          title="胜出策略"
+          value={lsWins ? '一次性投资' : '定投'}
+          color={lsWins ? CHART_COLORS[0] : CHART_COLORS[1]}
+        />
+        <ConclusionStatCard
+          title="终值差异"
+          value={
+            <>
+              {fmtMoney(finalValueDiff)}{' '}
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                ({finalValueDiffPct.toFixed(1)}%)
+              </span>
+            </>
+          }
+        />
+        <ConclusionStatCard title="最大回撤差异" value={fmtPct(mddDiff)} />
       </div>
       <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 1.6 }}>
         {lsWins ? (

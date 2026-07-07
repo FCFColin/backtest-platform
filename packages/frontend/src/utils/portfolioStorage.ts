@@ -1,4 +1,4 @@
-import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
+import type { Portfolio, BacktestParameters } from '@backtest/shared';
 
 const STORAGE_KEY = 'backtest-portfolios';
 const PARAMS_KEY = 'backtest-params';

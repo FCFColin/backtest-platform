@@ -1,14 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SignJWT, importJWK, generateKeyPair } from 'jose';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-
-function base64urlEncode(input: string): string {
-  return Buffer.from(input, 'utf-8')
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
-}
 
 const mocks = vi.hoisted(() => ({
   config: {

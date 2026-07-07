@@ -19,7 +19,7 @@ import type {
   TechnicalIndicator,
   TacticalStrategy,
 } from '@backtest/shared/types/tactical';
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import type { RebalanceFrequency } from '@backtest/shared';
 import type { TacticalPageState } from '../../hooks/useTacticalState.js';
 
 function ConditionRow({

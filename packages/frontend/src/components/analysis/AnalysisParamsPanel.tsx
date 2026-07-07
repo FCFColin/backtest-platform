@@ -45,26 +45,46 @@ function TickerListSection({
   );
 }
 
-export function AnalysisParamsPanel({
-  tickers,
-  addTicker,
-  removeTicker,
-  updateTicker,
+function AnalysisDateRange({
   startDate,
   setStartDate,
   endDate,
   setEndDate,
-  startingValue,
-  setStartingValue,
-  rollingWindow,
-  setRollingWindow,
-  correlationWindow,
-  setCorrelationWindow,
-  adjustForInflation,
-  setAdjustForInflation,
-  isLoading,
-  runAnalysis,
+  t,
 }: {
+  startDate: string;
+  setStartDate: (d: string) => void;
+  endDate: string;
+  setEndDate: (d: string) => void;
+  t: (k: string) => string;
+}) {
+  return (
+    <ParamsSection title={t('analysis.dateRange')}>
+      <div className="params-grid">
+        <div className="param-field">
+          <span className="param-label">{t('analysis.startDate')}</span>
+          <input
+            type="date"
+            className="param-input"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </div>
+        <div className="param-field">
+          <span className="param-label">{t('analysis.endDate')}</span>
+          <input
+            type="date"
+            className="param-input"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </div>
+      </div>
+    </ParamsSection>
+  );
+}
+
+export function AnalysisParamsPanel(props: {
   tickers: string[];
   addTicker: () => void;
   removeTicker: (idx: number) => void;
@@ -88,33 +108,18 @@ export function AnalysisParamsPanel({
   return (
     <ParamsPanel>
       <TickerListSection
-        tickers={tickers}
-        addTicker={addTicker}
-        removeTicker={removeTicker}
-        updateTicker={updateTicker}
+        tickers={props.tickers}
+        addTicker={props.addTicker}
+        removeTicker={props.removeTicker}
+        updateTicker={props.updateTicker}
       />
-      <ParamsSection title={t('analysis.dateRange')}>
-        <div className="params-grid">
-          <div className="param-field">
-            <span className="param-label">{t('analysis.startDate')}</span>
-            <input
-              type="date"
-              className="param-input"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className="param-field">
-            <span className="param-label">{t('analysis.endDate')}</span>
-            <input
-              type="date"
-              className="param-input"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </div>
-        </div>
-      </ParamsSection>
+      <AnalysisDateRange
+        startDate={props.startDate}
+        setStartDate={props.setStartDate}
+        endDate={props.endDate}
+        setEndDate={props.setEndDate}
+        t={t}
+      />
       <ParamsSection title={t('analysis.investmentParams')}>
         <div className="params-grid">
           <div className="param-field">
@@ -124,16 +129,16 @@ export function AnalysisParamsPanel({
               <input
                 type="number"
                 className="param-input param-input-with-prefix"
-                value={startingValue}
-                onChange={(e) => setStartingValue(Number(e.target.value))}
+                value={props.startingValue}
+                onChange={(e) => props.setStartingValue(Number(e.target.value))}
               />
             </div>
           </div>
           <label className="param-check">
             <input
               type="checkbox"
-              checked={adjustForInflation}
-              onChange={(e) => setAdjustForInflation(e.target.checked)}
+              checked={props.adjustForInflation}
+              onChange={(e) => props.setAdjustForInflation(e.target.checked)}
             />
             <span>{t('analysis.adjustForInflation')}</span>
           </label>
@@ -146,8 +151,8 @@ export function AnalysisParamsPanel({
             <input
               type="number"
               className="param-input"
-              value={rollingWindow}
-              onChange={(e) => setRollingWindow(Number(e.target.value))}
+              value={props.rollingWindow}
+              onChange={(e) => props.setRollingWindow(Number(e.target.value))}
             />
           </div>
           <div className="param-field">
@@ -155,20 +160,20 @@ export function AnalysisParamsPanel({
             <input
               type="number"
               className="param-input"
-              value={correlationWindow}
-              onChange={(e) => setCorrelationWindow(Number(e.target.value))}
+              value={props.correlationWindow}
+              onChange={(e) => props.setCorrelationWindow(Number(e.target.value))}
             />
           </div>
         </div>
       </ParamsSection>
       <div className="bt-action-row" style={{ padding: '12px 0 4px' }}>
         <LoadingButton
-          onClick={runAnalysis}
-          isLoading={isLoading}
+          onClick={props.runAnalysis}
+          isLoading={props.isLoading}
           className="main-action-btn"
           style={{ width: '100%' }}
         >
-          {isLoading ? (
+          {props.isLoading ? (
             <span>{t('analysis.analyzing')}</span>
           ) : (
             <>

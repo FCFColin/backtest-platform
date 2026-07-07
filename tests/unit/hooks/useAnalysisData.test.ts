@@ -12,9 +12,9 @@ vi.mock('react', () => ({
 import {
   useAnalysisData,
   // @ts-expect-error - 私有函数仅用于测试
-} from '../../../src/hooks/useAnalysisData.js';
-import { TRADING_DAYS_PER_YEAR } from '../../../shared/constants.js';
-import type { AssetAnalysisResult } from '../../../shared/types/index.js';
+} from '../../../packages/frontend/src/hooks/useAnalysisData.js';
+import { TRADING_DAYS_PER_YEAR } from '../../../packages/shared/constants.js';
+import type { AssetAnalysisResult } from '../../../packages/shared/types/index.js';
 
 // ===== 测试数据工厂 =====
 

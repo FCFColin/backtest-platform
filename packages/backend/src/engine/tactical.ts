@@ -400,7 +400,7 @@ export function computeSimpleStatistics(
     maxDrawdown,
     calmar,
     totalReturn,
-    pctPositiveDays,
+    winRate: { daily: pctPositiveDays, monthly: 0, annual: 0 },
     maxDailyReturn: n > 0 ? Math.max(...dailyReturns) : 0,
     minDailyReturn: n > 0 ? Math.min(...dailyReturns) : 0,
   };

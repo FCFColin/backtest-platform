@@ -10,9 +10,14 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
 import { type Column, SortableTable } from '../SortableTable.js';
-import { tooltipStyle, type DualSignalResponse, type SignalDir, type DualSignalResultsProps } from './types.js';
+import {
+  tooltipStyle,
+  type DualSignalResponse,
+  type SignalDir,
+  type DualSignalResultsProps,
+} from './types.js';
 import { STAT_COLS, formatStat, buildEquityData } from './utils.js';
 
 function renderDir(d: SignalDir): ReactNode {

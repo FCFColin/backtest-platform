@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => ({
   mockFetch: vi.fn(),
 }));
 
-vi.mock('../../../src/utils/apiClient.js', () => ({
+vi.mock('../../../packages/frontend/src/utils/apiClient.js', () => ({
   apiFetch: mocks.mockApiFetch,
 }));
 
-vi.mock('../../../src/utils/authTokens.js', () => ({
+vi.mock('../../../packages/frontend/src/utils/authTokens.js', () => ({
   setTokens: mocks.mockSetTokens,
   clearTokens: mocks.mockClearTokens,
   getRefreshToken: mocks.mockGetRefreshToken,
@@ -22,7 +22,7 @@ vi.mock('../../../src/utils/authTokens.js', () => ({
 
 globalThis.fetch = mocks.mockFetch;
 
-import { useAuthStore } from '../../../src/store/authStore.js';
+import { useAuthStore } from '../../../packages/frontend/src/store/authStore.js';
 
 function resetState() {
   useAuthStore.setState({

@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
   getState: vi.fn(() => ({ user: { tenantId: 'org_1' } })),
 }));
 
-vi.mock('../../../src/utils/apiClient', () => ({ apiFetch: mocks.apiFetch }));
-vi.mock('../../../src/utils/portfolioStorage', () => ({
+vi.mock('../../../packages/frontend/src/utils/apiClient', () => ({ apiFetch: mocks.apiFetch }));
+vi.mock('../../../packages/frontend/src/utils/portfolioStorage', () => ({
   saveNamedConfig: mocks.lsSave,
   loadNamedConfigs: mocks.lsLoad,
   deleteNamedConfig: mocks.lsDelete,
@@ -67,7 +67,7 @@ beforeEach(() => {
 });
 
 async function importMod() {
-  return import('../../../src/utils/configApi.js');
+  return import('../../../packages/frontend/src/utils/configApi.js');
 }
 
 describe('listNamedConfigs', () => {

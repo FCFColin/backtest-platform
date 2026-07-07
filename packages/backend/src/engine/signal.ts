@@ -64,6 +64,24 @@ export interface MultiSignalResult {
 /** 权益曲线初始资金 */
 const INITIAL_CAPITAL = 10000;
 
+/** 通用信号生成循环 */
+function generateSignals(
+  data: PricePoint[],
+  prices: number[],
+  isValid: (i: number) => boolean,
+  getSignal: (i: number) => { type: SignalDir; price: number } | null,
+): SignalPoint[] {
+  const signals: SignalPoint[] = [];
+  for (let i = 1; i < prices.length; i++) {
+    if (!isValid(i)) continue;
+    const result = getSignal(i);
+    if (result) {
+      signals.push({ date: data[i].date, type: result.type, price: result.price });
+    }
+  }
+  return signals;
+}
+
 // ===== 信号生成 =====
 
 /**
@@ -117,16 +135,17 @@ function generateRsiSignals(
   const rsi = calcRSI(prices, safePeriod);
   const oversold = threshold > 0 ? threshold : 30;
   const overbought = 100 - oversold;
-  const signals: SignalPoint[] = [];
-  for (let i = 1; i < prices.length; i++) {
-    if (isNaN(rsi[i]) || isNaN(rsi[i - 1])) continue;
-    if (rsi[i - 1] >= oversold && rsi[i] < oversold) {
-      signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
-    } else if (rsi[i - 1] <= overbought && rsi[i] > overbought) {
-      signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
-    }
-  }
-  return signals;
+  return generateSignals(
+    data,
+    prices,
+    (i) => !isNaN(rsi[i]) && !isNaN(rsi[i - 1]),
+    (i) => {
+      if (rsi[i - 1] >= oversold && rsi[i] < oversold) return { type: 'buy', price: prices[i] };
+      if (rsi[i - 1] <= overbought && rsi[i] > overbought)
+        return { type: 'sell', price: prices[i] };
+      return null;
+    },
+  );
 }
 
 /** 生成 MACD 金叉死叉信号 */
@@ -144,16 +163,18 @@ function generateBollingerSignals(
 ): SignalPoint[] {
   const mult = threshold > 0 ? threshold : 2;
   const { upper, lower } = calcBollinger(prices, safePeriod, mult);
-  const signals: SignalPoint[] = [];
-  for (let i = 1; i < prices.length; i++) {
-    if (isNaN(upper[i]) || isNaN(lower[i]) || isNaN(upper[i - 1]) || isNaN(lower[i - 1])) continue;
-    if (prices[i - 1] >= lower[i - 1] && prices[i] < lower[i]) {
-      signals.push({ date: data[i].date, type: 'buy', price: prices[i] });
-    } else if (prices[i - 1] <= upper[i - 1] && prices[i] > upper[i]) {
-      signals.push({ date: data[i].date, type: 'sell', price: prices[i] });
-    }
-  }
-  return signals;
+  return generateSignals(
+    data,
+    prices,
+    (i) => !isNaN(upper[i]) && !isNaN(lower[i]) && !isNaN(upper[i - 1]) && !isNaN(lower[i - 1]),
+    (i) => {
+      if (prices[i - 1] >= lower[i - 1] && prices[i] < lower[i])
+        return { type: 'buy', price: prices[i] };
+      if (prices[i - 1] <= upper[i - 1] && prices[i] > upper[i])
+        return { type: 'sell', price: prices[i] };
+      return null;
+    },
+  );
 }
 
 export function generateRawSignals(

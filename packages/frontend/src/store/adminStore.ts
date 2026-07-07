@@ -8,6 +8,7 @@
  */
 import { create } from 'zustand';
 import { apiFetch } from '../utils/apiClient';
+import { adminStatsSchema, dataManageStatsSchema, adminSystemSchema } from '../schemas/adminApi';
 
 // ===== 类型定义 =====
 
@@ -88,68 +89,133 @@ interface AdminState {
 
 // ===== 辅助函数 =====
 
-/** 从 stats 响应构建 AdminDashboardData */
-function buildDashboardData(d: Record<string, unknown>): AdminDashboardData {
-  const svc = (d.services as Record<string, Record<string, unknown>>) || {};
-  const ds = (d.data_stats as Record<string, unknown>) || {};
-  const sys = (d.system as Record<string, unknown>) || {};
-  const mem = (sys.memory as Record<string, number>) || {};
-  const ranges = (ds.date_ranges as Record<string, string>) || {};
-  const byMarket = (ds.by_market as Record<string, Record<string, number>>) || {};
-  const marketBreakdown: Record<string, number> = {};
-  for (const [market, info] of Object.entries(byMarket)) {
-    marketBreakdown[market] = info.stocks || info.count || 0;
-  }
-  return {
-    services: {
-      goEngine: buildServiceHealth(svc.go_engine),
-      goDataService: buildServiceHealth(svc.go_data_service),
-      nodeServer: { status: 'healthy', latency: 5 },
-    },
-    dataStats: {
-      totalTickers: (ds.total_tickers as number) || 0,
-      totalSizeMB: (ds.total_size_mb as number) || 0,
-      earliestDate: (ranges.earliest as string) || '-',
-      latestDate: (ranges.latest as string) || '-',
-      marketBreakdown,
-    },
-    system: {
-      memoryMB: mem.rss_mb || 0,
-      uptime: (sys.uptime_formatted as string) || '-',
-    },
-  };
-}
-
-function buildServiceHealth(raw: Record<string, unknown> | undefined): AdminServiceHealth {
+function buildServiceHealth(
+  raw: { status?: string; latency_ms?: number; version?: string; error?: string } | undefined,
+): AdminServiceHealth {
   if (!raw) return { status: 'down' };
   return {
     status: raw.status === 'healthy' ? 'healthy' : 'down',
-    latency: (raw.latency_ms as number) || undefined,
-    version: raw.version as string | undefined,
-    message: raw.error as string | undefined,
+    latency: raw.latency_ms ?? undefined,
+    version: raw.version,
+    message: raw.error,
   };
 }
 
-function buildDataStats(d: Record<string, unknown>): AdminDataStats {
-  const s = (d.stats as Record<string, unknown>) || {};
-  const u = (d.universe as Record<string, unknown>) || {};
-  const dq = (s.data_quality as Record<string, number>) || {};
-  const ranges = (s.date_ranges as { earliest: string; latest: string }) || {
-    earliest: '-',
-    latest: '-',
-  };
-  const byMarket = (s.by_market as Record<string, Record<string, number>>) || {};
-  const marketBreakdown: Record<string, number> = {};
-  for (const [market, info] of Object.entries(byMarket)) {
-    marketBreakdown[market] = info.stocks || info.count || 0;
+function buildMarketLookup(
+  byMarket: Record<string, { stocks?: number; count?: number }>,
+): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const [key, info] of Object.entries(byMarket)) {
+    result[key] = info.stocks ?? info.count ?? 0;
   }
+  return result;
+}
+
+function buildDataFields(
+  ds:
+    | {
+        date_ranges?: { earliest?: string; latest?: string };
+        total_tickers?: number;
+        total_size_mb?: number;
+        by_market?: Record<string, { stocks?: number; count?: number }>;
+      }
+    | undefined,
+): AdminDashboardData['dataStats'] {
+  const marketBreakdown = ds?.by_market ? buildMarketLookup(ds.by_market) : {};
   return {
-    totalTickers: (u.total as number) || 0,
-    totalDataPoints: dq.total_data_points || 0,
-    dateRange: ranges,
-    totalSizeMB: dq.total_size_mb || 0,
+    totalTickers: ds?.total_tickers ?? 0,
+    totalSizeMB: ds?.total_size_mb ?? 0,
+    earliestDate: ds?.date_ranges?.earliest ?? '-',
+    latestDate: ds?.date_ranges?.latest ?? '-',
     marketBreakdown,
   };
+}
+
+function buildSystemFields(
+  sys: { memory?: { rss_mb?: number }; uptime_formatted?: string } | undefined,
+): AdminDashboardData['system'] {
+  return {
+    memoryMB: sys?.memory?.rss_mb ?? 0,
+    uptime: sys?.uptime_formatted ?? '-',
+  };
+}
+
+function buildDashboardData(d: unknown): AdminDashboardData {
+  const parsed = adminStatsSchema.safeParse(d);
+  const svc = parsed.data?.services;
+  return {
+    services: {
+      goEngine: buildServiceHealth(svc?.go_engine),
+      goDataService: buildServiceHealth(svc?.go_data_service),
+      nodeServer: { status: 'healthy', latency: 5 },
+    },
+    dataStats: buildDataFields(parsed.data?.data_stats),
+    system: buildSystemFields(parsed.data?.system),
+  };
+}
+
+function buildDataStats(d: unknown): AdminDataStats {
+  const parsed = dataManageStatsSchema.safeParse(d);
+  const s = parsed.data?.stats;
+  const u = parsed.data?.universe;
+  const dq = s?.data_quality;
+  const ranges = s?.date_ranges ?? { earliest: '-', latest: '-' };
+  const byMarket = s?.by_market;
+  const marketBreakdown = byMarket
+    ? buildMarketLookup(byMarket as Record<string, { stocks?: number; count?: number }>)
+    : {};
+  return {
+    totalTickers: u?.total ?? 0,
+    totalDataPoints: dq?.total_data_points ?? 0,
+    dateRange: ranges,
+    totalSizeMB: dq?.total_size_mb ?? 0,
+    marketBreakdown,
+  };
+}
+
+type SetFn = (partial: Partial<AdminState>) => void;
+type GetFn = () => AdminState;
+
+async function fetchWithLoading<T>(
+  set: SetFn,
+  url: string,
+  transform: (data: unknown) => T,
+  setKey: (data: T) => Partial<AdminState>,
+): Promise<void> {
+  set({ loading: true });
+  try {
+    const res = await apiFetch(url);
+    if (!res.ok) return;
+    const json = await res.json();
+    if (json.success && json.data) {
+      set(setKey(transform(json.data)));
+    }
+  } catch {
+    /* 静默失败 */
+  }
+  set({ loading: false });
+}
+
+async function triggerAction(
+  set: SetFn,
+  get: GetFn,
+  opts: {
+    url: string;
+    successMsg: string;
+    failMsg: string;
+    refreshAfter?: boolean;
+  },
+): Promise<boolean> {
+  try {
+    const res = await apiFetch(opts.url, { method: 'POST' });
+    const json = await res.json();
+    set({ actionMsg: json.success ? opts.successMsg : `失败: ${json.error}` });
+    if (json.success && opts.refreshAfter) setTimeout(() => get().fetchDataStats(), 2000);
+    return json.success === true;
+  } catch {
+    set({ actionMsg: opts.failMsg });
+    return false;
+  }
 }
 
 // ===== Store =====
@@ -161,87 +227,48 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   loading: false,
   actionMsg: '',
 
-  fetchDashboard: async () => {
-    set({ loading: true });
-    try {
-      const res = await apiFetch('/api/admin/stats');
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.success && json.data) {
-        set({ dashboard: buildDashboardData(json.data) });
-      }
-    } catch {
-      /* 静默失败，仪表盘显示默认空数据 */
-    }
-    set({ loading: false });
-  },
+  fetchDashboard: () =>
+    fetchWithLoading(set, '/api/admin/stats', buildDashboardData, (data) => ({
+      dashboard: data,
+    })),
 
-  fetchDataStats: async () => {
-    set({ loading: true });
-    try {
-      const res = await apiFetch('/api/data/manage/stats');
-      const json = await res.json();
-      if (json.success && json.data) {
-        set({ dataStats: buildDataStats(json.data) });
-      }
-    } catch {
-      /* 静默失败 */
-    }
-    set({ loading: false });
-  },
+  fetchDataStats: () =>
+    fetchWithLoading(set, '/api/data/manage/stats', buildDataStats, (data) => ({
+      dataStats: data,
+    })),
 
-  fetchSystemInfo: async () => {
-    set({ loading: true });
-    try {
-      const res = await apiFetch('/api/admin/system');
-      if (!res.ok) return;
-      const json = await res.json();
-      if (json.success && json.data) {
-        set({ systemInfo: json.data as AdminSystemInfo });
-      }
-    } catch {
-      /* 静默失败 */
-    }
-    set({ loading: false });
-  },
+  fetchSystemInfo: () =>
+    fetchWithLoading(
+      set,
+      '/api/admin/system',
+      (data) => adminSystemSchema.parse(data) as unknown as AdminSystemInfo,
+      (data) => ({
+        systemInfo: data,
+      }),
+    ),
 
-  triggerIncrementalUpdate: async () => {
-    try {
-      const res = await apiFetch('/api/data/manage/update/inc', { method: 'POST' });
-      const json = await res.json();
-      set({ actionMsg: json.success ? '增量更新已触发' : `失败: ${json.error}` });
-      if (json.success) setTimeout(() => get().fetchDataStats(), 2000);
-      return json.success === true;
-    } catch {
-      set({ actionMsg: '增量更新请求失败' });
-      return false;
-    }
-  },
+  triggerIncrementalUpdate: () =>
+    triggerAction(set, get, {
+      url: '/api/data/manage/update/inc',
+      successMsg: '增量更新已触发',
+      failMsg: '增量更新请求失败',
+      refreshAfter: true,
+    }),
 
-  triggerFullUpdate: async () => {
-    try {
-      const res = await apiFetch('/api/data/manage/update/full', { method: 'POST' });
-      const json = await res.json();
-      set({ actionMsg: json.success ? '全量更新已触发' : `失败: ${json.error}` });
-      if (json.success) setTimeout(() => get().fetchDataStats(), 2000);
-      return json.success === true;
-    } catch {
-      set({ actionMsg: '全量更新请求失败' });
-      return false;
-    }
-  },
+  triggerFullUpdate: () =>
+    triggerAction(set, get, {
+      url: '/api/data/manage/update/full',
+      successMsg: '全量更新已触发',
+      failMsg: '全量更新请求失败',
+      refreshAfter: true,
+    }),
 
-  triggerRefetch: async () => {
-    try {
-      const res = await apiFetch('/api/data/manage/update/refetch', { method: 'POST' });
-      const json = await res.json();
-      set({ actionMsg: json.success ? '缓存清理已触发' : `失败: ${json.error}` });
-      return json.success === true;
-    } catch {
-      set({ actionMsg: '缓存清理请求失败' });
-      return false;
-    }
-  },
+  triggerRefetch: () =>
+    triggerAction(set, get, {
+      url: '/api/data/manage/update/refetch',
+      successMsg: '缓存清理已触发',
+      failMsg: '缓存清理请求失败',
+    }),
 
   fetchGoDataHealth: async () => {
     try {

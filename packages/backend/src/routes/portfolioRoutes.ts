@@ -33,8 +33,10 @@ function ownerOf(req: AuthenticatedRequest): string | null {
 router.get('/', async (req: AuthenticatedRequest, res: Response) => {
   if (!hasTenant(req)) return;
   const tenantId = req.tenantId;
+  const limit = req.query.limit ? Math.min(Number(req.query.limit) || 50, 200) : 50;
+  const offset = req.query.offset ? Math.max(Number(req.query.offset) || 0, 0) : 0;
   try {
-    res.json({ success: true, data: await listPortfolios(tenantId) });
+    res.json({ success: true, data: await listPortfolios(tenantId, Math.max(1, limit), offset) });
   } catch (err) {
     logger.error({ err: String(err), tenantId }, '[portfolioRoutes] 列表失败');
     sendProblem(res, 500, 'PORTFOLIO_LIST_FAILED', 'Internal Server Error', {

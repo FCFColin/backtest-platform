@@ -28,6 +28,7 @@ import fs from 'fs';
 import { SignJWT, generateKeyPair, importPKCS8, importSPKI, importJWK } from 'jose';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import { errorMessage } from '../utils/errors.js';
 import { type JwtPayload, type TenantContext, ACCESS_TOKEN_EXPIRES_IN_SEC } from './authTypes.js';
 
 // jose 密钥类型：非对称密钥为 CryptoKey（Web Crypto API），对称密钥为 Uint8Array
@@ -93,7 +94,7 @@ function readPemFile(filePath: string): string {
   try {
     return fs.readFileSync(filePath, 'utf-8');
   } catch (err) {
-    throw new Error(`无法读取 PEM 文件: ${filePath} - ${err instanceof Error ? err.message : err}`);
+    throw new Error(`无法读取 PEM 文件: ${filePath} - ${errorMessage(err)}`);
   }
 }
 

@@ -64,7 +64,13 @@ func main() {
 
 	slog.Info("Go引擎服务启动", "port", port, "version", "0.1.0")
 	// 优雅关闭：SIGTERM 时 flush OTel span
-	srv := &http.Server{Addr: ":" + port, Handler: r}
+	srv := &http.Server{
+		Addr:              ":" + port,
+		Handler:           r,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("启动失败", "error", err)

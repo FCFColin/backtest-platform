@@ -11,9 +11,16 @@
  */
 
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // 加载 .env 文件（若存在），使环境变量在 config 对象构造时可用
 dotenv.config();
+
+// 项目根目录：从本文件位置上溯至 package.json 所在目录
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT = path.resolve(__dirname, '../../../..');
 
 /**
  * 应用运行环境类型
@@ -33,6 +40,12 @@ export type CorsOrigins = true | string[];
  * @param raw - 原始环境变量值
  * @returns `true` 表示允许所有来源；否则返回来源数组
  */
+function resolveJwtAlgorithm(): 'RS256' | 'HS256' {
+  return (process.env.JWT_ALGORITHM ||
+    ((process.env.NODE_ENV || 'development') === 'production' ? 'RS256' : 'HS256')) as
+    'RS256' | 'HS256';
+}
+
 function parseCorsOrigins(raw: string | undefined): CorsOrigins {
   if (!raw || raw.trim() === '' || raw.trim() === '*') {
     return true;
@@ -61,11 +74,11 @@ export const config = {
   /**
    * 托管前端 dist/ 静态资源（与生产/Docker 一致）。
    *
-   * 开发环境设 `SERVE_STATIC=true` 时，API 直接服务预构建产物，
-   * 避免 Vite dev 按需编译导致首屏 60s+。`npm run dev` 默认启用。
-   * @default false（显式开启或由 dev 脚本注入）
+   * API 直接服务预构建产物，避免 Vite dev 按需编译导致首屏 60s+。
+   * 开发环境默认 true（可通过 SERVE_STATIC=false 关闭），生产环境始终 true。
+   * @default true（开发环境启用，可通过 .env 或环境变量覆盖）
    */
-  SERVE_STATIC: process.env.SERVE_STATIC === 'true',
+  SERVE_STATIC: process.env.SERVE_STATIC !== undefined ? process.env.SERVE_STATIC === 'true' : true,
 
   /**
    * API 服务监听端口。
@@ -88,18 +101,7 @@ export const config = {
    */
   GO_ENGINE_URL: process.env.GO_ENGINE_URL || 'http://127.0.0.1:5004',
 
-  /**
-   * Go 引擎调用超时时间（毫秒）。
-   *
-   * 企业理由（ADR-031）：超时后熔断器记一次失败；引擎持续不可用时 fail-closed
-   * 返回 503 + Retry-After，不再静默降级到 Node。
-   * 兼容旧变量名 RUST_ENGINE_TIMEOUT_MS（Rust 退役前的历史名）。
-   * @default 5000
-   */
-  ENGINE_TIMEOUT_MS: parseInt(
-    process.env.ENGINE_TIMEOUT_MS || process.env.RUST_ENGINE_TIMEOUT_MS || '5000',
-    10,
-  ),
+  ENGINE_TIMEOUT_MS: parseInt(process.env.ENGINE_TIMEOUT_MS || '5000', 10),
 
   /**
    * Go 数据服务地址（主数据源）。
@@ -108,6 +110,15 @@ export const config = {
    * @default "http://127.0.0.1:5003"
    */
   GO_DATA_SERVICE_URL: process.env.GO_DATA_SERVICE_URL || 'http://127.0.0.1:5003',
+
+  /**
+   * Go 数据服务 HTTP 请求超时（毫秒）。
+   *
+   * 开发环境 data-fetcher 可能未启动，短超时确保快速失败而非等待 30s。
+   * 生产环境 data-fetcher 通常 <1s 响应，5s 留有余量。
+   * @default 5000（5 秒）
+   */
+  GO_DATA_SERVICE_TIMEOUT_MS: parseInt(process.env.GO_DATA_SERVICE_TIMEOUT_MS || '5000', 10),
 
   /**
    * Go 引擎认证 token（X-Engine-Auth 请求头）。
@@ -200,9 +211,7 @@ export const config = {
    * 开发环境默认 HS256（向后兼容），生产环境默认 RS256。
    * @default 'RS256'（生产）/ 'HS256'（开发）
    */
-  JWT_ALGORITHM: (process.env.JWT_ALGORITHM ||
-    ((process.env.NODE_ENV || 'development') === 'production' ? 'RS256' : 'HS256')) as
-    'RS256' | 'HS256',
+  JWT_ALGORITHM: resolveJwtAlgorithm(),
 
   /**
    * RSA 私钥（PEM 格式）。
@@ -361,21 +370,19 @@ export const config = {
   STRIPE_PRICE_PRO: process.env.STRIPE_PRICE_PRO || '',
   /** Enterprise 方案的 Stripe Price ID。 */
   STRIPE_PRICE_ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE || '',
-};
 
-/**
- * 降级警告文本
- *
- * 当引擎（Go/Rust）不可用、自动降级到 Node.js 备用引擎时，根据是否进行了 drag
- * 近似计算向客户端返回不同的提示文本。集中管理便于统一调整文案。
- */
-export const DEGRADED_WARNING = {
-  /** 基础降级提示（未区分 drag 场景） */
-  BASE: '降级模式：使用 Node.js 备用引擎',
-  /** 降级且已对配置了 drag 的组合进行 JS polyfill 近似计算 */
-  WITH_DRAG: '降级模式：使用 Node.js 备用引擎（含 drag 近似计算），精度可能略低',
-  /** 降级且未进行 drag 计算（drag 等高级功能精度较低） */
-  WITHOUT_DRAG: '降级模式：使用 Node.js 备用引擎，drag 等高级功能精度较低',
+  // ---------------------------------------------------------------------------
+  // 文件路径（相对于项目根目录，统一在此计算避免各处硬编码）
+  // ---------------------------------------------------------------------------
+
+  /** 项目根目录（package.json 所在目录）。 */
+  PROJECT_ROOT,
+
+  /** SQL 迁移文件目录。 */
+  MIGRATIONS_DIR: path.resolve(PROJECT_ROOT, 'migrations'),
+
+  /** 前端构建产物目录（Vite 输出）。 */
+  FRONTEND_DIST_DIR: path.resolve(PROJECT_ROOT, 'dist'),
 };
 
 /**
@@ -468,17 +475,26 @@ export function validateConfig(): void {
 
   // Security: 非生产环境（development/test）时若使用了 dev 默认密钥，输出警告
   if (config.NODE_ENV !== 'production') {
-    if (config.ENGINE_AUTH_TOKEN === 'dev-engine-auth-token') {
-      console.warn('[config] 安全警告：ENGINE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用');
-    }
-    if (config.DATA_SERVICE_AUTH_TOKEN === 'dev-data-service-auth-token') {
-      console.warn('[config] 安全警告：DATA_SERVICE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用');
-    }
-    if (config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production') {
-      console.warn('[config] 安全警告：JWT_SECRET 使用开发默认值，请勿在生产环境使用');
-    }
-    if (config.CORS_ORIGINS === true) {
-      console.warn('[config] 安全警告：CORS_ORIGINS 允许所有来源，生产环境应配置来源白名单');
+    const devWarnings: Array<{ condition: boolean; message: string }> = [
+      {
+        condition: config.ENGINE_AUTH_TOKEN === 'dev-engine-auth-token',
+        message: 'ENGINE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用',
+      },
+      {
+        condition: config.DATA_SERVICE_AUTH_TOKEN === 'dev-data-service-auth-token',
+        message: 'DATA_SERVICE_AUTH_TOKEN 使用开发默认值，请勿在生产环境使用',
+      },
+      {
+        condition: config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production',
+        message: 'JWT_SECRET 使用开发默认值，请勿在生产环境使用',
+      },
+      {
+        condition: config.CORS_ORIGINS === true,
+        message: 'CORS_ORIGINS 允许所有来源，生产环境应配置来源白名单',
+      },
+    ];
+    for (const { condition, message } of devWarnings) {
+      if (condition) console.warn(`[config] 安全警告：${message}`);
     }
   }
 

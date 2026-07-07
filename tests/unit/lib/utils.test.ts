@@ -2,7 +2,7 @@
  * src/lib/utils.ts — cn() 工具函数测试
  */
 import { describe, it, expect } from 'vitest';
-import { cn } from '../../../src/lib/utils.js';
+import { cn } from '../../../packages/frontend/src/lib/utils.js';
 
 describe('cn', () => {
   it('应合并多个 className', () => {

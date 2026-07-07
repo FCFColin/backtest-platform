@@ -1,7 +1,7 @@
 /**
  * @file Tactical page utility functions and formatters
  */
-import type { PortfolioResult, Statistics } from '@backtest/shared/types';
+import type { PortfolioResult, Statistics } from '@backtest/shared';
 import type { TradingSignal } from '@backtest/shared/types/tactical';
 import type { StatRow } from './types.js';
 
@@ -45,17 +45,20 @@ export function buildStatRows(portfolio: PortfolioResult, benchmark: PortfolioRe
     { key: 'sharpe', label: '夏普比率', fmt: 'ratio' },
     { key: 'maxDrawdown', label: '最大回撤', fmt: 'pct' },
     { key: 'calmar', label: '卡尔玛比率', fmt: 'ratio' },
-    { key: 'pctPositiveDays', label: '正收益日占比', fmt: 'pct' },
     { key: 'maxDailyReturn', label: '最大日收益', fmt: 'pct' },
     { key: 'minDailyReturn', label: '最大日亏损', fmt: 'pct' },
   ];
   return metrics.map((m) => ({
     metric: m.label,
     tactical:
-      m.fmt === 'pct' ? fmtPct(portfolio.statistics[m.key]) : fmtRatio(portfolio.statistics[m.key]),
+      m.fmt === 'pct'
+        ? fmtPct(portfolio.statistics[m.key] as number | undefined)
+        : fmtRatio(portfolio.statistics[m.key] as number | undefined),
     benchmark:
-      m.fmt === 'pct' ? fmtPct(benchmark.statistics[m.key]) : fmtRatio(benchmark.statistics[m.key]),
-    _sortTactical: portfolio.statistics[m.key] ?? 0,
+      m.fmt === 'pct'
+        ? fmtPct(benchmark.statistics[m.key] as number | undefined)
+        : fmtRatio(benchmark.statistics[m.key] as number | undefined),
+    _sortTactical: (portfolio.statistics[m.key] as number | undefined) ?? 0,
   }));
 }
 

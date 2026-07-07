@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import type { RebalanceFrequency } from '@backtest/shared';
 
 export type IndicatorType = 'sma' | 'ema' | 'rsi';
 export type ObjectiveType = 'maxCAGR' | 'minDrawdown' | 'maxSharpe';

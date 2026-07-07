@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Security: gitleaks密钥扫描（T-7：未安装则失败，非跳过）
 if ! command -v gitleaks &> /dev/null; then
   echo "ERROR: gitleaks not installed. Install from https://github.com/gitleaks/gitleaks"

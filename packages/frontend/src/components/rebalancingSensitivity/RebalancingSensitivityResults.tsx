@@ -16,8 +16,8 @@ import {
   Line,
   Legend,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { RebalanceFrequency } from '@backtest/shared';
 import type { RebalancingState, FreqResult } from './types.js';
 import { TABS, REBALANCE_OPTIONS } from './types.js';
 import { fmtPct } from './utils.js';
@@ -118,6 +118,89 @@ function DistributionTab({ results }: { results: FreqResult[] }) {
   );
 }
 
+function OffsetSelector({ s }: { s: RebalancingState }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>频率：</span>
+      <select
+        className="param-input"
+        style={{ width: 120 }}
+        value={s.offsetFreq}
+        onChange={(e) => {
+          s.setOffsetFreq(e.target.value as RebalanceFrequency);
+          void s.runOffsetScan(e.target.value as RebalanceFrequency);
+        }}
+      >
+        {REBALANCE_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {s.isLoadingOffset && (
+        <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-muted)' }} />
+      )}
+    </div>
+  );
+}
+
+function OffsetChart({ offsetData }: { offsetData: Array<{ offset: string; cagr: number }> }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <BarChart data={offsetData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <XAxis dataKey="offset" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+        <YAxis
+          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tickFormatter={(v: number) => `${v}%`}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-soft)',
+            borderRadius: 'var(--radius-control)',
+          }}
+          formatter={(v: number) => `${v}%`}
+        />
+        <Bar dataKey="cagr" fill={CHART_COLORS[2]} radius={[2, 2, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function OffsetGrowthChart({ data }: { data: Array<{ date: string; value: number }> }) {
+  return (
+    <ResponsiveContainer width="100%" height={250}>
+      <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <XAxis
+          dataKey="date"
+          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tickFormatter={(v: string) => v.slice(0, 7)}
+        />
+        <YAxis
+          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tickFormatter={(v: number) => v.toLocaleString()}
+        />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: 'var(--bg-elevated)',
+            border: '1px solid var(--border-soft)',
+            borderRadius: 'var(--radius-control)',
+          }}
+        />
+        <Line
+          type="monotone"
+          dataKey="value"
+          stroke={CHART_COLORS[0]}
+          strokeWidth={1.5}
+          dot={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 function OffsetTab({ s }: { s: RebalancingState }) {
   const offsetData = s.offsetResults.map((r) => ({
     offset: `+${r.offset}d`,
@@ -126,77 +209,42 @@ function OffsetTab({ s }: { s: RebalancingState }) {
   const growthData = s.results.find((r) => r.frequency === s.offsetFreq)?.growthCurve ?? [];
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>频率：</span>
-        <select
-          className="param-input"
-          style={{ width: 120 }}
-          value={s.offsetFreq}
-          onChange={(e) => {
-            s.setOffsetFreq(e.target.value as RebalanceFrequency);
-            void s.runOffsetScan(e.target.value as RebalanceFrequency);
-          }}
-        >
-          {REBALANCE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-        {s.isLoadingOffset && (
-          <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-muted)' }} />
-        )}
-      </div>
-      <ResponsiveContainer width="100%" height={250}>
-        <BarChart data={offsetData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis dataKey="offset" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v}%`}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'var(--bg-elevated)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-control)',
-            }}
-            formatter={(v: number) => `${v}%`}
-          />
-          <Bar dataKey="cagr" fill={CHART_COLORS[2]} radius={[2, 2, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-      {growthData.length > 0 && (
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={growthData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-            <XAxis
-              dataKey="date"
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-              tickFormatter={(v: string) => v.slice(0, 7)}
-            />
-            <YAxis
-              tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-              tickFormatter={(v: number) => v.toLocaleString()}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'var(--bg-elevated)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: 'var(--radius-control)',
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={CHART_COLORS[0]}
-              strokeWidth={1.5}
-              dot={false}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      )}
+      <OffsetSelector s={s} />
+      <OffsetChart offsetData={offsetData} />
+      {growthData.length > 0 && <OffsetGrowthChart data={growthData} />}
     </>
+  );
+}
+
+const RESULTS_TABLE_COLS = [
+  ['CAGR', 'cagr'] as const,
+  ['波动率', 'stdev'] as const,
+  ['最大回撤', 'mdd'] as const,
+  ['夏普', 'sharpe'] as const,
+  ['Sortino', 'sortino'] as const,
+];
+
+function ResultsTableHead() {
+  return (
+    <thead>
+      <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+        <th
+          className="text-[12px] font-semibold text-left py-2.5 px-3"
+          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
+        >
+          频率
+        </th>
+        {RESULTS_TABLE_COLS.map(([label]) => (
+          <th
+            key={label}
+            className="text-[12px] font-semibold text-right py-2.5 px-3"
+            style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
+          >
+            {label}
+          </th>
+        ))}
+      </tr>
+    </thead>
   );
 }
 
@@ -216,31 +264,7 @@ function ResultsTable({ results }: { results: FreqResult[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse">
-        <thead>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <th
-              className="text-[12px] font-semibold text-left py-2.5 px-3"
-              style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-            >
-              频率
-            </th>
-            {[
-              ['CAGR', 'cagr'],
-              ['波动率', 'stdev'],
-              ['最大回撤', 'mdd'],
-              ['夏普', 'sharpe'],
-              ['Sortino', 'sortino'],
-            ].map(([label]) => (
-              <th
-                key={label}
-                className="text-[12px] font-semibold text-right py-2.5 px-3"
-                style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-              >
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <ResultsTableHead />
         <tbody>
           {results.map((r, idx) => (
             <tr

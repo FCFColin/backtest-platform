@@ -12,8 +12,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared/types';
-import type { PortfolioResult } from '@backtest/shared/types';
+import { CHART_COLORS } from '@backtest/shared';
+import type { PortfolioResult } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge';
 import ChartCard from '../ChartCard';

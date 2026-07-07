@@ -28,6 +28,7 @@ import CircuitBreaker from 'opossum';
 import { callService } from './httpClient.js';
 import { config } from '../config/index.js';
 import { logger } from './logger.js';
+import { errorMessage } from './errors.js';
 import {
   recordEngineCall,
   recordFallbackToNode,
@@ -266,7 +267,7 @@ export async function callEngineStrict<T>(endpoint: string, body: unknown): Prom
     logger.info(`[callEngineStrict] ${endpoint} Go 引擎耗时 ${elapsed}ms`);
     return result as T;
   } catch (goErr) {
-    const errMsg = goErr instanceof Error ? goErr.message : String(goErr);
+    const errMsg = errorMessage(goErr);
     recordEngineCall(false, errMsg);
     engineCallDuration.observe({ result: 'unavailable' }, 0);
     logger.error(

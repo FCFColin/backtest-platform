@@ -1,5 +1,5 @@
 /** @file Rebalancing sensitivity pure functions */
-import type { RebalanceFrequency } from '@backtest/shared/types';
+import type { RebalanceFrequency } from '@backtest/shared';
 import {
   REBALANCE_OPTIONS,
   BASE_PARAMS,

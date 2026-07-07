@@ -1,5 +1,5 @@
 /** @file DataEngine state management hook */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Stats, UniverseStats, TFunc } from '../components/dataEngine/types.js';
 import { doFetchStats, doActionFn } from '../components/dataEngine/utils.js';
@@ -26,17 +26,20 @@ export function useDataEngineState(): DataEngineAction {
   const pollCountRef = useRef(0);
   const fetchStartRef = useRef(0);
 
-  const fetchStats = (force = false) =>
-    doFetchStats(
-      t as TFunc,
-      force,
-      { pollCountRef, fetchStartRef },
-      { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning },
-    );
+  const fetchStats = useCallback(
+    (force = false) =>
+      doFetchStats(
+        t as TFunc,
+        force,
+        { pollCountRef, fetchStartRef },
+        { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning },
+      ),
+    [t],
+  );
 
   useEffect(() => {
     fetchStats();
-  }, []);
+  }, [fetchStats]);
 
   const doAction = (url: string, label: string) => doActionFn(t as TFunc, url, label, setActionMsg);
 

@@ -1,4 +1,4 @@
-import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared/types';
+import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 
 export type SolveSpeed = 'ultrafast' | 'fast' | 'medium' | 'slow';
 export type FrontierSolver = 'markowitz' | 'nsga2';

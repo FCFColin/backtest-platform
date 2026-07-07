@@ -98,7 +98,7 @@ async function callGoDataService(path: string): Promise<string> {
         url,
         {
           method: 'GET',
-          timeout: 30000,
+          timeout: config.GO_DATA_SERVICE_TIMEOUT_MS,
           headers: {
             'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
           },
@@ -136,6 +136,39 @@ async function callGoDataService(path: string): Promise<string> {
   }
 }
 
+/** 计算 "全部历史" 模式下所有 ticker 的公共日期区间（交集） */
+async function computeCommonDateRange(
+  validTickers: string[],
+): Promise<{ start: string; end: string } | null> {
+  const { rows: rangeRows } = await pgCircuitBreaker.fire(
+    'SELECT ticker, MIN(date) as first, MAX(date) as last FROM prices WHERE ticker = ANY($1) GROUP BY ticker',
+    [validTickers],
+  );
+  let maxStart: string | null = null;
+  let minEnd: string | null = null;
+  for (const r of rangeRows) {
+    const first = r.first instanceof Date ? r.first.toISOString().slice(0, 10) : String(r.first);
+    const last = r.last instanceof Date ? r.last.toISOString().slice(0, 10) : String(r.last);
+    if (!maxStart || first > maxStart) maxStart = first;
+    if (!minEnd || last < minEnd) minEnd = last;
+  }
+  return maxStart && minEnd ? { start: maxStart, end: minEnd } : null;
+}
+
+/** 将查询行按 ticker 分组为 price map */
+function groupRowsByTicker(
+  rows: Array<{ ticker: string; date: Date | string; close: number }>,
+): Record<string, Record<string, number>> {
+  const grouped: Record<string, Record<string, number>> = {};
+  for (const row of rows) {
+    if (!grouped[row.ticker]) grouped[row.ticker] = {};
+    const dateStr =
+      row.date instanceof Date ? row.date.toISOString().slice(0, 10) : String(row.date);
+    grouped[row.ticker][dateStr] = row.close;
+  }
+  return grouped;
+}
+
 async function queryPricesFromDb(
   validTickers: string[],
   startDate: string,
@@ -153,18 +186,23 @@ async function queryPricesFromDb(
   }
 
   try {
-    const { rows } = await pgCircuitBreaker.fire(
-      'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3 ORDER BY date',
-      [validTickers, startDate, endDate],
-    );
+    let effectiveStart = startDate;
+    let effectiveEnd = endDate;
 
-    const grouped: Record<string, Record<string, number>> = {};
-    for (const row of rows) {
-      if (!grouped[row.ticker]) grouped[row.ticker] = {};
-      const dateStr =
-        row.date instanceof Date ? row.date.toISOString().slice(0, 10) : String(row.date);
-      grouped[row.ticker][dateStr] = row.close;
+    // "全部历史"：取所有 ticker 的公共日期区间（交集）
+    if (startDate === '' && endDate === '') {
+      const range = await computeCommonDateRange(validTickers);
+      if (range) {
+        effectiveStart = range.start;
+        effectiveEnd = range.end;
+      }
     }
+
+    const sql =
+      'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3 ORDER BY date';
+    const { rows } = await pgCircuitBreaker.fire(sql, [validTickers, effectiveStart, effectiveEnd]);
+
+    const grouped = groupRowsByTicker(rows);
 
     for (const ticker of validTickers) {
       if (grouped[ticker] && Object.keys(grouped[ticker]).length > 0) {
@@ -219,8 +257,8 @@ async function fetchMissingFromGoService(
     }
 
     if (Object.keys(goResult).length > 0) {
-      writeCache(cacheKey, goResult);
-      incrementCacheVersion();
+      await writeCache(cacheKey, goResult);
+      await incrementCacheVersion();
     }
   } catch (err) {
     logger.warn(`[dataService] Go data service failed: ${(err as Error).message}`);

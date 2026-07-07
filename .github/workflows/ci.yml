@@ -57,7 +57,7 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Dependency check
+      - name: Dependency cruiser
         run: npm run depcheck
 
       - name: Unit tests

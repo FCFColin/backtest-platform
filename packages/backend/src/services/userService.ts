@@ -24,6 +24,16 @@ export interface User {
 /** 邮箱验证令牌有效期（毫秒，24 小时） */
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
+function rowToUser(row: Record<string, unknown>): User {
+  return {
+    id: row.id as string,
+    username: row.username as string,
+    role: row.role as 'admin' | 'analyst' | 'readonly',
+    createdAt: row.created_at as Date,
+    isActive: row.is_active as boolean,
+  };
+}
+
 function sha256Hex(input: string): string {
   return crypto.createHash('sha256').update(input, 'utf-8').digest('hex');
 }
@@ -68,13 +78,7 @@ export async function createUser(
     '[userService] 用户创建成功',
   );
 
-  return {
-    id: rows[0].id,
-    username: rows[0].username,
-    role: rows[0].role,
-    createdAt: rows[0].created_at,
-    isActive: rows[0].is_active,
-  };
+  return rowToUser(rows[0]);
 }
 
 /**
@@ -99,13 +103,7 @@ export async function createUserTx(
     'INSERT INTO users (username, password_hash, role, email) VALUES ($1, $2, $3, $4) RETURNING id, username, role, created_at, is_active',
     [username, passwordHash, role, email],
   );
-  return {
-    id: rows[0].id,
-    username: rows[0].username,
-    role: rows[0].role,
-    createdAt: rows[0].created_at,
-    isActive: rows[0].is_active,
-  };
+  return rowToUser(rows[0]);
 }
 
 /**
@@ -121,13 +119,7 @@ export async function getUserByEmail(email: string): Promise<User | null> {
     [email],
   );
   if (rows.length === 0) return null;
-  return {
-    id: rows[0].id,
-    username: rows[0].username,
-    role: rows[0].role,
-    createdAt: rows[0].created_at,
-    isActive: rows[0].is_active,
-  };
+  return rowToUser(rows[0]);
 }
 
 /**
@@ -218,13 +210,7 @@ export async function verifyUser(username: string, password: string): Promise<Us
   // 更新最后登录时间
   await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
 
-  return {
-    id: user.id,
-    username: user.username,
-    role: user.role,
-    createdAt: user.created_at,
-    isActive: user.is_active,
-  };
+  return rowToUser(user);
 }
 
 /**
@@ -239,13 +225,7 @@ export async function getUserById(id: string): Promise<User | null> {
 
   if (rows.length === 0) return null;
 
-  return {
-    id: rows[0].id,
-    username: rows[0].username,
-    role: rows[0].role,
-    createdAt: rows[0].created_at,
-    isActive: rows[0].is_active,
-  };
+  return rowToUser(rows[0]);
 }
 
 /**

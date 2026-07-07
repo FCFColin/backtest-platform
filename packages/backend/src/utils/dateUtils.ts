@@ -12,13 +12,6 @@ export function isValidDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-/** 过滤日期范围，空字符串表示不限制 */
-export function filterDates(dates: string[], startDate?: string, endDate?: string): string[] {
-  const startLimit = startDate || '0000-01-01';
-  const endLimit = endDate || '9999-12-31';
-  return dates.filter((d) => d >= startLimit && d <= endLimit);
-}
-
 /** 获取日期范围的边界值，空字符串表示不限制 */
 export function getDateLimits(
   startDate?: string,
@@ -28,4 +21,10 @@ export function getDateLimits(
     startLimit: startDate || '0000-01-01',
     endLimit: endDate || '9999-12-31',
   };
+}
+
+/** 过滤日期范围，空字符串表示不限制 */
+export function filterDates(dates: string[], startDate?: string, endDate?: string): string[] {
+  const { startLimit, endLimit } = getDateLimits(startDate, endDate);
+  return dates.filter((d) => d >= startLimit && d <= endLimit);
 }
