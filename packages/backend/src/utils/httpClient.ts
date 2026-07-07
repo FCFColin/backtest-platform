@@ -55,17 +55,17 @@ export async function callService(
     if (!resp.ok) {
       const body = await resp.text().catch(() => '');
       logger.warn(
-        `[服务调用] ${baseUrl}${endpoint} HTTP ${resp.status}，响应体: ${body.slice(0, 500)}，降级到Node.js`,
+        `[服务调用] ${baseUrl}${endpoint} HTTP ${resp.status}，响应体: ${body.slice(0, 500)}，返回 null`,
       );
       return null;
     }
     return await resp.json();
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {
-      logger.warn(`[服务调用] ${baseUrl} 不可用，降级到Node.js`);
+      logger.warn(`[服务调用] ${baseUrl} 不可用，返回 null`);
     } else {
       const errMsg = errorMessage(err);
-      logger.warn(`[服务调用] ${baseUrl}${endpoint} 调用失败，降级到Node.js: ${errMsg}`);
+      logger.warn(`[服务调用] ${baseUrl}${endpoint} 调用失败，返回 null: ${errMsg}`);
     }
     return null;
   }

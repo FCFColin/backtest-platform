@@ -38,6 +38,7 @@ data/market/state/
 data/market/indices/
 data/market/cpi/
 data/market/exchange_rates/
+packages/backend/data/cache/
 
 # 测试产物
 test-results/
@@ -46,6 +47,8 @@ test-results/
 # 临时/草稿文件
 temp_*
 scratch_*
+tmp_*
+*.zip
 
 # Lint/检查输出产物
 eslint*.txt
@@ -82,3 +85,6 @@ server.err
 
 # IDE 配置和规格文件
 .trae/
+.opencode/
+.superpowers/
+.dev-logs/

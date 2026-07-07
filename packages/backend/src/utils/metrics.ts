@@ -177,11 +177,11 @@ export const engineCallDuration = new client.Histogram({
 });
 
 /**
- * 降级到 Node.js 引擎次数
+ * 引擎不可用次数（名称保留向后兼容，实际记录 Go 引擎熔断/不可用事件）
  */
 export const fallbackToNodeTotal = new client.Counter({
   name: 'fallback_to_node_total',
-  help: 'Total number of fallbacks to Node.js engine',
+  help: 'Total number of engine unavailable events (Go circuit breaker open/fallback)',
   labelNames: ['reason'],
   registers: [register],
 });
@@ -284,8 +284,8 @@ export function recordEngineCall(success: boolean, error?: string): void {
 }
 
 /**
- * 记录降级到 Node.js 引擎
- * 兼容旧代码中的 recordFallbackToNode(reason) 调用
+ * 记录引擎不可用事件（Go 引擎熔断/调用失败）
+ * 函数名保留向后兼容，实际不再降级到 Node.js（ADR-031 fail-closed）
  */
 export function recordFallbackToNode(reason: string): void {
   fallbackToNodeTotal.inc({ reason: reason.replace(/[^a-zA-Z0-9_-]/g, '_') });

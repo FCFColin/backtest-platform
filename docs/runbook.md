@@ -7,28 +7,27 @@
 
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
-│  前端 Vite   │───▶│  后端 API     │───▶│  Go 引擎(主) │
+│  前端 Vite   │───▶│  后端 API     │───▶│  Go 引擎     │
 │  port 5173  │    │  Express      │    │  :5002/5004 │
 └─────────────┘    │  port 5001    │    └──────┬──────┘
-                   └──────┬───────┘           │ fallback
-                          │                   ▼
-                   ┌──────┴───────┐    ┌─────────────┐
-                   │  Go 数据服务  │    │ Rust→Node   │
-                   │  port 5003   │    │  降级链      │
-                   └──────┬───────┘    └─────────────┘
+                   └──────┬───────┘           │ fail-closed 503
+                          │                   (ADR-031)
+                   ┌──────┴───────┐
+                   │  Go 数据服务  │
+                   │  port 5003   │
+                   └──────┬───────┘
                           ▼
                    ┌─────────────┐    ┌─────────────┐
                    │ PostgreSQL  │    │   Redis     │
                    └─────────────┘    └─────────────┘
 ```
 
-| 服务            | 端口      | 启动命令                              | 健康检查                                       |
-| --------------- | --------- | ------------------------------------- | ---------------------------------------------- |
-| 前端（开发）    | 5173      | `npm run client:dev`                  | `curl http://localhost:5173`                   |
-| 后端 API        | 5001      | `npm run server:dev`                  | `curl http://localhost:5001/api/health`        |
-| Go 引擎         | 5002/5004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:5002/api/engine/health` |
-| Rust 引擎（备） | 5002      | `cd engine-rs && cargo run --release` | 同上                                           |
-| Go 数据服务     | 5003      | `cd data-fetcher && go run .`         | `curl http://localhost:5003/api/data/health`   |
+| 服务         | 端口      | 启动命令                              | 健康检查                                       |
+| ------------ | --------- | ------------------------------------- | ---------------------------------------------- |
+| 前端（开发） | 5173      | `npm run client:dev`                  | `curl http://localhost:5173`                   |
+| 后端 API     | 5001      | `npm run server:dev`                  | `curl http://localhost:5001/api/health`        |
+| Go 引擎      | 5002/5004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:5002/api/engine/health` |
+| Go 数据服务  | 5003      | `cd data-fetcher && go run .`         | `curl http://localhost:5003/api/data/health`   |
 
 ## 二、启动与停止
 
@@ -38,8 +37,8 @@
 # 启动前端 + 后端（concurrently）
 npm run dev
 
-# 单独启动 Rust 引擎（另一个终端）
-cd engine-rs; cargo run --release
+# 单独启动 Go 引擎（另一个终端）
+cd engine-go; go run ./cmd/server
 
 # 单独启动 Go 数据服务（另一个终端）
 cd data-fetcher; go run .
@@ -51,8 +50,8 @@ cd data-fetcher; go run .
 # 1. 构建前端
 npm run build
 
-# 2. 启动 Rust 引擎（release 模式）
-cd engine-rs; cargo run --release &
+# 2. 启动 Go 引擎
+cd engine-go; go run ./cmd/server &
 
 # 3. 启动 Go 数据服务
 cd data-fetcher; go run . &
@@ -65,7 +64,7 @@ NODE_ENV=production node --import tsx api/app.ts
 
 ```powershell
 # 查找并停止各服务
-Get-Process -Name "node","cargo","go" -ErrorAction SilentlyContinue | Stop-Process
+Get-Process -Name "node","go" -ErrorAction SilentlyContinue | Stop-Process
 ```
 
 ## 三、健康检查与监控
@@ -76,10 +75,10 @@ Get-Process -Name "node","cargo","go" -ErrorAction SilentlyContinue | Stop-Proce
 # 后端 API 健康（含引擎状态 + metrics）
 curl http://localhost:5001/api/health
 
-# 引擎 metrics（fallback 触发次数、Rust 可用率）
+# 引擎 metrics（Go 引擎可用率、调用失败数）
 curl http://localhost:5001/api/metrics
 
-# Rust 引擎健康
+# Go 引擎健康
 curl http://127.0.0.1:5002/api/engine/health
 
 # Go 数据服务健康
@@ -88,28 +87,27 @@ curl http://localhost:5003/api/data/health
 
 ### 关键指标
 
-| 指标              | 获取方式                                                   | 告警阈值 |
-| ----------------- | ---------------------------------------------------------- | -------- |
-| Rust 引擎可用率   | `/api/metrics` → `engine.rustAvailability`                 | < 0.95   |
-| Fallback 触发次数 | `/api/metrics` → `engine.fallbackToNodeTotal`              | 持续增长 |
-| Rust 调用失败数   | `/api/metrics` → `engine.rustCallsFailed`                  | > 0      |
-| 数据引擎扫描耗时  | 后端日志 `[dataManageRoutes] /stats scanTickersStats 耗时` | > 5000ms |
+| 指标              | 获取方式                                                   | 告警阈值    |
+| ----------------- | ---------------------------------------------------------- | ----------- |
+| Go 引擎可用率     | `/api/metrics` → `go_engine_circuit_breaker_state`         | > 0（断开） |
+| Go 引擎调用失败数 | `/api/metrics` → `go_engine_calls_failed_total`            | 持续增长    |
+| 数据引擎扫描耗时  | 后端日志 `[dataManageRoutes] /stats scanTickersStats 耗时` | > 5000ms    |
 
 ## 四、常见故障排查
 
-### 故障 1：Rust 引擎不可用（降级到 Node.js）
+### 故障 1：Go 引擎不可用（fail-closed 503）
 
-**症状**：`/api/health` 返回 `engine.rust: false`，`status: degraded`
+**症状**：`/api/health` 返回 `engine.go: false`，计算端点返回 503 + Retry-After
 
 **排查步骤**：
 
-1. 检查 Rust 引擎进程是否运行：`Get-Process cargo`
+1. 检查 Go 引擎进程是否运行：`Get-Process go`
 2. 检查端口 5002 是否监听：`netstat -ano | findstr 5002`
-3. 尝试手动启动：`cd engine-rs; cargo run --release`
-4. 查看构建错误：`cd engine-rs; cargo build 2>&1`
-5. 检查后端日志中的 Rust 调用错误
+3. 尝试手动启动：`cd engine-go; go run ./cmd/server`
+4. 查看构建错误：`cd engine-go; go build ./cmd/server 2>&1`
+5. 检查后端日志中的 Go 引擎调用错误
 
-**恢复**：修复构建错误后重启 Rust 引擎，后端会自动恢复使用 Rust 引擎。
+**恢复**：修复构建错误后重启 Go 引擎，后端熔断器恢复后自动重新路由请求。
 
 ### 故障 2：数据引擎 /stats 接口慢
 
@@ -241,7 +239,6 @@ curl http://localhost:5003/api/data/health
 ### 前置条件
 
 - Node.js 20+
-- Rust stable toolchain
 - Go 1.22+
 - 数据文件已就位（`data/tickers/` 目录）
 
@@ -257,7 +254,7 @@ curl http://localhost:5003/api/data/health
 
    ```powershell
    npm ci
-   cd engine-rs; cargo build --release; cd ..
+   cd engine-go; go build ./cmd/server; cd ..
    cd data-fetcher; go mod download; cd ..
    ```
 
@@ -273,7 +270,6 @@ curl http://localhost:5003/api/data/health
    npm run check    # TypeScript 类型检查
    npm run lint     # ESLint 检查
    npm run test:unit  # 单元测试
-   cargo test --manifest-path engine-rs/Cargo.toml  # Rust 测试
    ```
 
 5. **配置环境变量**
@@ -285,7 +281,7 @@ curl http://localhost:5003/api/data/health
    #   NODE_ENV=production
    #   ADMIN_API_KEY=<your-secret-key>
    #   CORS_ORIGINS=https://your-domain.com
-   #   RUST_ENGINE_URL=http://127.0.0.1:5002
+   #   GO_ENGINE_URL=http://127.0.0.1:5004
    #   GO_DATA_SERVICE_URL=http://127.0.0.1:5003
    #   DATABASE_URL=postgresql://backtest:<password>@<host>:5432/backtest
    #   DB_POOL_MAX=20
@@ -302,8 +298,8 @@ curl http://localhost:5003/api/data/health
 7. **启动服务**（按顺序）
 
    ```powershell
-   # 终端 1：Rust 引擎
-   cd engine-rs; cargo run --release
+   # 终端 1：Go 引擎
+   cd engine-go; go run ./cmd/server
 
    # 终端 2：Go 数据服务
    cd data-fetcher; go run .
@@ -315,7 +311,7 @@ curl http://localhost:5003/api/data/health
 8. **验证部署**
    ```powershell
    curl http://localhost:5001/api/health
-   # 预期：{ success: true, data: { status: "ok", engine: { rust: true, node: true } } }
+   # 预期：{ success: true, data: { status: "ok", engine: { go: true } } }
    ```
 
 ### Docker 部署（可选）
@@ -332,7 +328,7 @@ docker-compose up -d
 
 ```powershell
 # 1. 停止所有服务
-Get-Process -Name "node","cargo","go" -ErrorAction SilentlyContinue | Stop-Process
+Get-Process -Name "node","go" -ErrorAction SilentlyContinue | Stop-Process
 
 # 2. 回滚到上一个稳定版本
 git log --oneline -5          # 查看最近提交
@@ -341,25 +337,23 @@ git checkout <stable-commit>  # 回滚到稳定版本
 # 3. 重新构建
 npm ci
 npm run build
-cd engine-rs; cargo build --release; cd ..
+cd engine-go; go build ./cmd/server; cd ..
 
 # 4. 重启服务（按部署指南步骤 6）
 ```
 
-### 场景 2：Rust 引擎回滚（降级到 Node.js）
+### 场景 2：Go 引擎不可用（fail-closed 模式）
 
-如果 Rust 引擎出现问题但需要保持服务可用：
+Go 引擎是唯一的计算引擎（ADR-031），不可用时计算端点返回 503 + Retry-After。
+不提供 Node.js 降级计算，确保结果一致性。
 
 ```powershell
-# 停止 Rust 引擎即可，后端会自动降级到 Node.js 备用引擎
-Stop-Process -Name "cargo" -ErrorAction SilentlyContinue
-
-# 验证降级状态
+# 验证 fail-closed 状态
 curl http://localhost:5001/api/health
-# 预期：{ status: "degraded", engine: { rust: false, node: true } }
+# 预期：{ status: "degraded", engine: { go: false } }
 ```
 
-> 注意：降级模式下 drag 等高级功能精度较低，建议尽快修复 Rust 引擎。
+> 注意：Go 引擎不可用时所有回测/分析/优化/蒙特卡洛端点返回 503，需尽快修复。
 
 ### 场景 3：数据回滚
 
@@ -393,16 +387,15 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 
 ## 八、测试命令速查
 
-| 命令                               | 说明                               |
-| ---------------------------------- | ---------------------------------- |
-| `npm run check`                    | TypeScript 类型检查                |
-| `npm run lint`                     | ESLint 检查                        |
-| `npm run test:unit`                | 单元测试（169 用例）               |
-| `npm run test:e2e`                 | E2E 测试（需后端运行）             |
-| `npx vitest run tests/consistency` | 引擎一致性测试（需 Rust 引擎运行） |
-| `npm run build`                    | 构建前端                           |
-| `cargo test`（engine-rs/）         | Rust 测试（25 用例）               |
-| `go test ./...`（data-fetcher/）   | Go 测试                            |
+| 命令                             | 说明                   |
+| -------------------------------- | ---------------------- |
+| `npm run check`                  | TypeScript 类型检查    |
+| `npm run lint`                   | ESLint 检查            |
+| `npm run test:unit`              | 单元测试（169 用例）   |
+| `npm run test:e2e`               | E2E 测试（需后端运行） |
+| `npm run build`                  | 构建前端               |
+| `go test ./...`（engine-go/）    | Go 引擎测试            |
+| `go test ./...`（data-fetcher/） | Go 数据服务测试        |
 
 ## 九、Escalation 路径
 
@@ -440,12 +433,12 @@ Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
 > 企业理由：统一的事故分级确保资源按优先级分配，避免小事故占用大资源或大事故响应不足。
 > 权衡：分级是主观判断，需根据实际影响而非技术复杂度决定。
 
-| 级别 | 定义           | 影响范围                       | 响应要求           | 示例                                         |
-| ---- | -------------- | ------------------------------ | ------------------ | -------------------------------------------- |
-| SEV0 | 全面不可用     | 所有用户无法使用核心功能       | 立即响应，全员介入 | API 完全宕机、数据库损坏                     |
-| SEV1 | 核心功能降级   | 大部分用户受影响，但有降级方案 | 15 分钟内响应      | Rust 引擎不可用（降级到 Node）、数据服务宕机 |
-| SEV2 | 非核心功能异常 | 少部分用户受影响               | 1 小时内响应       | 搜索功能异常、缓存命中率下降                 |
-| SEV3 | 轻微问题       | 几乎无用户影响                 | 下个工作日处理     | 日志格式错误、监控指标偏差                   |
+| 级别 | 定义           | 影响范围                       | 响应要求           | 示例                                           |
+| ---- | -------------- | ------------------------------ | ------------------ | ---------------------------------------------- |
+| SEV0 | 全面不可用     | 所有用户无法使用核心功能       | 立即响应，全员介入 | API 完全宕机、数据库损坏                       |
+| SEV1 | 核心功能降级   | 大部分用户受影响，但有降级方案 | 15 分钟内响应      | Go 引擎不可用（503 fail-closed）、数据服务宕机 |
+| SEV2 | 非核心功能异常 | 少部分用户受影响               | 1 小时内响应       | 搜索功能异常、缓存命中率下降                   |
+| SEV3 | 轻微问题       | 几乎无用户影响                 | 下个工作日处理     | 日志格式错误、监控指标偏差                     |
 
 ## 十二、Burn Rate Alert 响应步骤
 

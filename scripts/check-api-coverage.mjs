@@ -1,7 +1,7 @@
 /**
  * API 场景覆盖率检查
  *
- * 从 api/app.ts 提取所有注册的挂载点，递归读取各路由模块的子路由，
+ * 从 packages/backend/src/app.ts 提取所有注册的挂载点，递归读取各路由模块的子路由，
  * 组合为完整端点列表，然后搜索测试文件中是否包含对这些端点的 HTTP 调用。
  *
  * 使用：node scripts/check-api-coverage.mjs
@@ -16,7 +16,7 @@ const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, '..');
 
 // ---------------------------------------------------------------------------
-// Step 1: 已知路由挂载点（从 api/app.ts 提取，保持同步）
+// Step 1: 已知路由挂载点（从 packages/backend/src/app.ts 提取，保持同步）
 // ---------------------------------------------------------------------------
 
 const MOUNTS = [
@@ -76,14 +76,14 @@ function collectEndpoints(mounts) {
 
   for (const mount of mounts) {
     if (mount.inline) {
-      endpoints.push({ method: 'POST', fullPath: mount.basePath, file: 'api/app.ts' });
+      endpoints.push({ method: 'POST', fullPath: mount.basePath, file: 'packages/backend/src/app.ts' });
       continue;
     }
 
-    const filePath = resolve(ROOT, 'api/routes', `${mount.moduleName}.ts`);
+    const filePath = resolve(ROOT, 'packages/backend/src/routes', `${mount.moduleName}.ts`);
     if (!existsSync(filePath)) {
-      // 有些路由模块可能在 api/ 根目录
-      const altPath = resolve(ROOT, 'api', `${mount.moduleName}.ts`);
+      // 有些路由模块可能在 packages/backend/src/ 根目录
+      const altPath = resolve(ROOT, 'packages/backend/src', `${mount.moduleName}.ts`);
       if (existsSync(altPath)) {
         endpoints.push({ method: '*', fullPath: mount.basePath, file: altPath, note: 'fallback' });
       } else {

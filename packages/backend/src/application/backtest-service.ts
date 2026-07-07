@@ -32,7 +32,7 @@ export interface BacktestExecutionResult {
 /**
  * 回测应用服务
  *
- * 编排回测执行流程：引擎调用（Go/Rust 优先，Node.js 降级）+ 领域事件发布。
+ * 编排回测执行流程：引擎调用（Go 引擎，fail-closed）+ 领域事件发布。
  * 路由层只负责 HTTP 适配（请求校验、数据获取、响应格式化），
  * 回测核心执行逻辑集中到此服务，确保业务逻辑不泄漏到 HTTP 层。
  */
@@ -41,12 +41,12 @@ export class BacktestApplicationService {
    * 运行组合回测
    *
    * 1. 构造引擎请求体（过滤无关价格数据，减少序列化开销）
-   * 2. 通过 callEngineStrict 调用引擎（Go → Rust 迁移期；均不可用时 fail-closed 抛错）
+   * 2. 通过 callEngineStrict 调用 Go 引擎（不可用时 fail-closed 抛错，ADR-031）
    * 3. 发布 BacktestCompleted 领域事件（触发审计、通知等副作用）
    *
    * @param params - 回测执行参数（组合、参数、价格数据、宏观数据）
    * @returns 回测结果（成功路径恒为引擎计算结果，degraded 恒为 false）
-   * @throws {EngineUnavailableError} 当 Go 与 Rust 引擎均不可用时（ADR-031 fail-closed）
+   * @throws {EngineUnavailableError} 当 Go 引擎不可用时（ADR-031 fail-closed）
    */
   /** 收集所有 ticker 并过滤价格数据 */
   private collectTickersAndFilterPrices(

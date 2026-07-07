@@ -110,7 +110,7 @@ registerCircuitBreakerMetrics('go_engine', goCircuitBreaker);
  * 企业理由：瞬态故障（网络抖动、短暂 GC 停顿）不应直接降级，
  * 重试让系统自愈。指数退避避免重试风暴，Jitter 避免惊群效应。
  * 仅对幂等操作重试（回测计算是纯计算，天然幂等）。
- * 权衡：重试增加延迟（最坏 2x），但比降级到 Node.js 引擎好 10-100x。
+ * 权衡：重试增加延迟（最坏 2x），但比直接 fail-closed 返回 503 更好（短暂故障可自愈）。
  */
 async function retryWithBackoff<T>(
   fn: () => Promise<T>,
@@ -149,7 +149,7 @@ export function resetEngineAvailability(): void {
  *
  * 企业理由：多服务架构中降级是常态而非异常。无统一降级标记时，
  * 前端无法区分"正常结果"和"降级结果"，导致：
- * 1. 用户不知道数据可能存在精度差异（引擎 vs Node.js 计算结果）
+ * 1. 用户不知道数据可能存在精度差异（引擎计算 vs 缓存/降级数据）
  * 2. 监控系统无法统计降级率，无法触发告警
  * 3. 自动化测试无法验证降级路径是否正确执行
  * 统一 schema 让所有消费方能一致地感知和处理降级场景。
@@ -160,7 +160,7 @@ export interface DegradedResponse<T> {
   data: T;
   degraded: true;
   degradedCode: string; // 如 'ENGINE_UNAVAILABLE'
-  degradedMessage: string; // 如 '引擎不可用，已降级到 Node.js 备用引擎'
+  degradedMessage: string; // 如 '数据服务不可用，已降级到缓存数据'
 }
 
 /**
@@ -221,9 +221,9 @@ export async function callGoEngineDirect<T>(endpoint: string, body: unknown): Pr
  * 引擎不可用错误（fail-closed，ADR-031）。
  *
  * 企业理由：对于正确性关键的计算（组合回测、蒙特卡洛、优化、有效前沿、单资产分析），
- * Go 引擎与 Node 备用引擎的数值结果存在细微差异。付费产品中"静默返回不同的数字"
+ * Go 引擎是唯一计算引擎（ADR-008/031）。付费产品中"静默返回不一致的数字"
  * 是正确性事故。因此当引擎不可用时，同步请求必须 fail-closed：抛出本错误，
- * 由路由层翻译为 503 + Retry-After，而非静默返回 Node 计算结果。
+ * 由路由层翻译为 503 + Retry-After，而非静默返回降级计算结果。
  *
  * retryAfterSeconds 提示客户端在多少秒后重试（用于 Retry-After 响应头）。
  */

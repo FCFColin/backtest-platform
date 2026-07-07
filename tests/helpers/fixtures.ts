@@ -1,7 +1,7 @@
 /**
  * 测试夹具：价格数据与回测参数生成器
  *
- * 企业理由：portfolio、edge、coverage、adversarial、consistency、rust-engine
+ * 企业理由：portfolio、edge、coverage、adversarial、consistency
  * 等多个测试文件重复定义相同的价格数据生成函数和参数构造函数。
  * 本模块集中维护这些夹具，消除跨文件复制粘贴，确保行为一致。
  *
@@ -48,7 +48,7 @@ export function makeLinearPriceData(
 /**
  * makePriceData 是 makeLinearPriceData 的别名
  *
- * bughunt、engineConsistency、rust-engine 测试使用此名称。
+ * bughunt、engineConsistency 测试使用此名称。
  * 两者实现完全相同，通过别名消除重复。
  */
 export const makePriceData = makeLinearPriceData;

@@ -1,7 +1,7 @@
 /**
  * 测试辅助：服务器可用性检查
  *
- * 企业理由：engineConsistency.test.ts 和 rust-engine.test.ts 各自实现了
+ * 企业理由：engineConsistency.test.ts 等测试文件各自实现了
  * 略有不同的服务器探活逻辑（一个用 AbortController 超时，一个无超时）。
  * 本模块提供统一的 checkServerAvailable 函数，支持超时控制，
  * 以及 shouldSkip 辅助函数，简化 it.skipIf 模式。

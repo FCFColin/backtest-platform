@@ -38,7 +38,7 @@ export default defineConfig({
         'packages/backend/src/db/import.ts',
         'packages/backend/src/app.ts',
         'packages/backend/src/services/dataService.ts',
-        'packages/backend/src/services/engineService.ts',
+        'packages/backend/src/services/tickerDataService.ts',
         'packages/backend/src/services/mailService.ts',
         'packages/backend/src/services/billingService.ts',
         'packages/backend/src/queues/worker.ts',
@@ -52,9 +52,9 @@ export default defineConfig({
       //
       // 低ROI 排除文件：
       // - barrel/index -> 无可执行语句
-      // - api/app.ts -> Express 装配代码，被集成测试间接覆盖
-      // - api/utils/timeout.ts / api/utils/tracePropagation.ts -> 基础设施
-      // - api/services/mailService.ts -> 需真实 SMTP
+      // - packages/backend/src/app.ts -> Express 装配代码，被集成测试间接覆盖
+      // - packages/backend/src/utils/timeout.ts / packages/backend/src/utils/tracePropagation.ts -> 基础设施
+      // - packages/backend/src/services/mailService.ts -> 需真实 SMTP
       //
       // 覆盖目标（Task 19 / 覆盖率提升计划）：
       //   全局 ≥80% 行/函数/语句，≥70% 分支
