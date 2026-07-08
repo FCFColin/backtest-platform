@@ -15,15 +15,15 @@ import {
   ReferenceLine,
   Brush,
 } from 'recharts';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
-import { ChartExporter } from '../ChartExporter';
+import { ChartExporter } from '../ChartExporter.js';
 import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions';
+} from '../../hooks/useChartInteractions.js';
 
 /** 相关性矩阵 Props */
 interface CorrelationMatrixProps {

@@ -1,7 +1,7 @@
 import { startTransition } from 'react';
 import i18n from '../i18n/index.js';
 import type { Portfolio, PortfolioResult, BacktestParameters } from '@backtest/shared';
-import type { BacktestState, BacktestSeriesField, SetFn, GetFn } from './backtestStore.js';
+import type { BacktestState, BacktestSeriesField, SetFn, GetFn } from './backtestStoreTypes.js';
 import { useToastStore } from './toastStore.js';
 import {
   extractApiErrorDetail,

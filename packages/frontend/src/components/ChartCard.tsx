@@ -8,7 +8,7 @@
  * </ChartCard>
  */
 import type { ReactNode } from 'react';
-import { ChartExporter } from './ChartExporter';
+import { ChartExporter } from './ChartExporter.js';
 
 /** ChartCard 组件 Props */
 export interface ChartCardProps {

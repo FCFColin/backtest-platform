@@ -8,7 +8,7 @@
 import { create } from 'zustand';
 import { apiFetch } from '@/utils/apiClient';
 import { setTokens, clearTokens, getRefreshToken, refreshTokens } from '@/utils/authTokens';
-import { asyncStart, asyncFail, asyncSuccess } from './utils/asyncSlice';
+import { asyncStart, asyncFail, asyncSuccess } from './utils/asyncSlice.js';
 
 /** 组织摘要（与后端 orgSummary 对齐） */
 export interface OrgSummary {

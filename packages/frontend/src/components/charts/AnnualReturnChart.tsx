@@ -14,9 +14,9 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
-import { mergePortfolioSeries } from '../../utils/chartDataMerge';
-import ChartCard from '../ChartCard';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
+import ChartCard from '../ChartCard.js';
 
 /** 年度收益柱状图 Props */
 interface AnnualReturnChartProps {

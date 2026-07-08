@@ -20,11 +20,11 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel';
-import LoadingButton from '../components/LoadingButton';
-import { SortableTable, type Column } from '../components/SortableTable';
-import { useAsyncAction } from '../hooks/useAsyncAction';
+import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
+import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
+import LoadingButton from '../components/LoadingButton.js';
+import { SortableTable, type Column } from '../components/SortableTable.js';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
 
 // ===== 常量 =====
 

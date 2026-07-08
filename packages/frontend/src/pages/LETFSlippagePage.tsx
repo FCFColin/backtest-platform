@@ -20,11 +20,11 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { LETFResult } from '@backtest/shared';
-import { useAsyncAction } from '../hooks/useAsyncAction';
-import LoadingButton from '../components/LoadingButton';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel';
-import { SortableTable, type Column } from '../components/SortableTable';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
+import LoadingButton from '../components/LoadingButton.js';
+import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
+import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
+import { SortableTable, type Column } from '../components/SortableTable.js';
 
 // ===== 工具函数 =====
 

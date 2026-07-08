@@ -1,6 +1,6 @@
 import { Plus, X, Play } from 'lucide-react';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel';
-import LoadingButton from '../components/LoadingButton';
+import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
+import LoadingButton from '../components/LoadingButton.js';
 import {
   useTacticalPageState,
   INDICATOR_OPTIONS,

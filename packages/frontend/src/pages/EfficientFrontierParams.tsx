@@ -1,5 +1,5 @@
 import { Play, Plus, X } from 'lucide-react';
-import LoadingButton from '../components/LoadingButton';
+import LoadingButton from '../components/LoadingButton.js';
 
 type SolveSpeed = 'ultrafast' | 'fast' | 'medium' | 'slow';
 type FrontierSolver = 'markowitz' | 'nsga2';

@@ -9,14 +9,14 @@
  * config 负载结构：{ portfolios, parameters }，与回测请求一致，加载时直接回填。
  */
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
-import { apiFetch } from './apiClient';
+import { apiFetch } from './apiClient.js';
 import { useAuthStore } from '@/store/authStore';
 import {
   saveNamedConfig as lsSave,
   loadNamedConfigs as lsLoad,
   deleteNamedConfig as lsDelete,
   type SavedPortfolio,
-} from './portfolioStorage';
+} from './portfolioStorage.js';
 
 const IMPORT_FLAG = 'bt_configs_imported';
 

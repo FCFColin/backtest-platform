@@ -15,8 +15,8 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
-import ChartCard from '../ChartCard';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import ChartCard from '../ChartCard.js';
 
 /** 风险收益散点图 Props */
 interface RiskReturnScatterProps {

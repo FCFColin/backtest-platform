@@ -20,8 +20,8 @@
  * - 未设置 API Key 时不附加该头，由后端在开发环境自动放行
  */
 
-import { getAccessToken, refreshTokens } from './authTokens';
-import { useToastStore } from '../store/toastStore';
+import { getAccessToken, refreshTokens } from './authTokens.js';
+import { useToastStore } from '../store/toastStore.js';
 
 /** Storage 中存储 API Key 的键名 */
 export const ADMIN_API_KEY_STORAGE = 'admin_api_key';

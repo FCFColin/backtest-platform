@@ -1,4 +1,4 @@
-import { useEngineHealth, type EngineStatus } from '../hooks/useEngineHealth';
+import { useEngineHealth, type EngineStatus } from '../hooks/useEngineHealth.js';
 
 const STATUS_CONFIG: Record<EngineStatus, { icon: string; tooltip: string; color: string }> = {
   loading: { icon: '⏳', tooltip: '正在检查引擎状态...', color: 'var(--text-secondary)' },

@@ -5,7 +5,7 @@ import type {
   CashflowLeg,
   OneTimeCashflow,
 } from '@backtest/shared';
-import type { BacktestState, SetFn, GetFn } from './backtestStore.js';
+import type { BacktestState, SetFn, GetFn } from './backtestStoreTypes.js';
 import { createDefaultPortfolio, defaultParameters } from './utils/backtestHelpers.js';
 
 function loadFromShareAction(

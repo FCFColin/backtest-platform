@@ -8,8 +8,8 @@ import { Link } from 'react-router-dom';
 import { Play, Plus, X, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
-import { useAsyncAction } from '../hooks/useAsyncAction';
-import LoadingButton from '../components/LoadingButton';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
+import LoadingButton from '../components/LoadingButton.js';
 
 type DcaFrequency = 'monthly' | 'quarterly';
 
@@ -115,6 +115,68 @@ function useLumpSumVsDCAStateInner() {
   };
 }
 
+async function executeComparison(
+  s: ReturnType<typeof useLumpSumVsDCAStateInner>,
+  validAssets: ReturnType<typeof useLumpSumVsDCAStateInner>['assets'],
+) {
+  const baseParams = {
+    startDate: s.startDate,
+    endDate: s.endDate,
+    startingValue: s.startingValue,
+    baseCurrency: s.baseCurrency,
+    adjustForInflation: s.adjustForInflation,
+    rollingWindowMonths: 12,
+    benchmarkTicker: '',
+    extendedWithdrawalStats: false,
+    cashflowLegs: [],
+    oneTimeCashflows: [],
+  };
+  const portfolioDef = {
+    name: '组合',
+    assets: validAssets,
+    rebalanceFrequency: 'quarterly' as const,
+    rebalanceOffset: 0,
+    drag: 0,
+    totalReturn: true,
+  };
+  const lumpSumBody = {
+    portfolios: [{ ...portfolioDef, name: '一次性投资' }],
+    parameters: { ...baseParams, startingValue: s.startingValue },
+  };
+  const contributionAmount = Math.round(s.startingValue / s.dcaPeriods);
+  const dcaBody = {
+    portfolios: [{ ...portfolioDef, name: '定投' }],
+    parameters: {
+      ...baseParams,
+      startingValue: 0,
+      cashflowLegs: [
+        {
+          id: `dca-${Date.now()}`,
+          amount: contributionAmount,
+          type: 'contribution' as const,
+          frequency: s.dcaFrequency === 'monthly' ? ('monthly' as const) : ('quarterly' as const),
+          offset: 0,
+        },
+      ],
+    },
+  };
+  const [lumpSumRes, dcaRes] = await Promise.all([
+    fetchBacktest(lumpSumBody),
+    fetchBacktest(dcaBody),
+  ]);
+  if (!lumpSumRes.ok) throw new Error(`一次性投资回测失败: HTTP ${lumpSumRes.status}`);
+  if (!dcaRes.ok) throw new Error(`定投回测失败: HTTP ${dcaRes.status}`);
+  const lumpSumJson = await lumpSumRes.json();
+  const dcaJson = await dcaRes.json();
+  if (lumpSumJson.success === false) throw new Error(lumpSumJson.error || '一次性投资回测失败');
+  if (dcaJson.success === false) throw new Error(dcaJson.error || '定投回测失败');
+  const lumpSumP = (lumpSumJson.data ?? lumpSumJson).portfolios?.[0];
+  const dcaP = (dcaJson.data ?? dcaJson).portfolios?.[0];
+  if (!lumpSumP) throw new Error('一次性投资无结果');
+  if (!dcaP) throw new Error('定投无结果');
+  s.setResults([toResult(lumpSumP, '一次性投资'), toResult(dcaP, '定投')]);
+}
+
 function useLumpSumVsDCAState() {
   const s = useLumpSumVsDCAStateInner();
   const addAsset = () => s.setAssets([...s.assets, { ticker: '', weight: 0 }]);
@@ -137,67 +199,8 @@ function useLumpSumVsDCAState() {
       return;
     }
     s.setResults([]);
-    s.run(() => doComparison(validAssets));
+    s.run(() => executeComparison(s, validAssets));
   };
-
-  async function doComparison(validAssets: typeof s.assets) {
-    const baseParams = {
-      startDate: s.startDate,
-      endDate: s.endDate,
-      startingValue: s.startingValue,
-      baseCurrency: s.baseCurrency,
-      adjustForInflation: s.adjustForInflation,
-      rollingWindowMonths: 12,
-      benchmarkTicker: '',
-      extendedWithdrawalStats: false,
-      cashflowLegs: [],
-      oneTimeCashflows: [],
-    };
-    const portfolioDef = {
-      name: '组合',
-      assets: validAssets,
-      rebalanceFrequency: 'quarterly' as const,
-      rebalanceOffset: 0,
-      drag: 0,
-      totalReturn: true,
-    };
-    const lumpSumBody = {
-      portfolios: [{ ...portfolioDef, name: '一次性投资' }],
-      parameters: { ...baseParams, startingValue: s.startingValue },
-    };
-    const contributionAmount = Math.round(s.startingValue / s.dcaPeriods);
-    const dcaBody = {
-      portfolios: [{ ...portfolioDef, name: '定投' }],
-      parameters: {
-        ...baseParams,
-        startingValue: 0,
-        cashflowLegs: [
-          {
-            id: `dca-${Date.now()}`,
-            amount: contributionAmount,
-            type: 'contribution' as const,
-            frequency: s.dcaFrequency === 'monthly' ? ('monthly' as const) : ('quarterly' as const),
-            offset: 0,
-          },
-        ],
-      },
-    };
-    const [lumpSumRes, dcaRes] = await Promise.all([
-      fetchBacktest(lumpSumBody),
-      fetchBacktest(dcaBody),
-    ]);
-    if (!lumpSumRes.ok) throw new Error(`一次性投资回测失败: HTTP ${lumpSumRes.status}`);
-    if (!dcaRes.ok) throw new Error(`定投回测失败: HTTP ${dcaRes.status}`);
-    const lumpSumJson = await lumpSumRes.json();
-    const dcaJson = await dcaRes.json();
-    if (lumpSumJson.success === false) throw new Error(lumpSumJson.error || '一次性投资回测失败');
-    if (dcaJson.success === false) throw new Error(dcaJson.error || '定投回测失败');
-    const lumpSumP = (lumpSumJson.data ?? lumpSumJson).portfolios?.[0];
-    const dcaP = (dcaJson.data ?? dcaJson).portfolios?.[0];
-    if (!lumpSumP) throw new Error('一次性投资无结果');
-    if (!dcaP) throw new Error('定投无结果');
-    s.setResults([toResult(lumpSumP, '一次性投资'), toResult(dcaP, '定投')]);
-  }
   return { ...s, addAsset, removeAsset, updateAsset, totalWeight, runComparison };
 }
 
@@ -316,6 +319,72 @@ function DcaParamsSection({
   );
 }
 
+function BasicParamsRow(props: {
+  startDate: string;
+  setStartDate: (v: string) => void;
+  endDate: string;
+  setEndDate: (v: string) => void;
+  startingValue: number;
+  setStartingValue: (v: number) => void;
+  baseCurrency: 'usd' | 'cny';
+  setBaseCurrency: (v: 'usd' | 'cny') => void;
+  adjustForInflation: boolean;
+  setAdjustForInflation: (v: boolean) => void;
+}) {
+  return (
+    <div className="params-row">
+      <div className="param-field">
+        <label className="param-label">开始日期</label>
+        <input
+          type="date"
+          className="param-input"
+          value={props.startDate}
+          onChange={(e) => props.setStartDate(e.target.value)}
+        />
+      </div>
+      <div className="param-field">
+        <label className="param-label">结束日期</label>
+        <input
+          type="date"
+          className="param-input"
+          value={props.endDate}
+          onChange={(e) => props.setEndDate(e.target.value)}
+        />
+      </div>
+      <div className="param-field param-field-start-val">
+        <label className="param-label">初始资金</label>
+        <div className="param-input-prefix-wrap">
+          <span className="param-input-prefix">{props.baseCurrency === 'usd' ? '$' : '¥'}</span>
+          <input
+            type="number"
+            className="param-input param-input-with-prefix"
+            value={props.startingValue}
+            onChange={(e) => props.setStartingValue(Number(e.target.value))}
+          />
+        </div>
+      </div>
+      <div className="param-field" style={{ width: 90 }}>
+        <label className="param-label">货币</label>
+        <select
+          className="param-input"
+          value={props.baseCurrency}
+          onChange={(e) => props.setBaseCurrency(e.target.value as 'usd' | 'cny')}
+        >
+          <option value="usd">USD ($)</option>
+          <option value="cny">CNY (¥)</option>
+        </select>
+      </div>
+      <label className="param-toggle">
+        <span>通胀调整</span>
+        <div
+          className={`toggle-switch ${props.adjustForInflation ? 'active' : ''}`}
+          onClick={() => props.setAdjustForInflation(!props.adjustForInflation)}
+        />
+      </label>
+    </div>
+  );
+}
+
 function ParamsSection1(props: {
   startDate: string;
   setStartDate: (v: string) => void;
@@ -337,56 +406,18 @@ function ParamsSection1(props: {
   return (
     <div className="params-section">
       <div className="params-title">参数设置</div>
-      <div className="params-row">
-        <div className="param-field">
-          <label className="param-label">开始日期</label>
-          <input
-            type="date"
-            className="param-input"
-            value={props.startDate}
-            onChange={(e) => props.setStartDate(e.target.value)}
-          />
-        </div>
-        <div className="param-field">
-          <label className="param-label">结束日期</label>
-          <input
-            type="date"
-            className="param-input"
-            value={props.endDate}
-            onChange={(e) => props.setEndDate(e.target.value)}
-          />
-        </div>
-        <div className="param-field param-field-start-val">
-          <label className="param-label">初始资金</label>
-          <div className="param-input-prefix-wrap">
-            <span className="param-input-prefix">{props.baseCurrency === 'usd' ? '$' : '¥'}</span>
-            <input
-              type="number"
-              className="param-input param-input-with-prefix"
-              value={props.startingValue}
-              onChange={(e) => props.setStartingValue(Number(e.target.value))}
-            />
-          </div>
-        </div>
-        <div className="param-field" style={{ width: 90 }}>
-          <label className="param-label">货币</label>
-          <select
-            className="param-input"
-            value={props.baseCurrency}
-            onChange={(e) => props.setBaseCurrency(e.target.value as 'usd' | 'cny')}
-          >
-            <option value="usd">USD ($)</option>
-            <option value="cny">CNY (¥)</option>
-          </select>
-        </div>
-        <label className="param-toggle">
-          <span>通胀调整</span>
-          <div
-            className={`toggle-switch ${props.adjustForInflation ? 'active' : ''}`}
-            onClick={() => props.setAdjustForInflation(!props.adjustForInflation)}
-          />
-        </label>
-      </div>
+      <BasicParamsRow
+        startDate={props.startDate}
+        setStartDate={props.setStartDate}
+        endDate={props.endDate}
+        setEndDate={props.setEndDate}
+        startingValue={props.startingValue}
+        setStartingValue={props.setStartingValue}
+        baseCurrency={props.baseCurrency}
+        setBaseCurrency={props.setBaseCurrency}
+        adjustForInflation={props.adjustForInflation}
+        setAdjustForInflation={props.setAdjustForInflation}
+      />
       <DcaParamsSection
         dcaFrequency={props.dcaFrequency}
         setDcaFrequency={props.setDcaFrequency}

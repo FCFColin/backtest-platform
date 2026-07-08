@@ -8,12 +8,12 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Play, Plus, X } from 'lucide-react';
 import type { AssetAnalysisResult } from '@backtest/shared';
-import { useAsyncAction } from '../hooks/useAsyncAction';
-import { apiFetch } from '../utils/apiClient';
-import LoadingButton from '../components/LoadingButton';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel';
-import { downsample } from '../hooks/useChartInteractions';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
+import { apiFetch } from '../utils/apiClient.js';
+import LoadingButton from '../components/LoadingButton.js';
+import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
+import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
+import { downsample } from '../hooks/useChartInteractions.js';
 import {
   OverviewCharts,
   TelltaleChart,
@@ -24,9 +24,9 @@ import {
   RiskReturnChart,
   AnnualReturnsChart,
   MonthlyHeatmap,
-} from '../components/AnalysisCharts';
-import { StatsTable } from '../components/AnalysisStats';
-import { useAnalysisData } from '../hooks/useAnalysisData';
+} from '../components/AnalysisCharts.js';
+import { StatsTable } from '../components/AnalysisStats.js';
+import { useAnalysisData } from '../hooks/useAnalysisData.js';
 
 // ===== Tab 定义 =====
 const TABS = [
@@ -458,6 +458,86 @@ const SeoCard = memo(function SeoCard() {
 });
 
 // ===== 主页面 =====
+function extractErrorDetail(j: Record<string, unknown>, fallback: string): string {
+  const err = j.error;
+  if (typeof err === 'object' && err && 'detail' in err)
+    return String((err as { detail?: string }).detail);
+  if (typeof err === 'string') return err;
+  return fallback;
+}
+
+function throwIfError(res: Response, json: Record<string, unknown>, failedMsg: string) {
+  if (!res.ok) throw new Error(extractErrorDetail(json, `HTTP ${res.status}`));
+  if (json.success === false) throw new Error(extractErrorDetail(json, failedMsg));
+}
+
+/** 将网络/超时错误转换为用户友好的消息 */
+function wrapFetchError(e: unknown, timeoutMsg: string, networkMsg: string): Error {
+  if (e instanceof DOMException && e.name === 'AbortError') return new Error(timeoutMsg);
+  if (e instanceof TypeError && e.message.includes('fetch')) return new Error(networkMsg);
+  return e instanceof Error ? e : new Error(String(e));
+}
+
+async function fetchAnalysisResult(
+  validTickers: string[],
+  ctx: {
+    startDate: string;
+    endDate: string;
+    startingValue: number;
+    adjustForInflation: boolean;
+    rollingWindow: number;
+    correlationWindow: number;
+  },
+  t: (k: string) => string,
+): Promise<AssetAnalysisResult> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 180_000);
+  try {
+    const res = await apiFetch('/api/backtest/analysis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        tickers: validTickers,
+        parameters: {
+          startDate: ctx.startDate,
+          endDate: ctx.endDate,
+          startingValue: ctx.startingValue,
+          adjustForInflation: ctx.adjustForInflation,
+          rollingWindowMonths: ctx.rollingWindow,
+          correlationWindowMonths: ctx.correlationWindow,
+          benchmarkTicker: '',
+          baseCurrency: 'usd',
+          extendedWithdrawalStats: false,
+          cashflowLegs: [],
+          oneTimeCashflows: [],
+        },
+      }),
+    });
+    let json: Record<string, unknown>;
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error(t('dataEngine.serverAbnormal'));
+    }
+    throwIfError(res, json, t('analysis.analysisFailed'));
+    const raw = (json.data ?? json) as Record<string, unknown>;
+    const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
+    // 提前降采样显示数据，减少 React 渲染压力（dailyReturns 保留用于滚动指标计算）
+    for (const tk of tickers) {
+      if (tk.growthCurve && tk.growthCurve.length > 500)
+        tk.growthCurve = downsample(tk.growthCurve, 500);
+      if (tk.drawdownCurve && tk.drawdownCurve.length > 500)
+        tk.drawdownCurve = downsample(tk.drawdownCurve, 500);
+    }
+    return { tickers, correlations: (raw.correlations ?? []) as number[][] };
+  } catch (e) {
+    throw wrapFetchError(e, t('dataEngine.connectionTimeout'), t('dataEngine.networkError'));
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function useAnalysisPageState() {
   const { t } = useTranslation();
   const [tickers, setTickers] = useState<string[]>(['SPY', 'TLT', 'GLD']);
@@ -481,84 +561,26 @@ function useAnalysisPageState() {
     setTickers(next);
   };
 
-  const throwIfError = (res: Response, json: Record<string, unknown>) => {
-    const extractErrorDetail = (j: Record<string, unknown>, fallback: string): string => {
-      const err = j.error;
-      if (typeof err === 'object' && err && 'detail' in err)
-        return String((err as { detail?: string }).detail);
-      if (typeof err === 'string') return err;
-      return fallback;
-    };
-    if (!res.ok) throw new Error(extractErrorDetail(json, `HTTP ${res.status}`));
-    if (json.success === false)
-      throw new Error(extractErrorDetail(json, t('analysis.analysisFailed')));
-  };
-
-  /** 将网络/超时错误转换为用户友好的消息 */
-  const wrapFetchError = (e: unknown): Error => {
-    if (e instanceof DOMException && e.name === 'AbortError')
-      return new Error(t('dataEngine.connectionTimeout'));
-    if (e instanceof TypeError && e.message.includes('fetch'))
-      return new Error(t('dataEngine.networkError'));
-    return e instanceof Error ? e : new Error(String(e));
-  };
-
   const runAnalysis = () => {
-    const validTickers = tickers.filter(Boolean).map((t) => t.toUpperCase());
+    const validTickers = tickers.filter(Boolean).map((tk) => tk.toUpperCase());
     if (validTickers.length === 0) {
       setError(t('analysis.errorMinOneTicker'));
       return;
     }
-    run(() => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180_000);
-      return (async () => {
-        try {
-          const res = await apiFetch('/api/backtest/analysis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-              tickers: validTickers,
-              parameters: {
-                startDate,
-                endDate,
-                startingValue,
-                adjustForInflation,
-                rollingWindowMonths: rollingWindow,
-                correlationWindowMonths: correlationWindow,
-                benchmarkTicker: '',
-                baseCurrency: 'usd',
-                extendedWithdrawalStats: false,
-                cashflowLegs: [],
-                oneTimeCashflows: [],
-              },
-            }),
-          });
-          let json: Record<string, unknown>;
-          try {
-            json = await res.json();
-          } catch {
-            throw new Error(t('dataEngine.serverAbnormal'));
-          }
-          throwIfError(res, json);
-          const raw = (json.data ?? json) as Record<string, unknown>;
-          const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
-          // 提前降采样显示数据，减少 React 渲染压力（dailyReturns 保留用于滚动指标计算）
-          for (const tk of tickers) {
-            if (tk.growthCurve && tk.growthCurve.length > 500)
-              tk.growthCurve = downsample(tk.growthCurve, 500);
-            if (tk.drawdownCurve && tk.drawdownCurve.length > 500)
-              tk.drawdownCurve = downsample(tk.drawdownCurve, 500);
-          }
-          setResults({ tickers, correlations: (raw.correlations ?? []) as number[][] });
-        } catch (e) {
-          throw wrapFetchError(e);
-        } finally {
-          clearTimeout(timeoutId);
-        }
-      })();
-    });
+    run(() =>
+      fetchAnalysisResult(
+        validTickers,
+        {
+          startDate,
+          endDate,
+          startingValue,
+          adjustForInflation,
+          rollingWindow,
+          correlationWindow,
+        },
+        t,
+      ).then(setResults),
+    );
   };
 
   return {

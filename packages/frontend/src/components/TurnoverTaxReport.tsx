@@ -6,7 +6,7 @@
 import { useMemo, useState } from 'react';
 import type { PortfolioResult } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
-import { SortableTable, type Column } from './SortableTable';
+import { SortableTable, type Column } from './SortableTable.js';
 
 /** 周转率与税务报告 Props */
 interface TurnoverTaxReportProps {

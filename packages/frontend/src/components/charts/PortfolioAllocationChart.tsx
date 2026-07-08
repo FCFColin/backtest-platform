@@ -15,13 +15,13 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
-import { ChartExporter } from '../ChartExporter';
+import { ChartExporter } from '../ChartExporter.js';
 import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
+} from '../../hooks/useChartInteractions.js';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
 
 type AllocationPortfolio = Pick<Portfolio, 'name' | 'assets'> & {
   growthCurve: Array<{ date: string; value: number }>;

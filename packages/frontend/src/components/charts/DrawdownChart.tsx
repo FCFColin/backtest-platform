@@ -15,12 +15,12 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
-import ChartCard from '../ChartCard';
-import { ChartExporter } from '../ChartExporter';
-import { downsample, SYNC_CHART_POINTS } from '../../hooks/useChartInteractions';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import ChartCard from '../ChartCard.js';
+import { ChartExporter } from '../ChartExporter.js';
+import { downsample, SYNC_CHART_POINTS } from '../../hooks/useChartInteractions.js';
 import { useTranslation } from 'react-i18next';
-import { mergePortfolioSeries } from '../../utils/chartDataMerge';
+import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
 
 /** 回撤面积图 Props */
 interface DrawdownChartProps {

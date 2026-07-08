@@ -31,6 +31,7 @@ export interface UseAsyncActionResult {
  * - 若异步函数抛错，error 会被设置为 Error.message，run 返回 undefined
  * - `setError` 用于参数校验等需要直接设置错误但不触发 loading 的场景
  * - `reset` 用于手动清空状态
+ * @returns 包含 isLoading / error / run / reset / setError 的状态对象
  */
 export function useAsyncAction(): UseAsyncActionResult {
   const [isLoading, setIsLoading] = useState(false);

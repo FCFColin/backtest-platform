@@ -5,8 +5,8 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
-import ChartCard from '../ChartCard';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import ChartCard from '../ChartCard.js';
 
 /** 投资组合饼图 Props */
 interface PortfolioPiesChartProps {

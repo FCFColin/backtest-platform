@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAsyncAction } from '../hooks/useAsyncAction';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 
 function buildBacktestParameters(startDate: string, endDate: string) {

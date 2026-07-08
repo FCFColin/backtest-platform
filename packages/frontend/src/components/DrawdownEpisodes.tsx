@@ -5,7 +5,7 @@
 import { Fragment } from 'react';
 import type { PortfolioResult, DrawdownEpisode } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
-import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../utils/format';
+import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../utils/format.js';
 
 /** 回撤片段表 Props */
 interface DrawdownEpisodesProps {

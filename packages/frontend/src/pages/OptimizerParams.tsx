@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2, Plus, X } from 'lucide-react';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel';
+import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
 import type { OptimizerState, SolverType } from './OptimizerUtils.js';
 
 function TickerEditor({ s }: { s: OptimizerState }) {
@@ -74,6 +74,54 @@ function AllHistoryToggle({ s, t }: { s: OptimizerState; t: (k: string) => strin
   );
 }
 
+function WeightAndTbillFields({ s, t }: { s: OptimizerState; t: (k: string) => string }) {
+  return (
+    <>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">{t('optimizer.minWeight')}</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            className="param-input param-input-with-suffix"
+            value={s.minWeight}
+            onChange={(e) => s.setMinWeight(Number(e.target.value))}
+            min={0}
+            max={100}
+          />
+          <span className="param-input-suffix">%</span>
+        </div>
+      </div>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">{t('optimizer.maxWeight')}</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            className="param-input param-input-with-suffix"
+            value={s.maxWeight}
+            onChange={(e) => s.setMaxWeight(Number(e.target.value))}
+            min={0}
+            max={100}
+          />
+          <span className="param-input-suffix">%</span>
+        </div>
+      </div>
+      <div className="param-field param-field-rolling">
+        <span className="param-label">{t('optimizer.tbillRate')}</span>
+        <div className="param-input-suffix-wrap">
+          <input
+            type="number"
+            step="0.1"
+            className="param-input param-input-with-suffix"
+            value={s.tbillRate}
+            onChange={(e) => s.setTbillRate(Number(e.target.value))}
+          />
+          <span className="param-input-suffix">%</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function BasicParams({ s }: { s: OptimizerState }) {
   const { t } = useTranslation();
   return (
@@ -110,47 +158,7 @@ function BasicParams({ s }: { s: OptimizerState }) {
             <option value="maxReturn">{t('optimizer.maxReturn')}</option>
           </select>
         </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.minWeight')}</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={s.minWeight}
-              onChange={(e) => s.setMinWeight(Number(e.target.value))}
-              min={0}
-              max={100}
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.maxWeight')}</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={s.maxWeight}
-              onChange={(e) => s.setMaxWeight(Number(e.target.value))}
-              min={0}
-              max={100}
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.tbillRate')}</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              step="0.1"
-              className="param-input param-input-with-suffix"
-              value={s.tbillRate}
-              onChange={(e) => s.setTbillRate(Number(e.target.value))}
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </div>
+        <WeightAndTbillFields s={s} t={t} />
         <div className="param-field">
           <span className="param-label">{t('optimizer.solver')}</span>
           <select

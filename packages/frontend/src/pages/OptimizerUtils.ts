@@ -240,12 +240,10 @@ function useOptimizerSetters() {
   };
 }
 
-export function useOptimizerState(
-  t: (k: string) => string,
-  navigate: (path: string) => void,
-): OptimizerState {
-  const s = useOptimizerSetters();
-  const state: OptimizerStateParams = {
+function buildOptimizerStateParams(
+  s: ReturnType<typeof useOptimizerSetters>,
+): OptimizerStateParams {
+  return {
     tickers: s.tickers,
     startDate: s.startDate,
     endDate: s.endDate,
@@ -267,62 +265,79 @@ export function useOptimizerState(
     enableMinCagr: s.enableMinCagr,
     enableMaxVol: s.enableMaxVol,
   };
+}
 
-  const runOptimize = async () => {
-    if (s.tickers.filter(Boolean).length < 2) {
-      s.setError(t('optimizer.errorMinTwoTickers'));
-      return;
-    }
-    if (s.minWeight > s.maxWeight) {
-      s.setError(t('optimizer.errorMinGtMax'));
-      return;
-    }
-    s.setIsLoading(true);
-    s.setError(null);
-    s.setBacktestStats(null);
+async function runOptimizeAction(
+  s: ReturnType<typeof useOptimizerSetters>,
+  state: OptimizerStateParams,
+  t: (k: string) => string,
+) {
+  if (s.tickers.filter(Boolean).length < 2) {
+    s.setError(t('optimizer.errorMinTwoTickers'));
+    return;
+  }
+  if (s.minWeight > s.maxWeight) {
+    s.setError(t('optimizer.errorMinGtMax'));
+    return;
+  }
+  s.setIsLoading(true);
+  s.setError(null);
+  s.setBacktestStats(null);
+  try {
+    const opt = await runOptimizeApi(state, t);
+    s.setResults(opt);
+    s.setIsCalculatingStats(true);
     try {
-      const opt = await runOptimizeApi(state, t);
-      s.setResults(opt);
-      s.setIsCalculatingStats(true);
-      try {
-        s.setBacktestStats(await fetchStats(opt, state, t));
-      } finally {
-        s.setIsCalculatingStats(false);
-      }
-    } catch (e) {
-      s.setError(e instanceof Error ? e.message : t('optimizer.optFailed'));
+      s.setBacktestStats(await fetchStats(opt, state, t));
     } finally {
-      s.setIsLoading(false);
+      s.setIsCalculatingStats(false);
     }
-  };
+  } catch (e) {
+    s.setError(e instanceof Error ? e.message : t('optimizer.optFailed'));
+  } finally {
+    s.setIsLoading(false);
+  }
+}
 
-  const handleLoadInBacktester = () => {
-    if (!s.results) return;
-    const weights = Object.entries(s.results.optimalWeights);
-    const data = {
-      portfolios: [
-        {
-          id: `portfolio-${Date.now()}-1`,
-          name: t('optimizer.optimalPortfolio'),
-          assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
-          rebalanceFrequency: 'quarterly',
-          rebalanceOffset: 0,
-          drag: 0,
-          totalReturn: true,
-        },
-      ],
-      parameters: {
-        ...BASE_PARAMS,
-        startDate: s.startDate,
-        endDate: s.endDate,
-        startingValue: 10000,
-        baseCurrency: 'usd',
+function loadInBacktesterAction(
+  s: ReturnType<typeof useOptimizerSetters>,
+  t: (k: string) => string,
+  navigate: (path: string) => void,
+) {
+  if (!s.results) return;
+  const weights = Object.entries(s.results.optimalWeights);
+  const data = {
+    portfolios: [
+      {
+        id: `portfolio-${Date.now()}-1`,
+        name: t('optimizer.optimalPortfolio'),
+        assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
+        rebalanceFrequency: 'quarterly',
+        rebalanceOffset: 0,
+        drag: 0,
+        totalReturn: true,
       },
-    };
-    localStorage.setItem('bt_load_from_optimizer', JSON.stringify(data));
-    navigate('/');
+    ],
+    parameters: {
+      ...BASE_PARAMS,
+      startDate: s.startDate,
+      endDate: s.endDate,
+      startingValue: 10000,
+      baseCurrency: 'usd',
+    },
   };
+  localStorage.setItem('bt_load_from_optimizer', JSON.stringify(data));
+  navigate('/');
+}
 
+export function useOptimizerState(
+  t: (k: string) => string,
+  navigate: (path: string) => void,
+): OptimizerState {
+  const s = useOptimizerSetters();
+  const state = buildOptimizerStateParams(s);
+  const runOptimize = () => runOptimizeAction(s, state, t);
+  const handleLoadInBacktester = () => loadInBacktesterAction(s, t, navigate);
   return {
     tickers: s.tickers,
     setTickers: s.setTickers,

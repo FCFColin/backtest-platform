@@ -5,8 +5,8 @@
  */
 import { useState, useEffect } from 'react';
 import { Settings, Server, Database, RefreshCw, RotateCcw } from 'lucide-react';
-import { apiFetch } from '../../utils/apiClient';
-import { useToastStore } from '../../store/toastStore';
+import { apiFetch } from '../../utils/apiClient.js';
+import { useToastStore } from '../../store/toastStore.js';
 
 interface ServiceConfig {
   name: string;

@@ -15,9 +15,9 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import type { WhatIfResult, EmailAlertConfig } from '@backtest/shared/types/tactical';
 import type { TacticalStrategy } from '@backtest/shared/types/tactical';
-import LoadingButton from '../components/LoadingButton';
-import { SortableTable, type Column } from '../components/SortableTable';
-import { useAsyncAction } from '../hooks/useAsyncAction';
+import LoadingButton from '../components/LoadingButton.js';
+import { SortableTable, type Column } from '../components/SortableTable.js';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
 import { useTacticalPageState, TABS, ALERT_TRIGGER_OPTIONS } from './TacticalUtils.js';
 import type { BacktestResponse } from './TacticalUtils.js';
 

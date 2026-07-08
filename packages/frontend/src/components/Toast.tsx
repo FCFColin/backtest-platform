@@ -3,8 +3,8 @@
  * @description 基于全局 store 的 Toast 通知，支持 success/warning/error 类型及自动消失
  */
 import { useEffect, useState, useCallback } from 'react';
-import { useToastStore } from '../store/toastStore';
-import type { ToastItem } from '../store/toastStore';
+import { useToastStore } from '../store/toastStore.js';
+import type { ToastItem } from '../store/toastStore.js';
 
 const AUTO_DISMISS_MS: Record<ToastItem['type'], number> = {
   success: 4000,

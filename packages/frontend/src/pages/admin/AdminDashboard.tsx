@@ -15,8 +15,8 @@ import {
   RefreshCw,
   HardDrive,
 } from 'lucide-react';
-import { apiFetch } from '../../utils/apiClient';
-import { useToastStore } from '../../store/toastStore';
+import { apiFetch } from '../../utils/apiClient.js';
+import { useToastStore } from '../../store/toastStore.js';
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'down';

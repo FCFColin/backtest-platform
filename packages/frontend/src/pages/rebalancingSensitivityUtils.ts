@@ -266,28 +266,17 @@ function useRebalSetters() {
   };
 }
 
-export function useRebalancingState(): RebalancingState {
-  const s = useRebalSetters();
-  const toggleFreq = (freq: RebalanceFrequency) =>
-    s.setSelectedFreqs((prev) =>
-      prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
-    );
-  const addAsset = () => s.setAssets([...s.assets, { ticker: '', weight: 0 }]);
-  const removeAsset = (i: number) => s.setAssets(s.assets.filter((_, idx) => idx !== i));
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) => {
-    const n = [...s.assets];
-    n[i] = { ...n[i], [field]: val };
-    s.setAssets(n);
-  };
-  const totalWeight = s.assets.reduce((sum, a) => sum + (a.weight || 0), 0);
-
-  const params = {
-    startDate: s.startDate,
-    endDate: s.endDate,
-    startingValue: s.startingValue,
-    baseCurrency: s.baseCurrency,
-    adjustForInflation: s.adjustForInflation,
-  };
+function createRebalancingRunners(
+  s: ReturnType<typeof useRebalSetters>,
+  params: {
+    startDate: string;
+    endDate: string;
+    startingValue: number;
+    baseCurrency: 'usd' | 'cny';
+    adjustForInflation: boolean;
+  },
+  totalWeight: number,
+) {
   const validate = (): Array<{ ticker: string; weight: number }> | string => {
     const validAssets = s.assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) return '请至少添加一个标的';
@@ -344,6 +333,32 @@ export function useRebalancingState(): RebalancingState {
     if (validAssets.length === 0) return;
     await runOffsetScanInner(freq, validAssets);
   };
+
+  return { runSensitivity, runOffsetScan };
+}
+
+export function useRebalancingState(): RebalancingState {
+  const s = useRebalSetters();
+  const toggleFreq = (freq: RebalanceFrequency) =>
+    s.setSelectedFreqs((prev) =>
+      prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
+    );
+  const addAsset = () => s.setAssets([...s.assets, { ticker: '', weight: 0 }]);
+  const removeAsset = (i: number) => s.setAssets(s.assets.filter((_, idx) => idx !== i));
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) => {
+    const n = [...s.assets];
+    n[i] = { ...n[i], [field]: val };
+    s.setAssets(n);
+  };
+  const totalWeight = s.assets.reduce((sum, a) => sum + (a.weight || 0), 0);
+  const params = {
+    startDate: s.startDate,
+    endDate: s.endDate,
+    startingValue: s.startingValue,
+    baseCurrency: s.baseCurrency,
+    adjustForInflation: s.adjustForInflation,
+  };
+  const { runSensitivity, runOffsetScan } = createRebalancingRunners(s, params, totalWeight);
 
   return {
     startDate: s.startDate,

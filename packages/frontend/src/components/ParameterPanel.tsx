@@ -10,8 +10,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
 import { Plus, X } from 'lucide-react';
-import TickerInput from './TickerInput';
-import { ParamsPanel, ParamsSection } from './ParamsPanel';
+import TickerInput from './TickerInput.js';
+import { ParamsPanel, ParamsSection } from './ParamsPanel.js';
 import type { RebalanceBands } from '@backtest/shared';
 import type { CashflowLeg } from '@backtest/shared';
 

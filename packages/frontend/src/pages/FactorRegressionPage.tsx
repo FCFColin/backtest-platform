@@ -8,10 +8,10 @@ import { Link } from 'react-router-dom';
 import { Play, Plus, X } from 'lucide-react';
 import { CHART_COLORS } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
-import { useAsyncAction } from '../hooks/useAsyncAction';
-import { apiFetch } from '../utils/apiClient';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
+import { apiFetch } from '../utils/apiClient.js';
 import { runFFRegression } from '../utils/factorRegression.js';
-import LoadingButton from '../components/LoadingButton';
+import LoadingButton from '../components/LoadingButton.js';
 import { useToastStore } from '@/store/toastStore';
 
 type ReturnFrequency = 'monthly' | 'daily';
@@ -415,6 +415,65 @@ interface FactorParamsProps {
   onToggleFactor: (key: string) => void;
 }
 
+function FactorDateFreqRow({
+  startDate,
+  endDate,
+  returnFrequency,
+  rfSource,
+  onStartDateChange,
+  onEndDateChange,
+  onReturnFrequencyChange,
+  onRfSourceChange,
+}: Omit<FactorParamsProps, 'selectedFactors' | 'onToggleFactor'>) {
+  return (
+    <div className="params-row">
+      <div className="param-field">
+        <label className="param-label">开始日期</label>
+        <input
+          type="date"
+          className="param-input"
+          value={startDate}
+          onChange={(e) => onStartDateChange(e.target.value)}
+        />
+      </div>
+      <div className="param-field">
+        <label className="param-label">结束日期</label>
+        <input
+          type="date"
+          className="param-input"
+          value={endDate}
+          onChange={(e) => onEndDateChange(e.target.value)}
+        />
+      </div>
+      <div className="param-field" style={{ width: 110 }}>
+        <label className="param-label">收益频率</label>
+        <select
+          className="param-input"
+          value={returnFrequency}
+          onChange={(e) => onReturnFrequencyChange(e.target.value as ReturnFrequency)}
+        >
+          <option value="monthly">月度</option>
+          <option value="daily">日度</option>
+        </select>
+      </div>
+      <div className="param-field" style={{ width: 150 }}>
+        <label className="param-label">无风险利率</label>
+        <select
+          className="param-input"
+          value={rfSource}
+          onChange={(e) => onRfSourceChange(e.target.value)}
+        >
+          {RF_SOURCE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
 function FactorParamsSection({
   startDate,
   endDate,
@@ -448,51 +507,16 @@ function FactorParamsSection({
           <span>全部历史</span>
         </label>
       </div>
-      <div className="params-row">
-        <div className="param-field">
-          <label className="param-label">开始日期</label>
-          <input
-            type="date"
-            className="param-input"
-            value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
-          />
-        </div>
-        <div className="param-field">
-          <label className="param-label">结束日期</label>
-          <input
-            type="date"
-            className="param-input"
-            value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
-          />
-        </div>
-        <div className="param-field" style={{ width: 110 }}>
-          <label className="param-label">收益频率</label>
-          <select
-            className="param-input"
-            value={returnFrequency}
-            onChange={(e) => onReturnFrequencyChange(e.target.value as ReturnFrequency)}
-          >
-            <option value="monthly">月度</option>
-            <option value="daily">日度</option>
-          </select>
-        </div>
-        <div className="param-field" style={{ width: 150 }}>
-          <label className="param-label">无风险利率</label>
-          <select
-            className="param-input"
-            value={rfSource}
-            onChange={(e) => onRfSourceChange(e.target.value)}
-          >
-            {RF_SOURCE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <FactorDateFreqRow
+        startDate={startDate}
+        endDate={endDate}
+        returnFrequency={returnFrequency}
+        rfSource={rfSource}
+        onStartDateChange={onStartDateChange}
+        onEndDateChange={onEndDateChange}
+        onReturnFrequencyChange={onReturnFrequencyChange}
+        onRfSourceChange={onRfSourceChange}
+      />
       <div style={{ marginTop: 12 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
           因子选择（多选）

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { RebalanceFrequency } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
-import type { Column } from '../components/SortableTable';
+import type { Column } from '../components/SortableTable.js';
 
 export type Objective = 'maxCagr' | 'minMaxDrawdown' | 'maxSharpe' | 'maxSortino';
 
@@ -226,12 +226,35 @@ export interface OptimizerState {
   runOptimize: () => Promise<void>;
 }
 
-function useBacktestOptSetters() {
+function useAssetListState() {
   const [assets, setAssets] = useState<Array<{ ticker: string; weight: string }>>([
     { ticker: 'VTI', weight: '60' },
     { ticker: 'BND', weight: '40' },
   ]);
+  const addAsset = () => setAssets([...assets, { ticker: '', weight: '' }]);
+  const removeAsset = (i: number) => {
+    if (assets.length > 1) setAssets(assets.filter((_, idx) => idx !== i));
+  };
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) => {
+    const next = [...assets];
+    next[i] = { ...next[i], [field]: val };
+    setAssets(next);
+  };
+  return { assets, setAssets, addAsset, removeAsset, updateAsset };
+}
+
+function useFrequencyState() {
   const [frequencies, setFrequencies] = useState<RebalanceFrequency[]>(['quarterly']);
+  const toggleFreq = (freq: RebalanceFrequency) =>
+    setFrequencies((prev) =>
+      prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
+    );
+  return { frequencies, setFrequencies, toggleFreq };
+}
+
+function useBacktestOptSetters() {
+  const { assets, setAssets, addAsset, removeAsset, updateAsset } = useAssetListState();
+  const { frequencies, setFrequencies, toggleFreq } = useFrequencyState();
   const [thrMin, setThrMin] = useState('5');
   const [thrMax, setThrMax] = useState('20');
   const [thrStep, setThrStep] = useState('5');
@@ -255,20 +278,6 @@ function useBacktestOptSetters() {
     value: number;
   }> | null>(null);
   const [totalCombos, setTotalCombos] = useState(0);
-
-  const addAsset = () => setAssets([...assets, { ticker: '', weight: '' }]);
-  const removeAsset = (i: number) => {
-    if (assets.length > 1) setAssets(assets.filter((_, idx) => idx !== i));
-  };
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) => {
-    const next = [...assets];
-    next[i] = { ...next[i], [field]: val };
-    setAssets(next);
-  };
-  const toggleFreq = (freq: RebalanceFrequency) =>
-    setFrequencies((prev) =>
-      prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
-    );
 
   return {
     assets,
@@ -322,64 +331,65 @@ function useBacktestOptSetters() {
   };
 }
 
+async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) {
+  const validAssets = s.assets.filter((a) => a.ticker.trim());
+  if (validAssets.length === 0) {
+    s.setError('请至少输入一个标的代码');
+    return;
+  }
+  if (s.frequencies.length === 0) {
+    s.setError('请至少选择一个再平衡频率');
+    return;
+  }
+  s.setIsLoading(true);
+  s.setError(null);
+  s.setResults(null);
+  s.setBest(null);
+  s.setBenchmarkGrowth(null);
+  try {
+    const body = buildOptimizeBody(
+      validAssets,
+      s.frequencies,
+      {
+        thrMin: s.thrMin,
+        thrMax: s.thrMax,
+        thrStep: s.thrStep,
+        capMin: s.capMin,
+        capMax: s.capMax,
+        capStep: s.capStep,
+      },
+      { startDate: s.startDate, endDate: s.endDate, benchmarkTicker: s.benchmarkTicker },
+      {
+        objective: s.objective,
+        enableMaxDD: s.enableMaxDD,
+        maxDD: s.maxDD,
+        enableMinCagr: s.enableMinCagr,
+        minCagr: s.minCagr,
+      },
+    );
+    const res = await fetch('/api/backtest-optimizer/optimize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.success === false) throw new Error(json.error || '优化失败');
+    const data = json.data;
+    s.setResults(data.results ?? []);
+    s.setBest(data.best ?? null);
+    s.setBenchmarkGrowth(data.benchmarkGrowth ?? null);
+    s.setTotalCombos(data.totalCombinations ?? 0);
+  } catch (e) {
+    s.setError(e instanceof Error ? e.message : '优化失败');
+  } finally {
+    s.setIsLoading(false);
+  }
+}
+
 export function useOptimizerState(): OptimizerState {
   const s = useBacktestOptSetters();
-
-  const runOptimize = async () => {
-    const validAssets = s.assets.filter((a) => a.ticker.trim());
-    if (validAssets.length === 0) {
-      s.setError('请至少输入一个标的代码');
-      return;
-    }
-    if (s.frequencies.length === 0) {
-      s.setError('请至少选择一个再平衡频率');
-      return;
-    }
-    s.setIsLoading(true);
-    s.setError(null);
-    s.setResults(null);
-    s.setBest(null);
-    s.setBenchmarkGrowth(null);
-    try {
-      const body = buildOptimizeBody(
-        validAssets,
-        s.frequencies,
-        {
-          thrMin: s.thrMin,
-          thrMax: s.thrMax,
-          thrStep: s.thrStep,
-          capMin: s.capMin,
-          capMax: s.capMax,
-          capStep: s.capStep,
-        },
-        { startDate: s.startDate, endDate: s.endDate, benchmarkTicker: s.benchmarkTicker },
-        {
-          objective: s.objective,
-          enableMaxDD: s.enableMaxDD,
-          maxDD: s.maxDD,
-          enableMinCagr: s.enableMinCagr,
-          minCagr: s.minCagr,
-        },
-      );
-      const res = await fetch('/api/backtest-optimizer/optimize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.success === false) throw new Error(json.error || '优化失败');
-      const data = json.data;
-      s.setResults(data.results ?? []);
-      s.setBest(data.best ?? null);
-      s.setBenchmarkGrowth(data.benchmarkGrowth ?? null);
-      s.setTotalCombos(data.totalCombinations ?? 0);
-    } catch (e) {
-      s.setError(e instanceof Error ? e.message : '优化失败');
-    } finally {
-      s.setIsLoading(false);
-    }
-  };
+  const runOptimize = () => runBacktestOptimize(s);
 
   return {
     assets: s.assets,

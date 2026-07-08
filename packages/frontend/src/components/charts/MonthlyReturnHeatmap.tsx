@@ -4,7 +4,7 @@
  */
 import { useMemo } from 'react';
 import type { PortfolioResult } from '@backtest/shared';
-import ChartCard from '../ChartCard';
+import ChartCard from '../ChartCard.js';
 
 /** 月度收益热力图 Props */
 interface MonthlyReturnHeatmapProps {

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout';
+import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
 import { useTacticalPageState } from './TacticalUtils.js';
 import { TacticalParamsPanel } from './TacticalParams.js';
 import { TacticalResultsPanel } from './TacticalResults.js';

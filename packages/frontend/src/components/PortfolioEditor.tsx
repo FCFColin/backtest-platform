@@ -6,8 +6,8 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBacktestStore } from '@/store/backtestStore';
 import { X, Plus, Copy, Download, Trash2, Share2 } from 'lucide-react';
-import TickerInput from './TickerInput';
-import WeightInput from './WeightInput';
+import TickerInput from './TickerInput.js';
+import WeightInput from './WeightInput.js';
 import type {
   RebalanceFrequency,
   RebalanceBands,

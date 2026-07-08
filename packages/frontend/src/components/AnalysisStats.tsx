@@ -22,6 +22,44 @@ const STATS_COLUMNS: {
   { key: 'beta', labelKey: 'Beta', fmt: 'ratio' },
 ];
 
+function StatsTableHeader({
+  tickers,
+  metricLabel,
+}: {
+  tickers: AssetAnalysisResult['tickers'];
+  metricLabel: string;
+}) {
+  return (
+    <thead>
+      <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+        <th
+          className="text-[12px] font-semibold text-left py-2 px-3"
+          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
+        >
+          {metricLabel}
+        </th>
+        {tickers.map((tk, idx) => (
+          <th
+            key={tk.ticker}
+            className="text-[12px] font-semibold text-right py-2 px-3"
+            style={{
+              color: 'var(--text-muted)',
+              borderBottom: '2px solid var(--border-soft)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span
+              className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+            />
+            {tk.ticker}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
 export const StatsTable = memo(function StatsTable({
   tickers,
 }: {
@@ -41,33 +79,7 @@ export const StatsTable = memo(function StatsTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse">
-        <thead>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <th
-              className="text-[12px] font-semibold text-left py-2 px-3"
-              style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-            >
-              {t('common.metric')}
-            </th>
-            {tickers.map((tk, idx) => (
-              <th
-                key={tk.ticker}
-                className="text-[12px] font-semibold text-right py-2 px-3"
-                style={{
-                  color: 'var(--text-muted)',
-                  borderBottom: '2px solid var(--border-soft)',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span
-                  className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-                  style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-                />
-                {tk.ticker}
-              </th>
-            ))}
-          </tr>
-        </thead>
+        <StatsTableHeader tickers={tickers} metricLabel={t('common.metric')} />
         <tbody>
           {cols.map((col, ri) => {
             if (

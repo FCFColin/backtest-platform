@@ -17,11 +17,11 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, BaseCurrency } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers';
-import { ChartExporter } from '../ChartExporter';
-import { useChartData, CHART_MAX_POINTS } from '../../hooks/useChartInteractions';
-import { mergePortfolioSeries } from '../../utils/chartDataMerge';
-import ChartCard from '../ChartCard';
+import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { ChartExporter } from '../ChartExporter.js';
+import { useChartData, CHART_MAX_POINTS } from '../../hooks/useChartInteractions.js';
+import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
+import ChartCard from '../ChartCard.js';
 
 /** 货币符号映射 */
 const CURRENCY_SYMBOL: Record<BaseCurrency, string> = { usd: '$', cny: '¥' };
