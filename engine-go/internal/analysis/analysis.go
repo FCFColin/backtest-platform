@@ -5,6 +5,7 @@
 package analysis
 
 import (
+	"context"
 	"math"
 	"sort"
 
@@ -57,9 +58,10 @@ type AssetAnalysisItem struct {
 // 3. 计算完整 Statistics（复用 engine 包函数）
 // 4. 计算所有 ticker 间日收益率的相关性矩阵
 // 5. 注意：基准相关指标（alpha/beta）为零，因为无基准比较
-func RunAnalysis(req AnalysisRequest) AnalysisResult {
+// ctx 用于 per-request 超时控制（handler 层 WithTimeout），在每个 ticker 计算前检查取消信号。
+func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, error) {
 	if len(req.Tickers) == 0 {
-		return AnalysisResult{}
+		return AnalysisResult{}, nil
 	}
 
 	// 默认参数
@@ -99,6 +101,12 @@ func RunAnalysis(req AnalysisRequest) AnalysisResult {
 	// 计算每个资产的分析结果
 	assets := make([]AssetAnalysisItem, 0, len(req.Tickers))
 	for _, ticker := range req.Tickers {
+		// 企业理由：每个 ticker 的统计计算可能耗时较长，循环开始前检查 ctx 是否已超时/取消。
+		select {
+		case <-ctx.Done():
+			return AnalysisResult{}, ctx.Err()
+		default:
+		}
 		td := tickerMap[ticker]
 		if td == nil || len(td.prices) < 2 {
 			assets = append(assets, AssetAnalysisItem{
@@ -293,7 +301,7 @@ func RunAnalysis(req AnalysisRequest) AnalysisResult {
 	return AnalysisResult{
 		Assets:       assets,
 		Correlations: correlations,
-	}
+	}, nil
 }
 
 // getSortedDates 获取所有交易日期（排序去重）。

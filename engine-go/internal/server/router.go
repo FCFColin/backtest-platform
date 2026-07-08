@@ -4,7 +4,9 @@
 package server
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"engine-go/internal/analysis"
 	"engine-go/internal/engine"
@@ -15,6 +17,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
+
+// computeTimeout 每个 compute handler 的 per-request 计算超时。
+// 企业理由（R-11）：http.Server.WriteTimeout=120s 仅作兜底；此处 90s 留 30s 余量给
+// 响应序列化与网络写出，避免计算占用全部时间导致连接被服务端硬断而客户端收不到 JSON 错误体。
+const computeTimeout = 90 * time.Second
 
 // SetupRouter 初始化并返回 Gin 路由引擎。
 // metricsHandler 为 Prometheus /metrics 处理器（T-B4）。
@@ -102,7 +109,10 @@ func handleBacktest(c *gin.Context) {
 		return
 	}
 
-	result, err := engine.RunBacktest(req)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
+	defer cancel()
+
+	result, err := engine.RunBacktest(ctx, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -143,7 +153,17 @@ func handleAnalysis(c *gin.Context) {
 		}
 	}
 
-	result := analysis.RunAnalysis(req)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
+	defer cancel()
+
+	result, err := analysis.RunAnalysis(ctx, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "分析计算失败",
+		})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    result,
@@ -164,7 +184,10 @@ func handleOptimize(c *gin.Context) {
 		return
 	}
 
-	result, err := optimizer.Optimize(req)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
+	defer cancel()
+
+	result, err := optimizer.Optimize(ctx, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -193,7 +216,10 @@ func handleEfficientFrontier(c *gin.Context) {
 		return
 	}
 
-	result, err := optimizer.ComputeEfficientFrontier(req)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
+	defer cancel()
+
+	result, err := optimizer.ComputeEfficientFrontier(ctx, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -223,7 +249,10 @@ func handleMonteCarlo(c *gin.Context) {
 		return
 	}
 
-	result, err := montecarlo.RunMonteCarlo(req)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
+	defer cancel()
+
+	result, err := montecarlo.RunMonteCarlo(ctx, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

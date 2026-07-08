@@ -1,6 +1,7 @@
 package montecarlo
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func TestRunMonteCarlo(t *testing.T) {
 			},
 		}
 
-		result, err := RunMonteCarlo(req)
+		result, err := RunMonteCarlo(context.Background(), req)
 		if err != nil {
 			t.Fatalf("RunMonteCarlo 返回错误: %v", err)
 		}
@@ -87,7 +88,7 @@ func TestRunMonteCarlo(t *testing.T) {
 				NumYears:       5,
 			},
 		}
-		_, err := RunMonteCarlo(req)
+		_, err := RunMonteCarlo(context.Background(), req)
 		if err == nil {
 			t.Fatal("空资产应返回错误")
 		}
@@ -191,7 +192,7 @@ func BenchmarkRunMonteCarlo(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, err := RunMonteCarlo(req)
+		_, err := RunMonteCarlo(context.Background(), req)
 		if err != nil {
 			b.Fatalf("RunMonteCarlo failed: %v", err)
 		}

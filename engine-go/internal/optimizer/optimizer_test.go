@@ -1,6 +1,7 @@
 package optimizer
 
 import (
+	"context"
 	"math"
 	"math/rand"
 	"testing"
@@ -70,7 +71,7 @@ func itoa(n int) string {
 
 func TestOptimize(t *testing.T) {
 	t.Run("空 tickers 应报错", func(t *testing.T) {
-		_, err := Optimize(OptimizeRequest{
+		_, err := Optimize(context.Background(), OptimizeRequest{
 			Tickers:   []string{},
 			PriceData: map[string]map[string]float64{},
 			Objective: "maxSharpe",
@@ -86,7 +87,7 @@ func TestOptimize(t *testing.T) {
 			[]float64{100, 50},
 			[]float64{0.001, 0.0005},
 		)
-		_, err := Optimize(OptimizeRequest{
+		_, err := Optimize(context.Background(), OptimizeRequest{
 			Tickers:   []string{"A", "B"},
 			PriceData: priceData,
 			Objective: "invalid",
@@ -137,7 +138,7 @@ func TestOptimize(t *testing.T) {
 				[]float64{100, 50, 75},
 				[]float64{0.001, 0.0005, 0.0008},
 			)
-			resp, err := Optimize(OptimizeRequest{
+			resp, err := Optimize(context.Background(), OptimizeRequest{
 				Tickers:       []string{"A", "B", "C"},
 				PriceData:     priceData,
 				Objective:     tt.objective,
@@ -172,7 +173,7 @@ func TestOptimize(t *testing.T) {
 			[]float64{100, 50},
 			[]float64{0.001, 0.0005},
 		)
-		resp, err := Optimize(OptimizeRequest{
+		resp, err := Optimize(context.Background(), OptimizeRequest{
 			Tickers:       []string{"A", "B"},
 			PriceData:     priceData,
 			Objective:     "maxSharpe",
@@ -192,7 +193,7 @@ func TestOptimize(t *testing.T) {
 
 func TestComputeEfficientFrontier(t *testing.T) {
 	t.Run("空 tickers 应报错", func(t *testing.T) {
-		_, err := ComputeEfficientFrontier(FrontierRequest{
+		_, err := ComputeEfficientFrontier(context.Background(), FrontierRequest{
 			Tickers:   []string{},
 			PriceData: map[string]map[string]float64{},
 		})
@@ -207,7 +208,7 @@ func TestComputeEfficientFrontier(t *testing.T) {
 			[]float64{100, 50},
 			[]float64{0.001, 0.0005},
 		)
-		resp, err := ComputeEfficientFrontier(FrontierRequest{
+		resp, err := ComputeEfficientFrontier(context.Background(), FrontierRequest{
 			Tickers:   []string{"A", "B"},
 			PriceData: priceData,
 			NumPoints: 10,
@@ -235,7 +236,7 @@ func TestComputeEfficientFrontier(t *testing.T) {
 			[]float64{100, 50, 75},
 			[]float64{0.001, 0.0005, 0.0008},
 		)
-		resp, err := ComputeEfficientFrontier(FrontierRequest{
+		resp, err := ComputeEfficientFrontier(context.Background(), FrontierRequest{
 			Tickers:   []string{"A", "B", "C"},
 			PriceData: priceData,
 			NumPoints: 5,

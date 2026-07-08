@@ -9,7 +9,8 @@ import (
 
 // ComputeFingerprint 计算单个组合回测结果的确定性指纹。
 // 只包含关键统计指标和等间隔采样增长曲线，按规范序列化确保跨平台一致性。
-func ComputeFingerprint(result *PortfolioResult) string {
+// 返回 error：当统计指标含 NaN/Inf 等无法 JSON 序列化的值时编码失败。
+func ComputeFingerprint(result *PortfolioResult) (string, error) {
 	h := sha256.New()
 	encoder := json.NewEncoder(h)
 	encoder.SetEscapeHTML(false)
@@ -24,24 +25,31 @@ func ComputeFingerprint(result *PortfolioResult) string {
 		"stdev":        result.Statistics.Stdev,
 		"calmar":       result.Statistics.Calmar,
 	}
-	encoder.Encode(summary)
+	if err := encoder.Encode(summary); err != nil {
+		return "", err
+	}
 
 	// 等间隔采样增长曲线（固定 20 个点，保证指纹长度稳定）
 	sampled := sampleEvery(result.GrowthCurve, 20)
-	encoder.Encode(map[string]any{"growth_sampled": sampled})
+	if err := encoder.Encode(map[string]any{"growth_sampled": sampled}); err != nil {
+		return "", err
+	}
 
-	return hex.EncodeToString(h.Sum(nil))
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // ComputeResultFingerprint 计算全体回测结果的确定性指纹。
 // 将所有组合的指纹串联后再次哈希，得到一个整体指纹。
-func ComputeResultFingerprint(result *BacktestResult) string {
+func ComputeResultFingerprint(result *BacktestResult) (string, error) {
 	h := sha256.New()
 	for i := range result.Portfolios {
-		fp := ComputeFingerprint(&result.Portfolios[i])
+		fp, err := ComputeFingerprint(&result.Portfolios[i])
+		if err != nil {
+			return "", err
+		}
 		h.Write([]byte(fp))
 	}
-	return hex.EncodeToString(h.Sum(nil))
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // sampleEvery 从 DataPoint 切片等间隔采样 n 个点。

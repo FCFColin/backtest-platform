@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -57,7 +58,7 @@ func TestRunBacktest(t *testing.T) {
 			},
 		}
 
-		result, err := RunBacktest(req)
+		result, err := RunBacktest(context.Background(), req)
 		if err != nil {
 			t.Fatalf("RunBacktest 返回错误: %v", err)
 		}
@@ -80,7 +81,7 @@ func TestRunBacktest(t *testing.T) {
 				EndDate:   "2099-12-31",
 			},
 		}
-		_, err := RunBacktest(req)
+		_, err := RunBacktest(context.Background(), req)
 		if err == nil {
 			t.Fatal("无数据日期范围应返回错误")
 		}
@@ -204,7 +205,7 @@ func BenchmarkRunBacktest(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		_, err := RunBacktest(req)
+		_, err := RunBacktest(context.Background(), req)
 		if err != nil {
 			b.Fatalf("RunBacktest failed: %v", err)
 		}
@@ -243,7 +244,7 @@ func BenchmarkComputeGrowthCurve(b *testing.B) {
 // 企业为何需要：统计指标计算涉及大量数值运算，性能退化直接影响响应时间
 func BenchmarkComputeStatistics(b *testing.B) {
 	req := newBenchBacktestRequest()
-	result, _ := RunBacktest(req)
+	result, _ := RunBacktest(context.Background(), req)
 	curve := result.Portfolios[0].GrowthCurve
 	episodes := detectDrawdownEpisodes(curve)
 

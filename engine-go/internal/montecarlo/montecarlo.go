@@ -10,6 +10,7 @@
 package montecarlo
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"math/rand"
@@ -156,7 +157,9 @@ type MCSuccessProbabilities struct {
 // 企业理由：蒙特卡洛模拟通过从历史收益率中重采样生成大量未来路径，
 // 为投资者提供概率化的投资结果预测。这是退休规划和风险管理的核心工具，
 // 帮助投资者理解投资结果的不确定性范围，而非仅依赖单一历史路径。
-func RunMonteCarlo(req MonteCarloRequest) (*MonteCarloResult, error) {
+// ctx 用于 per-request 超时控制（handler 层 WithTimeout），在并行模拟前检查取消信号。
+// 注：runSimulations 内部 goroutine 受 per-request deadline 兜底；此处检查避免在已超时请求上启动模拟。
+func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResult, error) {
 	// 1. 参数校验与默认值
 	applyDefaults(&req)
 
@@ -168,6 +171,13 @@ func RunMonteCarlo(req MonteCarloRequest) (*MonteCarloResult, error) {
 	if len(dailyReturns) < mcTradingDays {
 		return nil, fmt.Errorf("历史数据不足：需要至少1年(%d天)的日收益率，实际%d天",
 			mcTradingDays, len(dailyReturns))
+	}
+
+	// 企业理由：并行模拟是耗时主体，启动前检查 ctx 是否已超时/取消。
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
 	}
 
 	// 3. 并行执行蒙特卡洛模拟

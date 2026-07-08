@@ -6,6 +6,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -18,7 +19,8 @@ import (
 // 相关性计算等所有步骤。与 Rust 引擎的 RunBacktest 函数签名兼容，
 // 支持 A/B 测试验证计算结果一致性。
 // 当 req.Fingerprint == true 时，对每个组合计算 SHA-256 指纹并填充到 BacktestResult.Fingerprint。
-func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
+// ctx 用于 per-request 超时控制（handler 层 WithTimeout），在每个组合计算前检查取消信号。
+func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, error) {
 	// 1. 解析并排序所有交易日
 	tradingDates, err := parseTradingDates(req.PriceData)
 	if err != nil {
@@ -43,6 +45,13 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 	portfolioDailyReturns := make([][]float64, 0, len(req.Portfolios))
 
 	for _, pf := range req.Portfolios {
+		// 企业理由：每个组合计算可能耗时较长，循环开始前检查 ctx 是否已超时/取消，
+		// 避免在已超时请求上继续消耗 CPU。
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		curve, allocHist, err := computeGrowthCurve(pf, req.PriceData, req.CPIData, req.ExchangeRates, tradingDates, req.Params)
 		if err != nil {
 			return nil, fmt.Errorf("组合 %s 计算失败: %w", pf.Name, err)
@@ -96,7 +105,11 @@ func RunBacktest(req BacktestRequest) (*BacktestResult, error) {
 
 	// 8. 计算确定性指纹（可选）
 	if req.Fingerprint {
-		result.Fingerprint = ComputeResultFingerprint(result)
+		fp, err := ComputeResultFingerprint(result)
+		if err != nil {
+			return nil, fmt.Errorf("计算指纹失败: %w", err)
+		}
+		result.Fingerprint = fp
 	}
 
 	return result, nil

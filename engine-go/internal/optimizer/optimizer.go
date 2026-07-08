@@ -7,6 +7,7 @@
 package optimizer
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -75,7 +76,11 @@ type FrontierPoint struct {
 // ============================================================
 
 // Optimize 执行组合优化，是优化模块的主入口
-func Optimize(req OptimizeRequest) (*OptimizeResponse, error) {
+//
+// ctx 用于 per-request 超时控制（handler 层 WithTimeout）。
+// 注：随机搜索的内部循环位于 helpers.randomSearch，受 per-request deadline 兜底；
+// 本函数在协方差计算后、进入求解器前检查 ctx，避免在已超时请求上启动昂贵搜索。
+func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, error) {
 	if len(req.Tickers) == 0 {
 		return nil, fmt.Errorf("tickers 不能为空")
 	}
@@ -92,6 +97,13 @@ func Optimize(req OptimizeRequest) (*OptimizeResponse, error) {
 	mu, sigma, err := computeReturnCovariance(req.Tickers, req.PriceData)
 	if err != nil {
 		return nil, err
+	}
+
+	// 企业理由：协方差矩阵计算可能耗时，进入求解器前检查 ctx 是否已超时/取消。
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
 	}
 
 	sigma = ensurePositiveDefinite(sigma)
@@ -120,7 +132,9 @@ func Optimize(req OptimizeRequest) (*OptimizeResponse, error) {
 }
 
 // ComputeEfficientFrontier 计算有效前沿
-func ComputeEfficientFrontier(req FrontierRequest) (*FrontierResponse, error) {
+//
+// ctx 用于 per-request 超时控制（handler 层 WithTimeout），在每个前沿点求解前检查取消信号。
+func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*FrontierResponse, error) {
 	if len(req.Tickers) == 0 {
 		return nil, fmt.Errorf("tickers 不能为空")
 	}
@@ -150,6 +164,12 @@ func ComputeEfficientFrontier(req FrontierRequest) (*FrontierResponse, error) {
 
 	frontier := make([]FrontierPoint, 0, req.NumPoints)
 	for i := 0; i < req.NumPoints; i++ {
+		// 企业理由：每个前沿点需矩阵求逆与投影，循环开始前检查 ctx 是否已超时/取消。
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		targetRet := minRet + (maxRet-minRet)*float64(i)/float64(req.NumPoints-1)
 		w := solveFrontierPoint(mu, sigma, targetRet, constraints)
 		ret, vol, sharpe := portfolioMetrics(w, mu, sigma)

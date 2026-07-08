@@ -24,13 +24,19 @@ func TestComputeFingerprint_Deterministic(t *testing.T) {
 	}
 
 	// 第一次计算
-	fp1 := ComputeFingerprint(r1)
+	fp1, err := ComputeFingerprint(r1)
+	if err != nil {
+		t.Fatalf("ComputeFingerprint failed: %v", err)
+	}
 	if fp1 == "" {
 		t.Fatal("fingerprint should not be empty")
 	}
 
 	// 第二次计算应相同
-	fp2 := ComputeFingerprint(r1)
+	fp2, err := ComputeFingerprint(r1)
+	if err != nil {
+		t.Fatalf("ComputeFingerprint failed: %v", err)
+	}
 	if fp1 != fp2 {
 		t.Fatalf("fingerprint not deterministic: %s vs %s", fp1, fp2)
 	}
