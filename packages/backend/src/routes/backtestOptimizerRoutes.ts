@@ -9,6 +9,7 @@ import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js'
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
 import { withTimeout, TimeoutError } from '../utils/timeout.js';
+import { EngineUnavailableError } from '../utils/engineClient.js';
 import { executeOptimization } from '../application/optimizer-application-service.js';
 
 const SYNC_COMPUTE_TIMEOUT_MS = Number.parseInt(process.env.SYNC_COMPUTE_TIMEOUT_MS || '30000', 10);
@@ -39,12 +40,11 @@ router.post(
         } as BacktestJobData);
 
         res.status(202).json({
-          type: 'https://httpstatuses.com/202',
-          title: 'Accepted',
-          status: 202,
-          detail: 'Optimization task submitted',
-          jobId: job.id,
-          statusUrl: `/api/v1/jobs/${job.id}`,
+          success: true,
+          data: {
+            jobId: job.id,
+            statusUrl: `/api/v1/jobs/${job.id}`,
+          },
         });
         return;
       } catch (queueError) {
@@ -67,6 +67,15 @@ router.post(
         });
       }
     } catch (error) {
+      if (error instanceof EngineUnavailableError) {
+        sendProblem(res, 503, 'ENGINE_UNAVAILABLE', 'Service Unavailable', {
+          detail: error.message,
+          headers: { 'Retry-After': String(error.retryAfterSeconds) },
+          degraded: true,
+          degradedWarning: '计算引擎暂不可用，已 fail-closed，未回退本地计算',
+        });
+        return;
+      }
       if (error instanceof TimeoutError) {
         sendProblem(res, 503, 'OPTIMIZER_TIMEOUT', 'Service Unavailable', {
           detail: '计算超时，请缩小参数空间或稍后重试',

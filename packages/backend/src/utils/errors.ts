@@ -24,6 +24,8 @@ export interface SendProblemOptions {
   headers?: Record<string, string>;
   /** 降级标记，为 true 时在响应体中包含 degraded: true（ADR-031） */
   degraded?: boolean;
+  /** 降级原因说明，前端 apiClient 读取此字段展示 Toast（ADR-031） */
+  degradedWarning?: string;
 }
 
 export function errorMessage(err: unknown): string {
@@ -46,7 +48,7 @@ export function sendProblem(
   title: string,
   options?: SendProblemOptions,
 ): void {
-  const { detail, headers, degraded } = options ?? {};
+  const { detail, headers, degraded, degradedWarning } = options ?? {};
   const r = res.status(status).header('Content-Type', 'application/problem+json');
   // 附加额外响应头（如 Retry-After），用于 fail-closed 降级（ADR-031）。
   if (headers) {
@@ -55,15 +57,21 @@ export function sendProblem(
     }
   }
   const body: Record<string, unknown> = {
-    type: `https://backtest.platform/errors/${code}`,
-    title,
-    status,
-    code,
-    detail,
-    instance: res.req?.path,
+    success: false,
+    error: {
+      type: `https://backtest.platform/errors/${code}`,
+      title,
+      status,
+      code,
+      detail,
+      instance: res.req?.path,
+    },
   };
   if (degraded !== undefined) {
     body.degraded = degraded;
+  }
+  if (degradedWarning !== undefined) {
+    body.degradedWarning = degradedWarning;
   }
   r.json(body);
 }

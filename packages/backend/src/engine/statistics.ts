@@ -501,6 +501,46 @@ function calcDerivedStats(args: {
   };
 }
 
+function buildVarSection(
+  d: ReturnType<typeof calcDerivedStats>,
+  monthlyReturnValues: number[],
+  annualReturnValues: number[],
+): Statistics['var'] {
+  return {
+    daily: { 1: d.var1, 5: d.var5, 10: d.var10 },
+    monthly: {
+      1: calcVaR(monthlyReturnValues, 0.99),
+      5: calcVaR(monthlyReturnValues, 0.95),
+      10: calcVaR(monthlyReturnValues, 0.9),
+    },
+    annual: {
+      1: calcVaR(annualReturnValues, 0.99),
+      5: calcVaR(annualReturnValues, 0.95),
+      10: calcVaR(annualReturnValues, 0.9),
+    },
+  };
+}
+
+function buildCvarSection(
+  d: ReturnType<typeof calcDerivedStats>,
+  monthlyReturnValues: number[],
+  annualReturnValues: number[],
+): Statistics['cvar'] {
+  return {
+    daily: { 1: d.cvar1, 5: d.cvar5, 10: d.cvar10 },
+    monthly: {
+      1: calcCVaR(monthlyReturnValues, 0.99),
+      5: calcCVaR(monthlyReturnValues, 0.95),
+      10: calcCVaR(monthlyReturnValues, 0.9),
+    },
+    annual: {
+      1: calcCVaR(annualReturnValues, 0.99),
+      5: calcCVaR(annualReturnValues, 0.95),
+      10: calcCVaR(annualReturnValues, 0.9),
+    },
+  };
+}
+
 function buildStatsReturn(
   d: ReturnType<typeof calcDerivedStats>,
   args: {
@@ -555,32 +595,8 @@ function buildStatsReturn(
     informationRatio: bm.informationRatio,
     upsideCapture: bm.upsideCapture,
     downsideCapture: bm.downsideCapture,
-    var: {
-      daily: { 1: d.var1, 5: d.var5, 10: d.var10 },
-      monthly: {
-        1: calcVaR(args.monthlyReturnValues, 0.99),
-        5: calcVaR(args.monthlyReturnValues, 0.95),
-        10: calcVaR(args.monthlyReturnValues, 0.9),
-      },
-      annual: {
-        1: calcVaR(args.annualReturnValues, 0.99),
-        5: calcVaR(args.annualReturnValues, 0.95),
-        10: calcVaR(args.annualReturnValues, 0.9),
-      },
-    },
-    cvar: {
-      daily: { 1: d.cvar1, 5: d.cvar5, 10: d.cvar10 },
-      monthly: {
-        1: calcCVaR(args.monthlyReturnValues, 0.99),
-        5: calcCVaR(args.monthlyReturnValues, 0.95),
-        10: calcCVaR(args.monthlyReturnValues, 0.9),
-      },
-      annual: {
-        1: calcCVaR(args.annualReturnValues, 0.99),
-        5: calcCVaR(args.annualReturnValues, 0.95),
-        10: calcCVaR(args.annualReturnValues, 0.9),
-      },
-    },
+    var: buildVarSection(d, monthlyReturnValues, annualReturnValues),
+    cvar: buildCvarSection(d, monthlyReturnValues, annualReturnValues),
     skewness: { daily: d.skewness, monthly: 0, annual: 0 },
     excessKurtosis: { daily: d.excessKurtosis, monthly: 0, annual: 0 },
     winRate: { daily: d.pctPositiveDays, monthly: 0, annual: 0 },

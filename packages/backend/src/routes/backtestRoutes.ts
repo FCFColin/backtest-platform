@@ -32,6 +32,7 @@ import { sendProblem, errorMessage } from '../utils/errors.js';
 import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { callEngineStrict, EngineUnavailableError } from '../utils/engineClient.js';
 import { sanitizeLog } from '../utils/logSanitizer.js';
+import type { AuthenticatedRequest } from '../middleware/authTypes.js';
 import { validate } from '../middleware/validate.js';
 import {
   portfolioBacktestSchema,
@@ -72,6 +73,7 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
       detail: error.message,
       headers: { 'Retry-After': String(error.retryAfterSeconds) },
       degraded: true,
+      degradedWarning: error.message,
     });
     return true;
   }
@@ -242,7 +244,11 @@ router.post(
         'portfolio-backtest',
       );
 
-      const cacheKey = backtestCacheKey(portfolios, parameters);
+      const cacheKey = backtestCacheKey(
+        portfolios,
+        parameters,
+        (req as AuthenticatedRequest).tenantId,
+      );
       setBacktestResultCache(cacheKey, result);
 
       const response: Record<string, unknown> = {
@@ -286,7 +292,11 @@ router.post(
         series: string[];
       };
 
-      const cacheKey = backtestCacheKey(portfolios, parameters);
+      const cacheKey = backtestCacheKey(
+        portfolios,
+        parameters,
+        (req as AuthenticatedRequest).tenantId,
+      );
       const cached = getBacktestResultCache(cacheKey);
       if (!cached) {
         sendProblem(res, 404, 'BACKTEST_CACHE_MISS', 'Cache miss', {

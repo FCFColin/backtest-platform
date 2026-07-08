@@ -29,6 +29,7 @@ import { getPlanLimits } from '../config/planLimits.js';
 import { appRedis } from '../config/redis.js';
 import { logger } from '../utils/logger.js';
 import { errorMessage } from '../utils/errors.js';
+import { EngineUnavailableError } from '../utils/engineClient.js';
 import type { Job } from 'bullmq';
 
 /** 租户在途任务计数键（tenant-fair 调度，ADR-037） */
@@ -139,6 +140,16 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
     return { status: 'failed', error: `Unknown job type: ${type}` };
   } catch (err) {
     if (err instanceof DelayedError) throw err;
+    // ADR-031 fail-closed：Go 引擎不可用时重抛以触发 BullMQ 重试（attempts:3 指数退避），
+    // 不静默回退 Node 计算返回不一致数字。先释放 claim，使重试可重新获取处理权。
+    if (err instanceof EngineUnavailableError) {
+      await releaseJobClaim(jobId);
+      logger.warn(
+        { jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds },
+        '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）',
+      );
+      throw err;
+    }
     await releaseJobClaim(jobId);
     const message = errorMessage(err);
     logger.error({ jobId, error: message }, '[worker] 任务执行失败');

@@ -15,14 +15,23 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 
 /**
- * 根据请求体生成缓存键（portfolios + parameters）。
+ * 根据请求体生成缓存键（tenantId + portfolios + parameters）。
+ *
+ * 企业理由：多租户场景下，相同 portfolio + parameters 但属于不同租户的回测结果
+ * 必须落到独立缓存条目，否则会发生跨租户回测结果串扰（A 租户看到 B 租户的回测数据）。
+ * 隔离的最终保证由租户键提供，引擎/RLS 不感知缓存层。
  *
  * @param portfolios - 组合配置
  * @param parameters - 回测参数
+ * @param tenantId - 租户 ID（来自 req.tenantId，匿名场景可为 undefined）
  * @returns SHA-256 十六进制摘要
  */
-export function backtestCacheKey(portfolios: Portfolio[], parameters: BacktestParameters): string {
-  const payload = JSON.stringify({ portfolios, parameters });
+export function backtestCacheKey(
+  portfolios: Portfolio[],
+  parameters: BacktestParameters,
+  tenantId: string | undefined,
+): string {
+  const payload = JSON.stringify({ tenantId, portfolios, parameters });
   return crypto.createHash('sha256').update(payload).digest('hex');
 }
 

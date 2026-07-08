@@ -159,8 +159,7 @@ export function resetEngineAvailability(): void {
 export interface DegradedResponse<T> {
   data: T;
   degraded: true;
-  degradedCode: string; // 如 'ENGINE_UNAVAILABLE'
-  degradedMessage: string; // 如 '数据服务不可用，已降级到缓存数据'
+  degradedWarning: string; // 如 '数据服务不可用，已降级到缓存数据'
 }
 
 /**
@@ -187,15 +186,13 @@ export function isDegradedResponse<T>(
 export function unwrapFallbackResult<T>(result: T | DegradedResponse<T>): {
   data: T;
   degraded: boolean;
-  degradedCode?: string;
-  degradedMessage?: string;
+  degradedWarning?: string;
 } {
   if (isDegradedResponse(result)) {
     return {
       data: result.data,
       degraded: true,
-      degradedCode: result.degradedCode,
-      degradedMessage: result.degradedMessage,
+      degradedWarning: result.degradedWarning,
     };
   }
   return { data: result, degraded: false };

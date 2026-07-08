@@ -160,8 +160,7 @@ router.get(
       const response: Record<string, unknown> = { success: true, data };
       if (degraded) {
         response.degraded = true;
-        response.degradedCode = 'GO_SERVICE_UNAVAILABLE';
-        response.degradedMessage = 'Go 数据服务不可用，已降级到本地数据源';
+        response.degradedWarning = 'Go 数据服务不可用，已降级到本地数据源';
       }
       res.json(response);
     } catch (error) {
@@ -206,8 +205,7 @@ router.get(
       const response: Record<string, unknown> = { success: true, data: results };
       if (degraded) {
         response.degraded = true;
-        response.degradedCode = 'GO_SERVICE_UNAVAILABLE';
-        response.degradedMessage = 'Go 数据服务不可用，已降级到本地搜索';
+        response.degradedWarning = 'Go 数据服务不可用，已降级到本地搜索';
       }
       res.json(response);
     } catch (error) {
@@ -250,8 +248,7 @@ router.get('/cpi/:country', async (req: Request, res: Response): Promise<void> =
         success: true,
         data: cpiDbCache[country],
         degraded: true,
-        degradedCode: 'GO_SERVICE_UNAVAILABLE',
-        degradedMessage: 'Go 数据服务不可用，已降级到 PostgreSQL CPI 数据',
+        degradedWarning: 'Go 数据服务不可用，已降级到 PostgreSQL CPI 数据',
       });
       return;
     }
@@ -263,8 +260,7 @@ router.get('/cpi/:country', async (req: Request, res: Response): Promise<void> =
         success: true,
         data: cpiData,
         degraded: true,
-        degradedCode: 'GO_SERVICE_UNAVAILABLE',
-        degradedMessage: 'Go 数据服务不可用，已降级到 PostgreSQL CPI 数据',
+        degradedWarning: 'Go 数据服务不可用，已降级到 PostgreSQL CPI 数据',
       });
       return;
     }

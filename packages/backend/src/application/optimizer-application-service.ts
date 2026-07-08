@@ -1,8 +1,14 @@
 /**
  * 回测优化器应用服务（T-30 / CQRS Command）
  */
-import type { Portfolio, BacktestParameters, RebalanceFrequency } from '@backtest/shared/types';
-import { runPortfolioBacktest } from '../engine/portfolio.js';
+import type {
+  Portfolio,
+  BacktestParameters,
+  RebalanceFrequency,
+  BacktestResult,
+} from '@backtest/shared/types';
+import { callEngineStrict } from '../utils/engineClient.js';
+import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
 import { numericRange } from '../utils/numericRange.js';
@@ -125,13 +131,13 @@ function buildCombinations(parameterSpace: OptimizeRequest['parameterSpace']): C
   return combos;
 }
 
-/** 按资金分组运行回测，收集结果项 */
-function runBacktestGroups(
+/** 按资金分组运行回测，收集结果项（经 Go 引擎，ADR-031 fail-closed） */
+async function runBacktestGroups(
   combos: Combo[],
   portfolio: OptimizeRequest['portfolio'],
   parameters: OptimizeRequest['parameters'],
   priceData: Record<string, Record<string, number>>,
-): { items: OptimizeResultItem[] } {
+): Promise<{ items: OptimizeResultItem[] }> {
   const items: OptimizeResultItem[] = [];
 
   const byCapital = new Map<number, Combo[]>();
@@ -152,7 +158,11 @@ function runBacktestGroups(
       totalReturn: true,
     }));
     const btParams = buildBacktestParameters(parameters, capital);
-    const btResult = runPortfolioBacktest(portfolios, priceData, btParams);
+    const btResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
+      portfolios: portfolios.map(buildEnginePortfolioBody),
+      priceData,
+      params: buildEngineParams(btParams),
+    });
 
     for (let j = 0; j < group.length; j++) {
       const stats = btResult.portfolios[j].statistics;
@@ -203,13 +213,16 @@ function objectiveValue(it: OptimizeResultItem, objective: Objective): number {
   }
 }
 
-/** 运行最优组合回测，获取增长曲线 */
-function computeBestResult(
+/** 运行最优组合回测，获取增长曲线（经 Go 引擎，ADR-031 fail-closed） */
+async function computeBestResult(
   bestItem: OptimizeResultItem,
   portfolio: OptimizeRequest['portfolio'],
   parameters: OptimizeRequest['parameters'],
   priceData: Record<string, Record<string, number>>,
-): { best: BestResultItem; benchmarkGrowth: Array<{ date: string; value: number }> | null } {
+): Promise<{
+  best: BestResultItem;
+  benchmarkGrowth: Array<{ date: string; value: number }> | null;
+}> {
   const bestPortfolios: Portfolio[] = [
     {
       id: 'best',
@@ -222,11 +235,11 @@ function computeBestResult(
       totalReturn: true,
     },
   ];
-  const bestResult = runPortfolioBacktest(
-    bestPortfolios,
+  const bestResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
+    portfolios: bestPortfolios.map(buildEnginePortfolioBody),
     priceData,
-    buildBacktestParameters(parameters, bestItem.initialCapital),
-  );
+    params: buildEngineParams(buildBacktestParameters(parameters, bestItem.initialCapital)),
+  });
   return {
     best: { ...bestItem, growthCurve: bestResult.portfolios[0].growthCurve },
     benchmarkGrowth: bestResult.benchmarkGrowth || null,
@@ -278,7 +291,7 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
 
   logger.info(`[backtest-optimizer] 开始优化：${combos.length} 个组合，目标=${objective}`);
 
-  const { items } = runBacktestGroups(combos, portfolio, parameters, priceData);
+  const { items } = await runBacktestGroups(combos, portfolio, parameters, priceData);
   const filtered = filterByConstraints(items, constraints);
   filtered.sort((a, b) => objectiveValue(b, objective) - objectiveValue(a, objective));
 
@@ -286,7 +299,7 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   let benchmarkGrowth: Array<{ date: string; value: number }> | null = null;
 
   if (filtered.length > 0) {
-    const result = computeBestResult(filtered[0], portfolio, parameters, priceData);
+    const result = await computeBestResult(filtered[0], portfolio, parameters, priceData);
     best = result.best;
     benchmarkGrowth = result.benchmarkGrowth;
   }

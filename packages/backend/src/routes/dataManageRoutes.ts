@@ -31,15 +31,8 @@ router.get('/status', async (_req: Request, res: Response): Promise<void> => {
     const status = await getEngineStatus();
     res.json({ success: true, data: status });
   } catch {
-    res.status(500).json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/status-error',
-        title: 'Status Error',
-        status: 500,
-        code: 'STATUS_ERROR',
-        detail: 'Failed to get status',
-      },
+    sendProblem(res, 500, 'STATUS_ERROR', 'Status Error', {
+      detail: 'Failed to get status',
     });
   }
 });
@@ -63,15 +56,8 @@ router.get('/stats', async (_req: Request, res: Response): Promise<void> => {
     logger.info(`[dataManageRoutes] /stats 总耗时 ${Date.now() - t0}ms`);
   } catch (error) {
     logger.error({ err: error as Error }, '[dataManage] 获取统计失败');
-    res.status(500).json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/stats-error',
-        title: 'Stats Error',
-        status: 500,
-        code: 'STATS_ERROR',
-        detail: 'Failed to get stats',
-      },
+    sendProblem(res, 500, 'STATS_ERROR', 'Stats Error', {
+      detail: 'Failed to get stats',
     });
   }
 });
@@ -98,15 +84,8 @@ router.get(
         pagination: { page, limit, total, totalPages },
       });
     } catch {
-      res.status(500).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/ticker-list-error',
-          title: 'Ticker List Error',
-          status: 500,
-          code: 'TICKER_LIST_ERROR',
-          detail: 'Failed to get ticker list',
-        },
+      sendProblem(res, 500, 'TICKER_LIST_ERROR', 'Ticker List Error', {
+        detail: 'Failed to get ticker list',
       });
     }
   },
@@ -150,15 +129,8 @@ router.put(
       res.json({ success: result.success, data: result });
     } catch (error) {
       logger.error({ err: error as Error }, '[dataManage] 全量更新失败');
-      res.status(500).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/update-error',
-          title: 'Update Error',
-          status: 500,
-          code: 'UPDATE_ERROR',
-          detail: '全量更新启动失败',
-        },
+      sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+        detail: '全量更新启动失败',
       });
     }
   },
@@ -174,15 +146,8 @@ router.patch(
       res.json({ success: result.success, data: result });
     } catch (error) {
       logger.error({ err: error as Error }, '[dataManage] 增量更新失败');
-      res.status(500).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/update-error',
-          title: 'Update Error',
-          status: 500,
-          code: 'UPDATE_ERROR',
-          detail: '增量更新启动失败',
-        },
+      sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+        detail: '增量更新启动失败',
       });
     }
   },
@@ -198,15 +163,8 @@ router.put(
       res.json({ success: result.success, data: result });
     } catch (error) {
       logger.error({ err: error as Error }, '[dataManage] 重新拉取失败');
-      res.status(500).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/update-error',
-          title: 'Update Error',
-          status: 500,
-          code: 'UPDATE_ERROR',
-          detail: '重新拉取启动失败',
-        },
+      sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+        detail: '重新拉取启动失败',
       });
     }
   },
@@ -219,15 +177,8 @@ router.patch('/resume', requireDataManage, async (_req: Request, res: Response):
     res.json({ success: result.success, data: result });
   } catch (error) {
     logger.error({ err: error as Error }, '[dataManage] 恢复更新失败');
-    res.status(500).json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/update-error',
-        title: 'Update Error',
-        status: 500,
-        code: 'UPDATE_ERROR',
-        detail: '恢复更新启动失败',
-      },
+    sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+      detail: '恢复更新启动失败',
     });
   }
 });
@@ -251,15 +202,8 @@ router.put('/universe', requireDataManage, async (_req: Request, res: Response):
     });
   } catch (error) {
     logger.error({ err: error as Error }, '[dataManage] 刷新标的列表失败');
-    res.status(500).json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/universe-error',
-        title: 'Universe Error',
-        status: 500,
-        code: 'UNIVERSE_ERROR',
-        detail: '获取标的列表失败',
-      },
+    sendProblem(res, 500, 'UNIVERSE_ERROR', 'Universe Error', {
+      detail: '获取标的列表失败',
     });
   }
 });
@@ -317,15 +261,8 @@ router.post(
       res.json({ success: result.success, data: result });
     } catch (error) {
       logger.error({ err: error as Error }, '[dataManage] POST /update/full 失败');
-      res.status(500).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/update-error',
-          title: 'Update Error',
-          status: 500,
-          code: 'UPDATE_ERROR',
-          detail: '全量更新启动失败',
-        },
+      sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+        detail: '全量更新启动失败',
       });
     }
   },
@@ -341,15 +278,8 @@ router.post(
       res.json({ success: result.success, data: result });
     } catch (error) {
       logger.error({ err: error as Error }, '[dataManage] POST /update/inc 失败');
-      res.status(500).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/update-error',
-          title: 'Update Error',
-          status: 500,
-          code: 'UPDATE_ERROR',
-          detail: '增量更新启动失败',
-        },
+      sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+        detail: '增量更新启动失败',
       });
     }
   },
@@ -365,15 +295,8 @@ router.post(
       res.json({ success: result.success, data: result });
     } catch (error) {
       logger.error({ err: error as Error }, '[dataManage] POST /update/refetch 失败');
-      res.status(500).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/update-error',
-          title: 'Update Error',
-          status: 500,
-          code: 'UPDATE_ERROR',
-          detail: '重新拉取启动失败',
-        },
+      sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+        detail: '重新拉取启动失败',
       });
     }
   },
@@ -386,15 +309,8 @@ router.post('/resume', requireDataManage, async (req: Request, res: Response): P
     res.json({ success: result.success, data: result });
   } catch (error) {
     logger.error({ err: error as Error }, '[dataManage] POST /resume 失败');
-    res.status(500).json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/update-error',
-        title: 'Update Error',
-        status: 500,
-        code: 'UPDATE_ERROR',
-        detail: '恢复更新启动失败',
-      },
+    sendProblem(res, 500, 'UPDATE_ERROR', 'Update Error', {
+      detail: '恢复更新启动失败',
     });
   }
 });
@@ -409,15 +325,8 @@ router.post('/universe', requireDataManage, async (req: Request, res: Response):
     });
   } catch (error) {
     logger.error({ err: error as Error }, '[dataManage] POST /universe 失败');
-    res.status(500).json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/universe-error',
-        title: 'Universe Error',
-        status: 500,
-        code: 'UNIVERSE_ERROR',
-        detail: '获取标的列表失败',
-      },
+    sendProblem(res, 500, 'UNIVERSE_ERROR', 'Universe Error', {
+      detail: '获取标的列表失败',
     });
   }
 });

@@ -35,6 +35,13 @@ import {
   mockSearchResults,
 } from './dataQueryService.js';
 
+/**
+ * 初始化 PostgreSQL 数据库 schema
+ *
+ * 通过 initSchema 创建必要的表结构。若数据库不可用则记录告警日志但不抛错，
+ * 行情查询将失败直至数据库恢复。
+ * @returns Promise<void>，无返回值
+ */
 export async function initDb(): Promise<void> {
   try {
     await initSchema();
@@ -85,6 +92,17 @@ export async function fetchHistoryDataWithDegraded(
   return { data, ...degradedInfo };
 }
 
+/**
+ * 获取多个标的的历史价格数据
+ *
+ * 优先从 PostgreSQL 查询；缺失标的走 Go data-fetcher 实时拉取，并写入文件缓存。
+ * 若数据库或 Go 服务不可用，会标记降级状态（可通过 consumeDegradedFlag 读取）。
+ * @param tickers - 标的代码数组（如 ['AAPL', 'MSFT']）
+ * @param startDate - 起始日期，格式 YYYY-MM-DD
+ * @param endDate - 结束日期，格式 YYYY-MM-DD
+ * @returns 按 ticker 分组的价格序列，结构为 { [ticker]: { [date]: price } }；全部非法时返回空对象
+ * @throws {Error} 当底层 PostgreSQL/Go 服务调用抛错且未被内部捕获时向上抛出
+ */
 export async function fetchHistoryData(
   tickers: string[],
   startDate: string,
@@ -163,6 +181,14 @@ export async function fetchHistoryData(
   return result;
 }
 
+/**
+ * 校验给定标的代码在数据库中是否存在
+ *
+ * 通过 PostgreSQL 查询 tickers 表区分有效与无效标的。若数据库不可用或查询失败，
+ * 返回所有标的为 invalid（不抛错，便于调用方降级处理）。
+ * @param tickers - 待校验的标的代码数组
+ * @returns { valid: string[]; invalid: string[] } 有效与无效标的列表；DB 不可用时 valid 为空
+ */
 export async function validateTickers(
   tickers: string[],
 ): Promise<{ valid: string[]; invalid: string[] }> {
@@ -194,6 +220,15 @@ export async function validateTickers(
   return { valid: [], invalid: tickers };
 }
 
+/**
+ * 搜索标的代码或名称
+ *
+ * 优先查 PostgreSQL，未命中查文件缓存，最后调 Go data service 实时搜索。
+ * 若 Go 服务失败，回退到 mock 搜索结果（不抛错）。
+ * @param query - 搜索关键字（ticker 或名称片段）
+ * @param market - 可选市场过滤（如 'US'、'HK'），未指定则查全部
+ * @returns 匹配的标的列表；无匹配或查询失败时返回空数组或 mock 结果
+ */
 export async function searchTickers(query: string, market?: string): Promise<TickerSearchResult[]> {
   if (!validateSearchQuery(query, market)) return [];
 
