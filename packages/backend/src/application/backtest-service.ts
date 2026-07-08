@@ -4,7 +4,7 @@
 // 权衡：增加一层间接调用，但分层后各层职责清晰，引擎调用与事件发布可独立测试。
 
 import { randomUUID } from 'crypto';
-import { type PriceData } from '../engine/portfolio.js';
+import type { PriceData } from '../engine/growthCurve.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { eventDispatcher } from '../domain/events/index.js';

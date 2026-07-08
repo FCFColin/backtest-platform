@@ -9,7 +9,7 @@
 
 import type { OptimizationResult, EfficientFrontierResult } from '@backtest/shared/types';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
-import type { PriceData } from './portfolio.js';
+import type { PriceData } from './growthCurve.js';
 import { calcCovariance, calcPortfolioReturn, calcPortfolioVolatility } from './statistics.js';
 import {
   OptimizeObjective,

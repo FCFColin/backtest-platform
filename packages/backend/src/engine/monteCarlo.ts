@@ -10,7 +10,7 @@ import type {
   MonteCarloResult,
   PerPathMetrics,
 } from '@backtest/shared/types';
-import type { PriceData } from './portfolio.js';
+import type { PriceData } from './growthCurve.js';
 import { getDateLimits } from '../utils/dateUtils.js';
 import {
   calcCAGR,

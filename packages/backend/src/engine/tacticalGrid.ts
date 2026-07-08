@@ -19,7 +19,7 @@
 import type { Portfolio, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { Statistics } from '@backtest/shared/types/statistics';
 import { numericRange } from '../utils/numericRange.js';
-import { runPortfolioBacktest } from './portfolio.js';
+import { runPortfolioBacktest } from './backtestRunner.js';
 import { shouldRebalance } from './rebalance.js';
 
 // ===== 类型定义 =====

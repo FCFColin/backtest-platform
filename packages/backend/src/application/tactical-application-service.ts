@@ -13,7 +13,7 @@ import {
 } from '../engine/tactical.js';
 
 export { collectTickers };
-import { runPortfolioBacktest } from '../engine/portfolio.js';
+import { runPortfolioBacktest } from '../engine/backtestRunner.js';
 import { logger } from '../utils/logger.js';
 
 export interface TacticalBacktestRequest {
