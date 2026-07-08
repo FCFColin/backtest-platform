@@ -1,0 +1,16 @@
+# 企业理由：PodDisruptionBudget 确保自愿驱逐（kubectl drain/集群升级）时
+# data-fetcher 服务保持最小可用副本数。数据服务不可用将导致数据请求降级。
+# 当前 data-fetcher replicas:2，minAvailable:1 意味着最多允许 1 个 Pod 被驱逐。
+# 命名统一（R-17）：原 go-data-pdb，现 data-fetcher-pdb 与 docker-compose 一致。
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: data-fetcher-pdb
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: data-fetcher

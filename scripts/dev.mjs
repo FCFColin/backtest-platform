@@ -37,7 +37,9 @@ function findTsxLoader() {
 }
 const tsxLoaderPath = findTsxLoader();
 if (!tsxLoaderPath) {
-  console.error('[dev] 错误：找不到 tsx/dist/loader.mjs（node_modules/.pnpm/tsx@*/），请检查 pnpm install');
+  console.error(
+    '[dev] 错误：找不到 tsx/dist/loader.mjs（node_modules/.pnpm/tsx@*/），请检查 pnpm install',
+  );
   process.exit(1);
 }
 const tsxLoaderUrl = pathToFileURL(tsxLoaderPath).href;
@@ -61,8 +63,11 @@ function findFreePort(preferred) {
       server.close(() => resolve(port));
     });
     server.on('error', () => {
-      if (preferred) { resolve(findFreePort(0)); }
-      else { resolve(0); }
+      if (preferred) {
+        resolve(findFreePort(0));
+      } else {
+        resolve(0);
+      }
     });
   });
 }
@@ -72,7 +77,11 @@ async function logTo(tag, text) {
   const ts = new Date().toISOString().replace('T', ' ').slice(0, 19);
   const line = `[${ts}] [${tag}] ${text}\n`;
   if (HEADLESS) {
-    try { await appendFile(path.join(LOG_DIR, `${tag}.log`), line, 'utf-8'); } catch { /* 静默 */ }
+    try {
+      await appendFile(path.join(LOG_DIR, `${tag}.log`), line, 'utf-8');
+    } catch {
+      /* 静默 */
+    }
   } else {
     process.stdout.write(line);
   }
@@ -85,7 +94,9 @@ async function waitServiceHealthy(url, deadlineMs = 30_000) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(2000) });
       if (res.ok) return true;
-    } catch { /* 仍在启动 */ }
+    } catch {
+      /* 仍在启动 */
+    }
     await new Promise((r) => setTimeout(r, 1000));
   }
   return false;
@@ -110,7 +121,11 @@ function startProcess(cmd, args, opts = {}) {
   if (HEADLESS && isWin) {
     // Windows 下用 Start-Process 实现真正 detached（避免 spawn+shell 子进程被回收）
     const escapedArgs = args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ');
-    const envBlock = (opts.env ? Object.entries(opts.env).filter(([k]) => !['HEADLESS', 'NODE_DEBUG'].includes(k)) : [])
+    const envBlock = (
+      opts.env
+        ? Object.entries(opts.env).filter(([k]) => !['HEADLESS', 'NODE_DEBUG'].includes(k))
+        : []
+    )
       .map(([k, v]) => `$env:${k}="${String(v).replace(/"/g, '\\"')}"`)
       .join('; ');
     const wd = opts.cwd ? `-WorkingDirectory "${opts.cwd}"` : '';
@@ -124,7 +139,7 @@ function startProcess(cmd, args, opts = {}) {
     ...opts,
     stdio: HEADLESS ? 'ignore' : 'inherit',
     shell: !isWin ? false : undefined, // Windows spawn with shell:true has detach issues
-    detached: !isWin ? true : false,   // Unix truly detach; Windows uses Start-Process above
+    detached: !isWin ? true : false, // Unix truly detach; Windows uses Start-Process above
   });
   if (child) {
     child.unref();
@@ -149,7 +164,11 @@ async function ensureEngineGo() {
   }
   console.log('[dev] 启动 Go 计算引擎 (engine-go:5004)…');
   try {
-    execSync(`${composeCmd} compose -p backtest up -d engine-go`, { stdio: 'inherit', env, shell: isWin });
+    execSync(`${composeCmd} compose -p backtest up -d engine-go`, {
+      stdio: 'inherit',
+      env,
+      shell: isWin,
+    });
   } catch (err) {
     console.warn('[dev] docker compose up engine-go 失败:', err.message);
     spawnLocalService('engine-go', ['./cmd/server'], 'engine-go:5004');
@@ -164,7 +183,10 @@ async function ensureEngineGo() {
 /** 拉起 data-fetcher（后台，不阻塞主流程） */
 function ensureDataFetcher() {
   waitServiceHealthy(DATA_FETCHER_HEALTH_URL, 2_000).then((ok) => {
-    if (ok) { console.log('[dev] Go 数据服务已就绪'); return; }
+    if (ok) {
+      console.log('[dev] Go 数据服务已就绪');
+      return;
+    }
     console.log('[dev] 后台启动 Go 数据服务 (data-fetcher:5003)…');
     const child = spawn(composeCmd, ['compose', '-p', 'backtest', 'up', '-d', 'data-fetcher'], {
       stdio: 'inherit',

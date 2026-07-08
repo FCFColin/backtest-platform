@@ -1,28 +1,41 @@
-# 企业理由：生产环境需要多副本保证可用性，2 副本可在单 Pod 故障时仍能服务。
-# 资源限制防止异常 Pod 耗尽节点资源影响其他服务。
-# 权衡：2 副本增加资源开销，但保证了滚动更新零停机和单点故障恢复。
+# =============================================================================
+# API 后端 Deployment（从原合并 Deployment 拆分而来，R-15）
+# =============================================================================
+#
+# 企业理由：原合并 Deployment 将 API 后端与前端静态托管合并为单 Pod，
+# 违反单一职责：前端（nginx 静态）与 API（Express 计算调度）独立伸缩/发布需求不同
+# （API CPU 密集需 HPA 弹性扩缩，前端 IO 密集只需少量副本）。拆分后各自独立
+# labels/selectors，可独立滚动更新、独立资源配额、独立 PDB/HPA 策略。
+#
+# 端口 5001 与 docker-compose（API_PORT=5001）、configmap（API_PORT）、
+# nginx 反代目标（http://api:5001）保持一致。
+# 镜像名 backtest-platform/api 与 docker-compose 服务名 api 对齐。
+#
+# env 指向 Go engine/data 服务（经 backtest-config ConfigMap 注入）：
+# GO_ENGINE_URL=http://engine-go:5004、GO_DATA_SERVICE_URL=http://data-fetcher:5003。
+# =============================================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend-api
+  name: api
   namespace: backtest-platform
   labels:
-    app: frontend-api
+    app: api
     app.kubernetes.io/part-of: backtest-platform
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: frontend-api
+      app: api
   template:
     metadata:
       labels:
-        app: frontend-api
+        app: api
         app.kubernetes.io/part-of: backtest-platform
     spec:
       containers:
-        - name: frontend-api
-          image: backtest-platform/frontend-api
+        - name: api
+          image: backtest-platform/api
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

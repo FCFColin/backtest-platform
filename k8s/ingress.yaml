@@ -32,6 +32,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: frontend-api
+                name: frontend
                 port:
-                  number: 5001
+                  number: 80

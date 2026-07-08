@@ -1,3 +1,4 @@
+# Production: use External Secrets Operator or sealed-secrets. See docs/deployment.md
 # =============================================================================
 # PostgreSQL StatefulSet（ADR-007：SQLite → PostgreSQL 迁移）
 # =============================================================================
@@ -35,10 +36,11 @@ type: Opaque
 stringData:
   # DATABASE_URL：Knex/Drizzle 连接串，包含用户名、密码、主机、端口、数据库名
   # 生产环境必须覆盖为强密码 + TLS 连接（?sslmode=require）
-  DATABASE_URL: 'postgresql://backtest:changeme@postgres:5432/backtest'
+  # 密码已占位符化（R-18），部署前经 External Secrets Operator 注入
+  DATABASE_URL: 'postgresql://backtest:<REPLACE_ME>@postgres:5432/backtest'
   # 原始凭证供 Init Container 或脚本使用
   POSTGRES_USER: 'backtest'
-  POSTGRES_PASSWORD: 'changeme'
+  POSTGRES_PASSWORD: '<REPLACE_ME>'
   POSTGRES_DB: 'backtest'
 
 ---

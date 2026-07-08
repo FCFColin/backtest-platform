@@ -1,0 +1,21 @@
+# 企业理由：ClusterIP 为前端 nginx 提供稳定的集群内访问端点，
+# Ingress 将外部流量路由至 frontend:80，nginx 再反代 /api/ → http://api:5001。
+# 服务名 frontend 与 docker-compose（services.frontend）一致（R-17）。
+# 权衡：ClusterIP 仅集群内可达，外部访问经 Ingress 暴露。
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: backtest-platform
+  labels:
+    app: frontend
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http

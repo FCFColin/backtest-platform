@@ -76,7 +76,11 @@ function collectEndpoints(mounts) {
 
   for (const mount of mounts) {
     if (mount.inline) {
-      endpoints.push({ method: 'POST', fullPath: mount.basePath, file: 'packages/backend/src/app.ts' });
+      endpoints.push({
+        method: 'POST',
+        fullPath: mount.basePath,
+        file: 'packages/backend/src/app.ts',
+      });
       continue;
     }
 

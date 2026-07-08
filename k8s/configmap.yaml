@@ -12,6 +12,11 @@ data:
   NODE_ENV: 'production'
   API_PORT: '5001'
   GO_ENGINE_URL: 'http://engine-go:5004'
-  GO_DATA_SERVICE_URL: 'http://go-data:5003'
+  # R-17：服务名 data-fetcher 与 docker-compose（services.data-fetcher）一致
+  GO_DATA_SERVICE_URL: 'http://data-fetcher:5003'
+  # Redis 连接串：指向 redis Service（k8s/redis.yaml）。
+  # 无密码，与 docker-compose（redis 无 AUTH）及后端默认值一致；
+  # 生产环境应在 REDIS_URL 中携带凭证并经 Secret 注入（见 redis.yaml 注释）。
+  REDIS_URL: 'redis://redis:6379'
   CORS_ORIGINS: 'https://backtest.local'
   ENGINE_TIMEOUT_MS: '5000'

@@ -1,0 +1,22 @@
+# 企业理由：ClusterIP 为 Go 数据服务提供稳定的集群内访问端点，
+# API 服务通过此 Service 路由数据获取请求。
+# 服务名 data-fetcher 与 docker-compose（services.data-fetcher）一致（R-17）；
+# configmap GO_DATA_SERVICE_URL=http://data-fetcher:5003 指向此 Service。
+# 权衡：ClusterIP 仅集群内可达，数据服务无需外部直接访问。
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-fetcher
+  namespace: backtest-platform
+  labels:
+    app: data-fetcher
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: data-fetcher
+  ports:
+    - port: 5003
+      targetPort: 5003
+      protocol: TCP
+      name: data
