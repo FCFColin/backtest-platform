@@ -227,21 +227,21 @@ describe('新增工具页面 API', () => {
 // ===== 4. 布局验证 =====
 describe('布局验证', () => {
   it('导航栏包含所有工具页面入口', () => {
-    // CSR应用：导航链接在客户端渲染，验证Navbar源码包含所有工具页面路由
-    const navbarSource = readFileSync(
-      resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
+    // CSR应用：导航链接在客户端渲染，路由定义集中在 navConfig.ts，验证其包含所有工具页面路由
+    const navConfigSource = readFileSync(
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/navConfig.ts'),
       'utf-8',
     );
     // 验证关键导航路由存在（覆盖所有工具分组）
-    expect(navbarSource).toContain("to: '/'");
-    expect(navbarSource).toContain("to: '/backtest-optimizer'");
-    expect(navbarSource).toContain("to: '/analysis'");
-    expect(navbarSource).toContain("to: '/pca'");
-    expect(navbarSource).toContain("to: '/optimizer'");
-    expect(navbarSource).toContain("to: '/monte-carlo'");
-    expect(navbarSource).toContain("to: '/tactical'");
-    expect(navbarSource).toContain("to: '/letf-slippage'");
-    expect(navbarSource).toContain("to: '/data-engine'");
+    expect(navConfigSource).toContain("to: '/'");
+    expect(navConfigSource).toContain("to: '/backtest-optimizer'");
+    expect(navConfigSource).toContain("to: '/analysis'");
+    expect(navConfigSource).toContain("to: '/pca'");
+    expect(navConfigSource).toContain("to: '/optimizer'");
+    expect(navConfigSource).toContain("to: '/monte-carlo'");
+    expect(navConfigSource).toContain("to: '/tactical'");
+    expect(navConfigSource).toContain("to: '/letf-slippage'");
+    expect(navConfigSource).toContain("to: '/data-engine'");
   });
 
   it('页脚包含法律链接', () => {

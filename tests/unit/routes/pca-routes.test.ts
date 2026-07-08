@@ -156,7 +156,7 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('至少需要 2 个资产');
+    expect(body.error.detail).toContain('至少需要 2 个资产');
   });
 
   it('部分标的价格数据缺失时应返回 400', async () => {
@@ -174,7 +174,7 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('QQQ');
+    expect(body.error.detail).toContain('QQQ');
   });
 
   it('performPCA 抛错时应返回 500', async () => {
@@ -190,6 +190,6 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.detail).toBe('PCA 分析失败');
+    expect(body.error.detail).toBe('PCA 分析失败');
   });
 });

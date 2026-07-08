@@ -38,6 +38,24 @@ vi.mock('../../../packages/backend/src/application/grid-application-service.js',
   executeGridSearch: vi.fn(),
 }));
 
+// mock engineClient：提供 EngineUnavailableError 类（worker 检测该错误以触发 BullMQ 重试），
+// 同时避免加载真实的 opossum 熔断器与 metrics 注册副作用。
+const engineClientMocks = vi.hoisted(() => ({
+  EngineUnavailableError: class EngineUnavailableError extends Error {
+    readonly retryAfterSeconds: number;
+    readonly code = 'ENGINE_UNAVAILABLE';
+    constructor(endpoint: string, retryAfterSeconds = 30) {
+      super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
+      this.name = 'EngineUnavailableError';
+      this.retryAfterSeconds = retryAfterSeconds;
+    }
+  },
+}));
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  EngineUnavailableError: engineClientMocks.EngineUnavailableError,
+  callEngineStrict: vi.fn(),
+}));
+
 vi.mock('../../../packages/backend/src/queues/jobIdempotency.js', () => ({
   tryClaimJobProcessing: vi.fn().mockResolvedValue('claimed'),
   getProcessedJobResult: vi.fn().mockResolvedValue(null),
@@ -251,6 +269,32 @@ describe('processBacktestJob - 任务分发', () => {
 
       expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
       expect(markJobProcessed).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Go 引擎不可用 fail-closed（ADR-031）', () => {
+    it('EngineUnavailableError 时应释放 claim 并重抛以触发 BullMQ 重试，不返回 failed', async () => {
+      const err = new engineClientMocks.EngineUnavailableError('/api/engine/backtest');
+      vi.mocked(executeOptimization).mockRejectedValueOnce(err);
+
+      const job = makeJob({ type: 'optimizer', payload: {} });
+      await expect(processBacktestJob(job)).rejects.toBe(err);
+
+      // 释放 claim 使重试可重新获取处理权
+      expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
+      // 不应标记为已处理（未产生结果）
+      expect(markJobProcessed).not.toHaveBeenCalled();
+    });
+
+    it('普通 Error 不应重抛，应返回 failed（区别于引擎不可用）', async () => {
+      vi.mocked(executeOptimization).mockRejectedValueOnce(new Error('参数错误'));
+
+      const job = makeJob({ type: 'optimizer', payload: {} });
+      const result = await processBacktestJob(job);
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toBe('参数错误');
+      expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
     });
   });
 

@@ -173,7 +173,7 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('TQQQ');
+    expect(body.error.detail).toContain('TQQQ');
   });
 
   it('基准价格数据缺失时应返回 400', async () => {
@@ -190,7 +190,7 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('QQQ');
+    expect(body.error.detail).toContain('QQQ');
   });
 
   it('analyzeLetfSlippage 抛错时应返回 500', async () => {
@@ -206,6 +206,6 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.detail).toBe('letf engine error');
+    expect(body.error.detail).toBe('letf engine error');
   });
 });

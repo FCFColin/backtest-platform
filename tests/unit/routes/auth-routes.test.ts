@@ -147,7 +147,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.code).toBe('INVALID_API_KEY');
+      expect(body.error.code).toBe('INVALID_API_KEY');
     });
 
     it('超长 API Key（>128 字符）应返回 401', async () => {
@@ -219,7 +219,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.code).toBe('INVALID_CREDENTIALS');
+      expect(body.error.code).toBe('INVALID_CREDENTIALS');
     });
 
     it('不存在的用户应返回 401（相同错误码防枚举）', async () => {
@@ -233,7 +233,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.code).toBe('INVALID_CREDENTIALS');
+      expect(body.error.code).toBe('INVALID_CREDENTIALS');
     });
 
     it('缺失用户名应返回 400（zod 校验失败）', async () => {
@@ -310,7 +310,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.code).toBe('INVALID_REFRESH_TOKEN');
+      expect(body.error.code).toBe('INVALID_REFRESH_TOKEN');
     });
 
     it('已撤销的 refresh token 应返回 401', async () => {
@@ -333,7 +333,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(422);
-      expect(body.code).toBe('MISSING_REFRESH_TOKEN');
+      expect(body.error.code).toBe('MISSING_REFRESH_TOKEN');
     });
   });
 
@@ -375,7 +375,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(401);
-      expect(body.code).toBe('UNAUTHORIZED');
+      expect(body.error.code).toBe('UNAUTHORIZED');
     });
   });
 
@@ -430,7 +430,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(429);
-      expect(body.code).toBe('ACCOUNT_LOCKED');
+      expect(body.error.code).toBe('ACCOUNT_LOCKED');
       expect(mocks.userService.verifyUser).not.toHaveBeenCalled();
     });
   });
@@ -611,7 +611,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(403);
-      expect(body.code).toBe('NOT_A_MEMBER');
+      expect(body.error.code).toBe('NOT_A_MEMBER');
     });
 
     it('组织非 active 应返回 403 ORG_INACTIVE', async () => {
@@ -633,7 +633,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(403);
-      expect(body.code).toBe('ORG_INACTIVE');
+      expect(body.error.code).toBe('ORG_INACTIVE');
     });
 
     it('缺少 orgId 应返回 422', async () => {
@@ -646,7 +646,7 @@ describe('authRoutes - 认证路由', () => {
       const body = await res.json();
 
       expect(res.status).toBe(422);
-      expect(body.code).toBe('MISSING_ORG_ID');
+      expect(body.error.code).toBe('MISSING_ORG_ID');
     });
 
     it('未认证应返回 401', async () => {

@@ -13,8 +13,17 @@ const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
 }));
 
-const portfolioMocks = vi.hoisted(() => ({
-  runPortfolioBacktest: vi.fn(),
+const engineClientMocks = vi.hoisted(() => ({
+  callEngineStrict: vi.fn(),
+  EngineUnavailableError: class EngineUnavailableError extends Error {
+    readonly retryAfterSeconds: number;
+    readonly code = 'ENGINE_UNAVAILABLE';
+    constructor(endpoint: string, retryAfterSeconds = 30) {
+      super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
+      this.name = 'EngineUnavailableError';
+      this.retryAfterSeconds = retryAfterSeconds;
+    }
+  },
 }));
 
 const queueMocks = vi.hoisted(() => ({
@@ -48,8 +57,9 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
-  runPortfolioBacktest: portfolioMocks.runPortfolioBacktest,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineClientMocks.callEngineStrict,
+  EngineUnavailableError: engineClientMocks.EngineUnavailableError,
 }));
 
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
@@ -122,7 +132,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'opt-job-456' });
     dataServiceMocks.fetchHistoryData.mockResolvedValue(createMockPriceData());
-    portfolioMocks.runPortfolioBacktest.mockReturnValue(createMockBacktestResult());
+    engineClientMocks.callEngineStrict.mockResolvedValue(createMockBacktestResult());
     server = await startExpressApp((app) =>
       app.use('/api/backtest-optimizer', backtestOptimizerRoutes),
     );
@@ -132,7 +142,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     await server.close();
   });
 
-  it('异步提交成功时应返回 202 和 jobId', async () => {
+  it('异步提交成功时应返回 202 和标准成功形状 {success, data:{jobId, statusUrl}}', async () => {
     const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -141,9 +151,9 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const body = await res.json();
 
     expect(res.status).toBe(202);
-    expect(body.status).toBe(202);
-    expect(body.jobId).toBe('opt-job-456');
-    expect(body.statusUrl).toContain('/api/v1/jobs/opt-job-456');
+    expect(body.success).toBe(true);
+    expect(body.data.jobId).toBe('opt-job-456');
+    expect(body.data.statusUrl).toContain('/api/v1/jobs/opt-job-456');
     expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
 
@@ -162,7 +172,10 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     expect(body.data.results).toBeDefined();
     expect(body.data.best).toBeDefined();
     expect(body.data.totalCombinations).toBeGreaterThan(0);
-    expect(portfolioMocks.runPortfolioBacktest).toHaveBeenCalled();
+    expect(engineClientMocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/backtest',
+      expect.objectContaining({ portfolios: expect.any(Array) }),
+    );
   });
 
   it('同步回退时无效标的应返回 400', async () => {
@@ -178,7 +191,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
 
     // T-18：错误统一为 RFC 7807 problem+json（detail 字段携带错误详情，无 success 字段）。
     expect(res.status).toBe(400);
-    expect(body.detail).toContain('SPY');
+    expect(body.error.detail).toContain('SPY');
   });
 
   it('缺少 portfolio 应返回 400（zod 校验失败）', async () => {
@@ -247,11 +260,9 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     expect(res.status).toBe(400);
   });
 
-  it('同步回退时 runPortfolioBacktest 抛错应返回 500', async () => {
+  it('同步回退时 callEngineStrict 抛错应返回 500', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    portfolioMocks.runPortfolioBacktest.mockImplementation(() => {
-      throw new Error('backtest engine error');
-    });
+    engineClientMocks.callEngineStrict.mockRejectedValue(new Error('backtest engine error'));
 
     const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
       method: 'POST',
@@ -264,7 +275,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
 
   it('同步回退时应按 objective 排序结果', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    portfolioMocks.runPortfolioBacktest.mockReturnValue({
+    engineClientMocks.callEngineStrict.mockResolvedValue({
       portfolios: [
         {
           statistics: {
@@ -294,6 +305,31 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     expect(body.data.best.growthCurve).toBeDefined();
   });
 
+  it('Go 引擎不可用时同步回退应返回 503 + Retry-After + degraded（fail-closed，不回退 Node）', async () => {
+    queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
+    engineClientMocks.callEngineStrict.mockRejectedValue(
+      new engineClientMocks.EngineUnavailableError('/api/engine/backtest'),
+    );
+
+    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createValidRequest()),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get('retry-after')).toBe('30');
+    expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
+    expect(body.degraded).toBe(true);
+    expect(body.degradedWarning).toBeDefined();
+    // 仅尝试调用 Go 引擎，未回退 Node 的 runPortfolioBacktest
+    expect(engineClientMocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/backtest',
+      expect.objectContaining({ portfolios: expect.any(Array) }),
+    );
+  });
+
   it('同步回退超时应返回 503', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
     timeoutMocks.withTimeout.mockRejectedValueOnce(new timeoutMocks.TimeoutError('计算超时'));
@@ -306,7 +342,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const body = await res.json();
 
     expect(res.status).toBe(503);
-    expect(body.detail).toContain('超时');
+    expect(body.error.detail).toContain('超时');
   });
 });
 

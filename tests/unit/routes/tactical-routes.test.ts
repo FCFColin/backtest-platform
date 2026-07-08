@@ -187,7 +187,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('SPY');
+    expect(body.error.detail).toContain('SPY');
   });
 
   it('缺少 strategy 应返回 400（zod 校验失败）', async () => {
@@ -406,7 +406,7 @@ describe('tacticalRoutes - POST /api/tactical/alerts', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('邮箱');
+    expect(body.error.detail).toContain('邮箱');
   });
 
   it('禁用告警时无需邮箱应保存成功', async () => {

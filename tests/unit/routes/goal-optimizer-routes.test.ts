@@ -143,7 +143,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('未找到价格数据');
+    expect(body.error.detail).toContain('未找到价格数据');
     expect(engineMocks.optimizeGoals).not.toHaveBeenCalled();
   });
 
@@ -160,7 +160,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('SPY');
+    expect(body.error.detail).toContain('SPY');
   });
 
   it('引擎返回 successProbability=0 且空曲线时应返回 400', async () => {
@@ -177,7 +177,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('历史价格数据不足');
+    expect(body.error.detail).toContain('历史价格数据不足');
   });
 
   it('optimizeGoals 抛错时应返回 500', async () => {
@@ -193,7 +193,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.detail).toBe('engine boom');
+    expect(body.error.detail).toBe('engine boom');
   });
 
   it('空白 ticker 应触发有效标的校验失败', async () => {
@@ -208,7 +208,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('至少添加一个有效标的');
+    expect(body.error.detail).toContain('至少添加一个有效标的');
   });
 
   it('引擎抛非 Error 值时应返回 500', async () => {
@@ -224,7 +224,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.detail).toBe('string error');
+    expect(body.error.detail).toBe('string error');
   });
 
   it('引擎抛空消息 Error 时应返回默认错误信息', async () => {
@@ -240,6 +240,6 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.detail).toBe('目标优化失败');
+    expect(body.error.detail).toBe('目标优化失败');
   });
 });

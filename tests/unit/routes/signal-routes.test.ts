@@ -147,7 +147,7 @@ describe('signalRoutes - POST /api/signal/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.detail).toContain('SPY');
+    expect(body.error.detail).toContain('SPY');
   });
 
   it('analyzeSignal 抛错时应返回 500', async () => {
@@ -163,7 +163,7 @@ describe('signalRoutes - POST /api/signal/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.detail).toBe('信号分析失败');
+    expect(body.error.detail).toBe('信号分析失败');
   });
 
   it('analyzeSignal 抛非 Error 值时应返回 500', async () => {

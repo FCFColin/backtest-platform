@@ -222,9 +222,9 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.status).toBe(404);
-    expect(body.title).toBe('Not Found');
-    expect(body.detail).toContain('not found');
+    expect(body.error.status).toBe(404);
+    expect(body.error.title).toBe('Not Found');
+    expect(body.error.detail).toContain('not found');
   });
 
   it('getJob 抛错时应返回 500', async () => {
@@ -234,8 +234,8 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.status).toBe(500);
-    expect(body.detail).toBe('Failed to fetch job status');
+    expect(body.error.status).toBe(500);
+    expect(body.error.detail).toBe('Failed to fetch job status');
   });
 
   it('任务处于 active 状态时不应包含 result 或 error', async () => {

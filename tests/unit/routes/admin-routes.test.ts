@@ -152,7 +152,7 @@ describe('adminRoutes - GET /api/admin/stats', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.code).toBe('ADMIN_STATS_ERROR');
+    expect(body.error.code).toBe('ADMIN_STATS_ERROR');
   });
 });
 
@@ -202,6 +202,6 @@ describe('adminRoutes - GET /api/admin/system', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.code).toBe('ADMIN_SYSTEM_ERROR');
+    expect(body.error.code).toBe('ADMIN_SYSTEM_ERROR');
   });
 });

@@ -386,7 +386,12 @@ describe('jwtAuth 会话撤销与账户停用', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'INVALID_TOKEN' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({ code: 'INVALID_TOKEN' }),
+      }),
+    );
   });
 
   it('已停用用户 jwtAuth 应返回 ACCOUNT_DISABLED', async () => {
@@ -403,7 +408,12 @@ describe('jwtAuth 会话撤销与账户停用', () => {
 
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'ACCOUNT_DISABLED' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success: false,
+        error: expect.objectContaining({ code: 'ACCOUNT_DISABLED' }),
+      }),
+    );
   });
 });
 

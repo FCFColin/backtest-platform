@@ -50,7 +50,7 @@ describe('errorHandler', () => {
       expect.objectContaining({
         success: false,
         error: expect.objectContaining({
-          type: 'https://backtest.platform/errors/internal-error',
+          type: 'https://backtest.platform/errors/INTERNAL_ERROR',
           title: 'Internal Server Error',
           status: 500,
           code: 'INTERNAL_ERROR',
@@ -71,6 +71,7 @@ describe('errorHandler', () => {
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
+        success: false,
         error: expect.objectContaining({
           detail: 'An internal server error occurred',
         }),
@@ -86,15 +87,13 @@ describe('errorHandler', () => {
     errorHandler(new Error('err'), req, res, next);
 
     const callArgs = (res.json as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0];
-    expect(callArgs).toMatchObject({
-      success: false,
-      error: {
-        type: expect.stringContaining('https://'),
-        title: expect.any(String),
-        status: 500,
-        code: expect.any(String),
-        detail: expect.any(String),
-      },
+    expect(callArgs.success).toBe(false);
+    expect(callArgs.error).toMatchObject({
+      type: expect.stringContaining('https://'),
+      title: expect.any(String),
+      status: 500,
+      code: expect.any(String),
+      detail: expect.any(String),
     });
   });
 
@@ -147,13 +146,13 @@ describe('notFoundHandler', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,
-        error: {
-          type: 'https://backtest.platform/errors/not-found',
+        error: expect.objectContaining({
+          type: 'https://backtest.platform/errors/NOT_FOUND',
           title: 'Not Found',
           status: 404,
           code: 'NOT_FOUND',
           detail: 'The requested GET resource was not found',
-        },
+        }),
       }),
     );
   });

@@ -431,8 +431,8 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
 
     expect(res.status).toBe(500);
     const json = await res.json();
-    expect(json.status).toBe(500);
-    expect(json.code).toBe('BACKTEST_ERROR');
+    expect(json.error.status).toBe(500);
+    expect(json.error.code).toBe('BACKTEST_ERROR');
     // 应记录错误日志
     expect(loggerMocks.error).toHaveBeenCalled();
   });
@@ -450,7 +450,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
 
     expect(res.status).toBe(422);
     const json = await res.json();
-    expect(json.code).toBe('VALIDATION_ERROR');
+    expect(json.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('存在警告时应包含 warnings 字段', async () => {
@@ -483,7 +483,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     });
     expect(res.status).toBe(503);
     const json = await res.json();
-    expect(json.code).toBe('BACKTEST_TIMEOUT');
+    expect(json.error.code).toBe('BACKTEST_TIMEOUT');
   });
 
   it('价格数据缺失（无效 ticker）时应返回 success: false', async () => {
@@ -498,7 +498,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
 
     const json = await res.json();
     expect(res.status).toBe(422);
-    expect(json.code).toBe('INVALID_TICKERS');
+    expect(json.error.code).toBe('INVALID_TICKERS');
     expect(appServiceMocks.runBacktest).not.toHaveBeenCalled();
   });
 
@@ -514,7 +514,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
-    expect(json.code).toBe('ENGINE_UNAVAILABLE');
+    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
     // fail-closed response includes degraded: true to inform client (ADR-031)
     expect(json.degraded).toBe(true);
   });
@@ -676,7 +676,7 @@ describe('backtestRoutes - POST /api/backtest/analysis', () => {
 
     expect(res.status).toBe(500);
     const json = await res.json();
-    expect(json.code).toBe('ANALYSIS_ERROR');
+    expect(json.error.code).toBe('ANALYSIS_ERROR');
     expect(loggerMocks.error).toHaveBeenCalled();
   });
 
@@ -703,8 +703,11 @@ describe('backtestRoutes - POST /api/backtest/analysis', () => {
 
   it('引擎返回 assets 字段时应映射为 tickers', async () => {
     engineClientMocks.callEngineStrict.mockResolvedValue({
-      assets: [{ ticker: 'AAPL', cagr: 0.1 }],
-      correlations: [[1]],
+      success: true,
+      data: {
+        assets: [{ ticker: 'AAPL', cagr: 0.1 }],
+        correlations: [[1]],
+      },
     });
 
     const res = await fetch(`${server.url}/api/backtest/analysis`, {
@@ -737,7 +740,7 @@ describe('backtestRoutes - POST /api/backtest/analysis', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
-    expect(json.code).toBe('ENGINE_UNAVAILABLE');
+    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
   });
 });
 
@@ -847,7 +850,7 @@ describe('backtestRoutes - POST /api/backtest/monte-carlo', () => {
     });
 
     expect(res.status).toBe(500);
-    expect((await res.json()).code).toBe('MONTE_CARLO_ERROR');
+    expect((await res.json()).error.code).toBe('MONTE_CARLO_ERROR');
   });
 
   it('引擎不可用应 fail-closed 返回 503', async () => {
@@ -865,7 +868,7 @@ describe('backtestRoutes - POST /api/backtest/monte-carlo', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
-    expect(json.code).toBe('ENGINE_UNAVAILABLE');
+    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
   });
 });
 
@@ -948,7 +951,7 @@ describe('backtestRoutes - POST /api/backtest/optimize', () => {
     });
 
     expect(res.status).toBe(500);
-    expect((await res.json()).code).toBe('OPTIMIZATION_ERROR');
+    expect((await res.json()).error.code).toBe('OPTIMIZATION_ERROR');
   });
 
   it('numIterations 应被正确上限截断', async () => {
@@ -986,7 +989,7 @@ describe('backtestRoutes - POST /api/backtest/optimize', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
-    expect(json.code).toBe('ENGINE_UNAVAILABLE');
+    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
   });
 });
 
@@ -1067,7 +1070,7 @@ describe('backtestRoutes - POST /api/backtest/efficient-frontier', () => {
     });
 
     expect(res.status).toBe(500);
-    expect((await res.json()).code).toBe('EFFICIENT_FRONTIER_ERROR');
+    expect((await res.json()).error.code).toBe('EFFICIENT_FRONTIER_ERROR');
   });
 
   it('引擎不可用应 fail-closed 返回 503', async () => {
@@ -1085,6 +1088,6 @@ describe('backtestRoutes - POST /api/backtest/efficient-frontier', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
-    expect(json.code).toBe('ENGINE_UNAVAILABLE');
+    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
   });
 });

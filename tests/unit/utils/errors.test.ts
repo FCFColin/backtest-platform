@@ -39,11 +39,14 @@ describe('sendProblem', () => {
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://backtest.platform/errors/NOT_FOUND',
-        title: '资源不存在',
-        status: 404,
-        code: 'NOT_FOUND',
-        detail: '详情说明',
+        success: false,
+        error: expect.objectContaining({
+          type: 'https://backtest.platform/errors/NOT_FOUND',
+          title: '资源不存在',
+          status: 404,
+          code: 'NOT_FOUND',
+          detail: '详情说明',
+        }),
       }),
     );
   });
@@ -54,7 +57,10 @@ describe('sendProblem', () => {
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        instance: '/api/backtest/portfolio',
+        success: false,
+        error: expect.objectContaining({
+          instance: '/api/backtest/portfolio',
+        }),
       }),
     );
   });
@@ -65,7 +71,10 @@ describe('sendProblem', () => {
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        instance: undefined,
+        success: false,
+        error: expect.objectContaining({
+          instance: undefined,
+        }),
       }),
     );
   });
@@ -76,7 +85,10 @@ describe('sendProblem', () => {
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        detail: undefined,
+        success: false,
+        error: expect.objectContaining({
+          detail: undefined,
+        }),
       }),
     );
   });
@@ -87,8 +99,11 @@ describe('sendProblem', () => {
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://backtest.platform/errors/UNAUTHORIZED',
-        code: 'UNAUTHORIZED',
+        success: false,
+        error: expect.objectContaining({
+          type: 'https://backtest.platform/errors/UNAUTHORIZED',
+          code: 'UNAUTHORIZED',
+        }),
       }),
     );
   });
@@ -100,8 +115,11 @@ describe('sendProblem', () => {
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 503,
-        code: 'SERVICE_UNAVAILABLE',
+        success: false,
+        error: expect.objectContaining({
+          status: 503,
+          code: 'SERVICE_UNAVAILABLE',
+        }),
       }),
     );
   });

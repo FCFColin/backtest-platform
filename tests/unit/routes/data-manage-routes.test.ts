@@ -125,7 +125,6 @@ describe('dataManageRoutes - GET /status', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.success).toBe(false);
     expect(body.error.code).toBe('STATUS_ERROR');
   });
 });
@@ -176,7 +175,6 @@ describe('dataManageRoutes - GET /stats', () => {
     const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.success).toBe(false);
     expect(body.error.code).toBe('STATS_ERROR');
   });
 });

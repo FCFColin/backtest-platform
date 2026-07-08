@@ -155,7 +155,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
 
     // T-18：错误统一为 RFC 7807 problem+json（detail 携带详情，无 success 字段）。
     expect(res.status).toBe(400);
-    expect(body.detail).toContain('SPY');
+    expect(body.error.detail).toContain('SPY');
   });
 
   it('参数组合超过上限应返回 400', async () => {
@@ -171,7 +171,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.detail).toContain('参数组合过多');
+    expect(body.error.detail).toContain('参数组合过多');
     expect(queueMocks.add).not.toHaveBeenCalled();
   });
 

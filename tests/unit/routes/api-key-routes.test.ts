@@ -123,7 +123,7 @@ describe('apiKeyRoutes', () => {
     });
     const body = await res.json();
     expect(res.status).toBe(500);
-    expect(body.code).toBe('API_KEY_CREATE_FAILED');
+    expect(body.error.code).toBe('API_KEY_CREATE_FAILED');
   });
 
   it('GET / 服务端错误应返回 500', async () => {
@@ -131,7 +131,7 @@ describe('apiKeyRoutes', () => {
     const res = await fetch(`${server.url}/api/v1/keys`);
     const body = await res.json();
     expect(res.status).toBe(500);
-    expect(body.code).toBe('API_KEY_LIST_FAILED');
+    expect(body.error.code).toBe('API_KEY_LIST_FAILED');
   });
 
   it('DELETE /:id 服务端错误应返回 500', async () => {
@@ -139,6 +139,6 @@ describe('apiKeyRoutes', () => {
     const res = await fetch(`${server.url}/api/v1/keys/${KEY_ID}`, { method: 'DELETE' });
     const body = await res.json();
     expect(res.status).toBe(500);
-    expect(body.code).toBe('API_KEY_REVOKE_FAILED');
+    expect(body.error.code).toBe('API_KEY_REVOKE_FAILED');
   });
 });

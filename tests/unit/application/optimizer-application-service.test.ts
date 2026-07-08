@@ -3,13 +3,23 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
-  runPortfolioBacktest: vi.fn(),
+  callEngineStrict: vi.fn(),
+  EngineUnavailableError: class EngineUnavailableError extends Error {
+    readonly retryAfterSeconds: number;
+    readonly code = 'ENGINE_UNAVAILABLE';
+    constructor(endpoint: string, retryAfterSeconds = 30) {
+      super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
+      this.name = 'EngineUnavailableError';
+      this.retryAfterSeconds = retryAfterSeconds;
+    }
+  },
   fetchHistoryData: vi.fn(),
   numericRange: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
-  runPortfolioBacktest: mocks.runPortfolioBacktest,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: mocks.callEngineStrict,
+  EngineUnavailableError: mocks.EngineUnavailableError,
 }));
 
 vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
@@ -96,8 +106,8 @@ describe('executeOptimization', () => {
   it('returns success on valid optimization', async () => {
     mocks.numericRange.mockReturnValue([10000]);
     mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
-    mocks.runPortfolioBacktest
-      .mockReturnValueOnce({
+    mocks.callEngineStrict
+      .mockResolvedValueOnce({
         portfolios: [
           {
             statistics: {
@@ -121,7 +131,7 @@ describe('executeOptimization', () => {
           },
         ],
       })
-      .mockReturnValueOnce({
+      .mockResolvedValueOnce({
         portfolios: [{ growthCurve: [{ date: '2020-01-01', value: 10000 }] }],
       });
 
@@ -133,14 +143,18 @@ describe('executeOptimization', () => {
     expect((data.results as unknown[]).length).toBe(2);
     expect(data.best).toBeDefined();
     expect((data.best as Record<string, unknown>).cagr).toBe(0.12);
-    expect(mocks.runPortfolioBacktest).toHaveBeenCalledTimes(2);
+    expect(mocks.callEngineStrict).toHaveBeenCalledTimes(2);
+    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/backtest',
+      expect.objectContaining({ portfolios: expect.any(Array), priceData: expect.any(Object) }),
+    );
   });
 
   it('returns success with constraints filtering', async () => {
     mocks.numericRange.mockReturnValue([10000]);
     mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
-    mocks.runPortfolioBacktest
-      .mockReturnValueOnce({
+    mocks.callEngineStrict
+      .mockResolvedValueOnce({
         portfolios: [
           {
             statistics: {
@@ -174,7 +188,7 @@ describe('executeOptimization', () => {
           },
         ],
       })
-      .mockReturnValueOnce({
+      .mockResolvedValueOnce({
         portfolios: [{ growthCurve: [{ date: '2020-01-01', value: 10000 }] }],
       });
 
@@ -192,8 +206,8 @@ describe('executeOptimization', () => {
       AAPL: { '2020-01-01': 100 },
       SPY: { '2020-01-01': 300 },
     });
-    mocks.runPortfolioBacktest
-      .mockReturnValueOnce({
+    mocks.callEngineStrict
+      .mockResolvedValueOnce({
         portfolios: [
           {
             statistics: {
@@ -217,7 +231,7 @@ describe('executeOptimization', () => {
           },
         ],
       })
-      .mockReturnValueOnce({
+      .mockResolvedValueOnce({
         portfolios: [{ growthCurve: [{ date: '2020-01-01', value: 10000 }] }],
         benchmarkGrowth: [{ date: '2020-01-01', value: 30000 }],
       });
@@ -232,6 +246,24 @@ describe('executeOptimization', () => {
       expect.arrayContaining(['AAPL', 'SPY']),
       '2020-01-01',
       '2020-12-31',
+    );
+  });
+
+  it('Go 引擎不可用时应抛出 EngineUnavailableError（fail-closed，不回退 Node）', async () => {
+    mocks.numericRange.mockReturnValue([10000]);
+    mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
+    mocks.callEngineStrict.mockRejectedValueOnce(
+      new mocks.EngineUnavailableError('/api/engine/backtest'),
+    );
+
+    await expect(executeOptimization(validBody())).rejects.toBeInstanceOf(
+      mocks.EngineUnavailableError,
+    );
+    // 仅尝试调用 Go 引擎一次，未回退 Node 计算
+    expect(mocks.callEngineStrict).toHaveBeenCalledTimes(1);
+    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/backtest',
+      expect.objectContaining({ portfolios: expect.any(Array) }),
     );
   });
 });

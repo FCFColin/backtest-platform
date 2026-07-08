@@ -141,7 +141,7 @@ describe('dataRoutes - GET /api/data/history', () => {
     expect(body.success).toBe(true);
     expect(body.data.SPY['2020-01-01']).toBe(300.0);
     expect(body.degraded).toBe(true);
-    expect(body.degradedCode).toBe('GO_SERVICE_UNAVAILABLE');
+    expect(body.degradedWarning).toBe('Go 数据服务不可用，已降级到本地数据源');
     expect(dataServiceMocks.fetchHistoryData).toHaveBeenCalledTimes(1);
   });
 
@@ -278,7 +278,7 @@ describe('dataRoutes - GET /api/data/cpi/:country', () => {
     expect(body.success).toBe(true);
     expect(body.data[0].value).toBe(310.5);
     expect(body.degraded).toBe(true);
-    expect(body.degradedCode).toBe('GO_SERVICE_UNAVAILABLE');
+    expect(body.degradedWarning).toBe('Go 数据服务不可用，已降级到 PostgreSQL CPI 数据');
   });
 
   it('Go 服务不可用且 PostgreSQL 无数据时应返回 404', async () => {

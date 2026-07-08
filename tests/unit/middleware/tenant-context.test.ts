@@ -94,6 +94,6 @@ describe('requireTenant', () => {
     requireTenant(req, res, next);
     expect(next).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(400);
-    expect(res.body.code).toBe('NO_ACTIVE_TENANT');
+    expect(res.body.error.code).toBe('NO_ACTIVE_TENANT');
   });
 });

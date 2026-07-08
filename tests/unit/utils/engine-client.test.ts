@@ -133,8 +133,7 @@ describe('isDegradedResponse', () => {
     const degraded: DegradedResponse<string> = {
       data: 'test',
       degraded: true,
-      degradedCode: 'ENGINE_UNAVAILABLE',
-      degradedMessage: 'degraded',
+      degradedWarning: 'degraded',
     };
     expect(isDegradedResponse(degraded)).toBe(true);
   });
@@ -160,16 +159,14 @@ describe('unwrapFallbackResult', () => {
     const degraded: DegradedResponse<string> = {
       data: 'result',
       degraded: true,
-      degradedCode: 'ENGINE_UNAVAILABLE',
-      degradedMessage: 'degraded msg',
+      degradedWarning: 'degraded msg',
     };
 
     const unwrapped = unwrapFallbackResult(degraded);
 
     expect(unwrapped.data).toBe('result');
     expect(unwrapped.degraded).toBe(true);
-    expect(unwrapped.degradedCode).toBe('ENGINE_UNAVAILABLE');
-    expect(unwrapped.degradedMessage).toBe('degraded msg');
+    expect(unwrapped.degradedWarning).toBe('degraded msg');
   });
 
   it('应原样返回非降级响应（degraded=false）', () => {
@@ -179,8 +176,7 @@ describe('unwrapFallbackResult', () => {
 
     expect(unwrapped.data).toEqual({ portfolios: [], cagr: 0.1 });
     expect(unwrapped.degraded).toBe(false);
-    expect(unwrapped.degradedCode).toBeUndefined();
-    expect(unwrapped.degradedMessage).toBeUndefined();
+    expect(unwrapped.degradedWarning).toBeUndefined();
   });
 
   it('应正确处理原始值类型', () => {

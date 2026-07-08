@@ -32,7 +32,7 @@ describe('debugRoutes - GET /api/v1/debug/health', () => {
     const json = await res.json();
 
     expect(res.status).toBe(404);
-    expect(json.code).toBe('NOT_FOUND');
+    expect(json.error.code).toBe('NOT_FOUND');
   });
 
   it('Bearer token 错误时应返回 401', async () => {
@@ -44,7 +44,7 @@ describe('debugRoutes - GET /api/v1/debug/health', () => {
     const json = await res.json();
 
     expect(res.status).toBe(401);
-    expect(json.code).toBe('UNAUTHORIZED');
+    expect(json.error.code).toBe('UNAUTHORIZED');
   });
 
   it('有效 DEBUG_AUTH_TOKEN 时应返回 200', async () => {
@@ -75,6 +75,6 @@ describe('debugRoutes - GET /api/v1/debug/health', () => {
     const json = await res.json();
 
     expect(res.status).toBe(401);
-    expect(json.code).toBe('UNAUTHORIZED');
+    expect(json.error.code).toBe('UNAUTHORIZED');
   });
 });

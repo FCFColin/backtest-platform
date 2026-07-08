@@ -119,7 +119,7 @@ describe('healthRoutes', () => {
 
       expect(res.status).toBe(503);
       expect(res.headers.get('Retry-After')).toBe('30');
-      expect(body.code).toBe('ENGINE_UNAVAILABLE');
+      expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
     });
 
     it('配置 METRICS_AUTH_TOKEN 时未鉴权应返回 401', async () => {
