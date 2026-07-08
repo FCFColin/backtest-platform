@@ -8,8 +8,8 @@ import { Link } from 'react-router-dom';
 import { Play, Plus, X, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
-import { useAsyncAction } from '../hooks/useAsyncAction.js';
-import LoadingButton from '../components/LoadingButton.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import LoadingButton from '../../components/LoadingButton.js';
 
 type DcaFrequency = 'monthly' | 'quarterly';
 

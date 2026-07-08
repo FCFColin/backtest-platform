@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAsyncAction } from '../hooks/useAsyncAction.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
 import type { RebalanceFrequency, PortfolioResult } from '@backtest/shared';
 import type {
   TacticalStrategy,

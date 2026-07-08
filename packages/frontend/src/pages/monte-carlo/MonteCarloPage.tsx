@@ -9,7 +9,7 @@ import { useMonteCarloState } from './monteCarloParamsUtils.js';
 import { MonteCarloResultsPanel } from './MonteCarloResults.js';
 import { PresetsCard, MonteCarloSeoCard } from './MonteCarloPresets.js';
 import { buildPresets } from './monteCarloPresetsUtils.js';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
+import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 
 export default function MonteCarloPage() {
   const { t } = useTranslation();

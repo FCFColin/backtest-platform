@@ -1,5 +1,5 @@
 import { Play, Loader2, Plus, X } from 'lucide-react';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
+import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import type { McState } from './monteCarloParamsUtils.js';
 import type { PortfolioState, PortfolioMode } from './monteCarloTypes.js';
 

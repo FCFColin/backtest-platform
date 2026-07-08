@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
+import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { useOptimizerState } from './OptimizerUtils.js';
 import { OptimizerParams } from './OptimizerParams.js';
 import { OptimizerResults } from './OptimizerResults.js';

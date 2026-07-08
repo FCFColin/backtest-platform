@@ -8,12 +8,12 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Play, Plus, X } from 'lucide-react';
 import type { AssetAnalysisResult } from '@backtest/shared';
-import { useAsyncAction } from '../hooks/useAsyncAction.js';
-import { apiFetch } from '../utils/apiClient.js';
-import LoadingButton from '../components/LoadingButton.js';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
-import { downsample } from '../hooks/useChartInteractions.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { apiFetch } from '../../utils/apiClient.js';
+import LoadingButton from '../../components/LoadingButton.js';
+import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { downsample } from '../../hooks/useChartInteractions.js';
 import {
   OverviewCharts,
   TelltaleChart,
@@ -24,9 +24,9 @@ import {
   RiskReturnChart,
   AnnualReturnsChart,
   MonthlyHeatmap,
-} from '../components/AnalysisCharts.js';
-import { StatsTable } from '../components/AnalysisStats.js';
-import { useAnalysisData } from '../hooks/useAnalysisData.js';
+} from '../../components/AnalysisCharts.js';
+import { StatsTable } from '../../components/AnalysisStats.js';
+import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 
 // ===== Tab 定义 =====
 const TABS = [

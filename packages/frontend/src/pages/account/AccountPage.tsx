@@ -20,7 +20,7 @@ import {
   Folder,
   LogIn,
 } from 'lucide-react';
-import { useTheme } from '../hooks/useTheme.js';
+import { useTheme } from '../../hooks/useTheme.js';
 import { useAuthStore } from '@/store/authStore';
 import { importLocalConfigsOnce } from '@/utils/configApi';
 

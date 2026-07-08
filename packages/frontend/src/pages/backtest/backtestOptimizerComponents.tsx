@@ -10,9 +10,9 @@ import {
   Legend,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
-import { SortableTable } from '../components/SortableTable.js';
+import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { SortableTable } from '../../components/SortableTable.js';
 import {
   FREQ_OPTIONS,
   TABLE_COLUMNS,

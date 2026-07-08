@@ -3,12 +3,12 @@
  * @description 展示底层数据引擎的缓存统计、市场分布、数据质量及覆盖范围等元信息
  * @route /data-engine
  */
-import { useDataEngineState } from '../hooks/useDataEngineState.js';
+import { useDataEngineState } from '../../hooks/useDataEngineState.js';
 import {
   DataEngineDashboard,
   DataEngineLoading,
-} from '../components/dataEngine/DataEngineDashboard.js';
-import { UniverseInfo } from '../components/dataEngine/DataEnginePresets.js';
+} from '../../components/dataEngine/DataEngineDashboard.js';
+import { UniverseInfo } from '../../components/dataEngine/DataEnginePresets.js';
 
 export default function DataEnginePage() {
   const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } =

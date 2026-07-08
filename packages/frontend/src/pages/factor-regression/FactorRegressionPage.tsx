@@ -8,10 +8,10 @@ import { Link } from 'react-router-dom';
 import { Play, Plus, X } from 'lucide-react';
 import { CHART_COLORS } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
-import { useAsyncAction } from '../hooks/useAsyncAction.js';
-import { apiFetch } from '../utils/apiClient.js';
-import { runFFRegression } from '../utils/factorRegression.js';
-import LoadingButton from '../components/LoadingButton.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { apiFetch } from '../../utils/apiClient.js';
+import { runFFRegression } from '../../utils/factorRegression.js';
+import LoadingButton from '../../components/LoadingButton.js';
 import { useToastStore } from '@/store/toastStore';
 
 type ReturnFrequency = 'monthly' | 'daily';

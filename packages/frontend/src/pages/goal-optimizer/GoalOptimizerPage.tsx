@@ -22,10 +22,10 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { GoalOptimizerResult } from '@backtest/shared';
-import { useAsyncAction } from '../hooks/useAsyncAction.js';
-import LoadingButton from '../components/LoadingButton.js';
-import { ToolPageLayout } from '../components/layout/ToolPageLayout.js';
-import { ParamsPanel, ParamsSection } from '../components/ParamsPanel.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import LoadingButton from '../../components/LoadingButton.js';
+import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 
 // ===== 工具函数 =====
 

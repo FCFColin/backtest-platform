@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { RebalanceFrequency } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
-import type { Column } from '../components/SortableTable.js';
+import type { Column } from '../../components/SortableTable.js';
 
 export type Objective = 'maxCagr' | 'minMaxDrawdown' | 'maxSharpe' | 'maxSortino';
 
