@@ -87,11 +87,14 @@ curl http://localhost:5003/api/data/health
 
 ### 关键指标
 
-| 指标              | 获取方式                                                   | 告警阈值    |
-| ----------------- | ---------------------------------------------------------- | ----------- |
-| Go 引擎可用率     | `/api/metrics` → `go_engine_circuit_breaker_state`         | > 0（断开） |
-| Go 引擎调用失败数 | `/api/metrics` → `go_engine_calls_failed_total`            | 持续增长    |
-| 数据引擎扫描耗时  | 后端日志 `[dataManageRoutes] /stats scanTickersStats 耗时` | > 5000ms    |
+| 指标              | 获取方式                                                    | 告警阈值         |
+| ----------------- | ----------------------------------------------------------- | ---------------- |
+| Go 引擎熔断状态   | `/api/metrics` → `circuit_breaker_state{name}`              | == 1（熔断打开） |
+| Go 引擎调用失败数 | `/api/metrics` → `go_engine_calls_total{result="fallback"}` | 持续增长         |
+| 引擎不可用事件    | `/api/metrics` → `fallback_to_node_total{reason}`           | 持续增长         |
+| 数据引擎扫描耗时  | 后端日志 `[dataManageRoutes] /stats scanTickersStats 耗时`  | > 5000ms         |
+
+> 指标名以 `packages/backend/src/utils/metrics.ts` 实际定义为准。`circuit_breaker_state` 为 Gauge（0=closed/1=open/2=halfOpen，label: `name`）；`go_engine_calls_total` 为 Counter（label: `result`，取值 `success`/`fallback`）；`fallback_to_node_total` 为 Counter（label: `reason`，记录 Go 引擎熔断/不可用事件，函数名保留向后兼容，ADR-031 后实际不再降级到 Node.js）。
 
 ## 四、常见故障排查
 

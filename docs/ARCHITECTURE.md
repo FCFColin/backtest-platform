@@ -29,7 +29,6 @@ flowchart TB
 
     subgraph Storage["存储"]
         PG["PostgreSQL (主)<br/>pg / pgx"]
-        JSON["JSON 文件 (备)<br/>data/market/"]
         GO_DATA_FALLBACK["Go 数据服务 (备)<br/>实时获取缺失 ticker"]
     end
 
@@ -40,7 +39,6 @@ flowchart TB
     SERVICES -->|"callGoDataService()"| GO_DATA
     SERVICES -->|"callGoDataService()"| GO_DATA_FALLBACK
     GO_DATA --> PG
-    GO_DATA -.->|"PG 不可用"| JSON
 ```
 
 ---
@@ -161,7 +159,9 @@ flowchart TB
 | `engineService.ts`    | 引擎调用封装                                              |
 | `batchDataService.ts` | 批量数据服务                                              |
 
-> 注：Node/Rust 降级引擎已根据 ADR-031 退役，所有计算仅通过 Go 引擎 (`engine-go`)。此节保留历史参考。`api/engine/` 中保留的 canonical 实现仅用作 eslint-disable 兼容性保留，运行时不会被调用。
+> 注：Rust 引擎 `engine-rs/` 已根据 ADR-031 删除，Go 引擎 (`engine-go`) 是 backtest / 蒙特卡洛 / 优化器 / 有效前沿的**唯一计算引擎**，不可用时返回 503 + Retry-After（fail-closed，无 Node 降级）。
+>
+> **Node-canonical 引擎职责清单**（`packages/backend/src/engine/`）：仅承载以下非核心路径——`tactical` / `tacticalGrid` / `signal` / `goalOptimizer` / `pca` / `letf`。backtest / 蒙特卡洛 / 优化器 / 有效前沿一律走 Go 引擎，无 Node 降级。
 
 ### 6.3 Go 引擎 (`engine-go/`)
 
@@ -225,7 +225,7 @@ data/
 ### 9.2 Go 引擎 fail-closed 策略
 
 - Go 引擎是唯一计算引擎（ADR-008/031），不可用时返回 503 + Retry-After
-- 不再保留备用引擎（Rust 已退役，Node-canonical 仅用于开发验证）
+- 不再保留备用引擎（Rust 已退役；Node-canonical 仅承载 tactical / signal / pca 等非核心路径，见 6.2 节职责清单）
 - 降级时响应中包含 `degraded: true`
 
 ### 9.3 数据存储演进：JSON → SQLite → PostgreSQL
@@ -236,7 +236,7 @@ data/
   - 解除多实例水平扩展阻塞（SQLite 单文件无法跨 Pod 共享）
   - 获得连接池、全文搜索（tsvector + GIN）、流复制等企业级能力
 - `packages/backend/src/db/` 实现版本化 schema 迁移和 JSON→PostgreSQL 导入
-- JSON 文件保留为数据源和降级 fallback（PostgreSQL 不可用时回退）
+- JSON 文件仅用于 `npm run import:tickers` 导入，非运行时降级路径（ADR-031 fail-closed）
 - 迁移决策详见 [ADR-006](adr/ADR-006-SQLite迁移决策.md)、[ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)
 
 ### 9.4 已知局限性
@@ -301,11 +301,11 @@ data/
 
 详见 [ADR-016](adr/ADR-016-熔断器策略.md)。
 
-| 服务         | 熔断器                  | 保护目标                            |
-| ------------ | ----------------------- | ----------------------------------- |
-| Go 引擎      | opossum（Node.js 侧）   | 引擎 fail-closed（Go → 503）        |
-| PostgreSQL   | opossum（Node.js 侧）   | 数据层降级：PG → JSON → Go 数据服务 |
-| BaoStock API | sony/gobreaker（Go 侧） | 数据获取降级                        |
+| 服务         | 熔断器                  | 保护目标                                             |
+| ------------ | ----------------------- | ---------------------------------------------------- |
+| Go 引擎      | opossum（Node.js 侧）   | 引擎 fail-closed（Go → 503）                         |
+| PostgreSQL   | opossum（Node.js 侧）   | 数据层降级：PG → Go 数据服务（缺失 ticker 实时抓取） |
+| BaoStock API | sony/gobreaker（Go 侧） | 数据获取降级                                         |
 
 **熔断器配置**：50% 失败率触发 Open，10s 后 HalfOpen 探测。PostgreSQL 熔断器替代原有 `dbAvailable` 布尔标记，提供自动恢复能力。
 

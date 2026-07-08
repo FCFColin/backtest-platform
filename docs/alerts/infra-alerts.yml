@@ -1,0 +1,82 @@
+# 基础设施告警规则（Prometheus Alertmanager）
+#
+# 指标来源说明：
+#   - 规则 1-4 的指标定义于 packages/backend/src/utils/metrics.ts（应用层 prom-client 暴露）
+#   - 规则 5 (redis_up) 由 redis_exporter 提供（基础设施层，非应用 metrics.ts 职责）
+#     metrics.ts 不暴露 Redis 服务健康指标；Redis 可用性属于基础设施监控范畴，
+#     由独立的 redis_exporter 采集，符合 Prometheus 生态职责分离约定。
+#
+# 验证基准：metrics.ts 实际指标名清单
+#   circuit_breaker_state{name}            (Gauge, 0=closed/1=open/2=halfOpen)
+#   degraded_responses_total{endpoint,reason} (Counter)
+#   pg_pool_waiting_count{pool}            (Gauge)
+#   node_eventloop_lag_seconds             (Gauge, P99 事件循环延迟)
+#   go_engine_calls_total{result}          (Counter, success|fallback)
+#   fallback_to_node_total{reason}         (Counter, 引擎不可用事件)
+#   backtest_requests_total{endpoint,mode,status}
+#   pg_pool_total_connections{pool}
+#   data_service_semaphore_permits_available{name}
+#   data_service_semaphore_permits_total{name}
+#   http_requests_total{method,route,status_code}
+#   http_request_duration_seconds{method,route,status_code}
+
+groups:
+  - name: infra-alerts
+    interval: 30s
+    rules:
+      # 1. 熔断器打开（circuit_breaker_state==1 持续 1m）
+      #    对应 metrics.ts: circuitBreakerState (Gauge, label: name)
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: '熔断器 {{ $labels.name }} 处于 Open 状态'
+          description: '熔断器 {{ $labels.name }} 已打开超过 1 分钟，相关依赖（Go 引擎 / PostgreSQL）调用快速失败。state=1=open（0=closed, 2=halfOpen）。依据 ADR-016 熔断器策略，需立即排查后端依赖健康。'
+
+      # 2. 降级响应率过高（degraded_responses_total rate[5m] > 0.05）
+      #    对应 metrics.ts: degradedResponsesTotal (Counter, labels: endpoint,reason)
+      - alert: DegradedResponseRateHigh
+        expr: sum(rate(degraded_responses_total[5m])) by (endpoint) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: '端点 {{ $labels.endpoint }} 降级响应率过高'
+          description: '端点 {{ $labels.endpoint }} 的降级响应速率（5 分钟窗口）超过 0.05 req/s，表明引擎/数据路径异常但仍在兜底响应。按 reason 标签拆分定位：sum(rate(degraded_responses_total[5m])) by (endpoint, reason)。这是容量或依赖故障的早期信号，需在业务层告警而非仅看 5xx。'
+
+      # 3. PostgreSQL 连接池等待（pg_pool_waiting_count > 0 持续 5m）
+      #    对应 metrics.ts: pgPoolWaitingCount (Gauge, label: pool)
+      - alert: PgPoolWaiting
+        expr: pg_pool_waiting_count > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'PostgreSQL 连接池 {{ $labels.pool }} 存在等待请求'
+          description: '连接池 {{ $labels.pool }} 的等待队列长度 > 0 已持续 5 分钟，连接池接近饱和。100x 流量下 waitingCount 先于 CPU 饱和，是 DB 瓶颈 leading indicator。排查：慢查询（pg_stat_activity）、DB_POOL_MAX 配置、是否需 PgBouncer 或读副本。'
+
+      # 4. 事件循环延迟（node_eventloop_lag_seconds > 0.1 持续 1m）
+      #    对应 metrics.ts: eventLoopLagSeconds (Gauge, P99 每 10s 采样)
+      - alert: NodeEventLoopLagHigh
+        expr: node_eventloop_lag_seconds > 0.1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'Node.js 事件循环延迟过高'
+          description: '事件循环 P99 延迟 > 100ms 已持续 1 分钟，请求处理被阻塞。Node.js 单线程模型下事件循环阻塞是性能杀手，延迟先于 CPU/内存饱和。排查：同步阻塞操作、长循环、过大的 JSON 序列化、GC 压力。'
+
+      # 5. Redis 不可用（redis_up == 0 持续 1m）
+      #    指标来源：redis_exporter（基础设施层，非 metrics.ts）
+      #    metrics.ts 不暴露 Redis 服务健康指标，Redis 可用性由 redis_exporter 采集。
+      #    若部署环境未部署 redis_exporter，此规则不会触发（无数据），需先确保 exporter 就位。
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Redis 不可用'
+          description: 'redis_exporter 探测到 Redis 实例 {{ $labels.instance }} 不可用已持续 1 分钟。Redis 用于会话/Refresh Token/限流/幂等缓存（ADR-018），不可用时 Auth 模块降级到内存（仅单实例一致），多实例会话不一致。排查：Redis 进程、网络、Sentinel/Cluster 状态。'

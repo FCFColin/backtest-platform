@@ -31,7 +31,7 @@ npm run test:unit    # Unit tests only
 - **4 services, 2 languages (TS/Go)**: Frontend → Express API → Go engine + Go data service
 - **Degradation**: Engine: Go → fail-closed 503 (ADR-031); Data: PostgreSQL → Go data-fetcher (missing tickers only). JSON files are import-only (`npm run import:tickers`), not runtime fallback.
 - Full topology: `docs/ARCHITECTURE.md`
-- All ADRs: `docs/adr/` (18 records covering all significant decisions)
+- All ADRs: `docs/adr/` (42 records covering all significant decisions)
 
 ## Conventions
 
@@ -85,14 +85,20 @@ npm run test:unit    # Unit tests only
 | ADR-016 | Circuit breakers via opossum (Node) + gobreaker (Go)   |
 | ADR-017 | JWT + RBAC (3 roles × 7 permissions), x-api-key compat |
 | ADR-018 | Redis for distributed session/rate-limit/cache         |
+| ADR-019 | Job ownership + async task privilege guard             |
+| ADR-031 | Single Go engine fail-closed (no Node/Rust fallback)   |
+| ADR-032 | Multi-tenant RLS isolation                             |
+| ADR-033 | Per-org API keys (hashed + revocable)                  |
+| ADR-036 | Stripe billing integration                             |
+| ADR-042 | API packages consolidation                             |
 
 ## Known Gotchas
 
 1. **Go data service semaphore=10**: `dataService.ts` `goServiceSemaphore` limits concurrent Go HTTP calls (default 10). Python data CLI (`api/python/`) is retired; admin bulk-ingest endpoints return 501.
 2. **Single Go engine + fail-closed**: Go engine is the only backtest/MC/optimizer engine (Rust `engine-rs/` deleted). When unavailable, engine-canonical compute returns 503 + Retry-After (ADR-031); never silently Node-computed.
-3. **x-api-key compat risk**: Static API keys (analyst role) cannot be revoked if leaked.
+3. **x-api-key compat risk**: ADR-033 已支持按组织 API 密钥（哈希存储、可吊销、可审计，泄露爆炸半径收敛到单组织）。仅 `ADMIN_API_KEY` 作为平台 break-glass 静态凭证不可吊销，须严格保管并尽量少用。
 4. **Redis dependency**: Auth module uses Redis for Refresh Tokens. Redis failure degrades to in-memory (single-instance only, multi-instance session inconsistent).
-5. **CORS_ORIGINS=true in production**: Logs a warning but allows all origins. Configure CORS_ORIGINS whitelist for production.
+5. **CORS_ORIGINS=true in production**: 生产环境 hard-fail（拒绝启动），仅在开发环境降级为 warning + 允许所有源。生产部署必须配置 `CORS_ORIGINS` 白名单（逗号分隔），否则启动失败。
 6. **RFC 7807 error format**: All API errors use `{ success: false, error: { type, title, status, code, detail } }`. Breaking change from legacy `{ code, message }`.
 7. **API versioning**: All routes mounted at `/api/v1/`. Legacy `/api/` paths have `Deprecation` + `Sunset` headers for 6-month transition.
 8. **Degraded mode**: When engine/data falls back, response includes `degraded: true` + `degradedWarning`. Frontend must display this to users.
