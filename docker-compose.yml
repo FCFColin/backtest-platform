@@ -39,7 +39,7 @@ services:
   # 企业理由：Refresh Token、限流计数、幂等键、BullMQ 队列均依赖 Redis。
   # 此前 docker-compose 缺失 Redis，导致本地无法完整复现生产拓扑（弹性/混沌测试缺口）。
   redis:
-    image: redis:7-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    image: redis:7-alpine
     container_name: backtest-redis
     ports:
       - '127.0.0.1:6379:6379'
