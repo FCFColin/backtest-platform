@@ -22,6 +22,10 @@ dist-ssr
 *.pfx
 secrets/
 
+# 包管理器 lock 文件（使用 pnpm，非 npm）
+package-lock.json
+yarn.lock
+
 # 构建产物
 coverage/
 .nyc_output/
@@ -98,3 +102,6 @@ exports-types.txt
 .opencode/
 .superpowers/
 .dev-logs/
+
+# 已归档的文档
+docs/inspections/archive/
