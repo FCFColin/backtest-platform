@@ -40,3 +40,6 @@ simple-check.txt
 
 # Git
 .git/
+
+# Knip deadcode analysis artifacts (tool-generated baselines and config)
+knip*.json

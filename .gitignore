@@ -70,6 +70,16 @@ server.err
 /parse-eslint.mjs
 /parse-lint.mjs
 /parse-pages.mjs
+coverage-output.txt
+
+# Knip 死代码分析输出
+knip*.json
+knip*.txt
+
+# 测试运行产物
+test-output.txt
+test-result*.json
+exports-types.txt
 
 # Editor directories and files
 .vscode/*
