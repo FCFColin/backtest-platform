@@ -3,7 +3,7 @@ packages:
 allowBuilds:
   argon2: true
   cpu-features: set this to true or false
-  esbuild: set this to true or false
+  esbuild: true
   msgpackr-extract: set this to true or false
   protobufjs: set this to true or false
   ssh2: set this to true or false
