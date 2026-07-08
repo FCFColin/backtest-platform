@@ -119,7 +119,7 @@ curl http://localhost:5003/api/data/health
 **排查步骤**：
 
 1. 检查后端日志中 `scanTickersStats 耗时` 标记
-2. 检查 `api/.cache/stats_cache.json` 是否存在（缓存命中应 < 100ms）
+2. 检查 `packages/backend/data/cache/stats_cache.json` 是否存在（缓存命中应 < 100ms）
 3. 首次加载无缓存时返回 `{ scanning: true }` 是正常行为（后台异步扫描）
 4. 如果持续慢，检查 `data/tickers/` 目录文件数量
 
@@ -155,7 +155,7 @@ curl http://localhost:5003/api/data/health
 
 1. 检查具体 ticker 数据文件：`Get-Content data/tickers/<TICKER>.json | ConvertFrom-Json | Select-Object -First 5`
 2. 检查缓存版本号：`Get-Content data/cache/.cache_version`
-3. 检查统计缓存是否过期：`Get-Item api/.cache/stats_cache.json | Select-Object LastWriteTime`
+3. 检查统计缓存是否过期：`Get-Item packages/backend/data/cache/stats_cache.json | Select-Object LastWriteTime`
 4. 对比数据库与文件数据一致性（PostgreSQL 可用时）：
    ```sql
    SELECT ticker, COUNT(*), MIN(date), MAX(date) FROM prices GROUP BY ticker ORDER BY ticker;
@@ -164,7 +164,7 @@ curl http://localhost:5003/api/data/health
 
 **恢复**：
 
-- 清除统计缓存：`Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue`
+- 清除统计缓存：`Remove-Item packages/backend/data/cache/stats_cache.json -ErrorAction SilentlyContinue`
 - 重新生成元数据：`POST /api/v1/data/manage/regenerate-meta`
 - 单个 ticker 重新获取：`POST /api/v1/data/manage/update/refetch`
 - 全量重建：`POST /api/v1/data/manage/update/full`
@@ -308,7 +308,7 @@ curl http://localhost:5003/api/data/health
    cd data-fetcher; go run .
 
    # 终端 3：后端 API
-   NODE_ENV=production node --import tsx api/app.ts
+NODE_ENV=production node --import tsx packages/backend/src/app.ts
    ```
 
 8. **验证部署**
@@ -368,7 +368,7 @@ git checkout HEAD~1 -- data/tickers/
 Copy-Item -Path backup/tickers/* -Destination data/tickers/ -Recurse -Force
 
 # 删除统计缓存以强制重新扫描
-Remove-Item api/.cache/stats_cache.json -ErrorAction SilentlyContinue
+Remove-Item packages/backend/data/cache/stats_cache.json -ErrorAction SilentlyContinue
 ```
 
 ## 七、环境变量参考
