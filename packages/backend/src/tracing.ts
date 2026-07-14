@@ -31,7 +31,7 @@ if (config.NODE_ENV === 'development') {
  * 默认使用 stdout exporter（零依赖），生产环境可配置 OTLP exporter
  * 指向 Jaeger/Tempo/Grafana Alloy 等 collector。
  */
-const otlpEndpoint = (process.env.OTEL_EXPORTER_OTLP_ENDPOINT || '').replace(/\/+$/, '');
+const otlpEndpoint = config.OTEL_EXPORTER_OTLP_ENDPOINT.replace(/\/+$/, '');
 
 // OTLP HTTP/proto exporter 在显式传入 url 时不会自动追加信号路径，
 // 因此这里按 OTLP 规范拼接 /v1/traces，保证与 Jaeger / OTel Collector / Tempo 兼容。
@@ -41,7 +41,7 @@ const traceExporter = otlpEndpoint
 
 // metrics 与 traces 解耦：Jaeger 仅接收 traces，向其推送 OTLP metrics 会持续报错。
 // 仅当显式配置独立的 metrics 端点时才启用 OTLP 指标导出；否则继续使用 prom-client 拉取模型。
-const metricsEndpoint = (process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT || '').replace(/\/+$/, '');
+const metricsEndpoint = config.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT.replace(/\/+$/, '');
 const metricExporter = metricsEndpoint
   ? new OTLPMetricExporter({ url: `${metricsEndpoint}/v1/metrics` })
   : undefined;

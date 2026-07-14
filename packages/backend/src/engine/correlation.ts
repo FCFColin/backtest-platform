@@ -2,7 +2,7 @@
  * 相关性矩阵计算 — 从 backtestRunner.ts 拆分
  */
 
-import type { PortfolioResult } from '@backtest/shared/types.js';
+import type { PortfolioResult } from '@backtest/shared';
 import { calcDailyReturns, calcCorrelation } from './statistics.js';
 
 export function calcCorrelationMatrix(portfolioResults: PortfolioResult[]): number[][] {

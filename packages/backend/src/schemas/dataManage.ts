@@ -10,6 +10,3 @@ export const tickerListQuerySchema = z.object({
 export const tickerSearchQuerySchema = z.object({
   q: z.string().min(1).max(100),
 });
-
-export type TickerListQuery = z.infer<typeof tickerListQuerySchema>;
-export type TickerSearchQuery = z.infer<typeof tickerSearchQuerySchema>;

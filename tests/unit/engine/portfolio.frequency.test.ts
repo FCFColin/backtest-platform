@@ -3,8 +3,8 @@ import {
   runPortfolioBacktest,
   runAnalysis,
   type PriceData,
-} from '../../../packages/backend/src/engine/portfolio.js';
-import type { Portfolio } from '../../../shared/types.js';
+} from '../../../packages/backend/src/engine/backtestRunner.js';
+import type { Portfolio } from '@backtest/shared';
 import { makeLinearPriceData, makeParams } from '../../helpers/fixtures.js';
 
 // ===== 再平衡频率完整覆盖 =====

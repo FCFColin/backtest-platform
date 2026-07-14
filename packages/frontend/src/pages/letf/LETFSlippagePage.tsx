@@ -25,6 +25,13 @@ import LoadingButton from '../../components/LoadingButton.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import { SortableTable, type Column } from '../../components/SortableTable.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+  DATE_TICK_FORMATTER,
+} from '@/components/charts/chartConstants.js';
 
 // ===== 工具函数 =====
 
@@ -286,23 +293,16 @@ function SlippageCurveChart({
     <div className="chart-card">
       <div className="chart-card-title">滑点曲线</div>
       <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
-          />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-          />
+        <LineChart data={data} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
           <Tooltip
             contentStyle={tooltipStyle}
             labelFormatter={(label: string) => `日期: ${label}`}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
           />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="4 4" />
           <Line
             type="monotone"
@@ -341,23 +341,16 @@ function LeverageComparisonChart({
     <div className="chart-card">
       <div className="chart-card-title">实际杠杆 vs 名义杠杆</div>
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
-          />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v.toFixed(1)}x`}
-          />
+        <LineChart data={data} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
           <Tooltip
             contentStyle={tooltipStyle}
             labelFormatter={(label: string) => `日期: ${label}`}
             formatter={(value: number) => [`${value.toFixed(2)}x`, '']}
           />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <Line
             type="monotone"
             dataKey="nominal"

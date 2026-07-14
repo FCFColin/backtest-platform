@@ -33,6 +33,33 @@ export function errorMessage(err: unknown): string {
 }
 
 /**
+ * 上游服务 4xx 错误（RO-045 / RFC 7807 透传）。
+ *
+ * 企业理由：Go 引擎对参数错误返回 4xx（如 400 Bad Request / 422 Unprocessable），
+ * 此前 httpClient 在 !resp.ok 时统一返回 null，engineClient 包装为 EngineUnavailableError → 503，
+ * 使客户端无法区分"引擎宕机"与"参数错误"。本错误携带上游原始 status/code/title/detail，
+ * 由 callEngineStrict 透传给路由层，路由用 sendProblem 返回原始 4xx 状态码。
+ *
+ * 与 EngineUnavailableError 的边界（ADR-031 细化）：
+ * - 4xx（客户端错误）→ UpstreamProblemError，透传原始状态码（不重试、不 fail-closed）
+ * - 5xx / 网络错误（服务不可用）→ EngineUnavailableError → 503 + Retry-After（fail-closed）
+ */
+export class UpstreamProblemError extends Error {
+  readonly status: number;
+  readonly code: string;
+  readonly title: string;
+  readonly detail: string;
+  constructor(status: number, code: string, title: string, detail: string) {
+    super(detail || title);
+    this.name = 'UpstreamProblemError';
+    this.status = status;
+    this.code = code;
+    this.title = title;
+    this.detail = detail;
+  }
+}
+
+/**
  * 发送 RFC 7807 Problem Details JSON 错误响应
  *
  * @param res Express Response 对象

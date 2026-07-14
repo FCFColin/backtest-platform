@@ -26,6 +26,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { appRedis } from '../config/redis.js';
 import { logger } from '../utils/logger.js';
+import { sendProblem } from '../utils/errors.js';
 
 /** 缓存条目 */
 interface CachedResult {
@@ -141,9 +142,8 @@ export function idempotencyKey(req: Request, res: Response, next: NextFunction):
 
   // Key 格式校验（防止恶意超长 Key 导致内存/Redis 问题）
   if (key.length > 128) {
-    res.status(400).json({
-      success: false,
-      error: { code: 'INVALID_IDEMPOTENCY_KEY', message: 'Idempotency-Key 长度不能超过 128 字符' },
+    sendProblem(res, 400, 'INVALID_IDEMPOTENCY_KEY', 'Invalid Idempotency Key', {
+      detail: 'Idempotency-Key 长度不能超过 128 字符',
     });
     return;
   }

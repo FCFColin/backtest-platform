@@ -24,7 +24,7 @@ vi.mock('../../../packages/backend/src/engine/tactical.js', () => ({
   analyzeWhatIf: vi.fn(() => []),
 }));
 
-vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/backtestRunner.js', () => ({
   runPortfolioBacktest: vi.fn(() => ({
     portfolios: [
       {
@@ -45,8 +45,8 @@ import {
   executeTacticalWhatIf,
   saveTacticalAlertConfig,
 } from '../../../packages/backend/src/application/tactical-application-service.js';
-import { runPortfolioBacktest } from '../../../packages/backend/src/engine/portfolio.js';
-import type { TacticalStrategy } from '../../../shared/types/tactical.js';
+import { runPortfolioBacktest } from '../../../packages/backend/src/engine/backtestRunner.js';
+import type { TacticalStrategy } from '@backtest/shared/types/tactical.js';
 
 const strategy = {
   id: 's1',

@@ -1,0 +1,62 @@
+name: Nightly Benchmarks
+
+on:
+  schedule:
+    - cron: '0 18 * * *' # 每天 02:00 (Asia/Shanghai, UTC+8) 运行
+  workflow_dispatch: {} # 允许手动触发
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+# 企业理由：基准测试从必跑 CI（ci.yml）移出，以加速 PR 反馈。
+# Nightly 运行持续量化核心操作性能，检测性能退化，不阻断日常开发。
+# 对应 RO-026：benchmark 不再阻塞合并，改为每日定时执行。
+jobs:
+  go-data-fetcher-bench:
+    name: Go Data-Fetcher Benchmark
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: data-fetcher
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache-dependency-path: data-fetcher/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Benchmark
+        run: go test -bench=. -benchmem -count=1 -run=^$ ./...
+
+  go-engine-bench:
+    name: Go Engine Benchmark
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine-go
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: engine-go/go.sum
+
+      - name: Build
+        run: go build ./...
+
+      - name: Benchmark
+        run: go test -bench=. -benchmem -count=1 -run=^$ -timeout=120s ./...

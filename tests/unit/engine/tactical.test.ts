@@ -22,7 +22,7 @@ import {
   computeSimpleStatistics,
   analyzeWhatIf,
 } from '../../../packages/backend/src/engine/tactical.js';
-import type { TacticalStrategy } from '../../../shared/types/tactical.js';
+import type { TacticalStrategy } from '@backtest/shared/types/tactical.js';
 
 // 构造上涨价格序列
 function makeUptrendPrices(n: number): number[] {

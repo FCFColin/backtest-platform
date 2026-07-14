@@ -21,7 +21,7 @@ const router = Router();
  * @returns true 表示已鉴权或未配置令牌（开发/内网）
  */
 function isOpsEndpointAuthorized(req: Request): boolean {
-  const metricsToken = process.env.METRICS_AUTH_TOKEN;
+  const metricsToken = config.METRICS_AUTH_TOKEN;
   if (!metricsToken) return true;
   const auth = req.headers.authorization;
   const provided = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';

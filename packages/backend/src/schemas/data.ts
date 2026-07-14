@@ -24,6 +24,3 @@ export const cpiQuerySchema = z.object({
   startDate: z.string().date().optional(),
   endDate: z.string().date().optional(),
 });
-
-export type HistoryQuery = z.infer<typeof historyQuerySchema>;
-export type SearchQuery = z.infer<typeof searchQuerySchema>;

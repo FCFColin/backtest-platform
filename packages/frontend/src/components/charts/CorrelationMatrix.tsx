@@ -16,6 +16,12 @@ import {
   Brush,
 } from 'recharts';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  DATE_TICK_FORMATTER,
+} from './chartConstants.js';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import { ChartExporter } from '../ChartExporter.js';
@@ -342,17 +348,17 @@ function RollingCorrelationLineChart({
   const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+      <LineChart data={chartData} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
         <XAxis
           dataKey="date"
           tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-          tickFormatter={(v: string) => v.slice(0, 7)}
+          tickFormatter={DATE_TICK_FORMATTER}
           interval="preserveStartEnd"
         />
         <YAxis
           domain={[-1, 1]}
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => v.toFixed(1)}
         />
         <Tooltip
@@ -379,7 +385,7 @@ function RollingCorrelationLineChart({
             height={20}
             stroke="var(--brand)"
             travellerWidth={8}
-            tickFormatter={(v: string) => v.slice(0, 7)}
+            tickFormatter={DATE_TICK_FORMATTER}
           />
         )}
       </LineChart>

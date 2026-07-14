@@ -16,6 +16,7 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { OptimizerState, OptimizerResultExt } from './OptimizerUtils.js';
+import { CHART_GRID_PROPS } from '@/components/charts/chartConstants.js';
 
 const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', label: 'CAGR', fmt: 'pct' },
@@ -173,7 +174,7 @@ function WeightBarChart({
       </div>
       <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
         <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" horizontal={false} />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" horizontal={false} />
           <XAxis
             type="number"
             tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
@@ -287,7 +288,7 @@ function FrontierChart({
       </div>
       <ResponsiveContainer width="100%" height={300}>
         <ScatterChart>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             dataKey="expectedVolatility"
             tick={{ fontSize: 12, fill: 'var(--text-muted)' }}

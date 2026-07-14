@@ -4,7 +4,7 @@
 // 权衡：增加一层间接调用，但分层后各层职责清晰，引擎调用与事件发布可独立测试。
 
 import { randomUUID } from 'crypto';
-import type { PriceData } from '../engine/growthCurve.js';
+import { trace } from '@opentelemetry/api';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { eventDispatcher } from '../domain/events/index.js';
@@ -12,7 +12,16 @@ import { getClient } from '../db/index.js';
 import { writeEventInTransaction } from '../services/outboxWriter.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
-import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared/types';
+import type {
+  Portfolio,
+  BacktestParameters,
+  BacktestResult,
+  PriceData,
+} from '@backtest/shared/types';
+import { loadCpiMapFromDb, loadExchangeRatesFromDb } from '../db/macroData.js';
+
+/** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
+const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
 /** 回测执行入参 */
 export interface BacktestExecutionParams {
@@ -126,53 +135,98 @@ export class BacktestApplicationService {
   async runBacktest(params: BacktestExecutionParams): Promise<BacktestExecutionResult> {
     const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
 
-    logger.info(
-      {
-        portfolioCount: portfolios.length,
-        startDate: parameters.startDate,
-        endDate: parameters.endDate,
-      },
-      'Starting backtest',
-    );
+    return tracer.startActiveSpan('BacktestApplicationService.runBacktest', async (span) => {
+      try {
+        const tickerCount = this.countUniqueTickers(portfolios, parameters.benchmarkTicker);
+        span.setAttribute('portfolio_count', portfolios.length);
+        span.setAttribute('ticker_count', tickerCount);
 
-    const filteredPriceData = this.collectTickersAndFilterPrices(
-      portfolios,
-      parameters.benchmarkTicker,
-      priceData,
-    );
+        logger.info(
+          {
+            portfolioCount: portfolios.length,
+            startDate: parameters.startDate,
+            endDate: parameters.endDate,
+          },
+          'Starting backtest',
+        );
 
-    const engineBody = {
-      portfolios: portfolios.map((p) => buildEnginePortfolioBody(p)),
-      priceData: filteredPriceData,
-      params: buildEngineParams(parameters),
-      cpiData,
-      exchangeRates,
-    };
+        const filteredPriceData = this.collectTickersAndFilterPrices(
+          portfolios,
+          parameters.benchmarkTicker,
+          priceData,
+        );
 
-    const result = await callEngineStrict<BacktestResult>('/api/engine/backtest', engineBody);
-    const degraded = false;
+        span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === tickerCount);
 
-    const firstStats = result.portfolios[0]?.statistics;
-    const aggregateId = `backtest-${Date.now()}`;
-    const eventId = randomUUID();
-    const eventPayload = {
-      startingValue: parameters.startingValue,
-      portfolioCount: portfolios.length,
-      totalReturn: firstStats?.totalReturn,
-      maxDrawdown: firstStats?.maxDrawdown,
-      sharpeRatio: firstStats?.sharpe,
-      degraded,
-    };
+        const engineBody = {
+          portfolios: portfolios.map((p) => buildEnginePortfolioBody(p)),
+          priceData: filteredPriceData,
+          params: buildEngineParams(parameters),
+          cpiData,
+          exchangeRates,
+        };
 
-    this.publishBacktestEvent(aggregateId, eventId, eventPayload);
+        const result = await callEngineStrict<BacktestResult>('/api/engine/backtest', engineBody);
+        const degraded = false;
 
-    logger.info('Backtest completed');
-    recordBacktestRequest('portfolio', 'sync', 'success');
-    if (degraded) {
-      recordDegradedResponse('portfolio', 'engine_fallback');
+        const firstStats = result.portfolios[0]?.statistics;
+        const aggregateId = `backtest-${Date.now()}`;
+        const eventId = randomUUID();
+        const eventPayload = {
+          startingValue: parameters.startingValue,
+          portfolioCount: portfolios.length,
+          totalReturn: firstStats?.totalReturn,
+          maxDrawdown: firstStats?.maxDrawdown,
+          sharpeRatio: firstStats?.sharpe,
+          degraded,
+        };
+
+        this.publishBacktestEvent(aggregateId, eventId, eventPayload);
+
+        logger.info('Backtest completed');
+        recordBacktestRequest('portfolio', 'sync', 'success');
+        if (degraded) {
+          recordDegradedResponse('portfolio', 'engine_fallback');
+        }
+        return { result, degraded };
+      } catch (err) {
+        span.recordException(err as Error);
+        throw err;
+      } finally {
+        span.end();
+      }
+    });
+  }
+
+  /** 统计所有组合中唯一 ticker 数量（含 benchmark） */
+  private countUniqueTickers(portfolios: Portfolio[], benchmarkTicker: string): number {
+    const tickers = new Set<string>();
+    for (const portfolio of portfolios) {
+      for (const asset of portfolio.assets) {
+        tickers.add(asset.ticker);
+      }
     }
-    return { result, degraded };
+    if (benchmarkTicker) {
+      tickers.add(benchmarkTicker);
+    }
+    return tickers.size;
   }
 }
 
 export const backtestApplicationService = new BacktestApplicationService();
+
+/**
+ * 加载宏观经济数据（CPI + 汇率），根据 parameters.baseCurrency 与 adjustForInflation 统一处理。
+ *
+ * @param parameters - 回测参数，读取 baseCurrency 与 adjustForInflation
+ * @returns cpiData 与 exchangeRates（不需要时为空对象）
+ */
+export async function loadMacroData(
+  parameters: BacktestParameters,
+): Promise<{ cpiData: Record<string, number>; exchangeRates: Record<string, number> }> {
+  const baseCurrency = parameters.baseCurrency || 'usd';
+  const cpiCountry = baseCurrency === 'cny' ? 'cn' : 'us';
+  const cpiData = parameters.adjustForInflation ? await loadCpiMapFromDb(cpiCountry) : {};
+  const exchangeRates = baseCurrency === 'cny' ? await loadExchangeRatesFromDb() : {};
+  return { cpiData, exchangeRates };
+}

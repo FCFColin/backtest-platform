@@ -25,6 +25,12 @@ import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
 import { SortableTable, type Column } from '../../components/SortableTable.js';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  DATE_TICK_FORMATTER,
+} from '@/components/charts/chartConstants.js';
 
 // ===== 常量 =====
 
@@ -601,15 +607,11 @@ function BestGrowthChart({
         最优组合收益曲线（{paramLabels.p1}={best.param1}, {paramLabels.p2}={best.param2}）
       </div>
       <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={best.growthCurve} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
-          />
+        <LineChart data={best.growthCurve} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
           <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
           />
           <Tooltip

@@ -8,7 +8,7 @@
  * 注意：函数签名与原始测试文件完全一致，返回 Record<string, number>
  * （日期 -> 价格 映射），而非 PriceData[]。调用方负责将其组装为 PriceData 对象。
  */
-import type { BacktestParameters } from '../../shared/types.js';
+import type { BacktestParameters } from '@backtest/shared';
 
 /**
  * 构造简单的线性增长价格数据

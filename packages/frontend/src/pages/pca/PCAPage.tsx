@@ -27,6 +27,11 @@ import { useAsyncAction } from '../../hooks/useAsyncAction.js';
 import LoadingButton from '../../components/LoadingButton.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+} from '@/components/charts/chartConstants.js';
 
 // ===== 工具函数 =====
 
@@ -202,13 +207,10 @@ function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: n
     <div className="chart-card">
       <div className="chart-card-title">特征值</div>
       <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis dataKey="component" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => v.toFixed(2)}
-          />
+        <BarChart data={data} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="component" tick={AXIS_TICK_STYLE} />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toFixed(2)} />
           <Tooltip
             contentStyle={tooltipStyle}
             formatter={(value: number) => [value.toFixed(4), '特征值']}
@@ -226,12 +228,12 @@ function CumulativeVarianceChart({ data }: { data: { component: string; cumulati
     <div className="chart-card">
       <div className="chart-card-title">累计方差解释率</div>
       <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis dataKey="component" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+        <LineChart data={data} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="component" tick={AXIS_TICK_STYLE} />
           <YAxis
             domain={[0, 100]}
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => `${v.toFixed(0)}%`}
           />
           <Tooltip
@@ -320,12 +322,12 @@ function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
       <div className="chart-card-title">主成分得分散点图（PC1 vs PC2）</div>
       <ResponsiveContainer width="100%" height={450}>
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             type="number"
             dataKey="pc1"
             name="PC1"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: 'PC1',
               position: 'insideBottom',
@@ -337,7 +339,7 @@ function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
             type="number"
             dataKey="pc2"
             name="PC2"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: 'PC2',
               angle: -90,

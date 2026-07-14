@@ -8,8 +8,8 @@ import { describe, it, expect } from 'vitest';
 import {
   runPortfolioBacktest,
   type PriceData,
-} from '../../packages/backend/src/engine/portfolio.js';
-import type { Portfolio } from '../../shared/types.js';
+} from '../../packages/backend/src/engine/backtestRunner.js';
+import type { Portfolio } from '@backtest/shared';
 import { makePriceData, makeVolatilePriceData, makeParams } from '../helpers/fixtures.js';
 
 // ===== Bug hunt: 浮点精度 =====

@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync } from 'fs';
-import { readFile, writeFile, access } from 'fs/promises';
+import { readFile, writeFile, access, readdir, unlink } from 'fs/promises';
 import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
 import { signFile, verifyFile } from '../utils/integrity.js';
+import { recordCacheHit } from '../utils/metrics.js';
 import { appRedis } from '../config/redis.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,9 +33,69 @@ async function incrementCacheVersion(): Promise<void> {
   ensureCacheDir();
   currentCacheVersion = (await readCacheVersion()) + 1;
   await writeFile(CACHE_VERSION_FILE, String(currentCacheVersion), 'utf-8');
+  // 版本递增后异步清理旧版本缓存文件（fire-and-forget，不阻塞调用方）
+  void cleanStaleCacheFiles();
+}
+
+/**
+ * 扫描 CACHE_DIR，删除版本号不匹配的缓存文件、损坏文件及孤儿 .sig 文件。
+ *
+ * 企业理由：缓存版本递增后旧版本文件不再命中（readCache 已跳过），
+ * 但残留文件会持续占用磁盘。启动时也需清理上次异常退出遗留的孤儿文件。
+ */
+async function cleanStaleCacheFiles(): Promise<void> {
+  try {
+    ensureCacheDir();
+    const entries = await readdir(CACHE_DIR);
+    const jsonFiles = entries.filter((f) => f.endsWith('.json'));
+    const sigFiles = entries.filter((f) => f.endsWith('.sig'));
+
+    let deleted = 0;
+    for (const file of jsonFiles) {
+      const filePath = join(CACHE_DIR, file);
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const parsed = JSON.parse(content);
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          '__cacheVersion' in parsed &&
+          parsed.__cacheVersion === currentCacheVersion
+        ) {
+          continue; // 版本匹配，保留
+        }
+      } catch {
+        // JSON 解析失败或读取异常 → 视为损坏文件，删除
+      }
+      await unlink(filePath).catch(() => {});
+      await unlink(filePath + '.sig').catch(() => {});
+      deleted++;
+    }
+
+    // 清理孤儿 .sig 文件（对应的 .json 已不存在）
+    const jsonFileSet = new Set(jsonFiles);
+    for (const sigFile of sigFiles) {
+      const correspondingJson = sigFile.slice(0, -4); // 去掉 .sig 后缀
+      if (!jsonFileSet.has(correspondingJson)) {
+        await unlink(join(CACHE_DIR, sigFile)).catch(() => {});
+        deleted++;
+      }
+    }
+
+    if (deleted > 0) {
+      logger.info(
+        { service: 'dataService', deleted, currentCacheVersion },
+        '[cache] 清理过期/孤儿缓存文件',
+      );
+    }
+  } catch (err) {
+    logger.warn({ err, service: 'dataService' }, '[cache] 缓存文件清理失败');
+  }
 }
 
 currentCacheVersion = await readCacheVersion();
+// 启动时清理孤儿/过期缓存文件（fire-and-forget，不阻塞模块加载）
+void cleanStaleCacheFiles();
 
 function ensureCacheDir(): void {
   if (!existsSync(CACHE_DIR)) {
@@ -57,6 +118,7 @@ async function readCache(key: string): Promise<unknown> {
   try {
     await access(filePath);
   } catch {
+    recordCacheHit('file_cache', false);
     return null;
   }
   try {
@@ -65,6 +127,7 @@ async function readCache(key: string): Promise<unknown> {
         { service: 'dataService', file: key },
         '[cache] 完整性校验失败，丢弃缓存并重新获取',
       );
+      recordCacheHit('file_cache', false);
       return null;
     }
     const content = await readFile(filePath, 'utf-8');
@@ -72,12 +135,16 @@ async function readCache(key: string): Promise<unknown> {
     if (parsed && typeof parsed === 'object' && '__cacheVersion' in parsed) {
       const latestVersion = await readCacheVersion();
       if (parsed.__cacheVersion !== latestVersion) {
+        recordCacheHit('file_cache', false);
         return null;
       }
+      recordCacheHit('file_cache', true);
       return parsed.__data !== undefined ? parsed.__data : parsed;
     }
+    recordCacheHit('file_cache', true);
     return parsed;
   } catch {
+    recordCacheHit('file_cache', false);
     return null;
   }
 }
@@ -95,6 +162,7 @@ async function writeCache(key: string, data: unknown): Promise<void> {
 
 const priceDataCache = new Map<string, { data: Record<string, number>; mtimeMs: number }>();
 const PRICE_CACHE_REDIS_PREFIX = 'price_cache:';
+const PRICE_CACHE_TTL_SEC = 86400; // 24 小时
 
 let priceCacheRedisAvailable: boolean | null = null;
 
@@ -158,6 +226,24 @@ async function clearPriceCache(): Promise<void> {
   }
 }
 
+async function setPriceCache(ticker: string, data: Record<string, number>): Promise<void> {
+  priceDataCache.set(ticker, { data, mtimeMs: Date.now() });
+  const redisOk = await isPriceCacheRedisAvailable();
+  if (redisOk) {
+    try {
+      await appRedis.set(
+        `${PRICE_CACHE_REDIS_PREFIX}${ticker}`,
+        JSON.stringify(data),
+        'EX',
+        PRICE_CACHE_TTL_SEC,
+      );
+    } catch (err) {
+      logger.warn({ err, ticker }, '[dataService] Redis 价格缓存写入失败');
+      priceCacheRedisAvailable = false;
+    }
+  }
+}
+
 export {
   CACHE_DIR,
   currentCacheVersion,
@@ -169,4 +255,5 @@ export {
   writeCache,
   deletePriceCache,
   clearPriceCache,
+  setPriceCache,
 };

@@ -2,20 +2,8 @@
  * @file 季节性收益柱状图
  * @description 展示投资组合按月份统计的平均收益季节性分布
  */
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { BarChartContent } from './sharedChartContent.js';
 import ChartCard from '../ChartCard.js';
 
 /** 季节性收益柱状图 Props */
@@ -61,44 +49,17 @@ export default function SeasonalityChart({ portfolios }: SeasonalityChartProps) 
 
   return (
     <ChartCard title="季节性" data={data} csvFilename="seasonality">
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-            label={{
-              value: '平均收益 (%)',
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-          />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
-          {portfolios.length === 1 ? (
-            <Bar dataKey={portfolios[0].name} radius={[2, 2, 0, 0]}>
-              {data.map((entry, idx) => {
-                const val = entry[portfolios[0].name] as number;
-                return <Cell key={idx} fill={val >= 0 ? 'var(--success)' : 'var(--error)'} />;
-              })}
-            </Bar>
-          ) : (
-            portfolios.map((p, idx) => (
-              <Bar
-                key={p.name}
-                dataKey={p.name}
-                fill={CHART_COLORS[idx % CHART_COLORS.length]}
-                radius={[2, 2, 0, 0]}
-              />
-            ))
-          )}
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChartContent
+        data={data}
+        seriesNames={portfolios.map((p) => p.name)}
+        xDataKey="month"
+        height={400}
+        yTickFormatter={(v) => `${v.toFixed(0)}%`}
+        tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, '']}
+        yLabel="平均收益 (%)"
+        barRadius={2}
+        signColorSingleSeries
+      />
     </ChartCard>
   );
 }

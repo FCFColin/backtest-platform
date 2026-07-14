@@ -74,5 +74,3 @@ export const tacticalAlertSchema = z.object({
 });
 
 export type TacticalBacktestRequest = z.infer<typeof tacticalBacktestSchema>;
-export type TacticalWhatIfRequest = z.infer<typeof tacticalWhatIfSchema>;
-export type TacticalAlertRequest = z.infer<typeof tacticalAlertSchema>;

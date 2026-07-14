@@ -1,0 +1,4257 @@
+{
+  "duplicates": [
+    {
+      "firstFile": {
+        "end": 27,
+        "endLoc": {
+          "column": 48,
+          "line": 27,
+          "position": 1482
+        },
+        "name": "appLegacyRoutes.ts",
+        "start": 17,
+        "startLoc": {
+          "column": 59,
+          "line": 17,
+          "position": 911
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 26,
+        "endLoc": {
+          "column": 48,
+          "line": 26,
+          "position": 1417
+        },
+        "name": "appRoutes.ts",
+        "start": 16,
+        "startLoc": {
+          "column": 47,
+          "line": 16,
+          "position": 846
+        }
+      },
+      "tokens": 51
+    },
+    {
+      "firstFile": {
+        "end": 26,
+        "endLoc": {
+          "column": 3,
+          "line": 26,
+          "position": 945
+        },
+        "name": "application\\analytics-application-service.ts",
+        "start": 21,
+        "startLoc": {
+          "column": 2,
+          "line": 21,
+          "position": 699
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 109,
+        "endLoc": {
+          "column": 3,
+          "line": 109,
+          "position": 3635
+        },
+        "name": "application\\analytics-application-service.ts",
+        "start": 104,
+        "startLoc": {
+          "column": 2,
+          "line": 104,
+          "position": 3389
+        }
+      },
+      "tokens": 57
+    },
+    {
+      "firstFile": {
+        "end": 61,
+        "endLoc": {
+          "column": 92,
+          "line": 61,
+          "position": 2117
+        },
+        "name": "application\\optimizer-application-service.ts",
+        "start": 55,
+        "startLoc": {
+          "column": 21,
+          "line": 55,
+          "position": 1791
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 48,
+        "endLoc": {
+          "column": 36,
+          "line": 48,
+          "position": 1489
+        },
+        "name": "schemas\\backtestOptimizer.ts",
+        "start": 39,
+        "startLoc": {
+          "column": 28,
+          "line": 39,
+          "position": 1146
+        }
+      },
+      "tokens": 94
+    },
+    {
+      "firstFile": {
+        "end": 41,
+        "endLoc": {
+          "column": 1,
+          "line": 41,
+          "position": 1169
+        },
+        "name": "db\\marketStats.ts",
+        "start": 7,
+        "startLoc": {
+          "column": 31,
+          "line": 7,
+          "position": 200
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 35,
+      "secondFile": {
+        "end": 40,
+        "endLoc": {
+          "column": 1,
+          "line": 40,
+          "position": 1150
+        },
+        "name": "components\\dataEngine\\types.ts",
+        "start": 6,
+        "startLoc": {
+          "column": 23,
+          "line": 6,
+          "position": 181
+        }
+      },
+      "tokens": 189
+    },
+    {
+      "firstFile": {
+        "end": 158,
+        "endLoc": {
+          "column": 8,
+          "line": 158,
+          "position": 4867
+        },
+        "name": "db\\marketStats.ts",
+        "start": 151,
+        "startLoc": {
+          "column": 19,
+          "line": 151,
+          "position": 4620
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 232,
+        "endLoc": {
+          "column": 8,
+          "line": 232,
+          "position": 7474
+        },
+        "name": "db\\marketStats.ts",
+        "start": 225,
+        "startLoc": {
+          "column": 22,
+          "line": 225,
+          "position": 7227
+        }
+      },
+      "tokens": 53
+    },
+    {
+      "firstFile": {
+        "end": 41,
+        "endLoc": {
+          "column": 1,
+          "line": 41,
+          "position": 1653
+        },
+        "name": "engine\\goalOptimizer.ts",
+        "start": 27,
+        "startLoc": {
+          "column": 23,
+          "line": 27,
+          "position": 1281
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 15,
+      "secondFile": {
+        "end": 21,
+        "endLoc": {
+          "column": 1,
+          "line": 21,
+          "position": 766
+        },
+        "name": "pages\\monte-carlo\\MonteCarloUtils.ts",
+        "start": 9,
+        "startLoc": {
+          "column": 75,
+          "line": 9,
+          "position": 455
+        }
+      },
+      "tokens": 117
+    },
+    {
+      "firstFile": {
+        "end": 68,
+        "endLoc": {
+          "column": 5,
+          "line": 68,
+          "position": 1820
+        },
+        "name": "engine\\growthCurve.ts",
+        "start": 28,
+        "startLoc": {
+          "column": 16,
+          "line": 28,
+          "position": 811
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 41,
+      "secondFile": {
+        "end": 143,
+        "endLoc": {
+          "column": 5,
+          "line": 143,
+          "position": 4498
+        },
+        "name": "engine\\tickerAnalysis.ts",
+        "start": 103,
+        "startLoc": {
+          "column": 37,
+          "line": 103,
+          "position": 3489
+        }
+      },
+      "tokens": 260
+    },
+    {
+      "firstFile": {
+        "end": 61,
+        "endLoc": {
+          "column": 26,
+          "line": 61,
+          "position": 1579
+        },
+        "name": "engine\\growthCurve.ts",
+        "start": 56,
+        "startLoc": {
+          "column": 28,
+          "line": 56,
+          "position": 1441
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 233,
+        "endLoc": {
+          "column": 24,
+          "line": 233,
+          "position": 6944
+        },
+        "name": "engine\\tickerAnalysis.ts",
+        "start": 228,
+        "startLoc": {
+          "column": 52,
+          "line": 228,
+          "position": 6816
+        }
+      },
+      "tokens": 52
+    },
+    {
+      "firstFile": {
+        "end": 57,
+        "endLoc": {
+          "column": 37,
+          "line": 57,
+          "position": 2011
+        },
+        "name": "engine\\matrixOps.ts",
+        "start": 52,
+        "startLoc": {
+          "column": 29,
+          "line": 52,
+          "position": 1873
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 62,
+        "endLoc": {
+          "column": 37,
+          "line": 62,
+          "position": 1698
+        },
+        "name": "utils\\factorRegression.ts",
+        "start": 58,
+        "startLoc": {
+          "column": 15,
+          "line": 58,
+          "position": 1561
+        }
+      },
+      "tokens": 59
+    },
+    {
+      "firstFile": {
+        "end": 37,
+        "endLoc": {
+          "column": 7,
+          "line": 37,
+          "position": 1199
+        },
+        "name": "engine\\optimizerSolvers.ts",
+        "start": 32,
+        "startLoc": {
+          "column": 2,
+          "line": 32,
+          "position": 1028
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 163,
+        "endLoc": {
+          "column": 7,
+          "line": 163,
+          "position": 4776
+        },
+        "name": "engine\\optimizerSolvers.ts",
+        "start": 158,
+        "startLoc": {
+          "column": 2,
+          "line": 158,
+          "position": 4605
+        }
+      },
+      "tokens": 50
+    },
+    {
+      "firstFile": {
+        "end": 79,
+        "endLoc": {
+          "column": 27,
+          "line": 79,
+          "position": 2467
+        },
+        "name": "engine\\statsBenchmark.ts",
+        "start": 70,
+        "startLoc": {
+          "column": 81,
+          "line": 70,
+          "position": 2217
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 107,
+        "endLoc": {
+          "column": 27,
+          "line": 107,
+          "position": 3272
+        },
+        "name": "engine\\statsBenchmark.ts",
+        "start": 98,
+        "startLoc": {
+          "column": 0,
+          "line": 98,
+          "position": 3022
+        }
+      },
+      "tokens": 65
+    },
+    {
+      "firstFile": {
+        "end": 92,
+        "endLoc": {
+          "column": 1,
+          "line": 92,
+          "position": 2898
+        },
+        "name": "engine\\statsBenchmark.ts",
+        "start": 79,
+        "startLoc": {
+          "column": 30,
+          "line": 79,
+          "position": 2470
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 14,
+      "secondFile": {
+        "end": 120,
+        "endLoc": {
+          "column": 1,
+          "line": 120,
+          "position": 3703
+        },
+        "name": "engine\\statsBenchmark.ts",
+        "start": 107,
+        "startLoc": {
+          "column": 30,
+          "line": 107,
+          "position": 3275
+        }
+      },
+      "tokens": 86
+    },
+    {
+      "firstFile": {
+        "end": 124,
+        "endLoc": {
+          "column": 7,
+          "line": 124,
+          "position": 3769
+        },
+        "name": "engine\\statsRisk.ts",
+        "start": 117,
+        "startLoc": {
+          "column": 11,
+          "line": 117,
+          "position": 3532
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 139,
+        "endLoc": {
+          "column": 7,
+          "line": 139,
+          "position": 4266
+        },
+        "name": "engine\\statsRisk.ts",
+        "start": 132,
+        "startLoc": {
+          "column": 11,
+          "line": 132,
+          "position": 4029
+        }
+      },
+      "tokens": 81
+    },
+    {
+      "firstFile": {
+        "end": 55,
+        "endLoc": {
+          "column": 14,
+          "line": 55,
+          "position": 1939
+        },
+        "name": "engine\\tacticalGridSignals.ts",
+        "start": 44,
+        "startLoc": {
+          "column": 32,
+          "line": 44,
+          "position": 1614
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 12,
+      "secondFile": {
+        "end": 94,
+        "endLoc": {
+          "column": 14,
+          "line": 94,
+          "position": 3011
+        },
+        "name": "engine\\tacticalGridSignals.ts",
+        "start": 83,
+        "startLoc": {
+          "column": 33,
+          "line": 83,
+          "position": 2686
+        }
+      },
+      "tokens": 78
+    },
+    {
+      "firstFile": {
+        "end": 100,
+        "endLoc": {
+          "column": 18,
+          "line": 100,
+          "position": 3660
+        },
+        "name": "middleware\\idempotency.ts",
+        "start": 92,
+        "startLoc": {
+          "column": 0,
+          "line": 92,
+          "position": 3379
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 55,
+        "endLoc": {
+          "column": 18,
+          "line": 55,
+          "position": 1912
+        },
+        "name": "middleware\\tokenStore.ts",
+        "start": 47,
+        "startLoc": {
+          "column": 7,
+          "line": 47,
+          "position": 1631
+        }
+      },
+      "tokens": 55
+    },
+    {
+      "firstFile": {
+        "end": 105,
+        "endLoc": {
+          "column": 3,
+          "line": 105,
+          "position": 3039
+        },
+        "name": "middleware\\refreshTokenRotation.ts",
+        "start": 93,
+        "startLoc": {
+          "column": 31,
+          "line": 93,
+          "position": 2713
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 13,
+      "secondFile": {
+        "end": 210,
+        "endLoc": {
+          "column": 1,
+          "line": 210,
+          "position": 6202
+        },
+        "name": "middleware\\refreshTokenRotation.ts",
+        "start": 198,
+        "startLoc": {
+          "column": 47,
+          "line": 198,
+          "position": 5896
+        }
+      },
+      "tokens": 59
+    },
+    {
+      "firstFile": {
+        "end": 53,
+        "endLoc": {
+          "column": 7,
+          "line": 53,
+          "position": 1282
+        },
+        "name": "routes\\accountRoutes.ts",
+        "start": 27,
+        "startLoc": {
+          "column": 39,
+          "line": 27,
+          "position": 741
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 27,
+      "secondFile": {
+        "end": 62,
+        "endLoc": {
+          "column": 7,
+          "line": 62,
+          "position": 1766
+        },
+        "name": "routes\\authRoutes.ts",
+        "start": 36,
+        "startLoc": {
+          "column": 46,
+          "line": 36,
+          "position": 1225
+        }
+      },
+      "tokens": 128
+    },
+    {
+      "firstFile": {
+        "end": 52,
+        "endLoc": {
+          "column": 51,
+          "line": 52,
+          "position": 2051
+        },
+        "name": "routes\\backtestOptimizerRoutes.ts",
+        "start": 31,
+        "startLoc": {
+          "column": 27,
+          "line": 31,
+          "position": 1360
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 22,
+      "secondFile": {
+        "end": 65,
+        "endLoc": {
+          "column": 51,
+          "line": 65,
+          "position": 2627
+        },
+        "name": "routes\\tacticalGridRoutes.ts",
+        "start": 44,
+        "startLoc": {
+          "column": 29,
+          "line": 44,
+          "position": 1936
+        }
+      },
+      "tokens": 104
+    },
+    {
+      "firstFile": {
+        "end": 74,
+        "endLoc": {
+          "column": 11,
+          "line": 74,
+          "position": 2656
+        },
+        "name": "routes\\crudFactory.ts",
+        "start": 62,
+        "startLoc": {
+          "column": 25,
+          "line": 62,
+          "position": 2292
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 13,
+      "secondFile": {
+        "end": 102,
+        "endLoc": {
+          "column": 11,
+          "line": 102,
+          "position": 3637
+        },
+        "name": "routes\\crudFactory.ts",
+        "start": 90,
+        "startLoc": {
+          "column": 28,
+          "line": 90,
+          "position": 3273
+        }
+      },
+      "tokens": 87
+    },
+    {
+      "firstFile": {
+        "end": 74,
+        "endLoc": {
+          "column": 11,
+          "line": 74,
+          "position": 2656
+        },
+        "name": "routes\\crudFactory.ts",
+        "start": 66,
+        "startLoc": {
+          "column": 9,
+          "line": 66,
+          "position": 2387
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 152,
+        "endLoc": {
+          "column": 13,
+          "line": 152,
+          "position": 5614
+        },
+        "name": "routes\\crudFactory.ts",
+        "start": 144,
+        "startLoc": {
+          "column": 42,
+          "line": 144,
+          "position": 5329
+        }
+      },
+      "tokens": 63
+    },
+    {
+      "firstFile": {
+        "end": 130,
+        "endLoc": {
+          "column": 43,
+          "line": 130,
+          "position": 4206
+        },
+        "name": "routes\\dataManageRoutes.ts",
+        "start": 123,
+        "startLoc": {
+          "column": 16,
+          "line": 123,
+          "position": 3942
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 164,
+        "endLoc": {
+          "column": 43,
+          "line": 164,
+          "position": 5234
+        },
+        "name": "routes\\dataManageRoutes.ts",
+        "start": 157,
+        "startLoc": {
+          "column": 19,
+          "line": 157,
+          "position": 4970
+        }
+      },
+      "tokens": 66
+    },
+    {
+      "firstFile": {
+        "end": 147,
+        "endLoc": {
+          "column": 43,
+          "line": 147,
+          "position": 4727
+        },
+        "name": "routes\\dataManageRoutes.ts",
+        "start": 140,
+        "startLoc": {
+          "column": 15,
+          "line": 140,
+          "position": 4456
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 178,
+        "endLoc": {
+          "column": 41,
+          "line": 178,
+          "position": 5728
+        },
+        "name": "routes\\dataManageRoutes.ts",
+        "start": 173,
+        "startLoc": {
+          "column": 22,
+          "line": 173,
+          "position": 5471
+        }
+      },
+      "tokens": 66
+    },
+    {
+      "firstFile": {
+        "end": 113,
+        "endLoc": {
+          "column": 24,
+          "line": 113,
+          "position": 4447
+        },
+        "name": "routes\\orgRoutes.ts",
+        "start": 106,
+        "startLoc": {
+          "column": 22,
+          "line": 106,
+          "position": 4173
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 140,
+        "endLoc": {
+          "column": 24,
+          "line": 140,
+          "position": 5364
+        },
+        "name": "routes\\orgRoutes.ts",
+        "start": 133,
+        "startLoc": {
+          "column": 14,
+          "line": 133,
+          "position": 5090
+        }
+      },
+      "tokens": 62
+    },
+    {
+      "firstFile": {
+        "end": 44,
+        "endLoc": {
+          "column": 41,
+          "line": 44,
+          "position": 1616
+        },
+        "name": "routes\\signalRoutes.ts",
+        "start": 37,
+        "startLoc": {
+          "column": 41,
+          "line": 37,
+          "position": 1320
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 72,
+        "endLoc": {
+          "column": 41,
+          "line": 72,
+          "position": 2664
+        },
+        "name": "routes\\signalRoutes.ts",
+        "start": 65,
+        "startLoc": {
+          "column": 45,
+          "line": 65,
+          "position": 2368
+        }
+      },
+      "tokens": 69
+    },
+    {
+      "firstFile": {
+        "end": 44,
+        "endLoc": {
+          "column": 41,
+          "line": 44,
+          "position": 1616
+        },
+        "name": "routes\\signalRoutes.ts",
+        "start": 37,
+        "startLoc": {
+          "column": 41,
+          "line": 37,
+          "position": 1320
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 98,
+        "endLoc": {
+          "column": 41,
+          "line": 98,
+          "position": 3660
+        },
+        "name": "routes\\signalRoutes.ts",
+        "start": 91,
+        "startLoc": {
+          "column": 46,
+          "line": 91,
+          "position": 3364
+        }
+      },
+      "tokens": 69
+    },
+    {
+      "firstFile": {
+        "end": 78,
+        "endLoc": {
+          "column": 17,
+          "line": 78,
+          "position": 2683
+        },
+        "name": "services\\billingService.ts",
+        "start": 70,
+        "startLoc": {
+          "column": 73,
+          "line": 70,
+          "position": 2419
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 142,
+        "endLoc": {
+          "column": 17,
+          "line": 142,
+          "position": 4902
+        },
+        "name": "services\\billingService.ts",
+        "start": 134,
+        "startLoc": {
+          "column": 74,
+          "line": 134,
+          "position": 4638
+        }
+      },
+      "tokens": 56
+    },
+    {
+      "firstFile": {
+        "end": 196,
+        "endLoc": {
+          "column": 33,
+          "line": 196,
+          "position": 6578
+        },
+        "name": "services\\membershipService.ts",
+        "start": 188,
+        "startLoc": {
+          "column": 15,
+          "line": 188,
+          "position": 6278
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 229,
+        "endLoc": {
+          "column": 33,
+          "line": 229,
+          "position": 7596
+        },
+        "name": "services\\membershipService.ts",
+        "start": 221,
+        "startLoc": {
+          "column": 16,
+          "line": 221,
+          "position": 7296
+        }
+      },
+      "tokens": 62
+    },
+    {
+      "firstFile": {
+        "end": 74,
+        "endLoc": {
+          "column": 27,
+          "line": 74,
+          "position": 2269
+        },
+        "name": "services\\portfolioRepo.ts",
+        "start": 69,
+        "startLoc": {
+          "column": 26,
+          "line": 69,
+          "position": 2060
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 60,
+        "endLoc": {
+          "column": 27,
+          "line": 60,
+          "position": 1669
+        },
+        "name": "services\\savedConfigRepo.ts",
+        "start": 55,
+        "startLoc": {
+          "column": 28,
+          "line": 55,
+          "position": 1460
+        }
+      },
+      "tokens": 51
+    },
+    {
+      "firstFile": {
+        "end": 41,
+        "endLoc": {
+          "column": 1,
+          "line": 41,
+          "position": 1420
+        },
+        "name": "utils\\integrity.ts",
+        "start": 35,
+        "startLoc": {
+          "column": 5,
+          "line": 35,
+          "position": 1215
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 75,
+        "endLoc": {
+          "column": 1,
+          "line": 75,
+          "position": 2824
+        },
+        "name": "utils\\integrity.ts",
+        "start": 69,
+        "startLoc": {
+          "column": 68,
+          "line": 69,
+          "position": 2619
+        }
+      },
+      "tokens": 52
+    },
+    {
+      "firstFile": {
+        "end": 91,
+        "endLoc": {
+          "column": 16,
+          "line": 91,
+          "position": 1505
+        },
+        "name": "components.css",
+        "start": 84,
+        "startLoc": {
+          "column": 17,
+          "line": 84,
+          "position": 1307
+        }
+      },
+      "format": "css",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 290,
+        "endLoc": {
+          "column": 16,
+          "line": 290,
+          "position": 5352
+        },
+        "name": "components.css",
+        "start": 283,
+        "startLoc": {
+          "column": 26,
+          "line": 283,
+          "position": 5154
+        }
+      },
+      "tokens": 68
+    },
+    {
+      "firstFile": {
+        "end": 91,
+        "endLoc": {
+          "column": 16,
+          "line": 91,
+          "position": 1505
+        },
+        "name": "components.css",
+        "start": 84,
+        "startLoc": {
+          "column": 17,
+          "line": 84,
+          "position": 1307
+        }
+      },
+      "format": "css",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 437,
+        "endLoc": {
+          "column": 16,
+          "line": 437,
+          "position": 8525
+        },
+        "name": "components.css",
+        "start": 430,
+        "startLoc": {
+          "column": 16,
+          "line": 430,
+          "position": 8327
+        }
+      },
+      "tokens": 68
+    },
+    {
+      "firstFile": {
+        "end": 92,
+        "endLoc": {
+          "column": 50,
+          "line": 92,
+          "position": 1556
+        },
+        "name": "components.css",
+        "start": 87,
+        "startLoc": {
+          "column": 24,
+          "line": 87,
+          "position": 1374
+        }
+      },
+      "format": "css",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 272,
+        "endLoc": {
+          "column": 50,
+          "line": 272,
+          "position": 4947
+        },
+        "name": "components.css",
+        "start": 267,
+        "startLoc": {
+          "column": 26,
+          "line": 267,
+          "position": 4765
+        }
+      },
+      "tokens": 57
+    },
+    {
+      "firstFile": {
+        "end": 271,
+        "endLoc": {
+          "column": 16,
+          "line": 271,
+          "position": 4896
+        },
+        "name": "components.css",
+        "start": 263,
+        "startLoc": {
+          "column": 2,
+          "line": 263,
+          "position": 4665
+        }
+      },
+      "format": "css",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 354,
+        "endLoc": {
+          "column": 16,
+          "line": 354,
+          "position": 6894
+        },
+        "name": "components.css",
+        "start": 346,
+        "startLoc": {
+          "column": 2,
+          "line": 346,
+          "position": 6663
+        }
+      },
+      "tokens": 78
+    },
+    {
+      "firstFile": {
+        "end": 271,
+        "endLoc": {
+          "column": 16,
+          "line": 271,
+          "position": 4896
+        },
+        "name": "components.css",
+        "start": 264,
+        "startLoc": {
+          "column": 17,
+          "line": 264,
+          "position": 4696
+        }
+      },
+      "format": "css",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 376,
+        "endLoc": {
+          "column": 16,
+          "line": 376,
+          "position": 7384
+        },
+        "name": "components.css",
+        "start": 369,
+        "startLoc": {
+          "column": 16,
+          "line": 369,
+          "position": 7184
+        }
+      },
+      "tokens": 68
+    },
+    {
+      "firstFile": {
+        "end": 382,
+        "endLoc": {
+          "column": 1,
+          "line": 382,
+          "position": 7486
+        },
+        "name": "components.css",
+        "start": 372,
+        "startLoc": {
+          "column": 26,
+          "line": 372,
+          "position": 7253
+        }
+      },
+      "format": "css",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 443,
+        "endLoc": {
+          "column": 1,
+          "line": 443,
+          "position": 8627
+        },
+        "name": "components.css",
+        "start": 433,
+        "startLoc": {
+          "column": 24,
+          "line": 433,
+          "position": 8394
+        }
+      },
+      "tokens": 72
+    },
+    {
+      "firstFile": {
+        "end": 443,
+        "endLoc": {
+          "column": 1,
+          "line": 443,
+          "position": 8627
+        },
+        "name": "components.css",
+        "start": 427,
+        "startLoc": {
+          "column": 7,
+          "line": 427,
+          "position": 8271
+        }
+      },
+      "format": "css",
+      "fragment": "",
+      "lines": 17,
+      "secondFile": {
+        "end": 476,
+        "endLoc": {
+          "column": 1,
+          "line": 476,
+          "position": 9253
+        },
+        "name": "components.css",
+        "start": 460,
+        "startLoc": {
+          "column": 10,
+          "line": 460,
+          "position": 8897
+        }
+      },
+      "tokens": 114
+    },
+    {
+      "firstFile": {
+        "end": 44,
+        "endLoc": {
+          "column": 91,
+          "line": 44,
+          "position": 1152
+        },
+        "name": "components\\CashflowsLog.tsx",
+        "start": 37,
+        "startLoc": {
+          "column": 53,
+          "line": 37,
+          "position": 875
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 120,
+        "endLoc": {
+          "column": 91,
+          "line": 120,
+          "position": 3780
+        },
+        "name": "components\\CashflowsLog.tsx",
+        "start": 113,
+        "startLoc": {
+          "column": 62,
+          "line": 113,
+          "position": 3503
+        }
+      },
+      "tokens": 50
+    },
+    {
+      "firstFile": {
+        "end": 15,
+        "endLoc": {
+          "column": 43,
+          "line": 15,
+          "position": 490
+        },
+        "name": "components\\charts\\AnalysisCharts.tsx",
+        "start": 9,
+        "startLoc": {
+          "column": 14,
+          "line": 9,
+          "position": 277
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 35,
+        "endLoc": {
+          "column": 43,
+          "line": 35,
+          "position": 1002
+        },
+        "name": "components\\charts\\AnalysisCharts.tsx",
+        "start": 29,
+        "startLoc": {
+          "column": 12,
+          "line": 29,
+          "position": 789
+        }
+      },
+      "tokens": 54
+    },
+    {
+      "firstFile": {
+        "end": 38,
+        "endLoc": {
+          "column": 66,
+          "line": 38,
+          "position": 1357
+        },
+        "name": "components\\charts\\AnnualReturnsChart.tsx",
+        "start": 33,
+        "startLoc": {
+          "column": 12,
+          "line": 33,
+          "position": 1106
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 70,
+        "endLoc": {
+          "column": 66,
+          "line": 70,
+          "position": 2526
+        },
+        "name": "pages\\pca\\PCACharts.tsx",
+        "start": 65,
+        "startLoc": {
+          "column": 12,
+          "line": 65,
+          "position": 2275
+        }
+      },
+      "tokens": 60
+    },
+    {
+      "firstFile": {
+        "end": 23,
+        "endLoc": {
+          "column": 28,
+          "line": 23,
+          "position": 674
+        },
+        "name": "components\\charts\\BetaMatrixTable.tsx",
+        "start": 14,
+        "startLoc": {
+          "column": 65,
+          "line": 14,
+          "position": 367
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 43,
+        "endLoc": {
+          "column": 28,
+          "line": 43,
+          "position": 1324
+        },
+        "name": "components\\charts\\CorrelationMatrixChart.tsx",
+        "start": 34,
+        "startLoc": {
+          "column": 61,
+          "line": 34,
+          "position": 1017
+        }
+      },
+      "tokens": 51
+    },
+    {
+      "firstFile": {
+        "end": 25,
+        "endLoc": {
+          "column": 25,
+          "line": 25,
+          "position": 728
+        },
+        "name": "components\\charts\\BetaMatrixTable.tsx",
+        "start": 14,
+        "startLoc": {
+          "column": 64,
+          "line": 14,
+          "position": 366
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 12,
+      "secondFile": {
+        "end": 26,
+        "endLoc": {
+          "column": 25,
+          "line": 26,
+          "position": 833
+        },
+        "name": "components\\charts\\CorrelationMatrixTable.tsx",
+        "start": 15,
+        "startLoc": {
+          "column": 71,
+          "line": 15,
+          "position": 471
+        }
+      },
+      "tokens": 62
+    },
+    {
+      "firstFile": {
+        "end": 76,
+        "endLoc": {
+          "column": 1,
+          "line": 76,
+          "position": 2494
+        },
+        "name": "components\\charts\\BetaMatrixTable.tsx",
+        "start": 63,
+        "startLoc": {
+          "column": 61,
+          "line": 63,
+          "position": 2246
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 14,
+      "secondFile": {
+        "end": 88,
+        "endLoc": {
+          "column": 1,
+          "line": 88,
+          "position": 2856
+        },
+        "name": "components\\charts\\CorrelationMatrixChart.tsx",
+        "start": 75,
+        "startLoc": {
+          "column": 62,
+          "line": 75,
+          "position": 2608
+        }
+      },
+      "tokens": 59
+    },
+    {
+      "firstFile": {
+        "end": 76,
+        "endLoc": {
+          "column": 1,
+          "line": 76,
+          "position": 2494
+        },
+        "name": "components\\charts\\BetaMatrixTable.tsx",
+        "start": 63,
+        "startLoc": {
+          "column": 74,
+          "line": 63,
+          "position": 2259
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 14,
+      "secondFile": {
+        "end": 144,
+        "endLoc": {
+          "column": 1,
+          "line": 144,
+          "position": 4952
+        },
+        "name": "pages\\pca\\PCACharts.tsx",
+        "start": 131,
+        "startLoc": {
+          "column": 70,
+          "line": 131,
+          "position": 4717
+        }
+      },
+      "tokens": 54
+    },
+    {
+      "firstFile": {
+        "end": 25,
+        "endLoc": {
+          "column": 8,
+          "line": 25,
+          "position": 849
+        },
+        "name": "components\\charts\\CorrelationMatrix.tsx",
+        "start": 16,
+        "startLoc": {
+          "column": 0,
+          "line": 16,
+          "position": 541
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 33,
+        "endLoc": {
+          "column": 8,
+          "line": 33,
+          "position": 828
+        },
+        "name": "components\\charts\\CorrelationMatrixControls.tsx",
+        "start": 24,
+        "startLoc": {
+          "column": 0,
+          "line": 24,
+          "position": 520
+        }
+      },
+      "tokens": 101
+    },
+    {
+      "firstFile": {
+        "end": 75,
+        "endLoc": {
+          "column": 32,
+          "line": 75,
+          "position": 2578
+        },
+        "name": "components\\charts\\CorrelationMatrixChart.tsx",
+        "start": 67,
+        "startLoc": {
+          "column": 36,
+          "line": 67,
+          "position": 2129
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 56,
+        "endLoc": {
+          "column": 32,
+          "line": 56,
+          "position": 2051
+        },
+        "name": "components\\charts\\CorrelationMatrixTable.tsx",
+        "start": 48,
+        "startLoc": {
+          "column": 39,
+          "line": 48,
+          "position": 1602
+        }
+      },
+      "tokens": 70
+    },
+    {
+      "firstFile": {
+        "end": 152,
+        "endLoc": {
+          "column": 4,
+          "line": 152,
+          "position": 4777
+        },
+        "name": "components\\charts\\CorrelationMatrixControls.tsx",
+        "start": 140,
+        "startLoc": {
+          "column": 35,
+          "line": 140,
+          "position": 4495
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 13,
+      "secondFile": {
+        "end": 287,
+        "endLoc": {
+          "column": 4,
+          "line": 287,
+          "position": 9011
+        },
+        "name": "components\\charts\\CorrelationMatrixControls.tsx",
+        "start": 275,
+        "startLoc": {
+          "column": 41,
+          "line": 275,
+          "position": 8729
+        }
+      },
+      "tokens": 64
+    },
+    {
+      "firstFile": {
+        "end": 183,
+        "endLoc": {
+          "column": 77,
+          "line": 183,
+          "position": 5759
+        },
+        "name": "components\\charts\\CorrelationMatrixControls.tsx",
+        "start": 171,
+        "startLoc": {
+          "column": 82,
+          "line": 171,
+          "position": 5375
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 13,
+      "secondFile": {
+        "end": 202,
+        "endLoc": {
+          "column": 77,
+          "line": 202,
+          "position": 6393
+        },
+        "name": "components\\charts\\CorrelationMatrixControls.tsx",
+        "start": 190,
+        "startLoc": {
+          "column": 68,
+          "line": 190,
+          "position": 6009
+        }
+      },
+      "tokens": 100
+    },
+    {
+      "firstFile": {
+        "end": 234,
+        "endLoc": {
+          "column": 54,
+          "line": 234,
+          "position": 7367
+        },
+        "name": "components\\charts\\CorrelationMatrixControls.tsx",
+        "start": 229,
+        "startLoc": {
+          "column": 49,
+          "line": 229,
+          "position": 7109
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 78,
+        "endLoc": {
+          "column": 54,
+          "line": 78,
+          "position": 2093
+        },
+        "name": "components\\charts\\RollingMetricsChart.tsx",
+        "start": 73,
+        "startLoc": {
+          "column": 49,
+          "line": 73,
+          "position": 1835
+        }
+      },
+      "tokens": 59
+    },
+    {
+      "firstFile": {
+        "end": 240,
+        "endLoc": {
+          "column": 16,
+          "line": 240,
+          "position": 7536
+        },
+        "name": "components\\charts\\CorrelationMatrixControls.tsx",
+        "start": 230,
+        "startLoc": {
+          "column": 32,
+          "line": 230,
+          "position": 7144
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 71,
+        "endLoc": {
+          "column": 81,
+          "line": 71,
+          "position": 5149
+        },
+        "name": "pages\\rebalancing-sensitivity\\SensitivityCharts.tsx",
+        "start": 68,
+        "startLoc": {
+          "column": 27,
+          "line": 68,
+          "position": 4810
+        }
+      },
+      "tokens": 92
+    },
+    {
+      "firstFile": {
+        "end": 111,
+        "endLoc": {
+          "column": 3,
+          "line": 111,
+          "position": 3390
+        },
+        "name": "components\\charts\\MonthlyHeatmap.tsx",
+        "start": 106,
+        "startLoc": {
+          "column": 73,
+          "line": 106,
+          "position": 3253
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 129,
+        "endLoc": {
+          "column": 1,
+          "line": 129,
+          "position": 3744
+        },
+        "name": "components\\charts\\MonthlyReturnHeatmap.tsx",
+        "start": 124,
+        "startLoc": {
+          "column": 51,
+          "line": 124,
+          "position": 3617
+        }
+      },
+      "tokens": 51
+    },
+    {
+      "firstFile": {
+        "end": 62,
+        "endLoc": {
+          "column": 25,
+          "line": 62,
+          "position": 1912
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 55,
+        "startLoc": {
+          "column": 2,
+          "line": 55,
+          "position": 1579
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 132,
+        "endLoc": {
+          "column": 25,
+          "line": 132,
+          "position": 4332
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 125,
+        "startLoc": {
+          "column": 2,
+          "line": 125,
+          "position": 3999
+        }
+      },
+      "tokens": 63
+    },
+    {
+      "firstFile": {
+        "end": 90,
+        "endLoc": {
+          "column": 11,
+          "line": 90,
+          "position": 3020
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 62,
+        "startLoc": {
+          "column": 34,
+          "line": 62,
+          "position": 1921
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 29,
+      "secondFile": {
+        "end": 160,
+        "endLoc": {
+          "column": 11,
+          "line": 160,
+          "position": 5435
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 132,
+        "startLoc": {
+          "column": 29,
+          "line": 132,
+          "position": 4336
+        }
+      },
+      "tokens": 225
+    },
+    {
+      "firstFile": {
+        "end": 67,
+        "endLoc": {
+          "column": 27,
+          "line": 67,
+          "position": 2186
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 62,
+        "startLoc": {
+          "column": 34,
+          "line": 62,
+          "position": 1921
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 69,
+        "endLoc": {
+          "column": 27,
+          "line": 69,
+          "position": 2287
+        },
+        "name": "components\\charts\\RollingCorrelationChart.tsx",
+        "start": 62,
+        "startLoc": {
+          "column": 82,
+          "line": 62,
+          "position": 2003
+        }
+      },
+      "tokens": 56
+    },
+    {
+      "firstFile": {
+        "end": 71,
+        "endLoc": {
+          "column": 19,
+          "line": 71,
+          "position": 2280
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 62,
+        "startLoc": {
+          "column": 19,
+          "line": 62,
+          "position": 1906
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 55,
+        "endLoc": {
+          "column": 16,
+          "line": 55,
+          "position": 1758
+        },
+        "name": "components\\charts\\RollingReturnChart.tsx",
+        "start": 48,
+        "startLoc": {
+          "column": 19,
+          "line": 48,
+          "position": 1419
+        }
+      },
+      "tokens": 80
+    },
+    {
+      "firstFile": {
+        "end": 72,
+        "endLoc": {
+          "column": 50,
+          "line": 72,
+          "position": 2374
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 62,
+        "startLoc": {
+          "column": 34,
+          "line": 62,
+          "position": 1921
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 99,
+        "endLoc": {
+          "column": 97,
+          "line": 99,
+          "position": 4863
+        },
+        "name": "pages\\signal\\DualSignalResults.tsx",
+        "start": 96,
+        "startLoc": {
+          "column": 35,
+          "line": 96,
+          "position": 4504
+        }
+      },
+      "tokens": 98
+    },
+    {
+      "firstFile": {
+        "end": 79,
+        "endLoc": {
+          "column": 29,
+          "line": 79,
+          "position": 2669
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 62,
+        "startLoc": {
+          "column": 34,
+          "line": 62,
+          "position": 1921
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 18,
+      "secondFile": {
+        "end": 55,
+        "endLoc": {
+          "column": 162,
+          "line": 55,
+          "position": 4241
+        },
+        "name": "pages\\tactical\\GridCharts.tsx",
+        "start": 51,
+        "startLoc": {
+          "column": 41,
+          "line": 51,
+          "position": 3660
+        }
+      },
+      "tokens": 163
+    },
+    {
+      "firstFile": {
+        "end": 78,
+        "endLoc": {
+          "column": 33,
+          "line": 78,
+          "position": 2588
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 62,
+        "startLoc": {
+          "column": 34,
+          "line": 62,
+          "position": 1921
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 17,
+      "secondFile": {
+        "end": 42,
+        "endLoc": {
+          "column": 46,
+          "line": 42,
+          "position": 1460
+        },
+        "name": "pages\\tactical\\TacticalResultsCharts.tsx",
+        "start": 29,
+        "startLoc": {
+          "column": 35,
+          "line": 29,
+          "position": 854
+        }
+      },
+      "tokens": 143
+    },
+    {
+      "firstFile": {
+        "end": 144,
+        "endLoc": {
+          "column": 18,
+          "line": 144,
+          "position": 4821
+        },
+        "name": "components\\charts\\PortfolioAllocationChart.tsx",
+        "start": 132,
+        "startLoc": {
+          "column": 19,
+          "line": 132,
+          "position": 4326
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 13,
+      "secondFile": {
+        "end": 92,
+        "endLoc": {
+          "column": 55,
+          "line": 92,
+          "position": 3000
+        },
+        "name": "pages\\letf\\LETFSlippageCharts.tsx",
+        "start": 83,
+        "startLoc": {
+          "column": 19,
+          "line": 83,
+          "position": 2547
+        }
+      },
+      "tokens": 107
+    },
+    {
+      "firstFile": {
+        "end": 72,
+        "endLoc": {
+          "column": 20,
+          "line": 72,
+          "position": 1685
+        },
+        "name": "components\\charts\\RegressionChartDisplay.tsx",
+        "start": 66,
+        "startLoc": {
+          "column": 51,
+          "line": 66,
+          "position": 1413
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 78,
+        "endLoc": {
+          "column": 20,
+          "line": 78,
+          "position": 2000
+        },
+        "name": "components\\charts\\RiskReturnScatter.tsx",
+        "start": 72,
+        "startLoc": {
+          "column": 4,
+          "line": 72,
+          "position": 1728
+        }
+      },
+      "tokens": 57
+    },
+    {
+      "firstFile": {
+        "end": 229,
+        "endLoc": {
+          "column": 6,
+          "line": 229,
+          "position": 7196
+        },
+        "name": "components\\charts\\RegressionChartDisplay.tsx",
+        "start": 218,
+        "startLoc": {
+          "column": 24,
+          "line": 218,
+          "position": 6891
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 12,
+      "secondFile": {
+        "end": 87,
+        "endLoc": {
+          "column": 6,
+          "line": 87,
+          "position": 2856
+        },
+        "name": "components\\charts\\RollingReturnChart.tsx",
+        "start": 76,
+        "startLoc": {
+          "column": 20,
+          "line": 76,
+          "position": 2551
+        }
+      },
+      "tokens": 59
+    },
+    {
+      "firstFile": {
+        "end": 57,
+        "endLoc": {
+          "column": 41,
+          "line": 57,
+          "position": 1863
+        },
+        "name": "components\\charts\\RollingReturnChart.tsx",
+        "start": 47,
+        "startLoc": {
+          "column": 52,
+          "line": 47,
+          "position": 1398
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 47,
+        "endLoc": {
+          "column": 41,
+          "line": 47,
+          "position": 1565
+        },
+        "name": "pages\\lump-sum-dca\\LumpSumDcaChart.tsx",
+        "start": 37,
+        "startLoc": {
+          "column": 53,
+          "line": 37,
+          "position": 1100
+        }
+      },
+      "tokens": 106
+    },
+    {
+      "firstFile": {
+        "end": 65,
+        "endLoc": {
+          "column": 10,
+          "line": 65,
+          "position": 2210
+        },
+        "name": "components\\charts\\RollingReturnChart.tsx",
+        "start": 60,
+        "startLoc": {
+          "column": 45,
+          "line": 60,
+          "position": 1961
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 100,
+        "endLoc": {
+          "column": 10,
+          "line": 100,
+          "position": 3326
+        },
+        "name": "pages\\letf\\LETFSlippageCharts.tsx",
+        "start": 95,
+        "startLoc": {
+          "column": 38,
+          "line": 95,
+          "position": 3077
+        }
+      },
+      "tokens": 57
+    },
+    {
+      "firstFile": {
+        "end": 65,
+        "endLoc": {
+          "column": 7,
+          "line": 65,
+          "position": 2200
+        },
+        "name": "components\\charts\\analysisChartUtils.ts",
+        "start": 60,
+        "startLoc": {
+          "column": 25,
+          "line": 60,
+          "position": 1990
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 76,
+        "endLoc": {
+          "column": 7,
+          "line": 76,
+          "position": 2629
+        },
+        "name": "components\\charts\\analysisChartUtils.ts",
+        "start": 71,
+        "startLoc": {
+          "column": 21,
+          "line": 71,
+          "position": 2419
+        }
+      },
+      "tokens": 75
+    },
+    {
+      "firstFile": {
+        "end": 121,
+        "endLoc": {
+          "column": 21,
+          "line": 121,
+          "position": 4215
+        },
+        "name": "components\\charts\\analysisChartUtils.ts",
+        "start": 116,
+        "startLoc": {
+          "column": 23,
+          "line": 116,
+          "position": 4036
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 36,
+        "endLoc": {
+          "column": 21,
+          "line": 36,
+          "position": 1177
+        },
+        "name": "hooks\\useAnalysisData.ts",
+        "start": 31,
+        "startLoc": {
+          "column": 10,
+          "line": 31,
+          "position": 998
+        }
+      },
+      "tokens": 56
+    },
+    {
+      "firstFile": {
+        "end": 60,
+        "endLoc": {
+          "column": 14,
+          "line": 60,
+          "position": 1817
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 50,
+        "startLoc": {
+          "column": 26,
+          "line": 50,
+          "position": 1400
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 181,
+        "endLoc": {
+          "column": 14,
+          "line": 181,
+          "position": 5564
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 171,
+        "startLoc": {
+          "column": 28,
+          "line": 171,
+          "position": 5147
+        }
+      },
+      "tokens": 98
+    },
+    {
+      "firstFile": {
+        "end": 60,
+        "endLoc": {
+          "column": 14,
+          "line": 60,
+          "position": 1817
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 53,
+        "startLoc": {
+          "column": 17,
+          "line": 53,
+          "position": 1490
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 120,
+        "endLoc": {
+          "column": 14,
+          "line": 120,
+          "position": 3657
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 113,
+        "startLoc": {
+          "column": 17,
+          "line": 113,
+          "position": 3330
+        }
+      },
+      "tokens": 80
+    },
+    {
+      "firstFile": {
+        "end": 95,
+        "endLoc": {
+          "column": 1,
+          "line": 95,
+          "position": 2924
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 77,
+        "startLoc": {
+          "column": 37,
+          "line": 77,
+          "position": 2461
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 19,
+      "secondFile": {
+        "end": 225,
+        "endLoc": {
+          "column": 1,
+          "line": 225,
+          "position": 7003
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 207,
+        "startLoc": {
+          "column": 43,
+          "line": 207,
+          "position": 6540
+        }
+      },
+      "tokens": 94
+    },
+    {
+      "firstFile": {
+        "end": 92,
+        "endLoc": {
+          "column": 8,
+          "line": 92,
+          "position": 2877
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 80,
+        "startLoc": {
+          "column": 31,
+          "line": 80,
+          "position": 2571
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 13,
+      "secondFile": {
+        "end": 151,
+        "endLoc": {
+          "column": 8,
+          "line": 151,
+          "position": 4744
+        },
+        "name": "components\\charts\\sharedChartContent.tsx",
+        "start": 139,
+        "startLoc": {
+          "column": 28,
+          "line": 139,
+          "position": 4438
+        }
+      },
+      "tokens": 60
+    },
+    {
+      "firstFile": {
+        "end": 44,
+        "endLoc": {
+          "column": 7,
+          "line": 44,
+          "position": 3364
+        },
+        "name": "components\\dataEngine\\DashboardOverview.tsx",
+        "start": 39,
+        "startLoc": {
+          "column": 39,
+          "line": 39,
+          "position": 3062
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 63,
+        "endLoc": {
+          "column": 8,
+          "line": 63,
+          "position": 5055
+        },
+        "name": "components\\dataEngine\\DashboardOverview.tsx",
+        "start": 58,
+        "startLoc": {
+          "column": 38,
+          "line": 58,
+          "position": 4752
+        }
+      },
+      "tokens": 62
+    },
+    {
+      "firstFile": {
+        "end": 60,
+        "endLoc": {
+          "column": 36,
+          "line": 60,
+          "position": 2244
+        },
+        "name": "components\\dataEngine\\utils.ts",
+        "start": 55,
+        "startLoc": {
+          "column": 2,
+          "line": 55,
+          "position": 2015
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 143,
+        "endLoc": {
+          "column": 38,
+          "line": 143,
+          "position": 4940
+        },
+        "name": "components\\dataEngine\\utils.ts",
+        "start": 138,
+        "startLoc": {
+          "column": 4,
+          "line": 138,
+          "position": 4701
+        }
+      },
+      "tokens": 64
+    },
+    {
+      "firstFile": {
+        "end": 134,
+        "endLoc": {
+          "column": 23,
+          "line": 134,
+          "position": 4372
+        },
+        "name": "components\\parameterPanel\\BasicParamsSection.tsx",
+        "start": 129,
+        "startLoc": {
+          "column": 24,
+          "line": 129,
+          "position": 4161
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 181,
+        "endLoc": {
+          "column": 23,
+          "line": 181,
+          "position": 6022
+        },
+        "name": "components\\parameterPanel\\BasicParamsSection.tsx",
+        "start": 176,
+        "startLoc": {
+          "column": 23,
+          "line": 176,
+          "position": 5811
+        }
+      },
+      "tokens": 52
+    },
+    {
+      "firstFile": {
+        "end": 78,
+        "endLoc": {
+          "column": 33,
+          "line": 78,
+          "position": 2336
+        },
+        "name": "components\\portfolioEditor\\PortfolioCard.tsx",
+        "start": 72,
+        "startLoc": {
+          "column": 59,
+          "line": 72,
+          "position": 2090
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 48,
+        "endLoc": {
+          "column": 33,
+          "line": 48,
+          "position": 1244
+        },
+        "name": "components\\portfolioEditor\\PortfolioToolbarAndAssets.tsx",
+        "start": 42,
+        "startLoc": {
+          "column": 12,
+          "line": 42,
+          "position": 998
+        }
+      },
+      "tokens": 59
+    },
+    {
+      "firstFile": {
+        "end": 16,
+        "endLoc": {
+          "column": 2,
+          "line": 16,
+          "position": 472
+        },
+        "name": "pages\\OrgMembersActions.tsx",
+        "start": 11,
+        "startLoc": {
+          "column": 0,
+          "line": 11,
+          "position": 175
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 18,
+        "endLoc": {
+          "column": 2,
+          "line": 18,
+          "position": 516
+        },
+        "name": "pages\\OrgMembersList.tsx",
+        "start": 13,
+        "startLoc": {
+          "column": 0,
+          "line": 13,
+          "position": 219
+        }
+      },
+      "tokens": 56
+    },
+    {
+      "firstFile": {
+        "end": 27,
+        "endLoc": {
+          "column": 45,
+          "line": 27,
+          "position": 818
+        },
+        "name": "pages\\OrgMembersActions.tsx",
+        "start": 22,
+        "startLoc": {
+          "column": 2,
+          "line": 22,
+          "position": 594
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 39,
+        "endLoc": {
+          "column": 45,
+          "line": 39,
+          "position": 1203
+        },
+        "name": "pages\\OrgMembersActions.tsx",
+        "start": 34,
+        "startLoc": {
+          "column": 2,
+          "line": 34,
+          "position": 979
+        }
+      },
+      "tokens": 56
+    },
+    {
+      "firstFile": {
+        "end": 142,
+        "endLoc": {
+          "column": 7,
+          "line": 142,
+          "position": 5233
+        },
+        "name": "pages\\OrgMembersPage.tsx",
+        "start": 136,
+        "startLoc": {
+          "column": 38,
+          "line": 136,
+          "position": 4991
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 94,
+        "endLoc": {
+          "column": 7,
+          "line": 94,
+          "position": 3456
+        },
+        "name": "pages\\account\\BillingPage.tsx",
+        "start": 89,
+        "startLoc": {
+          "column": 35,
+          "line": 89,
+          "position": 3215
+        }
+      },
+      "tokens": 63
+    },
+    {
+      "firstFile": {
+        "end": 159,
+        "endLoc": {
+          "column": 11,
+          "line": 159,
+          "position": 6058
+        },
+        "name": "pages\\OrgMembersPage.tsx",
+        "start": 153,
+        "startLoc": {
+          "column": 3,
+          "line": 153,
+          "position": 5788
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 121,
+        "endLoc": {
+          "column": 11,
+          "line": 121,
+          "position": 4463
+        },
+        "name": "pages\\account\\BillingPage.tsx",
+        "start": 115,
+        "startLoc": {
+          "column": 52,
+          "line": 115,
+          "position": 4193
+        }
+      },
+      "tokens": 69
+    },
+    {
+      "firstFile": {
+        "end": 40,
+        "endLoc": {
+          "column": 69,
+          "line": 40,
+          "position": 1039
+        },
+        "name": "pages\\admin\\DashboardSummary.tsx",
+        "start": 31,
+        "startLoc": {
+          "column": 42,
+          "line": 31,
+          "position": 671
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 42,
+        "endLoc": {
+          "column": 69,
+          "line": 42,
+          "position": 1029
+        },
+        "name": "pages\\admin\\MonitorMetrics.tsx",
+        "start": 33,
+        "startLoc": {
+          "column": 33,
+          "line": 33,
+          "position": 661
+        }
+      },
+      "tokens": 71
+    },
+    {
+      "firstFile": {
+        "end": 45,
+        "endLoc": {
+          "column": 1,
+          "line": 45,
+          "position": 1085
+        },
+        "name": "pages\\admin\\DashboardSummary.tsx",
+        "start": 34,
+        "startLoc": {
+          "column": 2,
+          "line": 34,
+          "position": 681
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 12,
+      "secondFile": {
+        "end": 86,
+        "endLoc": {
+          "column": 1,
+          "line": 86,
+          "position": 3386
+        },
+        "name": "pages\\admin\\DataManagementImport.tsx",
+        "start": 75,
+        "startLoc": {
+          "column": 2,
+          "line": 75,
+          "position": 2982
+        }
+      },
+      "tokens": 86
+    },
+    {
+      "firstFile": {
+        "end": 100,
+        "endLoc": {
+          "column": 40,
+          "line": 100,
+          "position": 2989
+        },
+        "name": "pages\\analysis\\AnalysisParamsPanel.tsx",
+        "start": 91,
+        "startLoc": {
+          "column": 65,
+          "line": 91,
+          "position": 2709
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 82,
+        "endLoc": {
+          "column": 40,
+          "line": 82,
+          "position": 3905
+        },
+        "name": "pages\\signal\\SignalAnalyzerForm.tsx",
+        "start": 78,
+        "startLoc": {
+          "column": 52,
+          "line": 78,
+          "position": 3683
+        }
+      },
+      "tokens": 55
+    },
+    {
+      "firstFile": {
+        "end": 109,
+        "endLoc": {
+          "column": 21,
+          "line": 109,
+          "position": 3244
+        },
+        "name": "pages\\analysis\\AnalysisParamsPanel.tsx",
+        "start": 100,
+        "startLoc": {
+          "column": 63,
+          "line": 100,
+          "position": 3012
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 64,
+        "endLoc": {
+          "column": 21,
+          "line": 64,
+          "position": 3273
+        },
+        "name": "pages\\tactical\\TacticalParamAdvanced.tsx",
+        "start": 60,
+        "startLoc": {
+          "column": 52,
+          "line": 60,
+          "position": 3099
+        }
+      },
+      "tokens": 51
+    },
+    {
+      "firstFile": {
+        "end": 175,
+        "endLoc": {
+          "column": 13,
+          "line": 175,
+          "position": 5963
+        },
+        "name": "pages\\analysis\\AnalysisResultsPanel.tsx",
+        "start": 169,
+        "startLoc": {
+          "column": 73,
+          "line": 169,
+          "position": 5667
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 53,
+        "endLoc": {
+          "column": 13,
+          "line": 53,
+          "position": 1933
+        },
+        "name": "pages\\monte-carlo\\MonteCarloPresets.tsx",
+        "start": 47,
+        "startLoc": {
+          "column": 75,
+          "line": 47,
+          "position": 1637
+        }
+      },
+      "tokens": 78
+    },
+    {
+      "firstFile": {
+        "end": 180,
+        "endLoc": {
+          "column": 15,
+          "line": 180,
+          "position": 6208
+        },
+        "name": "pages\\analysis\\AnalysisResultsPanel.tsx",
+        "start": 175,
+        "startLoc": {
+          "column": 30,
+          "line": 175,
+          "position": 5980
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 47,
+        "endLoc": {
+          "column": 15,
+          "line": 47,
+          "position": 2281
+        },
+        "name": "pages\\backtest\\BacktestPage.tsx",
+        "start": 42,
+        "startLoc": {
+          "column": 36,
+          "line": 42,
+          "position": 2053
+        }
+      },
+      "tokens": 56
+    },
+    {
+      "firstFile": {
+        "end": 69,
+        "endLoc": {
+          "column": 1,
+          "line": 69,
+          "position": 1958
+        },
+        "name": "pages\\auth\\LoginPage.tsx",
+        "start": 54,
+        "startLoc": {
+          "column": 20,
+          "line": 54,
+          "position": 1642
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 16,
+      "secondFile": {
+        "end": 184,
+        "endLoc": {
+          "column": 1,
+          "line": 184,
+          "position": 5093
+        },
+        "name": "pages\\auth\\SignupPage.tsx",
+        "start": 169,
+        "startLoc": {
+          "column": 26,
+          "line": 169,
+          "position": 4777
+        }
+      },
+      "tokens": 65
+    },
+    {
+      "firstFile": {
+        "end": 87,
+        "endLoc": {
+          "column": 65,
+          "line": 87,
+          "position": 2394
+        },
+        "name": "pages\\auth\\LoginPage.tsx",
+        "start": 72,
+        "startLoc": {
+          "column": 26,
+          "line": 72,
+          "position": 2012
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 16,
+      "secondFile": {
+        "end": 162,
+        "endLoc": {
+          "column": 65,
+          "line": 162,
+          "position": 4626
+        },
+        "name": "pages\\auth\\SignupPage.tsx",
+        "start": 147,
+        "startLoc": {
+          "column": 27,
+          "line": 147,
+          "position": 4244
+        }
+      },
+      "tokens": 71
+    },
+    {
+      "firstFile": {
+        "end": 57,
+        "endLoc": {
+          "column": 6,
+          "line": 57,
+          "position": 2516
+        },
+        "name": "pages\\backtest\\BacktestPage.tsx",
+        "start": 38,
+        "startLoc": {
+          "column": 29,
+          "line": 38,
+          "position": 1852
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 20,
+      "secondFile": {
+        "end": 68,
+        "endLoc": {
+          "column": 6,
+          "line": 68,
+          "position": 2419
+        },
+        "name": "pages\\monte-carlo\\MonteCarloPresets.tsx",
+        "start": 49,
+        "startLoc": {
+          "column": 36,
+          "line": 49,
+          "position": 1755
+        }
+      },
+      "tokens": 168
+    },
+    {
+      "firstFile": {
+        "end": 83,
+        "endLoc": {
+          "column": 61,
+          "line": 83,
+          "position": 4458
+        },
+        "name": "pages\\backtest\\optimizerValidation.ts",
+        "start": 78,
+        "startLoc": {
+          "column": 68,
+          "line": 78,
+          "position": 4195
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 38,
+        "endLoc": {
+          "column": 59,
+          "line": 38,
+          "position": 2003
+        },
+        "name": "pages\\optimizer\\optimizerUtilsHelpers.ts",
+        "start": 33,
+        "startLoc": {
+          "column": 56,
+          "line": 33,
+          "position": 1750
+        }
+      },
+      "tokens": 70
+    },
+    {
+      "firstFile": {
+        "end": 120,
+        "endLoc": {
+          "column": 1,
+          "line": 120,
+          "position": 4519
+        },
+        "name": "pages\\calculators\\CAGRCalculators.tsx",
+        "start": 92,
+        "startLoc": {
+          "column": 31,
+          "line": 92,
+          "position": 3492
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 29,
+      "secondFile": {
+        "end": 176,
+        "endLoc": {
+          "column": 1,
+          "line": 176,
+          "position": 6810
+        },
+        "name": "pages\\calculators\\CAGRCalculators.tsx",
+        "start": 148,
+        "startLoc": {
+          "column": 31,
+          "line": 148,
+          "position": 5783
+        }
+      },
+      "tokens": 186
+    },
+    {
+      "firstFile": {
+        "end": 32,
+        "endLoc": {
+          "column": 17,
+          "line": 32,
+          "position": 1539
+        },
+        "name": "pages\\efficient-frontier\\EfficientFrontierPage.tsx",
+        "start": 23,
+        "startLoc": {
+          "column": 10,
+          "line": 23,
+          "position": 1202
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 38,
+        "endLoc": {
+          "column": 17,
+          "line": 38,
+          "position": 1731
+        },
+        "name": "pages\\letf\\LETFSlippagePage.tsx",
+        "start": 29,
+        "startLoc": {
+          "column": 10,
+          "line": 29,
+          "position": 1394
+        }
+      },
+      "tokens": 80
+    },
+    {
+      "firstFile": {
+        "end": 36,
+        "endLoc": {
+          "column": 17,
+          "line": 36,
+          "position": 1724
+        },
+        "name": "pages\\efficient-frontier\\EfficientFrontierPage.tsx",
+        "start": 23,
+        "startLoc": {
+          "column": 10,
+          "line": 23,
+          "position": 1202
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 14,
+      "secondFile": {
+        "end": 41,
+        "endLoc": {
+          "column": 17,
+          "line": 41,
+          "position": 1900
+        },
+        "name": "pages\\pca\\PCAPage.tsx",
+        "start": 28,
+        "startLoc": {
+          "column": 10,
+          "line": 28,
+          "position": 1379
+        }
+      },
+      "tokens": 122
+    },
+    {
+      "firstFile": {
+        "end": 39,
+        "endLoc": {
+          "column": 59,
+          "line": 39,
+          "position": 1885
+        },
+        "name": "pages\\efficient-frontier\\EfficientFrontierPage.tsx",
+        "start": 23,
+        "startLoc": {
+          "column": 10,
+          "line": 23,
+          "position": 1202
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 17,
+      "secondFile": {
+        "end": 47,
+        "endLoc": {
+          "column": 23,
+          "line": 47,
+          "position": 2014
+        },
+        "name": "pages\\tactical\\TacticalPage.tsx",
+        "start": 26,
+        "startLoc": {
+          "column": 10,
+          "line": 26,
+          "position": 1335
+        }
+      },
+      "tokens": 157
+    },
+    {
+      "firstFile": {
+        "end": 40,
+        "endLoc": {
+          "column": 17,
+          "line": 40,
+          "position": 1908
+        },
+        "name": "pages\\efficient-frontier\\EfficientFrontierPage.tsx",
+        "start": 34,
+        "startLoc": {
+          "column": 8,
+          "line": 34,
+          "position": 1634
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 42,
+        "endLoc": {
+          "column": 17,
+          "line": 42,
+          "position": 1915
+        },
+        "name": "pages\\letf\\LETFSlippagePage.tsx",
+        "start": 36,
+        "startLoc": {
+          "column": 8,
+          "line": 36,
+          "position": 1641
+        }
+      },
+      "tokens": 69
+    },
+    {
+      "firstFile": {
+        "end": 45,
+        "endLoc": {
+          "column": 9,
+          "line": 45,
+          "position": 1351
+        },
+        "name": "pages\\efficient-frontier\\EfficientFrontierParams.tsx",
+        "start": 40,
+        "startLoc": {
+          "column": 0,
+          "line": 40,
+          "position": 1145
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 90,
+        "endLoc": {
+          "column": 9,
+          "line": 90,
+          "position": 4203
+        },
+        "name": "pages\\monte-carlo\\MonteCarloParamAdvanced.tsx",
+        "start": 85,
+        "startLoc": {
+          "column": 112,
+          "line": 85,
+          "position": 3997
+        }
+      },
+      "tokens": 55
+    },
+    {
+      "firstFile": {
+        "end": 80,
+        "endLoc": {
+          "column": 17,
+          "line": 80,
+          "position": 6276
+        },
+        "name": "pages\\factor-regression\\RegressionResults.tsx",
+        "start": 74,
+        "startLoc": {
+          "column": 266,
+          "line": 74,
+          "position": 5968
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 17,
+        "endLoc": {
+          "column": 17,
+          "line": 17,
+          "position": 1393
+        },
+        "name": "pages\\lump-sum-dca\\LumpSumResults.tsx",
+        "start": 11,
+        "startLoc": {
+          "column": 274,
+          "line": 11,
+          "position": 1085
+        }
+      },
+      "tokens": 79
+    },
+    {
+      "firstFile": {
+        "end": 80,
+        "endLoc": {
+          "column": 17,
+          "line": 80,
+          "position": 6276
+        },
+        "name": "pages\\factor-regression\\RegressionResults.tsx",
+        "start": 74,
+        "startLoc": {
+          "column": 266,
+          "line": 74,
+          "position": 5968
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 17,
+        "endLoc": {
+          "column": 17,
+          "line": 17,
+          "position": 1333
+        },
+        "name": "pages\\rebalancing-sensitivity\\SensitivityForm.tsx",
+        "start": 11,
+        "startLoc": {
+          "column": 230,
+          "line": 11,
+          "position": 1025
+        }
+      },
+      "tokens": 79
+    },
+    {
+      "firstFile": {
+        "end": 132,
+        "endLoc": {
+          "column": 7,
+          "line": 132,
+          "position": 3863
+        },
+        "name": "pages\\letf\\LETFForm.tsx",
+        "start": 106,
+        "startLoc": {
+          "column": 42,
+          "line": 106,
+          "position": 3099
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 27,
+      "secondFile": {
+        "end": 106,
+        "endLoc": {
+          "column": 7,
+          "line": 106,
+          "position": 3085
+        },
+        "name": "pages\\pca\\PCAForm.tsx",
+        "start": 80,
+        "startLoc": {
+          "column": 38,
+          "line": 80,
+          "position": 2321
+        }
+      },
+      "tokens": 141
+    },
+    {
+      "firstFile": {
+        "end": 130,
+        "endLoc": {
+          "column": 22,
+          "line": 130,
+          "position": 3854
+        },
+        "name": "pages\\letf\\LETFForm.tsx",
+        "start": 109,
+        "startLoc": {
+          "column": 41,
+          "line": 109,
+          "position": 3152
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 22,
+      "secondFile": {
+        "end": 115,
+        "endLoc": {
+          "column": 22,
+          "line": 115,
+          "position": 4265
+        },
+        "name": "pages\\signal\\DualSignalForm.tsx",
+        "start": 102,
+        "startLoc": {
+          "column": 13,
+          "line": 102,
+          "position": 3671
+        }
+      },
+      "tokens": 130
+    },
+    {
+      "firstFile": {
+        "end": 142,
+        "endLoc": {
+          "column": 8,
+          "line": 142,
+          "position": 4118
+        },
+        "name": "pages\\letf\\LETFForm.tsx",
+        "start": 129,
+        "startLoc": {
+          "column": 8,
+          "line": 129,
+          "position": 3825
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 14,
+      "secondFile": {
+        "end": 138,
+        "endLoc": {
+          "column": 8,
+          "line": 138,
+          "position": 4211
+        },
+        "name": "pages\\pca\\PCAForm.tsx",
+        "start": 125,
+        "startLoc": {
+          "column": 8,
+          "line": 125,
+          "position": 3918
+        }
+      },
+      "tokens": 61
+    },
+    {
+      "firstFile": {
+        "end": 96,
+        "endLoc": {
+          "column": 66,
+          "line": 96,
+          "position": 3145
+        },
+        "name": "pages\\letf\\LETFSlippageCharts.tsx",
+        "start": 81,
+        "startLoc": {
+          "column": 52,
+          "line": 81,
+          "position": 2467
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 16,
+      "secondFile": {
+        "end": 41,
+        "endLoc": {
+          "column": 33,
+          "line": 41,
+          "position": 2431
+        },
+        "name": "pages\\signal\\MultiSignalResults.tsx",
+        "start": 35,
+        "startLoc": {
+          "column": 52,
+          "line": 35,
+          "position": 1889
+        }
+      },
+      "tokens": 153
+    },
+    {
+      "firstFile": {
+        "end": 92,
+        "endLoc": {
+          "column": 57,
+          "line": 92,
+          "position": 3002
+        },
+        "name": "pages\\letf\\LETFSlippageCharts.tsx",
+        "start": 82,
+        "startLoc": {
+          "column": 51,
+          "line": 82,
+          "position": 2525
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 146,
+        "endLoc": {
+          "column": 57,
+          "line": 146,
+          "position": 4791
+        },
+        "name": "pages\\letf\\LETFSlippageCharts.tsx",
+        "start": 136,
+        "startLoc": {
+          "column": 51,
+          "line": 136,
+          "position": 4314
+        }
+      },
+      "tokens": 114
+    },
+    {
+      "firstFile": {
+        "end": 140,
+        "endLoc": {
+          "column": 20,
+          "line": 140,
+          "position": 4514
+        },
+        "name": "pages\\letf\\LETFSlippageCharts.tsx",
+        "start": 135,
+        "startLoc": {
+          "column": 68,
+          "line": 135,
+          "position": 4256
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 62,
+        "endLoc": {
+          "column": 25,
+          "line": 62,
+          "position": 2150
+        },
+        "name": "pages\\pca\\PCACharts.tsx",
+        "start": 58,
+        "startLoc": {
+          "column": 61,
+          "line": 58,
+          "position": 1904
+        }
+      },
+      "tokens": 62
+    },
+    {
+      "firstFile": {
+        "end": 79,
+        "endLoc": {
+          "column": 63,
+          "line": 79,
+          "position": 3226
+        },
+        "name": "pages\\letf\\LETFSlippagePage.tsx",
+        "start": 74,
+        "startLoc": {
+          "column": 17,
+          "line": 74,
+          "position": 3044
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 87,
+        "endLoc": {
+          "column": 63,
+          "line": 87,
+          "position": 3547
+        },
+        "name": "pages\\pca\\PCAPage.tsx",
+        "start": 82,
+        "startLoc": {
+          "column": 73,
+          "line": 82,
+          "position": 3365
+        }
+      },
+      "tokens": 51
+    },
+    {
+      "firstFile": {
+        "end": 80,
+        "endLoc": {
+          "column": 11,
+          "line": 80,
+          "position": 2375
+        },
+        "name": "pages\\letf\\LETFSlippageResults.tsx",
+        "start": 68,
+        "startLoc": {
+          "column": 72,
+          "line": 68,
+          "position": 2075
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 13,
+      "secondFile": {
+        "end": 51,
+        "endLoc": {
+          "column": 11,
+          "line": 51,
+          "position": 1375
+        },
+        "name": "pages\\pca\\PCAResults.tsx",
+        "start": 39,
+        "startLoc": {
+          "column": 3,
+          "line": 39,
+          "position": 1075
+        }
+      },
+      "tokens": 66
+    },
+    {
+      "firstFile": {
+        "end": 107,
+        "endLoc": {
+          "column": 8,
+          "line": 107,
+          "position": 3183
+        },
+        "name": "pages\\letf\\LETFSlippageResults.tsx",
+        "start": 91,
+        "startLoc": {
+          "column": 16,
+          "line": 91,
+          "position": 2852
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 17,
+      "secondFile": {
+        "end": 72,
+        "endLoc": {
+          "column": 8,
+          "line": 72,
+          "position": 1994
+        },
+        "name": "pages\\pca\\PCAResults.tsx",
+        "start": 56,
+        "startLoc": {
+          "column": 12,
+          "line": 56,
+          "position": 1663
+        }
+      },
+      "tokens": 63
+    },
+    {
+      "firstFile": {
+        "end": 16,
+        "endLoc": {
+          "column": 8,
+          "line": 16,
+          "position": 1334
+        },
+        "name": "pages\\monte-carlo\\MonteCarloCharts.tsx",
+        "start": 10,
+        "startLoc": {
+          "column": 17,
+          "line": 10,
+          "position": 761
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 101,
+        "endLoc": {
+          "column": 8,
+          "line": 101,
+          "position": 7067
+        },
+        "name": "pages\\monte-carlo\\MonteCarloCharts.tsx",
+        "start": 95,
+        "startLoc": {
+          "column": 17,
+          "line": 95,
+          "position": 6494
+        }
+      },
+      "tokens": 131
+    },
+    {
+      "firstFile": {
+        "end": 33,
+        "endLoc": {
+          "column": 1,
+          "line": 33,
+          "position": 983
+        },
+        "name": "pages\\monte-carlo\\monteCarloParamsUtils.ts",
+        "start": 18,
+        "startLoc": {
+          "column": 64,
+          "line": 18,
+          "position": 647
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 16,
+      "secondFile": {
+        "end": 27,
+        "endLoc": {
+          "column": 1,
+          "line": 27,
+          "position": 622
+        },
+        "name": "pages\\monte-carlo\\monteCarloPresetsUtils.ts",
+        "start": 12,
+        "startLoc": {
+          "column": 2,
+          "line": 12,
+          "position": 286
+        }
+      },
+      "tokens": 68
+    },
+    {
+      "firstFile": {
+        "end": 44,
+        "endLoc": {
+          "column": 41,
+          "line": 44,
+          "position": 1464
+        },
+        "name": "pages\\optimizer\\OptimizerParamsBasic.tsx",
+        "start": 36,
+        "startLoc": {
+          "column": 43,
+          "line": 36,
+          "position": 1202
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 58,
+        "endLoc": {
+          "column": 41,
+          "line": 58,
+          "position": 1985
+        },
+        "name": "pages\\optimizer\\OptimizerParamsBasic.tsx",
+        "start": 50,
+        "startLoc": {
+          "column": 43,
+          "line": 50,
+          "position": 1723
+        }
+      },
+      "tokens": 62
+    },
+    {
+      "firstFile": {
+        "end": 42,
+        "endLoc": {
+          "column": 57,
+          "line": 42,
+          "position": 1389
+        },
+        "name": "pages\\signal\\DualSignalForm.tsx",
+        "start": 35,
+        "startLoc": {
+          "column": 11,
+          "line": 35,
+          "position": 1154
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 47,
+        "endLoc": {
+          "column": 62,
+          "line": 47,
+          "position": 2270
+        },
+        "name": "pages\\signal\\SignalAnalyzerForm.tsx",
+        "start": 41,
+        "startLoc": {
+          "column": 79,
+          "line": 41,
+          "position": 2047
+        }
+      },
+      "tokens": 50
+    },
+    {
+      "firstFile": {
+        "end": 35,
+        "endLoc": {
+          "column": 29,
+          "line": 35,
+          "position": 1982
+        },
+        "name": "pages\\signal\\DualSignalPage.tsx",
+        "start": 29,
+        "startLoc": {
+          "column": 54,
+          "line": 29,
+          "position": 1659
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 32,
+        "endLoc": {
+          "column": 29,
+          "line": 32,
+          "position": 1705
+        },
+        "name": "pages\\signal\\SignalAnalyzerPage.tsx",
+        "start": 26,
+        "startLoc": {
+          "column": 57,
+          "line": 26,
+          "position": 1382
+        }
+      },
+      "tokens": 79
+    },
+    {
+      "firstFile": {
+        "end": 8,
+        "endLoc": {
+          "column": 92,
+          "line": 8,
+          "position": 475
+        },
+        "name": "pages\\signal\\DualSignalResults.tsx",
+        "start": 1,
+        "startLoc": {
+          "column": 0,
+          "line": 1,
+          "position": 0
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 8,
+      "secondFile": {
+        "end": 8,
+        "endLoc": {
+          "column": 92,
+          "line": 8,
+          "position": 475
+        },
+        "name": "pages\\signal\\SignalAnalyzerResults.tsx",
+        "start": 1,
+        "startLoc": {
+          "column": 0,
+          "line": 1,
+          "position": 0
+        }
+      },
+      "tokens": 67
+    },
+    {
+      "firstFile": {
+        "end": 138,
+        "endLoc": {
+          "column": 10,
+          "line": 138,
+          "position": 6830
+        },
+        "name": "pages\\signal\\DualSignalResults.tsx",
+        "start": 132,
+        "startLoc": {
+          "column": 46,
+          "line": 132,
+          "position": 6604
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 7,
+      "secondFile": {
+        "end": 56,
+        "endLoc": {
+          "column": 21,
+          "line": 56,
+          "position": 3381
+        },
+        "name": "pages\\signal\\MultiSignalResults.tsx",
+        "start": 52,
+        "startLoc": {
+          "column": 48,
+          "line": 52,
+          "position": 3165
+        }
+      },
+      "tokens": 58
+    },
+    {
+      "firstFile": {
+        "end": 137,
+        "endLoc": {
+          "column": 17,
+          "line": 137,
+          "position": 6817
+        },
+        "name": "pages\\signal\\DualSignalResults.tsx",
+        "start": 132,
+        "startLoc": {
+          "column": 59,
+          "line": 132,
+          "position": 6617
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 99,
+        "endLoc": {
+          "column": 17,
+          "line": 99,
+          "position": 4797
+        },
+        "name": "pages\\signal\\SignalAnalyzerResults.tsx",
+        "start": 94,
+        "startLoc": {
+          "column": 2,
+          "line": 94,
+          "position": 4597
+        }
+      },
+      "tokens": 50
+    },
+    {
+      "firstFile": {
+        "end": 158,
+        "endLoc": {
+          "column": 8,
+          "line": 158,
+          "position": 7736
+        },
+        "name": "pages\\signal\\DualSignalResults.tsx",
+        "start": 150,
+        "startLoc": {
+          "column": 7,
+          "line": 150,
+          "position": 7478
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 9,
+      "secondFile": {
+        "end": 107,
+        "endLoc": {
+          "column": 8,
+          "line": 107,
+          "position": 5128
+        },
+        "name": "pages\\signal\\SignalAnalyzerResults.tsx",
+        "start": 99,
+        "startLoc": {
+          "column": 90,
+          "line": 99,
+          "position": 4870
+        }
+      },
+      "tokens": 57
+    },
+    {
+      "firstFile": {
+        "end": 41,
+        "endLoc": {
+          "column": 172,
+          "line": 41,
+          "position": 2570
+        },
+        "name": "pages\\signal\\MultiSignalResults.tsx",
+        "start": 32,
+        "startLoc": {
+          "column": 42,
+          "line": 32,
+          "position": 1750
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 10,
+      "secondFile": {
+        "end": 79,
+        "endLoc": {
+          "column": 162,
+          "line": 79,
+          "position": 3653
+        },
+        "name": "pages\\signal\\SignalAnalyzerResults.tsx",
+        "start": 70,
+        "startLoc": {
+          "column": 64,
+          "line": 70,
+          "position": 2841
+        }
+      },
+      "tokens": 212
+    },
+    {
+      "firstFile": {
+        "end": 18,
+        "endLoc": {
+          "column": 12,
+          "line": 18,
+          "position": 776
+        },
+        "name": "pages\\signal\\SignalAnalyzerForm.tsx",
+        "start": 13,
+        "startLoc": {
+          "column": 28,
+          "line": 13,
+          "position": 550
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 31,
+        "endLoc": {
+          "column": 1,
+          "line": 31,
+          "position": 1330
+        },
+        "name": "pages\\signal\\SignalAnalyzerForm.tsx",
+        "start": 26,
+        "startLoc": {
+          "column": 3,
+          "line": 26,
+          "position": 1115
+        }
+      },
+      "tokens": 57
+    },
+    {
+      "firstFile": {
+        "end": 85,
+        "endLoc": {
+          "column": 12,
+          "line": 85,
+          "position": 4069
+        },
+        "name": "pages\\signal\\SignalAnalyzerForm.tsx",
+        "start": 75,
+        "startLoc": {
+          "column": 11,
+          "line": 75,
+          "position": 3556
+        }
+      },
+      "format": "tsx",
+      "fragment": "",
+      "lines": 11,
+      "secondFile": {
+        "end": 63,
+        "endLoc": {
+          "column": 12,
+          "line": 63,
+          "position": 3251
+        },
+        "name": "pages\\tactical\\TacticalParamAdvanced.tsx",
+        "start": 53,
+        "startLoc": {
+          "column": 39,
+          "line": 53,
+          "position": 2738
+        }
+      },
+      "tokens": 125
+    },
+    {
+      "firstFile": {
+        "end": 97,
+        "endLoc": {
+          "column": 65,
+          "line": 97,
+          "position": 3141
+        },
+        "name": "store\\authStore.ts",
+        "start": 92,
+        "startLoc": {
+          "column": 62,
+          "line": 92,
+          "position": 2950
+        }
+      },
+      "format": "typescript",
+      "fragment": "",
+      "lines": 6,
+      "secondFile": {
+        "end": 188,
+        "endLoc": {
+          "column": 65,
+          "line": 188,
+          "position": 5600
+        },
+        "name": "store\\authStore.ts",
+        "start": 183,
+        "startLoc": {
+          "column": 56,
+          "line": 183,
+          "position": 5409
+        }
+      },
+      "tokens": 52
+    }
+  ],
+  "statistics": {
+    "detectionDate": "2026-07-10T20:52:59.009Z",
+    "formats": {
+      "css": {
+        "clones": 7,
+        "duplicatedLines": 60,
+        "duplicatedTokens": 525,
+        "lines": 1050,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 5.714285714285714,
+        "percentageTokens": 8.080652608896413,
+        "sources": 3,
+        "tokens": 6497
+      },
+      "csv": {
+        "clones": 0,
+        "duplicatedLines": 0,
+        "duplicatedTokens": 0,
+        "lines": 1308,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 0.0,
+        "percentageTokens": 0.0,
+        "sources": 1,
+        "tokens": 13540
+      },
+      "json": {
+        "clones": 0,
+        "duplicatedLines": 0,
+        "duplicatedTokens": 0,
+        "lines": 84,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 0.0,
+        "percentageTokens": 0.0,
+        "sources": 1,
+        "tokens": 275
+      },
+      "tsx": {
+        "clones": 74,
+        "duplicatedLines": 733,
+        "duplicatedTokens": 6207,
+        "lines": 20483,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 3.578577356832495,
+        "percentageTokens": 3.835435294408433,
+        "sources": 187,
+        "tokens": 161833
+      },
+      "typescript": {
+        "clones": 35,
+        "duplicatedLines": 360,
+        "duplicatedTokens": 2726,
+        "lines": 28255,
+        "newClones": 0,
+        "newDuplicatedLines": 0,
+        "percentage": 1.2741107768536541,
+        "percentageTokens": 1.491426758143759,
+        "sources": 219,
+        "tokens": 182778
+      }
+    },
+    "total": {
+      "clones": 116,
+      "duplicatedLines": 1153,
+      "duplicatedTokens": 9458,
+      "lines": 51180,
+      "newClones": 0,
+      "newDuplicatedLines": 0,
+      "percentage": 2.2528331379445095,
+      "percentageTokens": 2.59177963570397,
+      "sources": 411,
+      "tokens": 364923
+    }
+  }
+}

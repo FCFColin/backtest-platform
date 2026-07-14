@@ -28,10 +28,10 @@ import CircuitBreaker from 'opossum';
 import { callService } from './httpClient.js';
 import { config } from '../config/index.js';
 import { logger } from './logger.js';
-import { errorMessage } from './errors.js';
+import { errorMessage, UpstreamProblemError } from './errors.js';
 import {
   recordEngineCall,
-  recordFallbackToNode,
+  recordEngineUnavailable,
   engineCallDuration,
   registerCircuitBreakerMetrics,
 } from './metrics.js';
@@ -81,12 +81,14 @@ const goCircuitBreaker = new CircuitBreaker(callGoEngine, {
   volumeThreshold: 5,
   rollingCountTimeout: 60000,
   rollingCountBuckets: 10,
+  // 4xx 客户端错误不计入熔断（RO-045）：参数错误不代表服务不可用
+  errorFilter: (err) => err instanceof UpstreamProblemError,
 });
 
 // Go 引擎熔断器事件监听
 goCircuitBreaker.on('open', () => {
   logger.warn('[circuit-breaker] Go 引擎熔断器进入 Open 状态');
-  recordFallbackToNode('go_circuit_breaker_open');
+  recordEngineUnavailable('go_circuit_breaker_open');
 });
 
 goCircuitBreaker.on('halfOpen', () => {
@@ -98,7 +100,7 @@ goCircuitBreaker.on('close', () => {
 });
 
 goCircuitBreaker.on('fallback', () => {
-  recordFallbackToNode('go_circuit_breaker_fallback');
+  recordEngineUnavailable('go_circuit_breaker_fallback');
 });
 
 // 注册 Go 引擎熔断器状态到 Prometheus 指标
@@ -123,6 +125,10 @@ async function retryWithBackoff<T>(
       return await fn();
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      // 4xx 客户端错误不可重试（RO-045）：参数错误不会因重试而成功
+      if (err instanceof UpstreamProblemError) {
+        throw err;
+      }
       if (attempt < maxRetries) {
         // 指数退避 + Jitter
         const delay = baseDelayMs * Math.pow(2, attempt) + Math.random() * 100;
@@ -142,60 +148,6 @@ async function retryWithBackoff<T>(
  */
 export function resetEngineAvailability(): void {
   goCircuitBreaker.close();
-}
-
-/**
- * 降级响应统一 schema
- *
- * 企业理由：多服务架构中降级是常态而非异常。无统一降级标记时，
- * 前端无法区分"正常结果"和"降级结果"，导致：
- * 1. 用户不知道数据可能存在精度差异（引擎计算 vs 缓存/降级数据）
- * 2. 监控系统无法统计降级率，无法触发告警
- * 3. 自动化测试无法验证降级路径是否正确执行
- * 统一 schema 让所有消费方能一致地感知和处理降级场景。
- * 权衡：降级时返回值从 T 变为 DegradedResponse<T>，调用方需适配，
- * 但这是必要的破坏性变更，通过类型系统强制消费方处理降级标记。
- */
-export interface DegradedResponse<T> {
-  data: T;
-  degraded: true;
-  degradedWarning: string; // 如 '数据服务不可用，已降级到缓存数据'
-}
-
-/**
- * 类型守卫：判断返回值是否为降级响应
- */
-export function isDegradedResponse<T>(
-  value: T | DegradedResponse<T>,
-): value is DegradedResponse<T> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'degraded' in value &&
-    (value as DegradedResponse<T>).degraded === true
-  );
-}
-
-/**
- * 解包降级响应返回值，提取实际数据和降级信息。
- *
- * 企业理由：降级响应返回 T | DegradedResponse<T> 联合类型，
- * 调用方需统一解包逻辑，避免每个调用点重复类型判断。
- * 权衡：引入辅助函数增加一层间接调用，但消除了调用方的重复代码。
- */
-export function unwrapFallbackResult<T>(result: T | DegradedResponse<T>): {
-  data: T;
-  degraded: boolean;
-  degradedWarning?: string;
-} {
-  if (isDegradedResponse(result)) {
-    return {
-      data: result.data,
-      degraded: true,
-      degradedWarning: result.degradedWarning,
-    };
-  }
-  return { data: result, degraded: false };
 }
 
 /**
@@ -252,7 +204,8 @@ export class EngineUnavailableError extends Error {
  * @typeParam T - 返回值类型
  * @param endpoint - 引擎接口路径
  * @param body - 请求体
- * @throws {EngineUnavailableError} 当 Go 引擎不可用时
+ * @throws {EngineUnavailableError} 当 Go 引擎不可用（5xx/网络错误）时
+ * @throws {UpstreamProblemError} 当 Go 引擎返回 4xx 客户端错误时（RO-045 透传）
  */
 export async function callEngineStrict<T>(endpoint: string, body: unknown): Promise<T> {
   try {
@@ -263,14 +216,21 @@ export async function callEngineStrict<T>(endpoint: string, body: unknown): Prom
     engineCallDuration.observe({ result: 'success' }, elapsed / 1000);
     logger.info(`[callEngineStrict] ${endpoint} Go 引擎耗时 ${elapsed}ms`);
     return result as T;
-  } catch (goErr) {
-    const errMsg = errorMessage(goErr);
+  } catch (err) {
+    // 4xx 客户端错误透传（RO-045）：不包装为 EngineUnavailableError
+    // 企业理由：4xx 是参数错误（如 portfolios 为空、请求格式错误），客户端需看到原始状态码与 detail，
+    // 而非被包装为 503 "引擎不可用"。仅 5xx/网络错误才 fail-closed (ADR-031)。
+    if (err instanceof UpstreamProblemError) {
+      recordEngineCall(false, err.code);
+      engineCallDuration.observe({ result: 'client_error' }, 0);
+      logger.warn(`[callEngineStrict] ${endpoint} Go 引擎返回 4xx: ${err.status} ${err.code}`);
+      throw err;
+    }
+    // 5xx / 网络错误 → fail-closed (ADR-031)
+    const errMsg = errorMessage(err);
     recordEngineCall(false, errMsg);
     engineCallDuration.observe({ result: 'unavailable' }, 0);
-    logger.error(
-      { err: goErr },
-      `[callEngineStrict] ${endpoint} Go 引擎不可用，fail-closed 返回 503`,
-    );
+    logger.error({ err }, `[callEngineStrict] ${endpoint} Go 引擎不可用，fail-closed 返回 503`);
     throw new EngineUnavailableError(endpoint);
   }
 }

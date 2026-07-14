@@ -7,8 +7,8 @@ import {
   runAnalysis,
   calculateDrag,
   type PriceData,
-} from '../../../packages/backend/src/engine/portfolio.js';
-import type { Portfolio } from '../../../shared/types/index.js';
+} from '../../../packages/backend/src/engine/backtestRunner.js';
+import type { Portfolio } from '@backtest/shared';
 import { makeLinearPriceData, makeParams } from '../../helpers/fixtures.js';
 
 describe('portfolio 扩展覆盖', () => {

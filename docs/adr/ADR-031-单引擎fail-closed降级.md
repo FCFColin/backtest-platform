@@ -25,8 +25,7 @@
 ```
 callEngineStrict(endpoint, body)
   ├─ 1. Go 引擎（主）   ── 经 opossum 熔断器 + 指数退避重试
-  ├─ 2. Rust 引擎（废弃迁移期保留） ── 经独立熔断器 + 重试
-  └─ 3. 均不可用 ⇒ 抛出 EngineUnavailableError（fail-closed）
+  └─ 2. 不可用 ⇒ 抛出 EngineUnavailableError（fail-closed）
         └─ 不再静默降级到 Node 备用引擎
 ```
 
@@ -49,14 +48,14 @@ callEngineStrict(endpoint, body)
 
 ### 代码落点
 
-| 关注点                                        | 位置                                                           |
-| --------------------------------------------- | -------------------------------------------------------------- |
-| `EngineUnavailableError` / `callEngineStrict` | `api/utils/rustFallback.ts`                                    |
-| 503 + Retry-After 翻译                        | `api/routes/backtestRoutes.ts`（`handleEngineUnavailable`）    |
-| problem 响应附加头                            | `api/utils/errors.ts`（`sendProblem` 的 `headers` 参数）       |
-| 引擎地址                                      | `api/config/index.ts`（`GO_ENGINE_URL` 默认 `127.0.0.1:5004`） |
+| 关注点                                        | 位置                                                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------- |
+| `EngineUnavailableError` / `callEngineStrict` | `packages/backend/src/utils/engineClient.ts`                                    |
+| 503 + Retry-After 翻译                        | `packages/backend/src/routes/backtestRoutes.ts`（`handleEngineUnavailable`）    |
+| problem 响应附加头                            | `packages/backend/src/utils/errors.ts`（`sendProblem` 的 `headers` 参数）       |
+| 引擎地址                                      | `packages/backend/src/config/index.ts`（`GO_ENGINE_URL` 默认 `127.0.0.1:5004`） |
 
-`callRustWithFallback` / `unwrapFallbackResult` 标记 `@deprecated`，仅为迁移期向后兼容保留。
+`callRustWithFallback` / `unwrapFallbackResult` 已删除（迁移期向后兼容保留已不再需要）。
 
 ## Consequences（后果）
 

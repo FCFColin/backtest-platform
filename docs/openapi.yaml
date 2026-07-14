@@ -50,13 +50,22 @@ tags:
     description: 杠杆 ETF 滑点分析
   - name: goal-optimizer
     description: 目标优化（蒙特卡洛模拟财务目标达成概率）
-  - name: engine-go
-    description: ｜
-      Go 引擎内部端点（不对外暴露，仅供 Node.js API 内部调用）。
-      端点路径前缀 /api/engine/，受 X-Engine-Auth Token 保护。
-      所有计算端点无状态——priceData 由调用方传入，引擎不持久化数据。
   - name: auth
     description: 认证鉴权（登录、令牌刷新、登出、身份查询）
+  - name: saas-keys
+    description: 按组织 API Key 管理（ADR-033，创建/查看/吊销）
+  - name: saas-portfolios
+    description: 租户作用域组合持久化（ADR-034）
+  - name: saas-configs
+    description: 租户作用域命名配置持久化（ADR-034）
+  - name: saas-runs
+    description: 租户作用域回测历史持久化（ADR-034）
+  - name: saas-orgs
+    description: 组织与成员管理、邀请（ADR-035）
+  - name: saas-billing
+    description: Stripe 计费（订阅、Checkout、Billing Portal，ADR-036）
+  - name: saas-jobs
+    description: 异步任务状态查询（ADR-019 所有权隔离）
 
 components:
   securitySchemes:
@@ -787,7 +796,8 @@ components:
         leverage:
           type: number
           description: 杠杆倍数（正数）
-          exclusiveMinimum: 0
+          minimum: 0
+          exclusiveMinimum: true
         startDate:
           type: string
           format: date
@@ -838,15 +848,18 @@ components:
         targetAmount:
           type: number
           description: 目标金额（正数）
-          exclusiveMinimum: 0
+          minimum: 0
+          exclusiveMinimum: true
         initialAmount:
           type: number
           description: 初始金额（正数）
-          exclusiveMinimum: 0
+          minimum: 0
+          exclusiveMinimum: true
         years:
           type: number
           description: 时间范围（年，正数）
-          exclusiveMinimum: 0
+          minimum: 0
+          exclusiveMinimum: true
         assets:
           type: array
           items:
@@ -1209,6 +1222,346 @@ components:
           type: string
         seed:
           type: number
+
+    # ===== SaaS 持久化与多租户（ADR-033/034/035/036/019）=====
+    ApiKeyCreateRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          description: 密钥可读名称（用户自定义）
+
+    ApiKeyCreateResponse:
+      type: object
+      required:
+        - id
+        - name
+        - keyPrefix
+        - apiKey
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        keyPrefix:
+          type: string
+          description: 密钥前缀（如 bpk_live_xxxx），用于 UI 展示与定位
+        apiKey:
+          type: string
+          description: 明文密钥，仅创建时一次性返回（bpk_live_ 前缀），后续不可再获取
+        createdAt:
+          type: string
+          format: date-time
+
+    ApiKeyListItem:
+      type: object
+      required:
+        - id
+        - name
+        - keyPrefix
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PortfolioSaveRequest:
+      type: object
+      required:
+        - name
+        - assets
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+        rebalanceFrequency:
+          type: string
+          enum: [daily, weekly, monthly, quarterly, annual, none, threshold]
+
+    SavedConfigRequest:
+      type: object
+      required:
+        - name
+        - config
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        config:
+          type: object
+          description: 嵌套配置 JSONB（回测参数、组合等任意可序列化结构）
+
+    SavedConfig:
+      type: object
+      required:
+        - id
+        - name
+        - config
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        config:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BacktestRunRequest:
+      type: object
+      required:
+        - request
+      properties:
+        name:
+          type: string
+          maxLength: 120
+          nullable: true
+        request:
+          type: object
+          description: 回测请求快照（JSONB，不可变）
+        result:
+          type: object
+          nullable: true
+          description: 回测结果（JSONB）
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+
+    BacktestRun:
+      type: object
+      required:
+        - id
+        - request
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+        request:
+          type: object
+        result:
+          type: object
+          nullable: true
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        createdAt:
+          type: string
+          format: date-time
+
+    OrgInfo:
+      type: object
+      required:
+        - orgId
+        - name
+        - slug
+        - plan
+        - status
+      properties:
+        orgId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        plan:
+          type: string
+          enum: [free, pro, enterprise]
+        status:
+          type: string
+          enum: [active, suspended, canceled]
+
+    OrgMember:
+      type: object
+      required:
+        - userId
+        - username
+        - role
+        - createdAt
+      properties:
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [owner, admin, analyst, readonly]
+        createdAt:
+          type: string
+          format: date-time
+
+    InvitationCreateRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, analyst, readonly]
+          default: analyst
+
+    Invitation:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - expiresAt
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [owner, admin, analyst, readonly]
+        invitedBy:
+          type: string
+          format: uuid
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+        acceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    AcceptInvitationRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          maxLength: 256
+
+    SubscriptionSummary:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [free, pro, enterprise]
+        status:
+          type: string
+        stripeCustomerId:
+          type: string
+          nullable: true
+
+    BillingSubscriptionResponse:
+      type: object
+      required:
+        - enabled
+        - subscription
+      properties:
+        enabled:
+          type: boolean
+          description: 计费功能是否启用（STRIPE_SECRET_KEY 是否配置）
+        publishableKey:
+          type: string
+          nullable: true
+        subscription:
+          $ref: '#/components/schemas/SubscriptionSummary'
+
+    CheckoutRequest:
+      type: object
+      required:
+        - plan
+      properties:
+        plan:
+          type: string
+          enum: [pro, enterprise]
+
+    BillingUrlResponse:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+
+    JobStatus:
+      type: object
+      required:
+        - id
+        - type
+        - state
+        - createdAt
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [optimizer, grid-search]
+        state:
+          type: string
+          enum: [completed, failed, active, waiting, delayed]
+        createdAt:
+          type: integer
+          description: 任务创建时间戳（毫秒）
+        processedAt:
+          type: integer
+          nullable: true
+        finishedAt:
+          type: integer
+          nullable: true
+        result:
+          type: object
+          nullable: true
+          description: 任务返回值（仅 completed 状态）
+        error:
+          type: string
+          nullable: true
+          description: 失败原因（仅 failed 状态）
 
 paths:
   # ===== 认证鉴权 =====
@@ -3787,3 +4140,933 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  # ===== SaaS 路由组（ADR-033/034/035/036/019）=====
+  # 企业理由：多租户 SaaS 化后，租户作用域的持久化、身份管理、计费与异步任务
+  # 端点此前缺失 OpenAPI 契约，前后端协作依赖口口相传。补齐 paths 使前端可自动
+  # 生成类型与请求客户端，并固化安全契约（RBAC、所有权、租户隔离）。
+
+  # ----- /keys：按组织 API Key（ADR-033）-----
+  /keys:
+    post:
+      tags: [saas-keys]
+      summary: 创建组织 API Key
+      description: |
+        创建新的按组织 API Key。明文密钥仅本次响应一次性返回（`bpk_live_` 前缀），
+        后续列表接口仅返回哈希后的 keyPrefix，不可再获取明文。需 ADMIN_ACCESS 权限。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreateRequest'
+      responses:
+        '201':
+          description: 密钥创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ApiKeyCreateResponse'
+        '400':
+          description: 请求体校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    get:
+      tags: [saas-keys]
+      summary: 列出组织 API Key
+      description: |
+        返回当前组织全部 API Key。响应不含明文密钥与哈希，仅含 keyPrefix、
+        名称、创建时间、最后使用时间、吊销时间。需 ADMIN_ACCESS 权限。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 密钥列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKeyListItem'
+
+  /keys/{id}:
+    delete:
+      tags: [saas-keys]
+      summary: 吊销组织 API Key
+      description: |
+        软吊销指定 API Key（设置 revoked_at）。吊销后该密钥立即失效，
+        但记录保留以供审计。需 ADMIN_ACCESS 权限。
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 吊销成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      revoked:
+                        type: boolean
+        '404':
+          description: 密钥不存在或已吊销
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # ----- /portfolios：租户作用域组合持久化（ADR-034）-----
+  /portfolios:
+    get:
+      tags: [saas-portfolios]
+      summary: 列出当前租户的组合
+      description: 返回当前活跃组织（租户）下全部已保存组合。RLS 保证仅返回本租户数据。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 组合列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Portfolio'
+    post:
+      tags: [saas-portfolios]
+      summary: 保存组合
+      description: 在当前租户下创建组合。组合归属当前活跃组织与提交者用户。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioSaveRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Portfolio'
+        '400':
+          description: 请求体校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /portfolios/{id}:
+    get:
+      tags: [saas-portfolios]
+      summary: 获取单个组合
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 组合详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Portfolio'
+        '404':
+          description: 组合不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    put:
+      tags: [saas-portfolios]
+      summary: 更新组合
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioSaveRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Portfolio'
+    delete:
+      tags: [saas-portfolios]
+      summary: 删除组合
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: boolean
+
+  # ----- /configs：租户作用域命名配置持久化（ADR-034）-----
+  /configs:
+    get:
+      tags: [saas-configs]
+      summary: 列出当前租户的命名配置
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 配置列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SavedConfig'
+    post:
+      tags: [saas-configs]
+      summary: 保存命名配置
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedConfigRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SavedConfig'
+        '400':
+          description: 请求体校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /configs/{id}:
+    get:
+      tags: [saas-configs]
+      summary: 获取单个命名配置
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 配置详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SavedConfig'
+        '404':
+          description: 配置不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    put:
+      tags: [saas-configs]
+      summary: 更新命名配置
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SavedConfigRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SavedConfig'
+    delete:
+      tags: [saas-configs]
+      summary: 删除命名配置
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: boolean
+
+  # ----- /runs：租户作用域回测历史持久化（ADR-034，不可变快照）-----
+  /runs:
+    get:
+      tags: [saas-runs]
+      summary: 列出当前租户的回测历史
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 回测历史列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BacktestRun'
+    post:
+      tags: [saas-runs]
+      summary: 保存回测历史快照
+      description: |
+        保存回测请求与结果快照。回测历史为不可变记录，创建后不支持更新（无 PUT），
+        确保历史结果可审计与可复现。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestRunRequest'
+      responses:
+        '201':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BacktestRun'
+
+  /runs/{id}:
+    get:
+      tags: [saas-runs]
+      summary: 获取单个回测历史
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 回测历史详情
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BacktestRun'
+        '404':
+          description: 回测历史不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    delete:
+      tags: [saas-runs]
+      summary: 删除回测历史
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: boolean
+
+  # ----- /orgs：组织与成员管理、邀请（ADR-035）-----
+  /orgs/current:
+    get:
+      tags: [saas-orgs]
+      summary: 获取当前组织信息
+      description: 返回当前活跃组织的名称、slug、计划与状态。任意成员可见。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 组织信息
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/OrgInfo'
+        '404':
+          description: 组织不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    patch:
+      tags: [saas-orgs]
+      summary: 更新组织名称
+      description: 更新当前组织显示名。需 ADMIN_ACCESS 权限（owner/admin）。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: boolean
+
+  /orgs/members:
+    get:
+      tags: [saas-orgs]
+      summary: 列出组织成员
+      description: 返回当前组织全部成员（含用户名、邮箱、角色）。任意成员可见。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 成员列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrgMember'
+
+  /orgs/members/{userId}:
+    patch:
+      tags: [saas-orgs]
+      summary: 修改成员角色
+      description: |
+        修改指定成员在组织内的角色。需 ADMIN_ACCESS 权限。
+        拒绝降级组织内最后一个 owner（返回 409 LAST_OWNER）。
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role
+              properties:
+                role:
+                  type: string
+                  enum: [owner, admin, analyst, readonly]
+      responses:
+        '200':
+          description: 角色更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      updated:
+                        type: boolean
+        '404':
+          description: 成员不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: 不能降级组织唯一的 owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    delete:
+      tags: [saas-orgs]
+      summary: 移除组织成员
+      description: |
+        从组织中移除指定成员。需 ADMIN_ACCESS 权限。
+        拒绝移除最后一个 owner（返回 409 LAST_OWNER）。
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 移除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      removed:
+                        type: boolean
+        '409':
+          description: 不能移除组织唯一的 owner
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /orgs/invitations:
+    get:
+      tags: [saas-orgs]
+      summary: 列出组织邀请
+      description: 返回当前组织的全部邀请（含待处理与已接受）。需 ADMIN_ACCESS 权限。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 邀请列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Invitation'
+    post:
+      tags: [saas-orgs]
+      summary: 创建组织邀请
+      description: |
+        为指定邮箱创建组织邀请并尝试发送邀请邮件。需 ADMIN_ACCESS 权限。
+        邀请令牌仅存哈希、7 天有效、可吊销。邮件发送失败不影响邀请创建。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationCreateRequest'
+      responses:
+        '201':
+          description: 邀请创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+                      role:
+                        type: string
+                      expiresAt:
+                        type: string
+                        format: date-time
+
+  /orgs/invitations/accept:
+    post:
+      tags: [saas-orgs]
+      summary: 接受组织邀请
+      description: |
+        凭邀请令牌接受邀请，为当前用户在目标组织内建立成员关系。
+        仅需登录认证（受邀者尚未属于该组织，不要求活跃租户）。
+        令牌无效/过期/已被接受时返回 400。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcceptInvitationRequest'
+      responses:
+        '200':
+          description: 接受成功，返回组织 ID 与角色
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      orgId:
+                        type: string
+                        format: uuid
+                      role:
+                        type: string
+        '400':
+          description: 邀请无效、已过期或已被接受
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /orgs/invitations/{id}:
+    delete:
+      tags: [saas-orgs]
+      summary: 撤销组织邀请
+      description: 撤销未接受的邀请。需 ADMIN_ACCESS 权限。
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 撤销成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      revoked:
+                        type: boolean
+        '404':
+          description: 邀请不存在或已被接受
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # ----- /billing：Stripe 计费（ADR-036）-----
+  /billing/subscription:
+    get:
+      tags: [saas-billing]
+      summary: 获取当前组织订阅摘要
+      description: |
+        返回计费启用状态、Stripe publishable key 与当前组织订阅摘要。
+        任意成员可见。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 订阅摘要
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BillingSubscriptionResponse'
+
+  /billing/checkout:
+    post:
+      tags: [saas-billing]
+      summary: 创建订阅 Checkout 会话
+      description: |
+        为指定计划创建 Stripe Checkout 会话，返回跳转 URL。
+        需 ADMIN_ACCESS 权限。计费未启用时返回 503 BILLING_DISABLED。
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: Checkout 会话创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BillingUrlResponse'
+        '503':
+          description: 计费功能未启用或价格未配置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /billing/portal:
+    post:
+      tags: [saas-billing]
+      summary: 创建 Billing Portal 会话
+      description: |
+        为当前组织创建 Stripe Billing Portal 会话，返回跳转 URL。
+        需 ADMIN_ACCESS 权限。组织尚无 Stripe customer 时返回 404。
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Portal 会话创建成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BillingUrlResponse'
+        '404':
+          description: 该组织尚无计费账户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
+          description: 计费功能未启用
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  # ----- /jobs：异步任务状态查询（ADR-019 所有权隔离）-----
+  /jobs/{id}:
+    get:
+      tags: [saas-jobs]
+      summary: 查询异步任务状态与结果
+      description: |
+        查询指定异步任务（优化器/网格搜索）的状态与结果。
+
+        安全（ADR-019 IDOR 防护）：仅任务提交者本人或 admin 可读取；
+        缺少 owner 信息的历史/匿名任务对非 admin 一律视为不可见，返回 404
+        （不泄露任务是否存在）。跨租户访问同样返回 404。
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 任务 ID（BullMQ jobId）
+      responses:
+        '200':
+          description: 任务状态与结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/JobStatus'
+        '404':
+          description: 任务不存在或请求方无权访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'

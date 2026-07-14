@@ -19,11 +19,11 @@
 ## Decision（决策内容）
 
 - 复用 `api_keys` 表（ADR-032，迁移 `009_tenancy.sql`）：`id, org_id, name, key_hash, key_prefix, last_used_at, revoked_at`。
-- 新增 `api/services/apiKeyService.ts`：
+- 新增 `packages/backend/src/services/apiKeyService.ts`：
   - `createApiKey(orgId, name, createdBy)` 生成 `bpk_live_<rand>`，仅存 SHA-256 `key_hash` 与可展示前缀 `key_prefix`，**明文仅在创建响应里返回一次**。
   - `verifyApiKey(plaintext)` 按哈希查未吊销密钥，命中后异步更新 `last_used_at`。
   - `listApiKeys(orgId)` / `revokeApiKey(orgId, id)` 均以 `org_id` 收敛，防跨租户。
-- `api/middleware/jwtAuth.ts` 的 `x-api-key` 路径改为 DB 查询：命中则注入 `req.user = { sub: 'apikey:'+keyId, role: 'analyst', tenant_id: orgId, org_role: 'analyst' }`。
+- `packages/backend/src/middleware/jwtAuth.ts` 的 `x-api-key` 路径改为 DB 查询：命中则注入 `req.user = { sub: 'apikey:'+keyId, role: 'analyst', tenant_id: orgId, org_role: 'analyst' }`。
 - `ADMIN_API_KEY` 仅保留为可选的、文档化的**平台 break-glass 密钥**，命中时授予 `platform_admin: true`，与按组织密钥的语义彻底分离。
 - 新增 `/api/v1/keys` CRUD 路由（`jwtAuth + resolveTenant + requireTenant + requirePermission(ADMIN_ACCESS)`）。
 

@@ -14,6 +14,13 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { tooltipStyle } from './analysisChartUtils.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+  DATE_TICK_FORMATTER,
+} from './chartConstants.js';
 
 function TelltaleEmptyState({ t }: { t: (k: string) => string }) {
   return (
@@ -44,15 +51,11 @@ function TelltaleLineChart({
 }) {
   return (
     <ResponsiveContainer width="100%" height={450}>
-      <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={(v: string) => v.slice(0, 7)}
-        />
+      <LineChart data={data} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
         <YAxis
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => v.toFixed(2)}
           label={{
             value: t('analysis.relativeRatio'),
@@ -66,7 +69,7 @@ function TelltaleLineChart({
           labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
           formatter={(value: number) => [value.toFixed(3), '']}
         />
-        <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
         <ReferenceLine y={1} stroke="var(--text-muted)" strokeDasharray="4 4" />
         {tickers.slice(1).map((tk, idx) => (
           <Line

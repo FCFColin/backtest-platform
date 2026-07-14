@@ -28,9 +28,10 @@ import { withTimeout } from '../utils/timeout.js';
 import { config } from '../config/index.js';
 import { fetchHistoryData, searchTickers } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem, errorMessage } from '../utils/errors.js';
+import { sendProblem, errorMessage, UpstreamProblemError } from '../utils/errors.js';
 import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { callEngineStrict, EngineUnavailableError } from '../utils/engineClient.js';
+import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
 import { sanitizeLog } from '../utils/logSanitizer.js';
 import type { AuthenticatedRequest } from '../middleware/authTypes.js';
 import { validate } from '../middleware/validate.js';
@@ -46,13 +47,18 @@ import { loadCpiMapFromDb, loadExchangeRatesFromDb } from '../db/macroData.js';
 
 function asyncRouteHandler(
   fn: (req: Request, res: Response) => Promise<void>,
-  errorConfig: { logMsg: string; code: string; title: string; detail: string },
+  errorConfig: { logMsg: string; code: string; title: string; detail: string; endpoint: string },
 ) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
       await fn(req, res);
     } catch (error) {
-      if (handleEngineUnavailable(res, error)) return;
+      if (handleEngineUnavailable(res, error)) {
+        recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
+        recordDegradedResponse(errorConfig.endpoint, 'engine_unavailable');
+        return;
+      }
+      recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
       logger.error({ err: error as Error }, errorConfig.logMsg);
       sendProblem(res, 500, errorConfig.code, errorConfig.title, { detail: errorConfig.detail });
     }
@@ -74,6 +80,13 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
       headers: { 'Retry-After': String(error.retryAfterSeconds) },
       degraded: true,
       degradedWarning: error.message,
+    });
+    return true;
+  }
+  // 4xx 客户端错误透传（RO-045）：返回上游原始状态码与 detail
+  if (error instanceof UpstreamProblemError) {
+    sendProblem(res, error.status, error.code, error.title, {
+      detail: error.detail,
     });
     return true;
   }
@@ -249,7 +262,7 @@ router.post(
         parameters,
         (req as AuthenticatedRequest).tenantId,
       );
-      setBacktestResultCache(cacheKey, result);
+      void setBacktestResultCache(cacheKey, result);
 
       const response: Record<string, unknown> = {
         success: true,
@@ -297,7 +310,7 @@ router.post(
         parameters,
         (req as AuthenticatedRequest).tenantId,
       );
-      const cached = getBacktestResultCache(cacheKey);
+      const cached = await getBacktestResultCache(cacheKey);
       if (!cached) {
         sendProblem(res, 404, 'BACKTEST_CACHE_MISS', 'Cache miss', {
           detail: '回测缓存已过期，请重新运行回测',
@@ -317,6 +330,7 @@ router.post(
       code: 'SERIES_ERROR',
       title: 'Series fetch failed',
       detail: 'Failed to fetch backtest series',
+      endpoint: 'portfolio-series',
     },
   ),
 );
@@ -369,6 +383,7 @@ router.post(
         } as unknown as typeof result;
       }
 
+      recordBacktestRequest('analysis', 'sync', 'success');
       res.json({ success: true, data: result });
     },
     {
@@ -376,6 +391,7 @@ router.post(
       code: 'ANALYSIS_ERROR',
       title: 'Analysis failed',
       detail: 'Failed to run analysis',
+      endpoint: 'analysis',
     },
   ),
 );
@@ -426,6 +442,7 @@ router.post(
       );
 
       // 单组合返回对象，多组合返回数组（保持原响应契约）。
+      recordBacktestRequest('monte-carlo', 'sync', 'success');
       res.json({ success: true, data: portfolioList.length === 1 ? results[0] : results });
       logger.info(`[backtest] Monte Carlo completed in ${Date.now() - startTime}ms`);
     },
@@ -434,6 +451,7 @@ router.post(
       code: 'MONTE_CARLO_ERROR',
       title: 'Monte Carlo failed',
       detail: 'Failed to run Monte Carlo simulation',
+      endpoint: 'monte-carlo',
     },
   ),
 );
@@ -475,6 +493,7 @@ router.post(
       logger.info(`[backtest] Optimization completed in ${Date.now() - startTime}ms`);
       // 引擎返回 { success: true, data: { optimalWeights, ... } }，解开嵌套
       const engineResp = result as { data?: Record<string, unknown> };
+      recordBacktestRequest('optimize', 'sync', 'success');
       res.json({ success: true, data: engineResp?.data ?? result });
     },
     {
@@ -482,6 +501,7 @@ router.post(
       code: 'OPTIMIZATION_ERROR',
       title: 'Optimization failed',
       detail: 'Failed to optimize portfolio',
+      endpoint: 'optimize',
     },
   ),
 );
@@ -518,6 +538,7 @@ router.post(
 
       // 引擎返回 { success: true, data: { frontier, ... } }，解开嵌套
       const engineResp = result as { data?: Record<string, unknown> };
+      recordBacktestRequest('efficient-frontier', 'sync', 'success');
       res.json({ success: true, data: engineResp?.data ?? result });
     },
     {
@@ -525,6 +546,7 @@ router.post(
       code: 'EFFICIENT_FRONTIER_ERROR',
       title: 'Efficient frontier failed',
       detail: 'Failed to calculate efficient frontier',
+      endpoint: 'efficient-frontier',
     },
   ),
 );

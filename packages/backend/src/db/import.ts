@@ -238,8 +238,9 @@ export async function importViaCopy(
   const copyStream = pgCopyStreams.from(
     `COPY prices (ticker, date, open, high, low, close, volume, adjusted_close) FROM STDIN WITH (FORMAT csv)`,
   );
-  // @ts-expect-error -- pg-copy-streams.from 返回 Submittable 兼容流，@types/pg 重载不匹配
-  const stream = client.query(copyStream) as NodeJS.WritableStream & { rowCount?: number };
+  const stream = client.query(copyStream) as unknown as NodeJS.WritableStream & {
+    rowCount?: number;
+  };
 
   return new Promise<number>((resolve, reject) => {
     csvStream.pipe(stream);

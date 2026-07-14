@@ -1,3 +1,17 @@
 {
-  "extends": "./tsconfig.frontend.json"
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./packages/frontend/src/*"],
+      "@backtest/shared": ["./packages/shared/types/index.ts"],
+      "@backtest/shared/types": ["./packages/shared/types/index.ts"],
+      "@backtest/shared/types/*": ["./packages/shared/types/*"],
+      "@backtest/shared/*": ["./packages/shared/*"]
+    },
+    "types": ["node"]
+  },
+  "include": ["packages/frontend/src", "packages/backend/src", "packages/shared"]
 }

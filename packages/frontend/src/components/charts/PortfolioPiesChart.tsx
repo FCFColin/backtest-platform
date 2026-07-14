@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { LEGEND_WRAPPER_STYLE } from './chartConstants.js';
 import ChartCard from '../ChartCard.js';
 
 /** 投资组合饼图 Props */
@@ -77,7 +78,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                     contentStyle={CHART_TOOLTIP_STYLE}
                     formatter={(value: number, name: string) => [`${value}%`, name]}
                   />
-                  <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+                  <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="text-[13px] font-medium mt-1" style={{ color: 'var(--text-strong)' }}>

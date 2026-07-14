@@ -37,7 +37,7 @@ describe('validate middleware', () => {
       expect.objectContaining({
         success: false,
         error: expect.objectContaining({
-          type: 'https://httpstatuses.com/400',
+          type: 'https://backtest.platform/errors/VALIDATION_ERROR',
           title: 'Bad Request',
           status: 400,
           code: 'VALIDATION_ERROR',

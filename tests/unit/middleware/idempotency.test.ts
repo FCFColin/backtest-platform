@@ -38,10 +38,12 @@ const redisMocks = vi.hoisted(() => {
       redisMocks.get.mockRejectedValue(new Error('Redis not available in test'));
       redisMocks.set.mockRejectedValue(new Error('Redis not available in test'));
       redisMocks.del.mockRejectedValue(new Error('Redis not available in test'));
+      redisMocks.emit('error');
     },
     useRedisSuccess: () => {
       redisMocks.resetStore();
       redisMocks.ping.mockResolvedValue('PONG');
+      redisMocks.emit('ready');
       redisMocks.get.mockImplementation((key: string) =>
         Promise.resolve(redisMocks.store.get(key) ?? null),
       );

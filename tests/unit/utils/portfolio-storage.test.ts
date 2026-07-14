@@ -9,7 +9,7 @@ import {
   deleteNamedConfig,
   clearAllData,
 } from '../../../packages/frontend/src/utils/portfolioStorage.js';
-import type { Portfolio, BacktestParameters } from '../../../shared/types.js';
+import type { Portfolio, BacktestParameters } from '@backtest/shared';
 
 const validPortfolios: Portfolio[] = [
   {

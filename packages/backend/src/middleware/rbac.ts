@@ -18,6 +18,8 @@
 import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from './jwtAuth.js';
 import { logger } from '../utils/logger.js';
+import { sendProblem } from '../utils/errors.js';
+import { recordAuthFailure } from '../utils/metrics.js';
 
 // ---------------------------------------------------------------------------
 // 角色枚举
@@ -185,16 +187,8 @@ export function requirePermission(permission: Permission) {
     logRbac('info', req, permission, '权限检查');
 
     if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/unauthorized',
-          title: 'Unauthorized',
-          status: 401,
-          code: 'MISSING_AUTH',
-          detail: '请求未经认证，请先登录',
-        },
-      });
+      recordAuthFailure(req.path, 'missing_auth');
+      sendProblem(res, 401, 'MISSING_AUTH', 'Unauthorized', { detail: '请求未经认证，请先登录' });
       return;
     }
 
@@ -208,15 +202,9 @@ export function requirePermission(permission: Permission) {
 
     if (!hasPermission(userRole, permission)) {
       logRbac('warn', req, permission, '权限不足，访问拒绝');
-      res.status(403).json({
-        success: false,
-        error: {
-          type: 'https://backtest.platform/errors/forbidden',
-          title: 'Forbidden',
-          status: 403,
-          code: 'INSUFFICIENT_PERMISSION',
-          detail: `角色 "${userRole}" 缺少权限 "${permission}"`,
-        },
+      recordAuthFailure(req.path, 'insufficient_permission');
+      sendProblem(res, 403, 'INSUFFICIENT_PERMISSION', 'Forbidden', {
+        detail: `角色 "${userRole}" 缺少权限 "${permission}"`,
       });
       return;
     }

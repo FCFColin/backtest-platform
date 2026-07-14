@@ -100,6 +100,7 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     originalValues.REQUIRE_API_KEY = config.REQUIRE_API_KEY;
     originalValues.CORS_ORIGINS = config.CORS_ORIGINS;
     originalValues.TRUST_PROXY_HOPS = config.TRUST_PROXY_HOPS;
+    originalValues.AUDIT_HMAC_KEY = config.AUDIT_HMAC_KEY;
 
     // 设置为生产环境
     config.NODE_ENV = 'production';
@@ -203,9 +204,8 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     config.CORS_ORIGINS = ['https://example.com'];
 
     const savedDbUrl = process.env.DATABASE_URL;
-    const savedHmac = process.env.AUDIT_HMAC_KEY;
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
-    process.env.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
+    config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
     process.env.TRUST_PROXY_HOPS = '1';
 
     expect(() => validateConfig()).not.toThrow();
@@ -213,8 +213,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     // 恢复
     if (savedDbUrl !== undefined) process.env.DATABASE_URL = savedDbUrl;
     else delete process.env.DATABASE_URL;
-    if (savedHmac !== undefined) process.env.AUDIT_HMAC_KEY = savedHmac;
-    else delete process.env.AUDIT_HMAC_KEY;
     delete process.env.TRUST_PROXY_HOPS;
   });
 
@@ -228,11 +226,10 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     config.CORS_ORIGINS = ['https://example.com'];
 
     const savedDbUrl = process.env.DATABASE_URL;
-    const savedHmac = process.env.AUDIT_HMAC_KEY;
     const savedTrustProxy = config.TRUST_PROXY_HOPS;
     const savedTrustProxyEnv = process.env.TRUST_PROXY_HOPS;
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
-    process.env.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
+    config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
     process.env.TRUST_PROXY_HOPS = '0';
     (config as Record<string, unknown>).TRUST_PROXY_HOPS = -1;
 
@@ -240,8 +237,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
 
     if (savedDbUrl !== undefined) process.env.DATABASE_URL = savedDbUrl;
     else delete process.env.DATABASE_URL;
-    if (savedHmac !== undefined) process.env.AUDIT_HMAC_KEY = savedHmac;
-    else delete process.env.AUDIT_HMAC_KEY;
     if (savedTrustProxyEnv !== undefined) process.env.TRUST_PROXY_HOPS = savedTrustProxyEnv;
     else delete process.env.TRUST_PROXY_HOPS;
     (config as Record<string, unknown>).TRUST_PROXY_HOPS = savedTrustProxy;
@@ -257,12 +252,11 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     config.CORS_ORIGINS = ['https://example.com'];
 
     const savedDbUrl = process.env.DATABASE_URL;
-    const savedHmac = process.env.AUDIT_HMAC_KEY;
     const savedTrustProxy = process.env.TRUST_PROXY_HOPS;
     const savedEmailTransport = config.EMAIL_TRANSPORT;
     const savedEmailHost = config.EMAIL_SMTP_HOST;
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
-    process.env.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
+    config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
     process.env.TRUST_PROXY_HOPS = '1';
     config.EMAIL_TRANSPORT = 'smtp';
     config.EMAIL_SMTP_HOST = '';
@@ -271,8 +265,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
 
     if (savedDbUrl !== undefined) process.env.DATABASE_URL = savedDbUrl;
     else delete process.env.DATABASE_URL;
-    if (savedHmac !== undefined) process.env.AUDIT_HMAC_KEY = savedHmac;
-    else delete process.env.AUDIT_HMAC_KEY;
     if (savedTrustProxy !== undefined) process.env.TRUST_PROXY_HOPS = savedTrustProxy;
     else delete process.env.TRUST_PROXY_HOPS;
     config.EMAIL_TRANSPORT = savedEmailTransport;
@@ -289,18 +281,15 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     config.CORS_ORIGINS = ['https://example.com'];
 
     const savedDbUrl = process.env.DATABASE_URL;
-    const savedHmac = process.env.AUDIT_HMAC_KEY;
     const savedTrustProxy = process.env.TRUST_PROXY_HOPS;
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
-    process.env.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
+    config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
     delete process.env.TRUST_PROXY_HOPS;
 
     expect(() => validateConfig()).toThrow('TRUST_PROXY_HOPS');
 
     if (savedDbUrl !== undefined) process.env.DATABASE_URL = savedDbUrl;
     else delete process.env.DATABASE_URL;
-    if (savedHmac !== undefined) process.env.AUDIT_HMAC_KEY = savedHmac;
-    else delete process.env.AUDIT_HMAC_KEY;
     if (savedTrustProxy !== undefined) process.env.TRUST_PROXY_HOPS = savedTrustProxy;
   });
 
@@ -314,16 +303,13 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     config.REQUIRE_API_KEY = false;
 
     const savedDbUrl = process.env.DATABASE_URL;
-    const savedHmac = process.env.AUDIT_HMAC_KEY;
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
-    process.env.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
+    config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
 
     expect(() => validateConfig()).toThrow('REQUIRE_API_KEY');
 
     if (savedDbUrl !== undefined) process.env.DATABASE_URL = savedDbUrl;
     else delete process.env.DATABASE_URL;
-    if (savedHmac !== undefined) process.env.AUDIT_HMAC_KEY = savedHmac;
-    else delete process.env.AUDIT_HMAC_KEY;
   });
 
   it('多个校验失败时错误信息应包含全部失败项', () => {

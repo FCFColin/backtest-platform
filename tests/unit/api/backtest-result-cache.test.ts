@@ -2,13 +2,27 @@
  * backtestResultCache LRU + TTL 单元测试
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+
+const redisMocks = vi.hoisted(() => ({
+  ping: vi.fn().mockResolvedValue('PONG'),
+  on: vi.fn(),
+  set: vi.fn().mockResolvedValue('OK'),
+  get: vi.fn().mockResolvedValue(null),
+  del: vi.fn(),
+  scan: vi.fn().mockResolvedValue(['0', []]),
+}));
+
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+  appRedis: redisMocks,
+}));
+
 import {
   backtestCacheKey,
   setBacktestResultCache,
   getBacktestResultCache,
   clearBacktestResultCache,
 } from '../../../packages/backend/src/utils/backtestResultCache.js';
-import type { BacktestResult, Portfolio, BacktestParameters } from '../../../shared/types.js';
+import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared';
 
 const portfolios: Portfolio[] = [
   {
@@ -46,24 +60,29 @@ const TENANT_B = '00000000-0000-4000-8000-000000000002';
 describe('backtestResultCache', () => {
   beforeEach(() => {
     clearBacktestResultCache();
-    vi.useFakeTimers();
+    vi.clearAllMocks();
+    redisMocks.ping.mockResolvedValue('PONG');
+    redisMocks.get.mockResolvedValue(null);
+    redisMocks.set.mockResolvedValue('OK');
+    redisMocks.scan.mockResolvedValue(['0', []]);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('hit returns stored result and refreshes LRU order', () => {
+  it('hit returns stored result and refreshes LRU order', async () => {
     const key = backtestCacheKey(portfolios, parameters, TENANT_A);
-    setBacktestResultCache(key, stubResult);
-    expect(getBacktestResultCache(key)).toBe(stubResult);
+    await setBacktestResultCache(key, stubResult);
+    expect(await getBacktestResultCache(key)).toBe(stubResult);
   });
 
-  it('miss after TTL expiry', () => {
+  it('miss after TTL expiry', async () => {
+    vi.useFakeTimers();
     const key = backtestCacheKey(portfolios, parameters, TENANT_A);
-    setBacktestResultCache(key, stubResult);
+    await setBacktestResultCache(key, stubResult);
     vi.advanceTimersByTime(5 * 60 * 1000 + 1);
-    expect(getBacktestResultCache(key)).toBeNull();
+    expect(await getBacktestResultCache(key)).toBeNull();
   });
 
   it('stable key for identical request bodies', () => {
@@ -72,19 +91,20 @@ describe('backtestResultCache', () => {
     expect(a).toBe(b);
   });
 
-  it('miss returns null for unknown key', () => {
-    expect(getBacktestResultCache('nonexistent')).toBeNull();
+  it('miss returns null for unknown key', async () => {
+    expect(await getBacktestResultCache('nonexistent')).toBeNull();
   });
 
-  it('evicts oldest entries when cache exceeds MAX_ENTRIES', () => {
-    const keys = Array.from({ length: 55 }, (_, i) => {
+  it('evicts oldest entries when cache exceeds MAX_ENTRIES', async () => {
+    const keys: string[] = [];
+    for (let i = 0; i < 55; i++) {
       const p: Portfolio[] = [{ ...portfolios[0], id: `e${i}` }];
       const key = backtestCacheKey(p, parameters, TENANT_A);
-      setBacktestResultCache(key, stubResult);
-      return key;
-    });
-    expect(getBacktestResultCache(keys[0])).toBeNull();
-    expect(getBacktestResultCache(keys[54])).toBe(stubResult);
+      await setBacktestResultCache(key, stubResult);
+      keys.push(key);
+    }
+    expect(await getBacktestResultCache(keys[0])).toBeNull();
+    expect(await getBacktestResultCache(keys[54])).toBe(stubResult);
   });
 
   it('different tenantId produces different cache keys (no cross-tenant leak)', () => {
@@ -93,7 +113,7 @@ describe('backtestResultCache', () => {
     expect(keyA).not.toBe(keyB);
   });
 
-  it('cross-tenant cache isolation: same portfolio+parameters, different tenants hit own entries', () => {
+  it('cross-tenant cache isolation: same portfolio+parameters, different tenants hit own entries', async () => {
     const resultA: BacktestResult = {
       portfolios: [{ id: 'pa', name: 'A', assets: [] }],
       correlations: [],
@@ -106,13 +126,13 @@ describe('backtestResultCache', () => {
     const keyA = backtestCacheKey(portfolios, parameters, TENANT_A);
     const keyB = backtestCacheKey(portfolios, parameters, TENANT_B);
 
-    setBacktestResultCache(keyA, resultA);
-    setBacktestResultCache(keyB, resultB);
+    await setBacktestResultCache(keyA, resultA);
+    await setBacktestResultCache(keyB, resultB);
 
-    expect(getBacktestResultCache(keyA)).toBe(resultA);
-    expect(getBacktestResultCache(keyB)).toBe(resultB);
-    expect(getBacktestResultCache(keyA)).not.toBe(resultB);
-    expect(getBacktestResultCache(keyB)).not.toBe(resultA);
+    expect(await getBacktestResultCache(keyA)).toBe(resultA);
+    expect(await getBacktestResultCache(keyB)).toBe(resultB);
+    expect(await getBacktestResultCache(keyA)).not.toBe(resultB);
+    expect(await getBacktestResultCache(keyB)).not.toBe(resultA);
   });
 
   it('undefined tenantId and defined tenantId produce different keys', () => {

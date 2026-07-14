@@ -18,6 +18,7 @@ import path from 'path';
 import os from 'os';
 import crypto from 'crypto';
 
+import { config } from '../../../packages/backend/src/config/index.js';
 import {
   signFile,
   verifyFile,
@@ -28,14 +29,15 @@ import {
 describe('integrity - HMAC 签名校验', () => {
   let tmpDir: string;
   const testKey = 'test-audit-hmac-key-very-secret-32bytes';
+  const originalKey = config.AUDIT_HMAC_KEY;
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'integrity-test-'));
-    process.env.AUDIT_HMAC_KEY = testKey;
+    config.AUDIT_HMAC_KEY = testKey;
   });
 
   afterEach(async () => {
-    delete process.env.AUDIT_HMAC_KEY;
+    config.AUDIT_HMAC_KEY = originalKey;
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -140,11 +142,11 @@ describe('integrity - HMAC 签名校验', () => {
       await fs.writeFile(filePath, 'content');
 
       // 用错误密钥签名
-      process.env.AUDIT_HMAC_KEY = 'wrong-key';
+      config.AUDIT_HMAC_KEY = 'wrong-key';
       await signFile(filePath);
 
       // 恢复正确密钥后校验
-      process.env.AUDIT_HMAC_KEY = testKey;
+      config.AUDIT_HMAC_KEY = testKey;
       const ok = await verifyFile(filePath);
       expect(ok).toBe(false);
     });
@@ -254,7 +256,7 @@ describe('integrity - HMAC 签名校验', () => {
     });
 
     it('长密钥（256 字符）应能正常工作', async () => {
-      process.env.AUDIT_HMAC_KEY = 'k'.repeat(256);
+      config.AUDIT_HMAC_KEY = 'k'.repeat(256);
       const filePath = path.join(tmpDir, 'data.json');
       await fs.writeFile(filePath, 'content');
       await signFile(filePath);
@@ -333,7 +335,7 @@ describe('integrity - HMAC 签名校验', () => {
     });
 
     it('未配置密钥时 signFileSync 应静默跳过', () => {
-      delete process.env.AUDIT_HMAC_KEY;
+      config.AUDIT_HMAC_KEY = '';
       const filePath = path.join(tmpDir, 'skip-sign.json');
       fsSync.writeFileSync(filePath, 'data');
       signFileSync(filePath);

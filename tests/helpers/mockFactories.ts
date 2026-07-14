@@ -116,6 +116,12 @@ export function createConfigMocks(
     STRIPE_PUBLISHABLE_KEY: '',
     STRIPE_PRICE_PRO: '',
     STRIPE_PRICE_ENTERPRISE: '',
+    AUDIT_HMAC_KEY: '',
+    DEBUG_AUTH_TOKEN: '',
+    METRICS_AUTH_TOKEN: '',
+    SYNC_COMPUTE_TIMEOUT_MS: 30000,
+    OTEL_EXPORTER_OTLP_ENDPOINT: '',
+    OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: '',
     ...overrides,
   };
 }

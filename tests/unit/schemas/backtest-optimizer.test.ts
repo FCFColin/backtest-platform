@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { backtestOptimizerSchema } from '../../../packages/backend/src/schemas/backtestOptimizer.js';
+import { backtestOptimizerSchema } from '../../../packages/backend/src/schemas/optimizer.js';
 
 function makeValidInput() {
   return {

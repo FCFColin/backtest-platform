@@ -13,7 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
-import type { BacktestResult } from '../../../shared/types.js';
+import type { BacktestResult } from '@backtest/shared';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
 
 // ===== vi.hoisted =====
@@ -115,6 +115,17 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     ENGINE_TIMEOUT_MS: 5000,
   }),
   validateConfig: vi.fn(),
+}));
+
+vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+  appRedis: {
+    ping: vi.fn().mockResolvedValue('PONG'),
+    on: vi.fn(),
+    set: vi.fn().mockResolvedValue('OK'),
+    get: vi.fn().mockResolvedValue(null),
+    del: vi.fn(),
+    scan: vi.fn().mockResolvedValue(['0', []]),
+  },
 }));
 
 // Mock fs：避免读取 CPI/汇率文件

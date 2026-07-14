@@ -5,12 +5,13 @@
  * 仅当 DEBUG_AUTH_TOKEN 配置时启用。
  */
 import { Router, type Request, type Response } from 'express';
+import { config } from '../config/index.js';
 import { sendProblem } from '../utils/errors.js';
 
 const router = Router();
 
 function checkDebugAuth(req: Request, res: Response): boolean {
-  const token = process.env.DEBUG_AUTH_TOKEN;
+  const token = config.DEBUG_AUTH_TOKEN;
   if (!token) {
     sendProblem(res, 404, 'NOT_FOUND', 'Not Found', { detail: 'Debug endpoints disabled' });
     return false;

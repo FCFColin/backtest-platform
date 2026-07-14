@@ -22,7 +22,7 @@ import {
   calcRequiredContribution,
   optimizeGoals,
 } from '../../../packages/backend/src/engine/goalOptimizer.js';
-import type { GoalOptimizerRequest } from '../../../shared/types/goal.js';
+import type { GoalOptimizerRequest } from '@backtest/shared/types/goal.js';
 
 function makePriceData(): Record<string, Record<string, number>> {
   const data: Record<string, number> = {};

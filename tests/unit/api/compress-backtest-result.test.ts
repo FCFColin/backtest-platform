@@ -8,7 +8,7 @@ import {
   extractBacktestSeries,
   MAX_SYNC_CHART_POINTS,
 } from '../../../packages/backend/src/utils/compressBacktestResult.js';
-import type { BacktestResult, PortfolioResult } from '../../../shared/types.js';
+import type { BacktestResult, PortfolioResult } from '@backtest/shared';
 
 function makePoint(i: number) {
   return { date: `2020-01-${String((i % 28) + 1).padStart(2, '0')}`, value: 100 + i };

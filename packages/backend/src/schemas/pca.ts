@@ -10,5 +10,3 @@ export const pcaAnalyzeSchema = z.object({
   endDate: z.string().min(1, '缺少endDate'),
   numComponents: z.number().int().positive().optional(),
 });
-
-export type PCAAnalyzeRequest = z.infer<typeof pcaAnalyzeSchema>;

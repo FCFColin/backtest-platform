@@ -20,6 +20,12 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import { ChartExporter } from '../ChartExporter.js';
 import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  DATE_TICK_FORMATTER,
+} from './chartConstants.js';
+import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
@@ -128,12 +134,12 @@ function RegressionScatterChart({
     <div style={{ flex: '1 1 300px', minWidth: 0 }}>
       <ResponsiveContainer width="100%" height={400}>
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             type="number"
             dataKey="x"
             name="基准日收益率"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: `${baseName} 日收益率 (%)`,
               position: 'insideBottom',
@@ -145,7 +151,7 @@ function RegressionScatterChart({
             type="number"
             dataKey="y"
             name="目标日收益率"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: `${reg.name} 日收益率 (%)`,
               angle: -90,
@@ -247,16 +253,16 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
         残差 = 实际收益 − 拟合收益，偏离0越远说明模型拟合越差
       </div>
       <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={reg.residuals} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <LineChart data={reg.residuals} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             dataKey="date"
             tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
+            tickFormatter={DATE_TICK_FORMATTER}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => `${v.toFixed(2)}%`}
             label={{
               value: '残差 (%)',
@@ -285,7 +291,7 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
               height={20}
               stroke="var(--brand)"
               travellerWidth={8}
-              tickFormatter={(v: string) => v.slice(0, 7)}
+              tickFormatter={DATE_TICK_FORMATTER}
             />
           )}
         </LineChart>

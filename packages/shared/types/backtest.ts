@@ -9,6 +9,16 @@ import type { BaseCurrency, CashflowLeg, OneTimeCashflow } from './portfolio.js'
 import type { Statistics, WithdrawalStats } from './statistics.js';
 
 /**
+ * 价格数据映射
+ *
+ * 按 ticker → date → close price 组织的历史价格数据结构。
+ * 被 backtest 引擎和 application 层共享使用（application 层不应直接 import engine 层类型）。
+ */
+export interface PriceData {
+  [ticker: string]: Record<string, number>;
+}
+
+/**
  * 回测参数
  *
  * adjustForInflation：启用后使用 baseCurrency 对应的 CPI 数据将净值调整为实际购买力。

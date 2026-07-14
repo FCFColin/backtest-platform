@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Portfolio, BacktestParameters, BacktestResult } from '../../../shared/types.js';
+import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
 // ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====

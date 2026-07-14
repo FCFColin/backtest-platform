@@ -22,6 +22,12 @@ import {
   DOWNSAMPLE_TARGET,
 } from '../../hooks/useChartInteractions.js';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+} from './chartConstants.js';
 
 type AllocationPortfolio = Pick<Portfolio, 'name' | 'assets'> & {
   growthCurve: Array<{ date: string; value: number }>;
@@ -34,6 +40,54 @@ interface PortfolioAllocationChartProps {
 }
 
 const dateFormatter = (v: string) => (v.length > 7 ? v.slice(0, 7) : v);
+
+/** 共享的堆叠面积图渲染块（配置历史/初始权重复用） */
+function AllocationAreaChart({
+  data,
+  assets,
+  showBrush,
+  fillOpacity,
+}: {
+  data: Array<Record<string, string | number>>;
+  assets: Portfolio['assets'];
+  showBrush: boolean;
+  fillOpacity: number;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={400}>
+      <AreaChart data={data} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={dateFormatter} />
+        <YAxis domain={[0, 100]} tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
+        />
+        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
+        {assets.map((asset, idx) => (
+          <Area
+            key={asset.ticker}
+            type="monotone"
+            dataKey={asset.ticker}
+            stackId="1"
+            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+            fill={CHART_COLORS[idx % CHART_COLORS.length]}
+            fillOpacity={fillOpacity}
+          />
+        ))}
+        {showBrush && (
+          <Brush
+            dataKey="date"
+            height={20}
+            stroke="var(--brand)"
+            travellerWidth={8}
+            tickFormatter={dateFormatter}
+          />
+        )}
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
 
 /** 有 allocationHistory 的堆叠面积图 */
 function AllocationHistoryChart({
@@ -58,46 +112,12 @@ function AllocationHistoryChart({
         <div className="chart-card-title mb-0">组合配置</div>
         <ChartExporter data={data} filename="portfolio-allocation" />
       </div>
-      <ResponsiveContainer width="100%" height={400}>
-        <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={dateFormatter}
-          />
-          <YAxis
-            domain={[0, 100]}
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v}%`}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-          />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
-          {assets.map((asset, idx) => (
-            <Area
-              key={asset.ticker}
-              type="monotone"
-              dataKey={asset.ticker}
-              stackId="1"
-              stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-              fill={CHART_COLORS[idx % CHART_COLORS.length]}
-              fillOpacity={0.6}
-            />
-          ))}
-          {chartData.length > 100 && (
-            <Brush
-              dataKey="date"
-              height={20}
-              stroke="var(--brand)"
-              travellerWidth={8}
-              tickFormatter={dateFormatter}
-            />
-          )}
-        </AreaChart>
-      </ResponsiveContainer>
+      <AllocationAreaChart
+        data={chartData}
+        assets={assets}
+        showBrush={chartData.length > 100}
+        fillOpacity={0.6}
+      />
     </div>
   );
 }
@@ -128,46 +148,12 @@ function InitialWeightChart({
         <div className="chart-card-title mb-0">组合配置</div>
         <ChartExporter data={data} filename="portfolio-allocation" />
       </div>
-      <ResponsiveContainer width="100%" height={400}>
-        <AreaChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={dateFormatter}
-          />
-          <YAxis
-            domain={[0, 100]}
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v}%`}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
-          />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
-          {assets.map((asset, idx) => (
-            <Area
-              key={asset.ticker}
-              type="monotone"
-              dataKey={asset.ticker}
-              stackId="1"
-              stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-              fill={CHART_COLORS[idx % CHART_COLORS.length]}
-              fillOpacity={0.6}
-            />
-          ))}
-          {data.length > 100 && (
-            <Brush
-              dataKey="date"
-              height={20}
-              stroke="var(--brand)"
-              travellerWidth={8}
-              tickFormatter={dateFormatter}
-            />
-          )}
-        </AreaChart>
-      </ResponsiveContainer>
+      <AllocationAreaChart
+        data={data}
+        assets={assets}
+        showBrush={data.length > 100}
+        fillOpacity={0.6}
+      />
       <div
         className="text-[11px] mt-2 text-center"
         style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}

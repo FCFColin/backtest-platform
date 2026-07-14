@@ -11,7 +11,12 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { CHART_COLORS, TOOLTIP_STYLE } from './baseCalculatorUtils.js';
+import { CHART_COLORS } from '@backtest/shared';
+import {
+  CHART_TOOLTIP_STYLE,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+} from '../../components/charts/chartConstants.js';
 
 const INFO_BOX_STYLE: React.CSSProperties = {
   marginTop: 10,
@@ -200,11 +205,11 @@ export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number;
     <div style={{ height: 220, marginTop: 12 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
           <XAxis
             dataKey="vol"
             type="number"
-            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => v.toFixed(1) + '%'}
             label={{
               value: '波动率',
@@ -215,7 +220,7 @@ export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number;
             }}
           />
           <YAxis
-            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => v.toFixed(1) + '%'}
             label={{
               value: 'CAGR',
@@ -227,7 +232,7 @@ export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number;
             }}
           />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(v: number, name: string) => [
               v.toFixed(2) + '%',
               name === 'cagr' ? 'CAGR' : name,
@@ -252,14 +257,11 @@ export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }
     <div style={{ height: 160, marginTop: 12 }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
-          <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-          <YAxis
-            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-            tickFormatter={(v: number) => v.toFixed(1)}
-          />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+          <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toFixed(1)} />
           <Tooltip
-            contentStyle={TOOLTIP_STYLE}
+            contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(v: number) => [v.toFixed(3), '资产比']}
           />
           <Area

@@ -1,9 +1,10 @@
 /**
- * 单个标的分析 — 从 backtestRunner.ts 拆分
+ * 单个标的分析 — 从 backtestRunner.ts 拆分。
+ * tactical 专用，与 Go engine 概念重叠但合规保留（ADR-008）。
  */
 
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants.js';
-import type { BacktestParameters, Statistics } from '@backtest/shared/types.js';
+import type { BacktestParameters, Statistics } from '@backtest/shared';
 import {
   calcDrawdownCurve,
   calcRollingReturns,

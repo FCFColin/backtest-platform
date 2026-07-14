@@ -37,6 +37,7 @@ try {
 const CRITICAL_FILES = [
   'packages/backend/src/middleware/auth.ts',
   'packages/backend/src/middleware/jwtSigner.ts',
+  'packages/backend/src/middleware/jwtVerifier.ts',
   'packages/backend/src/middleware/rbac.ts',
   'packages/backend/src/services/userService.ts',
   'packages/backend/src/engine/portfolio.ts',
@@ -53,15 +54,22 @@ const CRITICAL_FILES = [
   'packages/backend/src/services/outboxWriter.ts',
   'packages/backend/src/services/outboxPublisher.ts',
   'packages/backend/src/utils/numericRange.ts',
+  'packages/backend/src/db/tenant.ts',
   'packages/frontend/src/store/authStore.ts',
   'packages/frontend/src/utils/authTokens.ts',
+  // RO-048: 关键业务逻辑文件从 coverage exclude 移除后纳入 90% 门控
+  'packages/backend/src/utils/engineClient.ts',
+  'packages/backend/src/services/dataService.ts',
+  'packages/backend/src/queues/worker.ts',
+  'packages/backend/src/queues/jobIdempotency.ts',
+  'packages/backend/src/queues/backtestQueue.ts',
 ];
 
 const MIN_LINE_COVERAGE = 75;
 const CRITICAL_LINE_COVERAGE = 90;
 const GLOBAL_LINE_TARGET = 80;
 
-/** 纯类型/barrel/基础设施/外部服务依赖（与 vitest.config.ts 的 coverage.exclude 同步） */
+/** 纯类型/barrel/基础设施/外部服务依赖（与 vitest.workspace.ts 的 coverage.exclude 同步） */
 const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/application/cqrs.ts',
   'packages/backend/src/utils/timeout.ts',
@@ -69,9 +77,6 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/utils/logger.ts',
   'packages/backend/src/utils/metrics.ts',
   'packages/backend/src/services/mailService.ts',
-  'packages/backend/src/queues/worker.ts',
-  'packages/backend/src/queues/jobIdempotency.ts',
-  'packages/backend/src/queues/backtestQueue.ts',
   'packages/backend/src/domain/events/backtest-completed.ts',
   'packages/backend/src/domain/events/rebalance-triggered.ts',
   'packages/backend/src/routes/authRoutes.ts',
@@ -82,7 +87,7 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/db/index.ts',
   'packages/backend/src/db/importBulk.ts',
   'packages/backend/src/domain/logger.ts',
-  'packages/backend/src/types/pg-copy-streams.d.ts',
+  'packages/backend/src/types/pg-copy-streamams.d.ts',
   'packages/frontend/src/store/index.ts',
   'packages/backend/src/app.ts',
 ];

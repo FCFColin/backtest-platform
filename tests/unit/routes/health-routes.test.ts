@@ -34,6 +34,7 @@ vi.mock('../../../packages/backend/src/config/redis.js', () => ({
   appRedis: { ping: vi.fn().mockResolvedValue('PONG') },
 }));
 
+import { config } from '../../../packages/backend/src/config/index.js';
 import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
 
 /**
@@ -71,14 +72,14 @@ describe('healthRoutes', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    delete process.env.METRICS_AUTH_TOKEN;
+    config.METRICS_AUTH_TOKEN = '';
     server = await startExpressApp((app) => app.use('/api', healthRoutes));
   });
 
   afterEach(async () => {
     await server.close();
     globalThis.fetch = originalFetch;
-    delete process.env.METRICS_AUTH_TOKEN;
+    config.METRICS_AUTH_TOKEN = '';
   });
 
   describe('GET /api/health', () => {
@@ -123,9 +124,7 @@ describe('healthRoutes', () => {
     });
 
     it('配置 METRICS_AUTH_TOKEN 时未鉴权应返回 401', async () => {
-      process.env.METRICS_AUTH_TOKEN = 'secret-metrics-token';
-      await server.close();
-      server = await startExpressApp((app) => app.use('/api', healthRoutes));
+      config.METRICS_AUTH_TOKEN = 'secret-metrics-token';
 
       const res = await fetch(`${server.url}/api/ready`);
       expect(res.status).toBe(401);
@@ -151,9 +150,7 @@ describe('healthRoutes', () => {
     });
 
     it('配置 METRICS_AUTH_TOKEN 时未鉴权应返回 401', async () => {
-      process.env.METRICS_AUTH_TOKEN = 'secret-metrics-token';
-      await server.close();
-      server = await startExpressApp((app) => app.use('/api', healthRoutes));
+      config.METRICS_AUTH_TOKEN = 'secret-metrics-token';
 
       const res = await fetch(`${server.url}/api/metrics`);
       expect(res.status).toBe(401);

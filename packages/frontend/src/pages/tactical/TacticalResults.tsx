@@ -20,6 +20,12 @@ import { SortableTable, type Column } from '../../components/SortableTable.js';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
 import { useTacticalPageState, TABS, ALERT_TRIGGER_OPTIONS } from './TacticalUtils.js';
 import type { BacktestResponse } from './TacticalUtils.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  DATE_TICK_FORMATTER,
+} from '@/components/charts/chartConstants.js';
 
 type TacticalPageState = ReturnType<typeof useTacticalPageState>;
 
@@ -140,15 +146,11 @@ function GrowthChart({ growthData }: { growthData: Array<Record<string, number |
     <div className="chart-card">
       <div className="chart-card-title">收益曲线</div>
       <ResponsiveContainer width="100%" height={380}>
-        <LineChart data={growthData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
-          />
+        <LineChart data={growthData} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
           <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
           />
           <Tooltip

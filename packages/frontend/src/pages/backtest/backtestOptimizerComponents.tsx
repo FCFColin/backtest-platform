@@ -24,6 +24,7 @@ import {
   buildBestMetrics,
   buildChartData,
 } from './backtestOptimizerUtils.js';
+import { CHART_GRID_PROPS } from '@/components/charts/chartConstants.js';
 
 function PortfolioConfigSection({ s }: { s: OptimizerState }) {
   return (
@@ -409,7 +410,7 @@ function GrowthComparisonChart({
       </div>
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={chartData} margin={{ left: 8, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             dataKey="date"
             tick={{ fontSize: 12, fill: 'var(--text-muted)' }}

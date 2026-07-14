@@ -64,7 +64,7 @@ npm run test:unit    # Unit tests only
 - Vitest for unit/integration/consistency/contract/chaos/fuzz/bench tests
 - Playwright for E2E UI tests
 - Test files co-located in `tests/` top-level directory
-- Coverage target: lines ≥70%, functions ≥70%, branches ≥60%, statements ≥70%
+- Coverage target: lines ≥80%, functions ≥80%, branches ≥70%, statements ≥80%
 
 ### Git
 
@@ -94,7 +94,7 @@ npm run test:unit    # Unit tests only
 
 ## Known Gotchas
 
-1. **Go data service semaphore=10**: `dataService.ts` `goServiceSemaphore` limits concurrent Go HTTP calls (default 10). Python data CLI (`api/python/`) is retired; admin bulk-ingest endpoints return 501.
+1. **Go data service semaphore=10**: `dataService.ts` `goServiceSemaphore` limits concurrent Go HTTP calls (default 10). Python data CLI 已退役（原 api/python/ 已随 ADR-042 合并删除），admin bulk-ingest 端点返回 501。
 2. **Single Go engine + fail-closed**: Go engine is the only backtest/MC/optimizer engine (Rust `engine-rs/` deleted). When unavailable, engine-canonical compute returns 503 + Retry-After (ADR-031); never silently Node-computed.
 3. **x-api-key compat risk**: ADR-033 已支持按组织 API 密钥（哈希存储、可吊销、可审计，泄露爆炸半径收敛到单组织）。仅 `ADMIN_API_KEY` 作为平台 break-glass 静态凭证不可吊销，须严格保管并尽量少用。
 4. **Redis dependency**: Auth module uses Redis for Refresh Tokens. Redis failure degrades to in-memory (single-instance only, multi-instance session inconsistent).

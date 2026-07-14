@@ -28,7 +28,7 @@ import { getOrg } from '../services/membershipService.js';
 import { getPlanLimits } from '../config/planLimits.js';
 import { appRedis } from '../config/redis.js';
 import { logger } from '../utils/logger.js';
-import { errorMessage } from '../utils/errors.js';
+import { errorMessage, UpstreamProblemError } from '../utils/errors.js';
 import { EngineUnavailableError } from '../utils/engineClient.js';
 import type { Job } from 'bullmq';
 
@@ -97,6 +97,36 @@ async function releaseTenantSlot(tenantId: string): Promise<void> {
   }
 }
 
+/**
+ * 处理 dispatchJob 执行中的引擎/业务错误（ADR-031 + RO-045）。
+ *
+ * - EngineUnavailableError（5xx/网络）：释放 claim 并重抛，触发 BullMQ 重试（fail-closed）
+ * - UpstreamProblemError（4xx）：释放 claim 并标记永久失败（参数错误不可重试）
+ * - 其他错误：释放 claim 并标记失败
+ */
+async function handleEngineError(err: unknown, jobId: string): Promise<BacktestJobResult> {
+  if (err instanceof EngineUnavailableError) {
+    await releaseJobClaim(jobId);
+    logger.warn(
+      { jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds },
+      '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）',
+    );
+    throw err;
+  }
+  if (err instanceof UpstreamProblemError) {
+    await releaseJobClaim(jobId);
+    logger.warn(
+      { jobId, status: err.status, code: err.code },
+      '[worker] Go 引擎返回 4xx，任务标记为永久失败（参数错误不可重试）',
+    );
+    return { status: 'failed', error: err.detail };
+  }
+  await releaseJobClaim(jobId);
+  const message = errorMessage(err);
+  logger.error({ jobId, error: message }, '[worker] 任务执行失败');
+  return { status: 'failed', error: message };
+}
+
 /** 任务分发核心（不含 tenant-fair 门控），供 processBacktestJob 包裹调用 */
 async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult> {
   const { type, payload } = job.data;
@@ -140,20 +170,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
     return { status: 'failed', error: `Unknown job type: ${type}` };
   } catch (err) {
     if (err instanceof DelayedError) throw err;
-    // ADR-031 fail-closed：Go 引擎不可用时重抛以触发 BullMQ 重试（attempts:3 指数退避），
-    // 不静默回退 Node 计算返回不一致数字。先释放 claim，使重试可重新获取处理权。
-    if (err instanceof EngineUnavailableError) {
-      await releaseJobClaim(jobId);
-      logger.warn(
-        { jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds },
-        '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）',
-      );
-      throw err;
-    }
-    await releaseJobClaim(jobId);
-    const message = errorMessage(err);
-    logger.error({ jobId, error: message }, '[worker] 任务执行失败');
-    return { status: 'failed', error: message };
+    return await handleEngineError(err, jobId);
   }
 }
 

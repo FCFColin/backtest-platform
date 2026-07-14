@@ -12,5 +12,3 @@ export const letfAnalyzeSchema = z.object({
   startDate: z.string().min(1, '缺少startDate'),
   endDate: z.string().min(1, '缺少endDate'),
 });
-
-export type LETFAnalyzeRequest = z.infer<typeof letfAnalyzeSchema>;

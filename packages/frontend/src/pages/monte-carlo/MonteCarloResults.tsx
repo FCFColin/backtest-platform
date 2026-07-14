@@ -18,6 +18,7 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { MonteCarloResult, PerPathMetrics } from '@backtest/shared';
 import type { DistMetric, ResultTab, PortfolioState, PortfolioMode } from './monteCarloTypes.js';
+import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/components/charts/chartConstants.js';
 
 function percentile(arr: number[], p: number): number {
   if (arr.length === 0) return 0;
@@ -322,17 +323,14 @@ function RangeChart({ data }: { data: RangeDataPoint[] }) {
   return (
     <ResponsiveContainer width="100%" height={450}>
       <AreaChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={monthFormatter}
           interval={11}
         />
-        <YAxis
-          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-          tickFormatter={dollarKFormatter}
-        />
+        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={dollarKFormatter} />
         <Tooltip
           formatter={dollarFormatter}
           labelFormatter={yearLabelFormatter}
@@ -380,7 +378,7 @@ function SuccessTab({ r }: { r: MonteCarloResult }) {
   return (
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
         <XAxis
           dataKey="year"
           tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
@@ -479,9 +477,9 @@ function DistHistogramChart({
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
         <XAxis dataKey="range" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={3} />
-        <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+        <YAxis tick={AXIS_TICK_STYLE} />
         <Tooltip contentStyle={TOOLTIP_STYLE} />
         <Bar
           dataKey="count"
@@ -556,17 +554,14 @@ function ScenariosTab({ r, startingValue }: { r: MonteCarloResult; startingValue
   return (
     <ResponsiveContainer width="100%" height={450}>
       <LineChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={monthFormatter}
           interval={11}
         />
-        <YAxis
-          tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-          tickFormatter={dollarKFormatter}
-        />
+        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={dollarKFormatter} />
         <Tooltip
           formatter={dollarFormatter}
           labelFormatter={yearLabelFormatter}

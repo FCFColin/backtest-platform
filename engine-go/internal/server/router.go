@@ -86,26 +86,17 @@ func handleHealth(c *gin.Context) {
 func handleBacktest(c *gin.Context) {
 	var req engine.BacktestRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "请求解析失败，请检查请求格式",
-		})
+		newProblem(c, http.StatusBadRequest, "BACKTEST_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
 		return
 	}
 
 	if len(req.Portfolios) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "portfolios 不能为空",
-		})
+		newProblem(c, http.StatusBadRequest, "BACKTEST_EMPTY_PORTFOLIOS", "Bad Request", "portfolios 不能为空")
 		return
 	}
 
 	if req.PriceData == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "priceData 不能为空",
-		})
+		newProblem(c, http.StatusBadRequest, "BACKTEST_EMPTY_PRICE_DATA", "Bad Request", "priceData 不能为空")
 		return
 	}
 
@@ -130,25 +121,23 @@ func handleBacktest(c *gin.Context) {
 func handleAnalysis(c *gin.Context) {
 	var req analysis.AnalysisRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式错误"})
+		newProblem(c, http.StatusBadRequest, "ANALYSIS_BAD_REQUEST", "Bad Request", "请求格式错误")
 		return
 	}
 
 	if len(req.Tickers) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tickers 不能为空"})
+		newProblem(c, http.StatusBadRequest, "ANALYSIS_EMPTY_TICKERS", "Bad Request", "tickers 不能为空")
 		return
 	}
 
 	if req.PriceData == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "priceData 不能为空"})
+		newProblem(c, http.StatusBadRequest, "ANALYSIS_EMPTY_PRICE_DATA", "Bad Request", "priceData 不能为空")
 		return
 	}
 
 	for _, ticker := range req.Tickers {
 		if _, ok := req.PriceData[ticker]; !ok {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "ticker 在 priceData 中不存在",
-			})
+			newProblem(c, http.StatusBadRequest, "ANALYSIS_TICKER_NOT_FOUND", "Bad Request", "ticker 在 priceData 中不存在")
 			return
 		}
 	}
@@ -177,10 +166,7 @@ func handleAnalysis(c *gin.Context) {
 func handleOptimize(c *gin.Context) {
 	var req optimizer.OptimizeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "请求解析失败，请检查请求格式",
-		})
+		newProblem(c, http.StatusBadRequest, "OPTIMIZE_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
 		return
 	}
 
@@ -209,10 +195,7 @@ func handleOptimize(c *gin.Context) {
 func handleEfficientFrontier(c *gin.Context) {
 	var req optimizer.FrontierRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "请求解析失败，请检查请求格式",
-		})
+		newProblem(c, http.StatusBadRequest, "FRONTIER_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
 		return
 	}
 
@@ -242,10 +225,7 @@ func handleEfficientFrontier(c *gin.Context) {
 func handleMonteCarlo(c *gin.Context) {
 	var req montecarlo.MonteCarloRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "请求解析失败，请检查请求格式",
-		})
+		newProblem(c, http.StatusBadRequest, "MONTE_CARLO_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
 		return
 	}
 

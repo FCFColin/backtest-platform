@@ -24,6 +24,12 @@ import {
   type FreqResult,
   type RebalancingState,
 } from './rebalancingSensitivityUtils.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  DATE_TICK_FORMATTER,
+} from '@/components/charts/chartConstants.js';
 
 export function SeoCard() {
   return (
@@ -301,12 +307,12 @@ export function ScatterTab({ results }: { results: FreqResult[] }) {
   return (
     <ResponsiveContainer width="100%" height={400}>
       <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
         <XAxis
           type="number"
           dataKey="volatility"
           name="波动率"
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => `${v.toFixed(1)}%`}
           label={{
             value: '波动率 (%)',
@@ -319,7 +325,7 @@ export function ScatterTab({ results }: { results: FreqResult[] }) {
           type="number"
           dataKey="cagr"
           name="CAGR"
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => `${v.toFixed(1)}%`}
           label={{
             value: 'CAGR (%)',
@@ -358,13 +364,10 @@ export function DistributionTab({ results }: { results: FreqResult[] }) {
   }));
   return (
     <ResponsiveContainer width="100%" height={400}>
-      <BarChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-        <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-        <YAxis
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={(v: number) => `${v}%`}
-        />
+      <BarChart data={data} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <XAxis dataKey="name" tick={AXIS_TICK_STYLE} />
+        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
         <Tooltip
           contentStyle={{
             backgroundColor: 'var(--bg-elevated)',
@@ -413,13 +416,10 @@ function OffsetSelector({ s }: { s: RebalancingState }) {
 function OffsetBarChart({ offsetData }: { offsetData: Array<{ offset: string; cagr: number }> }) {
   return (
     <ResponsiveContainer width="100%" height={250}>
-      <BarChart data={offsetData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-        <XAxis dataKey="offset" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-        <YAxis
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={(v: number) => `${v}%`}
-        />
+      <BarChart data={offsetData} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <XAxis dataKey="offset" tick={AXIS_TICK_STYLE} />
+        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
         <Tooltip
           contentStyle={{
             backgroundColor: 'var(--bg-elevated)',
@@ -437,17 +437,10 @@ function OffsetBarChart({ offsetData }: { offsetData: Array<{ offset: string; ca
 function OffsetGrowthChart({ data }: { data: Array<{ date: string; value: number }> }) {
   return (
     <ResponsiveContainer width="100%" height={250}>
-      <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={(v: string) => v.slice(0, 7)}
-        />
-        <YAxis
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={(v: number) => v.toLocaleString()}
-        />
+      <LineChart data={data} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
+        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toLocaleString()} />
         <Tooltip
           contentStyle={{
             backgroundColor: 'var(--bg-elevated)',

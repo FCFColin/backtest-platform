@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { PCARequest, GoalOptimizerRequest } from '../../../shared/types/index.js';
-import type { LETFRequest } from '../../../shared/types/letf.js';
+import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared';
+import type { LETFRequest } from '@backtest/shared/types/letf.js';
 
 const engineMocks = vi.hoisted(() => ({
   performPCA: vi.fn(),

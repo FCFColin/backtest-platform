@@ -17,7 +17,7 @@ import {
   buildEnginePortfolioBody,
   buildEngineParams,
 } from '../../../packages/backend/src/utils/engineBodyBuilder.js';
-import type { Portfolio, BacktestParameters } from '../../../shared/types.js';
+import type { Portfolio, BacktestParameters } from '@backtest/shared';
 
 function makeBasePortfolio(overrides: Partial<Portfolio> = {}): Portfolio {
   return {

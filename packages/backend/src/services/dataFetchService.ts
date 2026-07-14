@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/index.js';
+import { config } from '../config/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
@@ -30,7 +31,45 @@ let currentStatus: UpdateStatus = {
 };
 
 function getDatabaseUrl(): string {
-  return process.env.DATABASE_URL || 'postgresql://backtest:backtest@localhost:5432/backtest';
+  return config.DATABASE_URL;
+}
+
+/**
+ * 子进程环境变量白名单。
+ *
+ * 企业理由（RO-032）：`...process.env` 透传会将全部环境变量（含 JWT_SECRET、
+ * API 密钥等敏感凭证）泄漏到子进程，违反最小权限原则。白名单仅放行 Go worker
+ * 实际需要的变量，敏感凭证不再无差别继承。
+ */
+const WORKER_ENV_WHITELIST = [
+  'PATH',
+  'HOME',
+  'USERPROFILE',
+  'LANG',
+  'LC_ALL',
+  'TZ',
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
+  'NO_PROXY',
+  'http_proxy',
+  'https_proxy',
+  'no_proxy',
+] as const;
+
+/**
+ * 构建 Go worker 子进程环境变量（白名单过滤 + config 注入）。
+ *
+ * @returns 仅包含白名单变量 + DATABASE_URL + NODE_ENV 的环境对象
+ */
+function buildWorkerEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const key of WORKER_ENV_WHITELIST) {
+    const val = process.env[key];
+    if (val !== undefined) env[key] = val;
+  }
+  env.DATABASE_URL = getDatabaseUrl();
+  env.NODE_ENV = config.NODE_ENV;
+  return env;
 }
 
 export function getUpdateStatus(): UpdateStatus {
@@ -57,10 +96,7 @@ export async function startUpdate(
 
   const child = spawn('go', args, {
     cwd: WORKER_DIR,
-    env: {
-      ...process.env,
-      DATABASE_URL: getDatabaseUrl(),
-    },
+    env: buildWorkerEnv(),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 

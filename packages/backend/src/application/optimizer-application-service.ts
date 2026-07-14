@@ -1,135 +1,32 @@
 /**
- * 回测优化器应用服务（T-30 / CQRS Command）
+ * 回测优化器应用服务（T-30 / CQRS Command，RO-054 拆分后编排入口）
+ *
+ * 仅保留编排逻辑：数据获取 → 引擎调用 → 结果聚合。纯领域逻辑（参数组合生成、
+ * 约束过滤、目标函数等）已抽离到 domain/optimizer-domain.ts，schema 定义在
+ * schemas/optimizer.ts。
+ *
+ * 企业理由（ADR-013 DDD 分层）：编排层与领域层分离后，编排层只关心 I/O 顺序，
+ * 领域规则变更不需要触碰此文件；领域函数可独立单元测试。
  */
-import type {
-  Portfolio,
-  BacktestParameters,
-  RebalanceFrequency,
-  BacktestResult,
-} from '@backtest/shared/types';
+import type { Portfolio, BacktestResult } from '@backtest/shared/types';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { numericRange } from '../utils/numericRange.js';
+import {
+  MAX_OPTIMIZER_COMBINATIONS,
+  buildBacktestParameters,
+  buildCombinations,
+  filterByConstraints,
+  objectiveValue,
+  validateOptimizeRequest,
+  type BestResultItem,
+  type Combo,
+  type BacktestOptimizerRequest as OptimizeRequest,
+  type OptimizeResultItem,
+} from '../domain/optimizer-domain.js';
 
-type Objective = 'maxCagr' | 'minMaxDrawdown' | 'maxSharpe' | 'maxSortino';
-
-interface OptimizeResultItem {
-  rebalanceFrequency: RebalanceFrequency;
-  rebalanceThreshold?: number;
-  initialCapital: number;
-  cagr: number;
-  maxDrawdown: number;
-  sharpe: number;
-  sortino: number;
-  stdev: number;
-  calmar: number;
-}
-
-interface BestResultItem extends OptimizeResultItem {
-  growthCurve: Array<{ date: string; value: number }>;
-}
-
-/** 参数组合（频率+阈值+资金） */
-interface Combo {
-  frequency: RebalanceFrequency;
-  threshold?: number;
-  capital: number;
-}
-
-interface OptimizeRequest {
-  portfolio: {
-    name?: string;
-    assets: Array<{ ticker: string; weight: number }>;
-  };
-  parameterSpace: {
-    rebalanceFrequencies: RebalanceFrequency[];
-    rebalanceThreshold?: { min: number; max: number; step: number };
-    initialCapital: { min: number; max: number; step: number };
-  };
-  parameters: {
-    startDate: string;
-    endDate: string;
-    benchmarkTicker?: string;
-    baseCurrency?: 'usd' | 'cny';
-    adjustForInflation?: boolean;
-  };
-  objective: Objective;
-  constraints?: {
-    maxDrawdown?: number;
-    minCagr?: number;
-  };
-}
-
-export const MAX_OPTIMIZER_COMBINATIONS = 1000;
-
-function range(min: number, max: number, step: number): number[] {
-  return numericRange(min, max, step, 2);
-}
-
-function buildBacktestParameters(
-  parameters: OptimizeRequest['parameters'],
-  startingValue: number,
-): BacktestParameters {
-  return {
-    startDate: parameters.startDate,
-    endDate: parameters.endDate,
-    startingValue,
-    baseCurrency: parameters.baseCurrency || 'usd',
-    adjustForInflation: parameters.adjustForInflation ?? false,
-    rollingWindowMonths: 12,
-    benchmarkTicker: parameters.benchmarkTicker || '',
-    extendedWithdrawalStats: false,
-    cashflowLegs: [],
-    oneTimeCashflows: [],
-  };
-}
-
-/** 验证优化请求参数，返回错误消息或 null */
-function validateOptimizeRequest(body: OptimizeRequest): string | null {
-  if (!body.portfolio?.assets || body.portfolio.assets.length === 0) {
-    return '缺少组合配置：portfolio.assets';
-  }
-  if (!body.parameterSpace?.rebalanceFrequencies?.length) {
-    return '请至少选择一个再平衡频率';
-  }
-  if (!body.parameters?.startDate || !body.parameters?.endDate) {
-    return '缺少回测日期范围';
-  }
-  return null;
-}
-
-/** 构建参数组合列表 */
-function buildCombinations(parameterSpace: OptimizeRequest['parameterSpace']): Combo[] {
-  const capitals = range(
-    parameterSpace.initialCapital.min,
-    parameterSpace.initialCapital.max,
-    parameterSpace.initialCapital.step,
-  );
-  const thresholds = parameterSpace.rebalanceThreshold
-    ? range(
-        parameterSpace.rebalanceThreshold.min,
-        parameterSpace.rebalanceThreshold.max,
-        parameterSpace.rebalanceThreshold.step,
-      )
-    : [];
-
-  const combos: Combo[] = [];
-  for (const freq of parameterSpace.rebalanceFrequencies) {
-    for (const cap of capitals) {
-      combos.push({ frequency: freq, capital: cap });
-    }
-  }
-  if (thresholds.length > 0) {
-    for (const thr of thresholds) {
-      for (const cap of capitals) {
-        combos.push({ frequency: 'threshold', threshold: thr, capital: cap });
-      }
-    }
-  }
-  return combos;
-}
+export { MAX_OPTIMIZER_COMBINATIONS };
 
 /** 按资金分组运行回测，收集结果项（经 Go 引擎，ADR-031 fail-closed） */
 async function runBacktestGroups(
@@ -181,36 +78,6 @@ async function runBacktestGroups(
   }
 
   return { items };
-}
-
-/** 按约束过滤结果 */
-function filterByConstraints(
-  items: OptimizeResultItem[],
-  constraints?: OptimizeRequest['constraints'],
-): OptimizeResultItem[] {
-  if (!constraints) return items;
-  return items.filter((it) => {
-    if (constraints.maxDrawdown !== undefined && it.maxDrawdown > constraints.maxDrawdown / 100)
-      return false;
-    if (constraints.minCagr !== undefined && it.cagr < constraints.minCagr / 100) return false;
-    return true;
-  });
-}
-
-/** 计算目标函数值 */
-function objectiveValue(it: OptimizeResultItem, objective: Objective): number {
-  switch (objective) {
-    case 'maxCagr':
-      return it.cagr;
-    case 'minMaxDrawdown':
-      return -it.maxDrawdown;
-    case 'maxSharpe':
-      return it.sharpe;
-    case 'maxSortino':
-      return it.sortino;
-    default:
-      return it.cagr;
-  }
 }
 
 /** 运行最优组合回测，获取增长曲线（经 Go 引擎，ADR-031 fail-closed） */

@@ -16,6 +16,7 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
 import ChartCard from '../ChartCard.js';
 
 /** 风险收益散点图 Props */
@@ -72,12 +73,12 @@ export default function RiskReturnScatter({ portfolios }: RiskReturnScatterProps
     >
       <ResponsiveContainer width="100%" height={400}>
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             type="number"
             dataKey="stdev"
             name="波动率"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: '年化波动率 (%)',
               position: 'insideBottom',
@@ -89,7 +90,7 @@ export default function RiskReturnScatter({ portfolios }: RiskReturnScatterProps
             type="number"
             dataKey="cagr"
             name="收益率"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: '年化收益率 (%)',
               angle: -90,

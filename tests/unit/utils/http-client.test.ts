@@ -24,6 +24,7 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 import { callService } from '../../../packages/backend/src/utils/httpClient.js';
+import { UpstreamProblemError } from '../../../packages/backend/src/utils/errors.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -51,7 +52,7 @@ describe('callService', () => {
     expect(fetchOpts.headers['x-request-id']).toBe('req-123');
   });
 
-  it('非 2xx 状态码应返回 null', async () => {
+  it('5xx 状态码应返回 null（降级路径）', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -59,6 +60,52 @@ describe('callService', () => {
     });
     const r = await callService('http://test:5003', '/api/data');
     expect(r).toBeNull();
+  });
+
+  it('4xx 状态码应抛出 UpstreamProblemError 携带原始 status/code/detail（RO-045）', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: () =>
+        Promise.resolve(
+          JSON.stringify({
+            code: 'BACKTEST_EMPTY_PORTFOLIOS',
+            title: 'Bad Request',
+            detail: 'portfolios 不能为空',
+          }),
+        ),
+    });
+    await expect(callService('http://test:5003', '/api/engine/backtest')).rejects.toThrow(
+      UpstreamProblemError,
+    );
+    try {
+      await callService('http://test:5003', '/api/engine/backtest');
+    } catch (err) {
+      expect(err).toBeInstanceOf(UpstreamProblemError);
+      expect((err as UpstreamProblemError).status).toBe(400);
+      expect((err as UpstreamProblemError).code).toBe('BACKTEST_EMPTY_PORTFOLIOS');
+      expect((err as UpstreamProblemError).title).toBe('Bad Request');
+      expect((err as UpstreamProblemError).detail).toBe('portfolios 不能为空');
+    }
+  });
+
+  it('4xx 非 JSON 响应体应使用回退值抛出 UpstreamProblemError', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      text: () => Promise.resolve('plain text error'),
+    });
+    await expect(callService('http://test:5003', '/api/data')).rejects.toThrow(
+      UpstreamProblemError,
+    );
+    try {
+      await callService('http://test:5003', '/api/data');
+    } catch (err) {
+      expect(err).toBeInstanceOf(UpstreamProblemError);
+      expect((err as UpstreamProblemError).status).toBe(422);
+      expect((err as UpstreamProblemError).code).toBe('UPSTREAM_ERROR');
+      expect((err as UpstreamProblemError).detail).toBe('plain text error');
+    }
   });
 
   it('网络错误应返回 null', async () => {

@@ -1,16 +1,15 @@
 /**
  * 增长曲线计算
- * 从 backtestRunner.ts 拆分而出，包含增长曲线构建、曲线计算等
+ * 从 backtestRunner.ts 拆分而出，包含增长曲线构建、曲线计算等。
+ * tactical 专用，与 Go engine 概念重叠但合规保留（ADR-008）。
  */
 
-import type { Portfolio, BacktestParameters, PortfolioResult } from '@backtest/shared/types';
+import type { Portfolio, BacktestParameters, PortfolioResult } from '@backtest/shared';
 import { shouldRebalance, getISOWeekNumber } from './rebalance.js';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
+import type { PriceData } from './curveReturns.js';
 
-/** 价格数据格式：{ [ticker]: { [date: string]: number } } */
-export interface PriceData {
-  [ticker: string]: Record<string, number>;
-}
+export type { PriceData };
 
 /** getSortedDates 缓存 */
 const sortedDatesCache = new WeakMap<PriceData, string[]>();

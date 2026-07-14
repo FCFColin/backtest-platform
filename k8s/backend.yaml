@@ -1,0 +1,179 @@
+# =============================================================================
+# API 后端 Deployment（从原合并 Deployment 拆分而来，R-15）
+# =============================================================================
+#
+# 企业理由：原合并 Deployment 将 API 后端与前端静态托管合并为单 Pod，
+# 违反单一职责：前端（nginx 静态）与 API（Express 计算调度）独立伸缩/发布需求不同
+# （API CPU 密集需 HPA 弹性扩缩，前端 IO 密集只需少量副本）。拆分后各自独立
+# labels/selectors，可独立滚动更新、独立资源配额、独立 PDB/HPA 策略。
+#
+# 端口 5001 与 docker-compose（API_PORT=5001）、configmap（API_PORT）、
+# nginx 反代目标（http://api:5001）保持一致。
+# 镜像名 backtest-platform/api 与 docker-compose 服务名 api 对齐。
+#
+# env 指向 Go engine/data 服务（经 backtest-config ConfigMap 注入）：
+# GO_ENGINE_URL=http://engine-go:5004、GO_DATA_SERVICE_URL=http://data-fetcher:5003。
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: backtest-platform
+  labels:
+    app: api
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        app.kubernetes.io/part-of: backtest-platform
+    spec:
+      containers:
+        - name: api
+          image: backtest-platform/api
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - containerPort: 5001
+          resources:
+            requests:
+              memory: '256Mi'
+              cpu: '0.5'
+            limits:
+              memory: '1Gi'
+              cpu: '1'
+          # 企业理由：三类探针覆盖不同故障场景——
+          # startupProbe：应用启动期间允许慢（避免慢启动被 liveness 杀死）；
+          # livenessProbe：运行时死锁/无响应时自动重启；
+          # readinessProbe：暂时过载时从 Service 摘除流量但不重启。
+          # 权衡：探针配置不当会导致频繁重启或流量摘除，需根据实际启动时间调参。
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 5001
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          envFrom:
+            - configMapRef:
+                name: backtest-config
+            - secretRef:
+                name: postgres-secret
+            - secretRef:
+                name: auth-tokens
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+# 企业理由：ClusterIP 为 API 后端提供稳定的集群内访问端点，
+# 前端 nginx 反代 /api/ → http://api:5001，内部服务间调用亦经此 Service。
+# 服务名 api 与 docker-compose（services.api）一致（R-17）。
+# 权衡：ClusterIP 仅集群内可达，外部访问经 frontend Service + Ingress。
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  namespace: backtest-platform
+  labels:
+    app: api
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  type: ClusterIP
+  selector:
+    app: api
+  ports:
+    - port: 5001
+      targetPort: 5001
+      protocol: TCP
+      name: api
+---
+# 企业理由：PodDisruptionBudget 确保自愿驱逐（kubectl drain/集群升级）时
+# 保持最小可用副本数，防止所有 Pod 同时被驱逐导致服务不可用。
+# PDB 是 K8s 高可用基线，生产环境 Deployment 必须配置。
+# 权衡：minAvailable 限制驱逐灵活性（节点维护时需等待 Pod 调度），
+# 但保障了服务可用性。当前 api replicas:2，minAvailable:1 意味着
+# 最多允许 1 个 Pod 被驱逐，确保始终有 1 个 Pod 服务流量。
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-pdb
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: api
+---
+# 企业理由：回测负载波动大（白天高峰/夜间低谷），固定副本数无法弹性应对。
+# HPA 基于 CPU 使用率自动扩缩，确保高峰期有足够计算能力，
+# 低谷期释放资源节省成本。CPU>70% 触发扩容，<30% 触发缩容。
+# 权衡：HPA 依赖 Metrics Server，冷启动扩容有延迟（约 30-60s），
+# 需配合 readinessProbe 确保新 Pod 就绪后才接收流量。
+#
+# 前置依赖：必须先部署 Metrics Server，HPA 才能工作：
+#   kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-hpa
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        - type: Percent
+          value: 10
+          periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 60

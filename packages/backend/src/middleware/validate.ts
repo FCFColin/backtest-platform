@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import type { ZodSchema, ZodIssue } from 'zod';
+import { sendProblem } from '../utils/errors.js';
 
 function formatZodIssues(issues: ZodIssue[]): string {
   return issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
@@ -16,15 +17,8 @@ export function validate(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      res.status(400).json({
-        success: false,
-        error: {
-          type: 'https://httpstatuses.com/400',
-          title: 'Bad Request',
-          status: 400,
-          code: 'VALIDATION_ERROR',
-          detail: `Request validation failed: ${formatZodIssues(result.error.issues)}`,
-        },
+      sendProblem(res, 400, 'VALIDATION_ERROR', 'Bad Request', {
+        detail: `Request validation failed: ${formatZodIssues(result.error.issues)}`,
       });
       return;
     }
@@ -45,18 +39,37 @@ export function validateQuery(schema: ZodSchema) {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.query);
     if (!result.success) {
-      res.status(422).json({
-        success: false,
-        error: {
-          type: 'https://httpstatuses.com/422',
-          title: 'Unprocessable Entity',
-          status: 422,
-          code: 'VALIDATION_ERROR',
-          detail: `Query validation failed: ${formatZodIssues(result.error.issues)}`,
-        },
+      sendProblem(res, 422, 'VALIDATION_ERROR', 'Unprocessable Entity', {
+        detail: `Query validation failed: ${formatZodIssues(result.error.issues)}`,
       });
       return;
     }
     next();
   };
+}
+
+/** 蒙特卡洛参数白名单，sanitizeMcParams 仅保留这些键 */
+const MC_PARAMS_ALLOWED_KEYS = new Set([
+  'numSimulations',
+  'blockSize',
+  'withReplacement',
+  'confidenceLevel',
+  'distribution',
+  'seed',
+]);
+
+/**
+ * 过滤 mcParams 中的未知键，仅保留白名单字段。
+ *
+ * @param mcParams - 原始 mcParams 对象
+ * @returns 仅含白名单字段的干净对象
+ */
+export function sanitizeMcParams(mcParams: object | undefined): Record<string, unknown> {
+  if (!mcParams || typeof mcParams !== 'object' || Array.isArray(mcParams)) return {};
+  const raw = mcParams as Record<string, unknown>;
+  const sanitized: Record<string, unknown> = {};
+  for (const key of Object.keys(raw)) {
+    if (MC_PARAMS_ALLOWED_KEYS.has(key)) sanitized[key] = raw[key];
+  }
+  return sanitized;
 }

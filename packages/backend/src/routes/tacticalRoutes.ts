@@ -11,7 +11,8 @@ import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/
 import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem, errorMessage } from '../utils/errors.js';
-import { requireApiKey } from '../middleware/auth.js';
+import { jwtAuth } from '../middleware/jwtAuth.js';
+import { requirePermission, Permission } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
 import {
   tacticalBacktestSchema,
@@ -128,7 +129,8 @@ router.post(
 
 router.post(
   '/alerts',
-  requireApiKey,
+  jwtAuth,
+  requirePermission(Permission.STRATEGY_MANAGE),
   validate(tacticalAlertSchema),
   (req: Request, res: Response): void => {
     try {

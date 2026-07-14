@@ -12,6 +12,13 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import { tooltipStyle } from './analysisChartUtils.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+  DATE_TICK_FORMATTER,
+} from './chartConstants.js';
 
 export const DrawdownChart = memo(function DrawdownChart({
   drawdownData,
@@ -25,16 +32,12 @@ export const DrawdownChart = memo(function DrawdownChart({
     <div className="chart-card">
       <div className="chart-card-title">{t('analysis.drawdown')}</div>
       <ResponsiveContainer width="100%" height={250}>
-        <AreaChart data={drawdownData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
-          />
+        <AreaChart data={drawdownData} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
           <YAxis
             domain={['auto', 0]}
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => `${v.toFixed(0)}%`}
           />
           <Tooltip
@@ -42,7 +45,7 @@ export const DrawdownChart = memo(function DrawdownChart({
             labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
           />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           {portfolioResults.map((p, idx) => (
             <Area
               key={p.name}

@@ -3,16 +3,15 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
+import { config } from '../config/index.js';
 import { validate } from '../middleware/validate.js';
-import { backtestOptimizerSchema } from '../schemas/backtestOptimizer.js';
+import { backtestOptimizerSchema } from '../schemas/optimizer.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { sendProblem } from '../utils/errors.js';
+import { sendProblem, UpstreamProblemError } from '../utils/errors.js';
 import { withTimeout, TimeoutError } from '../utils/timeout.js';
 import { EngineUnavailableError } from '../utils/engineClient.js';
 import { executeOptimization } from '../application/optimizer-application-service.js';
-
-const SYNC_COMPUTE_TIMEOUT_MS = Number.parseInt(process.env.SYNC_COMPUTE_TIMEOUT_MS || '30000', 10);
 
 const router = Router();
 
@@ -56,7 +55,7 @@ router.post(
 
       const result = await withTimeout(
         executeOptimization(req.body as Record<string, unknown>),
-        SYNC_COMPUTE_TIMEOUT_MS,
+        config.SYNC_COMPUTE_TIMEOUT_MS,
         'backtest-optimizer 同步执行',
       );
       if (result.success) {
@@ -73,6 +72,13 @@ router.post(
           headers: { 'Retry-After': String(error.retryAfterSeconds) },
           degraded: true,
           degradedWarning: '计算引擎暂不可用，已 fail-closed，未回退本地计算',
+        });
+        return;
+      }
+      // 4xx 客户端错误透传（RO-045）：返回上游原始状态码与 detail
+      if (error instanceof UpstreamProblemError) {
+        sendProblem(res, error.status, error.code, error.title, {
+          detail: error.detail,
         });
         return;
       }

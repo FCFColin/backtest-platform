@@ -1,21 +1,9 @@
 import { useState, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
+import { TimeSeriesLineChartContent } from './sharedChartContent.js';
 import {
-  tooltipStyle,
   computeRollingMetric,
   computeRollingExcessReturn,
   type RollingMetricKey,
@@ -70,41 +58,20 @@ function RollingLineChart({
   metric: RollingMetricKey;
   t: (k: string) => string;
 }) {
+  const seriesTickers = metric !== 'excess' ? results.tickers : results.tickers.slice(1);
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={(v: string) => v.slice(0, 7)}
-        />
-        <YAxis
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={isPct ? (v: number) => `${v.toFixed(0)}%` : (v: number) => v.toFixed(1)}
-        />
-        <Tooltip
-          contentStyle={tooltipStyle}
-          labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
-          formatter={(value: number) => [isPct ? `${value.toFixed(2)}%` : value.toFixed(3), '']}
-        />
-        <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
-        {(metric !== 'excess' ? results.tickers : results.tickers.slice(1)).map((tk, idx) => (
-          <Line
-            key={tk.ticker}
-            type="monotone"
-            dataKey={tk.ticker}
-            stroke={CHART_COLORS[(metric === 'excess' ? idx + 1 : idx) % CHART_COLORS.length]}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 3 }}
-          />
-        ))}
-        {(metric === 'excess' || metric === 'skewness' || metric === 'kurtosis') && (
-          <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="4 4" />
-        )}
-      </LineChart>
-    </ResponsiveContainer>
+    <TimeSeriesLineChartContent
+      data={chartData}
+      seriesNames={seriesTickers.map((tk) => tk.ticker)}
+      height={400}
+      yTickFormatter={isPct ? (v) => `${v.toFixed(0)}%` : (v) => v.toFixed(1)}
+      tooltipValueFormatter={(v) => [isPct ? `${v.toFixed(2)}%` : v.toFixed(3), '']}
+      tooltipLabelFormatter={(label) => `${t('common.date')}: ${label}`}
+      referenceY={
+        metric === 'excess' || metric === 'skewness' || metric === 'kurtosis' ? 0 : undefined
+      }
+      colorOffset={metric === 'excess' ? 1 : 0}
+    />
   );
 }
 

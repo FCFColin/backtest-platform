@@ -139,14 +139,7 @@ export const efficientFrontierSchema = z.object({
   numIterations: z.number().optional(),
 });
 
-export type PortfolioBacktestRequest = z.infer<typeof portfolioBacktestSchema>;
-export type AnalysisRequest = z.infer<typeof analysisSchema>;
-export type MonteCarloRequest = z.infer<typeof monteCarloSchema>;
-export type OptimizeRequest = z.infer<typeof optimizeSchema>;
-export type EfficientFrontierRequest = z.infer<typeof efficientFrontierSchema>;
-
 /** POST /api/backtest/portfolio/series — 从 LRU 缓存补全 tab 序列 */
 export const portfolioSeriesSchema = portfolioBacktestSchema.extend({
   series: z.array(z.enum(['rollingReturns', 'allocationHistory', 'drawdownEpisodes'])).min(1),
 });
-export type PortfolioSeriesRequest = z.infer<typeof portfolioSeriesSchema>;

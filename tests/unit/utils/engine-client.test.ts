@@ -6,7 +6,7 @@
  * 本测试覆盖：
  * 1. Go 引擎可用时返回 Go 引擎结果
  * 2. callEngineStrict 在 Go 不可用时 fail-closed 抛出 EngineUnavailableError
- * 3. isDegradedResponse / unwrapFallbackResult / resetEngineAvailability / callGoEngineDirect
+ * 3. resetEngineAvailability / callGoEngineDirect
  *
  * 权衡：mock opossum CircuitBreaker 与 callService，不验证真实 HTTP 行为。
  */
@@ -52,7 +52,7 @@ const loggerMocks = vi.hoisted(() => ({
 
 const metricsMocks = vi.hoisted(() => ({
   recordEngineCall: vi.fn(),
-  recordFallbackToNode: vi.fn(),
+  recordEngineUnavailable: vi.fn(),
   engineCallDuration: { observe: vi.fn() },
   registerCircuitBreakerMetrics: vi.fn(),
 }));
@@ -63,7 +63,7 @@ vi.mock('opossum', () => ({
   default: vi.fn(() => cbMocks.factory()),
 }));
 
-vi.mock('../../../packages/backend/src/routes/dataRoutes.js', () => ({
+vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
   callService: callServiceMocks.callService,
 }));
 
@@ -83,13 +83,11 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => metricsMocks);
 
 import {
   callEngineStrict,
-  unwrapFallbackResult,
-  isDegradedResponse,
   resetEngineAvailability,
   callGoEngineDirect,
   EngineUnavailableError,
-  type DegradedResponse,
 } from '../../../packages/backend/src/utils/engineClient.js';
+import { UpstreamProblemError } from '../../../packages/backend/src/utils/errors.js';
 
 describe('callEngineStrict（fail-closed）', () => {
   beforeEach(() => {
@@ -126,64 +124,26 @@ describe('callEngineStrict（fail-closed）', () => {
     expect(error).toBeInstanceOf(EngineUnavailableError);
     expect(metricsMocks.recordEngineCall).toHaveBeenCalledWith(false, expect.any(String));
   });
-});
 
-describe('isDegradedResponse', () => {
-  it('应识别 DegradedResponse 对象', () => {
-    const degraded: DegradedResponse<string> = {
-      data: 'test',
-      degraded: true,
-      degradedWarning: 'degraded',
-    };
-    expect(isDegradedResponse(degraded)).toBe(true);
-  });
+  it('Go 引擎 4xx 应透传 UpstreamProblemError（不包装为 EngineUnavailableError）', async () => {
+    const upstreamErr = new UpstreamProblemError(
+      400,
+      'BACKTEST_EMPTY_PORTFOLIOS',
+      'Bad Request',
+      'portfolios 不能为空',
+    );
+    cbMocks.goCB.fire.mockRejectedValue(upstreamErr);
 
-  it('应拒绝普通对象（degraded 非 true）', () => {
-    expect(isDegradedResponse({ data: 'test', degraded: false })).toBe(false);
-  });
+    const promise = callEngineStrict('/api/engine/backtest', {});
+    const catchPromise = promise.catch((e) => e);
+    await vi.runAllTimersAsync();
+    const error = await catchPromise;
 
-  it('应拒绝不含 degraded 字段的对象', () => {
-    expect(isDegradedResponse({ data: 'test' })).toBe(false);
-  });
-
-  it('应拒绝 null 和原始值', () => {
-    expect(isDegradedResponse(null)).toBe(false);
-    expect(isDegradedResponse(undefined)).toBe(false);
-    expect(isDegradedResponse('string')).toBe(false);
-    expect(isDegradedResponse(42)).toBe(false);
-  });
-});
-
-describe('unwrapFallbackResult', () => {
-  it('应解包 DegradedResponse（degraded=true）', () => {
-    const degraded: DegradedResponse<string> = {
-      data: 'result',
-      degraded: true,
-      degradedWarning: 'degraded msg',
-    };
-
-    const unwrapped = unwrapFallbackResult(degraded);
-
-    expect(unwrapped.data).toBe('result');
-    expect(unwrapped.degraded).toBe(true);
-    expect(unwrapped.degradedWarning).toBe('degraded msg');
-  });
-
-  it('应原样返回非降级响应（degraded=false）', () => {
-    const normalResult = { portfolios: [], cagr: 0.1 };
-
-    const unwrapped = unwrapFallbackResult(normalResult);
-
-    expect(unwrapped.data).toEqual({ portfolios: [], cagr: 0.1 });
-    expect(unwrapped.degraded).toBe(false);
-    expect(unwrapped.degradedWarning).toBeUndefined();
-  });
-
-  it('应正确处理原始值类型', () => {
-    const unwrapped = unwrapFallbackResult(42);
-
-    expect(unwrapped.data).toBe(42);
-    expect(unwrapped.degraded).toBe(false);
+    expect(error).toBe(upstreamErr);
+    expect(error).toBeInstanceOf(UpstreamProblemError);
+    expect(error).not.toBeInstanceOf(EngineUnavailableError);
+    // 4xx 不应重试（参数错误重试无意义）
+    expect(cbMocks.goCB.fire).toHaveBeenCalledTimes(1);
   });
 });
 

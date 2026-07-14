@@ -16,6 +16,7 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 import type { ReturnObjective, FrontierSolver } from './EfficientFrontierParams.js';
+import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/components/charts/chartConstants.js';
 
 function sharpeToColor(sharpe: number, minSharpe: number, maxSharpe: number): string {
   if (maxSharpe === minSharpe) return '#2e8b57';
@@ -233,7 +234,7 @@ function FrontierScatterChartInner({
 }) {
   return (
     <ScatterChart>
-      <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+      <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
       <XAxis
         dataKey="expectedVolatility"
         tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
@@ -344,10 +345,10 @@ function FrontierAllocations({
       <div style={SECTION_TITLE_STYLE}>Frontier Allocations</div>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={allocationData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             dataKey="point"
-            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+            tick={AXIS_TICK_STYLE}
             label={{
               value: '前沿点',
               position: 'insideBottom',
@@ -356,11 +357,7 @@ function FrontierAllocations({
               fill: 'var(--text-muted)',
             }}
           />
-          <YAxis
-            tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-            tickFormatter={(v: number) => `${v}%`}
-            domain={[0, 100]}
-          />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
           <Tooltip formatter={(v: number) => `${v}%`} contentStyle={FRONTIER_TOOLTIP_STYLE} />
           {allAssetTickers.map((ticker, i) => (
             <Area

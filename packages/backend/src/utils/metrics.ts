@@ -177,11 +177,28 @@ export const engineCallDuration = new client.Histogram({
 });
 
 /**
- * 引擎不可用次数（名称保留向后兼容，实际记录 Go 引擎熔断/不可用事件）
+ * 引擎不可用次数（旧指标名，保留向后兼容避免 Grafana 面板断裂）
+ *
+ * 企业理由（RO-052）：原命名 `fallback_to_node_total` 暗示"降级到 Node"，
+ * 但 ADR-031 后为 fail-closed，不再有 Node 降级。保留旧名仅为过渡期兼容，
+ * 新代码应使用 `engineUnavailableTotal` / `recordEngineUnavailable`。
  */
 export const fallbackToNodeTotal = new client.Counter({
   name: 'fallback_to_node_total',
   help: 'Total number of engine unavailable events (Go circuit breaker open/fallback)',
+  labelNames: ['reason'],
+  registers: [register],
+});
+
+/**
+ * 引擎不可用次数（新指标名，RO-052 重命名）
+ *
+ * 企业理由：名称准确反映 ADR-031 fail-closed 语义 —— 引擎不可用时快速失败，
+ * 而非降级到 Node。过渡期与 `fallbackToNodeTotal` 双写，Grafana 面板迁移后删除旧指标。
+ */
+export const engineUnavailableTotal = new client.Counter({
+  name: 'engine_unavailable_total',
+  help: 'Total number of engine unavailable events (Go circuit breaker open/fail-closed)',
   labelNames: ['reason'],
   registers: [register],
 });
@@ -210,6 +227,36 @@ export const backtestRequestsTotal = new client.Counter({
 export const degradedResponsesTotal = new client.Counter({
   name: 'degraded_responses_total',
   help: 'Responses served in degraded mode',
+  labelNames: ['endpoint', 'reason'],
+  registers: [register],
+});
+
+/**
+ * 缓存命中计数（按缓存层与结果分组）
+ *
+ * 企业理由：缓存命中率是容量规划与性能诊断的基础指标。
+ * 命中率骤降通常意味着缓存键变化（版本递增）或 TTL 过短，
+ * 导致回源压力骤增。layer 标识缓存层（file_cache / backtest_result_cache / price_cache），
+ * result 为 hit / miss。
+ */
+export const cacheHitsTotal = new client.Counter({
+  name: 'cache_hits_total',
+  help: 'Cache hit/miss count by layer',
+  labelNames: ['layer', 'result'],
+  registers: [register],
+});
+
+/**
+ * 认证失败计数（按端点与原因分组）
+ *
+ * 企业理由：认证失败率飙升是安全事件（撞库/凭证填充）的早期信号。
+ * 按端点与原因分组可快速定位攻击面（如某端点 invalid_token 骤增）。
+ * reason 为 snake_case 标识（missing_credentials / invalid_token / session_revoked /
+ * account_disabled / insufficient_permission / missing_auth）。
+ */
+export const authFailuresTotal = new client.Counter({
+  name: 'auth_failures_total',
+  help: 'Authentication/authorization failures by endpoint and reason',
   labelNames: ['endpoint', 'reason'],
   registers: [register],
 });
@@ -249,6 +296,28 @@ export function recordDegradedResponse(endpoint: string, reason: string): void {
 }
 
 /**
+ * 记录缓存命中/未命中。
+ *
+ * @param layer - 缓存层标识（file_cache / backtest_result_cache / price_cache）
+ * @param hit - 是否命中
+ */
+export function recordCacheHit(layer: string, hit: boolean): void {
+  cacheHitsTotal.inc({ layer, result: hit ? 'hit' : 'miss' });
+}
+
+/**
+ * 记录认证/鉴权失败。
+ *
+ * @param endpoint - 请求路径或端点标识
+ * @param reason - 失败原因（snake_case，如 invalid_token / insufficient_permission）
+ */
+export function recordAuthFailure(endpoint: string, reason: string): void {
+  const safeEndpoint = endpoint.replace(/[^a-zA-Z0-9_/-]/g, '_').slice(0, 128);
+  const safeReason = reason.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+  authFailuresTotal.inc({ endpoint: safeEndpoint, reason: safeReason });
+}
+
+/**
  * 注册 PostgreSQL 连接池饱和度采集（T-B6）
  *
  * @param poolName - 池标识 primary / read
@@ -284,11 +353,28 @@ export function recordEngineCall(success: boolean, error?: string): void {
 }
 
 /**
+ * 记录引擎不可用事件（Go 引擎熔断/调用失败）。
+ *
+ * 双写新旧两个 Counter（RO-052 过渡期）：新代码调用此函数，
+ * `fallbackToNodeTotal`（旧名）与 `engineUnavailableTotal`（新名）同时递增，
+ * Grafana 面板迁移完成后可移除旧指标与 `recordFallbackToNode`。
+ *
+ * @param reason - 不可用原因（如 go_circuit_breaker_open）
+ */
+export function recordEngineUnavailable(reason: string): void {
+  const safeReason = reason.replace(/[^a-zA-Z0-9_-]/g, '_');
+  engineUnavailableTotal.inc({ reason: safeReason });
+  fallbackToNodeTotal.inc({ reason: safeReason });
+}
+
+/**
  * 记录引擎不可用事件（Go 引擎熔断/调用失败）
- * 函数名保留向后兼容，实际不再降级到 Node.js（ADR-031 fail-closed）
+ *
+ * @deprecated 使用 {@link recordEngineUnavailable} 替代。保留此函数仅为过渡期兼容，
+ * 内部委托到 `recordEngineUnavailable` 实现双写。Grafana 面板迁移后删除。
  */
 export function recordFallbackToNode(reason: string): void {
-  fallbackToNodeTotal.inc({ reason: reason.replace(/[^a-zA-Z0-9_-]/g, '_') });
+  recordEngineUnavailable(reason);
 }
 
 /**

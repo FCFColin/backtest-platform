@@ -4,6 +4,16 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import type { Server } from 'http';
 
+vi.mock('argon2', () => ({
+  default: {
+    hash: vi.fn().mockResolvedValue('$argon2id$mock-hash$v=19$m=65536,t=3,p=4$mock'),
+    verify: vi.fn().mockResolvedValue(true),
+    argon2id: 2,
+    argon2d: 1,
+    argon2i: 0,
+  },
+}));
+
 vi.mock('../../packages/backend/src/config/redis.js', () => {
   const store = new Map<string, number>();
   return {

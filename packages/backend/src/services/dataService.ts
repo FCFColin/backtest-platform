@@ -9,6 +9,7 @@
 
 import { readdir, unlink } from 'fs/promises';
 import { join } from 'path';
+import { trace, type Span } from '@opentelemetry/api';
 import { validateTickerFormat } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
 import { initSchema } from '../db/index.js';
@@ -34,6 +35,9 @@ import {
   searchTickersFromDb,
   mockSearchResults,
 } from './dataQueryService.js';
+
+/** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
+const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
 /**
  * 初始化 PostgreSQL 数据库 schema
@@ -108,10 +112,33 @@ export async function fetchHistoryData(
   startDate: string,
   endDate: string,
 ): Promise<Record<string, Record<string, number>>> {
+  return tracer.startActiveSpan('dataService.fetchHistoryData', async (span) => {
+    try {
+      span.setAttribute('ticker_count', tickers.length);
+      span.setAttribute('start_date', startDate);
+      span.setAttribute('end_date', endDate);
+      return await fetchHistoryDataImpl(tickers, startDate, endDate, span);
+    } catch (err) {
+      span.recordException(err as Error);
+      throw err;
+    } finally {
+      span.end();
+    }
+  });
+}
+
+/** fetchHistoryData 核心实现（提取以控制函数行数） */
+async function fetchHistoryDataImpl(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+  span: Span,
+): Promise<Record<string, Record<string, number>>> {
   const fetchStart = Date.now();
   const result: Record<string, Record<string, number>> = {};
 
   const { valid: validTickers } = validateTickerFormat(tickers);
+  span.setAttribute('valid_ticker_count', validTickers.length);
   if (validTickers.length === 0) {
     logger.warn(
       `[dataService] fetchHistoryData: 全部 ${tickers.length} 个 ticker 非法，返回空结果`,
@@ -132,6 +159,8 @@ export async function fetchHistoryData(
   }
 
   if (missingTickers.length === 0) {
+    span.setAttribute('cache_hit', true);
+    span.setAttribute('missing_count', 0);
     logger.info(
       `[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), 0 missing, took ${Date.now() - fetchStart}ms`,
     );
@@ -142,6 +171,8 @@ export async function fetchHistoryData(
     (t) => !result[t] || Object.keys(result[t]).length === 0,
   );
   if (stillMissing.length === 0) {
+    span.setAttribute('cache_hit', true);
+    span.setAttribute('missing_count', 0);
     logger.info(
       `[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), took ${Date.now() - fetchStart}ms`,
     );
@@ -156,6 +187,8 @@ export async function fetchHistoryData(
 
   const cached = await readCache(cacheKey);
   if (cached) {
+    span.setAttribute('cache_hit', true);
+    span.setAttribute('missing_count', stillMissing.length);
     Object.assign(result, cached);
     logger.info(
       `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
@@ -163,10 +196,12 @@ export async function fetchHistoryData(
     return result;
   }
 
+  span.setAttribute('cache_hit', false);
+  span.setAttribute('missing_count', stillMissing.length);
+
   const goResult = await fetchMissingFromGoService(stillMissing, startDate, endDate, cacheKey);
   Object.assign(result, goResult);
 
-  // Go 数据服务可能无法获取全部缺失 ticker，标记降级
   const stillAfterGo = stillMissing.filter(
     (t) => !result[t] || Object.keys(result[t]).length === 0,
   );

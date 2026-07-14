@@ -14,6 +14,7 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { tooltipStyle, type RiskMetricKey } from './analysisChartUtils.js';
+import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
 
 function RiskMetricSelector({
   metrics,
@@ -54,12 +55,12 @@ function RiskScatterChart({
   return (
     <ResponsiveContainer width="100%" height={450}>
       <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
         <XAxis
           type="number"
           dataKey="risk"
           name={riskLabel}
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tick={AXIS_TICK_STYLE}
           label={{
             value: `${riskLabel} (%)`,
             position: 'insideBottom',
@@ -71,7 +72,7 @@ function RiskScatterChart({
           type="number"
           dataKey="cagr"
           name="CAGR"
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tick={AXIS_TICK_STYLE}
           label={{
             value: 'CAGR (%)',
             angle: -90,

@@ -26,6 +26,7 @@ import { useAsyncAction } from '../../hooks/useAsyncAction.js';
 import LoadingButton from '../../components/LoadingButton.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/components/charts/chartConstants.js';
 
 // ===== 工具函数 =====
 
@@ -344,18 +345,15 @@ function ProbabilityDistributionChart({
       <div className="chart-card-title">终值概率分布</div>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <XAxis
             dataKey="amount"
             type="number"
             domain={['dataMin', 'dataMax']}
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
           />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`}
-          />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${(v * 100).toFixed(1)}%`} />
           <Tooltip
             contentStyle={tooltipStyle}
             formatter={(v: number) => [`${(v * 100).toFixed(2)}%`, '概率']}
@@ -394,14 +392,10 @@ function OptimalPathChart({
       <div className="chart-card-title">最优路径（中位数 / P10 / P90）</div>
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data} margin={{ top: 10, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="year"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v}y`}
-          />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="year" tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}y`} />
           <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}k`}
           />
           <Tooltip

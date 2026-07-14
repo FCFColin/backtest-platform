@@ -1,17 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
-import { tooltipStyle } from './analysisChartUtils.js';
+import { TimeSeriesLineChartContent } from './sharedChartContent.js';
 
 export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   tickers,
@@ -25,6 +14,11 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   rollingCorrData: Array<{ date: string; value: number }>;
 }) {
   const { t } = useTranslation();
+  const seriesName = `${tickers[rollingPair[0]]} vs ${tickers[rollingPair[1]]}`;
+  const data = rollingCorrData.map((d) => ({
+    date: d.date,
+    [seriesName]: +d.value.toFixed(3),
+  }));
   return (
     <div className="chart-card">
       <div className="flex items-center gap-4 mb-3">
@@ -57,35 +51,16 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
           </select>
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart
-          data={rollingCorrData.map((d) => ({ ...d, value: +d.value.toFixed(3) }))}
-          margin={{ top: 5, right: 20, bottom: 5, left: 10 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
-          />
-          <YAxis domain={[-1, 1]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-          <Tooltip
-            contentStyle={tooltipStyle}
-            labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
-            formatter={(value: number) => [value.toFixed(3), t('analysis.correlation')]}
-          />
-          <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="4 4" />
-          <Line
-            type="monotone"
-            dataKey="value"
-            stroke={CHART_COLORS[0]}
-            strokeWidth={1.5}
-            dot={false}
-            activeDot={{ r: 3 }}
-            name={`${tickers[rollingPair[0]]} vs ${tickers[rollingPair[1]]}`}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <TimeSeriesLineChartContent
+        data={data}
+        seriesNames={[seriesName]}
+        height={300}
+        tooltipValueFormatter={(v) => [v.toFixed(3), t('analysis.correlation')]}
+        tooltipLabelFormatter={(label) => `${t('common.date')}: ${label}`}
+        yDomain={[-1, 1]}
+        referenceY={0}
+        showLegend={false}
+      />
     </div>
   );
 });

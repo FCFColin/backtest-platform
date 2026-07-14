@@ -340,6 +340,52 @@ describe('jwtVerifier', () => {
       expect(await verifyToken(token)).toBeNull();
     });
 
+    it('should reject token signed with a different RSA key pair (kid mismatch)', async () => {
+      vi.resetModules();
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
+
+      // 生成与测试默认密钥对完全不同的第二个密钥对，模拟 kid 不匹配场景
+      const foreignKeys = await generateKeyPair('RS256', {
+        modulusLength: 2048,
+        extractable: true,
+      });
+      const foreignToken = await new SignJWT(validPayload())
+        .setProtectedHeader({ alg: 'RS256', kid: 'foreign-key-id' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .sign(foreignKeys.privateKey);
+
+      // 验证器使用默认密钥对（rs256PublicKey），应拒绝外来密钥签发的令牌
+      expect(await verifyToken(foreignToken)).toBeNull();
+    });
+
+    it('should reject HS256 token with invalid signature when HS256 configured', async () => {
+      mocks.config.JWT_ALGORITHM = 'HS256';
+      vi.resetModules();
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
+
+      const token = await signHS256(validPayload());
+      // 篡改签名部分的最后若干字符
+      const parts = token.split('.');
+      const tamperedSig = parts[2].slice(0, -4) + 'AAAA';
+      const tamperedToken = `${parts[0]}.${parts[1]}.${tamperedSig}`;
+      expect(await verifyToken(tamperedToken)).toBeNull();
+    });
+
+    it('should reject RS256 token with missing signature segment', async () => {
+      vi.resetModules();
+      const { verifyToken } =
+        await import('../../../packages/backend/src/middleware/jwtVerifier.js');
+
+      const token = await signRS256(validPayload());
+      const parts = token.split('.');
+      // 仅保留 header.payload，缺失签名段
+      const noSigToken = `${parts[0]}.${parts[1]}.`;
+      expect(await verifyToken(noSigToken)).toBeNull();
+    });
+
     it('should accept token with null byte in sub', async () => {
       vi.resetModules();
       const { verifyToken } =

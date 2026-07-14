@@ -41,7 +41,7 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/backtestRunner.js', () => ({
   runPortfolioBacktest: portfolioMocks.runPortfolioBacktest,
 }));
 
@@ -58,6 +58,15 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     ADMIN_API_KEY: '',
   }),
   validateConfig: vi.fn(),
+}));
+
+vi.mock('../../../packages/backend/src/middleware/auth.js', () => ({
+  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
+  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  Permission: { STRATEGY_MANAGE: 'strategy:manage' },
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

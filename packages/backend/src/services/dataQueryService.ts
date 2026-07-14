@@ -4,7 +4,7 @@ import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { getReadPool } from '../db/index.js';
 import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../utils/metrics.js';
-import { writeCache, incrementCacheVersion } from './dataCacheService.js';
+import { writeCache, incrementCacheVersion, setPriceCache } from './dataCacheService.js';
 
 interface TickerSearchResult {
   ticker: string;
@@ -253,7 +253,10 @@ async function fetchMissingFromGoService(
 
     const goResults = await Promise.all(goPromises);
     for (const r of goResults) {
-      if (r) goResult[r.ticker] = r.priceMap;
+      if (r) {
+        goResult[r.ticker] = r.priceMap;
+        await setPriceCache(r.ticker, r.priceMap);
+      }
     }
 
     if (Object.keys(goResult).length > 0) {

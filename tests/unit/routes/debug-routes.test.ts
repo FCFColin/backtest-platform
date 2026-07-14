@@ -6,11 +6,12 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
+import { config } from '../../../packages/backend/src/config/index.js';
 import debugRoutes from '../../../packages/backend/src/routes/debugRoutes.js';
 
 describe('debugRoutes - GET /api/v1/debug/health', () => {
   let server: TestServer;
-  const originalToken = process.env.DEBUG_AUTH_TOKEN;
+  const originalToken = config.DEBUG_AUTH_TOKEN;
 
   beforeEach(async () => {
     server = await startExpressApp((app) => app.use('/api/v1', debugRoutes));
@@ -18,15 +19,11 @@ describe('debugRoutes - GET /api/v1/debug/health', () => {
 
   afterEach(async () => {
     await server.close();
-    if (originalToken === undefined) {
-      delete process.env.DEBUG_AUTH_TOKEN;
-    } else {
-      process.env.DEBUG_AUTH_TOKEN = originalToken;
-    }
+    config.DEBUG_AUTH_TOKEN = originalToken;
   });
 
   it('未配置 DEBUG_AUTH_TOKEN 时应返回 404', async () => {
-    delete process.env.DEBUG_AUTH_TOKEN;
+    config.DEBUG_AUTH_TOKEN = '';
 
     const res = await fetch(`${server.url}/api/v1/debug/health`);
     const json = await res.json();
@@ -36,7 +33,7 @@ describe('debugRoutes - GET /api/v1/debug/health', () => {
   });
 
   it('Bearer token 错误时应返回 401', async () => {
-    process.env.DEBUG_AUTH_TOKEN = 'correct-secret-token';
+    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
 
     const res = await fetch(`${server.url}/api/v1/debug/health`, {
       headers: { Authorization: 'Bearer wrong-token' },
@@ -48,7 +45,7 @@ describe('debugRoutes - GET /api/v1/debug/health', () => {
   });
 
   it('有效 DEBUG_AUTH_TOKEN 时应返回 200', async () => {
-    process.env.DEBUG_AUTH_TOKEN = 'correct-secret-token';
+    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
 
     const res = await fetch(`${server.url}/api/v1/debug/health`, {
       headers: { Authorization: 'Bearer correct-secret-token' },
@@ -66,7 +63,7 @@ describe('debugRoutes - GET /api/v1/debug/health', () => {
   });
 
   it('超长恶意 Bearer token 应返回 401', async () => {
-    process.env.DEBUG_AUTH_TOKEN = 'correct-secret-token';
+    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
     const maliciousToken = 'A'.repeat(10000);
 
     const res = await fetch(`${server.url}/api/v1/debug/health`, {

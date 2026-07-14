@@ -1,12 +1,3 @@
-export const CHART_COLORS = ['#2b63b8', '#06b6d4', '#2e8b57', '#f97316', '#c94a4a'];
-
-export const TOOLTIP_STYLE = {
-  background: 'var(--bg-elevated)',
-  border: '1px solid var(--border-strong)',
-  borderRadius: 8,
-  fontSize: 12,
-} as const;
-
 export function formatPct(v: number) {
   return (v * 100).toFixed(2) + '%';
 }

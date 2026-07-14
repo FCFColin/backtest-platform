@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import fsSync from 'fs';
+import { config } from '../config/index.js';
 
 // Security: 数据文件完整性校验
 // 企业为何需要：缓存文件被篡改可导致错误的回测结果，影响投资决策
@@ -11,7 +12,7 @@ import fsSync from 'fs';
  * 未配置 AUDIT_HMAC_KEY 时静默跳过。
  */
 export async function signFile(filePath: string): Promise<void> {
-  const key = process.env.AUDIT_HMAC_KEY;
+  const key = config.AUDIT_HMAC_KEY;
   if (!key) return;
 
   const content = await fs.readFile(filePath);
@@ -25,7 +26,7 @@ export async function signFile(filePath: string): Promise<void> {
  * 签名文件不存在或校验失败时返回 false。
  */
 export async function verifyFile(filePath: string): Promise<boolean> {
-  const key = process.env.AUDIT_HMAC_KEY;
+  const key = config.AUDIT_HMAC_KEY;
   if (!key) return true;
 
   try {
@@ -47,7 +48,7 @@ export async function verifyFile(filePath: string): Promise<boolean> {
  * Security (T-06)：缓存文件写入后立即签名，使后续读取可检测离线篡改。
  */
 export function signFileSync(filePath: string): void {
-  const key = process.env.AUDIT_HMAC_KEY;
+  const key = config.AUDIT_HMAC_KEY;
   if (!key) return;
   const content = fsSync.readFileSync(filePath);
   const signature = crypto.createHmac('sha256', key).update(content).digest('hex');
@@ -62,7 +63,7 @@ export function signFileSync(filePath: string): void {
  * 污染投资决策（OWASP A08 软件与数据完整性失败）。
  */
 export function verifyFileSync(filePath: string): boolean {
-  const key = process.env.AUDIT_HMAC_KEY;
+  const key = config.AUDIT_HMAC_KEY;
   if (!key) return true;
   try {
     const content = fsSync.readFileSync(filePath);

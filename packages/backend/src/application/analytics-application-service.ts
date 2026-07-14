@@ -1,5 +1,8 @@
 /**
- * 分析类应用服务（T-30）：PCA、LETF、目标优化
+ * 分析类 re-export facade（T-30）：PCA、LETF、目标优化
+ *
+ * 此模块为 re-export facade 而非真正的 application service——它仅将 engine 层的分析函数
+ * （performPCA / analyzeLetfSlippage / optimizeGoals）做参数校验与透传，不包含业务编排逻辑。
  */
 import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared/types/index';
 import type { LETFRequest } from '@backtest/shared/types/letf';

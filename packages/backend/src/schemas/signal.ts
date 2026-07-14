@@ -30,7 +30,3 @@ export const signalMultiSchema = z.object({
   aggregationMethod: z.enum(['weighted', 'voting', 'rank']),
   weights: z.array(z.number()).optional(),
 });
-
-export type SignalAnalyzeRequest = z.infer<typeof signalAnalyzeSchema>;
-export type SignalDualRequest = z.infer<typeof signalDualSchema>;
-export type SignalMultiRequest = z.infer<typeof signalMultiSchema>;

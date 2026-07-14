@@ -1,6 +1,7 @@
 /**
  * 组合回测核心逻辑 — 回测执行器
- * 从 portfolio.ts 拆分而出，包含回测执行、增长曲线构建、曲线计算等
+ * 从 portfolio.ts 拆分而出，包含回测执行、增长曲线构建、曲线计算等。
+ * tactical 专用，与 Go engine 概念重叠但合规保留（ADR-008）。
  */
 
 import type {
@@ -9,7 +10,7 @@ import type {
   PortfolioResult,
   BacktestResult,
   AssetAnalysisResult,
-} from '@backtest/shared/types.js';
+} from '@backtest/shared';
 import {
   calcCAGR,
   calcDailyReturns,

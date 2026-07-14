@@ -17,6 +17,12 @@ import type { PortfolioResult } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
 import ChartCard from '../ChartCard.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+} from './chartConstants.js';
 
 /** 年度收益柱状图 Props */
 interface AnnualReturnChartProps {
@@ -209,18 +215,15 @@ export default function AnnualReturnChart({ portfolios }: AnnualReturnChartProps
   return (
     <ChartCard title="年度收益" data={mergedData} csvFilename="annual-return">
       <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={mergedData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis dataKey="year" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-          />
+        <BarChart data={mergedData} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
           />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           {portfolios.map((p, idx) => (
             <Bar
               key={p.name}

@@ -8,7 +8,7 @@ import { Router, type Request, type Response } from 'express';
 import { fetchHistoryData, searchTickers } from '../services/dataService.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { registerCircuitBreakerMetrics, recordFallbackToNode } from '../utils/metrics.js';
+import { registerCircuitBreakerMetrics, recordEngineUnavailable } from '../utils/metrics.js';
 import { sendProblem } from '../utils/errors.js';
 import { callService } from '../utils/httpClient.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
@@ -62,7 +62,7 @@ const goDataServiceBreaker = new CircuitBreaker(
 
 goDataServiceBreaker.on('open', () => {
   logger.warn('[circuit-breaker] Go 数据服务熔断器进入 Open 状态，请求将直接降级');
-  recordFallbackToNode('go_circuit_breaker_open');
+  recordEngineUnavailable('go_circuit_breaker_open');
 });
 goDataServiceBreaker.on('halfOpen', () => {
   logger.info('[circuit-breaker] Go 数据服务熔断器进入 Half-Open 状态，开始探测');

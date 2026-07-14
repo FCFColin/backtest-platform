@@ -3,20 +3,9 @@
  */
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import type { PortfolioResult } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
 import ChartCard from '../ChartCard.js';
+import { BarChartContent } from './sharedChartContent.js';
 
 interface ReturnsTabDailyChartProps {
   portfolios: PortfolioResult[];
@@ -30,31 +19,16 @@ export default memo(function ReturnsTabDailyChart({ portfolios, bins }: ReturnsT
 
   return (
     <ChartCard title={t('backtest.dailyReturnsHist')} data={bins}>
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={bins} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis dataKey="range" tick={{ fill: 'var(--text-muted)', fontSize: 9 }} interval={4} />
-          <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            label={{
-              value: t('backtest.frequency'),
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
-          />
-          <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-          <Legend wrapperStyle={{ fontSize: '12px' }} />
-          {portfolios.map((p, idx) => (
-            <Bar
-              key={p.name}
-              dataKey={p.name}
-              fill={CHART_COLORS[idx % CHART_COLORS.length]}
-              fillOpacity={0.7}
-            />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChartContent
+        data={bins}
+        seriesNames={portfolios.map((p) => p.name)}
+        xDataKey="range"
+        height={350}
+        yLabel={t('backtest.frequency')}
+        fillOpacity={0.7}
+        xTickFontSize={9}
+        xTickInterval={4}
+      />
     </ChartCard>
   );
 });

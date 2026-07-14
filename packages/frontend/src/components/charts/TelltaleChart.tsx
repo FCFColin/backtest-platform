@@ -17,6 +17,13 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+  DATE_TICK_FORMATTER,
+} from './chartConstants.js';
 import ChartCard from '../ChartCard.js';
 import {
   downsample,
@@ -58,15 +65,11 @@ export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
   return (
     <ChartCard title="述事图" data={mergedData} csvFilename="telltale">
       <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            tickFormatter={(v: string) => v.slice(0, 7)}
-          />
+        <LineChart data={chartData} margin={CHART_MARGIN}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
           <YAxis
-            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => v.toFixed(3)}
             label={{
               value: '相对比率',
@@ -80,7 +83,7 @@ export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
             labelFormatter={(label: string) => `日期: ${label}`}
             formatter={(value: number) => [value.toFixed(3), '']}
           />
-          <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
           <ReferenceLine y={1} stroke="var(--text-muted)" strokeDasharray="4 4" />
           {portfolios.slice(1).map((p, idx) => (
             <Line
@@ -99,7 +102,7 @@ export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
               height={20}
               stroke="var(--brand)"
               travellerWidth={8}
-              tickFormatter={(v: string) => v.slice(0, 7)}
+              tickFormatter={DATE_TICK_FORMATTER}
             />
           )}
         </LineChart>

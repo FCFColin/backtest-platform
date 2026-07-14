@@ -34,37 +34,50 @@ jobs:
 
   # ============================================================
   # Required (fast) — 每次 push/PR 必须通过
+  # RO-037: 拆分为 5 个并行 job（check/lint/depcheck/test:unit/test:property）
+  # 企业理由：原串行执行约 4-5 分钟，拆分后最慢的 job 决定总耗时约 1.5-2 分钟。
+  # 共享 pnpm store cache + node_modules cache（RO-064），避免每个 job 重复安装。
   # ============================================================
   node-quick:
-    name: Node Quick (required)
+    name: ${{ matrix.task.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        task:
+          - { name: 'Type Check', cmd: 'pnpm run check' }
+          - { name: 'Lint', cmd: 'pnpm run lint' }
+          - { name: 'Depcheck', cmd: 'pnpm run depcheck' }
+          - { name: 'Unit Tests', cmd: 'pnpm run test:unit' }
+          - { name: 'Property Tests', cmd: 'pnpm run test:property' }
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: npm run check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Dependency cruiser
-        run: npm run depcheck
-
-      - name: Unit tests
-        run: npm run test:unit
-
-      - name: Property tests
-        run: npm run test:property
+      - name: Run ${{ matrix.task.name }}
+        run: ${{ matrix.task.cmd }}
 
   # ============================================================
   # Deep (optional) — 对 main 分支和标签 PR 运行，不 blocking merge
@@ -86,31 +99,46 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    # Exploratory（非阻断）：bench/coverage 属深度质量门，阈值波动与外部依赖
+    # 可能导致边际失败，不阻断合并以便持续观察趋势。
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Security audit
-        run: npm audit --audit-level=high --omit=dev
+        run: pnpm audit --audit-level=high --prod
 
       - name: License compliance
         run: npx --yes license-checker --production --summary --excludePrivatePackages
 
       - name: Performance benchmarks
-        run: npm run test:bench
+        run: pnpm run test:bench
 
       - name: Coverage report with per-file check
-        run: npm run test:coverage:check
+        run: pnpm run test:coverage:check
 
       - name: Upload coverage
         if: always()
@@ -121,7 +149,7 @@ jobs:
           retention-days: 7
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
   go:
     name: Go
@@ -148,11 +176,6 @@ jobs:
       # 权衡：-race 使测试慢 2-10 倍，但只在 CI 跑，不影响开发体验。
       - name: Test
         run: go test -race -count=1 ./...
-
-      # 企业理由：基准测试量化核心操作性能，无基准则无法判断优化效果、检测性能回归。
-      # 权衡：CI 增加约30秒，但防止性能退化。
-      - name: Benchmark
-        run: go test -bench=. -benchmem -count=1 -run=^$ ./...
 
       # 企业理由：golangci-lint 汇总多个 linter（errcheck/gosec/staticcheck 等），
       # 在 CI 强制执行代码质量。配置见 data-fetcher/.golangci.yml。
@@ -198,11 +221,6 @@ jobs:
       - name: Test
         run: go test -race -count=1 ./...
 
-      # 企业理由：基准测试量化核心操作性能，无基准则无法判断优化效果、检测性能回归。
-      # 权衡：CI 增加约30秒，但防止性能退化。
-      - name: Benchmark
-        run: go test -bench=. -benchmem -count=1 -run=^$ -timeout=120s ./...
-
       # 企业理由：go vet 检测常见错误（printf 参数不匹配、未使用的变量等），
       # 是 Go 官方静态分析工具，CI 必备。
       - name: Vet
@@ -226,6 +244,8 @@ jobs:
 
   integration:
     name: Integration Tests (optional)
+    # Exploratory（非阻断）：集成测试依赖真实 Postgres，CI 环境偶发波动
+    # 不阻断合并以避免误拦有效 PR。
     continue-on-error: true
     runs-on: ubuntu-latest
     services:
@@ -247,36 +267,57 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run integration tests
-        run: npm run test:integration
+        run: pnpm run test:integration
         env:
           DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
           NODE_ENV: test
 
   contract:
     name: Contract Tests (optional)
+    # Exploratory（非阻断）：契约测试可能因外部 API 演进而暂时性失败，
+    # 不阻断合并以便独立追踪外部破坏。
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
-      - run: npm run test:contract
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run test:contract
 
   load-smoke:
     name: k6 Load Smoke (optional)
+    # Exploratory（非阻断）：负载测试受 CI runner 性能波动影响，
+    # 绝对阈值不阻断合并，仅用于趋势观察。
     continue-on-error: true
     runs-on: ubuntu-latest
     services:
@@ -295,11 +336,15 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      - run: npm ci
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
       - name: Install k6
         run: |
           sudo gpg -k
@@ -308,7 +353,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install k6
       - name: Start API
-        run: npm run server:dev &
+        run: pnpm run server:dev &
         env:
           DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
           NODE_ENV: test
@@ -320,19 +365,27 @@ jobs:
         env:
           BASE_URL: http://localhost:5001
 
+  # ============================================================
+  # Should-gate（阻断合并）：Go↔JS 引擎一致性是平台正确性基线。
+  # ADR-031 单引擎策略下，Go 与 Node tactical 计算结果不一致意味着
+  # 计算逻辑漂移，必须阻断合并。测试基础设施已修复（RO-001/003/012），
+  # 稳定状态下可通过。
+  # ============================================================
   consistency:
-    name: Engine Consistency (Go ↔ JS) (optional)
-    continue-on-error: true
+    name: Engine Consistency (Go ↔ JS) (required)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -340,8 +393,18 @@ jobs:
           go-version: '1.22'
           cache-dependency-path: engine-go/go.sum
 
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build Go engine
         run: go build ./...
@@ -367,6 +430,8 @@ jobs:
   determinism:
     name: Cross-platform Determinism (optional)
     runs-on: ubuntu-latest
+    # Exploratory（非阻断）：跨架构确定性为探索性验证，
+    # 失败可能源于 Go runtime 而非业务 bug，不阻断合并。
     continue-on-error: true
     steps:
       - name: Checkout
@@ -400,22 +465,39 @@ jobs:
           fi
           echo "✅ Determinism check passed"
 
+  # ============================================================
+  # Should-gate（阻断合并）：E2E 覆盖用户真实流程（导入 → 回测 → 查看结果），
+  # 失败意味着用户无法完成核心操作。测试基础设施已修复（RO-004/005），
+  # 稳定状态下可通过。
+  # ============================================================
   e2e:
-    name: E2E Tests (Playwright) (optional)
-    continue-on-error: true
+    name: E2E Tests (Playwright) (required)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -429,12 +511,12 @@ jobs:
           npx wait-on http://127.0.0.1:5004/api/engine/health --timeout 120000
 
       - name: Import priority tickers
-        run: npm run import:priority-tickers
+        run: pnpm run import:priority-tickers
         env:
           DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest
 
       - name: Run E2E tests
-        run: npm run test:e2e:ui
+        run: pnpm run test:e2e:ui
         env:
           CI: 'true'
           DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest
@@ -451,9 +533,10 @@ jobs:
   # 企业理由：迁移 down 函数从未测试，生产回滚可能锁死。
   # CI 中验证 initSchema→rollbackSchema(0)→initSchema 循环，
   # 确保迁移可安全回滚。
+  # Should-gate（阻断合并）：回滚安全是生产运维基线，不可回滚的迁移
+  # 会导致生产锁死，必须阻断合并。
   migration-rollback:
-    name: Migration Rollback Test (optional)
-    continue-on-error: true
+    name: Migration Rollback Test (required)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -474,17 +557,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Test migration up→down→up cycle
         run: |
@@ -514,6 +610,8 @@ jobs:
   # 权衡：CI 增加 3-5 分钟，换取供应链安全。
   docker:
     name: Docker Build & Security Scan (optional)
+    # Exploratory（非阻断）：镜像构建+Trivy 扫描较重，外部基础镜像漏洞
+    # 不应阻断业务 PR 合并，由 nightly 流水线跟进。
     continue-on-error: true
     runs-on: ubuntu-latest
     permissions:
@@ -679,18 +777,23 @@ jobs:
   chaos:
     name: Chaos Tests
     runs-on: ubuntu-latest
+    # Exploratory（非阻断）：混沌实验天生非确定性（T-20），
+    # 失败不阻断合并，仅用于揭示韧性缺陷。
     continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Run chaos tests
-        run: npm run test:chaos
+        run: pnpm run test:chaos
         env:
           NODE_ENV: test

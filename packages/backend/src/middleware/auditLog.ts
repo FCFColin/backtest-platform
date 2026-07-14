@@ -17,6 +17,7 @@
 import crypto from 'crypto';
 import type { Request, Response, NextFunction } from 'express';
 import type { PoolClient } from 'pg';
+import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/index.js';
 
@@ -44,7 +45,7 @@ function hashApiKey(apiKey: string | undefined): string {
  * 未配置 AUDIT_HMAC_KEY 时返回空字符串并输出警告。
  */
 function signPayload(payload: string): string {
-  const key = process.env.AUDIT_HMAC_KEY;
+  const key = config.AUDIT_HMAC_KEY;
   if (!key) {
     logger.warn('AUDIT_HMAC_KEY not set, audit log signing disabled');
     return '';
@@ -57,7 +58,7 @@ function signPayload(payload: string): string {
  * 未配置 AUDIT_HMAC_KEY 时返回 true（无密钥=不验证）。
  */
 export function verifyPayload(payload: string, signature: string): boolean {
-  const key = process.env.AUDIT_HMAC_KEY;
+  const key = config.AUDIT_HMAC_KEY;
   if (!key) return true; // No key = no verification
   const expected = crypto.createHmac('sha256', key).update(payload).digest('hex');
   const sigBuf = Buffer.from(signature);

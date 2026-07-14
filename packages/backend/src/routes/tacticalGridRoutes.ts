@@ -3,6 +3,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
+import { config } from '../config/index.js';
 import { validate } from '../middleware/validate.js';
 import { tacticalGridSearchSchema } from '../schemas/tacticalGrid.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
@@ -14,8 +15,6 @@ import {
   MAX_GRID_COMBINATIONS,
 } from '../application/grid-application-service.js';
 import type { TacticalGridRequest } from '../application/grid-application-service.js';
-
-const SYNC_COMPUTE_TIMEOUT_MS = Number.parseInt(process.env.SYNC_COMPUTE_TIMEOUT_MS || '30000', 10);
 
 const router = Router();
 
@@ -70,7 +69,7 @@ router.post(
 
       const result = await withTimeout(
         executeGridSearch(req.body as Record<string, unknown>),
-        SYNC_COMPUTE_TIMEOUT_MS,
+        config.SYNC_COMPUTE_TIMEOUT_MS,
         'tactical-grid 同步执行',
       );
       if (result.success) {

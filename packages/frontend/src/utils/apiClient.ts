@@ -2,7 +2,7 @@
  * 管理后台 API 客户端
  *
  * 封装 fetch，自动读取 API Key 并附加到请求头 `x-api-key`，
- * 用于访问受 `requireApiKey` 中间件保护的管理类接口
+ * 用于访问需要 `x-api-key` 鉴权的管理类接口
  * （`/api/admin/*`、`/api/data/manage/*`）。
  *
  * 密钥存储策略（按优先级）：

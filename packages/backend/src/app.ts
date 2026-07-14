@@ -218,13 +218,13 @@ app.use('/api/', apiLimiter);
  * 旧路径 `/api/xxx` 通过重定向兼容过渡期。
  *
  * `/api/v1/admin/*` 与 `/api/v1/data/manage/*` 为管理类接口，
- * 挂载 requireApiKey 中间件进行 API Key 鉴权。
+ * 使用 jwtAuth + requirePermission 进行 JWT 鉴权与权限控制。
  * 开发环境且未配置 ADMIN_API_KEY 时中间件自动放行，方便本地开发。
  *
  * 企业理由：计算密集型端点（backtest/*）需要认证保护，
- * 防止未授权调用消耗计算资源。使用 optionalApiKey 中间件：
- * - 有 API Key 时验证身份并记录
- * - 无 API Key 时放行但记录匿名访问
+ * 防止未授权调用消耗计算资源。使用 jwtAuth 中间件：
+ * - 有 JWT 时验证身份并注入用户上下文
+ * - 无 JWT 时放行但记录匿名访问（开发环境）
  * 生产环境可通过配置强制要求认证。
  */
 

@@ -3,7 +3,7 @@ import type {
   SignalAnalysisRequest,
   DualSignalConfig,
   MultiSignalConfig,
-} from '../../../shared/types/signal.js';
+} from '@backtest/shared/types/signal.js';
 
 const engineMocks = vi.hoisted(() => ({
   toPriceSeries: vi.fn(),

@@ -1,6 +1,6 @@
 # 回测平台 (Backtest Platform)
 
-模仿 [testfol.io](https://testfol.io/) 的专业投资组合回测平台，支持 ETF/股票/基金的历史回测、蒙特卡洛模拟、组合优化和有效前沿分析。本地部署、免费、多语言微服务架构。
+模仿 [testfol.io](https://testfol.io/) 的专业投资组合回测平台，支持 ETF/股票/基金的历史回测、蒙特卡洛模拟、组合优化和有效前沿分析。本地部署、免费、Go+TS 双语言架构。
 
 ## 架构概览
 
@@ -16,27 +16,27 @@
                        │          │  → 入队重试（异步）   (ADR-031)
                        │          │
                        │          │    HTTP    ┌────────────┐
-                       │          │ ─────────▶ │ Go 数据    │ (主)
+                       │          │ ─────────▶ │ Go 数据    │ (主，缺失标的实时拉取)
                        │          │            │ gin        │
                        │          │            └────────────┘
-                       │          │    失败降级      │
+                       │          │    持久化      │
                        │          │ ─────────▶ ┌────────────┐
-                       │          │            │ 本地 JSON  │ (备)
+                       │          │            │ PostgreSQL │
                        └──────────┘            └────────────┘
 ```
 
-| 服务        | 语言       | 目录            | 端口 | 职责                                 |
-| ----------- | ---------- | --------------- | ---- | ------------------------------------ |
-| 前端 Web    | React/TS   | `src/`          | 5176 | UI 渲染、用户交互                    |
-| 后端 API    | Express/TS | `api/`          | 5001 | 路由编排、鉴权、降级调度             |
-| Go 计算引擎 | Go         | `engine-go/`    | 5004 | 主计算引擎（回测/MC/优化/前沿/分析） |
-| Go 数据服务 | Go         | `data-fetcher/` | 5003 | 主数据服务                           |
+| 服务        | 语言       | 目录                     | 端口 | 职责                                 |
+| ----------- | ---------- | ------------------------ | ---- | ------------------------------------ |
+| 前端 Web    | React/TS   | `packages/frontend/src/` | 5173 | UI 渲染、用户交互                    |
+| 后端 API    | Express/TS | `packages/backend/src/`  | 5001 | 路由编排、鉴权、降级调度             |
+| Go 计算引擎 | Go         | `engine-go/`             | 5004 | 主计算引擎（回测/MC/优化/前沿/分析） |
+| Go 数据服务 | Go         | `data-fetcher/`          | 5003 | 主数据服务                           |
 
 > **降级策略（ADR-031，fail-closed）**：正确性关键计算（组合回测、蒙特卡洛、优化、有效前沿、单资产分析）在 Go 引擎不可用时**不再静默降级**返回 Node 计算的、与主引擎不一致的数字；同步请求返回 `503 + Retry-After`，异步任务入队重试。
 >
 > **Node-canonical 功能**：`tactical`/`tacticalGrid`/`signal`/`goalOptimizer`/`pca`/`letf` 无引擎实现，Node 即权威实现（非降级），直接在 Node 计算。
 >
-> **数据降级**：Go 数据服务不可用时降级到本地 JSON 文件。
+> **数据策略**：PostgreSQL 为持久化主存储；Go 数据服务提供缺失标的实时拉取，结果回写 PostgreSQL。本地 JSON 文件仅用于批量导入（`pnpm import:market-data`），非运行时降级。
 >
 > **单引擎说明**：Rust 引擎（`engine-rs/`）与 Python 数据 CLI（`api/python/`）已退役删除（完成 Go↔Rust parity 验证后，见 ADR-008）。回测/分析/优化/蒙特卡洛由 Go 引擎独立承担，引擎不可用时 fail-closed 返回 503（ADR-031）。
 
@@ -44,13 +44,13 @@
 
 ### 前置要求
 
-- Node.js 18+、npm
+- Node.js 18+、pnpm
 - Go 1.21+（计算引擎 + 数据服务）
 - PostgreSQL 14+、Redis 6+
 
 ### 开发者须知（垂直审计 T-23/T-32）
 
-- **Ticker 双层校验**：领域层严格（`api/domain/value-objects/ticker.ts`）与安全净化层宽松（`api/utils/tickerValidation.ts`）**有意并存**，勿合并。
+- **Ticker 双层校验**：领域层严格（`packages/backend/src/domain/value-objects/ticker.ts`）与安全净化层宽松（`packages/backend/src/utils/tickerValidation.ts`）**有意并存**，勿合并。
 - **本地跳过认证**：`.env` 设置 `DEV_SKIP_AUTH=true`（仅 `NODE_ENV=development`），注入 `readonly` 用户，**非 admin**。
 - **一键命令**：`make dev` / `make up` / `make test`（见 `Makefile`）。
 - **Dev Container**：`.devcontainer/devcontainer.json` 提供一致多语言工具链。
@@ -58,13 +58,13 @@
 ### 1. 安装依赖
 
 ```powershell
-npm install
+pnpm install
 ```
 
 ### 2. 启动开发环境（推荐）
 
 ```powershell
-npm run dev
+pnpm dev
 ```
 
 该命令会：
@@ -73,9 +73,9 @@ npm run dev
 - 预构建前端并由 API 托管 `dist/`（http://localhost:5001，首屏秒开，与生产一致）
 - 后台增量 `vite build --watch` + 预热常用标的到 PostgreSQL
 
-前端热更新（首访较慢）：`npm run dev:hmr`（Vite 5176 + API 5001）
+前端热更新（首访较慢）：`pnpm dev:hmr`（Vite 5173 + API 5001）
 
-完整依赖栈（PostgreSQL/Redis 等）：`make up` 后再 `npm run dev`
+完整依赖栈（PostgreSQL/Redis 等）：`make up` 后再 `pnpm dev`
 
 ### 3. 启动 Go 计算引擎（主引擎，推荐）
 
@@ -93,19 +93,19 @@ cd data-fetcher
 go run main.go
 ```
 
-监听 http://127.0.0.1:5003。不启动时后端自动降级到本地 JSON 文件。
+监听 http://127.0.0.1:5003。提供缺失标的实时拉取，数据持久化于 PostgreSQL。
 
 ## 目录结构
 
 ```
 回测平台/
-├── src/                  # 前端 (React + Vite + Tailwind)
+├── packages/frontend/src/  # 前端 (React + Vite + Tailwind)
 │   ├── components/       # 组件 (charts/layout/backtest/common)
 │   ├── pages/            # 页面
 │   ├── store/            # Zustand 状态管理
 │   ├── hooks/            # 自定义 Hooks
 │   └── lib/              # 工具函数
-├── api/                  # 后端 API (Express + TS)
+├── packages/backend/src/   # 后端 API (Express + TS)
 │   ├── routes/           # 路由层
 │   ├── services/         # 服务层
 │   ├── application/      # 应用服务层 (CQRS)
@@ -114,7 +114,7 @@ go run main.go
 ├── engine-go/            # Go 计算引擎（唯一引擎，gin + gonum）
 ├── data-fetcher/         # Go 数据服务 (gin)
 ├── migrations/           # PostgreSQL 迁移脚本
-├── shared/               # 前后端共享类型
+├── packages/shared/      # 前后端共享类型
 ├── data/                 # 市场数据 (CPI/汇率/指数/标的)
 ├── tests/                # 测试 (unit/e2e/adversarial)
 ├── docs/                 # 文档
@@ -136,13 +136,13 @@ go run main.go
 ## 常用命令
 
 ```powershell
-npm run dev          # 启动前端+后端开发服务器
-npm run build        # 构建前端
-npm run check        # TypeScript 类型检查
-npm run lint         # ESLint
-npm run test         # 运行所有测试
-npm run test:unit    # 仅单元测试
-npm run test:e2e     # 仅 E2E 测试
+pnpm dev          # 启动前端+后端开发服务器
+pnpm build        # 构建前端
+pnpm check        # TypeScript 类型检查
+pnpm lint         # ESLint
+pnpm test         # 运行所有测试
+pnpm test:unit    # 仅单元测试
+pnpm test:e2e     # 仅 E2E 测试
 ```
 
 ## 环境变量

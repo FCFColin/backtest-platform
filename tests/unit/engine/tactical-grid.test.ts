@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // mock portfolio 模块，避免真实回测依赖
-vi.mock('../../../packages/backend/src/engine/portfolio.js', () => ({
+vi.mock('../../../packages/backend/src/engine/backtestRunner.js', () => ({
   runPortfolioBacktest: mocks.runPortfolioBacktest,
 }));
 
@@ -35,7 +35,7 @@ import {
   getObjectiveValue,
   runGridSearch,
 } from '../../../packages/backend/src/engine/tacticalGrid.js';
-import type { Statistics } from '../../../shared/types/statistics.js';
+import type { Statistics } from '@backtest/shared/types/statistics.js';
 import type {
   GridCombinationMetrics,
   ObjectiveType,

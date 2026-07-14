@@ -31,5 +31,3 @@ export const tacticalGridSearchSchema = z.object({
   objective: z.enum(['maxCAGR', 'minDrawdown', 'maxSharpe']),
   topN: z.number().int().positive().optional(),
 });
-
-export type TacticalGridSearchRequest = z.infer<typeof tacticalGridSearchSchema>;

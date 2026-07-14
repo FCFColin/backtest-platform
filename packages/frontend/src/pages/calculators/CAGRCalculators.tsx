@@ -10,7 +10,9 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Field, ResultRow, CollapsibleCard } from './BaseCalculatorUI.js';
-import { CHART_COLORS, formatPct, formatNum } from './baseCalculatorUtils.js';
+import { formatPct, formatNum } from './baseCalculatorUtils.js';
+import { CHART_COLORS } from '@backtest/shared';
+import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from '../../components/charts/chartConstants.js';
 
 export function CAGRCalculator() {
   const [initial, setInitial] = useState(10000);
@@ -92,9 +94,9 @@ export function FutureValueCalculator() {
       <div style={{ height: 180, marginTop: 12 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={curve}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
-            <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-            <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={formatNum} />
+            <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+            <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
+            <YAxis tick={AXIS_TICK_STYLE} tickFormatter={formatNum} />
             <Tooltip
               contentStyle={{
                 background: 'var(--bg-elevated)',
@@ -148,9 +150,9 @@ export function CAGRAssumptionCalculator() {
       <div style={{ height: 200, marginTop: 12 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={curve}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
-            <XAxis dataKey="year" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-            <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={formatNum} />
+            <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+            <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
+            <YAxis tick={AXIS_TICK_STYLE} tickFormatter={formatNum} />
             <Tooltip
               contentStyle={{
                 background: 'var(--bg-elevated)',

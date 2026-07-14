@@ -55,7 +55,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerCircuitBreakerMetrics: vi.fn(),
-  recordFallbackToNode: vi.fn(),
+  recordEngineUnavailable: vi.fn(),
 }));
 
 const macroDataMocks = vi.hoisted(() => ({

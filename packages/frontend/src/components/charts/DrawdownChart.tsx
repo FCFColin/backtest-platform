@@ -21,6 +21,13 @@ import { ChartExporter } from '../ChartExporter.js';
 import { downsample, SYNC_CHART_POINTS } from '../../hooks/useChartInteractions.js';
 import { useTranslation } from 'react-i18next';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  LEGEND_WRAPPER_STYLE,
+  DATE_TICK_FORMATTER,
+} from './chartConstants.js';
 
 /** 回撤面积图 Props */
 interface DrawdownChartProps {
@@ -42,16 +49,12 @@ export default function DrawdownChart({ portfolios, embedded = false }: Drawdown
 
   const chart = (
     <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--bg-subtle)" />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-          tickFormatter={(v: string) => v.slice(0, 7)}
-        />
+      <AreaChart data={chartData} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
         <YAxis
           domain={['auto', 0]}
-          tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => `${v.toFixed(0)}%`}
         />
         <Tooltip
@@ -59,7 +62,7 @@ export default function DrawdownChart({ portfolios, embedded = false }: Drawdown
           labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
           formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
         />
-        <Legend wrapperStyle={{ fontSize: '12px', color: 'var(--text-muted)' }} />
+        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
         {portfolios.map((p, idx) => (
           <Area
             key={p.name}
@@ -77,7 +80,7 @@ export default function DrawdownChart({ portfolios, embedded = false }: Drawdown
             height={20}
             stroke="var(--brand)"
             travellerWidth={8}
-            tickFormatter={(v: string) => v.slice(0, 7)}
+            tickFormatter={DATE_TICK_FORMATTER}
           />
         )}
       </AreaChart>

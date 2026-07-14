@@ -3,7 +3,7 @@
  * 使用 Kenneth French 数据库的真实因子数据
  */
 
-import { FF_DATA } from '../data/famaFrench.js';
+import type { FFDataPoint } from '../data/famaFrench.js';
 
 export interface RegressionInput {
   /** 月度组合收益率（小数，如 0.01 = 1%） */
@@ -92,20 +92,30 @@ export function computeMonthlyReturns(
   return result.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** Fama-French 数据懒加载缓存（动态导入拆为独立 chunk，避免 1200+ 条数据内联到路由 chunk） */
+let ffDataCache: FFDataPoint[] | null = null;
+async function getFFData(): Promise<FFDataPoint[]> {
+  if (ffDataCache) return ffDataCache;
+  const { FF_DATA } = await import('../data/famaFrench.js');
+  ffDataCache = FF_DATA;
+  return ffDataCache;
+}
+
 /** 过滤并对齐因子数据与组合收益 */
 function alignFactorData(
   input: RegressionInput,
+  ffData: FFDataPoint[],
   startDate?: string,
   endDate?: string,
 ): Array<{ ret: number; mkt: number; smb: number; hml: number }> {
-  let ffData = [...FF_DATA];
-  if (startDate) ffData = ffData.filter((d) => d.date >= startDate.slice(0, 7));
-  if (endDate) ffData = ffData.filter((d) => d.date <= endDate.slice(0, 7));
+  let data = [...ffData];
+  if (startDate) data = data.filter((d) => d.date >= startDate.slice(0, 7));
+  if (endDate) data = data.filter((d) => d.date <= endDate.slice(0, 7));
 
   const returnMap = new Map(input.monthlyReturns.map((r) => [r.date, r.value]));
   const aligned: Array<{ ret: number; mkt: number; smb: number; hml: number }> = [];
 
-  for (const fp of ffData) {
+  for (const fp of data) {
     const retVal = returnMap.get(fp.date);
     if (retVal === undefined) continue;
     aligned.push({
@@ -185,13 +195,14 @@ function extractFactorCoeffs(
  * @param startDate 开始日期
  * @param endDate 结束日期
  */
-export function runFFRegression(
+export async function runFFRegression(
   input: RegressionInput,
   factors: string[],
   startDate?: string,
   endDate?: string,
-): RegressionResult {
-  const aligned = alignFactorData(input, startDate, endDate);
+): Promise<RegressionResult> {
+  const ffData = await getFFData();
+  const aligned = alignFactorData(input, ffData, startDate, endDate);
 
   if (aligned.length < 3) {
     return { alpha: 0, beta: 0, smb: 0, hml: 0, rSquared: 0, residuals: [] };

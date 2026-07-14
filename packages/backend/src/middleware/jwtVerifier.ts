@@ -6,10 +6,12 @@
  */
 
 import { jwtVerify } from 'jose';
+import { trace } from '@opentelemetry/api';
 import type { Response, NextFunction } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
+import { recordAuthFailure } from '../utils/metrics.js';
 import {
   type AuthenticatedRequest,
   type JwtPayload,
@@ -21,6 +23,9 @@ import { tryDevBypass } from './devBypass.js';
 import { handleApiKeyAuth, handleOptionalApiKey } from './apiKeyAuth.js';
 import { getOrCachePublicKey, getOrCacheHS256Key } from './jwtSigner.js';
 import { isAccessTokenRevokedForUser, isUserSessionValid } from './refreshToken.js';
+
+/** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
+const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
 // ---------------------------------------------------------------------------
 // 配置常量
@@ -72,50 +77,66 @@ function hasRequiredClaims(payload: JwtPayload): boolean {
  * @returns 解码后的 payload，验证失败返回 null
  */
 async function verifyJwt(token: string): Promise<JwtPayload | null> {
-  // 1. 先尝试 RS256 验证
-  try {
-    const publicKey = await getOrCachePublicKey();
-    const { payload } = await jwtVerify(token, publicKey, {
-      algorithms: ['RS256'],
-    });
-    const jwtPayload = payload as unknown as JwtPayload;
-    if (!hasRequiredClaims(jwtPayload)) {
-      return null;
-    }
-    if (await isAccessTokenRevokedForUser(jwtPayload.sub, jwtPayload.iat)) {
-      return null;
-    }
-    return jwtPayload;
-  } catch {
-    // RS256 验证失败，按策略决定是否回退 HS256
-  }
+  return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
+    try {
+      // 1. 先尝试 RS256 验证
+      try {
+        const publicKey = await getOrCachePublicKey();
+        const { payload } = await jwtVerify(token, publicKey, {
+          algorithms: ['RS256'],
+        });
+        const jwtPayload = payload as unknown as JwtPayload;
+        if (!hasRequiredClaims(jwtPayload)) {
+          span.setAttribute('verify.result', 'failed_missing_claims');
+          return null;
+        }
+        if (await isAccessTokenRevokedForUser(jwtPayload.sub, jwtPayload.iat)) {
+          span.setAttribute('verify.result', 'failed_revoked');
+          return null;
+        }
+        span.setAttribute('verify.algorithm', 'RS256');
+        span.setAttribute('verify.result', 'success');
+        return jwtPayload;
+      } catch {
+        // RS256 验证失败，按策略决定是否回退 HS256
+      }
 
-  // 2. 回退 HS256 验证（仅在显式启用 HS256 时）
-  //
-  // Security (ADR：T-05 / RFC 8725 §3.1)：禁止"先 RS256 再无条件 HS256"的双算法接受策略。
-  // 企业为何需要：若服务端同时接受 RS256 与 HS256，攻击者可用服务端 RS256 公钥作为 HS256 的
-  //   对称密钥伪造令牌（算法混淆攻击）；或在 JWT_SECRET 偏弱时离线爆破伪造 HS256 令牌。
-  // 做法：仅当配置算法本身为 HS256（开发/显式过渡）时才尝试 HS256；生产默认 RS256，HS256 通道关闭。
-  // 权衡：若需 HS256→RS256 迁移期同时验证两类令牌，应通过显式临时开关而非默认行为。
-  if (JWT_ALGORITHM !== 'HS256') {
-    return null;
-  }
-  try {
-    const key = await getOrCacheHS256Key();
-    const { payload } = await jwtVerify(token, key, {
-      algorithms: ['HS256'],
-    });
-    const jwtPayload = payload as unknown as JwtPayload;
-    if (!hasRequiredClaims(jwtPayload)) {
-      return null;
+      // 2. 回退 HS256 验证（仅在显式启用 HS256 时）
+      //
+      // Security (ADR：T-05 / RFC 8725 §3.1)：禁止"先 RS256 再无条件 HS256"的双算法接受策略。
+      // 企业为何需要：若服务端同时接受 RS256 与 HS256，攻击者可用服务端 RS256 公钥作为 HS256 的
+      //   对称密钥伪造令牌（算法混淆攻击）；或在 JWT_SECRET 偏弱时离线爆破伪造 HS256 令牌。
+      // 做法：仅当配置算法本身为 HS256（开发/显式过渡）时才尝试 HS256；生产默认 RS256，HS256 通道关闭。
+      // 权衡：若需 HS256→RS256 迁移期同时验证两类令牌，应通过显式临时开关而非默认行为。
+      if (JWT_ALGORITHM !== 'HS256') {
+        span.setAttribute('verify.result', 'failed');
+        return null;
+      }
+      try {
+        const key = await getOrCacheHS256Key();
+        const { payload } = await jwtVerify(token, key, {
+          algorithms: ['HS256'],
+        });
+        const jwtPayload = payload as unknown as JwtPayload;
+        if (!hasRequiredClaims(jwtPayload)) {
+          span.setAttribute('verify.result', 'failed_missing_claims');
+          return null;
+        }
+        if (await isAccessTokenRevokedForUser(jwtPayload.sub, jwtPayload.iat)) {
+          span.setAttribute('verify.result', 'failed_revoked');
+          return null;
+        }
+        span.setAttribute('verify.algorithm', 'HS256');
+        span.setAttribute('verify.result', 'success');
+        return jwtPayload;
+      } catch {
+        span.setAttribute('verify.result', 'failed');
+        return null;
+      }
+    } finally {
+      span.end();
     }
-    if (await isAccessTokenRevokedForUser(jwtPayload.sub, jwtPayload.iat)) {
-      return null;
-    }
-    return jwtPayload;
-  } catch {
-    return null;
-  }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -136,22 +157,23 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
 /**
  * JWT 认证中间件
  *
- * 企业理由：统一认证入口，支持 Bearer Token 和 x-api-key 两种模式，
- * 兼顾安全升级（JWT）和现有系统兼容（API Key）。
+ * 企业理由：统一认证入口，支持 Bearer Token 和 x-api-key 两种模式。
+ * x-api-key (per-org, ADR-033) 与 JWT 并存——API Key 按组织隔离、哈希存储、可吊销、可审计，
+ * 是服务间与 CLI 集成的首选认证方式；JWT 面向浏览器交互会话。
  *
  * 认证优先级：
  * 1. Authorization: Bearer <token> → JWT 验证
- * 2. x-api-key header → 兼容旧 API Key 模式
+ * 2. x-api-key header → per-org API Key 验证（ADR-033）
  * 3. 开发环境（NODE_ENV !== 'production'）→ 跳过认证
  *
- * 权衡：双模式增加了中间件复杂度，但避免了迁移期的认证中断。
- * 生产环境应逐步废弃 x-api-key，仅保留 JWT。
+ * 权衡：双模式增加了中间件复杂度，但两种认证各有适用场景（CLI/服务间 vs 浏览器会话），长期并存。
  */
 
 /** 处理 Bearer Token 认证流程（含吊销/停用检查） */
 function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
+    recordAuthFailure(req.path, 'missing_credentials');
     sendProblem(res, 401, 'MISSING_CREDENTIALS', 'Unauthorized', {
       detail: '缺少认证凭证',
     });
@@ -170,6 +192,7 @@ function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: N
           },
           '[jwtAuth] JWT 认证失败',
         );
+        recordAuthFailure(req.path, 'invalid_token');
         sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', {
           detail: 'JWT token 无效或已过期',
         });
@@ -185,6 +208,7 @@ function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: N
           },
           '[jwtAuth] 会话已全局撤销，拒绝访问',
         );
+        recordAuthFailure(req.path, 'session_revoked');
         sendProblem(res, 401, 'SESSION_REVOKED', 'Unauthorized', {
           detail: '会话已失效，请重新登录',
         });
@@ -200,6 +224,7 @@ function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: N
           },
           '[jwtAuth] 用户已停用，拒绝访问',
         );
+        recordAuthFailure(req.path, 'account_disabled');
         sendProblem(res, 401, 'ACCOUNT_DISABLED', 'Unauthorized', { detail: '账户已停用或已删除' });
         return;
       }
@@ -222,6 +247,7 @@ function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: N
         { middleware: 'jwtAuth', path: req.path, error: String(err), requestId: req.id },
         '[jwtAuth] JWT 验证异常',
       );
+      recordAuthFailure(req.path, 'invalid_token');
       sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', { detail: 'JWT token 无效或已过期' });
     });
 }
@@ -249,6 +275,7 @@ export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunc
     { middleware: 'jwtAuth', path: req.path, error: '缺少认证凭证', requestId: req.id },
     '[jwtAuth] JWT 认证失败',
   );
+  recordAuthFailure(req.path, 'missing_credentials');
   sendProblem(res, 401, 'MISSING_CREDENTIALS', 'Unauthorized', {
     detail: '缺少认证凭证，请提供 Bearer Token 或 x-api-key',
   });

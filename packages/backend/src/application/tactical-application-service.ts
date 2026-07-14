@@ -122,16 +122,17 @@ export function executeTacticalWhatIf(
   return analyzeWhatIf(tickers, strategy, priceData, endDate);
 }
 
-/** 进程内告警配置暂存 */
-let alertConfigStore: EmailAlertConfig | null = null;
-
 /**
- * 保存战术告警配置（内存暂存）。
+ * 校验并接受战术告警配置。
+ *
+ * RO-055：原实现将配置暂存于模块级 `alertConfigStore`，但该状态从未被任何消费方
+ * （邮件发送 scheduler/cron）读取，属于未上线的死写入。删除模块级可变状态以消除
+ * 多实例不一致风险；函数签名保留以维持路由契约，仅做参数校验。
+ * 未来若上线真实告警发送，应改为 Redis 持久化（ADR-018）。
  */
 export function saveTacticalAlertConfig(config: EmailAlertConfig): EmailAlertConfig {
   if (config.enabled && !config.email) {
     throw new Error('启用告警时必须填写邮箱');
   }
-  alertConfigStore = config;
-  return alertConfigStore;
+  return config;
 }

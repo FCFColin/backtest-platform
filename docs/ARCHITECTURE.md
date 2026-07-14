@@ -116,14 +116,17 @@ flowchart TB
 
 ## 4. 端口分配
 
-| 服务        | 端口 | 配置位置                    |
-| ----------- | ---- | --------------------------- |
-| 前端 Vite   | 5173 | vite.config.ts              |
-| 后端 API    | 5001 | `PORT` 环境变量 / server.ts |
-| Go 引擎     | 5004 | engine-go/ (环境变量)       |
-| Go 数据服务 | 5003 | data-service/ (环境变量)    |
-| PostgreSQL  | 5432 | DATABASE_URL 环境变量       |
-| Redis       | 6379 | docker-compose.yml          |
+| 服务              | 端口                      | 配置位置                    |
+| ----------------- | ------------------------- | --------------------------- |
+| 前端 Vite         | 5176                      | vite.config.ts              |
+| 后端 API          | 5001                      | `PORT` 环境变量 / server.ts |
+| Go 引擎           | 5004                      | engine-go/ (环境变量)       |
+| Go 数据服务       | 5003                      | data-service/ (环境变量)    |
+| PostgreSQL (主)   | 5432                      | DATABASE_URL 环境变量       |
+| PostgreSQL 读副本 | 5432                      | k8s/postgres-replica.yaml   |
+| PgBouncer         | 5432                      | k8s/pgbouncer.yaml          |
+| Redis             | 6379                      | docker-compose.yml          |
+| OTel Collector    | 4317 (gRPC) / 4318 (HTTP) | k8s/otel-collector.yaml     |
 
 ---
 
@@ -142,12 +145,28 @@ flowchart TB
 
 ### 6.1 后端路由层 (`packages/backend/src/routes/`)
 
-| 文件                  | 路径前缀           | 职责                             |
-| --------------------- | ------------------ | -------------------------------- |
-| `dataRoutes.ts`       | `/api/data`        | 历史数据、搜索、CPI              |
-| `dataManageRoutes.ts` | `/api/data/manage` | 数据管理（批量更新等）           |
-| `backtestRoutes.ts`   | `/api/backtest`    | 回测/分析/蒙特卡洛/优化/有效前沿 |
-| `adminRoutes.ts`      | `/api/admin`       | 管理后台接口                     |
+| 文件                         | 路径前缀                     | 职责                                           |
+| ---------------------------- | ---------------------------- | ---------------------------------------------- |
+| `healthRoutes.ts`            | `/api`                       | 健康检查、监控指标、debug 端点                 |
+| `dataRoutes.ts`              | `/api/v1/data`               | 历史数据、搜索、CPI                            |
+| `dataManageRoutes.ts`        | `/api/v1/data/manage`        | 数据管理（批量更新等）                         |
+| `backtestRoutes.ts`          | `/api/v1/backtest`           | 回测/分析/蒙特卡洛/优化/有效前沿               |
+| `backtestOptimizerRoutes.ts` | `/api/v1/backtest-optimizer` | 回测优化器（有效前沿、Markowitz 优化）         |
+| `tacticalRoutes.ts`          | `/api/v1/tactical`           | 战术分配（信号驱动动态权重回测）               |
+| `tacticalGridRoutes.ts`      | `/api/v1/tactical-grid`      | 战术网格搜索（参数空间遍历优化）               |
+| `signalRoutes.ts`            | `/api/v1/signal`             | 信号分析（单/双/多信号）                       |
+| `pcaRoutes.ts`               | `/api/v1/pca`                | 主成分分析                                     |
+| `letfRoutes.ts`              | `/api/v1/letf`               | 杠杆 ETF 滑点分析                              |
+| `goalOptimizerRoutes.ts`     | `/api/v1/goal-optimizer`     | 目标优化（蒙特卡洛财务目标达成概率）           |
+| `authRoutes.ts`              | `/api/v1/auth`               | 认证鉴权（登录、令牌刷新、登出、身份查询）     |
+| `apiKeyRoutes.ts`            | `/api/v1/keys`               | 按组织 API Key 管理（ADR-033）                 |
+| `portfolioRoutes.ts`         | `/api/v1/portfolios`         | 租户作用域组合持久化（ADR-034）                |
+| `accountRoutes.ts`           | `/api/v1/configs`            | 租户作用域命名配置持久化（ADR-034）            |
+| `runRoutes.ts`               | `/api/v1/runs`               | 租户作用域回测历史持久化（ADR-034）            |
+| `orgRoutes.ts`               | `/api/v1/orgs`               | 组织与成员管理、邀请（ADR-035）                |
+| `billingRoutes.ts`           | `/api/v1/billing`            | Stripe 计费（订阅、Checkout、Portal，ADR-036） |
+| `jobRoutes.ts`               | `/api/v1`                    | 异步任务状态查询（ADR-019 所有权隔离）         |
+| `adminRoutes.ts`             | `/api/v1/admin`              | 管理后台接口                                   |
 
 > 注：认证授权已实现 JWT + RBAC 模型（见 [ADR-017](adr/ADR-017-认证授权模型.md)），保留 `x-api-key` 兼容模式（analyst 角色）。
 
@@ -247,38 +266,50 @@ data/
 
 ### 9.5 ADR 索引
 
-| ADR                                                    | 主题                         | 状态                  |
-| ------------------------------------------------------ | ---------------------------- | --------------------- |
-| [ADR-001](adr/ADR-001-多语言架构.md)                   | 多语言架构                   | 已取代（见 ADR-008）  |
-| [ADR-002](adr/ADR-002-JSON文件存储.md)                 | JSON 文件存储                | 已取代（见 ADR-006）  |
-| [ADR-003](adr/ADR-003-Rust主引擎Node备用.md)           | Rust 主引擎 Node 备用        | 已取代（Go 引擎为主） |
-| [ADR-004](adr/ADR-004-Express框架选型.md)              | Express 框架选型             | 已接受                |
-| [ADR-005](adr/ADR-005-Pino日志选型.md)                 | Pino 日志选型                | 已接受                |
-| [ADR-006](adr/ADR-006-SQLite迁移决策.md)               | JSON→SQLite 迁移             | 已取代（见 ADR-007）  |
-| [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)           | SQLite→PostgreSQL 迁移       | 已接受                |
-| [ADR-008](adr/ADR-008-语言精简决策.md)                 | 4 语言→Go+TypeScript 精简    | 已接受                |
-| [ADR-009](adr/ADR-009-请求体校验库选型.md)             | 请求体校验库选型（zod）      | 已接受                |
-| [ADR-010](adr/ADR-010-密钥扫描工具选型.md)             | 密钥扫描工具选型（gitleaks） | 已接受                |
-| [ADR-011](adr/ADR-011-长任务异步化方案.md)             | 长任务异步化方案（BullMQ）   | 已接受                |
-| [ADR-012](adr/ADR-012-SBOM与制品签名方案.md)           | SBOM 与制品签名              | 已接受                |
-| [ADR-013](adr/ADR-013-领域模型重构策略.md)             | 领域模型重构策略（DDD）      | 已接受                |
-| [ADR-014](adr/ADR-014-事件溯源Outbox方案.md)           | 事件溯源/Outbox 方案         | 已接受                |
-| [ADR-015](adr/ADR-015-可观测性技术选型.md)             | 可观测性技术选型             | 已接受                |
-| [ADR-016](adr/ADR-016-熔断器策略.md)                   | 熔断器策略                   | 已接受                |
-| [ADR-017](adr/ADR-017-认证授权模型.md)                 | 认证授权模型                 | 已接受                |
-| [ADR-018](adr/ADR-018-Redis选型.md)                    | Redis 选型                   | 已接受                |
-| [ADR-019](adr/ADR-019-异步任务越权防护与所有权模型.md) | Job 所有权                   | 已接受                |
-| [ADR-020](adr/ADR-020-限流fail-closed分级策略.md)      | 限流 fail-closed             | 已接受                |
-| [ADR-021](adr/ADR-021-代码复杂度量化门控.md)           | 复杂度门控                   | 已接受                |
-| [ADR-022](adr/ADR-022-SLSA出处证明与全量SBOM治理.md)   | SBOM/SLSA                    | 已接受                |
-| [ADR-023](adr/ADR-023-数据隐私分类与删除权实现.md)     | GDPR                         | 已接受                |
-| [ADR-024](adr/ADR-024-Outbox强一致与消费者幂等.md)     | Outbox                       | 已接受                |
-| [ADR-025](adr/ADR-025-apiLimiter全局fail-closed.md)    | 全局限流                     | 已接受                |
-| [ADR-026](adr/ADR-026-开发环境认证旁路安全边界.md)     | DEV_SKIP_AUTH                | 已接受                |
-| [ADR-027](adr/ADR-027-100x容量拐点与缓解.md)           | 100x 容量                    | 已接受                |
-| [ADR-028](adr/ADR-028-重试与幂等边界.md)               | 重试幂等                     | 已接受                |
-| [ADR-029](adr/ADR-029-cursor分页策略.md)               | 分页策略                     | 已接受                |
-| [ADR-030](adr/ADR-030-distroless评估.md)               | distroless                   | 已接受                |
+| ADR                                                             | 主题                         | 状态                  |
+| --------------------------------------------------------------- | ---------------------------- | --------------------- |
+| [ADR-001](adr/ADR-001-多语言架构.md)                            | 多语言架构                   | 已取代（见 ADR-008）  |
+| [ADR-002](adr/ADR-002-JSON文件存储.md)                          | JSON 文件存储                | 已取代（见 ADR-006）  |
+| [ADR-003](adr/ADR-003-Rust主引擎Node备用.md)                    | Rust 主引擎 Node 备用        | 已取代（Go 引擎为主） |
+| [ADR-004](adr/ADR-004-Express框架选型.md)                       | Express 框架选型             | 已接受                |
+| [ADR-005](adr/ADR-005-Pino日志选型.md)                          | Pino 日志选型                | 已接受                |
+| [ADR-006](adr/ADR-006-SQLite迁移决策.md)                        | JSON→SQLite 迁移             | 已取代（见 ADR-007）  |
+| [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)                    | SQLite→PostgreSQL 迁移       | 已接受                |
+| [ADR-008](adr/ADR-008-语言精简决策.md)                          | 4 语言→Go+TypeScript 精简    | 已接受                |
+| [ADR-009](adr/ADR-009-请求体校验库选型.md)                      | 请求体校验库选型（zod）      | 已接受                |
+| [ADR-010](adr/ADR-010-密钥扫描工具选型.md)                      | 密钥扫描工具选型（gitleaks） | 已接受                |
+| [ADR-011](adr/ADR-011-长任务异步化方案.md)                      | 长任务异步化方案（BullMQ）   | 已接受                |
+| [ADR-012](adr/ADR-012-SBOM与制品签名方案.md)                    | SBOM 与制品签名              | 已接受                |
+| [ADR-013](adr/ADR-013-领域模型重构策略.md)                      | 领域模型重构策略（DDD）      | 已接受                |
+| [ADR-014](adr/ADR-014-事件溯源Outbox方案.md)                    | 事件溯源/Outbox 方案         | 已接受                |
+| [ADR-015](adr/ADR-015-可观测性技术选型.md)                      | 可观测性技术选型             | 已接受                |
+| [ADR-016](adr/ADR-016-熔断器策略.md)                            | 熔断器策略                   | 已接受                |
+| [ADR-017](adr/ADR-017-认证授权模型.md)                          | 认证授权模型                 | 已接受                |
+| [ADR-018](adr/ADR-018-Redis选型.md)                             | Redis 选型                   | 已接受                |
+| [ADR-019](adr/ADR-019-异步任务越权防护与所有权模型.md)          | Job 所有权                   | 已接受                |
+| [ADR-020](adr/ADR-020-限流fail-closed分级策略.md)               | 限流 fail-closed             | 已接受                |
+| [ADR-021](adr/ADR-021-代码复杂度量化门控.md)                    | 复杂度门控                   | 已接受                |
+| [ADR-022](adr/ADR-022-SLSA出处证明与全量SBOM治理.md)            | SBOM/SLSA                    | 已接受                |
+| [ADR-023](adr/ADR-023-数据隐私分类与删除权实现.md)              | GDPR                         | 已接受                |
+| [ADR-024](adr/ADR-024-Outbox强一致与消费者幂等.md)              | Outbox                       | 已接受                |
+| [ADR-025](adr/ADR-025-apiLimiter全局fail-closed.md)             | 全局限流                     | 已接受                |
+| [ADR-026](adr/ADR-026-开发环境认证旁路安全边界.md)              | DEV_SKIP_AUTH                | 已接受                |
+| [ADR-027](adr/ADR-027-100x容量拐点与缓解.md)                    | 100x 容量                    | 已接受                |
+| [ADR-028](adr/ADR-028-重试与幂等边界.md)                        | 重试幂等                     | 已接受                |
+| [ADR-029](adr/ADR-029-cursor分页策略.md)                        | 分页策略                     | 已接受                |
+| [ADR-030](adr/ADR-030-distroless评估.md)                        | distroless                   | 已接受                |
+| [ADR-031](adr/ADR-031-单引擎fail-closed降级.md)                 | 单引擎 fail-closed 降级      | 已接受                |
+| [ADR-032](adr/ADR-032-多租户RLS隔离模型.md)                     | 多租户 RLS 隔离              | 已接受                |
+| [ADR-033](adr/ADR-033-按组织API密钥.md)                         | 按组织 API 密钥              | 已接受                |
+| [ADR-034](adr/ADR-034-服务端持久化与前端认证.md)                | 服务端持久化 + 前端认证      | 已接受                |
+| [ADR-035](adr/ADR-035-自助注册与组织邀请.md)                    | 自助注册与组织邀请           | 已接受                |
+| [ADR-036](adr/ADR-036-Stripe计费.md)                            | Stripe 计费                  | 已接受                |
+| [ADR-037](adr/ADR-037-配额计量与公平调度.md)                    | 配额计量与公平调度           | 已接受                |
+| [ADR-038](adr/ADR-038-ci-tiering-and-dependency-enforcement.md) | CI 分层与依赖方向强制        | 已实施                |
+| [ADR-039](adr/ADR-039-runtime-invariant-assertions.md)          | 运行时不变量断言             | 已实施                |
+| [ADR-040](adr/ADR-040-property-based-testing.md)                | 属性测试                     | 已实施                |
+| [ADR-041](adr/ADR-041-deterministic-fingerprint.md)             | 确定性指纹                   | 已实施                |
+| [ADR-042](adr/ADR-042-api-packages-consolidation.md)            | API 包合并                   | 已实施                |
 
 ---
 
