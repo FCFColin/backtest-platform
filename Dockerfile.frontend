@@ -19,7 +19,7 @@ COPY packages/frontend/ packages/frontend/
 RUN pnpm --filter @backtest/frontend build
 
 # Stage 2: nginx - 生产静态服务
-FROM nginx:stable-alpine@sha256:67b3cf4d43f7fed5fea49e2bd7b78cfcb2366a45f6648cc06b1b9f83bdc766e8 AS runner
+FROM nginx:stable-alpine@sha256:0d3b80406a13a767339fbe2f41406d6c7da727ab89cf8fae399e81f780f814d1 AS runner
 
 COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
