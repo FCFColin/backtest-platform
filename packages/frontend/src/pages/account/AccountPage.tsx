@@ -21,6 +21,7 @@ import { useTheme } from '../../hooks/useTheme.js';
 import { useAuthStore } from '@/store/authStore';
 import { importLocalConfigsOnce } from '@/utils/configApi';
 import { SectionTitle, PrefRow } from '../../components/cards.js';
+import { StandardPageShell } from '../../components/shells/StandardPageShell.js';
 
 const AVATAR_STYLE: React.CSSProperties = {
   width: 64,
@@ -286,10 +287,7 @@ export default function AccountPage() {
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('account.title')}</h1>
-      </div>
+    <StandardPageShell config={{ titleKey: 'account.title' }}>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         <UserInfoCard
           displayName={displayName}
@@ -328,6 +326,6 @@ export default function AccountPage() {
           {t('account.localDeployNotice')}
         </div>
       </div>
-    </div>
+    </StandardPageShell>
   );
 }

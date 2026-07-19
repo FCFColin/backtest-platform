@@ -1,12 +1,7 @@
-/**
- * @file 一次性投入 vs 定投对比页面
- * @description 对比一次性投入（Lump Sum）与定投（DCA）策略在不同标的下的收益与风险指标
- * @route /lumpsum-vs-dca
- */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { ToolSeoCard } from '../../components/layout/index.js';
-import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
+import type { ComputeToolConfig } from '../../components/shells/types.js';
 import { BasicParamsRow, PortfolioEditor } from '../../components/ParamsShared.js';
 import { Play } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
@@ -14,6 +9,8 @@ import { useLumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 import type { DcaFrequency } from '../../hooks/useLumpSumVsDCAState.js';
 import { LsDcaResultsCard } from './ConclusionSection.js';
 import { fmtPct, fmtNum } from '@/utils/format';
+
+type LSState = any;
 
 function DcaParamsSection({
   dcaFrequency,
@@ -142,97 +139,90 @@ function ParamsSection1(props: {
   );
 }
 
-function buildLumpSumDcaSeoProps(t: TFunction) {
-  return {
-    desc: t('lumpSumDca.seo.desc'),
-    features: [
-      {
-        title: t('lumpSumDca.seo.configurableTitle'),
-        desc: t('lumpSumDca.seo.configurableDesc'),
-      },
-      {
-        title: t('lumpSumDca.seo.strategyTitle'),
-        desc: t('lumpSumDca.seo.strategyDesc'),
-      },
-    ],
-    related: [
-      { title: t('nav.portfolioBacktest'), href: '/' },
-      { title: t('nav.rebalancingSensitivity'), href: '/rebalancing-sensitivity' },
-      { title: t('nav.monteCarlo'), href: '/monte-carlo' },
-    ],
-  };
+function LSParamsWrapper({ state }: { state: LSState }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <ParamsSection1
+        startDate={state.startDate}
+        setStartDate={state.setStartDate}
+        endDate={state.endDate}
+        setEndDate={state.setEndDate}
+        startingValue={state.startingValue}
+        setStartingValue={state.setStartingValue}
+        baseCurrency={state.baseCurrency}
+        setBaseCurrency={state.setBaseCurrency}
+        adjustForInflation={state.adjustForInflation}
+        setAdjustForInflation={state.setAdjustForInflation}
+        dcaFrequency={state.dcaFrequency}
+        setDcaFrequency={state.setDcaFrequency}
+        dcaPeriods={state.dcaPeriods}
+        setDcaPeriods={state.setDcaPeriods}
+        investTbill={state.investTbill}
+        setInvestTbill={state.setInvestTbill}
+      />
+      <PortfolioEditor
+        assets={state.assets}
+        totalWeight={state.totalWeight}
+        onAdd={state.addAsset}
+        onRemove={state.removeAsset}
+        onUpdate={state.updateAsset}
+      />
+      <div className="bt-action-row">
+        <LoadingButton
+          isLoading={state.isLoading}
+          onClick={state.runComparison}
+          loadingText={t('lumpSumDca.comparing')}
+          style={{ width: '100%' }}
+        >
+          <Play className="w-4 h-4" />
+          {t('lumpSumDca.startCompare')}
+        </LoadingButton>
+      </div>
+    </>
+  );
 }
 
-export default function LumpSumVsDCAPage() {
+function LSResultsWrapper({ state }: { state: LSState }) {
   const { t } = useTranslation();
-  const s = useLumpSumVsDCAState(t);
   const fmtMoney = (v: number) =>
-    s.baseCurrency === 'usd'
+    state.baseCurrency === 'usd'
       ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
       : `¥${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('lumpSumDca.title')}</h1>
-      </div>
-      <ToolSeoCard {...buildLumpSumDcaSeoProps(t)} />
-      <ToolPageLayout
-        title={t('lumpSumDca.paramsSettings')}
-        params={
-          <>
-            <ParamsSection1
-              startDate={s.startDate}
-              setStartDate={s.setStartDate}
-              endDate={s.endDate}
-              setEndDate={s.setEndDate}
-              startingValue={s.startingValue}
-              setStartingValue={s.setStartingValue}
-              baseCurrency={s.baseCurrency}
-              setBaseCurrency={s.setBaseCurrency}
-              adjustForInflation={s.adjustForInflation}
-              setAdjustForInflation={s.setAdjustForInflation}
-              dcaFrequency={s.dcaFrequency}
-              setDcaFrequency={s.setDcaFrequency}
-              dcaPeriods={s.dcaPeriods}
-              setDcaPeriods={s.setDcaPeriods}
-              investTbill={s.investTbill}
-              setInvestTbill={s.setInvestTbill}
-            />
-            <PortfolioEditor
-              assets={s.assets}
-              totalWeight={s.totalWeight}
-              onAdd={s.addAsset}
-              onRemove={s.removeAsset}
-              onUpdate={s.updateAsset}
-            />
-            <div className="bt-action-row">
-              <LoadingButton
-                isLoading={s.isLoading}
-                onClick={s.runComparison}
-                loadingText={t('lumpSumDca.comparing')}
-                style={{ width: '100%' }}
-              >
-                <Play className="w-4 h-4" />
-                {t('lumpSumDca.startCompare')}
-              </LoadingButton>
-            </div>
-          </>
-        }
-        results={
-          <>
-            {s.error && (
-              <div
-                className="bt-results-card card"
-                style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
-              >
-                {t('lumpSumDca.compareFailed')}: {s.error}
-              </div>
-            )}
-            <LsDcaResultsCard s={s} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
-          </>
-        }
-      />
-    </div>
+    <>
+      {state.error && (
+        <div
+          className="bt-results-card card"
+          style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
+        >
+          {t('lumpSumDca.compareFailed')}: {state.error}
+        </div>
+      )}
+      <LsDcaResultsCard s={state} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
+    </>
   );
+}
+
+const config: ComputeToolConfig<LSState> = {
+  titleKey: 'lumpSumDca.title',
+  seoDescKey: 'lumpSumDca.seo.desc',
+  seoFeatures: [
+    { titleKey: 'lumpSumDca.seo.configurableTitle', descKey: 'lumpSumDca.seo.configurableDesc' },
+    { titleKey: 'lumpSumDca.seo.strategyTitle', descKey: 'lumpSumDca.seo.strategyDesc' },
+  ],
+  relatedTools: [
+    { titleKey: 'nav.portfolioBacktest', href: '/' },
+    { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' },
+    { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
+  ],
+  params: LSParamsWrapper,
+  results: LSResultsWrapper,
+};
+
+export default function LumpSumVsDCAPage() {
+  const { t } = useTranslation();
+  const s = useLumpSumVsDCAState(t);
+  return <ComputeToolShell config={config} state={s} />;
 }

@@ -1,46 +1,41 @@
-/**
- * @file 调仓敏感性分析页面
- * @description 对比不同调仓频率（日/周/月/季/年）对投资组合收益与风险的影响
- * @route /rebalancing-sensitivity
- */
-import { useTranslation } from 'react-i18next';
 import { useRebalancingState } from './rebalancingSensitivityUtils.js';
 import { RebalancingSensitivityParamsForm } from './RebalancingSensitivityParamsForm.js';
 import { ResultsPanel } from './ResultsPanel.js';
-import { ToolSeoCard } from '../../components/layout/index.js';
-import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
+import type { ComputeToolConfig } from '../../components/shells/types.js';
+import type { RebalancingState } from './rebalancingSensitivityUtils.js';
+
+function ParamsWrapper({ state }: { state: RebalancingState }) {
+  return <RebalancingSensitivityParamsForm s={state} />;
+}
+
+function ResultsWrapper({ state }: { state: RebalancingState }) {
+  return <ResultsPanel s={state} />;
+}
+
+const config: ComputeToolConfig<RebalancingState> = {
+  titleKey: 'rebalancingSensitivity.title',
+  seoDescKey: 'rebalancingSensitivity.seo.desc',
+  seoFeatures: [
+    {
+      titleKey: 'rebalancingSensitivity.seo.analyzableTitle',
+      descKey: 'rebalancingSensitivity.seo.analyzableDesc',
+    },
+    {
+      titleKey: 'rebalancingSensitivity.seo.offsetScanTitle',
+      descKey: 'rebalancingSensitivity.seo.offsetScanDesc',
+    },
+  ],
+  relatedTools: [
+    { titleKey: 'nav.portfolioBacktest', href: '/' },
+    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
+    { titleKey: 'nav.lumpsumVsDca', href: '/lumpsum-vs-dca' },
+  ],
+  params: ParamsWrapper,
+  results: ResultsWrapper,
+};
 
 export default function RebalancingSensitivityPage() {
-  const { t } = useTranslation();
   const s = useRebalancingState();
-  return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('rebalancingSensitivity.title')}</h1>
-      </div>
-      <ToolSeoCard
-        desc={t('rebalancingSensitivity.seo.desc')}
-        features={[
-          {
-            title: t('rebalancingSensitivity.seo.analyzableTitle'),
-            desc: t('rebalancingSensitivity.seo.analyzableDesc'),
-          },
-          {
-            title: t('rebalancingSensitivity.seo.offsetScanTitle'),
-            desc: t('rebalancingSensitivity.seo.offsetScanDesc'),
-          },
-        ]}
-        related={[
-          { title: t('nav.portfolioBacktest'), href: '/' },
-          { title: t('nav.portfolioOptimize'), href: '/optimizer' },
-          { title: t('nav.lumpsumVsDca'), href: '/lumpsum-vs-dca' },
-        ]}
-      />
-      <ToolPageLayout
-        title={t('rebalancingSensitivity.params.title')}
-        params={<RebalancingSensitivityParamsForm s={s} />}
-        results={<ResultsPanel s={s} />}
-      />
-    </div>
-  );
+  return <ComputeToolShell config={config} state={s} />;
 }

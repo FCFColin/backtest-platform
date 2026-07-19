@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mail, MessageSquare, Github } from 'lucide-react';
 import { useToastStore } from '@/store/toastStore';
+import { StandardPageShell } from '../components/shells/StandardPageShell.js';
 
 const contactLinkStyle: React.CSSProperties = {
   display: 'flex',
@@ -132,10 +133,7 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('contact.title')}</h1>
-      </div>
+    <StandardPageShell config={{ titleKey: 'contact.title' }}>
       <div className="bt-main-card card" style={{ padding: 24, maxWidth: 720 }}>
         <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>{t('contact.intro')}</p>
         <ContactLinks onGithubClick={() => addToast('warning', t('contact.githubNotConfigured'))} />
@@ -149,6 +147,6 @@ export default function ContactPage() {
           onSubmit={handleSubmit}
         />
       </div>
-    </div>
+    </StandardPageShell>
   );
 }

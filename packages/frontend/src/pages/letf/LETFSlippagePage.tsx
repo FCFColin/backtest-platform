@@ -1,92 +1,74 @@
-/**
- * @file LETF Slippage（杠杆 ETF 滑点）页面
- * @description 分析杠杆 ETF 相对基准指数的滑点拖累，展示滑点曲线、年化拖累、实际杠杆 vs 名义杠杆及对比统计
- * @route /letf-slippage
- */
-import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { ToolSeoCard } from '../../components/layout/index.js';
-import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { useLETFSlippageState } from './hooks/useLETFSlippageState.js';
 import { LETFParamsPanel } from './LETFSlippageParams.js';
 import { LETFResultsPanel } from './LETFSlippageResults.js';
-import { useLETFSlippageState } from './hooks/useLETFSlippageState.js';
+import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
+import type { ComputeToolConfig } from '../../components/shells/types.js';
+import type { LETFResult } from '@backtest/shared';
 
-/** SEO 卡：抽出以避免触发 max-lines-per-function 规则 */
-function LetfSlippageSeoCard({ t }: { t: TFunction }) {
+interface LETFState {
+  letfTicker: string;
+  benchmarkTicker: string;
+  leverage: number;
+  startDate: string;
+  endDate: string;
+  isLoading: boolean;
+  error: string | null;
+  results: LETFResult | null;
+  setLetfTicker: (t: string) => void;
+  setBenchmarkTicker: (t: string) => void;
+  setLeverage: (n: number) => void;
+  setStartDate: (d: string) => void;
+  setEndDate: (d: string) => void;
+  runAnalysis: () => void;
+}
+
+function LETFParamsWrapper({ state }: { state: LETFState }) {
   return (
-    <ToolSeoCard
-      desc={t('letf.seo.desc')}
-      features={[
-        {
-          title: t('letf.seo.analyzableTitle'),
-          desc: t('letf.seo.analyzableDesc'),
-        },
-        {
-          title: t('letf.seo.scenarioTitle'),
-          desc: t('letf.seo.scenarioDesc'),
-        },
-      ]}
-      related={[
-        { title: t('nav.portfolioBacktest'), href: '/' },
-        { title: t('nav.assetAnalysis'), href: '/analysis' },
-        { title: t('nav.pca'), href: '/pca' },
-      ]}
+    <LETFParamsPanel
+      letfTicker={state.letfTicker}
+      benchmarkTicker={state.benchmarkTicker}
+      leverage={state.leverage}
+      startDate={state.startDate}
+      endDate={state.endDate}
+      isLoading={state.isLoading}
+      onLetfTickerChange={state.setLetfTicker}
+      onBenchmarkTickerChange={state.setBenchmarkTicker}
+      onLeverageChange={state.setLeverage}
+      onStartDateChange={state.setStartDate}
+      onEndDateChange={state.setEndDate}
+      onRun={state.runAnalysis}
     />
   );
 }
 
-export default function LETFSlippagePage() {
-  const { t } = useTranslation();
-  const {
-    letfTicker,
-    benchmarkTicker,
-    leverage,
-    startDate,
-    endDate,
-    isLoading,
-    error,
-    results,
-    setLetfTicker,
-    setBenchmarkTicker,
-    setLeverage,
-    setStartDate,
-    setEndDate,
-    runAnalysis,
-  } = useLETFSlippageState();
-
+function LETFResultsWrapper({ state }: { state: LETFState }) {
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('letf.title')}</h1>
-      </div>
-      <LetfSlippageSeoCard t={t} />
-      <ToolPageLayout
-        title={t('letf.paramsTitle')}
-        params={
-          <LETFParamsPanel
-            letfTicker={letfTicker}
-            benchmarkTicker={benchmarkTicker}
-            leverage={leverage}
-            startDate={startDate}
-            endDate={endDate}
-            isLoading={isLoading}
-            onLetfTickerChange={setLetfTicker}
-            onBenchmarkTickerChange={setBenchmarkTicker}
-            onLeverageChange={setLeverage}
-            onStartDateChange={setStartDate}
-            onEndDateChange={setEndDate}
-            onRun={runAnalysis}
-          />
-        }
-        results={
-          <LETFResultsPanel
-            results={results}
-            error={error}
-            isLoading={isLoading}
-            leverage={leverage}
-          />
-        }
-      />
-    </div>
+    <LETFResultsPanel
+      results={state.results}
+      error={state.error}
+      isLoading={state.isLoading}
+      leverage={state.leverage}
+    />
   );
+}
+
+const config: ComputeToolConfig<LETFState> = {
+  titleKey: 'letf.title',
+  seoDescKey: 'letf.seo.desc',
+  seoFeatures: [
+    { titleKey: 'letf.seo.analyzableTitle', descKey: 'letf.seo.analyzableDesc' },
+    { titleKey: 'letf.seo.scenarioTitle', descKey: 'letf.seo.scenarioDesc' },
+  ],
+  relatedTools: [
+    { titleKey: 'nav.portfolioBacktest', href: '/' },
+    { titleKey: 'nav.assetAnalysis', href: '/analysis' },
+    { titleKey: 'nav.pca', href: '/pca' },
+  ],
+  params: LETFParamsWrapper,
+  results: LETFResultsWrapper,
+};
+
+export default function LETFSlippagePage() {
+  const s = useLETFSlippageState();
+  return <ComputeToolShell config={config} state={s} />;
 }

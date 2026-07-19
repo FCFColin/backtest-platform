@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, Database, HelpCircle, ChevronDown, Calculator, TrendingUp } from 'lucide-react';
+import { StandardPageShell } from '../components/shells/StandardPageShell.js';
 
 type Section = 'methodology' | 'data' | 'faq';
 
@@ -40,11 +41,7 @@ export default function HelpPage() {
   ];
 
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('help.title')}</h1>
-      </div>
-
+    <StandardPageShell config={{ titleKey: 'help.title' }}>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         {/* Tab 切换 */}
         <div
@@ -85,7 +82,7 @@ export default function HelpPage() {
         {section === 'data' && <DataSection />}
         {section === 'faq' && <FaqSection />}
       </div>
-    </div>
+    </StandardPageShell>
   );
 }
 

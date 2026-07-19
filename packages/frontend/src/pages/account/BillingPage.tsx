@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CreditCard, Loader2, ExternalLink, Check } from 'lucide-react';
+import { StandardPageShell } from '../../components/shells/StandardPageShell.js';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiClient';
 import { useAuthStore } from '@/store/authStore';
@@ -327,14 +328,13 @@ export default function BillingPage() {
   const currentPlan = state?.subscription?.plan ?? org?.plan ?? 'free';
 
   return (
-    <div className="bt-page" style={{ maxWidth: 860, margin: '0 auto' }}>
+    <StandardPageShell
+      config={{
+        titleKey: 'account.billing.title',
+        headerExtra: <CreditCard className="w-5 h-5" style={{ color: 'var(--brand)' }} />,
+      }}
+    >
       <div className="bt-main-card card" style={{ padding: 24, marginTop: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <CreditCard className="w-5 h-5" style={{ color: 'var(--brand)' }} />
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', margin: 0 }}>
-            {t('account.billing.title')}
-          </h1>
-        </div>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
           {org
             ? t('account.billing.orgPrefix', { name: org.name })
@@ -356,6 +356,6 @@ export default function BillingPage() {
           onOpenPortal={openPortal}
         />
       </div>
-    </div>
+    </StandardPageShell>
   );
 }

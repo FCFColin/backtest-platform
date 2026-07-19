@@ -13,6 +13,7 @@ import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Users, Loader2 } from 'lucide-react';
+import { StandardPageShell } from '../components/shells/StandardPageShell.js';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';
 import { MemberTable } from './org/MemberTable.js';
@@ -148,14 +149,13 @@ export default function OrgMembersPage() {
   };
 
   return (
-    <div className="bt-page" style={{ maxWidth: 860, margin: '0 auto' }}>
+    <StandardPageShell
+      config={{
+        titleKey: 'orgMembers.title',
+        headerExtra: <Users className="w-5 h-5" style={{ color: 'var(--brand)' }} />,
+      }}
+    >
       <div className="bt-main-card card" style={{ padding: 24, marginTop: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <Users className="w-5 h-5" style={{ color: 'var(--brand)' }} />
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', margin: 0 }}>
-            {t('orgMembers.title')}
-          </h1>
-        </div>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
           {org ? `${t('orgMembers.orgLabel')}${org.name}` : t('orgMembers.orgLabel')}
         </p>
@@ -176,6 +176,6 @@ export default function OrgMembersPage() {
           onRevokeInvite={revokeInvite}
         />
       </div>
-    </div>
+    </StandardPageShell>
   );
 }

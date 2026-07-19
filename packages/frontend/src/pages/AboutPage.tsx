@@ -6,29 +6,26 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Shield, Globe, Clock, Database } from 'lucide-react';
+import { StandardPageShell } from '../components/shells/StandardPageShell.js';
 
 export default function AboutPage({ section }: { section?: string }) {
-  const { t } = useTranslation();
   const activeSection = section || 'about';
+  const titleKey =
+    activeSection === 'limits'
+      ? 'about.limitsTitle'
+      : activeSection === 'upgrade'
+        ? 'about.upgradeTitle'
+        : 'about.title';
 
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">
-          {activeSection === 'limits'
-            ? t('about.limitsTitle')
-            : activeSection === 'upgrade'
-              ? t('about.upgradeTitle')
-              : t('about.title')}
-        </h1>
-      </div>
+    <StandardPageShell config={{ titleKey }}>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         <AboutTabs activeSection={activeSection} />
         {activeSection === 'about' && <AboutSection />}
         {activeSection === 'limits' && <LimitsSection />}
         {activeSection === 'upgrade' && <UpgradeSection />}
       </div>
-    </div>
+    </StandardPageShell>
   );
 }
 

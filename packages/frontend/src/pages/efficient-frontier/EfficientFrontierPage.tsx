@@ -1,116 +1,108 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
-import { ToolSeoCard } from '../../components/layout/index.js';
-import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { FrontierParams } from './EfficientFrontierParams.js';
 import { FrontierResults } from './EfficientFrontierResults.js';
 import { useEfficientFrontierState } from './EfficientFrontierUtils.js';
+import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
+import type { ComputeToolConfig } from '../../components/shells/types.js';
 
-type FrontierState = ReturnType<typeof useEfficientFrontierState>;
+function FrontierParamsWrapper({ state }: { state: any }) {
+  return (
+    <FrontierParams
+      tickers={state.tickers}
+      startDate={state.startDate}
+      endDate={state.endDate}
+      numPoints={state.numPoints}
+      solveSpeed={state.solveSpeed}
+      minInclusionWeight={state.minInclusionWeight}
+      rebalanceFrequency={state.rebalanceFrequency}
+      allowCash={state.allowCash}
+      returnObjective={state.returnObjective}
+      solver={state.solver}
+      onAddTicker={state.addTicker}
+      onRemoveTicker={state.removeTicker}
+      onUpdateTicker={state.updateTicker}
+      onStartDateChange={state.setStartDate}
+      onEndDateChange={state.setEndDate}
+      onNumPointsChange={state.setNumPoints}
+      onSolveSpeedChange={state.setSolveSpeed}
+      onMinInclusionWeightChange={state.setMinInclusionWeight}
+      onRebalanceFrequencyChange={state.setRebalanceFrequency}
+      onAllowCashChange={state.setAllowCash}
+      onReturnObjectiveChange={state.setReturnObjective}
+      onSolverChange={state.setSolver}
+      isLoading={state.isLoading}
+      onRun={state.runFrontier}
+    />
+  );
+}
 
-/** 结果区：错误 / 相关性错误 / 主结果容器，抽出以避免触发 max-lines-per-function 规则 */
-function FrontierResultsSection({ s, t }: { s: FrontierState; t: TFunction }) {
+function FrontierResultsWrapper({ state }: { state: any }) {
+  const { t } = useTranslation();
   return (
     <>
-      {s.error && (
+      {state.error && (
         <div
           className="bt-results-card card"
           style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
         >
-          {t('efficientFrontier.calcFailed')}: {s.error}
+          {t('efficientFrontier.calcFailed')}: {state.error}
         </div>
       )}
-      {s.correlationError && !s.error && (
+      {state.correlationError && !state.error && (
         <div
           className="bt-results-card card"
           style={{ color: 'var(--warning, #f59e0b)', textAlign: 'center', padding: 16 }}
         >
-          {s.correlationError}
+          {state.correlationError}
         </div>
       )}
-      {s.results && s.results.frontier.length > 0 && (
+      {state.results && state.results.frontier.length > 0 && (
         <FrontierResults
-          results={s.results}
-          scatterData={s.scatterData}
-          sharpeRange={s.sharpeRange}
-          maxSharpe={s.maxSharpe}
-          allocationData={s.allocationData}
-          allAssetTickers={s.allAssetTickers}
-          correlations={s.correlations}
-          correlationError={s.correlationError}
-          selectedPoint={s.selectedPoint}
-          rebalanceFrequency={s.rebalanceFrequency}
-          allowCash={s.allowCash}
-          returnObjective={s.returnObjective}
-          solver={s.solver}
-          onSelectPoint={s.setSelectedPoint}
-          onLoadInBacktester={s.handleLoadInBacktester}
+          results={state.results}
+          scatterData={state.scatterData}
+          sharpeRange={state.sharpeRange}
+          maxSharpe={state.maxSharpe}
+          allocationData={state.allocationData}
+          allAssetTickers={state.allAssetTickers}
+          correlations={state.correlations}
+          correlationError={state.correlationError}
+          selectedPoint={state.selectedPoint}
+          rebalanceFrequency={state.rebalanceFrequency}
+          allowCash={state.allowCash}
+          returnObjective={state.returnObjective}
+          solver={state.solver}
+          onSelectPoint={state.setSelectedPoint}
+          onLoadInBacktester={state.handleLoadInBacktester}
         />
       )}
     </>
   );
 }
 
-export default function EfficientFrontierPage() {
-  const { t } = useTranslation();
-  const s = useEfficientFrontierState();
+const config: ComputeToolConfig<any> = {
+  titleKey: 'efficientFrontier.title',
+  seoDescKey: 'efficientFrontier.seo.desc',
+  seoFeatures: [
+    {
+      titleKey: 'efficientFrontier.seo.visualizationTitle',
+      descKey: 'efficientFrontier.seo.visualizationDesc',
+    },
+    {
+      titleKey: 'efficientFrontier.seo.constraintsTitle',
+      descKey: 'efficientFrontier.seo.constraintsDesc',
+    },
+  ],
+  relatedTools: [
+    { titleKey: 'nav.portfolioBacktest', href: '/' },
+    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
+    { titleKey: 'nav.assetAnalysis', href: '/analysis' },
+  ],
+  params: FrontierParamsWrapper,
+  results: FrontierResultsWrapper,
+};
 
-  return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('efficientFrontier.title')}</h1>
-      </div>
-      <ToolSeoCard
-        desc={t('efficientFrontier.seo.desc')}
-        features={[
-          {
-            title: t('efficientFrontier.seo.visualizationTitle'),
-            desc: t('efficientFrontier.seo.visualizationDesc'),
-          },
-          {
-            title: t('efficientFrontier.seo.constraintsTitle'),
-            desc: t('efficientFrontier.seo.constraintsDesc'),
-          },
-        ]}
-        related={[
-          { title: t('nav.portfolioBacktest'), href: '/' },
-          { title: t('nav.portfolioOptimize'), href: '/optimizer' },
-          { title: t('nav.assetAnalysis'), href: '/analysis' },
-          { title: t('nav.monteCarlo'), href: '/monte-carlo' },
-        ]}
-      />
-      <ToolPageLayout
-        title={t('efficientFrontier.params.title')}
-        params={
-          <FrontierParams
-            tickers={s.tickers}
-            startDate={s.startDate}
-            endDate={s.endDate}
-            numPoints={s.numPoints}
-            solveSpeed={s.solveSpeed}
-            minInclusionWeight={s.minInclusionWeight}
-            rebalanceFrequency={s.rebalanceFrequency}
-            allowCash={s.allowCash}
-            returnObjective={s.returnObjective}
-            solver={s.solver}
-            onAddTicker={s.addTicker}
-            onRemoveTicker={s.removeTicker}
-            onUpdateTicker={s.updateTicker}
-            onStartDateChange={s.setStartDate}
-            onEndDateChange={s.setEndDate}
-            onNumPointsChange={s.setNumPoints}
-            onSolveSpeedChange={s.setSolveSpeed}
-            onMinInclusionWeightChange={s.setMinInclusionWeight}
-            onRebalanceFrequencyChange={s.setRebalanceFrequency}
-            onAllowCashChange={s.setAllowCash}
-            onReturnObjectiveChange={s.setReturnObjective}
-            onSolverChange={s.setSolver}
-            isLoading={s.isLoading}
-            onRun={s.runFrontier}
-          />
-        }
-        results={<FrontierResultsSection s={s} t={t} />}
-      />
-    </div>
-  );
+export default function EfficientFrontierPage() {
+  const s = useEfficientFrontierState();
+  return <ComputeToolShell config={config} state={s} />;
 }

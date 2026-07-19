@@ -5,6 +5,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import { GitCommit, Plus, Wrench, Bug, Calendar } from 'lucide-react';
+import { StandardPageShell } from '../components/shells/StandardPageShell.js';
 
 type ChangeType = 'added' | 'improved' | 'fixed';
 
@@ -164,10 +165,7 @@ export default function ChangelogPage() {
   const { t } = useTranslation();
   const versions = useVersions();
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('changelog.title')}</h1>
-      </div>
+    <StandardPageShell config={{ titleKey: 'changelog.title' }}>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
           {t('changelog.intro')}
@@ -210,6 +208,6 @@ export default function ChangelogPage() {
           {t('changelog.gitHistoryHint')}
         </div>
       </div>
-    </div>
+    </StandardPageShell>
   );
 }
