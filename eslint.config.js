@@ -108,13 +108,11 @@ export default tseslint.config(
         'error',
         {
           selector: 'Literal[value=/[\\u4e00-\\u9fa5]/]',
-          message:
-            '禁止在 .tsx 中使用中文字符串字面量，请使用 useTranslation() + i18n key',
+          message: '禁止在 .tsx 中使用中文字符串字面量，请使用 useTranslation() + i18n key',
         },
         {
           selector: 'TemplateElement[value.raw=/[\\u4e00-\\u9fa5]/]',
-          message:
-            '禁止在 .tsx 中使用中文模板字面量，请使用 useTranslation() + i18n key',
+          message: '禁止在 .tsx 中使用中文模板字面量，请使用 useTranslation() + i18n key',
         },
         {
           selector: 'JSXText[value=/[\\u4e00-\\u9fa5]/]',

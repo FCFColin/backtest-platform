@@ -6,7 +6,12 @@ export default {
       severity: 'error',
       from: { path: 'packages/backend/src/domain' },
       to: {
-        pathNot: ['node_modules', 'packages/backend/src/domain', 'packages/backend/src/utils', 'packages/shared'],
+        pathNot: [
+          'node_modules',
+          'packages/backend/src/domain',
+          'packages/backend/src/utils',
+          'packages/shared',
+        ],
       },
     },
     {
