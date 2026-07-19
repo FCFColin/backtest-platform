@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, DrawdownEpisode } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
 import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../utils/format.js';
+import { mean } from '../utils/stats.js';
 import ChartCard from './ChartCard.js';
 
 /** 回撤片段表 Props */
@@ -20,12 +21,9 @@ function calcStats(
 ): { min: number; median: number; avg: number; max: number } | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((a, b) => a - b);
-  const min = sorted[0];
-  const max = sorted[sorted.length - 1];
-  const avg = values.reduce((s, v) => s + v, 0) / values.length;
   const mid = Math.floor(sorted.length / 2);
   const median = sorted.length % 2 !== 0 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
-  return { min, median, avg, max };
+  return { min: sorted[0], median, avg: mean(values), max: sorted[sorted.length - 1] };
 }
 
 /** 表头 + 数据列定义 */

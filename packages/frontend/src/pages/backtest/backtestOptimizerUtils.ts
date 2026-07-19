@@ -6,7 +6,7 @@ import type {
   BestResultItem,
 } from '@backtest/shared';
 import { REBALANCE_FREQUENCIES } from '@backtest/shared';
-import { fmtPct, fmtNum } from '@/utils/format';
+import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
 import { apiPostJSON } from '@/utils/apiClient';
 import { useListState } from '../../hooks/useListState.js';
 import type { Column } from '../../components/SortableTable.js';
@@ -28,8 +28,6 @@ const FREQ_LABELS: Record<RebalanceFrequency, string> = {
 
 export const FREQ_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> =
   REBALANCE_FREQUENCIES.map((value) => ({ value, label: FREQ_LABELS[value] }));
-
-const fmtMoney = (v: number) => `$${v.toLocaleString('en-US')}`;
 
 export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxCagr: 'cagr',
@@ -58,7 +56,7 @@ export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
     key: 'initialCapital',
     label: '初始资金',
     sortValue: (r) => r.initialCapital,
-    render: (r) => fmtMoney(r.initialCapital),
+    render: (r) => fmtDollar(r.initialCapital),
   },
   { key: 'cagr', label: 'CAGR', sortValue: (r) => r.cagr, render: (r) => fmtPct(r.cagr) },
   {
@@ -162,7 +160,7 @@ export function buildBestMetrics(
           ? `阈值(${best.rebalanceThreshold}%)`
           : (FREQ_LABELS[best.rebalanceFrequency] ?? best.rebalanceFrequency),
     },
-    { label: '初始资金', value: fmtMoney(best.initialCapital) },
+    { label: '初始资金', value: fmtDollar(best.initialCapital) },
     { label: 'CAGR', value: fmtPct(best.cagr) },
     { label: '最大回撤', value: fmtPct(best.maxDrawdown) },
     { label: '波动率', value: fmtPct(best.stdev) },

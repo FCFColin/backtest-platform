@@ -28,6 +28,31 @@ import ChartCard from '../../components/ChartCard.js';
 import { AnalysisErrorAlert } from '@/components/resultsShell.js';
 import { getProbColor } from './goalOptimizerUtils.js';
 
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div
+      style={{
+        textAlign: 'center',
+        padding: 16,
+        backgroundColor: 'var(--bg-subtle)',
+        borderRadius: 'var(--radius-control)',
+      }}
+    >
+      <div style={{ fontSize: 11, marginBottom: 6, color: 'var(--text-muted)' }}>{label}</div>
+      <div
+        style={{
+          fontSize: 20,
+          fontWeight: 600,
+          fontFamily: 'monospace',
+          color,
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 /** 概率分布图 */
 function ProbabilityDistributionChart({
   data,
@@ -161,65 +186,21 @@ function RecommendationCards({
   return (
     <ChartCard title={t('goalOptimizer.results.recommendationTitle')}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <div
-          style={{
-            textAlign: 'center',
-            padding: 16,
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-control)',
-          }}
-        >
-          <div style={{ fontSize: 11, marginBottom: 6, color: 'var(--text-muted)' }}>
-            {t('goalOptimizer.results.expectedReturn')}
-          </div>
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: 'var(--text-strong)',
-            }}
-          >
-            {fmtPct(recommendation.expectedReturn)}
-          </div>
-        </div>
-        <div
-          style={{
-            textAlign: 'center',
-            padding: 16,
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-control)',
-          }}
-        >
-          <div style={{ fontSize: 11, marginBottom: 6, color: 'var(--text-muted)' }}>
-            {t('goalOptimizer.results.requiredContribution')}
-          </div>
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 600,
-              fontFamily: 'monospace',
-              color: 'var(--text-strong)',
-            }}
-          >
-            {fmtDollar(recommendation.requiredContribution)}
-          </div>
-        </div>
-        <div
-          style={{
-            textAlign: 'center',
-            padding: 16,
-            backgroundColor: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-control)',
-          }}
-        >
-          <div style={{ fontSize: 11, marginBottom: 6, color: 'var(--text-muted)' }}>
-            {t('goalOptimizer.results.successRate')}
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 600, fontFamily: 'monospace', color: probColor }}>
-            {fmtPct(recommendation.successRate)}
-          </div>
-        </div>
+        <StatCard
+          label={t('goalOptimizer.results.expectedReturn')}
+          value={fmtPct(recommendation.expectedReturn)}
+          color="var(--text-strong)"
+        />
+        <StatCard
+          label={t('goalOptimizer.results.requiredContribution')}
+          value={fmtDollar(recommendation.requiredContribution)}
+          color="var(--text-strong)"
+        />
+        <StatCard
+          label={t('goalOptimizer.results.successRate')}
+          value={fmtPct(recommendation.successRate)}
+          color={probColor}
+        />
       </div>
     </ChartCard>
   );

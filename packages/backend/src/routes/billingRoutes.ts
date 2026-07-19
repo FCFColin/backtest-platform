@@ -13,8 +13,9 @@ import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { requireTenant, hasTenant } from '../middleware/tenantContext.js';
+import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
+import { requireTenantId } from './routeUtils.js';
 import {
   isBillingEnabled,
   createCheckoutSession,
@@ -28,12 +29,44 @@ const router = Router();
 
 const requireAdmin = requirePermission(Permission.ADMIN_ACCESS);
 
+interface BillingErrorCheck {
+  check: string;
+  status: number;
+  code: string;
+  detail: string;
+}
+
+function handleBillingError(
+  res: Response,
+  err: unknown,
+  opts: {
+    logMsg: string;
+    fallbackCode: string;
+    fallbackDetail: string;
+    orgId: string | undefined;
+    checks: BillingErrorCheck[];
+  },
+): void {
+  const msg = String(err);
+  for (const c of opts.checks) {
+    if (msg.includes(c.check)) {
+      sendProblem(res, c.status, c.code, c.status >= 500 ? 'Service Unavailable' : 'Not Found', {
+        detail: c.detail,
+      });
+      return;
+    }
+  }
+  logger.error({ err: msg, orgId: opts.orgId }, `[billingRoutes] ${opts.logMsg}`);
+  sendProblem(res, 502, opts.fallbackCode, 'Bad Gateway', { detail: opts.fallbackDetail });
+}
+
 router.use(requireTenant);
 
 /** GET /api/v1/billing/subscription - 当前组织订阅摘要（任意成员可见） */
 router.get('/subscription', async (req: AuthenticatedRequest, res: Response) => {
-  if (!hasTenant(req)) return;
-  const summary = await getSubscriptionSummary(req.tenantId);
+  const tenantId = requireTenantId(req, res);
+  if (!tenantId) return;
+  const summary = await getSubscriptionSummary(tenantId);
   res.json({
     success: true,
     data: {
@@ -60,9 +93,10 @@ router.post(
     const { plan } = req.body as { plan: 'pro' | 'enterprise' };
     const base = config.APP_BASE_URL;
     try {
-      if (!hasTenant(req)) return;
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
       const url = await createCheckoutSession({
-        orgId: req.tenantId,
+        orgId: tenantId,
         plan,
         email: undefined,
         successUrl: `${base}/account?billing=success`,
@@ -70,15 +104,20 @@ router.post(
       });
       res.json({ success: true, data: { url } });
     } catch (err) {
-      const msg = String(err);
-      if (msg.includes('price_not_configured')) {
-        sendProblem(res, 503, 'PRICE_NOT_CONFIGURED', 'Service Unavailable', {
-          detail: '该计划的价格未配置',
-        });
-        return;
-      }
-      logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Checkout 失败');
-      sendProblem(res, 502, 'CHECKOUT_FAILED', 'Bad Gateway', { detail: '创建结算会话失败' });
+      handleBillingError(res, err, {
+        logMsg: '创建 Checkout 失败',
+        fallbackCode: 'CHECKOUT_FAILED',
+        fallbackDetail: '创建结算会话失败',
+        orgId: req.tenantId,
+        checks: [
+          {
+            check: 'price_not_configured',
+            status: 503,
+            code: 'PRICE_NOT_CONFIGURED',
+            detail: '该计划的价格未配置',
+          },
+        ],
+      });
     }
   },
 );
@@ -90,17 +129,25 @@ router.post('/portal', requireAdmin, async (req: AuthenticatedRequest, res: Resp
     return;
   }
   try {
-    if (!hasTenant(req)) return;
-    const url = await createPortalSession(req.tenantId, `${config.APP_BASE_URL}/account`);
+    const tenantId = requireTenantId(req, res);
+    if (!tenantId) return;
+    const url = await createPortalSession(tenantId, `${config.APP_BASE_URL}/account`);
     res.json({ success: true, data: { url } });
   } catch (err) {
-    const msg = String(err);
-    if (msg.includes('no_customer')) {
-      sendProblem(res, 404, 'NO_CUSTOMER', 'Not Found', { detail: '该组织尚无计费账户，请先订阅' });
-      return;
-    }
-    logger.error({ err: msg, orgId: req.tenantId }, '[billingRoutes] 创建 Portal 失败');
-    sendProblem(res, 502, 'PORTAL_FAILED', 'Bad Gateway', { detail: '创建管理会话失败' });
+    handleBillingError(res, err, {
+      logMsg: '创建 Portal 失败',
+      fallbackCode: 'PORTAL_FAILED',
+      fallbackDetail: '创建管理会话失败',
+      orgId: req.tenantId,
+      checks: [
+        {
+          check: 'no_customer',
+          status: 404,
+          code: 'NO_CUSTOMER',
+          detail: '该组织尚无计费账户，请先订阅',
+        },
+      ],
+    });
   }
 });
 

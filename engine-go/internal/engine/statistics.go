@@ -117,7 +117,7 @@ func CalcCorrelation(returns1, returns2 []float64) float64 {
 
 // CalcDailyReturns 计算日收益率序列。
 func CalcDailyReturns(prices []float64) []float64 {
-	return dailyReturnsFromPrices(prices)
+	return dailyReturns(prices)
 }
 
 // CalcTotalReturn 计算总收益率。
@@ -128,29 +128,10 @@ func CalcTotalReturn(startValue, endValue float64) float64 {
 	return endValue/startValue - 1
 }
 
-// CalcBestYear 计算最佳年度收益。
-func CalcBestYear(annualReturns []float64) float64 {
-	return maxValue(annualReturns)
-}
-
-// CalcWorstYear 计算最差年度收益。
-func CalcWorstYear(annualReturns []float64) float64 {
-	return minValue(annualReturns)
-}
-
-// CalcBestMonth 计算最佳月度收益。
-func CalcBestMonth(monthlyReturns []float64) float64 {
-	return maxValue(monthlyReturns)
-}
-
-// CalcWorstMonth 计算最差月度收益。
-func CalcWorstMonth(monthlyReturns []float64) float64 {
-	return minValue(monthlyReturns)
-}
-
 // ---- 辅助函数 ----
 
-func maxValue(values []float64) float64 {
+// MaxValue 返回切片中的最大值。
+func MaxValue(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}
@@ -163,7 +144,8 @@ func maxValue(values []float64) float64 {
 	return m
 }
 
-func minValue(values []float64) float64 {
+// MinValue 返回切片中的最小值。
+func MinValue(values []float64) float64 {
 	if len(values) == 0 {
 		return 0
 	}

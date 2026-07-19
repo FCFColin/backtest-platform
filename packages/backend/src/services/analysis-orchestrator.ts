@@ -76,9 +76,15 @@ export function executePcaAnalyze(
   return callEngineStrict<PCAResult>('/api/engine/pca', { tickers, priceData, numComponents });
 }
 
-/** 规范化 PCA 请求 ticker 列表。 */
-export function normalizePcaTickers(tickers: string[]): string[] {
-  return normalizeTickers(tickers);
+/** 运行分析（含数据获取）的共享模式。 */
+async function runAnalysisWithFetch<T>(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+  run: (priceData: Record<string, Record<string, number>>) => Promise<T>,
+): Promise<T> {
+  const { data: priceData } = await fetchHistoryData(tickers, startDate, endDate);
+  return run(priceData);
 }
 
 /**
@@ -93,7 +99,7 @@ export function validatePcaRequest(req: PCARequest): string[] {
   if (!req.startDate || !req.endDate) {
     throw new ValidationError('Missing required fields: startDate, endDate');
   }
-  const clean = normalizePcaTickers(req.tickers);
+  const clean = normalizeTickers(req.tickers);
   if (clean.length < 2) {
     throw new ValidationError('PCA 分析至少需要 2 个资产');
   }
@@ -107,8 +113,9 @@ export function validatePcaRequest(req: PCARequest): string[] {
  */
 export async function executePcaAnalyzeWithFetch(body: PCARequest) {
   const cleanTickers = validatePcaRequest(body);
-  const { data: priceData } = await fetchHistoryData(cleanTickers, body.startDate, body.endDate);
-  return executePcaAnalyze(cleanTickers, priceData, body.numComponents);
+  return runAnalysisWithFetch(cleanTickers, body.startDate, body.endDate, (priceData) =>
+    executePcaAnalyze(cleanTickers, priceData, body.numComponents),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -145,14 +152,12 @@ export function executeLetfAnalyze(
  * @throws Error 数据缺失
  */
 export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
-  const cleanLetf = String(req.letfTicker).trim().toUpperCase();
-  const cleanBench = String(req.benchmarkTicker).trim().toUpperCase();
-  const { data: priceData } = await fetchHistoryData(
-    [cleanLetf, cleanBench],
+  return runAnalysisWithFetch(
+    [String(req.letfTicker).trim().toUpperCase(), String(req.benchmarkTicker).trim().toUpperCase()],
     req.startDate,
     req.endDate,
+    (priceData) => executeLetfAnalyze(req, priceData),
   );
-  return executeLetfAnalyze(req, priceData);
 }
 
 // ---------------------------------------------------------------------------
@@ -199,10 +204,7 @@ export async function executeGoalOptimizeWithFetch(request: GoalOptimizerRequest
   const tickers = validateGoalOptimizerAssets(request);
   const endDateStr = todayStr();
   const startDateStr = toDateStr(new Date(Date.now() - 10 * 365 * 24 * 60 * 60 * 1000));
-  const { data: priceData } = await fetchHistoryData(
-    Array.from(new Set(tickers)),
-    startDateStr,
-    endDateStr,
+  return runAnalysisWithFetch(Array.from(new Set(tickers)), startDateStr, endDateStr, (priceData) =>
+    executeGoalOptimize(request, priceData, startDateStr, endDateStr),
   );
-  return executeGoalOptimize(request, priceData, startDateStr, endDateStr);
 }

@@ -46,6 +46,9 @@ export interface BacktestParameters {
 /** 通用时间序列数据点 */
 export type TimeSeriesPoint = { date: string; value: number };
 
+/** 回撤曲线数据点 */
+export type DrawdownPoint = { date: string; drawdown: number };
+
 /**
  * 回撤事件
  *
@@ -87,7 +90,7 @@ export interface DragResult {
 export interface PortfolioResult {
   name: string;
   growthCurve: TimeSeriesPoint[];
-  drawdownCurve: Array<{ date: string; drawdown: number }>;
+  drawdownCurve: DrawdownPoint[];
   rollingReturns: Array<{ date: string; return: number }>;
   annualReturns: Array<{ year: number; return: number }>;
   monthlyReturns: Array<{ year: number; month: number; return: number }>;
@@ -113,7 +116,7 @@ export interface AssetAnalysisResult {
   tickers: Array<{
     ticker: string;
     growthCurve: TimeSeriesPoint[];
-    drawdownCurve: Array<{ date: string; drawdown: number }>;
+    drawdownCurve: DrawdownPoint[];
     dailyReturns: number[];
     annualReturns: Array<{ year: number; return: number }>;
     monthlyReturns: Array<{ year: number; month: number; return: number }>;

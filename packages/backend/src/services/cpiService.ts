@@ -20,8 +20,13 @@ import { loadCpiSeriesFromDb } from '../db/macroData.js';
 import { callGoDataService } from '../infrastructure/dataQueryService.js';
 import { logger } from '../utils/logger.js';
 
-/** CPI 映射内存缓存（country 小写键 → `{ date: value }`） */
-const cpiMapCache: Record<string, Record<string, number>> = {};
+interface CpiCacheEntry {
+  map?: Record<string, number>;
+  routeData?: unknown;
+}
+
+/** CPI 内存缓存（country 小写键 → 双格式入口） */
+const cpiCache: Record<string, CpiCacheEntry> = {};
 
 /**
  * 调用 Go data-fetcher 获取 CPI 数据（原始响应格式）。
@@ -56,23 +61,14 @@ async function fetchCpiFromGoService(country: string): Promise<unknown | null> {
  * @returns `{ date: value }` 映射；无数据或调用失败时返回空对象
  */
 async function fetchCpiMapFromGo(country: string): Promise<Record<string, number>> {
-  try {
-    const response = await callGoDataService(`/api/data/cpi/${country}`);
-    const parsed = JSON.parse(response) as {
-      success?: boolean;
-      data?: Array<{ date: string; value: number }>;
-    };
-    if (!parsed.success || !Array.isArray(parsed.data)) return {};
-    const map: Record<string, number> = {};
-    for (const item of parsed.data) {
-      if (!item || typeof item.date !== 'string') continue;
-      map[item.date.slice(0, 10)] = item.value;
-    }
-    return map;
-  } catch (err) {
-    logger.warn({ err: err as Error, country }, '[cpiService] Go data-fetcher CPI fallback 失败');
-    return {};
+  const data = await fetchCpiFromGoService(country);
+  if (!Array.isArray(data)) return {};
+  const map: Record<string, number> = {};
+  for (const item of data as Array<{ date: string; value: number }>) {
+    if (!item || typeof item.date !== 'string') continue;
+    map[item.date.slice(0, 10)] = item.value;
   }
+  return map;
 }
 
 /**
@@ -88,7 +84,7 @@ async function fetchCpiMapFromGo(country: string): Promise<Record<string, number
  */
 export async function loadCpiMap(country: string): Promise<Record<string, number>> {
   const key = country.toLowerCase();
-  if (cpiMapCache[key]) return cpiMapCache[key];
+  if (cpiCache[key]?.map) return cpiCache[key]!.map!;
 
   // 主路径：PostgreSQL（loadCpiSeriesFromDb 内部已捕获异常，失败返回空数组）
   const series = await loadCpiSeriesFromDb(key);
@@ -102,13 +98,10 @@ export async function loadCpiMap(country: string): Promise<Record<string, number
 
   // 缓存非空结果（空结果不缓存，避免阻塞后续恢复）
   if (Object.keys(cpiMap).length > 0) {
-    cpiMapCache[key] = cpiMap;
+    cpiCache[key] = { ...cpiCache[key], map: cpiMap };
   }
   return cpiMap;
 }
-
-/** CPI 路由响应缓存（PG 数组格式，Go 服务降级时按 country 键缓存非空结果） */
-const cpiRouteCache: Record<string, unknown> = {};
 
 /** Go 服务不可用时的统一降级提示文案 */
 const CPI_DEGRADED_WARNING = 'Go 数据服务不可用，已降级到 PostgreSQL CPI 数据';
@@ -153,9 +146,9 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
   }
 
   // 2. 内存缓存
-  if (cpiRouteCache[country]) {
+  if (cpiCache[country]?.routeData) {
     return {
-      data: cpiRouteCache[country],
+      data: cpiCache[country]!.routeData,
       degraded: true,
       degradedWarning: CPI_DEGRADED_WARNING,
       notFound: false,
@@ -165,7 +158,7 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
   // 3. PostgreSQL（loadCpiSeriesFromDb 内部已捕获异常，失败返回空数组）
   const cpiData = await loadCpiSeriesFromDb(country);
   if (cpiData.length > 0) {
-    cpiRouteCache[country] = cpiData;
+    cpiCache[country] = { ...cpiCache[country], routeData: cpiData };
     return {
       data: cpiData,
       degraded: true,

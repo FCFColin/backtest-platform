@@ -31,6 +31,8 @@ import {
   fetchPriceData,
   loadMacroData,
   translateDomainError,
+  collectDomainTickers,
+  filterPriceData,
 } from './backtest-helpers.js';
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
@@ -110,9 +112,9 @@ export async function runBacktest(
 
   return tracer.startActiveSpan('BacktestApplicationService.runBacktest', async (span) => {
     try {
-      const tickerCount = countUniqueTickers(domainPortfolios, parameters.benchmarkTicker);
+      const allTickers = collectDomainTickers(domainPortfolios, parameters.benchmarkTicker);
       span.setAttribute('portfolio_count', portfolios.length);
-      span.setAttribute('ticker_count', tickerCount);
+      span.setAttribute('ticker_count', allTickers.size);
 
       logger.info(
         {
@@ -123,13 +125,9 @@ export async function runBacktest(
         'Starting backtest',
       );
 
-      const filteredPriceData = collectTickersAndFilterPrices(
-        domainPortfolios,
-        parameters.benchmarkTicker,
-        priceData,
-      );
+      const filteredPriceData = filterPriceData(priceData, allTickers);
 
-      span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === tickerCount);
+      span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === allTickers.size);
 
       const engineBody = {
         portfolios: domainPortfolios.map((p) => p.toEngineBody()),
@@ -176,43 +174,6 @@ export async function runBacktest(
 // ---------------------------------------------------------------------------
 // 模块级私有函数
 // ---------------------------------------------------------------------------
-
-function collectTickersAndFilterPrices(
-  portfolios: DomainPortfolio[],
-  benchmarkTicker: string,
-  priceData: Record<string, Record<string, number>>,
-): Record<string, Record<string, number>> {
-  const allTickers = new Set<string>();
-  for (const portfolio of portfolios) {
-    for (const ticker of portfolio.tickers) {
-      allTickers.add(ticker);
-    }
-  }
-  if (benchmarkTicker) {
-    allTickers.add(benchmarkTicker);
-  }
-
-  const filteredPriceData: Record<string, Record<string, number>> = {};
-  for (const ticker of allTickers) {
-    if (priceData[ticker]) {
-      filteredPriceData[ticker] = priceData[ticker];
-    }
-  }
-  return filteredPriceData;
-}
-
-function countUniqueTickers(portfolios: DomainPortfolio[], benchmarkTicker: string): number {
-  const tickers = new Set<string>();
-  for (const portfolio of portfolios) {
-    for (const ticker of portfolio.tickers) {
-      tickers.add(ticker);
-    }
-  }
-  if (benchmarkTicker) {
-    tickers.add(benchmarkTicker);
-  }
-  return tickers.size;
-}
 
 /**
  * 发布 BacktestCompleted 领域事件。

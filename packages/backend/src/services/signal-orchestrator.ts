@@ -19,20 +19,58 @@ import {
   ensureTickerHasData,
 } from '../application/backtest/priceDataUtils.js';
 
+async function runSignalMode(
+  mode: 'single' | 'dual' | 'multi',
+  body: SignalAnalysisRequest | DualSignalConfig | MultiSignalConfig,
+) {
+  let tickers: string[];
+  let startDate: string;
+  let endDate: string;
+  let validation: (history: Record<string, Record<string, number>>) => void;
+  let engineBody: Record<string, unknown>;
+
+  if (mode === 'single') {
+    const b = body as SignalAnalysisRequest;
+    tickers = [b.ticker];
+    startDate = b.startDate;
+    endDate = b.endDate;
+    validation = (history) => {
+      ensureTickerHasData(b.ticker, history);
+    };
+    engineBody = { mode: 'single', single: b };
+  } else if (mode === 'dual') {
+    const b = body as DualSignalConfig;
+    tickers = Array.from(new Set([b.signal1.ticker, b.signal2.ticker]));
+    startDate = b.signal1.startDate;
+    endDate = b.signal1.endDate;
+    validation = (history) => {
+      ensurePriceDataExists([b.signal1.ticker, b.signal2.ticker], history, 'signal/dual');
+    };
+    engineBody = { mode: 'dual', dual: b };
+  } else {
+    const b = body as MultiSignalConfig;
+    tickers = [b.signals[0].ticker];
+    startDate = b.signals[0].startDate;
+    endDate = b.signals[0].endDate;
+    validation = (history) => {
+      ensureTickerHasData(b.signals[0].ticker, history, 'signal/multi');
+    };
+    engineBody = { mode: 'multi', multi: b };
+  }
+
+  const { data: history } = await fetchHistoryData(tickers, startDate, endDate);
+  validation(history);
+  return callEngineStrict('/api/engine/signal-analyze', { ...engineBody, priceData: history });
+}
+
 /**
  * 单信号分析（含数据获取）。
  *
  * @throws {DataNotFoundError} 无价格数据
  * @throws {EngineUnavailableError} Go 引擎不可用时
  */
-export async function executeSignalAnalyze(body: SignalAnalysisRequest) {
-  const { data: history } = await fetchHistoryData([body.ticker], body.startDate, body.endDate);
-  ensureTickerHasData(body.ticker, history);
-  return callEngineStrict('/api/engine/signal-analyze', {
-    mode: 'single',
-    single: body,
-    priceData: history,
-  });
+export function executeSignalAnalyze(body: SignalAnalysisRequest) {
+  return runSignalMode('single', body);
 }
 
 /**
@@ -41,16 +79,8 @@ export async function executeSignalAnalyze(body: SignalAnalysisRequest) {
  * @throws {DataNotFoundError} 无价格数据
  * @throws {EngineUnavailableError} Go 引擎不可用时
  */
-export async function executeDualSignalAnalyze(body: DualSignalConfig) {
-  const { signal1: cfg1, signal2: cfg2 } = body;
-  const tickers = Array.from(new Set([cfg1.ticker, cfg2.ticker]));
-  const { data: history } = await fetchHistoryData(tickers, cfg1.startDate, cfg1.endDate);
-  ensurePriceDataExists([cfg1.ticker, cfg2.ticker], history, 'signal/dual');
-  return callEngineStrict('/api/engine/signal-analyze', {
-    mode: 'dual',
-    dual: body,
-    priceData: history,
-  });
+export function executeDualSignalAnalyze(body: DualSignalConfig) {
+  return runSignalMode('dual', body);
 }
 
 /**
@@ -59,18 +89,6 @@ export async function executeDualSignalAnalyze(body: DualSignalConfig) {
  * @throws {DataNotFoundError} 无价格数据
  * @throws {EngineUnavailableError} Go 引擎不可用时
  */
-export async function executeMultiSignalAnalyze(body: MultiSignalConfig) {
-  const { signals: configs } = body;
-  const ticker = configs[0].ticker;
-  const { data: history } = await fetchHistoryData(
-    [ticker],
-    configs[0].startDate,
-    configs[0].endDate,
-  );
-  ensureTickerHasData(ticker, history, 'signal/multi');
-  return callEngineStrict('/api/engine/signal-analyze', {
-    mode: 'multi',
-    multi: body,
-    priceData: history,
-  });
+export function executeMultiSignalAnalyze(body: MultiSignalConfig) {
+  return runSignalMode('multi', body);
 }

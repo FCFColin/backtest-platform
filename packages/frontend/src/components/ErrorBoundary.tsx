@@ -50,6 +50,10 @@ const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   textAlign: 'center',
 };
 
+const STYLE_TAG = (
+  <style>{`.error-refresh-btn:hover { background-color: #1d4ed8 !important; }`}</style>
+);
+
 const ERROR_DETAIL_STYLE: React.CSSProperties = {
   fontSize: '12px',
   color: '#9ca3af',
@@ -109,39 +113,37 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
 
   private renderErrorUI(): ReactNode {
     return (
-      <div style={ERROR_CONTAINER_STYLE}>
-        <div
-          style={{ fontSize: '48px', marginBottom: '16px' }}
-          role="img"
-          aria-label={i18n.t('components.errorBoundary.errorAlert')}
-        >
-          ⚠️
-        </div>
-        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
-          {i18n.t('errors.pageErrorTitle')}
-        </h1>
-        <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 24px', maxWidth: '400px' }}>
-          {i18n.t('errors.pageErrorMessage')}
-        </p>
-        {this.state.error && (
-          <p style={ERROR_DETAIL_STYLE}>
-            {this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}
+      <>
+        {STYLE_TAG}
+        <div style={ERROR_CONTAINER_STYLE}>
+          <div
+            style={{ fontSize: '48px', marginBottom: '16px' }}
+            role="img"
+            aria-label={i18n.t('components.errorBoundary.errorAlert')}
+          >
+            ⚠️
+          </div>
+          <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
+            {i18n.t('errors.pageErrorTitle')}
+          </h1>
+          <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 24px', maxWidth: '400px' }}>
+            {i18n.t('errors.pageErrorMessage')}
           </p>
-        )}
-        <button
-          type="button"
-          onClick={this.handleRefresh}
-          style={REFRESH_BTN_STYLE}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#1d4ed8';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#2563eb';
-          }}
-        >
-          {i18n.t('errors.pageRefresh')}
-        </button>
-      </div>
+          {this.state.error && (
+            <p style={ERROR_DETAIL_STYLE}>
+              {this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={this.handleRefresh}
+            style={REFRESH_BTN_STYLE}
+            className="error-refresh-btn"
+          >
+            {i18n.t('errors.pageRefresh')}
+          </button>
+        </div>
+      </>
     );
   }
 }

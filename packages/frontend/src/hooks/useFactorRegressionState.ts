@@ -9,6 +9,7 @@ import { useListState } from './useListState.js';
 import { useToastStore } from '@/store/toastStore';
 import { fetchRegression } from '../pages/factor-regression/factorRegressionUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { validateAssetWeights } from '@/utils/validation';
 import type {
   AssetItem,
   FactorRegressionResult,
@@ -71,15 +72,15 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
   const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) =>
     updateItem(i, (prev) => ({ ...prev, [field]: val }));
   const totalWeight = assets.reduce((s, a) => s + (a.weight || 0), 0);
-
   const runRegression = () => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) {
       setError(t('factorRegression.errEmptyAssets'));
       return;
     }
-    if (Math.abs(totalWeight - 100) > 0.01) {
-      setError(t('factorRegression.errWeightSum'));
+    const weightErr = validateAssetWeights(assets);
+    if (weightErr) {
+      setError(weightErr);
       return;
     }
     if (selectedFactors.length === 0) {

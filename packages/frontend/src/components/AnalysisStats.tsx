@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { AssetAnalysisResult } from '@backtest/shared';
+import { fmtPct } from '@/utils/format';
 
 const STATS_COLUMNS: {
   key: keyof Statistics;
@@ -72,7 +73,7 @@ export const StatsTable = memo(function StatsTable({
   }));
   const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') => {
     if (v === undefined || v === null) return '—';
-    if (f === 'pct') return `${(v * 100).toFixed(2)}%`;
+    if (f === 'pct') return fmtPct(v);
     if (f === 'ratio') return v.toFixed(2);
     return `${v} ${t('common.days')}`;
   };

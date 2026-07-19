@@ -79,7 +79,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 			AllocationHistory: allocHist,
 		})
 
-		portfolioDailyReturns = append(portfolioDailyReturns, dailyReturns(curve))
+		portfolioDailyReturns = append(portfolioDailyReturns, dailyReturns(extractValues(curve)))
 	}
 
 	// 5. 计算组合间相关性矩阵
@@ -89,7 +89,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 	assetDailyReturns := make([][]float64, 0, len(assetTickers))
 	for _, ticker := range assetTickers {
 		prices := engineutil.ExtractPrices(req.PriceData, ticker, tradingDates)
-		assetDailyReturns = append(assetDailyReturns, dailyReturnsFromPrices(prices))
+		assetDailyReturns = append(assetDailyReturns, dailyReturns(prices))
 	}
 	assetCorrelations := computeCorrelationMatrix(assetDailyReturns)
 
@@ -192,29 +192,15 @@ func collectAssetTickers(priceData PriceDataMap) []string {
 	return result
 }
 
-// dailyReturnsFromPrices 从价格序列计算日收益率
-func dailyReturnsFromPrices(prices []float64) []float64 {
-	if len(prices) < 2 {
+// dailyReturns 从价格/值序列计算日收益率
+func dailyReturns(values []float64) []float64 {
+	if len(values) < 2 {
 		return nil
 	}
-	rets := make([]float64, 0, len(prices)-1)
-	for i := 1; i < len(prices); i++ {
-		if prices[i-1] > 0 {
-			rets = append(rets, (prices[i]-prices[i-1])/prices[i-1])
-		}
-	}
-	return rets
-}
-
-// dailyReturns 从 DataPoint 曲线计算日收益率
-func dailyReturns(curve []DataPoint) []float64 {
-	if len(curve) < 2 {
-		return nil
-	}
-	rets := make([]float64, 0, len(curve)-1)
-	for i := 1; i < len(curve); i++ {
-		if curve[i-1].Value > 0 {
-			rets = append(rets, (curve[i].Value-curve[i-1].Value)/curve[i-1].Value)
+	rets := make([]float64, 0, len(values)-1)
+	for i := 1; i < len(values); i++ {
+		if values[i-1] > 0 {
+			rets = append(rets, (values[i]-values[i-1])/values[i-1])
 		}
 	}
 	return rets

@@ -10,6 +10,7 @@ import { useListState } from './useListState.js';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '../i18n/index.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { validateAssetWeights } from '@/utils/validation';
 
 export type DcaFrequency = 'monthly' | 'quarterly';
 
@@ -207,8 +208,9 @@ export function useLumpSumVsDCAState(t: TFunction) {
       s.setError(t('lumpSumDca.errEmptyAssets'));
       return;
     }
-    if (Math.abs(totalWeight - 100) > 0.01) {
-      s.setError(t('lumpSumDca.errWeightSum'));
+    const weightErr = validateAssetWeights(assets);
+    if (weightErr) {
+      s.setError(weightErr);
       return;
     }
     s.setResults([]);

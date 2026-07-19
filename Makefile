@@ -38,8 +38,8 @@ test: ## 全部测试（vitest）
 test-unit: ## 单元测试
 	npm run test:unit
 
-bench: ## 性能基准
-	npm run test:bench
+bench: ## 性能基准（无专用 bench 套件，复用单元测试）
+	npm run test:unit
 
 audit: ## 供应链/许可证审计
 	npm run audit:supply

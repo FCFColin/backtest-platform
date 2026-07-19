@@ -11,18 +11,15 @@ import { crudRouteHandler } from './routeUtils.js';
 
 export const jobRoutes = Router();
 
-/** 授权上下文：包含任务所有权与多租户隔离判定所需的全部字段 */
-interface JobAuthContext {
+/** 判断请求方是否有权访问该任务（所有权 + 多租户隔离） */
+function isJobAccessible(ctx: {
   ownerId: unknown;
   isOwner: boolean;
   isAdmin: boolean;
   jobTenant: unknown;
   tenantMatches: boolean;
   platformAdmin: boolean;
-}
-
-/** 判断请求方是否有权访问该任务（所有权 + 多租户隔离） */
-function isJobAccessible(ctx: JobAuthContext): boolean {
+}): boolean {
   const hasOwnership = ctx.isOwner || ctx.isAdmin;
   const passesTenantCheck = ctx.tenantMatches || ctx.platformAdmin;
   return hasOwnership && passesTenantCheck;
@@ -60,7 +57,7 @@ function buildJobAuthContext(
   job: Awaited<ReturnType<typeof backtestQueue.getJob>>,
   requester: NonNullable<AuthenticatedRequest['user']>,
   reqTenantId: string | undefined,
-): JobAuthContext {
+) {
   const ownerId = job?.data?.userId;
   const jobTenant = job?.data?.tenantId;
   return {
@@ -73,19 +70,19 @@ function buildJobAuthContext(
   };
 }
 
-/** 授权拒绝时的日志上下文 */
-interface DenyLogCtx {
-  jobId: string;
-  requesterSub: string;
-  reqTenantId: string | undefined;
-}
-
 /** 授权检查：不可访问时发送 404 并返回 true（已处理） */
 function denyIfInaccessible(
   res: import('express').Response,
   job: Awaited<ReturnType<typeof backtestQueue.getJob>>,
-  authCtx: JobAuthContext,
-  logCtx: DenyLogCtx,
+  authCtx: {
+    ownerId: unknown;
+    isOwner: boolean;
+    isAdmin: boolean;
+    jobTenant: unknown;
+    tenantMatches: boolean;
+    platformAdmin: boolean;
+  },
+  logCtx: { jobId: string; requesterSub: string; reqTenantId: string | undefined },
 ): boolean {
   const accessible = !!job && isJobAccessible(authCtx);
   if (job && !accessible) {

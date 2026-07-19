@@ -208,65 +208,52 @@ async function checkSessionValidity(
   return null;
 }
 
-/** 处理 Bearer Token 认证流程（含吊销/停用检查） */
-function handleBearerTokenAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+/** 提取并验证 Bearer Token，返回 payload 或 null。 */
+async function verifyBearerToken(req: AuthenticatedRequest): Promise<JwtPayload | null> {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    recordAuthFailure(req.path, 'missing_credentials');
-    sendProblem(res, 401, 'MISSING_CREDENTIALS', 'Unauthorized', {
-      detail: '缺少认证凭证',
+  if (!authHeader?.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7).trim();
+  return verifyJwt(token);
+}
+
+/** 处理 Bearer Token 认证流程（含吊销/停用检查） */
+async function handleBearerTokenAuth(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const payload = await verifyBearerToken(req);
+  if (!payload) {
+    logger.warn(
+      { middleware: 'jwtAuth', path: req.path, error: 'JWT token 无效或已过期', requestId: req.id },
+      '[jwtAuth] JWT 认证失败',
+    );
+    recordAuthFailure(req.path, 'invalid_token');
+    sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', {
+      detail: 'JWT token 无效或已过期',
     });
     return;
   }
-  const token = authHeader.slice(7).trim();
-  verifyJwt(token)
-    .then(async (payload) => {
-      if (!payload) {
-        logger.warn(
-          {
-            middleware: 'jwtAuth',
-            path: req.path,
-            error: 'JWT token 无效或已过期',
-            requestId: req.id,
-          },
-          '[jwtAuth] JWT 认证失败',
-        );
-        recordAuthFailure(req.path, 'invalid_token');
-        sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', {
-          detail: 'JWT token 无效或已过期',
-        });
-        return;
-      }
-      const sessionError = await checkSessionValidity(payload, req);
-      if (sessionError) {
-        sendProblem(res, 401, sessionError, 'Unauthorized', {
-          detail:
-            sessionError === 'SESSION_REVOKED' ? '会话已失效，请重新登录' : '账户已停用或已删除',
-        });
-        return;
-      }
-      req.user = payload;
-      attachAuthLogContext(req);
-      logger.info(
-        {
-          middleware: 'jwtAuth',
-          path: req.path,
-          userId: hashUserId(req.user?.sub),
-          role: req.user?.role,
-          requestId: req.id,
-        },
-        '[jwtAuth] JWT 认证通过',
-      );
-      next();
-    })
-    .catch((err) => {
-      logger.warn(
-        { middleware: 'jwtAuth', path: req.path, error: String(err), requestId: req.id },
-        '[jwtAuth] JWT 验证异常',
-      );
-      recordAuthFailure(req.path, 'invalid_token');
-      sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', { detail: 'JWT token 无效或已过期' });
+  const sessionError = await checkSessionValidity(payload, req);
+  if (sessionError) {
+    sendProblem(res, 401, sessionError, 'Unauthorized', {
+      detail: sessionError === 'SESSION_REVOKED' ? '会话已失效，请重新登录' : '账户已停用或已删除',
     });
+    return;
+  }
+  req.user = payload;
+  attachAuthLogContext(req);
+  logger.info(
+    {
+      middleware: 'jwtAuth',
+      path: req.path,
+      userId: hashUserId(req.user?.sub),
+      role: req.user?.role,
+      requestId: req.id,
+    },
+    '[jwtAuth] JWT 认证通过',
+  );
+  next();
 }
 
 export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
@@ -303,50 +290,34 @@ export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunc
  * 未认证用户以 readonly 角色访问。权衡：可选认证降低安全门槛，但渐进式引入比一刀切更可行。
  */
 /** 可选模式：处理 Bearer Token，失败时匿名放行 */
-function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
-    next();
-    return;
+async function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunction): Promise<void> {
+  const payload = await verifyBearerToken(req);
+  if (payload) {
+    req.user = payload;
+    attachAuthLogContext(req);
+    logger.info(
+      {
+        middleware: 'optionalJwtAuth',
+        path: req.path,
+        userId: hashUserId(req.user?.sub),
+        role: req.user?.role,
+        requestId: req.id,
+      },
+      '[jwtAuth] JWT 认证通过',
+    );
+  } else {
+    req.user = null;
+    logger.warn(
+      {
+        middleware: 'optionalJwtAuth',
+        path: req.path,
+        error: 'JWT token 无效或已过期',
+        requestId: req.id,
+      },
+      '[jwtAuth] JWT 认证失败，可选认证放行',
+    );
   }
-  const token = authHeader.slice(7).trim();
-  verifyJwt(token)
-    .then((payload) => {
-      if (payload) {
-        req.user = payload;
-        attachAuthLogContext(req);
-        logger.info(
-          {
-            middleware: 'optionalJwtAuth',
-            path: req.path,
-            userId: hashUserId(req.user?.sub),
-            role: req.user?.role,
-            requestId: req.id,
-          },
-          '[jwtAuth] JWT 认证通过',
-        );
-      } else {
-        req.user = null;
-        logger.warn(
-          {
-            middleware: 'optionalJwtAuth',
-            path: req.path,
-            error: 'JWT token 无效或已过期',
-            requestId: req.id,
-          },
-          '[jwtAuth] JWT 认证失败，可选认证放行',
-        );
-      }
-      next();
-    })
-    .catch(() => {
-      req.user = null;
-      logger.warn(
-        { middleware: 'optionalJwtAuth', path: req.path, error: 'JWT 验证异常', requestId: req.id },
-        '[jwtAuth] JWT 认证失败，可选认证放行',
-      );
-      next();
-    });
+  next();
 }
 
 export function optionalJwtAuth(

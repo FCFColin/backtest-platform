@@ -1,28 +1,16 @@
 package engine
 
 // computeStatistics 从曲线和回撤数据计算统计指标
-// 企业理由：统一统计计算入口，确保所有指标口径一致。
-// ddCurve 参数保留作为扩展点，用于未来按回撤曲线计算条件回撤等高级指标
+// 企业理由：统一统计计算入口，将所有指标的计算委托给 CalculateStatisticsFromRequest。
 func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint) Statistics {
 	if len(curve) < 2 {
 		return Statistics{}
 	}
 
+	values := extractValues(curve)
+	dates := extractDates(curve)
 	startValue := curve[0].Value
 	endValue := curve[len(curve)-1].Value
-	years := float64(len(curve)) / float64(tradingDays)
-
-	dailyRets := dailyReturns(curve)
-	values := extractValues(curve)
-
-	cagr := CalcCAGR(startValue, endValue, years)
-	stdev := CalcAnnualizedStdev(dailyRets)
-	mdResult := CalcMaxDrawdown(values)
-	avgDD := CalcAvgDrawdown(values)
-	ulcerIdx := CalcUlcerIndex(values)
-	calmar := CalcCalmar(cagr, mdResult.MaxDrawdown)
-	upi := CalcUPI(cagr, ulcerIdx)
-	sortino := CalcSortino(cagr, dailyRets)
 
 	// 年度/月度收益
 	annualRets := annualReturnsFromCurve(curve)
@@ -37,115 +25,34 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 		monthlyReturnValues[i] = mr.Return
 	}
 
-	// MWRR
-	mwrr := 0.0
-	if endValue > 0 {
-		mwrr = CalcMWRR([]struct {
-			Value float64
-			Time  float64
-		}{
-			{Value: -startValue, Time: 0},
-			{Value: endValue, Time: years},
-		})
-	}
-
-	// 基准相关指标
-	beta := 0.0
-	alpha := 0.0
-	rSquared := 0.0
-	trackingError := 0.0
-	informationRatio := 0.0
-	upsideCapture := 0.0
-	downsideCapture := 0.0
-
+	// 基准相关
+	var benchDailyReturns []float64
+	var benchmarkCagr *float64
 	if len(benchCurve) >= 2 {
-		benchDailyRets := dailyReturns(benchCurve)
-		benchEndValue := benchCurve[len(benchCurve)-1].Value
-		benchYears := float64(len(benchCurve)) / float64(tradingDays)
-		benchCagr := CalcCAGR(benchCurve[0].Value, benchEndValue, benchYears)
-
-		beta = CalcBeta(dailyRets, benchDailyRets)
-		alpha = CalcAlpha(cagr, beta, benchCagr)
-		rSquared = CalcRSquared(dailyRets, benchDailyRets)
-		trackingError = CalcTrackingError(dailyRets, benchDailyRets)
-		informationRatio = CalcInformationRatio(alpha, trackingError)
-		upsideCapture = CalcUpsideCapture(dailyRets, benchDailyRets)
-		downsideCapture = CalcDownsideCapture(dailyRets, benchDailyRets)
+		benchValues := extractValues(benchCurve)
+		benchDailyReturns = dailyReturns(benchValues)
+		yrs := float64(len(benchCurve)) / float64(tradingDays)
+		c := CalcCAGR(benchCurve[0].Value, benchCurve[len(benchCurve)-1].Value, yrs)
+		benchmarkCagr = &c
 	}
 
-	// VaR / CVaR
-	var5 := CalcVaR(dailyRets, 0.95)
-	cvar5 := CalcCVaR(dailyRets, 0.95)
+	result := CalculateStatisticsFromRequest(StatisticsRequest{
+		Values:                values,
+		Dates:                 dates,
+		StartingValue:         startValue,
+		DailyReturns:          dailyReturns(values),
+		AnnualReturnValues:    annualReturnValues,
+		MonthlyReturnValues:   monthlyReturnValues,
+		MwrrCashflows:         []Cashflow{{Value: -startValue, Time: 0}},
+		BenchmarkDailyReturns: benchDailyReturns,
+		BenchmarkCagr:         benchmarkCagr,
+	})
 
-	// 分布特征
-	skewness := CalcSkewness(dailyRets)
-	excessKurtosis := CalcExcessKurtosis(dailyRets)
-
-	// 辅助指标
-	totalReturn := CalcTotalReturn(startValue, endValue)
-	pctPositiveDays := ratioPositive(dailyRets)
-	maxDailyReturn := maxValue(dailyRets)
-	minDailyReturn := minValue(dailyRets)
-
-	pwr := CalcPWR(annualReturnValues)
-
-	avgYear := mean(annualReturnValues)
-
-	return Statistics{
-		CAGR:                  cagr,
-		MWRR:                  mwrr,
-		Stdev:                 stdev,
-		Sharpe:                CalcSharpe(cagr, stdev),
-		Sortino:               sortino,
-		MaxDrawdown:           mdResult.MaxDrawdown,
-		MaxDrawdownDuration:   mdResult.MaxDrawdownDuration,
-		BestYear:              CalcBestYear(annualReturnValues),
-		WorstYear:             CalcWorstYear(annualReturnValues),
-		AvgYear:               avgYear,
-		TotalReturn:           totalReturn,
-		MaxMonthlyReturn:      CalcBestMonth(monthlyReturnValues),
-		MinMonthlyReturn:      CalcWorstMonth(monthlyReturnValues),
-		AvgDrawdown:           avgDD,
-		UlcerIndex:            ulcerIdx,
-		Calmar:                calmar,
-		UlcerPerformanceIndex: upi,
-		Beta:                  beta,
-		Alpha:                 alpha,
-		RSquared:              rSquared,
-		TrackingError:         trackingError,
-		InformationRatio:      informationRatio,
-		UpsideCapture:         upsideCapture,
-		DownsideCapture:       downsideCapture,
-		MaxDailyReturn:        maxDailyReturn,
-		MinDailyReturn:        minDailyReturn,
-		PWR:                   pwr,
-		Var: VaRByFrequency{
-			Daily:   VaRLevels{One: CalcVaR(dailyRets, 0.99), Five: var5, Ten: CalcVaR(dailyRets, 0.90)},
-			Monthly: VaRLevels{},
-			Annual:  VaRLevels{},
-		},
-		Cvar: VaRByFrequency{
-			Daily:   VaRLevels{One: CalcCVaR(dailyRets, 0.99), Five: cvar5, Ten: CalcCVaR(dailyRets, 0.90)},
-			Monthly: VaRLevels{},
-			Annual:  VaRLevels{},
-		},
-		Skewness: SkewnessByFrequency{
-			Daily:   skewness,
-			Monthly: 0,
-			Annual:  0,
-		},
-		ExcessKurtosis: SkewnessByFrequency{
-			Daily:   excessKurtosis,
-			Monthly: 0,
-			Annual:  0,
-		},
-		WinRate: SkewnessByFrequency{
-			Daily:   pctPositiveDays,
-			Monthly: 0,
-			Annual:  0,
-		},
-		PctPositiveDays: pctPositiveDays,
+	if endValue <= 0 {
+		result.MWRR = 0
 	}
+
+	return result
 }
 
 // computeCorrelationMatrix 计算相关性矩阵

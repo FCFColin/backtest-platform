@@ -67,8 +67,6 @@ const CRITICAL_FILES = [
 
 const MIN_LINE_COVERAGE = 75;
 const CRITICAL_LINE_COVERAGE = 90;
-const GLOBAL_LINE_TARGET = 80;
-
 /** 纯类型/barrel/基础设施/外部服务依赖（与 vitest.workspace.ts 的 coverage.exclude 同步） */
 const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/application/cqrs.ts',

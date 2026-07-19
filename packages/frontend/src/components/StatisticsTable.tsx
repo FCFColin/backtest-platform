@@ -6,6 +6,7 @@ import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
+import { fmtPct, fmtRatio } from '@/utils/format';
 import ChartCard from './ChartCard.js';
 
 /** 统计指标表格 Props */
@@ -450,8 +451,8 @@ const COMPACT_GROUPS: StatGroup[] = [
 
 function formatValue(v: number | undefined, fmt: FmtType): string {
   if (v == null) return '—';
-  if (fmt === 'pct') return `${(v * 100).toFixed(2)}%`;
-  if (fmt === 'ratio') return v.toFixed(2);
+  if (fmt === 'pct') return fmtPct(v);
+  if (fmt === 'ratio') return fmtRatio(v);
   if (fmt === 'duration') return `${v} mo`;
   return v.toString();
 }

@@ -204,30 +204,20 @@ export async function getOrCacheHS256Key(): Promise<JoseKey> {
 // ---------------------------------------------------------------------------
 
 /**
- * 使用 RS256 签名 JWT
+ * 使用指定算法签名 JWT。
  *
  * @param payload - JWT payload 对象
+ * @param algorithm - 签名算法（'RS256' | 'HS256'）
+ * @param key - jose 密钥对象
  * @returns 签名后的 JWT 字符串
  */
-async function signJwtRS256(payload: JwtPayload): Promise<string> {
-  const privateKey = await getOrCachePrivateKey();
+async function signJwt(
+  payload: JwtPayload,
+  algorithm: 'RS256' | 'HS256',
+  key: JoseKey,
+): Promise<string> {
   return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'RS256' })
-    .setIssuedAt(payload.iat)
-    .setExpirationTime(payload.exp)
-    .sign(privateKey);
-}
-
-/**
- * 使用 HS256 签名 JWT
- *
- * @param payload - JWT payload 对象
- * @returns 签名后的 JWT 字符串
- */
-async function signJwtHS256(payload: JwtPayload): Promise<string> {
-  const key = await getOrCacheHS256Key();
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: algorithm })
     .setIssuedAt(payload.iat)
     .setExpirationTime(payload.exp)
     .sign(key);
@@ -236,17 +226,14 @@ async function signJwtHS256(payload: JwtPayload): Promise<string> {
 /**
  * 生成 JWT（根据配置选择 RS256 或 HS256）
  *
- * 企业理由：RS256 为默认签名算法，HS256 作为向后兼容路径保留。
- * 迁移期间新令牌使用 RS256，旧令牌仍可通过 HS256 验证。
- *
  * @param payload - JWT payload 对象
  * @returns 签名后的 JWT 字符串
  */
-async function signJwt(payload: JwtPayload): Promise<string> {
+async function signConfiguredJwt(payload: JwtPayload): Promise<string> {
   if (JWT_ALGORITHM === 'RS256') {
-    return signJwtRS256(payload);
+    return signJwt(payload, 'RS256', await getOrCachePrivateKey());
   }
-  return signJwtHS256(payload);
+  return signJwt(payload, 'HS256', await getOrCacheHS256Key());
 }
 
 // ---------------------------------------------------------------------------
@@ -280,5 +267,5 @@ export async function generateToken(
   if (tenant?.tenantId) payload.tenant_id = tenant.tenantId;
   if (tenant?.orgRole) payload.org_role = tenant.orgRole;
   if (tenant?.platformAdmin) payload.platform_admin = true;
-  return signJwt(payload);
+  return signConfiguredJwt(payload);
 }

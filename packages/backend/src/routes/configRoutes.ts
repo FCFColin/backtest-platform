@@ -8,7 +8,6 @@ import { Router, type Request, type Response } from 'express';
 import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { hasTenant } from '../middleware/tenantContext.js';
 import { savedConfigBodySchema, type SavedConfigBody } from '../schemas/persistence.js';
 import {
   listConfigs,
@@ -17,23 +16,16 @@ import {
   updateConfig,
   deleteConfig,
 } from '../repositories/savedConfigRepo.js';
-import { isUuid } from '../utils/validation.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, ownerOf, requireTenantId, requireUuidParam } from './routeUtils.js';
 
 const router = Router();
-
-function ownerOf(req: AuthenticatedRequest): string | null {
-  const sub = req.user?.sub;
-  return sub && !sub.startsWith('apikey:') && !sub.startsWith('platform:') ? sub : null;
-}
 
 router.get(
   '/',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
       const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 50;
       const offset = req.query.offset ? Math.max(Number(req.query.offset), 0) : 0;
       res.json({ success: true, data: await listConfigs(tenantId, Math.max(1, limit), offset) });
@@ -51,13 +43,9 @@ router.get(
   '/:id',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const c = await getConfig(tenantId, req.params.id);
       if (!c) {
         sendProblem(res, 404, 'CONFIG_NOT_FOUND', 'Not Found', { detail: '配置不存在' });
@@ -79,10 +67,13 @@ router.post(
   validate(savedConfigBodySchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      const created = await createConfig(tenantId, ownerOf(authReq), req.body as SavedConfigBody);
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      const created = await createConfig(
+        tenantId,
+        ownerOf(req as AuthenticatedRequest),
+        req.body as SavedConfigBody,
+      );
       res.status(201).json({ success: true, data: created });
     },
     {
@@ -99,13 +90,9 @@ router.put(
   validate(savedConfigBodySchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const updated = await updateConfig(tenantId, req.params.id, req.body as SavedConfigBody);
       if (!updated) {
         sendProblem(res, 404, 'CONFIG_NOT_FOUND', 'Not Found', { detail: '配置不存在' });
@@ -126,13 +113,9 @@ router.delete(
   '/:id',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const ok = await deleteConfig(tenantId, req.params.id);
       if (!ok) {
         sendProblem(res, 404, 'CONFIG_NOT_FOUND', 'Not Found', { detail: '配置不存在' });

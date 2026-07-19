@@ -81,10 +81,10 @@ function buildStatsResponseData(args: {
     },
     system: {
       memory: {
-        rss_mb: Math.round((memUsage.rss / 1024 / 1024) * 10) / 10,
-        heap_used_mb: Math.round((memUsage.heapUsed / 1024 / 1024) * 10) / 10,
-        heap_total_mb: Math.round((memUsage.heapTotal / 1024 / 1024) * 10) / 10,
-        external_mb: Math.round((memUsage.external / 1024 / 1024) * 10) / 10,
+        rss_mb: toMB(memUsage.rss),
+        heap_used_mb: toMB(memUsage.heapUsed),
+        heap_total_mb: toMB(memUsage.heapTotal),
+        external_mb: toMB(memUsage.external),
       },
       uptime_seconds: Math.round(uptimeSeconds),
       uptime_formatted: formatUptime(uptimeSeconds),
@@ -120,6 +120,8 @@ async function checkServiceHealth(
     return { status: 'unhealthy', latency_ms: Date.now() - start, error: `${serviceName} 不可达` };
   }
 }
+
+const toMB = (v: number): number => Math.round((v / 1024 / 1024) * 10) / 10;
 
 /** 格式化运行时间 */
 function formatUptime(uptimeSeconds: number): string {
@@ -218,9 +220,9 @@ router.get(
             heap_used: memUsage.heapUsed,
             external: memUsage.external,
             array_buffers: memUsage.arrayBuffers,
-            rss_mb: Math.round((memUsage.rss / 1024 / 1024) * 10) / 10,
-            heap_used_mb: Math.round((memUsage.heapUsed / 1024 / 1024) * 10) / 10,
-            heap_total_mb: Math.round((memUsage.heapTotal / 1024 / 1024) * 10) / 10,
+            rss_mb: toMB(memUsage.rss),
+            heap_used_mb: toMB(memUsage.heapUsed),
+            heap_total_mb: toMB(memUsage.heapTotal),
           },
           uptime: {
             seconds: Math.round(uptimeSeconds),

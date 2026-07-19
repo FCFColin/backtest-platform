@@ -225,11 +225,11 @@ func TestCalcTotalReturn(t *testing.T) {
 	}
 }
 
-func TestCalcBestYear(t *testing.T) {
+func TestMaxValue(t *testing.T) {
 	tests := []struct {
-		name          string
-		annualReturns []float64
-		want          float64
+		name   string
+		values []float64
+		want   float64
 	}{
 		{"empty", nil, 0},
 		{"all positive", []float64{0.05, 0.10, 0.15}, 0.15},
@@ -237,19 +237,19 @@ func TestCalcBestYear(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CalcBestYear(tt.annualReturns)
+			got := MaxValue(tt.values)
 			if math.Abs(got-tt.want) > 1e-10 {
-				t.Errorf("CalcBestYear() = %v, want %v", got, tt.want)
+				t.Errorf("MaxValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestCalcWorstYear(t *testing.T) {
+func TestMinValue(t *testing.T) {
 	tests := []struct {
-		name          string
-		annualReturns []float64
-		want          float64
+		name   string
+		values []float64
+		want   float64
 	}{
 		{"empty", nil, 0},
 		{"mixed", []float64{0.05, -0.10, 0.15}, -0.10},
@@ -257,47 +257,9 @@ func TestCalcWorstYear(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CalcWorstYear(tt.annualReturns)
+			got := MinValue(tt.values)
 			if math.Abs(got-tt.want) > 1e-10 {
-				t.Errorf("CalcWorstYear() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestCalcBestMonth(t *testing.T) {
-	tests := []struct {
-		name           string
-		monthlyReturns []float64
-		want           float64
-	}{
-		{"empty", nil, 0},
-		{"mixed", []float64{-0.03, 0.05, 0.02}, 0.05},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalcBestMonth(tt.monthlyReturns)
-			if math.Abs(got-tt.want) > 1e-10 {
-				t.Errorf("CalcBestMonth() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestCalcWorstMonth(t *testing.T) {
-	tests := []struct {
-		name           string
-		monthlyReturns []float64
-		want           float64
-	}{
-		{"empty", nil, 0},
-		{"mixed", []float64{0.03, -0.05, 0.02}, -0.05},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CalcWorstMonth(tt.monthlyReturns)
-			if math.Abs(got-tt.want) > 1e-10 {
-				t.Errorf("CalcWorstMonth() = %v, want %v", got, tt.want)
+				t.Errorf("MinValue() = %v, want %v", got, tt.want)
 			}
 		})
 	}

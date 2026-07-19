@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import type { PortfolioResult } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
 import { SortableTable, type Column } from './SortableTable.js';
+import { fmtPct } from '@/utils/format';
 import ChartCard from './ChartCard.js';
 
 /** 周转率与税务报告 Props */
@@ -58,11 +59,6 @@ function computeTurnover(
   return { turnover: annualized, observations: allocationHistory.length, years };
 }
 
-function formatPct(v: number | null): string {
-  if (v == null) return '\u2014';
-  return `${(v * 100).toFixed(2)}%`;
-}
-
 function buildTurnoverColumns(
   portfolios: PortfolioResult[],
   t: (key: string) => string,
@@ -90,7 +86,7 @@ function buildTurnoverColumns(
       label: t('components.turnoverTaxReport.columns.annualTurnover'),
       render: (row) => (
         <span className="font-mono text-right block" style={{ color: 'var(--text-strong)' }}>
-          {formatPct(row.turnover)}
+          {fmtPct(row.turnover)}
         </span>
       ),
       sortValue: (row) => row.turnover ?? -1,
@@ -103,7 +99,7 @@ function buildTurnoverColumns(
           className="font-mono text-right block"
           style={{ color: row.taxDrag != null ? 'var(--danger)' : 'var(--text-muted)' }}
         >
-          {formatPct(row.taxDrag)}
+          {fmtPct(row.taxDrag)}
         </span>
       ),
       sortValue: (row) => row.taxDrag ?? -1,

@@ -198,7 +198,6 @@ export function requirePermission(permission: Permission) {
       return;
     }
 
-    logRbac('info', req, permission, '权限检查通过');
     next();
   };
 }

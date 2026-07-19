@@ -198,6 +198,38 @@ export interface WithdrawalStats {
   perpetualRate: number;
 }
 
+const ZERO_VAR = { 1: 0, 5: 0, 10: 0 };
+const ZERO_SKEW = { daily: 0, monthly: 0, annual: 0 };
+
+const ZERO_NUM_FIELDS = [
+  'cagr',
+  'mwrr',
+  'stdev',
+  'sharpe',
+  'sortino',
+  'maxDrawdown',
+  'maxDrawdownDuration',
+  'bestYear',
+  'worstYear',
+  'avgYear',
+  'totalReturn',
+  'maxMonthlyReturn',
+  'minMonthlyReturn',
+  'avgDrawdown',
+  'ulcerIndex',
+  'calmar',
+  'ulcerPerformanceIndex',
+  'beta',
+  'alpha',
+  'rSquared',
+  'trackingError',
+  'informationRatio',
+  'upsideCapture',
+  'downsideCapture',
+  'maxDailyReturn',
+  'minDailyReturn',
+] as const;
+
 /**
  * 创建零值 Statistics 骨架（T-24：消除重复的空统计对象字面量）。
  *
@@ -209,44 +241,14 @@ export interface WithdrawalStats {
  */
 export function createEmptyStatistics(): Statistics {
   return {
-    cagr: 0,
-    mwrr: 0,
-    stdev: 0,
-    sharpe: 0,
-    sortino: 0,
-    maxDrawdown: 0,
-    maxDrawdownDuration: 0,
-    bestYear: 0,
-    worstYear: 0,
-    avgYear: 0,
-    totalReturn: 0,
-    maxMonthlyReturn: 0,
-    minMonthlyReturn: 0,
-    avgDrawdown: 0,
-    ulcerIndex: 0,
-    calmar: 0,
-    ulcerPerformanceIndex: 0,
-    beta: 0,
-    alpha: 0,
-    rSquared: 0,
-    trackingError: 0,
-    informationRatio: 0,
-    upsideCapture: 0,
-    downsideCapture: 0,
-    var: {
-      daily: { 1: 0, 5: 0, 10: 0 },
-      monthly: { 1: 0, 5: 0, 10: 0 },
-      annual: { 1: 0, 5: 0, 10: 0 },
-    },
-    cvar: {
-      daily: { 1: 0, 5: 0, 10: 0 },
-      monthly: { 1: 0, 5: 0, 10: 0 },
-      annual: { 1: 0, 5: 0, 10: 0 },
-    },
-    skewness: { daily: 0, monthly: 0, annual: 0 },
-    excessKurtosis: { daily: 0, monthly: 0, annual: 0 },
-    winRate: { daily: 0, monthly: 0, annual: 0 },
-    maxDailyReturn: 0,
-    minDailyReturn: 0,
+    ...(Object.fromEntries(ZERO_NUM_FIELDS.map((k) => [k, 0])) as Record<
+      (typeof ZERO_NUM_FIELDS)[number],
+      0
+    >),
+    var: { daily: { ...ZERO_VAR }, monthly: { ...ZERO_VAR }, annual: { ...ZERO_VAR } },
+    cvar: { daily: { ...ZERO_VAR }, monthly: { ...ZERO_VAR }, annual: { ...ZERO_VAR } },
+    skewness: { ...ZERO_SKEW },
+    excessKurtosis: { ...ZERO_SKEW },
+    winRate: { ...ZERO_SKEW },
   };
 }

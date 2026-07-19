@@ -19,6 +19,8 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
+import { percentile, mean, std } from '@/utils/stats';
+import { fmtPct } from '@/utils/format';
 import ChartCard from '../ChartCard.js';
 import {
   CHART_MARGIN,
@@ -277,47 +279,39 @@ function calcAnnualSummaryStats(p: PortfolioResult) {
 
   const sorted = [...returns].sort((a, b) => a - b);
   const n = sorted.length;
-  const mean = sorted.reduce((s, v) => s + v, 0) / n;
-  const std = Math.sqrt(sorted.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1));
+  const m = mean(sorted);
+  const s = std(sorted);
 
-  const percentile = (p: number) => {
-    const idx = p * (n - 1);
-    const lo = Math.floor(idx);
-    const hi = Math.ceil(idx);
-    const frac = idx - lo;
-    if (lo === hi) return sorted[lo];
-    return sorted[lo] * (1 - frac) + sorted[hi] * frac;
-  };
+  const pct = (p: number) => fmtPct(percentile(sorted, p));
 
   const skewness = (() => {
-    if (std === 0) return 0;
-    const m3 = sorted.reduce((s, v) => s + (v - mean) ** 3, 0) / n;
-    return ((m3 / std ** 3) * Math.sqrt(n * (n - 1))) / (n - 2);
+    if (s === 0) return 0;
+    const m3 = sorted.reduce((sum, v) => sum + (v - m) ** 3, 0) / n;
+    return ((m3 / s ** 3) * Math.sqrt(n * (n - 1))) / (n - 2);
   })();
 
   const kurtosis = (() => {
-    if (std === 0) return 0;
-    const m4 = sorted.reduce((s, v) => s + (v - mean) ** 4, 0) / n;
-    return m4 / std ** 4 - 3;
+    if (s === 0) return 0;
+    const m4 = sorted.reduce((sum, v) => sum + (v - m) ** 4, 0) / n;
+    return m4 / s ** 4 - 3;
   })();
 
   const pctPositive = sorted.filter((r) => r > 0).length / n;
-  const fmt = (v: number) => `${(v * 100).toFixed(2)}%`;
 
   return {
-    min: fmt(sorted[0]),
-    p1: fmt(percentile(0.01)),
-    p5: fmt(percentile(0.05)),
-    p25: fmt(percentile(0.25)),
-    p50: fmt(percentile(0.5)),
-    p75: fmt(percentile(0.75)),
-    p95: fmt(percentile(0.95)),
-    p99: fmt(percentile(0.99)),
-    max: fmt(sorted[n - 1]),
-    mean: fmt(mean),
-    std: fmt(std),
+    min: pct(0),
+    p1: pct(0.01),
+    p5: pct(0.05),
+    p25: pct(0.25),
+    p50: pct(0.5),
+    p75: pct(0.75),
+    p95: pct(0.95),
+    p99: pct(0.99),
+    max: pct(1),
+    mean: fmtPct(m),
+    std: fmtPct(s),
     skewness: skewness.toFixed(3),
     kurtosis: kurtosis.toFixed(3),
-    pctPositive: fmt(pctPositive),
+    pctPositive: fmtPct(pctPositive),
   };
 }

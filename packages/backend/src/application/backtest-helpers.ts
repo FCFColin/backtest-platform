@@ -150,6 +150,23 @@ export function collectTickersFromPortfolios(portfolioList: Portfolio[]): {
   return { tickers: Array.from(allTickers), totalAssets };
 }
 
+/** 从领域组合中收集唯一 ticker（含基准标的）。 */
+export function collectDomainTickers(
+  domainPortfolios: DomainPortfolio[],
+  benchmarkTicker: string,
+): Set<string> {
+  const allTickers = new Set<string>();
+  for (const portfolio of domainPortfolios) {
+    for (const ticker of portfolio.tickers) {
+      allTickers.add(ticker);
+    }
+  }
+  if (benchmarkTicker) {
+    allTickers.add(benchmarkTicker);
+  }
+  return allTickers;
+}
+
 /** 过滤 priceData，只保留指定 tickers 的数据。 */
 export function filterPriceData(
   priceData: PriceData,

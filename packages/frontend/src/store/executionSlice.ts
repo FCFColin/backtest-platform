@@ -1,6 +1,6 @@
 import { startTransition } from 'react';
 import i18n from '../i18n/index.js';
-import { apiFetch, notifyIfDegraded } from '../utils/apiClient.js';
+import { apiFetch } from '../utils/apiClient.js';
 import type {
   Portfolio,
   PortfolioResult,
@@ -55,7 +55,7 @@ function processResponseWarnings(json: Record<string, unknown>): void {
   if (warnings && warnings.length > 0) {
     for (const w of warnings) useToastStore.getState().addToast('warning', w);
   }
-  // degraded 警告由 notifyIfDegraded 统一处理，不在此重复
+  // degraded 警告由 apiFetch 全局拦截处理，不在此重复
 }
 
 async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
@@ -95,7 +95,6 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
 
     const results = normalizeBacktestResult(json.data ?? json);
     processResponseWarnings(json);
-    await notifyIfDegraded(response);
 
     if (requestId === currentRequestId) {
       set({ isLoading: false });

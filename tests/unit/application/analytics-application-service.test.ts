@@ -29,13 +29,13 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 
 import {
   executePcaAnalyze,
-  normalizePcaTickers,
   validatePcaRequest,
   executeLetfAnalyze,
   validateGoalOptimizerAssets,
   executeGoalOptimize,
   executePcaAnalyzeWithFetch,
 } from '../../../packages/backend/src/services/analysis-orchestrator.js';
+import { normalizeTickers } from '../../../packages/backend/src/application/backtest/priceDataUtils.js';
 
 const mockPriceData: Record<string, Record<string, number>> = {
   AAPL: { '2020-01-02': 100, '2020-01-03': 101, '2020-01-06': 102 },
@@ -79,9 +79,9 @@ describe('analysis-service', () => {
     });
   });
 
-  describe('normalizePcaTickers', () => {
+  describe('normalizeTickers', () => {
     it('应去重、去除空格并转为大写', () => {
-      expect(normalizePcaTickers([' aapl ', 'AAPL', '  spy  ', ''])).toEqual(['AAPL', 'SPY']);
+      expect(normalizeTickers([' aapl ', 'AAPL', '  spy  ', ''])).toEqual(['AAPL', 'SPY']);
     });
   });
 

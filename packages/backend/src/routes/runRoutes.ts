@@ -10,26 +10,18 @@ import { Router, type Request, type Response } from 'express';
 import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { hasTenant } from '../middleware/tenantContext.js';
 import { backtestRunBodySchema, type BacktestRunBody } from '../schemas/persistence.js';
 import { listRuns, getRun, createRun, deleteRun } from '../repositories/backtestRunRepo.js';
-import { isUuid } from '../utils/validation.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, ownerOf, requireTenantId, requireUuidParam } from './routeUtils.js';
 
 const router = Router();
-
-function ownerOf(req: AuthenticatedRequest): string | null {
-  const sub = req.user?.sub;
-  return sub && !sub.startsWith('apikey:') && !sub.startsWith('platform:') ? sub : null;
-}
 
 router.get(
   '/',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
       const limit = req.query.limit ? Math.min(Number(req.query.limit) || 50, 200) : 50;
       const offset = req.query.offset ? Math.max(Number(req.query.offset) || 0, 0) : 0;
       res.json({
@@ -50,13 +42,9 @@ router.get(
   '/:id',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const r = await getRun(tenantId, req.params.id);
       if (!r) {
         sendProblem(res, 404, 'RUN_NOT_FOUND', 'Not Found', { detail: '回测记录不存在' });
@@ -78,10 +66,13 @@ router.post(
   validate(backtestRunBodySchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      const created = await createRun(tenantId, ownerOf(authReq), req.body as BacktestRunBody);
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      const created = await createRun(
+        tenantId,
+        ownerOf(req as AuthenticatedRequest),
+        req.body as BacktestRunBody,
+      );
       res.status(201).json({ success: true, data: created });
     },
     {
@@ -97,13 +88,9 @@ router.delete(
   '/:id',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const ok = await deleteRun(tenantId, req.params.id);
       if (!ok) {
         sendProblem(res, 404, 'RUN_NOT_FOUND', 'Not Found', { detail: '回测记录不存在' });

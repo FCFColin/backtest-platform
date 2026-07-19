@@ -29,30 +29,27 @@ func calcMomentum(prices []float64, period int) []float64 {
 	return result
 }
 
+// maPct 计算价格相对均线的偏离百分比。
+func maPct(prices, ma []float64) []float64 {
+	raw := make([]float64, len(prices))
+	for i := range prices {
+		if !math.IsNaN(ma[i]) && ma[i] != 0 {
+			raw[i] = (prices[i] - ma[i]) / ma[i]
+		} else {
+			raw[i] = nan
+		}
+	}
+	return raw
+}
+
 // computeIndicatorValue 计算指标值序列。
 func computeIndicatorValue(indicator TechnicalIndicator, prices []float64, period int) []*float64 {
 	var raw []float64
 	switch indicator {
 	case IndSMA:
-		sma := indicators.CalcSMA(prices, period)
-		raw = make([]float64, len(prices))
-		for i := range prices {
-			if !math.IsNaN(sma[i]) && sma[i] != 0 {
-				raw[i] = (prices[i] - sma[i]) / sma[i]
-			} else {
-				raw[i] = nan
-			}
-		}
+		raw = maPct(prices, indicators.CalcSMA(prices, period))
 	case IndEMA:
-		ema := indicators.CalcEMA(prices, period)
-		raw = make([]float64, len(prices))
-		for i := range prices {
-			if !math.IsNaN(ema[i]) && ema[i] != 0 {
-				raw[i] = (prices[i] - ema[i]) / ema[i]
-			} else {
-				raw[i] = nan
-			}
-		}
+		raw = maPct(prices, indicators.CalcEMA(prices, period))
 	case IndRSI:
 		raw = indicators.CalcRSI(prices, period)
 	case IndMACD:

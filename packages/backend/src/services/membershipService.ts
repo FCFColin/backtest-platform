@@ -72,6 +72,21 @@ export async function resolveDefaultOrg(userId: string): Promise<Membership | nu
 }
 
 /**
+ * 检查用户是否为组织内最后一个 owner。
+ *
+ * @returns 'last_owner' 是最后一个 owner / 'ok' 可操作
+ */
+async function ensureNotLastOwner(orgId: string, isOwner: boolean): Promise<'last_owner' | 'ok'> {
+  if (!isOwner) return 'ok';
+  const pool = getPool();
+  const { rows: owners } = await pool.query(
+    `SELECT COUNT(*)::int AS c FROM memberships WHERE org_id = $1 AND role = 'owner'`,
+    [orgId],
+  );
+  return owners[0].c <= 1 ? 'last_owner' : 'ok';
+}
+
+/**
  * 修改成员在组织内的角色。
  *
  * 安全：拒绝把组织内最后一个 owner 降级（避免组织失去管理者）。
@@ -93,11 +108,8 @@ export async function updateMemberRole(
   );
   if (current.length === 0) return 'not_found';
   if (current[0].role === 'owner' && role !== 'owner') {
-    const { rows: owners } = await pool.query(
-      `SELECT COUNT(*)::int AS c FROM memberships WHERE org_id = $1 AND role = 'owner'`,
-      [orgId],
-    );
-    if (owners[0].c <= 1) return 'last_owner';
+    const check = await ensureNotLastOwner(orgId, true);
+    if (check !== 'ok') return check;
   }
   await pool.query('UPDATE memberships SET role = $3 WHERE org_id = $1 AND user_id = $2', [
     orgId,
@@ -125,13 +137,8 @@ export async function removeMember(
     [orgId, userId],
   );
   if (current.length === 0) return 'not_found';
-  if (current[0].role === 'owner') {
-    const { rows: owners } = await pool.query(
-      `SELECT COUNT(*)::int AS c FROM memberships WHERE org_id = $1 AND role = 'owner'`,
-      [orgId],
-    );
-    if (owners[0].c <= 1) return 'last_owner';
-  }
+  const check = await ensureNotLastOwner(orgId, current[0].role === 'owner');
+  if (check !== 'ok') return check;
   await pool.query('DELETE FROM memberships WHERE org_id = $1 AND user_id = $2', [orgId, userId]);
   logger.info({ orgId, userId }, '[membershipService] 成员已移除');
   return 'ok';

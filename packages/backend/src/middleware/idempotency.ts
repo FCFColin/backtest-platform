@@ -142,13 +142,23 @@ async function handleIdempotencyKey(
   }
 }
 
+/** 拦截 res.json 以缓存响应结果。 */
+function interceptResponse(
+  res: Response,
+  storageKey: string,
+  storeFn: (key: string, entry: CachedResult) => void,
+): void {
+  const originalJson = res.json.bind(res);
+  res.json = function (body: unknown): Response {
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      storeFn(storageKey, { statusCode: res.statusCode, body, timestamp: Date.now() });
+    }
+    return originalJson(body);
+  };
+}
+
 /**
  * Redis 模式：使用 SET NX + EX 原子 check-and-set
- *
- * 企业理由：Redis SET key value NX EX ttl 是原子操作，
- * 同时完成"检查 Key 是否存在"和"设置 Key + TTL"两步，
- * 避免了内存 Map 的 get+set 并发窗口竞态问题。
- * 这是 Stripe、AWS 等 API 幂等性实现的标准做法。
  */
 async function handleWithRedis(
   key: string,
@@ -159,7 +169,6 @@ async function handleWithRedis(
   const redisKey = `${REDIS_KEY_PREFIX}${key}`;
 
   try {
-    // 先尝试获取已缓存的结果
     const cached = await appRedis.get(redisKey);
     if (cached) {
       const result: CachedResult = JSON.parse(cached);
@@ -171,38 +180,25 @@ async function handleWithRedis(
       return;
     }
 
-    // 拦截 res.json 以缓存结果
-    const originalJson = res.json.bind(res);
-    res.json = function (body: unknown): Response {
-      // 仅缓存成功响应（2xx），失败响应允许重试
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        const cacheEntry: CachedResult = {
-          statusCode: res.statusCode,
-          body,
-          timestamp: Date.now(),
-        };
-        // SET NX + EX：原子操作，仅当 Key 不存在时设置，并带 TTL
-        appRedis
-          .set(redisKey, JSON.stringify(cacheEntry), 'EX', KEY_TTL_SEC, 'NX')
-          .then(() => {
-            logger.info(
-              { middleware: 'idempotency', key, path: req.path, requestId: req.id },
-              '[idempotency] Redis 幂等性 Key 缓存写入',
-            );
-          })
-          .catch((err: unknown) => {
-            logger.warn(
-              { middleware: 'idempotency', key, err: String(err) },
-              '[idempotency] Redis 缓存写入失败，降级忽略',
-            );
-          });
-      }
-      return originalJson(body);
-    };
+    interceptResponse(res, redisKey, (k, entry) => {
+      appRedis
+        .set(k, JSON.stringify(entry), 'EX', KEY_TTL_SEC, 'NX')
+        .then(() =>
+          logger.info(
+            { middleware: 'idempotency', key, path: req.path, requestId: req.id },
+            '[idempotency] Redis 幂等性 Key 缓存写入',
+          ),
+        )
+        .catch((err: unknown) => {
+          logger.warn(
+            { middleware: 'idempotency', key, err: String(err) },
+            '[idempotency] Redis 缓存写入失败',
+          );
+        });
+    });
 
     next();
   } catch (err) {
-    // Redis 操作异常，降级到内存模式
     logger.warn(
       { middleware: 'idempotency', key, err: String(err) },
       '[idempotency] Redis 操作异常，降级到内存存储',
@@ -214,10 +210,6 @@ async function handleWithRedis(
 
 /**
  * 内存回退模式：使用 Map 存储
- *
- * 企业理由：开发环境或 Redis 故障时的降级方案。
- * 内存 Map 的 get+set 存在极短的并发竞态窗口，但对管理端点的
- * 低并发场景影响可忽略。生产环境应确保 Redis 可用以获得原子保证。
  */
 function handleWithMemory(key: string, req: Request, res: Response, next: NextFunction): void {
   const cached = fallbackStore.get(key);
@@ -230,21 +222,13 @@ function handleWithMemory(key: string, req: Request, res: Response, next: NextFu
     return;
   }
 
-  const originalJson = res.json.bind(res);
-  res.json = function (body: unknown): Response {
-    if (res.statusCode >= 200 && res.statusCode < 300) {
-      fallbackStore.set(key, {
-        statusCode: res.statusCode,
-        body,
-        timestamp: Date.now(),
-      });
-      logger.info(
-        { middleware: 'idempotency', key, path: req.path, requestId: req.id },
-        '[idempotency] 内存回退模式幂等性 Key 缓存写入',
-      );
-    }
-    return originalJson(body);
-  };
+  interceptResponse(res, key, (k, entry) => {
+    fallbackStore.set(k, entry);
+    logger.info(
+      { middleware: 'idempotency', key, path: req.path, requestId: req.id },
+      '[idempotency] 内存回退模式幂等性 Key 缓存写入',
+    );
+  });
 
   next();
 }

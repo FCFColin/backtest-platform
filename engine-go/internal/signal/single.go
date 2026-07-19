@@ -121,25 +121,22 @@ func generateRawSignals(indicator string, period int, threshold float64, data []
 
 // filterByType 按 signalType 过滤信号。
 func filterByType(signals []SignalPoint, signalType string) []SignalPoint {
+	var want SignalDir
 	switch signalType {
 	case "entry":
-		var result []SignalPoint
-		for _, s := range signals {
-			if s.Type == SignalBuy {
-				result = append(result, s)
-			}
-		}
-		return result
+		want = SignalBuy
 	case "exit":
-		var result []SignalPoint
-		for _, s := range signals {
-			if s.Type == SignalSell {
-				result = append(result, s)
-			}
-		}
-		return result
+		want = SignalSell
+	default:
+		return signals
 	}
-	return signals
+	var result []SignalPoint
+	for _, s := range signals {
+		if s.Type == want {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 // ===== 主分析函数 =====

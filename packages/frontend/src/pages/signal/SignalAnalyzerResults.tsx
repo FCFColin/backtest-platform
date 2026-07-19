@@ -3,7 +3,7 @@
  * @description 承载统计卡片、信号列表表、权益曲线
  */
 import { useTranslation } from 'react-i18next';
-import { fmtPct, fmtRatio } from '@/utils/format';
+import { fmtPct, fmtRatio, fmtDollar } from '@/utils/format';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import ChartCard from '../../components/ChartCard.js';
 import { SortableTable, type Column } from '../../components/SortableTable.js';
@@ -18,12 +18,6 @@ interface SignalRow {
   date: string;
   type: 'buy' | 'sell';
   price: number;
-}
-
-/** 价格格式化：undefined/null 显示 — */
-function fmtPrice(v: number | undefined): string {
-  if (v === undefined || v === null) return '—';
-  return `$${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 interface StatCardProps {
@@ -60,7 +54,7 @@ function buildSignalColumns(t: (key: string) => string): Column<SignalRow>[] {
     {
       key: 'price',
       label: t('signal.analyzer.colPrice'),
-      render: (r) => fmtPrice(r.price),
+      render: (r) => fmtDollar(r.price),
       sortValue: (r) => r.price,
     },
   ];

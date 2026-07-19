@@ -7,6 +7,7 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
+import { validateAssetWeights } from '@/utils/validation';
 
 /** BasicParamsRow 可控字段名 */
 type BasicParamsField =
@@ -142,7 +143,7 @@ export function PortfolioEditor({
   isComplete,
 }: PortfolioEditorProps) {
   const { t } = useTranslation();
-  const complete = isComplete ?? Math.abs(totalWeight - 100) <= 0.01;
+  const complete = isComplete ?? validateAssetWeights(assets) === null;
 
   const card = (
     <div className="portfolio-card" style={wrapInSection ? undefined : cardStyle}>

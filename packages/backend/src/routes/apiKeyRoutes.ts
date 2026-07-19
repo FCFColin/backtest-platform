@@ -15,10 +15,8 @@ import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { hasTenant } from '../middleware/tenantContext.js';
 import { createApiKey, listApiKeys, revokeApiKey } from '../repositories/apiKeyRepo.js';
-import { isUuid } from '../utils/validation.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
 
 const router = Router();
 
@@ -37,8 +35,8 @@ router.post(
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const orgId = authReq.tenantId;
+      const orgId = requireTenantId(authReq, res);
+      if (!orgId) return;
       const createdBy = authReq.user?.sub?.startsWith('apikey:')
         ? null
         : (authReq.user?.sub ?? null);
@@ -73,8 +71,8 @@ router.get(
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const orgId = authReq.tenantId;
+      const orgId = requireTenantId(authReq, res);
+      if (!orgId) return;
       const keys = await listApiKeys(orgId);
       res.json({ success: true, data: keys });
     },
@@ -96,15 +94,10 @@ router.delete(
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const orgId = authReq.tenantId;
+      if (!requireUuidParam(res, req.params.id)) return;
+      const orgId = requireTenantId(authReq, res);
+      if (!orgId) return;
       const keyId = req.params.id;
-      if (!isUuid(keyId)) {
-        sendProblem(res, 400, 'INVALID_KEY_ID', 'Bad Request', {
-          detail: 'API Key ID 必须为 UUID',
-        });
-        return;
-      }
       const ok = await revokeApiKey(orgId, keyId);
       if (!ok) {
         sendProblem(res, 404, 'API_KEY_NOT_FOUND', 'Not Found', {

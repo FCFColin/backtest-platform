@@ -9,9 +9,8 @@ import { Router, type Request, type Response } from 'express';
 import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { hasTenant } from '../middleware/tenantContext.js';
 import { portfolioBodySchema, type PortfolioBody } from '../schemas/persistence.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, ownerOf, requireTenantId, requireUuidParam } from './routeUtils.js';
 import {
   listPortfolios,
   getPortfolio,
@@ -19,23 +18,15 @@ import {
   updatePortfolio,
   deletePortfolio,
 } from '../repositories/portfolioRepo.js';
-import { isUuid } from '../utils/validation.js';
 
 const router = Router();
-
-/** 解析创建者用户 ID（API Key 调用方记为 null） */
-function ownerOf(req: AuthenticatedRequest): string | null {
-  const sub = req.user?.sub;
-  return sub && !sub.startsWith('apikey:') && !sub.startsWith('platform:') ? sub : null;
-}
 
 router.get(
   '/',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
       const limit = req.query.limit ? Math.min(Number(req.query.limit) || 50, 200) : 50;
       const offset = req.query.offset ? Math.max(Number(req.query.offset) || 0, 0) : 0;
       res.json({
@@ -57,13 +48,9 @@ router.get(
   '/:id',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const p = await getPortfolio(tenantId, req.params.id);
       if (!p) {
         sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND', 'Not Found', { detail: '组合不存在' });
@@ -86,10 +73,13 @@ router.post(
   validate(portfolioBodySchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      const created = await createPortfolio(tenantId, ownerOf(authReq), req.body as PortfolioBody);
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      const created = await createPortfolio(
+        tenantId,
+        ownerOf(req as AuthenticatedRequest),
+        req.body as PortfolioBody,
+      );
       res.status(201).json({ success: true, data: created });
     },
     {
@@ -107,13 +97,9 @@ router.put(
   validate(portfolioBodySchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const updated = await updatePortfolio(tenantId, req.params.id, req.body as PortfolioBody);
       if (!updated) {
         sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND', 'Not Found', { detail: '组合不存在' });
@@ -135,13 +121,9 @@ router.delete(
   '/:id',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!hasTenant(authReq)) return;
-      const tenantId = authReq.tenantId;
-      if (!isUuid(req.params.id)) {
-        sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
-        return;
-      }
+      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
+      if (!tenantId) return;
+      if (!requireUuidParam(res, req.params.id)) return;
       const ok = await deletePortfolio(tenantId, req.params.id);
       if (!ok) {
         sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND', 'Not Found', { detail: '组合不存在' });

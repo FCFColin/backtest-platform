@@ -73,46 +73,49 @@ async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
   return null;
 }
 
+/** 从请求头提取并解析 x-api-key，返回 User 或 null。 */
+async function resolveApiKeyFromHeader(req: AuthenticatedRequest): Promise<JwtPayload | null> {
+  const apiKey = req.headers['x-api-key'] as string | undefined;
+  if (!apiKey) return null;
+  try {
+    return await resolveApiKeyUser(apiKey);
+  } catch {
+    return null;
+  }
+}
+
 /** 处理 x-api-key 兼容认证（DB 按组织密钥 + 可选破窗平台密钥，ADR-033） */
-export function handleApiKeyAuth(
+export async function handleApiKeyAuth(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
-): void {
+): Promise<void> {
   const apiKey = req.headers['x-api-key'] as string | undefined;
   if (!apiKey) return;
-  resolveApiKeyUser(apiKey)
-    .then((user) => {
-      if (user) {
-        req.user = user;
-        attachAuthLogContext(req);
-        logger.info(
-          {
-            middleware: 'jwtAuth',
-            path: req.path,
-            userId: hashUserId(req.user.sub),
-            role: req.user.role,
-            tenantId: req.user.tenant_id,
-            requestId: req.id,
-          },
-          '[jwtAuth] API Key 认证通过',
-        );
-        next();
-        return;
-      }
-      logger.warn(
-        { middleware: 'jwtAuth', path: req.path, error: 'API Key 无效', requestId: req.id },
-        '[jwtAuth] JWT 认证失败',
-      );
-      sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
-    })
-    .catch((err) => {
-      logger.warn(
-        { middleware: 'jwtAuth', path: req.path, error: String(err), requestId: req.id },
-        '[jwtAuth] API Key 验证异常',
-      );
-      sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
-    });
+
+  const user = await resolveApiKeyFromHeader(req);
+  if (user) {
+    req.user = user;
+    attachAuthLogContext(req);
+    logger.info(
+      {
+        middleware: 'jwtAuth',
+        path: req.path,
+        userId: hashUserId(req.user.sub),
+        role: req.user.role,
+        tenantId: req.user.tenant_id,
+        requestId: req.id,
+      },
+      '[jwtAuth] API Key 认证通过',
+    );
+    next();
+    return;
+  }
+  logger.warn(
+    { middleware: 'jwtAuth', path: req.path, error: 'API Key 无效', requestId: req.id },
+    '[jwtAuth] JWT 认证失败',
+  );
+  sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
 }
 
 /** 可选模式：处理 x-api-key，失败时匿名放行 */
@@ -122,38 +125,33 @@ export function handleOptionalApiKey(req: AuthenticatedRequest, next: NextFuncti
     req.user = null;
     logger.info(
       { middleware: 'optionalJwtAuth', path: req.path, requestId: req.id },
-      '[jwtAuth] 无 Bearer Token，匿名放行',
+      '[jwtAuth] 无有效 Bearer Token/API Key，匿名放行',
     );
     next();
     return;
   }
-  resolveApiKeyUser(apiKey)
-    .then((user) => {
-      if (user) {
-        req.user = user;
-        attachAuthLogContext(req);
-        logger.info(
-          {
-            middleware: 'optionalJwtAuth',
-            path: req.path,
-            userId: hashUserId(req.user.sub),
-            role: req.user.role,
-            tenantId: req.user.tenant_id,
-            requestId: req.id,
-          },
-          '[jwtAuth] API Key 认证通过',
-        );
-      } else {
-        req.user = null;
-        logger.info(
-          { middleware: 'optionalJwtAuth', path: req.path, requestId: req.id },
-          '[jwtAuth] API Key 无效，匿名放行',
-        );
-      }
-      next();
-    })
-    .catch(() => {
+  void resolveApiKeyFromHeader(req).then((user) => {
+    if (user) {
+      req.user = user;
+      attachAuthLogContext(req);
+      logger.info(
+        {
+          middleware: 'optionalJwtAuth',
+          path: req.path,
+          userId: hashUserId(req.user.sub),
+          role: req.user.role,
+          tenantId: req.user.tenant_id,
+          requestId: req.id,
+        },
+        '[jwtAuth] API Key 认证通过',
+      );
+    } else {
       req.user = null;
-      next();
-    });
+      logger.info(
+        { middleware: 'optionalJwtAuth', path: req.path, requestId: req.id },
+        '[jwtAuth] 无有效 Bearer Token/API Key，匿名放行',
+      );
+    }
+    next();
+  });
 }

@@ -132,23 +132,25 @@ router.get('/update/status', (_req: Request, res: Response): void => {
   res.json({ success: true, data: getUpdateStatus() });
 });
 
-/** 全量更新：获取所有标的所有数据 */
-router.put(
-  '/update/full',
-  requireDataManage,
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      const result = await startUpdate('full');
-      res.json({ success: result.success, data: result });
-    },
-    {
-      logMsg: '[dataManage] 全量更新失败',
-      code: 'UPDATE_ERROR',
-      title: 'Update Error',
-      detail: '全量更新启动失败',
-    },
-  ),
-);
+/** 全量更新/重新拉取：获取所有标的所有数据 */
+for (const path of ['/update/full', '/update/refetch'] as const) {
+  router.put(
+    path,
+    requireDataManage,
+    crudRouteHandler(
+      async (_req: Request, res: Response): Promise<void> => {
+        const result = await startUpdate('full');
+        res.json({ success: result.success, data: result });
+      },
+      {
+        logMsg: `[dataManage] ${path} 失败`,
+        code: 'UPDATE_ERROR',
+        title: 'Update Error',
+        detail: '全量更新启动失败',
+      },
+    ),
+  );
+}
 
 /** 增量更新：仅获取新增日期的数据 */
 router.patch(
@@ -164,24 +166,6 @@ router.patch(
       code: 'UPDATE_ERROR',
       title: 'Update Error',
       detail: '增量更新启动失败',
-    },
-  ),
-);
-
-/** 重新拉取：等价于全量更新 */
-router.put(
-  '/update/refetch',
-  requireDataManage,
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      const result = await startUpdate('full');
-      res.json({ success: result.success, data: result });
-    },
-    {
-      logMsg: '[dataManage] 重新拉取失败',
-      code: 'UPDATE_ERROR',
-      title: 'Update Error',
-      detail: '重新拉取启动失败',
     },
   ),
 );

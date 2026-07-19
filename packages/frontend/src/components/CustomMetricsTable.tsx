@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
+import { fmtPct, fmtRatio } from '@/utils/format';
 import ChartCard from './ChartCard.js';
 
 /** 自定义指标表格 Props */
@@ -75,8 +76,8 @@ const DEFAULT_KEYS: (keyof Statistics)[] = [
 
 function formatValue(v: number | undefined, fmt: 'pct' | 'ratio'): string {
   if (v == null) return '\u2014';
-  if (fmt === 'pct') return `${(v * 100).toFixed(2)}%`;
-  return v.toFixed(2);
+  if (fmt === 'pct') return fmtPct(v);
+  return fmtRatio(v);
 }
 
 /** 指标选择下拉项 */

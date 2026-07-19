@@ -6,44 +6,26 @@ function formatZodIssues(issues: ZodIssue[]): string {
   return issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
 }
 
-/**
- * 请求体校验中间件
- *
- * 使用 Zod schema 校验 `req.body`，校验失败时统一返回 RFC 7807 格式错误。
- *
- * @param schema - Zod schema
- */
-export function validate(schema: ZodSchema) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.body);
+function createValidator(source: 'body' | 'query', statusCode: number) {
+  const label = source === 'body' ? 'Request' : 'Query';
+  return (schema: ZodSchema) => (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(source === 'body' ? req.body : req.query);
     if (!result.success) {
-      sendProblem(res, 400, 'VALIDATION_ERROR', 'Bad Request', {
-        detail: `Request validation failed: ${formatZodIssues(result.error.issues)}`,
-      });
+      sendProblem(
+        res,
+        statusCode,
+        'VALIDATION_ERROR',
+        statusCode === 422 ? 'Unprocessable Entity' : 'Bad Request',
+        {
+          detail: `${label} validation failed: ${formatZodIssues(result.error.issues)}`,
+        },
+      );
       return;
     }
-    req.body = result.data;
+    if (source === 'body') req.body = result.data;
     next();
   };
 }
 
-/**
- * 查询参数校验中间件
- *
- * 使用 Zod schema 校验 `req.query`，校验失败时统一返回 RFC 7807 格式错误。
- * 校验通过后，将转换后的数据写回 `req.query`（需类型断言）。
- *
- * @param schema - Zod schema
- */
-export function validateQuery(schema: ZodSchema) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.query);
-    if (!result.success) {
-      sendProblem(res, 422, 'VALIDATION_ERROR', 'Unprocessable Entity', {
-        detail: `Query validation failed: ${formatZodIssues(result.error.issues)}`,
-      });
-      return;
-    }
-    next();
-  };
-}
+export const validate = createValidator('body', 400);
+export const validateQuery = createValidator('query', 422);

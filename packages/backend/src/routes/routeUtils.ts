@@ -19,6 +19,9 @@ import { EngineUnavailableError } from '../utils/engineClient.js';
 import { TimeoutError } from '../utils/timeout.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
+import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { hasTenant } from '../middleware/tenantContext.js';
+import { isUuid } from '../utils/validation.js';
 
 /**
  * 将引擎不可用错误翻译为 503 + Retry-After（ADR-031 fail-closed）。
@@ -67,25 +70,33 @@ function handleApplicationError(res: Response, error: unknown): boolean {
   return false;
 }
 
-interface RouteErrorConfig {
-  logMsg: string;
-  code: string;
-  title: string;
-  detail: string;
-  endpoint: string;
+export function ownerOf(req: AuthenticatedRequest): string | null {
+  const sub = req.user?.sub;
+  return sub && !sub.startsWith('apikey:') && !sub.startsWith('platform:') ? sub : null;
 }
 
-/**
- * CRUD 路由错误处理配置。
- *
- * 与 {@link RouteErrorConfig} 的区别：不含 `endpoint`，因为 CRUD 路由
- * 不调用引擎指标记录（recordBacktestRequest/recordDegradedResponse）。
- */
-interface CrudRouteErrorConfig {
+export function requireTenantId(req: AuthenticatedRequest, res: Response): string | null {
+  if (!hasTenant(req)) {
+    sendProblem(res, 401, 'TENANT_REQUIRED', 'Unauthorized', { detail: '组织上下文缺失' });
+    return null;
+  }
+  return req.tenantId;
+}
+
+export function requireUuidParam(res: Response, id: string | undefined): boolean {
+  if (!id || !isUuid(id)) {
+    sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
+    return false;
+  }
+  return true;
+}
+
+export interface RouteErrorConfig {
   logMsg: string;
   code: string;
   title: string;
   detail: string;
+  endpoint?: string;
 }
 
 /**
@@ -108,15 +119,17 @@ export function asyncRouteHandler(
       await fn(req, res);
     } catch (error) {
       if (handleEngineUnavailable(res, error)) {
-        recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
-        recordDegradedResponse(errorConfig.endpoint, 'engine_unavailable');
+        if (errorConfig.endpoint) {
+          recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
+          recordDegradedResponse(errorConfig.endpoint, 'engine_unavailable');
+        }
         return;
       }
       if (handleApplicationError(res, error)) {
-        recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
+        if (errorConfig.endpoint) recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
         return;
       }
-      recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
+      if (errorConfig.endpoint) recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
       logger.error({ err: error as Error }, errorConfig.logMsg);
       sendProblem(res, 500, errorConfig.code, errorConfig.title, { detail: errorConfig.detail });
     }
@@ -140,7 +153,7 @@ export function asyncRouteHandler(
  */
 export function crudRouteHandler(
   fn: (req: Request, res: Response) => Promise<void>,
-  errorConfig: CrudRouteErrorConfig,
+  errorConfig: RouteErrorConfig,
 ): RequestHandler {
   return async (req, res): Promise<void> => {
     try {

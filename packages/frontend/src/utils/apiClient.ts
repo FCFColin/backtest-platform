@@ -175,25 +175,6 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
 }
 
 /**
- * 检查响应是否为降级模式，如果是则显示 Toast 警告。
- *
- * 调用方在成功路径中调用此函数，避免 apiFetch 全局拦截与调用方重复 Toast。
- *
- * @param res - fetch 返回的 Response 对象
- */
-export async function notifyIfDegraded(res: Response): Promise<void> {
-  try {
-    const cloned = res.clone();
-    const body = await cloned.json();
-    if (body?.degraded === true) {
-      useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
-    }
-  } catch {
-    // 非 JSON 响应，跳过
-  }
-}
-
-/**
  * POST JSON 请求封装（基于 apiFetch）。
  *
  * 统一封装前端高频调用模式：发送 JSON body、HTTP 非 2xx 抛错、

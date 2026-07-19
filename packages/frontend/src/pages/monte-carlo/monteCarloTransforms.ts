@@ -59,8 +59,7 @@ export const monthFormatter = (v: number) => {
 
 export const dollarKFormatter = (v: number) => `$${(v / 1000).toFixed(0)}k`;
 
-export const dollarFormatter = (v: number) =>
-  `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+export const dollarFormatter = fmtDollar;
 
 export const yearLabelFormatter = (t: TFunction, l: number) =>
   `${(l / 12).toFixed(1)} ${t('monteCarlo.results.year')}`;

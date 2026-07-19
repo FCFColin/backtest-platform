@@ -18,18 +18,15 @@ export type OptimizationObjective = 'maxSharpe' | 'minVolatility' | 'maxReturn' 
  */
 export type BacktestOptimizerObjective = 'maxCagr' | 'minMaxDrawdown' | 'maxSharpe' | 'maxSortino';
 
-export interface OptimizationResult {
-  optimalWeights: Record<string, number>;
-  expectedReturn: number;
-  expectedVolatility: number;
-  sharpeRatio: number;
-}
-
 export interface EfficientFrontierPoint {
   weights: Record<string, number>;
   expectedReturn: number;
   expectedVolatility: number;
   sharpeRatio: number;
+}
+
+export interface OptimizationResult extends EfficientFrontierPoint {
+  optimalWeights: Record<string, number>;
 }
 
 export interface EfficientFrontierResult {

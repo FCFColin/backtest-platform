@@ -146,20 +146,8 @@ async function fetchHistoryDataImpl(
     return { data: result, degraded, degradedWarning };
   }
 
-  const stillMissing = missingTickers.filter(
-    (t) => !result[t] || Object.keys(result[t]).length === 0,
-  );
-  if (stillMissing.length === 0) {
-    span.setAttribute('cache_hit', true);
-    span.setAttribute('missing_count', 0);
-    logger.info(
-      `[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), took ${Date.now() - fetchStart}ms`,
-    );
-    return { data: result, degraded, degradedWarning };
-  }
-
   const cacheKey = getCacheKey('history', {
-    tickers: stillMissing.sort().join(','),
+    tickers: missingTickers.sort().join(','),
     start: startDate,
     end: endDate,
   });
@@ -167,21 +155,21 @@ async function fetchHistoryDataImpl(
   const cached = await readCache(cacheKey);
   if (cached) {
     span.setAttribute('cache_hit', true);
-    span.setAttribute('missing_count', stillMissing.length);
+    span.setAttribute('missing_count', missingTickers.length);
     Object.assign(result, cached);
     logger.info(
-      `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
+      `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${missingTickers.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
     );
     return { data: result, degraded, degradedWarning };
   }
 
   span.setAttribute('cache_hit', false);
-  span.setAttribute('missing_count', stillMissing.length);
+  span.setAttribute('missing_count', missingTickers.length);
 
-  const goResult = await fetchMissingFromGoService(stillMissing, startDate, endDate, cacheKey);
+  const goResult = await fetchMissingFromGoService(missingTickers, startDate, endDate, cacheKey);
   Object.assign(result, goResult);
 
-  const stillAfterGo = stillMissing.filter(
+  const stillAfterGo = missingTickers.filter(
     (t) => !result[t] || Object.keys(result[t]).length === 0,
   );
   if (stillAfterGo.length > 0) {
@@ -190,7 +178,7 @@ async function fetchHistoryDataImpl(
   }
 
   logger.info(
-    `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing, took ${Date.now() - fetchStart}ms`,
+    `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${missingTickers.length} missing, took ${Date.now() - fetchStart}ms`,
   );
   return { data: result, degraded, degradedWarning };
 }

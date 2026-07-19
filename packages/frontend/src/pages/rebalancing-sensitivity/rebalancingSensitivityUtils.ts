@@ -8,6 +8,7 @@ import {
   DEFAULT_END_DATE,
   BASE_BACKTEST_PARAMS,
 } from '@/utils/constants';
+import { validateAssetWeights } from '@/utils/validation';
 
 const REBALANCE_LABELS_ZH: Record<RebalanceFrequency, string> = {
   daily: '每日',
@@ -278,13 +279,13 @@ function createRebalancingRunners(
     baseCurrency: 'usd' | 'cny';
     adjustForInflation: boolean;
   },
-  totalWeight: number,
   assets: Array<{ ticker: string; weight: number }>,
 ) {
   const validate = (): Array<{ ticker: string; weight: number }> | string => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) return '请至少添加一个标的';
-    if (Math.abs(totalWeight - 100) > 0.01) return '权重合计必须为 100%';
+    const weightErr = validateAssetWeights(assets);
+    if (weightErr) return weightErr;
     if (s.selectedFreqs.length === 0) return '请至少选择一个调仓频率';
     return validAssets;
   };
@@ -370,12 +371,7 @@ export function useRebalancingState(): RebalancingState {
     baseCurrency: s.baseCurrency,
     adjustForInflation: s.adjustForInflation,
   };
-  const { runSensitivity, runOffsetScan } = createRebalancingRunners(
-    s,
-    params,
-    totalWeight,
-    assets,
-  );
+  const { runSensitivity, runOffsetScan } = createRebalancingRunners(s, params, assets);
 
   // 内部 setter（setSelectedFreqs/setIsLoading/setError/setResults/setOffsetResults/
   // setIsLoadingOffset）随 spread 暴露到运行时但不在 RebalancingState 类型中，

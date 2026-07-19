@@ -79,8 +79,8 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 
 	totalReturn := CalcTotalReturn(req.StartingValue, finalValue)
 	pctPositiveDays := ratioPositive(req.DailyReturns)
-	maxDailyRet := maxValue(req.DailyReturns)
-	minDailyRet := minValue(req.DailyReturns)
+	maxDailyRet := MaxValue(req.DailyReturns)
+	minDailyRet := MinValue(req.DailyReturns)
 	pwr := CalcPWR(req.AnnualReturnValues)
 	avgYear := 0.0
 	if len(req.AnnualReturnValues) > 0 {
@@ -104,12 +104,12 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		Sortino:               sortino,
 		MaxDrawdown:           dd.MaxDrawdown,
 		MaxDrawdownDuration:   dd.MaxDrawdownDuration,
-		BestYear:              CalcBestYear(req.AnnualReturnValues),
-		WorstYear:             CalcWorstYear(req.AnnualReturnValues),
+		BestYear:              MaxValue(req.AnnualReturnValues),
+		WorstYear:             MinValue(req.AnnualReturnValues),
 		AvgYear:               avgYear,
 		TotalReturn:           totalReturn,
-		MaxMonthlyReturn:      CalcBestMonth(req.MonthlyReturnValues),
-		MinMonthlyReturn:      CalcWorstMonth(req.MonthlyReturnValues),
+		MaxMonthlyReturn:      MaxValue(req.MonthlyReturnValues),
+		MinMonthlyReturn:      MinValue(req.MonthlyReturnValues),
 		AvgDrawdown:           avgDD,
 		UlcerIndex:            ulcerIdx,
 		Calmar:                calmar,

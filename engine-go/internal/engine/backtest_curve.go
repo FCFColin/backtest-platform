@@ -108,8 +108,7 @@ func computeGrowthCurve(
 
 	for di, date := range dates {
 		if liquidated {
-			curve = append(curve, DataPoint{Date: date, Value: 0})
-			vals = append(vals, 0)
+			curve, vals = appendZeroDay(curve, vals, date)
 			prev = date
 			continue
 		}
@@ -146,8 +145,7 @@ func computeGrowthCurve(
 			if pv <= 0 {
 				liquidated = true
 				zeroHoldings(holdings)
-				curve = append(curve, DataPoint{Date: date, Value: 0})
-				vals = append(vals, 0)
+				curve, vals = appendZeroDay(curve, vals, date)
 				prev = date
 				continue
 			}
@@ -157,8 +155,7 @@ func computeGrowthCurve(
 		if pv <= 0 {
 			liquidated = true
 			zeroHoldings(holdings)
-			curve = append(curve, DataPoint{Date: date, Value: 0})
-			vals = append(vals, 0)
+			curve, vals = appendZeroDay(curve, vals, date)
 			prev = date
 			continue
 		}
@@ -210,6 +207,13 @@ func recalculateShares(holdings []float64, shares *[]float64, lastPrices []float
 			(*shares)[i] = 0
 		}
 	}
+}
+
+// appendZeroDay 追加零值交易日到曲线和值序列。
+func appendZeroDay(curve []DataPoint, vals []float64, date string) ([]DataPoint, []float64) {
+	curve = append(curve, DataPoint{Date: date, Value: 0})
+	vals = append(vals, 0)
+	return curve, vals
 }
 
 // zeroHoldings 将所有持仓清零。

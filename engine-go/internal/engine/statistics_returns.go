@@ -25,13 +25,9 @@ func CalcRollingReturns(values []float64, dates []string, windowMonths int) []Ro
 func CalcAnnualReturns(values []float64, dates []string) []AnnualReturn {
 	// 收集每年最后交易日的值
 	yearLastValue := make(map[int]float64)
-	yearFirstValue := make(map[int]float64)
 	for i, v := range values {
 		year := parseYear(dates[i])
 		yearLastValue[year] = v
-		if _, ok := yearFirstValue[year]; !ok {
-			yearFirstValue[year] = v
-		}
 	}
 
 	years := make([]int, 0, len(yearLastValue))
