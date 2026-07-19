@@ -43,7 +43,7 @@ vi.mock('@opentelemetry/api', () => {
   };
 });
 
-vi.mock('../../packages/backend/src/services/dataCacheService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/dataCacheService.js', () => ({
   readCache: vi.fn(async () => null),
   getCacheKey: vi.fn(() => 'chaos-test-cache-key'),
   writeCache: vi.fn(),
@@ -62,12 +62,10 @@ vi.mock('../../packages/backend/src/utils/tickerValidation.js', () => ({
 
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { config } from '../../packages/backend/src/config/index.js';
-import { getPool, initSchema, closeDb } from '../../packages/backend/src/db/index.js';
-import {
-  fetchHistoryDataWithDegraded,
-  consumeDegradedFlag,
-} from '../../packages/backend/src/services/dataService.js';
-import { pgCircuitBreaker } from '../../packages/backend/src/services/dataQueryService.js';
+import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
+import { initSchema } from '../../packages/backend/src/db/migrations.js';
+import { fetchHistoryData } from '../../packages/backend/src/services/dataService.js';
+import { pgCircuitBreaker } from '../../packages/backend/src/infrastructure/dataQueryService.js';
 import { isDockerAvailable } from '../helpers/testcontainersPg.js';
 
 const dockerAvailable = isDockerAvailable();
@@ -77,16 +75,20 @@ const dockerAvailable = isDockerAvailable();
 
 let container: StartedPostgreSqlContainer;
 
-beforeAll(async () => {
-  if (!dockerAvailable) return;
-
-  container = await new PostgreSqlContainer('postgres:16-alpine')
+/**
+ * 创建并初始化 PG 容器：启动容器、设置 DATABASE_URL、初始化 schema、插入测试数据。
+ *
+ * testcontainers 默认 autoRemove=true，stop() 会删除容器而非仅停止，
+ * 因此 PG down 测试后无法 restart，需新建容器恢复。
+ */
+async function createAndSetupContainer(): Promise<StartedPostgreSqlContainer> {
+  const c = await new PostgreSqlContainer('postgres:16-alpine')
     .withDatabase('backtest_test')
     .withUsername('backtest')
     .withPassword('backtest')
     .start();
 
-  const connStr = container.getConnectionUri();
+  const connStr = c.getConnectionUri();
   process.env.DATABASE_URL = connStr;
   (config as { DATABASE_URL: string }).DATABASE_URL = connStr;
   await closeDb();
@@ -102,20 +104,26 @@ beforeAll(async () => {
   await pool.query(
     "INSERT INTO prices (ticker, date, close) VALUES ('AAPL', '2023-01-04', 132.5) ON CONFLICT (ticker, date) DO NOTHING",
   );
+
+  return c;
+}
+
+beforeAll(async () => {
+  if (!dockerAvailable) return;
+  container = await createAndSetupContainer();
 }, 60000);
 
 afterAll(async () => {
   if (!dockerAvailable) return;
   await closeDb();
-  await container.stop();
+  if (container) await container.stop();
 }, 30000);
 
 describe.skipIf(!dockerAvailable)('Chaos: DB Outage via testcontainers', () => {
   it('稳态：PG up 时返回数据且不降级', async () => {
     pgCircuitBreaker.close();
-    consumeDegradedFlag();
 
-    const res = await fetchHistoryDataWithDegraded(['AAPL'], '2023-01-01', '2023-12-31');
+    const res = await fetchHistoryData(['AAPL'], '2023-01-01', '2023-12-31');
     expect(res.degraded).toBe(false);
     expect(res.data.AAPL).toBeDefined();
     expect(Object.keys(res.data.AAPL).length).toBeGreaterThan(0);
@@ -123,27 +131,25 @@ describe.skipIf(!dockerAvailable)('Chaos: DB Outage via testcontainers', () => {
 
   it('PG down 时降级标记正确传播（degraded=true）', async () => {
     pgCircuitBreaker.close();
-    consumeDegradedFlag();
 
     await container.stop();
 
     try {
       await new Promise((r) => setTimeout(r, 1000));
 
-      const res = await fetchHistoryDataWithDegraded(['AAPL'], '2023-01-01', '2023-12-31');
+      const res = await fetchHistoryData(['AAPL'], '2023-01-01', '2023-12-31');
       expect(res.degraded).toBe(true);
     } finally {
-      await container.restart();
-      await new Promise((r) => setTimeout(r, 3000));
-      await closeDb();
+      // testcontainers 默认 autoRemove=true，stop() 已删除容器，无法 restart。
+      // 新建容器恢复 PG（含 schema + 测试数据），供后续恢复测试使用。
+      container = await createAndSetupContainer();
     }
-  }, 30000);
+  }, 60000);
 
   it('恢复：PG restart 后正常返回数据', async () => {
     pgCircuitBreaker.close();
-    consumeDegradedFlag();
 
-    const res = await fetchHistoryDataWithDegraded(['AAPL'], '2023-01-01', '2023-12-31');
+    const res = await fetchHistoryData(['AAPL'], '2023-01-01', '2023-12-31');
     expect(res.degraded).toBe(false);
     expect(res.data.AAPL).toBeDefined();
   });

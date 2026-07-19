@@ -22,13 +22,8 @@ vi.mock('../../packages/backend/src/utils/logger.js', () => ({
 }));
 
 import { config } from '../../packages/backend/src/config/index.js';
-import {
-  getPool,
-  initSchema,
-  rollbackSchema,
-  closeDb,
-  healthCheck,
-} from '../../packages/backend/src/db/index.js';
+import { initSchema, rollbackSchema } from '../../packages/backend/src/db/migrations.js';
+import { getPool, closeDb, healthCheck } from '../../packages/backend/src/db/pool.js';
 
 // Docker 可用性检查：testcontainers 依赖 Docker 守护进程
 // 通过执行 `docker info` 检测，失败则跳过整个测试套件

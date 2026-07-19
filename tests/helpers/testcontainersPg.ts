@@ -11,9 +11,11 @@
  */
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { execSync } from 'node:child_process';
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, Router } from 'express';
 import { config } from '../../packages/backend/src/config/index.js';
-import { getPool, initSchema, closeDb } from '../../packages/backend/src/db/index.js';
+import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
+import { initSchema } from '../../packages/backend/src/db/migrations.js';
+import { startExpressApp, type TestServer } from './expressApp.js';
 
 /** testcontainers PG 容器上下文 */
 export interface TestContainerContext {
@@ -29,6 +31,8 @@ export interface SeedData {
   orgId: string;
   /** 用户 UUID */
   userId: string;
+  /** 第二个 owner 用户 UUID（用于"最后一个 owner 保护"场景下安全降级 userId） */
+  secondUserId: string;
 }
 
 /**
@@ -74,9 +78,12 @@ export async function setupTestContainer(): Promise<TestContainerContext> {
 }
 
 /**
- * 种子数据：创建组织、用户与 owner 成员关系
+ * 种子数据：创建组织、两个 owner 用户与成员关系
  *
- * @returns 组织 ID 与用户 ID
+ * 创建两个 owner 是为了在"最后一个 owner 保护"安全约束下，
+ * 仍能安全地把 `userId` 降级为 admin（因还有一个 owner 兜底）。
+ *
+ * @returns 组织 ID 与两个 owner 用户 ID
  */
 export async function seedOrgAndUser(): Promise<SeedData> {
   const pool = getPool();
@@ -86,13 +93,21 @@ export async function seedOrgAndUser(): Promise<SeedData> {
   const userResult = await pool.query(
     "INSERT INTO users (username, password_hash) VALUES ('testuser-' || gen_random_uuid(), 'hash') RETURNING id",
   );
+  const secondUserResult = await pool.query(
+    "INSERT INTO users (username, password_hash) VALUES ('testuser2-' || gen_random_uuid(), 'hash') RETURNING id",
+  );
   const orgId: string = orgResult.rows[0].id;
   const userId: string = userResult.rows[0].id;
+  const secondUserId: string = secondUserResult.rows[0].id;
   await pool.query("INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')", [
     orgId,
     userId,
   ]);
-  return { orgId, userId };
+  await pool.query("INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')", [
+    orgId,
+    secondUserId,
+  ]);
+  return { orgId, userId, secondUserId };
 }
 
 /**
@@ -119,4 +134,32 @@ export function mockAuthMiddleware(orgId: string, userId: string) {
     };
     next();
   };
+}
+
+/**
+ * 启动 SaaS 集成测试服务器（mock 鉴权 + 路由挂载 + 随机端口监听）
+ *
+ * 替代各 SaaS 集成测试中重复的：
+ *   const app = express();
+ *   app.use(express.json());
+ *   app.use(mockAuthMiddleware(orgId, userId));
+ *   app.use('/api/v1/...', routes);
+ *   await new Promise((resolve) => { const server = app.listen(0, () => {...}); });
+ *
+ * @param orgId - 活跃组织（租户）UUID
+ * @param userId - 用户 UUID
+ * @param mountPath - 路由挂载路径（如 '/api/v1/configs'）
+ * @param router - Express 路由实例
+ * @returns 测试服务器句柄（url + close）
+ */
+export async function startSaasTestServer(
+  orgId: string,
+  userId: string,
+  mountPath: string,
+  router: Router,
+): Promise<TestServer> {
+  return startExpressApp((app) => {
+    app.use(mockAuthMiddleware(orgId, userId));
+    app.use(mountPath, router);
+  });
 }
