@@ -293,7 +293,7 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     if (savedTrustProxy !== undefined) process.env.TRUST_PROXY_HOPS = savedTrustProxy;
   });
 
-  it('生产环境 REQUIRE_API_KEY 为 false 时应抛错（T-03 硬失败）', () => {
+  it('生产环境 REQUIRE_API_KEY 为 false 时不应抛错（RBAC 始终生效，REQUIRE_API_KEY 已退役）', () => {
     config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret-32-chars-minimum-ok';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
@@ -303,13 +303,17 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     config.REQUIRE_API_KEY = false;
 
     const savedDbUrl = process.env.DATABASE_URL;
+    const savedTrustProxy = process.env.TRUST_PROXY_HOPS;
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
+    process.env.TRUST_PROXY_HOPS = '1';
     config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
 
-    expect(() => validateConfig()).toThrow('REQUIRE_API_KEY');
+    expect(() => validateConfig()).not.toThrow();
 
     if (savedDbUrl !== undefined) process.env.DATABASE_URL = savedDbUrl;
     else delete process.env.DATABASE_URL;
+    if (savedTrustProxy !== undefined) process.env.TRUST_PROXY_HOPS = savedTrustProxy;
+    else delete process.env.TRUST_PROXY_HOPS;
   });
 
   it('多个校验失败时错误信息应包含全部失败项', () => {
@@ -398,8 +402,8 @@ describe('DATABASE_URL SSL 配置', () => {
     expect(url).toContain('sslmode=require');
   });
 
-  it('生产环境 db/index.ts 应根据 NODE_ENV 配置 SSL', () => {
-    // config.NODE_ENV 为 production 时，db/index.ts 会配置 ssl: { rejectUnauthorized: true }
+  it('生产环境 db/pool.ts 应根据 NODE_ENV 配置 SSL', () => {
+    // config.NODE_ENV 为 production 时，db/pool.ts 会配置 ssl: { rejectUnauthorized: true }
     // 此处验证 config.NODE_ENV 的类型正确
     expect(['development', 'production', 'test']).toContain(config.NODE_ENV);
   });

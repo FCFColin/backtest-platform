@@ -12,11 +12,11 @@
  */
 import Stripe from 'stripe';
 import { config } from '../config/index.js';
-import { getPool } from '../db/index.js';
+import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 
 /** 可购买的付费计划 */
-export type BillablePlan = 'pro' | 'enterprise';
+type BillablePlan = 'pro' | 'enterprise';
 
 let stripe: Stripe | null = null;
 

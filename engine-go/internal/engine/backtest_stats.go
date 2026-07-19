@@ -116,14 +116,35 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 		InformationRatio:      informationRatio,
 		UpsideCapture:         upsideCapture,
 		DownsideCapture:       downsideCapture,
-		VaR5:                  var5,
-		CVaR5:                 cvar5,
-		Skewness:              skewness,
-		ExcessKurtosis:        excessKurtosis,
-		PctPositiveDays:       pctPositiveDays,
 		MaxDailyReturn:        maxDailyReturn,
 		MinDailyReturn:        minDailyReturn,
 		PWR:                   pwr,
+		Var: VaRByFrequency{
+			Daily:   VaRLevels{One: CalcVaR(dailyRets, 0.99), Five: var5, Ten: CalcVaR(dailyRets, 0.90)},
+			Monthly: VaRLevels{},
+			Annual:  VaRLevels{},
+		},
+		Cvar: VaRByFrequency{
+			Daily:   VaRLevels{One: CalcCVaR(dailyRets, 0.99), Five: cvar5, Ten: CalcCVaR(dailyRets, 0.90)},
+			Monthly: VaRLevels{},
+			Annual:  VaRLevels{},
+		},
+		Skewness: SkewnessByFrequency{
+			Daily:   skewness,
+			Monthly: 0,
+			Annual:  0,
+		},
+		ExcessKurtosis: SkewnessByFrequency{
+			Daily:   excessKurtosis,
+			Monthly: 0,
+			Annual:  0,
+		},
+		WinRate: SkewnessByFrequency{
+			Daily:   pctPositiveDays,
+			Monthly: 0,
+			Annual:  0,
+		},
+		PctPositiveDays: pctPositiveDays,
 	}
 }
 

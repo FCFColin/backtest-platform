@@ -2,7 +2,10 @@
  * i18n 初始化配置
  * 支持中文（zh-CN）和英文（en）
  *
- * 两种语言均静态打包，避免英文用户首屏先渲染中文再切换（中英混杂闪烁）。
+ * react-i18next 实际行为：两种语言资源均静态打包（见上方 import），且 `lng`
+ * 字段在 init 时即通过 `normalizeLng` 显式设定，故首屏渲染即为目标语言，无中英
+ * 混杂闪烁。LanguageDetector 仅负责将语言选择缓存到 localStorage，便于后续
+ * 切换；显式 `lng` 优先级高于检测结果，因此无需 `convertDetectedLanguage`。
  */
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
@@ -48,7 +51,6 @@ i18n
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: 'i18nextLng',
       caches: ['localStorage'],
-      convertDetectedLanguage: normalizeLng,
     },
   });
 

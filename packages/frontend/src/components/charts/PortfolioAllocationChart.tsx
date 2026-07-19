@@ -13,15 +13,16 @@ import {
   Legend,
   Brush,
 } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
-import { ChartExporter } from '../ChartExporter.js';
+import ChartCard from '../ChartCard.js';
 import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
 } from '../../hooks/useChartInteractions.js';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import {
   CHART_MARGIN,
   CHART_GRID_PROPS,
@@ -97,6 +98,7 @@ function AllocationHistoryChart({
   assets: Portfolio['assets'];
   allocationHistory: NonNullable<AllocationPortfolio['allocationHistory']>;
 }) {
+  const { t } = useTranslation();
   const data = allocationHistory.map((snapshot) => {
     const entry: Record<string, string | number> = { date: snapshot.date };
     for (let i = 0; i < assets.length; i++) {
@@ -107,18 +109,18 @@ function AllocationHistoryChart({
   const chartData = data.length > DOWNSAMPLE_THRESHOLD ? downsample(data, DOWNSAMPLE_TARGET) : data;
 
   return (
-    <div className="chart-card">
-      <div className="flex items-center justify-between mb-3">
-        <div className="chart-card-title mb-0">组合配置</div>
-        <ChartExporter data={data} filename="portfolio-allocation" />
-      </div>
+    <ChartCard
+      title={t('charts.portfolioAllocation.title')}
+      data={data}
+      csvFilename="portfolio-allocation"
+    >
       <AllocationAreaChart
         data={chartData}
         assets={assets}
         showBrush={chartData.length > 100}
         fillOpacity={0.6}
       />
-    </div>
+    </ChartCard>
   );
 }
 
@@ -130,6 +132,7 @@ function InitialWeightChart({
   assets: Portfolio['assets'];
   growthCurve: Array<{ date: string; value: number }>;
 }) {
+  const { t } = useTranslation();
   const sampled = growthCurve.filter((_, i) => i % 20 === 0);
   const data = sampled.map((point) => {
     const entry: Record<string, string | number> = { date: point.date };
@@ -137,17 +140,19 @@ function InitialWeightChart({
     return entry;
   });
   if (data.length === 0) {
-    const entry: Record<string, string | number> = { date: '起始' };
+    const entry: Record<string, string | number> = {
+      date: t('charts.portfolioAllocation.startDate'),
+    };
     for (const asset of assets) entry[asset.ticker] = asset.weight;
     data.push(entry);
   }
 
   return (
-    <div className="chart-card">
-      <div className="flex items-center justify-between mb-3">
-        <div className="chart-card-title mb-0">组合配置</div>
-        <ChartExporter data={data} filename="portfolio-allocation" />
-      </div>
+    <ChartCard
+      title={t('charts.portfolioAllocation.title')}
+      data={data}
+      csvFilename="portfolio-allocation"
+    >
       <AllocationAreaChart
         data={data}
         assets={assets}
@@ -158,18 +163,19 @@ function InitialWeightChart({
         className="text-[11px] mt-2 text-center"
         style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}
       >
-        精确配置漂移需要逐资产净值数据，当前展示初始权重分配
+        {t('charts.portfolioAllocation.initialWeightHint')}
       </div>
-    </div>
+    </ChartCard>
   );
 }
 
 export default function PortfolioAllocationChart({ portfolios }: PortfolioAllocationChartProps) {
+  const { t } = useTranslation();
   if (portfolios.length === 0) {
     return (
       <div className="chart-card">
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          暂无组合配置数据
+          {t('charts.portfolioAllocation.noData')}
         </div>
       </div>
     );
@@ -181,9 +187,9 @@ export default function PortfolioAllocationChart({ portfolios }: PortfolioAlloca
   if (assets.length === 0) {
     return (
       <div className="chart-card">
-        <div className="chart-card-title">组合配置</div>
+        <div className="chart-card-title">{t('charts.portfolioAllocation.title')}</div>
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          组合中无资产
+          {t('charts.portfolioAllocation.noAssets')}
         </div>
       </div>
     );

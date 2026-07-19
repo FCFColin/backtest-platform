@@ -1,5 +1,5 @@
 /** 预设 Ticker 分类 */
-export interface TickerPreset {
+interface TickerPreset {
   ticker: string;
   name: string;
   category: string;

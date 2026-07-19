@@ -110,4 +110,17 @@ export const authConfig = {
    * @default ""
    */
   JWT_PUBLIC_KEY_FILE: process.env.JWT_PUBLIC_KEY_FILE || '',
+
+  // ---------------------------------------------------------------------------
+  // 安全配置（从 securityConfig.ts 合并）
+  // ---------------------------------------------------------------------------
+
+  /** 审计日志与缓存完整性校验使用的 HMAC-SHA256 密钥。 */
+  AUDIT_HMAC_KEY: process.env.AUDIT_HMAC_KEY || '',
+
+  /** 调试端点 Bearer 令牌。未配置时 /api/v1/debug/* 返回 404。 */
+  DEBUG_AUTH_TOKEN: process.env.DEBUG_AUTH_TOKEN || '',
+
+  /** 运维端点 Bearer 令牌（/ready / /metrics）。未配置时免鉴权。 */
+  METRICS_AUTH_TOKEN: process.env.METRICS_AUTH_TOKEN || '',
 };

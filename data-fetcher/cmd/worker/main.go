@@ -99,7 +99,7 @@ func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
 		low    DOUBLE PRECISION,
 		close  DOUBLE PRECISION,
 		volume BIGINT,
-		adj_close DOUBLE PRECISION,
+		adjusted_close DOUBLE PRECISION,
 		PRIMARY KEY (ticker, date)
 	);
 	CREATE INDEX IF NOT EXISTS idx_prices_ticker_date ON prices (ticker, date);
@@ -215,11 +215,11 @@ func writePricesToDB(ctx context.Context, pool *pgxpool.Pool, ticker string, pri
 	batch := &pgx.Batch{}
 	for _, p := range prices {
 		batch.Queue(`
-			INSERT INTO prices (ticker, date, open, high, low, close, volume, adj_close)
+			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			ON CONFLICT (ticker, date) DO UPDATE SET
 				open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
-				close = EXCLUDED.close, volume = EXCLUDED.volume, adj_close = EXCLUDED.adj_close
+				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close
 		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, p.AdjustedClose)
 	}
 

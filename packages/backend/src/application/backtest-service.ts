@@ -1,232 +1,278 @@
-// DDD: Application Service — 编排回测执行流程，不包含业务规则
-// 企业为何需要：路由直接调用引擎导致业务逻辑泄漏到 HTTP 层，
-// 分层后路由只负责 HTTP 适配，回测执行（引擎调用 + 事件发布）集中到服务层。
-// 权衡：增加一层间接调用，但分层后各层职责清晰，引擎调用与事件发布可独立测试。
-
+/**
+ * 回测应用服务。编排：领域校验 → 数据获取 → 引擎调用 → 事件发布。
+ *
+ * 仅负责组合回测（POST /api/backtest/portfolio）的业务编排。
+ * 分析、蒙特卡洛、优化已拆分到各自的应用服务：
+ *   - analysis-service.ts:  单资产分析、PCA、LETF、目标优化
+ *   - montecarlo-service.ts: 蒙特卡洛模拟
+ *   - optimize-service.ts:   组合优化 + 有效前沿 + 回测优化器
+ *
+ * 共享工具函数在 backtest-helpers.ts 中。
+ */
 import { randomUUID } from 'crypto';
 import { trace } from '@opentelemetry/api';
 import { callEngineStrict } from '../utils/engineClient.js';
-import { buildEnginePortfolioBody, buildEngineParams } from '../utils/engineBodyBuilder.js';
-import { eventDispatcher } from '../domain/events/index.js';
-import { getClient } from '../db/index.js';
-import { writeEventInTransaction } from '../services/outboxWriter.js';
+import { buildEngineParams } from './backtest/engineBodyBuilder.js';
+import { getClient } from '../db/pool.js';
+import { writeEventInTransaction } from '../infrastructure/outboxWriter.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
-import type {
-  Portfolio,
-  BacktestParameters,
-  BacktestResult,
-  PriceData,
-} from '@backtest/shared/types';
-import { loadCpiMapFromDb, loadExchangeRatesFromDb } from '../db/macroData.js';
+import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
+import { eventDispatcher } from '../domain/events/index.js';
+import { withTimeout } from '../utils/timeout.js';
+import { config } from '../config/index.js';
+import { compressBacktestResultForSync } from './backtest/compressBacktestResult.js';
+import { backtestCacheKey, setBacktestResultCache } from './backtest/backtestResultCache.js';
+import type { BacktestExecutionParams, BacktestExecutionResult } from './backtest-helpers.js';
+import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
+import {
+  preparePortfolioBacktest,
+  collectInvalidTickerWarnings,
+  fetchPriceData,
+  loadMacroData,
+  translateDomainError,
+} from './backtest-helpers.js';
 
-/** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
-/** 回测执行入参 */
-export interface BacktestExecutionParams {
+/**
+ * 组合回测完整编排（薄路由调用的入口）。
+ *
+ * 职责：领域校验 → 数据获取 → 无效标的检测 → 宏观数据加载 →
+ *       引擎调用（带超时）→ 缓存写入 → 结果压缩 → 返回
+ *
+ * @returns 压缩后的回测结果 + 警告列表
+ * @throws {ValidationError} 日期格式或标的格式非法
+ * @throws {EngineUnavailableError} Go 引擎不可用时（ADR-031 fail-closed）
+ */
+export async function runPortfolioBacktest(opts: {
   portfolios: Portfolio[];
   parameters: BacktestParameters;
-  priceData: PriceData;
-  cpiData?: Record<string, number>;
-  exchangeRates?: Record<string, number>;
-}
+  tenantId?: string;
+  ownerUserId?: string;
+}): Promise<{ result: unknown; warnings: string[] }> {
+  const { portfolios, parameters, tenantId, ownerUserId } = opts;
 
-/** 回测执行结果（含降级标记） */
-export interface BacktestExecutionResult {
-  result: BacktestResult;
-  degraded: boolean;
+  const prep = preparePortfolioBacktest(portfolios, parameters);
+  const { allTickers, warnings } = prep;
+
+  const priceData = await fetchPriceData(
+    Array.from(allTickers),
+    parameters.startDate,
+    parameters.endDate,
+  );
+
+  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
+
+  if (invalidTickers.length > 0) {
+    throw new Error(`INVALID_TICKERS: 以下标的代码无效：${invalidTickers.join(', ')}`);
+  }
+
+  const { cpiData, exchangeRates } = await loadMacroData(parameters);
+  const { result } = await withTimeout(
+    runBacktest({
+      portfolios,
+      parameters,
+      priceData,
+      cpiData,
+      exchangeRates,
+      tenantId,
+      ownerUserId,
+    }),
+    config.BACKTEST_SYNC_TIMEOUT_MS,
+    'portfolio-backtest',
+  );
+
+  const cacheKey = backtestCacheKey(portfolios, parameters, tenantId);
+  void setBacktestResultCache(cacheKey, result);
+
+  return { result: compressBacktestResultForSync(result), warnings };
 }
 
 /**
- * 回测应用服务
+ * 运行组合回测。
  *
- * 编排回测执行流程：引擎调用（Go 引擎，fail-closed）+ 领域事件发布。
- * 路由层只负责 HTTP 适配（请求校验、数据获取、响应格式化），
- * 回测核心执行逻辑集中到此服务，确保业务逻辑不泄漏到 HTTP 层。
+ * 先通过 domain 层验证组合不变量（权重和=100、无非负权重），
+ * 再调用 Go 引擎计算，最后发布 BacktestCompleted 领域事件。
+ *
+ * @throws {EngineUnavailableError} Go 引擎不可用时（ADR-031 fail-closed）
+ * @throws {Error} 组合权重校验失败时
  */
-export class BacktestApplicationService {
-  /**
-   * 运行组合回测
-   *
-   * 1. 构造引擎请求体（过滤无关价格数据，减少序列化开销）
-   * 2. 通过 callEngineStrict 调用 Go 引擎（不可用时 fail-closed 抛错，ADR-031）
-   * 3. 发布 BacktestCompleted 领域事件（触发审计、通知等副作用）
-   *
-   * @param params - 回测执行参数（组合、参数、价格数据、宏观数据）
-   * @returns 回测结果（成功路径恒为引擎计算结果，degraded 恒为 false）
-   * @throws {EngineUnavailableError} 当 Go 引擎不可用时（ADR-031 fail-closed）
-   */
-  /** 收集所有 ticker 并过滤价格数据 */
-  private collectTickersAndFilterPrices(
-    portfolios: Portfolio[],
-    benchmarkTicker: string,
-    priceData: Record<string, Record<string, number>>,
-  ): Record<string, Record<string, number>> {
-    const allTickers = new Set<string>();
-    for (const portfolio of portfolios) {
-      for (const asset of portfolio.assets) {
-        allTickers.add(asset.ticker);
-      }
-    }
-    if (benchmarkTicker) {
-      allTickers.add(benchmarkTicker);
-    }
+export async function runBacktest(
+  params: BacktestExecutionParams,
+): Promise<BacktestExecutionResult> {
+  const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
 
-    const filteredPriceData: Record<string, Record<string, number>> = {};
-    for (const ticker of allTickers) {
-      if (priceData[ticker]) {
-        filteredPriceData[ticker] = priceData[ticker];
-      }
-    }
-    return filteredPriceData;
-  }
+  // DDD: 将 DTO 转为领域聚合根 — 构造时自动校验不变量（权重和、Ticker格式、Weight范围）
+  const domainPortfolios = portfolios.map((p) =>
+    translateDomainError(() => DomainPortfolio.fromDTO(p)),
+  );
 
-  /** 异步发布 BacktestCompleted 领域事件（Outbox + EventDispatcher） */
-  private publishBacktestEvent(
-    aggregateId: string,
-    eventId: string,
-    eventPayload: Record<string, unknown>,
-  ): void {
-    void (async () => {
-      try {
-        const client = await getClient();
-        try {
-          await client.query('BEGIN');
-          await writeEventInTransaction(client, {
-            aggregateType: 'BacktestSession',
-            aggregateId,
-            eventType: 'BacktestCompleted',
-            payload: { ...eventPayload, occurredAt: new Date().toISOString() },
-            eventId,
-          });
-          await client.query('COMMIT');
-          await client.query('NOTIFY outbox_channel');
-        } catch (err) {
-          await client.query('ROLLBACK');
-          logger.error(
-            { err, aggregateId },
-            'Failed to write BacktestCompleted event to outbox (transactional)',
-          );
-        } finally {
-          client.release();
-        }
-      } catch (err) {
-        logger.error(
-          { err, aggregateId },
-          'Failed to acquire client for transactional outbox write',
-        );
-      }
+  return tracer.startActiveSpan('BacktestApplicationService.runBacktest', async (span) => {
+    try {
+      const tickerCount = countUniqueTickers(domainPortfolios, parameters.benchmarkTicker);
+      span.setAttribute('portfolio_count', portfolios.length);
+      span.setAttribute('ticker_count', tickerCount);
 
-      try {
-        await eventDispatcher.dispatch({
-          eventType: 'BacktestCompleted',
-          aggregateType: 'BacktestSession',
-          aggregateId,
-          payload: eventPayload,
-          occurredAt: new Date(),
-        });
-      } catch (err) {
-        logger.error({ err, aggregateId }, 'BacktestCompleted event dispatch failed');
-      }
-    })();
-  }
-
-  async runBacktest(params: BacktestExecutionParams): Promise<BacktestExecutionResult> {
-    const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
-
-    return tracer.startActiveSpan('BacktestApplicationService.runBacktest', async (span) => {
-      try {
-        const tickerCount = this.countUniqueTickers(portfolios, parameters.benchmarkTicker);
-        span.setAttribute('portfolio_count', portfolios.length);
-        span.setAttribute('ticker_count', tickerCount);
-
-        logger.info(
-          {
-            portfolioCount: portfolios.length,
-            startDate: parameters.startDate,
-            endDate: parameters.endDate,
-          },
-          'Starting backtest',
-        );
-
-        const filteredPriceData = this.collectTickersAndFilterPrices(
-          portfolios,
-          parameters.benchmarkTicker,
-          priceData,
-        );
-
-        span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === tickerCount);
-
-        const engineBody = {
-          portfolios: portfolios.map((p) => buildEnginePortfolioBody(p)),
-          priceData: filteredPriceData,
-          params: buildEngineParams(parameters),
-          cpiData,
-          exchangeRates,
-        };
-
-        const result = await callEngineStrict<BacktestResult>('/api/engine/backtest', engineBody);
-        const degraded = false;
-
-        const firstStats = result.portfolios[0]?.statistics;
-        const aggregateId = `backtest-${Date.now()}`;
-        const eventId = randomUUID();
-        const eventPayload = {
-          startingValue: parameters.startingValue,
+      logger.info(
+        {
           portfolioCount: portfolios.length,
-          totalReturn: firstStats?.totalReturn,
-          maxDrawdown: firstStats?.maxDrawdown,
-          sharpeRatio: firstStats?.sharpe,
-          degraded,
-        };
+          startDate: parameters.startDate,
+          endDate: parameters.endDate,
+        },
+        'Starting backtest',
+      );
 
-        this.publishBacktestEvent(aggregateId, eventId, eventPayload);
+      const filteredPriceData = collectTickersAndFilterPrices(
+        domainPortfolios,
+        parameters.benchmarkTicker,
+        priceData,
+      );
 
-        logger.info('Backtest completed');
-        recordBacktestRequest('portfolio', 'sync', 'success');
-        if (degraded) {
-          recordDegradedResponse('portfolio', 'engine_fallback');
-        }
-        return { result, degraded };
-      } catch (err) {
-        span.recordException(err as Error);
-        throw err;
-      } finally {
-        span.end();
+      span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === tickerCount);
+
+      const engineBody = {
+        portfolios: domainPortfolios.map((p) => p.toEngineBody()),
+        priceData: filteredPriceData,
+        params: buildEngineParams(parameters),
+        cpiData,
+        exchangeRates,
+      };
+
+      const result = await callEngineStrict<BacktestResult>('/api/engine/backtest', engineBody);
+      const degraded = false;
+
+      const firstStats = result.portfolios[0]?.statistics;
+      const aggregateId = `backtest-${Date.now()}`;
+      const eventId = randomUUID();
+      const eventPayload = {
+        startingValue: parameters.startingValue,
+        portfolioCount: portfolios.length,
+        totalReturn: firstStats?.totalReturn,
+        maxDrawdown: firstStats?.maxDrawdown,
+        sharpeRatio: firstStats?.sharpe,
+        degraded,
+        tenantId: params.tenantId,
+        ownerUserId: params.ownerUserId,
+      };
+
+      publishBacktestEvent(aggregateId, eventId, eventPayload);
+
+      logger.info('Backtest completed');
+      recordBacktestRequest('portfolio', 'sync', 'success');
+      if (degraded) {
+        recordDegradedResponse('portfolio', 'engine_fallback');
       }
-    });
-  }
-
-  /** 统计所有组合中唯一 ticker 数量（含 benchmark） */
-  private countUniqueTickers(portfolios: Portfolio[], benchmarkTicker: string): number {
-    const tickers = new Set<string>();
-    for (const portfolio of portfolios) {
-      for (const asset of portfolio.assets) {
-        tickers.add(asset.ticker);
-      }
+      return { result, degraded };
+    } catch (err) {
+      span.recordException(err as Error);
+      throw err;
+    } finally {
+      span.end();
     }
-    if (benchmarkTicker) {
-      tickers.add(benchmarkTicker);
-    }
-    return tickers.size;
-  }
+  });
 }
 
-export const backtestApplicationService = new BacktestApplicationService();
+// ---------------------------------------------------------------------------
+// 模块级私有函数
+// ---------------------------------------------------------------------------
+
+function collectTickersAndFilterPrices(
+  portfolios: DomainPortfolio[],
+  benchmarkTicker: string,
+  priceData: Record<string, Record<string, number>>,
+): Record<string, Record<string, number>> {
+  const allTickers = new Set<string>();
+  for (const portfolio of portfolios) {
+    for (const ticker of portfolio.tickers) {
+      allTickers.add(ticker);
+    }
+  }
+  if (benchmarkTicker) {
+    allTickers.add(benchmarkTicker);
+  }
+
+  const filteredPriceData: Record<string, Record<string, number>> = {};
+  for (const ticker of allTickers) {
+    if (priceData[ticker]) {
+      filteredPriceData[ticker] = priceData[ticker];
+    }
+  }
+  return filteredPriceData;
+}
+
+function countUniqueTickers(portfolios: DomainPortfolio[], benchmarkTicker: string): number {
+  const tickers = new Set<string>();
+  for (const portfolio of portfolios) {
+    for (const ticker of portfolio.tickers) {
+      tickers.add(ticker);
+    }
+  }
+  if (benchmarkTicker) {
+    tickers.add(benchmarkTicker);
+  }
+  return tickers.size;
+}
 
 /**
- * 加载宏观经济数据（CPI + 汇率），根据 parameters.baseCurrency 与 adjustForInflation 统一处理。
+ * 发布 BacktestCompleted 领域事件。
  *
- * @param parameters - 回测参数，读取 baseCurrency 与 adjustForInflation
- * @returns cpiData 与 exchangeRates（不需要时为空对象）
+ * 双通道发布：
+ * 1. eventDispatcher.dispatch() — 进程内同步分发，BacktestCompletedHandler 持久化摘要到 backtest_runs
+ * 2. writeBacktestEventToOutbox() — 事务写入 outbox 表，由 OutboxPublisher 异步消费
+ *
+ * 两个通道独立，一个失败不影响另一个。outbox 保证最终一致性，dispatcher 保证即时副作用。
  */
-export async function loadMacroData(
-  parameters: BacktestParameters,
-): Promise<{ cpiData: Record<string, number>; exchangeRates: Record<string, number> }> {
-  const baseCurrency = parameters.baseCurrency || 'usd';
-  const cpiCountry = baseCurrency === 'cny' ? 'cn' : 'us';
-  const cpiData = parameters.adjustForInflation ? await loadCpiMapFromDb(cpiCountry) : {};
-  const exchangeRates = baseCurrency === 'cny' ? await loadExchangeRatesFromDb() : {};
-  return { cpiData, exchangeRates };
+function publishBacktestEvent(
+  aggregateId: string,
+  eventId: string,
+  eventPayload: Record<string, unknown>,
+): void {
+  // 通道 1：进程内分发 — 持久化回测运行摘要
+  void eventDispatcher
+    .dispatch({
+      eventType: 'BacktestCompleted',
+      aggregateType: 'BacktestSession',
+      aggregateId,
+      payload: eventPayload,
+      occurredAt: new Date(),
+    })
+    .catch((err) => {
+      logger.error({ err, aggregateId }, 'Failed to dispatch BacktestCompleted event');
+    });
+
+  // 通道 2：outbox 事务写入 — 最终一致性保证
+  void writeBacktestEventToOutbox(aggregateId, eventId, eventPayload).catch((err) => {
+    logger.error({ err, aggregateId }, 'Failed to write BacktestCompleted event to outbox');
+  });
+}
+
+/**
+ * 将 BacktestCompleted 事件写入 outbox 表。
+ *
+ * 在事务中写入事件并 NOTIFY outbox_channel，失败时回滚并释放连接。
+ */
+async function writeBacktestEventToOutbox(
+  aggregateId: string,
+  eventId: string,
+  eventPayload: Record<string, unknown>,
+): Promise<void> {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    await writeEventInTransaction(client, {
+      aggregateType: 'BacktestSession',
+      aggregateId,
+      eventType: 'BacktestCompleted',
+      payload: { ...eventPayload, occurredAt: new Date().toISOString() },
+      eventId,
+    });
+    await client.query('COMMIT');
+    await client.query('NOTIFY outbox_channel');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }

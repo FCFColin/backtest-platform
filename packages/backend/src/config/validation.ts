@@ -58,9 +58,9 @@ function collectProductionErrors(): string[] {
 
   errors.push(...validateServiceTokens());
 
-  // 强制认证访问计算端点
-  if (!config.REQUIRE_API_KEY) {
-    errors.push('REQUIRE_API_KEY 在生产环境必须为 true，否则计算端点可被匿名调用引发 DoS');
+  // 认证始终生效（P1-3 RBAC 落实：REQUIRE_API_KEY 条件旁路已移除）
+  if (config.DEV_SKIP_AUTH) {
+    errors.push('DEV_SKIP_AUTH 在生产环境必须为 false');
   }
 
   // 禁止 CORS 通配

@@ -2,18 +2,22 @@
  * backtestResultCache LRU + TTL 单元测试
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { createRedisMocks } from '../../helpers/mockFactories.js';
 
-const redisMocks = vi.hoisted(() => ({
-  ping: vi.fn().mockResolvedValue('PONG'),
-  on: vi.fn(),
-  set: vi.fn().mockResolvedValue('OK'),
-  get: vi.fn().mockResolvedValue(null),
-  del: vi.fn(),
-  scan: vi.fn().mockResolvedValue(['0', []]),
-}));
+const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
 
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
-  appRedis: redisMocks,
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
+  appRedis: createRedisMocks(
+    {
+      methods: {
+        ping: vi.fn().mockResolvedValue('PONG'),
+        set: vi.fn().mockResolvedValue('OK'),
+        get: vi.fn().mockResolvedValue(null),
+        scan: vi.fn().mockResolvedValue(['0', []]),
+      },
+    },
+    redisMocks,
+  ),
 }));
 
 import {
@@ -21,7 +25,7 @@ import {
   setBacktestResultCache,
   getBacktestResultCache,
   clearBacktestResultCache,
-} from '../../../packages/backend/src/utils/backtestResultCache.js';
+} from '../../../packages/backend/src/application/backtest/backtestResultCache.js';
 import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared';
 
 const portfolios: Portfolio[] = [

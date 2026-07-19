@@ -1,5 +1,5 @@
 /**
- * backtest-query-service 单元测试（CQRS Query 侧）
+ * backtest-service 共享工具函数单元测试
  *
  * 覆盖 preparePortfolioBacktest / collectInvalidTickerWarnings 的
  * 常见用例、边界与恶意输入（超长组合、非法日期、空价格序列）。
@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   preparePortfolioBacktest,
   collectInvalidTickerWarnings,
-} from '../../../packages/backend/src/application/backtest-query-service.js';
+} from '../../../packages/backend/src/application/backtest-helpers.js';
 import type { Portfolio, BacktestParameters } from '../../../packages/shared/types/index.js';
 import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
@@ -88,9 +88,9 @@ describe('collectInvalidTickerWarnings', () => {
 
     const result = collectInvalidTickerWarnings(tickers, { AAPL: { '2020-01-02': 100 } }, warnings);
 
-    expect(result).toHaveLength(1);
-    expect(result[0]).toContain('GHOST');
-    expect(result[0]).toContain('无价格数据');
+    expect(result).toEqual(['GHOST']);
+    expect(warnings[0]).toContain('GHOST');
+    expect(warnings[0]).toContain('无价格数据');
   });
 
   it('空对象序列应视为无效 ticker', () => {

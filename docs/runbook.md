@@ -25,7 +25,7 @@
 | 服务         | 端口      | 启动命令                              | 健康检查                                       |
 | ------------ | --------- | ------------------------------------- | ---------------------------------------------- |
 | 前端（开发） | 5173      | `npm run client:dev`                  | `curl http://localhost:5173`                   |
-| 后端 API     | 5001      | `npm run server:dev`                  | `curl http://localhost:5001/api/health`        |
+| 后端 API     | 5001      | `npm run dev`                         | `curl http://localhost:5001/api/health`        |
 | Go 引擎      | 5002/5004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:5002/api/engine/health` |
 | Go 数据服务  | 5003      | `cd data-fetcher && go run .`         | `curl http://localhost:5003/api/data/health`   |
 
@@ -213,7 +213,7 @@ curl http://localhost:5003/api/data/health
 
    ```powershell
    kubectl exec -it api-pod -- node -e \
-     "const {rollbackSchema,closeDb}=require('./dist/db/index.js');rollbackSchema(0).then(closeDb)"
+     "const {rollbackSchema,closeDb}=require('./dist/db/pool.js');rollbackSchema(0).then(closeDb)"
    ```
 
 3. **磁盘满清理**：
@@ -295,7 +295,7 @@ curl http://localhost:5003/api/data/health
 
    ```powershell
    # 部署 PostgreSQL 后，运行 initSchema 创建表结构
-   node -e "const{initSchema,closeDb}=require('./dist/db/index.js');initSchema().then(closeDb)"
+   node -e "const{initSchema,closeDb}=require('./dist/db/pool.js');initSchema().then(closeDb)"
    ```
 
 7. **启动服务**（按顺序）
@@ -308,14 +308,17 @@ curl http://localhost:5003/api/data/health
    cd data-fetcher; go run .
 
    # 终端 3：后端 API
-NODE_ENV=production node --import tsx packages/backend/src/app.ts
    ```
 
+NODE_ENV=production node --import tsx packages/backend/src/app.ts
+
+````
+
 8. **验证部署**
-   ```powershell
-   curl http://localhost:5001/api/health
-   # 预期：{ success: true, data: { status: "ok", engine: { go: true } } }
-   ```
+```powershell
+curl http://localhost:5001/api/health
+# 预期：{ success: true, data: { status: "ok", engine: { go: true } } }
+````
 
 ### Docker 部署（可选）
 

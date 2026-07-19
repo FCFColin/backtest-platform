@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"engine-go/internal/engineutil"
 )
 
 // ============================================================
@@ -93,7 +95,7 @@ func TestParseTradingDates(t *testing.T) {
 		priceData := PriceDataMap{
 			"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102},
 		}
-		dates, err := parseTradingDates(priceData)
+		dates, err := engineutil.ParseTradingDates(priceData)
 		if err != nil {
 			t.Fatalf("parseTradingDates 返回错误: %v", err)
 		}
@@ -103,7 +105,7 @@ func TestParseTradingDates(t *testing.T) {
 	})
 
 	t.Run("空数据应返回空日期", func(t *testing.T) {
-		dates, err := parseTradingDates(PriceDataMap{})
+		dates, err := engineutil.ParseTradingDates(PriceDataMap{})
 		if err != nil {
 			t.Fatalf("空数据不应返回错误: %v", err)
 		}
@@ -117,17 +119,17 @@ func TestFilterByDateRange(t *testing.T) {
 	priceData := PriceDataMap{
 		"VTI": {"2023-01-03": 100, "2023-01-04": 101, "2023-01-05": 102, "2023-01-06": 103},
 	}
-	dates, _ := parseTradingDates(priceData)
+	dates, _ := engineutil.ParseTradingDates(priceData)
 
 	t.Run("范围内过滤", func(t *testing.T) {
-		filtered := filterByDateRange(dates, "2023-01-04", "2023-01-05")
+		filtered := engineutil.FilterByDateRange(dates, "2023-01-04", "2023-01-05")
 		if len(filtered) != 2 {
 			t.Errorf("期望 2 个日期，实际 %d", len(filtered))
 		}
 	})
 
 	t.Run("空范围应返回空", func(t *testing.T) {
-		filtered := filterByDateRange(dates, "2099-01-01", "2099-12-31")
+		filtered := engineutil.FilterByDateRange(dates, "2099-01-01", "2099-12-31")
 		if len(filtered) != 0 {
 			t.Errorf("期望 0 个日期，实际 %d", len(filtered))
 		}
@@ -218,8 +220,8 @@ func BenchmarkRunBacktest(b *testing.B) {
 // 企业为何需要：增长曲线是回测最耗时的部分，性能退化直接影响用户体验
 func BenchmarkComputeGrowthCurve(b *testing.B) {
 	req := newBenchBacktestRequest()
-	tradingDates, _ := parseTradingDates(req.PriceData)
-	tradingDates = filterByDateRange(tradingDates, req.Params.StartDate, req.Params.EndDate)
+	tradingDates, _ := engineutil.ParseTradingDates(req.PriceData)
+	tradingDates = engineutil.FilterByDateRange(tradingDates, req.Params.StartDate, req.Params.EndDate)
 
 	b.ResetTimer()
 	b.ReportAllocs()

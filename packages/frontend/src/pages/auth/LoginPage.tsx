@@ -4,9 +4,12 @@
  * @route /login
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { LogIn, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import ErrorBanner from '@/components/ErrorBanner';
+import AuthPageLayout from '@/components/auth/AuthPageLayout';
 
 /** 登录表单字段 */
 function LoginFormFields({
@@ -20,10 +23,13 @@ function LoginFormFields({
   onUsernameChange: (v: string) => void;
   onPasswordChange: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body)' }}>用户名</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body)' }}>
+          {t('auth.login.username')}
+        </span>
         <input
           type="text"
           value={username}
@@ -35,7 +41,9 @@ function LoginFormFields({
         />
       </label>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body)' }}>密码</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body)' }}>
+          {t('auth.login.password')}
+        </span>
         <input
           type="password"
           value={password}
@@ -50,26 +58,9 @@ function LoginFormFields({
   );
 }
 
-/** 错误提示横幅 */
-function ErrorBanner({ error }: { error: string | null }) {
-  if (!error) return null;
-  return (
-    <div
-      style={{
-        fontSize: 13,
-        color: 'var(--danger, #dc2626)',
-        padding: '8px 10px',
-        background: 'var(--danger-soft, #fef2f2)',
-        borderRadius: 8,
-      }}
-    >
-      {error}
-    </div>
-  );
-}
-
 /** 登录提交按钮 */
 function LoginSubmitButton({ loading }: { loading: boolean }) {
+  const { t } = useTranslation();
   return (
     <button
       type="submit"
@@ -85,12 +76,13 @@ function LoginSubmitButton({ loading }: { loading: boolean }) {
       }}
     >
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-      {loading ? '登录中…' : '登录'}
+      {loading ? t('auth.login.submitting') : t('auth.login.submit')}
     </button>
   );
 }
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const loginPassword = useAuthStore((s) => s.loginPassword);
@@ -109,48 +101,28 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bt-page" style={{ maxWidth: 420, margin: '0 auto' }}>
-      <div className="bt-main-card card" style={{ padding: 28, marginTop: 40 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: 'var(--brand)',
-              color: '#fff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <LogIn className="w-5 h-5" />
-          </div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', margin: 0 }}>
-            登录
-          </h1>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <LoginFormFields
-            username={username}
-            password={password}
-            onUsernameChange={setUsername}
-            onPasswordChange={setPassword}
-          />
-          <ErrorBanner error={error} />
-          <LoginSubmitButton loading={loading} />
-        </form>
-
-        <div
-          style={{ marginTop: 16, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}
-        >
-          还没有账户？
+    <AuthPageLayout
+      icon={<LogIn className="w-5 h-5" />}
+      title={t('auth.login.submit')}
+      footer={
+        <>
+          {t('auth.login.noAccountPrefix')}
           <Link to="/signup" style={{ color: 'var(--brand)' }}>
-            注册
+            {t('auth.signup.submit')}
           </Link>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <LoginFormFields
+          username={username}
+          password={password}
+          onUsernameChange={setUsername}
+          onPasswordChange={setPassword}
+        />
+        <ErrorBanner message={error} />
+        <LoginSubmitButton loading={loading} />
+      </form>
+    </AuthPageLayout>
   );
 }

@@ -8,12 +8,9 @@
  * 使用方式：
  *   import { config, validateConfig } from './config/index.js';
  *   validateConfig(); // 启动时调用
+ *   // 扁平访问
  *   console.log(config.API_PORT);
  */
 
-export { config, SUNSET_DATE } from './configObject.js';
+export { config, SUNSET_DATE_STR } from './configObject.js';
 export { validateConfig } from './validation.js';
-
-import { config } from './configObject.js';
-
-export default config;

@@ -9,12 +9,14 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { Field, ResultRow, CollapsibleCard } from './BaseCalculatorUI.js';
 import { formatPct, formatNum } from './baseCalculatorUtils.js';
 import { CHART_COLORS } from '@backtest/shared';
 import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from '../../components/charts/chartConstants.js';
 
 export function CAGRCalculator() {
+  const { t } = useTranslation();
   const [initial, setInitial] = useState(10000);
   const [finalVal, setFinalVal] = useState(50000);
   const [years, setYears] = useState(10);
@@ -25,11 +27,30 @@ export function CAGRCalculator() {
   }, [initial, finalVal, years]);
 
   return (
-    <CollapsibleCard icon={TrendingUp} title="CAGR 估算器" defaultOpen>
+    <CollapsibleCard icon={TrendingUp} title={t('calculators.cagr.title')} defaultOpen>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
-        <Field label="初始值" value={initial} onChange={setInitial} step={1000} min={0} />
-        <Field label="终值" value={finalVal} onChange={setFinalVal} step={1000} min={0} />
-        <Field label="年数" value={years} onChange={setYears} suffix="年" step={1} min={1} />
+        <Field
+          label={t('calculators.cagr.initialValue')}
+          value={initial}
+          onChange={setInitial}
+          step={1000}
+          min={0}
+        />
+        <Field
+          label={t('calculators.cagr.finalValue')}
+          value={finalVal}
+          onChange={setFinalVal}
+          step={1000}
+          min={0}
+        />
+        <Field
+          label={t('calculators.cagr.years')}
+          value={years}
+          onChange={setYears}
+          suffix={t('calculators.cagr.yearSuffix')}
+          step={1}
+          min={1}
+        />
       </div>
       <div style={{ marginTop: 12 }}>
         <ResultRow label="CAGR" value={formatPct(cagr)} color="var(--brand)" />
@@ -44,13 +65,14 @@ export function CAGRCalculator() {
           color: 'var(--text-muted)',
         }}
       >
-        公式: CAGR = (终值 / 初始值)^(1/年数) - 1
+        {t('calculators.cagr.formula')}
       </div>
     </CollapsibleCard>
   );
 }
 
 export function FutureValueCalculator() {
+  const { t } = useTranslation();
   const [initial, setInitial] = useState(10000);
   const [cagr, setCagr] = useState(8);
   const [years, setYears] = useState(20);
@@ -75,18 +97,44 @@ export function FutureValueCalculator() {
   }, [initial, cagr, years, monthly]);
 
   return (
-    <CollapsibleCard icon={DollarSign} title="终值计算器" defaultOpen>
+    <CollapsibleCard icon={DollarSign} title={t('calculators.cagr.futureValueTitle')} defaultOpen>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field label="初始值" value={initial} onChange={setInitial} step={1000} min={0} />
+        <Field
+          label={t('calculators.cagr.initialValue')}
+          value={initial}
+          onChange={setInitial}
+          step={1000}
+          min={0}
+        />
         <Field label="CAGR" value={cagr} onChange={setCagr} suffix="%" step={0.5} />
-        <Field label="年数" value={years} onChange={setYears} suffix="年" step={1} min={1} />
-        <Field label="月投入" value={monthly} onChange={setMonthly} step={100} min={0} />
+        <Field
+          label={t('calculators.cagr.years')}
+          value={years}
+          onChange={setYears}
+          suffix={t('calculators.cagr.yearSuffix')}
+          step={1}
+          min={1}
+        />
+        <Field
+          label={t('calculators.cagr.monthlyContribution')}
+          value={monthly}
+          onChange={setMonthly}
+          step={100}
+          min={0}
+        />
       </div>
       <div style={{ marginTop: 12 }}>
-        <ResultRow label="终值" value={formatNum(finalValue)} color="var(--brand)" />
-        <ResultRow label="总投入" value={formatNum(totalContributions)} />
         <ResultRow
-          label="投资收益"
+          label={t('calculators.cagr.finalValue')}
+          value={formatNum(finalValue)}
+          color="var(--brand)"
+        />
+        <ResultRow
+          label={t('calculators.cagr.totalContribution')}
+          value={formatNum(totalContributions)}
+        />
+        <ResultRow
+          label={t('calculators.cagr.investmentGain')}
           value={formatNum(finalValue - totalContributions)}
           color="var(--success)"
         />
@@ -104,7 +152,7 @@ export function FutureValueCalculator() {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(v: number) => [formatNum(v), '终值']}
+              formatter={(v: number) => [formatNum(v), t('calculators.cagr.finalValue')]}
             />
             <Area
               type="monotone"
@@ -122,6 +170,7 @@ export function FutureValueCalculator() {
 }
 
 export function CAGRAssumptionCalculator() {
+  const { t } = useTranslation();
   const [cagr, setCagr] = useState(8);
   const [vol, setVol] = useState(15);
   const [years, setYears] = useState(20);
@@ -137,15 +186,35 @@ export function CAGRAssumptionCalculator() {
   }, [cagr, years, initial]);
 
   return (
-    <CollapsibleCard icon={TrendingUp} title="股票/债券 ETF CAGR 假设">
+    <CollapsibleCard icon={TrendingUp} title={t('calculators.cagr.assumptionTitle')}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field label="预期收益率" value={cagr} onChange={setCagr} suffix="%" />
-        <Field label="波动率" value={vol} onChange={setVol} suffix="%" />
-        <Field label="时间" value={years} onChange={setYears} suffix="年" step={1} />
-        <Field label="初始资金" value={initial} onChange={setInitial} step={1000} />
+        <Field
+          label={t('calculators.cagr.expectedReturn')}
+          value={cagr}
+          onChange={setCagr}
+          suffix="%"
+        />
+        <Field label={t('calculators.cagr.volatility')} value={vol} onChange={setVol} suffix="%" />
+        <Field
+          label={t('calculators.cagr.time')}
+          value={years}
+          onChange={setYears}
+          suffix={t('calculators.cagr.yearSuffix')}
+          step={1}
+        />
+        <Field
+          label={t('calculators.cagr.initialCapital')}
+          value={initial}
+          onChange={setInitial}
+          step={1000}
+        />
       </div>
       <div style={{ marginTop: 12 }}>
-        <ResultRow label="终值" value={formatNum(finalValue)} color="var(--brand)" />
+        <ResultRow
+          label={t('calculators.cagr.finalValue')}
+          value={formatNum(finalValue)}
+          color="var(--brand)"
+        />
       </div>
       <div style={{ height: 200, marginTop: 12 }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -160,7 +229,7 @@ export function CAGRAssumptionCalculator() {
                 borderRadius: 8,
                 fontSize: 12,
               }}
-              formatter={(v: number) => [formatNum(v), '终值']}
+              formatter={(v: number) => [formatNum(v), t('calculators.cagr.finalValue')]}
             />
             <Area
               type="monotone"

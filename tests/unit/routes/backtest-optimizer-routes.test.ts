@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -15,15 +16,6 @@ const dataServiceMocks = vi.hoisted(() => ({
 
 const engineClientMocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
-  EngineUnavailableError: class EngineUnavailableError extends Error {
-    readonly retryAfterSeconds: number;
-    readonly code = 'ENGINE_UNAVAILABLE';
-    constructor(endpoint: string, retryAfterSeconds = 30) {
-      super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
-      this.name = 'EngineUnavailableError';
-      this.retryAfterSeconds = retryAfterSeconds;
-    }
-  },
 }));
 
 const queueMocks = vi.hoisted(() => ({
@@ -59,7 +51,7 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineClientMocks.callEngineStrict,
-  EngineUnavailableError: engineClientMocks.EngineUnavailableError,
+  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
@@ -131,7 +123,10 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
   beforeEach(async () => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'opt-job-456' });
-    dataServiceMocks.fetchHistoryData.mockResolvedValue(createMockPriceData());
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({
+      data: createMockPriceData(),
+      degraded: false,
+    });
     engineClientMocks.callEngineStrict.mockResolvedValue(createMockBacktestResult());
     server = await startExpressApp((app) =>
       app.use('/api/backtest-optimizer', backtestOptimizerRoutes),
@@ -180,7 +175,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
 
   it('同步回退时无效标的应返回 400', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({});
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
 
     const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
       method: 'POST',
@@ -308,7 +303,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
   it('Go 引擎不可用时同步回退应返回 503 + Retry-After + degraded（fail-closed，不回退 Node）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
     engineClientMocks.callEngineStrict.mockRejectedValue(
-      new engineClientMocks.EngineUnavailableError('/api/engine/backtest'),
+      new EngineUnavailableErrorStub('/api/engine/backtest'),
     );
 
     const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {

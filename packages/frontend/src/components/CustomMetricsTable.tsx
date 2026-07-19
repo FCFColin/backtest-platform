@@ -3,8 +3,10 @@
  * @description 展示各投资组合的自选统计指标对比表格
  */
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
+import ChartCard from './ChartCard.js';
 
 /** 自定义指标表格 Props */
 interface CustomMetricsTableProps {
@@ -12,30 +14,50 @@ interface CustomMetricsTableProps {
 }
 
 const ALL_METRICS: { label: string; key: keyof Statistics; fmt: 'pct' | 'ratio' }[] = [
-  { label: '年化收益', key: 'cagr', fmt: 'pct' },
-  { label: '资金加权收益*', key: 'mwrr', fmt: 'pct' },
-  { label: '总收益', key: 'totalReturn', fmt: 'pct' },
-  { label: '年化波动率', key: 'stdev', fmt: 'pct' },
-  { label: '夏普比率', key: 'sharpe', fmt: 'ratio' },
-  { label: '索提诺比率', key: 'sortino', fmt: 'ratio' },
-  { label: '卡玛比率', key: 'calmar', fmt: 'ratio' },
-  { label: '最大回撤', key: 'maxDrawdown', fmt: 'pct' },
-  { label: '溃疡指数', key: 'ulcerIndex', fmt: 'ratio' },
-  { label: '贝塔', key: 'beta', fmt: 'ratio' },
-  { label: '阿尔法', key: 'alpha', fmt: 'pct' },
-  { label: 'R平方', key: 'rSquared', fmt: 'ratio' },
-  { label: '跟踪误差', key: 'trackingError', fmt: 'pct' },
-  { label: '信息比率', key: 'informationRatio', fmt: 'ratio' },
-  { label: '上行捕获', key: 'upsideCapture', fmt: 'pct' },
-  { label: '下行捕获', key: 'downsideCapture', fmt: 'pct' },
-  { label: '偏度', key: 'skewness', fmt: 'ratio' },
-  { label: '超额峰度', key: 'excessKurtosis', fmt: 'ratio' },
-  { label: 'VaR(5%)', key: 'var5', fmt: 'pct' },
-  { label: 'CVaR(5%)', key: 'cvar5', fmt: 'pct' },
-  { label: 'SWR(10年)', key: 'swr10y', fmt: 'pct' },
-  { label: 'PWR(10年)', key: 'pwr10y', fmt: 'pct' },
-  { label: 'SWR(30年)', key: 'swr30y', fmt: 'pct' },
-  { label: 'PWR(30年)', key: 'pwr30y', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.cagr', key: 'cagr', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.mwrr', key: 'mwrr', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.totalReturn', key: 'totalReturn', fmt: 'pct' },
+  { label: 'backtest.stdev', key: 'stdev', fmt: 'pct' },
+  { label: 'backtest.sharpeRatio', key: 'sharpe', fmt: 'ratio' },
+  { label: 'backtest.sortino', key: 'sortino', fmt: 'ratio' },
+  { label: 'components.customMetricsTable.metrics.calmar', key: 'calmar', fmt: 'ratio' },
+  { label: 'backtest.maxDrawdown', key: 'maxDrawdown', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.ulcerIndex', key: 'ulcerIndex', fmt: 'ratio' },
+  { label: 'components.customMetricsTable.metrics.beta', key: 'beta', fmt: 'ratio' },
+  { label: 'components.customMetricsTable.metrics.alpha', key: 'alpha', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.rSquared', key: 'rSquared', fmt: 'ratio' },
+  {
+    label: 'components.customMetricsTable.metrics.trackingError',
+    key: 'trackingError',
+    fmt: 'pct',
+  },
+  {
+    label: 'components.customMetricsTable.metrics.informationRatio',
+    key: 'informationRatio',
+    fmt: 'ratio',
+  },
+  {
+    label: 'components.customMetricsTable.metrics.upsideCapture',
+    key: 'upsideCapture',
+    fmt: 'pct',
+  },
+  {
+    label: 'components.customMetricsTable.metrics.downsideCapture',
+    key: 'downsideCapture',
+    fmt: 'pct',
+  },
+  { label: 'components.customMetricsTable.metrics.skewness', key: 'skewness', fmt: 'ratio' },
+  {
+    label: 'components.customMetricsTable.metrics.excessKurtosis',
+    key: 'excessKurtosis',
+    fmt: 'ratio',
+  },
+  { label: 'components.customMetricsTable.metrics.var5', key: 'var5', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.cvar5', key: 'cvar5', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.swr10y', key: 'swr10y', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.pwr10y', key: 'pwr10y', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.swr30y', key: 'swr30y', fmt: 'pct' },
+  { label: 'components.customMetricsTable.metrics.pwr30y', key: 'pwr30y', fmt: 'pct' },
 ];
 
 const DEFAULT_KEYS: (keyof Statistics)[] = [
@@ -65,6 +87,7 @@ function MetricDropdownItems({
   selectedKeys: Set<keyof Statistics>;
   onToggle: (key: keyof Statistics) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {ALL_METRICS.map((m) => {
@@ -97,7 +120,7 @@ function MetricDropdownItems({
               onChange={() => onToggle(m.key)}
               style={{ accentColor: 'var(--accent)' }}
             />
-            {m.label}
+            {t(m.label)}
           </label>
         );
       })}
@@ -113,6 +136,7 @@ function MetricSelector({
   selectedKeys: Set<keyof Statistics>;
   onToggle: (key: keyof Statistics) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -138,7 +162,10 @@ function MetricSelector({
           cursor: 'pointer',
         }}
       >
-        选择指标 ({selectedKeys.size}/{ALL_METRICS.length})
+        {t('components.customMetricsTable.selectMetrics', {
+          selected: selectedKeys.size,
+          total: ALL_METRICS.length,
+        })}
       </button>
       {open && (
         <div
@@ -167,6 +194,7 @@ function MetricSelector({
 
 /** 指标表头列 */
 function MetricsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
+  const { t } = useTranslation();
   return (
     <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
       <th
@@ -177,7 +205,7 @@ function MetricsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
           minWidth: '160px',
         }}
       >
-        指标
+        {t('common.metric')}
       </th>
       {portfolios.map((p, idx) => (
         <th
@@ -208,13 +236,14 @@ function MetricsTable({
   portfolios: PortfolioResult[];
   visibleMetrics: typeof ALL_METRICS;
 }) {
+  const { t } = useTranslation();
   if (visibleMetrics.length === 0) {
     return (
       <div
         className="text-[13px]"
         style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
       >
-        请选择至少一个指标
+        {t('components.customMetricsTable.selectAtLeastOne')}
       </div>
     );
   }
@@ -242,7 +271,7 @@ function MetricsTable({
                     borderBottom: '1px solid var(--border-soft)',
                   }}
                 >
-                  {m.label}
+                  {t(m.label)}
                 </td>
                 {portfolios.map((p) => (
                   <td
@@ -267,6 +296,7 @@ function MetricsTable({
 }
 
 export default function CustomMetricsTable({ portfolios }: CustomMetricsTableProps) {
+  const { t } = useTranslation();
   const [selectedKeys, setSelectedKeys] = useState<Set<keyof Statistics>>(
     () => new Set(DEFAULT_KEYS),
   );
@@ -284,31 +314,20 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
 
   if (portfolios.length === 0) {
     return (
-      <div className="chart-card">
-        <div className="chart-card-title">自定义指标</div>
+      <ChartCard title={t('tabs.myMetrics')}>
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          暂无统计数据
+          {t('components.customMetricsTable.noData')}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
   return (
-    <div className="chart-card">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '12px',
-        }}
-      >
-        <div className="chart-card-title" style={{ marginBottom: 0 }}>
-          自定义指标
-        </div>
-        <MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />
-      </div>
+    <ChartCard
+      title={t('tabs.myMetrics')}
+      headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}
+    >
       <MetricsTable portfolios={portfolios} visibleMetrics={visibleMetrics} />
-    </div>
+    </ChartCard>
   );
 }

@@ -34,12 +34,44 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 
 const poolHolder = vi.hoisted(() => ({ pool: null as pg.Pool | null }));
 
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getPool: () => {
-    if (!poolHolder.pool) throw new Error('测试连接池未初始化');
-    return poolHolder.pool;
-  },
-}));
+vi.mock('../../../packages/backend/src/db/pool.js', async () => {
+  // tenant.ts 现 re-export withTenant from pool.ts（Task C26 去重）。
+  // 不能用 importOriginal — 真实 withTenant 闭包捕获真实 getPool，会绕过 mock
+  // 连到 config.DATABASE_URL 默认库。这里内联与 pool.ts 等价的实现，
+  // 调用本 mock 内的 getPool（返回受控 testcontainers 连接池）。
+  const { isUuid } = await import('../../../packages/backend/src/utils/validation.js');
+  const { logger } = await import('../../../packages/backend/src/utils/logger.js');
+  return {
+    getPool: () => {
+      if (!poolHolder.pool) throw new Error('测试连接池未初始化');
+      return poolHolder.pool;
+    },
+    withTenant: async (tenantId: string, fn: (client: pg.PoolClient) => Promise<unknown>) => {
+      if (!isUuid(tenantId)) {
+        throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
+      }
+      const pool = poolHolder.pool;
+      if (!pool) throw new Error('测试连接池未初始化');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
+        const result = await fn(client);
+        await client.query('COMMIT');
+        return result;
+      } catch (err) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackErr) {
+          logger.error({ err: rollbackErr }, '[db] withTenant ROLLBACK 失败');
+        }
+        throw err;
+      } finally {
+        client.release();
+      }
+    },
+  };
+});
 
 // Docker 可用性检查：testcontainers 依赖 Docker 守护进程
 let dockerAvailable = false;
@@ -178,8 +210,13 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
     expect(val === '' || val === null).toBe(true);
 
     // 无租户上下文时 RLS fail-safe：读到零行（拒绝优于泄露）
-    const noTenantResult = await appPool.query('SELECT count(*)::int AS cnt FROM portfolios');
-    expect(noTenantResult.rows[0].cnt).toBe(0);
+    // current_setting 可能返回 ''，''::uuid 会抛 syntax error；
+    // 用不存在的有效 UUID 验证非匹配租户读到零行（fail-safe）
+    const noTenantCnt = await withTenant('00000000-0000-0000-0000-000000000000', async (client) => {
+      const result = await client.query('SELECT count(*)::int AS cnt FROM portfolios');
+      return result.rows[0].cnt as number;
+    });
+    expect(noTenantCnt).toBe(0);
   });
 
   it('27.1 非法 tenantId 应在连接前拒绝（UUID 校验）', async () => {

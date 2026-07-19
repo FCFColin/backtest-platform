@@ -109,5 +109,3 @@ export function initTracing(): void {
     console.warn('[tracing] OpenTelemetry 初始化失败，链路追踪不可用:', err);
   }
 }
-
-export { sdk };

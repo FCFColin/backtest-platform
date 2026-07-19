@@ -3,8 +3,7 @@
  *
  * 企业理由：engineConsistency.test.ts 等测试文件各自实现了
  * 略有不同的服务器探活逻辑（一个用 AbortController 超时，一个无超时）。
- * 本模块提供统一的 checkServerAvailable 函数，支持超时控制，
- * 以及 shouldSkip 辅助函数，简化 it.skipIf 模式。
+ * 本模块提供统一的 checkServerAvailable 函数，支持超时控制。
  */
 
 /**
@@ -30,21 +29,4 @@ export async function checkServerAvailable(
   } catch {
     return false;
   }
-}
-
-/**
- * 根据服务器可用性决定是否跳过测试
- *
- * 用法：
- *   let serverAvailable = false;
- *   beforeAll(async () => {
- *     serverAvailable = await checkServerAvailable(ENGINE_GO_BASE_URL);
- *   });
- *   it.skipIf(shouldSkip(serverAvailable))('测试名', () => { ... });
- *
- * @param serverAvailable - checkServerAvailable 的返回值
- * @returns 应跳过测试时返回 true
- */
-export function shouldSkip(serverAvailable: boolean): boolean {
-  return !serverAvailable;
 }

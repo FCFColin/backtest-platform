@@ -4,23 +4,45 @@
  * @route /help
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BookOpen, Database, HelpCircle, ChevronDown, Calculator, TrendingUp } from 'lucide-react';
 
 type Section = 'methodology' | 'data' | 'faq';
 
+interface MetricInfo {
+  fullName: string;
+  desc: string;
+}
+
+interface FaqItem {
+  q: string;
+  a: string;
+}
+
+interface DataSource {
+  name: string;
+  scope: string;
+  note: string;
+}
+
 export default function HelpPage() {
+  const { t } = useTranslation();
   const [section, setSection] = useState<Section>('methodology');
 
   const tabs: { key: Section; label: string; icon: React.ReactNode }[] = [
-    { key: 'methodology', label: '计算方法论', icon: <Calculator className="w-4 h-4" /> },
-    { key: 'data', label: '数据来源', icon: <Database className="w-4 h-4" /> },
-    { key: 'faq', label: '常见问题', icon: <HelpCircle className="w-4 h-4" /> },
+    {
+      key: 'methodology',
+      label: t('help.tabs.methodology'),
+      icon: <Calculator className="w-4 h-4" />,
+    },
+    { key: 'data', label: t('help.tabs.data'), icon: <Database className="w-4 h-4" /> },
+    { key: 'faq', label: t('help.tabs.faq'), icon: <HelpCircle className="w-4 h-4" /> },
   ];
 
   return (
     <div className="bt-page">
       <div className="bt-page-header">
-        <h1 className="bt-page-title">帮助中心</h1>
+        <h1 className="bt-page-title">{t('help.title')}</h1>
       </div>
 
       <div className="bt-main-card card" style={{ padding: 24 }}>
@@ -67,8 +89,60 @@ export default function HelpPage() {
   );
 }
 
-/** 调仓模式说明区块 */
-function RebalancingModesInfo() {
+/** 帮助页面区块容器：统一渲染图标标题、描述与子内容 */
+function HelpSection({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        {icon}
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>{title}</div>
+      </div>
+      {description && (
+        <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 20 }}>
+          {description}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** 帮助页面卡片网格容器（自适应列布局） */
+function HelpGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: 16,
+        marginBottom: 24,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** 帮助页面信息提示框（统一样式：subtle 背景 + 圆角 + 标题/图标头） */
+function HelpInfoBox({
+  title,
+  icon,
+  children,
+}: {
+  title?: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div
       style={{
@@ -79,134 +153,113 @@ function RebalancingModesInfo() {
         color: 'var(--text-body)',
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-strong)' }}>
-        调仓模式说明
+      {(title || icon) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          {icon}
+          {title && <span style={{ fontWeight: 600, color: 'var(--text-strong)' }}>{title}</span>}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/** 调仓模式说明区块 */
+function RebalancingModesInfo() {
+  const { t } = useTranslation();
+  return (
+    <HelpInfoBox title={t('help.methodology.rebalModesTitle')}>
+      <div style={{ marginBottom: 6 }}>
+        <strong>{t('help.methodology.rebalModes.periodic')}</strong>
       </div>
       <div style={{ marginBottom: 6 }}>
-        <strong>定期调仓</strong>：按固定频率（月/季/年）将组合权重恢复至目标比例。
-      </div>
-      <div style={{ marginBottom: 6 }}>
-        <strong>阈值调仓</strong>：当资产权重偏离目标值超过设定阈值（如 5%）时触发调仓。
+        <strong>{t('help.methodology.rebalModes.threshold')}</strong>
       </div>
       <div>
-        <strong>买入持有</strong>：初始建仓后不再调仓，让权重随市场自由漂移。
+        <strong>{t('help.methodology.rebalModes.buyHold')}</strong>
       </div>
-    </div>
+    </HelpInfoBox>
   );
 }
 
 function MethodologySection() {
+  const { t } = useTranslation();
+  const metrics: { name: string; formula: string; info: MetricInfo }[] = [
+    {
+      name: 'CAGR',
+      formula: 'CAGR = (V_end / V_start)^(1/years) - 1',
+      info: t('help.methodology.metrics.cagr', { returnObjects: true }) as MetricInfo,
+    },
+    {
+      name: 'Sharpe Ratio',
+      formula: 'Sharpe = (R_p - R_f) / σ_p',
+      info: t('help.methodology.metrics.sharpe', { returnObjects: true }) as MetricInfo,
+    },
+    {
+      name: 'Sortino Ratio',
+      formula: 'Sortino = (R_p - R_f) / σ_downside',
+      info: t('help.methodology.metrics.sortino', { returnObjects: true }) as MetricInfo,
+    },
+    {
+      name: 'Max Drawdown',
+      formula: 'MDD = min((V_t - max(V_0..t)) / max(V_0..t))',
+      info: t('help.methodology.metrics.mdd', { returnObjects: true }) as MetricInfo,
+    },
+    {
+      name: 'Volatility',
+      formula: 'σ_annual = σ_daily × √252',
+      info: t('help.methodology.metrics.volatility', { returnObjects: true }) as MetricInfo,
+    },
+    {
+      name: 'Calmar Ratio',
+      formula: 'Calmar = CAGR / |MDD|',
+      info: t('help.methodology.metrics.calmar', { returnObjects: true }) as MetricInfo,
+    },
+    {
+      name: 'Beta',
+      formula: 'β = Cov(R_p, R_m) / Var(R_m)',
+      info: t('help.methodology.metrics.beta', { returnObjects: true }) as MetricInfo,
+    },
+    {
+      name: 'Alpha',
+      formula: 'α = R_p - [R_f + β(R_m - R_f)]',
+      info: t('help.methodology.metrics.alpha', { returnObjects: true }) as MetricInfo,
+    },
+  ];
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <BookOpen className="w-6 h-6" style={{ color: 'var(--brand)' }} />
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>
-          回测计算方法论
-        </div>
-      </div>
-
-      <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 20 }}>
-        本平台采用时间加权收益率（TWR）进行回测，支持定期调仓与阈值调仓两种模式。
-        所有收益率均按对数收益累乘计算，最终换算为各类年化指标。
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
-        <MetricCard
-          name="CAGR"
-          fullName="年化复合增长率"
-          formula="CAGR = (V_end / V_start)^(1/years) - 1"
-          desc="组合在整个回测期间的年化几何平均收益率，是最核心的长期收益指标。"
-        />
-        <MetricCard
-          name="Sharpe Ratio"
-          fullName="夏普比率"
-          formula="Sharpe = (R_p - R_f) / σ_p"
-          desc="单位总风险下的超额收益。R_f 为无风险利率（默认 0），σ_p 为收益率序列的标准差（年化）。"
-        />
-        <MetricCard
-          name="Sortino Ratio"
-          fullName="索提诺比率"
-          formula="Sortino = (R_p - R_f) / σ_downside"
-          desc="与夏普类似，但仅以下行波动率作为风险度量，对上行波动不惩罚，更符合投资者直觉。"
-        />
-        <MetricCard
-          name="Max Drawdown"
-          fullName="最大回撤"
-          formula="MDD = min((V_t - max(V_0..t)) / max(V_0..t))"
-          desc="从历史最高点到后续最低点的最大跌幅，衡量组合最坏情况下的亏损幅度。"
-        />
-        <MetricCard
-          name="Volatility"
-          fullName="年化波动率"
-          formula="σ_annual = σ_daily × √252"
-          desc="日收益率标准差按 252 个交易日年化，衡量组合收益的波动程度。"
-        />
-        <MetricCard
-          name="Calmar Ratio"
-          fullName="卡玛比率"
-          formula="Calmar = CAGR / |MDD|"
-          desc="单位最大回撤下的年化收益，反映承担回撤风险所获得的回报。"
-        />
-        <MetricCard
-          name="Beta"
-          fullName="贝塔系数"
-          formula="β = Cov(R_p, R_m) / Var(R_m)"
-          desc="组合相对基准指数的系统性风险暴露。β=1 表示与基准同幅波动，β>1 更激进。"
-        />
-        <MetricCard
-          name="Alpha"
-          fullName="阿尔法"
-          formula="α = R_p - [R_f + β(R_m - R_f)]"
-          desc="扣除系统性风险后的超额收益，衡量主动管理能力。"
-        />
-      </div>
+    <HelpSection
+      icon={<BookOpen className="w-6 h-6" style={{ color: 'var(--brand)' }} />}
+      title={t('help.methodology.title')}
+      description={t('help.methodology.desc')}
+    >
+      <HelpGrid>
+        {metrics.map((m) => (
+          <MetricCard
+            key={m.name}
+            name={m.name}
+            fullName={m.info.fullName}
+            formula={m.formula}
+            desc={m.info.desc}
+          />
+        ))}
+      </HelpGrid>
 
       <RebalancingModesInfo />
-    </div>
+    </HelpSection>
   );
 }
 
 function DataSection() {
-  const sources = [
-    {
-      name: 'Yahoo Finance (yfinance)',
-      scope: '美股/港股/欧股/日股等',
-      note: '默认数据源，30 请求/分钟限流，适合历史日线数据',
-    },
-    { name: 'iTick API', scope: '实时行情/外汇', note: '需注册获取 Token，提供更实时的价格数据' },
-    { name: 'BaoStock', scope: 'A 股数据', note: 'TCP 直连，覆盖沪深两市历史 K 线与财报' },
-    { name: 'TradingView Screener', scope: '财报/因子数据', note: '用于基本面筛选与因子回归分析' },
-  ];
+  const { t } = useTranslation();
+  const sources = t('help.data.sources', { returnObjects: true }) as DataSource[];
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <Database className="w-6 h-6" style={{ color: 'var(--brand)' }} />
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>
-          数据来源说明
-        </div>
-      </div>
-
-      <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 20 }}>
-        平台支持多数据源接入，所有数据本地缓存于 SQLite 数据库，首次查询后优先读取缓存以减少 API
-        调用。
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 16,
-          marginBottom: 24,
-        }}
-      >
+    <HelpSection
+      icon={<Database className="w-6 h-6" style={{ color: 'var(--brand)' }} />}
+      title={t('help.data.title')}
+      description={t('help.data.desc')}
+    >
+      <HelpGrid>
         {sources.map((s) => (
           <div
             key={s.name}
@@ -230,69 +283,33 @@ function DataSection() {
             <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.note}</div>
           </div>
         ))}
-      </div>
+      </HelpGrid>
 
-      <div
-        style={{
-          padding: 16,
-          background: 'var(--bg-subtle)',
-          borderRadius: 'var(--radius-control)',
-          fontSize: 13,
-          color: 'var(--text-body)',
-        }}
+      <HelpInfoBox
+        icon={<TrendingUp className="w-4 h-4" style={{ color: 'var(--success)' }} />}
+        title={t('help.data.updateStrategyTitle')}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <TrendingUp className="w-4 h-4" style={{ color: 'var(--success)' }} />
-          <span style={{ fontWeight: 600, color: 'var(--text-strong)' }}>数据更新策略</span>
-        </div>
-        建议使用增量更新而非全量更新，避免触发第三方 API 限流。数据引擎会自动记录上次更新时间，
-        仅拉取缺失的交易日数据。汇率与通胀数据按月更新。
-      </div>
-    </div>
+        {t('help.data.updateStrategyContent')}
+      </HelpInfoBox>
+    </HelpSection>
   );
 }
 
 function FaqSection() {
-  const faqs = [
-    {
-      q: '回测结果与实盘有差异吗？',
-      a: '回测基于历史数据，不考虑滑点、冲击成本和交易延迟，且历史表现不代表未来收益。建议结合蒙特卡洛模拟评估策略稳健性。',
-    },
-    {
-      q: '为什么我的组合权重总和不是 100%？',
-      a: '权重输入框支持任意数值，平台会在回测时自动归一化。但当权重严重偏离 100% 时会显示红色提示，建议调整至接近 100% 以获得准确结果。',
-    },
-    {
-      q: '蒙特卡洛模拟的次数应该设多少？',
-      a: '一般 1000 次即可获得稳定的统计分布。增加次数可提升精度但会延长计算时间，本地部署无次数限制，可根据 CPU 性能调整。',
-    },
-    {
-      q: '如何处理通胀调整？',
-      a: '在参数面板勾选「通胀调整」后，平台会使用 CPI 数据将名义收益折算为实际收益。支持全球主要市场的 CPI 数据。',
-    },
-    {
-      q: 'Go 引擎不可用时会怎样？',
-      a: '为保证结果正确性，回测/蒙特卡洛/优化等计算端点采用 fail-closed 策略：Go 引擎不可用时返回 503 并提示稍后重试，而非返回与主引擎不一致的近似结果。导航栏状态指示器会显示当前引擎状态。',
-    },
-    {
-      q: '数据存储在哪里？',
-      a: '所有数据存储在本地 SQLite 数据库，不上传任何信息到云端。组合配置与偏好设置保存在浏览器 localStorage 中。',
-    },
-  ];
+  const { t } = useTranslation();
+  const faqs = t('help.faq.items', { returnObjects: true }) as FaqItem[];
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <HelpCircle className="w-6 h-6" style={{ color: 'var(--brand)' }} />
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>常见问题</div>
-      </div>
-
+    <HelpSection
+      icon={<HelpCircle className="w-6 h-6" style={{ color: 'var(--brand)' }} />}
+      title={t('help.faq.title')}
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {faqs.map((faq, i) => (
           <FaqItem key={i} q={faq.q} a={faq.a} />
         ))}
       </div>
-    </div>
+    </HelpSection>
   );
 }
 

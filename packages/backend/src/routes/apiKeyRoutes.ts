@@ -10,14 +10,15 @@
  * - GET    /            列出本组织密钥（含已吊销，审计用）
  * - DELETE /:id         吊销指定密钥
  */
-import { Router, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
-import { logger } from '../utils/logger.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hasTenant } from '../middleware/tenantContext.js';
-import { createApiKey, listApiKeys, revokeApiKey } from '../services/apiKeyService.js';
+import { createApiKey, listApiKeys, revokeApiKey } from '../repositories/apiKeyRepo.js';
+import { isUuid } from '../utils/validation.js';
+import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
@@ -26,82 +27,100 @@ const createKeySchema = z.object({
   name: z.string().trim().min(1, '名称不能为空').max(120, '名称过长'),
 });
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * POST /api/v1/keys
  * 为当前组织创建一把新的 API Key，明文仅此响应返回一次。
  */
-router.post('/', validate(createKeySchema), async (req: AuthenticatedRequest, res: Response) => {
-  if (!hasTenant(req)) return;
-  const orgId = req.tenantId;
-  const createdBy = req.user?.sub?.startsWith('apikey:') ? null : (req.user?.sub ?? null);
-  try {
-    const key = await createApiKey(orgId, (req.body as { name: string }).name, createdBy);
-    res.status(201).json({
-      success: true,
-      data: {
-        id: key.id,
-        name: key.name,
-        keyPrefix: key.keyPrefix,
-        createdAt: key.createdAt,
-        // 明文密钥仅此刻返回，请妥善保存（服务端不再可见）
-        apiKey: key.plaintext,
-      },
-    });
-  } catch (err) {
-    logger.error({ err: String(err), orgId }, '[apiKeyRoutes] 创建 API Key 失败');
-    sendProblem(res, 500, 'API_KEY_CREATE_FAILED', 'Internal Server Error', {
+router.post(
+  '/',
+  validate(createKeySchema),
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const authReq = req as AuthenticatedRequest;
+      if (!hasTenant(authReq)) return;
+      const orgId = authReq.tenantId;
+      const createdBy = authReq.user?.sub?.startsWith('apikey:')
+        ? null
+        : (authReq.user?.sub ?? null);
+      const key = await createApiKey(orgId, (req.body as { name: string }).name, createdBy);
+      res.status(201).json({
+        success: true,
+        data: {
+          id: key.id,
+          name: key.name,
+          keyPrefix: key.keyPrefix,
+          createdAt: key.createdAt,
+          // 明文密钥仅此刻返回，请妥善保存（服务端不再可见）
+          apiKey: key.plaintext,
+        },
+      });
+    },
+    {
+      logMsg: '[apiKeyRoutes] 创建 API Key 失败',
+      code: 'API_KEY_CREATE_FAILED',
+      title: 'Internal Server Error',
       detail: '创建 API Key 失败',
-    });
-  }
-});
+    },
+  ),
+);
 
 /**
  * GET /api/v1/keys
  * 列出当前组织的全部 API Key（不含明文/哈希）。
  */
-router.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  if (!hasTenant(req)) return;
-  const orgId = req.tenantId;
-  try {
-    const keys = await listApiKeys(orgId);
-    res.json({ success: true, data: keys });
-  } catch (err) {
-    logger.error({ err: String(err), orgId }, '[apiKeyRoutes] 列出 API Key 失败');
-    sendProblem(res, 500, 'API_KEY_LIST_FAILED', 'Internal Server Error', {
+router.get(
+  '/',
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const authReq = req as AuthenticatedRequest;
+      if (!hasTenant(authReq)) return;
+      const orgId = authReq.tenantId;
+      const keys = await listApiKeys(orgId);
+      res.json({ success: true, data: keys });
+    },
+    {
+      logMsg: '[apiKeyRoutes] 列出 API Key 失败',
+      code: 'API_KEY_LIST_FAILED',
+      title: 'Internal Server Error',
       detail: '查询 API Key 失败',
-    });
-  }
-});
+    },
+  ),
+);
 
 /**
  * DELETE /api/v1/keys/:id
  * 吊销当前组织下的某把 API Key。
  */
-router.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
-  if (!hasTenant(req)) return;
-  const orgId = req.tenantId;
-  const keyId = req.params.id;
-  if (!UUID_RE.test(keyId)) {
-    sendProblem(res, 400, 'INVALID_KEY_ID', 'Bad Request', { detail: 'API Key ID 必须为 UUID' });
-    return;
-  }
-  try {
-    const ok = await revokeApiKey(orgId, keyId);
-    if (!ok) {
-      sendProblem(res, 404, 'API_KEY_NOT_FOUND', 'Not Found', {
-        detail: '密钥不存在、不属于本组织或已吊销',
-      });
-      return;
-    }
-    res.json({ success: true, data: { id: keyId, revoked: true } });
-  } catch (err) {
-    logger.error({ err: String(err), orgId, keyId }, '[apiKeyRoutes] 吊销 API Key 失败');
-    sendProblem(res, 500, 'API_KEY_REVOKE_FAILED', 'Internal Server Error', {
+router.delete(
+  '/:id',
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const authReq = req as AuthenticatedRequest;
+      if (!hasTenant(authReq)) return;
+      const orgId = authReq.tenantId;
+      const keyId = req.params.id;
+      if (!isUuid(keyId)) {
+        sendProblem(res, 400, 'INVALID_KEY_ID', 'Bad Request', {
+          detail: 'API Key ID 必须为 UUID',
+        });
+        return;
+      }
+      const ok = await revokeApiKey(orgId, keyId);
+      if (!ok) {
+        sendProblem(res, 404, 'API_KEY_NOT_FOUND', 'Not Found', {
+          detail: '密钥不存在、不属于本组织或已吊销',
+        });
+        return;
+      }
+      res.json({ success: true, data: { id: keyId, revoked: true } });
+    },
+    {
+      logMsg: '[apiKeyRoutes] 吊销 API Key 失败',
+      code: 'API_KEY_REVOKE_FAILED',
+      title: 'Internal Server Error',
       detail: '吊销 API Key 失败',
-    });
-  }
-});
+    },
+  ),
+);
 
 export default router;

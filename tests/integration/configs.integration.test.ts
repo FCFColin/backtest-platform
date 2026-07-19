@@ -15,13 +15,12 @@ vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   },
 }));
 
-import express from 'express';
 import configRoutes from '../../packages/backend/src/routes/configRoutes.js';
 import {
   isDockerAvailable,
   setupTestContainer,
   seedOrgAndUser,
-  mockAuthMiddleware,
+  startSaasTestServer,
   type TestContainerContext,
   type SeedData,
 } from '../helpers/testcontainersPg.js';
@@ -37,19 +36,13 @@ beforeAll(async () => {
   ctx = await setupTestContainer();
   seed = await seedOrgAndUser();
 
-  const app = express();
-  app.use(express.json());
-  app.use(mockAuthMiddleware(seed.orgId, seed.userId));
-  app.use('/api/v1/configs', configRoutes);
-
-  await new Promise<void>((resolve) => {
-    const server = app.listen(0, () => {
-      const addr = server.address();
-      const port = typeof addr === 'object' && addr ? addr.port : 0;
-      baseUrl = `http://127.0.0.1:${port}`;
-      resolve();
-    });
-  });
+  const server = await startSaasTestServer(
+    seed.orgId,
+    seed.userId,
+    '/api/v1/configs',
+    configRoutes,
+  );
+  baseUrl = server.url;
 }, 120000);
 
 afterAll(async () => {

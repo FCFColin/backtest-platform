@@ -15,10 +15,17 @@ vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   },
 }));
 
-const billingEnabledMock = vi.fn(() => false);
-const getSubscriptionSummaryMock = vi.fn(async () => ({ plan: 'free', status: 'active' }));
-const createCheckoutSessionMock = vi.fn(async () => 'https://checkout.stripe.com/session-123');
-const createPortalSessionMock = vi.fn(async () => 'https://billing.stripe.com/portal-123');
+const {
+  billingEnabledMock,
+  getSubscriptionSummaryMock,
+  createCheckoutSessionMock,
+  createPortalSessionMock,
+} = vi.hoisted(() => ({
+  billingEnabledMock: vi.fn(() => false),
+  getSubscriptionSummaryMock: vi.fn(async () => ({ plan: 'free', status: 'active' })),
+  createCheckoutSessionMock: vi.fn(async () => 'https://checkout.stripe.com/session-123'),
+  createPortalSessionMock: vi.fn(async () => 'https://billing.stripe.com/portal-123'),
+}));
 
 vi.mock('../../packages/backend/src/services/billingService.js', () => ({
   isBillingEnabled: billingEnabledMock,

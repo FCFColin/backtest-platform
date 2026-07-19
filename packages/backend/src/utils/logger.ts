@@ -130,4 +130,3 @@ const httpLogger = pinoHttp({
 });
 
 export { logger, httpLogger };
-export default logger;

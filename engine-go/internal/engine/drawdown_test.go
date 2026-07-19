@@ -39,8 +39,8 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 			t.Fatalf("expected 1 episode, got %d", len(episodes))
 		}
 		expectedDD := (110.0 - 80.0) / 110.0
-		if math.Abs(episodes[0].Drawdown-expectedDD) > 1e-6 {
-			t.Errorf("expected drawdown %v, got %v", expectedDD, episodes[0].Drawdown)
+		if math.Abs(episodes[0].Depth-expectedDD) > 1e-6 {
+			t.Errorf("expected drawdown %v, got %v", expectedDD, episodes[0].Depth)
 		}
 		if episodes[0].PeakDate != "2024-01-02" {
 			t.Errorf("expected peak 2024-01-02, got %s", episodes[0].PeakDate)
@@ -73,15 +73,15 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 			t.Fatalf("expected 2 episodes, got %d", len(episodes))
 		}
 		expectedDD1 := (110.0 - 90.0) / 110.0
-		if math.Abs(episodes[0].Drawdown-expectedDD1) > 1e-6 {
-			t.Errorf("episode 1 drawdown = %v, want %v", episodes[0].Drawdown, expectedDD1)
+		if math.Abs(episodes[0].Depth-expectedDD1) > 1e-6 {
+			t.Errorf("episode 1 drawdown = %v, want %v", episodes[0].Depth, expectedDD1)
 		}
 		if episodes[0].RecoveryDate != "2024-01-04" {
 			t.Errorf("episode 1 recovery = %s, want 2024-01-04", episodes[0].RecoveryDate)
 		}
 		expectedDD2 := (110.0 - 80.0) / 110.0
-		if math.Abs(episodes[1].Drawdown-expectedDD2) > 1e-6 {
-			t.Errorf("episode 2 drawdown = %v, want %v", episodes[1].Drawdown, expectedDD2)
+		if math.Abs(episodes[1].Depth-expectedDD2) > 1e-6 {
+			t.Errorf("episode 2 drawdown = %v, want %v", episodes[1].Depth, expectedDD2)
 		}
 		if episodes[1].RecoveryDate != "" {
 			t.Errorf("episode 2 should be unclosed, got recovery=%s", episodes[1].RecoveryDate)
@@ -114,8 +114,8 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 			t.Fatalf("expected 1 episode, got %d", len(episodes))
 		}
 		expectedDD := (110.0 - 85.0) / 110.0
-		if math.Abs(episodes[0].Drawdown-expectedDD) > 1e-6 {
-			t.Errorf("drawdown = %v, want %v", episodes[0].Drawdown, expectedDD)
+		if math.Abs(episodes[0].Depth-expectedDD) > 1e-6 {
+			t.Errorf("drawdown = %v, want %v", episodes[0].Depth, expectedDD)
 		}
 		if episodes[0].RecoveryDate != "" {
 			t.Errorf("expected empty recovery date, got %s", episodes[0].RecoveryDate)
@@ -136,8 +136,8 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 			t.Fatalf("expected 1 episode, got %d", len(episodes))
 		}
 		expectedDD := (110.0 - 85.0) / 110.0
-		if math.Abs(episodes[0].Drawdown-expectedDD) > 1e-6 {
-			t.Errorf("drawdown = %v, want %v (trough updated)", episodes[0].Drawdown, expectedDD)
+		if math.Abs(episodes[0].Depth-expectedDD) > 1e-6 {
+			t.Errorf("drawdown = %v, want %v (trough updated)", episodes[0].Depth, expectedDD)
 		}
 		if episodes[0].TroughDate != "2024-01-04" {
 			t.Errorf("trough date = %s, want 2024-01-04", episodes[0].TroughDate)

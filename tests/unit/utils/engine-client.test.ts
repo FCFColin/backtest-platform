@@ -6,7 +6,7 @@
  * 本测试覆盖：
  * 1. Go 引擎可用时返回 Go 引擎结果
  * 2. callEngineStrict 在 Go 不可用时 fail-closed 抛出 EngineUnavailableError
- * 3. resetEngineAvailability / callGoEngineDirect
+ * 3. resetEngineAvailability
  *
  * 权衡：mock opossum CircuitBreaker 与 callService，不验证真实 HTTP 行为。
  */
@@ -84,7 +84,6 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => metricsMocks);
 import {
   callEngineStrict,
   resetEngineAvailability,
-  callGoEngineDirect,
   EngineUnavailableError,
 } from '../../../packages/backend/src/utils/engineClient.js';
 import { UpstreamProblemError } from '../../../packages/backend/src/utils/errors.js';
@@ -157,40 +156,5 @@ describe('resetEngineAvailability', () => {
     resetEngineAvailability();
 
     expect(cbMocks.goCB.close).toHaveBeenCalled();
-  });
-});
-
-describe('callGoEngineDirect', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    cbMocks.reset();
-    vi.useFakeTimers();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('应通过熔断器调用 Go 引擎并返回结果', async () => {
-    const goResult = { data: 'ok' };
-    cbMocks.goCB.fire.mockResolvedValue(goResult);
-
-    const result = await callGoEngineDirect('/api/engine/health', { test: true });
-
-    expect(result).toEqual(goResult);
-    expect(cbMocks.goCB.fire).toHaveBeenCalledWith('/api/engine/health', { test: true });
-  });
-
-  it('Go 引擎失败且重试耗尽时应抛出错误', async () => {
-    cbMocks.goCB.fire.mockImplementation(async () => {
-      throw new Error('go engine unavailable');
-    });
-
-    const promise = callGoEngineDirect('/api/engine/health', {});
-    const catchPromise = promise.catch((e) => e);
-    await vi.runAllTimersAsync();
-    const error = await catchPromise;
-    expect(error).toBeInstanceOf(Error);
-    expect(error.message).toBe('go engine unavailable');
   });
 });

@@ -6,7 +6,7 @@
  * 写操作（改名、改成员角色、移除成员、邀请增删）要求 ADMIN_ACCESS（owner/admin）。
  * 接受邀请 POST /invitations/accept 仅需登录（受邀者尚不属于该组织，不能要求 requireTenant）。
  */
-import { Router, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
 import { sendProblem } from '../utils/errors.js';
@@ -14,6 +14,7 @@ import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { requireTenant, hasTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
+import { crudRouteHandler } from './routeUtils.js';
 import {
   getOrg,
   updateOrgName,
@@ -27,11 +28,11 @@ import {
   revokeInvitation,
   acceptInvitation,
 } from '../services/invitationService.js';
-import { sendInvitationEmail } from '../services/mailService.js';
+import { sendInvitationEmail } from '../infrastructure/mailService.js';
+import { isUuid } from '../utils/validation.js';
 
 const router = Router();
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROLE_ENUM = z.enum(['owner', 'admin', 'analyst', 'readonly']);
 
 const requireAdmin = requirePermission(Permission.ADMIN_ACCESS);
@@ -105,7 +106,7 @@ router.patch(
   requireAdmin,
   validate(roleSchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    if (!UUID_RE.test(req.params.userId)) {
+    if (!isUuid(req.params.userId)) {
       sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'userId 必须为 UUID' });
       return;
     }
@@ -132,7 +133,7 @@ router.delete(
   '/members/:userId',
   requireAdmin,
   async (req: AuthenticatedRequest, res: Response) => {
-    if (!UUID_RE.test(req.params.userId)) {
+    if (!isUuid(req.params.userId)) {
       sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'userId 必须为 UUID' });
       return;
     }
@@ -165,12 +166,13 @@ router.post(
   '/invitations',
   requireAdmin,
   validate(inviteSchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!hasTenant(req)) return;
-    const orgId = req.tenantId;
-    const { email, role } = req.body as { email: string; role: 'admin' | 'analyst' | 'readonly' };
-    try {
-      const inv = await createInvitation(orgId, email, role, req.user?.sub ?? null);
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const authReq = req as AuthenticatedRequest;
+      if (!hasTenant(authReq)) return;
+      const orgId = authReq.tenantId;
+      const { email, role } = req.body as { email: string; role: 'admin' | 'analyst' | 'readonly' };
+      const inv = await createInvitation(orgId, email, role, authReq.user?.sub ?? null);
       const org = await getOrg(orgId);
       try {
         await sendInvitationEmail(email, org?.name ?? '组织', inv.token);
@@ -181,13 +183,14 @@ router.post(
         success: true,
         data: { id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt },
       });
-    } catch (err) {
-      logger.error({ err: String(err), orgId }, '[orgRoutes] 创建邀请失败');
-      sendProblem(res, 500, 'INVITE_CREATE_FAILED', 'Internal Server Error', {
-        detail: '创建邀请失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[orgRoutes] 创建邀请失败',
+      code: 'INVITE_CREATE_FAILED',
+      title: 'Internal Server Error',
+      detail: '创建邀请失败',
+    },
+  ),
 );
 
 /** DELETE /api/v1/orgs/invitations/:id - 撤销邀请（admin） */
@@ -195,7 +198,7 @@ router.delete(
   '/invitations/:id',
   requireAdmin,
   async (req: AuthenticatedRequest, res: Response) => {
-    if (!UUID_RE.test(req.params.id)) {
+    if (!isUuid(req.params.id)) {
       sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'id 必须为 UUID' });
       return;
     }

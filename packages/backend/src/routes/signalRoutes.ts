@@ -4,105 +4,90 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { fetchHistoryData } from '../services/dataService.js';
+import type {
+  SignalAnalysisRequest,
+  DualSignalConfig,
+  MultiSignalConfig,
+} from '@backtest/shared/types/signal';
 import { logger } from '../utils/logger.js';
-import { sendProblem, errorMessage } from '../utils/errors.js';
 import { validate } from '../middleware/validate.js';
 import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from '../schemas/signal.js';
 import {
   executeSignalAnalyze,
   executeDualSignalAnalyze,
   executeMultiSignalAnalyze,
-} from '../application/signal-application-service.js';
-import type {
-  SignalAnalysisRequest,
-  DualSignalConfig,
-  MultiSignalConfig,
-} from '@backtest/shared/types/signal';
+} from '../services/signal-orchestrator.js';
+import { asyncRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
 router.post(
   '/analyze',
   validate(signalAnalyzeSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
       const body = req.body as SignalAnalysisRequest;
       logger.info(
         `[signal/analyze] ticker=${body.ticker} indicator=${body.indicator} period=${body.period}`,
       );
 
-      const history = await fetchHistoryData([body.ticker], body.startDate, body.endDate);
-      const result = executeSignalAnalyze(body, history);
+      const result = await executeSignalAnalyze(body);
       res.json({ success: true, data: result });
-    } catch (err) {
-      const message = errorMessage(err);
-      if (message.includes('未找到')) {
-        sendProblem(res, 404, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
-        return;
-      }
-      logger.error({ err: err as Error }, '[signal/analyze] 信号分析失败');
-      sendProblem(res, 500, 'SIGNAL_ANALYZE_ERROR', 'Signal analysis failed', {
-        detail: '信号分析失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[signal/analyze] 信号分析失败',
+      code: 'SIGNAL_ANALYZE_ERROR',
+      title: 'Signal analysis failed',
+      detail: '信号分析失败',
+      endpoint: 'signal-analyze',
+    },
+  ),
 );
 
 router.post(
   '/dual',
   validate(signalDualSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
       const body = req.body as DualSignalConfig;
       const { signal1: cfg1, signal2: cfg2, combinationMethod } = body;
       logger.info(
         `[signal/dual] s1=${cfg1.indicator} s2=${cfg2.indicator} method=${combinationMethod}`,
       );
 
-      const tickers = Array.from(new Set([cfg1.ticker, cfg2.ticker]));
-      const history = await fetchHistoryData(tickers, cfg1.startDate, cfg1.endDate);
-      const result = executeDualSignalAnalyze(body, history);
+      const result = await executeDualSignalAnalyze(body);
       res.json({ success: true, data: result });
-    } catch (err) {
-      const message = errorMessage(err);
-      if (message.includes('未找到')) {
-        sendProblem(res, 404, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
-        return;
-      }
-      logger.error({ err: err as Error }, '[signal/dual] 双重信号分析失败');
-      sendProblem(res, 500, 'SIGNAL_DUAL_ERROR', 'Dual signal analysis failed', {
-        detail: '双信号分析失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[signal/dual] 双重信号分析失败',
+      code: 'SIGNAL_DUAL_ERROR',
+      title: 'Dual signal analysis failed',
+      detail: '双信号分析失败',
+      endpoint: 'signal-dual',
+    },
+  ),
 );
 
 router.post(
   '/multi',
   validate(signalMultiSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
       const body = req.body as MultiSignalConfig;
       const { signals: configs, aggregationMethod } = body;
       logger.info(`[signal/multi] count=${configs.length} method=${aggregationMethod}`);
 
-      const ticker = configs[0].ticker;
-      const history = await fetchHistoryData([ticker], configs[0].startDate, configs[0].endDate);
-      const result = executeMultiSignalAnalyze(body, history);
+      const result = await executeMultiSignalAnalyze(body);
       res.json({ success: true, data: result });
-    } catch (err) {
-      const message = errorMessage(err);
-      if (message.includes('未找到')) {
-        sendProblem(res, 404, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
-        return;
-      }
-      logger.error({ err: err as Error }, '[signal/multi] 多信号分析失败');
-      sendProblem(res, 500, 'SIGNAL_MULTI_ERROR', 'Multi signal analysis failed', {
-        detail: '多信号分析失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[signal/multi] 多信号分析失败',
+      code: 'SIGNAL_MULTI_ERROR',
+      title: 'Multi signal analysis failed',
+      detail: '多信号分析失败',
+      endpoint: 'signal-multi',
+    },
+  ),
 );
 
 export default router;

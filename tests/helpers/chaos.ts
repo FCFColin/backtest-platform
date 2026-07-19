@@ -30,7 +30,7 @@ export const CONTAINERS = {
 /**
  * Docker 网络名（docker-compose 默认创建的 network）
  */
-export const NETWORK_NAME = 'backtest_default';
+const NETWORK_NAME = 'backtest_default';
 
 /**
  * 断开容器与网络的连接（模拟网络分区）
@@ -63,7 +63,7 @@ export async function reconnectContainer(
  *
  * @returns Docker 可用返回 true，否则 false
  */
-export async function isDockerAvailable(): Promise<boolean> {
+async function isDockerAvailable(): Promise<boolean> {
   try {
     await execAsync('docker info');
     return true;
@@ -78,7 +78,7 @@ export async function isDockerAvailable(): Promise<boolean> {
  * @param containerName - 容器名
  * @returns 容器运行中返回 true，否则 false
  */
-export async function isContainerRunning(containerName: string): Promise<boolean> {
+async function isContainerRunning(containerName: string): Promise<boolean> {
   try {
     const { stdout } = await execAsync(`docker inspect -f '{{.State.Running}}' ${containerName}`);
     return stdout.trim() === 'true';
@@ -131,7 +131,7 @@ export async function sendSignalToContainer(
  *
  * @param containerName - 容器名
  */
-export async function stopContainer(containerName: string): Promise<void> {
+async function stopContainer(containerName: string): Promise<void> {
   await execAsync(`docker stop ${containerName}`);
 }
 
@@ -168,4 +168,85 @@ export async function waitForHealthy(
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   return false;
+}
+
+/**
+ * 高阶函数：停止容器 → 执行断言 → 恢复容器（始终恢复，即使断言失败）
+ *
+ * 替代各 chaos 测试中重复的 stopContainer + try/finally + startContainer 样板。
+ * 可选 settleMs 在停止后等待一段时间（让熔断器/连接池检测到故障）。
+ * 可选 readyUrl 在恢复后等待健康检查通过（exp-5 需要，exp-2/4 不需要）。
+ *
+ * @param container - 容器名
+ * @param fn - 断言函数（在容器停止期间执行）
+ * @param options - 可选配置：settleMs（停止后等待ms）、readyUrl（恢复后健康检查URL）
+ * @returns fn 的返回值
+ */
+export async function withContainerStopped<T>(
+  container: string,
+  fn: () => Promise<T>,
+  options?: { settleMs?: number; readyUrl?: string },
+): Promise<T> {
+  await stopContainer(container);
+  try {
+    if (options?.settleMs) {
+      await new Promise((r) => setTimeout(r, options.settleMs));
+    }
+    return await fn();
+  } finally {
+    await startContainer(container);
+    if (options?.readyUrl) {
+      await waitForHealthy(options.readyUrl, 30000);
+    }
+  }
+}
+
+/**
+ * Chaos fixture 状态（由 setupChaosFixture 返回）
+ */
+export interface ChaosFixture {
+  /** Docker 是否可用（供 it.skipIf 在 test 注册时读取） */
+  dockerAvailable: boolean;
+  /** 目标容器是否运行中（测试前置条件） */
+  containerRunning: boolean;
+  /** 在 afterAll 中调用以恢复容器 */
+  recover: () => Promise<void>;
+}
+
+/**
+ * 设置 chaos 测试 fixture：检查前置条件 + 返回恢复函数
+ *
+ * 替代各 chaos 测试中重复的 beforeAll(isDockerAvailable + isContainerRunning)
+ * + afterAll(startContainer/reconnectContainer) 样板。
+ *
+ * 调用方需在 beforeAll 中 await 此函数，将返回值赋给 top-level 变量，
+ * 以便 it.skipIf(!fixture.dockerAvailable) 在 test 注册时读取初始值（false）。
+ * 这与原模式行为一致：skipIf 在注册时求值，beforeAll 在运行时赋值。
+ *
+ * @param containerName - 容器名
+ * @param recoverFn - 恢复函数，默认 startContainer；exp-1 使用 reconnectContainer
+ * @returns fixture 状态 + recover 函数
+ */
+export async function setupChaosFixture(
+  containerName: string,
+  recoverFn: (name: string) => Promise<void> = startContainer,
+): Promise<ChaosFixture> {
+  const dockerAvailable = await isDockerAvailable();
+  let containerRunning = false;
+  if (dockerAvailable) {
+    containerRunning = await isContainerRunning(containerName);
+  }
+  return {
+    dockerAvailable,
+    containerRunning,
+    recover: async () => {
+      if (dockerAvailable && containerRunning) {
+        try {
+          await recoverFn(containerName);
+        } catch {
+          // 容器可能已恢复，忽略错误
+        }
+      }
+    },
+  };
 }

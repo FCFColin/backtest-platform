@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_TICKERS } from '@backtest/shared/constants';
 
 // Validation: 回测路由请求体运行时校验，防止TypeScript类型断言绕过
 // 企业为何需要：TypeScript类型仅在编译时检查，运行时req.body可包含任意数据
@@ -88,9 +89,51 @@ export const portfolioBacktestSchema = z.object({
   parameters: backtestParametersSchema,
 });
 
+// Security (T-23): ticker 安全净化正则（与 utils/tickerValidation.ts TICKER_PATTERN 同源）。
+// 仅允许大写字母、数字、点、下划线、连字符，长度 1-20，防路径遍历/子进程注入。
+const TICKER_PATTERN = /^[A-Z0-9._-]{1,20}$/;
+
+/**
+ * Ticker 列表 schema：接受字符串数组或逗号/空白分隔的字符串。
+ *
+ * 自动 transform 为规范化数组（trim + 过滤空值），并 enforce：
+ * 1. 至少 1 个 ticker（非空）
+ * 2. 数量不超过 {@link MAX_TICKERS}
+ * 3. 每个 ticker 符合安全净化格式（{@link TICKER_PATTERN}）
+ *
+ * 企业理由：3 处路由（/analysis、/optimize、/efficient-frontier）此前各自内联实现
+ * `tickers.split(/[\s,]+/)` + `MAX_TICKERS` 检查 + `validateTickers()` 调用，
+ * 行为差异容易导致不一致。统一在 schema 层 enforce 后路由只关心业务调用。
+ *
+ * 输出类型始终为 `string[]`（字符串输入会被 transform 拆分）。
+ */
+const tickerListSchema = z
+  .union([z.array(z.string()), z.string()])
+  .transform((val) =>
+    (Array.isArray(val) ? val : val.split(/[\s,]+/)).map((t) => t.trim()).filter(Boolean),
+  )
+  .refine((tickers) => tickers.length > 0, {
+    message: 'tickers 不能为空',
+    path: ['tickers'],
+  })
+  .refine((tickers) => tickers.length <= MAX_TICKERS, {
+    message: `ticker 数量超过限制 (max ${MAX_TICKERS})`,
+    path: ['tickers'],
+  })
+  .superRefine((tickers, ctx) => {
+    const invalid = tickers.filter((t) => !TICKER_PATTERN.test(t));
+    if (invalid.length > 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Invalid ticker format: ${invalid.join(', ')}`,
+        path: ['tickers'],
+      });
+    }
+  });
+
 // POST /api/backtest/analysis
 export const analysisSchema = z.object({
-  tickers: z.union([z.array(z.string()).min(1), z.string().min(1)]),
+  tickers: tickerListSchema,
   parameters: backtestParametersSchema,
 });
 
@@ -117,7 +160,7 @@ export const monteCarloSchema = z
 
 // POST /api/backtest/optimize
 export const optimizeSchema = z.object({
-  tickers: z.array(z.string()).min(1),
+  tickers: tickerListSchema,
   objective: z.enum(['maxSharpe', 'minVolatility', 'maxReturn']),
   constraints: z
     .object({
@@ -132,7 +175,7 @@ export const optimizeSchema = z.object({
 
 // POST /api/backtest/efficient-frontier
 export const efficientFrontierSchema = z.object({
-  tickers: z.array(z.string()).min(1),
+  tickers: tickerListSchema,
   numPoints: z.number().optional(),
   parameters: backtestParametersSchema,
   riskFreeRate: z.number().optional(),

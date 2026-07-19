@@ -1,0 +1,177 @@
+/* ============================================
+   通用组件
+   ============================================ */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.link-blue {
+  font-size: 13px;
+  color: var(--brand);
+  cursor: pointer;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+
+.link-blue:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
+/* Toggle 开关 */
+.toggle-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--border-strong);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-switch.active {
+  background: var(--brand);
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--bg-elevated);
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-switch.active::after {
+  transform: translateX(16px);
+}
+
+/* 复选框 */
+input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* 图表卡片 */
+.chart-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-card);
+}
+
+.chart-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 12px;
+}
+
+/* 通用输入框 */
+input[type='text'],
+input[type='number'],
+input[type='date'],
+select {
+  font-family: inherit;
+}
+
+select option {
+  background-color: var(--bg-elevated);
+  color: var(--text-body);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Recharts 浅色主题覆盖 */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--bg-subtle);
+}
+.recharts-text {
+  fill: var(--text-muted);
+  font-size: 12px;
+}
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+.recharts-default-tooltip {
+  background-color: var(--bg-elevated) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: var(--radius-control) !important;
+  box-shadow: var(--shadow-md) !important;
+  font-size: 12px !important;
+  color: var(--text-body) !important;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+/* ============================================
+   页脚
+   ============================================ */
+.app-footer {
+  background: var(--bg-header);
+  border-top: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-footer-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-footer-right {
+  display: flex;
+  align-items: center;
+}
+
+.app-footer-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.12s;
+}
+
+.app-footer-link:hover {
+  color: var(--brand);
+}
+
+.app-footer-sep {
+  color: var(--text-muted);
+  opacity: 0.6;
+}

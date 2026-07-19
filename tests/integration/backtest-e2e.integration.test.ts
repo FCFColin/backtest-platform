@@ -6,6 +6,7 @@
  * 引擎与数据服务被 mock 以避免真实外部依赖。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { EngineUnavailableErrorStub } from '../helpers/engineRouteMocks.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   logger: {
@@ -16,46 +17,42 @@ vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   },
 }));
 
-const callEngineStrictMock = vi.fn();
-const EngineUnavailableError = class EngineUnavailableError extends Error {
-  retryAfterSeconds: number;
-  constructor(endpoint: string, retryAfterSeconds = 30) {
-    super(`Go 引擎不可用: ${endpoint}`);
-    this.name = 'EngineUnavailableError';
-    this.retryAfterSeconds = retryAfterSeconds;
-  }
-};
+const { callEngineStrictMock, fetchHistoryDataMock, searchTickersMock } = vi.hoisted(() => ({
+  callEngineStrictMock: vi.fn(),
+  fetchHistoryDataMock: vi.fn(),
+  searchTickersMock: vi.fn(),
+}));
 
 vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: callEngineStrictMock,
-  EngineUnavailableError,
+  EngineUnavailableError: EngineUnavailableErrorStub,
   resetEngineAvailability: vi.fn(),
-  callGoEngineDirect: vi.fn(),
 }));
-
-const fetchHistoryDataMock = vi.fn();
-const searchTickersMock = vi.fn();
 
 vi.mock('../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: fetchHistoryDataMock,
   searchTickers: searchTickersMock,
-  consumeDegradedFlag: vi.fn(() => ({ degraded: false })),
 }));
 
-vi.mock('../../packages/backend/src/utils/compressBacktestResult.js', () => ({
+vi.mock('../../packages/backend/src/application/backtest/compressBacktestResult.js', () => ({
   compressBacktestResultForSync: vi.fn((r) => r),
   extractBacktestSeries: vi.fn(() => ({})),
 }));
 
-vi.mock('../../packages/backend/src/utils/backtestResultCache.js', () => ({
+vi.mock('../../packages/backend/src/application/backtest/backtestResultCache.js', () => ({
   backtestCacheKey: vi.fn(() => 'cache-key'),
   getBacktestResultCache: vi.fn(() => null),
   setBacktestResultCache: vi.fn(),
 }));
 
 vi.mock('../../packages/backend/src/db/macroData.js', () => ({
-  loadCpiMapFromDb: vi.fn(async () => ({})),
+  loadCpiSeriesFromDb: vi.fn(async () => []),
   loadExchangeRatesFromDb: vi.fn(async () => ({})),
+}));
+
+vi.mock('../../packages/backend/src/services/cpiService.js', () => ({
+  loadCpiMap: vi.fn(async () => ({})),
+  fetchCpiFromGoService: vi.fn(async () => null),
 }));
 
 import express from 'express';
@@ -113,8 +110,11 @@ describe('回测端到端集成测试', () => {
 
   it('POST /optimize 引擎正常返回 200 + 优化结果', async () => {
     fetchHistoryDataMock.mockResolvedValueOnce({
-      AAPL: { '2020-01-01': 100 },
-      MSFT: { '2020-01-01': 200 },
+      data: {
+        AAPL: { '2020-01-01': 100 },
+        MSFT: { '2020-01-01': 200 },
+      },
+      degraded: false,
     });
     callEngineStrictMock.mockResolvedValueOnce({
       success: true,
@@ -134,11 +134,14 @@ describe('回测端到端集成测试', () => {
 
   it('POST /optimize 引擎不可用时 fail-closed 返回 503 + degraded（ADR-031）', async () => {
     fetchHistoryDataMock.mockResolvedValueOnce({
-      AAPL: { '2020-01-01': 100 },
-      MSFT: { '2020-01-01': 200 },
+      data: {
+        AAPL: { '2020-01-01': 100 },
+        MSFT: { '2020-01-01': 200 },
+      },
+      degraded: false,
     });
     callEngineStrictMock.mockRejectedValueOnce(
-      new EngineUnavailableError('/api/engine/optimize', 30),
+      new EngineUnavailableErrorStub('/api/engine/optimize', 30),
     );
 
     const res = await fetch(`${baseUrl}/api/v1/backtest/optimize`, {

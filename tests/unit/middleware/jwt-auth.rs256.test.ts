@@ -4,34 +4,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Request, Response } from 'express';
 import { exportPKCS8, exportSPKI, generateKeyPair } from 'jose';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import {
+  createLoggerMocks,
+  createRedisMocks,
+  createJwtAuthConfigMocks,
+  type JwtAuthConfigMocks,
+} from '../../helpers/mockFactories.js';
+import { createJwtAuthUserRepoMock } from '../../helpers/jwtAuthSetup.js';
 
-const mocks = vi.hoisted(() => ({
-  config: {
-    NODE_ENV: 'development' as string,
-    JWT_SECRET: 'test-jwt-secret-for-unit-tests',
-    JWT_ACCESS_TTL: 900,
-    JWT_REFRESH_TTL: 604800,
-    ADMIN_API_KEY: '',
-    JWT_ALGORITHM: 'RS256' as 'RS256' | 'HS256',
-    JWT_PRIVATE_KEY: '',
-    JWT_PRIVATE_KEY_FILE: '',
-    JWT_PUBLIC_KEY: '',
-    JWT_PUBLIC_KEY_FILE: '',
-    DEV_SKIP_AUTH: false,
-  },
-}));
+const mocks = vi.hoisted(() => ({ config: {} as JwtAuthConfigMocks }));
 
-const redisMocks = vi.hoisted(() => ({
-  ping: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-  get: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-  set: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-  del: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-  sadd: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-  smembers: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-  expire: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-  on: vi.fn(),
-}));
+const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
 
 const fsMocks = vi.hoisted(() => ({
   readFileSync: vi.fn(),
@@ -42,25 +25,25 @@ vi.mock('fs', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: mocks.config,
+  config: Object.assign(
+    mocks.config,
+    createJwtAuthConfigMocks({ NODE_ENV: 'development', JWT_ALGORITHM: 'RS256' }),
+  ),
   validateConfig: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   redisConnection: {},
-  appRedis: redisMocks,
+  appRedis: createRedisMocks(
+    { withSets: true, rejectWithError: new Error('redis unavailable') },
+    redisMocks,
+  ),
 }));
 
-vi.mock('../../../packages/backend/src/services/userService.js', () => ({
-  getUserById: vi.fn().mockImplementation(async (id: string) => ({
-    id,
-    username: 'test-user',
-    role: 'analyst' as const,
-    isActive: true,
-    createdAt: new Date(),
-  })),
+vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
+  getUserById: createJwtAuthUserRepoMock(),
 }));
 
 describe('jwtAuth RS256 路径', () => {
@@ -129,7 +112,7 @@ describe('jwtAuth RS256 路径', () => {
 
   it('getUserById 失败时 jwtAuth 应拒绝访问', async () => {
     const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
-    const { getUserById } = await import('../../../packages/backend/src/services/userService.js');
+    const { getUserById } = await import('../../../packages/backend/src/repositories/userRepo.js');
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('db error'));
     const token = await mod.generateToken('user-db-error', 'admin');
     const req = {

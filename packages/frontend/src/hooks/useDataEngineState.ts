@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { Stats, UniverseStats, TFunc } from '../components/dataEngine/types.js';
 import { doFetchStats, doActionFn } from '../components/dataEngine/utils.js';
 
-export interface DataEngineAction {
+interface DataEngineAction {
   stats: Stats | null;
   universe: UniverseStats | null;
   actionMsg: string;

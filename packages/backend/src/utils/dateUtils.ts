@@ -6,25 +6,19 @@
  * 权衡：集中管理可能过度抽象，但校验规则必须一致
  */
 
+/** 将 Date 或 ISO 字符串转为 YYYY-MM-DD 字符串 */
+export function toDateStr(d: Date | string): string {
+  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  return d.slice(0, 10);
+}
+
+/** 返回当前日期的 YYYY-MM-DD 字符串 */
+export function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /** 校验日期格式（YYYY-MM-DD），空字符串视为合法（表示"全部历史"） */
 export function isValidDate(value: string): boolean {
   if (!value) return true;
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-/** 获取日期范围的边界值，空字符串表示不限制 */
-export function getDateLimits(
-  startDate?: string,
-  endDate?: string,
-): { startLimit: string; endLimit: string } {
-  return {
-    startLimit: startDate || '0000-01-01',
-    endLimit: endDate || '9999-12-31',
-  };
-}
-
-/** 过滤日期范围，空字符串表示不限制 */
-export function filterDates(dates: string[], startDate?: string, endDate?: string): string[] {
-  const { startLimit, endLimit } = getDateLimits(startDate, endDate);
-  return dates.filter((d) => d >= startLimit && d <= endLimit);
 }

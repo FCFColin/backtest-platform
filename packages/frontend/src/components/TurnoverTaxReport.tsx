@@ -4,9 +4,11 @@
  * 并按假设税率推算税务拖累。使用 SortableTable 展示，支持按列排序。
  */
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PortfolioResult } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
 import { SortableTable, type Column } from './SortableTable.js';
+import ChartCard from './ChartCard.js';
 
 /** 周转率与税务报告 Props */
 interface TurnoverTaxReportProps {
@@ -61,11 +63,14 @@ function formatPct(v: number | null): string {
   return `${(v * 100).toFixed(2)}%`;
 }
 
-function buildTurnoverColumns(portfolios: PortfolioResult[]): Column<TurnoverRow>[] {
+function buildTurnoverColumns(
+  portfolios: PortfolioResult[],
+  t: (key: string) => string,
+): Column<TurnoverRow>[] {
   return [
     {
       key: 'name',
-      label: '组合',
+      label: t('components.turnoverTaxReport.columns.portfolio'),
       render: (row) => {
         const idx = portfolios.findIndex((p) => p.name === row.name);
         const color = CHART_COLORS[idx % CHART_COLORS.length];
@@ -82,7 +87,7 @@ function buildTurnoverColumns(portfolios: PortfolioResult[]): Column<TurnoverRow
     },
     {
       key: 'turnover',
-      label: '年化周转率',
+      label: t('components.turnoverTaxReport.columns.annualTurnover'),
       render: (row) => (
         <span className="font-mono text-right block" style={{ color: 'var(--text-strong)' }}>
           {formatPct(row.turnover)}
@@ -92,7 +97,7 @@ function buildTurnoverColumns(portfolios: PortfolioResult[]): Column<TurnoverRow
     },
     {
       key: 'taxDrag',
-      label: '预估税务拖累/年',
+      label: t('components.turnoverTaxReport.columns.taxDrag'),
       render: (row) => (
         <span
           className="font-mono text-right block"
@@ -105,7 +110,7 @@ function buildTurnoverColumns(portfolios: PortfolioResult[]): Column<TurnoverRow
     },
     {
       key: 'observations',
-      label: '配置采样点',
+      label: t('components.turnoverTaxReport.columns.observations'),
       render: (row) => (
         <span className="font-mono text-right block" style={{ color: 'var(--text-body)' }}>
           {row.observations}
@@ -115,7 +120,7 @@ function buildTurnoverColumns(portfolios: PortfolioResult[]): Column<TurnoverRow
     },
     {
       key: 'years',
-      label: '覆盖年数',
+      label: t('components.turnoverTaxReport.columns.years'),
       render: (row) => (
         <span className="font-mono text-right block" style={{ color: 'var(--text-body)' }}>
           {row.years > 0 ? row.years.toFixed(1) : '\u2014'}
@@ -133,10 +138,11 @@ function TaxRateInput({
   taxRate: number;
   setTaxRate: (v: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
       <label className="param-label" style={{ marginBottom: 0 }}>
-        税率假设
+        {t('components.turnoverTaxReport.taxRateAssumption')}
       </label>
       <div className="param-input-suffix-wrap" style={{ width: 120 }}>
         <input
@@ -151,13 +157,14 @@ function TaxRateInput({
         <span className="param-input-suffix">%</span>
       </div>
       <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-        （默认 20%，适用于长期资本利得/分红税率的简化假设）
+        {t('components.turnoverTaxReport.taxRateHint')}
       </span>
     </div>
   );
 }
 
 export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps) {
+  const { t } = useTranslation();
   const [taxRate, setTaxRate] = useState(20);
 
   const rows: TurnoverRow[] = useMemo(() => {
@@ -169,14 +176,12 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
   }, [portfolios, taxRate]);
 
   const hasAnyTurnover = rows.some((r) => r.turnover != null);
-  const columns = buildTurnoverColumns(portfolios);
+  const columns = buildTurnoverColumns(portfolios, t);
 
   return (
-    <div className="chart-card">
-      <div className="chart-card-title">周转率与税务报告</div>
+    <ChartCard title={t('components.turnoverTaxReport.title')}>
       <div className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
-        年化周转率由组合配置历史（allocationHistory）的权重变动估算；税务拖累 = 年化周转率 ×
-        税率假设。
+        {t('components.turnoverTaxReport.description')}
       </div>
 
       <TaxRateInput taxRate={taxRate} setTaxRate={setTaxRate} />
@@ -190,10 +195,9 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
         />
       ) : (
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          暂无配置历史数据（allocationHistory），无法计算周转率。该数据通常由 Go
-          引擎在启用调仓时生成。
+          {t('components.turnoverTaxReport.noData')}
         </div>
       )}
-    </div>
+    </ChartCard>
   );
 }

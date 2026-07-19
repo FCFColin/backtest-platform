@@ -1,0 +1,40 @@
+/* ============================================
+   响应式
+   ============================================ */
+@media (max-width: 768px) {
+  .bt-page {
+    padding: 12px;
+    padding-top: 72px;
+  }
+  .bt-seo-features {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .params-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .param-field-start-val,
+  .param-field-rolling {
+    width: 100%;
+  }
+  .portfolios-cards {
+    flex-direction: column;
+  }
+  .portfolio-card {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .bt-layout-left {
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .bt-layout-right {
+  }
+  .app-footer {
+    justify-content: center;
+    text-align: center;
+  }
+  .app-footer-left {
+    justify-content: center;
+  }
+}

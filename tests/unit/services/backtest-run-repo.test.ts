@@ -14,7 +14,7 @@ const dbMocks = vi.hoisted(() => ({
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTenant: (tenantId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) => {
     dbMocks.withTenant(tenantId);
     return fn({ query: dbMocks.query });
@@ -28,7 +28,7 @@ import {
   getRun,
   createRun,
   deleteRun,
-} from '../../../packages/backend/src/services/backtestRunRepo.js';
+} from '../../../packages/backend/src/repositories/backtestRunRepo.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const RUN_ID = '22222222-2222-2222-2222-222222222222';

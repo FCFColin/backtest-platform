@@ -1,5 +1,7 @@
 /**
- * 战术分配（Tactical Allocation）路由
+ * 战术分配（Tactical Allocation）路由 — 薄路由模式。
+ *
+ * 数据获取已在 application 层中。路由只负责请求解析 + 调用服务 + 响应格式化。
  *
  * POST /api/tactical/backtest  - 接收战术策略配置，计算信号并运行回测
  * POST /api/tactical/what-if   - 接收 ticker 列表，返回实时价格与当前信号状态
@@ -7,155 +9,82 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical';
-import { fetchHistoryData } from '../services/dataService.js';
+import type { EmailAlertConfig } from '@backtest/shared/types/tactical';
 import { logger } from '../utils/logger.js';
-import { sendProblem, errorMessage } from '../utils/errors.js';
-import { jwtAuth } from '../middleware/jwtAuth.js';
-import { requirePermission, Permission } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
 import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,
   tacticalAlertSchema,
 } from '../schemas/tactical.js';
-import { collectTickers } from '../application/tactical-application-service.js';
 import {
   executeTacticalBacktest,
   executeTacticalWhatIf,
   saveTacticalAlertConfig,
 } from '../application/tactical-application-service.js';
+import { asyncRouteHandler } from './routeUtils.js';
 
 const router = Router();
-
-interface BacktestRequest {
-  strategy: TacticalStrategy;
-  startDate: string;
-  endDate: string;
-  startingValue: number;
-  rebalanceFrequency: import('@backtest/shared/types/index').RebalanceFrequency;
-}
-
-interface WhatIfRequest {
-  tickers: string[];
-  strategy: TacticalStrategy;
-  endDate?: string;
-}
-
-interface AlertRequest {
-  config: EmailAlertConfig;
-}
 
 router.post(
   '/backtest',
   validate(tacticalBacktestSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    const startTime = Date.now();
-    try {
-      const body = req.body as BacktestRequest;
-      const { strategy, startDate, endDate } = body;
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const startTime = Date.now();
+      const body = req.body;
 
-      if (!strategy?.signals?.length) {
-        sendProblem(res, 422, 'MISSING_SIGNALS', 'Missing strategy signals', {
-          detail: '缺少策略信号配置',
-        });
-        return;
-      }
-      if (!startDate || !endDate) {
-        sendProblem(res, 422, 'MISSING_DATES', 'Missing date range', { detail: '缺少起止日期' });
-        return;
-      }
-
-      const allTickers = collectTickers(strategy);
-      if (allTickers.length === 0) {
-        sendProblem(res, 422, 'NO_TICKERS', 'No tickers in strategy', {
-          detail: '策略未配置任何目标标的',
-        });
-        return;
-      }
-
-      const priceData = await fetchHistoryData(allTickers, startDate, endDate);
-      const data = executeTacticalBacktest(body, priceData);
-
+      const data = await executeTacticalBacktest(body);
       res.json({ success: true, data });
       logger.info(`[tactical] 回测完成，耗时 ${Date.now() - startTime}ms`);
-    } catch (error) {
-      const message = errorMessage(error);
-      if (message.includes('无效') || message.includes('交易日不足')) {
-        sendProblem(res, 422, 'TACTICAL_VALIDATION', 'Tactical backtest validation failed', {
-          detail: message,
-        });
-        return;
-      }
-      logger.error({ err: error as Error }, '[tactical] 回测失败');
-      sendProblem(res, 500, 'TACTICAL_BACKTEST_ERROR', 'Tactical backtest failed', {
-        detail: '战术回测运行失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[tactical] 回测失败',
+      code: 'TACTICAL_BACKTEST_ERROR',
+      title: 'Tactical backtest failed',
+      detail: '战术回测运行失败',
+      endpoint: 'tactical-backtest',
+    },
+  ),
 );
 
 router.post(
   '/what-if',
   validate(tacticalWhatIfSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { tickers, strategy, endDate } = req.body as WhatIfRequest;
-
-      if (!tickers?.length) {
-        sendProblem(res, 422, 'MISSING_TICKERS', 'Missing tickers', {
-          detail: '请至少输入一个标的代码',
-        });
-        return;
-      }
-
-      const end = endDate || new Date().toISOString().substring(0, 10);
-      const start = new Date(end);
-      start.setFullYear(start.getFullYear() - 1);
-      const startDate = start.toISOString().substring(0, 10);
-
-      const priceData = await fetchHistoryData(tickers, startDate, end);
-      const results = executeTacticalWhatIf(tickers, strategy, priceData, end);
-
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const { tickers, strategy } = req.body;
+      const results = await executeTacticalWhatIf(tickers, strategy);
       res.json({ success: true, data: results });
-    } catch (error) {
-      logger.error({ err: error as Error }, '[tactical] what-if 查询失败');
-      sendProblem(res, 500, 'TACTICAL_WHATIF_ERROR', 'What-if query failed', {
-        detail: '实时价格查询失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[tactical] what-if 查询失败',
+      code: 'TACTICAL_WHATIF_ERROR',
+      title: 'What-if query failed',
+      detail: '实时价格查询失败',
+      endpoint: 'tactical-whatif',
+    },
+  ),
 );
 
 router.post(
   '/alerts',
-  jwtAuth,
-  requirePermission(Permission.STRATEGY_MANAGE),
   validate(tacticalAlertSchema),
-  (req: Request, res: Response): void => {
-    try {
-      const { config } = req.body as AlertRequest;
-      if (!config) {
-        sendProblem(res, 422, 'MISSING_CONFIG', 'Missing alert config', { detail: '缺少告警配置' });
-        return;
-      }
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const { config } = req.body as { config: EmailAlertConfig };
       const saved = saveTacticalAlertConfig(config);
       logger.info(`[tactical] 告警配置已保存，启用状态: ${saved.enabled}`);
       res.json({ success: true, data: { saved: true, config: saved } });
-    } catch (error) {
-      const message = errorMessage(error);
-      if (message.includes('邮箱')) {
-        sendProblem(res, 422, 'MISSING_EMAIL', 'Email required when alerts enabled', {
-          detail: message,
-        });
-        return;
-      }
-      logger.error({ err: error as Error }, '[tactical] 保存告警配置失败');
-      sendProblem(res, 500, 'TACTICAL_ALERT_ERROR', 'Failed to save alert config', {
-        detail: '保存告警配置失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[tactical] 保存告警配置失败',
+      code: 'TACTICAL_ALERT_ERROR',
+      title: 'Failed to save alert config',
+      detail: '保存告警配置失败',
+      endpoint: 'tactical-alerts',
+    },
+  ),
 );
 
 export default router;

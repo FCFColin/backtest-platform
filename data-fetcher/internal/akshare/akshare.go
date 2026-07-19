@@ -83,8 +83,8 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 	return result.([]provider.DailyPrice), nil
 }
 
-// TODO: SearchTicker currently hits a kline endpoint instead of a proper search endpoint.
-// A proper search implementation (e.g., using EastMoney search API) is needed.
+// SearchTicker 暂未实现：东方财富搜索接口与 K 线接口协议不同，
+// 需单独接入搜索端点，而非复用 FetchStockDaily 的 K 线接口。
 func (p *akshareProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
 	return nil, fmt.Errorf("akshare SearchTicker 未实现（需要使用东方财富搜索接口）")
 }

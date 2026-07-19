@@ -34,7 +34,7 @@ func portfolioMetrics(w, mu []float64, sigma [][]float64) (float64, float64, flo
 		ret += w[i] * mu[i]
 	}
 
-	wSigma := matVecMul(sigma, w)
+	wSigma := denseMulVec(sigma, w)
 	variance := 0.0
 	for i := range w {
 		variance += w[i] * wSigma[i]
@@ -59,33 +59,44 @@ func satisfiesConstraints(w []float64, c Constraints) bool {
 	return true
 }
 
-// projectWeights 投影权重到约束可行域
-//
-// 企业理由：投影梯度法需要将权重投影到 [minW, maxW] 且和为1的可行域。
-// 交替执行裁剪和归一化直到收敛。
-func projectWeights(w []float64, c Constraints) []float64 {
+// clipOpts controls clipAndNormalize behavior.
+type clipOpts struct {
+	maxIter  int  // 1 = single pass (clipWeights); >1 = iterate until constraints satisfied (projectWeights)
+	absCheck bool // true: |sum|<1e-15 -> uniform (projectWeights); false: sum<=1e-15 -> uniform (clipWeights)
+}
+
+// clipAndNormalize clips weights to [c.MinWeight, c.MaxWeight] and normalizes to sum=1.
+// When opts.maxIter > 1, repeats clip+normalize until constraints are satisfied or maxIter reached.
+// Returns uniform weights when sum is near zero (per opts.absCheck semantics).
+func clipAndNormalize(w []float64, c Constraints, opts clipOpts) []float64 {
 	n := len(w)
 	result := make([]float64, n)
 	copy(result, w)
 
-	for iter := 0; iter < 100; iter++ {
-		for i := range result {
-			result[i] = math.Max(c.MinWeight, math.Min(c.MaxWeight, result[i]))
+	for i := 0; i < opts.maxIter; i++ {
+		for j := range result {
+			result[j] = math.Max(c.MinWeight, math.Min(c.MaxWeight, result[j]))
 		}
 		sumW := 0.0
 		for _, v := range result {
 			sumW += v
 		}
-		if math.Abs(sumW) < 1e-15 {
-			for i := range result {
-				result[i] = 1.0 / float64(n)
+		var returnUniform bool
+		if opts.absCheck {
+			returnUniform = math.Abs(sumW) < 1e-15
+		} else {
+			returnUniform = sumW <= 1e-15
+		}
+		if returnUniform {
+			for j := range result {
+				result[j] = 1.0 / float64(n)
 			}
 			return result
 		}
-		for i := range result {
-			result[i] /= sumW
+		for j := range result {
+			result[j] /= sumW
 		}
-		if satisfiesConstraints(result, c) {
+		if opts.maxIter > 1 && satisfiesConstraints(result, c) {
 			break
 		}
 	}
@@ -93,31 +104,17 @@ func projectWeights(w []float64, c Constraints) []float64 {
 	return result
 }
 
+// projectWeights 投影权重到约束可行域
+//
+// 企业理由：投影梯度法需要将权重投影到 [minW, maxW] 且和为1的可行域。
+// 交替执行裁剪和归一化直到收敛。
+func projectWeights(w []float64, c Constraints) []float64 {
+	return clipAndNormalize(w, c, clipOpts{maxIter: 100, absCheck: true})
+}
+
 // clipWeights 裁剪权重到约束范围并归一化
 func clipWeights(w []float64, c Constraints) []float64 {
-	n := len(w)
-	result := make([]float64, n)
-	copy(result, w)
-
-	for i := range result {
-		result[i] = math.Max(c.MinWeight, math.Min(c.MaxWeight, result[i]))
-	}
-
-	sumW := 0.0
-	for _, v := range result {
-		sumW += v
-	}
-	if sumW > 1e-15 {
-		for i := range result {
-			result[i] /= sumW
-		}
-	} else {
-		for i := range result {
-			result[i] = 1.0 / float64(n)
-		}
-	}
-
-	return result
+	return clipAndNormalize(w, c, clipOpts{maxIter: 1, absCheck: false})
 }
 
 // isValidPortfolio 检查权重是否构成有效组合（非负、和≈1）

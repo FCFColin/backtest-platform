@@ -1,30 +1,30 @@
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Play, Plus, X } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
+import type { SolveSpeed, FrontierSolver, ReturnObjective } from './efficientFrontierTypes.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
-type SolveSpeed = 'ultrafast' | 'fast' | 'medium' | 'slow';
-type FrontierSolver = 'markowitz' | 'nsga2';
-type ReturnObjective = 'maxCagr' | 'minVolatility';
-
-const SOLVE_SPEED_OPTIONS = [
-  { value: 'ultrafast', label: '极速' },
-  { value: 'fast', label: '快速' },
-  { value: 'medium', label: '中等' },
-  { value: 'slow', label: '慢速' },
+const solveSpeedOptions = (t: TFunction) => [
+  { value: 'ultrafast', label: t('efficientFrontier.solveSpeed.ultrafast') },
+  { value: 'fast', label: t('efficientFrontier.solveSpeed.fast') },
+  { value: 'medium', label: t('efficientFrontier.solveSpeed.medium') },
+  { value: 'slow', label: t('efficientFrontier.solveSpeed.slow') },
 ];
-const REBALANCE_FREQ_OPTIONS = [
-  { value: 'daily', label: '每日' },
-  { value: 'weekly', label: '每周' },
-  { value: 'monthly', label: '每月' },
-  { value: 'quarterly', label: '每季度' },
-  { value: 'yearly', label: '每年' },
+const rebalanceFreqOptions = (t: TFunction) => [
+  { value: 'daily', label: t('efficientFrontier.rebalanceFreq.daily') },
+  { value: 'weekly', label: t('efficientFrontier.rebalanceFreq.weekly') },
+  { value: 'monthly', label: t('efficientFrontier.rebalanceFreq.monthly') },
+  { value: 'quarterly', label: t('efficientFrontier.rebalanceFreq.quarterly') },
+  { value: 'yearly', label: t('efficientFrontier.rebalanceFreq.yearly') },
 ];
-const RETURN_OBJ_OPTIONS = [
-  { value: 'maxCagr', label: '最大化 CAGR' },
-  { value: 'minVolatility', label: '最小化波动率' },
+const returnObjOptions = (t: TFunction) => [
+  { value: 'maxCagr', label: t('efficientFrontier.returnObjective.maxCagr') },
+  { value: 'minVolatility', label: t('efficientFrontier.returnObjective.minVolatility') },
 ];
-const SOLVER_OPTIONS = [
-  { value: 'markowitz', label: 'Markowitz' },
-  { value: 'nsga2', label: 'NSGA-II' },
+const solverOptions = (t: TFunction) => [
+  { value: 'markowitz', label: t('efficientFrontier.solver.markowitz') },
+  { value: 'nsga2', label: t('efficientFrontier.solver.nsga2') },
 ];
 
 function SelectField({
@@ -80,6 +80,7 @@ interface FrontierParamsProps {
 }
 
 function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
+  const { t } = useTranslation();
   return (
     <>
       <label className="param-check">
@@ -91,15 +92,15 @@ function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
               p.onStartDateChange('');
               p.onEndDateChange('');
             } else {
-              p.onStartDateChange('2010-01-01');
-              p.onEndDateChange('2024-12-31');
+              p.onStartDateChange(DEFAULT_BACKTEST_START_DATE);
+              p.onEndDateChange(DEFAULT_END_DATE);
             }
           }}
         />
-        <span>全部历史</span>
+        <span>{t('efficientFrontier.params.allHistory')}</span>
       </label>
       <div className="param-field">
-        <span className="param-label">开始日期</span>
+        <span className="param-label">{t('efficientFrontier.params.startDate')}</span>
         <input
           type="date"
           className="param-input"
@@ -108,7 +109,7 @@ function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
         />
       </div>
       <div className="param-field">
-        <span className="param-label">结束日期</span>
+        <span className="param-label">{t('efficientFrontier.params.endDate')}</span>
         <input
           type="date"
           className="param-input"
@@ -117,7 +118,7 @@ function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
         />
       </div>
       <div className="param-field">
-        <span className="param-label">采样点数</span>
+        <span className="param-label">{t('efficientFrontier.params.numPoints')}</span>
         <input
           type="number"
           className="param-input"
@@ -132,16 +133,17 @@ function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
 }
 
 function FrontierAdvancedFields({ p }: { p: FrontierParamsProps }) {
+  const { t } = useTranslation();
   return (
     <>
       <SelectField
-        label="求解速度"
+        label={t('efficientFrontier.params.solveSpeed')}
         value={p.solveSpeed}
         onChange={(v) => p.onSolveSpeedChange(v as SolveSpeed)}
-        options={SOLVE_SPEED_OPTIONS}
+        options={solveSpeedOptions(t)}
       />
       <div className="param-field param-field-rolling">
-        <span className="param-label">最小包含权重</span>
+        <span className="param-label">{t('efficientFrontier.params.minInclusionWeight')}</span>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -155,22 +157,22 @@ function FrontierAdvancedFields({ p }: { p: FrontierParamsProps }) {
         </div>
       </div>
       <SelectField
-        label="调仓频率"
+        label={t('efficientFrontier.params.rebalanceFreq')}
         value={p.rebalanceFrequency}
         onChange={p.onRebalanceFrequencyChange}
-        options={REBALANCE_FREQ_OPTIONS}
+        options={rebalanceFreqOptions(t)}
       />
       <SelectField
-        label="收益目标"
+        label={t('efficientFrontier.params.returnObjective')}
         value={p.returnObjective}
         onChange={(v) => p.onReturnObjectiveChange(v as ReturnObjective)}
-        options={RETURN_OBJ_OPTIONS}
+        options={returnObjOptions(t)}
       />
       <SelectField
-        label="求解器"
+        label={t('efficientFrontier.params.solver')}
         value={p.solver}
         onChange={(v) => p.onSolverChange(v as FrontierSolver)}
-        options={SOLVER_OPTIONS}
+        options={solverOptions(t)}
       />
       <label className="param-check">
         <input
@@ -178,16 +180,17 @@ function FrontierAdvancedFields({ p }: { p: FrontierParamsProps }) {
           checked={p.allowCash}
           onChange={(e) => p.onAllowCashChange(e.target.checked)}
         />
-        <span>允许现金分配</span>
+        <span>{t('efficientFrontier.params.allowCash')}</span>
       </label>
     </>
   );
 }
 
 function FrontierParamsFields({ p }: { p: FrontierParamsProps }) {
+  const { t } = useTranslation();
   return (
     <div className="params-section">
-      <div className="params-title">参数设置</div>
+      <div className="params-title">{t('efficientFrontier.params.title')}</div>
       <div className="params-row">
         <FrontierDateRange p={p} />
         <FrontierAdvancedFields p={p} />
@@ -197,28 +200,33 @@ function FrontierParamsFields({ p }: { p: FrontierParamsProps }) {
 }
 
 function FrontierTickerList({ p }: { p: FrontierParamsProps }) {
+  const { t } = useTranslation();
   return (
     <div className="portfolios-section">
       <div className="portfolios-header">
-        <span className="portfolios-title">标的列表</span>
+        <span className="portfolios-title">{t('efficientFrontier.params.tickerList')}</span>
         <button className="portfolios-add-btn" onClick={p.onAddTicker}>
           <Plus className="w-4 h-4" />
-          添加标的
+          {t('efficientFrontier.params.addAsset')}
         </button>
       </div>
       <div className="portfolios-cards">
         <div className="portfolio-card">
-          {p.tickers.map((t, i) => (
-            <div key={t || i} className="ticker-row">
+          {p.tickers.map((tk, i) => (
+            <div key={tk || i} className="ticker-row">
               <input
                 type="text"
-                value={t}
+                value={tk}
                 onChange={(e) => p.onUpdateTicker(i, e.target.value)}
-                placeholder="输入代码，如 VTI"
+                placeholder={t('efficientFrontier.params.tickerPlaceholder')}
                 className="ticker-input"
               />
               {p.tickers.length > 2 && (
-                <button onClick={() => p.onRemoveTicker(i)} className="row-remove-btn" title="删除">
+                <button
+                  onClick={() => p.onRemoveTicker(i)}
+                  className="row-remove-btn"
+                  title={t('efficientFrontier.params.delete')}
+                >
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -231,13 +239,18 @@ function FrontierTickerList({ p }: { p: FrontierParamsProps }) {
 }
 
 function FrontierParams(props: FrontierParamsProps) {
+  const { t } = useTranslation();
   return (
     <div className="bt-main-card card">
       <FrontierParamsFields p={props} />
       <div className="bt-action-row">
-        <LoadingButton isLoading={props.isLoading} onClick={props.onRun} loadingText="计算中...">
+        <LoadingButton
+          isLoading={props.isLoading}
+          onClick={props.onRun}
+          loadingText={t('efficientFrontier.params.calculating')}
+        >
           <Play className="w-4 h-4" />
-          计算有效前沿
+          {t('efficientFrontier.params.calcFrontier')}
         </LoadingButton>
       </div>
       <FrontierTickerList p={props} />
@@ -245,11 +258,5 @@ function FrontierParams(props: FrontierParamsProps) {
   );
 }
 
-export {
-  FrontierParams,
-  SOLVE_SPEED_OPTIONS,
-  REBALANCE_FREQ_OPTIONS,
-  RETURN_OBJ_OPTIONS,
-  SOLVER_OPTIONS,
-};
-export type { SolveSpeed, FrontierSolver, ReturnObjective, FrontierParamsProps };
+export { FrontierParams };
+export type { FrontierSolver, ReturnObjective };

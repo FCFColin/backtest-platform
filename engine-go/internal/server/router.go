@@ -1,18 +1,17 @@
 // Package server 提供 HTTP 路由和处理器。
-// 企业理由：将路由定义与业务逻辑分离，遵循 Go 标准项目布局。
-// router.go 负责路由注册，analysis.go 负责业务计算。
+// router.go 负责路由注册与中间件配置，各领域处理器按文件分离：
+//   - handler_backtest.go:   组合回测与统计指标
+//   - handler_optimize.go:   组合优化、有效前沿、蒙特卡洛、目标优化
+//   - handler_analysis.go:   单资产分析、PCA、LETF、因子回归
+//   - handler_tactical.go:   战术分配、网格搜索、信号分析
+//   - handler_calculators.go: 金融计算器
 package server
 
 import (
-	"context"
 	"net/http"
 	"time"
 
-	"engine-go/internal/analysis"
-	"engine-go/internal/engine"
 	"engine-go/internal/middleware"
-	"engine-go/internal/montecarlo"
-	"engine-go/internal/optimizer"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
@@ -50,8 +49,7 @@ func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 	authed := r.Group("/")
 	authed.Use(middleware.EngineAuthMiddleware())
 	{
-		// 组合回测 API（ADR-008）：Go 主引擎暴露完整回测端点，
-		// 替代原 Rust-only 路径，支持现金流/glidepath/汇率/CPI/再平衡偏离带。
+		// 组合回测 API（ADR-008）：Go 主引擎暴露完整回测端点
 		authed.POST("/api/engine/backtest", handleBacktest)
 
 		// 单资产分析 API（T-ARCH-2.5）
@@ -63,6 +61,33 @@ func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 
 		// 蒙特卡洛模拟 API（T-ARCH-2.3）
 		authed.POST("/api/engine/monte-carlo", handleMonteCarlo)
+
+		// 统计指标计算 API
+		authed.POST("/api/engine/statistics", handleStatistics)
+
+		// 信号分析 API — 支持单/双/多信号分析
+		authed.POST("/api/engine/signal-analyze", handleSignalAnalyze)
+
+		// PCA 主成分分析 API
+		authed.POST("/api/engine/pca", handlePCA)
+
+		// LETF 滑点分析 API
+		authed.POST("/api/engine/letf-analyze", handleLETFAnalyze)
+
+		// 目标优化（蒙特卡洛模拟）API
+		authed.POST("/api/engine/goal-optimize", handleGoalOptimize)
+
+		// 战术分配回测 API
+		authed.POST("/api/engine/tactical-backtest", handleTacticalBacktest)
+
+		// 战术网格搜索 API
+		authed.POST("/api/engine/tactical-grid-search", handleTacticalGridSearch)
+
+		// Fama-French 因子回归 API
+		authed.POST("/api/engine/factor-regression", handleFactorRegression)
+
+		// 金融计算器 API
+		authed.POST("/api/engine/calculators", handleCalculators)
 	}
 
 	return r
@@ -74,175 +99,5 @@ func handleHealth(c *gin.Context) {
 		"status":  "ok",
 		"engine":  "go",
 		"version": "0.1.0",
-	})
-}
-
-// handleBacktest 组合回测处理器（ADR-008）。
-//
-// 企业理由：Go 引擎作为主回测引擎暴露 HTTP 接口，接收前端/API 传入的
-// priceData、portfolios 与 params，调用 engine.RunBacktest 计算净值曲线、
-// 统计指标、回撤与相关性。无状态设计（priceData 由调用方传入）便于水平扩展，
-// 接口与 Rust 引擎 /api/engine/backtest 兼容，确保降级链路一致。
-func handleBacktest(c *gin.Context) {
-	var req engine.BacktestRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		newProblem(c, http.StatusBadRequest, "BACKTEST_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
-		return
-	}
-
-	if len(req.Portfolios) == 0 {
-		newProblem(c, http.StatusBadRequest, "BACKTEST_EMPTY_PORTFOLIOS", "Bad Request", "portfolios 不能为空")
-		return
-	}
-
-	if req.PriceData == nil {
-		newProblem(c, http.StatusBadRequest, "BACKTEST_EMPTY_PRICE_DATA", "Bad Request", "priceData 不能为空")
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
-	defer cancel()
-
-	result, err := engine.RunBacktest(ctx, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "回测计算失败",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
-}
-
-// handleAnalysis 单资产分析处理器。
-// 企业理由：接收前端传入的 priceData 和参数，调用 analysis.RunAnalysis 计算结果。
-// priceData 由前端传入而非 Go 服务读取文件，保持无状态设计，便于水平扩展。
-func handleAnalysis(c *gin.Context) {
-	var req analysis.AnalysisRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		newProblem(c, http.StatusBadRequest, "ANALYSIS_BAD_REQUEST", "Bad Request", "请求格式错误")
-		return
-	}
-
-	if len(req.Tickers) == 0 {
-		newProblem(c, http.StatusBadRequest, "ANALYSIS_EMPTY_TICKERS", "Bad Request", "tickers 不能为空")
-		return
-	}
-
-	if req.PriceData == nil {
-		newProblem(c, http.StatusBadRequest, "ANALYSIS_EMPTY_PRICE_DATA", "Bad Request", "priceData 不能为空")
-		return
-	}
-
-	for _, ticker := range req.Tickers {
-		if _, ok := req.PriceData[ticker]; !ok {
-			newProblem(c, http.StatusBadRequest, "ANALYSIS_TICKER_NOT_FOUND", "Bad Request", "ticker 在 priceData 中不存在")
-			return
-		}
-	}
-
-	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
-	defer cancel()
-
-	result, err := analysis.RunAnalysis(ctx, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "分析计算失败",
-		})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
-	})
-}
-
-// handleOptimize 组合优化处理器（T-ARCH-2.4）
-//
-// 企业理由：根据用户选择的目标（最大夏普比/最小波动率/最大收益），
-// 计算最优资产权重配置。闭式解优先，失败时回退到随机搜索。
-func handleOptimize(c *gin.Context) {
-	var req optimizer.OptimizeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		newProblem(c, http.StatusBadRequest, "OPTIMIZE_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
-	defer cancel()
-
-	result, err := optimizer.Optimize(ctx, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "优化计算失败",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
-	})
-}
-
-// handleEfficientFrontier 有效前沿处理器（T-ARCH-2.4）
-//
-// 企业理由：计算有效前沿曲线，前端绘制风险-收益散点图，
-// 帮助用户直观理解不同配置下的收益与波动关系。
-func handleEfficientFrontier(c *gin.Context) {
-	var req optimizer.FrontierRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		newProblem(c, http.StatusBadRequest, "FRONTIER_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
-	defer cancel()
-
-	result, err := optimizer.ComputeEfficientFrontier(ctx, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "有效前沿计算失败",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
-	})
-}
-
-// handleMonteCarlo 蒙特卡洛模拟处理器（T-ARCH-2.3）
-//
-// 企业理由：蒙特卡洛模拟通过从历史收益率中重采样生成大量未来路径，
-// 为投资者提供概率化的投资结果预测。与 Rust 引擎接口兼容，
-// 支持 A/B 测试验证 Go 引擎与 Rust 引擎计算结果一致性。
-func handleMonteCarlo(c *gin.Context) {
-	var req montecarlo.MonteCarloRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		newProblem(c, http.StatusBadRequest, "MONTE_CARLO_BAD_REQUEST", "Bad Request", "请求解析失败，请检查请求格式")
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
-	defer cancel()
-
-	result, err := montecarlo.RunMonteCarlo(ctx, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "蒙特卡洛模拟失败",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
 	})
 }

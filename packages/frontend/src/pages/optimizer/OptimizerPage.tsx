@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { ToolSeoCard } from '../../components/layout/index.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { useOptimizerState } from './OptimizerUtils.js';
 import { OptimizerParams } from './OptimizerParams.js';
@@ -14,37 +15,20 @@ export default function OptimizerPage() {
       <div className="bt-page-header">
         <h1 className="bt-page-title">{t('optimizer.title')}</h1>
       </div>
-      <div className="bt-seo-card card">
-        <p className="bt-seo-desc">{t('optimizer.seoDesc')}</p>
-        <div className="bt-seo-features">
-          <div className="bt-seo-feature">
-            <div className="bt-seo-feature-title">{t('optimizer.seoObjective')}</div>
-            <div className="bt-seo-feature-desc">{t('optimizer.seoObjectiveDesc')}</div>
-          </div>
-          <div className="bt-seo-feature">
-            <div className="bt-seo-feature-title">{t('optimizer.seoOutput')}</div>
-            <div className="bt-seo-feature-desc">{t('optimizer.seoOutputDesc')}</div>
-          </div>
-        </div>
-        <div className="bt-seo-related">
-          <span className="bt-seo-related-label">{t('optimizer.relatedTools')}</span>
-          <Link to="/" className="link-blue" style={{ fontWeight: 700 }}>
-            {t('nav.portfolioBacktest')}
-          </Link>
-          <span style={{ color: 'var(--text-muted)' }}> · </span>
-          <Link to="/efficient-frontier" className="link-blue" style={{ fontWeight: 700 }}>
-            {t('nav.efficientFrontier')}
-          </Link>
-          <span style={{ color: 'var(--text-muted)' }}> · </span>
-          <Link to="/analysis" className="link-blue" style={{ fontWeight: 700 }}>
-            {t('nav.assetAnalysis')}
-          </Link>
-          <span style={{ color: 'var(--text-muted)' }}> · </span>
-          <Link to="/monte-carlo" className="link-blue" style={{ fontWeight: 700 }}>
-            {t('nav.monteCarlo')}
-          </Link>
-        </div>
-      </div>
+      <ToolSeoCard
+        desc={t('optimizer.seoDesc')}
+        features={[
+          { title: t('optimizer.seoObjective'), desc: t('optimizer.seoObjectiveDesc') },
+          { title: t('optimizer.seoOutput'), desc: t('optimizer.seoOutputDesc') },
+        ]}
+        related={[
+          { title: t('nav.portfolioBacktest'), href: '/' },
+          { title: t('nav.efficientFrontier'), href: '/efficient-frontier' },
+          { title: t('nav.assetAnalysis'), href: '/analysis' },
+          { title: t('nav.monteCarlo'), href: '/monte-carlo' },
+        ]}
+        relatedLabel={t('optimizer.relatedTools')}
+      />
       <ToolPageLayout
         title={t('params.title')}
         params={<OptimizerParams s={s} />}

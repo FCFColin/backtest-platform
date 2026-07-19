@@ -24,7 +24,7 @@ vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../packages/backend/src/services/savedConfigRepo.js', () => mocks.repo);
+vi.mock('../../../packages/backend/src/repositories/savedConfigRepo.js', () => mocks.repo);
 
 vi.mock('../../../packages/backend/src/schemas/persistence.js', () => ({
   savedConfigBodySchema: {},

@@ -15,7 +15,7 @@ import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from './jwtAuth.js';
 import { getOrg } from '../services/membershipService.js';
-import { getPlanLimits } from '../config/planLimits.js';
+import { getPlanLimits } from '../services/planLimitsService.js';
 import { getMonthlyUsage, recordUsage } from '../services/usageService.js';
 
 /** 从常见请求体形态推断标的数量（tickers/assets/symbols） */

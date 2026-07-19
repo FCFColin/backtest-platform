@@ -13,7 +13,7 @@ vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
   },
 }));
 
-import { normalizeBacktestResult } from '../../../packages/frontend/src/store/utils/backtestHelpers.js';
+import { normalizeBacktestResult } from '../../../packages/frontend/src/store/backtestHelpers.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
 
 beforeEach(() => {

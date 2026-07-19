@@ -1,15 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  mockPortfolio,
+  mockBacktestParams,
+  mockPortfolioResult,
+  mockBacktestResult,
+} from '../../helpers/storeFixtures.js';
+import type { PortfolioResult } from '../../../packages/shared/types/backtest.js';
 
 vi.mock('react', () => ({ startTransition: vi.fn((cb) => cb()) }));
 
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+vi.mock('../../../packages/frontend/src/utils/apiClient.js', () => ({
+  apiFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+  notifyIfDegraded: vi.fn(),
+}));
+
 vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
   useToastStore: {
-    getState: () => ({
-      addToast: vi.fn(),
-    }),
+    getState: () => ({ addToast: vi.fn() }),
   },
 }));
 
@@ -18,63 +28,59 @@ import { useBacktestStore } from '../../../packages/frontend/src/store/backtestS
 beforeEach(() => {
   mockFetch.mockReset();
   useBacktestStore.getState().loadFromShare({
-    portfolios: [
-      {
-        id: 'p1',
-        name: 'Portfolio 1',
-        assets: [
-          { ticker: 'VTI', weight: 60 },
-          { ticker: 'BND', weight: 40 },
-        ],
-        rebalanceFrequency: 'quarterly',
-      },
-    ],
-    parameters: {
-      startDate: '2010-01-01',
-      endDate: '2024-12-31',
-      startingValue: 10000,
-      adjustForInflation: false,
-      rollingWindowMonths: 12,
-      benchmarkTicker: 'SPY',
-    },
+    portfolios: [mockPortfolio()],
+    parameters: mockBacktestParams(),
   });
 });
 
+/** 设置单 portfolio 结果（用于 enrichSeries 测试） */
+function setSinglePortfolioResult(overrides: Partial<PortfolioResult> = {}): void {
+  setResultsWith([mockPortfolioResult(overrides)]);
+}
+
+/** 设置多 portfolio 结果（用于 enrichSeries 测试） */
+function setResultsWith(portfolios: PortfolioResult[]): void {
+  useBacktestStore.getState().setResults({
+    portfolios,
+    correlations: [],
+    benchmarkGrowth: [],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
+}
+
+/** mock fetch 一次性成功响应 */
+function mockFetchOnce(payload: unknown): void {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: () => Promise.resolve(payload),
+  });
+}
+
+/** mock fetch 一次性 HTTP 错误 */
+function mockFetchHttpError(status: number, payload?: unknown): void {
+  mockFetch.mockResolvedValueOnce({
+    ok: false,
+    status,
+    json: payload ? () => Promise.resolve(payload) : undefined,
+  });
+}
+
+/** mock fetch 一次性 reject */
+function mockFetchReject(error: unknown): void {
+  mockFetch.mockRejectedValueOnce(error);
+}
+
+/** 空成功响应（用于 runBacktest 简单成功路径） */
+function emptySuccessResponse(): unknown {
+  return {
+    success: true,
+    data: { portfolios: [], correlations: [], benchmarkGrowth: [] },
+  };
+}
+
 describe('runBacktest', () => {
   it('成功回测返回结果', async () => {
-    const mockResult = {
-      success: true,
-      data: {
-        portfolios: [
-          {
-            name: 'Test',
-            growthCurve: [{ date: '2020-01-02', value: 10000 }],
-            drawdownCurve: [{ date: '2020-01-02', drawdown: 0 }],
-            statistics: {
-              cagr: 0.069,
-              stdev: 0.12,
-              sharpe: 0.47,
-              sortino: 0.6,
-              maxDrawdown: 0.228,
-              maxDrawdownDuration: 8,
-              mwrr: 0.07,
-              bestYear: 0.15,
-              worstYear: -0.05,
-              avgYear: 0.07,
-            },
-            annualReturns: [],
-            monthlyReturns: [],
-          },
-        ],
-        correlations: [[1]],
-        benchmarkGrowth: [],
-      },
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResult),
-    });
-
+    mockFetchOnce({ success: true, data: mockBacktestResult() });
     await useBacktestStore.getState().runBacktest();
     const state = useBacktestStore.getState();
     expect(state.results).not.toBeNull();
@@ -83,37 +89,26 @@ describe('runBacktest', () => {
   });
 
   it('后端返回success:false时显示error toast', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ success: false, error: '无效ticker' }),
-    });
-
+    mockFetchOnce({ success: false, error: '无效ticker' });
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
   });
 
   it('后端返回success:false无error字段时用默认消息', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ success: false }),
-    });
-
+    mockFetchOnce({ success: false });
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
   });
 
   it('网络错误时显示error toast', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    mockFetchReject(new Error('Network error'));
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
   });
 
   it('HTTP错误（如500）时显示error toast', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-    });
+    mockFetchHttpError(500);
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
@@ -133,115 +128,32 @@ describe('runBacktest', () => {
   });
 
   it('后端返回warnings时显示warning toast', async () => {
-    const mockResult = {
+    mockFetchOnce({
       success: true,
-      data: {
-        portfolios: [
-          {
-            name: 'Test',
-            growthCurve: [{ date: '2020-01-02', value: 10000 }],
-            drawdownCurve: [{ date: '2020-01-02', drawdown: 0 }],
-            statistics: {
-              cagr: 0.069,
-              stdev: 0.12,
-              sharpe: 0.47,
-              sortino: 0.6,
-              maxDrawdown: 0.228,
-              maxDrawdownDuration: 8,
-              mwrr: 0.07,
-              bestYear: 0.15,
-              worstYear: -0.05,
-              avgYear: 0.07,
-            },
-            annualReturns: [],
-            monthlyReturns: [],
-          },
-        ],
-        correlations: [[1]],
-        benchmarkGrowth: [],
-      },
+      data: mockBacktestResult(),
       warnings: ['部分数据缺失', '使用备用数据源'],
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResult),
     });
-
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).not.toBeNull();
   });
 
   it('后端返回空warnings不显示toast', async () => {
-    const mockResult = {
+    mockFetchOnce({
       success: true,
-      data: {
-        portfolios: [
-          {
-            name: 'Test',
-            growthCurve: [{ date: '2020-01-02', value: 10000 }],
-            drawdownCurve: [{ date: '2020-01-02', drawdown: 0 }],
-            statistics: {
-              cagr: 0.069,
-              stdev: 0.12,
-              sharpe: 0.47,
-              sortino: 0.6,
-              maxDrawdown: 0.228,
-              maxDrawdownDuration: 8,
-              mwrr: 0.07,
-              bestYear: 0.15,
-              worstYear: -0.05,
-              avgYear: 0.07,
-            },
-            annualReturns: [],
-            monthlyReturns: [],
-          },
-        ],
-        correlations: [[1]],
-        benchmarkGrowth: [],
-      },
+      data: mockBacktestResult(),
       warnings: [],
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResult),
     });
-
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).not.toBeNull();
   });
 
   it('后端返回无data字段时用json本身作为结果', async () => {
-    const mockResult = {
+    mockFetchOnce({
       success: true,
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
+      portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })],
       correlations: [],
       benchmarkGrowth: [],
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResult),
     });
-
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).not.toBeNull();
   });
@@ -250,15 +162,7 @@ describe('runBacktest', () => {
     useBacktestStore
       .getState()
       .updatePortfolio('p1', { rebalanceFrequency: 'threshold', rebalanceThreshold: 8 });
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          success: true,
-          data: { portfolios: [], correlations: [], benchmarkGrowth: [] },
-        }),
-    });
-
+    mockFetchOnce(emptySuccessResponse());
     await useBacktestStore.getState().runBacktest();
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.portfolios[0].rebalanceFrequency).toBe('threshold');
@@ -266,16 +170,8 @@ describe('runBacktest', () => {
   });
 
   it('aborts previous request on second call (covers line 379)', async () => {
-    const mockResult = {
-      success: true,
-      data: { portfolios: [], correlations: [], benchmarkGrowth: [] },
-    };
     mockFetch.mockResolvedValueOnce(new Promise(() => {}));
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResult),
-    });
-
+    mockFetchOnce(emptySuccessResponse());
     useBacktestStore.getState().runBacktest();
     await useBacktestStore.getState().runBacktest();
     const state = useBacktestStore.getState();
@@ -290,20 +186,10 @@ describe('runBacktest', () => {
         rejectPromise = reject;
       }),
     );
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          success: true,
-          data: { portfolios: [], correlations: [], benchmarkGrowth: [] },
-        }),
-    });
-
+    mockFetchOnce(emptySuccessResponse());
     useBacktestStore.getState().runBacktest();
     useBacktestStore.getState().runBacktest();
-
     rejectPromise(new Error('stale error'));
-
     await vi.waitFor(() => {
       expect(useBacktestStore.getState().isLoading).toBe(false);
     });
@@ -312,60 +198,27 @@ describe('runBacktest', () => {
 
 describe('runBacktest - additional error paths', () => {
   it('handles success:false with nested error.detail', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ success: false, error: { detail: 'nested error detail' } }),
-    });
+    mockFetchOnce({ success: false, error: { detail: 'nested error detail' } });
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
   });
 
   it('handles HTTP error with detail message', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      status: 400,
-      json: () => Promise.resolve({ detail: 'Bad request' }),
-    });
+    mockFetchHttpError(400, { detail: 'Bad request' });
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
   });
 
   it('handles degraded mode warning', async () => {
-    const mockResult = {
+    mockFetchOnce({
       success: true,
-      data: {
-        portfolios: [
-          {
-            name: 'Test',
-            growthCurve: [],
-            drawdownCurve: [],
-            statistics: {
-              cagr: 0,
-              stdev: 0,
-              sharpe: 0,
-              sortino: 0,
-              maxDrawdown: 0,
-              maxDrawdownDuration: 0,
-              mwrr: 0,
-              bestYear: 0,
-              worstYear: 0,
-              avgYear: 0,
-            },
-            annualReturns: [],
-            monthlyReturns: [],
-          },
-        ],
-        correlations: [],
-        benchmarkGrowth: [],
-      },
+      data: mockBacktestResult({
+        portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })],
+      }),
       degraded: true,
       degradedWarning: 'Service is running in degraded mode',
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResult),
     });
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).not.toBeNull();
@@ -373,67 +226,40 @@ describe('runBacktest - additional error paths', () => {
   });
 
   it('handles Degraded mode without degradedWarning (no toast)', async () => {
-    const mockResult = {
+    mockFetchOnce({
       success: true,
-      data: {
-        portfolios: [
-          {
-            name: 'Test',
-            growthCurve: [],
-            drawdownCurve: [],
-            statistics: {
-              cagr: 0,
-              stdev: 0,
-              sharpe: 0,
-              sortino: 0,
-              maxDrawdown: 0,
-              maxDrawdownDuration: 0,
-              mwrr: 0,
-              bestYear: 0,
-              worstYear: 0,
-              avgYear: 0,
-            },
-            annualReturns: [],
-            monthlyReturns: [],
-          },
-        ],
-        correlations: [],
-        benchmarkGrowth: [],
-      },
+      data: mockBacktestResult({
+        portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })],
+      }),
       degraded: true,
-    };
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve(mockResult),
     });
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).not.toBeNull();
   });
 
   it('handles AbortError', async () => {
-    const abortError = new DOMException('The operation was aborted', 'AbortError');
-    mockFetch.mockRejectedValueOnce(abortError);
+    mockFetchReject(new DOMException('The operation was aborted', 'AbortError'));
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
   });
 
   it('handles generic Error with message', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('Custom error message'));
+    mockFetchReject(new Error('Custom error message'));
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
   });
 
   it('handles non-Error thrown value', async () => {
-    mockFetch.mockRejectedValueOnce('string error');
+    mockFetchReject('string error');
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
   });
 
   it('handles thrown object without message', async () => {
-    mockFetch.mockRejectedValueOnce({ custom: 'error' });
+    mockFetchReject({ custom: 'error' });
     await useBacktestStore.getState().runBacktest();
     expect(useBacktestStore.getState().results).toBeNull();
     expect(useBacktestStore.getState().isLoading).toBe(false);
@@ -447,127 +273,36 @@ describe('enrichSeries', () => {
   });
 
   it('returns early when results has no portfolios', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    setResultsWith([]);
     await useBacktestStore.getState().enrichSeries(['rollingReturns']);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('returns early when series array is empty', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    setSinglePortfolioResult();
     await useBacktestStore.getState().enrichSeries([]);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('returns early when all requested fields are already populated', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-          rollingReturns: [{ date: '2020-01-02', value: 0.1 }],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    setSinglePortfolioResult({
+      rollingReturns: [{ date: '2020-01-02', value: 0.1 }],
+    });
     await useBacktestStore.getState().enrichSeries(['rollingReturns']);
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it('successfully enriches with fetch call', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-
-    const patches = [
-      {
-        name: 'Test',
-        rollingReturns: [{ date: '2020-01-02', value: 0.1 }],
-      },
-    ];
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ success: true, data: { portfolios: patches } }),
-    });
+    setSinglePortfolioResult();
+    const patches = [{ name: 'Test', rollingReturns: [{ date: '2020-01-02', value: 0.1 }] }];
+    mockFetchOnce({ success: true, data: { portfolios: patches } });
 
     await useBacktestStore.getState().enrichSeries(['rollingReturns']);
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledWith(
-      '/api/backtest/portfolio/series',
-      expect.objectContaining({
-        method: 'POST',
-      }),
+      '/api/v1/backtest/portfolio/series',
+      expect.objectContaining({ method: 'POST' }),
     );
 
     const state = useBacktestStore.getState();
@@ -578,34 +313,8 @@ describe('enrichSeries', () => {
   });
 
   it('handles fetch error gracefully', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-
-    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    setSinglePortfolioResult();
+    mockFetchReject(new Error('Network error'));
 
     await expect(
       useBacktestStore.getState().enrichSeries(['rollingReturns']),
@@ -614,33 +323,7 @@ describe('enrichSeries', () => {
   });
 
   it('returns early when response.ok is false', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-
+    setSinglePortfolioResult();
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -652,100 +335,19 @@ describe('enrichSeries', () => {
   });
 
   it('returns early when json.success is false', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ success: false }),
-    });
+    setSinglePortfolioResult();
+    mockFetchOnce({ success: false });
 
     await useBacktestStore.getState().enrichSeries(['rollingReturns']);
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('preserves portfolio when no matching patch name', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Alpha',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-        {
-          name: 'Beta',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    setResultsWith([mockPortfolioResult({ name: 'Alpha' }), mockPortfolioResult({ name: 'Beta' })]);
 
-    const patches = [
-      {
-        name: 'Alpha',
-        rollingReturns: [{ date: '2020-01-02', value: 0.12 }],
-      },
-    ];
+    const patches = [{ name: 'Alpha', rollingReturns: [{ date: '2020-01-02', value: 0.12 }] }];
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ success: true, data: { portfolios: patches } }),
-    });
+    mockFetchOnce({ success: true, data: { portfolios: patches } });
 
     await useBacktestStore.getState().enrichSeries(['rollingReturns']);
 
@@ -760,37 +362,8 @@ describe('enrichSeries', () => {
   });
 
   it('handles response with data but null portfolios (covers line 498)', async () => {
-    useBacktestStore.getState().setResults({
-      portfolios: [
-        {
-          name: 'Test',
-          growthCurve: [],
-          drawdownCurve: [],
-          statistics: {
-            cagr: 0,
-            stdev: 0,
-            sharpe: 0,
-            sortino: 0,
-            maxDrawdown: 0,
-            maxDrawdownDuration: 0,
-            mwrr: 0,
-            bestYear: 0,
-            worstYear: 0,
-            avgYear: 0,
-          },
-          annualReturns: [],
-          monthlyReturns: [],
-        },
-      ],
-      correlations: [],
-      benchmarkGrowth: [],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
-
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ success: true, data: { portfolios: null } }),
-    });
+    setSinglePortfolioResult();
+    mockFetchOnce({ success: true, data: { portfolios: null } });
 
     await useBacktestStore.getState().enrichSeries(['rollingReturns']);
     expect(mockFetch).toHaveBeenCalledTimes(1);

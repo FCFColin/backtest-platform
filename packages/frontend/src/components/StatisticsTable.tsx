@@ -3,8 +3,10 @@
  * @description 展示各投资组合的核心统计指标对比，支持完整与概览两种模式
  */
 import { Fragment } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
+import ChartCard from './ChartCard.js';
 
 /** 统计指标表格 Props */
 interface StatisticsTableProps {
@@ -28,174 +30,390 @@ interface StatGroup {
 
 const STAT_GROUPS: StatGroup[] = [
   {
-    title: '收益指标',
+    title: 'components.statisticsTable.groups.return',
     rows: [
-      { key: 'cagr', label: '年化收益率 (CAGR)', fmt: 'pct' },
-      { key: 'avgAnnualReturn', label: '年均收益', fmt: 'pct' },
-      { key: 'avgMonthlyReturn', label: '月均收益', fmt: 'pct' },
-      { key: 'avgDailyReturn', label: '日均收益', fmt: 'pct' },
-      { key: 'bestYear', label: '最佳年度', fmt: 'pct' },
-      { key: 'worstYear', label: '最差年度', fmt: 'pct' },
+      { key: 'cagr', label: 'backtest.cagr', fmt: 'pct' },
+      {
+        key: 'avgAnnualReturn',
+        label: 'components.statisticsTable.labels.avgAnnualReturn',
+        fmt: 'pct',
+      },
+      {
+        key: 'avgMonthlyReturn',
+        label: 'components.statisticsTable.labels.avgMonthlyReturn',
+        fmt: 'pct',
+      },
+      {
+        key: 'avgDailyReturn',
+        label: 'components.statisticsTable.labels.avgDailyReturn',
+        fmt: 'pct',
+      },
+      { key: 'bestYear', label: 'components.statisticsTable.labels.bestYear', fmt: 'pct' },
+      { key: 'worstYear', label: 'components.statisticsTable.labels.worstYear', fmt: 'pct' },
     ],
   },
   {
-    title: '波动率',
+    title: 'components.statisticsTable.groups.volatility',
     rows: [
-      { key: 'stdev', label: '年收益标准差 (年化)', fmt: 'pct' },
-      { key: 'stdevAnnual', label: '年收益标准差', fmt: 'pct' },
-      { key: 'stdevMonthly', label: '月收益标准差 (年化)', fmt: 'pct' },
-      { key: 'stdevMonthlyRaw', label: '月收益标准差', fmt: 'pct' },
-      { key: 'stdevDaily', label: '日收益标准差 (年化)', fmt: 'pct' },
-      { key: 'stdevDailyRaw', label: '日收益标准差', fmt: 'pct' },
+      { key: 'stdev', label: 'components.statisticsTable.labels.stdevAnnualized', fmt: 'pct' },
+      { key: 'stdevAnnual', label: 'components.statisticsTable.labels.stdevAnnual', fmt: 'pct' },
+      {
+        key: 'stdevMonthly',
+        label: 'components.statisticsTable.labels.stdevMonthlyAnnualized',
+        fmt: 'pct',
+      },
+      {
+        key: 'stdevMonthlyRaw',
+        label: 'components.statisticsTable.labels.stdevMonthlyRaw',
+        fmt: 'pct',
+      },
+      {
+        key: 'stdevDaily',
+        label: 'components.statisticsTable.labels.stdevDailyAnnualized',
+        fmt: 'pct',
+      },
+      {
+        key: 'stdevDailyRaw',
+        label: 'components.statisticsTable.labels.stdevDailyRaw',
+        fmt: 'pct',
+      },
     ],
   },
   {
-    title: '下行偏差',
+    title: 'components.statisticsTable.groups.downsideDeviation',
     rows: [
-      { key: 'downsideDeviation', label: '日收益下行偏差 (年化)', fmt: 'pct' },
-      { key: 'downsideDeviationDailyRaw', label: '日收益下行偏差', fmt: 'pct' },
-      { key: 'downsideDeviationMonthly', label: '月收益下行偏差 (年化)', fmt: 'pct' },
-      { key: 'downsideDeviationMonthlyRaw', label: '月收益下行偏差', fmt: 'pct' },
-      { key: 'downsideDeviationAnnual', label: '年收益下行偏差', fmt: 'pct' },
+      {
+        key: 'downsideDeviation',
+        label: 'components.statisticsTable.labels.downsideDeviationAnnualized',
+        fmt: 'pct',
+      },
+      {
+        key: 'downsideDeviationDailyRaw',
+        label: 'components.statisticsTable.labels.downsideDeviationDailyRaw',
+        fmt: 'pct',
+      },
+      {
+        key: 'downsideDeviationMonthly',
+        label: 'components.statisticsTable.labels.downsideDeviationMonthly',
+        fmt: 'pct',
+      },
+      {
+        key: 'downsideDeviationMonthlyRaw',
+        label: 'components.statisticsTable.labels.downsideDeviationMonthlyRaw',
+        fmt: 'pct',
+      },
+      {
+        key: 'downsideDeviationAnnual',
+        label: 'components.statisticsTable.labels.downsideDeviationAnnual',
+        fmt: 'pct',
+      },
     ],
   },
   {
-    title: '回撤',
+    title: 'components.statisticsTable.groups.drawdown',
     rows: [
-      { key: 'maxDrawdown', label: '最大回撤', fmt: 'pct' },
-      { key: 'avgDrawdown', label: '平均回撤', fmt: 'pct' },
-      { key: 'maxDrawdownDuration', label: '最长回撤持续', fmt: 'duration' },
-      { key: 'drawdownRecoveryFactor', label: '回撤恢复因子', fmt: 'ratio' },
-      { key: 'ulcerIndex', label: '溃疡指数', fmt: 'ratio' },
+      { key: 'maxDrawdown', label: 'backtest.maxDrawdown', fmt: 'pct' },
+      { key: 'avgDrawdown', label: 'components.statisticsTable.labels.avgDrawdown', fmt: 'pct' },
+      {
+        key: 'maxDrawdownDuration',
+        label: 'components.statisticsTable.labels.maxDrawdownDuration',
+        fmt: 'duration',
+      },
+      {
+        key: 'drawdownRecoveryFactor',
+        label: 'components.statisticsTable.labels.drawdownRecoveryFactor',
+        fmt: 'ratio',
+      },
+      { key: 'ulcerIndex', label: 'components.statisticsTable.labels.ulcerIndex', fmt: 'ratio' },
     ],
   },
   {
-    title: '风险调整指标',
+    title: 'components.statisticsTable.groups.riskAdjusted',
     rows: [
-      { key: 'sharpe', label: '夏普比率', fmt: 'ratio' },
-      { key: 'sortino', label: '索提诺比率', fmt: 'ratio' },
-      { key: 'calmar', label: '卡尔玛比率', fmt: 'ratio' },
-      { key: 'm2', label: 'M\u00B2 指标 (莫迪利亚尼)', fmt: 'pct' },
-      { key: 'ulcerPerformanceIndex', label: '溃疡绩效指数 (UPI)', fmt: 'ratio' },
-      { key: 'diversificationRatio', label: '分散化比率', fmt: 'ratio' },
+      { key: 'sharpe', label: 'backtest.sharpeRatio', fmt: 'ratio' },
+      { key: 'sortino', label: 'backtest.sortino', fmt: 'ratio' },
+      { key: 'calmar', label: 'backtest.calmar', fmt: 'ratio' },
+      { key: 'm2', label: 'components.statisticsTable.labels.m2', fmt: 'pct' },
+      {
+        key: 'ulcerPerformanceIndex',
+        label: 'components.statisticsTable.labels.ulcerPerformanceIndex',
+        fmt: 'ratio',
+      },
+      {
+        key: 'diversificationRatio',
+        label: 'components.statisticsTable.labels.diversificationRatio',
+        fmt: 'ratio',
+      },
     ],
   },
   {
-    title: '基准相关',
+    title: 'components.statisticsTable.groups.benchmark',
     rows: [
-      { key: 'benchmarkCorrelation', label: '基准相关性', fmt: 'ratio' },
+      {
+        key: 'benchmarkCorrelation',
+        label: 'components.statisticsTable.labels.benchmarkCorrelation',
+        fmt: 'ratio',
+      },
       { key: 'beta', label: 'Beta', fmt: 'ratio' },
-      { key: 'upsideCorrelation', label: '上行相关性', fmt: 'ratio' },
-      { key: 'downsideCorrelation', label: '下行相关性', fmt: 'ratio' },
-      { key: 'upsideBeta', label: '上行 Beta', fmt: 'ratio' },
-      { key: 'downsideBeta', label: '下行 Beta', fmt: 'ratio' },
-      { key: 'alphaDaily', label: 'Alpha (日度)', fmt: 'pct' },
-      { key: 'alphaAnnualized', label: 'Alpha (年化)', fmt: 'pct' },
+      {
+        key: 'upsideCorrelation',
+        label: 'components.statisticsTable.labels.upsideCorrelation',
+        fmt: 'ratio',
+      },
+      {
+        key: 'downsideCorrelation',
+        label: 'components.statisticsTable.labels.downsideCorrelation',
+        fmt: 'ratio',
+      },
+      { key: 'upsideBeta', label: 'components.statisticsTable.labels.upsideBeta', fmt: 'ratio' },
+      {
+        key: 'downsideBeta',
+        label: 'components.statisticsTable.labels.downsideBeta',
+        fmt: 'ratio',
+      },
+      { key: 'alphaDaily', label: 'components.statisticsTable.labels.alphaDaily', fmt: 'pct' },
+      {
+        key: 'alphaAnnualized',
+        label: 'components.statisticsTable.labels.alphaAnnualized',
+        fmt: 'pct',
+      },
       { key: 'alpha', label: 'Alpha (Jensen)', fmt: 'pct' },
       { key: 'rSquared', label: 'R\u00B2', fmt: 'ratio' },
-      { key: 'treynor', label: '特雷诺比率', fmt: 'ratio' },
+      { key: 'treynor', label: 'components.statisticsTable.labels.treynor', fmt: 'ratio' },
     ],
   },
   {
-    title: '捕获率',
+    title: 'components.statisticsTable.groups.captureRatio',
     rows: [
-      { key: 'upsideCapture', label: '上行捕获率 (月度)', fmt: 'pct' },
-      { key: 'downsideCapture', label: '下行捕获率 (月度)', fmt: 'pct' },
-      { key: 'captureSpread', label: '捕获差 (月度)', fmt: 'pct' },
-      { key: 'upsideCaptureDaily', label: '上行捕获率 (日度)', fmt: 'pct' },
-      { key: 'downsideCaptureDaily', label: '下行捕获率 (日度)', fmt: 'pct' },
-      { key: 'captureSpreadDaily', label: '捕获差 (日度)', fmt: 'pct' },
-      { key: 'upsideCaptureAnnual', label: '上行捕获率 (年度)', fmt: 'pct' },
-      { key: 'downsideCaptureAnnual', label: '下行捕获率 (年度)', fmt: 'pct' },
-      { key: 'captureSpreadAnnual', label: '捕获差 (年度)', fmt: 'pct' },
+      {
+        key: 'upsideCapture',
+        label: 'components.statisticsTable.labels.upsideCapture',
+        fmt: 'pct',
+      },
+      {
+        key: 'downsideCapture',
+        label: 'components.statisticsTable.labels.downsideCapture',
+        fmt: 'pct',
+      },
+      {
+        key: 'captureSpread',
+        label: 'components.statisticsTable.labels.captureSpread',
+        fmt: 'pct',
+      },
+      {
+        key: 'upsideCaptureDaily',
+        label: 'components.statisticsTable.labels.upsideCaptureDaily',
+        fmt: 'pct',
+      },
+      {
+        key: 'downsideCaptureDaily',
+        label: 'components.statisticsTable.labels.downsideCaptureDaily',
+        fmt: 'pct',
+      },
+      {
+        key: 'captureSpreadDaily',
+        label: 'components.statisticsTable.labels.captureSpreadDaily',
+        fmt: 'pct',
+      },
+      {
+        key: 'upsideCaptureAnnual',
+        label: 'components.statisticsTable.labels.upsideCaptureAnnual',
+        fmt: 'pct',
+      },
+      {
+        key: 'downsideCaptureAnnual',
+        label: 'components.statisticsTable.labels.downsideCaptureAnnual',
+        fmt: 'pct',
+      },
+      {
+        key: 'captureSpreadAnnual',
+        label: 'components.statisticsTable.labels.captureSpreadAnnual',
+        fmt: 'pct',
+      },
     ],
   },
   {
-    title: '主动管理',
+    title: 'components.statisticsTable.groups.activeManagement',
     rows: [
-      { key: 'activeReturn', label: '主动收益', fmt: 'pct' },
-      { key: 'trackingError', label: '跟踪误差', fmt: 'pct' },
-      { key: 'informationRatio', label: '信息比率', fmt: 'ratio' },
+      { key: 'activeReturn', label: 'components.statisticsTable.labels.activeReturn', fmt: 'pct' },
+      {
+        key: 'trackingError',
+        label: 'components.statisticsTable.labels.trackingError',
+        fmt: 'pct',
+      },
+      {
+        key: 'informationRatio',
+        label: 'components.statisticsTable.labels.informationRatio',
+        fmt: 'ratio',
+      },
     ],
   },
   {
-    title: '风险价值 (VaR/CVaR)',
+    title: 'components.statisticsTable.groups.varCvar',
     rows: [
-      { key: 'varDaily1', label: '日收益 VaR (1%)', fmt: 'pct' },
-      { key: 'varDaily5', label: '日收益 VaR (5%)', fmt: 'pct' },
-      { key: 'varDaily10', label: '日收益 VaR (10%)', fmt: 'pct' },
-      { key: 'cvarDaily1', label: '日收益 CVaR (1%)', fmt: 'pct' },
-      { key: 'cvarDaily5', label: '日收益 CVaR (5%)', fmt: 'pct' },
-      { key: 'cvarDaily10', label: '日收益 CVaR (10%)', fmt: 'pct' },
-      { key: 'varMonthly1', label: '月收益 VaR (1%)', fmt: 'pct' },
-      { key: 'varMonthly5', label: '月收益 VaR (5%)', fmt: 'pct' },
-      { key: 'varMonthly10', label: '月收益 VaR (10%)', fmt: 'pct' },
-      { key: 'cvarMonthly1', label: '月收益 CVaR (1%)', fmt: 'pct' },
-      { key: 'cvarMonthly5', label: '月收益 CVaR (5%)', fmt: 'pct' },
-      { key: 'cvarMonthly10', label: '月收益 CVaR (10%)', fmt: 'pct' },
-      { key: 'varAnnual1', label: '年收益 VaR (1%)', fmt: 'pct' },
-      { key: 'varAnnual5', label: '年收益 VaR (5%)', fmt: 'pct' },
-      { key: 'varAnnual10', label: '年收益 VaR (10%)', fmt: 'pct' },
-      { key: 'cvarAnnual1', label: '年收益 CVaR (1%)', fmt: 'pct' },
-      { key: 'cvarAnnual5', label: '年收益 CVaR (5%)', fmt: 'pct' },
-      { key: 'cvarAnnual10', label: '年收益 CVaR (10%)', fmt: 'pct' },
+      { key: 'varDaily1', label: 'components.statisticsTable.labels.varDaily1', fmt: 'pct' },
+      { key: 'varDaily5', label: 'components.statisticsTable.labels.varDaily5', fmt: 'pct' },
+      { key: 'varDaily10', label: 'components.statisticsTable.labels.varDaily10', fmt: 'pct' },
+      { key: 'cvarDaily1', label: 'components.statisticsTable.labels.cvarDaily1', fmt: 'pct' },
+      { key: 'cvarDaily5', label: 'components.statisticsTable.labels.cvarDaily5', fmt: 'pct' },
+      { key: 'cvarDaily10', label: 'components.statisticsTable.labels.cvarDaily10', fmt: 'pct' },
+      { key: 'varMonthly1', label: 'components.statisticsTable.labels.varMonthly1', fmt: 'pct' },
+      { key: 'varMonthly5', label: 'components.statisticsTable.labels.varMonthly5', fmt: 'pct' },
+      { key: 'varMonthly10', label: 'components.statisticsTable.labels.varMonthly10', fmt: 'pct' },
+      { key: 'cvarMonthly1', label: 'components.statisticsTable.labels.cvarMonthly1', fmt: 'pct' },
+      { key: 'cvarMonthly5', label: 'components.statisticsTable.labels.cvarMonthly5', fmt: 'pct' },
+      {
+        key: 'cvarMonthly10',
+        label: 'components.statisticsTable.labels.cvarMonthly10',
+        fmt: 'pct',
+      },
+      { key: 'varAnnual1', label: 'components.statisticsTable.labels.varAnnual1', fmt: 'pct' },
+      { key: 'varAnnual5', label: 'components.statisticsTable.labels.varAnnual5', fmt: 'pct' },
+      { key: 'varAnnual10', label: 'components.statisticsTable.labels.varAnnual10', fmt: 'pct' },
+      { key: 'cvarAnnual1', label: 'components.statisticsTable.labels.cvarAnnual1', fmt: 'pct' },
+      { key: 'cvarAnnual5', label: 'components.statisticsTable.labels.cvarAnnual5', fmt: 'pct' },
+      { key: 'cvarAnnual10', label: 'components.statisticsTable.labels.cvarAnnual10', fmt: 'pct' },
     ],
   },
   {
-    title: '分布特征',
+    title: 'components.statisticsTable.groups.distribution',
     rows: [
-      { key: 'skewnessDaily', label: '日收益偏度', fmt: 'ratio' },
-      { key: 'skewnessMonthly', label: '月收益偏度', fmt: 'ratio' },
-      { key: 'skewnessAnnual', label: '年收益偏度', fmt: 'ratio' },
-      { key: 'excessKurtosisDaily', label: '日收益超额峰度', fmt: 'ratio' },
-      { key: 'excessKurtosisMonthly', label: '月收益超额峰度', fmt: 'ratio' },
-      { key: 'excessKurtosisAnnual', label: '年收益超额峰度', fmt: 'ratio' },
+      {
+        key: 'skewnessDaily',
+        label: 'components.statisticsTable.labels.skewnessDaily',
+        fmt: 'ratio',
+      },
+      {
+        key: 'skewnessMonthly',
+        label: 'components.statisticsTable.labels.skewnessMonthly',
+        fmt: 'ratio',
+      },
+      {
+        key: 'skewnessAnnual',
+        label: 'components.statisticsTable.labels.skewnessAnnual',
+        fmt: 'ratio',
+      },
+      {
+        key: 'excessKurtosisDaily',
+        label: 'components.statisticsTable.labels.excessKurtosisDaily',
+        fmt: 'ratio',
+      },
+      {
+        key: 'excessKurtosisMonthly',
+        label: 'components.statisticsTable.labels.excessKurtosisMonthly',
+        fmt: 'ratio',
+      },
+      {
+        key: 'excessKurtosisAnnual',
+        label: 'components.statisticsTable.labels.excessKurtosisAnnual',
+        fmt: 'ratio',
+      },
     ],
   },
   {
-    title: '正收益比例',
+    title: 'components.statisticsTable.groups.positiveRatio',
     rows: [
-      { key: 'pctPositiveDays', label: '正收益日占比', fmt: 'pct' },
-      { key: 'pctPositiveMonths', label: '正收益月占比', fmt: 'pct' },
-      { key: 'pctPositiveYears', label: '正收益年占比', fmt: 'pct' },
+      {
+        key: 'pctPositiveDays',
+        label: 'components.statisticsTable.labels.pctPositiveDays',
+        fmt: 'pct',
+      },
+      {
+        key: 'pctPositiveMonths',
+        label: 'components.statisticsTable.labels.pctPositiveMonths',
+        fmt: 'pct',
+      },
+      { key: 'pctPositiveYears', label: 'backtest.pctPositiveYears', fmt: 'pct' },
     ],
   },
   {
-    title: '极值收益',
+    title: 'components.statisticsTable.groups.extremeReturns',
     rows: [
-      { key: 'maxDailyReturn', label: '最大日收益', fmt: 'pct' },
-      { key: 'minDailyReturn', label: '最小日收益', fmt: 'pct' },
-      { key: 'maxMonthlyReturn', label: '最大月收益', fmt: 'pct' },
-      { key: 'minMonthlyReturn', label: '最小月收益', fmt: 'pct' },
-      { key: 'maxAnnualReturn', label: '最大年收益', fmt: 'pct' },
-      { key: 'minAnnualReturn', label: '最小年收益', fmt: 'pct' },
+      {
+        key: 'maxDailyReturn',
+        label: 'components.statisticsTable.labels.maxDailyReturn',
+        fmt: 'pct',
+      },
+      {
+        key: 'minDailyReturn',
+        label: 'components.statisticsTable.labels.minDailyReturn',
+        fmt: 'pct',
+      },
+      {
+        key: 'maxMonthlyReturn',
+        label: 'components.statisticsTable.labels.maxMonthlyReturn',
+        fmt: 'pct',
+      },
+      {
+        key: 'minMonthlyReturn',
+        label: 'components.statisticsTable.labels.minMonthlyReturn',
+        fmt: 'pct',
+      },
+      {
+        key: 'maxAnnualReturn',
+        label: 'components.statisticsTable.labels.maxAnnualReturn',
+        fmt: 'pct',
+      },
+      {
+        key: 'minAnnualReturn',
+        label: 'components.statisticsTable.labels.minAnnualReturn',
+        fmt: 'pct',
+      },
     ],
   },
   {
-    title: '平均盈亏',
+    title: 'components.statisticsTable.groups.avgGainLoss',
     rows: [
-      { key: 'avgDailyGain', label: '日均盈利', fmt: 'pct' },
-      { key: 'avgDailyLoss', label: '日均亏损', fmt: 'pct' },
-      { key: 'gainLossRatioDaily', label: '盈亏比 (日度)', fmt: 'ratio' },
-      { key: 'avgMonthlyGain', label: '月均盈利', fmt: 'pct' },
-      { key: 'avgMonthlyLoss', label: '月均亏损', fmt: 'pct' },
-      { key: 'gainLossRatioMonthly', label: '盈亏比 (月度)', fmt: 'ratio' },
-      { key: 'avgAnnualGain', label: '年均盈利', fmt: 'pct' },
-      { key: 'avgAnnualLoss', label: '年均亏损', fmt: 'pct' },
-      { key: 'gainLossRatioAnnual', label: '盈亏比 (年度)', fmt: 'ratio' },
+      { key: 'avgDailyGain', label: 'components.statisticsTable.labels.avgDailyGain', fmt: 'pct' },
+      { key: 'avgDailyLoss', label: 'components.statisticsTable.labels.avgDailyLoss', fmt: 'pct' },
+      {
+        key: 'gainLossRatioDaily',
+        label: 'components.statisticsTable.labels.gainLossRatioDaily',
+        fmt: 'ratio',
+      },
+      {
+        key: 'avgMonthlyGain',
+        label: 'components.statisticsTable.labels.avgMonthlyGain',
+        fmt: 'pct',
+      },
+      {
+        key: 'avgMonthlyLoss',
+        label: 'components.statisticsTable.labels.avgMonthlyLoss',
+        fmt: 'pct',
+      },
+      {
+        key: 'gainLossRatioMonthly',
+        label: 'components.statisticsTable.labels.gainLossRatioMonthly',
+        fmt: 'ratio',
+      },
+      {
+        key: 'avgAnnualGain',
+        label: 'components.statisticsTable.labels.avgAnnualGain',
+        fmt: 'pct',
+      },
+      {
+        key: 'avgAnnualLoss',
+        label: 'components.statisticsTable.labels.avgAnnualLoss',
+        fmt: 'pct',
+      },
+      {
+        key: 'gainLossRatioAnnual',
+        label: 'components.statisticsTable.labels.gainLossRatioAnnual',
+        fmt: 'ratio',
+      },
     ],
   },
   {
-    title: '提款率',
+    title: 'components.statisticsTable.groups.withdrawalRate',
     rows: [
-      { key: 'swr10y', label: '10年安全提款率', fmt: 'pct' },
-      { key: 'pwr10y', label: '10年永续提款率', fmt: 'pct' },
-      { key: 'swr20y', label: '20年安全提款率', fmt: 'pct' },
-      { key: 'pwr20y', label: '20年永续提款率', fmt: 'pct' },
-      { key: 'swr30y', label: '30年安全提款率', fmt: 'pct' },
-      { key: 'pwr30y', label: '30年永续提款率', fmt: 'pct' },
-      { key: 'swr40y', label: '40年安全提款率', fmt: 'pct' },
-      { key: 'pwr40y', label: '40年永续提款率', fmt: 'pct' },
+      { key: 'swr10y', label: 'components.statisticsTable.labels.swr10y', fmt: 'pct' },
+      { key: 'pwr10y', label: 'components.statisticsTable.labels.pwr10y', fmt: 'pct' },
+      { key: 'swr20y', label: 'components.statisticsTable.labels.swr20y', fmt: 'pct' },
+      { key: 'pwr20y', label: 'components.statisticsTable.labels.pwr20y', fmt: 'pct' },
+      { key: 'swr30y', label: 'components.statisticsTable.labels.swr30y', fmt: 'pct' },
+      { key: 'pwr30y', label: 'components.statisticsTable.labels.pwr30y', fmt: 'pct' },
+      { key: 'swr40y', label: 'components.statisticsTable.labels.swr40y', fmt: 'pct' },
+      { key: 'pwr40y', label: 'components.statisticsTable.labels.pwr40y', fmt: 'pct' },
     ],
   },
 ];
@@ -203,21 +421,29 @@ const STAT_GROUPS: StatGroup[] = [
 /** 概览模式：只显示核心指标 */
 const COMPACT_GROUPS: StatGroup[] = [
   {
-    title: '核心指标',
+    title: 'components.statisticsTable.groups.core',
     rows: [
-      { key: 'cagr', label: '年化收益率 (CAGR)', fmt: 'pct' },
-      { key: 'stdev', label: '年化波动率', fmt: 'pct' },
-      { key: 'sharpe', label: '夏普比率', fmt: 'ratio' },
-      { key: 'sortino', label: '索提诺比率', fmt: 'ratio' },
-      { key: 'maxDrawdown', label: '最大回撤', fmt: 'pct' },
-      { key: 'avgDrawdown', label: '平均回撤', fmt: 'pct' },
-      { key: 'maxDrawdownDuration', label: '最长回撤持续', fmt: 'duration' },
-      { key: 'calmar', label: '卡尔玛比率', fmt: 'ratio' },
-      { key: 'ulcerIndex', label: '溃疡指数', fmt: 'ratio' },
-      { key: 'diversificationRatio', label: '分散化比率', fmt: 'ratio' },
-      { key: 'pctPositiveYears', label: '正收益年占比', fmt: 'pct' },
-      { key: 'bestYear', label: '最佳年度', fmt: 'pct' },
-      { key: 'worstYear', label: '最差年度', fmt: 'pct' },
+      { key: 'cagr', label: 'backtest.cagr', fmt: 'pct' },
+      { key: 'stdev', label: 'backtest.stdev', fmt: 'pct' },
+      { key: 'sharpe', label: 'backtest.sharpeRatio', fmt: 'ratio' },
+      { key: 'sortino', label: 'backtest.sortino', fmt: 'ratio' },
+      { key: 'maxDrawdown', label: 'backtest.maxDrawdown', fmt: 'pct' },
+      { key: 'avgDrawdown', label: 'components.statisticsTable.labels.avgDrawdown', fmt: 'pct' },
+      {
+        key: 'maxDrawdownDuration',
+        label: 'components.statisticsTable.labels.maxDrawdownDuration',
+        fmt: 'duration',
+      },
+      { key: 'calmar', label: 'backtest.calmar', fmt: 'ratio' },
+      { key: 'ulcerIndex', label: 'components.statisticsTable.labels.ulcerIndex', fmt: 'ratio' },
+      {
+        key: 'diversificationRatio',
+        label: 'components.statisticsTable.labels.diversificationRatio',
+        fmt: 'ratio',
+      },
+      { key: 'pctPositiveYears', label: 'backtest.pctPositiveYears', fmt: 'pct' },
+      { key: 'bestYear', label: 'components.statisticsTable.labels.bestYear', fmt: 'pct' },
+      { key: 'worstYear', label: 'components.statisticsTable.labels.worstYear', fmt: 'pct' },
     ],
   },
 ];
@@ -232,6 +458,7 @@ function formatValue(v: number | undefined, fmt: FmtType): string {
 
 /** 统计表表头 */
 function StatisticsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
+  const { t } = useTranslation();
   return (
     <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
       <th
@@ -242,7 +469,7 @@ function StatisticsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }
           minWidth: '320px',
         }}
       >
-        指标
+        {t('common.metric')}
       </th>
       {portfolios.map((p, idx) => (
         <th
@@ -275,6 +502,7 @@ function StatisticsGroupRows({
   portfolios: PortfolioResult[];
   colCount: number;
 }) {
+  const { t } = useTranslation();
   let rowIdx = 0;
   return (
     <Fragment key={group.title}>
@@ -284,7 +512,7 @@ function StatisticsGroupRows({
           className="text-[12px] font-bold py-2 px-3"
           style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
         >
-          {group.title}
+          {t(group.title)}
         </td>
       </tr>
       {group.rows.map((row) => {
@@ -300,7 +528,7 @@ function StatisticsGroupRows({
               className="text-[13px] py-2 px-3"
               style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
             >
-              {row.label}
+              {t(row.label)}
             </td>
             {portfolios.map((p) => {
               const val = p.statistics[row.key] as number | undefined;
@@ -326,13 +554,14 @@ function StatisticsGroupRows({
 }
 
 export default function StatisticsTable({ portfolios, compact }: StatisticsTableProps) {
+  const { t } = useTranslation();
   if (portfolios.length === 0) {
     return (
-      <div className="chart-card">
+      <ChartCard>
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          暂无统计数据
+          {t('components.statisticsTable.noData')}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
@@ -340,8 +569,7 @@ export default function StatisticsTable({ portfolios, compact }: StatisticsTable
   const colCount = 1 + portfolios.length;
 
   return (
-    <div className="chart-card">
-      <div className="chart-card-title">风险与收益指标</div>
+    <ChartCard title={t('components.statisticsTable.title')}>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -359,6 +587,6 @@ export default function StatisticsTable({ portfolios, compact }: StatisticsTable
           </tbody>
         </table>
       </div>
-    </div>
+    </ChartCard>
   );
 }

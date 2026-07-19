@@ -18,7 +18,7 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getReadPool: dbMocks.getReadPool,
 }));
 
@@ -78,47 +78,6 @@ describe('loadCpiSeriesFromDb', () => {
       expect.objectContaining({ err }),
       expect.stringContaining('CPI'),
     );
-  });
-});
-
-describe('loadCpiMapFromDb', () => {
-  let macroData: MacroDataModule;
-  let mockPool: ReturnType<typeof createMockPool>;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    vi.resetModules();
-    mockPool = createMockPool();
-    dbMocks.getReadPool.mockReturnValue(mockPool);
-    macroData = await import('../../../packages/backend/src/db/macroData.js');
-  });
-
-  it('should build date->value map from CPI series', async () => {
-    mockPool.query.mockResolvedValue({
-      rows: [
-        { date: new Date('2024-01-01'), value: 300.5 },
-        { date: new Date('2024-06-01'), value: 310.2 },
-      ],
-    });
-    const result = await macroData.loadCpiMapFromDb('us');
-    expect(result).toEqual({ '2024-01-01': 300.5, '2024-06-01': 310.2 });
-  });
-
-  it('should return cached map on second call without querying DB', async () => {
-    mockPool.query.mockResolvedValue({
-      rows: [{ date: new Date('2024-01-01'), value: 100 }],
-    });
-    await macroData.loadCpiMapFromDb('us');
-    const result = await macroData.loadCpiMapFromDb('us');
-    expect(result).toEqual({ '2024-01-01': 100 });
-    expect(mockPool.query).toHaveBeenCalledTimes(1);
-  });
-
-  it('should return empty object on DB error', async () => {
-    mockPool.query.mockRejectedValue(new Error('timeout'));
-    const result = await macroData.loadCpiMapFromDb('us');
-    expect(result).toEqual({});
-    expect(loggerMocks.warn).toHaveBeenCalled();
   });
 });
 

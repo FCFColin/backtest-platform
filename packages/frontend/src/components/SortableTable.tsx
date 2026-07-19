@@ -24,7 +24,7 @@ export interface Column<T> {
 }
 
 /** SortableTable 组件 Props */
-export interface SortableTableProps<T> {
+interface SortableTableProps<T> {
   /** 列定义数组 */
   columns: Column<T>[];
   /** 数据数组 */

@@ -11,4 +11,10 @@ export * from './signal.js';
 export * from './pca.js';
 export * from './letf.js';
 export * from './goal.js';
-export { CHART_COLORS } from '../constants.js';
+export * from './marketStats.js';
+export {
+  CHART_COLORS,
+  REBALANCE_FREQUENCIES,
+  ALL_REBALANCE_FREQUENCIES,
+  REBALANCE_FREQUENCY_COLORS,
+} from '../constants.js';

@@ -12,6 +12,7 @@ import {
   Area,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
+import { useTranslation } from 'react-i18next';
 import {
   CHART_TOOLTIP_STYLE,
   CHART_GRID_PROPS,
@@ -201,6 +202,7 @@ export function CollapsibleCard({
 }
 
 export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
+  const { t } = useTranslation();
   return (
     <div style={{ height: 220, marginTop: 12 }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -212,7 +214,7 @@ export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number;
             tick={AXIS_TICK_STYLE}
             tickFormatter={(v: number) => v.toFixed(1) + '%'}
             label={{
-              value: '波动率',
+              value: t('calculators.base.volatility'),
               position: 'insideBottom',
               offset: -4,
               fontSize: 11,
@@ -237,7 +239,9 @@ export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number;
               v.toFixed(2) + '%',
               name === 'cagr' ? 'CAGR' : name,
             ]}
-            labelFormatter={(l: number) => '波动率: ' + l.toFixed(2) + '%'}
+            labelFormatter={(l: number) =>
+              t('calculators.base.volatilityWithValue', { value: `${l.toFixed(2)}%` })
+            }
           />
           <Line
             type="monotone"
@@ -253,6 +257,7 @@ export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number;
 }
 
 export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }> }) {
+  const { t } = useTranslation();
   return (
     <div style={{ height: 160, marginTop: 12 }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -262,7 +267,7 @@ export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toFixed(1)} />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(v: number) => [v.toFixed(3), '资产比']}
+            formatter={(v: number) => [v.toFixed(3), t('calculators.base.assetRatio')]}
           />
           <Area
             type="monotone"

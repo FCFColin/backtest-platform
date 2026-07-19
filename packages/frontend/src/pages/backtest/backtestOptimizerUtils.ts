@@ -1,35 +1,22 @@
 import { useState } from 'react';
-import type { RebalanceFrequency } from '@backtest/shared';
+import type {
+  RebalanceFrequency,
+  BacktestOptimizerObjective as Objective,
+  OptimizeResultItem,
+  BestResultItem,
+} from '@backtest/shared';
+import { REBALANCE_FREQUENCIES } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
+import { apiPostJSON } from '@/utils/apiClient';
+import { useListState } from '../../hooks/useListState.js';
 import type { Column } from '../../components/SortableTable.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
-export type Objective = 'maxCagr' | 'minMaxDrawdown' | 'maxSharpe' | 'maxSortino';
+// 三个类型已上提到 @backtest/shared，此处 re-export 保留本模块既有导入路径
+// （Objective 为兼容别名，对应 shared 中的 BacktestOptimizerObjective）。
+export type { Objective, OptimizeResultItem, BestResultItem };
 
-export interface OptimizeResultItem {
-  rebalanceFrequency: RebalanceFrequency;
-  rebalanceThreshold?: number;
-  initialCapital: number;
-  cagr: number;
-  maxDrawdown: number;
-  sharpe: number;
-  sortino: number;
-  stdev: number;
-  calmar: number;
-}
-
-export interface BestResultItem extends OptimizeResultItem {
-  growthCurve: Array<{ date: string; value: number }>;
-}
-
-export const FREQ_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> = [
-  { value: 'daily', label: '日度' },
-  { value: 'weekly', label: '周度' },
-  { value: 'monthly', label: '月度' },
-  { value: 'quarterly', label: '季度' },
-  { value: 'annual', label: '年度' },
-];
-
-export const FREQ_LABELS: Record<string, string> = {
+const FREQ_LABELS: Record<RebalanceFrequency, string> = {
   daily: '日度',
   weekly: '周度',
   monthly: '月度',
@@ -38,6 +25,9 @@ export const FREQ_LABELS: Record<string, string> = {
   threshold: '阈值',
   none: '不调仓',
 };
+
+export const FREQ_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> =
+  REBALANCE_FREQUENCIES.map((value) => ({ value, label: FREQ_LABELS[value] }));
 
 const fmtMoney = (v: number) => `$${v.toLocaleString('en-US')}`;
 
@@ -227,20 +217,26 @@ export interface OptimizerState {
 }
 
 function useAssetListState() {
-  const [assets, setAssets] = useState<Array<{ ticker: string; weight: string }>>([
-    { ticker: 'VTI', weight: '60' },
-    { ticker: 'BND', weight: '40' },
-  ]);
-  const addAsset = () => setAssets([...assets, { ticker: '', weight: '' }]);
-  const removeAsset = (i: number) => {
-    if (assets.length > 1) setAssets(assets.filter((_, idx) => idx !== i));
+  const { items, setItems, addItem, removeItem, updateItem } = useListState<{
+    ticker: string;
+    weight: string;
+  }>(
+    [
+      { ticker: 'VTI', weight: '60' },
+      { ticker: 'BND', weight: '40' },
+    ],
+    () => ({ ticker: '', weight: '' }),
+    1,
+  );
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) =>
+    updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  return {
+    assets: items,
+    setAssets: setItems,
+    addAsset: addItem,
+    removeAsset: removeItem,
+    updateAsset,
   };
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) => {
-    const next = [...assets];
-    next[i] = { ...next[i], [field]: val };
-    setAssets(next);
-  };
-  return { assets, setAssets, addAsset, removeAsset, updateAsset };
 }
 
 function useFrequencyState() {
@@ -266,8 +262,8 @@ function useBacktestOptSetters() {
   const [maxDD, setMaxDD] = useState('20');
   const [enableMinCagr, setEnableMinCagr] = useState(false);
   const [minCagr, setMinCagr] = useState('5');
-  const [startDate, setStartDate] = useState('2010-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
+  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [benchmarkTicker, setBenchmarkTicker] = useState('VTI');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -367,15 +363,12 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
         minCagr: s.minCagr,
       },
     );
-    const res = await fetch('/api/backtest-optimizer/optimize', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if (json.success === false) throw new Error(json.error || '优化失败');
-    const data = json.data;
+    const data = await apiPostJSON<{
+      results?: OptimizeResultItem[];
+      best?: BestResultItem | null;
+      benchmarkGrowth?: { date: string; value: number }[] | null;
+      totalCombinations?: number;
+    }>('/api/v1/backtest-optimizer/optimize', body, '优化失败');
     s.setResults(data.results ?? []);
     s.setBest(data.best ?? null);
     s.setBenchmarkGrowth(data.benchmarkGrowth ?? null);
@@ -390,48 +383,8 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
 export function useOptimizerState(): OptimizerState {
   const s = useBacktestOptSetters();
   const runOptimize = () => runBacktestOptimize(s);
-
-  return {
-    assets: s.assets,
-    frequencies: s.frequencies,
-    thrMin: s.thrMin,
-    thrMax: s.thrMax,
-    thrStep: s.thrStep,
-    capMin: s.capMin,
-    capMax: s.capMax,
-    capStep: s.capStep,
-    objective: s.objective,
-    enableMaxDD: s.enableMaxDD,
-    maxDD: s.maxDD,
-    enableMinCagr: s.enableMinCagr,
-    minCagr: s.minCagr,
-    startDate: s.startDate,
-    endDate: s.endDate,
-    benchmarkTicker: s.benchmarkTicker,
-    isLoading: s.isLoading,
-    error: s.error,
-    results: s.results,
-    best: s.best,
-    benchmarkGrowth: s.benchmarkGrowth,
-    totalCombos: s.totalCombos,
-    addAsset: s.addAsset,
-    removeAsset: s.removeAsset,
-    updateAsset: s.updateAsset,
-    toggleFreq: s.toggleFreq,
-    setObjective: s.setObjective,
-    setEnableMaxDD: s.setEnableMaxDD,
-    setMaxDD: s.setMaxDD,
-    setEnableMinCagr: s.setEnableMinCagr,
-    setMinCagr: s.setMinCagr,
-    setThrMin: s.setThrMin,
-    setThrMax: s.setThrMax,
-    setThrStep: s.setThrStep,
-    setCapMin: s.setCapMin,
-    setCapMax: s.setCapMax,
-    setCapStep: s.setCapStep,
-    setStartDate: s.setStartDate,
-    setEndDate: s.setEndDate,
-    setBenchmarkTicker: s.setBenchmarkTicker,
-    runOptimize,
-  };
+  // 内部 setter（setAssets/setFrequencies/setIsLoading/setError/setResults/setBest/
+  // setBenchmarkGrowth/setTotalCombos）随 spread 暴露到运行时但不在 OptimizerState 类型中，
+  // TypeScript 结构类型允许返回对象包含额外字段，消费者无法经由类型系统访问这些内部字段。
+  return { ...s, runOptimize };
 }

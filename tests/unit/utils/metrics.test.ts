@@ -5,7 +5,7 @@
  * 会导致告警缺失。测试覆盖：
  * - 指标对象正确导出（Gauge/Counter/Histogram）
  * - recordEngineCall 正确递增计数器
- * - recordFallbackToNode 正确递增计数器并清洗 reason
+ * - recordEngineUnavailable 正确递增计数器并清洗 reason
  * - registerCircuitBreakerMetrics 注册事件回调
  * - registerSemaphoreMetrics 设置初始值
  * - resetMetrics / getPrometheusRegister 不抛错
@@ -25,7 +25,7 @@ import {
   engineCallDuration,
   fallbackToNodeTotal,
   recordEngineCall,
-  recordFallbackToNode,
+  recordEngineUnavailable,
   registerCircuitBreakerMetrics,
   registerSemaphoreMetrics,
   resetMetrics,
@@ -103,18 +103,18 @@ describe('recordEngineCall', () => {
     recordEngineCall(true);
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBe(2);
     // 不应误增 fallback 维度
-    expect(await metricValue(engineCallsTotal, { result: 'fallback' })).toBeUndefined();
+    expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBeUndefined();
   });
 
-  it('success=false 应递增 result=fallback 而非 success', async () => {
+  it('success=false 应递增 result=unavailable 而非 success', async () => {
     recordEngineCall(false);
-    expect(await metricValue(engineCallsTotal, { result: 'fallback' })).toBe(1);
+    expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBeUndefined();
   });
 
   it('success=false 且带 error 时应同时递增 fallbackToNodeTotal', async () => {
     recordEngineCall(false, 'engine_timeout');
-    expect(await metricValue(engineCallsTotal, { result: 'fallback' })).toBe(1);
+    expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
     expect(await metricValue(fallbackToNodeTotal, { reason: 'engine_timeout' })).toBe(1);
   });
 
@@ -131,32 +131,32 @@ describe('recordEngineCall', () => {
   });
 });
 
-describe('recordFallbackToNode', () => {
+describe('recordEngineUnavailable', () => {
   beforeEach(() => {
     resetMetrics();
   });
 
   it('应将 fallbackToNodeTotal 对应 reason 递增到精确值', async () => {
-    recordFallbackToNode('engine_down');
-    recordFallbackToNode('engine_down');
-    recordFallbackToNode('engine_down');
+    recordEngineUnavailable('engine_down');
+    recordEngineUnavailable('engine_down');
+    recordEngineUnavailable('engine_down');
     expect(await metricValue(fallbackToNodeTotal, { reason: 'engine_down' })).toBe(3);
   });
 
   it('reason 含特殊字符时应被清洗为确定的标签值', async () => {
-    recordFallbackToNode('error: timeout (5000ms)');
+    recordEngineUnavailable('error: timeout (5000ms)');
     // ': ( )' 等字符替换为 _
     expect(await metricValue(fallbackToNodeTotal, { reason: 'error__timeout__5000ms_' })).toBe(1);
   });
 
   it('reason 含中文时应被整体清洗为下划线（防止标签基数爆炸/注入）', async () => {
-    recordFallbackToNode('引擎超时');
+    recordEngineUnavailable('引擎超时');
     // 4 个中文字符 → 4 个下划线
     expect(await metricValue(fallbackToNodeTotal, { reason: '____' })).toBe(1);
   });
 
   it('reason 为空字符串时应以空标签记录而非抛错', async () => {
-    recordFallbackToNode('');
+    recordEngineUnavailable('');
     expect(await metricValue(fallbackToNodeTotal, { reason: '' })).toBe(1);
   });
 });

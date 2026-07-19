@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+﻿import { useState, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
@@ -7,7 +7,7 @@ import {
   computeRollingMetric,
   computeRollingExcessReturn,
   type RollingMetricKey,
-} from './analysisChartUtils.js';
+} from './chartCalculations.js';
 
 const ROLLING_METRICS = [
   { key: 'cagr' as const, labelKey: 'analysis.rollingCAGR' },

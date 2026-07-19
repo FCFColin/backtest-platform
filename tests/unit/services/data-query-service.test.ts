@@ -33,6 +33,7 @@ const circuitBreakerMetrics = vi.hoisted(() => vi.fn());
 const cacheMocks = vi.hoisted(() => ({
   writeCache: vi.fn(),
   incrementCacheVersion: vi.fn(),
+  setPriceCache: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -52,7 +53,7 @@ vi.mock('http', () => ({
   request: httpMocks.request,
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getReadPool: vi.fn(),
 }));
 
@@ -61,7 +62,7 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerCircuitBreakerMetrics: circuitBreakerMetrics,
 }));
 
-vi.mock('../../../packages/backend/src/services/dataCacheService.js', () => cacheMocks);
+vi.mock('../../../packages/backend/src/infrastructure/dataCacheService.js', () => cacheMocks);
 
 import {
   isDbAvailable,
@@ -70,8 +71,7 @@ import {
   callGoDataService,
   fetchMissingFromGoService,
   searchTickersFromDb,
-  mockSearchResults,
-} from '../../../packages/backend/src/services/dataQueryService.js';
+} from '../../../packages/backend/src/infrastructure/dataQueryService.js';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -259,35 +259,5 @@ describe('searchTickersFromDb', () => {
     cbMocks.fire.mockRejectedValueOnce(new Error('search failed'));
     const r = await searchTickersFromDb('VTI');
     expect(r).toBeNull();
-  });
-});
-
-describe('mockSearchResults', () => {
-  it('应返回匹配 ticker 的结果', () => {
-    const r = mockSearchResults('VTI');
-    expect(r).toHaveLength(1);
-    expect(r[0].ticker).toBe('VTI');
-  });
-
-  it('应返回匹配名称的结果', () => {
-    const r = mockSearchResults('Apple');
-    expect(r).toHaveLength(1);
-    expect(r[0].ticker).toBe('AAPL');
-  });
-
-  it('应返回匹配市场的结果', () => {
-    const r = mockSearchResults('美股');
-    expect(r.length).toBeGreaterThan(5);
-  });
-
-  it('无匹配应返回空数组', () => {
-    const r = mockSearchResults('ZZZZ');
-    expect(r).toEqual([]);
-  });
-
-  it('搜索不区分大小写', () => {
-    const r = mockSearchResults('vti');
-    expect(r).toHaveLength(1);
-    expect(r[0].ticker).toBe('VTI');
   });
 });

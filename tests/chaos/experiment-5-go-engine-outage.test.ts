@@ -16,19 +16,21 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   CONTAINERS,
-  isDockerAvailable,
-  isContainerRunning,
-  stopContainer,
-  startContainer,
-  waitForHealthy,
+  withContainerStopped,
+  setupChaosFixture,
+  type ChaosFixture,
 } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:5001';
 const READY_URL = `${API_URL}/api/ready`;
 const BACKTEST_URL = `${API_URL}/api/v1/backtest/portfolio`;
 
-let dockerAvailable = false;
-let engineRunning = false;
+// top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值
+let fixture: ChaosFixture = {
+  dockerAvailable: false,
+  containerRunning: false,
+  recover: async () => {},
+};
 
 const MINIMAL_BACKTEST_BODY = {
   portfolios: [
@@ -44,85 +46,73 @@ const MINIMAL_BACKTEST_BODY = {
 };
 
 beforeAll(async () => {
-  dockerAvailable = await isDockerAvailable();
-  if (dockerAvailable) {
-    engineRunning = await isContainerRunning(CONTAINERS.engineGo);
-  }
+  fixture = await setupChaosFixture(CONTAINERS.engineGo);
 }, 30000);
 
 afterAll(async () => {
-  if (dockerAvailable && engineRunning) {
-    try {
-      await startContainer(CONTAINERS.engineGo);
-    } catch {
-      // 已启动则忽略
-    }
-  }
+  await fixture.recover();
 }, 30000);
 
 describe('Chaos Experiment 5: Go 引擎中断', () => {
-  it.skipIf(!dockerAvailable)('引擎停止后 /api/ready 应报告 go=false', async () => {
-    if (!engineRunning) {
+  it.skipIf(!fixture.dockerAvailable)('引擎停止后 /api/ready 应报告 go=false', async () => {
+    if (!fixture.containerRunning) {
       console.warn('skip: backtest-engine-go 容器未运行');
       return;
     }
 
-    await stopContainer(CONTAINERS.engineGo);
-    await new Promise((r) => setTimeout(r, 2000));
-
-    try {
-      const res = await fetch(READY_URL);
-      const json = await res.json();
-      expect(json.data?.engine?.go).toBe(false);
-    } finally {
-      await startContainer(CONTAINERS.engineGo);
-      await waitForHealthy(READY_URL, 30000);
-    }
+    await withContainerStopped(
+      CONTAINERS.engineGo,
+      async () => {
+        await new Promise((r) => setTimeout(r, 2000));
+        const res = await fetch(READY_URL);
+        const json = await res.json();
+        expect(json.data?.engine?.go).toBe(false);
+      },
+      { readyUrl: READY_URL },
+    );
   });
 
-  it.skipIf(!dockerAvailable)('回测端点应返回 503（fail-closed）', async () => {
-    if (!engineRunning) {
+  it.skipIf(!fixture.dockerAvailable)('回测端点应返回 503（fail-closed）', async () => {
+    if (!fixture.containerRunning) {
       console.warn('skip: backtest-engine-go 容器未运行');
       return;
     }
 
-    await stopContainer(CONTAINERS.engineGo);
-    await new Promise((r) => setTimeout(r, 2000));
-
-    try {
-      const res = await fetch(BACKTEST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(MINIMAL_BACKTEST_BODY),
-      });
-      expect(res.status).toBe(503);
-      expect(res.headers.get('Retry-After')).toBeTruthy();
-    } finally {
-      await startContainer(CONTAINERS.engineGo);
-      await waitForHealthy(READY_URL, 30000);
-    }
+    await withContainerStopped(
+      CONTAINERS.engineGo,
+      async () => {
+        await new Promise((r) => setTimeout(r, 2000));
+        const res = await fetch(BACKTEST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(MINIMAL_BACKTEST_BODY),
+        });
+        expect(res.status).toBe(503);
+        expect(res.headers.get('Retry-After')).toBeTruthy();
+      },
+      { readyUrl: READY_URL },
+    );
   });
 
-  it.skipIf(!dockerAvailable)('响应应包含 degraded 标记', async () => {
-    if (!engineRunning) {
+  it.skipIf(!fixture.dockerAvailable)('响应应包含 degraded 标记', async () => {
+    if (!fixture.containerRunning) {
       console.warn('skip: backtest-engine-go 容器未运行');
       return;
     }
 
-    await stopContainer(CONTAINERS.engineGo);
-    await new Promise((r) => setTimeout(r, 2000));
-
-    try {
-      const res = await fetch(BACKTEST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(MINIMAL_BACKTEST_BODY),
-      });
-      const json = await res.json();
-      expect(json.degraded).toBe(true);
-    } finally {
-      await startContainer(CONTAINERS.engineGo);
-      await waitForHealthy(READY_URL, 30000);
-    }
+    await withContainerStopped(
+      CONTAINERS.engineGo,
+      async () => {
+        await new Promise((r) => setTimeout(r, 2000));
+        const res = await fetch(BACKTEST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(MINIMAL_BACKTEST_BODY),
+        });
+        const json = await res.json();
+        expect(json.degraded).toBe(true);
+      },
+      { readyUrl: READY_URL },
+    );
   });
 });

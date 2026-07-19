@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { apiPostJSON } from '@/utils/apiClient';
+import i18n from '../../i18n/index.js';
+import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import type { RebalanceFrequency, PortfolioResult } from '@backtest/shared';
+import { REBALANCE_FREQUENCIES } from '@backtest/shared';
 import type {
   TacticalStrategy,
   TradingSignal,
@@ -19,44 +23,47 @@ interface BacktestResponse {
   }>;
 }
 
+// 所有 OPTIONS 的 label 字段为 i18n key（形如 'tactical.indicators.sma'），
+// 调用方需通过 useTranslation() 的 t() 函数翻译后再展示。
+// 这样 .ts 文件不含中文字面量，.tsx 调用方在渲染时 t(o.label) 即可随语言切换。
+
 const INDICATOR_OPTIONS: Array<{
   value: TechnicalIndicator;
   label: string;
 }> = [
-  { value: 'sma', label: 'SMA 简单均线' },
-  { value: 'ema', label: 'EMA 指数均线' },
-  { value: 'rsi', label: 'RSI 相对强弱' },
-  { value: 'macd', label: 'MACD' },
-  { value: 'bollinger', label: 'Bollinger 布林带' },
-  { value: 'momentum', label: 'Momentum 动量' },
+  { value: 'sma', label: 'tactical.indicators.sma' },
+  { value: 'ema', label: 'tactical.indicators.ema' },
+  { value: 'rsi', label: 'tactical.indicators.rsi' },
+  { value: 'macd', label: 'tactical.indicators.macd' },
+  { value: 'bollinger', label: 'tactical.indicators.bollinger' },
+  { value: 'momentum', label: 'tactical.indicators.momentum' },
 ];
 
 const OPERATOR_OPTIONS: Array<{ value: SignalCondition['operator']; label: string }> = [
-  { value: 'gt', label: '大于' },
-  { value: 'lt', label: '小于' },
-  { value: 'cross_above', label: '交叉上穿' },
-  { value: 'cross_below', label: '交叉下穿' },
+  { value: 'gt', label: 'tactical.operators.gt' },
+  { value: 'lt', label: 'tactical.operators.lt' },
+  { value: 'cross_above', label: 'tactical.operators.cross_above' },
+  { value: 'cross_below', label: 'tactical.operators.cross_below' },
 ];
 
 const REBALANCE_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> = [
-  { value: 'daily', label: '每日' },
-  { value: 'weekly', label: '每周' },
-  { value: 'monthly', label: '每月' },
-  { value: 'quarterly', label: '每季' },
-  { value: 'annual', label: '每年' },
-  { value: 'none', label: '不调仓' },
+  ...REBALANCE_FREQUENCIES.map((value) => ({
+    value,
+    label: `tactical.rebalanceOptions.${value}`,
+  })),
+  { value: 'none', label: 'tactical.rebalanceOptions.none' },
 ];
 
 const AGGREGATION_OPTIONS: Array<{ value: TacticalStrategy['aggregationMethod']; label: string }> =
   [
-    { value: 'voting', label: '投票' },
-    { value: 'weighted_average', label: '加权平均' },
-    { value: 'rank', label: '排名' },
+    { value: 'voting', label: 'tactical.aggregation.voting' },
+    { value: 'weighted_average', label: 'tactical.aggregation.weighted_average' },
+    { value: 'rank', label: 'tactical.aggregation.rank' },
   ];
 
 const RANKING_METHOD_OPTIONS: Array<{ value: 'fixed_share' | 'risk_parity'; label: string }> = [
-  { value: 'fixed_share', label: '固定份额' },
-  { value: 'risk_parity', label: '风险平价' },
+  { value: 'fixed_share', label: 'tactical.rankingMethod.fixed_share' },
+  { value: 'risk_parity', label: 'tactical.rankingMethod.risk_parity' },
 ];
 
 const ALERT_TRIGGER_OPTIONS: Array<{
@@ -64,15 +71,27 @@ const ALERT_TRIGGER_OPTIONS: Array<{
   label: string;
   desc: string;
 }> = [
-  { value: 'signal_change', label: '信号变化', desc: '当激活信号发生切换时触发' },
-  { value: 'rebalance', label: '再平衡', desc: '每次再平衡调仓时触发' },
-  { value: 'threshold', label: '阈值触发', desc: '指标突破设定阈值时触发' },
+  {
+    value: 'signal_change',
+    label: 'tactical.alertTrigger.signal_change',
+    desc: 'tactical.alertTriggerDesc.signal_change',
+  },
+  {
+    value: 'rebalance',
+    label: 'tactical.alertTrigger.rebalance',
+    desc: 'tactical.alertTriggerDesc.rebalance',
+  },
+  {
+    value: 'threshold',
+    label: 'tactical.alertTrigger.threshold',
+    desc: 'tactical.alertTriggerDesc.threshold',
+  },
 ];
 
 const TABS = [
-  { key: 'backtest', label: '回测结果' },
-  { key: 'whatif', label: 'What If' },
-  { key: 'alerts', label: '邮件告警' },
+  { key: 'backtest', label: 'tactical.tabs.backtest' },
+  { key: 'whatif', label: 'tactical.tabs.whatif' },
+  { key: 'alerts', label: 'tactical.tabs.alerts' },
 ];
 
 function genId(prefix: string): string {
@@ -86,7 +105,7 @@ function createDefaultCondition(): SignalCondition {
 function createDefaultSignal(): TradingSignal {
   return {
     id: genId('signal'),
-    name: '信号 1',
+    name: i18n.t('tactical.defaultSignalName', { index: 1 }),
     conditions: [createDefaultCondition()],
     targetWeights: [
       { ticker: 'SPY', weight: 60 },
@@ -98,7 +117,7 @@ function createDefaultSignal(): TradingSignal {
 function createDefaultStrategy(): TacticalStrategy {
   return {
     id: genId('strategy'),
-    name: '战术策略',
+    name: i18n.t('tactical.defaultStrategyName'),
     signals: [createDefaultSignal()],
     aggregationMethod: 'voting',
     rankingConfig: { method: 'fixed_share', topN: 3 },
@@ -107,17 +126,19 @@ function createDefaultStrategy(): TacticalStrategy {
 
 function validateStrategy(signals: TradingSignal[]): string | null {
   for (const sig of signals) {
-    if (sig.conditions.length === 0) return `信号「${sig.name}」缺少触发条件`;
+    if (sig.conditions.length === 0)
+      return i18n.t('tactical.validateErrors.missingConditions', { name: sig.name });
     const validWeights = sig.targetWeights.filter((w) => w.ticker && w.weight > 0);
-    if (validWeights.length === 0) return `信号「${sig.name}」缺少有效目标权重`;
+    if (validWeights.length === 0)
+      return i18n.t('tactical.validateErrors.missingWeights', { name: sig.name });
   }
   return null;
 }
 
 function useTacticalPageState() {
   const [strategy, setStrategy] = useState<TacticalStrategy>(createDefaultStrategy);
-  const [startDate, setStartDate] = useState('2015-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
+  const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [startingValue, setStartingValue] = useState(10000);
   const [rebalanceFrequency, setRebalanceFrequency] = useState<RebalanceFrequency>('monthly');
   const [activeTab, setActiveTab] = useState('backtest');
@@ -131,7 +152,7 @@ function useTacticalPageState() {
   };
   const addSignal = () => {
     const newSignal = createDefaultSignal();
-    newSignal.name = `信号 ${strategy.signals.length + 1}`;
+    newSignal.name = i18n.t('tactical.defaultSignalName', { index: strategy.signals.length + 1 });
     setStrategy({ ...strategy, signals: [...strategy.signals, newSignal] });
   };
   const removeSignal = (idx: number) => {
@@ -146,15 +167,12 @@ function useTacticalPageState() {
       return;
     }
     run(async () => {
-      const res = await fetch('/api/tactical/backtest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ strategy, startDate, endDate, startingValue, rebalanceFrequency }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
-      if (json.success === false) throw new Error(json.error || '回测失败');
-      setResults(json.data);
+      const data = await apiPostJSON<BacktestResponse>(
+        '/api/v1/tactical/backtest',
+        { strategy, startDate, endDate, startingValue, rebalanceFrequency },
+        i18n.t('tactical.results.backtestFailed'),
+      );
+      setResults(data);
       setActiveTab('backtest');
     });
   };
@@ -190,11 +208,7 @@ export {
   RANKING_METHOD_OPTIONS,
   ALERT_TRIGGER_OPTIONS,
   TABS,
-  genId,
   createDefaultCondition,
-  createDefaultSignal,
-  createDefaultStrategy,
-  validateStrategy,
   useTacticalPageState,
 };
 export type { BacktestResponse };

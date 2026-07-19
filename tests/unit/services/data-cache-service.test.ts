@@ -46,8 +46,13 @@ vi.mock('fs/promises', () => ({
 
 vi.mock('../../../packages/backend/src/utils/integrity.js', () => integrityMocks);
 
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
+}));
+
+vi.mock('../../../packages/backend/src/infrastructure/redisHealth.js', () => ({
+  getRedisHealth: vi.fn().mockResolvedValue(true),
+  markRedisUnhealthy: vi.fn(),
 }));
 
 import {
@@ -59,7 +64,7 @@ import {
   incrementCacheVersion,
   deletePriceCache,
   clearPriceCache,
-} from '../../../packages/backend/src/services/dataCacheService.js';
+} from '../../../packages/backend/src/infrastructure/dataCacheService.js';
 
 beforeEach(() => {
   vi.clearAllMocks();

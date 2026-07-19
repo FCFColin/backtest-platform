@@ -1,7 +1,13 @@
 /**
  * @file Telltale 走势对比图
  * @description 展示各组合相对基准的累计收益比（Telltale Chart），用于判断相对强弱
+ *
+ * 支持两种输入模式：
+ * - 回测模式：portfolios: PortfolioResult[]（BacktestPage 使用）
+ * - 分析模式：results: AssetAnalysisResult（AnalysisPage 使用）
  */
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LineChart,
   Line,
@@ -15,8 +21,8 @@ import {
   Brush,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
-import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
+import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import {
   CHART_MARGIN,
   CHART_GRID_PROPS,
@@ -33,14 +39,100 @@ import {
 
 /** Telltale 走势对比图 Props */
 interface TelltaleChartProps {
-  portfolios: PortfolioResult[];
+  /** 回测模式：组合结果列表 */
+  portfolios?: PortfolioResult[];
+  /** 分析模式：单资产分析结果 */
+  results?: AssetAnalysisResult;
+  /** 外层已提供 chart-card 标题时设为 true，避免重复标题与容器 */
+  embedded?: boolean;
 }
 
-export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
-  if (portfolios.length < 2) {
+interface GrowthPoint {
+  date: string;
+  value: number;
+}
+
+interface NamedGrowth {
+  name: string;
+  growthCurve: GrowthPoint[];
+}
+
+/** 从基准+对比序列构建 telltale 比率数据 */
+function buildTelltaleData(benchmark: NamedGrowth, comparisons: NamedGrowth[]) {
+  const benchMap = new Map<string, number>();
+  for (const point of benchmark.growthCurve) {
+    benchMap.set(point.date, point.value);
+  }
+  const dateMap = new Map<string, Record<string, number | string>>();
+  for (const item of comparisons) {
+    for (const point of item.growthCurve) {
+      const benchVal = benchMap.get(point.date);
+      if (benchVal == null || benchVal === 0) continue;
+      if (!dateMap.has(point.date)) dateMap.set(point.date, { date: point.date });
+      dateMap.get(point.date)![item.name] = +(point.value / benchVal).toFixed(6);
+    }
+  }
+  return Array.from(dateMap.values()).sort((a, b) =>
+    (a.date as string).localeCompare(b.date as string),
+  );
+}
+
+export default function TelltaleChart({
+  portfolios,
+  results,
+  embedded = false,
+}: TelltaleChartProps) {
+  const { t } = useTranslation();
+
+  const { chartData, labels, title, emptyMessage } = useMemo(() => {
+    if (results) {
+      if (results.tickers.length < 2) {
+        return {
+          chartData: [],
+          labels: [],
+          title: t('analysis.telltaleChart'),
+          emptyMessage: t('analysis.telltaleNeedTwo'),
+        };
+      }
+      const benchmark = {
+        name: results.tickers[0].ticker,
+        growthCurve: results.tickers[0].growthCurve,
+      };
+      const comparisons = results.tickers
+        .slice(1)
+        .map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }));
+      const labels = results.tickers.slice(1).map((tk) => tk.ticker);
+      const merged = buildTelltaleData(benchmark, comparisons);
+      return {
+        chartData:
+          merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
+        labels,
+        title: `${t('analysis.telltaleRelative')} ${results.tickers[0].ticker}`,
+        emptyMessage: null,
+      };
+    }
+    const pf = portfolios ?? [];
+    if (pf.length < 2) {
+      return {
+        chartData: [],
+        labels: [],
+        title: t('analysis.telltaleChart'),
+        emptyMessage: t('analysis.telltaleNeedTwo'),
+      };
+    }
+    const merged = buildTelltaleData(pf[0], pf.slice(1));
+    return {
+      chartData:
+        merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
+      labels: pf.slice(1).map((p) => p.name),
+      title: t('analysis.telltaleChart'),
+      emptyMessage: null,
+    };
+  }, [portfolios, results, t]);
+
+  if (emptyMessage) {
     return (
-      <div className="chart-card">
-        <div className="chart-card-title">述事图</div>
+      <ChartCard title={title}>
         <div
           style={{
             color: 'var(--text-muted)',
@@ -49,90 +141,65 @@ export default function TelltaleChart({ portfolios }: TelltaleChartProps) {
             textAlign: 'center',
           }}
         >
-          至少需要2个组合才能显示述事图
+          {emptyMessage}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
-  const mergedData = computeTelltaleData(portfolios);
-  // 大数据集（>10000 点）降采样以保持渲染流畅，CSV 导出仍使用完整 mergedData
-  const chartData =
-    mergedData.length > DOWNSAMPLE_THRESHOLD
-      ? downsample(mergedData, DOWNSAMPLE_TARGET)
-      : mergedData;
+  const chart = (
+    <ResponsiveContainer width="100%" height={embedded ? 450 : 400}>
+      <LineChart data={chartData} margin={CHART_MARGIN}>
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
+        <YAxis
+          tick={AXIS_TICK_STYLE}
+          tickFormatter={(v: number) => v.toFixed(3)}
+          label={{
+            value: t('analysis.relativeRatio'),
+            angle: -90,
+            position: 'insideLeft',
+            style: { fill: 'var(--text-muted)', fontSize: 12 },
+          }}
+        />
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
+          formatter={(value: number) => [value.toFixed(3), '']}
+        />
+        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
+        <ReferenceLine y={1} stroke="var(--text-muted)" strokeDasharray="4 4" />
+        {labels.map((label, idx) => (
+          <Line
+            key={label}
+            type="monotone"
+            dataKey={label}
+            stroke={CHART_COLORS[(idx + 1) % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4 }}
+          />
+        ))}
+        {chartData.length > 100 && (
+          <Brush
+            dataKey="date"
+            height={20}
+            stroke="var(--brand)"
+            travellerWidth={8}
+            tickFormatter={DATE_TICK_FORMATTER}
+          />
+        )}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+
+  if (embedded) {
+    return <ChartCard title={title}>{chart}</ChartCard>;
+  }
 
   return (
-    <ChartCard title="述事图" data={mergedData} csvFilename="telltale">
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={chartData} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-          <YAxis
-            tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => v.toFixed(3)}
-            label={{
-              value: '相对比率',
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            labelFormatter={(label: string) => `日期: ${label}`}
-            formatter={(value: number) => [value.toFixed(3), '']}
-          />
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          <ReferenceLine y={1} stroke="var(--text-muted)" strokeDasharray="4 4" />
-          {portfolios.slice(1).map((p, idx) => (
-            <Line
-              key={p.name}
-              type="monotone"
-              dataKey={p.name}
-              stroke={CHART_COLORS[(idx + 1) % CHART_COLORS.length]}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-            />
-          ))}
-          {chartData.length > 100 && (
-            <Brush
-              dataKey="date"
-              height={20}
-              stroke="var(--brand)"
-              travellerWidth={8}
-              tickFormatter={DATE_TICK_FORMATTER}
-            />
-          )}
-        </LineChart>
-      </ResponsiveContainer>
+    <ChartCard title={title} data={chartData} csvFilename="telltale">
+      {chart}
     </ChartCard>
-  );
-}
-
-function computeTelltaleData(portfolios: PortfolioResult[]) {
-  const benchmark = portfolios[0];
-  const benchMap = new Map<string, number>();
-  for (const point of benchmark.growthCurve) {
-    benchMap.set(point.date, point.value);
-  }
-
-  const dateMap = new Map<string, Record<string, number | string>>();
-  for (let i = 1; i < portfolios.length; i++) {
-    const p = portfolios[i];
-    for (const point of p.growthCurve) {
-      const benchVal = benchMap.get(point.date);
-      if (benchVal == null || benchVal === 0) continue;
-      if (!dateMap.has(point.date)) {
-        dateMap.set(point.date, { date: point.date });
-      }
-      const ratio = point.value / benchVal;
-      dateMap.get(point.date)![p.name] = +ratio.toFixed(6);
-    }
-  }
-
-  return Array.from(dateMap.values()).sort((a, b) =>
-    (a.date as string).localeCompare(b.date as string),
   );
 }

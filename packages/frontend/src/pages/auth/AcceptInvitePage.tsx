@@ -4,13 +4,16 @@
  * @route /accept-invite
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, UserPlus, LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-
-const cardStyle: React.CSSProperties = { padding: 28, marginTop: 40, textAlign: 'center' };
+import ErrorBanner from '@/components/ErrorBanner';
+import AuthPageLayout from '@/components/auth/AuthPageLayout';
+import BrandIconBadge from '@/components/auth/BrandIconBadge';
 
 export default function AcceptInvitePage() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
   const navigate = useNavigate();
@@ -25,7 +28,7 @@ export default function AcceptInvitePage() {
     setError(null);
     const result = await acceptInvite(token);
     if (!result.ok) {
-      setError(useAuthStore.getState().error || '接受邀请失败');
+      setError(useAuthStore.getState().error || t('auth.acceptInvite.acceptFailed'));
       return;
     }
     if (result.orgId) await switchOrg(result.orgId);
@@ -34,63 +37,44 @@ export default function AcceptInvitePage() {
 
   if (!token) {
     return (
-      <div className="bt-page" style={{ maxWidth: 460, margin: '0 auto' }}>
-        <div className="bt-main-card card" style={cardStyle}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)' }}>
-            邀请链接无效
-          </h1>
-          <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>链接缺少邀请令牌。</p>
-        </div>
-      </div>
+      <AuthPageLayout centered maxWidth={460} title={t('auth.acceptInvite.invalidLink')}>
+        <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+          {t('auth.acceptInvite.missingToken')}
+        </p>
+      </AuthPageLayout>
     );
   }
 
   return (
-    <div className="bt-page" style={{ maxWidth: 460, margin: '0 auto' }}>
-      <div className="bt-main-card card" style={cardStyle}>
-        <InviteHeader />
-        {!isAuthed ? (
-          <NotAuthedContent token={token} />
-        ) : done ? (
-          <DoneContent onNavigate={() => navigate('/account')} />
-        ) : (
-          <InviteFormContent error={error} loading={loading} onAccept={() => void handleAccept()} />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function InviteHeader() {
-  return (
-    <>
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 12,
-          background: 'var(--brand)',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 14px',
-        }}
-      >
-        <UserPlus className="w-5 h-5" />
-      </div>
-      <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 8 }}>
-        接受组织邀请
-      </h1>
-    </>
+    <AuthPageLayout
+      centered
+      maxWidth={460}
+      icon={
+        <BrandIconBadge
+          icon={<UserPlus className="w-5 h-5" />}
+          size="lg"
+          style={{ margin: '0 auto 14px' }}
+        />
+      }
+      title={t('auth.acceptInvite.title')}
+    >
+      {!isAuthed ? (
+        <NotAuthedContent token={token} />
+      ) : done ? (
+        <DoneContent onNavigate={() => navigate('/account')} />
+      ) : (
+        <InviteFormContent error={error} loading={loading} onAccept={() => void handleAccept()} />
+      )}
+    </AuthPageLayout>
   );
 }
 
 function NotAuthedContent({ token }: { token: string }) {
+  const { t } = useTranslation();
   return (
     <>
       <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        请先登录或注册账户，然后回到此页面接受邀请。
+        {t('auth.acceptInvite.loginFirstHint')}
       </p>
       <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 18 }}>
         <Link
@@ -105,7 +89,7 @@ function NotAuthedContent({ token }: { token: string }) {
             padding: '0 16px',
           }}
         >
-          <LogIn className="w-4 h-4" /> 登录
+          <LogIn className="w-4 h-4" /> {t('auth.login.submit')}
         </Link>
         <Link
           to="/signup"
@@ -118,7 +102,7 @@ function NotAuthedContent({ token }: { token: string }) {
             textDecoration: 'none',
           }}
         >
-          注册
+          {t('auth.signup.submit')}
         </Link>
       </div>
     </>
@@ -126,10 +110,11 @@ function NotAuthedContent({ token }: { token: string }) {
 }
 
 function DoneContent({ onNavigate }: { onNavigate: () => void }) {
+  const { t } = useTranslation();
   return (
     <>
       <p style={{ fontSize: 14, color: 'var(--success, #16a34a)', lineHeight: 1.6 }}>
-        已成功加入组织。
+        {t('auth.acceptInvite.joinSuccess')}
       </p>
       <div style={{ marginTop: 18 }}>
         <button
@@ -137,7 +122,7 @@ function DoneContent({ onNavigate }: { onNavigate: () => void }) {
           className="main-action-btn"
           style={{ height: 40, padding: '0 18px' }}
         >
-          前往账户中心
+          {t('auth.acceptInvite.goToAccount')}
         </button>
       </div>
     </>
@@ -153,25 +138,13 @@ function InviteFormContent({
   loading: boolean;
   onAccept: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        点击下方按钮接受邀请并加入该组织。
+        {t('auth.acceptInvite.clickToAccept')}
       </p>
-      {error && (
-        <div
-          style={{
-            fontSize: 13,
-            color: 'var(--danger, #dc2626)',
-            padding: '8px 10px',
-            background: 'var(--danger-soft, #fef2f2)',
-            borderRadius: 8,
-            marginTop: 12,
-          }}
-        >
-          {error}
-        </div>
-      )}
+      <ErrorBanner message={error} style={{ marginTop: 12 }} />
       <div style={{ marginTop: 18 }}>
         <button
           onClick={onAccept}
@@ -190,7 +163,7 @@ function InviteFormContent({
           ) : (
             <UserPlus className="w-4 h-4" />
           )}
-          {loading ? '处理中…' : '接受邀请'}
+          {loading ? t('common.running') : t('auth.acceptInvite.acceptButton')}
         </button>
       </div>
     </>

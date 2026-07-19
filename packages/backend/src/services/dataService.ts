@@ -12,7 +12,7 @@ import { join } from 'path';
 import { trace, type Span } from '@opentelemetry/api';
 import { validateTickerFormat } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
-import { initSchema } from '../db/index.js';
+import { initSchema } from '../db/migrations.js';
 import {
   CACHE_DIR,
   currentCacheVersion,
@@ -23,7 +23,7 @@ import {
   ensureCacheDir,
   deletePriceCache,
   clearPriceCache,
-} from './dataCacheService.js';
+} from '../infrastructure/dataCacheService.js';
 import {
   TickerSearchResult,
   isDbAvailable,
@@ -33,8 +33,7 @@ import {
   fetchMissingFromGoService,
   validateSearchQuery,
   searchTickersFromDb,
-  mockSearchResults,
-} from './dataQueryService.js';
+} from '../infrastructure/dataQueryService.js';
 
 /** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
@@ -61,57 +60,35 @@ export async function initDb(): Promise<void> {
  * 企业理由（P1-11）：此前 fetchHistoryData 返回纯数据，Go 服务不可用时
  * 静默返回空数据，调用方无法感知降级。包装返回类型后，调用方可选择
  * 将 degraded 信息传播到 API 响应，让前端和监控系统感知降级。
+ *
+ * P0 修复：消除全局可变变量 lastFetchDegraded / lastFetchDegradedWarning，
+ * 降级信息直接通过返回值传递，避免并发请求间的数据竞争。
  */
-export interface HistoryDataResult {
+interface HistoryDataResult {
   data: Record<string, Record<string, number>>;
   degraded: boolean;
   degradedWarning?: string;
 }
 
-/** 全局最近一次 fetchHistoryData 调用的降级状态（非持久，用于同步感知） */
-let lastFetchDegraded = false;
-let lastFetchDegradedWarning: string | undefined;
-
-/** 读取并清除最近一次数据查询的降级状态 */
-export function consumeDegradedFlag(): { degraded: boolean; degradedWarning?: string } {
-  const d = { degraded: lastFetchDegraded, degradedWarning: lastFetchDegradedWarning };
-  lastFetchDegraded = false;
-  lastFetchDegradedWarning = undefined;
-  return d;
-}
-
 /**
- * 获取历史价格数据，返回包含降级元数据的结果。
- *
- * 与 fetchHistoryData 签名一致，但返回类型包裹降级信息。
- * 推荐新代码使用此函数。
- */
-export async function fetchHistoryDataWithDegraded(
-  tickers: string[],
-  startDate: string,
-  endDate: string,
-): Promise<HistoryDataResult> {
-  const data = await fetchHistoryData(tickers, startDate, endDate);
-  const degradedInfo = consumeDegradedFlag();
-  return { data, ...degradedInfo };
-}
-
-/**
- * 获取多个标的的历史价格数据
+ * 获取多个标的的历史价格数据，返回包含降级元数据的结果。
  *
  * 优先从 PostgreSQL 查询；缺失标的走 Go data-fetcher 实时拉取，并写入文件缓存。
- * 若数据库或 Go 服务不可用，会标记降级状态（可通过 consumeDegradedFlag 读取）。
+ * 若数据库或 Go 服务不可用，返回结果中 degraded=true 并附带 degradedWarning。
+ *
+ * P0 修复：降级信息通过返回值传递，消除全局可变变量导致的并发数据竞争。
+ *
  * @param tickers - 标的代码数组（如 ['AAPL', 'MSFT']）
  * @param startDate - 起始日期，格式 YYYY-MM-DD
  * @param endDate - 结束日期，格式 YYYY-MM-DD
- * @returns 按 ticker 分组的价格序列，结构为 { [ticker]: { [date]: price } }；全部非法时返回空对象
+ * @returns 包含 data（价格序列）、degraded（是否降级）、degradedWarning（降级说明）的结果对象
  * @throws {Error} 当底层 PostgreSQL/Go 服务调用抛错且未被内部捕获时向上抛出
  */
 export async function fetchHistoryData(
   tickers: string[],
   startDate: string,
   endDate: string,
-): Promise<Record<string, Record<string, number>>> {
+): Promise<HistoryDataResult> {
   return tracer.startActiveSpan('dataService.fetchHistoryData', async (span) => {
     try {
       span.setAttribute('ticker_count', tickers.length);
@@ -133,9 +110,11 @@ async function fetchHistoryDataImpl(
   startDate: string,
   endDate: string,
   span: Span,
-): Promise<Record<string, Record<string, number>>> {
+): Promise<HistoryDataResult> {
   const fetchStart = Date.now();
   const result: Record<string, Record<string, number>> = {};
+  let degraded = false;
+  let degradedWarning: string | undefined;
 
   const { valid: validTickers } = validateTickerFormat(tickers);
   span.setAttribute('valid_ticker_count', validTickers.length);
@@ -143,7 +122,7 @@ async function fetchHistoryDataImpl(
     logger.warn(
       `[dataService] fetchHistoryData: 全部 ${tickers.length} 个 ticker 非法，返回空结果`,
     );
-    return result;
+    return { data: result, degraded: false };
   }
 
   const {
@@ -154,8 +133,8 @@ async function fetchHistoryDataImpl(
   Object.assign(result, dbResult);
 
   if (dbDegraded) {
-    lastFetchDegraded = true;
-    lastFetchDegradedWarning = '数据库不可用，部分数据可能缺失';
+    degraded = true;
+    degradedWarning = '数据库不可用，部分数据可能缺失';
   }
 
   if (missingTickers.length === 0) {
@@ -164,7 +143,7 @@ async function fetchHistoryDataImpl(
     logger.info(
       `[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), 0 missing, took ${Date.now() - fetchStart}ms`,
     );
-    return result;
+    return { data: result, degraded, degradedWarning };
   }
 
   const stillMissing = missingTickers.filter(
@@ -176,7 +155,7 @@ async function fetchHistoryDataImpl(
     logger.info(
       `[dataService] fetchHistoryData: ${validTickers.length} tickers (DB hit), took ${Date.now() - fetchStart}ms`,
     );
-    return result;
+    return { data: result, degraded, degradedWarning };
   }
 
   const cacheKey = getCacheKey('history', {
@@ -193,7 +172,7 @@ async function fetchHistoryDataImpl(
     logger.info(
       `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
     );
-    return result;
+    return { data: result, degraded, degradedWarning };
   }
 
   span.setAttribute('cache_hit', false);
@@ -206,14 +185,14 @@ async function fetchHistoryDataImpl(
     (t) => !result[t] || Object.keys(result[t]).length === 0,
   );
   if (stillAfterGo.length > 0) {
-    lastFetchDegraded = true;
-    lastFetchDegradedWarning = `Go 数据服务无法获取 ${stillAfterGo.length} 个标的的数据`;
+    degraded = true;
+    degradedWarning = `Go 数据服务无法获取 ${stillAfterGo.length} 个标的的数据`;
   }
 
   logger.info(
     `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${stillMissing.length} missing, took ${Date.now() - fetchStart}ms`,
   );
-  return result;
+  return { data: result, degraded, degradedWarning };
 }
 
 /**
@@ -259,10 +238,10 @@ export async function validateTickers(
  * 搜索标的代码或名称
  *
  * 优先查 PostgreSQL，未命中查文件缓存，最后调 Go data service 实时搜索。
- * 若 Go 服务失败，回退到 mock 搜索结果（不抛错）。
+ * 若 Go 服务失败，返回空数组（不抛错）。
  * @param query - 搜索关键字（ticker 或名称片段）
  * @param market - 可选市场过滤（如 'US'、'HK'），未指定则查全部
- * @returns 匹配的标的列表；无匹配或查询失败时返回空数组或 mock 结果
+ * @returns 匹配的标的列表；无匹配或查询失败时返回空数组
  */
 export async function searchTickers(query: string, market?: string): Promise<TickerSearchResult[]> {
   if (!validateSearchQuery(query, market)) return [];
@@ -289,33 +268,43 @@ export async function searchTickers(query: string, market?: string): Promise<Tic
     }
     return [];
   } catch (err) {
-    logger.warn(`Go data service search failed, using mock results: ${(err as Error).message}`);
-    return mockSearchResults(query);
+    logger.warn(
+      `Go data service search failed, returning empty results: ${(err as Error).message}`,
+    );
+    return [];
   }
 }
 
-export async function invalidateCache(ticker?: string): Promise<void> {
-  if (ticker) {
-    await deletePriceCache(ticker);
+/**
+ * 失效指定标的的缓存：删除内存价格缓存 + 相关磁盘 history 文件。
+ *
+ * @param ticker - 待失效的标的代码
+ */
+export async function invalidateTickerCache(ticker: string): Promise<void> {
+  await deletePriceCache(ticker);
 
-    ensureCacheDir();
-    try {
-      const files = await readdir(CACHE_DIR);
-      const prefix = ticker.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 50);
-      for (const file of files) {
-        if (file.startsWith(`history_${prefix}=`) || file.includes(`=${prefix}&`)) {
-          await unlink(join(CACHE_DIR, file));
-        }
+  ensureCacheDir();
+  try {
+    const files = await readdir(CACHE_DIR);
+    const prefix = ticker.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 50);
+    for (const file of files) {
+      if (file.startsWith(`history_${prefix}=`) || file.includes(`=${prefix}&`)) {
+        await unlink(join(CACHE_DIR, file));
       }
-    } catch {
-      /* ignore */
     }
-
-    logger.info(`[dataService] invalidateCache: ticker=${ticker}`);
-  } else {
-    await incrementCacheVersion();
-    await clearPriceCache();
-
-    logger.info(`[dataService] invalidateCache: 全量失效, new version=${currentCacheVersion}`);
+  } catch {
+    /* ignore */
   }
+
+  logger.info(`[dataService] invalidateCache: ticker=${ticker}`);
+}
+
+/**
+ * 全量失效缓存：递增版本号 + 清空价格缓存。
+ */
+export async function invalidateAllCache(): Promise<void> {
+  await incrementCacheVersion();
+  await clearPriceCache();
+
+  logger.info(`[dataService] invalidateCache: 全量失效, new version=${currentCacheVersion}`);
 }

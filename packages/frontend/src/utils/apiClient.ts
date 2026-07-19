@@ -23,8 +23,8 @@
 import { getAccessToken, refreshTokens } from './authTokens.js';
 import { useToastStore } from '../store/toastStore.js';
 
-/** Storage 中存储 API Key 的键名 */
-export const ADMIN_API_KEY_STORAGE = 'admin_api_key';
+/** Storage 中存储 API Key 的键名（仅 apiClient 内部使用） */
+const ADMIN_API_KEY_STORAGE = 'admin_api_key';
 
 /** 内存变量（优先使用，进程生命周期） */
 let inMemoryApiKey = '';
@@ -36,7 +36,7 @@ let inMemoryApiKey = '';
  *
  * @returns API Key 字符串；未设置时返回空字符串
  */
-export function getApiKey(): string {
+function getApiKey(): string {
   // 1. 内存变量
   if (inMemoryApiKey) return inMemoryApiKey;
 
@@ -119,6 +119,7 @@ export function clearApiKey(): void {
  * 2. x-api-key 兼容——为管理工具/未登录态保留：存在 API Key 且未显式覆盖时附加。
  * - 调用方显式传入的同名头不会被覆盖。
  * - 其余参数与原生 fetch 一致。
+ * - 响应拦截：非 2xx 含 error.detail 时弹错误 Toast；degraded=true 时弹警告 Toast。
  *
  * @param input - 请求 URL 或 Request 对象
  * @param init - fetch 初始化配置
@@ -152,10 +153,12 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     }
   }
 
-  // 响应拦截：错误 Toast + degraded 警告
+  // 响应拦截：自动检测 error/degraded 并显示 Toast。
+  // 仅对非 2xx 显示错误 Toast，避免 200 成功响应误带 error 字段时误报；
+  // degraded 无论状态码都需提示。res 可能为 null（fetch 容错），需先判空。
   if (res) {
-    const cloned = res.clone();
     try {
+      const cloned = res.clone();
       const body = await cloned.json();
       if (!res.ok && body?.error?.detail) {
         useToastStore.getState().addToast('error', body.error.detail);
@@ -164,9 +167,57 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
         useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
       }
     } catch {
-      // 非 JSON 响应，跳过拦截
+      // 非 JSON 响应，跳过
     }
   }
 
   return res;
+}
+
+/**
+ * 检查响应是否为降级模式，如果是则显示 Toast 警告。
+ *
+ * 调用方在成功路径中调用此函数，避免 apiFetch 全局拦截与调用方重复 Toast。
+ *
+ * @param res - fetch 返回的 Response 对象
+ */
+export async function notifyIfDegraded(res: Response): Promise<void> {
+  try {
+    const cloned = res.clone();
+    const body = await cloned.json();
+    if (body?.degraded === true) {
+      useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
+    }
+  } catch {
+    // 非 JSON 响应，跳过
+  }
+}
+
+/**
+ * POST JSON 请求封装（基于 apiFetch）。
+ *
+ * 统一封装前端高频调用模式：发送 JSON body、HTTP 非 2xx 抛错、
+ * `success=false` 抛错、返回 `data` 字段。鉴权与降级提示由 apiFetch 处理。
+ *
+ * @typeParam T - 期望的 `data` 字段类型
+ * @param url - 请求 URL
+ * @param body - 请求体对象，将被 `JSON.stringify`
+ * @param errorMsg - 当 `success=false` 且响应无 `error` 字段时的兜底错误消息
+ * @returns 响应体的 `data` 字段
+ * @throws {Error} HTTP 非 2xx 时抛 `HTTP ${status}`；`success=false` 时抛 `error || errorMsg`
+ */
+export async function apiPostJSON<T>(
+  url: string,
+  body: unknown,
+  errorMsg = '请求失败',
+): Promise<T> {
+  const res = await apiFetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.success === false) throw new Error(json.error || errorMsg);
+  return json.data as T;
 }

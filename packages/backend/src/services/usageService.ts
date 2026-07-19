@@ -7,10 +7,10 @@
  *
  * 隔离：写入经 withTenant（RLS 收敛到当前组织）。Redis 键含 org/period/metric。
  */
-import { withTenant } from '../db/index.js';
-import { appRedis } from '../config/redis.js';
+import { withTenant } from '../db/pool.js';
+import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
-import { currentPeriod } from '../config/planLimits.js';
+import { currentPeriod } from './planLimitsService.js';
 
 function counterKey(orgId: string, period: string, metric: string): string {
   return `usage:${orgId}:${period}:${metric}`;

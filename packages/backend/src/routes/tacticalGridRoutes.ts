@@ -1,5 +1,8 @@
 /**
  * 战术网格搜索路由 — POST /api/tactical-grid/search
+ *
+ * 异步优先（BullMQ），队列不可用时回退同步执行。
+ * 错误处理统一走 asyncRouteHandler。
  */
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
@@ -9,23 +12,21 @@ import { tacticalGridSearchSchema } from '../schemas/tacticalGrid.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
-import { withTimeout, TimeoutError } from '../utils/timeout.js';
+import { withTimeout } from '../utils/timeout.js';
 import {
   executeGridSearch,
   MAX_GRID_COMBINATIONS,
 } from '../application/grid-application-service.js';
 import type { TacticalGridRequest } from '../application/grid-application-service.js';
+import { asyncRouteHandler } from './routeUtils.js';
 
 const router = Router();
-
-/** @deprecated 从 application 层导入；保留 re-export 供旧测试引用 */
-export { executeGridSearch } from '../application/grid-application-service.js';
 
 router.post(
   '/search',
   validate(tacticalGridSearchSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    try {
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
       const body = req.body as TacticalGridRequest;
       const p1Count = Math.floor((body.param1.max - body.param1.min) / body.param1.step) + 1;
       const p2Count = Math.floor((body.param2.max - body.param2.min) / body.param2.step) + 1;
@@ -36,14 +37,15 @@ router.post(
         return;
       }
 
+      const authReq = req as AuthenticatedRequest;
+      const userId = authReq.user?.sub;
+
+      // 异步优先：尝试提交到 BullMQ 队列
       try {
-        const authReq = req as AuthenticatedRequest;
-        const userId = authReq.user?.sub;
         const job = await backtestQueue.add('grid-search', {
           type: 'grid-search',
           payload: req.body,
           userId,
-          // 多租户归属（ADR-034）：携带租户与提交者，供 worker 经 withTenant 落库并校验所有权。
           tenantId: authReq.tenantId,
           ownerUserId:
             userId && !userId.startsWith('apikey:') && !userId.startsWith('platform:')
@@ -67,6 +69,7 @@ router.post(
         );
       }
 
+      // 同步降级：队列不可用时直接执行
       const result = await withTimeout(
         executeGridSearch(req.body as Record<string, unknown>),
         config.SYNC_COMPUTE_TIMEOUT_MS,
@@ -77,19 +80,15 @@ router.post(
       } else {
         sendProblem(res, 400, 'GRID_BAD_REQUEST', 'Bad Request', { detail: String(result.error) });
       }
-    } catch (error) {
-      if (error instanceof TimeoutError) {
-        sendProblem(res, 503, 'GRID_TIMEOUT', 'Service Unavailable', {
-          detail: '计算超时，请缩小参数空间或稍后重试',
-        });
-        return;
-      }
-      logger.error({ err: error as Error }, '[tactical-grid] 网格搜索失败');
-      sendProblem(res, 500, 'GRID_SEARCH_ERROR', 'Internal Server Error', {
-        detail: '战术网格搜索运行失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[tactical-grid] 网格搜索失败',
+      code: 'GRID_SEARCH_ERROR',
+      title: 'Internal Server Error',
+      detail: '战术网格搜索运行失败',
+      endpoint: 'tactical-grid',
+    },
+  ),
 );
 
 export default router;

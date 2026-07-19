@@ -26,11 +26,11 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => ({ query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }) })),
 }));
 
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: { ping: vi.fn().mockResolvedValue('PONG') },
 }));
 

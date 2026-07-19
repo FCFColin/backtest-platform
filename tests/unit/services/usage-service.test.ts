@@ -33,11 +33,13 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTenant: (tenantId: string, fn: (c: unknown) => Promise<unknown>) =>
     dbMocks.withTenant(tenantId, fn),
 }));
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({ appRedis: redisMocks }));
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
+  appRedis: redisMocks,
+}));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));

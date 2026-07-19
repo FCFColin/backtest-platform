@@ -5,7 +5,7 @@ const dbMocks = vi.hoisted(() => ({
   withTenant: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTenant: (_tenantId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) => {
     dbMocks.withTenant(_tenantId);
     return fn({ query: dbMocks.query });
@@ -18,7 +18,7 @@ import {
   createPortfolio,
   updatePortfolio,
   deletePortfolio,
-} from '../../../packages/backend/src/services/portfolioRepo.js';
+} from '../../../packages/backend/src/repositories/portfolioRepo.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const PORTFOLIO_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -162,7 +162,7 @@ describe('updatePortfolio', () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     const r = await updatePortfolio(TENANT, PORTFOLIO_ID, {
       name: 'X',
-      assets: [],
+      assets: [{ ticker: 'A', weight: 100 }],
     });
     expect(r).toBeNull();
   });

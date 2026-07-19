@@ -1,15 +1,10 @@
 /**
  * 宏观数据（CPI / 汇率）PostgreSQL 读取
  */
-import { getReadPool } from './index.js';
+import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
+import { toDateStr } from '../utils/dateUtils.js';
 
-function formatDate(value: Date | string): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10);
-  return String(value).slice(0, 10);
-}
-
-const cpiMapCache: Record<string, Record<string, number>> = {};
 const exchangeRateCache: Record<string, Record<string, number>> = {};
 
 /**
@@ -28,27 +23,11 @@ export async function loadCpiSeriesFromDb(
       'SELECT date, value FROM cpi_data WHERE country = $1 ORDER BY date',
       [countryCode],
     );
-    return rows.map((r) => ({ date: formatDate(r.date), value: r.value }));
+    return rows.map((r) => ({ date: toDateStr(r.date), value: r.value }));
   } catch (err) {
     logger.warn({ err: err as Error, country }, '[macroData] CPI 查询失败');
     return [];
   }
-}
-
-/**
- * 从 PostgreSQL 加载 CPI 映射 `{ date: value }`（回测引擎格式）
- *
- * @param country - `us` 或 `cn`
- */
-export async function loadCpiMapFromDb(country: string): Promise<Record<string, number>> {
-  const key = country.toLowerCase();
-  if (cpiMapCache[key]) return cpiMapCache[key];
-
-  const series = await loadCpiSeriesFromDb(key);
-  const map: Record<string, number> = {};
-  for (const item of series) map[item.date] = item.value;
-  cpiMapCache[key] = map;
-  return map;
 }
 
 /**
@@ -73,7 +52,7 @@ export async function loadExchangeRatesFromDb(
       [base.toUpperCase(), target.toUpperCase()],
     );
     const map: Record<string, number> = {};
-    for (const row of rows) map[formatDate(row.date)] = row.rate;
+    for (const row of rows) map[toDateStr(row.date)] = row.rate;
     exchangeRateCache[cacheKey] = map;
     return map;
   } catch (err) {

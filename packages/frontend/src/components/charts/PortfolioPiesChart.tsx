@@ -3,10 +3,10 @@
  * @description 以饼图形式展示各投资组合的资产配置比例
  */
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
-import { LEGEND_WRAPPER_STYLE } from './chartConstants.js';
+import { CHART_TOOLTIP_STYLE, LEGEND_WRAPPER_STYLE } from './chartConstants.js';
 import ChartCard from '../ChartCard.js';
 
 /** 投资组合饼图 Props */
@@ -15,13 +15,14 @@ interface PortfolioPiesChartProps {
 }
 
 export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartProps) {
+  const { t } = useTranslation();
   if (portfolios.length === 0) {
     return (
-      <div className="chart-card">
+      <ChartCard>
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          暂无组合配置数据
+          {t('charts.portfolioPies.noData')}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
@@ -29,12 +30,11 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
 
   if (portfoliosWithAssets.length === 0) {
     return (
-      <div className="chart-card">
-        <div className="chart-card-title">配置饼图</div>
+      <ChartCard title={t('charts.portfolioPies.title')}>
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          组合中无资产
+          {t('charts.portfolioPies.noAssets')}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
@@ -46,7 +46,11 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   );
 
   return (
-    <ChartCard title="配置饼图" data={exportData} csvFilename="portfolio-pies">
+    <ChartCard
+      title={t('charts.portfolioPies.title')}
+      data={exportData}
+      csvFilename="portfolio-pies"
+    >
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
         {portfoliosWithAssets.map((portfolio) => {
           const pieData = portfolio.assets.map((a) => ({

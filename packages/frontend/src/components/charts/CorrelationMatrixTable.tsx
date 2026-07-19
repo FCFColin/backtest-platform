@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getCorrelationColor } from './analysisChartUtils.js';
+import { getCorrelationColor } from './chartColors.js';
+import ChartCard from '../ChartCard.js';
 
 export const CorrelationMatrixTable = memo(function CorrelationMatrixTable({
   tickers,
@@ -11,8 +12,7 @@ export const CorrelationMatrixTable = memo(function CorrelationMatrixTable({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="chart-card">
-      <div className="chart-card-title">{t('analysis.correlationMatrix')}</div>
+    <ChartCard title={t('analysis.correlationMatrix')}>
       <div className="overflow-x-auto">
         <table className="border-collapse">
           <thead>
@@ -64,6 +64,6 @@ export const CorrelationMatrixTable = memo(function CorrelationMatrixTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </ChartCard>
   );
 });

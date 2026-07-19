@@ -1,7 +1,8 @@
-# 架构详解 (Architecture)
+﻿# 架构详解 (Architecture)
 
 > 本文档详细描述回测平台的服务拓扑、降级链、数据流和关键设计决策。
 > 结构规范见 [project-spec.md](../.trae/documents/project-spec.md)，API 定义见 [tech-architecture.md](../.trae/documents/tech-architecture.md)。
+> 代码库清理状态（living document）见 [cleanup-status.md](cleanup-status.md)。
 
 ---
 
@@ -116,17 +117,17 @@ flowchart TB
 
 ## 4. 端口分配
 
-| 服务              | 端口                      | 配置位置                    |
-| ----------------- | ------------------------- | --------------------------- |
-| 前端 Vite         | 5176                      | vite.config.ts              |
-| 后端 API          | 5001                      | `PORT` 环境变量 / server.ts |
-| Go 引擎           | 5004                      | engine-go/ (环境变量)       |
-| Go 数据服务       | 5003                      | data-service/ (环境变量)    |
-| PostgreSQL (主)   | 5432                      | DATABASE_URL 环境变量       |
-| PostgreSQL 读副本 | 5432                      | k8s/postgres-replica.yaml   |
-| PgBouncer         | 5432                      | k8s/pgbouncer.yaml          |
-| Redis             | 6379                      | docker-compose.yml          |
-| OTel Collector    | 4317 (gRPC) / 4318 (HTTP) | k8s/otel-collector.yaml     |
+| 服务              | 端口                      | 配置位置                                                                   |
+| ----------------- | ------------------------- | -------------------------------------------------------------------------- |
+| 前端 Vite         | 5176                      | vite.config.ts                                                             |
+| 后端 API          | 5001                      | `PORT` 环境变量 / server.ts                                                |
+| Go 引擎           | 5004                      | engine-go/ (环境变量)                                                      |
+| Go 数据服务       | 5003                      | data-service/ (环境变量)                                                   |
+| PostgreSQL (主)   | 5432                      | DATABASE_URL 环境变量                                                      |
+| PostgreSQL 读副本 | 5432                      | _需重新设计_（原 k8s/postgres-replica.yaml 已删除，PG16 流复制语法待重写） |
+| PgBouncer         | 5432                      | k8s/pgbouncer.yaml                                                         |
+| Redis             | 6379                      | docker-compose.yml                                                         |
+| OTel Collector    | 4317 (gRPC) / 4318 (HTTP) | k8s/otel-collector.yaml                                                    |
 
 ---
 
@@ -178,9 +179,7 @@ flowchart TB
 | `engineService.ts`    | 引擎调用封装                                              |
 | `batchDataService.ts` | 批量数据服务                                              |
 
-> 注：Rust 引擎 `engine-rs/` 已根据 ADR-031 删除，Go 引擎 (`engine-go`) 是 backtest / 蒙特卡洛 / 优化器 / 有效前沿的**唯一计算引擎**，不可用时返回 503 + Retry-After（fail-closed，无 Node 降级）。
->
-> **Node-canonical 引擎职责清单**（`packages/backend/src/engine/`）：仅承载以下非核心路径——`tactical` / `tacticalGrid` / `signal` / `goalOptimizer` / `pca` / `letf`。backtest / 蒙特卡洛 / 优化器 / 有效前沿一律走 Go 引擎，无 Node 降级。
+> 注：Rust 引擎 `engine-rs/` 已根据 ADR-031 删除，Node 引擎 (`packages/backend/src/engine/`) 已随架构清理全部迁移到 Go 引擎。Go 引擎 (`engine-go`) 是 backtest / 蒙特卡洛 / 优化器 / 有效前沿 / tactical / signal / pca / letf 的**唯一计算引擎**，不可用时返回 503 + Retry-After（fail-closed，无 Node 降级）。
 
 ### 6.3 Go 引擎 (`engine-go/`)
 
@@ -244,7 +243,7 @@ data/
 ### 9.2 Go 引擎 fail-closed 策略
 
 - Go 引擎是唯一计算引擎（ADR-008/031），不可用时返回 503 + Retry-After
-- 不再保留备用引擎（Rust 已退役；Node-canonical 仅承载 tactical / signal / pca 等非核心路径，见 6.2 节职责清单）
+- 不再保留备用引擎（Rust 已退役；Node 引擎已全部迁移到 Go，见 ADR-031）
 - 降级时响应中包含 `degraded: true`
 
 ### 9.3 数据存储演进：JSON → SQLite → PostgreSQL
@@ -266,50 +265,38 @@ data/
 
 ### 9.5 ADR 索引
 
-| ADR                                                             | 主题                         | 状态                  |
-| --------------------------------------------------------------- | ---------------------------- | --------------------- |
-| [ADR-001](adr/ADR-001-多语言架构.md)                            | 多语言架构                   | 已取代（见 ADR-008）  |
-| [ADR-002](adr/ADR-002-JSON文件存储.md)                          | JSON 文件存储                | 已取代（见 ADR-006）  |
-| [ADR-003](adr/ADR-003-Rust主引擎Node备用.md)                    | Rust 主引擎 Node 备用        | 已取代（Go 引擎为主） |
-| [ADR-004](adr/ADR-004-Express框架选型.md)                       | Express 框架选型             | 已接受                |
-| [ADR-005](adr/ADR-005-Pino日志选型.md)                          | Pino 日志选型                | 已接受                |
-| [ADR-006](adr/ADR-006-SQLite迁移决策.md)                        | JSON→SQLite 迁移             | 已取代（见 ADR-007）  |
-| [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)                    | SQLite→PostgreSQL 迁移       | 已接受                |
-| [ADR-008](adr/ADR-008-语言精简决策.md)                          | 4 语言→Go+TypeScript 精简    | 已接受                |
-| [ADR-009](adr/ADR-009-请求体校验库选型.md)                      | 请求体校验库选型（zod）      | 已接受                |
-| [ADR-010](adr/ADR-010-密钥扫描工具选型.md)                      | 密钥扫描工具选型（gitleaks） | 已接受                |
-| [ADR-011](adr/ADR-011-长任务异步化方案.md)                      | 长任务异步化方案（BullMQ）   | 已接受                |
-| [ADR-012](adr/ADR-012-SBOM与制品签名方案.md)                    | SBOM 与制品签名              | 已接受                |
-| [ADR-013](adr/ADR-013-领域模型重构策略.md)                      | 领域模型重构策略（DDD）      | 已接受                |
-| [ADR-014](adr/ADR-014-事件溯源Outbox方案.md)                    | 事件溯源/Outbox 方案         | 已接受                |
-| [ADR-015](adr/ADR-015-可观测性技术选型.md)                      | 可观测性技术选型             | 已接受                |
-| [ADR-016](adr/ADR-016-熔断器策略.md)                            | 熔断器策略                   | 已接受                |
-| [ADR-017](adr/ADR-017-认证授权模型.md)                          | 认证授权模型                 | 已接受                |
-| [ADR-018](adr/ADR-018-Redis选型.md)                             | Redis 选型                   | 已接受                |
-| [ADR-019](adr/ADR-019-异步任务越权防护与所有权模型.md)          | Job 所有权                   | 已接受                |
-| [ADR-020](adr/ADR-020-限流fail-closed分级策略.md)               | 限流 fail-closed             | 已接受                |
-| [ADR-021](adr/ADR-021-代码复杂度量化门控.md)                    | 复杂度门控                   | 已接受                |
-| [ADR-022](adr/ADR-022-SLSA出处证明与全量SBOM治理.md)            | SBOM/SLSA                    | 已接受                |
-| [ADR-023](adr/ADR-023-数据隐私分类与删除权实现.md)              | GDPR                         | 已接受                |
-| [ADR-024](adr/ADR-024-Outbox强一致与消费者幂等.md)              | Outbox                       | 已接受                |
-| [ADR-025](adr/ADR-025-apiLimiter全局fail-closed.md)             | 全局限流                     | 已接受                |
-| [ADR-026](adr/ADR-026-开发环境认证旁路安全边界.md)              | DEV_SKIP_AUTH                | 已接受                |
-| [ADR-027](adr/ADR-027-100x容量拐点与缓解.md)                    | 100x 容量                    | 已接受                |
-| [ADR-028](adr/ADR-028-重试与幂等边界.md)                        | 重试幂等                     | 已接受                |
-| [ADR-029](adr/ADR-029-cursor分页策略.md)                        | 分页策略                     | 已接受                |
-| [ADR-030](adr/ADR-030-distroless评估.md)                        | distroless                   | 已接受                |
-| [ADR-031](adr/ADR-031-单引擎fail-closed降级.md)                 | 单引擎 fail-closed 降级      | 已接受                |
-| [ADR-032](adr/ADR-032-多租户RLS隔离模型.md)                     | 多租户 RLS 隔离              | 已接受                |
-| [ADR-033](adr/ADR-033-按组织API密钥.md)                         | 按组织 API 密钥              | 已接受                |
-| [ADR-034](adr/ADR-034-服务端持久化与前端认证.md)                | 服务端持久化 + 前端认证      | 已接受                |
-| [ADR-035](adr/ADR-035-自助注册与组织邀请.md)                    | 自助注册与组织邀请           | 已接受                |
-| [ADR-036](adr/ADR-036-Stripe计费.md)                            | Stripe 计费                  | 已接受                |
-| [ADR-037](adr/ADR-037-配额计量与公平调度.md)                    | 配额计量与公平调度           | 已接受                |
-| [ADR-038](adr/ADR-038-ci-tiering-and-dependency-enforcement.md) | CI 分层与依赖方向强制        | 已实施                |
-| [ADR-039](adr/ADR-039-runtime-invariant-assertions.md)          | 运行时不变量断言             | 已实施                |
-| [ADR-040](adr/ADR-040-property-based-testing.md)                | 属性测试                     | 已实施                |
-| [ADR-041](adr/ADR-041-deterministic-fingerprint.md)             | 确定性指纹                   | 已实施                |
-| [ADR-042](adr/ADR-042-api-packages-consolidation.md)            | API 包合并                   | 已实施                |
+> 完整索引见 [adr/README.md](adr/README.md)。编号不可变，gaps 表示被取代/删除/合并的决策。
+
+| ADR                                                             | 主题                            | 状态   |
+| --------------------------------------------------------------- | ------------------------------- | ------ |
+| [ADR-004](adr/ADR-004-Express框架选型.md)                       | Express 框架选型                | 已接受 |
+| [ADR-005](adr/ADR-005-Pino日志选型.md)                          | Pino 日志选型                   | 已接受 |
+| [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)                    | PostgreSQL 迁移                 | 已接受 |
+| [ADR-008](adr/ADR-008-语言精简决策.md)                          | Go+TypeScript 精简              | 已接受 |
+| [ADR-009](adr/ADR-009-请求体校验库选型.md)                      | Zod 校验库                      | 已接受 |
+| [ADR-011](adr/ADR-011-长任务异步化方案.md)                      | BullMQ 异步任务                 | 已接受 |
+| [ADR-012](adr/ADR-012-SBOM与制品签名方案.md)                    | 供应链安全（SBOM+SLSA+cosign）  | 已接受 |
+| [ADR-013](adr/ADR-013-领域模型重构策略.md)                      | DDD 渐进式重构                  | 已接受 |
+| [ADR-014](adr/ADR-014-事件溯源Outbox方案.md)                    | 事件溯源/Outbox                 | 已接受 |
+| [ADR-015](adr/ADR-015-可观测性技术选型.md)                      | 可观测性技术选型                | 已接受 |
+| [ADR-016](adr/ADR-016-熔断器策略.md)                            | 熔断器策略                      | 已接受 |
+| [ADR-017](adr/ADR-017-认证授权模型.md)                          | 认证授权模型                    | 已接受 |
+| [ADR-018](adr/ADR-018-Redis选型.md)                             | Redis 选型                      | 已接受 |
+| [ADR-019](adr/ADR-019-异步任务越权防护与所有权模型.md)          | Job 所有权                      | 已接受 |
+| [ADR-020](adr/ADR-020-限流fail-closed分级策略.md)               | 限流 fail-closed 分级（含全局） | 已接受 |
+| [ADR-023](adr/ADR-023-数据隐私分类与删除权实现.md)              | GDPR                            | 已接受 |
+| [ADR-024](adr/ADR-024-Outbox强一致与消费者幂等.md)              | Outbox+幂等+重试边界            | 已接受 |
+| [ADR-026](adr/ADR-026-开发环境认证旁路安全边界.md)              | DEV_SKIP_AUTH                   | 已接受 |
+| [ADR-027](adr/ADR-027-100x容量拐点与缓解.md)                    | 100x 容量                       | 已接受 |
+| [ADR-031](adr/ADR-031-单引擎fail-closed降级.md)                 | 单引擎 fail-closed 降级         | 已接受 |
+| [ADR-032](adr/ADR-032-多租户RLS隔离模型.md)                     | 多租户 RLS 隔离                 | 已接受 |
+| [ADR-033](adr/ADR-033-按组织API密钥.md)                         | 按组织 API 密钥                 | 已接受 |
+| [ADR-034](adr/ADR-034-服务端持久化与前端认证.md)                | 服务端持久化 + 前端认证         | 已接受 |
+| [ADR-035](adr/ADR-035-自助注册与组织邀请.md)                    | 自助注册与组织邀请              | 已接受 |
+| [ADR-036](adr/ADR-036-Stripe计费.md)                            | Stripe 计费                     | 已接受 |
+| [ADR-037](adr/ADR-037-配额计量与公平调度.md)                    | 配额计量与公平调度              | 已接受 |
+| [ADR-038](adr/ADR-038-ci-tiering-and-dependency-enforcement.md) | CI 分层与依赖方向强制           | 已接受 |
+| [ADR-042](adr/ADR-042-api-packages-consolidation.md)            | API 包合并                      | 已接受 |
 
 ---
 

@@ -1,3 +1,9 @@
+/**
+ * signal-application-service 单元测试
+ *
+ * 计算逻辑已迁移到 Go 引擎（ADR-031），测试通过 mock callEngineStrict + fetchHistoryData 验证编排逻辑。
+ * 合并后的服务函数内部完成数据获取，不再由调用方传入 priceData。
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type {
   SignalAnalysisRequest,
@@ -6,33 +12,26 @@ import type {
 } from '@backtest/shared/types/signal.js';
 
 const engineMocks = vi.hoisted(() => ({
-  toPriceSeries: vi.fn(),
-  analyzeSignal: vi.fn(),
-  analyzeDualSignal: vi.fn(),
-  analyzeMultiSignal: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/engine/seriesUtils.js', () => ({
-  toPriceSeries: engineMocks.toPriceSeries,
+const dataMocks = vi.hoisted(() => ({
+  fetchHistoryData: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/engine/signal.js', () => ({
-  analyzeSignal: engineMocks.analyzeSignal,
-  analyzeDualSignal: engineMocks.analyzeDualSignal,
-  analyzeMultiSignal: engineMocks.analyzeMultiSignal,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
+}));
+
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+  fetchHistoryData: dataMocks.fetchHistoryData,
 }));
 
 import {
   executeSignalAnalyze,
   executeDualSignalAnalyze,
   executeMultiSignalAnalyze,
-} from '../../../packages/backend/src/application/signal-application-service.js';
-
-const mockPriceSeries = [
-  { date: '2020-01-02', value: 100 },
-  { date: '2020-01-03', value: 101 },
-  { date: '2020-01-06', value: 102 },
-];
+} from '../../../packages/backend/src/services/signal-orchestrator.js';
 
 const mockSignalResult = {
   signals: [
@@ -68,20 +67,25 @@ describe('signal-application-service', () => {
       signalType: 'both',
     };
 
-    it('应使用正确参数调用 analyzeSignal 并返回结果', () => {
-      engineMocks.toPriceSeries.mockReturnValue(mockPriceSeries);
-      engineMocks.analyzeSignal.mockReturnValue(mockSignalResult);
+    it('应使用正确参数调用引擎并返回结果', async () => {
+      const priceData = { AAPL: { '2020-01-02': 100 } };
+      dataMocks.fetchHistoryData.mockResolvedValue({ data: priceData, degraded: false });
+      engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
 
-      const result = executeSignalAnalyze(signalReq, { AAPL: { '2020-01-02': 100 } });
+      const result = await executeSignalAnalyze(signalReq);
 
-      expect(engineMocks.toPriceSeries).toHaveBeenCalledWith({ '2020-01-02': 100 });
-      expect(engineMocks.analyzeSignal).toHaveBeenCalledWith(signalReq, mockPriceSeries);
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
+        mode: 'single',
+        single: signalReq,
+        priceData,
+      });
       expect(result).toBe(mockSignalResult);
     });
 
-    it('无价格数据时应抛出错误', () => {
-      engineMocks.toPriceSeries.mockReturnValue([]);
-      expect(() => executeSignalAnalyze(signalReq, {})).toThrow('未找到 AAPL 的价格数据');
+    it('无价格数据时应抛出错误', async () => {
+      dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
+
+      await expect(executeSignalAnalyze(signalReq)).rejects.toThrow('未找到 AAPL 的价格数据');
     });
   });
 
@@ -108,33 +112,28 @@ describe('signal-application-service', () => {
       combinationMethod: 'and',
     };
 
-    it('应使用正确参数调用 analyzeDualSignal 并返回结果', () => {
-      engineMocks.toPriceSeries
-        .mockReturnValueOnce(mockPriceSeries)
-        .mockReturnValueOnce(mockPriceSeries);
-      engineMocks.analyzeDualSignal.mockReturnValue(mockSignalResult);
-
+    it('应使用正确参数调用引擎并返回结果', async () => {
       const history = {
         AAPL: { '2020-01-02': 100 },
         SPY: { '2020-01-02': 300 },
       };
-      const result = executeDualSignalAnalyze(dualReq, history);
+      dataMocks.fetchHistoryData.mockResolvedValue({ data: history, degraded: false });
+      engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
 
-      expect(engineMocks.toPriceSeries).toHaveBeenCalledWith(history.AAPL);
-      expect(engineMocks.toPriceSeries).toHaveBeenCalledWith(history.SPY);
-      expect(engineMocks.analyzeDualSignal).toHaveBeenCalledWith(
-        dualReq.signal1,
-        dualReq.signal2,
-        mockPriceSeries,
-        mockPriceSeries,
-        'and',
-      );
+      const result = await executeDualSignalAnalyze(dualReq);
+
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
+        mode: 'dual',
+        dual: dualReq,
+        priceData: history,
+      });
       expect(result).toBe(mockSignalResult);
     });
 
-    it('无价格数据时应抛出错误', () => {
-      engineMocks.toPriceSeries.mockReturnValue([]);
-      expect(() => executeDualSignalAnalyze(dualReq, {})).toThrow('未找到价格数据');
+    it('无价格数据时应抛出错误', async () => {
+      dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
+
+      await expect(executeDualSignalAnalyze(dualReq)).rejects.toThrow('未找到价格数据');
     });
   });
 
@@ -163,26 +162,25 @@ describe('signal-application-service', () => {
       aggregationMethod: 'voting',
     };
 
-    it('应使用正确参数调用 analyzeMultiSignal 并返回结果', () => {
-      engineMocks.toPriceSeries.mockReturnValue(mockPriceSeries);
-      engineMocks.analyzeMultiSignal.mockReturnValue(mockSignalResult);
-
+    it('应使用正确参数调用引擎并返回结果', async () => {
       const history = { AAPL: { '2020-01-02': 100 } };
-      const result = executeMultiSignalAnalyze(multiReq, history);
+      dataMocks.fetchHistoryData.mockResolvedValue({ data: history, degraded: false });
+      engineMocks.callEngineStrict.mockResolvedValue(mockSignalResult);
 
-      expect(engineMocks.toPriceSeries).toHaveBeenCalledWith(history.AAPL);
-      expect(engineMocks.analyzeMultiSignal).toHaveBeenCalledWith(
-        multiReq.signals,
-        mockPriceSeries,
-        'voting',
-        undefined,
-      );
+      const result = await executeMultiSignalAnalyze(multiReq);
+
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/signal-analyze', {
+        mode: 'multi',
+        multi: multiReq,
+        priceData: history,
+      });
       expect(result).toBe(mockSignalResult);
     });
 
-    it('无价格数据时应抛出错误', () => {
-      engineMocks.toPriceSeries.mockReturnValue([]);
-      expect(() => executeMultiSignalAnalyze(multiReq, {})).toThrow('未找到价格数据');
+    it('无价格数据时应抛出错误', async () => {
+      dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
+
+      await expect(executeMultiSignalAnalyze(multiReq)).rejects.toThrow('未找到');
     });
   });
 });

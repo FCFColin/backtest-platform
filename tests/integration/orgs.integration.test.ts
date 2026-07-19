@@ -16,23 +16,22 @@ vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   },
 }));
 
-vi.mock('../../packages/backend/src/services/mailService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/mailService.js', () => ({
   sendInvitationEmail: vi.fn().mockResolvedValue(undefined),
   sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
   sendMail: vi.fn().mockResolvedValue(undefined),
 }));
 
-import express from 'express';
 import orgRoutes from '../../packages/backend/src/routes/orgRoutes.js';
 import {
   isDockerAvailable,
   setupTestContainer,
   seedOrgAndUser,
-  mockAuthMiddleware,
+  startSaasTestServer,
   type TestContainerContext,
   type SeedData,
 } from '../helpers/testcontainersPg.js';
-import { getPool } from '../../packages/backend/src/db/index.js';
+import { getPool } from '../../packages/backend/src/db/pool.js';
 
 const dockerAvailable = isDockerAvailable();
 
@@ -45,19 +44,8 @@ beforeAll(async () => {
   ctx = await setupTestContainer();
   seed = await seedOrgAndUser();
 
-  const app = express();
-  app.use(express.json());
-  app.use(mockAuthMiddleware(seed.orgId, seed.userId));
-  app.use('/api/v1/orgs', orgRoutes);
-
-  await new Promise<void>((resolve) => {
-    const server = app.listen(0, () => {
-      const addr = server.address();
-      const port = typeof addr === 'object' && addr ? addr.port : 0;
-      baseUrl = `http://127.0.0.1:${port}`;
-      resolve();
-    });
-  });
+  const server = await startSaasTestServer(seed.orgId, seed.userId, '/api/v1/orgs', orgRoutes);
+  baseUrl = server.url;
 }, 120000);
 
 afterAll(async () => {
@@ -133,6 +121,11 @@ describe.skipIf(!dockerAvailable)('组织与成员管理集成测试', () => {
 
   it('PATCH /members/:userId 拒绝降级最后一个 owner（409）', async () => {
     const pool = getPool();
+    // 移除第二个 owner，使 seed.userId 成为最后一个 owner 以触发保护逻辑
+    await pool.query('DELETE FROM memberships WHERE org_id = $1 AND user_id = $2', [
+      seed!.orgId,
+      seed!.secondUserId,
+    ]);
     await pool.query('UPDATE memberships SET role = $1 WHERE org_id = $2 AND user_id = $3', [
       'owner',
       seed!.orgId,

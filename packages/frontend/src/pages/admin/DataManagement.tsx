@@ -3,7 +3,8 @@
  * @description 管理后台数据源管理，支持查看、刷新及触发数据采集任务
  * @route /admin/data
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Database,
   RefreshCw,
@@ -19,6 +20,8 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
+import { parseMarketBreakdown } from '../../utils/adminStats.js';
+import { KpiCard } from '../../components/admin/KpiCard.js';
 
 interface DataSource {
   name: string;
@@ -37,9 +40,27 @@ interface DataStats {
 }
 
 const defaultDataSources: DataSource[] = [
-  { name: 'Rust 回测引擎', type: 'api', status: 'unknown', recordCount: 0, lastUpdated: '-' },
-  { name: 'Go 数据服务', type: 'api', status: 'unknown', recordCount: 0, lastUpdated: '-' },
-  { name: '本地数据缓存', type: 'local', status: 'unknown', recordCount: 0, lastUpdated: '-' },
+  {
+    name: 'adminPage.dataManagement.rustEngine',
+    type: 'api',
+    status: 'unknown',
+    recordCount: 0,
+    lastUpdated: '-',
+  },
+  {
+    name: 'adminPage.dataManagement.goDataService',
+    type: 'api',
+    status: 'unknown',
+    recordCount: 0,
+    lastUpdated: '-',
+  },
+  {
+    name: 'adminPage.dataManagement.localCache',
+    type: 'local',
+    status: 'unknown',
+    recordCount: 0,
+    lastUpdated: '-',
+  },
 ];
 
 const defaultDataStats: DataStats = {
@@ -63,13 +84,7 @@ function buildDataStats(d: Record<string, unknown>): DataStats {
     latest: '-',
   };
 
-  const marketBreakdown: Record<string, number> = {};
-  const byMarket = s?.by_market as Record<string, Record<string, number>> | undefined;
-  if (byMarket) {
-    for (const [market, info] of Object.entries(byMarket)) {
-      marketBreakdown[market] = info.stocks || info.count || 0;
-    }
-  }
+  const marketBreakdown = parseMarketBreakdown(s?.by_market as Record<string, unknown> | undefined);
 
   return { totalTickers, totalDataPoints, dateRange: dateRanges, totalSizeMB, marketBreakdown };
 }
@@ -104,6 +119,7 @@ function ActionBar({
   onRefresh: () => void;
   onAction: (url: string, label: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button
@@ -111,19 +127,20 @@ function ActionBar({
         disabled={loading}
         className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
       >
-        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> 刷新统计
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{' '}
+        {t('dataEngine.refreshStats')}
       </button>
       <button
-        onClick={() => onAction('/api/data/manage/update/inc', '增量更新')}
+        onClick={() => onAction('/api/data/manage/update/inc', t('dataEngine.incrementalUpdate'))}
         className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700"
       >
-        <Play className="h-4 w-4" /> 增量更新
+        <Play className="h-4 w-4" /> {t('dataEngine.incrementalUpdate')}
       </button>
       <button
-        onClick={() => onAction('/api/data/manage/update/full', '全量更新')}
+        onClick={() => onAction('/api/data/manage/update/full', t('dataEngine.fullUpdate'))}
         className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
       >
-        <Zap className="h-4 w-4" /> 全量更新
+        <Zap className="h-4 w-4" /> {t('dataEngine.fullUpdate')}
       </button>
       {actionMsg && <span className="text-sm font-medium text-blue-600">{actionMsg}</span>}
     </div>
@@ -132,18 +149,21 @@ function ActionBar({
 
 /** 数据源表格 */
 function DataSourceTable({ sources }: { sources: DataSource[] }) {
+  const { t } = useTranslation();
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold text-slate-800">数据源</h2>
+      <h2 className="mb-4 text-sm font-semibold text-slate-800">
+        {t('adminPage.dataManagement.dataSource')}
+      </h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
-              <th className="pb-2 font-medium">数据源</th>
-              <th className="pb-2 font-medium">类型</th>
-              <th className="pb-2 font-medium">状态</th>
-              <th className="pb-2 font-medium">记录数</th>
-              <th className="pb-2 font-medium">最后更新</th>
+              <th className="pb-2 font-medium">{t('adminPage.dataManagement.dataSource')}</th>
+              <th className="pb-2 font-medium">{t('adminPage.dataManagement.type')}</th>
+              <th className="pb-2 font-medium">{t('adminPage.dataManagement.status')}</th>
+              <th className="pb-2 font-medium">{t('adminPage.dataManagement.recordCount')}</th>
+              <th className="pb-2 font-medium">{t('adminPage.dataManagement.lastUpdated')}</th>
             </tr>
           </thead>
           <tbody>
@@ -156,12 +176,14 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
                     ) : (
                       <FileSpreadsheet className="h-4 w-4 text-green-500" />
                     )}
-                    <span className="font-medium text-slate-700">{source.name}</span>
+                    <span className="font-medium text-slate-700">{t(source.name)}</span>
                   </div>
                 </td>
                 <td className="py-2.5">
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                    {source.type === 'api' ? 'API' : '本地'}
+                    {source.type === 'api'
+                      ? t('adminPage.dataManagement.typeApi')
+                      : t('adminPage.dataManagement.typeLocal')}
                   </span>
                 </td>
                 <td className="py-2.5">
@@ -186,11 +208,14 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
 
 /** 市场分布 + 日期覆盖范围 */
 function MarketAndDateSection({ stats }: { stats: DataStats }) {
+  const { t } = useTranslation();
   return (
     <>
       {Object.keys(stats.marketBreakdown).length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold text-slate-800">市场标的数量</h2>
+          <h2 className="mb-4 text-sm font-semibold text-slate-800">
+            {t('adminPage.dashboard.marketTickerCount')}
+          </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {Object.entries(stats.marketBreakdown)
               .sort(([, a], [, b]) => b - a)
@@ -203,7 +228,9 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
 
       {stats.dateRange.earliest !== '-' && (
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold text-slate-800">数据覆盖日期范围</h2>
+          <h2 className="mb-4 text-sm font-semibold text-slate-800">
+            {t('adminPage.dataManagement.dataCoverageRange')}
+          </h2>
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className="mb-2 flex justify-between text-xs text-slate-500">
@@ -217,7 +244,9 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
                 />
               </div>
               <p className="mt-2 text-xs text-slate-500">
-                覆盖 {getYearDiff(stats.dateRange.earliest, stats.dateRange.latest)} 年数据
+                {t('adminPage.dataManagement.coverYears', {
+                  years: getYearDiff(stats.dateRange.earliest, stats.dateRange.latest),
+                })}
               </p>
             </div>
           </div>
@@ -229,22 +258,23 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
 
 /** 统计卡片网格 */
 function StatsGrid({ stats }: { stats: DataStats }) {
+  const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <StatCard
-        title="标的总数"
+      <KpiCard
+        label={t('adminPage.dashboard.totalTickers')}
         value={stats.totalTickers.toLocaleString()}
         icon={<BarChart3 className="h-5 w-5" />}
         color="blue"
       />
-      <StatCard
-        title="数据点总数"
+      <KpiCard
+        label={t('dataEngine.totalDataPoints')}
         value={stats.totalDataPoints > 0 ? `${(stats.totalDataPoints / 1000000).toFixed(1)}M` : '-'}
         icon={<Database className="h-5 w-5" />}
         color="green"
       />
-      <StatCard
-        title="数据覆盖"
+      <KpiCard
+        label={t('adminPage.dashboard.dataCoverage')}
         value={
           stats.dateRange.earliest !== '-'
             ? `${stats.dateRange.earliest} ~ ${stats.dateRange.latest}`
@@ -253,8 +283,8 @@ function StatsGrid({ stats }: { stats: DataStats }) {
         icon={<Calendar className="h-5 w-5" />}
         color="purple"
       />
-      <StatCard
-        title="磁盘占用"
+      <KpiCard
+        label={t('dataEngine.diskUsage')}
         value={stats.totalSizeMB > 0 ? `${(stats.totalSizeMB / 1024).toFixed(1)} GB` : '-'}
         icon={<HardDrive className="h-5 w-5" />}
         color="orange"
@@ -264,12 +294,13 @@ function StatsGrid({ stats }: { stats: DataStats }) {
 }
 
 export default function DataManagement() {
+  const { t } = useTranslation();
   const [sources, setSources] = useState<DataSource[]>(defaultDataSources);
   const [stats, setStats] = useState<DataStats>(defaultDataStats);
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiFetch('/api/data/manage/stats');
@@ -281,11 +312,11 @@ export default function DataManagement() {
       }
     } catch (e) {
       console.error('Failed to fetch data stats:', e);
-      useToastStore.getState().addToast('error', '数据统计信息加载失败');
+      useToastStore.getState().addToast('error', t('adminPage.dataManagement.statsLoadFailed'));
     }
 
     try {
-      const goRes = await fetch('/api/data/health');
+      const goRes = await apiFetch('/api/v1/data/health');
       const goStatus: 'active' | 'inactive' = goRes.ok ? 'active' : 'inactive';
       setSources((prev) =>
         prev.map((s, i) =>
@@ -303,21 +334,25 @@ export default function DataManagement() {
     }
 
     setLoading(false);
-  };
+  }, [t]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const doAction = async (url: string, label: string) => {
-    setActionMsg(`${label}中...`);
+    setActionMsg(t('adminPage.dataManagement.actionInProgress', { label }));
     try {
       const res = await apiFetch(url, { method: 'POST' });
       const json = await res.json();
-      setActionMsg(json.success ? `${label}已触发` : `失败: ${json.error}`);
+      setActionMsg(
+        json.success
+          ? t('adminPage.dataManagement.actionTriggered', { label })
+          : t('adminPage.dataManagement.actionFailed', { error: json.error }),
+      );
       if (json.success) setTimeout(fetchData, 2000);
     } catch {
-      setActionMsg(`${label}请求失败`);
+      setActionMsg(t('adminPage.dataManagement.actionRequestFailed', { label }));
     }
     setTimeout(() => setActionMsg(''), 5000);
   };
@@ -337,42 +372,24 @@ export default function DataManagement() {
   );
 }
 
-function StatCard({
-  title,
-  value,
-  icon,
-  color,
-}: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
-  color: 'blue' | 'green' | 'purple' | 'orange';
-}) {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
-    orange: 'bg-orange-50 text-orange-600',
-  };
-
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3">
-        <div className={`rounded-lg p-2 ${colorClasses[color]}`}>{icon}</div>
-        <div>
-          <p className="text-xs text-slate-500">{title}</p>
-          <p className="text-xl font-bold text-slate-800">{value}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SourceStatusBadge({ status }: { status: 'active' | 'inactive' | 'unknown' }) {
+  const { t } = useTranslation();
   const config = {
-    active: { icon: CheckCircle, label: '活跃', className: 'bg-green-50 text-green-600' },
-    inactive: { icon: AlertCircle, label: '离线', className: 'bg-red-50 text-red-600' },
-    unknown: { icon: AlertCircle, label: '未知', className: 'bg-slate-50 text-slate-500' },
+    active: {
+      icon: CheckCircle,
+      label: t('adminPage.dataManagement.statusActive'),
+      className: 'bg-green-50 text-green-600',
+    },
+    inactive: {
+      icon: AlertCircle,
+      label: t('adminPage.dataManagement.statusInactive'),
+      className: 'bg-red-50 text-red-600',
+    },
+    unknown: {
+      icon: AlertCircle,
+      label: t('adminPage.dataManagement.statusUnknown'),
+      className: 'bg-slate-50 text-slate-500',
+    },
   };
 
   const { icon: Icon, label, className } = config[status];

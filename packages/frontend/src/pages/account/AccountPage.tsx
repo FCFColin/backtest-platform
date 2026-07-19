@@ -1,6 +1,6 @@
 /**
  * @file 账户/个人中心页面
- * @description 用户信息、偏好设置（主题/货币/再平衡频率）、订阅状态、数据统计
+ * @description 用户信息、偏好设置（主题/货币/再平衡频率）、订阅状态
  * @route /account
  */
 import { useState, useEffect } from 'react';
@@ -14,15 +14,27 @@ import {
   CreditCard,
   Crown,
   Calendar,
-  Database,
-  TrendingUp,
-  BarChart3,
-  Folder,
   LogIn,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../hooks/useTheme.js';
 import { useAuthStore } from '@/store/authStore';
 import { importLocalConfigsOnce } from '@/utils/configApi';
+import { SectionTitle, PrefRow } from '../../components/cards.js';
+
+const AVATAR_STYLE: React.CSSProperties = {
+  width: 64,
+  height: 64,
+  borderRadius: '50%',
+  background: 'var(--brand)',
+  color: '#fff',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: 26,
+  fontWeight: 700,
+  flexShrink: 0,
+};
 
 interface UserInfoCardProps {
   displayName: string;
@@ -32,6 +44,7 @@ interface UserInfoCardProps {
 }
 
 function UserInfoCard({ displayName, roleLabel, initials, userId }: UserInfoCardProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -44,23 +57,7 @@ function UserInfoCard({ displayName, roleLabel, initials, userId }: UserInfoCard
         borderRadius: 'var(--radius-control)',
       }}
     >
-      <div
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: '50%',
-          background: 'var(--brand)',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 26,
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
-      >
-        {initials}
-      </div>
+      <div style={AVATAR_STYLE}>{initials}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
           <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>
@@ -89,7 +86,7 @@ function UserInfoCard({ displayName, roleLabel, initials, userId }: UserInfoCard
           }}
         >
           <Mail className="w-3.5 h-3.5" />
-          {userId ? `用户 ID：${userId}` : 'user@backtest.local'}
+          {userId ? t('account.userIdLabel', { userId }) : 'user@backtest.local'}
         </div>
       </div>
       {!userId && (
@@ -105,7 +102,7 @@ function UserInfoCard({ displayName, roleLabel, initials, userId }: UserInfoCard
             gap: 6,
           }}
         >
-          <LogIn className="w-4 h-4" /> 登录
+          <LogIn className="w-4 h-4" /> {t('account.login')}
         </Link>
       )}
     </div>
@@ -131,27 +128,32 @@ function PreferencesSection({
   onCurrencyChange,
   onRebalanceChange,
 }: PreferencesSectionProps) {
+  const { t } = useTranslation();
   return (
     <>
-      <SectionTitle icon={<Palette className="w-5 h-5" />} title="偏好设置" />
+      <SectionTitle icon={<Palette className="w-5 h-5" />} title={t('account.preferences.title')} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
         <PrefRow
           icon={<Palette className="w-4 h-4" />}
-          label="主题模式"
-          desc={isDark ? '当前：深色' : '当前：浅色'}
+          label={t('account.preferences.themeMode')}
+          desc={
+            isDark
+              ? t('account.preferences.themeCurrentDark')
+              : t('account.preferences.themeCurrentLight')
+          }
         >
           <div
             className={`toggle-switch ${isDark ? 'active' : ''}`}
             onClick={toggleTheme}
             role="switch"
             aria-checked={isDark}
-            title={theme === 'dark' ? '切换到浅色' : '切换到深色'}
+            title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
           />
         </PrefRow>
         <PrefRow
           icon={<DollarSign className="w-4 h-4" />}
-          label="默认基础货币"
-          desc="回测结果与统计的展示货币"
+          label={t('account.preferences.currency')}
+          desc={t('account.preferences.currencyDesc')}
         >
           <select
             value={currency}
@@ -159,17 +161,17 @@ function PreferencesSection({
             className="portfolio-rebalance-select"
             style={{ width: 140 }}
           >
-            <option value="USD">USD · 美元</option>
-            <option value="CNY">CNY · 人民币</option>
-            <option value="EUR">EUR · 欧元</option>
-            <option value="JPY">JPY · 日元</option>
-            <option value="HKD">HKD · 港元</option>
+            <option value="USD">{t('account.preferences.currencyUSD')}</option>
+            <option value="CNY">{t('account.preferences.currencyCNY')}</option>
+            <option value="EUR">{t('account.preferences.currencyEUR')}</option>
+            <option value="JPY">{t('account.preferences.currencyJPY')}</option>
+            <option value="HKD">{t('account.preferences.currencyHKD')}</option>
           </select>
         </PrefRow>
         <PrefRow
           icon={<RefreshCw className="w-4 h-4" />}
-          label="默认再平衡频率"
-          desc="新建组合时的默认调仓周期"
+          label={t('account.preferences.rebalance')}
+          desc={t('account.preferences.rebalanceDesc')}
         >
           <select
             value={rebalance}
@@ -177,11 +179,11 @@ function PreferencesSection({
             className="portfolio-rebalance-select"
             style={{ width: 140 }}
           >
-            <option value="none">买入持有</option>
-            <option value="monthly">每月</option>
-            <option value="quarterly">每季</option>
-            <option value="yearly">每年</option>
-            <option value="threshold">阈值调仓</option>
+            <option value="none">{t('account.preferences.rebalanceBuyHold')}</option>
+            <option value="monthly">{t('account.preferences.rebalanceMonthly')}</option>
+            <option value="quarterly">{t('account.preferences.rebalanceQuarterly')}</option>
+            <option value="yearly">{t('account.preferences.rebalanceYearly')}</option>
+            <option value="threshold">{t('account.preferences.rebalanceThreshold')}</option>
           </select>
         </PrefRow>
       </div>
@@ -194,9 +196,13 @@ interface SubscriptionSectionProps {
 }
 
 function SubscriptionSection({ plan }: SubscriptionSectionProps) {
+  const { t } = useTranslation();
   return (
     <>
-      <SectionTitle icon={<CreditCard className="w-5 h-5" />} title="订阅状态" />
+      <SectionTitle
+        icon={<CreditCard className="w-5 h-5" />}
+        title={t('account.subscription.title')}
+      />
       <div
         style={{
           padding: 20,
@@ -228,7 +234,9 @@ function SubscriptionSection({ plan }: SubscriptionSectionProps) {
           <div
             style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 4 }}
           >
-            {plan ? `${plan.toUpperCase()} · 当前方案` : 'Free · 免费版'}
+            {plan
+              ? t('account.subscription.currentPlanSuffix', { plan: plan.toUpperCase() })
+              : t('account.subscription.freePlan')}
           </div>
           <div
             style={{
@@ -240,7 +248,7 @@ function SubscriptionSection({ plan }: SubscriptionSectionProps) {
             }}
           >
             <Calendar className="w-3 h-3" />
-            本地部署 · 无到期时间
+            {t('account.subscription.localDeploy')}
           </div>
         </div>
         <button
@@ -250,7 +258,7 @@ function SubscriptionSection({ plan }: SubscriptionSectionProps) {
             window.location.hash = '#/pricing';
           }}
         >
-          升级方案
+          {t('account.subscription.upgrade')}
         </button>
       </div>
     </>
@@ -258,6 +266,7 @@ function SubscriptionSection({ plan }: SubscriptionSectionProps) {
 }
 
 export default function AccountPage() {
+  const { t } = useTranslation();
   const { theme, toggleTheme, isDark } = useTheme();
   const [currency, setCurrency] = useState('USD');
   const [rebalance, setRebalance] = useState('quarterly');
@@ -271,15 +280,15 @@ export default function AccountPage() {
   const displayName = org?.name ?? (user ? user.userId : 'Backtest User');
   const roleLabel = user
     ? user.platformAdmin
-      ? '平台管理员'
+      ? t('account.role.admin')
       : (org?.role ?? user.role)
-    : '本地用户';
+    : t('account.role.local');
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <div className="bt-page">
       <div className="bt-page-header">
-        <h1 className="bt-page-title">账户中心</h1>
+        <h1 className="bt-page-title">{t('account.title')}</h1>
       </div>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         <UserInfoCard
@@ -288,21 +297,6 @@ export default function AccountPage() {
           initials={initials}
           userId={user?.userId}
         />
-
-        <SectionTitle icon={<BarChart3 className="w-5 h-5" />} title="数据统计" />
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: 16,
-            marginBottom: 28,
-          }}
-        >
-          <StatCard icon={<Folder className="w-4 h-4" />} label="已保存组合" value="12" />
-          <StatCard icon={<TrendingUp className="w-4 h-4" />} label="回测次数" value="348" />
-          <StatCard icon={<Database className="w-4 h-4" />} label="缓存标的" value="1,256" />
-          <StatCard icon={<RefreshCw className="w-4 h-4" />} label="数据更新" value="今日" />
-        </div>
 
         <PreferencesSection
           theme={theme}
@@ -331,81 +325,9 @@ export default function AccountPage() {
             className="w-3.5 h-3.5"
             style={{ display: 'inline', marginRight: 6, verticalAlign: '-2px' }}
           />
-          当前为本地部署版本，用户信息与偏好设置保存在浏览器 localStorage
-          中，不上传任何数据到云端。主题切换会即时生效并持久化。
+          {t('account.localDeployNotice')}
         </div>
       </div>
-    </div>
-  );
-}
-
-function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 14,
-        color: 'var(--brand)',
-      }}
-    >
-      {icon}
-      <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>{title}</span>
-    </div>
-  );
-}
-
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div
-      style={{ padding: 16, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-control)' }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          color: 'var(--text-muted)',
-          marginBottom: 8,
-        }}
-      >
-        {icon}
-        <span style={{ fontSize: 12 }}>{label}</span>
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-strong)' }}>{value}</div>
-    </div>
-  );
-}
-
-function PrefRow({
-  icon,
-  label,
-  desc,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  desc: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '12px 16px',
-        background: 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-      }}
-    >
-      <div style={{ color: 'var(--brand)', flexShrink: 0 }}>{icon}</div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)' }}>{label}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{desc}</div>
-      </div>
-      <div style={{ flexShrink: 0 }}>{children}</div>
     </div>
   );
 }

@@ -1,21 +1,23 @@
 // Package optimizer 提供投资组合优化和有效前沿计算。
 //
 // 企业理由（T-ARCH-2.4）：前端需要根据历史数据自动推荐最优资产配置，
-// 并可视化风险-收益权衡曲线。纯 Go 标准库实现，不依赖 gonum 等第三方
-// 数值库，降低依赖复杂度。权衡：对于 N<=15 的组合规模，子集枚举法
-// 可保证全局最优；N>15 时退化为近似解，但实际投资组合很少超过 15 只。
+// 并可视化风险-收益权衡曲线。矩阵运算统一使用 gonum/mat（spec Wave 4
+// Task 4.2：消除 optimizer/factorregression/pca 三处手写线性代数实现）。
+// 权衡：对于 N<=15 的组合规模，子集枚举法可保证全局最优；N>15 时退化为
+// 近似解，但实际投资组合很少超过 15 只。
 package optimizer
 
 import (
 	"context"
 	"fmt"
 	"math"
-	"sort"
+
+	"engine-go/internal/engineutil"
 )
 
 const (
-	riskFreeRate       = 0.02
-	tradingDaysPerYear = 252
+	riskFreeRate       = engineutil.RiskFreeRate
+	tradingDaysPerYear = engineutil.TradingDaysPerYear
 	defaultIterations  = 10000
 	defaultFrontierPts = 20
 	regStart           = 1e-8
@@ -106,7 +108,7 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 	default:
 	}
 
-	sigma = ensurePositiveDefinite(sigma)
+	sigma = ensurePD(sigma)
 
 	var weights []float64
 	switch req.Objective {
@@ -146,7 +148,7 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 	if err != nil {
 		return nil, err
 	}
-	sigma = ensurePositiveDefinite(sigma)
+	sigma = ensurePD(sigma)
 
 	constraints := Constraints{MinWeight: 0, MaxWeight: 1}
 
@@ -190,39 +192,15 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 
 // collectAlignedDates 收集所有资产都有数据的对齐日期列表
 func collectAlignedDates(tickers []string, priceData map[string]map[string]float64) ([]string, error) {
-	dateSet := make(map[string]bool)
-	for _, t := range tickers {
-		for d := range priceData[t] {
-			dateSet[d] = true
-		}
-	}
-	if len(dateSet) == 0 {
-		return nil, fmt.Errorf("价格数据为空")
-	}
-
-	dates := make([]string, 0, len(dateSet))
-	for d := range dateSet {
-		dates = append(dates, d)
-	}
-	sort.Strings(dates)
-
-	alignedDates := make([]string, 0, len(dates))
-	for _, d := range dates {
-		allPresent := true
+	alignedDates := engineutil.AlignDates(tickers, priceData)
+	if len(alignedDates) < 2 {
 		for _, t := range tickers {
-			if _, ok := priceData[t][d]; !ok {
-				allPresent = false
-				break
+			if len(priceData[t]) > 0 {
+				return nil, fmt.Errorf("对齐后交易日不足2天，无法计算收益率")
 			}
 		}
-		if allPresent {
-			alignedDates = append(alignedDates, d)
-		}
+		return nil, fmt.Errorf("价格数据为空")
 	}
-	if len(alignedDates) < 2 {
-		return nil, fmt.Errorf("对齐后交易日不足2天，无法计算收益率")
-	}
-
 	return alignedDates, nil
 }
 
@@ -298,7 +276,7 @@ func computeLagrangeCoeffs(sigmaInvOnes, sigmaInvMu, mu []float64) (float64, flo
 // solveFrontierPoint 求解有效前沿上的一个点
 func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
 	n := len(mu)
-	sigmaInv, err := invertMatrix(sigma)
+	sigmaInv, err := invertDense(sigma)
 	if err != nil {
 		return randomSearch(mu, sigma, c, "minVolatility", defaultIterations)
 	}
@@ -308,8 +286,8 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 		ones[i] = 1.0
 	}
 
-	sigmaInvOnes := matVecMul(sigmaInv, ones)
-	sigmaInvMu := matVecMul(sigmaInv, mu)
+	sigmaInvOnes := denseMulVec(sigmaInv, ones)
+	sigmaInvMu := denseMulVec(sigmaInv, mu)
 
 	a, b, cc := computeLagrangeCoeffs(sigmaInvOnes, sigmaInvMu, mu)
 

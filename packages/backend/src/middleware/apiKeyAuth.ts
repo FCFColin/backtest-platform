@@ -13,7 +13,7 @@ import type { Response, NextFunction } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { verifyApiKey } from '../services/apiKeyService.js';
+import { verifyApiKey } from '../services/apiKeyVerifier.js';
 import {
   type AuthenticatedRequest,
   type JwtPayload,

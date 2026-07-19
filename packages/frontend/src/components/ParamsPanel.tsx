@@ -16,7 +16,7 @@ import { useState, type ReactNode } from 'react';
 import { ChevronDown, ChevronRight, Info } from 'lucide-react';
 
 /** ParamsSection 组件 Props */
-export interface ParamsSectionProps {
+interface ParamsSectionProps {
   /** 分区标题 */
   title: string;
   /** 信息提示文本（显示为 ℹ️ 图标的 tooltip） */
@@ -89,7 +89,7 @@ export function ParamsSection({ title, info, children, defaultOpen = true }: Par
 }
 
 /** ParamsPanel 组件 Props */
-export interface ParamsPanelProps {
+interface ParamsPanelProps {
   /** 由多个 ParamsSection 组成的参数内容 */
   children: ReactNode;
 }

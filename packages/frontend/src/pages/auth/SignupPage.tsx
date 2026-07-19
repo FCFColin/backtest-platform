@@ -5,9 +5,12 @@
  * @route /signup
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { UserPlus, Loader2, MailCheck } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import ErrorBanner from '@/components/ErrorBanner';
+import AuthPageLayout from '@/components/auth/AuthPageLayout';
 
 const fieldLabel: React.CSSProperties = {
   fontSize: 13,
@@ -17,30 +20,30 @@ const fieldLabel: React.CSSProperties = {
 const fieldWrap: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 };
 
 function SignupSuccess({ email }: { email: string }) {
+  const { t } = useTranslation();
   return (
-    <div className="bt-page" style={{ maxWidth: 460, margin: '0 auto' }}>
-      <div
-        className="bt-main-card card"
-        style={{ padding: 28, marginTop: 40, textAlign: 'center' }}
-      >
+    <AuthPageLayout
+      centered
+      maxWidth={460}
+      icon={
         <MailCheck className="w-10 h-10" style={{ color: 'var(--brand)', margin: '0 auto 12px' }} />
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 8 }}>
-          注册成功
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-          我们已向 <strong>{email}</strong> 发送了一封验证邮件，请点击其中的链接完成邮箱验证。
-        </p>
-        <div style={{ marginTop: 18 }}>
-          <Link
-            to="/login"
-            className="main-action-btn"
-            style={{ display: 'inline-flex', height: 40, alignItems: 'center', padding: '0 18px' }}
-          >
-            前往登录
-          </Link>
-        </div>
+      }
+      title={t('auth.signup.successTitle')}
+    >
+      <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        {t('auth.signup.verificationEmailPrefix')} <strong>{email}</strong>{' '}
+        {t('auth.signup.verificationEmailSuffix')}
+      </p>
+      <div style={{ marginTop: 18 }}>
+        <Link
+          to="/login"
+          className="main-action-btn"
+          style={{ display: 'inline-flex', height: 40, alignItems: 'center', padding: '0 18px' }}
+        >
+          {t('auth.signup.goToLogin')}
+        </Link>
       </div>
-    </div>
+    </AuthPageLayout>
   );
 }
 
@@ -64,10 +67,11 @@ function SignupFormFields({
   setPassword: (v: string) => void;
   setOrgName: (v: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <label style={fieldWrap}>
-        <span style={fieldLabel}>用户名</span>
+        <span style={fieldLabel}>{t('auth.login.username')}</span>
         <input
           type="text"
           value={username}
@@ -79,7 +83,7 @@ function SignupFormFields({
         />
       </label>
       <label style={fieldWrap}>
-        <span style={fieldLabel}>邮箱</span>
+        <span style={fieldLabel}>{t('auth.signup.email')}</span>
         <input
           type="email"
           value={email}
@@ -91,7 +95,7 @@ function SignupFormFields({
         />
       </label>
       <label style={fieldWrap}>
-        <span style={fieldLabel}>密码（至少 8 位）</span>
+        <span style={fieldLabel}>{t('auth.signup.passwordHint')}</span>
         <input
           type="password"
           value={password}
@@ -104,7 +108,7 @@ function SignupFormFields({
         />
       </label>
       <label style={fieldWrap}>
-        <span style={fieldLabel}>组织名称</span>
+        <span style={fieldLabel}>{t('auth.signup.orgName')}</span>
         <input
           type="text"
           value={orgName}
@@ -118,33 +122,9 @@ function SignupFormFields({
   );
 }
 
-/** 注册页头部 */
-function SignupHeader() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-      <div
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 10,
-          background: 'var(--brand)',
-          color: '#fff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <UserPlus className="w-5 h-5" />
-      </div>
-      <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', margin: 0 }}>
-        创建账户
-      </h1>
-    </div>
-  );
-}
-
 /** 注册提交按钮 */
 function SignupSubmitButton({ loading }: { loading: boolean }) {
+  const { t } = useTranslation();
   return (
     <button
       type="submit"
@@ -160,30 +140,13 @@ function SignupSubmitButton({ loading }: { loading: boolean }) {
       }}
     >
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-      {loading ? '注册中…' : '注册'}
+      {loading ? t('auth.signup.submitting') : t('auth.signup.submit')}
     </button>
   );
 }
 
-/** 错误提示横幅 */
-function SignupErrorBanner({ error }: { error: string | null }) {
-  if (!error) return null;
-  return (
-    <div
-      style={{
-        fontSize: 13,
-        color: 'var(--danger, #dc2626)',
-        padding: '8px 10px',
-        background: 'var(--danger-soft, #fef2f2)',
-        borderRadius: 8,
-      }}
-    >
-      {error}
-    </div>
-  );
-}
-
 export default function SignupPage() {
+  const { t } = useTranslation();
   const register = useAuthStore((s) => s.register);
   const loading = useAuthStore((s) => s.loading);
   const error = useAuthStore((s) => s.error);
@@ -210,34 +173,33 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="bt-page" style={{ maxWidth: 460, margin: '0 auto' }}>
-      <div className="bt-main-card card" style={{ padding: 28, marginTop: 40 }}>
-        <SignupHeader />
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <SignupFormFields
-            username={username}
-            email={email}
-            password={password}
-            orgName={orgName}
-            setUsername={setUsername}
-            setEmail={setEmail}
-            setPassword={setPassword}
-            setOrgName={setOrgName}
-          />
-          <SignupErrorBanner error={error} />
-          <SignupSubmitButton loading={loading} />
-        </form>
-
-        <div
-          style={{ marginTop: 16, fontSize: 13, color: 'var(--text-muted)', textAlign: 'center' }}
-        >
-          已有账户？
+    <AuthPageLayout
+      icon={<UserPlus className="w-5 h-5" />}
+      title={t('auth.signup.createAccount')}
+      maxWidth={460}
+      footer={
+        <>
+          {t('auth.signup.hasAccountPrefix')}
           <Link to="/login" style={{ color: 'var(--brand)' }}>
-            登录
+            {t('auth.login.submit')}
           </Link>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <SignupFormFields
+          username={username}
+          email={email}
+          password={password}
+          orgName={orgName}
+          setUsername={setUsername}
+          setEmail={setEmail}
+          setPassword={setPassword}
+          setOrgName={setOrgName}
+        />
+        <ErrorBanner message={error} />
+        <SignupSubmitButton loading={loading} />
+      </form>
+    </AuthPageLayout>
   );
 }

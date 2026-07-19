@@ -19,7 +19,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PoolClient } from 'pg';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { getPool } from '../db/index.js';
+import { getPool } from '../db/pool.js';
 
 /** 审计日志专用子 logger，带 audit: true 标记，便于日志采集系统过滤 */
 const auditLogger = logger.child({ audit: true, module: 'audit' });

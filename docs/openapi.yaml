@@ -1820,8 +1820,8 @@ paths:
       summary: 运行组合回测
       description: |
         接收组合配置和回测参数，运行组合回测。
-        优先使用 Rust 引擎计算，失败时降级到 Node.js 引擎。
-        降级模式下响应会包含 `degraded: true` 和 `degradedWarning` 字段。
+        Go 引擎为唯一计算后端；引擎不可用时返回 503 + Retry-After（fail-closed，ADR-031）。
+        响应不包含 `degraded` 字段（无 Node 降级路径）。
       security:
         - ApiKeyAuth: []
         - {}
@@ -1856,7 +1856,7 @@ paths:
                     $ref: '#/components/schemas/BacktestResult'
                   degraded:
                     type: boolean
-                    description: 是否降级到 Node.js 引擎
+                    description: 始终为 false（Go 引擎 fail-closed，ADR-031）；保留字段仅向后兼容
                   degradedWarning:
                     type: string
                   warnings:
@@ -3259,7 +3259,7 @@ paths:
                       services:
                         type: object
                         properties:
-                          rust_engine:
+                          go_engine:
                             type: object
                             properties:
                               status:

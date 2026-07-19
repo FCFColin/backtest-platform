@@ -13,9 +13,9 @@ export const engineConfig = {
    *
    * 企业理由（ADR-008）：Go 引擎是平台唯一的回测/分析/优化/蒙特卡洛引擎，
    * Go 服务默认监听 5004（见 engine-go/cmd/server/main.go 与 tests/helpers/constants.ts）。
-   * 此前默认值误写为 5002（Rust 引擎端口），导致 Go 引擎调用始终失败并静默降级到 Node，
+   * 此前默认值误写为 5002（旧引擎端口），导致 Go 引擎调用始终失败并静默降级到 Node，
    * 现统一为 5004，消除端口矛盾。
-   * Go 在并发模型（goroutine vs async）、开发效率和生态上优于 Rust。
+   * Go 在并发模型（goroutine vs async）、开发效率和生态上表现优秀。
    * 不可用时按 fail-closed 策略返回 503/重试（ADR-031），不再静默返回 Node 计算结果。
    * @default "http://127.0.0.1:5004"
    */

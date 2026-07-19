@@ -75,7 +75,7 @@ function NavToolbar({
       >
         <Globe className="w-4 h-4" />
         <span style={{ ...labelStyle, minWidth: 28 }}>
-          {i18n.language === 'zh-CN' ? 'EN' : '中文'}
+          {i18n.language === 'zh-CN' ? 'EN' : t('lang.zh')}
         </span>
       </NavIconButton>
       <NavIconButton

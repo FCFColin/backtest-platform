@@ -2,14 +2,7 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2020"],
-    "types": ["node"],
-    "baseUrl": ".",
-    "paths": {
-      "@backtest/shared": ["./packages/shared/types/index.ts"],
-      "@backtest/shared/types": ["./packages/shared/types/index.ts"],
-      "@backtest/shared/types/*": ["./packages/shared/types/*"],
-      "@backtest/shared/*": ["./packages/shared/*"]
-    }
+    "types": ["node"]
   },
   "include": ["packages/backend/src", "packages/shared"]
 }

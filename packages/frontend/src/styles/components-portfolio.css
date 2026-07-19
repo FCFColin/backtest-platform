@@ -1,0 +1,497 @@
+/* ============================================
+   组合编辑器 - 独立卡片横排（与 testfol.io 一致）
+   ============================================ */
+.portfolios-section {
+  padding: 8px;
+}
+
+.portfolios-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.portfolios-title {
+  font-size: 24px;
+  font-weight: 400;
+  color: var(--text-strong);
+  margin-right: 4px;
+  line-height: 2rem;
+}
+
+.portfolios-add-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid currentColor;
+  color: var(--brand);
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+
+.portfolios-add-btn:hover {
+  background: var(--brand-soft);
+}
+
+.portfolios-add-btn-secondary {
+  color: var(--support);
+}
+
+.portfolios-add-btn-secondary:hover {
+  background: var(--support-soft);
+}
+
+/* 组合卡片横排 */
+.portfolios-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 单个组合卡片 - max-width 400px（与 testfol.io 一致） */
+.portfolio-card {
+  max-width: 400px;
+  min-width: 280px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+  box-shadow: var(--shadow-card);
+  padding: 8px;
+  flex: none;
+  width: max-content;
+  display: inline-block;
+}
+
+/* 卡片头部操作 */
+.portfolio-card-header {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 2px 4px;
+}
+
+.portfolio-card-action {
+  width: 32px;
+  height: 28px;
+  min-width: 32px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(31, 47, 63, 0.68);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.portfolio-card-action:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.portfolio-card-action-danger:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+/* 名称 + 调仓频率行 */
+.portfolio-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+}
+
+.portfolio-name-input {
+  width: 155px;
+  height: 40px;
+  padding: 4px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-body);
+  background-color: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.42);
+  border-radius: 4px 4px 0 0;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+}
+
+.portfolio-name-input:focus {
+  border-bottom-color: var(--brand);
+  border-bottom-width: 2px;
+}
+
+.portfolio-rebalance-select {
+  height: 40px;
+  padding: 4px 28px 4px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-body);
+  background-color: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.42);
+  border-radius: 4px 4px 0 0;
+  outline: none;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2368788c' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  cursor: pointer;
+}
+
+.portfolio-rebalance-select:focus {
+  border-bottom-color: var(--brand);
+  border-bottom-width: 2px;
+}
+
+/* 工具栏 */
+.portfolio-card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px;
+  gap: 4px;
+}
+
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  min-height: 26px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+  background: var(--bg-elevated);
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: none;
+}
+
+.toolbar-btn:hover {
+  background: var(--brand-soft);
+}
+
+/* Ticker 行 */
+.ticker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px;
+}
+
+.ticker-input {
+  flex: 1;
+  height: 40px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-body);
+  background-color: var(--bg-elevated);
+  border: 1px solid rgba(0, 0, 0, 0.24);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+  text-transform: uppercase;
+}
+
+.ticker-input:hover {
+  border-color: #000;
+}
+
+.ticker-input:focus {
+  border-color: var(--brand);
+  border-width: 2px;
+  padding: 5px 11px;
+}
+
+.ticker-input::placeholder {
+  color: var(--text-muted);
+  text-transform: none;
+  font-weight: 400;
+}
+
+/* Ticker 自动补全下拉菜单 */
+.ticker-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  margin-top: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  box-shadow: var(--shadow-md);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.ticker-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-body);
+  transition: background 0.1s;
+}
+
+.ticker-dropdown-item:hover,
+.ticker-dropdown-item.selected {
+  background: var(--brand-soft);
+}
+
+.ticker-dropdown-code {
+  font-weight: 600;
+  color: var(--text-strong);
+  min-width: 70px;
+  text-transform: uppercase;
+}
+
+.ticker-dropdown-name {
+  flex: 1;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticker-dropdown-market {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-subtle);
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.ticker-dropdown-loading {
+  color: var(--text-muted);
+  font-style: italic;
+  justify-content: center;
+}
+
+/* 权重输入 */
+.weight-cell {
+  position: relative;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.weight-input {
+  width: 100%;
+  height: 40px;
+  padding: 6px 28px 6px 10px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-body);
+  background-color: var(--bg-elevated);
+  border: 1px solid rgba(0, 0, 0, 0.24);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+  font-family: inherit;
+  text-align: right;
+}
+
+.weight-input:hover {
+  border-color: #000;
+}
+
+.weight-input:focus {
+  border-color: var(--brand);
+  border-width: 2px;
+  padding: 5px 27px 5px 9px;
+}
+
+.weight-suffix {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* 删除行按钮 */
+.row-remove-btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(31, 47, 63, 0.68);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.row-remove-btn:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+/* Total - readonly input style (matching Quasar) */
+.portfolio-total {
+  padding: 4px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 400;
+  min-height: 26px;
+  border: 1px solid transparent;
+  border-radius: 4px 4px 0 0;
+}
+
+.portfolio-total.complete {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  color: var(--success);
+}
+
+.portfolio-total.incomplete {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: var(--danger);
+}
+
+.total-value {
+  font-size: 14px;
+}
+
+/* 偏离调仓阈值输入 */
+.threshold-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.threshold-input {
+  width: 48px;
+  height: 28px;
+  padding: 2px 4px;
+  font-size: 12px;
+  text-align: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  outline: none;
+  color: var(--text-body);
+  background: var(--bg-elevated);
+}
+
+.threshold-input:focus {
+  border-color: var(--brand);
+}
+
+.threshold-suffix {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* 调仓偏移输入 */
+.offset-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.offset-input {
+  width: 48px;
+  height: 28px;
+  padding: 2px 4px;
+  font-size: 12px;
+  text-align: center;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  outline: none;
+  color: var(--text-body);
+  background: var(--bg-elevated);
+}
+
+.offset-input:focus {
+  border-color: var(--brand);
+}
+
+.offset-suffix {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* 高级选项行 */
+.portfolio-advanced-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 0;
+}
+
+.advanced-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.advanced-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.advanced-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.advanced-input {
+  width: 56px;
+  height: 28px;
+  padding: 2px 20px 2px 6px;
+  font-size: 12px;
+  text-align: right;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  outline: none;
+  color: var(--text-body);
+  background: var(--bg-elevated);
+}
+
+.advanced-input:focus {
+  border-color: var(--brand);
+}
+
+.advanced-suffix {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.advanced-check {
+  font-size: 12px;
+}

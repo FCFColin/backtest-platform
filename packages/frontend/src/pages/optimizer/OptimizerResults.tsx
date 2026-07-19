@@ -16,7 +16,9 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { OptimizerState, OptimizerResultExt } from './OptimizerUtils.js';
-import { CHART_GRID_PROPS } from '@/components/charts/chartConstants.js';
+import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS } from '@/components/charts/chartConstants.js';
+import { SimpleTable, type SimpleTableColumn } from '@/components/SimpleTable.js';
+import { fmtPct, fmtNum } from '@/utils/format';
 
 const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', label: 'CAGR', fmt: 'pct' },
@@ -107,15 +109,6 @@ function ConstraintsSummary({ s }: { s: OptimizerState }) {
   );
 }
 
-const TOOLTIP_STYLE = {
-  fontSize: 12,
-  backgroundColor: 'var(--bg-elevated)',
-  border: '1px solid var(--border-soft)',
-  borderRadius: 'var(--radius-control)',
-  color: 'var(--text-body)',
-  boxShadow: 'var(--shadow-md)',
-};
-
 function LoadBacktesterBtn({ onClick, t }: { onClick: () => void; t: (k: string) => string }) {
   return (
     <button
@@ -186,7 +179,7 @@ function WeightBarChart({
             tick={{ fontSize: 13, fill: 'var(--text-strong)', fontWeight: 500 }}
             width={56}
           />
-          <Tooltip formatter={(v: number) => `${v}%`} contentStyle={TOOLTIP_STYLE} />
+          <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
           <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
             {data.map((entry, index) => (
               <Cell key={index} fill={entry.fill} />
@@ -206,8 +199,6 @@ function MetricsTable({
   results: OptimizerResultExt;
 }) {
   const { t } = useTranslation();
-  const fmtPct = (v: number) => `${(v * 100).toFixed(2)}%`;
-  const fmtNum = (v: number) => v.toFixed(2);
   const getVal = (key: keyof Statistics, fmt: 'pct' | 'num'): string => {
     const val = backtestStats ? backtestStats[key] : undefined;
     if (val != null) return fmt === 'pct' ? fmtPct(val as number) : fmtNum(val as number);
@@ -216,52 +207,16 @@ function MetricsTable({
     if (!backtestStats && key === 'sharpe') return fmtNum(results.sharpeRatio);
     return '\u2014';
   };
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <th
-              className="text-[12px] font-semibold text-left py-2.5 px-3"
-              style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-            >
-              {t('common.metric')}
-            </th>
-            <th
-              className="text-[12px] font-semibold text-right py-2.5 px-3"
-              style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-            >
-              {t('optimizer.optimalPortfolio')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {METRICS_ROWS.map((row, i) => (
-            <tr
-              key={row.key}
-              style={{ backgroundColor: i % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
-            >
-              <td
-                className="text-[13px] py-2 px-3"
-                style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
-              >
-                {row.label}
-              </td>
-              <td
-                className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                style={{
-                  color: 'var(--text-strong)',
-                  borderBottom: '1px solid var(--border-soft)',
-                }}
-              >
-                {getVal(row.key, row.fmt)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  const columns: SimpleTableColumn<(typeof METRICS_ROWS)[number]>[] = [
+    { key: 'metric', label: t('common.metric'), render: (r) => r.label },
+    {
+      key: 'value',
+      label: t('optimizer.optimalPortfolio'),
+      align: 'right',
+      render: (r) => getVal(r.key, r.fmt),
+    },
+  ];
+  return <SimpleTable columns={columns} data={METRICS_ROWS} rowKey={(r) => String(r.key)} />;
 }
 
 function FrontierChart({
@@ -312,7 +267,10 @@ function FrontierChart({
             }}
           />
           <ZAxis range={[36, 36]} />
-          <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={TOOLTIP_STYLE} />
+          <Tooltip
+            formatter={(v: number) => `${v.toFixed(2)}%`}
+            contentStyle={CHART_TOOLTIP_STYLE}
+          />
           <Scatter
             data={data.map((p) => ({
               expectedVolatility: p.expectedVolatility,

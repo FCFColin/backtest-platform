@@ -11,7 +11,7 @@ import { setTokens, clearTokens, getRefreshToken, refreshTokens } from '@/utils/
 import { asyncStart, asyncFail, asyncSuccess } from './utils/asyncSlice.js';
 
 /** 组织摘要（与后端 orgSummary 对齐） */
-export interface OrgSummary {
+interface OrgSummary {
   orgId: string;
   name: string;
   slug: string;
@@ -21,7 +21,7 @@ export interface OrgSummary {
 }
 
 /** 当前用户会话信息 */
-export interface AuthUser {
+interface AuthUser {
   userId: string;
   role: string;
   tenantId: string | null;

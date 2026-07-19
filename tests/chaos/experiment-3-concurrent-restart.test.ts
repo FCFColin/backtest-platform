@@ -7,20 +7,20 @@
  *
  * 权衡：实验需要发送 SIGTERM，但验证优雅关闭的可靠性至关重要。
  *
- * 重构说明（Task 6.4）：
- * - 原 experiment-3-concurrent-restart.ts 使用 PowerShell Get-Process 查找 Node.js PID，
- *   仅 Windows 可用且可能误杀其他 Node 进程。
- * - 本测试使用 docker kill --signal=SIGTERM 跨平台发送信号到 API 容器。
- * - 测试真实业务端点 /api/v1/data/history，而非仅 /api/health。
+ * 重构说明（Task 5.14/5.15）：
+ * - SIGTERM 在并发请求 in-flight 时发送，并非简单的 stop→assert→start 模式，
+ *   因此不使用 withContainerStopped。
+ * - 用 setupChaosFixture(CONTAINERS.api) 替代内联 isDockerAvailable/
+ *   isContainerRunning + afterAll startContainer + waitForHealthy 样板。
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   CONTAINERS,
-  isDockerAvailable,
-  isContainerRunning,
   sendSignalToContainer,
   startContainer,
   waitForHealthy,
+  setupChaosFixture,
+  type ChaosFixture,
 } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:5001';
@@ -36,19 +36,19 @@ const CONCURRENT_REQUESTS = 100;
  */
 const BUSINESS_ENDPOINT = `${API_URL}/api/v1/data/history?tickers=SPY&startDate=2020-01-01&endDate=2024-12-31`;
 
-let dockerAvailable = false;
-let apiRunning = false;
+// top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值
+let fixture: ChaosFixture = {
+  dockerAvailable: false,
+  containerRunning: false,
+  recover: async () => {},
+};
 
 beforeAll(async () => {
-  dockerAvailable = await isDockerAvailable();
-  if (dockerAvailable) {
-    apiRunning = await isContainerRunning(CONTAINERS.api);
-  }
+  fixture = await setupChaosFixture(CONTAINERS.api);
 }, 30000);
 
 afterAll(async () => {
-  // 确保测试结束后恢复 API 容器
-  if (dockerAvailable && apiRunning) {
+  if (fixture.dockerAvailable && fixture.containerRunning) {
     try {
       await startContainer(CONTAINERS.api);
       await waitForHealthy(HEALTH_URL, 30000);
@@ -59,11 +59,11 @@ afterAll(async () => {
 }, 60000);
 
 describe('Chaos Experiment 3: High Concurrency + Graceful Shutdown', () => {
-  it.skipIf(!dockerAvailable)(
+  it.skipIf(!fixture.dockerAvailable)(
     '应在 SIGTERM 期间完成 >95% 的在途请求',
     async () => {
       // 前置条件：API 容器必须运行
-      if (!apiRunning) {
+      if (!fixture.containerRunning) {
         console.warn('skip: backtest-api 容器未运行');
         return;
       }

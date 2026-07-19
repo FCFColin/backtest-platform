@@ -13,10 +13,11 @@
  */
 
 import { vi } from 'vitest';
-import type { Request } from 'express';
+import type { Request, Response, NextFunction } from 'express';
+import type { AuthenticatedRequest } from '../../packages/backend/src/middleware/jwtAuth.js';
 
 /** Mock Request 的可扩展属性类型 */
-export interface MockRequestOverrides {
+interface MockRequestOverrides {
   method?: string;
   url?: string;
   path?: string;
@@ -30,7 +31,7 @@ export interface MockRequestOverrides {
 }
 
 /** Mock Response 方法集合 */
-export interface MockResponse {
+interface MockResponse {
   status: ReturnType<typeof vi.fn>;
   json: ReturnType<typeof vi.fn> & { (body: unknown): void };
   send: ReturnType<typeof vi.fn>;
@@ -110,4 +111,64 @@ export function createMockMiddleware(reqOverrides?: MockRequestOverrides): {
     res: createMockResponse(),
     next: createMockNext(),
   };
+}
+
+/**
+ * 等待中间件执行完成（通过 next 回调 resolve）
+ *
+ * 企业理由：10+ 测试文件重复 new Promise<void>((resolve) => { middleware(req, res, () => resolve()); }) 模式。
+ * 本 helper 集中维护，确保 Promise 正确 resolve。
+ *
+ * @param middleware - Express 中间件函数
+ * @param req - mock Request 对象
+ * @param res - mock Response 对象
+ * @param onNext - 可选的 next 回调（在 resolve 前执行）
+ * @returns Promise，在中间件调用 next 后 resolve
+ */
+export async function awaitMiddleware(
+  middleware: (req: unknown, res: unknown, next: () => void) => void,
+  req: unknown,
+  res: unknown,
+  onNext?: () => void,
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    middleware(req, res, () => {
+      onNext?.();
+      resolve();
+    });
+  });
+}
+
+/**
+ * jwtAuth 测试专用 mock 工厂（返回 AuthenticatedRequest 类型）
+ *
+ * 企业理由：jwt-auth.* 测试需要 req.user 为 JwtPayload | null 类型，
+ * 通用 createMockRequest 返回 Request（user 为 unknown）会导致类型不兼容。
+ * 本组函数与原 jwt-auth.helpers.ts 实现一致，集中到 expressMocks.ts 后
+ * 消除 jwt-auth.helpers.ts 单独文件。
+ *
+ * 用法：
+ *   import { createJwtAuthMockRequest, createJwtAuthMockResponse, createJwtAuthMockNext } from '../helpers/expressMocks.js';
+ */
+export function createJwtAuthMockRequest(
+  overrides: Record<string, unknown> = {},
+): AuthenticatedRequest {
+  return {
+    headers: {},
+    path: '/test',
+    method: 'GET',
+    ...overrides,
+  } as unknown as AuthenticatedRequest;
+}
+
+export function createJwtAuthMockResponse(): Response {
+  return {
+    status: vi.fn().mockReturnThis(),
+    header: vi.fn().mockReturnThis(),
+    json: vi.fn().mockReturnThis(),
+  } as unknown as Response;
+}
+
+export function createJwtAuthMockNext(): NextFunction {
+  return vi.fn() as unknown as NextFunction;
 }

@@ -1,35 +1,71 @@
 /**
  * 集中配置对象合成。
  *
- * 将各配置片段（server / engine / auth / database / integrations / security / observability）
- * 合并为单一 `config` 对象，保持扁平的 `config.X` 访问路径不变（公共 API 未变）。
+ * 各配置片段（server / engine / auth / database / integrations）以命名空间形式
+ * 组合为 `configNamespaces`，再通过 `Object.assign` 构建向后兼容的扁平 `config`。
+ *
+ * 改进点（vs 旧 spread 合并）：
+ * 1. 命名空间导出 — 新代码应使用 `configNamespaces.server.API_PORT` 等命名空间路径
+ * 2. 碰撞检测 — 启动时检测各片段间的 key 冲突，避免静默覆盖
+ * 3. 类型安全 — `Config` 类型由各片段类型交叉推导
  */
 
 import { authConfig } from './authConfig.js';
 import { databaseConfig } from './databaseConfig.js';
 import { engineConfig } from './engineConfig.js';
 import { integrationsConfig } from './integrationsConfig.js';
-import { observabilityConfig } from './observabilityConfig.js';
-import { securityConfig } from './securityConfig.js';
 import { serverConfig } from './serverConfig.js';
 
-/**
- * 集中配置对象
- *
- * 汇总全部环境变量，提供开发环境友好的默认值。
- * 生产环境部署时请通过环境变量或 `.env` 文件覆盖。
- */
-export const config = {
-  ...serverConfig,
-  ...engineConfig,
-  ...authConfig,
-  ...databaseConfig,
-  ...integrationsConfig,
-  ...securityConfig,
-  ...observabilityConfig,
-};
+/** 扁平配置类型 — 各片段类型的交叉 */
+type Config = typeof serverConfig &
+  typeof engineConfig &
+  typeof authConfig &
+  typeof databaseConfig &
+  typeof integrationsConfig;
 
-/** RFC 8594 Sunset 日期，用于废弃 API 头 */
-export const SUNSET_DATE = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000)
-  .toISOString()
-  .split('T')[0];
+/** 检测各配置片段间的 key 冲突，避免静默覆盖 */
+function detectCollisions(): void {
+  const fragments: Record<string, Record<string, unknown>> = {
+    server: serverConfig,
+    engine: engineConfig,
+    auth: authConfig,
+    database: databaseConfig,
+    integrations: integrationsConfig,
+  };
+  const keyOwner = new Map<string, string>();
+  for (const [fragName, frag] of Object.entries(fragments)) {
+    for (const key of Object.keys(frag)) {
+      const existing = keyOwner.get(key);
+      if (existing) {
+        throw new Error(
+          `Config key collision: "${key}" defined in both "${existing}" and "${fragName}"`,
+        );
+      }
+      keyOwner.set(key, fragName);
+    }
+  }
+}
+
+detectCollisions();
+
+/**
+ * 扁平配置对象（向后兼容）。
+ *
+ * 由各命名空间片段通过 `Object.assign` 合成，保持 `config.API_PORT` 等扁平访问路径。
+ *
+ * @deprecated 新代码请使用各 config 模块的命名空间路径（如 `serverConfig.API_PORT`）
+ */
+export const config: Config = Object.assign(
+  {},
+  serverConfig,
+  engineConfig,
+  authConfig,
+  databaseConfig,
+  integrationsConfig,
+);
+
+/** RFC 8594 Sunset 日期（Date 对象），用于废弃 API 头 */
+const SUNSET_DATE = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000);
+
+/** RFC 8594 Sunset 日期（YYYY-MM-DD 字符串），用于 HTTP Sunset 头 */
+export const SUNSET_DATE_STR = SUNSET_DATE.toISOString().split('T')[0];

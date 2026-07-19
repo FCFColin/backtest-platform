@@ -32,6 +32,7 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       'scripts/**',
+      'report/**',
     ],
   },
 
@@ -73,7 +74,7 @@ export default tseslint.config(
     },
   },
 
-  // 复杂度量化门控（ADR-021 / T-9）
+  // 复杂度量化门控
   //
   // 企业为何需要：圈复杂度（McCabe）与嵌套深度是"代码难以测试/理解/维护"的客观度量。
   // 单函数复杂度 > 15 是重构红线（分支爆炸，单测难以覆盖全路径）。无门控时复杂度只增不减，
@@ -89,6 +90,37 @@ export default tseslint.config(
       'max-params': ['error', 5],
       'max-nested-callbacks': ['error', 3],
       'sonarjs/cognitive-complexity': ['error', 15],
+    },
+  },
+
+  // i18n 强制门控：禁止 .tsx 中文字面量
+  //
+  // 企业为何需要：i18n 迁移后，若放任开发者在 .tsx 中直接写中文字符串，i18n 会被
+  // 逐步侵蚀，最终回到"半中文半 i18n"的混乱状态。此规则用 AST 选择器匹配
+  // Literal / TemplateElement / JSXText 三类节点上的中文字符（[\u4e00-\u9fa5]），
+  // 强制所有用户可见文案走 useTranslation() + i18n key。
+  // 注释、i18n JSON、console 输出不受影响（注释不在 AST 中，JSON/console 在
+  // 不同文件类型或不同节点类型中）。
+  {
+    files: ['packages/frontend/src/**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/[\\u4e00-\\u9fa5]/]',
+          message:
+            '禁止在 .tsx 中使用中文字符串字面量，请使用 useTranslation() + i18n key',
+        },
+        {
+          selector: 'TemplateElement[value.raw=/[\\u4e00-\\u9fa5]/]',
+          message:
+            '禁止在 .tsx 中使用中文模板字面量，请使用 useTranslation() + i18n key',
+        },
+        {
+          selector: 'JSXText[value=/[\\u4e00-\\u9fa5]/]',
+          message: '禁止在 .tsx 中使用中文 JSX 文本，请使用 useTranslation() + i18n key',
+        },
+      ],
     },
   },
 

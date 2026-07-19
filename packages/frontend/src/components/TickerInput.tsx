@@ -3,6 +3,7 @@
  * @description 带自动补全的标的代码输入框，支持本地常用标的及远程搜索建议
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ALL_TICKER_PRESETS } from '@/utils/tickerPresets';
 
 interface TickerSuggestion {
@@ -21,97 +22,261 @@ interface TickerInputProps {
 /** 本地静态常用标的列表，用于即时补全（无需网络请求） */
 const POPULAR_TICKERS: TickerSuggestion[] = [
   // 美股 ETF
-  { ticker: 'SPY', name: 'S&P 500 ETF', market: '美股' },
-  { ticker: 'VTI', name: 'Vanguard Total Stock Market ETF', market: '美股' },
-  { ticker: 'VOO', name: 'Vanguard S&P 500 ETF', market: '美股' },
-  { ticker: 'QQQ', name: 'Invesco QQQ Trust', market: '美股' },
-  { ticker: 'BND', name: 'Vanguard Total Bond Market ETF', market: '美股' },
-  { ticker: 'AGG', name: 'iShares Core US Aggregate Bond', market: '美股' },
-  { ticker: 'IWM', name: 'iShares Russell 2000 ETF', market: '美股' },
-  { ticker: 'EFA', name: 'iShares MSCI EAFE ETF', market: '美股' },
-  { ticker: 'EEM', name: 'iShares MSCI Emerging Markets ETF', market: '美股' },
-  { ticker: 'GLD', name: 'SPDR Gold Shares', market: '美股' },
-  { ticker: 'TLT', name: 'iShares 20+ Year Treasury Bond', market: '美股' },
-  { ticker: 'VTV', name: 'Vanguard Value ETF', market: '美股' },
-  { ticker: 'VUG', name: 'Vanguard Growth ETF', market: '美股' },
-  { ticker: 'SCHD', name: 'Schwab US Dividend Equity ETF', market: '美股' },
-  { ticker: 'DIA', name: 'SPDR Dow Jones Industrial Average', market: '美股' },
-  { ticker: 'IWB', name: 'iShares Russell 1000 ETF', market: '美股' },
-  { ticker: 'IJH', name: 'iShares Core S&P Mid-Cap ETF', market: '美股' },
-  { ticker: 'IJR', name: 'iShares Core S&P Small-Cap ETF', market: '美股' },
-  { ticker: 'VXUS', name: 'Vanguard Total International Stock', market: '美股' },
-  { ticker: 'BNDX', name: 'Vanguard Total International Bond', market: '美股' },
-  { ticker: 'TIP', name: 'iShares TIPS Bond ETF', market: '美股' },
-  { ticker: 'HYG', name: 'iShares iBoxx $ High Yield Corporate', market: '美股' },
-  { ticker: 'LQD', name: 'iShares iBoxx $ Investment Grade Corporate', market: '美股' },
-  { ticker: 'MUB', name: 'iShares National Muni Bond ETF', market: '美股' },
-  { ticker: 'VNQ', name: 'Vanguard Real Estate ETF', market: '美股' },
-  { ticker: 'XLF', name: 'Financial Select Sector SPDR', market: '美股' },
-  { ticker: 'XLK', name: 'Technology Select Sector SPDR', market: '美股' },
-  { ticker: 'XLV', name: 'Health Care Select Sector SPDR', market: '美股' },
-  { ticker: 'XLE', name: 'Energy Select Sector SPDR', market: '美股' },
-  { ticker: 'XLY', name: 'Consumer Discretionary Select SPDR', market: '美股' },
-  { ticker: 'XLP', name: 'Consumer Staples Select SPDR', market: '美股' },
-  { ticker: 'XLI', name: 'Industrial Select Sector SPDR', market: '美股' },
-  { ticker: 'XLU', name: 'Utilities Select Sector SPDR', market: '美股' },
-  { ticker: 'XLB', name: 'Materials Select Sector SPDR', market: '美股' },
-  { ticker: 'XLC', name: 'Communication Services Select SPDR', market: '美股' },
-  { ticker: 'VGT', name: 'Vanguard Information Technology ETF', market: '美股' },
-  { ticker: 'VHT', name: 'Vanguard Health Care ETF', market: '美股' },
-  { ticker: 'VFH', name: 'Vanguard Financials ETF', market: '美股' },
-  { ticker: 'VDE', name: 'Vanguard Energy ETF', market: '美股' },
-  { ticker: 'VIS', name: 'Vanguard Industrials ETF', market: '美股' },
-  { ticker: 'VCR', name: 'Vanguard Consumer Discretionary ETF', market: '美股' },
-  { ticker: 'VDC', name: 'Vanguard Consumer Staples ETF', market: '美股' },
-  { ticker: 'VAW', name: 'Vanguard Materials ETF', market: '美股' },
-  { ticker: 'VPU', name: 'Vanguard Utilities ETF', market: '美股' },
-  { ticker: 'VOX', name: 'Vanguard Communication Services ETF', market: '美股' },
-  { ticker: 'VNQI', name: 'Vanguard Global ex-US Real Estate', market: '美股' },
+  { ticker: 'SPY', name: 'S&P 500 ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'VTI',
+    name: 'Vanguard Total Stock Market ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'VOO', name: 'Vanguard S&P 500 ETF', market: 'components.tickerInput.markets.us' },
+  { ticker: 'QQQ', name: 'Invesco QQQ Trust', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'BND',
+    name: 'Vanguard Total Bond Market ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'AGG',
+    name: 'iShares Core US Aggregate Bond',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'IWM', name: 'iShares Russell 2000 ETF', market: 'components.tickerInput.markets.us' },
+  { ticker: 'EFA', name: 'iShares MSCI EAFE ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'EEM',
+    name: 'iShares MSCI Emerging Markets ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'GLD', name: 'SPDR Gold Shares', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'TLT',
+    name: 'iShares 20+ Year Treasury Bond',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'VTV', name: 'Vanguard Value ETF', market: 'components.tickerInput.markets.us' },
+  { ticker: 'VUG', name: 'Vanguard Growth ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'SCHD',
+    name: 'Schwab US Dividend Equity ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'DIA',
+    name: 'SPDR Dow Jones Industrial Average',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'IWB', name: 'iShares Russell 1000 ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'IJH',
+    name: 'iShares Core S&P Mid-Cap ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'IJR',
+    name: 'iShares Core S&P Small-Cap ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'VXUS',
+    name: 'Vanguard Total International Stock',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'BNDX',
+    name: 'Vanguard Total International Bond',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'TIP', name: 'iShares TIPS Bond ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'HYG',
+    name: 'iShares iBoxx $ High Yield Corporate',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'LQD',
+    name: 'iShares iBoxx $ Investment Grade Corporate',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'MUB',
+    name: 'iShares National Muni Bond ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'VNQ', name: 'Vanguard Real Estate ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'XLF',
+    name: 'Financial Select Sector SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'XLK',
+    name: 'Technology Select Sector SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'XLV',
+    name: 'Health Care Select Sector SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'XLE', name: 'Energy Select Sector SPDR', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'XLY',
+    name: 'Consumer Discretionary Select SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'XLP',
+    name: 'Consumer Staples Select SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'XLI',
+    name: 'Industrial Select Sector SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'XLU',
+    name: 'Utilities Select Sector SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'XLB',
+    name: 'Materials Select Sector SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'XLC',
+    name: 'Communication Services Select SPDR',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'VGT',
+    name: 'Vanguard Information Technology ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'VHT', name: 'Vanguard Health Care ETF', market: 'components.tickerInput.markets.us' },
+  { ticker: 'VFH', name: 'Vanguard Financials ETF', market: 'components.tickerInput.markets.us' },
+  { ticker: 'VDE', name: 'Vanguard Energy ETF', market: 'components.tickerInput.markets.us' },
+  { ticker: 'VIS', name: 'Vanguard Industrials ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'VCR',
+    name: 'Vanguard Consumer Discretionary ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'VDC',
+    name: 'Vanguard Consumer Staples ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  { ticker: 'VAW', name: 'Vanguard Materials ETF', market: 'components.tickerInput.markets.us' },
+  { ticker: 'VPU', name: 'Vanguard Utilities ETF', market: 'components.tickerInput.markets.us' },
+  {
+    ticker: 'VOX',
+    name: 'Vanguard Communication Services ETF',
+    market: 'components.tickerInput.markets.us',
+  },
+  {
+    ticker: 'VNQI',
+    name: 'Vanguard Global ex-US Real Estate',
+    market: 'components.tickerInput.markets.us',
+  },
   // 美股个股
-  { ticker: 'AAPL', name: 'Apple Inc.', market: '美股' },
-  { ticker: 'MSFT', name: 'Microsoft Corporation', market: '美股' },
-  { ticker: 'GOOGL', name: 'Alphabet Inc.', market: '美股' },
-  { ticker: 'AMZN', name: 'Amazon.com Inc.', market: '美股' },
-  { ticker: 'NVDA', name: 'NVIDIA Corporation', market: '美股' },
-  { ticker: 'META', name: 'Meta Platforms Inc.', market: '美股' },
-  { ticker: 'TSLA', name: 'Tesla Inc.', market: '美股' },
-  { ticker: 'BRK-B', name: 'Berkshire Hathaway Inc.', market: '美股' },
-  { ticker: 'JPM', name: 'JPMorgan Chase & Co.', market: '美股' },
-  { ticker: 'V', name: 'Visa Inc.', market: '美股' },
-  { ticker: 'JNJ', name: 'Johnson & Johnson', market: '美股' },
-  { ticker: 'WMT', name: 'Walmart Inc.', market: '美股' },
-  { ticker: 'PG', name: 'Procter & Gamble Co.', market: '美股' },
-  { ticker: 'MA', name: 'Mastercard Inc.', market: '美股' },
-  { ticker: 'HD', name: 'The Home Depot Inc.', market: '美股' },
-  { ticker: 'UNH', name: 'UnitedHealth Group', market: '美股' },
-  { ticker: 'DIS', name: 'The Walt Disney Company', market: '美股' },
-  { ticker: 'NFLX', name: 'Netflix Inc.', market: '美股' },
-  { ticker: 'AMD', name: 'Advanced Micro Devices', market: '美股' },
-  { ticker: 'INTC', name: 'Intel Corporation', market: '美股' },
-  { ticker: 'CRM', name: 'Salesforce Inc.', market: '美股' },
-  { ticker: 'ORCL', name: 'Oracle Corporation', market: '美股' },
-  { ticker: 'CSCO', name: 'Cisco Systems Inc.', market: '美股' },
-  { ticker: 'ADBE', name: 'Adobe Inc.', market: '美股' },
-  { ticker: 'PYPL', name: 'PayPal Holdings Inc.', market: '美股' },
-  { ticker: 'KO', name: 'Coca-Cola Company', market: '美股' },
-  { ticker: 'PEP', name: 'PepsiCo Inc.', market: '美股' },
-  { ticker: 'NKE', name: 'Nike Inc.', market: '美股' },
-  { ticker: 'MCD', name: "McDonald's Corporation", market: '美股' },
-  { ticker: 'SBUX', name: 'Starbucks Corporation', market: '美股' },
+  { ticker: 'AAPL', name: 'Apple Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'MSFT', name: 'Microsoft Corporation', market: 'components.tickerInput.markets.us' },
+  { ticker: 'GOOGL', name: 'Alphabet Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'AMZN', name: 'Amazon.com Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'NVDA', name: 'NVIDIA Corporation', market: 'components.tickerInput.markets.us' },
+  { ticker: 'META', name: 'Meta Platforms Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'TSLA', name: 'Tesla Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'BRK-B', name: 'Berkshire Hathaway Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'JPM', name: 'JPMorgan Chase & Co.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'V', name: 'Visa Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'JNJ', name: 'Johnson & Johnson', market: 'components.tickerInput.markets.us' },
+  { ticker: 'WMT', name: 'Walmart Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'PG', name: 'Procter & Gamble Co.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'MA', name: 'Mastercard Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'HD', name: 'The Home Depot Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'UNH', name: 'UnitedHealth Group', market: 'components.tickerInput.markets.us' },
+  { ticker: 'DIS', name: 'The Walt Disney Company', market: 'components.tickerInput.markets.us' },
+  { ticker: 'NFLX', name: 'Netflix Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'AMD', name: 'Advanced Micro Devices', market: 'components.tickerInput.markets.us' },
+  { ticker: 'INTC', name: 'Intel Corporation', market: 'components.tickerInput.markets.us' },
+  { ticker: 'CRM', name: 'Salesforce Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'ORCL', name: 'Oracle Corporation', market: 'components.tickerInput.markets.us' },
+  { ticker: 'CSCO', name: 'Cisco Systems Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'ADBE', name: 'Adobe Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'PYPL', name: 'PayPal Holdings Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'KO', name: 'Coca-Cola Company', market: 'components.tickerInput.markets.us' },
+  { ticker: 'PEP', name: 'PepsiCo Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'NKE', name: 'Nike Inc.', market: 'components.tickerInput.markets.us' },
+  { ticker: 'MCD', name: "McDonald's Corporation", market: 'components.tickerInput.markets.us' },
+  { ticker: 'SBUX', name: 'Starbucks Corporation', market: 'components.tickerInput.markets.us' },
   // A股
-  { ticker: '000001.SZ', name: '平安银行', market: 'A股' },
-  { ticker: '000002.SZ', name: '万科A', market: 'A股' },
-  { ticker: '000858.SZ', name: '五粮液', market: 'A股' },
-  { ticker: '600000.SH', name: '浦发银行', market: 'A股' },
-  { ticker: '600519.SH', name: '贵州茅台', market: 'A股' },
-  { ticker: '601318.SH', name: '中国平安', market: 'A股' },
-  { ticker: '600036.SH', name: '招商银行', market: 'A股' },
-  { ticker: '000333.SZ', name: '美的集团', market: 'A股' },
-  { ticker: '600276.SH', name: '恒瑞医药', market: 'A股' },
-  { ticker: '601012.SH', name: '隆基绿能', market: 'A股' },
-  { ticker: '510300.SH', name: '沪深300ETF', market: 'A股' },
-  { ticker: '510050.SH', name: '上证50ETF', market: 'A股' },
-  { ticker: '159915.SZ', name: '创业板ETF', market: 'A股' },
+  {
+    ticker: '000001.SZ',
+    name: 'components.tickerInput.stocks.pinganBank',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '000002.SZ',
+    name: 'components.tickerInput.stocks.vankeA',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '000858.SZ',
+    name: 'components.tickerInput.stocks.wuliangye',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '600000.SH',
+    name: 'components.tickerInput.stocks.spdb',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '600519.SH',
+    name: 'components.tickerInput.stocks.moutai',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '601318.SH',
+    name: 'components.tickerInput.stocks.pinganInsurance',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '600036.SH',
+    name: 'components.tickerInput.stocks.cmb',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '000333.SZ',
+    name: 'components.tickerInput.stocks.midea',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '600276.SH',
+    name: 'components.tickerInput.stocks.hengrui',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '601012.SH',
+    name: 'components.tickerInput.stocks.longi',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '510300.SH',
+    name: 'components.tickerInput.stocks.csi300Etf',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '510050.SH',
+    name: 'components.tickerInput.stocks.sse50Etf',
+    market: 'components.tickerInput.markets.cn',
+  },
+  {
+    ticker: '159915.SZ',
+    name: 'components.tickerInput.stocks.chinextEtf',
+    market: 'components.tickerInput.markets.cn',
+  },
 ];
 
 /** 预设 Ticker（SIM 系列 + 常用 ETF）映射为建议项 */
@@ -127,6 +292,11 @@ const LOCAL_SUGGESTIONS: TickerSuggestion[] = [
   ...POPULAR_TICKERS.filter((pt) => !ALL_TICKER_PRESETS.some((pp) => pp.ticker === pt.ticker)),
 ];
 
+/** 若 name 以 components. 开头则视为 i18n key 翻译，否则原样返回 */
+function resolveDisplayName(name: string, t: (key: string) => string): string {
+  return name.startsWith('components.') ? t(name) : name;
+}
+
 /** 下拉建议列表 */
 function TickerDropdown({
   suggestions,
@@ -141,6 +311,7 @@ function TickerDropdown({
   onSelect: (s: TickerSuggestion) => void;
   onHover: (idx: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ticker-dropdown">
       {suggestions.map((s, i) => (
@@ -154,12 +325,14 @@ function TickerDropdown({
           onMouseEnter={() => onHover(i)}
         >
           <span className="ticker-dropdown-code">{s.ticker}</span>
-          <span className="ticker-dropdown-name">{s.name}</span>
-          <span className="ticker-dropdown-market">{s.market}</span>
+          <span className="ticker-dropdown-name">{resolveDisplayName(s.name, t)}</span>
+          <span className="ticker-dropdown-market">{resolveDisplayName(s.market, t)}</span>
         </div>
       ))}
       {fetchingRemote && (
-        <div className="ticker-dropdown-item ticker-dropdown-loading">搜索中...</div>
+        <div className="ticker-dropdown-item ticker-dropdown-loading">
+          {t('components.tickerInput.searching')}
+        </div>
       )}
     </div>
   );
@@ -167,19 +340,24 @@ function TickerDropdown({
 
 /** Ticker 搜索逻辑 Hook */
 function useTickerSearch() {
+  const { t } = useTranslation();
   const [suggestions, setSuggestions] = useState<TickerSuggestion[]>([]);
   const [fetchingRemote, setFetchingRemote] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  const filterLocal = useCallback((query: string): TickerSuggestion[] => {
-    if (!query || query.length < 1) return [];
-    const q = query.toUpperCase();
-    return LOCAL_SUGGESTIONS.filter(
-      (t) =>
-        t.ticker.toUpperCase().includes(q) || t.name.toLowerCase().includes(query.toLowerCase()),
-    ).slice(0, 8);
-  }, []);
+  const filterLocal = useCallback(
+    (query: string): TickerSuggestion[] => {
+      if (!query || query.length < 1) return [];
+      const q = query.toUpperCase();
+      return LOCAL_SUGGESTIONS.filter(
+        (item) =>
+          item.ticker.toUpperCase().includes(q) ||
+          resolveDisplayName(item.name, t).toLowerCase().includes(query.toLowerCase()),
+      ).slice(0, 8);
+    },
+    [t],
+  );
 
   const updateSuggestions = useCallback(
     (query: string) => {
@@ -234,6 +412,7 @@ function useTickerSearch() {
 }
 
 export default function TickerInput({ value, onChange, placeholder }: TickerInputProps) {
+  const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -295,7 +474,7 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
           if (value) updateSuggestions(value);
         }}
         onKeyDown={handleKeyDown}
-        placeholder={placeholder || '输入代码'}
+        placeholder={placeholder || t('components.tickerInput.placeholder')}
         className="ticker-input"
         autoComplete="off"
         spellCheck={false}

@@ -3,9 +3,11 @@
  * @description 列出投资组合历史中的重大回撤事件，含起止日期、深度及恢复时长
  */
 import { Fragment } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, DrawdownEpisode } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
 import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../utils/format.js';
+import ChartCard from './ChartCard.js';
 
 /** 回撤片段表 Props */
 interface DrawdownEpisodesProps {
@@ -29,61 +31,61 @@ function calcStats(
 /** 表头 + 数据列定义 */
 const HEADERS = [
   {
-    label: '高点日期',
+    label: 'components.drawdownEpisodes.headers.peakDate',
     align: 'left',
     key: 'peakDate' as const,
     fmt: (ep: DrawdownEpisode) => fmtDate(ep.peakDate),
   },
   {
-    label: '低点日期',
+    label: 'components.drawdownEpisodes.headers.troughDate',
     align: 'left',
     key: 'troughDate' as const,
     fmt: (ep: DrawdownEpisode) => fmtDate(ep.troughDate),
   },
   {
-    label: '恢复日期',
+    label: 'components.drawdownEpisodes.headers.recoveryDate',
     align: 'left',
     key: 'recoveryDate' as const,
     fmt: (ep: DrawdownEpisode) => fmtDate(ep.recoveryDate),
   },
   {
-    label: '深度',
+    label: 'components.drawdownEpisodes.headers.depth',
     align: 'right',
     key: 'depth' as const,
     fmt: (ep: DrawdownEpisode) => fmtPct(ep.depth),
   },
   {
-    label: '到低点时间',
+    label: 'components.drawdownEpisodes.headers.timeToTrough',
     align: 'right',
     key: 'timeToTrough' as const,
     fmt: (ep: DrawdownEpisode) => fmtYears(ep.timeToTrough),
   },
   {
-    label: '恢复时间',
+    label: 'components.drawdownEpisodes.headers.recoveryTime',
     align: 'right',
     key: 'recoveryTime' as const,
     fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.recoveryTime) : '—'),
   },
   {
-    label: '总时间',
+    label: 'components.drawdownEpisodes.headers.totalTime',
     align: 'right',
     key: 'totalTime' as const,
     fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.totalTime) : '—'),
   },
   {
-    label: '恢复因子',
+    label: 'components.drawdownEpisodes.headers.recoveryFactor',
     align: 'right',
     key: 'recoveryFactor' as const,
     fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtRatio(ep.recoveryFactor) : '—'),
   },
   {
-    label: '期间CAGR',
+    label: 'components.drawdownEpisodes.headers.cagrDuring',
     align: 'right',
     key: 'cagrDuring' as const,
     fmt: (ep: DrawdownEpisode) => fmtPct(ep.cagrDuring),
   },
   {
-    label: '期间溃疡指数',
+    label: 'components.drawdownEpisodes.headers.ulcerDuring',
     align: 'right',
     key: 'ulcerDuring' as const,
     fmt: (ep: DrawdownEpisode) => fmtRatio(ep.ulcerDuring),
@@ -104,7 +106,12 @@ const SUMMARY_FIELDS: Array<{
   { key: 'ulcerDuring', label: 'Ulcer During', fmt: fmtRatio },
 ];
 
-const STAT_LABELS = ['最小', '中位', '均值', '最大'] as const;
+const STAT_LABELS = [
+  'components.drawdownEpisodes.statLabels.min',
+  'components.drawdownEpisodes.statLabels.median',
+  'components.drawdownEpisodes.statLabels.avg',
+  'components.drawdownEpisodes.statLabels.max',
+] as const;
 const STAT_KEYS = ['min', 'median', 'avg', 'max'] as const;
 
 /** 统计摘要行 */
@@ -115,6 +122,7 @@ function SummaryRow({
   field: (typeof SUMMARY_FIELDS)[number];
   stats: ReturnType<typeof calcStats>;
 }) {
+  const { t } = useTranslation();
   return (
     <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
       <td
@@ -136,7 +144,7 @@ function SummaryRow({
                 whiteSpace: 'nowrap',
               }}
             >
-              {label}: {field.fmt(stats[STAT_KEYS[si]])}
+              {t(label)}: {field.fmt(stats[STAT_KEYS[si]])}
             </td>
           ))}
           <td
@@ -221,23 +229,23 @@ function PortfolioDrawdownGroup({
 }
 
 export default function DrawdownEpisodes({ portfolios }: DrawdownEpisodesProps) {
+  const { t } = useTranslation();
   const portfoliosWithEpisodes = portfolios.filter(
     (p) => p.drawdownEpisodes && p.drawdownEpisodes.length > 0,
   );
 
   if (portfoliosWithEpisodes.length === 0) {
     return (
-      <div className="chart-card">
+      <ChartCard>
         <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          暂无回撤事件数据
+          {t('components.drawdownEpisodes.noData')}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
   return (
-    <div className="chart-card">
-      <div className="chart-card-title">回撤事件 (≥5%)</div>
+    <ChartCard title={t('components.drawdownEpisodes.title')}>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
@@ -252,7 +260,7 @@ export default function DrawdownEpisodes({ portfolios }: DrawdownEpisodesProps) 
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {h.label}
+                  {t(h.label)}
                 </th>
               ))}
             </tr>
@@ -268,6 +276,6 @@ export default function DrawdownEpisodes({ portfolios }: DrawdownEpisodesProps) 
           </tbody>
         </table>
       </div>
-    </div>
+    </ChartCard>
   );
 }

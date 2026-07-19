@@ -8,20 +8,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
 }));
 
-const portfolioMocks = vi.hoisted(() => ({
-  runPortfolioBacktest: vi.fn(),
-}));
-
-const tacticalMocks = vi.hoisted(() => ({
-  collectTickers: vi.fn(),
-  runTacticalBacktest: vi.fn(),
-  computeSimpleStatistics: vi.fn(),
-  analyzeWhatIf: vi.fn(),
+const engineMocks = vi.hoisted(() => ({
+  callEngineStrict: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -41,15 +35,9 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/engine/backtestRunner.js', () => ({
-  runPortfolioBacktest: portfolioMocks.runPortfolioBacktest,
-}));
-
-vi.mock('../../../packages/backend/src/engine/tactical.js', () => ({
-  collectTickers: tacticalMocks.collectTickers,
-  runTacticalBacktest: tacticalMocks.runTacticalBacktest,
-  computeSimpleStatistics: tacticalMocks.computeSimpleStatistics,
-  analyzeWhatIf: tacticalMocks.analyzeWhatIf,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
+  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
@@ -133,18 +121,24 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    tacticalMocks.collectTickers.mockReturnValue(['SPY']);
-    dataServiceMocks.fetchHistoryData.mockResolvedValue(createMockPriceData());
-    tacticalMocks.runTacticalBacktest.mockReturnValue({
-      result: createMockPortfolioResult(),
-      signalHistory: [
-        { date: '2020-01-01', activeSignals: ['sig-1'], weights: [{ ticker: 'SPY', weight: 100 }] },
-      ],
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({
+      data: createMockPriceData(),
+      degraded: false,
     });
-    portfolioMocks.runPortfolioBacktest.mockReturnValue({
-      portfolios: [createMockPortfolioResult()],
-      benchmarkGrowth: [{ date: '2020-01-01', value: 10000 }],
-    });
+    engineMocks.callEngineStrict
+      .mockResolvedValueOnce({
+        portfolio: createMockPortfolioResult(),
+        signalHistory: [
+          {
+            date: '2020-01-01',
+            activeSignals: ['sig-1'],
+            weights: [{ ticker: 'SPY', weight: 100 }],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        portfolios: [createMockPortfolioResult()],
+      });
     server = await startExpressApp((app) => app.use('/api/tactical', tacticalRoutes));
   });
 
@@ -173,12 +167,11 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     expect(body.data.portfolio).toBeDefined();
     expect(body.data.benchmark).toBeDefined();
     expect(body.data.signalHistory).toHaveLength(1);
-    expect(tacticalMocks.runTacticalBacktest).toHaveBeenCalledTimes(1);
-    expect(portfolioMocks.runPortfolioBacktest).toHaveBeenCalledTimes(1);
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(2);
   });
 
-  it('无效标的数据应返回 422', async () => {
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({});
+  it('无效标的数据应返回 404', async () => {
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
 
     const req = {
       strategy: createValidStrategy(),
@@ -195,7 +188,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     });
     const body = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
     expect(body.error.detail).toContain('SPY');
   });
 
@@ -234,10 +227,9 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     expect(res.status).toBe(400);
   });
 
-  it('runTacticalBacktest 抛错时应返回 500', async () => {
-    tacticalMocks.runTacticalBacktest.mockImplementation(() => {
-      throw new Error('tactical engine error');
-    });
+  it('引擎抛错时应返回 500', async () => {
+    engineMocks.callEngineStrict.mockReset();
+    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('tactical engine error'));
 
     const req = {
       strategy: createValidStrategy(),
@@ -257,22 +249,19 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
   });
 
   it('基准回测失败时应使用空结果兜底', async () => {
-    portfolioMocks.runPortfolioBacktest.mockImplementation(() => {
-      throw new Error('benchmark error');
-    });
-    tacticalMocks.computeSimpleStatistics.mockReturnValue({
-      cagr: 0,
-      mwrr: 0,
-      stdev: 0,
-      sharpe: 0,
-      sortino: 0,
-      maxDrawdown: 0,
-      maxDrawdownDuration: 0,
-      bestYear: 0,
-      worstYear: 0,
-      avgYear: 0,
-      totalReturn: 0,
-    });
+    engineMocks.callEngineStrict.mockReset();
+    engineMocks.callEngineStrict
+      .mockResolvedValueOnce({
+        portfolio: createMockPortfolioResult(),
+        signalHistory: [
+          {
+            date: '2020-01-01',
+            activeSignals: ['sig-1'],
+            weights: [{ ticker: 'SPY', weight: 100 }],
+          },
+        ],
+      })
+      .mockRejectedValueOnce(new Error('benchmark error'));
 
     const req = {
       strategy: createValidStrategy(),
@@ -300,10 +289,15 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    dataServiceMocks.fetchHistoryData.mockResolvedValue(createMockPriceData());
-    tacticalMocks.analyzeWhatIf.mockReturnValue([
-      { ticker: 'SPY', price: 302.0, signals: ['buy'] },
-    ]);
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({
+      data: createMockPriceData(),
+      degraded: false,
+    });
+    engineMocks.callEngineStrict.mockResolvedValue({
+      signalHistory: [
+        { date: '2020-01-03', activeSignals: ['sig-1'], weights: [{ ticker: 'SPY', weight: 100 }] },
+      ],
+    });
     server = await startExpressApp((app) => app.use('/api/tactical', tacticalRoutes));
   });
 
@@ -311,7 +305,7 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     await server.close();
   });
 
-  it('有效参数应返回实时价格和信号状态', async () => {
+  it('有效参数应返回信号状态', async () => {
     const req = {
       tickers: ['SPY'],
       strategy: createValidStrategy(),
@@ -327,8 +321,7 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data[0].ticker).toBe('SPY');
-    expect(body.data[0].price).toBe(302.0);
-    expect(tacticalMocks.analyzeWhatIf).toHaveBeenCalledTimes(1);
+    expect(body.data[0].weight).toBe(100);
   });
 
   it('空 tickers 数组应返回 400（zod 校验失败）', async () => {
@@ -345,13 +338,12 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     expect(res.status).toBe(400);
   });
 
-  it('analyzeWhatIf 抛错时应返回 500', async () => {
-    tacticalMocks.analyzeWhatIf.mockImplementation(() => {
-      throw new Error('what-if error');
-    });
+  it('引擎抛错时应返回 500', async () => {
+    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('what-if error'));
 
     const req = {
       tickers: ['SPY'],
+      strategy: createValidStrategy(),
     };
 
     const res = await fetch(`${server.url}/api/tactical/what-if`, {
@@ -399,10 +391,11 @@ describe('tacticalRoutes - POST /api/tactical/alerts', () => {
     expect(body.data.config.email).toBe('test@example.com');
   });
 
-  it('启用告警但未填邮箱应返回 400', async () => {
+  it('启用告警但未填邮箱应返回 422', async () => {
     const req = {
       config: {
         enabled: true,
+        email: '',
         triggers: ['signal_change'],
       },
     };
@@ -422,6 +415,8 @@ describe('tacticalRoutes - POST /api/tactical/alerts', () => {
     const req = {
       config: {
         enabled: false,
+        email: '',
+        triggers: [],
       },
     };
 

@@ -5,6 +5,7 @@
  * 重点覆盖 ADR-034 异步任务携带租户/owner 归属，与 ADR-031 fail-closed。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { EngineUnavailableErrorStub } from '../helpers/engineRouteMocks.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   logger: {
@@ -15,29 +16,22 @@ vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   },
 }));
 
-const EngineUnavailableError = class EngineUnavailableError extends Error {
-  retryAfterSeconds: number;
-  constructor(endpoint: string, retryAfterSeconds = 30) {
-    super(`Go 引擎不可用: ${endpoint}`);
-    this.name = 'EngineUnavailableError';
-    this.retryAfterSeconds = retryAfterSeconds;
-  }
-};
-
-vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
-  EngineUnavailableError,
-  callEngineStrict: vi.fn(),
-  resetEngineAvailability: vi.fn(),
-  callGoEngineDirect: vi.fn(),
+const { queueAddMock, executeOptimizationMock } = vi.hoisted(() => ({
+  queueAddMock: vi.fn(),
+  executeOptimizationMock: vi.fn(),
 }));
 
-const queueAddMock = vi.fn();
+vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
+  EngineUnavailableError: EngineUnavailableErrorStub,
+  callEngineStrict: vi.fn(),
+  resetEngineAvailability: vi.fn(),
+}));
+
 vi.mock('../../packages/backend/src/queues/backtestQueue.js', () => ({
   backtestQueue: { add: queueAddMock },
 }));
 
-const executeOptimizationMock = vi.fn();
-vi.mock('../../packages/backend/src/application/optimizer-application-service.js', () => ({
+vi.mock('../../packages/backend/src/application/optimize-service.js', () => ({
   executeOptimization: executeOptimizationMock,
 }));
 
@@ -128,7 +122,7 @@ describe('优化器全链路集成测试', () => {
   it('POST /optimize 同步执行引擎不可用时 fail-closed 503 + degraded', async () => {
     queueAddMock.mockRejectedValueOnce(new Error('Redis 不可用'));
     executeOptimizationMock.mockRejectedValueOnce(
-      new EngineUnavailableError('/api/engine/optimize', 60),
+      new EngineUnavailableErrorStub('/api/engine/optimize', 60),
     );
 
     const res = await fetch(`${baseUrl}/api/v1/backtest-optimizer/optimize`, {

@@ -1,37 +1,17 @@
 /**
  * 认证路由（T-P1-8.3）
  *
- * 提供 JWT 认证端点：登录、刷新、登出。
+ * 提供 JWT 认证端点：登录、刷新、登出、用户信息、组织切换。
+ * 注册与邮箱验证路由见 authRegistrationRoutes.ts。
  *
- * 企业理由：JWT/RBAC 实现完整但此前未接入，属于"基础设施建成未接入"。
- * 接入后管理端点可通过 RBAC 区分管理员/分析员/只读角色，
- * 是安全面试核心能力展示。
- *
- * 权衡：
- * - 登录端点使用 ADMIN_API_KEY 作为共享凭证验证（MVP 阶段无用户表），
- *   生产环境应替换为用户名+密码（bcrypt）或 OIDC 集成。
- * - Refresh Token 存储在 Redis（含内存回退），支持多实例部署和 Token Family 复用检测。
- *
- * HTTP 方法语义（F-2 修正）：
- * - POST /login    - 创建新会话/令牌（创建语义，POST 合适）
- * - POST /refresh  - 创建新令牌对（创建语义，POST 合适）
- * - DELETE /logout - 删除会话/令牌（删除语义，DELETE 合适）
- * - GET /me        - 读取当前用户信息（读取语义，GET 合适）
- *
- * 企业理由（logout 使用 DELETE）：
- * - logout 语义为"删除/撤销一个会话或令牌"，对应 REST 中删除资源
- *   （RFC 9110 §9.3 DELETE 方法），DELETE 表示"删除目标资源"。
- * - 使用 DELETE 而非 POST 的好处：
- *   1. 语义明确：HTTP 方法直接表达"删除"意图，工具链/网关可据此做访问控制
- *   2. 缓存友好：DELETE 响应不可缓存但语义清晰，POST 则语义模糊
- *   3. RESTful 一致性：CRUD 操作映射到 HTTP 方法是 REST 架构的核心约束
- * - 旧 POST /logout 保留为 deprecated，通过 RFC 8594 Deprecation + Sunset 头
- *   引导客户端迁移，6 个月过渡期后移除。
+ * HTTP 方法语义：POST /login（创建会话）、POST /refresh（创建令牌）、
+ * DELETE /logout（删除会话）、GET /me（读取用户信息）。
+ * 旧 POST /logout 保留为 deprecated，6 个月过渡期后移除。
  */
 
 import { Router, type Request, type Response } from 'express';
-import { createHash, timingSafeEqual, randomBytes } from 'node:crypto';
-import { config } from '../config/index.js';
+import { timingSafeEqual } from 'node:crypto';
+import { config, SUNSET_DATE_STR } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import {
@@ -44,23 +24,12 @@ import {
   type AuthenticatedRequest,
   type TenantContext,
 } from '../middleware/jwtAuth.js';
+import { hashUserId, requireUser } from '../middleware/authTypes.js';
 import { Role } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
-import { loginSchema, loginPasswordSchema, registerSchema } from '../schemas/auth.js';
-
-function hashUserId(sub: string | undefined): string | undefined {
-  if (!sub) return undefined;
-  return createHash('sha256').update(sub).digest('hex').slice(0, 16);
-}
-import {
-  verifyUser,
-  createUserTx,
-  issueEmailVerificationToken,
-  verifyEmailToken,
-  getUserByEmail,
-} from '../services/userService.js';
-import { getClient } from '../db/index.js';
-import { sendVerificationEmail } from '../services/mailService.js';
+import { loginSchema, loginPasswordSchema } from '../schemas/auth.js';
+import registrationRoutes from './authRegistrationRoutes.js';
+import { verifyUser } from '../services/userService.js';
 import { isLockedOut, recordFailure, clearFailures } from '../services/loginLockout.js';
 import {
   resolveDefaultOrg,
@@ -83,21 +52,7 @@ function orgSummary(m: Membership): Record<string, unknown> {
   };
 }
 
-function requireUser(
-  req: AuthenticatedRequest,
-  res: Response,
-): req is AuthenticatedRequest & { user: NonNullable<AuthenticatedRequest['user']> } {
-  if (!req.user) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
-    return false;
-  }
-  return true;
-}
-
 const router = Router();
-
-/** 废弃端点过渡期截止日期（6 个月后），符合 RFC 8594 Sunset 头规范 */
-const SUNSET_DATE = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
 /**
  * POST /api/v1/auth/login - 登录获取 Access Token + Refresh Token
@@ -233,124 +188,8 @@ router.post(
   },
 );
 
-/** 由名称生成 URL 友好且唯一的 org slug（追加随机后缀避免碰撞）。 */
-function slugify(name: string): string {
-  const base =
-    name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60) || 'org';
-  return `${base}-${randomBytes(3).toString('hex')}`;
-}
-
-/**
- * POST /api/v1/auth/register - 自助注册（ADR-035）
- *
- * 请求体：{ username, password, email, orgName }
- * 在单事务内创建：用户 + 组织 + owner 成员关系；随后签发邮箱验证令牌并发送验证邮件。
- *
- * 企业理由：SaaS 自助开通的核心入口。三者一并落库保证不出现"有用户无组织"的孤儿态；
- * 邮箱验证（异步、不阻塞注册成功）用于防滥用与找回。返回不含令牌——引导用户登录/验证。
- */
-router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
-  const { username, password, email, orgName } = req.body;
-
-  // 预检邮箱占用（最终唯一性仍由 DB 唯一索引兜底）
-  const existing = await getUserByEmail(email);
-  if (existing) {
-    sendProblem(res, 409, 'EMAIL_TAKEN', 'Conflict', { detail: '该邮箱已被注册' });
-    return;
-  }
-
-  const client = await getClient();
-  let userId = '';
-  try {
-    await client.query('BEGIN');
-    const user = await createUserTx(client, username, password, email, 'admin');
-    userId = user.id;
-    const slug = slugify(orgName);
-    const orgRes = await client.query(
-      `INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id`,
-      [orgName, slug],
-    );
-    const orgId = orgRes.rows[0].id as string;
-    await client.query(`INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')`, [
-      orgId,
-      userId,
-    ]);
-    await client.query('COMMIT');
-  } catch (err) {
-    await client.query('ROLLBACK');
-    const msg = String(err);
-    // 唯一约束冲突（用户名/邮箱/slug）
-    if (msg.includes('duplicate key') || msg.includes('unique')) {
-      sendProblem(res, 409, 'ACCOUNT_CONFLICT', 'Conflict', { detail: '用户名或邮箱已被占用' });
-      return;
-    }
-    logger.error({ err: msg }, '[auth] 注册失败');
-    sendProblem(res, 500, 'REGISTER_FAILED', 'Internal Server Error', { detail: '注册失败' });
-    return;
-  } finally {
-    client.release();
-  }
-
-  // 事务外发送验证邮件（失败不影响注册成功，用户可重发）
-  try {
-    const token = await issueEmailVerificationToken(userId);
-    await sendVerificationEmail(email, token);
-  } catch (err) {
-    logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败（可稍后重发）');
-  }
-
-  logger.info({ userId }, '[auth] 注册成功');
-  res.status(201).json({
-    success: true,
-    data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
-  });
-});
-
-/**
- * POST /api/v1/auth/verify-email - 校验邮箱验证令牌（ADR-035）
- *
- * 请求体：{ token }
- */
-router.post('/verify-email', async (req: Request, res: Response) => {
-  const { token } = req.body as { token?: string };
-  if (!token) {
-    sendProblem(res, 422, 'MISSING_TOKEN', 'Missing token', { detail: '缺少 token' });
-    return;
-  }
-  const userId = await verifyEmailToken(token);
-  if (!userId) {
-    sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN', 'Bad Request', {
-      detail: '验证链接无效或已过期',
-    });
-    return;
-  }
-  res.json({ success: true, data: { userId, verified: true } });
-});
-
-/**
- * POST /api/v1/auth/resend-verification - 重发验证邮件（需登录，ADR-035）
- */
-router.post('/resend-verification', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
-  if (!requireUser(req, res)) return;
-  const { email } = req.body as { email?: string };
-  if (!email) {
-    sendProblem(res, 422, 'MISSING_EMAIL', 'Missing email', { detail: '缺少 email' });
-    return;
-  }
-  try {
-    const token = await issueEmailVerificationToken(req.user.sub);
-    await sendVerificationEmail(email, token);
-  } catch (err) {
-    logger.warn({ err: String(err), userId: hashUserId(req.user.sub) }, '[auth] 重发验证邮件失败');
-  }
-  // 不泄露邮箱是否存在/有效，统一返回成功
-  res.json({ success: true, data: { message: '若邮箱有效，验证邮件已发送' } });
-});
+// 挂载注册与邮箱验证路由（拆分自本文件，降低单文件复杂度）
+router.use(registrationRoutes);
 
 /**
  * POST /api/v1/auth/refresh - 使用 Refresh Token 刷新 Access Token
@@ -520,7 +359,7 @@ router.post('/switch-org', jwtAuth, async (req: AuthenticatedRequest, res: Respo
  */
 router.delete('/me', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
   if (!requireUser(req, res)) return;
-  const { anonymizeUser } = await import('../services/userService.js');
+  const { anonymizeUser } = await import('../repositories/userRepo.js');
   await revokeAllUserSessions(req.user.sub);
   const ok = await anonymizeUser(req.user.sub);
   logger.info({ userId: hashUserId(req.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
@@ -538,10 +377,10 @@ router.delete('/me', jwtAuth, async (req: AuthenticatedRequest, res: Response) =
 /** @deprecated 使用 DELETE /logout 替代。Sunset 后将移除此端点。 */
 router.post('/logout', async (req: Request, res: Response) => {
   res.setHeader('Deprecation', 'true');
-  res.setHeader('Sunset', SUNSET_DATE);
+  res.setHeader('Sunset', SUNSET_DATE_STR);
   res.setHeader('Link', '</api/v1/auth/logout>; rel="successor-version"');
   logger.warn(
-    `[DEPRECATED] 客户端调用了废弃端点 POST /logout，请迁移到 DELETE /logout。Sunset: ${SUNSET_DATE}`,
+    `[DEPRECATED] 客户端调用了废弃端点 POST /logout，请迁移到 DELETE /logout。Sunset: ${SUNSET_DATE_STR}`,
   );
 
   const { refreshToken } = req.body as { refreshToken?: string };

@@ -4,9 +4,11 @@
  * @route /about、/limits、/upgrade
  */
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { BarChart3, Shield, Globe, Clock, Database } from 'lucide-react';
 
 export default function AboutPage({ section }: { section?: string }) {
+  const { t } = useTranslation();
   const activeSection = section || 'about';
 
   return (
@@ -14,10 +16,10 @@ export default function AboutPage({ section }: { section?: string }) {
       <div className="bt-page-header">
         <h1 className="bt-page-title">
           {activeSection === 'limits'
-            ? '使用限额'
+            ? t('about.limitsTitle')
             : activeSection === 'upgrade'
-              ? '升级方案'
-              : '关于平台'}
+              ? t('about.upgradeTitle')
+              : t('about.title')}
         </h1>
       </div>
       <div className="bt-main-card card" style={{ padding: 24 }}>
@@ -30,13 +32,13 @@ export default function AboutPage({ section }: { section?: string }) {
   );
 }
 
-const TABS = [
-  { key: 'about', label: '关于', to: '/about' },
-  { key: 'limits', label: '限额', to: '/limits' },
-  { key: 'upgrade', label: '升级', to: '/upgrade' },
-];
-
 function AboutTabs({ activeSection }: { activeSection: string }) {
+  const { t } = useTranslation();
+  const tabs = [
+    { key: 'about', label: t('about.tabs.about'), to: '/about' },
+    { key: 'limits', label: t('about.tabs.limits'), to: '/limits' },
+    { key: 'upgrade', label: t('about.tabs.upgrade'), to: '/upgrade' },
+  ];
   return (
     <div
       style={{
@@ -47,7 +49,7 @@ function AboutTabs({ activeSection }: { activeSection: string }) {
         paddingBottom: 12,
       }}
     >
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <Link
           key={tab.key}
           to={tab.to}
@@ -69,20 +71,20 @@ function AboutTabs({ activeSection }: { activeSection: string }) {
 }
 
 function AboutSection() {
+  const { t } = useTranslation();
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <BarChart3 className="w-8 h-8" style={{ color: 'var(--brand)' }} />
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)' }}>回测平台</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            v1.0.0 · 本地部署 · 数据自主可控
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)' }}>
+            {t('about.brandName')}
           </div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('about.versionInfo')}</div>
         </div>
       </div>
       <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
-        回测平台是一款开源的投资组合回测工具，支持多市场（美股/A股/港股/日股/欧股等）、多货币（USD/CNY）、
-        通胀调整、汇率换算、蒙特卡洛模拟、组合优化和有效前沿分析。所有数据本地存储，无需注册，无隐私泄露风险。
+        {t('about.intro')}
       </div>
       <div
         style={{
@@ -93,23 +95,23 @@ function AboutSection() {
       >
         <FeatureCard
           icon={<Shield className="w-5 h-5" />}
-          title="本地部署"
-          desc="所有数据存储在本地，无需上传到云端，隐私安全"
+          title={t('about.features.localDeployTitle')}
+          desc={t('about.features.localDeployDesc')}
         />
         <FeatureCard
           icon={<Globe className="w-5 h-5" />}
-          title="多市场支持"
-          desc="美股、A股、港股、日股、欧股等全球主要市场"
+          title={t('about.features.multiMarketTitle')}
+          desc={t('about.features.multiMarketDesc')}
         />
         <FeatureCard
           icon={<Clock className="w-5 h-5" />}
-          title="高性能引擎"
-          desc="Rust回测引擎 + Go数据服务，毫秒级响应"
+          title={t('about.features.highPerfTitle')}
+          desc={t('about.features.highPerfDesc')}
         />
         <FeatureCard
           icon={<Database className="w-5 h-5" />}
-          title="丰富数据"
-          desc="支持12000+标的，含价格、财报、因子数据"
+          title={t('about.features.richDataTitle')}
+          desc={t('about.features.richDataDesc')}
         />
       </div>
       <div
@@ -122,26 +124,58 @@ function AboutSection() {
           color: 'var(--text-muted)',
         }}
       >
-        <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-body)' }}>技术栈</div>
-        <div>Rust (回测引擎) · Go (数据服务) · TypeScript (前端+API胶水层) · React + Recharts</div>
+        <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-body)' }}>
+          {t('about.techStackTitle')}
+        </div>
+        <div>{t('about.techStackContent')}</div>
       </div>
     </div>
   );
 }
 
 function LimitsSection() {
+  const { t } = useTranslation();
+  const limits = [
+    {
+      label: t('about.limits.portfolioCountLabel'),
+      value: t('about.limits.portfolioCountValue'),
+      desc: t('about.limits.portfolioCountDesc'),
+    },
+    {
+      label: t('about.limits.tickerCountLabel'),
+      value: t('about.limits.tickerCountValue'),
+      desc: t('about.limits.tickerCountDesc'),
+    },
+    {
+      label: t('about.limits.backtestRangeLabel'),
+      value: t('about.limits.backtestRangeValue'),
+      desc: t('about.limits.backtestRangeDesc'),
+    },
+    {
+      label: t('about.limits.mcSimLabel'),
+      value: t('about.limits.mcSimValue'),
+      desc: t('about.limits.mcSimDesc'),
+    },
+    {
+      label: t('about.limits.fetchFreqLabel'),
+      value: t('about.limits.fetchFreqValue'),
+      desc: t('about.limits.fetchFreqDesc'),
+    },
+    {
+      label: t('about.limits.concurrentLabel'),
+      value: t('about.limits.concurrentValue'),
+      desc: t('about.limits.concurrentDesc'),
+    },
+  ];
   return (
     <div>
       <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
-        当前为本地部署版本，无云端限制。以下限额仅适用于数据获取和计算资源：
+        {t('about.limits.intro')}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        <LimitCard label="组合数量" value="无限制" desc="可同时回测任意数量组合" />
-        <LimitCard label="标的数量" value="12,000+" desc="已缓存标的数量，持续增长" />
-        <LimitCard label="回测时间范围" value="全部历史" desc="从最早可用数据至今" />
-        <LimitCard label="蒙特卡洛模拟" value="无限制" desc="本地计算，无次数限制" />
-        <LimitCard label="数据获取频率" value="保守策略" desc="Yahoo 30次/分钟，iTick需Token" />
-        <LimitCard label="并发回测" value="受CPU限制" desc="Go引擎使用goroutine并行" />
+        {limits.map((l) => (
+          <LimitCard key={l.label} label={l.label} value={l.value} desc={l.desc} />
+        ))}
       </div>
       <div
         style={{
@@ -153,19 +187,22 @@ function LimitsSection() {
           color: 'var(--text-body)',
         }}
       >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>注意</div>
-        数据获取受第三方API限流影响。yfinance默认30请求/分钟，iTick API需注册获取Token。
-        建议使用增量更新而非全量更新，避免触发限流。
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('about.limits.noticeTitle')}</div>
+        {t('about.limits.noticeContent')}
       </div>
     </div>
   );
 }
 
 function UpgradeSection() {
+  const { t } = useTranslation();
+  const freePlanFeatures = t('about.upgrade.freePlanFeatures', { returnObjects: true }) as string[];
+  const dataPlanFeatures = t('about.upgrade.dataPlanFeatures', { returnObjects: true }) as string[];
+  const perfPlanFeatures = t('about.upgrade.perfPlanFeatures', { returnObjects: true }) as string[];
   return (
     <div>
       <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
-        当前版本已包含所有核心功能。以下为可选的增强方案：
+        {t('about.upgrade.intro')}
       </div>
       <div
         style={{
@@ -175,40 +212,20 @@ function UpgradeSection() {
         }}
       >
         <PlanCard
-          title="免费版（当前）"
-          price="免费"
+          title={t('about.upgrade.freePlanTitle')}
+          price={t('about.upgrade.freePlanPrice')}
           current
-          features={[
-            '组合回测 + 16个分析Tab',
-            '蒙特卡洛模拟',
-            '组合优化 + 有效前沿',
-            '资产分析',
-            '12,000+标的',
-            'USD/CNY双货币',
-            '通胀调整 + 汇率换算',
-          ]}
+          features={freePlanFeatures}
         />
         <PlanCard
-          title="数据增强"
-          price="自行配置"
-          features={[
-            'iTick API Token（实时行情）',
-            'TradingView Screener（财报数据）',
-            'BaoStock TCP直连（A股数据）',
-            '自定义数据源接入',
-            '更快的获取速度',
-            '更高的因子覆盖率',
-          ]}
+          title={t('about.upgrade.dataPlanTitle')}
+          price={t('about.upgrade.dataPlanPrice')}
+          features={dataPlanFeatures}
         />
         <PlanCard
-          title="性能增强"
-          price="硬件升级"
-          features={[
-            '更多CPU核心 → 更快蒙特卡洛',
-            'SSD → 更快数据加载',
-            '更大内存 → 更多缓存标的',
-            'GPU加速（未来支持）',
-          ]}
+          title={t('about.upgrade.perfPlanTitle')}
+          price={t('about.upgrade.perfPlanPrice')}
+          features={perfPlanFeatures}
         />
       </div>
     </div>
@@ -262,6 +279,7 @@ function PlanCard({
   features: string[];
   current?: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -305,7 +323,7 @@ function PlanCard({
             fontWeight: 600,
           }}
         >
-          当前方案
+          {t('about.upgrade.currentPlan')}
         </div>
       )}
     </div>

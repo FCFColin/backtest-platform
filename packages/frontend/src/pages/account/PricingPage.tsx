@@ -4,6 +4,7 @@
  * @route /pricing
  */
 import { Check, X, Star, Zap, Crown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface Plan {
   name: string;
@@ -16,69 +17,74 @@ interface Plan {
   cta: string;
 }
 
-const PLANS: Plan[] = [
-  {
-    name: 'Free',
-    icon: <Star className="w-5 h-5" />,
-    price: '免费',
-    period: '',
-    desc: '适合个人学习与基础回测体验',
-    features: [
-      { text: '基础组合回测', included: true },
-      { text: '最多 3 个组合', included: true },
-      { text: '1 年历史数据', included: true },
-      { text: '基础统计指标', included: true },
-      { text: '蒙特卡洛模拟', included: false },
-      { text: '组合优化', included: false },
-      { text: 'API 访问', included: false },
-      { text: '优先技术支持', included: false },
-    ],
-    cta: '当前方案',
-  },
-  {
-    name: 'Pro',
-    icon: <Zap className="w-5 h-5" />,
-    price: '$10',
-    period: '/月',
-    desc: '面向进阶投资者的完整回测工具集',
-    recommended: true,
-    features: [
-      { text: '高级组合回测', included: true },
-      { text: '无限组合数量', included: true },
-      { text: '10 年历史数据', included: true },
-      { text: '全部 16 个分析 Tab', included: true },
-      { text: '蒙特卡洛模拟', included: true },
-      { text: '组合优化 + 有效前沿', included: true },
-      { text: 'API 访问', included: false },
-      { text: '优先技术支持', included: false },
-    ],
-    cta: '升级到 Pro',
-  },
-  {
-    name: 'Pro+',
-    icon: <Crown className="w-5 h-5" />,
-    price: '$25',
-    period: '/月',
-    desc: '专业级全功能方案，含 API 与专属支持',
-    features: [
-      { text: '所有 Pro 功能', included: true },
-      { text: '无限组合数量', included: true },
-      { text: '全部历史数据', included: true },
-      { text: '全部 16 个分析 Tab', included: true },
-      { text: '蒙特卡洛模拟', included: true },
-      { text: '组合优化 + 有效前沿', included: true },
-      { text: 'API 访问（REST + WebSocket）', included: true },
-      { text: '优先技术支持（24h 响应）', included: true },
-    ],
-    cta: '升级到 Pro+',
-  },
-];
+function usePlans(): Plan[] {
+  const { t } = useTranslation();
+  return [
+    {
+      name: 'Free',
+      icon: <Star className="w-5 h-5" />,
+      price: t('account.pricing.plans.free.price'),
+      period: '',
+      desc: t('account.pricing.plans.free.desc'),
+      features: [
+        { text: t('account.pricing.features.basicBacktest'), included: true },
+        { text: t('account.pricing.features.max3Portfolios'), included: true },
+        { text: t('account.pricing.features.1yrData'), included: true },
+        { text: t('account.pricing.features.basicStats'), included: true },
+        { text: t('account.pricing.features.monteCarlo'), included: false },
+        { text: t('account.pricing.features.portfolioOpt'), included: false },
+        { text: t('account.pricing.features.apiAccess'), included: false },
+        { text: t('account.pricing.features.prioritySupport'), included: false },
+      ],
+      cta: t('account.pricing.plans.free.cta'),
+    },
+    {
+      name: 'Pro',
+      icon: <Zap className="w-5 h-5" />,
+      price: '$10',
+      period: t('account.pricing.periodMonth'),
+      desc: t('account.pricing.plans.pro.desc'),
+      recommended: true,
+      features: [
+        { text: t('account.pricing.features.advancedBacktest'), included: true },
+        { text: t('account.pricing.features.unlimitedPortfolios'), included: true },
+        { text: t('account.pricing.features.10yrData'), included: true },
+        { text: t('account.pricing.features.all16Tabs'), included: true },
+        { text: t('account.pricing.features.monteCarlo'), included: true },
+        { text: t('account.pricing.features.optAndFrontier'), included: true },
+        { text: t('account.pricing.features.apiAccess'), included: false },
+        { text: t('account.pricing.features.prioritySupport'), included: false },
+      ],
+      cta: t('account.pricing.plans.pro.cta'),
+    },
+    {
+      name: 'Pro+',
+      icon: <Crown className="w-5 h-5" />,
+      price: '$25',
+      period: t('account.pricing.periodMonth'),
+      desc: t('account.pricing.plans.proPlus.desc'),
+      features: [
+        { text: t('account.pricing.features.allProFeatures'), included: true },
+        { text: t('account.pricing.features.unlimitedPortfolios'), included: true },
+        { text: t('account.pricing.features.allHistoryData'), included: true },
+        { text: t('account.pricing.features.all16Tabs'), included: true },
+        { text: t('account.pricing.features.monteCarlo'), included: true },
+        { text: t('account.pricing.features.optAndFrontier'), included: true },
+        { text: t('account.pricing.features.apiRestWs'), included: true },
+        { text: t('account.pricing.features.prioritySupport24h'), included: true },
+      ],
+      cta: t('account.pricing.plans.proPlus.cta'),
+    },
+  ];
+}
 
 export default function PricingPage() {
+  const { t } = useTranslation();
+  const plans = usePlans();
   return (
     <div className="bt-page">
       <div className="bt-page-header">
-        <h1 className="bt-page-title">定价方案</h1>
+        <h1 className="bt-page-title">{t('account.pricing.title')}</h1>
       </div>
       <div className="bt-main-card card" style={{ padding: 24 }}>
         <div
@@ -90,7 +96,7 @@ export default function PricingPage() {
             textAlign: 'center',
           }}
         >
-          选择适合你的方案。所有方案均支持随时升级或降级，无需长期合约。
+          {t('account.pricing.intro')}
         </div>
         <div
           style={{
@@ -101,7 +107,7 @@ export default function PricingPage() {
             alignItems: 'stretch',
           }}
         >
-          {PLANS.map((plan) => (
+          {plans.map((plan) => (
             <PlanCard key={plan.name} plan={plan} />
           ))}
         </div>
@@ -113,29 +119,70 @@ export default function PricingPage() {
 }
 
 function ComparisonTable() {
+  const { t } = useTranslation();
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 12 }}>
-        功能限额对比
+        {t('account.pricing.comparisonTitle')}
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border-soft)' }}>
-              <CompareTh text="功能" align="left" color="var(--text-muted)" weight={600} />
+              <CompareTh
+                text={t('account.pricing.compare.feature')}
+                align="left"
+                color="var(--text-muted)"
+                weight={600}
+              />
               <CompareTh text="Free" align="center" color="var(--text-muted)" weight={600} />
               <CompareTh text="Pro" align="center" color="var(--brand)" weight={700} />
               <CompareTh text="Pro+" align="center" color="var(--text-muted)" weight={600} />
             </tr>
           </thead>
           <tbody>
-            <CompareRow feature="组合数量" free="3 个" pro="无限" proPlus="无限" />
-            <CompareRow feature="历史数据范围" free="1 年" pro="10 年" proPlus="全部" />
-            <CompareRow feature="分析 Tab" free="基础" pro="全部 16 个" proPlus="全部 16 个" />
-            <CompareRow feature="蒙特卡洛模拟" free="—" pro="✓" proPlus="✓" />
-            <CompareRow feature="组合优化" free="—" pro="✓" proPlus="✓" />
-            <CompareRow feature="API 访问" free="—" pro="—" proPlus="✓" />
-            <CompareRow feature="优先支持" free="—" pro="—" proPlus="24h 响应" />
+            <CompareRow
+              feature={t('account.pricing.compare.portfolioCount')}
+              free={t('account.pricing.compare.3portfolios')}
+              pro={t('account.pricing.compare.unlimited')}
+              proPlus={t('account.pricing.compare.unlimited')}
+            />
+            <CompareRow
+              feature={t('account.pricing.compare.historyRange')}
+              free={t('account.pricing.compare.1yr')}
+              pro={t('account.pricing.compare.10yr')}
+              proPlus={t('account.pricing.compare.all')}
+            />
+            <CompareRow
+              feature={t('account.pricing.compare.analysisTabs')}
+              free={t('account.pricing.compare.basic')}
+              pro={t('account.pricing.compare.all16')}
+              proPlus={t('account.pricing.compare.all16')}
+            />
+            <CompareRow
+              feature={t('account.pricing.features.monteCarlo')}
+              free="—"
+              pro="✓"
+              proPlus="✓"
+            />
+            <CompareRow
+              feature={t('account.pricing.features.portfolioOpt')}
+              free="—"
+              pro="✓"
+              proPlus="✓"
+            />
+            <CompareRow
+              feature={t('account.pricing.features.apiAccess')}
+              free="—"
+              pro="—"
+              proPlus="✓"
+            />
+            <CompareRow
+              feature={t('account.pricing.compare.prioritySupport')}
+              free="—"
+              pro="—"
+              proPlus={t('account.pricing.compare.24hResponse')}
+            />
           </tbody>
         </table>
       </div>
@@ -169,6 +216,7 @@ function CompareTh({
 }
 
 function PricingNotice() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -181,9 +229,8 @@ function PricingNotice() {
         lineHeight: 1.7,
       }}
     >
-      <strong style={{ color: 'var(--text-body)' }}>说明：</strong>
-      当前为本地部署版本，已包含全部核心功能。上述定价方案仅适用于未来云端服务版本，本地部署无任何使用限制。
-      数据获取仍受第三方 API 限流影响（如 Yahoo 30 次/分钟）。
+      <strong style={{ color: 'var(--text-body)' }}>{t('account.pricing.noticeTitle')}</strong>
+      {t('account.pricing.noticeBody')}
     </div>
   );
 }
@@ -215,6 +262,7 @@ function PlanCard({ plan }: { plan: Plan }) {
 }
 
 function RecommendedBadge() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -231,7 +279,7 @@ function RecommendedBadge() {
         whiteSpace: 'nowrap',
       }}
     >
-      推荐
+      {t('account.pricing.recommended')}
     </div>
   );
 }

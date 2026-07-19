@@ -20,7 +20,7 @@ vi.mock('../../../packages/backend/src/utils/httpClient.js', () => ({
   callService: callServiceMock,
 }));
 
-vi.mock('../../../packages/backend/src/services/tickerDataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/tickerDataService.js', () => ({
   scanTickersStats: engineServiceMocks.scanTickersStats,
   getUniverseStats: engineServiceMocks.getUniverseStats,
 }));

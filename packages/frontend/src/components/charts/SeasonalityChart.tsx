@@ -2,6 +2,7 @@
  * @file 季节性收益柱状图
  * @description 展示投资组合按月份统计的平均收益季节性分布
  */
+import { useTranslation } from 'react-i18next';
 import type { PortfolioResult } from '@backtest/shared';
 import { BarChartContent } from './sharedChartContent.js';
 import ChartCard from '../ChartCard.js';
@@ -11,26 +12,11 @@ interface SeasonalityChartProps {
   portfolios: PortfolioResult[];
 }
 
-const MONTH_LABELS = [
-  '1月',
-  '2月',
-  '3月',
-  '4月',
-  '5月',
-  '6月',
-  '7月',
-  '8月',
-  '9月',
-  '10月',
-  '11月',
-  '12月',
-];
-
 export default function SeasonalityChart({ portfolios }: SeasonalityChartProps) {
+  const { t } = useTranslation();
   if (portfolios.length === 0) {
     return (
-      <div className="chart-card">
-        <div className="chart-card-title">季节性</div>
+      <ChartCard title={t('charts.seasonality.title')}>
         <div
           style={{
             color: 'var(--text-muted)',
@@ -39,16 +25,19 @@ export default function SeasonalityChart({ portfolios }: SeasonalityChartProps) 
             textAlign: 'center',
           }}
         >
-          暂无组合数据
+          {t('charts.seasonality.noData')}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
-  const data = computeSeasonalityData(portfolios);
+  const monthLabels = Array.from({ length: 12 }, (_, i) =>
+    t('charts.seasonality.monthLabel', { n: i + 1 }),
+  );
+  const data = computeSeasonalityData(portfolios, monthLabels);
 
   return (
-    <ChartCard title="季节性" data={data} csvFilename="seasonality">
+    <ChartCard title={t('charts.seasonality.title')} data={data} csvFilename="seasonality">
       <BarChartContent
         data={data}
         seriesNames={portfolios.map((p) => p.name)}
@@ -56,7 +45,7 @@ export default function SeasonalityChart({ portfolios }: SeasonalityChartProps) 
         height={400}
         yTickFormatter={(v) => `${v.toFixed(0)}%`}
         tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, '']}
-        yLabel="平均收益 (%)"
+        yLabel={t('charts.seasonality.avgReturnAxis')}
         barRadius={2}
         signColorSingleSeries
       />
@@ -64,7 +53,7 @@ export default function SeasonalityChart({ portfolios }: SeasonalityChartProps) 
   );
 }
 
-function computeSeasonalityData(portfolios: PortfolioResult[]) {
+function computeSeasonalityData(portfolios: PortfolioResult[], monthLabels: string[]) {
   const monthData: Record<number, Record<string, { sum: number; count: number }>> = {};
   for (let m = 1; m <= 12; m++) {
     monthData[m] = {};
@@ -82,7 +71,7 @@ function computeSeasonalityData(portfolios: PortfolioResult[]) {
 
   return Array.from({ length: 12 }, (_, i) => {
     const m = i + 1;
-    const row: Record<string, number | string> = { month: MONTH_LABELS[i] };
+    const row: Record<string, number | string> = { month: monthLabels[i] };
     for (const p of portfolios) {
       const d = monthData[m][p.name];
       if (d && d.count > 0) {

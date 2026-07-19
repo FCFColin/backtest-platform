@@ -10,7 +10,7 @@ const dbMocks = vi.hoisted(() => ({
   withTenant: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTenant: (tenantId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) => {
     dbMocks.withTenant(tenantId);
     return fn({ query: dbMocks.query });
@@ -21,7 +21,7 @@ import {
   listPortfolios,
   createPortfolio,
   updatePortfolio,
-} from '../../../packages/backend/src/services/portfolioRepo.js';
+} from '../../../packages/backend/src/repositories/portfolioRepo.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const PORTFOLIO_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -61,7 +61,7 @@ describe('portfolioRepo 空数据库', () => {
   it('getPortfolio 不存在应返回 null', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     const { getPortfolio } =
-      await import('../../../packages/backend/src/services/portfolioRepo.js');
+      await import('../../../packages/backend/src/repositories/portfolioRepo.js');
     expect(await getPortfolio(TENANT, PORTFOLIO_ID)).toBeNull();
   });
 });
@@ -70,7 +70,10 @@ describe('portfolioRepo CRUD 边界', () => {
   const baseRow = {
     id: PORTFOLIO_ID,
     name: '60/40',
-    assets: [{ ticker: 'SPY', weight: 60 }],
+    assets: [
+      { ticker: 'SPY', weight: 60 },
+      { ticker: 'BND', weight: 40 },
+    ],
     rebalance_frequency: 'monthly',
     owner_user_id: 'u1',
     created_at: new Date('2026-06-01T00:00:00.000Z'),
@@ -81,7 +84,10 @@ describe('portfolioRepo CRUD 边界', () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
     const r = await createPortfolio(TENANT, 'u1', {
       name: '60/40',
-      assets: [{ ticker: 'SPY', weight: 60 }],
+      assets: [
+        { ticker: 'SPY', weight: 60 },
+        { ticker: 'BND', weight: 40 },
+      ],
     });
     expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
     expect(r).toMatchObject({
@@ -99,7 +105,10 @@ describe('portfolioRepo CRUD 边界', () => {
     });
     const r = await createPortfolio(TENANT, null, {
       name: '60/40',
-      assets: [{ ticker: 'SPY', weight: 60 }],
+      assets: [
+        { ticker: 'SPY', weight: 60 },
+        { ticker: 'BND', weight: 40 },
+      ],
     });
     expect(r.ownerUserId).toBeNull();
   });
@@ -119,7 +128,10 @@ describe('portfolioRepo CRUD 边界', () => {
     });
     const r = await updatePortfolio(TENANT, PORTFOLIO_ID, {
       name: '80/20',
-      assets: [{ ticker: 'SPY', weight: 80 }],
+      assets: [
+        { ticker: 'SPY', weight: 80 },
+        { ticker: 'BND', weight: 20 },
+      ],
       rebalanceFrequency: 'quarterly',
     });
     expect(r).not.toBeNull();

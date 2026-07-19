@@ -1,29 +1,31 @@
+/**
+ * analysis-service 单元测试
+ *
+ * 合并后覆盖：单资产分析、PCA、LETF、目标优化。
+ * 所有计算逻辑已迁移到 Go 引擎，测试通过 mock callEngineStrict 验证编排逻辑。
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { PCARequest, GoalOptimizerRequest } from '@backtest/shared';
 import type { LETFRequest } from '@backtest/shared/types/letf.js';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const engineMocks = vi.hoisted(() => ({
-  performPCA: vi.fn(),
-  toSortedSeries: vi.fn(),
-  analyzeLetfSlippage: vi.fn(),
-  optimizeGoals: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/engine/pca.js', () => ({
-  performPCA: engineMocks.performPCA,
+const dataMocks = vi.hoisted(() => ({
+  fetchHistoryData: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/engine/seriesUtils.js', () => ({
-  toSortedSeries: engineMocks.toSortedSeries,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
 }));
 
-vi.mock('../../../packages/backend/src/engine/letf.js', () => ({
-  analyzeLetfSlippage: engineMocks.analyzeLetfSlippage,
+vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+  fetchHistoryData: dataMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/engine/goalOptimizer.js', () => ({
-  optimizeGoals: engineMocks.optimizeGoals,
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import {
   executePcaAnalyze,
@@ -32,12 +34,14 @@ import {
   executeLetfAnalyze,
   validateGoalOptimizerAssets,
   executeGoalOptimize,
-} from '../../../packages/backend/src/application/analytics-application-service.js';
+  executePcaAnalyzeWithFetch,
+} from '../../../packages/backend/src/services/analysis-orchestrator.js';
 
 const mockPriceData: Record<string, Record<string, number>> = {
   AAPL: { '2020-01-02': 100, '2020-01-03': 101, '2020-01-06': 102 },
   SPY: { '2020-01-02': 300, '2020-01-03': 302, '2020-01-06': 305 },
   TLT: { '2020-01-02': 150, '2020-01-03': 149, '2020-01-06': 151 },
+  SSO: { '2020-01-02': 50, '2020-01-03': 51 },
 };
 
 const mockPcaResult = {
@@ -51,44 +55,20 @@ const mockPcaResult = {
   tickers: ['AAPL', 'SPY'],
 };
 
-const mockSortedSeries = [
-  { date: '2020-01-02', value: 100 },
-  { date: '2020-01-03', value: 101 },
-];
-
-const mockLetfResult = {
-  slippageCurve: [{ date: '2020-01-02', slippage: 0.01 }],
-  annualDecay: 0.05,
-  effectiveLeverage: [2.8],
-  stats: {
-    benchmarkReturn: 0.1,
-    letfReturn: 0.08,
-    expectedReturn: 0.2,
-    slippage: 0.12,
-  },
-};
-
-const mockGoalOptimizerResult = {
-  successProbability: 0.75,
-  probabilityCurve: [{ amount: 100000, probability: 0.75 }],
-  optimalPath: [{ year: 1, median: 105000, p10: 95000, p90: 115000 }],
-  recommendation: {
-    expectedReturn: 0.08,
-    requiredContribution: 5000,
-    successRate: 0.75,
-  },
-};
-
-describe('analytics-application-service', () => {
+describe('analysis-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('executePcaAnalyze', () => {
-    it('应使用正确参数调用 performPCA 并返回结果', () => {
-      engineMocks.performPCA.mockReturnValue(mockPcaResult);
-      const result = executePcaAnalyze(['AAPL', 'SPY'], mockPriceData, 2);
-      expect(engineMocks.performPCA).toHaveBeenCalledWith(['AAPL', 'SPY'], mockPriceData, 2);
+    it('应使用正确参数调用引擎并返回结果', async () => {
+      engineMocks.callEngineStrict.mockResolvedValue(mockPcaResult);
+      const result = await executePcaAnalyze(['AAPL', 'SPY'], mockPriceData, 2);
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/pca', {
+        tickers: ['AAPL', 'SPY'],
+        priceData: mockPriceData,
+        numComponents: 2,
+      });
       expect(result).toBe(mockPcaResult);
     });
 
@@ -118,7 +98,7 @@ describe('analytics-application-service', () => {
 
     it('空 tickers 应抛出错误', () => {
       expect(() => validatePcaRequest({ ...validReq, tickers: [] })).toThrow(
-        'Missing or invalid field: tickers (must be a non-empty array)',
+        'Missing or invalid field: tickers',
       );
     });
 
@@ -149,21 +129,18 @@ describe('analytics-application-service', () => {
       SPY: { '2020-01-02': 300, '2020-01-03': 302 },
     };
 
-    it('应使用正确参数调用引擎并返回结果', () => {
-      engineMocks.toSortedSeries
-        .mockReturnValueOnce(mockSortedSeries)
-        .mockReturnValueOnce(mockSortedSeries);
-      engineMocks.analyzeLetfSlippage.mockReturnValue(mockLetfResult);
+    it('应使用正确参数调用引擎并返回结果', async () => {
+      const mockLetfResult = { annualDecay: 0.05, effectiveLeverage: [2.8] };
+      engineMocks.callEngineStrict.mockResolvedValue(mockLetfResult);
 
-      const result = executeLetfAnalyze(letfReq, letfPriceData);
+      const result = await executeLetfAnalyze(letfReq, letfPriceData);
 
-      expect(engineMocks.toSortedSeries).toHaveBeenCalledWith(letfPriceData.SSO);
-      expect(engineMocks.toSortedSeries).toHaveBeenCalledWith(letfPriceData.SPY);
-      expect(engineMocks.analyzeLetfSlippage).toHaveBeenCalledWith(
-        mockSortedSeries,
-        mockSortedSeries,
-        2,
-      );
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/letf-analyze', {
+        letfTicker: 'SSO',
+        benchmarkTicker: 'SPY',
+        leverage: 2,
+        priceData: letfPriceData,
+      });
       expect(result).toBe(mockLetfResult);
     });
 
@@ -173,7 +150,7 @@ describe('analytics-application-service', () => {
           string,
           Record<string, number>
         >),
-      ).toThrow('未找到杠杆 ETF SSO 的价格数据');
+      ).toThrow('杠杆 ETF SSO');
     });
 
     it('缺失基准数据时应抛出错误', () => {
@@ -182,7 +159,7 @@ describe('analytics-application-service', () => {
           string,
           Record<string, number>
         >),
-      ).toThrow('未找到基准指数 SPY 的价格数据');
+      ).toThrow('基准指数 SPY');
     });
   });
 
@@ -223,16 +200,19 @@ describe('analytics-application-service', () => {
       ],
     };
 
-    it('应使用正确参数调用 optimizeGoals 并返回结果', () => {
-      engineMocks.optimizeGoals.mockReturnValue(mockGoalOptimizerResult);
-      const result = executeGoalOptimize(goalReq, mockPriceData, '2020-01-01', '2020-12-31');
-      expect(engineMocks.optimizeGoals).toHaveBeenCalledWith(
-        goalReq,
-        mockPriceData,
-        '2020-01-01',
-        '2020-12-31',
-      );
-      expect(result).toBe(mockGoalOptimizerResult);
+    it('应使用正确参数调用引擎并返回结果', async () => {
+      const mockGoalResult = { successProbability: 0.75 };
+      engineMocks.callEngineStrict.mockResolvedValue(mockGoalResult);
+
+      const result = await executeGoalOptimize(goalReq, mockPriceData, '2020-01-01', '2020-12-31');
+
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith('/api/engine/goal-optimize', {
+        ...goalReq,
+        priceData: mockPriceData,
+        startDate: '2020-01-01',
+        endDate: '2020-12-31',
+      });
+      expect(result).toBe(mockGoalResult);
     });
 
     it('缺失 ticker 数据时应抛出错误', () => {
@@ -245,17 +225,25 @@ describe('analytics-application-service', () => {
         ),
       ).toThrow('以下资产未找到价格数据: AAPL');
     });
+  });
 
-    it('历史数据不足时应抛出错误', () => {
-      const emptyResult = {
-        ...mockGoalOptimizerResult,
-        successProbability: 0,
-        probabilityCurve: [],
-      };
-      engineMocks.optimizeGoals.mockReturnValue(emptyResult);
-      expect(() => executeGoalOptimize(goalReq, mockPriceData, '2020-01-01', '2020-12-31')).toThrow(
-        '历史价格数据不足，无法计算收益率统计',
-      );
+  describe('executePcaAnalyzeWithFetch', () => {
+    it('应先获取数据再调用引擎', async () => {
+      dataMocks.fetchHistoryData.mockResolvedValue({
+        data: mockPriceData,
+        degraded: false,
+      });
+      engineMocks.callEngineStrict.mockResolvedValue(mockPcaResult);
+
+      const result = await executePcaAnalyzeWithFetch({
+        tickers: ['AAPL', 'SPY'],
+        startDate: '2020-01-01',
+        endDate: '2020-12-31',
+      });
+
+      expect(dataMocks.fetchHistoryData).toHaveBeenCalled();
+      expect(engineMocks.callEngineStrict).toHaveBeenCalled();
+      expect(result).toBe(mockPcaResult);
     });
   });
 });

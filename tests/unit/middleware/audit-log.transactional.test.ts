@@ -39,8 +39,8 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-// Mock db/index.js：getPool 返回带 mock query 的对象
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+// Mock db/pool.js：getPool 返回带 mock query 的对象
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: poolMocks.query }),
 }));
 

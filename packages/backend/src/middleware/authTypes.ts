@@ -6,8 +6,9 @@
  */
 
 import crypto from 'crypto';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { config } from '../config/index.js';
+import { sendProblem } from '../utils/errors.js';
 
 /** 组织内成员角色（owner 为组织创建者） */
 export type OrgRole = 'owner' | 'admin' | 'analyst' | 'readonly';
@@ -89,4 +90,20 @@ export function attachAuthLogContext(req: AuthenticatedRequest): void {
       role: req.user?.role,
     }) as typeof reqWithLog.log;
   }
+}
+
+/**
+ * 类型守卫：确保请求已认证（req.user 非空），否则直接返回 401。
+ *
+ * @returns true 表示已认证，可安全访问 req.user
+ */
+export function requireUser(
+  req: AuthenticatedRequest,
+  res: Response,
+): req is AuthenticatedRequest & { user: NonNullable<AuthenticatedRequest['user']> } {
+  if (!req.user) {
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+    return false;
+  }
+  return true;
 }

@@ -1,20 +1,13 @@
 /**
- * RFC 7807 Problem Details 统一错误响应
+ * RFC 7807 Problem Details 统一错误响应 + 类型化错误层级
  *
- * 企业理由：路由层三种错误格式混用（字符串/{code,message}/自由文本），
+ * 企业理由：路由层此前三种错误格式混用（字符串匹配/{code,message}/自由文本），
  * 前端需处理多种格式。RFC 7807 是 HTTP API 错误标准。
- * 权衡：需改动所有路由，但前端错误处理简化。
+ *
+ * P0 统一错误处理：引入 ApplicationError 类层级，消除路由层字符串匹配错误的反模式。
+ * 应用服务抛出类型化错误，路由层统一处理器自动翻译为 HTTP 状态码。
  */
 import type { Response } from 'express';
-
-export interface ProblemDetail {
-  type: string; // 错误类型 URI
-  title: string; // 人类可读标题
-  status: number; // HTTP 状态码
-  code?: string; // 应用特定错误码
-  detail?: string; // 详细信息
-  instance?: string; // 请求路径
-}
 
 /** sendProblem 的可选扩展项 */
 export interface SendProblemOptions {
@@ -30,6 +23,58 @@ export interface SendProblemOptions {
 
 export function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+// ---------------------------------------------------------------------------
+// 类型化错误层级 — 替代路由层字符串匹配
+// ---------------------------------------------------------------------------
+
+/**
+ * 应用层错误基类。
+ *
+ * 所有应用服务抛出的业务错误应继承此类，
+ * 路由层通过 asyncRouteHandler 统一捕获并翻译为 HTTP 响应。
+ */
+export abstract class ApplicationError extends Error {
+  abstract readonly statusCode: number;
+  abstract readonly errorCode: string;
+  abstract readonly errorTitle: string;
+}
+
+/**
+ * 验证错误（422 Unprocessable Entity）。
+ *
+ * 用于参数校验失败、标的无效、数据不足等客户端可修正的错误。
+ */
+export class ValidationError extends ApplicationError {
+  readonly statusCode = 422;
+  readonly errorCode: string;
+  readonly errorTitle: string;
+  constructor(
+    message: string,
+    code: string = 'VALIDATION_ERROR',
+    title: string = 'Validation failed',
+  ) {
+    super(message);
+    this.name = 'ValidationError';
+    this.errorCode = code;
+    this.errorTitle = title;
+  }
+}
+
+/**
+ * 数据未找到错误（404 Not Found）。
+ *
+ * 用于请求的数据（价格序列、标的信息等）不存在时的错误。
+ */
+export class DataNotFoundError extends ApplicationError {
+  readonly statusCode = 404;
+  readonly errorCode = 'DATA_NOT_FOUND';
+  readonly errorTitle = 'Data not found';
+  constructor(message: string) {
+    super(message);
+    this.name = 'DataNotFoundError';
+  }
 }
 
 /**

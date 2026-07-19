@@ -16,15 +16,24 @@ vi.mock('../../../packages/backend/src/middleware/validate.js', () => ({
   validate: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
-  sendProblem: vi.fn((res, status, _code, _title, _detail) => {
-    res.status(status).json({ success: false, error: {} });
-  }),
-}));
+vi.mock('../../../packages/backend/src/utils/errors.js', () => {
+  // asyncRouteHandler 在 catch 中对 UpstreamProblemError / ApplicationError
+  // 做 instanceof 检查，mock 必须提供可调用的构造函数，否则 instanceof
+  // 抛 TypeError 导致响应永远不发出（测试挂起）。
+  class ApplicationError extends Error {}
+  class UpstreamProblemError extends Error {}
+  return {
+    sendProblem: vi.fn((res, status, _code, _title, _detail) => {
+      res.status(status).json({ success: false, error: {} });
+    }),
+    ApplicationError,
+    UpstreamProblemError,
+  };
+});
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../packages/backend/src/services/portfolioRepo.js', () => mocks.repo);
+vi.mock('../../../packages/backend/src/repositories/portfolioRepo.js', () => mocks.repo);
 
 vi.mock('../../../packages/backend/src/schemas/persistence.js', () => ({
   portfolioBodySchema: {},

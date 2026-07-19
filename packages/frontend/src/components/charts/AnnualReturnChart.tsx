@@ -1,7 +1,9 @@
 /**
  * @file 年度收益柱状图
- * @description 展示各投资组合按年度的收益对比柱状图
+ * @description 展示各投资组合按年度的收益对比柱状图。
+ *   支持两种数据源：回测页 portfolios（含汇总统计表与明细表）与分析页 results（仅柱状图）。
  */
+import { useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -12,9 +14,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
-import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
+import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
 import ChartCard from '../ChartCard.js';
 import {
@@ -26,24 +29,27 @@ import {
 
 /** 年度收益柱状图 Props */
 interface AnnualReturnChartProps {
-  portfolios: PortfolioResult[];
+  /** 回测页：传入 portfolios 显示柱状图 + 汇总统计表 + 明细表 */
+  portfolios?: PortfolioResult[];
+  /** 分析页：传入 results 仅显示柱状图 */
+  results?: AssetAnalysisResult;
 }
 
-const SUMMARY_ROWS: Array<{ label: string; key: string }> = [
-  { label: '最小值', key: 'min' },
-  { label: '1%分位', key: 'p1' },
-  { label: '5%分位', key: 'p5' },
-  { label: '25%分位', key: 'p25' },
-  { label: '中位数', key: 'p50' },
-  { label: '75%分位', key: 'p75' },
-  { label: '95%分位', key: 'p95' },
-  { label: '99%分位', key: 'p99' },
-  { label: '最大值', key: 'max' },
-  { label: '均值', key: 'mean' },
-  { label: '标准差', key: 'std' },
-  { label: '偏度', key: 'skewness' },
-  { label: '超额峰度', key: 'kurtosis' },
-  { label: '正收益年占比', key: 'pctPositive' },
+const SUMMARY_ROWS: Array<{ labelKey: string; key: string }> = [
+  { labelKey: 'charts.annualReturn.min', key: 'min' },
+  { labelKey: 'charts.annualReturn.p1', key: 'p1' },
+  { labelKey: 'charts.annualReturn.p5', key: 'p5' },
+  { labelKey: 'charts.annualReturn.p25', key: 'p25' },
+  { labelKey: 'charts.annualReturn.median', key: 'p50' },
+  { labelKey: 'charts.annualReturn.p75', key: 'p75' },
+  { labelKey: 'charts.annualReturn.p95', key: 'p95' },
+  { labelKey: 'charts.annualReturn.p99', key: 'p99' },
+  { labelKey: 'charts.annualReturn.max', key: 'max' },
+  { labelKey: 'charts.annualReturn.mean', key: 'mean' },
+  { labelKey: 'charts.annualReturn.std', key: 'std' },
+  { labelKey: 'charts.annualReturn.skewness', key: 'skewness' },
+  { labelKey: 'charts.annualReturn.kurtosis', key: 'kurtosis' },
+  { labelKey: 'charts.annualReturn.pctPositive', key: 'pctPositive' },
 ];
 
 /** 单个组合的汇总统计表 */
@@ -54,6 +60,7 @@ function PortfolioSummaryStats({
   portfolio: PortfolioResult;
   colorIndex: number;
 }) {
+  const { t } = useTranslation();
   const stats = calcAnnualSummaryStats(portfolio);
   if (!stats) return null;
   return (
@@ -70,7 +77,7 @@ function PortfolioSummaryStats({
           <tbody>
             {SUMMARY_ROWS.map((row, ri) => (
               <tr
-                key={row.label}
+                key={row.key}
                 style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
               >
                 <td
@@ -80,7 +87,7 @@ function PortfolioSummaryStats({
                     borderBottom: '1px solid var(--border-soft)',
                   }}
                 >
-                  {row.label}
+                  {t(row.labelKey)}
                 </td>
                 <td
                   className="text-[12px] font-medium text-right py-1.5 px-3 font-mono"
@@ -174,10 +181,11 @@ function AnnualReturnTable({
   portfolios: PortfolioResult[];
   data: Array<Record<string, unknown>>;
 }) {
+  const { t } = useTranslation();
   return (
     <div style={{ marginTop: '20px' }}>
       <div className="text-[13px] font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
-        年度收益表
+        {t('charts.annualReturn.tableTitle')}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
@@ -203,17 +211,38 @@ function AnnualReturnTable({
   );
 }
 
-export default function AnnualReturnChart({ portfolios }: AnnualReturnChartProps) {
-  const mergedData = mergePortfolioSeries(
-    portfolios,
-    (p) => p.annualReturns,
-    (pt) => pt.year,
-    (pt) => +(pt.return * 100).toFixed(2),
-    'year',
-  );
+export default function AnnualReturnChart({ portfolios, results }: AnnualReturnChartProps) {
+  const { t } = useTranslation();
+  const seriesNames = useMemo<string[]>(() => {
+    if (portfolios) return portfolios.map((p) => p.name);
+    if (results) return results.tickers.map((tk) => tk.ticker);
+    return [];
+  }, [portfolios, results]);
+
+  const mergedData = useMemo(() => {
+    if (portfolios) {
+      return mergePortfolioSeries(
+        portfolios,
+        (p) => p.annualReturns,
+        (pt) => pt.year,
+        (pt) => +(pt.return * 100).toFixed(2),
+        'year',
+      );
+    }
+    if (results) {
+      return mergePortfolioSeries(
+        results.tickers.map((tk) => ({ name: tk.ticker, annualReturns: tk.annualReturns })),
+        (p) => p.annualReturns,
+        (pt) => pt.year,
+        (pt) => +(pt.return * 100).toFixed(2),
+        'year',
+      );
+    }
+    return [];
+  }, [portfolios, results]);
 
   return (
-    <ChartCard title="年度收益" data={mergedData} csvFilename="annual-return">
+    <ChartCard title={t('charts.annualReturn.title')} data={mergedData} csvFilename="annual-return">
       <ResponsiveContainer width="100%" height={350}>
         <BarChart data={mergedData} margin={CHART_MARGIN}>
           <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
@@ -224,20 +253,20 @@ export default function AnnualReturnChart({ portfolios }: AnnualReturnChartProps
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          {portfolios.map((p, idx) => (
+          {seriesNames.map((name, idx) => (
             <Bar
-              key={p.name}
-              dataKey={p.name}
+              key={name}
+              dataKey={name}
               fill={CHART_COLORS[idx % CHART_COLORS.length]}
               radius={[2, 2, 0, 0]}
             />
           ))}
         </BarChart>
       </ResponsiveContainer>
-      {portfolios.map((p, idx) => (
+      {portfolios?.map((p, idx) => (
         <PortfolioSummaryStats key={p.name} portfolio={p} colorIndex={idx} />
       ))}
-      <AnnualReturnTable portfolios={portfolios} data={mergedData} />
+      {portfolios && <AnnualReturnTable portfolios={portfolios} data={mergedData} />}
     </ChartCard>
   );
 }

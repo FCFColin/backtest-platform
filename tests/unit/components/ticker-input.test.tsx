@@ -13,6 +13,17 @@ vi.mock('../../../packages/frontend/src/i18n/index.js', () => ({
   default: { t: (key: string) => key },
 }));
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => {
+      if (!params) return key;
+      return key.replace(/\{\{(\w+)\}\}/g, (_, k) => String(params[k] ?? ''));
+    },
+    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
+  }),
+  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
+}));
+
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
 });
@@ -26,7 +37,7 @@ describe('TickerInput', () => {
   it('onChange 在输入时被调用', () => {
     const onChange = vi.fn();
     render(<TickerInput value="" onChange={onChange} />);
-    const input = screen.getByPlaceholderText('输入代码');
+    const input = screen.getByPlaceholderText('components.tickerInput.placeholder');
     fireEvent.change(input, { target: { value: 'AAPL' } });
     expect(onChange).toHaveBeenCalledWith('AAPL');
   });
@@ -38,7 +49,9 @@ describe('TickerInput', () => {
 
   it('输入时显示建议下拉', () => {
     render(<TickerInput value="" onChange={() => {}} />);
-    const input = screen.getByPlaceholderText('输入代码') as HTMLInputElement;
+    const input = screen.getByPlaceholderText(
+      'components.tickerInput.placeholder',
+    ) as HTMLInputElement;
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: 'SPY' } });
     const spyItems = screen.getAllByText((_content, element) => {

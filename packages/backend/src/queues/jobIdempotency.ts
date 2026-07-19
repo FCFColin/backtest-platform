@@ -4,7 +4,7 @@
  * 企业为何需要：重试会导致同一 jobId 重复执行。纯计算任务可重试，
  * 但未来带副作用（写库/通知）的任务必须用去重键保证 at-most-once 语义。
  */
-import { appRedis } from '../config/redis.js';
+import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 
 const PROCESSING_PREFIX = 'bullmq:processing:';
@@ -19,7 +19,7 @@ const memProcessing = new Set<string>();
 const memProcessed = new Set<string>();
 const memResults = new Map<string, Record<string, unknown>>();
 
-export type JobClaimResult = 'claimed' | 'already_processed' | 'in_progress';
+type JobClaimResult = 'claimed' | 'already_processed' | 'in_progress';
 
 /**
  * 尝试声明 job 处理权。

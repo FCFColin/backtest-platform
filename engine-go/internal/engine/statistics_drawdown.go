@@ -2,6 +2,8 @@ package engine
 
 import (
 	"math"
+
+	"engine-go/internal/engineutil"
 )
 
 // MaxDrawdownResult 包含最大回撤及持续时间。
@@ -15,22 +17,15 @@ func CalcMaxDrawdown(values []float64) MaxDrawdownResult {
 	if len(values) < 2 {
 		return MaxDrawdownResult{}
 	}
-	peak := values[0]
 	maxDD := 0.0
 	maxDDDuration := 0
-	currentPeakIdx := 0
-
-	for i := 1; i < len(values); i++ {
-		if values[i] > peak {
-			peak = values[i]
-			currentPeakIdx = i
-		}
+	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
 		dd := (peak - values[i]) / peak
 		if dd > maxDD {
 			maxDD = dd
-			maxDDDuration = i - currentPeakIdx
+			maxDDDuration = i - peakIdx
 		}
-	}
+	})
 	return MaxDrawdownResult{MaxDrawdown: maxDD, MaxDrawdownDuration: maxDDDuration}
 }
 
@@ -39,13 +34,9 @@ func CalcAvgDrawdown(values []float64) float64 {
 	if len(values) < 2 {
 		return 0
 	}
-	peak := values[0]
 	var totalDD float64
 	count := 0
-	for i := 1; i < len(values); i++ {
-		if values[i] > peak {
-			peak = values[i]
-		}
+	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
 		if peak > 0 {
 			dd := (peak - values[i]) / peak
 			if dd > 0 {
@@ -53,7 +44,7 @@ func CalcAvgDrawdown(values []float64) float64 {
 				count++
 			}
 		}
-	}
+	})
 	if count == 0 {
 		return 0
 	}
@@ -66,17 +57,14 @@ func CalcUlcerIndex(values []float64) float64 {
 	if len(values) < 2 {
 		return 0
 	}
-	peak := values[0]
 	var sumSquaredDD float64
-	for _, v := range values {
-		if v > peak {
-			peak = v
-		}
+	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
+		v := values[i]
 		if peak > 0 {
 			dd := (peak - v) / peak
 			sumSquaredDD += dd * dd
 		}
-	}
+	})
 	return math.Sqrt(sumSquaredDD / float64(len(values)))
 }
 
@@ -101,17 +89,14 @@ func CalcUPI(cagr, ulcerIndex float64) float64 {
 // CalcDrawdownCurve 计算回撤曲线。
 func CalcDrawdownCurve(values []float64, dates []string) []DrawdownPoint {
 	result := make([]DrawdownPoint, len(values))
-	peak := values[0]
-	for i, v := range values {
-		if v > peak {
-			peak = v
-		}
+	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
+		v := values[i]
 		dd := 0.0
 		if peak > 0 {
 			dd = (peak - v) / peak
 		}
 		result[i] = DrawdownPoint{Date: dates[i], Drawdown: dd}
-	}
+	})
 	return result
 }
 

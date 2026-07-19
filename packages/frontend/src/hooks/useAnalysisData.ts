@@ -88,20 +88,6 @@ function useGrowthData(portfolioResults: ReturnType<typeof usePortfolioResults>)
   }, [portfolioResults]);
 }
 
-function useDrawdownData(portfolioResults: ReturnType<typeof usePortfolioResults>) {
-  return useMemo(() => {
-    const dateMap = new Map<string, Record<string, number | string>>();
-    for (const p of portfolioResults)
-      for (const point of p.drawdownCurve) {
-        if (!dateMap.has(point.date)) dateMap.set(point.date, { date: point.date });
-        dateMap.get(point.date)![p.name] = +(point.drawdown * -100).toFixed(2);
-      }
-    return Array.from(dateMap.values()).sort((a, b) =>
-      (a.date as string).localeCompare(b.date as string),
-    );
-  }, [portfolioResults]);
-}
-
 export function useAnalysisData(
   results: AssetAnalysisResult,
   correlationWindow: number,
@@ -111,7 +97,6 @@ export function useAnalysisData(
   const tickerNames = useMemo(() => tickers.map((t) => t.ticker), [tickers]);
   const portfolioResults = usePortfolioResults(tickers);
   const growthData = useGrowthData(portfolioResults);
-  const drawdownData = useDrawdownData(portfolioResults);
 
   const betaMatrix = useMemo(
     () => computeBetaMatrix(tickers.map((t) => t.dailyReturns)),
@@ -130,16 +115,6 @@ export function useAnalysisData(
     );
   }, [tickers, correlationWindow]);
 
-  const annualData = useMemo(() => {
-    const yearMap = new Map<number, Record<string, number | number>>();
-    for (const tk of tickers)
-      for (const point of tk.annualReturns) {
-        if (!yearMap.has(point.year)) yearMap.set(point.year, { year: point.year });
-        yearMap.get(point.year)![tk.ticker] = +(point.return * 100).toFixed(2);
-      }
-    return Array.from(yearMap.values()).sort((a, b) => (a.year as number) - (b.year as number));
-  }, [tickers]);
-
   const scatterData = useMemo(
     () =>
       tickers.map((tk) => ({
@@ -154,10 +129,8 @@ export function useAnalysisData(
     tickerNames,
     portfolioResults,
     growthData,
-    drawdownData,
     betaMatrix,
     rollingCorrData,
-    annualData,
     scatterData,
   };
 }

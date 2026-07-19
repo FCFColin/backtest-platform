@@ -33,10 +33,12 @@ vi.mock('@opentelemetry/api', () => {
   };
 });
 
-const queryPricesFromDbMock = vi.fn();
-const fetchMissingFromGoServiceMock = vi.fn();
+const { queryPricesFromDbMock, fetchMissingFromGoServiceMock } = vi.hoisted(() => ({
+  queryPricesFromDbMock: vi.fn(),
+  fetchMissingFromGoServiceMock: vi.fn(),
+}));
 
-vi.mock('../../packages/backend/src/services/dataQueryService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/dataQueryService.js', () => ({
   queryPricesFromDb: queryPricesFromDbMock,
   fetchMissingFromGoService: fetchMissingFromGoServiceMock,
   isDbAvailable: vi.fn(() => true),
@@ -44,11 +46,10 @@ vi.mock('../../packages/backend/src/services/dataQueryService.js', () => ({
   callGoDataService: vi.fn(),
   validateSearchQuery: vi.fn(),
   searchTickersFromDb: vi.fn(),
-  mockSearchResults: [],
   TickerSearchResult: class {},
 }));
 
-vi.mock('../../packages/backend/src/services/dataCacheService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/dataCacheService.js', () => ({
   readCache: vi.fn(async () => null),
   getCacheKey: vi.fn(() => 'cache-key'),
   writeCache: vi.fn(),
@@ -64,17 +65,14 @@ vi.mock('../../packages/backend/src/utils/tickerValidation.js', () => ({
   validateTickerFormat: vi.fn((tickers: string[]) => ({ valid: tickers, invalid: [] })),
 }));
 
-vi.mock('../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../packages/backend/src/db/pool.js', () => ({
   initSchema: vi.fn(),
   getPool: vi.fn(),
   closeDb: vi.fn(),
   withTenant: vi.fn(),
 }));
 
-import {
-  fetchHistoryDataWithDegraded,
-  consumeDegradedFlag,
-} from '../../packages/backend/src/services/dataService.js';
+import { fetchHistoryData } from '../../packages/backend/src/services/dataService.js';
 
 afterAll(() => {
   vi.restoreAllMocks();
@@ -88,7 +86,7 @@ describe('数据降级链路集成测试', () => {
       dbDegraded: false,
     });
 
-    const res = await fetchHistoryDataWithDegraded(['AAPL', 'MSFT'], '2020-01-01', '2023-12-31');
+    const res = await fetchHistoryData(['AAPL', 'MSFT'], '2020-01-01', '2023-12-31');
     expect(res.degraded).toBe(false);
     expect(Object.keys(res.data)).toHaveLength(2);
   });
@@ -101,7 +99,7 @@ describe('数据降级链路集成测试', () => {
     });
     fetchMissingFromGoServiceMock.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
 
-    const res = await fetchHistoryDataWithDegraded(['AAPL'], '2020-01-01', '2023-12-31');
+    const res = await fetchHistoryData(['AAPL'], '2020-01-01', '2023-12-31');
     expect(res.degraded).toBe(true);
     expect(res.degradedWarning).toContain('数据库不可用');
   });
@@ -114,7 +112,7 @@ describe('数据降级链路集成测试', () => {
     });
     fetchMissingFromGoServiceMock.mockResolvedValueOnce({ MSFT: { '2020-01-01': 200 } });
 
-    const res = await fetchHistoryDataWithDegraded(['AAPL', 'MSFT'], '2020-01-01', '2023-12-31');
+    const res = await fetchHistoryData(['AAPL', 'MSFT'], '2020-01-01', '2023-12-31');
     expect(res.degraded).toBe(false);
     expect(res.data.MSFT).toBeDefined();
   });
@@ -127,7 +125,7 @@ describe('数据降级链路集成测试', () => {
     });
     fetchMissingFromGoServiceMock.mockResolvedValueOnce({ UNKNOWN1: { '2020-01-01': 50 } });
 
-    const res = await fetchHistoryDataWithDegraded(
+    const res = await fetchHistoryData(
       ['AAPL', 'UNKNOWN1', 'UNKNOWN2'],
       '2020-01-01',
       '2023-12-31',
@@ -144,23 +142,20 @@ describe('数据降级链路集成测试', () => {
       invalid: ['!!!'],
     });
 
-    const res = await fetchHistoryDataWithDegraded(['!!!'], '2020-01-01', '2023-12-31');
+    const res = await fetchHistoryData(['!!!'], '2020-01-01', '2023-12-31');
     expect(res.data).toEqual({});
   });
 
-  it('consumeDegradedFlag 读取后自动清除', async () => {
-    queryPricesFromDbMock.mockResolvedValueOnce({
-      result: {},
-      missing: ['X'],
-      dbDegraded: true,
-    });
-    fetchMissingFromGoServiceMock.mockResolvedValueOnce({});
+  it('降级信息通过返回值传递（无全局状态）', async () => {
+    queryPricesFromDbMock
+      .mockResolvedValueOnce({ result: {}, missing: ['X'], dbDegraded: true })
+      .mockResolvedValueOnce({ result: {}, missing: ['X'], dbDegraded: true });
+    fetchMissingFromGoServiceMock.mockResolvedValueOnce({}).mockResolvedValueOnce({});
 
-    await fetchHistoryDataWithDegraded(['X'], '2020-01-01', '2023-12-31');
-    const first = consumeDegradedFlag();
-    expect(first.degraded).toBe(true);
+    const res = await fetchHistoryData(['X'], '2020-01-01', '2023-12-31');
+    expect(res.degraded).toBe(true);
 
-    const second = consumeDegradedFlag();
-    expect(second.degraded).toBe(false);
+    const res2 = await fetchHistoryData(['X'], '2020-01-01', '2023-12-31');
+    expect(res2.degraded).toBe(true);
   });
 });

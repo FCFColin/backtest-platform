@@ -25,7 +25,7 @@ export function historySpanYears(earliest?: string | null, latest?: string | nul
   return y1 - y0;
 }
 
-export function getLoadStage(t: TFunc, count: number): string {
+function getLoadStage(t: TFunc, count: number): string {
   if (count <= 3) return t('dataEngine.connecting');
   if (count <= 10) return t('dataEngine.scanningFiles');
   if (count <= 30) return t('dataEngine.countingTickers');
@@ -33,11 +33,7 @@ export function getLoadStage(t: TFunc, count: number): string {
   return t('dataEngine.almostReady');
 }
 
-export function classifyError(
-  t: TFunc,
-  res: Response,
-  json: Record<string, unknown> | null,
-): string {
+function classifyError(t: TFunc, res: Response, json: Record<string, unknown> | null): string {
   const status = res.status || (typeof json?.status === 'number' ? json.status : 0);
   if (status === 401 || status === 403) return t('dataEngine.authFailed');
   if (json?.errorType === 'scan_failed')
@@ -46,7 +42,7 @@ export function classifyError(
   return t('dataEngine.loadFailed');
 }
 
-export interface PollCtx {
+interface PollCtx {
   t: TFunc;
   force: boolean;
   t0: number;
@@ -61,7 +57,7 @@ export interface PollCtx {
   poll: () => void;
 }
 
-export function handlePollSuccess(ctx: PollCtx, json: Record<string, unknown>) {
+function handlePollSuccess(ctx: PollCtx, json: Record<string, unknown>) {
   const data = json.data as Record<string, unknown> | undefined;
   if (data?.scanning) {
     ctx.setScanning(true);

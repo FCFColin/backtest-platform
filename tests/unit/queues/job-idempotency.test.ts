@@ -24,7 +24,7 @@ const redisMocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
 }));
 

@@ -14,7 +14,7 @@ vi.mock('argon2', () => ({
   },
 }));
 
-vi.mock('../../packages/backend/src/config/redis.js', () => {
+vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => {
   const store = new Map<string, number>();
   return {
     appRedis: {
@@ -38,7 +38,7 @@ vi.mock('../../packages/backend/src/config/redis.js', () => {
   };
 });
 
-vi.mock('../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => ({
     query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }),
     waitingCount: 0,

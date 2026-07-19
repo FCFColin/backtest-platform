@@ -120,7 +120,6 @@ func TestRunAnalysisContextCancellation(t *testing.T) {
 }
 
 func TestRunAnalysisCorrelationMatrix(t *testing.T) {
-	dates := []string{"2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"}
 	req := AnalysisRequest{
 		Tickers: []string{"A", "B"},
 		PriceData: map[string]map[string]float64{
@@ -160,7 +159,7 @@ func TestRunAnalysisTotalReturn(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	stats := result.Assets[0].Statistics
-	expectedTotalReturn := (150 - 100) / 100
+	expectedTotalReturn := (150.0 - 100.0) / 100.0
 	if math.Abs(stats.TotalReturn-expectedTotalReturn) > 1e-6 {
 		t.Errorf("TotalReturn = %v, want %v", stats.TotalReturn, expectedTotalReturn)
 	}

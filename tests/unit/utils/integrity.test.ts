@@ -93,7 +93,7 @@ describe('integrity - HMAC 签名校验', () => {
     });
 
     it('未配置 AUDIT_HMAC_KEY 时应静默跳过（不生成 .sig）', async () => {
-      delete process.env.AUDIT_HMAC_KEY;
+      config.AUDIT_HMAC_KEY = '';
       const filePath = path.join(tmpDir, 'data.json');
       await fs.writeFile(filePath, 'content');
       await signFile(filePath);
@@ -167,7 +167,7 @@ describe('integrity - HMAC 签名校验', () => {
     });
 
     it('未配置 AUDIT_HMAC_KEY 时应返回 true（无密钥=不校验）', async () => {
-      delete process.env.AUDIT_HMAC_KEY;
+      config.AUDIT_HMAC_KEY = '';
       const filePath = path.join(tmpDir, 'data.json');
       await fs.writeFile(filePath, 'content');
       const ok = await verifyFile(filePath);
@@ -237,7 +237,7 @@ describe('integrity - HMAC 签名校验', () => {
 
   describe('密钥边界', () => {
     it('空字符串密钥应被视为未配置（跳过签名）', async () => {
-      process.env.AUDIT_HMAC_KEY = '';
+      config.AUDIT_HMAC_KEY = '';
       const filePath = path.join(tmpDir, 'data.json');
       await fs.writeFile(filePath, 'content');
       await signFile(filePath);
@@ -322,7 +322,7 @@ describe('integrity - HMAC 签名校验', () => {
     });
 
     it('未配置密钥时 verifyFileSync 应返回 true', () => {
-      delete process.env.AUDIT_HMAC_KEY;
+      config.AUDIT_HMAC_KEY = '';
       const filePath = path.join(tmpDir, 'no-key.json');
       fsSync.writeFileSync(filePath, 'data');
       expect(verifyFileSync(filePath)).toBe(true);

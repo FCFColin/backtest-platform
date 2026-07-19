@@ -20,7 +20,7 @@ func tangentPortfolio(mu []float64, sigmaInv [][]float64) ([]float64, error) {
 	for i := range excess {
 		excess[i] = mu[i] - riskFreeRate
 	}
-	rawW := matVecMul(sigmaInv, excess)
+	rawW := denseMulVec(sigmaInv, excess)
 
 	sumRaw := 0.0
 	for _, v := range rawW {
@@ -42,7 +42,7 @@ func closedFormMinVolatility(sigmaInv [][]float64) ([]float64, error) {
 	for i := range ones {
 		ones[i] = 1.0
 	}
-	sigmaInvOnes := matVecMul(sigmaInv, ones)
+	sigmaInvOnes := denseMulVec(sigmaInv, ones)
 	denom := 0.0
 	for _, v := range sigmaInvOnes {
 		denom += v
@@ -67,7 +67,7 @@ func closedFormMinVolatility(sigmaInv [][]float64) ([]float64, error) {
 // 在无约束时全局最优；有约束时用投影梯度法逼近。
 func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
 	n := len(mu)
-	sigmaInv, err := invertMatrix(sigma)
+	sigmaInv, err := invertDense(sigma)
 	if err != nil {
 		return randomSearch(mu, sigma, c, "minVolatility", numIter)
 	}
@@ -82,7 +82,7 @@ func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIt
 	}
 
 	// 投影梯度法：Lipschitz 常数取最大特征值（保证收敛）
-	lipConst := maxEigenvalue(sigma)
+	lipConst := largestEigenvalue(sigma)
 	if lipConst <= 0 {
 		lipConst = 1.0
 	}
@@ -91,7 +91,7 @@ func optimizeMinVolatility(mu []float64, sigma [][]float64, c Constraints, numIt
 	w := make([]float64, n)
 	copy(w, weights)
 	for iter := 0; iter < projIterations; iter++ {
-		grad := matVecMul(sigma, w)
+		grad := denseMulVec(sigma, w)
 		for i := range w {
 			w[i] -= step * 2 * grad[i]
 		}
@@ -150,7 +150,7 @@ func optimizeMaxSharpeSubset(mu []float64, sigma [][]float64, c Constraints, num
 			}
 		}
 
-		subSigmaInv, err := invertMatrix(subSigma)
+		subSigmaInv, err := invertDense(subSigma)
 		if err != nil {
 			continue
 		}
@@ -190,7 +190,7 @@ func optimizeMaxSharpeSubset(mu []float64, sigma [][]float64, c Constraints, num
 // 企业理由：N>15 时子集枚举不可行（2^16=65536 已较大），
 // 退化为闭式解+裁剪，近似程度可接受。
 func optimizeMaxSharpeClosed(mu []float64, sigma [][]float64, c Constraints, numIter int) []float64 {
-	sigmaInv, err := invertMatrix(sigma)
+	sigmaInv, err := invertDense(sigma)
 	if err != nil {
 		return randomSearch(mu, sigma, c, "maxSharpe", numIter)
 	}

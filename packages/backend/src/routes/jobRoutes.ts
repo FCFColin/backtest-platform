@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { backtestQueue } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
+import { crudRouteHandler } from './routeUtils.js';
 
 // Architecture: 任务状态查询端点
 // 企业为何需要：异步任务提交后，客户端需轮询获取结果
@@ -119,43 +120,45 @@ function denyIfInaccessible(
  *   的历史/匿名任务对非 admin 一律视为不可见，返回 404（不泄露任务是否存在）。
  * 权衡：匿名提交的任务将无法通过本端点回取——生产环境 compute 端点强制认证后不存在匿名任务。
  */
-jobRoutes.get('/jobs/:id', async (req: AuthenticatedRequest, res) => {
-  try {
-    const requester = req.user;
-    if (!requester) {
-      sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', {
-        detail: 'Authentication required to query job status',
-      });
-      return;
-    }
+jobRoutes.get(
+  '/jobs/:id',
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const authReq = req as AuthenticatedRequest;
+      const requester = authReq.user;
+      if (!requester) {
+        sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', {
+          detail: 'Authentication required to query job status',
+        });
+        return;
+      }
 
-    const job = await backtestQueue.getJob(req.params.id);
-    if (!job) {
-      sendProblem(res, 404, 'JOB_NOT_FOUND', 'Not Found', {
-        detail: `Job ${req.params.id} not found`,
-      });
-      return;
-    }
-    const authCtx = buildJobAuthContext(job, requester, req.tenantId);
+      const job = await backtestQueue.getJob(req.params.id);
+      if (!job) {
+        sendProblem(res, 404, 'JOB_NOT_FOUND', 'Not Found', {
+          detail: `Job ${req.params.id} not found`,
+        });
+        return;
+      }
+      const authCtx = buildJobAuthContext(job, requester, authReq.tenantId);
 
-    if (
-      denyIfInaccessible(res, job, authCtx, {
-        jobId: req.params.id,
-        requesterSub: requester.sub,
-        reqTenantId: req.tenantId,
-      })
-    )
-      return;
+      if (
+        denyIfInaccessible(res, job, authCtx, {
+          jobId: req.params.id,
+          requesterSub: requester.sub,
+          reqTenantId: authReq.tenantId,
+        })
+      )
+        return;
 
-    const state = await job.getState();
-    res.json({ success: true, data: buildJobResult(job, state) });
-  } catch (error) {
-    logger.error(
-      { middleware: 'jobRoutes', err: (error as Error).message },
-      '[jobRoutes] 查询任务状态失败',
-    );
-    sendProblem(res, 500, 'JOB_STATUS_ERROR', 'Internal Server Error', {
+      const state = await job.getState();
+      res.json({ success: true, data: buildJobResult(job, state) });
+    },
+    {
+      logMsg: '[jobRoutes] 查询任务状态失败',
+      code: 'JOB_STATUS_ERROR',
+      title: 'Internal Server Error',
       detail: 'Failed to fetch job status',
-    });
-  }
-});
+    },
+  ),
+);

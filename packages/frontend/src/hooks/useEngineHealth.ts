@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { apiFetch } from '../utils/apiClient.js';
+import { usePolling } from './usePolling.js';
 
 export type EngineStatus = 'ok' | 'degraded' | 'error' | 'loading';
 
-export interface EngineHealth {
+interface EngineHealth {
   status: EngineStatus;
   go: boolean;
-  node: boolean;
   dataFetcher: boolean;
   dataFreshness: string | null;
 }
@@ -13,7 +14,6 @@ export interface EngineHealth {
 const DEFAULT_HEALTH: EngineHealth = {
   status: 'loading',
   go: false,
-  node: true,
   dataFetcher: false,
   dataFreshness: null,
 };
@@ -26,14 +26,13 @@ export function useEngineHealth(): EngineHealth & { refresh: () => void } {
   const fetchHealth = useCallback(async () => {
     const t0 = Date.now();
     try {
-      const response = await fetch('/api/health');
+      const response = await apiFetch('/api/v1/health');
       const json = await response.json();
       if (json.success && json.data) {
         console.debug(`[useEngineHealth] /api/health 耗时 ${Date.now() - t0}ms`);
         setHealth({
           status: json.data.status,
           go: json.data.engine?.go ?? false,
-          node: json.data.engine?.node ?? true,
           dataFetcher: json.data.dataFetcher ?? false,
           dataFreshness: json.data.dataFreshness ?? null,
         });
@@ -42,18 +41,13 @@ export function useEngineHealth(): EngineHealth & { refresh: () => void } {
       setHealth({
         status: 'error',
         go: false,
-        node: false,
         dataFetcher: false,
         dataFreshness: null,
       });
     }
   }, []);
 
-  useEffect(() => {
-    fetchHealth();
-    const interval = setInterval(fetchHealth, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchHealth]);
+  usePolling(fetchHealth, POLL_INTERVAL, { deps: [fetchHealth] });
 
   return { ...health, refresh: fetchHealth };
 }

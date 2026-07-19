@@ -1,13 +1,30 @@
 import { useState } from 'react';
 import type { RebalanceFrequency } from '@backtest/shared';
+import { REBALANCE_FREQUENCIES, REBALANCE_FREQUENCY_COLORS } from '@backtest/shared';
+import { apiFetch } from '@/utils/apiClient';
+import { useListState } from '../../hooks/useListState.js';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  BASE_BACKTEST_PARAMS,
+} from '@/utils/constants';
 
-export const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] = [
-  { value: 'daily', label: '每日', color: '#2b63b8' },
-  { value: 'weekly', label: '每周', color: '#06b6d4' },
-  { value: 'monthly', label: '每月', color: '#2e8b57' },
-  { value: 'quarterly', label: '每季度', color: '#f97316' },
-  { value: 'annual', label: '每年', color: '#c94a4a' },
-];
+const REBALANCE_LABELS_ZH: Record<RebalanceFrequency, string> = {
+  daily: '每日',
+  weekly: '每周',
+  monthly: '每月',
+  quarterly: '每季度',
+  annual: '每年',
+  none: '不调仓',
+  threshold: '阈值',
+};
+
+export const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] =
+  REBALANCE_FREQUENCIES.map((value) => ({
+    value,
+    label: REBALANCE_LABELS_ZH[value],
+    color: REBALANCE_FREQUENCY_COLORS[value],
+  }));
 
 export interface FreqResult {
   frequency: RebalanceFrequency;
@@ -36,15 +53,7 @@ const FREQ_ORDER: Record<string, number> = {
   annual: 4,
 };
 
-export const OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
-
-const BASE_PARAMS = {
-  rollingWindowMonths: 12,
-  benchmarkTicker: '',
-  extendedWithdrawalStats: false,
-  cashflowLegs: [] as unknown[],
-  oneTimeCashflows: [] as unknown[],
-};
+const OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
 
 function buildBacktestBody(
   label: string,
@@ -70,7 +79,7 @@ function buildBacktestBody(
         totalReturn: true,
       },
     ],
-    parameters: { ...params, ...BASE_PARAMS },
+    parameters: { ...params, ...BASE_BACKTEST_PARAMS },
   };
 }
 
@@ -137,7 +146,7 @@ async function fetchFreqResult(
     absoluteBand,
     relativeBand,
   );
-  const res = await fetch('/api/backtest/portfolio', {
+  const res = await apiFetch('/api/v1/backtest/portfolio', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -161,7 +170,7 @@ async function fetchOffsetResult(
   },
 ): Promise<{ offset: number; cagr: number }> {
   const body = buildBacktestBody(`offset-${offset}`, assets, freq, offset, params);
-  const res = await fetch('/api/backtest/portfolio', {
+  const res = await apiFetch('/api/v1/backtest/portfolio', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -207,8 +216,8 @@ export interface RebalancingState {
 }
 
 function useRebalSetters() {
-  const [startDate, setStartDate] = useState('2010-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
+  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [adjustForInflation, setAdjustForInflation] = useState(false);
   const [baseCurrency, setBaseCurrency] = useState<'usd' | 'cny'>('usd');
   const [startingValue, setStartingValue] = useState(10000);
@@ -219,10 +228,6 @@ function useRebalSetters() {
   ]);
   const [absoluteBand, setAbsoluteBand] = useState<number | ''>('');
   const [relativeBand, setRelativeBand] = useState<number | ''>('');
-  const [assets, setAssets] = useState([
-    { ticker: 'VTI', weight: 60 },
-    { ticker: 'BND', weight: 40 },
-  ]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<FreqResult[]>([]);
@@ -247,8 +252,6 @@ function useRebalSetters() {
     setAbsoluteBand,
     relativeBand,
     setRelativeBand,
-    assets,
-    setAssets,
     isLoading,
     setIsLoading,
     error,
@@ -276,9 +279,10 @@ function createRebalancingRunners(
     adjustForInflation: boolean;
   },
   totalWeight: number,
+  assets: Array<{ ticker: string; weight: number }>,
 ) {
   const validate = (): Array<{ ticker: string; weight: number }> | string => {
-    const validAssets = s.assets.filter((a) => a.ticker.trim() !== '');
+    const validAssets = assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) return '请至少添加一个标的';
     if (Math.abs(totalWeight - 100) > 0.01) return '权重合计必须为 100%';
     if (s.selectedFreqs.length === 0) return '请至少选择一个调仓频率';
@@ -329,7 +333,7 @@ function createRebalancingRunners(
   };
 
   const runOffsetScan = async (freq: RebalanceFrequency) => {
-    const validAssets = s.assets.filter((a) => a.ticker.trim() !== '');
+    const validAssets = assets.filter((a) => a.ticker.trim() !== '');
     if (validAssets.length === 0) return;
     await runOffsetScanInner(freq, validAssets);
   };
@@ -343,14 +347,22 @@ export function useRebalancingState(): RebalancingState {
     s.setSelectedFreqs((prev) =>
       prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
     );
-  const addAsset = () => s.setAssets([...s.assets, { ticker: '', weight: 0 }]);
-  const removeAsset = (i: number) => s.setAssets(s.assets.filter((_, idx) => idx !== i));
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) => {
-    const n = [...s.assets];
-    n[i] = { ...n[i], [field]: val };
-    s.setAssets(n);
-  };
-  const totalWeight = s.assets.reduce((sum, a) => sum + (a.weight || 0), 0);
+  const {
+    items: assets,
+    addItem: addAsset,
+    removeItem: removeAsset,
+    updateItem,
+  } = useListState<{ ticker: string; weight: number }>(
+    [
+      { ticker: 'VTI', weight: 60 },
+      { ticker: 'BND', weight: 40 },
+    ],
+    () => ({ ticker: '', weight: 0 }),
+    0,
+  );
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) =>
+    updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  const totalWeight = assets.reduce((sum, a) => sum + (a.weight || 0), 0);
   const params = {
     startDate: s.startDate,
     endDate: s.endDate,
@@ -358,39 +370,24 @@ export function useRebalancingState(): RebalancingState {
     baseCurrency: s.baseCurrency,
     adjustForInflation: s.adjustForInflation,
   };
-  const { runSensitivity, runOffsetScan } = createRebalancingRunners(s, params, totalWeight);
+  const { runSensitivity, runOffsetScan } = createRebalancingRunners(
+    s,
+    params,
+    totalWeight,
+    assets,
+  );
 
+  // 内部 setter（setSelectedFreqs/setIsLoading/setError/setResults/setOffsetResults/
+  // setIsLoadingOffset）随 spread 暴露到运行时但不在 RebalancingState 类型中，
+  // TypeScript 结构类型允许返回对象包含额外字段，消费者无法经由类型系统访问这些内部字段。
   return {
-    startDate: s.startDate,
-    setStartDate: s.setStartDate,
-    endDate: s.endDate,
-    setEndDate: s.setEndDate,
-    adjustForInflation: s.adjustForInflation,
-    setAdjustForInflation: s.setAdjustForInflation,
-    baseCurrency: s.baseCurrency,
-    setBaseCurrency: s.setBaseCurrency,
-    startingValue: s.startingValue,
-    setStartingValue: s.setStartingValue,
-    selectedFreqs: s.selectedFreqs,
+    ...s,
     toggleFreq,
-    absoluteBand: s.absoluteBand,
-    setAbsoluteBand: s.setAbsoluteBand,
-    relativeBand: s.relativeBand,
-    setRelativeBand: s.setRelativeBand,
-    assets: s.assets,
+    assets,
     addAsset,
     removeAsset,
     updateAsset,
     totalWeight,
-    isLoading: s.isLoading,
-    error: s.error,
-    results: s.results,
-    activeTab: s.activeTab,
-    setActiveTab: s.setActiveTab,
-    offsetFreq: s.offsetFreq,
-    setOffsetFreq: s.setOffsetFreq,
-    offsetResults: s.offsetResults,
-    isLoadingOffset: s.isLoadingOffset,
     runSensitivity,
     runOffsetScan,
   };

@@ -4,16 +4,16 @@
  * GET /api/admin/system - 系统资源信息
  */
 
-import { Router, type Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { callService } from '../utils/httpClient.js';
-import { scanTickersStats, getUniverseStats } from '../services/tickerDataService.js';
+import { scanTickersStats, getUniverseStats } from '../infrastructure/tickerDataService.js';
 import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
 import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { listRuns, type BacktestRunRecord } from '../services/backtestRunRepo.js';
+import { listRuns, type BacktestRunRecord } from '../repositories/backtestRunRepo.js';
+import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
@@ -139,8 +139,8 @@ router.get(
   '/stats',
   jwtAuth,
   requirePermission(Permission.ADMIN_ACCESS),
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
       // 并行检查服务健康（Go 引擎为唯一计算引擎，ADR-008）
       const [engineHealth, goHealth] = await Promise.all([
         checkServiceHealth(config.GO_ENGINE_URL, '/api/engine/health', 'Go引擎'),
@@ -174,13 +174,14 @@ router.get(
           backtestHistory,
         }),
       });
-    } catch (error) {
-      logger.error({ err: error as Error }, '[Admin Stats] 获取统计数据失败');
-      sendProblem(res, 500, 'ADMIN_STATS_ERROR', 'Admin Stats Error', {
-        detail: '获取统计数据失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[Admin Stats] 获取统计数据失败',
+      code: 'ADMIN_STATS_ERROR',
+      title: 'Admin Stats Error',
+      detail: '获取统计数据失败',
+    },
+  ),
 );
 
 /**
@@ -190,8 +191,8 @@ router.get(
   '/system',
   jwtAuth,
   requirePermission(Permission.ADMIN_ACCESS),
-  async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
+  crudRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
       const memUsage = process.memoryUsage();
       const uptimeSeconds = process.uptime();
 
@@ -232,13 +233,14 @@ router.get(
           },
         },
       });
-    } catch (error) {
-      logger.error({ err: error as Error }, '[Admin System] 获取系统信息失败');
-      sendProblem(res, 500, 'ADMIN_SYSTEM_ERROR', 'Admin System Error', {
-        detail: '获取系统信息失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[Admin System] 获取系统信息失败',
+      code: 'ADMIN_SYSTEM_ERROR',
+      title: 'Admin System Error',
+      detail: '获取系统信息失败',
+    },
+  ),
 );
 
 export default router;

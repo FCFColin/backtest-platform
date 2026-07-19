@@ -17,7 +17,7 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, BaseCurrency } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import { ChartExporter } from '../ChartExporter.js';
 import { useChartData, CHART_MAX_POINTS } from '../../hooks/useChartInteractions.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';

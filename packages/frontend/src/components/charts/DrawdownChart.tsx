@@ -14,8 +14,7 @@ import {
   Brush,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
-import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import ChartCard from '../ChartCard.js';
 import { ChartExporter } from '../ChartExporter.js';
 import { downsample, SYNC_CHART_POINTS } from '../../hooks/useChartInteractions.js';
@@ -29,9 +28,15 @@ import {
   DATE_TICK_FORMATTER,
 } from './chartConstants.js';
 
+/** 回撤面积图所需的最小组合数据形状（兼容 PortfolioResult 与分析页部分组合） */
+interface DrawdownChartPortfolio {
+  name: string;
+  drawdownCurve: Array<{ date: string; drawdown: number }>;
+}
+
 /** 回撤面积图 Props */
 interface DrawdownChartProps {
-  portfolios: PortfolioResult[];
+  portfolios: DrawdownChartPortfolio[];
   /** 外层已提供 chart-card 标题时设为 true */
   embedded?: boolean;
 }

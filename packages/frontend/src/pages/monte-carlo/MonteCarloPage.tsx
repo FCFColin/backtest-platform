@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { McParamsPanel } from './MonteCarloParams.js';
 import { useMonteCarloState } from './monteCarloParamsUtils.js';
 import { MonteCarloResultsPanel } from './MonteCarloResults.js';
-import { PresetsCard, MonteCarloSeoCard } from './MonteCarloPresets.js';
+import { PresetsCard } from './MonteCarloPresets.js';
+import { ToolSeoCard } from '../../components/layout/index.js';
 import { buildPresets } from './monteCarloPresetsUtils.js';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 
@@ -20,7 +21,20 @@ export default function MonteCarloPage() {
       <div className="bt-page-header">
         <h1 className="bt-page-title">{t('monteCarlo.title')}</h1>
       </div>
-      <MonteCarloSeoCard />
+      <ToolSeoCard
+        desc={t('monteCarlo.seoDesc')}
+        features={[
+          { title: t('monteCarlo.seoSimulatable'), desc: t('monteCarlo.seoSimulatableDesc') },
+          { title: t('monteCarlo.seoOutput'), desc: t('monteCarlo.seoOutputDesc') },
+        ]}
+        related={[
+          { title: t('nav.portfolioBacktest'), href: '/' },
+          { title: t('nav.portfolioOptimize'), href: '/optimizer' },
+          { title: t('nav.efficientFrontier'), href: '/efficient-frontier' },
+          { title: t('nav.assetAnalysis'), href: '/analysis' },
+        ]}
+        relatedLabel={t('monteCarlo.relatedTools')}
+      />
       <PresetsCard presets={presets} />
       <ToolPageLayout
         title={t('params.basicParams')}

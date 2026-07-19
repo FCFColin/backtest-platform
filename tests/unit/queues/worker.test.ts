@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ===== mock 依赖（vi.mock 会被提升到顶部，先于 import 执行）=====
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 // mock logger，避免测试输出噪音
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
@@ -30,7 +31,7 @@ vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
 }));
 
 // mock executeOptimization，避免真实回测执行
-vi.mock('../../../packages/backend/src/application/optimizer-application-service.js', () => ({
+vi.mock('../../../packages/backend/src/application/optimize-service.js', () => ({
   executeOptimization: vi.fn(),
 }));
 
@@ -38,21 +39,10 @@ vi.mock('../../../packages/backend/src/application/grid-application-service.js',
   executeGridSearch: vi.fn(),
 }));
 
-// mock engineClient：提供 EngineUnavailableError 类（worker 检测该错误以触发 BullMQ 重试），
+// mock engineClient：提供 EngineUnavailableErrorStub 类（worker 检测该错误以触发 BullMQ 重试），
 // 同时避免加载真实的 opossum 熔断器与 metrics 注册副作用。
-const engineClientMocks = vi.hoisted(() => ({
-  EngineUnavailableError: class EngineUnavailableError extends Error {
-    readonly retryAfterSeconds: number;
-    readonly code = 'ENGINE_UNAVAILABLE';
-    constructor(endpoint: string, retryAfterSeconds = 30) {
-      super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
-      this.name = 'EngineUnavailableError';
-      this.retryAfterSeconds = retryAfterSeconds;
-    }
-  },
-}));
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
-  EngineUnavailableError: engineClientMocks.EngineUnavailableError,
+  EngineUnavailableError: EngineUnavailableErrorStub,
   callEngineStrict: vi.fn(),
 }));
 
@@ -64,7 +54,7 @@ vi.mock('../../../packages/backend/src/queues/jobIdempotency.js', () => ({
 }));
 
 // mock backtestRunRepo（落库副作用隔离）
-vi.mock('../../../packages/backend/src/services/backtestRunRepo.js', () => ({
+vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => ({
   createRun: vi.fn().mockResolvedValue({ id: 'run-1' }),
 }));
 
@@ -77,8 +67,13 @@ const redisMocks = vi.hoisted(() => ({
   incr: vi.fn(),
   decr: vi.fn().mockResolvedValue(0),
   expire: vi.fn().mockResolvedValue(1),
+  on: vi.fn(),
+  ping: vi.fn().mockResolvedValue('PONG'),
+  del: vi.fn().mockResolvedValue(1),
+  scan: vi.fn().mockResolvedValue(['0', []]),
+  set: vi.fn().mockResolvedValue('OK'),
 }));
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
   redisConnection: {},
 }));
@@ -86,7 +81,7 @@ vi.mock('../../../packages/backend/src/config/redis.js', () => ({
 // ===== 导入被测对象（在 mock 之后）=====
 
 import { processBacktestJob } from '../../../packages/backend/src/queues/worker.js';
-import { executeOptimization } from '../../../packages/backend/src/application/optimizer-application-service.js';
+import { executeOptimization } from '../../../packages/backend/src/application/optimize-service.js';
 import { executeGridSearch } from '../../../packages/backend/src/application/grid-application-service.js';
 import {
   tryClaimJobProcessing,
@@ -95,7 +90,7 @@ import {
   markJobProcessed,
 } from '../../../packages/backend/src/queues/jobIdempotency.js';
 import { getOrg } from '../../../packages/backend/src/services/membershipService.js';
-import { appRedis } from '../../../packages/backend/src/config/redis.js';
+import { appRedis } from '../../../packages/backend/src/infrastructure/redisClient.js';
 import { DelayedError } from 'bullmq';
 import type {
   BacktestJobData,
@@ -274,7 +269,7 @@ describe('processBacktestJob - 任务分发', () => {
 
   describe('Go 引擎不可用 fail-closed（ADR-031）', () => {
     it('EngineUnavailableError 时应释放 claim 并重抛以触发 BullMQ 重试，不返回 failed', async () => {
-      const err = new engineClientMocks.EngineUnavailableError('/api/engine/backtest');
+      const err = new EngineUnavailableErrorStub('/api/engine/backtest');
       vi.mocked(executeOptimization).mockRejectedValueOnce(err);
 
       const job = makeJob({ type: 'optimizer', payload: {} });

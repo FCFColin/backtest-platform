@@ -50,7 +50,8 @@ export const backtestOptimizerSchema = z.object({
     .optional(),
 });
 
-export type BacktestOptimizerRequest = z.infer<typeof backtestOptimizerSchema>;
-
-/** 优化目标函数枚举（与 schema 中 objective 字段一致，供 domain 层引用） */
-export type Objective = BacktestOptimizerRequest['objective'];
+import type { BacktestOptimizerRequest } from '../domain/services/optimizer-domain.js';
+// Re-export for backward compat (tests / existing imports).
+// Domain owns the type contract; Zod schema here provides runtime validation only
+// (dependency direction: schemas -> domain, correct per hexagonal architecture).
+export type { BacktestOptimizerRequest };

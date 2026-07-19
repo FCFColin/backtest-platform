@@ -8,17 +8,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
 }));
 
-const seriesUtilsMocks = vi.hoisted(() => ({
-  toSortedSeries: vi.fn(),
-}));
-
 const engineMocks = vi.hoisted(() => ({
-  analyzeLetfSlippage: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -38,12 +35,9 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/engine/seriesUtils.js', () => ({
-  toSortedSeries: seriesUtilsMocks.toSortedSeries,
-}));
-
-vi.mock('../../../packages/backend/src/engine/letf.js', () => ({
-  analyzeLetfSlippage: engineMocks.analyzeLetfSlippage,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
+  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -62,23 +56,24 @@ function createValidRequest() {
   };
 }
 
+const mockLetfResult = {
+  slippageCurve: [{ date: '2020-01-01', slippage: 0.01 }],
+  annualDecay: 0.05,
+};
+
 describe('letfRoutes - POST /api/letf/analyze', () => {
   let server: TestServer;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      TQQQ: { '2020-01-01': 30.0, '2020-01-02': 31.0 },
-      QQQ: { '2020-01-01': 200.0, '2020-01-02': 201.0 },
+      data: {
+        TQQQ: { '2020-01-01': 30.0, '2020-01-02': 31.0 },
+        QQQ: { '2020-01-01': 200.0, '2020-01-02': 201.0 },
+      },
+      degraded: false,
     });
-    seriesUtilsMocks.toSortedSeries.mockReturnValue([
-      { date: '2020-01-01', price: 30.0 },
-      { date: '2020-01-02', price: 31.0 },
-    ]);
-    engineMocks.analyzeLetfSlippage.mockReturnValue({
-      slippageCurve: [{ date: '2020-01-01', slippage: 0.01 }],
-      annualDecay: 0.05,
-    });
+    engineMocks.callEngineStrict.mockResolvedValue(mockLetfResult);
     server = await startExpressApp((app) => app.use('/api/letf', letfRoutes));
   });
 
@@ -98,7 +93,7 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     expect(body.success).toBe(true);
     expect(body.data.slippageCurve).toHaveLength(1);
     expect(body.data.annualDecay).toBe(0.05);
-    expect(engineMocks.analyzeLetfSlippage).toHaveBeenCalledTimes(1);
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
 
   it('应将 ticker 转为大写并调用 fetchHistoryData', async () => {
@@ -129,7 +124,7 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(engineMocks.analyzeLetfSlippage).not.toHaveBeenCalled();
+    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
   it('leverage 为负数应返回 400（zod 校验失败）', async () => {
@@ -143,7 +138,7 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(engineMocks.analyzeLetfSlippage).not.toHaveBeenCalled();
+    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
   it('缺少 startDate 应返回 400（zod 校验失败）', async () => {
@@ -159,10 +154,13 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     expect(res.status).toBe(400);
   });
 
-  it('LETF 价格数据缺失时应返回 400', async () => {
+  it('LETF 价格数据缺失时应返回 404', async () => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      TQQQ: {},
-      QQQ: { '2020-01-01': 200.0 },
+      data: {
+        TQQQ: {},
+        QQQ: { '2020-01-01': 200.0 },
+      },
+      degraded: false,
     });
 
     const res = await fetch(`${server.url}/api/letf/analyze`, {
@@ -172,14 +170,17 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     });
     const body = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
     expect(body.error.detail).toContain('TQQQ');
   });
 
-  it('基准价格数据缺失时应返回 400', async () => {
+  it('基准价格数据缺失时应返回 404', async () => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      TQQQ: { '2020-01-01': 30.0 },
-      QQQ: {},
+      data: {
+        TQQQ: { '2020-01-01': 30.0 },
+        QQQ: {},
+      },
+      degraded: false,
     });
 
     const res = await fetch(`${server.url}/api/letf/analyze`, {
@@ -189,23 +190,19 @@ describe('letfRoutes - POST /api/letf/analyze', () => {
     });
     const body = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
     expect(body.error.detail).toContain('QQQ');
   });
 
-  it('analyzeLetfSlippage 抛错时应返回 500', async () => {
-    engineMocks.analyzeLetfSlippage.mockImplementation(() => {
-      throw new Error('letf engine error');
-    });
+  it('引擎抛错时应返回 500', async () => {
+    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('letf engine error'));
 
     const res = await fetch(`${server.url}/api/letf/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),
     });
-    const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error.detail).toBe('letf engine error');
   });
 });

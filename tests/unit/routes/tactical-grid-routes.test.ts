@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -18,7 +19,7 @@ const queueMocks = vi.hoisted(() => ({
 }));
 
 const engineMocks = vi.hoisted(() => ({
-  runGridSearch: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -49,8 +50,9 @@ vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/engine/tacticalGrid.js', () => ({
-  runGridSearch: engineMocks.runGridSearch,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
+  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/utils/logSanitizer.js', () => ({
@@ -91,8 +93,11 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'grid-job-123' });
-    dataServiceMocks.fetchHistoryData.mockResolvedValue(createMockPriceData());
-    engineMocks.runGridSearch.mockReturnValue({
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({
+      data: createMockPriceData(),
+      degraded: false,
+    });
+    engineMocks.callEngineStrict.mockResolvedValue({
       results: [{ param1: 10, param2: 10, cagr: 0.1, maxDrawdown: 0.05, sharpe: 1.5 }],
       heatmap: {
         param1Values: [10, 20],
@@ -139,12 +144,12 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.results).toHaveLength(1);
-    expect(engineMocks.runGridSearch).toHaveBeenCalledTimes(1);
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
 
   it('同步回退时价格数据缺失应返回 400', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({});
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
 
     const res = await fetch(`${server.url}/api/tactical-grid/search`, {
       method: 'POST',
@@ -216,9 +221,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
 
   it('runGridSearch 抛错时应返回 500', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    engineMocks.runGridSearch.mockImplementation(() => {
-      throw new Error('grid engine error');
-    });
+    engineMocks.callEngineStrict.mockRejectedValue(new Error('grid engine error'));
 
     const res = await fetch(`${server.url}/api/tactical-grid/search`, {
       method: 'POST',
@@ -244,9 +247,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
 
   it('同步回退时引擎抛空消息 Error 应返回 500 默认信息', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
-    engineMocks.runGridSearch.mockImplementation(() => {
-      throw new Error('');
-    });
+    engineMocks.callEngineStrict.mockRejectedValue(new Error(''));
 
     const res = await fetch(`${server.url}/api/tactical-grid/search`, {
       method: 'POST',

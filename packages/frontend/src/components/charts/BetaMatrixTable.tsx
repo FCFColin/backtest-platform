@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
+import ChartCard from '../ChartCard.js';
 
 export const BetaMatrixTable = memo(function BetaMatrixTable({
   tickers,
@@ -10,8 +11,7 @@ export const BetaMatrixTable = memo(function BetaMatrixTable({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="chart-card">
-      <div className="chart-card-title">{t('analysis.betaMatrix')}</div>
+    <ChartCard title={t('analysis.betaMatrix')}>
       <div className="overflow-x-auto">
         <table className="border-collapse">
           <thead>
@@ -71,6 +71,6 @@ export const BetaMatrixTable = memo(function BetaMatrixTable({
           </tbody>
         </table>
       </div>
-    </div>
+    </ChartCard>
   );
 });

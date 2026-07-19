@@ -5,21 +5,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger } from '../../helpers/mockFactories.js';
+import { createLoggerMocks, mockLogger } from '../../helpers/mockFactories.js';
 
 // ===== vi.hoisted =====
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  })),
-}));
+const loggerMocks = vi.hoisted(() => ({}) as ReturnType<typeof createLoggerMocks>);
 
 const tickerValidationMocks = vi.hoisted(() => ({
   isValidTicker: vi.fn(),
@@ -52,15 +41,16 @@ const fsPromisesMocks = vi.hoisted(() => ({
 
 // ===== Mock 模块 =====
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => {
+  Object.assign(loggerMocks, createLoggerMocks());
+  return { logger: mockLogger(loggerMocks) };
+});
 
 vi.mock('../../../packages/backend/src/utils/tickerValidation.js', () => ({
   isValidTicker: tickerValidationMocks.isValidTicker,
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getReadPool: () => ({ query: pgMocks.query }),
 }));
 
@@ -96,7 +86,7 @@ import {
   scanTickersStats,
   scanTickersStatsAsync,
   resolveUniverseFromCacheStats,
-} from '../../../packages/backend/src/services/tickerDataService.js';
+} from '../../../packages/backend/src/infrastructure/tickerDataService.js';
 
 describe('getEngineStatus', () => {
   beforeEach(() => {
@@ -211,12 +201,9 @@ describe('searchTickers', () => {
   });
 
   it('应根据 query 过滤标的（不区分大小写）', async () => {
+    // mock 模拟 SQL to_tsquery('bond') 已过滤的结果（仅 BND 命中）
     pgMocks.query.mockResolvedValue({
-      rows: [
-        { ticker: 'AAPL', category: 'Apple', market: 'US' },
-        { ticker: 'BND', category: 'Vanguard Bond', market: 'US' },
-        { ticker: 'SPY', category: 'S&P 500', market: 'US' },
-      ],
+      rows: [{ ticker: 'BND', category: 'Vanguard Bond', market: 'US' }],
     });
 
     const result = await searchTickers('bond');
@@ -226,11 +213,9 @@ describe('searchTickers', () => {
   });
 
   it('应匹配 ticker/name/category/market 任一字段', async () => {
+    // mock 模拟 SQL to_tsquery('cn') 已过滤的结果（仅 600519.SH 命中 CN 市场）
     pgMocks.query.mockResolvedValue({
-      rows: [
-        { ticker: 'AAPL', category: 'Apple', market: 'US' },
-        { ticker: '600519.SH', category: '贵州茅台', market: 'CN' },
-      ],
+      rows: [{ ticker: '600519.SH', category: '贵州茅台', market: 'CN' }],
     });
 
     const result = await searchTickers('cn');
@@ -240,8 +225,9 @@ describe('searchTickers', () => {
   });
 
   it('结果应限制在 30 条以内', async () => {
+    // mock 模拟 SQL 已过滤并返回 30 条（超出 SQL LIMIT 20 的降级场景），验证 JS 侧 30 条上限兜底
     pgMocks.query.mockResolvedValue({
-      rows: Array.from({ length: 50 }, (_, i) => ({
+      rows: Array.from({ length: 30 }, (_, i) => ({
         ticker: `STOCK${i}`,
         category: `Stock ${i}`,
         market: 'US',

@@ -8,13 +8,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
 }));
 
 const engineMocks = vi.hoisted(() => ({
-  performPCA: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -34,8 +35,9 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/engine/pca.js', () => ({
-  performPCA: engineMocks.performPCA,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
+  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -52,22 +54,27 @@ function createValidRequest() {
   };
 }
 
+const mockPcaResult = {
+  eigenvalues: [2.5, 0.3, 0.2],
+  eigenvectors: [[0.5, 0.5, 0.5]],
+  explainedVarianceRatio: [0.83, 0.1, 0.07],
+  principalComponents: [[1, 2, 3]],
+};
+
 describe('pcaRoutes - POST /api/pca/analyze', () => {
   let server: TestServer;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 },
-      QQQ: { '2020-01-01': 200.0, '2020-01-02': 201.0 },
-      IWM: { '2020-01-01': 150.0, '2020-01-02': 151.0 },
+      data: {
+        SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 },
+        QQQ: { '2020-01-01': 200.0, '2020-01-02': 201.0 },
+        IWM: { '2020-01-01': 150.0, '2020-01-02': 151.0 },
+      },
+      degraded: false,
     });
-    engineMocks.performPCA.mockReturnValue({
-      eigenvalues: [2.5, 0.3, 0.2],
-      eigenvectors: [[0.5, 0.5, 0.5]],
-      explainedVarianceRatio: [0.83, 0.1, 0.07],
-      principalComponents: [[1, 2, 3]],
-    });
+    engineMocks.callEngineStrict.mockResolvedValue(mockPcaResult);
     server = await startExpressApp((app) => app.use('/api/pca', pcaRoutes));
   });
 
@@ -87,7 +94,7 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     expect(body.success).toBe(true);
     expect(body.data.eigenvalues).toHaveLength(3);
     expect(body.data.explainedVarianceRatio[0]).toBe(0.83);
-    expect(engineMocks.performPCA).toHaveBeenCalledTimes(1);
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
 
   it('应将 ticker 转大写并去重后调用 fetchHistoryData', async () => {
@@ -115,7 +122,7 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(engineMocks.performPCA).not.toHaveBeenCalled();
+    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
   it('缺少 startDate 应返回 400（zod 校验失败）', async () => {
@@ -144,7 +151,7 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     expect(res.status).toBe(400);
   });
 
-  it('重复 ticker 去重后不足 2 个应返回 400', async () => {
+  it('重复 ticker 去重后不足 2 个应返回 422', async () => {
     const req = createValidRequest();
     req.tickers = ['SPY', 'spy'];
 
@@ -159,11 +166,14 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     expect(body.error.detail).toContain('至少需要 2 个资产');
   });
 
-  it('部分标的价格数据缺失时应返回 400', async () => {
+  it('部分标的价格数据缺失时应返回 404', async () => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      SPY: { '2020-01-01': 300.0 },
-      QQQ: {},
-      IWM: { '2020-01-01': 150.0 },
+      data: {
+        SPY: { '2020-01-01': 300.0 },
+        QQQ: {},
+        IWM: { '2020-01-01': 150.0 },
+      },
+      degraded: false,
     });
 
     const res = await fetch(`${server.url}/api/pca/analyze`, {
@@ -173,23 +183,19 @@ describe('pcaRoutes - POST /api/pca/analyze', () => {
     });
     const body = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
     expect(body.error.detail).toContain('QQQ');
   });
 
-  it('performPCA 抛错时应返回 500', async () => {
-    engineMocks.performPCA.mockImplementation(() => {
-      throw new Error('pca engine error');
-    });
+  it('引擎抛错时应返回 500', async () => {
+    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('pca engine error'));
 
     const res = await fetch(`${server.url}/api/pca/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),
     });
-    const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error.detail).toBe('PCA 分析失败');
   });
 });

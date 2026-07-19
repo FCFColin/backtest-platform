@@ -9,13 +9,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// ============================================================
+// 数据结构
+// ============================================================
+
 type PricePoint struct {
 	Date        string  `json:"date"`
 	Open        float64 `json:"open"`
 	High        float64 `json:"high"`
 	Low         float64 `json:"low"`
 	Close       float64 `json:"close"`
-	AdjClose    float64 `json:"adj_close"`
+	AdjClose    float64 `json:"adjusted_close"`
 	Volume      int64   `json:"volume"`
 	Dividend    float64 `json:"dividend"`
 	SplitFactor float64 `json:"split_factor"`
@@ -26,6 +30,10 @@ type SearchResult struct {
 	Name   string `json:"name"`
 	Market string `json:"market"`
 }
+
+// ============================================================
+// 数据存储（PostgreSQL）
+// ============================================================
 
 type DataStore struct {
 	pool *pgxpool.Pool
@@ -55,7 +63,7 @@ func NewDataStore(ctx context.Context, cfg *Config) (*DataStore, error) {
 }
 
 func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
-	query := `SELECT date, open, high, low, close, volume, adj_close, dividend, split_factor FROM prices WHERE ticker = $1`
+	query := `SELECT date, open, high, low, close, volume, adjusted_close FROM prices WHERE ticker = $1`
 	args := []interface{}{ticker}
 	argIdx := 2
 
@@ -81,20 +89,12 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 		var p PricePoint
 		var date time.Time
 		var adjClose *float64
-		var div *float64
-		var split *float64
-		if err := rows.Scan(&date, &p.Open, &p.High, &p.Low, &p.Close, &p.Volume, &adjClose, &div, &split); err != nil {
+		if err := rows.Scan(&date, &p.Open, &p.High, &p.Low, &p.Close, &p.Volume, &adjClose); err != nil {
 			return nil, fmt.Errorf("扫描价格行失败: %w", err)
 		}
 		p.Date = date.Format("2006-01-02")
 		if adjClose != nil {
 			p.AdjClose = *adjClose
-		}
-		if div != nil {
-			p.Dividend = *div
-		}
-		if split != nil {
-			p.SplitFactor = *split
 		}
 		prices = append(prices, p)
 	}

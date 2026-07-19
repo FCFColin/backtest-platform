@@ -1,104 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import {
+  createLoggerMocks,
+  createRedisMocks,
+  createJwtAuthConfigMocks,
+  type JwtAuthConfigMocks,
+} from '../../helpers/mockFactories.js';
+import { createJwtAuthUserRepoMock, setupJwtAuthTestMocks } from '../../helpers/jwtAuthSetup.js';
 
-const mocks = vi.hoisted(() => ({
-  config: {
-    NODE_ENV: 'production' as string,
-    JWT_SECRET: 'test-jwt-secret-for-unit-tests',
-    JWT_ACCESS_TTL: 900,
-    JWT_REFRESH_TTL: 604800,
-    ADMIN_API_KEY: '',
-    JWT_ALGORITHM: 'HS256' as 'RS256' | 'HS256',
-    JWT_PRIVATE_KEY: '',
-    JWT_PRIVATE_KEY_FILE: '',
-    JWT_PUBLIC_KEY: '',
-    JWT_PUBLIC_KEY_FILE: '',
-    DEV_SKIP_AUTH: false,
-  },
-}));
+const mocks = vi.hoisted(() => ({ config: {} as JwtAuthConfigMocks }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: mocks.config,
+  config: Object.assign(mocks.config, createJwtAuthConfigMocks()),
   validateConfig: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-const redisMocks = vi.hoisted(() => {
-  const store = new Map<string, string>();
-  const sets = new Map<string, Set<string>>();
-  return {
-    store,
-    sets,
-    ping: vi.fn(),
-    get: vi.fn(),
-    set: vi.fn(),
-    del: vi.fn(),
-    sadd: vi.fn(),
-    smembers: vi.fn(),
-    expire: vi.fn(),
-    on: vi.fn(),
-    resetStore: () => {
-      store.clear();
-      sets.clear();
-    },
-    useMemoryFallback: () => {
-      redisMocks.resetStore();
-      redisMocks.ping.mockRejectedValue(new Error('Redis not available in test'));
-      redisMocks.get.mockRejectedValue(new Error('Redis not available in test'));
-      redisMocks.set.mockRejectedValue(new Error('Redis not available in test'));
-      redisMocks.del.mockRejectedValue(new Error('Redis not available in test'));
-      redisMocks.sadd.mockRejectedValue(new Error('Redis not available in test'));
-      redisMocks.smembers.mockRejectedValue(new Error('Redis not available in test'));
-      redisMocks.expire.mockRejectedValue(new Error('Redis not available in test'));
-    },
-    useRedisSuccess: () => {
-      redisMocks.resetStore();
-      redisMocks.ping.mockResolvedValue('PONG');
-      redisMocks.get.mockImplementation((key: string) =>
-        Promise.resolve(redisMocks.store.get(key) ?? null),
-      );
-      redisMocks.set.mockImplementation((key: string, value: string) => {
-        redisMocks.store.set(key, value);
-        return Promise.resolve('OK');
-      });
-      redisMocks.del.mockImplementation((key: string) => {
-        redisMocks.store.delete(key);
-        return Promise.resolve(1);
-      });
-      redisMocks.sadd.mockImplementation((key: string, member: string) => {
-        const set = redisMocks.sets.get(key) ?? new Set<string>();
-        set.add(member);
-        redisMocks.sets.set(key, set);
-        return Promise.resolve(1);
-      });
-      redisMocks.smembers.mockImplementation((key: string) =>
-        Promise.resolve([...(redisMocks.sets.get(key) ?? [])]),
-      );
-      redisMocks.expire.mockResolvedValue(1);
-    },
-  };
-});
+const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
 
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   redisConnection: {},
-  appRedis: redisMocks,
+  appRedis: createRedisMocks(
+    { withStore: true, withSets: true, withHandlers: true, withMemoryHelpers: true },
+    redisMocks,
+  ),
 }));
 
-vi.mock('../../../packages/backend/src/services/userService.js', () => ({
-  getUserById: vi.fn().mockImplementation(async (id: string) => ({
-    id,
-    username: 'test-user',
-    role: 'analyst' as const,
-    isActive: true,
-    createdAt: new Date(),
-  })),
+vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
+  getUserById: createJwtAuthUserRepoMock(),
 }));
 
 const apiKeyMocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(async () => null),
 }));
-vi.mock('../../../packages/backend/src/services/apiKeyService.js', () => ({
+vi.mock('../../../packages/backend/src/services/apiKeyVerifier.js', () => ({
   verifyApiKey: apiKeyMocks.verifyApiKey,
 }));
 
@@ -113,17 +48,17 @@ import {
   revokeAllUserSessions,
   jwtAuth,
 } from '../../../packages/backend/src/middleware/jwtAuth.js';
-import { getUserById } from '../../../packages/backend/src/services/userService.js';
-import { createMockRequest, createMockResponse, createMockNext } from './jwt-auth.helpers.js';
+import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
+import {
+  createJwtAuthMockRequest,
+  createJwtAuthMockResponse,
+  createJwtAuthMockNext,
+  awaitMiddleware,
+} from '../../helpers/expressMocks.js';
 
 describe('jwtAuth 中间件', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
-    mocks.config.NODE_ENV = 'production';
-    mocks.config.JWT_SECRET = 'test-jwt-secret-for-unit-tests';
-    mocks.config.ADMIN_API_KEY = '';
-    mocks.config.JWT_ALGORITHM = 'HS256';
+    setupJwtAuthTestMocks(mocks, redisMocks);
   });
 
   it('按组织 DB API Key 认证成功应注入 analyst 角色与 tenant_id（ADR-033）', async () => {
@@ -131,18 +66,13 @@ describe('jwtAuth 中间件', () => {
       orgId: '11111111-1111-1111-1111-111111111111',
       keyId: '22222222-2222-2222-2222-222222222222',
     } as Record<string, unknown>);
-    const req = createMockRequest({
+    const req = createJwtAuthMockRequest({
       headers: { 'x-api-key': 'bpk_live_someplaintextkey' },
     } as Record<string, unknown>);
-    const res = createMockResponse();
-    const next = createMockNext();
+    const res = createJwtAuthMockResponse();
+    const next = createJwtAuthMockNext();
 
-    await new Promise<void>((resolve) => {
-      jwtAuth(req, res, () => {
-        next();
-        resolve();
-      });
-    });
+    await awaitMiddleware(jwtAuth, req, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(req.user).toBeDefined();
@@ -155,18 +85,13 @@ describe('jwtAuth 中间件', () => {
   it('破窗 ADMIN_API_KEY 应注入 platform_admin（ADR-033）', async () => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
     mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
-    const req = createMockRequest({
+    const req = createJwtAuthMockRequest({
       headers: { 'x-api-key': 'test-api-key-12345' },
     } as Record<string, unknown>);
-    const res = createMockResponse();
-    const next = createMockNext();
+    const res = createJwtAuthMockResponse();
+    const next = createJwtAuthMockNext();
 
-    await new Promise<void>((resolve) => {
-      jwtAuth(req, res, () => {
-        next();
-        resolve();
-      });
-    });
+    await awaitMiddleware(jwtAuth, req, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(req.user).toBeDefined();
@@ -178,9 +103,9 @@ describe('jwtAuth 中间件', () => {
     mocks.config.NODE_ENV = 'development';
     mocks.config.DEV_SKIP_AUTH = true;
     mocks.config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
-    const req = createMockRequest();
-    const res = createMockResponse();
-    const next = createMockNext();
+    const req = createJwtAuthMockRequest();
+    const res = createJwtAuthMockResponse();
+    const next = createJwtAuthMockNext();
 
     jwtAuth(req, res, next);
 
@@ -194,9 +119,9 @@ describe('jwtAuth 中间件', () => {
     mocks.config.NODE_ENV = 'development';
     mocks.config.DEV_SKIP_AUTH = false;
     mocks.config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
-    const req = createMockRequest();
-    const res = createMockResponse();
-    const next = createMockNext();
+    const req = createJwtAuthMockRequest();
+    const res = createJwtAuthMockResponse();
+    const next = createJwtAuthMockNext();
 
     jwtAuth(req, res, next);
 
@@ -208,21 +133,16 @@ describe('jwtAuth 中间件', () => {
   it('Bearer Token 优先于 x-api-key', async () => {
     mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
     const token = await generateToken('user-1', 'readonly');
-    const req = createMockRequest({
+    const req = createJwtAuthMockRequest({
       headers: {
         authorization: `Bearer ${token}`,
         'x-api-key': 'test-api-key-12345',
       },
     } as Record<string, unknown>);
-    const res = createMockResponse();
-    const next = createMockNext();
+    const res = createJwtAuthMockResponse();
+    const next = createJwtAuthMockNext();
 
-    await new Promise<void>((resolve) => {
-      jwtAuth(req, res, () => {
-        next();
-        resolve();
-      });
-    });
+    await awaitMiddleware(jwtAuth, req, res, next);
 
     expect(next).toHaveBeenCalled();
     expect(req.user!.role).toBe('readonly');
@@ -279,11 +199,11 @@ describe('revokeAllUserSessions 与停用用户', () => {
     });
 
     const token = await generateToken('disabled-user', 'readonly');
-    const req = createMockRequest({
+    const req = createJwtAuthMockRequest({
       headers: { authorization: `Bearer ${token}` },
     } as Record<string, unknown>);
-    const res = createMockResponse();
-    const next = createMockNext();
+    const res = createJwtAuthMockResponse();
+    const next = createJwtAuthMockNext();
 
     await new Promise<void>((resolve) => {
       const originalJson = res.json.bind(res);
@@ -346,24 +266,19 @@ describe('revokeAllUserSessions 与停用用户', () => {
 
 describe('jwtAuth 会话撤销与账户停用', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
-    mocks.config.NODE_ENV = 'production';
-    mocks.config.JWT_SECRET = 'test-jwt-secret-for-unit-tests';
-    mocks.config.ADMIN_API_KEY = '';
-    mocks.config.JWT_ALGORITHM = 'HS256';
+    setupJwtAuthTestMocks(mocks, redisMocks);
   });
 
   async function jwtAuthWithToken(token: string): Promise<{
-    req: ReturnType<typeof createMockRequest>;
-    res: ReturnType<typeof createMockResponse>;
-    next: ReturnType<typeof createMockNext>;
+    req: ReturnType<typeof createJwtAuthMockRequest>;
+    res: ReturnType<typeof createJwtAuthMockResponse>;
+    next: ReturnType<typeof createJwtAuthMockNext>;
   }> {
-    const req = createMockRequest({
+    const req = createJwtAuthMockRequest({
       headers: { authorization: `Bearer ${token}` },
     } as Record<string, unknown>);
-    const res = createMockResponse();
-    const next = createMockNext();
+    const res = createJwtAuthMockResponse();
+    const next = createJwtAuthMockNext();
 
     await new Promise<void>((resolve) => {
       const originalJson = res.json.bind(res);

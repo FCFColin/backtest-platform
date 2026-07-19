@@ -3,43 +3,18 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 /**
- * 统一 Vitest 工作区配置
+ * 统一 Vitest 工作区配置（简化版）
  *
- * 取代原先 7 个 vitest 配置文件（vitest.config.ts + 5 个子配置 + workspace）。
- * 项目分层：default（杂项/集成/contract/fuzz/property）→ backend → frontend → shared → chaos。
- * Coverage 设置在根 test 层，所有项目共享。
+ * 3 个项目，按运行环境分组：
+ * - node:   后端单元 + 集成 + contract + fuzz + shared（Node 环境，需 backend 依赖）
+ * - browser: 前端单元 + 组件 + hooks + store（jsdom 环境，需 frontend 依赖）
+ * - chaos:  Docker 依赖的混沌工程测试（长超时）
+ *
+ * Coverage 在根 test 层共享。
  */
 
-const backendUtils = [
-  'date-utils',
-  'engine-body-builder',
-  'engine-client',
-  'errors',
-  'integrity',
-  'log-sanitizer',
-  'logger',
-  'metrics',
-  'numeric-range',
-  'request-context',
-  'ticker-validation',
-].map((f) => `tests/unit/utils/${f}.test.ts`);
-
-const frontendUtils = [
-  'api-client',
-  'auth-tokens',
-  'chart-data-merge',
-  'config-api',
-  'format',
-  'portfolio-storage',
-  'ticker-presets',
-  'url-state',
-].map((f) => `tests/unit/utils/${f}.test.ts`);
-
-/**
- * 根级 Coverage 配置（所有项目共享）
- */
 const coverageConfig = {
-  provider: 'v8',
+  provider: 'v8' as const,
   reporter: ['html', 'lcov', 'text', 'json-summary'],
   reportsDirectory: 'coverage/vitest',
   include: ['packages/backend/src/**/*.{ts,tsx}', 'packages/frontend/src/**/*.{ts,tsx}'],
@@ -65,46 +40,13 @@ const coverageConfig = {
     branches: 70,
     statements: 80,
   },
-} as const;
+};
 
 export default defineWorkspace([
-  // ── default：集成 / contract / fuzz / property / e2e 辅助 ──
+  // ── node：后端单元 + 集成 + contract + fuzz + shared ──
   {
     test: {
-      name: 'default',
-      globals: true,
-      include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'tests/property/**/*.pbt.ts'],
-      exclude: [
-        'tests/**/*.spec.ts',
-        'tests/chaos/**',
-        'tests/**/*.bench.ts',
-        'tests/unit/api/**',
-        'tests/unit/application/**',
-        'tests/unit/config/**',
-        'tests/unit/db/**',
-        'tests/unit/domain/**',
-        'tests/unit/engine/**',
-        'tests/unit/middleware/**',
-        'tests/unit/queues/**',
-        'tests/unit/routes/**',
-        'tests/unit/schemas/**',
-        'tests/unit/services/**',
-        'tests/unit/store/**',
-        'tests/unit/hooks/**',
-        'tests/unit/components/**',
-        'tests/unit/store/utils/**',
-        ...backendUtils,
-        ...frontendUtils,
-      ],
-      testTimeout: 30000,
-      hookTimeout: 60000,
-      coverage: coverageConfig,
-    },
-  },
-  // ── backend：后端单元测试 ──
-  {
-    test: {
-      name: 'backend',
+      name: 'node',
       globals: true,
       include: [
         'tests/unit/api/**/*.test.ts',
@@ -112,59 +54,108 @@ export default defineWorkspace([
         'tests/unit/config/**/*.test.ts',
         'tests/unit/db/**/*.test.ts',
         'tests/unit/domain/**/*.test.ts',
-        'tests/unit/engine/**/*.test.ts',
         'tests/unit/middleware/**/*.test.ts',
         'tests/unit/queues/**/*.test.ts',
         'tests/unit/routes/**/*.test.ts',
         'tests/unit/schemas/**/*.test.ts',
         'tests/unit/services/**/*.test.ts',
-        ...backendUtils,
+        'tests/unit/utils/{date-utils,engine-body-builder,engine-client,errors,integrity,log-sanitizer,logger,metrics,numeric-range,request-context,ticker-validation}.test.ts',
+        'tests/integration/**/*.test.ts',
+        'tests/contract/**/*.test.ts',
+        'tests/fuzz/**/*.test.ts',
+        'tests/property/**/*.pbt.ts',
+        'packages/shared/**/*.test.ts',
       ],
+      exclude: ['tests/chaos/**', 'tests/**/*.bench.ts'],
+      testTimeout: 30000,
+      hookTimeout: 60000,
       deps: {
         moduleDirectories: ['node_modules', 'packages/backend/node_modules'],
       },
+      coverage: coverageConfig,
     },
     resolve: {
       alias: {
+        // @backtest/shared 别名（与 tsconfig.base.json paths 对齐）
+        // 顺序敏感：更具体的子路径必须在通配前缀之前
+        '@backtest/shared/types/tactical': path.resolve(
+          __dirname,
+          'packages/shared/types/tactical.ts',
+        ),
+        '@backtest/shared/types/signal': path.resolve(__dirname, 'packages/shared/types/signal.ts'),
+        '@backtest/shared/types/letf': path.resolve(__dirname, 'packages/shared/types/letf.ts'),
+        '@backtest/shared/types/index': path.resolve(__dirname, 'packages/shared/types/index.ts'),
+        '@backtest/shared/types': path.resolve(__dirname, 'packages/shared/types/index.ts'),
+        '@backtest/shared/constants': path.resolve(__dirname, 'packages/shared/constants.ts'),
+        '@backtest/shared': path.resolve(__dirname, 'packages/shared/types/index.ts'),
+        // pnpm 严格隔离：后端运行时依赖仅安装在 packages/backend/node_modules，
+        // vitest 从 monorepo 根运行时 vite import-analysis 无法向上查找到这些包，
+        // 需显式 alias 映射到实际路径，否则 vi.mock 拦截失效。
         opossum: path.resolve(__dirname, 'packages/backend/node_modules/opossum'),
         pg: path.resolve(__dirname, 'packages/backend/node_modules/pg'),
         jose: path.resolve(__dirname, 'packages/backend/node_modules/jose'),
         argon2: path.resolve(__dirname, 'packages/backend/node_modules/argon2'),
         bullmq: path.resolve(__dirname, 'packages/backend/node_modules/bullmq'),
+        zod: path.resolve(__dirname, 'packages/backend/node_modules/zod'),
+        stripe: path.resolve(__dirname, 'packages/backend/node_modules/stripe'),
+        ioredis: path.resolve(__dirname, 'packages/backend/node_modules/ioredis'),
       },
     },
   },
-  // ── frontend：前端单元测试 + 组件测试 ──
+  // ── browser：前端单元 + 组件 + hooks + store ──
   {
     plugins: [react()],
     test: {
-      name: 'frontend',
+      name: 'browser',
       globals: true,
       include: [
-        'tests/unit/store/**/*.test.ts',
-        'tests/unit/store/**/*.test.tsx',
-        'tests/unit/hooks/**/*.test.ts',
-        'tests/unit/hooks/**/*.test.tsx',
-        'tests/unit/components/**/*.test.ts',
-        'tests/unit/components/**/*.test.tsx',
-        'tests/unit/store/utils/**/*.test.ts',
-        'tests/unit/store/utils/**/*.test.tsx',
-        ...frontendUtils,
+        'tests/unit/store/**/*.test.{ts,tsx}',
+        'tests/unit/hooks/**/*.test.{ts,tsx}',
+        'tests/unit/components/**/*.test.{ts,tsx}',
+        'tests/unit/utils/{api-client,auth-tokens,chart-data-merge,config-api,format,portfolio-storage,ticker-presets,url-state}.test.ts',
       ],
+      deps: {
+        moduleDirectories: ['node_modules', 'packages/frontend/node_modules'],
+      },
+      environment: 'jsdom',
     },
     resolve: {
       alias: {
+        // pnpm 严格隔离：前端依赖仅安装在 packages/frontend/node_modules，
+        // vitest 从 monorepo 根运行时 vite import-analysis 无法向上查找到这些包，
+        // 需显式 alias 映射到实际路径（与 vite.config.ts frontendAlias 对齐）。
+        // 子路径导出（react/jsx-*）须置于裸包名之前，确保精确匹配优先。
+        'react/jsx-dev-runtime': path.resolve(
+          __dirname,
+          'packages/frontend/node_modules/react/jsx-dev-runtime.js',
+        ),
+        'react/jsx-runtime': path.resolve(
+          __dirname,
+          'packages/frontend/node_modules/react/jsx-runtime.js',
+        ),
+        'react-dom/client': path.resolve(
+          __dirname,
+          'packages/frontend/node_modules/react-dom/client.js',
+        ),
+        react: path.resolve(__dirname, 'packages/frontend/node_modules/react'),
+        'react-dom': path.resolve(__dirname, 'packages/frontend/node_modules/react-dom'),
+        recharts: path.resolve(__dirname, 'packages/frontend/node_modules/recharts'),
+        zustand: path.resolve(__dirname, 'packages/frontend/node_modules/zustand'),
+        'lucide-react': path.resolve(__dirname, 'packages/frontend/node_modules/lucide-react'),
+        i18next: path.resolve(__dirname, 'packages/frontend/node_modules/i18next'),
+        'react-i18next': path.resolve(__dirname, 'packages/frontend/node_modules/react-i18next'),
+        'i18next-browser-languagedetector': path.resolve(
+          __dirname,
+          'packages/frontend/node_modules/i18next-browser-languagedetector',
+        ),
+        '@testing-library/react': path.resolve(
+          __dirname,
+          'packages/frontend/node_modules/@testing-library/react',
+        ),
         '@': path.resolve(__dirname, './packages/frontend/src'),
+        // react-router-dom 由测试 mock 覆盖，须置于裸包 alias 之后
         'react-router-dom': path.resolve(__dirname, 'tests/mocks/react-router-dom.tsx'),
       },
-    },
-  },
-  // ── shared：共享类型测试 ──
-  {
-    test: {
-      name: 'shared',
-      globals: true,
-      include: ['packages/shared/**/*.test.ts'],
     },
   },
   // ── chaos：Docker 依赖的混沌工程测试 ──
@@ -173,7 +164,6 @@ export default defineWorkspace([
       name: 'chaos',
       globals: true,
       include: ['tests/chaos/**/*.test.ts'],
-      exclude: ['tests/**/*.spec.ts'],
       testTimeout: 120000,
       hookTimeout: 60000,
     },

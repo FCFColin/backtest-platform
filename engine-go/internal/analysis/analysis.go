@@ -252,17 +252,38 @@ func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, erro
 			RSquared:              0,
 			TrackingError:         0,
 			InformationRatio:      0,
-			UpsideCapture:         0,
-			DownsideCapture:       0,
-			VaR5:                  var5,
-			CVaR5:                 cvar5,
-			Skewness:              skewness,
-			ExcessKurtosis:        excessKurtosis,
-			PctPositiveDays:       pctPositiveDays,
-			MaxDailyReturn:        maxDailyReturn,
-			MinDailyReturn:        minDailyReturn,
-			PWR:                   pwr,
-		}
+		UpsideCapture:         0,
+		DownsideCapture:       0,
+		MaxDailyReturn:        maxDailyReturn,
+		MinDailyReturn:        minDailyReturn,
+		PWR:                   pwr,
+		Var: engine.VaRByFrequency{
+			Daily:   engine.VaRLevels{One: engine.CalcVaR(dailyReturns, 0.99), Five: var5, Ten: engine.CalcVaR(dailyReturns, 0.90)},
+			Monthly: engine.VaRLevels{},
+			Annual:  engine.VaRLevels{},
+		},
+		Cvar: engine.VaRByFrequency{
+			Daily:   engine.VaRLevels{One: engine.CalcCVaR(dailyReturns, 0.99), Five: cvar5, Ten: engine.CalcCVaR(dailyReturns, 0.90)},
+			Monthly: engine.VaRLevels{},
+			Annual:  engine.VaRLevels{},
+		},
+		Skewness: engine.SkewnessByFrequency{
+			Daily:   skewness,
+			Monthly: 0,
+			Annual:  0,
+		},
+		ExcessKurtosis: engine.SkewnessByFrequency{
+			Daily:   excessKurtosis,
+			Monthly: 0,
+			Annual:  0,
+		},
+		WinRate: engine.SkewnessByFrequency{
+			Daily:   pctPositiveDays,
+			Monthly: 0,
+			Annual:  0,
+		},
+		PctPositiveDays: pctPositiveDays,
+	}
 
 		assets = append(assets, AssetAnalysisItem{
 			Ticker:         ticker,

@@ -11,7 +11,7 @@
 // 避免后人误把"宽松"当 bug 收紧、或把"严格"当 bug 放宽。VO 模式集中为单一导出常量。
 
 /** 领域规范 ticker 正则：1-10 位字母数字主体 + 可选两字母交易所后缀。 */
-export const DOMAIN_TICKER_PATTERN = /^[A-Z0-9]{1,10}(\.[A-Z]{2})?$/;
+const DOMAIN_TICKER_PATTERN = /^[A-Z0-9]{1,10}(\.[A-Z]{2})?$/;
 
 export class Ticker {
   private constructor(public readonly value: string) {}

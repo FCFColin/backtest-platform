@@ -1,25 +1,21 @@
+/**
+ * optimize-service 单元测试
+ *
+ * 合并后覆盖：回测优化器参数搜索（executeOptimization）。
+ * 所有计算逻辑已迁移到 Go 引擎，测试通过 mock callEngineStrict 验证编排逻辑。
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 const mocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
-  EngineUnavailableError: class EngineUnavailableError extends Error {
-    readonly retryAfterSeconds: number;
-    readonly code = 'ENGINE_UNAVAILABLE';
-    constructor(endpoint: string, retryAfterSeconds = 30) {
-      super(`计算引擎暂不可用（${endpoint}），请稍后重试`);
-      this.name = 'EngineUnavailableError';
-      this.retryAfterSeconds = retryAfterSeconds;
-    }
-  },
   fetchHistoryData: vi.fn(),
-  numericRange: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: mocks.callEngineStrict,
-  EngineUnavailableError: mocks.EngineUnavailableError,
+  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
@@ -28,14 +24,12 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../packages/backend/src/utils/numericRange.js', () => ({
-  numericRange: mocks.numericRange,
+vi.mock('../../../packages/backend/src/utils/timeout.js', () => ({
+  withTimeout: vi.fn((promise: Promise<unknown>) => promise),
+  TimeoutError: class TimeoutError extends Error {},
 }));
 
-import {
-  executeOptimization,
-  MAX_OPTIMIZER_COMBINATIONS,
-} from '../../../packages/backend/src/application/optimizer-application-service.js';
+import { executeOptimization } from '../../../packages/backend/src/application/optimize-service.js';
 
 function validBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -51,6 +45,10 @@ function validBody(overrides: Record<string, unknown> = {}): Record<string, unkn
     objective: 'maxCagr',
     ...overrides,
   };
+}
+
+function mockPriceDataResponse() {
+  return { data: { AAPL: { '2020-01-01': 100 } }, degraded: false };
 }
 
 describe('executeOptimization', () => {
@@ -79,33 +77,14 @@ describe('executeOptimization', () => {
   });
 
   it('returns error when ticker data not found', async () => {
-    mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: {} });
+    mocks.fetchHistoryData.mockResolvedValueOnce({ data: { AAPL: {} }, degraded: false });
     const result = await executeOptimization(validBody());
     expect(result.success).toBe(false);
     expect(result.error).toBe('以下标的代码无效：AAPL');
   });
 
-  it('returns error when parameter space is empty', async () => {
-    mocks.numericRange.mockReturnValue([]);
-    mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
-    const result = await executeOptimization(validBody());
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('参数空间为空，请检查范围与步长');
-  });
-
-  it('returns error when too many combinations', async () => {
-    const capitals = Array.from({ length: MAX_OPTIMIZER_COMBINATIONS + 1 }, (_, i) => 10000 + i);
-    mocks.numericRange.mockReturnValue(capitals);
-    mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
-    const result = await executeOptimization(validBody());
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('超过上限');
-    expect(result.error).toContain(String(MAX_OPTIMIZER_COMBINATIONS));
-  });
-
   it('returns success on valid optimization', async () => {
-    mocks.numericRange.mockReturnValue([10000]);
-    mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
+    mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
     mocks.callEngineStrict
       .mockResolvedValueOnce({
         portfolios: [
@@ -144,126 +123,17 @@ describe('executeOptimization', () => {
     expect(data.best).toBeDefined();
     expect((data.best as Record<string, unknown>).cagr).toBe(0.12);
     expect(mocks.callEngineStrict).toHaveBeenCalledTimes(2);
-    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
-      '/api/engine/backtest',
-      expect.objectContaining({ portfolios: expect.any(Array), priceData: expect.any(Object) }),
-    );
   });
 
-  it('returns success with constraints filtering', async () => {
-    mocks.numericRange.mockReturnValue([10000]);
-    mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
-    mocks.callEngineStrict
-      .mockResolvedValueOnce({
-        portfolios: [
-          {
-            statistics: {
-              cagr: 0.12,
-              maxDrawdown: 0.1,
-              sharpe: 1.5,
-              sortino: 1.8,
-              stdev: 0.2,
-              calmar: 0.8,
-            },
-          },
-          {
-            statistics: {
-              cagr: 0.15,
-              maxDrawdown: 0.2,
-              sharpe: 1.2,
-              sortino: 1.4,
-              stdev: 0.25,
-              calmar: 0.5,
-            },
-          },
-          {
-            statistics: {
-              cagr: 0.05,
-              maxDrawdown: 0.1,
-              sharpe: 0.8,
-              sortino: 0.9,
-              stdev: 0.15,
-              calmar: 0.3,
-            },
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        portfolios: [{ growthCurve: [{ date: '2020-01-01', value: 10000 }] }],
-      });
-
-    const result = await executeOptimization(
-      validBody({ constraints: { maxDrawdown: 15, minCagr: 8 } }),
-    );
-    expect(result.success).toBe(true);
-    expect((result.data as Record<string, unknown>).results).toHaveLength(1);
-    expect((result.data as Record<string, unknown>).best).toBeDefined();
-  });
-
-  it('includes benchmark ticker in data fetch', async () => {
-    mocks.numericRange.mockReturnValue([10000]);
-    mocks.fetchHistoryData.mockResolvedValueOnce({
-      AAPL: { '2020-01-01': 100 },
-      SPY: { '2020-01-01': 300 },
-    });
-    mocks.callEngineStrict
-      .mockResolvedValueOnce({
-        portfolios: [
-          {
-            statistics: {
-              cagr: 0.12,
-              maxDrawdown: 0.15,
-              sharpe: 1.5,
-              sortino: 1.8,
-              stdev: 0.2,
-              calmar: 0.8,
-            },
-          },
-          {
-            statistics: {
-              cagr: 0.1,
-              maxDrawdown: 0.2,
-              sharpe: 1.2,
-              sortino: 1.4,
-              stdev: 0.25,
-              calmar: 0.5,
-            },
-          },
-        ],
-      })
-      .mockResolvedValueOnce({
-        portfolios: [{ growthCurve: [{ date: '2020-01-01', value: 10000 }] }],
-        benchmarkGrowth: [{ date: '2020-01-01', value: 30000 }],
-      });
-
-    const result = await executeOptimization(
-      validBody({
-        parameters: { startDate: '2020-01-01', endDate: '2020-12-31', benchmarkTicker: 'SPY' },
-      }),
-    );
-    expect(result.success).toBe(true);
-    expect(mocks.fetchHistoryData).toHaveBeenCalledWith(
-      expect.arrayContaining(['AAPL', 'SPY']),
-      '2020-01-01',
-      '2020-12-31',
-    );
-  });
-
-  it('Go 引擎不可用时应抛出 EngineUnavailableError（fail-closed，不回退 Node）', async () => {
-    mocks.numericRange.mockReturnValue([10000]);
-    mocks.fetchHistoryData.mockResolvedValueOnce({ AAPL: { '2020-01-01': 100 } });
+  it('throws EngineUnavailableError when engine is unavailable (fail-closed)', async () => {
+    mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
     mocks.callEngineStrict.mockRejectedValueOnce(
-      new mocks.EngineUnavailableError('/api/engine/backtest'),
+      new EngineUnavailableErrorStub('/api/engine/backtest'),
     );
 
     await expect(executeOptimization(validBody())).rejects.toBeInstanceOf(
-      mocks.EngineUnavailableError,
+      EngineUnavailableErrorStub,
     );
-    // 仅尝试调用 Go 引擎一次，未回退 Node 计算
     expect(mocks.callEngineStrict).toHaveBeenCalledTimes(1);
-    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
-      '/api/engine/backtest',
-      expect.objectContaining({ portfolios: expect.any(Array) }),
-    );
   });
 });

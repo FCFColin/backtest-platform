@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { PieChart } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Field, ResultRow, CollapsibleCard, TwoFundChart } from './BaseCalculatorUI.js';
 import { computeTwoFundFrontier } from './baseCalculatorUtils.js';
 
 export function TwoFundPortfolioCalculator() {
+  const { t } = useTranslation();
   const [cagrA, setCagrA] = useState(8);
   const [volA, setVolA] = useState(15);
   const [cagrB, setCagrB] = useState(4);
@@ -16,22 +18,55 @@ export function TwoFundPortfolioCalculator() {
   );
 
   return (
-    <CollapsibleCard icon={PieChart} title="两基金组合">
+    <CollapsibleCard icon={PieChart} title={t('calculators.portfolio.twoFundTitle')}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field label="资产A CAGR" value={cagrA} onChange={setCagrA} suffix="%" />
-        <Field label="资产A 波动率" value={volA} onChange={setVolA} suffix="%" />
-        <Field label="资产B CAGR" value={cagrB} onChange={setCagrB} suffix="%" />
-        <Field label="资产B 波动率" value={volB} onChange={setVolB} suffix="%" />
+        <Field
+          label={t('calculators.portfolio.assetACagr')}
+          value={cagrA}
+          onChange={setCagrA}
+          suffix="%"
+        />
+        <Field
+          label={t('calculators.portfolio.assetAVol')}
+          value={volA}
+          onChange={setVolA}
+          suffix="%"
+        />
+        <Field
+          label={t('calculators.portfolio.assetBCagr')}
+          value={cagrB}
+          onChange={setCagrB}
+          suffix="%"
+        />
+        <Field
+          label={t('calculators.portfolio.assetBVol')}
+          value={volB}
+          onChange={setVolB}
+          suffix="%"
+        />
       </div>
-      <Field label="相关性" value={corr} onChange={setCorr} step={0.05} min={-1} max={1} />
+      <Field
+        label={t('calculators.portfolio.correlation')}
+        value={corr}
+        onChange={setCorr}
+        step={0.05}
+        min={-1}
+        max={1}
+      />
       <div style={{ marginTop: 8 }}>
         <ResultRow
-          label="最小方差组合 A权重"
+          label={t('calculators.portfolio.minVarWeight')}
           value={(minVarW * 100).toFixed(1) + '%'}
           color="var(--brand)"
         />
-        <ResultRow label="最小方差 CAGR" value={minVarCagr.toFixed(2) + '%'} />
-        <ResultRow label="最小方差波动率" value={minVarVol.toFixed(2) + '%'} />
+        <ResultRow
+          label={t('calculators.portfolio.minVarCagr')}
+          value={minVarCagr.toFixed(2) + '%'}
+        />
+        <ResultRow
+          label={t('calculators.portfolio.minVarVol')}
+          value={minVarVol.toFixed(2) + '%'}
+        />
       </div>
       <TwoFundChart data={frontier} />
     </CollapsibleCard>

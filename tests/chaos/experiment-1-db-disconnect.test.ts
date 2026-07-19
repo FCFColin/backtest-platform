@@ -7,21 +7,21 @@
  *
  * 权衡：实验需要 Docker 环境，无 Docker 时自动 skip。
  *
- * 重构说明（Task 6.2）：
- * - 原 experiment-1-db-disconnect.ts 使用 process.exit 和 console.log，
- *   不与 vitest 集成，且容器名错误（backtest-postgres-1 vs backtest-postgres）。
- * - 本测试使用 it.skipIf 在无 Docker 时跳过，断言熔断器状态和降级行为。
- * - 测试 DB 相关端点 /api/v1/data/history（依赖 pgCircuitBreaker），而非 /api/health。
+ * 重构说明（Task 5.14/5.15）：
+ * - 用 setupChaosFixture(CONTAINERS.postgres, reconnectContainer) 替代内联
+ *   isDockerAvailable/isContainerRunning + afterAll reconnectContainer 样板。
+ * - 网络分区模式（disconnect/reconnect）保留在 it 块内，因 withContainerStopped
+ *   仅适配 stop/start 模式。
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   CONTAINERS,
-  isDockerAvailable,
-  isContainerRunning,
   disconnectContainer,
   reconnectContainer,
   getCircuitBreakerState,
   waitForHealthy,
+  setupChaosFixture,
+  type ChaosFixture,
 } from '../helpers/chaos.js';
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:5001';
@@ -37,33 +37,27 @@ const METRICS_URL = `${API_URL}/api/metrics`;
  */
 const DB_ENDPOINT = `${API_URL}/api/v1/data/history?tickers=SPY&startDate=2020-01-01&endDate=2024-12-31`;
 
-let dockerAvailable = false;
-let postgresRunning = false;
+// top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值
+let fixture: ChaosFixture = {
+  dockerAvailable: false,
+  containerRunning: false,
+  recover: async () => {},
+};
 
 beforeAll(async () => {
-  dockerAvailable = await isDockerAvailable();
-  if (dockerAvailable) {
-    postgresRunning = await isContainerRunning(CONTAINERS.postgres);
-  }
+  fixture = await setupChaosFixture(CONTAINERS.postgres, reconnectContainer);
 }, 30000);
 
 afterAll(async () => {
-  // 确保测试结束（无论成功/失败）后恢复 PostgreSQL 网络
-  if (dockerAvailable && postgresRunning) {
-    try {
-      await reconnectContainer(CONTAINERS.postgres);
-    } catch {
-      // 容器可能已重连，忽略错误
-    }
-  }
+  await fixture.recover();
 }, 30000);
 
 describe('Chaos Experiment 1: Database Disconnect', () => {
-  it.skipIf(!dockerAvailable)(
+  it.skipIf(!fixture.dockerAvailable)(
     '应在 PostgreSQL 网络分区期间降级而非 500，且熔断器 Open',
     async () => {
       // 前置条件：PostgreSQL 容器必须运行
-      if (!postgresRunning) {
+      if (!fixture.containerRunning) {
         console.warn('skip: backtest-postgres 容器未运行');
         return;
       }

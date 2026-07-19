@@ -1,20 +1,34 @@
+import { useTranslation } from 'react-i18next';
 import { useEngineHealth, type EngineStatus } from '../hooks/useEngineHealth.js';
 
-const STATUS_CONFIG: Record<EngineStatus, { icon: string; tooltip: string; color: string }> = {
-  loading: { icon: '⏳', tooltip: '正在检查引擎状态...', color: 'var(--text-secondary)' },
-  ok: { icon: '🟢', tooltip: 'Go 引擎已就绪', color: '#22c55e' },
-  degraded: { icon: '🟡', tooltip: 'Go 引擎不可用，计算端点将返回 503', color: '#eab308' },
-  error: { icon: '🔴', tooltip: '引擎不可用', color: '#ef4444' },
+const STATUS_CONFIG: Record<EngineStatus, { icon: string; tooltipKey: string; color: string }> = {
+  loading: {
+    icon: '⏳',
+    tooltipKey: 'components.engineStatusIndicator.tooltips.loading',
+    color: 'var(--text-secondary)',
+  },
+  ok: { icon: '🟢', tooltipKey: 'components.engineStatusIndicator.tooltips.ok', color: '#22c55e' },
+  degraded: {
+    icon: '🟡',
+    tooltipKey: 'components.engineStatusIndicator.tooltips.degraded',
+    color: '#eab308',
+  },
+  error: {
+    icon: '🔴',
+    tooltipKey: 'components.engineStatusIndicator.tooltips.error',
+    color: '#ef4444',
+  },
 };
 
 export function EngineStatusIndicator() {
-  const { status, go, node } = useEngineHealth();
-  const effectiveStatus: EngineStatus = status === 'ok' && node && !go ? 'degraded' : status;
-  const { icon, tooltip, color } = STATUS_CONFIG[effectiveStatus];
+  const { t } = useTranslation();
+  const { status, go } = useEngineHealth();
+  const effectiveStatus: EngineStatus = status === 'ok' && !go ? 'degraded' : status;
+  const { icon, tooltipKey, color } = STATUS_CONFIG[effectiveStatus];
 
   return (
     <div
-      title={tooltip}
+      title={t(tooltipKey)}
       style={{
         display: 'inline-flex',
         alignItems: 'center',

@@ -5,14 +5,15 @@
  * <ChartExporter data={[{ date: '2024-01', value: 100 }]} filename="growth-chart" />
  */
 import { Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /** ChartExporter 组件 Props */
-export interface ChartExporterProps {
+interface ChartExporterProps {
   /** 图表数据（每行为一个键值对象） */
   data: Array<Record<string, string | number>>;
   /** 导出文件名（不含扩展名），默认 'chart-data' */
   filename?: string;
-  /** 按钮文本，默认 '导出 CSV' */
+  /** 按钮文本，未传时使用 i18n 默认翻译 */
   label?: string;
 }
 
@@ -45,11 +46,8 @@ function toCSV(data: Array<Record<string, string | number>>): string {
  * - 导出文件名格式：`{filename}-{YYYY-MM-DD}.csv`
  * - 按钮使用项目现有 toolbar-btn 样式，数据为空时禁用
  */
-export function ChartExporter({
-  data,
-  filename = 'chart-data',
-  label = '导出 CSV',
-}: ChartExporterProps) {
+export function ChartExporter({ data, filename = 'chart-data', label }: ChartExporterProps) {
+  const { t } = useTranslation();
   const handleExport = () => {
     const csv = toCSV(data);
     if (!csv) return;
@@ -80,7 +78,7 @@ export function ChartExporter({
       style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
       <Download className="w-3.5 h-3.5" />
-      {label}
+      {label ?? t('components.chartExporter.defaultLabel')}
     </button>
   );
 }

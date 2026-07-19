@@ -1,0 +1,86 @@
+/* ============================================
+   testfol.io 主题变量
+   ============================================ */
+:root {
+  --bg-app: #edf4fa;
+  --bg-elevated: #fff;
+  --bg-subtle: #eef4f9;
+  --bg-header: #eaf1fb;
+  --bg-drawer: #f8fbff;
+  --text-strong: #1b2733;
+  --text-body: #334354;
+  --text-muted: #68788c;
+  --border-soft: #d4deea;
+  --border-strong: #c1cfdf;
+  --brand: #2b63b8;
+  --brand-hover: #1f4e95;
+  --brand-soft: #e6f0fd;
+  --support: #4f8f95;
+  --support-soft: #e7f3f4;
+  --success: #2e8b57;
+  --warning: #c58a1c;
+  --danger: #c94a4a;
+  --shadow-sm:
+    0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14), 0 2px 1px -1px rgba(0, 0, 0, 0.12);
+  --shadow-md:
+    0 1px 5px rgba(0, 0, 0, 0.2), 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12);
+  --shadow-card:
+    0 1px 5px rgba(0, 0, 0, 0.2), 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12);
+  --radius-card: 16px;
+  --radius-control: 4px;
+  --radius-pill: 999px;
+}
+
+/* 深色主题 - 由 useTheme 在 <html> 上切换 .dark 类 */
+.dark {
+  --bg-app: #0d1117;
+  --bg-elevated: #161b22;
+  --bg-subtle: #1c2128;
+  --bg-header: #010409;
+  --bg-drawer: #161b22;
+  --text-strong: #e6edf3;
+  --text-body: #c9d1d9;
+  --text-muted: #8b949e;
+  --border-soft: #21262d;
+  --border-strong: #30363d;
+  --brand: #4a9eff;
+  --brand-hover: #6bb3ff;
+  --brand-soft: #1a2842;
+  --support: #6bb3b8;
+  --support-soft: #1a2828;
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+  --shadow-sm:
+    0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 1px -1px rgba(0, 0, 0, 0.25);
+  --shadow-md:
+    0 1px 5px rgba(0, 0, 0, 0.4), 0 2px 2px rgba(0, 0, 0, 0.3), 0 3px 1px -2px rgba(0, 0, 0, 0.25);
+  --shadow-card:
+    0 1px 5px rgba(0, 0, 0, 0.4), 0 2px 2px rgba(0, 0, 0, 0.3), 0 3px 1px -2px rgba(0, 0, 0, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family:
+    Roboto,
+    -apple-system,
+    Helvetica Neue,
+    Helvetica,
+    Arial,
+    sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}

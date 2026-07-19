@@ -26,5 +26,3 @@ export const goalOptimizerSchema = z.object({
     .optional(),
   numSimulations: z.number().int().positive().optional(),
 });
-
-export type GoalOptimizerRequest = z.infer<typeof goalOptimizerSchema>;

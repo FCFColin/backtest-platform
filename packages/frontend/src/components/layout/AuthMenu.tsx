@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, LogOut, User, Check, Building2, ChevronDown, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 
 const iconBtn: React.CSSProperties = {
@@ -89,15 +90,16 @@ function OrgInfoHeader({
   org: ReturnType<typeof useAuthStore.getState>['org'];
   user: NonNullable<ReturnType<typeof useAuthStore.getState>['user']>;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       style={{ padding: '6px 10px', borderBottom: '1px solid var(--border-soft)', marginBottom: 6 }}
     >
       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-strong)' }}>
-        {org?.name ?? '未选择组织'}
+        {org?.name ?? t('layout.authMenu.noOrgSelected')}
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-        {user.platformAdmin ? '平台管理员 · ' : ''}
+        {user.platformAdmin ? t('layout.authMenu.platformAdminPrefix') : ''}
         {org?.role ?? user.role}
       </div>
     </div>
@@ -113,6 +115,7 @@ function OrgSwitcherSection({
   currentOrgId: string | undefined;
   onSwitchOrg: (orgId: string) => void;
 }) {
+  const { t } = useTranslation();
   if (orgs.length === 0) return null;
   return (
     <div style={{ marginBottom: 6 }}>
@@ -126,7 +129,7 @@ function OrgSwitcherSection({
           color: 'var(--text-muted)',
         }}
       >
-        <Building2 className="w-3 h-3" /> 切换组织
+        <Building2 className="w-3 h-3" /> {t('layout.authMenu.switchOrg')}
       </div>
       {orgs.map((o) => (
         <button
@@ -157,6 +160,7 @@ function MenuActionLinks({
   onClose: () => void;
   onLogout: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <Link
@@ -167,7 +171,7 @@ function MenuActionLinks({
         onMouseEnter={hoverBg}
         onMouseLeave={unhoverBg}
       >
-        <User className="w-4 h-4" /> 账户中心
+        <User className="w-4 h-4" /> {t('layout.authMenu.accountCenter')}
       </Link>
       {(user.orgRole === 'owner' || user.orgRole === 'admin') && (
         <Link
@@ -178,7 +182,7 @@ function MenuActionLinks({
           onMouseEnter={hoverBg}
           onMouseLeave={unhoverBg}
         >
-          <Users className="w-4 h-4" /> 成员管理
+          <Users className="w-4 h-4" /> {t('layout.authMenu.memberManagement')}
         </Link>
       )}
       <button
@@ -187,7 +191,7 @@ function MenuActionLinks({
         onMouseEnter={hoverBg}
         onMouseLeave={unhoverBg}
       >
-        <LogOut className="w-4 h-4" /> 登出
+        <LogOut className="w-4 h-4" /> {t('layout.authMenu.logout')}
       </button>
     </>
   );
@@ -195,6 +199,7 @@ function MenuActionLinks({
 
 export default function AuthMenu() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const org = useAuthStore((s) => s.org);
   const orgs = useAuthStore((s) => s.orgs);
@@ -216,12 +221,14 @@ export default function AuthMenu() {
     return (
       <Link
         to="/login"
-        title="登录"
+        title={t('layout.authMenu.login')}
         className="flex flex-col items-center justify-center px-2.5 no-underline transition-colors"
         style={{ ...iconBtn, textDecoration: 'none' }}
       >
         <LogIn className="w-4 h-4" />
-        <span style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.2, marginTop: 1 }}>登录</span>
+        <span style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.2, marginTop: 1 }}>
+          {t('layout.authMenu.login')}
+        </span>
       </Link>
     );
   }
@@ -266,10 +273,11 @@ function AvatarButton({
   open: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onToggle}
-      title="账户"
+      title={t('layout.authMenu.account')}
       style={{ ...iconBtn, display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px' }}
     >
       <span

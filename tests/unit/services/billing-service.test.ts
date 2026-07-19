@@ -43,7 +43,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   }),
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
 }));
 

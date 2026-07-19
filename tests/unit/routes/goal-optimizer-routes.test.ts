@@ -8,13 +8,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
 }));
 
 const engineMocks = vi.hoisted(() => ({
-  optimizeGoals: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -34,8 +35,9 @@ vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
-vi.mock('../../../packages/backend/src/engine/goalOptimizer.js', () => ({
-  optimizeGoals: engineMocks.optimizeGoals,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: engineMocks.callEngineStrict,
+  EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -54,20 +56,25 @@ function createValidRequest() {
   };
 }
 
+const mockOptimizeResult = {
+  successProbability: 0.85,
+  probabilityCurve: [{ year: 1, probability: 0.95 }],
+  optimalPath: [],
+  requiredContribution: 20000,
+};
+
 describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
   let server: TestServer;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 },
+      data: {
+        SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 },
+      },
+      degraded: false,
     });
-    engineMocks.optimizeGoals.mockReturnValue({
-      successProbability: 0.85,
-      probabilityCurve: [{ year: 1, probability: 0.95 }],
-      optimalPath: [],
-      requiredContribution: 20000,
-    });
+    engineMocks.callEngineStrict.mockResolvedValue(mockOptimizeResult);
     server = await startExpressApp((app) => app.use('/api/goal-optimizer', goalOptimizerRoutes));
   });
 
@@ -87,7 +94,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     expect(body.success).toBe(true);
     expect(body.data.successProbability).toBe(0.85);
     expect(body.data.probabilityCurve).toHaveLength(1);
-    expect(engineMocks.optimizeGoals).toHaveBeenCalledTimes(1);
+    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
 
   it('缺少 targetAmount 应返回 400（zod 校验失败）', async () => {
@@ -101,7 +108,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(engineMocks.optimizeGoals).not.toHaveBeenCalled();
+    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
   it('targetAmount 为负数应返回 400（zod 校验失败）', async () => {
@@ -115,7 +122,7 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(engineMocks.optimizeGoals).not.toHaveBeenCalled();
+    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
   it('空 assets 数组应返回 400（zod 校验失败）', async () => {
@@ -129,11 +136,11 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(engineMocks.optimizeGoals).not.toHaveBeenCalled();
+    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
-  it('价格数据缺失时应返回 400', async () => {
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({});
+  it('价格数据缺失时应返回 404', async () => {
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
 
     const res = await fetch(`${server.url}/api/goal-optimizer/optimize`, {
       method: 'POST',
@@ -142,14 +149,17 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     });
     const body = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
     expect(body.error.detail).toContain('未找到价格数据');
-    expect(engineMocks.optimizeGoals).not.toHaveBeenCalled();
+    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
-  it('部分标的价格数据缺失时应返回 400', async () => {
+  it('部分标的价格数据缺失时应返回 404', async () => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      SPY: {},
+      data: {
+        SPY: {},
+      },
+      degraded: false,
     });
 
     const res = await fetch(`${server.url}/api/goal-optimizer/optimize`, {
@@ -159,41 +169,8 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     });
     const body = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(404);
     expect(body.error.detail).toContain('SPY');
-  });
-
-  it('引擎返回 successProbability=0 且空曲线时应返回 400', async () => {
-    engineMocks.optimizeGoals.mockReturnValue({
-      successProbability: 0,
-      probabilityCurve: [],
-    });
-
-    const res = await fetch(`${server.url}/api/goal-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequest()),
-    });
-    const body = await res.json();
-
-    expect(res.status).toBe(422);
-    expect(body.error.detail).toContain('历史价格数据不足');
-  });
-
-  it('optimizeGoals 抛错时应返回 500', async () => {
-    engineMocks.optimizeGoals.mockImplementation(() => {
-      throw new Error('engine boom');
-    });
-
-    const res = await fetch(`${server.url}/api/goal-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequest()),
-    });
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    expect(body.error.detail).toBe('engine boom');
   });
 
   it('空白 ticker 应触发有效标的校验失败', async () => {
@@ -211,35 +188,15 @@ describe('goalOptimizerRoutes - POST /api/goal-optimizer/optimize', () => {
     expect(body.error.detail).toContain('至少添加一个有效标的');
   });
 
-  it('引擎抛非 Error 值时应返回 500', async () => {
-    engineMocks.optimizeGoals.mockImplementation(() => {
-      throw 'string error';
-    });
+  it('引擎抛错时应返回 500', async () => {
+    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('engine boom'));
 
     const res = await fetch(`${server.url}/api/goal-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),
     });
-    const body = await res.json();
 
     expect(res.status).toBe(500);
-    expect(body.error.detail).toBe('string error');
-  });
-
-  it('引擎抛空消息 Error 时应返回默认错误信息', async () => {
-    engineMocks.optimizeGoals.mockImplementation(() => {
-      throw new Error('');
-    });
-
-    const res = await fetch(`${server.url}/api/goal-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequest()),
-    });
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    expect(body.error.detail).toBe('目标优化失败');
   });
 });

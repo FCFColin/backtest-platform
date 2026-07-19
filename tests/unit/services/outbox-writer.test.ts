@@ -21,7 +21,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 import {
   writeEventInTransaction,
   type OutboxEvent,
-} from '../../../packages/backend/src/services/outboxWriter.js';
+} from '../../../packages/backend/src/infrastructure/outboxWriter.js';
 
 /** 构造一个 mock PoolClient，记录所有 query 调用 */
 function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {

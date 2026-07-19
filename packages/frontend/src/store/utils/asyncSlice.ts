@@ -1,4 +1,4 @@
-export interface AsyncSlice {
+interface AsyncSlice {
   loading: boolean;
   error: string | null;
 }

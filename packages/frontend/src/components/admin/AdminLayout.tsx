@@ -4,6 +4,7 @@
  */
 import { useState } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   Activity,
@@ -18,23 +19,24 @@ import {
 } from 'lucide-react';
 
 const SIDEBAR_ITEMS = [
-  { to: '/admin', icon: LayoutDashboard, label: '仪表盘', end: true },
-  { to: '/admin/monitor', icon: Activity, label: '系统监控' },
-  { to: '/admin/data', icon: Database, label: '数据管理' },
-  { to: '/admin/history', icon: History, label: '回测历史' },
-  { to: '/admin/settings', icon: Settings, label: '系统配置' },
+  { to: '/admin', icon: LayoutDashboard, labelKey: 'adminLayout.dashboard', end: true },
+  { to: '/admin/monitor', icon: Activity, labelKey: 'adminLayout.monitor' },
+  { to: '/admin/data', icon: Database, labelKey: 'adminLayout.dataManagement' },
+  { to: '/admin/history', icon: History, labelKey: 'adminLayout.history' },
+  { to: '/admin/settings', icon: Settings, labelKey: 'adminLayout.settings' },
 ];
 
 export default function AdminLayout() {
+  const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
 
-  const currentLabel =
-    SIDEBAR_ITEMS.find((item) => {
-      if (item.end) return location.pathname === '/admin';
-      return location.pathname.startsWith(item.to);
-    })?.label ?? '管理后台';
+  const currentItem = SIDEBAR_ITEMS.find((item) => {
+    if (item.end) return location.pathname === '/admin';
+    return location.pathname.startsWith(item.to);
+  });
+  const currentLabel = currentItem ? t(currentItem.labelKey) : t('adminLayout.adminConsole');
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -49,6 +51,7 @@ export default function AdminLayout() {
         setCollapsed={setCollapsed}
         mobileOpen={mobileOpen}
         setMobileOpen={setMobileOpen}
+        t={t}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
@@ -73,11 +76,13 @@ function AdminSidebar({
   setCollapsed,
   mobileOpen,
   setMobileOpen,
+  t,
 }: {
   collapsed: boolean;
   setCollapsed: (v: boolean) => void;
   mobileOpen: boolean;
   setMobileOpen: (v: boolean) => void;
+  t: (key: string) => string;
 }) {
   return (
     <aside
@@ -91,7 +96,11 @@ function AdminSidebar({
     >
       <div className="flex h-14 items-center gap-2 border-b border-slate-700/60 px-3">
         <BarChart3 className="h-5 w-5 shrink-0 text-blue-400" />
-        {!collapsed && <span className="text-sm font-bold tracking-wide text-white">管理后台</span>}
+        {!collapsed && (
+          <span className="text-sm font-bold tracking-wide text-white">
+            {t('adminLayout.adminConsole')}
+          </span>
+        )}
         <button
           className="ml-auto hidden rounded p-1 hover:bg-slate-700 lg:block"
           onClick={() => setCollapsed(!collapsed)}
@@ -105,7 +114,7 @@ function AdminSidebar({
             key={item.to}
             to={item.to}
             icon={item.icon}
-            label={item.label}
+            label={t(item.labelKey)}
             collapsed={collapsed}
             end={item.end}
             onClick={() => setMobileOpen(false)}
@@ -118,7 +127,7 @@ function AdminSidebar({
           className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>返回主站</span>}
+          {!collapsed && <span>{t('adminLayout.backToSite')}</span>}
         </NavLink>
       </div>
     </aside>

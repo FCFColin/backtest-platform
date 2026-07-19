@@ -1,16 +1,15 @@
 /**
- * 共享图表渲染内容 — Growth / Drawdown / Telltale / TimeSeriesLine / Bar 五族图表的统一渲染层
+ * 共享图表渲染内容 — TimeSeriesLine / Bar 两族图表的统一渲染层
  *
  * 企业理由：backtest 页和 analysis 页各自实现了相同的 Recharts 渲染逻辑，
  * 样式/tooltip/坐标轴配置重复。提取共享内容组件后，两页复用同一渲染层，
  * 样式变更只需改一处。RO-061 扩展 TimeSeriesLineChartContent 与 BarChartContent
  * 覆盖 Rolling/Seasonality/AnnualReturns/ReturnsTabDaily 等同构图表。
  */
+import type { ReactElement } from 'react';
 import {
   LineChart,
   Line,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   Cell,
@@ -39,188 +38,85 @@ type SeriesNames = string[];
 /** 通用图表数据点 */
 type ChartDataPoint = Record<string, number | string>;
 
-interface GrowthChartContentProps {
-  data: ChartDataPoint[];
-  seriesNames: SeriesNames;
-  height?: number;
-  logScale?: boolean;
-  showBrush?: boolean;
-  yLabelFormatter?: (v: number) => string;
-  tooltipValueFormatter?: (v: number) => [string, string];
+/** Tooltip 值格式化函数类型 */
+type TooltipValueFormatter = (value: number) => [string, string];
+
+// ===== 内部辅助函数：抽取 CartesianGrid/XAxis/Legend/Tooltip/Brush/Lines 重复样板 =====
+
+/** 通用 CartesianGrid（虚线网格 + subtle 背景），5 处复用 */
+function chartGrid(): ReactElement {
+  return <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />;
 }
 
-/** 增长曲线图共享渲染 */
-export function GrowthChartContent({
-  data,
-  seriesNames,
-  height = 400,
-  logScale = false,
-  showBrush = false,
-  yLabelFormatter = (v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0)),
-  tooltipValueFormatter = (v) => [`$${v.toLocaleString()}`, ''],
-}: GrowthChartContentProps) {
+/** 通用日期 X 轴，4 处复用 */
+function dateXAxis(dataKey: string = 'date'): ReactElement {
+  return <XAxis dataKey={dataKey} tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />;
+}
+
+/** 通用 Legend，5 处复用 */
+function chartLegend(): ReactElement {
+  return <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />;
+}
+
+/** 通用 Tooltip（可选 labelFormatter），5 处复用 */
+function chartTooltip(
+  formatter: TooltipValueFormatter | undefined,
+  labelFormatter: ((label: string) => string) | undefined = undefined,
+): ReactElement {
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-        <YAxis
-          scale={logScale ? 'log' : 'linear'}
-          domain={['auto', 'auto']}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={yLabelFormatter}
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          labelFormatter={(label: string) => `${label}`}
-          formatter={tooltipValueFormatter}
-        />
-        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-        {seriesNames.map((name, idx) => (
-          <Line
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        ))}
-        {showBrush && data.length > 100 && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
-      </LineChart>
-    </ResponsiveContainer>
+    <Tooltip
+      contentStyle={CHART_TOOLTIP_STYLE}
+      labelFormatter={labelFormatter}
+      formatter={formatter}
+    />
   );
 }
 
-interface DrawdownChartContentProps {
-  data: ChartDataPoint[];
-  seriesNames: SeriesNames;
-  height?: number;
-  showBrush?: boolean;
-}
-
-/** 回撤面积图共享渲染 */
-export function DrawdownChartContent({
-  data,
-  seriesNames,
-  height = 300,
-  showBrush = false,
-}: DrawdownChartContentProps) {
+/** 条件渲染 Brush（数据点超过阈值时显示），4 处复用 */
+function maybeBrush(
+  showBrush: boolean,
+  dataLength: number,
+  dataKey: string = 'date',
+  threshold: number = 100,
+): ReactElement | null {
+  if (!showBrush || dataLength <= threshold) return null;
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-        <YAxis
-          domain={['auto', 0]}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          labelFormatter={(label: string) => `${label}`}
-          formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-        />
-        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-        {seriesNames.map((name, idx) => (
-          <Area
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-            fill={CHART_COLORS[idx % CHART_COLORS.length]}
-            fillOpacity={0.12}
-            strokeWidth={1.5}
-          />
-        ))}
-        {showBrush && data.length > 100 && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
-      </AreaChart>
-    </ResponsiveContainer>
+    <Brush
+      dataKey={dataKey}
+      height={20}
+      stroke="var(--brand)"
+      travellerWidth={8}
+      tickFormatter={DATE_TICK_FORMATTER}
+    />
   );
 }
 
-interface TelltaleChartContentProps {
-  data: ChartDataPoint[];
-  seriesNames: SeriesNames;
-  height?: number;
-  showBrush?: boolean;
-  yLabel?: string;
+/** renderLines 选项 */
+interface RenderLinesOptions {
+  /** 颜色起始偏移（跳过基准色），默认 0 */
+  colorOffset?: number;
+  /** 折线宽度，默认 2 */
+  strokeWidth?: number;
+  /** activeDot 半径，默认 4 */
+  activeDotR?: number;
 }
 
-/** Telltale 走势对比图共享渲染 */
-export function TelltaleChartContent({
-  data,
-  seriesNames,
-  height = 400,
-  showBrush = false,
-  yLabel,
-}: TelltaleChartContentProps) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-        <YAxis
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => v.toFixed(3)}
-          label={
-            yLabel
-              ? {
-                  value: yLabel,
-                  angle: -90,
-                  position: 'insideLeft',
-                  style: { fill: 'var(--text-muted)', fontSize: 12 },
-                }
-              : undefined
-          }
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          labelFormatter={(label: string) => `${label}`}
-          formatter={(value: number) => [value.toFixed(3), '']}
-        />
-        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-        <ReferenceLine y={1} stroke="var(--text-muted)" strokeDasharray="4 4" />
-        {seriesNames.map((name, idx) => (
-          <Line
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={CHART_COLORS[(idx + 1) % CHART_COLORS.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        ))}
-        {showBrush && data.length > 100 && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
-      </LineChart>
-    </ResponsiveContainer>
-  );
+/** 多系列 Line 数组渲染，TimeSeriesLineChartContent 复用 */
+function renderLines(
+  seriesNames: SeriesNames,
+  { colorOffset = 0, strokeWidth = 2, activeDotR = 4 }: RenderLinesOptions = {},
+): ReactElement[] {
+  return seriesNames.map((name, idx) => (
+    <Line
+      key={name}
+      type="monotone"
+      dataKey={name}
+      stroke={CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
+      strokeWidth={strokeWidth}
+      dot={false}
+      activeDot={{ r: activeDotR }}
+    />
+  ));
 }
 
 interface TimeSeriesLineChartContentProps {
@@ -232,7 +128,7 @@ interface TimeSeriesLineChartContentProps {
   /** Y 轴刻度格式化；未传则不设 formatter */
   yTickFormatter?: (v: number) => string;
   /** Tooltip 值格式化，返回 [文本, 名称] */
-  tooltipValueFormatter?: (v: number) => [string, string];
+  tooltipValueFormatter?: TooltipValueFormatter;
   /** Tooltip 标签（X 轴值）格式化 */
   tooltipLabelFormatter?: (label: string) => string;
   /** Y 轴域 */
@@ -271,38 +167,16 @@ export function TimeSeriesLineChartContent({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey={xDataKey} tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
+        {chartGrid()}
+        {dateXAxis(xDataKey)}
         <YAxis tick={AXIS_TICK_STYLE} tickFormatter={yTickFormatter} domain={yDomain} />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          labelFormatter={tooltipLabelFormatter}
-          formatter={tooltipValueFormatter}
-        />
-        {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
+        {chartTooltip(tooltipValueFormatter, tooltipLabelFormatter)}
+        {showLegend && chartLegend()}
         {referenceY !== undefined && (
           <ReferenceLine y={referenceY} stroke="var(--text-muted)" strokeDasharray="4 4" />
         )}
-        {seriesNames.map((name, idx) => (
-          <Line
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
-            strokeWidth={strokeWidth}
-            dot={false}
-            activeDot={{ r: 3 }}
-          />
-        ))}
-        {showBrush && data.length > brushThreshold && (
-          <Brush
-            dataKey={xDataKey}
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
+        {renderLines(seriesNames, { colorOffset, strokeWidth, activeDotR: 3 })}
+        {maybeBrush(showBrush, data.length, xDataKey, brushThreshold)}
       </LineChart>
     </ResponsiveContainer>
   );
@@ -317,7 +191,7 @@ interface BarChartContentProps {
   /** Y 轴刻度格式化 */
   yTickFormatter?: (v: number) => string;
   /** Tooltip 值格式化，返回 [文本, 名称]；未传则不设 formatter */
-  tooltipValueFormatter?: (v: number) => [string, string];
+  tooltipValueFormatter?: TooltipValueFormatter;
   /** Y 轴标签文本 */
   yLabel?: string;
   /** 柱顶圆角，默认 0 */
@@ -356,7 +230,7 @@ export function BarChartContent({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        {chartGrid()}
         <XAxis dataKey={xDataKey} tick={xTick} interval={xTickInterval} />
         <YAxis
           tick={AXIS_TICK_STYLE}
@@ -372,8 +246,8 @@ export function BarChartContent({
               : undefined
           }
         />
-        <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={tooltipValueFormatter} />
-        {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
+        {chartTooltip(tooltipValueFormatter)}
+        {showLegend && chartLegend()}
         {seriesNames.length === 1 && signColorSingleSeries ? (
           <Bar dataKey={seriesNames[0]} radius={[barRadius, barRadius, 0, 0]}>
             {data.map((entry, idx) => {

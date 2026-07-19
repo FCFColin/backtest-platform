@@ -3,6 +3,11 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+
+vi.mock('../../../packages/frontend/src/utils/apiClient.js', () => ({
+  apiFetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+}));
+
 import { useEngineHealth } from '../../../packages/frontend/src/hooks/useEngineHealth.js';
 
 describe('useEngineHealth', () => {
@@ -14,7 +19,7 @@ describe('useEngineHealth', () => {
           success: true,
           data: {
             status: 'ok',
-            engine: { go: true, node: true },
+            engine: { go: true },
             dataFetcher: true,
             dataFreshness: '2024-01-01',
           },
@@ -36,7 +41,6 @@ describe('useEngineHealth', () => {
     });
 
     expect(result.current.go).toBe(true);
-    expect(result.current.node).toBe(true);
     expect(result.current.dataFetcher).toBe(true);
     expect(result.current.dataFreshness).toBe('2024-01-01');
   });
@@ -51,7 +55,6 @@ describe('useEngineHealth', () => {
     });
 
     expect(result.current.go).toBe(false);
-    expect(result.current.node).toBe(false);
   });
 
   it('success=false 时不应更新为 ok（保持 loading 或先前状态）', async () => {
@@ -88,7 +91,7 @@ describe('useEngineHealth', () => {
           success: true,
           data: {
             status: 'degraded',
-            engine: { go: false, node: true },
+            engine: { go: false },
             dataFetcher: true,
             dataFreshness: '2024-06-01',
           },
@@ -103,7 +106,6 @@ describe('useEngineHealth', () => {
     });
 
     expect(result.current.go).toBe(false);
-    expect(result.current.node).toBe(true);
     expect(result.current.dataFetcher).toBe(true);
     expect(result.current.dataFreshness).toBe('2024-06-01');
   });
@@ -136,7 +138,7 @@ describe('useEngineHealth', () => {
           success: true,
           data: {
             status: 'ok',
-            engine: { go: true, node: true },
+            engine: { go: true },
             dataFetcher: true,
             dataFreshness: null,
           },
@@ -157,7 +159,7 @@ describe('useEngineHealth', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       json: async () => ({
         success: true,
-        data: { status: 'degraded', engine: { go: false, node: true }, dataFetcher: false },
+        data: { status: 'degraded', engine: { go: false }, dataFetcher: false },
       }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -179,7 +181,7 @@ describe('useEngineHealth', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       json: async () => ({
         success: true,
-        data: { status: 'ok', engine: { go: true, node: true }, dataFetcher: true },
+        data: { status: 'ok', engine: { go: true }, dataFetcher: true },
       }),
     });
     vi.stubGlobal('fetch', fetchMock);

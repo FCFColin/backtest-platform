@@ -8,9 +8,10 @@
  * </LoadingButton>
  */
 import type { ReactNode, MouseEventHandler } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 
-export interface LoadingButtonProps {
+interface LoadingButtonProps {
   /** 是否处于加载状态 */
   isLoading: boolean;
   /** 点击事件处理函数 */
@@ -40,12 +41,13 @@ export default function LoadingButton({
   isLoading,
   onClick,
   children,
-  loadingText = '加载中...',
+  loadingText,
   disabled = false,
   className = 'main-action-btn',
   style,
   type = 'button',
 }: LoadingButtonProps) {
+  const { t } = useTranslation();
   return (
     <button
       type={type}
@@ -57,7 +59,7 @@ export default function LoadingButton({
       {isLoading ? (
         <>
           <Loader2 className="w-4 h-4 animate-spin" />
-          {loadingText}
+          {loadingText ?? t('common.loading')}
         </>
       ) : (
         children

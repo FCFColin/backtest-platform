@@ -24,7 +24,8 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { appRedis } from '../config/redis.js';
+import { appRedis } from '../infrastructure/redisClient.js';
+import { getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisHealth.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 
@@ -80,40 +81,6 @@ if (cleanupTimer.unref) {
   cleanupTimer.unref();
 }
 
-/** Redis 是否可用（检测后缓存结果，避免每次请求都检测） */
-let redisAvailable: boolean | null = null;
-
-/**
- * 检测 Redis 是否可用
- *
- * 企业理由：Redis 故障时不应阻塞 HTTP 请求处理。首次使用时检测，
- * 后续依赖 Redis 的 error 事件更新状态。检测使用 PING 命令，
- * 超时 500ms 避免长时间等待。
- */
-async function isRedisAvailable(): Promise<boolean> {
-  if (redisAvailable === true) return true;
-  try {
-    const result = await appRedis.ping();
-    redisAvailable = result === 'PONG';
-    return redisAvailable;
-  } catch {
-    if (redisAvailable !== false) {
-      logger.warn('[idempotency] Redis 不可用，回退到内存存储');
-    }
-    redisAvailable = false;
-    return false;
-  }
-}
-
-// Redis 连接恢复时更新状态
-appRedis.on('ready', () => {
-  redisAvailable = true;
-});
-
-appRedis.on('error', () => {
-  redisAvailable = false;
-});
-
 /**
  * 幂等性 Key Express 中间件
  *
@@ -166,7 +133,7 @@ async function handleIdempotencyKey(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  const redisOk = await isRedisAvailable();
+  const redisOk = await getRedisHealth();
 
   if (redisOk) {
     await handleWithRedis(key, req, res, next);
@@ -240,7 +207,7 @@ async function handleWithRedis(
       { middleware: 'idempotency', key, err: String(err) },
       '[idempotency] Redis 操作异常，降级到内存存储',
     );
-    redisAvailable = false;
+    markRedisUnhealthy();
     handleWithMemory(key, req, res, next);
   }
 }

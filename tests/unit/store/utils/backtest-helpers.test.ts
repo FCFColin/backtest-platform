@@ -10,7 +10,7 @@ import {
   validatePortfolios,
   createDefaultPortfolio,
   defaultParameters,
-} from '../../../../packages/frontend/src/store/utils/backtestHelpers.js';
+} from '../../../../packages/frontend/src/store/backtestHelpers.js';
 
 describe('extractApiErrorDetail', () => {
   it('null/undefined 应返回 fallback', () => {

@@ -26,7 +26,7 @@ export type NodeEnv = 'development' | 'production' | 'test';
  * - `true`：允许所有来源（默认，开发友好）
  * - `string[]`：仅允许指定来源
  */
-export type CorsOrigins = true | string[];
+type CorsOrigins = true | string[];
 
 /**
  * 解析 JWT 签名算法（生产环境默认 RS256，开发环境默认 HS256）。

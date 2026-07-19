@@ -1,23 +1,25 @@
 import { useState } from 'react';
 import type { OptimizationResult, Statistics } from '@backtest/shared';
+import { apiFetch } from '@/utils/apiClient';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  BASE_BACKTEST_PARAMS,
+} from '@/utils/constants';
 
 export type SolverType = 'markowitz' | 'ga';
 export type OptimizerResultExt = OptimizationResult & {
   frontier?: Array<{ expectedReturn: number; expectedVolatility: number; sharpeRatio: number }>;
 };
 
-export const BASE_PARAMS = {
+const BASE_PARAMS = {
+  ...BASE_BACKTEST_PARAMS,
   startingValue: 10000,
   adjustForInflation: false,
-  rollingWindowMonths: 12,
-  benchmarkTicker: '',
-  baseCurrency: 'usd',
-  extendedWithdrawalStats: false,
-  cashflowLegs: [] as unknown[],
-  oneTimeCashflows: [] as unknown[],
+  baseCurrency: 'usd' as const,
 };
 
-export function buildConstraints(s: OptimizerStateParams): Record<string, number> {
+function buildConstraints(s: OptimizerStateParams): Record<string, number> {
   const c: Record<string, number> = {
     minWeight: s.minWeight / 100,
     maxWeight: s.maxWeight / 100,
@@ -47,7 +49,7 @@ async function runOptimizeApi(
   };
   if (s.maxHoldings !== '') body.maxHoldings = Number(s.maxHoldings);
   if (s.minWeightToInclude !== '') body.minWeightToInclude = Number(s.minWeightToInclude) / 100;
-  const res = await fetch('/api/backtest/optimize', {
+  const res = await apiFetch('/api/v1/backtest/optimize', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -77,7 +79,7 @@ async function fetchStats(
     ],
     parameters: { ...BASE_PARAMS, startDate: s.startDate, endDate: s.endDate },
   };
-  const r = await fetch('/api/backtest/portfolio', {
+  const r = await apiFetch('/api/v1/backtest/portfolio', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(btBody),
@@ -163,8 +165,8 @@ export interface OptimizerState {
 function useOptimizerSetters() {
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND']);
   const [objective, setObjective] = useState('maxSharpe');
-  const [startDate, setStartDate] = useState('2010-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
+  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [minWeight, setMinWeight] = useState(0);
   const [maxWeight, setMaxWeight] = useState(100);
   const [tbillRate, setTbillRate] = useState(5.0);
@@ -338,53 +340,8 @@ export function useOptimizerState(
   const state = buildOptimizerStateParams(s);
   const runOptimize = () => runOptimizeAction(s, state, t);
   const handleLoadInBacktester = () => loadInBacktesterAction(s, t, navigate);
-  return {
-    tickers: s.tickers,
-    setTickers: s.setTickers,
-    objective: s.objective,
-    setObjective: s.setObjective,
-    startDate: s.startDate,
-    setStartDate: s.setStartDate,
-    endDate: s.endDate,
-    setEndDate: s.setEndDate,
-    minWeight: s.minWeight,
-    setMinWeight: s.setMinWeight,
-    maxWeight: s.maxWeight,
-    setMaxWeight: s.setMaxWeight,
-    tbillRate: s.tbillRate,
-    setTbillRate: s.setTbillRate,
-    allowShort: s.allowShort,
-    setAllowShort: s.setAllowShort,
-    solver: s.solver,
-    setSolver: s.setSolver,
-    minCagr: s.minCagr,
-    setMinCagr: s.setMinCagr,
-    minSharpe: s.minSharpe,
-    setMinSharpe: s.setMinSharpe,
-    minSortino: s.minSortino,
-    setMinSortino: s.setMinSortino,
-    maxVol: s.maxVol,
-    setMaxVol: s.setMaxVol,
-    maxMaxDD: s.maxMaxDD,
-    setMaxMaxDD: s.setMaxMaxDD,
-    maxAvgDD: s.maxAvgDD,
-    setMaxAvgDD: s.setMaxAvgDD,
-    maxHoldings: s.maxHoldings,
-    setMaxHoldings: s.setMaxHoldings,
-    minWeightToInclude: s.minWeightToInclude,
-    setMinWeightToInclude: s.setMinWeightToInclude,
-    enableMaxDD: s.enableMaxDD,
-    setEnableMaxDD: s.setEnableMaxDD,
-    enableMinCagr: s.enableMinCagr,
-    setEnableMinCagr: s.setEnableMinCagr,
-    enableMaxVol: s.enableMaxVol,
-    setEnableMaxVol: s.setEnableMaxVol,
-    isLoading: s.isLoading,
-    isCalculatingStats: s.isCalculatingStats,
-    error: s.error,
-    results: s.results,
-    backtestStats: s.backtestStats,
-    runOptimize,
-    handleLoadInBacktester,
-  };
+  // 内部 setter（setIsLoading/setIsCalculatingStats/setError/setResults/setBacktestStats）
+  // 随 spread 暴露到运行时但不在 OptimizerState 类型中，TypeScript 结构类型允许返回对象
+  // 包含额外字段，消费者无法经由类型系统访问这些内部字段。
+  return { ...s, runOptimize, handleLoadInBacktester };
 }

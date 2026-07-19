@@ -33,9 +33,15 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/services/portfolioRepo.js', () => mocks.portfolioRepo);
-vi.mock('../../../packages/backend/src/services/savedConfigRepo.js', () => mocks.savedConfigRepo);
-vi.mock('../../../packages/backend/src/services/backtestRunRepo.js', () => mocks.backtestRunRepo);
+vi.mock('../../../packages/backend/src/repositories/portfolioRepo.js', () => mocks.portfolioRepo);
+vi.mock(
+  '../../../packages/backend/src/repositories/savedConfigRepo.js',
+  () => mocks.savedConfigRepo,
+);
+vi.mock(
+  '../../../packages/backend/src/repositories/backtestRunRepo.js',
+  () => mocks.backtestRunRepo,
+);
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import portfolioRoutes from '../../../packages/backend/src/routes/portfolioRoutes.js';

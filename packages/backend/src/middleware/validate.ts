@@ -47,29 +47,3 @@ export function validateQuery(schema: ZodSchema) {
     next();
   };
 }
-
-/** 蒙特卡洛参数白名单，sanitizeMcParams 仅保留这些键 */
-const MC_PARAMS_ALLOWED_KEYS = new Set([
-  'numSimulations',
-  'blockSize',
-  'withReplacement',
-  'confidenceLevel',
-  'distribution',
-  'seed',
-]);
-
-/**
- * 过滤 mcParams 中的未知键，仅保留白名单字段。
- *
- * @param mcParams - 原始 mcParams 对象
- * @returns 仅含白名单字段的干净对象
- */
-export function sanitizeMcParams(mcParams: object | undefined): Record<string, unknown> {
-  if (!mcParams || typeof mcParams !== 'object' || Array.isArray(mcParams)) return {};
-  const raw = mcParams as Record<string, unknown>;
-  const sanitized: Record<string, unknown> = {};
-  for (const key of Object.keys(raw)) {
-    if (MC_PARAMS_ALLOWED_KEYS.has(key)) sanitized[key] = raw[key];
-  }
-  return sanitized;
-}

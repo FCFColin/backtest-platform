@@ -1,3 +1,8 @@
+/**
+ * @file 分析页风险收益散点图
+ * @description 以可选风险指标为横轴、CAGR 为纵轴绘制散点图，对比各标的的风险收益比。
+ * 与回测页的 RiskReturnScatter 不同：本组件接收 AssetAnalysisResult，展示各标的分布。
+ */
 import { useState, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,19 +18,23 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { AssetAnalysisResult } from '@backtest/shared';
-import { tooltipStyle, type RiskMetricKey } from './analysisChartUtils.js';
-import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
+import { type RiskMetricKey } from './chartCalculations.js';
+import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
+
+interface ScatterPoint {
+  name: string;
+  risk: number;
+  cagr: number;
+}
 
 function RiskMetricSelector({
   metrics,
   selected,
   onChange,
-  t: _t,
 }: {
   metrics: Array<{ key: RiskMetricKey; label: string }>;
   selected: RiskMetricKey;
   onChange: (v: RiskMetricKey) => void;
-  t: (k: string) => string;
 }) {
   return (
     <select
@@ -43,15 +52,7 @@ function RiskMetricSelector({
   );
 }
 
-function RiskScatterChart({
-  data,
-  riskLabel,
-  tooltipStyle,
-}: {
-  data: Array<{ name: string; risk: number; cagr: number }>;
-  riskLabel: string;
-  tooltipStyle: React.CSSProperties;
-}) {
+function RiskScatterChart({ data, riskLabel }: { data: ScatterPoint[]; riskLabel: string }) {
   return (
     <ResponsiveContainer width="100%" height={450}>
       <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
@@ -82,7 +83,7 @@ function RiskScatterChart({
         />
         <ZAxis range={[80, 80]} />
         <Tooltip
-          contentStyle={tooltipStyle}
+          contentStyle={CHART_TOOLTIP_STYLE}
           formatter={(value: number, name: string) =>
             name === 'risk'
               ? [`${value.toFixed(2)}%`, riskLabel]
@@ -119,6 +120,7 @@ export const RiskReturnChart = memo(function RiskReturnChart({
     { key: 'ulcerIndex' as const, label: t('analysis.ulcerIndex') },
   ];
   const [riskMetric, setRiskMetric] = useState<RiskMetricKey>('stdev');
+
   const scatterData = useMemo(
     () =>
       results.tickers.map((tk) => ({
@@ -134,14 +136,9 @@ export const RiskReturnChart = memo(function RiskReturnChart({
     <div className="chart-card">
       <div className="flex items-center gap-4 mb-3">
         <div className="chart-card-title mb-0">{t('analysis.riskVsReturn')}</div>
-        <RiskMetricSelector
-          metrics={riskMetrics}
-          selected={riskMetric}
-          onChange={setRiskMetric}
-          t={t}
-        />
+        <RiskMetricSelector metrics={riskMetrics} selected={riskMetric} onChange={setRiskMetric} />
       </div>
-      <RiskScatterChart data={scatterData} riskLabel={riskLabel} tooltipStyle={tooltipStyle} />
+      <RiskScatterChart data={scatterData} riskLabel={riskLabel} />
     </div>
   );
 });

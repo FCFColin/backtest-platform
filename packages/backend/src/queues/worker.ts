@@ -21,12 +21,12 @@ import {
   markJobProcessed,
   getProcessedJobResult,
 } from './jobIdempotency.js';
-import { executeOptimization } from '../application/optimizer-application-service.js';
+import { executeOptimization } from '../application/optimize-service.js';
 import { executeGridSearch } from '../application/grid-application-service.js';
-import { createRun } from '../services/backtestRunRepo.js';
+import { createRun } from '../repositories/backtestRunRepo.js';
 import { getOrg } from '../services/membershipService.js';
-import { getPlanLimits } from '../config/planLimits.js';
-import { appRedis } from '../config/redis.js';
+import { getPlanLimits } from '../services/planLimitsService.js';
+import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { errorMessage, UpstreamProblemError } from '../utils/errors.js';
 import { EngineUnavailableError } from '../utils/engineClient.js';
@@ -127,6 +127,16 @@ async function handleEngineError(err: unknown, jobId: string): Promise<BacktestJ
   return { status: 'failed', error: message };
 }
 
+type JobHandler = (
+  payload: unknown,
+) => Promise<{ success: boolean; data?: Record<string, unknown>; error?: string }>;
+
+/** 任务类型 → 处理器分发表（消除 if/else 类型分发链） */
+const JOB_HANDLERS: Record<string, JobHandler> = {
+  optimizer: executeOptimization as JobHandler,
+  'grid-search': executeGridSearch as JobHandler,
+};
+
 /** 任务分发核心（不含 tenant-fair 门控），供 processBacktestJob 包裹调用 */
 async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult> {
   const { type, payload } = job.data;
@@ -151,11 +161,9 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   logger.info({ type, jobId }, '[worker] 开始处理任务');
 
   try {
-    if (type === 'optimizer' || type === 'grid-search') {
-      const result =
-        type === 'optimizer'
-          ? await executeOptimization(payload)
-          : await executeGridSearch(payload);
+    const handler = JOB_HANDLERS[type];
+    if (handler) {
+      const result = await handler(payload);
       if (result.success && result.data) {
         await markJobProcessed(jobId, result.data);
         await persistRunIfTenant(job, result.data);

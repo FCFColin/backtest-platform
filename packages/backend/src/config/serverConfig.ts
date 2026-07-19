@@ -89,4 +89,14 @@ export const serverConfig = {
 
   /** 前端构建产物目录（Vite 输出）。 */
   FRONTEND_DIST_DIR: path.resolve(PROJECT_ROOT, 'dist'),
+
+  // ---------------------------------------------------------------------------
+  // 可观测性配置（从 observabilityConfig.ts 合并）
+  // ---------------------------------------------------------------------------
+
+  /** OTLP traces 导出端点。未配置时走 stdout exporter。 */
+  OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || '',
+
+  /** OTLP metrics 独立导出端点。未配置时走 prom-client 拉取模型。 */
+  OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_METRICS_ENDPOINT || '',
 };

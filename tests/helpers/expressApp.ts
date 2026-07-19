@@ -43,7 +43,7 @@ export interface TestRequest extends Request {
 }
 
 /** startExpressApp 的可选配置 */
-export interface StartExpressAppOptions {
+interface StartExpressAppOptions {
   /** 请求体大小限制（如 '10mb'），默认不设限制使用 Express 默认值 */
   bodyLimit?: string;
 }

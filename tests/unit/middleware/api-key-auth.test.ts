@@ -28,7 +28,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../packages/backend/src/services/apiKeyService.js', () => ({
+vi.mock('../../../packages/backend/src/services/apiKeyVerifier.js', () => ({
   verifyApiKey: mocks.verifyApiKey,
 }));
 

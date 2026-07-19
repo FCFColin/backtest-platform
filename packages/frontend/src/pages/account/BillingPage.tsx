@@ -7,8 +7,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CreditCard, Loader2, ExternalLink, Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiClient';
 import { useAuthStore } from '@/store/authStore';
+import ErrorBanner from '@/components/ErrorBanner';
 
 interface SubscriptionSummary {
   plan: string;
@@ -23,21 +25,6 @@ interface BillingState {
   subscription: SubscriptionSummary | null;
 }
 
-const PLANS: { id: 'pro' | 'enterprise'; name: string; price: string; features: string[] }[] = [
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: '$29/月',
-    features: ['更高回测配额', '异步并发提升', '邮件支持'],
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    price: '联系销售',
-    features: ['无限回测', '专属并发', '优先支持与 SLA'],
-  },
-];
-
 interface PlanCardProps {
   plan: { id: 'pro' | 'enterprise'; name: string; price: string; features: string[] };
   active: boolean;
@@ -47,6 +34,7 @@ interface PlanCardProps {
 }
 
 function PlanCard({ plan, active, isAdmin, busy, onCheckout }: PlanCardProps) {
+  const { t } = useTranslation();
   return (
     <div
       className="card"
@@ -60,7 +48,9 @@ function PlanCard({ plan, active, isAdmin, busy, onCheckout }: PlanCardProps) {
           {plan.name}
         </h3>
         {active && (
-          <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>当前</span>
+          <span style={{ fontSize: 11, color: 'var(--brand)', fontWeight: 600 }}>
+            {t('account.billing.current')}
+          </span>
         )}
       </div>
       <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)', margin: '8px 0' }}>
@@ -105,7 +95,8 @@ function PlanCard({ plan, active, isAdmin, busy, onCheckout }: PlanCardProps) {
             gap: 6,
           }}
         >
-          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null} 升级到 {plan.name}
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}{' '}
+          {t('account.billing.upgradeTo', { name: plan.name })}
         </button>
       )}
     </div>
@@ -134,7 +125,8 @@ function BillingContent({
   onCheckout,
   onOpenPortal,
 }: BillingContentProps) {
-  if (error) return <BillingError error={error} />;
+  const { t } = useTranslation();
+  if (error) return <ErrorBanner message={error} style={{ marginBottom: 14 }} />;
   if (loading) return <BillingLoading />;
   if (state && !state.enabled) return <BillingDisabled />;
   return (
@@ -154,29 +146,14 @@ function BillingContent({
             cursor: 'pointer',
           }}
         >
-          <ExternalLink className="w-4 h-4" /> 管理订阅 / 账单
+          <ExternalLink className="w-4 h-4" /> {t('account.billing.managePortal')}
         </button>
       ) : (
-        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>仅组织管理员可变更订阅。</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+          {t('account.billing.adminOnlyNotice')}
+        </p>
       )}
     </>
-  );
-}
-
-function BillingError({ error }: { error: string }) {
-  return (
-    <div
-      style={{
-        fontSize: 13,
-        color: 'var(--danger, #dc2626)',
-        padding: '8px 10px',
-        background: 'var(--danger-soft, #fef2f2)',
-        borderRadius: 8,
-        marginBottom: 14,
-      }}
-    >
-      {error}
-    </div>
   );
 }
 
@@ -189,6 +166,7 @@ function BillingLoading() {
 }
 
 function BillingDisabled() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -199,7 +177,7 @@ function BillingDisabled() {
         color: 'var(--text-muted)',
       }}
     >
-      计费功能尚未启用（管理员需配置 Stripe 密钥）。
+      {t('account.billing.disabledNotice')}
     </div>
   );
 }
@@ -215,6 +193,29 @@ function PlansGrid({
   busy: boolean;
   onCheckout: (plan: 'pro' | 'enterprise') => void;
 }) {
+  const { t } = useTranslation();
+  const plans: { id: 'pro' | 'enterprise'; name: string; price: string; features: string[] }[] = [
+    {
+      id: 'pro',
+      name: 'Pro',
+      price: t('account.billing.plans.pro.price'),
+      features: [
+        t('account.billing.plans.pro.feature1'),
+        t('account.billing.plans.pro.feature2'),
+        t('account.billing.plans.pro.feature3'),
+      ],
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: t('account.billing.plans.enterprise.price'),
+      features: [
+        t('account.billing.plans.enterprise.feature1'),
+        t('account.billing.plans.enterprise.feature2'),
+        t('account.billing.plans.enterprise.feature3'),
+      ],
+    },
+  ];
   return (
     <div
       style={{
@@ -224,7 +225,7 @@ function PlansGrid({
         marginBottom: 20,
       }}
     >
-      {PLANS.map((p) => (
+      {plans.map((p) => (
         <PlanCard
           key={p.id}
           plan={p}
@@ -240,6 +241,7 @@ function PlansGrid({
 
 /** 计费状态管理 hook */
 function useBillingState(isAuthed: boolean) {
+  const { t } = useTranslation();
   const [state, setState] = useState<BillingState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -273,7 +275,7 @@ function useBillingState(isAuthed: boolean) {
       });
       const body = await res.json();
       if (res.ok && body?.data?.url) window.location.href = body.data.url;
-      else setError(body?.detail || '创建结算会话失败');
+      else setError(body?.detail || t('account.billing.checkoutFailed'));
     } finally {
       setBusy(false);
     }
@@ -286,7 +288,7 @@ function useBillingState(isAuthed: boolean) {
       const res = await apiFetch('/api/v1/billing/portal', { method: 'POST' });
       const body = await res.json();
       if (res.ok && body?.data?.url) window.location.href = body.data.url;
-      else setError(body?.detail || '打开管理页失败');
+      else setError(body?.detail || t('account.billing.portalFailed'));
     } finally {
       setBusy(false);
     }
@@ -296,6 +298,7 @@ function useBillingState(isAuthed: boolean) {
 }
 
 export default function BillingPage() {
+  const { t } = useTranslation();
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const org = useAuthStore((s) => s.org);
   const orgRole = useAuthStore((s) => s.user?.orgRole ?? null);
@@ -310,11 +313,11 @@ export default function BillingPage() {
           style={{ padding: 28, marginTop: 40, textAlign: 'center' }}
         >
           <p style={{ color: 'var(--text-muted)' }}>
-            请先{' '}
+            {t('account.billing.loginRequiredPrefix')}{' '}
             <Link to="/login" style={{ color: 'var(--brand)' }}>
-              登录
+              {t('account.billing.loginRequiredLink')}
             </Link>{' '}
-            后查看计费信息。
+            {t('account.billing.loginRequiredSuffix')}
           </p>
         </div>
       </div>
@@ -329,13 +332,18 @@ export default function BillingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <CreditCard className="w-5 h-5" style={{ color: 'var(--brand)' }} />
           <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', margin: 0 }}>
-            订阅与计费
+            {t('account.billing.title')}
           </h1>
         </div>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
-          {org ? `组织：${org.name}` : '当前组织'} · 当前计划：
+          {org
+            ? t('account.billing.orgPrefix', { name: org.name })
+            : t('account.billing.currentOrg')}
+          {t('account.billing.currentPlanPrefix')}
           <strong style={{ textTransform: 'capitalize' }}>{currentPlan}</strong>
-          {state?.subscription?.status ? ` · 状态：${state.subscription.status}` : ''}
+          {state?.subscription?.status
+            ? t('account.billing.statusPrefix', { status: state.subscription.status })
+            : ''}
         </p>
         <BillingContent
           state={state}

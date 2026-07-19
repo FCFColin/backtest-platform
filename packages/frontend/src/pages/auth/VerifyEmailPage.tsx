@@ -4,16 +4,20 @@
  * @route /verify-email
  */
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { apiFetch } from '@/utils/apiClient';
+import AuthPageLayout from '@/components/auth/AuthPageLayout';
 
 type Status = 'pending' | 'success' | 'error';
 
 export default function VerifyEmailPage() {
+  const { t } = useTranslation();
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
   const [status, setStatus] = useState<Status>('pending');
-  const [message, setMessage] = useState('正在验证你的邮箱…');
+  const [message, setMessage] = useState(t('auth.verifyEmail.pending'));
   const ran = useRef(false);
 
   useEffect(() => {
@@ -21,12 +25,12 @@ export default function VerifyEmailPage() {
     ran.current = true;
     if (!token) {
       setStatus('error');
-      setMessage('验证链接缺少令牌。');
+      setMessage(t('auth.verifyEmail.missingToken'));
       return;
     }
     void (async () => {
       try {
-        const res = await fetch('/api/v1/auth/verify-email', {
+        const res = await apiFetch('/api/v1/auth/verify-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token }),
@@ -34,19 +38,19 @@ export default function VerifyEmailPage() {
         const body = await res.json();
         if (res.ok && body?.data?.verified) {
           setStatus('success');
-          setMessage('邮箱验证成功，你现在可以登录使用全部功能。');
+          setMessage(t('auth.verifyEmail.success'));
         } else {
           setStatus('error');
-          setMessage(body?.detail || '验证链接无效或已过期。');
+          setMessage(body?.detail || t('auth.verifyEmail.invalidLink'));
         }
       } catch {
         setStatus('error');
-        setMessage('验证请求失败，请稍后重试。');
+        setMessage(t('auth.verifyEmail.requestFailed'));
       }
     })();
-  }, [token]);
+  }, [token, t]);
 
-  const icon =
+  const statusIcon =
     status === 'pending' ? (
       <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'var(--brand)' }} />
     ) : status === 'success' ? (
@@ -56,33 +60,29 @@ export default function VerifyEmailPage() {
     );
 
   return (
-    <div className="bt-page" style={{ maxWidth: 460, margin: '0 auto' }}>
-      <div
-        className="bt-main-card card"
-        style={{ padding: 28, marginTop: 40, textAlign: 'center' }}
-      >
-        <div style={{ margin: '0 auto 12px' }}>{icon}</div>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 8 }}>
-          邮箱验证
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>{message}</p>
-        {status !== 'pending' && (
-          <div style={{ marginTop: 18 }}>
-            <Link
-              to="/login"
-              className="main-action-btn"
-              style={{
-                display: 'inline-flex',
-                height: 40,
-                alignItems: 'center',
-                padding: '0 18px',
-              }}
-            >
-              前往登录
-            </Link>
-          </div>
-        )}
-      </div>
-    </div>
+    <AuthPageLayout
+      centered
+      maxWidth={460}
+      icon={<div style={{ margin: '0 auto 12px' }}>{statusIcon}</div>}
+      title={t('auth.verifyEmail.title')}
+    >
+      <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>{message}</p>
+      {status !== 'pending' && (
+        <div style={{ marginTop: 18 }}>
+          <Link
+            to="/login"
+            className="main-action-btn"
+            style={{
+              display: 'inline-flex',
+              height: 40,
+              alignItems: 'center',
+              padding: '0 18px',
+            }}
+          >
+            {t('auth.verifyEmail.goToLogin')}
+          </Link>
+        </div>
+      )}
+    </AuthPageLayout>
   );
 }

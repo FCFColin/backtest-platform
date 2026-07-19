@@ -4,28 +4,48 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
-const redisMocks = vi.hoisted(() => ({
-  ping: vi.fn(),
-  ttl: vi.fn(),
-  incr: vi.fn(),
-  expire: vi.fn(),
-  set: vi.fn(),
-  del: vi.fn(),
-  loggerMocks: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({
+const redisMocks = vi.hoisted(() => {
+  const handlers: Record<string, Array<(...args: unknown[]) => void>> = {};
+  return {
+    ping: vi.fn(),
+    on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+      if (!handlers[event]) handlers[event] = [];
+      handlers[event].push(handler);
+    }),
+    emit(event: string) {
+      for (const h of handlers[event] ?? []) h();
+    },
+    ttl: vi.fn(),
+    incr: vi.fn(),
+    expire: vi.fn(),
+    set: vi.fn(),
+    del: vi.fn(),
+    /** 切换到 Redis 可用状态：ping 成功 + emit ready 让 redisHealth 缓存为 true */
+    useRedisSuccess() {
+      redisMocks.ping.mockResolvedValue('PONG');
+      redisMocks.emit('ready');
+    },
+    /** 切换到 Redis 不可用状态：ping 失败 + emit error 让 redisHealth 缓存为 false */
+    useMemoryFallback() {
+      redisMocks.ping.mockRejectedValue(new Error('Redis not available'));
+      redisMocks.emit('error');
+    },
+    loggerMocks: {
       info: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
       debug: vi.fn(),
-    })),
-  },
-}));
+      child: vi.fn(() => ({
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+        debug: vi.fn(),
+      })),
+    },
+  };
+});
 
-vi.mock('../../../packages/backend/src/config/redis.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
 }));
 
@@ -42,7 +62,7 @@ import {
 describe('loginLockout', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisMocks.ping.mockResolvedValue('PONG');
+    redisMocks.useRedisSuccess();
   });
 
   it('未锁定时 isLockedOut 返回 0', async () => {
@@ -79,14 +99,13 @@ describe('loginLockout', () => {
   });
 
   it('Redis 不可用时 clearFailures 使用内存回退', async () => {
-    redisMocks.ping.mockRejectedValueOnce(new Error('down'));
+    redisMocks.useMemoryFallback();
     await clearFailures('frank');
     // 不抛出即表示内存回退成功
   });
 
   it('Redis 不可用时使用内存回退', async () => {
-    redisMocks.ping.mockRejectedValueOnce(new Error('down'));
-    redisMocks.ping.mockRejectedValue(new Error('down'));
+    redisMocks.useMemoryFallback();
     await recordFailure('dave');
     await recordFailure('dave');
     await recordFailure('dave');

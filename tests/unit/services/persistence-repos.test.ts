@@ -15,7 +15,7 @@ const dbMocks = vi.hoisted(() => ({
   withTenant: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTenant: (tenantId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) => {
     dbMocks.withTenant(tenantId);
     return fn({ query: dbMocks.query });
@@ -28,20 +28,20 @@ import {
   updatePortfolio,
   deletePortfolio,
   getPortfolio,
-} from '../../../packages/backend/src/services/portfolioRepo.js';
+} from '../../../packages/backend/src/repositories/portfolioRepo.js';
 import {
   createConfig,
   listConfigs,
   getConfig,
   updateConfig,
   deleteConfig,
-} from '../../../packages/backend/src/services/savedConfigRepo.js';
+} from '../../../packages/backend/src/repositories/savedConfigRepo.js';
 import {
   createRun,
   listRuns,
   getRun,
   deleteRun,
-} from '../../../packages/backend/src/services/backtestRunRepo.js';
+} from '../../../packages/backend/src/repositories/backtestRunRepo.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const ID = '22222222-2222-2222-2222-222222222222';

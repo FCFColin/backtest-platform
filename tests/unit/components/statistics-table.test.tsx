@@ -13,6 +13,17 @@ vi.mock('../../../packages/frontend/src/i18n/index.js', () => ({
   default: { t: (key: string) => key },
 }));
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => {
+      if (!params) return key;
+      return key.replace(/\{\{(\w+)\}\}/g, (_, k) => String(params[k] ?? ''));
+    },
+    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
+  }),
+  Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
+}));
+
 function createPortfolio(name: string, stats: Record<string, number | undefined>) {
   return { name, statistics: stats };
 }
@@ -25,7 +36,7 @@ describe('StatisticsTable', () => {
     ];
 
     render(<StatisticsTable portfolios={portfolios as never} />);
-    expect(screen.getByText('风险与收益指标')).toBeTruthy();
+    expect(screen.getByText('components.statisticsTable.title')).toBeTruthy();
     expect(screen.getByText('投资组合 A')).toBeTruthy();
     expect(screen.getByText('投资组合 B')).toBeTruthy();
     expect(screen.getByText('8.00%')).toBeTruthy();
@@ -34,7 +45,7 @@ describe('StatisticsTable', () => {
 
   it('无数据显示占位文本', () => {
     render(<StatisticsTable portfolios={[]} />);
-    expect(screen.getByText('暂无统计数据')).toBeTruthy();
+    expect(screen.getByText('components.statisticsTable.noData')).toBeTruthy();
   });
 
   it('compact 模式只显示核心指标', () => {
@@ -43,8 +54,8 @@ describe('StatisticsTable', () => {
     ];
 
     render(<StatisticsTable portfolios={portfolios as never} compact />);
-    expect(screen.getByText('核心指标')).toBeTruthy();
-    expect(screen.queryByText('收益指标')).toBeNull();
+    expect(screen.getByText('components.statisticsTable.groups.core')).toBeTruthy();
+    expect(screen.queryByText('components.statisticsTable.groups.return')).toBeNull();
   });
 
   it('处理部分统计为 undefined 时使用占位符', () => {

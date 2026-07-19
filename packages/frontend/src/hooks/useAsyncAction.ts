@@ -11,7 +11,7 @@
 import { useState, useCallback } from 'react';
 
 /** useAsyncAction 返回值结构 */
-export interface UseAsyncActionResult {
+interface UseAsyncActionResult {
   /** 是否正在执行异步操作 */
   isLoading: boolean;
   /** 最近一次错误信息（无错误时为 null） */

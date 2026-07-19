@@ -40,11 +40,11 @@ callEngineStrict(endpoint, body)
 
 ### 异步任务：入队 / 重试
 
-异步回测任务（`backtest-compute` 队列）遇引擎不可用时，依赖 BullMQ 的重试 + 指数退避（见 ADR-011 / ADR-028），等待引擎恢复后重算，而非返回降级结果。
+异步回测任务（`backtest-compute` 队列）遇引擎不可用时，依赖 BullMQ 的重试 + 指数退避（见 ADR-011 / ADR-024），等待引擎恢复后重算，而非返回降级结果。
 
-### Node-canonical 功能不受影响
+### 计算端点统一走 callEngineStrict
 
-`tactical`、`tacticalGrid`、`signal`、`goalOptimizer`、`pca`、`letf` 没有 Go/Rust 引擎实现，**Node 即权威实现**（canonical，非降级）。这些功能不经过 `callEngineStrict`，直接在 Node 计算，不标记 `degraded`。
+所有计算端点（backtest/montecarlo/optimize/tactical/tacticalGrid/signal/goalOptimizer/pca/letf/analysis）均通过 `callEngineStrict` 调 Go 引擎；Go 引擎不可用时全部 fail-closed 503，无 Node 端 canonical 计算。
 
 ### 代码落点
 

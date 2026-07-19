@@ -110,7 +110,11 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   private renderErrorUI(): ReactNode {
     return (
       <div style={ERROR_CONTAINER_STYLE}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }} role="img" aria-label="出错提示">
+        <div
+          style={{ fontSize: '48px', marginBottom: '16px' }}
+          role="img"
+          aria-label={i18n.t('components.errorBoundary.errorAlert')}
+        >
           ⚠️
         </div>
         <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>

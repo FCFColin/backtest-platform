@@ -28,6 +28,7 @@ yarn.lock
 
 # 构建产物
 coverage/
+report/
 .nyc_output/
 *.exe
 data-fetcher/*.exe

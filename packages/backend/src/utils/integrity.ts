@@ -46,6 +46,7 @@ export async function verifyFile(filePath: string): Promise<boolean> {
  * 未配置 AUDIT_HMAC_KEY 时静默跳过。
  *
  * Security (T-06)：缓存文件写入后立即签名，使后续读取可检测离线篡改。
+ * @internal 测试专用：生产代码零外部引用，仅单元测试直接调用
  */
 export function signFileSync(filePath: string): void {
   const key = config.AUDIT_HMAC_KEY;
@@ -61,6 +62,7 @@ export function signFileSync(filePath: string): void {
  *
  * Security (T-06)：在读取缓存内容并据其产生回测结果前校验完整性，防止被篡改的缓存
  * 污染投资决策（OWASP A08 软件与数据完整性失败）。
+ * @internal 测试专用：生产代码零外部引用，仅单元测试直接调用
  */
 export function verifyFileSync(filePath: string): boolean {
   const key = config.AUDIT_HMAC_KEY;

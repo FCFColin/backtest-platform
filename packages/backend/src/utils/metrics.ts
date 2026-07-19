@@ -30,6 +30,7 @@ client.collectDefaultMetrics({ register });
  *
  * 实现：perf_hooks.monitorEventLoopDelay 提供 ns 级直方图，
  * 每 10s 采样 P99 值更新 Gauge。权衡：10s 采样间隔有延迟，但开销可忽略。
+ * @internal 测试专用：metric 名与 register 抓取保留供 Prometheus collect，仅单元测试直接访问 Gauge 实例
  */
 export const eventLoopLagSeconds = new client.Gauge({
   name: 'node_eventloop_lag_seconds',
@@ -55,6 +56,7 @@ setInterval(sampleEventLoopLag, 10_000).unref();
  * 企业理由：熔断器 Open 时全量降级，是可用性关键信号。
  * 0=closed（正常）、1=open（快速失败）、2=halfOpen（探测中）。
  * 配合告警：circuit_breaker_state == 1 持续 1 分钟触发告警。
+ * @internal 测试专用：metric 名与 register 抓取保留供 Prometheus collect，仅单元测试直接访问 Gauge 实例
  */
 export const circuitBreakerState = new client.Gauge({
   name: 'circuit_breaker_state',
@@ -69,6 +71,7 @@ export const circuitBreakerState = new client.Gauge({
  * 企业理由：ADR-008 后数据服务主路径为 Go（data-fetcher），该信号量限制的是对数据服务的
  * 并发调用，而非 Python 子进程。旧名 `python_semaphore_*` 会误导排障者去查已退役的 Python 路径。
  * 指标名应反映其当前真实语义。available 降至 0 表示并发饱和，新请求排队，P95 延迟劣化。
+ * @internal 测试专用：metric 名与 register 抓取保留供 Prometheus collect，仅单元测试直接访问 Gauge 实例
  */
 export const dataServiceSemaphoreAvailable = new client.Gauge({
   name: 'data_service_semaphore_permits_available',
@@ -77,6 +80,7 @@ export const dataServiceSemaphoreAvailable = new client.Gauge({
   registers: [register],
 });
 
+/** @internal 测试专用：metric 名与 register 抓取保留供 Prometheus collect，仅单元测试直接访问 Gauge 实例 */
 export const dataServiceSemaphoreTotal = new client.Gauge({
   name: 'data_service_semaphore_permits_total',
   help: 'Total permits of data-service concurrency semaphore (configured max)',
@@ -196,7 +200,7 @@ export const fallbackToNodeTotal = new client.Counter({
  * 企业理由：名称准确反映 ADR-031 fail-closed 语义 —— 引擎不可用时快速失败，
  * 而非降级到 Node。过渡期与 `fallbackToNodeTotal` 双写，Grafana 面板迁移后删除旧指标。
  */
-export const engineUnavailableTotal = new client.Counter({
+const engineUnavailableTotal = new client.Counter({
   name: 'engine_unavailable_total',
   help: 'Total number of engine unavailable events (Go circuit breaker open/fail-closed)',
   labelNames: ['reason'],
@@ -211,7 +215,7 @@ export const engineUnavailableTotal = new client.Counter({
  * 企业理由：系统指标无法反映业务健康（如降级率飙升）。
  * 业务指标是 SRE 与产品对齐 SLO 的基础（如「99% 回测在 2s 内完成且非降级」）。
  */
-export const backtestRequestsTotal = new client.Counter({
+const backtestRequestsTotal = new client.Counter({
   name: 'backtest_requests_total',
   help: 'Total backtest-related API requests',
   labelNames: ['endpoint', 'mode', 'status'],
@@ -224,7 +228,7 @@ export const backtestRequestsTotal = new client.Counter({
  * 企业理由：degraded=true 表示引擎/数据路径异常但仍有兜底响应，
  * 持续升高是容量或依赖故障的早期信号，需在业务层告警而非只看 5xx。
  */
-export const degradedResponsesTotal = new client.Counter({
+const degradedResponsesTotal = new client.Counter({
   name: 'degraded_responses_total',
   help: 'Responses served in degraded mode',
   labelNames: ['endpoint', 'reason'],
@@ -239,7 +243,7 @@ export const degradedResponsesTotal = new client.Counter({
  * 导致回源压力骤增。layer 标识缓存层（file_cache / backtest_result_cache / price_cache），
  * result 为 hit / miss。
  */
-export const cacheHitsTotal = new client.Counter({
+const cacheHitsTotal = new client.Counter({
   name: 'cache_hits_total',
   help: 'Cache hit/miss count by layer',
   labelNames: ['layer', 'result'],
@@ -254,7 +258,7 @@ export const cacheHitsTotal = new client.Counter({
  * reason 为 snake_case 标识（missing_credentials / invalid_token / session_revoked /
  * account_disabled / insufficient_permission / missing_auth）。
  */
-export const authFailuresTotal = new client.Counter({
+const authFailuresTotal = new client.Counter({
   name: 'auth_failures_total',
   help: 'Authentication/authorization failures by endpoint and reason',
   labelNames: ['endpoint', 'reason'],
@@ -266,14 +270,14 @@ export const authFailuresTotal = new client.Counter({
  *
  * 企业理由：100x 流量下 pool.waitingCount 先于 CPU 饱和，是 DB 瓶颈 leading indicator。
  */
-export const pgPoolWaitingCount = new client.Gauge({
+const pgPoolWaitingCount = new client.Gauge({
   name: 'pg_pool_waiting_count',
   help: 'Number of queued requests waiting for a pool connection',
   labelNames: ['pool'],
   registers: [register],
 });
 
-export const pgPoolTotalCount = new client.Gauge({
+const pgPoolTotalCount = new client.Gauge({
   name: 'pg_pool_total_connections',
   help: 'Total connections in the pool (idle + in use)',
   labelNames: ['pool'],
@@ -345,7 +349,7 @@ export function recordEngineCall(success: boolean, error?: string): void {
   if (success) {
     engineCallsTotal.inc({ result: 'success' });
   } else {
-    engineCallsTotal.inc({ result: 'fallback' });
+    engineCallsTotal.inc({ result: 'unavailable' });
     if (error) {
       fallbackToNodeTotal.inc({ reason: error.replace(/[^a-zA-Z0-9_-]/g, '_') });
     }
@@ -368,17 +372,8 @@ export function recordEngineUnavailable(reason: string): void {
 }
 
 /**
- * 记录引擎不可用事件（Go 引擎熔断/调用失败）
- *
- * @deprecated 使用 {@link recordEngineUnavailable} 替代。保留此函数仅为过渡期兼容，
- * 内部委托到 `recordEngineUnavailable` 实现双写。Grafana 面板迁移后删除。
- */
-export function recordFallbackToNode(reason: string): void {
-  recordEngineUnavailable(reason);
-}
-
-/**
  * 重置指标（仅用于测试）
+ * @internal 测试专用：生产代码零外部引用，仅单元测试直接调用
  */
 export function resetMetrics(): void {
   register.resetMetrics();

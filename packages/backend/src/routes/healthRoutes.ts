@@ -10,8 +10,9 @@ import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { sendProblem } from '../utils/errors.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
-import { getPool } from '../db/index.js';
-import { appRedis } from '../config/redis.js';
+import { getPool } from '../db/pool.js';
+import { appRedis } from '../infrastructure/redisClient.js';
+import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
@@ -146,20 +147,24 @@ router.get('/ready', async (req: Request, res: Response) => {
  * Prometheus text format（text/plain; version=0.0.4），而非自定义 JSON。
  * 这使得 Prometheus server 可以直接抓取指标并配置告警规则。
  */
-router.get('/metrics', async (req: Request, res: Response) => {
-  if (!isOpsEndpointAuthorized(req)) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: 'Unauthorized' });
-    return;
-  }
-  try {
-    res.set('Content-Type', getPrometheusRegister().contentType);
-    res.end(await getPrometheusRegister().metrics());
-  } catch (error) {
-    logger.error({ error }, '[healthRoutes] Failed to generate metrics');
-    sendProblem(res, 500, 'METRICS_ERROR', 'Metrics generation failed', {
+router.get(
+  '/metrics',
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      if (!isOpsEndpointAuthorized(req)) {
+        sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: 'Unauthorized' });
+        return;
+      }
+      res.set('Content-Type', getPrometheusRegister().contentType);
+      res.end(await getPrometheusRegister().metrics());
+    },
+    {
+      logMsg: '[healthRoutes] Failed to generate metrics',
+      code: 'METRICS_ERROR',
+      title: 'Metrics generation failed',
       detail: 'Failed to generate metrics',
-    });
-  }
-});
+    },
+  ),
+);
 
 export default router;

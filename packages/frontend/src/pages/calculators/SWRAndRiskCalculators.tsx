@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { ShieldAlert, BarChart3 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { formatPct } from './baseCalculatorUtils.js';
 import { Field, ResultRow, CollapsibleCard, InfoBox, SWRChart } from './BaseCalculatorUI.js';
 
 export function SWRCalculator() {
+  const { t } = useTranslation();
   const [expectedReturn, setExpectedReturn] = useState(7);
   const [volatility, setVolatility] = useState(15);
   const [retirementYears, setRetirementYears] = useState(30);
@@ -33,26 +35,32 @@ export function SWRCalculator() {
   }, [swr, expectedReturn, retirementYears]);
 
   return (
-    <CollapsibleCard icon={ShieldAlert} title="安全提款率估算 (SWR)">
+    <CollapsibleCard icon={ShieldAlert} title={t('calculators.swr.title')}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
         <Field
-          label="组合预期收益"
+          label={t('calculators.swr.expectedReturn')}
           value={expectedReturn}
           onChange={setExpectedReturn}
           suffix="%"
           step={0.5}
         />
-        <Field label="波动率" value={volatility} onChange={setVolatility} suffix="%" step={1} />
         <Field
-          label="退休年限"
+          label={t('calculators.swr.volatility')}
+          value={volatility}
+          onChange={setVolatility}
+          suffix="%"
+          step={1}
+        />
+        <Field
+          label={t('calculators.swr.retirementYears')}
           value={retirementYears}
           onChange={setRetirementYears}
-          suffix="年"
+          suffix={t('calculators.swr.yearSuffix')}
           step={1}
           min={1}
         />
         <Field
-          label="成功率目标"
+          label={t('calculators.swr.successTarget')}
           value={successTarget}
           onChange={setSuccessTarget}
           suffix="%"
@@ -62,23 +70,25 @@ export function SWRCalculator() {
         />
       </div>
       <div style={{ marginTop: 12 }}>
-        <ResultRow label="估算 SWR" value={formatPct(swr)} color="var(--brand)" />
         <ResultRow
-          label="年度提款额 (每100万)"
+          label={t('calculators.swr.estimatedSwr')}
+          value={formatPct(swr)}
+          color="var(--brand)"
+        />
+        <ResultRow
+          label={t('calculators.swr.annualWithdrawal')}
           value={(swr * 1000000).toFixed(0)}
           color="var(--success)"
         />
       </div>
       <SWRChart data={portfolioSurvival} />
-      <InfoBox>
-        基于简化公式: SWR ≈ μ - σ²/2 -
-        z·σ/√T，其中z为对应成功率目标的标准正态分位数。仅供参考，实际SWR应基于历史模拟。
-      </InfoBox>
+      <InfoBox>{t('calculators.swr.formula')}</InfoBox>
     </CollapsibleCard>
   );
 }
 
 export function AssetAllocationRiskCalculator() {
+  const { t } = useTranslation();
   const [stockPct, setStockPct] = useState(60);
   const [bondPct, setBondPct] = useState(40);
   const [stockVol, setStockVol] = useState(18);
@@ -103,10 +113,10 @@ export function AssetAllocationRiskCalculator() {
   }, [stockPct, bondPct, stockVol, bondVol, correlation]);
 
   return (
-    <CollapsibleCard icon={BarChart3} title="资产配置风险估算">
+    <CollapsibleCard icon={BarChart3} title={t('calculators.risk.title')}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
         <Field
-          label="股票占比"
+          label={t('calculators.risk.stockPct')}
           value={stockPct}
           onChange={setStockPct}
           suffix="%"
@@ -115,7 +125,7 @@ export function AssetAllocationRiskCalculator() {
           max={100}
         />
         <Field
-          label="债券占比"
+          label={t('calculators.risk.bondPct')}
           value={bondPct}
           onChange={setBondPct}
           suffix="%"
@@ -123,11 +133,23 @@ export function AssetAllocationRiskCalculator() {
           min={0}
           max={100}
         />
-        <Field label="股票波动率" value={stockVol} onChange={setStockVol} suffix="%" step={1} />
-        <Field label="债券波动率" value={bondVol} onChange={setBondVol} suffix="%" step={1} />
+        <Field
+          label={t('calculators.risk.stockVol')}
+          value={stockVol}
+          onChange={setStockVol}
+          suffix="%"
+          step={1}
+        />
+        <Field
+          label={t('calculators.risk.bondVol')}
+          value={bondVol}
+          onChange={setBondVol}
+          suffix="%"
+          step={1}
+        />
       </div>
       <Field
-        label="相关性"
+        label={t('calculators.risk.correlation')}
         value={correlation}
         onChange={setCorrelation}
         step={0.05}
@@ -135,14 +157,24 @@ export function AssetAllocationRiskCalculator() {
         max={1}
       />
       <div style={{ marginTop: 8 }}>
-        <ResultRow label="组合波动率" value={formatPct(result.portfolioVol)} color="var(--brand)" />
         <ResultRow
-          label="分散化收益"
+          label={t('calculators.risk.portfolioVol')}
+          value={formatPct(result.portfolioVol)}
+          color="var(--brand)"
+        />
+        <ResultRow
+          label={t('calculators.risk.diversificationBenefit')}
           value={formatPct(result.diversificationBenefit)}
           color="var(--success)"
         />
-        <ResultRow label="股票风险贡献" value={formatPct(result.riskContributionStock)} />
-        <ResultRow label="债券风险贡献" value={formatPct(result.riskContributionBond)} />
+        <ResultRow
+          label={t('calculators.risk.stockRiskContribution')}
+          value={formatPct(result.riskContributionStock)}
+        />
+        <ResultRow
+          label={t('calculators.risk.bondRiskContribution')}
+          value={formatPct(result.riskContributionBond)}
+        />
       </div>
       <div
         style={{
@@ -154,7 +186,7 @@ export function AssetAllocationRiskCalculator() {
           color: 'var(--text-muted)',
         }}
       >
-        组合波动率 = √(w₁²σ₁² + w₂²σ₂² + 2w₁w₂ρσ₁σ₂)。分散化收益 = 加权波动率之和 - 组合波动率。
+        {t('calculators.risk.formula')}
       </div>
     </CollapsibleCard>
   );

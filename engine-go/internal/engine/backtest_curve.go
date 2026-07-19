@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"engine-go/internal/engineutil"
 )
 
 // computeGrowthCurve 计算组合增长曲线——回测的核心算法
@@ -11,10 +13,9 @@ import (
 // 企业理由：逐日迭代是回测引擎的核心。每天根据各资产价格更新持有份额，
 // 处理再平衡、拖累（drag）、汇率换算、现金流、glidepath 与通胀调整等操作。
 //
-// ADR-008：本实现与 Rust 引擎 run_single 的净值生成逻辑逐行对齐，
+// ADR-008：本实现为 Go 引擎净值生成逻辑，
 // 涵盖复利拖累 (1-drag/100)^(1/252)、汇率换算（含回溯查找）、CPI 通胀调整、
-// 定期/一次性现金流、glidepath 线性插值、再平衡偏离带与清算处理，
-// 确保 Go 主引擎与 Rust 回退引擎计算结果一致（一致性测试 < 0.01%）。
+// 定期/一次性现金流、glidepath 线性插值、再平衡偏离带与清算处理。
 func computeGrowthCurve(
 	pf PortfolioInput,
 	priceData PriceDataMap,
@@ -162,7 +163,7 @@ func computeGrowthCurve(
 			continue
 		}
 
-		if di > 0 && shouldRebalance(pf.RebalanceFrequency, prev, date, pf.RebalanceThreshold, holdings, currentWeights, pv, pf.RebalanceBands) {
+		if di > 0 && engineutil.ShouldRebalance(pf.RebalanceFrequency, prev, date, pf.RebalanceThreshold, holdings, currentWeights, pv, pf.RebalanceBands) {
 			recalculateShares(holdings, &shares, lastPrices, currentWeights, pv, pf, gp, date)
 			lastRebalanceDi = di
 		}
@@ -170,7 +171,7 @@ func computeGrowthCurve(
 		curve = append(curve, DataPoint{Date: date, Value: pv})
 		vals = append(vals, pv)
 
-		// 权重快照：每 20 个交易日或调仓日记录一次（与 Rust 采样策略一致）。
+		// 权重快照：每 20 个交易日或调仓日记录一次。
 		if di%20 == 0 || (di == lastRebalanceDi && di > 0) {
 			snapshot := make([]float64, n)
 			if pv > 0 {

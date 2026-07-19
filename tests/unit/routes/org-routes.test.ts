@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/services/membershipService.js', () => mocks.membership);
 vi.mock('../../../packages/backend/src/services/invitationService.js', () => mocks.invitation);
-vi.mock('../../../packages/backend/src/services/mailService.js', () => mocks.mail);
+vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => mocks.mail);
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import orgRoutes from '../../../packages/backend/src/routes/orgRoutes.js';

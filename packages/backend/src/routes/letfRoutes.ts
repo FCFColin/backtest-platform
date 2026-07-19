@@ -3,47 +3,36 @@
  */
 import { Router, type Request, type Response } from 'express';
 import type { LETFRequest } from '@backtest/shared/types/letf';
-import { fetchHistoryData } from '../services/dataService.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem, errorMessage } from '../utils/errors.js';
 import { validate } from '../middleware/validate.js';
 import { letfAnalyzeSchema } from '../schemas/letf.js';
-import { executeLetfAnalyze } from '../application/analytics-application-service.js';
+import { executeLetfAnalyzeWithFetch } from '../services/analysis-orchestrator.js';
+import { asyncRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
 router.post(
   '/analyze',
   validate(letfAnalyzeSchema),
-  async (req: Request, res: Response): Promise<void> => {
-    const startTime = Date.now();
-    try {
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const startTime = Date.now();
       const body = req.body as LETFRequest;
+      logger.info(`[LETF] 开始分析: letf=${body.letfTicker}, bench=${body.benchmarkTicker}`);
 
-      const cleanLetf = String(body.letfTicker).trim().toUpperCase();
-      const cleanBench = String(body.benchmarkTicker).trim().toUpperCase();
-
-      const priceData = await fetchHistoryData(
-        [cleanLetf, cleanBench],
-        body.startDate,
-        body.endDate,
-      );
-      const result = executeLetfAnalyze(body, priceData);
+      const result = await executeLetfAnalyzeWithFetch(body);
 
       logger.info(`[LETF] 分析完成, 耗时 ${Date.now() - startTime}ms`);
       res.json({ success: true, data: result });
-    } catch (error) {
-      const message = errorMessage(error);
-      if (message.includes('未找到')) {
-        sendProblem(res, 422, 'NO_PRICE_DATA', 'Price data not found', { detail: message });
-        return;
-      }
-      logger.error({ err: error as Error }, '[LETF] 分析失败');
-      sendProblem(res, 500, 'LETF_ERROR', 'LETF analysis failed', {
-        detail: message || 'LETF 滑点分析失败',
-      });
-    }
-  },
+    },
+    {
+      logMsg: '[LETF] 分析失败',
+      code: 'LETF_ERROR',
+      title: 'LETF analysis failed',
+      detail: 'LETF 滑点分析失败',
+      endpoint: 'letf',
+    },
+  ),
 );
 
 export default router;

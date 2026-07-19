@@ -2,6 +2,7 @@
  * @file 滚动收益折线图
  * @description 展示投资组合在滚动窗口下的收益、波动率等指标随时间变化趋势
  */
+import { useTranslation } from 'react-i18next';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 import { TimeSeriesLineChartContent } from './sharedChartContent.js';
@@ -18,6 +19,7 @@ interface RollingReturnChartProps {
 }
 
 export default function RollingReturnChart({ portfolios }: RollingReturnChartProps) {
+  const { t } = useTranslation();
   const mergedData = mergePortfolioSeries(
     portfolios,
     (p) => p.rollingReturns,
@@ -31,14 +33,18 @@ export default function RollingReturnChart({ portfolios }: RollingReturnChartPro
       : mergedData;
 
   return (
-    <ChartCard title="滚动收益" data={mergedData} csvFilename="rolling-return">
+    <ChartCard
+      title={t('charts.rollingReturn.title')}
+      data={mergedData}
+      csvFilename="rolling-return"
+    >
       <TimeSeriesLineChartContent
         data={chartData}
         seriesNames={portfolios.map((p) => p.name)}
         height={300}
         yTickFormatter={(v) => `${v.toFixed(0)}%`}
         tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, '']}
-        tooltipLabelFormatter={(label) => `日期: ${label}`}
+        tooltipLabelFormatter={(label) => t('charts.rollingReturn.dateLabel', { label })}
         showBrush
       />
     </ChartCard>

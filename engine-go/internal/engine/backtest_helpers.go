@@ -3,6 +3,8 @@ package engine
 import (
 	"fmt"
 	"time"
+
+	"engine-go/internal/engineutil"
 )
 
 // getPriceWithFX 获取资产价格并乘以当日汇率（如有），当日缺失时回溯最多 10 天。
@@ -32,6 +34,8 @@ func getPriceWithFX(ticker, date string, priceData PriceDataMap, exchangeRates m
 }
 
 // normalizeWeights 将资产权重从百分比转为小数并归一化，总和为 0 时退化为等权重。
+// 归一化逻辑委托至 engineutil.NormalizeWeights（spec Wave 4 Task 4.1：消除与
+// tactical 包的重复实现），本函数仅负责 AssetInput → []float64 的提取与百分比转换。
 // glidepathWeights 计算当日目标权重（glidepath 线性插值），无 glidepath 时返回原始权重。
 // adjustForInflation 用 CPI 将名义净值折算为实际净值（基期为首个交易日）。
 func adjustForInflation(curve []DataPoint, vals []float64, dates []string, cpiData map[string]float64, enabled bool) {
@@ -68,23 +72,11 @@ func glidepathWeights(initialWeights, targetWeights []float64, dayIndex int, gli
 }
 
 func normalizeWeights(assets []AssetInput) []float64 {
-	n := len(assets)
-	weights := make([]float64, n)
-	rawSum := 0.0
+	raw := make([]float64, len(assets))
 	for i, a := range assets {
-		weights[i] = a.Weight / 100.0
-		rawSum += weights[i]
+		raw[i] = a.Weight / 100.0
 	}
-	if rawSum == 0 {
-		for i := range weights {
-			weights[i] = 1.0 / float64(n)
-		}
-	} else {
-		for i := range weights {
-			weights[i] /= rawSum
-		}
-	}
-	return weights
+	return engineutil.NormalizeWeights(raw)
 }
 
 // sumFloat 求浮点切片之和。
@@ -98,7 +90,7 @@ func sumFloat(xs []float64) float64 {
 
 // buildPeriodicCashflowMap 将周期性现金流腿展开为 日期 -> 净金额 映射。
 //
-// 企业理由：与 Rust build_periodic_cashflow_map 对齐——按交易日步长（周 5/月 21/
+// 企业理由：按交易日步长（周 5/月 21/
 // 季 63/年 252）推进，从首个步长处开始计入，withdrawal 取负，until 之后停止。
 func buildPeriodicCashflowMap(legs []CashflowLeg, dates []string) (map[string]float64, error) {
 	m := make(map[string]float64)
@@ -146,7 +138,7 @@ func buildPeriodicCashflowMap(legs []CashflowLeg, dates []string) (map[string]fl
 
 // findCPIForDate 查找给定日期对应的 CPI 值（月度数据）。
 //
-// 企业理由：与 Rust find_cpi_for_date 对齐——先精确匹配，再尝试同月 1 号，
+// 企业理由：先精确匹配，再尝试同月 1 号，
 // 最后逐日回溯最多 24 个月查找最近月份的 CPI 值。
 func findCPIForDate(date string, cpiData map[string]float64) float64 {
 	if v, ok := cpiData[date]; ok {

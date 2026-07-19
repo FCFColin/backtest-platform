@@ -38,8 +38,8 @@ func detectDrawdownEpisodes(curve []DataPoint) []DrawdownEpisode {
 						PeakDate:     peakDate,
 						TroughDate:   troughDate,
 						RecoveryDate: currentDate,
-						Drawdown:     drawdown,
-						Duration:     daysBetween(peakDate, currentDate),
+						Depth:        drawdown,
+						TotalTime:    daysBetween(peakDate, currentDate),
 					})
 				}
 				inDrawdown = false
@@ -69,8 +69,8 @@ func detectDrawdownEpisodes(curve []DataPoint) []DrawdownEpisode {
 				PeakDate:     peakDate,
 				TroughDate:   troughDate,
 				RecoveryDate: "",
-				Drawdown:     drawdown,
-				Duration:     daysBetween(peakDate, curve[len(curve)-1].Date),
+				Depth:        drawdown,
+				TotalTime:    daysBetween(peakDate, curve[len(curve)-1].Date),
 			})
 		}
 	}

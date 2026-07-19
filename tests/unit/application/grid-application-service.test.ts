@@ -13,7 +13,7 @@ const loggerMocks = vi.hoisted(() => ({
 const mocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
   sanitizeLog: vi.fn((v: string) => v),
-  runGridSearch: vi.fn(),
+  callEngineStrict: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
@@ -28,8 +28,8 @@ vi.mock('../../../packages/backend/src/utils/logSanitizer.js', () => ({
   sanitizeLog: mocks.sanitizeLog,
 }));
 
-vi.mock('../../../packages/backend/src/engine/tacticalGrid.js', () => ({
-  runGridSearch: mocks.runGridSearch,
+vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
+  callEngineStrict: mocks.callEngineStrict,
 }));
 
 import {
@@ -89,15 +89,18 @@ describe('executeGridSearch', () => {
   });
 
   it('returns error when price data not found', async () => {
-    mocks.fetchHistoryData.mockResolvedValueOnce({ SPY: {} });
+    mocks.fetchHistoryData.mockResolvedValueOnce({ data: { SPY: {} }, degraded: false });
     const result = await executeGridSearch(validBody());
     expect(result.success).toBe(false);
     expect(result.error).toBe('未找到 SPY 的价格数据');
   });
 
-  it('returns error when trading days are fewer than 10', async () => {
+  it('returns error when trading days are fewer than required', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce({
-      SPY: { '2020-01-01': 100, '2020-01-02': 101, '2020-01-03': 102 },
+      data: {
+        SPY: { '2020-01-01': 100, '2020-01-02': 101, '2020-01-03': 102 },
+      },
+      degraded: false,
     });
     const result = await executeGridSearch(validBody());
     expect(result.success).toBe(false);
@@ -109,13 +112,17 @@ describe('executeGridSearch', () => {
     for (let d = 1; d <= 15; d++) {
       prices[`2020-01-${String(d).padStart(2, '0')}`] = 100 + d;
     }
-    mocks.fetchHistoryData.mockResolvedValueOnce({ SPY: prices });
-    mocks.runGridSearch.mockReturnValueOnce({ result: 'ok', combinations: 20 });
+    mocks.fetchHistoryData.mockResolvedValueOnce({ data: { SPY: prices }, degraded: false });
+    mocks.callEngineStrict.mockResolvedValueOnce({ result: 'ok', combinations: 20 });
 
     const result = await executeGridSearch(validBody());
     expect(result.success).toBe(true);
     expect(result.data).toBeDefined();
     expect((result.data as Record<string, unknown>).result).toBe('ok');
+    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/tactical-grid-search',
+      expect.objectContaining({ indicator: 'sma' }),
+    );
     expect(loggerMocks.info).toHaveBeenCalled();
   });
 });

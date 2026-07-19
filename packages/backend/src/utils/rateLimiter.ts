@@ -9,7 +9,7 @@ import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import crypto from 'crypto';
 import type { Request } from 'express';
 import { config } from '../config/index.js';
-import { appRedis } from '../config/redis.js';
+import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 
 function createRateLimiterStore(prefix: string): RedisStore | undefined {

@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
-import { tooltipStyle } from './analysisChartUtils.js';
+import { CHART_TOOLTIP_STYLE as tooltipStyle } from './chartConstants.js';
 import {
   CHART_MARGIN,
   CHART_GRID_PROPS,
@@ -19,7 +19,14 @@ import {
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
 } from './chartConstants.js';
+import ChartCard from '../ChartCard.js';
 
+/**
+ * 分析页增长曲线图（接受预合并数据）。
+ *
+ * 与 charts/GrowthChart.tsx 的区别：后者接受 PortfolioResult[] 并自行合并，
+ * 此组件接受 useAnalysisData 预处理后的数据，适用于资产分析页面。
+ */
 export const GrowthChart = memo(function GrowthChart({
   growthData,
   portfolioResults,
@@ -29,8 +36,7 @@ export const GrowthChart = memo(function GrowthChart({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="chart-card">
-      <div className="chart-card-title">{t('analysis.growthCurve')}</div>
+    <ChartCard title={t('analysis.growthCurve')}>
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={growthData} margin={CHART_MARGIN}>
           <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
@@ -59,6 +65,6 @@ export const GrowthChart = memo(function GrowthChart({
           ))}
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </ChartCard>
   );
 });

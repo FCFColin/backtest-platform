@@ -102,7 +102,7 @@ const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
  * @param permission - 所需权限
  * @returns 是否拥有权限
  */
-export function hasPermission(role: Role | string, permission: Permission): boolean {
+function hasPermission(role: Role | string, permission: Permission): boolean {
   const perms = ROLE_PERMISSIONS[role as Role];
   if (!perms) return false;
   return perms.has(permission);
@@ -125,17 +125,6 @@ function effectiveRole(user: NonNullable<AuthenticatedRequest['user']>): string 
     return orgRole === 'owner' ? Role.ADMIN : orgRole;
   }
   return user.role;
-}
-
-/**
- * 获取角色的全部权限
- *
- * @param role - 用户角色
- * @returns 权限集合
- */
-export function getRolePermissions(role: Role | string): Permission[] {
-  const perms = ROLE_PERMISSIONS[role as Role];
-  return perms ? Array.from(perms) : [];
 }
 
 // ---------------------------------------------------------------------------

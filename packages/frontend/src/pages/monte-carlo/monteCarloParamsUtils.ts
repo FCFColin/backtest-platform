@@ -1,5 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { MonteCarloResult } from '@backtest/shared';
+import { apiFetch } from '@/utils/apiClient';
 import type {
   PortfolioState,
   PortfolioMode,
@@ -7,8 +8,13 @@ import type {
   DistMetric,
   ResultTab,
 } from './monteCarloTypes.js';
+import {
+  DEFAULT_BACKTEST_START_DATE,
+  DEFAULT_END_DATE,
+  BASE_BACKTEST_PARAMS,
+} from '@/utils/constants';
 
-export function createDefaultPortfolio(suffix: number): PortfolioState {
+function createDefaultPortfolio(suffix: number): PortfolioState {
   return {
     name: `组合 ${suffix}`,
     assets:
@@ -74,7 +80,7 @@ async function fetchMcResult(
   reqBody: { parameters: object; mcParams: object; objectives: object },
 ): Promise<MonteCarloResult> {
   const p = portfolios[idx];
-  const res = await fetch('/api/backtest/monte-carlo', {
+  const res = await apiFetch('/api/v1/backtest/monte-carlo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -142,16 +148,12 @@ async function executeSimulation(
     seed: params.randomSeed ? Number(params.randomSeed) : undefined,
   };
   const parameters = {
+    ...BASE_BACKTEST_PARAMS,
     startDate: params.startDate,
     endDate: params.endDate,
     startingValue: params.startingValue,
     adjustForInflation: false,
-    rollingWindowMonths: 12,
-    benchmarkTicker: '',
-    baseCurrency: 'usd',
-    extendedWithdrawalStats: false,
-    cashflowLegs: [],
-    oneTimeCashflows: [],
+    baseCurrency: 'usd' as const,
   };
   const objectives = {
     mode: params.simMode,
@@ -182,8 +184,8 @@ function useMcSetters() {
   const [minBlock, setMinBlock] = useState(1);
   const [maxBlock, setMaxBlock] = useState(5);
   const [withReplacement, setWithReplacement] = useState(true);
-  const [startDate, setStartDate] = useState('2010-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
+  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [randomSeed, setRandomSeed] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -275,45 +277,11 @@ export function useMonteCarloState() {
         setResults2: s.setResults2,
       },
     );
+  // 内部 setter（setIsLoading/setError/setResults1/setResults2）随 spread 暴露到运行时
+  // 但不在 McState 类型中，TypeScript 结构类型允许返回对象包含额外字段，
+  // 消费者无法经由类型系统访问这些内部字段。
   return {
-    portfolioMode: s.portfolioMode,
-    setPortfolioMode: s.setPortfolioMode,
-    numYears: s.numYears,
-    setNumYears: s.setNumYears,
-    numSimulations: s.numSimulations,
-    setNumSimulations: s.setNumSimulations,
-    startingValue: s.startingValue,
-    setStartingValue: s.setStartingValue,
-    minBlock: s.minBlock,
-    setMinBlock: s.setMinBlock,
-    maxBlock: s.maxBlock,
-    setMaxBlock: s.setMaxBlock,
-    withReplacement: s.withReplacement,
-    setWithReplacement: s.setWithReplacement,
-    startDate: s.startDate,
-    setStartDate: s.setStartDate,
-    endDate: s.endDate,
-    setEndDate: s.setEndDate,
-    randomSeed: s.randomSeed,
-    setRandomSeed: s.setRandomSeed,
-    isLoading: s.isLoading,
-    error: s.error,
-    results1: s.results1,
-    results2: s.results2,
-    activeTab: s.activeTab,
-    setActiveTab: s.setActiveTab,
-    distMetric: s.distMetric,
-    setDistMetric: s.setDistMetric,
-    portfolios: s.portfolios,
-    simMode: s.simMode,
-    setSimMode: s.setSimMode,
-    goal1: s.goal1,
-    setGoal1: s.setGoal1,
-    goal2: s.goal2,
-    setGoal2: s.setGoal2,
-    goalWeight: s.goalWeight,
-    setGoalWeight: s.setGoalWeight,
-    setPortfolios: s.setPortfolios,
+    ...s,
     ...portfolioOps,
     runSimulation,
   };

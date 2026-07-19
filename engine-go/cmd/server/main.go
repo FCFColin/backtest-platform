@@ -1,6 +1,9 @@
 // Go 引擎服务入口（T-ARCH-2.5）。
-// 企业理由：Go 引擎提供单资产分析 API，与 Node.js API 服务解耦。
+// 企业理由：Go 引擎承担全部组合计算与单资产分析负载，与 Node.js API 服务解耦。
 // 独立部署可按需水平扩展，避免与前端 API 争抢计算资源。
+// 暴露端点：backtest / analysis / optimize / efficient-frontier / monte-carlo /
+// statistics / signal-analyze / pca / letf-analyze / goal-optimize /
+// tactical-backtest / tactical-grid-search / factor-regression / calculators（共 14 个）。
 package main
 
 import (

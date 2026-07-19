@@ -1,4 +1,5 @@
 import { Plus, X, Play } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
 import {
@@ -32,6 +33,7 @@ function ConditionRow({
   onRemove: (ci: number) => void;
   canRemove: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ticker-row" style={{ flexWrap: 'wrap', marginBottom: 4 }}>
       <select
@@ -44,7 +46,7 @@ function ConditionRow({
       >
         {INDICATOR_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {t(o.label)}
           </option>
         ))}
       </select>
@@ -56,7 +58,7 @@ function ConditionRow({
           value={cond.period}
           onChange={(e) => onUpdate(ci, { period: Number(e.target.value) })}
         />
-        <span className="param-input-suffix">周期</span>
+        <span className="param-input-suffix">{t('tactical.params.period')}</span>
       </div>
       <select
         className="param-input"
@@ -66,7 +68,7 @@ function ConditionRow({
       >
         {OPERATOR_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {t(o.label)}
           </option>
         ))}
       </select>
@@ -79,10 +81,14 @@ function ConditionRow({
           value={cond.threshold}
           onChange={(e) => onUpdate(ci, { threshold: Number(e.target.value) })}
         />
-        <span className="param-input-prefix">阈值</span>
+        <span className="param-input-prefix">{t('tactical.params.threshold')}</span>
       </div>
       {canRemove && (
-        <button className="row-remove-btn" onClick={() => onRemove(ci)} title="删除条件">
+        <button
+          className="row-remove-btn"
+          onClick={() => onRemove(ci)}
+          title={t('tactical.params.deleteCondition')}
+        >
           <X className="w-3.5 h-3.5" />
         </button>
       )}
@@ -103,6 +109,7 @@ function WeightRow({
   onRemove: (wi: number) => void;
   canRemove: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="ticker-row" style={{ marginBottom: 4 }}>
       <input
@@ -111,7 +118,7 @@ function WeightRow({
         style={{ flex: 1, height: 32, fontSize: 12 }}
         value={weight.ticker}
         onChange={(e) => onUpdate(wi, { ticker: e.target.value.toUpperCase() })}
-        placeholder="标的代码"
+        placeholder={t('tactical.params.tickerPlaceholder')}
       />
       <div className="param-input-suffix-wrap" style={{ width: 100 }}>
         <input
@@ -124,7 +131,11 @@ function WeightRow({
         <span className="param-input-suffix">%</span>
       </div>
       {canRemove && (
-        <button className="row-remove-btn" onClick={() => onRemove(wi)} title="删除">
+        <button
+          className="row-remove-btn"
+          onClick={() => onRemove(wi)}
+          title={t('tactical.params.delete')}
+        >
           <X className="w-3.5 h-3.5" />
         </button>
       )}
@@ -186,6 +197,7 @@ function SignalEditor({
   onRemove: () => void;
   canRemove: boolean;
 }) {
+  const { t } = useTranslation();
   const h = useSignalEditorHandlers(signal, onChange);
   return (
     <div style={signalEditorStyle}>
@@ -196,16 +208,20 @@ function SignalEditor({
           style={{ flex: 1, textTransform: 'none' }}
           value={signal.name}
           onChange={(e) => h.updateName(e.target.value)}
-          placeholder={`信号 ${index + 1} 名称`}
+          placeholder={t('tactical.params.signalNamePlaceholder', { index: index + 1 })}
         />
         {canRemove && (
-          <button className="row-remove-btn" onClick={onRemove} title="删除信号">
+          <button
+            className="row-remove-btn"
+            onClick={onRemove}
+            title={t('tactical.params.deleteSignal')}
+          >
             <X className="w-4 h-4" />
           </button>
         )}
       </div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>
-        触发条件（全部满足）
+        {t('tactical.params.triggerConditions')}
       </div>
       {signal.conditions.map((cond, ci) => (
         <ConditionRow
@@ -219,12 +235,12 @@ function SignalEditor({
       ))}
       <button className="portfolios-add-btn" onClick={h.addCondition} style={{ marginTop: 4 }}>
         <Plus className="w-3 h-3" />
-        添加条件
+        {t('tactical.params.addCondition')}
       </button>
       <div
         style={{ fontSize: 11, color: 'var(--text-muted)', margin: '10px 0 4px', fontWeight: 600 }}
       >
-        目标权重（激活时切换）
+        {t('tactical.params.targetWeights')}
       </div>
       {signal.targetWeights.map((w, wi) => (
         <WeightRow
@@ -238,18 +254,19 @@ function SignalEditor({
       ))}
       <button className="portfolios-add-btn" onClick={h.addWeight} style={{ marginTop: 4 }}>
         <Plus className="w-3 h-3" />
-        添加标的
+        {t('tactical.params.addAsset')}
       </button>
     </div>
   );
 }
 
 function SignalBuilderSection({ state }: { state: TacticalPageState }) {
+  const { t } = useTranslation();
   const { strategy, updateSignal, addSignal, removeSignal } = state;
   return (
     <ParamsSection
-      title="信号构建器"
-      info="基于技术指标构建交易信号。每个信号包含若干触发条件（全部满足时激活）及目标权重（激活时切换的配置）"
+      title={t('tactical.params.signalBuilder')}
+      info={t('tactical.params.signalBuilderInfo')}
     >
       {strategy.signals.map((sig, idx) => (
         <SignalEditor
@@ -267,7 +284,7 @@ function SignalBuilderSection({ state }: { state: TacticalPageState }) {
         style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}
       >
         <Plus className="w-4 h-4" />
-        添加信号
+        {t('tactical.params.addSignal')}
       </button>
     </ParamsSection>
   );
@@ -280,10 +297,11 @@ function RankingConfigRow({
   strategy: TacticalStrategy;
   setStrategy: (s: TacticalStrategy) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="params-row">
       <div className="param-field param-field-rolling">
-        <span className="param-label">排名方式</span>
+        <span className="param-label">{t('tactical.params.rankingMethod')}</span>
         <select
           className="param-input"
           value={strategy.rankingConfig?.method ?? 'fixed_share'}
@@ -299,7 +317,7 @@ function RankingConfigRow({
         >
           {RANKING_METHOD_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {t(o.label)}
             </option>
           ))}
         </select>
@@ -322,7 +340,7 @@ function RankingConfigRow({
               })
             }
           />
-          <span className="param-input-suffix">个</span>
+          <span className="param-input-suffix">{t('tactical.params.topNUnit')}</span>
         </div>
       </div>
     </div>
@@ -330,11 +348,15 @@ function RankingConfigRow({
 }
 
 function AggregationSection({ state }: { state: TacticalPageState }) {
+  const { t } = useTranslation();
   const { strategy, setStrategy } = state;
   return (
-    <ParamsSection title="聚合配置" info="多信号同时激活时的权重合成方式">
+    <ParamsSection
+      title={t('tactical.params.aggregationConfig')}
+      info={t('tactical.params.aggregationConfigInfo')}
+    >
       <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">聚合方式</span>
+        <span className="param-label">{t('tactical.params.aggregationMethod')}</span>
         <select
           className="param-input"
           value={strategy.aggregationMethod}
@@ -347,7 +369,7 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
         >
           {AGGREGATION_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {t(o.label)}
             </option>
           ))}
         </select>
@@ -360,6 +382,7 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
 }
 
 function BacktestParamsSection({ state }: { state: TacticalPageState }) {
+  const { t } = useTranslation();
   const {
     startDate,
     setStartDate,
@@ -371,10 +394,10 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
     setRebalanceFrequency,
   } = state;
   return (
-    <ParamsSection title="回测参数">
+    <ParamsSection title={t('tactical.params.backtestParams')}>
       <div className="params-row">
         <div className="param-field">
-          <span className="param-label">开始日期</span>
+          <span className="param-label">{t('tactical.params.startDate')}</span>
           <input
             type="date"
             className="param-input"
@@ -383,7 +406,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
           />
         </div>
         <div className="param-field">
-          <span className="param-label">结束日期</span>
+          <span className="param-label">{t('tactical.params.endDate')}</span>
           <input
             type="date"
             className="param-input"
@@ -394,7 +417,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
       </div>
       <div className="params-row" style={{ marginTop: 8 }}>
         <div className="param-field param-field-start-val">
-          <span className="param-label">初始资金</span>
+          <span className="param-label">{t('tactical.params.startingValue')}</span>
           <div className="param-input-prefix-wrap">
             <span className="param-input-prefix">$</span>
             <input
@@ -406,7 +429,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
           </div>
         </div>
         <div className="param-field param-field-rolling">
-          <span className="param-label">再平衡频率</span>
+          <span className="param-label">{t('tactical.params.rebalanceFreq')}</span>
           <select
             className="param-input"
             value={rebalanceFrequency}
@@ -414,7 +437,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
           >
             {REBALANCE_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
-                {o.label}
+                {t(o.label)}
               </option>
             ))}
           </select>
@@ -425,6 +448,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
 }
 
 function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
+  const { t } = useTranslation();
   const { isLoading, handleRunBacktest } = state;
   return (
     <ParamsPanel>
@@ -435,11 +459,11 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
         <LoadingButton
           isLoading={isLoading}
           onClick={handleRunBacktest}
-          loadingText="回测中..."
+          loadingText={t('tactical.params.running')}
           style={{ width: '100%' }}
         >
           <Play className="w-4 h-4" />
-          运行战术回测
+          {t('tactical.params.runBacktest')}
         </LoadingButton>
       </div>
     </ParamsPanel>
@@ -447,4 +471,3 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
 }
 
 export { TacticalParamsPanel };
-export type { TacticalPageState };

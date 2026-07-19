@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Loader2, Plus, X } from 'lucide-react';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import type { OptimizerState, SolverType } from './OptimizerUtils.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
 function TickerEditor({ s }: { s: OptimizerState }) {
   const { t } = useTranslation();
@@ -64,8 +65,8 @@ function AllHistoryToggle({ s, t }: { s: OptimizerState; t: (k: string) => strin
             s.setStartDate('');
             s.setEndDate('');
           } else {
-            s.setStartDate('2010-01-01');
-            s.setEndDate('2024-12-31');
+            s.setStartDate(DEFAULT_BACKTEST_START_DATE);
+            s.setEndDate(DEFAULT_END_DATE);
           }
         }}
       />

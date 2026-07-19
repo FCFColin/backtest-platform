@@ -1,7 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { apiFetch } from '@/utils/apiClient';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
+import type { SolveSpeed, FrontierSolver, ReturnObjective } from './efficientFrontierTypes.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
 function buildBacktestParameters(startDate: string, endDate: string) {
   return {
@@ -54,10 +57,6 @@ function buildPortfolioData(
   };
 }
 
-type SolveSpeed = 'ultrafast' | 'fast' | 'medium' | 'slow';
-type FrontierSolver = 'markowitz' | 'nsga2';
-type ReturnObjective = 'maxCagr' | 'minVolatility';
-
 interface FetchFrontierParams {
   validTickers: string[];
   numPoints: number;
@@ -72,7 +71,7 @@ interface FetchFrontierParams {
 }
 
 async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFrontierResult> {
-  const res = await fetch('/api/backtest/efficient-frontier', {
+  const res = await apiFetch('/api/v1/backtest/efficient-frontier', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -114,7 +113,7 @@ async function fetchCorrelations(
     ],
     parameters: buildBacktestParameters(startDate, endDate),
   };
-  const btRes = await fetch('/api/backtest/portfolio', {
+  const btRes = await apiFetch('/api/v1/backtest/portfolio', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(btBody),
@@ -164,8 +163,8 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
 function useEfficientFrontierStateInner() {
   const navigate = useNavigate();
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
-  const [startDate, setStartDate] = useState('2010-01-01');
-  const [endDate, setEndDate] = useState('2024-12-31');
+  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [numPoints, setNumPoints] = useState(20);
   const [solveSpeed, setSolveSpeed] = useState<SolveSpeed>('fast');
   const [minInclusionWeight, setMinInclusionWeight] = useState(0);
@@ -291,4 +290,3 @@ function useEfficientFrontierState() {
 }
 
 export { useEfficientFrontierState };
-export type { SolveSpeed, FrontierSolver, ReturnObjective };

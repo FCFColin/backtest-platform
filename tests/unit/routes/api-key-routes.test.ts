@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/services/apiKeyService.js', () => mocks.service);
+vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => mocks.service);
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 

@@ -66,11 +66,11 @@ vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({
 }));
 
 // Mock DB 客户端与 outbox 写入：避免真实 Postgres 连接，使异步 outbox/事件链路可完成
-vi.mock('../../../packages/backend/src/db/index.js', () => ({
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getClient: dbMocks.getClient,
 }));
 
-vi.mock('../../../packages/backend/src/services/outboxWriter.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));
 
@@ -79,7 +79,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-import { BacktestApplicationService } from '../../../packages/backend/src/application/backtest-service.js';
+import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
 // ===== 测试数据 =====
 
@@ -143,17 +143,14 @@ const mockBacktestResult: BacktestResult = {
 
 // ===== 测试用例 =====
 
-describe('BacktestApplicationService', () => {
-  let service: BacktestApplicationService;
-
+describe('runBacktest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     engineMocks.callEngineStrict.mockResolvedValue(mockBacktestResult);
-    service = new BacktestApplicationService();
   });
 
   it('runBacktest 应以正确参数调用引擎', async () => {
-    await service.runBacktest({
+    await runBacktest({
       portfolios: [mockPortfolio],
       parameters: mockParameters,
       priceData: mockPriceData,
@@ -174,8 +171,8 @@ describe('BacktestApplicationService', () => {
     });
   });
 
-  it('runBacktest 应分发 BacktestCompleted 领域事件', async () => {
-    await service.runBacktest({
+  it('runBacktest 应将 BacktestCompleted 事件写入 outbox', async () => {
+    await runBacktest({
       portfolios: [mockPortfolio],
       parameters: mockParameters,
       priceData: mockPriceData,
@@ -183,27 +180,27 @@ describe('BacktestApplicationService', () => {
       exchangeRates: mockExchangeRates,
     });
 
-    // 事件分发在 fire-and-forget 异步链路中完成（先写 outbox 再 dispatch），需等待
-    await vi.waitFor(() => expect(eventMocks.dispatch).toHaveBeenCalledTimes(1));
+    // 事件写入 outbox 是异步 fire-and-forget，需等待
+    await vi.waitFor(() => expect(outboxMocks.writeEventInTransaction).toHaveBeenCalledTimes(1));
 
-    const dispatchedEvent = eventMocks.dispatch.mock.calls[0][0];
+    const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
     // 事件类型与聚合信息
-    expect(dispatchedEvent.eventType).toBe('BacktestCompleted');
-    expect(dispatchedEvent.aggregateType).toBe('BacktestSession');
-    expect(dispatchedEvent.aggregateId).toMatch(/^backtest-\d+$/);
-    expect(dispatchedEvent.occurredAt).toBeInstanceOf(Date);
+    expect(outboxCall.eventType).toBe('BacktestCompleted');
+    expect(outboxCall.aggregateType).toBe('BacktestSession');
+    expect(outboxCall.aggregateId).toMatch(/^backtest-\d+$/);
+    expect(outboxCall.eventId).toBeDefined();
     // 事件负载应包含关键指标摘要
-    expect(dispatchedEvent.payload.startingValue).toBe(10000);
-    expect(dispatchedEvent.payload.portfolioCount).toBe(1);
-    expect(dispatchedEvent.payload.totalReturn).toBe(0.2);
-    expect(dispatchedEvent.payload.maxDrawdown).toBe(0.15);
-    expect(dispatchedEvent.payload.sharpeRatio).toBe(1.5);
+    expect(outboxCall.payload.startingValue).toBe(10000);
+    expect(outboxCall.payload.portfolioCount).toBe(1);
+    expect(outboxCall.payload.totalReturn).toBe(0.2);
+    expect(outboxCall.payload.maxDrawdown).toBe(0.15);
+    expect(outboxCall.payload.sharpeRatio).toBe(1.5);
     // fail-closed：成功路径来自主引擎，非降级
-    expect(dispatchedEvent.payload.degraded).toBe(false);
+    expect(outboxCall.payload.degraded).toBe(false);
   });
 
   it('runBacktest 应返回引擎结果', async () => {
-    const result = await service.runBacktest({
+    const result = await runBacktest({
       portfolios: [mockPortfolio],
       parameters: mockParameters,
       priceData: mockPriceData,
@@ -220,7 +217,7 @@ describe('BacktestApplicationService', () => {
   it('runBacktest 在引擎不可用时应抛出 EngineUnavailableError（fail-closed）', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('ENGINE_UNAVAILABLE'));
     await expect(
-      service.runBacktest({
+      runBacktest({
         portfolios: [mockPortfolio],
         parameters: mockParameters,
         priceData: mockPriceData,

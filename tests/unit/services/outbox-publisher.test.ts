@@ -63,7 +63,7 @@ vi.mock('pg', () => {
   };
 });
 
-import { OutboxPublisher } from '../../../packages/backend/src/services/outboxPublisher.js';
+import { OutboxPublisher } from '../../../packages/backend/src/infrastructure/outboxPublisher.js';
 
 /** 构造一个 mock pg.Pool，记录 query 调用 */
 function createMockPool(): pg.Pool & {

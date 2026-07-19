@@ -10,7 +10,8 @@
  * - 锁定基于用户名而非账户行级标志，避免给攻击者"该用户名存在"的枚举信号
  *   （锁定与否不改变登录失败的统一响应）。
  */
-import { appRedis } from '../config/redis.js';
+import { appRedis } from '../infrastructure/redisClient.js';
+import { getRedisHealth } from '../infrastructure/redisHealth.js';
 import { logger } from '../utils/logger.js';
 
 /** 触发锁定的连续失败次数阈值 */
@@ -27,20 +28,6 @@ const LOCK_PREFIX = 'login_lock:';
 const memFailures = new Map<string, { count: number; expiresAt: number }>();
 const memLocks = new Map<string, number>();
 
-let redisDownWarned = false;
-async function redisOk(): Promise<boolean> {
-  try {
-    await appRedis.ping();
-    return true;
-  } catch {
-    if (!redisDownWarned) {
-      logger.warn('[loginLockout] Redis 不可用，登录锁定回退到内存模式（单实例）');
-      redisDownWarned = true;
-    }
-    return false;
-  }
-}
-
 function normalize(username: string): string {
   return username.trim().toLowerCase();
 }
@@ -51,7 +38,7 @@ function normalize(username: string): string {
  */
 export async function isLockedOut(username: string): Promise<number> {
   const key = LOCK_PREFIX + normalize(username);
-  if (await redisOk()) {
+  if (await getRedisHealth()) {
     const ttl = await appRedis.ttl(key);
     return ttl > 0 ? ttl : 0;
   }
@@ -70,7 +57,7 @@ export async function recordFailure(username: string): Promise<void> {
   const failKey = KEY_PREFIX + norm;
   const lockKey = LOCK_PREFIX + norm;
 
-  if (await redisOk()) {
+  if (await getRedisHealth()) {
     const count = await appRedis.incr(failKey);
     if (count === 1) {
       await appRedis.expire(failKey, FAILURE_WINDOW_SEC);
@@ -106,7 +93,7 @@ export async function recordFailure(username: string): Promise<void> {
  */
 export async function clearFailures(username: string): Promise<void> {
   const norm = normalize(username);
-  if (await redisOk()) {
+  if (await getRedisHealth()) {
     await appRedis.del(KEY_PREFIX + norm, LOCK_PREFIX + norm);
     return;
   }
