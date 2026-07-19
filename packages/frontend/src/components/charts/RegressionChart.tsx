@@ -12,25 +12,22 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  LineChart,
-  Line,
-  Brush,
 } from 'recharts';
+import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
-import { ChartExporter } from '../ChartExporter.js';
-import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  DATE_TICK_FORMATTER,
-} from './chartConstants.js';
+import ChartCard from '../ChartCard.js';
+import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
 import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
 } from '../../hooks/useChartInteractions.js';
-import { CHART_TOOLTIP_STYLE } from '../chartHelpers.js';
+import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
+import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
+import { SimpleTable } from '../SimpleTable.js';
+import type { SimpleTableColumn } from '../SimpleTable.js';
+import { computeDailyReturns } from './correlationDataTransforms.js';
 
 interface RegressionChartProps {
   portfolios: PortfolioResult[];
@@ -49,15 +46,6 @@ interface RegressionResult {
 }
 interface RegressionWithMeta extends RegressionResult {
   name: string;
-}
-
-function computeDailyReturns(curve: Array<{ date: string; value: number }>): number[] {
-  const returns: number[] = [];
-  for (let i = 1; i < curve.length; i++) {
-    if (curve[i - 1].value > 0)
-      returns.push((curve[i].value - curve[i - 1].value) / curve[i - 1].value);
-  }
-  return returns;
 }
 
 function computeRegression(
@@ -105,19 +93,6 @@ function computeRegression(
   return { alpha: alpha * 100, beta, rSquared, points, linePoints, residuals };
 }
 
-const TH_STYLE: React.CSSProperties = {
-  color: 'var(--text-muted)',
-  borderBottom: '2px solid var(--border-soft)',
-};
-const TD_STYLE: React.CSSProperties = {
-  color: 'var(--text-body)',
-  borderBottom: '1px solid var(--border-soft)',
-};
-const TD_VAL_STYLE: React.CSSProperties = {
-  color: 'var(--text-strong)',
-  borderBottom: '1px solid var(--border-soft)',
-};
-
 /** 回归散点图 */
 function RegressionScatterChart({
   reg,
@@ -130,6 +105,7 @@ function RegressionScatterChart({
   color: string;
   scatterPoints: typeof reg.points;
 }) {
+  const { t } = useTranslation();
   return (
     <div style={{ flex: '1 1 300px', minWidth: 0 }}>
       <ResponsiveContainer width="100%" height={400}>
@@ -138,10 +114,10 @@ function RegressionScatterChart({
           <XAxis
             type="number"
             dataKey="x"
-            name="基准日收益率"
+            name={t('charts.regression.baseDailyReturn')}
             tick={AXIS_TICK_STYLE}
             label={{
-              value: `${baseName} 日收益率 (%)`,
+              value: t('charts.regression.dailyReturnAxis', { name: baseName }),
               position: 'insideBottom',
               offset: -10,
               style: { fill: 'var(--text-muted)', fontSize: 12 },
@@ -150,10 +126,10 @@ function RegressionScatterChart({
           <YAxis
             type="number"
             dataKey="y"
-            name="目标日收益率"
+            name={t('charts.regression.targetDailyReturn')}
             tick={AXIS_TICK_STYLE}
             label={{
-              value: `${reg.name} 日收益率 (%)`,
+              value: t('charts.regression.dailyReturnAxis', { name: reg.name }),
               angle: -90,
               position: 'insideLeft',
               style: { fill: 'var(--text-muted)', fontSize: 12 },
@@ -162,10 +138,10 @@ function RegressionScatterChart({
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(value: number, name: string) => {
-              if (name === '基准日收益率' || name === 'x')
-                return [`${value.toFixed(4)}%`, '基准日收益率'];
-              if (name === '目标日收益率' || name === 'y')
-                return [`${value.toFixed(4)}%`, '目标日收益率'];
+              if (name === 'x')
+                return [`${value.toFixed(4)}%`, t('charts.regression.baseDailyReturn')];
+              if (name === 'y')
+                return [`${value.toFixed(4)}%`, t('charts.regression.targetDailyReturn')];
               return [value, name];
             }}
             labelFormatter={() => ''}
@@ -188,114 +164,55 @@ function RegressionScatterChart({
 
 /** 回归统计表 */
 function RegressionStatsTable({ reg }: { reg: RegressionWithMeta }) {
+  const { t } = useTranslation();
+  const rows = [
+    { label: 'Alpha', value: `${reg.alpha.toFixed(4)}%` },
+    { label: 'Beta', value: reg.beta.toFixed(4) },
+    { label: 'R²', value: reg.rSquared.toFixed(4) },
+  ];
+  const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
+    { key: 'metric', label: t('charts.regression.metric'), render: (r) => r.label },
+    {
+      key: 'value',
+      label: t('charts.regression.value'),
+      align: 'right',
+      render: (r) => r.value,
+    },
+  ];
   return (
     <div style={{ flex: '0 0 auto' }}>
-      <table className="w-full border-collapse" style={{ minWidth: '200px' }}>
-        <thead>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <th className="text-[12px] font-semibold text-left py-2 px-3" style={TH_STYLE}>
-              指标
-            </th>
-            <th className="text-[12px] font-semibold text-right py-2 px-3" style={TH_STYLE}>
-              值
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>
-              Alpha
-            </td>
-            <td
-              className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-              style={TD_VAL_STYLE}
-            >
-              {reg.alpha.toFixed(4)}%
-            </td>
-          </tr>
-          <tr>
-            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>
-              Beta
-            </td>
-            <td
-              className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-              style={TD_VAL_STYLE}
-            >
-              {reg.beta.toFixed(4)}
-            </td>
-          </tr>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-            <td className="text-[13px] py-2 px-3" style={TD_STYLE}>
-              R²
-            </td>
-            <td
-              className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-              style={TD_VAL_STYLE}
-            >
-              {reg.rSquared.toFixed(4)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <SimpleTable columns={columns} data={rows} rowKey={(r) => r.label} />
     </div>
   );
 }
 
 /** 回归残差图 */
 function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; color: string }) {
+  const { t } = useTranslation();
   if (reg.residuals.length === 0) return null;
   return (
     <div>
       <div className="chart-card-title" style={{ marginTop: '8px' }}>
-        残差图
+        {t('charts.regression.residualChartTitle')}
       </div>
       <div className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>
-        残差 = 实际收益 − 拟合收益，偏离0越远说明模型拟合越差
+        {t('charts.regression.residualDesc')}
       </div>
-      <ResponsiveContainer width="100%" height={200}>
-        <LineChart data={reg.residuals} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-            tickFormatter={DATE_TICK_FORMATTER}
-            interval="preserveStartEnd"
-          />
-          <YAxis
-            tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => `${v.toFixed(2)}%`}
-            label={{
-              value: '残差 (%)',
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
-          />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number) => [`${value.toFixed(4)}%`, '残差']}
-            labelFormatter={(label: string) => `日期: ${label}`}
-          />
-          <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
-          <Line
-            type="monotone"
-            dataKey="residual"
-            stroke={color}
-            strokeWidth={1}
-            dot={false}
-            activeDot={{ r: 2 }}
-          />
-          {reg.residuals.length > 100 && (
-            <Brush
-              dataKey="date"
-              height={20}
-              stroke="var(--brand)"
-              travellerWidth={8}
-              tickFormatter={DATE_TICK_FORMATTER}
-            />
-          )}
-        </LineChart>
-      </ResponsiveContainer>
+      <TimeSeriesLineChart
+        data={reg.residuals}
+        height={200}
+        yTickFormatter={(v) => `${v.toFixed(2)}%`}
+        tooltipValueFormatter={(v) => [`${v.toFixed(4)}%`, t('charts.regression.residual')]}
+        tooltipLabelFormatter={(label) => t('charts.regression.dateLabel', { label })}
+        yLabel={t('charts.regression.residualAxisLabel')}
+        referenceY={0}
+        showBrush
+        xTickInterval="preserveStartEnd"
+        xTickFontSize={10}
+        defaultStrokeWidth={1}
+        showLegend={false}
+        series={[{ dataKey: 'residual', color, activeDotR: 2 }]}
+      />
     </div>
   );
 }
@@ -312,6 +229,7 @@ function RegressionPanel({
   colorIdx: number;
   isLast: boolean;
 }) {
+  const { t } = useTranslation();
   const color = CHART_COLORS[colorIdx % CHART_COLORS.length];
   const scatterPoints =
     reg.points.length > DOWNSAMPLE_THRESHOLD
@@ -319,16 +237,12 @@ function RegressionPanel({
       : reg.points;
 
   return (
-    <div className="chart-card" style={{ marginBottom: isLast ? 0 : '16px' }}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="chart-card-title mb-0">
-          回归分析: {baseName} vs {reg.name}
-        </div>
-        <ChartExporter
-          data={reg.points.map((p): Record<string, string | number> => ({ x: p.x, y: p.y }))}
-          filename={`regression-${reg.name}`}
-        />
-      </div>
+    <ChartCard
+      title={t('charts.regression.panelTitle', { baseName, targetName: reg.name })}
+      data={reg.points.map((p): Record<string, string | number> => ({ x: p.x, y: p.y }))}
+      csvFilename={`regression-${reg.name}`}
+      style={{ marginBottom: isLast ? 0 : '16px' }}
+    >
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <RegressionScatterChart
           reg={reg}
@@ -339,11 +253,12 @@ function RegressionPanel({
         <RegressionStatsTable reg={reg} />
       </div>
       <RegressionResidualChart reg={reg} color={color} />
-    </div>
+    </ChartCard>
   );
 }
 
 export default function RegressionChart({ portfolios }: RegressionChartProps) {
+  const { t } = useTranslation();
   const basePortfolio = portfolios[0];
 
   const regressions = useMemo<RegressionWithMeta[]>(() => {
@@ -358,8 +273,7 @@ export default function RegressionChart({ portfolios }: RegressionChartProps) {
 
   if (portfolios.length < 2) {
     return (
-      <div className="chart-card">
-        <div className="chart-card-title">回归分析</div>
+      <ChartCard title={t('charts.regression.title')}>
         <div
           style={{
             color: 'var(--text-muted)',
@@ -368,9 +282,9 @@ export default function RegressionChart({ portfolios }: RegressionChartProps) {
             textAlign: 'center',
           }}
         >
-          至少需要2个组合
+          {t('charts.regression.needTwoPortfolios')}
         </div>
-      </div>
+      </ChartCard>
     );
   }
 
