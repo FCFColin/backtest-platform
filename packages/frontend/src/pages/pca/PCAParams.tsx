@@ -8,7 +8,7 @@ import LoadingButton from '../../components/LoadingButton.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 
 /** PCA 参数面板 Props */
-export interface PCAParamsProps {
+interface PCAParamsProps {
   tickers: string[];
   startDate: string;
   endDate: string;

@@ -13,9 +13,7 @@
  * services/membershipService.ts。
  */
 import { getPool } from '../db/pool.js';
-
-/** 组织内成员角色（owner 为组织创建者，权限最高） */
-export type OrgRole = 'owner' | 'admin' | 'analyst' | 'readonly';
+import type { OrgRole } from '../middleware/authTypes.js';
 
 /** 全局（legacy）角色集合，用于与既有 RBAC（req.user.role）兼容 */
 export type GlobalRole = 'admin' | 'analyst' | 'readonly';

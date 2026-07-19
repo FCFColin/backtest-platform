@@ -4,30 +4,14 @@
  *   支持两种数据源：回测页 portfolios（含汇总统计表与明细表）与分析页 results（仅柱状图）。
  */
 import { useMemo } from 'react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
 import { percentile, mean, std } from '@/utils/stats';
 import { fmtPct } from '@/utils/format';
 import ChartCard from '../ChartCard.js';
-import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
-} from './chartConstants.js';
+import { BarChartContent } from './sharedChartContent.js';
 
 /** 年度收益柱状图 Props */
 interface AnnualReturnChartProps {
@@ -245,26 +229,14 @@ export default function AnnualReturnChart({ portfolios, results }: AnnualReturnC
 
   return (
     <ChartCard title={t('charts.annualReturn.title')} data={mergedData} csvFilename="annual-return">
-      <ResponsiveContainer width="100%" height={350}>
-        <BarChart data={mergedData} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(0)}%`} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
-            formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-          />
-          <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          {seriesNames.map((name, idx) => (
-            <Bar
-              key={name}
-              dataKey={name}
-              fill={CHART_COLORS[idx % CHART_COLORS.length]}
-              radius={[2, 2, 0, 0]}
-            />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChartContent
+        data={mergedData}
+        seriesNames={seriesNames}
+        xDataKey="year"
+        yTickFormatter={(v: number) => `${v.toFixed(0)}%`}
+        tooltipValueFormatter={(value: number) => [`${value.toFixed(2)}%`, '']}
+        barRadius={2}
+      />
       {portfolios?.map((p, idx) => (
         <PortfolioSummaryStats key={p.name} portfolio={p} colorIndex={idx} />
       ))}

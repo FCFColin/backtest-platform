@@ -20,6 +20,7 @@
 import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
+import { sha256Hex } from '../utils/crypto.js';
 
 /** 明文密钥前缀（标识环境/用途，便于在日志/告警中识别泄露的密钥形态） */
 export const KEY_PREFIX = 'bpk_live_';
@@ -51,10 +52,6 @@ interface ApiKeyRecord {
 interface CreatedApiKey extends ApiKeyRecord {
   /** 明文密钥，仅在创建时返回一次，请妥善保存 */
   plaintext: string;
-}
-
-function sha256Hex(input: string): string {
-  return crypto.createHash('sha256').update(input, 'utf-8').digest('hex');
 }
 
 function mapRow(row: {

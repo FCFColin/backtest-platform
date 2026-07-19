@@ -8,7 +8,8 @@
  */
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
-import { sha256Hex, type OrgRole } from '../repositories/invitationRepo.js';
+import type { OrgRole } from '../middleware/authTypes.js';
+import { sha256Hex } from '../utils/crypto.js';
 
 export {
   createInvitation,

@@ -71,6 +71,74 @@ export function CAGRCalculator() {
   );
 }
 
+interface FutureValueComputation {
+  finalValue: number;
+  totalContributions: number;
+  curve: Array<{ year: number; value: number }>;
+}
+
+/** 计算终值、总贡献与增长曲线（从组件抽出纯函数） */
+function computeFutureValue(
+  initial: number,
+  cagr: number,
+  years: number,
+  monthly: number,
+): FutureValueComputation {
+  const r = cagr / 100;
+  const monthlyR = r / 12;
+  const months = years * 12;
+  const pts: Array<{ year: number; value: number }> = [];
+  let accumulated = initial;
+  for (let t = 0; t <= months; t++) {
+    if (t % 12 === 0) {
+      pts.push({ year: t / 12, value: accumulated });
+    }
+    if (t < months) {
+      accumulated = accumulated * (1 + monthlyR) + monthly;
+    }
+  }
+  const totalContrib = initial + monthly * months;
+  return { finalValue: accumulated, totalContributions: totalContrib, curve: pts };
+}
+
+/** 终值增长曲线图（从 FutureValueCalculator 抽出，控制行数） */
+function FutureValueChart({
+  curve,
+  t,
+}: {
+  curve: Array<{ year: number; value: number }>;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return (
+    <div style={{ height: 180, marginTop: 12 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={curve}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+          <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
+          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={formatNum} />
+          <Tooltip
+            contentStyle={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 8,
+              fontSize: 12,
+            }}
+            formatter={(v: number) => [formatNum(v), t('calculators.cagr.finalValue')]}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={CHART_COLORS[0]}
+            fill={CHART_COLORS[0]}
+            fillOpacity={0.12}
+            strokeWidth={2}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function FutureValueCalculator() {
   const { t } = useTranslation();
   const [initial, setInitial] = useState(10000);
@@ -78,23 +146,10 @@ export function FutureValueCalculator() {
   const [years, setYears] = useState(20);
   const [monthly, setMonthly] = useState(500);
 
-  const { finalValue, totalContributions, curve } = useMemo(() => {
-    const r = cagr / 100;
-    const monthlyR = r / 12;
-    const months = years * 12;
-    const pts: Array<{ year: number; value: number }> = [];
-    let accumulated = initial;
-    for (let t = 0; t <= months; t++) {
-      if (t % 12 === 0) {
-        pts.push({ year: t / 12, value: accumulated });
-      }
-      if (t < months) {
-        accumulated = accumulated * (1 + monthlyR) + monthly;
-      }
-    }
-    const totalContrib = initial + monthly * months;
-    return { finalValue: accumulated, totalContributions: totalContrib, curve: pts };
-  }, [initial, cagr, years, monthly]);
+  const { finalValue, totalContributions, curve } = useMemo(
+    () => computeFutureValue(initial, cagr, years, monthly),
+    [initial, cagr, years, monthly],
+  );
 
   return (
     <CollapsibleCard icon={DollarSign} title={t('calculators.cagr.futureValueTitle')} defaultOpen>
@@ -139,32 +194,7 @@ export function FutureValueCalculator() {
           color="var(--success)"
         />
       </div>
-      <div style={{ height: 180, marginTop: 12 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={curve}>
-            <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
-            <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
-            <YAxis tick={AXIS_TICK_STYLE} tickFormatter={formatNum} />
-            <Tooltip
-              contentStyle={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 8,
-                fontSize: 12,
-              }}
-              formatter={(v: number) => [formatNum(v), t('calculators.cagr.finalValue')]}
-            />
-            <Area
-              type="monotone"
-              dataKey="value"
-              stroke={CHART_COLORS[0]}
-              fill={CHART_COLORS[0]}
-              fillOpacity={0.12}
-              strokeWidth={2}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+      <FutureValueChart curve={curve} t={t} />
     </CollapsibleCard>
   );
 }

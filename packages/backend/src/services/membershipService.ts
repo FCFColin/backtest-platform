@@ -11,10 +11,10 @@
  */
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
+import type { OrgRole } from '../middleware/authTypes.js';
 import {
   getUserMemberships,
   type Membership,
-  type OrgRole,
   type GlobalRole,
 } from '../repositories/membershipRepo.js';
 

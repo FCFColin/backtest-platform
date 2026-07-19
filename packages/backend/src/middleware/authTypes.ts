@@ -9,9 +9,10 @@ import crypto from 'crypto';
 import type { Request, Response } from 'express';
 import { config } from '../config/index.js';
 import { sendProblem } from '../utils/errors.js';
-
-/** 组织内成员角色（owner 为组织创建者） */
-export type OrgRole = 'owner' | 'admin' | 'analyst' | 'readonly';
+// OrgRole 已上提到 @backtest/shared/types/org（ADR-017、ADR-032 跨端复用）。
+// 此处 re-export 以保持本模块既有导出表面不变；新代码请直接从 shared 导入。
+import type { OrgRole } from '@backtest/shared/types/org';
+export type { OrgRole };
 
 /**
  * 令牌中携带的多租户上下文（ADR-032）。

@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LETFResult } from '@backtest/shared';
-import { useAsyncAction } from '../../../hooks/useAsyncAction.js';
+import { useComputeTool } from '../../../hooks/useComputeTool.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -18,16 +18,14 @@ export function useLETFSlippageState() {
   const [leverage, setLeverage] = useState(3);
   const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<LETFResult | null>(null);
-
-  const runAnalysis = () => {
-    if (!letfTicker.trim() || !benchmarkTicker.trim()) {
-      setError(t('letf.errEmptyTickers'));
-      return;
-    }
-    run(async () => {
-      const data = await apiPostJSON<LETFResult>(
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<LETFResult>(
+    async () =>
+      apiPostJSON<LETFResult>(
         '/api/v1/letf/analyze',
         {
           letfTicker: letfTicker.trim(),
@@ -37,10 +35,9 @@ export function useLETFSlippageState() {
           endDate,
         },
         i18n.t('letf.errAnalyze'),
-      );
-      setResults(data);
-    });
-  };
+      ),
+    () => (letfTicker.trim() && benchmarkTicker.trim() ? null : t('letf.errEmptyTickers')),
+  );
 
   return {
     letfTicker,

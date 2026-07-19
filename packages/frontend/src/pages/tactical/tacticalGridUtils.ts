@@ -4,7 +4,7 @@
  *              供 TacticalGridPage / hooks / 子组件共享。
  */
 import type { CSSProperties } from 'react';
-import type { RebalanceFrequency } from '@backtest/shared';
+import type { RebalanceFrequency, GridParamRange } from '@backtest/shared';
 import { REBALANCE_FREQUENCIES } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { interpolateHsl } from '@/utils/colorScale';
@@ -14,11 +14,9 @@ import { interpolateHsl } from '@/utils/colorScale';
 export type IndicatorType = 'sma' | 'ema' | 'rsi';
 export type ObjectiveType = 'maxCAGR' | 'minDrawdown' | 'maxSharpe';
 
-export interface ParamRange {
-  min: number;
-  max: number;
-  step: number;
-}
+// GridParamRange 已上提到 @backtest/shared/types/tactical（前后端 API 契约一致）。
+// 此处仅 re-export 以保持本模块既有导出表面不变；新代码请直接从 shared 导入。
+export type { GridParamRange };
 
 export interface GridCombinationMetrics {
   param1: number;
@@ -161,8 +159,8 @@ export function getCellDisplayValue(cell: number, objective: ObjectiveType): str
 /** 校验网格搜索参数，返回错误信息 key 或 null */
 export function validateGridParams(
   ticker: string,
-  param1: ParamRange,
-  param2: ParamRange,
+  param1: GridParamRange,
+  param2: GridParamRange,
 ): string | null {
   if (!ticker.trim()) return 'tacticalGrid.validateErrors.emptyTicker';
   if (param1.step <= 0 || param2.step <= 0) return 'tacticalGrid.validateErrors.invalidStep';
@@ -176,7 +174,7 @@ export function validateGridParams(
 }
 
 /** 计算参数组合总数（用于错误提示展示） */
-export function countCombinations(param1: ParamRange, param2: ParamRange): number {
+export function countCombinations(param1: GridParamRange, param2: GridParamRange): number {
   return (
     Math.floor((param1.max - param1.min) / param1.step + 1) *
     Math.floor((param2.max - param2.min) / param2.step + 1)

@@ -614,6 +614,8 @@
   },
   "monteCarlo": {
     "title": "蒙特卡洛模拟",
+    "emptyTickerWarning": "组合 {{index}} 请至少添加一个标的",
+    "weightSumWarning": "组合 {{index}} 权重合计必须为 100%",
     "seoDesc": "本工具使用区块自举法对历史市场数据进行重采样，让您研究大量可能的组合路径，而非仅回放一段固定历史。",
     "seoSimulatable": "可模拟内容",
     "seoSimulatableDesc": "退休提款策略、定投计划、固定提取方案，观察其在数千条模拟市场路径下的表现与存活概率。",

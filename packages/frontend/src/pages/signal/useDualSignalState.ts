@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SignalAnalysisRequest, DualSignalConfig } from '@backtest/shared/types/signal';
-import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { useComputeTool } from '../../hooks/useComputeTool.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import i18n from '../../i18n/index.js';
@@ -19,7 +19,7 @@ export interface SignalCfg {
 }
 
 /** DualSignal 页面状态 hook 返回值 */
-export interface UseDualSignalStateResult {
+interface UseDualSignalStateResult {
   cfg1: SignalCfg;
   cfg2: SignalCfg;
   combinationMethod: 'and' | 'or' | 'xor';
@@ -47,15 +47,13 @@ export function useDualSignalState(): UseDualSignalStateResult {
   const [ticker, setTicker] = useState('SPY');
   const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<DualSignalResponse | null>(null);
-
-  const runAnalysis = () => {
-    if (!ticker.trim()) {
-      setError(t('signal.common.errEmptyTicker'));
-      return;
-    }
-    run(async () => {
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<DualSignalResponse>(
+    async () => {
       const buildReq = (c: SignalCfg): SignalAnalysisRequest => ({
         ticker: ticker.trim().toUpperCase(),
         indicator: c.indicator,
@@ -70,14 +68,14 @@ export function useDualSignalState(): UseDualSignalStateResult {
         signal2: buildReq(cfg2),
         combinationMethod,
       };
-      const data = await apiPostJSON<DualSignalResponse>(
+      return apiPostJSON<DualSignalResponse>(
         '/api/v1/signal/dual',
         reqBody,
         i18n.t('signal.common.errAnalyze'),
       );
-      setResults(data);
-    });
-  };
+    },
+    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker')),
+  );
 
   return {
     cfg1,

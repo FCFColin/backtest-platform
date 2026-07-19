@@ -170,7 +170,7 @@ export function buildBestMetrics(
   ];
 }
 
-export interface OptimizerState {
+export interface BacktestOptimizerState {
   assets: Array<{ ticker: string; weight: string }>;
   frequencies: RebalanceFrequency[];
   thrMin: string;
@@ -378,11 +378,11 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
   }
 }
 
-export function useOptimizerState(): OptimizerState {
+export function useOptimizerState(): BacktestOptimizerState {
   const s = useBacktestOptSetters();
   const runOptimize = () => runBacktestOptimize(s);
   // 内部 setter（setAssets/setFrequencies/setIsLoading/setError/setResults/setBest/
-  // setBenchmarkGrowth/setTotalCombos）随 spread 暴露到运行时但不在 OptimizerState 类型中，
+  // setBenchmarkGrowth/setTotalCombos）随 spread 暴露到运行时但不在 BacktestOptimizerState 类型中，
   // TypeScript 结构类型允许返回对象包含额外字段，消费者无法经由类型系统访问这些内部字段。
   return { ...s, runOptimize };
 }

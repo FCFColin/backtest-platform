@@ -3,6 +3,22 @@
 /** 技术指标类型 */
 export type TechnicalIndicator = 'sma' | 'ema' | 'rsi' | 'macd' | 'bollinger' | 'momentum';
 
+/**
+ * 网格搜索参数范围（min/max/step 三元组）。
+ *
+ * 跨端契约：前端 tacticalGrid 表单构造 param1/param2，后端 GridSearchDomainRequest 接收，
+ * 字段完全一致。上提到 shared 以消除前后端两份同构定义（原 backend `GridParamRange`
+ * 与 frontend `ParamRange`）。
+ */
+export interface GridParamRange {
+  /** 参数下界（含） */
+  min: number;
+  /** 参数上界（含） */
+  max: number;
+  /** 步长（必须 > 0；若 <= 0 则视为单点 [min, min]） */
+  step: number;
+}
+
 /** 信号条件 */
 export interface SignalCondition {
   indicator: TechnicalIndicator;

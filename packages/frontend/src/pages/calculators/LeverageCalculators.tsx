@@ -221,6 +221,34 @@ export function KellyLeverageCalculator() {
   );
 }
 
+interface OptionLeverageComputation {
+  leverage: number;
+  delta: number;
+  intrinsic: number;
+  timeValue: number;
+}
+
+/** 计算期权杠杆比率（从组件抽出纯函数） */
+function computeOptionLeverage(
+  spotPrice: number,
+  strikePrice: number,
+  optionPrice: number,
+): OptionLeverageComputation {
+  if (optionPrice <= 0 || spotPrice <= 0)
+    return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
+  const intrinsic = Math.max(spotPrice - strikePrice, 0);
+  const timeValue = optionPrice - intrinsic;
+  const approxDelta = Math.min(
+    1,
+    Math.max(
+      0.01,
+      (optionPrice / spotPrice) * (spotPrice / optionPrice > 1 ? 1 : spotPrice / optionPrice),
+    ),
+  );
+  const leverageRatio = (approxDelta * spotPrice) / (optionPrice > 0 ? optionPrice : 1);
+  return { leverage: leverageRatio, delta: approxDelta, intrinsic, timeValue };
+}
+
 export function OptionLeverageCalculator() {
   const { t } = useTranslation();
   const [spotPrice, setSpotPrice] = useState(100);
@@ -228,21 +256,10 @@ export function OptionLeverageCalculator() {
   const [optionPrice, setOptionPrice] = useState(5);
   const [contractMultiplier, setContractMultiplier] = useState(100);
 
-  const result = useMemo(() => {
-    if (optionPrice <= 0 || spotPrice <= 0)
-      return { leverage: 0, delta: 0, intrinsic: 0, timeValue: 0 };
-    const intrinsic = Math.max(spotPrice - strikePrice, 0);
-    const timeValue = optionPrice - intrinsic;
-    const approxDelta = Math.min(
-      1,
-      Math.max(
-        0.01,
-        (optionPrice / spotPrice) * (spotPrice / optionPrice > 1 ? 1 : spotPrice / optionPrice),
-      ),
-    );
-    const leverageRatio = (approxDelta * spotPrice) / (optionPrice > 0 ? optionPrice : 1);
-    return { leverage: leverageRatio, delta: approxDelta, intrinsic, timeValue };
-  }, [spotPrice, strikePrice, optionPrice]);
+  const result = useMemo(
+    () => computeOptionLeverage(spotPrice, strikePrice, optionPrice),
+    [spotPrice, strikePrice, optionPrice],
+  );
 
   return (
     <CollapsibleCard icon={Flame} title={t('calculators.leverage.optionTitle')}>

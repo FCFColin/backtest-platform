@@ -20,7 +20,7 @@ import {
 import type { DualSignalResponse, SignalDir } from './dualSignalTypes.js';
 
 /** DualSignal 结果面板 Props */
-export interface DualSignalResultsProps {
+interface DualSignalResultsProps {
   results: DualSignalResponse | null;
   error: string | null;
   isLoading: boolean;

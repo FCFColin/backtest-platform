@@ -38,6 +38,28 @@ interface FactorRegressionState {
   updateAsset: (i: number, field: 'ticker' | 'weight', val: string | number) => void;
 }
 
+interface RegressionValidationSuccess {
+  validAssets: AssetItem[];
+}
+interface RegressionValidationError {
+  error: string;
+}
+type RegressionValidation = RegressionValidationSuccess | RegressionValidationError;
+
+/** 校验回归参数，返回 { validAssets } 或 { error } */
+function validateRegressionParams(
+  assets: AssetItem[],
+  selectedFactors: string[],
+  t: TFunction,
+): RegressionValidation {
+  const validAssets = assets.filter((a) => a.ticker.trim() !== '');
+  if (validAssets.length === 0) return { error: t('factorRegression.errEmptyAssets') };
+  const weightErr = validateAssetWeights(assets);
+  if (weightErr) return { error: weightErr };
+  if (selectedFactors.length === 0) return { error: t('factorRegression.errNoFactor') };
+  return { validAssets };
+}
+
 /**
  * 因子回归页面状态 hook
  * @param t - i18n 翻译函数
@@ -73,25 +95,16 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
     updateItem(i, (prev) => ({ ...prev, [field]: val }));
   const totalWeight = assets.reduce((s, a) => s + (a.weight || 0), 0);
   const runRegression = () => {
-    const validAssets = assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) {
-      setError(t('factorRegression.errEmptyAssets'));
-      return;
-    }
-    const weightErr = validateAssetWeights(assets);
-    if (weightErr) {
-      setError(weightErr);
-      return;
-    }
-    if (selectedFactors.length === 0) {
-      setError(t('factorRegression.errNoFactor'));
+    const validation = validateRegressionParams(assets, selectedFactors, t);
+    if ('error' in validation) {
+      setError(validation.error);
       return;
     }
     setResult(null);
     run(async () => {
       try {
         const r = await fetchRegression({
-          validAssets,
+          validAssets: validation.validAssets,
           startDate,
           endDate,
           selectedFactors,

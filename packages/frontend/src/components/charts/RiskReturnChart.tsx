@@ -5,26 +5,15 @@
  */
 import { useState, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  ZAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LabelList,
-} from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { type RiskMetricKey } from './chartCalculations.js';
-import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
+import { ScatterChartContent } from './sharedChartContent.js';
 
 interface ScatterPoint {
   name: string;
   risk: number;
   cagr: number;
+  [key: string]: string | number;
 }
 
 function RiskMetricSelector({
@@ -54,56 +43,24 @@ function RiskMetricSelector({
 
 function RiskScatterChart({ data, riskLabel }: { data: ScatterPoint[]; riskLabel: string }) {
   return (
-    <ResponsiveContainer width="100%" height={450}>
-      <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis
-          type="number"
-          dataKey="risk"
-          name={riskLabel}
-          tick={AXIS_TICK_STYLE}
-          label={{
-            value: `${riskLabel} (%)`,
-            position: 'insideBottom',
-            offset: -10,
-            style: { fill: 'var(--text-muted)', fontSize: 12 },
-          }}
-        />
-        <YAxis
-          type="number"
-          dataKey="cagr"
-          name="CAGR"
-          tick={AXIS_TICK_STYLE}
-          label={{
-            value: 'CAGR (%)',
-            angle: -90,
-            position: 'insideLeft',
-            style: { fill: 'var(--text-muted)', fontSize: 12 },
-          }}
-        />
-        <ZAxis range={[80, 80]} />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          formatter={(value: number, name: string) =>
-            name === 'risk'
-              ? [`${value.toFixed(2)}%`, riskLabel]
-              : name === 'cagr'
-                ? [`${value.toFixed(2)}%`, 'CAGR']
-                : [value, name]
-          }
-          labelFormatter={() => ''}
-        />
-        {data.map((point, idx) => (
-          <Scatter key={point.name} data={[point]} fill={CHART_COLORS[idx % CHART_COLORS.length]}>
-            <LabelList
-              dataKey="name"
-              position="right"
-              style={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            />
-          </Scatter>
-        ))}
-      </ScatterChart>
-    </ResponsiveContainer>
+    <ScatterChartContent
+      data={data}
+      xDataKey="risk"
+      yDataKey="cagr"
+      nameDataKey="name"
+      xName={riskLabel}
+      yName="CAGR"
+      xLabel={`${riskLabel} (%)`}
+      yLabel="CAGR (%)"
+      tooltipFormatter={(value: number | string, name: string) =>
+        name === 'risk'
+          ? [`${typeof value === 'number' ? value.toFixed(2) : value}%`, riskLabel]
+          : name === 'cagr'
+            ? [`${typeof value === 'number' ? value.toFixed(2) : value}%`, 'CAGR']
+            : [String(value), name]
+      }
+      tooltipLabelFormatter={() => ''}
+    />
   );
 }
 

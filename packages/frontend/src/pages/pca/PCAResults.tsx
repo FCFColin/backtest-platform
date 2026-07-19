@@ -54,7 +54,7 @@ function getLoadingColor(loading: number): string {
 }
 
 /** PCA 结果面板 Props */
-export interface PCAResultsProps {
+interface PCAResultsProps {
   results: PCAResult | null;
   error: string | null;
   isLoading: boolean;

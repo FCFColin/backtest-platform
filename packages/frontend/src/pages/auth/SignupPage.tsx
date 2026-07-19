@@ -7,17 +7,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { UserPlus, Loader2, MailCheck } from 'lucide-react';
+import { UserPlus, MailCheck } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';
 import AuthPageLayout from '@/components/auth/AuthPageLayout';
-
-const fieldLabel: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 600,
-  color: 'var(--text-body)',
-};
-const fieldWrap: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 };
+import AuthFormField from '@/components/auth/AuthFormField';
+import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 
 function SignupSuccess({ email }: { email: string }) {
   const { t } = useTranslation();
@@ -44,104 +39,6 @@ function SignupSuccess({ email }: { email: string }) {
         </Link>
       </div>
     </AuthPageLayout>
-  );
-}
-
-/** 注册表单字段 */
-function SignupFormFields({
-  username,
-  email,
-  password,
-  orgName,
-  setUsername,
-  setEmail,
-  setPassword,
-  setOrgName,
-}: {
-  username: string;
-  email: string;
-  password: string;
-  orgName: string;
-  setUsername: (v: string) => void;
-  setEmail: (v: string) => void;
-  setPassword: (v: string) => void;
-  setOrgName: (v: string) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <label style={fieldWrap}>
-        <span style={fieldLabel}>{t('auth.login.username')}</span>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoComplete="username"
-          required
-          className="portfolio-rebalance-select"
-          style={{ width: '100%', height: 40 }}
-        />
-      </label>
-      <label style={fieldWrap}>
-        <span style={fieldLabel}>{t('auth.signup.email')}</span>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          required
-          className="portfolio-rebalance-select"
-          style={{ width: '100%', height: 40 }}
-        />
-      </label>
-      <label style={fieldWrap}>
-        <span style={fieldLabel}>{t('auth.signup.passwordHint')}</span>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="new-password"
-          required
-          minLength={8}
-          className="portfolio-rebalance-select"
-          style={{ width: '100%', height: 40 }}
-        />
-      </label>
-      <label style={fieldWrap}>
-        <span style={fieldLabel}>{t('auth.signup.orgName')}</span>
-        <input
-          type="text"
-          value={orgName}
-          onChange={(e) => setOrgName(e.target.value)}
-          required
-          className="portfolio-rebalance-select"
-          style={{ width: '100%', height: 40 }}
-        />
-      </label>
-    </>
-  );
-}
-
-/** 注册提交按钮 */
-function SignupSubmitButton({ loading }: { loading: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="main-action-btn"
-      style={{
-        height: 42,
-        marginTop: 4,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-      }}
-    >
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-      {loading ? t('auth.signup.submitting') : t('auth.signup.submit')}
-    </button>
   );
 }
 
@@ -187,18 +84,35 @@ export default function SignupPage() {
       }
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <SignupFormFields
-          username={username}
-          email={email}
-          password={password}
-          orgName={orgName}
-          setUsername={setUsername}
-          setEmail={setEmail}
-          setPassword={setPassword}
-          setOrgName={setOrgName}
+        <AuthFormField
+          label={t('auth.login.username')}
+          value={username}
+          onChange={setUsername}
+          autoComplete="username"
         />
+        <AuthFormField
+          label={t('auth.signup.email')}
+          value={email}
+          onChange={setEmail}
+          type="email"
+          autoComplete="email"
+        />
+        <AuthFormField
+          label={t('auth.signup.passwordHint')}
+          value={password}
+          onChange={setPassword}
+          type="password"
+          autoComplete="new-password"
+          minLength={8}
+        />
+        <AuthFormField label={t('auth.signup.orgName')} value={orgName} onChange={setOrgName} />
         <ErrorBanner message={error} />
-        <SignupSubmitButton loading={loading} />
+        <AuthSubmitButton
+          loading={loading}
+          icon={<UserPlus className="w-4 h-4" />}
+          label={t('auth.signup.submit')}
+          loadingLabel={t('auth.signup.submitting')}
+        />
       </form>
     </AuthPageLayout>
   );

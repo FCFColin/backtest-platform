@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
-import type { OptimizerState, OptimizerResultExt } from './OptimizerUtils.js';
+import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
 import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS } from '@/components/charts/chartConstants.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/SimpleTable.js';
 import { fmtPct, fmtNum } from '@/utils/format';
@@ -57,7 +57,7 @@ function ConstraintCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-function ConstraintsSummary({ s }: { s: OptimizerState }) {
+function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const cards: Array<{ show: boolean; label: string; value: string }> = [
     { show: true, label: t('optimizer.minWeight'), value: `${s.minWeight}%` },
@@ -295,7 +295,7 @@ function FrontierChart({
   );
 }
 
-function OptimizerResults({ s }: { s: OptimizerState }) {
+function OptimizerResults({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   if (s.error)
     return (

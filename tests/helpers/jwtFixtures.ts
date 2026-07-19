@@ -1,19 +1,13 @@
 /**
  * 测试辅助：JWT 签发工具
  *
- * 仅保留 base64urlEncode + signTestToken + DEFAULT_JWT_SECRET + UserRole。
+ * 仅保留 base64urlEncode + signTestToken + DEFAULT_JWT_SECRET。
  * Phase 5.2 已清理 9 个未用导出（createUserFixture/mockAdmin/mockUser/mockReadonly/
  * mockAnalyst/createJwtPayload/signMockJwt/verifyMockJwt/createJwtAuthMiddlewareMock）。
- *
- * 用法：
- *   import { base64urlEncode, signTestToken } from '../helpers/jwtFixtures.js';
- *   const token = await signTestToken({ sub: 'user-1', role: 'admin' });
+ * 2026-07-19 清理 UserRole（无外部引用）。
  */
 
 import { SignJWT, importJWK } from 'jose';
-
-/** 用户角色枚举（与 User.role 一致） */
-export type UserRole = 'admin' | 'analyst' | 'readonly';
 
 /** 默认 JWT 密钥（与 jwt-auth 测试 config 默认值一致） */
 const DEFAULT_JWT_SECRET = 'test-jwt-secret-for-unit-tests';
@@ -35,7 +29,7 @@ export function base64urlEncode(input: string): string {
 }
 
 /** signTestToken 选项 */
-export interface SignTestTokenOptions {
+interface SignTestTokenOptions {
   /** 不设置 exp（用于"缺少 exp"用例） */
   omitExp?: boolean;
   /** 自定义密钥（默认使用 DEFAULT_JWT_SECRET） */

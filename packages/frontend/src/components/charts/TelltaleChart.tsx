@@ -77,42 +77,21 @@ function buildTelltaleData(benchmark: NamedGrowth, comparisons: NamedGrowth[]) {
   );
 }
 
-export default function TelltaleChart({
-  portfolios,
-  results,
-  embedded = false,
-}: TelltaleChartProps) {
-  const { t } = useTranslation();
+interface TelltaleDataResult {
+  chartData: Array<Record<string, number | string>>;
+  labels: string[];
+  title: string;
+  emptyMessage: string | null;
+}
 
-  const { chartData, labels, title, emptyMessage } = useMemo(() => {
-    if (results) {
-      if (results.tickers.length < 2) {
-        return {
-          chartData: [],
-          labels: [],
-          title: t('analysis.telltaleChart'),
-          emptyMessage: t('analysis.telltaleNeedTwo'),
-        };
-      }
-      const benchmark = {
-        name: results.tickers[0].ticker,
-        growthCurve: results.tickers[0].growthCurve,
-      };
-      const comparisons = results.tickers
-        .slice(1)
-        .map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }));
-      const labels = results.tickers.slice(1).map((tk) => tk.ticker);
-      const merged = buildTelltaleData(benchmark, comparisons);
-      return {
-        chartData:
-          merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
-        labels,
-        title: `${t('analysis.telltaleRelative')} ${results.tickers[0].ticker}`,
-        emptyMessage: null,
-      };
-    }
-    const pf = portfolios ?? [];
-    if (pf.length < 2) {
+/** 计算图表数据/标签/标题/空提示（从组件抽出，纯函数便于测试） */
+function computeTelltaleData(
+  portfolios: PortfolioResult[] | undefined,
+  results: AssetAnalysisResult | undefined,
+  t: ReturnType<typeof useTranslation>['t'],
+): TelltaleDataResult {
+  if (results) {
+    if (results.tickers.length < 2) {
       return {
         chartData: [],
         labels: [],
@@ -120,34 +99,55 @@ export default function TelltaleChart({
         emptyMessage: t('analysis.telltaleNeedTwo'),
       };
     }
-    const merged = buildTelltaleData(pf[0], pf.slice(1));
+    const benchmark = {
+      name: results.tickers[0].ticker,
+      growthCurve: results.tickers[0].growthCurve,
+    };
+    const comparisons = results.tickers
+      .slice(1)
+      .map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }));
+    const labels = results.tickers.slice(1).map((tk) => tk.ticker);
+    const merged = buildTelltaleData(benchmark, comparisons);
     return {
       chartData:
         merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
-      labels: pf.slice(1).map((p) => p.name),
-      title: t('analysis.telltaleChart'),
+      labels,
+      title: `${t('analysis.telltaleRelative')} ${results.tickers[0].ticker}`,
       emptyMessage: null,
     };
-  }, [portfolios, results, t]);
-
-  if (emptyMessage) {
-    return (
-      <ChartCard title={title}>
-        <div
-          style={{
-            color: 'var(--text-muted)',
-            fontSize: '13px',
-            padding: '40px 0',
-            textAlign: 'center',
-          }}
-        >
-          {emptyMessage}
-        </div>
-      </ChartCard>
-    );
   }
+  const pf = portfolios ?? [];
+  if (pf.length < 2) {
+    return {
+      chartData: [],
+      labels: [],
+      title: t('analysis.telltaleChart'),
+      emptyMessage: t('analysis.telltaleNeedTwo'),
+    };
+  }
+  const merged = buildTelltaleData(pf[0], pf.slice(1));
+  return {
+    chartData:
+      merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
+    labels: pf.slice(1).map((p) => p.name),
+    title: t('analysis.telltaleChart'),
+    emptyMessage: null,
+  };
+}
 
-  const chart = (
+/** Telltale 图表渲染（从主组件抽出，控制行数） */
+function TelltaleChartView({
+  chartData,
+  labels,
+  embedded,
+  t,
+}: {
+  chartData: Array<Record<string, number | string>>;
+  labels: string[];
+  embedded: boolean;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return (
     <ResponsiveContainer width="100%" height={embedded ? 450 : 400}>
       <LineChart data={chartData} margin={CHART_MARGIN}>
         <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
@@ -191,6 +191,40 @@ export default function TelltaleChart({
         )}
       </LineChart>
     </ResponsiveContainer>
+  );
+}
+
+export default function TelltaleChart({
+  portfolios,
+  results,
+  embedded = false,
+}: TelltaleChartProps) {
+  const { t } = useTranslation();
+
+  const { chartData, labels, title, emptyMessage } = useMemo(
+    () => computeTelltaleData(portfolios, results, t),
+    [portfolios, results, t],
+  );
+
+  if (emptyMessage) {
+    return (
+      <ChartCard title={title}>
+        <div
+          style={{
+            color: 'var(--text-muted)',
+            fontSize: '13px',
+            padding: '40px 0',
+            textAlign: 'center',
+          }}
+        >
+          {emptyMessage}
+        </div>
+      </ChartCard>
+    );
+  }
+
+  const chart = (
+    <TelltaleChartView chartData={chartData} labels={labels} embedded={embedded} t={t} />
   );
 
   if (embedded) {

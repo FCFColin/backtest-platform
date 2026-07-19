@@ -6,80 +6,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { LogIn, Loader2 } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';
 import AuthPageLayout from '@/components/auth/AuthPageLayout';
-
-/** 登录表单字段 */
-function LoginFormFields({
-  username,
-  password,
-  onUsernameChange,
-  onPasswordChange,
-}: {
-  username: string;
-  password: string;
-  onUsernameChange: (v: string) => void;
-  onPasswordChange: (v: string) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body)' }}>
-          {t('auth.login.username')}
-        </span>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => onUsernameChange(e.target.value)}
-          autoComplete="username"
-          required
-          className="portfolio-rebalance-select"
-          style={{ width: '100%', height: 40 }}
-        />
-      </label>
-      <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-body)' }}>
-          {t('auth.login.password')}
-        </span>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => onPasswordChange(e.target.value)}
-          autoComplete="current-password"
-          required
-          className="portfolio-rebalance-select"
-          style={{ width: '100%', height: 40 }}
-        />
-      </label>
-    </>
-  );
-}
-
-/** 登录提交按钮 */
-function LoginSubmitButton({ loading }: { loading: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="main-action-btn"
-      style={{
-        height: 42,
-        marginTop: 4,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-      }}
-    >
-      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
-      {loading ? t('auth.login.submitting') : t('auth.login.submit')}
-    </button>
-  );
-}
+import AuthFormField from '@/components/auth/AuthFormField';
+import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -114,14 +46,26 @@ export default function LoginPage() {
       }
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <LoginFormFields
-          username={username}
-          password={password}
-          onUsernameChange={setUsername}
-          onPasswordChange={setPassword}
+        <AuthFormField
+          label={t('auth.login.username')}
+          value={username}
+          onChange={setUsername}
+          autoComplete="username"
+        />
+        <AuthFormField
+          label={t('auth.login.password')}
+          value={password}
+          onChange={setPassword}
+          type="password"
+          autoComplete="current-password"
         />
         <ErrorBanner message={error} />
-        <LoginSubmitButton loading={loading} />
+        <AuthSubmitButton
+          loading={loading}
+          icon={<LogIn className="w-4 h-4" />}
+          label={t('auth.login.submit')}
+          loadingLabel={t('auth.login.submitting')}
+        />
       </form>
     </AuthPageLayout>
   );

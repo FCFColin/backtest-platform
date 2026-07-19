@@ -12,6 +12,7 @@ export * from './pca.js';
 export * from './letf.js';
 export * from './goal.js';
 export * from './marketStats.js';
+export * from './org.js';
 export {
   CHART_COLORS,
   REBALANCE_FREQUENCIES,

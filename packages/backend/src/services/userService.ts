@@ -12,13 +12,10 @@ import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { rowToUser, type User } from '../repositories/userRepo.js';
+import { sha256Hex } from '../utils/crypto.js';
 
 /** 邮箱验证令牌有效期（毫秒，24 小时） */
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-
-function sha256Hex(input: string): string {
-  return crypto.createHash('sha256').update(input, 'utf-8').digest('hex');
-}
 
 /**
  * 验证用户凭证

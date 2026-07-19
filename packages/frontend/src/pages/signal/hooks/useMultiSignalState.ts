@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import type { SignalAnalysisRequest, MultiSignalConfig } from '@backtest/shared/types/signal';
-import { useAsyncAction } from '../../../hooks/useAsyncAction.js';
+import { useComputeTool } from '../../../hooks/useComputeTool.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -51,26 +51,13 @@ export function useMultiSignalState() {
   const [ticker, setTicker] = useState('SPY');
   const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<MultiSignalResponse | null>(null);
-  const [nextId, setNextId] = useState(3);
-
-  const { addSignal, removeSignal, updateSignal, updateWeight } = useSignalActions(
-    [signals, setSignals],
-    [weights, setWeights],
-    [nextId, setNextId],
-  );
-
-  const runAnalysis = () => {
-    if (!ticker.trim()) {
-      setError(i18n.t('signal.common.errEmptyTicker'));
-      return;
-    }
-    if (signals.length === 0) {
-      setError(i18n.t('signal.multi.errMinOneSignal'));
-      return;
-    }
-    run(async () => {
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<MultiSignalResponse>(
+    async () => {
       const reqSignals: SignalAnalysisRequest[] = signals.map((s) => ({
         ticker: ticker.trim().toUpperCase(),
         indicator: s.indicator,
@@ -85,14 +72,25 @@ export function useMultiSignalState() {
         aggregationMethod,
         weights: aggregationMethod === 'weighted' ? weights : undefined,
       };
-      const data = await apiPostJSON<MultiSignalResponse>(
+      return apiPostJSON<MultiSignalResponse>(
         '/api/v1/signal/multi',
         reqBody,
         i18n.t('signal.common.errAnalyze'),
       );
-      setResults(data);
-    });
-  };
+    },
+    () => {
+      if (!ticker.trim()) return i18n.t('signal.common.errEmptyTicker');
+      if (signals.length === 0) return i18n.t('signal.multi.errMinOneSignal');
+      return null;
+    },
+  );
+  const [nextId, setNextId] = useState(3);
+
+  const { addSignal, removeSignal, updateSignal, updateWeight } = useSignalActions(
+    [signals, setSignals],
+    [weights, setWeights],
+    [nextId, setNextId],
+  );
 
   return {
     signals,

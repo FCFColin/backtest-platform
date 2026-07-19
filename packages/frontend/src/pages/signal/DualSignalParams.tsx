@@ -20,7 +20,7 @@ const COMBINATION_METHODS: { value: 'and' | 'or' | 'xor'; label: string }[] = [
 ];
 
 /** DualSignal 参数面板 Props */
-export interface DualSignalParamsProps {
+interface DualSignalParamsProps {
   cfg1: SignalCfg;
   cfg2: SignalCfg;
   combinationMethod: 'and' | 'or' | 'xor';

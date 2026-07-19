@@ -1,6 +1,7 @@
 import i18n from '../i18n/index.js';
 import type { BacktestResult, Portfolio, BacktestParameters, Statistics } from '@backtest/shared';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { validatePortfolioCore } from '@/utils/validation';
 
 export function extractApiErrorDetail(json: unknown): string {
   if (!json || typeof json !== 'object') return i18n.t('backtest.runFailed');
@@ -67,15 +68,19 @@ export const createDefaultPortfolio = (counter: number): Portfolio => {
 };
 
 export function validatePortfolios(portfolios: Portfolio[]): string | null {
-  const allAssets = portfolios.flatMap((p) => p.assets);
-  if (allAssets.some((a) => !a.ticker.trim())) {
-    return i18n.t('backtest.emptyTickerWarning');
-  }
-  for (const p of portfolios) {
-    const tw = p.assets.reduce((s, a) => s + a.weight, 0);
-    if (Math.abs(tw - 100) > 0.01) {
-      return i18n.t('backtest.weightSumWarning', { name: p.name, total: tw.toFixed(2) });
-    }
-  }
-  return null;
+  return validatePortfolioCore(portfolios, {
+    emptyTickerMode: 'strict',
+    passStrategy: 'two-pass',
+    isWeightComplete: (idx) => {
+      const tw = portfolios[idx].assets.reduce((s, a) => s + a.weight, 0);
+      return Math.abs(tw - 100) <= 0.01;
+    },
+    onError: (idx, key, total) =>
+      key === 'emptyTicker'
+        ? i18n.t('backtest.emptyTickerWarning')
+        : i18n.t('backtest.weightSumWarning', {
+            name: portfolios[idx].name,
+            total: total.toFixed(2),
+          }),
+  });
 }

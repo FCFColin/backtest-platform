@@ -20,7 +20,7 @@ const SIGNAL_TYPES: { value: SignalType; label: string }[] = [
 ];
 
 /** 单信号分析参数面板 Props */
-export interface SignalAnalyzerParamsProps {
+interface SignalAnalyzerParamsProps {
   ticker: string;
   setTicker: (v: string) => void;
   indicator: string;

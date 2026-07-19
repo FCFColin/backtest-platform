@@ -614,6 +614,8 @@
   },
   "monteCarlo": {
     "title": "Monte Carlo Simulation",
+    "emptyTickerWarning": "Portfolio {{index}}: please add at least one ticker",
+    "weightSumWarning": "Portfolio {{index}}: weights must sum to 100%",
     "seoDesc": "This tool uses block bootstrap resampling on historical market data, allowing you to explore thousands of possible portfolio paths instead of replaying a single historical sequence.",
     "seoSimulatable": "Simulatable Content",
     "seoSimulatableDesc": "Retirement withdrawal strategies, DCA plans, fixed withdrawal plans, observing survival probability across thousands of simulated market paths.",

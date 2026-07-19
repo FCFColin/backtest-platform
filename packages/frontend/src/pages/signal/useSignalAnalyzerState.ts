@@ -9,13 +9,13 @@ import type {
   SignalAnalysisResult,
   SignalType,
 } from '@backtest/shared/types/signal';
-import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { useComputeTool } from '../../hooks/useComputeTool.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import i18n from '../../i18n/index.js';
 
 /** 单信号分析页面状态 Hook 返回值 */
-export interface UseSignalAnalyzerStateResult {
+interface UseSignalAnalyzerStateResult {
   ticker: string;
   setTicker: (v: string) => void;
   indicator: string;
@@ -51,15 +51,13 @@ export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
   const [signalType, setSignalType] = useState<SignalType>('both');
   const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<SignalAnalysisResult | null>(null);
-
-  const runAnalysis = () => {
-    if (!ticker.trim()) {
-      setError(t('signal.common.errEmptyTicker'));
-      return;
-    }
-    run(async () => {
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<SignalAnalysisResult>(
+    async () => {
       const reqBody: SignalAnalysisRequest = {
         ticker: ticker.trim().toUpperCase(),
         indicator,
@@ -69,14 +67,14 @@ export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
         endDate,
         signalType,
       };
-      const data = await apiPostJSON<SignalAnalysisResult>(
+      return apiPostJSON<SignalAnalysisResult>(
         '/api/v1/signal/analyze',
         reqBody,
         i18n.t('signal.common.errAnalyze'),
       );
-      setResults(data);
-    });
-  };
+    },
+    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker')),
+  );
 
   return {
     ticker,

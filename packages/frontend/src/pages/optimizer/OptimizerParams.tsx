@@ -2,10 +2,10 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2, Plus, X } from 'lucide-react';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
-import type { OptimizerState, SolverType } from './OptimizerUtils.js';
+import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
-function TickerEditor({ s }: { s: OptimizerState }) {
+function TickerEditor({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const add = () => s.setTickers([...s.tickers, '']);
   const remove = (i: number) => {
@@ -54,7 +54,7 @@ function TickerEditor({ s }: { s: OptimizerState }) {
   );
 }
 
-function AllHistoryToggle({ s, t }: { s: OptimizerState; t: (k: string) => string }) {
+function AllHistoryToggle({ s, t }: { s: EfficientFrontierState; t: (k: string) => string }) {
   return (
     <label className="param-check">
       <input
@@ -75,7 +75,7 @@ function AllHistoryToggle({ s, t }: { s: OptimizerState; t: (k: string) => strin
   );
 }
 
-function WeightAndTbillFields({ s, t }: { s: OptimizerState; t: (k: string) => string }) {
+function WeightAndTbillFields({ s, t }: { s: EfficientFrontierState; t: (k: string) => string }) {
   return (
     <>
       <div className="param-field param-field-rolling">
@@ -123,7 +123,7 @@ function WeightAndTbillFields({ s, t }: { s: OptimizerState; t: (k: string) => s
   );
 }
 
-function BasicParams({ s }: { s: OptimizerState }) {
+function BasicParams({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   return (
     <ParamsSection title={t('optimizer.basicParams')} info={t('optimizer.basicParamsInfo')}>
@@ -184,7 +184,7 @@ function BasicParams({ s }: { s: OptimizerState }) {
   );
 }
 
-function HistoricalConstraints({ s }: { s: OptimizerState }) {
+function HistoricalConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const items = [
     {
@@ -249,7 +249,7 @@ function HistoricalConstraints({ s }: { s: OptimizerState }) {
   );
 }
 
-function AdvancedConstraints({ s }: { s: OptimizerState }) {
+function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   return (
     <ParamsSection
@@ -325,7 +325,7 @@ function AdvancedConstraints({ s }: { s: OptimizerState }) {
   );
 }
 
-function OptimizerParams({ s }: { s: OptimizerState }): ReactNode {
+function OptimizerParams({ s }: { s: EfficientFrontierState }): ReactNode {
   const { t } = useTranslation();
   return (
     <ParamsPanel>

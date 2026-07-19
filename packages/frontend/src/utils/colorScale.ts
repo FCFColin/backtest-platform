@@ -55,7 +55,7 @@ export function pickByAbsThreshold<T>(
   return Math.abs(value) > threshold ? highValue : lowValue;
 }
 
-export interface InterpolateHslOptions {
+interface InterpolateHslOptions {
   /** 起始色相，默认 0（红） */
   hueStart?: number;
   /** 终止色相，默认 120（绿） */

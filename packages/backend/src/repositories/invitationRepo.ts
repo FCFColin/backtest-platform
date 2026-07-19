@@ -12,9 +12,8 @@
 import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
-import type { OrgRole } from './membershipRepo.js';
-
-export type { OrgRole } from './membershipRepo.js';
+import { sha256Hex } from '../utils/crypto.js';
+import type { OrgRole } from '../middleware/authTypes.js';
 
 /** 邀请有效期（毫秒，7 天） */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -34,10 +33,6 @@ interface InvitationRecord {
 /** 创建结果，含一次性明文令牌（用于邮件链接） */
 interface CreatedInvitation extends InvitationRecord {
   token: string;
-}
-
-function sha256Hex(input: string): string {
-  return crypto.createHash('sha256').update(input, 'utf-8').digest('hex');
 }
 
 function mapRow(row: {
@@ -61,8 +56,6 @@ function mapRow(row: {
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
-
-export { sha256Hex };
 
 /**
  * 创建组织邀请（同组织同邮箱若已有待处理邀请，先撤销旧的再建新）。

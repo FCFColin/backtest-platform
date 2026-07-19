@@ -1,6 +1,8 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { MonteCarloResult } from '@backtest/shared';
 import { apiFetch } from '@/utils/apiClient';
+import i18n from '@/i18n/index.js';
+import { validatePortfolioCore } from '@/utils/validation';
 import type {
   PortfolioState,
   PortfolioMode,
@@ -66,12 +68,15 @@ function validatePortfolios(
   portfolioMode: PortfolioMode,
   isComplete: (pIdx: number) => boolean,
 ): string | null {
-  for (let i = 0; i < portfolioMode; i++) {
-    const validAssets = portfolios[i].assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) return `组合 ${i + 1} 请至少添加一个标的`;
-    if (!isComplete(i)) return `组合 ${i + 1} 权重合计必须为 100%`;
-  }
-  return null;
+  return validatePortfolioCore(portfolios, {
+    limit: portfolioMode,
+    emptyTickerMode: 'lenient',
+    isWeightComplete: isComplete,
+    onError: (idx, key) =>
+      key === 'emptyTicker'
+        ? i18n.t('monteCarlo.emptyTickerWarning', { index: idx + 1 })
+        : i18n.t('monteCarlo.weightSumWarning', { index: idx + 1 }),
+  });
 }
 
 async function fetchMcResult(

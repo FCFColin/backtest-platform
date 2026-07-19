@@ -112,7 +112,7 @@ interface OptimizerStateParams {
   enableMaxVol: boolean;
 }
 
-export interface OptimizerState {
+export interface EfficientFrontierState {
   tickers: string[];
   setTickers: React.Dispatch<React.SetStateAction<string[]>>;
   objective: string;
@@ -335,13 +335,13 @@ function loadInBacktesterAction(
 export function useOptimizerState(
   t: (k: string) => string,
   navigate: (path: string) => void,
-): OptimizerState {
+): EfficientFrontierState {
   const s = useOptimizerSetters();
   const state = buildOptimizerStateParams(s);
   const runOptimize = () => runOptimizeAction(s, state, t);
   const handleLoadInBacktester = () => loadInBacktesterAction(s, t, navigate);
   // 内部 setter（setIsLoading/setIsCalculatingStats/setError/setResults/setBacktestStats）
-  // 随 spread 暴露到运行时但不在 OptimizerState 类型中，TypeScript 结构类型允许返回对象
+  // 随 spread 暴露到运行时但不在 EfficientFrontierState 类型中，TypeScript 结构类型允许返回对象
   // 包含额外字段，消费者无法经由类型系统访问这些内部字段。
   return { ...s, runOptimize, handleLoadInBacktester };
 }

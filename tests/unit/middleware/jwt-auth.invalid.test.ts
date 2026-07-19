@@ -6,7 +6,7 @@ import {
   createJwtAuthConfigMocks,
   type JwtAuthConfigMocks,
 } from '../../helpers/mockFactories.js';
-import { setupJwtAuthTestMocks } from '../../helpers/jwtAuthSetup.js';
+import { createJwtAuthUserRepoMock, setupJwtAuthTestMocks } from '../../helpers/jwtAuthSetup.js';
 import { base64urlEncode, signTestToken } from '../../helpers/jwtFixtures.js';
 
 const mocks = vi.hoisted(() => ({ config: {} as JwtAuthConfigMocks }));
@@ -29,13 +29,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
-  getUserById: vi.fn().mockImplementation(async (id: string) => ({
-    id,
-    username: 'test-user',
-    role: 'analyst' as const,
-    isActive: true,
-    createdAt: new Date(),
-  })),
+  getUserById: createJwtAuthUserRepoMock(),
 }));
 
 const apiKeyMocks = vi.hoisted(() => ({

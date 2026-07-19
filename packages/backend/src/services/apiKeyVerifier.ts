@@ -11,10 +11,10 @@
  * - 校验走 sha256 等值查找（哈希本身高熵，等值比较无时序侧信道顾虑；且 DB 唯一索引命中）。
  * - timingSafeEqual 用于跨密钥/令牌的常量时间比较（避免长度差导致的时序侧信道）。
  */
-import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { KEY_PREFIX } from '../repositories/apiKeyRepo.js';
+import { sha256Hex } from '../utils/crypto.js';
 
 /** 校验通过后解析出的租户上下文 */
 interface VerifiedApiKey {
@@ -22,10 +22,6 @@ interface VerifiedApiKey {
   orgId: string;
   /** 密钥记录 UUID */
   keyId: string;
-}
-
-function sha256Hex(input: string): string {
-  return crypto.createHash('sha256').update(input, 'utf-8').digest('hex');
 }
 
 /**

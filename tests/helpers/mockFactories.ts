@@ -140,7 +140,7 @@ export function createConfigMocks(
  * - 全部 reject 模式（jwt-auth.rs256）
  * 本工厂通过选项组合统一这些变体，消除重复。
  */
-export interface RedisMocksOptions {
+interface RedisMocksOptions {
   /** 包含 Map<string,string> 支撑的 store + resetStore 辅助方法（jwt-auth/refresh-token/idempotency 内存模式） */
   withStore?: boolean;
   /** 包含 Map<string,Set<string>> 支撑的 sets + sadd/smembers 方法（要求 withStore） */

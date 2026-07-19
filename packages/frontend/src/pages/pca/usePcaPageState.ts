@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PCAResult } from '@backtest/shared';
-import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { useComputeTool } from '../../hooks/useComputeTool.js';
 import { useListState } from '../../hooks/useListState.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
@@ -24,17 +24,15 @@ export function usePcaPageState() {
   const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [numComponents, setNumComponents] = useState<number | ''>('');
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<PCAResult | null>(null);
-
-  const runAnalysis = () => {
-    const validTickers = tickers.map((tk) => tk.trim()).filter(Boolean);
-    if (validTickers.length < 2) {
-      setError(t('pca.errMinTwoTickers'));
-      return;
-    }
-    run(async () => {
-      const data = await apiPostJSON<PCAResult>(
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<PCAResult>(
+    async () => {
+      const validTickers = tickers.map((tk) => tk.trim()).filter(Boolean);
+      return apiPostJSON<PCAResult>(
         '/api/v1/pca/analyze',
         {
           tickers: validTickers,
@@ -44,9 +42,10 @@ export function usePcaPageState() {
         },
         i18n.t('pca.errAnalyze'),
       );
-      setResults(data);
-    });
-  };
+    },
+    () =>
+      tickers.map((tk) => tk.trim()).filter(Boolean).length >= 2 ? null : t('pca.errMinTwoTickers'),
+  );
 
   return {
     tickers,

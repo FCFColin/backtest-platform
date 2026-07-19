@@ -149,7 +149,7 @@ function SignalResultsContent({
 }
 
 /** 单信号分析结果面板 Props */
-export interface SignalAnalyzerResultsProps {
+interface SignalAnalyzerResultsProps {
   error: string | null;
   results: SignalAnalysisResult | null;
   isLoading: boolean;

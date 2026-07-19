@@ -13,6 +13,12 @@ import {
   BarChart,
   Bar,
   Cell,
+  AreaChart,
+  Area,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+  LabelList,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -267,6 +273,155 @@ export function BarChartContent({
           ))
         )}
       </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+interface AreaChartContentProps {
+  data: ChartDataPoint[];
+  seriesNames: SeriesNames;
+  xDataKey?: string;
+  height?: number;
+  yTickFormatter?: (v: number) => string;
+  yDomain?: [number | 'auto', number | 'auto'];
+  tooltipValueFormatter?: TooltipValueFormatter;
+  tooltipLabelFormatter?: (label: string) => string;
+  fillOpacity?: number;
+  strokeWidth?: number;
+  showBrush?: boolean;
+  brushThreshold?: number;
+  showLegend?: boolean;
+  colorOffset?: number;
+}
+
+export function AreaChartContent({
+  data,
+  seriesNames,
+  xDataKey = 'date',
+  height = 300,
+  yTickFormatter,
+  yDomain,
+  tooltipValueFormatter = (v) => [v.toFixed(2), ''],
+  tooltipLabelFormatter,
+  fillOpacity = 0.12,
+  strokeWidth = 1.5,
+  showBrush = false,
+  brushThreshold = 100,
+  showLegend = true,
+  colorOffset = 0,
+}: AreaChartContentProps) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <AreaChart data={data} margin={CHART_MARGIN}>
+        {chartGrid()}
+        {dateXAxis(xDataKey)}
+        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={yTickFormatter} domain={yDomain} />
+        {chartTooltip(tooltipValueFormatter, tooltipLabelFormatter)}
+        {showLegend && chartLegend()}
+        {seriesNames.map((name, idx) => (
+          <Area
+            key={name}
+            type="monotone"
+            dataKey={name}
+            stroke={CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
+            fill={CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
+            fillOpacity={fillOpacity}
+            strokeWidth={strokeWidth}
+          />
+        ))}
+        {maybeBrush(showBrush, data.length, xDataKey, brushThreshold)}
+      </AreaChart>
+    </ResponsiveContainer>
+  );
+}
+
+interface ScatterChartContentProps {
+  data: Array<Record<string, string | number>>;
+  xDataKey: string;
+  xName: string;
+  yDataKey: string;
+  yName: string;
+  xLabel?: string;
+  yLabel?: string;
+  nameDataKey?: string;
+  height?: number;
+  margin?: { top?: number; right?: number; bottom?: number; left?: number };
+  tooltipFormatter?: (value: number | string, name: string) => [string, string];
+  tooltipLabelFormatter?: (label: string) => string;
+  zRange?: [number, number];
+}
+
+export function ScatterChartContent({
+  data,
+  xDataKey,
+  xName,
+  yDataKey,
+  yName,
+  xLabel,
+  yLabel,
+  nameDataKey = 'name',
+  height = 450,
+  margin = { top: 20, right: 20, bottom: 20, left: 10 },
+  tooltipFormatter,
+  tooltipLabelFormatter,
+  zRange = [80, 80],
+}: ScatterChartContentProps) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <ScatterChart margin={margin}>
+        {chartGrid()}
+        <XAxis
+          type="number"
+          dataKey={xDataKey}
+          name={xName}
+          tick={AXIS_TICK_STYLE}
+          label={
+            xLabel
+              ? {
+                  value: xLabel,
+                  position: 'insideBottom',
+                  offset: -10,
+                  style: { fill: 'var(--text-muted)', fontSize: 12 },
+                }
+              : undefined
+          }
+        />
+        <YAxis
+          type="number"
+          dataKey={yDataKey}
+          name={yName}
+          tick={AXIS_TICK_STYLE}
+          label={
+            yLabel
+              ? {
+                  value: yLabel,
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: { fill: 'var(--text-muted)', fontSize: 12 },
+                }
+              : undefined
+          }
+        />
+        <ZAxis range={zRange} />
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
+          formatter={tooltipFormatter}
+          labelFormatter={tooltipLabelFormatter}
+        />
+        {data.map((point, idx) => (
+          <Scatter
+            key={String(point[nameDataKey])}
+            data={[point]}
+            fill={CHART_COLORS[idx % CHART_COLORS.length]}
+          >
+            <LabelList
+              dataKey={nameDataKey}
+              position="right"
+              style={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            />
+          </Scatter>
+        ))}
+      </ScatterChart>
     </ResponsiveContainer>
   );
 }

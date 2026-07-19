@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { useAsyncAction } from './useAsyncAction.js';
+import { useComputeTool } from './useComputeTool.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import {
@@ -16,17 +16,17 @@ import {
 import type {
   IndicatorType,
   ObjectiveType,
-  ParamRange,
+  GridParamRange,
   TacticalGridResponse,
 } from '../pages/tactical/tacticalGridUtils.js';
 
 export interface TacticalGridState {
   indicator: IndicatorType;
   setIndicator: (v: IndicatorType) => void;
-  param1: ParamRange;
-  setParam1: (v: ParamRange) => void;
-  param2: ParamRange;
-  setParam2: (v: ParamRange) => void;
+  param1: GridParamRange;
+  setParam1: (v: GridParamRange) => void;
+  param2: GridParamRange;
+  setParam2: (v: GridParamRange) => void;
   ticker: string;
   setTicker: (v: string) => void;
   startDate: string;
@@ -53,37 +53,23 @@ export interface TacticalGridState {
  */
 export function useTacticalGridState(t: TFunction): TacticalGridState {
   const [indicator, setIndicator] = useState<IndicatorType>('sma');
-  const [param1, setParam1] = useState<ParamRange>({ min: 10, max: 50, step: 5 });
-  const [param2, setParam2] = useState<ParamRange>({ min: 0, max: 5, step: 1 });
+  const [param1, setParam1] = useState<GridParamRange>({ min: 10, max: 50, step: 5 });
+  const [param2, setParam2] = useState<GridParamRange>({ min: 0, max: 5, step: 1 });
   const [ticker, setTicker] = useState('SPY');
   const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [startingValue, setStartingValue] = useState(10000);
   const [rebalanceFrequency, setRebalanceFrequency] = useState<RebalanceFrequency>('daily');
   const [objective, setObjective] = useState<ObjectiveType>('maxSharpe');
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<TacticalGridResponse | null>(null);
-
-  const paramLabelKeys = getParamLabelKeys(indicator);
-  const paramLabels = {
-    p1: t(paramLabelKeys.p1, { indicator: indicator.toUpperCase() }),
-    p2: t(paramLabelKeys.p2),
-  };
-
-  const runSearch = () => {
-    const trimmedTicker = ticker.trim().toUpperCase();
-    const validationError = validateGridParams(ticker, param1, param2);
-    if (validationError) {
-      const errorKey = validationError;
-      setError(
-        errorKey === 'tacticalGrid.validateErrors.tooManyCombinations'
-          ? t(errorKey, { total: countCombinations(param1, param2) })
-          : t(errorKey),
-      );
-      return;
-    }
-    run(async () => {
-      const data = await apiPostJSON<TacticalGridResponse>(
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runSearch,
+  } = useComputeTool<TacticalGridResponse>(
+    async () => {
+      const trimmedTicker = ticker.trim().toUpperCase();
+      return apiPostJSON<TacticalGridResponse>(
         '/api/v1/tactical-grid/search',
         {
           indicator,
@@ -99,8 +85,20 @@ export function useTacticalGridState(t: TFunction): TacticalGridState {
         },
         t('tacticalGrid.searchFailed'),
       );
-      setResults(data);
-    });
+    },
+    () => {
+      const errorKey = validateGridParams(ticker, param1, param2);
+      if (!errorKey) return null;
+      return errorKey === 'tacticalGrid.validateErrors.tooManyCombinations'
+        ? t(errorKey, { total: countCombinations(param1, param2) })
+        : t(errorKey);
+    },
+  );
+
+  const paramLabelKeys = getParamLabelKeys(indicator);
+  const paramLabels = {
+    p1: t(paramLabelKeys.p1, { indicator: indicator.toUpperCase() }),
+    p2: t(paramLabelKeys.p2),
   };
 
   return {

@@ -6,9 +6,8 @@
  * （`/api/admin/*`、`/api/data/manage/*`）。
  *
  * 密钥存储策略（按优先级）：
- * 1. 内存变量（进程生命周期，最安全，优先使用）
- * 2. sessionStorage（标签页生命周期，关闭后自动清除）
- * 3. localStorage（持久化存储，不推荐用于生产，base64 编码非加密）
+ * 1. sessionStorage（标签页生命周期，关闭后自动清除）
+ * 2. localStorage（持久化存储，不推荐用于生产，base64 编码非加密）
  *
  * 安全理由：API Key 是静态凭证，泄露后无法按用户细粒度撤销。
  * localStorage 中的密钥可被同源 XSS 窃取。
@@ -26,21 +25,15 @@ import { useToastStore } from '../store/toastStore.js';
 /** Storage 中存储 API Key 的键名（仅 apiClient 内部使用） */
 const ADMIN_API_KEY_STORAGE = 'admin_api_key';
 
-/** 内存变量（优先使用，进程生命周期） */
-let inMemoryApiKey = '';
-
 /**
  * 读取当前保存的 API Key。
  *
- * 优先级：内存变量 → sessionStorage → localStorage
+ * 优先级：sessionStorage → localStorage
  *
  * @returns API Key 字符串；未设置时返回空字符串
  */
 function getApiKey(): string {
-  // 1. 内存变量
-  if (inMemoryApiKey) return inMemoryApiKey;
-
-  // 2. sessionStorage
+  // 1. sessionStorage（标签页生命周期）
   try {
     const stored = sessionStorage.getItem(ADMIN_API_KEY_STORAGE);
     if (stored) return atob(stored);
@@ -48,65 +41,12 @@ function getApiKey(): string {
     /* ignore */
   }
 
-  // 3. localStorage（迁移回退）
+  // 2. localStorage（持久化回退）
   try {
     const stored = localStorage.getItem(ADMIN_API_KEY_STORAGE);
     return stored ? atob(stored) : '';
   } catch {
     return '';
-  }
-}
-
-/**
- * 保存 API Key。
- *
- * 默认写入内存变量 + sessionStorage。
- * localStorage 写入需显式传入 `persist: true`，并会输出安全警告。
- *
- * @param key - API Key 字符串
- * @param persist - 是否持久化到 localStorage（默认 false）
- */
-export function setApiKey(key: string, persist = false): void {
-  // 始终写入内存
-  inMemoryApiKey = key;
-
-  // 写入 sessionStorage（标签页生命周期）
-  try {
-    sessionStorage.setItem(ADMIN_API_KEY_STORAGE, btoa(key));
-  } catch {
-    /* ignore */
-  }
-
-  // 写入 localStorage 需显式选择
-  if (persist) {
-    if (typeof window !== 'undefined' && window.console) {
-      console.warn(
-        '[SECURITY] API Key 已持久化到 localStorage。' +
-          '同源 XSS 攻击可窃取此密钥。生产环境建议使用 JWT 认证。',
-      );
-    }
-    try {
-      localStorage.setItem(ADMIN_API_KEY_STORAGE, btoa(key));
-    } catch {
-      /* ignore */
-    }
-  }
-}
-
-/**
- * 清除已保存的 API Key（内存 + sessionStorage + localStorage）。
- */
-export function clearApiKey(): void {
-  inMemoryApiKey = '';
-  try {
-    sessionStorage.removeItem(ADMIN_API_KEY_STORAGE);
-  } catch {
-    /* ignore */
-  }
-  try {
-    localStorage.removeItem(ADMIN_API_KEY_STORAGE);
-  } catch {
-    /* ignore */
   }
 }
 

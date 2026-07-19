@@ -117,11 +117,11 @@ go run main.go
 ├── packages/shared/      # 前后端共享类型
 ├── data/                 # 市场数据 (CPI/汇率/指数/标的)
 ├── tests/                # 测试 (unit/e2e/adversarial)
-├── docs/                 # 文档
-└── .trae/documents/      # 需求/架构文档
+├── docs/                 # 文档（架构 / ADR / 运维手册）
+└── .trae/specs/          # 代码瘦身与硬化迭代规格
 ```
 
-详细结构见 [project-spec.md](.trae/documents/project-spec.md)，架构详解见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+详细结构见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（服务拓扑与数据流）与 [docs/adr/README.md](docs/adr/README.md)（决策记录索引）。
 
 ## 技术栈
 
@@ -174,7 +174,8 @@ pnpm test:e2e     # 仅 E2E 测试
 
 ## 文档
 
-- [项目结构规范](.trae/documents/project-spec.md) - 结构与命名宪法
 - [架构详解](docs/ARCHITECTURE.md) - 服务拓扑、降级链、数据流
-- [产品需求文档](.trae/documents/prd.md) - 功能模块与页面设计
-- [技术架构](.trae/documents/tech-architecture.md) - API 定义与数据模型
+- [应用层契约](docs/application-layer-contract.md) - 应用层结构与依赖规则
+- [引擎架构](docs/engine-architecture.md) - Go 引擎端点与职责
+- [ADR 索引](docs/adr/README.md) - 全部架构决策记录
+- [运维手册](docs/runbook.md) - 缓存 / 降级 / 故障排查

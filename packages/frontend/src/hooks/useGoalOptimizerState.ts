@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { GoalOptimizerResult } from '@backtest/shared';
-import { useAsyncAction } from './useAsyncAction.js';
+import { useComputeTool } from './useComputeTool.js';
 import { useListState } from './useListState.js';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '../i18n/index.js';
@@ -83,25 +83,15 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
   const [minSuccessRate, setMinSuccessRate] = useState<number | ''>('');
   const [maxVolatility, setMaxVolatility] = useState<number | ''>('');
   const [numSimulations, setNumSimulations] = useState(1000);
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<GoalOptimizerResult | null>(null);
   const totalWeight = assets.reduce((sum, a) => sum + (a.weight || 0), 0);
-
-  const runOptimize = () => {
-    const validAssets = assets.filter((a) => a.ticker.trim());
-    const err = validateGoalInputs({
-      validAssets,
-      totalWeight,
-      targetAmount,
-      initialAmount,
-      years,
-      t,
-    });
-    if (err) {
-      setError(err);
-      return;
-    }
-    run(async () => {
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runOptimize,
+  } = useComputeTool<GoalOptimizerResult>(
+    async () => {
+      const validAssets = assets.filter((a) => a.ticker.trim());
       const constraints = buildOptimizeConstraints(maxDrawdown, minSuccessRate, maxVolatility);
       const res = await apiFetch('/api/v1/goal-optimizer/optimize', {
         method: 'POST',
@@ -119,9 +109,20 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
       const json = await res.json();
       if (json.success === false)
         throw new Error(json.error || i18n.t('goalOptimizer.errOptFailed'));
-      setResults(json.data);
-    });
-  };
+      return json.data as GoalOptimizerResult;
+    },
+    () => {
+      const validAssets = assets.filter((a) => a.ticker.trim());
+      return validateGoalInputs({
+        validAssets,
+        totalWeight,
+        targetAmount,
+        initialAmount,
+        years,
+        t,
+      });
+    },
+  );
 
   return {
     targetAmount,

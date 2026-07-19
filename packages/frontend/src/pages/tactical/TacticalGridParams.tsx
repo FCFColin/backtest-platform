@@ -8,7 +8,7 @@ import type { RebalanceFrequency } from '@backtest/shared';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
 import { INDICATOR_OPTIONS, OBJECTIVE_OPTIONS, REBALANCE_OPTIONS } from './tacticalGridUtils.js';
-import type { IndicatorType, ObjectiveType, ParamRange } from './tacticalGridUtils.js';
+import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils.js';
 import type { TacticalGridState } from '@/hooks/useTacticalGridState';
 
 function ParamRangeRow({
@@ -16,8 +16,8 @@ function ParamRangeRow({
   onChange,
   inputMin,
 }: {
-  range: ParamRange;
-  onChange: (v: ParamRange) => void;
+  range: GridParamRange;
+  onChange: (v: GridParamRange) => void;
   inputMin?: number;
 }) {
   const { t } = useTranslation();

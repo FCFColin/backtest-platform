@@ -2,31 +2,12 @@
  * @file 回撤面积图
  * @description 展示各投资组合的历史回撤曲线，以面积图形式直观呈现下行风险
  */
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Brush,
-} from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import ChartCard from '../ChartCard.js';
 import { ChartExporter } from '../ChartExporter.js';
 import { downsample, SYNC_CHART_POINTS } from '../../hooks/useChartInteractions.js';
 import { useTranslation } from 'react-i18next';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
-import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
-  DATE_TICK_FORMATTER,
-} from './chartConstants.js';
+import { AreaChartContent } from './sharedChartContent.js';
 
 /** 回撤面积图所需的最小组合数据形状（兼容 PortfolioResult 与分析页部分组合） */
 interface DrawdownChartPortfolio {
@@ -53,43 +34,15 @@ export default function DrawdownChart({ portfolios, embedded = false }: Drawdown
     mergedData.length > SYNC_CHART_POINTS ? downsample(mergedData, SYNC_CHART_POINTS) : mergedData;
 
   const chart = (
-    <ResponsiveContainer width="100%" height={300}>
-      <AreaChart data={chartData} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-        <YAxis
-          domain={['auto', 0]}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => `${v.toFixed(0)}%`}
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
-          formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
-        />
-        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-        {portfolios.map((p, idx) => (
-          <Area
-            key={p.name}
-            type="monotone"
-            dataKey={p.name}
-            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-            fill={CHART_COLORS[idx % CHART_COLORS.length]}
-            fillOpacity={0.12}
-            strokeWidth={1.5}
-          />
-        ))}
-        {chartData.length > 100 && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
-      </AreaChart>
-    </ResponsiveContainer>
+    <AreaChartContent
+      data={chartData}
+      seriesNames={portfolios.map((p) => p.name)}
+      yTickFormatter={(v: number) => `${v.toFixed(0)}%`}
+      yDomain={['auto', 0]}
+      tooltipValueFormatter={(value: number) => [`${value.toFixed(2)}%`, '']}
+      tooltipLabelFormatter={(label: string) => `${t('common.date')}: ${label}`}
+      showBrush={chartData.length > 100}
+    />
   );
 
   if (embedded) {

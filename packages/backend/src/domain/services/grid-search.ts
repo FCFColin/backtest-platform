@@ -4,14 +4,9 @@
  * 纯函数、无副作用，可独立单元测试。
  * 从 grid-application-service.ts 抽离，使 application 层只负责编排。
  */
+import type { GridParamRange } from '@backtest/shared/types/tactical';
 
 export const MAX_GRID_COMBINATIONS = 200;
-
-export interface GridParamRange {
-  min: number;
-  max: number;
-  step: number;
-}
 
 export interface GridSearchDomainRequest {
   indicator: string;

@@ -53,6 +53,7 @@ test-results/
 temp_*
 scratch_*
 tmp_*
+.tmp/
 *.zip
 
 # Lint/检查输出产物

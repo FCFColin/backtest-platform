@@ -91,7 +91,7 @@ export function requireUuidParam(res: Response, id: string | undefined): boolean
   return true;
 }
 
-export interface RouteErrorConfig {
+interface RouteErrorConfig {
   logMsg: string;
   code: string;
   title: string;

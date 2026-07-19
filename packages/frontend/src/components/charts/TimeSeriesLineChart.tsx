@@ -29,7 +29,7 @@ import {
 } from './chartConstants.js';
 
 /** 单系列配置 */
-export interface TimeSeriesSeriesConfig {
+interface TimeSeriesSeriesConfig {
   /** 数据字段名（同时作为 dataKey） */
   dataKey: string;
   /** Legend 显示名，默认等于 dataKey */
@@ -54,7 +54,7 @@ type ChartDataPoint = Record<string, number | string>;
 /** Tooltip 值格式化函数类型 */
 type TooltipValueFormatter = (value: number) => [string, string];
 
-export interface TimeSeriesLineChartProps {
+interface TimeSeriesLineChartProps {
   /** 图表数据，键包含 xDataKey 与各系列 dataKey */
   data: ChartDataPoint[];
   /** 系列；可传字符串数组（仅 dataKey）或完整配置数组 */

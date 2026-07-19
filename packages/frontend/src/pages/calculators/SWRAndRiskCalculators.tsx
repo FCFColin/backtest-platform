@@ -87,6 +87,83 @@ export function SWRCalculator() {
   );
 }
 
+interface AllocationRiskComputation {
+  portfolioVol: number;
+  diversificationBenefit: number;
+  riskContributionStock: number;
+  riskContributionBond: number;
+}
+
+/** 计算资产配置风险指标（从组件抽出纯函数） */
+function computeAllocationRisk(
+  stockPct: number,
+  bondPct: number,
+  stockVol: number,
+  bondVol: number,
+  correlation: number,
+): AllocationRiskComputation {
+  const wS = stockPct / 100;
+  const wB = bondPct / 100;
+  const sS = stockVol / 100;
+  const sB = bondVol / 100;
+  const rho = correlation;
+  const portfolioVol = Math.sqrt(
+    wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB,
+  );
+  const diversificationBenefit = wS * sS + wB * sB - portfolioVol;
+  const riskContributionStock =
+    (wS * wS * sS * sS + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
+  const riskContributionBond =
+    (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
+  return { portfolioVol, diversificationBenefit, riskContributionStock, riskContributionBond };
+}
+
+/** 风险结果行 + 公式提示（从主组件抽出，控制行数） */
+function RiskResults({
+  result,
+  t,
+}: {
+  result: AllocationRiskComputation;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return (
+    <>
+      <div style={{ marginTop: 8 }}>
+        <ResultRow
+          label={t('calculators.risk.portfolioVol')}
+          value={formatPct(result.portfolioVol)}
+          color="var(--brand)"
+        />
+        <ResultRow
+          label={t('calculators.risk.diversificationBenefit')}
+          value={formatPct(result.diversificationBenefit)}
+          color="var(--success)"
+        />
+        <ResultRow
+          label={t('calculators.risk.stockRiskContribution')}
+          value={formatPct(result.riskContributionStock)}
+        />
+        <ResultRow
+          label={t('calculators.risk.bondRiskContribution')}
+          value={formatPct(result.riskContributionBond)}
+        />
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          padding: '8px 12px',
+          background: 'var(--bg-subtle)',
+          borderRadius: 8,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
+        {t('calculators.risk.formula')}
+      </div>
+    </>
+  );
+}
+
 export function AssetAllocationRiskCalculator() {
   const { t } = useTranslation();
   const [stockPct, setStockPct] = useState(60);
@@ -95,22 +172,10 @@ export function AssetAllocationRiskCalculator() {
   const [bondVol, setBondVol] = useState(5);
   const [correlation, setCorrelation] = useState(0.2);
 
-  const result = useMemo(() => {
-    const wS = stockPct / 100;
-    const wB = bondPct / 100;
-    const sS = stockVol / 100;
-    const sB = bondVol / 100;
-    const rho = correlation;
-    const portfolioVol = Math.sqrt(
-      wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB,
-    );
-    const diversificationBenefit = wS * sS + wB * sB - portfolioVol;
-    const riskContributionStock =
-      (wS * wS * sS * sS + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
-    const riskContributionBond =
-      (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
-    return { portfolioVol, diversificationBenefit, riskContributionStock, riskContributionBond };
-  }, [stockPct, bondPct, stockVol, bondVol, correlation]);
+  const result = useMemo(
+    () => computeAllocationRisk(stockPct, bondPct, stockVol, bondVol, correlation),
+    [stockPct, bondPct, stockVol, bondVol, correlation],
+  );
 
   return (
     <CollapsibleCard icon={BarChart3} title={t('calculators.risk.title')}>
@@ -156,38 +221,7 @@ export function AssetAllocationRiskCalculator() {
         min={-1}
         max={1}
       />
-      <div style={{ marginTop: 8 }}>
-        <ResultRow
-          label={t('calculators.risk.portfolioVol')}
-          value={formatPct(result.portfolioVol)}
-          color="var(--brand)"
-        />
-        <ResultRow
-          label={t('calculators.risk.diversificationBenefit')}
-          value={formatPct(result.diversificationBenefit)}
-          color="var(--success)"
-        />
-        <ResultRow
-          label={t('calculators.risk.stockRiskContribution')}
-          value={formatPct(result.riskContributionStock)}
-        />
-        <ResultRow
-          label={t('calculators.risk.bondRiskContribution')}
-          value={formatPct(result.riskContributionBond)}
-        />
-      </div>
-      <div
-        style={{
-          marginTop: 10,
-          padding: '8px 12px',
-          background: 'var(--bg-subtle)',
-          borderRadius: 8,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('calculators.risk.formula')}
-      </div>
+      <RiskResults result={result} t={t} />
     </CollapsibleCard>
   );
 }

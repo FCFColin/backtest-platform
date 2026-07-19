@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult } from '@backtest/shared';
-import { useAsyncAction } from './useAsyncAction.js';
+import { useComputeTool } from './useComputeTool.js';
 import { useListState } from './useListState.js';
 import { fetchAnalysisResult } from '../pages/analysis/analysisUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -55,17 +55,16 @@ export function useAnalysisPageState(): AnalysisPageState {
   const [correlationWindow, setCorrelationWindow] = useState(12);
   const [adjustForInflation, setAdjustForInflation] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
-  const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<AssetAnalysisResult | null>(null);
-
-  const runAnalysis = () => {
-    const validTickers = tickers.filter(Boolean).map((tk) => tk.toUpperCase());
-    if (validTickers.length === 0) {
-      setError(t('analysis.errorMinOneTicker'));
-      return;
-    }
-    run(() =>
-      fetchAnalysisResult(
+  const {
+    isLoading,
+    error,
+    results,
+    setResults,
+    runCompute: runAnalysis,
+  } = useComputeTool<AssetAnalysisResult>(
+    async () => {
+      const validTickers = tickers.filter(Boolean).map((tk) => tk.toUpperCase());
+      return fetchAnalysisResult(
         validTickers,
         {
           startDate,
@@ -76,9 +75,10 @@ export function useAnalysisPageState(): AnalysisPageState {
           correlationWindow,
         },
         t,
-      ).then(setResults),
-    );
-  };
+      );
+    },
+    () => (tickers.filter(Boolean).length > 0 ? null : t('analysis.errorMinOneTicker')),
+  );
 
   return {
     tickers,

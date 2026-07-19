@@ -1,20 +1,23 @@
 /**
  * @file 自定义指标表格
- * @description 展示各投资组合的自选统计指标对比表格
+ * @description 展示各投资组合的自选统计指标对比表格。
+ *   行渲染与表头复用 statistics-table/ 子目录的共享组件，消除与 StatisticsTable 的重复逻辑。
  */
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
-import { fmtPct, fmtRatio } from '@/utils/format';
 import ChartCard from './ChartCard.js';
+import { StatisticsTableHeader } from './statistics-table/StatisticsTableHeader.js';
+import { MetricsRows } from './statistics-table/MetricsRows.js';
+import type { StatRow } from './statistics-table/types.js';
 
 /** 自定义指标表格 Props */
 interface CustomMetricsTableProps {
   portfolios: PortfolioResult[];
 }
 
-const ALL_METRICS: { label: string; key: keyof Statistics; fmt: 'pct' | 'ratio' }[] = [
+/** 可选指标全集（fmt 仅用 pct/ratio，兼容 StatRow 的 FmtType 联合） */
+const ALL_METRICS: StatRow[] = [
   { label: 'components.customMetricsTable.metrics.cagr', key: 'cagr', fmt: 'pct' },
   { label: 'components.customMetricsTable.metrics.mwrr', key: 'mwrr', fmt: 'pct' },
   { label: 'components.customMetricsTable.metrics.totalReturn', key: 'totalReturn', fmt: 'pct' },
@@ -73,12 +76,6 @@ const DEFAULT_KEYS: (keyof Statistics)[] = [
   'swr10y',
   'pwr30y',
 ];
-
-function formatValue(v: number | undefined, fmt: 'pct' | 'ratio'): string {
-  if (v == null) return '\u2014';
-  if (fmt === 'pct') return fmtPct(v);
-  return fmtRatio(v);
-}
 
 /** 指标选择下拉项 */
 function MetricDropdownItems({
@@ -193,109 +190,6 @@ function MetricSelector({
   );
 }
 
-/** 指标表头列 */
-function MetricsTableHeader({ portfolios }: { portfolios: PortfolioResult[] }) {
-  const { t } = useTranslation();
-  return (
-    <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-      <th
-        className="text-[12px] font-semibold text-left py-2.5 px-3"
-        style={{
-          color: 'var(--text-muted)',
-          borderBottom: '2px solid var(--border-soft)',
-          minWidth: '160px',
-        }}
-      >
-        {t('common.metric')}
-      </th>
-      {portfolios.map((p, idx) => (
-        <th
-          key={p.name}
-          className="text-[12px] font-semibold text-right py-2.5 px-3"
-          style={{
-            color: 'var(--text-muted)',
-            borderBottom: '2px solid var(--border-soft)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span
-            className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
-            style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-          />
-          {p.name}
-        </th>
-      ))}
-    </tr>
-  );
-}
-
-/** 指标对比表格 */
-function MetricsTable({
-  portfolios,
-  visibleMetrics,
-}: {
-  portfolios: PortfolioResult[];
-  visibleMetrics: typeof ALL_METRICS;
-}) {
-  const { t } = useTranslation();
-  if (visibleMetrics.length === 0) {
-    return (
-      <div
-        className="text-[13px]"
-        style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
-      >
-        {t('components.customMetricsTable.selectAtLeastOne')}
-      </div>
-    );
-  }
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
-        <thead>
-          <MetricsTableHeader portfolios={portfolios} />
-        </thead>
-        <tbody>
-          {visibleMetrics.map((m, rowIdx) => {
-            const hasAnyValue = portfolios.some(
-              (p) => p.statistics[m.key] !== undefined && p.statistics[m.key] !== null,
-            );
-            if (!hasAnyValue) return null;
-            return (
-              <tr
-                key={m.key}
-                style={{ backgroundColor: rowIdx % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
-              >
-                <td
-                  className="text-[13px] py-2 px-3"
-                  style={{
-                    color: 'var(--text-body)',
-                    borderBottom: '1px solid var(--border-soft)',
-                  }}
-                >
-                  {t(m.label)}
-                </td>
-                {portfolios.map((p) => (
-                  <td
-                    key={p.name}
-                    className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                    style={{
-                      color: 'var(--text-strong)',
-                      borderBottom: '1px solid var(--border-soft)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {formatValue(p.statistics[m.key] as number | undefined, m.fmt)}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function CustomMetricsTable({ portfolios }: CustomMetricsTableProps) {
   const { t } = useTranslation();
   const [selectedKeys, setSelectedKeys] = useState<Set<keyof Statistics>>(
@@ -328,7 +222,25 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
       title={t('tabs.myMetrics')}
       headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}
     >
-      <MetricsTable portfolios={portfolios} visibleMetrics={visibleMetrics} />
+      {visibleMetrics.length === 0 ? (
+        <div
+          className="text-[13px]"
+          style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
+        >
+          {t('components.customMetricsTable.selectAtLeastOne')}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <StatisticsTableHeader portfolios={portfolios} minWidth="160px" />
+            </thead>
+            <tbody>
+              <MetricsRows rows={visibleMetrics} portfolios={portfolios} />
+            </tbody>
+          </table>
+        </div>
+      )}
     </ChartCard>
   );
 }

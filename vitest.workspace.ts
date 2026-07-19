@@ -91,6 +91,7 @@ export default defineWorkspace([
         // pnpm 严格隔离：后端运行时依赖仅安装在 packages/backend/node_modules，
         // vitest 从 monorepo 根运行时 vite import-analysis 无法向上查找到这些包，
         // 需显式 alias 映射到实际路径，否则 vi.mock 拦截失效。
+        express: path.resolve(__dirname, 'packages/backend/node_modules/express'),
         opossum: path.resolve(__dirname, 'packages/backend/node_modules/opossum'),
         pg: path.resolve(__dirname, 'packages/backend/node_modules/pg'),
         jose: path.resolve(__dirname, 'packages/backend/node_modules/jose'),
