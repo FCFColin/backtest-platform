@@ -1,0 +1,226 @@
+/* ============================================
+   统一参数布局组件样式
+   ============================================ */
+
+/* ParamSection */
+.param-section {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+
+.param-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.param-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.param-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.param-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ParamRow */
+.param-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+@media (max-width: 768px) {
+  .param-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ParamCard */
+.param-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.param-card-full {
+  grid-column: 1 / -1;
+}
+
+.param-card-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.param-card-control {
+  min-width: 0;
+}
+
+.param-card-control .param-input,
+.param-card-control input,
+.param-card-control select {
+  width: 100%;
+}
+
+/* ParamGroup */
+.param-group {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 12px;
+}
+
+.param-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+  padding: 0;
+  margin-bottom: 12px;
+  font-family: inherit;
+}
+
+.param-group-header:hover {
+  color: var(--brand);
+}
+
+.param-group-chevron {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.param-group-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.param-group-title {
+  flex: 1;
+  text-align: left;
+}
+
+.param-group-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--brand);
+  border-radius: 9px;
+}
+
+.param-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+
+/* ActionBar */
+.action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 16px;
+  margin-top: 8px;
+}
+
+/* 统一按钮样式 */
+.btn-primary {
+  height: 36px;
+  padding: 0 20px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background: var(--brand);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background-color 0.15s, transform 0.1s;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-body);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

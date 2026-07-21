@@ -2,61 +2,63 @@
    testfol.io 主题变量
    ============================================ */
 :root {
-  --bg-app: #edf4fa;
-  --bg-elevated: #fff;
-  --bg-subtle: #eef4f9;
-  --bg-header: #eaf1fb;
-  --bg-drawer: #f8fbff;
-  --text-strong: #1b2733;
-  --text-body: #334354;
-  --text-muted: #68788c;
-  --border-soft: #d4deea;
-  --border-strong: #c1cfdf;
-  --brand: #2b63b8;
-  --brand-hover: #1f4e95;
-  --brand-soft: #e6f0fd;
-  --support: #4f8f95;
-  --support-soft: #e7f3f4;
-  --success: #2e8b57;
-  --warning: #c58a1c;
-  --danger: #c94a4a;
+  --bg-app: #f0f5fa;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #e8f0f8;
+  --bg-header: #e5edf7;
+  --bg-drawer: #f8fbfd;
+  --input-bg: #e8f0f8;
+  --text-strong: #0f172a;
+  --text-body: #334155;
+  --text-muted: #64748b;
+  --border-soft: #d8e2f0;
+  --border-strong: #bcc9dd;
+  --brand: #3b82f6;
+  --brand-hover: #2563eb;
+  --brand-soft: #dbeafe;
+  --support: #14b8a6;
+  --support-soft: #ccfbf1;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
   --shadow-sm:
-    0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14), 0 2px 1px -1px rgba(0, 0, 0, 0.12);
+    0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md:
-    0 1px 5px rgba(0, 0, 0, 0.2), 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12);
+    0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.08);
   --shadow-card:
-    0 1px 5px rgba(0, 0, 0, 0.2), 0 2px 2px rgba(0, 0, 0, 0.14), 0 3px 1px -2px rgba(0, 0, 0, 0.12);
+    0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
   --radius-card: 16px;
-  --radius-control: 4px;
+  --radius-control: 8px;
   --radius-pill: 999px;
 }
 
-/* 深色主题 - 由 useTheme 在 <html> 上切换 .dark 类 */
+/* 深色主题 - testfol.io 深蓝色风格 */
 .dark {
-  --bg-app: #0d1117;
-  --bg-elevated: #161b22;
-  --bg-subtle: #1c2128;
-  --bg-header: #010409;
-  --bg-drawer: #161b22;
-  --text-strong: #e6edf3;
-  --text-body: #c9d1d9;
-  --text-muted: #8b949e;
-  --border-soft: #21262d;
-  --border-strong: #30363d;
-  --brand: #4a9eff;
-  --brand-hover: #6bb3ff;
-  --brand-soft: #1a2842;
-  --support: #6bb3b8;
-  --support-soft: #1a2828;
-  --success: #3fb950;
-  --warning: #d29922;
-  --danger: #f85149;
+  --bg-app: #0a1320;
+  --bg-elevated: #111b2a;
+  --bg-subtle: #1e293b;
+  --bg-header: #0f172a;
+  --bg-drawer: #131c2f;
+  --input-bg: #111827;
+  --text-strong: #f1f5f9;
+  --text-body: #cbd5e1;
+  --text-muted: #64748b;
+  --border-soft: rgba(148, 163, 184, 0.25);
+  --border-strong: #374151;
+  --brand: #2563eb;
+  --brand-hover: #3b82f6;
+  --brand-soft: #1e3a5f;
+  --support: #2dd4bf;
+  --support-soft: #134e4a;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
   --shadow-sm:
-    0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.3), 0 2px 1px -1px rgba(0, 0, 0, 0.25);
+    0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
   --shadow-md:
-    0 1px 5px rgba(0, 0, 0, 0.4), 0 2px 2px rgba(0, 0, 0, 0.3), 0 3px 1px -2px rgba(0, 0, 0, 0.25);
+    0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
   --shadow-card:
-    0 1px 5px rgba(0, 0, 0, 0.4), 0 2px 2px rgba(0, 0, 0, 0.3), 0 3px 1px -2px rgba(0, 0, 0, 0.25);
+    0 4px 12px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 * {
@@ -72,10 +74,11 @@ body,
 
 body {
   font-family:
-    Roboto,
     -apple-system,
-    Helvetica Neue,
-    Helvetica,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
     Arial,
     sans-serif;
   background-color: var(--bg-app);
@@ -84,3 +87,6 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+
+/* 统一参数布局组件样式 */
+@import './components-params.css';
