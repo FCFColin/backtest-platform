@@ -2,74 +2,150 @@
    回测页面 - 单列垂直布局（与 testfol.io 一致）
    ============================================ */
 .bt-page {
-  max-width: 100%;
-  padding: 16px;
-  padding-top: 80px; /* 导航栏下方 */
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px 32px;
+  padding-top: 0;
 }
 
 .bt-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   padding: 0 8px;
   margin-bottom: 8px;
 }
 
+.bt-page-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .bt-page-title {
-  font-size: max(34px, min(3.2vw, 44px));
+  font-size: max(40px, min(4vw, 56px));
   font-weight: 800;
-  letter-spacing: -0.035em;
+  letter-spacing: -0.03em;
   color: var(--text-strong);
   line-height: 1.04;
   margin: 0;
 }
 
+/* 右上角按钮 */
+.btn-upgrade {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.btn-upgrade:hover {
+  background: #1d4ed8;
+}
+
+.btn-pill-outline {
+  background: transparent;
+  color: var(--text-body);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.btn-pill-outline:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* SEO 描述卡片 */
 .bt-seo-card {
   margin: 8px;
-  padding: 20px 24px;
+  margin-bottom: 24px;
+  padding: 28px 32px;
+  border-radius: 24px;
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.bt-seo-subtitle {
+  font-size: clamp(22px, 2.2vw, 28px);
+  font-weight: 500;
+  color: var(--text-body);
+  margin: 0 0 16px 0;
+  line-height: 1.3;
 }
 
 .bt-seo-desc {
   color: var(--text-body);
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.7;
   margin: 0 0 12px;
 }
 
-.bt-seo-features {
-  display: flex;
+.bt-seo-desc:last-of-type {
+  margin-bottom: 24px;
+}
+
+.bt-seo-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 32px;
-  margin-bottom: 12px;
 }
 
-.bt-seo-feature {
-  flex: 1;
+.bt-seo-column {
+  min-width: 0;
 }
 
-.bt-seo-feature-title {
-  font-weight: 600;
+.bt-seo-column-title {
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-strong);
-  margin-bottom: 4px;
-  font-size: 14px;
+  margin-bottom: 8px;
 }
 
-.bt-seo-feature-desc {
+.bt-seo-column-desc {
   color: var(--text-body);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.6;
 }
 
-.bt-seo-related {
-  font-size: 14px;
+.bt-seo-link {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 500;
 }
 
-.bt-seo-related-label {
-  font-weight: 600;
-  color: var(--text-strong);
+.bt-seo-link:hover {
+  text-decoration: underline;
+}
+
+.bt-seo-link-separator {
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .bt-seo-columns {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
 }
 
 /* 主容器卡片 */
 .bt-main-card {
   margin: 8px;
+  margin-bottom: 24px;
   padding: 16px;
+  border-radius: 20px;
 }
 
 /* 上下布局（与 testfol.io 一致） */
@@ -95,40 +171,122 @@
   padding: 16px;
 }
 
-/* Backtest 按钮行 */
+/* Backtest 按钮行 - testfol.io 风格 */
 .bt-action-row {
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 8px 8px 12px;
+  justify-content: space-between;
+  gap: 8px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.bt-action-row .btn-primary {
+  flex-shrink: 0;
+  background: var(--brand);
+  border-radius: 3px;
+  height: 36px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0 20px;
+  border: none;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.bt-action-row .btn-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.bt-action-row .btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.bt-action-row .toolbar-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.bt-action-row .btn-load {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s, color 0.15s;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.bt-action-row .btn-load:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-body);
+}
+
+.bt-action-row .btn-load:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.bt-action-row .btn-load .chevron-down {
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+.bt-action-row-expanded {
+  width: 100%;
+  margin-top: 0;
 }
 
 /* 结果卡片 */
 .bt-results-card {
   margin: 8px;
-  padding: 16px;
+  padding: 0;
+  border-radius: 20px;
+  overflow: hidden;
 }
 
 /* ============================================
-   参数面板 - 横排参数行（与 testfol.io 一致）
+   参数面板 - 内嵌标签输入框（testfol.io 风格）
    ============================================ */
 .params-section {
-  padding: 8px;
-}
-
-.params-title {
-  font-size: 24px;
-  font-weight: 400;
-  color: var(--text-strong);
-  margin-bottom: 8px;
-  line-height: 2rem;
+  padding: 0 8px 8px 8px;
+  margin-bottom: 12px;
 }
 
 .params-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-end;
+  gap: 6px;
   flex-wrap: wrap;
+}
+
+.params-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.params-section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-strong);
 }
 
 .param-check {
@@ -137,78 +295,107 @@
   gap: 6px;
   cursor: pointer;
   font-size: 13px;
+  font-weight: 400;
   color: var(--text-body);
   white-space: nowrap;
+  height: auto;
+  min-height: 32px;
+  margin-bottom: 0;
+  transition: color 0.15s;
+}
+
+.param-check:hover {
+  color: var(--text-strong);
+}
+
+.param-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand);
+  cursor: pointer;
+  margin-right: 0;
+  transition: transform 0.1s;
 }
 
 .param-toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: pointer;
   font-size: 13px;
   color: var(--text-body);
   white-space: nowrap;
+  height: auto;
+  min-height: 32px;
 }
 
 .param-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  position: relative;
+  min-width: 100px;
 }
 
 .param-field-start-val {
-  width: 170px;
+  width: 160px;
 }
 .param-field-rolling {
-  width: 175px;
+  width: 160px;
 }
 
 .param-label {
+  display: block;
   font-size: 11px;
   font-weight: 500;
   color: var(--text-muted);
-  letter-spacing: 0.02em;
+  margin-bottom: 2px;
+  line-height: 1.2;
 }
 
 .param-input {
-  height: 40px;
-  padding: 4px 12px;
-  font-size: 14px;
-  font-weight: 400;
+  height: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-body);
-  background-color: rgba(0, 0, 0, 0.05);
-  border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.42);
-  border-radius: 4px 4px 0 0;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
   outline: none;
   transition:
-    border-color 0.15s,
-    background-color 0.15s;
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
   font-family: inherit;
   width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.param-input:hover {
+  border-color: rgba(148, 163, 184, 0.5);
 }
 
 .param-input:focus {
-  border-bottom-color: var(--brand);
-  border-bottom-width: 2px;
-  background-color: rgba(0, 0, 0, 0.08);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
 .param-input::placeholder {
   color: var(--text-muted);
+  font-weight: 400;
 }
 
 .param-input-prefix-wrap {
   position: relative;
+  display: block;
 }
 .param-input-prefix {
   position: absolute;
-  left: 10px;
+  left: 8px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 13px;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-body);
   pointer-events: none;
 }
 .param-input-with-prefix {
@@ -217,25 +404,63 @@
 
 .param-input-suffix-wrap {
   position: relative;
+  display: block;
 }
 .param-input-suffix {
   position: absolute;
-  right: 10px;
+  right: 8px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 12px;
   color: var(--text-muted);
   pointer-events: none;
+  font-weight: 500;
 }
 .param-input-with-suffix {
   padding-right: 40px;
 }
 
+select.param-input {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+  border-radius: 4px;
+}
+
+input[type="date"].param-input {
+  padding-top: 4px;
+}
+
+input[type="date"].param-input::-webkit-datetime-edit {
+  padding-top: 0;
+  color: var(--text-body);
+}
+
+input[type="date"].param-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  filter: invert(0.7);
+}
+
 /* 参数子面板（现金流等） */
 .params-subsection {
-  margin-top: 8px;
-  border-top: 1px solid var(--border-soft);
+  margin-top: 16px;
   padding-top: 4px;
+}
+
+.params-subsection-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 8px 0 6px 0;
+  padding: 0;
 }
 
 .params-subsection-header {
@@ -245,10 +470,11 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--text-strong);
-  padding: 6px 0;
+  padding: 0;
+  margin-bottom: 12px;
   font-family: inherit;
 }
 
@@ -281,118 +507,266 @@
 .cashflow-leg-row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
-/* ============================================
-   主操作按钮
-   ============================================ */
-.main-action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 20px;
-  background-color: var(--brand);
-  color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: background-color 0.15s;
-  text-transform: uppercase;
-  letter-spacing: 0.00937em;
+.cashflow-leg-row .param-check,
+.cashflow-leg-row .param-toggle,
+.portfolio-advanced-row .param-check {
+  height: auto;
+  min-height: 32px;
+  padding-top: 0;
 }
 
-.main-action-btn:hover {
-  background-color: color-mix(in srgb, var(--brand) 88%, black);
+/* 添加现金流按钮 - 青绿色 */
+.btn-add-cashflow {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #0d9488;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.15s;
+  font-family: inherit;
+  cursor: pointer;
+  align-self: flex-start;
 }
-.main-action-btn:disabled {
-  opacity: 0.7;
+
+.btn-add-cashflow:hover {
+  background: #0f766e;
+}
+
+.btn-add-cashflow:active {
+  transform: translateY(1px);
+}
+
+/* 参数面板内 subtle link 按钮 */
+.params-link-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: none;
+}
+
+.params-link-btn:hover {
+  color: var(--text-body);
+  text-decoration: underline;
+}
+
+/* 现金流顶部选项行 */
+.cashflow-top-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.cashflow-top-options .param-check {
+  min-height: auto;
+  padding: 0;
+}
+
+/* ============================================
+   结果 Tab 栏 - testfol.io 风格
+   ============================================ */
+.bt-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  height: 48px;
+  margin: 0;
+  padding: 8px 16px;
+  overflow-x: auto;
+  gap: 4px;
+  background: none;
+  border: none;
+}
+
+.bt-tabs-left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.bt-tab {
+  padding: 0 20px;
+  height: 32px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  position: relative;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bt-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-body);
+}
+
+.bt-tab.active {
+  color: var(--brand);
+  background: var(--brand-soft);
+  font-weight: 600;
+}
+
+.bt-tabs-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 16px;
+}
+
+.bt-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  background-color: var(--support);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.bt-export-btn:hover {
+  background-color: color-mix(in srgb, var(--support) 90%, black);
+}
+
+.bt-export-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* ============================================
-   结果 Tab 栏
-   ============================================ */
-.result-tabs {
-  display: flex;
-  align-items: stretch;
-  flex-wrap: nowrap;
-  border-bottom: 2px solid var(--border-soft);
-  margin-bottom: 16px;
-  overflow-x: auto;
-  gap: 0;
-}
-
-.result-tab-group {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.result-tab-group + .result-tab-group {
-  margin-left: 2px;
-  padding-left: 10px;
-  border-left: 1px solid var(--border-soft);
-}
-
-.result-tab-group-label {
-  font-size: 14px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  padding: 0 8px 0 2px;
-  white-space: nowrap;
-  opacity: 0.75;
-  flex-shrink: 0;
-}
-
-.result-tab {
-  padding: 0 16px;
-  min-height: 48px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-muted);
-  border: none;
-  border-radius: 0;
-  background: none;
-  cursor: pointer;
-  transition:
-    color 0.3s,
-    background-color 0.3s;
-  white-space: nowrap;
-  text-transform: uppercase;
-  position: relative;
-  opacity: 0.85;
-}
-
-.result-tab:hover {
-  color: var(--text-body);
-  opacity: 1;
-}
-
-.result-tab.active {
-  color: var(--brand);
-  opacity: 1;
-}
-
-.result-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--brand);
+.dark .bt-export-btn:hover {
+  background-color: color-mix(in srgb, var(--support) 80%, white);
 }
 
 .result-content {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px;
+  min-height: 400px;
+}
+
+/* 兼容旧的 .result-tabs / .result-tab 类名 - 应用相同样式 */
+.result-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  height: 48px;
+  margin: 0;
+  padding: 8px 16px;
+  overflow-x: auto;
+  gap: 4px;
+  background: none;
+  border: none;
+}
+
+.result-tab {
+  padding: 0 20px;
+  height: 32px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  position: relative;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+}
+
+.result-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-body);
+}
+
+.result-tab.active {
+  color: var(--brand);
+  background: var(--brand-soft);
+  font-weight: 600;
+}
+
+/* ============================================
+   ToolPageLayout - 纵向单列布局（与 testfol.io 一致）
+   ============================================ */
+.tool-page-layout {
+  width: 100%;
+}
+
+.tool-page-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0 0 20px 0;
+  padding-bottom: 0;
+}
+
+.tool-page-section-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tool-page-params-content,
+.tool-page-results-content {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .bt-page {
+    padding: 16px;
+  }
+
+  .tool-page-layout {
+    gap: 12px;
+  }
+
+  .tool-page-section-title {
+    font-size: 22px;
+    margin-bottom: 16px;
+  }
+
+  .tool-page-params.card,
+  .tool-page-results.card {
+    padding: 16px;
+    border-radius: 12px;
+  }
 }
