@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Play, Plus, X } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './efficientFrontierTypes.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
@@ -39,8 +40,7 @@ function SelectField({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <div className="param-field">
-      <span className="param-label">{label}</span>
+    <ParamCard label={label}>
       <select className="param-input" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -48,7 +48,7 @@ function SelectField({
           </option>
         ))}
       </select>
-    </div>
+    </ParamCard>
   );
 }
 
@@ -82,43 +82,42 @@ interface FrontierParamsProps {
 function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
   const { t } = useTranslation();
   return (
-    <>
-      <label className="param-check">
-        <input
-          type="checkbox"
-          checked={p.startDate === '' && p.endDate === ''}
-          onChange={(e) => {
-            if (e.target.checked) {
-              p.onStartDateChange('');
-              p.onEndDateChange('');
-            } else {
-              p.onStartDateChange(DEFAULT_BACKTEST_START_DATE);
-              p.onEndDateChange(DEFAULT_END_DATE);
-            }
-          }}
-        />
-        <span>{t('efficientFrontier.params.allHistory')}</span>
-      </label>
-      <div className="param-field">
-        <span className="param-label">{t('efficientFrontier.params.startDate')}</span>
+    <ParamRow>
+      <ParamCard label={t('efficientFrontier.params.allHistory')}>
+        <label className="param-check">
+          <input
+            type="checkbox"
+            checked={p.startDate === '' && p.endDate === ''}
+            onChange={(e) => {
+              if (e.target.checked) {
+                p.onStartDateChange('');
+                p.onEndDateChange('');
+              } else {
+                p.onStartDateChange(DEFAULT_BACKTEST_START_DATE);
+                p.onEndDateChange(DEFAULT_END_DATE);
+              }
+            }}
+          />
+          <span>{t('efficientFrontier.params.allHistory')}</span>
+        </label>
+      </ParamCard>
+      <ParamCard label={t('efficientFrontier.params.startDate')}>
         <input
           type="date"
           className="param-input"
           value={p.startDate}
           onChange={(e) => p.onStartDateChange(e.target.value)}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('efficientFrontier.params.endDate')}</span>
+      </ParamCard>
+      <ParamCard label={t('efficientFrontier.params.endDate')}>
         <input
           type="date"
           className="param-input"
           value={p.endDate}
           onChange={(e) => p.onEndDateChange(e.target.value)}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('efficientFrontier.params.numPoints')}</span>
+      </ParamCard>
+      <ParamCard label={t('efficientFrontier.params.numPoints')}>
         <input
           type="number"
           className="param-input"
@@ -127,23 +126,22 @@ function FrontierDateRange({ p }: { p: FrontierParamsProps }) {
           min={5}
           max={100}
         />
-      </div>
-    </>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
 function FrontierAdvancedFields({ p }: { p: FrontierParamsProps }) {
   const { t } = useTranslation();
   return (
-    <>
+    <ParamRow>
       <SelectField
         label={t('efficientFrontier.params.solveSpeed')}
         value={p.solveSpeed}
         onChange={(v) => p.onSolveSpeedChange(v as SolveSpeed)}
         options={solveSpeedOptions(t)}
       />
-      <div className="param-field param-field-rolling">
-        <span className="param-label">{t('efficientFrontier.params.minInclusionWeight')}</span>
+      <ParamCard label={t('efficientFrontier.params.minInclusionWeight')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -155,7 +153,7 @@ function FrontierAdvancedFields({ p }: { p: FrontierParamsProps }) {
           />
           <span className="param-input-suffix">%</span>
         </div>
-      </div>
+      </ParamCard>
       <SelectField
         label={t('efficientFrontier.params.rebalanceFreq')}
         value={p.rebalanceFrequency}
@@ -174,24 +172,28 @@ function FrontierAdvancedFields({ p }: { p: FrontierParamsProps }) {
         onChange={(v) => p.onSolverChange(v as FrontierSolver)}
         options={solverOptions(t)}
       />
-      <label className="param-check">
-        <input
-          type="checkbox"
-          checked={p.allowCash}
-          onChange={(e) => p.onAllowCashChange(e.target.checked)}
-        />
-        <span>{t('efficientFrontier.params.allowCash')}</span>
-      </label>
-    </>
+      <ParamCard label={t('efficientFrontier.params.allowCash')}>
+        <label className="param-check">
+          <input
+            type="checkbox"
+            checked={p.allowCash}
+            onChange={(e) => p.onAllowCashChange(e.target.checked)}
+          />
+          <span>{t('efficientFrontier.params.allowCash')}</span>
+        </label>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
 function FrontierParamsFields({ p }: { p: FrontierParamsProps }) {
   const { t } = useTranslation();
   return (
-    <div className="params-section">
-      <div className="params-title">{t('efficientFrontier.params.title')}</div>
-      <div className="params-row">
+    <div className="param-section">
+      <div className="param-section-header">
+        <h2 className="param-section-title">{t('efficientFrontier.params.title')}</h2>
+      </div>
+      <div className="param-section-content">
         <FrontierDateRange p={p} />
         <FrontierAdvancedFields p={p} />
       </div>
