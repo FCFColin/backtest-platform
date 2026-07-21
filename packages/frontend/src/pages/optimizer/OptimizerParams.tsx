@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2, Plus, X } from 'lucide-react';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
@@ -54,32 +55,10 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
   );
 }
 
-function AllHistoryToggle({ s, t }: { s: EfficientFrontierState; t: (k: string) => string }) {
-  return (
-    <label className="param-check">
-      <input
-        type="checkbox"
-        checked={s.startDate === '' && s.endDate === ''}
-        onChange={(e) => {
-          if (e.target.checked) {
-            s.setStartDate('');
-            s.setEndDate('');
-          } else {
-            s.setStartDate(DEFAULT_BACKTEST_START_DATE);
-            s.setEndDate(DEFAULT_END_DATE);
-          }
-        }}
-      />
-      <span>{t('optimizer.allHistory')}</span>
-    </label>
-  );
-}
-
 function WeightAndTbillFields({ s, t }: { s: EfficientFrontierState; t: (k: string) => string }) {
   return (
     <>
-      <div className="param-field param-field-rolling">
-        <span className="param-label">{t('optimizer.minWeight')}</span>
+      <ParamCard label={t('optimizer.minWeight')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -91,9 +70,8 @@ function WeightAndTbillFields({ s, t }: { s: EfficientFrontierState; t: (k: stri
           />
           <span className="param-input-suffix">%</span>
         </div>
-      </div>
-      <div className="param-field param-field-rolling">
-        <span className="param-label">{t('optimizer.maxWeight')}</span>
+      </ParamCard>
+      <ParamCard label={t('optimizer.maxWeight')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -105,9 +83,8 @@ function WeightAndTbillFields({ s, t }: { s: EfficientFrontierState; t: (k: stri
           />
           <span className="param-input-suffix">%</span>
         </div>
-      </div>
-      <div className="param-field param-field-rolling">
-        <span className="param-label">{t('optimizer.tbillRate')}</span>
+      </ParamCard>
+      <ParamCard label={t('optimizer.tbillRate')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -118,7 +95,7 @@ function WeightAndTbillFields({ s, t }: { s: EfficientFrontierState; t: (k: stri
           />
           <span className="param-input-suffix">%</span>
         </div>
-      </div>
+      </ParamCard>
     </>
   );
 }
@@ -127,28 +104,42 @@ function BasicParams({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   return (
     <ParamsSection title={t('optimizer.basicParams')} info={t('optimizer.basicParamsInfo')}>
-      <div className="params-row">
-        <AllHistoryToggle s={s} t={t} />
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.startDate')}</span>
+      <ParamRow>
+        <ParamCard label={t('optimizer.allHistory')}>
+          <label className="param-check">
+            <input
+              type="checkbox"
+              checked={s.startDate === '' && s.endDate === ''}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  s.setStartDate('');
+                  s.setEndDate('');
+                } else {
+                  s.setStartDate(DEFAULT_BACKTEST_START_DATE);
+                  s.setEndDate(DEFAULT_END_DATE);
+                }
+              }}
+            />
+            <span>{t('optimizer.allHistory')}</span>
+          </label>
+        </ParamCard>
+        <ParamCard label={t('optimizer.startDate')}>
           <input
             type="date"
             className="param-input"
             value={s.startDate}
             onChange={(e) => s.setStartDate(e.target.value)}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.endDate')}</span>
+        </ParamCard>
+        <ParamCard label={t('optimizer.endDate')}>
           <input
             type="date"
             className="param-input"
             value={s.endDate}
             onChange={(e) => s.setEndDate(e.target.value)}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.objective')}</span>
+        </ParamCard>
+        <ParamCard label={t('optimizer.objective')}>
           <select
             className="param-input"
             value={s.objective}
@@ -158,10 +149,9 @@ function BasicParams({ s }: { s: EfficientFrontierState }) {
             <option value="minVolatility">{t('optimizer.minVolatility')}</option>
             <option value="maxReturn">{t('optimizer.maxReturn')}</option>
           </select>
-        </div>
+        </ParamCard>
         <WeightAndTbillFields s={s} t={t} />
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.solver')}</span>
+        <ParamCard label={t('optimizer.solver')}>
           <select
             className="param-input"
             value={s.solver}
@@ -170,16 +160,18 @@ function BasicParams({ s }: { s: EfficientFrontierState }) {
             <option value="markowitz">{t('optimizer.solverMarkowitz')}</option>
             <option value="ga">{t('optimizer.solverGA')}</option>
           </select>
-        </div>
-        <label className="param-check">
-          <input
-            type="checkbox"
-            checked={s.allowShort}
-            onChange={(e) => s.setAllowShort(e.target.checked)}
-          />
-          <span>{t('optimizer.allowShort')}</span>
-        </label>
-      </div>
+        </ParamCard>
+        <ParamCard label={t('optimizer.allowShort')}>
+          <label className="param-check">
+            <input
+              type="checkbox"
+              checked={s.allowShort}
+              onChange={(e) => s.setAllowShort(e.target.checked)}
+            />
+            <span>{t('optimizer.allowShort')}</span>
+          </label>
+        </ParamCard>
+      </ParamRow>
     </ParamsSection>
   );
 }
@@ -257,9 +249,8 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
       defaultOpen={false}
       info={t('optimizer.advancedConstraintsInfo')}
     >
-      <div className="params-row">
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.minSharpeLabel')}</span>
+      <ParamRow>
+        <ParamCard label={t('optimizer.minSharpeLabel')}>
           <input
             type="number"
             step="0.01"
@@ -268,9 +259,8 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             onChange={(e) => s.setMinSharpe(e.target.value)}
             placeholder="—"
           />
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.minSortinoLabel')}</span>
+        </ParamCard>
+        <ParamCard label={t('optimizer.minSortinoLabel')}>
           <input
             type="number"
             step="0.01"
@@ -279,9 +269,8 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             onChange={(e) => s.setMinSortino(e.target.value)}
             placeholder="—"
           />
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.maxAvgDDLabel')}</span>
+        </ParamCard>
+        <ParamCard label={t('optimizer.maxAvgDDLabel')}>
           <div className="param-input-suffix-wrap">
             <input
               type="number"
@@ -293,9 +282,8 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             />
             <span className="param-input-suffix">%</span>
           </div>
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('optimizer.maxHoldings')}</span>
+        </ParamCard>
+        <ParamCard label={t('optimizer.maxHoldings')}>
           <input
             type="number"
             className="param-input"
@@ -304,9 +292,8 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             placeholder="—"
             min={2}
           />
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('optimizer.minWeightToInclude')}</span>
+        </ParamCard>
+        <ParamCard label={t('optimizer.minWeightToInclude')}>
           <div className="param-input-suffix-wrap">
             <input
               type="number"
@@ -319,8 +306,8 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             />
             <span className="param-input-suffix">%</span>
           </div>
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
     </ParamsSection>
   );
 }
