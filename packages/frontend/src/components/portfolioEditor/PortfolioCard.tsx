@@ -5,7 +5,7 @@ import type { StorePortfolio, TFunc, BatchUpdate, AssetPatch } from './shared.js
 import { PortfolioToolbarAndAssets } from './PortfolioAssets.js';
 import { GlidepathConfig } from './GlidepathComponents.js';
 
-/** 卡片头部操作按钮 */
+/** 卡片头部操作按钮 - hover 显示 */
 function PortfolioCardActions({
   portfolio,
   onDuplicate,
@@ -20,7 +20,7 @@ function PortfolioCardActions({
   t: TFunc;
 }) {
   return (
-    <div className="portfolio-card-header">
+    <div className="portfolio-card-actions">
       <button
         className="portfolio-card-action"
         title={t('portfolio.copyPortfolio')}
