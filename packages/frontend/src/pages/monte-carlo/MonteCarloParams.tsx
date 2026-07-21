@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import { PortfolioEditor } from '../../components/ParamsShared.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import type { McState } from './monteCarloParamsUtils.js';
 import type { PortfolioState, PortfolioMode } from './monteCarloTypes.js';
 
@@ -145,57 +146,48 @@ function PortfolioConfigSection({ s }: { s: McState }) {
 function SimBasicFields({ s }: { s: McState }) {
   const { t } = useTranslation();
   return (
-    <>
-      <label className="param-check">
-        <input type="checkbox" />
-        <span>{t('monteCarlo.params.allHistory')}</span>
-      </label>
-      <div className="param-field">
-        <span className="param-label">{t('monteCarlo.params.startDate')}</span>
+    <ParamRow>
+      <ParamCard label={t('monteCarlo.params.startDate')}>
         <input
           type="date"
           className="param-input"
           value={s.startDate}
           onChange={(e) => s.setStartDate(e.target.value)}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('monteCarlo.params.endDate')}</span>
+      </ParamCard>
+      <ParamCard label={t('monteCarlo.params.endDate')}>
         <input
           type="date"
           className="param-input"
           value={s.endDate}
           onChange={(e) => s.setEndDate(e.target.value)}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('monteCarlo.params.simYears')}</span>
+      </ParamCard>
+      <ParamCard label={t('monteCarlo.params.simYears')}>
         <input
           type="number"
           className="param-input"
           value={s.numYears}
           onChange={(e) => s.setNumYears(Number(e.target.value))}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('monteCarlo.params.simCount')}</span>
+      </ParamCard>
+      <ParamCard label={t('monteCarlo.params.simCount')}>
         <input
           type="number"
           className="param-input"
           value={s.numSimulations}
           onChange={(e) => s.setNumSimulations(Number(e.target.value))}
         />
-      </div>
-    </>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
 function SimAdvancedFields({ s }: { s: McState }) {
   const { t } = useTranslation();
   return (
-    <>
-      <div className="param-field param-field-start-val">
-        <span className="param-label">{t('monteCarlo.params.startingValue')}</span>
+    <ParamRow>
+      <ParamCard label={t('monteCarlo.params.startingValue')}>
         <div className="param-input-prefix-wrap">
           <span className="param-input-prefix">$</span>
           <input
@@ -205,9 +197,8 @@ function SimAdvancedFields({ s }: { s: McState }) {
             onChange={(e) => s.setStartingValue(Number(e.target.value))}
           />
         </div>
-      </div>
-      <div className="param-field param-field-rolling">
-        <span className="param-label">{t('monteCarlo.params.minBlock')}</span>
+      </ParamCard>
+      <ParamCard label={t('monteCarlo.params.minBlock')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -217,9 +208,8 @@ function SimAdvancedFields({ s }: { s: McState }) {
           />
           <span className="param-input-suffix">{t('monteCarlo.params.yearSuffix')}</span>
         </div>
-      </div>
-      <div className="param-field param-field-rolling">
-        <span className="param-label">{t('monteCarlo.params.maxBlock')}</span>
+      </ParamCard>
+      <ParamCard label={t('monteCarlo.params.maxBlock')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -229,9 +219,8 @@ function SimAdvancedFields({ s }: { s: McState }) {
           />
           <span className="param-input-suffix">{t('monteCarlo.params.yearSuffix')}</span>
         </div>
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('monteCarlo.params.randomSeed')}</span>
+      </ParamCard>
+      <ParamCard label={t('monteCarlo.params.randomSeed')}>
         <input
           type="number"
           className="param-input"
@@ -239,25 +228,18 @@ function SimAdvancedFields({ s }: { s: McState }) {
           onChange={(e) => s.setRandomSeed(e.target.value)}
           placeholder={t('monteCarlo.params.randomSeedPlaceholder')}
         />
-      </div>
-      <label className="param-check">
-        <input
-          type="checkbox"
-          checked={s.withReplacement}
-          onChange={(e) => s.setWithReplacement(e.target.checked)}
-        />
-        <span>{t('monteCarlo.params.withReplacement')}</span>
-      </label>
-    </>
-  );
-}
-
-function SimDateFields({ s }: { s: McState }) {
-  return (
-    <>
-      <SimBasicFields s={s} />
-      <SimAdvancedFields s={s} />
-    </>
+      </ParamCard>
+      <ParamCard label={t('monteCarlo.params.withReplacement')}>
+        <label className="param-check">
+          <input
+            type="checkbox"
+            checked={s.withReplacement}
+            onChange={(e) => s.setWithReplacement(e.target.checked)}
+          />
+          <span>{t('monteCarlo.params.withReplacement')}</span>
+        </label>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
@@ -268,8 +250,9 @@ function SimParamsSection({ s }: { s: McState }) {
       title={t('monteCarlo.params.simParamsTitle')}
       info={t('monteCarlo.params.simParamsInfo')}
     >
-      <div className="params-row">
-        <SimDateFields s={s} />
+      <div className="param-section-content">
+        <SimBasicFields s={s} />
+        <SimAdvancedFields s={s} />
       </div>
     </ParamsSection>
   );
@@ -337,8 +320,7 @@ function GoalSelector({
   options: { value: string; label: string }[];
 }) {
   return (
-    <div className="param-field">
-      <span className="param-label">{label}</span>
+    <ParamCard label={label}>
       <select className="param-input" value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((g) => (
           <option key={g.value} value={g.value}>
@@ -346,7 +328,7 @@ function GoalSelector({
           </option>
         ))}
       </select>
-    </div>
+    </ParamCard>
   );
 }
 
@@ -359,7 +341,7 @@ function DualGoalSection({ s }: { s: McState }) {
       title={t('monteCarlo.params.dualGoalTitle')}
       info={t('monteCarlo.params.dualGoalInfo')}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <ParamRow>
         <GoalSelector
           label={t('monteCarlo.params.goal1')}
           value={goal1}
@@ -372,9 +354,20 @@ function DualGoalSection({ s }: { s: McState }) {
           onChange={setGoal2}
           options={goalOptions}
         />
-        <div className="param-field" style={{ gap: 6 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="param-label">{t('monteCarlo.params.goal1Weight')}</span>
+      </ParamRow>
+      <ParamRow>
+        <ParamCard label={t('monteCarlo.params.goal1Weight')} fullWidth>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              {t('monteCarlo.params.goal1Weight')}
+            </span>
             <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-strong)' }}>
               {goalWeight}% : {100 - goalWeight}%
             </span>
@@ -388,8 +381,8 @@ function DualGoalSection({ s }: { s: McState }) {
             onChange={(e) => setGoalWeight(Number(e.target.value))}
             style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--brand)' }}
           />
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
     </ParamsSection>
   );
 }
