@@ -1,15 +1,16 @@
 /**
  * @file 现金流分区
  * @description 周期性现金流腿（CashflowLegs）与一次性现金流（OneTimeCashflow）两个分区。
- * 从 BacktestParamsForm 抽出以隔离现金流相关行级编辑 UI。
+ * 使用统一参数布局组件。
  */
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Plus, X } from 'lucide-react';
-import { ParamsSection } from './ParamsPanel.js';
+
 import type { TFunctionProp } from './BacktestParamsForm.types.js';
 import type { CashflowLeg } from '@backtest/shared';
+import { ParamGroup, ParamRow, ParamCard } from './params/index.js';
 
 /** 周期性现金流分区 */
 export function CashflowLegsSection() {
@@ -18,21 +19,28 @@ export function CashflowLegsSection() {
   const addCashflowLeg = useBacktestStore((s) => s.addCashflowLeg);
 
   return (
-    <ParamsSection
-      title={t('params.cashflowLegs')}
-      defaultOpen={false}
-      info={t('params.cashflowLegsInfo')}
-    >
-      <div className="params-subsection-body">
-        {(parameters.cashflowLegs || []).map((leg) => (
-          <CashflowLegRow key={leg.id} leg={leg} currency={parameters.baseCurrency} t={t} />
-        ))}
-        <button className="toolbar-btn" onClick={addCashflowLeg}>
-          <Plus className="w-3.5 h-3.5" />
-          {t('params.addCashflowLeg')}
-        </button>
-      </div>
-    </ParamsSection>
+    <ParamGroup title={t('params.cashflowLegs')} badge={parameters.cashflowLegs?.length || 0}>
+      <ParamRow>
+        <ParamCard label="Adjust fixed-dollar cashflows for inflation">
+          <label className="param-check">
+            <input type="checkbox" />
+            <span>Adjust for inflation</span>
+          </label>
+        </ParamCard>
+        <ParamCard label="Annual cashflow growth">
+          <div className="param-input-suffix-wrap">
+            <input type="number" defaultValue={0} className="param-input param-input-with-suffix" />
+            <span className="param-input-suffix">%</span>
+          </div>
+        </ParamCard>
+      </ParamRow>
+      {(parameters.cashflowLegs || []).map((leg) => (
+        <CashflowLegRow key={leg.id} leg={leg} currency={parameters.baseCurrency} t={t} />
+      ))}
+      <button className="btn-add-cashflow" onClick={addCashflowLeg}>
+        <Plus className="w-3.5 h-3.5" />+ Add Cashflow Leg
+      </button>
+    </ParamGroup>
   );
 }
 
@@ -48,10 +56,20 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
   const removeCashflowLeg = useBacktestStore((s) => s.removeCashflowLeg);
   const updateCashflowLeg = useBacktestStore((s) => s.updateCashflowLeg);
   return (
-    <div className="cashflow-leg-row">
-      <CashflowAmountField leg={leg} currency={currency} t={t} />
-      <div className="param-field" style={{ width: 100 }}>
-        <label className="param-label">{t('params.cashflowType')}</label>
+    <ParamRow>
+      <ParamCard label={t('params.amount')}>
+        <div className="param-input-prefix-wrap">
+          <span className="param-input-prefix">{currency === 'usd' ? '$' : '¥'}</span>
+          <input
+            type="number"
+            value={leg.amount || ''}
+            className="param-input param-input-with-prefix"
+            placeholder="0"
+            onChange={(e) => updateCashflowLeg(leg.id, { amount: Number(e.target.value) || 0 })}
+          />
+        </div>
+      </ParamCard>
+      <ParamCard label={t('params.cashflowType')}>
         <select
           value={leg.type}
           className="param-input"
@@ -64,9 +82,8 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
           <option value="contribution">{t('params.contribution')}</option>
           <option value="withdrawal">{t('params.withdrawal')}</option>
         </select>
-      </div>
-      <div className="param-field" style={{ width: 100 }}>
-        <label className="param-label">{t('params.frequency')}</label>
+      </ParamCard>
+      <ParamCard label={t('params.frequency')}>
         <select
           value={leg.frequency}
           className="param-input"
@@ -81,9 +98,8 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
           <option value="monthly">{t('params.monthly')}</option>
           <option value="weekly">{t('params.weekly')}</option>
         </select>
-      </div>
-      <div className="param-field" style={{ width: 70 }}>
-        <label className="param-label">{t('params.offset')}</label>
+      </ParamCard>
+      <ParamCard label={t('params.offset')}>
         <input
           type="number"
           value={leg.offset || ''}
@@ -91,16 +107,15 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
           placeholder="0"
           onChange={(e) => updateCashflowLeg(leg.id, { offset: Number(e.target.value) || 0 })}
         />
-      </div>
-      <div className="param-field" style={{ width: 120 }}>
-        <label className="param-label">{t('params.until')}</label>
+      </ParamCard>
+      <ParamCard label={t('params.until')}>
         <input
           type="date"
           value={leg.until || ''}
           className="param-input"
           onChange={(e) => updateCashflowLeg(leg.id, { until: e.target.value })}
         />
-      </div>
+      </ParamCard>
       <button
         className="row-remove-btn"
         onClick={() => removeCashflowLeg(leg.id)}
@@ -108,36 +123,7 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
       >
         <X className="w-4 h-4" />
       </button>
-    </div>
-  );
-}
-
-/** CashflowAmountField 组件 Props */
-interface CashflowAmountFieldProps extends TFunctionProp {
-  /** 单条现金流腿 */
-  leg: CashflowLeg;
-  /** 基础货币（usd/cny），决定金额前缀符号 */
-  currency: string | undefined;
-}
-
-function CashflowAmountField({ leg, currency, t }: CashflowAmountFieldProps) {
-  const updateCashflowLeg = useBacktestStore((s) => s.updateCashflowLeg);
-  return (
-    <div className="param-field" style={{ width: 100 }}>
-      <label className="param-label">{t('params.amount')}</label>
-      <div className="param-input-prefix-wrap">
-        <span className="param-input-prefix">{currency === 'usd' ? '$' : '¥'}</span>
-        <input
-          type="number"
-          value={leg.amount || ''}
-          className="param-input param-input-with-prefix"
-          placeholder="0"
-          onChange={(e) =>
-            updateCashflowLeg(leg.id, { amount: Math.abs(Number(e.target.value) || 0) })
-          }
-        />
-      </div>
-    </div>
+    </ParamRow>
   );
 }
 
@@ -150,69 +136,64 @@ export function OneTimeCashflowSection() {
   const updateOneTimeCashflow = useBacktestStore((s) => s.updateOneTimeCashflow);
 
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('params.oneTimeCashflow')}
-      defaultOpen={false}
-      info={t('params.oneTimeCashflowInfo')}
+      badge={parameters.oneTimeCashflows?.length || 0}
     >
-      <div className="params-subsection-body">
-        {(parameters.oneTimeCashflows || []).map((cf) => (
-          <div key={cf.id} className="cashflow-leg-row">
-            <div className="param-field" style={{ width: 100 }}>
-              <label className="param-label">{t('params.amount')}</label>
-              <div className="param-input-prefix-wrap">
-                <span className="param-input-prefix">
-                  {parameters.baseCurrency === 'usd' ? '$' : '¥'}
-                </span>
-                <input
-                  type="number"
-                  value={cf.amount || ''}
-                  className="param-input param-input-with-prefix"
-                  placeholder="0"
-                  onChange={(e) =>
-                    updateOneTimeCashflow(cf.id, { amount: Math.abs(Number(e.target.value) || 0) })
-                  }
-                />
-              </div>
-            </div>
-            <div className="param-field" style={{ width: 100 }}>
-              <label className="param-label">{t('params.type')}</label>
-              <select
-                value={cf.type}
-                className="param-input"
-                onChange={(e) =>
-                  updateOneTimeCashflow(cf.id, {
-                    type: e.target.value as 'contribution' | 'withdrawal',
-                  })
-                }
-              >
-                <option value="contribution">{t('params.contribution')}</option>
-                <option value="withdrawal">{t('params.withdrawal')}</option>
-              </select>
-            </div>
-            <div className="param-field" style={{ width: 130 }}>
-              <label className="param-label">{t('params.date')}</label>
+      {(parameters.oneTimeCashflows || []).map((cf) => (
+        <ParamRow key={cf.id}>
+          <ParamCard label={t('params.amount')}>
+            <div className="param-input-prefix-wrap">
+              <span className="param-input-prefix">
+                {parameters.baseCurrency === 'usd' ? '$' : '¥'}
+              </span>
               <input
-                type="date"
-                value={cf.date}
-                className="param-input"
-                onChange={(e) => updateOneTimeCashflow(cf.id, { date: e.target.value })}
+                type="number"
+                value={cf.amount || ''}
+                className="param-input param-input-with-prefix"
+                placeholder="0"
+                onChange={(e) =>
+                  updateOneTimeCashflow(cf.id, { amount: Math.abs(Number(e.target.value) || 0) })
+                }
               />
             </div>
-            <button
-              className="row-remove-btn"
-              onClick={() => removeOneTimeCashflow(cf.id)}
-              title={t('common.delete')}
+          </ParamCard>
+          <ParamCard label={t('params.type')}>
+            <select
+              value={cf.type}
+              className="param-input"
+              onChange={(e) =>
+                updateOneTimeCashflow(cf.id, {
+                  type: e.target.value as 'contribution' | 'withdrawal',
+                })
+              }
             >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ))}
-        <button className="toolbar-btn" onClick={addOneTimeCashflow}>
-          <Plus className="w-3.5 h-3.5" />
-          {t('params.addOneTimeCashflow')}
+              <option value="contribution">{t('params.contribution')}</option>
+              <option value="withdrawal">{t('params.withdrawal')}</option>
+            </select>
+          </ParamCard>
+          <ParamCard label={t('params.date')}>
+            <input
+              type="date"
+              value={cf.date}
+              className="param-input"
+              onChange={(e) => updateOneTimeCashflow(cf.id, { date: e.target.value })}
+            />
+          </ParamCard>
+          <button
+            className="row-remove-btn"
+            onClick={() => removeOneTimeCashflow(cf.id)}
+            title={t('common.delete')}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </ParamRow>
+      ))}
+      {(parameters.oneTimeCashflows || []).length === 0 && (
+        <button className="params-link-btn" onClick={addOneTimeCashflow}>
+          + One-time cashflows
         </button>
-      </div>
-    </ParamsSection>
+      )}
+    </ParamGroup>
   );
 }

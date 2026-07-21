@@ -1,59 +1,41 @@
 /**
  * @file 回测参数表单
- * @description 回测核心参数配置面板容器。组合各可折叠分区：
- * 基本参数（本文件）、组合高级设置/再平衡带、周期性现金流、一次性现金流。
- * 子分区按职责拆分到 BacktestParamsForm.*.tsx，纯函数见 backtestParamsUtils.ts。
+ * @description 回测核心参数配置面板容器。使用统一参数布局组件。
  */
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
+import { useToastStore } from '@/store/toastStore';
 import TickerInput from './TickerInput.js';
-import { ParamsPanel, ParamsSection } from './ParamsPanel.js';
-import { DateRangeFields } from './BacktestParamsForm.DateRange.js';
-import { AdvancedSettingsSection } from './BacktestParamsForm.Rebalance.js';
+
+import { validateDateChange } from './backtestParamsUtils.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+
 import { CashflowLegsSection, OneTimeCashflowSection } from './BacktestParamsForm.CashflowLegs.js';
-import type { TFunctionProp } from './BacktestParamsForm.types.js';
+import { ParamSection, ParamRow, ParamCard } from './params/index.js';
 
-/** 基本参数分区 */
-function BasicParamsSection() {
-  const { t } = useTranslation();
-  const parameters = useBacktestStore(useShallow((s) => s.parameters));
-  const updateParameter = useBacktestStore((s) => s.updateParameter);
-
+/** 日期范围选择器 */
+function DateRangeSelect({ mode, onChange }: { mode: string; onChange: (value: string) => void }) {
   return (
-    <ParamsSection title={t('params.basicParams')} info={t('params.basicParamsInfo')}>
-      <div className="params-row">
-        <DateRangeFields
-          startDate={parameters.startDate}
-          endDate={parameters.endDate}
-          onUpdate={(field, value) => updateParameter(field, value)}
-          t={t}
-        />
-        <StartingValueField t={t} />
-        <CurrencyField t={t} />
-        <InflationToggle t={t} />
-        <RollingWindowField t={t} />
-        <label className="param-check">
-          <input
-            type="checkbox"
-            checked={parameters.extendedWithdrawalStats}
-            onChange={(e) => updateParameter('extendedWithdrawalStats', e.target.checked)}
-          />
-          <span>{t('params.extendedWithdrawalStats')}</span>
-        </label>
-        <BenchmarkField t={t} />
-      </div>
-    </ParamsSection>
+    <select
+      className="param-input"
+      style={{ width: 140 }}
+      value={mode}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="all">All History</option>
+      <option value="custom">Custom Range</option>
+    </select>
   );
 }
 
-function StartingValueField({ t }: TFunctionProp) {
+/** 起始资金输入 */
+function StartingValueCard() {
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
-    <div className="param-field param-field-start-val">
-      <label className="param-label">{t('params.startingValue')}</label>
+    <ParamCard label="Starting Value">
       <div className="param-input-prefix-wrap">
         <span className="param-input-prefix">{parameters.baseCurrency === 'usd' ? '$' : '¥'}</span>
         <input
@@ -67,16 +49,16 @@ function StartingValueField({ t }: TFunctionProp) {
           }
         />
       </div>
-    </div>
+    </ParamCard>
   );
 }
 
-function CurrencyField({ t }: TFunctionProp) {
+/** 货币选择 */
+function CurrencyCard() {
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
-    <div className="param-field" style={{ width: 90 }}>
-      <label className="param-label">{t('params.currency')}</label>
+    <ParamCard label="Currency">
       <select
         value={parameters.baseCurrency}
         className="param-input"
@@ -85,40 +67,34 @@ function CurrencyField({ t }: TFunctionProp) {
         <option value="usd">USD ($)</option>
         <option value="cny">CNY (¥)</option>
       </select>
-    </div>
+    </ParamCard>
   );
 }
 
-function InflationToggle({ t }: TFunctionProp) {
+/** 通胀调整 */
+function InflationCard() {
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
-    <>
-      <label className="param-toggle">
-        <span>{t('params.inflationAdjust')}</span>
-        <div
-          className={`toggle-switch ${parameters.adjustForInflation ? 'active' : ''}`}
-          onClick={() => updateParameter('adjustForInflation', !parameters.adjustForInflation)}
+    <ParamCard label="Inflation Adjust">
+      <label className="param-check">
+        <input
+          type="checkbox"
+          checked={parameters.adjustForInflation}
+          onChange={(e) => updateParameter('adjustForInflation', e.target.checked)}
         />
+        <span>Adjust for inflation</span>
       </label>
-      {parameters.adjustForInflation && (
-        <span
-          className="param-hint"
-          style={{ color: '#f59e0b', fontSize: '12px', whiteSpace: 'nowrap' }}
-        >
-          {parameters.baseCurrency === 'usd' ? t('params.useUSCPI') : t('params.useCNCPI')}
-        </span>
-      )}
-    </>
+    </ParamCard>
   );
 }
 
-function RollingWindowField({ t }: TFunctionProp) {
+/** 滚动窗口 */
+function RollingWindowCard() {
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
-    <div className="param-field param-field-rolling">
-      <label className="param-label">{t('params.rollingWindow')}</label>
+    <ParamCard label="Rolling Window">
       <div className="param-input-suffix-wrap">
         <input
           type="number"
@@ -130,50 +106,141 @@ function RollingWindowField({ t }: TFunctionProp) {
             updateParameter('rollingWindowMonths', Math.max(1, Number(e.target.value) || 12))
           }
         />
-        <span className="param-input-suffix">{t('params.months')}</span>
+        <span className="param-input-suffix">months</span>
       </div>
-    </div>
+    </ParamCard>
   );
 }
 
-function BenchmarkField({ t }: TFunctionProp) {
+/** 日期输入 */
+function DateCards({ mode }: { mode: string }) {
+  const { t } = useTranslation();
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return (
     <>
+      <ParamCard label={t('params.startDate')}>
+        <input
+          type="date"
+          value={parameters.startDate}
+          disabled={mode === 'all'}
+          className="param-input"
+          onChange={(e) => {
+            const err = validateDateChange('startDate', e.target.value, parameters.endDate, t);
+            if (err) {
+              useToastStore.getState().addToast('warning', err);
+              return;
+            }
+            updateParameter('startDate', e.target.value);
+          }}
+        />
+      </ParamCard>
+      <ParamCard label={t('params.endDate')}>
+        <input
+          type="date"
+          value={parameters.endDate}
+          disabled={mode === 'all'}
+          className="param-input"
+          onChange={(e) => {
+            const err = validateDateChange('endDate', e.target.value, parameters.startDate, t);
+            if (err) {
+              useToastStore.getState().addToast('warning', err);
+              return;
+            }
+            updateParameter('endDate', e.target.value);
+          }}
+        />
+      </ParamCard>
+    </>
+  );
+}
+
+/** 扩展提款统计 */
+function ExtendedStatsCard() {
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
+  const updateParameter = useBacktestStore((s) => s.updateParameter);
+  return (
+    <ParamCard label="Extended Stats">
+      <label className="param-check">
+        <input
+          type="checkbox"
+          checked={parameters.extendedWithdrawalStats}
+          onChange={(e) => updateParameter('extendedWithdrawalStats', e.target.checked)}
+        />
+        <span>Extended withdrawal stats</span>
+      </label>
+    </ParamCard>
+  );
+}
+
+/** 基准选择 */
+function BenchmarkCard() {
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
+  const updateParameter = useBacktestStore((s) => s.updateParameter);
+  return (
+    <ParamCard label="Benchmark">
       <label className="param-check">
         <input
           type="checkbox"
           checked={parameters.benchmarkTicker !== ''}
           onChange={(e) => updateParameter('benchmarkTicker', e.target.checked ? 'SPY' : '')}
         />
-        <span>{t('params.selectBenchmark')}</span>
+        <span>Pick benchmark ticker</span>
       </label>
       {parameters.benchmarkTicker !== '' && (
-        <div className="param-field" style={{ width: 120 }}>
-          <TickerInput
-            value={parameters.benchmarkTicker}
-            onChange={(v) => updateParameter('benchmarkTicker', v)}
-            placeholder="SPY"
-          />
-        </div>
+        <TickerInput
+          value={parameters.benchmarkTicker}
+          onChange={(v) => updateParameter('benchmarkTicker', v)}
+          placeholder="SPY"
+        />
       )}
-    </>
+    </ParamCard>
+  );
+}
+
+/** 基本参数分区 */
+function BasicParamsSection() {
+  const { t } = useTranslation();
+  const parameters = useBacktestStore(useShallow((s) => s.parameters));
+  const updateParameter = useBacktestStore((s) => s.updateParameter);
+
+  const dateRangeMode = parameters.startDate === '' && parameters.endDate === '' ? 'all' : 'custom';
+
+  const handleDateRangeChange = (value: string) => {
+    if (value === 'all') {
+      updateParameter('startDate', '');
+      updateParameter('endDate', '');
+    } else {
+      updateParameter('startDate', DEFAULT_BACKTEST_START_DATE);
+      updateParameter('endDate', DEFAULT_END_DATE);
+    }
+  };
+
+  return (
+    <ParamSection
+      title={t('params.basicParams')}
+      actions={<DateRangeSelect mode={dateRangeMode} onChange={handleDateRangeChange} />}
+    >
+      <ParamRow>
+        <StartingValueCard />
+        <CurrencyCard />
+        <InflationCard />
+        <RollingWindowCard />
+        <DateCards mode={dateRangeMode} />
+        <ExtendedStatsCard />
+        <BenchmarkCard />
+      </ParamRow>
+    </ParamSection>
   );
 }
 
 const BacktestParamsForm = memo(function BacktestParamsForm() {
-  const { t } = useTranslation();
   return (
-    <div className="params-section">
-      <div className="params-title">{t('params.title')}</div>
-      <ParamsPanel>
-        <BasicParamsSection />
-        <AdvancedSettingsSection />
-        <CashflowLegsSection />
-        <OneTimeCashflowSection />
-      </ParamsPanel>
-    </div>
+    <>
+      <BasicParamsSection />
+      <CashflowLegsSection />
+      <OneTimeCashflowSection />
+    </>
   );
 });
 
