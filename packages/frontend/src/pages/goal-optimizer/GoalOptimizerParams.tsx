@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Plus, X } from 'lucide-react';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import type { GoalAsset } from './goalOptimizerUtils.js';
 
 /** 参数面板 props */
@@ -44,8 +45,7 @@ function ConstraintField({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="param-field">
-      <span className="param-label">{label}</span>
+    <ParamCard label={label}>
       <div className="param-input-suffix-wrap">
         <input
           type="number"
@@ -58,7 +58,7 @@ function ConstraintField({
         />
         <span className="param-input-suffix">%</span>
       </div>
-    </div>
+    </ParamCard>
   );
 }
 
@@ -90,7 +90,7 @@ function ConstraintsAndSimulation({
         info={t('goalOptimizer.constraints.sectionInfo')}
         defaultOpen={false}
       >
-        <div className="params-row">
+        <ParamRow>
           <ConstraintField
             label={t('goalOptimizer.constraints.maxDrawdown')}
             value={maxDrawdown}
@@ -106,23 +106,24 @@ function ConstraintsAndSimulation({
             value={maxVolatility}
             onChange={onMaxVolatilityChange}
           />
-        </div>
+        </ParamRow>
       </ParamsSection>
       <ParamsSection
         title={t('goalOptimizer.simulation.section')}
         info={t('goalOptimizer.simulation.sectionInfo')}
       >
-        <div className="param-field">
-          <span className="param-label">{t('goalOptimizer.simulation.count')}</span>
-          <input
-            type="number"
-            className="param-input"
-            value={numSimulations}
-            onChange={(e) => onNumSimulationsChange(Number(e.target.value))}
-            min={100}
-            max={10000}
-          />
-        </div>
+        <ParamRow>
+          <ParamCard label={t('goalOptimizer.simulation.count')}>
+            <input
+              type="number"
+              className="param-input"
+              value={numSimulations}
+              onChange={(e) => onNumSimulationsChange(Number(e.target.value))}
+              min={100}
+              max={10000}
+            />
+          </ParamCard>
+        </ParamRow>
       </ParamsSection>
     </>
   );
@@ -150,9 +151,8 @@ function GoalSettingsSection({
       title={t('goalOptimizer.goal.section')}
       info={t('goalOptimizer.goal.sectionInfo')}
     >
-      <div className="params-row">
-        <div className="param-field">
-          <span className="param-label">{t('goalOptimizer.goal.targetAmount')}</span>
+      <ParamRow>
+        <ParamCard label={t('goalOptimizer.goal.targetAmount')}>
           <div className="param-input-prefix-wrap">
             <span className="param-input-prefix">$</span>
             <input
@@ -163,9 +163,8 @@ function GoalSettingsSection({
               min={0}
             />
           </div>
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('goalOptimizer.goal.initialAmount')}</span>
+        </ParamCard>
+        <ParamCard label={t('goalOptimizer.goal.initialAmount')}>
           <div className="param-input-prefix-wrap">
             <span className="param-input-prefix">$</span>
             <input
@@ -176,9 +175,8 @@ function GoalSettingsSection({
               min={0}
             />
           </div>
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('goalOptimizer.goal.timeRange')}</span>
+        </ParamCard>
+        <ParamCard label={t('goalOptimizer.goal.timeRange')}>
           <div className="param-input-suffix-wrap">
             <input
               type="number"
@@ -189,8 +187,8 @@ function GoalSettingsSection({
             />
             <span className="param-input-suffix">{t('goalOptimizer.yearUnit')}</span>
           </div>
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
     </ParamsSection>
   );
 }
