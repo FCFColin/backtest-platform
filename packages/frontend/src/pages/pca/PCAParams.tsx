@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Plus, X } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 
 /** PCA 参数面板 Props */
 interface PCAParamsProps {
@@ -91,45 +92,44 @@ export function PCAParamsPanel({
       />
 
       <ParamsSection title={t('pca.dateRange.section')}>
-        <div className="params-row">
-          <div className="param-field">
-            <span className="param-label">{t('pca.dateRange.startDate')}</span>
+        <ParamRow>
+          <ParamCard label={t('pca.dateRange.startDate')}>
             <input
               type="date"
               className="param-input"
               value={startDate}
               onChange={(e) => onStartDateChange(e.target.value)}
             />
-          </div>
-          <div className="param-field">
-            <span className="param-label">{t('pca.dateRange.endDate')}</span>
+          </ParamCard>
+          <ParamCard label={t('pca.dateRange.endDate')}>
             <input
               type="date"
               className="param-input"
               value={endDate}
               onChange={(e) => onEndDateChange(e.target.value)}
             />
-          </div>
-        </div>
+          </ParamCard>
+        </ParamRow>
       </ParamsSection>
 
       <ParamsSection title={t('pca.params.section')} defaultOpen={false}>
-        <div className="param-field">
-          <span className="param-label">{t('pca.params.numComponents')}</span>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              min={1}
-              className="param-input param-input-with-suffix"
-              value={numComponents}
-              onChange={(e) =>
-                onNumComponentsChange(e.target.value === '' ? '' : Number(e.target.value))
-              }
-              placeholder={t('pca.params.numComponentsPlaceholder')}
-            />
-            <span className="param-input-suffix">{t('pca.params.numComponentsSuffix')}</span>
-          </div>
-        </div>
+        <ParamRow>
+          <ParamCard label={t('pca.params.numComponents')}>
+            <div className="param-input-suffix-wrap">
+              <input
+                type="number"
+                min={1}
+                className="param-input param-input-with-suffix"
+                value={numComponents}
+                onChange={(e) =>
+                  onNumComponentsChange(e.target.value === '' ? '' : Number(e.target.value))
+                }
+                placeholder={t('pca.params.numComponentsPlaceholder')}
+              />
+              <span className="param-input-suffix">{t('pca.params.numComponentsSuffix')}</span>
+            </div>
+          </ParamCard>
+        </ParamRow>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
           {t('pca.params.numComponentsHint')}
         </div>
