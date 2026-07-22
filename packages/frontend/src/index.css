@@ -1,9 +1,3 @@
-@import './styles/base.css';
-@import './styles/components-backtest.css';
-@import './styles/components-portfolio.css';
-@import './styles/components-common.css';
-@import './styles/utilities.css';
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

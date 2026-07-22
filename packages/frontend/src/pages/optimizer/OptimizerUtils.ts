@@ -1,116 +1,10 @@
 import { useState } from 'react';
-import type { OptimizationResult, Statistics } from '@backtest/shared';
-import { apiFetch } from '@/utils/apiClient';
-import {
-  DEFAULT_BACKTEST_START_DATE,
-  DEFAULT_END_DATE,
-  BASE_BACKTEST_PARAMS,
-} from '@/utils/constants';
+import type { Statistics } from '@backtest/shared';
+import { useOptimizerLikeState } from '../../hooks/useOptimizerLikeState.js';
+import type { OptimizerStateParams, OptimizerResultExt, SolverType } from './optimizerApi.js';
+import { fetchStats, loadInBacktesterAction, runOptimizeApi } from './optimizerApi.js';
 
-export type SolverType = 'markowitz' | 'ga';
-export type OptimizerResultExt = OptimizationResult & {
-  frontier?: Array<{ expectedReturn: number; expectedVolatility: number; sharpeRatio: number }>;
-};
-
-const BASE_PARAMS = {
-  ...BASE_BACKTEST_PARAMS,
-  startingValue: 10000,
-  adjustForInflation: false,
-  baseCurrency: 'usd' as const,
-};
-
-function buildConstraints(s: OptimizerStateParams): Record<string, number> {
-  const c: Record<string, number> = {
-    minWeight: s.minWeight / 100,
-    maxWeight: s.maxWeight / 100,
-    tbillRate: s.tbillRate,
-  };
-  if (s.enableMinCagr && s.minCagr !== '') c.minCagr = Number(s.minCagr) / 100;
-  if (s.minSharpe !== '') c.minSharpe = Number(s.minSharpe);
-  if (s.minSortino !== '') c.minSortino = Number(s.minSortino);
-  if (s.enableMaxVol && s.maxVol !== '') c.maxVol = Number(s.maxVol) / 100;
-  if (s.enableMaxDD && s.maxMaxDD !== '') c.maxMaxDD = Number(s.maxMaxDD) / 100;
-  if (s.maxAvgDD !== '') c.maxAvgDD = Number(s.maxAvgDD) / 100;
-  return c;
-}
-
-async function runOptimizeApi(
-  s: OptimizerStateParams,
-  t: (k: string) => string,
-): Promise<OptimizerResultExt> {
-  const validTickers = s.tickers.filter(Boolean);
-  const body: Record<string, unknown> = {
-    tickers: validTickers,
-    objective: s.objective,
-    constraints: buildConstraints(s),
-    parameters: { ...BASE_PARAMS, startDate: s.startDate, endDate: s.endDate },
-    allowShort: s.allowShort,
-    solver: s.solver,
-  };
-  if (s.maxHoldings !== '') body.maxHoldings = Number(s.maxHoldings);
-  if (s.minWeightToInclude !== '') body.minWeightToInclude = Number(s.minWeightToInclude) / 100;
-  const res = await apiFetch('/api/v1/backtest/optimize', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.success === false) throw new Error(json.error || t('optimizer.optFailed'));
-  return json.data ?? json;
-}
-
-async function fetchStats(
-  optResult: OptimizerResultExt,
-  s: OptimizerStateParams,
-  t: (k: string) => string,
-): Promise<Statistics | null> {
-  const weights = Object.entries(optResult.optimalWeights as Record<string, number>);
-  const btBody = {
-    portfolios: [
-      {
-        name: t('optimizer.optimalPortfolio'),
-        assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
-        rebalanceFrequency: 'quarterly',
-        rebalanceOffset: 0,
-        drag: 0,
-        totalReturn: true,
-      },
-    ],
-    parameters: { ...BASE_PARAMS, startDate: s.startDate, endDate: s.endDate },
-  };
-  const r = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(btBody),
-  });
-  if (!r.ok) return null;
-  const j = await r.json();
-  return (j.data ?? j).portfolios?.[0]?.statistics ?? null;
-}
-
-interface OptimizerStateParams {
-  tickers: string[];
-  startDate: string;
-  endDate: string;
-  minWeight: number;
-  maxWeight: number;
-  tbillRate: number;
-  allowShort: boolean;
-  solver: SolverType;
-  objective: string;
-  minCagr: string;
-  minSharpe: string;
-  minSortino: string;
-  maxVol: string;
-  maxMaxDD: string;
-  maxAvgDD: string;
-  maxHoldings: string;
-  minWeightToInclude: string;
-  enableMaxDD: boolean;
-  enableMinCagr: boolean;
-  enableMaxVol: boolean;
-}
+export type { SolverType, OptimizerResultExt } from './optimizerApi.js';
 
 export interface EfficientFrontierState {
   tickers: string[];
@@ -162,16 +56,27 @@ export interface EfficientFrontierState {
   handleLoadInBacktester: () => void;
 }
 
-function useOptimizerSetters() {
-  const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND']);
-  const [objective, setObjective] = useState('maxSharpe');
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
+function useWeightConstraints() {
   const [minWeight, setMinWeight] = useState(0);
   const [maxWeight, setMaxWeight] = useState(100);
   const [tbillRate, setTbillRate] = useState(5.0);
   const [allowShort, setAllowShort] = useState(false);
   const [solver, setSolver] = useState<SolverType>('markowitz');
+  return {
+    minWeight,
+    setMinWeight,
+    maxWeight,
+    setMaxWeight,
+    tbillRate,
+    setTbillRate,
+    allowShort,
+    setAllowShort,
+    solver,
+    setSolver,
+  };
+}
+
+function useOptimizerConstraints() {
   const [minCagr, setMinCagr] = useState('');
   const [minSharpe, setMinSharpe] = useState('');
   const [minSortino, setMinSortino] = useState('');
@@ -183,30 +88,7 @@ function useOptimizerSetters() {
   const [enableMaxDD, setEnableMaxDD] = useState(false);
   const [enableMinCagr, setEnableMinCagr] = useState(false);
   const [enableMaxVol, setEnableMaxVol] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isCalculatingStats, setIsCalculatingStats] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<OptimizerResultExt | null>(null);
-  const [backtestStats, setBacktestStats] = useState<Statistics | null>(null);
   return {
-    tickers,
-    setTickers,
-    objective,
-    setObjective,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    minWeight,
-    setMinWeight,
-    maxWeight,
-    setMaxWeight,
-    tbillRate,
-    setTbillRate,
-    allowShort,
-    setAllowShort,
-    solver,
-    setSolver,
     minCagr,
     setMinCagr,
     minSharpe,
@@ -229,14 +111,47 @@ function useOptimizerSetters() {
     setEnableMinCagr,
     enableMaxVol,
     setEnableMaxVol,
+  };
+}
+
+function useOptimizerSetters() {
+  const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND']);
+  const [objective, setObjective] = useState('maxSharpe');
+  const {
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
     isLoading,
     setIsLoading,
-    isCalculatingStats,
-    setIsCalculatingStats,
     error,
     setError,
     results,
     setResults,
+  } = useOptimizerLikeState<OptimizerResultExt>();
+  const weights = useWeightConstraints();
+  const constraints = useOptimizerConstraints();
+  const [isCalculatingStats, setIsCalculatingStats] = useState(false);
+  const [backtestStats, setBacktestStats] = useState<Statistics | null>(null);
+  return {
+    ...weights,
+    ...constraints,
+    tickers,
+    setTickers,
+    objective,
+    setObjective,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    results,
+    setResults,
+    isCalculatingStats,
+    setIsCalculatingStats,
     backtestStats,
     setBacktestStats,
   };
@@ -299,37 +214,6 @@ async function runOptimizeAction(
   } finally {
     s.setIsLoading(false);
   }
-}
-
-function loadInBacktesterAction(
-  s: ReturnType<typeof useOptimizerSetters>,
-  t: (k: string) => string,
-  navigate: (path: string) => void,
-) {
-  if (!s.results) return;
-  const weights = Object.entries(s.results.optimalWeights);
-  const data = {
-    portfolios: [
-      {
-        id: `portfolio-${Date.now()}-1`,
-        name: t('optimizer.optimalPortfolio'),
-        assets: weights.map(([tk, w]) => ({ ticker: tk, weight: Math.round(w * 10000) / 100 })),
-        rebalanceFrequency: 'quarterly',
-        rebalanceOffset: 0,
-        drag: 0,
-        totalReturn: true,
-      },
-    ],
-    parameters: {
-      ...BASE_PARAMS,
-      startDate: s.startDate,
-      endDate: s.endDate,
-      startingValue: 10000,
-      baseCurrency: 'usd',
-    },
-  };
-  localStorage.setItem('bt_load_from_optimizer', JSON.stringify(data));
-  navigate('/');
 }
 
 export function useOptimizerState(

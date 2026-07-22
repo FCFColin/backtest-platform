@@ -24,12 +24,8 @@ export function StatisticsGroupRows({ group, portfolios, colCount }: StatisticsG
   const { t } = useTranslation();
   return (
     <Fragment key={group.title}>
-      <tr style={{ backgroundColor: 'var(--bg-strong)' }}>
-        <td
-          colSpan={colCount}
-          className="text-[12px] font-bold py-2 px-3"
-          style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
-        >
+      <tr className="stat-table-group-row">
+        <td colSpan={colCount} className="stat-table-group-cell text-[12px]">
           {t(group.title)}
         </td>
       </tr>

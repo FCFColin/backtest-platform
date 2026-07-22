@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TimeSeriesLineChartContent } from './sharedChartContent.js';
+import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 
 export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   tickers,
@@ -51,10 +51,11 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
           </select>
         </div>
       </div>
-      <TimeSeriesLineChartContent
+      <TimeSeriesLineChart
         data={data}
-        seriesNames={[seriesName]}
+        series={[seriesName]}
         height={300}
+        defaultStrokeWidth={1.5}
         tooltipValueFormatter={(v) => [v.toFixed(3), t('analysis.correlation')]}
         tooltipLabelFormatter={(label) => `${t('common.date')}: ${label}`}
         yDomain={[-1, 1]}

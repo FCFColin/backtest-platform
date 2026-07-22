@@ -1,5 +1,11 @@
 import i18n from '../i18n/index.js';
-import type { BacktestResult, Portfolio, BacktestParameters, Statistics } from '@backtest/shared';
+import type {
+  BacktestResult,
+  Portfolio,
+  BacktestParameters,
+  Statistics,
+  RebalanceFrequency,
+} from '@backtest/shared';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validatePortfolioCore } from '@/utils/validation';
 
@@ -61,6 +67,150 @@ export const createDefaultPortfolio = (counter: number): Portfolio => {
       { id: `asset-${Date.now()}-2`, ticker: 'BND', weight: 40 },
     ],
     rebalanceFrequency: 'quarterly',
+    rebalanceOffset: 0,
+    drag: 0,
+    totalReturn: true,
+  };
+};
+
+/**
+ * 创建一个空的投资组合（预置3个空资产行供用户填写）。
+ * @param counter - 组合计数器
+ * @returns 含3个空资产行的 Portfolio 对象
+ */
+export const createEmptyPortfolio = (counter: number): Portfolio => {
+  const now = Date.now();
+  return {
+    id: `portfolio-${now}-${counter}`,
+    name: `Portfolio ${counter}`,
+    assets: [
+      { id: `asset-${now}-0`, ticker: '', weight: 0 },
+      { id: `asset-${now}-1`, ticker: '', weight: 0 },
+      { id: `asset-${now}-2`, ticker: '', weight: 0 },
+    ],
+    rebalanceFrequency: 'quarterly',
+    rebalanceOffset: 0,
+    drag: 0,
+    totalReturn: true,
+  };
+};
+
+/** 预设组合中的单项资产配置 */
+export interface PortfolioPresetAsset {
+  ticker: string;
+  weight: number;
+}
+
+/** 预设组合定义 */
+export interface PortfolioPreset {
+  id: string;
+  labelKey: string;
+  descriptionKey: string;
+  assets: PortfolioPresetAsset[];
+  rebalanceFrequency: RebalanceFrequency;
+}
+
+/**
+ * 内置经典资产配置预设清单。
+ *
+ * 每个预设包含 id、i18n key、资产权重及默认调仓频率。
+ * labelKey / descriptionKey 在 src/i18n/locales/{en,zh-CN}/translation.json
+ * 的 `portfolio.preset.<id>.{label,description}` 路径下维护。
+ */
+export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = [
+  {
+    id: '60-40',
+    labelKey: 'portfolio.preset.60-40.label',
+    descriptionKey: 'portfolio.preset.60-40.description',
+    assets: [
+      { ticker: 'VTI', weight: 60 },
+      { ticker: 'BND', weight: 40 },
+    ],
+    rebalanceFrequency: 'quarterly',
+  },
+  {
+    id: '80-20',
+    labelKey: 'portfolio.preset.80-20.label',
+    descriptionKey: 'portfolio.preset.80-20.description',
+    assets: [
+      { ticker: 'VTI', weight: 80 },
+      { ticker: 'BND', weight: 20 },
+    ],
+    rebalanceFrequency: 'quarterly',
+  },
+  {
+    id: '40-60',
+    labelKey: 'portfolio.preset.40-60.label',
+    descriptionKey: 'portfolio.preset.40-60.description',
+    assets: [
+      { ticker: 'VTI', weight: 40 },
+      { ticker: 'BND', weight: 60 },
+    ],
+    rebalanceFrequency: 'quarterly',
+  },
+  {
+    id: 'three-fund',
+    labelKey: 'portfolio.preset.three-fund.label',
+    descriptionKey: 'portfolio.preset.three-fund.description',
+    assets: [
+      { ticker: 'VTI', weight: 50 },
+      { ticker: 'VXUS', weight: 30 },
+      { ticker: 'BND', weight: 20 },
+    ],
+    rebalanceFrequency: 'quarterly',
+  },
+  {
+    id: 'all-weather',
+    labelKey: 'portfolio.preset.all-weather.label',
+    descriptionKey: 'portfolio.preset.all-weather.description',
+    assets: [
+      { ticker: 'VTI', weight: 30 },
+      { ticker: 'TLT', weight: 40 },
+      { ticker: 'GLD', weight: 15 },
+      { ticker: 'DBC', weight: 15 },
+    ],
+    rebalanceFrequency: 'quarterly',
+  },
+  {
+    id: 'permanent',
+    labelKey: 'portfolio.preset.permanent.label',
+    descriptionKey: 'portfolio.preset.permanent.description',
+    assets: [
+      { ticker: 'VTI', weight: 25 },
+      { ticker: 'TLT', weight: 25 },
+      { ticker: 'GLD', weight: 25 },
+      { ticker: 'SHV', weight: 25 },
+    ],
+    rebalanceFrequency: 'quarterly',
+  },
+];
+
+/**
+ * 根据预设 ID 创建投资组合。
+ *
+ * 组合名称取自预设的 i18n labelKey（在调用时通过 i18n.t 解析为当前语言），
+ * 资产 id 形如 `asset-${Date.now()}-${index}` 以保证唯一性。
+ *
+ * @param presetId - PORTFOLIO_PRESETS 中某一项的 id
+ * @param counter - 组合计数器，用于生成组合 id
+ * @returns 与预设配置匹配的 Portfolio 对象
+ * @throws 当 presetId 不匹配任何预设时抛出 Error
+ */
+export const createPortfolioFromPreset = (presetId: string, counter: number): Portfolio => {
+  const preset = PORTFOLIO_PRESETS.find((p) => p.id === presetId);
+  if (!preset) {
+    throw new Error(`Unknown portfolio preset: ${presetId}`);
+  }
+  const now = Date.now();
+  return {
+    id: `portfolio-${now}-${counter}`,
+    name: i18n.t(preset.labelKey),
+    assets: preset.assets.map((a, idx) => ({
+      id: `asset-${now}-${idx}`,
+      ticker: a.ticker,
+      weight: a.weight,
+    })),
+    rebalanceFrequency: preset.rebalanceFrequency,
     rebalanceOffset: 0,
     drag: 0,
     totalReturn: true,

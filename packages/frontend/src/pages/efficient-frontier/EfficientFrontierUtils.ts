@@ -1,25 +1,11 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { useOptimizerLikeState } from '../../hooks/useOptimizerLikeState.js';
 import { apiFetch } from '@/utils/apiClient';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './efficientFrontierTypes.js';
-import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-
-function buildBacktestParameters(startDate: string, endDate: string) {
-  return {
-    startDate,
-    endDate,
-    startingValue: 10000,
-    adjustForInflation: false,
-    rollingWindowMonths: 12,
-    benchmarkTicker: '',
-    baseCurrency: 'usd',
-    extendedWithdrawalStats: false,
-    cashflowLegs: [],
-    oneTimeCashflows: [],
-  };
-}
+import { buildBacktestParameters } from '@/utils/constants';
 
 function buildPortfolioData(
   p: EfficientFrontierPoint,
@@ -42,18 +28,7 @@ function buildPortfolioData(
         totalReturn: true,
       },
     ],
-    parameters: {
-      startDate,
-      endDate,
-      startingValue: 10000,
-      baseCurrency: 'usd',
-      adjustForInflation: false,
-      rollingWindowMonths: 12,
-      benchmarkTicker: '',
-      extendedWithdrawalStats: false,
-      cashflowLegs: [],
-      oneTimeCashflows: [],
-    },
+    parameters: buildBacktestParameters(startDate, endDate),
   };
 }
 
@@ -163,13 +138,15 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
 function useEfficientFrontierStateInner() {
   const navigate = useNavigate();
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
+  // 复用 useOptimizerLikeState 提供 startDate/endDate/results + setter。
+  // isLoading/error 由下方 useAsyncAction 统一管理（提供 run 包装异步执行），
+  // 故 shared hook 的 isLoading/error/setIsLoading/setError 在此处未使用。
+  const { startDate, setStartDate, endDate, setEndDate, results, setResults } =
+    useOptimizerLikeState<EfficientFrontierResult>();
   const [numPoints, setNumPoints] = useState(20);
   const [solveSpeed, setSolveSpeed] = useState<SolveSpeed>('fast');
   const [minInclusionWeight, setMinInclusionWeight] = useState(0);
   const { isLoading, error, run, setError } = useAsyncAction();
-  const [results, setResults] = useState<EfficientFrontierResult | null>(null);
   const [selectedPoint, setSelectedPoint] = useState<EfficientFrontierPoint | null>(null);
   const [correlations, setCorrelations] = useState<{
     tickers: string[];

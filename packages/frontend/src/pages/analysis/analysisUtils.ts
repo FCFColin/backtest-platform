@@ -54,7 +54,7 @@ export async function fetchAnalysisResult(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 180_000);
   try {
-    const res = await apiFetch('/api/backtest/analysis', {
+    const res = await apiFetch('/api/v1/backtest/analysis', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,

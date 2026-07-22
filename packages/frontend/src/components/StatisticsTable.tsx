@@ -36,7 +36,7 @@ export default function StatisticsTable({ portfolios, compact }: StatisticsTable
   return (
     <ChartCard title={t('components.statisticsTable.title')}>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="stat-table w-full">
           <thead>
             <StatisticsTableHeader portfolios={portfolios} />
           </thead>

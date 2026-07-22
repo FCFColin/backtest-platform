@@ -2,8 +2,9 @@
 import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
-import { ToolSeoCard } from '../../components/layout/index.js';
+import { ToolSeoCard } from '../../components/layout/ToolSeoCard.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import { buildBestMetrics } from './backtestOptimizerUtils.js';
 import { PortfolioConfigSection } from './backtestOptimizer/PortfolioConfigSection.tsx';
 import { ParameterSpaceSection } from './backtestOptimizer/ParameterSpaceSection.tsx';
@@ -19,27 +20,24 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
       title={t('backtest.optimizer.backtestRange')}
       info={t('backtest.optimizer.backtestRangeInfo')}
     >
-      <div className="params-row">
-        <div className="param-field">
-          <span className="param-label">{t('backtest.optimizer.startDate')}</span>
+      <ParamRow>
+        <ParamCard label={t('backtest.optimizer.startDate')}>
           <input
             type="date"
             className="param-input"
             value={s.startDate}
             onChange={(e) => s.setStartDate(e.target.value)}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('backtest.optimizer.endDate')}</span>
+        </ParamCard>
+        <ParamCard label={t('backtest.optimizer.endDate')}>
           <input
             type="date"
             className="param-input"
             value={s.endDate}
             onChange={(e) => s.setEndDate(e.target.value)}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('backtest.optimizer.benchmarkTicker')}</span>
+        </ParamCard>
+        <ParamCard label={t('backtest.optimizer.benchmarkTicker')}>
           <input
             type="text"
             className="param-input"
@@ -47,8 +45,8 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
             onChange={(e) => s.setBenchmarkTicker(e.target.value)}
             placeholder={t('backtest.optimizer.benchmarkPlaceholder')}
           />
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
     </ParamsSection>
   );
 }
@@ -136,10 +134,7 @@ function OptimizerResults({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   if (s.error) {
     return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
-      >
+      <div style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}>
         {t('backtest.optimizer.optimizeFailed')}
         {s.error}
       </div>
@@ -147,16 +142,13 @@ function OptimizerResults({ s }: OptimizerSectionProps) {
   }
   if (!s.results) {
     return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48 }}
-      >
+      <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48 }}>
         {t('backtest.optimizer.configHint')}
       </div>
     );
   }
   return (
-    <div className="bt-results-card card">
+    <div className="flex flex-col gap-4">
       <BestMetricsCard best={s.best} totalCombos={s.totalCombos} />
       <GrowthComparisonChart best={s.best} benchmarkGrowth={s.benchmarkGrowth} />
       <ComparisonTableSection results={s.results} objective={s.objective} />

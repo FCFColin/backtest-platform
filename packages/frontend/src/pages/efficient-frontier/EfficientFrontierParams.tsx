@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Play, Plus, X } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
-import { ParamRow, ParamCard } from '../../components/params/index.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './efficientFrontierTypes.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
@@ -245,7 +245,7 @@ function FrontierParams(props: FrontierParamsProps) {
   return (
     <div className="bt-main-card card">
       <FrontierParamsFields p={props} />
-      <div className="bt-action-row">
+      <ActionBar>
         <LoadingButton
           isLoading={props.isLoading}
           onClick={props.onRun}
@@ -254,7 +254,7 @@ function FrontierParams(props: FrontierParamsProps) {
           <Play className="w-4 h-4" />
           {t('efficientFrontier.params.calcFrontier')}
         </LoadingButton>
-      </div>
+      </ActionBar>
       <FrontierTickerList p={props} />
     </div>
   );

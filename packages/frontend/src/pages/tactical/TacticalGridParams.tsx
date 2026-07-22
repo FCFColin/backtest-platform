@@ -7,6 +7,7 @@ import { Play } from 'lucide-react';
 import type { RebalanceFrequency } from '@backtest/shared';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import { INDICATOR_OPTIONS, OBJECTIVE_OPTIONS, REBALANCE_OPTIONS } from './tacticalGridUtils.js';
 import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils.js';
 import type { TacticalGridState } from '@/hooks/useTacticalGridState';
@@ -22,9 +23,8 @@ function ParamRangeRow({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="params-row">
-      <div className="param-field">
-        <span className="param-label">{t('tacticalGrid.params.min')}</span>
+    <ParamRow>
+      <ParamCard label={t('tacticalGrid.params.min')}>
         <input
           type="number"
           className="param-input"
@@ -32,9 +32,8 @@ function ParamRangeRow({
           min={inputMin}
           onChange={(e) => onChange({ ...range, min: Number(e.target.value) })}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('tacticalGrid.params.max')}</span>
+      </ParamCard>
+      <ParamCard label={t('tacticalGrid.params.max')}>
         <input
           type="number"
           className="param-input"
@@ -42,9 +41,8 @@ function ParamRangeRow({
           min={inputMin}
           onChange={(e) => onChange({ ...range, max: Number(e.target.value) })}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('tacticalGrid.params.step')}</span>
+      </ParamCard>
+      <ParamCard label={t('tacticalGrid.params.step')}>
         <input
           type="number"
           className="param-input"
@@ -53,8 +51,8 @@ function ParamRangeRow({
           step={0.5}
           onChange={(e) => onChange({ ...range, step: Number(e.target.value) })}
         />
-      </div>
-    </div>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
@@ -66,8 +64,7 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
       title={t('tacticalGrid.params.signalGrid')}
       info={t('tacticalGrid.params.signalGridInfo')}
     >
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('tacticalGrid.params.indicator')}</span>
+      <ParamCard label={t('tacticalGrid.params.indicator')} style={{ marginBottom: 8 }}>
         <select
           className="param-input"
           value={indicator}
@@ -79,7 +76,7 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
             </option>
           ))}
         </select>
-      </div>
+      </ParamCard>
 
       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>
         {paramLabels.p1}
@@ -127,8 +124,7 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
       title={t('tacticalGrid.params.backtestParams')}
       info={t('tacticalGrid.params.backtestParamsInfo')}
     >
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('tacticalGrid.params.ticker')}</span>
+      <ParamCard label={t('tacticalGrid.params.ticker')} style={{ marginBottom: 8 }}>
         <input
           type="text"
           className="param-input"
@@ -136,30 +132,27 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
           onChange={(e) => setTicker(e.target.value)}
           placeholder={t('tacticalGrid.params.tickerPlaceholder')}
         />
-      </div>
-      <div className="params-row" style={{ marginBottom: 8 }}>
-        <div className="param-field">
-          <span className="param-label">{t('tacticalGrid.params.startDate')}</span>
+      </ParamCard>
+      <ParamRow style={{ marginBottom: 8 }}>
+        <ParamCard label={t('tacticalGrid.params.startDate')}>
           <input
             type="date"
             className="param-input"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('tacticalGrid.params.endDate')}</span>
+        </ParamCard>
+        <ParamCard label={t('tacticalGrid.params.endDate')}>
           <input
             type="date"
             className="param-input"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
-        </div>
-      </div>
-      <div className="params-row">
-        <div className="param-field">
-          <span className="param-label">{t('tacticalGrid.params.startingValue')}</span>
+        </ParamCard>
+      </ParamRow>
+      <ParamRow>
+        <ParamCard label={t('tacticalGrid.params.startingValue')}>
           <input
             type="number"
             className="param-input"
@@ -167,9 +160,8 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
             min={100}
             onChange={(e) => setStartingValue(Number(e.target.value))}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('tacticalGrid.params.rebalanceFreq')}</span>
+        </ParamCard>
+        <ParamCard label={t('tacticalGrid.params.rebalanceFreq')}>
           <select
             className="param-input"
             value={rebalanceFrequency}
@@ -181,8 +173,8 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
               </option>
             ))}
           </select>
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
     </ParamsSection>
   );
 }
@@ -199,8 +191,7 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
         title={t('tacticalGrid.params.objectiveSection')}
         info={t('tacticalGrid.params.objectiveSectionInfo')}
       >
-        <div className="param-field">
-          <span className="param-label">{t('tacticalGrid.params.objective')}</span>
+        <ParamCard label={t('tacticalGrid.params.objective')}>
           <select
             className="param-input"
             value={objective}
@@ -212,7 +203,7 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
               </option>
             ))}
           </select>
-        </div>
+        </ParamCard>
       </ParamsSection>
       <div className="bt-action-row">
         <LoadingButton

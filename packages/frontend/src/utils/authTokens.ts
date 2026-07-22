@@ -11,6 +11,7 @@
  */
 
 const REFRESH_TOKEN_STORAGE = 'bt_refresh_token';
+const FETCH_TIMEOUT_MS = 10_000;
 
 /** Access Token（仅内存） */
 let accessToken = '';
@@ -72,11 +73,15 @@ export function refreshTokens(): Promise<boolean> {
 
   inflightRefresh = (async () => {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
       const res = await fetch('/api/v1/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (!res.ok) {
         clearTokens();
         return false;

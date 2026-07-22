@@ -2,33 +2,17 @@
  * @file 净值增长曲线图
  * @description 展示各投资组合的净值增长曲线，支持线性和对数坐标切换及基准货币换算
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Brush,
-} from 'recharts';
+import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, BaseCurrency } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import { ChartExporter } from '../ChartExporter.js';
 import { useChartData, CHART_MAX_POINTS } from '../../hooks/useChartInteractions.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
 import ChartCard from '../ChartCard.js';
-import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
-  DATE_TICK_FORMATTER,
-} from './chartConstants.js';
+import { CHART_MARGIN, CHART_GRID_PROPS } from './chartConstants.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 
 /** 货币符号映射 */
 const CURRENCY_SYMBOL: Record<BaseCurrency, string> = { usd: '$', cny: '¥' };
@@ -117,6 +101,38 @@ interface GrowthChartContentProps {
   t: (key: string) => string;
 }
 
+/** 从图表数据中提取所有正值的最小值和最大值。 */
+function extractValueRange(
+  chartData: Array<Record<string, unknown>>,
+  portfolios: PortfolioResult[],
+): { min: number; max: number } | null {
+  const keys = portfolios.map((p) => p.name);
+  let min = Infinity;
+  let max = -Infinity;
+  for (const row of chartData) {
+    for (const key of keys) {
+      const v = row[key];
+      if (typeof v !== 'number' || !isFinite(v) || v <= 0) continue;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+  }
+  return isFinite(min) && isFinite(max) ? { min, max } : null;
+}
+
+/** 计算对数坐标的 Y 轴域（确保所有值为正）。 */
+function useLogDomain(
+  chartData: Array<Record<string, unknown>>,
+  portfolios: PortfolioResult[],
+): [number, number] | undefined {
+  return useMemo(() => {
+    const range = extractValueRange(chartData, portfolios);
+    if (!range) return undefined;
+    const padding = (range.max / range.min) ** 0.1;
+    return [range.min / padding, range.max * padding] as [number, number];
+  }, [chartData, portfolios]);
+}
+
 function GrowthChartContent({
   chartData,
   portfolios,
@@ -124,26 +140,26 @@ function GrowthChartContent({
   baseCurrency,
   t,
 }: GrowthChartContentProps) {
+  const logDomain = useLogDomain(chartData, logScale ? portfolios : []);
+
   return (
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={chartData} margin={CHART_MARGIN}>
         <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-        <YAxis
+        <ChartXAxis />
+        <ChartYAxis
           scale={logScale ? 'log' : 'linear'}
-          domain={['auto', 'auto']}
-          tick={AXIS_TICK_STYLE}
+          domain={logDomain ?? ['auto', 'auto']}
           tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
         />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
+        <ChartTooltip
           labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
           formatter={(value: number) => [
             `${CURRENCY_SYMBOL[baseCurrency]}${value.toLocaleString()}`,
             '',
           ]}
         />
-        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
+        <ChartLegend />
         {portfolios.map((p, idx) => (
           <Line
             key={p.name}
@@ -155,15 +171,6 @@ function GrowthChartContent({
             activeDot={{ r: 4 }}
           />
         ))}
-        {chartData.length > 100 && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
       </LineChart>
     </ResponsiveContainer>
   );

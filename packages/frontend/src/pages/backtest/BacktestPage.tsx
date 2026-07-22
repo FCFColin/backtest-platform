@@ -1,17 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
 import type { ComputeToolConfig } from '../../components/shells/types.js';
-import BacktestParamsForm from '@/components/BacktestParamsForm';
-import PortfolioEditor from '@/components/PortfolioEditor';
+import BacktestParamsForm from '@/components/BacktestParamsForm.js';
+import PortfolioEditor from '@/components/PortfolioEditor.js';
 import { useBacktestPageState } from './hooks/useBacktestPageState.js';
-import { BacktestToolbar } from './BacktestToolbar.tsx';
-import { ResultsContent } from './BacktestResults.tsx';
+import { BacktestToolbar } from './BacktestToolbar.js';
+import { ResultsContent } from './BacktestResults.js';
 
 function BacktestParamsWrapper({ state }: { state: any }) {
   return (
     <>
       <BacktestParamsForm />
-      <PortfolioEditor />
       <BacktestToolbar
         runBacktest={state.runBacktest}
         showSaveInput={state.showSaveInput}
@@ -30,12 +29,22 @@ function BacktestParamsWrapper({ state }: { state: any }) {
   );
 }
 
+function PortfolioWrapper(_: { state: any }) {
+  return (
+    <div className="card" style={{ borderRadius: 12 }}>
+      <PortfolioEditor />
+    </div>
+  );
+}
+
 function BacktestResultsWrapper(_: { state: any }) {
   return <ResultsContent />;
 }
 
 const config: ComputeToolConfig<any> = {
   titleKey: 'backtest.title',
+  paramsTitle: 'Parameters',
+  seoSubtitleKey: 'backtest.seoSubtitle',
   seoDescKey: 'backtest.seoDesc',
   seoFeatures: [
     { titleKey: 'backtest.seoModelable', descKey: 'backtest.seoModelableDesc' },
@@ -48,6 +57,7 @@ const config: ComputeToolConfig<any> = {
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
   ],
   params: BacktestParamsWrapper,
+  afterParams: PortfolioWrapper,
   results: BacktestResultsWrapper,
 };
 

@@ -1,8 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { CheckCircle, BarChart3 } from 'lucide-react';
-import type { Stats, UniverseStats } from './types.js';
-import { fmt, pct } from './utils.js';
-import { QualityItem } from './dataEngineUI.js';
+import type { Stats } from './types.js';
+import { fmt } from './utils.js';
 
 export function SampleTickersCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
@@ -77,53 +75,6 @@ export function RecentUpdatesCard({ stats }: { stats: Stats }) {
           </span>
         </div>
       ))}
-    </div>
-  );
-}
-
-export function DataQualityCard({
-  stats,
-  universe,
-}: {
-  stats: Stats;
-  universe: UniverseStats | null;
-}) {
-  const { t } = useTranslation();
-  const totalCached = stats.total_cached || 0;
-  const totalUniverse = universe?.total || totalCached;
-  return (
-    <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
-        {t('dataEngine.dataQuality')}
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 12,
-        }}
-      >
-        <QualityItem
-          icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />}
-          label={t('dataEngine.adjClosePrice')}
-          value={pct(stats.data_quality.with_adj_close || 0, totalUniverse)}
-        />
-        <QualityItem
-          icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />}
-          label={t('dataEngine.dividendData')}
-          value={pct(stats.data_quality.with_dividends || 0, totalCached)}
-        />
-        <QualityItem
-          icon={<CheckCircle className="w-4 h-4" style={{ color: 'var(--success)' }} />}
-          label={t('dataEngine.withSplits')}
-          value={pct(stats.data_quality.with_splits || 0, totalCached)}
-        />
-        <QualityItem
-          icon={<BarChart3 className="w-4 h-4" style={{ color: 'var(--brand)' }} />}
-          label={t('dataEngine.medianDataPoints')}
-          value={fmt(stats.coverage.median_data_points || 0)}
-        />
-      </div>
     </div>
   );
 }

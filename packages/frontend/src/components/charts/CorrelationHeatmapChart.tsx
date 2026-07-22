@@ -6,23 +6,14 @@ import { useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
   Brush,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import {
-  CHART_TOOLTIP_STYLE,
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  DATE_TICK_FORMATTER,
-} from './chartConstants.js';
+import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from './chartConstants.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 import { getCorrelationColor } from './chartColors.js';
 import { MatrixHeatmap } from './MatrixHeatmap.js';
 import { SimpleTable, type SimpleTableColumn } from '../SimpleTable.js';
@@ -221,19 +212,9 @@ function RollingCorrelationLineChart({
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={chartData} margin={CHART_MARGIN}>
         <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
-          tickFormatter={DATE_TICK_FORMATTER}
-          interval="preserveStartEnd"
-        />
-        <YAxis
-          domain={[-1, 1]}
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => v.toFixed(1)}
-        />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
+        <ChartXAxis tickFontSize={10} interval="preserveStartEnd" />
+        <ChartYAxis domain={[-1, 1]} tickFormatter={(v: number) => v.toFixed(1)} />
+        <ChartTooltip
           formatter={(value: number) => [value.toFixed(4), t('charts.correlation.correlation')]}
           labelFormatter={(label: string) => t('charts.correlation.dateLabel', { label })}
         />
@@ -249,7 +230,7 @@ function RollingCorrelationLineChart({
           activeDot={{ r: 3 }}
           name={pairName}
         />
-        <Legend wrapperStyle={{ fontSize: '12px' }} />
+        <ChartLegend />
         {chartData.length > 100 && (
           <Brush
             dataKey="date"

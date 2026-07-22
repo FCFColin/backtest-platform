@@ -5,7 +5,7 @@
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import { TimeSeriesLineChartContent } from './sharedChartContent.js';
+import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
@@ -38,10 +38,11 @@ export default function RollingReturnChart({ portfolios }: RollingReturnChartPro
       data={mergedData}
       csvFilename="rolling-return"
     >
-      <TimeSeriesLineChartContent
+      <TimeSeriesLineChart
         data={chartData}
-        seriesNames={portfolios.map((p) => p.name)}
+        series={portfolios.map((p) => p.name)}
         height={300}
+        defaultStrokeWidth={1.5}
         yTickFormatter={(v) => `${v.toFixed(0)}%`}
         tooltipValueFormatter={(v) => [`${v.toFixed(2)}%`, '']}
         tooltipLabelFormatter={(label) => t('charts.rollingReturn.dateLabel', { label })}

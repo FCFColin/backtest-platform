@@ -1,43 +1,18 @@
 import { useState } from 'react';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { REBALANCE_FREQUENCIES, REBALANCE_FREQUENCY_COLORS } from '@backtest/shared';
-import { apiFetch } from '@/utils/apiClient';
 import { useListState } from '../../hooks/useListState.js';
-import {
-  DEFAULT_BACKTEST_START_DATE,
-  DEFAULT_END_DATE,
-  BASE_BACKTEST_PARAMS,
-} from '@/utils/constants';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
+import {
+  FREQ_ORDER,
+  OFFSETS,
+  fetchFreqResult,
+  fetchOffsetResult,
+  type FreqResult,
+} from './rebalancingSensitivityBuilders.js';
 
-const REBALANCE_LABELS_ZH: Record<RebalanceFrequency, string> = {
-  daily: '每日',
-  weekly: '每周',
-  monthly: '每月',
-  quarterly: '每季度',
-  annual: '每年',
-  none: '不调仓',
-  threshold: '阈值',
-};
-
-export const REBALANCE_OPTIONS: { value: RebalanceFrequency; label: string; color: string }[] =
-  REBALANCE_FREQUENCIES.map((value) => ({
-    value,
-    label: REBALANCE_LABELS_ZH[value],
-    color: REBALANCE_FREQUENCY_COLORS[value],
-  }));
-
-export interface FreqResult {
-  frequency: RebalanceFrequency;
-  label: string;
-  color: string;
-  cagr: number;
-  stdev: number;
-  maxDrawdown: number;
-  sharpe: number;
-  sortino: number;
-  growthCurve?: Array<{ date: string; value: number }>;
-}
+export { REBALANCE_OPTIONS } from './rebalancingSensitivityBuilders.js';
+export type { FreqResult } from './rebalancingSensitivityBuilders.js';
 
 export const TABS = [
   { key: 'scatter', label: 'Scatter' },
@@ -45,141 +20,6 @@ export const TABS = [
   { key: 'offset', label: 'Offset Curves' },
   { key: 'table', label: 'Table' },
 ];
-
-const FREQ_ORDER: Record<string, number> = {
-  daily: 0,
-  weekly: 1,
-  monthly: 2,
-  quarterly: 3,
-  annual: 4,
-};
-
-const OFFSETS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20];
-
-function buildBacktestBody(
-  label: string,
-  assets: Array<{ ticker: string; weight: number }>,
-  freq: RebalanceFrequency,
-  offset: number,
-  params: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    baseCurrency: 'usd' | 'cny';
-    adjustForInflation: boolean;
-  },
-) {
-  return {
-    portfolios: [
-      {
-        name: label,
-        assets,
-        rebalanceFrequency: freq,
-        rebalanceOffset: offset,
-        drag: 0,
-        totalReturn: true,
-      },
-    ],
-    parameters: { ...params, ...BASE_BACKTEST_PARAMS },
-  };
-}
-
-function applyRebalanceBands(
-  portfolios: Array<Record<string, unknown>>,
-  absoluteBand: number | '',
-  relativeBand: number | '',
-) {
-  if (absoluteBand === '' && relativeBand === '') return;
-  portfolios[0].rebalanceBands = {
-    enabled: true,
-    absoluteBand: absoluteBand !== '' ? Number(absoluteBand) : undefined,
-    relativeBand: relativeBand !== '' ? Number(relativeBand) : undefined,
-  };
-}
-
-function extractFreqResult(
-  json: unknown,
-  freq: RebalanceFrequency,
-  label: string,
-  color: string,
-): FreqResult {
-  const data = (json as { data?: unknown })?.data ?? json;
-  const p = (
-    data as {
-      portfolios?: Array<{
-        statistics?: Record<string, number>;
-        growthCurve?: Array<{ date: string; value: number }>;
-      }>;
-    }
-  )?.portfolios?.[0];
-  if (!p) throw new Error(`无结果 (${label})`);
-  const stats = p.statistics ?? {};
-  return {
-    frequency: freq,
-    label,
-    color,
-    cagr: stats.cagr ?? 0,
-    stdev: stats.stdev ?? 0,
-    maxDrawdown: stats.maxDrawdown ?? 0,
-    sharpe: stats.sharpe ?? 0,
-    sortino: stats.sortino ?? 0,
-    growthCurve: p.growthCurve,
-  };
-}
-
-async function fetchFreqResult(
-  freq: RebalanceFrequency,
-  assets: Array<{ ticker: string; weight: number }>,
-  params: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    baseCurrency: 'usd' | 'cny';
-    adjustForInflation: boolean;
-  },
-  absoluteBand: number | '',
-  relativeBand: number | '',
-): Promise<FreqResult> {
-  const opt = REBALANCE_OPTIONS.find((o) => o.value === freq)!;
-  const body = buildBacktestBody(opt.label, assets, freq, 0, params);
-  applyRebalanceBands(
-    body.portfolios as Array<Record<string, unknown>>,
-    absoluteBand,
-    relativeBand,
-  );
-  const res = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status} (${opt.label})`);
-  const json = await res.json();
-  if (json.success === false) throw new Error(json.error || `回测失败 (${opt.label})`);
-  return extractFreqResult(json, freq, opt.label, opt.color);
-}
-
-async function fetchOffsetResult(
-  offset: number,
-  freq: RebalanceFrequency,
-  assets: Array<{ ticker: string; weight: number }>,
-  params: {
-    startDate: string;
-    endDate: string;
-    startingValue: number;
-    baseCurrency: 'usd' | 'cny';
-    adjustForInflation: boolean;
-  },
-): Promise<{ offset: number; cagr: number }> {
-  const body = buildBacktestBody(`offset-${offset}`, assets, freq, offset, params);
-  const res = await apiFetch('/api/v1/backtest/portfolio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) return { offset, cagr: 0 };
-  const json = await res.json();
-  return { offset, cagr: (json.data ?? json).portfolios?.[0]?.statistics?.cagr ?? 0 };
-}
 
 export interface RebalancingState {
   startDate: string;

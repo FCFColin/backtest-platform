@@ -87,6 +87,3 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-
-/* 统一参数布局组件样式 */
-@import './components-params.css';

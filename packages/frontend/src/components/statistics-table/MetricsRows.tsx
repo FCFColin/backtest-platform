@@ -19,6 +19,16 @@ export interface MetricsRowsProps {
 }
 
 /**
+ * 判断数值应该显示什么颜色：正值绿色，负值红色
+ */
+function getValueColorClass(val: number | undefined): string {
+  if (val == null) return '';
+  if (val > 0) return 'stat-value-positive';
+  if (val < 0) return 'stat-value-negative';
+  return '';
+}
+
+/**
  * 渲染一组统计指标数据行。
  *
  * 行为：
@@ -27,35 +37,21 @@ export interface MetricsRowsProps {
  */
 export function MetricsRows({ rows, portfolios }: MetricsRowsProps) {
   const { t } = useTranslation();
-  let rowIdx = 0;
   return (
     <>
       {rows.map((row) => {
-        const hasAnyValue = portfolios.some(
-          (p) => p.statistics[row.key] !== undefined && p.statistics[row.key] !== null,
-        );
+        const hasAnyValue = portfolios.some((p) => p.statistics[row.key] != null);
         if (!hasAnyValue) return null;
-        const isAlt = rowIdx % 2 === 1;
-        rowIdx++;
         return (
-          <tr key={row.key} style={{ backgroundColor: isAlt ? 'var(--bg-subtle)' : 'transparent' }}>
-            <td
-              className="text-[13px] py-2 px-3"
-              style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
-            >
-              {t(row.label)}
-            </td>
+          <tr key={row.key} className="stat-table-data-row">
+            <td className="stat-table-metric-cell text-[13px]">{t(row.label)}</td>
             {portfolios.map((p) => {
               const val = p.statistics[row.key] as number | undefined;
+              const colorClass = getValueColorClass(val);
               return (
                 <td
                   key={p.name}
-                  className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                  style={{
-                    color: 'var(--text-strong)',
-                    borderBottom: '1px solid var(--border-soft)',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className={`stat-table-value-cell stat-table-num text-[13px] ${colorClass}`}
                 >
                   {formatValue(val, row.fmt)}
                 </td>

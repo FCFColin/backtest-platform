@@ -5,6 +5,7 @@
 import { useTranslation } from 'react-i18next';
 import type { SignalType } from '@backtest/shared/types/signal';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import {
   INDICATORS,
   TickerField,
@@ -68,8 +69,7 @@ function IndicatorConfigSection({
       info={t('signal.analyzer.indicatorSectionInfo')}
     >
       <TickerField value={ticker} onChange={setTicker} />
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('signal.analyzer.indicator')}</span>
+      <ParamCard label={t('signal.analyzer.indicator')}>
         <select
           className="param-input"
           value={indicator}
@@ -81,10 +81,9 @@ function IndicatorConfigSection({
             </option>
           ))}
         </select>
-      </div>
-      <div className="params-row">
-        <div className="param-field">
-          <span className="param-label">{t('signal.analyzer.period')}</span>
+      </ParamCard>
+      <ParamRow>
+        <ParamCard label={t('signal.analyzer.period')}>
           <input
             type="number"
             className="param-input"
@@ -92,17 +91,16 @@ function IndicatorConfigSection({
             min={2}
             onChange={(e) => setPeriod(Number(e.target.value))}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('signal.analyzer.threshold')}</span>
+        </ParamCard>
+        <ParamCard label={t('signal.analyzer.threshold')}>
           <input
             type="number"
             className="param-input"
             value={threshold}
             onChange={(e) => setThreshold(Number(e.target.value))}
           />
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
         {t('signal.analyzer.thresholdHint')}
       </div>
@@ -126,8 +124,7 @@ function SignalConfigSection({
   const { t } = useTranslation();
   return (
     <ParamsSection title={t('signal.analyzer.signalConfigSection')}>
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('signal.analyzer.signalType')}</span>
+      <ParamCard label={t('signal.analyzer.signalType')}>
         <select
           className="param-input"
           value={signalType}
@@ -139,7 +136,7 @@ function SignalConfigSection({
             </option>
           ))}
         </select>
-      </div>
+      </ParamCard>
       <DateRangeFields
         startDate={startDate}
         endDate={endDate}

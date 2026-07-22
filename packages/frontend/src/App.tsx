@@ -24,11 +24,13 @@ function AppLayout() {
     <>
       {!isAdmin && <Navbar />}
       <Toast />
-      <ToolRoutes />
-      <PublicRoutes />
-      <AuthRoutes />
-      <AccountRoutes />
-      <AdminRoutes />
+      <main style={{ paddingTop: isAdmin ? 0 : 80, minHeight: '100vh' }}>
+        <ToolRoutes />
+        <PublicRoutes />
+        <AuthRoutes />
+        <AccountRoutes />
+        <AdminRoutes />
+      </main>
       {!isAdmin && <Footer />}
     </>
   );

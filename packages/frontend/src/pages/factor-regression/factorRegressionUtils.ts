@@ -153,7 +153,7 @@ export async function fetchRegression(
 
   // 获取每个标的的分析数据（含 dailyReturns）
   const tickers = validAssets.map((a) => a.ticker);
-  const analysisRes = await apiFetch('/api/backtest/analysis', {
+  const analysisRes = await apiFetch('/api/v1/backtest/analysis', {
     method: 'POST',
     body: JSON.stringify({
       tickers,

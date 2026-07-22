@@ -5,6 +5,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import { ParamsSection } from '../../../components/ParamsPanel.js';
+import { ParamRow, ParamCard } from '../../../components/params/index.js';
 import type { OptimizerSectionProps, ConstraintRowProps, Objective } from './types.js';
 
 function ConstraintRow({
@@ -21,19 +22,21 @@ function ConstraintRow({
         <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
         <span>{label}</span>
       </label>
-      <div className="param-field param-field-rolling" style={{ flex: 1 }}>
-        <div className="param-input-suffix-wrap">
-          <input
-            type="number"
-            step="0.1"
-            className="param-input param-input-with-suffix"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={placeholder}
-            disabled={!enabled}
-          />
-          <span className="param-input-suffix">%</span>
-        </div>
+      <div style={{ flex: 1 }}>
+        <ParamCard label="">
+          <div className="param-input-suffix-wrap">
+            <input
+              type="number"
+              step="0.1"
+              className="param-input param-input-with-suffix"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder={placeholder}
+              disabled={!enabled}
+            />
+            <span className="param-input-suffix">%</span>
+          </div>
+        </ParamCard>
       </div>
     </div>
   );
@@ -46,9 +49,8 @@ export function ObjectiveSection({ s }: OptimizerSectionProps) {
       title={t('backtest.optimizer.objective')}
       info={t('backtest.optimizer.objectiveInfo')}
     >
-      <div className="params-row">
-        <div className="param-field">
-          <span className="param-label">{t('backtest.optimizer.target')}</span>
+      <ParamRow>
+        <ParamCard label={t('backtest.optimizer.target')}>
           <select
             className="param-input"
             value={s.objective}
@@ -59,8 +61,8 @@ export function ObjectiveSection({ s }: OptimizerSectionProps) {
             <option value="maxSharpe">{t('backtest.optimizer.maxSharpe')}</option>
             <option value="maxSortino">{t('backtest.optimizer.maxSortino')}</option>
           </select>
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
         <ConstraintRow
           enabled={s.enableMaxDD}

@@ -4,7 +4,7 @@
  *              已加载方案列表面板两个内嵌子组件。
  */
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2, Save, FolderOpen, Trash2, X, Share2 } from 'lucide-react';
+import { Play, Loader2, FolderOpen, Trash2, X } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import type { SavedPortfolio } from '@/utils/portfolioStorage';
 import type { BacktestToolbarProps } from './BacktestPage.types.js';
@@ -140,57 +140,42 @@ export function BacktestToolbar(props: BacktestToolbarProps) {
   const { t } = useTranslation();
   const isLoading = useBacktestStore((s) => s.isLoading);
   return (
-    <div className="bt-action-row">
+    <div className="action-bar">
       <button
         onClick={props.runBacktest}
         disabled={isLoading}
-        className="main-action-btn"
-        style={{ width: '100%' }}
+        className="btn btn-primary"
         data-testid="backtest-run"
       >
         {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
         {isLoading ? t('backtest.running') : t('backtest.runButton')}
       </button>
-      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-        <button
-          onClick={() => props.setShowSaveInput(!props.showSaveInput)}
-          className="toolbar-btn"
-          style={{ flex: 1, justifyContent: 'center' }}
-        >
-          <Save className="w-3.5 h-3.5" /> {t('backtest.savePortfolio')}
-        </button>
-        <button
-          onClick={() => void props.handleOpenLoadList()}
-          className="toolbar-btn"
-          style={{ flex: 1, justifyContent: 'center' }}
-        >
-          <FolderOpen className="w-3.5 h-3.5" /> {t('backtest.loadPortfolio')}
-        </button>
-        <button
-          onClick={props.handleShareLink}
-          className="toolbar-btn"
-          title={t('backtest.shareLink')}
-          style={{ justifyContent: 'center' }}
-        >
-          <Share2 className="w-3.5 h-3.5" />
+      <div className="toolbar-btn-group">
+        <button onClick={() => void props.handleOpenLoadList()} className="btn btn-secondary">
+          <FolderOpen className="w-3.5 h-3.5" /> {t('common.loadSavedBacktest')}
+          <span className="chevron-down">▼</span>
         </button>
       </div>
       {props.showSaveInput && (
-        <SaveInputRow
-          configName={props.configName}
-          setConfigName={props.setConfigName}
-          handleSaveConfig={props.handleSaveConfig}
-          setShowSaveInput={props.setShowSaveInput}
-          t={t}
-        />
+        <div className="bt-action-row-expanded">
+          <SaveInputRow
+            configName={props.configName}
+            setConfigName={props.setConfigName}
+            handleSaveConfig={props.handleSaveConfig}
+            setShowSaveInput={props.setShowSaveInput}
+            t={t}
+          />
+        </div>
       )}
       {props.showLoadList && (
-        <LoadListPanel
-          savedConfigs={props.savedConfigs}
-          handleLoadConfig={props.handleLoadConfig}
-          handleDeleteConfig={props.handleDeleteConfig}
-          t={t}
-        />
+        <div className="bt-action-row-expanded">
+          <LoadListPanel
+            savedConfigs={props.savedConfigs}
+            handleLoadConfig={props.handleLoadConfig}
+            handleDeleteConfig={props.handleDeleteConfig}
+            t={t}
+          />
+        </div>
       )}
     </div>
   );

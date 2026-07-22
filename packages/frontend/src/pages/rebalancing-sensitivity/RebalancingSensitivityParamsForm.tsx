@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Loader2 } from 'lucide-react';
 import { REBALANCE_OPTIONS, type RebalancingState } from './rebalancingSensitivityUtils.js';
 import { BasicParamsRow, PortfolioEditor } from '../../components/ParamsShared.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 
 function FreqSelector({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
@@ -52,11 +53,8 @@ function FreqSelector({ s }: { s: RebalancingState }) {
 function RebalBandFields({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   return (
-    <div
-      style={{ marginTop: 12, display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}
-    >
-      <div className="param-field" style={{ width: 120 }}>
-        <label className="param-label">{t('rebalancingSensitivity.params.absoluteBand')}</label>
+    <ParamRow>
+      <ParamCard label={t('rebalancingSensitivity.params.absoluteBand')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -69,9 +67,8 @@ function RebalBandFields({ s }: { s: RebalancingState }) {
           />
           <span className="param-input-suffix">%</span>
         </div>
-      </div>
-      <div className="param-field" style={{ width: 120 }}>
-        <label className="param-label">{t('rebalancingSensitivity.params.relativeBand')}</label>
+      </ParamCard>
+      <ParamCard label={t('rebalancingSensitivity.params.relativeBand')}>
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -84,8 +81,8 @@ function RebalBandFields({ s }: { s: RebalancingState }) {
           />
           <span className="param-input-suffix">%</span>
         </div>
-      </div>
-    </div>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
@@ -121,11 +118,11 @@ export function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState })
         onRemove={s.removeAsset}
         onUpdate={s.updateAsset}
       />
-      <div className="bt-action-row">
+      <ActionBar>
         <button
           onClick={() => void s.runSensitivity()}
           disabled={s.isLoading}
-          className="main-action-btn"
+          className="btn-primary"
           style={{ width: '100%' }}
         >
           {s.isLoading ? (
@@ -137,7 +134,7 @@ export function RebalancingSensitivityParamsForm({ s }: { s: RebalancingState })
             ? t('rebalancingSensitivity.params.analyzing')
             : t('rebalancingSensitivity.params.startAnalysis')}
         </button>
-      </div>
+      </ActionBar>
     </>
   );
 }

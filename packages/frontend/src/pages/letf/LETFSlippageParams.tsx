@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 
 /** 参数面板属性 */
 interface LETFParamsProps {
@@ -43,8 +44,7 @@ function LetfEtfSelection({
   const { t } = useTranslation();
   return (
     <ParamsSection title={t('letf.etf.section')} info={t('letf.etf.sectionInfo')}>
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('letf.etf.letfTicker')}</span>
+      <ParamCard label={t('letf.etf.letfTicker')}>
         <input
           type="text"
           className="param-input"
@@ -52,9 +52,8 @@ function LetfEtfSelection({
           onChange={(e) => onLetfTickerChange(e.target.value)}
           placeholder={t('letf.etf.letfTickerPlaceholder')}
         />
-      </div>
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('letf.etf.benchmarkTicker')}</span>
+      </ParamCard>
+      <ParamCard label={t('letf.etf.benchmarkTicker')}>
         <input
           type="text"
           className="param-input"
@@ -62,9 +61,8 @@ function LetfEtfSelection({
           onChange={(e) => onBenchmarkTickerChange(e.target.value)}
           placeholder={t('letf.etf.benchmarkTickerPlaceholder')}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('letf.etf.leverage')}</span>
+      </ParamCard>
+      <ParamCard label={t('letf.etf.leverage')}>
         <div style={{ display: 'flex', gap: 8 }}>
           {[2, 3].map((lev) => (
             <button
@@ -86,7 +84,7 @@ function LetfEtfSelection({
             </button>
           ))}
         </div>
-      </div>
+      </ParamCard>
     </ParamsSection>
   );
 }
@@ -118,26 +116,24 @@ export function LETFParamsPanel({
       />
 
       <ParamsSection title={t('letf.dateRange.section')}>
-        <div className="params-row">
-          <div className="param-field">
-            <span className="param-label">{t('letf.dateRange.startDate')}</span>
+        <ParamRow>
+          <ParamCard label={t('letf.dateRange.startDate')}>
             <input
               type="date"
               className="param-input"
               value={startDate}
               onChange={(e) => onStartDateChange(e.target.value)}
             />
-          </div>
-          <div className="param-field">
-            <span className="param-label">{t('letf.dateRange.endDate')}</span>
+          </ParamCard>
+          <ParamCard label={t('letf.dateRange.endDate')}>
             <input
               type="date"
               className="param-input"
               value={endDate}
               onChange={(e) => onEndDateChange(e.target.value)}
             />
-          </div>
-        </div>
+          </ParamCard>
+        </ParamRow>
       </ParamsSection>
 
       <div className="bt-action-row">

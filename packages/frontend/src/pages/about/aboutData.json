@@ -1,0 +1,74 @@
+{
+  "features": [
+    {
+      "iconName": "Shield",
+      "titleKey": "about.features.localDeployTitle",
+      "descKey": "about.features.localDeployDesc"
+    },
+    {
+      "iconName": "Globe",
+      "titleKey": "about.features.multiMarketTitle",
+      "descKey": "about.features.multiMarketDesc"
+    },
+    {
+      "iconName": "Clock",
+      "titleKey": "about.features.highPerfTitle",
+      "descKey": "about.features.highPerfDesc"
+    },
+    {
+      "iconName": "Database",
+      "titleKey": "about.features.richDataTitle",
+      "descKey": "about.features.richDataDesc"
+    }
+  ],
+  "limits": [
+    {
+      "labelKey": "about.limits.portfolioCountLabel",
+      "valueKey": "about.limits.portfolioCountValue",
+      "descKey": "about.limits.portfolioCountDesc"
+    },
+    {
+      "labelKey": "about.limits.tickerCountLabel",
+      "valueKey": "about.limits.tickerCountValue",
+      "descKey": "about.limits.tickerCountDesc"
+    },
+    {
+      "labelKey": "about.limits.backtestRangeLabel",
+      "valueKey": "about.limits.backtestRangeValue",
+      "descKey": "about.limits.backtestRangeDesc"
+    },
+    {
+      "labelKey": "about.limits.mcSimLabel",
+      "valueKey": "about.limits.mcSimValue",
+      "descKey": "about.limits.mcSimDesc"
+    },
+    {
+      "labelKey": "about.limits.fetchFreqLabel",
+      "valueKey": "about.limits.fetchFreqValue",
+      "descKey": "about.limits.fetchFreqDesc"
+    },
+    {
+      "labelKey": "about.limits.concurrentLabel",
+      "valueKey": "about.limits.concurrentValue",
+      "descKey": "about.limits.concurrentDesc"
+    }
+  ],
+  "plans": [
+    {
+      "titleKey": "about.upgrade.freePlanTitle",
+      "priceKey": "about.upgrade.freePlanPrice",
+      "featuresKey": "about.upgrade.freePlanFeatures",
+      "current": true
+    },
+    {
+      "titleKey": "about.upgrade.dataPlanTitle",
+      "priceKey": "about.upgrade.dataPlanPrice",
+      "featuresKey": "about.upgrade.dataPlanFeatures"
+    },
+    {
+      "titleKey": "about.upgrade.perfPlanTitle",
+      "priceKey": "about.upgrade.perfPlanPrice",
+      "featuresKey": "about.upgrade.perfPlanFeatures"
+    }
+  ]
+}

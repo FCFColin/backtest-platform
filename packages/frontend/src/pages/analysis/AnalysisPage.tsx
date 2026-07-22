@@ -11,9 +11,7 @@ function AnalysisParamsWrapper({ state }: { state: State }) {
   return (
     <AnalysisParamsPanel
       tickers={state.tickers}
-      addTicker={state.addTicker}
-      removeTicker={state.removeTicker}
-      updateTicker={state.updateTicker}
+      setTickers={state.setTickers}
       startDate={state.startDate}
       setStartDate={state.setStartDate}
       endDate={state.endDate}
@@ -49,6 +47,7 @@ function AnalysisResultsWrapper({ state }: { state: State }) {
 const config: ComputeToolConfig<State> = {
   titleKey: 'analysis.title',
   seoDescKey: 'analysis.seoDesc',
+  hideParamsTitle: true,
   seoFeatures: [
     { titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoAnalyzableDesc' },
     { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' },

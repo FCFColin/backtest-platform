@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2, Plus, X } from 'lucide-react';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
-import { ParamRow, ParamCard } from '../../components/params/index.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
@@ -320,11 +320,11 @@ function OptimizerParams({ s }: { s: EfficientFrontierState }): ReactNode {
       <BasicParams s={s} />
       <HistoricalConstraints s={s} />
       <AdvancedConstraints s={s} />
-      <div className="bt-action-row" style={{ padding: '12px 0 4px' }}>
+      <ActionBar>
         <button
           onClick={() => void s.runOptimize()}
           disabled={s.isLoading || s.isCalculatingStats}
-          className="main-action-btn"
+          className="btn-primary"
           style={{ width: '100%' }}
         >
           {s.isLoading ? (
@@ -338,7 +338,7 @@ function OptimizerParams({ s }: { s: EfficientFrontierState }): ReactNode {
               ? t('optimizer.optimizing')
               : t('optimizer.startCalc')}
         </button>
-      </div>
+      </ActionBar>
     </ParamsPanel>
   );
 }

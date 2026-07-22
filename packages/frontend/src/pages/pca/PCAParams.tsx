@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Plus, X } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
-import { ParamRow, ParamCard } from '../../components/params/index.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 
 /** PCA 参数面板 Props */
 interface PCAParamsProps {
@@ -135,12 +135,12 @@ export function PCAParamsPanel({
         </div>
       </ParamsSection>
 
-      <div className="bt-action-row">
+      <ActionBar>
         <LoadingButton isLoading={isLoading} onClick={onRun} loadingText={t('pca.analyzing')}>
           <Play className="w-4 h-4" />
           {t('pca.startAnalysis')}
         </LoadingButton>
-      </div>
+      </ActionBar>
     </ParamsPanel>
   );
 }

@@ -5,6 +5,42 @@
  */
 import { Check, X, Star, Zap, Crown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import type { ComponentType } from 'react';
+import pricingData from './pricing/pricingData.json';
+
+const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  Star,
+  Zap,
+  Crown,
+};
+
+/** 已知的静态符号值（非 i18n key），其余字符串均按 i18n key 解析 */
+const STATIC_SYMBOLS = new Set(['—', '✓']);
+
+interface PlanFeatureEntry {
+  key: string;
+  included: boolean;
+}
+
+interface PlanEntry {
+  name: string;
+  iconName: string;
+  price?: string;
+  priceKey?: string;
+  period?: string;
+  periodKey?: string;
+  descKey: string;
+  ctaKey: string;
+  recommended?: boolean;
+  features: PlanFeatureEntry[];
+}
+
+interface ComparisonRowEntry {
+  featureKey: string;
+  free: string;
+  pro: string;
+  proPlus: string;
+}
 
 interface Plan {
   name: string;
@@ -19,63 +55,24 @@ interface Plan {
 
 function usePlans(): Plan[] {
   const { t } = useTranslation();
-  return [
-    {
-      name: 'Free',
-      icon: <Star className="w-5 h-5" />,
-      price: t('account.pricing.plans.free.price'),
-      period: '',
-      desc: t('account.pricing.plans.free.desc'),
-      features: [
-        { text: t('account.pricing.features.basicBacktest'), included: true },
-        { text: t('account.pricing.features.max3Portfolios'), included: true },
-        { text: t('account.pricing.features.1yrData'), included: true },
-        { text: t('account.pricing.features.basicStats'), included: true },
-        { text: t('account.pricing.features.monteCarlo'), included: false },
-        { text: t('account.pricing.features.portfolioOpt'), included: false },
-        { text: t('account.pricing.features.apiAccess'), included: false },
-        { text: t('account.pricing.features.prioritySupport'), included: false },
-      ],
-      cta: t('account.pricing.plans.free.cta'),
-    },
-    {
-      name: 'Pro',
-      icon: <Zap className="w-5 h-5" />,
-      price: '$10',
-      period: t('account.pricing.periodMonth'),
-      desc: t('account.pricing.plans.pro.desc'),
-      recommended: true,
-      features: [
-        { text: t('account.pricing.features.advancedBacktest'), included: true },
-        { text: t('account.pricing.features.unlimitedPortfolios'), included: true },
-        { text: t('account.pricing.features.10yrData'), included: true },
-        { text: t('account.pricing.features.all16Tabs'), included: true },
-        { text: t('account.pricing.features.monteCarlo'), included: true },
-        { text: t('account.pricing.features.optAndFrontier'), included: true },
-        { text: t('account.pricing.features.apiAccess'), included: false },
-        { text: t('account.pricing.features.prioritySupport'), included: false },
-      ],
-      cta: t('account.pricing.plans.pro.cta'),
-    },
-    {
-      name: 'Pro+',
-      icon: <Crown className="w-5 h-5" />,
-      price: '$25',
-      period: t('account.pricing.periodMonth'),
-      desc: t('account.pricing.plans.proPlus.desc'),
-      features: [
-        { text: t('account.pricing.features.allProFeatures'), included: true },
-        { text: t('account.pricing.features.unlimitedPortfolios'), included: true },
-        { text: t('account.pricing.features.allHistoryData'), included: true },
-        { text: t('account.pricing.features.all16Tabs'), included: true },
-        { text: t('account.pricing.features.monteCarlo'), included: true },
-        { text: t('account.pricing.features.optAndFrontier'), included: true },
-        { text: t('account.pricing.features.apiRestWs'), included: true },
-        { text: t('account.pricing.features.prioritySupport24h'), included: true },
-      ],
-      cta: t('account.pricing.plans.proPlus.cta'),
-    },
-  ];
+  return (pricingData.plans as PlanEntry[]).map((p) => {
+    const Icon = PLAN_ICONS[p.iconName] ?? Star;
+    return {
+      name: p.name,
+      icon: <Icon className="w-5 h-5" />,
+      price: p.priceKey ? t(p.priceKey) : (p.price ?? ''),
+      period: p.periodKey ? t(p.periodKey) : (p.period ?? ''),
+      desc: t(p.descKey),
+      recommended: p.recommended,
+      features: p.features.map((f) => ({ text: t(f.key), included: f.included })),
+      cta: t(p.ctaKey),
+    };
+  });
+}
+
+/** 若值为已知静态符号则原样返回，否则按 i18n key 解析 */
+function resolveCellValue(value: string, t: (key: string) => string): string {
+  return STATIC_SYMBOLS.has(value) ? value : t(value);
 }
 
 export default function PricingPage() {
@@ -120,6 +117,7 @@ export default function PricingPage() {
 
 function ComparisonTable() {
   const { t } = useTranslation();
+  const rows = pricingData.comparisonRows as ComparisonRowEntry[];
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 12 }}>
@@ -141,48 +139,15 @@ function ComparisonTable() {
             </tr>
           </thead>
           <tbody>
-            <CompareRow
-              feature={t('account.pricing.compare.portfolioCount')}
-              free={t('account.pricing.compare.3portfolios')}
-              pro={t('account.pricing.compare.unlimited')}
-              proPlus={t('account.pricing.compare.unlimited')}
-            />
-            <CompareRow
-              feature={t('account.pricing.compare.historyRange')}
-              free={t('account.pricing.compare.1yr')}
-              pro={t('account.pricing.compare.10yr')}
-              proPlus={t('account.pricing.compare.all')}
-            />
-            <CompareRow
-              feature={t('account.pricing.compare.analysisTabs')}
-              free={t('account.pricing.compare.basic')}
-              pro={t('account.pricing.compare.all16')}
-              proPlus={t('account.pricing.compare.all16')}
-            />
-            <CompareRow
-              feature={t('account.pricing.features.monteCarlo')}
-              free="—"
-              pro="✓"
-              proPlus="✓"
-            />
-            <CompareRow
-              feature={t('account.pricing.features.portfolioOpt')}
-              free="—"
-              pro="✓"
-              proPlus="✓"
-            />
-            <CompareRow
-              feature={t('account.pricing.features.apiAccess')}
-              free="—"
-              pro="—"
-              proPlus="✓"
-            />
-            <CompareRow
-              feature={t('account.pricing.compare.prioritySupport')}
-              free="—"
-              pro="—"
-              proPlus={t('account.pricing.compare.24hResponse')}
-            />
+            {rows.map((r) => (
+              <CompareRow
+                key={r.featureKey}
+                feature={t(r.featureKey)}
+                free={resolveCellValue(r.free, t)}
+                pro={resolveCellValue(r.pro, t)}
+                proPlus={resolveCellValue(r.proPlus, t)}
+              />
+            ))}
           </tbody>
         </table>
       </div>

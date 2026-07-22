@@ -2,7 +2,17 @@ import { fmtPct, fmtRatio } from '@/utils/format';
 import type { PortfolioResult } from '@backtest/shared';
 import type { WhatIfResult } from '@backtest/shared/types/tactical';
 import type { TFunction } from 'i18next';
-import type { StatRow } from './tacticalTypes.js';
+
+/**
+ * 统计指标对比行（tactical 策略 vs benchmark 等权基准）。
+ * `_sortTactical` 为排序用数值，不直接展示。
+ */
+export interface StatRow {
+  metric: string;
+  tactical: string;
+  benchmark: string;
+  _sortTactical: number;
+}
 
 /**
  * 格式化价格为 `$x.xx`，非正数显示占位符。

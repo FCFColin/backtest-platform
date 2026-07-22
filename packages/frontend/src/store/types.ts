@@ -19,7 +19,7 @@ export interface BacktestState {
   hasLoadedFromShare: boolean;
   _abortController: AbortController | null;
 
-  addPortfolio: () => void;
+  addPortfolio: (presetId?: string) => void;
   addGlidepath: (name: string, fromId: string, toId: string, years: number) => void;
   duplicatePortfolio: (id: string) => void;
   removePortfolio: (id: string) => void;

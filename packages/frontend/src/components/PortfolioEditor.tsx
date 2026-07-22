@@ -2,12 +2,12 @@
  * @file 投资组合编辑器
  * @description 投资组合配置编辑面板，支持增删标的、调整权重、设置调仓策略及导入导出
  */
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useBacktestStore } from '@/store/backtestStore';
-import { Share2 } from 'lucide-react';
 import type { RebalanceFrequency, BacktestParameters } from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
+import { PORTFOLIO_PRESETS } from '@/store/backtestHelpers.js';
 import type { StorePortfolio, TFunc } from './portfolioEditor/shared.js';
 import { GlidepathForm } from './portfolioEditor/GlidepathComponents.js';
 import { PortfolioCard } from './portfolioEditor/PortfolioCard.js';
@@ -24,54 +24,98 @@ function handleSavePortfolio(portfolio: StorePortfolio, parameters: BacktestPara
   useToastStore.getState().addToast('success', t('portfolio.savedAsJson'));
 }
 
-function handleSharePortfolios(
-  portfolios: StorePortfolio[],
-  parameters: BacktestParameters,
-  t: TFunc,
-) {
-  const shareData = { p: portfolios.map(({ id: _id, ...rest }) => rest), params: parameters };
-  const encoded = btoa(encodeURIComponent(JSON.stringify(shareData)));
-  const url = `${window.location.origin}${window.location.pathname}#share=${encoded}`;
-  navigator.clipboard
-    .writeText(url)
-    .then(() => {
-      useToastStore.getState().addToast('success', t('backtest.shareLinkCopied'));
-    })
-    .catch(() => {
-      const textarea = document.createElement('textarea');
-      textarea.value = url;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      useToastStore.getState().addToast('success', t('backtest.shareLinkCopied'));
-    });
+/** 构建调仓频率下拉选项（抽出以避免触发 max-lines-per-function 规则） */
+function buildRebalanceOptions(t: TFunc): { value: RebalanceFrequency; label: string }[] {
+  return [
+    { value: 'none', label: t('portfolio.rebalanceNone') },
+    { value: 'annual', label: t('portfolio.rebalanceAnnual') },
+    { value: 'quarterly', label: t('portfolio.rebalanceQuarterly') },
+    { value: 'monthly', label: t('portfolio.rebalanceMonthly') },
+    { value: 'weekly', label: t('portfolio.rebalanceWeekly') },
+    { value: 'daily', label: t('portfolio.rebalanceDaily') },
+    { value: 'threshold', label: t('portfolio.rebalanceThreshold') },
+  ];
 }
 
 /** 编辑器头部按钮区 */
 function PortfolioEditorHeader({
   t,
   onAdd,
+  onAddPreset,
   onAddGlidepath,
-  onShare,
+  onLoadExample,
 }: {
   t: TFunc;
   onAdd: () => void;
+  onAddPreset: (presetId: string) => void;
   onAddGlidepath: () => void;
-  onShare: () => void;
+  onLoadExample: () => void;
 }) {
+  const [presetOpen, setPresetOpen] = useState(false);
+  const presetContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!presetOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (presetContainerRef.current && !presetContainerRef.current.contains(e.target as Node)) {
+        setPresetOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [presetOpen]);
+
+  const handleComingSoon = () => {
+    useToastStore.getState().addToast('warning', 'Coming soon');
+  };
+
+  const handlePresetSelect = (presetId: string) => {
+    onAddPreset(presetId);
+    setPresetOpen(false);
+  };
+
   return (
     <div className="portfolios-header">
       <span className="portfolios-title">{t('portfolio.title')}</span>
+      <button className="portfolios-add-btn portfolios-add-btn-secondary" onClick={onLoadExample}>
+        Load example
+      </button>
       <button className="portfolios-add-btn" onClick={onAdd}>
         {t('portfolio.addEmpty')}
       </button>
-      <button className="portfolios-add-btn portfolios-add-btn-secondary" onClick={onAddGlidepath}>
-        {t('portfolio.addGlidepath')}
+      <div ref={presetContainerRef} className="portfolios-add-preset-wrap">
+        <button
+          className="portfolios-add-btn portfolios-add-btn-support"
+          aria-expanded={presetOpen}
+          onClick={() => setPresetOpen((v) => !v)}
+        >
+          {t('portfolio.addPreset')}
+        </button>
+        {presetOpen && (
+          <div className="preset-dropdown" role="menu">
+            {PORTFOLIO_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                className="preset-dropdown-item"
+                role="menuitem"
+                onClick={() => handlePresetSelect(preset.id)}
+              >
+                <span className="preset-dropdown-label">{t(preset.labelKey)}</span>
+                <span className="preset-dropdown-desc">{t(preset.descriptionKey)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button className="portfolios-add-btn portfolios-add-btn-support" onClick={handleComingSoon}>
+        {t('portfolio.addAsset')}
       </button>
-      <button className="portfolios-add-btn portfolios-add-btn-secondary" onClick={onShare}>
-        <Share2 className="w-3.5 h-3.5" />
-        {t('portfolio.shareLink')}
+      <button className="portfolios-add-btn portfolios-add-btn-muted" onClick={handleComingSoon}>
+        {t('portfolio.addSaved')}
+      </button>
+      <button className="portfolios-add-btn portfolios-add-btn-support" onClick={onAddGlidepath}>
+        {t('portfolio.addGlidepath')}
       </button>
     </div>
   );
@@ -92,15 +136,7 @@ export default function PortfolioEditor() {
   const parameters = useBacktestStore((s) => s.parameters);
 
   const rebalanceOptions = useMemo<{ value: RebalanceFrequency; label: string }[]>(
-    () => [
-      { value: 'none', label: t('portfolio.rebalanceNone') },
-      { value: 'annual', label: t('portfolio.rebalanceAnnual') },
-      { value: 'quarterly', label: t('portfolio.rebalanceQuarterly') },
-      { value: 'monthly', label: t('portfolio.rebalanceMonthly') },
-      { value: 'weekly', label: t('portfolio.rebalanceWeekly') },
-      { value: 'daily', label: t('portfolio.rebalanceDaily') },
-      { value: 'threshold', label: t('portfolio.rebalanceThreshold') },
-    ],
+    () => buildRebalanceOptions(t),
     [t],
   );
 
@@ -122,9 +158,10 @@ export default function PortfolioEditor() {
     <div className="portfolios-section">
       <PortfolioEditorHeader
         t={t}
-        onAdd={addPortfolio}
+        onAdd={() => addPortfolio()}
+        onAddPreset={(presetId) => addPortfolio(presetId)}
         onAddGlidepath={handleAddGlidepath}
-        onShare={() => handleSharePortfolios(portfolios, parameters, t)}
+        onLoadExample={() => addPortfolio()}
       />
       {showGlidepathForm && (
         <GlidepathForm
@@ -137,23 +174,29 @@ export default function PortfolioEditor() {
         />
       )}
       <div className="portfolios-cards">
-        {portfolios.map((portfolio, idx) => (
-          <PortfolioCard
-            key={portfolio.id}
-            portfolio={portfolio}
-            idx={idx}
-            rebalanceOptions={rebalanceOptions}
-            nonGlidepathPortfolios={nonGlidepathPortfolios}
-            onDuplicate={duplicatePortfolio}
-            onRemove={removePortfolio}
-            onSave={(p) => handleSavePortfolio(p, parameters, t)}
-            onUpdate={updatePortfolio}
-            onAddAsset={addAsset}
-            onRemoveAsset={removeAsset}
-            onUpdateAsset={updateAsset}
-            onBatchUpdate={batchUpdateAssets}
-          />
-        ))}
+        {portfolios.length === 0 ? (
+          <div className="portfolios-empty-placeholder">
+            No portfolios yet. Click ADD EMPTY to create one.
+          </div>
+        ) : (
+          portfolios.map((portfolio, idx) => (
+            <PortfolioCard
+              key={portfolio.id}
+              portfolio={portfolio}
+              idx={idx}
+              rebalanceOptions={rebalanceOptions}
+              nonGlidepathPortfolios={nonGlidepathPortfolios}
+              onDuplicate={duplicatePortfolio}
+              onRemove={removePortfolio}
+              onSave={(p) => handleSavePortfolio(p, parameters, t)}
+              onUpdate={updatePortfolio}
+              onAddAsset={addAsset}
+              onRemoveAsset={removeAsset}
+              onUpdateAsset={updateAsset}
+              onBatchUpdate={batchUpdateAssets}
+            />
+          ))
+        )}
       </div>
     </div>
   );

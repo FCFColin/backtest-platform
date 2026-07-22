@@ -3,27 +3,18 @@
  * @description 绘制因子回归散点图及拟合回归线，展示组合收益与因子的线性关系
  */
 import { useMemo } from 'react';
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
+import { ScatterChart, Scatter, CartesianGrid, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
+import { CHART_GRID_PROPS } from './chartConstants.js';
 import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
 } from '../../hooks/useChartInteractions.js';
-import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip } from './ChartAxis.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { SimpleTable } from '../SimpleTable.js';
 import type { SimpleTableColumn } from '../SimpleTable.js';
@@ -111,32 +102,19 @@ function RegressionScatterChart({
       <ResponsiveContainer width="100%" height={400}>
         <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
           <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <XAxis
+          <ChartXAxis
             type="number"
             dataKey="x"
             name={t('charts.regression.baseDailyReturn')}
-            tick={AXIS_TICK_STYLE}
-            label={{
-              value: t('charts.regression.dailyReturnAxis', { name: baseName }),
-              position: 'insideBottom',
-              offset: -10,
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
+            label={t('charts.regression.dailyReturnAxis', { name: baseName })}
           />
-          <YAxis
+          <ChartYAxis
             type="number"
             dataKey="y"
             name={t('charts.regression.targetDailyReturn')}
-            tick={AXIS_TICK_STYLE}
-            label={{
-              value: t('charts.regression.dailyReturnAxis', { name: reg.name }),
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }}
+            label={t('charts.regression.dailyReturnAxis', { name: reg.name })}
           />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+          <ChartTooltip
             formatter={(value: number, name: string) => {
               if (name === 'x')
                 return [`${value.toFixed(4)}%`, t('charts.regression.baseDailyReturn')];

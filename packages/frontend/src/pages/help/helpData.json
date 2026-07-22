@@ -1,0 +1,44 @@
+{
+  "metrics": [
+    {
+      "name": "CAGR",
+      "formula": "CAGR = (V_end / V_start)^(1/years) - 1",
+      "i18nKey": "help.methodology.metrics.cagr"
+    },
+    {
+      "name": "Sharpe Ratio",
+      "formula": "Sharpe = (R_p - R_f) / σ_p",
+      "i18nKey": "help.methodology.metrics.sharpe"
+    },
+    {
+      "name": "Sortino Ratio",
+      "formula": "Sortino = (R_p - R_f) / σ_downside",
+      "i18nKey": "help.methodology.metrics.sortino"
+    },
+    {
+      "name": "Max Drawdown",
+      "formula": "MDD = min((V_t - max(V_0..t)) / max(V_0..t))",
+      "i18nKey": "help.methodology.metrics.mdd"
+    },
+    {
+      "name": "Volatility",
+      "formula": "σ_annual = σ_daily × √252",
+      "i18nKey": "help.methodology.metrics.volatility"
+    },
+    {
+      "name": "Calmar Ratio",
+      "formula": "Calmar = CAGR / |MDD|",
+      "i18nKey": "help.methodology.metrics.calmar"
+    },
+    {
+      "name": "Beta",
+      "formula": "β = Cov(R_p, R_m) / Var(R_m)",
+      "i18nKey": "help.methodology.metrics.beta"
+    },
+    {
+      "name": "Alpha",
+      "formula": "α = R_p - [R_f + β(R_m - R_f)]",
+      "i18nKey": "help.methodology.metrics.alpha"
+    }
+  ]
+}

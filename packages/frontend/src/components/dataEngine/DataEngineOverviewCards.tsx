@@ -104,11 +104,6 @@ export function DataEngineCoverageBars({
         current={stats.data_quality.with_adj_close || 0}
         total={coverageBase}
       />
-      <ProgressBar
-        label={t('dataEngine.dividendData')}
-        current={stats.data_quality.with_dividends || 0}
-        total={coverageBase}
-      />
     </div>
   );
 }

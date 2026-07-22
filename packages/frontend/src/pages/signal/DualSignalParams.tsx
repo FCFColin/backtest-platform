@@ -4,6 +4,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import {
   INDICATORS,
   TickerField,
@@ -48,8 +49,7 @@ function SignalCfgFields({
   const { t } = useTranslation();
   return (
     <>
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('signal.dual.indicator')}</span>
+      <ParamCard label={t('signal.dual.indicator')}>
         <select
           className="param-input"
           value={cfg.indicator}
@@ -61,10 +61,9 @@ function SignalCfgFields({
             </option>
           ))}
         </select>
-      </div>
-      <div className="params-row">
-        <div className="param-field">
-          <span className="param-label">{t('signal.dual.period')}</span>
+      </ParamCard>
+      <ParamRow>
+        <ParamCard label={t('signal.dual.period')}>
           <input
             type="number"
             className="param-input"
@@ -72,17 +71,16 @@ function SignalCfgFields({
             min={2}
             onChange={(e) => onChange({ ...cfg, period: Number(e.target.value) })}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('signal.dual.threshold')}</span>
+        </ParamCard>
+        <ParamCard label={t('signal.dual.threshold')}>
           <input
             type="number"
             className="param-input"
             value={cfg.threshold}
             onChange={(e) => onChange({ ...cfg, threshold: Number(e.target.value) })}
           />
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
     </>
   );
 }
@@ -114,8 +112,7 @@ export function DualSignalParamsPanel({
         <SignalCfgFields cfg={cfg2} onChange={onCfg2Change} />
       </ParamsSection>
       <ParamsSection title={t('signal.dual.combinationSection')}>
-        <div className="param-field" style={{ marginBottom: 8 }}>
-          <span className="param-label">{t('signal.dual.combinationLogic')}</span>
+        <ParamCard label={t('signal.dual.combinationLogic')}>
           <select
             className="param-input"
             value={combinationMethod}
@@ -127,7 +124,7 @@ export function DualSignalParamsPanel({
               </option>
             ))}
           </select>
-        </div>
+        </ParamCard>
         <TickerField value={ticker} onChange={onTickerChange} />
         <DateRangeFields
           startDate={startDate}

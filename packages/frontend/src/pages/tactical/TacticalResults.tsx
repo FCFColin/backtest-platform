@@ -4,6 +4,7 @@ import { Bell, Mail } from 'lucide-react';
 import type { EmailAlertConfig } from '@backtest/shared/types/tactical';
 import LoadingButton from '../../components/LoadingButton.js';
 import ChartCard from '../../components/ChartCard.js';
+import { ParamCard } from '../../components/params/index.js';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { BacktestEmptyState, BacktestResultTab } from './TacticalCharts.js';
@@ -23,8 +24,7 @@ function AlertEmailInput({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="param-field" style={{ marginBottom: 16, maxWidth: 360 }}>
-      <span className="param-label">{t('tactical.results.alertEmail')}</span>
+    <ParamCard label={t('tactical.results.alertEmail')} style={{ marginBottom: 16, maxWidth: 360 }}>
       <div className="param-input-prefix-wrap">
         <Mail
           className="w-4 h-4"
@@ -46,7 +46,7 @@ function AlertEmailInput({
           disabled={!enabled}
         />
       </div>
-    </div>
+    </ParamCard>
   );
 }
 

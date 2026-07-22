@@ -1,15 +1,14 @@
 /**
- * 共享图表渲染内容 — TimeSeriesLine / Bar 两族图表的统一渲染层
+ * 共享图表渲染内容 — Bar / Area / Scatter 三族图表的统一渲染层
  *
  * 企业理由：backtest 页和 analysis 页各自实现了相同的 Recharts 渲染逻辑，
  * 样式/tooltip/坐标轴配置重复。提取共享内容组件后，两页复用同一渲染层，
- * 样式变更只需改一处。RO-061 扩展 TimeSeriesLineChartContent 与 BarChartContent
- * 覆盖 Rolling/Seasonality/AnnualReturns/ReturnsTabDaily 等同构图表。
+ * 样式变更只需改一处。RO-061 扩展 BarChartContent / AreaChartContent /
+ * ScatterChartContent 覆盖 Seasonality/AnnualReturns/ReturnsTabDaily 等同构图表。
+ * 时间序列折线图统一使用 TimeSeriesLineChart.tsx（支持每系列独立配置）。
  */
 import type { ReactElement } from 'react';
 import {
-  LineChart,
-  Line,
   BarChart,
   Bar,
   Cell,
@@ -25,7 +24,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine,
   Brush,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
@@ -47,24 +45,24 @@ type ChartDataPoint = Record<string, number | string>;
 /** Tooltip 值格式化函数类型 */
 type TooltipValueFormatter = (value: number) => [string, string];
 
-// ===== 内部辅助函数：抽取 CartesianGrid/XAxis/Legend/Tooltip/Brush/Lines 重复样板 =====
+// ===== 内部辅助函数：抽取 CartesianGrid/XAxis/Legend/Tooltip/Brush 重复样板 =====
 
-/** 通用 CartesianGrid（虚线网格 + subtle 背景），5 处复用 */
+/** 通用 CartesianGrid（虚线网格 + subtle 背景），3 处复用 */
 function chartGrid(): ReactElement {
   return <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />;
 }
 
-/** 通用日期 X 轴，4 处复用 */
+/** 通用日期 X 轴，1 处复用 */
 function dateXAxis(dataKey: string = 'date'): ReactElement {
   return <XAxis dataKey={dataKey} tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />;
 }
 
-/** 通用 Legend，5 处复用 */
+/** 通用 Legend，2 处复用 */
 function chartLegend(): ReactElement {
   return <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />;
 }
 
-/** 通用 Tooltip（可选 labelFormatter），5 处复用 */
+/** 通用 Tooltip（可选 labelFormatter），3 处复用 */
 function chartTooltip(
   formatter: TooltipValueFormatter | undefined,
   labelFormatter: ((label: string) => string) | undefined = undefined,
@@ -78,7 +76,7 @@ function chartTooltip(
   );
 }
 
-/** 条件渲染 Brush（数据点超过阈值时显示），4 处复用 */
+/** 条件渲染 Brush（数据点超过阈值时显示），1 处复用 */
 function maybeBrush(
   showBrush: boolean,
   dataLength: number,
@@ -94,97 +92,6 @@ function maybeBrush(
       travellerWidth={8}
       tickFormatter={DATE_TICK_FORMATTER}
     />
-  );
-}
-
-/** renderLines 选项 */
-interface RenderLinesOptions {
-  /** 颜色起始偏移（跳过基准色），默认 0 */
-  colorOffset?: number;
-  /** 折线宽度，默认 2 */
-  strokeWidth?: number;
-  /** activeDot 半径，默认 4 */
-  activeDotR?: number;
-}
-
-/** 多系列 Line 数组渲染，TimeSeriesLineChartContent 复用 */
-function renderLines(
-  seriesNames: SeriesNames,
-  { colorOffset = 0, strokeWidth = 2, activeDotR = 4 }: RenderLinesOptions = {},
-): ReactElement[] {
-  return seriesNames.map((name, idx) => (
-    <Line
-      key={name}
-      type="monotone"
-      dataKey={name}
-      stroke={CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
-      strokeWidth={strokeWidth}
-      dot={false}
-      activeDot={{ r: activeDotR }}
-    />
-  ));
-}
-
-interface TimeSeriesLineChartContentProps {
-  data: ChartDataPoint[];
-  seriesNames: SeriesNames;
-  /** X 轴数据字段名，默认 'date' */
-  xDataKey?: string;
-  height?: number;
-  /** Y 轴刻度格式化；未传则不设 formatter */
-  yTickFormatter?: (v: number) => string;
-  /** Tooltip 值格式化，返回 [文本, 名称] */
-  tooltipValueFormatter?: TooltipValueFormatter;
-  /** Tooltip 标签（X 轴值）格式化 */
-  tooltipLabelFormatter?: (label: string) => string;
-  /** Y 轴域 */
-  yDomain?: [number | 'auto', number | 'auto'];
-  /** 水平参考线 Y 值（如 0） */
-  referenceY?: number;
-  /** 是否显示 Brush（数据点超过 brushThreshold 时生效） */
-  showBrush?: boolean;
-  /** Brush 触发阈值，默认 100 */
-  brushThreshold?: number;
-  /** 是否显示 Legend，默认 true */
-  showLegend?: boolean;
-  /** 折线宽度，默认 1.5 */
-  strokeWidth?: number;
-  /** 颜色起始偏移（用于跳过基准色），默认 0 */
-  colorOffset?: number;
-}
-
-/** 泛化时间序列折线图渲染（Rolling/Correlation 等） */
-export function TimeSeriesLineChartContent({
-  data,
-  seriesNames,
-  xDataKey = 'date',
-  height = 300,
-  yTickFormatter,
-  tooltipValueFormatter = (v) => [v.toFixed(2), ''],
-  tooltipLabelFormatter = (label) => `${label}`,
-  yDomain,
-  referenceY,
-  showBrush = false,
-  brushThreshold = 100,
-  showLegend = true,
-  strokeWidth = 1.5,
-  colorOffset = 0,
-}: TimeSeriesLineChartContentProps) {
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={CHART_MARGIN}>
-        {chartGrid()}
-        {dateXAxis(xDataKey)}
-        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={yTickFormatter} domain={yDomain} />
-        {chartTooltip(tooltipValueFormatter, tooltipLabelFormatter)}
-        {showLegend && chartLegend()}
-        {referenceY !== undefined && (
-          <ReferenceLine y={referenceY} stroke="var(--text-muted)" strokeDasharray="4 4" />
-        )}
-        {renderLines(seriesNames, { colorOffset, strokeWidth, activeDotR: 3 })}
-        {maybeBrush(showBrush, data.length, xDataKey, brushThreshold)}
-      </LineChart>
-    </ResponsiveContainer>
   );
 }
 

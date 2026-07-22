@@ -1,0 +1,103 @@
+{
+  "plans": [
+    {
+      "name": "Free",
+      "iconName": "Star",
+      "priceKey": "account.pricing.plans.free.price",
+      "period": "",
+      "descKey": "account.pricing.plans.free.desc",
+      "ctaKey": "account.pricing.plans.free.cta",
+      "features": [
+        { "key": "account.pricing.features.basicBacktest", "included": true },
+        { "key": "account.pricing.features.max3Portfolios", "included": true },
+        { "key": "account.pricing.features.1yrData", "included": true },
+        { "key": "account.pricing.features.basicStats", "included": true },
+        { "key": "account.pricing.features.monteCarlo", "included": false },
+        { "key": "account.pricing.features.portfolioOpt", "included": false },
+        { "key": "account.pricing.features.apiAccess", "included": false },
+        { "key": "account.pricing.features.prioritySupport", "included": false }
+      ]
+    },
+    {
+      "name": "Pro",
+      "iconName": "Zap",
+      "price": "$10",
+      "periodKey": "account.pricing.periodMonth",
+      "descKey": "account.pricing.plans.pro.desc",
+      "ctaKey": "account.pricing.plans.pro.cta",
+      "recommended": true,
+      "features": [
+        { "key": "account.pricing.features.advancedBacktest", "included": true },
+        { "key": "account.pricing.features.unlimitedPortfolios", "included": true },
+        { "key": "account.pricing.features.10yrData", "included": true },
+        { "key": "account.pricing.features.all16Tabs", "included": true },
+        { "key": "account.pricing.features.monteCarlo", "included": true },
+        { "key": "account.pricing.features.optAndFrontier", "included": true },
+        { "key": "account.pricing.features.apiAccess", "included": false },
+        { "key": "account.pricing.features.prioritySupport", "included": false }
+      ]
+    },
+    {
+      "name": "Pro+",
+      "iconName": "Crown",
+      "price": "$25",
+      "periodKey": "account.pricing.periodMonth",
+      "descKey": "account.pricing.plans.proPlus.desc",
+      "ctaKey": "account.pricing.plans.proPlus.cta",
+      "features": [
+        { "key": "account.pricing.features.allProFeatures", "included": true },
+        { "key": "account.pricing.features.unlimitedPortfolios", "included": true },
+        { "key": "account.pricing.features.allHistoryData", "included": true },
+        { "key": "account.pricing.features.all16Tabs", "included": true },
+        { "key": "account.pricing.features.monteCarlo", "included": true },
+        { "key": "account.pricing.features.optAndFrontier", "included": true },
+        { "key": "account.pricing.features.apiRestWs", "included": true },
+        { "key": "account.pricing.features.prioritySupport24h", "included": true }
+      ]
+    }
+  ],
+  "comparisonRows": [
+    {
+      "featureKey": "account.pricing.compare.portfolioCount",
+      "free": "account.pricing.compare.3portfolios",
+      "pro": "account.pricing.compare.unlimited",
+      "proPlus": "account.pricing.compare.unlimited"
+    },
+    {
+      "featureKey": "account.pricing.compare.historyRange",
+      "free": "account.pricing.compare.1yr",
+      "pro": "account.pricing.compare.10yr",
+      "proPlus": "account.pricing.compare.all"
+    },
+    {
+      "featureKey": "account.pricing.compare.analysisTabs",
+      "free": "account.pricing.compare.basic",
+      "pro": "account.pricing.compare.all16",
+      "proPlus": "account.pricing.compare.all16"
+    },
+    {
+      "featureKey": "account.pricing.features.monteCarlo",
+      "free": "—",
+      "pro": "✓",
+      "proPlus": "✓"
+    },
+    {
+      "featureKey": "account.pricing.features.portfolioOpt",
+      "free": "—",
+      "pro": "✓",
+      "proPlus": "✓"
+    },
+    {
+      "featureKey": "account.pricing.features.apiAccess",
+      "free": "—",
+      "pro": "—",
+      "proPlus": "✓"
+    },
+    {
+      "featureKey": "account.pricing.compare.prioritySupport",
+      "free": "—",
+      "pro": "—",
+      "proPlus": "account.pricing.compare.24hResponse"
+    }
+  ]
+}

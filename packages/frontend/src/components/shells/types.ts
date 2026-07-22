@@ -17,13 +17,18 @@ export interface RelatedTool {
 
 export interface ComputeToolConfig<S> {
   titleKey: string;
+  seoSubtitleKey?: string;
   seoDescKey?: string;
   seoFeatures?: SeoFeature[];
   relatedTools?: RelatedTool[];
   presets?: (state: S) => PresetButtonProps[];
   params: ComponentType<{ state: S }>;
   results?: ComponentType<{ state: S }>;
+  afterParams?: ComponentType<{ state: S }>;
   extra?: ComponentType<{ state: S }>;
+  hideParamsTitle?: boolean;
+  paramsTitleKey?: string;
+  paramsTitle?: string;
 }
 
 export interface StandardPageConfig {

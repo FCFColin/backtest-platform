@@ -11,25 +11,15 @@ import { useTranslation } from 'react-i18next';
 import {
   LineChart,
   Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
   Brush,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
-import {
-  CHART_MARGIN,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
-  DATE_TICK_FORMATTER,
-} from './chartConstants.js';
+import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from './chartConstants.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 import ChartCard from '../ChartCard.js';
 import {
   downsample,
@@ -151,23 +141,16 @@ function TelltaleChartView({
     <ResponsiveContainer width="100%" height={embedded ? 450 : 400}>
       <LineChart data={chartData} margin={CHART_MARGIN}>
         <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
-        <YAxis
-          tick={AXIS_TICK_STYLE}
+        <ChartXAxis />
+        <ChartYAxis
           tickFormatter={(v: number) => v.toFixed(3)}
-          label={{
-            value: t('analysis.relativeRatio'),
-            angle: -90,
-            position: 'insideLeft',
-            style: { fill: 'var(--text-muted)', fontSize: 12 },
-          }}
+          label={t('analysis.relativeRatio')}
         />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
+        <ChartTooltip
           labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
           formatter={(value: number) => [value.toFixed(3), '']}
         />
-        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
+        <ChartLegend />
         <ReferenceLine y={1} stroke="var(--text-muted)" strokeDasharray="4 4" />
         {labels.map((label, idx) => (
           <Line

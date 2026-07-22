@@ -26,7 +26,7 @@ export function historySpanYears(earliest?: string | null, latest?: string | nul
 }
 
 function getLoadStage(t: TFunc, count: number): string {
-  if (count <= 3) return t('dataEngine.connecting');
+  if (count <= 1) return t('dataEngine.connecting');
   if (count <= 10) return t('dataEngine.scanningFiles');
   if (count <= 30) return t('dataEngine.countingTickers');
   if (count <= 50) return t('dataEngine.generatingReport');
@@ -86,7 +86,9 @@ async function createPoll(ctx: Omit<PollCtx, 'poll'>): Promise<void> {
   const poll = async () => {
     const fullCtx: PollCtx = { ...ctx, poll };
     try {
-      const statsUrl = ctx.force ? '/api/data/manage/stats?force=1' : '/api/data/manage/stats';
+      const statsUrl = ctx.force
+        ? '/api/v1/data/manage/stats?force=1'
+        : '/api/v1/data/manage/stats';
       const res = await apiFetch(statsUrl);
       if (
         ctx.pollCountRef.current === 0 &&
@@ -160,10 +162,11 @@ export async function doActionFn(
   url: string,
   label: string,
   setActionMsg: (v: string) => void,
+  method: 'POST' | 'PUT' | 'PATCH' = 'POST',
 ) {
   setActionMsg(`${label}...`);
   try {
-    const res = await apiFetch(url, { method: 'POST' });
+    const res = await apiFetch(url, { method });
     const json = await res.json();
     setActionMsg(json.success ? `${label} ✓` : t('common.error'));
   } catch {

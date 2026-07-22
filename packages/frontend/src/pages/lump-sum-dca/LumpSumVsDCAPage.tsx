@@ -9,6 +9,7 @@ import { useLumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 import type { DcaFrequency } from '../../hooks/useLumpSumVsDCAState.js';
 import { LsDcaResultsCard } from './ConclusionSection.js';
 import { fmtPct, fmtNum } from '@/utils/format';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 
 type LSState = any;
 
@@ -37,9 +38,8 @@ function DcaParamsSection({
       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
         {t('lumpSumDca.dcaParams')}
       </div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <div className="param-field" style={{ width: 120 }}>
-          <label className="param-label">{t('lumpSumDca.dcaFrequency')}</label>
+      <ParamRow>
+        <ParamCard label={t('lumpSumDca.dcaFrequency')}>
           <select
             className="param-input"
             value={dcaFrequency}
@@ -48,9 +48,8 @@ function DcaParamsSection({
             <option value="monthly">{t('lumpSumDca.dcaMonthly')}</option>
             <option value="quarterly">{t('lumpSumDca.dcaQuarterly')}</option>
           </select>
-        </div>
-        <div className="param-field" style={{ width: 100 }}>
-          <label className="param-label">{t('lumpSumDca.dcaPeriods')}</label>
+        </ParamCard>
+        <ParamCard label={t('lumpSumDca.dcaPeriods')}>
           <div className="param-input-suffix-wrap">
             <input
               type="number"
@@ -62,9 +61,8 @@ function DcaParamsSection({
             />
             <span className="param-input-suffix">{t('lumpSumDca.dcaPeriodsUnit')}</span>
           </div>
-        </div>
-        <div className="param-field" style={{ width: 140 }}>
-          <label className="param-label">{t('lumpSumDca.perPeriodAmount')}</label>
+        </ParamCard>
+        <ParamCard label={t('lumpSumDca.perPeriodAmount')}>
           <div className="param-input-prefix-wrap">
             <span className="param-input-prefix">{baseCurrency === 'usd' ? '$' : '¥'}</span>
             <input
@@ -75,16 +73,18 @@ function DcaParamsSection({
               style={{ opacity: 0.7 }}
             />
           </div>
-        </div>
-        <label className="param-check">
-          <input
-            type="checkbox"
-            checked={investTbill}
-            onChange={(e) => setInvestTbill(e.target.checked)}
-          />
-          <span>{t('lumpSumDca.investTbill')}</span>
-        </label>
-      </div>
+        </ParamCard>
+        <ParamCard label={t('lumpSumDca.investTbill')}>
+          <label className="param-check">
+            <input
+              type="checkbox"
+              checked={investTbill}
+              onChange={(e) => setInvestTbill(e.target.checked)}
+            />
+            <span>{t('lumpSumDca.investTbill')}</span>
+          </label>
+        </ParamCard>
+      </ParamRow>
     </div>
   );
 }

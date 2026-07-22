@@ -6,6 +6,7 @@
  */
 import { useTranslation } from 'react-i18next';
 import { ParamsSection } from '../../../components/ParamsPanel.js';
+import { ParamRow, ParamCard } from '../../../components/params/index.js';
 import { FREQ_OPTIONS } from '../backtestOptimizerUtils.js';
 import type { OptimizerSectionProps } from './types.js';
 
@@ -53,14 +54,13 @@ function ThresholdRangeInputs({ s }: OptimizerSectionProps) {
       <div className="param-label" style={{ marginBottom: 6 }}>
         {t('backtest.optimizer.thresholdRange')}
       </div>
-      <div className="params-row">
+      <ParamRow>
         {[
           [t('backtest.optimizer.min'), s.thrMin, s.setThrMin],
           [t('backtest.optimizer.max'), s.thrMax, s.setThrMax],
           [t('backtest.optimizer.step'), s.thrStep, s.setThrStep],
         ].map(([label, val, set]) => (
-          <div key={label as string} className="param-field param-field-rolling">
-            <span className="param-label">{label as string}</span>
+          <ParamCard key={label as string} label={label as string}>
             <div className="param-input-suffix-wrap">
               <input
                 type="number"
@@ -71,9 +71,9 @@ function ThresholdRangeInputs({ s }: OptimizerSectionProps) {
               />
               <span className="param-input-suffix">%</span>
             </div>
-          </div>
+          </ParamCard>
         ))}
-      </div>
+      </ParamRow>
     </div>
   );
 }
@@ -90,10 +90,9 @@ function CapitalRangeInputs({ s }: OptimizerSectionProps) {
       <div className="param-label" style={{ marginBottom: 6 }}>
         {t('backtest.optimizer.capitalRange')}
       </div>
-      <div className="params-row">
+      <ParamRow>
         {fields.map(([label, val, set]) => (
-          <div key={label} className="param-field param-field-rolling">
-            <span className="param-label">{label}</span>
+          <ParamCard key={label} label={label}>
             <div className="param-input-suffix-wrap">
               <span className="param-input-suffix" style={{ position: 'static', paddingRight: 2 }}>
                 $
@@ -106,9 +105,9 @@ function CapitalRangeInputs({ s }: OptimizerSectionProps) {
                 onChange={(e) => set(e.target.value)}
               />
             </div>
-          </div>
+          </ParamCard>
         ))}
-      </div>
+      </ParamRow>
     </div>
   );
 }

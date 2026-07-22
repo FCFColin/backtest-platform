@@ -16,7 +16,7 @@
  * 相关约定：
  * - localStorage/sessionStorage key：`admin_api_key`
  * - 请求头名：`x-api-key`
- * - 未设置 API Key 时不附加该头，由后端在开发环境自动放行
+ * - 未设置 API Key 时不附加该头，由后端 optionalJwtAuth + assignGuestAnalyst 放行
  */
 
 import { getAccessToken, refreshTokens } from './authTokens.js';
@@ -24,6 +24,7 @@ import { useToastStore } from '../store/toastStore.js';
 
 /** Storage 中存储 API Key 的键名（仅 apiClient 内部使用） */
 const ADMIN_API_KEY_STORAGE = 'admin_api_key';
+const FETCH_TIMEOUT_MS = 10_000;
 
 /**
  * 读取当前保存的 API Key。
@@ -60,57 +61,75 @@ function getApiKey(): string {
  * - 调用方显式传入的同名头不会被覆盖。
  * - 其余参数与原生 fetch 一致。
  * - 响应拦截：非 2xx 含 error.detail 时弹错误 Toast；degraded=true 时弹警告 Toast。
+ * - 探测类调用（如会话恢复 fetchMe）可传 `silent: true` 抑制错误 Toast，
+ *   避免未登录时 /api/v1/auth/me 返回 401 弹出“缺少认证凭证”误报。
  *
  * @param input - 请求 URL 或 Request 对象
- * @param init - fetch 初始化配置
+ * @param init - fetch 初始化配置，可附加 `silent?: boolean` 抑制 Toast
  * @returns fetch 返回的 Response Promise
  */
-export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const doFetch = (): Promise<Response> => {
-    const headers = new Headers(init?.headers);
-
-    const accessToken = getAccessToken();
-    if (accessToken && !headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${accessToken}`);
+function buildFetchInit(init: (RequestInit & { silent?: boolean }) | undefined): {
+  headers: Headers;
+  signal: AbortSignal;
+  timeoutId?: ReturnType<typeof setTimeout>;
+} {
+  const headers = new Headers(init?.headers);
+  const accessToken = getAccessToken();
+  if (accessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+  const apiKey = getApiKey();
+  if (apiKey && !headers.has('x-api-key')) {
+    headers.set('x-api-key', apiKey);
+  }
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  if (init?.signal) {
+    const callerSignal = init.signal;
+    if (callerSignal.aborted) {
+      controller.abort();
+    } else {
+      callerSignal.addEventListener('abort', () => controller.abort(), { once: true });
     }
+  } else {
+    timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  }
+  return { headers, signal: controller.signal, timeoutId };
+}
 
-    const apiKey = getApiKey();
-    if (apiKey && !headers.has('x-api-key')) {
-      headers.set('x-api-key', apiKey);
+async function handleResponseToast(res: Response): Promise<void> {
+  try {
+    const cloned = res.clone();
+    const body = await cloned.json();
+    if (!res.ok && body?.error?.detail) {
+      useToastStore.getState().addToast('error', body.error.detail);
     }
+    if (body?.degraded === true) {
+      useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
+    }
+  } catch {
+    /* non-JSON response */
+  }
+}
 
-    return fetch(input, { ...init, headers });
-  };
+export async function apiFetch(
+  input: RequestInfo | URL,
+  init?: (RequestInit & { silent?: boolean }) | undefined,
+): Promise<Response> {
+  const silent = init?.silent === true;
+  const { headers, signal, timeoutId } = buildFetchInit(init);
+  const { signal: _origSignal, ...restInit } = init || {};
+  const doFetch = () =>
+    fetch(input, { ...restInit, headers, signal }).finally(() => {
+      if (timeoutId) clearTimeout(timeoutId);
+    });
 
   let res = await doFetch();
-
-  // 仅当本次请求确实带了 Bearer（即处于登录态）时，才在 401 上尝试刷新重试，
-  // 避免对匿名/仅 x-api-key 请求做无谓刷新。（res 可能为 null：见调用方对异常的容错）
   if (res?.status === 401 && getAccessToken()) {
     const refreshed = await refreshTokens();
-    if (refreshed) {
-      res = await doFetch();
-    }
+    if (refreshed) res = await doFetch();
   }
-
-  // 响应拦截：自动检测 error/degraded 并显示 Toast。
-  // 仅对非 2xx 显示错误 Toast，避免 200 成功响应误带 error 字段时误报；
-  // degraded 无论状态码都需提示。res 可能为 null（fetch 容错），需先判空。
-  if (res) {
-    try {
-      const cloned = res.clone();
-      const body = await cloned.json();
-      if (!res.ok && body?.error?.detail) {
-        useToastStore.getState().addToast('error', body.error.detail);
-      }
-      if (body?.degraded === true) {
-        useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
-      }
-    } catch {
-      // 非 JSON 响应，跳过
-    }
-  }
-
+  if (res && !silent) await handleResponseToast(res);
   return res;
 }
 

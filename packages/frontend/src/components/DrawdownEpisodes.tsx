@@ -92,74 +92,86 @@ const HEADERS = [
 
 const SUMMARY_FIELDS: Array<{
   key: keyof DrawdownEpisode;
-  label: string;
+  labelKey: string;
   fmt: (v: number) => string;
 }> = [
-  { key: 'depth', label: 'Depth', fmt: fmtPct },
-  { key: 'timeToTrough', label: 'Time to Trough', fmt: fmtYears },
-  { key: 'recoveryTime', label: 'Recovery Time', fmt: fmtYears },
-  { key: 'totalTime', label: 'Total Time', fmt: fmtYears },
-  { key: 'recoveryFactor', label: 'Recovery Factor', fmt: fmtRatio },
-  { key: 'cagrDuring', label: 'CAGR During', fmt: fmtPct },
-  { key: 'ulcerDuring', label: 'Ulcer During', fmt: fmtRatio },
+  { key: 'depth', labelKey: 'components.drawdownEpisodes.summaryLabels.depth', fmt: fmtPct },
+  {
+    key: 'timeToTrough',
+    labelKey: 'components.drawdownEpisodes.summaryLabels.timeToTrough',
+    fmt: fmtYears,
+  },
+  {
+    key: 'recoveryTime',
+    labelKey: 'components.drawdownEpisodes.summaryLabels.recoveryTime',
+    fmt: fmtYears,
+  },
+  {
+    key: 'totalTime',
+    labelKey: 'components.drawdownEpisodes.summaryLabels.totalTime',
+    fmt: fmtYears,
+  },
+  {
+    key: 'recoveryFactor',
+    labelKey: 'components.drawdownEpisodes.summaryLabels.recoveryFactor',
+    fmt: fmtRatio,
+  },
+  {
+    key: 'cagrDuring',
+    labelKey: 'components.drawdownEpisodes.summaryLabels.cagrDuring',
+    fmt: fmtPct,
+  },
+  {
+    key: 'ulcerDuring',
+    labelKey: 'components.drawdownEpisodes.summaryLabels.ulcerDuring',
+    fmt: fmtRatio,
+  },
 ];
 
-const STAT_LABELS = [
-  'components.drawdownEpisodes.statLabels.min',
-  'components.drawdownEpisodes.statLabels.median',
-  'components.drawdownEpisodes.statLabels.avg',
-  'components.drawdownEpisodes.statLabels.max',
-] as const;
 const STAT_KEYS = ['min', 'median', 'avg', 'max'] as const;
 
-/** 统计摘要行 */
-function SummaryRow({
-  field,
-  stats,
+/** 统计摘要区块 */
+function SummaryBlock({
+  summaryStats,
 }: {
-  field: (typeof SUMMARY_FIELDS)[number];
-  stats: ReturnType<typeof calcStats>;
+  summaryStats: Array<{
+    field: (typeof SUMMARY_FIELDS)[number];
+    stats: ReturnType<typeof calcStats>;
+  }>;
 }) {
   const { t } = useTranslation();
   return (
-    <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+    <tr>
       <td
-        colSpan={3}
-        className="text-[12px] italic py-1.5 px-3"
-        style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}
+        colSpan={10}
+        className="py-2 px-3"
+        style={{
+          backgroundColor: 'var(--bg-subtle)',
+          borderBottom: '1px solid var(--border-soft)',
+        }}
       >
-        {field.label}
-      </td>
-      {stats ? (
-        <>
-          {STAT_LABELS.map((label, si) => (
-            <td
-              key={label}
-              className="text-[12px] text-right py-1.5 px-3 font-mono"
-              style={{
-                color: 'var(--text-body)',
-                borderBottom: '1px solid var(--border-soft)',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {t(label)}: {field.fmt(stats[STAT_KEYS[si]])}
-            </td>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
+          {summaryStats.map(({ field, stats }) => (
+            <div key={field.key} className="flex items-baseline gap-1.5">
+              <span style={{ color: 'var(--text-muted)' }}>{t(field.labelKey)}:</span>
+              {stats ? (
+                <span className="font-mono" style={{ color: 'var(--text-body)' }}>
+                  {STAT_KEYS.map((statKey) => (
+                    <span key={statKey} className="mr-1.5">
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {t(`components.drawdownEpisodes.statLabels.${statKey}`)}
+                      </span>
+                      <span className="ml-0.5">{field.fmt(stats[statKey])}</span>
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>—</span>
+              )}
+            </div>
           ))}
-          <td
-            colSpan={3}
-            className="text-[12px] py-1.5 px-3"
-            style={{ borderBottom: '1px solid var(--border-soft)' }}
-          />
-        </>
-      ) : (
-        <td
-          colSpan={7}
-          className="text-[12px] py-1.5 px-3"
-          style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}
-        >
-          —
-        </td>
-      )}
+        </div>
+      </td>
     </tr>
   );
 }
@@ -174,18 +186,17 @@ function PortfolioDrawdownGroup({
 }) {
   const color = CHART_COLORS[colorIndex % CHART_COLORS.length];
   const episodes = portfolio.drawdownEpisodes!;
-  const colSpan = 10;
 
   const summaryStats = SUMMARY_FIELDS.map((field) => {
     const values = episodes.map((e) => e[field.key]).filter((v): v is number => v != null);
-    return { ...field, stats: calcStats(values) };
+    return { field, stats: calcStats(values) };
   });
 
   return (
     <Fragment key={portfolio.name}>
       <tr style={{ backgroundColor: 'var(--bg-strong)' }}>
         <td
-          colSpan={colSpan}
+          colSpan={10}
           className="text-[12px] font-bold py-2 px-3"
           style={{ color: 'var(--text-strong)', borderBottom: '1px solid var(--border-soft)' }}
         >
@@ -196,9 +207,7 @@ function PortfolioDrawdownGroup({
           {portfolio.name}
         </td>
       </tr>
-      {summaryStats.map((field) => (
-        <SummaryRow key={`summary-${field.key}`} field={field} stats={field.stats} />
-      ))}
+      <SummaryBlock summaryStats={summaryStats} />
       {episodes.map((ep, epIdx) => (
         <tr
           key={`${ep.peakDate}-${epIdx}`}

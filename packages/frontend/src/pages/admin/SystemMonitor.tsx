@@ -75,7 +75,7 @@ function buildServiceHealth(
 
 /** 从 stats 接口获取服务健康状态 */
 async function fetchServices(): Promise<ServiceHealth[]> {
-  const statsRes = await apiFetch('/api/admin/stats');
+  const statsRes = await apiFetch('/api/v1/admin/stats');
   if (!statsRes.ok) return defaultMonitorData.services;
   const statsJson = await statsRes.json();
   if (!statsJson.success || !statsJson.data) return defaultMonitorData.services;
@@ -203,7 +203,7 @@ export default function SystemMonitor() {
   const fetchMonitorData = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/admin/system');
+      const res = await apiFetch('/api/v1/admin/system');
       if (!res.ok) return;
       const json = await res.json();
       if (!json.success || !json.data) return;

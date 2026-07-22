@@ -60,7 +60,7 @@ type SetFn = (partial: Partial<AuthState> | ((state: AuthState) => Partial<AuthS
 type GetFn = () => AuthState;
 
 async function fetchMe(): Promise<AuthUser | null> {
-  const res = await apiFetch('/api/v1/auth/me');
+  const res = await apiFetch('/api/v1/auth/me', { silent: true });
   if (!res.ok) return null;
   const body = await res.json();
   const d = body?.data;
@@ -195,7 +195,7 @@ async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
 
 async function loadOrgsAction(set: SetFn): Promise<void> {
   try {
-    const res = await apiFetch('/api/v1/auth/orgs');
+    const res = await apiFetch('/api/v1/auth/orgs', { silent: true });
     if (!res.ok) return;
     const body = await res.json();
     const orgs: OrgSummary[] = body?.data?.orgs ?? [];
@@ -213,14 +213,15 @@ async function initAction(set: SetFn, get: GetFn): Promise<void> {
     set({ initialized: true });
     return;
   }
-  const ok = await refreshTokens();
-  if (!ok) {
+  try {
+    const ok = await refreshTokens();
+    if (!ok) return;
+    const user = await fetchMe();
+    set({ user });
+    if (user) await get().loadOrgs();
+  } finally {
     set({ initialized: true });
-    return;
   }
-  const user = await fetchMe();
-  set({ user, initialized: true });
-  if (user) await get().loadOrgs();
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({

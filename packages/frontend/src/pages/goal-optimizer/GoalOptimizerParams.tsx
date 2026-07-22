@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Play, Plus, X } from 'lucide-react';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
-import { ParamRow, ParamCard } from '../../components/params/index.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 import type { GoalAsset } from './goalOptimizerUtils.js';
 
 /** 参数面板 props */
@@ -268,7 +268,7 @@ export function GoalOptimizerParamsPanel(props: GoalParamsProps) {
       <GoalSettingsSection {...props} />
       <AssetConfigSection {...props} />
       <ConstraintsAndSimulation {...props} />
-      <div className="bt-action-row">
+      <ActionBar>
         <LoadingButton
           isLoading={props.isLoading}
           onClick={props.onRun}
@@ -277,7 +277,7 @@ export function GoalOptimizerParamsPanel(props: GoalParamsProps) {
           <Play className="w-4 h-4" />
           {t('goalOptimizer.startOptimize')}
         </LoadingButton>
-      </div>
+      </ActionBar>
     </ParamsPanel>
   );
 }

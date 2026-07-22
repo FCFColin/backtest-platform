@@ -72,9 +72,7 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
         <StatsTableHead results={results} />
         <tbody>
           {STATS_ROWS.map((row, rowIdx) => {
-            const hasAnyValue = results.some(
-              (r) => r[row.key] !== undefined && r[row.key] !== null,
-            );
+            const hasAnyValue = results.some((r) => r[row.key] != null);
             if (!hasAnyValue && !REQUIRED_KEYS.has(row.key)) return null;
             return (
               <tr
@@ -101,9 +99,7 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
                         borderBottom: '1px solid var(--border-soft)',
                       }}
                     >
-                      {val !== undefined && val !== null
-                        ? fmtVal(row.key, val as number)
-                        : '\u2014'}
+                      {val != null ? fmtVal(row.key, val as number) : '\u2014'}
                     </td>
                   );
                 })}

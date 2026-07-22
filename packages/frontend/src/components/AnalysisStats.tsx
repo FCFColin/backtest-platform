@@ -83,12 +83,7 @@ export const StatsTable = memo(function StatsTable({
         <StatsTableHeader tickers={tickers} metricLabel={t('common.metric')} />
         <tbody>
           {cols.map((col, ri) => {
-            if (
-              !tickers.some(
-                (tk) => tk.statistics[col.key] !== undefined && tk.statistics[col.key] !== null,
-              )
-            )
-              return null;
+            if (!tickers.some((tk) => tk.statistics[col.key] != null)) return null;
             return (
               <tr
                 key={col.key}

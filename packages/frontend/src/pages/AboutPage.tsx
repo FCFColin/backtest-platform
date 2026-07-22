@@ -6,7 +6,35 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Shield, Globe, Clock, Database } from 'lucide-react';
+import type { ComponentType } from 'react';
 import { StandardPageShell } from '../components/shells/StandardPageShell.js';
+import aboutData from './about/aboutData.json';
+
+const FEATURE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  Shield,
+  Globe,
+  Clock,
+  Database,
+};
+
+interface FeatureItem {
+  iconName: string;
+  titleKey: string;
+  descKey: string;
+}
+
+interface LimitItem {
+  labelKey: string;
+  valueKey: string;
+  descKey: string;
+}
+
+interface PlanItem {
+  titleKey: string;
+  priceKey: string;
+  featuresKey: string;
+  current?: boolean;
+}
 
 export default function AboutPage({ section }: { section?: string }) {
   const activeSection = section || 'about';
@@ -69,6 +97,7 @@ function AboutTabs({ activeSection }: { activeSection: string }) {
 
 function AboutSection() {
   const { t } = useTranslation();
+  const features = aboutData.features as FeatureItem[];
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -90,26 +119,17 @@ function AboutSection() {
           gap: 16,
         }}
       >
-        <FeatureCard
-          icon={<Shield className="w-5 h-5" />}
-          title={t('about.features.localDeployTitle')}
-          desc={t('about.features.localDeployDesc')}
-        />
-        <FeatureCard
-          icon={<Globe className="w-5 h-5" />}
-          title={t('about.features.multiMarketTitle')}
-          desc={t('about.features.multiMarketDesc')}
-        />
-        <FeatureCard
-          icon={<Clock className="w-5 h-5" />}
-          title={t('about.features.highPerfTitle')}
-          desc={t('about.features.highPerfDesc')}
-        />
-        <FeatureCard
-          icon={<Database className="w-5 h-5" />}
-          title={t('about.features.richDataTitle')}
-          desc={t('about.features.richDataDesc')}
-        />
+        {features.map((f) => {
+          const Icon = FEATURE_ICONS[f.iconName] ?? Shield;
+          return (
+            <FeatureCard
+              key={f.titleKey}
+              icon={<Icon className="w-5 h-5" />}
+              title={t(f.titleKey)}
+              desc={t(f.descKey)}
+            />
+          );
+        })}
       </div>
       <div
         style={{
@@ -132,38 +152,11 @@ function AboutSection() {
 
 function LimitsSection() {
   const { t } = useTranslation();
-  const limits = [
-    {
-      label: t('about.limits.portfolioCountLabel'),
-      value: t('about.limits.portfolioCountValue'),
-      desc: t('about.limits.portfolioCountDesc'),
-    },
-    {
-      label: t('about.limits.tickerCountLabel'),
-      value: t('about.limits.tickerCountValue'),
-      desc: t('about.limits.tickerCountDesc'),
-    },
-    {
-      label: t('about.limits.backtestRangeLabel'),
-      value: t('about.limits.backtestRangeValue'),
-      desc: t('about.limits.backtestRangeDesc'),
-    },
-    {
-      label: t('about.limits.mcSimLabel'),
-      value: t('about.limits.mcSimValue'),
-      desc: t('about.limits.mcSimDesc'),
-    },
-    {
-      label: t('about.limits.fetchFreqLabel'),
-      value: t('about.limits.fetchFreqValue'),
-      desc: t('about.limits.fetchFreqDesc'),
-    },
-    {
-      label: t('about.limits.concurrentLabel'),
-      value: t('about.limits.concurrentValue'),
-      desc: t('about.limits.concurrentDesc'),
-    },
-  ];
+  const limits = (aboutData.limits as LimitItem[]).map((l) => ({
+    label: t(l.labelKey),
+    value: t(l.valueKey),
+    desc: t(l.descKey),
+  }));
   return (
     <div>
       <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
@@ -193,9 +186,12 @@ function LimitsSection() {
 
 function UpgradeSection() {
   const { t } = useTranslation();
-  const freePlanFeatures = t('about.upgrade.freePlanFeatures', { returnObjects: true }) as string[];
-  const dataPlanFeatures = t('about.upgrade.dataPlanFeatures', { returnObjects: true }) as string[];
-  const perfPlanFeatures = t('about.upgrade.perfPlanFeatures', { returnObjects: true }) as string[];
+  const plans = (aboutData.plans as PlanItem[]).map((p) => ({
+    title: t(p.titleKey),
+    price: t(p.priceKey),
+    features: t(p.featuresKey, { returnObjects: true }) as string[],
+    current: p.current,
+  }));
   return (
     <div>
       <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
@@ -208,22 +204,15 @@ function UpgradeSection() {
           gap: 16,
         }}
       >
-        <PlanCard
-          title={t('about.upgrade.freePlanTitle')}
-          price={t('about.upgrade.freePlanPrice')}
-          current
-          features={freePlanFeatures}
-        />
-        <PlanCard
-          title={t('about.upgrade.dataPlanTitle')}
-          price={t('about.upgrade.dataPlanPrice')}
-          features={dataPlanFeatures}
-        />
-        <PlanCard
-          title={t('about.upgrade.perfPlanTitle')}
-          price={t('about.upgrade.perfPlanPrice')}
-          features={perfPlanFeatures}
-        />
+        {plans.map((p) => (
+          <PlanCard
+            key={p.title}
+            title={p.title}
+            price={p.price}
+            current={p.current}
+            features={p.features}
+          />
+        ))}
       </div>
     </div>
   );

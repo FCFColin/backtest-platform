@@ -8,6 +8,7 @@ import { Play } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import LoadingButton from '../../components/LoadingButton.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 
 /** 技术指标列表（与后端 SignalAnalysisRequest.indicator 枚举对齐） */
 export const INDICATORS = ['SMA', 'EMA', 'RSI', 'MACD', 'Bollinger'] as const;
@@ -32,15 +33,16 @@ interface TickerFieldProps {
 export function TickerField({ value, onChange, placeholder, marginBottom = 8 }: TickerFieldProps) {
   const { t } = useTranslation();
   return (
-    <div className="param-field" style={{ marginBottom }}>
-      <span className="param-label">{t('signal.common.tickerLabel')}</span>
-      <input
-        type="text"
-        className="param-input"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder ?? t('signal.common.tickerPlaceholder')}
-      />
+    <div style={{ marginBottom }}>
+      <ParamCard label={t('signal.common.tickerLabel')}>
+        <input
+          type="text"
+          className="param-input"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder ?? t('signal.common.tickerPlaceholder')}
+        />
+      </ParamCard>
     </div>
   );
 }
@@ -70,26 +72,24 @@ export function DateRangeFields({
 }: DateRangeFieldsProps) {
   const { t } = useTranslation();
   return (
-    <div className="params-row">
-      <div className="param-field">
-        <span className="param-label">{t('signal.common.startDate')}</span>
+    <ParamRow>
+      <ParamCard label={t('signal.common.startDate')}>
         <input
           type="date"
           className="param-input"
           value={startDate}
           onChange={(e) => onStartDateChange(e.target.value)}
         />
-      </div>
-      <div className="param-field">
-        <span className="param-label">{t('signal.common.endDate')}</span>
+      </ParamCard>
+      <ParamCard label={t('signal.common.endDate')}>
         <input
           type="date"
           className="param-input"
           value={endDate}
           onChange={(e) => onEndDateChange(e.target.value)}
         />
-      </div>
-    </div>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
@@ -121,7 +121,7 @@ export function RunAnalysisButton({
 }: RunAnalysisButtonProps) {
   const { t } = useTranslation();
   return (
-    <div className="bt-action-row">
+    <ActionBar>
       <LoadingButton
         isLoading={isLoading}
         onClick={onClick}
@@ -130,6 +130,6 @@ export function RunAnalysisButton({
         {icon}
         {text ?? t('signal.common.startAnalysis')}
       </LoadingButton>
-    </div>
+    </ActionBar>
   );
 }

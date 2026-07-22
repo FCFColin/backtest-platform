@@ -11,11 +11,14 @@ interface DataEngineAction {
   error: string;
   loadStage: string;
   fetchStats: (force?: boolean) => void;
-  doAction: (url: string, label: string) => void;
+  doAction: (url: string, label: string, method: 'POST' | 'PUT' | 'PATCH') => void;
 }
 
 export function useDataEngineState(): DataEngineAction {
   const { t } = useTranslation();
+  const tRef = useRef<TFunc>(t as TFunc);
+  tRef.current = t as TFunc;
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [universe, setUniverse] = useState<UniverseStats | null>(null);
   const [, setLoading] = useState(true);
@@ -29,19 +32,23 @@ export function useDataEngineState(): DataEngineAction {
   const fetchStats = useCallback(
     (force = false) =>
       doFetchStats(
-        t as TFunc,
+        tRef.current,
         force,
         { pollCountRef, fetchStartRef },
         { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning },
       ),
-    [t],
+    [],
   );
 
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
 
-  const doAction = (url: string, label: string) => doActionFn(t as TFunc, url, label, setActionMsg);
+  const doAction = useCallback(
+    (url: string, label: string, method: 'POST' | 'PUT' | 'PATCH') =>
+      doActionFn(tRef.current, url, label, setActionMsg, method),
+    [],
+  );
 
   return { stats, universe, actionMsg, error, loadStage, fetchStats, doAction };
 }

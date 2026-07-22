@@ -1,20 +1,22 @@
 import type { Portfolio, Asset } from '@backtest/shared';
-import { createDefaultPortfolio } from './backtestHelpers.js';
+import { createEmptyPortfolio, createPortfolioFromPreset } from './backtestHelpers.js';
 import type { SetFn, GetFn } from './types.js';
 
-function addPortfolioAction(set: SetFn, get: GetFn): void {
+function addPortfolioAction(set: SetFn, get: GetFn, presetId?: string): void {
   const next = get().portfolioCounter + 1;
   set((state) => ({
     portfolioCounter: next,
-    portfolios: [...state.portfolios, createDefaultPortfolio(next)],
+    portfolios: [
+      ...state.portfolios,
+      presetId ? createPortfolioFromPreset(presetId, next) : createEmptyPortfolio(next),
+    ],
   }));
 }
 
 function removePortfolioAction(set: SetFn, id: string): void {
-  set((state) => {
-    if (state.portfolios.length <= 1) return state;
-    return { portfolios: state.portfolios.filter((p) => p.id !== id) };
-  });
+  set((state) => ({
+    portfolios: state.portfolios.filter((p) => p.id !== id),
+  }));
 }
 
 function duplicatePortfolioAction(set: SetFn, get: GetFn, id: string): void {
@@ -94,10 +96,10 @@ function batchUpdateAssetsAction(
 
 export function portfolioSlice(set: SetFn, _get: GetFn) {
   return {
-    portfolios: [createDefaultPortfolio(1)],
-    portfolioCounter: 1,
+    portfolios: [],
+    portfolioCounter: 0,
 
-    addPortfolio: () => addPortfolioAction(set, _get),
+    addPortfolio: (presetId?: string) => addPortfolioAction(set, _get, presetId),
     removePortfolio: (id: string) => removePortfolioAction(set, id),
     duplicatePortfolio: (id: string) => duplicatePortfolioAction(set, _get, id),
     addAsset: (portfolioId: string) => addAssetAction(set, portfolioId),

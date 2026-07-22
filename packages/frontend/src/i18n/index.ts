@@ -11,8 +11,8 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-import zhCN from '../../../../public/locales/zh-CN/translation.json';
-import en from '../../../../public/locales/en/translation.json';
+import zhCN from './locales/zh-CN/translation.json';
+import en from './locales/en/translation.json';
 
 const DEFAULT_LNG = 'zh-CN';
 const SUPPORTED_LNGS = ['zh-CN', 'en'] as const;
@@ -35,6 +35,9 @@ i18n
     },
     fallbackLng: DEFAULT_LNG,
     supportedLngs: [...SUPPORTED_LNGS],
+    ns: ['translation'],
+    defaultNS: 'translation',
+    partialBundledLanguages: false,
     lng: normalizeLng(
       (() => {
         try {
@@ -51,6 +54,9 @@ i18n
       order: ['localStorage', 'navigator'],
       lookupLocalStorage: 'i18nextLng',
       caches: ['localStorage'],
+    },
+    react: {
+      useSuspense: true,
     },
   });
 

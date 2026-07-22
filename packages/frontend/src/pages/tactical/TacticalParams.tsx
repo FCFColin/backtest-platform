@@ -2,6 +2,7 @@ import { Plus, X, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 import {
   useTacticalPageState,
   INDICATOR_OPTIONS,
@@ -299,9 +300,8 @@ function RankingConfigRow({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="params-row">
-      <div className="param-field param-field-rolling">
-        <span className="param-label">{t('tactical.params.rankingMethod')}</span>
+    <ParamRow>
+      <ParamCard label={t('tactical.params.rankingMethod')}>
         <select
           className="param-input"
           value={strategy.rankingConfig?.method ?? 'fixed_share'}
@@ -321,9 +321,8 @@ function RankingConfigRow({
             </option>
           ))}
         </select>
-      </div>
-      <div className="param-field param-field-rolling">
-        <span className="param-label">TopN</span>
+      </ParamCard>
+      <ParamCard label="TopN">
         <div className="param-input-suffix-wrap">
           <input
             type="number"
@@ -342,8 +341,8 @@ function RankingConfigRow({
           />
           <span className="param-input-suffix">{t('tactical.params.topNUnit')}</span>
         </div>
-      </div>
-    </div>
+      </ParamCard>
+    </ParamRow>
   );
 }
 
@@ -355,8 +354,7 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
       title={t('tactical.params.aggregationConfig')}
       info={t('tactical.params.aggregationConfigInfo')}
     >
-      <div className="param-field" style={{ marginBottom: 8 }}>
-        <span className="param-label">{t('tactical.params.aggregationMethod')}</span>
+      <ParamCard label={t('tactical.params.aggregationMethod')}>
         <select
           className="param-input"
           value={strategy.aggregationMethod}
@@ -373,7 +371,7 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
             </option>
           ))}
         </select>
-      </div>
+      </ParamCard>
       {strategy.aggregationMethod === 'rank' && (
         <RankingConfigRow strategy={strategy} setStrategy={setStrategy} />
       )}
@@ -395,29 +393,24 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
   } = state;
   return (
     <ParamsSection title={t('tactical.params.backtestParams')}>
-      <div className="params-row">
-        <div className="param-field">
-          <span className="param-label">{t('tactical.params.startDate')}</span>
+      <ParamRow>
+        <ParamCard label={t('tactical.params.startDate')}>
           <input
             type="date"
             className="param-input"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-        </div>
-        <div className="param-field">
-          <span className="param-label">{t('tactical.params.endDate')}</span>
+        </ParamCard>
+        <ParamCard label={t('tactical.params.endDate')}>
           <input
             type="date"
             className="param-input"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
-        </div>
-      </div>
-      <div className="params-row" style={{ marginTop: 8 }}>
-        <div className="param-field param-field-start-val">
-          <span className="param-label">{t('tactical.params.startingValue')}</span>
+        </ParamCard>
+        <ParamCard label={t('tactical.params.startingValue')}>
           <div className="param-input-prefix-wrap">
             <span className="param-input-prefix">$</span>
             <input
@@ -427,9 +420,8 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
               onChange={(e) => setStartingValue(Number(e.target.value))}
             />
           </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <span className="param-label">{t('tactical.params.rebalanceFreq')}</span>
+        </ParamCard>
+        <ParamCard label={t('tactical.params.rebalanceFreq')}>
           <select
             className="param-input"
             value={rebalanceFrequency}
@@ -441,8 +433,8 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
               </option>
             ))}
           </select>
-        </div>
-      </div>
+        </ParamCard>
+      </ParamRow>
     </ParamsSection>
   );
 }
@@ -455,7 +447,7 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
       <SignalBuilderSection state={state} />
       <AggregationSection state={state} />
       <BacktestParamsSection state={state} />
-      <div className="bt-action-row">
+      <ActionBar>
         <LoadingButton
           isLoading={isLoading}
           onClick={handleRunBacktest}
@@ -465,7 +457,7 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
           <Play className="w-4 h-4" />
           {t('tactical.params.runBacktest')}
         </LoadingButton>
-      </div>
+      </ActionBar>
     </ParamsPanel>
   );
 }

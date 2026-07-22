@@ -1,8 +1,8 @@
-﻿import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
-import { TimeSeriesLineChartContent } from './sharedChartContent.js';
+import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import {
   computeRollingMetric,
   computeRollingExcessReturn,
@@ -60,10 +60,11 @@ function RollingLineChart({
 }) {
   const seriesTickers = metric !== 'excess' ? results.tickers : results.tickers.slice(1);
   return (
-    <TimeSeriesLineChartContent
+    <TimeSeriesLineChart
       data={chartData}
-      seriesNames={seriesTickers.map((tk) => tk.ticker)}
+      series={seriesTickers.map((tk) => tk.ticker)}
       height={400}
+      defaultStrokeWidth={1.5}
       yTickFormatter={isPct ? (v) => `${v.toFixed(0)}%` : (v) => v.toFixed(1)}
       tooltipValueFormatter={(v) => [isPct ? `${v.toFixed(2)}%` : v.toFixed(3), '']}
       tooltipLabelFormatter={(label) => `${t('common.date')}: ${label}`}

@@ -208,7 +208,7 @@ export default function SystemSettings() {
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/admin/stats');
+      const res = await apiFetch('/api/v1/admin/stats');
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data) {
@@ -229,7 +229,7 @@ export default function SystemSettings() {
   const handleClearCache = async () => {
     setSaveMsg(t('adminPage.settings.clearingCache'));
     try {
-      const res = await apiFetch('/api/data/manage/update/refetch', { method: 'POST' });
+      const res = await apiFetch('/api/v1/data/manage/update/refetch', { method: 'POST' });
       const json = await res.json();
       setSaveMsg(
         json.success

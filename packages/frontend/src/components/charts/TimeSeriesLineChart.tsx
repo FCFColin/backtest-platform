@@ -1,9 +1,8 @@
 /**
  * @file 时间序列折线图通用组件
  * @description 推广自 signal/SignalResultsPanel.tsx 的 EquityLineChart，去除信号页特定 i18n 默认值，
- *              提供更通用的 API 供 PCA / Tactical / Regression 等页面复用，替代内联 LineChart 样板。
- *              与 sharedChartContent.tsx 的 TimeSeriesLineChartContent 并存：本组件支持每系列独立配置
- *              （strokeDasharray / showDots / color 等），后者仅接受 string[] 系列。
+ *              提供更通用的 API 供 PCA / Tactical / Regression / Rolling* 等页面复用，替代内联 LineChart
+ *              样板。支持每系列独立配置（strokeDasharray / showDots / color 等），同时接受 string[] 系列简化形式。
  */
 import type { ReactElement } from 'react';
 import {

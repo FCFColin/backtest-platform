@@ -1,6 +1,7 @@
 /**
  * 工具页面路由组 — 回测/分析/优化/战术等核心工具页面。
  */
+import { useTranslation } from 'react-i18next';
 import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
@@ -28,13 +29,14 @@ const LETFSlippagePage = lazy(() => import('@/pages/letf/LETFSlippagePage'));
 const TacticalGridPage = lazy(() => import('@/pages/tactical/TacticalGridPage'));
 const GoalOptimizerPage = lazy(() => import('@/pages/goal-optimizer/GoalOptimizerPage'));
 
-const fallback = (
-  <div style={{ padding: '80px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-    {/* loading */}
-  </div>
-);
-
 export function ToolRoutes() {
+  const { t } = useTranslation();
+  const fallback = (
+    <div style={{ padding: '80px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <div className="animate-spin mx-auto mb-4 h-8 w-8 border-2 border-current border-t-transparent rounded-full" />
+      {t('toolRoutes.loading')}
+    </div>
+  );
   return (
     <Suspense fallback={fallback}>
       <Routes>

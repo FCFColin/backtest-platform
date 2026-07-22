@@ -131,13 +131,15 @@ function ActionBar({
         {t('dataEngine.refreshStats')}
       </button>
       <button
-        onClick={() => onAction('/api/data/manage/update/inc', t('dataEngine.incrementalUpdate'))}
+        onClick={() =>
+          onAction('/api/v1/data/manage/update/inc', t('dataEngine.incrementalUpdate'))
+        }
         className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700"
       >
         <Play className="h-4 w-4" /> {t('dataEngine.incrementalUpdate')}
       </button>
       <button
-        onClick={() => onAction('/api/data/manage/update/full', t('dataEngine.fullUpdate'))}
+        onClick={() => onAction('/api/v1/data/manage/update/full', t('dataEngine.fullUpdate'))}
         className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
       >
         <Zap className="h-4 w-4" /> {t('dataEngine.fullUpdate')}
@@ -303,7 +305,7 @@ export default function DataManagement() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/api/data/manage/stats');
+      const res = await apiFetch('/api/v1/data/manage/stats');
       const json = await res.json();
       if (json.success && json.data) {
         const newStats = buildDataStats(json.data);

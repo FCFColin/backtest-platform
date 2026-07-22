@@ -1,12 +1,12 @@
 /**
  * @file 回测结果展示区
- * @description 包含 Tab 分组导航、各 Tab 内容渲染器（懒加载图表/表格）以及空/加载态。
+ * @description 包含 Tab 导航、各 Tab 内容渲染器（懒加载图表/表格）以及空/加载态。
  *              ResultsContent 订阅 backtestStore 的 results/isLoading/activeTab/portfolios，
  *              按 activeTab 选择对应渲染器并按需触发 enrichSeries 拉取扩展数据。
  */
 import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import StatisticsTable from '@/components/StatisticsTable';
 import type { Portfolio, PortfolioResult } from '@backtest/shared';
@@ -68,26 +68,65 @@ const TAB_GROUPS = [
   },
 ];
 
+const ALL_TABS = TAB_GROUPS.flatMap((g) => g.tabs);
+
 function TabBar() {
   const { t } = useTranslation();
   const activeTab = useBacktestStore((s) => s.activeTab);
   const setActiveTab = useBacktestStore((s) => s.setActiveTab);
+
+  const handleExport = () => {
+    const results = useBacktestStore.getState().results;
+    if (!results?.portfolios?.length) return;
+
+    const pf = results.portfolios[0];
+    if (!pf?.growthCurve?.length) return;
+
+    const headers = ['date', ...results.portfolios.map((p) => p.name)];
+    const rows: string[][] = [];
+    const dates = pf.growthCurve.map((pt) => new Date(pt.date).toISOString().split('T')[0]);
+
+    dates.forEach((date, i) => {
+      const row = [date];
+      results.portfolios.forEach((p) => {
+        row.push(p.growthCurve[i]?.value?.toFixed(4) ?? '');
+      });
+      rows.push(row);
+    });
+
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    link.download = `backtest-results-${dateStr}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="result-tabs">
-      {TAB_GROUPS.map((group) => (
-        <div key={group.groupKey} className="result-tab-group">
-          <div className="result-tab-group-label">{t(group.groupKey)}</div>
-          {group.tabs.map((tab) => (
-            <button
-              key={tab.key}
-              className={`result-tab ${activeTab === tab.key ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.key)}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
-        </div>
-      ))}
+    <div className="bt-tabs">
+      <div className="bt-tabs-left">
+        {ALL_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            className={`bt-tab ${activeTab === tab.key ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {t(tab.labelKey)}
+          </button>
+        ))}
+      </div>
+      <div className="bt-tabs-right">
+        <button type="button" className="bt-export-btn" onClick={handleExport}>
+          <Download className="w-3.5 h-3.5" />
+          Export CSV
+        </button>
+      </div>
     </div>
   );
 }

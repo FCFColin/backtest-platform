@@ -15,7 +15,7 @@ function PresetButton({ label, onClick }: PresetButtonProps) {
 function PresetsCard({ presets }: { presets: PresetButtonProps[] }) {
   const { t } = useTranslation();
   return (
-    <div className="bt-seo-card card" style={{ marginBottom: 12 }}>
+    <div className="card" style={{ marginBottom: 12 }}>
       <div style={{ fontWeight: 600, marginBottom: 8 }}>{t('monteCarlo.presets')}</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {presets.map((preset) => (
@@ -36,17 +36,28 @@ export function ComputeToolShell<S>({
   const { t } = useTranslation();
   const Params = config.params;
   const Results = config.results;
+  const AfterParams = config.afterParams;
   const Extra = config.extra;
   const presetButtons = config.presets?.(state);
+
+  const paramsTitle = config.hideParamsTitle
+    ? undefined
+    : (config.paramsTitle ?? t(config.paramsTitleKey ?? 'params.basicParams'));
 
   return (
     <div className="bt-page">
       <div className="bt-page-header">
         <h1 className="bt-page-title">{t(config.titleKey)}</h1>
+        <div className="bt-page-actions">
+          <button className="btn-upgrade">{t('common.upgrade')}</button>
+          <button className="btn-pill-outline">{t('common.about')}</button>
+          <button className="btn-pill-outline">{t('common.limits')}</button>
+        </div>
       </div>
 
       {config.seoDescKey && (
         <ToolSeoCard
+          subtitle={config.seoSubtitleKey ? t(config.seoSubtitleKey) : undefined}
           desc={t(config.seoDescKey)}
           features={(config.seoFeatures ?? []).map((f) => ({
             title: t(f.titleKey),
@@ -62,8 +73,9 @@ export function ComputeToolShell<S>({
       {presetButtons && <PresetsCard presets={presetButtons} />}
 
       <ToolPageLayout
-        title={t('params.basicParams')}
+        title={paramsTitle}
         params={<Params state={state} />}
+        afterParams={AfterParams ? <AfterParams state={state} /> : undefined}
         results={Results ? <Results state={state} /> : undefined}
       />
 

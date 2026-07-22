@@ -20,26 +20,17 @@ export function StatisticsTableHeader({
 }: StatisticsTableHeaderProps) {
   const { t } = useTranslation();
   return (
-    <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+    <tr className="stat-table-header-row">
       <th
-        className="text-[12px] font-semibold text-left py-2.5 px-3"
-        style={{
-          color: 'var(--text-muted)',
-          borderBottom: '2px solid var(--border-soft)',
-          minWidth,
-        }}
+        className="stat-table-header-cell stat-table-metric-cell text-[12px] text-left"
+        style={{ minWidth }}
       >
         {t('common.metric')}
       </th>
       {portfolios.map((p, idx) => (
         <th
           key={p.name}
-          className="text-[12px] font-semibold text-right py-2.5 px-3"
-          style={{
-            color: 'var(--text-muted)',
-            borderBottom: '2px solid var(--border-soft)',
-            whiteSpace: 'nowrap',
-          }}
+          className="stat-table-header-cell stat-table-value-cell text-[12px] text-right"
         >
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"

@@ -7,6 +7,7 @@ import { Play } from 'lucide-react';
 import { ParamsPanel } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
 import { PortfolioEditor } from '../../components/ParamsShared.js';
+import { ParamRow, ParamCard } from '../../components/params/index.js';
 import { FACTOR_OPTIONS, RF_SOURCE_OPTIONS } from './factorRegressionUtils.js';
 import type { AssetItem, ReturnFrequency } from './factorRegressionUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -77,27 +78,24 @@ function FactorDateFreqRow({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="params-row">
-      <div className="param-field">
-        <label className="param-label">{t('factorRegression.startDate')}</label>
+    <ParamRow>
+      <ParamCard label={t('factorRegression.startDate')}>
         <input
           type="date"
           className="param-input"
           value={startDate}
           onChange={(e) => onStartDateChange(e.target.value)}
         />
-      </div>
-      <div className="param-field">
-        <label className="param-label">{t('factorRegression.endDate')}</label>
+      </ParamCard>
+      <ParamCard label={t('factorRegression.endDate')}>
         <input
           type="date"
           className="param-input"
           value={endDate}
           onChange={(e) => onEndDateChange(e.target.value)}
         />
-      </div>
-      <div className="param-field" style={{ width: 110 }}>
-        <label className="param-label">{t('factorRegression.returnFrequency')}</label>
+      </ParamCard>
+      <ParamCard label={t('factorRegression.returnFrequency')}>
         <select
           className="param-input"
           value={returnFrequency}
@@ -106,9 +104,8 @@ function FactorDateFreqRow({
           <option value="monthly">{t('factorRegression.freqMonthly')}</option>
           <option value="daily">{t('factorRegression.freqDaily')}</option>
         </select>
-      </div>
-      <div className="param-field" style={{ width: 150 }}>
-        <label className="param-label">{t('factorRegression.rfRate')}</label>
+      </ParamCard>
+      <ParamCard label={t('factorRegression.rfRate')}>
         <select
           className="param-input"
           value={rfSource}
@@ -120,8 +117,8 @@ function FactorDateFreqRow({
             </option>
           ))}
         </select>
-      </div>
-    </div>
+      </ParamCard>
+    </ParamRow>
   );
 }
 

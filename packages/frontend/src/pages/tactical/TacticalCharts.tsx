@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import ChartCard from '../../components/ChartCard.js';
 import { SortableTable, type Column } from '../../components/SortableTable.js';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
-import { buildGrowthData, buildStatRows } from './tacticalResultUtils.js';
-import type { StatRow } from './tacticalTypes.js';
+import { buildGrowthData, buildStatRows, type StatRow } from './tacticalResultUtils.js';
 import { SignalHistoryTable } from './TacticalTables.js';
 import type { BacktestResponse } from './TacticalUtils.js';
 

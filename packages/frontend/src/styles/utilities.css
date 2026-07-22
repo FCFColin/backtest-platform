@@ -4,7 +4,7 @@
 @media (max-width: 768px) {
   .bt-page {
     padding: 12px;
-    padding-top: 72px;
+    padding-top: 0;
   }
   .bt-seo-features {
     flex-direction: column;

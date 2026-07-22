@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, Database, HelpCircle, ChevronDown, Calculator, TrendingUp } from 'lucide-react';
 import { StandardPageShell } from '../components/shells/StandardPageShell.js';
+import helpData from './help/helpData.json';
 
 type Section = 'methodology' | 'data' | 'faq';
 
@@ -24,6 +25,12 @@ interface DataSource {
   name: string;
   scope: string;
   note: string;
+}
+
+interface MetricStatic {
+  name: string;
+  formula: string;
+  i18nKey: string;
 }
 
 export default function HelpPage() {
@@ -181,48 +188,11 @@ function RebalancingModesInfo() {
 
 function MethodologySection() {
   const { t } = useTranslation();
-  const metrics: { name: string; formula: string; info: MetricInfo }[] = [
-    {
-      name: 'CAGR',
-      formula: 'CAGR = (V_end / V_start)^(1/years) - 1',
-      info: t('help.methodology.metrics.cagr', { returnObjects: true }) as MetricInfo,
-    },
-    {
-      name: 'Sharpe Ratio',
-      formula: 'Sharpe = (R_p - R_f) / σ_p',
-      info: t('help.methodology.metrics.sharpe', { returnObjects: true }) as MetricInfo,
-    },
-    {
-      name: 'Sortino Ratio',
-      formula: 'Sortino = (R_p - R_f) / σ_downside',
-      info: t('help.methodology.metrics.sortino', { returnObjects: true }) as MetricInfo,
-    },
-    {
-      name: 'Max Drawdown',
-      formula: 'MDD = min((V_t - max(V_0..t)) / max(V_0..t))',
-      info: t('help.methodology.metrics.mdd', { returnObjects: true }) as MetricInfo,
-    },
-    {
-      name: 'Volatility',
-      formula: 'σ_annual = σ_daily × √252',
-      info: t('help.methodology.metrics.volatility', { returnObjects: true }) as MetricInfo,
-    },
-    {
-      name: 'Calmar Ratio',
-      formula: 'Calmar = CAGR / |MDD|',
-      info: t('help.methodology.metrics.calmar', { returnObjects: true }) as MetricInfo,
-    },
-    {
-      name: 'Beta',
-      formula: 'β = Cov(R_p, R_m) / Var(R_m)',
-      info: t('help.methodology.metrics.beta', { returnObjects: true }) as MetricInfo,
-    },
-    {
-      name: 'Alpha',
-      formula: 'α = R_p - [R_f + β(R_m - R_f)]',
-      info: t('help.methodology.metrics.alpha', { returnObjects: true }) as MetricInfo,
-    },
-  ];
+  const metrics = (helpData.metrics as MetricStatic[]).map((m) => ({
+    name: m.name,
+    formula: m.formula,
+    info: t(m.i18nKey, { returnObjects: true }) as MetricInfo,
+  }));
   return (
     <HelpSection
       icon={<BookOpen className="w-6 h-6" style={{ color: 'var(--brand)' }} />}

@@ -10,13 +10,17 @@ import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 
 const iconBtn: React.CSSProperties = {
-  color: 'var(--text-muted)',
-  borderRadius: 14,
-  height: 44,
-  minWidth: 44,
+  color: '#94a3b8',
+  borderRadius: 8,
+  height: 36,
+  minWidth: 36,
   background: 'transparent',
   cursor: 'pointer',
   border: 'none',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'color .12s, background-color .12s',
 };
 
 const menuItemStyle: React.CSSProperties = {
@@ -24,9 +28,10 @@ const menuItemStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: 8,
   padding: '8px 10px',
-  borderRadius: 8,
+  borderRadius: 6,
   fontSize: 13,
-  color: 'var(--text-body)',
+  color: '#cbd5e1',
+  transition: 'background-color .12s',
 };
 
 const menuBtnStyle: React.CSSProperties = {
@@ -38,10 +43,12 @@ const menuBtnStyle: React.CSSProperties = {
 };
 
 const hoverBg = (e: React.MouseEvent<HTMLElement>) => {
-  e.currentTarget.style.background = 'var(--bg-subtle)';
+  e.currentTarget.style.background = 'rgba(148, 163, 184, 0.1)';
+  e.currentTarget.style.color = '#f1f5f9';
 };
 const unhoverBg = (e: React.MouseEvent<HTMLElement>) => {
   e.currentTarget.style.background = 'transparent';
+  e.currentTarget.style.color = '#cbd5e1';
 };
 
 /** 下拉菜单内容 */
@@ -66,13 +73,12 @@ function AuthMenuDropdown({
         position: 'absolute',
         top: '100%',
         right: 0,
-        marginTop: 6,
+        marginTop: 4,
         minWidth: 240,
-        background: 'var(--bg-elevated)',
-        border: '1px solid var(--border-strong)',
-        borderRadius: 12,
-        boxShadow: 'var(--shadow-md)',
-        padding: 8,
+        background: '#131c2f',
+        border: '1px solid rgba(148, 163, 184, 0.15)',
+        borderRadius: 8,
+        padding: 6,
         zIndex: 100,
       }}
     >
@@ -93,12 +99,16 @@ function OrgInfoHeader({
   const { t } = useTranslation();
   return (
     <div
-      style={{ padding: '6px 10px', borderBottom: '1px solid var(--border-soft)', marginBottom: 6 }}
+      style={{
+        padding: '8px 10px',
+        borderBottom: '1px solid rgba(148, 163, 184, 0.12)',
+        marginBottom: 4,
+      }}
     >
-      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-strong)' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#f1f5f9' }}>
         {org?.name ?? t('layout.authMenu.noOrgSelected')}
       </div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
         {user.platformAdmin ? t('layout.authMenu.platformAdminPrefix') : ''}
         {org?.role ?? user.role}
       </div>
@@ -118,7 +128,7 @@ function OrgSwitcherSection({
   const { t } = useTranslation();
   if (orgs.length === 0) return null;
   return (
-    <div style={{ marginBottom: 6 }}>
+    <div style={{ marginBottom: 4 }}>
       <div
         style={{
           display: 'flex',
@@ -126,7 +136,10 @@ function OrgSwitcherSection({
           gap: 6,
           padding: '4px 10px',
           fontSize: 11,
-          color: 'var(--text-muted)',
+          color: '#64748b',
+          fontWeight: 500,
+          textTransform: 'uppercase',
+          letterSpacing: '0.03em',
         }}
       >
         <Building2 className="w-3 h-3" /> {t('layout.authMenu.switchOrg')}
@@ -143,7 +156,7 @@ function OrgSwitcherSection({
             {o.name}
           </span>
           {o.orgId === currentOrgId && (
-            <Check className="w-3.5 h-3.5" style={{ color: 'var(--brand)', flexShrink: 0 }} />
+            <Check className="w-3.5 h-3.5" style={{ color: '#3b82f6', flexShrink: 0 }} />
           )}
         </button>
       ))}
@@ -222,13 +235,19 @@ export default function AuthMenu() {
       <Link
         to="/login"
         title={t('layout.authMenu.login')}
-        className="flex flex-col items-center justify-center px-2.5 no-underline transition-colors"
-        style={{ ...iconBtn, textDecoration: 'none' }}
+        className="flex items-center justify-center no-underline"
+        style={{ ...iconBtn, textDecoration: 'none', padding: '0 12px', gap: 6 }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+          e.currentTarget.style.color = '#f1f5f9';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'transparent';
+          e.currentTarget.style.color = '#94a3b8';
+        }}
       >
         <LogIn className="w-4 h-4" />
-        <span style={{ fontSize: 10, fontWeight: 600, lineHeight: 1.2, marginTop: 1 }}>
-          {t('layout.authMenu.login')}
-        </span>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>{t('layout.authMenu.login')}</span>
       </Link>
     );
   }
@@ -278,14 +297,22 @@ function AvatarButton({
     <button
       onClick={onToggle}
       title={t('layout.authMenu.account')}
-      style={{ ...iconBtn, display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px' }}
+      style={{ ...iconBtn, display: 'flex', alignItems: 'center', gap: 6, padding: '0 6px' }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+        e.currentTarget.style.color = '#f1f5f9';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'transparent';
+        e.currentTarget.style.color = '#94a3b8';
+      }}
     >
       <span
         style={{
           width: 28,
           height: 28,
           borderRadius: '50%',
-          background: 'var(--brand)',
+          background: '#3b82f6',
           color: '#fff',
           display: 'flex',
           alignItems: 'center',
@@ -298,7 +325,11 @@ function AvatarButton({
       </span>
       <ChevronDown
         className="w-3 h-3"
-        style={{ transition: 'transform .15s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }}
+        style={{
+          color: '#94a3b8',
+          transition: 'transform .15s',
+          transform: open ? 'rotate(180deg)' : 'rotate(0)',
+        }}
       />
     </button>
   );

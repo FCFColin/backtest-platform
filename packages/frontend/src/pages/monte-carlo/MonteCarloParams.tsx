@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import { PortfolioEditor } from '../../components/ParamsShared.js';
-import { ParamRow, ParamCard } from '../../components/params/index.js';
+import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
 import type { McState } from './monteCarloParamsUtils.js';
 import type { PortfolioState, PortfolioMode } from './monteCarloTypes.js';
 
@@ -395,11 +395,11 @@ function McParamsPanel({ s }: { s: McState }) {
       <SimParamsSection s={s} />
       <BuildModeSection s={s} />
       <DualGoalSection s={s} />
-      <div className="bt-action-row" style={{ padding: '12px 0 4px' }}>
+      <ActionBar>
         <button
           onClick={s.runSimulation}
           disabled={s.isLoading}
-          className="main-action-btn"
+          className="btn-primary"
           style={{ width: '100%' }}
         >
           {s.isLoading ? (
@@ -409,7 +409,7 @@ function McParamsPanel({ s }: { s: McState }) {
           )}
           {s.isLoading ? t('monteCarlo.params.simulating') : t('monteCarlo.params.startSim')}
         </button>
-      </div>
+      </ActionBar>
     </ParamsPanel>
   );
 }

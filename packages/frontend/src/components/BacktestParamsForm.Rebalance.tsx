@@ -6,7 +6,7 @@
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
-import { ParamsSection } from './ParamsPanel.js';
+
 import type { RebalanceBands } from '@backtest/shared';
 
 /** 单个组合的 Rebalance Bands 输入行 */
@@ -98,74 +98,69 @@ export function AdvancedSettingsSection() {
   const updatePortfolio = useBacktestStore((s) => s.updatePortfolio);
 
   return (
-    <ParamsSection
-      title={t('params.advancedSettings')}
-      defaultOpen={false}
-      info={t('params.advancedSettingsInfo')}
-    >
-      <div className="params-subsection-body">
-        {portfolios.map((portfolio) => (
+    <div className="params-subsection-body">
+      <div className="params-subsection-title">{t('params.advancedSettings')}</div>
+      {portfolios.map((portfolio) => (
+        <div
+          key={portfolio.id}
+          className="cashflow-leg-row"
+          style={{ flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end' }}
+        >
           <div
-            key={portfolio.id}
-            className="cashflow-leg-row"
-            style={{ flexWrap: 'wrap', gap: '8px', alignItems: 'flex-end' }}
+            className="text-[12px] font-semibold"
+            style={{ color: 'var(--text-strong)', width: '100%', marginBottom: '2px' }}
           >
-            <div
-              className="text-[12px] font-semibold"
-              style={{ color: 'var(--text-strong)', width: '100%', marginBottom: '2px' }}
-            >
-              {portfolio.name}
-            </div>
-            <div className="param-field" style={{ width: 100 }}>
-              <label className="param-label">{t('params.annualDrag')}</label>
-              <div className="param-input-suffix-wrap">
-                <input
-                  type="number"
-                  value={portfolio.drag ?? 0}
-                  min={0}
-                  max={10}
-                  step={0.1}
-                  className="param-input param-input-with-suffix"
-                  onChange={(e) =>
-                    updatePortfolio(portfolio.id, { drag: Number(e.target.value) || 0 })
-                  }
-                />
-                <span className="param-input-suffix">%</span>
-              </div>
-            </div>
-            <label className="param-check" style={{ marginBottom: 0 }}>
-              <input
-                type="checkbox"
-                checked={portfolio.totalReturn ?? true}
-                onChange={(e) => updatePortfolio(portfolio.id, { totalReturn: e.target.checked })}
-              />
-              <span>{t('params.totalReturnMode')}</span>
-            </label>
-            <label className="param-check" style={{ marginBottom: 0 }}>
-              <input
-                type="checkbox"
-                checked={portfolio.rebalanceBands?.enabled ?? false}
-                onChange={(e) => {
-                  const current = portfolio.rebalanceBands || { enabled: false };
-                  const updated: RebalanceBands = { ...current, enabled: e.target.checked };
-                  if (e.target.checked && updated.absoluteBand === undefined)
-                    updated.absoluteBand = 5;
-                  if (e.target.checked && updated.relativeBand === undefined)
-                    updated.relativeBand = 20;
-                  updatePortfolio(portfolio.id, { rebalanceBands: updated });
-                }}
-              />
-              <span>{t('params.enableRebalanceBands')}</span>
-            </label>
-            {portfolio.rebalanceBands?.enabled && (
-              <PortfolioBandsEditor
-                bands={portfolio.rebalanceBands}
-                onUpdate={(bands) => updatePortfolio(portfolio.id, { rebalanceBands: bands })}
-              />
-            )}
+            {portfolio.name}
           </div>
-        ))}
-      </div>
-    </ParamsSection>
+          <div className="param-field" style={{ width: 100 }}>
+            <label className="param-label">{t('params.annualDrag')}</label>
+            <div className="param-input-suffix-wrap">
+              <input
+                type="number"
+                value={portfolio.drag ?? 0}
+                min={0}
+                max={10}
+                step={0.1}
+                className="param-input param-input-with-suffix"
+                onChange={(e) =>
+                  updatePortfolio(portfolio.id, { drag: Number(e.target.value) || 0 })
+                }
+              />
+              <span className="param-input-suffix">%</span>
+            </div>
+          </div>
+          <label className="param-check" style={{ marginBottom: 0 }}>
+            <input
+              type="checkbox"
+              checked={portfolio.totalReturn ?? true}
+              onChange={(e) => updatePortfolio(portfolio.id, { totalReturn: e.target.checked })}
+            />
+            <span>{t('params.totalReturnMode')}</span>
+          </label>
+          <label className="param-check" style={{ marginBottom: 0 }}>
+            <input
+              type="checkbox"
+              checked={portfolio.rebalanceBands?.enabled ?? false}
+              onChange={(e) => {
+                const current = portfolio.rebalanceBands || { enabled: false };
+                const updated: RebalanceBands = { ...current, enabled: e.target.checked };
+                if (e.target.checked && updated.absoluteBand === undefined)
+                  updated.absoluteBand = 5;
+                if (e.target.checked && updated.relativeBand === undefined)
+                  updated.relativeBand = 20;
+                updatePortfolio(portfolio.id, { rebalanceBands: updated });
+              }}
+            />
+            <span>{t('params.enableRebalanceBands')}</span>
+          </label>
+          {portfolio.rebalanceBands?.enabled && (
+            <PortfolioBandsEditor
+              bands={portfolio.rebalanceBands}
+              onUpdate={(bands) => updatePortfolio(portfolio.id, { rebalanceBands: bands })}
+            />
+          )}
+        </div>
+      ))}
+    </div>
   );
 }

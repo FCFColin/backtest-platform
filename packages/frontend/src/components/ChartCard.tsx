@@ -53,9 +53,9 @@ export default function ChartCard({
   style,
   className,
 }: ChartCardProps) {
-  const hasTitle = title !== undefined && title !== null;
+  const hasTitle = title != null;
   const showExporter = data !== undefined && csvFilename !== undefined;
-  const hasHeaderExtra = headerExtra !== undefined && headerExtra !== null;
+  const hasHeaderExtra = headerExtra != null;
   const hasRightContent = showExporter || hasHeaderExtra;
   const cardClassName = className ? `chart-card ${className}` : 'chart-card';
 
