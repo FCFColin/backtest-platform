@@ -18,8 +18,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { PoolClient } from 'pg';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { createMockClient } from '../../helpers/dbMocks.js';
 
 // ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====
 const loggerMocks = vi.hoisted(() => ({
@@ -45,14 +45,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 }));
 
 import { writeOutboxEvent } from '../../../packages/backend/src/middleware/auditLog.js';
-
-/** 构造一个 mock PoolClient，记录所有 query 调用 */
-function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {
-  return {
-    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
-    release: vi.fn(),
-  } as unknown as PoolClient & { query: ReturnType<typeof vi.fn> };
-}
 
 describe('writeOutboxEvent 事务双写', () => {
   beforeEach(() => {

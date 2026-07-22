@@ -80,11 +80,9 @@ vi.mock('fs', () => ({
 import {
   getEngineStatus,
   getTickerList,
-  searchTickers,
   loadTickerData,
   getUniverseStats,
   scanTickersStats,
-  scanTickersStatsAsync,
   resolveUniverseFromCacheStats,
 } from '../../../packages/backend/src/infrastructure/tickerDataService.js';
 
@@ -195,51 +193,6 @@ describe('getTickerList', () => {
   });
 });
 
-describe('searchTickers', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('应根据 query 过滤标的（不区分大小写）', async () => {
-    // mock 模拟 SQL to_tsquery('bond') 已过滤的结果（仅 BND 命中）
-    pgMocks.query.mockResolvedValue({
-      rows: [{ ticker: 'BND', category: 'Vanguard Bond', market: 'US' }],
-    });
-
-    const result = await searchTickers('bond');
-
-    expect(result).toHaveLength(1);
-    expect(result[0].ticker).toBe('BND');
-  });
-
-  it('应匹配 ticker/name/category/market 任一字段', async () => {
-    // mock 模拟 SQL to_tsquery('cn') 已过滤的结果（仅 600519.SH 命中 CN 市场）
-    pgMocks.query.mockResolvedValue({
-      rows: [{ ticker: '600519.SH', category: '贵州茅台', market: 'CN' }],
-    });
-
-    const result = await searchTickers('cn');
-
-    expect(result).toHaveLength(1);
-    expect(result[0].ticker).toBe('600519.SH');
-  });
-
-  it('结果应限制在 30 条以内', async () => {
-    // mock 模拟 SQL 已过滤并返回 30 条（超出 SQL LIMIT 20 的降级场景），验证 JS 侧 30 条上限兜底
-    pgMocks.query.mockResolvedValue({
-      rows: Array.from({ length: 30 }, (_, i) => ({
-        ticker: `STOCK${i}`,
-        category: `Stock ${i}`,
-        market: 'US',
-      })),
-    });
-
-    const result = await searchTickers('stock');
-
-    expect(result.length).toBeLessThanOrEqual(30);
-  });
-});
-
 describe('getUniverseStats', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -345,73 +298,6 @@ describe('scanTickersStats', () => {
 
     expect(await scanTickersStats()).toBeNull();
     expect(await scanTickersStats(true)).toBeNull();
-  });
-});
-
-describe('scanTickersStatsAsync', () => {
-  const dbStats = {
-    generated_at: '2024-06-01T00:00:00Z',
-    total_cached: 1,
-    by_market: { US: { count: 1, stocks: 1, etfs: 0, indices: 0 } },
-    by_type: { STOCK: 1 },
-    by_exchange: { '': 1 },
-    date_ranges: { earliest: '2014-01-02', latest: '2024-01-02' },
-    by_decade: { '2010s': 1 },
-    by_year_count: { '10-14年': 1 },
-    coverage: {
-      tickers_with_5y_plus: 1,
-      tickers_with_10y_plus: 1,
-      tickers_with_20y_plus: 0,
-      avg_data_points: 500,
-      median_data_points: 500,
-    },
-    data_quality: {
-      with_adj_close: 1,
-      with_dividends: 0,
-      with_splits: 0,
-      total_data_points: 500,
-      total_size_mb: 0.1,
-    },
-    recent_updates: [],
-    sample_tickers: {
-      us_stock: [
-        {
-          ticker: 'AAPL',
-          name: 'Apple',
-          first_date: '2014-01-02',
-          last_date: '2024-01-02',
-          data_points: 500,
-        },
-      ],
-    },
-  };
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    fsMocks.existsSync.mockReturnValue(false);
-    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(dbStats);
-  });
-
-  it('应从 PostgreSQL 聚合统计', async () => {
-    const result = await scanTickersStatsAsync(true);
-
-    expect(result).not.toBeNull();
-    expect(result!.total_cached).toBe(1);
-    expect(result!.by_market.US.count).toBe(1);
-    expect(marketStatsMocks.scanMarketStatsFromDb).toHaveBeenCalled();
-  });
-
-  it('PostgreSQL 不可用时应抛出错误', async () => {
-    marketStatsMocks.scanMarketStatsFromDb.mockResolvedValue(null);
-
-    await expect(scanTickersStatsAsync(true)).rejects.toThrow('数据库为空或连接失败');
-  });
-
-  it('应始终从 PostgreSQL 查询', async () => {
-    const result = await scanTickersStatsAsync(false);
-
-    expect(result.total_cached).toBe(1);
-    expect(marketStatsMocks.scanMarketStatsFromDb).toHaveBeenCalled();
   });
 });
 

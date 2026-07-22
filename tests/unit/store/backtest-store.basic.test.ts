@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe('addPortfolio', () => {
   it('添加新组合，包含默认VTI+BND', () => {
-    useBacktestStore.getState().addPortfolio();
+    useBacktestStore.getState().addPortfolio('60-40');
     const after = useBacktestStore.getState().portfolios;
     expect(after.length).toBe(2);
     expect(after[1].assets[0].ticker).toBe('VTI');
@@ -63,9 +63,9 @@ describe('duplicatePortfolio', () => {
 });
 
 describe('removePortfolio', () => {
-  it('只有1个组合时不能删除', () => {
+  it('只有1个组合时也能删除', () => {
     useBacktestStore.getState().removePortfolio('p1');
-    expect(useBacktestStore.getState().portfolios.length).toBe(1);
+    expect(useBacktestStore.getState().portfolios.length).toBe(0);
   });
 
   it('有2个组合时可以删除', () => {

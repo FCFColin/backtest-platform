@@ -323,3 +323,40 @@ describe('安全攻击用例', () => {
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
   });
 });
+
+describe('清理定时器（内存回退模式）', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('间隔触发时应清理过期 Key 并记录日志', async () => {
+    vi.resetModules();
+    vi.useFakeTimers();
+
+    // 重新导入使模块顶层 setInterval 被 fake timer 拦截
+    const { idempotencyKey: idempotencyKeyFresh } =
+      await import('../../../packages/backend/src/middleware/idempotency.js');
+    const { logger: freshLogger } = await import('../../../packages/backend/src/utils/logger.js');
+
+    redisMocks.useMemoryFallback();
+
+    const key = 'cleanup-trigger-key';
+    const r1 = createIdempotencyReqRes(key);
+    idempotencyKeyFresh(r1.req, r1.res, r1.next);
+    await vi.waitFor(() => expect(r1.next).toHaveBeenCalledTimes(1));
+    r1.res.statusCode = 200;
+    r1.res.json({ success: true, data: 'old' });
+
+    // 超过 TTL（1h）后触发清理间隔（10min）
+    vi.advanceTimersByTime(61 * 60 * 1000);
+    vi.advanceTimersByTime(10 * 60 * 1000);
+
+    expect(freshLogger.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        middleware: 'idempotency',
+        cleanedCount: 1,
+      }),
+      '[idempotency] 内存回退模式过期 Key 清理',
+    );
+  });
+});

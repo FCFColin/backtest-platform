@@ -4,7 +4,7 @@
  * 验证数据获取降级链路：PostgreSQL → Go data-fetcher → 文件缓存。
  * 重点断言 degraded 标志的正确传播——当 DB 不可用或 Go 服务无法获取全部缺失
  * 标的时，consumeDegradedFlag() 必须返回 degraded:true（AGENTS.md 降级模式要求）。
- * 依赖模块（dataQueryService/dataCacheService/tickerValidation/OTel）被 mock。
+ * 依赖模块（dataQuery/dataCache/tickerValidation/OTel）被 mock。
  */
 import { describe, it, expect, afterAll, vi } from 'vitest';
 
@@ -38,7 +38,7 @@ const { queryPricesFromDbMock, fetchMissingFromGoServiceMock } = vi.hoisted(() =
   fetchMissingFromGoServiceMock: vi.fn(),
 }));
 
-vi.mock('../../packages/backend/src/infrastructure/dataQueryService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/dataQuery.js', () => ({
   queryPricesFromDb: queryPricesFromDbMock,
   fetchMissingFromGoService: fetchMissingFromGoServiceMock,
   isDbAvailable: vi.fn(() => true),
@@ -49,7 +49,7 @@ vi.mock('../../packages/backend/src/infrastructure/dataQueryService.js', () => (
   TickerSearchResult: class {},
 }));
 
-vi.mock('../../packages/backend/src/infrastructure/dataCacheService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/dataCache.js', () => ({
   readCache: vi.fn(async () => null),
   getCacheKey: vi.fn(() => 'cache-key'),
   writeCache: vi.fn(),
@@ -72,7 +72,7 @@ vi.mock('../../packages/backend/src/db/pool.js', () => ({
   withTenant: vi.fn(),
 }));
 
-import { fetchHistoryData } from '../../packages/backend/src/services/dataService.js';
+import { fetchHistoryData } from '../../packages/backend/src/infrastructure/dataFacade.js';
 
 afterAll(() => {
   vi.restoreAllMocks();

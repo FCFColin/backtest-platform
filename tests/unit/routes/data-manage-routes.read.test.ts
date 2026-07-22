@@ -89,7 +89,8 @@ describe('dataManageRoutes - GET /stats', () => {
   it('无统计数据时应返回 null', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
 
-    const res = await fetch(`${server.url}/api/v1/data/manage/stats`);
+    // ?force=1 穿透 60s 内存缓存（Task 3.4），确保 mock 覆盖生效
+    const res = await fetch(`${server.url}/api/v1/data/manage/stats?force=1`);
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -100,7 +101,8 @@ describe('dataManageRoutes - GET /stats', () => {
   it('scanMarketStatsFromDb 抛错时应返回 500', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('scan error'));
 
-    const res = await fetch(`${server.url}/api/v1/data/manage/stats`);
+    // ?force=1 穿透 60s 内存缓存（Task 3.4），确保 mock 覆盖生效
+    const res = await fetch(`${server.url}/api/v1/data/manage/stats?force=1`);
     const body = await res.json();
 
     expect(res.status).toBe(500);

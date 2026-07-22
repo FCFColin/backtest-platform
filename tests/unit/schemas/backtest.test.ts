@@ -172,6 +172,43 @@ describe('portfolioBacktestSchema', () => {
     expect(() => portfolioBacktestSchema.parse(data)).not.toThrow();
   });
 
+  it('cashflowLegs amount=0 应通过校验（前端默认空 leg）', () => {
+    const data = {
+      portfolios: [makeValidPortfolio()],
+      parameters: {
+        ...makeValidParameters(),
+        cashflowLegs: [
+          { id: 'leg-1', amount: 0, type: 'contribution', frequency: 'monthly', offset: 0 },
+        ],
+      },
+    };
+    expect(() => portfolioBacktestSchema.parse(data)).not.toThrow();
+  });
+
+  it('cashflowLegs 负数 amount 应通过校验（净流出 override）', () => {
+    const data = {
+      portfolios: [makeValidPortfolio()],
+      parameters: {
+        ...makeValidParameters(),
+        cashflowLegs: [
+          { id: 'leg-1', amount: -100, type: 'withdrawal', frequency: 'monthly', offset: 0 },
+        ],
+      },
+    };
+    expect(() => portfolioBacktestSchema.parse(data)).not.toThrow();
+  });
+
+  it('oneTimeCashflows amount=0 应通过校验', () => {
+    const data = {
+      portfolios: [makeValidPortfolio()],
+      parameters: {
+        ...makeValidParameters(),
+        oneTimeCashflows: [{ id: 'cf-1', amount: 0, type: 'withdrawal', date: '2024-06-15' }],
+      },
+    };
+    expect(() => portfolioBacktestSchema.parse(data)).not.toThrow();
+  });
+
   it('cashflowLeg type 非法枚举应抛错', () => {
     expect(() =>
       portfolioBacktestSchema.parse({

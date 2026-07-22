@@ -23,7 +23,7 @@ import {
   httpRequestsTotal,
   engineCallsTotal,
   engineCallDuration,
-  fallbackToNodeTotal,
+  engineUnavailableTotal,
   recordEngineCall,
   recordEngineUnavailable,
   registerCircuitBreakerMetrics,
@@ -73,9 +73,9 @@ describe('指标对象导出', () => {
     expect(typeof engineCallDuration.observe).toBe('function');
   });
 
-  it('fallbackToNodeTotal 应为带 reason 标签的 Counter', () => {
-    expect(fallbackToNodeTotal).toBeDefined();
-    expect(typeof fallbackToNodeTotal.inc).toBe('function');
+  it('engineUnavailableTotal 应为带 reason 标签的 Counter', () => {
+    expect(engineUnavailableTotal).toBeDefined();
+    expect(typeof engineUnavailableTotal.inc).toBe('function');
   });
 });
 
@@ -112,21 +112,23 @@ describe('recordEngineCall', () => {
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBeUndefined();
   });
 
-  it('success=false 且带 error 时应同时递增 fallbackToNodeTotal', async () => {
+  it('success=false 且带 error 时应同时递增 engineUnavailableTotal', async () => {
     recordEngineCall(false, 'engine_timeout');
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
-    expect(await metricValue(fallbackToNodeTotal, { reason: 'engine_timeout' })).toBe(1);
+    expect(await metricValue(engineUnavailableTotal, { reason: 'engine_timeout' })).toBe(1);
   });
 
   it('error 含特殊字符时应被清洗为下划线后作为标签值', async () => {
     recordEngineCall(false, 'error: connection lost!');
     // 非 [a-zA-Z0-9_-] 字符（: 空格 !）逐一替换为 _
-    expect(await metricValue(fallbackToNodeTotal, { reason: 'error__connection_lost_' })).toBe(1);
+    expect(await metricValue(engineUnavailableTotal, { reason: 'error__connection_lost_' })).toBe(
+      1,
+    );
   });
 
-  it('success=false 但 error 为空时不应产生任何 fallbackToNode 序列', async () => {
+  it('success=false 但 error 为空时不应产生任何 engineUnavailable 序列', async () => {
     recordEngineCall(false);
-    const snapshot = await fallbackToNodeTotal.get();
+    const snapshot = await engineUnavailableTotal.get();
     expect(snapshot.values).toHaveLength(0);
   });
 });
@@ -136,28 +138,30 @@ describe('recordEngineUnavailable', () => {
     resetMetrics();
   });
 
-  it('应将 fallbackToNodeTotal 对应 reason 递增到精确值', async () => {
+  it('应将 engineUnavailableTotal 对应 reason 递增到精确值', async () => {
     recordEngineUnavailable('engine_down');
     recordEngineUnavailable('engine_down');
     recordEngineUnavailable('engine_down');
-    expect(await metricValue(fallbackToNodeTotal, { reason: 'engine_down' })).toBe(3);
+    expect(await metricValue(engineUnavailableTotal, { reason: 'engine_down' })).toBe(3);
   });
 
   it('reason 含特殊字符时应被清洗为确定的标签值', async () => {
     recordEngineUnavailable('error: timeout (5000ms)');
     // ': ( )' 等字符替换为 _
-    expect(await metricValue(fallbackToNodeTotal, { reason: 'error__timeout__5000ms_' })).toBe(1);
+    expect(await metricValue(engineUnavailableTotal, { reason: 'error__timeout__5000ms_' })).toBe(
+      1,
+    );
   });
 
   it('reason 含中文时应被整体清洗为下划线（防止标签基数爆炸/注入）', async () => {
     recordEngineUnavailable('引擎超时');
     // 4 个中文字符 → 4 个下划线
-    expect(await metricValue(fallbackToNodeTotal, { reason: '____' })).toBe(1);
+    expect(await metricValue(engineUnavailableTotal, { reason: '____' })).toBe(1);
   });
 
   it('reason 为空字符串时应以空标签记录而非抛错', async () => {
     recordEngineUnavailable('');
-    expect(await metricValue(fallbackToNodeTotal, { reason: '' })).toBe(1);
+    expect(await metricValue(engineUnavailableTotal, { reason: '' })).toBe(1);
   });
 });
 

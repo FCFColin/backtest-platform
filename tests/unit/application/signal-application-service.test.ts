@@ -23,7 +23,7 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
 }));
 
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,
 }));
 
@@ -31,7 +31,7 @@ import {
   executeSignalAnalyze,
   executeDualSignalAnalyze,
   executeMultiSignalAnalyze,
-} from '../../../packages/backend/src/services/signal-orchestrator.js';
+} from '../../../packages/backend/src/application/signal-orchestrator.js';
 
 const mockSignalResult = {
   signals: [

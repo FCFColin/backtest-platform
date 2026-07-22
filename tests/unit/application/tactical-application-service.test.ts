@@ -21,7 +21,7 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
   EngineUnavailableError: EngineUnavailableErrorStub,
 }));
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,
 }));
 

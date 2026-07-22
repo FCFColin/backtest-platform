@@ -29,7 +29,7 @@ vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
   resetEngineAvailability: vi.fn(),
 }));
 
-vi.mock('../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: fetchHistoryDataMock,
   searchTickers: searchTickersMock,
 }));
@@ -50,7 +50,7 @@ vi.mock('../../packages/backend/src/db/macroData.js', () => ({
   loadExchangeRatesFromDb: vi.fn(async () => ({})),
 }));
 
-vi.mock('../../packages/backend/src/services/cpiService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/cpiLoader.js', () => ({
   loadCpiMap: vi.fn(async () => ({})),
   fetchCpiFromGoService: vi.fn(async () => null),
 }));

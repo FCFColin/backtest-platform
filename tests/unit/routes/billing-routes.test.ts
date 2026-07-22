@@ -35,7 +35,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/services/billingService.js', () => mocks.svc);
+vi.mock('../../../packages/backend/src/application/billing/billingService.js', () => mocks.svc);
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     STRIPE_PUBLISHABLE_KEY: 'pk_test_1',

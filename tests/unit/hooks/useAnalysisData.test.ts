@@ -1,5 +1,12 @@
 /**
  * @vitest-environment happy-dom
+ *
+ * useAnalysisData Hook 单元测试
+ *
+ * 覆盖：返回值结构、计算逻辑（betaMatrix / growthData / scatterData / rollingCorrData /
+ * portfolioResults）、边界情况（空/缺失/常数序列）、依赖更新（tickers / correlationWindow）。
+ *
+ * 合并自 useAnalysisData.part1/2/3.test.ts（Task 2.5 机械切分合并）。
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
@@ -39,6 +46,10 @@ function createTicker(overrides?: Record<string, unknown>) {
     ...overrides,
   };
 }
+
+// =====================
+// 计算逻辑验证
+// =====================
 
 describe('useAnalysisData - 计算逻辑验证', () => {
   it('single asset 时 rollingCorrData 为空', () => {
@@ -263,5 +274,184 @@ describe('useAnalysisData - 计算逻辑验证', () => {
     const { result: hook } = renderHook(() => useAnalysisData(result, 12, 60));
     expect(hook.current.portfolioResults[0].growthCurve).toEqual([]);
     expect(hook.current.portfolioResults[0].drawdownCurve).toEqual([]);
+  });
+});
+
+// =====================
+// 返回值结构
+// =====================
+
+describe('useAnalysisData - 返回值结构', () => {
+  it('返回所有字段', () => {
+    const result = createAssetAnalysisResult({
+      tickers: [createTicker({ ticker: 'A', dailyReturns: [1, 2, 3] })],
+    });
+    const { result: hook } = renderHook(() => useAnalysisData(result, 12, 60));
+    const keys = Object.keys(hook.current).sort();
+    expect(keys).toEqual([
+      'betaMatrix',
+      'growthData',
+      'portfolioResults',
+      'rollingCorrData',
+      'scatterData',
+      'tickerNames',
+      'tickers',
+    ]);
+  });
+
+  it('多资产时 rollingCorrData 返回数据', () => {
+    const n = 60;
+    const d1 = Array.from({ length: n }, (_, i) => Math.sin(i * 0.2));
+    const d2 = Array.from({ length: n }, (_, i) => Math.cos(i * 0.2));
+    const dates = Array.from({ length: n }, (_, i) => `d${i}`);
+    const result = createAssetAnalysisResult({
+      tickers: [
+        createTicker({
+          ticker: 'A',
+          dailyReturns: d1,
+          growthCurve: dates.map((d) => ({ date: d, value: 100 })),
+        }),
+        createTicker({
+          ticker: 'B',
+          dailyReturns: d2,
+          growthCurve: dates.map((d) => ({ date: d, value: 200 })),
+        }),
+      ],
+    });
+    // correlationWindow=1 → windowDays ≈ 21, 60 > 21 所以有输出
+    const { result: hook } = renderHook(() => useAnalysisData(result, 1, 60));
+    expect(hook.current.rollingCorrData.length).toBeGreaterThan(0);
+    for (const pt of hook.current.rollingCorrData) {
+      expect(pt).toHaveProperty('date');
+      expect(pt).toHaveProperty('value');
+      expect(typeof pt.value).toBe('number');
+    }
+  });
+});
+
+// =====================
+// 边界情况
+// =====================
+
+describe('useAnalysisData - 边界情况', () => {
+  it('所有 dailyReturns 为常数时 rollingCorrData 全部为 0', () => {
+    const constReturns = Array.from({ length: 50 }, () => 0.01);
+    const dates = constReturns.map((_, i) => `d${i}`);
+    const result = createAssetAnalysisResult({
+      tickers: [
+        createTicker({
+          ticker: 'A',
+          dailyReturns: constReturns,
+          growthCurve: dates.map((d) => ({ date: d, value: 100 })),
+        }),
+        createTicker({
+          ticker: 'B',
+          dailyReturns: constReturns,
+          growthCurve: dates.map((d) => ({ date: d, value: 100 })),
+        }),
+      ],
+    });
+    const { result: hook } = renderHook(() => useAnalysisData(result, 12, 60));
+    // 方差为 0 → 相关性为 0
+    for (const pt of hook.current.rollingCorrData) {
+      expect(pt.value).toBe(0);
+    }
+  });
+
+  it('growthCurve 含相同日期来自多个资产时值被合并', () => {
+    const result = createAssetAnalysisResult({
+      tickers: [
+        createTicker({
+          ticker: 'A',
+          growthCurve: [{ date: '2024-01-01', value: 10 }],
+        }),
+        createTicker({
+          ticker: 'B',
+          growthCurve: [{ date: '2024-01-01', value: 20 }],
+        }),
+      ],
+    });
+    const { result: hook } = renderHook(() => useAnalysisData(result, 12, 60));
+    expect(hook.current.growthData).toHaveLength(1);
+    expect(hook.current.growthData[0].A).toBe(10);
+    expect(hook.current.growthData[0].B).toBe(20);
+  });
+
+  it('tickers 包含 10 个资产时仍能正常计算', () => {
+    const tickers = Array.from({ length: 10 }, (_, i) =>
+      createTicker({
+        ticker: `T${i}`,
+        dailyReturns: Array.from({ length: 20 }, (__, j) => Math.sin(j + i)),
+        growthCurve: Array.from({ length: 20 }, (__, j) => ({ date: `d${j}`, value: 100 + i })),
+        drawdownCurve: Array.from({ length: 20 }, (__, j) => ({
+          date: `d${j}`,
+          drawdown: -0.01 * i,
+        })),
+        annualReturns: [{ year: 2023, return: 0.1 * i }],
+        statistics: { cagr: 0.05 * i },
+      }),
+    );
+    const result = createAssetAnalysisResult({ tickers });
+    const { result: hook } = renderHook(() => useAnalysisData(result, 12, 60));
+    expect(hook.current.tickerNames).toHaveLength(10);
+    expect(hook.current.betaMatrix).toHaveLength(10);
+    expect(hook.current.scatterData).toHaveLength(10);
+    expect(hook.current.growthData.length).toBeGreaterThan(0);
+  });
+});
+
+// =====================
+// 依赖更新
+// =====================
+
+describe('useAnalysisData - 依赖更新', () => {
+  it('tickers 变化时所有派生数据重新计算', () => {
+    const r1 = createAssetAnalysisResult({
+      tickers: [createTicker({ ticker: 'A', dailyReturns: [1, 2] })],
+    });
+    const r2 = createAssetAnalysisResult({
+      tickers: [
+        createTicker({ ticker: 'A', dailyReturns: [1, 2] }),
+        createTicker({ ticker: 'B', dailyReturns: [3, 4] }),
+      ],
+    });
+    const { result: hook, rerender } = renderHook(
+      ({ data }: { data: AssetAnalysisResult }) => useAnalysisData(data, 12, 60),
+      { initialProps: { data: r1 } },
+    );
+    expect(hook.current.tickerNames).toEqual(['A']);
+    rerender({ data: r2 });
+    expect(hook.current.tickerNames).toEqual(['A', 'B']);
+    expect(hook.current.betaMatrix).toHaveLength(2);
+    expect(hook.current.scatterData).toHaveLength(2);
+  });
+
+  it('correlationWindow 变化时 rollingCorrData 重新计算', () => {
+    const d1 = Array.from({ length: 60 }, (_, i) => Math.sin(i * 0.1));
+    const d2 = Array.from({ length: 60 }, (_, i) => Math.cos(i * 0.1));
+    const dates = d1.map((_, i) => `d${i}`);
+    const result = createAssetAnalysisResult({
+      tickers: [
+        createTicker({
+          ticker: 'A',
+          dailyReturns: d1,
+          growthCurve: dates.map((d) => ({ date: d, value: 100 })),
+        }),
+        createTicker({
+          ticker: 'B',
+          dailyReturns: d2,
+          growthCurve: dates.map((d) => ({ date: d, value: 100 })),
+        }),
+      ],
+    });
+    const { result: hook, rerender } = renderHook(
+      ({ w }: { w: number }) => useAnalysisData(result, w, 60),
+      { initialProps: { w: 1 } },
+    );
+    const len1 = hook.current.rollingCorrData.length;
+    rerender({ w: 6 });
+    const len2 = hook.current.rollingCorrData.length;
+    // 更长的窗口 → 更少的滑动窗口数
+    expect(len2).toBeLessThan(len1);
   });
 });

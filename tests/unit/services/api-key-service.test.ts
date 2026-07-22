@@ -27,7 +27,7 @@ import {
   listApiKeys,
   revokeApiKey,
 } from '../../../packages/backend/src/repositories/apiKeyRepo.js';
-import { verifyApiKey } from '../../../packages/backend/src/services/apiKeyVerifier.js';
+import { verifyApiKey } from '../../../packages/backend/src/infrastructure/apiKeyVerifier.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const KEY_ID = '22222222-2222-2222-2222-222222222222';

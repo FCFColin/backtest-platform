@@ -47,7 +47,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 import {
   recordUsage,
   getMonthlyUsage,
-} from '../../../packages/backend/src/services/usageService.js';
+} from '../../../packages/backend/src/application/billing/usageService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 

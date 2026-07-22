@@ -27,17 +27,6 @@ test.describe('回测页面', () => {
     expect(cagrValue).toBeGreaterThan(0);
   });
 
-  test('T2: 全部历史回测 — 确认不报错', async () => {
-    test.skip(
-      true,
-      '全部历史回测超过服务端 BACKTEST_SYNC_TIMEOUT_MS（120s），默认 E2E 覆盖见 P1/T1',
-    );
-  });
-
-  test('T3: 全部历史 + 基准 SPY — 确认不报错', async () => {
-    test.skip(true, '全部历史回测超过服务端同步超时，默认 E2E 覆盖见 P1/T1');
-  });
-
   test('T16: 跨页面状态持久化 — 回测后导航离开再返回', async ({ page }) => {
     await runDefaultBacktest(page);
     await waitForSummaryStats(page, 60_000);

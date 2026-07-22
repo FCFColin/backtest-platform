@@ -43,10 +43,15 @@ vi.mock(
   '../../packages/backend/src/infrastructure/tickerDataService.js',
   () => internalMocks.engine,
 );
-vi.mock(
-  '../../packages/backend/src/infrastructure/dataFetchService.js',
-  () => internalMocks.dataFetch,
-);
+vi.mock('../../packages/backend/src/infrastructure/dataFetch.js', () => internalMocks.dataFetch);
+// dataManageRoutes 已直接从 db/marketStats.js 与 services/dataService.js 取函数，
+// 因此对这两个模块也注入同一组 mock 引用，使 engineServiceMocks.* 调用仍生效。
+vi.mock('../../packages/backend/src/db/marketStats.js', () => ({
+  scanMarketStatsFromDb: internalMocks.engine.scanMarketStatsFromDb,
+}));
+vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
+  searchTickers: internalMocks.engine.searchTickers,
+}));
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import dataManageRoutes from '../../packages/backend/src/routes/dataManageRoutes.js';

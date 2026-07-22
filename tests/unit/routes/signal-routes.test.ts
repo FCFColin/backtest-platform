@@ -31,7 +31,7 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 

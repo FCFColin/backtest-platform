@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
+import { createMockPriceData } from '../../helpers/routeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -40,7 +41,7 @@ vi.hoisted(() => {
   process.env.SYNC_COMPUTE_TIMEOUT_MS = '500';
 });
 
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
@@ -79,14 +80,6 @@ function createValidRequest() {
   };
 }
 
-function createMockPriceData() {
-  const data: Record<string, Record<string, number>> = {};
-  for (let i = 1; i <= 30; i++) {
-    data[`2020-01-${String(i).padStart(2, '0')}`] = 300 + i;
-  }
-  return { SPY: data };
-}
-
 describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
   let server: TestServer;
 
@@ -94,7 +87,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'grid-job-123' });
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: createMockPriceData(),
+      data: createMockPriceData({ numDays: 30, startPrice: 301 }),
       degraded: false,
     });
     engineMocks.callEngineStrict.mockResolvedValue({

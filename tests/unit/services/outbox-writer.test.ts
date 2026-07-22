@@ -11,9 +11,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { PoolClient } from 'pg';
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import { createMockClient } from '../../helpers/dbMocks.js';
 
 // Mock logger：避免 pino 初始化与 OTel 依赖
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
@@ -22,14 +22,6 @@ import {
   writeEventInTransaction,
   type OutboxEvent,
 } from '../../../packages/backend/src/infrastructure/outboxWriter.js';
-
-/** 构造一个 mock PoolClient，记录所有 query 调用 */
-function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {
-  return {
-    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
-    release: vi.fn(),
-  } as unknown as PoolClient & { query: ReturnType<typeof vi.fn> };
-}
 
 describe('writeEventInTransaction', () => {
   let mockClient: ReturnType<typeof createMockClient>;

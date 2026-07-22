@@ -57,7 +57,7 @@ import {
   isLockedOut,
   recordFailure,
   clearFailures,
-} from '../../../packages/backend/src/services/loginLockout.js';
+} from '../../../packages/backend/src/application/auth/loginLockout.js';
 
 describe('loginLockout', () => {
   beforeEach(() => {

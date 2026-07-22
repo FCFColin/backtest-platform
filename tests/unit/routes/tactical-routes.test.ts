@@ -9,6 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
+import { createMockPriceData } from '../../helpers/routeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -31,7 +32,7 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
 
@@ -86,12 +87,6 @@ function createValidStrategy() {
   };
 }
 
-function createMockPriceData() {
-  return {
-    SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0, '2020-01-03': 302.0 },
-  };
-}
-
 function createMockPortfolioResult() {
   return {
     name: 'Portfolio',
@@ -122,7 +117,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: createMockPriceData(),
+      data: createMockPriceData({ numDays: 3, startPrice: 300 }),
       degraded: false,
     });
     engineMocks.callEngineStrict
@@ -290,7 +285,7 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: createMockPriceData(),
+      data: createMockPriceData({ numDays: 3, startPrice: 300 }),
       degraded: false,
     });
     engineMocks.callEngineStrict.mockResolvedValue({

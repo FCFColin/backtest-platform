@@ -82,7 +82,7 @@ vi.mock('../../../packages/backend/src/application/backtest-service.js', () => (
   runPortfolioBacktest: m.runPortfolioBacktest,
   runBacktest: m.runBacktest,
 }));
-vi.mock('../../../packages/backend/src/services/analysis-orchestrator.js', () => ({
+vi.mock('../../../packages/backend/src/application/analysis-orchestrator.js', () => ({
   runAnalysis: m.runAnalysis,
 }));
 vi.mock('../../../packages/backend/src/application/montecarlo-service.js', () => ({
@@ -92,7 +92,7 @@ vi.mock('../../../packages/backend/src/application/optimize-service.js', () => (
   runOptimization: m.runOptimization,
   runEfficientFrontier: m.runEfficientFrontier,
 }));
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   searchTickers: m.searchTickers,
   fetchHistoryData: m.fetchHistoryData,
   validateTickers: m.validateTickers,
@@ -120,7 +120,6 @@ vi.mock('../../../packages/backend/src/application/backtest/engineBodyBuilder.js
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks(),
-  SUNSET_DATE_STR: '2025-12-31',
   validateConfig: vi.fn(),
 }));
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => {

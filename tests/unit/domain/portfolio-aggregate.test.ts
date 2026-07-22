@@ -6,10 +6,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   Portfolio,
-  Ticker,
-  Weight,
   CONCENTRATION_THRESHOLD,
-} from '../../../packages/backend/src/domain/index.js';
+} from '../../../packages/backend/src/domain/aggregates/portfolio.js';
+import { Ticker } from '../../../packages/backend/src/domain/value-objects/ticker.js';
+import { Weight } from '../../../packages/backend/src/domain/value-objects/weight.js';
 
 function makeHolding(ticker: string, weight: number) {
   return { ticker: Ticker.create(ticker), weight: Weight.create(weight) };

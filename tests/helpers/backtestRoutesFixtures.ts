@@ -1,24 +1,21 @@
 /**
  * 回测路由测试共享 fixtures
  *
- * 企业理由：backtest-routes 原单文件 1260 行，按端点职责拆分为 portfolio/analysis/optimize
+ * 企业理由：backtest-route 原单文件 1260 行，按端点职责拆分为 portfolio/analysis/optimize
  * 三个测试文件。本模块集中维护复杂 mock 实现逻辑、app factory 与常用请求 payload，
  * 消除三份重复的 vi.fn 工厂代码（每份约 150 行）。
  *
  * 权衡：vi.mock 工厂因 vitest 文件级提升作用域只能引用同文件 vi.hoisted 值（不能引用 import），
- * 故各测试文件用 vi.hoisted 创建空 vi.fn 句柄，vi.mock 工厂引用这些句柄；本模块的
- * configureBacktestMocks 在 import 完成后为这些 vi.fn 设置实现逻辑。vi.clearAllMocks
+ * 故各测试文件用 vi.hoisted 创建空 vi.fn 句柄，vi.mock 工厂引用这些句柄；本模块导出的
+ * configureXxxMocks 在 import 完成后为这些 vi.fn 设置实现逻辑。vi.clearAllMocks
  * 仅清理调用记录不清实现，故 beforeEach 中实现持续生效。
  *
  * 时序：vi.hoisted（创建空 vi.fn）→ vi.mock 工厂（引用句柄）→ import helper →
- * configureBacktestMocks（设置实现）→ 测试执行。
+ * configureXxxMocks（设置实现）→ 测试执行。
  */
-
-/* eslint-disable @typescript-eslint/no-unused-vars -- Phase 2B Task 2.16: exports removed, bodies retained for Phase 5 cleanup */
 
 import type { Router } from 'express';
 import { startExpressApp, type TestServer } from './expressApp.js';
-import type { BacktestResult } from '@backtest/shared';
 import { mockBacktestResult } from './storeFixtures.js';
 import { TimeoutError } from '../../packages/backend/src/utils/timeout.js';
 import { ValidationError } from '../../packages/backend/src/utils/errors.js';
@@ -31,7 +28,8 @@ import { compressBacktestResultForSync } from '../../packages/backend/src/applic
 
 /**
  * 测试文件 vi.hoisted 创建的 mock 句柄集合类型。
- * 各字段为空 vi.fn（无实现），由 configureBacktestMocks 设置实现。
+ * 各字段为空 vi.fn（无实现），由 configurePortfolioBacktestMocks / configureAnalysisMocks /
+ * configureMonteCarloMocks / configureOptimizationMocks / configureTickerHelpersMocks 按需设置实现。
  */
 export interface BacktestMockHandles {
   runBacktest: ReturnType<(typeof import('vitest'))['fn']>;
@@ -238,20 +236,7 @@ export function configureOptimizationMocks(m: BacktestMockHandles): void {
 }
 
 /**
- * 为引擎调用辅助 mock 句柄设置实现逻辑。
- *
- * 注意：callEngineStrict/buildEngineParams 的默认实现由 setupEngineRouteMocks 通过
- * mockResolvedValue/mockReturnValue 配置（按用例定制响应），故此处为空实现占位，
- * 保留函数以维持 6 大职责拆分对称性，便于未来在此扩展统一默认实现。
- *
- * @param m - 测试文件 vi.hoisted 创建的 mock 句柄集合
- */
-function configureEngineHelpersMocks(_m: BacktestMockHandles): void {
-  // callEngineStrict/buildEngineParams 默认实现由 setupEngineRouteMocks 配置
-}
-
-/**
- * 为 backtest-helpers 辅助 mock 句柄设置实现逻辑。
+ * 为 backtest-helper 辅助 mock 句柄设置实现逻辑。
  *
  * 包含 collectTickersFromPortfolios（收集去重 ticker + 统计 totalAssets）、
  * filterPriceData（按 ticker 集合过滤）、fetchPriceData（fetchHistoryData 取 data）、
@@ -291,29 +276,6 @@ export function configureTickerHelpersMocks(m: BacktestMockHandles): void {
   m.loadMacroData.mockImplementation(async () => ({ cpiData: {}, exchangeRates: {} }));
 }
 
-/**
- * 为各测试文件 vi.hoisted 创建的空 vi.fn 句柄设置实现逻辑的便捷入口。
- *
- * 委托调用 6 个细粒度配置函数：
- * - configurePortfolioBacktestMocks：runPortfolioBacktest/preparePortfolioBacktest/collectInvalidTickerWarnings
- * - configureAnalysisMocks：runAnalysis
- * - configureMonteCarloMocks：runMonteCarlo/sanitizeMcParams
- * - configureOptimizationMocks：runOptimization/runEfficientFrontier
- * - configureEngineHelpersMocks：callEngineStrict/buildEngineParams 占位
- * - configureTickerHelpersMocks：collectTickersFromPortfolios/filterPriceData/fetchPriceData/loadMacroData
- *
- * 测试文件可按需直接调用细粒度函数以减少不必要的 mock 初始化。
- *
- * @param m - 测试文件 vi.hoisted 创建的 mock 句柄集合
- */
-function configureBacktestMocks(m: BacktestMockHandles): void {
-  configurePortfolioBacktestMocks(m);
-  configureAnalysisMocks(m);
-  configureMonteCarloMocks(m);
-  configureOptimizationMocks(m);
-  configureEngineHelpersMocks(m);
-  configureTickerHelpersMocks(m);
-}
 // ===== 导出真实模块（供测试使用） =====
 export { TimeoutError, ValidationError, clearBacktestResultCache };
 

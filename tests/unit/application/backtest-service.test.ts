@@ -224,4 +224,76 @@ describe('runBacktest', () => {
       }),
     ).rejects.toThrow();
   });
+
+  it('eventDispatcher.dispatch 失败时应记录错误但不影响主流程', async () => {
+    // RunStarted + BacktestCompleted 两个事件均会调用 dispatch，统一 reject
+    eventMocks.dispatch.mockRejectedValue(new Error('dispatch failed'));
+
+    const result = await runBacktest({
+      portfolios: [mockPortfolio],
+      parameters: mockParameters,
+      priceData: mockPriceData,
+      cpiData: mockCpiData,
+      exchangeRates: mockExchangeRates,
+    });
+
+    expect(result.result).toBe(mockBacktestResult);
+    await vi.waitFor(() =>
+      expect(loggerMocks.error).toHaveBeenCalledWith(
+        expect.objectContaining({ aggregateId: expect.any(String) }),
+        expect.stringContaining('Failed to dispatch'),
+      ),
+    );
+  });
+
+  it('writeEventInTransaction 失败时应回滚事务并记录 outbox 错误', async () => {
+    const queryMock = vi.fn(async () => ({ rows: [] }));
+    dbMocks.getClient.mockResolvedValueOnce({
+      query: queryMock,
+      release: vi.fn(),
+    });
+    outboxMocks.writeEventInTransaction.mockRejectedValueOnce(new Error('write failed'));
+
+    const result = await runBacktest({
+      portfolios: [mockPortfolio],
+      parameters: mockParameters,
+      priceData: mockPriceData,
+      cpiData: mockCpiData,
+      exchangeRates: mockExchangeRates,
+    });
+
+    expect(result.result).toBe(mockBacktestResult);
+    await vi.waitFor(() =>
+      expect(loggerMocks.error).toHaveBeenCalledWith(
+        expect.objectContaining({ aggregateId: expect.any(String) }),
+        'Failed to write BacktestCompleted event to outbox',
+      ),
+    );
+
+    const queries = queryMock.mock.calls.map((c) => c[0]);
+    expect(queries).toContain('BEGIN');
+    expect(queries).toContain('ROLLBACK');
+    expect(queries).not.toContain('COMMIT');
+  });
+
+  it('引擎返回空 portfolios 时事件负载统计字段应为 undefined', async () => {
+    engineMocks.callEngineStrict.mockResolvedValueOnce({
+      portfolios: [],
+      correlations: [],
+    } as BacktestResult);
+
+    await runBacktest({
+      portfolios: [mockPortfolio],
+      parameters: mockParameters,
+      priceData: mockPriceData,
+      cpiData: mockCpiData,
+      exchangeRates: mockExchangeRates,
+    });
+
+    await vi.waitFor(() => expect(outboxMocks.writeEventInTransaction).toHaveBeenCalledTimes(1));
+    const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
+    expect(outboxCall.payload.totalReturn).toBeUndefined();
+    expect(outboxCall.payload.maxDrawdown).toBeUndefined();
+    expect(outboxCall.payload.sharpeRatio).toBeUndefined();
+  });
 });

@@ -59,7 +59,7 @@ vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
 const apiKeyMocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(async () => null),
 }));
-vi.mock('../../../packages/backend/src/services/apiKeyVerifier.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
   verifyApiKey: apiKeyMocks.verifyApiKey,
 }));
 

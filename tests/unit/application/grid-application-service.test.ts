@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: mocks.fetchHistoryData,
 }));
 

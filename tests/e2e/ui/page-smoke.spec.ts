@@ -2,7 +2,7 @@
  * 页面冒烟测试（合并自 tactical / signal-analyzer / pca / goal-optimizer 4 个 spec）
  *
  * 企业理由：4 个分析页面共享相同的冒烟测试模式（标题可见 + 参数面板可见），
- * 用 test.each 参数化消除重复的 beforeEach + goto + expect 样板。
+ * 用 for...of 参数化消除重复的 beforeEach + goto + expect 样板。
  * tactical 页面额外验证"结果区域存在"，作为独立 test 保留。
  */
 import { test, expect } from '@playwright/test';
@@ -42,17 +42,21 @@ const SMOKE_PAGES: PageSmokeCase[] = [
 ];
 
 test.describe('页面冒烟测试', () => {
-  test.each(SMOKE_PAGES)('页面渲染 — 标题正确: $name', async ({ page }, smoke) => {
-    await page.goto(smoke.url, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: smoke.headingRegex })).toBeVisible({
-      timeout: 60_000,
+  for (const smoke of SMOKE_PAGES) {
+    test(`页面渲染 — 标题正确: ${smoke.name}`, async ({ page }) => {
+      await page.goto(smoke.url, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('heading', { name: smoke.headingRegex })).toBeVisible({
+        timeout: 60_000,
+      });
     });
-  });
+  }
 
-  test.each(SMOKE_PAGES)('页面加载 — 参数面板可见: $name', async ({ page }, smoke) => {
-    await page.goto(smoke.url, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByText(smoke.panelRegex).first()).toBeVisible({ timeout: 30_000 });
-  });
+  for (const smoke of SMOKE_PAGES) {
+    test(`页面加载 — 参数面板可见: ${smoke.name}`, async ({ page }) => {
+      await page.goto(smoke.url, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByText(smoke.panelRegex).first()).toBeVisible({ timeout: 30_000 });
+    });
+  }
 
   test('战术分配 — 结果区域存在', async ({ page }) => {
     await page.goto('/tactical', { waitUntil: 'domcontentloaded' });

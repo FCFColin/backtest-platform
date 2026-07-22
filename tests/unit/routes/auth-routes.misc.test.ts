@@ -5,7 +5,6 @@
  * 路径，正确性直接影响会话安全与租户边界。本文件覆盖：
  * - POST /refresh：刷新令牌（有效/无效/已撤销/缺失）
  * - DELETE /logout：登出（撤销令牌）
- * - POST /logout：废弃端点（Deprecation/Sunset 头）
  * - GET /me：获取当前用户（未认证 401 / 已认证返回用户信息）
  * - DELETE /me：自助匿名化（撤销会话 + 匿名化账户）
  * - POST /switch-org：切换活跃组织（成员/非成员/组织非 active/缺 orgId/未认证）
@@ -14,6 +13,9 @@
  * Mock 策略：mock jwtAuth（token 生成/刷新/撤销）、userService（用户验证/匿名化）、
  * config（环境配置）、loginLockout、membershipService（组织关系）、logger。
  * 使用真实 Express app.listen + fetch。
+ *
+ * codebase-slim-followups Task 2 已删除 deprecated POST /logout，相关 Deprecation/Sunset
+ * 头测试一并移除。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -65,19 +67,18 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: mocks.config,
   validateConfig: vi.fn(),
-  SUNSET_DATE_STR: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
 }));
 
 vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => mocks.jwtAuth);
 
-vi.mock('../../../packages/backend/src/services/userService.js', () => mocks.userService);
+vi.mock('../../../packages/backend/src/application/auth/userService.js', () => mocks.userService);
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => mocks.userService);
 
-vi.mock('../../../packages/backend/src/services/loginLockout.js', () => mocks.loginLockout);
+vi.mock('../../../packages/backend/src/application/auth/loginLockout.js', () => mocks.loginLockout);
 
 vi.mock(
-  '../../../packages/backend/src/services/membershipService.js',
+  '../../../packages/backend/src/application/org/membershipService.js',
   () => mocks.membershipService,
 );
 
@@ -213,21 +214,6 @@ describe('authRoutes - 会话与组织端点', () => {
 
       expect(res.status).toBe(401);
       expect(body.error.code).toBe('UNAUTHORIZED');
-    });
-  });
-
-  describe('POST /logout - 废弃端点', () => {
-    it('应设置 Deprecation 和 Sunset 头', async () => {
-      const res = await fetch(`${server.url}/api/v1/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-
-      expect(res.status).toBe(200);
-      expect(res.headers.get('deprecation')).toBe('true');
-      expect(res.headers.get('sunset')).toBeTruthy();
-      expect(res.headers.get('link')).toContain('successor-version');
     });
   });
 

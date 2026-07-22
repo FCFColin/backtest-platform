@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { createMockPool } from '../../helpers/dbMocks.js';
 
 const dbMocks = vi.hoisted(() => ({
   getReadPool: vi.fn(),
@@ -29,15 +30,15 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 import {
   bytesToMb,
   getMarketDataStorageBytes,
+} from '../../../packages/backend/src/db/marketStorageStats.js';
+import {
   scanMarketStatsFromDb,
   getDbEngineStatus,
 } from '../../../packages/backend/src/db/marketStats.js';
-
-function createMockPool() {
-  return {
-    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
-  } as unknown as { query: ReturnType<typeof vi.fn> };
-}
+import {
+  inferMarket,
+  deriveExchangeFromTicker,
+} from '../../../packages/backend/src/db/marketStatsHelpers.js';
 
 describe('bytesToMb', () => {
   it('should convert bytes to MB with 1 decimal place', () => {
@@ -159,7 +160,8 @@ describe('scanMarketStatsFromDb', () => {
     expect(result!.sample_tickers.cn_etf).toHaveLength(0);
 
     expect(result!.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-    expect(result!.by_exchange).toEqual({ '': 3 });
+    // 修复后：mock 行无 exchange 字段，由 deriveExchangeFromTicker 兜底推导为 US（Task 4.3）
+    expect(result!.by_exchange).toEqual({ US: 3 });
     expect(Object.keys(result!.by_decade).length).toBeGreaterThan(0);
     expect(Object.keys(result!.by_year_count).length).toBeGreaterThan(0);
   });
@@ -196,6 +198,39 @@ describe('scanMarketStatsFromDb', () => {
     expect(result!.sample_tickers.cn_stock[0].ticker).toBe('000001.SZ');
     expect(result!.sample_tickers.cn_etf).toHaveLength(1);
     expect(result!.sample_tickers.cn_etf[0].ticker).toBe('510050.SS');
+    // 修复后：A 股按后缀推导为 SZSE / SSE（Task 4.3 + 5.1）
+    expect(result!.by_exchange).toEqual({ SZSE: 1, SSE: 1 });
+  });
+
+  it('should prefer DB exchange column over ticker-suffix fallback', async () => {
+    // DB 显式提供 exchange 列时，优先使用 DB 值（如 NASDAQ 细化），不回退到后缀推导
+    mockPool.query
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            ticker: 'AAPL',
+            market: 'US',
+            category: 'STOCK',
+            exchange: 'NASDAQ',
+            n_points: 5000,
+            first_date: '2014-01-01',
+            last_date: '2024-06-01',
+          },
+          {
+            ticker: 'SPY',
+            market: 'US',
+            category: 'ETF',
+            exchange: 'NYSE',
+            n_points: 7000,
+            first_date: '2009-01-01',
+            last_date: '2024-06-01',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ total_bytes: '0' }] });
+
+    const result = await scanMarketStatsFromDb();
+    expect(result!.by_exchange).toEqual({ NASDAQ: 1, NYSE: 1 });
   });
 
   it('should limit sample_tickers to 5 per category', async () => {
@@ -266,5 +301,73 @@ describe('getDbEngineStatus', () => {
     expect(result.lastUpdate).toBeNull();
     expect(result.totalTickers).toBe(100);
     expect(result.cachedTickers).toBe(50);
+  });
+});
+
+describe('inferMarket', () => {
+  // Task 5.1: 正则修复 /[._](SZ|SS|SH)$/i 同时支持点号与下划线后缀
+  it('should detect CN market for underscore-suffix tickers', () => {
+    expect(inferMarket('000001_SZ', '')).toBe('CN');
+    expect(inferMarket('600000_SS', '')).toBe('CN');
+    expect(inferMarket('600519_SH', '')).toBe('CN');
+  });
+
+  it('should detect CN market for dot-suffix tickers', () => {
+    expect(inferMarket('000001.SZ', '')).toBe('CN');
+    expect(inferMarket('600000.SH', '')).toBe('CN');
+    expect(inferMarket('510050.SS', '')).toBe('CN');
+  });
+
+  it('should detect US market for tickers without CN suffix', () => {
+    expect(inferMarket('AAPL', '')).toBe('US');
+    expect(inferMarket('SPY', '')).toBe('US');
+    expect(inferMarket('VTI', '')).toBe('US');
+  });
+
+  it('should uppercase explicit market field', () => {
+    expect(inferMarket('AAPL', 'us')).toBe('US');
+    expect(inferMarket('000001_SZ', 'cn')).toBe('CN');
+  });
+
+  it('should prefer explicit market field over ticker-suffix inference', () => {
+    // 即使 ticker 带 _SZ 后缀，显式 market 字段优先
+    expect(inferMarket('000001_SZ', 'CN')).toBe('CN');
+    expect(inferMarket('000001_SZ', 'US')).toBe('US');
+  });
+
+  it('should be case-insensitive for ticker suffix', () => {
+    expect(inferMarket('000001_sz', '')).toBe('CN');
+    expect(inferMarket('600519.sh', '')).toBe('CN');
+  });
+});
+
+describe('deriveExchangeFromTicker', () => {
+  // Task 4.3: 按 ticker 后缀推导交易所代码（与 Go provider.DeriveExchange 一致）
+  it('should derive SZSE for Shenzhen tickers (_SZ / .SZ)', () => {
+    expect(deriveExchangeFromTicker('000001_SZ')).toBe('SZSE');
+    expect(deriveExchangeFromTicker('000001.SZ')).toBe('SZSE');
+  });
+
+  it('should derive SSE for Shanghai tickers (_SS / .SS / _SH / .SH)', () => {
+    expect(deriveExchangeFromTicker('510050_SS')).toBe('SSE');
+    expect(deriveExchangeFromTicker('510050.SS')).toBe('SSE');
+    expect(deriveExchangeFromTicker('600519_SH')).toBe('SSE');
+    expect(deriveExchangeFromTicker('600519.SH')).toBe('SSE');
+  });
+
+  it('should derive US for tickers without CN suffix', () => {
+    expect(deriveExchangeFromTicker('AAPL')).toBe('US');
+    expect(deriveExchangeFromTicker('SPY')).toBe('US');
+    expect(deriveExchangeFromTicker('VTI')).toBe('US');
+  });
+
+  it('should be case-insensitive', () => {
+    expect(deriveExchangeFromTicker('000001_sz')).toBe('SZSE');
+    expect(deriveExchangeFromTicker('600519.sh')).toBe('SSE');
+  });
+
+  it('should not match non-exchange dot suffixes', () => {
+    // BRK.B（伯克希尔 B 股）的 .B 不是交易所后缀
+    expect(deriveExchangeFromTicker('BRK.B')).toBe('US');
   });
 });

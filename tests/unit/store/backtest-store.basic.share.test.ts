@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('react', () => ({ startTransition: vi.fn((cb) => cb()) }));
 
@@ -220,6 +220,20 @@ describe('cashflowLeg operations', () => {
     const id = useBacktestStore.getState().parameters.cashflowLegs![0].id;
     useBacktestStore.getState().updateCashflowLeg(id, { amount: 5000 });
     expect(useBacktestStore.getState().parameters.cashflowLegs![0].amount).toBe(5000);
+  });
+
+  it('updateCashflowLeg accepts amount=0 (relaxed schema, no-op leg)', () => {
+    useBacktestStore.getState().addCashflowLeg();
+    const id = useBacktestStore.getState().parameters.cashflowLegs![0].id;
+    useBacktestStore.getState().updateCashflowLeg(id, { amount: 0 });
+    expect(useBacktestStore.getState().parameters.cashflowLegs![0].amount).toBe(0);
+  });
+
+  it('updateCashflowLeg accepts negative amount (net outflow override)', () => {
+    useBacktestStore.getState().addCashflowLeg();
+    const id = useBacktestStore.getState().parameters.cashflowLegs![0].id;
+    useBacktestStore.getState().updateCashflowLeg(id, { amount: -100 });
+    expect(useBacktestStore.getState().parameters.cashflowLegs![0].amount).toBe(-100);
   });
 
   it('updateCashflowLeg updates type', () => {

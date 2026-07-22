@@ -62,7 +62,7 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerCircuitBreakerMetrics: circuitBreakerMetrics,
 }));
 
-vi.mock('../../../packages/backend/src/infrastructure/dataCacheService.js', () => cacheMocks);
+vi.mock('../../../packages/backend/src/infrastructure/dataCache.js', () => cacheMocks);
 
 import {
   isDbAvailable,
@@ -71,7 +71,7 @@ import {
   callGoDataService,
   fetchMissingFromGoService,
   searchTickersFromDb,
-} from '../../../packages/backend/src/infrastructure/dataQueryService.js';
+} from '../../../packages/backend/src/infrastructure/dataQuery.js';
 
 beforeEach(() => {
   vi.clearAllMocks();

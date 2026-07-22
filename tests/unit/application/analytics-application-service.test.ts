@@ -21,7 +21,7 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
 }));
 
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,
 }));
 
@@ -34,7 +34,7 @@ import {
   validateGoalOptimizerAssets,
   executeGoalOptimize,
   executePcaAnalyzeWithFetch,
-} from '../../../packages/backend/src/services/analysis-orchestrator.js';
+} from '../../../packages/backend/src/application/analysis-orchestrator.js';
 import { normalizeTickers } from '../../../packages/backend/src/application/backtest/priceDataUtils.js';
 
 const mockPriceData: Record<string, Record<string, number>> = {

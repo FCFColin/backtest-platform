@@ -17,12 +17,12 @@ const cpiServiceMocks = vi.hoisted(() => ({
   fetchCpiForRoute: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/services/dataService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
   searchTickers: dataServiceMocks.searchTickers,
 }));
 
-vi.mock('../../../packages/backend/src/services/cpiService.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/cpiLoader.js', () => ({
   fetchCpiForRoute: cpiServiceMocks.fetchCpiForRoute,
 }));
 

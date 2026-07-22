@@ -27,7 +27,7 @@ const {
   createPortalSessionMock: vi.fn(async () => 'https://billing.stripe.com/portal-123'),
 }));
 
-vi.mock('../../packages/backend/src/services/billingService.js', () => ({
+vi.mock('../../packages/backend/src/application/billing/billingService.js', () => ({
   isBillingEnabled: billingEnabledMock,
   getSubscriptionSummary: getSubscriptionSummaryMock,
   createCheckoutSession: createCheckoutSessionMock,

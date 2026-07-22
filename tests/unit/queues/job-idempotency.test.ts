@@ -103,4 +103,55 @@ describe('jobIdempotency', () => {
     await releaseJobClaim('job-7');
     expect(redisMocks.del).toHaveBeenCalledWith('bullmq:processing:job-7');
   });
+
+  it('Redis 持续不可用时内存回退应覆盖 claimed → in_progress → already_processed', async () => {
+    redisMocks.exists
+      .mockRejectedValueOnce(new Error('redis down'))
+      .mockRejectedValueOnce(new Error('redis down'))
+      .mockRejectedValueOnce(new Error('redis down'));
+
+    await expect(tryClaimJobProcessing('job-mem-flow')).resolves.toBe('claimed');
+    await expect(tryClaimJobProcessing('job-mem-flow')).resolves.toBe('in_progress');
+
+    // markJobProcessed Redis 失败 → 内存回退写入 memProcessed/memResults
+    const failingMulti = {
+      set: vi.fn().mockReturnThis(),
+      del: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockRejectedValue(new Error('redis down')),
+    };
+    redisMocks.multi.mockReturnValueOnce(failingMulti);
+    await markJobProcessed('job-mem-flow', { score: 42 });
+
+    await expect(tryClaimJobProcessing('job-mem-flow')).resolves.toBe('already_processed');
+  });
+
+  it('getProcessedJobResult Redis 失败时应从内存回退读取结果', async () => {
+    // 先通过 markJobProcessed 失败填充 memResults
+    const failingMulti = {
+      set: vi.fn().mockReturnThis(),
+      del: vi.fn().mockReturnThis(),
+      exec: vi.fn().mockRejectedValue(new Error('redis down')),
+    };
+    redisMocks.multi.mockReturnValueOnce(failingMulti);
+    await markJobProcessed('job-mem-result', { value: 'mem-data' });
+
+    // getProcessedJobResult Redis 失败 → 内存回退
+    redisMocks.get.mockRejectedValueOnce(new Error('redis down'));
+    await expect(getProcessedJobResult('job-mem-result')).resolves.toEqual({ value: 'mem-data' });
+  });
+
+  it('releaseJobClaim Redis 失败时应从内存移除处理声明', async () => {
+    // 先通过 tryClaimJobProcessing 失败填充 memProcessing
+    redisMocks.exists
+      .mockRejectedValueOnce(new Error('redis down'))
+      .mockRejectedValueOnce(new Error('redis down'));
+    await tryClaimJobProcessing('job-mem-release');
+
+    // releaseJobClaim Redis 失败 → 内存回退
+    redisMocks.del.mockRejectedValueOnce(new Error('redis down'));
+    await releaseJobClaim('job-mem-release');
+
+    // 验证：再次 tryClaim 应返回 'claimed'（memProcessing 已被移除）
+    await expect(tryClaimJobProcessing('job-mem-release')).resolves.toBe('claimed');
+  });
 });

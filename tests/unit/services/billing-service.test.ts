@@ -72,7 +72,7 @@ import {
   createCheckoutSession,
   createPortalSession,
   constructWebhookEvent,
-} from '../../../packages/backend/src/services/billingService.js';
+} from '../../../packages/backend/src/application/billing/billingService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 

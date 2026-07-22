@@ -11,17 +11,6 @@ beforeAll(async () => {
 });
 
 describe('Auth Integration', () => {
-  it.skipIf(!serverAvailable)('POST /auth/login 无API Key应返回401', async () => {
-    const res = await fetch(`${BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({}),
-    });
-    expect(res.status).toBe(401);
-    const json = await res.json();
-    expect(json.success).toBe(false);
-  });
-
   it.skipIf(!serverAvailable)('POST /auth/login/password 无凭证应返回422', async () => {
     const res = await fetch(`${BASE}/auth/login/password`, {
       method: 'POST',

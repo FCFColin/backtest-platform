@@ -51,7 +51,7 @@ describe('dataFetchService', () => {
   describe('getUpdateStatus', () => {
     it('初始状态应为未运行', async () => {
       const { getUpdateStatus } =
-        await import('../../../packages/backend/src/infrastructure/dataFetchService.js');
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const status = getUpdateStatus();
       expect(status.running).toBe(false);
       expect(status.workerPid).toBeNull();
@@ -64,7 +64,7 @@ describe('dataFetchService', () => {
 
     it('应返回状态的深拷贝', async () => {
       const { getUpdateStatus } =
-        await import('../../../packages/backend/src/infrastructure/dataFetchService.js');
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const status1 = getUpdateStatus();
       status1.running = true;
       const status2 = getUpdateStatus();
@@ -76,7 +76,7 @@ describe('dataFetchService', () => {
     it('已有进程运行时返回失败', async () => {
       spawnMocks.spawn.mockReturnValue(makeMockProcess());
       const { startUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetchService.js');
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       await startUpdate('full');
       const result = await startUpdate('full');
       expect(result.success).toBe(false);
@@ -86,7 +86,7 @@ describe('dataFetchService', () => {
     it('增量模式应添加 --incremental 参数', async () => {
       spawnMocks.spawn.mockReturnValue(makeMockProcess());
       const { startUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetchService.js');
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = await startUpdate('incremental');
       expect(result.success).toBe(true);
       expect(result.message).toContain('增量');
@@ -95,7 +95,7 @@ describe('dataFetchService', () => {
     it('全量模式不应添加 --incremental', async () => {
       spawnMocks.spawn.mockReturnValue(makeMockProcess());
       const { startUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetchService.js');
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = await startUpdate('full');
       expect(result.success).toBe(true);
       expect(result.message).toContain('全量');
@@ -105,7 +105,7 @@ describe('dataFetchService', () => {
   describe('stopUpdate', () => {
     it('没有运行的任务时应返回失败', async () => {
       const { stopUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetchService.js');
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = stopUpdate();
       expect(result.success).toBe(false);
       expect(result.message).toContain('没有');
@@ -114,7 +114,7 @@ describe('dataFetchService', () => {
     it('有运行任务时应停止并返回成功', async () => {
       spawnMocks.spawn.mockReturnValue(makeMockProcess());
       const { startUpdate, stopUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetchService.js');
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       await startUpdate('full');
       const result = stopUpdate();
       expect(result.success).toBe(true);

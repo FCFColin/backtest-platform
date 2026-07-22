@@ -41,8 +41,12 @@ export interface SeedData {
  * @returns Docker 可用返回 true，否则 false
  */
 export function isDockerAvailable(): boolean {
+  // 默认 skip（避免本地 Docker Desktop 故障导致 hook 超时），仅在 CI 或显式设置
+  // RUN_TESTCONTAINERS=1 时运行。检测 docker info + 容器实际启动能力。
+  if (process.env.RUN_TESTCONTAINERS !== '1') return false;
   try {
     execSync('docker info', { stdio: 'ignore', timeout: 5000 });
+    execSync('docker run --rm hello-world', { stdio: 'ignore', timeout: 30000 });
     return true;
   } catch {
     return false;

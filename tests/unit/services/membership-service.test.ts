@@ -33,7 +33,7 @@ import {
   removeMember,
   getOrg,
   updateOrgName,
-} from '../../../packages/backend/src/services/membershipService.js';
+} from '../../../packages/backend/src/application/org/membershipService.js';
 
 function row(orgId: string, role: string, status = 'active') {
   return {

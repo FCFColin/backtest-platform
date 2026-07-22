@@ -1,20 +1,22 @@
 /**
- * 调试路由单元测试
+ * 调试路由单元测试（ADR-042：debugRoutes 已合并入 healthRoutes）
  *
  * 企业理由：DEBUG 端点暴露进程信息，必须严格鉴权且未配置时不可见。
+ * 合并后仍保持原端点路径 /api/v1/debug/health 与鉴权语义不变。
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { config } from '../../../packages/backend/src/config/index.js';
-import debugRoutes from '../../../packages/backend/src/routes/debugRoutes.js';
+import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
 
-describe('debugRoutes - GET /api/v1/debug/health', () => {
+describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
   let server: TestServer;
   const originalToken = config.DEBUG_AUTH_TOKEN;
 
   beforeEach(async () => {
-    server = await startExpressApp((app) => app.use('/api/v1', debugRoutes));
+    // healthRoutes 挂载于 /api（与生产 app.ts 一致），内部子路径含 /v1/debug/health
+    server = await startExpressApp((app) => app.use('/api', healthRoutes));
   });
 
   afterEach(async () => {

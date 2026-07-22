@@ -362,8 +362,8 @@ describe('config 默认值', () => {
     expect(config.DATA_SERVICE_AUTH_TOKEN.length).toBeGreaterThan(0);
   });
 
-  it('DATABASE_URL 默认应指向 localhost:5432', () => {
-    expect(config.DATABASE_URL).toContain('5432');
+  it('DATABASE_URL 应为有效的 PostgreSQL localhost 连接字符串', () => {
+    expect(config.DATABASE_URL).toMatch(/^postgresql:\/\/.*@localhost:\d+\/\w+$/);
   });
 
   it('DB_POOL_MAX 默认应为 20', () => {

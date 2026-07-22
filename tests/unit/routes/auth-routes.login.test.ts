@@ -1,22 +1,23 @@
 /**
  * 认证路由单元测试 - 登录端点（T-P3-7）
  *
- * 企业理由：登录入口是安全第一道关卡，API Key 与用户名密码登录的正确性
- * 直接影响会话安全。本文件覆盖：
- * - POST /login：API Key 登录（成功/失败/开发环境跳过/防时序攻击）
+ * 企业理由：登录入口是安全第一道关卡，用户名密码登录的正确性直接影响会话安全。
+ * 本文件覆盖：
  * - POST /login/password：用户名密码登录（成功/失败/缺失凭证/argon2 验证）
- * - 暴力破解防护：连续失败不应导致服务崩溃
  * - 账户锁定：锁定状态返回 429
  * - 多租户上下文：解析默认组织并以组织角色签发 token
  *
  * Mock 策略：mock jwtAuth（token 生成/刷新/撤销）、userService（用户验证）、
  * config（环境配置）、loginLockout（锁定计数）、membershipService（组织关系）、logger。
  * 使用真实 Express app.listen + fetch。
+ *
+ * codebase-slim-followups Task 2 已删除 deprecated POST /login（API Key 模式），
+ * 相关测试一并移除。
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
-import { validLoginPayload, validPasswordLoginPayload } from '../../helpers/authFixtures.js';
+import { validPasswordLoginPayload } from '../../helpers/authFixtures.js';
 import type { Request, Response, NextFunction } from 'express';
 
 const mocks = vi.hoisted(() => ({
@@ -61,19 +62,18 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: mocks.config,
   validateConfig: vi.fn(),
-  SUNSET_DATE_STR: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
 }));
 
 vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => mocks.jwtAuth);
 
-vi.mock('../../../packages/backend/src/services/userService.js', () => mocks.userService);
+vi.mock('../../../packages/backend/src/application/auth/userService.js', () => mocks.userService);
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => mocks.userService);
 
-vi.mock('../../../packages/backend/src/services/loginLockout.js', () => mocks.loginLockout);
+vi.mock('../../../packages/backend/src/application/auth/loginLockout.js', () => mocks.loginLockout);
 
 vi.mock(
-  '../../../packages/backend/src/services/membershipService.js',
+  '../../../packages/backend/src/application/org/membershipService.js',
   () => mocks.membershipService,
 );
 
@@ -110,80 +110,6 @@ describe('authRoutes - 登录端点', () => {
 
   afterEach(async () => {
     await server.close();
-  });
-
-  describe('POST /login - API Key 登录', () => {
-    it('正确 API Key 应返回 token 对', async () => {
-      const res = await fetch(`${server.url}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(validLoginPayload),
-      });
-      const body = await res.json();
-
-      expect(res.status).toBe(200);
-      expect(body.success).toBe(true);
-      expect(body.data.accessToken).toBe('access-token-mock');
-      expect(body.data.refreshToken).toBe('refresh-token-mock');
-      expect(body.data.role).toBe('admin');
-    });
-
-    it('缺失 apiKey 应返回 400（zod 校验失败）', async () => {
-      const res = await fetch(`${server.url}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const body = await res.json();
-
-      expect(res.status).toBe(400);
-      expect(body.error.code).toBe('VALIDATION_ERROR');
-    });
-
-    it('错误 API Key 应返回 401', async () => {
-      const res = await fetch(`${server.url}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: 'wrong-key' }),
-      });
-      const body = await res.json();
-
-      expect(res.status).toBe(401);
-      expect(body.error.code).toBe('INVALID_API_KEY');
-    });
-
-    it('超长 API Key（>128 字符）应返回 401', async () => {
-      const res = await fetch(`${server.url}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: 'a'.repeat(129) }),
-      });
-      expect(res.status).toBe(401);
-    });
-
-    it('长度不匹配的 API Key 应返回 401（防时序攻击）', async () => {
-      const res = await fetch(`${server.url}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: 'short' }),
-      });
-      expect(res.status).toBe(401);
-    });
-
-    it('开发环境未配置 ADMIN_API_KEY 应返回 400（zod 校验失败）', async () => {
-      mocks.config.NODE_ENV = 'development';
-      mocks.config.ADMIN_API_KEY = '';
-
-      const res = await fetch(`${server.url}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const body = await res.json();
-
-      expect(res.status).toBe(400);
-      expect(body.error.code).toBe('VALIDATION_ERROR');
-    });
   });
 
   describe('POST /login/password - 用户名密码登录', () => {
@@ -278,30 +204,6 @@ describe('authRoutes - 登录端点', () => {
       });
 
       expect(mocks.userService.verifyUser).toHaveBeenCalledWith('testuser', 'pass');
-    });
-  });
-
-  describe('暴力破解防护', () => {
-    it('多次失败登录不应导致服务崩溃', async () => {
-      // 连续 10 次错误登录
-      const requests = Array.from({ length: 10 }, () =>
-        fetch(`${server.url}/api/v1/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ apiKey: 'wrong-key' }),
-        }),
-      );
-      const responses = await Promise.all(requests);
-      for (const res of responses) {
-        expect(res.status).toBe(401);
-      }
-      // 服务仍应正常响应
-      const healthRes = await fetch(`${server.url}/api/v1/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(validLoginPayload),
-      });
-      expect(healthRes.status).toBe(200);
     });
   });
 

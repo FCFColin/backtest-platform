@@ -1,19 +1,29 @@
 /**
- * 测试辅助：auth routes fixtures
+ * 测试辅助：auth routes fixtures + JWT 签发工具（合并自 authFixtures + jwtFixtures）
  *
- * 仅保留 3 个 payload 常量（validLoginPayload / validPasswordLoginPayload / validRefreshPayload）。
- * Phase 5.4 已清理 7 个未用导出（validSignupPayload/mockAuthRequest/mockAuthResponse/
- * createJwtAuthMocks/createUserServiceMocks/createLoginLockoutMocks/createMembershipServiceMocks）。
+ * 导出：
+ * - auth payload 常量：validPasswordLoginPayload / validRefreshPayload
+ * - JWT 签发工具：base64urlEncode / signTestToken / SignTestTokenOptions
+ *
+ * 历史：
+ * - Phase 5.2 已清理 9 个未用导出（createUserFixture/mockAdmin/mockUser/mockReadonly/
+ *   mockAnalyst/createJwtPayload/signMockJwt/verifyMockJwt/createJwtAuthMiddlewareMock）。
+ * - Phase 5.4 已清理 7 个未用 auth mock 导出（validSignupPayload/mockAuthRequest/mockAuthResponse/
+ *   createJwtAuthMocks/createUserServiceMocks/createLoginLockoutMocks/createMembershipServiceMocks）。
+ * - codebase-slim-followups Task 2 已删除 deprecated POST /login，validLoginPayload 一并清理。
+ * - 2026-07-19 清理 UserRole（无外部引用）。
+ * - 2026-07-20 codebase-slim-execution Task 4.4 合并 jwtFixtures.ts 入此文件（rename 为 authFixtures.ts）。
  *
  * 用法：
- *   import { validLoginPayload } from '../helpers/authFixtures.js';
- *   fetch('/api/v1/auth/login', { body: JSON.stringify(validLoginPayload) });
+ *   import { validPasswordLoginPayload, signTestToken } from '../helpers/authFixtures.js';
+ *   fetch('/api/v1/auth/login/password', { body: JSON.stringify(validPasswordLoginPayload) });
+ *   const token = await signTestToken({ sub: 'user-1', role: 'admin' });
  */
 
-/** 有效登录请求体（API Key 模式） */
-export const validLoginPayload = {
-  apiKey: 'test-secret-key-123',
-};
+import { SignJWT, importJWK } from 'jose';
+
+/** 默认 JWT 密钥（与 jwt-auth 测试 config 默认值一致） */
+const DEFAULT_JWT_SECRET = 'test-jwt-secret-for-unit-tests';
 
 /** 有效密码登录请求体 */
 export const validPasswordLoginPayload = {
@@ -25,3 +35,48 @@ export const validPasswordLoginPayload = {
 export const validRefreshPayload = {
   refreshToken: 'valid-refresh-token',
 };
+
+/**
+ * Base64URL 编码（无填充）
+ *
+ * 用于构造 JWK oct 密钥时的 k 字段编码。
+ *
+ * @param input - UTF-8 字符串
+ * @returns Base64URL 编码字符串（无 = 填充）
+ */
+export function base64urlEncode(input: string): string {
+  return Buffer.from(input, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/** signTestToken 选项 */
+export interface SignTestTokenOptions {
+  /** 不设置 exp（用于"缺少 exp"用例） */
+  omitExp?: boolean;
+  /** 自定义密钥（默认使用 DEFAULT_JWT_SECRET） */
+  secret?: string;
+}
+
+/**
+ * 使用 HS256 签发测试 token
+ *
+ * 集中维护"构造密钥 + 签发"模板，消除 5+ 处重复样板。
+ * 默认使用 DEFAULT_JWT_SECRET，与 jwt-auth 测试 config 默认值一致。
+ *
+ * @param payload - JWT payload（不含 iat/exp，由本函数注入）
+ * @param options - 可选配置：omitExp=true 时不设置 exp；secret 自定义密钥
+ * @returns 签发后的 JWT 字符串
+ */
+export async function signTestToken(
+  payload: Record<string, unknown>,
+  options: SignTestTokenOptions = {},
+): Promise<string> {
+  const secret = options.secret ?? DEFAULT_JWT_SECRET;
+  const key = await importJWK({ kty: 'oct', k: base64urlEncode(secret) }, 'HS256');
+  const builder = new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setIssuedAt();
+  if (!options.omitExp) builder.setExpirationTime('1h');
+  return builder.sign(key);
+}

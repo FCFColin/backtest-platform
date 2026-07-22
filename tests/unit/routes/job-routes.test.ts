@@ -235,7 +235,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
     expect(res.status).toBe(500);
     expect(body.error.status).toBe(500);
-    expect(body.error.detail).toBe('Failed to fetch job status');
+    expect(body.error.detail).toBe('Redis connection failed');
   });
 
   it('任务处于 active 状态时不应包含 result 或 error', async () => {

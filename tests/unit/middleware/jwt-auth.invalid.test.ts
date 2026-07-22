@@ -7,7 +7,7 @@ import {
   type JwtAuthConfigMocks,
 } from '../../helpers/mockFactories.js';
 import { createJwtAuthUserRepoMock, setupJwtAuthTestMocks } from '../../helpers/jwtAuthSetup.js';
-import { base64urlEncode, signTestToken } from '../../helpers/jwtFixtures.js';
+import { base64urlEncode, signTestToken } from '../../helpers/authFixtures.js';
 
 const mocks = vi.hoisted(() => ({ config: {} as JwtAuthConfigMocks }));
 
@@ -35,7 +35,7 @@ vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
 const apiKeyMocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(async () => null),
 }));
-vi.mock('../../../packages/backend/src/services/apiKeyVerifier.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
   verifyApiKey: apiKeyMocks.verifyApiKey,
 }));
 

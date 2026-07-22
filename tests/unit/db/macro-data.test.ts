@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { createMockPool } from '../../helpers/dbMocks.js';
 
 const dbMocks = vi.hoisted(() => ({
   getReadPool: vi.fn(),
@@ -25,12 +26,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
-
-function createMockPool() {
-  return {
-    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
-  } as unknown as { query: ReturnType<typeof vi.fn> };
-}
 
 type MacroDataModule = typeof import('../../../packages/backend/src/db/macroData.js');
 

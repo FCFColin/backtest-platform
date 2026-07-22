@@ -31,7 +31,7 @@ import {
   listInvitations,
   revokeInvitation,
   acceptInvitation,
-} from '../../../packages/backend/src/services/invitationService.js';
+} from '../../../packages/backend/src/application/org/invitationService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const INV_ID = '22222222-2222-2222-2222-222222222222';

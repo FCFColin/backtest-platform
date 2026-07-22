@@ -81,30 +81,6 @@ describe('dataManageRoutes - 写端点权限保护（对抗性）', () => {
   });
 });
 
-describe('dataManageRoutes - 废弃 POST 端点', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startApp('admin');
-  });
-
-  afterEach(async () => {
-    await server.close();
-  });
-
-  it('POST /update/full 不应返回 501，应设置 Deprecation/Sunset/Link 头', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/update/full`, { method: 'POST' });
-
-    // 不再返回 501（已激活）
-    expect(res.status).not.toBe(501);
-    // 废弃头仍保留，引导客户端迁移到 PUT
-    expect(res.headers.get('deprecation')).toBe('true');
-    expect(res.headers.get('sunset')).toBeTruthy();
-    expect(res.headers.get('link')).toContain('successor-version');
-  });
-});
-
 describe('dataManageRoutes - PUT /update/full', () => {
   let server: TestServer;
 
@@ -268,53 +244,6 @@ describe('dataManageRoutes - PUT /regenerate-meta', () => {
 
   it('应直接返回成功（数据由 PostgreSQL 实时计算）', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/regenerate-meta`, { method: 'PUT' });
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.message).toContain('PostgreSQL');
-  });
-});
-
-describe('dataManageRoutes - 废弃 POST 端点错误路径', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startApp('admin');
-  });
-
-  afterEach(async () => {
-    await server.close();
-  });
-
-  it.each([
-    ['/update/full', 'post full error'],
-    ['/update/inc', 'post inc error'],
-    ['/update/refetch', 'post refetch error'],
-    ['/resume', 'post resume error'],
-  ])('POST %s 抛错时应返回 500', async (path, errorMsg) => {
-    dataFetchMocks.startUpdate.mockRejectedValue(new Error(errorMsg));
-
-    const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method: 'POST' });
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('UPDATE_ERROR');
-  });
-
-  it('POST /universe 抛错时应返回 500', async () => {
-    engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('post universe error'));
-
-    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'POST' });
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('UNIVERSE_ERROR');
-  });
-
-  it('POST /regenerate-meta 应直接返回成功', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/regenerate-meta`, { method: 'POST' });
     const body = await res.json();
 
     expect(res.status).toBe(200);

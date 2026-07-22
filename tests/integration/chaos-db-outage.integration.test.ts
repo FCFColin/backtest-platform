@@ -43,7 +43,7 @@ vi.mock('@opentelemetry/api', () => {
   };
 });
 
-vi.mock('../../packages/backend/src/infrastructure/dataCacheService.js', () => ({
+vi.mock('../../packages/backend/src/infrastructure/dataCache.js', () => ({
   readCache: vi.fn(async () => null),
   getCacheKey: vi.fn(() => 'chaos-test-cache-key'),
   writeCache: vi.fn(),
@@ -64,8 +64,8 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { config } from '../../packages/backend/src/config/index.js';
 import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
 import { initSchema } from '../../packages/backend/src/db/migrations.js';
-import { fetchHistoryData } from '../../packages/backend/src/services/dataService.js';
-import { pgCircuitBreaker } from '../../packages/backend/src/infrastructure/dataQueryService.js';
+import { fetchHistoryData } from '../../packages/backend/src/infrastructure/dataFacade.js';
+import { pgCircuitBreaker } from '../../packages/backend/src/infrastructure/dataQuery.js';
 import { isDockerAvailable } from '../helpers/testcontainersPg.js';
 
 const dockerAvailable = isDockerAvailable();

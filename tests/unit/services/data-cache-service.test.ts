@@ -64,7 +64,7 @@ import {
   incrementCacheVersion,
   deletePriceCache,
   clearPriceCache,
-} from '../../../packages/backend/src/infrastructure/dataCacheService.js';
+} from '../../../packages/backend/src/infrastructure/dataCache.js';
 
 beforeEach(() => {
   vi.clearAllMocks();

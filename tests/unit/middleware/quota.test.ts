@@ -30,10 +30,10 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/services/membershipService.js', () => ({
+vi.mock('../../../packages/backend/src/application/org/membershipService.js', () => ({
   getOrg: mocks.getOrg,
 }));
-vi.mock('../../../packages/backend/src/services/usageService.js', () => ({
+vi.mock('../../../packages/backend/src/application/billing/usageService.js', () => ({
   getMonthlyUsage: mocks.getMonthlyUsage,
   recordUsage: mocks.recordUsage,
 }));

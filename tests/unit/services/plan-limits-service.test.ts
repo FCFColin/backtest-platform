@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getPlanLimits,
   currentPeriod,
-} from '../../../packages/backend/src/services/planLimitsService.js';
+} from '../../../packages/backend/src/application/billing/planLimitsService.js';
 
 describe('getPlanLimits', () => {
   it('free 计划应返回 100/月, 10 标的, 1 并发, 10/分钟', () => {

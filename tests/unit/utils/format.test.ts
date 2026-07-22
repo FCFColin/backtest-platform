@@ -4,6 +4,8 @@ import {
   fmtYears,
   fmtPct,
   fmtRatio,
+  fmtNum,
+  fmtDollar,
 } from '../../../packages/frontend/src/utils/format.js';
 
 describe('fmtDate', () => {
@@ -99,5 +101,29 @@ describe('fmtRatio', () => {
 
   it('三位小数应四舍五入', () => {
     expect(fmtRatio(3.456)).toBe('3.46');
+  });
+});
+
+describe('fmtNum', () => {
+  it('null / undefined / NaN 应返回占位符', () => {
+    expect(fmtNum(null)).toBe('—');
+    expect(fmtNum(undefined)).toBe('—');
+    expect(fmtNum(NaN)).toBe('—');
+  });
+
+  it('应支持自定义小数位数并四舍五入', () => {
+    expect(fmtNum(0)).toBe('0.00');
+    expect(fmtNum(1.236, 2)).toBe('1.24');
+    expect(fmtNum(1.5, 0)).toBe('2');
+  });
+});
+
+describe('fmtDollar', () => {
+  it('应格式化为美元（无小数，带千分位）', () => {
+    expect(fmtDollar(1234)).toBe('$1,234');
+  });
+
+  it('零值应返回 $0', () => {
+    expect(fmtDollar(0)).toBe('$0');
   });
 });

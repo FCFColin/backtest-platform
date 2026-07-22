@@ -43,7 +43,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks),
 }));
 
-import { BacktestCompletedHandler } from '../../../packages/backend/src/application/events/handlers/BacktestCompletedHandler.js';
+import { BacktestCompletedHandler } from '../../../packages/backend/src/application/backtestCompletedHandler.js';
 import type { DomainEvent } from '../../../packages/backend/src/domain/events/EventDispatcher.js';
 
 function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
