@@ -5,26 +5,6 @@
  * 评估组合在不确定性下的概率分布。所有路径共享同样的时间刻度。
  */
 
-/**
- * 蒙特卡洛模拟参数
- *
- * 区块自举（Block Bootstrap）将历史收益序列划分为 minBlockYears~maxBlockYears
- * 大小的随机区块并拼接，比逐日采样更好地保留收益的自相关结构。
- *
- * withReplacement=true 时区块可重复采样（标准 Bootstrap），
- * withReplacement=false 时每个区块最多使用一次，保证样本覆盖（非标准）。
- *
- * seed 提供可重现的随机数序列，用于调试和回归测试。
- */
-export interface MonteCarloParameters {
-  numYears: number;
-  numSimulations: number;
-  minBlockYears: number;
-  maxBlockYears: number;
-  withReplacement: boolean;
-  seed?: number;
-}
-
 /** 单条模拟路径的关键统计指标 */
 export interface PerPathMetrics {
   finalValue: number;

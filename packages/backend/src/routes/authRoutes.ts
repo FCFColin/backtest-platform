@@ -4,14 +4,11 @@
  * 提供 JWT 认证端点：登录、刷新、登出、用户信息、组织切换。
  * 注册与邮箱验证路由见 authRegistrationRoutes.ts。
  *
- * HTTP 方法语义：POST /login（创建会话）、POST /refresh（创建令牌）、
+ * HTTP 方法语义：POST /login/password（创建会话）、POST /refresh（创建令牌）、
  * DELETE /logout（删除会话）、GET /me（读取用户信息）。
- * 旧 POST /logout 保留为 deprecated，6 个月过渡期后移除。
  */
 
 import { Router, type Request, type Response } from 'express';
-import { timingSafeEqual } from 'node:crypto';
-import { config, SUNSET_DATE_STR } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import {
@@ -25,12 +22,11 @@ import {
   type TenantContext,
 } from '../middleware/jwtAuth.js';
 import { hashUserId, requireUser } from '../middleware/authTypes.js';
-import { Role } from '../middleware/rbac.js';
 import { validate } from '../middleware/validate.js';
-import { loginSchema, loginPasswordSchema } from '../schemas/auth.js';
+import { loginPasswordSchema } from '../schemas/auth.js';
 import registrationRoutes from './authRegistrationRoutes.js';
-import { verifyUser } from '../services/userService.js';
-import { isLockedOut, recordFailure, clearFailures } from '../services/loginLockout.js';
+import { verifyUser } from '../application/auth/userService.js';
+import { isLockedOut, recordFailure, clearFailures } from '../application/auth/loginLockout.js';
 import {
   resolveDefaultOrg,
   getMembership,
@@ -38,7 +34,7 @@ import {
   isPlatformAdmin,
   orgRoleToGlobalRole,
   type Membership,
-} from '../services/membershipService.js';
+} from '../application/org/membershipService.js';
 
 /** 将成员关系序列化为响应中的组织摘要 */
 function orgSummary(m: Membership): Record<string, unknown> {
@@ -53,62 +49,6 @@ function orgSummary(m: Membership): Record<string, unknown> {
 }
 
 const router = Router();
-
-/**
- * POST /api/v1/auth/login - 登录获取 Access Token + Refresh Token
- *
- * 请求体：{ apiKey: string }
- * 响应：{ success: true, data: { accessToken, refreshToken, role } }
- *
- * 企业理由：登录是认证流程入口。MVP 阶段使用 API Key 作为共享凭证，
- * 验证通过后签发 JWT。生产环境应替换为用户名+密码验证。
- * POST 语义正确——创建新的会话/令牌资源。
- *
- * @deprecated 使用 POST /api/v1/auth/login/password 替代。
- * 共享 API Key 无法区分用户身份，不符合 SOC 2/ISO 27001 可追溯要求。
- * 所有用户迁移到用户名+密码认证后，此端点将被移除。
- */
-router.post('/login', validate(loginSchema), async (req: Request, res: Response) => {
-  const { apiKey } = req.body;
-
-  // 开发环境且未配置 ADMIN_API_KEY 时，允许直接登录（方便本地开发）
-  if (config.NODE_ENV !== 'production' && !config.ADMIN_API_KEY) {
-    const accessToken = await generateToken('dev-user', Role.ADMIN);
-    const refreshToken = await generateRefreshToken('dev-user', Role.ADMIN);
-    logger.info({ userId: 'dev-user', role: Role.ADMIN }, '[auth] 开发环境登录成功');
-    res.json({
-      success: true,
-      data: { accessToken, refreshToken, role: Role.ADMIN, userId: 'dev-user' },
-    });
-    return;
-  }
-
-  if (apiKey.length !== config.ADMIN_API_KEY.length) {
-    sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
-    return;
-  }
-
-  const a = Buffer.from(apiKey, 'utf-8');
-  const b = Buffer.from(config.ADMIN_API_KEY, 'utf-8');
-  if (!timingSafeEqual(a, b)) {
-    sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
-    return;
-  }
-
-  // 验证通过：ADMIN_API_KEY 现为破窗（break-glass）平台密钥（ADR-033），
-  // 签发携带 platform_admin 的令牌（不绑定具体租户），而非历史的租户内 admin。
-  const userId = 'platform:break-glass';
-  const role = Role.ADMIN;
-  const tenant: TenantContext = { platformAdmin: true };
-  const accessToken = await generateToken(userId, role, tenant);
-  const refreshToken = await generateRefreshToken(userId, role, undefined, tenant);
-
-  logger.info({ userId, role, platformAdmin: true }, '[auth] 破窗平台密钥登录成功');
-  res.json({
-    success: true,
-    data: { accessToken, refreshToken, role, userId, platformAdmin: true },
-  });
-});
 
 /**
  * POST /api/v1/auth/login/password - 用户名+密码登录
@@ -364,33 +304,6 @@ router.delete('/me', jwtAuth, async (req: AuthenticatedRequest, res: Response) =
   const ok = await anonymizeUser(req.user.sub);
   logger.info({ userId: hashUserId(req.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
   res.json({ success: true, data: { anonymized: ok } });
-});
-
-// ============================================================
-// 废弃端点（POST /logout → DELETE /logout 迁移过渡期）
-//
-// 企业理由：保持向后兼容，旧客户端仍可使用 POST /logout。
-// 通过 RFC 8594 Deprecation + Sunset 头引导客户端迁移。
-// 过渡期 6 个月后移除此路由。
-// ============================================================
-
-/** @deprecated 使用 DELETE /logout 替代。Sunset 后将移除此端点。 */
-router.post('/logout', async (req: Request, res: Response) => {
-  res.setHeader('Deprecation', 'true');
-  res.setHeader('Sunset', SUNSET_DATE_STR);
-  res.setHeader('Link', '</api/v1/auth/logout>; rel="successor-version"');
-  logger.warn(
-    `[DEPRECATED] 客户端调用了废弃端点 POST /logout，请迁移到 DELETE /logout。Sunset: ${SUNSET_DATE_STR}`,
-  );
-
-  const { refreshToken } = req.body as { refreshToken?: string };
-
-  if (refreshToken) {
-    await revokeRefreshToken(refreshToken);
-    logger.info('[auth] Refresh Token 已撤销');
-  }
-
-  res.json({ success: true });
 });
 
 export default router;

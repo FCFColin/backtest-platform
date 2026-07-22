@@ -1,8 +1,8 @@
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/dateUtils.js';
-import { scanMarketStatsFromDb, getDbEngineStatus, type DbMarketStats } from '../db/marketStats.js';
-export { scanMarketStatsFromDb };
+import { scanMarketStatsFromDb, getDbEngineStatus } from '../db/marketStats.js';
+import type { DbMarketStats } from '../db/marketStatsHelpers.js';
 import { getReadPool } from '../db/pool.js';
 
 /** 获取引擎状态（PostgreSQL） */
@@ -54,8 +54,8 @@ export async function getTickerList(): Promise<
   }
 }
 
-/** 搜索标的 — 统一使用 dataService.searchTickers（DB 全文搜索 + Go fallback） */
-export { searchTickers } from '../services/dataService.js';
+/** 搜索标的 — 统一使用 dataFacade.searchTickers（DB 全文搜索 + Go fallback） */
+export { searchTickers } from './dataFacade.js';
 
 /** 加载标的数据（PostgreSQL） */
 export async function loadTickerData(ticker: string): Promise<Record<string, unknown> | null> {
@@ -107,15 +107,6 @@ export async function loadTickerData(ticker: string): Promise<Record<string, unk
 /** 从数据库获取统计（替代 JSON 缓存） */
 export function scanTickersStats(_force = false): Promise<DbMarketStats | null> {
   return scanMarketStatsFromDb();
-}
-
-/** 从数据库异步获取统计，空结果时抛出错误 */
-export async function scanTickersStatsAsync(_force = false): Promise<DbMarketStats> {
-  const stats = await scanMarketStatsFromDb();
-  if (!stats) {
-    throw new Error('数据库为空或连接失败');
-  }
-  return stats;
 }
 
 /** 从数据库统计推导宇宙规模 */

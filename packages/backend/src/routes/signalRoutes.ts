@@ -7,7 +7,7 @@ import {
   executeSignalAnalyze,
   executeDualSignalAnalyze,
   executeMultiSignalAnalyze,
-} from '../services/signal-orchestrator.js';
+} from '../application/signal-orchestrator.js';
 import { asyncRouteHandler } from './routeUtils.js';
 
 const router = Router();

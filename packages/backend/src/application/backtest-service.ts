@@ -18,6 +18,7 @@ import { writeEventInTransaction } from '../infrastructure/outboxWriter.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
+import { Run } from '../domain/aggregates/run.js';
 import { eventDispatcher } from '../domain/events/index.js';
 import { withTimeout } from '../utils/timeout.js';
 import { config } from '../config/index.js';
@@ -28,7 +29,7 @@ import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/sh
 import {
   preparePortfolioBacktest,
   collectInvalidTickerWarnings,
-  fetchPriceData,
+  fetchPriceDataWithRange,
   loadMacroData,
   translateDomainError,
   collectDomainTickers,
@@ -58,7 +59,7 @@ export async function runPortfolioBacktest(opts: {
   const prep = preparePortfolioBacktest(portfolios, parameters);
   const { allTickers, warnings } = prep;
 
-  const priceData = await fetchPriceData(
+  const { priceData, effectiveStartDate, effectiveEndDate } = await fetchPriceDataWithRange(
     Array.from(allTickers),
     parameters.startDate,
     parameters.endDate,
@@ -71,10 +72,14 @@ export async function runPortfolioBacktest(opts: {
   }
 
   const { cpiData, exchangeRates } = await loadMacroData(parameters);
+  const effectiveParameters =
+    effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
+      ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
+      : parameters;
   const { result } = await withTimeout(
     runBacktest({
       portfolios,
-      parameters,
+      parameters: effectiveParameters,
       priceData,
       cpiData,
       exchangeRates,
@@ -125,6 +130,25 @@ export async function runBacktest(
         'Starting backtest',
       );
 
+      // ADR-013 Phase 3：通过 Run 聚合根触发 RunStarted 事件（补充，不替换 BacktestCompleted）
+      // 同步路径不持久化 Run 本身——BacktestCompletedHandler 在 BacktestCompleted 时落库摘要
+      const aggregateId = `backtest-${Date.now()}`;
+      const run = Run.create({
+        id: aggregateId,
+        name: `Backtest ${aggregateId}`,
+        request: {
+          portfolioCount: portfolios.length,
+          startDate: parameters.startDate,
+          endDate: parameters.endDate,
+        },
+        ownerUserId: params.ownerUserId,
+      });
+      for (const evt of run.pullEvents()) {
+        void eventDispatcher.dispatch(evt).catch((err) => {
+          logger.error({ err, aggregateId }, 'Failed to dispatch RunStarted event');
+        });
+      }
+
       const filteredPriceData = filterPriceData(priceData, allTickers);
 
       span.setAttribute('cache_hit', Object.keys(filteredPriceData).length === allTickers.size);
@@ -141,7 +165,6 @@ export async function runBacktest(
       const degraded = false;
 
       const firstStats = result.portfolios[0]?.statistics;
-      const aggregateId = `backtest-${Date.now()}`;
       const eventId = randomUUID();
       const eventPayload = {
         startingValue: parameters.startingValue,

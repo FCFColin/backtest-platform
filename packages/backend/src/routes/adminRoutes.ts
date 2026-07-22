@@ -7,7 +7,7 @@
 import { Router, type Request, type Response } from 'express';
 import { callService } from '../utils/httpClient.js';
 import { scanTickersStats, getUniverseStats } from '../infrastructure/tickerDataService.js';
-import type { DbMarketStats } from '../db/marketStats.js';
+import type { DbMarketStats } from '../db/marketStatsHelpers.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';

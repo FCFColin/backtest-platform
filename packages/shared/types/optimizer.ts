@@ -2,19 +2,11 @@
 import type { RebalanceFrequency } from './portfolio.js';
 
 /**
- * 有效前沿 / 组合优化目标函数。
- *
- * 用于 /api/v1/optimizer 与 /api/v1/efficient-frontier 端点，对应 Markowitz
- * 均值-方差框架下的目标选择。不要与回测优化器的 BacktestOptimizerObjective 混用。
- */
-export type OptimizationObjective = 'maxSharpe' | 'minVolatility' | 'maxReturn' | 'maxSortino';
-
-/**
  * 回测优化器目标函数。
  *
  * 用于 /api/v1/backtest-optimizer 端点，对应参数搜索（再平衡频率 / 阈值 / 资金）
- * 中按回测统计指标择优的目标；与有效前沿的 OptimizationObjective 语义不同，
- * 两者字段集合虽有交集但不可互换。
+ * 中按回测统计指标择优的目标；与有效前沿的目标函数（maxSharpe / minVolatility 等）
+ * 语义不同，两者字段集合虽有交集但不可互换。
  */
 export type BacktestOptimizerObjective = 'maxCagr' | 'minMaxDrawdown' | 'maxSharpe' | 'maxSortino';
 

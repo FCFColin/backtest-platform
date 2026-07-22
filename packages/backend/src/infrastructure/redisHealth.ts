@@ -2,7 +2,7 @@
  * Redis 健康检测统一模块
  *
  * 集中管理 Redis 连接状态，取代 refreshToken / idempotency / loginLockout /
- * dataCacheService / backtestResultCache 各自维护的本地 boolean flag + listener + ping 实现。
+ * dataCache / backtestResultCache 各自维护的本地 boolean flag + listener + ping 实现。
  *
  * - 缓存最近一次 ping/事件结果（5 秒 TTL），避免高频调用
  * - 监听 redisClient 的 ready/reconnecting/end/error 事件，立即更新状态

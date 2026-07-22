@@ -44,6 +44,21 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
   { version: 10, upFile: '010_user_email.sql', downFile: '010_user_email_down.sql' },
   { version: 11, upFile: '011_billing.sql', downFile: '011_billing_down.sql' },
   { version: 12, upFile: '012_usage.sql', downFile: '012_usage_down.sql' },
+  {
+    version: 13,
+    upFile: '013_drop_redundant_index.sql',
+    downFile: '013_drop_redundant_index_down.sql',
+  },
+  {
+    version: 14,
+    upFile: '014_drop_chk_prices_volume_nonnegative.sql',
+    downFile: '014_drop_chk_prices_volume_nonnegative_down.sql',
+  },
+  {
+    version: 15,
+    upFile: '015_add_exchange_column.sql',
+    downFile: '015_add_exchange_column_down.sql',
+  },
 ];
 
 /**

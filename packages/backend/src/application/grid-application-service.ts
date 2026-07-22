@@ -4,7 +4,7 @@
  * 计算逻辑已迁移到 Go 引擎 /api/engine/tactical-grid-search（ADR-031）。
  * 纯领域逻辑（参数校验、参数生成、组合计数）在 domain/services/grid-search.ts 中。
  */
-import { fetchHistoryData } from '../services/dataService.js';
+import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { logger } from '../utils/logger.js';
 import { sanitizeLog } from '../utils/logSanitizer.js';
 import { callEngineStrict } from '../utils/engineClient.js';

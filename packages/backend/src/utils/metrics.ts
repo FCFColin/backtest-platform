@@ -181,26 +181,12 @@ export const engineCallDuration = new client.Histogram({
 });
 
 /**
- * 引擎不可用次数（旧指标名，保留向后兼容避免 Grafana 面板断裂）
- *
- * 企业理由（RO-052）：原命名 `fallback_to_node_total` 暗示"降级到 Node"，
- * 但 ADR-031 后为 fail-closed，不再有 Node 降级。保留旧名仅为过渡期兼容，
- * 新代码应使用 `engineUnavailableTotal` / `recordEngineUnavailable`。
- */
-export const fallbackToNodeTotal = new client.Counter({
-  name: 'fallback_to_node_total',
-  help: 'Total number of engine unavailable events (Go circuit breaker open/fallback)',
-  labelNames: ['reason'],
-  registers: [register],
-});
-
-/**
- * 引擎不可用次数（新指标名，RO-052 重命名）
+ * 引擎不可用次数（RO-052 重命名）
  *
  * 企业理由：名称准确反映 ADR-031 fail-closed 语义 —— 引擎不可用时快速失败，
- * 而非降级到 Node。过渡期与 `fallbackToNodeTotal` 双写，Grafana 面板迁移后删除旧指标。
+ * 而非降级到 Node。
  */
-const engineUnavailableTotal = new client.Counter({
+export const engineUnavailableTotal = new client.Counter({
   name: 'engine_unavailable_total',
   help: 'Total number of engine unavailable events (Go circuit breaker open/fail-closed)',
   labelNames: ['reason'],
@@ -351,7 +337,7 @@ export function recordEngineCall(success: boolean, error?: string): void {
   } else {
     engineCallsTotal.inc({ result: 'unavailable' });
     if (error) {
-      fallbackToNodeTotal.inc({ reason: error.replace(/[^a-zA-Z0-9_-]/g, '_') });
+      engineUnavailableTotal.inc({ reason: error.replace(/[^a-zA-Z0-9_-]/g, '_') });
     }
   }
 }
@@ -359,16 +345,11 @@ export function recordEngineCall(success: boolean, error?: string): void {
 /**
  * 记录引擎不可用事件（Go 引擎熔断/调用失败）。
  *
- * 双写新旧两个 Counter（RO-052 过渡期）：新代码调用此函数，
- * `fallbackToNodeTotal`（旧名）与 `engineUnavailableTotal`（新名）同时递增，
- * Grafana 面板迁移完成后可移除旧指标与 `recordFallbackToNode`。
- *
  * @param reason - 不可用原因（如 go_circuit_breaker_open）
  */
 export function recordEngineUnavailable(reason: string): void {
   const safeReason = reason.replace(/[^a-zA-Z0-9_-]/g, '_');
   engineUnavailableTotal.inc({ reason: safeReason });
-  fallbackToNodeTotal.inc({ reason: safeReason });
 }
 
 /**

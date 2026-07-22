@@ -12,5 +12,5 @@
  *   console.log(config.API_PORT);
  */
 
-export { config, SUNSET_DATE_STR } from './configObject.js';
+export { config } from './configObject.js';
 export { validateConfig } from './validation.js';

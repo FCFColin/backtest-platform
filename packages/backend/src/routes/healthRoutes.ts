@@ -1,8 +1,9 @@
 /**
- * 健康检查路由
- * GET /api/health  - 轻量存活探针（不暴露依赖拓扑）
- * GET /api/ready   - 深度就绪检查（含引擎/DB/Redis，需 METRICS_AUTH_TOKEN 鉴权）
- * GET /api/metrics - Prometheus 格式指标端点
+ * 健康检查路由（含调试端点，ADR-042 合并）
+ * GET /api/health          - 轻量存活探针（不暴露依赖拓扑）
+ * GET /api/ready           - 深度就绪检查（含引擎/DB/Redis，需 METRICS_AUTH_TOKEN 鉴权）
+ * GET /api/metrics         - Prometheus 格式指标端点
+ * GET /api/v1/debug/health - 调试子系统存活探测（需 DEBUG_AUTH_TOKEN 鉴权，T-29）
  */
 
 import { Router, type Request, type Response } from 'express';
@@ -166,5 +167,42 @@ router.get(
     },
   ),
 );
+
+// ---------------------------------------------------------------------------
+// 调试端点（原 debugRoutes.ts 合并，T-29）
+//
+// 企业理由：生产排障需 CPU/堆快照，但端点必须鉴权以防信息泄露。
+// 仅当 DEBUG_AUTH_TOKEN 配置时启用，未配置时返回 404。
+// ---------------------------------------------------------------------------
+
+/** 校验调试端点 Bearer 令牌（DEBUG_AUTH_TOKEN） */
+function checkDebugAuth(req: Request, res: Response): boolean {
+  const token = config.DEBUG_AUTH_TOKEN;
+  if (!token) {
+    sendProblem(res, 404, 'NOT_FOUND', 'Not Found', { detail: 'Debug endpoints disabled' });
+    return false;
+  }
+  const auth = req.headers.authorization;
+  const provided = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';
+  if (provided !== token) {
+    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: 'Invalid debug token' });
+    return false;
+  }
+  return true;
+}
+
+/** GET /api/v1/debug/health — 调试子系统存活探测 */
+router.get('/v1/debug/health', (req, res) => {
+  if (!checkDebugAuth(req, res)) return;
+  res.json({
+    success: true,
+    data: {
+      node: process.version,
+      pid: process.pid,
+      uptimeSec: process.uptime(),
+      memory: process.memoryUsage(),
+    },
+  });
+});
 
 export default router;

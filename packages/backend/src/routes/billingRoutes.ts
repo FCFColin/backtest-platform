@@ -23,7 +23,7 @@ import {
   getSubscriptionSummary,
   constructWebhookEvent,
   handleWebhookEvent,
-} from '../services/billingService.js';
+} from '../application/billing/billingService.js';
 
 const router = Router();
 

@@ -14,7 +14,7 @@ import { hashUserId, requireUser } from '../middleware/authTypes.js';
 import { validate } from '../middleware/validate.js';
 import { registerSchema } from '../schemas/auth.js';
 import { createUserTx, getUserByEmail } from '../repositories/userRepo.js';
-import { issueEmailVerificationToken, verifyEmailToken } from '../services/userService.js';
+import { issueEmailVerificationToken, verifyEmailToken } from '../application/auth/userService.js';
 import { getClient } from '../db/pool.js';
 import { sendVerificationEmail } from '../infrastructure/mailService.js';
 

@@ -106,13 +106,13 @@ function readPemFile(filePath: string): string {
 async function getPrivateKey(): Promise<JoseKey> {
   // 1. 直接从环境变量读取
   if (config.JWT_PRIVATE_KEY) {
-    return await importPKCS8(config.JWT_PRIVATE_KEY, 'RS256');
+    return importPKCS8(config.JWT_PRIVATE_KEY, 'RS256');
   }
 
   // 2. 从文件读取
   if (config.JWT_PRIVATE_KEY_FILE) {
     const pem = readPemFile(config.JWT_PRIVATE_KEY_FILE);
-    return await importPKCS8(pem, 'RS256');
+    return importPKCS8(pem, 'RS256');
   }
 
   // 3. 开发环境自动生成
@@ -132,13 +132,13 @@ async function getPrivateKey(): Promise<JoseKey> {
 async function getPublicKey(): Promise<JoseKey> {
   // 1. 直接从环境变量读取
   if (config.JWT_PUBLIC_KEY) {
-    return await importSPKI(config.JWT_PUBLIC_KEY, 'RS256');
+    return importSPKI(config.JWT_PUBLIC_KEY, 'RS256');
   }
 
   // 2. 从文件读取
   if (config.JWT_PUBLIC_KEY_FILE) {
     const pem = readPemFile(config.JWT_PUBLIC_KEY_FILE);
-    return await importSPKI(pem, 'RS256');
+    return importSPKI(pem, 'RS256');
   }
 
   // 3. 开发环境自动生成
@@ -156,7 +156,7 @@ async function getPublicKey(): Promise<JoseKey> {
  * 企业理由：HS256 向后兼容路径，用于验证迁移前签发的旧令牌。
  */
 async function getHS256Key(): Promise<JoseKey> {
-  return await importJWK({ kty: 'oct', k: base64urlEncode(JWT_SECRET) }, 'HS256');
+  return importJWK({ kty: 'oct', k: base64urlEncode(JWT_SECRET) }, 'HS256');
 }
 
 // ---------------------------------------------------------------------------

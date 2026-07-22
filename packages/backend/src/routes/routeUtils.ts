@@ -110,6 +110,17 @@ interface RouteErrorConfig {
  *
  * 所有计算端点路由统一使用此包装器，确保错误处理模式一致。
  */
+function recordEndpointError(endpoint: string | undefined): void {
+  if (!endpoint) return;
+  recordBacktestRequest(endpoint, 'sync', 'error');
+}
+
+function recordDegraded(endpoint: string | undefined): void {
+  if (!endpoint) return;
+  recordBacktestRequest(endpoint, 'sync', 'error');
+  recordDegradedResponse(endpoint, 'engine_unavailable');
+}
+
 export function asyncRouteHandler(
   fn: (req: Request, res: Response) => Promise<void>,
   errorConfig: RouteErrorConfig,
@@ -119,19 +130,17 @@ export function asyncRouteHandler(
       await fn(req, res);
     } catch (error) {
       if (handleEngineUnavailable(res, error)) {
-        if (errorConfig.endpoint) {
-          recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
-          recordDegradedResponse(errorConfig.endpoint, 'engine_unavailable');
-        }
+        recordDegraded(errorConfig.endpoint);
         return;
       }
       if (handleApplicationError(res, error)) {
-        if (errorConfig.endpoint) recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
+        recordEndpointError(errorConfig.endpoint);
         return;
       }
-      if (errorConfig.endpoint) recordBacktestRequest(errorConfig.endpoint, 'sync', 'error');
+      recordEndpointError(errorConfig.endpoint);
       logger.error({ err: error as Error }, errorConfig.logMsg);
-      sendProblem(res, 500, errorConfig.code, errorConfig.title, { detail: errorConfig.detail });
+      const detail = error instanceof Error && error.message ? error.message : errorConfig.detail;
+      sendProblem(res, 500, errorConfig.code, errorConfig.title, { detail });
     }
   };
 }
@@ -160,8 +169,9 @@ export function crudRouteHandler(
       await fn(req, res);
     } catch (err) {
       logger.error({ err: err as Error, path: req.path, method: req.method }, errorConfig.logMsg);
+      const detail = err instanceof Error && err.message ? err.message : errorConfig.detail;
       sendProblem(res, 500, errorConfig.code, errorConfig.title, {
-        detail: errorConfig.detail,
+        detail,
       });
     }
   };

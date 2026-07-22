@@ -11,8 +11,8 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { fetchHistoryData, searchTickers } from '../services/dataService.js';
-import { fetchCpiForRoute } from '../services/cpiService.js';
+import { fetchHistoryData, searchTickers } from '../infrastructure/dataFacade.js';
+import { fetchCpiForRoute } from '../infrastructure/cpiLoader.js';
 import { sendProblem } from '../utils/errors.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
 import { validateQuery } from '../middleware/validate.js';

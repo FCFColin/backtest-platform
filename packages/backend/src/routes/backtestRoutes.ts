@@ -16,7 +16,7 @@
 import { Router, type Request, type Response } from 'express';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { runPortfolioBacktest } from '../application/backtest-service.js';
-import { runAnalysis } from '../services/analysis-orchestrator.js';
+import { runAnalysis } from '../application/analysis-orchestrator.js';
 import { runMonteCarlo } from '../application/montecarlo-service.js';
 import { runOptimization, runEfficientFrontier } from '../application/optimize-service.js';
 import { extractBacktestSeries } from '../application/backtest/compressBacktestResult.js';
@@ -24,7 +24,7 @@ import {
   backtestCacheKey,
   getBacktestResultCache,
 } from '../application/backtest/backtestResultCache.js';
-import { searchTickers } from '../services/dataService.js';
+import { searchTickers } from '../infrastructure/dataFacade.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordBacktestRequest } from '../utils/metrics.js';

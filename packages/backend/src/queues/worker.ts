@@ -23,9 +23,11 @@ import {
 } from './jobIdempotency.js';
 import { executeOptimization } from '../application/optimize-service.js';
 import { executeGridSearch } from '../application/grid-application-service.js';
-import { createRun } from '../repositories/backtestRunRepo.js';
-import { getOrg } from '../services/membershipService.js';
-import { getPlanLimits } from '../services/planLimitsService.js';
+import { save } from '../repositories/backtestRunRepo.js';
+import { Run } from '../domain/aggregates/run.js';
+import { eventDispatcher } from '../domain/events/index.js';
+import { getOrg } from '../application/org/membershipService.js';
+import { getPlanLimits } from '../application/billing/planLimitsService.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { errorMessage, UpstreamProblemError } from '../utils/errors.js';
@@ -185,6 +187,9 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
 /**
  * 将成功的异步任务结果落库到 backtest_runs（租户隔离，ADR-034）。
  *
+ * ADR-013 Phase 2/3：通过 Run 聚合根驱动状态机（queued→running→completed），
+ * 持久化后分发累积的领域事件（RunStarted/RunCompleted）。失败时仅日志，不影响任务结果。
+ *
  * 仅当任务携带 tenantId 时持久化（匿名/无租户任务跳过，保持向后兼容）。
  * 持久化失败不影响任务结果返回——结果已在幂等缓存中，落库失败仅记录告警。
  */
@@ -194,16 +199,27 @@ async function persistRunIfTenant(
 ): Promise<void> {
   const { tenantId, ownerUserId, type, payload } = job.data;
   if (!tenantId) return;
+  const jobId = String(job.id);
   try {
-    await createRun(tenantId, ownerUserId ?? null, {
+    // 通过 Run 聚合根驱动状态机：create→start→complete，产生 RunStarted + RunCompleted 事件
+    const run = Run.create({
+      id: jobId,
       name: type,
       request: payload,
-      result,
-      status: 'completed',
+      ownerUserId: ownerUserId ?? null,
     });
+    run.start();
+    run.complete(result);
+    await save(tenantId, run);
+    const events = run.pullEvents();
+    for (const evt of events) {
+      void eventDispatcher.dispatch(evt).catch((err) => {
+        logger.error({ err, jobId, eventType: evt.eventType }, '[worker] Run 事件分发失败');
+      });
+    }
   } catch (err) {
     logger.warn(
-      { jobId: String(job.id), tenantId, err: String(err) },
+      { jobId, tenantId, err: String(err) },
       '[worker] 回测结果落库失败（结果仍可经任务状态获取）',
     );
   }

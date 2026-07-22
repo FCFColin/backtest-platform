@@ -21,13 +21,13 @@ import {
   listOrgMembers,
   updateMemberRole,
   removeMember,
-} from '../services/membershipService.js';
+} from '../application/org/membershipService.js';
 import {
   createInvitation,
   listInvitations,
   revokeInvitation,
   acceptInvitation,
-} from '../services/invitationService.js';
+} from '../application/org/invitationService.js';
 import { sendInvitationEmail } from '../infrastructure/mailService.js';
 
 const router = Router();

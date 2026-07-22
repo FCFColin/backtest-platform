@@ -43,11 +43,12 @@ const portfolioSchema = z
     { message: '组合资产权重之和应约为 100（允许 ±1 容差）', path: ['assets'] },
   );
 
-// Security (T-14 / A04 业务逻辑校验)：现金流金额为"幅度"，方向由 type 表达，
-// 负数金额无业务含义且可能引发计算异常，故约束为正数。
+// Security (T-14 / A04 业务逻辑校验)：现金流金额为"幅度"，方向由 type 表达。
+// 允许 0（空 leg，前端默认值，等价 no-op）与负数（净流出 override，
+// 例如将 withdrawal 编码为负幅度）。type 字段仍承担主方向语义。
 const cashflowLegSchema = z.object({
   id: z.string(),
-  amount: z.number().positive(),
+  amount: z.number(),
   type: z.enum(['contribution', 'withdrawal']),
   frequency: z.enum(['yearly', 'monthly', 'quarterly', 'weekly']),
   offset: z.number(),
@@ -56,7 +57,7 @@ const cashflowLegSchema = z.object({
 
 const oneTimeCashflowSchema = z.object({
   id: z.string(),
-  amount: z.number().positive(),
+  amount: z.number(),
   type: z.enum(['contribution', 'withdrawal']),
   date: z.string().date(),
 });

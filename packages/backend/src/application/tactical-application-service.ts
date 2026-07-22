@@ -6,7 +6,7 @@
 import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical';
 import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
-import { fetchHistoryData } from '../services/dataService.js';
+import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';

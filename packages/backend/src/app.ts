@@ -3,7 +3,12 @@ import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
 import { config } from './config/index.js';
-import { jwtAuth, optionalJwtAuth, assignGuestReadonly } from './middleware/jwtAuth.js';
+import {
+  jwtAuth,
+  optionalJwtAuth,
+  assignGuestReadonly,
+  assignGuestAnalyst,
+} from './middleware/jwtAuth.js';
 import { resolveTenant, requireTenant } from './middleware/tenantContext.js';
 import { requirePermission, Permission } from './middleware/rbac.js';
 import { enforceQuota } from './middleware/quota.js';
@@ -26,11 +31,8 @@ import dataManageRoutes from './routes/dataManageRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
 import backtestOptimizerRoutes from './routes/backtestOptimizerRoutes.js';
 import tacticalRoutes from './routes/tacticalRoutes.js';
-import pcaRoutes from './routes/pcaRoutes.js';
 import signalRoutes from './routes/signalRoutes.js';
-import letfRoutes from './routes/letfRoutes.js';
 import tacticalGridRoutes from './routes/tacticalGridRoutes.js';
-import goalOptimizerRoutes from './routes/goalOptimizerRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import apiKeyRoutes from './routes/apiKeyRoutes.js';
@@ -40,9 +42,7 @@ import runRoutes from './routes/runRoutes.js';
 import orgRoutes from './routes/orgRoutes.js';
 import billingRoutes, { billingWebhookHandler } from './routes/billingRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
-import debugRoutes from './routes/debugRoutes.js';
-import factorRegressionRoutes from './routes/factorRegressionRoutes.js';
-import calculatorRoutes from './routes/calculatorRoutes.js';
+import analysisRoutes from './routes/analysisRoutes.js';
 import { jobRoutes } from './routes/jobRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -142,18 +142,20 @@ app.use('/api/v1/auth/refresh', refreshLimiter);
 app.use('/api', healthRoutes);
 app.use('/api/', apiLimiter);
 
-// 中间件链工厂 — 认证与权限始终生效（开发环境可通过 DEV_SKIP_AUTH 旁路，注入 analyst 角色）
-const computeAuth = jwtAuth;
+// 中间件链工厂 — 计算端点使用可选认证 + 访客 analyst 身份注入。
+// 平台当前无付费内容，匿名用户以 analyst 角色访问全部计算功能；
+// 已登录用户保留真实身份与租户上下文，enforceQuota 对无 tenantId 的访客自动放行。
+const computeAuth: express.RequestHandler[] = [optionalJwtAuth, assignGuestAnalyst];
 const computePermission = (permission: Permission): express.RequestHandler =>
   requirePermission(permission);
 const computeQuota: express.RequestHandler = (req, res, next) => {
   void enforceQuota(USAGE_METRIC.BACKTEST)(req, res, next);
 };
 function computeMiddleware(permission: Permission): express.RequestHandler[] {
-  return [computeAuth, resolveTenant, computePermission(permission), computeQuota, auditLog];
+  return [...computeAuth, resolveTenant, computePermission(permission), computeQuota, auditLog];
 }
 function computeMiddlewareNoQuota(permission: Permission): express.RequestHandler[] {
-  return [computeAuth, resolveTenant, computePermission(permission), auditLog];
+  return [...computeAuth, resolveTenant, computePermission(permission), auditLog];
 }
 function crudMiddleware(permission: Permission): express.RequestHandler[] {
   return [jwtAuth, resolveTenant, requireTenant, requirePermission(permission)];
@@ -177,29 +179,17 @@ app.use(
   backtestOptimizerRoutes,
 );
 app.use('/api/v1/tactical', ...computeMiddleware(Permission.STRATEGY_MANAGE), tacticalRoutes);
-app.use('/api/v1/pca', ...computeMiddleware(Permission.BACKTEST_RUN), pcaRoutes);
 app.use('/api/v1/signal', ...computeMiddlewareNoQuota(Permission.SIGNAL_READ), signalRoutes);
-app.use('/api/v1/letf', ...computeMiddleware(Permission.BACKTEST_RUN), letfRoutes);
 app.use(
   '/api/v1/tactical-grid',
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
   tacticalGridRoutes,
 );
-app.use(
-  '/api/v1/goal-optimizer',
-  ...computeMiddleware(Permission.STRATEGY_MANAGE),
-  goalOptimizerRoutes,
-);
-app.use(
-  '/api/v1/analysis',
-  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
-  factorRegressionRoutes,
-);
-app.use(
-  '/api/v1/calculators',
-  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
-  calculatorRoutes,
-);
+
+// 分析类路由合并挂载（ADR-042）：pca/letf/goal-optimizer/calculators/factor-regression
+// 内部按子路径应用不同中间件链（computeMiddleware/computeMiddlewareNoQuota + Permission）
+app.use('/api/v1', analysisRoutes);
+
 app.use(
   '/api/v1/admin',
   jwtAuth,
@@ -218,8 +208,6 @@ app.use('/api/v1/runs', ...crudMiddleware(Permission.BACKTEST_RUN), runRoutes);
 app.use('/api/v1/orgs', jwtAuth, resolveTenant, orgRoutes);
 app.use('/api/v1/billing', jwtAuth, resolveTenant, billingRoutes);
 app.use('/api/v1', jwtAuth, resolveTenant, jobRoutes);
-
-app.use('/api/v1', debugRoutes);
 
 // 静态文件 + SPA 回退
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {

@@ -4,8 +4,8 @@
  * 从 backtest-service.ts 拆分，供 backtest-service / analysis-service /
  * montecarlo-service / optimize-service 共享使用。
  */
-import { fetchHistoryData } from '../services/dataService.js';
-import { loadCpiMap } from '../services/cpiService.js';
+import { fetchHistoryData } from '../infrastructure/dataFacade.js';
+import { loadCpiMap } from '../infrastructure/cpiLoader.js';
 import { withTimeout } from '../utils/timeout.js';
 import { loadExchangeRatesFromDb } from '../db/macroData.js';
 import { ValidationError } from '../utils/errors.js';
@@ -13,7 +13,7 @@ import { DomainValidationError } from '../domain/errors.js';
 import { isValidDate } from '../utils/dateUtils.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
 import type { Portfolio, BacktestParameters, BacktestResult, PriceData } from '@backtest/shared';
-import { Portfolio as DomainPortfolio } from '../domain/index.js';
+import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 
 // ---------------------------------------------------------------------------
 // 领域异常翻译 — domain 层抛出 DomainValidationError（无 HTTP 语义），
@@ -193,6 +193,57 @@ export async function fetchPriceData(
     'fetch-history-data',
   );
   return result.data;
+}
+
+/** 从 priceData 中推断实际日期范围（所有 ticker 的并集）。 */
+function inferDateRangeFromData(
+  data: Record<string, Record<string, number>>,
+): { min: string; max: string } | null {
+  let minDate: string | null = null;
+  let maxDate: string | null = null;
+  for (const series of Object.values(data)) {
+    for (const d of Object.keys(series)) {
+      if (!minDate || d < minDate) minDate = d;
+      if (!maxDate || d > maxDate) maxDate = d;
+    }
+  }
+  return minDate && maxDate ? { min: minDate, max: maxDate } : null;
+}
+
+/**
+ * 获取历史价格数据并返回实际生效的日期范围。
+ *
+ * "全部历史"模式下，后端会计算所有 ticker 的公共日期区间作为实际查询范围，
+ * 此函数将该区间一并返回，供调用方传给引擎以保持日期过滤一致性。
+ */
+export async function fetchPriceDataWithRange(
+  tickers: string[],
+  startDate: string,
+  endDate: string,
+): Promise<{
+  priceData: Record<string, Record<string, number>>;
+  effectiveStartDate: string;
+  effectiveEndDate: string;
+}> {
+  const result = await withTimeout(
+    fetchHistoryData(tickers, startDate, endDate),
+    60_000,
+    'fetch-history-data',
+  );
+  let effectiveStart = startDate;
+  let effectiveEnd = endDate;
+  if (startDate === '' && endDate === '' && Object.keys(result.data).length > 0) {
+    const range = inferDateRangeFromData(result.data);
+    if (range) {
+      effectiveStart = range.min;
+      effectiveEnd = range.max;
+    }
+  }
+  return {
+    priceData: result.data,
+    effectiveStartDate: effectiveStart,
+    effectiveEndDate: effectiveEnd,
+  };
 }
 
 /** 加载宏观经济数据（CPI + 汇率）。 */

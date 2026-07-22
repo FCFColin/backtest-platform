@@ -14,9 +14,9 @@ import { type Response, type NextFunction } from 'express';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from './jwtAuth.js';
-import { getOrg } from '../services/membershipService.js';
-import { getPlanLimits } from '../services/planLimitsService.js';
-import { getMonthlyUsage, recordUsage } from '../services/usageService.js';
+import { getOrg } from '../application/org/membershipService.js';
+import { getPlanLimits } from '../application/billing/planLimitsService.js';
+import { getMonthlyUsage, recordUsage } from '../application/billing/usageService.js';
 
 /** 从常见请求体形态推断标的数量（tickers/assets/symbols） */
 function extractTickerCount(body: unknown): number {

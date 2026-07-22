@@ -1,11 +1,10 @@
 /**
  * 统计指标类型定义
  *
- * 包含 60+ 个计算指标，覆盖收益、风险、风险调整后收益、
+ * 包含 100+ 个计算指标，覆盖收益、风险、风险调整后收益、
  * 基准比较、分布特征和提款率分析。
  *
- * 注意：cagr 和 mwrr 是必填字段（引擎始终返回），
- * 其余字段按需计算（取决于回测参数中的 extendedWithdrawalStats 等选项）。
+ * 注意：所有字段均为必填，Go引擎总是计算并返回所有指标。
  */
 
 /**
@@ -18,171 +17,171 @@
  * - Annual/Annualized：年化（与无后缀等价）
  * - Raw：原始（未年化）指标
  *
- * VaR/CVaR 后缀数字表示置信水平（%），如 var5 = 95% VaR。
+ * VaR/CVaR 后缀数字表示置信水平（%），如 varDaily5 = 日频 95% VaR。
  */
 export interface Statistics {
   // 核心收益
   cagr: number;
   mwrr: number;
-  totalReturn?: number;
+  totalReturn: number;
   bestYear: number;
   worstYear: number;
   avgYear: number;
-  avgAnnualReturn?: number;
-  avgMonthlyReturn?: number;
-  avgDailyReturn?: number;
+  avgAnnualReturn: number;
+  avgMonthlyReturn: number;
+  avgDailyReturn: number;
 
   // 波动率
   stdev: number;
-  stdevAnnual?: number;
-  stdevMonthly?: number;
-  stdevMonthlyRaw?: number;
-  stdevDaily?: number;
-  stdevDailyRaw?: number;
+  stdevAnnual: number;
+  stdevMonthly: number;
+  stdevMonthlyRaw: number;
+  stdevDaily: number;
+  stdevDailyRaw: number;
 
   // 下行偏差（仅考虑负收益的标准差）
-  downsideDeviation?: number;
-  downsideDeviationDailyRaw?: number;
-  downsideDeviationMonthly?: number;
-  downsideDeviationMonthlyRaw?: number;
-  downsideDeviationAnnual?: number;
+  downsideDeviation: number;
+  downsideDeviationDailyRaw: number;
+  downsideDeviationMonthly: number;
+  downsideDeviationMonthlyRaw: number;
+  downsideDeviationAnnual: number;
 
   // 回撤
   maxDrawdown: number;
   maxDrawdownDuration: number;
-  avgDrawdown?: number;
-  ulcerIndex?: number;
-  drawdownRecoveryFactor?: number;
+  avgDrawdown: number;
+  ulcerIndex: number;
+  drawdownRecoveryFactor: number;
 
   // 风险调整
   sharpe: number;
   sortino: number;
-  calmar?: number;
-  ulcerPerformanceIndex?: number;
-  diversificationRatio?: number;
-  m2?: number;
+  calmar: number;
+  ulcerPerformanceIndex: number;
+  diversificationRatio: number;
+  m2: number;
+  treynor: number;
 
   // 基准相关
-  alpha?: number;
-  beta?: number;
-  rSquared?: number;
-  treynor?: number;
-  benchmarkCorrelation?: number;
-  upsideCorrelation?: number;
-  downsideCorrelation?: number;
-  upsideBeta?: number;
-  downsideBeta?: number;
-  alphaDaily?: number;
-  alphaAnnualized?: number;
+  alpha: number;
+  beta: number;
+  rSquared: number;
+  benchmarkCorrelation: number;
+  upsideCorrelation: number;
+  downsideCorrelation: number;
+  upsideBeta: number;
+  downsideBeta: number;
+  alphaDaily: number;
+  alphaAnnualized: number;
 
   // 捕获率（组合收益 vs 基准收益的比例）
-  upsideCapture?: number;
-  downsideCapture?: number;
-  upsideCaptureDaily?: number;
-  downsideCaptureDaily?: number;
-  upsideCaptureAnnual?: number;
-  downsideCaptureAnnual?: number;
-  captureSpread?: number;
-  captureSpreadDaily?: number;
-  captureSpreadAnnual?: number;
+  upsideCapture: number;
+  downsideCapture: number;
+  upsideCaptureDaily: number;
+  downsideCaptureDaily: number;
+  upsideCaptureAnnual: number;
+  downsideCaptureAnnual: number;
+  captureSpread: number;
+  captureSpreadDaily: number;
+  captureSpreadAnnual: number;
 
   // 主动管理
-  activeReturn?: number;
-  trackingError?: number;
-  informationRatio?: number;
+  activeReturn: number;
+  trackingError: number;
+  informationRatio: number;
 
   // VaR / CVaR（不同时间维度 × 不同置信水平）
-  var?: {
+  var: {
     daily: { [K in 1 | 5 | 10]: number };
     monthly: { [K in 1 | 5 | 10]: number };
     annual: { [K in 1 | 5 | 10]: number };
   };
-  cvar?: {
+  cvar: {
     daily: { [K in 1 | 5 | 10]: number };
     monthly: { [K in 1 | 5 | 10]: number };
     annual: { [K in 1 | 5 | 10]: number };
   };
 
   // 扁平 VaR/CVaR 字段（兼容表格访问）
-  var5?: number;
-  cvar5?: number;
-  varDaily1?: number;
-  varDaily5?: number;
-  varDaily10?: number;
-  cvarDaily1?: number;
-  cvarDaily5?: number;
-  cvarDaily10?: number;
-  varMonthly1?: number;
-  varMonthly5?: number;
-  varMonthly10?: number;
-  cvarMonthly1?: number;
-  cvarMonthly5?: number;
-  cvarMonthly10?: number;
-  varAnnual1?: number;
-  varAnnual5?: number;
-  varAnnual10?: number;
-  cvarAnnual1?: number;
-  cvarAnnual5?: number;
-  cvarAnnual10?: number;
+  var5: number;
+  cvar5: number;
+  varDaily1: number;
+  varDaily5: number;
+  varDaily10: number;
+  cvarDaily1: number;
+  cvarDaily5: number;
+  cvarDaily10: number;
+  varMonthly1: number;
+  varMonthly5: number;
+  varMonthly10: number;
+  cvarMonthly1: number;
+  cvarMonthly5: number;
+  cvarMonthly10: number;
+  varAnnual1: number;
+  varAnnual5: number;
+  varAnnual10: number;
+  cvarAnnual1: number;
+  cvarAnnual5: number;
+  cvarAnnual10: number;
 
   // 分布特征（偏度和超额峰度）
-  skewness?: {
+  skewness: {
     daily: number;
     monthly: number;
     annual: number;
   };
-  skewnessDaily?: number;
-  skewnessMonthly?: number;
-  skewnessAnnual?: number;
-  excessKurtosis?: {
+  skewnessDaily: number;
+  skewnessMonthly: number;
+  skewnessAnnual: number;
+  excessKurtosis: {
     daily: number;
     monthly: number;
     annual: number;
   };
-  excessKurtosisDaily?: number;
-  excessKurtosisMonthly?: number;
-  excessKurtosisAnnual?: number;
+  excessKurtosisDaily: number;
+  excessKurtosisMonthly: number;
+  excessKurtosisAnnual: number;
 
   // 正收益比例（按时间维度）
-  winRate?: {
+  winRate: {
     daily: number;
     monthly: number;
     annual: number;
   };
-  pctPositiveDays?: number;
-  pctPositiveMonths?: number;
-  pctPositiveYears?: number;
+  pctPositiveDays: number;
+  pctPositiveMonths: number;
+  pctPositiveYears: number;
 
   // 极值收益
-  maxDailyReturn?: number;
-  minDailyReturn?: number;
-  maxMonthlyReturn?: number;
-  minMonthlyReturn?: number;
-  maxAnnualReturn?: number;
-  minAnnualReturn?: number;
+  maxDailyReturn: number;
+  minDailyReturn: number;
+  maxMonthlyReturn: number;
+  minMonthlyReturn: number;
+  maxAnnualReturn: number;
+  minAnnualReturn: number;
 
   // 平均盈亏 & 盈亏比
-  avgDailyGain?: number;
-  avgDailyLoss?: number;
-  gainLossRatioDaily?: number;
-  avgMonthlyGain?: number;
-  avgMonthlyLoss?: number;
-  gainLossRatioMonthly?: number;
-  avgAnnualGain?: number;
-  avgAnnualLoss?: number;
-  gainLossRatioAnnual?: number;
+  avgDailyGain: number;
+  avgDailyLoss: number;
+  gainLossRatioDaily: number;
+  avgMonthlyGain: number;
+  avgMonthlyLoss: number;
+  gainLossRatioMonthly: number;
+  avgAnnualGain: number;
+  avgAnnualLoss: number;
+  gainLossRatioAnnual: number;
 
   // 提款率（SWR = 安全提款率，PWR = 永久提款率）
-  swr?: number;
-  pwr?: number;
-  swr10y?: number;
-  pwr10y?: number;
-  swr20y?: number;
-  pwr20y?: number;
-  swr30y?: number;
-  pwr30y?: number;
-  swr40y?: number;
-  pwr40y?: number;
+  swr: number;
+  pwr: number;
+  swr10y: number;
+  pwr10y: number;
+  swr20y: number;
+  pwr20y: number;
+  swr30y: number;
+  pwr30y: number;
+  swr40y: number;
+  pwr40y: number;
 }
 
 /**
@@ -204,30 +203,112 @@ const ZERO_SKEW = { daily: 0, monthly: 0, annual: 0 };
 const ZERO_NUM_FIELDS = [
   'cagr',
   'mwrr',
-  'stdev',
-  'sharpe',
-  'sortino',
-  'maxDrawdown',
-  'maxDrawdownDuration',
+  'totalReturn',
   'bestYear',
   'worstYear',
   'avgYear',
-  'totalReturn',
-  'maxMonthlyReturn',
-  'minMonthlyReturn',
+  'avgAnnualReturn',
+  'avgMonthlyReturn',
+  'avgDailyReturn',
+  'stdev',
+  'stdevAnnual',
+  'stdevMonthly',
+  'stdevMonthlyRaw',
+  'stdevDaily',
+  'stdevDailyRaw',
+  'downsideDeviation',
+  'downsideDeviationDailyRaw',
+  'downsideDeviationMonthly',
+  'downsideDeviationMonthlyRaw',
+  'downsideDeviationAnnual',
+  'maxDrawdown',
+  'maxDrawdownDuration',
   'avgDrawdown',
   'ulcerIndex',
+  'drawdownRecoveryFactor',
+  'sharpe',
+  'sortino',
   'calmar',
   'ulcerPerformanceIndex',
-  'beta',
+  'diversificationRatio',
+  'm2',
+  'treynor',
   'alpha',
+  'beta',
   'rSquared',
-  'trackingError',
-  'informationRatio',
+  'benchmarkCorrelation',
+  'upsideCorrelation',
+  'downsideCorrelation',
+  'upsideBeta',
+  'downsideBeta',
+  'alphaDaily',
+  'alphaAnnualized',
   'upsideCapture',
   'downsideCapture',
+  'upsideCaptureDaily',
+  'downsideCaptureDaily',
+  'upsideCaptureAnnual',
+  'downsideCaptureAnnual',
+  'captureSpread',
+  'captureSpreadDaily',
+  'captureSpreadAnnual',
+  'activeReturn',
+  'trackingError',
+  'informationRatio',
+  'var5',
+  'cvar5',
+  'varDaily1',
+  'varDaily5',
+  'varDaily10',
+  'cvarDaily1',
+  'cvarDaily5',
+  'cvarDaily10',
+  'varMonthly1',
+  'varMonthly5',
+  'varMonthly10',
+  'cvarMonthly1',
+  'cvarMonthly5',
+  'cvarMonthly10',
+  'varAnnual1',
+  'varAnnual5',
+  'varAnnual10',
+  'cvarAnnual1',
+  'cvarAnnual5',
+  'cvarAnnual10',
+  'skewnessDaily',
+  'skewnessMonthly',
+  'skewnessAnnual',
+  'excessKurtosisDaily',
+  'excessKurtosisMonthly',
+  'excessKurtosisAnnual',
+  'pctPositiveDays',
+  'pctPositiveMonths',
+  'pctPositiveYears',
   'maxDailyReturn',
   'minDailyReturn',
+  'maxMonthlyReturn',
+  'minMonthlyReturn',
+  'maxAnnualReturn',
+  'minAnnualReturn',
+  'avgDailyGain',
+  'avgDailyLoss',
+  'gainLossRatioDaily',
+  'avgMonthlyGain',
+  'avgMonthlyLoss',
+  'gainLossRatioMonthly',
+  'avgAnnualGain',
+  'avgAnnualLoss',
+  'gainLossRatioAnnual',
+  'swr',
+  'pwr',
+  'swr10y',
+  'pwr10y',
+  'swr20y',
+  'pwr20y',
+  'swr30y',
+  'pwr30y',
+  'swr40y',
+  'pwr40y',
 ] as const;
 
 /**

@@ -6,23 +6,34 @@ import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/dataM
 import {
   getEngineStatus,
   getTickerList,
-  searchTickers,
   loadTickerData,
-  scanMarketStatsFromDb,
   resolveUniverseFromCacheStats,
 } from '../infrastructure/tickerDataService.js';
+import { searchTickers } from '../infrastructure/dataFacade.js';
+import { scanMarketStatsFromDb } from '../db/marketStats.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { startUpdate, stopUpdate, getUpdateStatus } from '../infrastructure/dataFetchService.js';
-import { SUNSET_DATE_STR } from '../config/index.js';
+import { startUpdate, stopUpdate, getUpdateStatus } from '../infrastructure/dataFetch.js';
 import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);
 
-function deprecationWarning(method: string, path: string): string {
-  return `[DEPRECATED] 客户端调用了废弃端点 POST ${path}，请迁移到 ${method}。Sunset: ${SUNSET_DATE_STR}`;
+/**
+ * /stats 内存缓存：60s TTL，统计为全局数据故 key 不区分用户。
+ * `?force=1` 穿透缓存强制刷新。避免外部缓存库依赖（ADR 一致：仅内存 Map/object）。
+ */
+const STATS_CACHE_TTL_MS = 60_000;
+interface StatsCacheEntry {
+  body: { success: true; data: unknown };
+  expiresAt: number;
+}
+let cachedStats: StatsCacheEntry | null = null;
+
+function isForceRefresh(req: Request): boolean {
+  const v = req.query.force;
+  return v === '1' || v === 'true';
 }
 
 /** 引擎状态 */
@@ -42,24 +53,34 @@ router.get(
   ),
 );
 
-/** 详细统计（实时从 PostgreSQL 查询） */
+/** 详细统计（实时从 PostgreSQL 查询；60s 内存缓存，?force=1 穿透） */
 router.get(
   '/stats',
   crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      const t0 = Date.now();
-      const stats = await scanMarketStatsFromDb();
+    async (req: Request, res: Response): Promise<void> => {
+      res.setHeader('Cache-Control', 'no-cache');
 
-      if (!stats) {
-        res.json({
-          success: true,
-          data: { stats: null, universe: { total: 0, updated_at: '', stats: {} } },
-        });
+      if (!isForceRefresh(req) && cachedStats && cachedStats.expiresAt > Date.now()) {
+        res.json(cachedStats.body);
         return;
       }
 
-      const universe = resolveUniverseFromCacheStats(stats);
-      res.json({ success: true, data: { stats, universe } });
+      const t0 = Date.now();
+      const stats = await scanMarketStatsFromDb();
+
+      let body: { success: true; data: unknown };
+      if (!stats) {
+        body = {
+          success: true,
+          data: { stats: null, universe: { total: 0, updated_at: '', stats: {} } },
+        };
+      } else {
+        const universe = resolveUniverseFromCacheStats(stats);
+        body = { success: true, data: { stats, universe } };
+      }
+
+      cachedStats = { body, expiresAt: Date.now() + STATS_CACHE_TTL_MS };
+      res.json(body);
       logger.info(`[dataManageRoutes] /stats 总耗时 ${Date.now() - t0}ms`);
     },
     {
@@ -257,90 +278,5 @@ router.put('/regenerate-meta', requireDataManage, (_req: Request, res: Response)
     },
   });
 });
-
-// Post endpoints — 兼容旧版客户端，内部转发到相同逻辑
-function setDeprecationHeaders(res: Response, path: string): void {
-  res.setHeader('Deprecation', 'true');
-  res.setHeader('Sunset', SUNSET_DATE_STR);
-  res.setHeader('Link', `<${path}>; rel="successor-version"`);
-}
-
-/**
- * 废弃 POST 端点统一处理：记录 deprecation 日志、设置 Sunset/Link 响应头，
- * 然后委托 inner handler 执行业务逻辑。消除 6 个废弃端点的重复 deprecation 调用。
- */
-function deprecatedPostHandler(
-  successorMethod: 'PUT' | 'PATCH',
-  successorPath: string,
-  inner: (req: Request, res: Response) => void | Promise<void>,
-): (req: Request, res: Response) => Promise<void> {
-  return async (req: Request, res: Response): Promise<void> => {
-    logger.warn(deprecationWarning(`${successorMethod} ${successorPath}`, req.path));
-    setDeprecationHeaders(res, successorPath);
-    await inner(req, res);
-  };
-}
-
-/**
- * 4 个废弃 POST update 端点共享相同结构（startUpdate + UPDATE_ERROR），
- * 通过数组循环注册消除 ~50 行重复样板。
- */
-const DEPRECATED_UPDATE_POST_ROUTES: ReadonlyArray<{
-  path: string;
-  method: 'PUT' | 'PATCH';
-  mode: 'full' | 'incremental';
-  detail: string;
-}> = [
-  { path: '/update/full', method: 'PUT', mode: 'full', detail: '全量更新启动失败' },
-  { path: '/update/inc', method: 'PATCH', mode: 'incremental', detail: '增量更新启动失败' },
-  { path: '/update/refetch', method: 'PUT', mode: 'full', detail: '重新拉取启动失败' },
-  { path: '/resume', method: 'PATCH', mode: 'incremental', detail: '恢复更新启动失败' },
-];
-
-for (const route of DEPRECATED_UPDATE_POST_ROUTES) {
-  router.post(
-    route.path,
-    requireDataManage,
-    crudRouteHandler(
-      deprecatedPostHandler(route.method, `/api/v1/data/manage${route.path}`, async (_req, res) => {
-        const result = await startUpdate(route.mode);
-        res.json({ success: result.success, data: result });
-      }),
-      {
-        logMsg: `[dataManage] POST ${route.path} 失败`,
-        code: 'UPDATE_ERROR',
-        title: 'Update Error',
-        detail: route.detail,
-      },
-    ),
-  );
-}
-
-router.post(
-  '/universe',
-  requireDataManage,
-  crudRouteHandler(
-    deprecatedPostHandler('PUT', '/api/v1/data/manage/universe', async (_req, res) => {
-      const stats = await scanMarketStatsFromDb();
-      res.json({
-        success: true,
-        data: { message: '标的列表已实时可用', total: stats?.total_cached ?? 0 },
-      });
-    }),
-    {
-      logMsg: '[dataManage] POST /universe 失败',
-      code: 'UNIVERSE_ERROR',
-      title: 'Universe Error',
-      detail: '获取标的列表失败',
-    },
-  ),
-);
-router.post(
-  '/regenerate-meta',
-  requireDataManage,
-  deprecatedPostHandler('PUT', '/api/v1/data/manage/regenerate-meta', (_req, res) => {
-    res.json({ success: true, data: { message: '元信息由 PostgreSQL 实时计算，无需重新生成。' } });
-  }),
-);
 
 export default router;

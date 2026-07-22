@@ -36,7 +36,7 @@ export function validateGridSearchRequest(request: GridSearchDomainRequest): str
 }
 
 /** 生成参数值列表 */
-export function generateParamValues(range: GridParamRange): number[] {
+function generateParamValues(range: GridParamRange): number[] {
   const values: number[] = [];
   if (range.step > 0) {
     for (let v = range.min; v <= range.max + 1e-9; v += range.step) {
@@ -51,9 +51,4 @@ export function generateParamValues(range: GridParamRange): number[] {
 /** 计算参数组合总数 */
 export function countCombinations(param1: GridParamRange, param2: GridParamRange): number {
   return generateParamValues(param1).length * generateParamValues(param2).length;
-}
-
-/** 检查参数组合数是否超限 */
-export function isWithinCombinationLimit(param1: GridParamRange, param2: GridParamRange): boolean {
-  return countCombinations(param1, param2) <= MAX_GRID_COMBINATIONS;
 }

@@ -1,5 +1,5 @@
 /**
- * JWT / OIDC 认证中间件 — 统一入口（含验证实现）。
+ * JWT / OIDC 认证中间件 — 统一入口。
  *
  * API Key 是静态凭证，泄露后无法撤销且无法区分用户身份；JWT 提供有状态会话管理
  * （过期、刷新、角色嵌入），是企业级 SaaS 认证标准。保留 x-api-key 兼容模式（ADR-033）
@@ -14,14 +14,12 @@
  * Refresh Token 存储于 Redis（含内存回退）支持多实例与 Token Family 复用检测；
  * 开发环境跳过认证便于本地调试，生产须确保不误配。
  *
- * 本文件为认证中间件统一入口，承载 JWT 验证与 Express 中间件实现，
- * 并 re-export jwtSigner / refreshToken 子模块的公开接口。
+ * 本文件聚焦 Express 中间件编排（jwtAuth / optionalJwtAuth / assignGuestReadonly / assignGuestAnalyst），
+ * JWT 验证逻辑（verifyJwt、声明校验、RS256/HS256 回退）抽至 ./jwtVerify.ts，
+ * 避免单文件混合验证实现与中间件编排（ADR-013 单一职责）。
  */
 
-import { jwtVerify } from 'jose';
-import { trace, type Span } from '@opentelemetry/api';
 import type { Response, NextFunction } from 'express';
-import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordAuthFailure } from '../utils/metrics.js';
@@ -34,13 +32,13 @@ import {
 } from './authTypes.js';
 import { tryDevBypass } from './devBypass.js';
 import { handleApiKeyAuth, handleOptionalApiKey } from './apiKeyAuth.js';
-import { getOrCachePublicKey, getOrCacheHS256Key } from './jwtSigner.js';
 import { isAccessTokenRevokedForUser, isUserSessionValid } from './refreshToken.js';
+import { verifyToken } from './jwtVerify.js';
 
 // 为向后兼容重新导出类型
 export type { AuthenticatedRequest, TenantedRequest, TenantContext } from './authTypes.js';
 
-// 重新导出子模块公开接口
+// 重新导出子模块公开接口（含从 jwtVerify.ts 抽出的 verifyToken）
 export { generateToken } from './jwtSigner.js';
 export {
   generateRefreshToken,
@@ -48,125 +46,7 @@ export {
   revokeRefreshToken,
   revokeAllUserSessions,
 } from './refreshToken.js';
-
-/** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
-const tracer = trace.getTracer('backtest-platform', '1.0.0');
-
-// ---------------------------------------------------------------------------
-// 配置常量
-// ---------------------------------------------------------------------------
-
-/** JWT 签名算法（从集中配置读取，RS256 或 HS256） */
-const JWT_ALGORITHM = config.JWT_ALGORITHM;
-
-// ---------------------------------------------------------------------------
-// JWT 验证
-// ---------------------------------------------------------------------------
-
-/** 合法角色集合，用于拒绝伪造或缺失的 role 声明 */
-const VALID_JWT_ROLES = new Set<JwtPayload['role']>(['admin', 'analyst', 'readonly']);
-
-/**
- * 校验 JWT payload 是否包含全部必需声明且类型合法（RFC 8725）。
- * jose 的 jwtVerify 只校验签名与 alg，不强制自定义声明；缺失 exp 令牌永不过期、
- * 缺 sub 用户维度鉴权/审计失效、缺/伪造 role 导致 RBAC 越权。必须显式拒绝。
- *
- * @param payload - jwtVerify 解码后的 payload
- * @returns 声明齐备且合法返回 true，否则 false
- */
-function hasRequiredClaims(payload: JwtPayload): boolean {
-  return (
-    typeof payload.sub === 'string' &&
-    payload.sub.length > 0 &&
-    VALID_JWT_ROLES.has(payload.role) &&
-    typeof payload.exp === 'number' &&
-    Number.isFinite(payload.exp)
-  );
-}
-
-/**
- * 校验 JWT payload 声明并检查会话吊销状态。RS256 与 HS256 两条验证路径共用此逻辑。
- *
- * @param payload - jwtVerify 解码后的原始 payload
- * @param algorithm - 验证通过的算法名，用于 OTel span 属性
- * @param span - 当前 OTel span
- * @returns 声明齐备且会话有效返回 JwtPayload，否则 null
- */
-async function validateJwtPayload(
-  payload: unknown,
-  algorithm: string,
-  span: Span,
-): Promise<JwtPayload | null> {
-  const jwtPayload = payload as unknown as JwtPayload;
-  if (!hasRequiredClaims(jwtPayload)) {
-    span.setAttribute('verify.result', 'failed_missing_claims');
-    return null;
-  }
-  if (await isAccessTokenRevokedForUser(jwtPayload.sub, jwtPayload.iat)) {
-    span.setAttribute('verify.result', 'failed_revoked');
-    return null;
-  }
-  span.setAttribute('verify.algorithm', algorithm);
-  span.setAttribute('verify.result', 'success');
-  return jwtPayload;
-}
-
-/**
- * 验证并解码 JWT。先尝试 RS256，失败后仅在配置为 HS256 时回退 HS256。
- * jose 的 jwtVerify 强制校验 alg 声明自动拒绝 alg:none 令牌；
- * 验证通过后还须经 hasRequiredClaims 校验 sub/role/exp 声明。
- *
- * @param token - JWT 字符串
- * @returns 解码后的 payload，验证失败返回 null
- */
-async function verifyJwt(token: string): Promise<JwtPayload | null> {
-  return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
-    try {
-      // 1. 先尝试 RS256 验证
-      try {
-        const publicKey = await getOrCachePublicKey();
-        const { payload } = await jwtVerify(token, publicKey, {
-          algorithms: ['RS256'],
-        });
-        return validateJwtPayload(payload, 'RS256', span);
-      } catch {
-        // RS256 验证失败，按策略决定是否回退 HS256
-      }
-
-      // 2. 回退 HS256 验证（仅在显式启用 HS256 时）
-      // Security (RFC 8725 §3.1)：禁止"先 RS256 再无条件 HS256"双算法接受策略，
-      // 防止算法混淆攻击（用 RS256 公钥作 HS256 对称密钥伪造）与 JWT_SECRET 偏弱时离线爆破。
-      // 仅当配置算法本身为 HS256（开发/显式过渡）时才尝试；生产默认 RS256，HS256 通道关闭。
-      if (JWT_ALGORITHM !== 'HS256') {
-        span.setAttribute('verify.result', 'failed');
-        return null;
-      }
-      try {
-        const key = await getOrCacheHS256Key();
-        const { payload } = await jwtVerify(token, key, {
-          algorithms: ['HS256'],
-        });
-        return validateJwtPayload(payload, 'HS256', span);
-      } catch {
-        span.setAttribute('verify.result', 'failed');
-        return null;
-      }
-    } finally {
-      span.end();
-    }
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Token 验证（公开接口）
-// ---------------------------------------------------------------------------
-
-/**
- * 验证 Access Token，返回解码后的 payload
- */
-export async function verifyToken(token: string): Promise<JwtPayload | null> {
-  return verifyJwt(token);
-}
+export { verifyToken } from './jwtVerify.js';
 
 // ---------------------------------------------------------------------------
 // Express 中间件
@@ -181,7 +61,7 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
  * 认证优先级：
  * 1. Authorization: Bearer <token> → JWT 验证
  * 2. x-api-key header → per-org API Key 验证（ADR-033）
- * 3. 开发环境（NODE_ENV !== 'production'）→ 跳过认证
+ * 3. 开发环境（NODE_ENV=development + DEV_SKIP_AUTH=true + 默认 JWT_SECRET）→ 注入 readonly 用户
  */
 
 /** 检查 JWT payload 对应的会话是否有效（未撤销、用户未停用）。返回错误码或 null。 */
@@ -213,7 +93,7 @@ async function verifyBearerToken(req: AuthenticatedRequest): Promise<JwtPayload 
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return null;
   const token = authHeader.slice(7).trim();
-  return verifyJwt(token);
+  return verifyToken(token);
 }
 
 /** 处理 Bearer Token 认证流程（含吊销/停用检查） */
@@ -341,7 +221,7 @@ export function optionalJwtAuth(
  * 为未认证请求注入 readonly 访客身份。
  *
  * 配合 optionalJwtAuth + requirePermission(DATA_READ) 使用，
- * 使数据引擎只读端点（stats/status/tickers）在开发环境无需登录即可访问。
+ * 使数据引擎只读端点（stats/status/tickers）无需登录即可访问。
  */
 export function assignGuestReadonly(
   req: AuthenticatedRequest,
@@ -352,6 +232,33 @@ export function assignGuestReadonly(
     req.user = {
       sub: 'guest',
       role: 'readonly',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_EXPIRES_IN_SEC,
+    };
+    attachAuthLogContext(req);
+  }
+  next();
+}
+
+/**
+ * 为未认证请求注入 analyst 访客身份。
+ *
+ * 平台当前无付费内容，所有计算功能（回测/优化/战术/信号/分析等）对匿名用户开放。
+ * 已登录用户的真实身份优先保留，仅对未认证请求注入 guest（analyst 角色）。
+ * analyst 角色具备全部计算权限（BACKTEST_RUN / OPTIMIZER_RUN / STRATEGY_MANAGE 等），
+ * 但无 ADMIN_ACCESS，且不绑定租户上下文（enforceQuota 对无 tenantId 自动放行）。
+ *
+ * 未来引入付费墙时，应在此处或路由层添加计划校验逻辑。
+ */
+export function assignGuestAnalyst(
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction,
+): void {
+  if (!req.user) {
+    req.user = {
+      sub: 'guest',
+      role: 'analyst',
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_EXPIRES_IN_SEC,
     };
