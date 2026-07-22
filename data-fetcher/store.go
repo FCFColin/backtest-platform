@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"time"
 
+	"data-fetcher/internal/provider"
+
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -99,10 +102,123 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 		prices = append(prices, p)
 	}
 
-	if len(prices) == 0 {
+	if len(prices) > 0 {
+		return prices, nil
+	}
+
+	if startDate == "" {
+		startDate = "2000-01-01"
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01-02")
+	}
+
+	fetchedPrices, err := ds.fetchAndStoreFromProvider(ctx, ticker, startDate, endDate)
+	if err != nil {
 		return nil, fmt.Errorf("标的数据不存在: %s", ticker)
 	}
-	return prices, nil
+
+	return filterPricePointsByDate(fetchedPrices, startDate, endDate), nil
+}
+
+func filterPricePointsByDate(prices []PricePoint, startDate, endDate string) []PricePoint {
+	var filtered []PricePoint
+	for _, p := range prices {
+		if startDate != "" && p.Date < startDate {
+			continue
+		}
+		if endDate != "" && p.Date > endDate {
+			continue
+		}
+		filtered = append(filtered, p)
+	}
+	return filtered
+}
+
+func (ds *DataStore) fetchAndStoreFromProvider(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
+	providers := dataReg.ForTicker(ticker)
+	if len(providers) == 0 {
+		return nil, fmt.Errorf("没有可用的数据源: %s", ticker)
+	}
+
+	goStart := startDate
+	if goStart == "" {
+		goStart = "2000-01-01"
+	}
+	goEnd := endDate
+	if goEnd == "" {
+		goEnd = time.Now().Format("2006-01-02")
+	}
+
+	dailyPrices, providerName, err := provider.FetchWithFallback(providers, ticker, goStart, goEnd)
+	if err != nil {
+		return nil, fmt.Errorf("从 provider 获取 %s 失败: %w", ticker, err)
+	}
+
+	if len(dailyPrices) == 0 {
+		slog.Warn("provider 无数据返回", "ticker", ticker, "provider", providerName)
+		return nil, fmt.Errorf("provider 无数据返回: %s", ticker)
+	}
+
+	slog.Info("从 provider 实时获取数据成功", "ticker", ticker, "provider", providerName, "count", len(dailyPrices))
+
+	if err := ds.writeGoPricesToDB(ctx, ticker, dailyPrices); err != nil {
+		slog.Warn("写入数据库失败（不影响返回）", "ticker", ticker, "error", err)
+	}
+
+	pricePoints := make([]PricePoint, len(dailyPrices))
+	for i, dp := range dailyPrices {
+		pricePoints[i] = PricePoint{
+			Date:     dp.Date,
+			Open:     dp.Open,
+			High:     dp.High,
+			Low:      dp.Low,
+			Close:    dp.Close,
+			AdjClose: dp.AdjustedClose,
+			Volume:   dp.Volume,
+		}
+	}
+
+	return pricePoints, nil
+}
+
+func (ds *DataStore) writeGoPricesToDB(ctx context.Context, ticker string, prices []provider.DailyPrice) error {
+	if ds.pool == nil {
+		return fmt.Errorf("数据库未连接")
+	}
+
+	batch := &pgx.Batch{}
+
+	batch.Queue(`
+		INSERT INTO tickers (ticker) VALUES ($1)
+		ON CONFLICT (ticker) DO NOTHING
+	`, ticker)
+
+	for _, p := range prices {
+		adjClose := p.AdjustedClose
+		batch.Queue(`
+			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (ticker, date) DO UPDATE SET
+				open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
+				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close
+		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, adjClose)
+	}
+
+	br := ds.pool.SendBatch(ctx, batch)
+	defer br.Close()
+
+	if _, err := br.Exec(); err != nil {
+		return fmt.Errorf("插入 ticker 失败: %w", err)
+	}
+
+	for range prices {
+		if _, err := br.Exec(); err != nil {
+			return fmt.Errorf("写入价格数据失败: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (ds *DataStore) SearchTickers(ctx context.Context, query string, limit int) ([]SearchResult, error) {
