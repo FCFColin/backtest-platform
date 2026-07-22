@@ -9,33 +9,18 @@ import (
 
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
-
-	"github.com/sony/gobreaker"
 )
 
 const baseURL = "https://finnhub.io/api/v1"
 
 var (
 	httpClient *httpclient.Client
-	breaker    *gobreaker.CircuitBreaker
+	breaker    = provider.NewProviderBreaker("finnhub", 3)
 )
 
 func init() {
 	httpClient = httpclient.New("finnhub", httpclient.Options{
 		RequestDelay: 1100 * time.Millisecond,
-	})
-	breaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
-		Name:        "finnhub",
-		MaxRequests: 3,
-		Interval:    60 * time.Second,
-		Timeout:     30 * time.Second,
-		ReadyToTrip: func(counts gobreaker.Counts) bool {
-			return counts.ConsecutiveFailures >= 5 ||
-				(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
-		},
-		OnStateChange: func(name string, from, to gobreaker.State) {
-			slog.Warn("finnhub 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
-		},
 	})
 }
 
@@ -63,12 +48,7 @@ func (p *finnhubProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 	url := fmt.Sprintf("%s/stock/candle?symbol=%s&resolution=D&from=%d&to=%d&token=%s",
 		baseURL, ticker, startUnix, endUnix, p.apiKey)
 
-	result, err := breaker.Execute(func() (interface{}, error) {
-		body, err := httpClient.Get(url)
-		if err != nil {
-			return nil, err
-		}
-
+	parse := func(body []byte) ([]provider.DailyPrice, error) {
 		var resp candleResponse
 		if err := json.Unmarshal(body, &resp); err != nil {
 			return nil, fmt.Errorf("JSON 解析失败: %w", err)
@@ -105,22 +85,15 @@ func (p *finnhubProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 			})
 		}
 		return prices, nil
-	})
-	if err != nil {
-		return nil, err
 	}
-	return result.([]provider.DailyPrice), nil
+
+	return httpclient.DoGetWithBreaker(breaker, httpClient, url, parse)
 }
 
 func (p *finnhubProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
 	url := fmt.Sprintf("%s/search?q=%s&token=%s", baseURL, query, p.apiKey)
 
-	result, err := breaker.Execute(func() (interface{}, error) {
-		body, err := httpClient.Get(url)
-		if err != nil {
-			return nil, err
-		}
-
+	parse := func(body []byte) ([]provider.TickerInfo, error) {
 		var resp searchResponse
 		if err := json.Unmarshal(body, &resp); err != nil {
 			return nil, fmt.Errorf("JSON 解析失败: %w", err)
@@ -135,11 +108,9 @@ func (p *finnhubProvider) SearchTicker(query string) ([]provider.TickerInfo, err
 			})
 		}
 		return results, nil
-	})
-	if err != nil {
-		return nil, err
 	}
-	return result.([]provider.TickerInfo), nil
+
+	return httpclient.DoGetWithBreaker(breaker, httpClient, url, parse)
 }
 
 type candleResponse struct {

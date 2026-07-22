@@ -131,3 +131,12 @@ func simulateWithdrawal(annualReturns []float64, withdrawalRate float64) bool {
 	}
 	return true
 }
+
+// CalcDrawdownRecoveryFactor 计算回撤恢复因子。
+// 简化公式: recoveryFactor = abs(totalReturn) / maxDrawdown (如果maxDrawdown>0)
+func CalcDrawdownRecoveryFactor(totalReturn, maxDrawdown float64) float64 {
+	if maxDrawdown <= 0 {
+		return 0
+	}
+	return math.Abs(totalReturn) / maxDrawdown
+}

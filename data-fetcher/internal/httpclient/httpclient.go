@@ -15,10 +15,6 @@ import (
 
 var errRateLimited = errors.New("rate limited")
 
-func IsRateLimited(err error) bool {
-	return errors.Is(err, errRateLimited)
-}
-
 type Options struct {
 	RequestDelay   time.Duration
 	UserAgents     []string

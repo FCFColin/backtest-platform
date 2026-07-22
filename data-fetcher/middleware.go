@@ -21,7 +21,7 @@ import (
 // 生产环境必须设置为强随机值（>= 32 字符）。
 func DataServiceAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		expected := os.Getenv("DATA_SERVICE_AUTH_TOKEN")
+		expected := strings.TrimSpace(os.Getenv("DATA_SERVICE_AUTH_TOKEN"))
 		// 未配置 token 时拒绝所有请求，避免无认证暴露
 		if expected == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -46,17 +46,6 @@ func DataServiceAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Next()
-	}
-}
-
-// securityHeadersMiddleware 注入通用安全响应头，缓解 XSS、点击劫持、MIME 嗅探等常见攻击面。
-func securityHeadersMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
-		c.Header("X-XSS-Protection", "0")
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		c.Next()
 	}
 }

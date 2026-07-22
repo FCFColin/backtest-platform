@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,7 +23,7 @@ import (
 // 生产环境必须设置为强随机值（>= 32 字符）。
 func EngineAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		expected := os.Getenv("ENGINE_AUTH_TOKEN")
+		expected := strings.TrimSpace(os.Getenv("ENGINE_AUTH_TOKEN"))
 		// 未配置 token 时拒绝所有请求，避免无认证暴露
 		if expected == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{

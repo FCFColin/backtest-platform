@@ -2,14 +2,11 @@ package middleware
 
 import (
 	"github.com/gin-gonic/gin"
+
+	gosharedmw "github.com/backtest/go-shared/middleware"
 )
 
+// SecurityHeadersMiddleware re-export 自 go-shared/middleware，注入通用安全响应头。
 func SecurityHeadersMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
-		c.Header("X-XSS-Protection", "0")
-		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
-		c.Next()
-	}
+	return gosharedmw.SecurityHeadersMiddleware()
 }

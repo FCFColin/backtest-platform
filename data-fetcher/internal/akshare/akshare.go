@@ -3,15 +3,12 @@ package akshare
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
-
-	"github.com/sony/gobreaker"
 )
 
 var userAgents = []string{
@@ -21,20 +18,7 @@ var userAgents = []string{
 }
 
 var (
-	breaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
-		Name:        "akshare",
-		MaxRequests: 3,
-		Interval:    60 * time.Second,
-		Timeout:     30 * time.Second,
-		ReadyToTrip: func(counts gobreaker.Counts) bool {
-			return counts.ConsecutiveFailures >= 5 ||
-				(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
-		},
-		OnStateChange: func(name string, from, to gobreaker.State) {
-			slog.Warn("akshare 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
-		},
-	})
-
+	breaker    = provider.NewProviderBreaker("akshare", 3)
 	httpClient *httpclient.Client
 )
 
@@ -83,6 +67,12 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 	return result.([]provider.DailyPrice), nil
 }
 
+// doWithRetry 保留为薄包装以兼容现有测试（TestDoWithRetry_*）。
+// 实际请求 + 解析逻辑由 httpclient.DoGetWithBreaker 提供。
+func doWithRetry(url string) ([]provider.DailyPrice, error) {
+	return httpclient.DoGetWithBreaker(breaker, httpClient, url, parseDailyPrices)
+}
+
 // SearchTicker 暂未实现：东方财富搜索接口与 K 线接口协议不同，
 // 需单独接入搜索端点，而非复用 FetchStockDaily 的 K 线接口。
 func (p *akshareProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
@@ -107,14 +97,6 @@ func parseCodeAndMarket(ticker string) (code, market string) {
 		return code, "1"
 	}
 	return code, "0"
-}
-
-func doWithRetry(url string) ([]provider.DailyPrice, error) {
-	body, err := httpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	return parseDailyPrices(body)
 }
 
 type eastMoneyResponse struct {

@@ -57,7 +57,6 @@ type SkewnessByFrequency struct {
 
 // Statistics 包含资产/组合的统计指标子集。
 // 与 packages/shared/types/statistics.ts 的 Statistics interface 保持字段名一致，
-// 但 Go 引擎当前仅计算其中一部分（TS 中其余字段为可选，由其他计算路径或未来扩展填充）。
 // JSON 序列化后可直接被前端消费，字段名无需额外映射层。
 // 字段一致性由 types_test.go 的 TestStatisticsJSONTags 守护。
 type Statistics struct {
@@ -94,6 +93,85 @@ type Statistics struct {
 	ExcessKurtosis        SkewnessByFrequency `json:"excessKurtosis"`
 	WinRate               SkewnessByFrequency `json:"winRate"`
 	PctPositiveDays       float64             `json:"pctPositiveDays"`
+
+	AvgAnnualReturn       float64 `json:"avgAnnualReturn"`
+	AvgMonthlyReturn      float64 `json:"avgMonthlyReturn"`
+	AvgDailyReturn        float64 `json:"avgDailyReturn"`
+	StdevAnnual           float64 `json:"stdevAnnual"`
+	StdevMonthly          float64 `json:"stdevMonthly"`
+	StdevMonthlyRaw       float64 `json:"stdevMonthlyRaw"`
+	StdevDaily            float64 `json:"stdevDaily"`
+	StdevDailyRaw         float64 `json:"stdevDailyRaw"`
+	DownsideDeviation     float64 `json:"downsideDeviation"`
+	DownsideDeviationDailyRaw float64 `json:"downsideDeviationDailyRaw"`
+	DownsideDeviationMonthly float64 `json:"downsideDeviationMonthly"`
+	DownsideDeviationMonthlyRaw float64 `json:"downsideDeviationMonthlyRaw"`
+	DownsideDeviationAnnual float64 `json:"downsideDeviationAnnual"`
+	DrawdownRecoveryFactor float64 `json:"drawdownRecoveryFactor"`
+	M2                    float64 `json:"m2"`
+	Treynor               float64 `json:"treynor"`
+	DiversificationRatio  float64 `json:"diversificationRatio"`
+	BenchmarkCorrelation  float64 `json:"benchmarkCorrelation"`
+	UpsideCorrelation     float64 `json:"upsideCorrelation"`
+	DownsideCorrelation   float64 `json:"downsideCorrelation"`
+	UpsideBeta            float64 `json:"upsideBeta"`
+	DownsideBeta          float64 `json:"downsideBeta"`
+	AlphaDaily            float64 `json:"alphaDaily"`
+	AlphaAnnualized       float64 `json:"alphaAnnualized"`
+	UpsideCaptureDaily    float64 `json:"upsideCaptureDaily"`
+	DownsideCaptureDaily  float64 `json:"downsideCaptureDaily"`
+	CaptureSpreadDaily    float64 `json:"captureSpreadDaily"`
+	UpsideCaptureAnnual   float64 `json:"upsideCaptureAnnual"`
+	DownsideCaptureAnnual float64 `json:"downsideCaptureAnnual"`
+	CaptureSpreadAnnual   float64 `json:"captureSpreadAnnual"`
+	CaptureSpread         float64 `json:"captureSpread"`
+	ActiveReturn          float64 `json:"activeReturn"`
+	VarDaily1             float64 `json:"varDaily1"`
+	VarDaily5             float64 `json:"varDaily5"`
+	VarDaily10            float64 `json:"varDaily10"`
+	CvarDaily1            float64 `json:"cvarDaily1"`
+	CvarDaily5            float64 `json:"cvarDaily5"`
+	CvarDaily10           float64 `json:"cvarDaily10"`
+	VarMonthly1           float64 `json:"varMonthly1"`
+	VarMonthly5           float64 `json:"varMonthly5"`
+	VarMonthly10          float64 `json:"varMonthly10"`
+	CvarMonthly1          float64 `json:"cvarMonthly1"`
+	CvarMonthly5          float64 `json:"cvarMonthly5"`
+	CvarMonthly10         float64 `json:"cvarMonthly10"`
+	VarAnnual1            float64 `json:"varAnnual1"`
+	VarAnnual5            float64 `json:"varAnnual5"`
+	VarAnnual10           float64 `json:"varAnnual10"`
+	CvarAnnual1           float64 `json:"cvarAnnual1"`
+	CvarAnnual5           float64 `json:"cvarAnnual5"`
+	CvarAnnual10          float64 `json:"cvarAnnual10"`
+	SkewnessDaily         float64 `json:"skewnessDaily"`
+	SkewnessMonthly       float64 `json:"skewnessMonthly"`
+	SkewnessAnnual        float64 `json:"skewnessAnnual"`
+	ExcessKurtosisDaily   float64 `json:"excessKurtosisDaily"`
+	ExcessKurtosisMonthly float64 `json:"excessKurtosisMonthly"`
+	ExcessKurtosisAnnual  float64 `json:"excessKurtosisAnnual"`
+	PctPositiveMonths     float64 `json:"pctPositiveMonths"`
+	PctPositiveYears      float64 `json:"pctPositiveYears"`
+	MaxAnnualReturn       float64 `json:"maxAnnualReturn"`
+	MinAnnualReturn       float64 `json:"minAnnualReturn"`
+	AvgDailyGain          float64 `json:"avgDailyGain"`
+	AvgDailyLoss          float64 `json:"avgDailyLoss"`
+	GainLossRatioDaily    float64 `json:"gainLossRatioDaily"`
+	AvgMonthlyGain        float64 `json:"avgMonthlyGain"`
+	AvgMonthlyLoss        float64 `json:"avgMonthlyLoss"`
+	GainLossRatioMonthly  float64 `json:"gainLossRatioMonthly"`
+	AvgAnnualGain         float64 `json:"avgAnnualGain"`
+	AvgAnnualLoss         float64 `json:"avgAnnualLoss"`
+	GainLossRatioAnnual   float64 `json:"gainLossRatioAnnual"`
+	SWR                   float64 `json:"swr"`
+	SWR10Y                float64 `json:"swr10y"`
+	PWR10Y                float64 `json:"pwr10y"`
+	SWR20Y                float64 `json:"swr20y"`
+	PWR20Y                float64 `json:"pwr20y"`
+	SWR30Y                float64 `json:"swr30y"`
+	PWR30Y                float64 `json:"pwr30y"`
+	SWR40Y                float64 `json:"swr40y"`
+	PWR40Y                float64 `json:"pwr40y"`
 }
 
 // ============================================================

@@ -195,3 +195,80 @@ func sampleVariance(values []float64) float64 {
 	}
 	return sum / float64(n-1)
 }
+
+func sampleStdev(values []float64) float64 {
+	return math.Sqrt(sampleVariance(values))
+}
+
+// CalcSampleStdev 计算样本标准差（未年化）。
+func CalcSampleStdev(values []float64) float64 {
+	return sampleStdev(values)
+}
+
+// CalcDownsideDeviation 计算下行偏差（年化）。
+// downsideDev = sqrt(mean(min(r-MAR, 0)^2)) * annualizationFactor
+func CalcDownsideDeviation(returns []float64, mar float64, periodsPerYear float64) float64 {
+	if len(returns) == 0 {
+		return 0
+	}
+	var sumSquared float64
+	for _, r := range returns {
+		excess := r - mar
+		if excess < 0 {
+			sumSquared += excess * excess
+		}
+	}
+	downsideVariance := sumSquared / float64(len(returns))
+	return math.Sqrt(downsideVariance) * math.Sqrt(periodsPerYear)
+}
+
+// CalcDownsideDeviationRaw 计算原始下行偏差（未年化）。
+func CalcDownsideDeviationRaw(returns []float64, mar float64) float64 {
+	if len(returns) == 0 {
+		return 0
+	}
+	var sumSquared float64
+	for _, r := range returns {
+		excess := r - mar
+		if excess < 0 {
+			sumSquared += excess * excess
+		}
+	}
+	downsideVariance := sumSquared / float64(len(returns))
+	return math.Sqrt(downsideVariance)
+}
+
+// CalcAvgGainLoss 计算平均盈利、平均亏损绝对值和盈亏比。
+func CalcAvgGainLoss(returns []float64) (avgGain, avgLoss, gainLossRatio float64) {
+	var sumGains, sumLosses float64
+	var countGains, countLosses int
+	for _, r := range returns {
+		if r > 0 {
+			sumGains += r
+			countGains++
+		} else if r < 0 {
+			sumLosses += -r
+			countLosses++
+		}
+	}
+	if countGains > 0 {
+		avgGain = sumGains / float64(countGains)
+	}
+	if countLosses > 0 {
+		avgLoss = sumLosses / float64(countLosses)
+	}
+	if avgLoss > 0 {
+		gainLossRatio = avgGain / avgLoss
+	}
+	return
+}
+
+// RiskFreeDaily 返回日频无风险利率。
+func RiskFreeDaily() float64 {
+	return math.Pow(1+riskFreeRate, 1.0/tradingDaysPerYear) - 1
+}
+
+// RiskFreeMonthly 返回月频无风险利率。
+func RiskFreeMonthly() float64 {
+	return math.Pow(1+riskFreeRate, 1.0/12.0) - 1
+}

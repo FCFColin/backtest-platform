@@ -1,6 +1,9 @@
 package main
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 // ============================================================
 // 配置
@@ -14,6 +17,6 @@ type Config struct {
 func defaultConfig() *Config {
 	return &Config{
 		Port:        "5003",
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")),
 	}
 }

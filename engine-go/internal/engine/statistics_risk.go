@@ -173,3 +173,97 @@ func calcCaptureRatio(portfolioReturns, benchmarkReturns []float64, filter func(
 	}
 	return portfolioGeoMean / benchmarkGeoMean
 }
+
+// CalcUpsideCorrelation 计算上行相关系数（仅基准上涨时）。
+func CalcUpsideCorrelation(portfolioReturns, benchmarkReturns []float64) float64 {
+	return calcConditionalCorrelation(portfolioReturns, benchmarkReturns, func(r float64) bool { return r > 0 })
+}
+
+// CalcDownsideCorrelation 计算下行相关系数（仅基准下跌时）。
+func CalcDownsideCorrelation(portfolioReturns, benchmarkReturns []float64) float64 {
+	return calcConditionalCorrelation(portfolioReturns, benchmarkReturns, func(r float64) bool { return r < 0 })
+}
+
+// CalcUpsideBeta 计算上行贝塔（仅基准上涨时）。
+func CalcUpsideBeta(portfolioReturns, benchmarkReturns []float64) float64 {
+	return calcConditionalBeta(portfolioReturns, benchmarkReturns, func(r float64) bool { return r > 0 })
+}
+
+// CalcDownsideBeta 计算下行贝塔（仅基准下跌时）。
+func CalcDownsideBeta(portfolioReturns, benchmarkReturns []float64) float64 {
+	return calcConditionalBeta(portfolioReturns, benchmarkReturns, func(r float64) bool { return r < 0 })
+}
+
+// CalcTreynor 计算特雷诺比率。
+// treynor = (cagr - riskFreeRate) / beta
+func CalcTreynor(cagr, beta float64) float64 {
+	if beta == 0 {
+		return 0
+	}
+	return (cagr - riskFreeRate) / beta
+}
+
+// CalcM2 计算M²（Modigliani风险调整绩效指标）。
+// m2 = sharpe * benchmarkStdev + riskFreeRate - cagr 超额收益形式
+// 简化为 m2 = sharpe * benchmarkStdev + riskFreeRate
+func CalcM2(sharpe, benchmarkStdev float64) float64 {
+	return sharpe*benchmarkStdev + riskFreeRate
+}
+
+// CalcDiversificationRatio 计算分散化比率。
+// diversificationRatio = weighted_avg(individual_asset_stdevs) / portfolio_stdev
+// 无单资产波动率数据时返回1。
+func CalcDiversificationRatio(weightedAssetStdev, portfolioStdev float64) float64 {
+	if portfolioStdev == 0 {
+		return 1
+	}
+	return weightedAssetStdev / portfolioStdev
+}
+
+// CalcAlphaDaily 计算日频Alpha。
+// alphaDaily = mean(dailyReturns) - (riskFreeDaily + beta*(mean(benchDailyReturns)-riskFreeDaily))
+func CalcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) float64 {
+	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
+		return 0
+	}
+	rfDaily := RiskFreeDaily()
+	meanP := mean(dailyReturns)
+	meanB := mean(benchDailyReturns)
+	return meanP - (rfDaily + beta*(meanB-rfDaily))
+}
+
+func calcConditionalCorrelation(portfolioReturns, benchmarkReturns []float64, filter func(float64) bool) float64 {
+	n := min(len(portfolioReturns), len(benchmarkReturns))
+	if n < 2 {
+		return 0
+	}
+	var pFilt, bFilt []float64
+	for i := 0; i < n; i++ {
+		if filter(benchmarkReturns[i]) {
+			pFilt = append(pFilt, portfolioReturns[i])
+			bFilt = append(bFilt, benchmarkReturns[i])
+		}
+	}
+	if len(pFilt) < 2 {
+		return 0
+	}
+	return CalcCorrelation(pFilt, bFilt)
+}
+
+func calcConditionalBeta(portfolioReturns, benchmarkReturns []float64, filter func(float64) bool) float64 {
+	n := min(len(portfolioReturns), len(benchmarkReturns))
+	if n < 2 {
+		return 0
+	}
+	var pFilt, bFilt []float64
+	for i := 0; i < n; i++ {
+		if filter(benchmarkReturns[i]) {
+			pFilt = append(pFilt, portfolioReturns[i])
+			bFilt = append(bFilt, benchmarkReturns[i])
+		}
+	}
+	if len(pFilt) < 2 {
+		return 0
+	}
+	return CalcBeta(pFilt, bFilt)
+}

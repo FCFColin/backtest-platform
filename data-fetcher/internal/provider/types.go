@@ -13,9 +13,10 @@ type DailyPrice struct {
 
 // TickerInfo 标的搜索结果（所有数据源共用）
 type TickerInfo struct {
-	Ticker string
-	Name   string
-	Market string
+	Ticker   string
+	Name     string
+	Market   string
+	Exchange string
 }
 
 // Provider 数据源接口

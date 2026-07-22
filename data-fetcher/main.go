@@ -4,16 +4,16 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"net/http/pprof"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"data-fetcher/internal/observability"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	gosharedhttp "github.com/backtest/go-shared/http"
+	gosharedlog "github.com/backtest/go-shared/log"
+	gosharedmw "github.com/backtest/go-shared/middleware"
 	"github.com/ulule/limiter/v3"
 	mgin "github.com/ulule/limiter/v3/drivers/middleware/gin"
 	"github.com/ulule/limiter/v3/drivers/store/memory"
@@ -25,10 +25,7 @@ import (
 // ============================================================
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
+	gosharedlog.InitDefault()
 
 	cfg := defaultConfig()
 	if port := os.Getenv("DATA_FETCHER_PORT"); port != "" {
@@ -55,7 +52,7 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
-	r.Use(securityHeadersMiddleware())
+	r.Use(gosharedmw.SecurityHeadersMiddleware())
 	r.Use(otelgin.Middleware("data-fetcher"))
 
 	rate, err := limiter.NewRateFromFormatted("60-M")
@@ -89,24 +86,7 @@ func main() {
 		authed.GET("/api/baostock/trade-dates", handleBaoStockTradeDates())
 	}
 
-	if os.Getenv("ENABLE_PPROF") == "true" {
-		go func() {
-			pprofAddr := os.Getenv("PPROF_ADDR")
-			if pprofAddr == "" {
-				pprofAddr = "127.0.0.1:6060"
-			}
-			mux := http.NewServeMux()
-			mux.HandleFunc("/debug/pprof/", pprof.Index)
-			mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-			mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-			mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-			mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-			slog.Info("pprof server starting", "addr", pprofAddr)
-			if err := http.ListenAndServe(pprofAddr, mux); err != nil {
-				slog.Error("pprof server failed", "error", err)
-			}
-		}()
-	}
+	gosharedhttp.StartPprofServerIfEnabled("127.0.0.1:6060")
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -116,23 +96,5 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	go func() {
-		slog.Info("Server starting", "port", cfg.Port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Server failed", "error", err)
-			os.Exit(1)
-		}
-	}()
-
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	slog.Info("Shutting down server...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("Server forced to shutdown", "error", err)
-	}
-	slog.Info("Server exited")
+	gosharedhttp.RunServer(srv, 30*time.Second)
 }

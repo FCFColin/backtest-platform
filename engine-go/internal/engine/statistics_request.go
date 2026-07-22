@@ -1,5 +1,7 @@
 package engine
 
+import "math"
+
 // StatisticsRequest 是 /api/engine/statistics 的请求体。
 // tactical/signal 等通过 Go 函数直接调用 engine.CalculateStatisticsFromRequest，
 // 无需经 HTTP；本结构体同时供 /api/engine/statistics HTTP 端点使用。
@@ -34,13 +36,35 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	if finalValue > 0 {
 		cagr = CalcCAGR(req.StartingValue, finalValue, years)
 	}
-	stdev := CalcAnnualizedStdev(req.DailyReturns)
+
+	// 各频率波动率计算
+	stdevDailyRaw := sampleStdev(req.DailyReturns)
+	stdevDaily := stdevDailyRaw * math.Sqrt(tradingDaysPerYear)
+	stdevMonthlyRaw := sampleStdev(req.MonthlyReturnValues)
+	stdevMonthly := stdevMonthlyRaw * math.Sqrt(12)
+	stdevAnnual := sampleStdev(req.AnnualReturnValues)
+
+	// 各频率平均收益
+	avgDailyReturn := mean(req.DailyReturns)
+	avgMonthlyReturn := mean(req.MonthlyReturnValues)
+	avgAnnualReturn := mean(req.AnnualReturnValues)
+
 	dd := CalcMaxDrawdown(req.Values)
 	avgDD := CalcAvgDrawdown(req.Values)
 	ulcerIdx := CalcUlcerIndex(req.Values)
 	calmar := CalcCalmar(cagr, dd.MaxDrawdown)
 	upi := CalcUPI(cagr, ulcerIdx)
 	sortino := CalcSortino(cagr, req.DailyReturns)
+	sharpe := CalcSharpe(cagr, stdevDaily)
+
+	// 下行偏差各频率
+	rfDaily := RiskFreeDaily()
+	rfMonthly := RiskFreeMonthly()
+	downsideDeviationDailyRaw := CalcDownsideDeviationRaw(req.DailyReturns, rfDaily)
+	downsideDeviation := CalcDownsideDeviation(req.DailyReturns, rfDaily, tradingDaysPerYear)
+	downsideDeviationMonthlyRaw := CalcDownsideDeviationRaw(req.MonthlyReturnValues, rfMonthly)
+	downsideDeviationMonthly := CalcDownsideDeviation(req.MonthlyReturnValues, rfMonthly, 12)
+	downsideDeviationAnnual := CalcDownsideDeviationRaw(req.AnnualReturnValues, riskFreeRate)
 
 	// MWRR
 	type cf struct {
@@ -65,47 +89,113 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	}
 
 	// 基准相关指标
-	beta, alpha, rSq, trackingErr, infoRatio, upside, downside := 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-	if len(req.BenchmarkDailyReturns) >= 2 && req.BenchmarkCagr != nil {
+	beta, alpha, rSq, trackingErr, infoRatio := 0.0, 0.0, 0.0, 0.0, 0.0
+	upsideDaily, downsideDaily := 0.0, 0.0
+	upsideAnnual, downsideAnnual := 0.0, 0.0
+	benchmarkCorrelation, upsideCorr, downsideCorr := 0.0, 0.0, 0.0
+	upsideBetaVal, downsideBetaVal := 0.0, 0.0
+	treynor, m2, alphaDaily := 0.0, 0.0, 0.0
+	benchmarkStdev := 0.0
+	activeReturn := 0.0
+	hasBenchmark := len(req.BenchmarkDailyReturns) >= 2 && req.BenchmarkCagr != nil
+	if hasBenchmark {
 		bench := req.BenchmarkDailyReturns
 		beta = CalcBeta(req.DailyReturns, bench)
 		alpha = CalcAlpha(cagr, beta, *req.BenchmarkCagr)
 		rSq = CalcRSquared(req.DailyReturns, bench)
 		trackingErr = CalcTrackingError(req.DailyReturns, bench)
 		infoRatio = CalcInformationRatio(alpha, trackingErr)
-		upside = CalcUpsideCapture(req.DailyReturns, bench)
-		downside = CalcDownsideCapture(req.DailyReturns, bench)
+		upsideDaily = CalcUpsideCapture(req.DailyReturns, bench)
+		downsideDaily = CalcDownsideCapture(req.DailyReturns, bench)
+		benchmarkCorrelation = CalcCorrelation(req.DailyReturns, bench)
+		upsideCorr = CalcUpsideCorrelation(req.DailyReturns, bench)
+		downsideCorr = CalcDownsideCorrelation(req.DailyReturns, bench)
+		upsideBetaVal = CalcUpsideBeta(req.DailyReturns, bench)
+		downsideBetaVal = CalcDownsideBeta(req.DailyReturns, bench)
+		treynor = CalcTreynor(cagr, beta)
+		benchmarkStdev = CalcAnnualizedStdev(bench)
+		m2 = CalcM2(sharpe, benchmarkStdev)
+		alphaDaily = CalcAlphaDaily(req.DailyReturns, bench, beta)
+		activeReturn = cagr - *req.BenchmarkCagr
+
+		if len(req.AnnualReturnValues) > 0 {
+			// 注：此处需要年频基准收益才能计算年频捕获比，暂用0或简化处理
+			// 由于StatisticsRequest中未提供年频基准收益，年频捕获比留空或通过日频聚合
+			// 为保持一致性，暂时不计算年频捕获比（需要额外数据）
+		}
 	}
 
 	totalReturn := CalcTotalReturn(req.StartingValue, finalValue)
 	pctPositiveDays := ratioPositive(req.DailyReturns)
+	pctPositiveMonths := ratioPositive(req.MonthlyReturnValues)
+	pctPositiveYears := ratioPositive(req.AnnualReturnValues)
 	maxDailyRet := MaxValue(req.DailyReturns)
 	minDailyRet := MinValue(req.DailyReturns)
+	maxAnnualReturn := MaxValue(req.AnnualReturnValues)
+	minAnnualReturn := MinValue(req.AnnualReturnValues)
+
+	// 回撤恢复因子
+	drawdownRecoveryFactor := CalcDrawdownRecoveryFactor(totalReturn, dd.MaxDrawdown)
+
+	// 平均盈亏各频率
+	avgDailyGain, avgDailyLoss, gainLossRatioDaily := CalcAvgGainLoss(req.DailyReturns)
+	avgMonthlyGain, avgMonthlyLoss, gainLossRatioMonthly := CalcAvgGainLoss(req.MonthlyReturnValues)
+	avgAnnualGain, avgAnnualLoss, gainLossRatioAnnual := CalcAvgGainLoss(req.AnnualReturnValues)
+
+	// SWR/PWR
 	pwr := CalcPWR(req.AnnualReturnValues)
+	pwr10y, swr10y, pwr20y, swr20y, pwr30y, swr30y, pwr40y, swr40y := CalcPWRAllYears(req.AnnualReturnValues)
+
 	avgYear := 0.0
 	if len(req.AnnualReturnValues) > 0 {
 		avgYear = mean(req.AnnualReturnValues)
 	}
 
+	// VaR/CVaR 各频率
 	varDaily1 := CalcVaR(req.DailyReturns, 0.99)
 	varDaily5 := CalcVaR(req.DailyReturns, 0.95)
 	varDaily10 := CalcVaR(req.DailyReturns, 0.90)
 	cvarDaily1 := CalcCVaR(req.DailyReturns, 0.99)
 	cvarDaily5 := CalcCVaR(req.DailyReturns, 0.95)
 	cvarDaily10 := CalcCVaR(req.DailyReturns, 0.90)
+
+	varMonthly1 := CalcVaR(req.MonthlyReturnValues, 0.99)
+	varMonthly5 := CalcVaR(req.MonthlyReturnValues, 0.95)
+	varMonthly10 := CalcVaR(req.MonthlyReturnValues, 0.90)
+	cvarMonthly1 := CalcCVaR(req.MonthlyReturnValues, 0.99)
+	cvarMonthly5 := CalcCVaR(req.MonthlyReturnValues, 0.95)
+	cvarMonthly10 := CalcCVaR(req.MonthlyReturnValues, 0.90)
+
+	varAnnual1 := CalcVaR(req.AnnualReturnValues, 0.99)
+	varAnnual5 := CalcVaR(req.AnnualReturnValues, 0.95)
+	varAnnual10 := CalcVaR(req.AnnualReturnValues, 0.90)
+	cvarAnnual1 := CalcCVaR(req.AnnualReturnValues, 0.99)
+	cvarAnnual5 := CalcCVaR(req.AnnualReturnValues, 0.95)
+	cvarAnnual10 := CalcCVaR(req.AnnualReturnValues, 0.90)
+
+	// Skewness/Kurtosis 各频率
 	skewnessDaily := CalcSkewness(req.DailyReturns)
+	skewnessMonthly := CalcSkewness(req.MonthlyReturnValues)
+	skewnessAnnual := CalcSkewness(req.AnnualReturnValues)
 	excessKurtosisDaily := CalcExcessKurtosis(req.DailyReturns)
+	excessKurtosisMonthly := CalcExcessKurtosis(req.MonthlyReturnValues)
+	excessKurtosisAnnual := CalcExcessKurtosis(req.AnnualReturnValues)
+
+	// Capture spread
+	captureSpreadDaily := upsideDaily - downsideDaily
+	captureSpreadAnnual := upsideAnnual - downsideAnnual
+	captureSpread := captureSpreadDaily
 
 	return Statistics{
 		CAGR:                  cagr,
 		MWRR:                  mwrr,
-		Stdev:                 stdev,
-		Sharpe:                CalcSharpe(cagr, stdev),
+		Stdev:                 stdevDaily,
+		Sharpe:                sharpe,
 		Sortino:               sortino,
 		MaxDrawdown:           dd.MaxDrawdown,
 		MaxDrawdownDuration:   dd.MaxDrawdownDuration,
-		BestYear:              MaxValue(req.AnnualReturnValues),
-		WorstYear:             MinValue(req.AnnualReturnValues),
+		BestYear:              maxAnnualReturn,
+		WorstYear:             minAnnualReturn,
 		AvgYear:               avgYear,
 		TotalReturn:           totalReturn,
 		MaxMonthlyReturn:      MaxValue(req.MonthlyReturnValues),
@@ -119,37 +209,115 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		RSquared:              rSq,
 		TrackingError:         trackingErr,
 		InformationRatio:      infoRatio,
-		UpsideCapture:         upside,
-		DownsideCapture:       downside,
+		UpsideCapture:         upsideDaily,
+		DownsideCapture:       downsideDaily,
 		MaxDailyReturn:        maxDailyRet,
 		MinDailyReturn:        minDailyRet,
 		PWR:                   pwr,
 		Var: VaRByFrequency{
 			Daily:   VaRLevels{One: varDaily1, Five: varDaily5, Ten: varDaily10},
-			Monthly: VaRLevels{},
-			Annual:  VaRLevels{},
+			Monthly: VaRLevels{One: varMonthly1, Five: varMonthly5, Ten: varMonthly10},
+			Annual:  VaRLevels{One: varAnnual1, Five: varAnnual5, Ten: varAnnual10},
 		},
 		Cvar: VaRByFrequency{
 			Daily:   VaRLevels{One: cvarDaily1, Five: cvarDaily5, Ten: cvarDaily10},
-			Monthly: VaRLevels{},
-			Annual:  VaRLevels{},
+			Monthly: VaRLevels{One: cvarMonthly1, Five: cvarMonthly5, Ten: cvarMonthly10},
+			Annual:  VaRLevels{One: cvarAnnual1, Five: cvarAnnual5, Ten: cvarAnnual10},
 		},
 		Skewness: SkewnessByFrequency{
 			Daily:   skewnessDaily,
-			Monthly: 0,
-			Annual:  0,
+			Monthly: skewnessMonthly,
+			Annual:  skewnessAnnual,
 		},
 		ExcessKurtosis: SkewnessByFrequency{
 			Daily:   excessKurtosisDaily,
-			Monthly: 0,
-			Annual:  0,
+			Monthly: excessKurtosisMonthly,
+			Annual:  excessKurtosisAnnual,
 		},
 		WinRate: SkewnessByFrequency{
 			Daily:   pctPositiveDays,
-			Monthly: 0,
-			Annual:  0,
+			Monthly: pctPositiveMonths,
+			Annual:  pctPositiveYears,
 		},
 		PctPositiveDays: pctPositiveDays,
+
+		AvgAnnualReturn:             avgAnnualReturn,
+		AvgMonthlyReturn:            avgMonthlyReturn,
+		AvgDailyReturn:              avgDailyReturn,
+		StdevAnnual:                 stdevAnnual,
+		StdevMonthly:                stdevMonthly,
+		StdevMonthlyRaw:             stdevMonthlyRaw,
+		StdevDaily:                  stdevDaily,
+		StdevDailyRaw:               stdevDailyRaw,
+		DownsideDeviation:           downsideDeviation,
+		DownsideDeviationDailyRaw:   downsideDeviationDailyRaw,
+		DownsideDeviationMonthly:    downsideDeviationMonthly,
+		DownsideDeviationMonthlyRaw: downsideDeviationMonthlyRaw,
+		DownsideDeviationAnnual:     downsideDeviationAnnual,
+		DrawdownRecoveryFactor:      drawdownRecoveryFactor,
+		M2:                          m2,
+		Treynor:                     treynor,
+		DiversificationRatio:        1,
+		BenchmarkCorrelation:        benchmarkCorrelation,
+		UpsideCorrelation:           upsideCorr,
+		DownsideCorrelation:         downsideCorr,
+		UpsideBeta:                  upsideBetaVal,
+		DownsideBeta:                downsideBetaVal,
+		AlphaDaily:                  alphaDaily,
+		AlphaAnnualized:             alpha,
+		UpsideCaptureDaily:          upsideDaily,
+		DownsideCaptureDaily:        downsideDaily,
+		CaptureSpreadDaily:          captureSpreadDaily,
+		UpsideCaptureAnnual:         upsideAnnual,
+		DownsideCaptureAnnual:       downsideAnnual,
+		CaptureSpreadAnnual:         captureSpreadAnnual,
+		CaptureSpread:               captureSpread,
+		ActiveReturn:                activeReturn,
+		VarDaily1:                   varDaily1,
+		VarDaily5:                   varDaily5,
+		VarDaily10:                  varDaily10,
+		CvarDaily1:                  cvarDaily1,
+		CvarDaily5:                  cvarDaily5,
+		CvarDaily10:                 cvarDaily10,
+		VarMonthly1:                 varMonthly1,
+		VarMonthly5:                 varMonthly5,
+		VarMonthly10:                varMonthly10,
+		CvarMonthly1:                cvarMonthly1,
+		CvarMonthly5:                cvarMonthly5,
+		CvarMonthly10:               cvarMonthly10,
+		VarAnnual1:                  varAnnual1,
+		VarAnnual5:                  varAnnual5,
+		VarAnnual10:                 varAnnual10,
+		CvarAnnual1:                 cvarAnnual1,
+		CvarAnnual5:                 cvarAnnual5,
+		CvarAnnual10:                cvarAnnual10,
+		SkewnessDaily:               skewnessDaily,
+		SkewnessMonthly:             skewnessMonthly,
+		SkewnessAnnual:              skewnessAnnual,
+		ExcessKurtosisDaily:         excessKurtosisDaily,
+		ExcessKurtosisMonthly:       excessKurtosisMonthly,
+		ExcessKurtosisAnnual:        excessKurtosisAnnual,
+		PctPositiveMonths:           pctPositiveMonths,
+		PctPositiveYears:            pctPositiveYears,
+		MaxAnnualReturn:             maxAnnualReturn,
+		MinAnnualReturn:             minAnnualReturn,
+		AvgDailyGain:                avgDailyGain,
+		AvgDailyLoss:                avgDailyLoss,
+		GainLossRatioDaily:          gainLossRatioDaily,
+		AvgMonthlyGain:              avgMonthlyGain,
+		AvgMonthlyLoss:              avgMonthlyLoss,
+		GainLossRatioMonthly:        gainLossRatioMonthly,
+		AvgAnnualGain:               avgAnnualGain,
+		AvgAnnualLoss:               avgAnnualLoss,
+		GainLossRatioAnnual:         gainLossRatioAnnual,
+		SWR:                         swr30y,
+		SWR10Y:                      swr10y,
+		PWR10Y:                      pwr10y,
+		SWR20Y:                      swr20y,
+		PWR20Y:                      pwr20y,
+		SWR30Y:                      swr30y,
+		PWR30Y:                      pwr30y,
+		SWR40Y:                      swr40y,
+		PWR40Y:                      pwr40y,
 	}
 }
-

@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log/slog"
 	"net/http"
 	"regexp"
 	"time"
 
 	"data-fetcher/baostock"
+	"data-fetcher/internal/provider"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sony/gobreaker"
@@ -19,19 +19,7 @@ var stockCodePattern = regexp.MustCompile(`^(sh|sz)\.\d{6}$`)
 // BaoStock Handlers
 // ============================================================
 
-var baoStockBreaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
-	Name:        "baostock",
-	MaxRequests: 5,
-	Interval:    60 * time.Second,
-	Timeout:     30 * time.Second,
-	ReadyToTrip: func(counts gobreaker.Counts) bool {
-		return counts.ConsecutiveFailures >= 5 ||
-			(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
-	},
-	OnStateChange: func(name string, from, to gobreaker.State) {
-		slog.Warn("baostock 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
-	},
-})
+var baoStockBreaker = provider.NewProviderBreaker("baostock", 5)
 
 func withBaoStockClient(fn func(*baostock.Client, *gin.Context)) gin.HandlerFunc {
 	return func(c *gin.Context) {

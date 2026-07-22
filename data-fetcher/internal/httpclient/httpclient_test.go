@@ -310,15 +310,6 @@ func TestGet_ConnectionError(t *testing.T) {
 	}
 }
 
-func TestIsRateLimited(t *testing.T) {
-	if IsRateLimited(nil) {
-		t.Error("IsRateLimited(nil) should be false")
-	}
-	if !IsRateLimited(errRateLimited) {
-		t.Error("IsRateLimited(errRateLimited) should be true")
-	}
-}
-
 func TestMin(t *testing.T) {
 	if min(3, 5) != 3 {
 		t.Errorf("min(3,5) = %d, want 3", min(3, 5))

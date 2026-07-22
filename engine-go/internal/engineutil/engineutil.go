@@ -8,7 +8,6 @@
 package engineutil
 
 import (
-	"fmt"
 	"math"
 	"time"
 )
@@ -115,22 +114,6 @@ func ShouldRebalance(
 	}
 
 	return false
-}
-
-// ParseDate 解析日期字符串（YYYY-MM-DD 或带前缀），返回 time.Time。
-// 解析失败时返回零值 time.Time。比 time.Parse 更宽容：仅读取前 10 字符。
-func ParseDate(dateStr string) time.Time {
-	var year, month, day int
-	if len(dateStr) >= 10 {
-		fmt.Sscanf(dateStr[:10], "%d-%d-%d", &year, &month, &day)
-	}
-	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
-}
-
-// GetISOWeek 返回给定时间对应的 ISO 周号。
-func GetISOWeek(t time.Time) int {
-	_, week := t.ISOWeek()
-	return week
 }
 
 // NormalizeWeights 将权重切片归一化至总和为 1。

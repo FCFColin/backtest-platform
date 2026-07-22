@@ -3,14 +3,11 @@ package yfinance
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"time"
 
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
-
-	"github.com/sony/gobreaker"
 )
 
 var userAgents = []string{
@@ -25,20 +22,7 @@ var userAgents = []string{
 }
 
 var (
-	breaker = gobreaker.NewCircuitBreaker(gobreaker.Settings{
-		Name:        "yfinance",
-		MaxRequests: 3,
-		Interval:    60 * time.Second,
-		Timeout:     30 * time.Second,
-		ReadyToTrip: func(counts gobreaker.Counts) bool {
-			return counts.ConsecutiveFailures >= 5 ||
-				(counts.Requests >= 5 && float64(counts.TotalFailures)/float64(counts.Requests) > 0.5)
-		},
-		OnStateChange: func(name string, from, to gobreaker.State) {
-			slog.Warn("yfinance 熔断器状态变更", "name", name, "from", from.String(), "to", to.String())
-		},
-	})
-
+	breaker    = provider.NewProviderBreaker("yfinance", 3)
 	httpClient *httpclient.Client
 )
 
@@ -78,41 +62,21 @@ func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]pr
 	url := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d",
 		ticker, startUnix, endUnix)
 
-	result, err := breaker.Execute(func() (interface{}, error) {
-		return doWithRetry(url)
-	})
+	prices, err := httpclient.DoGetWithBreaker(breaker, httpClient, url, parseChartResponse)
 	if err != nil {
 		return nil, fmt.Errorf("yfinance FetchStockDaily 失败: %w", err)
 	}
-	return result.([]provider.DailyPrice), nil
+	return prices, nil
 }
 
 func (p *yahooProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
 	url := fmt.Sprintf("https://query1.finance.yahoo.com/v1/finance/search?q=%s&quotesCount=20&newsCount=0", query)
 
-	result, err := breaker.Execute(func() (interface{}, error) {
-		return doSearchRetry(url)
-	})
+	results, err := httpclient.DoGetWithBreaker(breaker, httpClient, url, parseSearchResponse)
 	if err != nil {
 		return nil, fmt.Errorf("yfinance SearchTicker 失败: %w", err)
 	}
-	return result.([]provider.TickerInfo), nil
-}
-
-func doWithRetry(url string) ([]provider.DailyPrice, error) {
-	body, err := httpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	return parseChartResponse(body)
-}
-
-func doSearchRetry(url string) ([]provider.TickerInfo, error) {
-	body, err := httpClient.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	return parseSearchResponse(body)
+	return results, nil
 }
 
 type chartResponse struct {

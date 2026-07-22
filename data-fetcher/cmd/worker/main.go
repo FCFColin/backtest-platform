@@ -3,309 +3,36 @@ package main
 // 离线数据引擎 worker
 // 企业理由：替代 Python 脚本的全量/增量数据更新功能。
 // 支持全量导入、增量更新、断点续传。
+//
+// 文件拆分（Task 2.7 单一职责）：
+// - main.go：WorkerConfig + main + flag 解析
+// - db.go：initDB + ensureSchema + loadTickerList
+// - providers.go：provider 注册表 init()
+// - fetch.go：fetchAndStore + writePricesToDB
+// - commands.go：cmdFetch + cmdUpdate
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
-
-	"data-fetcher/internal/akshare"
-	"data-fetcher/internal/finnhub"
-	"data-fetcher/internal/provider"
-	"data-fetcher/internal/twelvedata"
-	"data-fetcher/internal/yfinance"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // ============================================================
 // 配置
 // ============================================================
 
+// WorkerConfig 是 worker 子命令共享的配置。
 type WorkerConfig struct {
 	DatabaseURL string
 }
 
 func defaultWorkerConfig() *WorkerConfig {
 	return &WorkerConfig{
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")),
 	}
-}
-
-func findProjectRoot() string {
-	dir, _ := os.Getwd()
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "package.json")); err == nil {
-			return dir
-		}
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return "."
-}
-
-// ============================================================
-// 数据库操作
-// ============================================================
-
-func initDB(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	if databaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL 未设置")
-	}
-	config, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err)
-	}
-	config.MaxConns = 5
-
-	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("连接数据库失败: %w", err)
-	}
-
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("数据库 Ping 失败: %w", err)
-	}
-
-	// 确保 schema 存在
-	if err := ensureSchema(ctx, pool); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("初始化 schema 失败: %w", err)
-	}
-
-	return pool, nil
-}
-
-func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS prices (
-		ticker TEXT NOT NULL,
-		date   DATE NOT NULL,
-		open   DOUBLE PRECISION,
-		high   DOUBLE PRECISION,
-		low    DOUBLE PRECISION,
-		close  DOUBLE PRECISION,
-		volume BIGINT,
-		adjusted_close DOUBLE PRECISION,
-		PRIMARY KEY (ticker, date)
-	);
-	CREATE INDEX IF NOT EXISTS idx_prices_ticker_date ON prices (ticker, date);
-
-	CREATE TABLE IF NOT EXISTS tickers (
-		ticker TEXT PRIMARY KEY,
-		name   TEXT,
-		market TEXT,
-		category TEXT
-	);
-
-	CREATE TABLE IF NOT EXISTS worker_progress (
-		ticker   TEXT PRIMARY KEY,
-		last_date DATE,
-		updated_at  TIMESTAMP DEFAULT NOW()
-	);
-	`
-	_, err := pool.Exec(ctx, schema)
-	return err
-}
-
-// ============================================================
-// 断点续传
-// ============================================================
-
-// ============================================================
-// 标的列表
-// ============================================================
-
-func loadTickerList(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {
-	if pool == nil {
-		return nil, fmt.Errorf("数据库未连接")
-	}
-	rows, err := pool.Query(ctx, "SELECT ticker FROM tickers ORDER BY ticker")
-	if err != nil {
-		return nil, fmt.Errorf("查询标的列表失败: %w", err)
-	}
-	defer rows.Close()
-
-	var tickers []string
-	for rows.Next() {
-		var t string
-		if err := rows.Scan(&t); err != nil {
-			return nil, fmt.Errorf("扫描标的行失败: %w", err)
-		}
-		tickers = append(tickers, t)
-	}
-	if len(tickers) == 0 {
-		return nil, fmt.Errorf("数据库中无标的记录")
-	}
-	return tickers, nil
-}
-
-// ============================================================
-// Provider 注册
-// ============================================================
-
-var reg *provider.Registry
-
-func init() {
-	prio := os.Getenv("DATA_PROVIDER_PRIORITY")
-	var priorities []string
-	if prio != "" {
-		priorities = strings.Split(prio, ",")
-	} else {
-		priorities = []string{"yfinance", "finnhub", "twelvedata", "akshare"}
-	}
-	reg = provider.NewRegistry(priorities)
-	for _, p := range []provider.Provider{
-		yfinance.NewProvider(),
-		finnhub.NewProvider(),
-		twelvedata.NewProvider(),
-		akshare.NewProvider(),
-	} {
-		if p != nil {
-			reg.Register(p)
-		}
-	}
-}
-
-// ============================================================
-// 数据获取与写入
-// ============================================================
-
-func fetchAndStore(ctx context.Context, pool *pgxpool.Pool, ticker, startDate, endDate string) error {
-	if pool == nil {
-		return fmt.Errorf("数据库未连接，无法写入数据")
-	}
-
-	providers := reg.ForTicker(ticker)
-	if len(providers) == 0 {
-		return fmt.Errorf("没有可用的数据源: %s", ticker)
-	}
-
-	prices, providerName, err := provider.FetchWithFallback(providers, ticker, startDate, endDate)
-	if err != nil {
-		return fmt.Errorf("获取 %s 数据失败: %w", ticker, err)
-	}
-
-	if len(prices) == 0 {
-		slog.Warn("无数据", "ticker", ticker, "provider", providerName)
-		return nil
-	}
-
-	slog.Info("获取成功", "ticker", ticker, "provider", providerName, "count", len(prices))
-
-	return writePricesToDB(ctx, pool, ticker, prices)
-}
-
-type dailyPrice = provider.DailyPrice
-
-func writePricesToDB(ctx context.Context, pool *pgxpool.Pool, ticker string, prices []dailyPrice) error {
-	batch := &pgx.Batch{}
-	for _, p := range prices {
-		batch.Queue(`
-			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-			ON CONFLICT (ticker, date) DO UPDATE SET
-				open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
-				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close
-		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, p.AdjustedClose)
-	}
-
-	br := pool.SendBatch(ctx, batch)
-	defer br.Close()
-
-	for range prices {
-		if _, err := br.Exec(); err != nil {
-			return fmt.Errorf("写入数据库失败: %w", err)
-		}
-	}
-
-	// 更新 worker_progress
-	lastDate := prices[len(prices)-1].Date
-	_, err := pool.Exec(ctx, `
-		INSERT INTO worker_progress (ticker, last_date, updated_at)
-		VALUES ($1, $2, NOW())
-		ON CONFLICT (ticker) DO UPDATE SET last_date = EXCLUDED.last_date, updated_at = EXCLUDED.updated_at
-	`, ticker, lastDate)
-
-	return err
-}
-
-// ============================================================
-// CLI 命令
-// ============================================================
-
-func cmdFetch(cfg *WorkerConfig, ticker, startDate, endDate string) error {
-	ctx := context.Background()
-	pool, err := initDB(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("数据库连接失败: %w", err)
-	}
-	defer pool.Close()
-	return fetchAndStore(ctx, pool, ticker, startDate, endDate)
-}
-
-func cmdUpdate(cfg *WorkerConfig, incremental bool) error {
-	ctx := context.Background()
-	pool, err := initDB(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("数据库连接失败: %w", err)
-	}
-	defer pool.Close()
-
-	tickers, err := loadTickerList(ctx, pool)
-	if err != nil {
-		return fmt.Errorf("加载标的列表失败: %w", err)
-	}
-
-	slog.Info("开始更新", "ticker_count", len(tickers), "incremental", incremental)
-	today := time.Now().Format("2006-01-02")
-
-	successCount := 0
-	for i, ticker := range tickers {
-		// 断点续传：通过 worker_progress 表检查今日是否已更新
-		if incremental {
-			var updatedAt *time.Time
-			err := pool.QueryRow(ctx, "SELECT updated_at FROM worker_progress WHERE ticker = $1", ticker).Scan(&updatedAt)
-			if err == nil && updatedAt != nil && updatedAt.Format("2006-01-02") == today {
-				slog.Info("跳过（今日已更新）", "ticker", ticker, "progress", fmt.Sprintf("%d/%d", i+1, len(tickers)))
-				continue
-			}
-		}
-
-		startDate := "2020-01-01"
-		if incremental {
-			var lastDate *string
-			err := pool.QueryRow(ctx, "SELECT last_date FROM worker_progress WHERE ticker = $1", ticker).Scan(&lastDate)
-			if err == nil && lastDate != nil {
-				startDate = *lastDate
-			}
-		}
-
-		slog.Info("获取数据", "ticker", ticker, "start", startDate, "end", today, "progress", fmt.Sprintf("%d/%d", i+1, len(tickers)))
-
-		if err := fetchAndStore(ctx, pool, ticker, startDate, today); err != nil {
-			slog.Warn("获取失败", "ticker", ticker, "error", err)
-			continue
-		}
-
-		successCount++
-	}
-
-	slog.Info("更新完成", "total", len(tickers), "success", successCount)
-	return nil
 }
 
 // ============================================================
@@ -319,7 +46,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	cfg := defaultWorkerConfig()
-	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+	if dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); dbURL != "" {
 		cfg.DatabaseURL = dbURL
 	}
 

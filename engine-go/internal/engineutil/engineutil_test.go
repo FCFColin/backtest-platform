@@ -3,7 +3,6 @@ package engineutil
 import (
 	"math"
 	"testing"
-	"time"
 )
 
 func floatPtr(v float64) *float64 {
@@ -287,45 +286,4 @@ func TestNormalizeWeights(t *testing.T) {
 			t.Errorf("NormalizeWeights mutated input: %v", in)
 		}
 	})
-}
-
-func TestParseDate(t *testing.T) {
-	t.Run("valid date", func(t *testing.T) {
-		got := ParseDate("2024-03-15")
-		want := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
-		if !got.Equal(want) {
-			t.Errorf("ParseDate = %v, want %v", got, want)
-		}
-	})
-
-	t.Run("date with time prefix truncated", func(t *testing.T) {
-		got := ParseDate("2024-03-15T10:30:00Z")
-		want := time.Date(2024, 3, 15, 0, 0, 0, 0, time.UTC)
-		if !got.Equal(want) {
-			t.Errorf("ParseDate = %v, want %v", got, want)
-		}
-	})
-
-	t.Run("short string returns normalized zero-input date", func(t *testing.T) {
-		// 保持原 tactical.parseDate 行为：长度 < 10 时 year/month/day 全为 0，
-		// time.Date(0, 0, 0, ...) 经 Go 规范化为 -0001-11-30（非零 time）。
-		// 调用方（shouldRebalance）仅在已校验的日期字符串上调用，此分支不会触达。
-		got := ParseDate("2024")
-		if got.IsZero() {
-			t.Errorf("ParseDate short string expected non-zero (normalized) time per legacy behavior, got zero")
-		}
-	})
-}
-
-func TestGetISOWeek(t *testing.T) {
-	// 2024-01-01 is a Monday in ISO week 1.
-	got := GetISOWeek(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
-	if got != 1 {
-		t.Errorf("GetISOWeek(2024-01-01) = %d, want 1", got)
-	}
-	// 2024-02-15 is in ISO week 7.
-	got = GetISOWeek(time.Date(2024, 2, 15, 0, 0, 0, 0, time.UTC))
-	if got != 7 {
-		t.Errorf("GetISOWeek(2024-02-15) = %d, want 7", got)
-	}
 }

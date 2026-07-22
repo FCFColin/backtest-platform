@@ -2,6 +2,12 @@
 # consistent code quality across the engine-go service, catches common Go
 # pitfalls early (error handling, security, performance), and reduces reviewer
 # burden by automating style and correctness checks.
+#
+# v2 schema (golangci-lint >= 2.0): adds top-level `version: "2"`, moves
+# `linters-settings` → `linters.settings`, and restructures exclusions.
+# See https://golangci-lint.run/docs/configuration/file/
+
+version: "2"
 
 run:
   timeout: 5m
@@ -9,41 +15,46 @@ run:
 linters:
   enable:
     - errcheck      # Check for unchecked errors
-    - gosimple      # Simplify code
     - govet         # Report suspicious constructs
     - ineffassign   # Detect ineffectual assignments
-    - staticcheck   # Go vet on steroids
+    - staticcheck   # Static analysis (subsumes gosimple in v2)
     - unused        # Find unused declarations
-    - typecheck     # Type-check the package
     - gocritic      # Opinionated linting for performance & style
     - gosec         # Security-oriented checks
     - revive        # Drop-in golint replacement with extra rules
+    # typecheck: built-in, always run in v2 (cannot be explicitly enabled)
+    # gosimple: merged into staticcheck in v2
 
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment  # Too noisy for most codebases
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # Too noisy for most codebases
 
-  revive:
-    rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: increment-decrement
-      - name: indent-error-flow
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: var-declaration
-      - name: var-naming
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: var-declaration
+        - name: var-naming
+
+  # v2: 不启用默认 exclusion presets（等价 v1 `issues.exclude-use-default: false`）
+  exclusions:
+    presets: []
 
 issues:
-  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
