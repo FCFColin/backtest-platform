@@ -53,17 +53,20 @@ func main() {
 	// 子命令
 	fetchCmd := flag.NewFlagSet("fetch", flag.ExitOnError)
 	fetchTicker := fetchCmd.String("ticker", "", "标的代码 (e.g. SPY, 000001_SZ)")
-	fetchStart := fetchCmd.String("start", "2020-01-01", "起始日期 (YYYY-MM-DD)")
+	fetchStart := fetchCmd.String("start", "2000-01-01", "起始日期 (YYYY-MM-DD)")
 	fetchEnd := fetchCmd.String("end", time.Now().Format("2006-01-02"), "结束日期 (YYYY-MM-DD)")
 
 	updateCmd := flag.NewFlagSet("update", flag.ExitOnError)
 	updateIncremental := updateCmd.Bool("incremental", false, "增量更新（仅获取新日期数据）")
+
+	seedCmd := flag.NewFlagSet("seed", flag.ExitOnError)
 
 	if len(os.Args) < 2 {
 		fmt.Println("用法: worker <command> [options]")
 		fmt.Println("命令:")
 		fmt.Println("  fetch        获取单个标的数据")
 		fmt.Println("  update       更新所有标的数据")
+		fmt.Println("  seed         种子化默认 ETF 宇宙到数据库")
 		os.Exit(1)
 	}
 
@@ -83,6 +86,13 @@ func main() {
 		updateCmd.Parse(os.Args[2:])
 		if err := cmdUpdate(cfg, *updateIncremental); err != nil {
 			slog.Error("update 失败", "error", err)
+			os.Exit(1)
+		}
+
+	case "seed":
+		seedCmd.Parse(os.Args[2:])
+		if err := cmdSeed(cfg); err != nil {
+			slog.Error("seed 失败", "error", err)
 			os.Exit(1)
 		}
 

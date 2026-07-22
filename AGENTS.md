@@ -60,10 +60,32 @@ npm run test:unit    # Unit tests only
 
 ### Testing
 
-- Vitest for unit/integration/consistency/contract/chaos/fuzz/bench tests
+- Vitest for unit/integration/contract/chaos/property tests
 - Playwright for E2E UI tests
 - Test files co-located in `tests/` top-level directory
 - Coverage target: lines ≥80%, functions ≥80%, branches ≥70%, statements ≥80%
+
+#### Test Commands
+
+```powershell
+npm run test:unit          # Vitest unit tests (mocks, no DB)
+npm run test:integration   # Vitest integration tests (testcontainers; Docker for full coverage)
+npm run test:contract      # OpenAPI 3.0 contract conformance (coverage ≥95%)
+npm run test:chaos         # Chaos experiments (requires Docker + full application stack)
+npm run test:property      # Property-based invariant tests (fast-check, no Docker)
+npm run test:e2e:ui        # Playwright browser E2E (requires postgres + redis + engine-go + data-fetcher)
+npm run test:docker        # All Vitest tests with RUN_TESTCONTAINERS=1 (chaos + integration Docker paths)
+```
+
+#### Test Directories
+
+- `tests/unit/` — Vitest unit tests (mocks, no DB)
+- `tests/integration/` — Vitest integration tests (testcontainers PostgreSQL + Redis)
+- `tests/contract/` — OpenAPI 3.0 contract conformance
+- `tests/chaos/` — Chaos experiments (network partition, container restart; requires Docker)
+- `tests/property/` — Property-based invariant tests (fast-check)
+- `tests/e2e/ui/` — Playwright browser E2E
+- `tests/helpers/` — Shared test fixtures and mocks
 
 ### Git
 
@@ -90,10 +112,11 @@ npm run test:unit    # Unit tests only
 | ADR-033 | Per-org API keys (hashed + revocable)                  |
 | ADR-036 | Stripe billing integration                             |
 | ADR-042 | API packages consolidation                             |
+| ADR-044 | OTel SaaS replacement (go-shared + env var switching)  |
 
 ## Known Gotchas
 
-1. **Go data service semaphore=10**: `dataQueryService.ts:85` `goServiceSemaphore` limits concurrent Go HTTP calls (default 10). Python data CLI 已退役（原 api/python/ 已随 ADR-042 合并删除），admin bulk-ingest 端点返回 501。
+1. **Go data service semaphore=10**: `dataQuery.ts` 中 `goServiceSemaphore = new Semaphore(10)` 限制并发 Go HTTP 调用（默认 10）。Python data CLI 已退役（原 api/python/ 已随 ADR-042 合并删除），admin bulk-ingest 端点返回 501。
 2. **Single Go engine + fail-closed**: Go engine is the only backtest/MC/optimizer engine (Rust `engine-rs/` deleted). When unavailable, engine-canonical compute returns 503 + Retry-After (ADR-031); never silently Node-computed.
 3. **x-api-key compat risk**: ADR-033 已支持按组织 API 密钥（哈希存储、可吊销、可审计，泄露爆炸半径收敛到单组织）。仅 `ADMIN_API_KEY` 作为平台 break-glass 静态凭证不可吊销，须严格保管并尽量少用。
 4. **Redis dependency**: Auth module uses Redis for Refresh Tokens. Redis failure degrades to in-memory (single-instance only, multi-instance session inconsistent).

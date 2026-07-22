@@ -1,9 +1,11 @@
 // Per-file 覆盖率门槛检查（Task 19.2 / 对抗性测试门控）
 //
-// 全局：vitest thresholds ≥85%
-// 普通文件：行覆盖率 ≥60%
+// 全局：vitest thresholds ≥80%（lines/functions/statements） / ≥70%（branches）
+// 普通文件：行覆盖率 ≥75%
 // 关键文件（认证/金融/安全）：行覆盖率 ≥90%
-// 任一纳入统计的文件不得低于 60%
+//
+// 分层门控：只检查 backend 全量 + frontend store/hooks/utils
+// 纯 UI 页面/组件（pages/components）由 E2E 覆盖，不强制单测
 
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -23,6 +25,8 @@ const coveragePath = candidatePaths.find((p) => existsSync(p));
 if (!coveragePath) {
   console.error('\n[coverage-check] 错误：未找到 coverage-summary.json');
   console.error('  请先运行：npm run test:coverage');
+  console.error('  注意：vitest workspace 模式下 json-summary reporter 可能不生成，');
+  console.error('  请用 npx vitest run --coverage --reporter=json-summary 单独生成');
   process.exit(1);
 }
 
@@ -39,7 +43,7 @@ const CRITICAL_FILES = [
   'packages/backend/src/middleware/jwtSigner.ts',
   'packages/backend/src/middleware/jwtAuth.ts',
   'packages/backend/src/middleware/rbac.ts',
-  'packages/backend/src/services/userService.ts',
+  'packages/backend/src/application/auth/userService.ts',
   'packages/backend/src/engine/portfolio.ts',
   'packages/backend/src/engine/statistics.ts',
   'packages/backend/src/engine/optimizer.ts',
@@ -51,15 +55,15 @@ const CRITICAL_FILES = [
   'packages/backend/src/middleware/validate.ts',
   'packages/backend/src/middleware/auditLog.ts',
   'packages/backend/src/middleware/idempotency.ts',
-  'packages/backend/src/services/outboxWriter.ts',
-  'packages/backend/src/services/outboxPublisher.ts',
+  'packages/backend/src/infrastructure/outboxWriter.ts',
+  'packages/backend/src/infrastructure/outboxPublisher.ts',
   'packages/backend/src/utils/numericRange.ts',
   'packages/backend/src/db/tenant.ts',
   'packages/frontend/src/store/authStore.ts',
   'packages/frontend/src/utils/authTokens.ts',
   // RO-048: 关键业务逻辑文件从 coverage exclude 移除后纳入 90% 门控
   'packages/backend/src/utils/engineClient.ts',
-  'packages/backend/src/services/dataService.ts',
+  'packages/backend/src/infrastructure/dataFacade.ts',
   'packages/backend/src/queues/worker.ts',
   'packages/backend/src/queues/jobIdempotency.ts',
   'packages/backend/src/queues/backtestQueue.ts',
@@ -67,6 +71,16 @@ const CRITICAL_FILES = [
 
 const MIN_LINE_COVERAGE = 75;
 const CRITICAL_LINE_COVERAGE = 90;
+/**
+ * 分层门控：只检查这些路径下的文件（vitest workspace 模式下 include/exclude 不生效，
+ * 通过白名单限制检查范围）。纯 UI 页面/组件由 E2E 覆盖，不强制单测。
+ */
+const ALLOWED_PREFIXES = [
+  'packages/backend/src/',
+  'packages/frontend/src/store/',
+  'packages/frontend/src/hooks/',
+  'packages/frontend/src/utils/',
+];
 /** 纯类型/barrel/基础设施/外部服务依赖（与 vitest.workspace.ts 的 coverage.exclude 同步） */
 const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/application/cqrs.ts',
@@ -74,7 +88,6 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/utils/tracePropagation.ts',
   'packages/backend/src/utils/logger.ts',
   'packages/backend/src/utils/metrics.ts',
-  'packages/backend/src/services/mailService.ts',
   'packages/backend/src/domain/events/backtest-completed.ts',
   'packages/backend/src/domain/events/rebalance-triggered.ts',
   'packages/backend/src/routes/authRoutes.ts',
@@ -86,7 +99,23 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/db/importBulk.ts',
   'packages/backend/src/types/pg-copy-streamams.d.ts',
   'packages/frontend/src/store/index.ts',
+  'packages/frontend/src/store/types.ts',
   'packages/backend/src/app.ts',
+  // 启动入口/OpenTelemetry 配置/barrel/re-export（不适合单测）
+  'packages/backend/src/server.ts',
+  'packages/backend/src/tracing.ts',
+  'packages/backend/src/domain/events/index.ts',
+  // infrastructure/mailService.ts 是外部 SMTP 服务封装
+  'packages/backend/src/infrastructure/mailService.ts',
+  // 页面状态 hooks（强依赖页面组件上下文，由 E2E 覆盖）
+  'packages/frontend/src/hooks/useAnalysisPageState.ts',
+  'packages/frontend/src/hooks/useComputeTool.ts',
+  'packages/frontend/src/hooks/useDataEngineState.ts',
+  'packages/frontend/src/hooks/useFactorRegressionState.ts',
+  'packages/frontend/src/hooks/useGoalOptimizerState.ts',
+  'packages/frontend/src/hooks/useListState.ts',
+  'packages/frontend/src/hooks/useLumpSumVsDCAState.ts',
+  'packages/frontend/src/hooks/useTacticalGridState.ts',
 ];
 
 const failures = [];
@@ -99,8 +128,8 @@ const normalize = (p) => p.replace(/\\/g, '/');
 for (const [fileKey, data] of Object.entries(summary)) {
   const normalizedFile = normalize(fileKey);
 
-  // 跳过非源码文件
-  if (!normalizedFile.includes('/src/') && !normalizedFile.includes('\\src\\')) continue;
+  // 分层门控：只检查 ALLOWED_PREFIXES 中的文件
+  if (!ALLOWED_PREFIXES.some((pfx) => normalizedFile.includes(pfx))) continue;
 
   // 跳过排除文件
   if (PER_FILE_EXCLUDE_SUFFIXES.some((sfx) => normalizedFile.endsWith(sfx))) continue;
@@ -155,7 +184,8 @@ if (criticalFailures.length > 0) {
 }
 
 if (failures.length > 0) {
-  console.log(`\n[coverage-check] ⚠️  ${failures.length} 个普通文件未达标（不阻塞，建议改进）`);
+  console.log(`\n[coverage-check] ❌ ${failures.length} 个普通文件未达标，拒绝合并`);
+  process.exit(1);
 }
 
 console.log('\n[coverage-check] ✅ 通过');

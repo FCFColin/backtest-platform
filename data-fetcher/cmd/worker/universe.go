@@ -20,9 +20,9 @@ var DefaultETFUniverse = []TickerMeta{
 	{Ticker: "BND", Name: "Total Bond Market", Market: "US", Category: "Bond"},
 	{Ticker: "AGG", Name: "US Aggregate Bond", Market: "US", Category: "Bond"},
 
-	{Ticker: "SPY", Name: "S&amp;P 500", Market: "US", Category: "US Equity"},
-	{Ticker: "VOO", Name: "Vanguard S&amp;P 500", Market: "US", Category: "US Equity"},
-	{Ticker: "IVV", Name: "iShares Core S&amp;P 500", Market: "US", Category: "US Equity"},
+	{Ticker: "SPY", Name: "S&P 500", Market: "US", Category: "US Equity"},
+	{Ticker: "VOO", Name: "Vanguard S&P 500", Market: "US", Category: "US Equity"},
+	{Ticker: "IVV", Name: "iShares Core S&P 500", Market: "US", Category: "US Equity"},
 	{Ticker: "VTI", Name: "Total Stock Market", Market: "US", Category: "US Equity"},
 	{Ticker: "VTV", Name: "Value", Market: "US", Category: "US Equity"},
 	{Ticker: "VUG", Name: "Growth", Market: "US", Category: "US Equity"},
@@ -31,7 +31,7 @@ var DefaultETFUniverse = []TickerMeta{
 	{Ticker: "QQQ", Name: "Nasdaq 100", Market: "US", Category: "US Equity"},
 	{Ticker: "DIA", Name: "Dow Jones", Market: "US", Category: "US Equity"},
 	{Ticker: "IWM", Name: "Russell 2000", Market: "US", Category: "US Equity"},
-	{Ticker: "IJR", Name: "S&amp;P Small-Cap 600", Market: "US", Category: "US Equity"},
+	{Ticker: "IJR", Name: "S&P Small-Cap 600", Market: "US", Category: "US Equity"},
 	{Ticker: "SCHD", Name: "US Dividend Equity", Market: "US", Category: "US Equity"},
 
 	{Ticker: "VEA", Name: "Developed Markets", Market: "US", Category: "International"},

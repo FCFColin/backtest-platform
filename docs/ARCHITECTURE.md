@@ -1,4 +1,4 @@
-﻿# 架构详解 (Architecture)
+# 架构详解 (Architecture)
 
 > 本文档详细描述回测平台的服务拓扑、降级链、数据流和关键设计决策。
 > 结构规范见 [project-spec.md](../.trae/documents/project-spec.md)，API 定义见 [tech-architecture.md](../.trae/documents/tech-architecture.md)。
@@ -17,7 +17,9 @@ flowchart TB
     subgraph APILayer["API 层 (端口 5001)"]
         APP["Express App<br/>packages/backend/src/app.ts"]
         ROUTES["路由层<br/>packages/backend/src/routes/"]
-        SERVICES["服务层<br/>packages/backend/src/services/"]
+        APP_LAYER["应用层<br/>packages/backend/src/application/<br/>(billing/org/auth 子目录)"]
+        INFRA["基础设施层<br/>packages/backend/src/infrastructure/<br/>(dataFacade/dataQuery/dataCache/dataFetch)"]
+        DOMAIN["领域层<br/>packages/backend/src/domain/<br/>(aggregates/run.ts + events/)"]
     end
 
     subgraph EngineLayer["引擎层"]
@@ -34,11 +36,13 @@ flowchart TB
     end
 
     UI -->|"HTTP /api/*"| APP
-    APP --> ROUTES --> SERVICES
-    SERVICES -->|"callGoEngine()"| GO_ENG
-    SERVICES -->|"失败 503 (ADR-031)"| GO_ENG
-    SERVICES -->|"callGoDataService()"| GO_DATA
-    SERVICES -->|"callGoDataService()"| GO_DATA_FALLBACK
+    APP --> ROUTES --> APP_LAYER
+    APP_LAYER --> DOMAIN
+    APP_LAYER --> INFRA
+    INFRA -->|"callGoEngine()"| GO_ENG
+    INFRA -->|"失败 503 (ADR-031)"| GO_ENG
+    INFRA -->|"callGoDataService()"| GO_DATA
+    INFRA -->|"callGoDataService()"| GO_DATA_FALLBACK
     GO_DATA --> PG
 ```
 
@@ -117,17 +121,17 @@ flowchart TB
 
 ## 4. 端口分配
 
-| 服务              | 端口                      | 配置位置                                                                   |
-| ----------------- | ------------------------- | -------------------------------------------------------------------------- |
-| 前端 Vite         | 5176                      | vite.config.ts                                                             |
-| 后端 API          | 5001                      | `PORT` 环境变量 / server.ts                                                |
-| Go 引擎           | 5004                      | engine-go/ (环境变量)                                                      |
-| Go 数据服务       | 5003                      | data-service/ (环境变量)                                                   |
-| PostgreSQL (主)   | 5432                      | DATABASE_URL 环境变量                                                      |
-| PostgreSQL 读副本 | 5432                      | _需重新设计_（原 k8s/postgres-replica.yaml 已删除，PG16 流复制语法待重写） |
-| PgBouncer         | 5432                      | k8s/pgbouncer.yaml                                                         |
-| Redis             | 6379                      | docker-compose.yml                                                         |
-| OTel Collector    | 4317 (gRPC) / 4318 (HTTP) | k8s/otel-collector.yaml                                                    |
+| 服务              | 端口            | 配置位置                                                                   |
+| ----------------- | --------------- | -------------------------------------------------------------------------- |
+| 前端 Vite         | 5176            | vite.config.ts                                                             |
+| 后端 API          | 5001            | `PORT` 环境变量 / server.ts                                                |
+| Go 引擎           | 5004            | engine-go/ (环境变量)                                                      |
+| Go 数据服务       | 5003            | data-service/ (环境变量)                                                   |
+| PostgreSQL (主)   | 5432            | DATABASE_URL 环境变量                                                      |
+| PostgreSQL 读副本 | 5432            | _需重新设计_（原 k8s/postgres-replica.yaml 已删除，PG16 流复制语法待重写） |
+| PgBouncer         | 5432            | k8s/pgbouncer.yaml                                                         |
+| Redis             | 6379            | docker-compose.yml                                                         |
+| OTel SaaS（可选） | 443 (OTLP/HTTP) | `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量（ADR-044，取代自建 Collector）      |
 
 ---
 
@@ -146,42 +150,71 @@ flowchart TB
 
 ### 6.1 后端路由层 (`packages/backend/src/routes/`)
 
-| 文件                         | 路径前缀                     | 职责                                           |
-| ---------------------------- | ---------------------------- | ---------------------------------------------- |
-| `healthRoutes.ts`            | `/api`                       | 健康检查、监控指标、debug 端点                 |
-| `dataRoutes.ts`              | `/api/v1/data`               | 历史数据、搜索、CPI                            |
-| `dataManageRoutes.ts`        | `/api/v1/data/manage`        | 数据管理（批量更新等）                         |
-| `backtestRoutes.ts`          | `/api/v1/backtest`           | 回测/分析/蒙特卡洛/优化/有效前沿               |
-| `backtestOptimizerRoutes.ts` | `/api/v1/backtest-optimizer` | 回测优化器（有效前沿、Markowitz 优化）         |
-| `tacticalRoutes.ts`          | `/api/v1/tactical`           | 战术分配（信号驱动动态权重回测）               |
-| `tacticalGridRoutes.ts`      | `/api/v1/tactical-grid`      | 战术网格搜索（参数空间遍历优化）               |
-| `signalRoutes.ts`            | `/api/v1/signal`             | 信号分析（单/双/多信号）                       |
-| `pcaRoutes.ts`               | `/api/v1/pca`                | 主成分分析                                     |
-| `letfRoutes.ts`              | `/api/v1/letf`               | 杠杆 ETF 滑点分析                              |
-| `goalOptimizerRoutes.ts`     | `/api/v1/goal-optimizer`     | 目标优化（蒙特卡洛财务目标达成概率）           |
-| `authRoutes.ts`              | `/api/v1/auth`               | 认证鉴权（登录、令牌刷新、登出、身份查询）     |
-| `apiKeyRoutes.ts`            | `/api/v1/keys`               | 按组织 API Key 管理（ADR-033）                 |
-| `portfolioRoutes.ts`         | `/api/v1/portfolios`         | 租户作用域组合持久化（ADR-034）                |
-| `accountRoutes.ts`           | `/api/v1/configs`            | 租户作用域命名配置持久化（ADR-034）            |
-| `runRoutes.ts`               | `/api/v1/runs`               | 租户作用域回测历史持久化（ADR-034）            |
-| `orgRoutes.ts`               | `/api/v1/orgs`               | 组织与成员管理、邀请（ADR-035）                |
-| `billingRoutes.ts`           | `/api/v1/billing`            | Stripe 计费（订阅、Checkout、Portal，ADR-036） |
-| `jobRoutes.ts`               | `/api/v1`                    | 异步任务状态查询（ADR-019 所有权隔离）         |
-| `adminRoutes.ts`             | `/api/v1/admin`              | 管理后台接口                                   |
+| 文件                         | 路径前缀                                                         | 职责                                                          |
+| ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- |
+| `healthRoutes.ts`            | `/api`                                                           | 健康检查、监控指标（已合并 debugRoutes）                      |
+| `dataRoutes.ts`              | `/api/v1/data`                                                   | 历史数据、搜索、CPI                                           |
+| `dataManageRoutes.ts`        | `/api/v1/data/manage`                                            | 数据管理（批量更新等）                                        |
+| `backtestRoutes.ts`          | `/api/v1/backtest`                                               | 回测/分析/蒙特卡洛/优化/有效前沿                              |
+| `backtestOptimizerRoutes.ts` | `/api/v1/backtest-optimizer`                                     | 回测优化器（有效前沿、Markowitz 优化）                        |
+| `tacticalRoutes.ts`          | `/api/v1/tactical`                                               | 战术分配（信号驱动动态权重回测）                              |
+| `tacticalGridRoutes.ts`      | `/api/v1/tactical-grid`                                          | 战术网格搜索（参数空间遍历优化）                              |
+| `signalRoutes.ts`            | `/api/v1/signal`                                                 | 信号分析（单/双/多信号）                                      |
+| `analysisRoutes.ts`          | `/api/v1/{pca,letf,goal-optimizer,factor-regression,calculator}` | 分析类薄路由合并（PCA / LETF / 目标优化 / 因子回归 / 计算器） |
+| `authRoutes.ts`              | `/api/v1/auth`                                                   | 认证鉴权（登录、令牌刷新、登出、身份查询）                    |
+| `apiKeyRoutes.ts`            | `/api/v1/keys`                                                   | 按组织 API Key 管理（ADR-033）                                |
+| `portfolioRoutes.ts`         | `/api/v1/portfolios`                                             | 租户作用域组合持久化（ADR-034）                               |
+| `configRoutes.ts`            | `/api/v1/configs`                                                | 租户作用域命名配置持久化（ADR-034）                           |
+| `runRoutes.ts`               | `/api/v1/runs`                                                   | 租户作用域回测历史持久化（ADR-034）                           |
+| `orgRoutes.ts`               | `/api/v1/orgs`                                                   | 组织与成员管理、邀请（ADR-035）                               |
+| `billingRoutes.ts`           | `/api/v1/billing`                                                | Stripe 计费（订阅、Checkout、Portal，ADR-036）                |
+| `jobRoutes.ts`               | `/api/v1`                                                        | 异步任务状态查询（ADR-019 所有权隔离）                        |
+| `adminRoutes.ts`             | `/api/v1/admin`                                                  | 管理后台接口                                                  |
 
 > 注：认证授权已实现 JWT + RBAC 模型（见 [ADR-017](adr/ADR-017-认证授权模型.md)），保留 `x-api-key` 兼容模式（analyst 角色）。
 
-### 6.2 后端服务层 (`packages/backend/src/services/`)
+### 6.2 后端应用层 (`packages/backend/src/application/`)
 
-| 文件                  | 职责                                                      |
-| --------------------- | --------------------------------------------------------- |
-| `dataService.ts`      | 价格数据获取（PostgreSQL + Go 数据服务降级）、ticker 搜索 |
-| `engineService.ts`    | 引擎调用封装                                              |
-| `batchDataService.ts` | 批量数据服务                                              |
+> 注：原 `services/` 目录已消除（ADR-044 相关重构），12 个文件按职责迁入 `application/` 与 `infrastructure/`，消除跨层依赖违规。
+
+| 子目录 / 文件                             | 职责                                                                       |
+| ----------------------------------------- | -------------------------------------------------------------------------- |
+| `application/billing/`                    | 计费用例：`billingService.ts` + `usageService.ts` + `planLimitsService.ts` |
+| `application/org/`                        | 组织用例：`membershipService.ts` + `invitationService.ts`                  |
+| `application/auth/`                       | 认证用例：`userService.ts` + `loginLockout.ts`                             |
+| `application/analysis-orchestrator.ts`    | 分析编排（跨层依赖修复）                                                   |
+| `application/signal-orchestrator.ts`      | 信号编排                                                                   |
+| `application/backtest-service.ts`         | 回测用例（通过 Run 聚合根驱动状态机）                                      |
+| `application/backtestCompletedHandler.ts` | BacktestCompleted 事件 handler                                             |
+| `application/runCompletedHandler.ts`      | RunCompleted 事件 handler（Run 聚合根落地，ADR-013）                       |
+
+### 6.3 后端基础设施层 (`packages/backend/src/infrastructure/`)
+
+| 文件                                     | 职责                                                           |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| `dataFacade.ts`                          | 数据门面（PostgreSQL + Go 数据服务降级，透传 `degraded` 标记） |
+| `dataQuery.ts`                           | 数据查询（含 `goServiceSemaphore=10` 并发限制，ADR-027）       |
+| `dataCache.ts`                           | 数据缓存                                                       |
+| `dataFetch.ts`                           | 数据抓取                                                       |
+| `cpiLoader.ts`                           | CPI 数据加载                                                   |
+| `apiKeyVerifier.ts`                      | API Key 校验                                                   |
+| `mailService.ts`                         | 邮件服务（nodemailer 9.x）                                     |
+| `outboxWriter.ts` / `outboxPublisher.ts` | Outbox 表写入与发布（ADR-014）                                 |
+| `redisClient.ts` / `redisHealth.ts`      | Redis 客户端与健康检查（ADR-018）                              |
+
+### 6.4 后端领域层 (`packages/backend/src/domain/`)
+
+| 子目录 / 文件                    | 职责                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------- |
+| `domain/aggregates/run.ts`       | Run 聚合根（状态机 queued → running → completed/failed/cancelled，ADR-013 Phase 2） |
+| `domain/aggregates/portfolio.ts` | Portfolio 聚合根（fromDTO + validateWeightSum）                                     |
+| `domain/events/`                 | 领域事件（RunStarted/RunCompleted/RunFailed/RunCancelled，ADR-013 Phase 3）         |
+| `domain/services/`               | 领域服务（grid-search / optimizer-domain）                                          |
+| `domain/value-objects/`          | 值对象（ticker / weight，ADR-013 Phase 1）                                          |
 
 > 注：Rust 引擎 `engine-rs/` 已根据 ADR-031 删除，Node 引擎 (`packages/backend/src/engine/`) 已随架构清理全部迁移到 Go 引擎。Go 引擎 (`engine-go`) 是 backtest / 蒙特卡洛 / 优化器 / 有效前沿 / tactical / signal / pca / letf 的**唯一计算引擎**，不可用时返回 503 + Retry-After（fail-closed，无 Node 降级）。
 
-### 6.3 Go 引擎 (`engine-go/`)
+### 6.5 Go 引擎 (`engine-go/`)
 
 | 模块     | 职责                                             |
 | -------- | ------------------------------------------------ |
@@ -191,7 +224,7 @@ flowchart TB
 
 > **已退役 (ADR-031)**：Rust 引擎 `engine-rs/` 目录已删除。`engine-go` 是唯一计算引擎，不可用时返回 503。 |
 
-### 6.4 前端页面 (`packages/frontend/src/pages/`)
+### 6.6 前端页面 (`packages/frontend/src/pages/`)
 
 | 页面                             | 路由                       | 功能             |
 | -------------------------------- | -------------------------- | ---------------- |
@@ -259,7 +292,7 @@ data/
 
 ### 9.4 已知局限性
 
-- **Go 数据服务信号量=10**：`packages/backend/src/services/dataService.ts:187` 限制对 data-fetcher 并发（ADR-027）
+- **Go 数据服务信号量=10**：`packages/backend/src/infrastructure/dataQuery.ts` 中 `goServiceSemaphore` 限制对 data-fetcher 并发（默认 10，ADR-027）
 - **x-api-key 兼容风险**：静态 Key 无法按用户撤销（ADR-017）
 - **Redis 依赖**：会话/限流/幂等；fail-closed 或内存回退
 
@@ -267,36 +300,38 @@ data/
 
 > 完整索引见 [adr/README.md](adr/README.md)。编号不可变，gaps 表示被取代/删除/合并的决策。
 
-| ADR                                                             | 主题                            | 状态   |
-| --------------------------------------------------------------- | ------------------------------- | ------ |
-| [ADR-004](adr/ADR-004-Express框架选型.md)                       | Express 框架选型                | 已接受 |
-| [ADR-005](adr/ADR-005-Pino日志选型.md)                          | Pino 日志选型                   | 已接受 |
-| [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)                    | PostgreSQL 迁移                 | 已接受 |
-| [ADR-008](adr/ADR-008-语言精简决策.md)                          | Go+TypeScript 精简              | 已接受 |
-| [ADR-009](adr/ADR-009-请求体校验库选型.md)                      | Zod 校验库                      | 已接受 |
-| [ADR-011](adr/ADR-011-长任务异步化方案.md)                      | BullMQ 异步任务                 | 已接受 |
-| [ADR-012](adr/ADR-012-SBOM与制品签名方案.md)                    | 供应链安全（SBOM+SLSA+cosign）  | 已接受 |
-| [ADR-013](adr/ADR-013-领域模型重构策略.md)                      | DDD 渐进式重构                  | 已接受 |
-| [ADR-014](adr/ADR-014-事件溯源Outbox方案.md)                    | 事件溯源/Outbox                 | 已接受 |
-| [ADR-015](adr/ADR-015-可观测性技术选型.md)                      | 可观测性技术选型                | 已接受 |
-| [ADR-016](adr/ADR-016-熔断器策略.md)                            | 熔断器策略                      | 已接受 |
-| [ADR-017](adr/ADR-017-认证授权模型.md)                          | 认证授权模型                    | 已接受 |
-| [ADR-018](adr/ADR-018-Redis选型.md)                             | Redis 选型                      | 已接受 |
-| [ADR-019](adr/ADR-019-异步任务越权防护与所有权模型.md)          | Job 所有权                      | 已接受 |
-| [ADR-020](adr/ADR-020-限流fail-closed分级策略.md)               | 限流 fail-closed 分级（含全局） | 已接受 |
-| [ADR-023](adr/ADR-023-数据隐私分类与删除权实现.md)              | GDPR                            | 已接受 |
-| [ADR-024](adr/ADR-024-Outbox强一致与消费者幂等.md)              | Outbox+幂等+重试边界            | 已接受 |
-| [ADR-026](adr/ADR-026-开发环境认证旁路安全边界.md)              | DEV_SKIP_AUTH                   | 已接受 |
-| [ADR-027](adr/ADR-027-100x容量拐点与缓解.md)                    | 100x 容量                       | 已接受 |
-| [ADR-031](adr/ADR-031-单引擎fail-closed降级.md)                 | 单引擎 fail-closed 降级         | 已接受 |
-| [ADR-032](adr/ADR-032-多租户RLS隔离模型.md)                     | 多租户 RLS 隔离                 | 已接受 |
-| [ADR-033](adr/ADR-033-按组织API密钥.md)                         | 按组织 API 密钥                 | 已接受 |
-| [ADR-034](adr/ADR-034-服务端持久化与前端认证.md)                | 服务端持久化 + 前端认证         | 已接受 |
-| [ADR-035](adr/ADR-035-自助注册与组织邀请.md)                    | 自助注册与组织邀请              | 已接受 |
-| [ADR-036](adr/ADR-036-Stripe计费.md)                            | Stripe 计费                     | 已接受 |
-| [ADR-037](adr/ADR-037-配额计量与公平调度.md)                    | 配额计量与公平调度              | 已接受 |
-| [ADR-038](adr/ADR-038-ci-tiering-and-dependency-enforcement.md) | CI 分层与依赖方向强制           | 已接受 |
-| [ADR-042](adr/ADR-042-api-packages-consolidation.md)            | API 包合并                      | 已接受 |
+| ADR                                                             | 主题                                       | 状态   |
+| --------------------------------------------------------------- | ------------------------------------------ | ------ |
+| [ADR-004](adr/ADR-004-Express框架选型.md)                       | Express 框架选型                           | 已接受 |
+| [ADR-005](adr/ADR-005-Pino日志选型.md)                          | Pino 日志选型                              | 已接受 |
+| [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)                    | PostgreSQL 迁移                            | 已接受 |
+| [ADR-008](adr/ADR-008-语言精简决策.md)                          | Go+TypeScript 精简                         | 已接受 |
+| [ADR-009](adr/ADR-009-请求体校验库选型.md)                      | Zod 校验库                                 | 已接受 |
+| [ADR-011](adr/ADR-011-长任务异步化方案.md)                      | BullMQ 异步任务                            | 已接受 |
+| [ADR-012](adr/ADR-012-SBOM与制品签名方案.md)                    | 供应链安全（SBOM+SLSA+cosign）             | 已接受 |
+| [ADR-013](adr/ADR-013-领域模型重构策略.md)                      | DDD 渐进式重构                             | 已接受 |
+| [ADR-014](adr/ADR-014-事件溯源Outbox方案.md)                    | 事件溯源/Outbox                            | 已接受 |
+| [ADR-015](adr/ADR-015-可观测性技术选型.md)                      | 可观测性技术选型                           | 已接受 |
+| [ADR-016](adr/ADR-016-熔断器策略.md)                            | 熔断器策略                                 | 已接受 |
+| [ADR-017](adr/ADR-017-认证授权模型.md)                          | 认证授权模型                               | 已接受 |
+| [ADR-018](adr/ADR-018-Redis选型.md)                             | Redis 选型                                 | 已接受 |
+| [ADR-019](adr/ADR-019-异步任务越权防护与所有权模型.md)          | Job 所有权                                 | 已接受 |
+| [ADR-020](adr/ADR-020-限流fail-closed分级策略.md)               | 限流 fail-closed 分级（含全局）            | 已接受 |
+| [ADR-023](adr/ADR-023-数据隐私分类与删除权实现.md)              | GDPR                                       | 已接受 |
+| [ADR-024](adr/ADR-024-Outbox强一致与消费者幂等.md)              | Outbox+幂等+重试边界                       | 已接受 |
+| [ADR-026](adr/ADR-026-开发环境认证旁路安全边界.md)              | DEV_SKIP_AUTH                              | 已接受 |
+| [ADR-027](adr/ADR-027-100x容量拐点与缓解.md)                    | 100x 容量                                  | 已接受 |
+| [ADR-031](adr/ADR-031-单引擎fail-closed降级.md)                 | 单引擎 fail-closed 降级                    | 已接受 |
+| [ADR-032](adr/ADR-032-多租户RLS隔离模型.md)                     | 多租户 RLS 隔离                            | 已接受 |
+| [ADR-033](adr/ADR-033-按组织API密钥.md)                         | 按组织 API 密钥                            | 已接受 |
+| [ADR-034](adr/ADR-034-服务端持久化与前端认证.md)                | 服务端持久化 + 前端认证                    | 已接受 |
+| [ADR-035](adr/ADR-035-自助注册与组织邀请.md)                    | 自助注册与组织邀请                         | 已接受 |
+| [ADR-036](adr/ADR-036-Stripe计费.md)                            | Stripe 计费                                | 已接受 |
+| [ADR-037](adr/ADR-037-配额计量与公平调度.md)                    | 配额计量与公平调度                         | 已接受 |
+| [ADR-038](adr/ADR-038-ci-tiering-and-dependency-enforcement.md) | CI 分层与依赖方向强制                      | 已接受 |
+| [ADR-042](adr/ADR-042-api-packages-consolidation.md)            | API 包合并                                 | 已接受 |
+| [ADR-043](adr/ADR-043-baostock-provider双通路职责分离.md)       | baostock 双通路职责分离                    | 已接受 |
+| [ADR-044](adr/ADR-044-otel-saas-replacement.md)                 | OTel SaaS 替换（go-shared + 环境变量切换） | 已接受 |
 
 ---
 
@@ -311,7 +346,7 @@ data/
 | 追踪    | @opentelemetry/sdk-node           | otelgin + OTLP（已接线） |
 | DB 追踪 | @opentelemetry/instrumentation-pg | pgx OTel 集成            |
 
-**Collector 架构**：各服务 → OTel Collector → Jaeger/Tempo（追踪）+ Prometheus（指标）
+**Trace 导出架构**（ADR-044）：各服务 → OTLP HTTP → SaaS 后端（Honeycomb / Datadog / Axiom，通过 `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量切换）。原自建 OTel Collector 已移除，指标仍走 Prometheus 直连。Go 服务的 OTel 初始化代码已收口到 `packages/go-shared/observability/otel.go`。
 
 ---
 

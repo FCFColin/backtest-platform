@@ -31,10 +31,13 @@ importers:
         version: 4.7.0(supports-color@5.5.0)(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       '@vitest/coverage-v8':
         specifier: ^2.1.9
-        version: 2.1.9(supports-color@5.5.0)(vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1)(supports-color@5.5.0))
+        version: 2.1.9(supports-color@5.5.0)(vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@15.11.7)(jsdom@29.1.1)(supports-color@5.5.0))
       concurrently:
         specifier: ^9.2.0
         version: 9.2.3
+      cross-env:
+        specifier: ^7.0.3
+        version: 7.0.3
       dependency-cruiser:
         specifier: ^18.0.0
         version: 18.0.0
@@ -53,15 +56,24 @@ importers:
       eslint-plugin-sonarjs:
         specifier: ^3.0.1
         version: 3.0.7(eslint@9.39.4(jiti@2.7.0)(supports-color@5.5.0))
+      express:
+        specifier: ^4.22.2
+        version: 4.22.2
       fast-check:
         specifier: ^4.8.0
         version: 4.8.0
       globals:
         specifier: ^16.0.0
         version: 16.5.0
+      happy-dom:
+        specifier: ^15.11.7
+        version: 15.11.7
       husky:
         specifier: ^9.0.11
         version: 9.1.7
+      jose:
+        specifier: ^5.10.0
+        version: 5.10.0
       jscpd:
         specifier: ^4.0.5
         version: 4.2.5
@@ -100,7 +112,7 @@ importers:
         version: 5.1.4(supports-color@5.5.0)(typescript@5.8.3)(vite@6.4.3(@types/node@22.20.0)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
       vitest:
         specifier: ^2.1.0
-        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1)(supports-color@5.5.0)
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@15.11.7)(jsdom@29.1.1)(supports-color@5.5.0)
       wait-on:
         specifier: ^9.0.10
         version: 9.0.10(supports-color@5.5.0)
@@ -162,8 +174,8 @@ importers:
         specifier: ^5.10.0
         version: 5.10.0
       nodemailer:
-        specifier: ^6.10.0
-        version: 6.10.1
+        specifier: ^9.0.1
+        version: 9.0.3
       opossum:
         specifier: ^8.5.0
         version: 8.5.0
@@ -291,7 +303,7 @@ importers:
         version: 5.1.4(typescript@5.8.3)(vite@6.4.3(@types/node@22.20.0)(jiti@1.21.7)(tsx@4.23.1)(yaml@2.9.0))
       vitest:
         specifier: ^2.1.0
-        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1)(supports-color@5.5.0)
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1)
 
   packages/shared: {}
 
@@ -2707,6 +2719,11 @@ packages:
     resolution: {integrity: sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==}
     engines: {node: '>=12.0.0'}
 
+  cross-env@7.0.3:
+    resolution: {integrity: sha512-+/HKd6EgcQCJGh2PSjZuUitQBQynKor4wrFbRg4DtAgS1aWO+gU52xpH7M9ScGgXSYmAVS9bIJ8EzuaGw0oNAw==}
+    engines: {node: '>=10.14', npm: '>=6', yarn: '>=1'}
+    hasBin: true
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -2923,6 +2940,10 @@ packages:
   enhanced-resolve@5.24.1:
     resolution: {integrity: sha512-7DdUaTjmNwMcH2gLr1qycesKII3BK4RLy/mdAb7x10Lq7bR4aNKHt1BR1ZALSv0rPM/hF5wYF0PhGop/rJm8vw==}
     engines: {node: '>=10.13.0'}
+
+  entities@4.5.0:
+    resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
+    engines: {node: '>=0.12'}
 
   entities@7.0.1:
     resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
@@ -3352,6 +3373,10 @@ packages:
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
+
+  happy-dom@15.11.7:
+    resolution: {integrity: sha512-KyrFvnl+J9US63TEzwoiJOQzZBJY7KgBushJA8X61DMbNsH+2ONkDuLDnCnwUiPTF42tLoEmrPyoqbenVA5zrg==}
+    engines: {node: '>=18.0.0'}
 
   happy-dom@20.10.6:
     resolution: {integrity: sha512-6QD0ilzDDt93tX44y8tbmZdAcdTRYDhUP+Asgi6pC8Pp5IA3cvaZGyoVN/EGtlq9ziT65iPuBBn3ASLr6hCgVw==}
@@ -3972,8 +3997,8 @@ packages:
     resolution: {integrity: sha512-IWqZF6u0EI/07HTBm+zZ+MgXgWl09dnSJRGaDCPBSlOqilDcx6pj3Mpb3HvPN8V2Gr+ISw7ZrMsL7STWs1F++w==}
     engines: {node: '>=20'}
 
-  nodemailer@6.10.1:
-    resolution: {integrity: sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA==}
+  nodemailer@9.0.3:
+    resolution: {integrity: sha512-n+YP+NKwR5zRWa60k3GiQ6Q3B4KXCoAw40dAKeCtYn020iNN74aWK2liXIC3ZEATeGql7we3tE3t8QwhY0eskw==}
     engines: {node: '>=6.0.0'}
 
   nodemon@3.1.14:
@@ -5314,6 +5339,10 @@ packages:
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
+
+  webidl-conversions@7.0.0:
+    resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
+    engines: {node: '>=12'}
 
   webidl-conversions@8.0.1:
     resolution: {integrity: sha512-BMhLD/Sw+GbJC21C/UgyaZX41nPt8bUTg+jWyDeg7e7YN4xOM05YPSIXceACnXVtqyEw/LMClUQMtMZ+PGGpqQ==}
@@ -7340,7 +7369,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitest/coverage-v8@2.1.9(supports-color@5.5.0)(vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1)(supports-color@5.5.0))':
+  '@vitest/coverage-v8@2.1.9(supports-color@5.5.0)(vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@15.11.7)(jsdom@29.1.1)(supports-color@5.5.0))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 0.2.3
@@ -7354,7 +7383,7 @@ snapshots:
       std-env: 3.10.0
       test-exclude: 7.0.2
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1)(supports-color@5.5.0)
+      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@15.11.7)(jsdom@29.1.1)(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -7925,6 +7954,10 @@ snapshots:
     dependencies:
       luxon: 3.7.2
 
+  cross-env@7.0.3:
+    dependencies:
+      cross-spawn: 7.0.6
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -8125,6 +8158,8 @@ snapshots:
     dependencies:
       graceful-fs: 4.2.11
       tapable: 2.3.3
+
+  entities@4.5.0: {}
 
   entities@7.0.1:
     optional: true
@@ -8666,6 +8701,12 @@ snapshots:
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
+
+  happy-dom@15.11.7:
+    dependencies:
+      entities: 4.5.0
+      webidl-conversions: 7.0.0
+      whatwg-mimetype: 3.0.0
 
   happy-dom@20.10.6:
     dependencies:
@@ -9313,7 +9354,7 @@ snapshots:
       '@types/sarif': 2.1.7
       fs-extra: 11.1.1
 
-  nodemailer@6.10.1: {}
+  nodemailer@9.0.3: {}
 
   nodemon@3.1.14:
     dependencies:
@@ -10802,7 +10843,45 @@ snapshots:
       tsx: 4.23.1
       yaml: 2.9.0
 
-  vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1)(supports-color@5.5.0):
+  vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@15.11.7)(jsdom@29.1.1)(supports-color@5.5.0):
+    dependencies:
+      '@vitest/expect': 2.1.9
+      '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.20.0))
+      '@vitest/pretty-format': 2.1.9
+      '@vitest/runner': 2.1.9
+      '@vitest/snapshot': 2.1.9
+      '@vitest/spy': 2.1.9
+      '@vitest/utils': 2.1.9
+      chai: 5.3.3
+      debug: 4.4.3(supports-color@5.5.0)
+      expect-type: 1.4.0
+      magic-string: 0.30.21
+      pathe: 1.1.2
+      std-env: 3.10.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinypool: 1.1.1
+      tinyrainbow: 1.2.0
+      vite: 5.4.21(@types/node@22.20.0)
+      vite-node: 2.1.9(@types/node@22.20.0)(supports-color@5.5.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@edge-runtime/vm': 3.2.0
+      '@types/node': 22.20.0
+      happy-dom: 15.11.7
+      jsdom: 29.1.1
+    transitivePeerDependencies:
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
+  vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.20.0)(happy-dom@20.10.6)(jsdom@29.1.1):
     dependencies:
       '@vitest/expect': 2.1.9
       '@vitest/mocker': 2.1.9(vite@5.4.21(@types/node@22.20.0))
@@ -10863,10 +10942,11 @@ snapshots:
 
   web-streams-polyfill@3.3.3: {}
 
+  webidl-conversions@7.0.0: {}
+
   webidl-conversions@8.0.1: {}
 
-  whatwg-mimetype@3.0.0:
-    optional: true
+  whatwg-mimetype@3.0.0: {}
 
   whatwg-mimetype@5.0.0: {}
 

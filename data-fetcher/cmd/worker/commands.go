@@ -1,6 +1,6 @@
 package main
 
-// CLI 子命令实现（fetch / update）。
+// CLI 子命令实现（fetch / update / seed）。
 // 从 cmd/worker/main.go 抽取（Task 2.7 单一职责拆分）。
 
 import (
@@ -21,7 +21,20 @@ func cmdFetch(cfg *WorkerConfig, ticker, startDate, endDate string) error {
 	return fetchAndStore(ctx, pool, ticker, startDate, endDate)
 }
 
+// cmdSeed 将默认 ETF 宇宙种子化到数据库。
+func cmdSeed(cfg *WorkerConfig) error {
+	ctx := context.Background()
+	pool, err := initDB(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return fmt.Errorf("数据库连接失败: %w", err)
+	}
+	defer pool.Close()
+
+	return seedUniverse(ctx, pool)
+}
+
 // cmdUpdate 更新所有标的；incremental=true 时启用断点续传（跳过今日已更新标的）。
+// 若 tickers 表为空，自动种子化默认 ETF 宇宙。
 func cmdUpdate(cfg *WorkerConfig, incremental bool) error {
 	ctx := context.Background()
 	pool, err := initDB(ctx, cfg.DatabaseURL)
@@ -29,6 +42,17 @@ func cmdUpdate(cfg *WorkerConfig, incremental bool) error {
 		return fmt.Errorf("数据库连接失败: %w", err)
 	}
 	defer pool.Close()
+
+	empty, err := isTickerTableEmpty(ctx, pool)
+	if err != nil {
+		return fmt.Errorf("检查 tickers 表失败: %w", err)
+	}
+	if empty {
+		slog.Info("tickers 表为空，自动种子化默认 ETF 宇宙")
+		if err := seedUniverse(ctx, pool); err != nil {
+			return fmt.Errorf("种子化 ETF 宇宙失败: %w", err)
+		}
+	}
 
 	tickers, err := loadTickerList(ctx, pool)
 	if err != nil {
@@ -40,7 +64,6 @@ func cmdUpdate(cfg *WorkerConfig, incremental bool) error {
 
 	successCount := 0
 	for i, ticker := range tickers {
-		// 断点续传：通过 worker_progress 表检查今日是否已更新
 		if incremental {
 			var updatedAt *time.Time
 			err := pool.QueryRow(ctx, "SELECT updated_at FROM worker_progress WHERE ticker = $1", ticker).Scan(&updatedAt)
@@ -50,7 +73,7 @@ func cmdUpdate(cfg *WorkerConfig, incremental bool) error {
 			}
 		}
 
-		startDate := "2020-01-01"
+		startDate := "2000-01-01"
 		if incremental {
 			var lastDate *string
 			err := pool.QueryRow(ctx, "SELECT last_date FROM worker_progress WHERE ticker = $1", ticker).Scan(&lastDate)

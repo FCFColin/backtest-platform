@@ -118,28 +118,17 @@ function spawnLocalService(cwd, args, label) {
 /** 启动子进程（无头时后台运行，交互时前台） */
 function startProcess(cmd, args, opts = {}) {
   const tag = opts.tag || cmd;
-  if (HEADLESS && isWin) {
-    // Windows 下用 Start-Process 实现真正 detached（避免 spawn+shell 子进程被回收）
-    const escapedArgs = args.map((a) => `"${a.replace(/"/g, '\\"')}"`).join(' ');
-    const envBlock = (
-      opts.env
-        ? Object.entries(opts.env).filter(([k]) => !['HEADLESS', 'NODE_DEBUG'].includes(k))
-        : []
-    )
-      .map(([k, v]) => `$env:${k}="${String(v).replace(/"/g, '\\"')}"`)
-      .join('; ');
-    const wd = opts.cwd ? `-WorkingDirectory "${opts.cwd}"` : '';
-    const psCmd = `${envBlock}; Start-Process -FilePath "${cmd}" -ArgumentList ${escapedArgs} ${wd} -WindowStyle Hidden`;
-    exec(psCmd, { shell: 'powershell.exe' }, (err) => {
-      if (err) logTo(tag, `启动失败: ${err.message}`);
-    });
-    return null;
-  }
+  // 全平台统一使用 spawn + detached 实现后台进程分离。
+  // 之前 Windows 用 PowerShell Start-Process 命令字符串传递环境变量，
+  // 但含 JSON/特殊字符的 env 值（如 VSCODE_NLS_CONFIG）会破坏 PowerShell 语法。
+  // spawn 的 env 选项直接以键值对传递，无字符串编码问题。
+  // Windows .cmd/.bat 文件需要 shell:true 才能执行；.exe 可直接 spawn
+  const needsShell = isWin && /\.(cmd|bat)$/i.test(cmd);
   const child = spawn(cmd, args, {
     ...opts,
     stdio: HEADLESS ? 'ignore' : 'inherit',
-    shell: !isWin ? false : undefined, // Windows spawn with shell:true has detach issues
-    detached: !isWin ? true : false, // Unix truly detach; Windows uses Start-Process above
+    shell: needsShell,
+    detached: true,
   });
   if (child) {
     child.unref();
@@ -152,6 +141,9 @@ const env = {
   ...process.env,
   SERVE_STATIC: 'true',
   COMPUTE_RATE_LIMIT_MAX: process.env.COMPUTE_RATE_LIMIT_MAX || '200',
+  // Go 服务间认证 token：dev.mjs 不加载 .env，需显式提供默认值（与后端 engineConfig 默认值一致）
+  ENGINE_AUTH_TOKEN: process.env.ENGINE_AUTH_TOKEN || 'dev-engine-auth-token',
+  DATA_SERVICE_AUTH_TOKEN: process.env.DATA_SERVICE_AUTH_TOKEN || 'dev-data-service-auth-token',
 };
 
 // ------ 服务确保函数 ------
@@ -168,6 +160,7 @@ async function ensureEngineGo() {
       stdio: 'inherit',
       env,
       shell: isWin,
+      timeout: 60_000,
     });
   } catch (err) {
     console.warn('[dev] docker compose up engine-go 失败:', err.message);

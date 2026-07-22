@@ -12,7 +12,7 @@
 #   pg_pool_waiting_count{pool}            (Gauge)
 #   node_eventloop_lag_seconds             (Gauge, P99 事件循环延迟)
 #   go_engine_calls_total{result}          (Counter, success|fallback)
-#   fallback_to_node_total{reason}         (Counter, 引擎不可用事件)
+#   engine_unavailable_total{reason}       (Counter, 引擎不可用事件)
 #   backtest_requests_total{endpoint,mode,status}
 #   pg_pool_total_connections{pool}
 #   data_service_semaphore_permits_available{name}

@@ -4202,6 +4202,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/ApiKeyListItem'
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户缺少 ADMIN_ACCESS 权限,无法管理 API Key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   /keys/{id}:
     delete:
@@ -4263,6 +4281,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Portfolio'
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于任何组织,无法访问租户作用域组合
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达或 RLS 校验失败)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       tags: [saas-portfolios]
       summary: 保存组合
@@ -4355,6 +4391,36 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/Portfolio'
+        '400':
+          description: 请求体校验失败(资产权重不为 100、ticker 为空等)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于该组合的租户,RLS 拒绝访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: 组合不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       tags: [saas-portfolios]
       summary: 删除组合
@@ -4382,6 +4448,30 @@ paths:
                     properties:
                       deleted:
                         type: boolean
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于该组合的租户,RLS 拒绝访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: 组合不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   # ----- /configs：租户作用域命名配置持久化（ADR-034）-----
   /configs:
@@ -4404,6 +4494,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/SavedConfig'
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于任何组织,无法访问租户作用域配置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       tags: [saas-configs]
       summary: 保存命名配置
@@ -4495,6 +4603,36 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/SavedConfig'
+        '400':
+          description: 请求体校验失败(配置名空、payload 不合法等)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于该配置的租户,RLS 拒绝访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: 配置不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       tags: [saas-configs]
       summary: 删除命名配置
@@ -4522,6 +4660,30 @@ paths:
                     properties:
                       deleted:
                         type: boolean
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于该配置的租户,RLS 拒绝访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: 配置不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   # ----- /runs：租户作用域回测历史持久化（ADR-034，不可变快照）-----
   /runs:
@@ -4544,6 +4706,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/BacktestRun'
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于任何组织,无法访问租户作用域回测历史
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       tags: [saas-runs]
       summary: 保存回测历史快照
@@ -4570,6 +4750,30 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/BacktestRun'
+        '400':
+          description: 请求体校验失败(回测参数缺失、payload 不合法等)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于任何组织,无法保存租户作用域回测历史
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   /runs/{id}:
     get:
@@ -4617,6 +4821,38 @@ paths:
       responses:
         '200':
           description: 删除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      deleted:
+                        type: boolean
+        '401':
+          description: 未携带或携带无效 JWT,需先登录获取 Bearer token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于该回测历史的租户,RLS 拒绝访问
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: 回测历史不存在或不属于当前租户
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务端内部错误(如数据库不可达)
           content:
             application/json:
               schema:
@@ -4690,6 +4926,30 @@ paths:
                     properties:
                       updated:
                         type: boolean
+        '400':
+          description: 请求体格式错误或 name 校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: 未认证或令牌失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户无 ADMIN_ACCESS 权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   /orgs/members:
     get:
@@ -4712,6 +4972,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/OrgMember'
+        '401':
+          description: 未认证或令牌失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于任何组织
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   /orgs/members/{userId}:
     patch:
@@ -4826,6 +5104,24 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Invitation'
+        '401':
+          description: 未认证或令牌失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户无 ADMIN_ACCESS 权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务器内部错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       tags: [saas-orgs]
       summary: 创建组织邀请
@@ -4863,6 +5159,30 @@ paths:
                       expiresAt:
                         type: string
                         format: date-time
+        '400':
+          description: 请求体格式错误或 role 非法（不能邀请为 owner）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
+          description: 未认证或令牌失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户无 ADMIN_ACCESS 权限
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务器内部错误（邮件发送失败不影响邀请创建）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   /orgs/invitations/accept:
     post:
@@ -4963,6 +5283,24 @@ paths:
                     type: boolean
                   data:
                     $ref: '#/components/schemas/BillingSubscriptionResponse'
+        '401':
+          description: 未认证或令牌失效
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
+          description: 当前用户不属于任何组织
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
+          description: 服务器内部错误或 Stripe API 异常
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
 
   /billing/checkout:
     post:

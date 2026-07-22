@@ -58,5 +58,12 @@ export default {
     },
     includeOnly: { path: ['packages/backend/src', 'packages/frontend/src', 'packages/shared'] },
     tsPreCompilationDeps: true,
+    // 启用 TypeScript paths 解析,使 @/ 别名(定义在 tsconfig.frontend.json)
+    // 与 @backtest/shared 别名(定义在 tsconfig.base.json)被正确解析,
+    // 消除 ~40 个假阳性 orphan 报告。
+    tsConfig: { fileName: './tsconfig.frontend.json' },
+    enhancedResolveOptions: {
+      extensions: ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json'],
+    },
   },
 };

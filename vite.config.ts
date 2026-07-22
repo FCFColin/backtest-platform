@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import istanbul from 'vite-plugin-istanbul';
@@ -26,7 +26,6 @@ const frontendAlias: Record<string, string> = {
   'react-dom': path.resolve(frontendNodeModules, 'react-dom'),
   'react-router-dom': path.resolve(frontendNodeModules, 'react-router-dom'),
   recharts: path.resolve(frontendNodeModules, 'recharts'),
-  zustand: path.resolve(frontendNodeModules, 'zustand'),
   'lucide-react': path.resolve(frontendNodeModules, 'lucide-react'),
   i18next: path.resolve(frontendNodeModules, 'i18next'),
   'react-i18next': path.resolve(frontendNodeModules, 'react-i18next'),
@@ -35,6 +34,34 @@ const frontendAlias: Record<string, string> = {
     'i18next-browser-languagedetector',
   ),
 };
+
+/**
+ * esbuild 预编译 zustand v5 时，无法正确处理 ESM 子路径导出
+ * （zustand/vanilla、zustand/react），导致生成的预编译模块缺失 export 语句。
+ * resolve.alias 对 node_modules 内部导入不生效，因此使用 Vite 插件的
+ * resolveId hook 拦截 zustand 全部裸导入，直接指向 ESM 入口。
+ */
+function zustandEsmResolver(): Plugin {
+  const zustandEsm = path.resolve(frontendNodeModules, 'zustand/esm');
+  const zustandMap: Record<string, string> = {
+    zustand: 'index.mjs',
+    'zustand/vanilla': 'vanilla.mjs',
+    'zustand/vanilla/shallow': 'vanilla/shallow.mjs',
+    'zustand/react': 'react.mjs',
+    'zustand/react/shallow': 'react/shallow.mjs',
+    'zustand/shallow': 'shallow.mjs',
+    'zustand/middleware': 'middleware.mjs',
+  };
+  return {
+    name: 'zustand-esm-resolver',
+    enforce: 'pre',
+    resolveId(source) {
+      const target = zustandMap[source];
+      if (target) return path.join(zustandEsm, target);
+      return null;
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
@@ -45,6 +72,7 @@ export default defineConfig(({ command }) => ({
     dedupe: ['react', 'react-dom', 'react-router-dom', 'recharts', 'zustand'],
   },
   plugins: [
+    zustandEsmResolver(),
     react(),
     tsconfigPaths(),
     ...(enableCoverage && command === 'serve'
@@ -68,11 +96,11 @@ export default defineConfig(({ command }) => ({
       'react-router-dom',
       'recharts',
       'lucide-react',
-      'zustand',
       'i18next',
       'react-i18next',
       'i18next-browser-languagedetector',
     ],
+    exclude: ['zustand'],
   },
   build: {
     rollupOptions: {

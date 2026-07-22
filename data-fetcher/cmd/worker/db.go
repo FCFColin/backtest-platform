@@ -6,7 +6,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -93,8 +95,45 @@ func loadTickerList(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {
 		}
 		tickers = append(tickers, t)
 	}
-	if len(tickers) == 0 {
-		return nil, fmt.Errorf("数据库中无标的记录")
-	}
 	return tickers, nil
+}
+
+// isTickerTableEmpty 检查 tickers 表是否为空。
+func isTickerTableEmpty(ctx context.Context, pool *pgxpool.Pool) (bool, error) {
+	var count int
+	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM tickers").Scan(&count); err != nil {
+		return false, fmt.Errorf("查询 tickers 表计数失败: %w", err)
+	}
+	return count == 0, nil
+}
+
+// seedUniverse 将默认 ETF 宇宙批量插入到 tickers 表（幂等）。
+func seedUniverse(ctx context.Context, pool *pgxpool.Pool) error {
+	if pool == nil {
+		return fmt.Errorf("数据库未连接")
+	}
+
+	batch := &pgx.Batch{}
+	for _, meta := range DefaultETFUniverse {
+		batch.Queue(`
+			INSERT INTO tickers (ticker, name, market, category)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (ticker) DO UPDATE SET
+				name = EXCLUDED.name,
+				market = EXCLUDED.market,
+				category = EXCLUDED.category
+		`, meta.Ticker, meta.Name, meta.Market, meta.Category)
+	}
+
+	br := pool.SendBatch(ctx, batch)
+	defer br.Close()
+
+	for range DefaultETFUniverse {
+		if _, err := br.Exec(); err != nil {
+			return fmt.Errorf("插入 ticker 失败: %w", err)
+		}
+	}
+
+	slog.Info("已种子化默认 ETF 宇宙", "count", len(DefaultETFUniverse))
+	return nil
 }

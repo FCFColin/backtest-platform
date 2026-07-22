@@ -99,6 +99,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     # Exploratory（非阻断）：bench/coverage 属深度质量门，阈值波动与外部依赖
     # 可能导致边际失败，不阻断合并以便持续观察趋势。
     continue-on-error: true
@@ -260,6 +269,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -290,7 +308,9 @@ jobs:
         run: pnpm run test:integration
         env:
           DATABASE_URL: postgresql://backtest:backtest@localhost:5432/backtest_test
+          REDIS_URL: redis://localhost:6379
           NODE_ENV: test
+          RUN_TESTCONTAINERS: '1'
 
   contract:
     name: Contract Tests (optional)
@@ -390,12 +410,13 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Start dependency stack
-        run: docker compose up -d postgres redis engine-go
+        run: docker compose up -d postgres redis engine-go data-fetcher
 
-      - name: Wait for Postgres and Go engine
+      - name: Wait for Postgres and Go services
         run: |
           npx wait-on tcp:127.0.0.1:5432 --timeout 120000
           npx wait-on http://127.0.0.1:5004/api/engine/health --timeout 120000
+          npx wait-on http://127.0.0.1:5003/api/data/health --timeout 120000
 
       - name: Run E2E tests
         run: pnpm run test:e2e:ui
@@ -672,9 +693,40 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # Chaos tests 需要 docker compose 全栈运行（postgres + redis + engine-go + api）
+      # 才能对 API (127.0.0.1:5001) 发起网络分区 / 重启实验
+      - name: Build backend API image
+        run: docker build -f Dockerfile.backend -t backtest-api:chaos .
+
+      - name: Build engine-go image
+        run: docker build -f engine-go/Dockerfile -t backtest-engine-go:chaos engine-go/
+
+      - name: Start full application stack
+        run: docker compose up -d postgres redis engine-go api
+
+      - name: Wait for stack readiness
+        run: |
+          npx wait-on tcp:127.0.0.1:5432 --timeout 120000
+          npx wait-on tcp:127.0.0.1:6379 --timeout 120000
+          npx wait-on http://127.0.0.1:5001/api/health --timeout 180000
+          npx wait-on http://127.0.0.1:5004/api/engine/health --timeout 120000
+
       - name: Run chaos tests
         run: pnpm run test:chaos
         env:
           NODE_ENV: test
+          RUN_TESTCONTAINERS: '1'
+          API_URL: http://127.0.0.1:5001
