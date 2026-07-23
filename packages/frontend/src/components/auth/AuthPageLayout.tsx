@@ -5,7 +5,7 @@
  *              支持两种头部布局：水平（icon + h1 在 flex 行内，左对齐）与居中（icon 居中、h1 居中）。
  */
 import type { CSSProperties, ReactNode } from 'react';
-import BrandIconBadge from './BrandIconBadge';
+import { BrandIconBadge } from './formFields.js';
 
 interface AuthPageLayoutProps {
   /** 品牌图标元素。水平布局下自动包裹 <BrandIconBadge size="sm">；居中布局下原样渲染 */

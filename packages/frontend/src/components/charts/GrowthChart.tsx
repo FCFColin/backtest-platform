@@ -154,10 +154,13 @@ function GrowthChartContent({
         />
         <ChartTooltip
           labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
-          formatter={(value: number) => [
-            `${CURRENCY_SYMBOL[baseCurrency]}${value.toLocaleString()}`,
-            '',
-          ]}
+          formatter={(value: number, name: string) => {
+            const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
+            return [
+              `${CURRENCY_SYMBOL[baseCurrency]}${numValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+              name,
+            ];
+          }}
         />
         <ChartLegend />
         {portfolios.map((p, idx) => (
@@ -165,10 +168,11 @@ function GrowthChartContent({
             key={p.name}
             type="monotone"
             dataKey={p.name}
+            name={p.name}
             stroke={CHART_COLORS[idx % CHART_COLORS.length]}
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 4 }}
+            activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
           />
         ))}
       </LineChart>

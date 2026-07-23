@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getCorrelationColor } from './chartColors.js';
+import { getCorrelationColor } from './chartConstants.js';
 import { getCorrelationTextColor } from './correlationDataTransforms.js';
 import { MatrixHeatmap } from './MatrixHeatmap.js';
 import ChartCard from '../ChartCard.js';

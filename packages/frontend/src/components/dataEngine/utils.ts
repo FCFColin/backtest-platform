@@ -1,15 +1,31 @@
-/** @file DataEngine utility functions */
-import type { Stats, TFunc, UniverseStats } from './types.js';
-import { MAX_POLL, INITIAL_TIMEOUT_MS } from './types.js';
+/**
+ * @file DataEngine 共享类型、常量与工具函数
+ * @description 合并自 types.ts 与 utils.ts。
+ *   类型/常量供 dataEngine 子组件与外部 hook 共享；工具函数封装轮询、格式化等逻辑。
+ */
+import { useTranslation } from 'react-i18next';
+import type { MarketStats } from '@backtest/shared/types';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
 
-export const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
+// ============ 共享类型与常量 ============
 
-export const pct = (n: number | undefined | null, total: number) => {
-  const val = n ?? 0;
-  return total > 0 ? `${((val / total) * 100).toFixed(1)}%` : '0%';
-};
+export type TFunc = ReturnType<typeof useTranslation>['t'];
+
+export type Stats = MarketStats;
+
+export interface UniverseStats {
+  total: number;
+  updated_at: string;
+  stats: { total: number; stocks: number; etfs: number; indices: number; us: number; cn: number };
+}
+
+export const MAX_POLL = 60;
+export const INITIAL_TIMEOUT_MS = 15_000;
+
+// ============ 工具函数 ============
+
+export const fmt = (n?: number | null) => (n ?? 0).toLocaleString();
 
 export function formatStorageMb(mb: number): string {
   if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;

@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import { CHART_GRID_PROPS } from './chartConstants.js';
+import { CHART_GRID_PROPS, CHART_MARGIN } from './chartConstants.js';
 import {
   downsample,
   DOWNSAMPLE_THRESHOLD,
@@ -100,27 +100,30 @@ function RegressionScatterChart({
   return (
     <div style={{ flex: '1 1 300px', minWidth: 0 }}>
       <ResponsiveContainer width="100%" height={400}>
-        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+        <ScatterChart margin={CHART_MARGIN}>
           <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
           <ChartXAxis
             type="number"
             dataKey="x"
             name={t('charts.regression.baseDailyReturn')}
             label={t('charts.regression.dailyReturnAxis', { name: baseName })}
+            tickFormatter={(v: number | string) => `${Number(v).toFixed(2)}%`}
           />
           <ChartYAxis
             type="number"
             dataKey="y"
             name={t('charts.regression.targetDailyReturn')}
             label={t('charts.regression.dailyReturnAxis', { name: reg.name })}
+            tickFormatter={(v: number | string) => `${Number(v).toFixed(2)}%`}
           />
           <ChartTooltip
+            cursor={false}
             formatter={(value: number, name: string) => {
               if (name === 'x')
                 return [`${value.toFixed(4)}%`, t('charts.regression.baseDailyReturn')];
               if (name === 'y')
                 return [`${value.toFixed(4)}%`, t('charts.regression.targetDailyReturn')];
-              return [value, name];
+              return [String(value), name];
             }}
             labelFormatter={() => ''}
           />
@@ -133,7 +136,7 @@ function RegressionScatterChart({
             strokeDasharray="6 3"
             strokeWidth={2}
           />
-          <Scatter data={scatterPoints} fill={color} fillOpacity={0.4} r={2} />
+          <Scatter data={scatterPoints} fill={color} fillOpacity={0.4} r={2} {...({ activeDot: { r: 4, stroke: 'var(--bg-elevated)', strokeWidth: 2 } } as object)} />
         </ScatterChart>
       </ResponsiveContainer>
     </div>

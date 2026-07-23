@@ -1,11 +1,14 @@
 /**
  * @file 结果区外壳组件
- * @description 推广自 SignalResultsPanel 的 EmptyResultsHint/AnalysisErrorAlert
- *              的通用结果区外壳，统一空态/错误态的展示模式。
+ * @description 推广自 SignalResultsPanel 的 EmptyResultsHint/AnalysisErrorAlert/WarningBanners
+ *              的通用结果区外壳，统一空态/错误态/警告横幅的展示模式。
  *
  * 调用方负责传入 i18n 文本（prefix/text），本组件不假设存在全局 common key。
  */
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
+import ErrorBanner from './ErrorBanner.js';
+import type { WarningInfo } from '../utils/errorI18nMap.js';
+import type { DateRangeInfo } from '../store/types.js';
 
 /** 错误提示 Props */
 interface AnalysisErrorAlertProps {
@@ -69,4 +72,51 @@ export function EmptyResultsHint({ text, className = 'card' }: EmptyResultsHintP
       {text}
     </div>
   );
+}
+
+/** WarningBanners Props */
+interface WarningBannersProps {
+  /** 后端返回的警告列表 */
+  warnings: WarningInfo[];
+  /** 日期范围信息；clamped/missingTickers 用于生成额外横幅 */
+  dateRange: DateRangeInfo | null;
+}
+
+/**
+ * 警告横幅组
+ *
+ * 统一渲染日期范围裁剪、缺失标的、其他业务警告三类横幅。
+ * 日期范围裁剪横幅会带上 requested/actual 字段供 i18n 插值。
+ */
+export function WarningBanners({ warnings, dateRange }: WarningBannersProps) {
+  const banners: ReactNode[] = [];
+  if (dateRange?.clamped) {
+    banners.push(
+      <ErrorBanner
+        key="date-clamped"
+        warning={{
+          code: 'DATE_RANGE_CLAMPED',
+          requestedStart: dateRange.requested.start,
+          requestedEnd: dateRange.requested.end,
+          actualStart: dateRange.actual.start,
+          actualEnd: dateRange.actual.end,
+        }}
+        variant="info"
+      />,
+    );
+  }
+  if (dateRange?.missingTickers && dateRange.missingTickers.length > 0) {
+    banners.push(
+      <ErrorBanner
+        key="missing-tickers"
+        warning={{ code: 'TICKER_NOT_FOUND', tickers: dateRange.missingTickers }}
+        variant="warning"
+      />,
+    );
+  }
+  for (const w of warnings) {
+    if (w.code === 'DATE_RANGE_CLAMPED' || w.code === 'TICKER_NOT_FOUND') continue;
+    banners.push(<ErrorBanner key={w.code || Math.random()} warning={w} variant="warning" />);
+  }
+  return <>{banners}</>;
 }

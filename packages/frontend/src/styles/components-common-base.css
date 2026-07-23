@@ -1,0 +1,132 @@
+/* ============================================
+   通用基础组件 - 卡片、骨架屏、图表、滚动条、全局链接
+   ============================================ */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+}
+
+/* 骨架屏 shimmer 灰条 */
+.skeleton-bar {
+  background: linear-gradient(
+    90deg,
+    var(--bg-subtle) 0%,
+    color-mix(in srgb, var(--bg-subtle) 50%, var(--bg-elevated)) 50%,
+    var(--bg-subtle) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-bar {
+    animation: none;
+  }
+}
+
+/* 图表卡片 */
+.chart-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+.chart-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 16px;
+}
+
+/* 通用输入框 */
+input[type='text'],
+input[type='number'],
+input[type='date'],
+select {
+  font-family: inherit;
+}
+
+select option {
+  background-color: var(--bg-elevated);
+  color: var(--text-body);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Recharts 图表样式 */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border-soft) !important;
+  stroke-opacity: 0.6 !important;
+  stroke-width: 1 !important;
+  stroke-dasharray: none !important;
+}
+.recharts-text {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+.recharts-default-tooltip {
+  background-color: var(--bg-elevated) !important;
+  border: 1px solid var(--border-soft) !important;
+  border-radius: var(--radius-card) !important;
+  box-shadow: var(--shadow-md) !important;
+  font-size: 12px !important;
+  color: var(--text-strong) !important;
+  padding: 10px 14px !important;
+}
+.recharts-default-tooltip .recharts-tooltip-label {
+  color: var(--text-body) !important;
+  margin-bottom: 6px !important;
+  font-weight: 500 !important;
+}
+.recharts-default-tooltip .recharts-tooltip-item {
+  color: var(--text-strong) !important;
+  padding: 2px 0 !important;
+}
+.recharts-legend-item-text {
+  color: var(--text-muted) !important;
+  font-size: 12px !important;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+/* 全局链接样式（原 components-portfolio.css 末尾迁入） */
+a {
+  color: var(--brand);
+}
+
+a:hover {
+  text-decoration: underline;
+}
