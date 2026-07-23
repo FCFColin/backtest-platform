@@ -1,30 +1,19 @@
 import { z } from 'zod';
-import { MAX_TICKERS } from '@backtest/shared/constants';
+import { MAX_TICKERS, ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
+import { TICKER_PATTERN } from '../utils/tickerValidation.js';
+import { assetSchema } from './shared.js';
 
 // Validation: 回测路由请求体运行时校验，防止TypeScript类型断言绕过
 // 企业为何需要：TypeScript类型仅在编译时检查，运行时req.body可包含任意数据
 // 权衡：增加schema定义维护成本，但安全性远高于类型断言
 
 // Security (T-33): 权重为百分比幅度，必须非负；组合级 refine 约束权重和≈100。
-const assetSchema = z.object({
-  ticker: z.string().min(1),
-  weight: z.number().nonnegative('weight 必须为非负数'),
-});
-
 const portfolioSchema = z
   .object({
     id: z.string().optional(),
     name: z.string().optional(),
     assets: z.array(assetSchema).min(1),
-    rebalanceFrequency: z.enum([
-      'daily',
-      'weekly',
-      'monthly',
-      'quarterly',
-      'annual',
-      'none',
-      'threshold',
-    ]),
+    rebalanceFrequency: z.enum(ALL_REBALANCE_FREQUENCIES),
     rebalanceThreshold: z.number().optional(),
     rebalanceOffset: z.number().optional(),
     drag: z.number().optional(),
@@ -40,7 +29,10 @@ const portfolioSchema = z
       const sum = p.assets.reduce((acc, a) => acc + a.weight, 0);
       return Math.abs(sum - 100) <= 1;
     },
-    { message: '组合资产权重之和应约为 100（允许 ±1 容差）', path: ['assets'] },
+    {
+      message: 'Portfolio weights must sum to approximately 100 (±1 tolerance allowed)',
+      path: ['assets'],
+    },
   );
 
 // Security (T-14 / A04 业务逻辑校验)：现金流金额为"幅度"，方向由 type 表达。
@@ -80,7 +72,7 @@ const backtestParametersSchema = z
   // 轻则空结果，重则数组越界或被用于构造异常输入。ISO YYYY-MM-DD 可直接字典序比较。
   // 空字符串表示"全部历史"，跳过日期范围校验。
   .refine((data) => !data.startDate || !data.endDate || data.startDate <= data.endDate, {
-    message: 'startDate 必须早于或等于 endDate',
+    message: 'startDate must be before or equal to endDate',
     path: ['endDate'],
   });
 
@@ -89,10 +81,6 @@ export const portfolioBacktestSchema = z.object({
   portfolios: z.array(portfolioSchema).min(1),
   parameters: backtestParametersSchema,
 });
-
-// Security (T-23): ticker 安全净化正则（与 utils/tickerValidation.ts TICKER_PATTERN 同源）。
-// 仅允许大写字母、数字、点、下划线、连字符，长度 1-20，防路径遍历/子进程注入。
-const TICKER_PATTERN = /^[A-Z0-9._-]{1,20}$/;
 
 /**
  * Ticker 列表 schema：接受字符串数组或逗号/空白分隔的字符串。
@@ -114,11 +102,11 @@ const tickerListSchema = z
     (Array.isArray(val) ? val : val.split(/[\s,]+/)).map((t) => t.trim()).filter(Boolean),
   )
   .refine((tickers) => tickers.length > 0, {
-    message: 'tickers 不能为空',
+    message: 'Tickers cannot be empty',
     path: ['tickers'],
   })
   .refine((tickers) => tickers.length <= MAX_TICKERS, {
-    message: `ticker 数量超过限制 (max ${MAX_TICKERS})`,
+    message: `Ticker count exceeds limit (max ${MAX_TICKERS})`,
     path: ['tickers'],
   })
   .superRefine((tickers, ctx) => {

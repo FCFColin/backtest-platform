@@ -34,7 +34,7 @@ import {
  *    将 ADMIN_API_KEY 视为最后手段并妥善保管。
  *
  * @param apiKey - 客户端提供的明文 x-api-key
- * @returns 解析出的 JwtPayload，无效时返回 null
+ * @returns 解析出的 JwtPayload，无效或异常时返回 null
  */
 async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
   if (typeof apiKey !== 'string' || apiKey.length === 0 || apiKey.length > 128) {
@@ -42,43 +42,35 @@ async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
   }
   const nowSec = Math.floor(Date.now() / 1000);
 
-  // 1) 按组织的 DB 密钥（主路径）
-  const verified = await verifyApiKey(apiKey);
-  if (verified) {
-    return {
-      sub: `apikey:${verified.keyId}`,
-      role: 'analyst',
-      tenant_id: verified.orgId,
-      org_role: 'analyst',
-      iat: nowSec,
-      exp: nowSec + ACCESS_TOKEN_EXPIRES_IN_SEC,
-    };
-  }
-
-  // 2) 可选 ADMIN_API_KEY 破窗平台密钥
-  if (config.ADMIN_API_KEY && apiKey.length === config.ADMIN_API_KEY.length) {
-    const a = Buffer.from(apiKey, 'utf-8');
-    const b = Buffer.from(config.ADMIN_API_KEY, 'utf-8');
-    if (crypto.timingSafeEqual(a, b)) {
+  try {
+    // 1) 按组织的 DB 密钥（主路径）
+    const verified = await verifyApiKey(apiKey);
+    if (verified) {
       return {
-        sub: 'platform:break-glass',
-        role: 'admin',
-        platform_admin: true,
+        sub: `apikey:${verified.keyId}`,
+        role: 'analyst',
+        tenant_id: verified.orgId,
+        org_role: 'analyst',
         iat: nowSec,
         exp: nowSec + ACCESS_TOKEN_EXPIRES_IN_SEC,
       };
     }
-  }
 
-  return null;
-}
-
-/** 从请求头提取并解析 x-api-key，返回 User 或 null。 */
-async function resolveApiKeyFromHeader(req: AuthenticatedRequest): Promise<JwtPayload | null> {
-  const apiKey = req.headers['x-api-key'] as string | undefined;
-  if (!apiKey) return null;
-  try {
-    return await resolveApiKeyUser(apiKey);
+    // 2) 可选 ADMIN_API_KEY 破窗平台密钥
+    if (config.ADMIN_API_KEY && apiKey.length === config.ADMIN_API_KEY.length) {
+      const a = Buffer.from(apiKey, 'utf-8');
+      const b = Buffer.from(config.ADMIN_API_KEY, 'utf-8');
+      if (crypto.timingSafeEqual(a, b)) {
+        return {
+          sub: 'platform:break-glass',
+          role: 'admin',
+          platform_admin: true,
+          iat: nowSec,
+          exp: nowSec + ACCESS_TOKEN_EXPIRES_IN_SEC,
+        };
+      }
+    }
+    return null;
   } catch {
     return null;
   }
@@ -93,7 +85,7 @@ export async function handleApiKeyAuth(
   const apiKey = req.headers['x-api-key'] as string | undefined;
   if (!apiKey) return;
 
-  const user = await resolveApiKeyFromHeader(req);
+  const user = await resolveApiKeyUser(apiKey);
   if (user) {
     req.user = user;
     attachAuthLogContext(req);
@@ -115,7 +107,7 @@ export async function handleApiKeyAuth(
     { middleware: 'jwtAuth', path: req.path, error: 'API Key 无效', requestId: req.id },
     '[jwtAuth] JWT 认证失败',
   );
-  sendProblem(res, 401, 'INVALID_API_KEY', 'Unauthorized', { detail: 'API Key 无效' });
+  sendProblem(res, 401, 'INVALID_API_KEY');
 }
 
 /** 可选模式：处理 x-api-key，失败时匿名放行 */
@@ -130,7 +122,7 @@ export function handleOptionalApiKey(req: AuthenticatedRequest, next: NextFuncti
     next();
     return;
   }
-  void resolveApiKeyFromHeader(req).then((user) => {
+  void resolveApiKeyUser(apiKey).then((user) => {
     if (user) {
       req.user = user;
       attachAuthLogContext(req);

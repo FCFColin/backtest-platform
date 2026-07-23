@@ -71,9 +71,7 @@ router.post(
     const lockRemaining = await isLockedOut(username);
     if (lockRemaining > 0) {
       logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
-      sendProblem(res, 429, 'ACCOUNT_LOCKED', 'Account locked', {
-        detail: '尝试次数过多，账户暂时锁定，请稍后再试',
-      });
+      sendProblem(res, 429, 'ACCOUNT_LOCKED');
       return;
     }
 
@@ -84,7 +82,7 @@ router.post(
     if (!user) {
       // Security (T-12): 记录失败用于锁定计数。
       await recordFailure(username);
-      sendProblem(res, 401, 'INVALID_CREDENTIALS', 'Unauthorized', { detail: '用户名或密码错误' });
+      sendProblem(res, 401, 'INVALID_CREDENTIALS');
       return;
     }
 
@@ -145,17 +143,13 @@ router.post('/refresh', async (req: Request, res: Response) => {
   const { refreshToken } = req.body as { refreshToken?: string };
 
   if (!refreshToken) {
-    sendProblem(res, 422, 'MISSING_REFRESH_TOKEN', 'Missing refresh token', {
-      detail: '缺少 refreshToken',
-    });
+    sendProblem(res, 422, 'MISSING_REFRESH_TOKEN');
     return;
   }
 
   const result = await refreshAccessToken(refreshToken);
   if (!result) {
-    sendProblem(res, 401, 'INVALID_REFRESH_TOKEN', 'Unauthorized', {
-      detail: 'Refresh Token 无效或已过期',
-    });
+    sendProblem(res, 401, 'INVALID_REFRESH_TOKEN');
     return;
   }
 
@@ -251,7 +245,7 @@ router.post('/switch-org', jwtAuth, async (req: AuthenticatedRequest, res: Respo
   if (!requireUser(req, res)) return;
   const { orgId } = req.body as { orgId?: string };
   if (!orgId) {
-    sendProblem(res, 422, 'MISSING_ORG_ID', 'Missing orgId', { detail: '缺少 orgId' });
+    sendProblem(res, 422, 'MISSING_ORG_ID');
     return;
   }
 
@@ -262,13 +256,11 @@ router.post('/switch-org', jwtAuth, async (req: AuthenticatedRequest, res: Respo
       { userId: hashUserId(req.user.sub), orgId },
       '[auth] switch-org 拒绝：非该组织成员',
     );
-    sendProblem(res, 403, 'NOT_A_MEMBER', 'Forbidden', { detail: '无权进入该组织' });
+    sendProblem(res, 403, 'NOT_A_MEMBER');
     return;
   }
   if (membership.orgStatus !== 'active') {
-    sendProblem(res, 403, 'ORG_INACTIVE', 'Forbidden', {
-      detail: `组织当前状态为 ${membership.orgStatus}，无法进入`,
-    });
+    sendProblem(res, 403, 'ORG_INACTIVE');
     return;
   }
 

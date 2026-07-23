@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
 
 // Validation: 回测优化器路由请求体运行时校验
 // 企业为何需要：TypeScript类型仅在编译时检查，运行时req.body可包含任意数据
@@ -18,9 +19,7 @@ export const backtestOptimizerSchema = z.object({
       .min(1, '组合至少需要一个资产'),
   }),
   parameterSpace: z.object({
-    rebalanceFrequencies: z
-      .array(z.enum(['daily', 'weekly', 'monthly', 'quarterly', 'annual', 'none', 'threshold']))
-      .min(1),
+    rebalanceFrequencies: z.array(z.enum(ALL_REBALANCE_FREQUENCIES)).min(1),
     rebalanceThreshold: z
       .object({
         min: z.number(),

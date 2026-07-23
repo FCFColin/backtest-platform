@@ -42,9 +42,7 @@ router.get(
         .filter(Boolean);
 
       if (tickerList.length > MAX_TICKERS) {
-        sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED', 'Ticker limit exceeded', {
-          detail: `ticker 数量超过限制 (max ${MAX_TICKERS})`,
-        });
+        sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED');
         return;
       }
 
@@ -57,15 +55,13 @@ router.get(
       const response: Record<string, unknown> = { success: true, data };
       if (degraded) {
         response.degraded = true;
-        response.degradedWarning = degradedWarning || '数据服务降级';
+        response.degradedWarning = degradedWarning || 'Data service degraded';
       }
       res.json(response);
     },
     {
       logMsg: 'History data fetch error',
       code: 'HISTORY_FETCH_ERROR',
-      title: 'History Fetch Error',
-      detail: 'Failed to fetch history data',
       endpoint: 'data-history',
     },
   ),
@@ -89,8 +85,6 @@ router.get(
     {
       logMsg: 'Ticker search error',
       code: 'SEARCH_ERROR',
-      title: 'Search failed',
-      detail: 'Failed to search tickers',
       endpoint: 'data-search',
     },
   ),
@@ -110,18 +104,14 @@ router.get(
       const country = req.params.country;
 
       if (country !== 'us' && country !== 'cn') {
-        sendProblem(res, 422, 'INVALID_COUNTRY', 'Invalid country parameter', {
-          detail: '仅支持 us 或 cn 的CPI数据',
-        });
+        sendProblem(res, 422, 'INVALID_COUNTRY');
         return;
       }
 
       const result = await fetchCpiForRoute(country);
 
       if (result.notFound) {
-        sendProblem(res, 404, 'CPI_NOT_FOUND', 'CPI data not found', {
-          detail: 'PostgreSQL 中无 CPI 数据，请先运行 import:tickers',
-        });
+        sendProblem(res, 404, 'CPI_NOT_FOUND');
         return;
       }
 
@@ -135,8 +125,6 @@ router.get(
     {
       logMsg: 'CPI data fetch error',
       code: 'CPI_FETCH_ERROR',
-      title: 'CPI fetch failed',
-      detail: 'Failed to fetch CPI data',
       endpoint: 'data-cpi',
     },
   ),

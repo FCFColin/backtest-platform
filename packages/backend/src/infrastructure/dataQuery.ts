@@ -5,6 +5,7 @@ import { toDateStr } from '../utils/dateUtils.js';
 import { config } from '../config/index.js';
 import { getReadPool } from '../db/pool.js';
 import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../utils/metrics.js';
+import { isValidTicker } from '../utils/tickerValidation.js';
 import {
   writeCache,
   incrementCacheVersion,
@@ -143,16 +144,14 @@ async function callGoDataService(path: string): Promise<string> {
   }
 }
 
-/** 计算 "全部历史" 模式下所有 ticker 的公共日期区间（交集） */
-async function computeCommonDateRange(
-  validTickers: string[],
-): Promise<{ start: string; end: string } | null> {
-  const { rows: rangeRows } = await pgCircuitBreaker.fire(
-    'SELECT ticker, MIN(date) as first, MAX(date) as last FROM prices WHERE ticker = ANY($1) GROUP BY ticker',
-    [validTickers],
-  );
-  let maxStart: string | null = null;
-  let minEnd: string | null = null;
+/** 从 DB 行中计算日期交集 */
+function computeIntersection(
+  rangeRows: Array<{ first: Date | string; last: Date | string }>,
+  defaultStart: string | null,
+  defaultEnd: string | null,
+): { start: string; end: string } | null {
+  let maxStart = defaultStart;
+  let minEnd = defaultEnd;
   for (const r of rangeRows) {
     const first = toDateStr(r.first);
     const last = toDateStr(r.last);
@@ -160,6 +159,23 @@ async function computeCommonDateRange(
     if (!minEnd || last < minEnd) minEnd = last;
   }
   return maxStart && minEnd ? { start: maxStart, end: minEnd } : null;
+}
+
+/** 计算 "全部历史" 模式下所有 ticker 的公共日期区间（交集） */
+async function computeCommonDateRange(
+  validTickers: string[],
+  hasUnknownTickers: boolean,
+): Promise<{ start: string; end: string } | null> {
+  const { rows: rangeRows } = await pgCircuitBreaker.fire(
+    'SELECT ticker, MIN(date) as first, MAX(date) as last FROM prices WHERE ticker = ANY($1) GROUP BY ticker',
+    [validTickers],
+  );
+
+  if (hasUnknownTickers) {
+    return computeIntersection(rangeRows, '2000-01-01', toDateStr(new Date()));
+  }
+
+  return computeIntersection(rangeRows, null, null);
 }
 
 /** 将查询行按 ticker 分组为 price map */
@@ -179,6 +195,7 @@ async function queryPricesFromDb(
   validTickers: string[],
   startDate: string,
   endDate: string,
+  hasUnknownTickers: boolean,
 ): Promise<{
   result: Record<string, Record<string, number>>;
   missing: string[];
@@ -195,18 +212,29 @@ async function queryPricesFromDb(
     let effectiveStart = startDate;
     let effectiveEnd = endDate;
 
-    // "全部历史"：取所有 ticker 的公共日期区间（交集）
     if (startDate === '' && endDate === '') {
-      const range = await computeCommonDateRange(validTickers);
+      const range = await computeCommonDateRange(validTickers, hasUnknownTickers);
       if (range) {
         effectiveStart = range.start;
         effectiveEnd = range.end;
+      } else if (hasUnknownTickers) {
+        effectiveStart = '2000-01-01';
+        effectiveEnd = toDateStr(new Date());
       }
+    }
+
+    const tickersToQuery = validTickers;
+    if (tickersToQuery.length === 0 && hasUnknownTickers) {
+      return { result, missing: [], dbDegraded: false };
     }
 
     const sql =
       'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3 ORDER BY date';
-    const { rows } = await pgCircuitBreaker.fire(sql, [validTickers, effectiveStart, effectiveEnd]);
+    const { rows } = await pgCircuitBreaker.fire(sql, [
+      tickersToQuery,
+      effectiveStart,
+      effectiveEnd,
+    ]);
 
     const grouped = groupRowsByTicker(rows);
 
@@ -343,42 +371,59 @@ async function searchTickersFromDb(
 }
 
 /**
- * 校验给定标的代码在数据库中是否存在
+ * 校验给定标的代码
  *
- * 通过 PostgreSQL 查询 tickers 表区分有效与无效标的。若数据库不可用或查询失败，
- * 返回所有标的为 invalid（不抛错，便于调用方降级处理）。
+ * 通过 PostgreSQL 查询 tickers 表区分三类标的：
+ * - valid: DB 中存在的标的
+ * - unknown: 格式合法但 DB 中不存在的标的（仍可通过 Go 服务实时获取）
+ * - invalid: 格式非法的标的
+ *
+ * 若数据库不可用或查询失败，格式合法的标的标记为 unknown（不抛错，便于调用方降级处理）。
  * @param tickers - 待校验的标的代码数组
- * @returns { valid: string[]; invalid: string[] } 有效与无效标的列表；DB 不可用时 valid 为空
+ * @returns { valid: string[]; invalid: string[]; unknown: string[] }
  */
 export async function validateTickers(
   tickers: string[],
-): Promise<{ valid: string[]; invalid: string[] }> {
+): Promise<{ valid: string[]; invalid: string[]; unknown: string[] }> {
   const valid: string[] = [];
   const invalid: string[] = [];
+  const unknown: string[] = [];
+
+  const formatValid: string[] = [];
+  for (const ticker of tickers) {
+    if (isValidTicker(ticker)) {
+      formatValid.push(ticker);
+    } else {
+      invalid.push(ticker);
+    }
+  }
 
   if (isDbAvailable()) {
     try {
       const { rows } = await pgCircuitBreaker.fire(
         'SELECT ticker FROM tickers WHERE ticker = ANY($1)',
-        [tickers],
+        [formatValid],
       );
       const dbValidSet = new Set(rows.map((r: { ticker: string }) => r.ticker));
 
-      for (const ticker of tickers) {
+      for (const ticker of formatValid) {
         if (dbValidSet.has(ticker)) {
           valid.push(ticker);
         } else {
-          invalid.push(ticker);
+          unknown.push(ticker);
         }
       }
-      return { valid, invalid };
+      return { valid, invalid, unknown };
     } catch (err) {
-      logger.warn({ err }, '[dataService] validateTickers: PostgreSQL 查询失败');
-      return { valid: [], invalid: tickers };
+      logger.warn(
+        { err },
+        '[dataService] validateTickers: PostgreSQL 查询失败，将格式合法ticker标记为unknown',
+      );
+      return { valid: [], invalid, unknown: formatValid };
     }
   }
 
-  return { valid: [], invalid: tickers };
+  return { valid: [], invalid, unknown: formatValid };
 }
 
 /**

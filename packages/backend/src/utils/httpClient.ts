@@ -4,8 +4,7 @@
  * 提供 callService 函数：超时控制、request_id 传播、降级约定（返回 null 而非抛异常）。
  */
 
-import { getRequestId } from './requestContext.js';
-import { getTracePropagationHeaders } from './tracePropagation.js';
+import { getRequestId, getTracePropagationHeaders } from './requestContext.js';
 import { logger } from './logger.js';
 import { errorMessage, UpstreamProblemError } from './errors.js';
 

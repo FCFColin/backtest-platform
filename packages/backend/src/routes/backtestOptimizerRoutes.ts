@@ -61,18 +61,21 @@ router.post(
         'backtest-optimizer 同步执行',
       );
       if (result.success) {
-        res.json({ success: true, data: result.data });
+        const response: Record<string, unknown> = { success: true, data: result.data };
+        if (result.warnings && result.warnings.length > 0) {
+          response.warnings = result.warnings;
+        }
+        if (result.dateRange) {
+          response.dateRange = result.dateRange;
+        }
+        res.json(response);
       } else {
-        sendProblem(res, 400, 'OPTIMIZER_BAD_REQUEST', 'Bad Request', {
-          detail: String(result.error),
-        });
+        sendProblem(res, 400, 'OPTIMIZER_BAD_REQUEST');
       }
     },
     {
       logMsg: 'Backtest optimizer error',
       code: 'OPTIMIZER_ERROR',
-      title: 'Internal Server Error',
-      detail: 'Failed to run backtest optimization',
       endpoint: 'backtest-optimizer',
     },
   ),

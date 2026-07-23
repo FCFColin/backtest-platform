@@ -146,9 +146,7 @@ export function auditLog(req: Request, res: Response, next: NextFunction): void 
 
   // 在响应完成后记录（此时 statusCode 可用）
   res.on('finish', () => {
-    // Security (T-16 / OWASP A09): 审计身份优先取 JWT 主体（req.user.sub）。
-    // 企业为何需要：此前仅取 x-api-key 哈希，JWT 登录用户全部记为匿名，审计无法回溯到具体用户，
-    // 违背"可追溯性"（SOC 2 / GDPR Art.30）。优先 JWT 身份，回退到 API Key 哈希，再回退 anonymous。
+    // 优先取 JWT 主体，回退到 API Key 哈希，再回退 anonymous
     const jwtSub = (req as AuthenticatedRequest).user?.sub;
     const userId = jwtSub ?? hashApiKey(req.headers['x-api-key'] as string | undefined);
     const auditEntry = {

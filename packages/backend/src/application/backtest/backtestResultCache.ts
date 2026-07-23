@@ -10,8 +10,7 @@ import crypto from 'node:crypto';
 import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared/types';
 import { logger } from '../../utils/logger.js';
 import { recordCacheHit } from '../../utils/metrics.js';
-import { appRedis } from '../../infrastructure/redisClient.js';
-import { getRedisHealth, markRedisUnhealthy } from '../../infrastructure/redisHealth.js';
+import { appRedis, getRedisHealth, markRedisUnhealthy } from '../../infrastructure/redisClient.js';
 
 const TTL_MS = 5 * 60 * 1000;
 const MAX_ENTRIES = 50;

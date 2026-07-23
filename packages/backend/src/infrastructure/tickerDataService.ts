@@ -1,8 +1,7 @@
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/dateUtils.js';
-import { scanMarketStatsFromDb, getDbEngineStatus } from '../db/marketStats.js';
-import type { DbMarketStats } from '../db/marketStatsHelpers.js';
+import { scanMarketStatsFromDb, getDbEngineStatus, type DbMarketStats } from '../db/marketStats.js';
 import { getReadPool } from '../db/pool.js';
 
 /** 获取引擎状态（PostgreSQL） */
@@ -53,9 +52,6 @@ export async function getTickerList(): Promise<
     return [];
   }
 }
-
-/** 搜索标的 — 统一使用 dataFacade.searchTickers（DB 全文搜索 + Go fallback） */
-export { searchTickers } from './dataFacade.js';
 
 /** 加载标的数据（PostgreSQL） */
 export async function loadTickerData(ticker: string): Promise<Record<string, unknown> | null> {

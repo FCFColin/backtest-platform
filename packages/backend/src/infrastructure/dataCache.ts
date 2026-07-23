@@ -5,8 +5,7 @@ import { fileURLToPath } from 'url';
 import { logger } from '../utils/logger.js';
 import { signFile, verifyFile } from '../utils/integrity.js';
 import { recordCacheHit } from '../utils/metrics.js';
-import { appRedis } from './redisClient.js';
-import { getRedisHealth, markRedisUnhealthy } from './redisHealth.js';
+import { appRedis, getRedisHealth, markRedisUnhealthy } from './redisClient.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

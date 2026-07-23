@@ -33,8 +33,6 @@ router.get(
     {
       logMsg: '[configRoutes] 列表失败',
       code: 'CONFIG_LIST_FAILED',
-      title: 'Internal Server Error',
-      detail: '查询配置失败',
     },
   ),
 );
@@ -48,7 +46,7 @@ router.get(
       if (!requireUuidParam(res, req.params.id)) return;
       const c = await getConfig(tenantId, req.params.id);
       if (!c) {
-        sendProblem(res, 404, 'CONFIG_NOT_FOUND', 'Not Found', { detail: '配置不存在' });
+        sendProblem(res, 404, 'CONFIG_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: c });
@@ -56,8 +54,6 @@ router.get(
     {
       logMsg: '[configRoutes] 获取失败',
       code: 'CONFIG_GET_FAILED',
-      title: 'Internal Server Error',
-      detail: '获取配置失败',
     },
   ),
 );
@@ -79,8 +75,6 @@ router.post(
     {
       logMsg: '[configRoutes] 创建失败',
       code: 'CONFIG_CREATE_FAILED',
-      title: 'Internal Server Error',
-      detail: '创建配置失败',
     },
   ),
 );
@@ -95,7 +89,7 @@ router.put(
       if (!requireUuidParam(res, req.params.id)) return;
       const updated = await updateConfig(tenantId, req.params.id, req.body as SavedConfigBody);
       if (!updated) {
-        sendProblem(res, 404, 'CONFIG_NOT_FOUND', 'Not Found', { detail: '配置不存在' });
+        sendProblem(res, 404, 'CONFIG_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: updated });
@@ -103,8 +97,6 @@ router.put(
     {
       logMsg: '[configRoutes] 更新失败',
       code: 'CONFIG_UPDATE_FAILED',
-      title: 'Internal Server Error',
-      detail: '更新配置失败',
     },
   ),
 );
@@ -118,7 +110,7 @@ router.delete(
       if (!requireUuidParam(res, req.params.id)) return;
       const ok = await deleteConfig(tenantId, req.params.id);
       if (!ok) {
-        sendProblem(res, 404, 'CONFIG_NOT_FOUND', 'Not Found', { detail: '配置不存在' });
+        sendProblem(res, 404, 'CONFIG_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: { id: req.params.id, deleted: true } });
@@ -126,8 +118,6 @@ router.delete(
     {
       logMsg: '[configRoutes] 删除失败',
       code: 'CONFIG_DELETE_FAILED',
-      title: 'Internal Server Error',
-      detail: '删除配置失败',
     },
   ),
 );

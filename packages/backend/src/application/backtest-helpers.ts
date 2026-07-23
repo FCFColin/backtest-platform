@@ -59,9 +59,23 @@ export interface BacktestExecutionResult {
   degraded: boolean;
 }
 
+export interface Warning {
+  code: string;
+  message?: string;
+  tickers?: string[];
+}
+
+/** 回测请求与实际生效日期范围（可能因数据缺失而被裁剪）。 */
+export interface DateRangeInfo {
+  requested: { start: string; end: string };
+  actual: { start: string; end: string };
+  clamped: boolean;
+  missingTickers?: string[];
+}
+
 interface PortfolioBacktestPrep {
   allTickers: Set<string>;
-  warnings: string[];
+  warnings: Warning[];
 }
 
 // ---------------------------------------------------------------------------
@@ -108,20 +122,20 @@ export function preparePortfolioBacktest(
   }
 
   if (portfolios.length > MAX_TICKERS || totalAssets > MAX_TICKERS) {
-    throw new ValidationError(`组合数量或资产总数超过限制 (max ${MAX_TICKERS})`);
+    throw new ValidationError(`Portfolio or asset count exceeds limit (max ${MAX_TICKERS})`);
   }
   if (parameters.benchmarkTicker) {
     allTickers.add(parameters.benchmarkTicker);
   }
 
-  return { allTickers, warnings: [] };
+  return { allTickers, warnings: [] as Warning[] };
 }
 
 /** 根据 priceData 识别无效 ticker，填充 warnings。 */
 export function collectInvalidTickerWarnings(
   allTickers: Set<string>,
   priceData: Record<string, unknown>,
-  warnings: string[],
+  warnings: Warning[],
 ): string[] {
   const invalidTickers: string[] = [];
   for (const ticker of allTickers) {
@@ -131,7 +145,7 @@ export function collectInvalidTickerWarnings(
     }
   }
   if (invalidTickers.length > 0) {
-    warnings.push(`以下标的无价格数据: ${invalidTickers.join(', ')}`);
+    warnings.push({ code: 'TICKER_NOT_FOUND', tickers: invalidTickers });
   }
   return invalidTickers;
 }
@@ -186,17 +200,25 @@ export async function fetchPriceData(
   tickers: string[],
   startDate: string,
   endDate: string,
-): Promise<Record<string, Record<string, number>>> {
+): Promise<{
+  data: Record<string, Record<string, number>>;
+  degraded: boolean;
+  degradedWarning?: string;
+}> {
   const result = await withTimeout(
     fetchHistoryData(tickers, startDate, endDate),
     60_000,
     'fetch-history-data',
   );
-  return result.data;
+  return {
+    data: result.data,
+    degraded: result.degraded,
+    degradedWarning: result.degradedWarning,
+  };
 }
 
 /** 从 priceData 中推断实际日期范围（所有 ticker 的并集）。 */
-function inferDateRangeFromData(
+export function inferDateRangeFromData(
   data: Record<string, Record<string, number>>,
 ): { min: string; max: string } | null {
   let minDate: string | null = null;
@@ -211,10 +233,45 @@ function inferDateRangeFromData(
 }
 
 /**
+ * 从 priceData 推断实际生效日期范围并构造 DateRangeInfo（含 clamped 标记与缺失标的）。
+ *
+ * @param startDate - 请求起始日期
+ * @param endDate - 请求结束日期
+ * @param priceData - 实际获取到的价格数据
+ * @param missingTickers - 缺失数据标的列表（非空时写入 dateRange.missingTickers）
+ */
+export function calculateDateRange(
+  startDate: string,
+  endDate: string,
+  priceData: Record<string, Record<string, number>>,
+  missingTickers?: string[],
+): DateRangeInfo {
+  const inferredRange = inferDateRangeFromData(priceData);
+  const effectiveStartDate = inferredRange?.min ?? startDate;
+  const effectiveEndDate = inferredRange?.max ?? endDate;
+
+  const hasExplicitDates = startDate !== '' || endDate !== '';
+  let clamped = false;
+  if (hasExplicitDates) {
+    if (startDate && effectiveStartDate > startDate) clamped = true;
+    if (endDate && effectiveEndDate < endDate) clamped = true;
+  }
+
+  const range: DateRangeInfo = {
+    requested: { start: startDate, end: endDate },
+    actual: { start: effectiveStartDate, end: effectiveEndDate },
+    clamped,
+  };
+  if (missingTickers && missingTickers.length > 0) {
+    range.missingTickers = missingTickers;
+  }
+  return range;
+}
+
+/**
  * 获取历史价格数据并返回实际生效的日期范围。
  *
- * "全部历史"模式下，后端会计算所有 ticker 的公共日期区间作为实际查询范围，
- * 此函数将该区间一并返回，供调用方传给引擎以保持日期过滤一致性。
+ * 始终从获取到的数据中推断实际日期范围，无论是"全部历史"模式还是显式日期模式。
  */
 export async function fetchPriceDataWithRange(
   tickers: string[],
@@ -224,6 +281,8 @@ export async function fetchPriceDataWithRange(
   priceData: Record<string, Record<string, number>>;
   effectiveStartDate: string;
   effectiveEndDate: string;
+  degraded: boolean;
+  degradedWarning?: string;
 }> {
   const result = await withTimeout(
     fetchHistoryData(tickers, startDate, endDate),
@@ -232,7 +291,7 @@ export async function fetchPriceDataWithRange(
   );
   let effectiveStart = startDate;
   let effectiveEnd = endDate;
-  if (startDate === '' && endDate === '' && Object.keys(result.data).length > 0) {
+  if (Object.keys(result.data).length > 0) {
     const range = inferDateRangeFromData(result.data);
     if (range) {
       effectiveStart = range.min;
@@ -243,6 +302,8 @@ export async function fetchPriceDataWithRange(
     priceData: result.data,
     effectiveStartDate: effectiveStart,
     effectiveEndDate: effectiveEnd,
+    degraded: result.degraded,
+    degradedWarning: result.degradedWarning,
   };
 }
 

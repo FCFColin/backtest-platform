@@ -45,16 +45,13 @@ router.post(
   validate(acceptSchema),
   async (req: AuthenticatedRequest, res: Response) => {
     if (!req.user) {
-      sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+      sendProblem(res, 401, 'UNAUTHORIZED');
       return;
     }
     const { token } = req.body as { token: string };
     const result = await acceptInvitation(token, req.user.sub);
     if (!result.ok) {
-      const map = { invalid: '邀请无效', expired: '邀请已过期', already: '邀请已被接受' } as const;
-      sendProblem(res, 400, `INVITATION_${result.reason.toUpperCase()}`, 'Bad Request', {
-        detail: map[result.reason],
-      });
+      sendProblem(res, 400, `INVITATION_${result.reason.toUpperCase()}`);
       return;
     }
     res.json({ success: true, data: { orgId: result.orgId, role: result.role } });
@@ -70,7 +67,7 @@ router.get('/current', async (req: AuthenticatedRequest, res: Response) => {
   if (!tenantId) return;
   const org = await getOrg(tenantId);
   if (!org) {
-    sendProblem(res, 404, 'ORG_NOT_FOUND', 'Not Found', { detail: '组织不存在' });
+    sendProblem(res, 404, 'ORG_NOT_FOUND');
     return;
   }
   res.json({ success: true, data: org });
@@ -87,7 +84,7 @@ router.patch(
     if (!tenantId) return;
     const ok = await updateOrgName(tenantId, (req.body as { name: string }).name);
     if (!ok) {
-      sendProblem(res, 404, 'ORG_NOT_FOUND', 'Not Found', { detail: '组织不存在' });
+      sendProblem(res, 404, 'ORG_NOT_FOUND');
       return;
     }
     res.json({ success: true, data: { updated: true } });
@@ -117,11 +114,11 @@ router.patch(
       (req.body as { role: 'owner' | 'admin' | 'analyst' | 'readonly' }).role,
     );
     if (result === 'not_found') {
-      sendProblem(res, 404, 'MEMBER_NOT_FOUND', 'Not Found', { detail: '成员不存在' });
+      sendProblem(res, 404, 'MEMBER_NOT_FOUND');
       return;
     }
     if (result === 'last_owner') {
-      sendProblem(res, 409, 'LAST_OWNER', 'Conflict', { detail: '不能降级组织唯一的 owner' });
+      sendProblem(res, 409, 'LAST_OWNER');
       return;
     }
     res.json({ success: true, data: { updated: true } });
@@ -138,11 +135,11 @@ router.delete(
     if (!tenantId) return;
     const result = await removeMember(tenantId, req.params.userId);
     if (result === 'not_found') {
-      sendProblem(res, 404, 'MEMBER_NOT_FOUND', 'Not Found', { detail: '成员不存在' });
+      sendProblem(res, 404, 'MEMBER_NOT_FOUND');
       return;
     }
     if (result === 'last_owner') {
-      sendProblem(res, 409, 'LAST_OWNER', 'Conflict', { detail: '不能移除组织唯一的 owner' });
+      sendProblem(res, 409, 'LAST_OWNER');
       return;
     }
     res.json({ success: true, data: { removed: true } });
@@ -186,8 +183,6 @@ router.post(
     {
       logMsg: '[orgRoutes] 创建邀请失败',
       code: 'INVITE_CREATE_FAILED',
-      title: 'Internal Server Error',
-      detail: '创建邀请失败',
     },
   ),
 );
@@ -202,9 +197,7 @@ router.delete(
     if (!tenantId) return;
     const ok = await revokeInvitation(tenantId, req.params.id);
     if (!ok) {
-      sendProblem(res, 404, 'INVITATION_NOT_FOUND', 'Not Found', {
-        detail: '邀请不存在或已被接受',
-      });
+      sendProblem(res, 404, 'INVITATION_NOT_FOUND');
       return;
     }
     res.json({ success: true, data: { revoked: true } });

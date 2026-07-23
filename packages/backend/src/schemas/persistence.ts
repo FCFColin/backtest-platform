@@ -5,24 +5,19 @@
  * 约束形态与大小，防止脏数据落库或借超大 payload 进行 DoS。
  */
 import { z } from 'zod';
-
-const assetSchema = z.object({
-  ticker: z.string().trim().min(1).max(32),
-  weight: z.number().nonnegative(),
-});
+import { ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
+import { assetSchema } from './shared.js';
 
 /** 组合创建/更新请求体 */
 export const portfolioBodySchema = z.object({
-  name: z.string().trim().min(1, '名称不能为空').max(120, '名称过长'),
-  assets: z.array(assetSchema).min(1, '至少包含一个资产').max(200, '资产数量过多'),
-  rebalanceFrequency: z
-    .enum(['daily', 'weekly', 'monthly', 'quarterly', 'annual', 'none', 'threshold'])
-    .optional(),
+  name: z.string().trim().min(1).max(120),
+  assets: z.array(assetSchema).min(1).max(200),
+  rebalanceFrequency: z.enum(ALL_REBALANCE_FREQUENCIES).optional(),
 });
 
 /** 命名配置创建/更新请求体（config 为完整回测请求，原样存储） */
 export const savedConfigBodySchema = z.object({
-  name: z.string().trim().min(1, '名称不能为空').max(120, '名称过长'),
+  name: z.string().trim().min(1).max(120),
   config: z.record(z.string(), z.unknown()),
 });
 

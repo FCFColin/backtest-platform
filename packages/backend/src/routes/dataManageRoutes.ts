@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { validateQuery } from '../middleware/validate.js';
-import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/dataManage.js';
+import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/data.js';
 import {
   getEngineStatus,
   getTickerList,
@@ -47,8 +47,6 @@ router.get(
     {
       logMsg: '[dataManage] 获取引擎状态失败',
       code: 'STATUS_ERROR',
-      title: 'Status Error',
-      detail: 'Failed to get status',
     },
   ),
 );
@@ -86,8 +84,6 @@ router.get(
     {
       logMsg: '[dataManage] 获取统计失败',
       code: 'STATS_ERROR',
-      title: 'Stats Error',
-      detail: 'Failed to get stats',
     },
   ),
 );
@@ -117,8 +113,6 @@ router.get(
     {
       logMsg: '[dataManage] 获取标的列表失败',
       code: 'TICKER_LIST_ERROR',
-      title: 'Ticker List Error',
-      detail: 'Failed to get ticker list',
     },
   ),
 );
@@ -131,9 +125,7 @@ router.get(
     async (req: Request, res: Response): Promise<void> => {
       const query = req.query.q as string;
       if (!query) {
-        sendProblem(res, 422, 'MISSING_PARAMS', 'Missing query parameter', {
-          detail: 'Missing query parameter: q',
-        });
+        sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
       const results = await searchTickers(query);
@@ -142,8 +134,6 @@ router.get(
     {
       logMsg: '[dataManage] 搜索标的失败',
       code: 'SEARCH_ERROR',
-      title: 'Search failed',
-      detail: 'Failed to search',
     },
   ),
 );
@@ -166,8 +156,6 @@ for (const path of ['/update/full', '/update/refetch'] as const) {
       {
         logMsg: `[dataManage] ${path} 失败`,
         code: 'UPDATE_ERROR',
-        title: 'Update Error',
-        detail: '全量更新启动失败',
       },
     ),
   );
@@ -185,8 +173,6 @@ router.patch(
     {
       logMsg: '[dataManage] 增量更新失败',
       code: 'UPDATE_ERROR',
-      title: 'Update Error',
-      detail: '增量更新启动失败',
     },
   ),
 );
@@ -203,8 +189,6 @@ router.patch(
     {
       logMsg: '[dataManage] 恢复更新失败',
       code: 'UPDATE_ERROR',
-      title: 'Update Error',
-      detail: '恢复更新启动失败',
     },
   ),
 );
@@ -233,8 +217,6 @@ router.put(
     {
       logMsg: '[dataManage] 刷新标的列表失败',
       code: 'UNIVERSE_ERROR',
-      title: 'Universe Error',
-      detail: '获取标的列表失败',
     },
   ),
 );
@@ -246,25 +228,19 @@ router.get(
     async (req: Request, res: Response): Promise<void> => {
       const ticker = req.params.id;
       if (!isValidTicker(ticker)) {
-        sendProblem(res, 422, 'INVALID_TICKER', 'Invalid ticker format', {
-          detail: 'ticker参数格式非法，仅允许大写字母、数字、点、下划线、连字符，长度1-20',
-        });
+        sendProblem(res, 422, 'INVALID_TICKER');
         return;
       }
       const data = await loadTickerData(ticker);
       if (data) {
         res.json({ success: true, data });
       } else {
-        sendProblem(res, 404, 'TICKER_NOT_FOUND', 'Ticker not found', {
-          detail: `Ticker ${ticker} not found`,
-        });
+        sendProblem(res, 404, 'TICKER_NOT_FOUND');
       }
     },
     {
       logMsg: '[dataManage] 加载标的数据失败',
       code: 'TICKER_LOAD_ERROR',
-      title: 'Ticker load failed',
-      detail: 'Failed to load ticker data',
     },
   ),
 );

@@ -89,7 +89,7 @@ router.get('/health', (_req: Request, res: Response) => {
  */
 router.get('/ready', async (req: Request, res: Response) => {
   if (!isOpsEndpointAuthorized(req)) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: 'Unauthorized' });
+    sendProblem(res, 401, 'UNAUTHORIZED');
     return;
   }
 
@@ -103,8 +103,7 @@ router.get('/ready', async (req: Request, res: Response) => {
 
     // ADR-031 fail-closed：Go 引擎不可用即返回 503 + Retry-After
     if (!goEngineOk) {
-      sendProblem(res, 503, 'ENGINE_UNAVAILABLE', 'Engine Unavailable', {
-        detail: 'Go 计算引擎暂不可用，计算端点将返回 503',
+      sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
         headers: { 'Retry-After': '30' },
       });
       return;
@@ -112,9 +111,7 @@ router.get('/ready', async (req: Request, res: Response) => {
 
     // 数据库不可用视为 error（无法服务请求）
     if (!dbOk) {
-      sendProblem(res, 503, 'DATABASE_UNAVAILABLE', 'Service Unavailable', {
-        detail: '数据库不可用',
-      });
+      sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
       return;
     }
 
@@ -135,9 +132,7 @@ router.get('/ready', async (req: Request, res: Response) => {
     });
   } catch (error) {
     logger.error({ error }, '[healthRoutes] Readiness check failed');
-    sendProblem(res, 503, 'READINESS_CHECK_ERROR', 'Service Unavailable', {
-      detail: 'Readiness check failed',
-    });
+    sendProblem(res, 503, 'READINESS_CHECK_ERROR');
   }
 });
 
@@ -153,7 +148,7 @@ router.get(
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       if (!isOpsEndpointAuthorized(req)) {
-        sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: 'Unauthorized' });
+        sendProblem(res, 401, 'UNAUTHORIZED');
         return;
       }
       res.set('Content-Type', getPrometheusRegister().contentType);
@@ -162,8 +157,6 @@ router.get(
     {
       logMsg: '[healthRoutes] Failed to generate metrics',
       code: 'METRICS_ERROR',
-      title: 'Metrics generation failed',
-      detail: 'Failed to generate metrics',
     },
   ),
 );
@@ -179,13 +172,13 @@ router.get(
 function checkDebugAuth(req: Request, res: Response): boolean {
   const token = config.DEBUG_AUTH_TOKEN;
   if (!token) {
-    sendProblem(res, 404, 'NOT_FOUND', 'Not Found', { detail: 'Debug endpoints disabled' });
+    sendProblem(res, 404, 'NOT_FOUND');
     return false;
   }
   const auth = req.headers.authorization;
   const provided = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (provided !== token) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: 'Invalid debug token' });
+    sendProblem(res, 401, 'UNAUTHORIZED');
     return false;
   }
   return true;

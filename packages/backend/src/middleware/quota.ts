@@ -59,9 +59,7 @@ export function enforceQuota(metric: string) {
     // 1. 单次标的数上限
     const tickerCount = extractTickerCount(req.body);
     if (tickerCount > limits.maxTickers) {
-      sendProblem(res, 422, 'TICKERS_LIMIT_EXCEEDED', 'Unprocessable Entity', {
-        detail: `当前计划单次最多支持 ${limits.maxTickers} 个标的（本次 ${tickerCount} 个），请减少标的数或升级计划`,
-      });
+      sendProblem(res, 422, 'TICKERS_LIMIT_EXCEEDED');
       return;
     }
 
@@ -69,9 +67,7 @@ export function enforceQuota(metric: string) {
     if (Number.isFinite(limits.backtestsPerMonth)) {
       const used = await getMonthlyUsage(tenantId, metric);
       if (used >= limits.backtestsPerMonth) {
-        sendProblem(res, 402, 'QUOTA_EXCEEDED', 'Payment Required', {
-          detail: `本月计算次数已达计划上限（${limits.backtestsPerMonth} 次），请升级计划以继续使用`,
-        });
+        sendProblem(res, 402, 'QUOTA_EXCEEDED');
         return;
       }
     }

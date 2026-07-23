@@ -117,12 +117,11 @@ export function sendProblem(
   res: Response,
   status: number,
   code: string,
-  title: string,
+  title?: string,
   options?: SendProblemOptions,
 ): void {
   const { detail, headers, degraded, degradedWarning } = options ?? {};
   const r = res.status(status).header('Content-Type', 'application/problem+json');
-  // 附加额外响应头（如 Retry-After），用于 fail-closed 降级（ADR-031）。
   if (headers) {
     for (const [key, value] of Object.entries(headers)) {
       r.header(key, value);
@@ -132,7 +131,7 @@ export function sendProblem(
     success: false,
     error: {
       type: `https://backtest.platform/errors/${code}`,
-      title,
+      title: title ?? code,
       status,
       code,
       detail,
@@ -147,3 +146,26 @@ export function sendProblem(
   }
   r.json(body);
 }
+
+/** 应用错误码枚举 — 用于前端i18n映射 */
+export const ErrorCodes = {
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  TICKER_NOT_FOUND: 'TICKER_NOT_FOUND',
+  TICKER_DATA_INSUFFICIENT: 'TICKER_DATA_INSUFFICIENT',
+  INVALID_WEIGHT_SUM: 'INVALID_WEIGHT_SUM',
+  EMPTY_PORTFOLIO: 'EMPTY_PORTFOLIO',
+  ENGINE_UNAVAILABLE: 'ENGINE_UNAVAILABLE',
+  DATA_FETCH_FAILED: 'DATA_FETCH_FAILED',
+  DATA_DEGRADED: 'DATA_DEGRADED',
+  AUTH_REQUIRED: 'AUTH_REQUIRED',
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  INVALID_DATE_RANGE: 'INVALID_DATE_RANGE',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  TIMEOUT: 'TIMEOUT',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+  BACKTEST_ERROR: 'BACKTEST_ERROR',
+  INVALID_TICKER: 'INVALID_TICKER',
+  MISSING_PARAMS: 'MISSING_PARAMS',
+} as const;
+
+export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

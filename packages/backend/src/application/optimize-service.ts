@@ -10,7 +10,14 @@ import type { Portfolio, BacktestResult, BacktestParameters } from '@backtest/sh
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
-import { fetchPriceData, filterPriceData, translateDomainError } from './backtest-helpers.js';
+import {
+  fetchPriceData,
+  filterPriceData,
+  translateDomainError,
+  collectInvalidTickerWarnings,
+  calculateDateRange,
+} from './backtest-helpers.js';
+import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 import { logger } from '../utils/logger.js';
 import {
   MAX_OPTIMIZER_COMBINATIONS,
@@ -40,20 +47,43 @@ export async function runOptimization(
   constraints: { minWeight?: number; maxWeight?: number },
   parameters: BacktestParameters,
   numIterations?: number,
-): Promise<Record<string, unknown>> {
+): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const cappedIterations = numIterations ? Math.min(numIterations, 100000) : 10000;
-  const priceData = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+  const warnings: Warning[] = [];
+
+  const {
+    data: priceData,
+    degraded,
+    degradedWarning,
+  } = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+  const allTickers = new Set(tickers);
+  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
+
+  if (degraded) {
+    warnings.push({
+      code: 'DATA_DEGRADED',
+      message: degradedWarning || '数据服务降级，部分数据可能缺失',
+    });
+  }
 
   const result = await callEngineStrict<Record<string, unknown>>('/api/engine/optimize', {
     tickers,
-    priceData: filterPriceData(priceData, new Set(tickers)),
+    priceData: filterPriceData(priceData, allTickers),
     objective,
     constraints: constraints || {},
     numIterations: cappedIterations,
   });
 
   const engineResp = result as { data?: Record<string, unknown> };
-  return engineResp?.data ?? result;
+  const data = engineResp?.data ?? result;
+  const dateRange = calculateDateRange(
+    parameters.startDate,
+    parameters.endDate,
+    priceData,
+    invalidTickers,
+  );
+
+  return { data, warnings, dateRange };
 }
 
 /**
@@ -66,18 +96,41 @@ export async function runEfficientFrontier(
   parameters: BacktestParameters,
   numPoints?: number,
   riskFreeRate?: number,
-): Promise<Record<string, unknown>> {
-  const priceData = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
+  const warnings: Warning[] = [];
+
+  const {
+    data: priceData,
+    degraded,
+    degradedWarning,
+  } = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+  const allTickers = new Set(tickers);
+  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
+
+  if (degraded) {
+    warnings.push({
+      code: 'DATA_DEGRADED',
+      message: degradedWarning || '数据服务降级，部分数据可能缺失',
+    });
+  }
 
   const result = await callEngineStrict<Record<string, unknown>>('/api/engine/efficient-frontier', {
     tickers,
-    priceData: filterPriceData(priceData, new Set(tickers)),
+    priceData: filterPriceData(priceData, allTickers),
     numPoints: numPoints || 20,
     riskFreeRate: riskFreeRate || 0.02,
   });
 
   const engineResp = result as { data?: Record<string, unknown> };
-  return engineResp?.data ?? result;
+  const data = engineResp?.data ?? result;
+  const dateRange = calculateDateRange(
+    parameters.startDate,
+    parameters.endDate,
+    priceData,
+    invalidTickers,
+  );
+
+  return { data, warnings, dateRange };
 }
 
 // ---------------------------------------------------------------------------
@@ -176,11 +229,13 @@ async function computeBestResult(
 /**
  * 运行回测优化器参数搜索。
  *
- * @returns 成功时 { success: true, data }；校验失败时 { success: false, error }
+ * @returns 成功时 { success: true, data, warnings?, dateRange? }；校验失败时 { success: false, error }
  */
 export async function executeOptimization(body: Record<string, unknown>): Promise<{
   success: boolean;
   data?: Record<string, unknown>;
+  warnings?: Warning[];
+  dateRange?: DateRangeInfo;
   error?: string;
 }> {
   const startTime = Date.now();
@@ -194,17 +249,25 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   for (const a of portfolio.assets) allTickers.add(a.ticker);
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
 
-  const priceData = await fetchPriceData(
-    Array.from(allTickers),
-    parameters.startDate,
-    parameters.endDate,
-  );
+  const warnings: Warning[] = [];
+  const {
+    data: priceData,
+    degraded,
+    degradedWarning,
+  } = await fetchPriceData(Array.from(allTickers), parameters.startDate, parameters.endDate);
 
   const invalidTickers: string[] = Array.from(allTickers).filter(
     (t) => !priceData[t] || Object.keys(priceData[t]).length === 0,
   );
   if (invalidTickers.length > 0) {
     return { success: false, error: `以下标的代码无效：${invalidTickers.join(', ')}` };
+  }
+
+  if (degraded) {
+    warnings.push({
+      code: 'DATA_DEGRADED',
+      message: degradedWarning || '数据服务降级，部分数据可能缺失',
+    });
   }
 
   const combos = buildCombinations(parameterSpace);
@@ -237,6 +300,8 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
     `[backtest-optimizer] 优化完成：${combos.length} 组合，${filtered.length} 通过过滤，耗时 ${Date.now() - startTime}ms`,
   );
 
+  const dateRange = calculateDateRange(parameters.startDate, parameters.endDate, priceData);
+
   return {
     success: true,
     data: {
@@ -245,5 +310,7 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
       benchmarkGrowth,
       totalCombinations: combos.length,
     },
+    warnings: warnings.length > 0 ? warnings : undefined,
+    dateRange,
   };
 }

@@ -69,119 +69,91 @@ function authRateLimitKey(req: Request): string {
   return req.ip ?? '';
 }
 
-const RATE_LIMIT_MESSAGE = {
-  success: false,
-  error: {
-    type: 'https://backtest.platform/errors/rate-limited',
-    title: 'Too Many Requests',
-    status: 429,
-    code: 'RATE_LIMITED',
-    detail: '请求过于频繁，请稍后再试',
-  },
-};
-
-const AUTH_RATE_LIMIT_MESSAGE = {
-  success: false,
-  error: {
-    type: 'https://backtest.platform/errors/rate-limited',
-    title: 'Too Many Requests',
-    status: 429,
-    code: 'AUTH_RATE_LIMITED',
-    detail: '登录尝试过于频繁，请稍后再试',
-  },
-};
-
-const AUTH_REFRESH_RATE_LIMIT_MESSAGE = {
-  success: false,
-  error: {
-    type: 'https://backtest.platform/errors/rate-limited',
-    title: 'Too Many Requests',
-    status: 429,
-    code: 'AUTH_RATE_LIMITED',
-    detail: '刷新尝试过于频繁，请稍后再试',
-  },
-};
-
-const ADMIN_RATE_LIMIT_MESSAGE = {
-  success: false,
-  error: {
-    type: 'https://backtest.platform/errors/rate-limited',
-    title: 'Too Many Requests',
-    status: 429,
-    code: 'RATE_LIMITED',
-    detail: '管理接口请求过于频繁，请稍后再试',
-  },
-};
-
-export const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  passOnStoreError: false,
-  store: createRateLimiterStore('rl:api:'),
-  message: RATE_LIMIT_MESSAGE,
-});
-
-export const computeLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: config.COMPUTE_RATE_LIMIT_MAX,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: computeRateLimitKey,
-  passOnStoreError: false,
-  store: createRateLimiterStore('rl:compute:'),
-  message: RATE_LIMIT_MESSAGE,
-});
-
-export const adminLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  passOnStoreError: true,
-  store: createRateLimiterStore('rl:admin:'),
-  message: ADMIN_RATE_LIMIT_MESSAGE,
-});
-
-export const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: authRateLimitKey,
-  passOnStoreError: false,
-  store: createRateLimiterStore('rl:auth:'),
-  message: AUTH_RATE_LIMIT_MESSAGE,
-});
-
-export const refreshLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: authRateLimitKey,
-  passOnStoreError: false,
-  store: createRateLimiterStore('rl:auth-refresh:'),
-  message: AUTH_REFRESH_RATE_LIMIT_MESSAGE,
-});
-
-export const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 3,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: authRateLimitKey,
-  passOnStoreError: false,
-  store: createRateLimiterStore('rl:register:'),
-  message: {
+/** 构建 RFC 7807 格式的限流错误响应体。 */
+function buildRateLimitMessage(code: string) {
+  return {
     success: false,
     error: {
       type: 'https://backtest.platform/errors/rate-limited',
-      title: 'Too Many Requests',
+      title: code,
       status: 429,
-      code: 'REGISTER_RATE_LIMITED',
-      detail: '注册尝试过于频繁，请稍后再试',
+      code,
     },
-  },
+  };
+}
+
+interface LimiterOptions {
+  windowMs: number;
+  max: number;
+  storePrefix: string;
+  code: string;
+  keyGenerator?: (req: Request) => string;
+  passOnStoreError?: boolean;
+}
+
+/** 创建限流器，统一 standardHeaders/legacyHeaders/store 公共字段。 */
+function createLimiter(opts: LimiterOptions): ReturnType<typeof rateLimit> {
+  return rateLimit({
+    windowMs: opts.windowMs,
+    max: opts.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    passOnStoreError: opts.passOnStoreError ?? false,
+    keyGenerator: opts.keyGenerator,
+    store: createRateLimiterStore(opts.storePrefix),
+    message: buildRateLimitMessage(opts.code),
+  });
+}
+
+export const apiLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  storePrefix: 'rl:api:',
+  code: 'RATE_LIMITED',
+  detail: '请求过于频繁，请稍后再试',
+});
+
+export const computeLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: config.COMPUTE_RATE_LIMIT_MAX,
+  storePrefix: 'rl:compute:',
+  keyGenerator: computeRateLimitKey,
+  code: 'RATE_LIMITED',
+  detail: '请求过于频繁，请稍后再试',
+});
+
+export const adminLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 30,
+  storePrefix: 'rl:admin:',
+  passOnStoreError: true,
+  code: 'RATE_LIMITED',
+  detail: '管理接口请求过于频繁，请稍后再试',
+});
+
+export const loginLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  storePrefix: 'rl:auth:',
+  keyGenerator: authRateLimitKey,
+  code: 'AUTH_RATE_LIMITED',
+  detail: '登录尝试过于频繁，请稍后再试',
+});
+
+export const refreshLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  storePrefix: 'rl:auth-refresh:',
+  keyGenerator: authRateLimitKey,
+  code: 'AUTH_RATE_LIMITED',
+  detail: '刷新尝试过于频繁，请稍后再试',
+});
+
+export const registerLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  storePrefix: 'rl:register:',
+  keyGenerator: authRateLimitKey,
+  code: 'REGISTER_RATE_LIMITED',
+  detail: '注册尝试过于频繁，请稍后再试',
 });

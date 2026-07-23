@@ -103,7 +103,7 @@ export function requireUser(
   res: Response,
 ): req is AuthenticatedRequest & { user: NonNullable<AuthenticatedRequest['user']> } {
   if (!req.user) {
-    sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', { detail: '未认证' });
+    sendProblem(res, 401, 'UNAUTHORIZED');
     return false;
   }
   return true;

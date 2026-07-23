@@ -9,12 +9,7 @@
  * 消除路由层字符串匹配错误的反模式。所有计算端点路由统一使用此包装器。
  */
 import type { Request, Response, RequestHandler } from 'express';
-import {
-  sendProblem,
-  UpstreamProblemError,
-  ApplicationError,
-  type SendProblemOptions,
-} from '../utils/errors.js';
+import { sendProblem, UpstreamProblemError, ApplicationError } from '../utils/errors.js';
 import { EngineUnavailableError } from '../utils/engineClient.js';
 import { TimeoutError } from '../utils/timeout.js';
 import { logger } from '../utils/logger.js';
@@ -30,8 +25,7 @@ import { isUuid } from '../utils/validation.js';
  */
 function handleEngineUnavailable(res: Response, error: unknown): boolean {
   if (error instanceof EngineUnavailableError) {
-    sendProblem(res, 503, 'ENGINE_UNAVAILABLE', 'Service Unavailable', {
-      detail: error.message,
+    sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
       headers: { 'Retry-After': String(error.retryAfterSeconds) },
       degraded: true,
       degradedWarning: error.message,
@@ -39,9 +33,7 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
     return true;
   }
   if (error instanceof UpstreamProblemError) {
-    sendProblem(res, error.status, error.code, error.title, {
-      detail: error.detail,
-    });
+    sendProblem(res, error.status, error.code);
     return true;
   }
   return false;
@@ -57,14 +49,11 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
  */
 function handleApplicationError(res: Response, error: unknown): boolean {
   if (error instanceof ApplicationError) {
-    const options: SendProblemOptions = { detail: error.message };
-    sendProblem(res, error.statusCode, error.errorCode, error.errorTitle, options);
+    sendProblem(res, error.statusCode, error.errorCode);
     return true;
   }
   if (error instanceof TimeoutError) {
-    sendProblem(res, 503, 'COMPUTE_TIMEOUT', 'Service Unavailable', {
-      detail: '计算超时，请缩小参数空间或稍后重试',
-    });
+    sendProblem(res, 503, 'COMPUTE_TIMEOUT');
     return true;
   }
   return false;
@@ -77,7 +66,7 @@ export function ownerOf(req: AuthenticatedRequest): string | null {
 
 export function requireTenantId(req: AuthenticatedRequest, res: Response): string | null {
   if (!hasTenant(req)) {
-    sendProblem(res, 401, 'TENANT_REQUIRED', 'Unauthorized', { detail: '组织上下文缺失' });
+    sendProblem(res, 401, 'TENANT_REQUIRED');
     return null;
   }
   return req.tenantId;
@@ -85,7 +74,7 @@ export function requireTenantId(req: AuthenticatedRequest, res: Response): strin
 
 export function requireUuidParam(res: Response, id: string | undefined): boolean {
   if (!id || !isUuid(id)) {
-    sendProblem(res, 400, 'INVALID_ID', 'Bad Request', { detail: 'ID 必须为 UUID' });
+    sendProblem(res, 400, 'INVALID_ID');
     return false;
   }
   return true;
@@ -94,8 +83,6 @@ export function requireUuidParam(res: Response, id: string | undefined): boolean
 interface RouteErrorConfig {
   logMsg: string;
   code: string;
-  title: string;
-  detail: string;
   endpoint?: string;
 }
 
@@ -139,8 +126,7 @@ export function asyncRouteHandler(
       }
       recordEndpointError(errorConfig.endpoint);
       logger.error({ err: error as Error }, errorConfig.logMsg);
-      const detail = error instanceof Error && error.message ? error.message : errorConfig.detail;
-      sendProblem(res, 500, errorConfig.code, errorConfig.title, { detail });
+      sendProblem(res, 500, errorConfig.code);
     }
   };
 }
@@ -157,7 +143,7 @@ export function asyncRouteHandler(
  * 返回 4xx/404 等业务错误——这些不会被本包装器拦截。
  *
  * @param fn - 路由业务逻辑，接收 Request/Response
- * @param errorConfig - 错误处理配置（logMsg 日志消息、code 错误码、title 标题、detail 详情）
+ * @param errorConfig - 错误处理配置（logMsg 日志消息、code 错误码、endpoint 可选端点标识）
  * @returns Express RequestHandler
  */
 export function crudRouteHandler(
@@ -169,10 +155,7 @@ export function crudRouteHandler(
       await fn(req, res);
     } catch (err) {
       logger.error({ err: err as Error, path: req.path, method: req.method }, errorConfig.logMsg);
-      const detail = err instanceof Error && err.message ? err.message : errorConfig.detail;
-      sendProblem(res, 500, errorConfig.code, errorConfig.title, {
-        detail,
-      });
+      sendProblem(res, 500, errorConfig.code);
     }
   };
 }
