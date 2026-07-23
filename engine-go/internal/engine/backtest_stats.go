@@ -55,8 +55,9 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	return result
 }
 
-// computeCorrelationMatrix 计算相关性矩阵
-func computeCorrelationMatrix(dailyReturnsList [][]float64) [][]float64 {
+// CalcCorrelationMatrix 计算相关性矩阵。
+// 对角线为 1，上下三角对称，调用 CalcCorrelation 计算各对收益率序列的相关系数。
+func CalcCorrelationMatrix(dailyReturnsList [][]float64) [][]float64 {
 	n := len(dailyReturnsList)
 	matrix := make([][]float64, n)
 	for i := range matrix {

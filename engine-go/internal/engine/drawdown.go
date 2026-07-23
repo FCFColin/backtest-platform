@@ -78,29 +78,6 @@ func detectDrawdownEpisodes(curve []DataPoint) []DrawdownEpisode {
 	return episodes
 }
 
-// computeDrawdownCurve 计算每日回撤曲线
-//
-// 企业理由：回撤曲线可视化展示组合从峰值的回撤程度，
-// 是投资者理解策略风险的关键图表。
-func computeDrawdownCurve(curve []DataPoint) []DrawdownPoint {
-	if len(curve) == 0 {
-		return nil
-	}
-	result := make([]DrawdownPoint, len(curve))
-	peak := curve[0].Value
-	for i, dp := range curve {
-		if dp.Value > peak {
-			peak = dp.Value
-		}
-		dd := 0.0
-		if peak > 0 {
-			dd = (peak - dp.Value) / peak
-		}
-		result[i] = DrawdownPoint{Date: dp.Date, Drawdown: dd}
-	}
-	return result
-}
-
 // daysBetween 计算两个日期字符串之间的天数
 func daysBetween(dateStr1, dateStr2 string) int {
 	t1, err1 := time.Parse("2006-01-02", dateStr1)

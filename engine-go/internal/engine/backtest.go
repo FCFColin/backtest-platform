@@ -55,13 +55,17 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 			return nil, fmt.Errorf("组合 %s 计算失败: %w", pf.Name, err)
 		}
 
-		ddCurve := computeDrawdownCurve(curve)
+		ddCurve := CalcDrawdownCurve(extractValues(curve), extractDates(curve))
 		episodes := detectDrawdownEpisodes(curve)
 
 		stats := computeStatistics(curve, episodes, benchmarkGrowth)
 
-		// 滚动收益
-		rollingReturns := computeRollingReturns(curve, req.Params.RollingWindowMonths)
+		// 滚动收益——复用 CalcRollingReturns 并转换为 DataPoint
+		rawRR := CalcRollingReturns(extractValues(curve), extractDates(curve), req.Params.RollingWindowMonths)
+		rollingReturns := make([]DataPoint, len(rawRR))
+		for i, r := range rawRR {
+			rollingReturns[i] = DataPoint{Date: r.Date, Value: r.Return}
+		}
 
 		// 年度/月度收益
 		annualRets := annualReturnsFromCurve(curve)
@@ -83,7 +87,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 	}
 
 	// 5. 计算组合间相关性矩阵
-	correlations := computeCorrelationMatrix(portfolioDailyReturns)
+	correlations := CalcCorrelationMatrix(portfolioDailyReturns)
 
 	// 6. 计算资产间相关性矩阵
 	assetDailyReturns := make([][]float64, 0, len(assetTickers))
@@ -91,7 +95,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 		prices := engineutil.ExtractPrices(req.PriceData, ticker, tradingDates)
 		assetDailyReturns = append(assetDailyReturns, dailyReturns(prices))
 	}
-	assetCorrelations := computeCorrelationMatrix(assetDailyReturns)
+	assetCorrelations := CalcCorrelationMatrix(assetDailyReturns)
 
 	result := &BacktestResult{
 		Portfolios:        portfolioResults,
@@ -114,7 +118,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 }
 
 // computeGrowthCurve, recalculateShares, zeroHoldings, getPriceWithFX,
-// adjustForInflation, glidepathWeights, normalizeWeights, sumFloat,
+// adjustForInflation, glidepathWeights, normalizeWeights,
 // buildPeriodicCashflowMap, findCPIForDate
 // 以上函数已拆分至 backtest_curve.go 和 backtest_helpers.go。
 
@@ -145,34 +149,6 @@ func computeBenchmarkGrowth(
 		}
 	}
 	return curve
-}
-
-// computeRollingReturns 计算滚动收益率
-//
-// 企业理由：滚动收益率展示不同时间窗口的收益分布，
-// 帮助投资者理解策略在不同持有期的表现。
-func computeRollingReturns(curve []DataPoint, windowMonths int) []DataPoint {
-	if len(curve) < 2 || windowMonths <= 0 {
-		return nil
-	}
-
-	// 企业理由：将月数转换为近似交易日数
-	windowDays := int(float64(windowMonths) * float64(tradingDays) / 12.0)
-	if windowDays < 1 {
-		windowDays = 1
-	}
-
-	result := make([]DataPoint, 0)
-	for i := windowDays; i < len(curve); i++ {
-		if curve[i-windowDays].Value > 0 {
-			rollingRet := (curve[i].Value - curve[i-windowDays].Value) / curve[i-windowDays].Value
-			result = append(result, DataPoint{
-				Date:  curve[i].Date,
-				Value: rollingRet,
-			})
-		}
-	}
-	return result
 }
 
 // ============================================================

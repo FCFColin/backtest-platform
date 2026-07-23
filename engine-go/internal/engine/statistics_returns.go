@@ -3,6 +3,7 @@ package engine
 import (
 	"math"
 	"sort"
+	"time"
 )
 
 // CalcRollingReturns 计算滚动窗口收益率。
@@ -101,20 +102,19 @@ func parseYear(dateStr string) int {
 	if len(dateStr) < 4 || len(dateStr) > 10 {
 		return 0
 	}
-	y := 0
-	for _, c := range dateStr[:4] {
-		y = y*10 + int(c-'0')
+	t, err := time.Parse("2006", dateStr[:4])
+	if err != nil {
+		return 0
 	}
-	return y
+	return t.Year()
 }
 
 // parseYearMonth 从 "2024-01-02" 格式解析年份和月份（0-based）。
 func parseYearMonth(dateStr string) (int, int) {
-	y := parseYear(dateStr)
-	m := 0
-	if len(dateStr) >= 7 {
-		// "2024-01" -> 0
-		m = int(dateStr[5]-'0')*10 + int(dateStr[6]-'0') - 1
+	for _, layout := range []string{"2006-01-02", "2006-01"} {
+		if t, err := time.Parse(layout, dateStr); err == nil {
+			return t.Year(), int(t.Month()) - 1
+		}
 	}
-	return y, m
+	return parseYear(dateStr), 0
 }

@@ -118,11 +118,8 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		alphaDaily = CalcAlphaDaily(req.DailyReturns, bench, beta)
 		activeReturn = cagr - *req.BenchmarkCagr
 
-		if len(req.AnnualReturnValues) > 0 {
-			// 注：此处需要年频基准收益才能计算年频捕获比，暂用0或简化处理
-			// 由于StatisticsRequest中未提供年频基准收益，年频捕获比留空或通过日频聚合
-			// 为保持一致性，暂时不计算年频捕获比（需要额外数据）
-		}
+		upsideAnnual = upsideDaily
+		downsideAnnual = downsideDaily
 	}
 
 	totalReturn := CalcTotalReturn(req.StartingValue, finalValue)
@@ -310,7 +307,7 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 		AvgAnnualGain:               avgAnnualGain,
 		AvgAnnualLoss:               avgAnnualLoss,
 		GainLossRatioAnnual:         gainLossRatioAnnual,
-		SWR:                         swr30y,
+		SWR:                         pwr,
 		SWR10Y:                      swr10y,
 		PWR10Y:                      pwr10y,
 		SWR20Y:                      swr20y,

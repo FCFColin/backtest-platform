@@ -9,14 +9,11 @@ import (
 
 // ===== 信号生成 =====
 
-// isNaN 检查是否为 NaN。
-func isNaN(v float64) bool { return math.IsNaN(v) }
-
 // detectCrossSignals 检测交叉信号。
 func detectCrossSignals(data []PricePoint, prevVals, curVals, prices []float64) []SignalPoint {
 	var signals []SignalPoint
 	for i := 1; i < len(prices); i++ {
-		if isNaN(curVals[i]) || isNaN(prevVals[i]) || isNaN(curVals[i-1]) || isNaN(prevVals[i-1]) {
+		if math.IsNaN(curVals[i]) || math.IsNaN(prevVals[i]) || math.IsNaN(curVals[i-1]) || math.IsNaN(prevVals[i-1]) {
 			continue
 		}
 		crossedUp := prevVals[i-1] <= curVals[i-1] && prevVals[i] > curVals[i]
@@ -52,7 +49,7 @@ func generateRsiSignals(prices []float64, data []PricePoint, safePeriod int, thr
 
 	var signals []SignalPoint
 	for i := 1; i < len(prices); i++ {
-		if isNaN(rsi[i]) || isNaN(rsi[i-1]) {
+		if math.IsNaN(rsi[i]) || math.IsNaN(rsi[i-1]) {
 			continue
 		}
 		if rsi[i-1] >= oversold && rsi[i] < oversold {
@@ -80,7 +77,7 @@ func generateBollingerSignals(prices []float64, data []PricePoint, safePeriod in
 
 	var signals []SignalPoint
 	for i := 1; i < len(prices); i++ {
-		if isNaN(upper[i]) || isNaN(lower[i]) || isNaN(upper[i-1]) || isNaN(lower[i-1]) {
+		if math.IsNaN(upper[i]) || math.IsNaN(lower[i]) || math.IsNaN(upper[i-1]) || math.IsNaN(lower[i-1]) {
 			continue
 		}
 		if prices[i-1] >= lower[i-1] && prices[i] < lower[i] {

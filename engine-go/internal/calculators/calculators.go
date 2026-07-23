@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/rand"
 
+	"engine-go/internal/engine"
 	"engine-go/internal/mathutil"
 )
 
@@ -30,7 +31,7 @@ func CalcCAGR(req CAGRRequest) CAGRResult {
 		return CAGRResult{}
 	}
 	multiplier := req.FinalAmount / req.InitialAmount
-	cagr := math.Pow(multiplier, 1/req.Years) - 1
+	cagr := engine.CalcCAGR(req.InitialAmount, req.FinalAmount, req.Years)
 	return CAGRResult{
 		CAGR:        cagr,
 		TotalReturn: req.FinalAmount - req.InitialAmount,

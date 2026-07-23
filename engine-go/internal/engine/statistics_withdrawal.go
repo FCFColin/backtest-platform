@@ -1,7 +1,5 @@
 package engine
 
-import "sort"
-
 // CalcSWR 计算安全提款率（Safe Withdrawal Rate）。
 // 对给定年限years，使用滚动窗口法，找到使successRate比例的窗口不耗尽的最大提款率。
 // annualReturns: 年收益率序列
@@ -68,43 +66,4 @@ func CalcPWRAllYears(annualReturns []float64) (pwr10y, swr10y, pwr20y, swr20y, p
 		swr40y = CalcSWR(annualReturns, 40, 0.95)
 	}
 	return
-}
-
-// CalcSWRWithSortedWindows 可选：通过模拟每个窗口的最大提款率再分位数计算SWR（备用实现）。
-func CalcSWRWithSortedWindows(annualReturns []float64, years int, successRate float64) float64 {
-	numWindows := len(annualReturns) - years + 1
-	if numWindows <= 0 {
-		return 0
-	}
-	maxRates := make([]float64, 0, numWindows)
-	for start := 0; start < numWindows; start++ {
-		window := annualReturns[start : start+years]
-		maxRates = append(maxRates, findMaxWithdrawalForWindow(window))
-	}
-	sort.Float64s(maxRates)
-	index := int((1.0 - successRate) * float64(len(maxRates)))
-	if index < 0 {
-		index = 0
-	}
-	if index >= len(maxRates) {
-		index = len(maxRates) - 1
-	}
-	return maxRates[index]
-}
-
-// findMaxWithdrawalForWindow 为单个窗口找到不耗尽的最大提款率。
-func findMaxWithdrawalForWindow(returns []float64) float64 {
-	low, high := 0.0, 1.0
-	for i := 0; i < 80; i++ {
-		mid := (low + high) / 2
-		if simulateWithdrawal(returns, mid) {
-			low = mid
-		} else {
-			high = mid
-		}
-		if high-low < 1e-8 {
-			break
-		}
-	}
-	return low
 }

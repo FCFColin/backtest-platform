@@ -3,6 +3,8 @@ package optimizer
 import (
 	"math"
 	"testing"
+
+	"engine-go/internal/mathutil"
 )
 
 func TestInvertDense(t *testing.T) {
@@ -203,7 +205,7 @@ func TestOptimizeMaxReturn(t *testing.T) {
 func TestCovariance(t *testing.T) {
 	t.Run("相同序列协方差等于方差", func(t *testing.T) {
 		x := []float64{1.0, 2.0, 3.0, 4.0, 5.0}
-		cov := covariance(x, x)
+		cov := mathutil.Covariance(x, x)
 		// 计算方差
 		m := 0.0
 		for _, v := range x {
@@ -221,7 +223,7 @@ func TestCovariance(t *testing.T) {
 	})
 
 	t.Run("空序列应返回 0", func(t *testing.T) {
-		cov := covariance([]float64{}, []float64{})
+		cov := mathutil.Covariance([]float64{}, []float64{})
 		if cov != 0 {
 			t.Errorf("空序列协方差应返回 0，实际 %.6f", cov)
 		}
