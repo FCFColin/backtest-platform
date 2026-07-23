@@ -12,14 +12,18 @@ FROM golang:1.26-alpine AS builder
 WORKDIR /build
 
 # 复制依赖清单并下载依赖（利用 Docker 层缓存）
-COPY go.mod go.sum ./
-RUN go mod download
+COPY data-fetcher/go.mod data-fetcher/go.sum ./data-fetcher/
+
+# 复制 go-shared 依赖（replace ../packages/go-shared 需要在构建上下文中可用）
+COPY packages/go-shared ./packages/go-shared
+
+RUN cd data-fetcher && go mod download
 
 # 复制源码
-COPY . .
+COPY data-fetcher ./data-fetcher
 
 # 编译静态二进制（CGO_DISABLED 确保纯静态链接，适配 alpine 运行时）
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /data-fetcher .
+RUN cd data-fetcher && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /data-fetcher-bin .
 
 # =============================================================================
 # Stage 2: runner
@@ -38,7 +42,7 @@ RUN apk add --no-cache ca-certificates wget tzdata \
 WORKDIR /app
 
 # 复制编译产物
-COPY --from=builder /data-fetcher /app/data-fetcher
+COPY --from=builder /data-fetcher-bin /app/data-fetcher
 
 # 运行环境配置
 ENV DATA_FETCHER_PORT=5003 \

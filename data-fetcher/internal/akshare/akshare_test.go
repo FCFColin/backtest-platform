@@ -161,30 +161,6 @@ func TestParseCodeAndMarket(t *testing.T) {
 	}
 }
 
-func TestParseFloat(t *testing.T) {
-	if v := parseFloat(""); v != 0 {
-		t.Errorf("parseFloat(\"\") = %v, want 0", v)
-	}
-	if v := parseFloat("3.14"); v != 3.14 {
-		t.Errorf("parseFloat(\"3.14\") = %v, want 3.14", v)
-	}
-	if v := parseFloat("invalid"); v != 0 {
-		t.Errorf("parseFloat(\"invalid\") = %v, want 0", v)
-	}
-}
-
-func TestParseInt64(t *testing.T) {
-	if v := parseInt64(""); v != 0 {
-		t.Errorf("parseInt64(\"\") = %d, want 0", v)
-	}
-	if v := parseInt64("1000000"); v != 1000000 {
-		t.Errorf("parseInt64(\"1000000\") = %d, want 1000000", v)
-	}
-	if v := parseInt64("invalid"); v != 0 {
-		t.Errorf("parseInt64(\"invalid\") = %d, want 0", v)
-	}
-}
-
 func TestNewProvider_Name(t *testing.T) {
 	p := NewProvider()
 	if p == nil {

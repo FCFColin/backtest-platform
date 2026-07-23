@@ -2,7 +2,9 @@ package baostock
 
 import (
 	"bytes"
+	"compress/zlib"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"net"
 	"strconv"
@@ -29,7 +31,7 @@ func (c *Client) sendMsg(msgType, msgBody string) (string, error) {
 
 	headBody := header + msgBody
 
-	crc32Val := crc32(headBody)
+	crc32Val := crc32.ChecksumIEEE([]byte(headBody))
 
 	fullMsg := headBody + MsgSplit + strconv.FormatUint(uint64(crc32Val), 10) + MsgEnd
 
@@ -109,4 +111,34 @@ func (c *Client) sendMsg(msgType, msgBody string) (string, error) {
 	}
 
 	return string(receive), nil
+}
+
+// ============================================================
+// 协议工具函数
+// ============================================================
+
+// padLeft 左侧填充字符到指定长度。
+func padLeft(s, pad string, length int) string {
+	for len(s) < length {
+		s = pad + s
+	}
+	return s
+}
+
+// truncate 截断字符串到指定长度并添加省略号。
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// zlibDecompress 解压 zlib 压缩数据。
+func zlibDecompress(data []byte) ([]byte, error) {
+	r, err := zlib.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return io.ReadAll(r)
 }

@@ -1,4 +1,5 @@
-package main
+// Package store 提供 data-fetcher 的 PostgreSQL 数据存储层。
+package store
 
 import (
 	"context"
@@ -16,6 +17,7 @@ import (
 // 数据结构
 // ============================================================
 
+// PricePoint 标的价格点。
 type PricePoint struct {
 	Date        string  `json:"date"`
 	Open        float64 `json:"open"`
@@ -28,6 +30,7 @@ type PricePoint struct {
 	SplitFactor float64 `json:"split_factor"`
 }
 
+// SearchResult 标的搜索结果。
 type SearchResult struct {
 	Ticker string `json:"ticker"`
 	Name   string `json:"name"`
@@ -38,15 +41,18 @@ type SearchResult struct {
 // 数据存储（PostgreSQL）
 // ============================================================
 
+// DataStore 封装 PostgreSQL 连接池与数据访问逻辑。
 type DataStore struct {
 	pool *pgxpool.Pool
+	reg  *provider.Registry
 }
 
-func NewDataStore(ctx context.Context, cfg *Config) (*DataStore, error) {
-	if cfg.DatabaseURL == "" {
+// New 创建数据存储，databaseURL 为 PostgreSQL 连接串，reg 为数据源降级注册表。
+func New(ctx context.Context, databaseURL string, reg *provider.Registry) (*DataStore, error) {
+	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL 未设置")
 	}
-	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	poolCfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err)
 	}
@@ -62,7 +68,12 @@ func NewDataStore(ctx context.Context, cfg *Config) (*DataStore, error) {
 	}
 
 	slog.Info("数据存储初始化完成", "module", "数据存储")
-	return &DataStore{pool: pool}, nil
+	return &DataStore{pool: pool, reg: reg}, nil
+}
+
+// Pool 返回底层连接池，供 handler 层执行一次性的统计/查询使用。
+func (ds *DataStore) Pool() *pgxpool.Pool {
+	return ds.pool
 }
 
 func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
@@ -136,7 +147,7 @@ func filterPricePointsByDate(prices []PricePoint, startDate, endDate string) []P
 }
 
 func (ds *DataStore) fetchAndStoreFromProvider(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
-	providers := dataReg.ForTicker(ticker)
+	providers := ds.reg.ForTicker(ticker)
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("没有可用的数据源: %s", ticker)
 	}

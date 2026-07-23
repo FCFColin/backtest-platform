@@ -3,12 +3,12 @@ package akshare
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
+	"data-fetcher/internal/providerutil"
 )
 
 var userAgents = []string{
@@ -126,29 +126,13 @@ func parseDailyPrices(body []byte) ([]provider.DailyPrice, error) {
 		}
 		prices = append(prices, provider.DailyPrice{
 			Date:          parts[0],
-			Open:          parseFloat(parts[1]),
-			Close:         parseFloat(parts[2]),
-			High:          parseFloat(parts[3]),
-			Low:           parseFloat(parts[4]),
-			Volume:        parseInt64(parts[5]),
-			AdjustedClose: parseFloat(parts[2]),
+			Open:          providerutil.ParseStringFloat(parts[1]),
+			Close:         providerutil.ParseStringFloat(parts[2]),
+			High:          providerutil.ParseStringFloat(parts[3]),
+			Low:           providerutil.ParseStringFloat(parts[4]),
+			Volume:        providerutil.ParseStringInt(parts[5]),
+			AdjustedClose: providerutil.ParseStringFloat(parts[2]),
 		})
 	}
 	return prices, nil
-}
-
-func parseFloat(s string) float64 {
-	if s == "" {
-		return 0
-	}
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
-}
-
-func parseInt64(s string) int64 {
-	if s == "" {
-		return 0
-	}
-	n, _ := strconv.ParseInt(s, 10, 64)
-	return n
 }

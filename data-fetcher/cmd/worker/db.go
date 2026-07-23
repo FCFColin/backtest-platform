@@ -60,9 +60,8 @@ func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
 
 	CREATE TABLE IF NOT EXISTS tickers (
 		ticker TEXT PRIMARY KEY,
-		name   TEXT,
-		market TEXT,
-		category TEXT,
+		category TEXT NOT NULL DEFAULT '',
+		market TEXT NOT NULL DEFAULT '',
 		exchange TEXT NOT NULL DEFAULT ''
 	);
 
@@ -116,13 +115,13 @@ func seedUniverse(ctx context.Context, pool *pgxpool.Pool) error {
 	batch := &pgx.Batch{}
 	for _, meta := range DefaultETFUniverse {
 		batch.Queue(`
-			INSERT INTO tickers (ticker, name, market, category)
+			INSERT INTO tickers (ticker, category, market, exchange)
 			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (ticker) DO UPDATE SET
-				name = EXCLUDED.name,
+				category = EXCLUDED.category,
 				market = EXCLUDED.market,
-				category = EXCLUDED.category
-		`, meta.Ticker, meta.Name, meta.Market, meta.Category)
+				exchange = EXCLUDED.exchange
+		`, meta.Ticker, meta.Category, meta.Market, "")
 	}
 
 	br := pool.SendBatch(ctx, batch)

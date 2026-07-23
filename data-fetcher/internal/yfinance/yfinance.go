@@ -3,11 +3,11 @@ package yfinance
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
+	"data-fetcher/internal/providerutil"
 )
 
 var userAgents = []string{
@@ -137,18 +137,18 @@ func parseChartResponse(body []byte) ([]provider.DailyPrice, error) {
 		if i >= len(quote.Close) {
 			break
 		}
-		closeVal := toFloat64(quote.Close[i])
+		closeVal := providerutil.ToFloat64(quote.Close[i])
 		if closeVal == 0 {
 			continue
 		}
 		p := provider.DailyPrice{
 			Date:          time.Unix(ts, 0).Format("2006-01-02"),
-			Open:          toFloat64Safe(quote.Open, i),
-			High:          toFloat64Safe(quote.High, i),
-			Low:           toFloat64Safe(quote.Low, i),
+			Open:          providerutil.ToFloat64Safe(quote.Open, i),
+			High:          providerutil.ToFloat64Safe(quote.High, i),
+			Low:           providerutil.ToFloat64Safe(quote.Low, i),
 			Close:         closeVal,
-			Volume:        toInt64Safe(quote.Volume, i),
-			AdjustedClose: toFloat64Safe(adjClose, i),
+			Volume:        providerutil.ToInt64Safe(quote.Volume, i),
+			AdjustedClose: providerutil.ToFloat64Safe(adjClose, i),
 		}
 		if p.AdjustedClose == 0 {
 			p.AdjustedClose = p.Close
@@ -195,41 +195,4 @@ func dateToUnix(dateStr string) (int64, error) {
 		return 0, err
 	}
 	return t.Unix(), nil
-}
-
-func toFloat64(v interface{}) float64 {
-	if v == nil {
-		return 0
-	}
-	switch val := v.(type) {
-	case float64:
-		return val
-	case string:
-		f, _ := strconv.ParseFloat(val, 64)
-		return f
-	default:
-		return 0
-	}
-}
-
-func toFloat64Safe(arr []interface{}, idx int) float64 {
-	if idx >= len(arr) || arr[idx] == nil {
-		return 0
-	}
-	return toFloat64(arr[idx])
-}
-
-func toInt64Safe(arr []interface{}, idx int) int64 {
-	if idx >= len(arr) || arr[idx] == nil {
-		return 0
-	}
-	switch val := arr[idx].(type) {
-	case float64:
-		return int64(val)
-	case string:
-		n, _ := strconv.ParseInt(val, 10, 64)
-		return n
-	default:
-		return 0
-	}
 }

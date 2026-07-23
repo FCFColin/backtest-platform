@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+// recordResponse 是 baostock Plus 版 JSON 响应的通用结构，
+// 三处解析函数（K线/股票列表/交易日历）共享同一结构。
+type recordResponse struct {
+	Record [][]string `json:"record"`
+}
+
 // parseKDataResponseDynamic 动态解析K线响应（支持JSON格式）。
 func (c *Client) parseKDataResponseDynamic(resp string, fieldNames []string) ([]map[string]string, bool, error) {
 	if len(resp) <= HeaderLength {
@@ -27,10 +33,7 @@ func (c *Client) parseKDataResponseDynamic(resp string, fieldNames []string) ([]
 	// Plus版K线响应是JSON格式
 	for i := 1; i < len(bodyArr); i++ {
 		if strings.Contains(bodyArr[i], `"record"`) {
-			type RecordResponse struct {
-				Record [][]string `json:"record"`
-			}
-			var respData RecordResponse
+			var respData recordResponse
 			if err := json.Unmarshal([]byte(bodyArr[i]), &respData); err == nil {
 				var data []map[string]string
 				for _, row := range respData.Record {
@@ -66,10 +69,7 @@ func (c *Client) parseAllStockResponse(resp string) ([]StockInfo, error) {
 	// Plus版响应是JSON格式
 	for i := 1; i < len(bodyArr); i++ {
 		if strings.Contains(bodyArr[i], `"record"`) {
-			type RecordResponse struct {
-				Record [][]string `json:"record"`
-			}
-			var respData RecordResponse
+			var respData recordResponse
 			if err := json.Unmarshal([]byte(bodyArr[i]), &respData); err == nil {
 				var stocks []StockInfo
 				for _, row := range respData.Record {
@@ -125,10 +125,7 @@ func (c *Client) parseTradeDatesResponse(resp string) ([]string, error) {
 	// Plus版响应是JSON格式
 	for i := 1; i < len(bodyArr); i++ {
 		if strings.Contains(bodyArr[i], `"record"`) {
-			type RecordResponse struct {
-				Record [][]string `json:"record"`
-			}
-			var respData RecordResponse
+			var respData recordResponse
 			if err := json.Unmarshal([]byte(bodyArr[i]), &respData); err == nil {
 				var dates []string
 				for _, row := range respData.Record {

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
+	"data-fetcher/internal/providerutil"
 )
 
 const baseURL = "https://api.twelvedata.com"
@@ -76,17 +75,17 @@ func (p *twelveDataProvider) FetchStockDaily(ticker, startDate, endDate string) 
 			if t.Before(start) || t.After(end) {
 				continue
 			}
-			close := parseTwelveFloat(v.Close)
+			close := providerutil.ParseStringFloat(v.Close)
 			if close == 0 {
 				continue
 			}
 			prices = append(prices, provider.DailyPrice{
 				Date:          v.Datetime,
-				Open:          parseTwelveFloat(v.Open),
-				High:          parseTwelveFloat(v.High),
-				Low:           parseTwelveFloat(v.Low),
+				Open:          providerutil.ParseStringFloat(v.Open),
+				High:          providerutil.ParseStringFloat(v.High),
+				Low:           providerutil.ParseStringFloat(v.Low),
 				Close:         close,
-				Volume:        parseTwelveInt(v.Volume),
+				Volume:        providerutil.ParseStringInt(v.Volume),
 				AdjustedClose: close,
 			})
 		}
@@ -98,30 +97,6 @@ func (p *twelveDataProvider) FetchStockDaily(ticker, startDate, endDate string) 
 
 func (p *twelveDataProvider) SearchTicker(query string) ([]provider.TickerInfo, error) {
 	return nil, fmt.Errorf("twelvedata SearchTicker 未实现（使用 Finnhub 或 yfinance 搜索）")
-}
-
-func parseTwelveFloat(s string) float64 {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0
-	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0
-	}
-	return f
-}
-
-func parseTwelveInt(s string) int64 {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0
-	}
-	f, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0
-	}
-	return int64(f)
 }
 
 type timeSeriesResponse struct {
