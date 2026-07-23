@@ -38,6 +38,35 @@ export const REBALANCE_FREQUENCIES = [
   'annual',
 ] as const satisfies readonly RebalanceFrequency[];
 
+/**
+ * 全部再平衡频率值（含 none/threshold 特殊值），供 Zod schema 运行时校验复用。
+ *
+ * 与 {@link REBALANCE_FREQUENCIES} 的区别：后者仅含核心 5 值（用于下拉选项），
+ * 本常量含全部 7 值（用于 schema 校验，允许 none/threshold）。
+ */
+export const ALL_REBALANCE_FREQUENCIES = [
+  'daily',
+  'weekly',
+  'monthly',
+  'quarterly',
+  'annual',
+  'none',
+  'threshold',
+] as const satisfies readonly RebalanceFrequency[];
+
+/** 技术指标枚举（供 Zod schema 运行时校验复用）。 */
+export const TECHNICAL_INDICATORS = [
+  'sma',
+  'ema',
+  'rsi',
+  'macd',
+  'bollinger',
+  'momentum',
+] as const;
+
+/** 信号类型枚举（供 Zod schema 运行时校验复用）。 */
+export const SIGNAL_TYPES = ['entry', 'exit', 'both'] as const;
+
 /** 各再平衡频率对应的展示色（用于图表/选项标识，保持跨页面一致） */
 export const REBALANCE_FREQUENCY_COLORS: Record<RebalanceFrequency, string> = {
   daily: '#2b63b8',

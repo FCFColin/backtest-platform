@@ -8,17 +8,26 @@ import type {
 } from '@backtest/shared';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validatePortfolioCore } from '@/utils/validation';
+import { getErrorI18nKey } from '../utils/errorI18nMap.js';
 
 export function extractApiErrorDetail(json: unknown): string {
   if (!json || typeof json !== 'object') return i18n.t('backtest.runFailed');
   const body = json as Record<string, unknown>;
-  if (typeof body.detail === 'string') return body.detail;
+
+  if (typeof body.detail === 'string' && body.detail) return body.detail;
+
   const err = body.error;
-  if (typeof err === 'string') return err;
+  if (typeof err === 'string' && err) return err;
+
   if (err && typeof err === 'object') {
     const e = err as Record<string, unknown>;
-    if (typeof e.detail === 'string') return e.detail;
+    if (typeof e.detail === 'string' && e.detail) return e.detail;
+    const code = typeof e.code === 'string' ? e.code : undefined;
+    if (code) {
+      return i18n.t(getErrorI18nKey(code));
+    }
   }
+
   return i18n.t('backtest.runFailed');
 }
 
@@ -110,13 +119,7 @@ export interface PortfolioPreset {
   rebalanceFrequency: RebalanceFrequency;
 }
 
-/**
- * 内置经典资产配置预设清单。
- *
- * 每个预设包含 id、i18n key、资产权重及默认调仓频率。
- * labelKey / descriptionKey 在 src/i18n/locales/{en,zh-CN}/translation.json
- * 的 `portfolio.preset.<id>.{label,description}` 路径下维护。
- */
+/** 内置经典资产配置预设清单（i18n key 在 `portfolio.preset.<id>.{label,description}` 下） */
 export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = [
   {
     id: '60-40',
@@ -186,11 +189,7 @@ export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = [
 ];
 
 /**
- * 根据预设 ID 创建投资组合。
- *
- * 组合名称取自预设的 i18n labelKey（在调用时通过 i18n.t 解析为当前语言），
- * 资产 id 形如 `asset-${Date.now()}-${index}` 以保证唯一性。
- *
+ * 根据预设 ID 创建投资组合（名称取自 i18n labelKey，资产 id 含 Date.now() 保证唯一）。
  * @param presetId - PORTFOLIO_PRESETS 中某一项的 id
  * @param counter - 组合计数器，用于生成组合 id
  * @returns 与预设配置匹配的 Portfolio 对象

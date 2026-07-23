@@ -21,18 +21,14 @@
 
 import { getAccessToken, refreshTokens } from './authTokens.js';
 import { useToastStore } from '../store/toastStore.js';
+import i18n from '../i18n/index.js';
+import { getErrorI18nKey } from './errorI18nMap.js';
 
 /** Storage 中存储 API Key 的键名（仅 apiClient 内部使用） */
 const ADMIN_API_KEY_STORAGE = 'admin_api_key';
 const FETCH_TIMEOUT_MS = 10_000;
 
-/**
- * 读取当前保存的 API Key。
- *
- * 优先级：sessionStorage → localStorage
- *
- * @returns API Key 字符串；未设置时返回空字符串
- */
+/** 读取 API Key（sessionStorage → localStorage），未设置返回空字符串 */
 function getApiKey(): string {
   // 1. sessionStorage（标签页生命周期）
   try {
@@ -51,23 +47,7 @@ function getApiKey(): string {
   }
 }
 
-/**
- * 认证 fetch 封装（ADR-034）。
- *
- * 认证优先级与行为：
- * 1. JWT Bearer——若已登录（内存有 Access Token），附加 `Authorization: Bearer`。
- *    收到 401 时尝试用 Refresh Token 静默刷新一次并重试原请求（auto-refresh）。
- * 2. x-api-key 兼容——为管理工具/未登录态保留：存在 API Key 且未显式覆盖时附加。
- * - 调用方显式传入的同名头不会被覆盖。
- * - 其余参数与原生 fetch 一致。
- * - 响应拦截：非 2xx 含 error.detail 时弹错误 Toast；degraded=true 时弹警告 Toast。
- * - 探测类调用（如会话恢复 fetchMe）可传 `silent: true` 抑制错误 Toast，
- *   避免未登录时 /api/v1/auth/me 返回 401 弹出“缺少认证凭证”误报。
- *
- * @param input - 请求 URL 或 Request 对象
- * @param init - fetch 初始化配置，可附加 `silent?: boolean` 抑制 Toast
- * @returns fetch 返回的 Response Promise
- */
+/** 构建 fetch init：附加 JWT/x-api-key 头 + 超时/信号控制（401 时由 apiFetch 刷新重试） */
 function buildFetchInit(init: (RequestInit & { silent?: boolean }) | undefined): {
   headers: Headers;
   signal: AbortSignal;
@@ -97,15 +77,23 @@ function buildFetchInit(init: (RequestInit & { silent?: boolean }) | undefined):
   return { headers, signal: controller.signal, timeoutId };
 }
 
+function resolveErrorMessage(err: unknown): string {
+  if (typeof err === 'string') return err;
+  const e = (err ?? {}) as Record<string, unknown>;
+  if (typeof e.detail === 'string' && e.detail) return e.detail;
+  return i18n.t(getErrorI18nKey(typeof e.code === 'string' ? e.code : undefined));
+}
+
 async function handleResponseToast(res: Response): Promise<void> {
   try {
     const cloned = res.clone();
     const body = await cloned.json();
-    if (!res.ok && body?.error?.detail) {
-      useToastStore.getState().addToast('error', body.error.detail);
+    if (!res.ok && body?.error) {
+      useToastStore.getState().addToast('error', resolveErrorMessage(body.error));
     }
     if (body?.degraded === true) {
-      useToastStore.getState().addToast('warning', body.degradedWarning ?? '系统运行在降级模式');
+      const warning = body.degradedWarning;
+      useToastStore.getState().addToast('warning', typeof warning === 'string' ? warning : i18n.t('error.dataDegraded'));
     }
   } catch {
     /* non-JSON response */
@@ -149,7 +137,7 @@ export async function apiFetch(
 export async function apiPostJSON<T>(
   url: string,
   body: unknown,
-  errorMsg = '请求失败',
+  errorMsg = i18n.t('error.requestFailed'),
 ): Promise<T> {
   const res = await apiFetch(url, {
     method: 'POST',

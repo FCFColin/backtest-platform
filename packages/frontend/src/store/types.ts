@@ -6,13 +6,23 @@ import type {
   CashflowLeg,
   OneTimeCashflow,
 } from '@backtest/shared';
+import type { WarningInfo } from '../utils/errorI18nMap.js';
 
 export type BacktestSeriesField = 'rollingReturns' | 'allocationHistory' | 'drawdownEpisodes';
+
+export interface DateRangeInfo {
+  requested: { start: string; end: string };
+  actual: { start: string; end: string };
+  clamped: boolean;
+  missingTickers?: string[];
+}
 
 export interface BacktestState {
   portfolios: Portfolio[];
   parameters: BacktestParameters;
   results: BacktestResult | null;
+  warnings: WarningInfo[];
+  dateRange: DateRangeInfo | null;
   isLoading: boolean;
   activeTab: string;
   portfolioCounter: number;

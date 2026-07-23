@@ -2,16 +2,8 @@
 import { TacticalParamsPanel } from './TacticalParams.js';
 import { TacticalResultsPanel } from './TacticalResults.js';
 import { useTacticalPageState } from './TacticalUtils.js';
-import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
-import type { ComputeToolConfig } from '../../components/shells/types.js';
-
-function TacticalParamsWrapper({ state }: { state: any }) {
-  return <TacticalParamsPanel state={state} />;
-}
-
-function TacticalResultsWrapper({ state }: { state: any }) {
-  return <TacticalResultsPanel state={state} />;
-}
+import { ComputeToolShell } from '../../components/shells/index.js';
+import type { ComputeToolConfig } from '../../components/shells/index.js';
 
 const config: ComputeToolConfig<any> = {
   titleKey: 'tactical.title',
@@ -25,8 +17,8 @@ const config: ComputeToolConfig<any> = {
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
     { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
   ],
-  params: TacticalParamsWrapper,
-  results: TacticalResultsWrapper,
+  params: TacticalParamsPanel,
+  results: TacticalResultsPanel,
 };
 
 export default function TacticalPage() {
