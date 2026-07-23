@@ -1,0 +1,42 @@
+/* ============================================
+   页脚
+   ============================================ */
+.app-footer {
+  background: var(--bg-header);
+  border-top: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 12px 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-footer-left {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-footer-right {
+  display: flex;
+  align-items: center;
+}
+
+.app-footer-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.12s;
+}
+
+.app-footer-link:hover {
+  color: var(--brand);
+}
+
+.app-footer-sep {
+  color: var(--text-muted);
+  opacity: 0.6;
+}

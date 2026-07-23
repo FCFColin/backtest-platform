@@ -5,12 +5,8 @@
 import {
   AreaChart,
   Area,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
-  Legend,
   Brush,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
@@ -22,13 +18,11 @@ import {
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
 } from '../../hooks/useChartInteractions.js';
-import { CHART_TOOLTIP_STYLE } from './chartConstants.js';
 import {
   CHART_MARGIN,
   CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-  LEGEND_WRAPPER_STYLE,
 } from './chartConstants.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 
 type AllocationPortfolio = Pick<Portfolio, 'name' | 'assets'> & {
   growthCurve: Array<{ date: string; value: number }>;
@@ -40,7 +34,10 @@ interface PortfolioAllocationChartProps {
   portfolios: AllocationPortfolio[];
 }
 
-const dateFormatter = (v: string) => (v.length > 7 ? v.slice(0, 7) : v);
+const dateFormatter = (v: string | number) => {
+  const str = String(v);
+  return str.length > 7 ? str.slice(0, 7) : str;
+};
 
 /** 共享的堆叠面积图渲染块（配置历史/初始权重复用） */
 function AllocationAreaChart({
@@ -58,22 +55,24 @@ function AllocationAreaChart({
     <ResponsiveContainer width="100%" height={400}>
       <AreaChart data={data} margin={CHART_MARGIN}>
         <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={dateFormatter} />
-        <YAxis domain={[0, 100]} tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
+        <ChartXAxis dataKey="date" tickFormatter={dateFormatter} />
+        <ChartYAxis domain={[0, 100]} tickFormatter={(v: number) => `${v}%`} />
+        <ChartTooltip
+          labelFormatter={(label: string) => label}
           formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
         />
-        <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
+        <ChartLegend />
         {assets.map((asset, idx) => (
           <Area
             key={asset.ticker}
             type="monotone"
             dataKey={asset.ticker}
+            name={asset.ticker}
             stackId="1"
             stroke={CHART_COLORS[idx % CHART_COLORS.length]}
             fill={CHART_COLORS[idx % CHART_COLORS.length]}
             fillOpacity={fillOpacity}
+            activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
           />
         ))}
         {showBrush && (

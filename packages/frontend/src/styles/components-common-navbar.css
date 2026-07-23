@@ -1,0 +1,304 @@
+/* ============================================
+   顶部导航栏 - testfol.io 风格水平布局
+   ============================================ */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 56px;
+  padding: 0 24px;
+  background-color: var(--bg-app);
+  border-bottom: 1px solid var(--border-soft);
+  gap: 8px;
+  backdrop-filter: saturate(1.8) blur(10px);
+  background-clip: padding-box;
+}
+
+.light .navbar {
+  background-color: rgba(234, 240, 251, 0.92);
+  border-bottom: 0.8px solid rgb(193, 207, 223);
+}
+
+.dark .navbar {
+  background-color: rgba(15, 23, 42, 0.85);
+  border-bottom: 0.8px solid rgba(255, 255, 255, 0.28);
+}
+
+.navbar-hamburger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-body);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.navbar-hamburger:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.navbar-public-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #60a5fa;
+  background: rgba(37, 99, 235, 0.2);
+  border-radius: 20px;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  text-decoration: none;
+  color: var(--text-strong);
+}
+
+.navbar-brand-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--brand);
+}
+
+.navbar-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  min-width: 80px;
+}
+
+.navbar-groups {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+}
+
+.navbar-group {
+  position: relative;
+  height: 56px;
+}
+
+.navbar-group-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 56px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-body);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  gap: 4px;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+  min-width: 48px;
+}
+
+.navbar-group-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.navbar-group-btn.active {
+  color: var(--text-strong);
+}
+
+.navbar-group-btn .chevron {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s;
+}
+
+.navbar-group-btn.open .chevron {
+  transform: rotate(180deg);
+}
+
+.navbar-group-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background-color: var(--brand);
+  border-radius: 1px;
+}
+
+.navbar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 4px;
+  min-width: 220px;
+  background: #111827;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 8px 0;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.navbar-dropdown-item {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-body);
+  background: transparent;
+  transition: background-color 0.1s, color 0.1s;
+  width: 100%;
+}
+
+.navbar-dropdown-item:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--brand);
+}
+
+.navbar-dropdown-item.active {
+  color: var(--brand);
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.navbar-toolbar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.navbar-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 0.12s, background-color 0.12s;
+  padding: 0;
+}
+
+.navbar-icon-btn:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+}
+
+.navbar-icon-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text-muted);
+  background: transparent;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: color 0.12s, background-color 0.12s;
+}
+
+.navbar-icon-link:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+}
+
+.navbar-icon-link.brand {
+  background-color: var(--brand);
+  color: #ffffff;
+}
+
+.navbar-icon-link.brand:hover {
+  background-color: var(--brand-hover);
+}
+
+.navbar-currency-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-body);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  min-width: 70px;
+  justify-content: center;
+}
+
+.navbar-currency-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.navbar-create-account-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--brand);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.navbar-create-account-btn:hover {
+  background: #1d4ed8;
+}
+
+.link-blue {
+  font-size: 13px;
+  color: var(--brand);
+  cursor: pointer;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+
+.link-blue:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
+@media (min-width: 769px) {
+  .navbar-hamburger {
+    display: none;
+  }
+}

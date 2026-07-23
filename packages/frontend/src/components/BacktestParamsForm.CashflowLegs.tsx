@@ -21,13 +21,13 @@ export function CashflowLegsSection() {
   return (
     <ParamGroup title={t('params.cashflowLegs')} badge={parameters.cashflowLegs?.length || 0}>
       <ParamRow>
-        <ParamCard label="Adjust fixed-dollar cashflows for inflation">
+        <ParamCard label={t('params.adjustFixedCashflowsForInflation')}>
           <label className="param-check">
             <input type="checkbox" />
-            <span>Adjust for inflation</span>
+            <span>{t('params.adjustForInflation')}</span>
           </label>
         </ParamCard>
-        <ParamCard label="Annual cashflow growth">
+        <ParamCard label={t('params.annualCashflowGrowth')}>
           <div className="param-input-suffix-wrap">
             <input type="number" defaultValue={0} className="param-input param-input-with-suffix" />
             <span className="param-input-suffix">%</span>
@@ -38,7 +38,8 @@ export function CashflowLegsSection() {
         <CashflowLegRow key={leg.id} leg={leg} currency={parameters.baseCurrency} t={t} />
       ))}
       <button className="btn-add-cashflow" onClick={addCashflowLeg}>
-        <Plus className="w-3.5 h-3.5" />+ Add Cashflow Leg
+        <Plus className="w-3.5 h-3.5" />
+        {t('params.addCashflowLeg')}
       </button>
     </ParamGroup>
   );
@@ -191,7 +192,7 @@ export function OneTimeCashflowSection() {
       ))}
       {(parameters.oneTimeCashflows || []).length === 0 && (
         <button className="params-link-btn" onClick={addOneTimeCashflow}>
-          + One-time cashflows
+          + {t('params.addOneTimeCashflow')}
         </button>
       )}
     </ParamGroup>

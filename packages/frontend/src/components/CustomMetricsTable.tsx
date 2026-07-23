@@ -7,8 +7,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
 import ChartCard from './ChartCard.js';
-import { StatisticsTableHeader } from './statistics-table/StatisticsTableHeader.js';
-import { MetricsRows } from './statistics-table/MetricsRows.js';
+import { StatisticsTableHeader, MetricsRows } from './statistics-table/index.js';
 import type { StatRow } from './statistics-table/types.js';
 
 /** 自定义指标表格 Props */
@@ -16,52 +15,32 @@ interface CustomMetricsTableProps {
   portfolios: PortfolioResult[];
 }
 
-/** 可选指标全集（fmt 仅用 pct/ratio，兼容 StatRow 的 FmtType 联合） */
+/** 可选指标全集 */
 const ALL_METRICS: StatRow[] = [
-  { label: 'components.customMetricsTable.metrics.cagr', key: 'cagr', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.mwrr', key: 'mwrr', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.totalReturn', key: 'totalReturn', fmt: 'pct' },
-  { label: 'backtest.stdev', key: 'stdev', fmt: 'pct' },
-  { label: 'backtest.sharpeRatio', key: 'sharpe', fmt: 'ratio' },
-  { label: 'backtest.sortino', key: 'sortino', fmt: 'ratio' },
-  { label: 'components.customMetricsTable.metrics.calmar', key: 'calmar', fmt: 'ratio' },
-  { label: 'backtest.maxDrawdown', key: 'maxDrawdown', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.ulcerIndex', key: 'ulcerIndex', fmt: 'ratio' },
-  { label: 'components.customMetricsTable.metrics.beta', key: 'beta', fmt: 'ratio' },
-  { label: 'components.customMetricsTable.metrics.alpha', key: 'alpha', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.rSquared', key: 'rSquared', fmt: 'ratio' },
-  {
-    label: 'components.customMetricsTable.metrics.trackingError',
-    key: 'trackingError',
-    fmt: 'pct',
-  },
-  {
-    label: 'components.customMetricsTable.metrics.informationRatio',
-    key: 'informationRatio',
-    fmt: 'ratio',
-  },
-  {
-    label: 'components.customMetricsTable.metrics.upsideCapture',
-    key: 'upsideCapture',
-    fmt: 'pct',
-  },
-  {
-    label: 'components.customMetricsTable.metrics.downsideCapture',
-    key: 'downsideCapture',
-    fmt: 'pct',
-  },
-  { label: 'components.customMetricsTable.metrics.skewness', key: 'skewness', fmt: 'ratio' },
-  {
-    label: 'components.customMetricsTable.metrics.excessKurtosis',
-    key: 'excessKurtosis',
-    fmt: 'ratio',
-  },
-  { label: 'components.customMetricsTable.metrics.var5', key: 'var5', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.cvar5', key: 'cvar5', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.swr10y', key: 'swr10y', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.pwr10y', key: 'pwr10y', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.swr30y', key: 'swr30y', fmt: 'pct' },
-  { label: 'components.customMetricsTable.metrics.pwr30y', key: 'pwr30y', fmt: 'pct' },
+  { label: 'stats.cagr', key: 'cagr', fmt: 'pct' },
+  { label: 'stats.mwrr', key: 'mwrr', fmt: 'pct' },
+  { label: 'stats.totalReturn', key: 'totalReturn', fmt: 'pct' },
+  { label: 'stats.stdev', key: 'stdev', fmt: 'pct' },
+  { label: 'stats.sharpe', key: 'sharpe', fmt: 'num' },
+  { label: 'stats.sortino', key: 'sortino', fmt: 'num' },
+  { label: 'stats.calmar', key: 'calmar', fmt: 'num' },
+  { label: 'stats.maxDrawdown', key: 'maxDrawdown', fmt: 'pct' },
+  { label: 'stats.ulcerIndex', key: 'ulcerIndex', fmt: 'num' },
+  { label: 'stats.beta', key: 'beta', fmt: 'num' },
+  { label: 'stats.alpha', key: 'alpha', fmt: 'num' },
+  { label: 'stats.rSquared', key: 'rSquared', fmt: 'num' },
+  { label: 'stats.trackingError', key: 'trackingError', fmt: 'pct' },
+  { label: 'stats.informationRatio', key: 'informationRatio', fmt: 'num' },
+  { label: 'stats.upsideCapture', key: 'upsideCapture', fmt: 'pct' },
+  { label: 'stats.downsideCapture', key: 'downsideCapture', fmt: 'pct' },
+  { label: 'stats.skewnessDaily', key: 'skewnessDaily', fmt: 'num' },
+  { label: 'stats.excessKurtosisDaily', key: 'excessKurtosisDaily', fmt: 'num' },
+  { label: 'stats.varDaily5', key: 'varDaily5', fmt: 'pct' },
+  { label: 'stats.cvarDaily5', key: 'cvarDaily5', fmt: 'pct' },
+  { label: 'stats.swr10y', key: 'swr10y', fmt: 'pct' },
+  { label: 'stats.pwr10y', key: 'pwr10y', fmt: 'pct' },
+  { label: 'stats.swr30y', key: 'swr30y', fmt: 'pct' },
+  { label: 'stats.pwr30y', key: 'pwr30y', fmt: 'pct' },
 ];
 
 const DEFAULT_KEYS: (keyof Statistics)[] = [

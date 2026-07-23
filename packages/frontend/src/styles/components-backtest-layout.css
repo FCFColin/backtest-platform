@@ -1,0 +1,247 @@
+/* ============================================
+   回测页面 - 页面布局、SEO 卡片、ToolPageLayout
+   ============================================ */
+.bt-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  padding-top: 0;
+}
+
+.bt-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 4px;
+  margin-bottom: 12px;
+}
+
+.bt-page-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.bt-page-title {
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  line-height: 1.15;
+  margin: 0;
+}
+
+/* SEO 描述卡片 */
+.bt-seo-card {
+  margin: 4px;
+  margin-bottom: 20px;
+  padding: 20px 24px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-card);
+}
+
+.bt-seo-subtitle {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.bt-seo-desc {
+  color: var(--text-body);
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 0 0 12px;
+}
+
+.bt-seo-desc:last-of-type {
+  margin-bottom: 20px;
+}
+
+.bt-seo-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.bt-seo-column {
+  min-width: 0;
+}
+
+.bt-seo-column-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 6px;
+}
+
+.bt-seo-check-icon {
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+.bt-seo-column-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.bt-seo-link {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.bt-seo-link:hover {
+  text-decoration: underline;
+}
+
+.bt-seo-link-separator {
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .bt-seo-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* 主容器卡片 */
+.bt-main-card {
+  margin: 4px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+}
+
+/* 上下布局（与 testfol.io 一致） */
+.bt-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.bt-layout-left {
+  width: 100%;
+  overflow-y: auto;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.bt-layout-right {
+  width: 100%;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Backtest 按钮行 */
+.bt-action-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.bt-action-row .btn-primary {
+  flex-shrink: 0;
+}
+
+.bt-action-row .toolbar-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bt-action-row .chevron-down {
+  font-size: 10px;
+  margin-left: 2px;
+}
+
+.bt-action-row-expanded,
+.action-bar .bt-action-row-expanded {
+  width: 100%;
+  margin-top: 0;
+}
+
+/* 结果卡片 */
+.bt-results-card {
+  margin: 4px;
+  padding: 0;
+  border-radius: var(--radius-card);
+  overflow: visible;
+  position: relative;
+}
+
+/* ============================================
+   ToolPageLayout - 纵向单列布局
+   ============================================ */
+.tool-page-layout {
+  width: 100%;
+}
+
+.tool-page-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 16px 0;
+  padding-bottom: 0;
+}
+
+.tool-page-section-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tool-page-params-content,
+.tool-page-results-content {
+  width: 100%;
+}
+
+.tool-page-results-content {
+  padding-top: 0;
+}
+
+@media (max-width: 768px) {
+  .bt-page {
+    padding: 12px;
+    padding-top: 0;
+  }
+
+  .tool-page-layout {
+    gap: 12px;
+  }
+
+  .tool-page-section-title {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .tool-page-params.card,
+  .tool-page-results.card {
+    padding: 16px;
+    border-radius: var(--radius-card);
+  }
+
+  .bt-page-title {
+    font-size: 28px;
+  }
+}

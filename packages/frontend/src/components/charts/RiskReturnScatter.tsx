@@ -5,10 +5,7 @@
 import {
   ScatterChart,
   Scatter,
-  XAxis,
-  YAxis,
   CartesianGrid,
-  Tooltip,
   ResponsiveContainer,
   ZAxis,
   LabelList,
@@ -16,7 +13,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from './chartConstants.js';
+import { CHART_MARGIN, CHART_GRID_PROPS } from './chartConstants.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip } from './ChartAxis.js';
 import ChartCard from '../ChartCard.js';
 
 /** 风险收益散点图 Props */
@@ -73,41 +71,40 @@ export default function RiskReturnScatter({ portfolios }: RiskReturnScatterProps
       csvFilename="risk-return"
     >
       <ResponsiveContainer width="100%" height={400}>
-        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+        <ScatterChart margin={CHART_MARGIN}>
           <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <XAxis
+          <ChartXAxis
             type="number"
             dataKey="stdev"
             name={t('charts.riskReturn.volatility')}
-            tick={AXIS_TICK_STYLE}
             label={{
               value: t('charts.riskReturn.volatilityAxis'),
               position: 'insideBottom',
               offset: -10,
               style: { fill: 'var(--text-muted)', fontSize: 12 },
             }}
+            tickFormatter={(v: number | string) => `${Number(v).toFixed(1)}%`}
           />
-          <YAxis
+          <ChartYAxis
             type="number"
             dataKey="cagr"
             name={t('charts.riskReturn.returnRate')}
-            tick={AXIS_TICK_STYLE}
             label={{
               value: t('charts.riskReturn.returnAxis'),
               angle: -90,
               position: 'insideLeft',
               style: { fill: 'var(--text-muted)', fontSize: 12 },
             }}
+            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
           />
           <ZAxis range={[80, 80]} />
-          <Tooltip
-            contentStyle={CHART_TOOLTIP_STYLE}
+          <ChartTooltip
             formatter={(value: number, name: string) => {
               if (name === 'stdev')
                 return [`${value.toFixed(2)}%`, t('charts.riskReturn.volatility')];
               if (name === 'cagr')
                 return [`${value.toFixed(2)}%`, t('charts.riskReturn.returnRate')];
-              return [value, name];
+              return [String(value), name];
             }}
             labelFormatter={() => ''}
           />

@@ -1,8 +1,73 @@
-import type { ReactElement } from 'react';
+/**
+ * @file 页面外壳组件聚合
+ * @description StandardPageShell / ComputeToolShell + 共享类型统一导出。
+ *   合并自 StandardPageShell / ComputeToolShell / types。
+ */
+import type { ReactElement, ReactNode, ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ToolSeoCard } from '../layout/ToolSeoCard.js';
-import { ToolPageLayout } from '../layout/ToolPageLayout.js';
-import type { ComputeToolConfig, PresetButtonProps } from './types.js';
+import { ToolSeoCard, ToolPageLayout } from '../layout/ToolPageLayout.js';
+
+// ============ 共享类型 ============
+
+export interface PresetButtonProps {
+  label: string;
+  onClick: () => void;
+}
+
+export interface SeoFeature {
+  titleKey: string;
+  descKey: string;
+}
+
+export interface RelatedTool {
+  titleKey: string;
+  href: string;
+}
+
+export interface ComputeToolConfig<S> {
+  titleKey: string;
+  seoSubtitleKey?: string;
+  seoDescKey?: string;
+  seoFeatures?: SeoFeature[];
+  relatedTools?: RelatedTool[];
+  presets?: (state: S) => PresetButtonProps[];
+  params: ComponentType<{ state: S }>;
+  results?: ComponentType<{ state: S }>;
+  afterParams?: ComponentType<{ state: S }>;
+  extra?: ComponentType<{ state: S }>;
+  hideParamsTitle?: boolean;
+  paramsTitleKey?: string;
+  paramsTitle?: string;
+}
+
+export interface StandardPageConfig {
+  titleKey: string;
+  breadcrumbs?: { label: string; href?: string }[];
+  headerExtra?: ReactNode;
+}
+
+// ============ StandardPageShell ============
+
+export function StandardPageShell({
+  config,
+  children,
+}: {
+  config: StandardPageConfig;
+  children?: ReactNode;
+}): ReactElement {
+  const { t } = useTranslation();
+  return (
+    <div className="bt-page">
+      <div className="bt-page-header">
+        <h1 className="bt-page-title">{t(config.titleKey)}</h1>
+        {config.headerExtra}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ============ ComputeToolShell ============
 
 function PresetButton({ label, onClick }: PresetButtonProps) {
   return (

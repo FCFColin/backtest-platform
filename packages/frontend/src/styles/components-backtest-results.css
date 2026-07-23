@@ -1,0 +1,140 @@
+/* ============================================
+   回测结果 - Tab 栏与导出按钮
+   ============================================ */
+.bt-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  height: 44px;
+  margin: 0;
+  padding: 4px 16px;
+  overflow-x: auto;
+  gap: 4px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.bt-tabs-left {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.bt-tab {
+  padding: 0 16px;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border: none;
+  border-radius: var(--radius-input);
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  position: relative;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bt-tab:hover {
+  background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+  color: var(--text-body);
+}
+
+.bt-tab.active {
+  color: var(--brand);
+  background: var(--bg-elevated);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.bt-tabs-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 16px;
+}
+
+.bt-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: white;
+  background-color: var(--support);
+  border: none;
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: background-color 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.bt-export-btn:hover {
+  background-color: color-mix(in srgb, var(--support) 85%, black);
+}
+
+.bt-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+  min-height: 300px;
+}
+
+/* 兼容旧的 .result-tabs / .result-tab 类名 */
+.result-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  height: 44px;
+  margin: 0;
+  padding: 4px 16px;
+  overflow-x: auto;
+  gap: 4px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.result-tab {
+  padding: 0 16px;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border: none;
+  border-radius: var(--radius-input);
+  background: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  position: relative;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+}
+
+.result-tab:hover {
+  background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
+  color: var(--text-body);
+}
+
+.result-tab.active {
+  color: var(--brand);
+  background: var(--bg-elevated);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}

@@ -1,0 +1,237 @@
+/* ============================================
+   组合编辑器 - 卡片容器与卡片本体
+   ============================================ */
+.portfolios-section {
+  padding: 0;
+}
+
+.portfolios-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.portfolios-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin-right: auto;
+  margin-bottom: 0;
+}
+
+/* 主按钮 - 蓝色实心 */
+.portfolios-add-btn {
+  height: 28px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  color: #fff;
+  background: var(--brand);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.portfolios-add-btn:hover {
+  background: var(--brand-hover);
+}
+
+.portfolios-add-btn:active {
+  transform: translateY(1px);
+}
+
+/* 辅助按钮 - 灰色边框 */
+.portfolios-add-btn-secondary {
+  color: var(--text-body);
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.portfolios-add-btn-secondary:hover {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* 支持按钮 - 青色边框 */
+.portfolios-add-btn-support {
+  color: var(--support);
+  background: transparent;
+  border: 1px solid var(--support);
+}
+
+.portfolios-add-btn-support:hover {
+  background: var(--support-soft);
+}
+
+/* 弱化按钮 - 灰色边框 */
+.portfolios-add-btn-muted {
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.portfolios-add-btn-muted:hover {
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+/* 预设按钮外层定位容器 */
+.portfolios-add-preset-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* 预设下拉菜单 */
+.preset-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  margin-top: 4px;
+  min-width: 260px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.preset-dropdown-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+
+.preset-dropdown-item:hover {
+  background: var(--brand-soft);
+}
+
+.preset-dropdown-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.preset-dropdown-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* 组合卡片横排容器 */
+.portfolios-cards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.portfolios-empty-placeholder {
+  width: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* 单个组合卡片 */
+.portfolio-card {
+  min-width: 280px;
+  flex: 1 1 280px;
+  max-width: 400px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  padding: 40px 16px 16px 16px;
+  position: relative;
+  transition: box-shadow 0.15s;
+}
+
+.portfolio-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* 卡片头部操作按钮 - hover 显示 */
+.portfolio-card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-bottom: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 20;
+}
+
+.portfolio-card:hover .portfolio-card-actions {
+  opacity: 1;
+}
+
+/* 兼容旧类名 */
+.portfolio-card-header {
+  display: none;
+}
+
+.portfolio-card-action {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.portfolio-card-action:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.portfolio-card-action-danger:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+/* 名称 + 调仓频率行 */
+.portfolio-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: nowrap;
+}
+
+/* 工具栏 */
+.portfolio-card-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}

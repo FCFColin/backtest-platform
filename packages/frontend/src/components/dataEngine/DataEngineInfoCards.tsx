@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { Stats } from './types.js';
+import type { Stats } from './utils.js';
 import { fmt } from './utils.js';
 
 export function SampleTickersCard({ stats }: { stats: Stats }) {

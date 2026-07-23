@@ -66,7 +66,7 @@ function PortfolioEditorHeader({
   }, [presetOpen]);
 
   const handleComingSoon = () => {
-    useToastStore.getState().addToast('warning', 'Coming soon');
+    useToastStore.getState().addToast('warning', t('portfolio.comingSoon'));
   };
 
   const handlePresetSelect = (presetId: string) => {
@@ -78,7 +78,7 @@ function PortfolioEditorHeader({
     <div className="portfolios-header">
       <span className="portfolios-title">{t('portfolio.title')}</span>
       <button className="portfolios-add-btn portfolios-add-btn-secondary" onClick={onLoadExample}>
-        Load example
+        {t('portfolio.loadExample')}
       </button>
       <button className="portfolios-add-btn" onClick={onAdd}>
         {t('portfolio.addEmpty')}
@@ -175,9 +175,7 @@ export default function PortfolioEditor() {
       )}
       <div className="portfolios-cards">
         {portfolios.length === 0 ? (
-          <div className="portfolios-empty-placeholder">
-            No portfolios yet. Click ADD EMPTY to create one.
-          </div>
+          <div className="portfolios-empty-placeholder">{t('portfolio.emptyPortfolios')}</div>
         ) : (
           portfolios.map((portfolio, idx) => (
             <PortfolioCard

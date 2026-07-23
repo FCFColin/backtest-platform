@@ -12,9 +12,13 @@ import {
   Brush,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from './chartConstants.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  DATE_TICK_FORMATTER,
+  getCorrelationColor,
+} from './chartConstants.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
-import { getCorrelationColor } from './chartColors.js';
 import { MatrixHeatmap } from './MatrixHeatmap.js';
 import { SimpleTable, type SimpleTableColumn } from '../SimpleTable.js';
 import {
@@ -215,7 +219,10 @@ function RollingCorrelationLineChart({
         <ChartXAxis tickFontSize={10} interval="preserveStartEnd" />
         <ChartYAxis domain={[-1, 1]} tickFormatter={(v: number) => v.toFixed(1)} />
         <ChartTooltip
-          formatter={(value: number) => [value.toFixed(4), t('charts.correlation.correlation')]}
+          formatter={(value: number, name: string) => [
+            value.toFixed(4),
+            name || t('charts.correlation.correlation'),
+          ]}
           labelFormatter={(label: string) => t('charts.correlation.dateLabel', { label })}
         />
         <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" />
@@ -227,7 +234,7 @@ function RollingCorrelationLineChart({
           stroke={CHART_COLORS[0]}
           strokeWidth={1.5}
           dot={false}
-          activeDot={{ r: 3 }}
+          activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
           name={pairName}
         />
         <ChartLegend />
