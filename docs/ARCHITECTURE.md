@@ -1,8 +1,6 @@
 # 架构详解 (Architecture)
 
 > 本文档详细描述回测平台的服务拓扑、降级链、数据流和关键设计决策。
-> 结构规范见 [project-spec.md](../.trae/documents/project-spec.md)，API 定义见 [tech-architecture.md](../.trae/documents/tech-architecture.md)。
-> 代码库清理状态（living document）见 [cleanup-status.md](cleanup-status.md)。
 
 ---
 
@@ -212,7 +210,7 @@ flowchart TB
 | `domain/services/`               | 领域服务（grid-search / optimizer-domain）                                          |
 | `domain/value-objects/`          | 值对象（ticker / weight，ADR-013 Phase 1）                                          |
 
-> 注：Rust 引擎 `engine-rs/` 已根据 ADR-031 删除，Node 引擎 (`packages/backend/src/engine/`) 已随架构清理全部迁移到 Go 引擎。Go 引擎 (`engine-go`) 是 backtest / 蒙特卡洛 / 优化器 / 有效前沿 / tactical / signal / pca / letf 的**唯一计算引擎**，不可用时返回 503 + Retry-After（fail-closed，无 Node 降级）。
+> 注：Rust 引擎 `engine-rs/` 已根据 ADR-031 删除，Node 引擎已随架构清理全部迁移到 Go 引擎。Go 引擎 (`engine-go`) 是 backtest / 蒙特卡洛 / 优化器 / 有效前沿 / tactical / signal / pca / letf 的**唯一计算引擎**，不可用时返回 503 + Retry-After（fail-closed，无 Node 降级）。
 
 ### 6.5 Go 引擎 (`engine-go/`)
 

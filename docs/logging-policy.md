@@ -1,7 +1,7 @@
 # 日志级别策略（T-B1）
 
 > 企业理由：统一级别规范避免「全 DEBUG」或「全 ERROR」导致排障噪音或遗漏。  
-> 实现：`api/utils/logger.ts`（pino）；生产 JSON，开发 pretty。
+> 实现：`packages/backend/src/utils/logger.ts`（pino）；生产 JSON，开发 pretty。
 
 ## 级别定义
 
