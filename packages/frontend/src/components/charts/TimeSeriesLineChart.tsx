@@ -25,7 +25,9 @@ import {
   AXIS_TICK_STYLE,
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
+  wrapTooltipFormatter,
 } from './chartConstants.js';
+import type { TooltipValueFormatter } from './chartConstants.js';
 
 /** 单系列配置 */
 interface TimeSeriesSeriesConfig {
@@ -49,9 +51,6 @@ interface TimeSeriesSeriesConfig {
 
 /** 通用图表数据点 */
 type ChartDataPoint = Record<string, number | string>;
-
-/** Tooltip 值格式化函数类型 */
-type TooltipValueFormatter = (value: number) => [string, string];
 
 interface TimeSeriesLineChartProps {
   /** 图表数据，键包含 xDataKey 与各系列 dataKey */
@@ -162,6 +161,7 @@ function renderYAxis(
       tick={AXIS_TICK_STYLE}
       tickFormatter={yTickFormatter}
       domain={yDomain}
+      width={80}
       label={
         yLabel
           ? {
@@ -188,7 +188,7 @@ function renderLines(normalized: NormalizedSeries[], colorOffset: number): React
       strokeWidth={s.strokeWidth}
       strokeDasharray={s.strokeDasharray}
       dot={s.showDots ? { r: s.dotR } : false}
-      activeDot={{ r: s.activeDotR }}
+      activeDot={{ r: s.activeDotR + 1, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
     />
   ));
 }
@@ -228,7 +228,11 @@ export function TimeSeriesLineChart({
         <Tooltip
           contentStyle={CHART_TOOLTIP_STYLE}
           labelFormatter={tooltipLabelFormatter}
-          formatter={tooltipValueFormatter}
+          formatter={wrapTooltipFormatter(tooltipValueFormatter)}
+          cursor={{ stroke: 'var(--border-soft)', strokeWidth: 1, strokeDasharray: '4 4' }}
+          isAnimationActive={true}
+          animationDuration={150}
+          wrapperStyle={{ zIndex: 100, outline: 'none' }}
         />
         {showLegend && <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />}
         {referenceY !== undefined && (

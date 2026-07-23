@@ -32,7 +32,10 @@ export const GrowthChart = memo(function GrowthChart({
           />
           <ChartTooltip
             labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
-            formatter={(value: number) => [`$${value.toLocaleString()}`, '']}
+            formatter={(value: number, name: string) => {
+              const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
+              return [`$${numValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, name];
+            }}
           />
           <ChartLegend />
           {portfolioResults.map((p, idx) => (
@@ -40,10 +43,11 @@ export const GrowthChart = memo(function GrowthChart({
               key={p.name}
               type="monotone"
               dataKey={p.name}
+              name={p.name}
               stroke={CHART_COLORS[idx % CHART_COLORS.length]}
               strokeWidth={2}
               dot={false}
-              activeDot={{ r: 4 }}
+              activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
             />
           ))}
         </LineChart>

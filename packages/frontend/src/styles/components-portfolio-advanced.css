@@ -1,0 +1,79 @@
+/* ============================================
+   组合编辑器 - 高级选项行与卡片内控件覆盖
+   ============================================ */
+
+/* 高级选项行 */
+.portfolio-advanced-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.advanced-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.advanced-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.advanced-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.advanced-input {
+  width: 56px;
+  height: 26px;
+  padding: 2px 20px 2px 6px;
+  font-size: 12px;
+  text-align: right;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  outline: none;
+  color: var(--text-body);
+  background: var(--input-bg);
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.advanced-input:hover {
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.advanced-input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--brand-soft);
+}
+
+/* 组合卡片内的复选框样式覆盖 - 更小、自适应高度 */
+.portfolio-card .param-check {
+  height: auto;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.portfolio-card .param-check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--brand);
+}
+
+.portfolio-card .param-check.advanced-check {
+  height: 40px;
+  padding: 0;
+}

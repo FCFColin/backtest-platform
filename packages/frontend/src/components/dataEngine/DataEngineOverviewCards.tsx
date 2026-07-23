@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Database, BarChart3, Clock, HardDrive } from 'lucide-react';
-import type { Stats, UniverseStats } from './types.js';
+import type { Stats, UniverseStats } from './utils.js';
 import { fmt, formatStorageMb, historySpanYears } from './utils.js';
 import { StatCard, ProgressBar } from './dataEngineUI.js';
 

@@ -1,0 +1,162 @@
+/* ============================================
+   统计表格 - testfol.io 风格
+   ============================================ */
+.stat-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.stat-table thead th {
+  padding: 8px 12px 10px;
+  font-weight: 700;
+  color: var(--text-strong);
+  border-bottom: 1px solid var(--border-soft);
+  white-space: nowrap;
+  background: transparent;
+}
+
+.stat-table-metric-cell {
+  text-align: left;
+  padding: 7px 12px;
+  color: var(--text-body);
+  font-weight: 400;
+}
+
+.stat-table-value-cell {
+  text-align: right;
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+
+.stat-table-num {
+  font-family:
+    'SF Mono',
+    'Monaco',
+    'Inconsolata',
+    'Roboto Mono',
+    'Consolas',
+    monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  color: var(--text-strong);
+  font-weight: 500;
+}
+
+.stat-table-group-row td {
+  background-color: var(--bg-subtle);
+  padding: 8px 12px;
+  font-weight: 700;
+  color: var(--text-strong);
+  letter-spacing: 0.01em;
+}
+
+.stat-table-data-row td {
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 30%, transparent);
+}
+
+.stat-table-data-row:hover td {
+  background-color: color-mix(in srgb, var(--bg-subtle) 50%, transparent);
+}
+
+.stat-table tr:last-child td {
+  border-bottom: none;
+}
+
+.stat-value-positive {
+  color: var(--success);
+}
+
+.stat-value-negative {
+  color: var(--danger);
+}
+
+.stat-row-primary td {
+  padding: 10px 16px;
+  background-color: color-mix(in srgb, var(--bg-subtle) 40%, transparent);
+}
+
+.stat-row-primary .stat-table-metric-cell {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.stat-row-primary .stat-table-value-cell {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stat-row-primary .stat-table-num {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stat-row-secondary td {
+  padding: 7px 12px;
+}
+
+.stat-row-secondary .stat-table-metric-cell {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.stat-row-secondary .stat-table-value-cell {
+  font-size: 13px;
+}
+
+.stat-row-secondary .stat-table-num {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stat-row-detailed td {
+  padding: 6px 12px;
+}
+
+.stat-row-detailed .stat-table-metric-cell {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.stat-row-detailed .stat-table-value-cell {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.stat-row-detailed .stat-table-num {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.stat-toggle-row td {
+  padding: 12px 16px 8px;
+  text-align: center;
+  border-bottom: none;
+}
+
+.stat-toggle-button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.stat-toggle-button:hover {
+  color: var(--text-body);
+  background-color: color-mix(in srgb, var(--bg-subtle) 60%, transparent);
+}
+
+.stat-toggle-arrow {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}

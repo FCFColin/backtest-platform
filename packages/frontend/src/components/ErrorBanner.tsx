@@ -1,38 +1,83 @@
-/**
- * @file 通用错误提示横幅
- * @description 统一的错误展示组件：danger 配色 + 软底背景。message 为空时返回 null，
- *              可通过 style 覆盖/追加外边距等布局样式。
- */
-import type { CSSProperties, ReactNode } from 'react';
+import { CSSProperties, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  getErrorI18nKey,
+  getWarningI18nKey,
+  getWarningInterpolationParams,
+  type WarningInfo,
+} from '../utils/errorI18nMap.js';
 
 interface ErrorBannerProps {
-  /** 错误内容；为 falsy 时不渲染 */
-  message: ReactNode;
-  /** 追加到基础样式上的内联样式（如 marginTop/marginBottom） */
+  message?: ReactNode;
+  errorCode?: string;
+  warning?: WarningInfo;
   style?: CSSProperties;
+  variant?: 'error' | 'warning' | 'info';
 }
 
-/**
- * 错误提示横幅。message 为空时返回 null，否则渲染 danger 配色的提示块。
- *
- * @param message - 错误内容；为 falsy 时不渲染
- * @param style - 追加到基础样式上的内联样式
- * @returns 渲染后的横幅 div，或 null
- */
-export default function ErrorBanner({ message, style }: ErrorBannerProps) {
+const variantStyles: Record<'error' | 'warning' | 'info', CSSProperties> = {
+  error: {
+    background: '#fee2e2',
+    border: '1px solid #fecaca',
+    color: '#b91c1c',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
+  warning: {
+    background: '#fef3c7',
+    border: '1px solid #fde68a',
+    color: '#92400e',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
+  info: {
+    background: '#dbeafe',
+    border: '1px solid #bfdbfe',
+    color: '#1e40af',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    marginBottom: '16px',
+    fontSize: '14px',
+  },
+};
+
+export default function ErrorBanner({
+  message,
+  errorCode,
+  warning,
+  style,
+  variant = 'error',
+}: ErrorBannerProps) {
+  const { t } = useTranslation();
+
+  if (warning) {
+    const key = getWarningI18nKey(warning.code);
+    const params = getWarningInterpolationParams(warning);
+    const colors =
+      warning.code === 'DATE_RANGE_CLAMPED' ? variantStyles.info : variantStyles.warning;
+    return (
+      <div style={{ ...colors, ...style }}>
+        {t(key, params)}
+        {warning.message ? ` — ${warning.message}` : ''}
+      </div>
+    );
+  }
+
+  if (errorCode) {
+    const key = getErrorI18nKey(errorCode);
+    return (
+      <div style={{ ...variantStyles[variant], ...style }}>
+        {t(key)}
+        {message && typeof message === 'string' ? ` — ${message}` : ''}
+      </div>
+    );
+  }
+
   if (!message) return null;
-  return (
-    <div
-      style={{
-        fontSize: 13,
-        color: 'var(--danger, #dc2626)',
-        padding: '8px 10px',
-        background: 'var(--danger-soft, #fef2f2)',
-        borderRadius: 8,
-        ...style,
-      }}
-    >
-      {message}
-    </div>
-  );
+
+  return <div style={{ ...variantStyles[variant], ...style }}>{message}</div>;
 }

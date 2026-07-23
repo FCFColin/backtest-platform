@@ -8,18 +8,8 @@
  */
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  LineChart,
-  Line,
-  CartesianGrid,
-  ResponsiveContainer,
-  ReferenceLine,
-  Brush,
-} from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
-import { CHART_MARGIN, CHART_GRID_PROPS, DATE_TICK_FORMATTER } from './chartConstants.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
+import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import ChartCard from '../ChartCard.js';
 import {
   downsample,
@@ -138,42 +128,21 @@ function TelltaleChartView({
   t: ReturnType<typeof useTranslation>['t'];
 }) {
   return (
-    <ResponsiveContainer width="100%" height={embedded ? 450 : 400}>
-      <LineChart data={chartData} margin={CHART_MARGIN}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <ChartXAxis />
-        <ChartYAxis
-          tickFormatter={(v: number) => v.toFixed(3)}
-          label={t('analysis.relativeRatio')}
-        />
-        <ChartTooltip
-          labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
-          formatter={(value: number) => [value.toFixed(3), '']}
-        />
-        <ChartLegend />
-        <ReferenceLine y={1} stroke="var(--text-muted)" strokeDasharray="4 4" />
-        {labels.map((label, idx) => (
-          <Line
-            key={label}
-            type="monotone"
-            dataKey={label}
-            stroke={CHART_COLORS[(idx + 1) % CHART_COLORS.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-          />
-        ))}
-        {chartData.length > 100 && (
-          <Brush
-            dataKey="date"
-            height={20}
-            stroke="var(--brand)"
-            travellerWidth={8}
-            tickFormatter={DATE_TICK_FORMATTER}
-          />
-        )}
-      </LineChart>
-    </ResponsiveContainer>
+    <TimeSeriesLineChart
+      data={chartData}
+      series={labels.map((label) => ({ dataKey: label, legendName: label, strokeWidth: 2 }))}
+      height={embedded ? 450 : 400}
+      yTickFormatter={(v: number) => v.toFixed(3)}
+      yLabel={t('analysis.relativeRatio')}
+      tooltipValueFormatter={(value: number, name: string) => {
+        const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
+        return [numValue.toFixed(3), name];
+      }}
+      tooltipLabelFormatter={(label: string) => `${t('common.date')}: ${label}`}
+      referenceY={1}
+      showBrush
+      colorOffset={1}
+    />
   );
 }
 

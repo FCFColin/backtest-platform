@@ -1,28 +1,4 @@
-/**
- * @file 通用图表卡片容器
- * @description 统一的图表卡片外壳，可选拓展标题与 CSV 导出按钮，内部渲染具体图表/表格组件。
- *   使用项目现有 CSS 变量与 chart-card 样式保持风格一致。
- *
- * 渲染规则：
- * - 未提供 `title` 时仅渲染外层 div 与 children（Pattern C）
- * - 提供 `title` 但无 `headerExtra`/导出时，渲染单个 `chart-card-title` div（Pattern B）
- * - 提供 `title` 且有 `headerExtra` 或导出时，渲染 `flex items-center justify-between mb-3` 标题栏：
- *   - 仅有一个右侧元素时直接内联渲染，匹配裸 div 结构
- *   - 同时存在 `headerExtra` 与导出按钮时，用 `flex items-center gap-2` 包裹
- * - 仅当 `data` 与 `csvFilename` 同时提供时才渲染 ChartExporter
- * @example
- * <ChartCard title="回撤" data={mergedData} csvFilename="drawdown">
- *   <ResponsiveContainer width="100%" height={300}>...</ResponsiveContainer>
- * </ChartCard>
- *
- * <ChartCard title="统计表">
- *   <StatsTable />
- * </ChartCard>
- *
- * <ChartCard>
- *   <div>无标题占位</div>
- * </ChartCard>
- */
+/** @file 通用图表卡片容器：可选拓展标题与 CSV 导出按钮，内部渲染具体图表 */
 import type { CSSProperties, ReactNode } from 'react';
 import { ChartExporter } from './ChartExporter.js';
 

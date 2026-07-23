@@ -18,6 +18,7 @@ import {
   Scatter,
   ZAxis,
   LabelList,
+  Label,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -25,6 +26,7 @@ import {
   Legend,
   ResponsiveContainer,
   Brush,
+  ReferenceDot,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import {
@@ -34,16 +36,15 @@ import {
   AXIS_TICK_STYLE,
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
+  wrapTooltipFormatter,
 } from './chartConstants.js';
+import type { TooltipValueFormatter } from './chartConstants.js';
 
 /** 通用系列名列表 */
 type SeriesNames = string[];
 
 /** 通用图表数据点 */
 type ChartDataPoint = Record<string, number | string>;
-
-/** Tooltip 值格式化函数类型 */
-type TooltipValueFormatter = (value: number) => [string, string];
 
 // ===== 内部辅助函数：抽取 CartesianGrid/XAxis/Legend/Tooltip/Brush 重复样板 =====
 
@@ -71,7 +72,13 @@ function chartTooltip(
     <Tooltip
       contentStyle={CHART_TOOLTIP_STYLE}
       labelFormatter={labelFormatter}
-      formatter={formatter}
+      formatter={wrapTooltipFormatter(formatter)}
+      cursor={{ stroke: 'var(--border-soft)', strokeWidth: 1, strokeDasharray: '4 4' }}
+      isAnimationActive={true}
+      animationDuration={150}
+      wrapperStyle={{ zIndex: 1000, outline: 'none', pointerEvents: 'none' }}
+      allowEscapeViewBox={{ x: true, y: true }}
+      offset={20}
     />
   );
 }
@@ -93,6 +100,103 @@ function maybeBrush(
       tickFormatter={DATE_TICK_FORMATTER}
     />
   );
+}
+
+/** 渲染面积图渐变定义 */
+function renderGradientDefs(
+  seriesNames: SeriesNames,
+  colorOffset: number,
+  fillOpacity: number,
+): ReactElement[] {
+  return seriesNames.map((name, idx) => {
+    const color = CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length];
+    const gradientId = `gradient-${name.replace(/\s+/g, '-')}`;
+    return (
+      <linearGradient key={gradientId} id={gradientId} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="5%" stopColor={color} stopOpacity={fillOpacity} />
+        <stop offset="95%" stopColor={color} stopOpacity={0.02} />
+      </linearGradient>
+    );
+  });
+}
+
+/** 渲染面积系列 */
+function renderAreas(
+  seriesNames: SeriesNames,
+  colorOffset: number,
+  useGradient: boolean,
+  fillOpacity: number,
+  strokeWidth: number,
+): ReactElement[] {
+  return seriesNames.map((name, idx) => {
+    const color = CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length];
+    const gradientId = `gradient-${name.replace(/\s+/g, '-')}`;
+    return (
+      <Area
+        key={name}
+        type="monotone"
+        dataKey={name}
+        name={name}
+        stroke={color}
+        fill={useGradient ? `url(#${gradientId})` : color}
+        fillOpacity={useGradient ? 1 : fillOpacity}
+        strokeWidth={strokeWidth}
+        activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
+      />
+    );
+  });
+}
+
+/** 渲染参考点（最大回撤标注） */
+function renderReferenceDots(
+  referenceDots: ReferenceDotConfig[] | undefined,
+  colorOffset: number,
+): ReactElement[] | null {
+  if (!referenceDots) return null;
+  return referenceDots.map((dot, idx) => {
+    const color = CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length];
+    return (
+      <ReferenceDot
+        key={`${dot.name}-${dot.x}`}
+        x={dot.x}
+        y={dot.y}
+        r={5}
+        fill={color}
+        stroke="var(--bg-elevated)"
+        strokeWidth={2}
+      >
+        <Label
+          value={`${dot.value.toFixed(2)}%`}
+          position="top"
+          offset={8}
+          style={{ fill: color, fontSize: 11, fontWeight: 600 }}
+        />
+      </ReferenceDot>
+    );
+  });
+}
+
+const AXIS_LABEL_STYLE = { fill: 'var(--text-muted)', fontSize: 12 };
+
+/** 渲染散点系列 */
+function renderScatters(
+  data: Array<Record<string, string | number>>,
+  nameDataKey: string,
+): ReactElement[] {
+  return data.map((point, idx) => (
+    <Scatter
+      key={String(point[nameDataKey])}
+      data={[point]}
+      fill={CHART_COLORS[idx % CHART_COLORS.length]}
+      {...({ activeDot: { r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 } } as object)}
+    >
+      <LabelList
+        dataKey={nameDataKey}
+        position="right"
+        style={{ fill: 'var(--text-muted)', fontSize: 11 }}
+      />
+    </Scatter>
+  ));
 }
 
 interface BarChartContentProps {
@@ -148,6 +252,7 @@ export function BarChartContent({
         <YAxis
           tick={AXIS_TICK_STYLE}
           tickFormatter={yTickFormatter}
+          width={80}
           label={
             yLabel
               ? {
@@ -184,6 +289,14 @@ export function BarChartContent({
   );
 }
 
+/** 参考点配置（最大回撤标注等） */
+interface ReferenceDotConfig {
+  x: string | number;
+  y: number;
+  name: string;
+  value: number;
+}
+
 interface AreaChartContentProps {
   data: ChartDataPoint[];
   seriesNames: SeriesNames;
@@ -199,6 +312,11 @@ interface AreaChartContentProps {
   brushThreshold?: number;
   showLegend?: boolean;
   colorOffset?: number;
+  referenceDots?: ReferenceDotConfig[];
+  useGradient?: boolean;
+  customMargin?: { top?: number; right?: number; bottom?: number; left?: number };
+  yAxisWidth?: number;
+  hideAxisLines?: boolean;
 }
 
 export function AreaChartContent({
@@ -216,26 +334,32 @@ export function AreaChartContent({
   brushThreshold = 100,
   showLegend = true,
   colorOffset = 0,
+  referenceDots,
+  useGradient = false,
+  customMargin,
+  yAxisWidth = 80,
+  hideAxisLines = false,
 }: AreaChartContentProps) {
+  const margin = customMargin ? { ...CHART_MARGIN, ...customMargin } : CHART_MARGIN;
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={CHART_MARGIN}>
+      <AreaChart data={data} margin={margin}>
+        <defs>{renderGradientDefs(seriesNames, colorOffset, fillOpacity)}</defs>
         {chartGrid()}
         {dateXAxis(xDataKey)}
-        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={yTickFormatter} domain={yDomain} />
+        <YAxis
+          tick={AXIS_TICK_STYLE}
+          tickFormatter={yTickFormatter}
+          domain={yDomain}
+          width={yAxisWidth}
+          tickLine={!hideAxisLines}
+          axisLine={!hideAxisLines}
+        />
         {chartTooltip(tooltipValueFormatter, tooltipLabelFormatter)}
         {showLegend && chartLegend()}
-        {seriesNames.map((name, idx) => (
-          <Area
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
-            fill={CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length]}
-            fillOpacity={fillOpacity}
-            strokeWidth={strokeWidth}
-          />
-        ))}
+        {renderAreas(seriesNames, colorOffset, useGradient, fillOpacity, strokeWidth)}
+        {renderReferenceDots(referenceDots, colorOffset)}
         {maybeBrush(showBrush, data.length, xDataKey, brushThreshold)}
       </AreaChart>
     </ResponsiveContainer>
@@ -268,7 +392,7 @@ export function ScatterChartContent({
   yLabel,
   nameDataKey = 'name',
   height = 450,
-  margin = { top: 20, right: 20, bottom: 20, left: 10 },
+  margin = CHART_MARGIN,
   tooltipFormatter,
   tooltipLabelFormatter,
   zRange = [80, 80],
@@ -284,12 +408,7 @@ export function ScatterChartContent({
           tick={AXIS_TICK_STYLE}
           label={
             xLabel
-              ? {
-                  value: xLabel,
-                  position: 'insideBottom',
-                  offset: -10,
-                  style: { fill: 'var(--text-muted)', fontSize: 12 },
-                }
+              ? { value: xLabel, position: 'insideBottom', offset: -10, style: AXIS_LABEL_STYLE }
               : undefined
           }
         />
@@ -298,36 +417,16 @@ export function ScatterChartContent({
           dataKey={yDataKey}
           name={yName}
           tick={AXIS_TICK_STYLE}
+          width={80}
           label={
             yLabel
-              ? {
-                  value: yLabel,
-                  angle: -90,
-                  position: 'insideLeft',
-                  style: { fill: 'var(--text-muted)', fontSize: 12 },
-                }
+              ? { value: yLabel, angle: -90, position: 'insideLeft', style: AXIS_LABEL_STYLE }
               : undefined
           }
         />
         <ZAxis range={zRange} />
-        <Tooltip
-          contentStyle={CHART_TOOLTIP_STYLE}
-          formatter={tooltipFormatter}
-          labelFormatter={tooltipLabelFormatter}
-        />
-        {data.map((point, idx) => (
-          <Scatter
-            key={String(point[nameDataKey])}
-            data={[point]}
-            fill={CHART_COLORS[idx % CHART_COLORS.length]}
-          >
-            <LabelList
-              dataKey={nameDataKey}
-              position="right"
-              style={{ fill: 'var(--text-muted)', fontSize: 11 }}
-            />
-          </Scatter>
-        ))}
+        {chartTooltip(tooltipFormatter as TooltipValueFormatter, tooltipLabelFormatter)}
+        {renderScatters(data, nameDataKey)}
       </ScatterChart>
     </ResponsiveContainer>
   );

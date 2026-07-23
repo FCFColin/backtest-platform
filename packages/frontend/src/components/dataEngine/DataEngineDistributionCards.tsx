@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { Stats, UniverseStats } from './types.js';
+import type { Stats, UniverseStats } from './utils.js';
 import { fmt } from './utils.js';
 
 export function MarketDistributionCard({
@@ -108,67 +108,67 @@ export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
 }
 
 export function DecadeDistributionCard({ stats }: { stats: Stats }) {
-  const { t } = useTranslation();
   const entries = stats.by_decade
     ? Object.entries(stats.by_decade).sort((a, b) => a[0].localeCompare(b[0]))
     : [];
-  const maxCount = entries.length > 0 ? Math.max(...entries.map(([, c]) => c)) : 0;
   return (
-    <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
-        {t('dataEngine.byDecade')}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 120 }}>
-        {entries.map(([decade, count]) => {
-          const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
-          return (
-            <div
-              key={decade}
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-            >
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2 }}>
-                {fmt(count)}
-              </span>
-              <div
-                style={{
-                  width: '100%',
-                  maxWidth: 60,
-                  height: `${Math.max(heightPct, 2)}%`,
-                  background: 'var(--brand-soft)',
-                  border: '1px solid var(--brand)',
-                  borderRadius: '4px 4px 0 0',
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 10,
-                  color: 'var(--text-muted)',
-                  marginTop: 4,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {decade}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <DistributionBarCard
+      titleKey="dataEngine.byDecade"
+      entries={entries}
+      barColor="var(--brand-soft)"
+      barBorderColor="var(--brand)"
+      barMaxWidth={60}
+      height={120}
+      fontSize={10}
+    />
   );
 }
 
 export function YearCountDistributionCard({ stats }: { stats: Stats }) {
-  const { t } = useTranslation();
   const entries = stats.by_year_count
     ? Object.entries(stats.by_year_count).sort((a, b) => a[0].localeCompare(b[0]))
     : [];
+  return (
+    <DistributionBarCard
+      titleKey="dataEngine.byYearCount"
+      entries={entries}
+      barColor="var(--support-soft)"
+      barBorderColor="var(--support)"
+      barMaxWidth={50}
+      height={100}
+      fontSize={9}
+    />
+  );
+}
+
+/** 柱状分布卡片：根据 entries 自动计算 max 并按比例渲染柱形 */
+interface DistributionBarCardProps {
+  titleKey: string;
+  entries: [string, number][];
+  barColor: string;
+  barBorderColor: string;
+  barMaxWidth: number;
+  height: number;
+  fontSize: number;
+}
+
+function DistributionBarCard({
+  titleKey,
+  entries,
+  barColor,
+  barBorderColor,
+  barMaxWidth,
+  height,
+  fontSize,
+}: DistributionBarCardProps) {
+  const { t } = useTranslation();
   const maxCount = entries.length > 0 ? Math.max(...entries.map(([, c]) => c)) : 0;
   return (
     <div className="bt-main-card card" style={{ padding: 16 }}>
       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
-        {t('dataEngine.byYearCount')}
+        {t(titleKey)}
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height }}>
         {entries.map(([bucket, count]) => {
           const heightPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
           return (
@@ -176,22 +176,22 @@ export function YearCountDistributionCard({ stats }: { stats: Stats }) {
               key={bucket}
               style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
             >
-              <span style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 2 }}>
+              <span style={{ fontSize, color: 'var(--text-muted)', marginBottom: 2 }}>
                 {fmt(count)}
               </span>
               <div
                 style={{
                   width: '100%',
-                  maxWidth: 50,
+                  maxWidth: barMaxWidth,
                   height: `${Math.max(heightPct, 2)}%`,
-                  background: 'var(--support-soft)',
-                  border: '1px solid var(--support)',
+                  background: barColor,
+                  border: `1px solid ${barBorderColor}`,
                   borderRadius: '4px 4px 0 0',
                 }}
               />
               <span
                 style={{
-                  fontSize: 9,
+                  fontSize,
                   color: 'var(--text-muted)',
                   marginTop: 4,
                   whiteSpace: 'nowrap',

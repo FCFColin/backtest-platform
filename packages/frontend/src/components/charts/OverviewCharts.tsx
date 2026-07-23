@@ -15,7 +15,7 @@ export const OverviewCharts = memo(function OverviewCharts({
   StatsTable: React.ComponentType<{ tickers: AssetAnalysisResult['tickers'] }>;
 }) {
   const { t } = useTranslation();
-  const { tickers, portfolioResults, growthData } = useAnalysisData(results, 12, 12);
+  const { tickers, portfolioResults, growthData } = useAnalysisData(results, 12);
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,7 @@
 /** @file DataEngine dashboard — composes status cards, action buttons, distribution charts */
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Play, RotateCcw, Zap, Database } from 'lucide-react';
-import type { Stats, UniverseStats } from './types.js';
+import type { Stats, UniverseStats } from './utils.js';
 import { fmt } from './utils.js';
 import { DataEngineOverviewCards, DataEngineCoverageBars } from './DataEngineOverviewCards.js';
 import {

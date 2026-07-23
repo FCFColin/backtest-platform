@@ -5,39 +5,26 @@
  *              / RegressionChart / AnalysisGrowthChart 等）内联的 CartesianGrid + XAxis + YAxis +
  *              Tooltip + Legend 样板，可改用本组件消除重复。
  */
-import type { ReactNode } from 'react';
 import { XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import type { XAxisProps, YAxisProps } from 'recharts';
 import {
   CHART_TOOLTIP_STYLE,
   AXIS_TICK_STYLE,
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
+  wrapTooltipFormatter,
 } from './chartConstants.js';
+import type { TooltipValueFormatter } from './chartConstants.js';
 
-/**
- * Tooltip 值格式化函数签名。
- * Recharts 在运行时可能传入 number / string / array，使用 any 避免与 recharts Formatter
- * 泛型（ValueType）做严格逆变检查；返回值用 ReactNode 与 recharts Formatter 返回类型对齐，
- * 允许 number / string / 元素等作为格式化结果。
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Recharts 运行时类型不兼容，见上方注释
-export type ChartTooltipFormatter = (value: any, name?: any) => [ReactNode, ReactNode];
-
-interface ChartXAxisProps {
+interface ChartXAxisProps extends Omit<XAxisProps, 'label' | 'tick' | 'tickFormatter' | 'ref'> {
   /** X 轴数据字段名，默认 'date' */
   dataKey?: string;
-  /** 轴类型；未传则使用 Recharts 默认（category），ScatterChart 需传 'number' */
-  type?: 'number' | 'category';
-  /** 轴名称（ScatterChart 用于 tooltip 关联） */
-  name?: string;
   /** 刻度格式化；未传则使用 DATE_TICK_FORMATTER（截取 YYYY-MM） */
   tickFormatter?: (value: number | string) => string;
-  /** 轴标签文本；在 number 类型下定位 insideBottom，否则不渲染 */
-  label?: string;
+  /** 轴标签；支持字符串（自动定位 insideBottom）或完整 Recharts label 对象 */
+  label?: string | XAxisProps['label'];
   /** X 轴刻度字体大小（覆盖默认 AXIS_TICK_STYLE） */
   tickFontSize?: number;
-  /** 刻度间隔，未传则不设 */
-  interval?: number | 'preserveStartEnd';
 }
 
 /** 通用 X 轴：默认日期轴（DATE_TICK_FORMATTER），可配置为数值轴 */
@@ -49,18 +36,24 @@ export function ChartXAxis({
   label,
   tickFontSize,
   interval,
+  ...rest
 }: ChartXAxisProps) {
   const tick = tickFontSize
     ? { fill: 'var(--text-muted)', fontSize: tickFontSize }
     : AXIS_TICK_STYLE;
-  const labelProps = label
-    ? {
+  let labelProps: XAxisProps['label'] = undefined;
+  if (label) {
+    if (typeof label === 'string') {
+      labelProps = {
         value: label,
-        position: 'insideBottom' as const,
+        position: 'insideBottom',
         offset: -10,
         style: { fill: 'var(--text-muted)', fontSize: 12 },
-      }
-    : undefined;
+      };
+    } else {
+      labelProps = label;
+    }
+  }
   return (
     <XAxis
       dataKey={dataKey}
@@ -70,25 +63,18 @@ export function ChartXAxis({
       tickFormatter={tickFormatter}
       interval={interval}
       label={labelProps}
+      {...rest}
     />
   );
 }
 
-interface ChartYAxisProps {
+interface ChartYAxisProps extends Omit<YAxisProps, 'label' | 'tick' | 'width' | 'ref'> {
   /** 刻度格式化 */
   tickFormatter?: (v: number) => string;
-  /** Y 轴域 */
-  domain?: [number | 'auto', number | 'auto'];
-  /** 轴刻度类型（log/linear） */
-  scale?: 'linear' | 'log';
-  /** Y 轴标签文本（旋转 -90 度，定位 insideLeft） */
-  label?: string;
-  /** Y 轴类型；ScatterChart 需传 'number' */
-  type?: 'number' | 'category';
-  /** 数据字段名（ScatterChart 使用） */
-  dataKey?: string;
-  /** 轴名称（ScatterChart 用于 tooltip 关联） */
-  name?: string;
+  /** 轴标签；支持字符串（自动旋转 -90 度定位 insideLeft）或完整 Recharts label 对象 */
+  label?: string | YAxisProps['label'];
+  /** Y 轴宽度，默认 80 */
+  width?: number;
 }
 
 /** 通用 Y 轴：含可选 label / 域 / 刻度类型 */
@@ -100,7 +86,22 @@ export function ChartYAxis({
   type,
   dataKey,
   name,
+  width = 80,
+  ...rest
 }: ChartYAxisProps) {
+  let labelProps: YAxisProps['label'] = undefined;
+  if (label) {
+    if (typeof label === 'string') {
+      labelProps = {
+        value: label,
+        angle: -90,
+        position: 'insideLeft',
+        style: { fill: 'var(--text-muted)', fontSize: 12 },
+      };
+    } else {
+      labelProps = label;
+    }
+  }
   return (
     <YAxis
       type={type}
@@ -110,34 +111,49 @@ export function ChartYAxis({
       tickFormatter={tickFormatter}
       domain={domain}
       scale={scale}
-      label={
-        label
-          ? {
-              value: label,
-              angle: -90,
-              position: 'insideLeft',
-              style: { fill: 'var(--text-muted)', fontSize: 12 },
-            }
-          : undefined
-      }
+      width={width}
+      label={labelProps}
+      {...rest}
     />
   );
 }
 
 interface ChartTooltipProps {
   /** 值格式化，返回 [文本, 名称] */
-  formatter?: ChartTooltipFormatter;
+  formatter?: TooltipValueFormatter;
   /** 标签（X 轴值）格式化 */
   labelFormatter?: (label: string) => string;
+  /** 光标样式；设为 false 禁用光标，默认显示虚线跟踪线 */
+  cursor?: boolean | { stroke?: string; strokeWidth?: number; strokeDasharray?: string };
+  /** 允许Tooltip逃出SVG viewBox边界，防止被父容器裁剪 */
+  allowEscapeViewBox?: { x?: boolean; y?: boolean };
+  /** Tooltip偏移量 */
+  offset?: number;
 }
 
 /** 通用 Tooltip：基于 CHART_TOOLTIP_STYLE 默认样式 */
-export function ChartTooltip({ formatter, labelFormatter }: ChartTooltipProps) {
+export function ChartTooltip({
+  formatter,
+  labelFormatter,
+  cursor,
+  allowEscapeViewBox = { x: true, y: true },
+  offset = 20,
+}: ChartTooltipProps) {
+  const cursorProp =
+    cursor === undefined
+      ? { stroke: 'var(--border-soft)', strokeWidth: 1, strokeDasharray: '4 4' }
+      : cursor;
   return (
     <Tooltip
       contentStyle={CHART_TOOLTIP_STYLE}
-      formatter={formatter}
+      formatter={wrapTooltipFormatter(formatter)}
       labelFormatter={labelFormatter}
+      cursor={cursorProp}
+      isAnimationActive={true}
+      animationDuration={150}
+      wrapperStyle={{ zIndex: 1000, outline: 'none', pointerEvents: 'none' }}
+      allowEscapeViewBox={allowEscapeViewBox}
+      offset={offset}
     />
   );
 }

@@ -2,12 +2,12 @@
  * @file 投资组合饼图
  * @description 以饼图形式展示各投资组合的资产配置比例
  */
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
-import { CHART_TOOLTIP_STYLE, LEGEND_WRAPPER_STYLE } from './chartConstants.js';
 import ChartCard from '../ChartCard.js';
+import { ChartTooltip, ChartLegend } from './ChartAxis.js';
 
 /** 投资组合饼图 Props */
 interface PortfolioPiesChartProps {
@@ -78,11 +78,11 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                       <Cell key={`cell-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    contentStyle={CHART_TOOLTIP_STYLE}
+                  <ChartTooltip
+                    cursor={false}
                     formatter={(value: number, name: string) => [`${value}%`, name]}
                   />
-                  <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
+                  <ChartLegend />
                 </PieChart>
               </ResponsiveContainer>
               <div className="text-[13px] font-medium mt-1" style={{ color: 'var(--text-strong)' }}>

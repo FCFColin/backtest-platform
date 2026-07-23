@@ -77,23 +77,3 @@ export function ProgressBar({
     </div>
   );
 }
-
-export function QualityItem({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      {icon}
-      <div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{label}</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-strong)' }}>{value}</div>
-      </div>
-    </div>
-  );
-}
