@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"engine-go/internal/engineutil"
+	"engine-go/internal/mathutil"
 )
 
 // computeGrowthCurve 计算组合增长曲线——回测的核心算法
@@ -126,15 +127,15 @@ func computeGrowthCurve(
 				holdings[i] = shares[i] * eff
 			}
 		}
-		pv := sumFloat(holdings)
+		pv := mathutil.Sum(holdings)
 
-		// 复利拖累
-		if dailyDrag != 1.0 {
-			for i := range holdings {
-				holdings[i] *= dailyDrag
-			}
-			pv = sumFloat(holdings)
+	// 复利拖累
+	if dailyDrag != 1.0 {
+		for i := range holdings {
+			holdings[i] *= dailyDrag
 		}
+		pv = mathutil.Sum(holdings)
+	}
 
 		currentWeights := glidepathWeights(weights, glidepathTo, di, glidepathYears)
 

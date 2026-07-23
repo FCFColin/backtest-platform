@@ -310,7 +310,32 @@ func RunTacticalBacktest(ctx context.Context, req TacticalBacktestRequest) (*Tac
 	}
 
 	// 计算统计指标——直接调用 engine 包，无需 HTTP 自调用
-	stats := computeSimpleStats(growthCurve, startingValue)
+	stats := engine.Statistics{}
+	if len(growthCurve) >= 2 {
+		values := make([]float64, len(growthCurve))
+		dates := make([]string, len(growthCurve))
+		for i, g := range growthCurve {
+			values[i] = g.Value
+			dates[i] = g.Date
+		}
+		dailyRets := make([]float64, 0, len(values)-1)
+		for i := 1; i < len(values); i++ {
+			if values[i-1] > 0 {
+				dailyRets = append(dailyRets, (values[i]-values[i-1])/values[i-1])
+			} else {
+				dailyRets = append(dailyRets, 0)
+			}
+		}
+		stats = engine.CalculateStatisticsFromRequest(engine.StatisticsRequest{
+			Values:              values,
+			Dates:               dates,
+			StartingValue:       startingValue,
+			DailyReturns:        dailyRets,
+			AnnualReturnValues:  []float64{},
+			MonthlyReturnValues: []float64{},
+			MwrrCashflows:       []engine.Cashflow{},
+		})
+	}
 
 	result := &TacticalBacktestResult{
 		Portfolio: engine.PortfolioResult{
@@ -321,35 +346,4 @@ func RunTacticalBacktest(ctx context.Context, req TacticalBacktestRequest) (*Tac
 		SignalHistory: signalHistory,
 	}
 	return result, nil
-}
-
-// computeSimpleStats 从增长曲线计算简化统计指标。
-func computeSimpleStats(growthCurve []engine.DataPoint, startingValue float64) engine.Statistics {
-	if len(growthCurve) < 2 {
-		return engine.Statistics{}
-	}
-	values := make([]float64, len(growthCurve))
-	dates := make([]string, len(growthCurve))
-	for i, g := range growthCurve {
-		values[i] = g.Value
-		dates[i] = g.Date
-	}
-	dailyReturns := make([]float64, 0, len(values)-1)
-	for i := 1; i < len(values); i++ {
-		if values[i-1] > 0 {
-			dailyReturns = append(dailyReturns, (values[i]-values[i-1])/values[i-1])
-		} else {
-			dailyReturns = append(dailyReturns, 0)
-		}
-	}
-	statReq := engine.StatisticsRequest{
-		Values:           values,
-		Dates:            dates,
-		StartingValue:    startingValue,
-		DailyReturns:      dailyReturns,
-		AnnualReturnValues:  []float64{},
-		MonthlyReturnValues: []float64{},
-		MwrrCashflows:      []engine.Cashflow{},
-	}
-	return engine.CalculateStatisticsFromRequest(statReq)
 }

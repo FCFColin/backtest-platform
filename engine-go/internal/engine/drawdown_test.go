@@ -146,8 +146,19 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 }
 
 func TestComputeDrawdownCurve(t *testing.T) {
+	// 从 []DataPoint 提取 values/dates 供 CalcDrawdownCurve 使用
+	toCurve := func(points []DataPoint) ([]float64, []string) {
+		values := make([]float64, len(points))
+		dates := make([]string, len(points))
+		for i, p := range points {
+			values[i] = p.Value
+			dates[i] = p.Date
+		}
+		return values, dates
+	}
+
 	t.Run("empty curve", func(t *testing.T) {
-		got := computeDrawdownCurve(nil)
+		got := CalcDrawdownCurve(nil, nil)
 		if got != nil {
 			t.Error("expected nil for empty curve")
 		}
@@ -159,7 +170,8 @@ func TestComputeDrawdownCurve(t *testing.T) {
 			{Date: "2024-01-02", Value: 110},
 			{Date: "2024-01-03", Value: 120},
 		}
-		got := computeDrawdownCurve(curve)
+		vals, dates := toCurve(curve)
+		got := CalcDrawdownCurve(vals, dates)
 		if len(got) != 3 {
 			t.Fatalf("expected 3 points, got %d", len(got))
 		}
@@ -176,7 +188,8 @@ func TestComputeDrawdownCurve(t *testing.T) {
 			{Date: "2024-01-02", Value: 90},
 			{Date: "2024-01-03", Value: 110},
 		}
-		got := computeDrawdownCurve(curve)
+		vals, dates := toCurve(curve)
+		got := CalcDrawdownCurve(vals, dates)
 		if len(got) != 3 {
 			t.Fatalf("expected 3 points, got %d", len(got))
 		}
@@ -197,7 +210,8 @@ func TestComputeDrawdownCurve(t *testing.T) {
 			{Date: "2024-01-01", Value: 100},
 			{Date: "2024-01-02", Value: 80},
 		}
-		got := computeDrawdownCurve(curve)
+		vals, dates := toCurve(curve)
+		got := CalcDrawdownCurve(vals, dates)
 		if got[0].Date != "2024-01-01" || got[1].Date != "2024-01-02" {
 			t.Errorf("dates not preserved: got %s, %s", got[0].Date, got[1].Date)
 		}

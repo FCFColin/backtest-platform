@@ -13,6 +13,7 @@ import (
 	"math"
 
 	"engine-go/internal/engineutil"
+	"engine-go/internal/mathutil"
 )
 
 const (
@@ -190,27 +191,18 @@ func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*Fronti
 // 收益率与协方差计算
 // ============================================================
 
-// collectAlignedDates 收集所有资产都有数据的对齐日期列表
-func collectAlignedDates(tickers []string, priceData map[string]map[string]float64) ([]string, error) {
-	alignedDates := engineutil.AlignDates(tickers, priceData)
-	if len(alignedDates) < 2 {
-		for _, t := range tickers {
-			if len(priceData[t]) > 0 {
-				return nil, fmt.Errorf("对齐后交易日不足2天，无法计算收益率")
-			}
-		}
-		return nil, fmt.Errorf("价格数据为空")
-	}
-	return alignedDates, nil
-}
-
 // computeReturnCovariance 计算年化收益率向量和协方差矩阵
 func computeReturnCovariance(tickers []string, priceData map[string]map[string]float64) ([]float64, [][]float64, error) {
 	n := len(tickers)
 
-	alignedDates, err := collectAlignedDates(tickers, priceData)
-	if err != nil {
-		return nil, nil, err
+	alignedDates := engineutil.AlignDates(tickers, priceData)
+	if len(alignedDates) < 2 {
+		for _, t := range tickers {
+			if len(priceData[t]) > 0 {
+				return nil, nil, fmt.Errorf("对齐后交易日不足2天，无法计算收益率")
+			}
+		}
+		return nil, nil, fmt.Errorf("价格数据为空")
 	}
 
 	m := len(alignedDates)
@@ -249,7 +241,7 @@ func computeReturnCovariance(tickers []string, priceData map[string]map[string]f
 	}
 	for i := 0; i < n; i++ {
 		for j := i; j < n; j++ {
-			covVal := covariance(dailyReturns[i], dailyReturns[j]) * float64(tradingDaysPerYear)
+			covVal := mathutil.Covariance(dailyReturns[i], dailyReturns[j]) * float64(tradingDaysPerYear)
 			cov[i][j] = covVal
 			cov[j][i] = covVal
 		}

@@ -13,11 +13,11 @@ import (
 	"os"
 	"time"
 
-	"engine-go/internal/observability"
 	"engine-go/internal/server"
 
 	gosharedhttp "github.com/backtest/go-shared/http"
 	gosharedlog "github.com/backtest/go-shared/log"
+	"github.com/backtest/go-shared/observability"
 )
 
 func main() {

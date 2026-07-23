@@ -74,15 +74,25 @@ func CalcDownsideCapture(portfolioReturns, benchmarkReturns []float64) float64 {
 	return calcCaptureRatio(portfolioReturns, benchmarkReturns, func(r float64) bool { return r < 0 })
 }
 
+// sortedReturnsPercentile 返回排序后的收益率切片副本，长度 < 2 时返回 nil。
+// 供 CalcVaR/CalcCVaR 复用，消除两处重复的 copy+sort 代码。
+func sortedReturnsPercentile(returns []float64) []float64 {
+	if len(returns) < 2 {
+		return nil
+	}
+	sorted := make([]float64, len(returns))
+	copy(sorted, returns)
+	sort.Float64s(sorted)
+	return sorted
+}
+
 // CalcVaR 计算在险价值（历史模拟法）。
 // confidence: 如 0.95 表示 95% 置信度，返回正值表示损失。
 func CalcVaR(dailyReturns []float64, confidence float64) float64 {
-	if len(dailyReturns) < 2 {
+	sorted := sortedReturnsPercentile(dailyReturns)
+	if sorted == nil {
 		return 0
 	}
-	sorted := make([]float64, len(dailyReturns))
-	copy(sorted, dailyReturns)
-	sort.Float64s(sorted)
 	index := int((1 - confidence) * float64(len(sorted)))
 	if index < 0 {
 		index = 0
@@ -92,19 +102,15 @@ func CalcVaR(dailyReturns []float64, confidence float64) float64 {
 
 // CalcCVaR 计算条件在险价值（Expected Shortfall）。
 func CalcCVaR(dailyReturns []float64, confidence float64) float64 {
-	if len(dailyReturns) < 2 {
+	sorted := sortedReturnsPercentile(dailyReturns)
+	if sorted == nil {
 		return 0
 	}
-	sorted := make([]float64, len(dailyReturns))
-	copy(sorted, dailyReturns)
-	sort.Float64s(sorted)
 	cutoffIndex := int((1 - confidence) * float64(len(sorted)))
 	if cutoffIndex == 0 {
 		return -sorted[0]
 	}
-	tailReturns := sorted[:cutoffIndex]
-	avg := mean(tailReturns)
-	return -avg
+	return -mean(sorted[:cutoffIndex])
 }
 
 // CalcSkewness 计算偏度（样本偏度校正公式）。

@@ -88,6 +88,9 @@ func CalcUPI(cagr, ulcerIndex float64) float64 {
 
 // CalcDrawdownCurve 计算回撤曲线。
 func CalcDrawdownCurve(values []float64, dates []string) []DrawdownPoint {
+	if len(values) == 0 {
+		return nil
+	}
 	result := make([]DrawdownPoint, len(values))
 	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
 		v := values[i]

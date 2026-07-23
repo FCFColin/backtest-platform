@@ -79,15 +79,6 @@ func normalizeWeights(assets []AssetInput) []float64 {
 	return engineutil.NormalizeWeights(raw)
 }
 
-// sumFloat 求浮点切片之和。
-func sumFloat(xs []float64) float64 {
-	s := 0.0
-	for _, x := range xs {
-		s += x
-	}
-	return s
-}
-
 // buildPeriodicCashflowMap 将周期性现金流腿展开为 日期 -> 净金额 映射。
 //
 // 企业理由：按交易日步长（周 5/月 21/

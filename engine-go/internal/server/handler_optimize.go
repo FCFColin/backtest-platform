@@ -65,10 +65,7 @@ func handleGoalOptimize(c *gin.Context) {
 		newProblem(c, http.StatusBadRequest, "GOAL_BAD_REQUEST", "Bad Request", "请求解析失败")
 		return
 	}
-	result, err := goaloptimizer.OptimizeGoals(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "目标优化计算失败"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	withComputeHandler(c, "目标优化计算失败", func(ctx context.Context) (*goaloptimizer.GoalOptimizerResult, error) {
+		return goaloptimizer.OptimizeGoals(req)
+	})
 }

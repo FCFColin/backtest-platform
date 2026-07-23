@@ -126,22 +126,10 @@ func CalcMACD(prices []float64) (macd, signal, histogram []float64) {
 	return
 }
 
-// CalcMACDHist 仅计算 MACD 的 histogram 序列。
-//
-// 等价于 CalcMACD 返回值的第三个返回值，但避免在仅需 histogram 时
-// 分配 macd/signal 的额外切片引用。供 tactical 等仅消费 histogram 的场景使用。
+// CalcMACDHist 仅计算 MACD 的 histogram 序列，等价于 CalcMACD 返回值的第三个返回值。
+// 供 tactical 等仅消费 histogram 的场景使用。
 func CalcMACDHist(prices []float64) []float64 {
-	emaFast := CalcEMA(prices, 12)
-	emaSlow := CalcEMA(prices, 26)
-	macdLine := make([]float64, len(prices))
-	for i := range prices {
-		macdLine[i] = emaFast[i] - emaSlow[i]
-	}
-	signalLine := CalcEMA(macdLine, 9)
-	hist := make([]float64, len(prices))
-	for i := range prices {
-		hist[i] = macdLine[i] - signalLine[i]
-	}
+	_, _, hist := CalcMACD(prices)
 	return hist
 }
 

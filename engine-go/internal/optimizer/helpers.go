@@ -5,28 +5,6 @@ import (
 	"math/rand"
 )
 
-// covariance 计算两个序列的样本协方差
-func covariance(x, y []float64) float64 {
-	n := len(x)
-	if n == 0 {
-		return 0
-	}
-	meanX := 0.0
-	meanY := 0.0
-	for i := 0; i < n; i++ {
-		meanX += x[i]
-		meanY += y[i]
-	}
-	meanX /= float64(n)
-	meanY /= float64(n)
-
-	cov := 0.0
-	for i := 0; i < n; i++ {
-		cov += (x[i] - meanX) * (y[i] - meanY)
-	}
-	return cov / float64(n-1)
-}
-
 // portfolioMetrics 计算组合的收益、波动率、夏普比
 func portfolioMetrics(w, mu []float64, sigma [][]float64) (float64, float64, float64) {
 	ret := 0.0

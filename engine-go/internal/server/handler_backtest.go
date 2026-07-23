@@ -34,19 +34,9 @@ func handleBacktest(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), computeTimeout)
-	defer cancel()
-
-	result, err := engine.RunBacktest(ctx, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "回测计算失败",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, result)
+	withComputeHandler(c, "回测计算失败", func(ctx context.Context) (*engine.BacktestResult, error) {
+		return engine.RunBacktest(ctx, req)
+	})
 }
 
 // handleStatistics 统计指标计算处理器。
@@ -64,10 +54,7 @@ func handleStatistics(c *gin.Context) {
 		return
 	}
 
-	result := engine.CalculateStatisticsFromRequest(req)
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    result,
+	withComputeHandler(c, "统计计算失败", func(ctx context.Context) (engine.Statistics, error) {
+		return engine.CalculateStatisticsFromRequest(req), nil
 	})
 }

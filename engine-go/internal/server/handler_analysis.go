@@ -57,12 +57,9 @@ func handlePCA(c *gin.Context) {
 		newProblem(c, http.StatusBadRequest, "PCA_INSUFFICIENT_TICKERS", "Bad Request", "至少需要 2 个 ticker")
 		return
 	}
-	result, err := pca.PerformPCA(req)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	withComputeHandler(c, "PCA 计算失败", func(ctx context.Context) (*pca.PCAResult, error) {
+		return pca.PerformPCA(req)
+	})
 }
 
 // handleLETFAnalyze LETF 滑点分析处理器。
@@ -85,16 +82,13 @@ func handleLETFAnalyze(c *gin.Context) {
 	}
 	letfSeries := letf.ToPricePoints(letfData)
 	benchSeries := letf.ToPricePoints(benchData)
-	result, err := letf.AnalyzeSlippage(letf.LETFRequest{
-		LETFSeries:  letfSeries,
-		BenchSeries: benchSeries,
-		Leverage:    req.Leverage,
+	withComputeHandler(c, "LETF 滑点分析失败", func(ctx context.Context) (*letf.LETFResult, error) {
+		return letf.AnalyzeSlippage(letf.LETFRequest{
+			LETFSeries:  letfSeries,
+			BenchSeries: benchSeries,
+			Leverage:    req.Leverage,
+		})
 	})
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
 
 // handleFactorRegression Fama-French 因子回归处理器。
@@ -104,10 +98,7 @@ func handleFactorRegression(c *gin.Context) {
 		newProblem(c, http.StatusBadRequest, "FR_BAD_REQUEST", "Bad Request", "请求解析失败")
 		return
 	}
-	result, err := factorregression.RunRegression(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "因子回归计算失败"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
+	withComputeHandler(c, "因子回归计算失败", func(ctx context.Context) (*factorregression.RegressionResult, error) {
+		return factorregression.RunRegression(req)
+	})
 }

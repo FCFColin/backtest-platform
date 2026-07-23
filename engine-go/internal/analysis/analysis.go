@@ -6,10 +6,9 @@ package analysis
 
 import (
 	"context"
-	"math"
-	"sort"
 
 	"engine-go/internal/engine"
+	"engine-go/internal/engineutil"
 )
 
 // AnalysisRequest 单资产分析请求。
@@ -75,10 +74,10 @@ func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, erro
 	}
 
 	// 获取所有交易日期（排序去重）
-	dates := getSortedDates(req.PriceData, req.Tickers)
+	dates := engineutil.GetSortedDates(req.PriceData, req.Tickers)
 
 	// 过滤日期范围
-	filteredDates := filterDates(dates, req.Params.StartDate, req.Params.EndDate)
+	filteredDates := engineutil.FilterDates(dates, req.Params.StartDate, req.Params.EndDate)
 
 	// 预计算每个 ticker 的价格序列和日收益率
 	type tickerData struct {
@@ -297,27 +296,15 @@ func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, erro
 		})
 	}
 
-	// 计算相关性矩阵
-	n := len(req.Tickers)
-	correlations := make([][]float64, n)
-	for i := range correlations {
-		correlations[i] = make([]float64, n)
-	}
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
-			if i == j {
-				correlations[i][j] = 1
-			} else if j < i {
-				correlations[i][j] = correlations[j][i]
-			} else {
-				retI := tickerMap[req.Tickers[i]].returns
-				retJ := tickerMap[req.Tickers[j]].returns
-				if retI != nil && retJ != nil {
-					correlations[i][j] = engine.CalcCorrelation(retI, retJ)
-				}
-			}
+	// 计算相关性矩阵——复用 engine.CalcCorrelationMatrix
+	returnsList := make([][]float64, len(req.Tickers))
+	for i, t := range req.Tickers {
+		td := tickerMap[t]
+		if td != nil {
+			returnsList[i] = td.returns
 		}
 	}
+	correlations := engine.CalcCorrelationMatrix(returnsList)
 
 	return AnalysisResult{
 		Assets:       assets,
@@ -325,59 +312,15 @@ func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, erro
 	}, nil
 }
 
-// getSortedDates 获取所有交易日期（排序去重）。
-// 企业理由：与 TypeScript getSortedDates 算法一致，
-// 从所有 ticker 的价格数据中提取日期并排序。
-func getSortedDates(priceData map[string]map[string]float64, tickers []string) []string {
-	dateSet := make(map[string]struct{})
-	for _, ticker := range tickers {
-		if td, ok := priceData[ticker]; ok {
-			for date := range td {
-				dateSet[date] = struct{}{}
-			}
-		}
-	}
-	dates := make([]string, 0, len(dateSet))
-	for d := range dateSet {
-		dates = append(dates, d)
-	}
-	sort.Strings(dates)
-	return dates
-}
-
-// filterDates 过滤日期范围（空字符串视为不限制）。
-// 企业理由：与 TypeScript filterDates 行为一致。
-func filterDates(dates []string, startDate, endDate string) []string {
-	if startDate == "" && endDate == "" {
-		return dates
-	}
-	result := make([]string, 0, len(dates))
-	for _, d := range dates {
-		if startDate != "" && d < startDate {
-			continue
-		}
-		if endDate != "" && d > endDate {
-			continue
-		}
-		result = append(result, d)
-	}
-	return result
-}
-
-// extractPrices 从 priceData 中提取指定 ticker 在给定日期序列上的价格。
-// 企业理由：返回价格数组和对应的日期数组，跳过无数据的日期，
-// 确保价格和日期一一对应。
+// extractPrices 从 priceData 中提取指定 ticker 在给定日期列表上的价格序列。
+// 仅保留实际存在数据的日期，返回对齐的 prices 和 priceDates。
 func extractPrices(priceData map[string]map[string]float64, ticker string, dates []string) ([]float64, []string) {
-	td, ok := priceData[ticker]
-	if !ok {
-		return nil, nil
-	}
 	prices := make([]float64, 0, len(dates))
 	priceDates := make([]string, 0, len(dates))
-	for _, d := range dates {
-		if p, exists := td[d]; exists && p > 0 && !math.IsNaN(p) && !math.IsInf(p, 0) {
-			prices = append(prices, p)
-			priceDates = append(priceDates, d)
+	for _, date := range dates {
+		if price, ok := priceData[ticker][date]; ok {
+			prices = append(prices, price)
+			priceDates = append(priceDates, date)
 		}
 	}
 	return prices, priceDates

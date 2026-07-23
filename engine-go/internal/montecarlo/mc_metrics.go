@@ -3,6 +3,8 @@ package montecarlo
 import (
 	"math"
 	"slices"
+
+	"engine-go/internal/mathutil"
 )
 
 // computePerPathMetrics 计算每条路径的指标
@@ -57,7 +59,7 @@ func calcPathMetrics(path []float64, startingValue float64, years float64) PathM
 
 	vol := 0.0
 	if len(dailyRets) > 1 {
-		vol = mcStdDev(dailyRets) * math.Sqrt(float64(mcTradingDays))
+		vol = mathutil.Std(dailyRets) * math.Sqrt(float64(mcTradingDays))
 	}
 
 	sharpe := 0.0
@@ -119,36 +121,12 @@ func computeMCStatistics(paths [][]float64, threshold float64, startingValue flo
 	}
 }
 
-// mcMean 计算均值
-func mcMean(data []float64) float64 {
-	if len(data) == 0 {
-		return 0
-	}
-	sum := 0.0
-	for _, v := range data {
-		sum += v
-	}
-	return sum / float64(len(data))
-}
-
-// mcStdDev 计算标准差
-func mcStdDev(data []float64) float64 {
-	if len(data) < 2 {
-		return 0
-	}
-	m := mcMean(data)
-	sum := 0.0
-	for _, v := range data {
-		d := v - m
-		sum += d * d
-	}
-	return math.Sqrt(sum / float64(len(data)-1))
-}
-
 // mcSortino 计算索提诺比率
 //
 // 企业理由：索提诺比率只惩罚下行波动，比夏普比率更适合
 // 评估不对称收益分布的策略，对蒙特卡洛模拟的厚尾路径尤其重要。
+// 注意：本函数使用线性日化无风险利率（mcRiskFreeRate/mcTradingDays），
+// 与 engine.CalcSortino 的复利日化公式不同，故未转调 engine 包。
 func mcSortino(dailyRets []float64, cagr float64) float64 {
 	if len(dailyRets) == 0 {
 		return 0

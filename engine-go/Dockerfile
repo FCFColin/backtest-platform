@@ -8,14 +8,18 @@ FROM golang:1.26-alpine AS builder
 WORKDIR /build
 
 # 复制依赖清单并下载依赖（利用 Docker 层缓存）
-COPY go.mod go.sum ./
-RUN go mod download
+COPY engine-go/go.mod engine-go/go.sum ./engine-go/
+
+# 复制 go-shared 依赖（replace ../packages/go-shared 需要在构建上下文中可用）
+COPY packages/go-shared ./packages/go-shared
+
+RUN cd engine-go && go mod download
 
 # 复制源码
-COPY . .
+COPY engine-go ./engine-go
 
 # 编译静态二进制
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /engine-go ./cmd/server
+RUN cd engine-go && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /engine-go-bin ./cmd/server
 
 # =============================================================================
 # Stage 2: runner
@@ -31,7 +35,7 @@ RUN apk add --no-cache ca-certificates wget tzdata \
 
 WORKDIR /app
 
-COPY --from=builder /engine-go /app/engine-go
+COPY --from=builder /engine-go-bin /app/engine-go
 
 ENV ENGINE_GO_PORT=5004 \
     GIN_MODE=release

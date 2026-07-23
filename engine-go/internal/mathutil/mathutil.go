@@ -16,11 +16,16 @@ func Mean(arr []float64) float64 {
 	if len(arr) == 0 {
 		return 0
 	}
+	return Sum(arr) / float64(len(arr))
+}
+
+// Sum 计算浮点切片之和。空切片返回 0。
+func Sum(arr []float64) float64 {
 	sum := 0.0
 	for _, v := range arr {
 		sum += v
 	}
-	return sum / float64(len(arr))
+	return sum
 }
 
 // Std 计算样本标准差（除以 n-1）。元素数 < 2 时返回 0。
@@ -71,4 +76,22 @@ func GaussianRandom(rnd *rand.Rand, mean, std float64) float64 {
 	u2 := rnd.Float64()
 	z := math.Sqrt(-2*math.Log(u1)) * math.Cos(2*math.Pi*u2)
 	return mean + std*z
+}
+
+// Covariance 计算两个序列的样本协方差（除以 n-1）。空切片返回 0。
+func Covariance(x, y []float64) float64 {
+	n := len(x)
+	if n == 0 || len(y) != n {
+		return 0
+	}
+	meanX := Mean(x)
+	meanY := Mean(y)
+	cov := 0.0
+	for i := 0; i < n; i++ {
+		cov += (x[i] - meanX) * (y[i] - meanY)
+	}
+	if n < 2 {
+		return cov
+	}
+	return cov / float64(n-1)
 }
