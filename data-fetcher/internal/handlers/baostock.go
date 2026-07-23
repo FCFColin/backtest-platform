@@ -1,4 +1,4 @@
-package main
+package handlers
 
 import (
 	"fmt"
@@ -52,7 +52,7 @@ func withBaoStockClient(fn func(*baostock.Client, *gin.Context)) gin.HandlerFunc
 	}
 }
 
-func handleBaoStockTest() gin.HandlerFunc {
+func HandleBaoStockTest() gin.HandlerFunc {
 	return withBaoStockClient(func(client *baostock.Client, c *gin.Context) {
 		start := time.Now()
 		data, err := client.QueryHistoryKDataPlus(
@@ -70,7 +70,7 @@ func handleBaoStockTest() gin.HandlerFunc {
 	})
 }
 
-func handleBaoStockKLine() gin.HandlerFunc {
+func HandleBaoStockKLine() gin.HandlerFunc {
 	return withBaoStockClient(func(client *baostock.Client, c *gin.Context) {
 		code := c.Query("code")
 		if code == "" {
@@ -97,7 +97,7 @@ func handleBaoStockKLine() gin.HandlerFunc {
 	})
 }
 
-func handleBaoStockAllStock() gin.HandlerFunc {
+func HandleBaoStockAllStock() gin.HandlerFunc {
 	return withBaoStockClient(func(client *baostock.Client, c *gin.Context) {
 		date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
 
@@ -120,7 +120,7 @@ func handleBaoStockAllStock() gin.HandlerFunc {
 	})
 }
 
-func handleBaoStockTradeDates() gin.HandlerFunc {
+func HandleBaoStockTradeDates() gin.HandlerFunc {
 	return withBaoStockClient(func(client *baostock.Client, c *gin.Context) {
 		startDate := c.DefaultQuery("start", "2020-01-01")
 		endDate := c.DefaultQuery("end", time.Now().Format("2006-01-02"))

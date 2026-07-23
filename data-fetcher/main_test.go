@@ -6,6 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"data-fetcher/internal/handlers"
+	"data-fetcher/internal/store"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -59,7 +62,7 @@ func TestSearchHandlerMissingQuery(t *testing.T) {
 }
 
 func TestPricePointJSON(t *testing.T) {
-	pp := PricePoint{
+	pp := store.PricePoint{
 		Date:   "2020-01-02",
 		Open:   100.0,
 		High:   105.0,
@@ -71,7 +74,7 @@ func TestPricePointJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to marshal PricePoint: %v", err)
 	}
-	var pp2 PricePoint
+	var pp2 store.PricePoint
 	if err := json.Unmarshal(data, &pp2); err != nil {
 		t.Fatalf("Failed to unmarshal PricePoint: %v", err)
 	}
@@ -92,8 +95,8 @@ func TestHandleValidateTickers_PathTraversal(t *testing.T) {
 		"..\\..\\etc\\passwd",
 	}
 	for _, ticker := range maliciousTickers {
-		if isValidTicker(ticker) {
-			t.Errorf("isValidTicker(%q) = true, expected false (path traversal)", ticker)
+		if handlers.IsValidTicker(ticker) {
+			t.Errorf("IsValidTicker(%q) = true, expected false (path traversal)", ticker)
 		}
 	}
 }
@@ -102,6 +105,6 @@ func TestHandleValidateTickers_PathTraversal(t *testing.T) {
 func BenchmarkIsValidTicker(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-		isValidTicker("VTI")
+		handlers.IsValidTicker("VTI")
 	}
 }

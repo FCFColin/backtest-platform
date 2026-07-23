@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"data-fetcher/internal/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +21,7 @@ func newAuthTestRouter() *gin.Engine {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 	authed := r.Group("/")
-	authed.Use(DataServiceAuthMiddleware())
+	authed.Use(middleware.DataServiceAuthMiddleware())
 	{
 		authed.GET("/api/data/search", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"success": true})

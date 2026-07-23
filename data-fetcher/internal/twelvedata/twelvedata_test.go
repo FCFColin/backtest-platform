@@ -9,46 +9,8 @@ import (
 
 	"data-fetcher/internal/httpclient"
 	"data-fetcher/internal/provider"
+	"data-fetcher/internal/providerutil"
 )
-
-func TestParseTwelveFloat(t *testing.T) {
-	cases := []struct {
-		input string
-		want  float64
-	}{
-		{"3.14", 3.14},
-		{"0", 0},
-		{"", 0},
-		{"  10.5  ", 10.5}, // 带空格
-		{"invalid", 0},
-	}
-	for _, c := range cases {
-		got := parseTwelveFloat(c.input)
-		if got != c.want {
-			t.Errorf("parseTwelveFloat(%q) = %v, want %v", c.input, got, c.want)
-		}
-	}
-}
-
-func TestParseTwelveInt(t *testing.T) {
-	cases := []struct {
-		input string
-		want  int64
-	}{
-		{"1000000", 1000000},
-		{"3.7", 3}, // float 字符串截断为 int
-		{"0", 0},
-		{"", 0},
-		{"  500  ", 500},
-		{"invalid", 0},
-	}
-	for _, c := range cases {
-		got := parseTwelveInt(c.input)
-		if got != c.want {
-			t.Errorf("parseTwelveInt(%q) = %d, want %d", c.input, got, c.want)
-		}
-	}
-}
 
 func TestNewProvider_WithoutAPIKey(t *testing.T) {
 	key := os.Getenv("TWELVE_DATA_API_KEY")
@@ -122,17 +84,17 @@ func parseTimeSeries(body []byte, startDate, endDate string) ([]provider.DailyPr
 		if t.Before(start) || t.After(end) {
 			continue
 		}
-		close := parseTwelveFloat(v.Close)
+		close := providerutil.ParseStringFloat(v.Close)
 		if close == 0 {
 			continue
 		}
 		prices = append(prices, provider.DailyPrice{
 			Date:          v.Datetime,
-			Open:          parseTwelveFloat(v.Open),
-			High:          parseTwelveFloat(v.High),
-			Low:           parseTwelveFloat(v.Low),
+			Open:          providerutil.ParseStringFloat(v.Open),
+			High:          providerutil.ParseStringFloat(v.High),
+			Low:           providerutil.ParseStringFloat(v.Low),
 			Close:         close,
-			Volume:        parseTwelveInt(v.Volume),
+			Volume:        providerutil.ParseStringInt(v.Volume),
 			AdjustedClose: close,
 		})
 	}

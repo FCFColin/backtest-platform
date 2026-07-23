@@ -1,4 +1,5 @@
-package main
+// Package handlers 提供 data-fetcher 服务的 HTTP 处理器。
+package handlers
 
 import (
 	"net/http"
@@ -7,12 +8,15 @@ import (
 	"sync"
 	"time"
 
+	"data-fetcher/internal/store"
+
 	"github.com/gin-gonic/gin"
 )
 
 var tickerPattern = regexp.MustCompile(`^[A-Z0-9._-]{1,20}$`)
 
-func isValidTicker(ticker string) bool {
+// IsValidTicker 校验 ticker 格式是否合法（防路径遍历与非法字符）。
+func IsValidTicker(ticker string) bool {
 	if ticker == "" || len(ticker) > 20 {
 		return false
 	}
@@ -26,7 +30,7 @@ func isValidTicker(ticker string) bool {
 // HTTP处理器
 // ============================================================
 
-func handleSearch(ds *DataStore) gin.HandlerFunc {
+func HandleSearch(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := c.Query("q")
 		if query == "" {
@@ -43,10 +47,10 @@ func handleSearch(ds *DataStore) gin.HandlerFunc {
 	}
 }
 
-func handlePriceData(ds *DataStore) gin.HandlerFunc {
+func HandlePriceData(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ticker := c.Param("ticker")
-		if !isValidTicker(ticker) {
+		if !IsValidTicker(ticker) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法，仅允许大写字母、数字、点、下划线、连字符，长度1-20"})
 			return
 		}
@@ -64,7 +68,7 @@ func handlePriceData(ds *DataStore) gin.HandlerFunc {
 	}
 }
 
-func handleBatchPriceData(ds *DataStore) gin.HandlerFunc {
+func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 	type BatchRequest struct {
 		Tickers   []string `json:"tickers"`
 		StartDate string   `json:"startDate"`
@@ -79,7 +83,7 @@ func handleBatchPriceData(ds *DataStore) gin.HandlerFunc {
 		}
 
 		for _, t := range req.Tickers {
-			if !isValidTicker(t) {
+			if !IsValidTicker(t) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法: " + t})
 				return
 			}
@@ -113,7 +117,7 @@ func handleBatchPriceData(ds *DataStore) gin.HandlerFunc {
 	}
 }
 
-func handleValidateTickers(ds *DataStore) gin.HandlerFunc {
+func HandleValidateTickers(ds *store.DataStore) gin.HandlerFunc {
 	type ValidateRequest struct {
 		Tickers []string `json:"tickers"`
 	}
@@ -126,7 +130,7 @@ func handleValidateTickers(ds *DataStore) gin.HandlerFunc {
 		}
 
 		for _, t := range req.Tickers {
-			if !isValidTicker(t) {
+			if !IsValidTicker(t) {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "ticker参数格式非法: " + t})
 				return
 			}
@@ -148,7 +152,7 @@ func handleValidateTickers(ds *DataStore) gin.HandlerFunc {
 	}
 }
 
-func handleCPI(ds *DataStore) gin.HandlerFunc {
+func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		country := c.Param("country")
 		if country != "us" && country != "cn" {
@@ -156,7 +160,7 @@ func handleCPI(ds *DataStore) gin.HandlerFunc {
 			return
 		}
 
-		rows, err := ds.pool.Query(c.Request.Context(), `
+		rows, err := ds.Pool().Query(c.Request.Context(), `
 			SELECT date, value FROM cpi_data
 			WHERE country = $1
 			ORDER BY date
@@ -192,10 +196,10 @@ func handleCPI(ds *DataStore) gin.HandlerFunc {
 	}
 }
 
-func handleHealth(ds *DataStore) gin.HandlerFunc {
+func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tickerCount, priceCount int
-		if err := ds.pool.QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM tickers").Scan(&tickerCount); err != nil {
+		if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM tickers").Scan(&tickerCount); err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"status":  "degraded",
 				"engine":  "go",
@@ -204,7 +208,7 @@ func handleHealth(ds *DataStore) gin.HandlerFunc {
 			})
 			return
 		}
-		if err := ds.pool.QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices").Scan(&priceCount); err != nil {
+		if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices").Scan(&priceCount); err != nil {
 			priceCount = 0
 		}
 

@@ -1,6 +1,7 @@
 package baostock
 
 import (
+	"hash/crc32"
 	"strings"
 	"testing"
 )
@@ -26,18 +27,18 @@ func TestPadLeft(t *testing.T) {
 }
 
 func TestCRC32(t *testing.T) {
-	result := standardCRC32([]byte("test"))
+	result := crc32.ChecksumIEEE([]byte("test"))
 	if result == 0 {
 		t.Error("CRC32 of 'test' should not be 0")
 	}
 
-	empty := standardCRC32([]byte(""))
+	empty := crc32.ChecksumIEEE([]byte(""))
 	if empty != 0 {
 		t.Errorf("CRC32 of empty string = %d, want 0", empty)
 	}
 
-	same1 := standardCRC32([]byte("hello"))
-	same2 := standardCRC32([]byte("hello"))
+	same1 := crc32.ChecksumIEEE([]byte("hello"))
+	same2 := crc32.ChecksumIEEE([]byte("hello"))
 	if same1 != same2 {
 		t.Errorf("CRC32 should be deterministic: %d != %d", same1, same2)
 	}

@@ -18,11 +18,22 @@ import (
 type dailyPrice = provider.DailyPrice
 
 // fetchAndStore 通过 provider 注册表抓取单只标的行情并写入数据库。
+// 对于 SIM Ticker（如 SPYSIM），使用多段数据拼接系统获取完整的 total return 序列。
 func fetchAndStore(ctx context.Context, pool *pgxpool.Pool, ticker, startDate, endDate string) error {
 	if pool == nil {
 		return fmt.Errorf("数据库未连接，无法写入数据")
 	}
 
+	// SIM Ticker：使用多段拼接系统
+	if IsSIMTicker(ticker) {
+		def := GetSIMDefinition(ticker)
+		if def == nil {
+			return fmt.Errorf("未知的 SIM Ticker: %s", ticker)
+		}
+		return spliceSIMData(ctx, pool, def, startDate, endDate)
+	}
+
+	// 普通 Ticker：直接从 provider 获取
 	providers := reg.ForTicker(ticker)
 	if len(providers) == 0 {
 		return fmt.Errorf("没有可用的数据源: %s", ticker)
@@ -43,8 +54,40 @@ func fetchAndStore(ctx context.Context, pool *pgxpool.Pool, ticker, startDate, e
 	return writePricesToDB(ctx, pool, ticker, prices)
 }
 
+// sanitizePrices 清洗并修复异常行情数据，确保满足数据库约束 prices_ohlc_check：
+//   - high >= low
+//   - low <= open AND low <= close
+//   - high >= open AND high >= close
+//   - volume >= 0
+func sanitizePrices(prices []dailyPrice) []dailyPrice {
+	valid := make([]dailyPrice, 0, len(prices))
+	for _, p := range prices {
+		if p.High < p.Low {
+			p.High, p.Low = p.Low, p.High
+		}
+		if p.Open < p.Low {
+			p.Open = p.Low
+		}
+		if p.Close < p.Low {
+			p.Close = p.Low
+		}
+		if p.High < p.Open {
+			p.High = p.Open
+		}
+		if p.High < p.Close {
+			p.High = p.Close
+		}
+		if p.Volume < 0 {
+			p.Volume = 0
+		}
+		valid = append(valid, p)
+	}
+	return valid
+}
+
 // writePricesToDB 批量写入行情数据并更新 worker_progress 断点续传表。
 func writePricesToDB(ctx context.Context, pool *pgxpool.Pool, ticker string, prices []dailyPrice) error {
+	prices = sanitizePrices(prices)
 	batch := &pgx.Batch{}
 	for _, p := range prices {
 		batch.Queue(`
