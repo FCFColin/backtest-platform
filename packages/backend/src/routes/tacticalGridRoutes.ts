@@ -8,7 +8,7 @@ import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
 import { validate } from '../middleware/validate.js';
-import { tacticalGridSearchSchema } from '../schemas/tacticalGrid.js';
+import { tacticalGridSearchSchema } from '../schemas/tactical.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
@@ -31,9 +31,7 @@ router.post(
       const p1Count = Math.floor((body.param1.max - body.param1.min) / body.param1.step) + 1;
       const p2Count = Math.floor((body.param2.max - body.param2.min) / body.param2.step) + 1;
       if (p1Count * p2Count > MAX_GRID_COMBINATIONS) {
-        sendProblem(res, 422, 'GRID_TOO_MANY_COMBINATIONS', 'Too many parameter combinations', {
-          detail: `参数组合过多(${p1Count * p2Count})，请缩小参数范围（上限${MAX_GRID_COMBINATIONS}）`,
-        });
+        sendProblem(res, 422, 'GRID_TOO_MANY_COMBINATIONS');
         return;
       }
 
@@ -78,14 +76,12 @@ router.post(
       if (result.success) {
         res.json({ success: true, data: result.data });
       } else {
-        sendProblem(res, 400, 'GRID_BAD_REQUEST', 'Bad Request', { detail: String(result.error) });
+        sendProblem(res, 400, 'GRID_BAD_REQUEST');
       }
     },
     {
       logMsg: '[tactical-grid] 网格搜索失败',
       code: 'GRID_SEARCH_ERROR',
-      title: 'Internal Server Error',
-      detail: '战术网格搜索运行失败',
       endpoint: 'tactical-grid',
     },
   ),

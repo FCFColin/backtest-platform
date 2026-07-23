@@ -14,8 +14,7 @@ import {
   type PortfolioHolding,
 } from '../domain/aggregates/portfolio.js';
 import { DomainValidationError } from '../domain/errors.js';
-import { Ticker } from '../domain/value-objects/ticker.js';
-import { Weight } from '../domain/value-objects/weight.js';
+import { Ticker, Weight } from '../domain/value-objects/index.js';
 import { ValidationError } from '../utils/errors.js';
 import type { Asset, RebalanceFrequency } from '@backtest/shared';
 
@@ -97,6 +96,33 @@ export async function getPortfolio(tenantId: string, id: string): Promise<Portfo
 }
 
 /**
+ * 领域校验：通过聚合根构造函数强制不变量，返回净化后的聚合根实例。
+ *
+ * @param input - 组合内容
+ * @param id - 组合 UUID（创建时省略则自动生成）
+ * @throws {ValidationError} 当权重和不为 ~100 或包含非法 ticker 时
+ */
+function validateAndBuildPortfolio(
+  input: PortfolioInput,
+  id: string = crypto.randomUUID(),
+): DomainPortfolio {
+  const holdings: PortfolioHolding[] = input.assets.map((a) => ({
+    ticker: Ticker.create(a.ticker),
+    weight: Weight.create(a.weight),
+  }));
+  try {
+    return DomainPortfolio.create(id, input.name, holdings, {
+      rebalanceFrequency: input.rebalanceFrequency,
+    });
+  } catch (err) {
+    if (err instanceof DomainValidationError) {
+      throw new ValidationError(err.message, 'VALIDATION_ERROR', 'Portfolio validation failed');
+    }
+    throw err;
+  }
+}
+
+/**
  * 创建组合。在写入前通过 domain 聚合根强制校验权重和不变量（ADR-013）。
  *
  * @param tenantId - 活跃组织 UUID
@@ -109,23 +135,7 @@ export async function createPortfolio(
   ownerUserId: string | null,
   input: PortfolioInput,
 ): Promise<PortfolioRecord> {
-  // 领域校验：通过聚合根构造函数强制不变量；保留实例以输出净化后的持久化 DTO
-  const holdings: PortfolioHolding[] = input.assets.map((a) => ({
-    ticker: Ticker.create(a.ticker),
-    weight: Weight.create(a.weight),
-  }));
-  let portfolio: DomainPortfolio;
-  try {
-    portfolio = DomainPortfolio.create(crypto.randomUUID(), input.name, holdings, {
-      rebalanceFrequency: input.rebalanceFrequency,
-    });
-  } catch (err) {
-    if (err instanceof DomainValidationError) {
-      throw new ValidationError(err.message, 'VALIDATION_ERROR', 'Portfolio validation failed');
-    }
-    throw err;
-  }
-  const dto = portfolio.toPersistenceDTO();
+  const dto = validateAndBuildPortfolio(input).toPersistenceDTO();
 
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query(
@@ -158,23 +168,7 @@ export async function updatePortfolio(
   id: string,
   input: PortfolioInput,
 ): Promise<PortfolioRecord | null> {
-  // 领域校验：保留实例以输出净化后的持久化 DTO
-  const holdings: PortfolioHolding[] = input.assets.map((a) => ({
-    ticker: Ticker.create(a.ticker),
-    weight: Weight.create(a.weight),
-  }));
-  let portfolio: DomainPortfolio;
-  try {
-    portfolio = DomainPortfolio.create(id, input.name, holdings, {
-      rebalanceFrequency: input.rebalanceFrequency,
-    });
-  } catch (err) {
-    if (err instanceof DomainValidationError) {
-      throw new ValidationError(err.message, 'VALIDATION_ERROR', 'Portfolio validation failed');
-    }
-    throw err;
-  }
-  const dto = portfolio.toPersistenceDTO();
+  const dto = validateAndBuildPortfolio(input, id).toPersistenceDTO();
 
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query(

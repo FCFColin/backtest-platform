@@ -25,7 +25,6 @@ import { sendProblem } from '../utils/errors.js';
 import { recordAuthFailure } from '../utils/metrics.js';
 import {
   type AuthenticatedRequest,
-  type JwtPayload,
   ACCESS_TOKEN_EXPIRES_IN_SEC,
   attachAuthLogContext,
   hashUserId,
@@ -64,18 +63,32 @@ export { verifyToken } from './jwtVerify.js';
  * 3. 开发环境（NODE_ENV=development + DEV_SKIP_AUTH=true + 默认 JWT_SECRET）→ 注入 readonly 用户
  */
 
-/** 检查 JWT payload 对应的会话是否有效（未撤销、用户未停用）。返回错误码或 null。 */
-async function checkSessionValidity(
-  payload: JwtPayload,
+/** 处理 Bearer Token 认证流程（含吊销/停用检查） */
+async function handleBearerTokenAuth(
   req: AuthenticatedRequest,
-): Promise<string | null> {
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const payload = token ? await verifyToken(token) : null;
+  if (!payload) {
+    logger.warn(
+      { middleware: 'jwtAuth', path: req.path, error: 'JWT token 无效或已过期', requestId: req.id },
+      '[jwtAuth] JWT 认证失败',
+    );
+    recordAuthFailure(req.path, 'invalid_token');
+    sendProblem(res, 401, 'INVALID_TOKEN');
+    return;
+  }
   if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
     logger.warn(
       { middleware: 'jwtAuth', path: req.path, userId: hashUserId(payload.sub), requestId: req.id },
       '[jwtAuth] 会话已全局撤销，拒绝访问',
     );
     recordAuthFailure(req.path, 'session_revoked');
-    return 'SESSION_REVOKED';
+    sendProblem(res, 401, 'SESSION_REVOKED');
+    return;
   }
   if (!(await isUserSessionValid(payload.sub))) {
     logger.warn(
@@ -83,42 +96,7 @@ async function checkSessionValidity(
       '[jwtAuth] 用户已停用，拒绝访问',
     );
     recordAuthFailure(req.path, 'account_disabled');
-    return 'ACCOUNT_DISABLED';
-  }
-  return null;
-}
-
-/** 提取并验证 Bearer Token，返回 payload 或 null。 */
-async function verifyBearerToken(req: AuthenticatedRequest): Promise<JwtPayload | null> {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.slice(7).trim();
-  return verifyToken(token);
-}
-
-/** 处理 Bearer Token 认证流程（含吊销/停用检查） */
-async function handleBearerTokenAuth(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  const payload = await verifyBearerToken(req);
-  if (!payload) {
-    logger.warn(
-      { middleware: 'jwtAuth', path: req.path, error: 'JWT token 无效或已过期', requestId: req.id },
-      '[jwtAuth] JWT 认证失败',
-    );
-    recordAuthFailure(req.path, 'invalid_token');
-    sendProblem(res, 401, 'INVALID_TOKEN', 'Unauthorized', {
-      detail: 'JWT token 无效或已过期',
-    });
-    return;
-  }
-  const sessionError = await checkSessionValidity(payload, req);
-  if (sessionError) {
-    sendProblem(res, 401, sessionError, 'Unauthorized', {
-      detail: sessionError === 'SESSION_REVOKED' ? '会话已失效，请重新登录' : '账户已停用或已删除',
-    });
+    sendProblem(res, 401, 'ACCOUNT_DISABLED');
     return;
   }
   req.user = payload;
@@ -160,9 +138,7 @@ export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunc
     '[jwtAuth] JWT 认证失败',
   );
   recordAuthFailure(req.path, 'missing_credentials');
-  sendProblem(res, 401, 'MISSING_CREDENTIALS', 'Unauthorized', {
-    detail: '缺少认证凭证，请提供 Bearer Token 或 x-api-key',
-  });
+  sendProblem(res, 401, 'MISSING_CREDENTIALS');
 }
 
 /**
@@ -171,7 +147,9 @@ export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunc
  */
 /** 可选模式：处理 Bearer Token，失败时匿名放行 */
 async function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunction): Promise<void> {
-  const payload = await verifyBearerToken(req);
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const payload = token ? await verifyToken(token) : null;
   if (payload) {
     req.user = payload;
     attachAuthLogContext(req);

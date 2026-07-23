@@ -12,11 +12,11 @@
  */
 
 import { trace, type Span } from '@opentelemetry/api';
-import { validateTickerFormat } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
+import { toDateStr } from '../utils/dateUtils.js';
 import { initSchema } from '../db/migrations.js';
 import { getCacheKey, readCache } from './dataCache.js';
-import { queryPricesFromDb, fetchMissingFromGoService } from './dataQuery.js';
+import { queryPricesFromDb, fetchMissingFromGoService, validateTickers } from './dataQuery.js';
 
 /** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
@@ -87,6 +87,41 @@ export async function fetchHistoryData(
   });
 }
 
+/** 通过 Go 数据服务补齐缺失标的，返回是否降级 */
+async function fetchFromGoWithDegradation(
+  tickersToFetch: string[],
+  startDate: string,
+  endDate: string,
+  cacheKey: string,
+  result: Record<string, Record<string, number>>,
+): Promise<{ degraded: boolean; degradedWarning?: string }> {
+  let effectiveStart = startDate;
+  let effectiveEnd = endDate;
+  if (startDate === '' && endDate === '') {
+    effectiveStart = '2000-01-01';
+    effectiveEnd = toDateStr(new Date());
+  }
+
+  const goResult = await fetchMissingFromGoService(
+    tickersToFetch,
+    effectiveStart,
+    effectiveEnd,
+    cacheKey,
+  );
+  Object.assign(result, goResult);
+
+  const stillMissing = tickersToFetch.filter(
+    (t) => !result[t] || Object.keys(result[t]).length === 0,
+  );
+  if (stillMissing.length > 0) {
+    return {
+      degraded: true,
+      degradedWarning: `Go 数据服务无法获取 ${stillMissing.length} 个标的的数据`,
+    };
+  }
+  return { degraded: false };
+}
+
 /** fetchHistoryData 核心实现（提取以控制函数行数） */
 async function fetchHistoryDataImpl(
   tickers: string[],
@@ -99,20 +134,35 @@ async function fetchHistoryDataImpl(
   let degraded = false;
   let degradedWarning: string | undefined;
 
-  const { valid: validTickers } = validateTickerFormat(tickers);
+  const {
+    valid: validTickers,
+    invalid: invalidTickers,
+    unknown: unknownTickers,
+  } = await validateTickers(tickers);
   span.setAttribute('valid_ticker_count', validTickers.length);
-  if (validTickers.length === 0) {
+  span.setAttribute('unknown_ticker_count', unknownTickers.length);
+
+  if (invalidTickers.length > 0) {
+    logger.warn(
+      `[dataService] fetchHistoryData: 忽略 ${invalidTickers.length} 个非法 ticker: ${invalidTickers.join(', ')}`,
+    );
+  }
+
+  const totalFetchable = validTickers.length + unknownTickers.length;
+  if (totalFetchable === 0) {
     logger.warn(
       `[dataService] fetchHistoryData: 全部 ${tickers.length} 个 ticker 非法，返回空结果`,
     );
     return { data: result, degraded: false };
   }
 
+  const hasUnknownTickers = unknownTickers.length > 0;
+
   const {
     result: dbResult,
     missing: missingTickers,
     dbDegraded,
-  } = await queryPricesFromDb(validTickers, startDate, endDate);
+  } = await queryPricesFromDb(validTickers, startDate, endDate, hasUnknownTickers);
   Object.assign(result, dbResult);
 
   if (dbDegraded) {
@@ -120,7 +170,9 @@ async function fetchHistoryDataImpl(
     degradedWarning = '数据库不可用，部分数据可能缺失';
   }
 
-  if (missingTickers.length === 0) {
+  const tickersToFetch = [...missingTickers, ...unknownTickers];
+
+  if (tickersToFetch.length === 0) {
     span.setAttribute('cache_hit', true);
     span.setAttribute('missing_count', 0);
     logger.info(
@@ -130,7 +182,7 @@ async function fetchHistoryDataImpl(
   }
 
   const cacheKey = getCacheKey('history', {
-    tickers: missingTickers.sort().join(','),
+    tickers: tickersToFetch.sort().join(','),
     start: startDate,
     end: endDate,
   });
@@ -138,30 +190,31 @@ async function fetchHistoryDataImpl(
   const cached = await readCache(cacheKey);
   if (cached) {
     span.setAttribute('cache_hit', true);
-    span.setAttribute('missing_count', missingTickers.length);
+    span.setAttribute('missing_count', tickersToFetch.length);
     Object.assign(result, cached);
     logger.info(
-      `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${missingTickers.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
+      `[dataService] fetchHistoryData: ${totalFetchable} tickers, ${tickersToFetch.length} missing (cache hit), took ${Date.now() - fetchStart}ms`,
     );
     return { data: result, degraded, degradedWarning };
   }
 
   span.setAttribute('cache_hit', false);
-  span.setAttribute('missing_count', missingTickers.length);
+  span.setAttribute('missing_count', tickersToFetch.length);
 
-  const goResult = await fetchMissingFromGoService(missingTickers, startDate, endDate, cacheKey);
-  Object.assign(result, goResult);
-
-  const stillAfterGo = missingTickers.filter(
-    (t) => !result[t] || Object.keys(result[t]).length === 0,
+  const goDegradation = await fetchFromGoWithDegradation(
+    tickersToFetch,
+    startDate,
+    endDate,
+    cacheKey,
+    result,
   );
-  if (stillAfterGo.length > 0) {
+  if (goDegradation.degraded) {
     degraded = true;
-    degradedWarning = `Go 数据服务无法获取 ${stillAfterGo.length} 个标的的数据`;
+    degradedWarning = goDegradation.degradedWarning;
   }
 
   logger.info(
-    `[dataService] fetchHistoryData: ${validTickers.length} tickers, ${missingTickers.length} missing, took ${Date.now() - fetchStart}ms`,
+    `[dataService] fetchHistoryData: ${totalFetchable} tickers (${validTickers.length} known, ${unknownTickers.length} unknown), ${tickersToFetch.length} fetched from Go, took ${Date.now() - fetchStart}ms`,
   );
   return { data: result, degraded, degradedWarning };
 }

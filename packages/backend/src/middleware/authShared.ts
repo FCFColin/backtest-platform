@@ -17,8 +17,7 @@
 
 import crypto from 'crypto';
 import { config } from '../config/index.js';
-import { appRedis } from '../infrastructure/redisClient.js';
-import { getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisHealth.js';
+import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { getUserById } from '../repositories/userRepo.js';
 import { logger } from '../utils/logger.js';
 import { type TenantContext, type OrgRole } from './authTypes.js';

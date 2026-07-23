@@ -7,7 +7,7 @@
 import { Router, type Request, type Response } from 'express';
 import { callService } from '../utils/httpClient.js';
 import { scanTickersStats, getUniverseStats } from '../infrastructure/tickerDataService.js';
-import type { DbMarketStats } from '../db/marketStatsHelpers.js';
+import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
@@ -180,8 +180,6 @@ router.get(
     {
       logMsg: '[Admin Stats] 获取统计数据失败',
       code: 'ADMIN_STATS_ERROR',
-      title: 'Admin Stats Error',
-      detail: '获取统计数据失败',
     },
   ),
 );
@@ -239,8 +237,6 @@ router.get(
     {
       logMsg: '[Admin System] 获取系统信息失败',
       code: 'ADMIN_SYSTEM_ERROR',
-      title: 'Admin System Error',
-      detail: '获取系统信息失败',
     },
   ),
 );

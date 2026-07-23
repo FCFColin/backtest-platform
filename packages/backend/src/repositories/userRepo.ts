@@ -168,12 +168,7 @@ export async function deactivateUser(id: string): Promise<boolean> {
 }
 
 /**
- * 匿名化用户（GDPR Article 17 被遗忘权的"保留统计、抹除身份"实现）。
- *
- * 企业为何需要：直接物理删除会破坏审计/外键完整性（如审计日志引用 userId）。
- * 行业标准做法是"假名化/匿名化"——抹除 PII（用户名、密码哈希），保留不可关联到自然人的
- * 占位标识，使历史聚合统计仍然成立，同时满足 GDPR Art.17 与 PIPL §47 的删除义务。
- * 做法：用户名替换为 `deleted_<id前8位>`，密码哈希清空，停用账户。
+ * 匿名化用户（GDPR Art.17 被遗忘权：抹除 PII，保留占位标识以维护外键完整性）。
  *
  * @param id - 用户 ID
  * @returns 是否有记录被匿名化

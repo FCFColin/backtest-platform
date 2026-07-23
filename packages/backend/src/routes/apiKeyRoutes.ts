@@ -56,8 +56,6 @@ router.post(
     {
       logMsg: '[apiKeyRoutes] 创建 API Key 失败',
       code: 'API_KEY_CREATE_FAILED',
-      title: 'Internal Server Error',
-      detail: '创建 API Key 失败',
     },
   ),
 );
@@ -79,8 +77,6 @@ router.get(
     {
       logMsg: '[apiKeyRoutes] 列出 API Key 失败',
       code: 'API_KEY_LIST_FAILED',
-      title: 'Internal Server Error',
-      detail: '查询 API Key 失败',
     },
   ),
 );
@@ -100,9 +96,7 @@ router.delete(
       const keyId = req.params.id;
       const ok = await revokeApiKey(orgId, keyId);
       if (!ok) {
-        sendProblem(res, 404, 'API_KEY_NOT_FOUND', 'Not Found', {
-          detail: '密钥不存在、不属于本组织或已吊销',
-        });
+        sendProblem(res, 404, 'API_KEY_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: { id: keyId, revoked: true } });
@@ -110,8 +104,6 @@ router.delete(
     {
       logMsg: '[apiKeyRoutes] 吊销 API Key 失败',
       code: 'API_KEY_REVOKE_FAILED',
-      title: 'Internal Server Error',
-      detail: '吊销 API Key 失败',
     },
   ),
 );

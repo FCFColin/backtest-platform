@@ -11,20 +11,6 @@ import { crudRouteHandler } from './routeUtils.js';
 
 export const jobRoutes = Router();
 
-/** 判断请求方是否有权访问该任务（所有权 + 多租户隔离） */
-function isJobAccessible(ctx: {
-  ownerId: unknown;
-  isOwner: boolean;
-  isAdmin: boolean;
-  jobTenant: unknown;
-  tenantMatches: boolean;
-  platformAdmin: boolean;
-}): boolean {
-  const hasOwnership = ctx.isOwner || ctx.isAdmin;
-  const passesTenantCheck = ctx.tenantMatches || ctx.platformAdmin;
-  return hasOwnership && passesTenantCheck;
-}
-
 /** 构建任务查询响应体 */
 function buildJobResult(
   job: NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>,
@@ -52,56 +38,38 @@ function buildJobResult(
   return result;
 }
 
-/** 从请求与任务中构建授权上下文 */
-function buildJobAuthContext(
-  job: Awaited<ReturnType<typeof backtestQueue.getJob>>,
+/**
+ * 授权检查：构建上下文 + 验证所有权/租户隔离；不可访问时发送 404。
+ *
+ * @returns true 表示已拒绝（响应已发送），false 表示授权通过
+ */
+function authorizeJob(
+  res: Response,
+  job: NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>,
   requester: NonNullable<AuthenticatedRequest['user']>,
   reqTenantId: string | undefined,
-) {
-  const ownerId = job?.data?.userId;
-  const jobTenant = job?.data?.tenantId;
-  return {
-    ownerId,
-    isOwner: ownerId !== undefined && ownerId === requester.sub,
-    isAdmin: requester.role === 'admin',
-    jobTenant,
-    tenantMatches: !jobTenant || jobTenant === reqTenantId,
-    platformAdmin: requester.platform_admin === true,
-  };
-}
-
-/** 授权检查：不可访问时发送 404 并返回 true（已处理） */
-function denyIfInaccessible(
-  res: import('express').Response,
-  job: Awaited<ReturnType<typeof backtestQueue.getJob>>,
-  authCtx: {
-    ownerId: unknown;
-    isOwner: boolean;
-    isAdmin: boolean;
-    jobTenant: unknown;
-    tenantMatches: boolean;
-    platformAdmin: boolean;
-  },
-  logCtx: { jobId: string; requesterSub: string; reqTenantId: string | undefined },
+  jobId: string,
 ): boolean {
-  const accessible = !!job && isJobAccessible(authCtx);
-  if (job && !accessible) {
+  const ownerId = job.data?.userId;
+  const jobTenant = job.data?.tenantId;
+  const hasOwnership =
+    (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
+  const passesTenantCheck =
+    !jobTenant || jobTenant === reqTenantId || requester.platform_admin === true;
+
+  if (!hasOwnership || !passesTenantCheck) {
     logger.warn(
       {
         middleware: 'jobRoutes',
-        jobId: logCtx.jobId,
-        requester: logCtx.requesterSub,
-        owner: authCtx.ownerId,
-        jobTenant: authCtx.jobTenant,
-        reqTenant: logCtx.reqTenantId,
+        jobId,
+        requester: requester.sub,
+        owner: ownerId,
+        jobTenant,
+        reqTenant: reqTenantId,
       },
       '[jobRoutes] 拒绝越权访问任务结果',
     );
-  }
-  if (!accessible) {
-    sendProblem(res, 404, 'JOB_NOT_FOUND', 'Not Found', {
-      detail: `Job ${logCtx.jobId} not found`,
-    });
+    sendProblem(res, 404, 'JOB_NOT_FOUND');
     return true;
   }
   return false;
@@ -124,29 +92,17 @@ jobRoutes.get(
       const authReq = req as AuthenticatedRequest;
       const requester = authReq.user;
       if (!requester) {
-        sendProblem(res, 401, 'UNAUTHORIZED', 'Unauthorized', {
-          detail: 'Authentication required to query job status',
-        });
+        sendProblem(res, 401, 'UNAUTHORIZED');
         return;
       }
 
       const job = await backtestQueue.getJob(req.params.id);
       if (!job) {
-        sendProblem(res, 404, 'JOB_NOT_FOUND', 'Not Found', {
-          detail: `Job ${req.params.id} not found`,
-        });
+        sendProblem(res, 404, 'JOB_NOT_FOUND');
         return;
       }
-      const authCtx = buildJobAuthContext(job, requester, authReq.tenantId);
 
-      if (
-        denyIfInaccessible(res, job, authCtx, {
-          jobId: req.params.id,
-          requesterSub: requester.sub,
-          reqTenantId: authReq.tenantId,
-        })
-      )
-        return;
+      if (authorizeJob(res, job, requester, authReq.tenantId, req.params.id)) return;
 
       const state = await job.getState();
       res.json({ success: true, data: buildJobResult(job, state) });
@@ -154,8 +110,6 @@ jobRoutes.get(
     {
       logMsg: '[jobRoutes] 查询任务状态失败',
       code: 'JOB_STATUS_ERROR',
-      title: 'Internal Server Error',
-      detail: 'Failed to fetch job status',
     },
   ),
 );

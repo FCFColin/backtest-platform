@@ -41,8 +41,6 @@ router.post(
     {
       logMsg: '[tactical] 回测失败',
       code: 'TACTICAL_BACKTEST_ERROR',
-      title: 'Tactical backtest failed',
-      detail: '战术回测运行失败',
       endpoint: 'tactical-backtest',
     },
   ),
@@ -60,8 +58,6 @@ router.post(
     {
       logMsg: '[tactical] what-if 查询失败',
       code: 'TACTICAL_WHATIF_ERROR',
-      title: 'What-if query failed',
-      detail: '实时价格查询失败',
       endpoint: 'tactical-whatif',
     },
   ),
@@ -80,8 +76,6 @@ router.post(
     {
       logMsg: '[tactical] 保存告警配置失败',
       code: 'TACTICAL_ALERT_ERROR',
-      title: 'Failed to save alert config',
-      detail: '保存告警配置失败',
       endpoint: 'tactical-alerts',
     },
   ),

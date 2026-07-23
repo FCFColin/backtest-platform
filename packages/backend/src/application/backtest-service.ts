@@ -24,7 +24,12 @@ import { withTimeout } from '../utils/timeout.js';
 import { config } from '../config/index.js';
 import { compressBacktestResultForSync } from './backtest/compressBacktestResult.js';
 import { backtestCacheKey, setBacktestResultCache } from './backtest/backtestResultCache.js';
-import type { BacktestExecutionParams, BacktestExecutionResult } from './backtest-helpers.js';
+import type {
+  BacktestExecutionParams,
+  BacktestExecutionResult,
+  Warning,
+  DateRangeInfo,
+} from './backtest-helpers.js';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import {
   preparePortfolioBacktest,
@@ -34,9 +39,12 @@ import {
   translateDomainError,
   collectDomainTickers,
   filterPriceData,
+  calculateDateRange,
 } from './backtest-helpers.js';
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
+
+export type { DateRangeInfo };
 
 /**
  * 组合回测完整编排（薄路由调用的入口）。
@@ -53,22 +61,22 @@ export async function runPortfolioBacktest(opts: {
   parameters: BacktestParameters;
   tenantId?: string;
   ownerUserId?: string;
-}): Promise<{ result: unknown; warnings: string[] }> {
+}): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { portfolios, parameters, tenantId, ownerUserId } = opts;
 
   const prep = preparePortfolioBacktest(portfolios, parameters);
   const { allTickers, warnings } = prep;
 
-  const { priceData, effectiveStartDate, effectiveEndDate } = await fetchPriceDataWithRange(
-    Array.from(allTickers),
-    parameters.startDate,
-    parameters.endDate,
-  );
+  const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
+    await fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate);
 
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
 
-  if (invalidTickers.length > 0) {
-    throw new Error(`INVALID_TICKERS: 以下标的代码无效：${invalidTickers.join(', ')}`);
+  if (degraded) {
+    warnings.push({
+      code: 'DATA_DEGRADED',
+      message: degradedWarning || '数据服务降级，部分数据可能缺失',
+    });
   }
 
   const { cpiData, exchangeRates } = await loadMacroData(parameters);
@@ -93,7 +101,14 @@ export async function runPortfolioBacktest(opts: {
   const cacheKey = backtestCacheKey(portfolios, parameters, tenantId);
   void setBacktestResultCache(cacheKey, result);
 
-  return { result: compressBacktestResultForSync(result), warnings };
+  const dateRange = calculateDateRange(
+    parameters.startDate,
+    parameters.endDate,
+    priceData,
+    invalidTickers,
+  );
+
+  return { result: compressBacktestResultForSync(result), warnings, dateRange };
 }
 
 /**

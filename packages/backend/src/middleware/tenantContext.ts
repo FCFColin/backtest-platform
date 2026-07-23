@@ -53,9 +53,7 @@ export function hasTenant(req: AuthenticatedRequest): req is TenantedRequest {
 
 export function requireTenant(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   if (!req.tenantId) {
-    sendProblem(res, 400, 'NO_ACTIVE_TENANT', 'No active tenant', {
-      detail: '当前会话未关联活跃组织，请先选择或创建组织（POST /api/v1/auth/switch-org）。',
-    });
+    sendProblem(res, 400, 'NO_ACTIVE_TENANT');
     return;
   }
   next();

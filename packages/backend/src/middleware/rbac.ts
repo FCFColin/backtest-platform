@@ -177,7 +177,7 @@ export function requirePermission(permission: Permission) {
 
     if (!req.user) {
       recordAuthFailure(req.path, 'missing_auth');
-      sendProblem(res, 401, 'MISSING_AUTH', 'Unauthorized', { detail: '请求未经认证，请先登录' });
+      sendProblem(res, 401, 'MISSING_AUTH');
       return;
     }
 
@@ -192,9 +192,7 @@ export function requirePermission(permission: Permission) {
     if (!hasPermission(userRole, permission)) {
       logRbac('warn', req, permission, '权限不足，访问拒绝');
       recordAuthFailure(req.path, 'insufficient_permission');
-      sendProblem(res, 403, 'INSUFFICIENT_PERMISSION', 'Forbidden', {
-        detail: `角色 "${userRole}" 缺少权限 "${permission}"`,
-      });
+      sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
       return;
     }
 

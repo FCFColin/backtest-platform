@@ -37,8 +37,6 @@ router.get(
     {
       logMsg: '[portfolioRoutes] 列表失败',
       code: 'PORTFOLIO_LIST_FAILED',
-      title: 'Internal Server Error',
-      detail: '查询组合失败',
       endpoint: 'portfolio-list',
     },
   ),
@@ -53,7 +51,7 @@ router.get(
       if (!requireUuidParam(res, req.params.id)) return;
       const p = await getPortfolio(tenantId, req.params.id);
       if (!p) {
-        sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND', 'Not Found', { detail: '组合不存在' });
+        sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: p });
@@ -61,8 +59,6 @@ router.get(
     {
       logMsg: '[portfolioRoutes] 获取失败',
       code: 'PORTFOLIO_GET_FAILED',
-      title: 'Internal Server Error',
-      detail: '获取组合失败',
       endpoint: 'portfolio-get',
     },
   ),
@@ -85,8 +81,6 @@ router.post(
     {
       logMsg: '[portfolioRoutes] 创建失败',
       code: 'PORTFOLIO_CREATE_FAILED',
-      title: 'Internal Server Error',
-      detail: '创建组合失败',
       endpoint: 'portfolio-create',
     },
   ),
@@ -102,7 +96,7 @@ router.put(
       if (!requireUuidParam(res, req.params.id)) return;
       const updated = await updatePortfolio(tenantId, req.params.id, req.body as PortfolioBody);
       if (!updated) {
-        sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND', 'Not Found', { detail: '组合不存在' });
+        sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: updated });
@@ -110,8 +104,6 @@ router.put(
     {
       logMsg: '[portfolioRoutes] 更新失败',
       code: 'PORTFOLIO_UPDATE_FAILED',
-      title: 'Internal Server Error',
-      detail: '更新组合失败',
       endpoint: 'portfolio-update',
     },
   ),
@@ -126,7 +118,7 @@ router.delete(
       if (!requireUuidParam(res, req.params.id)) return;
       const ok = await deletePortfolio(tenantId, req.params.id);
       if (!ok) {
-        sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND', 'Not Found', { detail: '组合不存在' });
+        sendProblem(res, 404, 'PORTFOLIO_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: { id: req.params.id, deleted: true } });
@@ -134,8 +126,6 @@ router.delete(
     {
       logMsg: '[portfolioRoutes] 删除失败',
       code: 'PORTFOLIO_DELETE_FAILED',
-      title: 'Internal Server Error',
-      detail: '删除组合失败',
       endpoint: 'portfolio-delete',
     },
   ),

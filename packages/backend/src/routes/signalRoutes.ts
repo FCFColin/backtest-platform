@@ -48,29 +48,20 @@ function logSignalContext(mode: SignalMode, body: Record<string, unknown>): void
   }
 }
 
-const ERROR_CONFIGS: Record<
-  SignalMode,
-  { logMsg: string; code: string; title: string; detail: string; endpoint: string }
-> = {
+const ERROR_CONFIGS: Record<SignalMode, { logMsg: string; code: string; endpoint: string }> = {
   analyze: {
     logMsg: '[signal/analyze] 信号分析失败',
     code: 'SIGNAL_ANALYZE_ERROR',
-    title: 'Signal analysis failed',
-    detail: '信号分析失败',
     endpoint: 'signal-analyze',
   },
   dual: {
     logMsg: '[signal/dual] 双重信号分析失败',
     code: 'SIGNAL_DUAL_ERROR',
-    title: 'Dual signal analysis failed',
-    detail: '双信号分析失败',
     endpoint: 'signal-dual',
   },
   multi: {
     logMsg: '[signal/multi] 多信号分析失败',
     code: 'SIGNAL_MULTI_ERROR',
-    title: 'Multi signal analysis failed',
-    detail: '多信号分析失败',
     endpoint: 'signal-multi',
   },
 };

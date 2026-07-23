@@ -47,7 +47,7 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
   // 预检邮箱占用（最终唯一性仍由 DB 唯一索引兜底）
   const existing = await getUserByEmail(email);
   if (existing) {
-    sendProblem(res, 409, 'EMAIL_TAKEN', 'Conflict', { detail: '该邮箱已被注册' });
+    sendProblem(res, 409, 'EMAIL_TAKEN');
     return;
   }
 
@@ -73,11 +73,11 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
     const msg = String(err);
     // 唯一约束冲突（用户名/邮箱/slug）
     if (msg.includes('duplicate key') || msg.includes('unique')) {
-      sendProblem(res, 409, 'ACCOUNT_CONFLICT', 'Conflict', { detail: '用户名或邮箱已被占用' });
+      sendProblem(res, 409, 'ACCOUNT_CONFLICT');
       return;
     }
     logger.error({ err: msg }, '[auth] 注册失败');
-    sendProblem(res, 500, 'REGISTER_FAILED', 'Internal Server Error', { detail: '注册失败' });
+    sendProblem(res, 500, 'REGISTER_FAILED');
     return;
   } finally {
     client.release();
@@ -106,14 +106,12 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
 router.post('/verify-email', async (req: Request, res: Response) => {
   const { token } = req.body as { token?: string };
   if (!token) {
-    sendProblem(res, 422, 'MISSING_TOKEN', 'Missing token', { detail: '缺少 token' });
+    sendProblem(res, 422, 'MISSING_TOKEN');
     return;
   }
   const userId = await verifyEmailToken(token);
   if (!userId) {
-    sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN', 'Bad Request', {
-      detail: '验证链接无效或已过期',
-    });
+    sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
     return;
   }
   res.json({ success: true, data: { userId, verified: true } });
@@ -126,7 +124,7 @@ router.post('/resend-verification', jwtAuth, async (req: AuthenticatedRequest, r
   if (!requireUser(req, res)) return;
   const { email } = req.body as { email?: string };
   if (!email) {
-    sendProblem(res, 422, 'MISSING_EMAIL', 'Missing email', { detail: '缺少 email' });
+    sendProblem(res, 422, 'MISSING_EMAIL');
     return;
   }
   try {

@@ -32,8 +32,6 @@ router.get(
     {
       logMsg: '[runRoutes] 列表失败',
       code: 'RUN_LIST_FAILED',
-      title: 'Internal Server Error',
-      detail: '查询回测历史失败',
     },
   ),
 );
@@ -47,7 +45,7 @@ router.get(
       if (!requireUuidParam(res, req.params.id)) return;
       const r = await getRun(tenantId, req.params.id);
       if (!r) {
-        sendProblem(res, 404, 'RUN_NOT_FOUND', 'Not Found', { detail: '回测记录不存在' });
+        sendProblem(res, 404, 'RUN_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: r });
@@ -55,8 +53,6 @@ router.get(
     {
       logMsg: '[runRoutes] 获取失败',
       code: 'RUN_GET_FAILED',
-      title: 'Internal Server Error',
-      detail: '获取回测记录失败',
     },
   ),
 );
@@ -78,8 +74,6 @@ router.post(
     {
       logMsg: '[runRoutes] 创建失败',
       code: 'RUN_CREATE_FAILED',
-      title: 'Internal Server Error',
-      detail: '保存回测记录失败',
     },
   ),
 );
@@ -93,7 +87,7 @@ router.delete(
       if (!requireUuidParam(res, req.params.id)) return;
       const ok = await deleteRun(tenantId, req.params.id);
       if (!ok) {
-        sendProblem(res, 404, 'RUN_NOT_FOUND', 'Not Found', { detail: '回测记录不存在' });
+        sendProblem(res, 404, 'RUN_NOT_FOUND');
         return;
       }
       res.json({ success: true, data: { id: req.params.id, deleted: true } });
@@ -101,8 +95,6 @@ router.delete(
     {
       logMsg: '[runRoutes] 删除失败',
       code: 'RUN_DELETE_FAILED',
-      title: 'Internal Server Error',
-      detail: '删除回测记录失败',
     },
   ),
 );

@@ -5,8 +5,7 @@
 // application 层通过 fromDTO() 从请求 DTO 构造聚合根，通过 toEngineBody() 序列化为引擎请求体，
 // 整个流程中值对象（Ticker/Weight）始终保留，不再中途丢弃。
 
-import { Ticker } from '../value-objects/ticker.js';
-import { Weight } from '../value-objects/weight.js';
+import { Ticker, Weight } from '../value-objects/index.js';
 import { DomainValidationError } from '../errors.js';
 import type {
   Portfolio as PortfolioDTO,

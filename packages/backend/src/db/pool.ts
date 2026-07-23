@@ -111,12 +111,7 @@ export function getPool(): pg.Pool {
   return pool;
 }
 
-/**
- * 获取只读连接池（用于读查询）
- *
- * 企业理由：读写分离，读查询走副本减轻主库压力。
- * 未配置 DATABASE_READ_URL 时回退到主库连接池。
- */
+/** 获取只读连接池（读写分离，未配置 DATABASE_READ_URL 时回退到主库） */
 export function getReadPool(): pg.Pool {
   if (readPool) return readPool;
   const readUrl = config.DATABASE_READ_URL;
@@ -168,13 +163,8 @@ export async function getClient(): Promise<pg.PoolClient> {
 /**
  * 在租户上下文事务中执行回调（RLS 强制点，ADR-032）。
  *
- * 多租户隔离由 Postgres RLS 提供，而非靠每个查询手动加 `WHERE tenant_id=`。
- * 本助手在事务内通过 `set_config('app.current_tenant_id', $1, true)`（is_local=true，
- * 等价 SET LOCAL）注入当前租户，使 009 迁移定义的 RLS 策略生效。
- *
- * 关键纪律：必须使用事务级（SET LOCAL）而非会话级，否则在 PgBouncer
- * transaction-pooling 下连接复用会串租户。事务结束后该设置自动失效。
- * 脱离本助手的查询因 `app.current_tenant_id` 未设置而读到零行 / 写被拒绝（fail-safe）。
+ * 通过 SET LOCAL 注入 tenant_id 使 RLS 策略生效；必须用事务级而非会话级，
+ * 否则 PgBouncer transaction-pooling 下连接复用会串租户。
  *
  * @typeParam T - 回调返回类型
  * @param tenantId - 当前租户（组织）UUID

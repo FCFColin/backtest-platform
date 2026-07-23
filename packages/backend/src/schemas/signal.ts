@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SIGNAL_TYPES } from '@backtest/shared/constants';
 
 // Validation: 信号分析路由请求体运行时校验
 // 企业为何需要：TypeScript类型仅在编译时检查，运行时req.body可包含任意数据
@@ -11,7 +12,7 @@ const signalAnalysisRequestSchema = z.object({
   threshold: z.number(),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
-  signalType: z.enum(['entry', 'exit', 'both']),
+  signalType: z.enum(SIGNAL_TYPES),
 });
 
 // POST /api/signal/analyze

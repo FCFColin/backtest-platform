@@ -101,8 +101,6 @@ pcaSubRouter.post(
     {
       logMsg: '[PCA] 分析失败',
       code: 'PCA_ERROR',
-      title: 'PCA analysis failed',
-      detail: 'PCA 分析失败',
       endpoint: 'pca',
     },
   ),
@@ -128,8 +126,6 @@ letfSubRouter.post(
     {
       logMsg: '[LETF] 分析失败',
       code: 'LETF_ERROR',
-      title: 'LETF analysis failed',
-      detail: 'LETF 滑点分析失败',
       endpoint: 'letf',
     },
   ),
@@ -161,8 +157,6 @@ goalOptimizerSubRouter.post(
     {
       logMsg: '[GoalOptimizer] 优化失败',
       code: 'GOAL_OPTIMIZER_ERROR',
-      title: 'Goal optimization failed',
-      detail: '目标优化失败',
       endpoint: 'goal-optimizer',
     },
   ),
@@ -201,8 +195,6 @@ factorRegressionSubRouter.post(
     {
       logMsg: '[FactorRegression] 失败',
       code: 'FR_ERROR',
-      title: 'Factor regression failed',
-      detail: '因子回归失败',
       endpoint: 'factor-regression',
     },
   ),
@@ -224,9 +216,7 @@ calculatorSubRouter.post(
       const body = req.body;
 
       if (!VALID_CALC_TYPES.includes(type)) {
-        sendProblem(res, 422, 'CALC_INVALID_TYPE', 'Invalid calculator type', {
-          detail: `type 必须是: ${VALID_CALC_TYPES.join(', ')}`,
-        });
+        sendProblem(res, 422, 'CALC_INVALID_TYPE');
         return;
       }
 
@@ -237,8 +227,6 @@ calculatorSubRouter.post(
     {
       logMsg: '[Calculators] 失败',
       code: 'CALC_ERROR',
-      title: 'Calculator failed',
-      detail: '计算器执行失败',
       endpoint: 'calculator',
     },
   ),

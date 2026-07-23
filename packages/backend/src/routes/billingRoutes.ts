@@ -33,7 +33,6 @@ interface BillingErrorCheck {
   check: string;
   status: number;
   code: string;
-  detail: string;
 }
 
 function handleBillingError(
@@ -50,14 +49,12 @@ function handleBillingError(
   const msg = String(err);
   for (const c of opts.checks) {
     if (msg.includes(c.check)) {
-      sendProblem(res, c.status, c.code, c.status >= 500 ? 'Service Unavailable' : 'Not Found', {
-        detail: c.detail,
-      });
+      sendProblem(res, c.status, c.code);
       return;
     }
   }
   logger.error({ err: msg, orgId: opts.orgId }, `[billingRoutes] ${opts.logMsg}`);
-  sendProblem(res, 502, opts.fallbackCode, 'Bad Gateway', { detail: opts.fallbackDetail });
+  sendProblem(res, 502, opts.fallbackCode);
 }
 
 router.use(requireTenant);
@@ -85,9 +82,7 @@ router.post(
   validate(checkoutSchema),
   async (req: AuthenticatedRequest, res: Response) => {
     if (!isBillingEnabled()) {
-      sendProblem(res, 503, 'BILLING_DISABLED', 'Service Unavailable', {
-        detail: '计费功能未启用',
-      });
+      sendProblem(res, 503, 'BILLING_DISABLED');
       return;
     }
     const { plan } = req.body as { plan: 'pro' | 'enterprise' };
@@ -107,14 +102,13 @@ router.post(
       handleBillingError(res, err, {
         logMsg: '创建 Checkout 失败',
         fallbackCode: 'CHECKOUT_FAILED',
-        fallbackDetail: '创建结算会话失败',
+        fallbackDetail: 'Failed to create checkout session',
         orgId: req.tenantId,
         checks: [
           {
             check: 'price_not_configured',
             status: 503,
             code: 'PRICE_NOT_CONFIGURED',
-            detail: '该计划的价格未配置',
           },
         ],
       });
@@ -125,7 +119,7 @@ router.post(
 /** POST /api/v1/billing/portal - 创建 Billing Portal 会话（admin） */
 router.post('/portal', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
   if (!isBillingEnabled()) {
-    sendProblem(res, 503, 'BILLING_DISABLED', 'Service Unavailable', { detail: '计费功能未启用' });
+    sendProblem(res, 503, 'BILLING_DISABLED');
     return;
   }
   try {
@@ -137,14 +131,13 @@ router.post('/portal', requireAdmin, async (req: AuthenticatedRequest, res: Resp
     handleBillingError(res, err, {
       logMsg: '创建 Portal 失败',
       fallbackCode: 'PORTAL_FAILED',
-      fallbackDetail: '创建管理会话失败',
+      fallbackDetail: 'Failed to create management session',
       orgId: req.tenantId,
       checks: [
         {
           check: 'no_customer',
           status: 404,
           code: 'NO_CUSTOMER',
-          detail: '该组织尚无计费账户，请先订阅',
         },
       ],
     });

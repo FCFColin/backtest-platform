@@ -43,7 +43,7 @@ export function ensurePriceDataExists(
   const missing = tickers.filter((t) => !hasPriceData(priceData, t));
   if (missing.length > 0) {
     const prefix = context ? `[${context}] ` : '';
-    throw new DataNotFoundError(`${prefix}以下资产未找到价格数据: ${missing.join(', ')}`);
+    throw new DataNotFoundError(`${prefix}Price data not found for: ${missing.join(', ')}`);
   }
 }
 

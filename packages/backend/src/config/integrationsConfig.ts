@@ -4,9 +4,7 @@
  * 涵盖 SMTP 邮件投递（ADR-035）与 Stripe 计费（ADR-036）相关配置。
  */
 
-/**
- * 邮件与 Stripe 计费配置片段。
- */
+/** 邮件与 Stripe 计费配置片段。 */
 export const integrationsConfig = {
   /**
    * 邮件发送方式（ADR-035）。
@@ -30,10 +28,7 @@ export const integrationsConfig = {
   /** SMTP 密码（可空）。 */
   EMAIL_SMTP_PASS: process.env.EMAIL_SMTP_PASS || '',
 
-  /**
-   * Stripe 密钥与价格配置（ADR-036，Phase 6 计费）。
-   * 未配置时计费端点返回 503（计费未启用），不影响其余功能。
-   */
+  /** Stripe 密钥与价格配置（ADR-036），未配置时计费端点返回 503。 */
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || '',
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || '',
   STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY || '',

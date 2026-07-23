@@ -94,16 +94,10 @@ export class Run {
       ownerUserId: props.ownerUserId,
     });
     if (!props.skipInitialEvent) {
-      run._events.push({
-        eventType: 'RunStarted',
-        aggregateType: 'Run',
-        aggregateId: run.id,
-        payload: {
-          name: run.name,
-          portfolioId: run.portfolioId,
-          ownerUserId: run.ownerUserId,
-        },
-        occurredAt: new Date(),
+      run.pushRunEvent('RunStarted', {
+        name: run.name,
+        portfolioId: run.portfolioId,
+        ownerUserId: run.ownerUserId,
       });
     }
     return run;
@@ -183,16 +177,10 @@ export class Run {
     this._status = 'completed';
     this._result = result;
     this._completedAt = new Date();
-    this._events.push({
-      eventType: 'RunCompleted',
-      aggregateType: 'Run',
-      aggregateId: this.id,
-      payload: {
-        name: this.name,
-        portfolioId: this.portfolioId,
-        ownerUserId: this.ownerUserId,
-      },
-      occurredAt: this._completedAt,
+    this.pushRunEvent('RunCompleted', {
+      name: this.name,
+      portfolioId: this.portfolioId,
+      ownerUserId: this.ownerUserId,
     });
   }
 
@@ -213,17 +201,11 @@ export class Run {
     this._status = 'failed';
     this._failureReason = reason;
     this._completedAt = new Date();
-    this._events.push({
-      eventType: 'RunFailed',
-      aggregateType: 'Run',
-      aggregateId: this.id,
-      payload: {
-        name: this.name,
-        portfolioId: this.portfolioId,
-        ownerUserId: this.ownerUserId,
-        failureReason: reason,
-      },
-      occurredAt: this._completedAt,
+    this.pushRunEvent('RunFailed', {
+      name: this.name,
+      portfolioId: this.portfolioId,
+      ownerUserId: this.ownerUserId,
+      failureReason: reason,
     });
   }
 
@@ -242,16 +224,21 @@ export class Run {
     }
     this._status = 'cancelled';
     this._completedAt = new Date();
+    this.pushRunEvent('RunCancelled', {
+      name: this.name,
+      portfolioId: this.portfolioId,
+      ownerUserId: this.ownerUserId,
+    });
+  }
+
+  /** 内部：推送领域事件（统一 aggregateType/aggregateId/occurredAt） */
+  private pushRunEvent(eventType: string, payload: Record<string, unknown>): void {
     this._events.push({
-      eventType: 'RunCancelled',
+      eventType,
       aggregateType: 'Run',
       aggregateId: this.id,
-      payload: {
-        name: this.name,
-        portfolioId: this.portfolioId,
-        ownerUserId: this.ownerUserId,
-      },
-      occurredAt: this._completedAt,
+      payload,
+      occurredAt: this._completedAt ?? new Date(),
     });
   }
 

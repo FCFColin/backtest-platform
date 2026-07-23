@@ -17,6 +17,7 @@ import { Router, type Request, type Response } from 'express';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { runPortfolioBacktest } from '../application/backtest-service.js';
 import { runAnalysis } from '../application/analysis-orchestrator.js';
+import type { Warning } from '../application/backtest-helpers.js';
 import { runMonteCarlo } from '../application/montecarlo-service.js';
 import { runOptimization, runEfficientFrontier } from '../application/optimize-service.js';
 import { extractBacktestSeries } from '../application/backtest/compressBacktestResult.js';
@@ -42,6 +43,31 @@ import {
 
 const router = Router();
 
+/**
+ * 构建回测统一响应体（success + data + 可选 warnings/dateRange）。
+ *
+ * @param data - 计算结果
+ * @param warnings - 警告数组（字符串自动转为 { code: 'WARNING', message } 结构）
+ * @param dateRange - 可选的日期范围信息
+ * @returns 统一响应对象
+ */
+function buildBacktestResponse(
+  data: unknown,
+  warnings: (Warning | string)[] = [],
+  dateRange?: unknown,
+): Record<string, unknown> {
+  const response: Record<string, unknown> = { success: true, data };
+  if (warnings.length > 0) {
+    response.warnings = warnings.map((w: Warning | string): Warning =>
+      typeof w === 'string' ? { code: 'WARNING', message: w } : w,
+    );
+  }
+  if (dateRange) {
+    response.dateRange = dateRange;
+  }
+  return response;
+}
+
 // ---------------------------------------------------------------------------
 // 搜索 ticker
 // ---------------------------------------------------------------------------
@@ -54,9 +80,7 @@ router.get(
       const limit = parseInt(req.query.limit as string, 10) || 10;
 
       if (!query || query.trim().length === 0) {
-        sendProblem(res, 422, 'MISSING_PARAMS', 'Missing required parameter', {
-          detail: 'Missing required query parameter: query',
-        });
+        sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
 
@@ -66,8 +90,6 @@ router.get(
     {
       logMsg: 'Ticker search error',
       code: 'SEARCH_ERROR',
-      title: 'Search failed',
-      detail: 'Failed to search tickers',
       endpoint: 'backtest-search',
     },
   ),
@@ -89,28 +111,19 @@ router.post(
       };
       const authReq = req as AuthenticatedRequest;
 
-      const { result, warnings } = await runPortfolioBacktest({
+      const { result, warnings, dateRange } = await runPortfolioBacktest({
         portfolios,
         parameters,
         tenantId: authReq.tenantId,
         ownerUserId: authReq.user?.sub,
       });
 
-      const response: Record<string, unknown> = {
-        success: true,
-        data: result,
-      };
-      if (warnings.length > 0) {
-        response.warnings = warnings;
-      }
-      res.json(response);
+      res.json(buildBacktestResponse(result, warnings, dateRange));
       logger.info(`[backtest] Portfolio backtest completed in ${Date.now() - startTime}ms`);
     },
     {
       logMsg: 'Portfolio backtest error',
       code: 'BACKTEST_ERROR',
-      title: 'Backtest failed',
-      detail: 'Failed to run portfolio backtest',
       endpoint: 'portfolio-backtest',
     },
   ),
@@ -138,9 +151,7 @@ router.post(
       );
       const cached = await getBacktestResultCache(cacheKey);
       if (!cached) {
-        sendProblem(res, 404, 'BACKTEST_CACHE_MISS', 'Cache miss', {
-          detail: '回测缓存已过期，请重新运行回测',
-        });
+        sendProblem(res, 404, 'BACKTEST_CACHE_MISS');
         return;
       }
 
@@ -154,8 +165,6 @@ router.post(
     {
       logMsg: 'Portfolio series error',
       code: 'SERIES_ERROR',
-      title: 'Series fetch failed',
-      detail: 'Failed to fetch backtest series',
       endpoint: 'portfolio-series',
     },
   ),
@@ -177,13 +186,25 @@ router.post(
 
       const result = await runAnalysis(tickers, parameters);
       recordBacktestRequest('analysis', 'sync', 'success');
-      res.json({ success: true, data: result });
+
+      const response: Record<string, unknown> = { success: true, data: result };
+      const resultWithExtra = result as Record<string, unknown> & {
+        warnings?: Warning[];
+        dateRange?: unknown;
+      };
+      if (resultWithExtra.warnings) {
+        response.warnings = resultWithExtra.warnings;
+        delete (result as Record<string, unknown>).warnings;
+      }
+      if (resultWithExtra.dateRange) {
+        response.dateRange = resultWithExtra.dateRange;
+        delete (result as Record<string, unknown>).dateRange;
+      }
+      res.json(response);
     },
     {
       logMsg: 'Analysis error',
       code: 'ANALYSIS_ERROR',
-      title: 'Analysis failed',
-      detail: 'Failed to run analysis',
       endpoint: 'analysis',
     },
   ),
@@ -208,17 +229,19 @@ router.post(
 
       const portfolioList = (portfolios || (portfolio ? [portfolio] : undefined))!;
 
-      const result = await runMonteCarlo(portfolioList, parameters, mcParams);
+      const { data, warnings, dateRange } = await runMonteCarlo(
+        portfolioList,
+        parameters,
+        mcParams,
+      );
 
       recordBacktestRequest('monte-carlo', 'sync', 'success');
-      res.json({ success: true, data: result });
+      res.json(buildBacktestResponse(data, warnings, dateRange));
       logger.info(`[backtest] Monte Carlo completed in ${Date.now() - startTime}ms`);
     },
     {
       logMsg: 'Monte Carlo simulation error',
       code: 'MONTE_CARLO_ERROR',
-      title: 'Monte Carlo failed',
-      detail: 'Failed to run Monte Carlo simulation',
       endpoint: 'monte-carlo',
     },
   ),
@@ -242,7 +265,7 @@ router.post(
         numIterations?: number;
       };
 
-      const result = await runOptimization(
+      const { data, warnings, dateRange } = await runOptimization(
         tickers,
         objective,
         constraints || {},
@@ -252,13 +275,11 @@ router.post(
 
       logger.info(`[backtest] Optimization completed in ${Date.now() - startTime}ms`);
       recordBacktestRequest('optimize', 'sync', 'success');
-      res.json({ success: true, data: result });
+      res.json(buildBacktestResponse(data, warnings, dateRange));
     },
     {
       logMsg: 'Optimization error',
       code: 'OPTIMIZATION_ERROR',
-      title: 'Optimization failed',
-      detail: 'Failed to optimize portfolio',
       endpoint: 'optimize',
     },
   ),
@@ -280,16 +301,19 @@ router.post(
         riskFreeRate?: number;
       };
 
-      const result = await runEfficientFrontier(tickers, parameters, numPoints, riskFreeRate);
+      const { data, warnings, dateRange } = await runEfficientFrontier(
+        tickers,
+        parameters,
+        numPoints,
+        riskFreeRate,
+      );
 
       recordBacktestRequest('efficient-frontier', 'sync', 'success');
-      res.json({ success: true, data: result });
+      res.json(buildBacktestResponse(data, warnings, dateRange));
     },
     {
       logMsg: 'Efficient frontier error',
       code: 'EFFICIENT_FRONTIER_ERROR',
-      title: 'Efficient frontier failed',
-      detail: 'Failed to calculate efficient frontier',
       endpoint: 'efficient-frontier',
     },
   ),
