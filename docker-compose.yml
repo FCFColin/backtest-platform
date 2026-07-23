@@ -60,8 +60,8 @@ services:
   # 依赖 postgres 用于未来持久化（如缓存计算结果）。
   engine-go:
     build:
-      context: ./engine-go
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: engine-go/Dockerfile
     container_name: backtest-engine-go
     ports:
       - '127.0.0.1:5004:5004'
@@ -136,8 +136,8 @@ services:
   # ---------------------------------------------------------------------------
   data-fetcher:
     build:
-      context: ./data-fetcher
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: data-fetcher/Dockerfile
     container_name: backtest-data-fetcher
     ports:
       - '127.0.0.1:5003:5003'
@@ -145,6 +145,7 @@ services:
       DATA_FETCHER_PORT: '5003'
       GIN_MODE: release
       DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
+      DATABASE_URL: postgresql://backtest:backtest@postgres:5432/backtest
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5003/api/data/health']
       interval: 30s
