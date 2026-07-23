@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
-import { createMockPriceData } from '../../helpers/routeFixtures.js';
+import { createMockPriceData } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -153,7 +153,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
 
     // T-18：错误统一为 RFC 7807 problem+json（detail 携带详情，无 success 字段）。
     expect(res.status).toBe(400);
-    expect(body.error.detail).toContain('SPY');
+    expect(body.error.code).toBe('GRID_BAD_REQUEST');
   });
 
   it('参数组合超过上限应返回 400', async () => {
@@ -169,7 +169,7 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.error.detail).toContain('参数组合过多');
+    expect(body.error.code).toBe('GRID_TOO_MANY_COMBINATIONS');
     expect(queueMocks.add).not.toHaveBeenCalled();
   });
 

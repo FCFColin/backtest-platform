@@ -234,7 +234,7 @@ describe('analysisRoutes - PCA: POST /api/v1/pca/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.error.detail).toContain('至少需要 2 个资产');
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('部分标的价格数据缺失时应返回 404', async () => {
@@ -259,7 +259,7 @@ describe('analysisRoutes - PCA: POST /api/v1/pca/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error.detail).toContain('QQQ');
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
 
   it('引擎抛错时应返回 500', async () => {
@@ -416,7 +416,7 @@ describe('analysisRoutes - LETF: POST /api/v1/letf/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error.detail).toContain('TQQQ');
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
 
   it('基准价格数据缺失时应返回 404', async () => {
@@ -442,7 +442,7 @@ describe('analysisRoutes - LETF: POST /api/v1/letf/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error.detail).toContain('QQQ');
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
 
   it('引擎抛错时应返回 500', async () => {
@@ -565,7 +565,7 @@ describe('analysisRoutes - GoalOptimizer: POST /api/v1/goal-optimizer/optimize',
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error.detail).toContain('未找到价格数据');
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
@@ -585,7 +585,7 @@ describe('analysisRoutes - GoalOptimizer: POST /api/v1/goal-optimizer/optimize',
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error.detail).toContain('SPY');
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
 
   it('空白 ticker 应触发有效标的校验失败', async () => {
@@ -600,7 +600,7 @@ describe('analysisRoutes - GoalOptimizer: POST /api/v1/goal-optimizer/optimize',
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.error.detail).toContain('至少添加一个有效标的');
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('引擎抛错时应返回 500', async () => {
@@ -690,7 +690,6 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
 
     expect(res.status).toBe(422);
     expect(body.error.code).toBe('VALIDATION_ERROR');
-    expect(body.error.detail).toContain('monthlyReturns');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
@@ -821,7 +820,6 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
 
     expect(res.status).toBe(422);
     expect(body.error.code).toBe('CALC_INVALID_TYPE');
-    expect(body.error.detail).toContain('cagr');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 

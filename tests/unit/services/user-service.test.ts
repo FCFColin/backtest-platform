@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-import { mockUserRecord, mockUserRecordWithPassword } from '../../helpers/userFixtures.js';
+import { mockUserRecord, mockUserRecordWithPassword } from '../../helpers/authFixtures.js';
 
 const mocks = vi.hoisted(() => ({
   argon2: { hash: vi.fn(), verify: vi.fn(), argon2id: 'argon2id' },

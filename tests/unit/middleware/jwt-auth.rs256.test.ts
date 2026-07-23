@@ -6,7 +6,7 @@ import type { Request, Response } from 'express';
 import { exportPKCS8, exportSPKI, generateKeyPair } from 'jose';
 import {
   createLoggerMocks,
-  createRedisMocks,
+  createRedisModuleMock,
   createJwtAuthConfigMocks,
   type JwtAuthConfigMocks,
 } from '../../helpers/mockFactories.js';
@@ -34,13 +34,12 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  redisConnection: {},
-  appRedis: createRedisMocks(
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
+  createRedisModuleMock(
     { withSets: true, rejectWithError: new Error('redis unavailable') },
     redisMocks,
   ),
-}));
+);
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
   getUserById: createJwtAuthUserRepoMock(),

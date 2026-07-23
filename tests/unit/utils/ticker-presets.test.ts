@@ -86,9 +86,17 @@ describe('TickerPresets - 分类非空', () => {
     }
   });
 
-  it('SIM_TICKERS 所有分类为 SIM', () => {
+  it('SIM_TICKERS 所有分类为 Index/Bond/Commodity（非 SIM）', () => {
+    const validCategories = ['Index', 'Bond', 'Commodity'];
     for (const preset of SIM_TICKERS) {
-      expect(preset.category).toBe('SIM');
+      expect(validCategories).toContain(preset.category);
+    }
+  });
+
+  it('SIM_TICKERS 所有 sourceTicker 非空', () => {
+    for (const preset of SIM_TICKERS) {
+      expect(preset.sourceTicker).toBeTruthy();
+      expect(typeof preset.sourceTicker).toBe('string');
     }
   });
 });

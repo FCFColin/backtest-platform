@@ -14,6 +14,18 @@
 
 import express, { type Express, type Request } from 'express';
 
+/**
+ * API 服务端口（真实后端固定端口）
+ *
+ * 与 startExpressApp 使用的随机端口（0）不同：integration 测试需要访问实际
+ * 运行的后端服务（npm run dev 启动的 5001 端口），故保留固定端口常量。
+ * 合并自 tests/helpers/constants.ts。
+ */
+const API_PORT = 5001;
+
+/** API 服务基础 URL（integration 测试访问真实后端时使用） */
+export const API_BASE_URL = `http://localhost:${API_PORT}`;
+
 /** 启动后的测试服务器句柄 */
 export interface TestServer {
   /** 服务器基础 URL（如 http://127.0.0.1:34567） */

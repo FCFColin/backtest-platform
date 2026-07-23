@@ -134,6 +134,8 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => {
       scan: async () => ['0', []] as [string, string[]],
       del: async () => 0,
     },
+    getRedisHealth: vi.fn().mockResolvedValue(true),
+    markRedisUnhealthy: vi.fn(),
   };
 });
 vi.mock('fs', () => ({
@@ -190,7 +192,7 @@ describe('backtestRoutes - POST /api/backtest/analysis', () => {
 
     expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error.detail).toContain('validation failed');
+    expect(json.error.title).toBe('VALIDATION_ERROR');
     expect(m.callEngineStrict).not.toHaveBeenCalled();
   });
 

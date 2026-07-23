@@ -30,15 +30,11 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 import {
   bytesToMb,
   getMarketDataStorageBytes,
-} from '../../../packages/backend/src/db/marketStorageStats.js';
-import {
   scanMarketStatsFromDb,
   getDbEngineStatus,
-} from '../../../packages/backend/src/db/marketStats.js';
-import {
   inferMarket,
   deriveExchangeFromTicker,
-} from '../../../packages/backend/src/db/marketStatsHelpers.js';
+} from '../../../packages/backend/src/db/marketStats.js';
 
 describe('bytesToMb', () => {
   it('should convert bytes to MB with 1 decimal place', () => {

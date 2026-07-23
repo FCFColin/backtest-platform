@@ -6,15 +6,9 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { EngineUnavailableErrorStub } from '../helpers/engineRouteMocks.js';
+import { createLoggerMocks } from '../helpers/mockFactories.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  },
-}));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 const { queueAddMock, executeOptimizationMock } = vi.hoisted(() => ({
   queueAddMock: vi.fn(),

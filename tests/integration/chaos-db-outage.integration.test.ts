@@ -17,15 +17,9 @@
  * 本测试聚焦数据服务层的降级契约。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { createLoggerMocks } from '../helpers/mockFactories.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  },
-}));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 vi.mock('@opentelemetry/api', () => {
   const noopSpan = {

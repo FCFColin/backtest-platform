@@ -7,15 +7,9 @@
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
+import { createLoggerMocks } from '../helpers/mockFactories.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  },
-}));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 const fakeJobs = new Map<string, FakeJob>();
 

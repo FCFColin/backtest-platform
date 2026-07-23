@@ -136,7 +136,7 @@ describe('signalRoutes - POST /api/signal/analyze', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error.detail).toContain('SPY');
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
 
   it('引擎抛错时应返回 500', async () => {

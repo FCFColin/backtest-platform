@@ -168,7 +168,8 @@ export function configureMonteCarloMocks(m: BacktestMockHandles): void {
           m.callEngineStrict('/api/engine/monte-carlo', { mcParams }),
         ),
       );
-      return portfolioList.length === 1 ? results[0] : results;
+      const data = portfolioList.length === 1 ? results[0] : results;
+      return { data, warnings: [], dateRange: undefined };
     },
   );
 

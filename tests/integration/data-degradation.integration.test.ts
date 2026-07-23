@@ -6,16 +6,10 @@
  * 标的时，consumeDegradedFlag() 必须返回 degraded:true（AGENTS.md 降级模式要求）。
  * 依赖模块（dataQuery/dataCache/tickerValidation/OTel）被 mock。
  */
-import { describe, it, expect, afterAll, vi } from 'vitest';
+import { describe, it, expect, afterAll, vi, beforeEach } from 'vitest';
+import { createLoggerMocks } from '../helpers/mockFactories.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  },
-}));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 vi.mock('@opentelemetry/api', () => {
   const noopSpan = {
@@ -33,14 +27,16 @@ vi.mock('@opentelemetry/api', () => {
   };
 });
 
-const { queryPricesFromDbMock, fetchMissingFromGoServiceMock } = vi.hoisted(() => ({
+const { queryPricesFromDbMock, fetchMissingFromGoServiceMock, validateTickersMock } = vi.hoisted(() => ({
   queryPricesFromDbMock: vi.fn(),
   fetchMissingFromGoServiceMock: vi.fn(),
+  validateTickersMock: vi.fn(),
 }));
 
 vi.mock('../../packages/backend/src/infrastructure/dataQuery.js', () => ({
   queryPricesFromDb: queryPricesFromDbMock,
   fetchMissingFromGoService: fetchMissingFromGoServiceMock,
+  validateTickers: validateTickersMock,
   isDbAvailable: vi.fn(() => true),
   pgCircuitBreaker: { stats: () => ({ state: 'closed' }) },
   callGoDataService: vi.fn(),
@@ -79,6 +75,14 @@ afterAll(() => {
 });
 
 describe('数据降级链路集成测试', () => {
+  beforeEach(() => {
+    validateTickersMock.mockImplementation(async (tickers: string[]) => ({
+      valid: tickers,
+      invalid: [],
+      unknown: [],
+    }));
+  });
+
   it('全部数据命中 DB 时不降级', async () => {
     queryPricesFromDbMock.mockResolvedValueOnce({
       result: { AAPL: { '2020-01-01': 100 }, MSFT: { '2020-01-01': 200 } },
@@ -135,11 +139,10 @@ describe('数据降级链路集成测试', () => {
   });
 
   it('全部 ticker 非法时返回空结果不降级', async () => {
-    const { validateTickerFormat } =
-      await import('../../packages/backend/src/utils/tickerValidation.js');
-    (validateTickerFormat as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+    validateTickersMock.mockResolvedValueOnce({
       valid: [],
       invalid: ['!!!'],
+      unknown: [],
     });
 
     const res = await fetchHistoryData(['!!!'], '2020-01-01', '2023-12-31');

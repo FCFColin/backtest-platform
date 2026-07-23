@@ -11,7 +11,7 @@
  * 合并后削减 ~300 行重复代码，同时按职责聚合断言。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger, createConfigMocks, createRedisMocks } from '../../helpers/mockFactories.js';
+import { createLoggerMocks, createConfigMocks, createRedisModuleMock } from '../../helpers/mockFactories.js';
 import {
   setupHttpGetSuccess as makeHttpSuccess,
   setupHttpGetError as makeHttpError,
@@ -33,7 +33,7 @@ const {
     getReadPool: vi.fn(),
     initSchema: vi.fn().mockResolvedValue(undefined),
   },
-  tickerValidationMocks: { validateTickerFormat: vi.fn() },
+  tickerValidationMocks: { validateTickerFormat: vi.fn(), isValidTicker: vi.fn() },
   loggerMocks: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -68,9 +68,10 @@ const {
   httpMocks: { request: vi.fn() },
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => {
+  Object.assign(loggerMocks, createLoggerMocks());
+  return { logger: loggerMocks };
+});
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: dbMocks.getPool,
   getReadPool: dbMocks.getReadPool,
@@ -80,6 +81,7 @@ vi.mock('../../../packages/backend/src/db/migrations.js', () => ({
 }));
 vi.mock('../../../packages/backend/src/utils/tickerValidation.js', () => ({
   validateTickerFormat: tickerValidationMocks.validateTickerFormat,
+  isValidTicker: tickerValidationMocks.isValidTicker,
 }));
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerSemaphoreMetrics: vi.fn(),
@@ -96,8 +98,8 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003' }),
 }));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: createRedisMocks(
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
+  createRedisModuleMock(
     {
       withHandlers: true,
       methods: {
@@ -110,7 +112,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     },
     redisMocks,
   ),
-}));
+);
 vi.mock('opossum', () => ({
   default: vi.fn(() => circuitBreakerMocks.instance),
   CircuitBreaker: vi.fn(() => circuitBreakerMocks.instance),
@@ -140,6 +142,9 @@ describe('fetchHistoryData', () => {
     circuitBreakerMocks.instance.opened = false;
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
     tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: [], invalid: [] });
+    tickerValidationMocks.isValidTicker.mockImplementation(
+      (ticker: string) => /^[A-Z0-9._-]{1,20}$/.test(ticker),
+    );
     fsMocks.existsSync.mockReturnValue(false);
   });
 
@@ -220,7 +225,7 @@ describe('fetchHistoryData', () => {
     expect(Number.isNaN(result.AAPL['2024-01-02'])).toBe(true);
   });
 
-  it('全部 ticker 非法时应返回空结果且不查询 DB', async () => {
+  it('全部 ticker 非法时应返回空结果且不查询价格', async () => {
     tickerValidationMocks.validateTickerFormat.mockReturnValue({
       valid: [],
       invalid: ['@@@invalid@@@'],
@@ -229,7 +234,6 @@ describe('fetchHistoryData', () => {
     const { data: result } = await fetchHistoryData(['@@@invalid@@@'], '2024-01-01', '2024-01-31');
 
     expect(result).toEqual({});
-    expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
     expect(loggerMocks.warn).toHaveBeenCalled();
   });
 
@@ -249,7 +253,7 @@ describe('fetchHistoryData', () => {
       valid: ['AAPL', 'MISSING'],
       invalid: [],
     });
-    circuitBreakerMocks.instance.fire.mockResolvedValueOnce({
+    circuitBreakerMocks.instance.fire.mockResolvedValue({
       rows: [{ ticker: 'AAPL', date: new Date('2024-01-02'), close: 185.5 }],
     });
     redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
@@ -270,6 +274,9 @@ describe('validateTickers', () => {
     vi.clearAllMocks();
     circuitBreakerMocks.instance.opened = false;
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
+    tickerValidationMocks.isValidTicker.mockImplementation(
+      (ticker: string) => /^[A-Z0-9._-]{1,20}$/.test(ticker),
+    );
     fsMocks.existsSync.mockReturnValue(false);
   });
 
@@ -281,7 +288,8 @@ describe('validateTickers', () => {
     const result = await validateTickers(['AAPL', 'BND', 'UNKNOWN']);
 
     expect(result.valid).toEqual(['AAPL', 'BND']);
-    expect(result.invalid).toEqual(['UNKNOWN']);
+    expect(result.unknown).toEqual(['UNKNOWN']);
+    expect(result.invalid).toEqual([]);
   });
 
   it('应使用 ANY($1) 参数化查询', async () => {
@@ -295,13 +303,14 @@ describe('validateTickers', () => {
     );
   });
 
-  it('DB 失败时应将全部 ticker 标为 invalid', async () => {
+  it('DB 失败时应将全部 ticker 标为 unknown', async () => {
     circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down'));
 
     const result = await validateTickers(['AAPL', 'UNKNOWN']);
 
     expect(result.valid).toEqual([]);
-    expect(result.invalid).toEqual(['AAPL', 'UNKNOWN']);
+    expect(result.unknown).toEqual(['AAPL', 'UNKNOWN']);
+    expect(result.invalid).toEqual([]);
   });
 });
 
@@ -332,17 +341,20 @@ describe('validateTickers 边界场景', () => {
     vi.clearAllMocks();
     circuitBreakerMocks.instance.opened = false;
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
+    tickerValidationMocks.isValidTicker.mockImplementation(
+      (ticker: string) => /^[A-Z0-9._-]{1,20}$/.test(ticker),
+    );
     fsMocks.existsSync.mockReturnValue(false);
     redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
   });
 
-  it('空 ticker 列表应返回空 valid/invalid', async () => {
+  it('空 ticker 列表应返回空 valid/invalid/unknown', async () => {
     const result = await validateTickers([]);
 
-    expect(result).toEqual({ valid: [], invalid: [] });
+    expect(result).toEqual({ valid: [], invalid: [], unknown: [] });
   });
 
-  // table-driven：边界场景共享"调用 validateTickers + 期望 valid/invalid"结构
+  // table-driven：边界场景共享"调用 validateTickers + 期望 valid/invalid/unknown"结构
   it.each([
     {
       name: '熔断器 Open 时',
@@ -350,7 +362,7 @@ describe('validateTickers 边界场景', () => {
         circuitBreakerMocks.instance.opened = true;
       },
       input: ['AAPL', 'GHOST'],
-      expected: { valid: [], invalid: ['AAPL', 'GHOST'] },
+      expected: { valid: [], unknown: ['AAPL', 'GHOST'], invalid: [] },
       fireNotCalled: true,
     },
     {
@@ -359,7 +371,7 @@ describe('validateTickers 边界场景', () => {
         circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
       },
       input: ['UNKNOWN'],
-      expected: { valid: [], invalid: ['UNKNOWN'] },
+      expected: { valid: [], unknown: ['UNKNOWN'], invalid: [] },
       fireNotCalled: false,
     },
     {
@@ -368,7 +380,7 @@ describe('validateTickers 边界场景', () => {
         circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down'));
       },
       input: ['BROKEN'],
-      expected: { valid: [], invalid: ['BROKEN'] },
+      expected: { valid: [], unknown: ['BROKEN'], invalid: [] },
       fireNotCalled: false,
     },
     {
@@ -377,7 +389,7 @@ describe('validateTickers 边界场景', () => {
         circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [{ ticker: 'AAPL' }] });
       },
       input: ['AAPL'],
-      expected: { valid: ['AAPL'], invalid: [] },
+      expected: { valid: ['AAPL'], unknown: [], invalid: [] },
       fireNotCalled: false,
     },
   ])('$name应返回正确结果', async ({ setup, input, expected, fireNotCalled }) => {

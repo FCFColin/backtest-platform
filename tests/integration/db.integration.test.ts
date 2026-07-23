@@ -5,61 +5,32 @@
  * 开发者本地无法验证 DB 交互逻辑。testcontainers 自动拉起
  * Docker 容器中的 PostgreSQL，使集成测试本地可运行。
  * 权衡：需要本地 Docker 环境，但比共享测试数据库更隔离、更可重现。
+ *
+ * 容器启动/Docker 检测/schema 初始化已抽至 tests/helpers/testcontainersPg.ts，
+ * 与 6 个 SaaS 路由集成测试共享同一套容器管理逻辑。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { execSync } from 'node:child_process';
+import { createLoggerMocks } from '../helpers/mockFactories.js';
+import { isDockerAvailable, setupTestContainer, type TestContainerContext } from '../helpers/testcontainersPg.js';
 
 // Mock logger 打破 config ↔ logger 循环依赖，
 // 避免 config 模块加载时 logger 引用 config 导致 undefined
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  },
-}));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-import { config } from '../../packages/backend/src/config/index.js';
 import { initSchema, rollbackSchema } from '../../packages/backend/src/db/migrations.js';
-import { getPool, closeDb, healthCheck } from '../../packages/backend/src/db/pool.js';
+import { getPool, healthCheck } from '../../packages/backend/src/db/pool.js';
 
-// Docker + testcontainers 可用性检查：
-// 默认 skip（避免本地 Docker Desktop 故障导致 hook 超时），仅在 CI 或显式设置
-// RUN_TESTCONTAINERS=1 时运行。检测 docker info + 容器实际启动能力。
-let dockerAvailable = process.env.RUN_TESTCONTAINERS === '1';
-if (dockerAvailable) {
-  try {
-    execSync('docker info', { stdio: 'ignore', timeout: 5000 });
-    execSync('docker run --rm hello-world', { stdio: 'ignore', timeout: 30000 });
-  } catch {
-    dockerAvailable = false;
-  }
-}
+const dockerAvailable = isDockerAvailable();
 
 describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）', () => {
-  let container: StartedPostgreSqlContainer;
+  let ctx: TestContainerContext;
 
   beforeAll(async () => {
-    // 启动 PostgreSQL 容器
-    container = await new PostgreSqlContainer('postgres:16-alpine')
-      .withDatabase('backtest_test')
-      .withUsername('backtest')
-      .withPassword('backtest')
-      .start();
-
-    // config.DATABASE_URL 在模块加载时已从 process.env 读取，
-    // 此处需同时覆盖 config 对象和环境变量，确保 getPool() 使用容器连接串
-    const connectionString = container.getConnectionUri();
-    process.env.DATABASE_URL = connectionString;
-    (config as { DATABASE_URL: string }).DATABASE_URL = connectionString;
-    await closeDb();
+    ctx = await setupTestContainer();
   }, 60000);
 
   afterAll(async () => {
-    await closeDb();
-    await container.stop();
+    await ctx.cleanup();
   });
 
   it('应成功初始化 schema', async () => {

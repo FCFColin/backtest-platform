@@ -2,12 +2,12 @@
  * backtestResultCache LRU + TTL 单元测试
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { createRedisMocks } from '../../helpers/mockFactories.js';
+import { createRedisModuleMock } from '../../helpers/mockFactories.js';
 
 const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
 
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: createRedisMocks(
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
+  createRedisModuleMock(
     {
       methods: {
         ping: vi.fn().mockResolvedValue('PONG'),
@@ -18,7 +18,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     },
     redisMocks,
   ),
-}));
+);
 
 import {
   backtestCacheKey,

@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
-import { createMockPriceData } from '../../helpers/routeFixtures.js';
+import { createMockPriceData } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -181,7 +181,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
 
     // T-18：错误统一为 RFC 7807 problem+json（detail 字段携带错误详情，无 success 字段）。
     expect(res.status).toBe(400);
-    expect(body.error.detail).toContain('SPY');
+    expect(body.error.code).toBe('OPTIMIZER_BAD_REQUEST');
   });
 
   it('缺少 portfolio 应返回 400（zod 校验失败）', async () => {
@@ -332,7 +332,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const body = await res.json();
 
     expect(res.status).toBe(503);
-    expect(body.error.detail).toContain('超时');
+    expect(body.error.code).toBe('COMPUTE_TIMEOUT');
   });
 });
 

@@ -9,7 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
-import { createMockPriceData } from '../../helpers/routeFixtures.js';
+import { createMockPriceData } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),
@@ -184,7 +184,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     const body = await res.json();
 
     expect(res.status).toBe(404);
-    expect(body.error.detail).toContain('SPY');
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
 
   it('缺少 strategy 应返回 400（zod 校验失败）', async () => {
@@ -403,7 +403,7 @@ describe('tacticalRoutes - POST /api/tactical/alerts', () => {
     const body = await res.json();
 
     expect(res.status).toBe(422);
-    expect(body.error.detail).toContain('邮箱');
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('禁用告警时无需邮箱应保存成功', async () => {

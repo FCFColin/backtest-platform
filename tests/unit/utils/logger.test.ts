@@ -31,20 +31,14 @@ describe('logger', () => {
     expect(typeof logger.child).toBe('function');
   });
 
-  it('logger.info 调用不应抛出异常', () => {
-    expect(() => logger.info({ test: true }, 'test message')).not.toThrow();
-  });
-
-  it('logger.warn 调用不应抛出异常', () => {
-    expect(() => logger.warn({ test: true }, 'test warning')).not.toThrow();
-  });
-
-  it('logger.error 调用不应抛出异常', () => {
-    expect(() => logger.error({ test: true }, 'test error')).not.toThrow();
-  });
-
-  it('logger.debug 调用不应抛出异常', () => {
-    expect(() => logger.debug({ test: true }, 'test debug')).not.toThrow();
+  it.each([
+    ['info', 'test message'],
+    ['warn', 'test warning'],
+    ['error', 'test error'],
+    ['debug', 'test debug'],
+  ])('logger.%s 调用不应抛出异常', (method, message) => {
+    const fn = (logger as unknown as Record<string, (obj: unknown, msg: string) => void>)[method];
+    expect(() => fn.call(logger, { test: true }, message)).not.toThrow();
   });
 
   it('logger.child 应返回子 logger 实例', () => {
