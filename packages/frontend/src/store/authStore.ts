@@ -8,7 +8,25 @@
 import { create } from 'zustand';
 import { apiFetch } from '@/utils/apiClient';
 import { setTokens, clearTokens, getRefreshToken, refreshTokens } from '@/utils/authTokens';
-import { asyncStart, asyncFail, asyncSuccess } from './utils/asyncSlice.js';
+
+// ============ 异步状态 helper（合并自 utils/asyncSlice.ts） ============
+
+interface AsyncSlice {
+  loading: boolean;
+  error: string | null;
+}
+
+function asyncStart(): Partial<AsyncSlice> {
+  return { loading: true, error: null };
+}
+
+function asyncFail(error: unknown): Partial<AsyncSlice> {
+  return { loading: false, error: String(error) };
+}
+
+function asyncSuccess(): Partial<AsyncSlice> {
+  return { loading: false, error: null };
+}
 
 /** 组织摘要（与后端 orgSummary 对齐） */
 interface OrgSummary {

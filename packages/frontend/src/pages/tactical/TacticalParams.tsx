@@ -1,8 +1,7 @@
 import { Plus, X, Play } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
-import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
+import { ParamRow, ParamCard, ActionBar, ParamGroup } from '../../components/params/index.js';
 import {
   useTacticalPageState,
   INDICATOR_OPTIONS,
@@ -265,9 +264,8 @@ function SignalBuilderSection({ state }: { state: TacticalPageState }) {
   const { t } = useTranslation();
   const { strategy, updateSignal, addSignal, removeSignal } = state;
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('tactical.params.signalBuilder')}
-      info={t('tactical.params.signalBuilderInfo')}
     >
       {strategy.signals.map((sig, idx) => (
         <SignalEditor
@@ -287,7 +285,7 @@ function SignalBuilderSection({ state }: { state: TacticalPageState }) {
         <Plus className="w-4 h-4" />
         {t('tactical.params.addSignal')}
       </button>
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 
@@ -350,9 +348,8 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
   const { t } = useTranslation();
   const { strategy, setStrategy } = state;
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('tactical.params.aggregationConfig')}
-      info={t('tactical.params.aggregationConfigInfo')}
     >
       <ParamCard label={t('tactical.params.aggregationMethod')}>
         <select
@@ -375,7 +372,7 @@ function AggregationSection({ state }: { state: TacticalPageState }) {
       {strategy.aggregationMethod === 'rank' && (
         <RankingConfigRow strategy={strategy} setStrategy={setStrategy} />
       )}
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 
@@ -392,7 +389,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
     setRebalanceFrequency,
   } = state;
   return (
-    <ParamsSection title={t('tactical.params.backtestParams')}>
+    <ParamGroup title={t('tactical.params.backtestParams')}>
       <ParamRow>
         <ParamCard label={t('tactical.params.startDate')}>
           <input
@@ -435,7 +432,7 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
           </select>
         </ParamCard>
       </ParamRow>
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 
@@ -443,7 +440,7 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
   const { t } = useTranslation();
   const { isLoading, handleRunBacktest } = state;
   return (
-    <ParamsPanel>
+    <div className="flex flex-col">
       <SignalBuilderSection state={state} />
       <AggregationSection state={state} />
       <BacktestParamsSection state={state} />
@@ -458,7 +455,7 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
           {t('tactical.params.runBacktest')}
         </LoadingButton>
       </ActionBar>
-    </ParamsPanel>
+    </div>
   );
 }
 

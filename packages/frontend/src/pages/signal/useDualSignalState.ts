@@ -9,7 +9,7 @@ import { useComputeTool } from '../../hooks/useComputeTool.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import i18n from '../../i18n/index.js';
-import type { DualSignalResponse } from './dualSignalTypes.js';
+import type { DualSignalResponse } from './signalTypes.js';
 
 /** 单信号配置（页面内简化结构） */
 export interface SignalCfg {

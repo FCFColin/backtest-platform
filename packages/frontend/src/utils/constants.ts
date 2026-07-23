@@ -2,7 +2,7 @@
  * @file 前端通用常量
  * @description 集中管理散落在各 hooks/pages 中的默认日期等硬编码字面量，便于统一维护
  */
-import type { BaseCurrency } from '@backtest/shared';
+import type { BacktestParameters, BaseCurrency, CashflowLeg, OneTimeCashflow } from '@backtest/shared';
 
 /** 默认分析起始日期 */
 export const DEFAULT_START_DATE = '2015-01-01';
@@ -35,23 +35,12 @@ export interface BuildBacktestParametersOptions {
   rollingWindowMonths?: number;
   benchmarkTicker?: string;
   extendedWithdrawalStats?: boolean;
-  cashflowLegs?: unknown[];
-  oneTimeCashflows?: unknown[];
+  cashflowLegs?: CashflowLeg[];
+  oneTimeCashflows?: OneTimeCashflow[];
 }
 
-/** buildBacktestParameters 返回的 parameters 对象类型 */
-export interface BacktestParameters {
-  startDate: string;
-  endDate: string;
-  startingValue: number;
-  adjustForInflation: boolean;
-  rollingWindowMonths: number;
-  benchmarkTicker: string;
-  baseCurrency: BaseCurrency;
-  extendedWithdrawalStats: boolean;
-  cashflowLegs: unknown[];
-  oneTimeCashflows: unknown[];
-}
+/** buildBacktestParameters 返回的 parameters 对象类型（复用 shared 权威定义） */
+export type { BacktestParameters };
 
 /**
  * 构建回测请求中的 parameters 对象（统一各页面调用样板）

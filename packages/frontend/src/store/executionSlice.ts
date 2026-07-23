@@ -14,7 +14,9 @@ import {
   validatePortfolios,
   defaultParameters,
 } from './backtestHelpers.js';
-import type { SetFn, GetFn, BacktestSeriesField } from './types.js';
+import type { SetFn, GetFn, BacktestSeriesField, DateRangeInfo } from './types.js';
+import type { WarningInfo } from '../utils/errorI18nMap.js';
+import { processResponseWarnings, extractDateRange } from '../utils/responseWarnings.js';
 
 let currentRequestId = 0;
 
@@ -50,20 +52,12 @@ function handleBacktestError(error: unknown): void {
   }
 }
 
-function processResponseWarnings(json: Record<string, unknown>): void {
-  const warnings = json.warnings as string[] | undefined;
-  if (warnings && warnings.length > 0) {
-    for (const w of warnings) useToastStore.getState().addToast('warning', w);
-  }
-  // degraded 警告由 apiFetch 全局拦截处理，不在此重复
-}
-
 async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const requestId = ++currentRequestId;
   const prevController = get()._abortController;
   if (prevController) prevController.abort();
   const controller = new AbortController();
-  set({ _abortController: controller, isLoading: true });
+  set({ _abortController: controller, isLoading: true, warnings: [], dateRange: null });
 
   const { portfolios, parameters } = get();
 
@@ -89,23 +83,24 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
 
     if (json.success === false) {
       useToastStore.getState().addToast('error', extractApiErrorDetail(json));
-      set({ results: null });
+      set({ results: null, warnings: [], dateRange: null });
       return;
     }
 
     const results = normalizeBacktestResult(json.data ?? json);
-    processResponseWarnings(json);
+    const warnings = processResponseWarnings(json);
+    const dateRange = extractDateRange(json, warnings);
 
     if (requestId === currentRequestId) {
       set({ isLoading: false });
       startTransition(() => {
-        set({ results, activeTab: 'summary' });
+        set({ results, warnings, dateRange, activeTab: 'summary' });
       });
     }
   } catch (error) {
     if (requestId !== currentRequestId) return;
     handleBacktestError(error);
-    set({ results: null });
+    set({ results: null, warnings: [], dateRange: null });
   } finally {
     if (requestId === currentRequestId) set({ isLoading: false, _abortController: null });
   }
@@ -176,6 +171,8 @@ function loadFromShareAction(
     })),
     parameters: { ...defaultParameters, ...data.parameters },
     results: null,
+    warnings: [],
+    dateRange: null,
     activeTab: 'growth' as const,
     portfolioCounter: maxId,
     hasLoadedFromShare: true,
@@ -185,6 +182,8 @@ function loadFromShareAction(
 export function executionSlice(set: SetFn, get: GetFn) {
   return {
     results: null as BacktestResult | null,
+    warnings: [] as WarningInfo[],
+    dateRange: null as DateRangeInfo | null,
     isLoading: false,
     activeTab: 'summary',
     hasLoadedFromShare: false,

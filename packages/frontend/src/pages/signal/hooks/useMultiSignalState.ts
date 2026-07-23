@@ -8,7 +8,7 @@ import { useComputeTool } from '../../../hooks/useComputeTool.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import type { AggregationMethod, MultiSignalResponse, SignalItem } from '../multiSignalTypes.js';
+import type { AggregationMethod, MultiSignalResponse, SignalItem } from '../signalTypes.js';
 
 /** 信号列表与权重的增删改操作；通过 state 元组传入以保持与父 hook 同一引用 */
 function useSignalActions(

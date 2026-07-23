@@ -3,16 +3,26 @@ interface TickerPreset {
   ticker: string;
   name: string;
   category: string;
+  /** SIM Ticker 对应的真实 ETF Ticker（用于数据获取） */
+  sourceTicker?: string;
 }
 
-/** SIM 系列（模拟数据 Ticker） */
+/**
+ * SIM 系列（Total Return 模拟 Ticker）
+ *
+ * 数据说明：
+ * - 使用对应 ETF 的 adjusted close 作为 total return 近似值
+ * - Yahoo Finance adjusted close 已包含拆股和分红调整
+ * - 唯一偏差为 ETF 管理费（expense ratio），通常 0.03%-0.40%/年
+ * - 对于回测用途，此近似误差可忽略
+ */
 export const SIM_TICKERS: TickerPreset[] = [
-  { ticker: 'SPYSIM', name: 'S&P 500 模拟', category: 'SIM' },
-  { ticker: 'BNDSIM', name: '债券模拟', category: 'SIM' },
-  { ticker: 'GLDSIM', name: '黄金模拟', category: 'SIM' },
-  { ticker: 'QQQSIM', name: '纳斯达克 100 模拟', category: 'SIM' },
-  { ticker: 'VTISIM', name: '全市场模拟', category: 'SIM' },
-  { ticker: 'TLTSIM', name: '长期国债模拟', category: 'SIM' },
+  { ticker: 'SPYSIM', name: 'S&P 500 指数 (Total Return)', category: 'Index', sourceTicker: 'SPY' },
+  { ticker: 'BNDSIM', name: '美国综合债券 (Total Return)', category: 'Bond', sourceTicker: 'AGG' },
+  { ticker: 'GLDSIM', name: '黄金 (Total Return)', category: 'Commodity', sourceTicker: 'GLD' },
+  { ticker: 'QQQSIM', name: '纳斯达克 100 (Total Return)', category: 'Index', sourceTicker: 'QQQ' },
+  { ticker: 'VTISIM', name: '美国全市场 (Total Return)', category: 'Index', sourceTicker: 'VTI' },
+  { ticker: 'TLTSIM', name: '长期美国国债 (Total Return)', category: 'Bond', sourceTicker: 'TLT' },
 ];
 
 /** 常用 ETF 预设 */

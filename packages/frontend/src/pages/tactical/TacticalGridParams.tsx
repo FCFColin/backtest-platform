@@ -5,9 +5,8 @@
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import LoadingButton from '../../components/LoadingButton.js';
-import { ParamRow, ParamCard } from '../../components/params/index.js';
+import { ParamRow, ParamCard, ParamGroup } from '../../components/params/index.js';
 import { INDICATOR_OPTIONS, OBJECTIVE_OPTIONS, REBALANCE_OPTIONS } from './tacticalGridUtils.js';
 import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils.js';
 import type { TacticalGridState } from '@/hooks/useTacticalGridState';
@@ -60,9 +59,8 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
   const { t } = useTranslation();
   const { indicator, setIndicator, param1, setParam1, param2, setParam2, paramLabels } = state;
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('tacticalGrid.params.signalGrid')}
-      info={t('tacticalGrid.params.signalGridInfo')}
     >
       <ParamCard label={t('tacticalGrid.params.indicator')} style={{ marginBottom: 8 }}>
         <select
@@ -101,7 +99,7 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
           ? t('tacticalGrid.params.rsiHint')
           : t('tacticalGrid.params.breakoutHint')}
       </div>
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 
@@ -120,9 +118,8 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
     setRebalanceFrequency,
   } = state;
   return (
-    <ParamsSection
+    <ParamGroup
       title={t('tacticalGrid.params.backtestParams')}
-      info={t('tacticalGrid.params.backtestParamsInfo')}
     >
       <ParamCard label={t('tacticalGrid.params.ticker')} style={{ marginBottom: 8 }}>
         <input
@@ -175,7 +172,7 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
           </select>
         </ParamCard>
       </ParamRow>
-    </ParamsSection>
+    </ParamGroup>
   );
 }
 
@@ -184,12 +181,11 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
   const { t } = useTranslation();
   const { objective, setObjective, isLoading, runSearch } = state;
   return (
-    <ParamsPanel>
+    <div className="flex flex-col">
       <SignalGridSection state={state} />
       <BacktestParamsSection state={state} />
-      <ParamsSection
+      <ParamGroup
         title={t('tacticalGrid.params.objectiveSection')}
-        info={t('tacticalGrid.params.objectiveSectionInfo')}
       >
         <ParamCard label={t('tacticalGrid.params.objective')}>
           <select
@@ -204,7 +200,7 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
             ))}
           </select>
         </ParamCard>
-      </ParamsSection>
+      </ParamGroup>
       <div className="bt-action-row">
         <LoadingButton
           isLoading={isLoading}
@@ -215,6 +211,6 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
           {t('tacticalGrid.params.startSearch')}
         </LoadingButton>
       </div>
-    </ParamsPanel>
+    </div>
   );
 }
