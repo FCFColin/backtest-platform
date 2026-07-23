@@ -8,8 +8,7 @@ import {
   Portfolio,
   CONCENTRATION_THRESHOLD,
 } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
-import { Ticker } from '../../../packages/backend/src/domain/value-objects/ticker.js';
-import { Weight } from '../../../packages/backend/src/domain/value-objects/weight.js';
+import { Ticker, Weight } from '../../../packages/backend/src/domain/value-objects/index.js';
 
 function makeHolding(ticker: string, weight: number) {
   return { ticker: Ticker.create(ticker), weight: Weight.create(weight) };

@@ -35,131 +35,37 @@ describe('backtestOptimizerSchema', () => {
     expect(() => backtestOptimizerSchema.parse(makeValidInput())).not.toThrow();
   });
 
-  it('portfolio.assets 为空应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).portfolio.assets = [];
+  it.each([
+    ['portfolio.assets 为空', (d: Record<string, unknown>) => { (d.portfolio as Record<string, unknown>).assets = []; }],
+    ['asset 缺少 ticker', (d: Record<string, unknown>) => { (d.portfolio as Record<string, unknown>).assets = [{ weight: 100 }]; }],
+    ['rebalanceFrequencies 为空数组', (d: Record<string, unknown>) => { (d.parameterSpace as Record<string, unknown>).rebalanceFrequencies = []; }],
+    ['rebalanceFrequencies 含非法枚举', (d: Record<string, unknown>) => { (d.parameterSpace as Record<string, unknown>).rebalanceFrequencies = ['invalid']; }],
+    ['initialCapital.step 非正数', (d: Record<string, unknown>) => { ((d.parameterSpace as Record<string, unknown>).initialCapital as Record<string, unknown>).step = 0; }],
+    ['initialCapital.step 为负数', (d: Record<string, unknown>) => { ((d.parameterSpace as Record<string, unknown>).initialCapital as Record<string, unknown>).step = -1; }],
+    ['objective 非法枚举', (d: Record<string, unknown>) => { d.objective = 'invalid'; }],
+    ['缺少 portfolio', (d: Record<string, unknown>) => { delete d.portfolio; }],
+    ['缺少 parameterSpace', (d: Record<string, unknown>) => { delete d.parameterSpace; }],
+    ['缺少 parameters', (d: Record<string, unknown>) => { delete d.parameters; }],
+    ['缺少 objective', (d: Record<string, unknown>) => { delete d.objective; }],
+    ['rebalanceThreshold.step 非正数', (d: Record<string, unknown>) => { (d.parameterSpace as Record<string, unknown>).rebalanceThreshold = { min: 1, max: 10, step: 0 }; }],
+    ['parameters.startDate 为空字符串', (d: Record<string, unknown>) => { (d.parameters as Record<string, unknown>).startDate = ''; }],
+    ['parameters.baseCurrency 非法枚举', (d: Record<string, unknown>) => { (d.parameters as Record<string, unknown>).baseCurrency = 'eur'; }],
+  ])('%s 应抛错', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
     expect(() => backtestOptimizerSchema.parse(data)).toThrow();
   });
 
-  it('asset 缺少 ticker 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).portfolio.assets = [{ weight: 100 }];
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('rebalanceFrequencies 为空数组应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameterSpace.rebalanceFrequencies = [];
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('rebalanceFrequencies 含非法枚举应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameterSpace.rebalanceFrequencies = ['invalid'];
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('initialCapital.step 非正数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameterSpace.initialCapital.step = 0;
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('initialCapital.step 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameterSpace.initialCapital.step = -1;
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('objective 非法枚举应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).objective = 'invalid';
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('objective 合法枚举 maxCagr 应通过', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).objective = 'maxCagr';
+  it.each([
+    ['objective 合法枚举 maxCagr', (d: Record<string, unknown>) => { d.objective = 'maxCagr'; }],
+    ['objective 合法枚举 minMaxDrawdown', (d: Record<string, unknown>) => { d.objective = 'minMaxDrawdown'; }],
+    ['objective 合法枚举 maxSortino', (d: Record<string, unknown>) => { d.objective = 'maxSortino'; }],
+    ['rebalanceThreshold 可选字段', (d: Record<string, unknown>) => { (d.parameterSpace as Record<string, unknown>).rebalanceThreshold = { min: 1, max: 10, step: 1 }; }],
+    ['constraints 可选字段', (d: Record<string, unknown>) => { d.constraints = { maxDrawdown: 0.2, minCagr: 0.05 }; }],
+    ['parameters.baseCurrency 合法枚举', (d: Record<string, unknown>) => { (d.parameters as Record<string, unknown>).baseCurrency = 'usd'; }],
+  ])('%s 应通过校验', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
     expect(() => backtestOptimizerSchema.parse(data)).not.toThrow();
-  });
-
-  it('objective 合法枚举 minMaxDrawdown 应通过', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).objective = 'minMaxDrawdown';
-    expect(() => backtestOptimizerSchema.parse(data)).not.toThrow();
-  });
-
-  it('objective 合法枚举 maxSortino 应通过', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).objective = 'maxSortino';
-    expect(() => backtestOptimizerSchema.parse(data)).not.toThrow();
-  });
-
-  it('缺少 portfolio 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).portfolio;
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 parameterSpace 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).parameterSpace;
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 parameters 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).parameters;
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 objective 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).objective;
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('rebalanceThreshold 可选字段应通过校验', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameterSpace.rebalanceThreshold = {
-      min: 1,
-      max: 10,
-      step: 1,
-    };
-    expect(() => backtestOptimizerSchema.parse(data)).not.toThrow();
-  });
-
-  it('rebalanceThreshold.step 非正数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameterSpace.rebalanceThreshold = {
-      min: 1,
-      max: 10,
-      step: 0,
-    };
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('constraints 可选字段应通过校验', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).constraints = { maxDrawdown: 0.2, minCagr: 0.05 };
-    expect(() => backtestOptimizerSchema.parse(data)).not.toThrow();
-  });
-
-  it('parameters.startDate 为空字符串应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameters.startDate = '';
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('parameters.baseCurrency 合法枚举应通过', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameters.baseCurrency = 'usd';
-    expect(() => backtestOptimizerSchema.parse(data)).not.toThrow();
-  });
-
-  it('parameters.baseCurrency 非法枚举应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).parameters.baseCurrency = 'eur';
-    expect(() => backtestOptimizerSchema.parse(data)).toThrow();
   });
 });

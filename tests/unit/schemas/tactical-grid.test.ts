@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { tacticalGridSearchSchema } from '../../../packages/backend/src/schemas/tacticalGrid.js';
+import { tacticalGridSearchSchema } from '../../../packages/backend/src/schemas/tactical.js';
 
 function makeValidInput() {
   return {
@@ -32,141 +32,40 @@ describe('tacticalGridSearchSchema', () => {
     expect(() => tacticalGridSearchSchema.parse(makeValidInput())).not.toThrow();
   });
 
-  it('indicator 非法枚举应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).indicator = 'invalid';
+  it.each([
+    ['indicator 非法枚举', (d: Record<string, unknown>) => { d.indicator = 'invalid'; }],
+    ['param1.step 为 0', (d: Record<string, unknown>) => { (d.param1 as Record<string, unknown>).step = 0; }],
+    ['param1.step 为负数', (d: Record<string, unknown>) => { (d.param1 as Record<string, unknown>).step = -1; }],
+    ['param2.step 为 0', (d: Record<string, unknown>) => { (d.param2 as Record<string, unknown>).step = 0; }],
+    ['param2.step 为负数', (d: Record<string, unknown>) => { (d.param2 as Record<string, unknown>).step = -5; }],
+    ['缺少 param1', (d: Record<string, unknown>) => { delete d.param1; }],
+    ['缺少 param2', (d: Record<string, unknown>) => { delete d.param2; }],
+    ['tickers 为空数组', (d: Record<string, unknown>) => { d.tickers = []; }],
+    ['缺少 tickers', (d: Record<string, unknown>) => { delete d.tickers; }],
+    ['startDate 为空字符串', (d: Record<string, unknown>) => { d.startDate = ''; }],
+    ['startDate 非日期格式', (d: Record<string, unknown>) => { d.startDate = 'not-a-date'; }],
+    ['endDate 非日期格式', (d: Record<string, unknown>) => { d.endDate = '2024/12/31'; }],
+    ['startingValue 为 0', (d: Record<string, unknown>) => { d.startingValue = 0; }],
+    ['startingValue 为负数', (d: Record<string, unknown>) => { d.startingValue = -100; }],
+    ['rebalanceFrequency 非法枚举', (d: Record<string, unknown>) => { d.rebalanceFrequency = 'invalid'; }],
+    ['objective 非法枚举', (d: Record<string, unknown>) => { d.objective = 'invalid'; }],
+    ['topN 为 0', (d: Record<string, unknown>) => { d.topN = 0; }],
+    ['topN 为小数（int 约束）', (d: Record<string, unknown>) => { d.topN = 1.5; }],
+  ])('%s 应抛错', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
     expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
   });
 
-  it('indicator=ema 应通过校验', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).indicator = 'ema';
+  it.each([
+    ['indicator=ema', (d: Record<string, unknown>) => { d.indicator = 'ema'; }],
+    ['indicator=rsi', (d: Record<string, unknown>) => { d.indicator = 'rsi'; }],
+    ['objective=minDrawdown', (d: Record<string, unknown>) => { d.objective = 'minDrawdown'; }],
+    ['objective=maxSharpe', (d: Record<string, unknown>) => { d.objective = 'maxSharpe'; }],
+    ['topN 可选字段合法正整数', (d: Record<string, unknown>) => { d.topN = 5; }],
+  ])('%s 应通过校验', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
     expect(() => tacticalGridSearchSchema.parse(data)).not.toThrow();
-  });
-
-  it('indicator=rsi 应通过校验', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).indicator = 'rsi';
-    expect(() => tacticalGridSearchSchema.parse(data)).not.toThrow();
-  });
-
-  it('param1.step 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).param1.step = 0;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('param1.step 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).param1.step = -1;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('param2.step 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).param2.step = 0;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('param2.step 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).param2.step = -5;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 param1 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).param1;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 param2 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).param2;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('tickers 为空数组应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).tickers = [];
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 tickers 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).tickers;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('startDate 为空字符串应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).startDate = '';
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('startDate 非日期格式应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).startDate = 'not-a-date';
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('endDate 非日期格式应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).endDate = '2024/12/31';
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('startingValue 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).startingValue = 0;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('startingValue 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).startingValue = -100;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('rebalanceFrequency 非法枚举应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).rebalanceFrequency = 'invalid';
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('objective 非法枚举应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).objective = 'invalid';
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('objective=minDrawdown 应通过校验', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).objective = 'minDrawdown';
-    expect(() => tacticalGridSearchSchema.parse(data)).not.toThrow();
-  });
-
-  it('objective=maxSharpe 应通过校验', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).objective = 'maxSharpe';
-    expect(() => tacticalGridSearchSchema.parse(data)).not.toThrow();
-  });
-
-  it('topN 可选字段合法正整数应通过', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).topN = 5;
-    expect(() => tacticalGridSearchSchema.parse(data)).not.toThrow();
-  });
-
-  it('topN 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).topN = 0;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
-  });
-
-  it('topN 为小数应抛错（int 约束）', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).topN = 1.5;
-    expect(() => tacticalGridSearchSchema.parse(data)).toThrow();
   });
 });

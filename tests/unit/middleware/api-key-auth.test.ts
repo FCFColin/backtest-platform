@@ -93,8 +93,6 @@ describe('handleApiKeyAuth', () => {
       expect.anything(),
       401,
       'INVALID_API_KEY',
-      'Unauthorized',
-      expect.anything(),
     );
     expect(next).not.toHaveBeenCalled();
   });
@@ -144,8 +142,6 @@ describe('handleApiKeyAuth', () => {
       expect.anything(),
       401,
       'INVALID_API_KEY',
-      'Unauthorized',
-      expect.anything(),
     );
     expect(next).not.toHaveBeenCalled();
   });
@@ -173,8 +169,6 @@ describe('handleApiKeyAuth', () => {
       expect.anything(),
       401,
       'INVALID_API_KEY',
-      'Unauthorized',
-      expect.anything(),
     );
     expect(next).not.toHaveBeenCalled();
   });

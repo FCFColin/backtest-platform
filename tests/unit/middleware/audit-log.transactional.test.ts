@@ -18,26 +18,21 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger } from '../../helpers/mockFactories.js';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 import { createMockClient } from '../../helpers/dbMocks.js';
 
 // ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
+const loggerMocks = vi.hoisted(() => ({}) as ReturnType<typeof createLoggerMocks>);
 
 const poolMocks = vi.hoisted(() => ({
   query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
 }));
 
 // Mock logger
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
-}));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => {
+  Object.assign(loggerMocks, createLoggerMocks());
+  return { logger: loggerMocks };
+});
 
 // Mock db/pool.js：getPool 返回带 mock query 的对象
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({

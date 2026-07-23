@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Response } from 'express';
 import { createMockRequest, createMockResponse } from '../../helpers/expressMocks.js';
-import { createLoggerMocks, createRedisMocks } from '../../helpers/mockFactories.js';
+import { createLoggerMocks, createRedisModuleMock } from '../../helpers/mockFactories.js';
 import {
   createIdempotencyReqRes,
   mockLongIdempotencyKey,
@@ -24,13 +24,12 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 // Mock appRedis：默认内存回退；Redis 成功路径可切换
 const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
 
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  redisConnection: {},
-  appRedis: createRedisMocks(
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
+  createRedisModuleMock(
     { withStore: true, withHandlers: true, withMemoryHelpers: true },
     redisMocks,
   ),
-}));
+);
 
 redisMocks.useMemoryFallback();
 

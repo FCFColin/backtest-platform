@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks, mockLogger, createRedisMocks } from '../../helpers/mockFactories.js';
+import { createLoggerMocks, mockLogger, createRedisModuleMock } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   config: {
@@ -31,8 +31,8 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: mocks.
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(createLoggerMocks()),
 }));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: createRedisMocks(
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
+  createRedisModuleMock(
     {
       withStore: true,
       withSets: true,
@@ -41,7 +41,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     },
     redisMocks,
   ),
-}));
+);
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({ getUserById: vi.fn() }));
 vi.mock('../../../packages/backend/src/middleware/jwtSigner.js', () => ({
   generateToken: vi.fn(),

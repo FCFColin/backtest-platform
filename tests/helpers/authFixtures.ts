@@ -1,9 +1,10 @@
 /**
- * 测试辅助：auth routes fixtures + JWT 签发工具（合并自 authFixtures + jwtFixtures）
+ * 测试辅助：auth routes fixtures + JWT 签发工具 + user DB row fixtures
  *
  * 导出：
  * - auth payload 常量：validPasswordLoginPayload / validRefreshPayload
  * - JWT 签发工具：base64urlEncode / signTestToken / SignTestTokenOptions
+ * - user DB 行 fixture：mockUserRecord / mockUserRecordWithPassword
  *
  * 历史：
  * - Phase 5.2 已清理 9 个未用导出（createUserFixture/mockAdmin/mockUser/mockReadonly/
@@ -13,11 +14,13 @@
  * - codebase-slim-followups Task 2 已删除 deprecated POST /login，validLoginPayload 一并清理。
  * - 2026-07-19 清理 UserRole（无外部引用）。
  * - 2026-07-20 codebase-slim-execution Task 4.4 合并 jwtFixtures.ts 入此文件（rename 为 authFixtures.ts）。
+ * - 2026-07 合并 userFixtures.ts：新增 mockUserRecord / mockUserRecordWithPassword。
  *
  * 用法：
- *   import { validPasswordLoginPayload, signTestToken } from '../helpers/authFixtures.js';
+ *   import { validPasswordLoginPayload, signTestToken, mockUserRecordWithPassword } from '../helpers/authFixtures.js';
  *   fetch('/api/v1/auth/login/password', { body: JSON.stringify(validPasswordLoginPayload) });
  *   const token = await signTestToken({ sub: 'user-1', role: 'admin' });
+ *   const row = mockUserRecordWithPassword({ role: 'admin' });
  */
 
 import { SignJWT, importJWK } from 'jose';
@@ -79,4 +82,38 @@ export async function signTestToken(
   const builder = new SignJWT(payload).setProtectedHeader({ alg: 'HS256' }).setIssuedAt();
   if (!options.omitExp) builder.setExpirationTime('1h');
   return builder.sign(key);
+}
+
+/**
+ * 创建 DB 用户行 fixture（snake_case 字段，模拟 pg 返回的原始 row）
+ *
+ * 合并自 tests/helpers/userFixtures.ts。
+ *
+ * @param overrides - 覆盖默认字段
+ * @returns 包含 id/username/role/created_at/is_active 等字段的 DB 行
+ */
+export function mockUserRecord(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'user-123',
+    username: 'testuser',
+    role: 'analyst',
+    created_at: new Date('2020-01-02'),
+    is_active: true,
+    ...overrides,
+  };
+}
+
+/**
+ * 创建带 password_hash 的 DB 用户行（用于 verifyUser 测试）
+ *
+ * @param overrides - 覆盖默认字段
+ * @returns 包含 password_hash 字段的 DB 行
+ */
+export function mockUserRecordWithPassword(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return mockUserRecord({
+    password_hash: 'hashed-password',
+    ...overrides,
+  });
 }

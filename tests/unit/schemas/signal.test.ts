@@ -33,76 +33,30 @@ describe('signalAnalyzeSchema', () => {
     expect(() => signalAnalyzeSchema.parse(makeValidSignal())).not.toThrow();
   });
 
-  it('缺少 ticker 应抛错', () => {
-    const data = makeValidSignal();
-    delete (data as Record<string, unknown>).ticker;
+  it.each([
+    ['缺少 ticker', (d: Record<string, unknown>) => { delete d.ticker; }],
+    ['ticker 为空字符串', (d: Record<string, unknown>) => { d.ticker = ''; }],
+    ['缺少 indicator', (d: Record<string, unknown>) => { delete d.indicator; }],
+    ['indicator 为空字符串', (d: Record<string, unknown>) => { d.indicator = ''; }],
+    ['缺少 period', (d: Record<string, unknown>) => { delete d.period; }],
+    ['period 类型错误（字符串）', (d: Record<string, unknown>) => { d.period = '20'; }],
+    ['缺少 threshold', (d: Record<string, unknown>) => { delete d.threshold; }],
+    ['signalType 非法枚举', (d: Record<string, unknown>) => { d.signalType = 'invalid'; }],
+    ['startDate 为空字符串', (d: Record<string, unknown>) => { d.startDate = ''; }],
+    ['endDate 为空字符串', (d: Record<string, unknown>) => { d.endDate = ''; }],
+  ])('%s 应抛错', (_name, mutate) => {
+    const data = makeValidSignal() as Record<string, unknown>;
+    mutate(data);
     expect(() => signalAnalyzeSchema.parse(data)).toThrow();
   });
 
-  it('ticker 为空字符串应抛错', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).ticker = '';
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 indicator 应抛错', () => {
-    const data = makeValidSignal();
-    delete (data as Record<string, unknown>).indicator;
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('indicator 为空字符串应抛错', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).indicator = '';
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 period 应抛错', () => {
-    const data = makeValidSignal();
-    delete (data as Record<string, unknown>).period;
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('period 类型错误（字符串）应抛错', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).period = '20';
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 threshold 应抛错', () => {
-    const data = makeValidSignal();
-    delete (data as Record<string, unknown>).threshold;
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('signalType 非法枚举应抛错', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).signalType = 'invalid';
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('signalType=exit 应通过校验', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).signalType = 'exit';
+  it.each([
+    ['signalType=exit', (d: Record<string, unknown>) => { d.signalType = 'exit'; }],
+    ['signalType=both', (d: Record<string, unknown>) => { d.signalType = 'both'; }],
+  ])('%s 应通过校验', (_name, mutate) => {
+    const data = makeValidSignal() as Record<string, unknown>;
+    mutate(data);
     expect(() => signalAnalyzeSchema.parse(data)).not.toThrow();
-  });
-
-  it('signalType=both 应通过校验', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).signalType = 'both';
-    expect(() => signalAnalyzeSchema.parse(data)).not.toThrow();
-  });
-
-  it('startDate 为空字符串应抛错', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).startDate = '';
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('endDate 为空字符串应抛错', () => {
-    const data = makeValidSignal();
-    (data as Record<string, unknown>).endDate = '';
-    expect(() => signalAnalyzeSchema.parse(data)).toThrow();
   });
 });
 
@@ -116,19 +70,16 @@ describe('signalDualSchema', () => {
     expect(() => signalDualSchema.parse(data)).not.toThrow();
   });
 
-  it('缺少 signal1 应抛错', () => {
-    const data = {
-      signal2: makeValidSignal(),
-      combinationMethod: 'or',
-    };
-    expect(() => signalDualSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 signal2 应抛错', () => {
+  it.each([
+    ['缺少 signal1', (d: Record<string, unknown>) => { delete d.signal1; }],
+    ['缺少 signal2', (d: Record<string, unknown>) => { delete d.signal2; }],
+  ])('%s 应抛错', (_name, mutate) => {
     const data = {
       signal1: makeValidSignal(),
+      signal2: makeValidSignal(),
       combinationMethod: 'or',
-    };
+    } as Record<string, unknown>;
+    mutate(data);
     expect(() => signalDualSchema.parse(data)).toThrow();
   });
 
@@ -169,35 +120,21 @@ describe('signalMultiSchema', () => {
     expect(() => signalMultiSchema.parse(data)).not.toThrow();
   });
 
-  it('signals 为空数组应抛错', () => {
-    const data = {
-      signals: [],
-      aggregationMethod: 'voting',
-    };
+  it.each([
+    ['signals 为空数组', (d: Record<string, unknown>) => { d.signals = []; }],
+    ['aggregationMethod 非法枚举', (d: Record<string, unknown>) => { d.aggregationMethod = 'invalid'; }],
+  ])('%s 应抛错', (_name, mutate) => {
+    const data = { signals: [makeValidSignal()], aggregationMethod: 'voting' } as Record<string, unknown>;
+    mutate(data);
     expect(() => signalMultiSchema.parse(data)).toThrow();
   });
 
-  it('aggregationMethod 非法枚举应抛错', () => {
-    const data = {
-      signals: [makeValidSignal()],
-      aggregationMethod: 'invalid',
-    };
-    expect(() => signalMultiSchema.parse(data)).toThrow();
-  });
-
-  it('aggregationMethod=weighted 应通过校验', () => {
-    const data = {
-      signals: [makeValidSignal()],
-      aggregationMethod: 'weighted',
-    };
-    expect(() => signalMultiSchema.parse(data)).not.toThrow();
-  });
-
-  it('aggregationMethod=rank 应通过校验', () => {
-    const data = {
-      signals: [makeValidSignal()],
-      aggregationMethod: 'rank',
-    };
+  it.each([
+    ['aggregationMethod=weighted', (d: Record<string, unknown>) => { d.aggregationMethod = 'weighted'; }],
+    ['aggregationMethod=rank', (d: Record<string, unknown>) => { d.aggregationMethod = 'rank'; }],
+  ])('%s 应通过校验', (_name, mutate) => {
+    const data = { signals: [makeValidSignal()], aggregationMethod: 'voting' } as Record<string, unknown>;
+    mutate(data);
     expect(() => signalMultiSchema.parse(data)).not.toThrow();
   });
 

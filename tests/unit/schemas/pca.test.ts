@@ -25,88 +25,37 @@ describe('pcaAnalyzeSchema', () => {
     expect(() => pcaAnalyzeSchema.parse(makeValidInput())).not.toThrow();
   });
 
-  it('恰好 2 个 tickers 应通过校验（边界值）', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).tickers = ['AAPL', 'MSFT'];
+  it.each([
+    ['只有 1 个 ticker（min(2) 约束）', (d: Record<string, unknown>) => { d.tickers = ['AAPL']; }],
+    ['tickers 为空数组', (d: Record<string, unknown>) => { d.tickers = []; }],
+    ['缺少 tickers', (d: Record<string, unknown>) => { delete d.tickers; }],
+    ['缺少 startDate', (d: Record<string, unknown>) => { delete d.startDate; }],
+    ['startDate 为空字符串', (d: Record<string, unknown>) => { d.startDate = ''; }],
+    ['缺少 endDate', (d: Record<string, unknown>) => { delete d.endDate; }],
+    ['endDate 为空字符串', (d: Record<string, unknown>) => { d.endDate = ''; }],
+    ['numComponents 为 0', (d: Record<string, unknown>) => { d.numComponents = 0; }],
+    ['numComponents 为负数', (d: Record<string, unknown>) => { d.numComponents = -1; }],
+    ['numComponents 为小数（int 约束）', (d: Record<string, unknown>) => { d.numComponents = 1.5; }],
+    ['startDate 类型错误（数字）', (d: Record<string, unknown>) => { d.startDate = 20200101; }],
+  ])('%s 应抛错', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
+    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
+  });
+
+  it.each([
+    ['恰好 2 个 tickers（边界值）', (d: Record<string, unknown>) => { d.tickers = ['AAPL', 'MSFT']; }],
+    ['numComponents 合法正整数', (d: Record<string, unknown>) => { d.numComponents = 2; }],
+  ])('%s 应通过校验', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
     expect(() => pcaAnalyzeSchema.parse(data)).not.toThrow();
   });
 
-  it('只有 1 个 ticker 应抛错（min(2) 约束）', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).tickers = ['AAPL'];
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('tickers 为空数组应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).tickers = [];
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 tickers 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).tickers;
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
+  // 注：当前 schema 未对单个 ticker 做 min(1) 约束，仅约束数组长度
   it('tickers 含空字符串应通过校验（min(2) 仅约束长度）', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).tickers = ['', ''];
-    // 注：当前 schema 未对单个 ticker 做 min(1) 约束
+    const data = makeValidInput() as Record<string, unknown>;
+    data.tickers = ['', ''];
     expect(() => pcaAnalyzeSchema.parse(data)).not.toThrow();
-  });
-
-  it('缺少 startDate 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).startDate;
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('startDate 为空字符串应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).startDate = '';
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 endDate 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).endDate;
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('endDate 为空字符串应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).endDate = '';
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('numComponents 合法正整数应通过', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numComponents = 2;
-    expect(() => pcaAnalyzeSchema.parse(data)).not.toThrow();
-  });
-
-  it('numComponents 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numComponents = 0;
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('numComponents 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numComponents = -1;
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('numComponents 为小数应抛错（int 约束）', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numComponents = 1.5;
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
-  });
-
-  it('startDate 类型错误（数字）应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).startDate = 20200101;
-    expect(() => pcaAnalyzeSchema.parse(data)).toThrow();
   });
 });

@@ -171,6 +171,35 @@ export async function waitForHealthy(
 }
 
 /**
+ * 检查服务器是否可用（HTTP 探活，单次请求 + 超时控制）
+ *
+ * 与 waitForHealthy 的差异：本函数只发一次请求，不轮询；用于 integration 测试
+ * 在 beforeAll 中快速判定后端/引擎是否在运行（不可用则整体 skip）。
+ * 合并自 tests/helpers/server.ts。
+ *
+ * 判定逻辑：能建立连接且响应状态码 < 500 即视为可用。
+ * 4xx（如 404）视为可用，因为服务本身在运行，只是路径不存在。
+ *
+ * @param url - 探活 URL（如 `${API_BASE_URL}/api/health`）
+ * @param timeoutMs - 超时毫秒数，默认 2000ms
+ * @returns 服务器可用返回 true，否则 false
+ */
+export async function checkServerAvailable(
+  url: string,
+  timeoutMs: number = 2000,
+): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    return response.ok || response.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 高阶函数：停止容器 → 执行断言 → 恢复容器（始终恢复，即使断言失败）
  *
  * 替代各 chaos 测试中重复的 stopContainer + try/finally + startContainer 样板。

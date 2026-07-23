@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { checkServerAvailable } from '../helpers/server.js';
-import { API_BASE_URL } from '../helpers/constants.js';
+import { checkServerAvailable } from '../helpers/chaos.js';
+import { API_BASE_URL } from '../helpers/expressApp.js';
 
 const BASE = `${API_BASE_URL}/api/v1`;
 

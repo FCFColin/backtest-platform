@@ -5,15 +5,9 @@
  * 运行记录是不可变快照，无 PUT 更新语义。使用 testcontainers 起真实 PG。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { createLoggerMocks } from '../helpers/mockFactories.js';
 
-vi.mock('../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() })),
-  },
-}));
+vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import runRoutes from '../../packages/backend/src/routes/runRoutes.js';
 import {

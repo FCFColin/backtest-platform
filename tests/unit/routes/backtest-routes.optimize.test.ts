@@ -132,6 +132,8 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => {
       scan: async () => ['0', []] as [string, string[]],
       del: async () => 0,
     },
+    getRedisHealth: vi.fn().mockResolvedValue(true),
+    markRedisUnhealthy: vi.fn(),
   };
 });
 vi.mock('fs', () => ({

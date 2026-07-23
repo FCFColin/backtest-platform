@@ -26,121 +26,41 @@ describe('goalOptimizerSchema', () => {
     expect(() => goalOptimizerSchema.parse(makeValidInput())).not.toThrow();
   });
 
-  it('targetAmount 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).targetAmount = 0;
+  it.each([
+    ['targetAmount 为 0', (d: Record<string, unknown>) => { d.targetAmount = 0; }],
+    ['targetAmount 为负数', (d: Record<string, unknown>) => { d.targetAmount = -100; }],
+    ['initialAmount 为 0', (d: Record<string, unknown>) => { d.initialAmount = 0; }],
+    ['initialAmount 为负数', (d: Record<string, unknown>) => { d.initialAmount = -50; }],
+    ['years 为 0', (d: Record<string, unknown>) => { d.years = 0; }],
+    ['years 为负数', (d: Record<string, unknown>) => { d.years = -5; }],
+    ['assets 为空数组', (d: Record<string, unknown>) => { d.assets = []; }],
+    ['asset 缺少 ticker', (d: Record<string, unknown>) => { d.assets = [{ weight: 100 }]; }],
+    ['asset ticker 为空字符串', (d: Record<string, unknown>) => { d.assets = [{ ticker: '', weight: 100 }]; }],
+    ['缺少 targetAmount', (d: Record<string, unknown>) => { delete d.targetAmount; }],
+    ['缺少 initialAmount', (d: Record<string, unknown>) => { delete d.initialAmount; }],
+    ['缺少 years', (d: Record<string, unknown>) => { delete d.years; }],
+    ['缺少 assets', (d: Record<string, unknown>) => { delete d.assets; }],
+    ['targetAmount 类型错误（字符串）', (d: Record<string, unknown>) => { d.targetAmount = '1000000'; }],
+    ['numSimulations 为 0', (d: Record<string, unknown>) => { d.numSimulations = 0; }],
+    ['numSimulations 为负数', (d: Record<string, unknown>) => { d.numSimulations = -100; }],
+    ['numSimulations 为小数（int 约束）', (d: Record<string, unknown>) => { d.numSimulations = 1.5; }],
+  ])('%s 应抛错', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
     expect(() => goalOptimizerSchema.parse(data)).toThrow();
   });
 
-  it('targetAmount 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).targetAmount = -100;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('initialAmount 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).initialAmount = 0;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('initialAmount 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).initialAmount = -50;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('years 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).years = 0;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('years 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).years = -5;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('assets 为空数组应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).assets = [];
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('asset 缺少 ticker 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).assets = [{ weight: 100 }];
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('asset ticker 为空字符串应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).assets = [{ ticker: '', weight: 100 }];
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 targetAmount 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).targetAmount;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 initialAmount 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).initialAmount;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 years 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).years;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('缺少 assets 应抛错', () => {
-    const data = makeValidInput();
-    delete (data as Record<string, unknown>).assets;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('targetAmount 类型错误（字符串）应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).targetAmount = '1000000';
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('numSimulations 合法正整数应通过', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numSimulations = 1000;
+  it.each([
+    ['numSimulations 合法正整数', (d: Record<string, unknown>) => { d.numSimulations = 1000; }],
+  ])('%s 应通过校验', (_name, mutate) => {
+    const data = makeValidInput() as Record<string, unknown>;
+    mutate(data);
     expect(() => goalOptimizerSchema.parse(data)).not.toThrow();
   });
 
-  it('numSimulations 为 0 应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numSimulations = 0;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('numSimulations 为负数应抛错', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numSimulations = -100;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
-  it('numSimulations 为小数应抛错（int 约束）', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).numSimulations = 1.5;
-    expect(() => goalOptimizerSchema.parse(data)).toThrow();
-  });
-
   it('constraints 可选字段应通过校验', () => {
-    const data = makeValidInput();
-    (data as Record<string, unknown>).constraints = {
-      maxDrawdown: 0.3,
-      minSuccessRate: 0.9,
-      maxVolatility: 0.2,
-    };
+    const data = makeValidInput() as Record<string, unknown>;
+    data.constraints = { maxDrawdown: 0.3, minSuccessRate: 0.9, maxVolatility: 0.2 };
     expect(() => goalOptimizerSchema.parse(data)).not.toThrow();
   });
 });

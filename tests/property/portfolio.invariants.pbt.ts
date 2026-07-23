@@ -12,8 +12,7 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { Portfolio } from '../../packages/backend/src/domain/aggregates/portfolio.js';
-import { Weight } from '../../packages/backend/src/domain/value-objects/weight.js';
-import { Ticker } from '../../packages/backend/src/domain/value-objects/ticker.js';
+import { Weight, Ticker } from '../../packages/backend/src/domain/value-objects/index.js';
 import type { Portfolio as PortfolioDTO } from '@backtest/shared/types';
 
 // 生成合法 ticker 字符串：1-10 位字母数字主体 + 可选两字母后缀（仅字母）

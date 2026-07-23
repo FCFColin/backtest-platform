@@ -223,8 +223,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
     expect(res.status).toBe(404);
     expect(body.error.status).toBe(404);
-    expect(body.error.title).toBe('Not Found');
-    expect(body.error.detail).toContain('not found');
+    expect(body.error.title).toBe('JOB_NOT_FOUND');
   });
 
   it('getJob 抛错时应返回 500', async () => {
@@ -235,7 +234,7 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
 
     expect(res.status).toBe(500);
     expect(body.error.status).toBe(500);
-    expect(body.error.detail).toBe('Redis connection failed');
+    expect(body.error.title).toBe('JOB_STATUS_ERROR');
   });
 
   it('任务处于 active 状态时不应包含 result 或 error', async () => {

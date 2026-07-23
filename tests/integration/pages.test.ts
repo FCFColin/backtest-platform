@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { checkServerAvailable } from '../helpers/server.js';
-import { API_BASE_URL } from '../helpers/constants.js';
+import { checkServerAvailable } from '../helpers/chaos.js';
+import { API_BASE_URL } from '../helpers/expressApp.js';
 
 // 集成测试：数据引擎页面、引擎状态指示器、新增工具页面 API、布局验证
 // 这些测试需要后端服务器运行（默认端口 5001），未运行时自动跳过
@@ -229,7 +229,7 @@ describe('布局验证', () => {
   it('导航栏包含所有工具页面入口', () => {
     // CSR应用：导航链接在客户端渲染，路由定义集中在 navConfig.ts，验证其包含所有工具页面路由
     const navConfigSource = readFileSync(
-      resolve(process.cwd(), 'packages/frontend/src/components/layout/navConfig.ts'),
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/NavGroupMenu.tsx'),
       'utf-8',
     );
     // 验证关键导航路由存在（覆盖所有工具分组）

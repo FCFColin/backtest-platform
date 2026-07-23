@@ -172,6 +172,16 @@ describe('appRedis（应用层通用）', () => {
 
     expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('appRedis 重连中'));
   });
+
+  it('应注册 ready 事件回调（健康监测）', () => {
+    const instance = ioredisMocks.instances[1];
+    expect(instance.on).toHaveBeenCalledWith('ready', expect.any(Function));
+  });
+
+  it('应注册 end 事件回调（健康监测）', () => {
+    const instance = ioredisMocks.instances[1];
+    expect(instance.on).toHaveBeenCalledWith('end', expect.any(Function));
+  });
 });
 
 describe('redisConnection 与 appRedis 配置隔离', () => {

@@ -26,6 +26,8 @@ const redisMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
+  getRedisHealth: vi.fn(async () => true),
+  markRedisUnhealthy: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

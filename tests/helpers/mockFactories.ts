@@ -285,6 +285,37 @@ export function createRedisMocks(
 }
 
 /**
+ * 创建 Redis 模块完整 mock（appRedis + getRedisHealth + markRedisUnhealthy）
+ *
+ * 企业理由：redisClient.ts 合并了 redisHealth.ts 后，getRedisHealth/markRedisUnhealthy
+ * 成为模块级导出。测试 mock 须包含这两个函数。getRedisHealth 通过调用 appRedis.ping()
+ * 动态返回健康状态，与 createRedisMocks 的 useRedisSuccess/useMemoryFallback 联动——
+ * 无需额外维护独立的 health 布尔标志。
+ *
+ * @param opts - RedisMocksOptions，控制 appRedis mock 行为
+ * @param target - vi.hoisted 创建的占位对象，供测试代码引用 useRedisSuccess 等
+ * @returns 完整的 redisClient 模块 mock 对象（含 redisConnection/appRedis/getRedisHealth/markRedisUnhealthy）
+ */
+export function createRedisModuleMock(
+  opts: RedisMocksOptions = {},
+  target: Record<string, unknown> = {},
+) {
+  const appRedis = createRedisMocks(opts, target);
+  return {
+    redisConnection: {},
+    appRedis,
+    getRedisHealth: vi.fn(async () => {
+      try {
+        return (await (appRedis.ping as () => Promise<unknown>)()) === 'PONG';
+      } catch {
+        return false;
+      }
+    }),
+    markRedisUnhealthy: vi.fn(),
+  };
+}
+
+/**
  * JWT 认证测试专用 config mock 工厂
  *
  * 企业理由：4 个 jwt-auth 测试文件重复定义相同的 config 块（13 个字段），

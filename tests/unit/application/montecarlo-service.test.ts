@@ -19,11 +19,13 @@ const engineMocks = vi.hoisted(() => ({
 
 const helpersMocks = vi.hoisted(() => ({
   collectTickersFromPortfolios: vi.fn(),
-  fetchPriceData: vi.fn(),
+  fetchPriceDataWithRange: vi.fn(),
   filterPriceData: vi.fn(),
   loadMacroData: vi.fn(),
   sanitizeMcParams: vi.fn(),
   translateDomainError: vi.fn(),
+  collectInvalidTickerWarnings: vi.fn(),
+  calculateDateRange: vi.fn(),
 }));
 
 const loggerMocks = vi.hoisted(() => ({
@@ -45,11 +47,13 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
   collectTickersFromPortfolios: helpersMocks.collectTickersFromPortfolios,
-  fetchPriceData: helpersMocks.fetchPriceData,
+  fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
   filterPriceData: helpersMocks.filterPriceData,
   loadMacroData: helpersMocks.loadMacroData,
   sanitizeMcParams: helpersMocks.sanitizeMcParams,
   translateDomainError: helpersMocks.translateDomainError,
+  collectInvalidTickerWarnings: helpersMocks.collectInvalidTickerWarnings,
+  calculateDateRange: helpersMocks.calculateDateRange,
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -90,13 +94,25 @@ describe('runMonteCarlo', () => {
       tickers: ['AAPL', 'BND'],
       totalAssets: 2,
     });
-    helpersMocks.fetchPriceData.mockResolvedValue({
-      AAPL: { '2020-01-02': 100 },
-      BND: { '2020-01-02': 50 },
+    helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
+      priceData: {
+        AAPL: { '2020-01-02': 100 },
+        BND: { '2020-01-02': 50 },
+      },
+      effectiveStartDate: '2020-01-02',
+      effectiveEndDate: '2020-12-31',
+      degraded: false,
+      degradedWarning: undefined,
     });
     helpersMocks.filterPriceData.mockReturnValue({
       AAPL: { '2020-01-02': 100 },
       BND: { '2020-01-02': 50 },
+    });
+    helpersMocks.collectInvalidTickerWarnings.mockReturnValue([]);
+    helpersMocks.calculateDateRange.mockReturnValue({
+      requested: { start: '2020-01-02', end: '2020-12-31' },
+      actual: { start: '2020-01-02', end: '2020-12-31' },
+      clamped: false,
     });
     helpersMocks.loadMacroData.mockResolvedValue({
       cpiData: { '2020-01-01': 258.8 },
@@ -110,7 +126,7 @@ describe('runMonteCarlo', () => {
   it('单组合应返回 results[0]（非数组）', async () => {
     const result = await runMonteCarlo([mockPortfolio], mockParameters);
 
-    expect(result).toEqual({ simulated: true });
+    expect(result.data).toEqual({ simulated: true });
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
 
@@ -124,8 +140,8 @@ describe('runMonteCarlo', () => {
       mockParameters,
     );
 
-    expect(Array.isArray(result)).toBe(true);
-    expect(result).toEqual([{ id: 'r1' }, { id: 'r2' }]);
+    expect(Array.isArray(result.data)).toBe(true);
+    expect(result.data).toEqual([{ id: 'r1' }, { id: 'r2' }]);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(2);
   });
 
@@ -146,11 +162,11 @@ describe('runMonteCarlo', () => {
     expect(helpersMocks.sanitizeMcParams).toHaveBeenCalledWith(undefined);
   });
 
-  it('编排链路：collectTickersFromPortfolios → fetchPriceData → sanitizeMcParams → loadMacroData', async () => {
+  it('编排链路：collectTickersFromPortfolios → fetchPriceDataWithRange → sanitizeMcParams → loadMacroData', async () => {
     await runMonteCarlo([mockPortfolio], mockParameters);
 
     expect(helpersMocks.collectTickersFromPortfolios).toHaveBeenCalledWith([mockPortfolio]);
-    expect(helpersMocks.fetchPriceData).toHaveBeenCalledWith(
+    expect(helpersMocks.fetchPriceDataWithRange).toHaveBeenCalledWith(
       ['AAPL', 'BND'],
       '2020-01-02',
       '2020-12-31',

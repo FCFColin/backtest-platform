@@ -8,16 +8,20 @@
  * - 缺少 req 时 instance 为 undefined
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { sendProblem } from '../../../packages/backend/src/utils/errors.js';
+import { createMockResponse } from '../../helpers/expressMocks.js';
 
+/**
+ * 创建带可选 req.path 的 mock Response（复用 expressMocks.createMockResponse）
+ *
+ * sendProblem 内部从 res.req.path 提取 instance 字段，故需在标准 mock 基础上
+ * 注入 req 属性。
+ */
 function createMockRes(path?: string) {
-  return {
-    status: vi.fn().mockReturnThis(),
-    header: vi.fn().mockReturnThis(),
-    json: vi.fn().mockReturnThis(),
-    req: path ? { path } : undefined,
-  };
+  const res = createMockResponse();
+  res.req = path ? { path } : undefined;
+  return res;
 }
 
 describe('sendProblem', () => {

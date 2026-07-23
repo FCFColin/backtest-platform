@@ -10,6 +10,7 @@ import {
   collectInvalidTickerWarnings,
 } from '../../../packages/backend/src/application/backtest-helpers.js';
 import type { Portfolio, BacktestParameters } from '../../../packages/shared/types/index.js';
+import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
 function makePortfolio(id: string, tickers: string[]): Portfolio {
@@ -84,27 +85,26 @@ describe('preparePortfolioBacktest', () => {
 describe('collectInvalidTickerWarnings', () => {
   it('缺失价格序列应写入 warnings', () => {
     const tickers = new Set(['AAPL', 'GHOST']);
-    const warnings: string[] = [];
+    const warnings: Warning[] = [];
 
     const result = collectInvalidTickerWarnings(tickers, { AAPL: { '2020-01-02': 100 } }, warnings);
 
     expect(result).toEqual(['GHOST']);
-    expect(warnings[0]).toContain('GHOST');
-    expect(warnings[0]).toContain('无价格数据');
+    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: ['GHOST'] });
   });
 
   it('空对象序列应视为无效 ticker', () => {
     const tickers = new Set(['EMPTY']);
-    const warnings: string[] = [];
+    const warnings: Warning[] = [];
 
     collectInvalidTickerWarnings(tickers, { EMPTY: {} }, warnings);
 
-    expect(warnings[0]).toContain('EMPTY');
+    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: ['EMPTY'] });
   });
 
   it('全部有效时不应追加 warning', () => {
     const tickers = new Set(['AAPL']);
-    const warnings: string[] = [];
+    const warnings: Warning[] = [];
 
     const result = collectInvalidTickerWarnings(
       tickers,
@@ -118,9 +118,9 @@ describe('collectInvalidTickerWarnings', () => {
   it('恶意 ticker 名仍应被识别为无数据（不崩溃）', () => {
     const evil = "'; DROP TABLE prices; --";
     const tickers = new Set([evil]);
-    const warnings: string[] = [];
+    const warnings: Warning[] = [];
 
     expect(() => collectInvalidTickerWarnings(tickers, {}, warnings)).not.toThrow();
-    expect(warnings[0]).toContain(evil);
+    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: [evil] });
   });
 });

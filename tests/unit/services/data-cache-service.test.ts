@@ -48,9 +48,6 @@ vi.mock('../../../packages/backend/src/utils/integrity.js', () => integrityMocks
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
-}));
-
-vi.mock('../../../packages/backend/src/infrastructure/redisHealth.js', () => ({
   getRedisHealth: vi.fn().mockResolvedValue(true),
   markRedisUnhealthy: vi.fn(),
 }));

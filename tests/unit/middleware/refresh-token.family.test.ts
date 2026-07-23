@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks, mockLogger, createRedisMocks } from '../../helpers/mockFactories.js';
+import { createLoggerMocks, mockLogger, createRedisModuleMock } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   config: {
@@ -29,8 +29,8 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: mocks.
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(createLoggerMocks()),
 }));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
-  appRedis: createRedisMocks(
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
+  createRedisModuleMock(
     {
       withStore: true,
       withSets: true,
@@ -39,7 +39,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     },
     redisMocks,
   ),
-}));
+);
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({ getUserById: vi.fn() }));
 vi.mock('../../../packages/backend/src/middleware/jwtSigner.js', () => ({
   generateToken: vi.fn(),
@@ -419,20 +419,6 @@ describe('refreshToken family & revoke', () => {
       await refreshAccessToken(rt);
       const reuse = await refreshAccessToken(rt);
       expect(reuse).toBeNull();
-    });
-  });
-
-  describe('Redis event handlers', () => {
-    // Listener 已从 refreshToken.ts 迁移到 infrastructure/redisHealth.ts（Task 2.2 统一抽离）
-    it('should register ready/reconnecting/end/error handlers via redisHealth', async () => {
-      vi.clearAllMocks();
-      vi.resetModules();
-      await import('../../../packages/backend/src/infrastructure/redisHealth.js');
-
-      expect(redisMocks.on).toHaveBeenCalledWith('ready', expect.any(Function));
-      expect(redisMocks.on).toHaveBeenCalledWith('reconnecting', expect.any(Function));
-      expect(redisMocks.on).toHaveBeenCalledWith('end', expect.any(Function));
-      expect(redisMocks.on).toHaveBeenCalledWith('error', expect.any(Function));
     });
   });
 });

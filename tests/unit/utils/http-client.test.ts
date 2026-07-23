@@ -28,8 +28,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/utils/requestContext.js', () => ({
   getRequestId: mocks.getRequestId,
-}));
-vi.mock('../../../packages/backend/src/utils/tracePropagation.js', () => ({
   getTracePropagationHeaders: mocks.getTracePropagationHeaders,
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

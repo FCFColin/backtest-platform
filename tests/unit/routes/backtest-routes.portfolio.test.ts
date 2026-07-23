@@ -137,6 +137,8 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => {
       scan: async () => ['0', []] as [string, string[]],
       del: async () => 0,
     },
+    getRedisHealth: vi.fn().mockResolvedValue(true),
+    markRedisUnhealthy: vi.fn(),
   };
 });
 vi.mock('fs', () => ({
@@ -282,7 +284,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error.status).toBe(400);
-    expect(json.error.detail).toContain('validation failed');
+    expect(json.error.title).toBe('VALIDATION_ERROR');
     expect(m.runBacktest).not.toHaveBeenCalled();
   });
 
@@ -376,7 +378,10 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
       ) => {
         const allTickers = new Set(portfolios.flatMap((p) => p.assets.map((a) => a.ticker)));
         if (parameters?.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-        return { allTickers, warnings: ['AAPL: 部分数据缺失'] };
+        return {
+          allTickers,
+          warnings: [{ code: 'TICKER_NOT_FOUND', tickers: ['AAPL'] }],
+        };
       },
     );
 
@@ -388,7 +393,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     const json = await res.json();
     expect(res.status).toBe(200);
     expect(json.warnings).toBeDefined();
-    expect(json.warnings).toContain('AAPL: 部分数据缺失');
+    expect(json.warnings).toEqual([{ code: 'TICKER_NOT_FOUND', tickers: ['AAPL'] }]);
   });
 
   it('回测超时应返回 503 Gateway Timeout', async () => {
