@@ -3,7 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { Play, X } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { Field, FieldLabel } from '@/components/form/Field';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
+/**
+ * 资产标的输入：以 Badge 标签形式展示已选 ticker，支持逗号/空格批量录入与单个删除。
+ * @param tickers - 当前 ticker 列表
+ * @param setTickers - 更新 ticker 列表
+ * @returns 渲染的标的输入区
+ */
 function TickerInput({
   tickers,
   setTickers,
@@ -17,10 +29,7 @@ function TickerInput({
   const commitNewTicker = () => {
     const raw = newTicker.trim();
     if (!raw) return;
-    const parts = raw
-      .toUpperCase()
-      .split(/[,\s]+/)
-      .filter(Boolean);
+    const parts = raw.toUpperCase().split(/[,\s]+/).filter(Boolean);
     const existing = new Set(tickers.filter(Boolean));
     const uniqueNew = parts.filter((s) => !existing.has(s));
     if (uniqueNew.length === 0) {
@@ -34,17 +43,10 @@ function TickerInput({
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {tickers.filter(Boolean).map((ticker, idx) => (
-        <span
-          key={idx}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-sm font-medium"
-          style={{
-            background: 'var(--support-soft)',
-            color: 'var(--support)',
-            border: '1px solid var(--support)',
-          }}
-        >
+        <Badge key={idx} variant="asset" className="py-1">
           {ticker.toUpperCase()}
           <button
+            type="button"
             onClick={() => {
               const validTickers = tickers.filter(Boolean);
               const originalIdx = tickers.indexOf(ticker);
@@ -52,11 +54,12 @@ function TickerInput({
                 validTickers.length <= 1 ? [''] : tickers.filter((_, i) => i !== originalIdx),
               );
             }}
-            className="hover:opacity-70 inline-flex items-center"
+            className="ml-0.5 inline-flex items-center justify-center rounded-sm p-0.5 text-current opacity-60 transition-colors duration-150 ease-out-quart hover:bg-brand/20 hover:opacity-100"
+            aria-label={t('common.remove')}
           >
-            <X className="w-3 h-3" />
+            <X className="size-3" />
           </button>
-        </span>
+        </Badge>
       ))}
       <input
         type="text"
@@ -70,65 +73,25 @@ function TickerInput({
         }}
         onBlur={commitNewTicker}
         placeholder={t('analysis.tickerPlaceholder')}
-        className="param-input"
-        style={{ width: 120, height: 28, padding: '0 8px', fontSize: 13 }}
+        className={cn(
+          'flex h-8 w-32 rounded-md bg-input-bg border border-border px-2 py-1 text-label text-fg',
+          'placeholder:text-fg-tertiary hover:border-border-strong',
+          'focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15',
+          'transition-colors duration-150',
+        )}
       />
     </div>
   );
 }
 
-function AnalysisDateRange({
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
-}: {
-  startDate: string;
-  setStartDate: (v: string) => void;
-  endDate: string;
-  setEndDate: (v: string) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <label className="param-check">
-        <input
-          type="checkbox"
-          checked={startDate === '' && endDate === ''}
-          onChange={(e) => {
-            if (e.target.checked) {
-              setStartDate('');
-              setEndDate('');
-            } else {
-              setStartDate(DEFAULT_BACKTEST_START_DATE);
-              setEndDate(DEFAULT_END_DATE);
-            }
-          }}
-        />
-        <span>{t('optimizer.allHistory')}</span>
-      </label>
-      <div className="param-field" style={{ width: 150 }}>
-        <label className="param-label">{t('analysis.startDate')}</label>
-        <input
-          type="date"
-          className="param-input"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-        />
-      </div>
-      <div className="param-field" style={{ width: 150 }}>
-        <label className="param-label">{t('analysis.endDate')}</label>
-        <input
-          type="date"
-          className="param-input"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-      </div>
-    </>
-  );
-}
-
+/**
+ * 资产分析参数面板。
+ *
+ * 以 Field + Input/Switch 重构为响应式栅格：tickers 占满整行，其余字段在
+ * sm/lg 断点下两/三列排布；布尔开关用 Switch，数值输入带前缀/后缀。
+ * @param props - 见各字段 setter 与运行回调
+ * @returns 渲染的参数栅格
+ */
 export function AnalysisParamsPanel({
   tickers,
   setTickers,
@@ -165,72 +128,128 @@ export function AnalysisParamsPanel({
   runAnalysis: () => void;
 }) {
   const { t } = useTranslation();
+  const allHistory = startDate === '' && endDate === '';
 
   return (
-    <div className="flex flex-col gap-4 px-2 pb-3 pt-2">
-      <TickerInput tickers={tickers} setTickers={setTickers} />
-      <div className="params-row">
-        <AnalysisDateRange
-          startDate={startDate}
-          setStartDate={setStartDate}
-          endDate={endDate}
-          setEndDate={setEndDate}
-        />
-        <div className="param-field param-field-start-val">
-          <label className="param-label">{t('analysis.startingValue')}</label>
-          <div className="param-input-prefix-wrap">
-            <span className="param-input-prefix">$</span>
-            <input
-              type="number"
-              className="param-input param-input-with-prefix"
-              value={startingValue}
-              onChange={(e) => setStartingValue(Number(e.target.value))}
-            />
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <label className="param-label">{t('analysis.rollingWindow')}</label>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={rollingWindow}
-              onChange={(e) => setRollingWindow(Number(e.target.value))}
-            />
-            <span className="param-input-suffix">{t('common.months')}</span>
-          </div>
-        </div>
-        <div className="param-field param-field-rolling">
-          <label className="param-label">{t('analysis.correlationWindow')}</label>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={correlationWindow}
-              onChange={(e) => setCorrelationWindow(Number(e.target.value))}
-            />
-            <span className="param-input-suffix">{t('common.months')}</span>
-          </div>
-        </div>
-        <label className="param-toggle">
-          <span>{t('analysis.adjustInflation')}</span>
-          <div
-            className={`toggle-switch ${adjustForInflation ? 'active' : ''}`}
-            onClick={() => setAdjustForInflation(!adjustForInflation)}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
+      <Field className="sm:col-span-2 lg:col-span-3">
+        <TickerInput tickers={tickers} setTickers={setTickers} />
+      </Field>
+
+      <Field>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="analysis-all-history"
+            checked={allHistory}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setStartDate('');
+                setEndDate('');
+              } else {
+                setStartDate(DEFAULT_BACKTEST_START_DATE);
+                setEndDate(DEFAULT_END_DATE);
+              }
+            }}
           />
-        </label>
-      </div>
-      <div
-        className="flex items-center justify-between pt-3"
-        style={{ borderTop: '1px solid var(--border-soft)' }}
-      >
+          <FieldLabel htmlFor="analysis-all-history" className="text-label text-fg">
+            {t('optimizer.allHistory')}
+          </FieldLabel>
+        </div>
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="analysis-start-date">{t('analysis.startDate')}</FieldLabel>
+        <Input
+          id="analysis-start-date"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+          disabled={allHistory}
+        />
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="analysis-end-date">{t('analysis.endDate')}</FieldLabel>
+        <Input
+          id="analysis-end-date"
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+          disabled={allHistory}
+        />
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="analysis-starting-value">{t('analysis.startingValue')}</FieldLabel>
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary">
+            $
+          </span>
+          <Input
+            id="analysis-starting-value"
+            type="number"
+            className="pl-7"
+            value={startingValue}
+            onChange={(e) => setStartingValue(Number(e.target.value))}
+          />
+        </div>
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="analysis-rolling-window">{t('analysis.rollingWindow')}</FieldLabel>
+        <div className="relative">
+          <Input
+            id="analysis-rolling-window"
+            type="number"
+            className="pr-14"
+            value={rollingWindow}
+            onChange={(e) => setRollingWindow(Number(e.target.value))}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+            {t('common.months')}
+          </span>
+        </div>
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="analysis-correlation-window">
+          {t('analysis.correlationWindow')}
+        </FieldLabel>
+        <div className="relative">
+          <Input
+            id="analysis-correlation-window"
+            type="number"
+            className="pr-14"
+            value={correlationWindow}
+            onChange={(e) => setCorrelationWindow(Number(e.target.value))}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+            {t('common.months')}
+          </span>
+        </div>
+      </Field>
+
+      <Field>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="analysis-adjust-inflation"
+            checked={adjustForInflation}
+            onCheckedChange={setAdjustForInflation}
+          />
+          <FieldLabel htmlFor="analysis-adjust-inflation" className="text-label text-fg">
+            {t('analysis.adjustInflation')}
+          </FieldLabel>
+        </div>
+      </Field>
+
+      <div className="flex justify-end sm:col-span-1 lg:col-span-2">
         <LoadingButton
           isLoading={isLoading}
           onClick={runAnalysis}
           loadingText={t('analysis.analyzing')}
-          className="btn-primary px-5 h-9 font-semibold rounded inline-flex items-center gap-2 text-sm"
+          className={buttonVariants({ variant: 'primary', size: 'default' })}
         >
-          <Play className="w-4 h-4" /> {t('analysis.startAnalysis')}
+          <Play className="size-4" /> {t('analysis.startAnalysis')}
         </LoadingButton>
       </div>
     </div>

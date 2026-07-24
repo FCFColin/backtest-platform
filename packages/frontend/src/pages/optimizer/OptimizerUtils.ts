@@ -63,16 +63,11 @@ function useWeightConstraints() {
   const [allowShort, setAllowShort] = useState(false);
   const [solver, setSolver] = useState<SolverType>('markowitz');
   return {
-    minWeight,
-    setMinWeight,
-    maxWeight,
-    setMaxWeight,
-    tbillRate,
-    setTbillRate,
-    allowShort,
-    setAllowShort,
-    solver,
-    setSolver,
+    minWeight, setMinWeight,
+    maxWeight, setMaxWeight,
+    tbillRate, setTbillRate,
+    allowShort, setAllowShort,
+    solver, setSolver,
   };
 }
 
@@ -89,28 +84,17 @@ function useOptimizerConstraints() {
   const [enableMinCagr, setEnableMinCagr] = useState(false);
   const [enableMaxVol, setEnableMaxVol] = useState(false);
   return {
-    minCagr,
-    setMinCagr,
-    minSharpe,
-    setMinSharpe,
-    minSortino,
-    setMinSortino,
-    maxVol,
-    setMaxVol,
-    maxMaxDD,
-    setMaxMaxDD,
-    maxAvgDD,
-    setMaxAvgDD,
-    maxHoldings,
-    setMaxHoldings,
-    minWeightToInclude,
-    setMinWeightToInclude,
-    enableMaxDD,
-    setEnableMaxDD,
-    enableMinCagr,
-    setEnableMinCagr,
-    enableMaxVol,
-    setEnableMaxVol,
+    minCagr, setMinCagr,
+    minSharpe, setMinSharpe,
+    minSortino, setMinSortino,
+    maxVol, setMaxVol,
+    maxMaxDD, setMaxMaxDD,
+    maxAvgDD, setMaxAvgDD,
+    maxHoldings, setMaxHoldings,
+    minWeightToInclude, setMinWeightToInclude,
+    enableMaxDD, setEnableMaxDD,
+    enableMinCagr, setEnableMinCagr,
+    enableMaxVol, setEnableMaxVol,
   };
 }
 
@@ -136,24 +120,15 @@ function useOptimizerSetters() {
   return {
     ...weights,
     ...constraints,
-    tickers,
-    setTickers,
-    objective,
-    setObjective,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results,
-    setResults,
-    isCalculatingStats,
-    setIsCalculatingStats,
-    backtestStats,
-    setBacktestStats,
+    tickers, setTickers,
+    objective, setObjective,
+    startDate, setStartDate,
+    endDate, setEndDate,
+    isLoading, setIsLoading,
+    error, setError,
+    results, setResults,
+    isCalculatingStats, setIsCalculatingStats,
+    backtestStats, setBacktestStats,
   };
 }
 

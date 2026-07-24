@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import { buildChartData } from '../backtestOptimizerUtils.js';
-import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/components/charts/chartConstants.js';
+import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import type { GrowthComparisonChartProps } from './types.js';
 
 export function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartProps) {

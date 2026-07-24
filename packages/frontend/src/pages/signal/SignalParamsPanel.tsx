@@ -4,11 +4,13 @@
  * 指标常量、标的代码输入、日期范围输入、运行按钮。各页面差异较大（参数结构不同），
  * 故仅抽取最小公共部分，避免过度抽象。
  */
-import { Play } from 'lucide-react';
+import { useId } from 'react';
 import type { ReactNode } from 'react';
+import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import LoadingButton from '../../components/LoadingButton.js';
-import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
+import { Field, FieldLabel } from '@/components/form/Field';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 /** 技术指标列表（与后端 SignalAnalysisRequest.indicator 枚举对齐） */
 export const INDICATORS = ['SMA', 'EMA', 'RSI', 'MACD', 'Bollinger'] as const;
@@ -21,29 +23,29 @@ interface TickerFieldProps {
   onChange: (v: string) => void;
   /** 占位文本，未传则使用 i18n 默认值 */
   placeholder?: string;
-  /** 字段下方间距（px），默认 8 */
-  marginBottom?: number;
 }
 
 /**
  * 标的代码输入字段
  *
  * 复用于三个信号页面，统一 label、placeholder、样式。
+ * @param props - 见 TickerFieldProps
+ * @returns 渲染的标的代码 Field
  */
-export function TickerField({ value, onChange, placeholder, marginBottom = 8 }: TickerFieldProps) {
+export function TickerField({ value, onChange, placeholder }: TickerFieldProps) {
   const { t } = useTranslation();
+  const id = useId();
   return (
-    <div style={{ marginBottom }}>
-      <ParamCard label={t('signal.common.tickerLabel')}>
-        <input
-          type="text"
-          className="param-input"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder ?? t('signal.common.tickerPlaceholder')}
-        />
-      </ParamCard>
-    </div>
+    <Field>
+      <FieldLabel htmlFor={id}>{t('signal.common.tickerLabel')}</FieldLabel>
+      <Input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder ?? t('signal.common.tickerPlaceholder')}
+      />
+    </Field>
   );
 }
 
@@ -63,6 +65,8 @@ interface DateRangeFieldsProps {
  * 日期范围输入字段（开始 / 结束日期并排）
  *
  * 三个信号页面共享同一日期范围选择 UI。
+ * @param props - 见 DateRangeFieldsProps
+ * @returns 渲染的日期范围 Field 组
  */
 export function DateRangeFields({
   startDate,
@@ -71,25 +75,29 @@ export function DateRangeFields({
   onEndDateChange,
 }: DateRangeFieldsProps) {
   const { t } = useTranslation();
+  const startId = useId();
+  const endId = useId();
   return (
-    <ParamRow>
-      <ParamCard label={t('signal.common.startDate')}>
-        <input
+    <div className="grid grid-cols-2 gap-4">
+      <Field>
+        <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
+        <Input
+          id={startId}
           type="date"
-          className="param-input"
           value={startDate}
           onChange={(e) => onStartDateChange(e.target.value)}
         />
-      </ParamCard>
-      <ParamCard label={t('signal.common.endDate')}>
-        <input
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
+        <Input
+          id={endId}
           type="date"
-          className="param-input"
           value={endDate}
           onChange={(e) => onEndDateChange(e.target.value)}
         />
-      </ParamCard>
-    </ParamRow>
+      </Field>
+    </div>
   );
 }
 
@@ -108,28 +116,33 @@ interface RunAnalysisButtonProps {
 }
 
 /**
- * 信号页面的"开始分析"运行按钮
+ * 信号页面的「开始分析」运行按钮
  *
- * 统一 LoadingButton + Play 图标 + 文案样式。
+ * 统一 primary Button + Play 图标 + 加载态文案。
+ * @param props - 见 RunAnalysisButtonProps
+ * @returns 渲染的运行按钮
  */
 export function RunAnalysisButton({
   isLoading,
   onClick,
   text,
   loadingText,
-  icon = <Play className="w-4 h-4" />,
+  icon = <Play className="size-4" />,
 }: RunAnalysisButtonProps) {
   const { t } = useTranslation();
   return (
-    <ActionBar>
-      <LoadingButton
-        isLoading={isLoading}
-        onClick={onClick}
-        loadingText={loadingText ?? t('signal.common.analyzing')}
-      >
-        {icon}
-        {text ?? t('signal.common.startAnalysis')}
-      </LoadingButton>
-    </ActionBar>
+    <Button variant="primary" onClick={onClick} disabled={isLoading} className="w-full sm:w-auto">
+      {isLoading ? (
+        <>
+          <Loader2 className="size-4 animate-spin" />
+          {loadingText ?? t('signal.common.analyzing')}
+        </>
+      ) : (
+        <>
+          {icon}
+          {text ?? t('signal.common.startAnalysis')}
+        </>
+      )}
+    </Button>
   );
 }

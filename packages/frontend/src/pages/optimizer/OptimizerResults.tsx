@@ -1,3 +1,9 @@
+/**
+ * @file 优化器结果面板
+ * @description 基于 Card / ChartCard / SimpleTable / StatCard 重构为 token 化结果区：
+ *   最优权重条形图、最优组合指标表、有效前沿散点图、约束摘要 StatCard 网格。
+ *   错误/空/加载态统一走 ErrorBanner / EmptyState / LoadingState。所有 i18n key 与取值逻辑保持不变。
+ */
 import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
 import {
@@ -16,8 +22,17 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
-import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS } from '@/components/charts/chartConstants.js';
+import {
+  CHART_TOOLTIP_STYLE,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+} from '@/lib/chart-theme.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/SimpleTable.js';
+import ChartCard from '@/components/ChartCard.js';
+import { Button } from '@/components/ui/button';
+import ErrorBanner from '@/components/ErrorBanner.js';
+import { EmptyState } from '@/components/EmptyState.js';
+import { LoadingState } from '@/components/LoadingState.js';
 import { fmtPct, fmtNum } from '@/utils/format';
 
 const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
@@ -32,31 +47,17 @@ const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }
   { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' },
 ];
 
-function ConstraintCard({ label, value }: { label: string; value: string }) {
+/** 关键指标 StatCard：label + 等宽 tabular-nums 数值。 */
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div
-      style={{
-        textAlign: 'center',
-        padding: 12,
-        backgroundColor: 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-      }}
-    >
-      <div style={{ fontSize: 11, marginBottom: 4, color: 'var(--text-muted)' }}>{label}</div>
-      <div
-        style={{
-          fontSize: 15,
-          fontWeight: 600,
-          fontFamily: 'monospace',
-          color: 'var(--text-body)',
-        }}
-      >
-        {value}
-      </div>
+    <div className="rounded-lg border border-border bg-elevated px-3 py-2.5">
+      <div className="text-caption text-fg-tertiary">{label}</div>
+      <div className="mt-1 font-mono tabular-nums text-body font-semibold text-fg">{value}</div>
     </div>
   );
 }
 
+/** 约束摘要：按启用条件过滤后渲染 StatCard 网格。 */
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const cards: Array<{ show: boolean; label: string; value: string }> = [
@@ -99,98 +100,43 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
     },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
-      {cards
-        .filter((c) => c.show)
-        .map((c, i) => (
-          <ConstraintCard key={i} label={c.label} value={c.value} />
-        ))}
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      {cards.filter((c) => c.show).map((c, i) => (
+        <StatCard key={i} label={c.label} value={c.value} />
+      ))}
     </div>
   );
 }
 
-function LoadBacktesterBtn({ onClick, t }: { onClick: () => void; t: (k: string) => string }) {
+/** 最优权重横向条形图。 */
+function WeightBarChart({ data }: { data: Array<{ ticker: string; weight: number; fill: string }> }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '6px 14px',
-        borderRadius: 'var(--radius-control)',
-        border: '1px solid var(--brand)',
-        backgroundColor: 'transparent',
-        color: 'var(--brand)',
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: 'pointer',
-        transition: 'all .15s',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--brand)';
-        e.currentTarget.style.color = '#fff';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'transparent';
-        e.currentTarget.style.color = 'var(--brand)';
-      }}
-    >
-      <ArrowRight className="w-3.5 h-3.5" />
-      {t('optimizer.loadInBacktester')}
-    </button>
+    <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
+      <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
+        <CartesianGrid {...CHART_GRID_PROPS} horizontal={false} />
+        <XAxis
+          type="number"
+          tick={AXIS_TICK_STYLE}
+          tickFormatter={(v: number) => `${v}%`}
+        />
+        <YAxis
+          type="category"
+          dataKey="ticker"
+          tick={{ fill: 'var(--fg)', fontSize: 13, fontWeight: 500 }}
+          width={56}
+        />
+        <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
+        <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
+          {data.map((entry, index) => (
+            <Cell key={index} fill={entry.fill} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
-function WeightBarChart({
-  data,
-  onLoadBacktester,
-}: {
-  data: Array<{ ticker: string; weight: number; fill: string }>;
-  onLoadBacktester: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)' }}>
-          {t('optimizer.optimalWeights')}
-        </div>
-        <LoadBacktesterBtn onClick={onLoadBacktester} t={t} />
-      </div>
-      <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
-        <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" horizontal={false} />
-          <XAxis
-            type="number"
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-            tickFormatter={(v: number) => `${v}%`}
-          />
-          <YAxis
-            type="category"
-            dataKey="ticker"
-            tick={{ fontSize: 13, fill: 'var(--text-strong)', fontWeight: 500 }}
-            width={56}
-          />
-          <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
-          <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
-            {data.map((entry, index) => (
-              <Cell key={index} fill={entry.fill} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </>
-  );
-}
-
+/** 最优组合指标表。 */
 function MetricsTable({
   backtestStats,
   results,
@@ -219,6 +165,7 @@ function MetricsTable({
   return <SimpleTable columns={columns} data={METRICS_ROWS} rowKey={(r) => String(r.key)} />;
 }
 
+/** 有效前沿散点图：候选组合 + 最优点。 */
 function FrontierChart({
   data,
   results,
@@ -229,127 +176,100 @@ function FrontierChart({
   const { t } = useTranslation();
   if (data.length === 0) return null;
   return (
-    <>
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: 14,
-          color: 'var(--text-strong)',
-          marginBottom: 12,
-          marginTop: 24,
-        }}
-      >
-        {t('optimizer.efficientFrontier')}
-      </div>
-      <ResponsiveContainer width="100%" height={300}>
-        <ScatterChart>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <XAxis
-            dataKey="expectedVolatility"
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-            label={{
-              value: t('optimizer.volatilityAxis'),
-              position: 'insideBottom',
-              offset: -5,
-              fontSize: 12,
-              fill: 'var(--text-muted)',
-            }}
-          />
-          <YAxis
-            dataKey="expectedReturn"
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
-            label={{
-              value: t('optimizer.returnAxis'),
-              angle: -90,
-              position: 'insideLeft',
-              fontSize: 12,
-              fill: 'var(--text-muted)',
-            }}
-          />
-          <ZAxis range={[36, 36]} />
-          <Tooltip
-            formatter={(v: number) => `${v.toFixed(2)}%`}
-            contentStyle={CHART_TOOLTIP_STYLE}
-          />
-          <Scatter
-            data={data.map((p) => ({
-              expectedVolatility: p.expectedVolatility,
-              expectedReturn: p.expectedReturn,
-            }))}
-            fill={CHART_COLORS[0]}
-            fillOpacity={0.6}
-          />
-          <Scatter
-            data={[
-              {
-                expectedVolatility: results.expectedVolatility,
-                expectedReturn: results.expectedReturn,
-              },
-            ]}
-            fill={CHART_COLORS[3]}
-            shape="star"
-          />
-        </ScatterChart>
-      </ResponsiveContainer>
-    </>
+    <ResponsiveContainer width="100%" height={300}>
+      <ScatterChart>
+        <CartesianGrid {...CHART_GRID_PROPS} />
+        <XAxis
+          dataKey="expectedVolatility"
+          tick={AXIS_TICK_STYLE}
+          label={{
+            value: t('optimizer.volatilityAxis'),
+            position: 'insideBottom',
+            offset: -5,
+            fontSize: 12,
+            fill: 'var(--fg-tertiary)',
+          }}
+        />
+        <YAxis
+          dataKey="expectedReturn"
+          tick={AXIS_TICK_STYLE}
+          label={{
+            value: t('optimizer.returnAxis'),
+            angle: -90,
+            position: 'insideLeft',
+            fontSize: 12,
+            fill: 'var(--fg-tertiary)',
+          }}
+        />
+        <ZAxis range={[36, 36]} />
+        <Tooltip formatter={(v: number) => `${v.toFixed(2)}%`} contentStyle={CHART_TOOLTIP_STYLE} />
+        <Scatter
+          data={data.map((p) => ({
+            expectedVolatility: p.expectedVolatility,
+            expectedReturn: p.expectedReturn,
+          }))}
+          fill={CHART_COLORS[0]}
+          fillOpacity={0.6}
+        />
+        <Scatter
+          data={[
+            {
+              expectedVolatility: results.expectedVolatility,
+              expectedReturn: results.expectedReturn,
+            },
+          ]}
+          fill={CHART_COLORS[3]}
+          shape="star"
+        />
+      </ScatterChart>
+    </ResponsiveContainer>
   );
 }
 
-function OptimizerResults({ s }: { s: EfficientFrontierState }) {
+/** 优化器结果面板：错误/加载/空态优先短路，否则渲染权重图 + 指标表 + 前沿图 + 约束摘要。 */
+export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  if (s.error)
-    return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
-      >
-        {t('optimizer.optFailed')}：{s.error}
-      </div>
-    );
-  if (!s.results)
-    return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48 }}
-      >
-        {t('optimizer.noResultsHint')}
-      </div>
-    );
+  if (s.error) {
+    return <ErrorBanner message={`${t('optimizer.optFailed')}：${s.error}`} variant="error" />;
+  }
+  if (s.isLoading && !s.results) {
+    return <LoadingState label={t('optimizer.optimizing')} />;
+  }
+  if (!s.results) {
+    return <EmptyState title={t('optimizer.noResultsHint')} />;
+  }
   const weightBarData = Object.entries(s.results.optimalWeights).map(([ticker, weight], i) => ({
     ticker,
     weight: Number((weight * 100).toFixed(1)),
     fill: CHART_COLORS[i % CHART_COLORS.length],
   }));
   return (
-    <div className="bt-results-card card">
-      <WeightBarChart data={weightBarData} onLoadBacktester={s.handleLoadInBacktester} />
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: 14,
-          color: 'var(--text-strong)',
-          marginBottom: 12,
-          marginTop: 24,
-        }}
+    <div className="flex flex-col gap-5">
+      <ChartCard
+        title={t('optimizer.optimalWeights')}
+        headerExtra={
+          <Button variant="ghost" size="sm" onClick={s.handleLoadInBacktester}>
+            <ArrowRight />
+            {t('optimizer.loadInBacktester')}
+          </Button>
+        }
       >
-        {t('optimizer.optimalMetrics')}
-      </div>
-      <MetricsTable backtestStats={s.backtestStats} results={s.results} />
-      <FrontierChart data={s.results.frontier ?? []} results={s.results} />
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: 14,
-          color: 'var(--text-strong)',
-          marginBottom: 12,
-          marginTop: 24,
-        }}
-      >
-        {t('optimizer.constraintsSummary')}
-      </div>
-      <ConstraintsSummary s={s} />
+        <WeightBarChart data={weightBarData} />
+      </ChartCard>
+
+      <section>
+        <div className="mb-3 text-h3 font-semibold text-fg">{t('optimizer.optimalMetrics')}</div>
+        <MetricsTable backtestStats={s.backtestStats} results={s.results} />
+      </section>
+
+      <ChartCard title={t('optimizer.efficientFrontier')}>
+        <FrontierChart data={s.results.frontier ?? []} results={s.results} />
+      </ChartCard>
+
+      <section>
+        <div className="mb-3 text-h3 font-semibold text-fg">{t('optimizer.constraintsSummary')}</div>
+        <ConstraintsSummary s={s} />
+      </section>
     </div>
   );
 }
-
-export { OptimizerResults };

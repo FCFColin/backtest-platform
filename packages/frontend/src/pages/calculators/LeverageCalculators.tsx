@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { Layers, Target, Flame } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Field, ResultRow, CollapsibleCard } from './BaseCalculatorUI.js';
+import { Field, ResultRow, InfoBox, CollapsibleCard } from './BaseCalculatorUI.js';
 import { formatPct } from './baseCalculatorUtils.js';
 
+/** 杠杆衰减计算器：波动率拖累与持有期总衰减 */
 export function LeverageDecayCalculator() {
   const { t } = useTranslation();
   const [baseVol, setBaseVol] = useState(18);
@@ -21,7 +22,7 @@ export function LeverageDecayCalculator() {
 
   return (
     <CollapsibleCard icon={Layers} title={t('calculators.leverage.decayTitle')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+      <div className="grid grid-cols-3 gap-3">
         <Field
           label={t('calculators.leverage.assetVolatility')}
           value={baseVol}
@@ -46,39 +47,29 @@ export function LeverageDecayCalculator() {
           min={1}
         />
       </div>
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <ResultRow
           label={t('calculators.leverage.annualVolDrag')}
           value={formatPct(result.volDrag)}
-          color="var(--warning)"
+          tone="warning"
         />
         <ResultRow
           label={t('calculators.leverage.yearsTotalDecay', { years })}
           value={formatPct(result.totalDecay)}
-          color="var(--danger)"
+          tone="danger"
         />
         <ResultRow
           label={t('calculators.leverage.effectiveLoss')}
           value={formatPct(result.effectiveReturn)}
-          color="var(--danger)"
+          tone="danger"
         />
       </div>
-      <div
-        style={{
-          marginTop: 10,
-          padding: '8px 12px',
-          background: 'var(--bg-subtle)',
-          borderRadius: 8,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('calculators.leverage.decayFormula')}
-      </div>
+      <InfoBox>{t('calculators.leverage.decayFormula')}</InfoBox>
     </CollapsibleCard>
   );
 }
 
+/** 杠杆 ETF 计算器：融资成本与波动拖累下的杠杆 CAGR / 波动 / 夏普 */
 export function LeverageETFCalculator() {
   const { t } = useTranslation();
   const [baseCagr, setBaseCagr] = useState(8);
@@ -98,13 +89,8 @@ export function LeverageETFCalculator() {
 
   return (
     <CollapsibleCard icon={Layers} title={t('calculators.leverage.etfTitle')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field
-          label={t('calculators.leverage.baseCagr')}
-          value={baseCagr}
-          onChange={setBaseCagr}
-          suffix="%"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={t('calculators.leverage.baseCagr')} value={baseCagr} onChange={setBaseCagr} suffix="%" />
         <Field
           label={t('calculators.leverage.baseVolatility')}
           value={baseVol}
@@ -126,16 +112,16 @@ export function LeverageETFCalculator() {
           suffix="%"
         />
       </div>
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <ResultRow
           label={t('calculators.leverage.leveragedCagr')}
           value={formatPct(result.levCagr)}
-          color="var(--brand)"
+          tone="brand"
         />
         <ResultRow
           label={t('calculators.leverage.leveragedVol')}
           value={formatPct(result.levVol)}
-          color="var(--warning)"
+          tone="warning"
         />
         <ResultRow
           label={t('calculators.leverage.leveragedSharpe')}
@@ -146,6 +132,7 @@ export function LeverageETFCalculator() {
   );
 }
 
+/** Kelly 杠杆计算器：最优杠杆与半 Kelly 的预期 CAGR */
 export function KellyLeverageCalculator() {
   const { t } = useTranslation();
   const [baseCagr, setBaseCagr] = useState(8);
@@ -165,19 +152,9 @@ export function KellyLeverageCalculator() {
 
   return (
     <CollapsibleCard icon={Target} title={t('calculators.leverage.kellyTitle')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
-        <Field
-          label={t('calculators.leverage.baseCagr')}
-          value={baseCagr}
-          onChange={setBaseCagr}
-          suffix="%"
-        />
-        <Field
-          label={t('calculators.leverage.volatility')}
-          value={baseVol}
-          onChange={setBaseVol}
-          suffix="%"
-        />
+      <div className="grid grid-cols-3 gap-3">
+        <Field label={t('calculators.leverage.baseCagr')} value={baseCagr} onChange={setBaseCagr} suffix="%" />
+        <Field label={t('calculators.leverage.volatility')} value={baseVol} onChange={setBaseVol} suffix="%" />
         <Field
           label={t('calculators.leverage.riskFreeRate')}
           value={riskFree}
@@ -185,16 +162,16 @@ export function KellyLeverageCalculator() {
           suffix="%"
         />
       </div>
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <ResultRow
           label={t('calculators.leverage.kellyOptimal')}
-          value={result.kelly.toFixed(3) + 'x'}
-          color="var(--brand)"
+          value={`${result.kelly.toFixed(3)}x`}
+          tone="brand"
         />
         <ResultRow
           label={t('calculators.leverage.halfKelly')}
-          value={result.halfKelly.toFixed(3) + 'x'}
-          color="var(--support)"
+          value={`${result.halfKelly.toFixed(3)}x`}
+          tone="muted"
         />
         <ResultRow
           label={t('calculators.leverage.kellyExpectedCagr')}
@@ -205,18 +182,7 @@ export function KellyLeverageCalculator() {
           value={formatPct(result.halfKellyCagr)}
         />
       </div>
-      <div
-        style={{
-          marginTop: 10,
-          padding: '8px 12px',
-          background: 'var(--bg-subtle)',
-          borderRadius: 8,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('calculators.leverage.kellyFormula')}
-      </div>
+      <InfoBox>{t('calculators.leverage.kellyFormula')}</InfoBox>
     </CollapsibleCard>
   );
 }
@@ -249,6 +215,7 @@ function computeOptionLeverage(
   return { leverage: leverageRatio, delta: approxDelta, intrinsic, timeValue };
 }
 
+/** 期权杠杆计算器：近似 delta、内在 / 时间价值与杠杆比率 */
 export function OptionLeverageCalculator() {
   const { t } = useTranslation();
   const [spotPrice, setSpotPrice] = useState(100);
@@ -263,13 +230,8 @@ export function OptionLeverageCalculator() {
 
   return (
     <CollapsibleCard icon={Flame} title={t('calculators.leverage.optionTitle')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field
-          label={t('calculators.leverage.spotPrice')}
-          value={spotPrice}
-          onChange={setSpotPrice}
-          step={1}
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={t('calculators.leverage.spotPrice')} value={spotPrice} onChange={setSpotPrice} step={1} />
         <Field
           label={t('calculators.leverage.strikePrice')}
           value={strikePrice}
@@ -289,38 +251,24 @@ export function OptionLeverageCalculator() {
           step={1}
         />
       </div>
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <ResultRow
           label={t('calculators.leverage.leverageRatio')}
-          value={result.leverage.toFixed(2) + 'x'}
-          color="var(--brand)"
+          value={`${result.leverage.toFixed(2)}x`}
+          tone="brand"
         />
         <ResultRow
           label={t('calculators.leverage.approxDelta')}
           value={result.delta.toFixed(4)}
-          color="var(--support)"
+          tone="muted"
         />
         <ResultRow
           label={t('calculators.leverage.intrinsicValue')}
           value={result.intrinsic.toFixed(2)}
         />
-        <ResultRow
-          label={t('calculators.leverage.timeValue')}
-          value={result.timeValue.toFixed(2)}
-        />
+        <ResultRow label={t('calculators.leverage.timeValue')} value={result.timeValue.toFixed(2)} />
       </div>
-      <div
-        style={{
-          marginTop: 10,
-          padding: '8px 12px',
-          background: 'var(--bg-subtle)',
-          borderRadius: 8,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('calculators.leverage.optionFormula')}
-      </div>
+      <InfoBox>{t('calculators.leverage.optionFormula')}</InfoBox>
     </CollapsibleCard>
   );
 }

@@ -1,11 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { TacticalParamsPanel } from './TacticalParams.js';
 import { TacticalResultsPanel } from './TacticalResults.js';
 import { useTacticalPageState } from './TacticalUtils.js';
 import { ComputeToolShell } from '../../components/shells/index.js';
 import type { ComputeToolConfig } from '../../components/shells/index.js';
 
-const config: ComputeToolConfig<any> = {
+type TacticalPageState = ReturnType<typeof useTacticalPageState>;
+
+const config: ComputeToolConfig<TacticalPageState> = {
   titleKey: 'tactical.title',
   seoDescKey: 'tactical.seo.desc',
   seoFeatures: [

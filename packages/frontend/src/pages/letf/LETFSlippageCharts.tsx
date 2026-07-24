@@ -22,7 +22,7 @@ import {
   AXIS_TICK_STYLE,
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
-} from '@/components/charts/chartConstants.js';
+} from '@/lib/chart-theme.js';
 import ChartCard from '../../components/ChartCard.js';
 import type { SlippageCurveDataPoint, LeverageComparisonDataPoint } from './letfSlippageTypes.js';
 
@@ -33,7 +33,7 @@ export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] })
     <ChartCard title={t('letf.results.slippageCurve')}>
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}%`} />
           <Tooltip
@@ -42,7 +42,7 @@ export function SlippageCurveChart({ data }: { data: SlippageCurveDataPoint[] })
             formatter={(value: number) => [`${value.toFixed(2)}%`, '']}
           />
           <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />
-          <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="4 4" />
+          <ReferenceLine y={0} stroke="var(--fg-tertiary)" strokeDasharray="4 4" />
           <Line
             type="monotone"
             dataKey="cumulative"
@@ -81,7 +81,7 @@ export function LeverageComparisonChart({
     <ChartCard title={t('letf.results.leverageComparison')}>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v.toFixed(1)}x`} />
           <Tooltip
@@ -94,7 +94,7 @@ export function LeverageComparisonChart({
             type="monotone"
             dataKey="nominal"
             name={t('letf.results.nominalLeverage', { leverage })}
-            stroke="var(--text-muted)"
+            stroke="var(--fg-tertiary)"
             strokeWidth={1.5}
             strokeDasharray="6 3"
             dot={false}

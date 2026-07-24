@@ -6,30 +6,25 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Mail, MessageSquare, Github } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Field, FieldLabel } from '@/components/form/Field';
 import { useToastStore } from '@/store/toastStore';
-import { StandardPageShell } from '../components/shells/StandardPageShell.js';
 
-const contactLinkStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-  padding: 16,
-  borderRadius: 'var(--radius-card)',
-  border: '1px solid var(--border-soft)',
-  background: 'var(--bg-subtle)',
-  textDecoration: 'none',
-  color: 'var(--text-body)',
-};
-
+/** ContactLinks: 联系方式链接卡片网格 */
 function ContactLinks({ onGithubClick }: { onGithubClick: () => void }) {
   const { t } = useTranslation();
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
-      <a href="mailto:support@example.com" style={contactLinkStyle}>
-        <Mail className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <a
+        href="mailto:support@example.com"
+        className="flex items-center gap-3 rounded-xl border border-border bg-input-bg p-4 no-underline text-fg-secondary transition-colors hover:border-border-strong"
+      >
+        <Mail className="size-5 text-brand" />
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{t('contact.emailSupportTitle')}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>support@example.com</div>
+          <div className="text-body font-semibold">{t('contact.emailSupportTitle')}</div>
+          <div className="text-caption text-fg-tertiary">support@example.com</div>
         </div>
       </a>
       <a
@@ -38,20 +33,19 @@ function ContactLinks({ onGithubClick }: { onGithubClick: () => void }) {
           e.preventDefault();
           onGithubClick();
         }}
-        style={contactLinkStyle}
+        className="flex items-center gap-3 rounded-xl border border-border bg-input-bg p-4 no-underline text-fg-secondary transition-colors hover:border-border-strong"
       >
-        <Github className="w-5 h-5" style={{ color: 'var(--accent)' }} />
+        <Github className="size-5 text-brand" />
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>{t('contact.githubIssuesTitle')}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            {t('contact.githubIssuesDesc')}
-          </div>
+          <div className="text-body font-semibold">{t('contact.githubIssuesTitle')}</div>
+          <div className="text-caption text-fg-tertiary">{t('contact.githubIssuesDesc')}</div>
         </div>
       </a>
     </div>
   );
 }
 
+/** FeedbackForm: 反馈表单（姓名/邮箱/留言） */
 function FeedbackForm({
   name,
   email,
@@ -72,47 +66,55 @@ function FeedbackForm({
   const { t } = useTranslation();
   return (
     <form onSubmit={onSubmit}>
-      <div
-        style={{ fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}
-      >
-        <MessageSquare className="w-4 h-4" />
+      <div className="mb-4 flex items-center gap-2 text-body font-semibold text-fg">
+        <MessageSquare className="size-4" />
         {t('contact.feedbackTitle')}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder={t('contact.namePlaceholder')}
-          className="param-input"
-        />
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => onEmailChange(e.target.value)}
-          placeholder={t('contact.emailPlaceholder')}
-          className="param-input"
-        />
+      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field>
+          <FieldLabel htmlFor="contact-name">{t('contact.namePlaceholder')}</FieldLabel>
+          <Input
+            id="contact-name"
+            type="text"
+            value={name}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder={t('contact.namePlaceholder')}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="contact-email">{t('contact.emailPlaceholder')}</FieldLabel>
+          <Input
+            id="contact-email"
+            type="email"
+            value={email}
+            onChange={(e) => onEmailChange(e.target.value)}
+            placeholder={t('contact.emailPlaceholder')}
+          />
+        </Field>
       </div>
-      <textarea
-        value={message}
-        onChange={(e) => onMessageChange(e.target.value)}
-        placeholder={t('contact.messagePlaceholder')}
-        className="param-input"
-        style={{ width: '100%', minHeight: 120, resize: 'vertical', marginBottom: 16 }}
-      />
-      <button
-        type="submit"
-        className="main-action-btn"
-        style={{ width: 'auto', padding: '0 24px' }}
-      >
-        <Mail className="w-4 h-4" />
+      <Field className="mb-4">
+        <FieldLabel htmlFor="contact-message">{t('contact.messagePlaceholder')}</FieldLabel>
+        <textarea
+          id="contact-message"
+          value={message}
+          onChange={(e) => onMessageChange(e.target.value)}
+          placeholder={t('contact.messagePlaceholder')}
+          className="w-full resize-y rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg placeholder:text-fg-tertiary transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15"
+          style={{ minHeight: 120 }}
+        />
+      </Field>
+      <Button type="submit" variant="primary">
+        <Mail className="size-4" />
         {t('contact.submit')}
-      </button>
+      </Button>
     </form>
   );
 }
 
+/**
+ * ContactPage: 联系我们页面，含联系方式与反馈表单。
+ * @returns 渲染的联系页面。
+ */
 export default function ContactPage() {
   const { t } = useTranslation();
   const [name, setName] = useState('');
@@ -133,9 +135,10 @@ export default function ContactPage() {
   };
 
   return (
-    <StandardPageShell config={{ titleKey: 'contact.title' }}>
-      <div className="bt-main-card card" style={{ padding: 24, maxWidth: 720 }}>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>{t('contact.intro')}</p>
+    <div className="flex w-full flex-col gap-3">
+      <h1 className="text-display text-fg">{t('contact.title')}</h1>
+      <Card className="max-w-3xl p-6">
+        <p className="mb-6 text-fg-tertiary">{t('contact.intro')}</p>
         <ContactLinks onGithubClick={() => addToast('warning', t('contact.githubNotConfigured'))} />
         <FeedbackForm
           name={name}
@@ -146,7 +149,7 @@ export default function ContactPage() {
           onMessageChange={setMessage}
           onSubmit={handleSubmit}
         />
-      </div>
-    </StandardPageShell>
+      </Card>
+    </div>
   );
 }

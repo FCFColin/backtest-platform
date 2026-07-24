@@ -5,10 +5,10 @@
  *              非组件导出（sharpeToColor、SECTION_TITLE_STYLE）已移至 efficientFrontierSharedConstants.ts，
  *              避免触发 react-refresh/only-export-components 规则。
  */
-import { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { CHART_COLORS } from '@backtest/shared';
 import type { EfficientFrontierPoint, EfficientFrontierResult } from '@backtest/shared';
+import { Button } from '@/components/ui/button';
 import type { ReturnObjective, FrontierSolver } from './EfficientFrontierParams.js';
 
 /** FrontierResults 容器组件 props */
@@ -35,7 +35,7 @@ export interface FrontierResultsProps {
   onLoadInBacktester: (p?: EfficientFrontierPoint) => void;
 }
 
-/** 权重条 */
+/** 权重条：标的代码 + 进度条 + 百分比 */
 export function WeightBar({
   ticker,
   weight,
@@ -46,73 +46,42 @@ export function WeightBar({
   color: string;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ width: 60, fontSize: 13, fontWeight: 500, color: 'var(--text-strong)' }}>
-        {ticker}
-      </span>
-      <div
-        style={{
-          flex: 1,
-          height: 16,
-          borderRadius: 4,
-          overflow: 'hidden',
-          backgroundColor: 'var(--bg-subtle)',
-        }}
-      >
+    <div className="flex items-center gap-2">
+      <span className="w-[60px] shrink-0 text-label font-medium text-fg">{ticker}</span>
+      <div className="h-4 flex-1 overflow-hidden rounded-sm bg-input-bg">
         <div
-          style={{
-            height: '100%',
-            borderRadius: 4,
-            width: `${weight * 100}%`,
-            backgroundColor: color,
-          }}
+          className="h-full rounded-sm"
+          style={{ width: `${weight * 100}%`, backgroundColor: color }}
         />
       </div>
-      <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+      <span className="font-mono text-caption tabular-nums text-fg-tertiary">
         {(weight * 100).toFixed(1)}%
       </span>
     </div>
   );
 }
 
-/** 指标卡 */
+/** 指标卡：标签 + 值（等宽字体、可选颜色） */
 export function MetricCard({
   label,
   value,
   color,
-  padding = 10,
-  fontSize = 15,
 }: {
   label: string;
   value: string;
   color: string;
-  padding?: number;
-  fontSize?: number;
 }) {
   return (
-    <div
-      style={{
-        padding,
-        backgroundColor: 'var(--bg-elevated)',
-        borderRadius: 'var(--radius-control)',
-      }}
-    >
-      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{label}</div>
-      <div
-        style={{
-          fontSize,
-          fontWeight: 600,
-          fontFamily: 'monospace',
-          color,
-        }}
-      >
+    <div className="rounded-md bg-elevated p-2.5">
+      <div className="text-caption text-fg-tertiary">{label}</div>
+      <div className="font-mono text-h3 font-semibold tabular-nums" style={{ color }}>
         {value}
       </div>
     </div>
   );
 }
 
-/** 权重分配组 */
+/** 权重分配组：标题 + 多条 WeightBar */
 export function WeightAllocation({
   weights,
   title,
@@ -122,8 +91,8 @@ export function WeightAllocation({
 }) {
   return (
     <div>
-      <div style={{ fontSize: 12, marginBottom: 8, color: 'var(--text-muted)' }}>{title}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="mb-2 text-caption text-fg-tertiary">{title}</div>
+      <div className="flex flex-col gap-1.5">
         {Object.entries(weights).map(([ticker, weight], i) => (
           <WeightBar
             key={ticker}
@@ -140,30 +109,16 @@ export function WeightAllocation({
 /** 静态指标卡（居中、紧凑） */
 export function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div
-      style={{
-        textAlign: 'center',
-        padding: 12,
-        backgroundColor: 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-      }}
-    >
-      <div style={{ fontSize: 11, marginBottom: 4, color: 'var(--text-muted)' }}>{label}</div>
-      <div
-        style={{
-          fontSize: 15,
-          fontWeight: 600,
-          fontFamily: 'monospace',
-          color,
-        }}
-      >
+    <div className="rounded-md bg-input-bg p-3 text-center">
+      <div className="mb-1 text-caption text-fg-tertiary">{label}</div>
+      <div className="font-mono text-h3 font-semibold tabular-nums" style={{ color }}>
         {value}
       </div>
     </div>
   );
 }
 
-/** "加载到回测器" 按钮 */
+/** "加载到回测器" 按钮（shadcn Button ghost 变体 + ArrowRight 图标） */
 export function LoadInBacktesterButton({
   onClick,
   label,
@@ -173,31 +128,10 @@ export function LoadInBacktesterButton({
   label: string;
   size?: 'sm' | 'md';
 }) {
-  const [hovered, setHovered] = useState(false);
-  const fontSize = size === 'sm' ? 11 : 12;
-  const padding = size === 'sm' ? '4px 10px' : '6px 14px';
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: size === 'sm' ? 4 : 6,
-        padding,
-        borderRadius: 'var(--radius-control)',
-        border: '1px solid var(--brand)',
-        backgroundColor: hovered ? 'var(--brand)' : 'transparent',
-        color: hovered ? '#fff' : 'var(--brand)',
-        fontSize,
-        fontWeight: 600,
-        cursor: 'pointer',
-        transition: 'all .15s',
-      }}
-    >
-      <ArrowRight className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
+    <Button onClick={onClick} variant="ghost" size={size === 'sm' ? 'sm' : 'default'}>
+      <ArrowRight className={size === 'sm' ? 'size-3.5' : 'size-4'} />
       {label}
-    </button>
+    </Button>
   );
 }

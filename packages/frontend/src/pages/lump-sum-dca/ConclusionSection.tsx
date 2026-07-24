@@ -1,12 +1,14 @@
 /**
  * @file LumpSumVsDCA 结果区子组件
- * @description 承载结论分析、风险提示、统计对比表与增长曲线的整合卡片
+ * @description 承载结论分析、风险提示、统计对比表与增长曲线的整合卡片。
+ *   就地重构：迁移至 shadcn Card + token 化 Tailwind 样式。
  */
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
 import { CHART_COLORS } from '@backtest/shared';
 import { GrowthCurveChart } from '../../components/charts/GrowthCurveChart.js';
+import { Card } from '@/components/ui/card';
 import type { CompareResult, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 
 const STATS_ROWS = [
@@ -33,21 +35,17 @@ function StatsTableHead({ results }: { results: CompareResult[] }) {
   const { t } = useTranslation();
   return (
     <thead>
-      <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-        <th
-          className="text-[12px] font-semibold text-left py-2.5 px-3"
-          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-        >
+      <tr className="bg-input-bg">
+        <th className="border-b-2 border-subtle px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
           {t('lumpSumDca.stats.metric')}
         </th>
         {results.map((r, idx) => (
           <th
             key={r.label}
-            className="text-[12px] font-semibold text-right py-2.5 px-3"
-            style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
+            className="border-b-2 border-subtle px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary"
           >
             <span
-              className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+              className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
               style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
             />
             {r.label}
@@ -75,17 +73,8 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
             const hasAnyValue = results.some((r) => r[row.key] != null);
             if (!hasAnyValue && !REQUIRED_KEYS.has(row.key)) return null;
             return (
-              <tr
-                key={row.key}
-                style={{ backgroundColor: rowIdx % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
-              >
-                <td
-                  className="text-[13px] py-2 px-3"
-                  style={{
-                    color: 'var(--text-body)',
-                    borderBottom: '1px solid var(--border-soft)',
-                  }}
-                >
+              <tr key={row.key} className={rowIdx % 2 === 1 ? 'bg-input-bg' : ''}>
+                <td className="border-b border-subtle px-3 py-2 text-[13px] text-fg-secondary">
                   {t(row.label)}
                 </td>
                 {results.map((r) => {
@@ -93,11 +82,7 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
                   return (
                     <td
                       key={r.label}
-                      className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                      style={{
-                        color: 'var(--text-strong)',
-                        borderBottom: '1px solid var(--border-soft)',
-                      }}
+                      className="border-b border-subtle px-3 py-2 text-right font-mono text-[13px] font-medium text-fg"
                     >
                       {val != null ? fmtVal(row.key, val as number) : '\u2014'}
                     </td>
@@ -122,21 +107,11 @@ function ConclStatCard({
   color?: string;
 }) {
   return (
-    <div
-      style={{
-        padding: 12,
-        backgroundColor: 'var(--bg-elevated)',
-        borderRadius: 'var(--radius-control)',
-      }}
-    >
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{title}</div>
+    <div className="rounded-lg bg-elevated p-3">
+      <div className="mb-1 text-caption text-fg-tertiary">{title}</div>
       <div
-        style={{
-          fontSize: 15,
-          fontWeight: 600,
-          fontFamily: 'monospace',
-          color: color ?? 'var(--text-body)',
-        }}
+        className="font-mono text-body font-semibold"
+        style={{ color: color ?? 'hsl(var(--fg-secondary))' }}
       >
         {value}
       </div>
@@ -159,7 +134,7 @@ function ConclusionText({
 } & Pick<FmtFns, 'fmtPct' | 'fmtMoney'>) {
   const { t } = useTranslation();
   return (
-    <div style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 1.6 }}>
+    <div className="text-body leading-relaxed text-fg-secondary">
       {lsWins ? (
         <>
           {t('lumpSumDca.conclusion.lumpSumWinsBefore')}
@@ -199,32 +174,18 @@ function ConclusionAnalysis({
   const finalValueDiffPct = ls.finalValue > 0 ? (finalValueDiff / ls.finalValue) * 100 : 0;
   const mddDiff = Math.abs(ls.maxDrawdown - dca.maxDrawdown);
   return (
-    <div
-      style={{
-        padding: 16,
-        backgroundColor: 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-        marginBottom: 20,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+    <div className="mb-5 rounded-lg bg-input-bg p-4">
+      <div className="mb-2.5 flex items-center gap-2">
         {lsWins ? (
-          <TrendingUp className="w-5 h-5" style={{ color: 'var(--success)' }} />
+          <TrendingUp className="size-5 text-success" />
         ) : (
-          <TrendingDown className="w-5 h-5" style={{ color: 'var(--brand)' }} />
+          <TrendingDown className="size-5 text-brand" />
         )}
-        <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)' }}>
+        <span className="text-body font-semibold text-fg">
           {t('lumpSumDca.conclusion.title')}
         </span>
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-          marginBottom: 12,
-        }}
-      >
+      <div className="mb-3 grid grid-cols-3 gap-3">
         <ConclStatCard
           title={t('lumpSumDca.conclusion.winningStrategy')}
           value={lsWins ? t('lumpSumDca.lumpSumLabel') : t('lumpSumDca.dcaLabel')}
@@ -235,7 +196,7 @@ function ConclusionAnalysis({
           value={
             <>
               {fmtMoney(finalValueDiff)}{' '}
-              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+              <span className="text-caption text-fg-tertiary">
                 ({finalValueDiffPct.toFixed(1)}%)
               </span>
             </>
@@ -258,23 +219,10 @@ function ConclusionAnalysis({
 function RiskWarning({ lsWins }: { lsWins: boolean }) {
   const { t } = useTranslation();
   return (
-    <div
-      style={{
-        marginTop: 16,
-        padding: '12px 16px',
-        backgroundColor: 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-        display: 'flex',
-        gap: 10,
-        alignItems: 'flex-start',
-      }}
-    >
-      <AlertTriangle
-        className="w-4 h-4 flex-shrink-0"
-        style={{ color: 'var(--warning)', marginTop: 2 }}
-      />
-      <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--text-body)' }}>
+    <div className="mt-4 flex items-start gap-2.5 rounded-lg bg-input-bg p-3">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+      <div className="text-body leading-relaxed text-fg-tertiary">
+        <strong className="text-fg-secondary">
           {t('lumpSumDca.conclusion.riskWarningTitle')}
         </strong>
         {lsWins
@@ -287,8 +235,11 @@ function RiskWarning({ lsWins }: { lsWins: boolean }) {
 }
 
 /**
- * LumpSumVsDCA 结果整合卡片：结论 + 增长曲线 + 统计表 + 风险提示。
+ * LsDcaResultsCard: LumpSumVsDCA 结果整合卡片：结论 + 增长曲线 + 统计表 + 风险提示。
  * 仅当 results 恰好两条（lumpSum + dca）时渲染。
+ * @param s - 页面状态。
+ * @param fmtPct/fmtNum/fmtMoney - 数值格式化函数。
+ * @returns 结果卡片元素，results 不是两条时返回 null。
  */
 export function LsDcaResultsCard({
   s,
@@ -299,30 +250,22 @@ export function LsDcaResultsCard({
   const { t } = useTranslation();
   if (s.results.length !== 2) return null;
   return (
-    <div className="bt-results-card card">
+    <Card className="p-5">
       <ConclusionAnalysis
         ls={s.results[0]}
         dca={s.results[1]}
         fmtPct={fmtPct}
         fmtMoney={fmtMoney}
       />
-      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)', marginBottom: 12 }}>
+      <div className="mb-3 text-body font-semibold text-fg">
         {t('lumpSumDca.results.growthCurveTitle')}
       </div>
       <GrowthCurveChart results={s.results} />
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: 14,
-          color: 'var(--text-strong)',
-          marginBottom: 12,
-          marginTop: 24,
-        }}
-      >
+      <div className="mb-3 mt-6 text-body font-semibold text-fg">
         {t('lumpSumDca.results.statsTitle')}
       </div>
       <StatsTable results={s.results} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
       <RiskWarning lsWins={s.results[0].finalValue > s.results[1].finalValue} />
-    </div>
+    </Card>
   );
 }

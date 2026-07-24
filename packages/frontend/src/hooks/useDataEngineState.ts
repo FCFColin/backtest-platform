@@ -1,8 +1,8 @@
 /** @file DataEngine state management hook */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Stats, UniverseStats, TFunc } from '../components/dataEngine/types.js';
 import { doFetchStats, doActionFn } from '../components/dataEngine/utils.js';
+import type { Stats, UniverseStats, TFunc } from '../components/dataEngine/utils.js';
 
 interface DataEngineAction {
   stats: Stats | null;

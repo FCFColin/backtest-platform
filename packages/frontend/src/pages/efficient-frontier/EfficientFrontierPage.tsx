@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from 'react-i18next';
+import ErrorBanner from '../../components/ErrorBanner.js';
 import { FrontierParams } from './EfficientFrontierParams.js';
 import { FrontierResults } from './EfficientFrontierResults.js';
 import { useEfficientFrontierState } from './EfficientFrontierUtils.js';
@@ -40,22 +41,12 @@ function FrontierParamsWrapper({ state }: { state: any }) {
 function FrontierResultsWrapper({ state }: { state: any }) {
   const { t } = useTranslation();
   return (
-    <>
+    <div className="flex flex-col gap-3">
       {state.error && (
-        <div
-          className="bt-results-card card"
-          style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
-        >
-          {t('efficientFrontier.calcFailed')}: {state.error}
-        </div>
+        <ErrorBanner message={`${t('efficientFrontier.calcFailed')}: ${state.error}`} variant="error" />
       )}
       {state.correlationError && !state.error && (
-        <div
-          className="bt-results-card card"
-          style={{ color: 'var(--warning, #f59e0b)', textAlign: 'center', padding: 16 }}
-        >
-          {state.correlationError}
-        </div>
+        <ErrorBanner message={state.correlationError} variant="warning" />
       )}
       {state.results && state.results.frontier.length > 0 && (
         <FrontierResults
@@ -76,7 +67,7 @@ function FrontierResultsWrapper({ state }: { state: any }) {
           onLoadInBacktester={state.handleLoadInBacktester}
         />
       )}
-    </>
+    </div>
   );
 }
 

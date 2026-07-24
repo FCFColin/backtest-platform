@@ -1,9 +1,11 @@
 /**
  * @file 资产分析结果面板与 Tab 包装组件
- * @description 承载 Tab 切换容器与 6 个 Tab 内容包装（Summary/Telltale/Correlations/Rolling/RiskReturn/Returns）
+ * @description 承载 Tab 切换容器与 6 个 Tab 内容包装（Summary/Telltale/Correlations/Rolling/RiskReturn/Returns）。
+ *   基于 shadcn Tabs（受控，value/onValueChange 由父级 activeTab 驱动）。
  */
 import { useState, memo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LineChart } from 'lucide-react';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import {
   OverviewCharts,
@@ -18,6 +20,8 @@ import {
 } from '../../components/AnalysisCharts.js';
 import { StatsTable } from '../../components/AnalysisStats.js';
 import { AnalysisErrorAlert } from '@/components/resultsShell.js';
+import { EmptyState } from '@/components/EmptyState';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { TABS } from './analysisUtils.js';
 
@@ -82,7 +86,14 @@ const ReturnsTab = memo(function ReturnsTab({ results }: { results: AssetAnalysi
   );
 });
 
-/** 资产分析结果面板（错误态 + Tab 容器 + 内容切换 + 空态） */
+/**
+ * 资产分析结果面板。
+ *
+ * 结构：错误提示 + shadcn Tabs（受控）+ 各 Tab 内容 + 空态。
+ * 外层 Card 由 ComputeToolShell 的 ToolPageLayout 提供，本组件不再重复包裹。
+ * @param props - error/results/activeTab/setActiveTab/isLoading/correlationWindow/rollingWindow
+ * @returns 渲染的结果面板
+ */
 export const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
   error,
   results,
@@ -105,39 +116,36 @@ export const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
     <div className="space-y-4">
       <AnalysisErrorAlert error={error} prefix={`${t('analysis.analysisFailed')}：`} />
       {results && (
-        <div className="card">
-          <div className="result-tabs">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="flex w-full justify-start overflow-x-auto">
             {TABS.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={`result-tab ${activeTab === tab.key ? 'active' : ''}`}
-              >
+              <TabsTrigger key={tab.key} value={tab.key}>
                 {t(tab.labelKey)}
-              </button>
+              </TabsTrigger>
             ))}
-          </div>
-          <div className="result-content">
-            {activeTab === 'summary' && <SummaryTab results={results} />}
-            {activeTab === 'telltale' && <TelltaleTab results={results} />}
-            {activeTab === 'correlations' && (
-              <CorrelationsBetaTab results={results} correlationWindow={correlationWindow} />
-            )}
-            {activeTab === 'rolling' && (
-              <RollingMetricsTab results={results} rollingWindow={rollingWindow} />
-            )}
-            {activeTab === 'risk-return' && <RiskReturnTab results={results} />}
-            {activeTab === 'returns' && <ReturnsTab results={results} />}
-          </div>
-        </div>
+          </TabsList>
+          <TabsContent value="summary" className="pt-4">
+            <SummaryTab results={results} />
+          </TabsContent>
+          <TabsContent value="telltale" className="pt-4">
+            <TelltaleTab results={results} />
+          </TabsContent>
+          <TabsContent value="correlations" className="pt-4">
+            <CorrelationsBetaTab results={results} correlationWindow={correlationWindow} />
+          </TabsContent>
+          <TabsContent value="rolling" className="pt-4">
+            <RollingMetricsTab results={results} rollingWindow={rollingWindow} />
+          </TabsContent>
+          <TabsContent value="risk-return" className="pt-4">
+            <RiskReturnTab results={results} />
+          </TabsContent>
+          <TabsContent value="returns" className="pt-4">
+            <ReturnsTab results={results} />
+          </TabsContent>
+        </Tabs>
       )}
       {!results && !error && !isLoading && (
-        <div
-          className="card"
-          style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48, fontSize: 14 }}
-        >
-          {t('analysis.noResultsHint')}
-        </div>
+        <EmptyState icon={LineChart} title={t('analysis.noResultsHint')} />
       )}
     </div>
   );

@@ -1,18 +1,30 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/**
+ * @file 一次性投入 vs 定投对比页面
+ * @description 就地重构：移除 ComputeToolShell，采用 ToolPageLayout + Card + 可折叠 ToolSeoCard。
+ *   参数区使用 shadcn Field/Input/Switch + token 化样式，testfol.io 风格。
+ * @route /lumpsum-vs-dca
+ */
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
-import type { ComputeToolConfig } from '../../components/shells/types.js';
-import { BasicParamsRow, PortfolioEditor } from '../../components/ParamsShared.js';
 import { Play } from 'lucide-react';
+import { ToolPageLayout, ToolSeoCard } from '@/components/layout/ToolPageLayout';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Field, FieldLabel } from '@/components/form/Field';
+import { BasicParamsRow } from '../../components/ParamsShared.js';
+import PortfolioEditor from '../../components/PortfolioEditor.js';
 import LoadingButton from '../../components/LoadingButton.js';
 import { useLumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
-import type { DcaFrequency } from '../../hooks/useLumpSumVsDCAState.js';
+import type { DcaFrequency, LumpSumVsDCAState } from '../../hooks/useLumpSumVsDCAState.js';
 import { LsDcaResultsCard } from './ConclusionSection.js';
 import { fmtPct, fmtNum } from '@/utils/format';
-import { ParamRow, ParamCard } from '../../components/params/index.js';
 
-type LSState = any;
+/** 原生 select 复用的 token 化样式（与 Input 视觉一致） */
+const selectClassName =
+  'flex h-10 w-full rounded-md border border-border bg-input-bg px-3 py-2 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50';
 
+/** DcaParamsSection: 定投参数行（节奏 / 期数 / 每期投入 / T-Bill 开关） */
 function DcaParamsSection({
   dcaFrequency,
   setDcaFrequency,
@@ -33,157 +45,116 @@ function DcaParamsSection({
   setInvestTbill: (v: boolean) => void;
 }) {
   const { t } = useTranslation();
+  const prefix = baseCurrency === 'usd' ? '$' : '¥';
   return (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+    <div className="mt-4">
+      <div className="mb-1.5 text-caption font-semibold text-fg-tertiary">
         {t('lumpSumDca.dcaParams')}
       </div>
-      <ParamRow>
-        <ParamCard label={t('lumpSumDca.dcaFrequency')}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Field>
+          <FieldLabel>{t('lumpSumDca.dcaFrequency')}</FieldLabel>
           <select
-            className="param-input"
+            className={selectClassName}
             value={dcaFrequency}
             onChange={(e) => setDcaFrequency(e.target.value as DcaFrequency)}
           >
             <option value="monthly">{t('lumpSumDca.dcaMonthly')}</option>
             <option value="quarterly">{t('lumpSumDca.dcaQuarterly')}</option>
           </select>
-        </ParamCard>
-        <ParamCard label={t('lumpSumDca.dcaPeriods')}>
-          <div className="param-input-suffix-wrap">
-            <input
+        </Field>
+        <Field>
+          <FieldLabel>{t('lumpSumDca.dcaPeriods')}</FieldLabel>
+          <div className="relative">
+            <Input
               type="number"
-              className="param-input param-input-with-suffix"
+              className="pr-10"
               value={dcaPeriods}
               onChange={(e) => setDcaPeriods(Number(e.target.value) || 1)}
               min={1}
               max={360}
             />
-            <span className="param-input-suffix">{t('lumpSumDca.dcaPeriodsUnit')}</span>
+            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
+              {t('lumpSumDca.dcaPeriodsUnit')}
+            </span>
           </div>
-        </ParamCard>
-        <ParamCard label={t('lumpSumDca.perPeriodAmount')}>
-          <div className="param-input-prefix-wrap">
-            <span className="param-input-prefix">{baseCurrency === 'usd' ? '$' : '¥'}</span>
-            <input
+        </Field>
+        <Field>
+          <FieldLabel>{t('lumpSumDca.perPeriodAmount')}</FieldLabel>
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-body text-fg-tertiary">
+              {prefix}
+            </span>
+            <Input
               type="text"
-              className="param-input param-input-with-prefix"
+              className="pl-7 opacity-70"
               value={Math.round(startingValue / dcaPeriods).toLocaleString()}
               readOnly
-              style={{ opacity: 0.7 }}
             />
           </div>
-        </ParamCard>
-        <ParamCard label={t('lumpSumDca.investTbill')}>
-          <label className="param-check">
-            <input
-              type="checkbox"
-              checked={investTbill}
-              onChange={(e) => setInvestTbill(e.target.checked)}
-            />
-            <span>{t('lumpSumDca.investTbill')}</span>
-          </label>
-        </ParamCard>
-      </ParamRow>
+        </Field>
+        <div className="flex h-10 items-center gap-2">
+          <Switch checked={investTbill} onCheckedChange={setInvestTbill} />
+          <span className="text-caption text-fg-secondary">{t('lumpSumDca.investTbill')}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
-function ParamsSection1(props: {
-  startDate: string;
-  setStartDate: (v: string) => void;
-  endDate: string;
-  setEndDate: (v: string) => void;
-  startingValue: number;
-  setStartingValue: (v: number) => void;
-  baseCurrency: 'usd' | 'cny';
-  setBaseCurrency: (v: 'usd' | 'cny') => void;
-  adjustForInflation: boolean;
-  setAdjustForInflation: (v: boolean) => void;
-  dcaFrequency: DcaFrequency;
-  setDcaFrequency: (v: DcaFrequency) => void;
-  dcaPeriods: number;
-  setDcaPeriods: (v: number) => void;
-  investTbill: boolean;
-  setInvestTbill: (v: boolean) => void;
-}) {
+/** LumpSumVsDCAParamsForm: 参数表单（基础参数 + 定投参数 + 投资组合 + 执行按钮） */
+function LumpSumVsDCAParamsForm({ state }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
   return (
-    <div className="params-section">
-      <div className="params-title">{t('lumpSumDca.paramsSettings')}</div>
+    <div className="flex flex-col gap-4">
       <BasicParamsRow
-        startDate={props.startDate}
-        endDate={props.endDate}
-        startingValue={props.startingValue}
-        baseCurrency={props.baseCurrency}
-        adjustForInflation={props.adjustForInflation}
+        startDate={state.startDate}
+        endDate={state.endDate}
+        startingValue={state.startingValue}
+        baseCurrency={state.baseCurrency}
+        adjustForInflation={state.adjustForInflation}
         onChange={(field, value) => {
-          if (field === 'startDate') props.setStartDate(value as string);
-          else if (field === 'endDate') props.setEndDate(value as string);
-          else if (field === 'startingValue') props.setStartingValue(value as number);
-          else if (field === 'baseCurrency') props.setBaseCurrency(value as 'usd' | 'cny');
-          else if (field === 'adjustForInflation') props.setAdjustForInflation(value as boolean);
+          if (field === 'startDate') state.setStartDate(value as string);
+          else if (field === 'endDate') state.setEndDate(value as string);
+          else if (field === 'startingValue') state.setStartingValue(value as number);
+          else if (field === 'baseCurrency') state.setBaseCurrency(value as 'usd' | 'cny');
+          else if (field === 'adjustForInflation')
+            state.setAdjustForInflation(value as boolean);
         }}
       />
       <DcaParamsSection
-        dcaFrequency={props.dcaFrequency}
-        setDcaFrequency={props.setDcaFrequency}
-        dcaPeriods={props.dcaPeriods}
-        setDcaPeriods={props.setDcaPeriods}
-        startingValue={props.startingValue}
-        baseCurrency={props.baseCurrency}
-        investTbill={props.investTbill}
-        setInvestTbill={props.setInvestTbill}
-      />
-    </div>
-  );
-}
-
-function LSParamsWrapper({ state }: { state: LSState }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <ParamsSection1
-        startDate={state.startDate}
-        setStartDate={state.setStartDate}
-        endDate={state.endDate}
-        setEndDate={state.setEndDate}
-        startingValue={state.startingValue}
-        setStartingValue={state.setStartingValue}
-        baseCurrency={state.baseCurrency}
-        setBaseCurrency={state.setBaseCurrency}
-        adjustForInflation={state.adjustForInflation}
-        setAdjustForInflation={state.setAdjustForInflation}
         dcaFrequency={state.dcaFrequency}
         setDcaFrequency={state.setDcaFrequency}
         dcaPeriods={state.dcaPeriods}
         setDcaPeriods={state.setDcaPeriods}
+        startingValue={state.startingValue}
+        baseCurrency={state.baseCurrency}
         investTbill={state.investTbill}
         setInvestTbill={state.setInvestTbill}
       />
       <PortfolioEditor
+        singleMode
         assets={state.assets}
         totalWeight={state.totalWeight}
         onAdd={state.addAsset}
         onRemove={state.removeAsset}
         onUpdate={state.updateAsset}
       />
-      <div className="bt-action-row">
-        <LoadingButton
-          isLoading={state.isLoading}
-          onClick={state.runComparison}
-          loadingText={t('lumpSumDca.comparing')}
-          style={{ width: '100%' }}
-        >
-          <Play className="w-4 h-4" />
-          {t('lumpSumDca.startCompare')}
-        </LoadingButton>
-      </div>
-    </>
+      <LoadingButton
+        isLoading={state.isLoading}
+        onClick={state.runComparison}
+        loadingText={t('lumpSumDca.comparing')}
+        className="w-full"
+      >
+        <Play className="size-4" />
+        {t('lumpSumDca.startCompare')}
+      </LoadingButton>
+    </div>
   );
 }
 
-function LSResultsWrapper({ state }: { state: LSState }) {
+/** LumpSumVsDCAResults: 结果区（错误提示 + 结论整合卡片） */
+function LumpSumVsDCAResults({ state }: { state: LumpSumVsDCAState }) {
   const { t } = useTranslation();
   const fmtMoney = (v: number) =>
     state.baseCurrency === 'usd'
@@ -193,36 +164,63 @@ function LSResultsWrapper({ state }: { state: LSState }) {
   return (
     <>
       {state.error && (
-        <div
-          className="bt-results-card card"
-          style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
-        >
+        <Card className="mb-3 p-6 text-center text-danger">
           {t('lumpSumDca.compareFailed')}: {state.error}
-        </div>
+        </Card>
       )}
       <LsDcaResultsCard s={state} fmtPct={fmtPct} fmtNum={fmtNum} fmtMoney={fmtMoney} />
     </>
   );
 }
 
-const config: ComputeToolConfig<LSState> = {
-  titleKey: 'lumpSumDca.title',
-  seoDescKey: 'lumpSumDca.seo.desc',
-  seoFeatures: [
-    { titleKey: 'lumpSumDca.seo.configurableTitle', descKey: 'lumpSumDca.seo.configurableDesc' },
-    { titleKey: 'lumpSumDca.seo.strategyTitle', descKey: 'lumpSumDca.seo.strategyDesc' },
-  ],
-  relatedTools: [
-    { titleKey: 'nav.portfolioBacktest', href: '/' },
-    { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' },
-    { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
-  ],
-  params: LSParamsWrapper,
-  results: LSResultsWrapper,
-};
-
+/**
+ * LumpSumVsDCAPage: 一次性投入 vs 定投对比页面。
+ * @returns 渲染的页面元素。
+ */
 export default function LumpSumVsDCAPage() {
   const { t } = useTranslation();
   const s = useLumpSumVsDCAState(t);
-  return <ComputeToolShell config={config} state={s} />;
+  const [seoExpanded, setSeoExpanded] = useState(false);
+
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <h1 className="text-display text-fg">{t('lumpSumDca.title')}</h1>
+        <button
+          type="button"
+          onClick={() => setSeoExpanded((v) => !v)}
+          className="text-caption font-medium text-brand transition-colors hover:text-brand-hover"
+        >
+          {t('common.about')}
+        </button>
+      </div>
+
+      {seoExpanded && (
+        <ToolSeoCard
+          desc={t('lumpSumDca.seo.desc')}
+          features={[
+            {
+              title: t('lumpSumDca.seo.configurableTitle'),
+              desc: t('lumpSumDca.seo.configurableDesc'),
+            },
+            {
+              title: t('lumpSumDca.seo.strategyTitle'),
+              desc: t('lumpSumDca.seo.strategyDesc'),
+            },
+          ]}
+          related={[
+            { title: t('nav.portfolioBacktest'), href: '/' },
+            { title: t('nav.rebalancingSensitivity'), href: '/rebalancing-sensitivity' },
+            { title: t('nav.monteCarlo'), href: '/monte-carlo' },
+          ]}
+        />
+      )}
+
+      <ToolPageLayout
+        title={t('lumpSumDca.paramsSettings')}
+        params={<LumpSumVsDCAParamsForm state={s} />}
+      />
+      <LumpSumVsDCAResults state={s} />
+    </div>
+  );
 }

@@ -1,40 +1,40 @@
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useDataEngineState } from '../../hooks/useDataEngineState.js';
 import { DataEngineDashboard } from '../../components/dataEngine/DataEngineDashboard.js';
 import { DataEngineSkeleton } from '../../components/dataEngine/DataEngineSkeleton.js';
 
+/**
+ * DataEngineError: 数据引擎加载错误卡片，含重试按钮。
+ * @param props - error/onRetry。
+ * @returns 渲染的错误卡片。
+ */
 function DataEngineError({ error, onRetry }: { error: string; onRetry: () => void }) {
   const { t } = useTranslation();
   return (
-    <div
-      className="bt-main-card card"
-      style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}
-    >
-      <div style={{ marginBottom: 12, color: 'var(--danger)', fontSize: 14, lineHeight: 1.6 }}>
-        {error}
-      </div>
-      <button
-        className="main-action-btn"
-        style={{ fontSize: 12, minHeight: 36, padding: '0 18px', textTransform: 'none' }}
-        onClick={onRetry}
-      >
-        <RotateCcw className="w-3.5 h-3.5" /> {t('common.retry')}
-      </button>
-    </div>
+    <Card className="flex flex-col items-center p-10 text-center">
+      <div className="mb-3 text-body leading-relaxed text-danger">{error}</div>
+      <Button variant="secondary" size="sm" onClick={onRetry}>
+        <RotateCcw className="size-3.5" /> {t('common.retry')}
+      </Button>
+    </Card>
   );
 }
 
+/**
+ * DataEnginePage: 数据引擎页面，展示数据覆盖统计与管理动作。
+ * @returns 渲染的数据引擎页面。
+ */
 export default function DataEnginePage() {
   const { t } = useTranslation();
   const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } =
     useDataEngineState();
 
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('dataEngine.title')}</h1>
-      </div>
+    <div className="flex w-full flex-col gap-3">
+      <h1 className="text-display text-fg">{t('dataEngine.title')}</h1>
       {error ? (
         <DataEngineError error={error} onRetry={() => fetchStats(true)} />
       ) : !stats ? (
@@ -42,13 +42,7 @@ export default function DataEnginePage() {
           <DataEngineSkeleton />
           <div
             aria-live="polite"
-            style={{
-              textAlign: 'center',
-              color: 'var(--text-muted)',
-              fontSize: 12,
-              marginTop: 8,
-              minHeight: 16,
-            }}
+            className="min-h-4 text-center text-caption text-fg-tertiary"
           >
             {loadStage}
           </div>

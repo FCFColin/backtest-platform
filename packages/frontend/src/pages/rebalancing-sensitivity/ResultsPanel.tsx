@@ -1,3 +1,8 @@
+/**
+ * @file 调仓敏感性分析结果面板
+ * @description 散点图 / 分布柱图 / 偏移扫描 / 结果表格 四个 Tab。
+ *   容器与表格迁移至 shadcn Card + token 化 Tailwind；图表逻辑保持不变。
+ */
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -31,8 +36,13 @@ import {
   AXIS_TICK_STYLE,
   DATE_TICK_FORMATTER,
   CHART_TOOLTIP_STYLE,
-} from '@/components/charts/chartConstants.js';
+} from '@/lib/chart-theme.js';
+import { Card } from '@/components/ui/card';
 import { fmtPct } from '@/utils/format';
+
+/** 原生 select 复用的 token 化样式（紧凑高度） */
+const selectClassName =
+  'flex h-9 w-32 rounded-md border border-border bg-input-bg px-3 text-body text-fg transition-colors hover:border-border-strong focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15';
 
 function ScatterTab({ results }: { results: FreqResult[] }) {
   const { t } = useTranslation();
@@ -121,13 +131,12 @@ function DistributionTab({ results }: { results: FreqResult[] }) {
 function OffsetSelector({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+    <div className="mb-3 flex items-center gap-3">
+      <span className="text-body text-fg-tertiary">
         {t('rebalancingSensitivity.results.frequency')}:
       </span>
       <select
-        className="param-input"
-        style={{ width: 120 }}
+        className={selectClassName}
         value={s.offsetFreq}
         onChange={(e) => {
           s.setOffsetFreq(e.target.value as RebalanceFrequency);
@@ -141,7 +150,7 @@ function OffsetSelector({ s }: { s: RebalancingState }) {
         ))}
       </select>
       {s.isLoadingOffset && (
-        <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--text-muted)' }} />
+        <Loader2 className="size-4 animate-spin text-fg-tertiary" />
       )}
     </div>
   );
@@ -209,18 +218,14 @@ function ResultsTableHead() {
   const cols = resultsTableCols(t);
   return (
     <thead>
-      <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-        <th
-          className="text-[12px] font-semibold text-left py-2.5 px-3"
-          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-        >
+      <tr className="bg-input-bg">
+        <th className="border-b-2 border-subtle px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
           {t('rebalancingSensitivity.results.frequency')}
         </th>
         {cols.map(([label]) => (
           <th
             key={label}
-            className="text-[12px] font-semibold text-right py-2.5 px-3"
-            style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
+            className="border-b-2 border-subtle px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary"
           >
             {label}
           </th>
@@ -228,6 +233,13 @@ function ResultsTableHead() {
       </tr>
     </thead>
   );
+}
+
+/** 表格单元格基础类 + 最优值高亮 */
+function cellClassName(isBest: boolean): string {
+  return `border-b border-subtle px-3 py-2 text-right font-mono text-[13px] font-medium ${
+    isBest ? 'font-bold text-success' : 'text-fg'
+  }`;
 }
 
 function ResultsTable({ results }: { results: FreqResult[] }) {
@@ -238,62 +250,29 @@ function ResultsTable({ results }: { results: FreqResult[] }) {
     sharpe: Math.max(...results.map((x) => x.sharpe)),
     sortino: Math.max(...results.map((x) => x.sortino)),
   };
-  const cellStyle = (isBest: boolean) => ({
-    color: isBest ? 'var(--success)' : 'var(--text-strong)',
-    fontWeight: isBest ? 700 : 500,
-    borderBottom: '1px solid var(--border-soft)',
-  });
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse">
         <ResultsTableHead />
         <tbody>
           {results.map((r, idx) => (
-            <tr
-              key={r.frequency}
-              style={{ backgroundColor: idx % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
-            >
-              <td
-                className="text-[13px] py-2 px-3"
-                style={{
-                  color: 'var(--text-strong)',
-                  borderBottom: '1px solid var(--border-soft)',
-                }}
-              >
+            <tr key={r.frequency} className={idx % 2 === 1 ? 'bg-input-bg' : ''}>
+              <td className="border-b border-subtle px-3 py-2 text-[13px] text-fg">
                 <span
-                  className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+                  className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
                   style={{ backgroundColor: r.color }}
                 />
                 {r.label}
               </td>
-              <td
-                className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                style={cellStyle(r.cagr === best.cagr)}
-              >
-                {fmtPct(r.cagr)}
-              </td>
-              <td
-                className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                style={cellStyle(r.stdev === best.stdev)}
-              >
-                {fmtPct(r.stdev)}
-              </td>
-              <td
-                className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                style={cellStyle(r.maxDrawdown === best.mdd)}
-              >
+              <td className={cellClassName(r.cagr === best.cagr)}>{fmtPct(r.cagr)}</td>
+              <td className={cellClassName(r.stdev === best.stdev)}>{fmtPct(r.stdev)}</td>
+              <td className={cellClassName(r.maxDrawdown === best.mdd)}>
                 {fmtPct(r.maxDrawdown)}
               </td>
-              <td
-                className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                style={cellStyle(r.sharpe === best.sharpe)}
-              >
+              <td className={cellClassName(r.sharpe === best.sharpe)}>
                 {r.sharpe.toFixed(2)}
               </td>
-              <td
-                className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                style={cellStyle(r.sortino === best.sortino)}
-              >
+              <td className={cellClassName(r.sortino === best.sortino)}>
                 {r.sortino.toFixed(2)}
               </td>
             </tr>
@@ -304,40 +283,44 @@ function ResultsTable({ results }: { results: FreqResult[] }) {
   );
 }
 
+/**
+ * ResultsPanel: 调仓敏感性结果面板，含错误/空/加载态与四 Tab 切换。
+ * @param s - 页面状态。
+ * @returns 结果面板元素。
+ */
 export function ResultsPanel({ s }: { s: RebalancingState }) {
   const { t } = useTranslation();
   if (s.error)
     return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}
-      >
+      <Card className="p-6 text-center text-danger">
         {t('rebalancingSensitivity.results.analysisFailed')}: {s.error}
-      </div>
+      </Card>
     );
   if (s.results.length === 0 && !s.isLoading)
     return (
-      <div
-        className="bt-results-card card"
-        style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48 }}
-      >
+      <Card className="p-12 text-center text-fg-tertiary">
         {t('rebalancingSensitivity.results.noResultsHint')}
-      </div>
+      </Card>
     );
   if (s.isLoading)
     return (
-      <div className="bt-results-card card" style={{ textAlign: 'center', padding: 40 }}>
-        <Loader2 className="w-6 h-6 animate-spin" style={{ display: 'inline-block' }} />
-      </div>
+      <Card className="p-10 text-center">
+        <Loader2 className="inline-block size-6 animate-spin text-fg-tertiary" />
+      </Card>
     );
   return (
-    <div className="bt-results-card card">
-      <div className="results-tabs">
+    <Card className="p-5">
+      <div className="mb-4 flex gap-2 border-b-2 border-subtle pb-3">
         {TABS.map((tab) => (
           <button
             key={tab.key}
-            className={`tab-btn ${s.activeTab === tab.key ? 'active' : ''}`}
+            type="button"
             onClick={() => s.setActiveTab(tab.key)}
+            className={`rounded-lg px-3 py-1.5 text-caption font-semibold transition-colors ${
+              s.activeTab === tab.key
+                ? 'bg-brand/10 text-brand'
+                : 'text-fg-tertiary hover:text-fg-secondary'
+            }`}
           >
             {tab.label}
           </button>
@@ -347,6 +330,6 @@ export function ResultsPanel({ s }: { s: RebalancingState }) {
       {s.activeTab === 'distributions' && <DistributionTab results={s.results} />}
       {s.activeTab === 'offset' && <OffsetTab s={s} />}
       {s.activeTab === 'table' && <ResultsTable results={s.results} />}
-    </div>
+    </Card>
   );
 }

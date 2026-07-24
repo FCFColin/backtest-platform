@@ -6,7 +6,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, Database, HelpCircle, ChevronDown, Calculator, TrendingUp } from 'lucide-react';
-import { StandardPageShell } from '../components/shells/StandardPageShell.js';
+import type { ReactNode } from 'react';
+import { Card } from '@/components/ui/card';
 import helpData from './help/helpData.json';
 
 type Section = 'methodology' | 'data' | 'faq';
@@ -33,51 +34,38 @@ interface MetricStatic {
   i18nKey: string;
 }
 
+/**
+ * HelpPage: 帮助页面，含方法论/数据/FAQ 三个子栏目。
+ * @returns 渲染的帮助页面。
+ */
 export default function HelpPage() {
   const { t } = useTranslation();
   const [section, setSection] = useState<Section>('methodology');
 
-  const tabs: { key: Section; label: string; icon: React.ReactNode }[] = [
+  const tabs: { key: Section; label: string; icon: ReactNode }[] = [
     {
       key: 'methodology',
       label: t('help.tabs.methodology'),
-      icon: <Calculator className="w-4 h-4" />,
+      icon: <Calculator className="size-4" />,
     },
-    { key: 'data', label: t('help.tabs.data'), icon: <Database className="w-4 h-4" /> },
-    { key: 'faq', label: t('help.tabs.faq'), icon: <HelpCircle className="w-4 h-4" /> },
+    { key: 'data', label: t('help.tabs.data'), icon: <Database className="size-4" /> },
+    { key: 'faq', label: t('help.tabs.faq'), icon: <HelpCircle className="size-4" /> },
   ];
 
   return (
-    <StandardPageShell config={{ titleKey: 'help.title' }}>
-      <div className="bt-main-card card" style={{ padding: 24 }}>
-        {/* Tab 切换 */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            marginBottom: 24,
-            borderBottom: '2px solid var(--border-soft)',
-            paddingBottom: 12,
-          }}
-        >
+    <div className="flex w-full flex-col gap-3">
+      <h1 className="text-display text-fg">{t('help.title')}</h1>
+      <Card className="p-6">
+        <div className="mb-6 flex gap-2 border-b-2 border-subtle pb-3">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setSection(tab.key)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '8px 16px',
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                border: 'none',
-                fontFamily: 'inherit',
-                color: section === tab.key ? 'var(--brand)' : 'var(--text-muted)',
-                background: section === tab.key ? 'var(--brand-soft)' : 'transparent',
-              }}
+              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-semibold transition-colors ${
+                section === tab.key
+                  ? 'bg-brand/10 text-brand'
+                  : 'text-fg-tertiary hover:text-fg-secondary'
+              }`}
             >
               {tab.icon}
               {tab.label}
@@ -88,79 +76,62 @@ export default function HelpPage() {
         {section === 'methodology' && <MethodologySection />}
         {section === 'data' && <DataSection />}
         {section === 'faq' && <FaqSection />}
-      </div>
-    </StandardPageShell>
+      </Card>
+    </div>
   );
 }
 
-/** 帮助页面区块容器：统一渲染图标标题、描述与子内容 */
+/** HelpSection: 区块容器，渲染图标标题、描述与子内容 */
 function HelpSection({
   icon,
   title,
   description,
   children,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   title: string;
   description?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div className="mb-5 flex items-center gap-3">
         {icon}
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>{title}</div>
+        <div className="text-h2 font-bold text-fg">{title}</div>
       </div>
       {description && (
-        <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 20 }}>
-          {description}
-        </div>
+        <div className="mb-5 text-body leading-loose text-fg-secondary">{description}</div>
       )}
       {children}
     </div>
   );
 }
 
-/** 帮助页面卡片网格容器（自适应列布局） */
-function HelpGrid({ children }: { children: React.ReactNode }) {
+/** HelpGrid: 卡片网格容器（自适应列布局） */
+function HelpGrid({ children }: { children: ReactNode }) {
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: 16,
-        marginBottom: 24,
-      }}
-    >
+    <div className="mb-6 grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
       {children}
     </div>
   );
 }
 
-/** 帮助页面信息提示框（统一样式：subtle 背景 + 圆角 + 标题/图标头） */
+/** HelpInfoBox: 信息提示框（subtle 背景 + 圆角 + 标题/图标头） */
 function HelpInfoBox({
   title,
   icon,
   children,
 }: {
   title?: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
+  icon?: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <div
-      style={{
-        padding: 16,
-        background: 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-        fontSize: 13,
-        color: 'var(--text-body)',
-      }}
-    >
+    <div className="rounded-lg bg-input-bg p-4 text-[13px] text-fg-secondary">
       {(title || icon) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <div className="mb-2 flex items-center gap-2">
           {icon}
-          {title && <span style={{ fontWeight: 600, color: 'var(--text-strong)' }}>{title}</span>}
+          {title && <span className="font-semibold text-fg">{title}</span>}
         </div>
       )}
       {children}
@@ -168,15 +139,15 @@ function HelpInfoBox({
   );
 }
 
-/** 调仓模式说明区块 */
+/** RebalancingModesInfo: 调仓模式说明区块 */
 function RebalancingModesInfo() {
   const { t } = useTranslation();
   return (
     <HelpInfoBox title={t('help.methodology.rebalModesTitle')}>
-      <div style={{ marginBottom: 6 }}>
+      <div className="mb-1.5">
         <strong>{t('help.methodology.rebalModes.periodic')}</strong>
       </div>
-      <div style={{ marginBottom: 6 }}>
+      <div className="mb-1.5">
         <strong>{t('help.methodology.rebalModes.threshold')}</strong>
       </div>
       <div>
@@ -186,6 +157,7 @@ function RebalancingModesInfo() {
   );
 }
 
+/** MethodologySection: 方法论 + 指标卡片 */
 function MethodologySection() {
   const { t } = useTranslation();
   const metrics = (helpData.metrics as MetricStatic[]).map((m) => ({
@@ -195,7 +167,7 @@ function MethodologySection() {
   }));
   return (
     <HelpSection
-      icon={<BookOpen className="w-6 h-6" style={{ color: 'var(--brand)' }} />}
+      icon={<BookOpen className="size-6 text-brand" />}
       title={t('help.methodology.title')}
       description={t('help.methodology.desc')}
     >
@@ -216,44 +188,29 @@ function MethodologySection() {
   );
 }
 
+/** DataSection: 数据来源 + 更新策略 */
 function DataSection() {
   const { t } = useTranslation();
   const sources = t('help.data.sources', { returnObjects: true }) as DataSource[];
 
   return (
     <HelpSection
-      icon={<Database className="w-6 h-6" style={{ color: 'var(--brand)' }} />}
+      icon={<Database className="size-6 text-brand" />}
       title={t('help.data.title')}
       description={t('help.data.desc')}
     >
       <HelpGrid>
         {sources.map((s) => (
-          <div
-            key={s.name}
-            style={{
-              padding: 16,
-              background: 'var(--bg-subtle)',
-              borderRadius: 'var(--radius-control)',
-            }}
-          >
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--text-strong)',
-                marginBottom: 4,
-              }}
-            >
-              {s.name}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--brand)', marginBottom: 6 }}>{s.scope}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{s.note}</div>
+          <div key={s.name} className="rounded-lg bg-input-bg p-4">
+            <div className="mb-1 text-body font-semibold text-fg">{s.name}</div>
+            <div className="mb-1.5 text-caption text-brand">{s.scope}</div>
+            <div className="text-caption text-fg-tertiary">{s.note}</div>
           </div>
         ))}
       </HelpGrid>
 
       <HelpInfoBox
-        icon={<TrendingUp className="w-4 h-4" style={{ color: 'var(--success)' }} />}
+        icon={<TrendingUp className="size-4 text-success" />}
         title={t('help.data.updateStrategyTitle')}
       >
         {t('help.data.updateStrategyContent')}
@@ -262,24 +219,23 @@ function DataSection() {
   );
 }
 
+/** FaqSection: 常见问题列表 */
 function FaqSection() {
   const { t } = useTranslation();
   const faqs = t('help.faq.items', { returnObjects: true }) as FaqItem[];
 
   return (
-    <HelpSection
-      icon={<HelpCircle className="w-6 h-6" style={{ color: 'var(--brand)' }} />}
-      title={t('help.faq.title')}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <HelpSection icon={<HelpCircle className="size-6 text-brand" />} title={t('help.faq.title')}>
+      <div className="flex flex-col gap-3">
         {faqs.map((faq, i) => (
-          <FaqItem key={i} q={faq.q} a={faq.a} />
+          <FaqItemRow key={i} q={faq.q} a={faq.a} />
         ))}
       </div>
     </HelpSection>
   );
 }
 
+/** MetricCard: 指标卡片 */
 function MetricCard({
   name,
   fullName,
@@ -292,76 +248,36 @@ function MetricCard({
   desc: string;
 }) {
   return (
-    <div
-      style={{ padding: 16, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-control)' }}
-    >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
-        <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--brand)' }}>{name}</span>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{fullName}</span>
+    <div className="rounded-lg bg-input-bg p-4">
+      <div className="mb-1.5 flex items-baseline gap-2">
+        <span className="text-h3 font-bold text-brand">{name}</span>
+        <span className="text-caption text-fg-tertiary">{fullName}</span>
       </div>
-      <div
-        style={{
-          fontSize: 12,
-          fontFamily: 'monospace',
-          color: 'var(--text-strong)',
-          background: 'var(--bg-elevated)',
-          padding: '6px 10px',
-          borderRadius: 4,
-          marginBottom: 8,
-          overflowX: 'auto',
-        }}
-      >
+      <div className="mb-2 overflow-x-auto rounded bg-elevated px-2.5 py-1.5 font-mono text-caption text-fg">
         {formula}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-body)', lineHeight: 1.6 }}>{desc}</div>
+      <div className="text-caption leading-relaxed text-fg-secondary">{desc}</div>
     </div>
   );
 }
 
-function FaqItem({ q, a }: { q: string; a: string }) {
+/** FaqItemRow: 可展开 FAQ 条目 */
+function FaqItemRow({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div
-      style={{
-        border: '1px solid var(--border-soft)',
-        borderRadius: 'var(--radius-control)',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="overflow-hidden rounded-lg border border-subtle">
       <button
         onClick={() => setOpen(!open)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 16px',
-          background: 'var(--bg-subtle)',
-          border: 'none',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          fontSize: 14,
-          fontWeight: 600,
-          color: 'var(--text-strong)',
-          textAlign: 'left',
-        }}
+        className="flex w-full items-center justify-between bg-input-bg px-4 py-3 text-left text-body font-semibold text-fg"
       >
         {q}
         <ChevronDown
-          className="w-4 h-4"
-          style={{
-            transition: 'transform 0.2s',
-            transform: open ? 'rotate(180deg)' : 'none',
-            flexShrink: 0,
-          }}
+          className="size-4 shrink-0 text-fg-tertiary transition-transform duration-200"
+          style={{ transform: open ? 'rotate(180deg)' : 'none' }}
         />
       </button>
       {open && (
-        <div
-          style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-body)', lineHeight: 1.7 }}
-        >
-          {a}
-        </div>
+        <div className="px-4 py-3 text-[13px] leading-relaxed text-fg-secondary">{a}</div>
       )}
     </div>
   );

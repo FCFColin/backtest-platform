@@ -28,7 +28,7 @@ function buildStatColumns(t: TFunction): Column<StatRow>[] {
       label: t('letf.stats.value'),
       sortValue: (r) => r.value,
       render: (r) => (
-        <span className="font-mono" style={{ fontWeight: 600 }}>
+        <span className="font-mono font-semibold tabular-nums text-fg">
           {fmtPct(r.value)}
         </span>
       ),

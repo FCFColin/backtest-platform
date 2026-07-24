@@ -1,55 +1,19 @@
 /**
- * @file 蒙特卡洛结果面板（Tab 容器）
- * @description 组合 StatsGrid + TabBar + 当前 Tab 内容；支持单/双组合展示
+ * @file 蒙特卡洛结果面板（shadcn Tabs 容器）
+ * @description 组合 StatsGrid + shadcn Tabs + 当前 Tab 内容；支持单/双组合展示。
+ *   双组合模式下两个组合共享 activeTab 与 distMetric。
  */
 import type { MonteCarloResult } from '@backtest/shared';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type { DistMetric, ResultTab, PortfolioState, PortfolioMode } from './monteCarloTypes.js';
-import {
-  StatsGrid,
-  ResultTabBar,
-  PortfolioLabel,
-  McErrorState,
-  McEmptyState,
-} from './MonteCarloShared.js';
+import { RESULT_TABS } from './monteCarloSharedConstants.js';
+import { StatsGrid, PortfolioLabel, McErrorState, McEmptyState } from './MonteCarloShared.js';
 import { MonteCarloSummaryTab } from './MonteCarloSummaryTab.js';
 import { MonteCarloRangeTab } from './MonteCarloRangeTab.js';
 import { MonteCarloSuccessTab } from './MonteCarloSuccessTab.js';
 import { MonteCarloDistributionsTab } from './MonteCarloDistributionsTab.js';
 import { MonteCarloScenariosTab } from './MonteCarloScenariosTab.js';
-
-function TabContent({
-  activeTab,
-  r,
-  startingValue,
-  distMetric,
-  setDistMetric,
-}: {
-  activeTab: ResultTab;
-  r: MonteCarloResult;
-  startingValue: number;
-  distMetric: DistMetric;
-  setDistMetric: (m: DistMetric) => void;
-}) {
-  switch (activeTab) {
-    case 'summary':
-      return <MonteCarloSummaryTab r={r} startingValue={startingValue} />;
-    case 'range':
-      return <MonteCarloRangeTab r={r} startingValue={startingValue} />;
-    case 'success':
-      return <MonteCarloSuccessTab r={r} />;
-    case 'distributions':
-      return (
-        <MonteCarloDistributionsTab
-          r={r}
-          distMetric={distMetric}
-          setDistMetric={setDistMetric}
-          startingValue={startingValue}
-        />
-      );
-    case 'scenarios':
-      return <MonteCarloScenariosTab r={r} startingValue={startingValue} />;
-  }
-}
 
 function ResultsDisplay({
   r,
@@ -78,16 +42,41 @@ function ResultsDisplay({
     <div key={label}>
       {portfolioMode === 2 && <PortfolioLabel label={label} colorIdx={colorIdx} />}
       <StatsGrid r={r} startingValue={startingValue} numSimulations={numSimulations} />
-      <ResultTabBar activeTab={activeTab} onTabChange={onTabChange} />
-      <div style={{ minHeight: 300 }}>
-        <TabContent
-          activeTab={activeTab}
-          r={r}
-          startingValue={startingValue}
-          distMetric={distMetric}
-          setDistMetric={setDistMetric}
-        />
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => onTabChange(v as ResultTab)}
+        className="w-full"
+      >
+        <TabsList className="mb-4 flex-wrap">
+          {RESULT_TABS.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <div className="min-h-[300px]">
+          <TabsContent value="summary">
+            <MonteCarloSummaryTab r={r} startingValue={startingValue} />
+          </TabsContent>
+          <TabsContent value="range">
+            <MonteCarloRangeTab r={r} startingValue={startingValue} />
+          </TabsContent>
+          <TabsContent value="success">
+            <MonteCarloSuccessTab r={r} />
+          </TabsContent>
+          <TabsContent value="distributions">
+            <MonteCarloDistributionsTab
+              r={r}
+              distMetric={distMetric}
+              setDistMetric={setDistMetric}
+              startingValue={startingValue}
+            />
+          </TabsContent>
+          <TabsContent value="scenarios">
+            <MonteCarloScenariosTab r={r} startingValue={startingValue} />
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }
@@ -124,7 +113,7 @@ export function MonteCarloResultsPanel({
   if (error) return <McErrorState error={error} />;
   if (!results1 && !results2) return <McEmptyState />;
   return (
-    <div className="bt-results-card card">
+    <div className="flex flex-col gap-6">
       {results1 && (
         <ResultsDisplay
           r={results1}
@@ -141,9 +130,7 @@ export function MonteCarloResultsPanel({
       )}
       {results2 && (
         <>
-          <div
-            style={{ borderTop: '1px solid var(--border-soft)', marginTop: 24, paddingTop: 8 }}
-          />
+          <Separator />
           <ResultsDisplay
             r={results2}
             label={portfolios[1].name}

@@ -4,11 +4,15 @@
  * @route /multi-signal
  */
 import { useTranslation } from 'react-i18next';
-import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
+import { ToolPageLayout } from '@/components/layout/ToolPageLayout';
 import { useMultiSignalState } from './hooks/useMultiSignalState.js';
 import { MultiSignalParamsPanel } from './SignalSelector.js';
 import { MultiSignalResultsPanel } from './MultiSignalResultsChart.js';
 
+/**
+ * 多信号聚合页面：ToolPageLayout 包参数面板 + 结果面板。
+ * @returns 渲染的多信号聚合页面
+ */
 export default function MultiSignalPage() {
   const { t } = useTranslation();
   const s = useMultiSignalState();

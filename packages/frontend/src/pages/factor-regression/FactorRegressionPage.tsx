@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from 'react-i18next';
 import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
 import type { ComputeToolConfig } from '../../components/shells/types.js';
@@ -6,7 +5,8 @@ import { useFactorRegressionState } from '@/hooks/useFactorRegressionState.js';
 import { FactorRegressionParamsPanel } from './FactorRegressionParams.js';
 import { FactorRegressionResultsPanel } from './FactorRegressionResults.js';
 
-type State = any;
+/** 因子回归页面状态类型（由 hook 推导，消除 any） */
+type State = ReturnType<typeof useFactorRegressionState>;
 
 function ParamsWrapper({ state }: { state: State }) {
   return (

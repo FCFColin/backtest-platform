@@ -6,8 +6,8 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, Shield, Globe, Clock, Database } from 'lucide-react';
-import type { ComponentType } from 'react';
-import { StandardPageShell } from '../components/shells/StandardPageShell.js';
+import type { ComponentType, ReactNode } from 'react';
+import { Card } from '@/components/ui/card';
 import aboutData from './about/aboutData.json';
 
 const FEATURE_ICONS: Record<string, ComponentType<{ className?: string }>> = {
@@ -36,7 +36,13 @@ interface PlanItem {
   current?: boolean;
 }
 
+/**
+ * AboutPage: 关于/限额/升级三栏页面。
+ * @param props - section 子栏目标识。
+ * @returns 渲染的关于页面。
+ */
 export default function AboutPage({ section }: { section?: string }) {
+  const { t } = useTranslation();
   const activeSection = section || 'about';
   const titleKey =
     activeSection === 'limits'
@@ -46,17 +52,19 @@ export default function AboutPage({ section }: { section?: string }) {
         : 'about.title';
 
   return (
-    <StandardPageShell config={{ titleKey }}>
-      <div className="bt-main-card card" style={{ padding: 24 }}>
+    <div className="flex w-full flex-col gap-3">
+      <h1 className="text-display text-fg">{t(titleKey)}</h1>
+      <Card className="p-6">
         <AboutTabs activeSection={activeSection} />
         {activeSection === 'about' && <AboutSection />}
         {activeSection === 'limits' && <LimitsSection />}
         {activeSection === 'upgrade' && <UpgradeSection />}
-      </div>
-    </StandardPageShell>
+      </Card>
+    </div>
   );
 }
 
+/** AboutTabs: 顶部子栏目切换 */
 function AboutTabs({ activeSection }: { activeSection: string }) {
   const { t } = useTranslation();
   const tabs = [
@@ -65,28 +73,16 @@ function AboutTabs({ activeSection }: { activeSection: string }) {
     { key: 'upgrade', label: t('about.tabs.upgrade'), to: '/upgrade' },
   ];
   return (
-    <div
-      style={{
-        display: 'flex',
-        gap: 8,
-        marginBottom: 24,
-        borderBottom: '2px solid var(--border-soft)',
-        paddingBottom: 12,
-      }}
-    >
+    <div className="mb-6 flex gap-2 border-b-2 border-subtle pb-3">
       {tabs.map((tab) => (
         <Link
           key={tab.key}
           to={tab.to}
-          className="no-underline"
-          style={{
-            padding: '8px 16px',
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 600,
-            color: activeSection === tab.key ? 'var(--brand)' : 'var(--text-muted)',
-            background: activeSection === tab.key ? 'var(--brand-soft)' : 'transparent',
-          }}
+          className={`rounded-lg px-4 py-2 text-[13px] font-semibold no-underline ${
+            activeSection === tab.key
+              ? 'bg-brand/10 text-brand'
+              : 'text-fg-tertiary hover:text-fg-secondary'
+          }`}
         >
           {tab.label}
         </Link>
@@ -95,61 +91,42 @@ function AboutTabs({ activeSection }: { activeSection: string }) {
   );
 }
 
+/** AboutSection: 平台介绍 + 特性卡片 + 技术栈 */
 function AboutSection() {
   const { t } = useTranslation();
   const features = aboutData.features as FeatureItem[];
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <BarChart3 className="w-8 h-8" style={{ color: 'var(--brand)' }} />
+      <div className="mb-6 flex items-center gap-3">
+        <BarChart3 className="size-8 text-brand" />
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-strong)' }}>
-            {t('about.brandName')}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('about.versionInfo')}</div>
+          <div className="text-h2 font-bold text-fg">{t('about.brandName')}</div>
+          <div className="text-[13px] text-fg-tertiary">{t('about.versionInfo')}</div>
         </div>
       </div>
-      <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
-        {t('about.intro')}
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
+      <div className="mb-6 text-body leading-loose text-fg-secondary">{t('about.intro')}</div>
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
         {features.map((f) => {
           const Icon = FEATURE_ICONS[f.iconName] ?? Shield;
           return (
             <FeatureCard
               key={f.titleKey}
-              icon={<Icon className="w-5 h-5" />}
+              icon={<Icon className="size-5" />}
               title={t(f.titleKey)}
               desc={t(f.descKey)}
             />
           );
         })}
       </div>
-      <div
-        style={{
-          marginTop: 24,
-          padding: 16,
-          background: 'var(--bg-subtle)',
-          borderRadius: 'var(--radius-control)',
-          fontSize: 13,
-          color: 'var(--text-muted)',
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-body)' }}>
-          {t('about.techStackTitle')}
-        </div>
+      <div className="mt-6 rounded-lg bg-input-bg p-4 text-[13px] text-fg-tertiary">
+        <div className="mb-2 font-semibold text-fg-secondary">{t('about.techStackTitle')}</div>
         <div>{t('about.techStackContent')}</div>
       </div>
     </div>
   );
 }
 
+/** LimitsSection: 使用限额卡片网格 */
 function LimitsSection() {
   const { t } = useTranslation();
   const limits = (aboutData.limits as LimitItem[]).map((l) => ({
@@ -159,31 +136,21 @@ function LimitsSection() {
   }));
   return (
     <div>
-      <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
-        {t('about.limits.intro')}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="mb-6 text-body leading-loose text-fg-secondary">{t('about.limits.intro')}</div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {limits.map((l) => (
           <LimitCard key={l.label} label={l.label} value={l.value} desc={l.desc} />
         ))}
       </div>
-      <div
-        style={{
-          marginTop: 24,
-          padding: 16,
-          background: 'var(--warning-soft, #fef3c7)',
-          borderRadius: 'var(--radius-control)',
-          fontSize: 13,
-          color: 'var(--text-body)',
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>{t('about.limits.noticeTitle')}</div>
+      <div className="mt-6 rounded-lg bg-warning/10 p-4 text-[13px] text-fg-secondary">
+        <div className="mb-1 font-semibold">{t('about.limits.noticeTitle')}</div>
         {t('about.limits.noticeContent')}
       </div>
     </div>
   );
 }
 
+/** UpgradeSection: 升级方案卡片网格 */
 function UpgradeSection() {
   const { t } = useTranslation();
   const plans = (aboutData.plans as PlanItem[]).map((p) => ({
@@ -194,16 +161,10 @@ function UpgradeSection() {
   }));
   return (
     <div>
-      <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
+      <div className="mb-6 text-body leading-loose text-fg-secondary">
         {t('about.upgrade.intro')}
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 16,
-        }}
-      >
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
         {plans.map((p) => (
           <PlanCard
             key={p.title}
@@ -218,42 +179,29 @@ function UpgradeSection() {
   );
 }
 
-function FeatureCard({
-  icon,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
+/** FeatureCard: 特性卡片 */
+function FeatureCard({ icon, title, desc }: { icon: ReactNode; title: string; desc: string }) {
   return (
-    <div
-      style={{ padding: 16, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-control)' }}
-    >
-      <div style={{ color: 'var(--brand)', marginBottom: 8 }}>{icon}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 4 }}>
-        {title}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{desc}</div>
+    <div className="rounded-lg bg-input-bg p-4">
+      <div className="mb-2 text-brand">{icon}</div>
+      <div className="mb-1 text-body font-semibold text-fg">{title}</div>
+      <div className="text-caption text-fg-tertiary">{desc}</div>
     </div>
   );
 }
 
+/** LimitCard: 限额卡片 */
 function LimitCard({ label, value, desc }: { label: string; value: string; desc: string }) {
   return (
-    <div
-      style={{ padding: 16, background: 'var(--bg-subtle)', borderRadius: 'var(--radius-control)' }}
-    >
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 2 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{desc}</div>
+    <div className="rounded-lg bg-input-bg p-4">
+      <div className="mb-1 text-caption text-fg-tertiary">{label}</div>
+      <div className="mb-0.5 text-h2 font-bold text-fg">{value}</div>
+      <div className="text-caption text-fg-tertiary">{desc}</div>
     </div>
   );
 }
 
+/** PlanCard: 套餐卡片 */
 function PlanCard({
   title,
   price,
@@ -268,47 +216,20 @@ function PlanCard({
   const { t } = useTranslation();
   return (
     <div
-      style={{
-        padding: 20,
-        background: current ? 'var(--brand-soft)' : 'var(--bg-subtle)',
-        borderRadius: 'var(--radius-control)',
-        border: current ? '2px solid var(--brand)' : '1px solid var(--border-soft)',
-      }}
+      className={`rounded-lg p-5 ${
+        current ? 'border-2 border-brand bg-brand/10' : 'border border-subtle bg-input-bg'
+      }`}
     >
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 4 }}>
-        {title}
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--brand)', marginBottom: 16 }}>
-        {price}
-      </div>
+      <div className="mb-1 text-h3 font-bold text-fg">{title}</div>
+      <div className="mb-4 text-h1 font-bold text-brand">{price}</div>
       {features.map((f, i) => (
-        <div
-          key={i}
-          style={{
-            fontSize: 13,
-            color: 'var(--text-body)',
-            padding: '4px 0',
-            paddingLeft: 16,
-            position: 'relative',
-          }}
-        >
-          <span style={{ position: 'absolute', left: 0, color: 'var(--success)' }}>✓</span>
+        <div key={i} className="relative py-1 pl-4 text-[13px] text-fg-secondary">
+          <span className="absolute left-0 text-success">✓</span>
           {f}
         </div>
       ))}
       {current && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: '8px 16px',
-            background: 'var(--brand)',
-            color: 'white',
-            borderRadius: 8,
-            textAlign: 'center',
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
+        <div className="mt-4 rounded-lg bg-brand py-2 text-center text-[13px] font-semibold text-brand-fg">
           {t('about.upgrade.currentPlan')}
         </div>
       )}

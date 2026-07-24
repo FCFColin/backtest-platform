@@ -61,6 +61,12 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
 
   const { portfolios, parameters } = get();
 
+  if (portfolios.length === 0) {
+    useToastStore.getState().addToast('warning', i18n.t('backtest.emptyPortfolios'));
+    if (requestId === currentRequestId) set({ isLoading: false, _abortController: null });
+    return;
+  }
+
   const validationError = validatePortfolios(portfolios);
   if (validationError) {
     useToastStore.getState().addToast('warning', validationError);

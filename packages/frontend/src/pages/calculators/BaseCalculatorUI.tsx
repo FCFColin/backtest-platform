@@ -1,4 +1,11 @@
+/**
+ * @file 计算器基础 UI 组件
+ * @description 基于 shadcn Card / Field / Input / Collapsible 与 chart-theme 的计算器通用组件：
+ *   Field（数字输入 + 后缀）、ResultRow（结果行）、InfoBox（公式提示）、
+ *   CollapsibleCard（可折叠卡片）、TwoFundChart / SWRChart（基于 chart-theme）。
+ */
 import { useState } from 'react';
+import type { ElementType, ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
   LineChart,
@@ -11,232 +18,217 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
 import { useTranslation } from 'react-i18next';
+import { CHART_COLORS } from '@backtest/shared';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
 import {
-  CHART_TOOLTIP_STYLE,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-} from '../../components/charts/chartConstants.js';
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/chart-theme';
 
-const INFO_BOX_STYLE: React.CSSProperties = {
-  marginTop: 10,
-  padding: '8px 12px',
-  background: 'var(--bg-subtle)',
-  borderRadius: 8,
-  fontSize: 12,
-  color: 'var(--text-muted)',
-};
+// ============ Field ============
 
-const COLLAPSIBLE_CARD_STYLE: React.CSSProperties = {
-  background: 'var(--bg-elevated)',
-  borderRadius: 'var(--radius-card)',
-  boxShadow: 'var(--shadow-card)',
-  border: '1px solid var(--border-soft)',
-  overflow: 'hidden',
-};
-
-const ICON_BOX_STYLE: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 8,
-  background: 'var(--brand-soft)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-};
-
-const CARD_TITLE_STYLE: React.CSSProperties = {
-  fontSize: 16,
-  fontWeight: 700,
-  color: 'var(--text-strong)',
-  margin: 0,
-  flex: 1,
-  textAlign: 'left',
-};
-
-interface FieldProps {
+interface CalcFieldProps {
+  /** 字段标签 */
   label: string;
+  /** 当前数值 */
   value: number;
+  /** 数值变更回调 */
   onChange: (v: number) => void;
+  /** 可选后缀（如 %、x、年） */
   suffix?: string;
+  /** 最小值 */
   min?: number;
+  /** 最大值 */
   max?: number;
+  /** 步进，默认 0.1 */
   step?: number;
 }
 
-export function Field({ label, value, onChange, suffix = '', min, max, step = 0.1 }: FieldProps) {
+/**
+ * 计算器数字输入字段：FieldLabel + Input(type=number) + 可选后缀。
+ * @param props - 见 CalcFieldProps
+ * @returns 渲染的字段
+ */
+export function Field({ label, value, onChange, suffix, min, max, step = 0.1 }: CalcFieldProps) {
   return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>
-        {label}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <input
+    <FieldShell>
+      <FieldLabel>{label}</FieldLabel>
+      <div className="relative">
+        <Input
           type="number"
-          className="param-input"
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
           min={min}
           max={max}
           step={step}
-          style={{
-            flex: 1,
-            height: 36,
-            padding: '0 10px',
-            borderRadius: 'var(--radius-control)',
-            border: '1px solid var(--border-strong)',
-            fontSize: 14,
-            color: 'var(--text-body)',
-            background: 'var(--bg-elevated)',
-            width: '100%',
-          }}
+          className={suffix ? 'pr-10' : undefined}
         />
         {suffix && (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 20 }}>{suffix}</span>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+            {suffix}
+          </span>
         )}
       </div>
-    </div>
+    </FieldShell>
   );
 }
 
+// ============ ResultRow ============
+
+/** 结果行语义色调 */
+type ResultTone = 'brand' | 'success' | 'warning' | 'danger' | 'muted' | 'default';
+
+const RESULT_TONE_CLASS: Record<ResultTone, string> = {
+  brand: 'text-brand',
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-danger',
+  muted: 'text-fg-secondary',
+  default: 'text-fg',
+};
+
 interface ResultRowProps {
-  label: string;
-  value: string | number;
-  color?: string;
+  /** 行标签 */
+  label: ReactNode;
+  /** 行数值 */
+  value: ReactNode;
+  /** 语义色调，默认 default */
+  tone?: ResultTone;
 }
 
-export function ResultRow({ label, value, color }: ResultRowProps) {
+/**
+ * 计算器结果行：标签左对齐，数值右对齐并使用等宽数字。
+ * @param props - 见 ResultRowProps
+ * @returns 渲染的结果行
+ */
+export function ResultRow({ label, value, tone = 'default' }: ResultRowProps) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        padding: '6px 0',
-        borderBottom: '1px solid var(--border-soft)',
-      }}
-    >
-      <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontSize: 14, fontWeight: 700, color: color || 'var(--text-strong)' }}>
+    <div className="flex items-center justify-between border-b border-border-subtle py-1.5 last:border-b-0">
+      <span className="text-label text-fg-tertiary">{label}</span>
+      <span className={cn('font-mono tabular-nums text-label font-semibold', RESULT_TONE_CLASS[tone])}>
         {value}
       </span>
     </div>
   );
 }
 
-export function InfoBox({ children }: { children: React.ReactNode }) {
-  return <div style={INFO_BOX_STYLE}>{children}</div>;
-}
+// ============ InfoBox ============
 
-function CollapsibleCardHeader({
-  icon: Icon,
-  title,
-  open,
-  onToggle,
-}: {
-  icon: React.ElementType;
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const [hovered, setHovered] = useState(false);
+/**
+ * 公式 / 说明提示框。
+ * @param props - children 为提示内容
+ * @returns 渲染的提示框
+ */
+export function InfoBox({ children }: { children: ReactNode }) {
   return (
-    <button
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: '100%',
-        padding: '16px 20px',
-        border: 'none',
-        background: hovered ? 'var(--bg-subtle)' : 'none',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        borderBottom: open ? '1px solid var(--border-soft)' : 'none',
-        transition: 'background-color .12s',
-      }}
-    >
-      <div style={ICON_BOX_STYLE}>
-        <Icon className="w-4 h-4" style={{ color: 'var(--brand)' }} />
-      </div>
-      <h3 style={CARD_TITLE_STYLE}>{title}</h3>
-      <ChevronDown
-        className="w-4 h-4"
-        style={{
-          color: 'var(--text-muted)',
-          transition: 'transform .2s',
-          transform: open ? 'rotate(180deg)' : 'rotate(0)',
-          flexShrink: 0,
-        }}
-      />
-    </button>
+    <div className="mt-2.5 rounded-md bg-input-bg p-3 text-caption leading-relaxed text-fg-tertiary">
+      {children}
+    </div>
   );
 }
 
+// ============ CollapsibleCard ============
+
+interface CollapsibleCardProps {
+  /** 标题图标（lucide 组件） */
+  icon: ElementType;
+  /** 卡片标题 */
+  title: string;
+  /** 是否默认展开，默认 false */
+  defaultOpen?: boolean;
+  /** 卡片内容 */
+  children: ReactNode;
+}
+
+/**
+ * 可折叠计算器卡片：Card + shadcn Collapsible，标题栏含图标与旋转 chevron。
+ * @param props - 见 CollapsibleCardProps
+ * @returns 渲染的可折叠卡片
+ */
 export function CollapsibleCard({
   icon: Icon,
   title,
   defaultOpen = false,
   children,
-}: {
-  icon: React.ElementType;
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
+}: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={COLLAPSIBLE_CARD_STYLE}>
-      <CollapsibleCardHeader
-        icon={Icon}
-        title={title}
-        open={open}
-        onToggle={() => setOpen(!open)}
-      />
-      {open && <div style={{ padding: '16px 20px' }}>{children}</div>}
-    </div>
+    <Card className="overflow-hidden bg-elevated">
+      <Collapsible open={open} onOpenChange={setOpen} className="w-full">
+        <CollapsibleTrigger
+          className={cn(
+            'flex w-full items-center gap-2.5 p-4 text-left',
+            'transition-colors duration-150 hover:bg-hover'
+          )}
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-brand/10">
+            <Icon className="size-4 text-brand" />
+          </span>
+          <h3 className="flex-1 text-h3 text-fg">{title}</h3>
+          <ChevronDown
+            className={cn(
+              'size-4 shrink-0 text-fg-tertiary transition-transform duration-200',
+              open && 'rotate-180'
+            )}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="p-4 pt-0">{children}</div>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 }
 
+// ============ TwoFundChart ============
+
+/**
+ * 双基金有效前沿图（波动率 vs CAGR）。
+ * @param props - data 为前沿采样点
+ * @returns 渲染的折线图
+ */
 export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number; vol: number }> }) {
   const { t } = useTranslation();
   return (
-    <div style={{ height: 220, marginTop: 12 }}>
+    <div className="mt-3 h-[220px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis
             dataKey="vol"
             type="number"
             tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => v.toFixed(1) + '%'}
+            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
             label={{
               value: t('calculators.base.volatility'),
               position: 'insideBottom',
               offset: -4,
               fontSize: 11,
-              fill: 'var(--text-muted)',
+              fill: 'var(--fg-tertiary)',
             }}
           />
           <YAxis
             tick={AXIS_TICK_STYLE}
-            tickFormatter={(v: number) => v.toFixed(1) + '%'}
+            tickFormatter={(v: number) => `${v.toFixed(1)}%`}
             label={{
               value: 'CAGR',
               angle: -90,
               position: 'insideLeft',
               offset: 8,
               fontSize: 11,
-              fill: 'var(--text-muted)',
+              fill: 'var(--fg-tertiary)',
             }}
           />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(v: number, name: string) => [
-              v.toFixed(2) + '%',
+              `${v.toFixed(2)}%`,
               name === 'cagr' ? 'CAGR' : name,
             ]}
             labelFormatter={(l: number) =>
@@ -256,13 +248,20 @@ export function TwoFundChart({ data }: { data: Array<{ wA: number; cagr: number;
   );
 }
 
+// ============ SWRChart ============
+
+/**
+ * SWR 组合存活比率图（年份 vs 资产比率）。
+ * @param props - data 为逐年比率点
+ * @returns 渲染的面积图
+ */
 export function SWRChart({ data }: { data: Array<{ year: number; ratio: number }> }) {
   const { t } = useTranslation();
   return (
-    <div style={{ height: 160, marginTop: 12 }}>
+    <div className="mt-3 h-[160px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => v.toFixed(1)} />
           <Tooltip

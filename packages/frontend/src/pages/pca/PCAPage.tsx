@@ -10,8 +10,8 @@ import { usePcaPageState } from './usePcaPageState.js';
 import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
 import type { ComputeToolConfig } from '../../components/shells/types.js';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PCAState = any;
+/** PCA 页面状态类型（由 hook 推导，消除 any） */
+type PCAState = ReturnType<typeof usePcaPageState>;
 
 function PCAParamsWrapper({ state }: { state: PCAState }) {
   return (

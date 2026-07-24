@@ -1,6 +1,7 @@
 /**
  * @file DualSignal 结果面板
  * @description 统计对比表 + 信号方向对比表 + 权益曲线对比；从 DualSignalPage 拆分以便独立维护。
+ *   基于 shadcn Card + CollapsibleSection，遵循 testfol.io 风格。
  */
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +9,7 @@ import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio } from '@/utils/format';
 import { CHART_COLORS } from '@backtest/shared';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
-import ChartCard from '../../components/ChartCard.js';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { SortableTable, type Column } from '../../components/SortableTable.js';
 import { SimpleTable, type SimpleTableColumn } from '../../components/SimpleTable.js';
 import {
@@ -26,16 +27,25 @@ interface DualSignalResultsProps {
   isLoading: boolean;
 }
 
-/** 信号方向渲染 */
+/**
+ * 信号方向渲染：buy → pos 色，sell → neg 色，null → tertiary 灰。
+ * @param d - 信号方向
+ * @param t - i18n 翻译函数
+ * @returns 渲染的方向标签
+ */
 function renderDir(d: SignalDir, t: TFunction): ReactNode {
   if (d === 'buy')
-    return <span style={{ color: '#1a7a3a', fontWeight: 600 }}>{t('signal.common.buy')}</span>;
+    return <span className="font-semibold text-pos">{t('signal.common.buy')}</span>;
   if (d === 'sell')
-    return <span style={{ color: '#c94a4a', fontWeight: 600 }}>{t('signal.common.sell')}</span>;
-  return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    return <span className="font-semibold text-neg">{t('signal.common.sell')}</span>;
+  return <span className="text-fg-tertiary">—</span>;
 }
 
-/** 权益曲线合并 */
+/**
+ * 合并三条权益曲线为按日期对齐的单份数据，供多系列折线图使用。
+ * @param results - 双信号响应
+ * @returns 按日期升序排列的权益曲线数据
+ */
 function buildEquityData(results: DualSignalResponse): Array<Record<string, number | string>> {
   const dateMap = new Map<string, Record<string, number | string>>();
   const series: Array<{ name: string; curve: SignalAnalysisResult['equityCurve'] }> = [
@@ -54,7 +64,7 @@ function buildEquityData(results: DualSignalResponse): Array<Record<string, numb
   );
 }
 
-/** 统计列定义 */
+/** 统计列定义（key 与 SignalAnalysisResult.statistics 字段对齐） */
 const STAT_COLS: { key: string; label: string; fmt: 'int' | 'pct' | 'ratio' }[] = [
   { key: 'totalSignals', label: 'signal.dual.statTotalSignals', fmt: 'int' },
   { key: 'winRate', label: 'signal.dual.statWinRate', fmt: 'pct' },
@@ -63,18 +73,27 @@ const STAT_COLS: { key: string; label: string; fmt: 'int' | 'pct' | 'ratio' }[] 
   { key: 'sharpe', label: 'signal.dual.statSharpe', fmt: 'ratio' },
 ];
 
+/**
+ * 按列格式化统计值。
+ * @param v - 原始数值
+ * @param fmt - 格式类型
+ * @returns 格式化后的字符串
+ */
 function formatStat(v: number, fmt: 'int' | 'pct' | 'ratio'): string {
   if (fmt === 'int') return String(v);
   if (fmt === 'pct') return fmtPct(v);
   return fmtRatio(v);
 }
 
-/** 统计对比表 */
-function StatsComparisonTable({
-  statRows,
-}: {
-  statRows: { name: string; stats: SignalAnalysisResult['statistics'] }[];
-}) {
+/** 统计对比行数据 */
+type StatRow = { name: string; stats: SignalAnalysisResult['statistics'] };
+
+/**
+ * 统计对比表 section：指标列 + 每个信号的统计列（带色点）。
+ * @param statRows - 各信号统计行
+ * @returns 渲染的统计对比表 section
+ */
+function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
   const { t } = useTranslation();
   const columns: SimpleTableColumn<(typeof STAT_COLS)[number]>[] = [
     { key: 'metric', label: t('signal.dual.colMetric'), render: (col) => t(col.label) },
@@ -83,7 +102,7 @@ function StatsComparisonTable({
       label: (
         <>
           <span
-            className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+            className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
             style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
           />
           {r.name}
@@ -95,14 +114,24 @@ function StatsComparisonTable({
     })),
   ];
   return (
-    <ChartCard title={t('signal.dual.statsComparison')}>
+    <CollapsibleSection
+      title={t('signal.dual.statsComparison')}
+      defaultOpen
+      className="rounded-xl border border-border bg-surface"
+    >
       <SimpleTable columns={columns} data={STAT_COLS} rowKey={(r) => r.key} />
-    </ChartCard>
+    </CollapsibleSection>
   );
 }
 
-/** 构建信号方向对比表列定义 */
-function buildComparisonColumns(t: TFunction): Column<DualSignalResponse['comparison'][number]>[] {
+/**
+ * 构建信号方向对比表列定义。
+ * @param t - i18n 翻译函数
+ * @returns 对比表列数组
+ */
+function buildComparisonColumns(
+  t: TFunction,
+): Column<DualSignalResponse['comparison'][number]>[] {
   return [
     { key: 'date', label: t('signal.dual.colDate'), sortValue: (r) => r.date },
     {
@@ -126,12 +155,16 @@ function buildComparisonColumns(t: TFunction): Column<DualSignalResponse['compar
   ];
 }
 
-/** DualSignal 结果面板 */
+/**
+ * DualSignal 结果面板（统计对比 + 信号对比 + 权益曲线对比 + 空态）。
+ * @param props - 见 DualSignalResultsProps
+ * @returns 渲染的结果面板
+ */
 export function DualSignalResultsPanel({ results, error, isLoading }: DualSignalResultsProps) {
   const { t } = useTranslation();
   const comparisonColumns = buildComparisonColumns(t);
 
-  const statRows = results
+  const statRows: StatRow[] = results
     ? [
         { name: t('signal.dual.signal1'), stats: results.signal1.statistics },
         { name: t('signal.dual.signal2'), stats: results.signal2.statistics },
@@ -147,8 +180,10 @@ export function DualSignalResultsPanel({ results, error, isLoading }: DualSignal
       {results && (
         <>
           <StatsComparisonTable statRows={statRows} />
-          <ChartCard
+          <CollapsibleSection
             title={t('signal.dual.signalComparison', { count: results.comparison.length })}
+            defaultOpen
+            className="rounded-xl border border-border bg-surface"
           >
             {results.comparison.length > 0 ? (
               <SortableTable
@@ -158,19 +193,16 @@ export function DualSignalResultsPanel({ results, error, isLoading }: DualSignal
                 initialSortDir="asc"
               />
             ) : (
-              <div
-                style={{
-                  color: 'var(--text-muted)',
-                  fontSize: 13,
-                  padding: '24px 0',
-                  textAlign: 'center',
-                }}
-              >
+              <div className="py-6 text-center text-body text-fg-tertiary">
                 {t('signal.common.noSignal')}
               </div>
             )}
-          </ChartCard>
-          <ChartCard title={t('signal.dual.equityCurveComparison')}>
+          </CollapsibleSection>
+          <CollapsibleSection
+            title={t('signal.dual.equityCurveComparison')}
+            defaultOpen
+            className="rounded-xl border border-border bg-surface"
+          >
             <EquityLineChart
               data={equityData}
               series={[
@@ -192,7 +224,7 @@ export function DualSignalResultsPanel({ results, error, isLoading }: DualSignal
               ]}
               tooltipName=""
             />
-          </ChartCard>
+          </CollapsibleSection>
         </>
       )}
       {!results && !error && !isLoading && <EmptyResultsHint />}

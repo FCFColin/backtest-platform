@@ -1,11 +1,13 @@
 /**
  * @file 多信号聚合结果展示
- * @description 聚合统计卡片 + 各信号贡献度表 + 聚合权益曲线
+ * @description 聚合统计卡片 + 各信号贡献度表 + 聚合权益曲线。
+ *   基于 shadcn Card + CollapsibleSection + chart-theme，遵循 testfol.io 风格。
  */
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio } from '@/utils/format';
-import ChartCard from '../../components/ChartCard.js';
+import { Card } from '@/components/ui/card';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
 import { SortableTable, type Column } from '../../components/SortableTable.js';
 import {
   ResultsContainer,
@@ -15,12 +17,48 @@ import {
 } from './SignalResultsPanel.js';
 import type { MultiSignalResponse } from './multiSignalTypes.js';
 
+/** MultiSignal 结果面板 Props */
 interface MultiSignalResultsProps {
   results: MultiSignalResponse | null;
   error: string | null;
   isLoading: boolean;
 }
 
+/** 聚合统计行 */
+interface AggStatRow {
+  /** 统计项 i18n key */
+  label: string;
+  /** 已格式化的统计值 */
+  value: string;
+}
+
+/** 统计卡片 Props */
+interface StatCardProps {
+  /** 统计项标签 */
+  label: string;
+  /** 统计值（已格式化） */
+  value: string;
+}
+
+/**
+ * 统计卡片：标签 + 大号数值。
+ * @param props - 见 StatCardProps
+ * @returns 渲染的统计卡片
+ */
+function StatCard({ label, value }: StatCardProps) {
+  return (
+    <Card className="p-3">
+      <div className="text-caption text-fg-tertiary">{label}</div>
+      <div className="mt-1 font-mono text-h1 font-semibold tabular-nums text-fg">{value}</div>
+    </Card>
+  );
+}
+
+/**
+ * 构建贡献度对比表列定义。
+ * @param t - i18n 翻译函数
+ * @returns 贡献度表列数组
+ */
 function buildContributionColumns(
   t: TFunction,
 ): Column<MultiSignalResponse['contributions'][number]>[] {
@@ -48,7 +86,12 @@ function buildContributionColumns(
   ];
 }
 
-function buildAggStatRows(results: MultiSignalResponse) {
+/**
+ * 构建聚合统计行（5 项核心指标）。
+ * @param results - 多信号响应
+ * @returns 聚合统计行数组
+ */
+function buildAggStatRows(results: MultiSignalResponse): AggStatRow[] {
   const s = results.aggregated.statistics;
   return [
     { label: 'signal.multi.statTotalSignals', value: String(s.totalSignals) },
@@ -59,6 +102,11 @@ function buildAggStatRows(results: MultiSignalResponse) {
   ];
 }
 
+/**
+ * 多信号聚合结果面板（聚合统计 + 贡献度对比 + 权益曲线 + 空态）。
+ * @param props - 见 MultiSignalResultsProps
+ * @returns 渲染的结果面板
+ */
 export function MultiSignalResultsPanel({ results, error, isLoading }: MultiSignalResultsProps) {
   const { t } = useTranslation();
   const aggStatRows = results ? buildAggStatRows(results) : [];
@@ -69,26 +117,22 @@ export function MultiSignalResultsPanel({ results, error, isLoading }: MultiSign
       <AnalysisErrorAlert error={error} />
       {results && (
         <>
-          <ChartCard title={t('signal.multi.aggStatsTitle')}>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <CollapsibleSection
+            title={t('signal.multi.aggStatsTitle')}
+            defaultOpen
+            className="rounded-xl border border-border bg-surface"
+          >
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
               {aggStatRows.map((r) => (
-                <div className="card" key={r.label} style={{ padding: 12 }}>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t(r.label)}</div>
-                  <div
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 600,
-                      color: 'var(--text-strong)',
-                      marginTop: 4,
-                    }}
-                  >
-                    {r.value}
-                  </div>
-                </div>
+                <StatCard key={r.label} label={t(r.label)} value={r.value} />
               ))}
             </div>
-          </ChartCard>
-          <ChartCard title={t('signal.multi.contributionTitle')}>
+          </CollapsibleSection>
+          <CollapsibleSection
+            title={t('signal.multi.contributionTitle')}
+            defaultOpen
+            className="rounded-xl border border-border bg-surface"
+          >
             {results.contributions.length > 0 ? (
               <SortableTable
                 columns={contributionColumns}
@@ -97,25 +141,22 @@ export function MultiSignalResultsPanel({ results, error, isLoading }: MultiSign
                 initialSortDir="desc"
               />
             ) : (
-              <div
-                style={{
-                  color: 'var(--text-muted)',
-                  fontSize: 13,
-                  padding: '24px 0',
-                  textAlign: 'center',
-                }}
-              >
+              <div className="py-6 text-center text-body text-fg-tertiary">
                 {t('signal.multi.noContribution')}
               </div>
             )}
-          </ChartCard>
-          <ChartCard title={t('signal.multi.equityCurve')}>
+          </CollapsibleSection>
+          <CollapsibleSection
+            title={t('signal.multi.equityCurve')}
+            defaultOpen
+            className="rounded-xl border border-border bg-surface"
+          >
             <EquityLineChart
               data={results.aggregated.equityCurve}
               series={[{ dataKey: 'value', legendName: t('signal.multi.aggEquity') }]}
               tooltipName={t('signal.common.equity')}
             />
-          </ChartCard>
+          </CollapsibleSection>
         </>
       )}
       {!results && !error && !isLoading && <EmptyResultsHint />}

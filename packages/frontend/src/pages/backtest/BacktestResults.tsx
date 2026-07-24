@@ -155,7 +155,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
     <>
       <GrowthChart portfolios={pf} />
       <DrawdownChart portfolios={pf} />
-      <StatisticsTable portfolios={pf} />
+      <StatisticsTable portfolios={pf} horizontal />
       <DrawdownEpisodes portfolios={pf} />
     </>
   ),
@@ -245,11 +245,8 @@ export function ResultsContent() {
     );
   if (!results || results.portfolios.length === 0)
     return (
-      <div
-        className="bt-results-card card"
-        style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}
-      >
-        {t('backtest.noResults')}
+      <div className="bt-results-empty">
+        <span className="bt-results-empty-text">{t('backtest.noResultsHint')}</span>
       </div>
     );
 

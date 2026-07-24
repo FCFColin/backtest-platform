@@ -5,7 +5,9 @@
  */
 import { useTranslation } from 'react-i18next';
 import { GitCommit, Plus, Wrench, Bug, Calendar } from 'lucide-react';
-import { StandardPageShell } from '../components/shells/StandardPageShell.js';
+import type { ReactNode } from 'react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 type ChangeType = 'added' | 'improved' | 'fixed';
 
@@ -21,6 +23,7 @@ interface VersionEntry {
   changes: ChangeEntry[];
 }
 
+/** useVersions: 从 i18n 读取版本列表 */
 function useVersions(): VersionEntry[] {
   const { t } = useTranslation();
   const raw = t('changelog.versions', { returnObjects: true }) as Record<
@@ -30,129 +33,62 @@ function useVersions(): VersionEntry[] {
   return Object.entries(raw).map(([version, v]) => ({ version, ...v }));
 }
 
-function useTypeConfig(): Record<
-  ChangeType,
-  { label: string; color: string; bg: string; icon: React.ReactNode }
-> {
+/** useTypeConfig: 变更类型 → Badge variant + 图标映射 */
+function useTypeConfig(): Record<ChangeType, { label: string; variant: 'success' | 'asset' | 'secondary'; icon: ReactNode }> {
   const { t } = useTranslation();
   return {
     added: {
       label: t('changelog.added'),
-      color: 'var(--success)',
-      bg: 'color-mix(in srgb, var(--success) 12%, transparent)',
-      icon: <Plus className="w-3 h-3" />,
+      variant: 'success',
+      icon: <Plus className="size-3" />,
     },
     improved: {
       label: t('changelog.improved'),
-      color: 'var(--brand)',
-      bg: 'var(--brand-soft)',
-      icon: <Wrench className="w-3 h-3" />,
+      variant: 'asset',
+      icon: <Wrench className="size-3" />,
     },
     fixed: {
       label: t('changelog.fixed'),
-      color: 'var(--warning)',
-      bg: 'color-mix(in srgb, var(--warning) 12%, transparent)',
-      icon: <Bug className="w-3 h-3" />,
+      variant: 'secondary',
+      icon: <Bug className="size-3" />,
     },
   };
 }
 
-/** 变更条目标签 */
+/** ChangeTag: 变更条目标签 */
 function ChangeTag({ c }: { c: ChangeEntry }) {
   const cfg = useTypeConfig()[c.type];
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 3,
-        padding: '1px 7px',
-        fontSize: 11,
-        fontWeight: 600,
-        color: cfg.color,
-        background: cfg.bg,
-        borderRadius: 4,
-        flexShrink: 0,
-        minWidth: 44,
-        justifyContent: 'center',
-        marginTop: 2,
-      }}
-    >
+    <Badge variant={cfg.variant} size="sm" className="mt-0.5 shrink-0 min-w-[44px] justify-center">
       {cfg.icon}
       {cfg.label}
-    </span>
+    </Badge>
   );
 }
 
+/** VersionTimelineItem: 单条版本时间线项 */
 function VersionTimelineItem({ v }: { v: VersionEntry }) {
   return (
-    <div style={{ position: 'relative', paddingLeft: 44, paddingBottom: 28 }}>
-      <div
-        style={{
-          position: 'absolute',
-          left: 12,
-          top: 4,
-          width: 14,
-          height: 14,
-          borderRadius: '50%',
-          background: 'var(--brand)',
-          border: '3px solid var(--bg-elevated)',
-          boxShadow: '0 0 0 2px var(--brand)',
-        }}
-      />
-      <div
-        style={{
-          padding: 16,
-          background: 'var(--bg-subtle)',
-          borderRadius: 'var(--radius-control)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            marginBottom: 4,
-            flexWrap: 'wrap',
-          }}
-        >
-          <span style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-strong)' }}>
-            {v.version}
-          </span>
-          <span
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 12,
-              color: 'var(--text-muted)',
-            }}
-          >
-            <Calendar className="w-3 h-3" />
+    <div className="relative pb-7 pl-11">
+      <div className="absolute left-3 top-1 size-3.5 rounded-full border-[3px] border-elevated bg-brand ring-2 ring-brand" />
+      <div className="rounded-lg bg-input-bg p-4">
+        <div className="mb-1 flex flex-wrap items-center gap-3">
+          <span className="text-h2 font-bold text-fg">{v.version}</span>
+          <span className="flex items-center gap-1 text-caption text-fg-tertiary">
+            <Calendar className="size-3" />
             {v.date}
           </span>
           {v.highlight && (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--brand)',
-                background: 'var(--brand-soft)',
-                padding: '2px 8px',
-                borderRadius: 10,
-              }}
-            >
+            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">
               {v.highlight}
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
+        <div className="mt-3 flex flex-col gap-1.5">
           {v.changes.map((c, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <div key={i} className="flex items-start gap-2">
               <ChangeTag c={c} />
-              <span style={{ fontSize: 13, color: 'var(--text-body)', lineHeight: 1.6 }}>
-                {c.text}
-              </span>
+              <span className="text-[13px] leading-relaxed text-fg-secondary">{c.text}</span>
             </div>
           ))}
         </div>
@@ -161,53 +97,37 @@ function VersionTimelineItem({ v }: { v: VersionEntry }) {
   );
 }
 
+/**
+ * ChangelogPage: 更新日志页面，按版本倒序展示变更时间线。
+ * @returns 渲染的更新日志页面。
+ */
 export default function ChangelogPage() {
   const { t } = useTranslation();
   const versions = useVersions();
   return (
-    <StandardPageShell config={{ titleKey: 'changelog.title' }}>
-      <div className="bt-main-card card" style={{ padding: 24 }}>
-        <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24 }}>
+    <div className="flex w-full flex-col gap-3">
+      <h1 className="text-display text-fg">{t('changelog.title')}</h1>
+      <Card className="p-6">
+        <div className="mb-6 text-body leading-loose text-fg-secondary">
           {t('changelog.intro')}
-          <span style={{ color: 'var(--success)', fontWeight: 600 }}> {t('changelog.added')}</span>
+          <span className="font-semibold text-success"> {t('changelog.added')}</span>
           {' · '}
-          <span style={{ color: 'var(--brand)', fontWeight: 600 }}>{t('changelog.improved')}</span>
+          <span className="font-semibold text-brand">{t('changelog.improved')}</span>
           {' · '}
-          <span style={{ color: 'var(--warning)', fontWeight: 600 }}> {t('changelog.fixed')}</span>
+          <span className="font-semibold text-warning"> {t('changelog.fixed')}</span>
           {t('changelog.categoriesSuffix')}
         </div>
-        <div style={{ position: 'relative', paddingLeft: 8 }}>
-          <div
-            style={{
-              position: 'absolute',
-              left: 19,
-              top: 8,
-              bottom: 8,
-              width: 2,
-              background: 'var(--border-soft)',
-            }}
-          />
+        <div className="relative pl-2">
+          <div className="absolute bottom-2 left-[19px] top-2 w-0.5 bg-border-subtle" />
           {versions.map((v) => (
             <VersionTimelineItem key={v.version} v={v} />
           ))}
         </div>
-        <div
-          style={{
-            marginTop: 8,
-            padding: 16,
-            background: 'var(--bg-subtle)',
-            borderRadius: 'var(--radius-control)',
-            fontSize: 12,
-            color: 'var(--text-muted)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <GitCommit className="w-4 h-4" />
+        <div className="mt-2 flex items-center gap-2 rounded-lg bg-input-bg p-4 text-caption text-fg-tertiary">
+          <GitCommit className="size-4" />
           {t('changelog.gitHistoryHint')}
         </div>
-      </div>
-    </StandardPageShell>
+      </Card>
+    </div>
   );
 }

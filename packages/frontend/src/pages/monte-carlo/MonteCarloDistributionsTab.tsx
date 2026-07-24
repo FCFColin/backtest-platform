@@ -13,16 +13,17 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
+import { Card } from '@/components/ui/card';
 import { CHART_COLORS } from '@backtest/shared';
 import type { MonteCarloResult } from '@backtest/shared';
 import {
   CHART_TOOLTIP_STYLE,
   CHART_GRID_PROPS,
   AXIS_TICK_STYLE,
-} from '@/components/charts/chartConstants.js';
+} from '@/lib/chart-theme.js';
 import { buildDistHistogram, metricLabels, METRIC_FORMAT } from './monteCarloTransforms.js';
 import type { DistMetric } from './monteCarloTypes.js';
-import { EMPTY_DATA_STYLE } from './monteCarloSharedConstants.js';
+import { cn } from '@/lib/utils';
 
 function DistMetricSelector({
   distMetric,
@@ -34,22 +35,18 @@ function DistMetricSelector({
   const { t } = useTranslation();
   const labels = metricLabels(t);
   return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+    <div className="mb-4 flex flex-wrap gap-1.5">
       {(Object.keys(labels) as DistMetric[]).map((key) => (
         <button
           key={key}
+          type="button"
           onClick={() => setDistMetric(key)}
-          style={{
-            padding: '4px 12px',
-            fontSize: 12,
-            fontWeight: 500,
-            border: '1px solid var(--border-soft)',
-            borderRadius: 'var(--radius-control)',
-            cursor: 'pointer',
-            backgroundColor: distMetric === key ? 'var(--brand)' : 'var(--bg-elevated)',
-            color: distMetric === key ? '#fff' : 'var(--text-body)',
-            transition: 'all 0.15s',
-          }}
+          className={cn(
+            'rounded-md border px-3 py-1 text-caption font-medium transition-colors duration-150',
+            distMetric === key
+              ? 'border-brand bg-brand text-brand-fg'
+              : 'border-border bg-input-bg text-fg-secondary hover:bg-hover hover:text-fg'
+          )}
         >
           {labels[key]}
         </button>
@@ -78,8 +75,12 @@ function DistHistogramChart({
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={data}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <XAxis dataKey="range" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={3} />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
+        <XAxis
+          dataKey="range"
+          tick={{ fill: 'hsl(var(--fg-tertiary))', fontSize: 10 }}
+          interval={3}
+        />
         <YAxis tick={AXIS_TICK_STYLE} />
         <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
         <Bar
@@ -133,15 +134,22 @@ export function MonteCarloDistributionsTab({
   startingValue: number;
 }) {
   const { t } = useTranslation();
-  if (!r.perPathMetrics || r.perPathMetrics.length === 0)
-    return <div style={EMPTY_DATA_STYLE}>{t('monteCarlo.results.noData')}</div>;
+  if (!r.perPathMetrics || r.perPathMetrics.length === 0) {
+    return (
+      <Card className="p-5">
+        <div className="py-6 text-center text-caption text-fg-tertiary">
+          {t('monteCarlo.results.noData')}
+        </div>
+      </Card>
+    );
+  }
   const { data, medianLabel, meanLabel, medianVal, meanVal } = buildDistHistogram(
     r.perPathMetrics,
     distMetric,
     startingValue,
   );
   return (
-    <div>
+    <Card className="p-5">
       <DistMetricSelector distMetric={distMetric} setDistMetric={setDistMetric} />
       <DistHistogramChart
         data={data}
@@ -151,6 +159,6 @@ export function MonteCarloDistributionsTab({
         meanVal={meanVal}
         distMetric={distMetric}
       />
-    </div>
+    </Card>
   );
 }

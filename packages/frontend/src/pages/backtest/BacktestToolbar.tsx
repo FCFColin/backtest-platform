@@ -38,7 +38,7 @@ function SaveInputRow({
         style={{ flex: 1 }}
         autoFocus
       />
-      <button onClick={() => void handleSaveConfig()} className="toolbar-btn">
+      <button onClick={() => void handleSaveConfig()} className="btn-secondary-sm">
         {t('common.confirm')}
       </button>
       <button
@@ -139,11 +139,12 @@ function LoadListPanel({
 export function BacktestToolbar(props: BacktestToolbarProps) {
   const { t } = useTranslation();
   const isLoading = useBacktestStore((s) => s.isLoading);
+  const portfolioCount = useBacktestStore((s) => s.portfolios.length);
   return (
     <div className="action-bar">
       <button
         onClick={props.runBacktest}
-        disabled={isLoading}
+        disabled={isLoading || portfolioCount === 0}
         className="btn btn-primary"
         data-testid="backtest-run"
       >

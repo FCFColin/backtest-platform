@@ -1,18 +1,29 @@
+/**
+ * @file 战术回测结果面板
+ * @description 用 shadcn Tabs 分 backtest/whatif/alerts 三 tab，每 tab 用 Card 包裹。
+ *              Alerts tab 用 Switch + Checkbox + Field/Input + Button。
+ */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Mail } from 'lucide-react';
 import type { EmailAlertConfig } from '@backtest/shared/types/tactical';
-import LoadingButton from '../../components/LoadingButton.js';
-import ChartCard from '../../components/ChartCard.js';
-import { ParamCard } from '../../components/params/index.js';
-import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Field, FieldLabel } from '@/components/form/Field';
+import ErrorBanner from '@/components/ErrorBanner';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { apiPostJSON } from '@/utils/apiClient';
-import { BacktestEmptyState, BacktestResultTab } from './TacticalCharts.js';
-import { WhatIfTab } from './TacticalTables.js';
-import { ALERT_TRIGGER_OPTIONS, TABS, useTacticalPageState } from './TacticalUtils.js';
+import { BacktestEmptyState, BacktestResultTab } from './TacticalCharts';
+import { WhatIfTab } from './TacticalTables';
+import { ALERT_TRIGGER_OPTIONS, TABS, useTacticalPageState } from './TacticalUtils';
 
 type TacticalPageState = ReturnType<typeof useTacticalPageState>;
 
+/** 告警邮箱输入 */
 function AlertEmailInput({
   email,
   enabled,
@@ -24,32 +35,25 @@ function AlertEmailInput({
 }) {
   const { t } = useTranslation();
   return (
-    <ParamCard label={t('tactical.results.alertEmail')} style={{ marginBottom: 16, maxWidth: 360 }}>
-      <div className="param-input-prefix-wrap">
-        <Mail
-          className="w-4 h-4"
-          style={{
-            position: 'absolute',
-            left: 10,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--text-muted)',
-          }}
-        />
-        <input
+    <Field className="max-w-[360px]">
+      <FieldLabel htmlFor="alert-email">{t('tactical.results.alertEmail')}</FieldLabel>
+      <div className="relative">
+        <Mail className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-fg-tertiary" />
+        <Input
+          id="alert-email"
           type="email"
-          className="param-input"
-          style={{ paddingLeft: 32 }}
+          className="pl-8"
           value={email}
           onChange={(e) => onChange(e.target.value)}
           placeholder="alert@example.com"
           disabled={!enabled}
         />
       </div>
-    </ParamCard>
+    </Field>
   );
 }
 
+/** 告警触发条件选项 */
 function AlertTriggerOptions({
   config,
   onToggle,
@@ -59,30 +63,33 @@ function AlertTriggerOptions({
 }) {
   const { t } = useTranslation();
   return (
-    <>
-      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 8 }}>
+    <div className="max-w-[360px]">
+      <div className="mb-2 text-label font-semibold text-fg">
         {t('tactical.results.alertTrigger')}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360 }}>
+      <div className="flex flex-col gap-2">
         {ALERT_TRIGGER_OPTIONS.map((opt) => (
-          <label key={opt.value} className="param-toggle" style={{ cursor: 'pointer' }}>
-            <input
-              type="checkbox"
+          <label
+            key={opt.value}
+            htmlFor={`trigger-${opt.value}`}
+            className="flex cursor-pointer items-center gap-2.5"
+          >
+            <Checkbox
+              id={`trigger-${opt.value}`}
               checked={config.triggers.includes(opt.value)}
-              onChange={() => onToggle(opt.value)}
+              onCheckedChange={() => onToggle(opt.value)}
               disabled={!config.enabled}
             />
-            <span style={{ fontWeight: 500 }}>{t(opt.label)}</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 11, marginLeft: 'auto' }}>
-              {t(opt.desc)}
-            </span>
+            <span className="text-label font-medium text-fg">{t(opt.label)}</span>
+            <span className="ml-auto text-caption text-fg-tertiary">{t(opt.desc)}</span>
           </label>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
+/** 告警 Tab */
 function AlertsTab() {
   const { t } = useTranslation();
   const [config, setConfig] = useState<EmailAlertConfig>({
@@ -119,74 +126,70 @@ function AlertsTab() {
   };
 
   return (
-    <ChartCard title={t('tactical.results.alertTitle')}>
-      <div className="text-[11px] mb-4" style={{ color: 'var(--text-muted)' }}>
-        {t('tactical.results.alertDesc')}
-      </div>
-      <label className="param-toggle" style={{ marginBottom: 16 }}>
-        <Bell className="w-4 h-4" style={{ color: 'var(--brand)' }} />
-        <span>{t('tactical.results.alertEnable')}</span>
-        <div
-          className={`toggle-switch ${config.enabled ? 'active' : ''}`}
-          onClick={() => setConfig((prev) => ({ ...prev, enabled: !prev.enabled }))}
+    <Card className="p-4">
+      <h3 className="mb-1 text-h3 text-fg">{t('tactical.results.alertTitle')}</h3>
+      <p className="mb-4 text-caption text-fg-tertiary">{t('tactical.results.alertDesc')}</p>
+
+      <div className="mb-4 flex items-center gap-2.5">
+        <Bell className="size-4 text-brand" />
+        <span className="text-label text-fg">{t('tactical.results.alertEnable')}</span>
+        <Switch
+          checked={config.enabled}
+          onCheckedChange={(v) => setConfig((prev) => ({ ...prev, enabled: v }))}
+          className="ml-auto"
         />
-      </label>
-      <AlertEmailInput
-        email={config.email}
-        enabled={config.enabled}
-        onChange={(v) => setConfig((prev) => ({ ...prev, email: v }))}
-      />
-      <AlertTriggerOptions config={config} onToggle={toggleTrigger} />
-      <div className="bt-action-row" style={{ paddingLeft: 0, maxWidth: 360 }}>
-        <LoadingButton
-          isLoading={isLoading}
-          onClick={handleSave}
-          loadingText={t('tactical.results.alertSaving')}
-          style={{ width: '100%' }}
-        >
-          <Bell className="w-4 h-4" />
-          {t('tactical.results.alertSave')}
-        </LoadingButton>
       </div>
-      {error && <div style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{error}</div>}
-      {saved && (
-        <div style={{ color: 'var(--success)', fontSize: 13, marginTop: 8 }}>
-          {t('tactical.results.alertSaved')}
-        </div>
-      )}
-    </ChartCard>
+
+      <div className="mb-4">
+        <AlertEmailInput
+          email={config.email}
+          enabled={config.enabled}
+          onChange={(v) => setConfig((prev) => ({ ...prev, email: v }))}
+        />
+      </div>
+
+      <div className="mb-4">
+        <AlertTriggerOptions config={config} onToggle={toggleTrigger} />
+      </div>
+
+      <Button variant="primary" onClick={handleSave} disabled={isLoading} className="w-full max-w-[360px]">
+        <Bell className="size-4" />
+        {isLoading ? t('tactical.results.alertSaving') : t('tactical.results.alertSave')}
+      </Button>
+
+      {error && <p className="mt-2 text-caption text-danger">{error}</p>}
+      {saved && <p className="mt-2 text-caption text-success">{t('tactical.results.alertSaved')}</p>}
+    </Card>
   );
 }
 
+/** 战术回测结果面板：错误态 + Tabs(backtest/whatif/alerts) */
 function TacticalResultsPanel({ state }: { state: TacticalPageState }) {
   const { t } = useTranslation();
   const { error, activeTab, setActiveTab, results, strategy } = state;
   return (
-    <div className="space-y-4">
-      {error && (
-        <div className="card" style={{ color: 'var(--danger)', textAlign: 'center', padding: 24 }}>
-          {t('tactical.results.backtestFailedDetail', { error })}
-        </div>
-      )}
-      <div className="card">
-        <div className="result-tabs">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`result-tab ${activeTab === tab.key ? 'active' : ''}`}
-            >
-              {t(tab.label)}
-            </button>
-          ))}
-        </div>
-        <div className="result-content">
-          {activeTab === 'backtest' &&
-            (results ? <BacktestResultTab results={results} /> : <BacktestEmptyState />)}
-          {activeTab === 'whatif' && <WhatIfTab strategy={strategy} />}
-          {activeTab === 'alerts' && <AlertsTab />}
-        </div>
-      </div>
+    <div className="flex flex-col gap-3">
+      {error && <ErrorBanner message={t('tactical.results.backtestFailedDetail', { error })} />}
+      <Card className="p-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            {TABS.map((tab) => (
+              <TabsTrigger key={tab.key} value={tab.key}>
+                {t(tab.label)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <TabsContent value="backtest">
+            {results ? <BacktestResultTab results={results} /> : <BacktestEmptyState />}
+          </TabsContent>
+          <TabsContent value="whatif">
+            <WhatIfTab strategy={strategy} />
+          </TabsContent>
+          <TabsContent value="alerts">
+            <AlertsTab />
+          </TabsContent>
+        </Tabs>
+      </Card>
     </div>
   );
 }

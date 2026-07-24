@@ -1,6 +1,7 @@
 /**
  * @file 有效前沿结果图表子组件
- * @description 承载散点图、配置堆叠面积图、相关性矩阵热力表
+ * @description 承载散点图、配置堆叠面积图、相关性矩阵热力表。
+ *   外层 Card 由 ToolPageLayout 提供，本组件只渲染图表标题、图表本身与图例。
  */
 import { useTranslation } from 'react-i18next';
 import {
@@ -21,11 +22,13 @@ import type { EfficientFrontierPoint } from '@backtest/shared';
 import {
   CHART_TOOLTIP_STYLE,
   CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-} from '@/components/charts/chartConstants.js';
-import { getCorrelationColor } from '@/components/charts/chartColors.js';
-import { SECTION_TITLE_STYLE, sharpeToColor } from './efficientFrontierSharedConstants.js';
+  getCorrelationColor,
+} from '@/lib/chart-theme.js';
+import { sharpeToColor } from './efficientFrontierSharedConstants.js';
 import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierShared.js';
+
+const TICK_STYLE = { fill: 'hsl(var(--fg-tertiary))', fontSize: 12 } as const;
+const LABEL_FILL = 'hsl(var(--fg-tertiary))';
 
 /** 散点图内核（不含容器与按钮） */
 function FrontierScatterChartInner({
@@ -44,27 +47,27 @@ function FrontierScatterChartInner({
   const { t } = useTranslation();
   return (
     <ScatterChart>
-      <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+      <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
       <XAxis
         dataKey="expectedVolatility"
-        tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+        tick={TICK_STYLE}
         label={{
           value: t('efficientFrontier.results.volatilityAxis'),
           position: 'insideBottom',
           offset: -5,
           fontSize: 12,
-          fill: 'var(--text-muted)',
+          fill: LABEL_FILL,
         }}
       />
       <YAxis
         dataKey="expectedReturn"
-        tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+        tick={TICK_STYLE}
         label={{
           value: t('efficientFrontier.results.returnAxis'),
           angle: -90,
           position: 'insideLeft',
           fontSize: 12,
-          fill: 'var(--text-muted)',
+          fill: LABEL_FILL,
         }}
       />
       <ZAxis range={[60, 60]} />
@@ -116,18 +119,11 @@ export function FrontierScatterChart({
 }) {
   const { t } = useTranslation();
   return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)' }}>
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-h3 font-semibold text-fg">
           {t('efficientFrontier.results.title')}
-        </div>
+        </h3>
         <LoadInBacktesterButton
           onClick={onLoadInBacktester}
           label={t('efficientFrontier.results.loadInBacktester')}
@@ -142,7 +138,7 @@ export function FrontierScatterChart({
           onSelectPoint={onSelectPoint}
         />
       </ResponsiveContainer>
-    </>
+    </div>
   );
 }
 
@@ -157,23 +153,25 @@ export function FrontierAllocations({
   const { t } = useTranslation();
   if (allocationData.length === 0 || allAssetTickers.length === 0) return null;
   return (
-    <>
-      <div style={SECTION_TITLE_STYLE}>{t('efficientFrontier.results.frontierAllocations')}</div>
+    <div>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
+        {t('efficientFrontier.results.frontierAllocations')}
+      </h3>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={allocationData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
           <XAxis
             dataKey="point"
-            tick={AXIS_TICK_STYLE}
+            tick={TICK_STYLE}
             label={{
               value: t('efficientFrontier.results.frontierPoint'),
               position: 'insideBottom',
               offset: -5,
               fontSize: 11,
-              fill: 'var(--text-muted)',
+              fill: LABEL_FILL,
             }}
           />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
+          <YAxis tick={TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
           <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
           {allAssetTickers.map((ticker, i) => (
             <Area
@@ -188,26 +186,18 @@ export function FrontierAllocations({
           ))}
         </AreaChart>
       </ResponsiveContainer>
-      <div
-        style={{
-          display: 'flex',
-          gap: 16,
-          marginTop: 8,
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className="mt-2 flex flex-wrap justify-center gap-4">
         {allAssetTickers.map((ticker, i) => (
-          <div key={ticker} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+          <div key={ticker} className="flex items-center gap-1 text-caption">
             <span
-              className="inline-block w-3 h-3 rounded"
+              className="inline-block size-3 rounded"
               style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
             />
-            <span style={{ color: 'var(--text-muted)' }}>{ticker}</span>
+            <span className="text-fg-tertiary">{ticker}</span>
           </div>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -220,21 +210,19 @@ export function CorrelationMatrixView({
   const { t } = useTranslation();
   if (!correlations || correlations.tickers.length < 2) return null;
   return (
-    <>
-      <div style={SECTION_TITLE_STYLE}>{t('efficientFrontier.results.correlationMatrix')}</div>
+    <div>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
+        {t('efficientFrontier.results.correlationMatrix')}
+      </h3>
       <div className="overflow-x-auto">
         <table className="border-collapse">
           <thead>
             <tr>
-              <th
-                className="px-3 py-2 text-[11px] font-medium"
-                style={{ color: 'var(--text-muted)' }}
-              />
+              <th className="px-3 py-2 text-caption font-medium text-fg-tertiary" />
               {correlations.tickers.map((tk) => (
                 <th
                   key={tk}
-                  className="px-3 py-2 text-[11px] font-medium text-center"
-                  style={{ color: 'var(--text-muted)' }}
+                  className="px-3 py-2 text-center text-caption font-medium text-fg-tertiary"
                 >
                   {tk}
                 </th>
@@ -244,10 +232,7 @@ export function CorrelationMatrixView({
           <tbody>
             {correlations.tickers.map((rowTicker, i) => (
               <tr key={rowTicker}>
-                <td
-                  className="px-3 py-2 text-[12px] font-medium"
-                  style={{ color: 'var(--text-body)' }}
-                >
+                <td className="px-3 py-2 text-label font-medium text-fg-secondary">
                   {rowTicker}
                 </td>
                 {correlations.tickers.map((colTicker, j) => {
@@ -255,7 +240,7 @@ export function CorrelationMatrixView({
                   return (
                     <td
                       key={colTicker}
-                      className="text-[12px] text-center cursor-default"
+                      className="cursor-default text-center font-mono text-label tabular-nums"
                       style={{
                         backgroundColor: getCorrelationColor(val),
                         color: Math.abs(val) > 0.6 ? '#fff' : '#000',
@@ -273,6 +258,6 @@ export function CorrelationMatrixView({
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }

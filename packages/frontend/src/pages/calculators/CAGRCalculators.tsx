@@ -10,11 +10,13 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { Field, ResultRow, CollapsibleCard } from './BaseCalculatorUI.js';
+import type { TFunction } from 'i18next';
+import { Field, ResultRow, InfoBox, CollapsibleCard } from './BaseCalculatorUI.js';
 import { formatPct, formatNum } from './baseCalculatorUtils.js';
 import { CHART_COLORS } from '@backtest/shared';
-import { CHART_GRID_PROPS, AXIS_TICK_STYLE } from '../../components/charts/chartConstants.js';
+import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE, AXIS_TICK_STYLE } from '@/lib/chart-theme';
 
+/** CAGR 计算器：由初始值、终值与年数推算复合年增长率 */
 export function CAGRCalculator() {
   const { t } = useTranslation();
   const [initial, setInitial] = useState(10000);
@@ -28,7 +30,7 @@ export function CAGRCalculator() {
 
   return (
     <CollapsibleCard icon={TrendingUp} title={t('calculators.cagr.title')} defaultOpen>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0 12px' }}>
+      <div className="grid grid-cols-3 gap-3">
         <Field
           label={t('calculators.cagr.initialValue')}
           value={initial}
@@ -52,21 +54,10 @@ export function CAGRCalculator() {
           min={1}
         />
       </div>
-      <div style={{ marginTop: 12 }}>
-        <ResultRow label="CAGR" value={formatPct(cagr)} color="var(--brand)" />
+      <div className="mt-3">
+        <ResultRow label="CAGR" value={formatPct(cagr)} tone="brand" />
       </div>
-      <div
-        style={{
-          marginTop: 10,
-          padding: '8px 12px',
-          background: 'var(--bg-subtle)',
-          borderRadius: 8,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('calculators.cagr.formula')}
-      </div>
+      <InfoBox>{t('calculators.cagr.formula')}</InfoBox>
     </CollapsibleCard>
   );
 }
@@ -107,22 +98,22 @@ function FutureValueChart({
   t,
 }: {
   curve: Array<{ year: number; value: number }>;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TFunction;
 }) {
   return (
-    <div style={{ height: 180, marginTop: 12 }}>
+    <div className="mt-3 h-[240px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={curve}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+          <CartesianGrid {...CHART_GRID_PROPS} />
           <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
-          <YAxis tick={AXIS_TICK_STYLE} tickFormatter={formatNum} />
+          <YAxis
+            tick={AXIS_TICK_STYLE}
+            tickFormatter={formatNum}
+            width={60}
+            interval="preserveStartEnd"
+          />
           <Tooltip
-            contentStyle={{
-              background: 'var(--bg-elevated)',
-              border: '1px solid var(--border-strong)',
-              borderRadius: 8,
-              fontSize: 12,
-            }}
+            contentStyle={CHART_TOOLTIP_STYLE}
             formatter={(v: number) => [formatNum(v), t('calculators.cagr.finalValue')]}
           />
           <Area
@@ -139,6 +130,7 @@ function FutureValueChart({
   );
 }
 
+/** 终值计算器：按月定投 + 年化收益推算终值与总收益 */
 export function FutureValueCalculator() {
   const { t } = useTranslation();
   const [initial, setInitial] = useState(10000);
@@ -153,7 +145,7 @@ export function FutureValueCalculator() {
 
   return (
     <CollapsibleCard icon={DollarSign} title={t('calculators.cagr.futureValueTitle')} defaultOpen>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+      <div className="grid grid-cols-2 gap-3">
         <Field
           label={t('calculators.cagr.initialValue')}
           value={initial}
@@ -178,12 +170,8 @@ export function FutureValueCalculator() {
           min={0}
         />
       </div>
-      <div style={{ marginTop: 12 }}>
-        <ResultRow
-          label={t('calculators.cagr.finalValue')}
-          value={formatNum(finalValue)}
-          color="var(--brand)"
-        />
+      <div className="mt-3">
+        <ResultRow label={t('calculators.cagr.finalValue')} value={formatNum(finalValue)} tone="brand" />
         <ResultRow
           label={t('calculators.cagr.totalContribution')}
           value={formatNum(totalContributions)}
@@ -191,7 +179,7 @@ export function FutureValueCalculator() {
         <ResultRow
           label={t('calculators.cagr.investmentGain')}
           value={formatNum(finalValue - totalContributions)}
-          color="var(--success)"
+          tone="success"
         />
       </div>
       <FutureValueChart curve={curve} t={t} />
@@ -199,6 +187,7 @@ export function FutureValueCalculator() {
   );
 }
 
+/** CAGR 假设计算器：按预期收益推算终值增长曲线 */
 export function CAGRAssumptionCalculator() {
   const { t } = useTranslation();
   const [cagr, setCagr] = useState(8);
@@ -217,13 +206,8 @@ export function CAGRAssumptionCalculator() {
 
   return (
     <CollapsibleCard icon={TrendingUp} title={t('calculators.cagr.assumptionTitle')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
-        <Field
-          label={t('calculators.cagr.expectedReturn')}
-          value={cagr}
-          onChange={setCagr}
-          suffix="%"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <Field label={t('calculators.cagr.expectedReturn')} value={cagr} onChange={setCagr} suffix="%" />
         <Field label={t('calculators.cagr.volatility')} value={vol} onChange={setVol} suffix="%" />
         <Field
           label={t('calculators.cagr.time')}
@@ -239,26 +223,17 @@ export function CAGRAssumptionCalculator() {
           step={1000}
         />
       </div>
-      <div style={{ marginTop: 12 }}>
-        <ResultRow
-          label={t('calculators.cagr.finalValue')}
-          value={formatNum(finalValue)}
-          color="var(--brand)"
-        />
+      <div className="mt-3">
+        <ResultRow label={t('calculators.cagr.finalValue')} value={formatNum(finalValue)} tone="brand" />
       </div>
-      <div style={{ height: 200, marginTop: 12 }}>
+      <div className="mt-3 h-[200px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={curve}>
-            <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--border-soft)" />
+            <CartesianGrid {...CHART_GRID_PROPS} />
             <XAxis dataKey="year" tick={AXIS_TICK_STYLE} />
             <YAxis tick={AXIS_TICK_STYLE} tickFormatter={formatNum} />
             <Tooltip
-              contentStyle={{
-                background: 'var(--bg-elevated)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 8,
-                fontSize: 12,
-              }}
+              contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(v: number) => [formatNum(v), t('calculators.cagr.finalValue')]}
             />
             <Area

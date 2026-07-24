@@ -5,7 +5,14 @@ export function fmtDate(d?: string): string {
 
 export function fmtYears(v: number | undefined | null): string {
   if (v == null || Number.isNaN(v)) return '—';
-  return `${v.toFixed(2)}y`;
+  const totalDays = Math.round(v * 365);
+  if (totalDays < 1) return '0天';
+  if (totalDays < 30) return `${totalDays}天`;
+  const years = Math.floor(v);
+  const remainingMonths = Math.round((v - years) * 12);
+  if (years === 0) return `${remainingMonths}个月`;
+  if (remainingMonths === 0) return `${years}年`;
+  return `${years}年${remainingMonths}个月`;
 }
 
 export function fmtPct(v: number | undefined | null, decimals = 2): string {

@@ -5,7 +5,7 @@ import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import Toast from '@/components/Toast';
 import { useAuthStore } from '@/store/authStore';
-import { ToolRoutes } from '@/routes/ToolRoutes';
+import { ToolRoutes } from '@/routes';
 import { PublicRoutes } from '@/routes/PublicRoutes';
 import { AuthRoutes } from '@/routes/AuthRoutes';
 import { AccountRoutes } from '@/routes/AccountRoutes';

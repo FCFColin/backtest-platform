@@ -43,7 +43,7 @@ function BacktestResultsWrapper(_: { state: any }) {
 
 const config: ComputeToolConfig<any> = {
   titleKey: 'backtest.title',
-  paramsTitle: 'Parameters',
+  paramsTitleKey: 'params.basicParams',
   seoSubtitleKey: 'backtest.seoSubtitle',
   seoDescKey: 'backtest.seoDesc',
   seoFeatures: [

@@ -14,12 +14,13 @@ import {
   Legend,
   Line,
 } from 'recharts';
+import { Card } from '@/components/ui/card';
 import type { MonteCarloResult } from '@backtest/shared';
 import {
   CHART_TOOLTIP_STYLE,
   CHART_GRID_PROPS,
   AXIS_TICK_STYLE,
-} from '@/components/charts/chartConstants.js';
+} from '@/lib/chart-theme.js';
 import {
   buildRangeData,
   RANGE_AREAS,
@@ -30,14 +31,13 @@ import {
   yearLabelFormatter,
   type RangeDataPoint,
 } from './monteCarloTransforms.js';
-import { EMPTY_DATA_STYLE } from './monteCarloSharedConstants.js';
 
 function RangeChart({ data }: { data: RangeDataPoint[] }) {
   const { t } = useTranslation();
   return (
     <ResponsiveContainer width="100%" height={450}>
       <AreaChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+        <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
         <XAxis
           dataKey="month"
           tick={AXIS_TICK_STYLE}
@@ -50,7 +50,7 @@ function RangeChart({ data }: { data: RangeDataPoint[] }) {
           labelFormatter={(l: number) => yearLabelFormatter(t, l)}
           contentStyle={CHART_TOOLTIP_STYLE}
         />
-        <Legend wrapperStyle={{ fontSize: 12, color: 'var(--text-muted)' }} />
+        <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
         {RANGE_AREAS.map((a) => (
           <Area
             key={a.dataKey + a.stackId}
@@ -90,7 +90,18 @@ export function MonteCarloRangeTab({
 }) {
   const { t } = useTranslation();
   const data = buildRangeData(r, startingValue);
-  if (data.length === 0)
-    return <div style={EMPTY_DATA_STYLE}>{t('monteCarlo.results.noData')}</div>;
-  return <RangeChart data={data} />;
+  if (data.length === 0) {
+    return (
+      <Card className="p-5">
+        <div className="py-6 text-center text-caption text-fg-tertiary">
+          {t('monteCarlo.results.noData')}
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <Card className="p-5">
+      <RangeChart data={data} />
+    </Card>
+  );
 }

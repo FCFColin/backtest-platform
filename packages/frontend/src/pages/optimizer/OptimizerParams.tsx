@@ -1,117 +1,92 @@
-import type { ReactNode } from 'react';
+/**
+ * @file 优化器参数面板
+ * @description 基于 Field + shadcn Input/Select/Switch 重构为 token 化表单，
+ *   分区为资产选择、求解器设置、历史约束（可折叠）、高级约束（可折叠）与执行按钮。
+ *   所有 i18n key 与 hook 逻辑保持不变。
+ */
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2, Plus, X } from 'lucide-react';
-import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
-import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
+import { Play, Loader2 } from 'lucide-react';
+import type { InputProps } from '@/components/ui/input';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/form/Field.js';
+import { CollapsibleSection } from '@/components/CollapsibleSection.js';
+import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
+/** 百分号后缀输入：相对定位容器 + Input + 右侧 % 标记，数字等宽对齐。 */
+function PercentInput(props: InputProps) {
+  return (
+    <div className="relative">
+      <Input type="number" className="pr-8" {...props} />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+        %
+      </span>
+    </div>
+  );
+}
+
+/** 区块小标题：标题 + 可选描述。 */
+function SectionHeader({ title, info }: { title: string; info?: string }) {
+  return (
+    <div>
+      <div className="text-label font-semibold text-fg">{title}</div>
+      {info && <div className="text-caption text-fg-tertiary">{info}</div>}
+    </div>
+  );
+}
+
+/** 资产选择区：标的标签输入。 */
 function TickerEditor({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const add = () => s.setTickers([...s.tickers, '']);
-  const remove = (i: number) => {
-    if (s.tickers.filter(Boolean).length <= 2) return;
-    s.setTickers(s.tickers.filter((_, idx) => idx !== i));
-  };
-  const update = (i: number, v: string) => {
-    const n = [...s.tickers];
-    n[i] = v;
-    s.setTickers(n);
+  const handleTagChange = (newTickers: string[]) => {
+    const oldLen = s.tickers.length;
+    if (newTickers.length > oldLen) {
+      s.setTickers([...s.tickers, '']);
+    } else if (newTickers.length < oldLen) {
+      s.setTickers(s.tickers.filter((_, idx) => idx < newTickers.length));
+    } else {
+      s.setTickers(newTickers);
+    }
   };
   return (
-    <ParamsSection title={t('optimizer.assetSelection')} info={t('optimizer.assetSelectionInfo')}>
-      <div
-        className="portfolio-card"
-        style={{ width: '100%', maxWidth: 'none', minWidth: 0, display: 'block' }}
-      >
-        {s.tickers.map((tk, i) => (
-          <div key={tk || i} className="ticker-row">
-            <input
-              type="text"
-              value={tk}
-              onChange={(e) => update(i, e.target.value)}
-              placeholder={t('optimizer.tickerPlaceholder')}
-              className="ticker-input"
-            />
-            {s.tickers.length > 2 && (
-              <button
-                onClick={() => remove(i)}
-                className="row-remove-btn"
-                title={t('common.delete')}
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-      <div style={{ marginTop: 8 }}>
-        <button className="toolbar-btn" onClick={add}>
-          <Plus className="w-4 h-4" />
-          {t('optimizer.addAsset')}
-        </button>
-      </div>
-    </ParamsSection>
+    <section className="flex flex-col gap-3">
+      <SectionHeader title={t('optimizer.assetSelection')} info={t('optimizer.assetSelectionInfo')} />
+      <TickerTagInput
+        tickers={s.tickers.filter(Boolean)}
+        onChange={handleTagChange}
+        minCount={2}
+        placeholder={t('optimizer.tickerPlaceholder')}
+      />
+    </section>
   );
 }
 
-function WeightAndTbillFields({ s, t }: { s: EfficientFrontierState; t: (k: string) => string }) {
-  return (
-    <>
-      <ParamCard label={t('optimizer.minWeight')}>
-        <div className="param-input-suffix-wrap">
-          <input
-            type="number"
-            className="param-input param-input-with-suffix"
-            value={s.minWeight}
-            onChange={(e) => s.setMinWeight(Number(e.target.value))}
-            min={0}
-            max={100}
-          />
-          <span className="param-input-suffix">%</span>
-        </div>
-      </ParamCard>
-      <ParamCard label={t('optimizer.maxWeight')}>
-        <div className="param-input-suffix-wrap">
-          <input
-            type="number"
-            className="param-input param-input-with-suffix"
-            value={s.maxWeight}
-            onChange={(e) => s.setMaxWeight(Number(e.target.value))}
-            min={0}
-            max={100}
-          />
-          <span className="param-input-suffix">%</span>
-        </div>
-      </ParamCard>
-      <ParamCard label={t('optimizer.tbillRate')}>
-        <div className="param-input-suffix-wrap">
-          <input
-            type="number"
-            step="0.1"
-            className="param-input param-input-with-suffix"
-            value={s.tbillRate}
-            onChange={(e) => s.setTbillRate(Number(e.target.value))}
-          />
-          <span className="param-input-suffix">%</span>
-        </div>
-      </ParamCard>
-    </>
-  );
-}
-
-function BasicParams({ s }: { s: EfficientFrontierState }) {
+/** 求解器设置区：全历史开关 + 起止日期 + 目标 + 权重/T-Bill + 求解器 + 做空开关。 */
+function SolverSettings({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
+  const allHistory = s.startDate === '' && s.endDate === '';
   return (
-    <ParamsSection title={t('optimizer.basicParams')} info={t('optimizer.basicParamsInfo')}>
-      <ParamRow>
-        <ParamCard label={t('optimizer.allHistory')}>
-          <label className="param-check">
-            <input
-              type="checkbox"
-              checked={s.startDate === '' && s.endDate === ''}
-              onChange={(e) => {
-                if (e.target.checked) {
+    <section className="flex flex-col gap-3">
+      <SectionHeader title={t('optimizer.solverSettings')} info={t('optimizer.solverSettingsInfo')} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Field>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="opt-all-history">{t('optimizer.allHistory')}</FieldLabel>
+            <Switch
+              id="opt-all-history"
+              checked={allHistory}
+              onCheckedChange={(checked) => {
+                if (checked) {
                   s.setStartDate('');
                   s.setEndDate('');
                 } else {
@@ -120,227 +95,256 @@ function BasicParams({ s }: { s: EfficientFrontierState }) {
                 }
               }}
             />
-            <span>{t('optimizer.allHistory')}</span>
-          </label>
-        </ParamCard>
-        <ParamCard label={t('optimizer.startDate')}>
-          <input
+          </div>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="opt-start-date">{t('optimizer.startDate')}</FieldLabel>
+          <Input
+            id="opt-start-date"
             type="date"
-            className="param-input"
             value={s.startDate}
+            disabled={allHistory}
             onChange={(e) => s.setStartDate(e.target.value)}
           />
-        </ParamCard>
-        <ParamCard label={t('optimizer.endDate')}>
-          <input
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="opt-end-date">{t('optimizer.endDate')}</FieldLabel>
+          <Input
+            id="opt-end-date"
             type="date"
-            className="param-input"
             value={s.endDate}
+            disabled={allHistory}
             onChange={(e) => s.setEndDate(e.target.value)}
           />
-        </ParamCard>
-        <ParamCard label={t('optimizer.objective')}>
-          <select
-            className="param-input"
-            value={s.objective}
-            onChange={(e) => s.setObjective(e.target.value)}
-          >
-            <option value="maxSharpe">{t('optimizer.maxSharpe')}</option>
-            <option value="minVolatility">{t('optimizer.minVolatility')}</option>
-            <option value="maxReturn">{t('optimizer.maxReturn')}</option>
-          </select>
-        </ParamCard>
-        <WeightAndTbillFields s={s} t={t} />
-        <ParamCard label={t('optimizer.solver')}>
-          <select
-            className="param-input"
-            value={s.solver}
-            onChange={(e) => s.setSolver(e.target.value as SolverType)}
-          >
-            <option value="markowitz">{t('optimizer.solverMarkowitz')}</option>
-            <option value="ga">{t('optimizer.solverGA')}</option>
-          </select>
-        </ParamCard>
-        <ParamCard label={t('optimizer.allowShort')}>
-          <label className="param-check">
-            <input
-              type="checkbox"
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="opt-objective">{t('optimizer.objective')}</FieldLabel>
+          <Select value={s.objective} onValueChange={s.setObjective}>
+            <SelectTrigger id="opt-objective">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="maxSharpe">{t('optimizer.maxSharpe')}</SelectItem>
+              <SelectItem value="minVolatility">{t('optimizer.minVolatility')}</SelectItem>
+              <SelectItem value="maxReturn">{t('optimizer.maxReturn')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="opt-min-weight">{t('optimizer.minWeight')}</FieldLabel>
+          <PercentInput
+            id="opt-min-weight"
+            value={s.minWeight}
+            min={0}
+            max={100}
+            onChange={(e) => s.setMinWeight(Number(e.target.value))}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="opt-max-weight">{t('optimizer.maxWeight')}</FieldLabel>
+          <PercentInput
+            id="opt-max-weight"
+            value={s.maxWeight}
+            min={0}
+            max={100}
+            onChange={(e) => s.setMaxWeight(Number(e.target.value))}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="opt-tbill">{t('optimizer.tbillRate')}</FieldLabel>
+          <PercentInput
+            id="opt-tbill"
+            step={0.1}
+            value={s.tbillRate}
+            onChange={(e) => s.setTbillRate(Number(e.target.value))}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="opt-solver">{t('optimizer.solver')}</FieldLabel>
+          <Select value={s.solver} onValueChange={(v) => s.setSolver(v as SolverType)}>
+            <SelectTrigger id="opt-solver">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="markowitz">{t('optimizer.solverMarkowitz')}</SelectItem>
+              <SelectItem value="ga">{t('optimizer.solverGA')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="opt-short">{t('optimizer.allowShort')}</FieldLabel>
+            <Switch
+              id="opt-short"
               checked={s.allowShort}
-              onChange={(e) => s.setAllowShort(e.target.checked)}
+              onCheckedChange={s.setAllowShort}
             />
-            <span>{t('optimizer.allowShort')}</span>
-          </label>
-        </ParamCard>
-      </ParamRow>
-    </ParamsSection>
+          </div>
+        </Field>
+      </div>
+    </section>
   );
 }
 
+/** 历史约束项：开关 + 百分号输入。 */
+function ConstraintField({
+  label,
+  checked,
+  onToggle,
+  value,
+  onValueChange,
+  placeholder,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: (v: boolean) => void;
+  value: string;
+  onValueChange: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <Field>
+      <div className="flex items-center justify-between">
+        <FieldLabel>{label}</FieldLabel>
+        <Switch checked={checked} onCheckedChange={onToggle} aria-label={label} />
+      </div>
+      <PercentInput
+        step={0.1}
+        value={value}
+        disabled={!checked}
+        placeholder={placeholder}
+        onChange={(e) => onValueChange(e.target.value)}
+      />
+    </Field>
+  );
+}
+
+/** 历史约束区（可折叠）：最大回撤 / CAGR / 波动率。 */
 function HistoricalConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const items = [
-    {
-      checked: s.enableMaxDD,
-      set: s.setEnableMaxDD,
-      label: t('optimizer.maxDrawdownLT'),
-      value: s.maxMaxDD,
-      setVal: s.setMaxMaxDD,
-      placeholder: t('optimizer.placeholderDD'),
-    },
-    {
-      checked: s.enableMinCagr,
-      set: s.setEnableMinCagr,
-      label: t('optimizer.cagrGT'),
-      value: s.minCagr,
-      setVal: s.setMinCagr,
-      placeholder: t('optimizer.placeholderCagr'),
-    },
-    {
-      checked: s.enableMaxVol,
-      set: s.setEnableMaxVol,
-      label: t('optimizer.volatilityLT'),
-      value: s.maxVol,
-      setVal: s.setMaxVol,
-      placeholder: t('optimizer.placeholderVol'),
-    },
-  ];
   return (
-    <ParamsSection
+    <CollapsibleSection
       title={t('optimizer.historicalConstraints')}
-      info={t('optimizer.historicalConstraintsInfo')}
+      description={t('optimizer.historicalConstraintsInfo')}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {items.map((c, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <label className="param-check" style={{ width: 130, marginBottom: 0 }}>
-              <input
-                type="checkbox"
-                checked={c.checked}
-                onChange={(e) => c.set(e.target.checked)}
-              />
-              <span>{c.label}</span>
-            </label>
-            <div className="param-field param-field-rolling" style={{ flex: 1 }}>
-              <div className="param-input-suffix-wrap">
-                <input
-                  type="number"
-                  step="0.1"
-                  className="param-input param-input-with-suffix"
-                  value={c.value}
-                  onChange={(e) => c.setVal(e.target.value)}
-                  placeholder={c.placeholder}
-                  disabled={!c.checked}
-                />
-                <span className="param-input-suffix">%</span>
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <ConstraintField
+          label={t('optimizer.maxDrawdownLT')}
+          checked={s.enableMaxDD}
+          onToggle={s.setEnableMaxDD}
+          value={s.maxMaxDD}
+          onValueChange={s.setMaxMaxDD}
+          placeholder={t('optimizer.placeholderDD')}
+        />
+        <ConstraintField
+          label={t('optimizer.cagrGT')}
+          checked={s.enableMinCagr}
+          onToggle={s.setEnableMinCagr}
+          value={s.minCagr}
+          onValueChange={s.setMinCagr}
+          placeholder={t('optimizer.placeholderCagr')}
+        />
+        <ConstraintField
+          label={t('optimizer.volatilityLT')}
+          checked={s.enableMaxVol}
+          onToggle={s.setEnableMaxVol}
+          value={s.maxVol}
+          onValueChange={s.setMaxVol}
+          placeholder={t('optimizer.placeholderVol')}
+        />
       </div>
-    </ParamsSection>
+    </CollapsibleSection>
   );
 }
 
+/** 高级约束项：纯数值/百分号输入，无开关。 */
+function AdvancedField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      {children}
+    </Field>
+  );
+}
+
+/** 高级约束区（可折叠）：最小 Sharpe / Sortino / 最大平均回撤 / 最大持仓 / 最小纳入权重。 */
 function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   return (
-    <ParamsSection
+    <CollapsibleSection
       title={t('optimizer.advancedConstraints')}
-      defaultOpen={false}
-      info={t('optimizer.advancedConstraintsInfo')}
+      description={t('optimizer.advancedConstraintsInfo')}
     >
-      <ParamRow>
-        <ParamCard label={t('optimizer.minSharpeLabel')}>
-          <input
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <AdvancedField label={t('optimizer.minSharpeLabel')}>
+          <Input
             type="number"
-            step="0.01"
-            className="param-input"
+            step={0.01}
             value={s.minSharpe}
+            placeholder="—"
             onChange={(e) => s.setMinSharpe(e.target.value)}
-            placeholder="—"
           />
-        </ParamCard>
-        <ParamCard label={t('optimizer.minSortinoLabel')}>
-          <input
+        </AdvancedField>
+        <AdvancedField label={t('optimizer.minSortinoLabel')}>
+          <Input
             type="number"
-            step="0.01"
-            className="param-input"
+            step={0.01}
             value={s.minSortino}
+            placeholder="—"
             onChange={(e) => s.setMinSortino(e.target.value)}
-            placeholder="—"
           />
-        </ParamCard>
-        <ParamCard label={t('optimizer.maxAvgDDLabel')}>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              step="0.1"
-              className="param-input param-input-with-suffix"
-              value={s.maxAvgDD}
-              onChange={(e) => s.setMaxAvgDD(e.target.value)}
-              placeholder="—"
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </ParamCard>
-        <ParamCard label={t('optimizer.maxHoldings')}>
-          <input
+        </AdvancedField>
+        <AdvancedField label={t('optimizer.maxAvgDDLabel')}>
+          <PercentInput
+            step={0.1}
+            value={s.maxAvgDD}
+            placeholder="—"
+            onChange={(e) => s.setMaxAvgDD(e.target.value)}
+          />
+        </AdvancedField>
+        <AdvancedField label={t('optimizer.maxHoldings')}>
+          <Input
             type="number"
-            className="param-input"
-            value={s.maxHoldings}
-            onChange={(e) => s.setMaxHoldings(e.target.value)}
-            placeholder="—"
             min={2}
+            value={s.maxHoldings}
+            placeholder="—"
+            onChange={(e) => s.setMaxHoldings(e.target.value)}
           />
-        </ParamCard>
-        <ParamCard label={t('optimizer.minWeightToInclude')}>
-          <div className="param-input-suffix-wrap">
-            <input
-              type="number"
-              className="param-input param-input-with-suffix"
-              value={s.minWeightToInclude}
-              onChange={(e) => s.setMinWeightToInclude(e.target.value)}
-              placeholder="—"
-              min={0}
-              max={100}
-            />
-            <span className="param-input-suffix">%</span>
-          </div>
-        </ParamCard>
-      </ParamRow>
-    </ParamsSection>
+        </AdvancedField>
+        <AdvancedField label={t('optimizer.minWeightToInclude')}>
+          <PercentInput
+            min={0}
+            max={100}
+            value={s.minWeightToInclude}
+            placeholder="—"
+            onChange={(e) => s.setMinWeightToInclude(e.target.value)}
+          />
+        </AdvancedField>
+      </div>
+    </CollapsibleSection>
   );
 }
 
-function OptimizerParams({ s }: { s: EfficientFrontierState }): ReactNode {
+/** 优化器参数面板：资产 + 求解器 + 历史约束 + 高级约束 + 执行按钮。 */
+export function OptimizerParams({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
+  const running = s.isLoading || s.isCalculatingStats;
   return (
-    <ParamsPanel>
+    <div className="flex flex-col gap-5">
       <TickerEditor s={s} />
-      <BasicParams s={s} />
+      <SolverSettings s={s} />
       <HistoricalConstraints s={s} />
       <AdvancedConstraints s={s} />
-      <ActionBar>
-        <button
-          onClick={() => void s.runOptimize()}
-          disabled={s.isLoading || s.isCalculatingStats}
-          className="btn-primary"
-          style={{ width: '100%' }}
-        >
-          {s.isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
+      <div className="flex justify-end pt-1">
+        <Button variant="primary" size="lg" disabled={running} onClick={() => void s.runOptimize()}>
+          {running ? <Loader2 className="animate-spin" /> : <Play />}
           {s.isCalculatingStats
             ? t('optimizer.calculatingStats')
             : s.isLoading
               ? t('optimizer.optimizing')
               : t('optimizer.startCalc')}
-        </button>
-      </ActionBar>
-    </ParamsPanel>
+        </Button>
+      </div>
+    </div>
   );
 }
-
-export { OptimizerParams };

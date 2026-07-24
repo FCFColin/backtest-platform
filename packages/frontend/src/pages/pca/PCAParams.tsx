@@ -1,12 +1,15 @@
 /**
  * @file PCA 参数面板
  * @description 资产选择 + 日期范围 + 主成分数配置；从 PCAPage 拆分以便独立维护。
+ *   基于 token + shadcn（Field / Input / Button）重构为 testfol.io 风格的网格参数区。
  */
 import { useTranslation } from 'react-i18next';
-import { Play, Plus, X } from 'lucide-react';
+import { Play } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
-import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
-import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
+import { TickerTagInput } from '../../components/form/TickerTagInput.js';
+import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
+import { Input } from '@/components/ui/input';
+import { buttonVariants } from '@/components/ui/button';
 
 /** PCA 参数面板 Props */
 interface PCAParamsProps {
@@ -24,7 +27,7 @@ interface PCAParamsProps {
   onRun: () => void;
 }
 
-/** PCA 资产选择区块 */
+/** PCA 资产选择区块 - 标签式输入 */
 function PcaAssetSelection({
   tickers,
   onAddTicker,
@@ -32,37 +35,36 @@ function PcaAssetSelection({
   onUpdateTicker,
 }: Pick<PCAParamsProps, 'tickers' | 'onAddTicker' | 'onRemoveTicker' | 'onUpdateTicker'>) {
   const { t } = useTranslation();
+
+  const handleTagChange = (newTickers: string[]) => {
+    const oldLen = tickers.length;
+    if (newTickers.length > oldLen) {
+      onAddTicker();
+    } else if (newTickers.length < oldLen) {
+      for (let i = 0; i < oldLen; i++) {
+        if (!newTickers.includes(tickers[i])) {
+          onRemoveTicker(i);
+          break;
+        }
+      }
+    } else {
+      newTickers.forEach((tk, i) => {
+        if (tk !== tickers[i]) onUpdateTicker(i, tk);
+      });
+    }
+  };
+
   return (
-    <ParamsSection title={t('pca.asset.section')} info={t('pca.asset.sectionInfo')}>
-      <div className="portfolios-cards">
-        <div className="portfolio-card">
-          {tickers.map((tk, idx) => (
-            <div key={idx} className="ticker-row">
-              <input
-                type="text"
-                value={tk}
-                onChange={(e) => onUpdateTicker(idx, e.target.value)}
-                placeholder={t('pca.asset.tickerPlaceholder')}
-                className="ticker-input"
-              />
-              {tickers.length > 1 && (
-                <button
-                  onClick={() => onRemoveTicker(idx)}
-                  className="row-remove-btn"
-                  title={t('pca.asset.delete')}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-      <button className="portfolios-add-btn" onClick={onAddTicker} style={{ marginTop: 8 }}>
-        <Plus className="w-4 h-4" />
-        {t('pca.asset.addTicker')}
-      </button>
-    </ParamsSection>
+    <Field>
+      <FieldLabel>{t('pca.asset.section')}</FieldLabel>
+      <TickerTagInput
+        tickers={tickers}
+        onChange={handleTagChange}
+        minCount={2}
+        placeholder={t('pca.asset.tickerPlaceholder')}
+      />
+      <FieldDescription>{t('pca.asset.sectionInfo')}</FieldDescription>
+    </Field>
   );
 }
 
@@ -83,64 +85,68 @@ export function PCAParamsPanel({
 }: PCAParamsProps) {
   const { t } = useTranslation();
   return (
-    <ParamsPanel>
-      <PcaAssetSelection
-        tickers={tickers}
-        onAddTicker={onAddTicker}
-        onRemoveTicker={onRemoveTicker}
-        onUpdateTicker={onUpdateTicker}
-      />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="col-span-full">
+        <PcaAssetSelection
+          tickers={tickers}
+          onAddTicker={onAddTicker}
+          onRemoveTicker={onRemoveTicker}
+          onUpdateTicker={onUpdateTicker}
+        />
+      </div>
 
-      <ParamsSection title={t('pca.dateRange.section')}>
-        <ParamRow>
-          <ParamCard label={t('pca.dateRange.startDate')}>
-            <input
-              type="date"
-              className="param-input"
-              value={startDate}
-              onChange={(e) => onStartDateChange(e.target.value)}
-            />
-          </ParamCard>
-          <ParamCard label={t('pca.dateRange.endDate')}>
-            <input
-              type="date"
-              className="param-input"
-              value={endDate}
-              onChange={(e) => onEndDateChange(e.target.value)}
-            />
-          </ParamCard>
-        </ParamRow>
-      </ParamsSection>
+      <Field>
+        <FieldLabel htmlFor="pca-start-date">{t('pca.dateRange.startDate')}</FieldLabel>
+        <Input
+          id="pca-start-date"
+          type="date"
+          value={startDate}
+          onChange={(e) => onStartDateChange(e.target.value)}
+        />
+      </Field>
 
-      <ParamsSection title={t('pca.params.section')} defaultOpen={false}>
-        <ParamRow>
-          <ParamCard label={t('pca.params.numComponents')}>
-            <div className="param-input-suffix-wrap">
-              <input
-                type="number"
-                min={1}
-                className="param-input param-input-with-suffix"
-                value={numComponents}
-                onChange={(e) =>
-                  onNumComponentsChange(e.target.value === '' ? '' : Number(e.target.value))
-                }
-                placeholder={t('pca.params.numComponentsPlaceholder')}
-              />
-              <span className="param-input-suffix">{t('pca.params.numComponentsSuffix')}</span>
-            </div>
-          </ParamCard>
-        </ParamRow>
-        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
-          {t('pca.params.numComponentsHint')}
+      <Field>
+        <FieldLabel htmlFor="pca-end-date">{t('pca.dateRange.endDate')}</FieldLabel>
+        <Input
+          id="pca-end-date"
+          type="date"
+          value={endDate}
+          onChange={(e) => onEndDateChange(e.target.value)}
+        />
+      </Field>
+
+      <Field>
+        <FieldLabel htmlFor="pca-num-components">{t('pca.params.numComponents')}</FieldLabel>
+        <div className="relative">
+          <Input
+            id="pca-num-components"
+            type="number"
+            min={1}
+            className="pr-12"
+            value={numComponents}
+            onChange={(e) =>
+              onNumComponentsChange(e.target.value === '' ? '' : Number(e.target.value))
+            }
+            placeholder={t('pca.params.numComponentsPlaceholder')}
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-caption text-fg-tertiary">
+            {t('pca.params.numComponentsSuffix')}
+          </span>
         </div>
-      </ParamsSection>
+        <FieldDescription>{t('pca.params.numComponentsHint')}</FieldDescription>
+      </Field>
 
-      <ActionBar>
-        <LoadingButton isLoading={isLoading} onClick={onRun} loadingText={t('pca.analyzing')}>
+      <div className="col-span-full">
+        <LoadingButton
+          isLoading={isLoading}
+          onClick={onRun}
+          loadingText={t('pca.analyzing')}
+          className={buttonVariants({ variant: 'primary', size: 'lg', className: 'w-full' })}
+        >
           <Play className="w-4 h-4" />
           {t('pca.startAnalysis')}
         </LoadingButton>
-      </ActionBar>
-    </ParamsPanel>
+      </div>
+    </div>
   );
 }

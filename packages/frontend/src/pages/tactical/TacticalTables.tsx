@@ -1,17 +1,24 @@
+/**
+ * @file 战术回测信号历史表与 What-If 查询
+ * @description 信号历史表用 Card + token 化表格；What-If 用 Card + Field/Input/Button + SortableTable。
+ *              数字与日期采用 font-mono tabular-nums 对齐。
+ */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search } from 'lucide-react';
 import type { WhatIfResult, TacticalStrategy } from '@backtest/shared/types/tactical';
 import type { TFunction } from 'i18next';
-import LoadingButton from '../../components/LoadingButton.js';
-import ChartCard from '../../components/ChartCard.js';
-import { SortableTable, type Column } from '../../components/SortableTable.js';
-import { TABLE_TH_STYLE, TABLE_TD_STYLE } from '../../components/tableStyles.js';
-import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/EmptyState';
+import { SortableTable, type Column } from '@/components/SortableTable';
+import { useAsyncAction } from '@/hooks/useAsyncAction';
 import { apiPostJSON } from '@/utils/apiClient';
-import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResultUtils.js';
-import type { BacktestResponse } from './TacticalUtils.js';
+import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResultUtils';
+import type { BacktestResponse } from './TacticalUtils';
 
+/** What-If 结果列定义 */
 function buildWhatIfColumns(t: TFunction): Column<WhatIfResult>[] {
   return [
     { key: 'ticker', label: t('tactical.results.ticker'), sortValue: (r) => r.ticker },
@@ -19,7 +26,9 @@ function buildWhatIfColumns(t: TFunction): Column<WhatIfResult>[] {
       key: 'currentPrice',
       label: t('tactical.results.latestPrice'),
       sortValue: (r) => r.currentPrice,
-      render: (r) => <span className="font-mono">{fmtPrice(r.currentPrice)}</span>,
+      render: (r) => (
+        <span className="font-mono tabular-nums">{fmtPrice(r.currentPrice)}</span>
+      ),
     },
     { key: 'signalDate', label: t('tactical.results.signalDate'), sortValue: (r) => r.signalDate },
     {
@@ -27,7 +36,7 @@ function buildWhatIfColumns(t: TFunction): Column<WhatIfResult>[] {
       label: t('tactical.results.signalStatus'),
       sortValue: (r) => r.signalType,
       render: (r) => (
-        <span style={{ color: whatIfSignalColor(r.signalType), fontWeight: 600 }}>
+        <span className="font-semibold" style={{ color: whatIfSignalColor(r.signalType) }}>
           {whatIfSignalLabel(r.signalType, t)}
         </span>
       ),
@@ -35,6 +44,7 @@ function buildWhatIfColumns(t: TFunction): Column<WhatIfResult>[] {
   ];
 }
 
+/** 信号历史表 */
 function SignalHistoryTable({
   signalHistory,
 }: {
@@ -42,18 +52,19 @@ function SignalHistoryTable({
 }) {
   const { t } = useTranslation();
   return (
-    <ChartCard title={t('tactical.results.signalHistoryTitle')}>
-      <div className="overflow-x-auto" style={{ maxHeight: 400, overflowY: 'auto' }}>
+    <Card className="p-4">
+      <h3 className="mb-3 text-h3 text-fg">{t('tactical.results.signalHistoryTitle')}</h3>
+      <div className="max-h-[400px] overflow-auto">
         <table className="w-full border-collapse">
-          <thead style={{ position: 'sticky', top: 0 }}>
-            <tr style={{ backgroundColor: 'var(--bg-elevated)' }}>
-              <th className="text-[12px] font-semibold text-left py-2 px-3" style={TABLE_TH_STYLE}>
+          <thead className="sticky top-0 z-10 bg-elevated">
+            <tr>
+              <th className="border-b border-border-strong px-3 py-2 text-left text-caption font-semibold text-fg-tertiary">
                 {t('tactical.results.date')}
               </th>
-              <th className="text-[12px] font-semibold text-left py-2 px-3" style={TABLE_TH_STYLE}>
+              <th className="border-b border-border-strong px-3 py-2 text-left text-caption font-semibold text-fg-tertiary">
                 {t('tactical.results.activeSignals')}
               </th>
-              <th className="text-[12px] font-semibold text-right py-2 px-3" style={TABLE_TH_STYLE}>
+              <th className="border-b border-border-strong px-3 py-2 text-right text-caption font-semibold text-fg-tertiary">
                 {t('tactical.results.targetWeights')}
               </th>
             </tr>
@@ -62,24 +73,21 @@ function SignalHistoryTable({
             {signalHistory.map((h, idx) => (
               <tr
                 key={idx}
-                style={{ backgroundColor: idx % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
+                className={idx % 2 === 1 ? 'bg-input-bg/40' : 'bg-transparent'}
               >
-                <td className="text-[13px] py-2 px-3 font-mono" style={TABLE_TD_STYLE}>
+                <td className="border-b border-border-subtle px-3 py-2 text-label font-mono tabular-nums text-fg">
                   {h.date}
                 </td>
-                <td className="text-[13px] py-2 px-3" style={TABLE_TD_STYLE}>
+                <td className="border-b border-border-subtle px-3 py-2 text-label text-fg-secondary">
                   {h.activeSignals.length > 0 ? (
                     h.activeSignals.join(', ')
                   ) : (
-                    <span style={{ color: 'var(--text-muted)' }}>
+                    <span className="text-fg-tertiary">
                       {t('tactical.results.noneEqualWeight')}
                     </span>
                   )}
                 </td>
-                <td
-                  className="text-[13px] py-2 px-3 text-right font-mono"
-                  style={{ ...TABLE_TD_STYLE, color: 'var(--text-strong)' }}
-                >
+                <td className="border-b border-border-subtle px-3 py-2 text-right text-label font-mono tabular-nums text-fg">
                   {h.weights.map((w) => `${w.ticker}: ${(w.weight * 100).toFixed(1)}%`).join('  ')}
                 </td>
               </tr>
@@ -87,10 +95,11 @@ function SignalHistoryTable({
           </tbody>
         </table>
       </div>
-    </ChartCard>
+    </Card>
   );
 }
 
+/** What-If 查询 Tab */
 function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
   const { t } = useTranslation();
   const [tickerInput, setTickerInput] = useState('SPY, TLT, GLD');
@@ -118,51 +127,37 @@ function WhatIfTab({ strategy }: { strategy: TacticalStrategy }) {
   };
 
   return (
-    <div className="space-y-4">
-      <ChartCard title={t('tactical.results.whatIfTitle')}>
-        <div className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
-          {t('tactical.results.whatIfDesc')}
-        </div>
-        <div className="ticker-row" style={{ marginBottom: 12 }}>
-          <input
-            type="text"
-            className="ticker-input"
-            style={{ flex: 1 }}
-            value={tickerInput}
-            onChange={(e) => setTickerInput(e.target.value)}
-            placeholder={t('tactical.results.whatIfPlaceholder')}
-          />
-          <LoadingButton
-            isLoading={isLoading}
-            onClick={handleQuery}
-            loadingText={t('tactical.results.whatIfQuerying')}
-            className="main-action-btn"
-            style={{ minHeight: 40, padding: '0 16px' }}
-          >
-            <Search className="w-4 h-4" />
-            {t('tactical.results.whatIfQuery')}
-          </LoadingButton>
-        </div>
-        {error && (
-          <div style={{ color: 'var(--danger)', fontSize: 13, marginBottom: 12 }}>{error}</div>
-        )}
-        {results.length > 0 && (
-          <SortableTable
-            columns={columns}
-            data={results}
-            initialSortKey="ticker"
-            initialSortDir="asc"
-          />
-        )}
-        {results.length === 0 && !error && !isLoading && (
-          <div
-            style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 32, fontSize: 13 }}
-          >
-            {t('tactical.results.whatIfHint')}
-          </div>
-        )}
-      </ChartCard>
-    </div>
+    <Card className="p-4">
+      <h3 className="mb-1 text-h3 text-fg">{t('tactical.results.whatIfTitle')}</h3>
+      <p className="mb-3 text-caption text-fg-tertiary">{t('tactical.results.whatIfDesc')}</p>
+      <div className="mb-3 flex gap-2">
+        <Input
+          type="text"
+          value={tickerInput}
+          onChange={(e) => setTickerInput(e.target.value)}
+          placeholder={t('tactical.results.whatIfPlaceholder')}
+          className="flex-1"
+        />
+        <Button variant="primary" onClick={handleQuery} disabled={isLoading}>
+          <Search className="size-4" />
+          {isLoading ? t('tactical.results.whatIfQuerying') : t('tactical.results.whatIfQuery')}
+        </Button>
+      </div>
+      {error && (
+        <p className="mb-3 text-caption text-danger">{error}</p>
+      )}
+      {results.length > 0 && (
+        <SortableTable
+          columns={columns}
+          data={results}
+          initialSortKey="ticker"
+          initialSortDir="asc"
+        />
+      )}
+      {results.length === 0 && !error && !isLoading && (
+        <EmptyState title={t('tactical.results.whatIfHint')} className="py-10" />
+      )}
+    </Card>
   );
 }
 

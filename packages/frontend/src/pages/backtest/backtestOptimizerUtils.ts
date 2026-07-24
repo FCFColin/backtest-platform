@@ -102,18 +102,12 @@ function useGridParams() {
   const [capMax, setCapMax] = useState('10000');
   const [capStep, setCapStep] = useState('1000');
   return {
-    thrMin,
-    setThrMin,
-    thrMax,
-    setThrMax,
-    thrStep,
-    setThrStep,
-    capMin,
-    setCapMin,
-    capMax,
-    setCapMax,
-    capStep,
-    setCapStep,
+    thrMin, setThrMin,
+    thrMax, setThrMax,
+    thrStep, setThrStep,
+    capMin, setCapMin,
+    capMax, setCapMax,
+    capStep, setCapStep,
   };
 }
 
@@ -124,16 +118,11 @@ function useConstraintState() {
   const [enableMinCagr, setEnableMinCagr] = useState(false);
   const [minCagr, setMinCagr] = useState('5');
   return {
-    objective,
-    setObjective,
-    enableMaxDD,
-    setEnableMaxDD,
-    maxDD,
-    setMaxDD,
-    enableMinCagr,
-    setEnableMinCagr,
-    minCagr,
-    setMinCagr,
+    objective, setObjective,
+    enableMaxDD, setEnableMaxDD,
+    maxDD, setMaxDD,
+    enableMinCagr, setEnableMinCagr,
+    minCagr, setMinCagr,
   };
 }
 
@@ -165,32 +154,20 @@ function useBacktestOptSetters() {
   return {
     ...grid,
     ...constraints,
-    assets,
-    frequencies,
-    startDate,
-    endDate,
+    assets, frequencies,
+    startDate, endDate,
     benchmarkTicker,
-    isLoading,
-    error,
-    results,
-    best,
-    benchmarkGrowth,
-    totalCombos,
-    setAssets,
-    setFrequencies,
-    setStartDate,
-    setEndDate,
+    isLoading, error,
+    results, best,
+    benchmarkGrowth, totalCombos,
+    setAssets, setFrequencies,
+    setStartDate, setEndDate,
     setBenchmarkTicker,
-    setIsLoading,
-    setError,
-    setResults,
-    setBest,
-    setBenchmarkGrowth,
-    setTotalCombos,
-    addAsset,
-    removeAsset,
-    updateAsset,
-    toggleFreq,
+    setIsLoading, setError,
+    setResults, setBest,
+    setBenchmarkGrowth, setTotalCombos,
+    addAsset, removeAsset,
+    updateAsset, toggleFreq,
   };
 }
 

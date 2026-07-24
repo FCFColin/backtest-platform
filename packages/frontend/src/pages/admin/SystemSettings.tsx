@@ -26,7 +26,7 @@ interface AppConfig {
 
 const DEFAULT_CONFIG: AppConfig = {
   services: [
-    { name: 'adminPage.dashboard.goEngine', url: 'http://127.0.0.1:5004', status: 'down' },
+    { name: 'adminPage.dashboard.goEngine', url: 'http://127.0.0.1:15004', status: 'down' },
     { name: 'adminPage.dashboard.goDataService', url: 'http://127.0.0.1:3003', status: 'down' },
     { name: 'adminPage.dashboard.nodeService', url: 'http://127.0.0.1:3001', status: 'down' },
   ],
@@ -42,7 +42,7 @@ function buildServicesFromApi(d: Record<string, unknown>): ServiceConfig[] {
   return [
     {
       name: 'adminPage.dashboard.goEngine',
-      url: 'http://127.0.0.1:5004',
+url: 'http://127.0.0.1:15004',
       status: svc?.go_engine?.status === 'healthy' ? 'healthy' : 'down',
       version: svc?.go_engine?.version,
     },

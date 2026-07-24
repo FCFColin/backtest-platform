@@ -93,7 +93,7 @@ async function handleResponseToast(res: Response): Promise<void> {
     }
     if (body?.degraded === true) {
       const warning = body.degradedWarning;
-      useToastStore.getState().addToast('warning', typeof warning === 'string' ? warning : i18n.t('error.dataDegraded'));
+      useToastStore.getState().addToast('warning', typeof warning === 'string' ? warning : i18n.t('errors.dataDegraded'));
     }
   } catch {
     /* non-JSON response */
@@ -137,7 +137,7 @@ export async function apiFetch(
 export async function apiPostJSON<T>(
   url: string,
   body: unknown,
-  errorMsg = i18n.t('error.requestFailed'),
+  errorMsg = i18n.t('errors.requestFailed'),
 ): Promise<T> {
   const res = await apiFetch(url, {
     method: 'POST',

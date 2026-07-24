@@ -1,9 +1,25 @@
+/**
+ * @file 蒙特卡洛参数面板
+ * @description 用 Field + Input/Select/Checkbox + Button 就地重构（testfol.io 风格）。
+ *   单 Card 内分节渲染：组合配置 / 模拟参数 / 构建模式 / 双目标，底部为主操作按钮。
+ *   PortfolioEditor 与 SegmentedControl 为复用复杂组件，保持原调用方式。
+ */
 import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
-import { PortfolioEditor } from '../../components/ParamsShared.js';
-import { ParamRow, ParamCard, ActionBar } from '../../components/params/index.js';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import { Field, FieldLabel } from '@/components/form/Field';
+import { SegmentedControl } from '../../components/form/SegmentedControl.js';
+import PortfolioEditor from '../../components/PortfolioEditor.js';
 import type { McState } from './monteCarloParamsUtils.js';
 import type { PortfolioState, PortfolioMode } from './monteCarloTypes.js';
 
@@ -19,44 +35,31 @@ function buildGoalOptions(t: TFunction): { value: string; label: string }[] {
   ];
 }
 
+/** 区块标题（标题 + 可选说明） */
+function SectionHeader({ title, info }: { title: string; info?: string }) {
+  return (
+    <div>
+      <h3 className="text-h3 font-semibold text-fg">{title}</h3>
+      {info && <p className="mt-0.5 text-caption text-fg-tertiary">{info}</p>}
+    </div>
+  );
+}
+
 function PortfolioModeToggle({ s }: { s: McState }) {
   const { t } = useTranslation();
   const { portfolioMode, setPortfolioMode } = s;
   return (
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-        {t('monteCarlo.params.portfolioCount')}
-      </span>
-      <div
-        style={{
-          display: 'flex',
-          gap: 0,
-          borderRadius: 'var(--radius-control)',
-          overflow: 'hidden',
-          border: '1px solid var(--border-soft)',
-        }}
-      >
-        {[1, 2].map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setPortfolioMode(mode as PortfolioMode)}
-            style={{
-              padding: '4px 14px',
-              fontSize: 13,
-              fontWeight: 500,
-              border: 'none',
-              borderLeft: mode === 2 ? '1px solid var(--border-soft)' : 'none',
-              cursor: 'pointer',
-              backgroundColor: portfolioMode === mode ? 'var(--brand)' : 'var(--bg-elevated)',
-              color: portfolioMode === mode ? '#fff' : 'var(--text-body)',
-              transition: 'all 0.15s',
-            }}
-          >
-            {t('monteCarlo.params.portfolioModeN', { mode })}
-          </button>
-        ))}
-      </div>
-    </div>
+    <Field>
+      <FieldLabel>{t('monteCarlo.params.portfolioCount')}</FieldLabel>
+      <SegmentedControl<PortfolioMode>
+        value={portfolioMode}
+        onChange={setPortfolioMode}
+        options={[
+          { value: 1, label: t('monteCarlo.params.portfolioModeN', { mode: 1 }) },
+          { value: 2, label: t('monteCarlo.params.portfolioModeN', { mode: 2 }) },
+        ]}
+      />
+    </Field>
   );
 }
 
@@ -69,26 +72,26 @@ function PortfolioHeader({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="portfolio-card-header">
-      <div className="portfolio-card-name-row">
-        <input
-          type="text"
-          className="portfolio-name-input"
-          style={{ flex: 1, width: 'auto' }}
-          value={p.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-        />
-        <select
-          className="portfolio-rebalance-select"
-          value={p.rebalanceFrequency}
-          onChange={(e) => onUpdate({ rebalanceFrequency: e.target.value })}
-        >
-          <option value="yearly">{t('monteCarlo.params.rebalanceYearly')}</option>
-          <option value="quarterly">{t('monteCarlo.params.rebalanceQuarterly')}</option>
-          <option value="monthly">{t('monteCarlo.params.rebalanceMonthly')}</option>
-          <option value="none">{t('monteCarlo.params.rebalanceNone')}</option>
-        </select>
-      </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <Input
+        className="flex-1"
+        value={p.name}
+        onChange={(e) => onUpdate({ name: e.target.value })}
+      />
+      <Select
+        value={p.rebalanceFrequency}
+        onValueChange={(v) => onUpdate({ rebalanceFrequency: v })}
+      >
+        <SelectTrigger className="w-[140px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="yearly">{t('monteCarlo.params.rebalanceYearly')}</SelectItem>
+          <SelectItem value="quarterly">{t('monteCarlo.params.rebalanceQuarterly')}</SelectItem>
+          <SelectItem value="monthly">{t('monteCarlo.params.rebalanceMonthly')}</SelectItem>
+          <SelectItem value="none">{t('monteCarlo.params.rebalanceNone')}</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -98,13 +101,15 @@ function PortfolioConfigSection({ s }: { s: McState }) {
   const { portfolios, portfolioMode, ...ops } = s;
   const cardStyle = { width: '100%', maxWidth: 'none', minWidth: 0, display: 'block' } as const;
   return (
-    <ParamsSection
-      title={t('monteCarlo.params.portfolioConfigTitle')}
-      info={t('monteCarlo.params.portfolioConfigInfo')}
-    >
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title={t('monteCarlo.params.portfolioConfigTitle')}
+        info={t('monteCarlo.params.portfolioConfigInfo')}
+      />
       <PortfolioModeToggle s={s} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="flex flex-col gap-3">
         <PortfolioEditor
+          singleMode
           assets={portfolios[0].assets}
           totalWeight={ops.getTotalWeight(0)}
           onAdd={() => ops.addAsset(0)}
@@ -114,14 +119,12 @@ function PortfolioConfigSection({ s }: { s: McState }) {
           wrapInSection={false}
           cardStyle={cardStyle}
           header={
-            <PortfolioHeader
-              p={portfolios[0]}
-              onUpdate={(patch) => ops.updatePortfolio(0, patch)}
-            />
+            <PortfolioHeader p={portfolios[0]} onUpdate={(patch) => ops.updatePortfolio(0, patch)} />
           }
         />
         {portfolioMode === 2 && (
           <PortfolioEditor
+            singleMode
             assets={portfolios[1].assets}
             totalWeight={ops.getTotalWeight(1)}
             onAdd={() => ops.addAsset(1)}
@@ -139,122 +142,108 @@ function PortfolioConfigSection({ s }: { s: McState }) {
           />
         )}
       </div>
-    </ParamsSection>
-  );
-}
-
-function SimBasicFields({ s }: { s: McState }) {
-  const { t } = useTranslation();
-  return (
-    <ParamRow>
-      <ParamCard label={t('monteCarlo.params.startDate')}>
-        <input
-          type="date"
-          className="param-input"
-          value={s.startDate}
-          onChange={(e) => s.setStartDate(e.target.value)}
-        />
-      </ParamCard>
-      <ParamCard label={t('monteCarlo.params.endDate')}>
-        <input
-          type="date"
-          className="param-input"
-          value={s.endDate}
-          onChange={(e) => s.setEndDate(e.target.value)}
-        />
-      </ParamCard>
-      <ParamCard label={t('monteCarlo.params.simYears')}>
-        <input
-          type="number"
-          className="param-input"
-          value={s.numYears}
-          onChange={(e) => s.setNumYears(Number(e.target.value))}
-        />
-      </ParamCard>
-      <ParamCard label={t('monteCarlo.params.simCount')}>
-        <input
-          type="number"
-          className="param-input"
-          value={s.numSimulations}
-          onChange={(e) => s.setNumSimulations(Number(e.target.value))}
-        />
-      </ParamCard>
-    </ParamRow>
-  );
-}
-
-function SimAdvancedFields({ s }: { s: McState }) {
-  const { t } = useTranslation();
-  return (
-    <ParamRow>
-      <ParamCard label={t('monteCarlo.params.startingValue')}>
-        <div className="param-input-prefix-wrap">
-          <span className="param-input-prefix">$</span>
-          <input
-            type="number"
-            className="param-input param-input-with-prefix"
-            value={s.startingValue}
-            onChange={(e) => s.setStartingValue(Number(e.target.value))}
-          />
-        </div>
-      </ParamCard>
-      <ParamCard label={t('monteCarlo.params.minBlock')}>
-        <div className="param-input-suffix-wrap">
-          <input
-            type="number"
-            className="param-input param-input-with-suffix"
-            value={s.minBlock}
-            onChange={(e) => s.setMinBlock(Number(e.target.value))}
-          />
-          <span className="param-input-suffix">{t('monteCarlo.params.yearSuffix')}</span>
-        </div>
-      </ParamCard>
-      <ParamCard label={t('monteCarlo.params.maxBlock')}>
-        <div className="param-input-suffix-wrap">
-          <input
-            type="number"
-            className="param-input param-input-with-suffix"
-            value={s.maxBlock}
-            onChange={(e) => s.setMaxBlock(Number(e.target.value))}
-          />
-          <span className="param-input-suffix">{t('monteCarlo.params.yearSuffix')}</span>
-        </div>
-      </ParamCard>
-      <ParamCard label={t('monteCarlo.params.randomSeed')}>
-        <input
-          type="number"
-          className="param-input"
-          value={s.randomSeed}
-          onChange={(e) => s.setRandomSeed(e.target.value)}
-          placeholder={t('monteCarlo.params.randomSeedPlaceholder')}
-        />
-      </ParamCard>
-      <ParamCard label={t('monteCarlo.params.withReplacement')}>
-        <label className="param-check">
-          <input
-            type="checkbox"
-            checked={s.withReplacement}
-            onChange={(e) => s.setWithReplacement(e.target.checked)}
-          />
-          <span>{t('monteCarlo.params.withReplacement')}</span>
-        </label>
-      </ParamCard>
-    </ParamRow>
+    </section>
   );
 }
 
 function SimParamsSection({ s }: { s: McState }) {
   const { t } = useTranslation();
   return (
-    <ParamsSection
-      title={t('monteCarlo.params.simParamsTitle')}
-      info={t('monteCarlo.params.simParamsInfo')}
-    >
-      <div className="param-section-content">
-        <SimBasicFields s={s} />
-        <SimAdvancedFields s={s} />
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title={t('monteCarlo.params.simParamsTitle')}
+        info={t('monteCarlo.params.simParamsInfo')}
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.startDate')}</FieldLabel>
+          <Input
+            type="date"
+            value={s.startDate}
+            onChange={(e) => s.setStartDate(e.target.value)}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.endDate')}</FieldLabel>
+          <Input type="date" value={s.endDate} onChange={(e) => s.setEndDate(e.target.value)} />
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.simYears')}</FieldLabel>
+          <Input
+            type="number"
+            value={s.numYears}
+            onChange={(e) => s.setNumYears(Number(e.target.value))}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.simCount')}</FieldLabel>
+          <Input
+            type="number"
+            value={s.numSimulations}
+            onChange={(e) => s.setNumSimulations(Number(e.target.value))}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.startingValue')}</FieldLabel>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+              $
+            </span>
+            <Input
+              type="number"
+              className="pl-7"
+              value={s.startingValue}
+              onChange={(e) => s.setStartingValue(Number(e.target.value))}
+            />
+          </div>
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.minBlock')}</FieldLabel>
+          <div className="relative">
+            <Input
+              type="number"
+              className="pr-10"
+              value={s.minBlock}
+              onChange={(e) => s.setMinBlock(Number(e.target.value))}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+              {t('monteCarlo.params.yearSuffix')}
+            </span>
+          </div>
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.maxBlock')}</FieldLabel>
+          <div className="relative">
+            <Input
+              type="number"
+              className="pr-10"
+              value={s.maxBlock}
+              onChange={(e) => s.setMaxBlock(Number(e.target.value))}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+              {t('monteCarlo.params.yearSuffix')}
+            </span>
+          </div>
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.randomSeed')}</FieldLabel>
+          <Input
+            type="number"
+            value={s.randomSeed}
+            onChange={(e) => s.setRandomSeed(e.target.value)}
+            placeholder={t('monteCarlo.params.randomSeedPlaceholder')}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>{t('monteCarlo.params.withReplacement')}</FieldLabel>
+          <Checkbox
+            id="mc-with-replacement"
+            checked={s.withReplacement}
+            onCheckedChange={(c) => s.setWithReplacement(c === true)}
+          />
+        </Field>
       </div>
-    </ParamsSection>
+    </section>
   );
 }
 
@@ -274,22 +263,16 @@ function BuildModeSection({ s }: { s: McState }) {
     },
   ];
   return (
-    <ParamsSection
-      title={t('monteCarlo.params.buildModeTitle')}
-      info={t('monteCarlo.params.buildModeInfo')}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title={t('monteCarlo.params.buildModeTitle')}
+        info={t('monteCarlo.params.buildModeInfo')}
+      />
+      <div className="flex flex-col gap-2">
         {modes.map((opt) => (
           <label
             key={opt.value}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: 13,
-              color: 'var(--text-body)',
-              cursor: 'pointer',
-            }}
+            className="flex cursor-pointer items-center gap-2 text-label text-fg-secondary"
           >
             <input
               type="radio"
@@ -297,18 +280,18 @@ function BuildModeSection({ s }: { s: McState }) {
               value={opt.value}
               checked={simMode === opt.value}
               onChange={() => setSimMode(opt.value)}
-              style={{ cursor: 'pointer' }}
+              className="size-4 cursor-pointer accent-brand"
             />
             <span>{opt.label}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{opt.desc}</span>
+            <span className="text-caption text-fg-tertiary">{opt.desc}</span>
           </label>
         ))}
       </div>
-    </ParamsSection>
+    </section>
   );
 }
 
-function GoalSelector({
+function GoalSelectField({
   label,
   value,
   onChange,
@@ -320,15 +303,21 @@ function GoalSelector({
   options: { value: string; label: string }[];
 }) {
   return (
-    <ParamCard label={label}>
-      <select className="param-input" value={value} onChange={(e) => onChange(e.target.value)}>
-        {options.map((g) => (
-          <option key={g.value} value={g.value}>
-            {g.label}
-          </option>
-        ))}
-      </select>
-    </ParamCard>
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((g) => (
+            <SelectItem key={g.value} value={g.value}>
+              {g.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
   );
 }
 
@@ -337,80 +326,63 @@ function DualGoalSection({ s }: { s: McState }) {
   const { goal1, setGoal1, goal2, setGoal2, goalWeight, setGoalWeight } = s;
   const goalOptions = buildGoalOptions(t);
   return (
-    <ParamsSection
-      title={t('monteCarlo.params.dualGoalTitle')}
-      info={t('monteCarlo.params.dualGoalInfo')}
-    >
-      <ParamRow>
-        <GoalSelector
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title={t('monteCarlo.params.dualGoalTitle')}
+        info={t('monteCarlo.params.dualGoalInfo')}
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <GoalSelectField
           label={t('monteCarlo.params.goal1')}
           value={goal1}
           onChange={setGoal1}
           options={goalOptions}
         />
-        <GoalSelector
+        <GoalSelectField
           label={t('monteCarlo.params.goal2')}
           value={goal2}
           onChange={setGoal2}
           options={goalOptions}
         />
-      </ParamRow>
-      <ParamRow>
-        <ParamCard label={t('monteCarlo.params.goal1Weight')} fullWidth>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 4,
-            }}
-          >
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-              {t('monteCarlo.params.goal1Weight')}
-            </span>
-            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'var(--text-strong)' }}>
-              {goalWeight}% : {100 - goalWeight}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={goalWeight}
-            onChange={(e) => setGoalWeight(Number(e.target.value))}
-            style={{ width: '100%', cursor: 'pointer', accentColor: 'var(--brand)' }}
-          />
-        </ParamCard>
-      </ParamRow>
-    </ParamsSection>
+      </div>
+      <Field>
+        <div className="flex items-center justify-between">
+          <FieldLabel>{t('monteCarlo.params.goal1Weight')}</FieldLabel>
+          <span className="font-mono text-caption tabular-nums text-fg">
+            {goalWeight}% : {100 - goalWeight}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={goalWeight}
+          onChange={(e) => setGoalWeight(Number(e.target.value))}
+          className="w-full cursor-pointer accent-brand"
+        />
+      </Field>
+    </section>
   );
 }
 
 function McParamsPanel({ s }: { s: McState }) {
   const { t } = useTranslation();
   return (
-    <ParamsPanel>
+    <div className="flex flex-col gap-5">
       <PortfolioConfigSection s={s} />
       <SimParamsSection s={s} />
       <BuildModeSection s={s} />
       <DualGoalSection s={s} />
-      <ActionBar>
-        <button
-          onClick={s.runSimulation}
-          disabled={s.isLoading}
-          className="btn-primary"
-          style={{ width: '100%' }}
-        >
-          {s.isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
-          {s.isLoading ? t('monteCarlo.params.simulating') : t('monteCarlo.params.startSim')}
-        </button>
-      </ActionBar>
-    </ParamsPanel>
+      <Button onClick={s.runSimulation} disabled={s.isLoading} variant="primary" className="w-full">
+        {s.isLoading ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <Play className="size-4" />
+        )}
+        {s.isLoading ? t('monteCarlo.params.simulating') : t('monteCarlo.params.startSim')}
+      </Button>
+    </div>
   );
 }
 

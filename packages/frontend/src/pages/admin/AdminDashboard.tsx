@@ -86,7 +86,7 @@ function ServiceMarketSection({
         <div className="space-y-3">
           <ServiceStatusItem
             name={t('adminPage.dashboard.goEngine')}
-            port=":5004"
+            port=":15004"
             status={data.services.goEngine}
           />
           <ServiceStatusItem

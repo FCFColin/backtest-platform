@@ -1,23 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from 'react-i18next';
 import { GridParamsPanel } from './TacticalGridParams.js';
 import { GridResultsPanel } from './TacticalGridResults.js';
 import { useTacticalGridState } from '@/hooks/useTacticalGridState.js';
+import type { TacticalGridState } from '@/hooks/useTacticalGridState.js';
 import { ComputeToolShell } from '../../components/shells/index.js';
 import type { ComputeToolConfig } from '../../components/shells/index.js';
 
-function GridParamsWrapper({ state }: { state: any }) {
-  return <GridParamsPanel state={state} />;
-}
-
-function GridResultsWrapper({ state }: { state: any }) {
-  return <GridResultsPanel state={state} />;
-}
-
-const config: ComputeToolConfig<any> = {
+const config: ComputeToolConfig<TacticalGridState> = {
   titleKey: 'tacticalGrid.title',
-  params: GridParamsWrapper,
-  results: GridResultsWrapper,
+  params: GridParamsPanel,
+  results: GridResultsPanel,
 };
 
 export default function TacticalGridPage() {

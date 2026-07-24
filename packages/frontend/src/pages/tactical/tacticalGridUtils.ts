@@ -3,7 +3,6 @@
  * @description 承载类型定义、常量、热力图配色与参数校验等无副作用逻辑，
  *              供 TacticalGridPage / hooks / 子组件共享。
  */
-import type { CSSProperties } from 'react';
 import type { RebalanceFrequency, GridParamRange } from '@backtest/shared';
 import { REBALANCE_FREQUENCIES } from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
@@ -69,37 +68,6 @@ export const OBJECTIVE_OPTIONS: Array<{ value: ObjectiveType; label: string }> =
   { value: 'minDrawdown', label: 'tacticalGrid.objectives.minDrawdown' },
   { value: 'maxSharpe', label: 'tacticalGrid.objectives.maxSharpe' },
 ];
-
-export const heatmapCellStyle: CSSProperties = {
-  padding: '6px 8px',
-  textAlign: 'center',
-  borderBottom: '1px solid var(--border-soft)',
-  borderRight: '1px solid var(--border-soft)',
-  fontSize: 11,
-};
-
-export const heatmapHeaderStyle: CSSProperties = {
-  padding: '6px 8px',
-  color: 'var(--text-muted)',
-  borderBottom: '2px solid var(--border-soft)',
-  borderRight: '1px solid var(--border-soft)',
-  fontSize: 11,
-  fontWeight: 600,
-  position: 'sticky',
-  top: 0,
-  background: 'var(--bg-elevated)',
-  zIndex: 1,
-};
-
-export const heatmapRowHeaderStyle: CSSProperties = {
-  padding: '6px 8px',
-  color: 'var(--text-strong)',
-  fontWeight: 600,
-  borderBottom: '1px solid var(--border-soft)',
-  borderRight: '1px solid var(--border-soft)',
-  background: 'var(--bg-subtle)',
-  fontSize: 11,
-};
 
 /** 根据指标类型返回参数标签 key */
 export function getParamLabelKeys(indicator: IndicatorType): { p1: string; p2: string } {

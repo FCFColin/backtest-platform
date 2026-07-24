@@ -1,9 +1,11 @@
 import { useState, useMemo } from 'react';
 import { ShieldAlert, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { formatPct } from './baseCalculatorUtils.js';
 import { Field, ResultRow, CollapsibleCard, InfoBox, SWRChart } from './BaseCalculatorUI.js';
 
+/** 安全提取率计算器：基于预期收益 / 波动 / 退休年限估算稳健 SWR */
 export function SWRCalculator() {
   const { t } = useTranslation();
   const [expectedReturn, setExpectedReturn] = useState(7);
@@ -36,7 +38,7 @@ export function SWRCalculator() {
 
   return (
     <CollapsibleCard icon={ShieldAlert} title={t('calculators.swr.title')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+      <div className="grid grid-cols-2 gap-3">
         <Field
           label={t('calculators.swr.expectedReturn')}
           value={expectedReturn}
@@ -69,16 +71,16 @@ export function SWRCalculator() {
           max={99}
         />
       </div>
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <ResultRow
           label={t('calculators.swr.estimatedSwr')}
           value={formatPct(swr)}
-          color="var(--brand)"
+          tone="brand"
         />
         <ResultRow
           label={t('calculators.swr.annualWithdrawal')}
           value={(swr * 1000000).toFixed(0)}
-          color="var(--success)"
+          tone="success"
         />
       </div>
       <SWRChart data={portfolioSurvival} />
@@ -124,20 +126,20 @@ function RiskResults({
   t,
 }: {
   result: AllocationRiskComputation;
-  t: ReturnType<typeof useTranslation>['t'];
+  t: TFunction;
 }) {
   return (
     <>
-      <div style={{ marginTop: 8 }}>
+      <div className="mt-2">
         <ResultRow
           label={t('calculators.risk.portfolioVol')}
           value={formatPct(result.portfolioVol)}
-          color="var(--brand)"
+          tone="brand"
         />
         <ResultRow
           label={t('calculators.risk.diversificationBenefit')}
           value={formatPct(result.diversificationBenefit)}
-          color="var(--success)"
+          tone="success"
         />
         <ResultRow
           label={t('calculators.risk.stockRiskContribution')}
@@ -148,22 +150,12 @@ function RiskResults({
           value={formatPct(result.riskContributionBond)}
         />
       </div>
-      <div
-        style={{
-          marginTop: 10,
-          padding: '8px 12px',
-          background: 'var(--bg-subtle)',
-          borderRadius: 8,
-          fontSize: 12,
-          color: 'var(--text-muted)',
-        }}
-      >
-        {t('calculators.risk.formula')}
-      </div>
+      <InfoBox>{t('calculators.risk.formula')}</InfoBox>
     </>
   );
 }
 
+/** 资产配置风险计算器：股债组合波动与风险贡献分解 */
 export function AssetAllocationRiskCalculator() {
   const { t } = useTranslation();
   const [stockPct, setStockPct] = useState(60);
@@ -179,7 +171,7 @@ export function AssetAllocationRiskCalculator() {
 
   return (
     <CollapsibleCard icon={BarChart3} title={t('calculators.risk.title')}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+      <div className="grid grid-cols-2 gap-3">
         <Field
           label={t('calculators.risk.stockPct')}
           value={stockPct}
@@ -198,29 +190,19 @@ export function AssetAllocationRiskCalculator() {
           min={0}
           max={100}
         />
+        <Field label={t('calculators.risk.stockVol')} value={stockVol} onChange={setStockVol} suffix="%" step={1} />
+        <Field label={t('calculators.risk.bondVol')} value={bondVol} onChange={setBondVol} suffix="%" step={1} />
+      </div>
+      <div className="mt-3">
         <Field
-          label={t('calculators.risk.stockVol')}
-          value={stockVol}
-          onChange={setStockVol}
-          suffix="%"
-          step={1}
-        />
-        <Field
-          label={t('calculators.risk.bondVol')}
-          value={bondVol}
-          onChange={setBondVol}
-          suffix="%"
-          step={1}
+          label={t('calculators.risk.correlation')}
+          value={correlation}
+          onChange={setCorrelation}
+          step={0.05}
+          min={-1}
+          max={1}
         />
       </div>
-      <Field
-        label={t('calculators.risk.correlation')}
-        value={correlation}
-        onChange={setCorrelation}
-        step={0.05}
-        min={-1}
-        max={1}
-      />
       <RiskResults result={result} t={t} />
     </CollapsibleCard>
   );
