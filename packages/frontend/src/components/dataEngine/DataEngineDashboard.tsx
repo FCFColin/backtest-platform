@@ -1,6 +1,8 @@
 /** @file DataEngine dashboard — composes status cards, action buttons, distribution charts */
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Play, RotateCcw, Zap, Database } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import type { Stats, UniverseStats } from './utils.js';
 import { fmt } from './utils.js';
 import { DataEngineOverviewCards, DataEngineCoverageBars } from './DataEngineOverviewCards.js';
@@ -13,13 +15,6 @@ import {
 import { SampleTickersCard, RecentUpdatesCard } from './DataEngineInfoCards.js';
 import { useAuthStore } from '@/store/authStore';
 
-const BTN_STYLE = {
-  fontSize: 12,
-  minHeight: 36,
-  padding: '0 14px',
-  textTransform: 'none',
-} as const;
-
 type ActionMethod = 'POST' | 'PUT' | 'PATCH';
 
 /**
@@ -27,6 +22,8 @@ type ActionMethod = 'POST' | 'PUT' | 'PATCH';
  *
  * 镜像后端 `effectiveRole` 逻辑（packages/backend/src/middleware/rbac.ts）：
  * 优先使用组织作用域内的角色 `orgRole`（owner 归并为 admin），无则回退到全局 `role`。
+ * @param user - 含 role/orgRole 的用户对象。
+ * @returns 有效角色字符串。
  */
 function effectiveRole(user: { role: string; orgRole: string | null }): string {
   if (user.orgRole) {
@@ -35,29 +32,38 @@ function effectiveRole(user: { role: string; orgRole: string | null }): string {
   return user.role;
 }
 
+/**
+ * UniverseInfo: 标的池刷新时间与构成摘要。
+ * @param props - universe。
+ * @returns 渲染的摘要卡片。
+ */
 function UniverseInfo({ universe }: { universe: UniverseStats }) {
   const { t } = useTranslation();
   return (
-    <div
-      className="bt-main-card card"
-      style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)' }}
-    >
+    <Card className="p-4 text-caption text-fg-tertiary">
       {t('dataEngine.universeLastRefresh')}:{' '}
       {universe.updated_at
         ? new Date(universe.updated_at).toLocaleString('zh-CN')
         : t('dataEngine.notRefreshed')}
       {' | '}
-      {fmt(universe.total)} {t('dataEngine.totalTickers')}
+      <span className="font-mono tabular-nums">{fmt(universe.total)}</span>{' '}
+      {t('dataEngine.totalTickers')}
       {' | '}
-      {t('dataEngine.stock')} {fmt(universe.stats?.stocks || 0)} + ETF{' '}
-      {fmt(universe.stats?.etfs || 0)} + {t('dataEngine.index')} {fmt(universe.stats?.indices || 0)}
+      {t('dataEngine.stock')} <span className="font-mono tabular-nums">{fmt(universe.stats?.stocks || 0)}</span> + ETF{' '}
+      <span className="font-mono tabular-nums">{fmt(universe.stats?.etfs || 0)}</span> + {t('dataEngine.index')}{' '}
+      <span className="font-mono tabular-nums">{fmt(universe.stats?.indices || 0)}</span>
       {' | '}
-      {t('dataEngine.usStocks')} {fmt(universe.stats?.us || 0)} + {t('dataEngine.cnStocks')}{' '}
-      {fmt(universe.stats?.cn || 0)}
-    </div>
+      {t('dataEngine.usStocks')} <span className="font-mono tabular-nums">{fmt(universe.stats?.us || 0)}</span> +{' '}
+      {t('dataEngine.cnStocks')} <span className="font-mono tabular-nums">{fmt(universe.stats?.cn || 0)}</span>
+    </Card>
   );
 }
 
+/**
+ * DataEngineActionButtons: 数据管理动作按钮组（仅 admin/analyst 可见）。
+ * @param props - actionMsg/fetchStats/doAction。
+ * @returns 渲染的动作按钮卡片，无权限时返回 null。
+ */
 function DataEngineActionButtons({
   actionMsg,
   fetchStats,
@@ -75,55 +81,60 @@ function DataEngineActionButtons({
   if (!canManage) return null;
 
   return (
-    <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <button className="main-action-btn" style={BTN_STYLE} onClick={() => fetchStats(true)}>
-          <RefreshCw className="w-3.5 h-3.5" /> {t('dataEngine.refreshStats')}
-        </button>
-        <button
-          className="main-action-btn"
-          style={{ ...BTN_STYLE, background: 'var(--support)' }}
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="primary" size="sm" onClick={() => fetchStats(true)}>
+          <RefreshCw className="size-3.5" /> {t('dataEngine.refreshStats')}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() =>
             doAction('/api/v1/data/manage/update/inc', t('dataEngine.incrementalUpdate'), 'PATCH')
           }
         >
-          <Play className="w-3.5 h-3.5" /> {t('dataEngine.incrementalUpdate')}
-        </button>
-        <button
-          className="main-action-btn"
-          style={{ ...BTN_STYLE, background: '#6366f1' }}
+          <Play className="size-3.5" /> {t('dataEngine.incrementalUpdate')}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() =>
             doAction('/api/v1/data/manage/update/refetch', t('dataEngine.refetch'), 'PUT')
           }
         >
-          <RotateCcw className="w-3.5 h-3.5" /> {t('dataEngine.refetch')}
-        </button>
-        <button
-          className="main-action-btn"
-          style={{ ...BTN_STYLE, background: 'var(--warning)' }}
+          <RotateCcw className="size-3.5" /> {t('dataEngine.refetch')}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() =>
             doAction('/api/v1/data/manage/update/full', t('dataEngine.fullUpdate'), 'PUT')
           }
         >
-          <Zap className="w-3.5 h-3.5" /> {t('dataEngine.fullUpdate')}
-        </button>
-        <button
-          className="main-action-btn"
-          style={{ ...BTN_STYLE, background: 'var(--text-muted)' }}
+          <Zap className="size-3.5" /> {t('dataEngine.fullUpdate')}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() =>
             doAction('/api/v1/data/manage/universe', t('dataEngine.refreshUniverse'), 'PUT')
           }
         >
-          <Database className="w-3.5 h-3.5" /> {t('dataEngine.refreshUniverse')}
-        </button>
+          <Database className="size-3.5" /> {t('dataEngine.refreshUniverse')}
+        </Button>
         {actionMsg && (
-          <span style={{ fontSize: 12, color: 'var(--brand)', fontWeight: 600 }}>{actionMsg}</span>
+          <span className="text-caption font-semibold text-brand">{actionMsg}</span>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
+/**
+ * DataEngineDashboard: 数据引擎仪表盘，组合动作按钮、概览卡片、覆盖率与分布图。
+ * @param props - stats/universe/actionMsg/fetchStats/doAction。
+ * @returns 渲染的仪表盘。
+ */
 export function DataEngineDashboard({
   stats,
   universe,
@@ -142,13 +153,13 @@ export function DataEngineDashboard({
       <DataEngineActionButtons actionMsg={actionMsg} fetchStats={fetchStats} doAction={doAction} />
       <DataEngineOverviewCards stats={stats} universe={universe} />
       <DataEngineCoverageBars stats={stats} universe={universe} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, margin: '8px 0' }}>
+      <div className="my-2 grid grid-cols-1 gap-3 md:grid-cols-2">
         <MarketDistributionCard stats={stats} universe={universe} />
         <ExchangeDistributionCard stats={stats} />
       </div>
       <DecadeDistributionCard stats={stats} />
       <YearCountDistributionCard stats={stats} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, margin: '8px 0' }}>
+      <div className="my-2 grid grid-cols-1 gap-3 md:grid-cols-2">
         <SampleTickersCard stats={stats} />
         <RecentUpdatesCard stats={stats} />
       </div>

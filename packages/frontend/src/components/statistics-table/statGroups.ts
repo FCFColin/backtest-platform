@@ -232,3 +232,34 @@ export const COMPACT_GROUPS: StatGroup[] = [
     ],
   },
 ];
+
+/** 横向模式：3 组核心指标横向展示，每组一行数据 */
+export const HORIZONTAL_GROUPS: StatGroup[] = [
+  {
+    title: 'components.statisticsTable.groups.return',
+    rows: [
+      { key: 'cagr', label: 'stats.cagr', fmt: 'pct' },
+      { key: 'totalReturn', label: 'stats.totalReturn', fmt: 'pct' },
+      { key: 'bestYear', label: 'stats.bestYear', fmt: 'pct' },
+      { key: 'worstYear', label: 'stats.worstYear', fmt: 'pct' },
+    ],
+  },
+  {
+    title: 'components.statisticsTable.groups.riskAdjusted',
+    rows: [
+      { key: 'sharpe', label: 'stats.sharpe', fmt: 'num' },
+      { key: 'sortino', label: 'stats.sortino', fmt: 'num' },
+      { key: 'calmar', label: 'stats.calmar', fmt: 'num' },
+      { key: 'stdev', label: 'stats.stdev', fmt: 'pct' },
+    ],
+  },
+  {
+    title: 'components.statisticsTable.groups.drawdown',
+    rows: [
+      { key: 'maxDrawdown', label: 'stats.maxDrawdown', fmt: 'pct' },
+      { key: 'avgDrawdown', label: 'stats.avgDrawdown', fmt: 'pct' },
+      { key: 'maxDrawdownDuration', label: 'stats.maxDrawdownDuration', fmt: 'int' },
+      { key: 'ulcerIndex', label: 'stats.ulcerIndex', fmt: 'num' },
+    ],
+  },
+];

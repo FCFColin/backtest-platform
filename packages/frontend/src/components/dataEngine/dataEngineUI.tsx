@@ -1,13 +1,12 @@
-import type { ReactNode } from 'react';
-
 /** @file Tiny presentational primitives for DataEngineDashboard */
+import type { ReactNode } from 'react';
+import { Card } from '@/components/ui/card';
 
-function progressColor(pctVal: number): string {
-  if (pctVal >= 80) return 'var(--success)';
-  if (pctVal >= 40) return 'var(--brand)';
-  return 'var(--warning)';
-}
-
+/**
+ * StatCard: 概览统计卡片，图标 + 标签 + 大号数值 + 辅助说明。
+ * @param props - icon/label/value/sub。
+ * @returns 渲染的统计卡片。
+ */
 export function StatCard({
   icon,
   label,
@@ -20,27 +19,22 @@ export function StatCard({
   sub: string;
 }) {
   return (
-    <div className="card" style={{ padding: 16 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          color: 'var(--brand)',
-          marginBottom: 8,
-        }}
-      >
+    <Card className="p-4">
+      <div className="mb-2 flex items-center gap-2 text-brand">
         {icon}
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>{label}</span>
+        <span className="text-caption font-semibold text-fg-tertiary">{label}</span>
       </div>
-      <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-strong)', lineHeight: 1.2 }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{sub}</div>
-    </div>
+      <div className="font-mono text-h1 font-bold leading-tight tabular-nums text-fg">{value}</div>
+      <div className="mt-1 text-caption text-fg-tertiary">{sub}</div>
+    </Card>
   );
 }
 
+/**
+ * ProgressBar: 覆盖率进度条，标签 + 当前/总数 + 品牌色填充条。
+ * @param props - label/current/total。
+ * @returns 渲染的进度条。
+ */
 export function ProgressBar({
   label,
   current,
@@ -52,26 +46,17 @@ export function ProgressBar({
 }) {
   const pctVal = total > 0 ? (current / total) * 100 : 0;
   return (
-    <div style={{ marginBottom: 8 }}>
-      <div
-        style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}
-      >
-        <span style={{ color: 'var(--text-body)' }}>{label}</span>
-        <span style={{ color: 'var(--text-muted)' }}>
+    <div className="mb-2">
+      <div className="mb-1 flex justify-between text-caption">
+        <span className="text-fg-secondary">{label}</span>
+        <span className="font-mono tabular-nums text-fg-tertiary">
           {(current ?? 0).toLocaleString()} / {(total ?? 0).toLocaleString()} ({pctVal.toFixed(1)}%)
         </span>
       </div>
-      <div
-        style={{ height: 8, background: 'var(--bg-subtle)', borderRadius: 4, overflow: 'hidden' }}
-      >
+      <div className="h-2 overflow-hidden rounded bg-input-bg">
         <div
-          style={{
-            height: '100%',
-            width: `${pctVal}%`,
-            background: progressColor(pctVal),
-            borderRadius: 4,
-            transition: 'width 0.5s',
-          }}
+          className="h-full rounded bg-brand transition-[width] duration-500"
+          style={{ width: `${pctVal}%` }}
         />
       </div>
     </div>

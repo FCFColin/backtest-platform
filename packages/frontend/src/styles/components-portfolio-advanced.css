@@ -2,7 +2,7 @@
    组合编辑器 - 高级选项行与卡片内控件覆盖
    ============================================ */
 
-/* 高级选项行 */
+/* 高级选项行 - 已合并到名称行，保留兼容 */
 .portfolio-advanced-row {
   display: flex;
   flex-wrap: wrap;
@@ -11,8 +11,6 @@
   padding: 4px 0;
   margin-top: 4px;
   margin-bottom: 4px;
-  border-top: 1px solid var(--border-soft);
-  border-bottom: 1px solid var(--border-soft);
 }
 
 .advanced-field {
@@ -59,6 +57,17 @@
   box-shadow: 0 0 0 2px var(--brand-soft);
 }
 
+.advanced-suffix {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  pointer-events: none;
+  font-weight: 500;
+}
+
 /* 组合卡片内的复选框样式覆盖 - 更小、自适应高度 */
 .portfolio-card .param-check {
   height: auto;
@@ -74,6 +83,8 @@
 }
 
 .portfolio-card .param-check.advanced-check {
-  height: 40px;
+  height: auto;
+  min-height: 32px;
   padding: 0;
+  font-size: 12px;
 }

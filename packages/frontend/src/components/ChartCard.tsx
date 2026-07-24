@@ -1,5 +1,6 @@
-/** @file 通用图表卡片容器：可选拓展标题与 CSV 导出按钮，内部渲染具体图表 */
+/** @file 通用图表卡片容器：基于 shadcn Card，可选拓展标题与 CSV 导出按钮，内部渲染具体图表 */
 import type { CSSProperties, ReactNode } from 'react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { ChartExporter } from './ChartExporter.js';
 
 /** ChartCard 组件 Props */
@@ -14,12 +15,20 @@ interface ChartCardProps {
   headerExtra?: ReactNode;
   /** 图表内容 */
   children: ReactNode;
-  /** 透传到外层 div 的 style */
+  /** 透传到外层 Card 的 style */
   style?: CSSProperties;
-  /** 合并到外层 div 的 className（与 `chart-card` 拼接） */
+  /** 合并到外层 Card 的 className */
   className?: string;
 }
 
+/**
+ * 通用图表卡片容器。
+ *
+ * 基于 shadcn Card（CardHeader + CardContent）实现紧凑的图表外壳：
+ * 标题行与可选的导出按钮/额外操作横向排列于 CardHeader，图表内容置于 CardContent。
+ * @param props - 见 ChartCardProps
+ * @returns 渲染的图表卡片
+ */
 export default function ChartCard({
   title,
   data,
@@ -33,40 +42,27 @@ export default function ChartCard({
   const showExporter = data !== undefined && csvFilename !== undefined;
   const hasHeaderExtra = headerExtra != null;
   const hasRightContent = showExporter || hasHeaderExtra;
-  const cardClassName = className ? `chart-card ${className}` : 'chart-card';
 
   if (!hasTitle) {
     return (
-      <div className={cardClassName} style={style}>
-        {children}
-      </div>
+      <Card className={className} style={style}>
+        <CardContent className="p-4 pt-4">{children}</CardContent>
+      </Card>
     );
   }
-
-  if (!hasRightContent) {
-    return (
-      <div className={cardClassName} style={style}>
-        <div className="chart-card-title">{title}</div>
-        {children}
-      </div>
-    );
-  }
-
-  const showBoth = hasHeaderExtra && showExporter;
-  const rightContent = (
-    <>
-      {hasHeaderExtra && headerExtra}
-      {showExporter && <ChartExporter data={data} filename={csvFilename} />}
-    </>
-  );
 
   return (
-    <div className={cardClassName} style={style}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="chart-card-title mb-0">{title}</div>
-        {showBoth ? <div className="flex items-center gap-2">{rightContent}</div> : rightContent}
-      </div>
-      {children}
-    </div>
+    <Card className={className} style={style}>
+      <CardHeader className="flex-row items-center justify-between space-y-0 px-4 pt-4 pb-3">
+        <div className="text-h3 font-semibold text-fg">{title}</div>
+        {hasRightContent && (
+          <div className="flex items-center gap-2">
+            {hasHeaderExtra && headerExtra}
+            {showExporter && <ChartExporter data={data} filename={csvFilename} />}
+          </div>
+        )}
+      </CardHeader>
+      <CardContent className="px-4 pb-4 pt-0">{children}</CardContent>
+    </Card>
   );
 }

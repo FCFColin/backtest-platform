@@ -6,13 +6,14 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: nowrap;
-  height: 44px;
+  height: auto;
+  min-height: 44px;
   margin: 0;
-  padding: 4px 16px;
+  padding: 0 16px;
   overflow-x: auto;
-  gap: 4px;
-  background: var(--bg-subtle);
+  gap: 0;
   border-bottom: 1px solid var(--border-soft);
+  background: transparent;
 }
 
 .bt-tabs-left {
@@ -23,16 +24,17 @@
 }
 
 .bt-tab {
-  padding: 0 16px;
-  height: 32px;
+  padding: 10px 16px;
+  height: auto;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
   border: none;
-  border-radius: var(--radius-input);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: none;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
   position: relative;
   font-family: inherit;
@@ -41,15 +43,16 @@
 }
 
 .bt-tab:hover {
-  background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
   color: var(--text-body);
+  background: none;
 }
 
 .bt-tab.active {
-  color: var(--brand);
-  background: var(--bg-elevated);
+  color: var(--text-strong);
+  background: none;
   font-weight: 600;
-  box-shadow: var(--shadow-sm);
+  border-bottom-color: var(--brand);
+  box-shadow: none;
 }
 
 .bt-tabs-right {
@@ -64,21 +67,23 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
-  font-size: 13px;
+  padding: 5px 12px;
+  font-size: 12px;
   font-weight: 500;
-  color: white;
-  background-color: var(--support);
-  border: none;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-input);
   cursor: pointer;
-  transition: background-color 0.15s;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
   font-family: inherit;
   white-space: nowrap;
 }
 
 .bt-export-btn:hover {
-  background-color: color-mix(in srgb, var(--support) 85%, black);
+  background: var(--bg-subtle);
+  color: var(--text-body);
+  border-color: var(--border-strong);
 }
 
 .bt-export-btn:disabled {
@@ -89,8 +94,8 @@
 .result-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px;
+  gap: 14px;
+  padding: 14px;
   min-height: 300px;
 }
 
@@ -100,26 +105,28 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: nowrap;
-  height: 44px;
+  height: auto;
+  min-height: 44px;
   margin: 0;
-  padding: 4px 16px;
+  padding: 0 16px;
   overflow-x: auto;
-  gap: 4px;
-  background: var(--bg-subtle);
+  gap: 0;
   border-bottom: 1px solid var(--border-soft);
+  background: transparent;
 }
 
 .result-tab {
-  padding: 0 16px;
-  height: 32px;
+  padding: 10px 16px;
+  height: auto;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
   border: none;
-  border-radius: var(--radius-input);
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   background: none;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: color 0.15s, border-color 0.15s;
   white-space: nowrap;
   position: relative;
   font-family: inherit;
@@ -128,13 +135,14 @@
 }
 
 .result-tab:hover {
-  background: color-mix(in srgb, var(--bg-elevated) 70%, transparent);
   color: var(--text-body);
+  background: none;
 }
 
 .result-tab.active {
-  color: var(--brand);
-  background: var(--bg-elevated);
+  color: var(--text-strong);
+  background: none;
   font-weight: 600;
-  box-shadow: var(--shadow-sm);
+  border-bottom-color: var(--brand);
+  box-shadow: none;
 }

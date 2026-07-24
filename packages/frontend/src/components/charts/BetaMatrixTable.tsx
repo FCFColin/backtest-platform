@@ -3,12 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { MatrixHeatmap } from './MatrixHeatmap.js';
 import ChartCard from '../ChartCard.js';
 
+/** Beta 矩阵热力图配色（高=浅红，中=浅橙，低=浅蓝） */
+const BETA_COLORS = {
+  high: '#f0c8c8',
+  medium: '#f5e0d0',
+  low: '#d8e8f0',
+  neutral: 'var(--bg-subtle)',
+} as const;
+
 function getBetaColor(val: number): string {
   const absVal = Math.abs(val);
-  if (absVal > 1.5) return '#f0c8c8';
-  if (absVal > 1) return '#f5e0d0';
-  if (absVal > 0.5) return '#d8e8f0';
-  return 'var(--bg-subtle)';
+  if (absVal > 1.5) return BETA_COLORS.high;
+  if (absVal > 1) return BETA_COLORS.medium;
+  if (absVal > 0.5) return BETA_COLORS.low;
+  return BETA_COLORS.neutral;
 }
 
 function getBetaTextColor(): string {

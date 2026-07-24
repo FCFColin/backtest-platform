@@ -21,7 +21,7 @@ import {
 import {
   CHART_MARGIN,
   CHART_GRID_PROPS,
-} from './chartConstants.js';
+} from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 
 type AllocationPortfolio = Pick<Portfolio, 'name' | 'assets'> & {

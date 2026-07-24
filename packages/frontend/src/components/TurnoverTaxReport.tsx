@@ -1,7 +1,8 @@
 /**
  * @file 周转率与税务报告
  * @description 基于组合配置历史（allocationHistory）估算各组合的年化周转率，
- * 并按假设税率推算税务拖累。使用 SortableTable 展示，支持按列排序。
+ *   并按假设税率推算税务拖累。使用 SortableTable 展示，支持按列排序。
+ *   基于 shadcn Card（经 ChartCard）+ Input + token 类名。
  */
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +10,8 @@ import type { PortfolioResult } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
 import { SortableTable, type Column } from './SortableTable.js';
 import { fmtPct } from '@/utils/format';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import ChartCard from './ChartCard.js';
 
 /** 周转率与税务报告 Props */
@@ -73,7 +76,7 @@ function buildTurnoverColumns(
         return (
           <span className="inline-flex items-center gap-1.5">
             <span
-              className="inline-block w-2.5 h-2.5 rounded-full"
+              className="inline-block size-2.5 rounded-full"
               style={{ backgroundColor: color }}
             />
             {row.name}
@@ -85,7 +88,7 @@ function buildTurnoverColumns(
       key: 'turnover',
       label: t('components.turnoverTaxReport.columns.annualTurnover'),
       render: (row) => (
-        <span className="font-mono text-right block" style={{ color: 'var(--text-strong)' }}>
+        <span className="font-mono tabular-nums text-right block text-fg">
           {fmtPct(row.turnover)}
         </span>
       ),
@@ -96,8 +99,10 @@ function buildTurnoverColumns(
       label: t('components.turnoverTaxReport.columns.taxDrag'),
       render: (row) => (
         <span
-          className="font-mono text-right block"
-          style={{ color: row.taxDrag != null ? 'var(--danger)' : 'var(--text-muted)' }}
+          className={cn(
+            'font-mono tabular-nums text-right block',
+            row.taxDrag != null ? 'text-neg' : 'text-fg-tertiary',
+          )}
         >
           {fmtPct(row.taxDrag)}
         </span>
@@ -108,7 +113,7 @@ function buildTurnoverColumns(
       key: 'observations',
       label: t('components.turnoverTaxReport.columns.observations'),
       render: (row) => (
-        <span className="font-mono text-right block" style={{ color: 'var(--text-body)' }}>
+        <span className="font-mono tabular-nums text-right block text-fg-secondary">
           {row.observations}
         </span>
       ),
@@ -118,7 +123,7 @@ function buildTurnoverColumns(
       key: 'years',
       label: t('components.turnoverTaxReport.columns.years'),
       render: (row) => (
-        <span className="font-mono text-right block" style={{ color: 'var(--text-body)' }}>
+        <span className="font-mono tabular-nums text-right block text-fg-secondary">
           {row.years > 0 ? row.years.toFixed(1) : '\u2014'}
         </span>
       ),
@@ -136,29 +141,34 @@ function TaxRateInput({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="flex items-center gap-2 mb-3" style={{ flexWrap: 'wrap' }}>
-      <label className="param-label" style={{ marginBottom: 0 }}>
+    <div className="flex flex-wrap items-center gap-2 mb-3">
+      <label className="text-caption font-medium text-fg-secondary mb-0">
         {t('components.turnoverTaxReport.taxRateAssumption')}
       </label>
-      <div className="param-input-suffix-wrap" style={{ width: 120 }}>
-        <input
+      <div className="flex items-center gap-2 w-[120px]">
+        <Input
           type="number"
           value={taxRate}
           onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
           min={0}
           max={100}
           step={1}
-          className="param-input param-input-with-suffix"
+          className="font-mono tabular-nums"
         />
-        <span className="param-input-suffix">%</span>
+        <span className="text-caption text-fg-tertiary shrink-0">%</span>
       </div>
-      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+      <span className="text-caption text-fg-tertiary">
         {t('components.turnoverTaxReport.taxRateHint')}
       </span>
     </div>
   );
 }
 
+/**
+ * 周转率与税务报告组件。
+ * @param props - portfolios: 投资组合列表
+ * @returns 渲染的周转率/税务报告卡片（含税率输入 + SortableTable）
+ */
 export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps) {
   const { t } = useTranslation();
   const [taxRate, setTaxRate] = useState(20);
@@ -176,7 +186,7 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
 
   return (
     <ChartCard title={t('components.turnoverTaxReport.title')}>
-      <div className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-caption text-fg-tertiary mb-3">
         {t('components.turnoverTaxReport.description')}
       </div>
 
@@ -190,7 +200,7 @@ export default function TurnoverTaxReport({ portfolios }: TurnoverTaxReportProps
           initialSortDir="desc"
         />
       ) : (
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-body text-fg-tertiary">
           {t('components.turnoverTaxReport.noData')}
         </div>
       )}

@@ -1,22 +1,44 @@
 /**
- * @file 权重输入组件
- * @description 投资组合权重输入框，支持百分比输入及中间状态容错
+ * @file 权重输入组件（可扩展为 HoldingRow）
+ * @description 投资组合权重输入框，支持百分比输入及中间状态容错。
+ *   - 默认模式：仅渲染权重 Input（向后兼容旧调用方）。
+ *   - HoldingRow 模式：当传入 ticker/onDelete 时，渲染完整持产行
+ *     （TickerInput + 权重 Input + 删除按钮），用于组合编辑器资产行。
+ *   基于 shadcn Input / Button 重构为暗色金融平台主题；数字使用 tabular-nums 等宽对齐。
+ *   注意：保留 type="text" + inputMode="decimal" 以允许 '-'/''.'/'-.' 等中间输入状态，
+ *   切换为 type="number" 会破坏中间态容错逻辑。
  */
 import { useState, useEffect } from 'react';
+import { Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import TickerInput from './TickerInput.js';
+import { cn } from '@/lib/utils';
 
 /** 权重输入框 Props */
 interface WeightInputProps {
+  /** 权重数值（0-100） */
   value: number;
+  /** 权重变更回调 */
   onChange: (num: number) => void;
+  /** 持产行模式：标的代码。传入则启用 HoldingRow 渲染 */
+  ticker?: string;
+  /** 标的代码输入占位文案 */
+  tickerPlaceholder?: string;
+  /** 标的代码变更回调 */
+  onTickerChange?: (ticker: string) => void;
+  /** 删除持产行回调；与 ticker 同时传入时启用删除按钮 */
+  onDelete?: () => void;
+  /** 预留：标的候选列表（供未来自动补全过滤） */
+  tickerList?: string[];
 }
 
 /**
- * 权重输入组件
- * - 用本地 state 管理原始字符串，允许空值、负号等中间输入状态
- * - 失焦时规范化：空值/无效值补0
- * - 外部 value 变更时同步到本地 state（仅当差异超过0.001时，避免输入中被打断）
+ * 权重数字输入子组件：本地 state 管理原始字符串，允许空值、负号等中间输入状态。
+ * @param props - value/onChange
+ * @returns 渲染的权重输入框
  */
-export default function WeightInput({ value, onChange }: WeightInputProps) {
+function WeightNumberInput({ value, onChange }: { value: number; onChange: (num: number) => void }) {
   const [raw, setRaw] = useState(String(value));
 
   // 外部 value 变更时同步（避免输入中间状态被覆盖）
@@ -30,7 +52,7 @@ export default function WeightInput({ value, onChange }: WeightInputProps) {
   }, [value]);
 
   return (
-    <input
+    <Input
       type="text"
       inputMode="decimal"
       value={raw}
@@ -50,7 +72,49 @@ export default function WeightInput({ value, onChange }: WeightInputProps) {
         onChange(normalized);
         setRaw(String(normalized));
       }}
-      className="weight-input"
+      aria-label="weight"
+      className={cn('h-9 w-24 text-right font-mono tabular-nums')}
     />
   );
+}
+
+/**
+ * 权重输入组件
+ * - 默认模式：仅渲染权重 Input
+ * - HoldingRow 模式（传入 ticker + onDelete）：渲染 TickerInput + 权重 Input + 删除 Button
+ * @param props - 见 WeightInputProps
+ * @returns 渲染的权重输入框或持产行
+ */
+export default function WeightInput({
+  value,
+  onChange,
+  ticker,
+  tickerPlaceholder,
+  onTickerChange,
+  onDelete,
+}: WeightInputProps) {
+  // HoldingRow 模式：ticker 与 onDelete 同时存在时渲染完整持产行
+  if (ticker !== undefined && onDelete && onTickerChange) {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-surface border border-border rounded-lg hover:border-border-strong transition-colors duration-150 ease-out-quart">
+        <TickerInput
+          value={ticker}
+          placeholder={tickerPlaceholder}
+          onChange={onTickerChange}
+        />
+        <WeightNumberInput value={value} onChange={onChange} />
+        <Button
+          variant="destructive"
+          size="icon"
+          aria-label="delete holding"
+          onClick={onDelete}
+        >
+          <Trash2 />
+        </Button>
+      </div>
+    );
+  }
+
+  // 向后兼容：仅渲染权重输入框
+  return <WeightNumberInput value={value} onChange={onChange} />;
 }

@@ -1,9 +1,12 @@
 /**
  * @file 标的代码输入组件
- * @description 带自动补全的标的代码输入框，支持本地常用标的及远程搜索建议
+ * @description 带自动补全的标的代码输入框，支持本地常用标的及远程搜索建议。
+ *   基于 shadcn Input 重构；下拉建议列表使用 token 类名。
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { LOCAL_SUGGESTIONS, type TickerSuggestion } from './tickerInputConstants.js';
 
 /** 标的代码输入框 Props */
@@ -34,24 +37,29 @@ function TickerDropdown({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="ticker-dropdown">
+    <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-border bg-elevated shadow-lg">
       {suggestions.map((s, i) => (
         <div
           key={s.ticker}
-          className={`ticker-dropdown-item ${i === selectedIndex ? 'selected' : ''}`}
+          className={cn(
+            'flex cursor-default items-center gap-2 px-3 py-1.5 text-caption transition-colors duration-150',
+            i === selectedIndex ? 'bg-hover text-fg' : 'text-fg-secondary',
+          )}
           onMouseDown={(e) => {
             e.preventDefault();
             onSelect(s);
           }}
           onMouseEnter={() => onHover(i)}
         >
-          <span className="ticker-dropdown-code">{s.ticker}</span>
-          <span className="ticker-dropdown-name">{resolveDisplayName(s.name, t)}</span>
-          <span className="ticker-dropdown-market">{resolveDisplayName(s.market, t)}</span>
+          <span className="font-mono font-medium text-fg">{s.ticker}</span>
+          <span className="min-w-0 flex-1 truncate text-fg-tertiary">
+            {resolveDisplayName(s.name, t)}
+          </span>
+          <span className="text-fg-tertiary">{resolveDisplayName(s.market, t)}</span>
         </div>
       ))}
       {fetchingRemote && (
-        <div className="ticker-dropdown-item ticker-dropdown-loading">
+        <div className="px-3 py-1.5 text-caption text-fg-tertiary">
           {t('components.tickerInput.searching')}
         </div>
       )}
@@ -132,6 +140,11 @@ function useTickerSearch() {
   };
 }
 
+/**
+ * 标的代码输入组件
+ * @param props - value/onChange/placeholder
+ * @returns 渲染的标的输入框（含自动补全下拉）
+ */
 export default function TickerInput({ value, onChange, placeholder }: TickerInputProps) {
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
@@ -181,8 +194,8 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', flex: 1 }}>
-      <input
+    <div ref={containerRef} className="relative flex-1">
+      <Input
         ref={inputRef}
         type="text"
         value={value}
@@ -196,7 +209,6 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
         }}
         onKeyDown={handleKeyDown}
         placeholder={placeholder || t('components.tickerInput.placeholder')}
-        className="ticker-input"
         autoComplete="off"
         spellCheck={false}
       />

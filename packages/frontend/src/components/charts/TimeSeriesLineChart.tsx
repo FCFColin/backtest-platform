@@ -26,8 +26,8 @@ import {
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
   wrapTooltipFormatter,
-} from './chartConstants.js';
-import type { TooltipValueFormatter } from './chartConstants.js';
+} from '@/lib/chart-theme.js';
+import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
 
 /** 单系列配置 */
 interface TimeSeriesSeriesConfig {

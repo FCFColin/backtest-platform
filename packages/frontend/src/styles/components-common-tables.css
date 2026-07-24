@@ -160,3 +160,70 @@
   font-size: 10px;
   transition: transform 0.15s ease;
 }
+
+/* 横向分组统计表 */
+.stat-horizontal-groups {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.stat-horizontal-group {
+  background: var(--bg-subtle);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.stat-horizontal-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.stat-horizontal-table {
+  font-size: 12px;
+}
+
+.stat-horizontal-table .stat-table-metric-cell,
+.stat-horizontal-table .stat-table-value-cell {
+  padding: 4px 0;
+}
+
+.stat-horizontal-table .stat-table-group-row td {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .stat-horizontal-groups {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 折叠式详细指标切换 */
+.stats-toggle-detailed {
+  display: block;
+  margin: 12px auto;
+  padding: 6px 16px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stats-toggle-detailed:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.stats-detailed-table {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}

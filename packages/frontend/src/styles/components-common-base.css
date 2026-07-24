@@ -5,7 +5,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-card);
-  padding: 20px;
+  padding: 14px 18px;
   box-shadow: var(--shadow-card);
 }
 
@@ -41,14 +41,14 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-card);
-  padding: 20px;
+  padding: 10px 14px;
 }
 
 .chart-card-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-strong);
-  margin-bottom: 16px;
+  margin-bottom: 6px;
 }
 
 /* 通用输入框 */
@@ -129,4 +129,38 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+/* 资产标签 - 用于资产分析页面的 ticker 标签 */
+.asset-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--brand) 15%, transparent);
+  color: var(--brand);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+}
+
+.asset-tag .remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--brand);
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+
+.asset-tag .remove-btn:hover {
+  opacity: 1;
 }

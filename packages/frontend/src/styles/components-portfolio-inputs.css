@@ -26,8 +26,8 @@
 }
 
 .portfolio-card-name-row .portfolio-name-input {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 0%;
+  min-width: 140px;
   width: auto;
 }
 
@@ -67,6 +67,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .offset-input,
@@ -248,31 +249,34 @@
   font-weight: 500;
 }
 
-/* Total - 绿色显示100% */
+/* Total - 紧凑普通行，仅文字颜色区分 */
 .portfolio-total {
-  padding: 8px 12px;
+  padding: 6px 4px 2px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 14px;
-  font-weight: 600;
-  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
   margin-top: 6px;
+  border: none;
+  background: transparent;
 }
 
 .portfolio-total.complete {
-  background: color-mix(in srgb, var(--success) 12%, transparent);
-  color: var(--success);
-  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
+  color: var(--text-secondary);
+  border: none;
+  background: transparent;
 }
 
 .portfolio-total.incomplete {
-  background: color-mix(in srgb, var(--danger) 10%, transparent);
-  color: var(--danger);
-  border: 1px solid color-mix(in srgb, var(--danger) 25%, transparent);
+  color: var(--warning);
+  border: none;
+  background: transparent;
 }
 
 .total-value {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }

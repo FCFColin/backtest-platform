@@ -1,52 +1,38 @@
 /** @file Skeleton screen mirroring DataEngineDashboard layout — shown while stats load */
-import type { CSSProperties } from 'react';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const CARD_STYLE: CSSProperties = { padding: 16 };
-
-const GRID_2: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '1fr 1fr',
-  gap: 12,
-  margin: '8px 0',
-};
-
-const OVERVIEW_GRID: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-  gap: 12,
-  margin: '8px 0',
-};
-
+/** Bar: 占位条，统一 Skeleton 样式 */
 function Bar({ width, height = 10 }: { width: string; height?: string | number }) {
-  return <div className="skeleton-bar" style={{ width, height, borderRadius: 4 }} />;
+  return <Skeleton style={{ width, height }} />;
 }
 
 function ActionButtonsSkeleton() {
   return (
-    <div className="bt-main-card card" style={CARD_STYLE}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+    <Card className="p-4">
+      <div className="flex flex-wrap items-center gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
           <Bar key={i} width="120px" height={36} />
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
 function OverviewCardsSkeleton() {
   return (
-    <div style={OVERVIEW_GRID}>
+    <div className="my-2 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="card" style={CARD_STYLE}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <Card key={i} className="p-4">
+          <div className="mb-2 flex items-center gap-2">
             <Bar width="20px" height={20} />
             <Bar width="80px" height={12} />
           </div>
           <Bar width="60%" height={24} />
-          <div style={{ marginTop: 8 }}>
+          <div className="mt-2">
             <Bar width="90%" height={12} />
           </div>
-        </div>
+        </Card>
       ))}
     </div>
   );
@@ -54,12 +40,12 @@ function OverviewCardsSkeleton() {
 
 function CoverageBarsSkeleton() {
   return (
-    <div className="bt-main-card card" style={CARD_STYLE}>
+    <Card className="p-4">
       <Bar width="160px" height={14} />
-      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="mt-4 flex flex-col gap-2.5">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <div className="mb-1 flex justify-between">
               <Bar width="30%" height={10} />
               <Bar width="20%" height={10} />
             </div>
@@ -67,74 +53,74 @@ function CoverageBarsSkeleton() {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
 function DistributionCardSkeleton() {
   return (
-    <div className="card" style={{ padding: 16 }}>
+    <Card className="p-4">
       <Bar width="50%" height={14} />
-      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="mt-4 flex flex-col gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div key={i} className="flex items-center gap-2">
             <Bar width="16px" height={16} />
             <Bar width="40%" height={10} />
             <Bar width="20%" height={10} />
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
 function SampleTickersSkeleton() {
   return (
-    <div className="card" style={{ padding: 16 }}>
+    <Card className="p-4">
       <Bar width="40%" height={14} />
-      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="mt-4 flex flex-col gap-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div key={i} className="flex justify-between">
             <Bar width="30%" height={12} />
             <Bar width="25%" height={12} />
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
+/**
+ * DataEngineSkeleton: 数据引擎加载占位骨架，镜像 Dashboard 布局。
+ * @returns 渲染的骨架屏。
+ */
 export function DataEngineSkeleton() {
   return (
     <>
       <ActionButtonsSkeleton />
       <OverviewCardsSkeleton />
       <CoverageBarsSkeleton />
-      <div style={GRID_2}>
+      <div className="my-2 grid grid-cols-2 gap-3">
         <DistributionCardSkeleton />
         <DistributionCardSkeleton />
       </div>
-      <div className="bt-main-card card" style={CARD_STYLE}>
+      <Card className="p-4">
         <Bar width="40%" height={14} />
-        <div
-          style={{ marginTop: 16, height: 180, display: 'flex', alignItems: 'flex-end', gap: 6 }}
-        >
+        <div className="mt-4 flex h-44 items-end gap-1.5">
           {Array.from({ length: 10 }).map((_, i) => (
             <Bar key={i} width="100%" height={`${30 + ((i * 13) % 60)}%`} />
           ))}
         </div>
-      </div>
-      <div className="bt-main-card card" style={CARD_STYLE}>
+      </Card>
+      <Card className="p-4">
         <Bar width="40%" height={14} />
-        <div
-          style={{ marginTop: 16, height: 160, display: 'flex', alignItems: 'flex-end', gap: 4 }}
-        >
+        <div className="mt-4 flex h-40 items-end gap-1">
           {Array.from({ length: 12 }).map((_, i) => (
             <Bar key={i} width="100%" height={`${20 + ((i * 17) % 70)}%`} />
           ))}
         </div>
-      </div>
-      <div style={GRID_2}>
+      </Card>
+      <div className="my-2 grid grid-cols-2 gap-3">
         <SampleTickersSkeleton />
         <SampleTickersSkeleton />
       </div>

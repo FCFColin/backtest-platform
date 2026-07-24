@@ -1,7 +1,13 @@
 import { useTranslation } from 'react-i18next';
+import { Card } from '@/components/ui/card';
 import type { Stats } from './utils.js';
 import { fmt } from './utils.js';
 
+/**
+ * SampleTickersCard: 各类别样本标的卡片。
+ * @param props - stats。
+ * @returns 渲染的样本标的卡片。
+ */
 export function SampleTickersCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   const categoryLabels: Record<string, string> = {
@@ -12,33 +18,23 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
     index: t('dataEngine.indexCategory'),
   };
   return (
-    <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
-        {t('dataEngine.sampleTickers')}
-      </div>
+    <Card className="p-4">
+      <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.sampleTickers')}</div>
       {stats.sample_tickers &&
         Object.entries(stats.sample_tickers).map(
           ([category, items]) =>
             items.length > 0 && (
-              <div key={category} style={{ marginBottom: 12 }}>
-                <div
-                  style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand)', marginBottom: 4 }}
-                >
+              <div key={category} className="mb-3">
+                <div className="mb-1 text-caption font-semibold text-brand">
                   {categoryLabels[category] || category}
                 </div>
                 {items.map((tk) => (
                   <div
                     key={tk.ticker}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      fontSize: 12,
-                      color: 'var(--text-body)',
-                      padding: '2px 0',
-                    }}
+                    className="flex justify-between py-0.5 text-caption text-fg-secondary"
                   >
-                    <span style={{ fontWeight: 500 }}>{tk.ticker}</span>
-                    <span style={{ color: 'var(--text-muted)' }}>
+                    <span className="font-medium">{tk.ticker}</span>
+                    <span className="text-fg-tertiary">
                       {tk.first_date} ~ {tk.last_date} ({fmt(tk.data_points)}
                       {t('common.days')})
                     </span>
@@ -47,34 +43,31 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
               </div>
             ),
         )}
-    </div>
+    </Card>
   );
 }
 
+/**
+ * RecentUpdatesCard: 最近更新标的卡片。
+ * @param props - stats。
+ * @returns 渲染的最近更新卡片。
+ */
 export function RecentUpdatesCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   return (
-    <div className="bt-main-card card" style={{ padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
-        {t('dataEngine.recentUpdates')}
-      </div>
+    <Card className="p-4">
+      <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.recentUpdates')}</div>
       {stats.recent_updates?.slice(0, 15).map((upd) => (
         <div
           key={upd.ticker}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 12,
-            padding: '3px 0',
-            borderBottom: '1px dashed var(--border-soft)',
-          }}
+          className="flex justify-between border-b border-dashed border-subtle py-[3px] text-caption"
         >
-          <span style={{ fontWeight: 500, color: 'var(--text-body)' }}>{upd.ticker}</span>
-          <span style={{ color: 'var(--text-muted)' }}>
+          <span className="font-medium text-fg-secondary">{upd.ticker}</span>
+          <span className="font-mono tabular-nums text-fg-tertiary">
             {upd.updated.replace('T', ' ').slice(0, 19)}
           </span>
         </div>
       ))}
-    </div>
+    </Card>
   );
 }

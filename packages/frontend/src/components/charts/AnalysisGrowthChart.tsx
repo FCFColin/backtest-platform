@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
-import { CHART_MARGIN, CHART_GRID_PROPS } from './chartConstants.js';
+import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 import ChartCard from '../ChartCard.js';
 

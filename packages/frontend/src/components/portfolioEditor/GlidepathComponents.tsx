@@ -172,7 +172,7 @@ export function GlidepathForm({
           />
         </FieldLabel>
         <button
-          className="portfolios-add-btn"
+          className="btn-primary-sm"
           style={{ fontSize: '12px' }}
           disabled={!canConfirm}
           onClick={() => canConfirm && onConfirm(gpName, gpFrom, gpTo, gpYears)}
@@ -180,7 +180,7 @@ export function GlidepathForm({
           {t('common.confirm')}
         </button>
         <button
-          className="portfolios-add-btn portfolios-add-btn-secondary"
+          className="btn-secondary-sm"
           style={{ fontSize: '12px' }}
           onClick={onCancel}
         >

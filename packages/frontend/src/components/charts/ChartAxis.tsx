@@ -1,6 +1,6 @@
 /**
  * @file 图表坐标轴 / Tooltip / Legend 通用封装
- * @description 基于 chartConstants.ts 项目标准样式，提供 Recharts XAxis / YAxis / Tooltip /
+ * @description 基于 lib/chart-theme.ts 项目标准样式，提供 Recharts XAxis / YAxis / Tooltip /
  *              Legend 的统一封装。各图表文件（GrowthChart / TelltaleChart / CorrelationHeatmapChart
  *              / RegressionChart / AnalysisGrowthChart 等）内联的 CartesianGrid + XAxis + YAxis +
  *              Tooltip + Legend 样板，可改用本组件消除重复。
@@ -13,8 +13,8 @@ import {
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
   wrapTooltipFormatter,
-} from './chartConstants.js';
-import type { TooltipValueFormatter } from './chartConstants.js';
+} from '@/lib/chart-theme.js';
+import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
 
 interface ChartXAxisProps extends Omit<XAxisProps, 'label' | 'tick' | 'tickFormatter' | 'ref'> {
   /** X 轴数据字段名，默认 'date' */
@@ -36,6 +36,7 @@ export function ChartXAxis({
   label,
   tickFontSize,
   interval,
+  xAxisId = 0,
   ...rest
 }: ChartXAxisProps) {
   const tick = tickFontSize
@@ -56,6 +57,7 @@ export function ChartXAxis({
   }
   return (
     <XAxis
+      xAxisId={xAxisId}
       dataKey={dataKey}
       type={type}
       name={name}
@@ -87,6 +89,7 @@ export function ChartYAxis({
   dataKey,
   name,
   width = 80,
+  yAxisId = 0,
   ...rest
 }: ChartYAxisProps) {
   let labelProps: YAxisProps['label'] = undefined;
@@ -104,6 +107,7 @@ export function ChartYAxis({
   }
   return (
     <YAxis
+      yAxisId={yAxisId}
       type={type}
       dataKey={dataKey}
       name={name}
@@ -162,3 +166,21 @@ export function ChartTooltip({
 export function ChartLegend() {
   return <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />;
 }
+
+/**
+ * Recharts v2 通过 child.type.displayName 识别子组件。
+ * 包装组件需设置与 Recharts 原生组件一致的 displayName，
+ * 否则图表无法注册 Tooltip / XAxis / YAxis / Legend，
+ * 导致 tooltip 不显示、坐标轴配置丢失等问题。
+ *
+ * 同时必须设置 defaultProps，因为 Recharts 的 getAxisMapByAxes
+ * 通过 child.type.defaultProps + child.props 构建轴映射表。
+ * 缺少 defaultProps.xAxisId / yAxisId 会导致轴 ID 为 undefined，
+ * 而 Line/Area 等组件默认 xAxisId=0，查找轴映射时抛出 invariant 错误。
+ */
+ChartXAxis.displayName = 'XAxis';
+ChartXAxis.defaultProps = { xAxisId: 0 };
+ChartYAxis.displayName = 'YAxis';
+ChartYAxis.defaultProps = { yAxisId: 0 };
+ChartTooltip.displayName = 'Tooltip';
+ChartLegend.displayName = 'Legend';

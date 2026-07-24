@@ -1,12 +1,15 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+/**
+ * 图表 Tooltip 容器样式（基于设计 token 体系：--elevated / --border-subtle / --fg）。
+ */
 export const CHART_TOOLTIP_STYLE: CSSProperties = {
-  backgroundColor: 'var(--bg-elevated)',
-  border: '1px solid var(--border-soft)',
-  borderRadius: 'var(--radius-card)',
-  color: 'var(--text-strong)',
+  backgroundColor: 'var(--elevated)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 'var(--radius)',
+  color: 'var(--fg)',
   fontSize: '12px',
-  boxShadow: 'var(--shadow-md)',
+  boxShadow: '0 4px 12px hsl(220 14% 8% / 0.4)',
   padding: '10px 14px',
 };
 
@@ -17,24 +20,52 @@ export const CHART_MARGIN = { top: 5, right: 30, bottom: 5, left: 60 } as const;
 export const CHART_GRID_PROPS = {
   strokeDasharray: '',
   strokeWidth: 1,
-  stroke: 'var(--border-soft)',
+  stroke: 'var(--border-subtle)',
 } as const;
 
 /** 坐标轴刻度文本样式 */
-export const AXIS_TICK_STYLE = { fill: 'var(--text-muted)', fontSize: 11 } as const;
+export const AXIS_TICK_STYLE = { fill: 'var(--fg-tertiary)', fontSize: 11 } as const;
 
 /** Legend 容器样式 */
-export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'var(--text-muted)' } as const;
+export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'var(--fg-tertiary)' } as const;
 
 /** 日期刻度格式化器：截取 YYYY-MM */
 export const DATE_TICK_FORMATTER = (value: string): string => value.slice(0, 7);
 
-// ============ 相关系数配色（合并自 chartColors.ts） ============
+// ============ 相关系数配色 ============
+
+/**
+ * 相关系数热力图配色常量
+ * 绿色系=正相关，红色系=负相关，中间色=中性
+ */
+const CORR_COLORS = {
+  strongPositive: '#1a7a3a',
+  moderatePositive: '#2e8b57',
+  weakPositive: '#6abf7e',
+  faintPositive: '#b8e0c4',
+  neutral: 'var(--surface)',
+  faintNegative: '#f0c8c8',
+  weakNegative: '#d47070',
+  moderateNegative: '#b04040',
+  strongNegative: '#8b2020',
+} as const;
 
 const POS_CORR_THRESHOLDS = [0.8, 0.6, 0.4, 0.2] as const;
-const POS_CORR_COLORS = ['#1a7a3a', '#2e8b57', '#6abf7e', '#b8e0c4', 'var(--bg-subtle)'] as const;
+const POS_CORR_COLORS = [
+  CORR_COLORS.strongPositive,
+  CORR_COLORS.moderatePositive,
+  CORR_COLORS.weakPositive,
+  CORR_COLORS.faintPositive,
+  CORR_COLORS.neutral,
+] as const;
 const NEG_CORR_THRESHOLDS = [-0.8, -0.6, -0.4, -0.2] as const;
-const NEG_CORR_COLORS = ['#8b2020', '#b04040', '#d47070', '#f0c8c8', 'var(--bg-subtle)'] as const;
+const NEG_CORR_COLORS = [
+  CORR_COLORS.strongNegative,
+  CORR_COLORS.moderateNegative,
+  CORR_COLORS.weakNegative,
+  CORR_COLORS.faintNegative,
+  CORR_COLORS.neutral,
+] as const;
 
 /**
  * 根据相关系数返回对应颜色（绿色=正相关，红色=负相关）

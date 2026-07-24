@@ -2,6 +2,7 @@
  * @file 回测参数表单
  * @description 回测核心参数配置面板容器。同构 Card 采用 config+map 渲染，减少重复样板；
  *              DateCards 内部采用 config+map 渲染 2 个同构日期字段。
+ *              基于 shadcn Input / Select / Switch + token 类名。
  */
 import { memo, type ChangeEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +10,15 @@ import { useShallow } from 'zustand/react/shallow';
 import type { BacktestParameters } from '@backtest/shared';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import TickerInput from './TickerInput.js';
 import { validateDateChange } from './backtestParamsUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -105,14 +115,16 @@ function BoundParamCard({ config }: { config: ParamCardConfig }) {
   if (config.kind === 'checkbox') {
     return (
       <ParamCard label={label}>
-        <label className="param-check">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-2 h-10">
+          <Switch
+            id={`param-${config.paramKey}`}
             checked={parameters[config.paramKey]}
-            onChange={(e) => updateParameter(config.paramKey, e.target.checked)}
+            onCheckedChange={(v) => updateParameter(config.paramKey, v)}
           />
-          <span>{t(config.checkLabelKey)}</span>
-        </label>
+          <label htmlFor={`param-${config.paramKey}`} className="text-caption text-fg-secondary cursor-pointer">
+            {t(config.checkLabelKey)}
+          </label>
+        </div>
       </ParamCard>
     );
   }
@@ -120,17 +132,21 @@ function BoundParamCard({ config }: { config: ParamCardConfig }) {
   if (config.kind === 'select') {
     return (
       <ParamCard label={label}>
-        <select
-          className="param-input"
+        <Select
           value={parameters[config.paramKey]}
-          onChange={(e) => updateParameter(config.paramKey, e.target.value as 'usd' | 'cny')}
+          onValueChange={(v) => updateParameter(config.paramKey, v as 'usd' | 'cny')}
         >
-          {config.options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[110px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {config.options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </ParamCard>
     );
   }
@@ -145,29 +161,29 @@ function BoundParamCard({ config }: { config: ParamCardConfig }) {
   return (
     <ParamCard label={label}>
       {prefix !== undefined ? (
-        <div className="param-input-prefix-wrap">
-          <span className="param-input-prefix">{prefix}</span>
-          <input
+        <div className="flex items-center gap-2">
+          <span className="text-body text-fg-tertiary font-mono">{prefix}</span>
+          <Input
             type="number"
             value={parameters[config.paramKey]}
             min={config.min}
             step={config.step}
-            className="param-input param-input-with-prefix"
             onChange={handleNum}
           />
         </div>
       ) : (
-        <div className="param-input-suffix-wrap">
-          <input
+        <div className="flex items-center gap-2">
+          <Input
             type="number"
             value={parameters[config.paramKey]}
             min={config.min}
             max={config.max}
             step={config.step}
-            className="param-input param-input-with-suffix"
             onChange={handleNum}
           />
-          {config.suffixKey && <span className="param-input-suffix">{t(config.suffixKey)}</span>}
+          {config.suffixKey && (
+            <span className="text-caption text-fg-tertiary shrink-0">{t(config.suffixKey)}</span>
+          )}
         </div>
       )}
     </ParamCard>
@@ -178,15 +194,15 @@ function DateRangeCard({ mode, onChange }: { mode: string; onChange: (value: str
   const { t } = useTranslation();
   return (
     <ParamCard label={t('params.dateRange')}>
-      <select
-        className="param-input"
-        style={{ width: 140 }}
-        value={mode}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="all">{t('params.allHistory')}</option>
-        <option value="custom">{t('params.customRange')}</option>
-      </select>
+      <Select value={mode} onValueChange={onChange}>
+        <SelectTrigger className="w-[140px]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{t('params.allHistory')}</SelectItem>
+          <SelectItem value="custom">{t('params.customRange')}</SelectItem>
+        </SelectContent>
+      </Select>
     </ParamCard>
   );
 }
@@ -206,11 +222,10 @@ function DateCards({ mode }: { mode: string }) {
     <>
       {dateFields.map(({ paramKey, compareKey, labelKey }) => (
         <ParamCard key={paramKey} label={t(labelKey)}>
-          <input
+          <Input
             type="date"
             value={parameters[paramKey]}
             disabled={mode === 'all'}
-            className="param-input"
             onChange={(e) => {
               const err = validateDateChange(paramKey, e.target.value, parameters[compareKey], t);
               if (err) {
@@ -230,21 +245,25 @@ function BenchmarkCard() {
   const { t, parameters, updateParameter } = useParamField();
   return (
     <ParamCard label={t('params.benchmark')}>
-      <label className="param-check">
-        <input
-          type="checkbox"
-          checked={parameters.benchmarkTicker !== ''}
-          onChange={(e) => updateParameter('benchmarkTicker', e.target.checked ? 'SPY' : '')}
-        />
-        <span>{t('params.pickBenchmarkTicker')}</span>
-      </label>
-      {parameters.benchmarkTicker !== '' && (
-        <TickerInput
-          value={parameters.benchmarkTicker}
-          onChange={(v) => updateParameter('benchmarkTicker', v)}
-          placeholder="SPY"
-        />
-      )}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2 h-10">
+          <Switch
+            id="param-benchmark"
+            checked={parameters.benchmarkTicker !== ''}
+            onCheckedChange={(v) => updateParameter('benchmarkTicker', v ? 'SPY' : '')}
+          />
+          <label htmlFor="param-benchmark" className="text-caption text-fg-secondary cursor-pointer">
+            {t('params.pickBenchmarkTicker')}
+          </label>
+        </div>
+        {parameters.benchmarkTicker !== '' && (
+          <TickerInput
+            value={parameters.benchmarkTicker}
+            onChange={(v) => updateParameter('benchmarkTicker', v)}
+            placeholder="SPY"
+          />
+        )}
+      </div>
     </ParamCard>
   );
 }

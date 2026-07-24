@@ -10,6 +10,8 @@
  * <SortableTable columns={columns} data={rows} initialSortKey="value" initialSortDir="desc" />
  */
 import { useState, type ReactNode } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 /** 列定义 */
 export interface Column<T> {
@@ -88,9 +90,9 @@ export function SortableTable<T extends Record<string, any>>({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
+      <table className="w-full border-collapse text-body">
         <thead>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+          <tr className="bg-elevated">
             {columns.map((col) => {
               const colKey = String(col.key);
               const isSorted = sortKey === colKey;
@@ -98,18 +100,17 @@ export function SortableTable<T extends Record<string, any>>({
                 <th
                   key={colKey}
                   onClick={() => handleSort(col)}
-                  className="cursor-pointer text-[12px] font-semibold text-left py-2.5 px-3"
-                  style={{
-                    color: 'var(--text-muted)',
-                    borderBottom: '2px solid var(--border-soft)',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="cursor-pointer text-caption text-fg-tertiary uppercase tracking-wide font-semibold text-left py-2.5 px-3 whitespace-nowrap hover:text-fg transition-colors duration-150"
+                  style={{ borderBottom: '2px solid hsl(var(--border-subtle))' }}
                 >
                   <span className="inline-flex items-center gap-1">
                     {col.label}
-                    {isSorted && (
-                      <span style={{ color: 'var(--brand)' }}>{sortDir === 'asc' ? '▲' : '▼'}</span>
-                    )}
+                    {isSorted &&
+                      (sortDir === 'asc' ? (
+                        <ChevronUp className="size-3 text-brand" />
+                      ) : (
+                        <ChevronDown className="size-3 text-brand" />
+                      ))}
                   </span>
                 </th>
               );
@@ -118,20 +119,14 @@ export function SortableTable<T extends Record<string, any>>({
         </thead>
         <tbody>
           {sortedData.map((row, idx) => (
-            <tr
-              key={idx}
-              style={{ backgroundColor: idx % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
-            >
+            <tr key={idx} className={cn(idx % 2 === 1 && 'bg-elevated/40')}>
               {columns.map((col) => {
                 const colKey = String(col.key);
                 return (
                   <td
                     key={colKey}
-                    className="text-[13px] py-2 px-3"
-                    style={{
-                      color: 'var(--text-body)',
-                      borderBottom: '1px solid var(--border-soft)',
-                    }}
+                    className="py-2 px-3 text-body text-fg"
+                    style={{ borderBottom: '1px solid hsl(var(--border-subtle))' }}
                   >
                     {col.render ? col.render(row) : String(row[colKey] ?? '')}
                   </td>

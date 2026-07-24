@@ -17,7 +17,7 @@ import {
   CHART_GRID_PROPS,
   DATE_TICK_FORMATTER,
   getCorrelationColor,
-} from './chartConstants.js';
+} from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 import { MatrixHeatmap } from './MatrixHeatmap.js';
 import { SimpleTable, type SimpleTableColumn } from '../SimpleTable.js';

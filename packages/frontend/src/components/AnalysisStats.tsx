@@ -23,6 +23,12 @@ const STATS_COLUMNS: {
   { key: 'beta', labelKey: 'Beta', fmt: 'ratio' },
 ];
 
+/**
+ * 统计表表头：metrics 列 + 各 ticker 列（带颜色圆点）。
+ * @param tickers - 资产分析结果的 tickers
+ * @param metricLabel - metrics 列标题
+ * @returns 渲染的 thead
+ */
 function StatsTableHeader({
   tickers,
   metricLabel,
@@ -32,25 +38,17 @@ function StatsTableHeader({
 }) {
   return (
     <thead>
-      <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-        <th
-          className="text-[12px] font-semibold text-left py-2 px-3"
-          style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
-        >
+      <tr className="bg-elevated">
+        <th className="py-2 px-3 text-left text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle">
           {metricLabel}
         </th>
         {tickers.map((tk, idx) => (
           <th
             key={tk.ticker}
-            className="text-[12px] font-semibold text-right py-2 px-3"
-            style={{
-              color: 'var(--text-muted)',
-              borderBottom: '2px solid var(--border-soft)',
-              whiteSpace: 'nowrap',
-            }}
+            className="py-2 px-3 text-right text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap"
           >
             <span
-              className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+              className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
               style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
             />
             {tk.ticker}
@@ -61,6 +59,14 @@ function StatsTableHeader({
   );
 }
 
+/**
+ * 资产分析统计表。
+ *
+ * 行为各统计指标，列为各 ticker；数值列使用等宽 tabular-nums 对齐。
+ * 外层 Card 由调用方（OverviewCharts 的 ChartCard）提供。
+ * @param props - tickers: 资产分析结果的 tickers
+ * @returns 渲染的统计表
+ */
 export const StatsTable = memo(function StatsTable({
   tickers,
 }: {
@@ -79,7 +85,7 @@ export const StatsTable = memo(function StatsTable({
   };
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse">
+      <table className="w-full border-collapse text-body">
         <StatsTableHeader tickers={tickers} metricLabel={t('common.metric')} />
         <tbody>
           {cols.map((col, ri) => {
@@ -87,26 +93,15 @@ export const StatsTable = memo(function StatsTable({
             return (
               <tr
                 key={col.key}
-                style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
+                className={ri % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}
               >
-                <td
-                  className="text-[13px] py-2 px-3"
-                  style={{
-                    color: 'var(--text-body)',
-                    borderBottom: '1px solid var(--border-soft)',
-                  }}
-                >
+                <td className="py-2 px-3 text-fg-secondary border-b border-border-subtle">
                   {col.label}
                 </td>
                 {tickers.map((tk) => (
                   <td
                     key={tk.ticker}
-                    className="text-[13px] font-medium text-right py-2 px-3 font-mono"
-                    style={{
-                      color: 'var(--text-strong)',
-                      borderBottom: '1px solid var(--border-soft)',
-                      whiteSpace: 'nowrap',
-                    }}
+                    className="py-2 px-3 text-right font-mono tabular-nums font-medium text-fg border-b border-border-subtle whitespace-nowrap"
                   >
                     {fmt(tk.statistics[col.key] as number | undefined, col.fmt)}
                   </td>

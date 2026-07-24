@@ -5,6 +5,7 @@
  *              重复 thead/tbody/tr/td 样板。无排序能力，需要排序请使用 SortableTable。
  */
 import type { CSSProperties, ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 /** 列定义 */
 export interface SimpleTableColumn<T> {
@@ -43,20 +44,20 @@ interface SimpleTableProps<T> {
 export function SimpleTable<T>({ columns, data, maxWidth, rowKey }: SimpleTableProps<T>) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full border-collapse" style={maxWidth ? { maxWidth } : undefined}>
+      <table
+        className="w-full border-collapse text-body"
+        style={maxWidth ? { maxWidth } : undefined}
+      >
         <thead>
-          <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
+          <tr className="bg-elevated">
             {columns.map((col) => (
               <th
                 key={col.key}
-                className={`text-[12px] font-semibold py-2.5 px-3 ${
-                  col.align === 'right' ? 'text-right' : 'text-left'
-                }`}
-                style={{
-                  color: 'var(--text-muted)',
-                  borderBottom: '2px solid var(--border-soft)',
-                  whiteSpace: 'nowrap',
-                }}
+                className={cn(
+                  'text-caption text-fg-tertiary uppercase tracking-wide font-semibold py-2.5 px-3 whitespace-nowrap',
+                  col.align === 'right' ? 'text-right' : 'text-left',
+                )}
+                style={{ borderBottom: '2px solid hsl(var(--border-subtle))' }}
               >
                 {col.label}
               </th>
@@ -67,20 +68,19 @@ export function SimpleTable<T>({ columns, data, maxWidth, rowKey }: SimpleTableP
           {data.map((row, idx) => (
             <tr
               key={rowKey ? rowKey(row, idx) : idx}
-              style={{ backgroundColor: idx % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
+              className={cn(idx % 2 === 1 && 'bg-elevated/40')}
             >
               {columns.map((col) => {
                 const isRight = col.align === 'right';
                 return (
                   <td
                     key={col.key}
-                    className={`text-[13px] py-2 px-3 ${
-                      isRight ? 'font-medium text-right font-mono' : ''
-                    }`}
+                    className={cn(
+                      'py-2 px-3 whitespace-nowrap text-body text-fg',
+                      isRight && 'text-right font-mono tabular-nums font-medium',
+                    )}
                     style={{
-                      color: isRight ? 'var(--text-strong)' : 'var(--text-body)',
-                      borderBottom: '1px solid var(--border-soft)',
-                      whiteSpace: 'nowrap',
+                      borderBottom: '1px solid hsl(var(--border-subtle))',
                       ...col.style,
                     }}
                   >

@@ -46,17 +46,17 @@ const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   minHeight: '100vh',
   padding: '24px',
   fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
-  color: '#1f2937',
+  color: 'var(--text-strong)',
   textAlign: 'center',
 };
 
 const STYLE_TAG = (
-  <style>{`.error-refresh-btn:hover { background-color: #1d4ed8 !important; }`}</style>
+  <style>{`.error-refresh-btn:hover { background-color: var(--brand-hover) !important; }`}</style>
 );
 
 const ERROR_DETAIL_STYLE: React.CSSProperties = {
   fontSize: '12px',
-  color: '#9ca3af',
+  color: 'var(--text-muted)',
   margin: '0 0 16px',
   maxWidth: '500px',
   wordBreak: 'break-word',
@@ -67,8 +67,8 @@ const REFRESH_BTN_STYLE: React.CSSProperties = {
   padding: '10px 24px',
   fontSize: '14px',
   fontWeight: 500,
-  color: '#ffffff',
-  backgroundColor: '#2563eb',
+  color: 'var(--bg-elevated)',
+  backgroundColor: 'var(--brand)',
   border: 'none',
   borderRadius: '6px',
   cursor: 'pointer',
@@ -126,7 +126,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
             {i18n.t('errors.pageErrorTitle')}
           </h1>
-          <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 24px', maxWidth: '400px' }}>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 24px', maxWidth: '400px' }}>
             {i18n.t('errors.pageErrorMessage')}
           </p>
           {this.state.error && (

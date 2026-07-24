@@ -1,12 +1,13 @@
 /**
  * @file 调仓统计组件
- * @description 展示各投资组合的调仓频率、阈值及带宽等配置信息
+ * @description 展示各投资组合的调仓频率、阈值及带宽等配置信息。
+ *   基于 shadcn Card（经 ChartCard）+ token 化表格样式。
  */
 import { useTranslation } from 'react-i18next';
 import type { Portfolio, RebalanceFrequency } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
 import ChartCard from './ChartCard.js';
-import { TABLE_TH_CLASS, TABLE_TH_STYLE, TABLE_TD_CLASS, TABLE_TD_BORDER } from './tableStyles.js';
+import { cn } from '@/lib/utils';
 
 /** 调仓统计组件 Props */
 interface RebalancingStatsProps {
@@ -33,7 +34,7 @@ function EmptyState() {
   const { t } = useTranslation();
   return (
     <ChartCard title={t('tabs.rebalancing')}>
-      <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-body text-fg-tertiary">
         {t('components.rebalancingStats.noData')}
       </div>
     </ChartCard>
@@ -43,21 +44,21 @@ function EmptyState() {
 /** 再平衡统计表头 */
 function RebalancingStatsHeader() {
   const { t } = useTranslation();
+  const thBase =
+    'py-2.5 px-3 text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap';
   return (
-    <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
-      <th className={`${TABLE_TH_CLASS} text-left`} style={TABLE_TH_STYLE}>
-        {t('backtest.portfolio')}
-      </th>
-      <th className={`${TABLE_TH_CLASS} text-left`} style={TABLE_TH_STYLE}>
+    <tr className="bg-elevated">
+      <th className={cn(thBase, 'text-left')}>{t('backtest.portfolio')}</th>
+      <th className={cn(thBase, 'text-left')}>
         {t('efficientFrontier.params.rebalanceFreq')}
       </th>
-      <th className={`${TABLE_TH_CLASS} text-right`} style={TABLE_TH_STYLE}>
+      <th className={cn(thBase, 'text-right')}>
         {t('components.rebalancingStats.offsetDays')}
       </th>
-      <th className={`${TABLE_TH_CLASS} text-right`} style={TABLE_TH_STYLE}>
+      <th className={cn(thBase, 'text-right')}>
         {t('components.rebalancingStats.deviationThreshold')}
       </th>
-      <th className={`${TABLE_TH_CLASS} text-left`} style={TABLE_TH_STYLE}>
+      <th className={cn(thBase, 'text-left')}>
         {t('components.rebalancingStats.rebalanceBands')}
       </th>
     </tr>
@@ -84,41 +85,44 @@ function RebalancingStatsRow({
         relative: bands.relativeBand ?? '-',
       })
     : t('components.rebalancingStats.bandsDisabled');
+  const tdBase =
+    'py-2 px-3 text-body border-b border-border-subtle whitespace-nowrap';
   return (
-    <tr
-      key={portfolio.name}
-      style={{ backgroundColor: isAlt ? 'var(--bg-subtle)' : 'transparent' }}
-    >
-      <td className={TABLE_TD_CLASS} style={{ ...TABLE_TD_BORDER, color: 'var(--text-strong)' }}>
+    <tr key={portfolio.name} className={isAlt ? 'bg-elevated' : 'bg-transparent'}>
+      <td className={cn(tdBase, 'text-left text-fg')}>
         <span
-          className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
+          className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
           style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
         />
         {portfolio.name}
       </td>
-      <td className={TABLE_TD_CLASS} style={{ ...TABLE_TD_BORDER, color: 'var(--text-body)' }}>
+      <td className={cn(tdBase, 'text-left text-fg-secondary')}>
         {t(FREQ_LABELS[portfolio.rebalanceFrequency] || portfolio.rebalanceFrequency)}
       </td>
       <td
-        className="text-[13px] text-right py-2 px-3 font-mono"
-        style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
+        className={cn(
+          tdBase,
+          'text-right font-mono tabular-nums text-fg-secondary',
+        )}
       >
         {portfolio.rebalanceOffset ?? 0}
       </td>
       <td
-        className="text-[13px] text-right py-2 px-3 font-mono"
-        style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
+        className={cn(
+          tdBase,
+          'text-right font-mono tabular-nums text-fg-secondary',
+        )}
       >
         {portfolio.rebalanceFrequency === 'threshold'
           ? `${portfolio.rebalanceThreshold ?? 5}%`
           : '-'}
       </td>
       <td
-        className={TABLE_TD_CLASS}
-        style={{
-          ...TABLE_TD_BORDER,
-          color: bands?.enabled ? 'var(--text-body)' : 'var(--text-muted)',
-        }}
+        className={cn(
+          tdBase,
+          'text-left',
+          bands?.enabled ? 'text-fg-secondary' : 'text-fg-tertiary',
+        )}
       >
         {bandsText}
       </td>
@@ -126,6 +130,11 @@ function RebalancingStatsRow({
   );
 }
 
+/**
+ * 调仓统计组件。
+ * @param props - portfolios: 投资组合列表
+ * @returns 渲染的调仓统计表（含空态）
+ */
 export default function RebalancingStats({ portfolios }: RebalancingStatsProps) {
   const { t } = useTranslation();
   if (portfolios.length === 0) return <EmptyState />;
@@ -139,7 +148,7 @@ export default function RebalancingStats({ portfolios }: RebalancingStatsProps) 
   return (
     <ChartCard title={t('tabs.rebalancing')}>
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
+        <table className="w-full border-collapse text-body">
           <thead>
             <RebalancingStatsHeader />
           </thead>

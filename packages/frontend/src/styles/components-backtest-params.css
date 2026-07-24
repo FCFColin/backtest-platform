@@ -133,27 +133,28 @@
   padding-top: 0;
 }
 
-/* 添加现金流按钮 */
+/* 添加现金流按钮 - 文字链接样式 */
 .btn-add-cashflow {
-  height: 30px;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
-  background: var(--support);
-  color: #ffffff;
+  height: auto;
+  padding: 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+  background: none;
+  color: var(--brand);
   border: none;
-  border-radius: var(--radius-input);
+  border-radius: 0;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: background-color 0.15s;
+  transition: color 0.15s;
   font-family: inherit;
   cursor: pointer;
   align-self: flex-start;
 }
 
 .btn-add-cashflow:hover {
-  background: color-mix(in srgb, var(--support) 85%, black);
+  color: var(--brand-hover);
+  text-decoration: underline;
 }
 
 .btn-add-cashflow:active {

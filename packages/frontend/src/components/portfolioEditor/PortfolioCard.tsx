@@ -4,8 +4,21 @@ import type { RebalanceFrequency, RebalanceBands, Portfolio } from '@backtest/sh
 import type { StorePortfolio, TFunc, BatchUpdate, AssetPatch } from './shared.js';
 import { PortfolioToolbarAndAssets } from './PortfolioAssets.js';
 import { GlidepathConfig } from './GlidepathComponents.js';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
-/** 卡片头部操作按钮 - hover 显示 */
+/**
+ * 卡片头部操作按钮组，hover 卡片时显示。
+ * @param props - 组件属性
+ * @param props.portfolio - 当前组合数据
+ * @param props.onDuplicate - 复制组合回调
+ * @param props.onRemove - 删除组合回调
+ * @param props.onSave - 导出 JSON 回调
+ * @param props.t - i18n 翻译函数
+ * @returns 渲染的操作按钮组
+ */
 function PortfolioCardActions({
   portfolio,
   onDuplicate,
@@ -20,34 +33,46 @@ function PortfolioCardActions({
   t: TFunc;
 }) {
   return (
-    <div className="portfolio-card-actions">
-      <button
-        className="portfolio-card-action"
+    <div className="absolute top-2 right-2 flex justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 z-20">
+      <Button
+        variant="icon"
+        size="icon"
         title={t('portfolio.copyPortfolio')}
         onClick={() => onDuplicate(portfolio.id)}
       >
-        <Copy className="w-3.5 h-3.5" />
-      </button>
-      <button
-        className="portfolio-card-action"
+        <Copy />
+      </Button>
+      <Button
+        variant="icon"
+        size="icon"
         title={t('portfolio.saveAsJson')}
         onClick={() => onSave(portfolio)}
       >
-        <Download className="w-3.5 h-3.5" />
-      </button>
-      <button
-        className="portfolio-card-action portfolio-card-action-danger"
+        <Download />
+      </Button>
+      <Button
+        variant="destructive"
+        size="icon"
         title={t('common.delete')}
         onClick={() => onRemove(portfolio.id)}
       >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+        <Trash2 />
+      </Button>
     </div>
   );
 }
 
-/** 名称行（名称 + 调仓频率 + 偏移 + 阈值） */
-function PortfolioNameRow({
+/**
+ * 卡片头部行（名称 + 调仓频率 + 偏移 + 拖累 + 总回报 + 偏差带）。
+ * @param props - 组件属性
+ * @param props.portfolio - 当前组合数据
+ * @param props.idx - 组合在列表中的序号
+ * @param props.rebalanceOptions - 调仓频率可选项
+ * @param props.onUpdate - 组合字段更新回调
+ * @param props.t - i18n 翻译函数
+ * @returns 渲染的卡片头部行
+ */
+function PortfolioCardHeader({
   portfolio,
   idx,
   rebalanceOptions,
@@ -61,7 +86,7 @@ function PortfolioNameRow({
   t: TFunc;
 }) {
   return (
-    <div className="portfolio-card-name-row">
+    <div className="flex items-center gap-1.5 mb-2 flex-wrap">
       <input
         type="text"
         value={portfolio.name || `${t('portfolio.portfolio')} ${idx + 1}`}
@@ -70,7 +95,7 @@ function PortfolioNameRow({
       />
       <select
         value={portfolio.rebalanceFrequency}
-        className="portfolio-rebalance-select"
+        className="portfolio-rebalance-select shrink-0"
         onChange={(e) =>
           onUpdate(portfolio.id, { rebalanceFrequency: e.target.value as RebalanceFrequency })
         }
@@ -81,7 +106,7 @@ function PortfolioNameRow({
           </option>
         ))}
       </select>
-      <div className="offset-cell">
+      <div className="offset-cell shrink-0">
         <input
           type="number"
           value={portfolio.rebalanceOffset ?? 0}
@@ -94,7 +119,7 @@ function PortfolioNameRow({
         <span className="offset-suffix">{t('portfolio.offset')}</span>
       </div>
       {portfolio.rebalanceFrequency === 'threshold' && (
-        <div className="threshold-cell">
+        <div className="threshold-cell shrink-0">
           <input
             type="number"
             value={portfolio.rebalanceThreshold ?? 5}
@@ -106,23 +131,7 @@ function PortfolioNameRow({
           <span className="threshold-suffix">%</span>
         </div>
       )}
-    </div>
-  );
-}
-
-/** 高级参数行（拖累 + 总回报 + 偏差带开关） */
-function PortfolioAdvancedRow({
-  portfolio,
-  onUpdate,
-  t,
-}: {
-  portfolio: StorePortfolio;
-  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
-  t: TFunc;
-}) {
-  return (
-    <div className="portfolio-advanced-row">
-      <div className="advanced-field">
+      <div className="advanced-field shrink-0">
         <label className="advanced-label">{t('portfolio.drag')}</label>
         <div className="advanced-input-wrap">
           <input
@@ -138,7 +147,7 @@ function PortfolioAdvancedRow({
           <span className="advanced-suffix">%</span>
         </div>
       </div>
-      <label className="param-check advanced-check">
+      <label className="param-check advanced-check shrink-0">
         <input
           type="checkbox"
           checked={portfolio.totalReturn ?? true}
@@ -146,7 +155,7 @@ function PortfolioAdvancedRow({
         />
         <span>{t('portfolio.totalReturn')}</span>
       </label>
-      <label className="param-check advanced-check">
+      <label className="param-check advanced-check shrink-0">
         <input
           type="checkbox"
           checked={portfolio.rebalanceBands?.enabled ?? false}
@@ -166,7 +175,13 @@ function PortfolioAdvancedRow({
   );
 }
 
-/** Rebalance Bands 参数行 */
+/**
+ * Rebalance Bands 参数行，仅在启用偏差带时渲染。
+ * @param props - 组件属性
+ * @param props.portfolio - 当前组合数据
+ * @param props.onUpdate - 组合字段更新回调
+ * @returns 渲染的偏差带参数行，未启用时返回 null
+ */
 function RebalanceBandsRow({
   portfolio,
   onUpdate,
@@ -178,7 +193,7 @@ function RebalanceBandsRow({
   if (!portfolio.rebalanceBands?.enabled) return null;
   const bands = portfolio.rebalanceBands;
   return (
-    <div className="portfolio-advanced-row" style={{ marginTop: '4px' }}>
+    <div className="portfolio-advanced-row mt-1">
       <div className="advanced-field">
         <label className="advanced-label">{t('portfolio.absoluteDeviation')}</label>
         <div className="advanced-input-wrap">
@@ -231,7 +246,23 @@ function RebalanceBandsRow({
   );
 }
 
-/** 组合卡片（单个组合的完整编辑界面） */
+/**
+ * 组合卡片（单个组合的完整编辑界面），以 shadcn Card 为容器。
+ * @param props - 组件属性
+ * @param props.portfolio - 当前组合数据
+ * @param props.idx - 组合在列表中的序号
+ * @param props.rebalanceOptions - 调仓频率可选项
+ * @param props.nonGlidepathPortfolios - 非 glidepath 组合列表（供 glidepath 引用）
+ * @param props.onDuplicate - 复制组合回调
+ * @param props.onRemove - 删除组合回调
+ * @param props.onSave - 导出 JSON 回调
+ * @param props.onUpdate - 组合字段更新回调
+ * @param props.onAddAsset - 新增资产回调
+ * @param props.onRemoveAsset - 删除资产回调
+ * @param props.onUpdateAsset - 更新资产行回调
+ * @param props.onBatchUpdate - 批量更新权重回调
+ * @returns 渲染的组合卡片
+ */
 export function PortfolioCard({
   portfolio,
   idx,
@@ -263,19 +294,14 @@ export function PortfolioCard({
   const tw = portfolio.assets.reduce((sum, a) => sum + a.weight, 0);
   const isComplete = Math.abs(tw - 100) <= 0.01;
   const isGp = portfolio.isGlidepath;
-  const cardStyle = isGp
-    ? { borderLeft: '3px solid var(--accent)', backgroundColor: 'var(--bg-subtle)' }
-    : undefined;
 
   return (
-    <div className="portfolio-card" style={cardStyle}>
-      {isGp && (
-        <GlidepathConfig
-          portfolio={portfolio}
-          nonGlidepathPortfolios={nonGlidepathPortfolios}
-          onUpdate={onUpdate}
-        />
+    <Card
+      className={cn(
+        'relative group p-3 pt-8',
+        isGp && 'border-l-[3px] border-l-accent bg-input-bg/30'
       )}
+    >
       <PortfolioCardActions
         portfolio={portfolio}
         onDuplicate={onDuplicate}
@@ -283,27 +309,41 @@ export function PortfolioCard({
         onSave={onSave}
         t={t}
       />
-      <PortfolioNameRow
-        portfolio={portfolio}
-        idx={idx}
-        rebalanceOptions={rebalanceOptions}
-        onUpdate={onUpdate}
-        t={t}
-      />
-      <PortfolioAdvancedRow portfolio={portfolio} onUpdate={onUpdate} t={t} />
-      <RebalanceBandsRow portfolio={portfolio} onUpdate={onUpdate} />
-      <PortfolioToolbarAndAssets
-        portfolio={portfolio}
-        tw={tw}
-        onAddAsset={onAddAsset}
-        onRemoveAsset={onRemoveAsset}
-        onUpdateAsset={onUpdateAsset}
-        onBatchUpdate={onBatchUpdate}
-      />
-      <div className={`portfolio-total ${isComplete ? 'complete' : 'incomplete'}`}>
-        <span>{t('portfolio.total')}</span>
-        <span className="total-value">{tw.toFixed(0)}%</span>
-      </div>
-    </div>
+      <CardHeader className="p-0 pb-2 space-y-0">
+        {isGp && (
+          <GlidepathConfig
+            portfolio={portfolio}
+            nonGlidepathPortfolios={nonGlidepathPortfolios}
+            onUpdate={onUpdate}
+          />
+        )}
+        <PortfolioCardHeader
+          portfolio={portfolio}
+          idx={idx}
+          rebalanceOptions={rebalanceOptions}
+          onUpdate={onUpdate}
+          t={t}
+        />
+      </CardHeader>
+      <CardContent className="p-0 pt-0">
+        <RebalanceBandsRow portfolio={portfolio} onUpdate={onUpdate} />
+        <PortfolioToolbarAndAssets
+          portfolio={portfolio}
+          tw={tw}
+          onAddAsset={onAddAsset}
+          onRemoveAsset={onRemoveAsset}
+          onUpdateAsset={onUpdateAsset}
+          onBatchUpdate={onBatchUpdate}
+        />
+      </CardContent>
+      <CardFooter className="p-0 pt-2 mt-2 justify-between border-t border-border-subtle">
+        <span className="text-caption text-fg-tertiary uppercase tracking-wide">
+          {t('portfolio.total')}
+        </span>
+        <Badge variant={isComplete ? 'success' : 'danger'} className="tabular-nums">
+          {tw.toFixed(0)}%
+        </Badge>
+      </CardFooter>
+    </Card>
   );
 }

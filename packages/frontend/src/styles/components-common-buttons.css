@@ -226,7 +226,7 @@
 }
 
 /* ============================================
-   工具栏按钮 - testfol.io 青绿色风格
+   工具栏按钮 - 蓝色主色调
    ============================================ */
 .toolbar-btn {
   display: inline-flex;
@@ -237,9 +237,9 @@
   height: 32px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--support);
-  background: var(--support-soft);
-  border: 1px solid var(--support);
+  color: var(--brand);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand);
   border-radius: var(--radius-input);
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
@@ -249,7 +249,7 @@
 }
 
 .toolbar-btn:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--support) 15%, var(--support-soft));
+  background-color: color-mix(in srgb, var(--brand) 15%, var(--brand-soft));
 }
 
 .toolbar-btn:disabled,
@@ -337,4 +337,93 @@ input[type='checkbox'] {
   accent-color: var(--brand);
   cursor: pointer;
   flex-shrink: 0;
+}
+
+/* 自定义复选框样式 */
+.custom-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--input-bg);
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.custom-checkbox:checked {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.custom-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 等宽数字 */
+.numeric,
+.stat-table td,
+.stat-table-num,
+.drawdown-table td {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Ghost Button - 辅助操作（均分、Set、拉伸到100%等） */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-input);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--text-body);
+  border-color: var(--border-strong);
+}
+
+/* Text Link Button - 文字链接按钮（添加现金流腿等） */
+.btn-text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--brand);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+
+.btn-text-link:hover {
+  text-decoration: underline;
+  color: var(--brand-hover);
 }

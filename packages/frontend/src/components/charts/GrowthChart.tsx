@@ -2,7 +2,7 @@
  * @file 净值增长曲线图
  * @description 展示各投资组合的净值增长曲线，支持线性和对数坐标切换及基准货币换算
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
@@ -11,7 +11,7 @@ import { ChartExporter } from '../ChartExporter.js';
 import { useChartData, CHART_MAX_POINTS } from '../../hooks/useChartInteractions.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
 import ChartCard from '../ChartCard.js';
-import { CHART_MARGIN, CHART_GRID_PROPS } from './chartConstants.js';
+import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
 
 /** 货币符号映射 */
@@ -34,6 +34,19 @@ export default function GrowthChart({
   const { t } = useTranslation();
   const [logScale, setLogScale] = useState(false);
 
+  // [T9 诊断] 临时调试日志：检查 growthCurve 数据完整性
+  useEffect(() => {
+    console.log('[GrowthChart Debug]', {
+      portfoliosCount: portfolios.length,
+      portfolios: portfolios.map((p) => ({
+        name: p.name,
+        growthCurveLength: p.growthCurve?.length ?? 0,
+        firstPoint: p.growthCurve?.[0],
+        lastPoint: p.growthCurve?.[p.growthCurve.length - 1],
+      })),
+    });
+  }, [portfolios]);
+
   const mergedData = mergePortfolioSeries(
     portfolios,
     (p) => p.growthCurve,
@@ -42,16 +55,23 @@ export default function GrowthChart({
   );
   const chartData = useChartData(mergedData, CHART_MAX_POINTS);
 
+  // [T9 诊断] 临时调试日志：检查合并后数据
+  useEffect(() => {
+    console.log('[GrowthChart Debug] mergedData', {
+      mergedDataLength: mergedData.length,
+      chartDataLength: chartData.length,
+      firstRow: mergedData[0],
+      lastRow: mergedData[mergedData.length - 1],
+      portfolioNamesInData:
+        mergedData.length > 0 ? Object.keys(mergedData[0]).filter((k) => k !== 'date') : [],
+    });
+  }, [mergedData, chartData]);
+
   const logToggle = (
     <button
       onClick={() => setLogScale(!logScale)}
-      className="px-2.5 py-1 text-[12px] border transition-colors"
-      style={{
-        borderRadius: 'var(--radius-control)',
-        backgroundColor: logScale ? 'var(--brand)' : 'var(--bg-elevated)',
-        color: logScale ? '#fff' : 'var(--text-muted)',
-        borderColor: logScale ? 'var(--brand)' : 'var(--border-soft)',
-      }}
+      className="btn-ghost"
+      style={logScale ? { color: 'var(--brand)', borderColor: 'var(--brand)' } : undefined}
     >
       {t('charts.logScale')}
     </button>

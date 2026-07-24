@@ -4,6 +4,7 @@
  *   合并自 StandardPageShell / ComputeToolShell / types。
  */
 import type { ReactElement, ReactNode, ComponentType } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToolSeoCard, ToolPageLayout } from '../layout/ToolPageLayout.js';
 
@@ -67,11 +68,37 @@ export function StandardPageShell({
   );
 }
 
-// ============ ComputeToolShell ============
+/** 页面头部操作按钮区（关于 / 相关工具） */
+function PageHeaderActions({
+  showAbout,
+  showRelated,
+  onToggle,
+  t,
+}: {
+  showAbout: boolean;
+  showRelated: boolean;
+  onToggle: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="page-header-actions">
+      {showAbout && (
+        <button className="text-link-subtle" onClick={onToggle}>
+          {t('common.about')}
+        </button>
+      )}
+      {showRelated && (
+        <button className="text-link-subtle" onClick={onToggle}>
+          {t('backtest.relatedTools')}
+        </button>
+      )}
+    </div>
+  );
+}
 
 function PresetButton({ label, onClick }: PresetButtonProps) {
   return (
-    <button className="toolbar-btn" onClick={onClick}>
+    <button className="preset-chip" onClick={onClick}>
       {label}
     </button>
   );
@@ -80,13 +107,11 @@ function PresetButton({ label, onClick }: PresetButtonProps) {
 function PresetsCard({ presets }: { presets: PresetButtonProps[] }) {
   const { t } = useTranslation();
   return (
-    <div className="card" style={{ marginBottom: 12 }}>
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>{t('monteCarlo.presets')}</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {presets.map((preset) => (
-          <PresetButton key={preset.label} label={preset.label} onClick={preset.onClick} />
-        ))}
-      </div>
+    <div className="preset-chips">
+      <span className="preset-label">{t('monteCarlo.presets')}：</span>
+      {presets.map((preset) => (
+        <PresetButton key={preset.label} label={preset.label} onClick={preset.onClick} />
+      ))}
     </div>
   );
 }
@@ -99,6 +124,7 @@ export function ComputeToolShell<S>({
   state: S;
 }): ReactElement {
   const { t } = useTranslation();
+  const [seoExpanded, setSeoExpanded] = useState(false);
   const Params = config.params;
   const Results = config.results;
   const AfterParams = config.afterParams;
@@ -111,29 +137,33 @@ export function ComputeToolShell<S>({
 
   return (
     <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t(config.titleKey)}</h1>
-        <div className="bt-page-actions">
-          <button className="btn-upgrade">{t('common.upgrade')}</button>
-          <button className="btn-pill-outline">{t('common.about')}</button>
-          <button className="btn-pill-outline">{t('common.limits')}</button>
+      <div className="page-header-slim">
+        <div className="page-header-title-row">
+          <h1 className="page-title-slim">{t(config.titleKey)}</h1>
+          {config.seoSubtitleKey && (
+            <span className="page-subtitle-inline">{t(config.seoSubtitleKey)}</span>
+          )}
+          <PageHeaderActions
+            showAbout={!!config.seoDescKey}
+            showRelated={!!config.relatedTools && config.relatedTools.length > 0}
+            onToggle={() => setSeoExpanded((v) => !v)}
+            t={t}
+          />
         </div>
+        {seoExpanded && config.seoDescKey && (
+          <ToolSeoCard
+            desc={t(config.seoDescKey)}
+            features={(config.seoFeatures ?? []).map((f) => ({
+              title: t(f.titleKey),
+              desc: t(f.descKey),
+            }))}
+            related={config.relatedTools?.map((r) => ({
+              title: t(r.titleKey),
+              href: r.href,
+            }))}
+          />
+        )}
       </div>
-
-      {config.seoDescKey && (
-        <ToolSeoCard
-          subtitle={config.seoSubtitleKey ? t(config.seoSubtitleKey) : undefined}
-          desc={t(config.seoDescKey)}
-          features={(config.seoFeatures ?? []).map((f) => ({
-            title: t(f.titleKey),
-            desc: t(f.descKey),
-          }))}
-          related={config.relatedTools?.map((r) => ({
-            title: t(r.titleKey),
-            href: r.href,
-          }))}
-        />
-      )}
 
       {presetButtons && <PresetsCard presets={presetButtons} />}
 

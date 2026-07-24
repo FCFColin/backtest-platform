@@ -19,8 +19,13 @@
   --support: #0d9488;
   --support-soft: #ccfbf1;
   --success: #16a34a;
+  --success-light: rgba(22, 163, 74, 0.12);
   --warning: #d97706;
+  --warning-light: rgba(217, 119, 6, 0.12);
   --danger: #dc2626;
+  --danger-light: rgba(220, 38, 38, 0.12);
+  --corr-positive: #1a7a3a;
+  --corr-negative: #8b2020;
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
   --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
@@ -55,8 +60,13 @@
   --support: #2dd4bf;
   --support-soft: #134e4a;
   --success: #34d399;
+  --success-light: rgba(52, 211, 153, 0.12);
   --warning: #fbbf24;
+  --warning-light: rgba(251, 191, 36, 0.12);
   --danger: #f87171;
+  --danger-light: rgba(248, 113, 113, 0.12);
+  --corr-positive: #2d8f4e;
+  --corr-negative: #a04040;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
   --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
@@ -74,21 +84,8 @@ body,
 }
 
 body {
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
-  background-color: var(--bg-app);
-  color: var(--text-body);
   font-size: 14px;
   line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {

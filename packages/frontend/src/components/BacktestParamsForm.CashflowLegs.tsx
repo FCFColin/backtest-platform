@@ -1,12 +1,22 @@
 /**
  * @file 现金流分区
  * @description 周期性现金流腿（CashflowLegs）与一次性现金流（OneTimeCashflow）两个分区。
- * 使用统一参数布局组件。
+ *   基于 shadcn Input / Select / Switch / Button + token 类名，使用统一参数布局组件。
  */
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Plus, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 import type { TFunctionProp } from './BacktestParamsForm.types.js';
 import type { CashflowLeg } from '@backtest/shared';
@@ -22,25 +32,27 @@ export function CashflowLegsSection() {
     <ParamGroup title={t('params.cashflowLegs')} badge={parameters.cashflowLegs?.length || 0}>
       <ParamRow>
         <ParamCard label={t('params.adjustFixedCashflowsForInflation')}>
-          <label className="param-check">
-            <input type="checkbox" />
-            <span>{t('params.adjustForInflation')}</span>
-          </label>
+          <div className="flex items-center gap-2 h-10">
+            <Switch id="cf-inflation-adjust" />
+            <label htmlFor="cf-inflation-adjust" className="text-caption text-fg-secondary cursor-pointer">
+              {t('params.adjustForInflation')}
+            </label>
+          </div>
         </ParamCard>
         <ParamCard label={t('params.annualCashflowGrowth')}>
-          <div className="param-input-suffix-wrap">
-            <input type="number" defaultValue={0} className="param-input param-input-with-suffix" />
-            <span className="param-input-suffix">%</span>
+          <div className="flex items-center gap-2">
+            <Input type="number" defaultValue={0} className="font-mono tabular-nums" />
+            <span className="text-caption text-fg-tertiary shrink-0">%</span>
           </div>
         </ParamCard>
       </ParamRow>
       {(parameters.cashflowLegs || []).map((leg) => (
         <CashflowLegRow key={leg.id} leg={leg} currency={parameters.baseCurrency} t={t} />
       ))}
-      <button className="btn-add-cashflow" onClick={addCashflowLeg}>
-        <Plus className="w-3.5 h-3.5" />
+      <Button variant="ghost" size="sm" className="mt-2" onClick={addCashflowLeg}>
+        <Plus />
         {t('params.addCashflowLeg')}
-      </button>
+      </Button>
     </ParamGroup>
   );
 }
@@ -59,71 +71,79 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
   return (
     <ParamRow>
       <ParamCard label={t('params.amount')}>
-        <div className="param-input-prefix-wrap">
-          <span className="param-input-prefix">{currency === 'usd' ? '$' : '¥'}</span>
-          <input
+        <div className="flex items-center gap-2">
+          <span className="text-body text-fg-tertiary font-mono">
+            {currency === 'usd' ? '$' : '¥'}
+          </span>
+          <Input
             type="number"
             value={leg.amount || ''}
-            className="param-input param-input-with-prefix"
             placeholder="0"
             onChange={(e) => updateCashflowLeg(leg.id, { amount: Number(e.target.value) || 0 })}
           />
         </div>
       </ParamCard>
       <ParamCard label={t('params.cashflowType')}>
-        <select
+        <Select
           value={leg.type}
-          className="param-input"
-          onChange={(e) =>
-            updateCashflowLeg(leg.id, {
-              type: e.target.value as 'contribution' | 'withdrawal',
-            })
+          onValueChange={(v) =>
+            updateCashflowLeg(leg.id, { type: v as 'contribution' | 'withdrawal' })
           }
         >
-          <option value="contribution">{t('params.contribution')}</option>
-          <option value="withdrawal">{t('params.withdrawal')}</option>
-        </select>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="contribution">{t('params.contribution')}</SelectItem>
+            <SelectItem value="withdrawal">{t('params.withdrawal')}</SelectItem>
+          </SelectContent>
+        </Select>
       </ParamCard>
       <ParamCard label={t('params.frequency')}>
-        <select
+        <Select
           value={leg.frequency}
-          className="param-input"
-          onChange={(e) =>
+          onValueChange={(v) =>
             updateCashflowLeg(leg.id, {
-              frequency: e.target.value as 'yearly' | 'monthly' | 'quarterly' | 'weekly',
+              frequency: v as 'yearly' | 'monthly' | 'quarterly' | 'weekly',
             })
           }
         >
-          <option value="yearly">{t('params.yearly')}</option>
-          <option value="quarterly">{t('params.quarterly')}</option>
-          <option value="monthly">{t('params.monthly')}</option>
-          <option value="weekly">{t('params.weekly')}</option>
-        </select>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="yearly">{t('params.yearly')}</SelectItem>
+            <SelectItem value="quarterly">{t('params.quarterly')}</SelectItem>
+            <SelectItem value="monthly">{t('params.monthly')}</SelectItem>
+            <SelectItem value="weekly">{t('params.weekly')}</SelectItem>
+          </SelectContent>
+        </Select>
       </ParamCard>
       <ParamCard label={t('params.offset')}>
-        <input
+        <Input
           type="number"
           value={leg.offset || ''}
-          className="param-input"
           placeholder="0"
           onChange={(e) => updateCashflowLeg(leg.id, { offset: Number(e.target.value) || 0 })}
         />
       </ParamCard>
       <ParamCard label={t('params.until')}>
-        <input
+        <Input
           type="date"
           value={leg.until || ''}
-          className="param-input"
           onChange={(e) => updateCashflowLeg(leg.id, { until: e.target.value })}
         />
       </ParamCard>
-      <button
-        className="row-remove-btn"
+      <Button
+        variant="destructive"
+        size="icon"
+        className="mt-7"
         onClick={() => removeCashflowLeg(leg.id)}
         title={t('common.delete')}
+        aria-label={t('common.delete')}
       >
-        <X className="w-4 h-4" />
-      </button>
+        <X />
+      </Button>
     </ParamRow>
   );
 }
@@ -144,14 +164,13 @@ export function OneTimeCashflowSection() {
       {(parameters.oneTimeCashflows || []).map((cf) => (
         <ParamRow key={cf.id}>
           <ParamCard label={t('params.amount')}>
-            <div className="param-input-prefix-wrap">
-              <span className="param-input-prefix">
+            <div className="flex items-center gap-2">
+              <span className="text-body text-fg-tertiary font-mono">
                 {parameters.baseCurrency === 'usd' ? '$' : '¥'}
               </span>
-              <input
+              <Input
                 type="number"
                 value={cf.amount || ''}
-                className="param-input param-input-with-prefix"
                 placeholder="0"
                 onChange={(e) =>
                   updateOneTimeCashflow(cf.id, { amount: Math.abs(Number(e.target.value) || 0) })
@@ -160,40 +179,44 @@ export function OneTimeCashflowSection() {
             </div>
           </ParamCard>
           <ParamCard label={t('params.type')}>
-            <select
+            <Select
               value={cf.type}
-              className="param-input"
-              onChange={(e) =>
-                updateOneTimeCashflow(cf.id, {
-                  type: e.target.value as 'contribution' | 'withdrawal',
-                })
+              onValueChange={(v) =>
+                updateOneTimeCashflow(cf.id, { type: v as 'contribution' | 'withdrawal' })
               }
             >
-              <option value="contribution">{t('params.contribution')}</option>
-              <option value="withdrawal">{t('params.withdrawal')}</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="contribution">{t('params.contribution')}</SelectItem>
+                <SelectItem value="withdrawal">{t('params.withdrawal')}</SelectItem>
+              </SelectContent>
+            </Select>
           </ParamCard>
           <ParamCard label={t('params.date')}>
-            <input
+            <Input
               type="date"
               value={cf.date}
-              className="param-input"
               onChange={(e) => updateOneTimeCashflow(cf.id, { date: e.target.value })}
             />
           </ParamCard>
-          <button
-            className="row-remove-btn"
+          <Button
+            variant="destructive"
+            size="icon"
+            className="mt-7"
             onClick={() => removeOneTimeCashflow(cf.id)}
             title={t('common.delete')}
+            aria-label={t('common.delete')}
           >
-            <X className="w-4 h-4" />
-          </button>
+            <X />
+          </Button>
         </ParamRow>
       ))}
       {(parameters.oneTimeCashflows || []).length === 0 && (
-        <button className="params-link-btn" onClick={addOneTimeCashflow}>
+        <Button variant="ghost" size="sm" className="mt-2" onClick={addOneTimeCashflow}>
           + {t('params.addOneTimeCashflow')}
-        </button>
+        </Button>
       )}
     </ParamGroup>
   );

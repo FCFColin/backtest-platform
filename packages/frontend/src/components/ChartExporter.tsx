@@ -6,6 +6,7 @@
  */
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/button';
 
 /** ChartExporter 组件 Props */
 interface ChartExporterProps {
@@ -70,15 +71,15 @@ export function ChartExporter({ data, filename = 'chart-data', label }: ChartExp
   const disabled = data.length === 0;
 
   return (
-    <button
+    <Button
       type="button"
+      variant="ghost"
+      size="sm"
       onClick={handleExport}
       disabled={disabled}
-      className="toolbar-btn"
-      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
     >
-      <Download className="w-3.5 h-3.5" />
+      <Download />
       {label ?? t('components.chartExporter.defaultLabel')}
-    </button>
+    </Button>
   );
 }

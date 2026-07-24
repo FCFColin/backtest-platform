@@ -1,15 +1,27 @@
 /** @file Shared helpers & types for analysis charts */
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 
+/** 热力图梯度配色（绿=正值，红=负值） */
+const HEAT_COLORS = {
+  strongPositive: '#1a7a3a',
+  moderatePositive: '#2e8b57',
+  weakPositive: '#8bc9a3',
+  faintNegative: '#f5d5d5',
+  weakNegative: '#e8a0a0',
+  moderateNegative: '#d47070',
+  strongNegative: '#c94a4a',
+  neutral: 'var(--bg-subtle)',
+} as const;
+
 export function getHeatColor(val: number | null): string {
-  if (val === null) return 'var(--bg-subtle)';
-  if (val > 5) return '#1a7a3a';
-  if (val > 2) return '#2e8b57';
-  if (val > 0) return '#8bc9a3';
-  if (val > -1) return '#f5d5d5';
-  if (val > -2) return '#e8a0a0';
-  if (val > -5) return '#d47070';
-  return '#c94a4a';
+  if (val === null) return HEAT_COLORS.neutral;
+  if (val > 5) return HEAT_COLORS.strongPositive;
+  if (val > 2) return HEAT_COLORS.moderatePositive;
+  if (val > 0) return HEAT_COLORS.weakPositive;
+  if (val > -1) return HEAT_COLORS.faintNegative;
+  if (val > -2) return HEAT_COLORS.weakNegative;
+  if (val > -5) return HEAT_COLORS.moderateNegative;
+  return HEAT_COLORS.strongNegative;
 }
 
 export type RollingMetricKey = 'cagr' | 'volatility' | 'excess' | 'skewness' | 'kurtosis' | 'kelly';
