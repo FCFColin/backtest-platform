@@ -338,14 +338,14 @@ describe('validateConfig - 生产环境（严格校验）', () => {
 });
 
 describe('config 默认值', () => {
-  it('API_PORT 默认应为 5001', () => {
+  it('API_PORT 默认应为 15001', () => {
     // config 在模块加载时已构造，测试环境未设置 API_PORT 时应为默认值
     expect(typeof config.API_PORT).toBe('number');
     expect(config.API_PORT).toBeGreaterThan(0);
   });
 
-  it('GO_ENGINE_URL 默认应指向 5004 端口', () => {
-    expect(config.GO_ENGINE_URL).toContain('5004');
+  it('GO_ENGINE_URL 默认应指向 15004 端口', () => {
+    expect(config.GO_ENGINE_URL).toContain('15004');
   });
 
   it('ENGINE_TIMEOUT_MS 默认应为 5000ms', () => {

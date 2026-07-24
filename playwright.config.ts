@@ -12,7 +12,7 @@ export default defineConfig({
   globalSetup: './tests/e2e/ui/coverage/setup',
   globalTeardown: './tests/e2e/ui/coverage/teardown',
   use: {
-    baseURL: 'http://localhost:5001',
+    baseURL: 'http://localhost:15001',
     locale: 'zh-CN',
     viewport: { width: 1280, height: 900 },
     actionTimeout: 10_000,
@@ -35,7 +35,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npx tsx packages/backend/src/server.ts',
-    url: 'http://localhost:5001/api/health',
+    url: 'http://localhost:15001/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
     env: {

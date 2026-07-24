@@ -28,8 +28,8 @@ vi.mock('../../../packages/backend/src/infrastructure/tickerDataService.js', () 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
-    GO_ENGINE_URL: 'http://127.0.0.1:5004',
-    GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003',
+    GO_ENGINE_URL: 'http://127.0.0.1:15004',
+    GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   }),
   validateConfig: vi.fn(),
 }));

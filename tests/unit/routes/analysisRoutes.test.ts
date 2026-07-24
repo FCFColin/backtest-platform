@@ -71,10 +71,12 @@ vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
   jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
   assignGuestAnalyst: (_req: unknown, _res: unknown, next: () => void) => next(),
+  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
   resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
   hasTenant: vi.fn(() => true),
 }));
 

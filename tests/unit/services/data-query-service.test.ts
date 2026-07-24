@@ -9,7 +9,7 @@ const loggerMocks = vi.hoisted(() => ({
 }));
 
 const configMocks = vi.hoisted(() => ({
-  GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003',
+  GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   DATA_SERVICE_AUTH_TOKEN: 'dev-token',
   COMPUTE_RATE_LIMIT_MAX: 10,
   NODE_ENV: 'test',

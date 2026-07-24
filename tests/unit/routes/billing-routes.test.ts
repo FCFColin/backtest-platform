@@ -39,7 +39,7 @@ vi.mock('../../../packages/backend/src/application/billing/billingService.js', (
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     STRIPE_PUBLISHABLE_KEY: 'pk_test_1',
-    APP_BASE_URL: 'http://localhost:5173',
+    APP_BASE_URL: 'http://localhost:15173',
   }),
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

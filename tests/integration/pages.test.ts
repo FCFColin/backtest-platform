@@ -5,7 +5,7 @@ import { checkServerAvailable } from '../helpers/chaos.js';
 import { API_BASE_URL } from '../helpers/expressApp.js';
 
 // 集成测试：数据引擎页面、引擎状态指示器、新增工具页面 API、布局验证
-// 这些测试需要后端服务器运行（默认端口 5001），未运行时自动跳过
+// 这些测试需要后端服务器运行（默认端口 15001），未运行时自动跳过
 
 const BASE_URL = API_BASE_URL;
 

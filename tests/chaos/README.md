@@ -8,9 +8,9 @@
   - 资源限制:至少分配 4GB 内存 + 2 CPU
 - **完整应用栈运行**(通过 `docker compose up -d` 启动)
   - 必需容器:`backtest-postgres` / `backtest-redis` / `backtest-engine-go` / `backtest-data-fetcher` / `backtest-api`
-- **后端 API 在 `http://127.0.0.1:5001` 可访问**(chaos 测试通过 `/api/health` 与 `/api/metrics` 探活与读取熔断器状态)
+- **后端 API 在 `http://127.0.0.1:15001` 可访问**(chaos 测试通过 `/api/health` 与 `/api/metrics` 探活与读取熔断器状态)
 - **可选环境变量**:
-  - `API_URL`:覆盖默认 API 地址(默认 `http://127.0.0.1:5001`)
+  - `API_URL`:覆盖默认 API 地址(默认 `http://127.0.0.1:15001`)
 
 ## 运行命令
 

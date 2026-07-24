@@ -39,7 +39,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     STRIPE_PUBLISHABLE_KEY: 'pk_test_123',
     STRIPE_PRICE_PRO: 'price_pro',
     STRIPE_PRICE_ENTERPRISE: 'price_ent',
-    APP_BASE_URL: 'http://localhost:5173',
+    APP_BASE_URL: 'http://localhost:15173',
   }),
 }));
 

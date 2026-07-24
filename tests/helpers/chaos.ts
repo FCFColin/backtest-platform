@@ -99,7 +99,7 @@ async function isContainerRunning(containerName: string): Promise<boolean> {
  */
 export async function getCircuitBreakerState(
   breakerName: string,
-  metricsUrl: string = 'http://127.0.0.1:5001/metrics',
+  metricsUrl: string = 'http://127.0.0.1:15001/metrics',
 ): Promise<number> {
   const response = await fetch(metricsUrl);
   const text = await response.text();

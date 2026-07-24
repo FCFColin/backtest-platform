@@ -73,7 +73,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
-    GO_ENGINE_URL: 'http://127.0.0.1:5004',
+    GO_ENGINE_URL: 'http://127.0.0.1:15004',
     ENGINE_AUTH_TOKEN: 'test-token',
     ENGINE_TIMEOUT_MS: 5000,
   }),
@@ -231,7 +231,7 @@ describe('callGoEngine（直接单元测试）', () => {
 
     expect(result).toBe(goResult);
     expect(callServiceMocks.callService).toHaveBeenCalledWith(
-      'http://127.0.0.1:5004',
+      'http://127.0.0.1:15004',
       '/api/engine/backtest',
       expect.objectContaining({
         method: 'POST',

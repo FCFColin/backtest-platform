@@ -20,8 +20,8 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
-    GO_ENGINE_URL: 'http://127.0.0.1:5001',
-    GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003',
+    GO_ENGINE_URL: 'http://127.0.0.1:15001',
+    GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   }),
   validateConfig: vi.fn(),
 }));
@@ -57,10 +57,10 @@ function createFetchMock(options: {
   };
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString();
-    if (url.includes('127.0.0.1:5001') || url.includes('go-engine')) {
+    if (url.includes('127.0.0.1:15001') || url.includes('go-engine')) {
       return respond(goEngine);
     }
-    if (url.includes('127.0.0.1:5003') || url.includes('go-data')) {
+    if (url.includes('127.0.0.1:15003') || url.includes('go-data')) {
       return respond(goData);
     }
     return originalFetch(input as RequestInfo, init);

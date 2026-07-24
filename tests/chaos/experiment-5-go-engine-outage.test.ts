@@ -21,7 +21,7 @@ import {
   type ChaosFixture,
 } from '../helpers/chaos.js';
 
-const API_URL = process.env.API_URL || 'http://127.0.0.1:5001';
+const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const READY_URL = `${API_URL}/api/ready`;
 const BACKTEST_URL = `${API_URL}/api/v1/backtest/portfolio`;
 

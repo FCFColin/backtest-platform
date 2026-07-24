@@ -96,7 +96,7 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   recordDegradedResponse: vi.fn(),
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: createConfigMocks({ GO_DATA_SERVICE_URL: 'http://127.0.0.1:5003' }),
+  config: createConfigMocks({ GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003' }),
 }));
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
   createRedisModuleMock(
