@@ -3,16 +3,16 @@ import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
 import { config } from './config/index.js';
+import { jwtAuth } from './middleware/jwtAuth.js';
+import { resolveTenant } from './middleware/tenantContext.js';
 import {
-  jwtAuth,
-  optionalJwtAuth,
-  assignGuestReadonly,
-  assignGuestAnalyst,
-} from './middleware/jwtAuth.js';
-import { resolveTenant, requireTenant } from './middleware/tenantContext.js';
+  computeMiddleware,
+  computeMiddlewareNoQuota,
+  crudMiddleware,
+  readOnlyAuth,
+  adminMiddleware,
+} from './middleware/middlewareChains.js';
 import { requirePermission, Permission } from './middleware/rbac.js';
-import { enforceQuota } from './middleware/quota.js';
-import { USAGE_METRIC } from './config/planLimits.js';
 import { auditLog } from './middleware/auditLog.js';
 import { idempotencyKey } from './middleware/idempotency.js';
 import { httpLogger } from './utils/logger.js';
@@ -142,31 +142,11 @@ app.use('/api/v1/auth/refresh', refreshLimiter);
 app.use('/api', healthRoutes);
 app.use('/api/', apiLimiter);
 
-// 中间件链工厂 — 计算端点使用可选认证 + 访客 analyst 身份注入。
-// 平台当前无付费内容，匿名用户以 analyst 角色访问全部计算功能；
-// 已登录用户保留真实身份与租户上下文，enforceQuota 对无 tenantId 的访客自动放行。
-const computeAuth: express.RequestHandler[] = [optionalJwtAuth, assignGuestAnalyst];
-const computePermission = (permission: Permission): express.RequestHandler =>
-  requirePermission(permission);
-const computeQuota: express.RequestHandler = (req, res, next) => {
-  void enforceQuota(USAGE_METRIC.BACKTEST)(req, res, next);
-};
-function computeMiddleware(permission: Permission): express.RequestHandler[] {
-  return [...computeAuth, resolveTenant, computePermission(permission), computeQuota, auditLog];
-}
-function computeMiddlewareNoQuota(permission: Permission): express.RequestHandler[] {
-  return [...computeAuth, resolveTenant, computePermission(permission), auditLog];
-}
-function crudMiddleware(permission: Permission): express.RequestHandler[] {
-  return [jwtAuth, resolveTenant, requireTenant, requirePermission(permission)];
-}
-
 // 路由挂载（仅 v1，legacy 路径已废弃）
-app.use('/api/v1/data', optionalJwtAuth, assignGuestReadonly, dataRoutes);
+app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
 app.use(
   '/api/v1/data/manage',
-  optionalJwtAuth,
-  assignGuestReadonly,
+  ...readOnlyAuth,
   requirePermission(Permission.DATA_READ),
   auditLog,
   idempotencyKey,
@@ -190,15 +170,7 @@ app.use(
 // 内部按子路径应用不同中间件链（computeMiddleware/computeMiddlewareNoQuota + Permission）
 app.use('/api/v1', analysisRoutes);
 
-app.use(
-  '/api/v1/admin',
-  jwtAuth,
-  resolveTenant,
-  requirePermission(Permission.ADMIN_ACCESS),
-  auditLog,
-  idempotencyKey,
-  adminRoutes,
-);
+app.use('/api/v1/admin', ...adminMiddleware(), adminRoutes);
 app.use('/api/v1/auth', authRoutes);
 
 app.use('/api/v1/keys', ...crudMiddleware(Permission.ADMIN_ACCESS), apiKeyRoutes);

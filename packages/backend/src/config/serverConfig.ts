@@ -15,8 +15,8 @@ export const serverConfig = {
   /** 是否托管前端 dist/ 静态资源，开发默认 true 可通过 SERVE_STATIC=false 关闭。@default true */
   SERVE_STATIC: process.env.SERVE_STATIC !== undefined ? process.env.SERVE_STATIC === 'true' : true,
 
-  /** API 服务监听端口（兼容旧变量 PORT，API_PORT 优先）。@default 5001 */
-  API_PORT: parseInt(process.env.API_PORT || process.env.PORT || '5001', 10),
+  /** API 服务监听端口（兼容旧变量 PORT，API_PORT 优先）。@default 15001 */
+  API_PORT: parseInt(process.env.API_PORT || process.env.PORT || '15001', 10),
 
   /** 允许的 CORS 来源，未设置或 `*` 允许所有，多个用逗号分隔。@default true（允许所有来源） */
   CORS_ORIGINS: parseCorsOrigins(process.env.CORS_ORIGINS),
@@ -30,8 +30,8 @@ export const serverConfig = {
   /** 同步计算端点超时（毫秒），防止长任务占用事件循环。@default 30000（30 秒） */
   SYNC_COMPUTE_TIMEOUT_MS: parseInt(process.env.SYNC_COMPUTE_TIMEOUT_MS || '30000', 10),
 
-  /** 应用对外基础 URL（用于邮件验证/邀请链接，ADR-035）。@default "http://localhost:5176" */
-  APP_BASE_URL: process.env.APP_BASE_URL || 'http://localhost:5176',
+  /** 应用对外基础 URL（用于邮件验证/邀请链接，ADR-035）。@default "http://localhost:15173" */
+  APP_BASE_URL: process.env.APP_BASE_URL || 'http://localhost:15173',
 
   // ---------------------------------------------------------------------------
   // 文件路径（相对于项目根目录，统一在此计算避免各处硬编码）

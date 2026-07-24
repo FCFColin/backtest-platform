@@ -56,7 +56,7 @@ function parseUpstreamProblem(status: number, body: string): UpstreamProblemErro
  * - 超时默认 30 秒（适用于 Go 数据服务的批量行情请求），调用方可按场景覆盖；
  * - 所有 5xx 失败均通过 `logger.warn` 记录，便于排查降级原因。
  *
- * @param baseUrl - 目标服务基础地址，如 `http://127.0.0.1:5003`
+ * @param baseUrl - 目标服务基础地址，如 `http://127.0.0.1:15003`
  * @param endpoint - 接口路径（含 query string），会拼接在 `baseUrl` 之后
  * @param options - 透传给 `fetch` 的初始化参数（method/headers/body 等）
  * @param timeoutMs - 超时毫秒数，超时后触发 AbortController 中断请求，默认 30000ms

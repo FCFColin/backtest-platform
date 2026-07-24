@@ -8,13 +8,13 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// 加载 .env 文件（若存在），使环境变量在 config 对象构造时可用
-dotenv.config();
-
 // 项目根目录：从本文件位置上溯至 package.json 所在目录
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 export const PROJECT_ROOT = path.resolve(__dirname, '../../../..');
+
+// 加载项目根目录 .env 文件，使环境变量在 config 对象构造时可用
+dotenv.config({ path: path.resolve(PROJECT_ROOT, '.env') });
 
 /**
  * 应用运行环境类型

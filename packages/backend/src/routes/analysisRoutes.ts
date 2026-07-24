@@ -15,59 +15,27 @@
  * 应用不同中间件链（computeMiddleware / computeMiddlewareNoQuota + 不同 Permission），
  * 等价于原 `app.use('/api/v1/pca', ...computeMiddleware(...), pcaRoutes)` 写法。
  *
- * 设计取舍：middleware 工厂函数（computeMiddleware / computeMiddlewareNoQuota）
- * 在 app.ts 中已有定义并用于其他路由（backtest/tactical/signal 等），此处局部复制
- * 避免循环依赖；两处定义必须保持一致（约 6 行）。
+ * 中间件工厂（computeMiddleware / computeMiddlewareNoQuota）从
+ * `middleware/middlewareChains.ts` 导入，与 app.ts 共享同一份定义。
  */
-import { Router, type Request, type Response, type RequestHandler } from 'express';
+import { Router, type Request, type Response } from 'express';
 import type { LETFRequest, PCARequest, GoalOptimizerRequest } from '@backtest/shared/types';
 import { logger } from '../utils/logger.js';
 import { validate } from '../middleware/validate.js';
 import { sendProblem, ValidationError } from '../utils/errors.js';
 import { callEngineStrict } from '../utils/engineClient.js';
-import { optionalJwtAuth, assignGuestAnalyst } from '../middleware/jwtAuth.js';
-import { resolveTenant } from '../middleware/tenantContext.js';
-import { requirePermission, Permission } from '../middleware/rbac.js';
-import { enforceQuota } from '../middleware/quota.js';
-import { auditLog } from '../middleware/auditLog.js';
-import { USAGE_METRIC } from '../config/planLimits.js';
+import { computeMiddleware, computeMiddlewareNoQuota } from '../middleware/middlewareChains.js';
+import { Permission } from '../middleware/rbac.js';
 import { sanitizeLog } from '../utils/logSanitizer.js';
-import { letfAnalyzeSchema } from '../schemas/letf.js';
-import { pcaAnalyzeSchema } from '../schemas/pca.js';
-import { goalOptimizerSchema } from '../schemas/goalOptimizer.js';
+import {
+  pcaAnalyzeSchema,
+  letfAnalyzeSchema,
+  goalOptimizerSchema,
+} from '../schemas/analysisSchemas.js';
 import { executeLetfAnalyzeWithFetch } from '../application/analysis-orchestrator.js';
 import { executePcaAnalyzeWithFetch } from '../application/analysis-orchestrator.js';
 import { executeGoalOptimizeWithFetch } from '../application/analysis-orchestrator.js';
 import { asyncRouteHandler } from './routeUtils.js';
-
-// ---------------------------------------------------------------------------
-// 局部中间件工厂（与 app.ts 同名函数等价，避免循环依赖）
-// ---------------------------------------------------------------------------
-
-const computeQuotaHandler: RequestHandler = (req, res, next) => {
-  void enforceQuota(USAGE_METRIC.BACKTEST)(req, res, next);
-};
-
-function computeMiddleware(permission: Permission): RequestHandler[] {
-  return [
-    optionalJwtAuth,
-    assignGuestAnalyst,
-    resolveTenant,
-    requirePermission(permission),
-    computeQuotaHandler,
-    auditLog,
-  ];
-}
-
-function computeMiddlewareNoQuota(permission: Permission): RequestHandler[] {
-  return [
-    optionalJwtAuth,
-    assignGuestAnalyst,
-    resolveTenant,
-    requirePermission(permission),
-    auditLog,
-  ];
-}
 
 // ---------------------------------------------------------------------------
 // 主路由

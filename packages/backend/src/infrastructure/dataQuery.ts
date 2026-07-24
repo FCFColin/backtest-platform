@@ -98,7 +98,7 @@ registerSemaphoreMetrics('go_data_service', goServiceSemaphore.total(), () =>
 async function callGoDataService(path: string): Promise<string> {
   await goServiceSemaphore.acquire();
   try {
-    const baseUrl = config.GO_DATA_SERVICE_URL || 'http://127.0.0.1:5003';
+    const baseUrl = config.GO_DATA_SERVICE_URL || 'http://127.0.0.1:15003';
     const url = `${baseUrl}${path}`;
 
     return await new Promise<string>((resolve, reject) => {
