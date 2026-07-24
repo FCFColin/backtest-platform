@@ -1,6 +1,6 @@
 import { firefox } from '@playwright/test';
 
-const BASE_URL = 'http://localhost:5176';
+const BASE_URL = 'http://localhost:15173';
 
 (async () => {
   const browser = await firefox.launch({ headless: true });

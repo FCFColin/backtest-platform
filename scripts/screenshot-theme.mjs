@@ -12,7 +12,7 @@ const specsDir = join(rootDir, '.trae', 'specs');
   const page = await context.newPage();
 
   // Navigate and wait for load
-  await page.goto('http://localhost:5176/', { waitUntil: 'networkidle' });
+  await page.goto('http://localhost:15173/', { waitUntil: 'networkidle' });
   await page.waitForTimeout(5000);
 
   // Light mode screenshot

@@ -8,13 +8,13 @@
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
 │  前端 Vite   │───▶│  后端 API     │───▶│  Go 引擎     │
-│  port 5173  │    │  Express      │    │  :5002/5004 │
-└─────────────┘    │  port 5001    │    └──────┬──────┘
+│  port 15173 │    │  Express      │    │  :5002/15004 │
+└──────────────┘    │  port 15001   │    └──────┬──────┘
                    └──────┬───────┘           │ fail-closed 503
                           │                   (ADR-031)
                    ┌──────┴───────┐
                    │  Go 数据服务  │
-                   │  port 5003   │
+                   │  port 15003   │
                    └──────┬───────┘
                           ▼
                    ┌─────────────┐    ┌─────────────┐
@@ -24,10 +24,10 @@
 
 | 服务         | 端口      | 启动命令                              | 健康检查                                       |
 | ------------ | --------- | ------------------------------------- | ---------------------------------------------- |
-| 前端（开发） | 5173      | `npm run client:dev`                  | `curl http://localhost:5173`                   |
-| 后端 API     | 5001      | `npm run dev`                         | `curl http://localhost:5001/api/health`        |
-| Go 引擎      | 5002/5004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:5002/api/engine/health` |
-| Go 数据服务  | 5003      | `cd data-fetcher && go run .`         | `curl http://localhost:5003/api/data/health`   |
+| 前端（开发） | 15173     | `npm run client:dev`                  | `curl http://localhost:15173`                   |
+| 后端 API     | 15001      | `npm run dev`                         | `curl http://localhost:15001/api/health`        |
+| Go 引擎      | 5002/15004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:5002/api/engine/health` |
+| Go 数据服务  | 15003      | `cd data-fetcher && go run .`         | `curl http://localhost:15003/api/data/health`   |
 
 ## 二、启动与停止
 
@@ -73,16 +73,16 @@ Get-Process -Name "node","go" -ErrorAction SilentlyContinue | Stop-Process
 
 ```powershell
 # 后端 API 健康（含引擎状态 + metrics）
-curl http://localhost:5001/api/health
+curl http://localhost:15001/api/health
 
 # 引擎 metrics（Go 引擎可用率、调用失败数）
-curl http://localhost:5001/api/metrics
+curl http://localhost:15001/api/metrics
 
 # Go 引擎健康
 curl http://127.0.0.1:5002/api/engine/health
 
 # Go 数据服务健康
-curl http://localhost:5003/api/data/health
+curl http://localhost:15003/api/data/health
 ```
 
 ### 关键指标
@@ -131,7 +131,7 @@ curl http://localhost:5003/api/data/health
 
 **排查步骤**：
 
-1. 检查后端 API 是否运行：`curl http://localhost:5001/api/health`
+1. 检查后端 API 是否运行：`curl http://localhost:15001/api/health`
 2. 检查浏览器控制台错误
 3. 检查前端构建产物：`npm run build`
 4. 开发模式检查 Vite 服务器：`curl http://localhost:5175`
@@ -284,8 +284,8 @@ curl http://localhost:5003/api/data/health
    #   NODE_ENV=production
    #   ADMIN_API_KEY=<your-secret-key>
    #   CORS_ORIGINS=https://your-domain.com
-   #   GO_ENGINE_URL=http://127.0.0.1:5004
-   #   GO_DATA_SERVICE_URL=http://127.0.0.1:5003
+   #   GO_ENGINE_URL=http://127.0.0.1:15004
+   #   GO_DATA_SERVICE_URL=http://127.0.0.1:15003
    #   DATABASE_URL=postgresql://backtest:<password>@<host>:5432/backtest
    #   DB_POOL_MAX=20
    #   DB_STATEMENT_TIMEOUT_MS=30000
@@ -316,7 +316,7 @@ NODE_ENV=production node --import tsx packages/backend/src/app.ts
 
 8. **验证部署**
 ```powershell
-curl http://localhost:5001/api/health
+curl http://localhost:15001/api/health
 # 预期：{ success: true, data: { status: "ok", engine: { go: true } } }
 ````
 
@@ -355,7 +355,7 @@ Go 引擎是唯一的计算引擎（ADR-031），不可用时计算端点返回 
 
 ```powershell
 # 验证 fail-closed 状态
-curl http://localhost:5001/api/health
+curl http://localhost:15001/api/health
 # 预期：{ status: "degraded", engine: { go: false } }
 ```
 
@@ -379,10 +379,10 @@ Remove-Item packages/backend/data/cache/stats_cache.json -ErrorAction SilentlyCo
 | 变量                      | 默认值                  | 说明                                                                             |
 | ------------------------- | ----------------------- | -------------------------------------------------------------------------------- |
 | `NODE_ENV`                | `development`           | 运行环境                                                                         |
-| `API_PORT`                | `5001`                  | 后端 API 端口                                                                    |
-| `GO_ENGINE_URL`           | `http://127.0.0.1:5004` | Go 引擎地址（替代已退役的 Rust/Node 引擎）                                       |
+| `API_PORT`                | `15001`                 | 后端 API 端口                                                                    |
+| `GO_ENGINE_URL`           | `http://127.0.0.1:15004` | Go 引擎地址（替代已退役的 Rust/Node 引擎）                                       |
 | `GO_ENGINE_TIMEOUT_MS`    | `5000`                  | Go 引擎调用超时（ms）                                                            |
-| `GO_DATA_SERVICE_URL`     | `http://127.0.0.1:5003` | Go 数据服务地址                                                                  |
+| `GO_DATA_SERVICE_URL`     | `http://127.0.0.1:15003` | Go 数据服务地址                                                                  |
 | `CORS_ORIGINS`            | `*`（允许所有）         | CORS 白名单（逗号分隔）                                                          |
 | `DATABASE_URL`            | `""`                    | PostgreSQL 连接字符串（如 `postgresql://backtest:pass@localhost:5432/backtest`） |
 | `DB_POOL_MAX`             | `20`                    | 连接池最大连接数                                                                 |

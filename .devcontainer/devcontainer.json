@@ -9,14 +9,14 @@
     "ghcr.io/devcontainers/features/python:1": { "version": "3.11" },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
   },
-  "forwardPorts": [5176, 5001, 5002, 5003, 5432, 6379],
+  "forwardPorts": [15173, 15001, 15004, 15003, 15442, 16381],
   "portsAttributes": {
-    "5176": { "label": "Frontend (Vite)" },
-    "5001": { "label": "API (Express)" },
-    "5002": { "label": "Engine (Go/Rust)" },
-    "5003": { "label": "Data service (Go)" },
-    "5432": { "label": "PostgreSQL" },
-    "6379": { "label": "Redis" }
+    "15173": { "label": "Frontend (Vite)" },
+    "15001": { "label": "API (Express)" },
+    "15004": { "label": "Go engine" },
+    "15003": { "label": "Data service (Go)" },
+    "15442": { "label": "PostgreSQL" },
+    "16381": { "label": "Redis" }
   },
   "postCreateCommand": "npm install",
   "customizations": {

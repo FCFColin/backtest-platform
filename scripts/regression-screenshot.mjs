@@ -1,7 +1,7 @@
 import { firefox } from '@playwright/test';
 import fs from 'fs';
 
-const BASE_URL = 'http://localhost:5176';
+const BASE_URL = 'http://localhost:15173';
 const PAGES = [
   { path: '/', name: 'backtest' },
   { path: '/analysis', name: 'analysis' },

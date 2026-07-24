@@ -4,7 +4,7 @@
 
 ```powershell
 npm install          # Install dependencies
-npm run dev          # Start frontend (5173) + backend API (5001)
+npm run dev          # Start frontend (15173) + backend API (15001)
 npm run check        # TypeScript type check (tsc --noEmit)
 npm run lint         # ESLint
 npm run test         # Vitest (all tests)

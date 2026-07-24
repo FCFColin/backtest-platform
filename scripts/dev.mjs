@@ -49,10 +49,10 @@ const LOG_DIR = path.resolve('.dev-logs');
 
 const DATA_FETCHER_HEALTH_URL = process.env.GO_DATA_SERVICE_URL
   ? `${process.env.GO_DATA_SERVICE_URL.replace(/\/$/, '')}/api/data/health`
-  : 'http://127.0.0.1:5003/api/data/health';
+  : 'http://127.0.0.1:15003/api/data/health';
 const ENGINE_HEALTH_URL = process.env.GO_ENGINE_URL
   ? `${process.env.GO_ENGINE_URL.replace(/\/$/, '')}/api/engine/health`
-  : 'http://127.0.0.1:5004/api/engine/health';
+  : 'http://127.0.0.1:15004/api/engine/health';
 
 /** 找空闲端口 */
 function findFreePort(preferred) {
@@ -154,7 +154,7 @@ async function ensureEngineGo() {
     console.log('[dev] Go 引擎已就绪');
     return;
   }
-  console.log('[dev] 启动 Go 计算引擎 (engine-go:5004)…');
+  console.log('[dev] 启动 Go 计算引擎 (engine-go:15004)…');
   try {
     execSync(`${composeCmd} compose -p backtest up -d engine-go`, {
       stdio: 'inherit',
@@ -164,7 +164,7 @@ async function ensureEngineGo() {
     });
   } catch (err) {
     console.warn('[dev] docker compose up engine-go 失败:', err.message);
-    spawnLocalService('engine-go', ['./cmd/server'], 'engine-go:5004');
+    spawnLocalService('engine-go', ['./cmd/server'], 'engine-go:15004');
   }
   if (await waitServiceHealthy(ENGINE_HEALTH_URL, 30_000)) {
     console.log('[dev] Go 引擎已就绪');
@@ -180,7 +180,7 @@ function ensureDataFetcher() {
       console.log('[dev] Go 数据服务已就绪');
       return;
     }
-    console.log('[dev] 后台启动 Go 数据服务 (data-fetcher:5003)…');
+    console.log('[dev] 后台启动 Go 数据服务 (data-fetcher:15003)…');
     const child = spawn(composeCmd, ['compose', '-p', 'backtest', 'up', '-d', 'data-fetcher'], {
       stdio: 'inherit',
       env,
@@ -190,7 +190,7 @@ function ensureDataFetcher() {
     child.unref();
     child.on('error', (err) => {
       console.warn('[dev] docker compose up data-fetcher 失败:', err.message);
-      spawnLocalService('data-fetcher', ['.'], 'data-fetcher:5003');
+      spawnLocalService('data-fetcher', ['.'], 'data-fetcher:15003');
     });
   });
 }
@@ -215,7 +215,7 @@ if (!existsSync('dist/index.html')) {
 }
 
 // 5. 找空闲端口
-const preferredPort = parseInt(process.env.API_PORT || process.env.PORT || '5001', 10);
+const preferredPort = parseInt(process.env.API_PORT || process.env.PORT || '15001', 10);
 const port = await findFreePort(preferredPort);
 const portSuffix = port !== preferredPort ? `（${preferredPort} 已被占，改用 ${port}）` : '';
 

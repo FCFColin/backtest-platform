@@ -79,9 +79,9 @@ docker compose down
 | ------------ | ----------------------- | ---- |
 | postgres     | `backtest-postgres`     | 5432 |
 | redis        | `backtest-redis`        | 6379 |
-| engine-go    | `backtest-engine-go`    | 5004 |
-| api          | `backtest-api`          | 5001 |
-| data-fetcher | `backtest-data-fetcher` | 5003 |
+| engine-go    | `backtest-engine-go`    | 15004 |
+| api          | `backtest-api`          | 15001 |
+| data-fetcher | `backtest-data-fetcher` | 15003 |
 | frontend     | `backtest-frontend`     | 80   |
 
 ## 4. 运行 Docker 依赖测试
@@ -96,14 +96,14 @@ npm run test:docker
 
 ### 4.2 单独跑 chaos
 
-chaos 测试需要完整应用栈运行(API 在 `http://127.0.0.1:5001` 可达):
+chaos 测试需要完整应用栈运行(API 在 `http://127.0.0.1:15001` 可达):
 
 ```powershell
 # 先启动应用栈
 docker compose up -d postgres redis engine-go api
 
 # 等待 API 就绪
-npx wait-on http://127.0.0.1:5001/api/health --timeout 120000
+npx wait-on http://127.0.0.1:15001/api/health --timeout 120000
 
 # 跑 chaos(5 个 experiment 全部执行,不再 7 skip)
 npm run test:chaos
@@ -153,7 +153,7 @@ WSL2 集成未生效。打开 Docker Desktop → Settings → Resources → WSL 
 docker info
 docker inspect -f '{{.State.Running}}' backtest-postgres
 docker inspect -f '{{.State.Running}}' backtest-api
-curl http://127.0.0.1:5001/api/health
+curl http://127.0.0.1:15001/api/health
 ```
 
 四项全部正常才会执行 chaos experiment。

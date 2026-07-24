@@ -12,7 +12,7 @@ flowchart TB
         UI["浏览器<br/>React SPA"]
     end
 
-    subgraph APILayer["API 层 (端口 5001)"]
+    subgraph APILayer["API 层 (端口 15001)"]
         APP["Express App<br/>packages/backend/src/app.ts"]
         ROUTES["路由层<br/>packages/backend/src/routes/"]
         APP_LAYER["应用层<br/>packages/backend/src/application/<br/>(billing/org/auth 子目录)"]
@@ -121,10 +121,10 @@ flowchart TB
 
 | 服务              | 端口            | 配置位置                                                                   |
 | ----------------- | --------------- | -------------------------------------------------------------------------- |
-| 前端 Vite         | 5176            | vite.config.ts                                                             |
-| 后端 API          | 5001            | `PORT` 环境变量 / server.ts                                                |
-| Go 引擎           | 5004            | engine-go/ (环境变量)                                                      |
-| Go 数据服务       | 5003            | data-service/ (环境变量)                                                   |
+| 前端 Vite         | 15173           | vite.config.ts                                                             |
+| 后端 API          | 15001           | `PORT` 环境变量 / server.ts                                                |
+| Go 引擎           | 15004           | engine-go/ (环境变量)                                                      |
+| Go 数据服务       | 15003           | data-service/ (环境变量)                                                   |
 | PostgreSQL (主)   | 5432            | DATABASE_URL 环境变量                                                      |
 | PostgreSQL 读副本 | 5432            | _需重新设计_（原 k8s/postgres-replica.yaml 已删除，PG16 流复制语法待重写） |
 | PgBouncer         | 5432            | k8s/pgbouncer.yaml                                                         |

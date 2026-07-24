@@ -53,7 +53,7 @@ callEngineStrict(endpoint, body)
 | `EngineUnavailableError` / `callEngineStrict` | `packages/backend/src/utils/engineClient.ts`                                    |
 | 503 + Retry-After 翻译                        | `packages/backend/src/routes/backtestRoutes.ts`（`handleEngineUnavailable`）    |
 | problem 响应附加头                            | `packages/backend/src/utils/errors.ts`（`sendProblem` 的 `headers` 参数）       |
-| 引擎地址                                      | `packages/backend/src/config/index.ts`（`GO_ENGINE_URL` 默认 `127.0.0.1:5004`） |
+| 引擎地址                                      | `packages/backend/src/config/index.ts`（`GO_ENGINE_URL` 默认 `127.0.0.1:15004`） |
 
 `callRustWithFallback` / `unwrapFallbackResult` 已删除（迁移期向后兼容保留已不再需要）。
 

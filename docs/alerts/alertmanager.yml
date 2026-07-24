@@ -1,0 +1,74 @@
+# Alertmanager 配置 — 告警路由与通知（ADR-015 可观测性）
+#
+# 告警分级路由：
+#   critical  → PagerDuty + Slack #oncall-alerts（立即通知 oncall）
+#   warning   → Slack #alerts-async（异步通知，不 PagerDuty）
+#   info      → Slack #alerts-async（仅记录）
+#
+# 企业理由：告警需分级触达——critical 级别需立即人工响应（如引擎全挂、Redis 不可用），
+# warning 级别可异步跟进（如连接池等待、事件循环延迟）。避免告警疲劳。
+# 参考：https://prometheus.io/docs/alerting/latest/configuration/
+
+global:
+  resolve_timeout: 5m
+
+# 告警抑制规则：当 critical 父告警触发时，抑制同范围子告警
+inhibit_rules:
+  # 引擎不可用时，抑制降级率告警（降级是引擎不可用的必然结果）
+  - source_matchers:
+      - alertname = "EngineUnavailable"
+    target_matchers:
+      - alertname = "DegradedResponseRateHigh"
+    equal: ["endpoint"]
+
+  # Redis 不可用时，抑制会话相关告警
+  - source_matchers:
+      - alertname = "RedisDown"
+    target_matchers:
+      - severity = "warning"
+    equal: ["instance"]
+
+# 路由树：按 severity 分发到不同 receiver
+route:
+  group_by: ["alertname", "severity", "endpoint"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: "slack-async"
+
+  routes:
+    # critical 告警 → PagerDuty + Slack（立即触达 oncall）
+    - matchers:
+        - severity = "critical"
+      receiver: "critical-oncall"
+      continue: false
+
+    # warning 告警 → Slack 异步通知
+    - matchers:
+        - severity = "warning"
+      receiver: "slack-async"
+      continue: false
+
+# 接收器定义
+receivers:
+  # critical 级别：PagerDuty + Slack #oncall-alerts
+  - name: "critical-oncall"
+    pagerduty_configs:
+      - routing_key: "${PAGERDUTY_ROUTING_KEY}"
+        description: "{{ .CommonLabels.alertname }}: {{ .CommonAnnotations.summary }}"
+        severity: critical
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#oncall-alerts"
+        send_resolved: true
+        title: "[CRITICAL] {{ .CommonLabels.alertname }}"
+        text: "{{ .CommonAnnotations.description }}"
+
+  # warning 级别：Slack #alerts-async
+  - name: "slack-async"
+    slack_configs:
+      - api_url: "${SLACK_WEBHOOK_URL}"
+        channel: "#alerts-async"
+        send_resolved: true
+        title: "[{{ .CommonLabels.severity | upper }}] {{ .CommonLabels.alertname }}"
+        text: "{{ .CommonAnnotations.description }}"

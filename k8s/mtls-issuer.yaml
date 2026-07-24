@@ -1,0 +1,65 @@
+# Service-to-Service mTLS 配置（cert-manager + Istio PeerAuthentication）
+#
+# 企业理由：微服务间通信需 mTLS 防止内部网络窃听与伪造（零信任架构）。
+# cert-manager 自动签发与轮换证书，Istio STRICT 模式强制全量 mTLS。
+#
+# 依赖：cert-manager（CA 签发）+ Istio（Sidecar 自动 mTLS）
+# 轮换：cert-manager 自动续期（默认 90 天有效期，到期前 30 天续期）
+
+---
+# Self-signed CA Issuer（集群内部信任根）
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: backtest-ca-issuer
+  namespace: cert-manager
+spec:
+  selfSigned: {}
+---
+# Cluster CA Certificate（集群级信任根，所有服务共用）
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: backtest-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: backtest-ca
+  secretName: backtest-ca-tls
+  duration: 87600h # 10 年
+  renewBefore: 720h # 提前 30 天续期
+  issuerRef:
+    name: backtest-ca-issuer
+    kind: Issuer
+---
+# Cluster Issuer（基于 CA 证书，用于签发服务证书）
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: backtest-cluster-issuer
+spec:
+  ca:
+    secretName: backtest-ca-tls
+---
+# Istio PeerAuthentication：全网格 STRICT mTLS
+# STRICT 模式：所有服务间通信必须使用 mTLS，明文请求被拒绝
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: backtest
+spec:
+  mtls:
+    mode: STRICT
+---
+# Istio DestinationRule：强制服务端验证 + mTLS
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: enable-mtls
+  namespace: backtest
+spec:
+  host: "*.backtest.svc.cluster.local"
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL

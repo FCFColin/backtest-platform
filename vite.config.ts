@@ -115,13 +115,13 @@ export default defineConfig(({ command }) => ({
   },
   server: {
     host: true,
-    port: parseInt(process.env.VITE_PORT || '5176', 10),
+    port: parseInt(process.env.VITE_PORT || '15173', 10),
     watch: {
       ignored: ['**/coverage/**', '**/dist/**'],
     },
     proxy: {
       '/api': {
-        target: `http://localhost:${process.env.API_PORT || '5001'}`,
+        target: `http://localhost:${process.env.API_PORT || '15001'}`,
         changeOrigin: true,
         secure: false,
         configure: (proxy, _options) => {

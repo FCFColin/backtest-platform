@@ -27,10 +27,10 @@
 
 | 服务        | 语言       | 目录                     | 端口 | 职责                                 |
 | ----------- | ---------- | ------------------------ | ---- | ------------------------------------ |
-| 前端 Web    | React/TS   | `packages/frontend/src/` | 5173 | UI 渲染、用户交互                    |
-| 后端 API    | Express/TS | `packages/backend/src/`  | 5001 | 路由编排、鉴权、降级调度             |
-| Go 计算引擎 | Go         | `engine-go/`             | 5004 | 主计算引擎（回测/MC/优化/前沿/分析） |
-| Go 数据服务 | Go         | `data-fetcher/`          | 5003 | 主数据服务                           |
+| 前端 Web    | React/TS   | `packages/frontend/src/` | 15173 | UI 渲染、用户交互                    |
+| 后端 API    | Express/TS | `packages/backend/src/`  | 15001 | 路由编排、鉴权、降级调度             |
+| Go 计算引擎 | Go         | `engine-go/`             | 15004 | 主计算引擎（回测/MC/优化/前沿/分析） |
+| Go 数据服务 | Go         | `data-fetcher/`          | 15003 | 主数据服务                           |
 
 > **降级策略（ADR-031，fail-closed）**：正确性关键计算（组合回测、蒙特卡洛、优化、有效前沿、单资产分析）在 Go 引擎不可用时**不再静默降级**返回 Node 计算的、与主引擎不一致的数字；同步请求返回 `503 + Retry-After`，异步任务入队重试。
 >
@@ -70,10 +70,10 @@ pnpm dev
 该命令会：
 
 - 自动 `docker compose up -d engine-go` 并等待 Go 引擎就绪（唯一回测引擎）
-- 预构建前端并由 API 托管 `dist/`（http://localhost:5001，首屏秒开，与生产一致）
+- 预构建前端并由 API 托管 `dist/`（http://localhost:15001，首屏秒开，与生产一致）
 - 后台增量 `vite build --watch` + 预热常用标的到 PostgreSQL
 
-前端热更新（首访较慢）：`pnpm dev:hmr`（Vite 5173 + API 5001）
+前端热更新（首访较慢）：`pnpm dev:hmr`（Vite 15173 + API 15001）
 
 完整依赖栈（PostgreSQL/Redis 等）：`make up` 后再 `pnpm dev`
 
@@ -84,7 +84,7 @@ cd engine-go
 go run ./cmd/server
 ```
 
-监听 http://127.0.0.1:5004。**不启动时正确性关键计算将返回 `503 + Retry-After`**（fail-closed，ADR-031），而非返回降级的近似结果。
+监听 http://127.0.0.1:15004。**不启动时正确性关键计算将返回 `503 + Retry-After`**（fail-closed，ADR-031），而非返回降级的近似结果。
 
 ### 4. 启动 Go 数据服务（推荐）
 
@@ -93,7 +93,7 @@ cd data-fetcher
 go run main.go
 ```
 
-监听 http://127.0.0.1:5003。提供缺失标的实时拉取，数据持久化于 PostgreSQL。
+监听 http://127.0.0.1:15003。提供缺失标的实时拉取，数据持久化于 PostgreSQL。
 
 ## 目录结构
 
@@ -149,14 +149,14 @@ pnpm test:e2e     # 仅 E2E 测试
 
 | 变量                                           | 默认值                  | 说明                                                    |
 | ---------------------------------------------- | ----------------------- | ------------------------------------------------------- |
-| `PORT`                                         | 5001                    | 后端 API 端口                                           |
-| `GO_ENGINE_URL`                                | `http://127.0.0.1:5004` | Go 计算引擎地址（唯一引擎）                             |
+| `PORT`                                         | 15001                   | 后端 API 端口                                           |
+| `GO_ENGINE_URL`                                | `http://127.0.0.1:15004` | Go 计算引擎地址（唯一引擎）                             |
 | `ENGINE_TIMEOUT_MS`                            | `5000`                  | 引擎调用超时（毫秒，兼容旧名 `RUST_ENGINE_TIMEOUT_MS`） |
-| `GO_DATA_SERVICE_URL`                          | `http://127.0.0.1:5003` | Go 数据服务地址                                         |
+| `GO_DATA_SERVICE_URL`                          | `http://127.0.0.1:15003` | Go 数据服务地址                                         |
 | `DATABASE_URL`                                 | -                       | PostgreSQL 连接串                                       |
 | `REDIS_URL`                                    | -                       | Redis 连接串（会话/限流/队列）                          |
 | `NODE_ENV`                                     | -                       | 环境（development 显示错误详情）                        |
-| `APP_BASE_URL`                                 | `http://localhost:5173` | 验证/邀请/计费跳转链接基址（ADR-035/036）               |
+| `APP_BASE_URL`                                 | `http://localhost:15173` | 验证/邀请/计费跳转链接基址（ADR-035/036）               |
 | `EMAIL_TRANSPORT`                              | `console`               | 邮件传输：`console`（开发打日志）/`smtp`（ADR-035）     |
 | `EMAIL_SMTP_*`                                 | -                       | SMTP 主机/端口/账号（`EMAIL_TRANSPORT=smtp` 时必填）    |
 | `STRIPE_SECRET_KEY`                            | -                       | Stripe 密钥（留空则计费端点返回 503，ADR-036）          |

@@ -7,7 +7,7 @@ async function capture() {
 
   try {
     // Local light mode
-    await page.goto('http://localhost:5176/', { waitUntil: 'networkidle' });
+    await page.goto('http://localhost:15173/', { waitUntil: 'networkidle' });
     await setTimeout(5000);
     await page.screenshot({ path: 'd:/Project/回测平台/.trae/specs/local-v3-light-v2.png', fullPage: true });
     console.log('Light screenshot saved');

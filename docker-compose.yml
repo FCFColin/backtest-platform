@@ -64,7 +64,7 @@ services:
       dockerfile: engine-go/Dockerfile
     container_name: backtest-engine-go
     ports:
-      - '127.0.0.1:5004:5004'
+      - '127.0.0.1:15004:5004'
     environment:
       ENGINE_GO_PORT: '5004'
       GIN_MODE: release
@@ -88,7 +88,7 @@ services:
       dockerfile: Dockerfile.backend
     container_name: backtest-api
     ports:
-      - '127.0.0.1:5001:5001'
+      - '127.0.0.1:15001:5001'
     environment:
       NODE_ENV: production
       API_PORT: '5001'
@@ -140,7 +140,7 @@ services:
       dockerfile: data-fetcher/Dockerfile
     container_name: backtest-data-fetcher
     ports:
-      - '127.0.0.1:5003:5003'
+      - '127.0.0.1:15003:5003'
     environment:
       DATA_FETCHER_PORT: '5003'
       GIN_MODE: release
