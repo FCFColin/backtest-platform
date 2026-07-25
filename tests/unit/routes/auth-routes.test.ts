@@ -27,7 +27,14 @@ const mocks = vi.hoisted(() => ({
   config: {} as Record<string, unknown>,
   jwtAuth: {} as Record<string, unknown>,
   userService: {} as Record<string, unknown>,
-  loginLockout: {} as Record<string, unknown>,
+  loginLockout: {
+    isLockedOut: vi.fn().mockResolvedValue(0),
+    recordFailure: vi.fn().mockResolvedValue(undefined),
+    clearFailures: vi.fn().mockResolvedValue(undefined),
+    isIpBlocked: vi.fn().mockResolvedValue(0),
+    recordIpFailure: vi.fn().mockResolvedValue(undefined),
+    checkLoginRestriction: vi.fn().mockResolvedValue({ allowed: true }),
+  } as Record<string, unknown>,
   membershipService: {} as Record<string, unknown>,
   registration: {
     getUserByEmail: vi.fn(),
@@ -137,7 +144,6 @@ describe('authRoutes - 登录与会话端点', () => {
     vi.clearAllMocks();
     passthroughJwtAuth();
     (mocks.config as Record<string, unknown>).NODE_ENV = 'production';
-    (mocks.config as Record<string, unknown>).ADMIN_API_KEY = 'test-secret-key-123';
     (mocks.jwtAuth.generateToken as ReturnType<typeof vi.fn>).mockResolvedValue('access-token-mock');
     (mocks.jwtAuth.generateRefreshToken as ReturnType<typeof vi.fn>).mockResolvedValue('refresh-token-mock');
     server = await startExpressApp((app) => app.use('/api/v1/auth', authRoutes));

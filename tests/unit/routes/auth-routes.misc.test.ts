@@ -26,7 +26,6 @@ import type { Request, Response, NextFunction } from 'express';
 const mocks = vi.hoisted(() => ({
   config: {
     NODE_ENV: 'production' as string,
-    ADMIN_API_KEY: 'test-secret-key-123' as string,
     JWT_SECRET: 'test-jwt-secret',
     JWT_ALGORITHM: 'HS256',
     JWT_ACCESS_TTL: 900,
@@ -54,6 +53,9 @@ const mocks = vi.hoisted(() => ({
     isLockedOut: vi.fn().mockResolvedValue(0),
     recordFailure: vi.fn().mockResolvedValue(undefined),
     clearFailures: vi.fn().mockResolvedValue(undefined),
+    isIpBlocked: vi.fn().mockResolvedValue(0),
+    recordIpFailure: vi.fn().mockResolvedValue(undefined),
+    checkLoginRestriction: vi.fn().mockResolvedValue({ allowed: true }),
   },
   membershipService: {
     resolveDefaultOrg: vi.fn().mockResolvedValue(null),
@@ -107,7 +109,6 @@ describe('authRoutes - 会话与组织端点', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.config.NODE_ENV = 'production';
-    mocks.config.ADMIN_API_KEY = 'test-secret-key-123';
     mocks.jwtAuth.generateToken.mockResolvedValue('access-token-mock');
     mocks.jwtAuth.generateRefreshToken.mockResolvedValue('refresh-token-mock');
     server = await startExpressApp((app) => app.use('/api/v1/auth', authRoutes));
