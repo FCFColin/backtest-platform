@@ -1,5 +1,22 @@
+/**
+ * 市场数据查询模块（价格 / Ticker 搜索）。
+ *
+ * RLS 说明（P0-03 审计结论）：本模块查询的 prices / tickers 表为全局共享市场数据，
+ * 不含 tenant_id 列，不启用 RLS。所有租户共享同一份行情数据，无需租户隔离。
+ * 直连 getReadPool() 是正确设计——不适用 withTenantReadOnly()。
+ *
+ * P0-03：HTTP 响应体大小限制——Go 数据服务返回的行情数据可能很大（全量历史价格），
+ * 无限制地累加响应体会导致内存溢出（OOM）。通过 MAX_RESPONSE_BODY_SIZE 环境变量
+ * 配置上限（默认 50MB），超限时销毁请求并拒绝。
+ */
 import http from 'http';
 import CircuitBreaker from 'opossum';
+
+/** HTTP 响应体最大字节数（默认 50MB），可通过 MAX_RESPONSE_BODY_SIZE 环境变量配置。 */
+const MAX_RESPONSE_BODY_SIZE = parseInt(
+  process.env.MAX_RESPONSE_BODY_SIZE || String(50 * 1024 * 1024),
+  10,
+);
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/dateUtils.js';
 import { config } from '../config/index.js';
@@ -8,10 +25,11 @@ import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../util
 import { isValidTicker } from '../utils/tickerValidation.js';
 import {
   writeCache,
-  incrementCacheVersion,
   setPriceCache,
   getCacheKey,
   readCache,
+  HISTORY_CACHE_TTL_SEC,
+  SEARCH_CACHE_TTL_SEC,
 } from './dataCache.js';
 
 interface TickerSearchResult {
@@ -112,8 +130,32 @@ async function callGoDataService(path: string): Promise<string> {
           },
         },
         (res) => {
+          // P0-03：Content-Length 预检——如果响应头声明的大小已超限，直接拒绝不等数据到达
+          const contentLength = parseInt(res.headers['content-length'] || '', 10);
+          if (!Number.isNaN(contentLength) && contentLength > MAX_RESPONSE_BODY_SIZE) {
+            res.destroy();
+            reject(
+              new Error(
+                `Go data service response too large: Content-Length ${contentLength} exceeds limit ${MAX_RESPONSE_BODY_SIZE}`,
+              ),
+            );
+            return;
+          }
+
           let body = '';
+          let receivedBytes = 0;
           res.on('data', (chunk: Buffer) => {
+            // P0-03：累加已接收字节数，超限则销毁响应流并拒绝
+            receivedBytes += chunk.length;
+            if (receivedBytes > MAX_RESPONSE_BODY_SIZE) {
+              res.destroy();
+              reject(
+                new Error(
+                  `Go data service response too large: received ${receivedBytes} bytes exceeds limit ${MAX_RESPONSE_BODY_SIZE}`,
+                ),
+              );
+              return;
+            }
             body += chunk.toString();
           });
           res.on('end', () => {
@@ -294,8 +336,7 @@ async function fetchMissingFromGoService(
     }
 
     if (Object.keys(goResult).length > 0) {
-      await writeCache(cacheKey, goResult);
-      await incrementCacheVersion();
+      await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
     }
   } catch (err) {
     logger.warn(`[dataService] Go data service failed: ${(err as Error).message}`);
@@ -454,8 +495,7 @@ export async function searchTickers(query: string, market?: string): Promise<Tic
         name: r.name,
         market: r.market,
       }));
-      await writeCache(cacheKey, data);
-      await incrementCacheVersion();
+      await writeCache(cacheKey, data, SEARCH_CACHE_TTL_SEC);
       return data;
     }
     return [];
@@ -464,6 +504,63 @@ export async function searchTickers(query: string, market?: string): Promise<Tic
       `Go data service search failed, returning empty results: ${(err as Error).message}`,
     );
     return [];
+  }
+}
+
+/**
+ * 从 prices_monthly CAGG 查询月线收盘价（P1-01 T7）。
+ *
+ * TimescaleDB Continuous Aggregate 预计算月线 OHLCV，查询走物化视图
+ * 而非原始 prices hypertable，利用 chunk 级分区裁剪获得 10-100x 性能提升。
+ * 适用于月度统计、年化收益计算等无需日度精度的场景。
+ *
+ * @param validTickers - 已验证的 ticker 列表
+ * @param startDate - 起始月份（YYYY-MM-DD，自动截断到月初）
+ * @param endDate - 结束月份（YYYY-MM-DD，自动截断到月初）
+ * @returns 月线收盘价 map：{ ticker: { 'YYYY-MM-01': close } }
+ */
+export async function queryMonthlyPricesFromDb(
+  validTickers: string[],
+  startDate: string,
+  endDate: string,
+): Promise<Record<string, Record<string, number>>> {
+  if (!isDbAvailable() || validTickers.length === 0) {
+    return {};
+  }
+
+  try {
+    // 查询 prices_monthly CAGG，month 列为 date_trunc('month', date) 的结果
+    const sql =
+      'SELECT ticker, month, close FROM prices_monthly WHERE ticker = ANY($1) AND month >= $2 AND month <= $3 ORDER BY month';
+    const { rows } = await pgCircuitBreaker.fire(sql, [
+      validTickers,
+      startDate,
+      endDate,
+    ]);
+
+    const grouped: Record<string, Record<string, number>> = {};
+    for (const row of rows as Array<{ ticker: string; month: Date | string; close: number }>) {
+      if (!grouped[row.ticker]) grouped[row.ticker] = {};
+      grouped[row.ticker][toDateStr(row.month)] = row.close;
+    }
+    return grouped;
+  } catch (err) {
+    logger.warn(
+      `[dataQuery] prices_monthly CAGG query failed, falling back to daily query: ${(err as Error).message}`,
+    );
+    // CAGG 不可用时降级为日度查询取月末值
+    const dailyResult = await queryPricesFromDb(validTickers, startDate, endDate, false);
+    const monthlyResult: Record<string, Record<string, number>> = {};
+    for (const [ticker, dailyPrices] of Object.entries(dailyResult.result)) {
+      const monthMap: Record<string, number> = {};
+      const sortedDates = Object.keys(dailyPrices).sort();
+      for (const dateStr of sortedDates) {
+        const monthKey = dateStr.substring(0, 7) + '-01';
+        monthMap[monthKey] = dailyPrices[dateStr];
+      }
+      monthlyResult[ticker] = monthMap;
+    }
+    return monthlyResult;
   }
 }
 

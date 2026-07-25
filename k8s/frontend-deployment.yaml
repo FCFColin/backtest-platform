@@ -34,6 +34,7 @@ spec:
         app: frontend
         app.kubernetes.io/part-of: backtest-platform
     spec:
+      terminationGracePeriodSeconds: 35
       containers:
         - name: frontend
           image: backtest-platform/frontend

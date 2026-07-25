@@ -35,13 +35,28 @@ const coverageConfig = {
     'packages/backend/src/db/import.ts',
     'packages/backend/src/app.ts',
     'packages/backend/src/infrastructure/mailService.ts',
-    'packages/backend/src/application/billing/billingService.ts',
+    // ADR-042: merged/dead schema files (0% covered, excluded from global threshold)
+    'packages/backend/src/schemas/goalOptimizer.ts',
+    'packages/backend/src/schemas/letf.ts',
+    'packages/backend/src/schemas/pca.ts',
+    'packages/backend/src/schemas/tacticalGrid.ts',
+    'packages/backend/src/schemas/dataManage.ts',
   ],
   thresholds: {
+    // 全局门控：lines/functions/statements ≥80%, branches ≥70%
     lines: 80,
     functions: 80,
     branches: 70,
     statements: 80,
+    // 分层门控（P0-02）：仅约束 line 覆盖率，逐层加严。
+    // vitest 2.1+ 支持按 glob 配置分层阈值（thresholds 类型为
+    // `Thresholds | ({ [glob: string]: Pick<Thresholds, ...> } & Thresholds)`）。
+    // DDD 核心 domain 不允许低覆盖；middleware 承载认证/限流/幂等关键逻辑；
+    // application 为业务编排层；frontend store 为前端状态机。
+    'packages/backend/src/domain/**': { lines: 95 },
+    'packages/backend/src/middleware/**': { lines: 90 },
+    'packages/backend/src/application/**': { lines: 85 },
+    'packages/frontend/src/store/**': { lines: 80 },
   },
 };
 
@@ -57,12 +72,15 @@ export default defineWorkspace([
         'tests/unit/config/**/*.test.ts',
         'tests/unit/db/**/*.test.ts',
         'tests/unit/domain/**/*.test.ts',
+        'tests/unit/federation/**/*.test.ts',
+        'tests/unit/infrastructure/**/*.test.ts',
         'tests/unit/middleware/**/*.test.ts',
         'tests/unit/queues/**/*.test.ts',
+        'tests/unit/repositories/**/*.test.ts',
         'tests/unit/routes/**/*.test.ts',
         'tests/unit/schemas/**/*.test.ts',
         'tests/unit/services/**/*.test.ts',
-        'tests/unit/utils/{date-utils,engine-body-builder,engine-client,errors,http-client,integrity,log-sanitizer,logger,metrics,numeric-range,rate-limiter,request-context,ticker-validation}.test.ts',
+        'tests/unit/utils/{crypto,date-utils,engine-body-builder,engine-client,envelope-encryption,errors,http-client,integrity,log-sanitizer,logger,metrics,numeric-range,rate-limiter,rate-limiter-fail-closed,request-context,ticker-validation}.test.ts',
         'tests/integration/**/*.test.ts',
         'tests/contract/**/*.test.ts',
         'tests/fuzz/**/*.test.ts',
@@ -124,6 +142,7 @@ export default defineWorkspace([
         'tests/unit/store/**/*.test.{ts,tsx}',
         'tests/unit/hooks/**/*.test.{ts,tsx}',
         'tests/unit/components/**/*.test.{ts,tsx}',
+        'tests/unit/pages/**/*.test.{ts,tsx}',
         'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,ticker-presets,url-state}.test.ts',
       ],
       deps: {
@@ -168,6 +187,21 @@ export default defineWorkspace([
         '@': path.resolve(__dirname, './packages/frontend/src'),
         // react-router-dom 由测试 mock 覆盖，须置于裸包 alias 之后
         'react-router-dom': path.resolve(__dirname, 'tests/mocks/react-router-dom.tsx'),
+      },
+    },
+  },
+  // ── api-client：SDK 单元测试（Node 环境，mock global fetch）──
+  {
+    test: {
+      name: 'api-client',
+      globals: true,
+      include: ['packages/api-client/tests/**/*.test.ts'],
+      environment: 'node',
+    },
+    resolve: {
+      alias: {
+        '@backtest/shared/types': path.resolve(__dirname, 'packages/shared/types/index.ts'),
+        '@backtest/shared': path.resolve(__dirname, 'packages/shared/types/index.ts'),
       },
     },
   },

@@ -26,6 +26,7 @@ spec:
         app: data-fetcher
         app.kubernetes.io/part-of: backtest-platform
     spec:
+      terminationGracePeriodSeconds: 35
       containers:
         - name: data-fetcher
           image: backtest-platform/data-fetcher

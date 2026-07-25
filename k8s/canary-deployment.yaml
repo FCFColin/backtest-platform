@@ -14,7 +14,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-canary
-  namespace: backtest
+  namespace: backtest-platform
   labels:
     app: api
     track: canary
@@ -30,6 +30,7 @@ spec:
         app: api
         track: canary
     spec:
+      terminationGracePeriodSeconds: 35
       containers:
         - name: api
           image: registry.example.com/backtest-api:canary
@@ -65,7 +66,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: api-canary
-  namespace: backtest
+  namespace: backtest-platform
 spec:
   hosts:
     - api
@@ -98,7 +99,7 @@ apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
   name: api-canary
-  namespace: backtest
+  namespace: backtest-platform
 spec:
   host: api
   subsets:

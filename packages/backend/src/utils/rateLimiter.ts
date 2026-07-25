@@ -2,17 +2,64 @@
  * 速率限制配置
  *
  * 集中管理所有限流器定义与键生成函数，从 app.ts 拆分而来。
+ *
+ * P0-05：Redis 不可用时限流 fail-closed——生产环境多实例部署时，内存存储
+ * 会导致每实例独立计数，实际限流上限 = 配置值 × 实例数，等同无限流。
+ * 改为 Redis 不可用时返回 503，拒绝所有请求直到 Redis 恢复。
  */
 
 import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import crypto from 'crypto';
-import type { Request } from 'express';
+import client from 'prom-client';
+import type { Request, Response, NextFunction } from 'express';
 import { config } from '../config/index.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 
+// P0-05：Prometheus counter——Redis 不可用导致限流 fail-closed 的次数
+const rateLimiterRedisUnavailableCounter = new client.Counter({
+  name: 'rate_limiter_redis_unavailable_total',
+  help: 'Total times rate limiter fell back to deny-all due to Redis unavailability',
+});
+
+/** Redis 是否可用（启动时检测一次，运行时由 Redis 健康检查更新） */
+let redisAvailable = false;
+
+try {
+  // 尝试创建一个测试 RedisStore 来检测 Redis 连接是否可用
+  new RedisStore({
+    sendCommand: (...args: string[]) =>
+      (appRedis.call as (...a: string[]) => Promise<unknown>)(...args) as Promise<RedisReply>,
+    prefix: 'rl:health:',
+  });
+  redisAvailable = true;
+} catch {
+  logger.error('[rate-limit] Redis 不可用，所有限流器将 fail-closed (503)');
+  rateLimiterRedisUnavailableCounter.inc();
+}
+
+/**
+ * 更新 Redis 可用状态（供 Redis 健康检查回调调用）。
+ *
+ * @param available - Redis 是否可用
+ */
+export function updateRedisAvailability(available: boolean): void {
+  if (available !== redisAvailable) {
+    redisAvailable = available;
+    if (available) {
+      logger.info('[rate-limit] Redis 恢复可用，限流器恢复正常');
+    } else {
+      logger.warn('[rate-limit] Redis 不可用，限流器 fail-closed (503)');
+      rateLimiterRedisUnavailableCounter.inc();
+    }
+  }
+}
+
 function createRateLimiterStore(prefix: string): RedisStore | undefined {
+  if (!redisAvailable) {
+    return undefined;
+  }
   try {
     return new RedisStore({
       sendCommand: (...args: string[]) =>
@@ -20,7 +67,8 @@ function createRateLimiterStore(prefix: string): RedisStore | undefined {
       prefix,
     });
   } catch {
-    logger.warn(`[rate-limit] Redis Store 创建失败 (${prefix})，降级到内存存储`);
+    logger.warn(`[rate-limit] Redis Store 创建失败 (${prefix})，限流器 fail-closed`);
+    rateLimiterRedisUnavailableCounter.inc();
     return undefined;
   }
 }
@@ -70,7 +118,7 @@ function authRateLimitKey(req: Request): string {
 }
 
 /** 构建 RFC 7807 格式的限流错误响应体。 */
-function buildRateLimitMessage(code: string) {
+function buildRateLimitMessage(code: string, detail?: string) {
   return {
     success: false,
     error: {
@@ -78,6 +126,7 @@ function buildRateLimitMessage(code: string) {
       title: code,
       status: 429,
       code,
+      ...(detail ? { detail } : {}),
     },
   };
 }
@@ -87,12 +136,50 @@ interface LimiterOptions {
   max: number;
   storePrefix: string;
   code: string;
+  detail?: string;
   keyGenerator?: (req: Request) => string;
   passOnStoreError?: boolean;
 }
 
-/** 创建限流器，统一 standardHeaders/legacyHeaders/store 公共字段。 */
+/**
+ * 创建 deny-all 中间件：Redis 不可用时拒绝所有请求（P0-05 fail-closed）。
+ *
+ * 返回 503 SERVICE_UNAVAILABLE + RFC 7807 错误格式。
+ * adminLimiter 例外（passOnStoreError=true）：管理接口仍允许通过，便于运维排查。
+ */
+function createDenyAllLimiter(code: string, detail: string): ReturnType<typeof rateLimit> {
+  return (req: Request, res: Response, _next: NextFunction) => {
+    res.status(503).header('Content-Type', 'application/problem+json').json({
+      success: false,
+      error: {
+        type: 'https://backtest.platform/errors/service-unavailable',
+        title: code,
+        status: 503,
+        code: 'SERVICE_UNAVAILABLE',
+        detail: `Rate limiter unavailable: ${detail}. Redis is required for distributed rate limiting.`,
+        instance: req.path,
+      },
+    });
+  };
+}
+
+/**
+ * 创建限流器，统一 standardHeaders/legacyHeaders/store 公共字段。
+ *
+ * P0-05：Redis 不可用时（store=undefined 且 passOnStoreError=false），
+ * 返回 deny-all 中间件而非降级到内存存储。
+ */
 function createLimiter(opts: LimiterOptions): ReturnType<typeof rateLimit> {
+  const store = createRateLimiterStore(opts.storePrefix);
+
+  // P0-05：Redis 不可用且非 admin 路由 → fail-closed (503)
+  if (!store && !(opts.passOnStoreError ?? false)) {
+    logger.warn(
+      `[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`,
+    );
+    return createDenyAllLimiter(opts.code, opts.detail ?? 'Rate limiter unavailable');
+  }
+
   return rateLimit({
     windowMs: opts.windowMs,
     max: opts.max,
@@ -100,8 +187,8 @@ function createLimiter(opts: LimiterOptions): ReturnType<typeof rateLimit> {
     legacyHeaders: false,
     passOnStoreError: opts.passOnStoreError ?? false,
     keyGenerator: opts.keyGenerator,
-    store: createRateLimiterStore(opts.storePrefix),
-    message: buildRateLimitMessage(opts.code),
+    store,
+    message: buildRateLimitMessage(opts.code, opts.detail),
   });
 }
 

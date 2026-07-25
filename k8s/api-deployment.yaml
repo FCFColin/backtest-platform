@@ -33,6 +33,7 @@ spec:
         app: api
         app.kubernetes.io/part-of: backtest-platform
     spec:
+      terminationGracePeriodSeconds: 35
       containers:
         - name: api
           image: backtest-platform/api

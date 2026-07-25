@@ -11,7 +11,8 @@
  * - RS256 非对称密钥：私钥签名、公钥验证，支持密钥轮换与安全分发（HS256 共享密钥泄露面大）。
  *
  * 权衡：jose 增加依赖但符合 JOSE 规范且零原生依赖；保留 HS256 向后兼容路径；
- * Refresh Token 存储于 Redis（含内存回退）支持多实例与 Token Family 复用检测；
+ * Refresh Token 存储于 Redis（ADR-045：Redis 故障显式抛 503，不再降级内存），
+ * 支持多实例与 Token Family 复用检测；
  * 开发环境跳过认证便于本地调试，生产须确保不误配。
  *
  * 本文件聚焦 Express 中间件编排（jwtAuth / optionalJwtAuth / assignGuestReadonly / assignGuestAnalyst），
@@ -180,7 +181,7 @@ async function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunctio
 
 export function optionalJwtAuth(
   req: AuthenticatedRequest,
-  _res: Response,
+  res: Response,
   next: NextFunction,
 ): void {
   logger.info(
@@ -191,7 +192,8 @@ export function optionalJwtAuth(
   if (authHeader?.startsWith('Bearer ')) {
     handleOptionalBearer(req, next);
   } else {
-    handleOptionalApiKey(req, next);
+    // P0-04：handleOptionalApiKey 内部 try/catch 自处理错误，void 标注无未捕获 rejection
+    void handleOptionalApiKey(req, res, next);
   }
 }
 

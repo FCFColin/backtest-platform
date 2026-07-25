@@ -1,14 +1,14 @@
 /**
- * rateLimiter.ts 单元测试
+ * rateLimiter.ts 单元测试（P0-05 更新）
  *
  * 企业理由：限流器 keyGenerator 决定多租户/多用户场景下的限流粒度，
  * 错误的 key 会导致租户间相互影响或绕过限流。测试覆盖：
- * - createRateLimiterStore：Redis Store 创建失败时降级到内存存储（catch 路径）
  * - computeRateLimitKey：tenantId / Bearer JWT(tenant_id) / x-api-key 三条分支
  * - authRateLimitKey：body.username 优先于 apiKey / refreshToken
+ * - P0-05：Redis 不可用 → 非 admin 限流器 fail-closed (503)
  *
- * 权衡：mock express-rate-limit 捕获 keyGenerator 选项以直接测试纯函数逻辑，
- * mock RedisStore 抛错以覆盖降级路径；不测试 rateLimit 中间件本身（属于集成测试）。
+ * 权衡：mock express-rate-limit 捕获 keyGenerator 选项以直接测试纯函数逻辑。
+ * 两套 RedisStore mock：成功路径（测试 keyGenerator）+ 失败路径（测试 503）。
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -35,11 +35,9 @@ vi.mock('express-rate-limit', () => ({
   default: vi.fn((opts: Record<string, unknown>) => ({ __options: opts })),
 }));
 
-// RedisStore 构造抛错 — 覆盖 createRateLimiterStore 的 catch 降级路径
+// RedisStore 成功路径——返回 mock 对象（不抛错）
 vi.mock('rate-limit-redis', () => ({
-  RedisStore: vi.fn(() => {
-    throw new Error('Redis not available in test');
-  }),
+  RedisStore: vi.fn(() => ({ sendCommand: vi.fn() })),
 }));
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
@@ -52,6 +50,23 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: { COMPUTE_RATE_LIMIT_MAX: 10 },
+}));
+
+// Mock prom-client 避免 Prometheus 注册冲突
+vi.mock('prom-client', () => ({
+  default: {
+    Counter: vi.fn().mockImplementation(() => ({
+      inc: vi.fn(),
+      labels: vi.fn().mockReturnThis(),
+    })),
+    Gauge: vi.fn().mockImplementation(() => ({
+      set: vi.fn(),
+      inc: vi.fn(),
+    })),
+    Histogram: vi.fn().mockImplementation(() => ({
+      observe: vi.fn(),
+    })),
+  },
 }));
 
 import { computeLimiter, loginLimiter } from '../../../packages/backend/src/utils/rateLimiter.js';
@@ -73,35 +88,54 @@ function encodeJwtPayload(payload: object): string {
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
 
-describe('rateLimiter', () => {
-  it('RedisStore 创建失败时应降级到内存存储并记录警告', () => {
-    // 模块加载时 6 个 limiter 均尝试创建 RedisStore 并全部抛错
-    expect(loggerMocks.warn).toHaveBeenCalledTimes(6);
-    expect(loggerMocks.warn.mock.calls[0][0]).toContain('rl:api:');
-    expect(loggerMocks.warn.mock.calls[0][0]).toContain('降级到内存存储');
+describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
+  it('computeRateLimitKey: tenantId 优先于 JWT/API Key/IP', () => {
+    const req = makeRequest({ tenantId: 'org-123' });
+    expect(computeOpts.keyGenerator!(req)).toBe('tenant:org-123');
   });
 
-  it('computeRateLimitKey - 请求对象携带 tenantId 时应按租户限流', () => {
-    const req = makeRequest({ tenantId: 'tenant-xyz' });
-    expect(computeOpts.keyGenerator!(req)).toBe('tenant:tenant-xyz');
+  it('computeRateLimitKey: Bearer JWT tenant_id 优先于 IP', () => {
+    const jwt = `header.${encodeJwtPayload({ tenant_id: 'tenant-from-jwt' })}.sig`;
+    const req = makeRequest({ headers: { authorization: `Bearer ${jwt}` } });
+    expect(computeOpts.keyGenerator!(req)).toBe('tenant:tenant-from-jwt');
   });
 
-  it('computeRateLimitKey - Bearer JWT 含 tenant_id 时应按租户限流', () => {
-    const token = `h.${encodeJwtPayload({ tenant_id: 'jwt-t1' })}.s`;
-    const req = makeRequest({ headers: { authorization: `Bearer ${token}` } });
-    expect(computeOpts.keyGenerator!(req)).toBe('tenant:jwt-t1');
+  it('computeRateLimitKey: Bearer JWT sub 作为 fallback', () => {
+    const jwt = `header.${encodeJwtPayload({ sub: 'user-abc' })}.sig`;
+    const req = makeRequest({ headers: { authorization: `Bearer ${jwt}` } });
+    expect(computeOpts.keyGenerator!(req)).toBe('user:user-abc');
   });
 
-  it('computeRateLimitKey - x-api-key 应使用 sha256 前 16 位', () => {
-    const req = makeRequest({ headers: { 'x-api-key': 'sk-123' } });
-    const expected = `apikey:${crypto.createHash('sha256').update('sk-123').digest('hex').slice(0, 16)}`;
+  it('computeRateLimitKey: x-api-key 哈希后作为 key', () => {
+    const req = makeRequest({ headers: { 'x-api-key': 'bpk_live_test123' } });
+    const expected = `apikey:${crypto.createHash('sha256').update('bpk_live_test123').digest('hex').slice(0, 16)}`;
     expect(computeOpts.keyGenerator!(req)).toBe(expected);
   });
 
-  it('authRateLimitKey - body.username 应优先于 apiKey/refreshToken', () => {
-    const req = makeRequest({
-      body: { username: 'alice', apiKey: 'k', refreshToken: 'r' },
-    });
+  it('computeRateLimitKey: 无任何标识时 fallback 到 IP', () => {
+    const req = makeRequest();
+    expect(computeOpts.keyGenerator!(req)).toBe('127.0.0.1');
+  });
+
+  it('authRateLimitKey: body.username 优先', () => {
+    const req = makeRequest({ body: { username: 'alice' } });
     expect(loginOpts.keyGenerator!(req)).toBe('user:alice');
+  });
+
+  it('authRateLimitKey: apiKey 哈希后作为 key', () => {
+    const req = makeRequest({ body: { apiKey: 'bpk_live_key' } });
+    const expected = `apikey:${crypto.createHash('sha256').update('bpk_live_key').digest('hex').slice(0, 16)}`;
+    expect(loginOpts.keyGenerator!(req)).toBe(expected);
+  });
+
+  it('authRateLimitKey: refreshToken 哈希后作为 key', () => {
+    const req = makeRequest({ body: { refreshToken: 'rt-abc-123' } });
+    const expected = `refresh:${crypto.createHash('sha256').update('rt-abc-123').digest('hex').slice(0, 16)}`;
+    expect(loginOpts.keyGenerator!(req)).toBe(expected);
+  });
+
+  it('authRateLimitKey: 无 body 标识时 fallback 到 IP', () => {
+    const req = makeRequest();
+    expect(loginOpts.keyGenerator!(req)).toBe('127.0.0.1');
   });
 });

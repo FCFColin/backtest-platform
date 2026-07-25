@@ -1,29 +1,23 @@
 /**
- * API Key 兼容认证中间件单元测试（ADR-033）
+ * API Key 认证中间件单元测试（ADR-033 + P0-04）
  *
  * 企业理由：x-api-key 是 CLI/自动化脚本的主认证方式（按组织 DB 密钥），
- * 同时也是 ADMIN_API_KEY 破窗入口。本测试验证 resolveApiKeyUser 的两条路径：
- * 1. DB 密钥（verifyApiKey 服务）
- * 2. ADMIN_API_KEY 破窗（crypto.timingSafeEqual）
+ * 同时也是平台 break-glass 入口。P0-04 后两条路径统一走 DB（verifyApiKey）：
+ * 1. 按组织 DB 密钥（is_platform_admin=FALSE）——注入租户上下文
+ * 2. 平台 break-glass DB 密钥（is_platform_admin=TRUE）——注入 platform_admin 角色
  *
- * Mock 策略：mock config、logger、apiKeyService（verifyApiKey）、errors（sendProblem）、authTypes。
- * crypto/buffer 不 mock——通过控制输入验证 timingSafeEqual。
+ * Mock 策略：mock logger、apiKeyVerifier（verifyApiKey）、errors（sendProblem）、authTypes。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockMiddleware } from '../../helpers/expressMocks.js';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import type { AuthenticatedRequest } from '../../../packages/backend/src/middleware/authTypes.js';
 
 const mocks = vi.hoisted(() => ({
-  config: { ADMIN_API_KEY: '' },
   verifyApiKey: vi.fn(),
   sendProblem: vi.fn(),
   attachAuthLogContext: vi.fn(),
   hashUserId: vi.fn().mockReturnValue('hashed'),
-}));
-
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: mocks.config,
-  validateConfig: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
@@ -52,7 +46,6 @@ const KEY_ID = '22222222-2222-2222-2222-222222222222';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mocks.config.ADMIN_API_KEY = '';
   mocks.verifyApiKey.mockReset();
 });
 
@@ -97,8 +90,12 @@ describe('handleApiKeyAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('有效 DB API Key 应认证通过并设置 req.user', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce({ orgId: ORG_ID, keyId: KEY_ID });
+  it('有效 DB API Key 应认证通过并设置 req.user（租户密钥路径）', async () => {
+    mocks.verifyApiKey.mockResolvedValueOnce({
+      orgId: ORG_ID,
+      keyId: KEY_ID,
+      isPlatformAdmin: false,
+    });
     const { req, res, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_validkey123' },
     });
@@ -113,11 +110,14 @@ describe('handleApiKeyAuth', () => {
     expect(mocks.sendProblem).not.toHaveBeenCalled();
   });
 
-  it('DB 密钥无效且 ADMIN_API_KEY 匹配应通过认证（破窗路径）', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'break-glass-admin-key';
+  it('平台 break-glass 密钥应注入 platform_admin 角色（P0-04）', async () => {
+    mocks.verifyApiKey.mockResolvedValueOnce({
+      orgId: null,
+      keyId: KEY_ID,
+      isPlatformAdmin: true,
+    });
     const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'break-glass-admin-key' },
+      headers: { 'x-api-key': 'bpk_live_breakglasskey' },
     });
     handleApiKeyAuth(req, res, next);
     await flushPromises();
@@ -130,11 +130,10 @@ describe('handleApiKeyAuth', () => {
     expect(mocks.sendProblem).not.toHaveBeenCalled();
   });
 
-  it('DB 密钥无效且 ADMIN_API_KEY 不匹配应返回 401', async () => {
+  it('无效 API Key（verifyApiKey 返回 null）应返回 401', async () => {
     mocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'real-admin-key';
     const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'wrong-key' },
+      headers: { 'x-api-key': 'bpk_live_wrongkey' },
     });
     handleApiKeyAuth(req, res, next);
     await flushPromises();
@@ -143,18 +142,6 @@ describe('handleApiKeyAuth', () => {
       401,
       'INVALID_API_KEY',
     );
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  it('DB 密钥无效且 ADMIN_API_KEY 未配置应返回 401', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = '';
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'some-key' },
-    });
-    handleApiKeyAuth(req, res, next);
-    await flushPromises();
-    expect(mocks.sendProblem).toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -172,35 +159,26 @@ describe('handleApiKeyAuth', () => {
     );
     expect(next).not.toHaveBeenCalled();
   });
-
-  it('NODE_ENV 不影响 handleApiKeyAuth 行为（始终验证）', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'dev-key';
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'wrong-key' },
-    });
-    handleApiKeyAuth(req, res, next);
-    await flushPromises();
-    expect(mocks.sendProblem).toHaveBeenCalled();
-    expect(next).not.toHaveBeenCalled();
-  });
 });
 
 describe('handleOptionalApiKey', () => {
-  it('缺失 API Key 应设 req.user=null 并放行', () => {
-    const { req, next } = createMockMiddleware({ headers: {} });
-    handleOptionalApiKey(req, next);
+  it('缺失 API Key 应设 req.user=null 并放行', async () => {
+    const { req, res, next } = createMockMiddleware({ headers: {} });
+    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toBeNull();
   });
 
-  it('有效 DB API Key 应认证通过并放行', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce({ orgId: ORG_ID, keyId: KEY_ID });
-    const { req, next } = createMockMiddleware({
+  it('有效 DB API Key 应认证通过并放行（租户密钥路径）', async () => {
+    mocks.verifyApiKey.mockResolvedValueOnce({
+      orgId: ORG_ID,
+      keyId: KEY_ID,
+      isPlatformAdmin: false,
+    });
+    const { req, res, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_valid' },
     });
-    handleOptionalApiKey(req, next);
-    await flushPromises();
+    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toMatchObject({
       sub: `apikey:${KEY_ID}`,
@@ -208,14 +186,16 @@ describe('handleOptionalApiKey', () => {
     });
   });
 
-  it('有效 ADMIN_API_KEY 应认证通过并放行', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'optional-admin-key';
-    const { req, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'optional-admin-key' },
+  it('平台 break-glass 密钥应认证通过并放行（P0-04）', async () => {
+    mocks.verifyApiKey.mockResolvedValueOnce({
+      orgId: null,
+      keyId: KEY_ID,
+      isPlatformAdmin: true,
     });
-    handleOptionalApiKey(req, next);
-    await flushPromises();
+    const { req, res, next } = createMockMiddleware({
+      headers: { 'x-api-key': 'bpk_live_breakglass' },
+    });
+    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toMatchObject({
       sub: 'platform:break-glass',
@@ -225,24 +205,53 @@ describe('handleOptionalApiKey', () => {
 
   it('无效 API Key 应设 req.user=null 并放行（可选不阻断）', async () => {
     mocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = '';
-    const { req, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'invalid-key' },
+    const { req, res, next } = createMockMiddleware({
+      headers: { 'x-api-key': 'bpk_live_invalid' },
     });
-    handleOptionalApiKey(req, next);
-    await flushPromises();
+    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toBeNull();
   });
 
-  it('verifyApiKey 抛出异常应匿名放行', async () => {
-    mocks.verifyApiKey.mockRejectedValueOnce(new Error('error'));
-    const { req, next } = createMockMiddleware({
+  // P0-04：修复前 verifyApiKey 抛异常会 fire-and-forget 导致 unhandledRejection
+  // 修复后：resolveApiKeyUser 内部 catch 返回 null → handleOptionalApiKey 匿名放行
+  // （resolveApiKeyUser 自身有 try/catch，将 verifyApiKey 异常转为 null 返回）
+  it('verifyApiKey 抛出异常应匿名放行（resolveApiKeyUser 内部 catch）（P0-04）', async () => {
+    mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
+    const { req, res, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_key' },
     });
-    handleOptionalApiKey(req, next);
-    await flushPromises();
+    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
     expect(next).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalledWith(); // 无参数=匿名放行
     expect(req.user).toBeNull();
+  });
+
+  // P0-04：超时保护——resolveApiKeyUser 挂起 5s 后返回 504
+  it('resolveApiKeyUser 超时应返回 504 Gateway Timeout（P0-04）', async () => {
+    // 模拟 verifyApiKey 永不 resolve（挂起）
+    mocks.verifyApiKey.mockReturnValueOnce(new Promise(() => {}));
+    const { req, res, next } = createMockMiddleware({
+      headers: { 'x-api-key': 'bpk_live_hanging' },
+    });
+
+    // 使用 fake timers 加速超时
+    vi.useFakeTimers();
+    const promise = handleOptionalApiKey(req as AuthenticatedRequest, res, next);
+    // 快进 5s 触发超时
+    vi.advanceTimersByTime(5000);
+    await promise;
+    vi.useRealTimers();
+
+    expect(mocks.sendProblem).toHaveBeenCalledWith(
+      res,
+      504,
+      'GATEWAY_TIMEOUT',
+      'API Key Resolution Timeout',
+      expect.objectContaining({
+        detail: expect.stringContaining('5 seconds'),
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
   });
 });

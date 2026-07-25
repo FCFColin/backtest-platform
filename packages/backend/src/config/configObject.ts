@@ -11,6 +11,7 @@
  */
 
 import { authConfig } from './authConfig.js';
+import { assertNoDefaultSecrets } from './assertNoDefaultSecrets.js';
 import { databaseConfig } from './databaseConfig.js';
 import { engineConfig } from './engineConfig.js';
 import { integrationsConfig } from './integrationsConfig.js';
@@ -63,3 +64,7 @@ export const config: Config = Object.assign(
   databaseConfig,
   integrationsConfig,
 );
+
+// P0-02：生产环境默认密钥启动拦截——在模块加载时即触发（fail-fast），
+// 不等待 validateConfig 延迟调用。生产环境使用默认密钥是安全红线。
+assertNoDefaultSecrets(config as Record<string, unknown>);

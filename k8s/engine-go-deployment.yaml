@@ -22,6 +22,7 @@ spec:
         app: engine-go
         app.kubernetes.io/part-of: backtest-platform
     spec:
+      terminationGracePeriodSeconds: 35
       containers:
         - name: engine-go
           image: backtest-platform/engine-go
