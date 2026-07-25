@@ -47,7 +47,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: default
-  namespace: backtest
+  namespace: backtest-platform
 spec:
   mtls:
     mode: STRICT
@@ -57,9 +57,9 @@ apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
   name: enable-mtls
-  namespace: backtest
+  namespace: backtest-platform
 spec:
-  host: "*.backtest.svc.cluster.local"
+  host: "*.backtest-platform.svc.cluster.local"
   trafficPolicy:
     tls:
       mode: ISTIO_MUTUAL

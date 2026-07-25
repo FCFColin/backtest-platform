@@ -1,0 +1,38 @@
+# =============================================================================
+# P1-05: Outbox 表监控告警规则
+# =============================================================================
+# 企业理由：Outbox 表是事件驱动架构的核心——如果事件积压或清理失败，
+# 会导致 webhook 投递延迟、审计日志不完整、最终一致性破坏。
+# ==============================================================================
+groups:
+  - name: outbox
+    rules:
+      # 告警 1：未处理事件积压
+      - alert: OutboxUnprocessedHigh
+        expr: outbox_unprocessed_count > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox unprocessed events count is high"
+          description: "{{ $value }} unprocessed outbox events. Events may be stuck (handler failure or DB issue)."
+
+      # 告警 2：最老未处理事件年龄超过 10 分钟
+      - alert: OutboxOldestUnprocessedStale
+        expr: outbox_oldest_unprocessed_age_seconds > 600
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Oldest unprocessed outbox event is stale"
+          description: "Oldest unprocessed event is {{ $value }}s old (>10min). Check OutboxPublisher listener and compensation scanner."
+
+      # 告警 3：Outbox 表行数过多（清理失败）
+      - alert: OutboxTableGrowing
+        expr: outbox_total_rows > 50000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Outbox table has too many rows"
+          description: "{{ $value }} total rows in outbox table. Cleanup may not be running or retention period too long."

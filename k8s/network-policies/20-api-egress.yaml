@@ -1,0 +1,65 @@
+# =============================================================================
+# P1-01: API 出站流量放行——api → engine-go/data-fetcher/pgbouncer/redis/otel
+# =============================================================================
+# 企业理由：API 后端需要连接以下服务：
+# - engine-go:5004 (Go 回测引擎)
+# - data-fetcher:5003 (Go 数据服务)
+# - pgbouncer:5432 (PostgreSQL 连接池)
+# - redis-sentinel:26379 (Redis Sentinel)
+# - otel-collector:4317/4318 (OpenTelemetry OTLP)
+# 其他出站连接被默认拒绝。
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-egress
+  namespace: backtest-platform
+spec:
+  podSelector:
+    matchLabels:
+      app: api
+  policyTypes:
+    - Egress
+  egress:
+    # → engine-go:5004
+    - to:
+        - podSelector:
+            matchLabels:
+              app: engine-go
+      ports:
+        - protocol: TCP
+          port: 5004
+    # → data-fetcher:5003
+    - to:
+        - podSelector:
+            matchLabels:
+              app: data-fetcher
+      ports:
+        - protocol: TCP
+          port: 5003
+    # → pgbouncer:5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: pgbouncer
+      ports:
+        - protocol: TCP
+          port: 5432
+    # → redis-sentinel:26379
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis-sentinel
+      ports:
+        - protocol: TCP
+          port: 26379
+    # → otel-collector:4317 (gRPC) + 4318 (HTTP)
+    - to:
+        - podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
