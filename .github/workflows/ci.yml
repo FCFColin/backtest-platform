@@ -1,4 +1,4 @@
-name: CI
+﻿﻿﻿﻿name: CI
 
 on:
   push:
@@ -33,6 +33,77 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================================
+  # Security: 依赖漏洞扫描（P1-04 T1）
+  # 企业理由：npm audit + govulncheck 作为 CI 阻断门禁，确保高危漏洞
+  # 不随 PR 合并进入主干。等保 2025 新规：高危漏洞修复周期从 30 天缩短至 15 天，
+  # CI 扫描是"早发现"的第一道防线。与 node-deep 中的非阻断 audit 互补——
+  # node-deep 的 audit 探索性观察趋势，本 job 阻断合并。
+  # ============================================================
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 企业理由：npm audit 扫描 Node 依赖树中的已知漏洞。
+      # --audit-level=high 仅在高危/严重漏洞时失败，避免低危噪音阻断开发。
+      # --json 输出便于后续自动化处理和趋势分析。
+      - name: npm audit (high severity)
+        run: pnpm audit --audit-level=high --prod --json > npm-audit-report.json
+        continue-on-error: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache-dependency-path: |
+            engine-go/go.sum
+            data-fetcher/go.sum
+
+      # 企业理由：govulncheck 是 Go 官方漏洞扫描工具，分析代码调用图
+      # 仅报告实际受影响的漏洞（而非仅依赖中存在漏洞但未调用的）。
+      - name: govulncheck (engine-go)
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+        working-directory: engine-go
+
+      - name: govulncheck (data-fetcher)
+        run: govulncheck ./...
+        working-directory: data-fetcher
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-scan-reports
+          path: npm-audit-report.json
+          retention-days: 30
+
+  # ============================================================
   # Required (fast) — 每次 push/PR 必须通过
   # RO-037: 拆分为 5 个并行 job（check/lint/depcheck/test:unit/test:property）
   # 企业理由：原串行执行约 4-5 分钟，拆分后最慢的 job 决定总耗时约 1.5-2 分钟。
@@ -50,6 +121,7 @@ jobs:
           - { name: 'Depcheck', cmd: 'pnpm run depcheck' }
           - { name: 'Unit Tests', cmd: 'pnpm run test:unit' }
           - { name: 'Property Tests', cmd: 'pnpm run test:property' }
+          - { name: 'OpenAPI Sync', cmd: 'pnpm run generate-openapi && git diff --exit-code docs/openapi.yaml' }
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -143,8 +215,49 @@ jobs:
       - name: License compliance
         run: npx --yes license-checker --production --summary --excludePrivatePackages
 
-      - name: Coverage report with per-file check
-        run: pnpm run test:coverage:check
+      - name: Build
+        run: pnpm run build
+
+  # ============================================================
+  # Coverage (required) — 单元测试覆盖率门禁（P0-02 T17/T18）
+  # 企业理由：coverage 阈值是 CI 质量门禁硬阻断。原 node-deep 中 coverage
+  # 检查带 continue-on-error: true，形同虚设。现拆分为独立 job 并设为 required。
+  # 仅运行单元测试（mock 驱动，无需真实 DB/Redis），避免 service 容器开销。
+  # ============================================================
+  coverage:
+    name: Coverage (required)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Cache node_modules (RO-064)
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: npx vitest run tests/unit --coverage --coverage.reporter=json-summary --coverage.reporter=lcov
+
+      - name: Per-file coverage check
+        run: node scripts/check-coverage.mjs
 
       - name: Upload coverage
         if: always()
@@ -154,8 +267,11 @@ jobs:
           path: coverage/vitest/
           retention-days: 7
 
-      - name: Build
-        run: pnpm run build
+      - name: Coverage diff comment on PR (T18)
+        if: github.event_name == 'pull_request'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          json-summary-path: coverage/vitest/coverage-summary.json
 
   go:
     name: Go
@@ -249,10 +365,9 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
 
   integration:
-    name: Integration Tests (optional)
-    # Exploratory（非阻断）：集成测试依赖真实 Postgres，CI 环境偶发波动
-    # 不阻断合并以避免误拦有效 PR。
-    continue-on-error: true
+    name: Integration Tests
+    needs: [node-quick]
+    # P2-01: 集成测试升级为 CI 阻断（原 exploratory 非阻断）
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -313,10 +428,9 @@ jobs:
           RUN_TESTCONTAINERS: '1'
 
   contract:
-    name: Contract Tests (optional)
-    # Exploratory（非阻断）：契约测试可能因外部 API 演进而暂时性失败，
-    # 不阻断合并以便独立追踪外部破坏。
-    continue-on-error: true
+    name: Contract Tests
+    needs: [node-quick]
+    # P2-01: 契约测试升级为 CI 阻断（原 exploratory 非阻断）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -1,0 +1,42 @@
+# =============================================================================
+# P2-08: Kustomize base — 所有 K8s 资源的基础定义
+# =============================================================================
+# 用法：
+#   kubectl apply -k k8s/                    # 直接应用 base
+#   kubectl apply -k k8s/overlays/dev         # dev 环境
+#   kubectl apply -k k8s/overlays/staging     # staging 环境
+#   kubectl apply -k k8s/overlays/production  # 生产环境
+# ==============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: backtest-platform-base
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - auth-secret.yaml
+  - api-deployment.yaml
+  - api-service.yaml
+  - api-hpa.yaml
+  - api-pdb.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - ingress.yaml
+  - engine-go-deployment.yaml
+  - engine-go-service.yaml
+  - engine-go-hpa.yaml
+  - engine-go-pdb.yaml
+  - data-fetcher-deployment.yaml
+  - data-fetcher-service.yaml
+  - data-fetcher-pdb.yaml
+  - postgres.yaml
+  - pgbouncer.yaml
+  - redis.yaml
+  - otel-collector.yaml
+  - canary-deployment.yaml
+  - mtls-issuer.yaml
+  - unleash-deployment.yaml
+  - unleash-secret.yaml.example
+  - prometheus-rules.yaml
+  - alertmanager-deployment.yaml
+  - network-policies/

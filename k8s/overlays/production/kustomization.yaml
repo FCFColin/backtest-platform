@@ -1,0 +1,69 @@
+# =============================================================================
+# P2-08: Production 环境 overlay — 多副本、NetworkPolicy、PDB、HPA
+# =============================================================================
+# 企业理由：生产环境需要最大化可用性和安全性，所有特性全量启用。
+# 使用方式：
+#   kustomize build k8s/overlays/production | kubectl apply -f -
+#   # 或
+#   kubectl apply -k k8s/overlays/production
+# ==============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: backtest-platform-production
+namespace: backtest-platform
+resources:
+  - ../../base
+  - ../../network-policies
+
+# 生产环境：多副本
+patches:
+  - target:
+      kind: Deployment
+      name: api
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  - target:
+      kind: Deployment
+      name: engine-go
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: frontend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target:
+      kind: Deployment
+      name: data-fetcher
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+
+# 生产环境 HPA 配置
+patchesStrategicMerge:
+  - |-
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata:
+      name: engine-go-hpa
+      namespace: backtest-platform
+    spec:
+      minReplicas: 2
+      maxReplicas: 10
+  - |-
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata:
+      name: api-hpa
+      namespace: backtest-platform
+    spec:
+      minReplicas: 3
+      maxReplicas: 10
