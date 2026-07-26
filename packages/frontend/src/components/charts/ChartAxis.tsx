@@ -179,8 +179,8 @@ export function ChartLegend() {
  * 而 Line/Area 等组件默认 xAxisId=0，查找轴映射时抛出 invariant 错误。
  */
 ChartXAxis.displayName = 'XAxis';
-ChartXAxis.defaultProps = { xAxisId: 0 };
+ChartXAxis.defaultProps = { xAxisId: 0, type: 'category', dataKey: 'date' };
 ChartYAxis.displayName = 'YAxis';
-ChartYAxis.defaultProps = { yAxisId: 0 };
+ChartYAxis.defaultProps = { yAxisId: 0, type: 'number' };
 ChartTooltip.displayName = 'Tooltip';
 ChartLegend.displayName = 'Legend';

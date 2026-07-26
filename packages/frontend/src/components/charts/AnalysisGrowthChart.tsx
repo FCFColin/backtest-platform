@@ -48,6 +48,7 @@ export const GrowthChart = memo(function GrowthChart({
               strokeWidth={2}
               dot={false}
               activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
+              isAnimationActive={false}
             />
           ))}
         </LineChart>

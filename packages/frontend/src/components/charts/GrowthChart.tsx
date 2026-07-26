@@ -4,15 +4,29 @@
  */
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
+import {
+  LineChart,
+  Line,
+  CartesianGrid,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+} from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult, BaseCurrency } from '@backtest/shared';
 import { ChartExporter } from '../ChartExporter.js';
 import { useChartData, CHART_MAX_POINTS } from '../../hooks/useChartInteractions.js';
 import { mergePortfolioSeries } from '../../utils/chartDataMerge.js';
 import ChartCard from '../ChartCard.js';
-import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
+import {
+  CHART_MARGIN,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  CHART_TOOLTIP_STYLE,
+  DATE_TICK_FORMATTER,
+} from '@/lib/chart-theme.js';
 
 /** 货币符号映射 */
 const CURRENCY_SYMBOL: Record<BaseCurrency, string> = { usd: '$', cny: '¥' };
@@ -141,13 +155,15 @@ function GrowthChartContent({
     <ResponsiveContainer width="100%" height={400}>
       <LineChart data={chartData} margin={CHART_MARGIN}>
         <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-        <ChartXAxis />
-        <ChartYAxis
+        <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
+        <YAxis
           scale={logScale ? 'log' : 'linear'}
           domain={logDomain ?? ['auto', 'auto']}
+          tick={AXIS_TICK_STYLE}
           tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
         />
-        <ChartTooltip
+        <Tooltip
+          contentStyle={CHART_TOOLTIP_STYLE}
           labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
           formatter={(value: number, name: string) => {
             const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
@@ -157,7 +173,7 @@ function GrowthChartContent({
             ];
           }}
         />
-        <ChartLegend />
+        <Legend />
         {portfolios.map((p, idx) => (
           <Line
             key={p.name}
@@ -168,6 +184,7 @@ function GrowthChartContent({
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
+            isAnimationActive={false}
           />
         ))}
       </LineChart>
