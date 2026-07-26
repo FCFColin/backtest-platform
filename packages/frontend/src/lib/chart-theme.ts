@@ -32,6 +32,42 @@ export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'var(--fg-tertiar
 /** 日期刻度格式化器：截取 YYYY-MM */
 export const DATE_TICK_FORMATTER = (value: string): string => value.slice(0, 7);
 
+/** 仅年份的刻度格式化器：截取 YYYY */
+export const YEAR_ONLY_TICK_FORMATTER = (value: string): string => value.slice(0, 4);
+
+/**
+ * 智能日期间隔：根据数据点数量自动选择刻度间隔。
+ * < 20 点：全部显示。20-100：每 5 个。100-500：每 20 个。> 500：每 50 个。
+ * @param dataLength - 数据点数量
+ * @returns Recharts interval 值
+ */
+export function smartDateInterval(dataLength: number): number {
+  if (dataLength <= 20) return 0;
+  if (dataLength <= 100) return 4;
+  if (dataLength <= 500) return 19;
+  return 49;
+}
+
+/**
+ * 货币刻度格式化器：1000 → 1k, 1000000 → 1M, 1500 → 1.5k
+ * @param v - 数值
+ * @returns 格式化后的字符串
+ */
+export function CURRENCY_TICK_FORMATTER(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
+  return v.toFixed(0);
+}
+
+/**
+ * 百分比刻度格式化器：0.15 → 15%, 1.0 → 100%
+ * @param v - 小数比例值
+ * @returns 百分比字符串
+ */
+export function PERCENT_TICK_FORMATTER(v: number): string {
+  return `${(v * 100).toFixed(0)}%`;
+}
+
 // ============ 相关系数配色 ============
 
 /**
