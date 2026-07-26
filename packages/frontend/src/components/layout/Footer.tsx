@@ -5,6 +5,7 @@
 import { Link } from 'react-router-dom';
 import { BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useEffect, useState } from 'react';
 
 interface FooterLinkDef {
   to?: string;
@@ -44,8 +45,22 @@ function FooterLink({ to, href, label }: FooterLinkDef) {
  */
 export function Footer() {
   const { t } = useTranslation();
-  const today = new Date().toISOString().split('T')[0];
+  const [lastUpdated, setLastUpdated] = useState('');
   const year = new Date().getFullYear();
+
+  useEffect(() => {
+    fetch('/api/v1/data/manage/last-updated')
+      .then((r) => r.json())
+      .then((json) => {
+        const d = json?.data?.lastUpdated;
+        if (typeof d === 'string' && d) setLastUpdated(d);
+      })
+      .catch(() => {
+        // silent fail: fallback to today
+      });
+  }, []);
+
+  const displayDate = lastUpdated || new Date().toISOString().split('T')[0];
 
   const links: FooterLinkDef[] = [
     { to: '/help', label: t('footer.help') },
@@ -77,7 +92,7 @@ export function Footer() {
             {t('footer.bugReport')}
           </a>
           <span className="text-caption text-fg-tertiary">
-            {t('footer.marketDataUpdated')}: {today}
+            {t('footer.marketDataUpdated')}: {displayDate}
           </span>
           <span className="text-caption text-fg-tertiary">
             {'Data: yfinance / finnhub / akshare'}

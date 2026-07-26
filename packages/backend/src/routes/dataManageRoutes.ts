@@ -40,6 +40,22 @@ router.get(
   ),
 );
 
+/** 最后更新日期：从 PostgreSQL 查询 MAX(bar_date) */
+router.get(
+  '/last-updated',
+  crudRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      const stats = await scanMarketStatsFromDb();
+      const lastUpdated = stats?.date_ranges?.latest ?? '';
+      res.json({ success: true, data: { lastUpdated } });
+    },
+    {
+      logMsg: '[dataManage] 获取最后更新日期失败',
+      code: 'LAST_UPDATED_ERROR',
+    },
+  ),
+);
+
 /** 详细统计（实时从 PostgreSQL 查询；P1-2 移除内存 cachedStats，每次直查 PG） */
 router.get(
   '/stats',
