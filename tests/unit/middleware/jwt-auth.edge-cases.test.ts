@@ -25,7 +25,6 @@ const mocks = vi.hoisted(() => ({
     JWT_SECRET: 'test-jwt-secret-for-unit-tests',
     JWT_ACCESS_TTL: 900,
     JWT_REFRESH_TTL: 604800,
-    ADMIN_API_KEY: '',
     JWT_ALGORITHM: 'HS256' as 'RS256' | 'HS256',
     JWT_PRIVATE_KEY: '',
     JWT_PRIVATE_KEY_FILE: '',
@@ -50,6 +49,14 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     { withStore: true, withSets: true, withMemoryHelpers: true },
     redisMocks,
   ),
+  getRedisHealth: vi.fn(async () => {
+    try {
+      return (await redisMocks.ping()) === 'PONG';
+    } catch {
+      return false;
+    }
+  }),
+  markRedisUnhealthy: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({

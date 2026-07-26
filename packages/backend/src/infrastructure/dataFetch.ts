@@ -1,17 +1,30 @@
-import { spawn, type ChildProcess } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+/**
+ * 数据更新基础设施（P1-2 重构）
+ *
+ * 替换 child_process.spawn('go', ['run', ...]) 为 BullMQ 异步任务。
+ *
+ * 原实现问题：
+ * 1. `go run` 每次编译源码，生产环境不应使用
+ * 2. 进程管理依赖 `taskkill`（Windows 命令），无法在 Linux/容器环境正常工作
+ * 3. 进度状态存在内存全局变量（违反架构约束）
+ * 4. 无法在 K8s 中水平扩展（状态不共享）
+ *
+ * 新实现：
+ * - startUpdate() → dataUpdateQueue.add() 入队
+ * - getUpdateStatus() → 从 BullMQ job 状态读取
+ * - stopUpdate() → job.remove() 取消任务
+ * - 进度存储在 Redis（BullMQ 内置），而非内存全局变量
+ */
+import {
+  dataUpdateQueue,
+  getActiveUpdateJobs,
+  type DataUpdateJobData,
+} from '../queues/dataUpdateQueue.js';
 import { logger } from '../utils/logger.js';
-import { getPool } from '../db/pool.js';
-import { config } from '../config/index.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
-const WORKER_DIR = path.join(PROJECT_ROOT, 'data-fetcher');
-
-interface UpdateStatus {
+/** 更新状态（从 BullMQ job 状态派生，不再使用内存全局变量） */
+export interface UpdateStatus {
   running: boolean;
-  workerPid: number | null;
   mode: 'full' | 'incremental' | null;
   startedAt: string | null;
   completedTickers: number;
@@ -19,10 +32,9 @@ interface UpdateStatus {
   lastError: string | null;
 }
 
-let currentProcess: ChildProcess | null = null;
-let currentStatus: UpdateStatus = {
+/** 空闲状态常量 */
+const IDLE_STATUS: UpdateStatus = {
   running: false,
-  workerPid: null,
   mode: null,
   startedAt: null,
   completedTickers: 0,
@@ -30,144 +42,77 @@ let currentStatus: UpdateStatus = {
   lastError: null,
 };
 
-function getDatabaseUrl(): string {
-  return config.DATABASE_URL;
+/**
+ * 查询当前更新状态（从 BullMQ job 状态读取，无内存全局变量）。
+ *
+ * @returns 当前更新状态
+ */
+export async function getUpdateStatus(): Promise<UpdateStatus> {
+  const jobs = await getActiveUpdateJobs();
+  if (jobs.length === 0) return { ...IDLE_STATUS };
+
+  const job = jobs[0];
+  const state = await job.getState();
+  const data = job.data as DataUpdateJobData;
+  const progress = typeof job.progress === 'number' ? job.progress : 0;
+
+  return {
+    running: state === 'active' || state === 'waiting' || state === 'delayed',
+    mode: data.mode,
+    startedAt: job.timestamp ? new Date(job.timestamp).toISOString() : null,
+    completedTickers: progress,
+    totalTickers: 0,
+    lastError: null,
+  };
 }
 
 /**
- * 子进程环境变量白名单。
+ * 启动数据更新任务（入队 BullMQ，不再 spawn 子进程）。
  *
- * 企业理由（RO-032）：`...process.env` 透传会将全部环境变量（含 JWT_SECRET、
- * API 密钥等敏感凭证）泄漏到子进程，违反最小权限原则。白名单仅放行 Go worker
- * 实际需要的变量，敏感凭证不再无差别继承。
+ * @param mode - 更新模式：全量或增量
+ * @returns 操作结果
  */
-const WORKER_ENV_WHITELIST = [
-  'PATH',
-  'HOME',
-  'USERPROFILE',
-  'LANG',
-  'LC_ALL',
-  'TZ',
-  'HTTP_PROXY',
-  'HTTPS_PROXY',
-  'NO_PROXY',
-  'http_proxy',
-  'https_proxy',
-  'no_proxy',
-] as const;
-
-/**
- * 构建 Go worker 子进程环境变量（白名单过滤 + config 注入）。
- *
- * @returns 仅包含白名单变量 + DATABASE_URL + NODE_ENV 的环境对象
- */
-function buildWorkerEnv(): Record<string, string> {
-  const env: Record<string, string> = {};
-  for (const key of WORKER_ENV_WHITELIST) {
-    const val = process.env[key];
-    if (val !== undefined) env[key] = val;
-  }
-  env.DATABASE_URL = getDatabaseUrl();
-  env.NODE_ENV = config.NODE_ENV;
-  return env;
-}
-
-export function getUpdateStatus(): UpdateStatus {
-  return { ...currentStatus };
-}
-
 export async function startUpdate(
   mode: 'full' | 'incremental',
-): Promise<{ success: boolean; message: string; pid?: number }> {
-  if (currentProcess) {
+): Promise<{ success: boolean; message: string; jobId?: string }> {
+  // 检查是否有正在运行的任务
+  const activeJobs = await getActiveUpdateJobs();
+  if (activeJobs.length > 0) {
     return { success: false, message: '已有更新任务正在运行' };
   }
 
-  const pool = getPool();
-  const totalResult = await pool.query('SELECT COUNT(*) as count FROM tickers');
-  const totalTickers = parseInt(totalResult.rows[0].count, 10) || 0;
+  const job = await dataUpdateQueue.add(
+    'data-update',
+    { mode },
+    { jobId: `data-update-${mode}-${Date.now()}` },
+  );
 
-  const args = ['run', './cmd/worker/main.go', 'update'];
-  if (mode === 'incremental') {
-    args.push('--incremental');
-  }
-
-  logger.info({ mode, args, totalTickers }, '[dataFetch] 启动更新');
-
-  const child = spawn('go', args, {
-    cwd: WORKER_DIR,
-    env: buildWorkerEnv(),
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-
-  currentProcess = child;
-  currentStatus = {
-    running: true,
-    workerPid: child.pid ?? null,
-    mode,
-    startedAt: new Date().toISOString(),
-    completedTickers: 0,
-    totalTickers,
-    lastError: null,
-  };
-
-  child.stdout?.on('data', (data: Buffer) => {
-    const lines = data.toString().split('\n').filter(Boolean);
-    for (const line of lines) {
-      try {
-        const parsed = JSON.parse(line);
-        logger.info(parsed, '[worker]');
-      } catch {
-        logger.info('[worker] %s', line.trim());
-      }
-    }
-  });
-
-  child.stderr?.on('data', (data: Buffer) => {
-    const text = data.toString().trim();
-    if (text) {
-      logger.error('[worker/stderr] %s', text);
-    }
-  });
-
-  child.on('close', (code) => {
-    currentStatus.running = false;
-    currentProcess = null;
-    if (code === 0) {
-      logger.info('[dataFetch] 更新完成');
-    } else {
-      currentStatus.lastError = `Worker 进程退出，code=${code ?? -1}`;
-      logger.error('[dataFetch] 更新失败，code=%d', code ?? -1);
-    }
-  });
-
-  child.on('error', (err) => {
-    currentStatus.running = false;
-    currentProcess = null;
-    currentStatus.lastError = err.message;
-    logger.error('[dataFetch] 启动 worker 失败: %s', err.message);
-  });
+  logger.info({ jobId: job.id, mode }, '[dataFetch] 数据更新任务已入队');
 
   return {
     success: true,
     message: `${mode === 'incremental' ? '增量' : '全量'}更新已启动`,
-    pid: child.pid ?? undefined,
+    jobId: job.id ?? undefined,
   };
 }
 
-export function stopUpdate(): { success: boolean; message: string } {
-  if (!currentProcess) {
+/**
+ * 停止当前数据更新任务（取消 BullMQ job，不再使用 taskkill）。
+ *
+ * @returns 操作结果
+ */
+export async function stopUpdate(): Promise<{ success: boolean; message: string }> {
+  const activeJobs = await getActiveUpdateJobs();
+  if (activeJobs.length === 0) {
     return { success: false, message: '没有正在运行的更新任务' };
   }
 
-  const pid = currentProcess.pid;
-  if (pid) {
-    spawn('taskkill', ['/PID', pid.toString(), '/F', '/T'], { stdio: 'ignore' });
-  }
+  const job = activeJobs[0];
+  await job.remove().catch((err: unknown) => {
+    logger.warn({ err: String(err), jobId: job.id }, '[dataFetch] 移除任务失败');
+  });
 
-  currentProcess = null;
-  currentStatus.running = false;
-  currentStatus.lastError = '用户手动停止';
+  logger.info({ jobId: job.id }, '[dataFetch] 更新任务已取消');
 
   return { success: true, message: '更新已停止' };
 }

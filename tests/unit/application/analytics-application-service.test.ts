@@ -27,6 +27,20 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
+const helpersMocks = vi.hoisted(() => ({
+  fetchPriceData: vi.fn(),
+  calculateDateRange: vi.fn(),
+}));
+
+vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
+  fetchPriceData: helpersMocks.fetchPriceData,
+  calculateDateRange: helpersMocks.calculateDateRange,
+}));
+
+vi.mock('../../../packages/backend/src/application/backtest/engineBodyBuilder.js', () => ({
+  buildEngineParams: vi.fn(() => ({})),
+}));
+
 import {
   executePcaAnalyze,
   validatePcaRequest,
@@ -34,6 +48,9 @@ import {
   validateGoalOptimizerAssets,
   executeGoalOptimize,
   executePcaAnalyzeWithFetch,
+  runAnalysis,
+  executeLetfAnalyzeWithFetch,
+  executeGoalOptimizeWithFetch,
 } from '../../../packages/backend/src/application/analysis-orchestrator.js';
 import { normalizeTickers } from '../../../packages/backend/src/application/backtest/priceDataUtils.js';
 
@@ -74,7 +91,7 @@ describe('analysis-service', () => {
 
     it('数据缺失时应抛出错误', () => {
       expect(() => executePcaAnalyze(['AAPL', 'MISSING'], mockPriceData)).toThrow(
-        '以下资产未找到价格数据: MISSING',
+        'Price data not found for: MISSING',
       );
     });
   });
@@ -110,7 +127,7 @@ describe('analysis-service', () => {
 
     it('少于 2 个资产应抛出错误', () => {
       expect(() => validatePcaRequest({ ...validReq, tickers: ['AAPL'] })).toThrow(
-        'PCA 分析至少需要 2 个资产',
+        'PCA analysis requires at least 2 assets',
       );
     });
   });
@@ -185,7 +202,9 @@ describe('analysis-service', () => {
         years: 10,
         assets: [{ ticker: '', weight: 100 }],
       };
-      expect(() => validateGoalOptimizerAssets(req)).toThrow('请至少添加一个有效标的');
+      expect(() => validateGoalOptimizerAssets(req)).toThrow(
+        'Please add at least one valid ticker',
+      );
     });
   });
 
@@ -223,7 +242,7 @@ describe('analysis-service', () => {
           '2020-01-01',
           '2020-12-31',
         ),
-      ).toThrow('以下资产未找到价格数据: AAPL');
+      ).toThrow('Price data not found for: AAPL');
     });
   });
 
@@ -244,6 +263,205 @@ describe('analysis-service', () => {
       expect(dataMocks.fetchHistoryData).toHaveBeenCalled();
       expect(engineMocks.callEngineStrict).toHaveBeenCalled();
       expect(result).toBe(mockPcaResult);
+    });
+  });
+
+  describe('runAnalysis', () => {
+    const mockParameters = {
+      startDate: '2020-01-01',
+      endDate: '2020-12-31',
+    };
+
+    beforeEach(() => {
+      helpersMocks.calculateDateRange.mockReturnValue({
+        requested: { start: '2020-01-01', end: '2020-12-31' },
+        actual: { start: '2020-01-02', end: '2020-12-30' },
+        clamped: false,
+      });
+    });
+
+    it('正常路径：获取数据、调用引擎、返回组装结果（含 assets/correlations）', async () => {
+      helpersMocks.fetchPriceData.mockResolvedValue({
+        data: mockPriceData,
+        degraded: false,
+      });
+      engineMocks.callEngineStrict.mockResolvedValue({
+        data: {
+          assets: ['AAPL', 'SPY'],
+          correlations: [
+            [1, 0.5],
+            [0.5, 1],
+          ],
+        },
+      });
+
+      const result = await runAnalysis(['AAPL', 'SPY'], mockParameters);
+
+      expect(helpersMocks.fetchPriceData).toHaveBeenCalledWith(
+        ['AAPL', 'SPY'],
+        '2020-01-01',
+        '2020-12-31',
+      );
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+        '/api/engine/analysis',
+        expect.objectContaining({ tickers: ['AAPL', 'SPY'], priceData: mockPriceData }),
+      );
+      expect(result.tickers).toEqual(['AAPL', 'SPY']);
+      expect(result.correlations).toEqual([
+        [1, 0.5],
+        [0.5, 1],
+      ]);
+      expect(result.dateRange).toBeDefined();
+      expect(result.warnings).toBeUndefined();
+    });
+
+    it('数据降级时应添加 DATA_DEGRADED 警告', async () => {
+      helpersMocks.fetchPriceData.mockResolvedValue({
+        data: { AAPL: mockPriceData.AAPL },
+        degraded: true,
+        degradedWarning: '数据服务降级',
+      });
+      engineMocks.callEngineStrict.mockResolvedValue({});
+
+      const result = await runAnalysis(['AAPL'], mockParameters);
+
+      expect(result.warnings).toContainEqual({
+        code: 'DATA_DEGRADED',
+        message: '数据服务降级',
+      });
+    });
+
+    it('部分 ticker 缺失时应添加 TICKER_NOT_FOUND 警告并仅传有效 ticker', async () => {
+      helpersMocks.fetchPriceData.mockResolvedValue({
+        data: { AAPL: mockPriceData.AAPL },
+        degraded: false,
+      });
+      engineMocks.callEngineStrict.mockResolvedValue({});
+
+      const result = await runAnalysis(['AAPL', 'MISSING'], mockParameters);
+
+      expect(result.warnings).toContainEqual({
+        code: 'TICKER_NOT_FOUND',
+        tickers: ['MISSING'],
+      });
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+        '/api/engine/analysis',
+        expect.objectContaining({ tickers: ['AAPL'] }),
+      );
+    });
+
+    it('所有 ticker 数据缺失时应抛出 ValidationError 且不调用引擎', async () => {
+      helpersMocks.fetchPriceData.mockResolvedValue({
+        data: {},
+        degraded: false,
+      });
+
+      await expect(runAnalysis(['AAPL', 'SPY'], mockParameters)).rejects.toThrow(
+        'Price data unavailable for all tickers: AAPL, SPY',
+      );
+      expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
+    });
+
+    it('引擎返回无 data.assets 时应展开原始结果', async () => {
+      helpersMocks.fetchPriceData.mockResolvedValue({
+        data: mockPriceData,
+        degraded: false,
+      });
+      engineMocks.callEngineStrict.mockResolvedValue({ foo: 'bar', baz: 123 });
+
+      const result = await runAnalysis(['AAPL', 'SPY'], mockParameters);
+
+      expect(result.foo).toBe('bar');
+      expect(result.baz).toBe(123);
+      expect(result.dateRange).toBeDefined();
+    });
+  });
+
+  describe('executeLetfAnalyzeWithFetch', () => {
+    const letfReq: LETFRequest = {
+      letfTicker: 'SSO',
+      benchmarkTicker: 'SPY',
+      leverage: 2,
+      startDate: '2020-01-01',
+      endDate: '2020-12-31',
+    };
+
+    it('应先获取数据再调用引擎', async () => {
+      dataMocks.fetchHistoryData.mockResolvedValue({
+        data: {
+          SSO: { '2020-01-02': 50, '2020-01-03': 51 },
+          SPY: { '2020-01-02': 300, '2020-01-03': 302 },
+        },
+        degraded: false,
+      });
+      const mockLetfResult = { annualDecay: 0.05, effectiveLeverage: [2.8] };
+      engineMocks.callEngineStrict.mockResolvedValue(mockLetfResult);
+
+      const result = await executeLetfAnalyzeWithFetch(letfReq);
+
+      expect(dataMocks.fetchHistoryData).toHaveBeenCalledWith(
+        ['SSO', 'SPY'],
+        '2020-01-01',
+        '2020-12-31',
+      );
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+        '/api/engine/letf-analyze',
+        expect.objectContaining({
+          letfTicker: 'SSO',
+          benchmarkTicker: 'SPY',
+          leverage: 2,
+        }),
+      );
+      expect(result).toBe(mockLetfResult);
+    });
+  });
+
+  describe('executeGoalOptimizeWithFetch', () => {
+    const goalReq: GoalOptimizerRequest = {
+      targetAmount: 1000000,
+      initialAmount: 100000,
+      years: 10,
+      assets: [
+        { ticker: 'AAPL', weight: 60 },
+        { ticker: 'SPY', weight: 40 },
+      ],
+    };
+
+    it('应先获取数据再调用引擎', async () => {
+      dataMocks.fetchHistoryData.mockResolvedValue({
+        data: mockPriceData,
+        degraded: false,
+      });
+      const mockGoalResult = { successProbability: 0.75 };
+      engineMocks.callEngineStrict.mockResolvedValue(mockGoalResult);
+
+      const result = await executeGoalOptimizeWithFetch(goalReq);
+
+      expect(dataMocks.fetchHistoryData).toHaveBeenCalledWith(
+        ['AAPL', 'SPY'],
+        expect.any(String),
+        expect.any(String),
+      );
+      expect(engineMocks.callEngineStrict).toHaveBeenCalledWith(
+        '/api/engine/goal-optimize',
+        expect.objectContaining({
+          ...goalReq,
+          priceData: mockPriceData,
+        }),
+      );
+      expect(result).toBe(mockGoalResult);
+    });
+
+    it('无有效资产时应抛出错误且不获取数据', async () => {
+      const invalidReq: GoalOptimizerRequest = {
+        ...goalReq,
+        assets: [{ ticker: '', weight: 100 }],
+      };
+
+      await expect(executeGoalOptimizeWithFetch(invalidReq)).rejects.toThrow(
+        'Please add at least one valid ticker',
+      );
+      expect(dataMocks.fetchHistoryData).not.toHaveBeenCalled();
     });
   });
 });

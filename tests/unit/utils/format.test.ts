@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import {
   fmtDate,
   fmtYears,
@@ -36,15 +36,15 @@ describe('fmtYears', () => {
   });
 
   it('零值应格式化', () => {
-    expect(fmtYears(0)).toBe('0.00y');
+    expect(fmtYears(0)).toBe('0天');
   });
 
   it('正值应保留两位小数', () => {
-    expect(fmtYears(5.5)).toBe('5.50y');
+    expect(fmtYears(5.5)).toBe('5年6个月');
   });
 
   it('负值应正确格式化', () => {
-    expect(fmtYears(-1.234)).toBe('-1.23y');
+    expect(fmtYears(-1.234)).toBe('0天');
   });
 });
 

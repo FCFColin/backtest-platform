@@ -34,11 +34,10 @@ interface DualSignalResultsProps {
  * @returns 渲染的方向标签
  */
 function renderDir(d: SignalDir, t: TFunction): ReactNode {
-  if (d === 'buy')
-    return <span className="font-semibold text-pos">{t('signal.common.buy')}</span>;
+  if (d === 'buy') return <span className="font-semibold text-pos">{t('signal.common.buy')}</span>;
   if (d === 'sell')
     return <span className="font-semibold text-neg">{t('signal.common.sell')}</span>;
-  return <span className="text-fg-tertiary">—</span>;
+  return <span className="text-fg-tertiary">-</span>;
 }
 
 /**
@@ -129,9 +128,7 @@ function StatsComparisonTable({ statRows }: { statRows: StatRow[] }) {
  * @param t - i18n 翻译函数
  * @returns 对比表列数组
  */
-function buildComparisonColumns(
-  t: TFunction,
-): Column<DualSignalResponse['comparison'][number]>[] {
+function buildComparisonColumns(t: TFunction): Column<DualSignalResponse['comparison'][number]>[] {
   return [
     { key: 'date', label: t('signal.dual.colDate'), sortValue: (r) => r.date },
     {

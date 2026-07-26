@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "lib": ["ES2020", "DOM"],
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "@backtest/shared": ["../../packages/shared/types/index.ts"],
+      "@backtest/shared/types": ["../../packages/shared/types/index.ts"],
+      "@backtest/shared/types/*": ["../../packages/shared/types/*"],
+      "@backtest/shared/*": ["../../packages/shared/*"]
+    }
+  },
+  "include": ["src"]
+}

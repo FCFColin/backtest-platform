@@ -61,14 +61,25 @@ export async function runPortfolioBacktest(opts: {
   parameters: BacktestParameters;
   tenantId?: string;
   ownerUserId?: string;
+  /**
+   * 进度上报回调（P0-03 异步化）。Worker 调用方传入 job.updateProgress，
+   * 各阶段执行时回调：数据加载 0-30%，回测计算 30-90%，结果写入 90-100%。
+   * 同步路径不传，行为与原版一致。
+   */
+  onProgress?: (pct: number) => void;
 }): Promise<{ result: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { portfolios, parameters, tenantId, ownerUserId } = opts;
+  const { portfolios, parameters, tenantId, ownerUserId, onProgress } = opts;
+  // 数据准备阶段：0% -> 5%
+  onProgress?.(5);
 
   const prep = preparePortfolioBacktest(portfolios, parameters);
   const { allTickers, warnings } = prep;
 
+  // 数据加载阶段：5% -> 30%（fetchPriceDataWithRange 是主要 IO 开销）
+  onProgress?.(10);
   const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
     await fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate);
+  onProgress?.(30);
 
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
 
@@ -80,10 +91,12 @@ export async function runPortfolioBacktest(opts: {
   }
 
   const { cpiData, exchangeRates } = await loadMacroData(parameters);
+  onProgress?.(35);
   const effectiveParameters =
     effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
       ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
       : parameters;
+  // 回测计算阶段：35% -> 90%（Go 引擎调用是主要 CPU 开销）
   const { result } = await withTimeout(
     runBacktest({
       portfolios,
@@ -97,9 +110,12 @@ export async function runPortfolioBacktest(opts: {
     config.BACKTEST_SYNC_TIMEOUT_MS,
     'portfolio-backtest',
   );
+  onProgress?.(90);
 
+  // 结果写入阶段：90% -> 100%（缓存写入 + 结果压缩）
   const cacheKey = backtestCacheKey(portfolios, parameters, tenantId);
   void setBacktestResultCache(cacheKey, result);
+  onProgress?.(100);
 
   const dateRange = calculateDateRange(
     parameters.startDate,

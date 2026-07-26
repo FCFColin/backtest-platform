@@ -9,7 +9,7 @@ import LoadingButton from '../../components/LoadingButton.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
 import { Input } from '@/components/ui/input';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 
 /** PCA 参数面板 Props */
 interface PCAParamsProps {

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+﻿import { Card } from '@/components/ui/card';
 import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
 import type { ComputeToolConfig } from '../../components/shells/types.js';
 import BacktestParamsForm from '@/components/BacktestParamsForm.js';
@@ -7,7 +7,9 @@ import { useBacktestPageState } from './hooks/useBacktestPageState.js';
 import { BacktestToolbar } from './BacktestToolbar.js';
 import { ResultsContent } from './BacktestResults.js';
 
-function BacktestParamsWrapper({ state }: { state: any }) {
+type BacktestState = ReturnType<typeof useBacktestPageState>;
+
+function BacktestParamsWrapper({ state }: { state: BacktestState }) {
   return (
     <>
       <BacktestParamsForm />
@@ -29,19 +31,19 @@ function BacktestParamsWrapper({ state }: { state: any }) {
   );
 }
 
-function PortfolioWrapper(_: { state: any }) {
+function PortfolioWrapper(_: { state: BacktestState }) {
   return (
-    <div className="card" style={{ borderRadius: 12 }}>
+    <Card className="p-5">
       <PortfolioEditor />
-    </div>
+    </Card>
   );
 }
 
-function BacktestResultsWrapper(_: { state: any }) {
+function BacktestResultsWrapper(_: { state: BacktestState }) {
   return <ResultsContent />;
 }
 
-const config: ComputeToolConfig<any> = {
+const config: ComputeToolConfig<BacktestState> = {
   titleKey: 'backtest.title',
   paramsTitleKey: 'params.basicParams',
   seoSubtitleKey: 'backtest.seoSubtitle',

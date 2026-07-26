@@ -16,6 +16,7 @@ import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import { requireTenantId } from './routeUtils.js';
+import { appRedis } from '../infrastructure/redisClient.js';
 import {
   isBillingEnabled,
   createCheckoutSession,
@@ -144,11 +145,35 @@ router.post('/portal', requireAdmin, async (req: AuthenticatedRequest, res: Resp
   }
 });
 
+/** Stripe 事件去重 TTL（24 小时），覆盖 Stripe 最大重试窗口 */
+const STRIPE_EVENT_DEDUP_TTL_SECONDS = 24 * 60 * 60;
+
+/** Redis key 前缀 */
+const STRIPE_EVENT_KEY_PREFIX = 'stripe:event:';
+
+/**
+ * 检查 Stripe 事件是否已处理（幂等去重）。
+ *
+ * 使用 Redis SET NX EX 原子操作：若 key 不存在则设置并返回 'OK'（首次处理），
+ * 若 key 已存在则返回 null（重复事件，跳过处理）。
+ *
+ * @param eventId - Stripe 事件 ID（evt_xxx）
+ * @returns true 表示首次处理（应继续），false 表示已处理（应跳过）
+ */
+async function isStripeEventNew(eventId: string): Promise<boolean> {
+  const key = `${STRIPE_EVENT_KEY_PREFIX}${eventId}`;
+  const result = await appRedis.set(key, '1', 'EX', STRIPE_EVENT_DEDUP_TTL_SECONDS, 'NX');
+  return result === 'OK';
+}
+
 /**
  * Stripe webhook 处理器（免鉴权，需原始请求体）。
  *
  * 由 app.ts 用 `express.raw({ type: 'application/json' })` 在全局 express.json 之前挂载，
  * 以保证签名校验拿到未被解析的原始字节。
+ *
+ * P2-4 幂等性强化：使用 Redis SET NX EX 进行事件去重（24h TTL），
+ * 防止 Stripe 重试同一事件时重复执行业务逻辑（如重复开通订阅）。
  *
  * @param req - 请求（req.body 为 Buffer）
  * @param res - 响应
@@ -171,6 +196,26 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
     res.status(400).json({ received: false, error: 'invalid signature' });
     return;
   }
+
+  // P2-4: 事件幂等去重——检查是否已处理过该 Stripe 事件
+  try {
+    const isNew = await isStripeEventNew(event.id);
+    if (!isNew) {
+      logger.info(
+        { eventId: event.id, type: event.type },
+        '[billingRoutes] Stripe event already processed, skipping',
+      );
+      res.json({ received: true });
+      return;
+    }
+  } catch (err) {
+    // Redis 不可用时fail-open（允许处理），因为 Stripe 会重试
+    logger.warn(
+      { err: String(err), eventId: event.id },
+      '[billingRoutes] Event dedup check failed, processing anyway',
+    );
+  }
+
   try {
     await handleWebhookEvent(event);
   } catch (err) {

@@ -93,7 +93,7 @@ function NotAuthedContent({ token }: { token: string }) {
         </Link>
         <Link
           to="/signup"
-          className="portfolio-rebalance-select"
+          className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
           style={{
             display: 'inline-flex',
             height: 40,

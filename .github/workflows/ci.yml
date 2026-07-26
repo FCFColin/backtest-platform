@@ -1,4 +1,4 @@
-﻿﻿﻿﻿name: CI
+﻿﻿﻿name: CI
 
 on:
   push:
@@ -121,7 +121,10 @@ jobs:
           - { name: 'Depcheck', cmd: 'pnpm run depcheck' }
           - { name: 'Unit Tests', cmd: 'pnpm run test:unit' }
           - { name: 'Property Tests', cmd: 'pnpm run test:property' }
-          - { name: 'OpenAPI Sync', cmd: 'pnpm run generate-openapi && git diff --exit-code docs/openapi.yaml' }
+          - {
+              name: 'OpenAPI Sync',
+              cmd: 'pnpm run generate-openapi && git diff --exit-code docs/openapi.yaml',
+            }
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -688,6 +691,19 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # P0-1: Worker 镜像构建（独立部署的 BullMQ Worker 进程）
+      - name: Build Worker image
+        id: build-worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./docker/worker/Dockerfile
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/backtest-worker:${{ github.sha }}
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       # 企业理由：Trivy 是 CNCF 毕业项目，容器漏洞扫描行业标准。
       # --severity HIGH,CRITICAL 只关注高危漏洞，避免 LOW/MEDIUM 噪音。
       # --exit-code 1 使高危漏洞阻断 CI（shift-left security）。
@@ -716,6 +732,14 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
 
+      - name: Trivy scan Worker
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/backtest-worker:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: 1
+          ignore-unfixed: true
+
       # Supply Chain (ADR-012): 为全部 3 个镜像生成 SBOM（CycloneDX）。
       # 企业为何需要：EO 14028 / EU CRA 要求软件供应链透明度；SBOM 是漏洞响应（"我是否受某 CVE 影响"）
       # 与 license 审计的事实依据。此前仅对 backtest-api 生成且未上传为制品，覆盖不全。
@@ -738,6 +762,12 @@ jobs:
           image: ghcr.io/${{ github.repository_owner }}/engine-go:${{ github.sha }}
           format: cyclonedx-json
           output-file: sbom-engine-go.json
+      - name: Generate SBOM (Worker)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/backtest-worker:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: sbom-backtest-worker.json
 
       # Supply Chain (T-08): 上传 SBOM 为构建制品，使其可被下游审计/漏洞工具消费。
       - name: Upload SBOMs

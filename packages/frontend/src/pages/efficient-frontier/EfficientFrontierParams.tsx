@@ -145,111 +145,123 @@ function TickerListSection({ p }: { p: FrontierParamsProps }) {
   );
 }
 
-/** 参数设置区：日期范围 + 采样点数 + 高级参数（求解速度 / 最小纳入权重 / 再平衡 / 收益目标 / 求解器 / 允许现金） */
-function ParamsSection({ p }: { p: FrontierParamsProps }) {
+/** 日期范围 + 采样点数 + 全历史开关字段组 */
+function DateAndPointsGrid({ p }: { p: FrontierParamsProps }) {
   const { t } = useTranslation();
   const allHistoryChecked = p.startDate === '' && p.endDate === '';
   return (
-    <section className="flex flex-col gap-4">
-      <SectionHeader title={t('efficientFrontier.params.title')} />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field>
-          <FieldLabel>{t('efficientFrontier.params.startDate')}</FieldLabel>
-          <Input
-            type="date"
-            value={p.startDate}
-            onChange={(e) => p.onStartDateChange(e.target.value)}
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Field>
+        <FieldLabel>{t('efficientFrontier.params.startDate')}</FieldLabel>
+        <Input
+          type="date"
+          value={p.startDate}
+          onChange={(e) => p.onStartDateChange(e.target.value)}
+        />
+      </Field>
+      <Field>
+        <FieldLabel>{t('efficientFrontier.params.endDate')}</FieldLabel>
+        <Input type="date" value={p.endDate} onChange={(e) => p.onEndDateChange(e.target.value)} />
+      </Field>
+      <Field>
+        <FieldLabel>{t('efficientFrontier.params.numPoints')}</FieldLabel>
+        <Input
+          type="number"
+          min={5}
+          max={100}
+          value={p.numPoints}
+          onChange={(e) => p.onNumPointsChange(Number(e.target.value))}
+        />
+      </Field>
+      <Field>
+        <FieldLabel>{t('efficientFrontier.params.allHistory')}</FieldLabel>
+        <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
+          <Checkbox
+            checked={allHistoryChecked}
+            onCheckedChange={(c) => {
+              if (c === true) {
+                p.onStartDateChange('');
+                p.onEndDateChange('');
+              } else {
+                p.onStartDateChange(DEFAULT_BACKTEST_START_DATE);
+                p.onEndDateChange(DEFAULT_END_DATE);
+              }
+            }}
           />
-        </Field>
-        <Field>
-          <FieldLabel>{t('efficientFrontier.params.endDate')}</FieldLabel>
-          <Input
-            type="date"
-            value={p.endDate}
-            onChange={(e) => p.onEndDateChange(e.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>{t('efficientFrontier.params.numPoints')}</FieldLabel>
+          <span>{t('efficientFrontier.params.allHistory')}</span>
+        </label>
+      </Field>
+    </div>
+  );
+}
+
+/** 高级参数字段组：求解速度 / 最小纳入权重 / 再平衡 / 收益目标 / 求解器 / 允许现金 */
+function AdvancedParamsGrid({ p }: { p: FrontierParamsProps }) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <SelectField
+        label={t('efficientFrontier.params.solveSpeed')}
+        value={p.solveSpeed}
+        onChange={p.onSolveSpeedChange}
+        options={solveSpeedOptions(t)}
+      />
+      <Field>
+        <FieldLabel>{t('efficientFrontier.params.minInclusionWeight')}</FieldLabel>
+        <div className="relative">
           <Input
             type="number"
-            min={5}
+            min={0}
             max={100}
-            value={p.numPoints}
-            onChange={(e) => p.onNumPointsChange(Number(e.target.value))}
+            className="pr-9"
+            value={p.minInclusionWeight}
+            onChange={(e) => p.onMinInclusionWeightChange(Number(e.target.value))}
           />
-        </Field>
-        <Field>
-          <FieldLabel>{t('efficientFrontier.params.allHistory')}</FieldLabel>
-          <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
-            <Checkbox
-              checked={allHistoryChecked}
-              onCheckedChange={(c) => {
-                if (c === true) {
-                  p.onStartDateChange('');
-                  p.onEndDateChange('');
-                } else {
-                  p.onStartDateChange(DEFAULT_BACKTEST_START_DATE);
-                  p.onEndDateChange(DEFAULT_END_DATE);
-                }
-              }}
-            />
-            <span>{t('efficientFrontier.params.allHistory')}</span>
-          </label>
-        </Field>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SelectField
-          label={t('efficientFrontier.params.solveSpeed')}
-          value={p.solveSpeed}
-          onChange={p.onSolveSpeedChange}
-          options={solveSpeedOptions(t)}
-        />
-        <Field>
-          <FieldLabel>{t('efficientFrontier.params.minInclusionWeight')}</FieldLabel>
-          <div className="relative">
-            <Input
-              type="number"
-              min={0}
-              max={100}
-              className="pr-9"
-              value={p.minInclusionWeight}
-              onChange={(e) => p.onMinInclusionWeightChange(Number(e.target.value))}
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-              %
-            </span>
-          </div>
-        </Field>
-        <SelectField
-          label={t('efficientFrontier.params.rebalanceFreq')}
-          value={p.rebalanceFrequency}
-          onChange={p.onRebalanceFrequencyChange}
-          options={rebalanceFreqOptions(t)}
-        />
-        <SelectField
-          label={t('efficientFrontier.params.returnObjective')}
-          value={p.returnObjective}
-          onChange={p.onReturnObjectiveChange}
-          options={returnObjOptions(t)}
-        />
-        <SelectField
-          label={t('efficientFrontier.params.solver')}
-          value={p.solver}
-          onChange={p.onSolverChange}
-          options={solverOptions(t)}
-        />
-        <Field>
-          <FieldLabel>{t('efficientFrontier.params.allowCash')}</FieldLabel>
-          <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
-            <Checkbox
-              checked={p.allowCash}
-              onCheckedChange={(c) => p.onAllowCashChange(c === true)}
-            />
-            <span>{t('efficientFrontier.params.allowCash')}</span>
-          </label>
-        </Field>
-      </div>
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+            %
+          </span>
+        </div>
+      </Field>
+      <SelectField
+        label={t('efficientFrontier.params.rebalanceFreq')}
+        value={p.rebalanceFrequency}
+        onChange={p.onRebalanceFrequencyChange}
+        options={rebalanceFreqOptions(t)}
+      />
+      <SelectField
+        label={t('efficientFrontier.params.returnObjective')}
+        value={p.returnObjective}
+        onChange={p.onReturnObjectiveChange}
+        options={returnObjOptions(t)}
+      />
+      <SelectField
+        label={t('efficientFrontier.params.solver')}
+        value={p.solver}
+        onChange={p.onSolverChange}
+        options={solverOptions(t)}
+      />
+      <Field>
+        <FieldLabel>{t('efficientFrontier.params.allowCash')}</FieldLabel>
+        <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
+          <Checkbox
+            checked={p.allowCash}
+            onCheckedChange={(c) => p.onAllowCashChange(c === true)}
+          />
+          <span>{t('efficientFrontier.params.allowCash')}</span>
+        </label>
+      </Field>
+    </div>
+  );
+}
+
+/** 参数设置区：日期范围 + 采样点数 + 高级参数（求解速度 / 最小纳入权重 / 再平衡 / 收益目标 / 求解器 / 允许现金） */
+function ParamsSection({ p }: { p: FrontierParamsProps }) {
+  const { t } = useTranslation();
+  return (
+    <section className="flex flex-col gap-4">
+      <SectionHeader title={t('efficientFrontier.params.title')} />
+      <DateAndPointsGrid p={p} />
+      <AdvancedParamsGrid p={p} />
     </section>
   );
 }

@@ -18,6 +18,7 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { diag, DiagConsoleLogger, DiagLogLevel } from '@opentelemetry/api';
 import { config } from './config/index.js';
+import { logger } from './utils/logger.js';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 
 // 开发环境启用 OTel 诊断日志
@@ -106,6 +107,6 @@ export function initTracing(): void {
     });
   } catch (err) {
     // OTel 初始化失败不应阻止应用启动
-    console.warn('[tracing] OpenTelemetry 初始化失败，链路追踪不可用:', err);
+    logger.warn({ err }, 'OpenTelemetry 初始化失败，链路追踪不可用');
   }
 }

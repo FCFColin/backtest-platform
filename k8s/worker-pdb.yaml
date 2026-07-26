@@ -1,0 +1,22 @@
+# =============================================================================
+# Worker PodDisruptionBudget（P0-1 / P2-2）
+# =============================================================================
+# 企业理由：Worker 处理异步回测任务，中断会导致任务重试（浪费算力）。
+# maxUnavailable: 0 确保自愿中断（drain/维护）期间 Worker 不被驱逐，
+# 直到替代 Pod 就绪。K8s 保证 PDB 满足时才允许自愿驱逐。
+#
+# 注意：这意味着 Node 维护时 Worker Pod 会被保留到最后，
+# 维护方需等待任务完成或手动缩减 replicas 至 0。
+# =============================================================================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-pdb
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: backtest-worker

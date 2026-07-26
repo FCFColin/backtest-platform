@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 /**
  * Input component themed for the dark financial platform.
@@ -26,13 +26,13 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           'file:border-0 file:bg-transparent file:text-body file:font-medium',
           // 数字输入用等宽
           type === 'number' && 'font-mono tabular-nums',
-          className
+          className,
         )}
         ref={ref}
         {...props}
       />
     );
-  }
+  },
 );
 Input.displayName = 'Input';
 

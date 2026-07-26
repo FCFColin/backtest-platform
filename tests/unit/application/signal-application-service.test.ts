@@ -133,7 +133,7 @@ describe('signal-application-service', () => {
     it('无价格数据时应抛出错误', async () => {
       dataMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
 
-      await expect(executeDualSignalAnalyze(dualReq)).rejects.toThrow('未找到价格数据');
+      await expect(executeDualSignalAnalyze(dualReq)).rejects.toThrow('Price data not found for');
     });
   });
 

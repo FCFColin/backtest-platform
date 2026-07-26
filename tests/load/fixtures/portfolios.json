@@ -1,0 +1,92 @@
+[
+  {
+    "name": "tech-heavy",
+    "assets": [
+      { "ticker": "AAPL", "weight": 30 },
+      { "ticker": "MSFT", "weight": 30 },
+      { "ticker": "GOOGL", "weight": 20 },
+      { "ticker": "AMZN", "weight": 20 }
+    ],
+    "rebalanceFrequency": "quarterly"
+  },
+  {
+    "name": "60-40-stock-bond",
+    "assets": [
+      { "ticker": "VTI", "weight": 60 },
+      { "ticker": "BND", "weight": 40 }
+    ],
+    "rebalanceFrequency": "annual"
+  },
+  {
+    "name": "sp500-only",
+    "assets": [{ "ticker": "SPY", "weight": 100 }],
+    "rebalanceFrequency": "none"
+  },
+  {
+    "name": "growth-tilt",
+    "assets": [
+      { "ticker": "QQQ", "weight": 40 },
+      { "ticker": "VOO", "weight": 40 },
+      { "ticker": "TSLA", "weight": 20 }
+    ],
+    "rebalanceFrequency": "monthly"
+  },
+  {
+    "name": "dividend-income",
+    "assets": [
+      { "ticker": "VYM", "weight": 35 },
+      { "ticker": "SCHD", "weight": 35 },
+      { "ticker": "HDV", "weight": 30 }
+    ],
+    "rebalanceFrequency": "quarterly"
+  },
+  {
+    "name": "global-diversified",
+    "assets": [
+      { "ticker": "VT", "weight": 50 },
+      { "ticker": "BNDX", "weight": 30 },
+      { "ticker": "GLD", "weight": 20 }
+    ],
+    "rebalanceFrequency": "annual"
+  },
+  {
+    "name": "mag-seven",
+    "assets": [
+      { "ticker": "AAPL", "weight": 20 },
+      { "ticker": "MSFT", "weight": 20 },
+      { "ticker": "GOOGL", "weight": 15 },
+      { "ticker": "AMZN", "weight": 15 },
+      { "ticker": "NVDA", "weight": 15 },
+      { "ticker": "META", "weight": 15 }
+    ],
+    "rebalanceFrequency": "monthly"
+  },
+  {
+    "name": "balanced-three-fund",
+    "assets": [
+      { "ticker": "VTI", "weight": 50 },
+      { "ticker": "VXUS", "weight": 20 },
+      { "ticker": "BND", "weight": 30 }
+    ],
+    "rebalanceFrequency": "quarterly"
+  },
+  {
+    "name": "sector-rotation",
+    "assets": [
+      { "ticker": "XLF", "weight": 25 },
+      { "ticker": "XLK", "weight": 25 },
+      { "ticker": "XLV", "weight": 25 },
+      { "ticker": "XLY", "weight": 25 }
+    ],
+    "rebalanceFrequency": "weekly"
+  },
+  {
+    "name": "value-tilt",
+    "assets": [
+      { "ticker": "VTV", "weight": 40 },
+      { "ticker": "VOE", "weight": 30 },
+      { "ticker": "VBR", "weight": 30 }
+    ],
+    "rebalanceFrequency": "annual"
+  }
+]

@@ -1,0 +1,93 @@
+# =============================================================================
+# APISIX 路由配置（P2-01 T3/T5，Standalone 模式）
+# =============================================================================
+# 路由优先级：数字越大优先级越高。API 路由优先匹配，未匹配的走前端兜底。
+# 限流策略：APISIX 层做外部限流（防爬虫/DDoS），Express 层保留业务语义限流
+# （按用户计划/组织配额），两者互补不冲突（P2-01 T4）。
+# WAF：全局规则阻断常见注入攻击（等保三级 8.1.3.4 入侵防范）。
+# =============================================================================
+
+routes:
+  # ── API 路由 → backend 服务（含限流 + 安全头） ──
+  - id: api-backtest
+    uri: /api/v1/backtest/*
+    upstream_id: api-upstream
+    priority: 100
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: remote_addr
+        policy: redis
+        redis_host: redis
+        redis_port: 6379
+      prometheus: {}
+      request-id:
+        header_name: X-Request-ID
+        include_in_response: true
+
+  - id: api-general
+    uri: /api/*
+    upstream_id: api-upstream
+    priority: 90
+    plugins:
+      limit-count:
+        count: 500
+        time_window: 60
+        rejected_code: 429
+        key: remote_addr
+        policy: redis
+        redis_host: redis
+        redis_port: 6379
+      prometheus: {}
+      request-id:
+        header_name: X-Request-ID
+        include_in_response: true
+
+  # ── 前端静态资源 → frontend 服务（兜底路由，最低优先级） ──
+  - id: frontend
+    uri: /*
+    upstream_id: frontend-upstream
+    priority: -1
+    plugins:
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            X-Frame-Options: DENY
+            Referrer-Policy: strict-origin-when-cross-origin
+
+# ── 上游服务 ──
+upstreams:
+  - id: api-upstream
+    nodes:
+      'api:5001': 1
+    type: roundrobin
+    checks:
+      active:
+        http_path: /api/health
+        healthy:
+          successes: 1
+        unhealthy:
+          http_failures: 2
+
+  - id: frontend-upstream
+    nodes:
+      'frontend:80': 1
+    type: roundrobin
+
+# ── 全局 WAF 规则（P2-01 T5，等保三级 8.1.3.4 入侵防范） ──
+# 对所有路由生效：阻断常见 SQL 注入 / XSS / 路径遍历攻击模式
+global_rules:
+  - id: waf-basic
+    plugins:
+      response-rewrite:
+        headers:
+          set:
+            X-Content-Type-Options: nosniff
+            X-Frame-Options: DENY
+            X-XSS-Protection: '1; mode=block'
+            Referrer-Policy: strict-origin-when-cross-origin
+
+#END

@@ -97,11 +97,17 @@ export type TooltipValueFormatter = (value: number, name: string) => [string, st
  */
 export function wrapTooltipFormatter(
   userFormatter: TooltipValueFormatter | undefined,
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同上
-): ((value: any, name: any, _item?: any, _index?: number, _payload?: any) => [ReactNode, ReactNode]) | undefined {
+):
+  | ((
+      value: unknown,
+      name: unknown,
+      _item?: unknown,
+      _index?: number,
+      _payload?: unknown,
+    ) => [ReactNode, ReactNode])
+  | undefined {
   if (!userFormatter) return undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 同上
-  return (value: any, name: any, _item?: any, _index?: number, _payload?: any) => {
+  return (value: unknown, name: unknown, _item?: unknown, _index?: number, _payload?: unknown) => {
     try {
       const result = userFormatter(value as number, name as string);
       if (Array.isArray(result)) {

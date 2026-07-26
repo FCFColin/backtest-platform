@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { MarketStats } from '@backtest/shared/types';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
+import { reportError } from '../../utils/errorReporter.js';
 
 // ============ 共享类型与常量 ============
 
@@ -92,9 +93,6 @@ function handlePollSuccess(ctx: PollCtx, json: Record<string, unknown>) {
     ctx.setScanning(false);
     ctx.setLoadStage(ctx.t('dataEngine.ready'));
     ctx.setLoading(false);
-    console.debug(
-      `[DataEnginePage] fetchStats 总耗时 ${Date.now() - ctx.t0}ms (pollCount=${ctx.pollCountRef.current})`,
-    );
   }
 }
 
@@ -128,7 +126,7 @@ async function createPoll(ctx: Omit<PollCtx, 'poll'>): Promise<void> {
         ctx.setError(classifyError(ctx.t, res, json));
       }
     } catch (e) {
-      console.error('Failed to fetch stats:', e);
+      reportError(e, { component: 'DataEngine', action: 'fetchStats' });
       useToastStore.getState().addToast('error', ctx.t('dataEngine.statsLoadFailed'));
       ctx.setLoading(false);
       ctx.setError(

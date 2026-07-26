@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------------------
+# Unleash — 特性开关服务（P1-06）
+# ---------------------------------------------------------------------------
+# 企业理由：特性开关解耦发布与部署——灰度、A/B、紧急降级不再依赖重新部署。
+# Unleash 服务端集中管理 flag 定义与策略，SDK 本地缓存 + 定期轮询（<30s），
+# 即使 Unleash 短暂不可用也能基于本地缓存继续决策。本地 127.0.0.1:4242 暴露。
+# 首次访问 http://127.0.0.1:4242 用 admin/unleash4all 登录管理 UI。
+unleash:
+  image: unleashorg/unleash-server:5.12.5
+  pull_policy: never
+  container_name: backtest-unleash
+  ports:
+    - '127.0.0.1:4242:4242'
+  environment:
+    DATABASE_URL: postgresql://backtest:backtest@postgres:5432/unleash
+    INIT_ADMIN_API_TOKENS: ${UNLEASH_API_TOKEN:-dev-unleash-token}
+  depends_on:
+    postgres:
+      condition: service_healthy
+  healthcheck:
+    test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4242/health']
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  restart: unless-stopped

@@ -20,8 +20,11 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
+import { reportError } from '../../utils/errorReporter.js';
 import { parseMarketBreakdown } from '../../utils/adminStats.js';
 import { KpiCard } from '../../components/admin/KpiCard.js';
+import { Button } from '../../components/ui/button.js';
+import { Card } from '../../components/ui/card.js';
 
 interface DataSource {
   name: string;
@@ -122,29 +125,25 @@ function ActionBar({
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button
-        onClick={onRefresh}
-        disabled={loading}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-      >
-        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{' '}
+      <Button variant="secondary" onClick={onRefresh} disabled={loading}>
+        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         {t('dataEngine.refreshStats')}
-      </button>
+      </Button>
       <button
         onClick={() =>
           onAction('/api/v1/data/manage/update/inc', t('dataEngine.incrementalUpdate'))
         }
-        className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700"
+        className="flex items-center gap-2 rounded-lg bg-success px-3 py-2 text-sm font-medium text-white hover:bg-success/90"
       >
         <Play className="h-4 w-4" /> {t('dataEngine.incrementalUpdate')}
       </button>
       <button
         onClick={() => onAction('/api/v1/data/manage/update/full', t('dataEngine.fullUpdate'))}
-        className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+        className="flex items-center gap-2 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-brand-fg hover:bg-brand-hover"
       >
         <Zap className="h-4 w-4" /> {t('dataEngine.fullUpdate')}
       </button>
-      {actionMsg && <span className="text-sm font-medium text-blue-600">{actionMsg}</span>}
+      {actionMsg && <span className="text-sm font-medium text-brand">{actionMsg}</span>}
     </div>
   );
 }
@@ -153,14 +152,14 @@ function ActionBar({
 function DataSourceTable({ sources }: { sources: DataSource[] }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold text-slate-800">
+    <Card className="p-4">
+      <h2 className="mb-4 text-sm font-semibold text-fg">
         {t('adminPage.dataManagement.dataSource')}
       </h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+            <tr className="border-b border-border text-left text-xs text-fg-tertiary">
               <th className="pb-2 font-medium">{t('adminPage.dataManagement.dataSource')}</th>
               <th className="pb-2 font-medium">{t('adminPage.dataManagement.type')}</th>
               <th className="pb-2 font-medium">{t('adminPage.dataManagement.status')}</th>
@@ -170,19 +169,19 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
           </thead>
           <tbody>
             {sources.map((source) => (
-              <tr key={source.name} className="border-b border-slate-100 last:border-0">
+              <tr key={source.name} className="border-b border-border-subtle last:border-0">
                 <td className="py-2.5">
                   <div className="flex items-center gap-2">
                     {source.type === 'api' ? (
-                      <Globe className="h-4 w-4 text-blue-500" />
+                      <Globe className="h-4 w-4 text-brand" />
                     ) : (
-                      <FileSpreadsheet className="h-4 w-4 text-green-500" />
+                      <FileSpreadsheet className="h-4 w-4 text-success" />
                     )}
-                    <span className="font-medium text-slate-700">{t(source.name)}</span>
+                    <span className="font-medium text-fg-secondary">{t(source.name)}</span>
                   </div>
                 </td>
                 <td className="py-2.5">
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                  <span className="rounded-full bg-elevated px-2 py-0.5 text-xs text-fg-secondary">
                     {source.type === 'api'
                       ? t('adminPage.dataManagement.typeApi')
                       : t('adminPage.dataManagement.typeLocal')}
@@ -191,10 +190,10 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
                 <td className="py-2.5">
                   <SourceStatusBadge status={source.status} />
                 </td>
-                <td className="py-2.5 text-slate-500">
+                <td className="py-2.5 text-fg-tertiary">
                   {source.recordCount > 0 ? source.recordCount.toLocaleString() : '-'}
                 </td>
-                <td className="py-2.5 text-slate-500">
+                <td className="py-2.5 text-fg-tertiary">
                   {typeof source.lastUpdated === 'string' && source.lastUpdated.includes('T')
                     ? source.lastUpdated.replace('T', ' ').slice(0, 19)
                     : source.lastUpdated}
@@ -204,7 +203,7 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -214,8 +213,8 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
   return (
     <>
       {Object.keys(stats.marketBreakdown).length > 0 && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold text-slate-800">
+        <Card className="p-4">
+          <h2 className="mb-4 text-sm font-semibold text-fg">
             {t('adminPage.dashboard.marketTickerCount')}
           </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -225,34 +224,31 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
                 <CoverageItem key={market} label={market} value={count} />
               ))}
           </div>
-        </div>
+        </Card>
       )}
 
       {stats.dateRange.earliest !== '-' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold text-slate-800">
+        <Card className="p-4">
+          <h2 className="mb-4 text-sm font-semibold text-fg">
             {t('adminPage.dataManagement.dataCoverageRange')}
           </h2>
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <div className="mb-2 flex justify-between text-xs text-slate-500">
+              <div className="mb-2 flex justify-between text-xs text-fg-tertiary">
                 <span>{stats.dateRange.earliest}</span>
                 <span>{stats.dateRange.latest}</span>
               </div>
-              <div className="h-3 overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600"
-                  style={{ width: '100%' }}
-                />
+              <div className="h-3 overflow-hidden rounded-full bg-input-bg">
+                <div className="h-full rounded-full bg-brand" style={{ width: '100%' }} />
               </div>
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-fg-tertiary">
                 {t('adminPage.dataManagement.coverYears', {
                   years: getYearDiff(stats.dateRange.earliest, stats.dateRange.latest),
                 })}
               </p>
             </div>
           </div>
-        </div>
+        </Card>
       )}
     </>
   );
@@ -313,7 +309,7 @@ export default function DataManagement() {
         setSources(buildSources(newStats));
       }
     } catch (e) {
-      console.error('Failed to fetch data stats:', e);
+      reportError(e, { component: 'DataManagement', action: 'fetchData' });
       useToastStore.getState().addToast('error', t('adminPage.dataManagement.statsLoadFailed'));
     }
 
@@ -380,17 +376,17 @@ function SourceStatusBadge({ status }: { status: 'active' | 'inactive' | 'unknow
     active: {
       icon: CheckCircle,
       label: t('adminPage.dataManagement.statusActive'),
-      className: 'bg-green-50 text-green-600',
+      className: 'bg-success/10 text-success',
     },
     inactive: {
       icon: AlertCircle,
       label: t('adminPage.dataManagement.statusInactive'),
-      className: 'bg-red-50 text-red-600',
+      className: 'bg-danger/10 text-danger',
     },
     unknown: {
       icon: AlertCircle,
       label: t('adminPage.dataManagement.statusUnknown'),
-      className: 'bg-slate-50 text-slate-500',
+      className: 'bg-elevated text-fg-tertiary',
     },
   };
 
@@ -408,9 +404,9 @@ function SourceStatusBadge({ status }: { status: 'active' | 'inactive' | 'unknow
 
 function CoverageItem({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-slate-100 p-3">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="text-lg font-bold text-slate-800">{value.toLocaleString()}</p>
+    <div className="rounded-lg border border-border-subtle p-3">
+      <p className="text-xs font-medium text-fg-tertiary">{label}</p>
+      <p className="text-lg font-bold text-fg">{value.toLocaleString()}</p>
     </div>
   );
 }

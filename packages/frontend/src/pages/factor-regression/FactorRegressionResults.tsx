@@ -28,10 +28,7 @@ function StatCard({
     <Card className="p-4">
       <div className="flex items-center gap-1.5 text-caption text-fg-tertiary">
         {color && color !== 'transparent' && (
-          <span
-            className="inline-block size-2 rounded-full"
-            style={{ backgroundColor: color }}
-          />
+          <span className="inline-block size-2 rounded-full" style={{ backgroundColor: color }} />
         )}
         {label}
       </div>
@@ -111,7 +108,7 @@ function ResidualsChart({ residuals }: { residuals: number[] }) {
               y={y}
               width={2}
               height={barHeight}
-              fill={r >= 0 ? 'var(--success)' : 'var(--danger)'}
+              fill={r >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))'}
               opacity={0.5}
             />
           );
@@ -121,14 +118,14 @@ function ResidualsChart({ residuals }: { residuals: number[] }) {
         <span>
           <span
             className="mr-1 inline-block h-1 w-3 rounded"
-            style={{ backgroundColor: 'var(--success)' }}
+            style={{ backgroundColor: 'hsl(var(--success))' }}
           />
           {t('factorRegression.results.positiveResidual')}
         </span>
         <span>
           <span
             className="mr-1 inline-block h-1 w-3 rounded"
-            style={{ backgroundColor: 'var(--danger)' }}
+            style={{ backgroundColor: 'hsl(var(--danger))' }}
           />
           {t('factorRegression.results.negativeResidual')}
         </span>

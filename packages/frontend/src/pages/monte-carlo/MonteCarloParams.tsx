@@ -119,7 +119,10 @@ function PortfolioConfigSection({ s }: { s: McState }) {
           wrapInSection={false}
           cardStyle={cardStyle}
           header={
-            <PortfolioHeader p={portfolios[0]} onUpdate={(patch) => ops.updatePortfolio(0, patch)} />
+            <PortfolioHeader
+              p={portfolios[0]}
+              onUpdate={(patch) => ops.updatePortfolio(0, patch)}
+            />
           }
         />
         {portfolioMode === 2 && (
@@ -146,6 +149,107 @@ function PortfolioConfigSection({ s }: { s: McState }) {
   );
 }
 
+/** 模拟日期 / 年限 / 次数 / 初始资金 字段组 */
+function SimDateAndCountFields({ s }: { s: McState }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.startDate')}</FieldLabel>
+        <Input type="date" value={s.startDate} onChange={(e) => s.setStartDate(e.target.value)} />
+      </Field>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.endDate')}</FieldLabel>
+        <Input type="date" value={s.endDate} onChange={(e) => s.setEndDate(e.target.value)} />
+      </Field>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.simYears')}</FieldLabel>
+        <Input
+          type="number"
+          value={s.numYears}
+          onChange={(e) => s.setNumYears(Number(e.target.value))}
+        />
+      </Field>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.simCount')}</FieldLabel>
+        <Input
+          type="number"
+          value={s.numSimulations}
+          onChange={(e) => s.setNumSimulations(Number(e.target.value))}
+        />
+      </Field>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.startingValue')}</FieldLabel>
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+            $
+          </span>
+          <Input
+            type="number"
+            className="pl-7"
+            value={s.startingValue}
+            onChange={(e) => s.setStartingValue(Number(e.target.value))}
+          />
+        </div>
+      </Field>
+    </>
+  );
+}
+
+/** 块大小 / 随机种子 / 有放回 字段组 */
+function SimBlockAndSeedFields({ s }: { s: McState }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.minBlock')}</FieldLabel>
+        <div className="relative">
+          <Input
+            type="number"
+            className="pr-10"
+            value={s.minBlock}
+            onChange={(e) => s.setMinBlock(Number(e.target.value))}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+            {t('monteCarlo.params.yearSuffix')}
+          </span>
+        </div>
+      </Field>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.maxBlock')}</FieldLabel>
+        <div className="relative">
+          <Input
+            type="number"
+            className="pr-10"
+            value={s.maxBlock}
+            onChange={(e) => s.setMaxBlock(Number(e.target.value))}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+            {t('monteCarlo.params.yearSuffix')}
+          </span>
+        </div>
+      </Field>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.randomSeed')}</FieldLabel>
+        <Input
+          type="number"
+          value={s.randomSeed}
+          onChange={(e) => s.setRandomSeed(e.target.value)}
+          placeholder={t('monteCarlo.params.randomSeedPlaceholder')}
+        />
+      </Field>
+      <Field>
+        <FieldLabel>{t('monteCarlo.params.withReplacement')}</FieldLabel>
+        <Checkbox
+          id="mc-with-replacement"
+          checked={s.withReplacement}
+          onCheckedChange={(c) => s.setWithReplacement(c === true)}
+        />
+      </Field>
+    </>
+  );
+}
+
 function SimParamsSection({ s }: { s: McState }) {
   const { t } = useTranslation();
   return (
@@ -155,93 +259,8 @@ function SimParamsSection({ s }: { s: McState }) {
         info={t('monteCarlo.params.simParamsInfo')}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.startDate')}</FieldLabel>
-          <Input
-            type="date"
-            value={s.startDate}
-            onChange={(e) => s.setStartDate(e.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.endDate')}</FieldLabel>
-          <Input type="date" value={s.endDate} onChange={(e) => s.setEndDate(e.target.value)} />
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.simYears')}</FieldLabel>
-          <Input
-            type="number"
-            value={s.numYears}
-            onChange={(e) => s.setNumYears(Number(e.target.value))}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.simCount')}</FieldLabel>
-          <Input
-            type="number"
-            value={s.numSimulations}
-            onChange={(e) => s.setNumSimulations(Number(e.target.value))}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.startingValue')}</FieldLabel>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-              $
-            </span>
-            <Input
-              type="number"
-              className="pl-7"
-              value={s.startingValue}
-              onChange={(e) => s.setStartingValue(Number(e.target.value))}
-            />
-          </div>
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.minBlock')}</FieldLabel>
-          <div className="relative">
-            <Input
-              type="number"
-              className="pr-10"
-              value={s.minBlock}
-              onChange={(e) => s.setMinBlock(Number(e.target.value))}
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-              {t('monteCarlo.params.yearSuffix')}
-            </span>
-          </div>
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.maxBlock')}</FieldLabel>
-          <div className="relative">
-            <Input
-              type="number"
-              className="pr-10"
-              value={s.maxBlock}
-              onChange={(e) => s.setMaxBlock(Number(e.target.value))}
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-              {t('monteCarlo.params.yearSuffix')}
-            </span>
-          </div>
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.randomSeed')}</FieldLabel>
-          <Input
-            type="number"
-            value={s.randomSeed}
-            onChange={(e) => s.setRandomSeed(e.target.value)}
-            placeholder={t('monteCarlo.params.randomSeedPlaceholder')}
-          />
-        </Field>
-        <Field>
-          <FieldLabel>{t('monteCarlo.params.withReplacement')}</FieldLabel>
-          <Checkbox
-            id="mc-with-replacement"
-            checked={s.withReplacement}
-            onCheckedChange={(c) => s.setWithReplacement(c === true)}
-          />
-        </Field>
+        <SimDateAndCountFields s={s} />
+        <SimBlockAndSeedFields s={s} />
       </div>
     </section>
   );
@@ -375,11 +394,7 @@ function McParamsPanel({ s }: { s: McState }) {
       <BuildModeSection s={s} />
       <DualGoalSection s={s} />
       <Button onClick={s.runSimulation} disabled={s.isLoading} variant="primary" className="w-full">
-        {s.isLoading ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Play className="size-4" />
-        )}
+        {s.isLoading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
         {s.isLoading ? t('monteCarlo.params.simulating') : t('monteCarlo.params.startSim')}
       </Button>
     </div>

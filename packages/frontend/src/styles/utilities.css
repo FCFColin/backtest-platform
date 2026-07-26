@@ -6,24 +6,4 @@
     padding: 12px;
     padding-top: 0;
   }
-  .params-row {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .param-field-start-val,
-  .param-field-rolling {
-    width: 100%;
-  }
-  .portfolios-cards {
-    flex-direction: column;
-  }
-  .portfolio-card {
-    max-width: 100%;
-    min-width: 0;
-  }
-  .bt-layout-left {
-    border-bottom: 1px solid var(--border-soft);
-  }
-  .bt-layout-right {
-  }
 }

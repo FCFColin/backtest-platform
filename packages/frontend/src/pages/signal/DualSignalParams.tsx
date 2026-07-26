@@ -100,6 +100,84 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
   );
 }
 
+/** 组合方式 + 股票代码 + 日期范围 字段组 */
+function CombinationAndDateFields({
+  combinationMethod,
+  ticker,
+  startDate,
+  endDate,
+  onCombinationMethodChange,
+  onTickerChange,
+  onStartDateChange,
+  onEndDateChange,
+}: Pick<
+  DualSignalParamsProps,
+  | 'combinationMethod'
+  | 'ticker'
+  | 'startDate'
+  | 'endDate'
+  | 'onCombinationMethodChange'
+  | 'onTickerChange'
+  | 'onStartDateChange'
+  | 'onEndDateChange'
+>) {
+  const { t } = useTranslation();
+  const combId = useId();
+  const tickerId = useId();
+  const startId = useId();
+  const endId = useId();
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Field>
+        <FieldLabel htmlFor={combId}>{t('signal.dual.combinationLogic')}</FieldLabel>
+        <Select
+          value={combinationMethod}
+          onValueChange={(v) => onCombinationMethodChange(v as 'and' | 'or' | 'xor')}
+        >
+          <SelectTrigger id={combId}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {COMBINATION_METHODS.map((m) => (
+              <SelectItem key={m.value} value={m.value}>
+                {t(m.label)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={tickerId}>{t('signal.common.tickerLabel')}</FieldLabel>
+        <Input
+          id={tickerId}
+          type="text"
+          value={ticker}
+          onChange={(e) => onTickerChange(e.target.value)}
+          placeholder={t('signal.common.tickerPlaceholder')}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
+        <Input
+          id={startId}
+          type="date"
+          value={startDate}
+          onChange={(e) => onStartDateChange(e.target.value)}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
+        <Input
+          id={endId}
+          type="date"
+          value={endDate}
+          onChange={(e) => onEndDateChange(e.target.value)}
+        />
+      </Field>
+    </div>
+  );
+}
+
 /**
  * DualSignal 参数面板（信号1 + 信号2 + 组合方式 + 运行按钮）。
  * @param props - 见 DualSignalParamsProps
@@ -108,24 +186,13 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
 export function DualSignalParamsPanel({
   cfg1,
   cfg2,
-  combinationMethod,
-  ticker,
-  startDate,
-  endDate,
   isLoading,
   onCfg1Change,
   onCfg2Change,
-  onCombinationMethodChange,
-  onTickerChange,
-  onStartDateChange,
-  onEndDateChange,
   onRun,
+  ...rest
 }: DualSignalParamsProps) {
   const { t } = useTranslation();
-  const combId = useId();
-  const tickerId = useId();
-  const startId = useId();
-  const endId = useId();
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
@@ -138,54 +205,7 @@ export function DualSignalParamsPanel({
       </section>
       <section className="flex flex-col gap-2">
         <h3 className="text-h3 text-fg">{t('signal.dual.combinationSection')}</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field>
-            <FieldLabel htmlFor={combId}>{t('signal.dual.combinationLogic')}</FieldLabel>
-            <Select
-              value={combinationMethod}
-              onValueChange={(v) => onCombinationMethodChange(v as 'and' | 'or' | 'xor')}
-            >
-              <SelectTrigger id={combId}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COMBINATION_METHODS.map((m) => (
-                  <SelectItem key={m.value} value={m.value}>
-                    {t(m.label)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={tickerId}>{t('signal.common.tickerLabel')}</FieldLabel>
-            <Input
-              id={tickerId}
-              type="text"
-              value={ticker}
-              onChange={(e) => onTickerChange(e.target.value)}
-              placeholder={t('signal.common.tickerPlaceholder')}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
-            <Input
-              id={startId}
-              type="date"
-              value={startDate}
-              onChange={(e) => onStartDateChange(e.target.value)}
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
-            <Input
-              id={endId}
-              type="date"
-              value={endDate}
-              onChange={(e) => onEndDateChange(e.target.value)}
-            />
-          </Field>
-        </div>
+        <CombinationAndDateFields {...rest} />
       </section>
       <RunAnalysisButton isLoading={isLoading} onClick={onRun} />
     </div>

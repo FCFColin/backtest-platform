@@ -121,6 +121,19 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
 vi.mock('../../../packages/backend/src/application/backtest/engineBodyBuilder.js', () => ({
   buildEngineParams: m.buildEngineParams,
 }));
+
+// P0-03: backtestQueue mock — 默认 add 抛错触发同步降级路径，使现有测试继续测试同步行为。
+// 异步路径由 backtest-async.test.ts 单独覆盖。
+const queueMocks = vi.hoisted(() => ({
+  add: vi.fn().mockRejectedValue(new Error('Redis unavailable in unit tests')),
+  getJob: vi.fn().mockResolvedValue(null),
+}));
+vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
+  backtestQueue: {
+    add: queueMocks.add,
+    getJob: queueMocks.getJob,
+  },
+}));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks(),
   validateConfig: vi.fn(),

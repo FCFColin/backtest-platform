@@ -78,6 +78,24 @@ export class DataNotFoundError extends ApplicationError {
 }
 
 /**
+ * Redis 不可用错误（503 Service Unavailable，ADR-045）。
+ *
+ * 用于 Redis 健康检查失败或 Redis 命令抛错时，替代旧的"内存降级"反模式。
+ * HA（Sentinel）架构下静默降级比显式失败更危险：跨 Pod 状态不一致会导致
+ * 刷新令牌无法验证、幂等键失效、暴力破解防护失效。asyncRouteHandler /
+ * crudRouteHandler 自动翻译为 503 + RFC 7807 响应体。
+ */
+export class RedisUnavailableError extends ApplicationError {
+  readonly statusCode = 503;
+  readonly errorCode = 'REDIS_UNAVAILABLE';
+  readonly errorTitle = 'Redis unavailable';
+  constructor(message: string = 'Redis unavailable') {
+    super(message);
+    this.name = 'RedisUnavailableError';
+  }
+}
+
+/**
  * 上游服务 4xx 错误（RO-045 / RFC 7807 透传）。
  *
  * 企业理由：Go 引擎对参数错误返回 4xx（如 400 Bad Request / 422 Unprocessable），
@@ -155,6 +173,7 @@ export const ErrorCodes = {
   INVALID_WEIGHT_SUM: 'INVALID_WEIGHT_SUM',
   EMPTY_PORTFOLIO: 'EMPTY_PORTFOLIO',
   ENGINE_UNAVAILABLE: 'ENGINE_UNAVAILABLE',
+  REDIS_UNAVAILABLE: 'REDIS_UNAVAILABLE',
   DATA_FETCH_FAILED: 'DATA_FETCH_FAILED',
   DATA_DEGRADED: 'DATA_DEGRADED',
   AUTH_REQUIRED: 'AUTH_REQUIRED',

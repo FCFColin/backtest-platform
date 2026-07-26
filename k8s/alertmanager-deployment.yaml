@@ -1,0 +1,247 @@
+# =============================================================================
+# AlertManager 部署 — StatefulSet + Service + ConfigMap（P1-10）
+# =============================================================================
+#
+# 企业理由：Prometheus 仅有规则无通知通道等于"只有仪表盘没有报警器"。
+# AlertManager 负责告警去重、分组、抑制与分级路由（飞书/钉钉 Webhook）。
+#
+# 拓扑：
+#   ConfigMap alertmanager-config   → ${VAR} 模板（FEISHU_WEBHOOK / DINGTALK_WEBHOOK）
+#   StatefulSet alertmanager (1)    → initContainer envsubst 渲染模板到 emptyDir
+#   Service alertmanager (9093)     → Prometheus 推送目标
+#   PVC alertmanager-data (Retain)  → 持久化告警状态（已通知/静默/抑制），避免重启重发
+#
+# 与 docker-compose 一致性：docker/alertmanager/alertmanager.yml 为同源模板，
+# docker-compose 通过 envsubst 渲染；k8s 通过 initContainer envsubst 渲染。
+#
+# Secret alertmanager-webhooks（需运维预创建，不入 Git）：
+#   kubectl -n backtest-platform create secret generic alertmanager-webhooks \
+#     --from-literal=FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxx \
+#     --from-literal=DINGTALK_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=xxx
+# =============================================================================
+
+---
+# AlertManager 配置模板（含 ${VAR} 占位符，由 initContainer envsubst 渲染）
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: backtest-platform
+  labels:
+    app: alertmanager
+    app.kubernetes.io/part-of: backtest-platform
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+
+    # 告警抑制：P0 (critical) 抑制同范围 P1 (warning)，避免告警风暴
+    inhibit_rules:
+      - source_matchers:
+          - severity = "critical"
+        target_matchers:
+          - severity = "warning"
+        equal: ["service"]
+      - source_matchers:
+          - alertname = "RedisDown"
+        target_matchers:
+          - alertname =~ "RedisReplicationLagHigh|RedisNoSlavesConnected"
+        equal: ["instance"]
+      - source_matchers:
+          - alertname = "GoEngineDown"
+        target_matchers:
+          - alertname =~ "HighErrorRate|DegradedResponseRateHigh"
+        equal: ["service"]
+      - source_matchers:
+          - alertname = "PostgresDown"
+        target_matchers:
+          - alertname =~ "PgPoolWaiting|ReplicationLag"
+        equal: ["service"]
+
+    route:
+      group_by: ["alertname", "severity", "service"]
+      group_wait: 0s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: "feishu-info"
+      routes:
+        # P0：critical → 飞书 + 钉钉，立即触达
+        - matchers:
+            - severity = "critical"
+          receiver: "p0-feishu-dingtalk"
+          group_wait: 0s
+          repeat_interval: 30m
+          continue: false
+        # P1：warning → 飞书，每小时汇总
+        - matchers:
+            - severity = "warning"
+          receiver: "p1-feishu"
+          group_wait: 30s
+          repeat_interval: 1h
+          continue: false
+        # P2：info → 飞书，4 小时汇总
+        - matchers:
+            - severity = "info"
+          receiver: "feishu-info"
+          group_wait: 5m
+          repeat_interval: 4h
+          continue: false
+
+    receivers:
+      - name: "p0-feishu-dingtalk"
+        webhook_configs:
+          - url: "${FEISHU_WEBHOOK}"
+            send_resolved: true
+            max_alerts: 0
+          - url: "${DINGTALK_WEBHOOK}"
+            send_resolved: true
+            max_alerts: 0
+      - name: "p1-feishu"
+        webhook_configs:
+          - url: "${FEISHU_WEBHOOK}"
+            send_resolved: true
+            max_alerts: 0
+      - name: "feishu-info"
+        webhook_configs:
+          - url: "${FEISHU_WEBHOOK}"
+            send_resolved: true
+            max_alerts: 0
+
+---
+# AlertManager StatefulSet（1 副本 + PVC 持久化告警状态）
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: alertmanager
+  namespace: backtest-platform
+  labels:
+    app: alertmanager
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  serviceName: alertmanager
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+        app.kubernetes.io/part-of: backtest-platform
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      # initContainer：用 envsubst 渲染 ${VAR} 模板到可写 emptyDir
+      # AlertManager 原生不支持环境变量插值，需在启动前渲染
+      initContainers:
+        - name: render-config
+          image: alpine:3.20
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - sh
+            - -c
+            - |
+              apk add --no-cache gettext > /dev/null 2>&1
+              envsubst < /tpl/alertmanager.yml > /rendered/alertmanager.yml
+              echo "rendered alertmanager.yml ($(wc -c < /rendered/alertmanager.yml) bytes)"
+          envFrom:
+            - secretRef:
+                name: alertmanager-webhooks
+          volumeMounts:
+            - name: config-template
+              mountPath: /tpl
+            - name: rendered-config
+              mountPath: /rendered
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.27.0
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+            - --storage.path=/alertmanager
+            - --web.listen-address=:9093
+          ports:
+            - containerPort: 9093
+              name: alertmanager
+          resources:
+            requests:
+              memory: '32Mi'
+              cpu: '0.05'
+            limits:
+              memory: '128Mi'
+              cpu: '0.25'
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          volumeMounts:
+            - name: rendered-config
+              mountPath: /etc/alertmanager
+              readOnly: true
+            - name: alertmanager-data
+              mountPath: /alertmanager
+      volumes:
+        - name: config-template
+          configMap:
+            name: alertmanager-config
+        - name: rendered-config
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: alertmanager-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: redis-data # 复用 Retain StorageClass（ADR-045），防止 PVC 误删
+        resources:
+          requests:
+            storage: 512Mi # 告警状态轻量，512Mi 充裕
+
+---
+# AlertManager Service（Prometheus 推送目标：alertmanager:9093）
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: backtest-platform
+  labels:
+    app: alertmanager
+    app.kubernetes.io/part-of: backtest-platform
+spec:
+  type: ClusterIP
+  ports:
+    - port: 9093
+      targetPort: 9093
+      name: alertmanager
+  selector:
+    app: alertmanager

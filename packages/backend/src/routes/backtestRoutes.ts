@@ -4,7 +4,8 @@
  * 路由只负责：请求解析 → 调用 application 层 → 响应格式化。
  * 所有校验、数据准备、引擎调用编排逻辑在 application 层中。
  *
- * POST /api/backtest/portfolio        — 组合回测
+ * POST /api/backtest/portfolio        — 组合回测（异步 202，X-Backtest-Sync: true 走同步 200）
+ * GET  /api/backtest/runs/:jobId       — 查询异步回测任务状态（P0-03）
  * POST /api/backtest/portfolio/series — 从缓存补全 tab 序列
  * POST /api/backtest/analysis         — 资产分析
  * POST /api/backtest/monte-carlo      — 蒙特卡洛模拟
@@ -15,7 +16,6 @@
 
 import { Router, type Request, type Response } from 'express';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
-import { runPortfolioBacktest } from '../application/backtest-service.js';
 import { runAnalysis } from '../application/analysis-orchestrator.js';
 import type { Warning } from '../application/backtest-helpers.js';
 import { runMonteCarlo } from '../application/montecarlo-service.js';
@@ -29,8 +29,13 @@ import { searchTickers } from '../infrastructure/dataFacade.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, crudRouteHandler, ownerOf } from './routeUtils.js';
 import type { AuthenticatedRequest } from '../middleware/authTypes.js';
+import {
+  backtestQueue,
+  type BacktestJobData,
+  type BacktestJobResult,
+} from '../queues/backtestQueue.js';
 import { validate } from '../middleware/validate.js';
 import {
   portfolioBacktestSchema,
@@ -97,6 +102,9 @@ router.get(
 
 // ---------------------------------------------------------------------------
 // 组合回测 — 编排逻辑在 backtest-service.runPortfolioBacktest 中
+// P0-02：统一异步模式（202 + 入队），废弃同步路径（BACKTEST_SYNC_WAIT_MS 已移除）。
+// 队列不可用时 fail-closed 返回 503（ADR-031），不再回退到同步执行。
+// 前端通过 useBacktestWs（WebSocket + 轮询降级）订阅任务进度。
 // ---------------------------------------------------------------------------
 
 router.post(
@@ -104,22 +112,49 @@ router.post(
   validate(portfolioBacktestSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const startTime = Date.now();
       const { portfolios, parameters } = req.body as {
         portfolios: Portfolio[];
         parameters: BacktestParameters;
       };
       const authReq = req as AuthenticatedRequest;
+      const ownerUserId = ownerOf(authReq);
+      const tenantId = authReq.tenantId;
+      const userId = authReq.user?.sub;
 
-      const { result, warnings, dateRange } = await runPortfolioBacktest({
-        portfolios,
-        parameters,
-        tenantId: authReq.tenantId,
-        ownerUserId: authReq.user?.sub,
-      });
+      // P0-02：统一异步路径——入队后立即返回 202 Accepted。
+      // 废弃的同步路径（X-Backtest-Sync: true）已移除，多实例场景下同步等待无法保证
+      // 请求路由到同一引擎实例。前端通过 WebSocket + 轮询降级获取结果。
+      try {
+        const job = await backtestQueue.add('portfolio', {
+          type: 'portfolio',
+          payload: { portfolios, parameters },
+          userId,
+          tenantId,
+          ownerUserId,
+        } as BacktestJobData);
 
-      res.json(buildBacktestResponse(result, warnings, dateRange));
-      logger.info(`[backtest] Portfolio backtest completed in ${Date.now() - startTime}ms`);
+        res.status(202).json({
+          success: true,
+          data: {
+            jobId: job.id,
+            status: 'queued',
+            statusUrl: `/api/v1/backtest/runs/${job.id}`,
+          },
+        });
+        recordBacktestRequest('portfolio', 'async', 'success');
+      } catch (queueError) {
+        // P0-02：队列不可用时 fail-closed 返回 503（ADR-031），不再回退到同步执行。
+        // 同步回退在引擎多实例场景下无法保证请求路由到同一实例，且阻塞事件循环。
+        logger.error(
+          { err: (queueError as Error).message },
+          '[backtest] BullMQ 队列不可用，fail-closed 返回 503',
+        );
+        recordBacktestRequest('portfolio', 'async', 'queue_error');
+        sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', {
+          detail: 'Compute queue temporarily unavailable. Please retry later.',
+          retryAfter: 30,
+        });
+      }
     },
     {
       logMsg: 'Portfolio backtest error',
@@ -129,6 +164,102 @@ router.post(
   ),
 );
 
+// ---------------------------------------------------------------------------
+// 异步任务状态查询 — GET /api/v1/backtest/runs/:jobId（P0-03）
+// 返回 BullMQ job 状态 + 进度 + 结果（完成时）或错误（失败时）。
+// 状态映射：waiting/active → running, completed → completed, failed → failed, delayed → queued
+// ---------------------------------------------------------------------------
+
+/**
+ * 将 BullMQ 内部状态映射为对客户端公开的简化状态。
+ *
+ * @param bullmqState - BullMQ job.getState() 返回的内部状态字符串
+ * @returns 公开状态：queued | running | completed | failed
+ */
+function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 'failed' {
+  if (bullmqState === 'completed') return 'completed';
+  if (bullmqState === 'failed') return 'failed';
+  if (bullmqState === 'delayed') return 'queued';
+  // waiting / active / wait-priority / prioritized 等均视为 running（已被 worker 拾取或即将拾取）
+  return 'running';
+}
+
+/**
+ * 校验调用方是否有权访问该 job（所有者本人 / admin / 同租户）。
+ * 越权访问返回 404（不泄露任务是否存在），与 jobRoutes.ts 一致。
+ *
+ * @returns true 表示已拒绝（响应已发送），false 表示授权通过
+ */
+function authorizeBacktestJob(
+  res: Response,
+  job: NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>,
+  authReq: AuthenticatedRequest,
+): boolean {
+  const requester = authReq.user;
+  if (!requester) return false; // 未认证请求由上游中间件拦截，此处放行匿名场景（无 user 时）
+  const ownerId = job.data?.userId;
+  const jobTenant = job.data?.tenantId;
+  const hasOwnership =
+    (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
+  const passesTenantCheck =
+    !jobTenant || jobTenant === authReq.tenantId || requester.platform_admin === true;
+  if (!hasOwnership || !passesTenantCheck) {
+    sendProblem(res, 404, 'JOB_NOT_FOUND');
+    return true;
+  }
+  return false;
+}
+
+router.get(
+  '/runs/:jobId',
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const authReq = req as AuthenticatedRequest;
+      const jobId = req.params.jobId;
+      if (!jobId) {
+        sendProblem(res, 400, 'INVALID_ID');
+        return;
+      }
+
+      const job = await backtestQueue.getJob(jobId);
+      if (!job) {
+        sendProblem(res, 404, 'JOB_NOT_FOUND');
+        return;
+      }
+
+      // 越权访问返回 404（不泄露任务是否存在），与 jobRoutes.ts 行为一致
+      if (authorizeBacktestJob(res, job, authReq)) return;
+
+      const bullmqState = await job.getState();
+      const status = mapJobState(bullmqState);
+      const progress = typeof job.progress === 'number' ? job.progress : 0;
+
+      const data: Record<string, unknown> = {
+        jobId,
+        status,
+        progress,
+      };
+
+      if (status === 'completed' && job.returnvalue) {
+        const returnValue = job.returnvalue as unknown as BacktestJobResult;
+        if (returnValue.status === 'completed' && returnValue.result) {
+          // portfolio job 的 result 形状：{ data, warnings, dateRange }
+          data.result = returnValue.result;
+        } else if (returnValue.status === 'failed') {
+          data.error = returnValue.error;
+        }
+      } else if (status === 'failed') {
+        data.error = job.failedReason || 'Job execution failed';
+      }
+
+      res.json({ success: true, data });
+    },
+    {
+      logMsg: '[backtestRoutes] 查询异步任务状态失败',
+      code: 'JOB_STATUS_ERROR',
+    },
+  ),
+);
 // ---------------------------------------------------------------------------
 // 从 LRU 缓存补全 tab 序列
 // ---------------------------------------------------------------------------

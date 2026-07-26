@@ -39,14 +39,14 @@ export function MemberTable({
         {members.map((m) => (
           <tr key={m.userId}>
             <td style={TABLE_TD}>{m.username}</td>
-            <td style={TABLE_TD}>{m.email ?? '—'}</td>
+            <td style={TABLE_TD}>{m.email ?? '-'}</td>
             <td style={TABLE_TD}>
               {isAdmin && m.role !== 'owner' ? (
                 <RoleSelect
                   value={m.role}
                   disabled={busy}
                   onChange={(r) => void onChangeRole(m.userId, r)}
-                  className="portfolio-rebalance-select"
+                  className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
                   style={{ height: 32 }}
                 />
               ) : (

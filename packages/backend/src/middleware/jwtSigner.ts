@@ -29,7 +29,7 @@ import { SignJWT, generateKeyPair, importPKCS8, importSPKI, importJWK } from 'jo
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { errorMessage } from '../utils/errors.js';
-import { type JwtPayload, type TenantContext, ACCESS_TOKEN_EXPIRES_IN_SEC } from './authTypes.js';
+import { type JwtPayload, type TenantContext, getRoleBasedAccessTtl } from './authTypes.js';
 
 // jose 密钥类型：非对称密钥为 CryptoKey（Web Crypto API），对称密钥为 Uint8Array
 type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
@@ -258,11 +258,13 @@ export async function generateToken(
   tenant?: TenantContext,
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
+  // P1-09 等保三级 idle timeout：按角色设置 Access Token 有效期
+  const ttl = getRoleBasedAccessTtl(role);
   const payload: JwtPayload = {
     sub: userId,
     role,
     iat: now,
-    exp: now + ACCESS_TOKEN_EXPIRES_IN_SEC,
+    exp: now + ttl,
   };
   if (tenant?.tenantId) payload.tenant_id = tenant.tenantId;
   if (tenant?.orgRole) payload.org_role = tenant.orgRole;

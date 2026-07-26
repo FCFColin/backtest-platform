@@ -1,10 +1,13 @@
-/** 回测优化器页面组合入口：组合 ./backtestOptimizer/ 下的 Section 子组件，导出 OptimizerPageShell。 */
+﻿/** 回测优化器页面组合入口：组合 ./backtestOptimizer/ 下的 Section 子组件，导出 OptimizerPageShell。基于 shadcn Card / Button + token 类名。 */
 import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
 import { ToolSeoCard } from '../../components/layout/ToolSeoCard.js';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import { ParamRow, ParamCard } from '../../components/params/index.js';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { StatCard } from '@/components/cards.js';
 import { buildBestMetrics } from './backtestOptimizerUtils.js';
 import { PortfolioConfigSection } from './backtestOptimizer/PortfolioConfigSection.tsx';
 import { ParameterSpaceSection } from './backtestOptimizer/ParameterSpaceSection.tsx';
@@ -24,7 +27,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
         <ParamCard label={t('backtest.optimizer.startDate')}>
           <input
             type="date"
-            className="param-input"
+            className="flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150"
             value={s.startDate}
             onChange={(e) => s.setStartDate(e.target.value)}
           />
@@ -32,7 +35,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
         <ParamCard label={t('backtest.optimizer.endDate')}>
           <input
             type="date"
-            className="param-input"
+            className="flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150"
             value={s.endDate}
             onChange={(e) => s.setEndDate(e.target.value)}
           />
@@ -40,7 +43,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
         <ParamCard label={t('backtest.optimizer.benchmarkTicker')}>
           <input
             type="text"
-            className="param-input"
+            className="flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150"
             value={s.benchmarkTicker}
             onChange={(e) => s.setBenchmarkTicker(e.target.value)}
             placeholder={t('backtest.optimizer.benchmarkPlaceholder')}
@@ -56,50 +59,19 @@ function BestMetricsCard({ best, totalCombos }: BestMetricsCardProps) {
   if (!best) return null;
   const metrics = buildBestMetrics(best);
   return (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 12,
-        }}
-      >
-        <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-strong)' }}>
-          {t('backtest.optimizer.bestCombo')}
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-body font-semibold text-fg">{t('backtest.optimizer.bestCombo')}</div>
+        <span className="text-caption text-fg-tertiary">
           {t('backtest.optimizer.totalCombos', { count: totalCombos })}
         </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {metrics.map((m) => (
-          <div
-            key={m.label}
-            style={{
-              textAlign: 'center',
-              padding: 12,
-              backgroundColor: 'var(--bg-subtle)',
-              borderRadius: 'var(--radius-control)',
-            }}
-          >
-            <div style={{ fontSize: 11, marginBottom: 4, color: 'var(--text-muted)' }}>
-              {m.label}
-            </div>
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 600,
-                fontFamily: 'monospace',
-                color: 'var(--text-body)',
-              }}
-            >
-              {m.value}
-            </div>
-          </div>
+          <StatCard key={m.label} label={m.label} value={m.value} />
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -111,20 +83,16 @@ function OptimizerParams({ s }: OptimizerSectionProps) {
       <ParameterSpaceSection s={s} />
       <ObjectiveSection s={s} />
       <BacktestRangeSection s={s} />
-      <div className="bt-action-row" style={{ padding: '12px 0 4px' }}>
-        <button
+      <div className="py-3">
+        <Button
+          variant="primary"
+          className="w-full"
           onClick={() => void s.runOptimize()}
           disabled={s.isLoading}
-          className="main-action-btn"
-          style={{ width: '100%' }}
         >
-          {s.isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Play className="w-4 h-4" />
-          )}
+          {s.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
           {s.isLoading ? t('backtest.optimizer.optimizing') : t('backtest.optimizer.startOptimize')}
-        </button>
+        </Button>
       </div>
     </ParamsPanel>
   );
@@ -134,17 +102,17 @@ function OptimizerResults({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   if (s.error) {
     return (
-      <div style={{ color: 'var(--error)', textAlign: 'center', padding: 24 }}>
+      <Card className="flex items-center justify-center p-6 text-center text-danger">
         {t('backtest.optimizer.optimizeFailed')}
         {s.error}
-      </div>
+      </Card>
     );
   }
   if (!s.results) {
     return (
-      <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 48 }}>
+      <Card className="flex items-center justify-center p-12 text-center text-fg-tertiary">
         {t('backtest.optimizer.configHint')}
-      </div>
+      </Card>
     );
   }
   return (
@@ -159,10 +127,7 @@ function OptimizerResults({ s }: OptimizerSectionProps) {
 export function OptimizerPageShell({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
-    <div className="bt-page">
-      <div className="bt-page-header">
-        <h1 className="bt-page-title">{t('backtest.optimizer.pageTitle')}</h1>
-      </div>
+    <div className="flex w-full flex-col gap-3">
       <ToolSeoCard
         desc={t('backtest.optimizer.seoDesc')}
         features={[

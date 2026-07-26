@@ -2,7 +2,7 @@
  * @file 净值增长曲线图
  * @description 展示各投资组合的净值增长曲线，支持线性和对数坐标切换及基准货币换算
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
@@ -34,19 +34,6 @@ export default function GrowthChart({
   const { t } = useTranslation();
   const [logScale, setLogScale] = useState(false);
 
-  // [T9 诊断] 临时调试日志：检查 growthCurve 数据完整性
-  useEffect(() => {
-    console.log('[GrowthChart Debug]', {
-      portfoliosCount: portfolios.length,
-      portfolios: portfolios.map((p) => ({
-        name: p.name,
-        growthCurveLength: p.growthCurve?.length ?? 0,
-        firstPoint: p.growthCurve?.[0],
-        lastPoint: p.growthCurve?.[p.growthCurve.length - 1],
-      })),
-    });
-  }, [portfolios]);
-
   const mergedData = mergePortfolioSeries(
     portfolios,
     (p) => p.growthCurve,
@@ -55,22 +42,10 @@ export default function GrowthChart({
   );
   const chartData = useChartData(mergedData, CHART_MAX_POINTS);
 
-  // [T9 诊断] 临时调试日志：检查合并后数据
-  useEffect(() => {
-    console.log('[GrowthChart Debug] mergedData', {
-      mergedDataLength: mergedData.length,
-      chartDataLength: chartData.length,
-      firstRow: mergedData[0],
-      lastRow: mergedData[mergedData.length - 1],
-      portfolioNamesInData:
-        mergedData.length > 0 ? Object.keys(mergedData[0]).filter((k) => k !== 'date') : [],
-    });
-  }, [mergedData, chartData]);
-
   const logToggle = (
     <button
       onClick={() => setLogScale(!logScale)}
-      className="btn-ghost"
+      className="bg-transparent text-fg-secondary border border-border-subtle rounded px-3 py-1 text-caption font-medium hover:bg-hover hover:text-fg transition-colors"
       style={logScale ? { color: 'var(--brand)', borderColor: 'var(--brand)' } : undefined}
     >
       {t('charts.logScale')}

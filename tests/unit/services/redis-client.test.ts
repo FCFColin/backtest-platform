@@ -7,6 +7,7 @@
  * - appRedis 配置 maxRetriesPerRequest=3（有限重试）
  * - redisConnection 配置 maxRetriesPerRequest=null（BullMQ 要求）
  * - appRedis 注册 error/connect/reconnecting 事件回调
+ * - ADR-045：Sentinel 模式连接选项与单实例回退
  *
  * 权衡：mock ioredis，不验证真实 Redis 连接行为。
  */
@@ -35,9 +36,15 @@ const ioredisMocks = vi.hoisted(() => {
   }> = [];
   return {
     instances,
-    IORedis: vi.fn(function (this: unknown, url: string, options: unknown) {
+    // ioredis 支持多种构造签名：(url, options)、(options)、()。
+    // ADR-045 后 redisClient.ts 统一使用 (options) 单参数形式（buildRedisBaseOptions）。
+    IORedis: vi.fn(function (this: unknown, ...args: unknown[]) {
+      const opts =
+        args.length >= 1 && typeof args[0] === 'object' && args[0] !== null
+          ? { ...(args[0] as Record<string, unknown>) }
+          : { url: args[0], ...((args[1] as Record<string, unknown>) ?? {}) };
       const instance = {
-        options: { url, ...options },
+        options: opts,
         on: vi.fn(),
       };
       instances.push(instance);
@@ -71,10 +78,12 @@ describe('redisConnection（BullMQ 专用）', () => {
     expect(typeof redisConnection.on).toBe('function');
   });
 
-  it('应使用 config.REDIS_URL 连接', () => {
+  it('应使用解析自 REDIS_URL 的 host/port 连接（单实例模式）', () => {
+    // ADR-045：单实例模式下 buildRedisBaseOptions 返回 parseRedisUrl 结果 {host, port}
     expect(ioredisMocks.IORedis).toHaveBeenCalledWith(
-      'redis://localhost:6379',
       expect.objectContaining({
+        host: 'localhost',
+        port: 6379,
         maxRetriesPerRequest: null,
         enableReadyCheck: false,
       }),
@@ -195,5 +204,59 @@ describe('redisConnection 与 appRedis 配置隔离', () => {
 
   it('两个连接应是不同实例', () => {
     expect(redisConnection).not.toBe(appRedis);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ADR-045：Sentinel 模式连接选项
+// ---------------------------------------------------------------------------
+
+describe('Redis Sentinel 模式（ADR-045）', () => {
+  it('配置 REDIS_SENTINELS 时应使用 Sentinel 连接选项', async () => {
+    // 重新设置模块缓存，用含 REDIS_SENTINELS 的 config mock 重新加载 redisClient
+    vi.resetModules();
+    const sentinelConfig = createConfigMocks({
+      REDIS_SENTINELS: 'sentinel-0:26379,sentinel-1:26379,sentinel-2:26379',
+      REDIS_SENTINEL_NAME: 'mymaster',
+      REDIS_PASSWORD: 'secret',
+    });
+    vi.doMock('../../../packages/backend/src/config/index.js', () => ({ config: sentinelConfig }));
+
+    // 新的 instances 收集器，避免与前面单实例用例混淆
+    const sentinelInstances: Array<{ options: Record<string, unknown> }> = [];
+    vi.doMock('ioredis', () => ({
+      default: vi.fn(function (this: unknown, ...args: unknown[]) {
+        const opts =
+          args.length >= 1 && typeof args[0] === 'object' && args[0] !== null
+            ? { ...(args[0] as Record<string, unknown>) }
+            : {};
+        const instance = { options: opts, on: vi.fn() };
+        sentinelInstances.push(instance);
+        return instance;
+      }),
+    }));
+
+    const { buildRedisBaseOptions, isSentinelMode } =
+      await import('../../../packages/backend/src/infrastructure/redisClient.js');
+
+    expect(isSentinelMode).toBe(true);
+    const opts = buildRedisBaseOptions();
+    expect(opts.sentinels).toEqual([
+      { host: 'sentinel-0', port: 26379 },
+      { host: 'sentinel-1', port: 26379 },
+      { host: 'sentinel-2', port: 26379 },
+    ]);
+    expect(opts.name).toBe('mymaster');
+    expect(opts.password).toBe('secret');
+    expect(opts.sentinelPassword).toBe('secret');
+
+    // redisConnection（BullMQ）与 appRedis 两个实例均应携带 sentinels/name
+    expect(sentinelInstances).toHaveLength(2);
+    expect(sentinelInstances[0].options.sentinels).toEqual(opts.sentinels);
+    expect(sentinelInstances[0].options.name).toBe('mymaster');
+    expect(sentinelInstances[1].options.sentinels).toEqual(opts.sentinels);
+
+    vi.doUnmock('../../../packages/backend/src/config/index.js');
+    vi.doUnmock('ioredis');
   });
 });

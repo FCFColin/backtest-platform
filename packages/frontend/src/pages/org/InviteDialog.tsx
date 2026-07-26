@@ -92,13 +92,13 @@ function InviteForm({
         placeholder={t('orgMembers.invite.emailPlaceholder')}
         value={inviteEmail}
         onChange={(e) => onInviteEmailChange(e.target.value)}
-        className="portfolio-rebalance-select"
+        className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
         style={{ height: 38, flex: '1 1 220px' }}
       />
       <RoleSelect
         value={inviteRole}
         onChange={onInviteRoleChange}
-        className="portfolio-rebalance-select"
+        className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
         style={{ height: 38 }}
       />
       <button

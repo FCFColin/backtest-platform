@@ -134,6 +134,11 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/no-explicit-any': 'error',
+      // P1-3: 禁止空 catch 块，防止静默吞错。合法的空 catch 须显式标注 eslint-disable-next-line no-empty
+      'no-empty': ['error', { allowEmptyCatch: false }],
+      // P3-1: 禁止 console 调试代码，统一使用 logger（后端）或 reportError（前端）。
+      // 合法用途（如 errorReporter.ts 开发环境输出）须显式标注 eslint-disable-next-line no-console
+      'no-console': 'error',
     },
   },
 

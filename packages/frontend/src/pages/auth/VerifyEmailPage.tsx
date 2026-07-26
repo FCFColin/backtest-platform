@@ -52,7 +52,7 @@ export default function VerifyEmailPage() {
 
   const statusIcon =
     status === 'pending' ? (
-      <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'var(--brand)' }} />
+      <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'hsl(var(--brand))' }} />
     ) : status === 'success' ? (
       <CheckCircle2 className="w-10 h-10" style={{ color: 'var(--success, #16a34a)' }} />
     ) : (

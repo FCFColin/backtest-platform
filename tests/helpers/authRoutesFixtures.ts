@@ -17,7 +17,6 @@ import type { Request, Response, NextFunction } from 'express';
 export function createAuthRoutesConfig() {
   return {
     NODE_ENV: 'production' as string,
-    ADMIN_API_KEY: 'test-secret-key-123' as string,
     JWT_SECRET: 'test-jwt-secret',
     JWT_ALGORITHM: 'HS256',
     JWT_ACCESS_TTL: 900,

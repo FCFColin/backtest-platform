@@ -64,6 +64,154 @@ function getVariantMeta(variant: 'error' | 'warning' | 'info') {
   }
 }
 
+/** 横幅右上角关闭按钮，多分支复用。 */
+function ErrorBannerCloseButton({
+  onClose,
+  className,
+}: {
+  onClose: () => void;
+  className?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Button
+      variant="icon"
+      size="icon"
+      onClick={onClose}
+      aria-label={t('common.close')}
+      className={cn('absolute right-2 top-2 h-6 w-6 [&_svg]:size-3.5', className)}
+    >
+      <X />
+    </Button>
+  );
+}
+
+/** 降级模式横幅：warning 色 + 默认降级文案。 */
+function DegradedBanner({
+  message,
+  style,
+  onClose,
+}: {
+  message?: ReactNode;
+  style?: CSSProperties;
+  onClose?: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Alert
+      variant="default"
+      className="bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning relative"
+      style={style}
+    >
+      <AlertTriangle className="size-4" />
+      <AlertTitle className="text-warning">{t('errors.degradedMode')}</AlertTitle>
+      <AlertDescription className="text-warning/90">
+        {message ?? t('errors.degradedDefaultWarning')}
+      </AlertDescription>
+      {onClose && <ErrorBannerCloseButton onClose={onClose} />}
+    </Alert>
+  );
+}
+
+/** 业务警告横幅：DATE_RANGE_CLAMPED 走 info 色，其余走 warning 色。 */
+function WarningBanner({
+  warning,
+  style,
+  onClose,
+}: {
+  warning: WarningInfo;
+  style?: CSSProperties;
+  onClose?: () => void;
+}) {
+  const { t } = useTranslation();
+  const key = getWarningI18nKey(warning.code);
+  const params = getWarningInterpolationParams(warning);
+  const meta = getVariantMeta(warning.code === 'DATE_RANGE_CLAMPED' ? 'info' : 'warning');
+  return (
+    <Alert variant="default" className={cn('relative', meta.className)} style={style}>
+      {meta.icon}
+      <AlertDescription>
+        {t(key, params)}
+        {warning.message ? ` - ${warning.message}` : ''}
+      </AlertDescription>
+      {onClose && <ErrorBannerCloseButton onClose={onClose} />}
+    </Alert>
+  );
+}
+
+/** 错误码横幅：destructive Alert + 标题 + 描述 + 错误类型 URI + 倒计时。 */
+function ErrorCodeBanner({
+  message,
+  errorCode,
+  style,
+  retryAfter,
+  remaining,
+  onClose,
+}: {
+  message?: ReactNode;
+  errorCode: string;
+  style?: CSSProperties;
+  retryAfter?: number;
+  remaining: number;
+  onClose?: () => void;
+}) {
+  const { t } = useTranslation();
+  const key = getErrorI18nKey(errorCode);
+  const errorUri = `${ERROR_TYPE_BASE}/${errorCode}`;
+  return (
+    <Alert variant="destructive" className="relative" style={style}>
+      <AlertCircle className="size-4" />
+      <AlertTitle>{t(key)}</AlertTitle>
+      <AlertDescription>
+        {message && typeof message === 'string' ? ` - ${message}` : message}
+        {retryAfter && retryAfter > 0 && (
+          <span className="mt-1 flex items-center gap-1 text-danger">
+            {t('errors.retryIn', {
+              seconds: remaining,
+              defaultValue: 'Retry in {{seconds}}s',
+            })}
+          </span>
+        )}
+        <a
+          href={errorUri}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 inline-flex items-center text-caption text-danger/80 underline-offset-2 hover:underline"
+        >
+          {errorUri}
+        </a>
+      </AlertDescription>
+      {onClose && <ErrorBannerCloseButton onClose={onClose} className="text-danger" />}
+    </Alert>
+  );
+}
+
+/** 纯消息横幅：按 variant 选择图标与配色。 */
+function MessageBanner({
+  message,
+  variant,
+  style,
+  onClose,
+}: {
+  message: ReactNode;
+  variant: 'error' | 'warning' | 'info';
+  style?: CSSProperties;
+  onClose?: () => void;
+}) {
+  const meta = getVariantMeta(variant);
+  return (
+    <Alert
+      variant={variant === 'error' ? 'destructive' : 'default'}
+      className={cn('relative', meta.className)}
+      style={style}
+    >
+      {meta.icon}
+      <AlertDescription>{message}</AlertDescription>
+      {onClose && <ErrorBannerCloseButton onClose={onClose} />}
+    </Alert>
+  );
+}
+
 /**
  * RFC 7807 错误横幅。支持错误码、业务警告、降级模式与 503 倒计时。
  * @param props - 见 ErrorBannerProps
@@ -79,7 +227,6 @@ export default function ErrorBanner({
   retryAfter,
   onClose,
 }: ErrorBannerProps) {
-  const { t } = useTranslation();
   const [remaining, setRemaining] = useState(retryAfter ?? 0);
 
   // 503 Retry-After 倒计时
@@ -94,122 +241,30 @@ export default function ErrorBanner({
 
   // 降级模式：warning 色 + 默认降级文案
   if (isDegraded) {
-    return (
-      <Alert variant="default" className="bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning relative" style={style}>
-        <AlertTriangle className="size-4" />
-        <AlertTitle className="text-warning">{t('errors.degradedMode')}</AlertTitle>
-        <AlertDescription className="text-warning/90">
-          {message ?? t('errors.degradedDefaultWarning')}
-        </AlertDescription>
-        {onClose && (
-          <Button
-            variant="icon"
-            size="icon"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="absolute right-2 top-2 h-6 w-6 [&_svg]:size-3.5"
-          >
-            <X />
-          </Button>
-        )}
-      </Alert>
-    );
+    return <DegradedBanner message={message} style={style} onClose={onClose} />;
   }
 
-  // 业务警告：DATE_RANGE_CLAMPED 走 info 色，其余走 warning 色
+  // 业务警告
   if (warning) {
-    const key = getWarningI18nKey(warning.code);
-    const params = getWarningInterpolationParams(warning);
-    const isInfo = warning.code === 'DATE_RANGE_CLAMPED';
-    const warningVariant = isInfo ? 'info' : 'warning';
-    const meta = getVariantMeta(warningVariant);
-    return (
-      <Alert variant="default" className={cn('relative', meta.className)} style={style}>
-        {meta.icon}
-        <AlertDescription>
-          {t(key, params)}
-          {warning.message ? ` — ${warning.message}` : ''}
-        </AlertDescription>
-        {onClose && (
-          <Button
-            variant="icon"
-            size="icon"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="absolute right-2 top-2 h-6 w-6 [&_svg]:size-3.5"
-          >
-            <X />
-          </Button>
-        )}
-      </Alert>
-    );
+    return <WarningBanner warning={warning} style={style} onClose={onClose} />;
   }
 
-  // 错误码模式：destructive Alert + 标题 + 描述 + 错误类型 URI + 倒计时
+  // 错误码模式
   if (errorCode) {
-    const key = getErrorI18nKey(errorCode);
-    const errorUri = `${ERROR_TYPE_BASE}/${errorCode}`;
     return (
-      <Alert variant="destructive" className="relative" style={style}>
-        <AlertCircle className="size-4" />
-        <AlertTitle>{t(key)}</AlertTitle>
-        <AlertDescription>
-          {message && typeof message === 'string' ? ` — ${message}` : message}
-          {retryAfter && retryAfter > 0 && (
-            <span className="mt-1 flex items-center gap-1 text-danger">
-              {t('errors.retryIn', {
-                seconds: remaining,
-                defaultValue: 'Retry in {{seconds}}s',
-              })}
-            </span>
-          )}
-          <a
-            href={errorUri}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 inline-flex items-center text-caption text-danger/80 underline-offset-2 hover:underline"
-          >
-            {errorUri}
-          </a>
-        </AlertDescription>
-        {onClose && (
-          <Button
-            variant="icon"
-            size="icon"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="absolute right-2 top-2 h-6 w-6 text-danger [&_svg]:size-3.5"
-          >
-            <X />
-          </Button>
-        )}
-      </Alert>
+      <ErrorCodeBanner
+        message={message}
+        errorCode={errorCode}
+        style={style}
+        retryAfter={retryAfter}
+        remaining={remaining}
+        onClose={onClose}
+      />
     );
   }
 
   if (!message) return null;
 
   // 纯消息模式
-  const meta = getVariantMeta(variant);
-  return (
-    <Alert
-      variant={variant === 'error' ? 'destructive' : 'default'}
-      className={cn('relative', meta.className)}
-      style={style}
-    >
-      {meta.icon}
-      <AlertDescription>{message}</AlertDescription>
-      {onClose && (
-        <Button
-          variant="icon"
-          size="icon"
-          onClick={onClose}
-          aria-label={t('common.close')}
-          className="absolute right-2 top-2 h-6 w-6 [&_svg]:size-3.5"
-        >
-          <X />
-        </Button>
-      )}
-    </Alert>
-  );
+  return <MessageBanner message={message} variant={variant} style={style} onClose={onClose} />;
 }

@@ -2,10 +2,14 @@
  * BullMQ 消费者幂等守卫（T-37 / ADR-024）
  *
  * 重试会导致同一 jobId 重复执行。带副作用（写库/通知）的任务必须用去重键保证 at-most-once 语义。
+ *
+ * ADR-045：删除内存回退路径（memProcessing/memProcessed/memResults）。
+ * Redis 故障时由 requireRedis 抛 RedisUnavailableError；Worker 捕获后由 BullMQ
+ * backoff 重试（at-least-once），与 at-most-once 守卫配合在 Redis 恢复后收敛。
  */
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
-import { withRedisFallback } from '../utils/redisFallback.js';
+import { requireRedis } from '../utils/redisFallback.js';
 
 const PROCESSING_PREFIX = 'bullmq:processing:';
 const PROCESSED_PREFIX = 'bullmq:processed:';
@@ -14,10 +18,6 @@ const RESULT_PREFIX = 'bullmq:result:';
 const PROCESSING_TTL_SEC = 2 * 60 * 60;
 /** 处理完成记录 TTL（秒），应大于任务最大重试窗口 */
 const PROCESSED_TTL_SEC = 24 * 60 * 60;
-
-const memProcessing = new Set<string>();
-const memProcessed = new Set<string>();
-const memResults = new Map<string, Record<string, unknown>>();
 
 type JobClaimResult = 'claimed' | 'already_processed' | 'in_progress';
 
@@ -29,22 +29,13 @@ export async function tryClaimJobProcessing(jobId: string): Promise<JobClaimResu
   const processingKey = PROCESSING_PREFIX + jobId;
   const processedKey = PROCESSED_PREFIX + jobId;
 
-  return withRedisFallback(
-    processingKey,
-    async () => {
-      if ((await appRedis.exists(processedKey)) === 1) {
-        return 'already_processed';
-      }
-      const ok = await appRedis.set(processingKey, '1', 'EX', PROCESSING_TTL_SEC, 'NX');
-      return ok === 'OK' ? 'claimed' : 'in_progress';
-    },
-    () => {
-      if (memProcessed.has(jobId)) return 'already_processed';
-      if (memProcessing.has(jobId)) return 'in_progress';
-      memProcessing.add(jobId);
-      return 'claimed';
-    },
-  );
+  return requireRedis(processingKey, async () => {
+    if ((await appRedis.exists(processedKey)) === 1) {
+      return 'already_processed';
+    }
+    const ok = await appRedis.set(processingKey, '1', 'EX', PROCESSING_TTL_SEC, 'NX');
+    return ok === 'OK' ? 'claimed' : 'in_progress';
+  });
 }
 
 /**
@@ -55,15 +46,11 @@ export async function getProcessedJobResult(
   jobId: string,
 ): Promise<Record<string, unknown> | null> {
   const resultKey = RESULT_PREFIX + jobId;
-  return withRedisFallback(
-    resultKey,
-    async () => {
-      const raw = await appRedis.get(resultKey);
-      if (!raw) return null;
-      return JSON.parse(raw) as Record<string, unknown>;
-    },
-    () => memResults.get(jobId) ?? null,
-  );
+  return requireRedis(resultKey, async () => {
+    const raw = await appRedis.get(resultKey);
+    if (!raw) return null;
+    return JSON.parse(raw) as Record<string, unknown>;
+  });
 }
 
 /**
@@ -80,35 +67,21 @@ export async function markJobProcessed(
   const processedKey = PROCESSED_PREFIX + jobId;
   const resultKey = RESULT_PREFIX + jobId;
 
-  await withRedisFallback(
-    processedKey,
-    async () => {
-      await appRedis
-        .multi()
-        .set(processedKey, '1', 'EX', PROCESSED_TTL_SEC)
-        .set(resultKey, JSON.stringify(result), 'EX', PROCESSED_TTL_SEC)
-        .del(processingKey)
-        .exec();
-    },
-    () => {
-      memProcessing.delete(jobId);
-      memProcessed.add(jobId);
-      memResults.set(jobId, result);
-    },
-  );
+  await requireRedis(processedKey, async () => {
+    await appRedis
+      .multi()
+      .set(processedKey, '1', 'EX', PROCESSED_TTL_SEC)
+      .set(resultKey, JSON.stringify(result), 'EX', PROCESSED_TTL_SEC)
+      .del(processingKey)
+      .exec();
+  });
 }
 
 /** 释放处理声明（处理失败且需重试时调用）。 */
 export async function releaseJobClaim(jobId: string): Promise<void> {
   const processingKey = PROCESSING_PREFIX + jobId;
-  await withRedisFallback(
-    processingKey,
-    async () => {
-      await appRedis.del(processingKey);
-    },
-    () => {
-      memProcessing.delete(jobId);
-    },
-  );
+  await requireRedis(processingKey, async () => {
+    await appRedis.del(processingKey);
+  });
   logger.debug({ jobId }, '[jobIdempotency] 释放处理声明以供重试');
 }

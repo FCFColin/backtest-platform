@@ -1,76 +1,7 @@
 /* ============================================
-   testfol.io 主题变量
+   基础重置样式
+   主题变量已迁移至 tokens.css（P3-3）
    ============================================ */
-:root {
-  --bg-app: #f0f5fa;
-  --bg-elevated: #ffffff;
-  --bg-subtle: #f1f5f9;
-  --bg-header: #e5edf7;
-  --bg-drawer: #f8fbfd;
-  --input-bg: #f8fafc;
-  --text-strong: #0f172a;
-  --text-body: #475569;
-  --text-muted: #94a3b8;
-  --border-soft: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --brand: #2563eb;
-  --brand-hover: #1d4ed8;
-  --brand-soft: #dbeafe;
-  --support: #0d9488;
-  --support-soft: #ccfbf1;
-  --success: #16a34a;
-  --success-light: rgba(22, 163, 74, 0.12);
-  --warning: #d97706;
-  --warning-light: rgba(217, 119, 6, 0.12);
-  --danger: #dc2626;
-  --danger-light: rgba(220, 38, 38, 0.12);
-  --corr-positive: #1a7a3a;
-  --corr-negative: #8b2020;
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
-  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --radius-card: 12px;
-  --radius-control: 8px;
-  --radius-input: 6px;
-  --radius-pill: 999px;
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-}
-
-/* 深色主题 - testfol.io 深蓝色风格 */
-.dark {
-  --bg-app: #0a1320;
-  --bg-elevated: #111b2a;
-  --bg-subtle: #1e293b;
-  --bg-header: #0f172a;
-  --bg-drawer: #131c2f;
-  --input-bg: #1e293b;
-  --text-strong: #f1f5f9;
-  --text-body: #cbd5e1;
-  --text-muted: #64748b;
-  --border-soft: rgba(148, 163, 184, 0.2);
-  --border-strong: #374151;
-  --brand: #3b82f6;
-  --brand-hover: #60a5fa;
-  --brand-soft: #1e3a5f;
-  --support: #2dd4bf;
-  --support-soft: #134e4a;
-  --success: #34d399;
-  --success-light: rgba(52, 211, 153, 0.12);
-  --warning: #fbbf24;
-  --warning-light: rgba(251, 191, 36, 0.12);
-  --danger: #f87171;
-  --danger-light: rgba(248, 113, 113, 0.12);
-  --corr-positive: #2d8f4e;
-  --corr-negative: #a04040;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
-}
 
 * {
   box-sizing: border-box;

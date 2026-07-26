@@ -29,7 +29,7 @@ export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
     key: 'rebalanceThreshold',
     label: '阈值',
     sortValue: (r) => r.rebalanceThreshold ?? 0,
-    render: (r) => (r.rebalanceThreshold !== undefined ? `${r.rebalanceThreshold}%` : '—'),
+    render: (r) => (r.rebalanceThreshold !== undefined ? `${r.rebalanceThreshold}%` : '-'),
   },
   {
     key: 'initialCapital',

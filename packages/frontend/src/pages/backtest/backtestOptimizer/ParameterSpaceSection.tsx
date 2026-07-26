@@ -1,10 +1,12 @@
 /**
  * @file 参数空间 Section
  * @description 搜索参数空间配置：再平衡频率多选 + 阈值范围 + 资金范围。
- *              三个内部子组件（FreqMultiSelect / ThresholdRangeInputs / CapitalRangeInputs）
- *              仅在本文件内消费，故未单独拆分。
+ *   三个内部子组件（FreqMultiSelect / ThresholdRangeInputs / CapitalRangeInputs）
+ *   仅在本文件内消费。基于 shadcn Input / Button + token 类名。
  */
 import { useTranslation } from 'react-i18next';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { ParamsSection } from '../../../components/ParamsPanel.js';
 import { ParamRow, ParamCard } from '../../../components/params/index.js';
 import { FREQ_OPTIONS } from '../backtestOptimizerUtils.js';
@@ -14,34 +16,23 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
     <div>
-      <div className="param-label" style={{ marginBottom: 6 }}>
+      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
         {t('backtest.optimizer.rebalanceFreq')}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {FREQ_OPTIONS.map((opt) => (
-          <label
-            key={opt.value}
-            className="param-check"
-            style={{
-              padding: '4px 10px',
-              border: '1px solid var(--border-soft)',
-              borderRadius: 'var(--radius-control)',
-              cursor: 'pointer',
-              marginBottom: 0,
-              backgroundColor: s.frequencies.includes(opt.value) ? 'var(--brand)' : 'transparent',
-              color: s.frequencies.includes(opt.value) ? '#fff' : 'var(--text-body)',
-              transition: 'all .15s',
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={s.frequencies.includes(opt.value)}
-              onChange={() => s.toggleFreq(opt.value)}
-              style={{ display: 'none' }}
-            />
-            <span>{opt.label}</span>
-          </label>
-        ))}
+      <div className="flex flex-wrap gap-2">
+        {FREQ_OPTIONS.map((opt) => {
+          const active = s.frequencies.includes(opt.value);
+          return (
+            <Button
+              key={opt.value}
+              variant={active ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => s.toggleFreq(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
@@ -51,7 +42,7 @@ function ThresholdRangeInputs({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
     <div>
-      <div className="param-label" style={{ marginBottom: 6 }}>
+      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
         {t('backtest.optimizer.thresholdRange')}
       </div>
       <ParamRow>
@@ -61,15 +52,15 @@ function ThresholdRangeInputs({ s }: OptimizerSectionProps) {
           [t('backtest.optimizer.step'), s.thrStep, s.setThrStep],
         ].map(([label, val, set]) => (
           <ParamCard key={label as string} label={label as string}>
-            <div className="param-input-suffix-wrap">
-              <input
+            <div className="flex items-center gap-2">
+              <Input
                 type="number"
                 step="0.5"
-                className="param-input param-input-with-suffix"
+                className="font-mono tabular-nums"
                 value={val as string}
                 onChange={(e) => (set as (v: string) => void)(e.target.value)}
               />
-              <span className="param-input-suffix">%</span>
+              <span className="text-caption text-fg-tertiary shrink-0">%</span>
             </div>
           </ParamCard>
         ))}
@@ -87,20 +78,18 @@ function CapitalRangeInputs({ s }: OptimizerSectionProps) {
   ];
   return (
     <div>
-      <div className="param-label" style={{ marginBottom: 6 }}>
+      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
         {t('backtest.optimizer.capitalRange')}
       </div>
       <ParamRow>
         {fields.map(([label, val, set]) => (
           <ParamCard key={label} label={label}>
-            <div className="param-input-suffix-wrap">
-              <span className="param-input-suffix" style={{ position: 'static', paddingRight: 2 }}>
-                $
-              </span>
-              <input
+            <div className="flex items-center gap-2">
+              <span className="text-body text-fg-tertiary font-mono shrink-0">$</span>
+              <Input
                 type="number"
                 step="1000"
-                className="param-input"
+                className="font-mono tabular-nums"
                 value={val}
                 onChange={(e) => set(e.target.value)}
               />
@@ -119,7 +108,7 @@ export function ParameterSpaceSection({ s }: OptimizerSectionProps) {
       title={t('backtest.optimizer.paramSpace')}
       info={t('backtest.optimizer.paramSpaceInfo')}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="flex flex-col gap-3">
         <FreqMultiSelect s={s} />
         <ThresholdRangeInputs s={s} />
         <CapitalRangeInputs s={s} />

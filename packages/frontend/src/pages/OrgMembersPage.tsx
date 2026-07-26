@@ -104,7 +104,7 @@ function UnauthedMembers() {
       >
         <p style={{ color: 'var(--text-muted)' }}>
           {t('orgMembers.unauthed.prefix')}{' '}
-          <Link to="/login" style={{ color: 'var(--brand)' }}>
+          <Link to="/login" style={{ color: 'hsl(var(--brand))' }}>
             {t('orgMembers.unauthed.login')}
           </Link>{' '}
           {t('orgMembers.unauthed.suffix')}
@@ -152,7 +152,7 @@ export default function OrgMembersPage() {
     <StandardPageShell
       config={{
         titleKey: 'orgMembers.title',
-        headerExtra: <Users className="w-5 h-5" style={{ color: 'var(--brand)' }} />,
+        headerExtra: <Users className="w-5 h-5" style={{ color: 'hsl(var(--brand))' }} />,
       }}
     >
       <div className="bt-main-card card" style={{ padding: 24, marginTop: 28 }}>

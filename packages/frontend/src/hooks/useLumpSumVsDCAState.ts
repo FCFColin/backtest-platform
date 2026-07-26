@@ -53,8 +53,13 @@ function extractStats(
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toResult(p: any, label: string): CompareResult {
+/** 回测 API 响应中单个组合结果的精简类型 */
+interface BacktestPortfolioResponse {
+  growthCurve?: Array<{ date: string; value: number }>;
+  statistics?: Statistics;
+}
+
+function toResult(p: BacktestPortfolioResponse, label: string): CompareResult {
   const curve = p.growthCurve ?? [];
   return {
     label,

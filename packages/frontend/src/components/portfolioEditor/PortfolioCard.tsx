@@ -7,6 +7,15 @@ import { GlidepathConfig } from './GlidepathComponents.js';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 /**
@@ -63,6 +72,74 @@ function PortfolioCardActions({
 }
 
 /**
+ * 调仓配置控件：频率选择 + 偏移 + 阈值（仅 threshold 频率显示）。
+ * @param props - 组件属性
+ * @param props.portfolio - 当前组合数据
+ * @param props.rebalanceOptions - 调仓频率可选项
+ * @param props.onUpdate - 组合字段更新回调
+ * @param props.t - i18n 翻译函数
+ * @returns 渲染的调仓配置控件组
+ */
+function RebalanceControls({
+  portfolio,
+  rebalanceOptions,
+  onUpdate,
+  t,
+}: {
+  portfolio: StorePortfolio;
+  rebalanceOptions: { value: RebalanceFrequency; label: string }[];
+  onUpdate: (id: string, patch: Partial<Portfolio>) => void;
+  t: TFunc;
+}) {
+  return (
+    <>
+      <Select
+        value={portfolio.rebalanceFrequency}
+        onValueChange={(v) =>
+          onUpdate(portfolio.id, { rebalanceFrequency: v as RebalanceFrequency })
+        }
+      >
+        <SelectTrigger className="h-8 w-[110px] shrink-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {rebalanceOptions.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className="flex items-center gap-1 shrink-0">
+        <Input
+          type="number"
+          value={portfolio.rebalanceOffset ?? 0}
+          min={0}
+          max={252}
+          className="h-8 w-[70px] font-mono tabular-nums"
+          title={t('portfolio.offsetTitle')}
+          onChange={(e) => onUpdate(portfolio.id, { rebalanceOffset: Number(e.target.value) || 0 })}
+        />
+        <span className="text-caption text-fg-tertiary shrink-0">{t('portfolio.offset')}</span>
+      </div>
+      {portfolio.rebalanceFrequency === 'threshold' && (
+        <div className="flex items-center gap-1 shrink-0">
+          <Input
+            type="number"
+            value={portfolio.rebalanceThreshold ?? 5}
+            min={1}
+            max={50}
+            className="h-8 w-[70px] font-mono tabular-nums"
+            onChange={(e) => onUpdate(portfolio.id, { rebalanceThreshold: Number(e.target.value) })}
+          />
+          <span className="text-caption text-fg-tertiary shrink-0">%</span>
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
  * 卡片头部行（名称 + 调仓频率 + 偏移 + 拖累 + 总回报 + 偏差带）。
  * @param props - 组件属性
  * @param props.portfolio - 当前组合数据
@@ -87,90 +164,56 @@ function PortfolioCardHeader({
 }) {
   return (
     <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-      <input
+      <Input
         type="text"
         value={portfolio.name || `${t('portfolio.portfolio')} ${idx + 1}`}
-        className="portfolio-name-input"
+        className="h-8 w-[140px] text-body"
         onChange={(e) => onUpdate(portfolio.id, { name: e.target.value })}
       />
-      <select
-        value={portfolio.rebalanceFrequency}
-        className="portfolio-rebalance-select shrink-0"
-        onChange={(e) =>
-          onUpdate(portfolio.id, { rebalanceFrequency: e.target.value as RebalanceFrequency })
-        }
-      >
-        {rebalanceOptions.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-      <div className="offset-cell shrink-0">
-        <input
-          type="number"
-          value={portfolio.rebalanceOffset ?? 0}
-          min={0}
-          max={252}
-          className="offset-input"
-          title={t('portfolio.offsetTitle')}
-          onChange={(e) => onUpdate(portfolio.id, { rebalanceOffset: Number(e.target.value) || 0 })}
-        />
-        <span className="offset-suffix">{t('portfolio.offset')}</span>
-      </div>
-      {portfolio.rebalanceFrequency === 'threshold' && (
-        <div className="threshold-cell shrink-0">
-          <input
-            type="number"
-            value={portfolio.rebalanceThreshold ?? 5}
-            min={1}
-            max={50}
-            className="threshold-input"
-            onChange={(e) => onUpdate(portfolio.id, { rebalanceThreshold: Number(e.target.value) })}
-          />
-          <span className="threshold-suffix">%</span>
-        </div>
-      )}
-      <div className="advanced-field shrink-0">
-        <label className="advanced-label">{t('portfolio.drag')}</label>
-        <div className="advanced-input-wrap">
-          <input
+      <RebalanceControls
+        portfolio={portfolio}
+        rebalanceOptions={rebalanceOptions}
+        onUpdate={onUpdate}
+        t={t}
+      />
+      <div className="flex flex-col gap-0.5 shrink-0">
+        <label className="text-caption text-fg-tertiary">{t('portfolio.drag')}</label>
+        <div className="flex items-center gap-1">
+          <Input
             type="number"
             value={portfolio.drag ?? 0}
             min={0}
             max={10}
             step={0.1}
-            className="advanced-input"
+            className="h-8 w-[70px] font-mono tabular-nums"
             title={t('portfolio.dragTitle')}
             onChange={(e) => onUpdate(portfolio.id, { drag: Number(e.target.value) || 0 })}
           />
-          <span className="advanced-suffix">%</span>
+          <span className="text-caption text-fg-tertiary shrink-0">%</span>
         </div>
       </div>
-      <label className="param-check advanced-check shrink-0">
-        <input
-          type="checkbox"
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Switch
           checked={portfolio.totalReturn ?? true}
-          onChange={(e) => onUpdate(portfolio.id, { totalReturn: e.target.checked })}
+          onCheckedChange={(v) => onUpdate(portfolio.id, { totalReturn: v })}
         />
-        <span>{t('portfolio.totalReturn')}</span>
-      </label>
-      <label className="param-check advanced-check shrink-0">
-        <input
-          type="checkbox"
+        <span className="text-caption text-fg-secondary">{t('portfolio.totalReturn')}</span>
+      </div>
+      <div className="flex items-center gap-1.5 shrink-0">
+        <Switch
           checked={portfolio.rebalanceBands?.enabled ?? false}
-          onChange={(e) =>
+          onCheckedChange={(v) =>
             onUpdate(portfolio.id, {
               rebalanceBands: {
-                enabled: e.target.checked,
+                enabled: v,
                 absoluteBand: portfolio.rebalanceBands?.absoluteBand,
                 relativeBand: portfolio.rebalanceBands?.relativeBand,
               } as RebalanceBands,
             })
           }
         />
-        <span>{t('portfolio.deviationBands')}</span>
-      </label>
+        <span className="text-caption text-fg-secondary">{t('portfolio.deviationBands')}</span>
+      </div>
     </div>
   );
 }
@@ -193,17 +236,17 @@ function RebalanceBandsRow({
   if (!portfolio.rebalanceBands?.enabled) return null;
   const bands = portfolio.rebalanceBands;
   return (
-    <div className="portfolio-advanced-row mt-1">
-      <div className="advanced-field">
-        <label className="advanced-label">{t('portfolio.absoluteDeviation')}</label>
-        <div className="advanced-input-wrap">
-          <input
+    <div className="flex flex-wrap items-end gap-3 mt-1">
+      <div className="flex flex-col gap-0.5">
+        <label className="text-caption text-fg-tertiary">{t('portfolio.absoluteDeviation')}</label>
+        <div className="flex items-center gap-1">
+          <Input
             type="number"
             value={bands.absoluteBand ?? 5}
             min={0.1}
             max={50}
             step={0.5}
-            className="advanced-input"
+            className="h-8 w-[80px] font-mono tabular-nums"
             title={t('portfolio.absoluteDeviationTitle')}
             onChange={(e) =>
               onUpdate(portfolio.id, {
@@ -215,19 +258,19 @@ function RebalanceBandsRow({
               })
             }
           />
-          <span className="advanced-suffix">%</span>
+          <span className="text-caption text-fg-tertiary shrink-0">%</span>
         </div>
       </div>
-      <div className="advanced-field">
-        <label className="advanced-label">{t('portfolio.relativeDeviation')}</label>
-        <div className="advanced-input-wrap">
-          <input
+      <div className="flex flex-col gap-0.5">
+        <label className="text-caption text-fg-tertiary">{t('portfolio.relativeDeviation')}</label>
+        <div className="flex items-center gap-1">
+          <Input
             type="number"
             value={bands.relativeBand ?? 20}
             min={1}
             max={100}
             step={1}
-            className="advanced-input"
+            className="h-8 w-[80px] font-mono tabular-nums"
             title={t('portfolio.relativeDeviationTitle')}
             onChange={(e) =>
               onUpdate(portfolio.id, {
@@ -239,10 +282,31 @@ function RebalanceBandsRow({
               })
             }
           />
-          <span className="advanced-suffix">%</span>
+          <span className="text-caption text-fg-tertiary shrink-0">%</span>
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * 卡片底部：总权重标签与达标状态徽章。
+ * @param props - 组件属性
+ * @param props.tw - 当前总权重
+ * @param props.isComplete - 权重是否达到 100%
+ * @param props.t - i18n 翻译函数
+ * @returns 渲染的卡片底部行
+ */
+function PortfolioCardFooter({ tw, isComplete, t }: { tw: number; isComplete: boolean; t: TFunc }) {
+  return (
+    <CardFooter className="p-0 pt-2 mt-2 justify-between border-t border-border-subtle">
+      <span className="text-caption text-fg-tertiary uppercase tracking-wide">
+        {t('portfolio.total')}
+      </span>
+      <Badge variant={isComplete ? 'success' : 'danger'} className="tabular-nums">
+        {tw.toFixed(0)}%
+      </Badge>
+    </CardFooter>
   );
 }
 
@@ -299,7 +363,7 @@ export function PortfolioCard({
     <Card
       className={cn(
         'relative group p-3 pt-8',
-        isGp && 'border-l-[3px] border-l-accent bg-input-bg/30'
+        isGp && 'border-l-[3px] border-l-accent bg-input-bg/30',
       )}
     >
       <PortfolioCardActions
@@ -336,14 +400,7 @@ export function PortfolioCard({
           onBatchUpdate={onBatchUpdate}
         />
       </CardContent>
-      <CardFooter className="p-0 pt-2 mt-2 justify-between border-t border-border-subtle">
-        <span className="text-caption text-fg-tertiary uppercase tracking-wide">
-          {t('portfolio.total')}
-        </span>
-        <Badge variant={isComplete ? 'success' : 'danger'} className="tabular-nums">
-          {tw.toFixed(0)}%
-        </Badge>
-      </CardFooter>
+      <PortfolioCardFooter tw={tw} isComplete={isComplete} t={t} />
     </Card>
   );
 }

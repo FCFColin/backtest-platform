@@ -109,8 +109,8 @@ function useTickerSearch() {
                 setSelectedIndex(-1);
               }
             }
+            // eslint-disable-next-line no-empty -- 远程搜索失败，静默忽略，用户可手动输入
           } catch {
-            /* 远程搜索失败，静默忽略 */
           } finally {
             setFetchingRemote(false);
           }

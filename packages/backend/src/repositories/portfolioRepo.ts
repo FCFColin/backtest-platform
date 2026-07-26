@@ -2,13 +2,14 @@
  * 组合（portfolios）租户作用域仓储（ADR-032 / ADR-034）
  *
  * 企业理由：组合此前仅存于浏览器 localStorage——换设备/清缓存即丢失，无法团队共享、
- * 无法服务端复用。迁移到 Postgres 后由 RLS 强制租户隔离：所有读写都经 withTenant()
- * 在事务内激活 app.current_tenant_id，即便忘记 WHERE tenant_id 也不会跨租户泄露。
+ * 无法服务端复用。迁移到 Postgres 后由 RLS 强制租户隔离：读路径经 withTenantReadOnly()
+ * （读副本 + RLS），写路径经 withTenant()（主库 + RLS），在事务内激活
+ * app.current_tenant_id，即便忘记 WHERE tenant_id 也不会跨租户泄露。
  *
  * 所有方法都要求 tenantId（活跃组织 UUID）；owner_user_id 记录创建者用于审计/展示，
  * 但隔离边界是租户而非用户（同组织成员可见彼此组合，符合团队协作语义）。
  */
-import { withTenant } from '../db/pool.js';
+import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import {
   Portfolio as DomainPortfolio,
   type PortfolioHolding,
@@ -69,7 +70,7 @@ export async function listPortfolios(
   limit: number = 50,
   offset: number = 0,
 ): Promise<PortfolioRecord[]> {
-  return withTenant(tenantId, async (client) => {
+  return withTenantReadOnly(tenantId, async (client) => {
     const capped = Math.min(limit, 200);
     const offsetSafe = Math.max(0, offset);
     const { rows } = await client.query(
@@ -87,7 +88,7 @@ export async function listPortfolios(
  * @param id - 组合 UUID
  */
 export async function getPortfolio(tenantId: string, id: string): Promise<PortfolioRecord | null> {
-  return withTenant(tenantId, async (client) => {
+  return withTenantReadOnly(tenantId, async (client) => {
     const { rows } = await client.query(`SELECT ${SELECT_COLS} FROM portfolios WHERE id = $1`, [
       id,
     ]);

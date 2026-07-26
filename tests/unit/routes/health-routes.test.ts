@@ -32,6 +32,8 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: { ping: vi.fn().mockResolvedValue('PONG') },
+  checkSentinelMaster: vi.fn().mockResolvedValue({ isMaster: null, connectedSlaves: null }),
+  isSentinelMode: false,
 }));
 
 import { config } from '../../../packages/backend/src/config/index.js';

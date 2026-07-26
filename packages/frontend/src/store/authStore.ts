@@ -51,6 +51,8 @@ interface AuthState {
   user: AuthUser | null;
   org: OrgSummary | null;
   orgs: OrgSummary[];
+  /** 空闲会话超时时间（毫秒，0=禁用），由登录响应设置（P0-04） */
+  idleTimeoutMs: number;
   /** 是否已完成初始会话恢复（避免首屏闪烁） */
   initialized: boolean;
   loading: boolean;
@@ -112,7 +114,12 @@ async function loginPasswordAction(
     }
     setTokens(body.data.accessToken, body.data.refreshToken);
     const user = await fetchMe();
-    set({ user, org: body.data.org ?? null, ...asyncSuccess() });
+    set({
+      user,
+      org: body.data.org ?? null,
+      idleTimeoutMs: body.data.idleTimeoutMs ?? 0,
+      ...asyncSuccess(),
+    });
     await get().loadOrgs();
     return true;
   } catch (e) {
@@ -181,11 +188,10 @@ async function logoutAction(set: SetFn): Promise<void> {
         body: JSON.stringify({ refreshToken }),
       });
     }
-  } catch {
-    /* 即便服务端撤销失败，也要清空本地会话 */
-  }
+    // eslint-disable-next-line no-empty -- 服务端撤销失败也要清空本地会话
+  } catch {}
   clearTokens();
-  set({ user: null, org: null, orgs: [] });
+  set({ user: null, org: null, orgs: [], idleTimeoutMs: 0 });
 }
 
 async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
@@ -220,9 +226,8 @@ async function loadOrgsAction(set: SetFn): Promise<void> {
     const activeOrgId: string | null = body?.data?.activeOrgId ?? null;
     const active = orgs.find((o) => o.orgId === activeOrgId) ?? null;
     set((s) => ({ orgs, org: active ?? s.org }));
-  } catch {
-    /* ignore */
-  }
+    // eslint-disable-next-line no-empty -- 组织列表拉取失败，保持现有状态
+  } catch {}
 }
 
 async function initAction(set: SetFn, get: GetFn): Promise<void> {
@@ -246,6 +251,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   org: null,
   orgs: [],
+  idleTimeoutMs: 0,
   initialized: false,
   loading: false,
   error: null,

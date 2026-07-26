@@ -15,7 +15,7 @@ const PLAN_ICONS: Record<string, ComponentType<{ className?: string }>> = {
 };
 
 /** 已知的静态符号值（非 i18n key），其余字符串均按 i18n key 解析 */
-const STATIC_SYMBOLS = new Set(['—', '✓']);
+const STATIC_SYMBOLS = new Set(['-', '✓']);
 
 interface PlanFeatureEntry {
   key: string;
@@ -236,7 +236,7 @@ function RecommendedBadge() {
         left: '50%',
         transform: 'translateX(-50%)',
         padding: '4px 14px',
-        background: 'var(--brand)',
+        background: 'hsl(var(--brand))',
         color: '#fff',
         fontSize: 11,
         fontWeight: 700,
@@ -257,7 +257,7 @@ function PlanCardHeader({ plan, isRecommended }: { plan: Plan; isRecommended?: b
         alignItems: 'center',
         gap: 8,
         marginBottom: 8,
-        color: isRecommended ? 'var(--brand)' : 'var(--text-muted)',
+        color: isRecommended ? 'hsl(var(--brand))' : 'var(--text-muted)',
       }}
     >
       {plan.icon}
@@ -275,7 +275,7 @@ function PlanCardPrice({ plan, isRecommended }: { plan: Plan; isRecommended?: bo
         style={{
           fontSize: 32,
           fontWeight: 800,
-          color: isRecommended ? 'var(--brand)' : 'var(--text-strong)',
+          color: isRecommended ? 'hsl(var(--brand))' : 'var(--text-strong)',
         }}
       >
         {plan.price}
@@ -293,7 +293,7 @@ function PlanFeatures({ features }: { features: { text: string; included: boolea
       {features.map((f, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
           {f.included ? (
-            <Check className="w-4 h-4" style={{ color: 'var(--success)', flexShrink: 0 }} />
+            <Check className="w-4 h-4" style={{ color: 'hsl(var(--success))', flexShrink: 0 }} />
           ) : (
             <X
               className="w-4 h-4"
@@ -320,8 +320,8 @@ function PlanCtaButton({ plan, isRecommended }: { plan: Plan; isRecommended?: bo
       style={{
         marginTop: 24,
         padding: '10px 16px',
-        background: isRecommended ? 'var(--brand)' : 'transparent',
-        color: isRecommended ? '#fff' : 'var(--brand)',
+        background: isRecommended ? 'hsl(var(--brand))' : 'transparent',
+        color: isRecommended ? '#fff' : 'hsl(var(--brand))',
         border: isRecommended ? 'none' : '1px solid var(--brand)',
         borderRadius: 6,
         fontSize: 13,
@@ -359,7 +359,7 @@ function CompareRow({
         style={{
           padding: '10px 12px',
           textAlign: 'center',
-          color: 'var(--brand)',
+          color: 'hsl(var(--brand))',
           fontWeight: 600,
         }}
       >

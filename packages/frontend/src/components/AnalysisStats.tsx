@@ -78,7 +78,7 @@ export const StatsTable = memo(function StatsTable({
     label: c.labelKey.includes('.') ? t(c.labelKey) : c.labelKey,
   }));
   const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') => {
-    if (v === undefined || v === null) return '—';
+    if (v === undefined || v === null) return '-';
     if (f === 'pct') return fmtPct(v);
     if (f === 'ratio') return v.toFixed(2);
     return `${v} ${t('common.days')}`;
@@ -91,10 +91,7 @@ export const StatsTable = memo(function StatsTable({
           {cols.map((col, ri) => {
             if (!tickers.some((tk) => tk.statistics[col.key] != null)) return null;
             return (
-              <tr
-                key={col.key}
-                className={ri % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}
-              >
+              <tr key={col.key} className={ri % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}>
                 <td className="py-2 px-3 text-fg-secondary border-b border-border-subtle">
                   {col.label}
                 </td>

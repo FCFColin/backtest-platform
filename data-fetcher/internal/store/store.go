@@ -3,8 +3,10 @@ package store
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"data-fetcher/internal/provider"
@@ -57,6 +59,19 @@ func New(ctx context.Context, databaseURL string, reg *provider.Registry) (*Data
 		return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err)
 	}
 	poolCfg.MaxConns = 10
+
+	// 生产环境强制 TLS（等保三级 — 安全通信网络 8.1.2.1）
+	// 与 backend pool.ts 的 ssl: { rejectUnauthorized: true } 对齐。
+	// pgx 默认 sslmode=prefer（尝试 TLS 但允许降级），生产环境必须强制。
+	if os.Getenv("NODE_ENV") == "production" {
+		if poolCfg.ConnConfig.TLSConfig == nil {
+			poolCfg.ConnConfig.TLSConfig = &tls.Config{
+				ServerName: poolCfg.ConnConfig.Host,
+			}
+		}
+		poolCfg.ConnConfig.TLSConfig.InsecureSkipVerify = false
+		slog.Info("PostgreSQL TLS 已启用（生产环境强制）", "module", "数据存储")
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {

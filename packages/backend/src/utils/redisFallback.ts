@@ -1,38 +1,41 @@
 /**
- * Redis 降级执行 helper
+ * Redis 操作守卫（ADR-045：取代内存降级）
  *
- * 统一封装 "Redis 健康则执行 redisFn，失败或不可用则降级到 memFn" 的模式，
- * 消除 refreshToken / tokenRotation / loginLockout / jobIdempotency 等模块
- * 中重复的 getRedisHealth 检查 + try/catch + markRedisUnhealthy + 回退逻辑。
+ * HA（Sentinel）架构下，Redis 故障时静默降级到进程内 Map 是反模式：
+ * 跨 Pod 状态不一致会导致刷新令牌无法验证、幂等键失效、暴力破解防护失效。
+ * 本模块统一封装"Redis 不可用即抛 RedisUnavailableError"语义，由路由层
+ * asyncRouteHandler/crudRouteHandler 自动翻译为 503 + RFC 7807 响应。
+ *
+ * 历史：本模块原为 `withRedisFallback(key, redisFn, memFn)`，提供内存回退。
+ * ADR-045 删除 memFn 路径，重命名为 `requireRedis` 并显式抛错。
  */
 
 import { getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { logger } from './logger.js';
+import { RedisUnavailableError } from './errors.js';
 
 /**
- * 执行 Redis 操作并在失败或 Redis 不可用时降级到内存回退实现。
+ * 执行 Redis 操作；不可用或失败时抛 {@link RedisUnavailableError}。
  *
- * 语义：先查询 Redis 健康状态；不可用直接走 memFn；可用则尝试 redisFn，
- * redisFn 抛错时记录 warning、调用 markRedisUnhealthy 并降级到 memFn。
+ * 语义：
+ * 1. 先查询 Redis 健康状态；不可用 → 抛 RedisUnavailableError
+ * 2. 可用则执行 redisFn；redisFn 抛错时记录 warning、调用 markRedisUnhealthy、
+ *    将底层错误包装为 RedisUnavailableError 重新抛出
  *
  * @param key - 用于日志上下文的键（如 Redis key 或操作名）
- * @param redisFn - Redis 健康时执行的操作
- * @param memFn - Redis 不可用或 Redis 操作失败时的回退实现
- * @returns 两条路径之一的返回值
+ * @param redisFn - Redis 操作
+ * @returns redisFn 的返回值
+ * @throws {RedisUnavailableError} Redis 不可用或操作失败
  */
-export async function withRedisFallback<T>(
-  key: string,
-  redisFn: () => Promise<T>,
-  memFn: () => Promise<T> | T,
-): Promise<T> {
+export async function requireRedis<T>(key: string, redisFn: () => Promise<T>): Promise<T> {
   if (!(await getRedisHealth())) {
-    return memFn();
+    throw new RedisUnavailableError(`Redis unavailable (key=${key})`);
   }
   try {
     return await redisFn();
   } catch (err) {
-    logger.warn({ err: String(err), key }, '[redis] 操作失败，回退到内存模式');
+    logger.warn({ err: String(err), key }, '[redis] 操作失败，抛出 RedisUnavailableError');
     markRedisUnhealthy();
-    return memFn();
+    throw new RedisUnavailableError(`Redis operation failed (key=${key}): ${String(err)}`);
   }
 }

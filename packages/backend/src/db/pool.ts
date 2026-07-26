@@ -9,7 +9,7 @@
 import pg from 'pg';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { registerPgPoolMetrics } from '../utils/metrics.js';
+import { registerPgPoolMetrics, readPoolFallbackCounter } from '../utils/metrics.js';
 import { isUuid } from '../utils/validation.js';
 
 const { Pool } = pg;
@@ -29,6 +29,17 @@ let pool: pg.Pool | null = null;
  * 未配置 DATABASE_READ_URL 时回退到主库连接池。
  */
 let readPool: pg.Pool | null = null;
+
+/**
+ * 公共连接池导出（向后兼容 + 读写分离命名入口，P1-03）。
+ *
+ * - `writePool` / `pool`：主库连接池（写 + 强一致读），懒初始化，调用 `getPool()` 后可用。
+ * - `readPool`：只读副本连接池，懒初始化，调用 `getReadPool()` 后可用；未配置时为 null。
+ *
+ * 注意：懒初始化的 live binding，首次使用前必须先调用 `getPool()` / `getReadPool()`
+ * 以完成初始化；推荐直接使用访问器函数确保连接池就绪。
+ */
+export { pool as writePool, pool, readPool };
 
 interface CreatePoolOptions {
   connectionString: string;
@@ -133,6 +144,42 @@ export function getReadPool(): pg.Pool {
 }
 
 /**
+ * 获取只读客户端（P1-02 T8，副本不可用时降级到主库）。
+ *
+ * 优先从 readPool 获取连接；若副本连接失败（网络异常/副本宕机），
+ * 自动降级到 writePool 并递增 readPoolFallbackCounter 指标。
+ * 调用方需在 finally 中释放连接。
+ *
+ * @returns 可用的数据库客户端（来自副本或主库）
+ */
+export async function getReadClient(): Promise<pg.PoolClient> {
+  // 未配置副本时直接走主库
+  if (!config.DATABASE_READ_URL) {
+    return getPool().connect();
+  }
+  // readPool 已初始化时尝试连接，失败则降级
+  if (readPool) {
+    try {
+      return await readPool.connect();
+    } catch (err) {
+      logger.warn({ err }, '[db] 只读副本不可用，降级到主库连接池');
+      readPoolFallbackCounter.inc();
+    }
+  }
+  return getPool().connect();
+}
+
+/**
+ * 只读副本是否可用（P1-03）。
+ *
+ * 仅当配置了 `DATABASE_READ_URL` 时返回 true——此时 `getReadPool()` 使用独立副本，
+ * 否则回退到主库（writePool）。运行时副本故障由 dataQuery 熔断器处理，此处仅反映配置态。
+ */
+export function isReadPoolAvailable(): boolean {
+  return Boolean(config.DATABASE_READ_URL);
+}
+
+/**
  * 获取数据库客户端（用于事务）
  *
  * 企业理由：事务需要独占连接，RELEASE 后归还连接池。
@@ -193,6 +240,47 @@ export async function withTenant<T>(
       await client.query('ROLLBACK');
     } catch (rollbackErr) {
       logger.error({ err: rollbackErr }, '[db] withTenant ROLLBACK 失败');
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * 只读副本租户上下文执行（P1-03）：与 withTenant 对称，但走 readPool。
+ *
+ * 用于在只读副本上执行租户隔离查询（如读 portfolios/saved_configs/backtest_runs）。
+ * 全局共享表（tickers/prices/cpi_data）无需走本函数。
+ * 生产部署须确保副本角色为 NOBYPASSRLS，否则 RLS 策略被绕过。
+ *
+ * @typeParam T - 回调返回类型
+ * @param tenantId - 当前租户（组织）UUID
+ * @param fn - 接收已设置租户上下文的事务 client 的回调
+ * @returns 回调结果
+ * @throws 当 tenantId 非法 UUID，或回调/事务失败（自动 ROLLBACK）时
+ */
+export async function withTenantReadOnly<T>(
+  tenantId: string,
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  if (!isUuid(tenantId)) {
+    throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
+  }
+  const pool = getReadPool();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // 事务级设置（is_local=true）：随 COMMIT/ROLLBACK 自动复位，PgBouncer 安全
+    await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      logger.error({ err: rollbackErr }, '[db] withTenantReadOnly ROLLBACK 失败');
     }
     throw err;
   } finally {

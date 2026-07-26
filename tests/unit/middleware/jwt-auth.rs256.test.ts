@@ -1,4 +1,4 @@
-/**
+﻿/**
  * jwtAuth RS256 路径独立测试（避免 vi.resetModules 污染 HS256 套件）
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -36,7 +36,12 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
   createRedisModuleMock(
-    { withSets: true, rejectWithError: new Error('redis unavailable') },
+    {
+      withSets: true,
+      withStore: true,
+      withMemoryHelpers: true,
+      rejectWithError: new Error('redis unavailable'),
+    },
     redisMocks,
   ),
 );
@@ -55,6 +60,7 @@ describe('jwtAuth RS256 路径', () => {
 
   it('RS256 模式应签发并验证 access token', async () => {
     const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
+    redisMocks.useRedisSuccess();
     const token = await mod.generateToken('rs256-user', 'admin');
     const payload = await mod.verifyToken(token);
     expect(payload).not.toBeNull();
@@ -64,6 +70,7 @@ describe('jwtAuth RS256 路径', () => {
 
   it('RS256 refresh token 生命周期应完整', async () => {
     const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
+    redisMocks.useRedisSuccess();
     const refresh = await mod.generateRefreshToken('rs256-refresh', 'analyst');
     const rotated = await mod.refreshAccessToken(refresh);
     expect(rotated).not.toBeNull();
@@ -112,6 +119,7 @@ describe('jwtAuth RS256 路径', () => {
   it('getUserById 失败时 jwtAuth 应拒绝访问', async () => {
     const mod = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     const { getUserById } = await import('../../../packages/backend/src/repositories/userRepo.js');
+    redisMocks.useRedisSuccess();
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('db error'));
     const token = await mod.generateToken('user-db-error', 'admin');
     const req = {

@@ -122,6 +122,14 @@ async function fetchFromGoWithDegradation(
   return { degraded: false };
 }
 
+/** 记录非法 ticker 告警日志（提取自 fetchHistoryDataImpl 以控制函数行数） */
+function logInvalidTickers(invalidTickers: string[]): void {
+  if (invalidTickers.length === 0) return;
+  logger.warn(
+    `[dataService] fetchHistoryData: 忽略 ${invalidTickers.length} 个非法 ticker: ${invalidTickers.join(', ')}`,
+  );
+}
+
 /** fetchHistoryData 核心实现（提取以控制函数行数） */
 async function fetchHistoryDataImpl(
   tickers: string[],
@@ -142,11 +150,7 @@ async function fetchHistoryDataImpl(
   span.setAttribute('valid_ticker_count', validTickers.length);
   span.setAttribute('unknown_ticker_count', unknownTickers.length);
 
-  if (invalidTickers.length > 0) {
-    logger.warn(
-      `[dataService] fetchHistoryData: 忽略 ${invalidTickers.length} 个非法 ticker: ${invalidTickers.join(', ')}`,
-    );
-  }
+  logInvalidTickers(invalidTickers);
 
   const totalFetchable = validTickers.length + unknownTickers.length;
   if (totalFetchable === 0) {

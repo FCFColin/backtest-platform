@@ -30,6 +30,13 @@ export const serverConfig = {
   /** 同步计算端点超时（毫秒），防止长任务占用事件循环。@default 30000（30 秒） */
   SYNC_COMPUTE_TIMEOUT_MS: parseInt(process.env.SYNC_COMPUTE_TIMEOUT_MS || '30000', 10),
 
+  /**
+   * BullMQ Worker 并发度（P0-03 回测任务异步化）。
+   * 单个 Worker 进程同时处理的任务数。生产建议 8（按 CPU 核数与下游 Go 引擎容量调优）。
+   * @default 3
+   */
+  WORKER_CONCURRENCY: parseInt(process.env.WORKER_CONCURRENCY || '3', 10),
+
   /** 应用对外基础 URL（用于邮件验证/邀请链接，ADR-035）。@default "http://localhost:15173" */
   APP_BASE_URL: process.env.APP_BASE_URL || 'http://localhost:15173',
 

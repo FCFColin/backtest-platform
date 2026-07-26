@@ -1,0 +1,26 @@
+{
+  "baseUrl": "http://localhost:8001",
+  "apiKey": "",
+  "scenarios": {
+    "backtest": { "vus": 100, "duration": "3m" },
+    "price-history": { "vus": 500, "duration": "2m" },
+    "optimizer": { "vus": 50, "duration": "2m" }
+  },
+  "thresholds": {
+    "backtest": {
+      "errors": "rate<0.05",
+      "http_req_duration": "p(99)<500",
+      "submit_latency": "p(99)<500"
+    },
+    "price-history": {
+      "errors": "rate<0.05",
+      "http_req_duration": "p(99)<200",
+      "read_latency": "p(99)<200"
+    },
+    "optimizer": {
+      "errors": "rate<0.05",
+      "http_req_duration": "p(99)<300",
+      "optimize_latency": "p(99)<300"
+    }
+  }
+}

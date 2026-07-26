@@ -2,10 +2,11 @@
  * 命名配置（saved_configs）租户作用域仓储（ADR-034）
  *
  * 企业理由：回测页"保存/加载命名配置"此前依赖浏览器 localStorage，无法跨设备/团队共享。
- * 迁移到 Postgres + RLS 后，配置成为租户级资产，由 withTenant() 强制隔离。
+ * 迁移到 Postgres + RLS 后，配置成为租户级资产：读路径经 withTenantReadOnly()（读副本 + RLS），
+ * 写路径经 withTenant()（主库 + RLS）强制隔离。
  * config 以 JSONB 原样存储完整回测请求（组合 + 参数），加载时直接回填前端。
  */
-import { withTenant } from '../db/pool.js';
+import { withTenant, withTenantReadOnly } from '../db/pool.js';
 
 /** 命名配置记录 */
 interface SavedConfigRecord {
@@ -53,7 +54,7 @@ export async function listConfigs(
   limit: number = 50,
   offset: number = 0,
 ): Promise<SavedConfigRecord[]> {
-  return withTenant(tenantId, async (client) => {
+  return withTenantReadOnly(tenantId, async (client) => {
     const capped = Math.min(limit, 200);
     const offsetSafe = Math.max(0, offset);
     const { rows } = await client.query(
@@ -71,7 +72,7 @@ export async function listConfigs(
  * @param id - 配置 UUID
  */
 export async function getConfig(tenantId: string, id: string): Promise<SavedConfigRecord | null> {
-  return withTenant(tenantId, async (client) => {
+  return withTenantReadOnly(tenantId, async (client) => {
     const { rows } = await client.query(`SELECT ${SELECT_COLS} FROM saved_configs WHERE id = $1`, [
       id,
     ]);

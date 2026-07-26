@@ -11,7 +11,8 @@
 import type { ReactNode, MouseEventHandler } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import { Button, type ButtonProps } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
+import { type ButtonProps } from '@/components/ui/button-variants';
 
 interface LoadingButtonProps {
   /** 是否处于加载状态 */

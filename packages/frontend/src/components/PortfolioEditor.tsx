@@ -7,7 +7,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, ChevronDown } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import type { RebalanceFrequency, BacktestParameters } from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
@@ -16,6 +16,9 @@ import { validateAssetWeights } from '@/utils/validation';
 import type { StorePortfolio, TFunc } from './portfolioEditor/shared.js';
 import { GlidepathForm } from './portfolioEditor/GlidepathComponents.js';
 import { PortfolioCard } from './portfolioEditor/PortfolioCard.js';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 // ──────────────────────────────────────────────
 // 单组合模式（受控版）
@@ -81,43 +84,57 @@ function SinglePortfolioEditor({
   const complete = isComplete ?? validateAssetWeights(assets) === null;
 
   const card = (
-    <div className="portfolio-card" style={wrapInSection ? undefined : cardStyle}>
+    <div
+      className="flex flex-col gap-1.5 p-3 bg-surface border border-border-subtle rounded-lg"
+      style={wrapInSection ? undefined : cardStyle}
+    >
       {header}
       {assets.map((a, i) => (
-        <div key={i} className="ticker-row">
-          <input
+        <div key={i} className="flex items-center gap-1.5">
+          <Input
             type="text"
             value={a.ticker}
             onChange={(e) => onUpdate(i, 'ticker', e.target.value)}
             placeholder={t('optimizer.tickerPlaceholder')}
-            className="ticker-input"
+            className="flex-1 h-8"
           />
-          <div className="weight-cell">
-            <input
+          <div className="flex items-center gap-1 w-[110px]">
+            <Input
               type="number"
               value={a.weight || ''}
               onChange={(e) => onUpdate(i, 'weight', Number(e.target.value))}
               min={0}
               max={100}
-              className="weight-input"
+              className="h-8 font-mono tabular-nums"
               placeholder="%"
             />
-            <span className="weight-suffix">%</span>
+            <span className="text-caption text-fg-tertiary shrink-0">%</span>
           </div>
-          <button onClick={() => onRemove(i)} className="row-remove-btn" title={t('common.delete')}>
+          <Button
+            variant="destructive"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => onRemove(i)}
+            title={t('common.delete')}
+            aria-label={t('common.delete')}
+          >
             <X className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       ))}
-      <div className="portfolio-card-toolbar">
-        <button className="btn-ghost" onClick={onAdd}>
+      <div className="pt-1">
+        <Button variant="ghost" size="sm" onClick={onAdd}>
           <Plus className="w-3.5 h-3.5" />
           {t('portfolio.addAsset')}
-        </button>
+        </Button>
       </div>
-      <div className={`portfolio-total ${complete ? 'complete' : 'incomplete'}`}>
-        <span>{t('portfolio.total')}</span>
-        <span className="total-value">{totalWeight}%</span>
+      <div className="flex items-center justify-between pt-2 mt-1 border-t border-border-subtle">
+        <span className="text-caption text-fg-tertiary uppercase tracking-wide">
+          {t('portfolio.total')}
+        </span>
+        <Badge variant={complete ? 'success' : 'danger'} className="tabular-nums">
+          {totalWeight}%
+        </Badge>
       </div>
     </div>
   );
@@ -127,11 +144,11 @@ function SinglePortfolioEditor({
   }
 
   return (
-    <div className="portfolios-section">
-      <div className="portfolios-header">
-        <span className="portfolios-title">{t('portfolio.title')}</span>
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-body font-semibold text-fg">{t('portfolio.title')}</span>
       </div>
-      <div className="portfolios-cards">{card}</div>
+      <div>{card}</div>
     </div>
   );
 }
@@ -188,29 +205,34 @@ function PresetDropdownButton({
   }, [presetOpen]);
 
   return (
-    <div ref={presetContainerRef} className="portfolios-add-preset-wrap">
-      <button
-        className="btn-secondary-sm"
+    <div ref={presetContainerRef} className="relative">
+      <Button
+        variant="secondary"
+        size="sm"
         aria-expanded={presetOpen}
         onClick={() => setPresetOpen((v) => !v)}
       >
         {t('portfolio.addPreset')}
-      </button>
+        <ChevronDown className="w-3.5 h-3.5" />
+      </Button>
       {presetOpen && (
-        <div className="preset-dropdown" role="menu">
+        <div
+          className="absolute top-full left-0 mt-1 z-30 min-w-[240px] bg-surface border border-border rounded-lg shadow-lg py-1"
+          role="menu"
+        >
           {PORTFOLIO_PRESETS.map((preset) => (
             <button
               key={preset.id}
               type="button"
-              className="preset-dropdown-item"
+              className="flex flex-col gap-0.5 w-full px-3 py-2 text-left bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
               role="menuitem"
               onClick={() => {
                 onAddPreset(preset.id);
                 setPresetOpen(false);
               }}
             >
-              <span className="preset-dropdown-label">{t(preset.labelKey)}</span>
-              <span className="preset-dropdown-desc">{t(preset.descriptionKey)}</span>
+              <span className="text-caption font-medium text-fg">{t(preset.labelKey)}</span>
+              <span className="text-caption text-fg-tertiary">{t(preset.descriptionKey)}</span>
             </button>
           ))}
         </div>
@@ -238,26 +260,26 @@ function PortfolioEditorHeader({
   };
 
   return (
-    <div className="portfolios-header">
-      <span className="portfolios-title">{t('portfolio.title')}</span>
-      <div className="portfolios-actions">
-        <button className="btn-secondary-sm" onClick={onAdd}>
+    <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+      <span className="text-body font-semibold text-fg">{t('portfolio.title')}</span>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <Button variant="secondary" size="sm" onClick={onAdd}>
           {t('portfolio.addEmpty')}
-        </button>
+        </Button>
         <PresetDropdownButton t={t} onAddPreset={onAddPreset} />
-        <button className="btn-secondary-sm" onClick={handleComingSoon}>
+        <Button variant="secondary" size="sm" onClick={handleComingSoon}>
           {t('portfolio.addAsset')}
-        </button>
-        <button className="btn-secondary-sm" onClick={handleComingSoon} disabled>
+        </Button>
+        <Button variant="secondary" size="sm" onClick={handleComingSoon} disabled>
           {t('portfolio.addSaved')}
-        </button>
-        <button className="btn-secondary-sm" onClick={onAddGlidepath}>
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onAddGlidepath}>
           {t('portfolio.addGlidepath')}
-        </button>
-        <span className="divider-v" />
-        <button className="btn-ghost-sm" onClick={onLoadExample}>
+        </Button>
+        <span className="w-px h-5 bg-border-subtle mx-1" />
+        <Button variant="ghost" size="sm" onClick={onLoadExample}>
           {t('portfolio.loadExample')}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -313,7 +335,7 @@ function MultiPortfolioEditor() {
   };
 
   return (
-    <div className="portfolios-section">
+    <div className="flex flex-col gap-2">
       <PortfolioEditorHeader
         t={t}
         onAdd={() => addPortfolio()}
@@ -331,13 +353,13 @@ function MultiPortfolioEditor() {
           onCancel={() => setShowGlidepathForm(false)}
         />
       )}
-      <div className="portfolios-cards">
+      <div className="flex flex-col gap-2">
         {portfolios.length === 0 ? (
-          <div className="portfolios-empty-inline">
-            <span className="empty-text">{t('portfolio.emptyPortfolios')}</span>
-            <button className="btn-text-link" onClick={() => addPortfolio('60-40')}>
+          <div className="flex items-center gap-2 py-2">
+            <span className="text-body text-fg-tertiary">{t('portfolio.emptyPortfolios')}</span>
+            <Button variant="ghost" size="sm" onClick={() => addPortfolio('60-40')}>
               {t('portfolio.loadExample')}
-            </button>
+            </Button>
           </div>
         ) : (
           portfolios.map((portfolio, idx) => (

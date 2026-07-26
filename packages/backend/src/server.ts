@@ -14,8 +14,6 @@ import { eventDispatcher } from './domain/events/index.js';
 import { BacktestCompletedHandler } from './application/backtestCompletedHandler.js';
 import { RunCompletedHandler } from './application/runCompletedHandler.js';
 import { triggerWebhooks } from './application/webhookService.js';
-import { createWebhookRetryWorker, scheduleWebhookRetryJob } from './queues/webhookQueue.js';
-import type { Worker } from 'bullmq';
 import type { Server } from 'http';
 // P3-05：OutboxConsumer 接口类型——由 createOutboxConsumer 工厂按 CDC_KAFKA_ENABLED 选择实现
 import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
@@ -35,7 +33,6 @@ eventDispatcher.register(new RunCompletedHandler());
 
 // P3-05：变量重命名为 outboxConsumer，统一承载 LISTEN/NOTIFY 与 Kafka CDC 两种实现
 let outboxConsumer: OutboxConsumer | null = null;
-let webhookRetryWorker: Worker | null = null;
 const PORT = config.API_PORT;
 
 server.listen(PORT, async () => {
@@ -68,13 +65,9 @@ server.listen(PORT, async () => {
   } catch (err) {
     logger.warn({ err }, '[startup] Outbox 消费器启动失败');
   }
-  // P2-02：启动 webhook 投递重试作业（每 1 分钟扫描 pending/retrying 投递）
-  try {
-    webhookRetryWorker = createWebhookRetryWorker();
-    await scheduleWebhookRetryJob();
-  } catch (err) {
-    logger.warn({ err }, '[startup] Webhook 重试作业启动失败');
-  }
+  // P0-1：Webhook 投递重试 Worker 已移至独立 Worker 进程（workerEntrypoint.ts），
+  // API 服务器不再管理 Worker 生命周期。Worker 崩溃/重启不影响 API 服务。
+  // Worker 进程通过 docker-compose worker 服务或 K8s backtest-worker Deployment 部署。
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {
@@ -115,11 +108,6 @@ function triggerShutdown(signal: string, exitCode: number = 0): void {
       if (outboxConsumer) {
         await outboxConsumer.stop();
         outboxConsumer = null;
-      }
-      // P2-02：关闭 webhook 重试 worker，停止消费投递队列
-      if (webhookRetryWorker) {
-        await webhookRetryWorker.close();
-        webhookRetryWorker = null;
       }
       await closeDb();
       logger.info('Graceful shutdown complete');

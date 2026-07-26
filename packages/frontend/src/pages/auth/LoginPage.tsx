@@ -3,9 +3,9 @@
  * @description 用户名 + 密码登录，成功后由 authStore 解析默认活跃组织并跳转首页。
  * @route /login
  */
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';
@@ -24,6 +24,13 @@ export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
+  const [searchParams] = useSearchParams();
+  const sessionExpired = searchParams.get('reason') === 'session_expired';
+  const sessionMessage = useMemo(
+    () => (sessionExpired ? t('auth.login.sessionExpired') : null),
+    [sessionExpired, t],
+  );
+
   const redirectTo = (location.state as { from?: string } | null)?.from ?? '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,7 +46,7 @@ export default function LoginPage() {
       footer={
         <>
           {t('auth.login.noAccountPrefix')}
-          <Link to="/signup" style={{ color: 'var(--brand)' }}>
+          <Link to="/signup" style={{ color: 'hsl(var(--brand))' }}>
             {t('auth.signup.submit')}
           </Link>
         </>
@@ -59,7 +66,7 @@ export default function LoginPage() {
           type="password"
           autoComplete="current-password"
         />
-        <ErrorBanner message={error} />
+        <ErrorBanner message={error || sessionMessage} />
         <AuthSubmitButton
           loading={loading}
           icon={<LogIn className="w-4 h-4" />}

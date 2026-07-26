@@ -65,11 +65,11 @@
 }
 
 .stat-value-positive {
-  color: var(--success);
+  color: hsl(var(--success));
 }
 
 .stat-value-negative {
-  color: var(--danger);
+  color: hsl(var(--danger));
 }
 
 .stat-row-primary td {

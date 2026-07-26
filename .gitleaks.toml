@@ -21,6 +21,13 @@ regex = '''AUDIT_HMAC_KEY\s*=\s*["']([^"']+)["']'''
 secretGroup = 1
 keywords = ["AUDIT_HMAC_KEY"]
 
+[[rules]]
+id = "admin-api-key"
+description = "Platform break-glass ADMIN_API_KEY (P0-04)"
+regex = '''ADMIN_API_KEY\s*=\s*["']([^"']{8,})["']'''
+secretGroup = 1
+keywords = ["ADMIN_API_KEY"]
+
 [allowlist]
 description = "Allowlisted paths"
 paths = [

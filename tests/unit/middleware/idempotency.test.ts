@@ -1,9 +1,12 @@
 /**
- * 幂等性 Key 中间件单元测试（T-P1-5.3）
+ * 幂等性 Key 中间件单元测试（T-P1-5.3 / ADR-045）
  *
  * 企业理由：幂等性中间件保护写操作不被重复执行，是 API 可靠性的关键保障。
  * 测试覆盖：非 POST 放行、无 Key 放行、Key 命中缓存、Key 首次请求缓存写入、
  * 超长 Key 拒绝、失败响应不缓存、Redis 成功路径、安全攻击用例。
+ *
+ * ADR-045：删除内存回退路径。Redis 不可用时返回 503 + Retry-After（fail-closed），
+ * 不再降级到进程内 Map（跨 Pod 不一致会导致重复写入）。
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -21,7 +24,7 @@ import {
 // Mock logger 以避免 OTel/pino 初始化副作用
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-// Mock appRedis：默认内存回退；Redis 成功路径可切换
+// Mock appRedis：默认 Redis 成功（内存 Map 支撑的 store 模拟）；可切换为不可用
 const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
@@ -31,7 +34,8 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
   ),
 );
 
-redisMocks.useMemoryFallback();
+// ADR-045：默认 Redis 可用（业务逻辑测试）。fail-closed 行为在独立 describe 中验证。
+redisMocks.useRedisSuccess();
 
 import { idempotencyKey } from '../../../packages/backend/src/middleware/idempotency.js';
 
@@ -49,10 +53,10 @@ function createMockReqResWithoutKey(method = 'POST') {
   return { req, res, next: vi.fn() };
 }
 
-describe('idempotencyKey 中间件', () => {
+describe('idempotencyKey 中间件（放行与校验）', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
   });
 
   it('非 POST 请求应直接放行', () => {
@@ -74,6 +78,13 @@ describe('idempotencyKey 中间件', () => {
     idempotencyKey(req, res, next);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('idempotencyKey 缓存行为（Redis 模式）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redisMocks.useRedisSuccess();
   });
 
   it('首次请求应放行并拦截 res.json 缓存结果', async () => {
@@ -123,13 +134,6 @@ describe('idempotencyKey 中间件', () => {
     const r2 = createIdempotencyReqRes('test-key-b');
     idempotencyKey(r2.req, r2.res, r2.next);
     await vi.waitFor(() => expect(r2.next).toHaveBeenCalledTimes(1));
-  });
-});
-
-describe('idempotencyKey Redis 成功路径', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    redisMocks.useRedisSuccess();
   });
 
   it('首次 POST 应写入 Redis 缓存', async () => {
@@ -215,21 +219,66 @@ describe('idempotencyKey Redis 成功路径', () => {
     expect(r2.res.json).toHaveBeenCalledWith(body);
   });
 
-  it('Redis get 异常应降级到内存模式', async () => {
+  it('Redis 缓存写入失败应记录 warn 且不阻塞响应', async () => {
     redisMocks.useRedisSuccess();
-    const key = 'redis-fallback-key';
-    redisMocks.get.mockRejectedValueOnce(new Error('Redis read failed'));
-    const { req, res, next } = createIdempotencyReqRes(key);
+    redisMocks.set.mockRejectedValueOnce(new Error('redis set failed'));
+    const { req, res, next } = createIdempotencyReqRes('redis-write-fail');
     idempotencyKey(req, res, next);
     await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
+    res.statusCode = 200;
     expect(() => res.json({ success: true })).not.toThrow();
+    await vi.waitFor(() => expect(redisMocks.set).toHaveBeenCalled());
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ADR-045：Redis 不可用时 fail-closed（返回 503 + Retry-After，不再降级到内存）
+// ---------------------------------------------------------------------------
+
+describe('idempotencyKey Redis 不可用时 fail-closed（ADR-045）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // 模拟 Redis 不可用：ping 失败 → getRedisHealth 返回 false
+    redisMocks.useMemoryFallback();
+  });
+
+  it('Redis 不可用时 POST + Idempotency-Key 应返回 503 + Retry-After', async () => {
+    const { req, res, next } = createIdempotencyReqRes('redis-down-key');
+    idempotencyKey(req, res, next);
+    await vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(503));
+    expect(next).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
+
+  it('Redis get 异常应返回 503（不再降级到内存）', async () => {
+    // 健康检查通过，但 get 抛错 → catch 分支返回 503
+    redisMocks.ping.mockResolvedValue('PONG');
+    redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
+    const { req, res, next } = createIdempotencyReqRes('redis-get-fail');
+    idempotencyKey(req, res, next);
+    await vi.waitFor(() => expect(res.status).toHaveBeenCalledWith(503));
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('Redis 不可用时非 POST 请求仍应放行（不触发幂等检查）', () => {
+    const { req, res, next } = createMockReqResWithoutKey('GET');
+    idempotencyKey(req, res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('Redis 不可用时无 Idempotency-Key 头仍应放行', () => {
+    const { req, res, next } = createMockReqResWithoutKey('POST');
+    idempotencyKey(req, res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.status).not.toHaveBeenCalled();
   });
 });
 
 describe('安全攻击用例', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
   });
 
   it('并发相同 Key 竞态条件：5 个并发请求只有一个执行 handler，其余返回缓存', async () => {
@@ -262,7 +311,7 @@ describe('安全攻击用例', () => {
     { name: 'SQL 注入', key: SQL_INJECTION_KEY, body: { success: true } },
     { name: 'XSS 载荷', key: XSS_KEY, body: { success: true, data: 'xss-test' } },
     { name: '换行符注入', key: 'key\ninjected: evil', body: { success: true, data: 'safe' } },
-  ])('$name 作为 Key 应被安全存储（内存模式）', async ({ key, body }) => {
+  ])('$name 作为 Key 应被安全存储（Redis 模式）', async ({ key, body }) => {
     const r1 = createIdempotencyReqRes(key);
     idempotencyKey(r1.req, r1.res, r1.next);
     await vi.waitFor(() => expect(r1.next).toHaveBeenCalledTimes(1));
@@ -276,86 +325,16 @@ describe('安全攻击用例', () => {
     expect(r2.res.json).toHaveBeenCalledWith(body);
   });
 
-  it('Redis 缓存写入失败应记录 warn 且不阻塞响应', async () => {
-    redisMocks.useRedisSuccess();
-    redisMocks.set.mockRejectedValueOnce(new Error('redis set failed'));
-    const { req, res, next } = createIdempotencyReqRes('redis-write-fail');
-    idempotencyKey(req, res, next);
-    await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
-    res.statusCode = 200;
-    expect(() => res.json({ success: true })).not.toThrow();
-    await vi.waitFor(() => expect(redisMocks.set).toHaveBeenCalled());
-  });
-
-  it('Redis get 异常应降级到内存模式', async () => {
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
-    const { req, res, next } = createIdempotencyReqRes('redis-get-fail');
-    idempotencyKey(req, res, next);
-    await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
-  });
-
-  it('内存模式过期 Key 不应命中缓存', async () => {
-    vi.useFakeTimers();
-    const key = 'expired-memory-key';
-    const r1 = createIdempotencyReqRes(key);
+  it('Redis ready/error 事件应更新可用性状态', async () => {
+    // 先 error → 不可用 → 503；再 ready → 可用 → 放行
+    redisMocks.useMemoryFallback();
+    const r1 = createIdempotencyReqRes('redis-state-key');
     idempotencyKey(r1.req, r1.res, r1.next);
-    await vi.waitFor(() => expect(r1.next).toHaveBeenCalledTimes(1));
-    r1.res.statusCode = 200;
-    r1.res.json({ success: true, data: 'old' });
+    await vi.waitFor(() => expect(r1.res.status).toHaveBeenCalledWith(503));
 
-    vi.advanceTimersByTime(61 * 60 * 1000);
-    vi.advanceTimersByTime(10 * 60 * 1000);
-
-    const r2 = createIdempotencyReqRes(key);
+    redisMocks.useRedisSuccess();
+    const r2 = createIdempotencyReqRes('redis-state-key-2');
     idempotencyKey(r2.req, r2.res, r2.next);
     await vi.waitFor(() => expect(r2.next).toHaveBeenCalledTimes(1));
-    vi.useRealTimers();
-  });
-
-  it('Redis ready/error 事件应更新可用性状态', async () => {
-    redisMocks.useMemoryFallback();
-    redisMocks.emit('ready');
-    redisMocks.emit('error');
-    const { req, res, next } = createIdempotencyReqRes('redis-state-key');
-    idempotencyKey(req, res, next);
-    await vi.waitFor(() => expect(next).toHaveBeenCalledTimes(1));
-  });
-});
-
-describe('清理定时器（内存回退模式）', () => {
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('间隔触发时应清理过期 Key 并记录日志', async () => {
-    vi.resetModules();
-    vi.useFakeTimers();
-
-    // 重新导入使模块顶层 setInterval 被 fake timer 拦截
-    const { idempotencyKey: idempotencyKeyFresh } =
-      await import('../../../packages/backend/src/middleware/idempotency.js');
-    const { logger: freshLogger } = await import('../../../packages/backend/src/utils/logger.js');
-
-    redisMocks.useMemoryFallback();
-
-    const key = 'cleanup-trigger-key';
-    const r1 = createIdempotencyReqRes(key);
-    idempotencyKeyFresh(r1.req, r1.res, r1.next);
-    await vi.waitFor(() => expect(r1.next).toHaveBeenCalledTimes(1));
-    r1.res.statusCode = 200;
-    r1.res.json({ success: true, data: 'old' });
-
-    // 超过 TTL（1h）后触发清理间隔（10min）
-    vi.advanceTimersByTime(61 * 60 * 1000);
-    vi.advanceTimersByTime(10 * 60 * 1000);
-
-    expect(freshLogger.info).toHaveBeenCalledWith(
-      expect.objectContaining({
-        middleware: 'idempotency',
-        cleanedCount: 1,
-      }),
-      '[idempotency] 内存回退模式过期 Key 清理',
-    );
   });
 });

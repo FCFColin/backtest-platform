@@ -1,0 +1,19 @@
+# =============================================================================
+# Grafana 数据源 provisioning（P1-10）
+# =============================================================================
+# 启动时自动注册 Prometheus 数据源，指向同 compose 网络的 prometheus:9090。
+# isDefault: true 使仪表板默认使用此数据源，无需手动配置。
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s
+      httpMethod: POST

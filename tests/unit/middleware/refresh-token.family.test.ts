@@ -3,12 +3,20 @@
  *
  * 覆盖：revokeRefreshToken、revokeAllUserSessions、isUserSessionValid、
  * isAccessTokenRevokedForUser、Token Family 复用攻击场景、边界用例、Redis 事件注册。
- * 企业理由：family 吊销与会话级撤销是 token 安全核心，须保证 memory/Redis 双模式下
- * 复用检测、批量撤销、访问令牌吊销判定、降级路径行为正确。
+ * 企业理由：family 吊销与会话级撤销是 token 安全核心，须保证复用检测、
+ * 批量撤销、访问令牌吊销判定、Redis 故障 fail-closed 行为正确。
+ *
+ * ADR-045：删除内存降级路径。Redis 故障时 requireRedis 抛出 RedisUnavailableError，
+ * 由路由层翻译为 503。本文件移除 memory/Redis 双模式断言，统一为 Redis 模式；
+ * 原"fall back to memory"用例转换为"抛出 RedisUnavailableError"用例。
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks, mockLogger, createRedisModuleMock } from '../../helpers/mockFactories.js';
+import {
+  createLoggerMocks,
+  mockLogger,
+  createRedisModuleMock,
+} from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   config: {
@@ -49,10 +57,8 @@ import { getUserById } from '../../../packages/backend/src/repositories/userRepo
 import { generateToken } from '../../../packages/backend/src/middleware/jwtSigner.js';
 import '../../../packages/backend/src/infrastructure/redisClient.js';
 
-redisMocks.useMemoryFallback();
-
-// 共享 store 引用，便于 isAccessTokenRevokedForUser 用例局部覆写 set/get 实现
-const { store } = redisMocks;
+// ADR-045：默认 Redis 可用（内存 Map 支撑的 store 模拟）。Redis 故障用例在独立测试中验证。
+redisMocks.useRedisSuccess();
 
 describe('refreshToken family & revoke', () => {
   beforeEach(() => {
@@ -65,159 +71,153 @@ describe('refreshToken family & revoke', () => {
       isActive: true,
       createdAt: new Date(),
     });
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
   });
 
   describe('revokeRefreshToken', () => {
-    describe('memory mode', () => {
-      it('should revoke token and its family', async () => {
-        vi.resetModules();
-        const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+    it('should revoke token and its family', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
-        const rt = await generateRefreshToken('revoke-user', 'admin');
-        await revokeRefreshToken(rt);
+      const rt = await generateRefreshToken('revoke-user', 'admin');
+      await revokeRefreshToken(rt);
 
-        const result = await refreshAccessToken(rt);
-        expect(result).toBeNull();
-      });
-
-      it('should revoke used token as well', async () => {
-        vi.resetModules();
-        const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
-
-        const rt = await generateRefreshToken('revoke-used', 'admin');
-        const r1 = await refreshAccessToken(rt);
-        expect(r1).not.toBeNull();
-
-        await revokeRefreshToken(rt);
-
-        const afterRevoke = await refreshAccessToken(r1!.refreshToken);
-        expect(afterRevoke).toBeNull();
-      });
+      const result = await refreshAccessToken(rt);
+      expect(result).toBeNull();
     });
 
-    describe('Redis mode', () => {
-      beforeEach(() => {
-        redisMocks.useRedisSuccess();
-      });
+    it('should revoke used token as well', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
-      it('should revoke token and mark family as revoked', async () => {
-        vi.resetModules();
-        const { generateRefreshToken, revokeRefreshToken } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+      const rt = await generateRefreshToken('revoke-used', 'admin');
+      const r1 = await refreshAccessToken(rt);
+      expect(r1).not.toBeNull();
 
-        const rt = await generateRefreshToken('redis-revoke', 'admin');
-        const raw = redisMocks.store.get(`refresh_token:${rt}`);
-        const entry = JSON.parse(raw!);
+      await revokeRefreshToken(rt);
 
-        await revokeRefreshToken(rt);
+      const afterRevoke = await refreshAccessToken(r1!.refreshToken);
+      expect(afterRevoke).toBeNull();
+    });
 
-        expect(redisMocks.store.has(`refresh_token:${rt}`)).toBe(false);
-        const familyKey = `token_family:${entry.familyId}`;
-        const familyRaw = redisMocks.store.get(familyKey);
-        expect(familyRaw).toBeTruthy();
-        expect(JSON.parse(familyRaw!).revoked).toBe(true);
-      });
+    it('should revoke token and mark family as revoked', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, revokeRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
-      it('should handle used token revocation in Redis', async () => {
-        vi.resetModules();
-        const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+      const rt = await generateRefreshToken('redis-revoke', 'admin');
+      const raw = redisMocks.store.get(`refresh_token:${rt}`);
+      const entry = JSON.parse(raw!);
 
-        const rt = await generateRefreshToken('redis-used-revoke', 'admin');
-        await refreshAccessToken(rt);
+      await revokeRefreshToken(rt);
 
-        await revokeRefreshToken(rt);
+      expect(redisMocks.store.has(`refresh_token:${rt}`)).toBe(false);
+      const familyKey = `token_family:${entry.familyId}`;
+      const familyRaw = redisMocks.store.get(familyKey);
+      expect(familyRaw).toBeTruthy();
+      expect(JSON.parse(familyRaw!).revoked).toBe(true);
+    });
 
-        expect(redisMocks.store.has(`refresh_token:used:${rt}`)).toBe(false);
-      });
+    it('should handle used token revocation in Redis', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, refreshAccessToken, revokeRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
-      it('should fall back to memory on Redis error', async () => {
-        redisMocks.get.mockRejectedValueOnce(new Error('read failed'));
-        vi.resetModules();
-        const { generateRefreshToken, revokeRefreshToken } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+      const rt = await generateRefreshToken('redis-used-revoke', 'admin');
+      await refreshAccessToken(rt);
 
-        const rt = await generateRefreshToken('redis-err-revoke', 'admin');
-        await expect(revokeRefreshToken(rt)).resolves.toBeUndefined();
-      });
+      await revokeRefreshToken(rt);
+
+      expect(redisMocks.store.has(`refresh_token:used:${rt}`)).toBe(false);
+    });
+
+    it('should throw RedisUnavailableError when Redis get fails (ADR-045)', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, revokeRefreshToken } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
+      // vi.resetModules() re-evaluates errors.js → requireRedis 抛出的 RedisUnavailableError
+      // 与顶层 import 的类不是同一实例，须动态导入同一实例（与 isAccessTokenRevokedForUser 用例一致）
+      const { RedisUnavailableError } =
+        await import('../../../packages/backend/src/utils/errors.js');
+
+      const rt = await generateRefreshToken('redis-err-revoke', 'admin');
+      redisMocks.get.mockRejectedValueOnce(new Error('read failed'));
+
+      await expect(revokeRefreshToken(rt)).rejects.toThrow(RedisUnavailableError);
     });
   });
 
   describe('revokeAllUserSessions', () => {
-    describe('memory mode', () => {
-      it('should revoke all refresh tokens for a user', async () => {
-        vi.resetModules();
-        const { generateRefreshToken, refreshAccessToken, revokeAllUserSessions } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+    it('should revoke all refresh tokens for a user', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, refreshAccessToken, revokeAllUserSessions } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
-        const rt1 = await generateRefreshToken('revoke-all-user', 'admin');
-        const rt2 = await generateRefreshToken('revoke-all-user', 'analyst');
+      const rt1 = await generateRefreshToken('revoke-all-user', 'admin');
+      const rt2 = await generateRefreshToken('revoke-all-user', 'analyst');
 
-        await revokeAllUserSessions('revoke-all-user');
+      await revokeAllUserSessions('revoke-all-user');
 
-        expect(await refreshAccessToken(rt1)).toBeNull();
-        expect(await refreshAccessToken(rt2)).toBeNull();
-      });
-
-      it('should mark revoked_at timestamp', async () => {
-        vi.resetModules();
-        const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
-
-        const before = Math.floor(Date.now() / 1000);
-        await revokeAllUserSessions('revoke-ts-user');
-        const after = Math.floor(Date.now() / 1000);
-
-        expect(await isAccessTokenRevokedForUser('revoke-ts-user', before - 10)).toBe(true);
-        expect(await isAccessTokenRevokedForUser('revoke-ts-user', after + 10)).toBe(false);
-      });
+      expect(await refreshAccessToken(rt1)).toBeNull();
+      expect(await refreshAccessToken(rt2)).toBeNull();
     });
 
-    describe('Redis mode', () => {
-      beforeEach(() => {
-        redisMocks.useRedisSuccess();
-      });
+    it('should mark revoked_at timestamp', async () => {
+      vi.resetModules();
+      const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
-      it('should revoke all sessions and set revoked_at', async () => {
-        vi.resetModules();
-        const { generateRefreshToken, refreshAccessToken, revokeAllUserSessions } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+      const before = Math.floor(Date.now() / 1000);
+      await revokeAllUserSessions('revoke-ts-user');
+      const after = Math.floor(Date.now() / 1000);
 
-        const rt = await generateRefreshToken('redis-revoke-all', 'admin');
-        await revokeAllUserSessions('redis-revoke-all');
+      expect(await isAccessTokenRevokedForUser('revoke-ts-user', before - 10)).toBe(true);
+      expect(await isAccessTokenRevokedForUser('revoke-ts-user', after + 10)).toBe(false);
+    });
 
-        const result = await refreshAccessToken(rt);
-        expect(result).toBeNull();
+    it('should revoke all sessions and set revoked_at', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, refreshAccessToken, revokeAllUserSessions } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
 
-        expect(redisMocks.store.has('user_revoked:redis-revoke-all')).toBe(true);
-      });
+      const rt = await generateRefreshToken('redis-revoke-all', 'admin');
+      await revokeAllUserSessions('redis-revoke-all');
 
-      it('should fall back to memory on Redis error', async () => {
-        redisMocks.smembers.mockRejectedValue(new Error('smembers failed'));
-        vi.resetModules();
-        const { generateRefreshToken, revokeAllUserSessions } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+      const result = await refreshAccessToken(rt);
+      expect(result).toBeNull();
 
-        await generateRefreshToken('redis-err-sessions', 'admin');
-        await expect(revokeAllUserSessions('redis-err-sessions')).resolves.toBeUndefined();
-      });
+      expect(redisMocks.store.has('user_revoked:redis-revoke-all')).toBe(true);
+    });
 
-      it('should remove user families set from Redis', async () => {
-        vi.resetModules();
-        const { generateRefreshToken, revokeAllUserSessions } =
-          await import('../../../packages/backend/src/middleware/refreshToken.js');
+    it('should throw RedisUnavailableError when Redis smembers fails (ADR-045)', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, revokeAllUserSessions } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
+      const { RedisUnavailableError } =
+        await import('../../../packages/backend/src/utils/errors.js');
 
-        await generateRefreshToken('redis-cleanup', 'admin');
-        await revokeAllUserSessions('redis-cleanup');
+      await generateRefreshToken('redis-err-sessions', 'admin');
+      redisMocks.smembers.mockRejectedValueOnce(new Error('smembers failed'));
 
-        const familiesKey = [...redisMocks.sets.keys()].find((k) => k.includes('redis-cleanup'));
-        if (familiesKey) {
-          expect(redisMocks.store.has(familiesKey)).toBe(false);
-        }
-      });
+      await expect(revokeAllUserSessions('redis-err-sessions')).rejects.toThrow(
+        RedisUnavailableError,
+      );
+    });
+
+    it('should remove user families set from Redis', async () => {
+      vi.resetModules();
+      const { generateRefreshToken, revokeAllUserSessions } =
+        await import('../../../packages/backend/src/middleware/refreshToken.js');
+
+      await generateRefreshToken('redis-cleanup', 'admin');
+      await revokeAllUserSessions('redis-cleanup');
+
+      const familiesKey = [...redisMocks.sets.keys()].find((k) => k.includes('redis-cleanup'));
+      if (familiesKey) {
+        expect(redisMocks.store.has(familiesKey)).toBe(false);
+      }
     });
   });
 
@@ -315,8 +315,7 @@ describe('refreshToken family & revoke', () => {
       expect(await isAccessTokenRevokedForUser('revoked-after-user', futureIat)).toBe(false);
     });
 
-    it('should work in Redis mode', async () => {
-      redisMocks.useRedisSuccess();
+    it('should invoke Redis get when checking revocation', async () => {
       vi.resetModules();
       const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
         await import('../../../packages/backend/src/middleware/refreshToken.js');
@@ -326,47 +325,28 @@ describe('refreshToken family & revoke', () => {
       expect(redisMocks.get).toHaveBeenCalled();
     });
 
-    it('should fall back to memory when Redis get fails', async () => {
-      redisMocks.ping.mockResolvedValue('PONG');
-      redisMocks.smembers.mockRejectedValueOnce(new Error('smembers failed'));
-      redisMocks.set.mockImplementation(async (k: string, v: string) => {
-        store.set(k, v);
-        return 'OK';
-      });
-      redisMocks.get.mockImplementation(async (k: string) => store.get(k) ?? null);
-
+    it('should throw RedisUnavailableError when Redis get fails (ADR-045)', async () => {
       vi.resetModules();
       const { revokeAllUserSessions, isAccessTokenRevokedForUser } =
         await import('../../../packages/backend/src/middleware/refreshToken.js');
+      const { RedisUnavailableError } =
+        await import('../../../packages/backend/src/utils/errors.js');
 
       await revokeAllUserSessions('redis-fallback-check-user');
 
       redisMocks.get.mockRejectedValueOnce(new Error('get failed'));
-      const result = await isAccessTokenRevokedForUser('redis-fallback-check-user', 1);
-      expect(result).toBe(true);
+      await expect(isAccessTokenRevokedForUser('redis-fallback-check-user', 1)).rejects.toThrow(
+        RedisUnavailableError,
+      );
     });
   });
 
   describe('Token Family reuse attack scenarios', () => {
-    // table-driven：3 个场景共享相同断言，仅模式（memory/Redis）与 userId 不同
+    // ADR-045：统一 Redis 模式。原 memory/Redis 双场景去重为 Redis 单场景。
     it.each([
-      {
-        name: 'memory mode: reused token after rotation',
-        useRedis: false,
-        userId: 'attack-user',
-      },
-      {
-        name: 'Redis mode: reused token',
-        useRedis: true,
-        userId: 'redis-attack-user',
-      },
-      {
-        name: 'memory mode: reuse after successful refresh',
-        useRedis: false,
-        userId: 'family-reuse-user',
-      },
-    ])('$name revokes entire family', async ({ useRedis, userId }) => {
-      if (useRedis) redisMocks.useRedisSuccess();
+      { name: 'reused token after rotation revokes entire family', userId: 'attack-user' },
+      { name: 'reuse after successful refresh revokes entire family', userId: 'family-reuse-user' },
+    ])('$name', async ({ userId }) => {
       vi.resetModules();
       const { generateRefreshToken, refreshAccessToken } =
         await import('../../../packages/backend/src/middleware/refreshToken.js');
@@ -410,7 +390,7 @@ describe('refreshToken family & revoke', () => {
       expect(token).toBeTruthy();
     });
 
-    it('refreshAccessToken should return null for revoked family in memory mode', async () => {
+    it('refreshAccessToken should return null for revoked family', async () => {
       vi.resetModules();
       const { generateRefreshToken, refreshAccessToken } =
         await import('../../../packages/backend/src/middleware/refreshToken.js');

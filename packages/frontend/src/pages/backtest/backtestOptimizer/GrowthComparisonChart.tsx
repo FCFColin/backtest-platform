@@ -1,6 +1,7 @@
-/**
+﻿/**
  * @file 增长对比曲线
  * @description 最优组合 vs 基准的净值曲线对比。基于 buildChartData 合并两条增长序列。
+ *   基于 token 类名 + 新版 CSS 变量。
  */
 import { useTranslation } from 'react-i18next';
 import {
@@ -24,28 +25,20 @@ export function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthCompariso
   if (chartData.length === 0) return null;
   return (
     <>
-      <div
-        style={{
-          fontWeight: 600,
-          fontSize: 14,
-          color: 'var(--text-strong)',
-          marginBottom: 12,
-          marginTop: 24,
-        }}
-      >
+      <div className="mb-3 mt-6 text-body font-semibold text-fg">
         {t('backtest.optimizer.growthComparison')}
       </div>
       <ResponsiveContainer width="100%" height={320}>
         <LineChart data={chartData} margin={{ left: 8, right: 20, top: 5, bottom: 5 }}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+            tick={{ fontSize: 12, fill: 'hsl(var(--fg-tertiary))' }}
             tickFormatter={(d: string) => d.substring(0, 7)}
             minTickGap={40}
           />
           <YAxis
-            tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+            tick={{ fontSize: 12, fill: 'hsl(var(--fg-tertiary))' }}
             tickFormatter={(v: number) => `$${v.toLocaleString('en-US')}`}
             width={70}
           />

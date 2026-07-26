@@ -21,6 +21,8 @@ export interface PlanLimits {
   asyncConcurrency: number;
   /** 计算端点每分钟速率上限（限流 max） */
   rateLimitPerMin: number;
+  /** 每租户可保存的战术配置上限（P1-1） */
+  maxTacticalConfigs: number;
 }
 
 /** 计费计量指标名（与 usage_events.metric / usage_counters.metric 对齐） */
@@ -34,17 +36,20 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     maxTickers: 10,
     asyncConcurrency: 1,
     rateLimitPerMin: 10,
+    maxTacticalConfigs: 10,
   },
   pro: {
     backtestsPerMonth: 5000,
     maxTickers: 50,
     asyncConcurrency: 5,
     rateLimitPerMin: 60,
+    maxTacticalConfigs: 100,
   },
   enterprise: {
     backtestsPerMonth: Number.POSITIVE_INFINITY,
     maxTickers: 200,
     asyncConcurrency: 20,
     rateLimitPerMin: 300,
+    maxTacticalConfigs: Number.POSITIVE_INFINITY,
   },
 };

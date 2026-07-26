@@ -1,0 +1,27 @@
+{
+  "name": "backtest-outbox-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres-cdc",
+    "database.port": "5432",
+    "database.user": "backtest",
+    "database.password": "backtest",
+    "database.dbname": "backtest",
+    "database.server.name": "backtest",
+    "plugin.name": "pgoutput",
+    "slot.name": "debezium_outbox",
+    "publication.name": "dbz_outbox_pub",
+    "table.include.list": "public.outbox",
+    "tombstones.on.delete": "false",
+    "transforms": "outbox",
+    "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
+    "transforms.outbox.table.field.event.id": "id",
+    "transforms.outbox.table.field.event.key": "aggregate_id",
+    "transforms.outbox.table.field.event.type": "event_type",
+    "transforms.outbox.table.field.event.payload": "payload",
+    "transforms.outbox.route.by.field": "aggregate_type",
+    "transforms.outbox.route.topic.replacement": "backtest.${routedByValue}",
+    "transforms.outbox.table.fields.additional.placement": "tenant_id:header:tenant_id",
+    "value.converter.schemas.enable": "false"
+  }
+}

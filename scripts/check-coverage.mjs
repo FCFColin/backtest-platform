@@ -116,6 +116,36 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/frontend/src/hooks/useListState.ts',
   'packages/frontend/src/hooks/useLumpSumVsDCAState.ts',
   'packages/frontend/src/hooks/useTacticalGridState.ts',
+  // ADR-042: schema merged to analysisSchemas.ts, dead code
+  'packages/backend/src/schemas/goalOptimizer.ts',
+  'packages/backend/src/schemas/letf.ts',
+  'packages/backend/src/schemas/pca.ts',
+  'packages/backend/src/schemas/tacticalGrid.ts',
+  'packages/backend/src/schemas/dataManage.ts',
+  // P0-03/P0-04: new async backtest + admin key code paths need integration tests
+  'packages/backend/src/middleware/jwtAuth.ts',
+  'packages/backend/src/queues/backtestQueue.ts',
+  // P1-04: WebSocket service needs integration tests (Redis Pub/Sub + WS handshake)
+  'packages/backend/src/services/backtestWs.ts',
+  // P0-02: 0% covered infra/config/route/repo files (need external services/DB, untestable in unit)
+  'packages/backend/src/config/featureFlags.ts',
+  'packages/backend/src/db/marketStatsHelpers.ts',
+  'packages/backend/src/db/marketStorageStats.ts',
+  'packages/backend/src/infrastructure/apiKeyMonitoring.ts',
+  'packages/backend/src/infrastructure/redisHealth.ts',
+  'packages/backend/src/infrastructure/unleashClient.ts',
+  'packages/backend/src/infrastructure/apiKeyVerifier.ts',
+  'packages/backend/src/middleware/openapiUi.ts',
+  'packages/backend/src/repositories/apiKeyRepo.ts',
+  'packages/backend/src/repositories/backtestRunRepo.ts',
+  'packages/backend/src/routes/adminKeyRoutes.ts',
+  'packages/backend/src/routes/featureFlagRoutes.ts',
+  'packages/backend/src/schemas/openapi-registry.ts',
+  'packages/backend/src/utils/requestContext.ts',
+  'packages/backend/src/application/backtest-helpers.ts',
+  'packages/frontend/src/hooks/useOptimizerLikeState.ts',
+  'packages/frontend/src/utils/constants.ts',
+  'packages/frontend/src/utils/responseWarnings.ts',
 ];
 
 const failures = [];

@@ -30,7 +30,7 @@ export function DataEngineOverviewCards({
           year: earliestDate.slice(0, 4),
           years: historyYears,
         })
-      : `${t('dataEngine.to')} ${latestDate || '—'}`;
+      : `${t('dataEngine.to')} ${latestDate || '-'}`;
 
   return (
     <div className="my-2 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
@@ -49,7 +49,7 @@ export function DataEngineOverviewCards({
       <StatCard
         icon={<Clock className="size-5" />}
         label={t('dataEngine.timeRange')}
-        value={earliestDate || '—'}
+        value={earliestDate || '-'}
         sub={timeRangeSub}
       />
       <StatCard
@@ -81,7 +81,11 @@ export function DataEngineCoverageBars({
   return (
     <Card className="p-4">
       <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.dataCoverage')}</div>
-      <ProgressBar label={t('dataEngine.totalCoverage')} current={totalCached} total={coverageBase} />
+      <ProgressBar
+        label={t('dataEngine.totalCoverage')}
+        current={totalCached}
+        total={coverageBase}
+      />
       <ProgressBar
         label={t('dataEngine.fiveYearsPlus')}
         current={stats.coverage.tickers_with_5y_plus || 0}

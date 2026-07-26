@@ -111,7 +111,7 @@ describe('tactical-application-service', () => {
         startingValue: 10000,
         rebalanceFrequency: 'monthly',
       }),
-    ).rejects.toThrow('未找到');
+    ).rejects.toThrow('Price data not found for');
   });
 
   it('saveTacticalAlertConfig 启用时无邮箱应抛错', () => {

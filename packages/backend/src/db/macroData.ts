@@ -1,5 +1,8 @@
 /**
  * 宏观数据（CPI / 汇率）PostgreSQL 读取
+ *
+ * RLS 说明（P0-03 审计结论）：cpi_data / exchange_rates 表为全局共享宏观数据，
+ * 不含 tenant_id 列，不启用 RLS。所有租户共享同一份数据，直连 getReadPool() 是正确设计。
  */
 import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';

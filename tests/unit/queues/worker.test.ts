@@ -39,6 +39,11 @@ vi.mock('../../../packages/backend/src/application/grid-application-service.js',
   executeGridSearch: vi.fn(),
 }));
 
+// P0-03: mock backtest-service.runPortfolioBacktest，避免加载真实模块（含 db/outbox 等重依赖）
+vi.mock('../../../packages/backend/src/application/backtest-service.js', () => ({
+  runPortfolioBacktest: vi.fn(),
+}));
+
 // mock engineClient：提供 EngineUnavailableErrorStub 类（worker 检测该错误以触发 BullMQ 重试），
 // 同时避免加载真实的 opossum 熔断器与 metrics 注册副作用。
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({

@@ -84,7 +84,6 @@ export function createConfigMocks(
     ENGINE_AUTH_TOKEN: 'dev-engine-auth-token',
     DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token',
     CORS_ORIGINS: true,
-    ADMIN_API_KEY: '',
     REQUIRE_API_KEY: false,
     DEV_SKIP_AUTH: false,
     JWT_SECRET: 'test-jwt-secret-for-unit-tests',
@@ -99,7 +98,12 @@ export function createConfigMocks(
     DATABASE_READ_URL: '',
     DB_STATEMENT_TIMEOUT_MS: 10000,
     BACKTEST_SYNC_TIMEOUT_MS: 120000,
+    WORKER_CONCURRENCY: 4,
+    BACKTEST_SYNC_WAIT_MS: 10000,
     REDIS_URL: 'redis://localhost:6379',
+    REDIS_SENTINELS: '',
+    REDIS_SENTINEL_NAME: 'mymaster',
+    REDIS_PASSWORD: '',
     DB_POOL_MAX: 20,
     DB_POOL_MIN: 2,
     TRUST_PROXY_HOPS: 1,
@@ -336,7 +340,6 @@ export interface JwtAuthConfigMocks {
   JWT_SECRET: string;
   JWT_ACCESS_TTL: number;
   JWT_REFRESH_TTL: number;
-  ADMIN_API_KEY: string;
   JWT_ALGORITHM: 'RS256' | 'HS256';
   JWT_PRIVATE_KEY: string;
   JWT_PRIVATE_KEY_FILE: string;
@@ -359,7 +362,6 @@ export function createJwtAuthConfigMocks(
     JWT_SECRET: 'test-jwt-secret-for-unit-tests',
     JWT_ACCESS_TTL: 900,
     JWT_REFRESH_TTL: 604800,
-    ADMIN_API_KEY: '',
     JWT_ALGORITHM: 'HS256',
     JWT_PRIVATE_KEY: '',
     JWT_PRIVATE_KEY_FILE: '',

@@ -3,7 +3,7 @@
  *
  * 生产环境（NODE_ENV=production）下检查所有安全敏感字段是否使用了默认值。
  * 默认值意味着密钥未通过环境变量注入，存在严重安全风险（任何人可读源码即知密钥）。
- * 检测到默认值时：console.error + process.exit(1)，阻止启动。
+ * 检测到默认值时：logger.fatal + process.exit(1)，阻止启动。
  *
  * 检查在模块顶层（import 时即触发），不依赖任何异步初始化，确保 fail-fast。
  */
@@ -53,6 +53,7 @@ export function assertNoDefaultSecrets(config: Record<string, unknown>): void {
   }
 
   if (violations.length > 0) {
+    // eslint-disable-next-line no-console -- fatal 启动错误，须同步写入 stderr 后立即 exit(1)
     console.error(
       `[FATAL] Production environment cannot start with default secret values: ` +
         `${violations.join(', ')}. ` +

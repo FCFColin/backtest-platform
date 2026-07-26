@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "echo shared: no build step",
+    "test": "echo shared: no tests",
+    "check": "echo shared: type-checked via tsconfig.frontend.json and tsconfig.backend.json",
+    "lint": "eslint ."
+  },
   "exports": {
     ".": {
       "types": "./types/index.ts",

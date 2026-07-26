@@ -7,7 +7,7 @@ import { Field, FieldLabel } from '@/components/form/Field';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button-variants';
 import { cn } from '@/lib/utils';
 
 /**
@@ -29,7 +29,10 @@ function TickerInput({
   const commitNewTicker = () => {
     const raw = newTicker.trim();
     if (!raw) return;
-    const parts = raw.toUpperCase().split(/[,\s]+/).filter(Boolean);
+    const parts = raw
+      .toUpperCase()
+      .split(/[,\s]+/)
+      .filter(Boolean);
     const existing = new Set(tickers.filter(Boolean));
     const uniqueNew = parts.filter((s) => !existing.has(s));
     if (uniqueNew.length === 0) {
@@ -84,32 +87,8 @@ function TickerInput({
   );
 }
 
-/**
- * 资产分析参数面板。
- *
- * 以 Field + Input/Switch 重构为响应式栅格：tickers 占满整行，其余字段在
- * sm/lg 断点下两/三列排布；布尔开关用 Switch，数值输入带前缀/后缀。
- * @param props - 见各字段 setter 与运行回调
- * @returns 渲染的参数栅格
- */
-export function AnalysisParamsPanel({
-  tickers,
-  setTickers,
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
-  startingValue,
-  setStartingValue,
-  rollingWindow,
-  setRollingWindow,
-  correlationWindow,
-  setCorrelationWindow,
-  adjustForInflation,
-  setAdjustForInflation,
-  isLoading,
-  runAnalysis,
-}: {
+/** 资产分析参数面板 props */
+interface AnalysisParamsPanelProps {
   tickers: string[];
   setTickers: (v: string[]) => void;
   startDate: string;
@@ -126,16 +105,21 @@ export function AnalysisParamsPanel({
   setAdjustForInflation: (v: boolean) => void;
   isLoading: boolean;
   runAnalysis: () => void;
+}
+
+/** 全历史开关 + 起止日期字段组 */
+function AnalysisDateFields({
+  startDate,
+  endDate,
+  setStartDate,
+  setEndDate,
+  allHistory,
+}: Pick<AnalysisParamsPanelProps, 'startDate' | 'endDate' | 'setStartDate' | 'setEndDate'> & {
+  allHistory: boolean;
 }) {
   const { t } = useTranslation();
-  const allHistory = startDate === '' && endDate === '';
-
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
-      <Field className="sm:col-span-2 lg:col-span-3">
-        <TickerInput tickers={tickers} setTickers={setTickers} />
-      </Field>
-
+    <>
       <Field>
         <div className="flex items-center gap-2">
           <Switch
@@ -156,7 +140,6 @@ export function AnalysisParamsPanel({
           </FieldLabel>
         </div>
       </Field>
-
       <Field>
         <FieldLabel htmlFor="analysis-start-date">{t('analysis.startDate')}</FieldLabel>
         <Input
@@ -167,7 +150,6 @@ export function AnalysisParamsPanel({
           disabled={allHistory}
         />
       </Field>
-
       <Field>
         <FieldLabel htmlFor="analysis-end-date">{t('analysis.endDate')}</FieldLabel>
         <Input
@@ -178,7 +160,30 @@ export function AnalysisParamsPanel({
           disabled={allHistory}
         />
       </Field>
+    </>
+  );
+}
 
+/** 数值参数字段组：初始资金 + 滚动窗口 + 相关性窗口 */
+function AnalysisNumericFields({
+  startingValue,
+  setStartingValue,
+  rollingWindow,
+  setRollingWindow,
+  correlationWindow,
+  setCorrelationWindow,
+}: Pick<
+  AnalysisParamsPanelProps,
+  | 'startingValue'
+  | 'setStartingValue'
+  | 'rollingWindow'
+  | 'setRollingWindow'
+  | 'correlationWindow'
+  | 'setCorrelationWindow'
+>) {
+  const { t } = useTranslation();
+  return (
+    <>
       <Field>
         <FieldLabel htmlFor="analysis-starting-value">{t('analysis.startingValue')}</FieldLabel>
         <div className="relative">
@@ -194,7 +199,6 @@ export function AnalysisParamsPanel({
           />
         </div>
       </Field>
-
       <Field>
         <FieldLabel htmlFor="analysis-rolling-window">{t('analysis.rollingWindow')}</FieldLabel>
         <div className="relative">
@@ -210,7 +214,6 @@ export function AnalysisParamsPanel({
           </span>
         </div>
       </Field>
-
       <Field>
         <FieldLabel htmlFor="analysis-correlation-window">
           {t('analysis.correlationWindow')}
@@ -228,7 +231,23 @@ export function AnalysisParamsPanel({
           </span>
         </div>
       </Field>
+    </>
+  );
+}
 
+/** 通胀调整开关 + 运行按钮 */
+function AnalysisInflationAndRun({
+  adjustForInflation,
+  setAdjustForInflation,
+  isLoading,
+  runAnalysis,
+}: Pick<
+  AnalysisParamsPanelProps,
+  'adjustForInflation' | 'setAdjustForInflation' | 'isLoading' | 'runAnalysis'
+>) {
+  const { t } = useTranslation();
+  return (
+    <>
       <Field>
         <div className="flex items-center gap-2">
           <Switch
@@ -241,7 +260,6 @@ export function AnalysisParamsPanel({
           </FieldLabel>
         </div>
       </Field>
-
       <div className="flex justify-end sm:col-span-1 lg:col-span-2">
         <LoadingButton
           isLoading={isLoading}
@@ -252,6 +270,46 @@ export function AnalysisParamsPanel({
           <Play className="size-4" /> {t('analysis.startAnalysis')}
         </LoadingButton>
       </div>
+    </>
+  );
+}
+
+/**
+ * 资产分析参数面板。
+ *
+ * 以 Field + Input/Switch 重构为响应式栅格：tickers 占满整行，其余字段在
+ * sm/lg 断点下两/三列排布；布尔开关用 Switch，数值输入带前缀/后缀。
+ * @param props - 见各字段 setter 与运行回调
+ * @returns 渲染的参数栅格
+ */
+export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
+  const allHistory = props.startDate === '' && props.endDate === '';
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end">
+      <Field className="sm:col-span-2 lg:col-span-3">
+        <TickerInput tickers={props.tickers} setTickers={props.setTickers} />
+      </Field>
+      <AnalysisDateFields
+        startDate={props.startDate}
+        endDate={props.endDate}
+        setStartDate={props.setStartDate}
+        setEndDate={props.setEndDate}
+        allHistory={allHistory}
+      />
+      <AnalysisNumericFields
+        startingValue={props.startingValue}
+        setStartingValue={props.setStartingValue}
+        rollingWindow={props.rollingWindow}
+        setRollingWindow={props.setRollingWindow}
+        correlationWindow={props.correlationWindow}
+        setCorrelationWindow={props.setCorrelationWindow}
+      />
+      <AnalysisInflationAndRun
+        adjustForInflation={props.adjustForInflation}
+        setAdjustForInflation={props.setAdjustForInflation}
+        isLoading={props.isLoading}
+        runAnalysis={props.runAnalysis}
+      />
     </div>
   );
 }

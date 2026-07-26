@@ -5,6 +5,7 @@
  *   基于 shadcn Badge + Input 重构为暗色金融平台主题。
  */
 import { useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,10 +17,46 @@ interface TickerTagInputProps {
   tickers: string[];
   /** 更新标的列表的回调 */
   onChange: (tickers: string[]) => void;
-  /** 最少标的数量，低于此数不允许删除 */
+  /** 最少标的的数量，低于此数不允许删除 */
   minCount?: number;
   /** placeholder 文案 */
   placeholder?: string;
+}
+
+/** 已选标的 chip 列表，点击 ✕ 删除。 */
+function TickerChips({
+  tickers,
+  onRemove,
+}: {
+  tickers: string[];
+  onRemove: (idx: number) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {tickers.map((tk, idx) => (
+        <Badge
+          key={`${tk}-${idx}`}
+          variant="asset"
+          size="sm"
+          className="animate-in fade-in zoom-in-50 duration-150 uppercase"
+        >
+          <span>{tk}</span>
+          <Button
+            type="button"
+            variant="icon"
+            size="icon"
+            onClick={() => onRemove(idx)}
+            title={t('components.tickerTagInput.remove')}
+            aria-label={t('components.tickerTagInput.removeTicker', { ticker: tk })}
+            className="h-3.5 w-3.5 p-0 [&_svg]:size-3 opacity-70 hover:opacity-100"
+          >
+            <X />
+          </Button>
+        </Badge>
+      ))}
+    </>
+  );
 }
 
 /**
@@ -31,8 +68,10 @@ export function TickerTagInput({
   tickers,
   onChange,
   minCount = 2,
-  placeholder = '输入代码回车添加...',
+  placeholder,
 }: TickerTagInputProps) {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t('components.tickerTagInput.placeholder');
   const [input, setInput] = useState('');
 
   const addTicker = (raw: string) => {
@@ -65,30 +104,10 @@ export function TickerTagInput({
         'bg-input-bg border border-border rounded-lg',
         'min-h-10 transition-colors duration-150',
         'hover:border-border-strong',
-        'focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15'
+        'focus-within:border-brand focus-within:ring-4 focus-within:ring-brand/15',
       )}
     >
-      {tickers.map((tk, idx) => (
-        <Badge
-          key={`${tk}-${idx}`}
-          variant="asset"
-          size="sm"
-          className="animate-in fade-in zoom-in-50 duration-150 uppercase"
-        >
-          <span>{tk}</span>
-          <Button
-            type="button"
-            variant="icon"
-            size="icon"
-            onClick={() => removeTicker(idx)}
-            title="移除"
-            aria-label={`移除 ${tk}`}
-            className="h-3.5 w-3.5 p-0 [&_svg]:size-3 opacity-70 hover:opacity-100"
-          >
-            <X />
-          </Button>
-        </Badge>
-      ))}
+      <TickerChips tickers={tickers} onRemove={removeTicker} />
       <Input
         type="text"
         value={input}
@@ -100,11 +119,11 @@ export function TickerTagInput({
             setInput('');
           }
         }}
-        placeholder={tickers.length === 0 ? placeholder : ''}
-        aria-label={placeholder}
+        placeholder={tickers.length === 0 ? resolvedPlaceholder : ''}
+        aria-label={resolvedPlaceholder}
         className={cn(
           'h-7 min-w-[140px] flex-1 border-0 bg-transparent px-1 shadow-none',
-          'focus-visible:ring-0 focus:border-0 focus:ring-0'
+          'focus-visible:ring-0 focus:border-0 focus:ring-0',
         )}
       />
     </div>

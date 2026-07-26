@@ -1,16 +1,23 @@
 /**
  * Refresh Token 单元测试 - Rotation 职责
  *
- * 覆盖：token 签发、Redis 存储、TTL、family 绑定、租户上下文、内存降级、
+ * 覆盖：token 签发、Redis 存储、TTL、family 绑定、租户上下文、
  * Redis 模式轮换、复用检测、过期、family 吊销。
  * 企业理由：refresh token 签发是会话安全起点，须保证 token 唯一、可审计、
- * 在 Redis 故障时降级到内存模式；Redis 模式须保证轮换原子性、复用检测可靠。
+ * 轮换原子性、复用检测可靠。
+ *
+ * ADR-045：删除内存降级路径。Redis 故障时 generateRefreshToken/refreshAccessToken
+ * 抛出 RedisUnavailableError，由路由层翻译为 503。
  *
  * 合并自 refresh-token.rotation.part1/2/3.test.ts（Task 2.5 机械切分合并）。
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks, mockLogger, createRedisModuleMock } from '../../helpers/mockFactories.js';
+import {
+  createLoggerMocks,
+  mockLogger,
+  createRedisModuleMock,
+} from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   config: {
@@ -51,7 +58,8 @@ import { getUserById } from '../../../packages/backend/src/repositories/userRepo
 import { generateToken } from '../../../packages/backend/src/middleware/jwtSigner.js';
 import '../../../packages/backend/src/infrastructure/redisClient.js';
 
-redisMocks.useMemoryFallback();
+// ADR-045：默认 Redis 可用（内存 Map 支撑的 store 模拟）。Redis 故障用例在独立测试中验证。
+redisMocks.useRedisSuccess();
 
 // =====================
 // generateRefreshToken
@@ -68,10 +76,10 @@ describe('refreshToken rotation - generateRefreshToken', () => {
       isActive: true,
       createdAt: new Date(),
     });
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
   });
 
-  it('should return a hex string token in memory mode', async () => {
+  it('should return a hex string token', async () => {
     vi.resetModules();
     const { generateRefreshToken } =
       await import('../../../packages/backend/src/middleware/refreshToken.js');
@@ -155,15 +163,17 @@ describe('refreshToken rotation - generateRefreshToken', () => {
     );
   });
 
-  it('should fall back to memory when Redis set fails', async () => {
+  it('should throw RedisUnavailableError when Redis set fails (ADR-045)', async () => {
     redisMocks.useRedisSuccess();
     redisMocks.set.mockRejectedValueOnce(new Error('write failure'));
     vi.resetModules();
     const { generateRefreshToken } =
       await import('../../../packages/backend/src/middleware/refreshToken.js');
+    const { RedisUnavailableError } = await import('../../../packages/backend/src/utils/errors.js');
 
-    const token = await generateRefreshToken('fallback-user', 'admin');
-    expect(token).toBeTruthy();
+    await expect(generateRefreshToken('fallback-user', 'admin')).rejects.toThrow(
+      RedisUnavailableError,
+    );
   });
 
   it('should store tenant context in the entry', async () => {
@@ -191,10 +201,10 @@ describe('refreshToken rotation - generateRefreshToken', () => {
 });
 
 // =====================
-// refreshAccessToken (memory mode)
+// refreshAccessToken（业务逻辑：轮换、复用检测、过期、停用用户）
 // =====================
 
-describe('refreshToken rotation - refreshAccessToken (memory mode)', () => {
+describe('refreshToken rotation - refreshAccessToken (business logic)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(generateToken).mockResolvedValue('mock-access-token');
@@ -205,7 +215,7 @@ describe('refreshToken rotation - refreshAccessToken (memory mode)', () => {
       isActive: true,
       createdAt: new Date(),
     });
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
   });
 
   it('should return new access and refresh tokens', async () => {
@@ -449,19 +459,17 @@ describe('refreshToken rotation - refreshAccessToken (Redis mode)', () => {
     expect(afterFamilyRevoke).toBeNull();
   });
 
-  it('should fall back to memory when Redis throws during refresh', async () => {
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed'));
+  it('should throw RedisUnavailableError when Redis fails during refresh (ADR-045)', async () => {
     vi.resetModules();
     const { generateRefreshToken, refreshAccessToken } =
       await import('../../../packages/backend/src/middleware/refreshToken.js');
+    const { RedisUnavailableError } = await import('../../../packages/backend/src/utils/errors.js');
 
     const rt = await generateRefreshToken('fallback-redis', 'admin');
 
-    redisMocks.ping.mockRejectedValue(new Error('Redis down'));
-    const result = await refreshAccessToken(rt);
-    expect(result).not.toBeNull();
-    expect(result!.accessToken).toBeTruthy();
+    // Redis 健康检查通过，但 refreshAccessToken 内部 Redis 操作失败 → requireRedis 包装为 RedisUnavailableError
+    redisMocks.get.mockRejectedValueOnce(new Error('Redis read failed'));
+    await expect(refreshAccessToken(rt)).rejects.toThrow(RedisUnavailableError);
   });
 
   it('should handle non-existent token that was not previously used', async () => {

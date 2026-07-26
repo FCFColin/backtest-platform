@@ -1,4 +1,5 @@
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
+import { reportError } from './errorReporter.js';
 
 const STORAGE_KEY = 'backtest-portfolios';
 const PARAMS_KEY = 'backtest-params';
@@ -8,7 +9,7 @@ export function savePortfolios(portfolios: Portfolio[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolios));
   } catch (e) {
-    console.error('Failed to save portfolios:', e);
+    reportError(e, { component: 'portfolioStorage', action: 'savePortfolios' });
   }
 }
 
@@ -19,7 +20,7 @@ export function loadPortfolios(): Portfolio[] | null {
     if (!data) return null;
     return JSON.parse(data) as Portfolio[];
   } catch (e) {
-    console.error('Failed to load portfolios:', e);
+    reportError(e, { component: 'portfolioStorage', action: 'loadPortfolios' });
     return null;
   }
 }
@@ -29,7 +30,7 @@ export function saveParameters(params: BacktestParameters): void {
   try {
     localStorage.setItem(PARAMS_KEY, JSON.stringify(params));
   } catch (e) {
-    console.error('Failed to save parameters:', e);
+    reportError(e, { component: 'portfolioStorage', action: 'saveParameters' });
   }
 }
 
@@ -40,7 +41,7 @@ export function loadParameters(): BacktestParameters | null {
     if (!data) return null;
     return JSON.parse(data) as BacktestParameters;
   } catch (e) {
-    console.error('Failed to load parameters:', e);
+    reportError(e, { component: 'portfolioStorage', action: 'loadParameters' });
     return null;
   }
 }
@@ -74,7 +75,7 @@ export function saveNamedConfig(
   try {
     localStorage.setItem(SAVED_KEY, JSON.stringify(configs));
   } catch (e) {
-    console.error('Failed to save named config:', e);
+    reportError(e, { component: 'portfolioStorage', action: 'saveNamedConfig' });
   }
 }
 
@@ -95,9 +96,8 @@ export function deleteNamedConfig(id: string): void {
   const filtered = configs.filter((c) => c.id !== id);
   try {
     localStorage.setItem(SAVED_KEY, JSON.stringify(filtered));
-  } catch {
-    // Storage full or unavailable
-  }
+    // eslint-disable-next-line no-empty -- 存储空间满或不可用，静默忽略
+  } catch {}
 }
 
 /** 清除所有本地存储数据 */
@@ -106,7 +106,6 @@ export function clearAllData(): void {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(PARAMS_KEY);
     localStorage.removeItem(SAVED_KEY);
-  } catch {
-    // Storage unavailable
-  }
+    // eslint-disable-next-line no-empty -- 存储不可用时无需处理
+  } catch {}
 }

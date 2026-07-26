@@ -2,9 +2,10 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import compression from 'compression';
 import helmet from 'helmet';
+import { createServer } from 'node:http';
 import { config } from './config/index.js';
 import { jwtAuth } from './middleware/jwtAuth.js';
-import { resolveTenant } from './middleware/tenantContext.js';
+import { resolveTenant, requireTenant } from './middleware/tenantContext.js';
 import {
   computeMiddleware,
   computeMiddlewareNoQuota,
@@ -15,7 +16,7 @@ import {
 import { requirePermission, Permission } from './middleware/rbac.js';
 import { auditLog } from './middleware/auditLog.js';
 import { idempotencyKey } from './middleware/idempotency.js';
-import { httpLogger } from './utils/logger.js';
+import { httpLogger, logger } from './utils/logger.js';
 import { requestContextStorage } from './utils/requestContext.js';
 import { httpRequestDurationMicroseconds, httpRequestsTotal } from './utils/metrics.js';
 import {
@@ -31,20 +32,30 @@ import dataManageRoutes from './routes/dataManageRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
 import backtestOptimizerRoutes from './routes/backtestOptimizerRoutes.js';
 import tacticalRoutes from './routes/tacticalRoutes.js';
+import tacticalConfigRoutes from './routes/tacticalConfigRoutes.js';
 import signalRoutes from './routes/signalRoutes.js';
 import tacticalGridRoutes from './routes/tacticalGridRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import adminKeyRoutes from './routes/adminKeyRoutes.js';
+import rbacRoutes from './routes/rbacRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import featureFlagRoutes from './routes/featureFlagRoutes.js';
 import apiKeyRoutes from './routes/apiKeyRoutes.js';
+import webhookRoutes from './routes/webhookRoutes.js';
+import auditRoutes from './routes/auditRoutes.js';
 import portfolioRoutes from './routes/portfolioRoutes.js';
 import configRoutes from './routes/configRoutes.js';
 import runRoutes from './routes/runRoutes.js';
 import orgRoutes from './routes/orgRoutes.js';
 import billingRoutes, { billingWebhookHandler } from './routes/billingRoutes.js';
 import healthRoutes from './routes/healthRoutes.js';
+import errorReportRoutes from './routes/errorReportRoutes.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import { jobRoutes } from './routes/jobRoutes.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { requestTimeout } from './middleware/requestTimeout.js';
+import { setupOpenApiUi } from './middleware/openapiUi.js';
+import { setupBacktestWebSocket } from './services/backtestWs.js';
 
 const app: express.Application = express();
 
@@ -75,6 +86,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   });
   next();
 });
+
+// P3-5: 全局请求超时（30s 上限），超时返回 503 Problem Detail
+app.use(requestTimeout(30_000));
 
 // 安全头 + CORS
 app.use(
@@ -124,6 +138,27 @@ app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// P2-1: OpenAPI 请求/响应运行时验证（仅非生产环境）
+// 开发/staging 环境启用，生产环境跳过（零运行时开销）
+if (config.NODE_ENV !== 'production') {
+  void (async () => {
+    try {
+      const OpenApiValidator = (await import('express-openapi-validator')).default;
+      app.use(
+        OpenApiValidator.middleware({
+          apiSpec: './docs/openapi.yaml',
+          validateRequests: true,
+          validateResponses: true,
+          ignorePaths: /\/metrics|\/health|\/ready|\/api\/v1\/errors/,
+        }),
+      );
+    } catch (err) {
+      // express-openapi-validator 未安装时跳过（生产环境正常路径）
+      logger.warn({ err }, '[app] OpenAPI validator not available, skipping runtime validation');
+    }
+  })();
+}
+
 // 限流：计算端点 10/min，管理端点 30/min，认证端点 10/15min
 app.use('/api/v1/backtest', computeLimiter);
 app.use('/api/v1/backtest-optimizer', computeLimiter);
@@ -159,6 +194,11 @@ app.use(
   backtestOptimizerRoutes,
 );
 app.use('/api/v1/tactical', ...computeMiddleware(Permission.STRATEGY_MANAGE), tacticalRoutes);
+app.use(
+  '/api/v1/tactical/configs',
+  ...crudMiddleware(Permission.STRATEGY_MANAGE),
+  tacticalConfigRoutes,
+);
 app.use('/api/v1/signal', ...computeMiddlewareNoQuota(Permission.SIGNAL_READ), signalRoutes);
 app.use(
   '/api/v1/tactical-grid',
@@ -171,15 +211,27 @@ app.use(
 app.use('/api/v1', analysisRoutes);
 
 app.use('/api/v1/admin', ...adminMiddleware(), adminRoutes);
+// P2-03 不可篡改审计存储：管理后台审计日志查询（ADMIN_ACCESS 权限）
+app.use('/api/v1/admin/audit-logs', ...adminMiddleware(), auditRoutes);
+app.use('/api/v1/admin/keys', jwtAuth, auditLog, adminKeyRoutes);
+app.use('/api/v1/admin', requireTenant, rbacRoutes);
 app.use('/api/v1/auth', authRoutes);
+// P1-3: 前端错误上报端点（无需认证，限流由全局 apiLimiter 覆盖）
+app.use('/api/v1/errors', errorReportRoutes);
+app.use('/api/v1/feature-flags', jwtAuth, featureFlagRoutes);
 
 app.use('/api/v1/keys', ...crudMiddleware(Permission.ADMIN_ACCESS), apiKeyRoutes);
+// P2-02 Webhook 管理：JWT + 租户 + ADMIN_ACCESS（与 API Key 管理同权限级别）
+app.use('/api/v1/webhooks', ...crudMiddleware(Permission.ADMIN_ACCESS), webhookRoutes);
 app.use('/api/v1/portfolios', ...crudMiddleware(Permission.BACKTEST_RUN), portfolioRoutes);
 app.use('/api/v1/configs', ...crudMiddleware(Permission.BACKTEST_RUN), configRoutes);
 app.use('/api/v1/runs', ...crudMiddleware(Permission.BACKTEST_RUN), runRoutes);
 app.use('/api/v1/orgs', jwtAuth, resolveTenant, orgRoutes);
 app.use('/api/v1/billing', jwtAuth, resolveTenant, billingRoutes);
 app.use('/api/v1', jwtAuth, resolveTenant, jobRoutes);
+
+// Swagger UI (P1-05) - 仅非生产环境
+setupOpenApiUi(app);
 
 // 静态文件 + SPA 回退
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
@@ -196,4 +248,9 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
 app.use(errorHandler);
 app.use(notFoundHandler);
 
+// P1-04: 创建 HTTP server 并挂载 WebSocket 实时进度端点 (/api/v1/ws/runs/:jobId)
+const server = createServer(app);
+setupBacktestWebSocket(server);
+
+export { server };
 export default app;

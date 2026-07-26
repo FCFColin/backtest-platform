@@ -36,4 +36,57 @@ export const integrationsConfig = {
   STRIPE_PRICE_PRO: process.env.STRIPE_PRICE_PRO || '',
   /** Enterprise 方案的 Stripe Price ID。 */
   STRIPE_PRICE_ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE || '',
+
+  // ---------------------------------------------------------------------------
+  // MinIO 对象存储配置（P2-03 不可篡改审计存储）
+  // ---------------------------------------------------------------------------
+  // 企业理由：审计日志导出至 MinIO Object Lock COMPLIANCE 模式（WORM），
+  // 从存储层保证审计记录不可篡改。未配置时（fail-closed）审计日志仅留 DB，
+  // HMAC 签名仍提供篡改检测能力。
+
+  /** MinIO 端点（主机名或 IP）。未配置时审计导出静默跳过（fail-closed）。 */
+  MINIO_ENDPOINT: process.env.MINIO_ENDPOINT || '',
+  /** MinIO 端口。@default 9000 */
+  MINIO_PORT: parseInt(process.env.MINIO_PORT || '9000', 10),
+  /** MinIO Access Key。 */
+  MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY || '',
+  /** MinIO Secret Key。 */
+  MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY || '',
+  /** 是否启用 TLS。@default false（开发）/ 生产建议 true */
+  MINIO_USE_SSL: process.env.MINIO_USE_SSL === 'true',
+
+  // ---------------------------------------------------------------------------
+  // CDC / Kafka 配置（P3-05 Debezium Outbox CDC）
+  // ---------------------------------------------------------------------------
+  // 企业理由：Outbox 默认走 LISTEN/NOTIFY（单实例），多 Pod 水平扩展需外部 pub-sub。
+  // CDC 经 Debezium 读 WAL → Kafka → 消费组，支持跨 Pod 负载均衡。
+  // 默认关闭，本地开发零额外依赖；生产多 Pod 部署时启用。详见 ADR-051。
+
+  /**
+   * 是否启用 Kafka CDC 投递通路（ADR-051 / P3-05）。
+   * - `true`：OutboxKafkaConsumer 消费 Debezium 投递的 Kafka 事件。
+   * - `false`（默认）：使用 PostgreSQL LISTEN/NOTIFY（单实例，零依赖）。
+   * @default false
+   */
+  CDC_KAFKA_ENABLED: process.env.CDC_KAFKA_ENABLED === 'true',
+
+  /**
+   * Kafka broker 列表（逗号分隔），CDC 启用时由 OutboxKafkaConsumer 连接。
+   * 本地 docker-compose 用 localhost:9092；K8s 内部用 kafka:29092。
+   * @default "localhost:9092"
+   */
+  KAFKA_BROKERS: process.env.KAFKA_BROKERS || 'localhost:9092',
+
+  /**
+   * 订阅的 Kafka topic 列表（逗号分隔）。topic 名由 Debezium Outbox Event Router
+   * SMT 按 aggregate_type 路由生成（backtest.<aggregate_type>）。
+   * @default "backtest.Run,backtest.BacktestSession,backtest.audit"
+   */
+  KAFKA_TOPICS: process.env.KAFKA_TOPICS || 'backtest.Run,backtest.BacktestSession,backtest.audit',
+
+  /**
+   * Kafka 消费组 ID。同组内多 Pod 分区消费实现负载均衡；不同组各自全量消费。
+   * @default "backtest-outbox-consumer"
+   */
+  KAFKA_GROUP_ID: process.env.KAFKA_GROUP_ID || 'backtest-outbox-consumer',
 };

@@ -16,11 +16,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { CHART_COLORS } from '@backtest/shared';
 import type { MonteCarloResult } from '@backtest/shared';
-import {
-  CHART_TOOLTIP_STYLE,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-} from '@/lib/chart-theme.js';
+import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/chart-theme.js';
 import {
   buildScenarioData,
   monthFormatter,
@@ -28,6 +24,54 @@ import {
   dollarFormatter,
   yearLabelFormatter,
 } from './monteCarloTransforms.js';
+
+/** 情景代表路径曲线（best/p75/median/p25/worst） */
+function ScenarioLines() {
+  return (
+    <>
+      <Line
+        type="monotone"
+        dataKey="best"
+        stroke={CHART_COLORS[2]}
+        strokeWidth={2}
+        dot={false}
+        name="Best"
+      />
+      <Line
+        type="monotone"
+        dataKey="p75"
+        stroke={CHART_COLORS[0]}
+        strokeWidth={1.5}
+        dot={false}
+        name="P75"
+      />
+      <Line
+        type="monotone"
+        dataKey="median"
+        stroke={CHART_COLORS[4]}
+        strokeWidth={2.5}
+        dot={false}
+        name="Median"
+      />
+      <Line
+        type="monotone"
+        dataKey="p25"
+        stroke={CHART_COLORS[1]}
+        strokeWidth={1.5}
+        dot={false}
+        name="P25"
+      />
+      <Line
+        type="monotone"
+        dataKey="worst"
+        stroke={CHART_COLORS[3]}
+        strokeWidth={2}
+        dot={false}
+        name="Worst"
+      />
+    </>
+  );
+}
 
 /** 情景 Tab：best/p75/median/p25/worst 代表路径曲线 */
 export function MonteCarloScenariosTab({
@@ -66,46 +110,7 @@ export function MonteCarloScenariosTab({
             contentStyle={CHART_TOOLTIP_STYLE}
           />
           <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
-          <Line
-            type="monotone"
-            dataKey="best"
-            stroke={CHART_COLORS[2]}
-            strokeWidth={2}
-            dot={false}
-            name="Best"
-          />
-          <Line
-            type="monotone"
-            dataKey="p75"
-            stroke={CHART_COLORS[0]}
-            strokeWidth={1.5}
-            dot={false}
-            name="P75"
-          />
-          <Line
-            type="monotone"
-            dataKey="median"
-            stroke={CHART_COLORS[4]}
-            strokeWidth={2.5}
-            dot={false}
-            name="Median"
-          />
-          <Line
-            type="monotone"
-            dataKey="p25"
-            stroke={CHART_COLORS[1]}
-            strokeWidth={1.5}
-            dot={false}
-            name="P25"
-          />
-          <Line
-            type="monotone"
-            dataKey="worst"
-            stroke={CHART_COLORS[3]}
-            strokeWidth={2}
-            dot={false}
-            name="Worst"
-          />
+          <ScenarioLines />
         </LineChart>
       </ResponsiveContainer>
     </Card>

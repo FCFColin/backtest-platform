@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useTranslation } from 'react-i18next';
 import ErrorBanner from '../../components/ErrorBanner.js';
 import { FrontierParams } from './EfficientFrontierParams.js';
@@ -7,7 +6,9 @@ import { useEfficientFrontierState } from './EfficientFrontierUtils.js';
 import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
 import type { ComputeToolConfig } from '../../components/shells/types.js';
 
-function FrontierParamsWrapper({ state }: { state: any }) {
+type FrontierState = ReturnType<typeof useEfficientFrontierState>;
+
+function FrontierParamsWrapper({ state }: { state: FrontierState }) {
   return (
     <FrontierParams
       tickers={state.tickers}
@@ -38,12 +39,15 @@ function FrontierParamsWrapper({ state }: { state: any }) {
   );
 }
 
-function FrontierResultsWrapper({ state }: { state: any }) {
+function FrontierResultsWrapper({ state }: { state: FrontierState }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
       {state.error && (
-        <ErrorBanner message={`${t('efficientFrontier.calcFailed')}: ${state.error}`} variant="error" />
+        <ErrorBanner
+          message={`${t('efficientFrontier.calcFailed')}: ${state.error}`}
+          variant="error"
+        />
       )}
       {state.correlationError && !state.error && (
         <ErrorBanner message={state.correlationError} variant="warning" />
@@ -71,7 +75,7 @@ function FrontierResultsWrapper({ state }: { state: any }) {
   );
 }
 
-const config: ComputeToolConfig<any> = {
+const config: ComputeToolConfig<FrontierState> = {
   titleKey: 'efficientFrontier.title',
   seoDescKey: 'efficientFrontier.seo.desc',
   seoFeatures: [

@@ -17,8 +17,8 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { buttonVariants } from '@/components/ui/button';
-import { badgeVariants } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button-variants';
+import { badgeVariants } from '@/components/ui/badge-variants';
 import { FACTOR_OPTIONS, RF_SOURCE_OPTIONS } from './factorRegressionUtils.js';
 import type { AssetItem, ReturnFrequency } from './factorRegressionUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -78,53 +78,75 @@ interface FactorRegressionParamsPanelProps {
   onRun: () => void;
 }
 
-/** 因子回归参数面板（参数区 + 资产编辑 + 执行按钮） */
-export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelProps) {
+/** 全历史开关 + 起止日期字段组 */
+function FactorRegressionDateFields({
+  startDate,
+  endDate,
+  onStartDateChange,
+  onEndDateChange,
+}: Pick<
+  FactorRegressionParamsPanelProps,
+  'startDate' | 'endDate' | 'onStartDateChange' | 'onEndDateChange'
+>) {
   const { t } = useTranslation();
-  const allHistory = props.startDate === '' && props.endDate === '';
+  const allHistory = startDate === '' && endDate === '';
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <>
       <label className="col-span-full flex cursor-pointer items-center gap-2 text-label text-fg-secondary">
         <Checkbox
           checked={allHistory}
           onCheckedChange={(checked) => {
             if (checked) {
-              props.onStartDateChange('');
-              props.onEndDateChange('');
+              onStartDateChange('');
+              onEndDateChange('');
             } else {
-              props.onStartDateChange(DEFAULT_BACKTEST_START_DATE);
-              props.onEndDateChange(DEFAULT_END_DATE);
+              onStartDateChange(DEFAULT_BACKTEST_START_DATE);
+              onEndDateChange(DEFAULT_END_DATE);
             }
           }}
         />
         {t('factorRegression.allHistory')}
       </label>
-
       <Field>
         <FieldLabel htmlFor="fr-start-date">{t('factorRegression.startDate')}</FieldLabel>
         <Input
           id="fr-start-date"
           type="date"
-          value={props.startDate}
-          onChange={(e) => props.onStartDateChange(e.target.value)}
+          value={startDate}
+          onChange={(e) => onStartDateChange(e.target.value)}
         />
       </Field>
-
       <Field>
         <FieldLabel htmlFor="fr-end-date">{t('factorRegression.endDate')}</FieldLabel>
         <Input
           id="fr-end-date"
           type="date"
-          value={props.endDate}
-          onChange={(e) => props.onEndDateChange(e.target.value)}
+          value={endDate}
+          onChange={(e) => onEndDateChange(e.target.value)}
         />
       </Field>
+    </>
+  );
+}
 
+/** 频率 + 无风险利率源 字段组 */
+function FactorRegressionConfigFields({
+  returnFrequency,
+  rfSource,
+  onReturnFrequencyChange,
+  onRfSourceChange,
+}: Pick<
+  FactorRegressionParamsPanelProps,
+  'returnFrequency' | 'rfSource' | 'onReturnFrequencyChange' | 'onRfSourceChange'
+>) {
+  const { t } = useTranslation();
+  return (
+    <>
       <Field>
         <FieldLabel htmlFor="fr-freq">{t('factorRegression.returnFrequency')}</FieldLabel>
         <Select
-          value={props.returnFrequency}
-          onValueChange={(v) => props.onReturnFrequencyChange(v as ReturnFrequency)}
+          value={returnFrequency}
+          onValueChange={(v) => onReturnFrequencyChange(v as ReturnFrequency)}
         >
           <SelectTrigger id="fr-freq">
             <SelectValue />
@@ -135,10 +157,9 @@ export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelPr
           </SelectContent>
         </Select>
       </Field>
-
       <Field>
         <FieldLabel htmlFor="fr-rf">{t('factorRegression.rfRate')}</FieldLabel>
-        <Select value={props.rfSource} onValueChange={props.onRfSourceChange}>
+        <Select value={rfSource} onValueChange={onRfSourceChange}>
           <SelectTrigger id="fr-rf">
             <SelectValue />
           </SelectTrigger>
@@ -151,17 +172,33 @@ export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelPr
           </SelectContent>
         </Select>
       </Field>
+    </>
+  );
+}
 
+/** 因子回归参数面板（参数区 + 资产编辑 + 执行按钮） */
+export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelProps) {
+  const { t } = useTranslation();
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <FactorRegressionDateFields
+        startDate={props.startDate}
+        endDate={props.endDate}
+        onStartDateChange={props.onStartDateChange}
+        onEndDateChange={props.onEndDateChange}
+      />
+      <FactorRegressionConfigFields
+        returnFrequency={props.returnFrequency}
+        rfSource={props.rfSource}
+        onReturnFrequencyChange={props.onReturnFrequencyChange}
+        onRfSourceChange={props.onRfSourceChange}
+      />
       <div className="col-span-full">
         <Field>
           <FieldLabel>{t('factorRegression.factorSelect')}</FieldLabel>
-          <FactorSelector
-            selectedFactors={props.selectedFactors}
-            onToggle={props.onToggleFactor}
-          />
+          <FactorSelector selectedFactors={props.selectedFactors} onToggle={props.onToggleFactor} />
         </Field>
       </div>
-
       <div className="col-span-full">
         <PortfolioEditor
           singleMode
@@ -172,7 +209,6 @@ export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelPr
           onUpdate={props.onUpdateAsset}
         />
       </div>
-
       <div className="col-span-full">
         <LoadingButton
           isLoading={props.isLoading}

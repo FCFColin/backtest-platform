@@ -3,7 +3,7 @@
  *
  * 企业理由：集中配置模块是应用启动校验的核心，必须保证：
  * 1. 开发环境：validateConfig 不抛错（宽松校验）
- * 2. 生产环境：ADMIN_API_KEY、JWT_SECRET、ENGINE_AUTH_TOKEN、DATA_SERVICE_AUTH_TOKEN 必需
+ * 2. 生产环境：JWT_SECRET、ENGINE_AUTH_TOKEN、DATA_SERVICE_AUTH_TOKEN 必需
  * 3. 生产环境：DATABASE_URL 必须通过环境变量设置
  * 4. 生产环境：RS256 模式下 RSA 密钥必需
  * 5. 默认值正确应用
@@ -47,16 +47,13 @@ describe('validateConfig - 开发环境（宽松校验）', () => {
     vi.clearAllMocks();
   });
 
-  it('开发环境不应抛错（即使 ADMIN_API_KEY 为空）', () => {
+  it('开发环境不应抛错（宽松校验）', () => {
     const originalEnv = config.NODE_ENV;
-    const originalKey = config.ADMIN_API_KEY;
     config.NODE_ENV = 'development';
-    config.ADMIN_API_KEY = '';
 
     expect(() => validateConfig()).not.toThrow();
 
     config.NODE_ENV = originalEnv;
-    config.ADMIN_API_KEY = originalKey;
   });
 
   it('test 环境不应抛错', () => {
@@ -88,7 +85,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     vi.clearAllMocks();
     // 保存原始值
     originalValues.NODE_ENV = config.NODE_ENV;
-    originalValues.ADMIN_API_KEY = config.ADMIN_API_KEY;
     originalValues.JWT_SECRET = config.JWT_SECRET;
     originalValues.JWT_ALGORITHM = config.JWT_ALGORITHM;
     originalValues.JWT_PRIVATE_KEY = config.JWT_PRIVATE_KEY;
@@ -113,21 +109,13 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     }
   });
 
-  it('缺少 ADMIN_API_KEY 应抛错', () => {
-    config.ADMIN_API_KEY = '';
-
-    expect(() => validateConfig()).toThrow('ADMIN_API_KEY');
-  });
-
   it('使用默认 JWT_SECRET 应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
 
     expect(() => validateConfig()).toThrow('JWT_SECRET');
   });
 
   it('使用默认 ENGINE_AUTH_TOKEN 应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret';
     config.ENGINE_AUTH_TOKEN = 'dev-engine-auth-token';
 
@@ -135,7 +123,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('ENGINE_AUTH_TOKEN 为空应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret';
     config.ENGINE_AUTH_TOKEN = '';
 
@@ -143,7 +130,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('使用默认 DATA_SERVICE_AUTH_TOKEN 应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'dev-data-service-auth-token';
@@ -152,7 +138,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('RS256 模式下缺少 JWT_PRIVATE_KEY 和 JWT_PRIVATE_KEY_FILE 应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -164,7 +149,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('RS256 模式下缺少 JWT_PUBLIC_KEY 和 JWT_PUBLIC_KEY_FILE 应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -177,7 +161,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('DATABASE_URL 未通过环境变量设置应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -194,7 +177,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('所有配置正确时不应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret-32-chars-minimum-ok';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -217,7 +199,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('TRUST_PROXY_HOPS 为负数时应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret-32-chars-minimum-ok';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -243,7 +224,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('EMAIL_TRANSPORT=smtp 但未设置 EMAIL_SMTP_HOST 时应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret-32-chars-minimum-ok';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -272,7 +252,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('生产环境未设置 TRUST_PROXY_HOPS 应抛错', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret-32-chars-minimum-ok';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -294,7 +273,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('生产环境 REQUIRE_API_KEY 为 false 时不应抛错（RBAC 始终生效，REQUIRE_API_KEY 已退役）', () => {
-    config.ADMIN_API_KEY = 'strong-admin-key';
     config.JWT_SECRET = 'strong-jwt-secret-32-chars-minimum-ok';
     config.ENGINE_AUTH_TOKEN = 'strong-engine-token-32chars-minimum!!';
     config.DATA_SERVICE_AUTH_TOKEN = 'strong-data-token-32chars-minimum!!';
@@ -317,7 +295,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
 
   it('多个校验失败时错误信息应包含全部失败项', () => {
-    config.ADMIN_API_KEY = '';
     config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
     config.ENGINE_AUTH_TOKEN = 'dev-engine-auth-token';
     config.DATA_SERVICE_AUTH_TOKEN = 'dev-data-service-auth-token';
@@ -330,7 +307,6 @@ describe('validateConfig - 生产环境（严格校验）', () => {
       errorMsg = (err as Error).message;
     }
 
-    expect(errorMsg).toContain('ADMIN_API_KEY');
     expect(errorMsg).toContain('JWT_SECRET');
     expect(errorMsg).toContain('ENGINE_AUTH_TOKEN');
     expect(errorMsg).toContain('DATA_SERVICE_AUTH_TOKEN');
@@ -382,8 +358,9 @@ describe('config 默认值', () => {
     expect(config.JWT_REFRESH_TTL).toBe(604800);
   });
 
-  it('REDIS_URL 默认应指向 localhost:6379', () => {
-    expect(config.REDIS_URL).toContain('6379');
+  it('REDIS_URL 应为 redis:// 协议指向 localhost', () => {
+    expect(config.REDIS_URL).toContain('redis://');
+    expect(config.REDIS_URL).toContain('localhost');
   });
 });
 

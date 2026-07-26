@@ -29,6 +29,8 @@ resources:
   - data-fetcher-deployment.yaml
   - data-fetcher-service.yaml
   - data-fetcher-pdb.yaml
+  - worker-deployment.yaml
+  - worker-pdb.yaml
   - postgres.yaml
   - pgbouncer.yaml
   - redis.yaml

@@ -137,7 +137,7 @@ function BillingContent({
         <button
           onClick={() => void onOpenPortal()}
           disabled={busy}
-          className="portfolio-rebalance-select"
+          className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
           style={{
             height: 38,
             padding: '0 16px',

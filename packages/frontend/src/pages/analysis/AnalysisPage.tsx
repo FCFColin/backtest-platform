@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
 import type { ComputeToolConfig } from '../../components/shells/types.js';
 import { useAnalysisPageState } from '@/hooks/useAnalysisPageState.js';
 import { AnalysisParamsPanel } from './AnalysisParams.js';
 import { AnalysisResultsPanel } from './AnalysisResults.js';
 
-type State = any;
+type State = ReturnType<typeof useAnalysisPageState>;
 
 function AnalysisParamsWrapper({ state }: { state: State }) {
   return (

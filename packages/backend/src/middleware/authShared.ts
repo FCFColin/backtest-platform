@@ -2,17 +2,16 @@
  * Auth 中间件共享原语
  *
  * 企业理由：refreshToken.ts 与 tokenRotation.ts 共享 token 存储类型、Redis 前缀、
- * 内存回退 store 以及一组无状态辅助函数。原先两文件互相 import 形成
- * 循环依赖（refreshToken.ts re-export tokenRotation.ts，tokenRotation.ts 又
+ * 一组无状态辅助函数。原先两文件互相 import 形成循环依赖
+ * （refreshToken.ts re-export tokenRotation.ts，tokenRotation.ts 又
  * 从 refreshToken.ts import 共享符号）。本模块抽出共享层，打破环：
  *
  *   refreshToken.ts ──┐
  *                     ├──> authShared.ts
  *   tokenRotation.ts ──┘
  *
- * 注意：fallbackUserFamilies 与 trackUserFamilyMemory 不在原 spec 列表中，
- * 但 generateRefreshToken 内部依赖它们；为避免 authShared → refreshToken
- * 反向依赖，一并迁入此模块。refreshToken.ts 通过 import 直接使用 fallbackUserFamilies。
+ * ADR-045：删除内存回退 store 与 generateRefreshToken 的 else/catch 内存分支。
+ * Redis 故障时由 requireRedis 抛 RedisUnavailableError。
  */
 
 import crypto from 'crypto';
@@ -20,6 +19,7 @@ import { config } from '../config/index.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
 import { getUserById } from '../repositories/userRepo.js';
 import { logger } from '../utils/logger.js';
+import { RedisUnavailableError } from '../utils/errors.js';
 import { type TenantContext, type OrgRole } from './authTypes.js';
 
 // ---------------------------------------------------------------------------
@@ -49,18 +49,12 @@ export interface TokenFamilyEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Redis Key 前缀 & 内存回退存储
+// Redis Key 前缀
 // ---------------------------------------------------------------------------
 
 /** Redis Key 前缀 */
 export const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 export const TOKEN_FAMILY_PREFIX = 'token_family:';
-
-/** 内存回退存储（Redis 不可用时使用） */
-export const fallbackRefreshTokenStore = new Map<string, RefreshTokenEntry>();
-export const fallbackTokenFamilyStore = new Map<string, TokenFamilyEntry>();
-/** 用户 → familyId 集合（内存模式用于 revokeAllUserSessionsMemory 批量撤销） */
-export const fallbackUserFamilies = new Map<string, Set<string>>();
 
 // ---------------------------------------------------------------------------
 // Token entry 辅助
@@ -104,13 +98,16 @@ export async function isUserSessionValid(userId: string): Promise<boolean> {
 // ---------------------------------------------------------------------------
 
 /**
- * 生成 Refresh Token 并存储（Redis + 内存回退两条路径）。
+ * 生成 Refresh Token 并存储到 Redis。
+ *
+ * ADR-045：Redis 不可用或写入失败时抛 RedisUnavailableError（不再降级到内存）。
  *
  * @param userId - 用户 ID
  * @param role - 用户角色
  * @param existingFamilyId - 复用既有 familyId（轮换场景），否则随机生成
  * @param tenant - 多租户上下文（可选）
  * @returns 生成的 refresh token 字面量
+ * @throws {RedisUnavailableError} Redis 不可用或写入失败
  */
 export async function generateRefreshToken(
   userId: string,
@@ -118,6 +115,10 @@ export async function generateRefreshToken(
   existingFamilyId?: string,
   tenant?: TenantContext,
 ): Promise<string> {
+  if (!(await getRedisHealth())) {
+    throw new RedisUnavailableError(`Redis unavailable (generateRefreshToken:${userId})`);
+  }
+
   const token = crypto.randomBytes(32).toString('hex');
   const now = Math.floor(Date.now() / 1000);
   const familyId = existingFamilyId || crypto.randomBytes(16).toString('hex');
@@ -133,43 +134,27 @@ export async function generateRefreshToken(
     platformAdmin: tenant?.platformAdmin,
   };
 
-  const redisOk = await getRedisHealth();
+  try {
+    await appRedis.set(`${REFRESH_TOKEN_PREFIX}${token}`, JSON.stringify(entry), 'EX', ttlSec);
 
-  if (redisOk) {
-    try {
-      await appRedis.set(`${REFRESH_TOKEN_PREFIX}${token}`, JSON.stringify(entry), 'EX', ttlSec);
+    const familyKey = `${TOKEN_FAMILY_PREFIX}${familyId}`;
+    await appRedis.set(
+      familyKey,
+      JSON.stringify({ lastToken: token, revoked: false } satisfies TokenFamilyEntry),
+      'EX',
+      ttlSec,
+    );
 
-      const familyKey = `${TOKEN_FAMILY_PREFIX}${familyId}`;
-      await appRedis.set(
-        familyKey,
-        JSON.stringify({ lastToken: token, revoked: false } satisfies TokenFamilyEntry),
-        'EX',
-        ttlSec,
-      );
+    const userFamiliesKey = `user_families:${userId}`;
+    await appRedis.sadd(userFamiliesKey, familyId);
+    await appRedis.expire(userFamiliesKey, ttlSec);
 
-      const userFamiliesKey = `user_families:${userId}`;
-      await appRedis.sadd(userFamiliesKey, familyId);
-      await appRedis.expire(userFamiliesKey, ttlSec);
-
-      logger.info({ userId, familyId }, '[jwtAuth] Redis: Refresh Token 已存储');
-    } catch (err) {
-      logger.warn({ err: String(err) }, '[jwtAuth] Redis 存储失败，回退到内存');
-      markRedisUnhealthy();
-      fallbackRefreshTokenStore.set(token, entry);
-      fallbackTokenFamilyStore.set(familyId, { lastToken: token, revoked: false });
-      trackUserFamilyMemory(userId, familyId);
-    }
-  } else {
-    fallbackRefreshTokenStore.set(token, entry);
-    fallbackTokenFamilyStore.set(familyId, { lastToken: token, revoked: false });
-    trackUserFamilyMemory(userId, familyId);
+    logger.info({ userId, familyId }, '[jwtAuth] Redis: Refresh Token 已存储');
+  } catch (err) {
+    logger.warn({ err: String(err) }, '[jwtAuth] Redis 存储失败，抛出 RedisUnavailableError');
+    markRedisUnhealthy();
+    throw new RedisUnavailableError(`Redis write failed (generateRefreshToken): ${String(err)}`);
   }
 
   return token;
-}
-
-function trackUserFamilyMemory(userId: string, familyId: string): void {
-  const families = fallbackUserFamilies.get(userId) ?? new Set<string>();
-  families.add(familyId);
-  fallbackUserFamilies.set(userId, families);
 }

@@ -25,28 +25,28 @@
 }
 
 .btn:focus {
-  outline: 2px solid var(--brand);
+  outline: 2px solid hsl(var(--brand));
   outline-offset: 2px;
 }
 
 .btn:disabled,
 .btn[disabled] {
-  background-color: var(--border-strong) !important;
+  background-color: hsl(var(--border-strong)) !important;
   color: var(--text-muted) !important;
-  border-color: var(--border-strong) !important;
+  border-color: hsl(var(--border-strong)) !important;
   cursor: not-allowed !important;
   opacity: 0.6;
 }
 
 /* Primary Button - 蓝色实心 */
 .btn-primary {
-  background-color: var(--brand);
+  background-color: hsl(var(--brand));
   color: #ffffff;
   border-radius: var(--radius-control);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--brand-hover);
+  background-color: hsl(var(--brand-hover));
 }
 
 /* Secondary Button - 透明背景，灰色边框 */
@@ -64,12 +64,12 @@
 
 /* Danger Button - 红色实心 */
 .btn-danger {
-  background-color: var(--danger);
+  background-color: hsl(var(--danger));
   color: #ffffff;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--danger) 88%, black);
+  background-color: color-mix(in srgb, hsl(var(--danger)) 88%, black);
 }
 
 /* Button Sizes */
@@ -147,7 +147,7 @@
 .btn-pill-outline:hover {
   background-color: var(--bg-subtle);
   color: var(--text-body);
-  border-color: var(--border-strong);
+  border-color: hsl(var(--border-strong));
 }
 
 /* Upgrade Button */
@@ -198,7 +198,7 @@
   line-height: 1;
   text-decoration: none;
   white-space: nowrap;
-  background-color: var(--brand);
+  background-color: hsl(var(--brand));
   color: #ffffff;
 }
 
@@ -210,7 +210,7 @@
 .btn-run:hover:not(:disabled),
 .run-backtest-btn:hover:not(:disabled),
 .main-action-btn:hover:not(:disabled) {
-  background-color: var(--brand-hover);
+  background-color: hsl(var(--brand-hover));
 }
 
 .btn-run:disabled,
@@ -219,7 +219,7 @@
 .run-backtest-btn[disabled],
 .main-action-btn:disabled,
 .main-action-btn[disabled] {
-  background-color: var(--border-strong);
+  background-color: hsl(var(--border-strong));
   color: var(--text-muted);
   cursor: not-allowed;
   opacity: 0.6;
@@ -237,9 +237,9 @@
   height: 32px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--brand);
-  background: var(--brand-soft);
-  border: 1px solid var(--brand);
+  color: hsl(var(--brand));
+  background: var(--color-brand-soft);
+  border: 1px solid hsl(var(--brand));
   border-radius: var(--radius-input);
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
@@ -249,14 +249,14 @@
 }
 
 .toolbar-btn:hover:not(:disabled) {
-  background-color: color-mix(in srgb, var(--brand) 15%, var(--brand-soft));
+  background-color: color-mix(in srgb, hsl(var(--brand)) 15%, var(--color-brand-soft));
 }
 
 .toolbar-btn:disabled,
 .toolbar-btn[disabled] {
-  background-color: var(--border-strong);
+  background-color: hsl(var(--border-strong));
   color: var(--text-muted);
-  border-color: var(--border-strong);
+  border-color: hsl(var(--border-strong));
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -287,8 +287,8 @@
 }
 
 .row-remove-btn:hover:not(:disabled) {
-  color: var(--danger);
-  background-color: color-mix(in srgb, var(--danger) 8%, transparent);
+  color: hsl(var(--danger));
+  background-color: color-mix(in srgb, hsl(var(--danger)) 8%, transparent);
 }
 
 .row-remove-btn:disabled,
@@ -302,7 +302,7 @@
   position: relative;
   width: 36px;
   height: 20px;
-  background: var(--border-strong);
+  background: hsl(var(--border-strong));
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.2s;
@@ -310,7 +310,7 @@
 }
 
 .toggle-switch.active {
-  background: var(--brand);
+  background: hsl(var(--brand));
 }
 
 .toggle-switch::after {
@@ -334,7 +334,7 @@
 input[type='checkbox'] {
   width: 16px;
   height: 16px;
-  accent-color: var(--brand);
+  accent-color: hsl(var(--brand));
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -345,9 +345,9 @@ input[type='checkbox'] {
   -webkit-appearance: none;
   width: 16px;
   height: 16px;
-  border: 1.5px solid var(--border-strong);
+  border: 1.5px solid hsl(var(--border-strong));
   border-radius: 3px;
-  background: var(--input-bg);
+  background: hsl(var(--input-bg));
   cursor: pointer;
   position: relative;
   vertical-align: middle;
@@ -356,8 +356,8 @@ input[type='checkbox'] {
 }
 
 .custom-checkbox:checked {
-  background: var(--brand);
-  border-color: var(--brand);
+  background: hsl(var(--brand));
+  border-color: hsl(var(--brand));
 }
 
 .custom-checkbox:checked::after {
@@ -403,7 +403,7 @@ input[type='checkbox'] {
 .btn-ghost:hover:not(:disabled) {
   background: var(--bg-subtle);
   color: var(--text-body);
-  border-color: var(--border-strong);
+  border-color: hsl(var(--border-strong));
 }
 
 /* Text Link Button - 文字链接按钮（添加现金流腿等） */
@@ -413,7 +413,7 @@ input[type='checkbox'] {
   gap: 4px;
   background: none;
   border: none;
-  color: var(--brand);
+  color: hsl(var(--brand));
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -425,5 +425,5 @@ input[type='checkbox'] {
 
 .btn-text-link:hover {
   text-decoration: underline;
-  color: var(--brand-hover);
+  color: hsl(var(--brand-hover));
 }

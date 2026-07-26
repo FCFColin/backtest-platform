@@ -40,9 +40,8 @@ export function setTokens(access: string, refresh: string): void {
   accessToken = access;
   try {
     localStorage.setItem(REFRESH_TOKEN_STORAGE, refresh);
-  } catch {
-    /* ignore */
-  }
+    // eslint-disable-next-line no-empty -- localStorage 可能不可用（隐私模式），令牌仅保存在内存中
+  } catch {}
 }
 
 /** 清除全部令牌（登出 / 刷新失败时调用） */
@@ -50,9 +49,8 @@ export function clearTokens(): void {
   accessToken = '';
   try {
     localStorage.removeItem(REFRESH_TOKEN_STORAGE);
-  } catch {
-    /* ignore */
-  }
+    // eslint-disable-next-line no-empty -- localStorage 可能不可用（隐私模式），令牌已从内存清除
+  } catch {}
 }
 
 /** 刷新去重：并发请求共享同一个刷新 Promise，避免 token 轮换竞态 */

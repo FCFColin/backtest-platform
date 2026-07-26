@@ -3,6 +3,7 @@
  * @description Admin 三页（Dashboard / DataManagement / SystemMonitor）共享的统计卡片
  */
 import type { ReactNode } from 'react';
+import { Card, CardHeader, CardContent } from '../ui/card.js';
 
 type KpiColor = 'blue' | 'green' | 'purple' | 'orange' | 'red';
 
@@ -20,28 +21,28 @@ interface KpiCardProps {
 }
 
 const COLOR_CLASSES: Record<KpiColor, string> = {
-  blue: 'bg-blue-50 text-blue-600',
-  green: 'bg-green-50 text-green-600',
-  purple: 'bg-purple-50 text-purple-600',
-  orange: 'bg-orange-50 text-orange-600',
-  red: 'bg-red-50 text-red-600',
+  blue: 'bg-brand/10 text-brand',
+  green: 'bg-success/10 text-success',
+  purple: 'bg-brand/15 text-brand',
+  orange: 'bg-warning/10 text-warning',
+  red: 'bg-danger/10 text-danger',
 };
 
 /**
- * KPI 指标卡片：左侧带色彩图标，右侧标题 + 主值 + 可选副标题。
- * 视觉与原 AdminDashboard / DataManagement / SystemMonitor 三处 StatCard 完全一致。
+ * KPI 指标卡片：基于 shadcn Card，CardHeader 放图标与标签，CardContent 放主值与副标题。
+ * 数值使用 text-display + tabular-nums + font-mono，标签使用 caption 级 tertiary 文案。
  */
 export function KpiCard({ label, value, icon, color = 'blue', subtitle }: KpiCardProps) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-3">
+    <Card>
+      <CardHeader className="flex-row items-center gap-3 space-y-0 p-4 pb-2">
         {icon && <div className={`rounded-lg p-2 ${COLOR_CLASSES[color]}`}>{icon}</div>}
-        <div>
-          <p className="text-xs text-slate-500">{label}</p>
-          <p className="text-xl font-bold text-slate-800">{value}</p>
-          {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
-        </div>
-      </div>
-    </div>
+        <p className="text-caption uppercase tracking-wide text-fg-tertiary">{label}</p>
+      </CardHeader>
+      <CardContent className="p-4 pt-0">
+        <p className="text-display tabular-nums font-mono text-fg">{value}</p>
+        {subtitle && <p className="mt-1 text-caption text-fg-tertiary">{subtitle}</p>}
+      </CardContent>
+    </Card>
   );
 }

@@ -4,8 +4,11 @@
  */
 import { useTranslation } from 'react-i18next';
 import { CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import { Badge, type BadgeProps } from '../ui/badge.js';
+import { cn } from '../../lib/utils.js';
 
 type ServiceStatus = 'healthy' | 'degraded' | 'down';
+type BadgeVariant = NonNullable<BadgeProps['variant']>;
 
 interface ServiceStatusBadgeProps {
   /** 服务健康状态 */
@@ -22,31 +25,35 @@ interface ServiceStatusBadgeProps {
 
 const STATUS_CONFIG: Record<
   ServiceStatus,
-  { icon: typeof CheckCircle; color: string; bg: string; labelKey: string }
+  {
+    icon: typeof CheckCircle;
+    badgeVariant: BadgeVariant;
+    /** 覆盖类名：用于 warning 等无内置 variant 的语义色 */
+    overrideClassName?: string;
+    labelKey: string;
+  }
 > = {
   healthy: {
     icon: CheckCircle,
-    color: 'text-green-500',
-    bg: 'bg-green-50',
+    badgeVariant: 'success',
     labelKey: 'adminPage.monitor.statusHealthy',
   },
   degraded: {
     icon: AlertCircle,
-    color: 'text-yellow-500',
-    bg: 'bg-yellow-50',
+    badgeVariant: 'secondary',
+    overrideClassName: 'bg-warning/10 border-warning/20 text-warning',
     labelKey: 'adminPage.monitor.statusDegraded',
   },
   down: {
     icon: XCircle,
-    color: 'text-red-500',
-    bg: 'bg-red-50',
+    badgeVariant: 'danger',
     labelKey: 'adminPage.dataManagement.statusInactive',
   },
 };
 
 /**
  * 服务健康状态徽章。
- * 颜色与图标映射统一自原 AdminDashboard / SystemMonitor 两处 statusConfig。
+ * healthy→Badge success，down→Badge danger，degraded→secondary 变体叠加 warning 色覆盖。
  */
 export function ServiceStatusBadge({
   status,
@@ -60,16 +67,20 @@ export function ServiceStatusBadge({
 
   if (variant === 'dot') {
     return (
-      <div className={`rounded-full p-1 ${config.bg}`}>
-        <Icon className={`${iconSize} ${config.color}`} />
-      </div>
+      <Badge
+        variant={config.badgeVariant}
+        size="sm"
+        className={cn('gap-0 px-1', config.overrideClassName)}
+      >
+        <Icon className={iconSize} />
+      </Badge>
     );
   }
 
   return (
-    <div className={`flex items-center gap-1 rounded-full px-2 py-1 ${config.bg}`}>
-      <Icon className={`${iconSize} ${config.color}`} />
-      <span className={`text-xs font-medium ${config.color}`}>{t(config.labelKey)}</span>
-    </div>
+    <Badge variant={config.badgeVariant} size="default" className={config.overrideClassName}>
+      <Icon className={iconSize} />
+      <span>{t(config.labelKey)}</span>
+    </Badge>
   );
 }

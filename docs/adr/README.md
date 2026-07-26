@@ -36,6 +36,7 @@
 | [ADR-042](ADR-042-api-packages-consolidation.md)            | API 包合并                                                               | 已接受 | ✅ 已落地                                         |
 | [ADR-043](ADR-043-baostock-provider双通路职责分离.md)       | baostock 直连与 Provider Registry 双通路职责分离                         | 已接受 | ✅ 已落地                                         |
 | [ADR-044](ADR-044-otel-saas-replacement.md)                 | OTel SaaS 替换（go-shared + `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量切换） | 已接受 | ✅ 已落地                                         |
+| [ADR-045](ADR-045-Redis-Sentinel高可用.md)                  | Redis Sentinel 高可用（1主+2从+3哨兵，删除内存降级）                     | 已接受 | ✅ 已落地                                         |
 
 ## 已删除（被取代或低价值）
 

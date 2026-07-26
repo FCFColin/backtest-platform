@@ -42,6 +42,8 @@ function dbRow(overrides: Record<string, unknown> = {}) {
     created_at: new Date('2026-01-01T00:00:00Z'),
     last_used_at: null,
     revoked_at: null,
+    is_platform_admin: false,
+    expires_at: null,
     ...overrides,
   };
 }
@@ -58,12 +60,18 @@ describe('createApiKey', () => {
     expect(created.orgId).toBe(ORG);
 
     // 关键安全断言：写入 DB 的是哈希而非明文
+    // P0-04 后 INSERT 参数顺序：org_id, name, key_hash(sha256), key_hash_argon2, key_prefix, created_by
     const [, params] = dbMocks.query.mock.calls[0];
     const keyHash = params[2] as string;
+    const keyHashArgon2 = params[3] as string;
+    const keyPrefix = params[4] as string;
     expect(keyHash).not.toContain(created.plaintext);
     expect(keyHash).toMatch(/^[0-9a-f]{64}$/);
+    // argon2id 编码哈希（P0-04/T6），与密码同策略，同样不含明文
+    expect(keyHashArgon2).not.toContain(created.plaintext);
+    expect(keyHashArgon2).toMatch(/^\$argon2id\$/);
     // key_prefix 是明文前缀，不含完整密钥
-    expect(created.plaintext.startsWith(params[3] as string)).toBe(true);
+    expect(created.plaintext.startsWith(keyPrefix)).toBe(true);
   });
 });
 

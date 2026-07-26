@@ -34,109 +34,107 @@ export interface StatisticsTableProps {
   defaultExpanded?: boolean;
 }
 
-export default function StatisticsTable({
+/** 层级模式视图：主次分明的指标展示，支持展开/收起详细指标。 */
+function HierarchicalTableView({
   portfolios,
-  compact,
-  horizontal,
-  hierarchical,
-  defaultExpanded = false,
-}: StatisticsTableProps) {
+  colCount,
+  defaultExpanded,
+}: {
+  portfolios: PortfolioResult[];
+  colCount: number;
+  defaultExpanded: boolean;
+}) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
+  return (
+    <ChartCard title={t('components.statisticsTable.title')}>
+      <div className="overflow-x-auto">
+        <table className="stat-table w-full">
+          <thead>
+            <StatisticsTableHeader portfolios={portfolios} />
+          </thead>
+          <tbody>
+            <HierarchicalMetricsRows
+              rows={HIERARCHICAL_METRICS}
+              portfolios={portfolios}
+              expanded={expanded}
+            />
+            <MetricsToggle
+              expanded={expanded}
+              onToggle={() => setExpanded(!expanded)}
+              colCount={colCount}
+            />
+          </tbody>
+        </table>
+      </div>
+    </ChartCard>
+  );
+}
+
+/** 横向模式视图：3 组核心指标横向展示，可展开完整详细表。 */
+function HorizontalTableView({
+  portfolios,
+  colCount,
+}: {
+  portfolios: PortfolioResult[];
+  colCount: number;
+}) {
+  const { t } = useTranslation();
   const [showDetailed, setShowDetailed] = useState(false);
-
-  if (portfolios.length === 0) {
-    return (
-      <ChartCard>
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
-          {t('components.statisticsTable.noData')}
-        </div>
-      </ChartCard>
-    );
-  }
-
-  const colCount = 1 + portfolios.length;
-
-  if (hierarchical) {
-    return (
-      <ChartCard title={t('components.statisticsTable.title')}>
-        <div className="overflow-x-auto">
-          <table className="stat-table w-full">
-            <thead>
-              <StatisticsTableHeader portfolios={portfolios} />
-            </thead>
-            <tbody>
-              <HierarchicalMetricsRows
-                rows={HIERARCHICAL_METRICS}
-                portfolios={portfolios}
-                expanded={expanded}
-              />
-              <MetricsToggle
-                expanded={expanded}
-                onToggle={() => setExpanded(!expanded)}
-                colCount={colCount}
-              />
-            </tbody>
-          </table>
-        </div>
-      </ChartCard>
-    );
-  }
-
-  if (horizontal) {
-    return (
-      <ChartCard title={t('components.statisticsTable.title')}>
-        <div className="stat-horizontal-groups">
-          {HORIZONTAL_GROUPS.map((group) => (
-            <div key={group.title} className="stat-horizontal-group">
-              <div className="stat-horizontal-group-title">{t(group.title)}</div>
-              <table className="stat-table stat-horizontal-table w-full">
-                <tbody>
+  return (
+    <ChartCard title={t('components.statisticsTable.title')}>
+      <div className="stat-horizontal-groups">
+        {HORIZONTAL_GROUPS.map((group) => (
+          <div key={group.title} className="stat-horizontal-group">
+            <div className="stat-horizontal-group-title">{t(group.title)}</div>
+            <table className="stat-table stat-horizontal-table w-full">
+              <tbody>
+                <StatisticsGroupRows group={group} portfolios={portfolios} colCount={colCount} />
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+      <button className="stats-toggle-detailed" onClick={() => setShowDetailed((v) => !v)}>
+        {showDetailed ? t('results.hideDetailedMetrics') : t('results.showDetailedMetrics')}
+      </button>
+      {showDetailed && (
+        <div className="stats-detailed-table">
+          <div className="overflow-x-auto">
+            <table className="stat-table w-full">
+              <thead>
+                <StatisticsTableHeader portfolios={portfolios} />
+              </thead>
+              <tbody>
+                {STAT_GROUPS.map((group) => (
                   <StatisticsGroupRows
+                    key={group.title}
                     group={group}
                     portfolios={portfolios}
                     colCount={colCount}
                   />
-                </tbody>
-              </table>
-            </div>
-          ))}
-        </div>
-        <button
-          className="stats-toggle-detailed"
-          onClick={() => setShowDetailed((v) => !v)}
-        >
-          {showDetailed
-            ? t('results.hideDetailedMetrics')
-            : t('results.showDetailedMetrics')}
-        </button>
-        {showDetailed && (
-          <div className="stats-detailed-table">
-            <div className="overflow-x-auto">
-              <table className="stat-table w-full">
-                <thead>
-                  <StatisticsTableHeader portfolios={portfolios} />
-                </thead>
-                <tbody>
-                  {STAT_GROUPS.map((group) => (
-                    <StatisticsGroupRows
-                      key={group.title}
-                      group={group}
-                      portfolios={portfolios}
-                      colCount={colCount}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </ChartCard>
-    );
-  }
+        </div>
+      )}
+    </ChartCard>
+  );
+}
 
+/** 默认视图：按 compact 或完整分组纵向展示。 */
+function DefaultTableView({
+  portfolios,
+  colCount,
+  compact,
+}: {
+  portfolios: PortfolioResult[];
+  colCount: number;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation();
   const groups = compact ? COMPACT_GROUPS : STAT_GROUPS;
-
   return (
     <ChartCard title={t('components.statisticsTable.title')}>
       <div className="overflow-x-auto">
@@ -158,4 +156,42 @@ export default function StatisticsTable({
       </div>
     </ChartCard>
   );
+}
+
+export default function StatisticsTable({
+  portfolios,
+  compact,
+  horizontal,
+  hierarchical,
+  defaultExpanded = false,
+}: StatisticsTableProps) {
+  const { t } = useTranslation();
+
+  if (portfolios.length === 0) {
+    return (
+      <ChartCard>
+        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+          {t('components.statisticsTable.noData')}
+        </div>
+      </ChartCard>
+    );
+  }
+
+  const colCount = 1 + portfolios.length;
+
+  if (hierarchical) {
+    return (
+      <HierarchicalTableView
+        portfolios={portfolios}
+        colCount={colCount}
+        defaultExpanded={defaultExpanded}
+      />
+    );
+  }
+
+  if (horizontal) {
+    return <HorizontalTableView portfolios={portfolios} colCount={colCount} />;
+  }
+
+  return <DefaultTableView portfolios={portfolios} colCount={colCount} compact={compact} />;
 }

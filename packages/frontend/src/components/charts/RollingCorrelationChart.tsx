@@ -25,7 +25,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
         <div className="chart-card-title mb-0">{t('analysis.rollingCorrelation')}</div>
         <div className="flex items-center gap-2">
           <select
-            className="param-input"
+            className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
             style={{ width: 100, fontSize: 12, padding: '4px 8px' }}
             value={rollingPair[0]}
             onChange={(e) => setRollingPair([Number(e.target.value), rollingPair[1]])}
@@ -38,7 +38,7 @@ export const RollingCorrelationChart = memo(function RollingCorrelationChart({
           </select>
           <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>vs</span>
           <select
-            className="param-input"
+            className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
             style={{ width: 100, fontSize: 12, padding: '4px 8px' }}
             value={rollingPair[1]}
             onChange={(e) => setRollingPair([rollingPair[0], Number(e.target.value)])}

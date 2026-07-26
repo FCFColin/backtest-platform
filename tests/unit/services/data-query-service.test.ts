@@ -32,8 +32,13 @@ const circuitBreakerMetrics = vi.hoisted(() => vi.fn());
 
 const cacheMocks = vi.hoisted(() => ({
   writeCache: vi.fn(),
-  incrementCacheVersion: vi.fn(),
   setPriceCache: vi.fn(),
+  getCacheKey: vi.fn(
+    (type: string, params: Record<string, string>) => `test-${type}-${JSON.stringify(params)}`,
+  ),
+  readCache: vi.fn(async () => null),
+  HISTORY_CACHE_TTL_SEC: 86400,
+  SEARCH_CACHE_TTL_SEC: 3600,
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -218,8 +223,7 @@ describe('fetchMissingFromGoService', () => {
     const r = await fetchMissingFromGoService(['SPY'], '2024-01-01', '2024-01-31', 'test-key');
     expect(r.SPY).toBeDefined();
     expect(r.SPY['2024-01-02']).toBe(400);
-    expect(cacheMocks.writeCache).toHaveBeenCalledWith('test-key', r);
-    expect(cacheMocks.incrementCacheVersion).toHaveBeenCalled();
+    expect(cacheMocks.writeCache).toHaveBeenCalledWith('test-key', r, 86400);
   });
 
   it('Go 服务返回空数据时缓存不应写入', async () => {

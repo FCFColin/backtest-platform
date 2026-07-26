@@ -37,12 +37,7 @@ const BUTTON_STYLE = {
  * @param loadingLabel - 加载态文案
  * @returns 渲染后的 button 元素
  */
-export function AuthSubmitButton({
-  loading,
-  icon,
-  label,
-  loadingLabel,
-}: AuthSubmitButtonProps) {
+export function AuthSubmitButton({ loading, icon, label, loadingLabel }: AuthSubmitButtonProps) {
   return (
     <button type="submit" disabled={loading} className="main-action-btn" style={BUTTON_STYLE}>
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
@@ -157,7 +152,7 @@ export function AuthFormField({
         autoComplete={autoComplete}
         required={required}
         minLength={minLength}
-        className="portfolio-rebalance-select"
+        className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
         style={{ width: '100%', height: 40, ...style }}
       />
     </label>

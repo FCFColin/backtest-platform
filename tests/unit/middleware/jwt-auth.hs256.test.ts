@@ -17,6 +17,7 @@ import {
 } from '../../helpers/mockFactories.js';
 import { createJwtAuthUserRepoMock, setupJwtAuthTestMocks } from '../../helpers/jwtAuthSetup.js';
 import { base64urlEncode, signTestToken } from '../../helpers/authFixtures.js';
+import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 import type { JwtPayload } from '../../../packages/backend/src/middleware/authTypes.js';
 
 const mocks = vi.hoisted(() => ({ config: {} as JwtAuthConfigMocks }));
@@ -48,7 +49,7 @@ vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => 
   verifyApiKey: apiKeyMocks.verifyApiKey,
 }));
 
-redisMocks.useMemoryFallback();
+redisMocks.useRedisSuccess();
 
 import {
   generateToken,
@@ -163,7 +164,7 @@ describe('JWT Token 生成与验证', () => {
 
 describe('Refresh Token 生命周期', () => {
   beforeEach(() => {
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
   });
 
   it('生成 refresh token 后应可刷新', async () => {
@@ -288,20 +289,13 @@ describe('Refresh Token Redis 成功路径', () => {
     expect(await refreshAccessToken(result1!.refreshToken)).toBeNull();
   });
 
-  it('Redis set 失败时应回退到内存并仍可刷新', async () => {
-    redisMocks.ping.mockResolvedValue('PONG');
+  it('Redis set 失败时应抛出 RedisUnavailableError（ADR-045）', async () => {
+    redisMocks.useRedisSuccess();
     redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed'));
-    redisMocks.get.mockImplementation((key: string) =>
-      Promise.resolve(redisMocks.store.get(key) ?? null),
-    );
-    redisMocks.del.mockImplementation((key: string) => {
-      redisMocks.store.delete(key);
-      return Promise.resolve(1);
-    });
 
-    const refreshToken = await generateRefreshToken('user-fallback', 'admin');
-    redisMocks.ping.mockRejectedValue(new Error('Redis down'));
-    expect(await refreshAccessToken(refreshToken)).not.toBeNull();
+    await expect(generateRefreshToken('user-fallback', 'admin')).rejects.toThrow(
+      RedisUnavailableError,
+    );
   });
 });
 
@@ -321,7 +315,6 @@ describe('jwtAuth 中间件 — 无效认证', () => {
 
   it('无效 x-api-key 应返回 401', async () => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
     const req = createJwtAuthMockRequest({
       headers: { 'x-api-key': 'wrong-key' },
     } as Record<string, unknown>);
@@ -348,7 +341,6 @@ describe('jwtAuth 中间件 — 无效认证', () => {
 
   it('超长 x-api-key 应返回 401（防缓冲区攻击）', async () => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
     const req = createJwtAuthMockRequest({
       headers: { 'x-api-key': 'a'.repeat(129) },
     } as Record<string, unknown>);
@@ -366,7 +358,7 @@ describe('jwtAuth 中间件 — 无效认证', () => {
 describe('optionalJwtAuth 中间件', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     mocks.config.NODE_ENV = 'production';
     mocks.config.JWT_ALGORITHM = 'HS256';
     vi.mocked(getUserById).mockImplementation(async (id: string) => ({
@@ -518,7 +510,9 @@ describe('安全攻击用例', () => {
   });
 
   it('缺少 exp 声明的 token 应被拒绝（永不过期 = 安全风险）', async () => {
-    expect(await verifyToken(await signTestToken({ sub: 'user-1', role: 'admin' }, { omitExp: true }))).toBeNull();
+    expect(
+      await verifyToken(await signTestToken({ sub: 'user-1', role: 'admin' }, { omitExp: true })),
+    ).toBeNull();
   });
 
   it('算法混淆攻击：RS256 签名的 token 不应通过 HS256 验证', async () => {
@@ -582,11 +576,14 @@ describe('jwtAuth 中间件 — API Key 与 DEV 模式', () => {
     expect(req.user!.sub).toBe('apikey:22222222-2222-2222-2222-222222222222');
   });
 
-  it('破窗 ADMIN_API_KEY 应注入 platform_admin（ADR-033）', async () => {
-    apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
+  it('平台 break-glass 密钥应注入 platform_admin（P0-04）', async () => {
+    apiKeyMocks.verifyApiKey.mockResolvedValueOnce({
+      orgId: null,
+      keyId: '22222222-2222-2222-2222-222222222222',
+      isPlatformAdmin: true,
+    });
     const req = createJwtAuthMockRequest({
-      headers: { 'x-api-key': 'test-api-key-12345' },
+      headers: { 'x-api-key': 'bpk_live_breakglass' },
     } as Record<string, unknown>);
     const res = createJwtAuthMockResponse();
     const next = createJwtAuthMockNext();
@@ -631,7 +628,6 @@ describe('jwtAuth 中间件 — API Key 与 DEV 模式', () => {
   });
 
   it('Bearer Token 优先于 x-api-key', async () => {
-    mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
     const token = await generateToken('user-1', 'readonly');
     const req = createJwtAuthMockRequest({
       headers: { authorization: `Bearer ${token}`, 'x-api-key': 'test-api-key-12345' },
@@ -659,15 +655,15 @@ describe('revokeAllUserSessions 与停用用户', () => {
     }));
   });
 
-  it('内存模式撤销后 refresh 应失败', async () => {
-    redisMocks.useMemoryFallback();
+  it('撤销后 refresh 应失败', async () => {
+    redisMocks.useRedisSuccess();
     const refreshToken = await generateRefreshToken('user-revoke', 'admin');
     await revokeAllUserSessions('user-revoke');
     expect(await refreshAccessToken(refreshToken)).toBeNull();
   });
 
-  it('内存模式撤销后 access token 应验证失败', async () => {
-    redisMocks.useMemoryFallback();
+  it('撤销后 access token 应验证失败', async () => {
+    redisMocks.useRedisSuccess();
     const accessToken = await generateToken('user-revoke', 'admin');
     await revokeAllUserSessions('user-revoke');
     expect(await verifyToken(accessToken)).toBeNull();
@@ -682,7 +678,7 @@ describe('revokeAllUserSessions 与停用用户', () => {
   });
 
   it('已停用用户 jwtAuth 应返回 401', async () => {
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     mocks.config.NODE_ENV = 'production';
     vi.mocked(getUserById).mockResolvedValueOnce({
       id: 'disabled-user',
@@ -701,7 +697,7 @@ describe('revokeAllUserSessions 与停用用户', () => {
   });
 
   it('已停用用户 refresh 应被拒绝', async () => {
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     vi.mocked(getUserById).mockResolvedValue({
       id: 'disabled-user',
       username: 'disabled',
@@ -726,17 +722,17 @@ describe('revokeAllUserSessions 与停用用户', () => {
   });
 
   it('getUserById 异常时应拒绝 refresh', async () => {
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     const refreshToken = await generateRefreshToken('user-db-fail', 'admin');
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('database unavailable'));
     expect(await refreshAccessToken(refreshToken)).toBeNull();
   });
 
-  it('Redis 撤销异常应回退到内存', async () => {
+  it('Redis 撤销异常应抛出 RedisUnavailableError（ADR-045）', async () => {
     redisMocks.useRedisSuccess();
     const token = await generateRefreshToken('user-revoke-err', 'admin');
     redisMocks.get.mockRejectedValueOnce(new Error('redis read failed'));
-    await expect(revokeRefreshToken(token)).resolves.toBeUndefined();
+    await expect(revokeRefreshToken(token)).rejects.toThrow(RedisUnavailableError);
   });
 });
 
@@ -810,26 +806,25 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
     redisMocks.useRedisSuccess();
     expect(await generateRefreshToken('redis-ready-user', 'admin')).toBeTruthy();
 
+    // ADR-045：Redis 不可用时 generateRefreshToken 抛出 RedisUnavailableError
     redisMocks.useMemoryFallback();
-    expect(await generateRefreshToken('redis-error-user', 'analyst')).toBeTruthy();
+    await expect(generateRefreshToken('redis-error-user', 'analyst')).rejects.toThrow(
+      RedisUnavailableError,
+    );
   });
 
-  it('Redis refresh 读取异常应回退内存并仍可刷新', async () => {
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed on generate'));
+  it('Redis refresh 读取异常应抛出 RedisUnavailableError（ADR-045）', async () => {
+    redisMocks.useRedisSuccess();
     const refreshToken = await generateRefreshToken('redis-refresh-fallback', 'admin');
 
-    redisMocks.useRedisSuccess();
     redisMocks.get.mockRejectedValueOnce(new Error('Redis read failed during refresh'));
 
-    const result = await refreshAccessToken(refreshToken);
-    expect(result).not.toBeNull();
-    expect(result!.accessToken).toBeTruthy();
+    await expect(refreshAccessToken(refreshToken)).rejects.toThrow(RedisUnavailableError);
   });
 
-  it('内存模式 refresh token 过期后应返回 null', async () => {
+  it('refresh token 过期后应返回 null', async () => {
     vi.useFakeTimers();
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     const refreshToken = await generateRefreshToken('expired-memory-user', 'admin');
     vi.advanceTimersByTime((mocks.config.JWT_REFRESH_TTL + 60) * 1000);
 
@@ -838,7 +833,7 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
   });
 
   it('Bearer 认证成功应注入脱敏日志上下文', async () => {
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     const token = await generateToken('log-context-user', 'admin');
     const childFn = vi.fn(() => ({ info: vi.fn(), warn: vi.fn() }));
     const req = createJwtAuthMockRequest({
@@ -854,8 +849,8 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
     expect(childFn).toHaveBeenCalledWith(expect.objectContaining({ role: 'admin' }));
   });
 
-  it('内存模式 family 被撤销后 refresh 应拒绝', async () => {
-    redisMocks.useMemoryFallback();
+  it('family 被撤销后 refresh 应拒绝', async () => {
+    redisMocks.useRedisSuccess();
     const refreshToken = await generateRefreshToken('family-revoked-user', 'admin');
     const first = await refreshAccessToken(refreshToken);
     expect(first).not.toBeNull();
@@ -894,12 +889,14 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
     }
   });
 
-  it('revokeAllUserSessions Redis 异常应回退内存', async () => {
+  it('revokeAllUserSessions Redis 异常应抛出 RedisUnavailableError（ADR-045）', async () => {
     redisMocks.useRedisSuccess();
     await generateRefreshToken('revoke-fallback-user', 'admin');
     redisMocks.smembers.mockRejectedValueOnce(new Error('smembers failed'));
 
-    await expect(revokeAllUserSessions('revoke-fallback-user')).resolves.toBeUndefined();
+    await expect(revokeAllUserSessions('revoke-fallback-user')).rejects.toThrow(
+      RedisUnavailableError,
+    );
   });
 });
 
@@ -909,7 +906,7 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
 describe('assignGuestReadonly 中间件', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     mocks.config.NODE_ENV = 'production';
     mocks.config.JWT_ALGORITHM = 'HS256';
   });
@@ -968,7 +965,7 @@ describe('assignGuestReadonly 中间件', () => {
 describe('verifyToken 非有限 exp 边界', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     mocks.config.NODE_ENV = 'production';
     mocks.config.JWT_ALGORITHM = 'HS256';
   });

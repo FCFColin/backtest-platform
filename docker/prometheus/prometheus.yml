@@ -1,0 +1,82 @@
+# =============================================================================
+# Prometheus 抓取配置（P1-10 本地 docker-compose 监控栈）
+# =============================================================================
+#
+# 企业理由：本地需可验证告警链路（指标 → Prometheus → AlertManager → webhook）。
+# 抓取目标对应 docker-compose.yml 中的服务：api / engine-go / data-fetcher /
+# postgres（postgres_exporter）/ redis（redis_exporter）。
+#
+# 规则文件：rules.yml 含 P0/P1 平台告警规则（与 k8s/prometheus-rules.yaml 对齐）。
+# AlertManager：告警推送到 http://alertmanager:9093（同 compose 网络）。
+# =============================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'backtest-platform-local'
+    environment: 'dev'
+
+# 告警规则文件（同目录 rules.yml）
+rule_files:
+  - /etc/prometheus/rules.yml
+
+# AlertManager 推送目标
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'
+
+# 抓取目标
+scrape_configs:
+  # Prometheus 自身
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node.js API 服务（/metrics 由 prom-client 暴露）
+  - job_name: 'api'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:5001']
+        labels:
+          service: 'api'
+
+  # Go 回测引擎（/metrics 由 prometheus gin middleware 暴露）
+  - job_name: 'engine-go'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['engine-go:5004']
+        labels:
+          service: 'engine-go'
+
+  # Go 数据获取服务
+  - job_name: 'data-fetcher'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['data-fetcher:5003']
+        labels:
+          service: 'data-fetcher'
+
+  # PostgreSQL（postgres_exporter，需单独部署 exporter 容器）
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres'
+
+  # Redis（redis_exporter）
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+
+  # APISIX 网关（P2-01 T7，prometheus 插件导出指标）
+  - job_name: 'apisix'
+    metrics_path: /apisix/prometheus/metrics
+    static_configs:
+      - targets: ['apisix:9091']
+        labels:
+          service: 'apisix'

@@ -1,3 +1,9 @@
+/**
+ * Ticker 元数据与价格查询服务。
+ *
+ * RLS 说明（P0-03 审计结论）：tickers / prices 表为全局共享市场数据，
+ * 不含 tenant_id 列，不启用 RLS。直连 getReadPool() 是正确设计。
+ */
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/dateUtils.js';

@@ -4,11 +4,9 @@ import '@fontsource-variable/geist';
 import '@fontsource-variable/geist-mono';
 import App from './App.js';
 import './i18n';
+import './styles/tokens.css';
 import './index.css';
 import './styles/base.css';
-import './styles/components-params.css';
-import './styles/components-backtest.css';
-import './styles/components-portfolio.css';
 import './styles/components-common.css';
 import './styles/utilities.css';
 

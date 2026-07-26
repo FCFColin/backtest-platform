@@ -26,8 +26,17 @@ import type { TacticalGridState } from '@/hooks/useTacticalGridState';
 type StatTone = 'brand' | 'success' | 'default';
 
 /** 汇总 StatCard：标签 + 数值（数值可着色） */
-function StatCard({ label, value, tone = 'default' }: { label: string; value: string | number; tone?: StatTone }) {
-  const toneClass = tone === 'brand' ? 'text-brand' : tone === 'success' ? 'text-success' : 'text-fg';
+function StatCard({
+  label,
+  value,
+  tone = 'default',
+}: {
+  label: string;
+  value: string | number;
+  tone?: StatTone;
+}) {
+  const toneClass =
+    tone === 'brand' ? 'text-brand' : tone === 'success' ? 'text-success' : 'text-fg';
   return (
     <div className="rounded-lg border border-border-subtle bg-input-bg/30 px-3 py-2.5">
       <div className="text-caption text-fg-tertiary">{label}</div>
@@ -59,8 +68,16 @@ function ResultsSummary({
         value={best.param2}
         tone="brand"
       />
-      <StatCard label={t('tacticalGrid.results.bestCagr')} value={fmtPct(best.cagr)} tone="success" />
-      <StatCard label={t('tacticalGrid.results.bestSharpe')} value={fmtNum(best.sharpe, 3)} tone="success" />
+      <StatCard
+        label={t('tacticalGrid.results.bestCagr')}
+        value={fmtPct(best.cagr)}
+        tone="success"
+      />
+      <StatCard
+        label={t('tacticalGrid.results.bestSharpe')}
+        value={fmtNum(best.sharpe, 3)}
+        tone="success"
+      />
     </div>
   );
 }
@@ -77,8 +94,18 @@ function buildTopColumns(
   const num = (v: number | string) => <span className="font-mono tabular-nums">{v}</span>;
   return [
     { key: 'rank', label: '#', sortValue: (r) => r.rank, render: (r) => num(r.rank) },
-    { key: 'param1', label: paramLabels.p1, sortValue: (r) => r.param1, render: (r) => num(r.param1) },
-    { key: 'param2', label: paramLabels.p2, sortValue: (r) => r.param2, render: (r) => num(r.param2) },
+    {
+      key: 'param1',
+      label: paramLabels.p1,
+      sortValue: (r) => r.param1,
+      render: (r) => num(r.param1),
+    },
+    {
+      key: 'param2',
+      label: paramLabels.p2,
+      sortValue: (r) => r.param2,
+      render: (r) => num(r.param2),
+    },
     { key: 'cagr', label: 'CAGR', render: (r) => num(fmtPct(r.cagr)), sortValue: (r) => r.cagr },
     {
       key: 'maxDrawdown',
@@ -159,7 +186,10 @@ function BestGrowthChart({
         data={best.growthCurve}
         height={350}
         tooltipLabelFormatter={(label) => t('tacticalGrid.results.dateLabel', { label })}
-        tooltipValueFormatter={(value) => [`$${value.toLocaleString()}`, t('tacticalGrid.results.netValue')]}
+        tooltipValueFormatter={(value) => [
+          `$${value.toLocaleString()}`,
+          t('tacticalGrid.results.netValue'),
+        ]}
         series={[{ dataKey: 'value', legendName: t('tacticalGrid.results.portfolioNetValue') }]}
       />
     </Card>
@@ -187,7 +217,7 @@ function HeatmapCell({
   if (cell == null) {
     return (
       <td className="cursor-default border-b border-r border-border-subtle px-2 py-1.5 text-center text-caption text-fg-tertiary">
-        —
+        -
       </td>
     );
   }
@@ -289,9 +319,7 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
   const { error, results, isLoading, paramLabels } = state;
   return (
     <div className="flex flex-col gap-3">
-      {error && (
-        <ErrorBanner message={`${t('tacticalGrid.results.searchFailed')}：${error}`} />
-      )}
+      {error && <ErrorBanner message={`${t('tacticalGrid.results.searchFailed')}：${error}`} />}
       {results && (
         <>
           <ResultsSummary results={results} paramLabels={paramLabels} />
@@ -311,7 +339,11 @@ export function GridResultsPanel({ state }: { state: TacticalGridState }) {
         </>
       )}
       {!results && !error && !isLoading && (
-        <EmptyState icon={Grid3x3} title={t('tacticalGrid.results.noResultsHint')} className="py-16" />
+        <EmptyState
+          icon={Grid3x3}
+          title={t('tacticalGrid.results.noResultsHint')}
+          className="py-16"
+        />
       )}
     </div>
   );

@@ -4,6 +4,7 @@
  */
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import i18n from '../i18n/index.js';
+import { reportError } from '../utils/errorReporter.js';
 
 /**
  * ErrorBoundary 组件的 Props。
@@ -95,8 +96,12 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
    * @param errorInfo - React 组件栈信息。
    */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // 前端错误日志输出到浏览器控制台（前端标准日志位置）
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // P1-3: 使用统一错误上报工具，替代 console.error
+    reportError(error, {
+      component: 'ErrorBoundary',
+      action: 'componentDidCatch',
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   /**
@@ -126,7 +131,14 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
             {i18n.t('errors.pageErrorTitle')}
           </h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', margin: '0 0 24px', maxWidth: '400px' }}>
+          <p
+            style={{
+              fontSize: '14px',
+              color: 'var(--text-muted)',
+              margin: '0 0 24px',
+              maxWidth: '400px',
+            }}
+          >
             {i18n.t('errors.pageErrorMessage')}
           </p>
           {this.state.error && (

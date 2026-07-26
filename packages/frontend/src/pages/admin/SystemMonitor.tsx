@@ -9,8 +9,12 @@ import { Activity, Server, RefreshCw, Clock, HardDrive } from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
 import { usePolling } from '../../hooks/usePolling.js';
 import { useToastStore } from '../../store/toastStore.js';
+import { reportError } from '../../utils/errorReporter.js';
 import { KpiCard } from '../../components/admin/KpiCard.js';
 import { ServiceStatusBadge } from '../../components/admin/ServiceStatusBadge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card } from '../../components/ui/card.js';
+import { Progress } from '../../components/ui/progress.js';
 
 interface ServiceHealth {
   name: string;
@@ -126,25 +130,21 @@ function ControlBar({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />{' '}
+        <Button variant="secondary" onClick={onRefresh} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           {t('adminPage.monitor.refresh')}
-        </button>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        </Button>
+        <label className="flex items-center gap-2 text-sm text-fg-secondary">
           <input
             type="checkbox"
             checked={autoRefresh}
             onChange={(e) => onAutoRefreshChange(e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300"
+            className="h-4 w-4 rounded border-border"
           />
           {t('adminPage.monitor.autoRefresh')}
         </label>
       </div>
-      <div className="text-xs text-slate-400">
+      <div className="text-xs text-fg-tertiary">
         {lastRefresh
           ? t('adminPage.monitor.lastUpdate', { time: lastRefresh })
           : t('adminPage.monitor.notRefreshed')}
@@ -157,10 +157,8 @@ function ControlBar({
 function MemoryUsageSection({ data }: { data: MonitorData }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold text-slate-800">
-        {t('adminPage.monitor.memoryUsage')}
-      </h2>
+    <Card className="p-4">
+      <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.monitor.memoryUsage')}</h2>
       <div className="space-y-4">
         <MemoryBar
           label={t('adminPage.monitor.rssMemory')}
@@ -174,22 +172,20 @@ function MemoryUsageSection({ data }: { data: MonitorData }) {
         />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-4">
-        <div className="rounded-lg border border-slate-100 p-3">
-          <p className="text-xs text-slate-500">{t('dataEngine.totalDataPoints')}</p>
-          <p className="text-lg font-bold text-slate-800">
+        <div className="rounded-lg border border-border-subtle p-3">
+          <p className="text-xs text-fg-tertiary">{t('dataEngine.totalDataPoints')}</p>
+          <p className="text-lg font-bold text-fg">
             {data.dataDir.totalDataPoints > 0
               ? `${(data.dataDir.totalDataPoints / 1000000).toFixed(1)}M`
               : '-'}
           </p>
         </div>
-        <div className="rounded-lg border border-slate-100 p-3">
-          <p className="text-xs text-slate-500">{t('adminPage.dashboard.tickerFileCount')}</p>
-          <p className="text-lg font-bold text-slate-800">
-            {data.dataDir.tickerCount.toLocaleString()}
-          </p>
+        <div className="rounded-lg border border-border-subtle p-3">
+          <p className="text-xs text-fg-tertiary">{t('adminPage.dashboard.tickerFileCount')}</p>
+          <p className="text-lg font-bold text-fg">{data.dataDir.tickerCount.toLocaleString()}</p>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -210,7 +206,7 @@ export default function SystemMonitor() {
       const services = await fetchServices();
       setData(buildMonitorData(json.data, services));
     } catch (error) {
-      console.error('Failed to fetch monitor data:', error);
+      reportError(error, { component: 'SystemMonitor', action: 'fetchMonitorData' });
       useToastStore.getState().addToast('error', t('adminPage.monitor.loadFailed'));
     }
     setLoading(false);
@@ -252,8 +248,8 @@ export default function SystemMonitor() {
         />
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold text-slate-800">
+      <Card className="p-4">
+        <h2 className="mb-4 text-sm font-semibold text-fg">
           {t('adminPage.monitor.serviceHealth')}
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -261,7 +257,7 @@ export default function SystemMonitor() {
             <ServiceHealthCard key={service.name} service={service} />
           ))}
         </div>
-      </div>
+      </Card>
 
       <MemoryUsageSection data={data} />
     </div>
@@ -271,33 +267,33 @@ export default function SystemMonitor() {
 function ServiceHealthCard({ service }: { service: ServiceHealth }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-slate-100 p-4">
+    <Card className="p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Server className="h-4 w-4 text-slate-400" />
-          <span className="font-medium text-slate-700">{t(service.name)}</span>
+          <Server className="h-4 w-4 text-fg-tertiary" />
+          <span className="font-medium text-fg-secondary">{t(service.name)}</span>
         </div>
         <ServiceStatusBadge status={service.status} variant="pill" size="sm" />
       </div>
 
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
-          <span className="text-slate-500">{t('adminPage.monitor.latency')}</span>
-          <span className="font-medium text-slate-700">{service.latency}ms</span>
+          <span className="text-fg-tertiary">{t('adminPage.monitor.latency')}</span>
+          <span className="font-medium text-fg-secondary">{service.latency}ms</span>
         </div>
         {service.version && (
           <div className="flex justify-between">
-            <span className="text-slate-500">{t('adminPage.monitor.version')}</span>
-            <span className="font-medium text-slate-700">{service.version}</span>
+            <span className="text-fg-tertiary">{t('adminPage.monitor.version')}</span>
+            <span className="font-medium text-fg-secondary">{service.version}</span>
           </div>
         )}
         {service.message && (
-          <div className="mt-2 rounded bg-slate-50 p-2">
-            <p className="text-xs text-slate-500">{service.message}</p>
+          <div className="mt-2 rounded bg-elevated p-2">
+            <p className="text-xs text-fg-tertiary">{service.message}</p>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -315,15 +311,10 @@ function MemoryBar({
   return (
     <div>
       <div className="mb-1 flex items-center justify-between text-sm">
-        <span className="text-slate-600">{label}</span>
-        <span className="font-medium text-slate-700">{valueMB} MB</span>
+        <span className="text-fg-secondary">{label}</span>
+        <span className="font-medium text-fg">{valueMB} MB</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-        <div
-          className="h-full rounded-full bg-blue-500 transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+      <Progress value={pct} />
     </div>
   );
 }

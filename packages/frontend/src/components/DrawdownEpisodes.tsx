@@ -63,19 +63,19 @@ const HEADERS = [
     label: 'components.drawdownEpisodes.headers.recoveryTime',
     align: 'right' as const,
     key: 'recoveryTime' as const,
-    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.recoveryTime) : '—'),
+    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.recoveryTime) : '-'),
   },
   {
     label: 'components.drawdownEpisodes.headers.totalTime',
     align: 'right' as const,
     key: 'totalTime' as const,
-    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.totalTime) : '—'),
+    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.totalTime) : '-'),
   },
   {
     label: 'components.drawdownEpisodes.headers.recoveryFactor',
     align: 'right' as const,
     key: 'recoveryFactor' as const,
-    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtRatio(ep.recoveryFactor) : '—'),
+    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtRatio(ep.recoveryFactor) : '-'),
   },
   {
     label: 'components.drawdownEpisodes.headers.cagrDuring',
@@ -179,7 +179,7 @@ function SummaryBlock({
                 ))}
               </div>
             ) : (
-              <span className="text-fg-tertiary">—</span>
+              <span className="text-fg-tertiary">-</span>
             )}
           </div>
         );
@@ -234,7 +234,10 @@ function PortfolioDrawdownGroup({
           </thead>
           <tbody>
             {episodes.map((ep, epIdx) => (
-              <tr key={`${ep.peakDate}-${epIdx}`} className={epIdx % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}>
+              <tr
+                key={`${ep.peakDate}-${epIdx}`}
+                className={epIdx % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}
+              >
                 {HEADERS.map((h) => {
                   const isDepth = h.key === 'depth';
                   return (
@@ -273,9 +276,7 @@ export default function DrawdownEpisodes({ portfolios }: DrawdownEpisodesProps) 
   if (portfoliosWithEpisodes.length === 0) {
     return (
       <ChartCard>
-        <div className="text-body text-fg-tertiary">
-          {t('components.drawdownEpisodes.noData')}
-        </div>
+        <div className="text-body text-fg-tertiary">{t('components.drawdownEpisodes.noData')}</div>
       </ChartCard>
     );
   }
@@ -284,11 +285,7 @@ export default function DrawdownEpisodes({ portfolios }: DrawdownEpisodesProps) 
     <ChartCard title={t('components.drawdownEpisodes.title')}>
       <div className="space-y-6">
         {portfoliosWithEpisodes.map((portfolio, pIdx) => (
-          <PortfolioDrawdownGroup
-            key={portfolio.name}
-            portfolio={portfolio}
-            colorIndex={pIdx}
-          />
+          <PortfolioDrawdownGroup key={portfolio.name} portfolio={portfolio} colorIndex={pIdx} />
         ))}
       </div>
     </ChartCard>

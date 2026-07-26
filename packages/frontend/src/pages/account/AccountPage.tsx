@@ -159,7 +159,7 @@ function PreferencesSection({
           <select
             value={currency}
             onChange={(e) => onCurrencyChange(e.target.value)}
-            className="portfolio-rebalance-select"
+            className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
             style={{ width: 140 }}
           >
             <option value="USD">{t('account.preferences.currencyUSD')}</option>
@@ -177,7 +177,7 @@ function PreferencesSection({
           <select
             value={rebalance}
             onChange={(e) => onRebalanceChange(e.target.value)}
-            className="portfolio-rebalance-select"
+            className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
             style={{ width: 140 }}
           >
             <option value="none">{t('account.preferences.rebalanceBuyHold')}</option>

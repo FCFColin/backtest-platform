@@ -1,0 +1,20 @@
+# =============================================================================
+# Grafana 仪表板 provisioning（P1-10）
+# =============================================================================
+# 从 /var/lib/grafana/dashboards/ 自动加载 JSON 仪表板（docker-compose 挂载
+# ./docker/grafana/dashboards 到此路径）。新增仪表板只需放入该目录即自动生效。
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: backtest-platform
+    orgId: 1
+    folder: Backtest Platform
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

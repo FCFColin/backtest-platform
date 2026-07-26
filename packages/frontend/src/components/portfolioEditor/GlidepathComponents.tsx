@@ -11,6 +11,15 @@ import {
   GP_CONFIG_TITLE_STYLE,
   FIELDS_ROW_STYLE,
 } from './shared.js';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 
 /** 带标签的表单字段容器 */
 function FieldLabel({ label, children }: { label: string; children: React.ReactNode }) {
@@ -35,18 +44,18 @@ function PortfolioSelect({
   t: TFunc;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="portfolio-rebalance-select"
-      style={{ width: '120px' }}
-    >
-      {portfolios.map((p, idx) => (
-        <option key={p.id} value={p.id}>
-          {p.name || `${t('portfolio.portfolio')} ${idx + 1}`}
-        </option>
-      ))}
-    </select>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-8 w-[120px]">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {portfolios.map((p, idx) => (
+          <SelectItem key={p.id} value={p.id}>
+            {p.name || `${t('portfolio.portfolio')} ${idx + 1}`}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -84,15 +93,14 @@ function GlidepathTargetWeights({
               >
                 {asset.ticker || `${t('portfolio.asset')} ${ai + 1}`}
               </label>
-              <div className="advanced-input-wrap" style={{ height: '28px' }}>
-                <input
+              <div className="flex items-center gap-1" style={{ height: '28px' }}>
+                <Input
                   type="number"
                   value={w != null ? +(w * 100).toFixed(2) : ''}
                   min={0}
                   max={100}
                   step={1}
-                  className="advanced-input"
-                  style={{ height: '28px', fontSize: '12px' }}
+                  className="h-7 w-[70px] font-mono tabular-nums"
                   onChange={(e) => {
                     const v = e.target.value === '' ? 0 : Number(e.target.value) / 100;
                     const next = [
@@ -102,9 +110,7 @@ function GlidepathTargetWeights({
                     onUpdate(portfolio.id, { glidepathToWeights: next });
                   }}
                 />
-                <span className="advanced-suffix" style={{ fontSize: '11px' }}>
-                  %
-                </span>
+                <span className="text-caption text-fg-tertiary shrink-0">%</span>
               </div>
             </div>
           );
@@ -136,12 +142,11 @@ export function GlidepathForm({
       <div style={GP_TITLE_STYLE}>{t('portfolio.newGlidepath')}</div>
       <div style={FIELDS_ROW_STYLE}>
         <FieldLabel label={t('portfolio.name')}>
-          <input
+          <Input
             type="text"
             value={gpName}
             onChange={(e) => setGpName(e.target.value)}
-            className="portfolio-name-input"
-            style={{ width: '120px' }}
+            className="h-8 w-[120px]"
           />
         </FieldLabel>
         <FieldLabel label={t('portfolio.sourcePortfolio')}>
@@ -161,31 +166,27 @@ export function GlidepathForm({
           />
         </FieldLabel>
         <FieldLabel label={t('portfolio.transitionYears')}>
-          <input
+          <Input
             type="number"
             value={gpYears}
             onChange={(e) => setGpYears(Number(e.target.value) || 1)}
             min={1}
             max={50}
-            className="offset-input"
-            style={{ width: '60px' }}
+            className="h-8 w-[60px] font-mono tabular-nums"
           />
         </FieldLabel>
-        <button
-          className="btn-primary-sm"
-          style={{ fontSize: '12px' }}
+        <Button
+          variant="primary"
+          size="sm"
+          className="text-caption"
           disabled={!canConfirm}
           onClick={() => canConfirm && onConfirm(gpName, gpFrom, gpTo, gpYears)}
         >
           {t('common.confirm')}
-        </button>
-        <button
-          className="btn-secondary-sm"
-          style={{ fontSize: '12px' }}
-          onClick={onCancel}
-        >
+        </Button>
+        <Button variant="secondary" size="sm" className="text-caption" onClick={onCancel}>
           {t('common.cancel')}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -224,7 +225,7 @@ export function GlidepathConfig({
           />
         </FieldLabel>
         <FieldLabel label={t('portfolio.transitionYears')}>
-          <input
+          <Input
             type="number"
             value={portfolio.glidepathYears ?? 10}
             onChange={(e) =>
@@ -232,8 +233,7 @@ export function GlidepathConfig({
             }
             min={1}
             max={50}
-            className="offset-input"
-            style={{ width: '60px' }}
+            className="h-8 w-[60px] font-mono tabular-nums"
           />
         </FieldLabel>
       </div>

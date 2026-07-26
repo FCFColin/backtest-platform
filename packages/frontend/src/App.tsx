@@ -5,6 +5,7 @@ import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import Toast from '@/components/Toast';
 import { useAuthStore } from '@/store/authStore';
+import { useIdleTimeout } from '@/hooks/useIdleTimeout';
 import { ToolRoutes } from '@/routes';
 import { PublicRoutes } from '@/routes/PublicRoutes';
 import { AuthRoutes } from '@/routes/AuthRoutes';
@@ -15,10 +16,15 @@ function AppLayout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
   const initAuth = useAuthStore((s) => s.init);
+  const isAuthenticated = useAuthStore((s) => s.user !== null);
+  const idleTimeoutMs = useAuthStore((s) => s.idleTimeoutMs);
 
   useEffect(() => {
     void initAuth();
   }, [initAuth]);
+
+  // P0-04：空闲会话超时（等保三级身份鉴别刚需）
+  useIdleTimeout(idleTimeoutMs, isAuthenticated);
 
   return (
     <>

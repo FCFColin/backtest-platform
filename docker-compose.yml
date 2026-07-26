@@ -16,7 +16,7 @@ services:
   # ---------------------------------------------------------------------------
   postgres:
     # T-40：pin digest 防供应链浮动 tag
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     pull_policy: never
     container_name: backtest-postgres
     ports:
@@ -25,9 +25,44 @@ services:
       POSTGRES_USER: backtest
       POSTGRES_PASSWORD: backtest
       POSTGRES_DB: backtest
+      # P0-06：WAL-G 备份配置（等保三级 8.1.4 数据备份与恢复）
+      WALG_S3_PREFIX: s3://backtest-wal-backup
+      AWS_ENDPOINT: http://minio:9000
+      AWS_ACCESS_KEY_ID: minioadmin
+      AWS_SECRET_ACCESS_KEY: minioadmin
+      AWS_S3_FORCE_PATH_STYLE: true
+      WALG_COMPRESSION_METHOD: brotli
+      AWS_REGION: us-east-1
+      # WALG WAL 归档并发数
+      WALG_UPLOAD_CONCURRENCY: 4
+    # P0-06：WAL 归档 + 数据校验和（等保三级备份与恢复刚需）
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command='envdir /etc/wal-g.d/env wal-g wal-push %p'
+      - -c
+      - archive_timeout=60
+      - -c
+      - restore_command='envdir /etc/wal-g.d/env wal-g wal-fetch %f %p'
+      - -c
+      - max_wal_senders=3
+      - -c
+      - wal_keep_size=64
+      - -c
+      - listen_addresses='*'
+      - -c
+      - full_page_writes=on
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres-init:/docker-entrypoint-initdb.d
+      # P0-06：WAL-G 环境变量目录（envdir 格式，每个变量一个文件）
+      - ./docker/wal-g/env:/etc/wal-g.d/env:ro
+      # P0-06：WAL-G 安装脚本（首次启动时安装二进制）
+      - ./scripts/install-walg.sh:/docker-entrypoint-initdb.d/00-install-walg.sh:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U backtest']
       interval: 5s
@@ -35,10 +70,53 @@ services:
       retries: 5
 
   # ---------------------------------------------------------------------------
+  # PostgreSQL 16 - 只读副本（流复制，ADR-007 / P1-03 读写分离）
+  # ---------------------------------------------------------------------------
+  # 企业理由：读写分离——只读 SELECT 路由到副本（见 pool.ts getReadPool / dataQuery.ts），
+  # 减轻主库读压力，主库专注写入与事务。hot_standby_feedback=on 防止副本长查询被主库
+  # vacuum 中断（避免 replica cancellation 风暴）。
+  #
+  # 注：此 compose 服务定义用于本地拓扑校验（docker compose config）。
+  # 真正的流复制需从主库 pg_basebackup 初始化副本数据目录并配置 primary_conninfo，
+  # 生产环境由 K8s Operator（CloudNativePG）自动化，此处不重复实现。
+  postgres-replica:
+    image: timescale/timescaledb:latest-pg16
+    pull_policy: never
+    container_name: backtest-postgres-replica
+    environment:
+      POSTGRES_USER: backtest
+      POSTGRES_PASSWORD: backtest
+      PGUSER: replicator
+    command: ['postgres', '-c', 'hot_standby=on', '-c', 'hot_standby_feedback=on']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgdata-replica:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U backtest']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # PgBouncer（生产部署说明，P1-03 T4）
+  # ---------------------------------------------------------------------------
+  # 生产环境应在主库与副本前各部署一层 PgBouncer（transaction-pooling 模式），
+  # 复用连接避免 API 副本连接数打满 PostgreSQL max_connections。
+  # 本地开发直连 postgres / postgres-replica，不启用 PgBouncer。
+  # K8s 部署见 k8s/ 下 PgBouncer Sidecar 或独立 Deployment。
+
+  # ---------------------------------------------------------------------------
   # Redis 7 - 会话/限流/缓存/任务队列（ADR-018）
   # ---------------------------------------------------------------------------
   # 企业理由：Refresh Token、限流计数、幂等键、BullMQ 队列均依赖 Redis。
   # 此前 docker-compose 缺失 Redis，导致本地无法完整复现生产拓扑（弹性/混沌测试缺口）。
+  # 注：本地默认走单实例 redis 服务（127.0.0.1:6379）。
+  # 若需验证 Sentinel 故障转移，设置 REDIS_SENTINELS 后启动下方 redis-master/replica/sentinel 服务：
+  #   REDIS_SENTINELS=redis-sentinel-1:26379,redis-sentinel-2:26379,redis-sentinel-3:26379 \
+  #   docker compose up -d redis-master redis-replica-1 redis-replica-2 \
+  #     redis-sentinel-1 redis-sentinel-2 redis-sentinel-3
   redis:
     image: redis:7-alpine
     pull_policy: never
@@ -48,6 +126,177 @@ services:
     command: ['redis-server', '--save', '', '--appendonly', 'no']
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Unleash — 特性开关服务（P1-06）
+  # ---------------------------------------------------------------------------
+  # 企业理由：特性开关解耦发布与部署——灰度、A/B、紧急降级不再依赖重新部署。
+  # Unleash 服务端集中管理 flag 定义与策略，SDK 本地缓存 + 定期轮询（<30s），
+  # 即使 Unleash 短暂不可用也能基于本地缓存继续决策。本地 127.0.0.1:4242 暴露。
+  # 首次访问 http://127.0.0.1:4242 用 admin/unleash4all 登录管理 UI。
+  unleash:
+    image: unleashorg/unleash-server:5.12.5
+    pull_policy: never
+    container_name: backtest-unleash
+    ports:
+      - '127.0.0.1:4242:4242'
+    environment:
+      DATABASE_URL: postgresql://backtest:backtest@postgres:5432/unleash
+      INIT_ADMIN_API_TOKENS: ${UNLEASH_API_TOKEN:-dev-unleash-token}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:4242/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis Sentinel 本地拓扑（ADR-045 P0-05 T2）
+  # ---------------------------------------------------------------------------
+  # 企业理由：本地验证 Sentinel 故障转移——停止 redis-master，观察 Sentinel
+  # 在 < 30s 内选举 redis-replica-1 或 redis-replica-2 为新主。
+  #
+  # 与 k8s/redis.yaml 等价拓扑：1 主 + 2 从 + 3 Sentinel = 6 容器。
+  # 应用 REDIS_SENTINELS 后，ioredis 自动向 Sentinel 查询 master 地址。
+  #
+  # 启动：docker compose up -d redis-master redis-replica-1 redis-replica-2 \
+  #         redis-sentinel-1 redis-sentinel-2 redis-sentinel-3
+  # 验证：docker exec backtest-redis-sentinel-1 redis-cli -p 26379 SENTINEL masters
+  # 故障转移：docker stop backtest-redis-master && \
+  #           docker exec backtest-redis-sentinel-1 redis-cli -p 26379 SENTINEL masters
+  # ---------------------------------------------------------------------------
+  redis-master:
+    image: redis:7-alpine
+    pull_policy: never
+    container_name: backtest-redis-master
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--min-slaves-to-write',
+        '1',
+        '--min-slaves-max-lag',
+        '10',
+      ]
+    ports:
+      - '127.0.0.1:6380:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-replica-1:
+    image: redis:7-alpine
+    pull_policy: never
+    container_name: backtest-redis-replica-1
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--replicaof',
+        'redis-master',
+        '6379',
+        '--replica-read-only',
+        'yes',
+      ]
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-replica-2:
+    image: redis:7-alpine
+    pull_policy: never
+    container_name: backtest-redis-replica-2
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--replicaof',
+        'redis-master',
+        '6379',
+        '--replica-read-only',
+        'yes',
+      ]
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Sentinel 配置通过挂载的 sentinel.conf 初始化；运行时 Sentinel 会重写此文件。
+  # 由于 docker-compose 无法像 K8s ConfigMap+emptyDir 那样拷贝可写副本，
+  # 这里直接挂载只读模板，Sentinel 通过 docker volume 持久化重写状态。
+  redis-sentinel-1:
+    image: redis:7-alpine
+    pull_policy: never
+    container_name: backtest-redis-sentinel-1
+    command: ['redis-sentinel', '/etc/redis/sentinel.conf']
+    volumes:
+      - ./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro
+      - redis-sentinel-1-data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:26379:26379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-sentinel-2:
+    image: redis:7-alpine
+    pull_policy: never
+    container_name: backtest-redis-sentinel-2
+    command: ['redis-sentinel', '/etc/redis/sentinel.conf']
+    volumes:
+      - ./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro
+      - redis-sentinel-2-data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:26380:26379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-sentinel-3:
+    image: redis:7-alpine
+    pull_policy: never
+    container_name: backtest-redis-sentinel-3
+    command: ['redis-sentinel', '/etc/redis/sentinel.conf']
+    volumes:
+      - ./docker/redis-sentinel/sentinel.conf:/etc/redis/sentinel.conf:ro
+      - redis-sentinel-3-data:/data
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:26381:26379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-p', '26379', 'ping']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -102,11 +351,51 @@ services:
         condition: service_healthy
       engine-go:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5001/api/health']
       interval: 30s
       timeout: 5s
       start_period: 15s
+      retries: 3
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # BullMQ Worker 进程（P0-1）
+  # ---------------------------------------------------------------------------
+  # 企业理由：Worker 独立部署，消费 backtest-compute + webhook-retry 队列。
+  # API 崩溃/重启不影响正在处理的任务。BullMQ 天然防并发重复处理。
+  # 单实例部署（replicas: 1），多实例需配合并发控制避免资源竞争。
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+    container_name: backtest-worker
+    environment:
+      NODE_ENV: production
+      GO_ENGINE_URL: http://engine-go:5004
+      GO_DATA_SERVICE_URL: http://data-fetcher:5003
+      DATABASE_URL: postgresql://backtest_app:backtest_app_dev@postgres:5432/backtest
+      ENGINE_AUTH_TOKEN: ${ENGINE_AUTH_TOKEN:-dev-engine-auth-token}
+      DATA_SERVICE_AUTH_TOKEN: ${DATA_SERVICE_AUTH_TOKEN:-dev-data-service-auth-token}
+      WORKER_CONCURRENCY: '3'
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      engine-go:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "const r=new(require(\"ioredis\")(\"redis://redis:6379\"));r.get(\"worker:heartbeat\").then(v=>{r.quit();process.exit(v?0:1)}).catch(()=>process.exit(1))"',
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
       retries: 3
     restart: unless-stopped
 
@@ -153,6 +442,420 @@ services:
       start_period: 10s
       retries: 3
 
+  # ---------------------------------------------------------------------------
+  # Prometheus — 指标抓取与告警评估（P1-10）
+  # ---------------------------------------------------------------------------
+  # 企业理由：本地需可验证告警链路（指标 → Prometheus → AlertManager → webhook）。
+  # 抓取 api / engine-go / data-fetcher / postgres-exporter / redis-exporter，
+  # 评估 rules.yml 告警规则并推送到 alertmanager。
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: backtest-prometheus
+    ports:
+      - '127.0.0.1:9090:9090'
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - alertmanager
+      - api
+      - engine-go
+      - data-fetcher
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9090/-/healthy']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # AlertManager 配置渲染（envsubst）— one-shot 初始化服务（P1-10）
+  # ---------------------------------------------------------------------------
+  # AlertManager 原生不支持 ${VAR} 插值，先用 alpine+gettext 渲染飞书/钉钉
+  # webhook 模板到共享卷，alertmanager 服务依赖此服务成功完成后启动。
+  # 未设置 FEISHU_WEBHOOK / DINGTALK_WEBHOOK 时回退到本地 dummy URL，
+  # 配置可加载（POST 静默失败），便于本地无 webhook 验证告警链路。
+  alertmanager-config:
+    image: alpine:3.20
+    container_name: backtest-alertmanager-config
+    command:
+      - sh
+      - -c
+      - 'apk add --no-cache gettext > /dev/null 2>&1 && envsubst < /tpl/alertmanager.yml > /rendered/alertmanager.yml && echo rendered'
+    environment:
+      FEISHU_WEBHOOK: ${FEISHU_WEBHOOK:-http://127.0.0.1:9999/dummy}
+      DINGTALK_WEBHOOK: ${DINGTALK_WEBHOOK:-http://127.0.0.1:9999/dummy}
+    volumes:
+      - ./docker/alertmanager/alertmanager.yml:/tpl/alertmanager.yml:ro
+      - alertmanager-rendered:/rendered
+    restart: 'no'
+
+  # ---------------------------------------------------------------------------
+  # AlertManager — 告警路由 / 抑制 / 飞书+钉钉通知（P1-10）
+  # ---------------------------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: backtest-alertmanager
+    ports:
+      - '127.0.0.1:9093:9093'
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    depends_on:
+      alertmanager-config:
+        condition: service_completed_successfully
+    volumes:
+      - alertmanager-rendered:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9093/-/healthy']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Grafana — 仪表板可视化（P1-10）
+  # ---------------------------------------------------------------------------
+  # provisioning 自动注册 Prometheus 数据源 + 加载 dashboards/backtest-platform.json。
+  # 默认登录 admin/admin（仅本地，生产须改 GF_SECURITY_ADMIN_PASSWORD）。
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: backtest-grafana
+    ports:
+      - '127.0.0.1:3000:3000'
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Uptime Kuma — 轻量状态页（P1-10 T6，可选）
+  # ---------------------------------------------------------------------------
+  # 企业理由：1 人团队需面向用户的系统健康状态展示，Uptime Kuma 比 Statuspage 轻。
+  # 首次访问 http://127.0.0.1:3001 配置管理员账号与监控目标。
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: backtest-uptime-kuma
+    ports:
+      - '127.0.0.1:3001:3001'
+    volumes:
+      - uptime-kuma-data:/app/data
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # postgres-exporter — PostgreSQL 指标导出（供 Prometheus 抓取，P1-10）
+  # ---------------------------------------------------------------------------
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: backtest-postgres-exporter
+    ports:
+      - '127.0.0.1:9187:9187'
+    environment:
+      DATA_SOURCE_NAME: 'postgresql://backtest:backtest@postgres:5432/backtest?sslmode=disable'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # redis-exporter — Redis 指标导出（供 Prometheus 抓取，P1-10）
+  # ---------------------------------------------------------------------------
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.66.0
+    container_name: backtest-redis-exporter
+    ports:
+      - '127.0.0.1:9121:9121'
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # WAL-G 备份调度器（P0-06，等保三级 8.1.4 数据备份恢复）
+  # ---------------------------------------------------------------------------
+  # 企业理由：等保三级要求关键数据定期自动备份。WAL-G 实现连续 WAL 归档
+  # （postgres archive_command → wal-g wal-push → MinIO S3）+ 定时全量基础备份。
+  # ofelia 是轻量 Docker 原生 cron 调度器，通过 docker exec 在 postgres 容器内
+  # 执行 wal-g backup-push，无需额外 WAL-G 容器。
+  #
+  # 备份策略：
+  # - WAL 归档：实时（archive_command → wal-g wal-push → MinIO s3://backtest-wal-backup）
+  # - 全量备份：每日 02:00 CST（ofelia 调度 → docker exec postgres wal-g backup-push）
+  # - 备份保留：保留最近 7 份全量备份（wal-g delete retain 7）
+  # - 恢复：wal-g backup-fetch + WAL replay → PITR（Point-in-Time Recovery）
+  #
+  # 手动触发备份：bash scripts/backup-full.sh
+  # 恢复演练：    bash scripts/backup-restore.sh LATEST
+  ofelia:
+    image: mcuadros/ofelia:latest
+    container_name: backtest-ofelia
+    command: daemon --docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # ofelia 需访问 Docker socket 才能执行 docker exec
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      # 每日 02:00 CST（UTC 18:00）全量备份
+      ofelia.job-exec.walg-backup.schedule: '0 18 * * *'
+      ofelia.job-exec.walg-backup.container: 'backtest-postgres'
+      ofelia.job-exec.walg-backup.command: >
+        bash -c "wal-g backup-push /var/lib/postgresql/data && wal-g delete retain 7 --confirm"
+      # 每周日 03:00 CST（UTC 19:00 Sat）验证备份完整性
+      ofelia.job-exec.walg-verify.schedule: '0 19 * * 6'
+      ofelia.job-exec.walg-verify.container: 'backtest-postgres'
+      ofelia.job-exec.walg-verify.command: 'wal-g wal-verify integrity'
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # MinIO — 不可篡改审计存储（P2-03，Object Lock WORM）
+  # ---------------------------------------------------------------------------
+  # 企业理由：审计日志需导出至 Object Lock COMPLIANCE 模式的 WORM 存储，
+  # 保证写入后保留期内（默认 180 天）不可删除/覆盖，满足等保三级 8.1.4 不可篡改要求。
+  # DB 层 HMAC 签名可检测篡改，但 DBA 仍可改行数据；MinIO WORM 从存储层根除篡改。
+  # 首次启动后需通过 mc 或 API 创建 audit-logs bucket 并启用 Object Lock：
+  #   mc mb --with-lock local/audit-logs
+  # 控制台 http://127.0.0.1:9001（minioadmin/minioadmin）
+  minio:
+    image: minio/minio:latest
+    container_name: backtest-minio
+    ports:
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # k6 负载测试服务（P2-06，按需运行）
+  # ---------------------------------------------------------------------------
+  # 企业理由：负载测试需在真实拓扑下持续测量 P50/P95/P99，暴露并发下的尾延迟、
+  # 连接池耗尽与锁竞争。k6 通过 profiles 隔离，不随 `docker compose up` 常驻，
+  # 仅在 `docker compose run --rm k6 ...` 时启动。
+  #
+  # 用法：
+  #   docker compose run --rm k6 run /scripts/backtest-submit.js
+  #   docker compose run --rm k6 run /scripts/price-history.js
+  #   docker compose run --rm k6 run /scripts/optimizer.js
+  #   docker compose run --rm -e API_KEY=bt_xxx k6 run /scripts/backtest-submit.js
+  k6:
+    image: grafana/k6:latest
+    profiles: ['load-test']
+    volumes:
+      - ./tests/load:/scripts
+    environment:
+      BASE_URL: http://api:8001
+      API_KEY: ${K6_API_KEY:-}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ===========================================================================
+  # P3-05 CDC（Change Data Capture）via Debezium — 可选 Outbox 投递通路
+  # ===========================================================================
+  # 企业理由：Outbox 默认走 PostgreSQL LISTEN/NOTIFY（单实例，零依赖），但多 Pod
+  # 水平扩展时 LISTEN/NOTIFY 无法跨进程负载均衡——每个 Pod 都会收到同一通知并重复
+  # 处理。CDC 通过 Debezium 读取 WAL 将 outbox 变更流式投递到 Kafka，消费组
+  # （consumer group）天然支持多 Pod 分区消费，实现水平扩展。
+  #
+  # 拓扑：postgres-cdc (wal_level=logical) → Debezium Connect → Kafka → API 消费
+  #
+  # 启用（默认关闭，本地开发保持 LISTEN/NOTIFY 零额外依赖）：
+  #   CDC_KAFKA_ENABLED=true docker compose up -d postgres-cdc zookeeper kafka connect
+  #   ./docker/debezium/register-connectors.sh   # 注册 outbox source connector
+  #
+  # 详见 ADR-051 与 docs/runbooks/cdc-debezium.md。
+  # ---------------------------------------------------------------------------
+
+  # PostgreSQL with logical replication — CDC 源库
+  # 企业理由：主 postgres 服务未启用 wal_level=logical（避免影响默认 LISTEN/NOTIFY
+  # 拓扑与现有 init 脚本），CDC 需独立实例验证逻辑解码。生产环境在主库参数组启用
+  # logical 即可复用主库，此服务仅用于本地 CDC 链路验证。端口 5433 避免与主库 5432 冲突。
+  postgres-cdc:
+    image: timescale/timescaledb:latest-pg16
+    pull_policy: never
+    container_name: backtest-postgres-cdc
+    ports:
+      - '127.0.0.1:5433:5432'
+    environment:
+      POSTGRES_USER: backtest
+      POSTGRES_PASSWORD: backtest
+      POSTGRES_DB: backtest
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_replication_slots=10
+      - -c
+      - max_wal_senders=10
+    volumes:
+      - pgdata-cdc:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U backtest']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper — Kafka 协调服务（broker 选举与元数据管理）
+  # 企业理由：cp-kafka 7.7 经典拓扑依赖 Zookeeper。生产建议迁移 KRaft 模式（无 ZK），
+  # 本地沿用经典拓扑便于排障与文档对齐。
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.7.0
+    container_name: backtest-zookeeper
+    ports:
+      - '127.0.0.1:2181:2181'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    healthcheck:
+      test: ['CMD-SHELL', 'echo ruok | nc -w 2 127.0.0.1 2181 | grep imok']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Kafka — 事件流管道（CDC 投递目标）
+  # 企业理由：Debezium 将 outbox 变更写入 Kafka topic（backtest.<aggregate_type>），
+  # API 消费组水平扩展消费。双监听器：容器间用 kafka:29092，宿主机用 localhost:9092。
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    container_name: backtest-kafka
+    ports:
+      - '127.0.0.1:9092:9092'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,LISTENER_LOCAL:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,LISTENER_LOCAL://localhost:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'kafka-topics', '--bootstrap-server', 'localhost:9092', '--list']
+      interval: 15s
+      timeout: 10s
+      retries: 6
+    restart: unless-stopped
+
+  # Debezium Connect — Kafka Connect worker + PostgreSQL source connector
+  # 企业理由：Connect worker 托管 Debezium PostgreSQL source connector，持续读取
+  # postgres-cdc 的 WAL（逻辑解码），经 Outbox Event Router SMT 展平 outbox 行为
+  # 事件后写入 Kafka。连接器配置由 register-connectors.sh 注册（见 outbox-connector.json）。
+  connect:
+    image: debezium/connect:2.7
+    container_name: backtest-debezium-connect
+    ports:
+      - '127.0.0.1:8083:8083'
+    environment:
+      BOOTSTRAP_SERVERS: kafka:29092
+      GROUP_ID: backtest-debezium
+      CONFIG_STORAGE_TOPIC: backtest.connect.configs
+      OFFSET_STORAGE_TOPIC: backtest.connect.offsets
+      STATUS_STORAGE_TOPIC: backtest.connect.status
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+    depends_on:
+      postgres-cdc:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:8083/connectors >/dev/null || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Apache APISIX 网关（P2-01，Standalone 模式无 etcd 依赖）
+  # 企业理由：统一限流/WAF/安全头/可观测性，替代散落在 Express 中的中间件。
+  # Standalone 模式通过挂载 YAML 配置文件运行，无需 etcd，适合本地验证。
+  # ---------------------------------------------------------------------------
+  apisix:
+    image: apache/apisix:3.11.0-debian
+    container_name: backtest-apisix
+    restart: always
+    environment:
+      - APISIX_STAND_ALONE=true
+    volumes:
+      - ./config/apisix/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+      - ./config/apisix/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+    ports:
+      - '9080:9080' # HTTP（APISIX 入口）
+      - '9443:9443' # HTTPS
+      - '9091:9091' # Prometheus metrics
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9080/apisix/health']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   pgdata:
+    driver: local
+  # PostgreSQL 只读副本持久化卷（P1-03 读写分离）
+  pgdata-replica:
+    driver: local
+  # Redis Sentinel 本地拓扑持久化卷（ADR-045）
+  # 仅 Sentinel 容器需要可写 /data（dir /data），用于运行时状态。
+  redis-sentinel-1-data:
+  redis-sentinel-2-data:
+  redis-sentinel-3-data:
+  # P1-10 监控栈持久化卷
+  alertmanager-data:
+  alertmanager-rendered:
+  prometheus-data:
+  grafana-data:
+  uptime-kuma-data:
+  # P2-03 MinIO 不可篡改审计存储卷（Object Lock WORM）
+  minio-data:
+    driver: local
+  # P3-05 CDC 持久化卷（Debezium / Kafka / Zookeeper，仅 CDC 模式启用时使用）
+  pgdata-cdc:
+    driver: local
+  zookeeper-data:
+    driver: local
+  zookeeper-logs:
+    driver: local
+  kafka-data:
     driver: local

@@ -42,6 +42,8 @@ export interface JwtPayload {
   org_role?: OrgRole;
   /** 平台管理员标记（运营 SaaS 自身） */
   platform_admin?: boolean;
+  /** x-api-key 鉴权时绑定的密钥记录 UUID（用于轮换/吊销当前密钥，P0-04） */
+  api_key_id?: string;
   /** 签发时间（秒级时间戳） */
   iat: number;
   /** 过期时间（秒级时间戳） */
@@ -67,6 +69,29 @@ export interface TenantedRequest extends Request {
 
 /** Access Token 有效期（秒，从集中配置读取） */
 export const ACCESS_TOKEN_EXPIRES_IN_SEC = config.JWT_ACCESS_TTL;
+
+/**
+ * 根据角色返回 Access Token 有效期（P1-09 等保三级 idle timeout）。
+ *
+ * 等保三级 8.1.4 要求会话空闲超时：readonly 30min、analyst 60min。
+ * admin 保持最短 TTL（15min）以降低管理员令牌泄露风险。
+ * 通过在签发时设置角色相关 TTL 实现"最大会话时长"，
+ * 前端在令牌接近过期时调用 refresh 即可实现真正的滑动窗口。
+ *
+ * @param role - 用户全局 RBAC 角色
+ * @returns 该角色的 Access Token 有效期（秒）
+ */
+export function getRoleBasedAccessTtl(role: 'admin' | 'analyst' | 'readonly'): number {
+  const fallback = config.JWT_ACCESS_TTL;
+  switch (role) {
+    case 'readonly':
+      return config.SESSION_IDLE_TIMEOUT_READONLY_SEC || fallback;
+    case 'analyst':
+      return config.SESSION_IDLE_TIMEOUT_ANALYST_SEC || fallback;
+    case 'admin':
+      return fallback;
+  }
+}
 
 /**
  * 为 pino-http 请求 logger 注入脱敏用户上下文（T-B2）。

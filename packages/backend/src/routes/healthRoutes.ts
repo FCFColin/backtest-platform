@@ -12,7 +12,7 @@ import { config } from '../config/index.js';
 import { sendProblem } from '../utils/errors.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
 import { getPool } from '../db/pool.js';
-import { appRedis } from '../infrastructure/redisClient.js';
+import { appRedis, checkSentinelMaster, isSentinelMode } from '../infrastructure/redisClient.js';
 import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
@@ -77,6 +77,10 @@ router.get('/health', (_req: Request, res: Response) => {
     data: {
       status: 'ok',
       timestamp: new Date().toISOString(),
+      // P0-3：包含 Redis 模式信息（sentinel/standalone），便于运维快速确认高可用状态
+      redis: {
+        mode: isSentinelMode ? 'sentinel' : 'standalone',
+      },
     },
   });
 });
@@ -85,6 +89,7 @@ router.get('/health', (_req: Request, res: Response) => {
  * GET /api/ready — 深度就绪检查（readiness）。
  *
  * 并行探测引擎、数据库、Redis、Go 数据服务，返回分项状态。
+ * Sentinel 模式下额外校验 master 角色与从节点拓扑（ADR-045 T6）。
  * 配置 METRICS_AUTH_TOKEN 时须 Bearer 鉴权（与 /metrics 一致）。
  */
 router.get('/ready', async (req: Request, res: Response) => {
@@ -94,11 +99,12 @@ router.get('/ready', async (req: Request, res: Response) => {
   }
 
   try {
-    const [goEngineOk, goDataOk, dbOk, redisOk] = await Promise.all([
+    const [goEngineOk, goDataOk, dbOk, redisOk, sentinelHealth] = await Promise.all([
       checkHttp(`${config.GO_ENGINE_URL}/api/engine/health`),
       checkHttp(`${config.GO_DATA_SERVICE_URL}/api/data/health`),
       checkDatabase(),
       checkRedis(),
+      checkSentinelMaster(),
     ]);
 
     // ADR-031 fail-closed：Go 引擎不可用即返回 503 + Retry-After
@@ -115,6 +121,20 @@ router.get('/ready', async (req: Request, res: Response) => {
       return;
     }
 
+    // ADR-045 T6：Sentinel 模式下，master 角色缺失或无从节点 → 503
+    // （min-slaves-to-write=1 下 master 无从节点会拒绝写入，等同于不可用）
+    const sentinelOk =
+      sentinelHealth.isMaster === null
+        ? true
+        : sentinelHealth.isMaster && (sentinelHealth.connectedSlaves ?? 0) >= 1;
+    if (!sentinelOk) {
+      sendProblem(res, 503, 'REDIS_SENTINEL_NO_MASTER', undefined, {
+        headers: { 'Retry-After': '30' },
+        detail: `Sentinel master unhealthy (isMaster=${sentinelHealth.isMaster}, slaves=${sentinelHealth.connectedSlaves})`,
+      });
+      return;
+    }
+
     res.status(200).json({
       success: true,
       data: {
@@ -127,6 +147,13 @@ router.get('/ready', async (req: Request, res: Response) => {
           database: dbOk,
           redis: redisOk,
           goDataService: goDataOk,
+          redisSentinel: isSentinelMode
+            ? {
+                mode: 'sentinel',
+                isMaster: sentinelHealth.isMaster,
+                connectedSlaves: sentinelHealth.connectedSlaves,
+              }
+            : { mode: 'standalone' },
         },
       },
     });

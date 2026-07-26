@@ -35,6 +35,8 @@ vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => {
       on: vi.fn(),
     },
     redisConnection: {},
+    isSentinelMode: false,
+    buildRedisBaseOptions: () => ({ maxRetriesPerRequest: null, enableReadyCheck: false }),
   };
 });
 

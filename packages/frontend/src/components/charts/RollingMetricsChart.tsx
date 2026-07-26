@@ -31,7 +31,7 @@ function RollingMetricSelector({
 }) {
   return (
     <select
-      className="param-input"
+      className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
       style={{ width: 150, fontSize: 12, padding: '4px 8px' }}
       value={selected}
       onChange={(e) => onChange(e.target.value as RollingMetricKey)}

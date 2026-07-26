@@ -1,13 +1,16 @@
 /**
  * @file 回测结果展示区
  * @description 包含 Tab 导航、各 Tab 内容渲染器（懒加载图表/表格）以及空/加载态。
- *              ResultsContent 订阅 backtestStore 的 results/isLoading/activeTab/portfolios，
- *              按 activeTab 选择对应渲染器并按需触发 enrichSeries 拉取扩展数据。
+ *   ResultsContent 订阅 backtestStore 的 results/isLoading/activeTab/portfolios，
+ *   按 activeTab 选择对应渲染器并按需触发 enrichSeries 拉取扩展数据。
+ *   基于 shadcn Card / Button + token 类名。
  */
 import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Loader2 } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import StatisticsTable from '@/components/StatisticsTable';
 import type { Portfolio, PortfolioResult } from '@backtest/shared';
 
@@ -109,32 +112,31 @@ function TabBar() {
   };
 
   return (
-    <div className="bt-tabs">
-      <div className="bt-tabs-left">
+    <div className="flex items-center justify-between gap-2 border-b border-border-subtle pb-2 mb-3">
+      <div className="flex flex-wrap items-center gap-1">
         {ALL_TABS.map((tab) => (
-          <button
+          <Button
             key={tab.key}
-            className={`bt-tab ${activeTab === tab.key ? 'active' : ''}`}
+            variant={activeTab === tab.key ? 'secondary' : 'ghost'}
+            size="sm"
             onClick={() => setActiveTab(tab.key)}
           >
             {t(tab.labelKey)}
-          </button>
+          </Button>
         ))}
       </div>
-      <div className="bt-tabs-right">
-        <button type="button" className="bt-export-btn" onClick={handleExport}>
-          <Download className="w-3.5 h-3.5" />
-          Export CSV
-        </button>
-      </div>
+      <Button variant="ghost" size="sm" onClick={handleExport}>
+        <Download />
+        Export CSV
+      </Button>
     </div>
   );
 }
 
 function LoadingFallback() {
   return (
-    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <Loader2 className="w-5 h-5 animate-spin" style={{ display: 'inline-block' }} />
+    <div className="flex items-center justify-center py-10 text-fg-tertiary">
+      <Loader2 className="size-5 animate-spin" />
     </div>
   );
 }
@@ -220,6 +222,7 @@ function TabContent({
 /**
  * 回测结果展示区：根据 activeTab 选择渲染器，按需触发 enrichSeries。
  * 加载中且无结果时显示加载占位；无结果时显示空态文案。
+ * @returns 渲染的结果展示区
  */
 export function ResultsContent() {
   const { t } = useTranslation();
@@ -239,19 +242,19 @@ export function ResultsContent() {
 
   if (isLoading && !results)
     return (
-      <div className="bt-results-card card" style={{ textAlign: 'center', padding: 40 }}>
-        <Loader2 className="w-6 h-6 animate-spin" style={{ display: 'inline-block' }} />
-      </div>
+      <Card className="flex items-center justify-center p-10">
+        <Loader2 className="size-6 animate-spin text-fg-tertiary" />
+      </Card>
     );
   if (!results || results.portfolios.length === 0)
     return (
-      <div className="bt-results-empty">
-        <span className="bt-results-empty-text">{t('backtest.noResultsHint')}</span>
-      </div>
+      <Card className="flex items-center justify-center p-12">
+        <span className="text-body text-fg-tertiary">{t('backtest.noResultsHint')}</span>
+      </Card>
     );
 
   return (
-    <div className="bt-results-card card">
+    <Card className="p-5">
       <TabBar />
       <Suspense fallback={<LoadingFallback />}>
         <TabContent
@@ -261,6 +264,6 @@ export function ResultsContent() {
           results={results as TabCtx['r']}
         />
       </Suspense>
-    </div>
+    </Card>
   );
 }

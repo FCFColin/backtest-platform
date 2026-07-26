@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SignJWT, importJWK, generateKeyPair } from 'jose';
 import {
   createLoggerMocks,
@@ -26,6 +26,14 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     { withStore: true, withSets: true, withMemoryHelpers: true },
     redisMocks,
   ),
+  getRedisHealth: vi.fn(async () => {
+    try {
+      return (await redisMocks.ping()) === 'PONG';
+    } catch {
+      return false;
+    }
+  }),
+  markRedisUnhealthy: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
@@ -84,7 +92,6 @@ describe('jwtAuth 中间件', () => {
 
   it('无效 x-api-key 应返回 401', async () => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
     const req = createJwtAuthMockRequest({
       headers: { 'x-api-key': 'wrong-key' },
     } as Record<string, unknown>);
@@ -111,7 +118,6 @@ describe('jwtAuth 中间件', () => {
 
   it('超长 x-api-key 应返回 401（防缓冲区攻击）', async () => {
     apiKeyMocks.verifyApiKey.mockResolvedValueOnce(null);
-    mocks.config.ADMIN_API_KEY = 'test-api-key-12345';
     const req = createJwtAuthMockRequest({
       headers: { 'x-api-key': 'a'.repeat(129) },
     } as Record<string, unknown>);
@@ -351,8 +357,8 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
     mocks.config.JWT_ALGORITHM = 'HS256';
   });
 
-  it('内存模式 family 被撤销后 refresh 应拒绝', async () => {
-    redisMocks.useMemoryFallback();
+  it('Redis 模式 family 被撤销后 refresh 应拒绝', async () => {
+    redisMocks.useRedisSuccess();
     const refreshToken = await generateRefreshToken('family-revoked-user', 'admin');
     const first = await refreshAccessToken(refreshToken);
     expect(first).not.toBeNull();

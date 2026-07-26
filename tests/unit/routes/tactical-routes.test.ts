@@ -44,7 +44,6 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({
     NODE_ENV: 'test',
-    ADMIN_API_KEY: '',
   }),
   validateConfig: vi.fn(),
 }));

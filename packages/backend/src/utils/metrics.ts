@@ -154,11 +154,30 @@ const cacheHitsTotal = new client.Counter({
   registers: [register],
 });
 
+/** 缓存淘汰计数（按 level 分组，目前仅 L1 进程内 LRU 容量淘汰）。 */
+const cacheEvictionsTotal = new client.Counter({
+  name: 'cache_evictions_total',
+  help: 'Cache evictions by level (l1 = in-process LRU capacity eviction)',
+  labelNames: ['level'],
+  registers: [register],
+});
+
 /** 认证失败计数（按 endpoint/reason 分组）。 */
 const authFailuresTotal = new client.Counter({
   name: 'auth_failures_total',
   help: 'Authentication/authorization failures by endpoint and reason',
   labelNames: ['endpoint', 'reason'],
+  registers: [register],
+});
+
+/**
+ * 陈旧 API Key 计数（T5 监控）：超过阈值天数未使用的有效密钥数。
+ * 标签 is_platform_admin 区分平台 break-glass 密钥（应触发告警）与租户密钥。
+ */
+export const apiKeysStaleCount = new client.Gauge({
+  name: 'api_keys_stale_count',
+  help: 'Active API keys not used within the staleness threshold (by is_platform_admin)',
+  labelNames: ['is_platform_admin'],
   registers: [register],
 });
 
@@ -210,11 +229,20 @@ export function recordDegradedResponse(endpoint: string, reason: string): void {
 /**
  * 记录缓存命中/未命中。
  *
- * @param layer - 缓存层标识（file_cache / backtest_result_cache / price_cache）
+ * @param layer - 缓存层标识（redis_l2_cache / backtest_result_cache / price_cache）
  * @param hit - 是否命中
  */
 export function recordCacheHit(layer: string, hit: boolean): void {
   cacheHitsTotal.inc({ layer, result: hit ? 'hit' : 'miss' });
+}
+
+/**
+ * 记录缓存淘汰（L1 进程内 LRU 因容量上限淘汰条目时调用）。
+ *
+ * @param level - 缓存层级，目前仅 'l1'
+ */
+export function recordCacheEviction(level: 'l1'): void {
+  cacheEvictionsTotal.inc({ level });
 }
 
 /**
@@ -278,6 +306,141 @@ export function recordEngineUnavailable(reason: string): void {
  */
 export function resetMetrics(): void {
   register.resetMetrics();
+}
+
+// ─── 安全指标（等保三级入侵防范） ───
+
+/** IP 维度登录封锁计数（等保三级 8.1.4 b) 入侵检测，P0-05）。 */
+export const authIpLockoutCounter = new client.Counter({
+  name: 'auth_ip_lockout_total',
+  help: 'Total number of IP addresses blocked due to suspicious login activity (cross-account brute force)',
+  registers: [register],
+});
+
+// ─── 读写分离指标（P1-02 T6） ───
+
+/** 只读副本降级到主库的次数（P1-02 T8，副本不可用时自动降级）。 */
+export const readPoolFallbackCounter = new client.Counter({
+  name: 'read_pool_fallback_total',
+  help: 'Number of times read pool fell back to write pool due to connection failure',
+  registers: [register],
+});
+
+// ─── 配额指标（P0-04 fail-closed） ───
+
+/** 配额执行失败计数（按 quota_key/reason 分组，Redis/DB 不可用时递增）。 */
+export const quotaEnforcementFailures = new client.Counter({
+  name: 'quota_enforcement_failures_total',
+  help: 'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
+  labelNames: ['quota_key', 'reason'],
+  registers: [register],
+});
+
+// ─── TimescaleDB 指标（P1-01 T8） ───
+
+/** TimescaleDB 压缩 chunk 数量。@internal 测试直接访问 Gauge */
+export const timescaledbCompressedChunks = new client.Gauge({
+  name: 'timescaledb_compressed_chunks',
+  help: 'Number of compressed chunks in prices hypertable',
+  registers: [register],
+});
+
+/** TimescaleDB 未压缩 chunk 数量。@internal 测试直接访问 Gauge */
+export const timescaledbUncompressedChunks = new client.Gauge({
+  name: 'timescaledb_uncompressed_chunks',
+  help: 'Number of uncompressed chunks in prices hypertable',
+  registers: [register],
+});
+
+/** TimescaleDB 压缩率（0-1，压缩后/压缩前）。@internal 测试直接访问 Gauge */
+export const timescaledbCompressionRatio = new client.Gauge({
+  name: 'timescaledb_compression_ratio',
+  help: 'Compression ratio of prices hypertable (after/before, lower is better)',
+  registers: [register],
+});
+
+/** prices_monthly CAGG 行数（验证回填完成度）。@internal 测试直接访问 Gauge */
+export const timescaledbCaggRows = new client.Gauge({
+  name: 'timescaledb_cagg_rows',
+  help: 'Total rows in prices_monthly continuous aggregate',
+  registers: [register],
+});
+
+/** TimescaleDB chunk 总数。@internal 测试直接访问 Gauge */
+export const timescaledbChunkCount = new client.Gauge({
+  name: 'timescaledb_chunk_count',
+  help: 'Total number of chunks in prices hypertable',
+  registers: [register],
+});
+
+/** TimescaleDB 指标采集间隔（毫秒）。 */
+const TIMESCALE_METRICS_INTERVAL_MS = 60_000;
+
+/**
+ * 注册 TimescaleDB 指标采集器，定期查询元数据视图更新 Gauge。
+ *
+ * 使用回调函数模式避免与 pool.ts 的循环依赖（pool.ts 导入 metrics.ts）。
+ * 调用方在 server.ts 中传入查询函数：
+ *
+ * ```typescript
+ * import { getReadPool } from './db/pool.js';
+ * registerTimescaleMetrics(async (sql) => {
+ *   const { rows } = await getReadPool().query(sql);
+ *   return rows;
+ * });
+ * ```
+ *
+ * @param queryFn - 异步查询函数，接收 SQL 返回行数组
+ */
+export function registerTimescaleMetrics(
+  queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>,
+): void {
+  const sample = async (): Promise<void> => {
+    try {
+      // chunk 压缩统计
+      const chunkRows = await queryFn(`
+        SELECT
+          COUNT(*) AS total_chunks,
+          COUNT(*) FILTER (WHERE compression_status = 'Compressed') AS compressed_chunks,
+          COUNT(*) FILTER (WHERE compression_status != 'Compressed') AS uncompressed_chunks
+        FROM timescaledb_information.chunks
+        WHERE hypertable_name = 'prices'
+      `);
+      const chunkStats = chunkRows[0];
+      if (chunkStats) {
+        timescaledbChunkCount.set(Number(chunkStats.total_chunks ?? 0));
+        timescaledbCompressedChunks.set(Number(chunkStats.compressed_chunks ?? 0));
+        timescaledbUncompressedChunks.set(Number(chunkStats.uncompressed_chunks ?? 0));
+      }
+
+      // 压缩率
+      const ratioRows = await queryFn(`
+        SELECT
+          COALESCE(
+            SUM(after_compression_total_bytes)::FLOAT
+            / NULLIF(SUM(before_compression_total_bytes), 0),
+            1.0
+          ) AS ratio
+        FROM timescaledb_information.compressed_chunk_stats
+        WHERE hypertable_name = 'prices'
+      `);
+      const ratio = ratioRows[0]?.ratio;
+      if (ratio !== undefined && ratio !== null) {
+        timescaledbCompressionRatio.set(Number(ratio));
+      }
+
+      // CAGG 行数
+      const caggRows = await queryFn(`SELECT COUNT(*) AS cnt FROM prices_monthly`);
+      if (caggRows[0]?.cnt !== undefined) {
+        timescaledbCaggRows.set(Number(caggRows[0].cnt));
+      }
+    } catch {
+      // TimescaleDB 未安装或表不存在时静默跳过（开发环境可能未启用）
+    }
+  };
+
+  sample();
+  setInterval(sample, TIMESCALE_METRICS_INTERVAL_MS).unref();
 }
 
 /** 返回 Prometheus register 实例，用于 /metrics 端点。 */

@@ -59,6 +59,49 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '015_add_exchange_column.sql',
     downFile: '015_add_exchange_column_down.sql',
   },
+  {
+    version: 16,
+    upFile: '016_backtest_progress.sql',
+    downFile: '016_backtest_progress_down.sql',
+  },
+  {
+    version: 17,
+    upFile: '017_admin_api_key_db.sql',
+    downFile: '017_admin_api_key_db_down.sql',
+  },
+  {
+    version: 18,
+    upFile: '018_timescaledb.sql',
+    downFile: '018_timescaledb_down.sql',
+  },
+  {
+    version: 19,
+    upFile: '019_security_compliance.sql',
+    downFile: '019_security_compliance_down.sql',
+  },
+  {
+    version: 20,
+    upFile: '020_custom_rbac.sql',
+    downFile: '020_custom_rbac_down.sql',
+  },
+  // P2-02 Webhook 系统：version 21 紧随 P2-01 RBAC（version 20）之后。
+  {
+    version: 21,
+    upFile: '021_webhooks.sql',
+    downFile: '021_webhooks_down.sql',
+  },
+  // P2-03 不可篡改审计存储：version 22 紧随 P2-02 Webhook（version 21）之后。
+  {
+    version: 22,
+    upFile: '022_audit_storage.sql',
+    downFile: '022_audit_storage_down.sql',
+  },
+  // P1-01 CAGG 回填 + 刷新策略调整：回填 prices_monthly 历史数据并优化刷新策略
+  {
+    version: 23,
+    upFile: '023_cagg_backfill.sql',
+    downFile: '023_cagg_backfill_down.sql',
+  },
 ];
 
 /**

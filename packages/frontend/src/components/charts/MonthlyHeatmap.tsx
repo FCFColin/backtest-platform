@@ -42,7 +42,7 @@ function MonthTickerSelector({
 }) {
   return (
     <select
-      className="param-input"
+      className="bg-input-bg text-fg border border-border-subtle rounded font-medium cursor-pointer"
       style={{ width: 100, fontSize: 12, padding: '4px 8px' }}
       value={selected}
       onChange={(e) => onChange(Number(e.target.value))}
@@ -91,7 +91,7 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
                   key={mIdx}
                   className="px-0.5 py-0.5 text-center cursor-default"
                   style={{ backgroundColor: getHeatColor(val) }}
-                  title={`${row.year} ${MONTH_LABELS[mIdx]}: ${val !== null ? val.toFixed(2) : '—'}%`}
+                  title={`${row.year} ${MONTH_LABELS[mIdx]}: ${val !== null ? val.toFixed(2) : '-'}%`}
                 >
                   <span
                     className="text-[10px] inline-block w-[34px] leading-[24px]"
@@ -99,7 +99,7 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
                       color: val !== null && Math.abs(val) > 5 ? '#fff' : 'var(--text-muted)',
                     }}
                   >
-                    {val !== null ? val.toFixed(1) : '—'}
+                    {val !== null ? val.toFixed(1) : '-'}
                   </span>
                 </td>
               ))}

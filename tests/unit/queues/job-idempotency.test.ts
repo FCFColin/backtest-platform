@@ -1,8 +1,12 @@
 /**
- * jobIdempotency 单元测试（T-37）
+ * jobIdempotency 单元测试（T-37 / ADR-045）
+ *
+ * ADR-045：删除内存回退路径。Redis 不可用或操作失败时 requireRedis 抛出
+ * RedisUnavailableError，由 Worker 捕获后经 BullMQ backoff 重试。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 
 const redisMocks = vi.hoisted(() => ({
   set: vi.fn(),
@@ -10,6 +14,8 @@ const redisMocks = vi.hoisted(() => ({
   exists: vi.fn(),
   get: vi.fn(),
   multi: vi.fn(),
+  getRedisHealth: vi.fn(async () => true),
+  markRedisUnhealthy: vi.fn(),
   loggerMocks: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -26,8 +32,8 @@ const redisMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
-  getRedisHealth: vi.fn(async () => true),
-  markRedisUnhealthy: vi.fn(),
+  getRedisHealth: redisMocks.getRedisHealth,
+  markRedisUnhealthy: redisMocks.markRedisUnhealthy,
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -44,6 +50,8 @@ import {
 describe('jobIdempotency', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks 不重置实现，但显式恢复健康检查默认值以隔离用例
+    redisMocks.getRedisHealth.mockResolvedValue(true);
     redisMocks.multi.mockReturnValue({
       set: vi.fn().mockReturnThis(),
       del: vi.fn().mockReturnThis(),
@@ -70,10 +78,10 @@ describe('jobIdempotency', () => {
     await expect(tryClaimJobProcessing('job-3')).resolves.toBe('in_progress');
   });
 
-  it('Redis 不可用时应回退内存去重', async () => {
+  it('Redis 操作失败时应抛出 RedisUnavailableError（ADR-045）', async () => {
     redisMocks.exists.mockRejectedValueOnce(new Error('redis down'));
-    await expect(tryClaimJobProcessing('job-4')).resolves.toBe('claimed');
-    await expect(tryClaimJobProcessing('job-4')).resolves.toBe('in_progress');
+    await expect(tryClaimJobProcessing('job-4')).rejects.toThrow(RedisUnavailableError);
+    expect(redisMocks.markRedisUnhealthy).toHaveBeenCalled();
   });
 
   it('markJobProcessed 应写入 Redis 并缓存结果', async () => {
@@ -106,54 +114,35 @@ describe('jobIdempotency', () => {
     expect(redisMocks.del).toHaveBeenCalledWith('bullmq:processing:job-7');
   });
 
-  it('Redis 持续不可用时内存回退应覆盖 claimed → in_progress → already_processed', async () => {
-    redisMocks.exists
-      .mockRejectedValueOnce(new Error('redis down'))
-      .mockRejectedValueOnce(new Error('redis down'))
-      .mockRejectedValueOnce(new Error('redis down'));
+  it('Redis 健康检查失败时 tryClaimJobProcessing 应抛出 RedisUnavailableError', async () => {
+    redisMocks.getRedisHealth.mockResolvedValueOnce(false);
+    await expect(tryClaimJobProcessing('job-health-down')).rejects.toThrow(RedisUnavailableError);
+    // 健康检查失败时不执行 Redis 命令
+    expect(redisMocks.exists).not.toHaveBeenCalled();
+  });
 
-    await expect(tryClaimJobProcessing('job-mem-flow')).resolves.toBe('claimed');
-    await expect(tryClaimJobProcessing('job-mem-flow')).resolves.toBe('in_progress');
+  it('getProcessedJobResult Redis 操作失败时应抛出 RedisUnavailableError', async () => {
+    redisMocks.get.mockRejectedValueOnce(new Error('redis read down'));
+    await expect(getProcessedJobResult('job-read-fail')).rejects.toThrow(RedisUnavailableError);
+    expect(redisMocks.markRedisUnhealthy).toHaveBeenCalled();
+  });
 
-    // markJobProcessed Redis 失败 → 内存回退写入 memProcessed/memResults
+  it('releaseJobClaim Redis 操作失败时应抛出 RedisUnavailableError', async () => {
+    redisMocks.del.mockRejectedValueOnce(new Error('redis del down'));
+    await expect(releaseJobClaim('job-del-fail')).rejects.toThrow(RedisUnavailableError);
+    expect(redisMocks.markRedisUnhealthy).toHaveBeenCalled();
+  });
+
+  it('markJobProcessed Redis exec 失败时应抛出 RedisUnavailableError', async () => {
     const failingMulti = {
       set: vi.fn().mockReturnThis(),
       del: vi.fn().mockReturnThis(),
-      exec: vi.fn().mockRejectedValue(new Error('redis down')),
+      exec: vi.fn().mockRejectedValue(new Error('redis exec down')),
     };
     redisMocks.multi.mockReturnValueOnce(failingMulti);
-    await markJobProcessed('job-mem-flow', { score: 42 });
-
-    await expect(tryClaimJobProcessing('job-mem-flow')).resolves.toBe('already_processed');
-  });
-
-  it('getProcessedJobResult Redis 失败时应从内存回退读取结果', async () => {
-    // 先通过 markJobProcessed 失败填充 memResults
-    const failingMulti = {
-      set: vi.fn().mockReturnThis(),
-      del: vi.fn().mockReturnThis(),
-      exec: vi.fn().mockRejectedValue(new Error('redis down')),
-    };
-    redisMocks.multi.mockReturnValueOnce(failingMulti);
-    await markJobProcessed('job-mem-result', { value: 'mem-data' });
-
-    // getProcessedJobResult Redis 失败 → 内存回退
-    redisMocks.get.mockRejectedValueOnce(new Error('redis down'));
-    await expect(getProcessedJobResult('job-mem-result')).resolves.toEqual({ value: 'mem-data' });
-  });
-
-  it('releaseJobClaim Redis 失败时应从内存移除处理声明', async () => {
-    // 先通过 tryClaimJobProcessing 失败填充 memProcessing
-    redisMocks.exists
-      .mockRejectedValueOnce(new Error('redis down'))
-      .mockRejectedValueOnce(new Error('redis down'));
-    await tryClaimJobProcessing('job-mem-release');
-
-    // releaseJobClaim Redis 失败 → 内存回退
-    redisMocks.del.mockRejectedValueOnce(new Error('redis down'));
-    await releaseJobClaim('job-mem-release');
-
-    // 验证：再次 tryClaim 应返回 'claimed'（memProcessing 已被移除）
-    await expect(tryClaimJobProcessing('job-mem-release')).resolves.toBe('claimed');
+    await expect(markJobProcessed('job-exec-fail', { score: 42 })).rejects.toThrow(
+      RedisUnavailableError,
+    );
+    expect(redisMocks.markRedisUnhealthy).toHaveBeenCalled();
   });
 });

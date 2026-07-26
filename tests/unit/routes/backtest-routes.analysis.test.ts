@@ -136,6 +136,9 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => {
     },
     getRedisHealth: vi.fn().mockResolvedValue(true),
     markRedisUnhealthy: vi.fn(),
+    // P0-03: backtestQueue.ts 依赖 buildRedisBaseOptions() 构造 BullMQ 连接选项
+    buildRedisBaseOptions: () => ({ host: 'localhost', port: 6379 }),
+    isSentinelMode: false,
   };
 });
 vi.mock('fs', () => ({

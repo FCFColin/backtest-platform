@@ -1,0 +1,48 @@
+name: SDK Generation
+
+on:
+  push:
+    paths:
+      - 'docs/openapi.yaml'
+      - 'packages/api-client/**'
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  generate-and-test:
+    name: SDK Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: npx tsc --noEmit -p packages/api-client/tsconfig.json
+
+      - name: Test
+        run: pnpm --filter @backtest/api-client test
+
+      - name: Build
+        run: pnpm --filter @backtest/api-client build
+
+      - name: Validate npm pack
+        run: cd packages/api-client && npm pack --dry-run

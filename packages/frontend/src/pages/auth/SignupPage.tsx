@@ -21,7 +21,10 @@ function SignupSuccess({ email }: { email: string }) {
       centered
       maxWidth={460}
       icon={
-        <MailCheck className="w-10 h-10" style={{ color: 'var(--brand)', margin: '0 auto 12px' }} />
+        <MailCheck
+          className="w-10 h-10"
+          style={{ color: 'hsl(var(--brand))', margin: '0 auto 12px' }}
+        />
       }
       title={t('auth.signup.successTitle')}
     >
@@ -77,7 +80,7 @@ export default function SignupPage() {
       footer={
         <>
           {t('auth.signup.hasAccountPrefix')}
-          <Link to="/login" style={{ color: 'var(--brand)' }}>
+          <Link to="/login" style={{ color: 'hsl(var(--brand))' }}>
             {t('auth.login.submit')}
           </Link>
         </>

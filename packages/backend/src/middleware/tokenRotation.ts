@@ -1,17 +1,19 @@
 /**
  * Token Rotation 逻辑模块
  *
- * 职责：Refresh Token 轮换核心（Redis + 内存回退两条路径），
+ * 职责：Refresh Token 轮换核心（Redis 路径），
  * Token Family 复用检测（refresh 去重 via "used:" 标记 + 整族撤销）。
  *
  * 本模块从 refreshToken.ts 抽离，依赖其存储原语与模块级状态。
  * 共享原语现集中至 authShared.ts，避免与 refreshToken.ts 形成循环依赖。
- * Redis 降级语义统一由 withRedisFallback 提供。
+ *
+ * ADR-045：删除 refreshAccessTokenMemory 内存回退路径。Redis 故障由 requireRedis
+ * 抛 RedisUnavailableError，refresh 路由由 asyncRouteHandler 翻译为 503。
  */
 
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
-import { withRedisFallback } from '../utils/redisFallback.js';
+import { requireRedis } from '../utils/redisFallback.js';
 import { hashUserId } from './authTypes.js';
 import {
   type RefreshTokenEntry,
@@ -19,8 +21,6 @@ import {
   REFRESH_TOKEN_PREFIX,
   TOKEN_FAMILY_PREFIX,
   REFRESH_TOKEN_EXPIRES_IN_SEC,
-  fallbackRefreshTokenStore,
-  fallbackTokenFamilyStore,
   tenantFromEntry,
   isUserSessionValid,
   generateRefreshToken,
@@ -32,16 +32,11 @@ export async function refreshAccessToken(refreshToken: string): Promise<{
   accessToken: string;
   refreshToken: string;
 } | null> {
-  return withRedisFallback(
-    `refresh:${refreshToken}`,
-    () => refreshAccessTokenRedis(refreshToken),
-    () => refreshAccessTokenMemory(refreshToken),
-  );
+  return requireRedis(`refresh:${refreshToken}`, () => refreshAccessTokenRedis(refreshToken));
 }
 
 /**
  * 从 refresh entry 签发新的 Access Token + Refresh Token（轮换）。
- * Redis 与内存两条刷新路径共用此逻辑，避免重复。
  */
 async function issueRotatedTokens(entry: RefreshTokenEntry): Promise<{
   accessToken: string;
@@ -143,62 +138,4 @@ async function checkReuseAndRevoke(refreshToken: string): Promise<null> {
   }
 
   return null;
-}
-
-/**
- * 内存回退模式：Refresh Token 刷新 + Token Family 复用检测
- */
-async function refreshAccessTokenMemory(refreshToken: string): Promise<{
-  accessToken: string;
-  refreshToken: string;
-} | null> {
-  const usedEntry = fallbackRefreshTokenStore.get(`used:${refreshToken}`);
-  if (usedEntry) {
-    logger.warn(
-      { familyId: usedEntry.familyId },
-      '[jwtAuth] 内存模式：检测到 Refresh Token 复用！撤销整个 Token Family',
-    );
-    const family = fallbackTokenFamilyStore.get(usedEntry.familyId);
-    if (family) {
-      if (family.lastToken) {
-        fallbackRefreshTokenStore.delete(family.lastToken);
-      }
-      family.revoked = true;
-    }
-    fallbackRefreshTokenStore.delete(`used:${refreshToken}`);
-    return null;
-  }
-
-  const entry = fallbackRefreshTokenStore.get(refreshToken);
-  if (!entry) return null;
-
-  const now = Math.floor(Date.now() / 1000);
-  if (entry.expiresAt < now) {
-    fallbackRefreshTokenStore.delete(refreshToken);
-    return null;
-  }
-
-  if (!(await isUserSessionValid(entry.userId))) {
-    fallbackRefreshTokenStore.delete(refreshToken);
-    logger.warn(
-      { userId: hashUserId(entry.userId) },
-      '[jwtAuth] 内存模式：用户已停用，拒绝 refresh',
-    );
-    return null;
-  }
-
-  const family = fallbackTokenFamilyStore.get(entry.familyId);
-  if (family?.revoked) {
-    logger.warn(
-      { familyId: entry.familyId },
-      '[jwtAuth] 内存模式：Token family 已被撤销，拒绝刷新',
-    );
-    fallbackRefreshTokenStore.delete(refreshToken);
-    return null;
-  }
-
-  fallbackRefreshTokenStore.set(`used:${refreshToken}`, entry);
-  fallbackRefreshTokenStore.delete(refreshToken);
-
-  return issueRotatedTokens(entry);
 }

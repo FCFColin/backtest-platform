@@ -11,6 +11,7 @@
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
+import { authConfig } from '../config/authConfig.js';
 import {
   generateToken,
   generateRefreshToken,
@@ -26,7 +27,13 @@ import { validate } from '../middleware/validate.js';
 import { loginPasswordSchema } from '../schemas/auth.js';
 import registrationRoutes from './authRegistrationRoutes.js';
 import { verifyUser } from '../application/auth/userService.js';
-import { isLockedOut, recordFailure, clearFailures } from '../application/auth/loginLockout.js';
+import {
+  isLockedOut,
+  recordFailure,
+  clearFailures,
+  isIpBlocked,
+  recordIpFailure,
+} from '../application/auth/loginLockout.js';
 import {
   resolveDefaultOrg,
   getMembership,
@@ -35,6 +42,40 @@ import {
   orgRoleToGlobalRole,
   type Membership,
 } from '../application/org/membershipService.js';
+
+/**
+ * 根据用户角色解析空闲会话超时时间（P0-04，等保三级身份鉴别刚需）。
+ *
+ * ADMIN / READONLY: 30 分钟（更严格），ANALYST: 60 分钟。
+ * 未匹配角色回退到 READONLY 超时（最小权限原则）。
+ *
+ * @param role - 用户全局角色
+ * @returns 超时时间（毫秒）
+ */
+function getIdleTimeoutMs(role: string): number {
+  if (role === 'analyst') {
+    return authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC * 1000;
+  }
+  // admin / readonly / 未知角色 → 使用更严格的超时
+  return authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC * 1000;
+}
+
+/**
+ * 提取客户端真实 IP（P0-05，等保三级入侵检测）。
+ *
+ * 优先级：X-Forwarded-For（APISIX/Nginx 设置）> req.ip（Express trust proxy 解析）。
+ * X-Forwarded-For 取第一个地址（最接近客户端的代理链首）。
+ *
+ * @param req - Express 请求对象
+ * @returns 客户端 IP 地址，无法确定时返回空字符串
+ */
+function getClientIp(req: Request): string {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length > 0) {
+    return xff.split(',')[0].trim();
+  }
+  return req.ip ?? '';
+}
 
 /** 将成员关系序列化为响应中的组织摘要 */
 function orgSummary(m: Membership): Record<string, unknown> {
@@ -67,6 +108,16 @@ router.post(
   validate(loginPasswordSchema),
   async (req: Request, res: Response) => {
     const { username, password } = req.body;
+    const clientIp = getClientIp(req);
+
+    // P0-05：IP 维度封锁检查（跨账号撞库检测，等保三级 8.1.4 b)）
+    const ipBlockTtl = await isIpBlocked(clientIp);
+    if (ipBlockTtl > 0) {
+      logger.warn({ clientIp: 'hidden', ipBlockTtl }, '[auth] IP 被封锁，拒绝登录');
+      res.set('Retry-After', String(ipBlockTtl));
+      sendProblem(res, 429, 'IP_BLOCKED');
+      return;
+    }
 
     const lockRemaining = await isLockedOut(username);
     if (lockRemaining > 0) {
@@ -80,8 +131,9 @@ router.post(
     const user = await verifyUser(username, password);
 
     if (!user) {
-      // Security (T-12): 记录失败用于锁定计数。
+      // Security (T-12): 记录失败用于锁定计数（账号维度 + IP 维度）。
       await recordFailure(username);
+      await recordIpFailure(clientIp);
       sendProblem(res, 401, 'INVALID_CREDENTIALS');
       return;
     }
@@ -121,6 +173,7 @@ router.post(
         role: effectiveRole,
         userId: user.id,
         org: membership ? orgSummary(membership) : null,
+        idleTimeoutMs: getIdleTimeoutMs(effectiveRole),
       },
     });
   },

@@ -34,7 +34,10 @@ export function CashflowLegsSection() {
         <ParamCard label={t('params.adjustFixedCashflowsForInflation')}>
           <div className="flex items-center gap-2 h-10">
             <Switch id="cf-inflation-adjust" />
-            <label htmlFor="cf-inflation-adjust" className="text-caption text-fg-secondary cursor-pointer">
+            <label
+              htmlFor="cf-inflation-adjust"
+              className="text-caption text-fg-secondary cursor-pointer"
+            >
               {t('params.adjustForInflation')}
             </label>
           </div>
@@ -63,6 +66,39 @@ interface CashflowLegRowProps extends TFunctionProp {
   leg: CashflowLeg;
   /** 基础货币（usd/cny），决定金额前缀符号 */
   currency: string | undefined;
+}
+
+function CashflowFrequencySelect({
+  leg,
+  updateCashflowLeg,
+  t,
+}: {
+  leg: CashflowLeg;
+  updateCashflowLeg: (id: string, patch: Partial<CashflowLeg>) => void;
+  t: TFunctionProp['t'];
+}) {
+  return (
+    <ParamCard label={t('params.frequency')}>
+      <Select
+        value={leg.frequency}
+        onValueChange={(v) =>
+          updateCashflowLeg(leg.id, {
+            frequency: v as 'yearly' | 'monthly' | 'quarterly' | 'weekly',
+          })
+        }
+      >
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="yearly">{t('params.yearly')}</SelectItem>
+          <SelectItem value="quarterly">{t('params.quarterly')}</SelectItem>
+          <SelectItem value="monthly">{t('params.monthly')}</SelectItem>
+          <SelectItem value="weekly">{t('params.weekly')}</SelectItem>
+        </SelectContent>
+      </Select>
+    </ParamCard>
+  );
 }
 
 function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
@@ -99,26 +135,7 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
           </SelectContent>
         </Select>
       </ParamCard>
-      <ParamCard label={t('params.frequency')}>
-        <Select
-          value={leg.frequency}
-          onValueChange={(v) =>
-            updateCashflowLeg(leg.id, {
-              frequency: v as 'yearly' | 'monthly' | 'quarterly' | 'weekly',
-            })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="yearly">{t('params.yearly')}</SelectItem>
-            <SelectItem value="quarterly">{t('params.quarterly')}</SelectItem>
-            <SelectItem value="monthly">{t('params.monthly')}</SelectItem>
-            <SelectItem value="weekly">{t('params.weekly')}</SelectItem>
-          </SelectContent>
-        </Select>
-      </ParamCard>
+      <CashflowFrequencySelect leg={leg} updateCashflowLeg={updateCashflowLeg} t={t} />
       <ParamCard label={t('params.offset')}>
         <Input
           type="number"

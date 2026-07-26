@@ -5,6 +5,7 @@
  */
 
 import { config } from './configObject.js';
+import { logger } from '../utils/logger.js';
 
 /** 收集 JWT 相关配置校验错误 */
 function validateJwtConfig(): string[] {
@@ -45,10 +46,6 @@ function collectProductionErrors(): string[] {
   if (config.NODE_ENV !== 'production') return [];
   const errors: string[] = [];
 
-  if (!config.ADMIN_API_KEY) {
-    errors.push('ADMIN_API_KEY 在生产环境必需，请通过环境变量设置');
-  }
-
   errors.push(...validateJwtConfig());
 
   // DATABASE_URL 校验（ADR-007）
@@ -87,7 +84,8 @@ function collectProductionErrors(): string[] {
 /**
  * 启动时校验配置。
  *
- * 检查必需环境变量是否已设置。生产环境下 `ADMIN_API_KEY` 必需。
+ * 检查必需环境变量是否已设置。生产环境下 JWT_SECRET、DATABASE_URL、服务间 Token 等必需；
+ * 平台 break-glass 密钥不再经此校验（P0-04 改为 DB 管理，由 platformAdminBootstrap 保证存在）。
  *
  * @throws {Error} 当必需配置缺失时抛出，错误信息包含全部校验失败项
  */
@@ -115,7 +113,7 @@ export function validateConfig(): void {
       },
     ];
     for (const { condition, message } of devWarnings) {
-      if (condition) console.warn(`[config] 安全警告：${message}`);
+      if (condition) logger.warn({ message }, '安全警告');
     }
   }
 

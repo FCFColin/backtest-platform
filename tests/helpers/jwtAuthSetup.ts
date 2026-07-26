@@ -36,7 +36,8 @@ export function createJwtAuthUserRepoMock() {
  * 重置 jwtAuth HS256 测试的默认 mock 状态
  *
  * 在 beforeEach 中调用，将 config 重置为 production + HS256 + 默认 JWT_SECRET，
- * 并将 redisMocks 切换到内存模式。供所有 jwt-auth.* 测试文件的 beforeEach 复用。
+ * 并将 redisMocks 切换到 Redis 成功模式（ADR-045：内存降级路径已删除）。
+ * 供所有 jwt-auth.* 测试文件的 beforeEach 复用。
  *
  * @param mocks - 测试文件的 vi.hoisted mocks 对象（含 config 属性）
  * @param redisMocks - 测试文件的 vi.hoisted redisMocks 对象
@@ -46,9 +47,8 @@ export function setupJwtAuthTestMocks(
   redisMocks: Record<string, unknown>,
 ): void {
   vi.clearAllMocks();
-  (redisMocks.useMemoryFallback as () => void | undefined)?.();
+  (redisMocks.useRedisSuccess as () => void | undefined)?.();
   mocks.config.NODE_ENV = 'production';
   mocks.config.JWT_SECRET = 'test-jwt-secret-for-unit-tests';
-  mocks.config.ADMIN_API_KEY = '';
   mocks.config.JWT_ALGORITHM = 'HS256';
 }

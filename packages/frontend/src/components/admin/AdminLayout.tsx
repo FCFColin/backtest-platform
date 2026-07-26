@@ -2,7 +2,7 @@
  * @file 管理后台布局
  * @description 管理后台外壳布局，包含可折叠侧边栏导航及内容区域 Outlet
  */
-import { useState } from 'react';
+import { useState, type ComponentType } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -39,7 +39,7 @@ export default function AdminLayout() {
   const currentLabel = currentItem ? t(currentItem.labelKey) : t('adminLayout.adminConsole');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex h-dvh overflow-hidden bg-app">
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
@@ -53,15 +53,15 @@ export default function AdminLayout() {
         setMobileOpen={setMobileOpen}
         t={t}
       />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 shadow-sm">
+      <div className="flex flex-1 flex-col overflow-hidden bg-app">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
           <button
-            className="rounded p-1.5 hover:bg-slate-100 lg:hidden"
+            className="rounded p-1.5 hover:bg-hover lg:hidden"
             onClick={() => setMobileOpen(true)}
           >
-            <Menu className="h-5 w-5 text-slate-600" />
+            <Menu className="h-5 w-5 text-fg-secondary" />
           </button>
-          <h1 className="text-base font-semibold text-slate-800">{currentLabel}</h1>
+          <h1 className="text-base font-semibold text-fg">{currentLabel}</h1>
         </header>
         <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />
@@ -87,22 +87,23 @@ function AdminSidebar({
   return (
     <aside
       className={`
-        fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-900 text-slate-300
+        fixed inset-y-0 left-0 z-50 flex flex-col bg-surface text-fg-secondary
+        border-r border-border
         transition-all duration-300 ease-in-out
         lg:relative lg:z-auto
         ${collapsed ? 'w-16' : 'w-56'}
         ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}
     >
-      <div className="flex h-14 items-center gap-2 border-b border-slate-700/60 px-3">
-        <BarChart3 className="h-5 w-5 shrink-0 text-blue-400" />
+      <div className="flex h-14 items-center gap-2 border-b border-border px-3">
+        <BarChart3 className="h-5 w-5 shrink-0 text-brand" />
         {!collapsed && (
-          <span className="text-sm font-bold tracking-wide text-white">
+          <span className="text-sm font-bold tracking-wide text-fg">
             {t('adminLayout.adminConsole')}
           </span>
         )}
         <button
-          className="ml-auto hidden rounded p-1 hover:bg-slate-700 lg:block"
+          className="ml-auto hidden rounded p-1 hover:bg-hover lg:block"
           onClick={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -121,10 +122,10 @@ function AdminSidebar({
           />
         ))}
       </nav>
-      <div className="border-t border-slate-700/60 p-2">
+      <div className="border-t border-border p-2">
         <NavLink
           to="/"
-          className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-slate-400 transition-colors hover:bg-slate-800 hover:text-slate-200"
+          className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-fg-tertiary transition-colors hover:bg-hover hover:text-fg"
         >
           <ArrowLeft className="h-4 w-4 shrink-0" />
           {!collapsed && <span>{t('adminLayout.backToSite')}</span>}
@@ -143,7 +144,7 @@ function SidebarLink({
   onClick,
 }: {
   to: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   label: string;
   collapsed: boolean;
   end?: boolean;
@@ -156,9 +157,7 @@ function SidebarLink({
       onClick={onClick}
       className={({ isActive }) =>
         `flex items-center gap-3 mx-2 rounded-md px-2 py-2 text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-blue-600/20 text-blue-400'
-            : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+          isActive ? 'bg-hover text-fg' : 'text-fg-secondary hover:bg-hover hover:text-fg'
         } ${collapsed ? 'justify-center' : ''}`
       }
       title={collapsed ? label : undefined}

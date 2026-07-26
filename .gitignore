@@ -21,6 +21,9 @@ dist-ssr
 *.p12
 *.pfx
 secrets/
+# K8s Secret 文件（仅保留 .example 模板）
+k8s/*-secret.yaml
+!k8s/*-secret.yaml.example
 
 # 包管理器 lock 文件（使用 pnpm，非 npm）
 package-lock.json
@@ -107,3 +110,6 @@ exports-types.txt
 
 # 已归档的文档
 docs/inspections/archive/
+
+# Turborepo
+.turbo/

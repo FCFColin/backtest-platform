@@ -60,7 +60,10 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
   };
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeader title={t('optimizer.assetSelection')} info={t('optimizer.assetSelectionInfo')} />
+      <SectionHeader
+        title={t('optimizer.assetSelection')}
+        info={t('optimizer.assetSelectionInfo')}
+      />
       <TickerTagInput
         tickers={s.tickers.filter(Boolean)}
         onChange={handleTagChange}
@@ -71,116 +74,135 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
   );
 }
 
-/** 求解器设置区：全历史开关 + 起止日期 + 目标 + 权重/T-Bill + 求解器 + 做空开关。 */
-function SolverSettings({ s }: { s: EfficientFrontierState }) {
+/** 全历史开关 + 起止日期 + 目标 字段组 */
+function SolverDateAndObjectiveFields({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const allHistory = s.startDate === '' && s.endDate === '';
   return (
+    <>
+      <Field>
+        <div className="flex items-center justify-between">
+          <FieldLabel htmlFor="opt-all-history">{t('optimizer.allHistory')}</FieldLabel>
+          <Switch
+            id="opt-all-history"
+            checked={allHistory}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                s.setStartDate('');
+                s.setEndDate('');
+              } else {
+                s.setStartDate(DEFAULT_BACKTEST_START_DATE);
+                s.setEndDate(DEFAULT_END_DATE);
+              }
+            }}
+          />
+        </div>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="opt-start-date">{t('optimizer.startDate')}</FieldLabel>
+        <Input
+          id="opt-start-date"
+          type="date"
+          value={s.startDate}
+          disabled={allHistory}
+          onChange={(e) => s.setStartDate(e.target.value)}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="opt-end-date">{t('optimizer.endDate')}</FieldLabel>
+        <Input
+          id="opt-end-date"
+          type="date"
+          value={s.endDate}
+          disabled={allHistory}
+          onChange={(e) => s.setEndDate(e.target.value)}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="opt-objective">{t('optimizer.objective')}</FieldLabel>
+        <Select value={s.objective} onValueChange={s.setObjective}>
+          <SelectTrigger id="opt-objective">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="maxSharpe">{t('optimizer.maxSharpe')}</SelectItem>
+            <SelectItem value="minVolatility">{t('optimizer.minVolatility')}</SelectItem>
+            <SelectItem value="maxReturn">{t('optimizer.maxReturn')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+    </>
+  );
+}
+
+/** 权重 / T-Bill / 求解器 / 做空开关 字段组 */
+function SolverWeightsAndTypeFields({ s }: { s: EfficientFrontierState }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Field>
+        <FieldLabel htmlFor="opt-min-weight">{t('optimizer.minWeight')}</FieldLabel>
+        <PercentInput
+          id="opt-min-weight"
+          value={s.minWeight}
+          min={0}
+          max={100}
+          onChange={(e) => s.setMinWeight(Number(e.target.value))}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="opt-max-weight">{t('optimizer.maxWeight')}</FieldLabel>
+        <PercentInput
+          id="opt-max-weight"
+          value={s.maxWeight}
+          min={0}
+          max={100}
+          onChange={(e) => s.setMaxWeight(Number(e.target.value))}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="opt-tbill">{t('optimizer.tbillRate')}</FieldLabel>
+        <PercentInput
+          id="opt-tbill"
+          step={0.1}
+          value={s.tbillRate}
+          onChange={(e) => s.setTbillRate(Number(e.target.value))}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="opt-solver">{t('optimizer.solver')}</FieldLabel>
+        <Select value={s.solver} onValueChange={(v) => s.setSolver(v as SolverType)}>
+          <SelectTrigger id="opt-solver">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="markowitz">{t('optimizer.solverMarkowitz')}</SelectItem>
+            <SelectItem value="ga">{t('optimizer.solverGA')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field>
+        <div className="flex items-center justify-between">
+          <FieldLabel htmlFor="opt-short">{t('optimizer.allowShort')}</FieldLabel>
+          <Switch id="opt-short" checked={s.allowShort} onCheckedChange={s.setAllowShort} />
+        </div>
+      </Field>
+    </>
+  );
+}
+
+/** 求解器设置区：全历史开关 + 起止日期 + 目标 + 权重/T-Bill + 求解器 + 做空开关。 */
+function SolverSettings({ s }: { s: EfficientFrontierState }) {
+  const { t } = useTranslation();
+  return (
     <section className="flex flex-col gap-3">
-      <SectionHeader title={t('optimizer.solverSettings')} info={t('optimizer.solverSettingsInfo')} />
+      <SectionHeader
+        title={t('optimizer.solverSettings')}
+        info={t('optimizer.solverSettingsInfo')}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="opt-all-history">{t('optimizer.allHistory')}</FieldLabel>
-            <Switch
-              id="opt-all-history"
-              checked={allHistory}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  s.setStartDate('');
-                  s.setEndDate('');
-                } else {
-                  s.setStartDate(DEFAULT_BACKTEST_START_DATE);
-                  s.setEndDate(DEFAULT_END_DATE);
-                }
-              }}
-            />
-          </div>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="opt-start-date">{t('optimizer.startDate')}</FieldLabel>
-          <Input
-            id="opt-start-date"
-            type="date"
-            value={s.startDate}
-            disabled={allHistory}
-            onChange={(e) => s.setStartDate(e.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="opt-end-date">{t('optimizer.endDate')}</FieldLabel>
-          <Input
-            id="opt-end-date"
-            type="date"
-            value={s.endDate}
-            disabled={allHistory}
-            onChange={(e) => s.setEndDate(e.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="opt-objective">{t('optimizer.objective')}</FieldLabel>
-          <Select value={s.objective} onValueChange={s.setObjective}>
-            <SelectTrigger id="opt-objective">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="maxSharpe">{t('optimizer.maxSharpe')}</SelectItem>
-              <SelectItem value="minVolatility">{t('optimizer.minVolatility')}</SelectItem>
-              <SelectItem value="maxReturn">{t('optimizer.maxReturn')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="opt-min-weight">{t('optimizer.minWeight')}</FieldLabel>
-          <PercentInput
-            id="opt-min-weight"
-            value={s.minWeight}
-            min={0}
-            max={100}
-            onChange={(e) => s.setMinWeight(Number(e.target.value))}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="opt-max-weight">{t('optimizer.maxWeight')}</FieldLabel>
-          <PercentInput
-            id="opt-max-weight"
-            value={s.maxWeight}
-            min={0}
-            max={100}
-            onChange={(e) => s.setMaxWeight(Number(e.target.value))}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="opt-tbill">{t('optimizer.tbillRate')}</FieldLabel>
-          <PercentInput
-            id="opt-tbill"
-            step={0.1}
-            value={s.tbillRate}
-            onChange={(e) => s.setTbillRate(Number(e.target.value))}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="opt-solver">{t('optimizer.solver')}</FieldLabel>
-          <Select value={s.solver} onValueChange={(v) => s.setSolver(v as SolverType)}>
-            <SelectTrigger id="opt-solver">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="markowitz">{t('optimizer.solverMarkowitz')}</SelectItem>
-              <SelectItem value="ga">{t('optimizer.solverGA')}</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="opt-short">{t('optimizer.allowShort')}</FieldLabel>
-            <Switch
-              id="opt-short"
-              checked={s.allowShort}
-              onCheckedChange={s.setAllowShort}
-            />
-          </div>
-        </Field>
+        <SolverDateAndObjectiveFields s={s} />
+        <SolverWeightsAndTypeFields s={s} />
       </div>
     </section>
   );
@@ -281,7 +303,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             type="number"
             step={0.01}
             value={s.minSharpe}
-            placeholder="—"
+            placeholder="-"
             onChange={(e) => s.setMinSharpe(e.target.value)}
           />
         </AdvancedField>
@@ -290,7 +312,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             type="number"
             step={0.01}
             value={s.minSortino}
-            placeholder="—"
+            placeholder="-"
             onChange={(e) => s.setMinSortino(e.target.value)}
           />
         </AdvancedField>
@@ -298,7 +320,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
           <PercentInput
             step={0.1}
             value={s.maxAvgDD}
-            placeholder="—"
+            placeholder="-"
             onChange={(e) => s.setMaxAvgDD(e.target.value)}
           />
         </AdvancedField>
@@ -307,7 +329,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             type="number"
             min={2}
             value={s.maxHoldings}
-            placeholder="—"
+            placeholder="-"
             onChange={(e) => s.setMaxHoldings(e.target.value)}
           />
         </AdvancedField>
@@ -316,7 +338,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
             min={0}
             max={100}
             value={s.minWeightToInclude}
-            placeholder="—"
+            placeholder="-"
             onChange={(e) => s.setMinWeightToInclude(e.target.value)}
           />
         </AdvancedField>

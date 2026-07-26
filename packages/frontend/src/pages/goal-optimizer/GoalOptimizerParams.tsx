@@ -92,7 +92,10 @@ function GoalSettingsSection({
   const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeader title={t('goalOptimizer.goal.section')} info={t('goalOptimizer.goal.sectionInfo')} />
+      <SectionHeader
+        title={t('goalOptimizer.goal.section')}
+        info={t('goalOptimizer.goal.sectionInfo')}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Field>
           <FieldLabel htmlFor="go-target">{t('goalOptimizer.goal.targetAmount')}</FieldLabel>
@@ -148,7 +151,10 @@ function AssetConfigSection({
   const isComplete = Math.abs(totalWeight - 100) <= 0.01;
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeader title={t('goalOptimizer.asset.section')} info={t('goalOptimizer.asset.sectionInfo')} />
+      <SectionHeader
+        title={t('goalOptimizer.asset.section')}
+        info={t('goalOptimizer.asset.sectionInfo')}
+      />
       <div className="flex flex-col gap-2">
         {assets.map((a, idx) => (
           <div key={idx} className="flex items-center gap-2">
@@ -196,14 +202,41 @@ function AssetConfigSection({
           <span className="text-fg-tertiary">{t('goalOptimizer.total')}</span>{' '}
           <span
             className={
-              isComplete
-                ? 'font-mono tabular-nums text-pos'
-                : 'font-mono tabular-nums text-danger'
+              isComplete ? 'font-mono tabular-nums text-pos' : 'font-mono tabular-nums text-danger'
             }
           >
             {totalWeight}%
           </span>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** 模拟次数分区 */
+function GoalSimulationSection({
+  numSimulations,
+  onNumSimulationsChange,
+}: Pick<GoalParamsProps, 'numSimulations' | 'onNumSimulationsChange'>) {
+  const { t } = useTranslation();
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title={t('goalOptimizer.simulation.section')}
+        info={t('goalOptimizer.simulation.sectionInfo')}
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Field>
+          <FieldLabel htmlFor="go-sims">{t('goalOptimizer.simulation.count')}</FieldLabel>
+          <Input
+            id="go-sims"
+            type="number"
+            min={100}
+            max={10000}
+            value={numSimulations}
+            onChange={(e) => onNumSimulationsChange(Number(e.target.value))}
+          />
+        </Field>
       </div>
     </section>
   );
@@ -246,52 +279,47 @@ function ConstraintsAndSimulation({
               max={100}
               placeholder={t('goalOptimizer.noLimit')}
               value={maxDrawdown}
-              onChange={(e) => onMaxDrawdownChange(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) =>
+                onMaxDrawdownChange(e.target.value === '' ? '' : Number(e.target.value))
+              }
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="go-minsr">{t('goalOptimizer.constraints.minSuccessRate')}</FieldLabel>
+            <FieldLabel htmlFor="go-minsr">
+              {t('goalOptimizer.constraints.minSuccessRate')}
+            </FieldLabel>
             <PercentInput
               id="go-minsr"
               min={0}
               max={100}
               placeholder={t('goalOptimizer.noLimit')}
               value={minSuccessRate}
-              onChange={(e) => onMinSuccessRateChange(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) =>
+                onMinSuccessRateChange(e.target.value === '' ? '' : Number(e.target.value))
+              }
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="go-maxvol">{t('goalOptimizer.constraints.maxVolatility')}</FieldLabel>
+            <FieldLabel htmlFor="go-maxvol">
+              {t('goalOptimizer.constraints.maxVolatility')}
+            </FieldLabel>
             <PercentInput
               id="go-maxvol"
               min={0}
               max={100}
               placeholder={t('goalOptimizer.noLimit')}
               value={maxVolatility}
-              onChange={(e) => onMaxVolatilityChange(e.target.value === '' ? '' : Number(e.target.value))}
+              onChange={(e) =>
+                onMaxVolatilityChange(e.target.value === '' ? '' : Number(e.target.value))
+              }
             />
           </Field>
         </div>
       </CollapsibleSection>
-      <section className="flex flex-col gap-3">
-        <SectionHeader
-          title={t('goalOptimizer.simulation.section')}
-          info={t('goalOptimizer.simulation.sectionInfo')}
-        />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Field>
-            <FieldLabel htmlFor="go-sims">{t('goalOptimizer.simulation.count')}</FieldLabel>
-            <Input
-              id="go-sims"
-              type="number"
-              min={100}
-              max={10000}
-              value={numSimulations}
-              onChange={(e) => onNumSimulationsChange(Number(e.target.value))}
-            />
-          </Field>
-        </div>
-      </section>
+      <GoalSimulationSection
+        numSimulations={numSimulations}
+        onNumSimulationsChange={onNumSimulationsChange}
+      />
     </>
   );
 }

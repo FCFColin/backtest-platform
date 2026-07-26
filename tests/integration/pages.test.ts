@@ -249,9 +249,9 @@ describe('布局验证', () => {
       resolve(process.cwd(), 'packages/frontend/src/components/layout/Footer.tsx'),
       'utf-8',
     );
-    // 验证页脚包含法律相关链接
-    expect(footerSource).toContain("href: '/help'");
-    expect(footerSource).toContain("href: '/about'");
+    // 验证页脚包含法律相关链接（内部路由用 Link 的 to=，外链用 a 的 href=）
+    expect(footerSource).toContain("to: '/help'");
+    expect(footerSource).toContain("to: '/about'");
     expect(footerSource).toContain('mailto:');
   });
 });

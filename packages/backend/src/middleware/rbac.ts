@@ -20,6 +20,8 @@ import type { AuthenticatedRequest } from './jwtAuth.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordAuthFailure } from '../utils/metrics.js';
+import { getUserPermissions } from '../repositories/rbacRepo.js';
+import { getCachedUserPermissions, setCachedUserPermissions } from '../infrastructure/rbacCache.js';
 
 // ---------------------------------------------------------------------------
 // 角色枚举
@@ -197,5 +199,102 @@ export function requirePermission(permission: Permission) {
     }
 
     next();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 可配置 RBAC 中间件（P2-01）— 从数据库/缓存读取权限
+// ---------------------------------------------------------------------------
+
+/**
+ * 解析用户的有效权限集合（DB 优先，缓存加速，legacy 回退）。
+ *
+ * 解析顺序：
+ * 1. 查 Redis 缓存（命中则直接返回）
+ * 2. 缓存未命中 → 查 DB（rbacRepo.getUserPermissions 聚合用户全部角色权限）
+ * 3. 回写缓存
+ * 4. DB 返回空集（无 DB 角色绑定）→ 回退到 legacy ROLE_PERMISSIONS[effectiveRole]
+ *
+ * @param user - 解码后的 JWT 用户上下文
+ * @returns 权限字符串数组
+ */
+async function resolveUserPermissions(
+  user: NonNullable<AuthenticatedRequest['user']>,
+): Promise<string[]> {
+  // 1. 查缓存
+  const cached = await getCachedUserPermissions(user.sub);
+  if (cached !== null) {
+    return cached;
+  }
+
+  // 2. 缓存未命中 → 查 DB
+  const dbPerms = await getUserPermissions(user.sub);
+
+  // 3. 回写缓存（即使为空，缓存空集避免反复查 DB）
+  await setCachedUserPermissions(user.sub, dbPerms);
+
+  // 4. DB 无角色绑定 → 回退到 legacy ROLE_PERMISSIONS
+  if (dbPerms.length === 0) {
+    const role = effectiveRole(user) as Role;
+    const legacyPerms = ROLE_PERMISSIONS[role];
+    return legacyPerms ? Array.from(legacyPerms) : [];
+  }
+
+  return dbPerms;
+}
+
+/**
+ * 可配置权限检查中间件工厂（P2-01）。
+ *
+ * 与 {@link requirePermission} 的区别：权限来源从硬编码 ROLE_PERMISSIONS 映射改为
+ * 数据库（user_roles + role_permissions），支持管理员动态配置角色权限。
+ * 通过 Redis 缓存（TTL 5 分钟）降低 DB 压力，角色变更时由 Admin API 主动失效。
+ *
+ * 向后兼容：用户无 DB 角色绑定时，自动回退到 legacy ROLE_PERMISSIONS 映射，
+ * 保证迁移期既有用户不受影响。platform_admin 仍绕过全部检查。
+ *
+ * @param permission - 路由所需权限
+ * @returns Express 异步中间件
+ */
+export function requirePermissionFromDb(permission: Permission) {
+  return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    logRbac('info', req, permission, '权限检查（DB）');
+
+    if (!req.user) {
+      recordAuthFailure(req.path, 'missing_auth');
+      sendProblem(res, 401, 'MISSING_AUTH');
+      return;
+    }
+
+    if (req.user.platform_admin === true) {
+      logRbac('info', req, permission, '平台管理员放行', { platformAdmin: true });
+      next();
+      return;
+    }
+
+    try {
+      const perms = await resolveUserPermissions(req.user);
+      if (!perms.includes(permission)) {
+        logRbac('warn', req, permission, '权限不足，访问拒绝（DB）');
+        recordAuthFailure(req.path, 'insufficient_permission');
+        sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
+        return;
+      }
+      next();
+    } catch (err) {
+      logger.error(
+        { err, middleware: 'rbac', permission, userId: req.user.sub, path: req.path },
+        '[rbac] DB 权限解析失败，回退到 legacy 检查',
+      );
+      // DB/缓存故障时回退到 legacy 硬编码检查，保证可用性
+      const userRole = effectiveRole(req.user) as Role;
+      if (!hasPermission(userRole, permission)) {
+        logRbac('warn', req, permission, '权限不足（legacy 回退）');
+        recordAuthFailure(req.path, 'insufficient_permission');
+        sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
+        return;
+      }
+      next();
+    }
   };
 }

@@ -1171,7 +1171,11 @@
       "startingValue": "初始资金",
       "rebalanceFreq": "再平衡频率",
       "running": "回测中...",
-      "runBacktest": "运行战术回测"
+      "runBacktest": "运行战术回测",
+      "savedConfigs": "已保存配置",
+      "configNamePlaceholder": "配置名称...",
+      "save": "保存",
+      "deleteConfig": "删除配置"
     },
     "results": {
       "tactical": "战术分配",
@@ -2202,6 +2206,7 @@
     "login": {
       "noAccountPrefix": "还没有账户？",
       "password": "密码",
+      "sessionExpired": "会话因长时间未操作已过期，请重新登录。",
       "submit": "登录",
       "submitting": "登录中...",
       "username": "用户名"
@@ -2513,6 +2518,11 @@
     "tickerInput": {
       "placeholder": "输入代码，如 VTI",
       "searching": "搜索中..."
+    },
+    "tickerTagInput": {
+      "placeholder": "输入代码回车添加...",
+      "remove": "移除",
+      "removeTicker": "移除 {{ticker}}"
     },
     "turnoverTaxReport": {
       "columns": {

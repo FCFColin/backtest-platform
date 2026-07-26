@@ -77,26 +77,26 @@
     },
     {
       "featureKey": "account.pricing.features.monteCarlo",
-      "free": "—",
+      "free": "-",
       "pro": "✓",
       "proPlus": "✓"
     },
     {
       "featureKey": "account.pricing.features.portfolioOpt",
-      "free": "—",
+      "free": "-",
       "pro": "✓",
       "proPlus": "✓"
     },
     {
       "featureKey": "account.pricing.features.apiAccess",
-      "free": "—",
-      "pro": "—",
+      "free": "-",
+      "pro": "-",
       "proPlus": "✓"
     },
     {
       "featureKey": "account.pricing.compare.prioritySupport",
-      "free": "—",
-      "pro": "—",
+      "free": "-",
+      "pro": "-",
       "proPlus": "account.pricing.compare.24hResponse"
     }
   ]

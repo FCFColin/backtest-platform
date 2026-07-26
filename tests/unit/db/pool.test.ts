@@ -48,6 +48,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerPgPoolMetrics: vi.fn(),
+  readPoolFallbackCounter: { inc: vi.fn() },
 }));
 
 vi.mock('fs', () => ({
@@ -206,5 +207,103 @@ describe('db/pool', () => {
     const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
     await expect(rollbackSchema(7)).resolves.toBeUndefined();
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
+  });
+
+  it('withTenant 应在主池上注入租户上下文', async () => {
+    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const result = await withTenant('00000000-0000-0000-0000-000000000001', async () => {
+      return 'ok';
+    });
+    expect(result).toBe('ok');
+    expect(poolMocks.primaryPool.connect).toHaveBeenCalled();
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith(
+      "SELECT set_config('app.current_tenant_id', $1, true)",
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('withTenant 非法 UUID 应抛出', async () => {
+    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    await expect(withTenant('not-a-uuid', async () => 'ok')).rejects.toThrow(/非法 tenantId/);
+  });
+
+  it('withTenantReadOnly 应使用 readPool 注入租户上下文', async () => {
+    // 配置 DATABASE_READ_URL 使 getReadPool() 创建独立只读池
+    configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
+    vi.resetModules();
+    const { withTenantReadOnly } = await import('../../../packages/backend/src/db/pool.js');
+    const result = await withTenantReadOnly(
+      '00000000-0000-0000-0000-000000000002',
+      async () => 'readonly-ok',
+    );
+    expect(result).toBe('readonly-ok');
+    // readPoolInstance 被 mock 为对 read-replica 连接串返回
+    expect(poolMocks.readPoolInstance.connect).toHaveBeenCalled();
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith(
+      "SELECT set_config('app.current_tenant_id', $1, true)",
+      ['00000000-0000-0000-0000-000000000002'],
+    );
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('withTenantReadOnly 非法 UUID 应抛出', async () => {
+    configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
+    vi.resetModules();
+    const { withTenantReadOnly } = await import('../../../packages/backend/src/db/pool.js');
+    await expect(withTenantReadOnly('bad', async () => 'ok')).rejects.toThrow(/非法 tenantId/);
+  });
+
+  it('withTenantReadOnly 回调失败应 ROLLBACK', async () => {
+    configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
+    vi.resetModules();
+    poolMocks.mockClient.query.mockImplementationOnce(() => Promise.resolve({ rows: [] })); // BEGIN
+    poolMocks.mockClient.query.mockImplementationOnce(() => Promise.resolve({ rows: [] })); // set_config
+    poolMocks.mockClient.query.mockImplementationOnce(() => Promise.reject(new Error('boom'))); // fn
+    poolMocks.mockClient.query.mockImplementationOnce(() => Promise.resolve({ rows: [] })); // ROLLBACK
+    const { withTenantReadOnly } = await import('../../../packages/backend/src/db/pool.js');
+    await expect(
+      withTenantReadOnly('00000000-0000-0000-0000-000000000003', async () => {
+        throw new Error('boom');
+      }),
+    ).rejects.toThrow('boom');
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+
+  // ─── P1-02 T9: getReadClient 降级逻辑测试 ───
+
+  it('getReadClient 未配置副本时应返回主库客户端', async () => {
+    const { getReadClient } = await import('../../../packages/backend/src/db/pool.js');
+    const client = await getReadClient();
+    expect(client).toBe(poolMocks.mockClient);
+    expect(poolMocks.primaryPool.connect).toHaveBeenCalled();
+  });
+
+  it('getReadClient 副本可用时应返回副本客户端', async () => {
+    configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
+    vi.resetModules();
+    const { getReadClient, getReadPool } = await import('../../../packages/backend/src/db/pool.js');
+    // 先初始化 readPool
+    getReadPool();
+    poolMocks.readPoolInstance.connect.mockResolvedValueOnce(poolMocks.mockClient);
+    const client = await getReadClient();
+    expect(client).toBe(poolMocks.mockClient);
+    expect(poolMocks.readPoolInstance.connect).toHaveBeenCalled();
+  });
+
+  it('getReadClient 副本连接失败时应降级到主库并计数', async () => {
+    configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
+    vi.resetModules();
+    const { getReadClient, getReadPool } = await import('../../../packages/backend/src/db/pool.js');
+    // 先初始化 readPool
+    getReadPool();
+    // 副本连接失败
+    poolMocks.readPoolInstance.connect.mockRejectedValueOnce(new Error('replica down'));
+    const client = await getReadClient();
+    expect(client).toBe(poolMocks.mockClient);
+    expect(poolMocks.readPoolInstance.connect).toHaveBeenCalled();
+    expect(poolMocks.primaryPool.connect).toHaveBeenCalled();
   });
 });

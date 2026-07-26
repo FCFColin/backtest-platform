@@ -8,6 +8,10 @@ import { useTranslation } from 'react-i18next';
 import { Settings, Server, Database, RefreshCw, RotateCcw } from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
+import { reportError } from '../../utils/errorReporter.js';
+import { Button } from '../../components/ui/button.js';
+import { Card } from '../../components/ui/card.js';
+import { Field, FieldLabel } from '../../components/form/Field.js';
 
 interface ServiceConfig {
   name: string;
@@ -42,7 +46,7 @@ function buildServicesFromApi(d: Record<string, unknown>): ServiceConfig[] {
   return [
     {
       name: 'adminPage.dashboard.goEngine',
-url: 'http://127.0.0.1:15004',
+      url: 'http://127.0.0.1:15004',
       status: svc?.go_engine?.status === 'healthy' ? 'healthy' : 'down',
       version: svc?.go_engine?.version,
     },
@@ -64,29 +68,27 @@ url: 'http://127.0.0.1:15004',
 function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <Card className="p-4">
       <div className="mb-4 flex items-center gap-2">
-        <Server className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-semibold text-slate-800">
-          {t('adminPage.settings.serviceConfig')}
-        </h2>
+        <Server className="h-4 w-4 text-fg-tertiary" />
+        <h2 className="text-sm font-semibold text-fg">{t('adminPage.settings.serviceConfig')}</h2>
       </div>
       <div className="space-y-3">
         {services.map((service) => (
           <div
             key={service.name}
-            className="flex items-center justify-between rounded-lg border border-slate-100 p-3"
+            className="flex items-center justify-between rounded-lg border border-border-subtle p-3"
           >
             <div>
-              <p className="text-sm font-medium text-slate-700">{t(service.name)}</p>
-              <p className="text-xs text-slate-400">{service.url}</p>
+              <p className="text-sm font-medium text-fg-secondary">{t(service.name)}</p>
+              <p className="text-xs text-fg-tertiary">{service.url}</p>
             </div>
             <div className="flex items-center gap-3">
               {service.version && (
-                <span className="text-xs text-slate-400">v{service.version}</span>
+                <span className="text-xs text-fg-tertiary">v{service.version}</span>
               )}
               <span
-                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${service.status === 'healthy' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}
+                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${service.status === 'healthy' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}
               >
                 {service.status === 'healthy'
                   ? t('adminPage.settings.statusOnline')
@@ -96,7 +98,7 @@ function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -104,32 +106,30 @@ function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
 function RuntimeEnvSection({ config }: { config: AppConfig }) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <Card className="p-4">
       <div className="mb-4 flex items-center gap-2">
-        <Settings className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-semibold text-slate-800">
-          {t('adminPage.settings.runtimeEnv')}
-        </h2>
+        <Settings className="h-4 w-4 text-fg-tertiary" />
+        <h2 className="text-sm font-semibold text-fg">{t('adminPage.settings.runtimeEnv')}</h2>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div>
-          <p className="text-xs text-slate-500">{t('adminPage.settings.nodeVersion')}</p>
-          <p className="text-sm font-medium text-slate-700">{config.nodeVersion}</p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-500">{t('adminPage.settings.runMode')}</p>
-          <p className="text-sm font-medium text-slate-700">{config.nodeEnv}</p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-500">{t('adminPage.settings.pid')}</p>
-          <p className="text-sm font-medium text-slate-700">-</p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-500">{t('adminPage.settings.platform')}</p>
-          <p className="text-sm font-medium text-slate-700">{navigator.platform || '-'}</p>
-        </div>
+        <Field>
+          <FieldLabel>{t('adminPage.settings.nodeVersion')}</FieldLabel>
+          <p className="text-body text-fg">{config.nodeVersion}</p>
+        </Field>
+        <Field>
+          <FieldLabel>{t('adminPage.settings.runMode')}</FieldLabel>
+          <p className="text-body text-fg">{config.nodeEnv}</p>
+        </Field>
+        <Field>
+          <FieldLabel>{t('adminPage.settings.pid')}</FieldLabel>
+          <p className="text-body text-fg">-</p>
+        </Field>
+        <Field>
+          <FieldLabel>{t('adminPage.settings.platform')}</FieldLabel>
+          <p className="text-body text-fg">{navigator.platform || '-'}</p>
+        </Field>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -142,31 +142,26 @@ interface DataManagementProps {
 function DataManagementSection({ onClearCache, onRestart }: DataManagementProps) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <Card className="p-4">
       <div className="mb-4 flex items-center gap-2">
-        <Database className="h-4 w-4 text-slate-400" />
-        <h2 className="text-sm font-semibold text-slate-800">
-          {t('adminPage.settings.dataManagement')}
-        </h2>
+        <Database className="h-4 w-4 text-fg-tertiary" />
+        <h2 className="text-sm font-semibold text-fg">{t('adminPage.settings.dataManagement')}</h2>
       </div>
       <div className="flex flex-wrap gap-3">
         <button
           onClick={onClearCache}
-          className="flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-700 hover:bg-orange-100"
+          className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-sm font-medium text-warning hover:bg-warning/20"
         >
           <RotateCcw className="h-4 w-4" />
           {t('adminPage.settings.refetchData')}
         </button>
-        <button
-          onClick={() => onRestart('Go')}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
+        <Button variant="secondary" onClick={() => onRestart('Go')}>
           <RefreshCw className="h-4 w-4" />
           {t('adminPage.settings.refreshGoCache')}
-        </button>
+        </Button>
       </div>
-      <p className="mt-3 text-xs text-slate-400">{t('adminPage.settings.dataManagementHint')}</p>
-    </div>
+      <p className="mt-3 text-xs text-fg-tertiary">{t('adminPage.settings.dataManagementHint')}</p>
+    </Card>
   );
 }
 
@@ -174,27 +169,25 @@ function DataManagementSection({ onClearCache, onRestart }: DataManagementProps)
 function ArchitectureSection() {
   const { t } = useTranslation();
   const items = [
-    { color: 'bg-blue-500', text: t('adminPage.settings.archGoEngine') },
-    { color: 'bg-green-500', text: t('adminPage.settings.archGoData') },
-    { color: 'bg-yellow-500', text: t('adminPage.settings.archNode') },
+    { color: 'bg-brand', text: t('adminPage.settings.archGoEngine') },
+    { color: 'bg-success', text: t('adminPage.settings.archGoData') },
+    { color: 'bg-warning', text: t('adminPage.settings.archNode') },
     { color: 'bg-purple-500', text: t('adminPage.settings.archVite') },
   ];
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-      <h2 className="mb-4 text-sm font-semibold text-slate-800">
-        {t('adminPage.settings.architecture')}
-      </h2>
-      <div className="space-y-2 text-sm text-slate-600">
+    <Card className="p-4">
+      <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.settings.architecture')}</h2>
+      <div className="space-y-2 text-sm text-fg-secondary">
         {items.map((item, i) => (
           <div key={i} className="flex items-start gap-2">
             <span className={`mt-0.5 inline-block h-2 w-2 rounded-full ${item.color}`} />
             <p>
-              <strong>{item.text.split('—')[0].trim()}</strong> — {item.text.split('—')[1]?.trim()}
+              <strong>{item.text.split('-')[0].trim()}</strong> - {item.text.split('-')[1]?.trim()}
             </p>
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -216,7 +209,7 @@ export default function SystemSettings() {
         }
       }
     } catch (e) {
-      console.error('Failed to fetch config:', e);
+      reportError(e, { component: 'SystemSettings', action: 'fetchConfig' });
       useToastStore.getState().addToast('error', t('adminPage.settings.loadFailed'));
     }
     setLoading(false);
@@ -250,15 +243,11 @@ export default function SystemSettings() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <button
-          onClick={fetchConfig}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50"
-        >
+        <Button variant="secondary" onClick={fetchConfig} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           {t('adminPage.monitor.refresh')}
-        </button>
-        {saveMsg && <span className="text-sm font-medium text-blue-600">{saveMsg}</span>}
+        </Button>
+        {saveMsg && <span className="text-sm font-medium text-brand">{saveMsg}</span>}
       </div>
 
       <ServiceConfigSection services={config.services} />

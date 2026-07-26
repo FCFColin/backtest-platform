@@ -22,6 +22,7 @@ import {
   getProcessedJobResult,
 } from './jobIdempotency.js';
 import { executeOptimization } from '../application/optimize-service.js';
+import { runPortfolioBacktest } from '../application/backtest-service.js';
 import { executeGridSearch } from '../application/grid-application-service.js';
 import { save } from '../repositories/backtestRunRepo.js';
 import { Run } from '../domain/aggregates/run.js';
@@ -163,6 +164,32 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   logger.info({ type, jobId }, '[worker] 开始处理任务');
 
   try {
+    // P0-03: portfolio 回测异步执行分支。需要 job 对象以上报进度，故不能复用 JOB_HANDLERS 签名。
+    // runPortfolioBacktest 内部已发布 BacktestCompleted 事件（BacktestCompletedHandler 持久化到 backtest_runs），
+    // 故此处无需再调用 persistRunIfTenant，避免重复落库。
+    if (type === 'portfolio') {
+      const portfolioPayload = payload as {
+        portfolios: unknown[];
+        parameters: Record<string, unknown>;
+      };
+      const { result, warnings, dateRange } = await runPortfolioBacktest({
+        portfolios: portfolioPayload.portfolios as Parameters<
+          typeof runPortfolioBacktest
+        >[0]['portfolios'],
+        parameters: portfolioPayload.parameters as unknown as Parameters<
+          typeof runPortfolioBacktest
+        >[0]['parameters'],
+        tenantId: job.data.tenantId,
+        ownerUserId: job.data.ownerUserId ?? undefined,
+        onProgress: (pct: number) => {
+          void job.updateProgress(pct);
+        },
+      });
+      const portfolioResult = { data: result, warnings, dateRange };
+      await markJobProcessed(jobId, portfolioResult as Record<string, unknown>);
+      return { status: 'completed', result: portfolioResult };
+    }
+
     const handler = JOB_HANDLERS[type];
     if (handler) {
       const result = await handler(payload);

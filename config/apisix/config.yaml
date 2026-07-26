@@ -1,0 +1,48 @@
+# =============================================================================
+# APISIX 配置文件（P2-01 T2）
+# =============================================================================
+# Standalone 模式：无需 etcd，配置通过 YAML 文件管理。
+# 企业理由：Standalone 模式减少本地开发依赖（无 etcd），同时保留 APISIX 核心
+# 能力（路由/限流/WAF/可观测性）。生产环境可切换至 etcd 模式实现动态配置。
+#
+# 插件列表：仅启用必要插件，减少攻击面。
+# =============================================================================
+
+apisix:
+  node_listen: 9080
+  enable_ipv6: false
+  enable_control: true
+  control:
+    ip: '0.0.0.0'
+    port: 9092
+
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: yaml
+
+# 插件列表（仅启用必要插件）
+plugins:
+  - limit-req # 请求速率限流（令牌桶）
+  - limit-count # 请求计数限流（滑动窗口）
+  - prometheus # Prometheus 指标导出
+  - opentelemetry # OpenTelemetry 分布式追踪
+  - request-id # 请求 ID 注入（关联日志/追踪）
+  - cors # CORS 跨域控制
+  - response-rewrite # 响应头重写（安全头注入）
+  - proxy-rewrite # 请求重写（路径/头部）
+  - jwt-auth # JWT 鉴权（可选，当前保持在 Express 层）
+
+# OTel 插件配置（P2-01 T6）
+plugin_attr:
+  prometheus:
+    export_addr:
+      ip: '0.0.0.0'
+      port: 9091
+    export_uri: /apisix/prometheus/metrics
+  opentelemetry:
+    resource:
+      service.name: apisix-gateway
+    collector:
+      address: otel-collector:4317
+      request_timeout: 3

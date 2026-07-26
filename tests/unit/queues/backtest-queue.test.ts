@@ -121,7 +121,7 @@ describe('createBacktestWorker', () => {
       'backtest-compute',
       processFn,
       expect.objectContaining({
-        concurrency: 3,
+        concurrency: 4,
       }),
     );
   });
@@ -213,14 +213,14 @@ describe('createBacktestWorker', () => {
     );
   });
 
-  it('应使用 concurrency=3', () => {
+  it('应使用 concurrency=4 (WORKER_CONCURRENCY 默认值)', () => {
     const processFn = vi.fn();
     createBacktestWorker(processFn);
 
     expect(WorkerMock).toHaveBeenCalledWith(
       expect.any(String),
       expect.any(Function),
-      expect.objectContaining({ concurrency: 3 }),
+      expect.objectContaining({ concurrency: 4 }),
     );
   });
 
@@ -229,7 +229,7 @@ describe('createBacktestWorker', () => {
     createBacktestWorker(processFn);
 
     expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.objectContaining({ module: 'backtestQueue', concurrency: 3 }),
+      expect.objectContaining({ module: 'backtestQueue', concurrency: 4 }),
       'Creating BullMQ worker...',
     );
     expect(loggerMocks.info).toHaveBeenCalledWith(

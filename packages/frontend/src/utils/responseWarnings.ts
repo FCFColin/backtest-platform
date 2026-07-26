@@ -32,7 +32,9 @@ export function processResponseWarnings(json: Record<string, unknown>): WarningI
         const key = getWarningI18nKey(warn.code);
         const params = getWarningInterpolationParams(warn);
         const message = i18n.t(key, params);
-        useToastStore.getState().addToast('warning', warn.message ? `${message} — ${warn.message}` : message);
+        useToastStore
+          .getState()
+          .addToast('warning', warn.message ? `${message} - ${warn.message}` : message);
       }
     }
   }
@@ -46,10 +48,13 @@ export function processResponseWarnings(json: Record<string, unknown>): WarningI
  * @param warnings - 已解析的警告列表（用于回退查找）
  * @returns 日期范围信息，无则 null
  */
-export function extractDateRange(json: Record<string, unknown>, warnings: WarningInfo[]): DateRangeInfo | null {
+export function extractDateRange(
+  json: Record<string, unknown>,
+  warnings: WarningInfo[],
+): DateRangeInfo | null {
   const dr = json.dateRange as DateRangeInfo | undefined;
   if (dr) return dr;
-  const clampedWarn = warnings.find(w => w.code === 'DATE_RANGE_CLAMPED');
+  const clampedWarn = warnings.find((w) => w.code === 'DATE_RANGE_CLAMPED');
   if (clampedWarn) {
     return {
       requested: { start: clampedWarn.requestedStart || '', end: clampedWarn.requestedEnd || '' },

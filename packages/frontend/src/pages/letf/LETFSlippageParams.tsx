@@ -83,6 +83,57 @@ function LeverageSelector({ leverage, onChange }: LeverageSelectorProps) {
   );
 }
 
+/** LETF 代码 / 基准代码 / 杠杆倍数 三列字段组 */
+function LetfTickerGrid({
+  letfTicker,
+  benchmarkTicker,
+  leverage,
+  onLetfTickerChange,
+  onBenchmarkTickerChange,
+  onLeverageChange,
+}: Pick<
+  LETFParamsProps,
+  | 'letfTicker'
+  | 'benchmarkTicker'
+  | 'leverage'
+  | 'onLetfTickerChange'
+  | 'onBenchmarkTickerChange'
+  | 'onLeverageChange'
+>) {
+  const { t } = useTranslation();
+  const letfId = useId();
+  const benchId = useId();
+  const levId = useId();
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <Field>
+        <FieldLabel htmlFor={letfId}>{t('letf.etf.letfTicker')}</FieldLabel>
+        <Input
+          id={letfId}
+          type="text"
+          value={letfTicker}
+          onChange={(e) => onLetfTickerChange(e.target.value)}
+          placeholder={t('letf.etf.letfTickerPlaceholder')}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={benchId}>{t('letf.etf.benchmarkTicker')}</FieldLabel>
+        <Input
+          id={benchId}
+          type="text"
+          value={benchmarkTicker}
+          onChange={(e) => onBenchmarkTickerChange(e.target.value)}
+          placeholder={t('letf.etf.benchmarkTickerPlaceholder')}
+        />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={levId}>{t('letf.etf.leverage')}</FieldLabel>
+        <LeverageSelector leverage={leverage} onChange={onLeverageChange} />
+      </Field>
+    </div>
+  );
+}
+
 /**
  * LETF Slippage 参数面板。
  *
@@ -92,55 +143,20 @@ function LeverageSelector({ leverage, onChange }: LeverageSelectorProps) {
  * @returns 渲染的参数面板
  */
 export function LETFParamsPanel({
-  letfTicker,
-  benchmarkTicker,
-  leverage,
   startDate,
   endDate,
   isLoading,
-  onLetfTickerChange,
-  onBenchmarkTickerChange,
-  onLeverageChange,
   onStartDateChange,
   onEndDateChange,
   onRun,
+  ...rest
 }: LETFParamsProps) {
   const { t } = useTranslation();
-  const letfId = useId();
-  const benchId = useId();
-  const levId = useId();
   const startId = useId();
   const endId = useId();
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Field>
-          <FieldLabel htmlFor={letfId}>{t('letf.etf.letfTicker')}</FieldLabel>
-          <Input
-            id={letfId}
-            type="text"
-            value={letfTicker}
-            onChange={(e) => onLetfTickerChange(e.target.value)}
-            placeholder={t('letf.etf.letfTickerPlaceholder')}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={benchId}>{t('letf.etf.benchmarkTicker')}</FieldLabel>
-          <Input
-            id={benchId}
-            type="text"
-            value={benchmarkTicker}
-            onChange={(e) => onBenchmarkTickerChange(e.target.value)}
-            placeholder={t('letf.etf.benchmarkTickerPlaceholder')}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={levId}>{t('letf.etf.leverage')}</FieldLabel>
-          <LeverageSelector leverage={leverage} onChange={onLeverageChange} />
-        </Field>
-      </div>
-
+      <LetfTickerGrid {...rest} />
       <div className="grid grid-cols-2 gap-4">
         <Field>
           <FieldLabel htmlFor={startId}>{t('letf.dateRange.startDate')}</FieldLabel>
@@ -161,7 +177,6 @@ export function LETFParamsPanel({
           />
         </Field>
       </div>
-
       <div>
         <Button variant="primary" onClick={onRun} disabled={isLoading}>
           {isLoading ? (

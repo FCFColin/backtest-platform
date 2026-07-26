@@ -151,7 +151,7 @@ function AnnualReturnTableRow({
               borderBottom: '1px solid var(--border-soft)',
             }}
           >
-            {val !== undefined ? `${val.toFixed(2)}%` : '—'}
+            {val !== undefined ? `${val.toFixed(2)}%` : '-'}
           </td>
         );
       })}

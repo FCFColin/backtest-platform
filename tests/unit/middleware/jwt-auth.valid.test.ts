@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createLoggerMocks,
   createRedisMocks,
@@ -24,6 +24,14 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     { withStore: true, withSets: true, withHandlers: true, withMemoryHelpers: true },
     redisMocks,
   ),
+  getRedisHealth: vi.fn(async () => {
+    try {
+      return (await redisMocks.ping()) === 'PONG';
+    } catch {
+      return false;
+    }
+  }),
+  markRedisUnhealthy: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({
@@ -49,6 +57,7 @@ import {
   jwtAuth,
   optionalJwtAuth,
 } from '../../../packages/backend/src/middleware/jwtAuth.js';
+import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
 import {
   createJwtAuthMockRequest,
@@ -57,16 +66,12 @@ import {
   awaitMiddleware,
 } from '../../helpers/expressMocks.js';
 
-const capturedRedisHandlers = (() => {
-  const ready = redisMocks.on.mock.calls.find(([ev]) => ev === 'ready')?.[1] as
-    (() => void) | undefined;
-  const error = redisMocks.on.mock.calls.find(([ev]) => ev === 'error')?.[1] as
-    (() => void) | undefined;
-  return { ready, error };
-})();
-
 describe('JWT Token 生成与验证', () => {
   const roles = ['admin', 'analyst', 'readonly'] as const;
+
+  beforeEach(() => {
+    redisMocks.useRedisSuccess();
+  });
 
   it.each(roles)('应为 %s 角色生成有效 token', async (role) => {
     const token = await generateToken('user-1', role);
@@ -119,7 +124,7 @@ describe('JWT Token 生成与验证', () => {
 
 describe('Refresh Token 生命周期', () => {
   beforeEach(() => {
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
   });
 
   it('生成 refresh token 后应可刷新', async () => {
@@ -263,28 +268,20 @@ describe('Refresh Token Redis 成功路径', () => {
     expect(afterFamilyRevoke).toBeNull();
   });
 
-  it('Redis set 失败时应回退到内存并仍可刷新', async () => {
-    redisMocks.ping.mockResolvedValue('PONG');
+  it('Redis set 失败时应抛出 RedisUnavailableError（ADR-045：不再降级内存）', async () => {
+    redisMocks.useRedisSuccess();
     redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed'));
-    redisMocks.get.mockImplementation((key: string) =>
-      Promise.resolve(redisMocks.store.get(key) ?? null),
-    );
-    redisMocks.del.mockImplementation((key: string) => {
-      redisMocks.store.delete(key);
-      return Promise.resolve(1);
-    });
 
-    const refreshToken = await generateRefreshToken('user-fallback', 'admin');
-    redisMocks.ping.mockRejectedValue(new Error('Redis down'));
-    const result = await refreshAccessToken(refreshToken);
-    expect(result).not.toBeNull();
+    await expect(generateRefreshToken('user-fallback', 'admin')).rejects.toThrow(
+      RedisUnavailableError,
+    );
   });
 });
 
 describe('optionalJwtAuth 中间件', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisMocks.useMemoryFallback();
+    redisMocks.useRedisSuccess();
     mocks.config.NODE_ENV = 'production';
     mocks.config.JWT_ALGORITHM = 'HS256';
     vi.mocked(getUserById).mockImplementation(async (id: string) => ({
@@ -329,6 +326,7 @@ describe('optionalJwtAuth 中间件', () => {
 describe('jwtAuth Redis 边界与 PEM 路径', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    redisMocks.useRedisSuccess();
     mocks.config.NODE_ENV = 'production';
     mocks.config.JWT_SECRET = 'test-jwt-secret-for-unit-tests';
     mocks.config.JWT_ALGORITHM = 'HS256';
@@ -341,38 +339,21 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
     }));
   });
 
-  it('Redis ready/error 事件应更新可用性标志', async () => {
-    expect(capturedRedisHandlers.ready).toBeTypeOf('function');
-    expect(capturedRedisHandlers.error).toBeTypeOf('function');
-
-    redisMocks.useRedisSuccess();
-    capturedRedisHandlers.ready!();
-    const tokenAfterReady = await generateRefreshToken('redis-ready-user', 'admin');
-    expect(tokenAfterReady).toBeTruthy();
-
-    capturedRedisHandlers.error!();
-    redisMocks.ping.mockRejectedValueOnce(new Error('redis down after error event'));
-    const tokenAfterError = await generateRefreshToken('redis-error-user', 'analyst');
-    expect(tokenAfterError).toBeTruthy();
+  it('Redis 健康时 generateRefreshToken 应正常工作（ADR-045：健康检测由 redisClient 集中管理）', async () => {
+    const token = await generateRefreshToken('redis-healthy-user', 'admin');
+    expect(token).toBeTruthy();
+    expect(redisMocks.set).toHaveBeenCalled();
   });
 
-  it('Redis refresh 读取异常应回退内存并仍可刷新', async () => {
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.set.mockRejectedValueOnce(new Error('Redis write failed on generate'));
-    const refreshToken = await generateRefreshToken('redis-refresh-fallback', 'admin');
-
-    redisMocks.useRedisSuccess();
+  it('Redis refresh 读取异常应抛出 RedisUnavailableError（ADR-045：不再降级内存）', async () => {
+    const refreshToken = await generateRefreshToken('redis-refresh-error', 'admin');
     redisMocks.get.mockRejectedValueOnce(new Error('Redis read failed during refresh'));
-
-    const result = await refreshAccessToken(refreshToken);
-    expect(result).not.toBeNull();
-    expect(result!.accessToken).toBeTruthy();
+    await expect(refreshAccessToken(refreshToken)).rejects.toThrow(RedisUnavailableError);
   });
 
-  it('内存模式 refresh token 过期后应返回 null', async () => {
+  it('Redis 模式 refresh token 过期后应返回 null', async () => {
     vi.useFakeTimers();
-    redisMocks.useMemoryFallback();
-    const refreshToken = await generateRefreshToken('expired-memory-user', 'admin');
+    const refreshToken = await generateRefreshToken('expired-redis-user', 'admin');
     vi.advanceTimersByTime((mocks.config.JWT_REFRESH_TTL + 60) * 1000);
 
     const result = await refreshAccessToken(refreshToken);
@@ -381,7 +362,6 @@ describe('jwtAuth Redis 边界与 PEM 路径', () => {
   });
 
   it('Bearer 认证成功应注入脱敏日志上下文', async () => {
-    redisMocks.useMemoryFallback();
     const token = await generateToken('log-context-user', 'admin');
     const childFn = vi.fn(() => ({ info: vi.fn(), warn: vi.fn() }));
     const req = createJwtAuthMockRequest({

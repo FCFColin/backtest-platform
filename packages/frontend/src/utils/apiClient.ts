@@ -34,9 +34,8 @@ function getApiKey(): string {
   try {
     const stored = sessionStorage.getItem(ADMIN_API_KEY_STORAGE);
     if (stored) return atob(stored);
-  } catch {
-    /* ignore */
-  }
+    // eslint-disable-next-line no-empty -- sessionStorage 可能不可用（隐私模式/SSR），静默回退到 localStorage
+  } catch {}
 
   // 2. localStorage（持久化回退）
   try {
@@ -93,11 +92,12 @@ async function handleResponseToast(res: Response): Promise<void> {
     }
     if (body?.degraded === true) {
       const warning = body.degradedWarning;
-      useToastStore.getState().addToast('warning', typeof warning === 'string' ? warning : i18n.t('errors.dataDegraded'));
+      useToastStore
+        .getState()
+        .addToast('warning', typeof warning === 'string' ? warning : i18n.t('errors.dataDegraded'));
     }
-  } catch {
-    /* non-JSON response */
-  }
+    // eslint-disable-next-line no-empty -- 非 JSON 响应体无法解析为 { error, degraded } 结构，跳过 Toast 处理
+  } catch {}
 }
 
 export async function apiFetch(
@@ -144,6 +144,72 @@ export async function apiPostJSON<T>(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.success === false) throw new Error(json.error || errorMsg);
+  return json.data as T;
+}
+
+/**
+ * GET JSON 请求封装（基于 apiFetch）。
+ *
+ * @typeParam T - 期望的 `data` 字段类型
+ * @param url - 请求 URL
+ * @param errorMsg - 兜底错误消息
+ * @returns 响应体的 `data` 字段
+ * @throws {Error} HTTP 非 2xx 或 `success=false` 时抛错
+ */
+export async function apiGetJSON<T>(
+  url: string,
+  errorMsg = i18n.t('errors.requestFailed'),
+): Promise<T> {
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.success === false) throw new Error(json.error || errorMsg);
+  return json.data as T;
+}
+
+/**
+ * PUT JSON 请求封装（基于 apiFetch）。
+ *
+ * @typeParam T - 期望的 `data` 字段类型
+ * @param url - 请求 URL
+ * @param body - 请求体对象
+ * @param errorMsg - 兜底错误消息
+ * @returns 响应体的 `data` 字段
+ * @throws {Error} HTTP 非 2xx 或 `success=false` 时抛错
+ */
+export async function apiPutJSON<T>(
+  url: string,
+  body: unknown,
+  errorMsg = i18n.t('errors.requestFailed'),
+): Promise<T> {
+  const res = await apiFetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  if (json.success === false) throw new Error(json.error || errorMsg);
+  return json.data as T;
+}
+
+/**
+ * DELETE 请求封装（基于 apiFetch）。
+ *
+ * @typeParam T - 期望的 `data` 字段类型
+ * @param url - 请求 URL
+ * @param errorMsg - 兜底错误消息
+ * @returns 响应体的 `data` 字段
+ * @throws {Error} HTTP 非 2xx 或 `success=false` 时抛错
+ */
+export async function apiDeleteJSON<T>(
+  url: string,
+  errorMsg = i18n.t('errors.requestFailed'),
+): Promise<T> {
+  const res = await apiFetch(url, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (json.success === false) throw new Error(json.error || errorMsg);

@@ -11,7 +11,11 @@
  * 合并后削减 ~300 行重复代码，同时按职责聚合断言。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks, createConfigMocks, createRedisModuleMock } from '../../helpers/mockFactories.js';
+import {
+  createLoggerMocks,
+  createConfigMocks,
+  createRedisModuleMock,
+} from '../../helpers/mockFactories.js';
 import {
   setupHttpGetSuccess as makeHttpSuccess,
   setupHttpGetError as makeHttpError,
@@ -142,8 +146,8 @@ describe('fetchHistoryData', () => {
     circuitBreakerMocks.instance.opened = false;
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
     tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: [], invalid: [] });
-    tickerValidationMocks.isValidTicker.mockImplementation(
-      (ticker: string) => /^[A-Z0-9._-]{1,20}$/.test(ticker),
+    tickerValidationMocks.isValidTicker.mockImplementation((ticker: string) =>
+      /^[A-Z0-9._-]{1,20}$/.test(ticker),
     );
     fsMocks.existsSync.mockReturnValue(false);
   });
@@ -274,8 +278,8 @@ describe('validateTickers', () => {
     vi.clearAllMocks();
     circuitBreakerMocks.instance.opened = false;
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
-    tickerValidationMocks.isValidTicker.mockImplementation(
-      (ticker: string) => /^[A-Z0-9._-]{1,20}$/.test(ticker),
+    tickerValidationMocks.isValidTicker.mockImplementation((ticker: string) =>
+      /^[A-Z0-9._-]{1,20}$/.test(ticker),
     );
     fsMocks.existsSync.mockReturnValue(false);
   });
@@ -341,8 +345,8 @@ describe('validateTickers 边界场景', () => {
     vi.clearAllMocks();
     circuitBreakerMocks.instance.opened = false;
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
-    tickerValidationMocks.isValidTicker.mockImplementation(
-      (ticker: string) => /^[A-Z0-9._-]{1,20}$/.test(ticker),
+    tickerValidationMocks.isValidTicker.mockImplementation((ticker: string) =>
+      /^[A-Z0-9._-]{1,20}$/.test(ticker),
     );
     fsMocks.existsSync.mockReturnValue(false);
     redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
@@ -458,7 +462,7 @@ describe('searchTickers', () => {
     expect(loggerMocks.warn).toHaveBeenCalled();
   });
 
-  it('DB 失败且磁盘缓存未命中时应调用 Go 数据服务', async () => {
+  it('DB 失败且缓存未命中时应调用 Go 数据服务', async () => {
     circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down'));
     fsMocks.existsSync.mockReturnValue(false);
     httpMocks.request.mockImplementation(
@@ -474,7 +478,6 @@ describe('searchTickers', () => {
 
     expect(result).toEqual([{ ticker: 'AAPL', name: 'Apple', market: '美股' }]);
     expect(httpMocks.request).toHaveBeenCalled();
-    expect(integrityMocks.signFile).toHaveBeenCalled();
   });
 
   it('DB 与 Go 数据服务均失败时应返回空数组', async () => {
@@ -507,36 +510,39 @@ describe('缓存失效函数', () => {
     vi.clearAllMocks();
     circuitBreakerMocks.instance.opened = false;
     redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.emit('ready');
-    fsMocks.existsSync.mockReturnValue(true);
-    fsPromisesMocks.readdir.mockResolvedValue([]);
-    fsPromisesMocks.readFile.mockResolvedValue('0');
+    redisMocks.scan.mockResolvedValue(['0', []]);
   });
 
-  it('按 ticker 失效时应清除内存缓存并删除相关磁盘文件', async () => {
-    fsPromisesMocks.readdir.mockResolvedValue([
-      'history_AAPL=tickers_AAPL&start=2024-01-01.json',
-      'other.json',
-    ]);
+  it('按 ticker 失效时应删除 Redis 价格缓存及相关 key', async () => {
+    redisMocks.scan.mockImplementation(async (...args: unknown[]) => {
+      const pattern = String(args[2]);
+      if (pattern.includes(':price:')) return ['0', ['cache:org:shared:price:AAPL']];
+      return ['0', []];
+    });
 
     await invalidateTickerCache('AAPL');
 
     expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('ticker=AAPL'));
-    expect(fsPromisesMocks.unlink).toHaveBeenCalledTimes(1);
-    expect(redisMocks.del).toHaveBeenCalledWith('price_cache:AAPL');
+    expect(redisMocks.del).toHaveBeenCalledWith('cache:org:shared:price:ticker=AAPL');
   });
 
-  it('全量失效时应递增版本号并清空缓存', async () => {
-    redisMocks.scan.mockResolvedValue(['0', ['price_cache:AAPL', 'price_cache:BND']]);
+  it('全量失效时应清空 L1 并删除 Redis 缓存', async () => {
+    redisMocks.scan.mockResolvedValue([
+      '0',
+      ['cache:org:shared:price:AAPL', 'cache:org:shared:price:BND'],
+    ]);
 
     await invalidateAllCache();
 
-    expect(fsPromisesMocks.writeFile).toHaveBeenCalled();
-    expect(redisMocks.del).toHaveBeenCalledWith('price_cache:AAPL', 'price_cache:BND');
+    expect(redisMocks.del).toHaveBeenCalledWith(
+      'cache:org:shared:price:AAPL',
+      'cache:org:shared:price:BND',
+    );
     expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('全量失效'));
   });
 
-  it('Redis 删除失败时应降级到内存路径且不抛出', async () => {
+  it('Redis 删除失败时应降级且不抛出', async () => {
+    redisMocks.scan.mockResolvedValue(['0', ['cache:org:shared:price:AAPL']]);
     redisMocks.del.mockRejectedValueOnce(new Error('redis del failed'));
 
     await expect(invalidateTickerCache('AAPL')).resolves.toBeUndefined();
@@ -550,8 +556,7 @@ describe('缓存失效函数', () => {
     expect(loggerMocks.warn).toHaveBeenCalled();
   });
 
-  it('Redis 不可用时按 ticker 失效应降级到内存路径', async () => {
-    redisMocks.emit('error');
+  it('Redis 不可用时按 ticker 失效应降级且不调用 del', async () => {
     redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
 
     await expect(invalidateTickerCache('AAPL')).resolves.toBeUndefined();
@@ -590,24 +595,12 @@ describe('fetchHistoryData 扩展场景', () => {
     expect(result.AAPL).toEqual({ '2024-01-02': 185.5, '2024-01-03': 186.0 });
   });
 
-  it('HMAC 校验失败时应丢弃磁盘缓存并调用 Go 数据服务', async () => {
+  it('Redis 中存在损坏缓存时应跳过缓存调用 Go 数据服务', async () => {
     tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: ['AAPL'], invalid: [] });
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
-    fsMocks.existsSync.mockImplementation((p: string) => {
-      const normalized = String(p).replace(/\\/g, '/');
-      if (normalized.includes('.cache_version')) return false;
-      if (normalized.includes('/data/cache') || normalized.includes('history_')) return true;
-      return false;
-    });
-    integrityMocks.verifyFile.mockResolvedValue(true);
-    integrityMocks.verifyFile.mockImplementation((p: string) => !String(p).includes('history_'));
-    fsPromisesMocks.access.mockRejectedValue(new Error('no file'));
-    // 让 history 缓存文件可通过 access 检查
-    fsPromisesMocks.access.mockImplementation((p: string) => {
-      const normalized = String(p).replace(/\\/g, '/');
-      if (normalized.includes('history_')) return Promise.resolve();
-      return Promise.reject(new Error('no file'));
-    });
+    // Redis 可用但缓存数据损坏（非法 JSON）→ readCache 返回 null → 走 Go 服务
+    redisMocks.ping.mockResolvedValue('PONG');
+    redisMocks.get.mockResolvedValue('{ corrupted json');
     httpMocks.request.mockImplementation(
       makeHttpSuccess(
         JSON.stringify({
@@ -620,17 +613,14 @@ describe('fetchHistoryData 扩展场景', () => {
     const { data: result } = await fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31');
 
     expect(result.AAPL).toEqual({ '2024-01-02': 99.0 });
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ service: 'dataService' }),
-      expect.stringContaining('完整性校验失败'),
-    );
+    expect(httpMocks.request).toHaveBeenCalled();
   });
 
   it('Go 数据服务 HTTP 路径应返回价格并写入缓存', async () => {
     tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: ['MSFT'], invalid: [] });
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
-    fsMocks.existsSync.mockReturnValue(false);
-    fsPromisesMocks.access.mockRejectedValue(new Error('no file'));
+    redisMocks.ping.mockResolvedValue('PONG');
+    redisMocks.get.mockResolvedValue(null);
     httpMocks.request.mockImplementation(
       makeHttpSuccess(
         JSON.stringify({
@@ -651,7 +641,8 @@ describe('fetchHistoryData 扩展场景', () => {
       expect.any(Object),
       expect.any(Function),
     );
-    expect(fsPromisesMocks.writeFile).toHaveBeenCalled();
+    // Go 结果应写入 Redis 缓存（价格缓存 + history 缓存）
+    expect(redisMocks.set).toHaveBeenCalled();
   });
 
   it('Go 数据服务 HTTP 非 2xx 时应记录 warn 并返回空', async () => {
@@ -712,19 +703,14 @@ describe('fetchHistoryData 扩展场景', () => {
     expect(r2.BND).toEqual({ '2024-01-02': 72.3 });
   });
 
-  it('磁盘 history 缓存命中时应直接返回', async () => {
+  it('Redis history 缓存命中时应直接返回', async () => {
     tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: ['CACHED'], invalid: [] });
     circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
     const cachedGo = { CACHED: { '2024-01-02': 50.0 } };
-    fsMocks.existsSync.mockReturnValue(true);
-    fsPromisesMocks.access.mockResolvedValue(undefined);
-    integrityMocks.verifyFile.mockResolvedValue(true);
-    fsPromisesMocks.readFile.mockImplementation((p: string) => {
-      if (String(p).includes('history_')) {
-        return Promise.resolve(JSON.stringify({ __cacheVersion: 0, __data: cachedGo }));
-      }
-      return Promise.resolve('0');
-    });
+    redisMocks.ping.mockResolvedValue('PONG');
+    redisMocks.get.mockImplementation(async (key: string) =>
+      String(key).includes(':history:') ? JSON.stringify(cachedGo) : null,
+    );
 
     const { data: result } = await fetchHistoryData(['CACHED'], '2024-01-01', '2024-01-31');
 

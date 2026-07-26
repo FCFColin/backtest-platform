@@ -1,0 +1,189 @@
+/**
+ * 统一 CSS 主题变量系统（P3-3）
+ *
+ * 设计要点：
+ * - HSL 通道变量（--app, --surface, --fg, --brand 等）供 Tailwind 使用，格式为 `H S% L%`
+ * - Hex 变量（--bg-app, --text-strong, --color-brand 等）供组件 CSS 直接使用
+ * - 亮色主题为默认（:root），暗色主题通过 [data-theme="dark"] 切换
+ * - .dark 选择器保留向后兼容（Tailwind darkMode 及遗留 CSS）
+ * - 冲突变量（--brand, --success, --danger, --warning, --input-bg, --border-strong, --brand-hover）
+ *   统一使用 HSL 通道值；组件 CSS 中直接使用这些变量时须包裹 hsl()
+ */
+
+/* ============================================
+   亮色主题（默认）
+   ============================================ */
+:root {
+  /* --- HSL 通道变量（Tailwind 系统）--- */
+  --app: 213 33% 96%;
+  --surface: 0 0% 100%;
+  --elevated: 210 40% 96%;
+  --input-bg: 210 40% 98%;
+  --hover: 220 38% 93%;
+
+  --border-subtle: 214 20% 91%;
+  --border: 213 14% 84%;
+  --border-strong: 213 14% 84%;
+
+  --fg: 222 47% 11%;
+  --fg-secondary: 217 19% 35%;
+  --fg-tertiary: 217 20% 65%;
+  --fg-disabled: 217 20% 65%;
+
+  --brand: 217 91% 53%;
+  --brand-hover: 221 83% 48%;
+  --brand-active: 221 83% 48%;
+  --brand-fg: 0 0% 100%;
+
+  --success: 142 71% 36%;
+  --danger: 0 72% 51%;
+  --warning: 32 95% 44%;
+  --pos: 142 71% 36%;
+  --neg: 0 72% 51%;
+
+  /* shadcn 兼容映射 */
+  --background: var(--app);
+  --foreground: var(--fg);
+  --card: var(--surface);
+  --card-foreground: var(--fg);
+  --popover: var(--elevated);
+  --popover-foreground: var(--fg);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-fg);
+  --secondary: var(--input-bg);
+  --secondary-foreground: var(--fg-secondary);
+  --muted: var(--input-bg);
+  --muted-foreground: var(--fg-tertiary);
+  --accent: var(--hover);
+  --accent-foreground: var(--fg);
+  --destructive: var(--danger);
+  --destructive-foreground: 0 0% 98%;
+  --input: var(--border);
+  --ring: var(--brand);
+  --radius: 0.5rem;
+
+  /* --- Hex 变量（组件 CSS 系统）--- */
+  --bg-app: #f0f5fa;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-header: #e5edf7;
+  --bg-drawer: #f8fbfd;
+  --text-strong: #0f172a;
+  --text-body: #475569;
+  --text-muted: #94a3b8;
+  --border-soft: #e2e8f0;
+  --color-brand: #2563eb;
+  --color-brand-hover: #1d4ed8;
+  --color-brand-soft: #dbeafe;
+  --support: #0d9488;
+  --support-soft: #ccfbf1;
+  --color-success: #16a34a;
+  --success-light: rgba(22, 163, 74, 0.12);
+  --color-warning: #d97706;
+  --warning-light: rgba(217, 119, 6, 0.12);
+  --color-danger: #dc2626;
+  --danger-light: rgba(220, 38, 38, 0.12);
+  --corr-positive: #1a7a3a;
+  --corr-negative: #8b2020;
+  --color-input-bg: #f8fafc;
+  --color-border-strong: #cbd5e1;
+
+  /* --- 静态变量 --- */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+  --shadow-card: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-input: 6px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+}
+
+/* ============================================
+   暗色主题
+   ============================================ */
+:root[data-theme='dark'],
+.dark {
+  /* --- HSL 通道变量（Tailwind 系统）--- */
+  --app: 224 15% 5%;
+  --surface: 222 14% 8%;
+  --elevated: 222 13% 10%;
+  --input-bg: 220 13% 13%;
+  --hover: 222 13% 16%;
+
+  --border-subtle: 222 15% 14%;
+  --border: 222 14% 18%;
+  --border-strong: 222 15% 26%;
+
+  --fg: 220 10% 92%;
+  --fg-secondary: 220 9% 66%;
+  --fg-tertiary: 220 9% 46%;
+  --fg-disabled: 220 9% 33%;
+
+  --brand: 217 91% 60%;
+  --brand-hover: 221 83% 53%;
+  --brand-active: 224 76% 48%;
+  --brand-fg: 0 0% 100%;
+
+  --success: 160 84% 39%;
+  --danger: 0 84% 60%;
+  --warning: 38 92% 50%;
+  --pos: 142 71% 45%;
+  --neg: 0 91% 71%;
+
+  /* shadcn 兼容映射 */
+  --background: var(--app);
+  --foreground: var(--fg);
+  --card: var(--surface);
+  --card-foreground: var(--fg);
+  --popover: var(--elevated);
+  --popover-foreground: var(--fg);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-fg);
+  --secondary: var(--input-bg);
+  --secondary-foreground: var(--fg-secondary);
+  --muted: var(--input-bg);
+  --muted-foreground: var(--fg-tertiary);
+  --accent: var(--hover);
+  --accent-foreground: var(--fg);
+  --destructive: var(--danger);
+  --destructive-foreground: 0 0% 98%;
+  --input: var(--border);
+  --ring: var(--brand);
+
+  /* --- Hex 变量（组件 CSS 系统）--- */
+  --bg-app: #0a1320;
+  --bg-elevated: #111b2a;
+  --bg-subtle: #1e293b;
+  --bg-header: #0f172a;
+  --bg-drawer: #131c2f;
+  --text-strong: #f1f5f9;
+  --text-body: #cbd5e1;
+  --text-muted: #64748b;
+  --border-soft: rgba(148, 163, 184, 0.2);
+  --color-brand: #3b82f6;
+  --color-brand-hover: #60a5fa;
+  --color-brand-soft: #1e3a5f;
+  --support: #2dd4bf;
+  --support-soft: #134e4a;
+  --color-success: #34d399;
+  --success-light: rgba(52, 211, 153, 0.12);
+  --color-warning: #fbbf24;
+  --warning-light: rgba(251, 191, 36, 0.12);
+  --color-danger: #f87171;
+  --danger-light: rgba(248, 113, 113, 0.12);
+  --corr-positive: #2d8f4e;
+  --corr-negative: #a04040;
+  --color-input-bg: #1e293b;
+  --color-border-strong: #374151;
+
+  /* --- 暗色主题阴影 --- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
+}

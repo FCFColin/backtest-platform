@@ -1,0 +1,119 @@
+[
+  {
+    "portfolio": {
+      "name": "tech-optimization",
+      "assets": [
+        { "ticker": "AAPL", "weight": 25 },
+        { "ticker": "MSFT", "weight": 25 },
+        { "ticker": "GOOGL", "weight": 25 },
+        { "ticker": "AMZN", "weight": 25 }
+      ]
+    },
+    "parameterSpace": {
+      "rebalanceFrequencies": ["monthly", "quarterly", "annual"],
+      "initialCapital": { "min": 10000, "max": 100000, "step": 10000 }
+    },
+    "parameters": {
+      "startDate": "2015-01-01",
+      "endDate": "2024-12-31",
+      "benchmarkTicker": "SPY",
+      "baseCurrency": "usd",
+      "adjustForInflation": true
+    },
+    "objective": "maxSharpe",
+    "constraints": { "maxDrawdown": 0.3, "minCagr": 0.05 }
+  },
+  {
+    "portfolio": {
+      "name": "diversified-optimization",
+      "assets": [
+        { "ticker": "VTI", "weight": 50 },
+        { "ticker": "BND", "weight": 30 },
+        { "ticker": "GLD", "weight": 20 }
+      ]
+    },
+    "parameterSpace": {
+      "rebalanceFrequencies": ["quarterly", "annual"],
+      "initialCapital": { "min": 50000, "max": 200000, "step": 50000 }
+    },
+    "parameters": {
+      "startDate": "2010-01-01",
+      "endDate": "2024-12-31",
+      "benchmarkTicker": "SPY",
+      "baseCurrency": "usd",
+      "adjustForInflation": false
+    },
+    "objective": "minMaxDrawdown",
+    "constraints": { "minCagr": 0.04 }
+  },
+  {
+    "portfolio": {
+      "name": "growth-optimization",
+      "assets": [
+        { "ticker": "QQQ", "weight": 40 },
+        { "ticker": "VOO", "weight": 40 },
+        { "ticker": "TSLA", "weight": 20 }
+      ]
+    },
+    "parameterSpace": {
+      "rebalanceFrequencies": ["monthly", "quarterly"],
+      "rebalanceThreshold": { "min": 0.05, "max": 0.2, "step": 0.05 },
+      "initialCapital": { "min": 10000, "max": 50000, "step": 10000 }
+    },
+    "parameters": {
+      "startDate": "2018-01-01",
+      "endDate": "2024-12-31",
+      "benchmarkTicker": "QQQ",
+      "baseCurrency": "usd",
+      "adjustForInflation": true
+    },
+    "objective": "maxCagr",
+    "constraints": { "maxDrawdown": 0.35 }
+  },
+  {
+    "portfolio": {
+      "name": "income-optimization",
+      "assets": [
+        { "ticker": "VYM", "weight": 35 },
+        { "ticker": "SCHD", "weight": 35 },
+        { "ticker": "HDV", "weight": 30 }
+      ]
+    },
+    "parameterSpace": {
+      "rebalanceFrequencies": ["quarterly", "annual"],
+      "initialCapital": { "min": 100000, "max": 500000, "step": 100000 }
+    },
+    "parameters": {
+      "startDate": "2012-01-01",
+      "endDate": "2024-12-31",
+      "benchmarkTicker": "VYM",
+      "baseCurrency": "usd",
+      "adjustForInflation": false
+    },
+    "objective": "maxSortino",
+    "constraints": { "minCagr": 0.06 }
+  },
+  {
+    "portfolio": {
+      "name": "global-optimization",
+      "assets": [
+        { "ticker": "VT", "weight": 50 },
+        { "ticker": "BNDX", "weight": 30 },
+        { "ticker": "GLD", "weight": 20 }
+      ]
+    },
+    "parameterSpace": {
+      "rebalanceFrequencies": ["monthly", "quarterly", "annual"],
+      "initialCapital": { "min": 25000, "max": 150000, "step": 25000 }
+    },
+    "parameters": {
+      "startDate": "2014-01-01",
+      "endDate": "2024-12-31",
+      "benchmarkTicker": "VT",
+      "baseCurrency": "usd",
+      "adjustForInflation": true
+    },
+    "objective": "maxSharpe",
+    "constraints": { "maxDrawdown": 0.25, "minCagr": 0.05 }
+  }
+]

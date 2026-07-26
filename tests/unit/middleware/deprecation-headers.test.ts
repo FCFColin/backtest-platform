@@ -1,90 +1,57 @@
 /**
- * P2-05 单元测试：API 弃用响应头中间件
+ * 弃用响应头中间件单元测试（P1-4, ADR-046）
  *
- * 企业理由：弃用头（RFC 8594）是客户端迁移的唯一信号来源，
- * 错误的头值会导致客户端迁移失败或过早放弃兼容端点。
+ * 验证 `createDeprecationMiddleware` 正确设置 RFC 8594 标准的
+ * Deprecation/Sunset/Link 响应头。
  */
-
-import { describe, it, expect, vi } from 'vitest';
-import type { Request, Response, NextFunction } from 'express';
+import { describe, it, expect } from 'vitest';
+import express from 'express';
+import request from 'supertest';
 import { createDeprecationMiddleware } from '../../../packages/backend/src/middleware/deprecationHeaders.js';
 
-function createMockRes(): Response {
-  const headers: Record<string, string> = {};
-  const res = {
-    setHeader: vi.fn((name: string, value: string) => {
-      headers[name] = value;
-    }),
-    getHeader: vi.fn((name: string) => headers[name]),
-    headers,
-  };
-  return res as unknown as Response;
+function createApp(config: Parameters<typeof createDeprecationMiddleware>[0]) {
+  const app = express();
+  app.use('/deprecated', createDeprecationMiddleware(config));
+  app.get('/deprecated', (_req, res) => res.json({ ok: true }));
+  return app;
 }
 
-describe('P2-05: createDeprecationMiddleware', () => {
-  it('应设置 Deprecation 头为指定日期', () => {
-    const middleware = createDeprecationMiddleware({
-      deprecated: '2025-01-01',
-    });
-    const res = createMockRes();
-    const next = vi.fn();
-
-    middleware({} as Request, res, next);
-
-    expect(res.setHeader).toHaveBeenCalledWith('Deprecation', '2025-01-01');
-    expect(next).toHaveBeenCalled();
+describe('createDeprecationMiddleware — RFC 8594 废弃响应头', () => {
+  it('应设置 Deprecation 头为指定日期', async () => {
+    const app = createApp({ deprecated: '2026-01-01' });
+    const res = await request(app).get('/deprecated');
+    expect(res.headers['deprecation']).toBe('2026-01-01');
   });
 
-  it('应设置 Sunset 头（当提供时）', () => {
-    const middleware = createDeprecationMiddleware({
-      deprecated: '2025-01-01',
-      sunset: '2026-01-01',
-    });
-    const res = createMockRes();
-    const next = vi.fn();
-
-    middleware({} as Request, res, next);
-
-    expect(res.setHeader).toHaveBeenCalledWith('Sunset', '2026-01-01');
+  it('应设置 Sunset 头为指定关闭日期', async () => {
+    const app = createApp({ deprecated: 'true', sunset: '2027-01-01' });
+    const res = await request(app).get('/deprecated');
+    expect(res.headers['deprecation']).toBe('true');
+    expect(res.headers['sunset']).toBe('2027-01-01');
   });
 
-  it('应设置 Link 头指向替代端点（当提供 successor 时）', () => {
-    const middleware = createDeprecationMiddleware({
-      deprecated: 'true',
-      successor: '/api/v1/new-endpoint',
+  it('应设置 Link 头指向 successor-version', async () => {
+    const app = createApp({
+      deprecated: '2026-01-01',
+      sunset: '2027-01-01',
+      successor: '/api/v2/new-endpoint',
     });
-    const res = createMockRes();
-    const next = vi.fn();
-
-    middleware({} as Request, res, next);
-
-    expect(res.setHeader).toHaveBeenCalledWith(
-      'Link',
-      '</api/v1/new-endpoint>; rel="successor-version"',
-    );
+    const res = await request(app).get('/deprecated');
+    expect(res.headers['link']).toBe('</api/v2/new-endpoint>; rel="successor-version"');
   });
 
-  it('不提供 sunset/successor 时不应设置对应头', () => {
-    const middleware = createDeprecationMiddleware({
-      deprecated: 'true',
-    });
-    const res = createMockRes();
-    const next = vi.fn();
-
-    middleware({} as Request, res, next);
-
-    expect(res.setHeader).toHaveBeenCalledTimes(1);
-    expect(res.setHeader).toHaveBeenCalledWith('Deprecation', 'true');
+  it('未配置 sunset/successor 时不设置对应头', async () => {
+    const app = createApp({ deprecated: 'true' });
+    const res = await request(app).get('/deprecated');
+    expect(res.headers['deprecation']).toBe('true');
+    expect(res.headers['sunset']).toBeUndefined();
+    expect(res.headers['link']).toBeUndefined();
   });
 
-  it('应调用 next() 继续中间件链', () => {
-    const middleware = createDeprecationMiddleware({ deprecated: 'true' });
-    const res = createMockRes();
-    const next = vi.fn();
-
-    middleware({} as Request, res, next);
-
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(next).toHaveBeenCalledWith();
+  it('中间件应调用 next() 传递控制权给后续路由', async () => {
+    const app = createApp({ deprecated: '2026-01-01' });
+    const res = await request(app).get('/deprecated');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
   });
 });

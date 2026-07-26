@@ -20,17 +20,6 @@ const router = Router();
 
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);
 
-/**
- * /stats 内存缓存：60s TTL，统计为全局数据故 key 不区分用户。
- * `?force=1` 穿透缓存强制刷新。避免外部缓存库依赖（ADR 一致：仅内存 Map/object）。
- */
-const STATS_CACHE_TTL_MS = 60_000;
-interface StatsCacheEntry {
-  body: { success: true; data: unknown };
-  expiresAt: number;
-}
-let cachedStats: StatsCacheEntry | null = null;
-
 function isForceRefresh(req: Request): boolean {
   const v = req.query.force;
   return v === '1' || v === 'true';
@@ -51,17 +40,13 @@ router.get(
   ),
 );
 
-/** 详细统计（实时从 PostgreSQL 查询；60s 内存缓存，?force=1 穿透） */
+/** 详细统计（实时从 PostgreSQL 查询；P1-2 移除内存 cachedStats，每次直查 PG） */
 router.get(
   '/stats',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       res.setHeader('Cache-Control', 'no-cache');
-
-      if (!isForceRefresh(req) && cachedStats && cachedStats.expiresAt > Date.now()) {
-        res.json(cachedStats.body);
-        return;
-      }
+      void isForceRefresh(req); // force 参数保留接口兼容，但不再需要内存缓存穿透
 
       const t0 = Date.now();
       const stats = await scanMarketStatsFromDb();
@@ -77,7 +62,6 @@ router.get(
         body = { success: true, data: { stats, universe } };
       }
 
-      cachedStats = { body, expiresAt: Date.now() + STATS_CACHE_TTL_MS };
       res.json(body);
       logger.info(`[dataManageRoutes] /stats 总耗时 ${Date.now() - t0}ms`);
     },
@@ -139,9 +123,19 @@ router.get(
 );
 
 /** 更新状态查询 */
-router.get('/update/status', (_req: Request, res: Response): void => {
-  res.json({ success: true, data: getUpdateStatus() });
-});
+router.get(
+  '/update/status',
+  crudRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      const status = await getUpdateStatus();
+      res.json({ success: true, data: status });
+    },
+    {
+      logMsg: '[dataManage] 获取更新状态失败',
+      code: 'UPDATE_STATUS_ERROR',
+    },
+  ),
+);
 
 /** 全量更新/重新拉取：获取所有标的所有数据 */
 for (const path of ['/update/full', '/update/refetch'] as const) {
@@ -194,10 +188,20 @@ router.patch(
 );
 
 /** 停止当前运行的更新任务 */
-router.post('/update/stop', requireDataManage, (_req: Request, res: Response): void => {
-  const result = stopUpdate();
-  res.json({ success: result.success, data: result });
-});
+router.post(
+  '/update/stop',
+  requireDataManage,
+  crudRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      const result = await stopUpdate();
+      res.json({ success: result.success, data: result });
+    },
+    {
+      logMsg: '[dataManage] 停止更新失败',
+      code: 'UPDATE_STOP_ERROR',
+    },
+  ),
+);
 
 /** 刷新标的列表：数据已在 PostgreSQL 中，直接返回成功 */
 router.put(

@@ -9,33 +9,6 @@
   box-shadow: var(--shadow-card);
 }
 
-/* 骨架屏 shimmer 灰条 */
-.skeleton-bar {
-  background: linear-gradient(
-    90deg,
-    var(--bg-subtle) 0%,
-    color-mix(in srgb, var(--bg-subtle) 50%, var(--bg-elevated)) 50%,
-    var(--bg-subtle) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-shimmer 1.4s ease-in-out infinite;
-}
-
-@keyframes skeleton-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .skeleton-bar {
-    animation: none;
-  }
-}
-
 /* 图表卡片 */
 .chart-card {
   background: var(--bg-elevated);
@@ -73,7 +46,7 @@ select option {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: hsl(var(--border-strong));
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -124,43 +97,233 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 /* 全局链接样式（原 components-portfolio.css 末尾迁入） */
 a {
-  color: var(--brand);
+  color: hsl(var(--brand));
 }
 
 a:hover {
   text-decoration: underline;
 }
 
-/* 资产标签 - 用于资产分析页面的 ticker 标签 */
-.asset-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: color-mix(in srgb, var(--brand) 15%, transparent);
-  color: var(--brand);
-  border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  font-family: inherit;
+/* ============================================
+   共享页面布局（原 components-backtest-layout.css 迁入）
+   ============================================ */
+.bt-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  padding-top: 0;
 }
 
-.asset-tag .remove-btn {
-  display: inline-flex;
+.page-header-slim {
+  padding: 12px 0 10px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 12px;
+}
+
+.page-header-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.page-title-slim {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0;
+  letter-spacing: -0.2px;
+  flex-shrink: 0;
+}
+
+.page-subtitle-inline {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+}
+
+.page-header-actions {
+  display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.text-link-subtle {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
   background: none;
   border: none;
-  color: var(--brand);
-  opacity: 0.6;
   cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
+  font-family: inherit;
   padding: 0;
-  transition: opacity 0.15s;
+  transition: color 0.15s;
 }
 
-.asset-tag .remove-btn:hover {
-  opacity: 1;
+.text-link-subtle:hover {
+  color: hsl(var(--brand));
+}
+
+.divider-v {
+  width: 1px;
+  height: 14px;
+  background: var(--border-soft);
+  flex-shrink: 0;
+}
+
+.btn-upgrade-slim {
+  padding: 4px 12px;
+  font-size: 12px;
+  background: linear-gradient(135deg, hsl(var(--warning)), color-mix(in srgb, hsl(var(--warning)) 80%, #000));
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btn-upgrade-slim:hover {
+  background: linear-gradient(135deg, color-mix(in srgb, hsl(var(--warning)) 70%, #fff), hsl(var(--warning)));
+}
+
+.bt-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 4px;
+  margin-bottom: 12px;
+}
+
+.bt-page-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.bt-page-title {
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+  line-height: 1.15;
+  margin: 0;
+}
+
+.bt-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.bt-empty-state .empty-state-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.bt-empty-state .empty-state-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.bt-empty-state .empty-state-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.bt-main-card {
+  margin: 4px;
+  margin-bottom: 20px;
+  padding: 20px;
+  border-radius: var(--radius-card);
+}
+
+@media (max-width: 768px) {
+  .bt-page {
+    padding: 12px;
+    padding-top: 0;
+  }
+
+  .bt-page-title {
+    font-size: 28px;
+  }
+}
+
+/* ============================================
+   共享控件（原 components-params.css 迁入）
+   ============================================ */
+.mini-tabs {
+  display: inline-flex;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.mini-tab {
+  padding: 5px 14px;
+  font-size: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.mini-tab:hover {
+  color: var(--text-body);
+}
+
+.mini-tab.active {
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.preset-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-subtle);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.preset-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.preset-chip {
+  padding: 4px 10px;
+  background: hsl(var(--input-bg));
+  color: var(--text-body);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.preset-chip:hover {
+  border-color: hsl(var(--brand));
+  color: hsl(var(--brand));
 }

@@ -1173,7 +1173,11 @@
       "startingValue": "Initial Capital",
       "rebalanceFreq": "Rebalancing Frequency",
       "running": "Backtesting...",
-      "runBacktest": "Run Tactical Backtest"
+      "runBacktest": "Run Tactical Backtest",
+      "savedConfigs": "Saved Configurations",
+      "configNamePlaceholder": "Configuration name...",
+      "save": "Save",
+      "deleteConfig": "Delete configuration"
     },
     "results": {
       "tactical": "Tactical",
@@ -2252,6 +2256,7 @@
     "login": {
       "noAccountPrefix": "Don't have an account?",
       "password": "Password",
+      "sessionExpired": "Your session has expired due to inactivity. Please log in again.",
       "submit": "Log In",
       "submitting": "Logging in...",
       "username": "Username"
@@ -2563,6 +2568,11 @@
     "tickerInput": {
       "placeholder": "Enter ticker, e.g. VTI",
       "searching": "Searching..."
+    },
+    "tickerTagInput": {
+      "placeholder": "Enter a ticker and press Enter to add...",
+      "remove": "Remove",
+      "removeTicker": "Remove {{ticker}}"
     },
     "turnoverTaxReport": {
       "columns": {

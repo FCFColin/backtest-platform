@@ -10,6 +10,9 @@ export function useTheme() {
   );
 
   useEffect(() => {
+    // P3-3: 使用 data-theme 属性切换主题（CSS 变量系统）
+    // 同时保留 .dark class 以兼容 Tailwind darkMode 和遗留 CSS
+    document.documentElement.dataset.theme = theme;
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
     localStorage.setItem('theme', theme);

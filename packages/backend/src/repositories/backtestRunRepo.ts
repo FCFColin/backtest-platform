@@ -4,6 +4,8 @@
  * 企业理由：回测结果此前不落库——刷新即丢、无法回看历史、无法做用量计量。
  * 落到 Postgres + RLS 后，运行历史成为租户级资产，并为配额/计量（Phase 7）提供
  * 可审计的数据源。worker（异步任务）与同步回测均经此仓储经 withTenant() 写入。
+ * 读路径（listRuns/getRun/getRunAggregate）走 withTenantReadOnly（读副本 + RLS），
+ * 写路径（createRun/save/deleteRun）走 withTenant（主库 + RLS）。
  *
  * 设计取舍：result 为可空 JSONB——异步任务先以 status=running 入库（可选），
  * 完成后回填 result + status=completed；同步路径可一次性写入 completed。
@@ -11,7 +13,7 @@
  * ADR-013 Phase 2：新增 save(run) 接收 Run 聚合根持久化。domain 层 status 用
  * 'queued'（语义更准确），DB schema 保持 'pending'（不破坏迁移），repo 层做映射。
  */
-import { withTenant } from '../db/pool.js';
+import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import { Run, type RunStatus } from '../domain/aggregates/run.js';
 
 /** 回测运行状态（DB schema 值） */
@@ -85,7 +87,7 @@ export async function listRuns(
 ): Promise<BacktestRunRecord[]> {
   const safeLimit = Math.min(Math.max(1, Math.trunc(limit)), 200);
   const safeOffset = Math.max(0, Math.trunc(offset));
-  return withTenant(tenantId, async (client) => {
+  return withTenantReadOnly(tenantId, async (client) => {
     const { rows } = await client.query(
       `SELECT ${SELECT_COLS} FROM backtest_runs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
       [safeLimit, safeOffset],
@@ -101,7 +103,7 @@ export async function listRuns(
  * @param id - 运行 UUID
  */
 export async function getRun(tenantId: string, id: string): Promise<BacktestRunRecord | null> {
-  return withTenant(tenantId, async (client) => {
+  return withTenantReadOnly(tenantId, async (client) => {
     const { rows } = await client.query(`SELECT ${SELECT_COLS} FROM backtest_runs WHERE id = $1`, [
       id,
     ]);
@@ -199,7 +201,7 @@ export async function save(tenantId: string, run: Run): Promise<BacktestRunRecor
  * @param id - 运行 UUID
  */
 export async function getRunAggregate(tenantId: string, id: string): Promise<Run | null> {
-  return withTenant(tenantId, async (client) => {
+  return withTenantReadOnly(tenantId, async (client) => {
     const { rows } = await client.query(`SELECT ${SELECT_COLS} FROM backtest_runs WHERE id = $1`, [
       id,
     ]);

@@ -24,12 +24,10 @@ export function useEngineHealth(): EngineHealth & { refresh: () => void } {
   const [health, setHealth] = useState<EngineHealth>(DEFAULT_HEALTH);
 
   const fetchHealth = useCallback(async () => {
-    const t0 = Date.now();
     try {
       const response = await apiFetch('/api/health');
       const json = await response.json();
       if (json.success && json.data) {
-        console.debug(`[useEngineHealth] /api/health 耗时 ${Date.now() - t0}ms`);
         setHealth({
           status: json.data.status,
           go: json.data.engine?.go ?? false,
