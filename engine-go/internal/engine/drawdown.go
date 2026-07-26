@@ -35,11 +35,11 @@ func detectDrawdownEpisodes(curve []DataPoint) []DrawdownEpisode {
 				drawdown := (peakValue - troughValue) / peakValue
 				if drawdown >= drawdownThreshold {
 					episodes = append(episodes, DrawdownEpisode{
-						PeakDate:     peakDate,
-						TroughDate:   troughDate,
-						RecoveryDate: currentDate,
-						Depth:        drawdown,
-						TotalTime:    daysBetween(peakDate, currentDate),
+						PeakDate:              peakDate,
+						TroughDate:            troughDate,
+						RecoveryDate:          currentDate,
+						Depth:                 drawdown,
+						TotalTimeDurationDays: daysBetween(peakDate, currentDate),
 					})
 				}
 				inDrawdown = false
@@ -66,11 +66,11 @@ func detectDrawdownEpisodes(curve []DataPoint) []DrawdownEpisode {
 		drawdown := (peakValue - troughValue) / peakValue
 		if drawdown >= drawdownThreshold {
 			episodes = append(episodes, DrawdownEpisode{
-				PeakDate:     peakDate,
-				TroughDate:   troughDate,
-				RecoveryDate: "",
-				Depth:        drawdown,
-				TotalTime:    daysBetween(peakDate, curve[len(curve)-1].Date),
+				PeakDate:              peakDate,
+				TroughDate:            troughDate,
+				RecoveryDate:          "",
+				Depth:                 drawdown,
+				TotalTimeDurationDays: daysBetween(peakDate, curve[len(curve)-1].Date),
 			})
 		}
 	}

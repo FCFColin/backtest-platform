@@ -3,6 +3,32 @@ export function fmtDate(d?: string): string {
   return d;
 }
 
+/**
+ * 格式化持续天数。规则：
+ * - days < 1: "0天"
+ * - days < 30: "X天"
+ * - 30 ≤ days < 365: "X个月"
+ * - days ≥ 365: "X年Y个月"
+ * @param days - 持续天数
+ * @returns 格式化后的字符串
+ */
+export function formatDuration(days: number | undefined | null): string {
+  if (days == null || Number.isNaN(days)) return '—';
+  const totalDays = Math.round(days);
+  if (totalDays < 1) return '0天';
+  if (totalDays < 30) return `${totalDays}天`;
+  const months = Math.round(totalDays / 30);
+  if (months < 12) return `${months}个月`;
+  const years = Math.floor(totalDays / 365);
+  const remainingMonths = Math.round((totalDays % 365) / 30);
+  if (remainingMonths === 0) return `${years}年`;
+  return `${years}年${remainingMonths}个月`;
+}
+
+/**
+ * @deprecated 请使用 formatDuration 替代。此函数将输入值乘以 365 转为天数后格式化，
+ * 适用于以“年”为单位的输入。回撤片段时间字段已改为天数，应使用 formatDuration。
+ */
 export function fmtYears(v: number | undefined | null): string {
   if (v == null || Number.isNaN(v)) return '—';
   const totalDays = Math.round(v * 365);

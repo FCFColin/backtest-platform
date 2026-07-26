@@ -6,7 +6,7 @@
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, DrawdownEpisode } from '@backtest/shared';
 import { CHART_COLORS } from '@backtest/shared';
-import { fmtDate, fmtYears, fmtPct, fmtRatio } from '../utils/format.js';
+import { fmtDate, formatDuration, fmtPct, fmtRatio } from '../utils/format.js';
 import { mean } from '../utils/stats.js';
 import ChartCard from './ChartCard.js';
 import { cn } from '@/lib/utils';
@@ -57,19 +57,20 @@ const HEADERS = [
     label: 'components.drawdownEpisodes.headers.timeToTrough',
     align: 'right' as const,
     key: 'timeToTrough' as const,
-    fmt: (ep: DrawdownEpisode) => fmtYears(ep.timeToTrough),
+    fmt: (ep: DrawdownEpisode) => formatDuration(ep.timeToTrough),
   },
   {
     label: 'components.drawdownEpisodes.headers.recoveryTime',
     align: 'right' as const,
     key: 'recoveryTime' as const,
-    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.recoveryTime) : '-'),
+    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? formatDuration(ep.recoveryTime) : '-'),
   },
   {
     label: 'components.drawdownEpisodes.headers.totalTime',
     align: 'right' as const,
-    key: 'totalTime' as const,
-    fmt: (ep: DrawdownEpisode) => (ep.recoveryDate ? fmtYears(ep.totalTime) : '-'),
+    key: 'totalTimeDurationDays' as const,
+    fmt: (ep: DrawdownEpisode) =>
+      ep.recoveryDate ? formatDuration(ep.totalTimeDurationDays) : '-',
   },
   {
     label: 'components.drawdownEpisodes.headers.recoveryFactor',
@@ -100,17 +101,17 @@ const SUMMARY_FIELDS: Array<{
   {
     key: 'timeToTrough',
     labelKey: 'components.drawdownEpisodes.summaryLabels.timeToTrough',
-    fmt: fmtYears,
+    fmt: formatDuration,
   },
   {
     key: 'recoveryTime',
     labelKey: 'components.drawdownEpisodes.summaryLabels.recoveryTime',
-    fmt: fmtYears,
+    fmt: formatDuration,
   },
   {
-    key: 'totalTime',
+    key: 'totalTimeDurationDays',
     labelKey: 'components.drawdownEpisodes.summaryLabels.totalTime',
-    fmt: fmtYears,
+    fmt: formatDuration,
   },
   {
     key: 'recoveryFactor',

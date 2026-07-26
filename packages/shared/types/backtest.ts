@@ -54,7 +54,7 @@ export type DrawdownPoint = { date: string; drawdown: number };
  *
  * 记录从峰值到谷值再到恢复的完整回撤周期。
  * recoveryDate 为空时表示回测结束时该回撤尚未恢复。
- * timeToTrough/recoveryTime/totalTime 均以交易日为单位。
+ * timeToTrough/recoveryTime/totalTimeDurationDays 均以天数（int）为单位。
  * cagrDuring 表示回撤期间的复合年化收益率（通常为负值）。
  * ulcerDuring 表示回撤期间的 ulcer 指数。
  */
@@ -65,7 +65,7 @@ export interface DrawdownEpisode {
   depth: number;
   timeToTrough: number;
   recoveryTime: number;
-  totalTime: number;
+  totalTimeDurationDays: number;
   recoveryFactor: number;
   cagrDuring: number;
   ulcerDuring: number;

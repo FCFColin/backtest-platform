@@ -278,9 +278,8 @@ type AllocationPoint struct {
 }
 
 // DrawdownEpisode 回撤事件，与 packages/shared/types/backtest.ts 的 DrawdownEpisode 对齐。
-// Go 引擎当前仅计算 depth（回撤深度）与 totalTime（总持续时间，天），
-// 其余字段（timeToTrough/recoveryTime/recoveryFactor/cagrDuring/ulcerDuring/
-// returnFromPeakToTrough/returnFromTroughToRecovery）暂未实现，以 omitted 形式输出。
+// 所有时间字段（timeToTrough/recoveryTime/totalTimeDurationDays）均为天数（int）。
+// 字段 totalTimeDurationDays 明确标注单位为天，避免前端误当作年处理。
 type DrawdownEpisode struct {
 	PeakDate                   string   `json:"peakDate"`
 	TroughDate                 string   `json:"troughDate"`
@@ -288,7 +287,7 @@ type DrawdownEpisode struct {
 	Depth                      float64  `json:"depth"`
 	TimeToTrough               int      `json:"timeToTrough,omitempty"`
 	RecoveryTime               int      `json:"recoveryTime,omitempty"`
-	TotalTime                  int      `json:"totalTime"`
+	TotalTimeDurationDays      int      `json:"totalTimeDurationDays"`
 	RecoveryFactor             float64  `json:"recoveryFactor,omitempty"`
 	CagrDuring                 float64  `json:"cagrDuring,omitempty"`
 	UlcerDuring                float64  `json:"ulcerDuring,omitempty"`

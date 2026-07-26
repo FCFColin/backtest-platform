@@ -51,6 +51,10 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 		if episodes[0].RecoveryDate != "2024-01-05" {
 			t.Errorf("expected recovery 2024-01-05, got %s", episodes[0].RecoveryDate)
 		}
+		// P0-1: 验证 TotalTimeDurationDays 为天数而非年
+		if episodes[0].TotalTimeDurationDays != 3 {
+			t.Errorf("expected TotalTimeDurationDays=3 (days), got %d", episodes[0].TotalTimeDurationDays)
+		}
 	})
 
 	t.Run("multiple drawdowns", func(t *testing.T) {
@@ -120,6 +124,10 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 		if episodes[0].RecoveryDate != "" {
 			t.Errorf("expected empty recovery date, got %s", episodes[0].RecoveryDate)
 		}
+		// P0-1: 验证未恢复回撤的 TotalTimeDurationDays
+		if episodes[0].TotalTimeDurationDays != 2 {
+			t.Errorf("expected TotalTimeDurationDays=2 (days from peak to end), got %d", episodes[0].TotalTimeDurationDays)
+		}
 	})
 
 	t.Run("trough updates within drawdown", func(t *testing.T) {
@@ -141,6 +149,31 @@ func TestDetectDrawdownEpisodes(t *testing.T) {
 		}
 		if episodes[0].TroughDate != "2024-01-04" {
 			t.Errorf("trough date = %s, want 2024-01-04", episodes[0].TroughDate)
+		}
+		// P0-1: 验证 TotalTimeDurationDays
+		if episodes[0].TotalTimeDurationDays != 3 {
+			t.Errorf("expected TotalTimeDurationDays=3, got %d", episodes[0].TotalTimeDurationDays)
+		}
+	})
+
+	// P0-1: 新增测试 - 长期回撤验证天数不会被误当作年
+	t.Run("long duration drawdown days not years", func(t *testing.T) {
+		// 峰值在 2024-01-01，谷值在 2024-03-01（59天后），恢复在 2024-06-01（152天后）
+		// TotalTimeDurationDays 应为 152 天，不应被解释为 152 年
+		curve := []DataPoint{
+			{Date: "2024-01-01", Value: 100},
+			{Date: "2024-02-01", Value: 80},
+			{Date: "2024-03-01", Value: 70},
+			{Date: "2024-04-01", Value: 75},
+			{Date: "2024-05-01", Value: 90},
+			{Date: "2024-06-01", Value: 100},
+		}
+		episodes := detectDrawdownEpisodes(curve)
+		if len(episodes) != 1 {
+			t.Fatalf("expected 1 episode, got %d", len(episodes))
+		}
+		if episodes[0].TotalTimeDurationDays != 152 {
+			t.Errorf("expected TotalTimeDurationDays=152 (days), got %d — must not be interpreted as years", episodes[0].TotalTimeDurationDays)
 		}
 	})
 }
