@@ -16,6 +16,9 @@
       "dataEngineCta": "View Data"
     }
   },
+  "chartBenchmark": {
+    "title": "Chart Library Benchmark"
+  },
   "workspace": {
     "title": "My Workspace",
     "description": "Manage your tickers, portfolios, strategies and run history."

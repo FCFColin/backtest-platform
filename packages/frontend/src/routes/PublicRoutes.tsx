@@ -16,6 +16,9 @@ const PortfolioComparisonPage = lazy(
 const SWRPage = lazy(() => import('@/pages/swr/SWRPage'));
 const TVMScannerPage = lazy(() => import('@/pages/tvm-scanner/TVMScannerPage'));
 const MCOptimizerPage = lazy(() => import('@/pages/monte-carlo/optimizer/MCOptimizerPage'));
+const ChartBenchmarkPage = lazy(
+  () => import('@/pages/prototype/chart-benchmark/ChartBenchmarkPage'),
+);
 
 const fallback = (
   <div style={{ padding: '80px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -37,6 +40,7 @@ export function PublicRoutes() {
         <Route path="/tvm-scanner" element={<TVMScannerPage />} />
         <Route path="/monte-carlo/optimizer" element={<MCOptimizerPage />} />
         <Route path="/workspace" element={<WorkspacePage />} />
+        <Route path="/prototype/chart-benchmark" element={<ChartBenchmarkPage />} />
         <Route path="/limits" element={<AboutPage section="limits" />} />
         <Route path="/upgrade" element={<AboutPage section="upgrade" />} />
       </Routes>

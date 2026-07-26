@@ -16,6 +16,9 @@
       "dataEngineCta": "查看数据"
     }
   },
+  "chartBenchmark": {
+    "title": "Chart Library Benchmark"
+  },
   "workspace": {
     "title": "My Workspace",
     "description": "管理您的标的、组合、策略和运行历史。"
