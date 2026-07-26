@@ -14,7 +14,7 @@ import type { Stats, UniverseStats } from './utils.js';
 import { fmt } from './utils.js';
 
 /** 柱状图品牌色（SVG fill，沿用 base.css 的 --brand 全色值） */
-const BAR_FILL = 'var(--brand)';
+const BAR_FILL = '#3b82f6'; // Blue-500 from PORTFOLIO_COLORS
 /** 柱状图文字颜色（SVG fill，沿用 base.css 的 --text-muted 全色值） */
 const AXIS_TICK_COLOR = 'var(--text-muted)';
 
@@ -68,13 +68,18 @@ export function MarketDistributionCard({
 }) {
   const { t } = useTranslation();
   const marketEntries = stats.by_market ? Object.entries(stats.by_market) : [];
-  const maxCount = marketEntries.length > 0 ? Math.max(...marketEntries.map(([, d]) => d.count)) : 0;
+  const maxCount =
+    marketEntries.length > 0 ? Math.max(...marketEntries.map(([, d]) => d.count)) : 0;
   return (
     <Card className="p-4">
       <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.byMarket')}</div>
       {marketEntries.map(([market, data]) => {
         const label =
-          market === 'US' ? t('dataEngine.usStock') : market === 'CN' ? t('dataEngine.cnStock') : market;
+          market === 'US'
+            ? t('dataEngine.usStock')
+            : market === 'CN'
+              ? t('dataEngine.cnStock')
+              : market;
         return (
           <div key={market} className="mb-2.5">
             <div className="mb-[3px] flex justify-between text-[13px]">
@@ -123,7 +128,9 @@ export function MarketDistributionCard({
 export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
   const { t } = useTranslation();
   const exchangeEntries = stats.by_exchange
-    ? Object.entries(stats.by_exchange).sort((a, b) => b[1] - a[1]).slice(0, 10)
+    ? Object.entries(stats.by_exchange)
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(0, 10)
     : [];
   const maxCount = exchangeEntries.length > 0 ? Math.max(...exchangeEntries.map(([, c]) => c)) : 0;
   return (
