@@ -1,4 +1,21 @@
 {
+  "home": {
+    "hero": {
+      "title": "Professional Backtesting Platform",
+      "subtitle": "Model, Test, Inspect — Full-stack quantitative investment analysis",
+      "cta": "Start Backtesting",
+      "secondaryCta": "Explore Analysis Tools",
+      "model": "Model",
+      "modelDesc": "Build multi-asset portfolios with rebalancing, glide paths, and cashflow simulation",
+      "test": "Test",
+      "testDesc": "Monte Carlo simulation, stress testing, drawdown analysis for comprehensive risk assessment",
+      "inspect": "Inspect",
+      "inspectDesc": "Factor regression, efficient frontier, PCA for deep understanding of return drivers",
+      "dataEngineTitle": "Data Engine",
+      "dataEngineDesc": "5000+ tickers across global markets with auto incremental updates and synthetic tickers",
+      "dataEngineCta": "View Data"
+    }
+  },
   "nav": {
     "backtest": "Backtest",
     "analysis": "Analysis",

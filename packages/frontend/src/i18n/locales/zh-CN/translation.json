@@ -1,4 +1,21 @@
 {
+  "home": {
+    "hero": {
+      "title": "专业级回测平台",
+      "subtitle": "建模、检验、洞察 — 全流程量化投资分析工具",
+      "cta": "开始回测",
+      "secondaryCta": "探索分析工具",
+      "model": "建模",
+      "modelDesc": "构建多资产投资组合，支持再平衡、滑行路径、现金流模拟",
+      "test": "检验",
+      "testDesc": "蒙特卡洛模拟、压力测试、回撤分析，全方位风险评估",
+      "inspect": "洞察",
+      "inspectDesc": "因子回归、有效前沿、PCA 降维，深度理解收益来源",
+      "dataEngineTitle": "数据引擎",
+      "dataEngineDesc": "覆盖全球市场 5000+ 标的，支持自动增量更新与合成标的",
+      "dataEngineCta": "查看数据"
+    }
+  },
   "nav": {
     "backtest": "回测",
     "analysis": "分析",
