@@ -16,6 +16,30 @@
       "dataEngineCta": "View Data"
     }
   },
+  "portfolioComparison": {
+    "title": "Portfolio Comparison",
+    "seoSubtitle": "Cross-period, cross-currency comparison matrix",
+    "seoDesc": "Compare multiple portfolio performances",
+    "description": "Select multiple portfolios for comprehensive cross-period analysis."
+  },
+  "swr": {
+    "title": "Safe Withdrawal Rate",
+    "seoSubtitle": "SWR analysis tool",
+    "seoDesc": "Calculate retirement withdrawal success rate",
+    "description": "Set portfolio weights, withdrawal strategy and retirement period."
+  },
+  "tvmScanner": {
+    "title": "Time Value of Money Scanner",
+    "seoSubtitle": "3-variable heatmap scanner",
+    "seoDesc": "Scan years, rates, amounts to generate heatmap",
+    "description": "Select X/Y/Color variables for multi-dimensional scanning."
+  },
+  "mcOptimizer": {
+    "title": "Monte Carlo Optimizer",
+    "seoSubtitle": "Find optimal weights via Monte Carlo paths",
+    "seoDesc": "Weight optimization based on Monte Carlo simulation",
+    "description": "Find optimal weights maximizing median CAGR or minimizing drawdown."
+  },
   "nav": {
     "backtest": "Backtest",
     "analysis": "Analysis",

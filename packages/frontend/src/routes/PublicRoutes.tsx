@@ -9,6 +9,12 @@ const ContactPage = lazy(() => import('@/pages/ContactPage'));
 const HelpPage = lazy(() => import('@/pages/HelpPage'));
 const ChangelogPage = lazy(() => import('@/pages/ChangelogPage'));
 const PricingPage = lazy(() => import('@/pages/account/PricingPage'));
+const PortfolioComparisonPage = lazy(
+  () => import('@/pages/portfolio-comparison/PortfolioComparisonPage'),
+);
+const SWRPage = lazy(() => import('@/pages/swr/SWRPage'));
+const TVMScannerPage = lazy(() => import('@/pages/tvm-scanner/TVMScannerPage'));
+const MCOptimizerPage = lazy(() => import('@/pages/monte-carlo/optimizer/MCOptimizerPage'));
 
 const fallback = (
   <div style={{ padding: '80px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -25,6 +31,10 @@ export function PublicRoutes() {
         <Route path="/help" element={<HelpPage />} />
         <Route path="/changelog" element={<ChangelogPage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/portfolio-comparison" element={<PortfolioComparisonPage />} />
+        <Route path="/swr" element={<SWRPage />} />
+        <Route path="/tvm-scanner" element={<TVMScannerPage />} />
+        <Route path="/monte-carlo/optimizer" element={<MCOptimizerPage />} />
         <Route path="/limits" element={<AboutPage section="limits" />} />
         <Route path="/upgrade" element={<AboutPage section="upgrade" />} />
       </Routes>

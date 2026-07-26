@@ -16,6 +16,30 @@
       "dataEngineCta": "查看数据"
     }
   },
+  "portfolioComparison": {
+    "title": "组合对比",
+    "seoSubtitle": "跨时期、跨货币、跨预设的对比矩阵",
+    "seoDesc": "对比多个投资组合的表现",
+    "description": "选择多个组合进行跨时期、跨货币的全面对比分析。"
+  },
+  "swr": {
+    "title": "安全提取率",
+    "seoSubtitle": "Safe Withdrawal Rate 分析工具",
+    "seoDesc": "计算退休提取成功率和终值分布",
+    "description": "设定组合权重、提款策略和退休期限，计算成功率与最坏路径。"
+  },
+  "tvmScanner": {
+    "title": "资金时间价值扫描",
+    "seoSubtitle": "3 变量扫描热力图",
+    "seoDesc": "扫描年数、利率、投入金额生成热力图",
+    "description": "选择 X/Y/Color 三个变量进行多维扫描，生成热力图。"
+  },
+  "mcOptimizer": {
+    "title": "蒙特卡洛优化器",
+    "seoSubtitle": "在蒙特卡洛路径下寻找最优权重",
+    "seoDesc": "基于蒙特卡洛模拟的权重优化",
+    "description": "在蒙特卡洛模拟路径下，寻找最大化中位 CAGR 或最小化回撤的最优权重。"
+  },
   "nav": {
     "backtest": "回测",
     "analysis": "分析",

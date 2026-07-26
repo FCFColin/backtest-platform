@@ -29,6 +29,7 @@ import {
 } from './utils/rateLimiter.js';
 import dataRoutes from './routes/dataRoutes.js';
 import dataManageRoutes from './routes/dataManageRoutes.js';
+import customTickerRoutes from './routes/customTickerRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
 import backtestOptimizerRoutes from './routes/backtestOptimizerRoutes.js';
 import tacticalRoutes from './routes/tacticalRoutes.js';
@@ -160,7 +161,10 @@ if (config.NODE_ENV !== 'production') {
 }
 
 // 限流：计算端点 10/min，管理端点 30/min，认证端点 10/15min
-app.use('/api/v1/backtest', computeLimiter);
+app.use('/api/v1/backtest', (req, _res, next) => {
+  if (req.method === 'GET') return next();
+  computeLimiter(req, _res, next);
+});
 app.use('/api/v1/backtest-optimizer', computeLimiter);
 app.use('/api/v1/tactical', computeLimiter);
 app.use('/api/v1/pca', computeLimiter);
@@ -179,6 +183,7 @@ app.use('/api/', apiLimiter);
 
 // 路由挂载（仅 v1，legacy 路径已废弃）
 app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
+app.use('/api/v1/data/custom', authMiddleware, customTickerRoutes);
 app.use(
   '/api/v1/data/manage',
   ...readOnlyAuth,
