@@ -38,7 +38,13 @@ interface WeightInputProps {
  * @param props - value/onChange
  * @returns 渲染的权重输入框
  */
-function WeightNumberInput({ value, onChange }: { value: number; onChange: (num: number) => void }) {
+function WeightNumberInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (num: number) => void;
+}) {
   const [raw, setRaw] = useState(String(value));
 
   // 外部 value 变更时同步（避免输入中间状态被覆盖）
@@ -73,7 +79,7 @@ function WeightNumberInput({ value, onChange }: { value: number; onChange: (num:
         setRaw(String(normalized));
       }}
       aria-label="weight"
-      className={cn('h-9 w-24 text-right font-mono tabular-nums')}
+      className={cn('h-9 w-[100px] text-right font-mono tabular-nums')}
     />
   );
 }
@@ -96,19 +102,14 @@ export default function WeightInput({
   // HoldingRow 模式：ticker 与 onDelete 同时存在时渲染完整持产行
   if (ticker !== undefined && onDelete && onTickerChange) {
     return (
-      <div className="flex items-center gap-3 p-3 bg-surface border border-border rounded-lg hover:border-border-strong transition-colors duration-150 ease-out-quart">
-        <TickerInput
-          value={ticker}
-          placeholder={tickerPlaceholder}
-          onChange={onTickerChange}
-        />
+      <div className="flex items-center gap-3 py-2">
+        <div className="w-[220px] shrink-0">
+          <TickerInput value={ticker} placeholder={tickerPlaceholder} onChange={onTickerChange} />
+        </div>
+        <div className="flex-1 min-w-0" />
         <WeightNumberInput value={value} onChange={onChange} />
-        <Button
-          variant="destructive"
-          size="icon"
-          aria-label="delete holding"
-          onClick={onDelete}
-        >
+        <span className="text-caption text-fg-tertiary w-4 shrink-0">%</span>
+        <Button variant="destructive" size="icon" aria-label="delete holding" onClick={onDelete}>
           <Trash2 />
         </Button>
       </div>

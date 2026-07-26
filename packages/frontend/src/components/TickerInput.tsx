@@ -194,7 +194,7 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
   };
 
   return (
-    <div ref={containerRef} className="relative flex-1">
+    <div ref={containerRef} className="relative">
       <Input
         ref={inputRef}
         type="text"
