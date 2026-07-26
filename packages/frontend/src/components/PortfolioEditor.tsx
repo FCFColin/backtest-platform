@@ -7,7 +7,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X, ChevronDown } from 'lucide-react';
+import { Plus, X, ChevronDown, FolderOpen } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import type { RebalanceFrequency, BacktestParameters } from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
@@ -182,42 +182,142 @@ function buildRebalanceOptions(t: TFunc): { value: RebalanceFrequency; label: st
   ];
 }
 
-/** 预设下拉按钮（从 PortfolioEditorHeader 抽出以控制行数） */
-function PresetDropdownButton({
+/** 添加组合下拉菜单（从 PortfolioEditorHeader 抽出以控制行数） */
+function AddPortfolioMenu({
   t,
+  onAdd,
   onAddPreset,
+  onAddGlidepath,
+  onLoadExample,
+  onComingSoon,
 }: {
   t: TFunc;
+  onAdd: () => void;
   onAddPreset: (presetId: string) => void;
+  onAddGlidepath: () => void;
+  onLoadExample: () => void;
+  onComingSoon: () => void;
 }) {
-  const [presetOpen, setPresetOpen] = useState(false);
-  const presetContainerRef = useRef<HTMLDivElement>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [presetSubOpen, setPresetSubOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!presetOpen) return;
+    if (!addMenuOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (presetContainerRef.current && !presetContainerRef.current.contains(e.target as Node)) {
-        setPresetOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setAddMenuOpen(false);
+        setPresetSubOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [presetOpen]);
+  }, [addMenuOpen]);
+
+  const close = () => setAddMenuOpen(false);
 
   return (
-    <div ref={presetContainerRef} className="relative">
+    <div ref={menuRef} className="relative">
       <Button
         variant="secondary"
         size="sm"
-        aria-expanded={presetOpen}
-        onClick={() => setPresetOpen((v) => !v)}
+        aria-expanded={addMenuOpen}
+        onClick={() => setAddMenuOpen((v) => !v)}
       >
-        {t('portfolio.addPreset')}
+        <Plus className="w-3.5 h-3.5" />
+        {t('portfolio.addPortfolio')}
         <ChevronDown className="w-3.5 h-3.5" />
       </Button>
-      {presetOpen && (
+      {addMenuOpen && (
         <div
-          className="absolute top-full left-0 mt-1 z-30 min-w-[240px] bg-surface border border-border rounded-lg shadow-lg py-1"
+          className="absolute top-full right-0 mt-1 z-30 min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1"
+          role="menu"
+        >
+          <MenuButton
+            label={t('portfolio.addEmpty')}
+            onClick={() => {
+              onAdd();
+              close();
+            }}
+          />
+          <PresetSubmenu
+            t={t}
+            onAddPreset={onAddPreset}
+            onSubOpen={presetSubOpen}
+            setSubOpen={setPresetSubOpen}
+            close={close}
+          />
+          <MenuButton
+            label={t('portfolio.addSaved')}
+            onClick={() => {
+              onComingSoon();
+              close();
+            }}
+          />
+          <MenuButton
+            label={t('portfolio.addGlidepath')}
+            onClick={() => {
+              onAddGlidepath();
+              close();
+            }}
+          />
+          <div className="h-px bg-border-subtle my-1" />
+          <MenuButton
+            label={t('portfolio.loadExample')}
+            onClick={() => {
+              onLoadExample();
+              close();
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="flex w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
+      role="menuitem"
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+function PresetSubmenu({
+  t,
+  onAddPreset,
+  onSubOpen,
+  setSubOpen,
+  close,
+}: {
+  t: TFunc;
+  onAddPreset: (presetId: string) => void;
+  onSubOpen: boolean;
+  setSubOpen: (v: boolean) => void;
+  close: () => void;
+}) {
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setSubOpen(true)}
+      onMouseLeave={() => setSubOpen(false)}
+    >
+      <button
+        type="button"
+        className="flex w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
+        role="menuitem"
+      >
+        {t('portfolio.addPreset')}
+        <ChevronDown className="w-3 h-3 ml-auto rotate-[-90deg]" />
+      </button>
+      {onSubOpen && (
+        <div
+          className="absolute top-0 left-full ml-1 min-w-[240px] bg-surface border border-border rounded-lg shadow-lg py-1"
           role="menu"
         >
           {PORTFOLIO_PRESETS.map((preset) => (
@@ -228,7 +328,7 @@ function PresetDropdownButton({
               role="menuitem"
               onClick={() => {
                 onAddPreset(preset.id);
-                setPresetOpen(false);
+                close();
               }}
             >
               <span className="text-caption font-medium text-fg">{t(preset.labelKey)}</span>
@@ -241,7 +341,7 @@ function PresetDropdownButton({
   );
 }
 
-/** 编辑器头部按钮区 */
+/** 编辑器头部按钮区：2 按钮 + 5 项下拉（P1-4 精简） */
 function PortfolioEditorHeader({
   t,
   onAdd,
@@ -261,25 +361,25 @@ function PortfolioEditorHeader({
 
   return (
     <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-      <span className="text-body font-semibold text-fg">{t('portfolio.title')}</span>
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <Button variant="secondary" size="sm" onClick={onAdd}>
-          {t('portfolio.addEmpty')}
+      <div className="flex items-center gap-2">
+        <span className="text-body font-semibold text-fg">{t('portfolio.title')}</span>
+        <Badge variant="secondary" size="sm">
+          {/* portfolio count badge */}
+        </Badge>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Button variant="ghost" size="sm" onClick={handleComingSoon}>
+          <FolderOpen className="w-3.5 h-3.5" />
+          {t('portfolio.load')}
         </Button>
-        <PresetDropdownButton t={t} onAddPreset={onAddPreset} />
-        <Button variant="secondary" size="sm" onClick={handleComingSoon}>
-          {t('portfolio.addAsset')}
-        </Button>
-        <Button variant="secondary" size="sm" onClick={handleComingSoon} disabled>
-          {t('portfolio.addSaved')}
-        </Button>
-        <Button variant="secondary" size="sm" onClick={onAddGlidepath}>
-          {t('portfolio.addGlidepath')}
-        </Button>
-        <span className="w-px h-5 bg-border-subtle mx-1" />
-        <Button variant="ghost" size="sm" onClick={onLoadExample}>
-          {t('portfolio.loadExample')}
-        </Button>
+        <AddPortfolioMenu
+          t={t}
+          onAdd={onAdd}
+          onAddPreset={onAddPreset}
+          onAddGlidepath={onAddGlidepath}
+          onLoadExample={onLoadExample}
+          onComingSoon={handleComingSoon}
+        />
       </div>
     </div>
   );

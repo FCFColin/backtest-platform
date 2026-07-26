@@ -572,6 +572,8 @@
   },
   "portfolio": {
     "title": "投资组合",
+    "load": "加载",
+    "addPortfolio": "添加组合",
     "addEmpty": "添加空组合",
     "addPreset": "添加预设",
     "addAsset": "添加资产",

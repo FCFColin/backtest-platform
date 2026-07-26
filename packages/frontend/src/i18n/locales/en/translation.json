@@ -574,6 +574,8 @@
   },
   "portfolio": {
     "title": "Portfolio",
+    "load": "Load",
+    "addPortfolio": "Add Portfolio",
     "addEmpty": "Add Empty",
     "addPreset": "Add Preset",
     "addAsset": "Add Asset",
