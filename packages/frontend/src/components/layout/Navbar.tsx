@@ -1,18 +1,17 @@
 /**
  * @file 顶部导航栏
- * @description 平台主导航栏，对标 testfol.io 风格：汉堡菜单、Logo、PUBLIC 标签、
+ * @description 平台主导航栏，对标 testfol.io 风格：汉堡菜单、Logo、
  *   导航分组菜单、语言/主题/货币切换、Create Free Account 按钮。暗色金融平台主题，
- *   使用 shadcn Button/Badge/Sheet 与设计 token。移动端通过 Sheet 折叠导航分组。
+ *   使用 shadcn Button/Sheet 与设计 token。移动端通过 Sheet 折叠导航分组。
  */
 import { useState, useEffect, startTransition } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BarChart3, Menu, Sun, Moon, Globe, ChevronDown } from 'lucide-react';
+import { BarChart3, Menu, Sun, ChevronDown, Languages, MoonStar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@/hooks/useTheme';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { cn } from '@/lib/utils';
 import { NAV_GROUP_KEYS, NavGroup } from './NavGroupMenu.js';
@@ -78,14 +77,17 @@ function NavToolbar({
     <div className="ml-auto flex items-center gap-1">
       <Button
         variant="icon"
-        size="icon"
+        size="sm"
         onClick={() =>
           startTransition(() => i18n.changeLanguage(i18n.language === 'zh-CN' ? 'en' : 'zh-CN'))
         }
         title={t('lang.switchLang')}
         aria-label={t('lang.switchLang')}
+        className="gap-1 px-2"
       >
-        <Globe />
+        <Languages className="size-4" />
+        <span className="text-caption">{i18n.language === 'zh-CN' ? 'ZH' : 'EN'}</span>
+        <ChevronDown className="size-3" />
       </Button>
       <Button
         variant="icon"
@@ -94,7 +96,7 @@ function NavToolbar({
         title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
         aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
       >
-        {theme === 'dark' ? <Sun /> : <Moon />}
+        {theme === 'dark' ? <Sun /> : <MoonStar />}
       </Button>
       <Button
         variant="secondary"
@@ -106,7 +108,7 @@ function NavToolbar({
         {baseCurrency === 'usd' ? 'USD' : 'CNY'}
         <ChevronDown className="size-3" />
       </Button>
-      <Button variant="primary" size="default" className="ml-1">
+      <Button variant="secondary" size="sm" className="ml-1">
         {t('common.createFreeAccount')}
       </Button>
     </div>
@@ -158,9 +160,6 @@ export default function Navbar() {
         <BarChart3 className="size-5 text-brand" />
         <span className="text-h2 text-fg">{t('nav.brandName')}</span>
       </Link>
-      <Badge variant="secondary" size="sm" className="uppercase tracking-wider">
-        PUBLIC
-      </Badge>
 
       <div className="hidden md:flex">
         <NavGroupsContainer

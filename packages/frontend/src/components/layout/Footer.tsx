@@ -15,6 +15,9 @@ interface FooterLinkDef {
 const LINK_CLASS =
   'text-body text-fg-secondary transition-colors duration-150 ease-out-quart hover:text-fg';
 
+/** 构建版本号，来自 Vite 环境变量 */
+const BUILD_HASH = import.meta.env.VITE_BUILD_HASH ?? 'dev';
+
 /**
  * 页脚链接：内部路由用 Link，外链用 a，统一样式。
  * @param props - to/href/label。
@@ -49,6 +52,7 @@ export function Footer() {
     { href: 'mailto:support@example.com', label: t('footer.contact') },
     { to: '/about', label: t('footer.terms') },
     { to: '/about', label: t('footer.privacy') },
+    { href: '/api/docs', label: 'API' },
   ];
 
   return (
@@ -76,7 +80,10 @@ export function Footer() {
             {t('footer.marketDataUpdated')}: {today}
           </span>
           <span className="text-caption text-fg-tertiary">
-            © {year} {t('nav.brandName')}
+            {'Data: yfinance / finnhub / akshare'}
+          </span>
+          <span className="text-caption text-fg-tertiary">
+            © {year} {t('nav.brandName')} · v{BUILD_HASH.slice(0, 7)}
           </span>
         </div>
       </div>
