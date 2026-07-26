@@ -16,6 +16,17 @@
       "dataEngineCta": "查看数据"
     }
   },
+  "workspace": {
+    "title": "My Workspace",
+    "description": "管理您的标的、组合、策略和运行历史。"
+  },
+  "account": {
+    "title": "Account",
+    "myWorkspace": "My Workspace",
+    "settings": "Account Settings",
+    "upgrade": "Upgrade Plan",
+    "signOut": "Sign Out"
+  },
   "portfolioComparison": {
     "title": "组合对比",
     "seoSubtitle": "跨时期、跨货币、跨预设的对比矩阵",

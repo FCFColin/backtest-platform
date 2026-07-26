@@ -16,6 +16,17 @@
       "dataEngineCta": "View Data"
     }
   },
+  "workspace": {
+    "title": "My Workspace",
+    "description": "Manage your tickers, portfolios, strategies and run history."
+  },
+  "account": {
+    "title": "Account",
+    "myWorkspace": "My Workspace",
+    "settings": "Account Settings",
+    "upgrade": "Upgrade Plan",
+    "signOut": "Sign Out"
+  },
   "portfolioComparison": {
     "title": "Portfolio Comparison",
     "seoSubtitle": "Cross-period, cross-currency comparison matrix",

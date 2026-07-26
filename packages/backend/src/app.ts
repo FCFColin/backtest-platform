@@ -30,6 +30,7 @@ import {
 import dataRoutes from './routes/dataRoutes.js';
 import dataManageRoutes from './routes/dataManageRoutes.js';
 import customTickerRoutes from './routes/customTickerRoutes.js';
+import announcementRoutes from './routes/announcementRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
 import backtestOptimizerRoutes from './routes/backtestOptimizerRoutes.js';
 import tacticalRoutes from './routes/tacticalRoutes.js';
@@ -184,6 +185,7 @@ app.use('/api/', apiLimiter);
 // 路由挂载（仅 v1，legacy 路径已废弃）
 app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
 app.use('/api/v1/data/custom', authMiddleware, customTickerRoutes);
+app.use('/api/v1/announcements', announcementRoutes);
 app.use(
   '/api/v1/data/manage',
   ...readOnlyAuth,

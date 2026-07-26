@@ -9,6 +9,7 @@ const ContactPage = lazy(() => import('@/pages/ContactPage'));
 const HelpPage = lazy(() => import('@/pages/HelpPage'));
 const ChangelogPage = lazy(() => import('@/pages/ChangelogPage'));
 const PricingPage = lazy(() => import('@/pages/account/PricingPage'));
+const WorkspacePage = lazy(() => import('@/pages/workspace/WorkspacePage'));
 const PortfolioComparisonPage = lazy(
   () => import('@/pages/portfolio-comparison/PortfolioComparisonPage'),
 );
@@ -35,6 +36,7 @@ export function PublicRoutes() {
         <Route path="/swr" element={<SWRPage />} />
         <Route path="/tvm-scanner" element={<TVMScannerPage />} />
         <Route path="/monte-carlo/optimizer" element={<MCOptimizerPage />} />
+        <Route path="/workspace" element={<WorkspacePage />} />
         <Route path="/limits" element={<AboutPage section="limits" />} />
         <Route path="/upgrade" element={<AboutPage section="upgrade" />} />
       </Routes>
