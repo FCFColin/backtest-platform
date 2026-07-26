@@ -56,6 +56,124 @@ type SIMTickerDefinition struct {
 // ============================================================
 
 var simDefinitions = map[string]SIMTickerDefinition{
+	"IEFSIM": {
+		Ticker:     "IEFSIM",
+		Name:       "中期国债 (Total Return)",
+		Category:   "Bond",
+		Description: "中期美国国债全回报指数。2002年前使用国债利率推算，2002年后使用 IEF。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "IEF", StartDate: "2002-07-26", EndDate: "2099-12-31", ExpenseRatio: 0.0015},
+		},
+	},
+	"SHVSIM": {
+		Ticker:     "SHVSIM",
+		Name:       "短期国债 (Total Return)",
+		Category:   "Bond",
+		Description: "短期美国国债全回报指数。2007年后使用 SHV。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "SHV", StartDate: "2007-01-11", EndDate: "2099-12-31", ExpenseRatio: 0.0015},
+		},
+	},
+	"VXUSSIM": {
+		Ticker:     "VXUSSIM",
+		Name:       "国际股票 (Total Return)",
+		Category:   "Equity",
+		Description: "国际股票全回报指数。2011年前使用 EAFE，2011年后使用 VXUS。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "EFA", StartDate: "2001-08-20", EndDate: "2011-01-26", ExpenseRatio: 0.0032},
+			{Type: SegmentYahoo, Source: "VXUS", StartDate: "2011-01-27", EndDate: "2099-12-31", ExpenseRatio: 0.0007},
+		},
+	},
+	"VNQSIM": {
+		Ticker:     "VNQSIM",
+		Name:       "REIT (Total Return)",
+		Category:   "RealEstate",
+		Description: "房地产投资信托全回报指数。2004年后使用 VNQ。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "VNQ", StartDate: "2004-09-29", EndDate: "2099-12-31", ExpenseRatio: 0.0012},
+		},
+	},
+	"IWMSIM": {
+		Ticker:     "IWMSIM",
+		Name:       "罗素 2000 (Total Return)",
+		Category:   "Equity",
+		Description: "罗素 2000 小盘股全回报指数。2000年前使用 IWN，2000年后使用 IWM。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "IWM", StartDate: "2000-05-22", EndDate: "2099-12-31", ExpenseRatio: 0.0019},
+		},
+	},
+	"EFASIM": {
+		Ticker:     "EFASIM",
+		Name:       "MSCI EAFE (Total Return)",
+		Category:   "Equity",
+		Description: "MSCI EAFE 发达市场全回报指数。2001年后使用 EFA。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "EFA", StartDate: "2001-08-20", EndDate: "2099-12-31", ExpenseRatio: 0.0032},
+		},
+	},
+	"EEMSIM": {
+		Ticker:     "EEMSIM",
+		Name:       "新兴市场 (Total Return)",
+		Category:   "Equity",
+		Description: "新兴市场全回报指数。2003年后使用 EEM。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "EEM", StartDate: "2003-04-11", EndDate: "2099-12-31", ExpenseRatio: 0.0070},
+		},
+	},
+	"TIPSIM": {
+		Ticker:     "TIPSIM",
+		Name:       "TIPS (Total Return)",
+		Category:   "Bond",
+		Description: "通胀保护债券全回报指数。2003年后使用 TIP。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "TIP", StartDate: "2003-12-05", EndDate: "2099-12-31", ExpenseRatio: 0.0019},
+		},
+	},
+	"AGGSIM": {
+		Ticker:     "AGGSIM",
+		Name:       "美国综合债券 (Total Return)",
+		Category:   "Bond",
+		Description: "美国综合债券全回报指数。2003年后使用 AGG。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "AGG", StartDate: "2003-09-29", EndDate: "2099-12-31", ExpenseRatio: 0.0004},
+		},
+	},
+	"SCHBSIM": {
+		Ticker:     "SCHBSIM",
+		Name:       "宽基债券 (Total Return)",
+		Category:   "Bond",
+		Description: "宽基美国债券全回报指数。2010年后使用 SCHB。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "SCHB", StartDate: "2010-01-14", EndDate: "2099-12-31", ExpenseRatio: 0.0004},
+		},
+	},
+	"VTVOXSIM": {
+		Ticker:     "VTVOXSIM",
+		Name:       "中期债券 (Total Return)",
+		Category:   "Bond",
+		Description: "中期美国债券全回报指数。2009年后使用 BIV。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "BIV", StartDate: "2009-04-06", EndDate: "2099-12-31", ExpenseRatio: 0.0007},
+		},
+	},
+	"BSVSIM": {
+		Ticker:     "BSVSIM",
+		Name:       "短期国债 (Total Return)",
+		Category:   "Bond",
+		Description: "短期美国国债全回报指数。2007年后使用 BSV。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "BSV", StartDate: "2007-04-05", EndDate: "2099-12-31", ExpenseRatio: 0.0007},
+		},
+	},
+	"VTESIM": {
+		Ticker:     "VTESIM",
+		Name:       "免税债券 (Total Return)",
+		Category:   "Bond",
+		Description: "市政债券全回报指数。2007年后使用 VTEB。",
+		Segments: []SIMSegment{
+			{Type: SegmentYahoo, Source: "VTEB", StartDate: "2007-12-07", EndDate: "2099-12-31", ExpenseRatio: 0.0006},
+		},
+	},
 	"SPYSIM": {
 		Ticker:   "SPYSIM",
 		Name:     "S&P 500 指数 (Total Return)",

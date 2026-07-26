@@ -8,6 +8,7 @@
  * GET /api/data/history   - 获取历史行情数据
  * GET /api/data/search    - 搜索资产代码
  * GET /api/data/cpi/:country - 获取 CPI 数据
+ * GET /api/data/synthetic  - 获取合成标的列表
  */
 
 import { Router, type Request, type Response } from 'express';
@@ -18,6 +19,7 @@ import { MAX_TICKERS } from '@backtest/shared/constants';
 import { validateQuery } from '../middleware/validate.js';
 import { historyQuerySchema, searchQuerySchema } from '../schemas/data.js';
 import { asyncRouteHandler } from './routeUtils.js';
+import { SYNTHETIC_TICKERS } from '../infrastructure/syntheticTickers.js';
 
 const router = Router();
 
@@ -126,6 +128,27 @@ router.get(
       logMsg: 'CPI data fetch error',
       code: 'CPI_FETCH_ERROR',
       endpoint: 'data-cpi',
+    },
+  ),
+);
+
+/**
+ * 获取合成标的列表
+ * GET /api/data/synthetic
+ *
+ * 返回所有可用的 SIM (Synthetic) 标的元数据。
+ * 合成标的通过多段数据拼接实现长历史回测。
+ */
+router.get(
+  '/synthetic',
+  asyncRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      res.json({ success: true, data: SYNTHETIC_TICKERS });
+    },
+    {
+      logMsg: 'Synthetic tickers fetch error',
+      code: 'SYNTHETIC_FETCH_ERROR',
+      endpoint: 'data-synthetic',
     },
   ),
 );
