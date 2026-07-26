@@ -274,3 +274,138 @@ func TestDaysBetween(t *testing.T) {
 		})
 	}
 }
+
+// P0-2: 测试回撤片段衍生字段的正确性
+func TestDrawdownEpisodeFields(t *testing.T) {
+	t.Run("quick recovery episode", func(t *testing.T) {
+		// 峰值=110 (day1), 谷值=99 (day2), 恢复=110 (day3)
+		// depth = (110-99)/110 ≈ 0.1 (10%, > 5% threshold)
+		// timeToTrough = 1 day, recoveryTime = 1 day, totalTime = 2 days
+		// recoveryFactor = 1/1 = 1.0
+		// cagrDuring: (110/110)^(365/2) - 1 = 0
+		// ulcerDuring: sqrt(mean(dd^2)) where dd values are [0, ~0.1, 0]
+		curve := []DataPoint{
+			{Date: "2024-01-01", Value: 100},
+			{Date: "2024-01-02", Value: 110}, // peak
+			{Date: "2024-01-03", Value: 99},  // trough (dd = 10%)
+			{Date: "2024-01-04", Value: 110},  // recovery
+		}
+		episodes := detectDrawdownEpisodes(curve)
+		if len(episodes) != 1 {
+			t.Fatalf("expected 1 episode, got %d", len(episodes))
+		}
+		ep := episodes[0]
+		if ep.TimeToTrough != 1 {
+			t.Errorf("TimeToTrough = %d, want 1", ep.TimeToTrough)
+		}
+		if ep.RecoveryTime != 1 {
+			t.Errorf("RecoveryTime = %d, want 1", ep.RecoveryTime)
+		}
+		if ep.TotalTimeDurationDays != 2 {
+			t.Errorf("TotalTimeDurationDays = %d, want 2", ep.TotalTimeDurationDays)
+		}
+		if math.Abs(ep.RecoveryFactor-1.0) > 1e-6 {
+			t.Errorf("RecoveryFactor = %v, want 1.0", ep.RecoveryFactor)
+		}
+		if math.Abs(ep.CagrDuring-0.0) > 1e-6 {
+			t.Errorf("CagrDuring = %v, want 0 (no net change)", ep.CagrDuring)
+		}
+		if ep.UlcerDuring <= 0 {
+			t.Errorf("UlcerDuring = %v, should be > 0", ep.UlcerDuring)
+		}
+		if ep.ReturnFromPeakToTrough >= 0 {
+			t.Errorf("ReturnFromPeakToTrough = %v, should be negative", ep.ReturnFromPeakToTrough)
+		}
+		if ep.ReturnFromTroughToRecovery == nil {
+			t.Error("ReturnFromTroughToRecovery should not be nil for recovered episode")
+		}
+	})
+
+	t.Run("unrecovered episode fields", func(t *testing.T) {
+		// 峰值=110 (day1), 谷值=85 (day3), no recovery at end
+		// recoveryDate = "", recoveryTime = 0, recoveryFactor = 0
+		// cagrDuring: from peak to end value
+		curve := []DataPoint{
+			{Date: "2024-01-01", Value: 100},
+			{Date: "2024-01-02", Value: 110}, // peak
+			{Date: "2024-01-03", Value: 90},
+			{Date: "2024-01-04", Value: 85}, // trough, still in drawdown
+		}
+		episodes := detectDrawdownEpisodes(curve)
+		if len(episodes) != 1 {
+			t.Fatalf("expected 1 episode, got %d", len(episodes))
+		}
+		ep := episodes[0]
+		if ep.RecoveryDate != "" {
+			t.Errorf("RecoveryDate = %q, want empty", ep.RecoveryDate)
+		}
+		if ep.RecoveryTime != 0 {
+			t.Errorf("RecoveryTime = %d, want 0 for unrecovered", ep.RecoveryTime)
+		}
+		if ep.RecoveryFactor != 0 {
+			t.Errorf("RecoveryFactor = %v, want 0 for unrecovered", ep.RecoveryFactor)
+		}
+		if ep.TotalTimeDurationDays != 2 {
+			t.Errorf("TotalTimeDurationDays = %d, want 2", ep.TotalTimeDurationDays)
+		}
+		// CAGR should be negative (value dropped from 110 to 85)
+		if ep.CagrDuring >= 0 {
+			t.Errorf("CagrDuring = %v, should be negative for unrecovered drawdown", ep.CagrDuring)
+		}
+		if ep.UlcerDuring <= 0 {
+			t.Errorf("UlcerDuring = %v, should be > 0", ep.UlcerDuring)
+		}
+		if ep.ReturnFromTroughToRecovery != nil {
+			t.Error("ReturnFromTroughToRecovery should be nil for unrecovered episode")
+		}
+	})
+
+	t.Run("deep long duration episode", func(t *testing.T) {
+		// 峰值=120 (2024-01-01), 谷值=60 (2024-04-01), 恢复=120 (2024-10-01)
+		// depth = 50%, timeToTrough ≈ 91 days, recoveryTime ≈ 183 days
+		// totalTime ≈ 274 days
+		curve := []DataPoint{
+			{Date: "2024-01-01", Value: 120}, // peak
+			{Date: "2024-02-01", Value: 90},
+			{Date: "2024-03-01", Value: 70},
+			{Date: "2024-04-01", Value: 60},  // trough (50% drawdown)
+			{Date: "2024-05-01", Value: 70},
+			{Date: "2024-06-01", Value: 80},
+			{Date: "2024-07-01", Value: 90},
+			{Date: "2024-08-01", Value: 100},
+			{Date: "2024-09-01", Value: 110},
+			{Date: "2024-10-01", Value: 120}, // recovery
+		}
+		episodes := detectDrawdownEpisodes(curve)
+		if len(episodes) != 1 {
+			t.Fatalf("expected 1 episode, got %d", len(episodes))
+		}
+		ep := episodes[0]
+		expectedDepth := (120.0 - 60.0) / 120.0
+		if math.Abs(ep.Depth-expectedDepth) > 1e-6 {
+			t.Errorf("Depth = %v, want %v", ep.Depth, expectedDepth)
+		}
+		if ep.TimeToTrough != 91 {
+			t.Errorf("TimeToTrough = %d, want 91 (Jan 1 to Apr 1)", ep.TimeToTrough)
+		}
+		if ep.RecoveryTime != 183 {
+			t.Errorf("RecoveryTime = %d, want 183 (Apr 1 to Oct 1)", ep.RecoveryTime)
+		}
+		if ep.TotalTimeDurationDays != 274 {
+			t.Errorf("TotalTimeDurationDays = %d, want 274", ep.TotalTimeDurationDays)
+		}
+		// Recovery factor should be ~2.0 (183/91)
+		expectedRF := 183.0 / 91.0
+		if math.Abs(ep.RecoveryFactor-expectedRF) > 0.01 {
+			t.Errorf("RecoveryFactor = %v, want ~%v", ep.RecoveryFactor, expectedRF)
+		}
+		// CAGR should be 0 (recovered to same value)
+		if math.Abs(ep.CagrDuring-0.0) > 1e-6 {
+			t.Errorf("CagrDuring = %v, want 0 (recovered to same value)", ep.CagrDuring)
+		}
+		// Ulcer should be substantial for 50% drawdown
+		if ep.UlcerDuring < 0.1 {
+			t.Errorf("UlcerDuring = %v, should be >= 0.1 for deep drawdown", ep.UlcerDuring)
+		}
+	})
+}
