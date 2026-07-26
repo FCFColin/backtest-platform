@@ -107,16 +107,22 @@ export function wrapTooltipFormatter(
     ) => [ReactNode, ReactNode])
   | undefined {
   if (!userFormatter) return undefined;
-  return (value: unknown, name: unknown, _item?: unknown, _index?: number, _payload?: unknown) => {
+  return (
+    value: unknown,
+    name: unknown,
+    _item?: unknown,
+    _index?: number,
+    _payload?: unknown,
+  ): [ReactNode, ReactNode] => {
     try {
       const result = userFormatter(value as number, name as string);
       if (Array.isArray(result)) {
         const [formattedVal, formattedName] = result;
-        return [formattedVal, formattedName || name];
+        return [formattedVal as ReactNode, (formattedName || name) as ReactNode];
       }
-      return [result, name];
+      return [result as ReactNode, name as ReactNode];
     } catch {
-      return [String(value ?? ''), name];
+      return [String(value ?? ''), name as ReactNode];
     }
   };
 }

@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package backtest.v1;
+
+option go_package = "github.com/backtest-platform/engine-go/internal/server/grpc;grpcpb";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// BacktestEngine 服务定义（P4-1 PoC）
+// 当前 HTTP 端点：/api/engine/backtest, /api/engine/tactical-backtest,
+// /api/engine/monte-carlo, /api/engine/health
+service BacktestEngine {
+  // 回测投资组合
+  rpc RunBacktest(BacktestRequest) returns (BacktestResponse);
+
+  // 战术分配回测
+  rpc RunTacticalBacktest(TacticalBacktestRequest) returns (TacticalBacktestResponse);
+
+  // 蒙特卡洛模拟
+  rpc RunMonteCarlo(MonteCarloRequest) returns (MonteCarloResponse);
+
+  // 健康检查
+  rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResponse);
+}
+
+// --- 通用类型 ---
+
+message PriceData {
+  string ticker = 1;
+  map<string, double> prices = 2; // date → close price
+}
+
+message PortfolioInput {
+  string name = 1;
+  repeated WeightInput weights = 2;
+  string rebalance_frequency = 3; // daily, weekly, monthly, quarterly, annual
+}
+
+message WeightInput {
+  string ticker = 1;
+  double weight = 2;
+}
+
+message BacktestParameters {
+  string start_date = 1;
+  string end_date = 2;
+  double starting_value = 3;
+  bool adjust_for_inflation = 4;
+  int32 rolling_window_months = 5;
+  string benchmark_ticker = 6;
+}
+
+// --- 回测 ---
+
+message BacktestRequest {
+  repeated PortfolioInput portfolios = 1;
+  map<string, PriceData> price_data = 2;
+  BacktestParameters params = 3;
+}
+
+message PortfolioResult {
+  string name = 1;
+  repeated GrowthPoint growth_curve = 2;
+  Statistics statistics = 3;
+}
+
+message GrowthPoint {
+  string date = 1;
+  double value = 2;
+}
+
+message Statistics {
+  double total_return = 1;
+  double annualized_return = 2;
+  double volatility = 3;
+  double max_drawdown = 4;
+  double sharpe_ratio = 5;
+  double sortino_ratio = 6;
+}
+
+message BacktestResponse {
+  repeated PortfolioResult portfolios = 1;
+}
+
+// --- 战术分配 ---
+
+message TacticalBacktestRequest {
+  bytes strategy_json = 1; // TacticalStrategy serialized as JSON
+  map<string, PriceData> price_data = 2;
+  repeated string dates = 3;
+  double starting_value = 4;
+  string rebalance_frequency = 5;
+}
+
+message TacticalBacktestResponse {
+  PortfolioResult portfolio = 1;
+  repeated SignalHistoryEntry signal_history = 2;
+}
+
+message SignalHistoryEntry {
+  string date = 1;
+  repeated string active_signals = 2;
+  repeated WeightInput weights = 3;
+}
+
+// --- 蒙特卡洛 ---
+
+message MonteCarloRequest {
+  BacktestParameters params = 1;
+  repeated PortfolioInput portfolios = 2;
+  map<string, PriceData> price_data = 3;
+  int32 num_simulations = 4;
+  int32 time_horizon_years = 5;
+}
+
+message MonteCarloResponse {
+  repeated SimulationPath paths = 1;
+  MonteCarloStatistics stats = 2;
+}
+
+message SimulationPath {
+  int32 simulation_id = 1;
+  repeated GrowthPoint curve = 2;
+}
+
+message MonteCarloStatistics {
+  double median_final_value = 1;
+  double percentile_5 = 2;
+  double percentile_95 = 3;
+  double probability_of_ruin = 4;
+}
+
+// --- 健康检查 ---
+
+message HealthCheckResponse {
+  string status = 1; // "ok" | "degraded"
+  string version = 2;
+  google.protobuf.Timestamp uptime = 3;
+}
