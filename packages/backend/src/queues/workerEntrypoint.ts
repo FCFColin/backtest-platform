@@ -24,6 +24,7 @@ import { RunCompletedHandler } from '../application/runCompletedHandler.js';
 import { createWebhookRetryWorker, scheduleWebhookRetryJob } from './webhookQueue.js';
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
 import { startHeartbeat } from './healthCheck.js';
+import './worker.js'; // Backtest worker (module-level side effect: creates Worker at import time)
 import type { Worker } from 'bullmq';
 
 validateConfig();

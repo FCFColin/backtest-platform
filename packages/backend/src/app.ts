@@ -184,7 +184,7 @@ app.use('/api/', apiLimiter);
 
 // 路由挂载（仅 v1，legacy 路径已废弃）
 app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
-app.use('/api/v1/data/custom', authMiddleware, customTickerRoutes);
+app.use('/api/v1/data/custom', ...readOnlyAuth, customTickerRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
 app.use(
   '/api/v1/data/manage',

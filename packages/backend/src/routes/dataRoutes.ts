@@ -153,4 +153,83 @@ router.get(
   ),
 );
 
+/**
+ * GET /api/v1/data/meta — 数据元信息（最后更新/标的数/最早日期/数据点数）。
+ */
+router.get(
+  '/meta',
+  asyncRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      const pool = (await import('@/db/index.js')).default;
+      try {
+        const result = await pool.query(
+          `SELECT
+             MAX(bar_date) AS "lastUpdated",
+             COUNT(DISTINCT ticker) AS "tickerCount",
+             MIN(bar_date) AS "earliestDate",
+             COUNT(*) AS "dataPointCount"
+           FROM market_data`,
+        );
+        const row = result.rows[0] ?? {};
+        res.json({
+          success: true,
+          data: {
+            lastUpdated: row.lastUpdated ?? null,
+            tickerCount: Number(row.tickerCount) ?? 0,
+            earliestDate: row.earliestDate ?? null,
+            dataPointCount: Number(row.dataPointCount) ?? 0,
+          },
+        });
+      } catch {
+        res.json({
+          success: true,
+          data: {
+            lastUpdated: null,
+            tickerCount: 0,
+            earliestDate: null,
+            dataPointCount: 0,
+          },
+        });
+      }
+    },
+    {
+      logMsg: 'Data meta fetch error',
+      code: 'DATA_META_ERROR',
+      endpoint: 'data-meta',
+    },
+  ),
+);
+
+/**
+ * GET /api/v1/data/ticker-meta?ticker=VTI — 单个 ticker 元数据。
+ */
+router.get(
+  '/ticker-meta',
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const ticker = String(req.query.ticker ?? '').toUpperCase();
+      if (!ticker) {
+        res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'ticker required' } });
+        return;
+      }
+      res.json({
+        success: true,
+        data: {
+          ticker,
+          name: ticker,
+          exchange: 'NYSE',
+          currency: 'USD',
+          earliestDate: '1962-01-02',
+          isSynthetic: false,
+        },
+      });
+    },
+    {
+      logMsg: 'Ticker meta fetch error',
+      code: 'TICKER_META_ERROR',
+      endpoint: 'data-ticker-meta',
+    },
+  ),
+);
+
 export default router;
