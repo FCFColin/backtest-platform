@@ -13,6 +13,25 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { StatRow, StatGroup, MetricImportance } from './types.js';
 import { formatValue } from './helpers.js';
 
+/**
+ * 统计行 key → data-testid 映射，供契约校验脚本定位指标值单元格。
+ * 注意：`stdev` 对应 `stat-volatility`，`ulcerPerformanceIndex` 对应 `stat-upi`。
+ */
+const STAT_KEY_TO_TESTID: Record<string, string> = {
+  cagr: 'stat-cagr',
+  mwrr: 'stat-mwrr',
+  maxDrawdown: 'stat-max-drawdown',
+  avgDrawdown: 'stat-avg-drawdown',
+  stdev: 'stat-volatility',
+  sharpe: 'stat-sharpe',
+  sortino: 'stat-sortino',
+  calmar: 'stat-calmar',
+  ulcerIndex: 'stat-ulcer',
+  ulcerPerformanceIndex: 'stat-upi',
+  diversificationRatio: 'stat-diversification',
+  beta: 'stat-beta',
+};
+
 // ============ 子组件 ============
 
 /** 统计表表头 Props */
@@ -109,6 +128,7 @@ export function MetricsRows({ rows, portfolios }: MetricsRowsProps) {
               return (
                 <td
                   key={p.name}
+                  data-testid={STAT_KEY_TO_TESTID[row.key as string]}
                   className={`stat-table-value-cell stat-table-num ${colorClass}`}
                 >
                   {formatValue(val, row.fmt)}
@@ -154,6 +174,7 @@ export function HierarchicalMetricsRows({ rows, portfolios, expanded }: Hierarch
           return (
             <td
               key={p.name}
+              data-testid={STAT_KEY_TO_TESTID[row.key as string]}
               className={`stat-table-value-cell stat-table-num ${colorClass}`}
             >
               {formatValue(val, row.fmt)}

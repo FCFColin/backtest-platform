@@ -44,6 +44,23 @@ const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'beta', label: 'Beta', format: 'number' },
 ];
 
+/** 统计列 key → data-testid 映射，供契约校验脚本定位指标值单元格 */
+const STAT_KEY_TO_TESTID: Record<string, string> = {
+  endingValue: 'stat-ending-value',
+  cagr: 'stat-cagr',
+  mwrr: 'stat-mwrr',
+  maxDrawdown: 'stat-max-drawdown',
+  avgDrawdown: 'stat-avg-drawdown',
+  volatility: 'stat-volatility',
+  sharpe: 'stat-sharpe',
+  sortino: 'stat-sortino',
+  calmar: 'stat-calmar',
+  ulcerIndex: 'stat-ulcer',
+  upi: 'stat-upi',
+  diversificationRatio: 'stat-diversification',
+  beta: 'stat-beta',
+};
+
 interface StatisticsTableV2Props {
   portfolios: Array<{
     id: string;
@@ -218,6 +235,7 @@ export function StatisticsTableV2({
                     return (
                       <td
                         key={col.key}
+                        data-testid={STAT_KEY_TO_TESTID[col.key]}
                         className={cn(
                           'px-3',
                           col.format === 'text' ? 'text-left' : 'text-right',
