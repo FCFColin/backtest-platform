@@ -591,6 +591,9 @@
     "dateRange": "日期范围",
     "allHistory": "全部历史"
   },
+  "chart": {
+    "emptyData": "暂无数据"
+  },
   "charts": {
     "logScale": "对数坐标",
     "annualReturn": {

@@ -460,7 +460,9 @@ function MultiPortfolioEditor() {
           onCancel={() => setShowGlidepathForm(false)}
         />
       )}
-      <div className="flex flex-wrap items-start gap-3">
+      <div
+        className={portfolios.length === 1 ? 'max-w-[460px]' : 'flex flex-wrap items-start gap-3'}
+      >
         {portfolios.length === 0 ? (
           <div className="flex items-center gap-2 py-2">
             <span className="text-body text-fg-tertiary">{t('portfolio.emptyPortfolios')}</span>

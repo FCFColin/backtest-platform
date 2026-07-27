@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { Eye, EyeOff, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button.js';
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState.js';
 import {
   CURRENCY_TICK_FORMATTER,
   CURRENCY_EXACT_FORMATTER,
@@ -130,11 +131,16 @@ export function GrowthChartV2({
       </div>
 
       {/* 图表主体 */}
-      {!hidden && (
-        <>
-          <div className="h-[440px] px-6">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={filteredData} margin={CHART_MARGIN}>
+      {!hidden &&
+        (filteredData.length === 0 ? (
+          <div className="px-6 pb-4">
+            <ChartEmptyState />
+          </div>
+        ) : (
+          <>
+            <div className="h-[440px] px-6">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={filteredData} margin={CHART_MARGIN}>
                 <CartesianGrid {...CHART_GRID_PROPS} />
                 <XAxis
                   dataKey="date"
@@ -203,7 +209,7 @@ export function GrowthChartV2({
             )}
           </div>
         </>
-      )}
+        ))}
     </div>
   );
 }

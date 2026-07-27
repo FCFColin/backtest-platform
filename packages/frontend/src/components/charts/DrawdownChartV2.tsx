@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { YEAR_ONLY_TICK_FORMATTER, SMART_DATE_INTERVAL, CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE, CHART_MARGIN, getPortfolioColor } from '@/lib/chart-theme.js';
 import { formatPercent } from '@/lib/formatters.js';
+import { ChartEmptyState } from '@/components/charts/ChartEmptyState.js';
 
 interface DrawdownChartV2Props {
   portfolios: Array<{
@@ -50,9 +51,14 @@ export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
       <div className="px-6 pt-5 pb-3">
         <h3 className="text-h3">回撤走势</h3>
       </div>
-      <div className="h-[440px] px-6">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={CHART_MARGIN}>
+      {chartData.length === 0 ? (
+        <div className="px-6 pb-4">
+          <ChartEmptyState />
+        </div>
+      ) : (
+        <div className="h-[440px] px-6">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={CHART_MARGIN}>
             <defs>
               <linearGradient id="dangerGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="hsl(var(--danger))" stopOpacity={0.4} />
@@ -92,6 +98,7 @@ export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
           </AreaChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

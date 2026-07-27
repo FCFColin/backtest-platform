@@ -591,6 +591,9 @@
     "dateRange": "Date range",
     "allHistory": "Full history"
   },
+  "chart": {
+    "emptyData": "No data available"
+  },
   "charts": {
     "logScale": "Log Scale",
     "annualReturn": {

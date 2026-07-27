@@ -40,7 +40,7 @@ function AppLayout() {
       )}
       {!isAdmin && <Navbar />}
       <Toast />
-      <main style={{ paddingTop: isAdmin ? 0 : 80, minHeight: '100vh' }}>
+      <main style={{ paddingTop: isAdmin ? 0 : 80, minHeight: '60vh' }}>
         <ToolRoutes />
         <PublicRoutes />
         <AuthRoutes />
