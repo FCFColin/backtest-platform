@@ -135,15 +135,15 @@ export function Footer() {
                 <div className="text-fg-secondary">数据来源</div>
                 <div>yfinance · finnhub · akshare · BaoStock</div>
               </div>
-              <div>
+              <div data-testid="footer-data-update">
                 <div className="text-fg-secondary">数据更新</div>
                 <div className="font-mono">{displayDate}</div>
               </div>
-              <div>
+              <div data-testid="footer-data-history">
                 <div className="text-fg-secondary">历史深度</div>
                 <div className="font-mono">{earliestDate} 起</div>
               </div>
-              <div>
+              <div data-testid="footer-data-coverage">
                 <div className="text-fg-secondary">覆盖标的</div>
                 <div className="font-mono">{tickerCount} 个</div>
               </div>

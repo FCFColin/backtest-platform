@@ -227,6 +227,7 @@ export function PortfolioCardV2({
 
   return (
     <Card
+      data-testid="portfolio-card"
       className={cn(
         'relative group p-3 pt-8',
         isGp && 'border-l-[3px] border-l-accent bg-input-bg/30',
@@ -273,7 +274,7 @@ export function PortfolioCardV2({
       )}
 
       {/* Header — 名称 + 调仓频率 + 偏移 + 拖累 + 总回报 + 偏差带 */}
-      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+      <div data-testid="portfolio-header" className="flex items-center gap-1.5 mb-2 flex-wrap">
         <Input
           type="text"
           value={portfolio.name || `${t('portfolio.portfolio')} ${index + 1}`}
@@ -332,7 +333,7 @@ export function PortfolioCardV2({
       <RebalanceBandsRow portfolio={portfolio} onUpdate={onUpdate} />
 
       {/* 资产列表 */}
-      <div className="flex flex-col gap-1.5">
+      <div data-testid="portfolio-assets" className="flex flex-col gap-1.5">
         {portfolio.assets.map((asset, i) => (
           <AssetWeightRow
             key={i}
@@ -373,7 +374,7 @@ export function PortfolioCardV2({
       </div>
 
       {/* Footer — 合计 + 深度分析 */}
-      <div className="flex items-center justify-between pt-2 mt-2 border-t border-border-subtle">
+      <div data-testid="portfolio-footer" className="flex items-center justify-between pt-2 mt-2 border-t border-border-subtle">
         <div className="flex items-center gap-2 text-caption">
           <span className="text-fg-tertiary uppercase tracking-wide">
             {t('portfolio.total')}
@@ -395,7 +396,7 @@ export function PortfolioCardV2({
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="text-caption h-7">
+            <Button variant="ghost" size="sm" className="text-caption h-7" data-testid="deep-analysis-menu">
               {t('portfolio.deepAnalysis')} <ChevronDown className="h-3 w-3 ml-1" />
             </Button>
           </DropdownMenuTrigger>

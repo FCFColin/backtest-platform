@@ -48,7 +48,7 @@ function NavGroupsContainer({
   className?: string;
 }) {
   return (
-    <div className={cn('flex items-center gap-1', className)}>
+    <div data-testid="nav-group" className={cn('flex items-center gap-1', className)}>
       {NAV_GROUP_KEYS.map((group) => (
         <NavGroup
           key={group.key}
@@ -108,7 +108,7 @@ export default function Navbar() {
             />
             <div className="mt-4 flex flex-col gap-1">
               {DIRECT_LINKS.map((link) => (
-                <Link key={link.to} to={link.to} className={navLinkClass}>
+                <Link key={link.to} to={link.to} className={navLinkClass} data-testid="nav-direct">
                   {t(`nav.${link.key}`)}
                 </Link>
               ))}
@@ -140,7 +140,7 @@ export default function Navbar() {
             t={t}
           />
           {DIRECT_LINKS.map((link) => (
-            <Link key={link.to} to={link.to} className={navLinkClass}>
+            <Link key={link.to} to={link.to} className={navLinkClass} data-testid="nav-direct">
               {t(`nav.${link.key}`)}
             </Link>
           ))}
@@ -161,6 +161,7 @@ export default function Navbar() {
             title={t('lang.switchLang')}
             aria-label={t('lang.switchLang')}
             className="gap-1 px-2"
+            data-testid="language-selector"
           >
             <Languages className="size-4" />
             <span className="text-caption">{i18n.language === 'zh-CN' ? 'ZH' : 'EN'}</span>
@@ -173,6 +174,7 @@ export default function Navbar() {
             onClick={toggleTheme}
             title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
             aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+            data-testid="theme-toggle"
           >
             {theme === 'dark' ? <Sun /> : <MoonStar />}
           </Button>
@@ -184,6 +186,7 @@ export default function Navbar() {
             onClick={toggleCurrency}
             title={t('lang.switchCurrency')}
             aria-label={t('lang.switchCurrency')}
+            data-testid="currency-selector"
           >
             {baseCurrency === 'usd' ? 'USD' : 'CNY'}
             <ChevronDown className="size-3" />

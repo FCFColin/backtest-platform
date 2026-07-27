@@ -41,6 +41,7 @@ const TIER_LABELS: Record<PlanTier, string> = {
 export function PlanBadge({ tier, className }: PlanBadgeProps) {
   return (
     <span
+      data-testid="plan-badge"
       className={cn(
         'inline-flex items-center px-1.5 py-0.5',
         'text-micro font-semibold uppercase tracking-wider',
