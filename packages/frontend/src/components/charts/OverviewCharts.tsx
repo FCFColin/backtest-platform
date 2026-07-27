@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { GrowthChart } from './AnalysisGrowthChart.js';
-import DrawdownChart from './DrawdownChart.js';
+import { DrawdownChartV2 } from './DrawdownChartV2.js';
 import { CorrelationMatrixTable } from './CorrelationMatrixTable.js';
 import ChartCard from '../ChartCard.js';
 
@@ -23,7 +23,7 @@ export const OverviewCharts = memo(function OverviewCharts({
         <StatsTable tickers={tickers} />
       </ChartCard>
       <GrowthChart growthData={growthData} portfolioResults={portfolioResults} />
-      <DrawdownChart portfolios={portfolioResults} />
+      <DrawdownChartV2 portfolios={portfolioResults} />
       {results.correlations && results.correlations.length >= 2 && (
         <CorrelationMatrixTable tickers={tickers} correlations={results.correlations} />
       )}

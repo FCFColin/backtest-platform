@@ -87,8 +87,8 @@ export function PortfolioToolbarAndAssets({
   const { t } = useTranslation();
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => onAddAsset(portfolio.id)}>
+      <div className="flex flex-wrap items-center gap-1">
+        <Button variant="secondary" size="sm" onClick={() => onAddAsset(portfolio.id)}>
           <Plus />
           {t('portfolio.addAsset')}
         </Button>
@@ -96,6 +96,7 @@ export function PortfolioToolbarAndAssets({
         <Button
           variant="ghost"
           size="sm"
+          className="text-fg-tertiary hover:bg-hover hover:text-fg"
           onClick={() => handleEvenDistribute(portfolio, onBatchUpdate)}
         >
           {t('portfolio.evenDistribute')}
@@ -103,12 +104,13 @@ export function PortfolioToolbarAndAssets({
         <Button
           variant="ghost"
           size="sm"
+          className="text-fg-tertiary hover:bg-hover hover:text-fg"
           onClick={() => handleStretchTo100(portfolio, tw, onBatchUpdate)}
         >
           {t('portfolio.stretchTo100')}
         </Button>
       </div>
-      <div className="mt-2 flex flex-col gap-2">
+      <div className="mt-2 flex flex-col gap-1.5">
         {portfolio.assets.map((asset, assetIdx) => (
           <TickerAssetRow
             key={asset.id ?? assetIdx}

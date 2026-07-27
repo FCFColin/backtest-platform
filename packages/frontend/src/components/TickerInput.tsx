@@ -14,6 +14,8 @@ interface TickerInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  /** 透传给内部 Input 的类名（如紧凑场景传 h-8） */
+  className?: string;
 }
 
 /** 若 name 以 components. 开头则视为 i18n key 翻译，否则原样返回 */
@@ -145,7 +147,7 @@ function useTickerSearch() {
  * @param props - value/onChange/placeholder
  * @returns 渲染的标的输入框（含自动补全下拉）
  */
-export default function TickerInput({ value, onChange, placeholder }: TickerInputProps) {
+export default function TickerInput({ value, onChange, placeholder, className }: TickerInputProps) {
   const { t } = useTranslation();
   const [focused, setFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -211,6 +213,7 @@ export default function TickerInput({ value, onChange, placeholder }: TickerInpu
         placeholder={placeholder || t('components.tickerInput.placeholder')}
         autoComplete="off"
         spellCheck={false}
+        className={className}
       />
       {focused && suggestions.length > 0 && (
         <TickerDropdown

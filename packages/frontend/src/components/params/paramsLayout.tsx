@@ -12,25 +12,19 @@ import { cn } from '@/lib/utils';
 /** ParamRow Props */
 export interface ParamRowProps {
   children: ReactNode;
-  columns?: number;
   style?: CSSProperties;
   className?: string;
 }
 
 /**
- * 参数行组件：使用 CSS Grid 横向排列参数卡片。
- * 默认单列；移动端始终单列，sm 以上根据 columns 自适应。
+ * 参数行组件：flex-wrap 横向排列参数卡片，每个字段按内容自然定宽。
+ * 取代旧的等宽 Grid（等宽列会把开关/短输入拉伸、造成行间错位）。
  * @param props - 见 ParamRowProps
  * @returns 渲染的参数行
  */
-export function ParamRow({ children, columns, style, className }: ParamRowProps) {
-  const cols = columns ?? 3;
-  const gridStyle = { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, ...style };
+export function ParamRow({ children, style, className }: ParamRowProps) {
   return (
-    <div
-      className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3', className)}
-      style={gridStyle}
-    >
+    <div className={cn('flex flex-wrap items-end gap-x-5 gap-y-4', className)} style={style}>
       {children}
     </div>
   );
@@ -46,17 +40,18 @@ export interface ParamCardProps {
 }
 
 /**
- * 单个参数卡片：标签 + 控件槽，垂直网格布局（同 Field）。
+ * 单个参数卡片：标签 + 控件槽，垂直堆叠。
+ * 标签用低对比 caption，控件槽负责自身宽度（避免等宽列拉伸）。
  * @param props - 见 ParamCardProps
  * @returns 渲染的参数卡片
  */
 export function ParamCard({ label, children, fullWidth, style, className }: ParamCardProps) {
   return (
     <div
-      className={cn('grid gap-1.5', fullWidth && 'col-span-full', className)}
+      className={cn('flex flex-col gap-1.5', fullWidth && 'w-full', className)}
       style={style}
     >
-      {label && <label className="text-caption font-medium text-fg-secondary">{label}</label>}
+      {label && <label className="text-caption text-fg-tertiary">{label}</label>}
       <div className="min-w-0">{children}</div>
     </div>
   );
@@ -78,10 +73,10 @@ export interface ParamGroupProps {
 export function ParamGroup({ title, children, defaultExpanded = true, badge }: ParamGroupProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   return (
-    <div className="border-b border-border-subtle last:border-b-0">
+    <div className="mt-3 border-b border-border-subtle last:border-b-0">
       <button
         type="button"
-        className="flex w-full items-center gap-1.5 py-2 px-2 text-left cursor-pointer select-none hover:bg-hover transition-colors duration-150"
+        className="flex w-full items-center gap-1.5 py-2.5 px-2 -mx-2 text-left cursor-pointer select-none rounded-md hover:bg-hover transition-colors duration-150"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
       >
@@ -98,7 +93,7 @@ export function ParamGroup({ title, children, defaultExpanded = true, badge }: P
           </span>
         )}
       </button>
-      {expanded && <div className="px-2 pb-3 pt-1">{children}</div>}
+      {expanded && <div className="pb-4 pt-2">{children}</div>}
     </div>
   );
 }

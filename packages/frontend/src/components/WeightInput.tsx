@@ -3,14 +3,14 @@
  * @description 投资组合权重输入框，支持百分比输入及中间状态容错。
  *   - 默认模式：仅渲染权重 Input（向后兼容旧调用方）。
  *   - HoldingRow 模式：当传入 ticker/onDelete 时，渲染完整持产行
- *     （TickerInput + 权重 Input + 删除按钮），用于组合编辑器资产行。
+ *     （TickerInput 自适应占满 + 权重 Input（% 内嵌） + 删除按钮），用于组合编辑器资产行。
  *   基于 shadcn Input / Button 重构为暗色金融平台主题；数字使用 tabular-nums 等宽对齐。
  *   注意：保留 type="text" + inputMode="decimal" 以允许 '-'/''.'/'-.' 等中间输入状态，
  *   切换为 type="number" 会破坏中间态容错逻辑。
  */
 import { useState, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { X } from 'lucide-react';
+import { AffixInput } from '@/components/ui/affix-input';
 import { Button } from '@/components/ui/button';
 import TickerInput from './TickerInput.js';
 import { cn } from '@/lib/utils';
@@ -35,15 +35,18 @@ interface WeightInputProps {
 
 /**
  * 权重数字输入子组件：本地 state 管理原始字符串，允许空值、负号等中间输入状态。
- * @param props - value/onChange
+ * % 后缀内嵌于输入框右缘。
+ * @param props - value/onChange/className
  * @returns 渲染的权重输入框
  */
 function WeightNumberInput({
   value,
   onChange,
+  className,
 }: {
   value: number;
   onChange: (num: number) => void;
+  className?: string;
 }) {
   const [raw, setRaw] = useState(String(value));
 
@@ -58,10 +61,11 @@ function WeightNumberInput({
   }, [value]);
 
   return (
-    <Input
+    <AffixInput
       type="text"
       inputMode="decimal"
       value={raw}
+      suffix="%"
       onChange={(e) => {
         const newRaw = e.target.value;
         setRaw(newRaw);
@@ -79,7 +83,7 @@ function WeightNumberInput({
         setRaw(String(normalized));
       }}
       aria-label="weight"
-      className={cn('h-9 w-[100px] text-right font-mono tabular-nums')}
+      className={cn('h-8 text-right font-mono tabular-nums', className)}
     />
   );
 }
@@ -102,20 +106,31 @@ export default function WeightInput({
   // HoldingRow 模式：ticker 与 onDelete 同时存在时渲染完整持产行
   if (ticker !== undefined && onDelete && onTickerChange) {
     return (
-      <div className="flex items-center gap-3 py-2">
-        <div className="w-[220px] shrink-0">
-          <TickerInput value={ticker} placeholder={tickerPlaceholder} onChange={onTickerChange} />
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <TickerInput
+            value={ticker}
+            placeholder={tickerPlaceholder}
+            onChange={onTickerChange}
+            className="h-8 font-mono uppercase"
+          />
         </div>
-        <div className="flex-1 min-w-0" />
-        <WeightNumberInput value={value} onChange={onChange} />
-        <span className="text-caption text-fg-tertiary w-4 shrink-0">%</span>
-        <Button variant="destructive" size="icon" aria-label="delete holding" onClick={onDelete}>
-          <Trash2 />
+        <div className="w-[96px] shrink-0">
+          <WeightNumberInput value={value} onChange={onChange} className="w-full" />
+        </div>
+        <Button
+          variant="destructive"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          aria-label="delete holding"
+          onClick={onDelete}
+        >
+          <X />
         </Button>
       </div>
     );
   }
 
   // 向后兼容：仅渲染权重输入框
-  return <WeightNumberInput value={value} onChange={onChange} />;
+  return <WeightNumberInput value={value} onChange={onChange} className="w-[80px]" />;
 }

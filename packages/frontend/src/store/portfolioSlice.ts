@@ -115,6 +115,7 @@ export function portfolioSlice(set: SetFn, _get: GetFn) {
         Pick<
           Portfolio,
           | 'name'
+          | 'assets'
           | 'rebalanceFrequency'
           | 'rebalanceThreshold'
           | 'rebalanceOffset'

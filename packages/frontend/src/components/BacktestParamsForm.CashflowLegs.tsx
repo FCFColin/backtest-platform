@@ -1,13 +1,15 @@
 /**
  * @file 现金流分区
  * @description 周期性现金流腿（CashflowLegs）与一次性现金流（OneTimeCashflow）两个分区。
- *   基于 shadcn Input / Select / Switch / Button + token 类名，使用统一参数布局组件。
+ *   基于 shadcn Input / Select / Switch / Button + AffixInput（$、% 内嵌前后缀）。
+ *   删除按钮通过 h-10 容器与同行控件底边对齐（ParamRow items-end）。
  */
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Plus, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { AffixInput } from '@/components/ui/affix-input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +24,23 @@ import type { TFunctionProp } from './BacktestParamsForm.types.js';
 import type { CashflowLeg } from '@backtest/shared';
 import { ParamGroup, ParamRow, ParamCard } from './params/index.js';
 
+/** 行尾删除按钮：h-10 容器与 ParamRow(items-end) 配合，与控件底边对齐 */
+function RowDeleteButton({ onClick, t }: { onClick: () => void; t: TFunctionProp['t'] }) {
+  return (
+    <div className="flex h-10 items-center">
+      <Button
+        variant="destructive"
+        size="icon"
+        onClick={onClick}
+        title={t('common.delete')}
+        aria-label={t('common.delete')}
+      >
+        <X />
+      </Button>
+    </div>
+  );
+}
+
 /** 周期性现金流分区 */
 export function CashflowLegsSection() {
   const { t } = useTranslation();
@@ -31,28 +50,28 @@ export function CashflowLegsSection() {
   return (
     <ParamGroup title={t('params.cashflowLegs')} badge={parameters.cashflowLegs?.length || 0}>
       <ParamRow>
-        <ParamCard label={t('params.adjustFixedCashflowsForInflation')}>
-          <div className="flex items-center gap-2 h-10">
-            <Switch id="cf-inflation-adjust" />
-            <label
-              htmlFor="cf-inflation-adjust"
-              className="text-caption text-fg-secondary cursor-pointer"
-            >
-              {t('params.adjustForInflation')}
-            </label>
-          </div>
-        </ParamCard>
+        <div className="flex h-10 items-center gap-2">
+          <Switch id="cf-inflation-adjust" />
+          <label
+            htmlFor="cf-inflation-adjust"
+            className="cursor-pointer text-caption text-fg-secondary"
+          >
+            {t('params.adjustFixedCashflowsForInflation')}
+          </label>
+        </div>
         <ParamCard label={t('params.annualCashflowGrowth')}>
-          <div className="flex items-center gap-2">
-            <Input type="number" defaultValue={0} className="font-mono tabular-nums" />
-            <span className="text-caption text-fg-tertiary shrink-0">%</span>
-          </div>
+          <AffixInput
+            type="number"
+            defaultValue={0}
+            suffix="%"
+            className="w-[104px] font-mono tabular-nums"
+          />
         </ParamCard>
       </ParamRow>
       {(parameters.cashflowLegs || []).map((leg) => (
         <CashflowLegRow key={leg.id} leg={leg} currency={parameters.baseCurrency} t={t} />
       ))}
-      <Button variant="ghost" size="sm" className="mt-2" onClick={addCashflowLeg}>
+      <Button variant="ghost" size="sm" className="mt-3" onClick={addCashflowLeg}>
         <Plus />
         {t('params.addCashflowLeg')}
       </Button>
@@ -87,7 +106,7 @@ function CashflowFrequencySelect({
           })
         }
       >
-        <SelectTrigger>
+        <SelectTrigger className="w-[110px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -105,19 +124,16 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
   const removeCashflowLeg = useBacktestStore((s) => s.removeCashflowLeg);
   const updateCashflowLeg = useBacktestStore((s) => s.updateCashflowLeg);
   return (
-    <ParamRow>
+    <ParamRow className="mt-4">
       <ParamCard label={t('params.amount')}>
-        <div className="flex items-center gap-2">
-          <span className="text-body text-fg-tertiary font-mono">
-            {currency === 'usd' ? '$' : '¥'}
-          </span>
-          <Input
-            type="number"
-            value={leg.amount || ''}
-            placeholder="0"
-            onChange={(e) => updateCashflowLeg(leg.id, { amount: Number(e.target.value) || 0 })}
-          />
-        </div>
+        <AffixInput
+          type="number"
+          value={leg.amount || ''}
+          placeholder="0"
+          prefix={currency === 'usd' ? '$' : '¥'}
+          className="w-[140px]"
+          onChange={(e) => updateCashflowLeg(leg.id, { amount: Number(e.target.value) || 0 })}
+        />
       </ParamCard>
       <ParamCard label={t('params.cashflowType')}>
         <Select
@@ -126,7 +142,7 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
             updateCashflowLeg(leg.id, { type: v as 'contribution' | 'withdrawal' })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-[110px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -141,6 +157,7 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
           type="number"
           value={leg.offset || ''}
           placeholder="0"
+          className="w-[80px]"
           onChange={(e) => updateCashflowLeg(leg.id, { offset: Number(e.target.value) || 0 })}
         />
       </ParamCard>
@@ -148,19 +165,11 @@ function CashflowLegRow({ leg, currency, t }: CashflowLegRowProps) {
         <Input
           type="date"
           value={leg.until || ''}
+          className="w-[150px]"
           onChange={(e) => updateCashflowLeg(leg.id, { until: e.target.value })}
         />
       </ParamCard>
-      <Button
-        variant="destructive"
-        size="icon"
-        className="mt-7"
-        onClick={() => removeCashflowLeg(leg.id)}
-        title={t('common.delete')}
-        aria-label={t('common.delete')}
-      >
-        <X />
-      </Button>
+      <RowDeleteButton onClick={() => removeCashflowLeg(leg.id)} t={t} />
     </ParamRow>
   );
 }
@@ -179,21 +188,18 @@ export function OneTimeCashflowSection() {
       badge={parameters.oneTimeCashflows?.length || 0}
     >
       {(parameters.oneTimeCashflows || []).map((cf) => (
-        <ParamRow key={cf.id}>
+        <ParamRow key={cf.id} className="mb-4 last:mb-0">
           <ParamCard label={t('params.amount')}>
-            <div className="flex items-center gap-2">
-              <span className="text-body text-fg-tertiary font-mono">
-                {parameters.baseCurrency === 'usd' ? '$' : '¥'}
-              </span>
-              <Input
-                type="number"
-                value={cf.amount || ''}
-                placeholder="0"
-                onChange={(e) =>
-                  updateOneTimeCashflow(cf.id, { amount: Math.abs(Number(e.target.value) || 0) })
-                }
-              />
-            </div>
+            <AffixInput
+              type="number"
+              value={cf.amount || ''}
+              placeholder="0"
+              prefix={parameters.baseCurrency === 'usd' ? '$' : '¥'}
+              className="w-[140px]"
+              onChange={(e) =>
+                updateOneTimeCashflow(cf.id, { amount: Math.abs(Number(e.target.value) || 0) })
+              }
+            />
           </ParamCard>
           <ParamCard label={t('params.type')}>
             <Select
@@ -202,7 +208,7 @@ export function OneTimeCashflowSection() {
                 updateOneTimeCashflow(cf.id, { type: v as 'contribution' | 'withdrawal' })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-[110px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -215,24 +221,17 @@ export function OneTimeCashflowSection() {
             <Input
               type="date"
               value={cf.date}
+              className="w-[150px]"
               onChange={(e) => updateOneTimeCashflow(cf.id, { date: e.target.value })}
             />
           </ParamCard>
-          <Button
-            variant="destructive"
-            size="icon"
-            className="mt-7"
-            onClick={() => removeOneTimeCashflow(cf.id)}
-            title={t('common.delete')}
-            aria-label={t('common.delete')}
-          >
-            <X />
-          </Button>
+          <RowDeleteButton onClick={() => removeOneTimeCashflow(cf.id)} t={t} />
         </ParamRow>
       ))}
       {(parameters.oneTimeCashflows || []).length === 0 && (
-        <Button variant="ghost" size="sm" className="mt-2" onClick={addOneTimeCashflow}>
-          + {t('params.addOneTimeCashflow')}
+        <Button variant="ghost" size="sm" onClick={addOneTimeCashflow}>
+          <Plus />
+          {t('params.addOneTimeCashflow')}
         </Button>
       )}
     </ParamGroup>

@@ -15,9 +15,12 @@ import { PORTFOLIO_PRESETS } from '@/store/backtestHelpers.js';
 import { validateAssetWeights } from '@/utils/validation';
 import type { StorePortfolio, TFunc } from './portfolioEditor/shared.js';
 import { GlidepathForm } from './portfolioEditor/GlidepathComponents.js';
-import { PortfolioCard } from './portfolioEditor/PortfolioCard.js';
+import { PortfolioCardV2 } from './portfolioEditor/PortfolioCardV2.js';
+import { AllocationBar, TotalWeightBlock } from './portfolioEditor/WeightBar.js';
+import { getPortfolioColor } from '@/lib/chart-colors.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { AffixInput } from '@/components/ui/affix-input';
 import { Badge } from '@/components/ui/badge';
 
 // ──────────────────────────────────────────────
@@ -89,52 +92,50 @@ function SinglePortfolioEditor({
       style={wrapInSection ? undefined : cardStyle}
     >
       {header}
-      {assets.map((a, i) => (
-        <div key={i} className="flex items-center gap-1.5">
-          <Input
-            type="text"
-            value={a.ticker}
-            onChange={(e) => onUpdate(i, 'ticker', e.target.value)}
-            placeholder={t('optimizer.tickerPlaceholder')}
-            className="flex-1 h-8"
-          />
-          <div className="flex items-center gap-1 w-[110px]">
+      <div className="flex flex-col gap-1.5">
+        {assets.map((a, i) => (
+          <div key={i} className="flex items-center gap-2">
             <Input
+              type="text"
+              value={a.ticker}
+              onChange={(e) => onUpdate(i, 'ticker', e.target.value)}
+              placeholder={t('optimizer.tickerPlaceholder')}
+              className="h-8 min-w-0 flex-1 font-mono uppercase"
+            />
+            <AffixInput
               type="number"
               value={a.weight || ''}
               onChange={(e) => onUpdate(i, 'weight', Number(e.target.value))}
               min={0}
               max={100}
-              className="h-8 font-mono tabular-nums"
-              placeholder="%"
+              suffix="%"
+              className="h-8 w-[96px] shrink-0 font-mono tabular-nums"
             />
-            <span className="text-caption text-fg-tertiary shrink-0">%</span>
+            <Button
+              variant="destructive"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={() => onRemove(i)}
+              title={t('common.delete')}
+              aria-label={t('common.delete')}
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </div>
-          <Button
-            variant="destructive"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => onRemove(i)}
-            title={t('common.delete')}
-            aria-label={t('common.delete')}
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      ))}
+        ))}
+      </div>
       <div className="pt-1">
         <Button variant="ghost" size="sm" onClick={onAdd}>
           <Plus className="w-3.5 h-3.5" />
           {t('portfolio.addAsset')}
         </Button>
       </div>
-      <div className="flex items-center justify-between pt-2 mt-1 border-t border-border-subtle">
-        <span className="text-caption text-fg-tertiary uppercase tracking-wide">
+      <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border-subtle">
+        <span className="shrink-0 text-caption text-fg-tertiary uppercase tracking-wide">
           {t('portfolio.total')}
         </span>
-        <Badge variant={complete ? 'success' : 'danger'} className="tabular-nums">
-          {totalWeight}%
-        </Badge>
+        <AllocationBar assets={assets} tw={totalWeight} />
+        <TotalWeightBlock tw={totalWeight} isComplete={complete} />
       </div>
     </div>
   );
@@ -182,22 +183,59 @@ function buildRebalanceOptions(t: TFunc): { value: RebalanceFrequency; label: st
   ];
 }
 
-/** 添加组合下拉菜单（从 PortfolioEditorHeader 抽出以控制行数） */
-function AddPortfolioMenu({
-  t,
-  onAdd,
-  onAddPreset,
-  onAddGlidepath,
-  onLoadExample,
-  onComingSoon,
-}: {
+/** 添加组合菜单的回调集合 */
+interface AddMenuActions {
   t: TFunc;
   onAdd: () => void;
   onAddPreset: (presetId: string) => void;
   onAddGlidepath: () => void;
   onLoadExample: () => void;
   onComingSoon: () => void;
+}
+
+/** 添加组合下拉面板（从 AddPortfolioMenu 抽出以控制行数） */
+function AddMenuDropdown({
+  t,
+  onAdd,
+  onAddPreset,
+  onAddGlidepath,
+  onLoadExample,
+  onComingSoon,
+  presetSubOpen,
+  setPresetSubOpen,
+  close,
+}: AddMenuActions & {
+  presetSubOpen: boolean;
+  setPresetSubOpen: (v: boolean) => void;
+  close: () => void;
 }) {
+  const wrap = (fn: () => void) => () => {
+    fn();
+    close();
+  };
+  return (
+    <div
+      className="absolute top-full right-0 mt-1 z-30 min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1"
+      role="menu"
+    >
+      <MenuButton label={t('portfolio.addEmpty')} onClick={wrap(onAdd)} />
+      <PresetSubmenu
+        t={t}
+        onAddPreset={onAddPreset}
+        onSubOpen={presetSubOpen}
+        setSubOpen={setPresetSubOpen}
+        close={close}
+      />
+      <MenuButton label={t('portfolio.addSaved')} onClick={wrap(onComingSoon)} />
+      <MenuButton label={t('portfolio.addGlidepath')} onClick={wrap(onAddGlidepath)} />
+      <div className="h-px bg-border-subtle my-1" />
+      <MenuButton label={t('portfolio.loadExample')} onClick={wrap(onLoadExample)} />
+    </div>
+  );
+}
+
+/** 添加组合下拉菜单 */
+function AddPortfolioMenu({ t, onAdd, onAddPreset, onAddGlidepath, onLoadExample, onComingSoon }: AddMenuActions) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [presetSubOpen, setPresetSubOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -214,8 +252,6 @@ function AddPortfolioMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [addMenuOpen]);
 
-  const close = () => setAddMenuOpen(false);
-
   return (
     <div ref={menuRef} className="relative">
       <Button
@@ -229,47 +265,17 @@ function AddPortfolioMenu({
         <ChevronDown className="w-3.5 h-3.5" />
       </Button>
       {addMenuOpen && (
-        <div
-          className="absolute top-full right-0 mt-1 z-30 min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1"
-          role="menu"
-        >
-          <MenuButton
-            label={t('portfolio.addEmpty')}
-            onClick={() => {
-              onAdd();
-              close();
-            }}
-          />
-          <PresetSubmenu
-            t={t}
-            onAddPreset={onAddPreset}
-            onSubOpen={presetSubOpen}
-            setSubOpen={setPresetSubOpen}
-            close={close}
-          />
-          <MenuButton
-            label={t('portfolio.addSaved')}
-            onClick={() => {
-              onComingSoon();
-              close();
-            }}
-          />
-          <MenuButton
-            label={t('portfolio.addGlidepath')}
-            onClick={() => {
-              onAddGlidepath();
-              close();
-            }}
-          />
-          <div className="h-px bg-border-subtle my-1" />
-          <MenuButton
-            label={t('portfolio.loadExample')}
-            onClick={() => {
-              onLoadExample();
-              close();
-            }}
-          />
-        </div>
+        <AddMenuDropdown
+          t={t}
+          onAdd={onAdd}
+          onAddPreset={onAddPreset}
+          onAddGlidepath={onAddGlidepath}
+          onLoadExample={onLoadExample}
+          onComingSoon={onComingSoon}
+          presetSubOpen={presetSubOpen}
+          setPresetSubOpen={setPresetSubOpen}
+          close={() => setAddMenuOpen(false)}
+        />
       )}
     </div>
   );
@@ -317,7 +323,7 @@ function PresetSubmenu({
       </button>
       {onSubOpen && (
         <div
-          className="absolute top-0 left-full ml-1 min-w-[240px] bg-surface border border-border rounded-lg shadow-lg py-1"
+          className="absolute top-0 right-full mr-1 min-w-[240px] bg-surface border border-border rounded-lg shadow-lg py-1"
           role="menu"
         >
           {PORTFOLIO_PRESETS.map((preset) => (
@@ -344,12 +350,14 @@ function PresetSubmenu({
 /** 编辑器头部按钮区：2 按钮 + 5 项下拉（P1-4 精简） */
 function PortfolioEditorHeader({
   t,
+  count,
   onAdd,
   onAddPreset,
   onAddGlidepath,
   onLoadExample,
 }: {
   t: TFunc;
+  count: number;
   onAdd: () => void;
   onAddPreset: (presetId: string) => void;
   onAddGlidepath: () => void;
@@ -360,12 +368,14 @@ function PortfolioEditorHeader({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+    <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
       <div className="flex items-center gap-2">
         <span className="text-body font-semibold text-fg">{t('portfolio.title')}</span>
-        <Badge variant="secondary" size="sm">
-          {/* portfolio count badge */}
-        </Badge>
+        {count > 0 && (
+          <Badge variant="secondary" size="sm">
+            {count}
+          </Badge>
+        )}
       </div>
       <div className="flex items-center gap-1.5">
         <Button variant="ghost" size="sm" onClick={handleComingSoon}>
@@ -408,10 +418,6 @@ function MultiPortfolioEditor() {
   const addGlidepath = useBacktestStore((s) => s.addGlidepath);
   const duplicatePortfolio = useBacktestStore((s) => s.duplicatePortfolio);
   const removePortfolio = useBacktestStore((s) => s.removePortfolio);
-  const addAsset = useBacktestStore((s) => s.addAsset);
-  const removeAsset = useBacktestStore((s) => s.removeAsset);
-  const updateAsset = useBacktestStore((s) => s.updateAsset);
-  const batchUpdateAssets = useBacktestStore((s) => s.batchUpdateAssets);
   const updatePortfolio = useBacktestStore((s) => s.updatePortfolio);
   const parameters = useBacktestStore((s) => s.parameters);
 
@@ -438,6 +444,7 @@ function MultiPortfolioEditor() {
     <div className="flex flex-col gap-2">
       <PortfolioEditorHeader
         t={t}
+        count={portfolios.length}
         onAdd={() => addPortfolio()}
         onAddPreset={(presetId) => addPortfolio(presetId)}
         onAddGlidepath={handleAddGlidepath}
@@ -453,7 +460,7 @@ function MultiPortfolioEditor() {
           onCancel={() => setShowGlidepathForm(false)}
         />
       )}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-start gap-3">
         {portfolios.length === 0 ? (
           <div className="flex items-center gap-2 py-2">
             <span className="text-body text-fg-tertiary">{t('portfolio.emptyPortfolios')}</span>
@@ -463,20 +470,20 @@ function MultiPortfolioEditor() {
           </div>
         ) : (
           portfolios.map((portfolio, idx) => (
-            <PortfolioCard
+            <PortfolioCardV2
               key={portfolio.id}
               portfolio={portfolio}
-              idx={idx}
+              index={idx}
+              color={getPortfolioColor(idx)}
               rebalanceOptions={rebalanceOptions}
               nonGlidepathPortfolios={nonGlidepathPortfolios}
-              onDuplicate={duplicatePortfolio}
-              onRemove={removePortfolio}
-              onSave={(p) => handleSavePortfolio(p, parameters, t)}
               onUpdate={updatePortfolio}
-              onAddAsset={addAsset}
-              onRemoveAsset={removeAsset}
-              onUpdateAsset={updateAsset}
-              onBatchUpdate={batchUpdateAssets}
+              onDelete={() => removePortfolio(portfolio.id)}
+              onDuplicate={() => duplicatePortfolio(portfolio.id)}
+              onSave={(p) => handleSavePortfolio(p, parameters, t)}
+              onDeepAnalysis={() => {
+                /* TODO: wire deep analysis navigation */
+              }}
             />
           ))
         )}

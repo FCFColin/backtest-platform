@@ -46,6 +46,7 @@ export interface BacktestState {
       Pick<
         Portfolio,
         | 'name'
+        | 'assets'
         | 'rebalanceFrequency'
         | 'rebalanceThreshold'
         | 'rebalanceOffset'
