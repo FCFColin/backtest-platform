@@ -18,6 +18,45 @@ const BAR_FILL = '#3b82f6'; // Blue-500 from PORTFOLIO_COLORS
 /** 柱状图文字颜色（SVG fill，沿用 base.css 的 --text-muted 全色值） */
 const AXIS_TICK_COLOR = 'var(--text-muted)';
 
+/**
+ * 数据年限分布桶的数值序顺序（后端 yearBucket 生成 ${lo}-${lo+4}年 标签）。
+ * 字典序会把 "10-14年" 排到 "5-9年" 之前，故显式定义顺序。
+ */
+const AGE_BUCKET_ORDER_ZH = [
+  '0-4年', '5-9年', '10-14年', '15-19年',
+  '20-24年', '25-29年', '30-34年', '35-39年',
+  '40-44年', '45-49年', '50-54年', '55-59年', '60-64年',
+];
+
+/** 年代标签的数值序顺序（后端 decadeLabel 生成 ${decade}s 标签）。 */
+const DECADE_ORDER = ['1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'];
+
+/**
+ * 按数值序排列年限桶 entries。
+ * @param entries 后端聚合的 [bucket, count] 数组。
+ * @returns 按数值序排列的新数组。
+ */
+function sortAgeBucketEntries(entries: [string, number][]): [string, number][] {
+  return [...entries].sort((a, b) => {
+    const ai = AGE_BUCKET_ORDER_ZH.indexOf(a[0]);
+    const bi = AGE_BUCKET_ORDER_ZH.indexOf(b[0]);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+}
+
+/**
+ * 按年代序排列 entries。
+ * @param entries 后端聚合的 [decade, count] 数组。
+ * @returns 按年代序排列的新数组。
+ */
+function sortDecadeEntries(entries: [string, number][]): [string, number][] {
+  return [...entries].sort((a, b) => {
+    const ai = DECADE_ORDER.indexOf(a[0]);
+    const bi = DECADE_ORDER.indexOf(b[0]);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+}
+
 /** 迷你条形指示器（4px 高，品牌色，按比例填充） */
 function MiniBar({ pct }: { pct: number }) {
   return (
@@ -155,7 +194,7 @@ export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
  */
 export function DecadeDistributionCard({ stats }: { stats: Stats }) {
   const entries = stats.by_decade
-    ? Object.entries(stats.by_decade).sort((a, b) => a[0].localeCompare(b[0]))
+    ? sortDecadeEntries(Object.entries(stats.by_decade))
     : [];
   return <DistributionBarCard titleKey="dataEngine.byDecade" entries={entries} />;
 }
@@ -167,7 +206,7 @@ export function DecadeDistributionCard({ stats }: { stats: Stats }) {
  */
 export function YearCountDistributionCard({ stats }: { stats: Stats }) {
   const entries = stats.by_year_count
-    ? Object.entries(stats.by_year_count).sort((a, b) => a[0].localeCompare(b[0]))
+    ? sortAgeBucketEntries(Object.entries(stats.by_year_count))
     : [];
   return <DistributionBarCard titleKey="dataEngine.byYearCount" entries={entries} />;
 }

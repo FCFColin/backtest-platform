@@ -161,7 +161,7 @@ export function DataEngineDashboard({
       <YearCountDistributionCard stats={stats} />
       <div className="my-2 grid grid-cols-1 gap-3 md:grid-cols-2">
         <SampleTickersCard stats={stats} />
-        <RecentUpdatesCard stats={stats} />
+        <RecentUpdatesCard />
       </div>
       {universe && <UniverseInfo universe={universe} />}
     </>

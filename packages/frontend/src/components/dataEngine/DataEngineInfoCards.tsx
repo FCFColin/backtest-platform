@@ -1,7 +1,9 @@
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/card';
 import type { Stats } from './utils.js';
 import { fmt } from './utils.js';
+import { apiFetch } from '../../utils/apiClient.js';
 
 /**
  * SampleTickersCard: 各类别样本标的卡片。
@@ -47,27 +49,75 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
   );
 }
 
+/** 最近更新条目（对应 GET /api/v1/data/recent-updates 响应） */
+interface RecentUpdate {
+  ticker: string;
+  name: string;
+  lastBarDate: string | null;
+  updatedAt: string | null;
+}
+
 /**
  * RecentUpdatesCard: 最近更新标的卡片。
- * @param props - stats。
+ *
+ * 独立从 /api/v1/data/recent-updates 拉取，不依赖 stats 快照
+ * （后端 stats.recent_updates 长期为空，故改为独立 fetch）。
  * @returns 渲染的最近更新卡片。
  */
-export function RecentUpdatesCard({ stats }: { stats: Stats }) {
+export function RecentUpdatesCard() {
   const { t } = useTranslation();
+  const [updates, setUpdates] = useState<RecentUpdate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch('/api/v1/data/recent-updates?limit=10')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled) return;
+        setUpdates((json?.data ?? []) as RecentUpdate[]);
+      })
+      .catch(() => {
+        if (!cancelled) setUpdates([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <Card className="p-4">
       <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.recentUpdates')}</div>
-      {stats.recent_updates?.slice(0, 15).map((upd) => (
-        <div
-          key={upd.ticker}
-          className="flex justify-between border-b border-dashed border-subtle py-[3px] text-caption"
-        >
-          <span className="font-medium text-fg-secondary">{upd.ticker}</span>
-          <span className="font-mono tabular-nums text-fg-tertiary">
-            {upd.updated.replace('T', ' ').slice(0, 19)}
-          </span>
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-8 bg-input-bg animate-pulse rounded" />
+          ))}
         </div>
-      ))}
+      ) : updates.length === 0 ? (
+        <div className="text-caption text-fg-tertiary text-center py-6">
+          {t('dataEngine.noRecentUpdates')}
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {updates.map((u) => (
+            <div
+              key={u.ticker}
+              className="flex items-center gap-3 py-[3px] text-caption"
+              data-testid={`recent-update-${u.ticker}`}
+            >
+              <span className="font-mono text-fg w-20 flex-shrink-0">{u.ticker}</span>
+              <span className="text-fg-secondary truncate flex-1">{u.name}</span>
+              <span className="font-mono tabular-nums text-fg-tertiary">
+                {u.lastBarDate ?? '—'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }

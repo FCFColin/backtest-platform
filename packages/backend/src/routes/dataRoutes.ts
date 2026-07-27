@@ -232,4 +232,47 @@ router.get(
   ),
 );
 
+/**
+ * GET /api/v1/data/recent-updates — 最近更新的 ticker 列表。
+ *
+ * 按 tickers.updated_at 倒序返回最近被更新的标的及其最新行情日期。
+ * 列名对齐实际 schema：prices.date（非 bar_date）、tickers.category（无 name 列）、
+ * tickers.updated_at（prices 无 updated_at 列）。
+ */
+router.get(
+  '/recent-updates',
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const limit = Math.min(parseInt(String(req.query.limit ?? '10'), 10), 50);
+      const pool = (await import('@/db/index.js')).default;
+      const result = await pool.query(
+        `SELECT t.ticker,
+                COALESCE(t.category, t.ticker) AS name,
+                MAX(p.date)::text        AS last_bar_date,
+                MAX(t.updated_at)        AS updated_at
+         FROM tickers t
+         LEFT JOIN prices p ON p.ticker = t.ticker
+         GROUP BY t.ticker, t.category
+         ORDER BY MAX(t.updated_at) DESC NULLS LAST
+         LIMIT $1`,
+        [limit],
+      );
+      res.json({
+        success: true,
+        data: result.rows.map((r: { ticker: string; name: string; last_bar_date: string | null; updated_at: Date | null }) => ({
+          ticker: r.ticker,
+          name: r.name,
+          lastBarDate: r.last_bar_date,
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
+        })),
+      });
+    },
+    {
+      logMsg: 'Recent updates fetch error',
+      code: 'RECENT_UPDATES_ERROR',
+      endpoint: 'data-recent-updates',
+    },
+  ),
+);
+
 export default router;
