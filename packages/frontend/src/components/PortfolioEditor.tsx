@@ -7,7 +7,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, X, ChevronDown, FolderOpen } from 'lucide-react';
+import { Plus, X, ChevronDown, FolderOpen, GitCompare } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import type { RebalanceFrequency, BacktestParameters } from '@backtest/shared';
 import { useToastStore } from '@/store/toastStore';
@@ -17,7 +17,7 @@ import type { StorePortfolio, TFunc } from './portfolioEditor/shared.js';
 import { GlidepathForm } from './portfolioEditor/GlidepathComponents.js';
 import { PortfolioCardV2 } from './portfolioEditor/PortfolioCardV2.js';
 import { AllocationBar, TotalWeightBlock } from './portfolioEditor/WeightBar.js';
-import { getPortfolioColor } from '@/lib/chart-colors.js';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AffixInput } from '@/components/ui/affix-input';
@@ -190,6 +190,7 @@ interface AddMenuActions {
   onAddPreset: (presetId: string) => void;
   onAddGlidepath: () => void;
   onLoadExample: () => void;
+  onLoadCompareExample: () => void;
   onComingSoon: () => void;
 }
 
@@ -200,6 +201,7 @@ function AddMenuDropdown({
   onAddPreset,
   onAddGlidepath,
   onLoadExample,
+  onLoadCompareExample,
   onComingSoon,
   presetSubOpen,
   setPresetSubOpen,
@@ -230,12 +232,17 @@ function AddMenuDropdown({
       <MenuButton label={t('portfolio.addGlidepath')} onClick={wrap(onAddGlidepath)} />
       <div className="h-px bg-border-subtle my-1" />
       <MenuButton label={t('portfolio.loadExample')} onClick={wrap(onLoadExample)} />
+      <MenuButton
+        label={t('portfolio.loadCompareExample')}
+        icon={<GitCompare className="w-3.5 h-3.5 shrink-0" />}
+        onClick={wrap(onLoadCompareExample)}
+      />
     </div>
   );
 }
 
 /** 添加组合下拉菜单 */
-function AddPortfolioMenu({ t, onAdd, onAddPreset, onAddGlidepath, onLoadExample, onComingSoon }: AddMenuActions) {
+function AddPortfolioMenu({ t, onAdd, onAddPreset, onAddGlidepath, onLoadExample, onLoadCompareExample, onComingSoon }: AddMenuActions) {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [presetSubOpen, setPresetSubOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -271,6 +278,7 @@ function AddPortfolioMenu({ t, onAdd, onAddPreset, onAddGlidepath, onLoadExample
           onAddPreset={onAddPreset}
           onAddGlidepath={onAddGlidepath}
           onLoadExample={onLoadExample}
+          onLoadCompareExample={onLoadCompareExample}
           onComingSoon={onComingSoon}
           presetSubOpen={presetSubOpen}
           setPresetSubOpen={setPresetSubOpen}
@@ -281,14 +289,15 @@ function AddPortfolioMenu({ t, onAdd, onAddPreset, onAddGlidepath, onLoadExample
   );
 }
 
-function MenuButton({ label, onClick }: { label: string; onClick: () => void }) {
+function MenuButton({ label, icon, onClick }: { label: string; icon?: ReactNode; onClick: () => void }) {
   return (
     <button
       type="button"
-      className="flex w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
+      className="flex items-center gap-2 w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
       role="menuitem"
       onClick={onClick}
     >
+      {icon}
       {label}
     </button>
   );
@@ -355,6 +364,7 @@ function PortfolioEditorHeader({
   onAddPreset,
   onAddGlidepath,
   onLoadExample,
+  onLoadCompareExample,
 }: {
   t: TFunc;
   count: number;
@@ -362,6 +372,7 @@ function PortfolioEditorHeader({
   onAddPreset: (presetId: string) => void;
   onAddGlidepath: () => void;
   onLoadExample: () => void;
+  onLoadCompareExample: () => void;
 }) {
   const handleComingSoon = () => {
     useToastStore.getState().addToast('warning', t('portfolio.comingSoon'));
@@ -388,6 +399,7 @@ function PortfolioEditorHeader({
           onAddPreset={onAddPreset}
           onAddGlidepath={onAddGlidepath}
           onLoadExample={onLoadExample}
+          onLoadCompareExample={onLoadCompareExample}
           onComingSoon={handleComingSoon}
         />
       </div>
@@ -440,6 +452,12 @@ function MultiPortfolioEditor() {
     setShowGlidepathForm(true);
   };
 
+  const handleLoadCompareExample = () => {
+    addPortfolio('60-40');
+    addPortfolio('80-20');
+    addPortfolio('all-weather');
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <PortfolioEditorHeader
@@ -449,6 +467,7 @@ function MultiPortfolioEditor() {
         onAddPreset={(presetId) => addPortfolio(presetId)}
         onAddGlidepath={handleAddGlidepath}
         onLoadExample={() => addPortfolio('60-40')}
+        onLoadCompareExample={handleLoadCompareExample}
       />
       {showGlidepathForm && (
         <GlidepathForm

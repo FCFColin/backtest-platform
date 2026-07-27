@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { StatisticsTableV2 } from '@/components/statistics-table/StatisticsTableV2.js';
 import { ExtendedMetricsTable } from '@/components/statistics-table/ExtendedMetricsTable.js';
 import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
-import { getPortfolioColor } from '@/lib/chart-colors';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import type { Portfolio, PortfolioResult } from '@backtest/shared';
 
 const GrowthChartV2 = lazy(() => import('@/components/charts/GrowthChartV2').then((m) => ({ default: m.GrowthChartV2 })));

@@ -2,7 +2,7 @@
  * @file 权重相关共享组件
  * @description AllocationBar（分配条）+ TotalWeightBlock（总权重块），供 PortfolioEditor 和 PortfolioCardV2 复用。
  */
-import { getPortfolioColor } from '@/lib/chart-colors';
+import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 
 /**

@@ -57,6 +57,16 @@ export function GrowthChartV2({
   const [logScale, setLogScale] = useState(false);
   const [timeRange, setTimeRange] = useState<'1Y' | '5Y' | '10Y' | 'MAX'>('MAX');
   const [hidden, setHidden] = useState(false);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+
+  const toggleVisibility = (id: string) => {
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const chartData = useMemo(() => {
     const merged: Record<string, Record<string, string | number>> = {};
@@ -162,16 +172,18 @@ export function GrowthChartV2({
                   ]}
                   labelFormatter={(label) => `日期: ${label}`}
                 />
-                {portfolios.map((p, i) => (
-                  <Line
-                    key={p.id}
-                    type="monotone"
-                    dataKey={p.id}
-                    name={p.name}
-                    stroke={getPortfolioColor(i)}
-                    {...CHART_LINE_STYLE}
-                  />
-                ))}
+                {portfolios.map((p, i) =>
+                  hiddenIds.has(p.id) ? null : (
+                    <Line
+                      key={p.id}
+                      type="monotone"
+                      dataKey={p.id}
+                      name={p.name}
+                      stroke={getPortfolioColor(i)}
+                      {...CHART_LINE_STYLE}
+                    />
+                  ),
+                )}
                 {benchmark && (
                   <Line
                     type="monotone"
@@ -190,17 +202,36 @@ export function GrowthChartV2({
 
           {/* Legend */}
           <div className="border-t border-border-subtle px-6 py-3 flex items-center justify-center gap-6 flex-wrap">
-            {portfolios.map((p, i) => (
-              <div key={p.id} className="flex items-center gap-2">
-                <div className="w-3 h-0.5" style={{ background: getPortfolioColor(i) }} />
-                <span className="text-caption text-fg">{p.name}</span>
-                {p.growthCurve.length > 0 && (
-                  <span className="text-caption font-mono tabular-nums text-fg-tertiary">
-                    {formatCurrency(p.growthCurve[p.growthCurve.length - 1].value, currency)}
+            {portfolios.map((p, i) => {
+              const isHidden = hiddenIds.has(p.id);
+              const currentValue = p.growthCurve[p.growthCurve.length - 1]?.value;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => toggleVisibility(p.id)}
+                  className={cn(
+                    'flex items-center gap-2 transition-opacity',
+                    isHidden ? 'opacity-30' : 'opacity-100',
+                  )}
+                  data-testid={`legend-${p.id}`}
+                  data-hidden={isHidden}
+                >
+                  <div
+                    className="w-3 h-0.5"
+                    style={{ background: getPortfolioColor(i) }}
+                  />
+                  <span className={cn('text-caption text-fg', isHidden && 'line-through')}>
+                    {p.name}
                   </span>
-                )}
-              </div>
-            ))}
+                  {currentValue !== undefined && !isHidden && (
+                    <span className="text-caption font-mono tabular-nums text-fg-tertiary">
+                      {formatCurrency(currentValue, currency)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
             {benchmark && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-0.5 border-t-2 border-dashed border-fg-tertiary" />
