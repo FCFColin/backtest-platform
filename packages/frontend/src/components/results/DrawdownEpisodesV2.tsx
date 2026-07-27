@@ -24,6 +24,7 @@ type Severity = 'all' | 'severe' | 'moderate' | 'mild';
 export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
   const [severity, setSeverity] = useState<Severity>('all');
   const [sortBy, setSortBy] = useState<'depth' | 'duration' | 'recovery'>('depth');
+  const [displayLimit, setDisplayLimit] = useState(5);
 
   const filtered = episodes
     .filter((ep) => severity === 'all' || getSeverity(ep.depth) === severity)
@@ -32,6 +33,9 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
       if (sortBy === 'duration') return b.totalTimeDurationDays - a.totalTimeDurationDays;
       return (b.recoveryFactor ?? 0) - (a.recoveryFactor ?? 0);
     });
+
+  const displayed = filtered.slice(0, displayLimit);
+  const hasMore = filtered.length > displayLimit;
 
   const summary = {
     total: episodes.length,
@@ -43,7 +47,7 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
   };
 
   return (
-    <div className="bg-surface border border-border rounded-xl">
+    <div className="bg-surface border border-border rounded-xl" data-testid="drawdown-episodes-panel">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         <h3 className="text-h3">回撤片段</h3>
@@ -52,6 +56,7 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
             value={severity}
             onChange={(e) => setSeverity(e.target.value as Severity)}
             className="text-caption bg-input-bg border border-border rounded-md px-2 py-1 text-fg"
+            data-testid="filter-severity"
           >
             <option value="all">全部</option>
             <option value="severe">严重 (≥20%)</option>
@@ -62,6 +67,7 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'depth' | 'duration' | 'recovery')}
             className="text-caption bg-input-bg border border-border rounded-md px-2 py-1 text-fg"
+            data-testid="sort-selector"
           >
             <option value="depth">按深度</option>
             <option value="duration">按持续时间</option>
@@ -92,20 +98,31 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
 
       {/* 回撤列表 */}
       <div>
-        {filtered.map((ep, i) => (
-          <DrawdownEpisodeRow key={i} episode={ep} />
+        {displayed.map((ep, i) => (
+          <DrawdownEpisodeRow key={i} episode={ep} testId={`episode-row-${i}`} />
         ))}
+        {hasMore && (
+          <div className="p-4 border-t border-border-subtle text-center">
+            <button
+              onClick={() => setDisplayLimit((prev) => prev + 10)}
+              className="text-caption text-brand hover:underline"
+              data-testid="show-more-episodes"
+            >
+              显示更多 {Math.min(10, filtered.length - displayLimit)} 段
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function DrawdownEpisodeRow({ episode }: { episode: DrawdownEpisode }) {
+function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; testId: string }) {
   const [expanded, setExpanded] = useState(false);
   const sev = getSeverity(episode.depth);
 
   return (
-    <div className="border-b border-border-subtle last:border-b-0">
+    <div className="border-b border-border-subtle last:border-b-0" data-testid={testId}>
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-stretch hover:bg-hover/50 transition-colors"
@@ -127,9 +144,13 @@ function DrawdownEpisodeRow({ episode }: { episode: DrawdownEpisode }) {
           <div className="flex-1">
             <TimelineViz episode={episode} />
           </div>
-          <div className="text-caption text-fg-tertiary">
-            {episode.recoveryDate ? '已恢复' : '未恢复'} ·{' '}
-            {formatDuration(episode.totalTimeDurationDays)}
+          <div className="text-caption text-fg-tertiary flex flex-col items-end">
+            <span data-testid="episode-status">
+              {episode.recoveryDate ? '已恢复' : '进行中'}
+            </span>
+            <span className="font-mono tabular-nums" data-testid="episode-duration">
+              {formatDuration(episode.totalTimeDurationDays)}
+            </span>
           </div>
           {expanded ? (
             <ChevronDown className="h-4 w-4 text-fg-tertiary" />
@@ -168,8 +189,12 @@ function TimelineViz({ episode }: { episode: DrawdownEpisode }) {
 
   const troughPos = totalMs > 0 ? ((troughDate.getTime() - peakDate.getTime()) / totalMs) * 100 : 50;
 
+  // 标签重叠检测：如果相邻点距离 < 15%，隐藏中间标签
+  const troughLabelHidden = troughPos < 15;
+  const recoveryLabelHidden = !!recoveryDate && 100 - troughPos < 15;
+
   return (
-    <div className="relative h-8">
+    <div className="relative h-8" data-testid="drawdown-timeline">
       <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-border-subtle -translate-y-1/2" />
       <div className="absolute left-0 top-1/2 -translate-y-1/2 flex flex-col items-center">
         <div className="w-2.5 h-2.5 rounded-full bg-fg-secondary" />
@@ -182,16 +207,20 @@ function TimelineViz({ episode }: { episode: DrawdownEpisode }) {
         style={{ left: `${Math.max(0, Math.min(100, troughPos))}%` }}
       >
         <div className="w-3 h-3 rounded-full bg-danger" />
-        <div className="mt-1 text-micro text-fg-tertiary font-mono whitespace-nowrap">
-          {episode.troughDate}
-        </div>
+        {!troughLabelHidden && (
+          <div className="mt-1 text-micro text-fg-tertiary font-mono whitespace-nowrap">
+            {episode.troughDate}
+          </div>
+        )}
       </div>
       {recoveryDate && (
         <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col items-center">
           <div className="w-2.5 h-2.5 rounded-full bg-success" />
-          <div className="mt-1 text-micro text-fg-tertiary font-mono whitespace-nowrap">
-            {episode.recoveryDate}
-          </div>
+          {!recoveryLabelHidden && (
+            <div className="mt-1 text-micro text-fg-tertiary font-mono whitespace-nowrap">
+              {episode.recoveryDate}
+            </div>
+          )}
         </div>
       )}
     </div>
