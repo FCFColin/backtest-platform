@@ -1,17 +1,18 @@
 /**
- * 无头开发启动脚本（默认）
+ * 一键开发启动脚本
  *
+ * 自动启动所有开发依赖：Docker 基础设施 → Go 引擎 → Data Fetcher → Worker → API + 前端
  * 自动找空闲端口，后台启动服务（不绑定终端），输出访问地址。
  * 可通过 HEADLESS=false 或 --interactive 切换到前台交互模式。
  *
- * 流程：engine-go → dist build → 后台启动 API (SERVE_STATIC=true)
+ * 流程：基础设施 → engine-go → dist build → 后台启动 API + Worker (SERVE_STATIC=true)
  * 访问 http://localhost:<port>/
  */
 
 import { spawn, exec, execSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { appendFile } from 'node:fs/promises';
-import { createServer } from 'node:net';
+import { createServer, Socket } from 'node:net';
 import path from 'node:path';
 
 const isWin = process.platform === 'win32';
@@ -53,6 +54,9 @@ const DATA_FETCHER_HEALTH_URL = process.env.GO_DATA_SERVICE_URL
 const ENGINE_HEALTH_URL = process.env.GO_ENGINE_URL
   ? `${process.env.GO_ENGINE_URL.replace(/\/$/, '')}/api/engine/health`
   : 'http://127.0.0.1:15004/api/engine/health';
+
+const PG_PORT = parseInt(process.env.DATABASE_URL?.match(/:(\d+)\//)?.[1] || '15442', 10);
+const REDIS_PORT = parseInt(process.env.REDIS_URL?.match(/:(\d+)\//)?.[1] || '16381', 10);
 
 /** 找空闲端口 */
 function findFreePort(preferred) {
@@ -102,6 +106,39 @@ async function waitServiceHealthy(url, deadlineMs = 30_000) {
   return false;
 }
 
+/** 等待 TCP 端口可连接（用于 postgres/redis 等非 HTTP 服务） */
+function waitPortOpen(port, label, deadlineMs = 30_000) {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + deadlineMs;
+    const check = () => {
+      const socket = new Socket();
+      socket.setTimeout(2000);
+      socket.once('connect', () => {
+        socket.destroy();
+        resolve(true);
+      });
+      socket.once('error', () => {
+        socket.destroy();
+        if (Date.now() < deadline) {
+          setTimeout(check, 1000);
+        } else {
+          resolve(false);
+        }
+      });
+      socket.once('timeout', () => {
+        socket.destroy();
+        if (Date.now() < deadline) {
+          setTimeout(check, 1000);
+        } else {
+          resolve(false);
+        }
+      });
+      socket.connect(port, '127.0.0.1');
+    };
+    check();
+  });
+}
+
 /** 本地 go run 回退（docker 不可用时） */
 function spawnLocalService(cwd, args, label) {
   console.log(`[dev] docker 不可用，回退到本地 go run ${args.join(' ')}（${label}）`);
@@ -147,6 +184,37 @@ const env = {
 };
 
 // ------ 服务确保函数 ------
+
+/** 确保 Docker 基础设施（PostgreSQL + Redis）运行 */
+async function ensureInfrastructure() {
+  const pgOk = await waitPortOpen(PG_PORT, 'PostgreSQL', 2_000);
+  const redisOk = await waitPortOpen(REDIS_PORT, 'Redis', 2_000);
+  if (pgOk && redisOk) {
+    console.log('[dev] PostgreSQL + Redis 已就绪');
+    return;
+  }
+  console.log('[dev] 启动 Docker 基础设施 (postgres + redis)…');
+  try {
+    execSync(`${composeCmd} compose -p backtest up -d postgres redis`, {
+      stdio: 'inherit',
+      env,
+      shell: isWin,
+      timeout: 120_000,
+    });
+  } catch (err) {
+    console.error('[dev] docker compose up postgres/redis 失败:', err.message);
+    console.error('[dev] 请确保 Docker Desktop 已启动');
+    process.exit(1);
+  }
+  const [pgReady, redisReady] = await Promise.all([
+    waitPortOpen(PG_PORT, 'PostgreSQL', 30_000),
+    waitPortOpen(REDIS_PORT, 'Redis', 30_000),
+  ]);
+  if (pgReady) console.log('[dev] PostgreSQL 已就绪');
+  else console.warn('[dev] PostgreSQL 未就绪，部分功能可能不可用');
+  if (redisReady) console.log('[dev] Redis 已就绪');
+  else console.warn('[dev] Redis 未就绪，任务队列/缓存可能不可用');
+}
 
 /** 拉起 engine-go 并等待健康 */
 async function ensureEngineGo() {
@@ -203,42 +271,66 @@ if (HEADLESS) {
   console.log(`[dev] 日志目录: ${LOG_DIR}/`);
 }
 
-// 2. Go 引擎（先启动，阻塞等待）
+// 2. Docker 基础设施（PostgreSQL + Redis）
+await ensureInfrastructure();
+// 3. Go 引擎（阻塞等待）
 await ensureEngineGo();
-// 3. Data-fetcher（后台启动，不阻塞主流程 — 不可用时 API 会降级到 DB）
+// 4. Data-fetcher（后台启动，不阻塞主流程 — 不可用时 API 会降级到 DB）
 ensureDataFetcher();
 
-// 4. 首次构建
+// 5. 首次构建
 if (!existsSync('dist/index.html')) {
   console.log('[dev] 首次启动：构建前端产物（约 30–60s，仅一次）…');
   execSync(`${npxCmd} vite build`, { stdio: 'inherit', env, shell: isWin });
 }
 
-// 5. 找空闲端口
+// 6. 找空闲端口
 const preferredPort = parseInt(process.env.API_PORT || process.env.PORT || '15001', 10);
 const port = await findFreePort(preferredPort);
 const portSuffix = port !== preferredPort ? `（${preferredPort} 已被占，改用 ${port}）` : '';
 
-// 6. 启动 Vite watch（前端热构建）
+// 7. 启动 Vite watch（前端热构建）
 logTo('dev', '启动 Vite watch…');
 startProcess(npxCmd, ['vite', 'build', '--watch'], { env, tag: 'vite-watch' });
 
-// 7. 启动 API 服务器（SERVER_STATIC=true 同时服务前端 dist/）
-// 使用 node --import tsx-loader 而非 npx tsx，避免 detached 模式下 npx 子进程被回收
-logTo('dev', `启动 API 服务器 (port ${port})…`);
-startProcess(nodeCmd, ['--import', tsxLoaderUrl, 'packages/backend/src/server.ts'], {
-  env: { ...env, PORT: String(port) },
-  tag: 'server',
-});
+if (HEADLESS) {
+  // 8–9. 使用 VBScript 脱壳启动 API + Worker（无 pm2，无控制台窗口）
+  logTo('dev', `通过 VBScript 脱壳启动后台进程 (port ${port})…`);
+  const vbsScript = path.resolve('scripts/dev-start-bg.vbs');
+  const vbsChild = spawn('wscript.exe', [vbsScript], {
+    stdio: 'ignore',
+    detached: true,
+  });
+  vbsChild.unref();
+  // 等进程启动完毕
+  await new Promise((r) => setTimeout(r, 6000));
+} else {
+  // 8. 启动 API 服务器（前台模式：直接 spawn）
+  logTo('dev', `启动 API 服务器 (port ${port})…`);
+  startProcess(nodeCmd, ['--import', tsxLoaderUrl, 'packages/backend/src/server.ts'], {
+    env: { ...env, PORT: String(port) },
+    tag: 'server',
+  });
 
-// 8. 输出访问地址
+  // 9. 启动 Worker 进程（前台模式）
+  logTo('dev', '启动 Worker 进程…');
+  startProcess(nodeCmd, ['--watch', '--import', tsxLoaderUrl, 'packages/backend/src/queues/workerEntrypoint.ts'], {
+    env,
+    tag: 'worker',
+  });
+}
+
+// 10. 输出访问地址
 const url = `http://localhost:${port}/`;
 console.log('');
 console.log('══════════════════════════════════════════════');
-console.log(`  ✅ 后端 + 前端已无头启动${portSuffix}`);
+console.log(`  ✅ 全栈开发环境已启动${portSuffix}`);
 console.log(`  🔗  ${url}`);
+console.log(`  📦  PostgreSQL: 127.0.0.1:${PG_PORT}  Redis: 127.0.0.1:${REDIS_PORT}`);
+console.log(`  ⚙️   Go Engine: :15004  Worker: 后台运行`);
 if (HEADLESS) {
   console.log(`  📋 日志: ${LOG_DIR}/`);
+  console.log(`  🔧   停止: npm run dev:stop`);
   console.log(`  ℹ️   前台模式: npm run dev -- --interactive`);
 } else {
   console.log('[dev] 前台模式：按 Ctrl+C 停止所有服务');

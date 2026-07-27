@@ -1,9 +1,14 @@
 import { defineConfig, Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const frontendRequire = createRequire(path.resolve(projectRoot, 'packages/frontend/package.json'));
+const tailwindcss = frontendRequire('tailwindcss');
+const autoprefixer = frontendRequire('autoprefixer');
+const tailwindConfigPath = path.resolve(projectRoot, 'tailwind.config.cjs');
 
 /** E2E 覆盖率脚本会设 VITE_COVERAGE=true */
 const enableCoverage = process.env.VITE_COVERAGE === 'true';
@@ -121,6 +126,11 @@ export default defineConfig(async ({ command }) => {
           ]
         : []),
     ],
+    css: {
+      postcss: {
+        plugins: [tailwindcss({ config: tailwindConfigPath }), autoprefixer()],
+      },
+    },
     optimizeDeps: {
       include: [
         'react',

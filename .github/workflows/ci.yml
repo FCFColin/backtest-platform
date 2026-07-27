@@ -1,4 +1,4 @@
-﻿﻿﻿name: CI
+﻿﻿﻿﻿name: CI
 
 on:
   push:
@@ -119,6 +119,7 @@ jobs:
           - { name: 'Type Check', cmd: 'pnpm run check' }
           - { name: 'Lint', cmd: 'pnpm run lint' }
           - { name: 'Depcheck', cmd: 'pnpm run depcheck' }
+          - { name: 'Input Width Check', cmd: 'node scripts/check-input-widths.mjs' }
           - { name: 'Unit Tests', cmd: 'pnpm run test:unit' }
           - { name: 'Property Tests', cmd: 'pnpm run test:property' }
           - {

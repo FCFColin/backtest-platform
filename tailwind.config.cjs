@@ -1,9 +1,13 @@
-import type { Config } from 'tailwindcss';
-import animate from 'tailwindcss-animate';
+const path = require('path');
+const animate = require('tailwindcss-animate');
 
-export default {
+/** @type {import('tailwindcss').Config} */
+module.exports = {
   darkMode: ['class', '[data-theme="dark"]'],
-  content: ['./index.html', './packages/frontend/src/**/*.{js,ts,jsx,tsx}'],
+  content: [
+    path.resolve(__dirname, 'index.html'),
+    path.resolve(__dirname, 'packages/frontend/src/**/*.{js,ts,jsx,tsx}'),
+  ],
   theme: {
     container: {
       center: true,
@@ -124,4 +128,4 @@ export default {
     },
   },
   plugins: [animate],
-} satisfies Config;
+};
