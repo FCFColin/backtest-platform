@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-27T14:44:29.516Z",
+  "timestamp": "2026-07-27T17:13:19.836Z",
   "criticalIssues": {
     "deprecatedStillImported": 0,
     "v1v2Coexist": 0,
@@ -42,39 +42,8 @@
       "pages\\auth\\VerifyEmailPage.tsx:59:<XCircle className=\"w-10 h-10\" style={{ color: 'var(--danger, #dc2626)' }} />",
       "pages\\efficient-frontier\\efficientFrontierSharedConstants.ts:9:if (maxSharpe === minSharpe) return '#2e8b57';"
     ],
-    "hardcodedFontSize": [
-      "components\\charts\\AnnualReturnChart.tsx:54:<div className=\"text-[13px] font-semibold mb-2\" style={{ color: 'var(--text-strong)' }}>",
-      "components\\charts\\AnnualReturnChart.tsx:70:className=\"text-[12px] py-1.5 px-3\"",
-      "components\\charts\\AnnualReturnChart.tsx:79:className=\"text-[12px] font-medium text-right py-1.5 px-3 font-mono\"",
-      "components\\charts\\AnnualReturnChart.tsx:101:className=\"text-[12px] font-semibold text-left py-2 px-3\"",
-      "components\\charts\\AnnualReturnChart.tsx:109:className=\"text-[12px] font-semibold text-right py-2 px-3\"",
-      "components\\charts\\AnnualReturnChart.tsx:137:className=\"text-[13px] py-1.5 px-3 font-mono\"",
-      "components\\charts\\AnnualReturnChart.tsx:148:className=\"text-[13px] font-medium text-right py-1.5 px-3 font-mono\"",
-      "components\\charts\\AnnualReturnChart.tsx:173:<div className=\"text-[13px] font-semibold mb-2\" style={{ color: 'var(--text-strong)' }}>",
-      "components\\charts\\CorrelationHeatmapChart.tsx:60:<div className=\"text-[13px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\CorrelationHeatmapChart.tsx:150:<span className=\"text-[12px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\CorrelationHeatmapChart.tsx:169:<span className=\"text-[12px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\CorrelationHeatmapChart.tsx:188:<span className=\"text-[12px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\CorrelationHeatmapChart.tsx:298:className=\"text-[12px]\"",
-      "components\\charts\\CorrelationHeatmapChart.tsx:306:className=\"text-[12px]\"",
-      "components\\charts\\CorrelationHeatmapChart.tsx:345:<div className=\"text-[13px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\MatrixHeatmap.tsx:59:className=\"px-3 py-2 text-[11px] font-medium\"",
-      "components\\charts\\MatrixHeatmap.tsx:65:className=\"px-3 py-2 text-[11px] font-medium text-center\"",
-      "components\\charts\\MatrixHeatmap.tsx:77:className=\"px-3 py-2 text-[12px] font-medium\"",
-      "components\\charts\\MatrixHeatmap.tsx:90:className=\"text-[12px] text-center cursor-default\"",
-      "components\\charts\\MonthlyHeatmap.tsx:66:className=\"px-2 py-1 text-[11px] font-medium text-left w-10\"",
-      "components\\charts\\MonthlyHeatmap.tsx:72:className=\"px-1 py-1 text-[11px] font-medium text-center min-w-[36px]\"",
-      "components\\charts\\MonthlyHeatmap.tsx:84:className=\"px-2 py-0.5 text-[11px] font-medium\"",
-      "components\\charts\\MonthlyHeatmap.tsx:97:className=\"text-[10px] inline-block w-[34px] leading-[24px]\"",
-      "components\\charts\\MonthlyHeatmap.tsx:185:<div className=\"text-[13px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\PortfolioAllocationChart.tsx:162:className=\"text-[11px] mt-2 text-center\"",
-      "components\\charts\\PortfolioAllocationChart.tsx:176:<div className=\"text-[13px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\PortfolioAllocationChart.tsx:190:<div className=\"text-[13px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\PortfolioPiesChart.tsx:22:<div className=\"text-[13px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\PortfolioPiesChart.tsx:34:<div className=\"text-[13px]\" style={{ color: 'var(--text-muted)' }}>",
-      "components\\charts\\PortfolioPiesChart.tsx:88:<div className=\"text-[13px] font-medium mt-1\" style={{ color: 'var(--text-strong)' }}>"
-    ],
-    "fixedWidthUsage": 63,
+    "hardcodedFontSize": [],
+    "fixedWidthUsage": 65,
     "bareInputs": [
       "components\\BacktestParamsForm.CashflowLegs.tsx:156:<Input",
       "components\\BacktestParamsForm.CashflowLegs.tsx:165:<Input",
@@ -95,29 +64,29 @@
       "components\\portfolioEditor\\PortfolioCardV2.tsx:103:<Input",
       "components\\portfolioEditor\\PortfolioCardV2.tsx:138:<Input",
       "components\\portfolioEditor\\PortfolioCardV2.tsx:162:<Input",
-      "components\\portfolioEditor\\PortfolioCardV2.tsx:277:<Input"
+      "components\\portfolioEditor\\PortfolioCardV2.tsx:278:<Input"
     ],
     "emDashInCode": [
       "components\\AnalysisCharts.tsx:2:* @file Analysis charts barrel — re-exports from charts/ analysis components",
       "components\\charts\\sharedChartContent.tsx:2:* 共享图表渲染内容 — Bar / Area / Scatter 三族图表的统一渲染层",
       "components\\CollapsibleSection.tsx:2:* @file CollapsibleSection — 可折叠区块",
       "components\\dataEngine\\DataEngineDashboard.tsx:1:/** @file DataEngine dashboard — composes status cards, action buttons, distribution charts */",
+      "components\\dataEngine\\DataEngineInfoCards.tsx:115:{u.lastBarDate ?? '—'}",
       "components\\dataEngine\\DataEngineSkeleton.tsx:1:/** @file Skeleton screen mirroring DataEngineDashboard layout — shown while stats load */",
       "components\\EmptyState.tsx:2:* @file EmptyState — 空状态占位",
       "components\\ErrorBanner.tsx:2:* @file ErrorBanner — RFC 7807 错误/告警横幅",
       "components\\form\\Field.tsx:2:* @file Field — 统一表单 Field 包装",
       "components\\layout\\Footer.tsx:77:const tickerCount = meta?.tickerCount ?? '—';",
       "components\\LoadingState.tsx:2:* @file LoadingState — 加载状态占位",
-      "components\\portfolioEditor\\PortfolioCardV2.tsx:236:{/* Actions — hover 时显示 */}",
-      "components\\portfolioEditor\\PortfolioCardV2.tsx:264:{/* Header — Glidepath 配置（仅 glidepath 组合） */}",
-      "components\\portfolioEditor\\PortfolioCardV2.tsx:275:{/* Header — 名称 + 调仓频率 + 偏移 + 拖累 + 总回报 + 偏差带 */}",
-      "components\\portfolioEditor\\PortfolioCardV2.tsx:375:{/* Footer — 合计 + 深度分析 */}",
+      "components\\portfolioEditor\\PortfolioCardV2.tsx:237:{/* Actions — hover 时显示 */}",
+      "components\\portfolioEditor\\PortfolioCardV2.tsx:265:{/* Header — Glidepath 配置（仅 glidepath 组合） */}",
+      "components\\portfolioEditor\\PortfolioCardV2.tsx:276:{/* Header — 名称 + 调仓频率 + 偏移 + 拖累 + 总回报 + 偏差带 */}",
+      "components\\portfolioEditor\\PortfolioCardV2.tsx:376:{/* Footer — 合计 + 深度分析 */}",
       "components\\statistics-table\\helpers.ts:14:* @returns 格式化后的字符串；缺值为 '—'",
       "components\\statistics-table\\helpers.ts:17:if (v == null) return '—';",
-      "components\\statistics-table\\StatisticsTableV2.tsx:103:if (value === undefined || value === null) return '—';",
+      "components\\statistics-table\\StatisticsTableV2.tsx:120:if (value === undefined || value === null) return '—';",
       "hooks\\useBacktestWsXState.ts:2:* XState 状态机 PoC — useBacktestWs 的状态机重写（P4-2 PoC）",
-      "lib\\chart-colors.ts:12:'#3b82f6', // Blue-500 — 组合 1",
-      "lib\\chart-colors.ts:13:'#f97316', // Orange-500 — 组合 2"
+      "lib\\chart-colors.ts:12:'#3b82f6', // Blue-500 — 组合 1"
     ],
     "consoleLog": [
       "components\\ErrorBoundary.tsx:99:// P1-3: 使用统一错误上报工具，替代 console.error",
@@ -128,6 +97,6 @@
     "todos": 1,
     "hScreen": [],
     "bgSlate": [],
-    "maxWidthUsage": 11
+    "maxWidthUsage": 13
   }
 }

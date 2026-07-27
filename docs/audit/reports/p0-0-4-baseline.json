@@ -1,0 +1,408 @@
+{
+  "timestamp": "2026-07-27T17:23:00.063Z",
+  "totalPages": 21,
+  "pagesWithDuplicateH1": 0,
+  "pagesWithI18nLeak": 0,
+  "pagesWithNaN": 0,
+  "pagesWithLargeEmptySpace": 8,
+  "pagesWithNestedCard": 3,
+  "details": [
+    {
+      "slug": "backtest",
+      "path": "/",
+      "url": "/",
+      "h1Count": 1,
+      "h1Texts": [
+        "组合回测"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 1,
+      "scrollHeight": 2150,
+      "status": "OK"
+    },
+    {
+      "slug": "analysis",
+      "path": "/analysis",
+      "url": "/analysis",
+      "h1Count": 1,
+      "h1Texts": [
+        "资产分析"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 0,
+      "largestEmptyRegion": 0,
+      "nestedCardCount": 0,
+      "scrollHeight": 1201,
+      "status": "OK"
+    },
+    {
+      "slug": "monte-carlo",
+      "path": "/monte-carlo",
+      "url": "/monte-carlo",
+      "h1Count": 1,
+      "h1Texts": [
+        "蒙特卡洛模拟"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 350,
+      "nestedCardCount": 0,
+      "scrollHeight": 1957,
+      "status": "OK"
+    },
+    {
+      "slug": "optimizer",
+      "path": "/optimizer",
+      "url": "/optimizer",
+      "h1Count": 1,
+      "h1Texts": [
+        "组合优化"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 500,
+      "nestedCardCount": 0,
+      "scrollHeight": 1520,
+      "status": "OK"
+    },
+    {
+      "slug": "efficient-frontier",
+      "path": "/efficient-frontier",
+      "url": "/efficient-frontier",
+      "h1Count": 1,
+      "h1Texts": [
+        "有效前沿"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 0,
+      "scrollHeight": 1217,
+      "status": "OK"
+    },
+    {
+      "slug": "tactical",
+      "path": "/tactical",
+      "url": "/tactical",
+      "h1Count": 1,
+      "h1Texts": [
+        "战术分配"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 1,
+      "scrollHeight": 1988,
+      "status": "OK"
+    },
+    {
+      "slug": "tactical-grid",
+      "path": "/tactical-grid",
+      "url": "/tactical-grid",
+      "h1Count": 1,
+      "h1Texts": [
+        "战术网格搜索"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 0,
+      "scrollHeight": 1719,
+      "status": "OK"
+    },
+    {
+      "slug": "signal",
+      "path": "/signal-analyzer",
+      "url": "/signal-analyzer",
+      "h1Count": 1,
+      "h1Texts": [
+        "单信号分析"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 2,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 0,
+      "scrollHeight": 1234,
+      "status": "OK"
+    },
+    {
+      "slug": "dual-signal",
+      "path": "/dual-signal",
+      "url": "/dual-signal",
+      "h1Count": 1,
+      "h1Texts": [
+        "双信号对比"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 2,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 0,
+      "scrollHeight": 1293,
+      "status": "OK"
+    },
+    {
+      "slug": "multi-signal",
+      "path": "/multi-signal",
+      "url": "/multi-signal",
+      "h1Count": 1,
+      "h1Texts": [
+        "多信号聚合"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 2,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 0,
+      "scrollHeight": 1425,
+      "status": "OK"
+    },
+    {
+      "slug": "pca",
+      "path": "/pca",
+      "url": "/pca",
+      "h1Count": 1,
+      "h1Texts": [
+        "主成分分析（PCA）"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 2,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 0,
+      "scrollHeight": 1189,
+      "status": "OK"
+    },
+    {
+      "slug": "letf",
+      "path": "/letf",
+      "url": "/letf",
+      "h1Count": 0,
+      "h1Texts": [],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 800,
+      "nestedCardCount": 0,
+      "scrollHeight": 1067,
+      "status": "OK"
+    },
+    {
+      "slug": "factor-regression",
+      "path": "/factor-regression",
+      "url": "/factor-regression",
+      "h1Count": 1,
+      "h1Texts": [
+        "因子回归分析"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 2,
+      "largestEmptyRegion": 500,
+      "nestedCardCount": 0,
+      "scrollHeight": 1338,
+      "status": "OK"
+    },
+    {
+      "slug": "goal-optimizer",
+      "path": "/goal-optimizer",
+      "url": "/goal-optimizer",
+      "h1Count": 1,
+      "h1Texts": [
+        "目标优化器"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 600,
+      "nestedCardCount": 0,
+      "scrollHeight": 1492,
+      "status": "OK"
+    },
+    {
+      "slug": "calculators",
+      "path": "/calculators",
+      "url": "/calculators",
+      "h1Count": 1,
+      "h1Texts": [
+        "投资计算器"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 300,
+      "nestedCardCount": 1,
+      "scrollHeight": 1539,
+      "status": "OK"
+    },
+    {
+      "slug": "lumpsum-dca",
+      "path": "/lumpsum-vs-dca",
+      "url": "/lumpsum-vs-dca",
+      "h1Count": 1,
+      "h1Texts": [
+        "一次性投资 vs 定投"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 0,
+      "largestEmptyRegion": 0,
+      "nestedCardCount": 0,
+      "scrollHeight": 1193,
+      "status": "OK"
+    },
+    {
+      "slug": "rebalancing",
+      "path": "/rebalancing-sensitivity",
+      "url": "/rebalancing-sensitivity",
+      "h1Count": 1,
+      "h1Texts": [
+        "调仓敏感性分析"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 750,
+      "nestedCardCount": 0,
+      "scrollHeight": 1352,
+      "status": "OK"
+    },
+    {
+      "slug": "data-engine",
+      "path": "/data-engine",
+      "url": "/data-engine",
+      "h1Count": 1,
+      "h1Texts": [
+        "数据引擎"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 600,
+      "nestedCardCount": 0,
+      "scrollHeight": 1067,
+      "status": "OK"
+    },
+    {
+      "slug": "about",
+      "path": "/about",
+      "url": "/about",
+      "h1Count": 1,
+      "h1Texts": [
+        "关于平台"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 0,
+      "largestEmptyRegion": 0,
+      "nestedCardCount": 0,
+      "scrollHeight": 1129,
+      "status": "OK"
+    },
+    {
+      "slug": "help",
+      "path": "/help",
+      "url": "/help",
+      "h1Count": 1,
+      "h1Texts": [
+        "帮助中心"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 0,
+      "largestEmptyRegion": 0,
+      "nestedCardCount": 0,
+      "scrollHeight": 1322,
+      "status": "OK"
+    },
+    {
+      "slug": "pricing",
+      "path": "/pricing",
+      "url": "/pricing",
+      "h1Count": 1,
+      "h1Texts": [
+        "定价方案"
+      ],
+      "duplicateH1": false,
+      "i18nLeakedCount": 0,
+      "i18nLeakedSample": [],
+      "nanTextCount": 0,
+      "nanTextSample": [],
+      "emptyRegionCount": 1,
+      "largestEmptyRegion": 750,
+      "nestedCardCount": 0,
+      "scrollHeight": 1742,
+      "status": "OK"
+    }
+  ]
+}
