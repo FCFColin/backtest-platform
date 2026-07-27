@@ -59,6 +59,23 @@ type SkewnessByFrequency struct {
 // 与 packages/shared/types/statistics.ts 的 Statistics interface 保持字段名一致，
 // JSON 序列化后可直接被前端消费，字段名无需额外映射层。
 // 字段一致性由 types_test.go 的 TestStatisticsJSONTags 守护。
+//
+// UNIT conventions:
+//   - decimal ratio (e.g. 0.05 = 5%): cagr, mwrr, stdev, maxDrawdown, avgDrawdown,
+//     bestYear, worstYear, avgYear, totalReturn, maxMonthlyReturn, minMonthlyReturn,
+//     maxDailyReturn, minDailyReturn, maxAnnualReturn, minAnnualReturn,
+//     alpha, rSquared, trackingError, informationRatio, upsideCapture, downsideCapture,
+//     pctPositiveDays, pctPositiveMonths, pctPositiveYears, avgAnnualReturn, avgMonthlyReturn,
+//     avgDailyReturn, stdevAnnual, stdevMonthly, stdevMonthlyRaw, stdevDaily, stdevDailyRaw,
+//     downsideDeviation*, drawdownRecoveryFactor, m2, treynor,
+//     benchmarkCorrelation, upsideCorrelation, downsideCorrelation,
+//     alphaDaily, alphaAnnualized, upsideCapture*, downsideCapture*, captureSpread*,
+//     activeReturn, var*, cvar*, skewness*, excessKurtosis*, winRate*,
+//     avgDailyGain, avgDailyLoss, avgMonthlyGain, avgMonthlyLoss, avgAnnualGain, avgAnnualLoss,
+//     swr*, pwr*
+//   - dimensionless ratio (no unit): sharpe, sortino, calmar, ulcerPerformanceIndex,
+//     ulcerIndex, beta, upsideBeta, downsideBeta, diversificationRatio, gainLossRatio*
+//   - days (int): maxDrawdownDuration
 type Statistics struct {
 	CAGR                  float64             `json:"cagr"`
 	MWRR                  float64             `json:"mwrr"`
@@ -278,7 +295,15 @@ type AllocationPoint struct {
 }
 
 // DrawdownEpisode 回撤事件，与 packages/shared/types/backtest.ts 的 DrawdownEpisode 对齐。
-// 所有时间字段（timeToTrough/recoveryTime/totalTimeDurationDays）均为天数（int）。
+//
+// UNIT conventions:
+//   - date string (YYYY-MM-DD): peakDate, troughDate, recoveryDate
+//   - decimal ratio (negative): depth, returnFromPeakToTrough, returnFromTroughToRecovery,
+//     cagrDuring
+//   - days (int): timeToTrough, recoveryTime, totalTimeDurationDays
+//   - dimensionless: recoveryFactor, ulcerDuring
+//
+// recoveryDate 为空时表示回测结束时该回撤尚未恢复。
 // 字段 totalTimeDurationDays 明确标注单位为天，避免前端误当作年处理。
 type DrawdownEpisode struct {
 	PeakDate                   string   `json:"peakDate"`

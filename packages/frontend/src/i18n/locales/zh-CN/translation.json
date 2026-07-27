@@ -153,7 +153,11 @@
     "signIn": "登录",
     "loadSaved": "加载已保存",
     "loadSavedBacktest": "加载已保存回测",
-    "loadSavedAnalysis": "加载已保存分析"
+    "loadSavedAnalysis": "加载已保存分析",
+    "collapse": "收起",
+    "equalize": "等分",
+    "learnMore": "了解更多",
+    "normalize": "归一化"
   },
   "tabs": {
     "summary": "概览",
@@ -342,7 +346,8 @@
       "tickerPlaceholder": "输入代码，如 VTI",
       "totalCombos": "总组合数",
       "weightPlaceholder": "输入权重，如 30"
-    }
+    },
+    "emptyPortfolios": "请至少添加一个投资组合"
   },
   "optimizer": {
     "title": "组合优化",
@@ -732,7 +737,12 @@
     "weight": "权重",
     "loadExample": "加载示例",
     "emptyPortfolios": "尚未添加投资组合",
-    "comingSoon": "功能即将上线"
+    "comingSoon": "功能即将上线",
+    "deepAnalysis": "深度分析",
+    "singleBacktest": "单组合回测",
+    "monteCarlo": "蒙特卡洛",
+    "efficientFrontier": "有效前沿",
+    "factorRegression": "因子回归"
   },
   "stats": {
     "cagr": "年化收益率",
@@ -906,7 +916,8 @@
     "analysisInvalidType": "分析类型无效",
     "gridTooMany": "网格搜索数量过多",
     "gridBadRequest": "网格搜索参数无效",
-    "pcaMinAssets": "PCA 至少需要 2 个标的"
+    "pcaMinAssets": "PCA 至少需要 2 个标的",
+    "retryIn": "{{seconds}}秒后重试"
   },
   "results": {
     "hideDetailedMetrics": "收起详细指标",
@@ -2124,6 +2135,7 @@
     },
     "localDeployNotice": "您正在使用本地部署版本，所有功能均已开放。",
     "login": "登录",
+    "myWorkspace": "我的工作区",
     "preferences": {
       "currency": "货币单位",
       "currencyCNY": "人民币 (CNY)",
@@ -2206,6 +2218,8 @@
       "admin": "平台管理员",
       "local": "本地用户"
     },
+    "settings": "账户设置",
+    "signOut": "退出登录",
     "subscription": {
       "currentPlanSuffix": "当前方案：{{plan}}",
       "freePlan": "免费版",
@@ -2214,6 +2228,7 @@
       "upgrade": "升级方案"
     },
     "title": "账户中心",
+    "upgrade": "升级订阅",
     "userIdLabel": "用户 ID：{{userId}}"
   },
   "adminLayout": {

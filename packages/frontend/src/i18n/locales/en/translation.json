@@ -155,7 +155,9 @@
     "loadSavedBacktest": "LOAD SAVED BACKTEST",
     "loadSavedAnalysis": "LOAD SAVED ANALYSIS",
     "collapse": "Collapse",
-    "learnMore": "Learn More"
+    "learnMore": "Learn More",
+    "equalize": "Equalize",
+    "normalize": "Normalize"
   },
   "tabs": {
     "summary": "Summary",
@@ -344,7 +346,8 @@
       "tickerPlaceholder": "Enter ticker, e.g. VTI",
       "totalCombos": "Total Combinations",
       "weightPlaceholder": "Enter weight, e.g. 30"
-    }
+    },
+    "emptyPortfolios": "Please add at least one portfolio"
   },
   "optimizer": {
     "title": "Portfolio Optimization",
@@ -734,7 +737,12 @@
     "weight": "Weight",
     "loadExample": "Load Example",
     "emptyPortfolios": "No portfolios added yet",
-    "comingSoon": "Feature coming soon"
+    "comingSoon": "Feature coming soon",
+    "deepAnalysis": "Deep Analysis",
+    "singleBacktest": "Single Backtest",
+    "monteCarlo": "Monte Carlo",
+    "efficientFrontier": "Efficient Frontier",
+    "factorRegression": "Factor Regression"
   },
   "stats": {
     "cagr": "CAGR",
@@ -908,7 +916,8 @@
     "analysisInvalidType": "Invalid analysis type",
     "gridTooMany": "Grid search too large",
     "gridBadRequest": "Invalid grid parameters",
-    "pcaMinAssets": "PCA requires at least 2 assets"
+    "pcaMinAssets": "PCA requires at least 2 assets",
+    "retryIn": "Retry in {{seconds}}s"
   },
   "results": {
     "hideDetailedMetrics": "Hide detailed metrics",
@@ -2174,6 +2183,7 @@
     },
     "localDeployNotice": "You are using the self-hosted version; all features are available.",
     "login": "Log In",
+    "myWorkspace": "My Workspace",
     "preferences": {
       "currency": "Currency",
       "currencyCNY": "Chinese Yuan (CNY)",
@@ -2256,6 +2266,8 @@
       "admin": "Platform Administrator",
       "local": "Local User"
     },
+    "settings": "Account Settings",
+    "signOut": "Sign Out",
     "subscription": {
       "currentPlanSuffix": "Current plan: {{plan}}",
       "freePlan": "Free Plan",
@@ -2264,6 +2276,7 @@
       "upgrade": "Upgrade Plan"
     },
     "title": "Account Center",
+    "upgrade": "Upgrade Plan",
     "userIdLabel": "User ID: {{userId}}"
   },
   "adminLayout": {

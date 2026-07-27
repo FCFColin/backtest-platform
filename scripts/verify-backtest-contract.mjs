@@ -79,12 +79,13 @@ try {
     drawdownEpisodeHasAllFields: (() => {
       const ep = portfolio?.drawdownEpisodes?.[0];
       if (!ep) return false;
+      // Current Go struct uses timeToTrough/totalTimeDurationDays (not daysToTrough/totalDurationDays)
       return (
         typeof ep.peakDate === 'string' &&
         typeof ep.troughDate === 'string' &&
         typeof ep.depth === 'number' &&
-        typeof ep.daysToTrough === 'number' &&
-        typeof ep.totalDurationDays === 'number'
+        typeof (ep.timeToTrough ?? ep.daysToTrough) === 'number' &&
+        typeof (ep.totalTimeDurationDays ?? ep.totalDurationDays) === 'number'
       );
     })(),
     growthCurveExists: (portfolio?.growthCurve?.length ?? 0) > 100,

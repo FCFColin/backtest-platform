@@ -1,26 +1,11 @@
 {
-  "timestamp": "2026-07-27T14:45:41.632Z",
-  "zhKeyCount": 2130,
-  "enKeyCount": 2132,
+  "timestamp": "2026-07-27T15:09:20.850Z",
+  "zhKeyCount": 2145,
+  "enKeyCount": 2145,
   "usedKeyCount": 1258,
   "missingInEn": [],
-  "missingInZh": ["common.collapse", "common.learnMore"],
-  "undefinedInSource": [
-    "account.myWorkspace",
-    "account.settings",
-    "account.upgrade",
-    "account.signOut",
-    "errors.retryIn",
-    "common.equalize",
-    "common.normalize",
-    "portfolio.deepAnalysis",
-    "portfolio.singleBacktest",
-    "portfolio.monteCarlo",
-    "portfolio.efficientFrontier",
-    "portfolio.factorRegression",
-    "changelog.versions",
-    "backtest.emptyPortfolios"
-  ],
+  "missingInZh": [],
+  "undefinedInSource": [],
   "unusedZh": [
     "home.hero.title",
     "home.hero.subtitle",
@@ -43,5 +28,5 @@
     "account.dataStats.title",
     "account.dataStats.today"
   ],
-  "status": "FAIL"
+  "status": "PASS"
 }

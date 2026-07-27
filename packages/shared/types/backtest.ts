@@ -53,23 +53,39 @@ export type DrawdownPoint = { date: string; drawdown: number };
  * 回撤事件
  *
  * 记录从峰值到谷值再到恢复的完整回撤周期。
+ *
+ * UNIT conventions:
+ * - date string (YYYY-MM-DD): peakDate, troughDate, recoveryDate
+ * - decimal ratio (negative): depth, returnFromPeakToTrough, returnFromTroughToRecovery, cagrDuring
+ * - days (int): timeToTrough, recoveryTime, totalTimeDurationDays
+ * - dimensionless: recoveryFactor, ulcerDuring
+ *
  * recoveryDate 为空时表示回测结束时该回撤尚未恢复。
- * timeToTrough/recoveryTime/totalTimeDurationDays 均以天数（int）为单位。
- * cagrDuring 表示回撤期间的复合年化收益率（通常为负值）。
- * ulcerDuring 表示回撤期间的 ulcer 指数。
  */
 export interface DrawdownEpisode {
+  /** YYYY-MM-DD format */
   peakDate: string;
+  /** YYYY-MM-DD format */
   troughDate: string;
+  /** YYYY-MM-DD format; empty/undefined if not recovered */
   recoveryDate?: string;
+  /** UNIT: decimal ratio (e.g. -0.2278 = -22.78%) */
   depth: number;
+  /** UNIT: days */
   timeToTrough: number;
+  /** UNIT: days */
   recoveryTime: number;
+  /** UNIT: days */
   totalTimeDurationDays: number;
+  /** UNIT: dimensionless */
   recoveryFactor: number;
+  /** UNIT: decimal ratio (e.g. -0.15 = -15% annualized during drawdown) */
   cagrDuring: number;
+  /** UNIT: dimensionless */
   ulcerDuring: number;
+  /** UNIT: decimal ratio (e.g. -0.30 = -30% from peak to trough) */
   returnFromPeakToTrough: number;
+  /** UNIT: decimal ratio (e.g. +0.45 = +45% from trough to recovery) */
   returnFromTroughToRecovery?: number;
 }
 

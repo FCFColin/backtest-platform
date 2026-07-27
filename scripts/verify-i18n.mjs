@@ -43,6 +43,26 @@ function flatten(obj, prefix = '') {
 }
 
 /**
+ * Collect all dot-notation paths in an object, including intermediate object keys
+ * (not just leaf values). Used to verify keys used with `t(key, { returnObjects: true })`,
+ * which reference a nested object rather than a leaf string.
+ * @param {Record<string, unknown>} obj - Object to traverse.
+ * @param {string} prefix - Current key prefix.
+ * @returns {Set<string>} Set of all dot-notation paths (leaves and intermediate).
+ */
+function allPaths(obj, prefix = '') {
+  const result = new Set();
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    result.add(key);
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      for (const sub of allPaths(/** @type {Record<string, unknown>} */ (v), key)) result.add(sub);
+    }
+  }
+  return result;
+}
+
+/**
  * Walk directory recursively, returning all files matching extensions.
  * @param {string} dir - Directory to walk.
  * @param {string[]} exts - File extensions to include (e.g. ['.tsx', '.ts']).
@@ -105,7 +125,11 @@ for (const file of sourceFiles) {
   }
 }
 
-const undefinedInSource = [...usedKeys].filter((k) => !zhKeys.has(k));
+// Use allPaths (includes intermediate object keys) so that keys referenced via
+// `t(key, { returnObjects: true })` — which point to nested objects, not leaf
+// strings — are not falsely flagged as undefined.
+const zhAllPaths = allPaths(zh);
+const undefinedInSource = [...usedKeys].filter((k) => !zhAllPaths.has(k));
 const unusedZh = [...zhKeys].filter((k) => !usedKeys.has(k) && !k.startsWith('_'));
 
 const report = {
