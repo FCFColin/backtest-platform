@@ -97,6 +97,18 @@
     "syntheticTickers": "新功能：合成标的现已支持回测至 1962 年",
     "tryNow": "立即体验"
   },
+  "ticker": {
+    "synthetic": "合成标的",
+    "dataSources": "数据来源",
+    "historyRange": "历史起始: {{from}}（约 {{years}} 年）"
+  },
+  "hero": {
+    "syntheticPromo": {
+      "title": "合成标的可将 60/40 回测拓展至 40 年以上",
+      "description": "VTISIM · BNDSIM · SPYSIM 等 20+ 合成标的已就绪",
+      "cta": "查看全部"
+    }
+  },
   "footer": {
     "help": "帮助",
     "contact": "联系",
@@ -472,6 +484,7 @@
     "cnEtfCategory": "A股ETF",
     "indexCategory": "指数",
     "recentUpdates": "最近更新",
+    "noRecentUpdates": "暂无更新记录",
     "universeLastRefresh": "标的宇宙上次刷新",
     "notRefreshed": "未刷新",
     "totalTickers": "个标的",
@@ -739,6 +752,7 @@
     "total": "合计",
     "weight": "权重",
     "loadExample": "加载示例",
+    "loadCompareExample": "加载对比示例",
     "emptyPortfolios": "尚未添加投资组合",
     "comingSoon": "功能即将上线",
     "deepAnalysis": "深度分析",

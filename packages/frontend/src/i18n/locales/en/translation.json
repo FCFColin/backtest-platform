@@ -97,6 +97,18 @@
     "syntheticTickers": "New: Synthetic tickers now support backtesting back to 1962",
     "tryNow": "Try Now"
   },
+  "ticker": {
+    "synthetic": "Synthetic",
+    "dataSources": "Data Sources",
+    "historyRange": "History since: {{from}} ({{years}} years)"
+  },
+  "hero": {
+    "syntheticPromo": {
+      "title": "Synthetic tickers extend 60/40 backtests to 40+ years",
+      "description": "VTISIM · BNDSIM · SPYSIM and 20+ synthetic tickers ready",
+      "cta": "View all"
+    }
+  },
   "footer": {
     "help": "Help",
     "contact": "Contact",
@@ -472,6 +484,7 @@
     "cnEtfCategory": "CN ETFs",
     "indexCategory": "Indices",
     "recentUpdates": "Recent Updates",
+    "noRecentUpdates": "No recent updates",
     "universeLastRefresh": "Universe Last Refresh",
     "notRefreshed": "Not Refreshed",
     "totalTickers": "tickers",
@@ -739,6 +752,7 @@
     "total": "Total",
     "weight": "Weight",
     "loadExample": "Load Example",
+    "loadCompareExample": "Load Comparison Example",
     "emptyPortfolios": "No portfolios added yet",
     "comingSoon": "Feature coming soon",
     "deepAnalysis": "Deep Analysis",
