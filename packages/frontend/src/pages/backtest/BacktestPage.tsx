@@ -1,4 +1,4 @@
-﻿import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
 import type { ComputeToolConfig } from '../../components/shells/types.js';
 import BacktestParamsForm from '@/components/BacktestParamsForm.js';
@@ -46,6 +46,7 @@ function BacktestResultsWrapper(_: { state: BacktestState }) {
 
 const config: ComputeToolConfig<BacktestState> = {
   titleKey: 'backtest.title',
+  hidePageTitle: true,
   paramsTitleKey: 'params.basicParams',
   seoSubtitleKey: 'backtest.seoSubtitle',
   seoDescKey: 'backtest.seoDesc',

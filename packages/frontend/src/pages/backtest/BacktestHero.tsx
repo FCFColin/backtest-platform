@@ -44,11 +44,17 @@ export const BacktestHero = memo(function BacktestHero() {
   }, []);
 
   return (
-    <section className={cn(CONTAINER_WIDTHS.page, 'pt-4 pb-6')}>
+    <section
+      className={cn(CONTAINER_WIDTHS.page, 'pt-4 pb-6')}
+      data-testid="page-hero"
+    >
       {/* 标题行 - 始终显示 */}
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h1 className="text-display md:text-display-xl text-fg mb-3">
+          <h1
+            className="text-display md:text-display-xl text-fg mb-3"
+            data-testid="page-title"
+          >
             {t('backtest.hero.title')}
           </h1>
           <p className="text-h2 text-fg-secondary font-normal max-w-[720px]">

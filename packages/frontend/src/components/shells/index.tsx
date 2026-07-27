@@ -39,6 +39,8 @@ export interface ComputeToolConfig<S> {
   hideParamsTitle?: boolean;
   paramsTitleKey?: string;
   paramsTitle?: string;
+  /** 当页面已有自己的 Hero（如 BacktestHero）时，隐藏 ComputeToolShell 内部的 h1 标题以避免 H1 重复 */
+  hidePageTitle?: boolean;
 }
 
 export interface StandardPageConfig {
@@ -139,7 +141,9 @@ export function ComputeToolShell<S>({
     <div className="bt-page">
       <div className="page-header-slim">
         <div className="page-header-title-row">
-          <h1 className="page-title-slim">{t(config.titleKey)}</h1>
+          {!config.hidePageTitle && (
+            <h1 className="page-title-slim">{t(config.titleKey)}</h1>
+          )}
           {config.seoSubtitleKey && (
             <span className="page-subtitle-inline">{t(config.seoSubtitleKey)}</span>
           )}
