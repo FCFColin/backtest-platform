@@ -176,7 +176,7 @@ function RegressionResidualChart({ reg, color }: { reg: RegressionWithMeta; colo
       <div className="chart-card-title" style={{ marginTop: '8px' }}>
         {t('charts.regression.residualChartTitle')}
       </div>
-      <div className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-label-tiny mb-2" style={{ color: 'var(--text-muted)' }}>
         {t('charts.regression.residualDesc')}
       </div>
       <TimeSeriesLineChart

@@ -79,7 +79,7 @@ function VersionTimelineItem({ v }: { v: VersionEntry }) {
             {v.date}
           </span>
           {v.highlight && (
-            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-[11px] font-semibold text-brand">
+            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-label-tiny font-semibold text-brand">
               {v.highlight}
             </span>
           )}
@@ -88,7 +88,7 @@ function VersionTimelineItem({ v }: { v: VersionEntry }) {
           {v.changes.map((c, i) => (
             <div key={i} className="flex items-start gap-2">
               <ChangeTag c={c} />
-              <span className="text-[13px] leading-relaxed text-fg-secondary">{c.text}</span>
+              <span className="text-label leading-relaxed text-fg-secondary">{c.text}</span>
             </div>
           ))}
         </div>

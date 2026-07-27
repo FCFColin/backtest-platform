@@ -159,7 +159,7 @@ function InitialWeightChart({
         fillOpacity={0.6}
       />
       <div
-        className="text-[11px] mt-2 text-center"
+        className="text-label-tiny mt-2 text-center"
         style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}
       >
         {t('charts.portfolioAllocation.initialWeightHint')}
@@ -173,7 +173,7 @@ export default function PortfolioAllocationChart({ portfolios }: PortfolioAlloca
   if (portfolios.length === 0) {
     return (
       <div className="chart-card">
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           {t('charts.portfolioAllocation.noData')}
         </div>
       </div>
@@ -187,7 +187,7 @@ export default function PortfolioAllocationChart({ portfolios }: PortfolioAlloca
     return (
       <div className="chart-card">
         <div className="chart-card-title">{t('charts.portfolioAllocation.title')}</div>
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           {t('charts.portfolioAllocation.noAssets')}
         </div>
       </div>

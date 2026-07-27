@@ -189,7 +189,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
   if (portfolios.length === 0) {
     return (
       <ChartCard title={t('tabs.myMetrics')}>
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           {t('components.customMetricsTable.noData')}
         </div>
       </ChartCard>
@@ -203,7 +203,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
     >
       {visibleMetrics.length === 0 ? (
         <div
-          className="text-[13px]"
+          className="text-label"
           style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
         >
           {t('components.customMetricsTable.selectAtLeastOne')}

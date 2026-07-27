@@ -74,7 +74,7 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
             if (!hasAnyValue && !REQUIRED_KEYS.has(row.key)) return null;
             return (
               <tr key={row.key} className={rowIdx % 2 === 1 ? 'bg-input-bg' : ''}>
-                <td className="border-b border-subtle px-3 py-2 text-[13px] text-fg-secondary">
+                <td className="border-b border-subtle px-3 py-2 text-label text-fg-secondary">
                   {t(row.label)}
                 </td>
                 {results.map((r) => {
@@ -82,7 +82,7 @@ function StatsTable({ results, fmtPct, fmtNum, fmtMoney }: FmtFns & { results: C
                   return (
                     <td
                       key={r.label}
-                      className="border-b border-subtle px-3 py-2 text-right font-mono text-[13px] font-medium text-fg"
+                      className="border-b border-subtle px-3 py-2 text-right font-mono text-label font-medium text-fg"
                     >
                       {val != null ? fmtVal(row.key, val as number) : '\u2014'}
                     </td>

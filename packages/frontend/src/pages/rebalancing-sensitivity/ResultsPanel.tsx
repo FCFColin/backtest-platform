@@ -237,7 +237,7 @@ function ResultsTableHead() {
 
 /** 表格单元格基础类 + 最优值高亮 */
 function cellClassName(isBest: boolean): string {
-  return `border-b border-subtle px-3 py-2 text-right font-mono text-[13px] font-medium ${
+  return `border-b border-subtle px-3 py-2 text-right font-mono text-label font-medium ${
     isBest ? 'font-bold text-success' : 'text-fg'
   }`;
 }
@@ -257,7 +257,7 @@ function ResultsTable({ results }: { results: FreqResult[] }) {
         <tbody>
           {results.map((r, idx) => (
             <tr key={r.frequency} className={idx % 2 === 1 ? 'bg-input-bg' : ''}>
-              <td className="border-b border-subtle px-3 py-2 text-[13px] text-fg">
+              <td className="border-b border-subtle px-3 py-2 text-label text-fg">
                 <span
                   className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
                   style={{ backgroundColor: r.color }}

@@ -57,7 +57,7 @@ function TickerDropdown({
           {s.ticker.endsWith('SIM') && (
             <span
               data-testid="synthetic-badge"
-              className="text-[10px] font-mono px-1 py-0.5 rounded bg-brand-subtle/15 text-brand border border-brand/20"
+              className="text-micro font-mono px-1 py-0.5 rounded bg-brand-subtle/15 text-brand border border-brand/20"
             >
               SIM
             </span>

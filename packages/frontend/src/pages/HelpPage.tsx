@@ -61,7 +61,7 @@ export default function HelpPage() {
             <button
               key={tab.key}
               onClick={() => setSection(tab.key)}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-[13px] font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-label font-semibold transition-colors ${
                 section === tab.key
                   ? 'bg-brand/10 text-brand'
                   : 'text-fg-tertiary hover:text-fg-secondary'
@@ -127,7 +127,7 @@ function HelpInfoBox({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-lg bg-input-bg p-4 text-[13px] text-fg-secondary">
+    <div className="rounded-lg bg-input-bg p-4 text-label text-fg-secondary">
       {(title || icon) && (
         <div className="mb-2 flex items-center gap-2">
           {icon}
@@ -277,7 +277,7 @@ function FaqItemRow({ q, a }: { q: string; a: string }) {
         />
       </button>
       {open && (
-        <div className="px-4 py-3 text-[13px] leading-relaxed text-fg-secondary">{a}</div>
+        <div className="px-4 py-3 text-label leading-relaxed text-fg-secondary">{a}</div>
       )}
     </div>
   );

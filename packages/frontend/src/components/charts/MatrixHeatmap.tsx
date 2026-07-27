@@ -56,13 +56,13 @@ export function MatrixHeatmap({
         <thead>
           <tr>
             <th
-              className="px-3 py-2 text-[11px] font-medium"
+              className="px-3 py-2 text-label-tiny font-medium"
               style={{ color: 'var(--text-muted)' }}
             />
             {columnLabels.map((col) => (
               <th
                 key={col}
-                className="px-3 py-2 text-[11px] font-medium text-center"
+                className="px-3 py-2 text-label-tiny font-medium text-center"
                 style={{ color: 'var(--text-muted)' }}
               >
                 {col}
@@ -74,7 +74,7 @@ export function MatrixHeatmap({
           {rowLabels.map((rowLabel, i) => (
             <tr key={rowLabel}>
               <td
-                className="px-3 py-2 text-[12px] font-medium"
+                className="px-3 py-2 text-caption font-medium"
                 style={{ color: 'var(--text-body)' }}
               >
                 {rowLabel}
@@ -87,7 +87,7 @@ export function MatrixHeatmap({
                 return (
                   <td
                     key={colLabel}
-                    className="text-[12px] text-center cursor-default"
+                    className="text-caption text-center cursor-default"
                     style={{
                       backgroundColor: getBackgroundColor(value),
                       color: getTextColor(value),

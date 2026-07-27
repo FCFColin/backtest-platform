@@ -19,7 +19,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   if (portfolios.length === 0) {
     return (
       <ChartCard>
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           {t('charts.portfolioPies.noData')}
         </div>
       </ChartCard>
@@ -31,7 +31,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
   if (portfoliosWithAssets.length === 0) {
     return (
       <ChartCard title={t('charts.portfolioPies.title')}>
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           {t('charts.portfolioPies.noAssets')}
         </div>
       </ChartCard>
@@ -85,7 +85,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
                   <ChartLegend />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="text-[13px] font-medium mt-1" style={{ color: 'var(--text-strong)' }}>
+              <div className="text-label font-medium mt-1" style={{ color: 'var(--text-strong)' }}>
                 {portfolio.name}
               </div>
             </div>

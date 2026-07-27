@@ -84,7 +84,7 @@ function DistributionRow({
   const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
   return (
     <div className="mb-1.5">
-      <div className="mb-0.75 flex justify-between text-[13px]">
+      <div className="mb-0.75 flex justify-between text-label">
         <span className={`text-fg-secondary ${bold ? 'font-semibold' : ''}`}>{label}</span>
         <span className="font-mono tabular-nums text-fg-tertiary">{fmt(count)}</span>
       </div>
@@ -121,7 +121,7 @@ export function MarketDistributionCard({
               : market;
         return (
           <div key={market} className="mb-2.5">
-            <div className="mb-[3px] flex justify-between text-[13px]">
+            <div className="mb-0.75 flex justify-between text-label">
               <span className="font-semibold text-fg-secondary">{label}</span>
               <span className="font-mono tabular-nums text-fg-tertiary">{fmt(data.count)}</span>
             </div>

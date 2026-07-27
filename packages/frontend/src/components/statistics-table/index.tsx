@@ -50,7 +50,7 @@ export function StatisticsTableHeader({
   return (
     <tr className="stat-table-header-row">
       <th
-        className="stat-table-header-cell stat-table-metric-cell text-[12px] text-left"
+        className="stat-table-header-cell stat-table-metric-cell text-caption text-left"
         style={{ minWidth }}
       >
         {t('common.metric')}
@@ -58,7 +58,7 @@ export function StatisticsTableHeader({
       {portfolios.map((p, idx) => (
         <th
           key={p.name}
-          className="stat-table-header-cell stat-table-value-cell text-[12px] text-right"
+          className="stat-table-header-cell stat-table-value-cell text-caption text-right"
         >
           <span
             className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
@@ -213,7 +213,7 @@ export function StatisticsGroupRows({ group, portfolios, colCount }: StatisticsG
   return (
     <Fragment key={group.title}>
       <tr className="stat-table-group-row">
-        <td colSpan={colCount} className="stat-table-group-cell text-[12px]">
+        <td colSpan={colCount} className="stat-table-group-cell text-caption">
           {t(group.title)}
         </td>
       </tr>

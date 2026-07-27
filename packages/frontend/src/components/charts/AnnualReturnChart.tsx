@@ -51,7 +51,7 @@ function PortfolioSummaryStats({
   if (!stats) return null;
   return (
     <div style={{ marginTop: '16px' }}>
-      <div className="text-[13px] font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
+      <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
         <span
           className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-middle"
           style={{ backgroundColor: CHART_COLORS[colorIndex % CHART_COLORS.length] }}
@@ -67,7 +67,7 @@ function PortfolioSummaryStats({
                 style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}
               >
                 <td
-                  className="text-[12px] py-1.5 px-3"
+                  className="text-caption py-1.5 px-3"
                   style={{
                     color: 'var(--text-body)',
                     borderBottom: '1px solid var(--border-soft)',
@@ -76,7 +76,7 @@ function PortfolioSummaryStats({
                   {t(row.labelKey)}
                 </td>
                 <td
-                  className="text-[12px] font-medium text-right py-1.5 px-3 font-mono"
+                  className="text-caption font-medium text-right py-1.5 px-3 font-mono"
                   style={{
                     color: 'var(--text-strong)',
                     borderBottom: '1px solid var(--border-soft)',
@@ -98,7 +98,7 @@ function AnnualReturnTableHeader({ portfolios }: { portfolios: PortfolioResult[]
   return (
     <tr style={{ backgroundColor: 'var(--bg-subtle)' }}>
       <th
-        className="text-[12px] font-semibold text-left py-2 px-3"
+        className="text-caption font-semibold text-left py-2 px-3"
         style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
       >
         Year
@@ -106,7 +106,7 @@ function AnnualReturnTableHeader({ portfolios }: { portfolios: PortfolioResult[]
       {portfolios.map((p, idx) => (
         <th
           key={p.name}
-          className="text-[12px] font-semibold text-right py-2 px-3"
+          className="text-caption font-semibold text-right py-2 px-3"
           style={{ color: 'var(--text-muted)', borderBottom: '2px solid var(--border-soft)' }}
         >
           <span
@@ -134,7 +134,7 @@ function AnnualReturnTableRow({
   return (
     <tr key={year} style={{ backgroundColor: ri % 2 === 1 ? 'var(--bg-subtle)' : 'transparent' }}>
       <td
-        className="text-[13px] py-1.5 px-3 font-mono"
+        className="text-label py-1.5 px-3 font-mono"
         style={{ color: 'var(--text-body)', borderBottom: '1px solid var(--border-soft)' }}
       >
         {year}
@@ -145,7 +145,7 @@ function AnnualReturnTableRow({
         return (
           <td
             key={p.name}
-            className="text-[13px] font-medium text-right py-1.5 px-3 font-mono"
+            className="text-label font-medium text-right py-1.5 px-3 font-mono"
             style={{
               color: isNeg ? '#c94a4a' : 'var(--text-strong)',
               borderBottom: '1px solid var(--border-soft)',
@@ -170,7 +170,7 @@ function AnnualReturnTable({
   const { t } = useTranslation();
   return (
     <div style={{ marginTop: '20px' }}>
-      <div className="text-[13px] font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
+      <div className="text-label font-semibold mb-2" style={{ color: 'var(--text-strong)' }}>
         {t('charts.annualReturn.tableTitle')}
       </div>
       <div className="overflow-x-auto">

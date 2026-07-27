@@ -63,13 +63,13 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
         <thead>
           <tr>
             <th
-              className="px-2 py-1 text-[11px] font-medium text-left w-10"
+              className="px-2 py-1 text-label-tiny font-medium text-left w-10"
               style={{ color: 'var(--text-muted)' }}
             />
             {MONTH_LABELS.map((m) => (
               <th
                 key={m}
-                className="px-1 py-1 text-[11px] font-medium text-center min-w-[36px]"
+                className="px-1 py-1 text-label-tiny font-medium text-center min-w-[36px]"
                 style={{ color: 'var(--text-muted)' }}
               >
                 {m}
@@ -81,7 +81,7 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
           {data.map((row) => (
             <tr key={row.year}>
               <td
-                className="px-2 py-0.5 text-[11px] font-medium"
+                className="px-2 py-0.5 text-label-tiny font-medium"
                 style={{ color: 'var(--text-body)' }}
               >
                 {row.year}
@@ -94,7 +94,7 @@ function HeatmapTable({ data }: { data: Array<{ year: number; months: (number | 
                   title={`${row.year} ${MONTH_LABELS[mIdx]}: ${val !== null ? val.toFixed(2) : '-'}%`}
                 >
                   <span
-                    className="text-[10px] inline-block w-[34px] leading-[24px]"
+                    className="text-micro inline-block w-[34px] leading-[24px]"
                     style={{
                       color: val !== null && Math.abs(val) > 5 ? '#fff' : 'var(--text-muted)',
                     }}
@@ -182,7 +182,7 @@ function MonthlyHeatmapImpl({ results, portfolio }: MonthlyHeatmapProps) {
       }
     >
       {heatmapData.length === 0 ? (
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           No monthly return data available
         </div>
       ) : (

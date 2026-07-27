@@ -57,7 +57,7 @@ export function CorrelationMatrix({ tickers, correlations, title }: CorrelationM
   if (tickers.length === 0 || correlations.length === 0) {
     return (
       <div className="chart-card">
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           {t('charts.correlation.noData')}
         </div>
       </div>
@@ -147,7 +147,7 @@ function RollingCorrelationControls({
       }}
     >
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
           {t('charts.correlation.portfolioA')}
         </span>
         <select
@@ -166,7 +166,7 @@ function RollingCorrelationControls({
         </select>
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
           {t('charts.correlation.portfolioB')}
         </span>
         <select
@@ -185,7 +185,7 @@ function RollingCorrelationControls({
         </select>
       </div>
       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <span className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-caption" style={{ color: 'var(--text-muted)' }}>
           {t('charts.correlation.windowDays')}
         </span>
         <select
@@ -295,7 +295,7 @@ function RollingCorrelationSection({
       />
       {!selectedPair && (
         <div
-          className="text-[12px]"
+          className="text-caption"
           style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
         >
           {t('charts.correlation.selectTwoPortfolios')}
@@ -303,7 +303,7 @@ function RollingCorrelationSection({
       )}
       {selectedPair && rollingCorrelationData.length === 0 && (
         <div
-          className="text-[12px]"
+          className="text-caption"
           style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
         >
           {t('charts.correlation.insufficientData', { window: rollingWindow })}
@@ -342,7 +342,7 @@ export default function CorrelationWithBeta({
   if (!hasAssetCorrelation && !hasPortfolioCorrelation) {
     return (
       <div className="chart-card">
-        <div className="text-[13px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
           {t('charts.correlation.needTwoAssets')}
         </div>
       </div>

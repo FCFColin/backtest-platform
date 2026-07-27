@@ -78,7 +78,7 @@ function AboutTabs({ activeSection }: { activeSection: string }) {
         <Link
           key={tab.key}
           to={tab.to}
-          className={`rounded-lg px-4 py-2 text-[13px] font-semibold no-underline ${
+          className={`rounded-lg px-4 py-2 text-label font-semibold no-underline ${
             activeSection === tab.key
               ? 'bg-brand/10 text-brand'
               : 'text-fg-tertiary hover:text-fg-secondary'
@@ -101,7 +101,7 @@ function AboutSection() {
         <BarChart3 className="size-8 text-brand" />
         <div>
           <div className="text-h2 font-bold text-fg">{t('about.brandName')}</div>
-          <div className="text-[13px] text-fg-tertiary">{t('about.versionInfo')}</div>
+          <div className="text-label text-fg-tertiary">{t('about.versionInfo')}</div>
         </div>
       </div>
       <div className="mb-6 text-body leading-loose text-fg-secondary">{t('about.intro')}</div>
@@ -118,7 +118,7 @@ function AboutSection() {
           );
         })}
       </div>
-      <div className="mt-6 rounded-lg bg-input-bg p-4 text-[13px] text-fg-tertiary">
+      <div className="mt-6 rounded-lg bg-input-bg p-4 text-label text-fg-tertiary">
         <div className="mb-2 font-semibold text-fg-secondary">{t('about.techStackTitle')}</div>
         <div>{t('about.techStackContent')}</div>
       </div>
@@ -142,7 +142,7 @@ function LimitsSection() {
           <LimitCard key={l.label} label={l.label} value={l.value} desc={l.desc} />
         ))}
       </div>
-      <div className="mt-6 rounded-lg bg-warning/10 p-4 text-[13px] text-fg-secondary">
+      <div className="mt-6 rounded-lg bg-warning/10 p-4 text-label text-fg-secondary">
         <div className="mb-1 font-semibold">{t('about.limits.noticeTitle')}</div>
         {t('about.limits.noticeContent')}
       </div>
@@ -223,13 +223,13 @@ function PlanCard({
       <div className="mb-1 text-h3 font-bold text-fg">{title}</div>
       <div className="mb-4 text-h1 font-bold text-brand">{price}</div>
       {features.map((f, i) => (
-        <div key={i} className="relative py-1 pl-4 text-[13px] text-fg-secondary">
+        <div key={i} className="relative py-1 pl-4 text-label text-fg-secondary">
           <span className="absolute left-0 text-success">✓</span>
           {f}
         </div>
       ))}
       {current && (
-        <div className="mt-4 rounded-lg bg-brand py-2 text-center text-[13px] font-semibold text-brand-fg">
+        <div className="mt-4 rounded-lg bg-brand py-2 text-center text-label font-semibold text-brand-fg">
           {t('about.upgrade.currentPlan')}
         </div>
       )}
