@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, BarChart3, Rocket, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react';
+import { Settings, BarChart3, Rocket, ChevronDown, ChevronUp, ArrowRight, FlaskConical } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -116,6 +116,30 @@ export const BacktestHero = memo(function BacktestHero() {
                 path: tool.path,
               }))}
             />
+          </div>
+
+          {/* 合成标的推广横条 */}
+          <div
+            className="mt-6 p-4 bg-brand-subtle/6 border border-brand/20 rounded-lg flex items-center gap-4"
+            data-testid="synthetic-promo"
+          >
+            <div className="flex-shrink-0 p-2 bg-brand-subtle/10 rounded-lg">
+              <FlaskConical className="h-5 w-5 text-brand" />
+            </div>
+            <div className="flex-1">
+              <div className="text-body font-medium text-fg">
+                {t('hero.syntheticPromo.title')}
+              </div>
+              <div className="text-caption text-fg-secondary mt-0.5">
+                {t('hero.syntheticPromo.description')}
+              </div>
+            </div>
+            <Link
+              to="/data-engine#synthetic"
+              className="text-caption text-brand hover:underline flex items-center gap-1"
+            >
+              {t('hero.syntheticPromo.cta')} <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
         </>
       )}

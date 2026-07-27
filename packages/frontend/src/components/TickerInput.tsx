@@ -54,6 +54,14 @@ function TickerDropdown({
           onMouseEnter={() => onHover(i)}
         >
           <span className="font-mono font-medium text-fg">{s.ticker}</span>
+          {s.ticker.endsWith('SIM') && (
+            <span
+              data-testid="synthetic-badge"
+              className="text-[10px] font-mono px-1 py-0.5 rounded bg-brand-subtle/15 text-brand border border-brand/20"
+            >
+              SIM
+            </span>
+          )}
           <span className="min-w-0 flex-1 truncate text-fg-tertiary">
             {resolveDisplayName(s.name, t)}
           </span>
