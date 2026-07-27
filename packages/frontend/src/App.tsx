@@ -3,6 +3,7 @@ import { BrowserRouter as Router, useLocation } from 'react-router-dom';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { PromoBar } from '@/components/layout/PromoBar.js';
 import Toast from '@/components/Toast';
 import { useAuthStore } from '@/store/authStore';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
@@ -28,6 +29,15 @@ function AppLayout() {
 
   return (
     <>
+      {!isAdmin && (
+        <PromoBar
+          id="synthetic-tickers-2026"
+          message="合成标的支持回测至 1962 年"
+          ctaLabel="立即体验"
+          ctaLink="/backtest"
+          variant="info"
+        />
+      )}
       {!isAdmin && <Navbar />}
       <Toast />
       <main style={{ paddingTop: isAdmin ? 0 : 80, minHeight: '100vh' }}>

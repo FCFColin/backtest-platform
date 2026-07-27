@@ -6,6 +6,7 @@ import PortfolioEditor from '@/components/PortfolioEditor.js';
 import { useBacktestPageState } from './hooks/useBacktestPageState.js';
 import { BacktestToolbar } from './BacktestToolbar.js';
 import { ResultsContent } from './BacktestResults.js';
+import { BacktestHero } from './BacktestHero.js';
 
 type BacktestState = ReturnType<typeof useBacktestPageState>;
 
@@ -65,5 +66,10 @@ const config: ComputeToolConfig<BacktestState> = {
 
 export default function BacktestPage() {
   const state = useBacktestPageState();
-  return <ComputeToolShell config={config} state={state} />;
+  return (
+    <>
+      <BacktestHero />
+      <ComputeToolShell config={config} state={state} />
+    </>
+  );
 }

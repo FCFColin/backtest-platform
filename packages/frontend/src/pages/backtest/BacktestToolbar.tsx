@@ -117,7 +117,7 @@ export function BacktestToolbar(props: BacktestToolbarProps) {
   const isLoading = useBacktestStore((s) => s.isLoading);
   const portfolioCount = useBacktestStore((s) => s.portfolios.length);
   return (
-    <div className="flex flex-col gap-2 py-2">
+    <div className="mt-3 flex flex-col gap-2 border-t border-border-subtle pt-4">
       <div className="flex items-center gap-2">
         <Button
           variant="primary"

@@ -11,11 +11,15 @@ import { Download, Loader2 } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import StatisticsTable from '@/components/StatisticsTable';
+import { StatisticsTableV2 } from '@/components/statistics-table/StatisticsTableV2.js';
+import { ExtendedMetricsTable } from '@/components/statistics-table/ExtendedMetricsTable.js';
+import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
+import { getPortfolioColor } from '@/lib/chart-colors';
 import type { Portfolio, PortfolioResult } from '@backtest/shared';
 
-const GrowthChart = lazy(() => import('@/components/charts/GrowthChart'));
-const DrawdownChart = lazy(() => import('@/components/charts/DrawdownChart'));
+const GrowthChartV2 = lazy(() => import('@/components/charts/GrowthChartV2').then((m) => ({ default: m.GrowthChartV2 })));
+const DrawdownChartV2 = lazy(() => import('@/components/charts/DrawdownChartV2').then((m) => ({ default: m.DrawdownChartV2 })));
+const DrawdownEpisodesV2 = lazy(() => import('@/components/results/DrawdownEpisodesV2').then((m) => ({ default: m.DrawdownEpisodesV2 })));
 const ReturnsTabDailyChart = lazy(() => import('@/components/charts/ReturnsTabDailyChart'));
 const TelltaleChart = lazy(() => import('@/components/charts/TelltaleChart'));
 const RiskReturnScatter = lazy(() => import('@/components/charts/RiskReturnScatter'));
@@ -28,7 +32,6 @@ const AnnualReturnChart = lazy(() => import('@/components/charts/AnnualReturnCha
 const MonthlyHeatmap = lazy(() => import('@/components/charts/MonthlyHeatmap'));
 const CorrelationWithBeta = lazy(() => import('@/components/charts/CorrelationHeatmapChart'));
 const CustomMetricsTable = lazy(() => import('@/components/CustomMetricsTable'));
-const DrawdownEpisodes = lazy(() => import('@/components/DrawdownEpisodes'));
 const RebalancingStats = lazy(() => import('@/components/RebalancingStats'));
 const CashflowsLog = lazy(() => import('@/components/CashflowsLog'));
 const TurnoverTaxReport = lazy(() => import('@/components/TurnoverTaxReport'));
@@ -155,13 +158,23 @@ type TabCtx = {
 const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
   summary: ({ pf }) => (
     <>
-      <GrowthChart portfolios={pf} />
-      <DrawdownChart portfolios={pf} />
-      <StatisticsTable portfolios={pf} horizontal />
-      <DrawdownEpisodes portfolios={pf} />
+      <GrowthChartV2 portfolios={pf.map((p) => ({ id: p.name, name: p.name, growthCurve: p.growthCurve ?? [] }))} />
+      <DrawdownChartV2 portfolios={pf.map((p) => ({ id: p.name, name: p.name, drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({ date: pt.date, value: pt.drawdown })) }))} />
+      <StatisticsTableV2
+        portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))}
+        colors={pf.map((_, i) => getPortfolioColor(i))}
+        extendedTable={<ExtendedMetricsTable portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))} />}
+      />
+      <DrawdownEpisodesV2 episodes={(pf[0]?.drawdownEpisodes ?? []) as any} />
     </>
   ),
-  metrics: ({ pf }) => <StatisticsTable portfolios={pf} />,
+  metrics: ({ pf }) => (
+    <StatisticsTableV2
+      portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))}
+      colors={pf.map((_, i) => getPortfolioColor(i))}
+      extendedTable={<ExtendedMetricsTable portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))} />}
+    />
+  ),
   myMetrics: ({ pf }) => <CustomMetricsTable portfolios={pf} />,
   returns: ({ pf }) => (
     <>
@@ -253,17 +266,58 @@ export function ResultsContent() {
       </Card>
     );
 
+  const handleExportCSV = () => {
+    if (!results?.portfolios?.length) return;
+    const pf = results.portfolios[0];
+    if (!pf?.growthCurve?.length) return;
+    const headers = ['date', ...results.portfolios.map((p) => p.name)];
+    const rows: string[][] = [];
+    const dates = pf.growthCurve.map((pt) => new Date(pt.date).toISOString().split('T')[0]);
+    dates.forEach((date, i) => {
+      const row = [date];
+      results.portfolios.forEach((p) => {
+        row.push(p.growthCurve[i]?.value?.toFixed(4) ?? '');
+      });
+      rows.push(row);
+    });
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `backtest-results-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <Card className="p-5">
-      <TabBar />
-      <Suspense fallback={<LoadingFallback />}>
-        <TabContent
-          activeTab={activeTab}
-          pfResults={results.portfolios}
-          portfolios={portfolios}
-          results={results as TabCtx['r']}
-        />
-      </Suspense>
-    </Card>
+    <div className="space-y-4">
+      <ResultsActionBar
+        timeRange={{
+          start: results.portfolios[0]?.growthCurve?.[0]?.date ?? '—',
+          end: results.portfolios[0]?.growthCurve?.[results.portfolios[0].growthCurve.length - 1]?.date ?? '—',
+          years: (() => {
+            const first = results.portfolios[0]?.growthCurve?.[0]?.date;
+            const last = results.portfolios[0]?.growthCurve?.[results.portfolios[0].growthCurve.length - 1]?.date;
+            if (!first || !last) return 0;
+            return (new Date(last).getTime() - new Date(first).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+          })(),
+        }}
+        onExport={() => handleExportCSV()}
+      />
+      <Card className="p-5">
+        <TabBar />
+        <Suspense fallback={<LoadingFallback />}>
+          <TabContent
+            activeTab={activeTab}
+            pfResults={results.portfolios}
+            portfolios={portfolios}
+            results={results as TabCtx['r']}
+          />
+        </Suspense>
+      </Card>
+    </div>
   );
 }
