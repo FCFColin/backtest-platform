@@ -60,6 +60,10 @@
     "optimize": "Optimize",
     "tactical": "Tactical",
     "more": "More",
+    "analysisOptimization": "Analysis & Optimize",
+    "tacticalSignal": "Tactical & Signal",
+    "docs": "Docs",
+    "pricing": "Pricing",
     "portfolioBacktest": "Portfolio Backtest",
     "backtestOptimizer": "Backtest Optimizer",
     "rebalancingSensitivity": "Rebalancing Sensitivity",
@@ -76,6 +80,9 @@
     "dualSignal": "Dual Signal",
     "multiSignal": "Multi Signal",
     "lumpsumVsDca": "Lump Sum vs DCA",
+    "lumpSumDca": "Lump Sum vs DCA",
+    "portfolioComparison": "Portfolio Comparison",
+    "letfAnalysis": "LETF Analysis",
     "letfSlippage": "LETF Slippage",
     "calculators": "Calculators",
     "dataEngine": "Data Engine",
@@ -85,6 +92,10 @@
     "upgrade": "Upgrade",
     "switchToLight": "Switch to light theme",
     "switchToDark": "Switch to dark theme"
+  },
+  "promo": {
+    "syntheticTickers": "New: Synthetic tickers now support backtesting back to 1962",
+    "tryNow": "Try Now"
   },
   "footer": {
     "help": "Help",
@@ -177,6 +188,44 @@
   "backtest": {
     "title": "Portfolio Backtest",
     "seoSubtitle": "Backtest portfolios, asset allocations, and retirement cashflows",
+    "hero": {
+      "title": "Portfolio Backtest",
+      "subtitle": "Professional tools for backtesting portfolios, asset allocations, and retirement cashflows",
+      "description": "This platform is a portfolio backtesting tool supporting ETFs, stocks, funds, synthetic tickers, and custom sequences. Compare multiple portfolios over the same historical period, test rebalancing rules, and simulate cashflow contributions or withdrawals.",
+      "collapse": "Hide Intro",
+      "expand": "Show Intro",
+      "model": {
+        "title": "What You Can Model",
+        "items": [
+          "Portfolio weights & glide paths",
+          "Cashflow schemes & timing",
+          "Inflation adjustment & drag",
+          "Rebalancing strategies",
+          "Retirement withdrawal assumptions"
+        ],
+        "link": "Start Configuring"
+      },
+      "inspect": {
+        "title": "Metrics You Can Inspect",
+        "items": [
+          "CAGR, MWRR, Volatility",
+          "Sharpe/Sortino/Calmar",
+          "Max Drawdown & Recovery Analysis",
+          "Rolling Metrics & Seasonality",
+          "Correlation & Beta"
+        ],
+        "link": "View Results"
+      },
+      "tools": {
+        "title": "Related Research Tools",
+        "mc": "Monte Carlo Simulation",
+        "opt": "Weight Optimization",
+        "ef": "Efficient Frontier",
+        "fr": "Factor Regression",
+        "pca": "PCA",
+        "letf": "LETF Analysis"
+      }
+    },
     "runButton": "BACKTEST",
     "running": "Running...",
     "savePortfolio": "Save Portfolio",
@@ -532,7 +581,8 @@
     "addOneTimeCashflow": "Add One-Time Cashflow",
     "adjustFixedCashflowsForInflation": "Adjust Fixed Cashflows for Inflation",
     "annualCashflowGrowth": "Annual Cashflow Growth",
-    "months": "mo"
+    "months": "mo",
+    "advanced": "Advanced"
   },
   "toolPage": {
     "dateRange": "Date range",
@@ -658,6 +708,7 @@
     "copyPortfolio": "Copy Portfolio",
     "saveAsJson": "Save as JSON",
     "savedAsJson": "Portfolio saved as JSON file",
+    "rebalance": "Rebalance",
     "rebalanceNone": "No Rebalancing",
     "rebalanceAnnual": "Annually",
     "rebalanceQuarterly": "Quarterly",

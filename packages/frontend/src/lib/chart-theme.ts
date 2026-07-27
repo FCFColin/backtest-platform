@@ -1,33 +1,78 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+// ============ Tooltip 样式 ============
+
 /**
- * 图表 Tooltip 容器样式（基于设计 token 体系：--elevated / --border-subtle / --fg）。
+ * 图表 Tooltip 容器样式（P0-5 增强：backdrop-blur + chart-tooltip-bg）。
+ * 基于 CSS 变量 --chart-tooltip-bg / --border-strong / --fg。
  */
 export const CHART_TOOLTIP_STYLE: CSSProperties = {
-  backgroundColor: 'var(--elevated)',
-  border: '1px solid var(--border-subtle)',
-  borderRadius: 'var(--radius)',
-  color: 'var(--fg)',
-  fontSize: '12px',
-  boxShadow: '0 4px 12px hsl(220 14% 8% / 0.4)',
-  padding: '10px 14px',
-};
-
-/** 图表通用边距 */
-export const CHART_MARGIN = { top: 5, right: 30, bottom: 5, left: 60 } as const;
-
-/** CartesianGrid 网格线属性 - 极细浅灰色 */
-export const CHART_GRID_PROPS = {
-  strokeDasharray: '',
-  strokeWidth: 1,
-  stroke: 'var(--border-subtle)',
+  backgroundColor: 'hsl(var(--chart-tooltip-bg) / 0.95)',
+  border: '1px solid hsl(var(--border-strong))',
+  borderRadius: '8px',
+  padding: '12px',
+  color: 'hsl(var(--fg))',
+  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
 } as const;
 
-/** 坐标轴刻度文本样式 */
-export const AXIS_TICK_STYLE = { fill: 'var(--fg-tertiary)', fontSize: 11 } as const;
+// ============ 图表布局常量 ============
+
+/** 图表通用边距（P0-5：left 增至 80 以容纳 $XX,XXX,XXX 格式） */
+export const CHART_MARGIN = { top: 20, right: 40, bottom: 20, left: 80 } as const;
+
+/** CartesianGrid 双向网格（P0-5：开启垂直网格 + chart-grid 色） */
+export const CHART_GRID_PROPS = {
+  stroke: 'hsl(var(--chart-grid))',
+  strokeWidth: 1,
+  strokeDasharray: '3 3',
+  vertical: true,
+  horizontal: true,
+} as const;
+
+/** 坐标轴刻度样式（P0-5：增加 fontFamily） */
+export const AXIS_TICK_STYLE = {
+  fill: 'hsl(var(--fg-tertiary))',
+  fontSize: 11,
+  fontFamily: 'Geist Mono Variable',
+} as const;
+
+/** 主线条样式（P0-5 新增：供 GrowthChartV2 等使用） */
+export const CHART_LINE_STYLE = {
+  strokeWidth: 2.5,
+  dot: false,
+  activeDot: { r: 4, strokeWidth: 2 },
+  isAnimationActive: false,
+} as const;
 
 /** Legend 容器样式 */
 export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'var(--fg-tertiary)' } as const;
+
+// ============ 多组合配色 ============
+
+/** 图表配色数组（P0-5 新增：多组合时循环使用，8 色） */
+export const PORTFOLIO_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
+] as const;
+
+/**
+ * 根据组合索引取色（超过 8 个循环）。
+ * @param index - 组合索引（0-based）
+ * @returns CSS 颜色字符串
+ */
+export function getPortfolioColor(index: number): string {
+  return PORTFOLIO_COLORS[index % PORTFOLIO_COLORS.length];
+}
+
+// ============ 刻度格式化器 ============
 
 /** 日期刻度格式化器：截取 YYYY-MM */
 export const DATE_TICK_FORMATTER = (value: string): string => value.slice(0, 7);
@@ -36,7 +81,21 @@ export const DATE_TICK_FORMATTER = (value: string): string => value.slice(0, 7);
 export const YEAR_ONLY_TICK_FORMATTER = (value: string): string => value.slice(0, 4);
 
 /**
- * 智能日期间隔：根据数据点数量自动选择刻度间隔。
+ * 智能日期间隔（P0-5 新增）：根据月数自动选择刻度间隔。
+ * ≤12 月：每月。≤60 月：每半年。≤120 月：每年。≤240 月：每两年。>240：每五年。
+ * @param totalMonths - 总月数
+ * @returns Recharts interval 值
+ */
+export function SMART_DATE_INTERVAL(totalMonths: number): number {
+  if (totalMonths <= 12) return 1;
+  if (totalMonths <= 60) return 6;
+  if (totalMonths <= 120) return 12;
+  if (totalMonths <= 240) return 24;
+  return 60;
+}
+
+/**
+ * 旧版智能日期间隔（保留向后兼容）：根据数据点数量自动选择刻度间隔。
  * < 20 点：全部显示。20-100：每 5 个。100-500：每 20 个。> 500：每 50 个。
  * @param dataLength - 数据点数量
  * @returns Recharts interval 值
@@ -49,23 +108,43 @@ export function smartDateInterval(dataLength: number): number {
 }
 
 /**
- * 货币刻度格式化器：1000 → 1k, 1000000 → 1M, 1500 → 1.5k
- * @param v - 数值
- * @returns 格式化后的字符串
+ * Y 轴金额格式化（P0-5：完整格式 $XXX,XXX）。
+ * @param value - 数值
+ * @param currency - 货币代码，默认 USD
+ * @returns 完整货币字符串如 $350,000
  */
-export function CURRENCY_TICK_FORMATTER(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1000) return `${(v / 1000).toFixed(1)}k`;
-  return v.toFixed(0);
+export function CURRENCY_TICK_FORMATTER(value: number, currency: string = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 /**
- * 百分比刻度格式化器：0.15 → 15%, 1.0 → 100%
- * @param v - 小数比例值
- * @returns 百分比字符串
+ * Y 轴金额格式化：精确到 2 位小数（用于 Tooltip）。
+ * @param value - 数值
+ * @param currency - 货币代码，默认 USD
+ * @returns 精确货币字符串如 $350,000.00
  */
-export function PERCENT_TICK_FORMATTER(v: number): string {
-  return `${(v * 100).toFixed(0)}%`;
+export function CURRENCY_EXACT_FORMATTER(value: number, currency: string = 'USD'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+/**
+ * Y 轴百分比格式化（P0-5：支持自定义小数位数）。
+ * @param value - 百分比值（如 15.2 表示 15.2%）
+ * @param digits - 小数位数，默认 2
+ * @returns 百分比字符串如 15.20%
+ */
+export function PERCENT_TICK_FORMATTER(value: number, digits: number = 2): string {
+  return `${value.toFixed(digits)}%`;
 }
 
 // ============ 相关系数配色 ============

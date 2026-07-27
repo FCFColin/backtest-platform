@@ -60,6 +60,10 @@
     "optimize": "优化",
     "tactical": "战术",
     "more": "更多",
+    "analysisOptimization": "分析优化",
+    "tacticalSignal": "战术信号",
+    "docs": "文档",
+    "pricing": "定价",
     "portfolioBacktest": "组合回测",
     "backtestOptimizer": "回测优化器",
     "rebalancingSensitivity": "调仓敏感性",
@@ -76,6 +80,9 @@
     "dualSignal": "双信号",
     "multiSignal": "多信号",
     "lumpsumVsDca": "一次性vs定投",
+    "lumpSumDca": "一次投入 vs 定投",
+    "portfolioComparison": "组合对比",
+    "letfAnalysis": "LETF 分析",
     "letfSlippage": "LETF滑点",
     "calculators": "计算器",
     "dataEngine": "数据引擎",
@@ -85,6 +92,10 @@
     "upgrade": "升级",
     "switchToLight": "切换到浅色主题",
     "switchToDark": "切换到深色主题"
+  },
+  "promo": {
+    "syntheticTickers": "新功能：合成标的现已支持回测至 1962 年",
+    "tryNow": "立即体验"
   },
   "footer": {
     "help": "帮助",
@@ -175,6 +186,44 @@
   "backtest": {
     "title": "组合回测",
     "seoSubtitle": "回测投资组合、资产配置和退休现金流",
+    "hero": {
+      "title": "组合回测",
+      "subtitle": "回测投资组合、资产配置和退休现金流的专业工具",
+      "description": "本平台是一款投资组合回测工具，支持 ETF、股票、基金、模拟标的以及自定义序列。您可以在同一历史区间内比较多个组合，测试再平衡规则、模拟现金流投入或提取。",
+      "collapse": "收起介绍",
+      "expand": "显示介绍",
+      "model": {
+        "title": "可建模内容",
+        "items": [
+          "组合权重与滑行路径",
+          "现金流方案与时点",
+          "通胀调整与拖累",
+          "再平衡策略",
+          "退休提款假设"
+        ],
+        "link": "开始配置"
+      },
+      "inspect": {
+        "title": "可查看指标",
+        "items": [
+          "CAGR、MWRR、波动率",
+          "夏普/索提诺/卡尔玛",
+          "最大回撤与恢复分析",
+          "滚动指标与季节性",
+          "相关性与 Beta"
+        ],
+        "link": "查看结果"
+      },
+      "tools": {
+        "title": "相关研究工具",
+        "mc": "蒙特卡洛模拟",
+        "opt": "权重优化",
+        "ef": "有效前沿",
+        "fr": "因子回归",
+        "pca": "主成分分析",
+        "letf": "LETF 分析"
+      }
+    },
     "runButton": "运行回测",
     "running": "运行中...",
     "savePortfolio": "保存组合",
@@ -530,7 +579,8 @@
     "addOneTimeCashflow": "添加一次性现金流",
     "adjustFixedCashflowsForInflation": "按通胀调整固定金额",
     "annualCashflowGrowth": "现金流年增长率",
-    "months": "月"
+    "months": "月",
+    "advanced": "高级选项"
   },
   "toolPage": {
     "dateRange": "日期范围",
@@ -656,6 +706,7 @@
     "copyPortfolio": "复制组合",
     "saveAsJson": "保存为JSON",
     "savedAsJson": "组合已保存为JSON文件",
+    "rebalance": "调仓",
     "rebalanceNone": "不调仓",
     "rebalanceAnnual": "每年",
     "rebalanceQuarterly": "每季度",

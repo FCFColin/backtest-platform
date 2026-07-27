@@ -65,6 +65,7 @@ function usePortfolioResults(tickers: AssetAnalysisResult['tickers']) {
   return useMemo(
     () =>
       tickers.map((tk) => ({
+        id: tk.ticker,
         name: tk.ticker,
         growthCurve: tk.growthCurve ?? [],
         drawdownCurve: tk.drawdownCurve ?? [],

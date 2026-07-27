@@ -25,22 +25,6 @@ export function formatDuration(days: number | undefined | null): string {
   return `${years}年${remainingMonths}个月`;
 }
 
-/**
- * @deprecated 请使用 formatDuration 替代。此函数将输入值乘以 365 转为天数后格式化，
- * 适用于以“年”为单位的输入。回撤片段时间字段已改为天数，应使用 formatDuration。
- */
-export function fmtYears(v: number | undefined | null): string {
-  if (v == null || Number.isNaN(v)) return '—';
-  const totalDays = Math.round(v * 365);
-  if (totalDays < 1) return '0天';
-  if (totalDays < 30) return `${totalDays}天`;
-  const years = Math.floor(v);
-  const remainingMonths = Math.round((v - years) * 12);
-  if (years === 0) return `${remainingMonths}个月`;
-  if (remainingMonths === 0) return `${years}年`;
-  return `${years}年${remainingMonths}个月`;
-}
-
 export function fmtPct(v: number | undefined | null, decimals = 2): string {
   if (v == null || Number.isNaN(v)) return '—';
   return `${(v * 100).toFixed(decimals)}%`;

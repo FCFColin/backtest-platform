@@ -88,6 +88,35 @@
   --color-input-bg: #f8fafc;
   --color-border-strong: #cbd5e1;
 
+  /* --- P0-2 新增：表面层扩展 --- */
+  --surface-raised: 0 0% 100%;
+  --surface-sunken: 210 40% 94%;
+
+  /* --- P0-2 新增：品牌色 subtle/glow 变体 --- */
+  --brand-subtle: 217 91% 53%;
+  --brand-glow: 217 91% 53%;
+
+  /* --- P0-2 新增：语义色 subtle 变体（背景高亮用） --- */
+  --success-subtle: 142 71% 36%;
+  --warning-subtle: 32 95% 44%;
+  --danger-subtle: 0 72% 51%;
+  --info-subtle: 217 91% 53%;
+
+  /* --- P0-2 新增：图表专用配色 --- */
+  --chart-1: 217 91% 53%;
+  --chart-2: 32 95% 44%;
+  --chart-3: 142 71% 36%;
+  --chart-4: 340 82% 52%;
+  --chart-5: 271 91% 55%;
+  --chart-6: 24 95% 50%;
+  --chart-7: 180 66% 38%;
+  --chart-8: 43 96% 48%;
+  --chart-grid: 214 20% 88%;
+  --chart-tooltip-bg: 0 0% 100%;
+
+  /* --- P0-2 新增：Sticky 层 --- */
+  --sticky-bg: 0 0% 100%;
+
   /* --- 静态变量 --- */
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
@@ -181,6 +210,40 @@
   --corr-negative: #a04040;
   --color-input-bg: #1e293b;
   --color-border-strong: #374151;
+
+  /* --- P0-2 新增：表面层扩展 --- */
+  --surface-raised: 222 14% 10%;
+  --surface-sunken: 224 20% 3%;
+
+  /* --- P0-2 品牌色微调（更接近金融冷蓝） --- */
+  --brand: 214 100% 60%;
+  --brand-hover: 214 100% 55%;
+  --brand-active: 214 100% 50%;
+
+  /* --- P0-2 新增：品牌色 subtle/glow 变体 --- */
+  --brand-subtle: 214 100% 60%;
+  --brand-glow: 214 100% 60%;
+
+  /* --- P0-2 新增：语义色 subtle 变体（背景高亮用） --- */
+  --success-subtle: 160 84% 39%;
+  --warning-subtle: 38 92% 50%;
+  --danger-subtle: 0 84% 60%;
+  --info-subtle: 214 100% 60%;
+
+  /* --- P0-2 新增：图表专用配色 --- */
+  --chart-1: 214 100% 60%;
+  --chart-2: 38 92% 50%;
+  --chart-3: 160 84% 39%;
+  --chart-4: 340 82% 60%;
+  --chart-5: 271 91% 65%;
+  --chart-6: 24 95% 53%;
+  --chart-7: 180 66% 45%;
+  --chart-8: 43 96% 56%;
+  --chart-grid: 222 15% 14%;
+  --chart-tooltip-bg: 222 20% 8%;
+
+  /* --- P0-2 新增：Sticky 层 --- */
+  --sticky-bg: 222 14% 8%;
 
   /* --- 暗色主题阴影 --- */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);

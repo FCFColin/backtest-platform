@@ -61,6 +61,48 @@
 | `--pos`     | `142 71% 45%` | `text-pos`                    | 涨幅、正相关         |
 | `--neg`     | `0 91% 71%`   | `text-neg`                    | 跌幅、负相关         |
 
+### 2.6 表面层扩展（P0 新增）
+
+补充 4 级表面层之外的凹陷/凸起层，用于 Portfolio Card、KPI Card、Footer 等特殊区域。
+
+| Token              | HSL（暗色）   | HSL（亮色）   | Tailwind 类         | 用途                                                  |
+| ------------------ | ------------- | ------------- | ------------------- | ----------------------------------------------------- |
+| `--surface-raised` | `222 14% 10%` | `0 0% 100%`   | `bg-surface-raised` | Portfolio Card、KPI Card 凸起                         |
+| `--surface-sunken` | `224 20% 3%`  | `210 40% 94%` | `bg-surface-sunken` | Footer、表头、凹陷区                                  |
+| `--sticky-bg`      | `222 14% 8%`  | `0 0% 100%`   | `bg-sticky-bg`      | Sticky ActionBar 背景（配合 `/95` + `backdrop-blur`） |
+
+### 2.7 品牌色/语义色 subtle 变体（P0 新增）
+
+subtle 变体用于低饱和度背景高亮（如 hover 高亮、选中态背景）。使用时通过 `hsl(var(--xxx-subtle) / 0.08)` 拼接 alpha 值。
+
+| Token              | HSL（暗色）    | HSL（亮色）   | Tailwind 类         | 用途               |
+| ------------------ | -------------- | ------------- | ------------------- | ------------------ |
+| `--brand-subtle`   | `214 100% 60%` | `217 91% 53%` | `bg-brand-subtle`   | 品牌色低饱和度背景 |
+| `--brand-glow`     | `214 100% 60%` | `217 91% 53%` | `bg-brand-glow`     | 品牌色辉光效果背景 |
+| `--success-subtle` | `160 84% 39%`  | `142 71% 36%` | `bg-success-subtle` | 成功态背景高亮     |
+| `--warning-subtle` | `38 92% 50%`   | `32 95% 44%`  | `bg-warning-subtle` | 警告态背景高亮     |
+| `--danger-subtle`  | `0 84% 60%`    | `0 72% 51%`   | `bg-danger-subtle`  | 危险态背景高亮     |
+| `--info-subtle`    | `214 100% 60%` | `217 91% 53%` | `bg-info-subtle`    | 信息态背景高亮     |
+
+> **暗色品牌色微调**：暗色主题下 `--brand` 从 `217 91% 60%` 微调至 `214 100% 60%`（更接近金融冷蓝）。
+
+### 2.8 图表专用配色（P0 新增）
+
+8 色循环配色 + 网格/Tooltip 专用色，定义在 `tokens.css`，通过 `chart-theme.ts` 的 `PORTFOLIO_COLORS` 数组消费。
+
+| Token                | HSL（暗色）    | HSL（亮色）   | 用途                         |
+| -------------------- | -------------- | ------------- | ---------------------------- |
+| `--chart-1`          | `214 100% 60%` | `217 91% 53%` | 蓝（主组合色，= brand）      |
+| `--chart-2`          | `38 92% 50%`   | `32 95% 44%`  | 琥珀                         |
+| `--chart-3`          | `160 84% 39%`  | `142 71% 36%` | 翠绿                         |
+| `--chart-4`          | `340 82% 60%`  | `340 82% 52%` | 玫红                         |
+| `--chart-5`          | `271 91% 65%`  | `271 91% 55%` | 紫罗兰                       |
+| `--chart-6`          | `24 95% 53%`   | `24 95% 50%`  | 橘红                         |
+| `--chart-7`          | `180 66% 45%`  | `180 66% 38%` | 青绿                         |
+| `--chart-8`          | `43 96% 56%`   | `43 96% 48%`  | 金黄                         |
+| `--chart-grid`       | `222 15% 14%`  | `214 20% 88%` | CartesianGrid 线条色         |
+| `--chart-tooltip-bg` | `222 20% 8%`   | `0 0% 100%`   | Tooltip 背景（配合 `/0.95`） |
+
 ## 3. shadcn 兼容映射
 
 `index.css` 中将上述原 token 映射到 shadcn 期望的语义变量名，使 shadcn 组件无需改动即可适配暗色主题：
@@ -84,15 +126,22 @@
 
 定义在 `tailwind.config.ts` 的 `theme.extend.fontSize`：
 
-| Token          | px / line-height | 字重 | 用途                |
-| -------------- | ---------------- | ---- | ------------------- |
-| `text-display` | 32 / 1.15        | 700  | 大数字、KPI 值      |
-| `text-h1`      | 24 / 1.25        | 600  | 页面主标题          |
-| `text-h2`      | 18 / 1.4         | 600  | 区块标题            |
-| `text-h3`      | 15 / 1.4         | 600  | 卡片标题、子区标题  |
-| `text-body`    | 14 / 1.6         | 400  | 正文（默认）        |
-| `text-label`   | 13 / 1.4         | 500  | 表单标签            |
-| `text-caption` | 12 / 1.4         | 400  | 辅助说明、表头、tag |
+字号对比度从 2:1 扩大到 4:1（`display-xl` 44px vs `micro` 10px），强化金融专业主义的视觉层级。
+
+| Token             | px / line-height | 字重 | letter-spacing | 用途                         |
+| ----------------- | ---------------- | ---- | -------------- | ---------------------------- |
+| `text-display-xl` | 44 / 1.05        | 800  | -0.02em        | 页面 Hero 标题（桌面）       |
+| `text-display`    | 32 / 1.15        | 700  | -0.015em       | 大数字、KPI 值、Hero（移动） |
+| `text-h1`         | 24 / 1.25        | 700  | -0.01em        | 页面主标题                   |
+| `text-h2`         | 18 / 1.35        | 600  | -0.005em       | 区块标题                     |
+| `text-h3`         | 15 / 1.4         | 600  | -              | 卡片标题、子区标题           |
+| `text-body`       | 14 / 1.6         | 400  | -              | 正文（默认）                 |
+| `text-label`      | 13 / 1.4         | 500  | -              | 表单标签                     |
+| `text-label-tiny` | 11 / 1.3         | 600  | 0.06em         | 浮动标签、微小标签           |
+| `text-caption`    | 12 / 1.4         | 400  | -              | 辅助说明、表头、tag          |
+| `text-micro`      | 10 / 1.3         | 500  | 0.05em         | PlanBadge、状态徽章          |
+
+> **响应式规则**：`display-xl` 在 `< md` 断点降级为 `display`（32px），通过工具类实现：`<h1 className="text-display md:text-display-xl">`
 
 ## 5. 圆角阶梯
 
@@ -145,14 +194,24 @@ import '@fontsource-variable/geist-mono';
 
 源文件：`packages/frontend/src/lib/chart-theme.ts`
 
-| 常量                   | 值                                                                        | 用途                  |
-| ---------------------- | ------------------------------------------------------------------------- | --------------------- |
-| `CHART_TOOLTIP_STYLE`  | `bg: var(--elevated)`, `border: var(--border-subtle)`, `color: var(--fg)` | Recharts Tooltip 容器 |
-| `CHART_MARGIN`         | `{top:5, right:30, bottom:5, left:60}`                                    | 图表通用边距          |
-| `CHART_GRID_PROPS`     | `stroke: var(--border-subtle)`, `strokeWidth: 1`                          | CartesianGrid         |
-| `AXIS_TICK_STYLE`      | `fill: var(--fg-tertiary)`, `fontSize: 11`                                | 坐标轴刻度            |
-| `LEGEND_WRAPPER_STYLE` | `color: var(--fg-tertiary)`, `fontSize: 12`                               | Legend 容器           |
-| `DATE_TICK_FORMATTER`  | `value.slice(0, 7)`                                                       | YYYY-MM 截取          |
+P0-5 扩展：新增 8 色组合配色、双向网格、backdrop-blur Tooltip、智能日期间隔、货币/百分比格式化器。
+
+| 常量                       | 值                                                                                               | 用途                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------- |
+| `CHART_TOOLTIP_STYLE`      | `bg: var(--chart-tooltip-bg) /0.95`, `border: var(--border-strong)`, `backdropFilter: blur(8px)` | Recharts Tooltip 容器（增强） |
+| `CHART_MARGIN`             | `{top:20, right:40, bottom:20, left:80}`                                                         | 图表通用边距（left 增至 80）  |
+| `CHART_GRID_PROPS`         | `stroke: var(--chart-grid)`, `strokeDasharray: 3 3`, `vertical: true`, `horizontal: true`        | CartesianGrid（双向网格）     |
+| `AXIS_TICK_STYLE`          | `fill: var(--fg-tertiary)`, `fontSize: 11`, `fontFamily: Geist Mono Variable`                    | 坐标轴刻度（增加等宽字体）    |
+| `CHART_LINE_STYLE`         | `strokeWidth: 2.5`, `dot: false`, `activeDot: {r:4}`, `isAnimationActive: false`                 | 主线条样式（P5 预留）         |
+| `LEGEND_WRAPPER_STYLE`     | `color: var(--fg-tertiary)`, `fontSize: 12`                                                      | Legend 容器                   |
+| `PORTFOLIO_COLORS`         | 8 色数组 `['hsl(var(--chart-1))', ... 'hsl(var(--chart-8))']`                                    | 多组合循环配色                |
+| `getPortfolioColor(index)` | `PORTFOLIO_COLORS[index % 8]`                                                                    | 按索引取色（自动循环）        |
+| `DATE_TICK_FORMATTER`      | `value.slice(0, 7)`                                                                              | YYYY-MM 截取                  |
+| `YEAR_ONLY_TICK_FORMATTER` | `value.slice(0, 4)`                                                                              | YYYY 截取                     |
+| `SMART_DATE_INTERVAL(m)`   | `≤12→1, ≤60→6, ≤120→12, ≤240→24, >240→60`                                                        | 按月数自动选择刻度间隔        |
+| `CURRENCY_TICK_FORMATTER`  | `Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:0})`        | Y 轴金额格式化 `$XXX,XXX`     |
+| `CURRENCY_EXACT_FORMATTER` | `Intl.NumberFormat('en-US', {style:'currency', currency:'USD', maximumFractionDigits:2})`        | Tooltip 金额 `$XXX,XXX.XX`    |
+| `PERCENT_TICK_FORMATTER`   | `` `${value.toFixed(digits)}%` ``                                                                | 百分比格式化（默认 2 位）     |
 
 相关系数热力图配色（`getCorrelationColor`）：
 
@@ -280,7 +339,48 @@ npx vite build --config vite.config.ts
 # h-screen / bg-slate- / #000000 / Inter (字体)
 ```
 
-## 15. 迁移指南
+## 15. 宽度约束系统（P0 新增）
+
+源文件：`packages/frontend/src/lib/layout-widths.ts`
+
+所有 `<Input>` 组件必须传入显式宽度类，禁止裸 `<Input>`（CI 通过 `check-input-widths.mjs` 脚本强制检查）。
+
+### 15.1 输入框宽度 `INPUT_WIDTHS`
+
+| 键             | 值          | 用途                        |
+| -------------- | ----------- | --------------------------- |
+| `ticker`       | `w-[220px]` | Ticker 代码：VTI, VXUS, BND |
+| `weight`       | `w-[100px]` | 权重：60, 40, 33.3          |
+| `percent`      | `w-[100px]` | 百分比通用：5%, 2.5%        |
+| `currency`     | `w-[180px]` | 金额：10,000                |
+| `currencyLong` | `w-[220px]` | 长金额：1,000,000           |
+| `date`         | `w-[180px]` | 日期：2010/01/01            |
+| `integer`      | `w-[120px]` | 整数：12, 20, 500           |
+| `ratio`        | `w-[120px]` | 比率：1.0, 5.0              |
+| `select`       | `w-[220px]` | 下拉选择                    |
+| `selectShort`  | `w-[140px]` | 短下拉（USD, 每月）         |
+| `search`       | `w-[320px]` | 搜索框                      |
+
+### 15.2 卡片宽度 `CARD_WIDTHS` / `CARD_GRID_CLASSES`
+
+| 键          | min/ideal/max | Grid Class                                        |
+| ----------- | ------------- | ------------------------------------------------- |
+| `portfolio` | 320/380/460   | `grid-cols-[repeat(auto-fill,minmax(320px,1fr))]` |
+| `cashflow`  | 300/340/400   | `grid-cols-[repeat(auto-fill,minmax(300px,1fr))]` |
+| `saved`     | 260/300/340   | `grid-cols-[repeat(auto-fill,minmax(260px,1fr))]` |
+| `metric`    | 200/220/260   | `grid-cols-[repeat(auto-fill,minmax(200px,1fr))]` |
+| `hero`      | 300/340/400   | `grid-cols-1 md:grid-cols-3`                      |
+
+### 15.3 页面容器 `CONTAINER_WIDTHS`
+
+| 键        | 值                            | 用途     |
+| --------- | ----------------------------- | -------- |
+| `page`    | `max-w-[1440px] mx-auto px-6` | 页面外框 |
+| `content` | `max-w-[1280px] mx-auto`      | 内容区   |
+| `narrow`  | `max-w-[860px] mx-auto`       | 长文段落 |
+| `form`    | `max-w-[720px] mx-auto`       | 表单     |
+
+## 16. 迁移指南
 
 新增页面/组件时遵循：
 
