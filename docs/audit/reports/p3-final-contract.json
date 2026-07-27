@@ -1,0 +1,67 @@
+﻿node.exe : npm warn Unknown project config "public-hoist-pattern". This will stop working in the next major version of 
+npm. See `npm help npmrc` for supported config options.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...config options.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+> backtest-platform@0.2.0 audit:contract
+> node scripts/verify-backtest-contract.mjs
+
+{
+  "timestamp": "2026-07-27T17:31:27.719Z",
+  "actual": {
+    "cagr": 0.06916925060276036,
+    "maxDrawdown": 0.2277876505686511,
+    "maxDrawdownAbs": 0.2277876505686511,
+    "endingValue": 27227.346381129377,
+    "endingValueSource": "growthCurve[last].value",
+    "volatility": 0.10548529096136064,
+    "volatilitySource": "stats.stdev",
+    "drawdownEpisodeCount": 10,
+    "drawdownEpisodesSource": "series-endpoint",
+    "drawdownEpisodeFields": [
+      "peakDate",
+      "troughDate",
+      "recoveryDate",
+      "depth",
+      "totalTime"
+    ],
+    "drawdownEpisodePlannedFieldGap": {
+      "hasTimeToTrough": false,
+      "hasRecoveryTime": false,
+      "hasTotalTimeDurationDays": false,
+      "hasRecoveryFactor": false,
+      "hasCagrDuring": false,
+      "hasUlcerDuring": false,
+      "hasReturnFromPeakToTrough": false,
+      "hasReturnFromTroughToRecovery": true
+    },
+    "growthCurvePoints": 400,
+    "drawdownCurvePoints": 400,
+    "firstDrawdownEpisode": {
+      "peakDate": "2010-04-22",
+      "troughDate": "2010-07-01",
+      "recoveryDate": "2010-10-12",
+      "depth": 0.09159374105192997,
+      "totalTime": 173
+    }
+  },
+  "assertions": {
+    "hasStats": true,
+    "cagrInRange": true,
+    "cagrIsSmallNumber": true,
+    "maxDrawdownInRange": true,
+    "maxDrawdownIsDecimalRatio": true,
+    "endingValueInRange": true,
+    "volatilityReasonable": true,
+    "drawdownEpisodesExist": true,
+    "drawdownEpisodeHasRequiredFields": true,
+    "growthCurveExists": true,
+    "drawdownCurveExists": true
+  },
+  "status": "PASS",
+  "failedAssertions": []
+}

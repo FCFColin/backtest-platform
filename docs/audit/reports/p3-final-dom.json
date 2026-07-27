@@ -1,3 +1,15 @@
+﻿node.exe : npm warn Unknown project config "public-hoist-pattern". This will stop working in the next major version of 
+npm. See `npm help npmrc` for supported config options.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...config options.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+> backtest-platform@0.2.0 audit:dom
+> node scripts/audit-page-dom.mjs
+
 {
   "timestamp": "2026-07-27T17:30:05.235Z",
   "totalPages": 21,
