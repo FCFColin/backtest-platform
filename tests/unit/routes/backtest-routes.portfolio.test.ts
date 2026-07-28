@@ -20,11 +20,14 @@ import {
   createBacktestApp,
   createValidRequestBody,
   setupPortfolioServer,
-  TimeoutError,
-  ValidationError,
   clearBacktestResultCache,
   type BacktestMockHandles,
 } from '../../helpers/backtestRoutesFixtures.js';
+import {
+  setBacktestResultCache,
+  backtestCacheKey,
+} from '../../../packages/backend/src/application/backtest/backtestResultCache.js';
+import { mockBacktestResult } from '../../helpers/storeFixtures.js';
 
 // ===== vi.hoisted: 创建 mock 句柄（vi.mock 工厂引用这些句柄，不能引用 import） =====
 
@@ -122,10 +125,10 @@ vi.mock('../../../packages/backend/src/application/backtest/engineBodyBuilder.js
   buildEngineParams: m.buildEngineParams,
 }));
 
-// P0-03: backtestQueue mock — 默认 add 抛错触发同步降级路径，使现有测试继续测试同步行为。
-// 异步路径由 backtest-async.test.ts 单独覆盖。
+// P0-02: backtestQueue mock — 路由已统一异步模式（202 + 入队），默认 add 成功。
+// 队列不可用 fail-closed 503 由 "队列不可用" 测试覆盖。
 const queueMocks = vi.hoisted(() => ({
-  add: vi.fn().mockRejectedValue(new Error('Redis unavailable in unit tests')),
+  add: vi.fn().mockResolvedValue({ id: 'job-test-001' }),
   getJob: vi.fn().mockResolvedValue(null),
 }));
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
@@ -175,7 +178,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
     await server.close();
   });
 
-  it('有效参数应调用 Application Service 并返回 200', async () => {
+  it('有效参数应入队并返回 202 Accepted', async () => {
     const body = createValidRequestBody();
 
     const res = await fetch(`${server.url}/api/backtest/portfolio`, {
@@ -186,14 +189,15 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
 
     const json = await res.json();
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(202);
     expect(json.success).toBe(true);
-    expect(json.data).toBeDefined();
-    expect(m.runBacktest).toHaveBeenCalledTimes(1);
-    expect(m.fetchHistoryData).toHaveBeenCalledTimes(1);
+    expect(json.data.jobId).toBe('job-test-001');
+    expect(json.data.status).toBe('queued');
+    expect(json.data.statusUrl).toContain('/api/v1/backtest/runs/');
+    expect(queueMocks.add).toHaveBeenCalledTimes(1);
   });
 
-  it('sync 响应应省略 rollingReturns（由 /portfolio/series 补全）', async () => {
+  it('异步响应应仅包含 jobId/status/statusUrl（不含 portfolios 数据）', async () => {
     const body = createValidRequestBody();
     const res = await fetch(`${server.url}/api/backtest/portfolio`, {
       method: 'POST',
@@ -201,7 +205,9 @@ describe('backtestRoutes - POST /api/backtest/portfolio', () => {
       body: JSON.stringify(body),
     });
     const json = await res.json();
-    expect(json.data.portfolios[0].rollingReturns).toBeUndefined();
+    expect(res.status).toBe(202);
+    expect(json.data.portfolios).toBeUndefined();
+    expect(json.data.jobId).toBeDefined();
   });
 });
 
@@ -219,11 +225,9 @@ describe('backtestRoutes - POST /api/backtest/portfolio/series', () => {
   it('缓存命中时应返回请求的序列字段', async () => {
     const body = createValidRequestBody();
 
-    await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    // P0-02: 路由已改为异步模式，缓存由 worker 写入。直接写入缓存模拟 worker 完成场景。
+    const cacheKey = backtestCacheKey(body.portfolios, body.parameters, undefined);
+    await setBacktestResultCache(cacheKey, mockBacktestResult());
 
     const res = await fetch(`${server.url}/api/backtest/portfolio/series`, {
       method: 'POST',
@@ -259,15 +263,9 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     await server.close();
   });
 
-  it('应以正确的参数调用 fetchHistoryData（含 benchmarkTicker）', async () => {
+  it('应以正确的 payload 入队（含 benchmarkTicker）', async () => {
     const body = createValidRequestBody();
     body.parameters.benchmarkTicker = 'SPY';
-
-    m.fetchHistoryData.mockResolvedValue({
-      AAPL: { '2024-01-02': 185.5 },
-      BND: { '2024-01-02': 72.3 },
-      SPY: { '2024-01-02': 450.0 },
-    });
 
     await fetch(`${server.url}/api/backtest/portfolio`, {
       method: 'POST',
@@ -275,13 +273,12 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
       body: JSON.stringify(body),
     });
 
-    const callArgs = m.fetchHistoryData.mock.calls[0];
-    const tickers = callArgs[0] as string[];
-    expect(tickers).toContain('AAPL');
-    expect(tickers).toContain('BND');
-    expect(tickers).toContain('SPY');
-    expect(callArgs[1]).toBe('2024-01-01');
-    expect(callArgs[2]).toBe('2024-06-30');
+    expect(queueMocks.add).toHaveBeenCalledTimes(1);
+    const [jobName, jobData] = queueMocks.add.mock.calls[0];
+    expect(jobName).toBe('portfolio');
+    expect(jobData.type).toBe('portfolio');
+    expect(jobData.payload.portfolios).toBeDefined();
+    expect(jobData.payload.parameters.benchmarkTicker).toBe('SPY');
   });
 
   it('无效日期格式应返回 400（zod 校验失败）', async () => {
@@ -298,7 +295,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     const json = await res.json();
     expect(json.error.status).toBe(400);
     expect(json.error.title).toBe('VALIDATION_ERROR');
-    expect(m.runBacktest).not.toHaveBeenCalled();
+    expect(queueMocks.add).not.toHaveBeenCalled();
   });
 
   it('缺少 portfolios 字段应返回 400', async () => {
@@ -313,7 +310,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(m.runBacktest).not.toHaveBeenCalled();
+    expect(queueMocks.add).not.toHaveBeenCalled();
   });
 
   it('缺少 parameters 字段应返回 400', async () => {
@@ -333,7 +330,7 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     });
 
     expect(res.status).toBe(400);
-    expect(m.runBacktest).not.toHaveBeenCalled();
+    expect(queueMocks.add).not.toHaveBeenCalled();
   });
 
   it('空 portfolios 数组应返回 400（min(1) 校验）', async () => {
@@ -351,94 +348,8 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     expect(res.status).toBe(400);
   });
 
-  it('Application Service 抛错时应返回 500', async () => {
-    m.runBacktest.mockRejectedValue(new Error('engine boom'));
-
-    const res = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-
-    expect(res.status).toBe(500);
-    const json = await res.json();
-    expect(json.error.status).toBe(500);
-    expect(json.error.code).toBe('BACKTEST_ERROR');
-    expect(loggerMocks.error).toHaveBeenCalled();
-  });
-
-  it('preparePortfolioBacktest 抛错时应返回 422', async () => {
-    m.preparePortfolioBacktest.mockImplementationOnce(() => {
-      throw new ValidationError('组合资产权重之和应约为 100');
-    });
-
-    const res = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-
-    expect(res.status).toBe(422);
-    const json = await res.json();
-    expect(json.error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('存在警告时应包含 warnings 字段', async () => {
-    m.preparePortfolioBacktest.mockImplementationOnce(
-      (
-        portfolios: { assets: { ticker: string }[] }[],
-        parameters: { benchmarkTicker?: string },
-      ) => {
-        const allTickers = new Set(portfolios.flatMap((p) => p.assets.map((a) => a.ticker)));
-        if (parameters?.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-        return {
-          allTickers,
-          warnings: [{ code: 'TICKER_NOT_FOUND', tickers: ['AAPL'] }],
-        };
-      },
-    );
-
-    const res = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-    const json = await res.json();
-    expect(res.status).toBe(200);
-    expect(json.warnings).toBeDefined();
-    expect(json.warnings).toEqual([{ code: 'TICKER_NOT_FOUND', tickers: ['AAPL'] }]);
-  });
-
-  it('回测超时应返回 503 Gateway Timeout', async () => {
-    m.runBacktest.mockRejectedValue(new TimeoutError('回测超时（30000ms）'));
-
-    const res = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-    expect(res.status).toBe(503);
-    const json = await res.json();
-    expect(json.error.code).toBe('COMPUTE_TIMEOUT');
-  });
-
-  it('价格数据缺失（无效 ticker）时应返回 success: false', async () => {
-    m.fetchHistoryData.mockResolvedValue({});
-
-    const res = await fetch(`${server.url}/api/backtest/portfolio`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createValidRequestBody()),
-    });
-
-    const json = await res.json();
-    expect(res.status).toBe(422);
-    expect(json.error.code).toBe('INVALID_TICKERS');
-    expect(m.runBacktest).not.toHaveBeenCalled();
-  });
-
-  it('引擎不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
-    m.runBacktest.mockRejectedValue(new MockEngineUnavailableError());
+  it('队列不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
+    queueMocks.add.mockRejectedValueOnce(new Error('Redis unavailable'));
 
     const res = await fetch(`${server.url}/api/backtest/portfolio`, {
       method: 'POST',
@@ -449,8 +360,8 @@ describe('backtestRoutes - POST /api/backtest/portfolio (continued)', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
-    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
-    expect(json.degraded).toBe(true);
+    expect(json.error.code).toBe('SERVICE_TEMPORARILY_UNAVAILABLE');
+    expect(json.success).toBe(false);
   });
 });
 

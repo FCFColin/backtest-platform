@@ -43,6 +43,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks),
   withTenant: vi.fn(),
+  withTenantReadOnly: vi.fn(),
 }));
 
 import { RunCompletedHandler } from '../../../packages/backend/src/application/runCompletedHandler.js';

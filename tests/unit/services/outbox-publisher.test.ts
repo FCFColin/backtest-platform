@@ -262,10 +262,17 @@ describe('OutboxPublisher', () => {
 
       await publisher.start();
 
-      // 补偿扫描发现 3 条积压事件
+      // 补偿扫描器执行顺序：
+      // 1. updateOutboxMetrics() → 3 次 pool.query（Promise.all 并行）
+      // 2. 查找积压事件 → 1 次 pool.query（返回 3 条积压）
+      // 3. handleNotification() → 至少 1 次 pool.query（SELECT 未处理事件）
+      // 4. cleanupProcessedOutboxEvents() → 1 次 pool.query
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 2 }, { id: 3 }] })
-        .mockResolvedValueOnce({ rows: [] });
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // updateOutboxMetrics: unprocessed
+        .mockResolvedValueOnce({ rows: [] }) // updateOutboxMetrics: oldest age
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] }) // updateOutboxMetrics: total
+        .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 2 }, { id: 3 }] }) // 积压事件
+        .mockResolvedValueOnce({ rows: [] }); // handleNotification SELECT
 
       await vi.advanceTimersByTimeAsync(60_000);
 

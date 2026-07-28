@@ -175,6 +175,7 @@ describe('callGoDataService', () => {
             if (event === 'end') handler();
           }),
           statusCode,
+          headers: {},
         };
         cb(res);
         return { on: vi.fn(), end: vi.fn() };
@@ -214,6 +215,7 @@ describe('fetchMissingFromGoService', () => {
             if (event === 'end') handler();
           }),
           statusCode: 200,
+          headers: {},
         };
         cb(res);
         return { on: vi.fn(), end: vi.fn() };
@@ -235,6 +237,7 @@ describe('fetchMissingFromGoService', () => {
             if (event === 'end') handler();
           }),
           statusCode: 200,
+          headers: {},
         };
         cb(res);
         return { on: vi.fn(), end: vi.fn() };

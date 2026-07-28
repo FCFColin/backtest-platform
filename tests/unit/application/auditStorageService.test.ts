@@ -145,12 +145,12 @@ describe('auditStorageService', () => {
   // =========================================================================
   describe('writeAuditLog', () => {
     it('应 INSERT 审计日志并返回 ID（含 HMAC 签名）', async () => {
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
+      poolMocks.pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
       const entry = makeEntry();
       const id = await writeAuditLog(entry);
       expect(id).toBe(LOG_ID);
 
-      const call = poolMocks.pool.query.mock.calls[0];
+      const call = poolMocks.pool.query.mock.calls[1];
       const sql = call[0] as string;
       expect(sql).toContain('INSERT INTO audit_logs');
       expect(sql).toContain('RETURNING id');
@@ -166,10 +166,10 @@ describe('auditStorageService', () => {
     });
 
     it('可选字段为 null 时应传 null 而非 undefined', async () => {
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
+      poolMocks.pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
       const entry = makeEntry({ userId: null, orgId: null, resourceType: null, resourceId: null });
       await writeAuditLog(entry);
-      const args = poolMocks.pool.query.mock.calls[0][1] as unknown[];
+      const args = poolMocks.pool.query.mock.calls[1][1] as unknown[];
       expect(args[1]).toBeNull();
       expect(args[2]).toBeNull();
       expect(args[5]).toBeNull();
@@ -177,9 +177,9 @@ describe('auditStorageService', () => {
     });
 
     it('应使用连接池（未传 client 时）', async () => {
-      poolMocks.pool.query.mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
+      poolMocks.pool.query.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: LOG_ID }] });
       await writeAuditLog(makeEntry());
-      expect(poolMocks.pool.query).toHaveBeenCalledTimes(1);
+      expect(poolMocks.pool.query).toHaveBeenCalledTimes(2);
     });
   });
 

@@ -840,7 +840,7 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
     expect(res.headers.get('retry-after')).toBe('30');
     const body = await res.json();
     expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
-    expect(body.degraded).toBe(true);
+    expect(body.degraded).toBeUndefined();
   });
 
   it('引擎抛普通 Error 应返回 500 CALC_ERROR', async () => {

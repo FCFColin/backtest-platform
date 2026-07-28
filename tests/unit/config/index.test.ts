@@ -97,6 +97,7 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     originalValues.CORS_ORIGINS = config.CORS_ORIGINS;
     originalValues.TRUST_PROXY_HOPS = config.TRUST_PROXY_HOPS;
     originalValues.AUDIT_HMAC_KEY = config.AUDIT_HMAC_KEY;
+    originalValues.DEV_SKIP_AUTH = config.DEV_SKIP_AUTH;
 
     // 设置为生产环境
     config.NODE_ENV = 'production';
@@ -189,6 +190,7 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
     config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
     process.env.TRUST_PROXY_HOPS = '1';
+    config.DEV_SKIP_AUTH = false;
 
     expect(() => validateConfig()).not.toThrow();
 
@@ -285,6 +287,7 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     process.env.DATABASE_URL = 'postgresql://user:pass@host:5432/db';
     process.env.TRUST_PROXY_HOPS = '1';
     config.AUDIT_HMAC_KEY = 'a-very-strong-hmac-key-of-32-chars+';
+    config.DEV_SKIP_AUTH = false;
 
     expect(() => validateConfig()).not.toThrow();
 
@@ -324,8 +327,8 @@ describe('config 默认值', () => {
     expect(config.GO_ENGINE_URL).toContain('15004');
   });
 
-  it('ENGINE_TIMEOUT_MS 默认应为 5000ms', () => {
-    expect(config.ENGINE_TIMEOUT_MS).toBe(5000);
+  it('ENGINE_TIMEOUT_MS 默认应为 120000ms（大于 Go 引擎 90s computeTimeout）', () => {
+    expect(config.ENGINE_TIMEOUT_MS).toBe(120000);
   });
 
   it('ENGINE_AUTH_TOKEN 应有默认值（开发环境）', () => {

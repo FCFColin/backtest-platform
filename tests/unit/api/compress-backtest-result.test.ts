@@ -36,7 +36,7 @@ function makePortfolio(name: string, n: number): PortfolioResult {
         depth: -0.15,
         timeToTrough: 60,
         recoveryTime: 90,
-        totalTime: 150,
+        totalTimeDurationDays: 150,
         recoveryFactor: 1.1,
         cagrDuring: -0.05,
         ulcerDuring: 0.02,

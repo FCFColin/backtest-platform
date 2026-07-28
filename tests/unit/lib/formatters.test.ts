@@ -34,11 +34,11 @@ describe('formatters', () => {
 
   describe('formatPercent', () => {
     it('默认 2 位小数', () => {
-      expect(formatPercent(12.3456)).toBe('12.35%');
+      expect(formatPercent(0.123456)).toBe('12.35%');
     });
 
     it('自定义小数位数', () => {
-      expect(formatPercent(12.3456, 1)).toBe('12.3%');
+      expect(formatPercent(0.123456, 1)).toBe('12.3%');
     });
 
     it('零值', () => {
@@ -46,7 +46,7 @@ describe('formatters', () => {
     });
 
     it('负值', () => {
-      expect(formatPercent(-5.5)).toBe('-5.50%');
+      expect(formatPercent(-0.055)).toBe('-5.50%');
     });
   });
 
@@ -80,11 +80,11 @@ describe('formatters', () => {
 
   describe('formatPercentSigned', () => {
     it('正值加 + 号', () => {
-      expect(formatPercentSigned(5.5)).toBe('+5.50%');
+      expect(formatPercentSigned(0.055)).toBe('+5.50%');
     });
 
     it('负值保持 - 号', () => {
-      expect(formatPercentSigned(-3.2)).toBe('-3.20%');
+      expect(formatPercentSigned(-0.032)).toBe('-3.20%');
     });
 
     it('零值加 + 号', () => {

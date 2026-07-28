@@ -34,6 +34,13 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
     dbMocks.withTenant(tenantId);
     return fn(dbMocks.mockClient);
   },
+  withTenantReadOnly: (
+    tenantId: string,
+    fn: (client: typeof dbMocks.mockClient) => Promise<unknown>,
+  ) => {
+    dbMocks.withTenant(tenantId);
+    return fn(dbMocks.mockClient);
+  },
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

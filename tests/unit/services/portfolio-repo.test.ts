@@ -10,6 +10,13 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
     dbMocks.withTenant(_tenantId);
     return fn({ query: dbMocks.query });
   },
+  withTenantReadOnly: (
+    _tenantId: string,
+    fn: (client: { query: typeof dbMocks.query }) => unknown,
+  ) => {
+    dbMocks.withTenant(_tenantId);
+    return fn({ query: dbMocks.query });
+  },
 }));
 
 import {

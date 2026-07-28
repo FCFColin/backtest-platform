@@ -1,11 +1,17 @@
-// Per-file 覆盖率门槛检查（Task 19.2 / 对抗性测试门控）
+// 覆盖率门控脚本（Task 19.2 / 对抗性测试门控 / C-013 修复）
 //
-// 全局：vitest thresholds ≥80%（lines/functions/statements） / ≥70%（branches）
+// 全局门槛（AGENTS.md 约定）：lines/functions/statements ≥80% / branches ≥70%
 // 普通文件：行覆盖率 ≥75%
 // 关键文件（认证/金融/安全）：行覆盖率 ≥90%
 //
 // 分层门控：只检查 backend 全量 + frontend store/hooks/utils
 // 纯 UI 页面/组件（pages/components）由 E2E 覆盖，不强制单测
+//
+// 错误处理：
+// - coverage-summary.json 缺失：明确告知"覆盖率数据缺失，可能是测试运行失败导致"
+// - JSON 格式错误：输出解析失败原因
+// - summary.total 缺失：视为数据不完整，拒绝合并
+// - 单个指标缺失或 pct 非数字：计为该指标未达标
 
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
@@ -15,6 +21,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = resolve(__dirname, '..');
 
+// 全局覆盖率门槛（与 AGENTS.md / vitest thresholds 一致）
+const GLOBAL_THRESHOLDS = {
+  lines: 80,
+  functions: 80,
+  statements: 80,
+  branches: 70,
+};
+
 const candidatePaths = [
   resolve(projectRoot, 'coverage/vitest/coverage-summary.json'),
   resolve(projectRoot, 'coverage/coverage-summary.json'),
@@ -23,10 +37,19 @@ const candidatePaths = [
 const coveragePath = candidatePaths.find((p) => existsSync(p));
 
 if (!coveragePath) {
-  console.error('\n[coverage-check] 错误：未找到 coverage-summary.json');
-  console.error('  请先运行：npm run test:coverage');
-  console.error('  注意：vitest workspace 模式下 json-summary reporter 可能不生成，');
-  console.error('  请用 npx vitest run --coverage --reporter=json-summary 单独生成');
+  console.error('\n[coverage-check] ❌ 覆盖率数据缺失');
+  console.error('  未找到 coverage-summary.json，已检查路径：');
+  for (const p of candidatePaths) {
+    console.error(`    - ${p}`);
+  }
+  console.error('');
+  console.error('  可能原因：');
+  console.error('    1. 测试运行失败（vitest 在测试崩溃时不生成覆盖率文件）');
+  console.error('       → 请先运行 npm run test:unit 确保所有测试通过');
+  console.error('    2. json-summary reporter 未正确配置');
+  console.error('       → 请用 npx vitest run --coverage --coverage.reporter=json-summary 单独生成');
+  console.error('');
+  console.error('  覆盖率门控失败：无法执行任何门槛检查');
   process.exit(1);
 }
 
@@ -34,8 +57,49 @@ let summary;
 try {
   summary = JSON.parse(readFileSync(coveragePath, 'utf8'));
 } catch (err) {
-  console.error(`\n[coverage-check] 错误：解析失败：${err.message}`);
+  console.error(`\n[coverage-check] ❌ coverage-summary.json 解析失败：${err.message}`);
+  console.error(`  文件路径：${coveragePath}`);
+  console.error('  覆盖率门控失败：覆盖率数据格式错误，无法执行门槛检查');
   process.exit(1);
+}
+
+if (!summary || typeof summary !== 'object' || Array.isArray(summary)) {
+  console.error('\n[coverage-check] ❌ coverage-summary.json 顶层不是对象');
+  console.error(`  文件路径：${coveragePath}`);
+  console.error('  覆盖率门控失败：覆盖率数据结构不合法');
+  process.exit(1);
+}
+
+// ---- 全局门槛检查（summary.total）----
+const total = summary.total;
+if (!total || typeof total !== 'object') {
+  console.error('\n[coverage-check] ❌ coverage-summary.json 缺少 total 汇总字段');
+  console.error('  覆盖率门控失败：覆盖率数据不完整（可能部分文件覆盖率缺失）');
+  process.exit(1);
+}
+
+const globalFailures = [];
+for (const [metric, threshold] of Object.entries(GLOBAL_THRESHOLDS)) {
+  const metricData = total[metric];
+  if (!metricData || typeof metricData !== 'object' || typeof metricData.pct !== 'number') {
+    globalFailures.push({
+      metric,
+      pct: null,
+      threshold,
+      reason: `${metric} coverage 数据缺失或格式错误（期望 pct 为数字，实际：${
+        metricData?.pct === undefined ? 'undefined' : JSON.stringify(metricData?.pct)
+      }）< ${threshold}% threshold`,
+    });
+    continue;
+  }
+  if (metricData.pct < threshold) {
+    globalFailures.push({
+      metric,
+      pct: metricData.pct,
+      threshold,
+      reason: `${metric} coverage ${metricData.pct.toFixed(2)}% < ${threshold}% threshold`,
+    });
+  }
 }
 
 const CRITICAL_FILES = [
@@ -150,12 +214,15 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
 
 const failures = [];
 const criticalFailures = [];
+const malformedFiles = [];
 let checkedCount = 0;
 let criticalCheckedCount = 0;
 
 const normalize = (p) => p.replace(/\\/g, '/');
 
 for (const [fileKey, data] of Object.entries(summary)) {
+  if (fileKey === 'total') continue; // 全局汇总已在上面单独处理
+
   const normalizedFile = normalize(fileKey);
 
   // 分层门控：只检查 ALLOWED_PREFIXES 中的文件
@@ -168,7 +235,13 @@ for (const [fileKey, data] of Object.entries(summary)) {
   if (normalizedFile.endsWith('.test.ts') || normalizedFile.endsWith('.test.tsx')) continue;
   if (normalizedFile.endsWith('.d.ts')) continue;
 
-  const linePct = data.lines?.pct ?? 0;
+  // 防御：data 非对象或 lines 字段缺失计为格式异常
+  if (!data || typeof data !== 'object' || !data.lines || typeof data.lines.pct !== 'number') {
+    malformedFiles.push({ file: normalizedFile });
+    continue;
+  }
+
+  const linePct = data.lines.pct;
 
   // 判断是否为关键文件
   const isCritical = CRITICAL_FILES.some((cf) => normalizedFile.endsWith(cf));
@@ -186,10 +259,43 @@ for (const [fileKey, data] of Object.entries(summary)) {
   }
 }
 
-// 汇总
-console.log('\n[coverage-check] Per-file 覆盖率检查');
-console.log(`  关键文件检查：${criticalCheckedCount} 个（阈值 ${CRITICAL_LINE_COVERAGE}%）`);
+// ---- 汇总输出 ----
+console.log('\n[coverage-check] 覆盖率门控检查');
+
+// 全局门槛
+console.log('\n  全局门槛（lines/functions/statements ≥80%, branches ≥70%）:');
+for (const [metric, threshold] of Object.entries(GLOBAL_THRESHOLDS)) {
+  const pct = total[metric]?.pct;
+  if (typeof pct === 'number') {
+    const status = pct >= threshold ? '✅' : '❌';
+    console.log(
+      `    ${status} ${metric.padEnd(11)} ${pct.toFixed(2).padStart(6)}% / ${threshold}%`
+    );
+  } else {
+    console.log(`    ❌ ${metric.padEnd(11)} 数据缺失 / ${threshold}%`);
+  }
+}
+
+if (globalFailures.length > 0) {
+  console.log(`\n  ❌ 全局覆盖率未达标（${globalFailures.length} 项）:`);
+  for (const f of globalFailures) {
+    console.log(`     ${f.reason}`);
+  }
+}
+
+// Per-file
+console.log(`\n  关键文件检查：${criticalCheckedCount} 个（阈值 ${CRITICAL_LINE_COVERAGE}%）`);
 console.log(`  普通文件检查：${checkedCount} 个（阈值 ${MIN_LINE_COVERAGE}%）`);
+
+if (malformedFiles.length > 0) {
+  console.log(`\n  ⚠️  覆盖率数据格式异常文件（${malformedFiles.length} 个，已跳过）:`);
+  for (const f of malformedFiles.slice(0, 20)) {
+    console.log(`     ${f.file}`);
+  }
+  if (malformedFiles.length > 20) {
+    console.log(`     ... 还有 ${malformedFiles.length - 20} 个`);
+  }
+}
 
 if (criticalFailures.length > 0) {
   console.log(`\n  ❌ 关键文件未达标（${criticalFailures.length} 个）:`);
@@ -206,6 +312,12 @@ if (failures.length > 0) {
   if (failures.length > 20) {
     console.log(`     ... 还有 ${failures.length - 20} 个`);
   }
+}
+
+// ---- 退出码判定（任一类失败即拒绝合并）----
+if (globalFailures.length > 0) {
+  console.log('\n[coverage-check] ❌ 全局覆盖率门槛不达标，拒绝合并');
+  process.exit(1);
 }
 
 if (criticalFailures.length > 0) {

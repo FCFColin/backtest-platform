@@ -58,6 +58,9 @@ vi.mock('../../../packages/frontend/src/pages/backtest/BacktestToolbar.js', () =
 vi.mock('../../../packages/frontend/src/pages/backtest/BacktestResults.js', () => ({
   ResultsContent: () => <div data-testid="backtest-results" />,
 }));
+vi.mock('../../../packages/frontend/src/pages/backtest/BacktestHero.js', () => ({
+  BacktestHero: () => <div data-testid="backtest-hero" />,
+}));
 
 import BacktestPage from '../../../packages/frontend/src/pages/backtest/BacktestPage.js';
 
@@ -68,7 +71,7 @@ describe('BacktestPage (smoke)', () => {
 
   it('happy path: 装配标题与全部面板 slot', () => {
     render(<BacktestPage />);
-    expect(screen.getByText('backtest.title')).toBeTruthy();
+    expect(screen.getByTestId('backtest-hero')).toBeTruthy();
     expect(screen.getByTestId('backtest-params')).toBeTruthy();
     expect(screen.getByTestId('portfolio-editor')).toBeTruthy();
     expect(screen.getByTestId('backtest-toolbar')).toBeTruthy();
@@ -78,6 +81,6 @@ describe('BacktestPage (smoke)', () => {
   it('edge path: 空组合状态下仍渲染标题不崩溃', () => {
     pageState.portfolios = [];
     render(<BacktestPage />);
-    expect(screen.getByText('backtest.title')).toBeTruthy();
+    expect(screen.getByTestId('backtest-hero')).toBeTruthy();
   });
 });

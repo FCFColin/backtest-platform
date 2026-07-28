@@ -364,7 +364,6 @@ export async function setupPortfolioServer(
         },
       ],
     }),
-    degraded: false,
   });
   // fsMocks 在 vi.hoisted 中以对象形式存在，需通过 m 间接访问
   return createBacktestApp(routes);

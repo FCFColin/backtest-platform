@@ -82,7 +82,7 @@ export default defineWorkspace([
         'tests/unit/services/**/*.test.ts',
         'tests/unit/lib/**/*.test.ts',
         'tests/unit/styles/**/*.test.ts',
-        'tests/unit/utils/{crypto,date-utils,engine-body-builder,engine-client,envelope-encryption,errors,http-client,integrity,log-sanitizer,logger,metrics,numeric-range,rate-limiter,rate-limiter-fail-closed,request-context,ticker-validation}.test.ts',
+        'tests/unit/utils/{crypto,date-utils,engine-body-builder,engine-client,envelope-encryption,errors,http-client,integrity,log-sanitizer,logger,metrics,numeric-range,rate-limiter,rate-limiter-fail-closed,request-context,ssrf-guard,ticker-validation}.test.ts',
         'tests/integration/**/*.test.ts',
         'tests/contract/**/*.test.ts',
         'tests/fuzz/**/*.test.ts',

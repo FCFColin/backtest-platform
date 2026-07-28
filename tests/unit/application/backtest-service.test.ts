@@ -195,8 +195,6 @@ describe('runBacktest', () => {
     expect(outboxCall.payload.totalReturn).toBe(0.2);
     expect(outboxCall.payload.maxDrawdown).toBe(0.15);
     expect(outboxCall.payload.sharpeRatio).toBe(1.5);
-    // fail-closed：成功路径来自主引擎，非降级
-    expect(outboxCall.payload.degraded).toBe(false);
   });
 
   it('runBacktest 应返回引擎结果', async () => {
@@ -210,8 +208,6 @@ describe('runBacktest', () => {
 
     // 返回的 result 应为引擎返回的同一对象（原样透传）
     expect(result.result).toBe(mockBacktestResult);
-    // fail-closed：引擎成功返回，degraded 为 false
-    expect(result.degraded).toBe(false);
   });
 
   it('runBacktest 在引擎不可用时应抛出 EngineUnavailableError（fail-closed）', async () => {

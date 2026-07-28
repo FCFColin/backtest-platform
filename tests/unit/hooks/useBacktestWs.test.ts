@@ -9,10 +9,13 @@
  *   3. 重连失败 3 次后 → 降级为轮询模式
  *   4. 任务完成事件收到后 → 自动关闭 WS 连接
  *
- * 源文件: tmp.md L154-162
+ * 注意：vi.useFakeTimers() 与 @testing-library/react 的 waitFor 不兼容
+ *（waitFor 内部使用 setTimeout 轮询，被 fake timer 冻结导致死锁）。
+ * 故同步操作（useEffect 触发的 WS 构造）使用直接断言，
+ * 定时器操作使用 act(() => vi.advanceTimersByTime()) 推进。
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 
 // ===== Mock WebSocket 类 =====
 
@@ -39,7 +42,6 @@ const CLOSING = 2;
 const CLOSED = 3;
 
 let mockWsInstances: MockWsInstance[] = [];
-let mockWsFactory: ((url: string) => MockWsInstance) | null = null;
 
 class MockWebSocket {
   static readonly CONNECTING = CONNECTING;
@@ -61,14 +63,7 @@ class MockWebSocket {
 
   constructor(url: string) {
     this.url = url;
-    if (mockWsFactory) {
-      const instance = mockWsFactory(url);
-      mockWsInstances.push(instance);
-      // 代理属性到工厂创建的实例
-      Object.assign(this, instance);
-    } else {
-      mockWsInstances.push(this as unknown as MockWsInstance);
-    }
+    mockWsInstances.push(this as unknown as MockWsInstance);
   }
 
   close(_code = 1000, _reason?: string): void {
@@ -78,33 +73,20 @@ class MockWebSocket {
   send(_data: string): void {
     // no-op
   }
-}
 
-function createMockWsInstance(url: string): MockWsInstance {
-  const instance: MockWsInstance = {
-    url,
-    readyState: CONNECTING,
-    onopen: null,
-    onmessage: null,
-    onerror: null,
-    onclose: null,
-    close(_code = 1000) {
-      this.readyState = CLOSED;
-    },
-    send() {},
-    simulateOpen() {
-      this.readyState = OPEN;
-      this.onopen?.(new Event('open'));
-    },
-    simulateMessage(data: string) {
-      this.onmessage?.({ data } as MessageEvent);
-    },
-    simulateClose(code: number, _reason?: string) {
-      this.readyState = CLOSED;
-      this.onclose?.(new CloseEvent('close', { code, reason: _reason }));
-    },
-  };
-  return instance;
+  simulateOpen(): void {
+    this.readyState = OPEN;
+    this.onopen?.(new Event('open'));
+  }
+
+  simulateMessage(data: string): void {
+    this.onmessage?.({ data } as MessageEvent);
+  }
+
+  simulateClose(code: number, _reason?: string): void {
+    this.readyState = CLOSED;
+    this.onclose?.(new CloseEvent('close', { code, reason: _reason }));
+  }
 }
 
 // ===== Mock 依赖 =====
@@ -118,6 +100,10 @@ vi.mock('../../../packages/frontend/src/utils/authTokens.js', () => ({
   refreshTokens: vi.fn().mockResolvedValue(true),
 }));
 
+vi.mock('../../../packages/frontend/src/utils/errorReporter.js', () => ({
+  reportError: vi.fn(),
+}));
+
 import { useBacktestWs } from '../../../packages/frontend/src/hooks/useBacktestWs.js';
 import { apiFetch } from '../../../packages/frontend/src/utils/apiClient.js';
 
@@ -127,7 +113,6 @@ describe('P0-01 T4 · useBacktestWs WebSocket 重连逻辑', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockWsInstances = [];
-    mockWsFactory = createMockWsInstance;
     vi.stubGlobal('WebSocket', MockWebSocket);
     vi.mocked(apiFetch).mockReset();
   });
@@ -138,13 +123,11 @@ describe('P0-01 T4 · useBacktestWs WebSocket 重连逻辑', () => {
     vi.restoreAllMocks();
   });
 
-  it('场景1: WS 连接成功 → 收到 progress 事件 → 触发 UI 更新', async () => {
+  it('场景1: WS 连接成功 → 收到 progress 事件 → 触发 UI 更新', () => {
     const { result } = renderHook(() => useBacktestWs('job-test-001'));
 
-    // 等待 WS 构造
-    await waitFor(() => {
-      expect(mockWsInstances.length).toBe(1);
-    });
+    // useEffect 同步执行：WS 实例已创建
+    expect(mockWsInstances.length).toBe(1);
 
     // 模拟 WS 连接成功
     act(() => {
@@ -168,12 +151,10 @@ describe('P0-01 T4 · useBacktestWs WebSocket 重连逻辑', () => {
     expect(result.current.progress?.progress).toBe(50);
   });
 
-  it('场景2: WS 连接中断 → 1s 后自动重连（第 1 次）', async () => {
+  it('场景2: WS 连接中断 → 1s 后自动重连（第 1 次）', () => {
     renderHook(() => useBacktestWs('job-reconnect-001', { maxReconnectAttempts: 3 }));
 
-    await waitFor(() => {
-      expect(mockWsInstances.length).toBe(1);
-    });
+    expect(mockWsInstances.length).toBe(1);
 
     // 模拟连接成功
     act(() => {
@@ -194,9 +175,7 @@ describe('P0-01 T4 · useBacktestWs WebSocket 重连逻辑', () => {
     });
 
     // 应该创建了新的 WS 实例（重连）
-    await waitFor(() => {
-      expect(mockWsInstances.length).toBe(2);
-    });
+    expect(mockWsInstances.length).toBe(2);
   });
 
   it('场景3: 重连失败 3 次后 → 降级为轮询模式', async () => {
@@ -216,16 +195,11 @@ describe('P0-01 T4 · useBacktestWs WebSocket 重连逻辑', () => {
       useBacktestWs('job-fallback-001', { maxReconnectAttempts: 3 }),
     );
 
-    await waitFor(() => {
-      expect(mockWsInstances.length).toBe(1);
-    });
+    expect(mockWsInstances.length).toBe(1);
 
-    // 模拟 3 次重连失败
+    // 模拟 3 次重连失败（WS 未成功连接即关闭，不触发 onopen 重置计数器）
     for (let i = 0; i < 3; i++) {
       const currentInstance = mockWsInstances[mockWsInstances.length - 1];
-      act(() => {
-        currentInstance.simulateOpen();
-      });
       act(() => {
         currentInstance.simulateClose(1006);
       });
@@ -233,39 +207,31 @@ describe('P0-01 T4 · useBacktestWs WebSocket 重连逻辑', () => {
       act(() => {
         vi.advanceTimersByTime(1000 * Math.pow(2, i));
       });
-      await waitFor(() => {
-        expect(mockWsInstances.length).toBe(i + 2);
-      });
+      expect(mockWsInstances.length).toBe(i + 2);
     }
 
-    // 第 4 次关闭后应降级到轮询（不再创建新 WS）
+    // 第 4 次关闭后应降级到轮询（reconnectAttempts=3 >= maxReconnectAttempts=3）
     const lastWs = mockWsInstances[mockWsInstances.length - 1];
-    act(() => {
-      lastWs.simulateOpen();
-    });
     act(() => {
       lastWs.simulateClose(1006);
     });
 
-    // 快进时间让轮询执行
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
+    // startPolling 同步设置 source='polling'
+    expect(result.current.source).toBe('polling');
 
-    // 应该降级到轮询模式
-    await waitFor(() => {
-      expect(result.current.source).toBe('polling');
+    // 推进时间并刷新微任务，让轮询的 apiFetch Promise 完成
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+      await Promise.resolve();
     });
 
     expect(apiFetch).toHaveBeenCalled();
   });
 
-  it('场景4: 任务完成事件收到后 → 自动关闭 WS 连接', async () => {
+  it('场景4: 任务完成事件收到后 → 自动关闭 WS 连接', () => {
     const { result } = renderHook(() => useBacktestWs('job-complete-001'));
 
-    await waitFor(() => {
-      expect(mockWsInstances.length).toBe(1);
-    });
+    expect(mockWsInstances.length).toBe(1);
 
     act(() => {
       mockWsInstances[0].simulateOpen();

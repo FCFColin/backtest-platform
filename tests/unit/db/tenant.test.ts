@@ -70,6 +70,33 @@ vi.mock('../../../packages/backend/src/db/pool.js', async () => {
         client.release();
       }
     },
+    withTenantReadOnly: async (
+      tenantId: string,
+      fn: (client: pg.PoolClient) => Promise<unknown>,
+    ) => {
+      if (!isUuid(tenantId)) {
+        throw new Error(`withTenant: 非法 tenantId（需为 UUID）: ${tenantId}`);
+      }
+      const pool = poolHolder.pool;
+      if (!pool) throw new Error('测试连接池未初始化');
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantId]);
+        const result = await fn(client);
+        await client.query('COMMIT');
+        return result;
+      } catch (err) {
+        try {
+          await client.query('ROLLBACK');
+        } catch (rollbackErr) {
+          logger.error({ err: rollbackErr }, '[db] withTenantReadOnly ROLLBACK 失败');
+        }
+        throw err;
+      } finally {
+        client.release();
+      }
+    },
   };
 });
 

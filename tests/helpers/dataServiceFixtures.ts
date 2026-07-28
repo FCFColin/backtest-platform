@@ -36,8 +36,12 @@ export function setupHttpGetSuccess(body: string, statusCode = 200): ReturnType<
       req.destroy = vi.fn();
       req.on = vi.fn();
       req.end = vi.fn();
-      const res = new EventEmitter() as EventEmitter & { statusCode: number };
+      const res = new EventEmitter() as EventEmitter & {
+        statusCode: number;
+        headers: Record<string, string>;
+      };
       res.statusCode = statusCode;
+      res.headers = {};
       queueMicrotask(() => {
         callback(res);
         res.emit('data', Buffer.from(body));

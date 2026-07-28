@@ -2,9 +2,9 @@
  * P0-03 回测任务异步化 — 后端路由单元测试
  *
  * 覆盖端点：
- * - POST /api/backtest/portfolio -> 202 Accepted（异步默认路径）
- * - POST /api/backtest/portfolio + X-Backtest-Sync: true -> 200 OK（同步快速路径）
- * - POST /api/backtest/portfolio -> 200 OK（队列不可用降级同步）
+ * - POST /api/backtest/portfolio -> 202 Accepted（异步默认路径，P0-02 统一）
+ * - POST /api/backtest/portfolio + X-Backtest-Sync: true -> 202（同步路径已废弃）
+ * - POST /api/backtest/portfolio -> 503 + Retry-After（队列不可用 fail-closed，ADR-031）
  * - GET  /api/backtest/runs/:jobId -> 200/404（任务状态查询）
  *
  * 共享 mock 实现配置见 tests/helpers/backtestRoutesFixtures.ts。
@@ -219,7 +219,7 @@ describe('P0-03 backtestRoutes - 异步回测', () => {
       expect(m.runPortfolioBacktest).not.toHaveBeenCalled();
     });
 
-    it('队列 add 抛错时降级为同步执行并返回 200', async () => {
+    it('队列 add 抛错时应 fail-closed 返回 503（ADR-031，不再降级同步）', async () => {
       queueMocks.add.mockRejectedValue(new Error('Redis connection refused'));
 
       const res = await fetch(`${server.url}/api/backtest/portfolio`, {
@@ -228,24 +228,26 @@ describe('P0-03 backtestRoutes - 异步回测', () => {
         body: JSON.stringify(createValidRequestBody()),
       });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(503);
+      expect(res.headers.get('retry-after')).toBe('30');
       const json = await res.json();
-      expect(json.success).toBe(true);
-      expect(json.data).toBeDefined();
-      // 降级后应调用同步执行
-      expect(m.runPortfolioBacktest).toHaveBeenCalledTimes(1);
-      expect(loggerMocks.warn).toHaveBeenCalled();
+      expect(json.success).toBe(false);
+      expect(json.error.code).toBe('SERVICE_TEMPORARILY_UNAVAILABLE');
+      // fail-closed：不应调用同步执行
+      expect(m.runPortfolioBacktest).not.toHaveBeenCalled();
+      expect(loggerMocks.error).toHaveBeenCalled();
     });
   });
 
   // ---------------------------------------------------------------------------
-  // POST /portfolio — 同步快速路径（X-Backtest-Sync: true）
+  // POST /portfolio — 同步快速路径已废弃（P0-02 统一异步模式）
+  // X-Backtest-Sync 头不再触发同步路径，统一走异步 202。
   // ---------------------------------------------------------------------------
 
-  describe('POST /api/backtest/portfolio — 同步路径 (X-Backtest-Sync)', () => {
-    it('X-Backtest-Sync: true 时直接同步执行返回 200', async () => {
-      // 即使队列可用，同步头也应跳过入队
-      queueMocks.add.mockResolvedValue({ id: 'should-not-be-used' });
+  describe('POST /api/backtest/portfolio — X-Backtest-Sync 头已废弃', () => {
+    it('X-Backtest-Sync: true 时仍走异步路径返回 202（同步路径已移除）', async () => {
+      // 即使携带同步头，路由也统一走异步入队
+      queueMocks.add.mockResolvedValue({ id: 'job-async-002' });
 
       const res = await fetch(`${server.url}/api/backtest/portfolio`, {
         method: 'POST',
@@ -256,13 +258,12 @@ describe('P0-03 backtestRoutes - 异步回测', () => {
         body: JSON.stringify(createValidRequestBody()),
       });
 
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
       const json = await res.json();
       expect(json.success).toBe(true);
-      expect(json.data).toBeDefined();
-      // 同步路径不应入队
-      expect(queueMocks.add).not.toHaveBeenCalled();
-      expect(m.runPortfolioBacktest).toHaveBeenCalledTimes(1);
+      expect(json.data.jobId).toBe('job-async-002');
+      // 同步路径不应执行
+      expect(m.runPortfolioBacktest).not.toHaveBeenCalled();
     });
   });
 

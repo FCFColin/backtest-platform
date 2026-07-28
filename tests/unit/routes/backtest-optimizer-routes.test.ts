@@ -311,8 +311,8 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('30');
     expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
-    expect(body.degraded).toBe(true);
-    expect(body.degradedWarning).toBeDefined();
+    expect(body.degraded).toBeUndefined();
+    expect(body.degradedWarning).toBeUndefined();
     // 仅尝试调用 Go 引擎，未回退 Node 的 runPortfolioBacktest
     expect(engineClientMocks.callEngineStrict).toHaveBeenCalledWith(
       '/api/engine/backtest',
