@@ -1,0 +1,45 @@
+# =============================================================================
+# Kustomize base — 所有 K8s 资源的基础定义
+# =============================================================================
+# 企业理由：overlays 不能直接引用 k8s/ 根目录（kustomize 会因目录包含关系
+# 检测到 cycle：k8s/ 包含 k8s/overlays/）。故设立 k8s/base/kustomization.yaml
+# 作为 base 入口，通过 ../<file> 引用 k8s/ 根目录下的资源文件，无需移动文件。
+# k8s/kustomization.yaml 保留用于直接 kubectl apply -k k8s/。
+# 注意：overlays 构建需 --load-restrictor LoadRestrictionsNone（因 base 通过 ../ 引用父目录文件）：
+#   kubectl kustomize --load-restrictor LoadRestrictionsNone k8s/overlays/dev
+# =============================================================================
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+metadata:
+  name: backtest-platform-base
+resources:
+  - ../namespace.yaml
+  - ../configmap.yaml
+  - ../auth-secret.yaml
+  - ../api-deployment.yaml
+  - ../api-service.yaml
+  - ../api-hpa.yaml
+  - ../api-pdb.yaml
+  - ../frontend-deployment.yaml
+  - ../frontend-service.yaml
+  - ../ingress.yaml
+  - ../engine-go-deployment.yaml
+  - ../engine-go-service.yaml
+  - ../engine-go-hpa.yaml
+  - ../engine-go-pdb.yaml
+  - ../data-fetcher-deployment.yaml
+  - ../data-fetcher-service.yaml
+  - ../data-fetcher-pdb.yaml
+  - ../worker-deployment.yaml
+  - ../worker-pdb.yaml
+  - ../postgres.yaml
+  - ../pgbouncer.yaml
+  - ../redis.yaml
+  - ../otel-collector.yaml
+  - ../canary-deployment.yaml
+  - ../mtls-issuer.yaml
+  - ../unleash-deployment.yaml
+  - ../unleash-secret.yaml.example
+  - ../prometheus-rules.yaml
+  - ../alertmanager-deployment.yaml
+  - ../network-policies/

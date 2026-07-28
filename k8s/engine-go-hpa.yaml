@@ -34,13 +34,13 @@ spec:
           averageUtilization: 70
   behavior:
     scaleUp:
-      stabilizationScaleDownSeconds: 30
+      stabilizationWindowSeconds: 30
       policies:
         - type: Percent
           value: 100
           periodSeconds: 30
     scaleDown:
-      stabilizationScaleDownSeconds: 300
+      stabilizationWindowSeconds: 300
       policies:
         - type: Percent
           value: 50

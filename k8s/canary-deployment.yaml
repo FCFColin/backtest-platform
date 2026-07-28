@@ -43,7 +43,7 @@ spec:
                 name: api-secrets
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /api/ready
               port: 5001
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -74,7 +74,7 @@ spec:
     - match:
         - headers:
             x-canary:
-              exact: "true"
+              exact: 'true'
       route:
         - destination:
             host: api
@@ -92,7 +92,7 @@ spec:
       retries:
         attempts: 3
         perTryTimeout: 10s
-        retryOn: "5xx,reset,connect-refused"
+        retryOn: '5xx,reset,connect-refused'
 ---
 # DestinationRule：定义 stable/canary 子集
 apiVersion: networking.istio.io/v1beta1

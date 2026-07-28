@@ -75,7 +75,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /api/health
+              path: /api/ready
               port: 5001
             initialDelaySeconds: 5
             periodSeconds: 10

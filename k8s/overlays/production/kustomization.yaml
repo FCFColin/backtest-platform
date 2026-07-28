@@ -13,8 +13,7 @@ metadata:
   name: backtest-platform-production
 namespace: backtest-platform
 resources:
-  - ../../base
-  - ../../network-policies
+  - ../../base # 引用 k8s/base/kustomization（避免 cycle：k8s/ 包含 overlays/，已含 network-policies/）
 
 # 生产环境：多副本
 patches:
