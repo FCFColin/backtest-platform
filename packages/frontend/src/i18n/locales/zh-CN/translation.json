@@ -1,21 +1,5 @@
 {
-  "home": {
-    "hero": {
-      "title": "专业级回测平台",
-      "subtitle": "建模、检验、洞察 — 全流程量化投资分析工具",
-      "cta": "开始回测",
-      "secondaryCta": "探索分析工具",
-      "model": "建模",
-      "modelDesc": "构建多资产投资组合，支持再平衡、滑行路径、现金流模拟",
-      "test": "检验",
-      "testDesc": "蒙特卡洛模拟、压力测试、回撤分析，全方位风险评估",
-      "inspect": "洞察",
-      "inspectDesc": "因子回归、有效前沿、PCA 降维，深度理解收益来源",
-      "dataEngineTitle": "数据引擎",
-      "dataEngineDesc": "覆盖全球市场 5000+ 标的，支持自动增量更新与合成标的",
-      "dataEngineCta": "查看数据"
-    }
-  },
+  "home": {},
   "chartBenchmark": {
     "title": "Chart Library Benchmark"
   },
@@ -24,11 +8,134 @@
     "description": "管理您的标的、组合、策略和运行历史。"
   },
   "account": {
-    "title": "Account",
-    "myWorkspace": "My Workspace",
-    "settings": "Account Settings",
-    "upgrade": "Upgrade Plan",
-    "signOut": "Sign Out"
+    "billing": {
+      "adminOnlyNotice": "仅管理员可管理订阅",
+      "checkoutFailed": "结账失败",
+      "current": "当前",
+      "currentOrg": "当前组织",
+      "currentPlanPrefix": "当前方案：",
+      "disabledNotice": "订阅管理未启用",
+      "loginRequiredLink": "登录",
+      "loginRequiredPrefix": "请先",
+      "loginRequiredSuffix": "后管理订阅。",
+      "managePortal": "管理订阅门户",
+      "orgPrefix": "组织：{{name}}",
+      "plans": {
+        "enterprise": {
+          "feature1": "无限制组合与回测",
+          "feature2": "API 访问（REST + WebSocket）",
+          "feature3": "24/7 优先支持",
+          "price": "联系我们"
+        },
+        "pro": {
+          "feature1": "高级回测功能",
+          "feature2": "无限组合数量",
+          "feature3": "10 年历史数据",
+          "price": "$29/月"
+        }
+      },
+      "portalFailed": "订阅门户打开失败",
+      "statusPrefix": "状态：{{status}}",
+      "title": "订阅与账单",
+      "upgradeTo": "升级到 {{name}}"
+    },
+    "localDeployNotice": "您正在使用本地部署版本，所有功能均已开放。",
+    "login": "登录",
+    "myWorkspace": "我的工作区",
+    "preferences": {
+      "currency": "货币单位",
+      "currencyCNY": "人民币 (CNY)",
+      "currencyDesc": "选择回测结果显示的货币单位",
+      "currencyEUR": "欧元 (EUR)",
+      "currencyHKD": "港币 (HKD)",
+      "currencyJPY": "日元 (JPY)",
+      "currencyUSD": "美元 (USD)",
+      "rebalance": "调仓频率",
+      "rebalanceBuyHold": "买入持有",
+      "rebalanceDesc": "设置默认的调仓频率",
+      "rebalanceMonthly": "每月",
+      "rebalanceQuarterly": "每季度",
+      "rebalanceThreshold": "阈值调仓",
+      "rebalanceYearly": "每年",
+      "themeCurrentDark": "当前为深色主题",
+      "themeCurrentLight": "当前为浅色主题",
+      "themeMode": "主题模式",
+      "title": "偏好设置"
+    },
+    "pricing": {
+      "compare": {
+        "10yr": "10 年",
+        "1yr": "1 年",
+        "24hResponse": "24 小时响应",
+        "3portfolios": "3 个组合",
+        "all": "全部",
+        "all16": "全部 16 个",
+        "analysisTabs": "分析标签页",
+        "basic": "基础",
+        "feature": "功能",
+        "historyRange": "历史数据范围",
+        "portfolioCount": "组合数量",
+        "prioritySupport": "优先支持",
+        "unlimited": "无限制"
+      },
+      "comparisonTitle": "方案对比",
+      "features": {
+        "10yrData": "10 年历史数据",
+        "1yrData": "1 年历史数据",
+        "advancedBacktest": "高级回测功能",
+        "all16Tabs": "全部 16 个分析标签页",
+        "allHistoryData": "全部历史数据",
+        "allProFeatures": "包含所有 Pro 功能",
+        "apiAccess": "API 访问",
+        "apiRestWs": "API 访问（REST + WebSocket）",
+        "basicBacktest": "基础回测功能",
+        "basicStats": "基础统计指标",
+        "max3Portfolios": "最多 3 个组合",
+        "monteCarlo": "蒙特卡洛模拟",
+        "optAndFrontier": "组合优化 + 有效前沿",
+        "portfolioOpt": "组合优化",
+        "prioritySupport": "优先支持",
+        "prioritySupport24h": "24/7 优先支持",
+        "unlimitedPortfolios": "无限制组合数量"
+      },
+      "intro": "选择适合您的方案，所有方案均包含核心回测功能。",
+      "noticeBody": "价格为示例展示，本地部署版本无需付费。",
+      "noticeTitle": "提示：",
+      "periodMonth": "/月",
+      "plans": {
+        "free": {
+          "cta": "开始使用",
+          "desc": "适合个人入门使用",
+          "price": "免费"
+        },
+        "pro": {
+          "cta": "升级到 Pro",
+          "desc": "适合专业投资者"
+        },
+        "proPlus": {
+          "cta": "联系我们",
+          "desc": "适合机构与团队"
+        }
+      },
+      "recommended": "推荐",
+      "title": "定价方案"
+    },
+    "role": {
+      "admin": "平台管理员",
+      "local": "本地用户"
+    },
+    "settings": "账户设置",
+    "signOut": "退出登录",
+    "subscription": {
+      "currentPlanSuffix": "当前方案：{{plan}}",
+      "freePlan": "免费版",
+      "localDeploy": "本地部署版本",
+      "title": "订阅信息",
+      "upgrade": "升级方案"
+    },
+    "title": "账户中心",
+    "upgrade": "升级订阅",
+    "userIdLabel": "用户 ID：{{userId}}"
   },
   "portfolioComparison": {
     "title": "组合对比",
@@ -56,10 +163,6 @@
   },
   "nav": {
     "backtest": "回测",
-    "analysis": "分析",
-    "optimize": "优化",
-    "tactical": "战术",
-    "more": "更多",
     "analysisOptimization": "分析优化",
     "tacticalSignal": "战术信号",
     "docs": "文档",
@@ -83,19 +186,11 @@
     "lumpSumDca": "一次投入 vs 定投",
     "portfolioComparison": "组合对比",
     "letfAnalysis": "LETF 分析",
-    "letfSlippage": "LETF滑点",
     "calculators": "计算器",
     "dataEngine": "数据引擎",
     "brandName": "回测平台",
-    "theme": "主题",
-    "about": "关于",
-    "upgrade": "升级",
     "switchToLight": "切换到浅色主题",
     "switchToDark": "切换到深色主题"
-  },
-  "promo": {
-    "syntheticTickers": "新功能：合成标的现已支持回测至 1962 年",
-    "tryNow": "立即体验"
   },
   "ticker": {
     "synthetic": "合成标的",
@@ -109,13 +204,54 @@
       "cta": "查看全部"
     }
   },
+  "promo": {
+    "synthetic": {
+      "message": "合成标的支持回测至 1962 年",
+      "ctaLabel": "立即体验"
+    }
+  },
   "footer": {
-    "help": "帮助",
-    "contact": "联系",
-    "terms": "条款",
-    "privacy": "隐私",
-    "bugReport": "问题反馈",
-    "marketDataUpdated": "市场数据更新"
+    "brandTagline": "面向个人投资者的专业回测平台",
+    "status": {
+      "operational": "系统运行正常",
+      "degraded": "系统降级"
+    },
+    "sections": {
+      "product": "产品",
+      "resources": "资源",
+      "company": "公司",
+      "data": "数据"
+    },
+    "product": {
+      "portfolioBacktest": "组合回测",
+      "monteCarlo": "蒙特卡洛",
+      "optimizer": "优化器",
+      "tactical": "战术分配",
+      "analysis": "分析工具"
+    },
+    "resources": {
+      "docs": "文档",
+      "apiRef": "API 参考",
+      "changelog": "更新日志",
+      "helpCenter": "帮助中心",
+      "feedback": "反馈"
+    },
+    "company": {
+      "about": "关于",
+      "pricing": "定价",
+      "contact": "联系我们",
+      "privacy": "隐私政策",
+      "terms": "服务条款"
+    },
+    "data": {
+      "source": "数据来源",
+      "sourceValue": "yfinance · finnhub · akshare · BaoStock",
+      "updated": "数据更新",
+      "historyDepth": "历史深度",
+      "historyDepthValue": "{{date}} 起",
+      "coverage": "覆盖标的",
+      "coverageValue": "{{count}} 个"
+    }
   },
   "common": {
     "loading": "加载中...",
@@ -147,7 +283,6 @@
     "years": "年",
     "months": "月",
     "percent": "%",
-    "date": "日期",
     "ticker": "标的",
     "latestPrice": "最新价格",
     "signalDate": "信号日期",
@@ -685,7 +820,7 @@
     "addPortfolio": "添加组合",
     "addEmpty": "添加空组合",
     "addPreset": "添加预设",
-    "addAsset": "添加资产",
+    "addAsset": "添加标的",
     "addSaved": "添加已保存",
     "addGlidepath": "添加滑行路径",
     "preset": {
@@ -747,7 +882,6 @@
     "relativeDeviationTitle": "相对偏离百分比，如20表示权重偏离目标20%时触发调仓",
     "evenDistribute": "均匀分配",
     "stretchTo100": "拉伸到100%",
-    "addAsset": "添加标的",
     "tickerPlaceholder": "输入代码",
     "total": "合计",
     "weight": "权重",
@@ -1925,57 +2059,138 @@
             "type": "added",
             "text": "新增 10+ testfol.io 对标工具页面（战术分配、PCA、信号分析等）"
           },
-          { "type": "added", "text": "新增帮助中心、更新日志、定价、账户四个辅助页面" },
-          { "type": "improved", "text": "顶部导航栏重构为分组下拉菜单，新增引擎状态指示器" },
-          { "type": "improved", "text": "组合编辑器支持非对称 Bands、Glidepath、现金流建模" },
-          { "type": "improved", "text": "统计表格支持列头点击排序，图表支持缩放与 CSV 导出" },
-          { "type": "fixed", "text": "修复数据引擎页面无限轮询导致「正在加载数据」卡死的问题" },
-          { "type": "fixed", "text": "修复 Rust 引擎不可用时静默降级缺少提示的问题" }
+          {
+            "type": "added",
+            "text": "新增帮助中心、更新日志、定价、账户四个辅助页面"
+          },
+          {
+            "type": "improved",
+            "text": "顶部导航栏重构为分组下拉菜单，新增引擎状态指示器"
+          },
+          {
+            "type": "improved",
+            "text": "组合编辑器支持非对称 Bands、Glidepath、现金流建模"
+          },
+          {
+            "type": "improved",
+            "text": "统计表格支持列头点击排序，图表支持缩放与 CSV 导出"
+          },
+          {
+            "type": "fixed",
+            "text": "修复数据引擎页面无限轮询导致「正在加载数据」卡死的问题"
+          },
+          {
+            "type": "fixed",
+            "text": "修复 Rust 引擎不可用时静默降级缺少提示的问题"
+          }
         ]
       },
       "v0.9.0": {
         "date": "2026-05-20",
         "highlight": "生产级代码标准",
         "changes": [
-          { "type": "added", "text": "新增安全加固（Helmet、CORS、速率限制）" },
-          { "type": "added", "text": "新增结构化日志（pino）与请求追踪" },
-          { "type": "added", "text": "新增 Docker 容器化部署与 CI 流水线" },
-          { "type": "improved", "text": "全面修复 TypeScript 类型错误，启用严格模式" },
-          { "type": "improved", "text": "API 层增加输入校验与错误处理中间件" },
-          { "type": "fixed", "text": "修复多处内存泄漏与未处理的 Promise 拒绝" }
+          {
+            "type": "added",
+            "text": "新增安全加固（Helmet、CORS、速率限制）"
+          },
+          {
+            "type": "added",
+            "text": "新增结构化日志（pino）与请求追踪"
+          },
+          {
+            "type": "added",
+            "text": "新增 Docker 容器化部署与 CI 流水线"
+          },
+          {
+            "type": "improved",
+            "text": "全面修复 TypeScript 类型错误，启用严格模式"
+          },
+          {
+            "type": "improved",
+            "text": "API 层增加输入校验与错误处理中间件"
+          },
+          {
+            "type": "fixed",
+            "text": "修复多处内存泄漏与未处理的 Promise 拒绝"
+          }
         ]
       },
       "v0.8.0": {
         "date": "2026-04-15",
         "highlight": "多市场数据支持",
         "changes": [
-          { "type": "added", "text": "新增港股、日股、欧股市场数据支持" },
-          { "type": "added", "text": "新增 BaoStock TCP 直连获取 A 股数据" },
-          { "type": "added", "text": "新增 iTick API 实时行情接入" },
-          { "type": "improved", "text": "数据缓存层重构，支持增量更新避免限流" },
-          { "type": "improved", "text": "汇率换算支持 USD/CNY 双货币切换" }
+          {
+            "type": "added",
+            "text": "新增港股、日股、欧股市场数据支持"
+          },
+          {
+            "type": "added",
+            "text": "新增 BaoStock TCP 直连获取 A 股数据"
+          },
+          {
+            "type": "added",
+            "text": "新增 iTick API 实时行情接入"
+          },
+          {
+            "type": "improved",
+            "text": "数据缓存层重构，支持增量更新避免限流"
+          },
+          {
+            "type": "improved",
+            "text": "汇率换算支持 USD/CNY 双货币切换"
+          }
         ]
       },
       "v0.7.0": {
         "date": "2026-03-10",
         "highlight": "Rust 引擎集成",
         "changes": [
-          { "type": "added", "text": "集成 Rust Actix-Web 回测引擎（HTTP 服务模式）" },
-          { "type": "added", "text": "实现三级引擎降级策略（Rust → Node.js → 静态计算）" },
-          { "type": "added", "text": "新增蒙特卡洛模拟与有效前沿分析" },
-          { "type": "improved", "text": "回测性能提升 10 倍，支持 rayon 并行计算" },
-          { "type": "fixed", "text": "修复调仓阈值计算精度问题" }
+          {
+            "type": "added",
+            "text": "集成 Rust Actix-Web 回测引擎（HTTP 服务模式）"
+          },
+          {
+            "type": "added",
+            "text": "实现三级引擎降级策略（Rust → Node.js → 静态计算）"
+          },
+          {
+            "type": "added",
+            "text": "新增蒙特卡洛模拟与有效前沿分析"
+          },
+          {
+            "type": "improved",
+            "text": "回测性能提升 10 倍，支持 rayon 并行计算"
+          },
+          {
+            "type": "fixed",
+            "text": "修复调仓阈值计算精度问题"
+          }
         ]
       },
       "v0.6.0": {
         "date": "2026-02-01",
         "highlight": "核心回测功能",
         "changes": [
-          { "type": "added", "text": "组合回测主页面与 16 个分析 Tab" },
-          { "type": "added", "text": "资产分析、因子回归功能" },
-          { "type": "added", "text": "组合优化器与有效前沿可视化" },
-          { "type": "added", "text": "通胀调整与汇率换算" },
-          { "type": "improved", "text": "UI 对标 testfol.io 设计语言，引入 CSS 变量主题系统" }
+          {
+            "type": "added",
+            "text": "组合回测主页面与 16 个分析 Tab"
+          },
+          {
+            "type": "added",
+            "text": "资产分析、因子回归功能"
+          },
+          {
+            "type": "added",
+            "text": "组合优化器与有效前沿可视化"
+          },
+          {
+            "type": "added",
+            "text": "通胀调整与汇率换算"
+          },
+          {
+            "type": "improved",
+            "text": "UI 对标 testfol.io 设计语言，引入 CSS 变量主题系统"
+          }
         ]
       }
     }
@@ -2040,7 +2255,10 @@
           "fullName": "贝塔系数",
           "desc": "组合相对基准指数的系统性风险暴露。β=1 表示与基准同幅波动，β>1 更激进。"
         },
-        "alpha": { "fullName": "阿尔法", "desc": "扣除系统性风险后的超额收益，衡量主动管理能力。" }
+        "alpha": {
+          "fullName": "阿尔法",
+          "desc": "扣除系统性风险后的超额收益，衡量主动管理能力。"
+        }
       }
     },
     "data": {
@@ -2109,144 +2327,6 @@
     "en": "EN",
     "switchLang": "切换语言",
     "switchCurrency": "切换货币"
-  },
-  "account": {
-    "billing": {
-      "adminOnlyNotice": "仅管理员可管理订阅",
-      "checkoutFailed": "结账失败",
-      "current": "当前",
-      "currentOrg": "当前组织",
-      "currentPlanPrefix": "当前方案：",
-      "disabledNotice": "订阅管理未启用",
-      "loginRequiredLink": "登录",
-      "loginRequiredPrefix": "请先",
-      "loginRequiredSuffix": "后管理订阅。",
-      "managePortal": "管理订阅门户",
-      "orgPrefix": "组织：{{name}}",
-      "plans": {
-        "enterprise": {
-          "feature1": "无限制组合与回测",
-          "feature2": "API 访问（REST + WebSocket）",
-          "feature3": "24/7 优先支持",
-          "price": "联系我们"
-        },
-        "pro": {
-          "feature1": "高级回测功能",
-          "feature2": "无限组合数量",
-          "feature3": "10 年历史数据",
-          "price": "$29/月"
-        }
-      },
-      "portalFailed": "订阅门户打开失败",
-      "statusPrefix": "状态：{{status}}",
-      "title": "订阅与账单",
-      "upgradeTo": "升级到 {{name}}"
-    },
-    "dataStats": {
-      "backtests": "回测次数",
-      "cachedTickers": "已缓存标的",
-      "lastUpdate": "最近更新",
-      "savedPortfolios": "已保存组合",
-      "title": "数据统计",
-      "today": "今天"
-    },
-    "localDeployNotice": "您正在使用本地部署版本，所有功能均已开放。",
-    "login": "登录",
-    "myWorkspace": "我的工作区",
-    "preferences": {
-      "currency": "货币单位",
-      "currencyCNY": "人民币 (CNY)",
-      "currencyDesc": "选择回测结果显示的货币单位",
-      "currencyEUR": "欧元 (EUR)",
-      "currencyHKD": "港币 (HKD)",
-      "currencyJPY": "日元 (JPY)",
-      "currencyUSD": "美元 (USD)",
-      "rebalance": "调仓频率",
-      "rebalanceBuyHold": "买入持有",
-      "rebalanceDesc": "设置默认的调仓频率",
-      "rebalanceMonthly": "每月",
-      "rebalanceQuarterly": "每季度",
-      "rebalanceThreshold": "阈值调仓",
-      "rebalanceYearly": "每年",
-      "themeCurrentDark": "当前为深色主题",
-      "themeCurrentLight": "当前为浅色主题",
-      "themeMode": "主题模式",
-      "title": "偏好设置"
-    },
-    "pricing": {
-      "compare": {
-        "10yr": "10 年",
-        "1yr": "1 年",
-        "24hResponse": "24 小时响应",
-        "3portfolios": "3 个组合",
-        "all": "全部",
-        "all16": "全部 16 个",
-        "analysisTabs": "分析标签页",
-        "basic": "基础",
-        "feature": "功能",
-        "historyRange": "历史数据范围",
-        "portfolioCount": "组合数量",
-        "prioritySupport": "优先支持",
-        "unlimited": "无限制"
-      },
-      "comparisonTitle": "方案对比",
-      "features": {
-        "10yrData": "10 年历史数据",
-        "1yrData": "1 年历史数据",
-        "advancedBacktest": "高级回测功能",
-        "all16Tabs": "全部 16 个分析标签页",
-        "allHistoryData": "全部历史数据",
-        "allProFeatures": "包含所有 Pro 功能",
-        "apiAccess": "API 访问",
-        "apiRestWs": "API 访问（REST + WebSocket）",
-        "basicBacktest": "基础回测功能",
-        "basicStats": "基础统计指标",
-        "max3Portfolios": "最多 3 个组合",
-        "monteCarlo": "蒙特卡洛模拟",
-        "optAndFrontier": "组合优化 + 有效前沿",
-        "portfolioOpt": "组合优化",
-        "prioritySupport": "优先支持",
-        "prioritySupport24h": "24/7 优先支持",
-        "unlimitedPortfolios": "无限制组合数量"
-      },
-      "intro": "选择适合您的方案，所有方案均包含核心回测功能。",
-      "noticeBody": "价格为示例展示，本地部署版本无需付费。",
-      "noticeTitle": "提示：",
-      "periodMonth": "/月",
-      "plans": {
-        "free": {
-          "cta": "开始使用",
-          "desc": "适合个人入门使用",
-          "price": "免费"
-        },
-        "pro": {
-          "cta": "升级到 Pro",
-          "desc": "适合专业投资者"
-        },
-        "proPlus": {
-          "cta": "联系我们",
-          "desc": "适合机构与团队"
-        }
-      },
-      "recommended": "推荐",
-      "title": "定价方案"
-    },
-    "role": {
-      "admin": "平台管理员",
-      "local": "本地用户"
-    },
-    "settings": "账户设置",
-    "signOut": "退出登录",
-    "subscription": {
-      "currentPlanSuffix": "当前方案：{{plan}}",
-      "freePlan": "免费版",
-      "localDeploy": "本地部署版本",
-      "title": "订阅信息",
-      "upgrade": "升级方案"
-    },
-    "title": "账户中心",
-    "upgrade": "升级订阅",
-    "userIdLabel": "用户 ID：{{userId}}"
   },
   "adminLayout": {
     "adminConsole": "管理控制台",

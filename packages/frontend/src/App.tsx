@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -15,6 +16,7 @@ import { AdminRoutes } from '@/routes/AdminRoutes';
 
 function AppLayout() {
   const location = useLocation();
+  const { t } = useTranslation();
   const isAdmin = location.pathname.startsWith('/admin');
   const initAuth = useAuthStore((s) => s.init);
   const isAuthenticated = useAuthStore((s) => s.user !== null);
@@ -32,15 +34,15 @@ function AppLayout() {
       {!isAdmin && (
         <PromoBar
           id="synthetic-tickers-2026"
-          message="合成标的支持回测至 1962 年"
-          ctaLabel="立即体验"
-          ctaLink="/backtest"
+          message={t('promo.synthetic.message')}
+          ctaLabel={t('promo.synthetic.ctaLabel')}
+          ctaLink="/"
           variant="info"
         />
       )}
       {!isAdmin && <Navbar />}
       <Toast />
-      <main style={{ paddingTop: isAdmin ? 0 : 80, minHeight: '60vh' }}>
+      <main style={{ paddingTop: isAdmin ? 0 : 80, flex: '1 0 auto' }}>
         <ToolRoutes />
         <PublicRoutes />
         <AuthRoutes />

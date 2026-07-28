@@ -5,7 +5,7 @@
  *   集成位置：App.tsx 或 MainLayout.tsx 的 Navbar 上方。
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { X, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -52,18 +52,23 @@ export function PromoBar({
   variant = 'info',
   dismissible = true,
 }: PromoBarProps) {
-  const [dismissed, setDismissed] = useState(false);
   const storageKey = `promo-dismissed-${id}`;
-
-  useEffect(() => {
-    if (localStorage.getItem(storageKey) === '1') {
-      setDismissed(true);
+  // 同步读取 dismiss 状态作为初始值，避免先渲染再消失导致的 CLS
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(storageKey) === '1';
+    } catch {
+      return false;
     }
-  }, [storageKey]);
+  });
 
   const handleDismiss = () => {
     setDismissed(true);
-    localStorage.setItem(storageKey, '1');
+    try {
+      localStorage.setItem(storageKey, '1');
+    } catch {
+      // localStorage 不可用时静默忽略
+    }
   };
 
   if (dismissed) return null;

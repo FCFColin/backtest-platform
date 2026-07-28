@@ -64,6 +64,136 @@ function NavGroupsContainer({
 }
 
 /**
+ * 移动端汉堡菜单：Sheet 折叠导航分组 + 直达链接。
+ * @param props - mobileOpen/setMobileOpen/openGroup/isActive/setOpenGroup。
+ * @returns 移动端导航 Sheet 元素。
+ */
+function NavbarMobileMenu({
+  mobileOpen,
+  setMobileOpen,
+  openGroup,
+  isActive,
+  setOpenGroup,
+}: {
+  mobileOpen: boolean;
+  setMobileOpen: (v: boolean) => void;
+  openGroup: string;
+  isActive: (to: string) => boolean;
+  setOpenGroup: (v: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+      <SheetTrigger asChild>
+        <Button variant="icon" size="icon" className="md:hidden" aria-label="Menu">
+          <Menu />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-72 p-4">
+        <SheetTitle className="text-h2 text-fg">{t('nav.brandName')}</SheetTitle>
+        <NavGroupsContainer
+          openGroup={openGroup}
+          isActive={isActive}
+          onToggle={setOpenGroup}
+          t={t}
+          className="mt-6 flex-col items-stretch gap-1"
+        />
+        <div className="mt-4 flex flex-col gap-1">
+          {DIRECT_LINKS.map((link) => (
+            <Link key={link.to} to={link.to} className={navLinkClass} data-testid="nav-direct">
+              {t(`nav.${link.key}`)}
+            </Link>
+          ))}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/**
+ * 右侧工具区：语言切换 / 主题切换 / 货币切换 / 通知 / 认证。
+ * @returns 工具区按钮组元素。
+ */
+function NavbarActions() {
+  const { t, i18n } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
+  const baseCurrency = useBacktestStore(useShallow((s) => s.parameters.baseCurrency));
+  const updateParameter = useBacktestStore((s) => s.updateParameter);
+
+  const toggleCurrency = () => {
+    updateParameter('baseCurrency', baseCurrency === 'usd' ? 'cny' : 'usd');
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      {/* 语言切换 */}
+      <Button
+        variant="icon"
+        size="sm"
+        onClick={() =>
+          startTransition(
+            () => void i18n.changeLanguage(i18n.language === 'zh-CN' ? 'en' : 'zh-CN'),
+          )
+        }
+        title={t('lang.switchLang')}
+        aria-label={t('lang.switchLang')}
+        className="gap-1 px-2"
+        data-testid="language-selector"
+      >
+        <Languages className="size-4" />
+        <span className="text-caption">{i18n.language === 'zh-CN' ? 'ZH' : 'EN'}</span>
+      </Button>
+
+      {/* 主题切换 */}
+      <Button
+        variant="icon"
+        size="icon"
+        onClick={toggleTheme}
+        title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+        aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
+        data-testid="theme-toggle"
+      >
+        {theme === 'dark' ? <Sun /> : <MoonStar />}
+      </Button>
+
+      {/* 货币切换 */}
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={toggleCurrency}
+        title={t('lang.switchCurrency')}
+        aria-label={t('lang.switchCurrency')}
+        data-testid="currency-selector"
+      >
+        {baseCurrency === 'usd' ? 'USD' : 'CNY'}
+        <ChevronDown className="size-3" />
+      </Button>
+
+      {/* 分隔线 */}
+      <div className="w-px h-6 bg-border mx-1" />
+
+      {/* 通知铃铛 */}
+      <NotificationBell />
+
+      {/* 分隔线 */}
+      <div className="w-px h-6 bg-border mx-1" />
+
+      {/* 认证区 */}
+      <Link to="/login">
+        <Button variant="ghost" size="sm">
+          {t('auth.login.submit')}
+        </Button>
+      </Link>
+      <Link to="/signup">
+        <Button variant="secondary" size="sm">
+          {t('auth.signup.submit')}
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
+/**
  * 顶部导航栏组件（sticky 定位）。
  * @returns 固定在视口顶部的导航栏元素。
  */
@@ -71,10 +201,7 @@ export default function Navbar() {
   const location = useLocation();
   const [openGroup, setOpenGroup] = useState<string>('');
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, toggleTheme } = useTheme();
-  const { t, i18n } = useTranslation();
-  const baseCurrency = useBacktestStore(useShallow((s) => s.parameters.baseCurrency));
-  const updateParameter = useBacktestStore((s) => s.updateParameter);
+  const { t } = useTranslation();
 
   useEffect(() => {
     setMobileOpen(false);
@@ -83,38 +210,17 @@ export default function Navbar() {
 
   const isActive = (to: string) => location.pathname === to;
 
-  const toggleCurrency = () => {
-    updateParameter('baseCurrency', baseCurrency === 'usd' ? 'cny' : 'usd');
-  };
-
   return (
     <nav className="sticky top-0 z-50 h-15 border-b border-border-subtle bg-app/95 backdrop-blur-md">
       <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
         {/* 移动端汉堡菜单 */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <Button variant="icon" size="icon" className="md:hidden" aria-label="Menu">
-              <Menu />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-72 p-4">
-            <SheetTitle className="text-h2 text-fg">{t('nav.brandName')}</SheetTitle>
-            <NavGroupsContainer
-              openGroup={openGroup}
-              isActive={isActive}
-              onToggle={setOpenGroup}
-              t={t}
-              className="mt-6 flex-col items-stretch gap-1"
-            />
-            <div className="mt-4 flex flex-col gap-1">
-              {DIRECT_LINKS.map((link) => (
-                <Link key={link.to} to={link.to} className={navLinkClass} data-testid="nav-direct">
-                  {t(`nav.${link.key}`)}
-                </Link>
-              ))}
-            </div>
-          </SheetContent>
-        </Sheet>
+        <NavbarMobileMenu
+          mobileOpen={mobileOpen}
+          setMobileOpen={setMobileOpen}
+          openGroup={openGroup}
+          isActive={isActive}
+          setOpenGroup={setOpenGroup}
+        />
 
         {/* 左侧品牌区 */}
         <div className="flex items-center gap-3">
@@ -150,69 +256,7 @@ export default function Navbar() {
         <div className="hidden md:block w-px h-6 bg-border" />
 
         {/* 右侧工具区 */}
-        <div className="flex items-center gap-1">
-          {/* 语言切换 */}
-          <Button
-            variant="icon"
-            size="sm"
-            onClick={() =>
-              startTransition(() => void i18n.changeLanguage(i18n.language === 'zh-CN' ? 'en' : 'zh-CN'))
-            }
-            title={t('lang.switchLang')}
-            aria-label={t('lang.switchLang')}
-            className="gap-1 px-2"
-            data-testid="language-selector"
-          >
-            <Languages className="size-4" />
-            <span className="text-caption">{i18n.language === 'zh-CN' ? 'ZH' : 'EN'}</span>
-          </Button>
-
-          {/* 主题切换 */}
-          <Button
-            variant="icon"
-            size="icon"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
-            aria-label={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
-            data-testid="theme-toggle"
-          >
-            {theme === 'dark' ? <Sun /> : <MoonStar />}
-          </Button>
-
-          {/* 货币切换 */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={toggleCurrency}
-            title={t('lang.switchCurrency')}
-            aria-label={t('lang.switchCurrency')}
-            data-testid="currency-selector"
-          >
-            {baseCurrency === 'usd' ? 'USD' : 'CNY'}
-            <ChevronDown className="size-3" />
-          </Button>
-
-          {/* 分隔线 */}
-          <div className="w-px h-6 bg-border mx-1" />
-
-          {/* 通知铃铛 */}
-          <NotificationBell />
-
-          {/* 分隔线 */}
-          <div className="w-px h-6 bg-border mx-1" />
-
-          {/* 认证区 */}
-          <Link to="/auth/login">
-            <Button variant="ghost" size="sm">
-              {t('auth.login.submit')}
-            </Button>
-          </Link>
-          <Link to="/auth/signup">
-            <Button variant="secondary" size="sm">
-              {t('auth.signup.submit')}
-            </Button>
-          </Link>
-        </div>
+        <NavbarActions />
       </div>
     </nav>
   );

@@ -17,9 +17,17 @@ import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import type { Portfolio, PortfolioResult } from '@backtest/shared';
 
-const GrowthChartV2 = lazy(() => import('@/components/charts/GrowthChartV2').then((m) => ({ default: m.GrowthChartV2 })));
-const DrawdownChartV2 = lazy(() => import('@/components/charts/DrawdownChartV2').then((m) => ({ default: m.DrawdownChartV2 })));
-const DrawdownEpisodesV2 = lazy(() => import('@/components/results/DrawdownEpisodesV2').then((m) => ({ default: m.DrawdownEpisodesV2 })));
+const GrowthChartV2 = lazy(() =>
+  import('@/components/charts/GrowthChartV2').then((m) => ({ default: m.GrowthChartV2 })),
+);
+const DrawdownChartV2 = lazy(() =>
+  import('@/components/charts/DrawdownChartV2').then((m) => ({ default: m.DrawdownChartV2 })),
+);
+const DrawdownEpisodesV2 = lazy(() =>
+  import('@/components/results/DrawdownEpisodesV2').then((m) => ({
+    default: m.DrawdownEpisodesV2,
+  })),
+);
 const ReturnsTabDailyChart = lazy(() => import('@/components/charts/ReturnsTabDailyChart'));
 const TelltaleChart = lazy(() => import('@/components/charts/TelltaleChart'));
 const RiskReturnScatter = lazy(() => import('@/components/charts/RiskReturnScatter'));
@@ -158,21 +166,56 @@ type TabCtx = {
 const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
   summary: ({ pf }) => (
     <>
-      <GrowthChartV2 portfolios={pf.map((p) => ({ id: p.name, name: p.name, growthCurve: p.growthCurve ?? [] }))} />
-      <DrawdownChartV2 portfolios={pf.map((p) => ({ id: p.name, name: p.name, drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({ date: pt.date, value: pt.drawdown })) }))} />
-      <StatisticsTableV2
-        portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))}
-        colors={pf.map((_, i) => getPortfolioColor(i))}
-        extendedTable={<ExtendedMetricsTable portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))} />}
+      <GrowthChartV2
+        portfolios={pf.map((p) => ({ id: p.name, name: p.name, growthCurve: p.growthCurve ?? [] }))}
       />
-      <DrawdownEpisodesV2 episodes={(pf[0]?.drawdownEpisodes ?? []) as any} />
+      <DrawdownChartV2
+        portfolios={pf.map((p) => ({
+          id: p.name,
+          name: p.name,
+          drawdownCurve: (p.drawdownCurve ?? []).map((pt) => ({
+            date: pt.date,
+            drawdown: pt.drawdown,
+          })),
+        }))}
+      />
+      <StatisticsTableV2
+        portfolios={pf.map((p) => ({
+          id: p.name,
+          name: p.name,
+          stats: p.statistics as unknown as Record<string, number>,
+        }))}
+        colors={pf.map((_, i) => getPortfolioColor(i))}
+        extendedTable={
+          <ExtendedMetricsTable
+            portfolios={pf.map((p) => ({
+              id: p.name,
+              name: p.name,
+              stats: p.statistics as unknown as Record<string, number>,
+            }))}
+          />
+        }
+      />
+      <DrawdownEpisodesV2 episodes={pf[0]?.drawdownEpisodes ?? []} />
     </>
   ),
   metrics: ({ pf }) => (
     <StatisticsTableV2
-      portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))}
+      portfolios={pf.map((p) => ({
+        id: p.name,
+        name: p.name,
+        stats: p.statistics as unknown as Record<string, number>,
+      }))}
       colors={pf.map((_, i) => getPortfolioColor(i))}
-      extendedTable={<ExtendedMetricsTable portfolios={pf.map((p) => ({ id: p.name, name: p.name, stats: p.statistics as unknown as Record<string, number> }))} />}
+      extendedTable={
+        <ExtendedMetricsTable
+          portfolios={pf.map((p) => ({
+            id: p.name,
+            name: p.name,
+            stats: p.statistics as unknown as Record<string, number>,
+          }))}
+        />
+      }
     />
   ),
   myMetrics: ({ pf }) => <CustomMetricsTable portfolios={pf} />,
@@ -297,12 +340,19 @@ export function ResultsContent() {
       <ResultsActionBar
         timeRange={{
           start: results.portfolios[0]?.growthCurve?.[0]?.date ?? '—',
-          end: results.portfolios[0]?.growthCurve?.[results.portfolios[0].growthCurve.length - 1]?.date ?? '—',
+          end:
+            results.portfolios[0]?.growthCurve?.[results.portfolios[0].growthCurve.length - 1]
+              ?.date ?? '—',
           years: (() => {
             const first = results.portfolios[0]?.growthCurve?.[0]?.date;
-            const last = results.portfolios[0]?.growthCurve?.[results.portfolios[0].growthCurve.length - 1]?.date;
+            const last =
+              results.portfolios[0]?.growthCurve?.[results.portfolios[0].growthCurve.length - 1]
+                ?.date;
             if (!first || !last) return 0;
-            return (new Date(last).getTime() - new Date(first).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+            return (
+              (new Date(last).getTime() - new Date(first).getTime()) /
+              (365.25 * 24 * 60 * 60 * 1000)
+            );
           })(),
         }}
         onExport={() => handleExportCSV()}

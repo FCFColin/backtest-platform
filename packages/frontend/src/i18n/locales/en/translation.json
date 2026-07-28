@@ -1,21 +1,5 @@
 {
-  "home": {
-    "hero": {
-      "title": "Professional Backtesting Platform",
-      "subtitle": "Model, Test, Inspect — Full-stack quantitative investment analysis",
-      "cta": "Start Backtesting",
-      "secondaryCta": "Explore Analysis Tools",
-      "model": "Model",
-      "modelDesc": "Build multi-asset portfolios with rebalancing, glide paths, and cashflow simulation",
-      "test": "Test",
-      "testDesc": "Monte Carlo simulation, stress testing, drawdown analysis for comprehensive risk assessment",
-      "inspect": "Inspect",
-      "inspectDesc": "Factor regression, efficient frontier, PCA for deep understanding of return drivers",
-      "dataEngineTitle": "Data Engine",
-      "dataEngineDesc": "5000+ tickers across global markets with auto incremental updates and synthetic tickers",
-      "dataEngineCta": "View Data"
-    }
-  },
+  "home": {},
   "chartBenchmark": {
     "title": "Chart Library Benchmark"
   },
@@ -24,11 +8,134 @@
     "description": "Manage your tickers, portfolios, strategies and run history."
   },
   "account": {
-    "title": "Account",
+    "billing": {
+      "adminOnlyNotice": "Only administrators can manage subscriptions",
+      "checkoutFailed": "Checkout failed",
+      "current": "Current",
+      "currentOrg": "Current Organization",
+      "currentPlanPrefix": "Current plan:",
+      "disabledNotice": "Subscription management is not enabled",
+      "loginRequiredLink": "Log in",
+      "loginRequiredPrefix": "Please",
+      "loginRequiredSuffix": "to manage your subscription.",
+      "managePortal": "Manage Subscription Portal",
+      "orgPrefix": "Organization: {{name}}",
+      "plans": {
+        "enterprise": {
+          "feature1": "Unlimited portfolios and backtests",
+          "feature2": "API access (REST + WebSocket)",
+          "feature3": "24/7 priority support",
+          "price": "Contact Us"
+        },
+        "pro": {
+          "feature1": "Advanced backtest features",
+          "feature2": "Unlimited portfolios",
+          "feature3": "10 years of historical data",
+          "price": "$29/mo"
+        }
+      },
+      "portalFailed": "Failed to open subscription portal",
+      "statusPrefix": "Status: {{status}}",
+      "title": "Subscription & Billing",
+      "upgradeTo": "Upgrade to {{name}}"
+    },
+    "localDeployNotice": "You are using the self-hosted version; all features are available.",
+    "login": "Log In",
     "myWorkspace": "My Workspace",
+    "preferences": {
+      "currency": "Currency",
+      "currencyCNY": "Chinese Yuan (CNY)",
+      "currencyDesc": "Select the currency displayed in backtest results",
+      "currencyEUR": "Euro (EUR)",
+      "currencyHKD": "Hong Kong Dollar (HKD)",
+      "currencyJPY": "Japanese Yen (JPY)",
+      "currencyUSD": "US Dollar (USD)",
+      "rebalance": "Rebalance Frequency",
+      "rebalanceBuyHold": "Buy and Hold",
+      "rebalanceDesc": "Set the default rebalance frequency",
+      "rebalanceMonthly": "Monthly",
+      "rebalanceQuarterly": "Quarterly",
+      "rebalanceThreshold": "Threshold",
+      "rebalanceYearly": "Annually",
+      "themeCurrentDark": "Currently dark theme",
+      "themeCurrentLight": "Currently light theme",
+      "themeMode": "Theme Mode",
+      "title": "Preferences"
+    },
+    "pricing": {
+      "compare": {
+        "10yr": "10 years",
+        "1yr": "1 year",
+        "24hResponse": "24h response",
+        "3portfolios": "3 portfolios",
+        "all": "All",
+        "all16": "All 16",
+        "analysisTabs": "Analysis tabs",
+        "basic": "Basic",
+        "feature": "Feature",
+        "historyRange": "History range",
+        "portfolioCount": "Portfolio count",
+        "prioritySupport": "Priority support",
+        "unlimited": "Unlimited"
+      },
+      "comparisonTitle": "Plan Comparison",
+      "features": {
+        "10yrData": "10 years of historical data",
+        "1yrData": "1 year of historical data",
+        "advancedBacktest": "Advanced backtest features",
+        "all16Tabs": "All 16 analysis tabs",
+        "allHistoryData": "All historical data",
+        "allProFeatures": "All Pro features included",
+        "apiAccess": "API access",
+        "apiRestWs": "API access (REST + WebSocket)",
+        "basicBacktest": "Basic backtest features",
+        "basicStats": "Basic statistics",
+        "max3Portfolios": "Up to 3 portfolios",
+        "monteCarlo": "Monte Carlo simulation",
+        "optAndFrontier": "Portfolio optimization + efficient frontier",
+        "portfolioOpt": "Portfolio optimization",
+        "prioritySupport": "Priority support",
+        "prioritySupport24h": "24/7 priority support",
+        "unlimitedPortfolios": "Unlimited portfolios"
+      },
+      "intro": "Choose the plan that suits you. All plans include core backtest features.",
+      "noticeBody": "Prices are for display only; the self-hosted version requires no payment.",
+      "noticeTitle": "Notice:",
+      "periodMonth": "/mo",
+      "plans": {
+        "free": {
+          "cta": "Get Started",
+          "desc": "For personal beginners",
+          "price": "Free"
+        },
+        "pro": {
+          "cta": "Upgrade to Pro",
+          "desc": "For professional investors"
+        },
+        "proPlus": {
+          "cta": "Contact Us",
+          "desc": "For institutions and teams"
+        }
+      },
+      "recommended": "Recommended",
+      "title": "Pricing Plans"
+    },
+    "role": {
+      "admin": "Platform Administrator",
+      "local": "Local User"
+    },
     "settings": "Account Settings",
+    "signOut": "Sign Out",
+    "subscription": {
+      "currentPlanSuffix": "Current plan: {{plan}}",
+      "freePlan": "Free Plan",
+      "localDeploy": "Self-hosted Version",
+      "title": "Subscription Information",
+      "upgrade": "Upgrade Plan"
+    },
+    "title": "Account Center",
     "upgrade": "Upgrade Plan",
-    "signOut": "Sign Out"
+    "userIdLabel": "User ID: {{userId}}"
   },
   "portfolioComparison": {
     "title": "Portfolio Comparison",
@@ -56,10 +163,6 @@
   },
   "nav": {
     "backtest": "Backtest",
-    "analysis": "Analysis",
-    "optimize": "Optimize",
-    "tactical": "Tactical",
-    "more": "More",
     "analysisOptimization": "Analysis & Optimize",
     "tacticalSignal": "Tactical & Signal",
     "docs": "Docs",
@@ -83,19 +186,11 @@
     "lumpSumDca": "Lump Sum vs DCA",
     "portfolioComparison": "Portfolio Comparison",
     "letfAnalysis": "LETF Analysis",
-    "letfSlippage": "LETF Slippage",
     "calculators": "Calculators",
     "dataEngine": "Data Engine",
     "brandName": "Backtest Platform",
-    "theme": "Theme",
-    "about": "About",
-    "upgrade": "Upgrade",
     "switchToLight": "Switch to light theme",
     "switchToDark": "Switch to dark theme"
-  },
-  "promo": {
-    "syntheticTickers": "New: Synthetic tickers now support backtesting back to 1962",
-    "tryNow": "Try Now"
   },
   "ticker": {
     "synthetic": "Synthetic",
@@ -109,13 +204,54 @@
       "cta": "View all"
     }
   },
+  "promo": {
+    "synthetic": {
+      "message": "Synthetic tickers support backtesting back to 1962",
+      "ctaLabel": "Try now"
+    }
+  },
   "footer": {
-    "help": "Help",
-    "contact": "Contact",
-    "terms": "Terms",
-    "privacy": "Privacy",
-    "bugReport": "Bug Report",
-    "marketDataUpdated": "Market data updated"
+    "brandTagline": "Professional backtesting platform for individual investors",
+    "status": {
+      "operational": "All systems operational",
+      "degraded": "System degraded"
+    },
+    "sections": {
+      "product": "Product",
+      "resources": "Resources",
+      "company": "Company",
+      "data": "Data"
+    },
+    "product": {
+      "portfolioBacktest": "Portfolio Backtest",
+      "monteCarlo": "Monte Carlo",
+      "optimizer": "Optimizer",
+      "tactical": "Tactical Allocation",
+      "analysis": "Analysis Tools"
+    },
+    "resources": {
+      "docs": "Documentation",
+      "apiRef": "API Reference",
+      "changelog": "Changelog",
+      "helpCenter": "Help Center",
+      "feedback": "Feedback"
+    },
+    "company": {
+      "about": "About",
+      "pricing": "Pricing",
+      "contact": "Contact Us",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    },
+    "data": {
+      "source": "Data Source",
+      "sourceValue": "yfinance · finnhub · akshare · BaoStock",
+      "updated": "Data Updated",
+      "historyDepth": "History Depth",
+      "historyDepthValue": "from {{date}}",
+      "coverage": "Tickers Covered",
+      "coverageValue": "{{count}}"
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -147,7 +283,6 @@
     "years": "years",
     "months": "months",
     "percent": "%",
-    "date": "Date",
     "ticker": "Ticker",
     "latestPrice": "Latest Price",
     "signalDate": "Signal Date",
@@ -747,7 +882,6 @@
     "relativeDeviationTitle": "Relative deviation percentage, e.g. 20 means rebalance triggered when weight deviates 20% from target",
     "evenDistribute": "Even Distribution",
     "stretchTo100": "Stretch to 100%",
-    "addAsset": "Add Asset",
     "tickerPlaceholder": "Enter ticker",
     "total": "Total",
     "weight": "Weight",
@@ -1945,16 +2079,28 @@
             "type": "fixed",
             "text": "Fixed infinite polling on data engine page causing \"loading data\" hang"
           },
-          { "type": "fixed", "text": "Fixed missing prompt when Rust engine silently degraded" }
+          {
+            "type": "fixed",
+            "text": "Fixed missing prompt when Rust engine silently degraded"
+          }
         ]
       },
       "v0.9.0": {
         "date": "2026-05-20",
         "highlight": "Production-Grade Code Standards",
         "changes": [
-          { "type": "added", "text": "Added security hardening (Helmet, CORS, rate limiting)" },
-          { "type": "added", "text": "Added structured logging (pino) and request tracing" },
-          { "type": "added", "text": "Added Docker containerized deployment and CI pipeline" },
+          {
+            "type": "added",
+            "text": "Added security hardening (Helmet, CORS, rate limiting)"
+          },
+          {
+            "type": "added",
+            "text": "Added structured logging (pino) and request tracing"
+          },
+          {
+            "type": "added",
+            "text": "Added Docker containerized deployment and CI pipeline"
+          },
           {
             "type": "improved",
             "text": "Comprehensively fixed TypeScript type errors; enabled strict mode"
@@ -1973,9 +2119,18 @@
         "date": "2026-04-15",
         "highlight": "Multi-Market Data Support",
         "changes": [
-          { "type": "added", "text": "Added HK, Japan, and Europe market data support" },
-          { "type": "added", "text": "Added BaoStock TCP direct connection for China A-shares" },
-          { "type": "added", "text": "Added iTick API real-time quotes integration" },
+          {
+            "type": "added",
+            "text": "Added HK, Japan, and Europe market data support"
+          },
+          {
+            "type": "added",
+            "text": "Added BaoStock TCP direct connection for China A-shares"
+          },
+          {
+            "type": "added",
+            "text": "Added iTick API real-time quotes integration"
+          },
           {
             "type": "improved",
             "text": "Refactored data cache layer to support incremental updates and avoid rate limits"
@@ -2006,17 +2161,32 @@
             "type": "improved",
             "text": "Backtest performance improved 10x; supports rayon parallel computation"
           },
-          { "type": "fixed", "text": "Fixed rebalance threshold calculation precision issue" }
+          {
+            "type": "fixed",
+            "text": "Fixed rebalance threshold calculation precision issue"
+          }
         ]
       },
       "v0.6.0": {
         "date": "2026-02-01",
         "highlight": "Core Backtest Features",
         "changes": [
-          { "type": "added", "text": "Portfolio backtest main page with 16 analysis tabs" },
-          { "type": "added", "text": "Asset analysis and factor regression features" },
-          { "type": "added", "text": "Portfolio optimizer and efficient frontier visualization" },
-          { "type": "added", "text": "Inflation adjustment and FX conversion" },
+          {
+            "type": "added",
+            "text": "Portfolio backtest main page with 16 analysis tabs"
+          },
+          {
+            "type": "added",
+            "text": "Asset analysis and factor regression features"
+          },
+          {
+            "type": "added",
+            "text": "Portfolio optimizer and efficient frontier visualization"
+          },
+          {
+            "type": "added",
+            "text": "Inflation adjustment and FX conversion"
+          },
           {
             "type": "improved",
             "text": "UI aligned with testfol.io design language; introduced CSS variable theme system"
@@ -2157,144 +2327,6 @@
     "en": "EN",
     "switchLang": "Switch Language",
     "switchCurrency": "Switch currency"
-  },
-  "account": {
-    "billing": {
-      "adminOnlyNotice": "Only administrators can manage subscriptions",
-      "checkoutFailed": "Checkout failed",
-      "current": "Current",
-      "currentOrg": "Current Organization",
-      "currentPlanPrefix": "Current plan:",
-      "disabledNotice": "Subscription management is not enabled",
-      "loginRequiredLink": "Log in",
-      "loginRequiredPrefix": "Please",
-      "loginRequiredSuffix": "to manage your subscription.",
-      "managePortal": "Manage Subscription Portal",
-      "orgPrefix": "Organization: {{name}}",
-      "plans": {
-        "enterprise": {
-          "feature1": "Unlimited portfolios and backtests",
-          "feature2": "API access (REST + WebSocket)",
-          "feature3": "24/7 priority support",
-          "price": "Contact Us"
-        },
-        "pro": {
-          "feature1": "Advanced backtest features",
-          "feature2": "Unlimited portfolios",
-          "feature3": "10 years of historical data",
-          "price": "$29/mo"
-        }
-      },
-      "portalFailed": "Failed to open subscription portal",
-      "statusPrefix": "Status: {{status}}",
-      "title": "Subscription & Billing",
-      "upgradeTo": "Upgrade to {{name}}"
-    },
-    "dataStats": {
-      "backtests": "Backtests",
-      "cachedTickers": "Cached Tickers",
-      "lastUpdate": "Last Update",
-      "savedPortfolios": "Saved Portfolios",
-      "title": "Data Statistics",
-      "today": "Today"
-    },
-    "localDeployNotice": "You are using the self-hosted version; all features are available.",
-    "login": "Log In",
-    "myWorkspace": "My Workspace",
-    "preferences": {
-      "currency": "Currency",
-      "currencyCNY": "Chinese Yuan (CNY)",
-      "currencyDesc": "Select the currency displayed in backtest results",
-      "currencyEUR": "Euro (EUR)",
-      "currencyHKD": "Hong Kong Dollar (HKD)",
-      "currencyJPY": "Japanese Yen (JPY)",
-      "currencyUSD": "US Dollar (USD)",
-      "rebalance": "Rebalance Frequency",
-      "rebalanceBuyHold": "Buy and Hold",
-      "rebalanceDesc": "Set the default rebalance frequency",
-      "rebalanceMonthly": "Monthly",
-      "rebalanceQuarterly": "Quarterly",
-      "rebalanceThreshold": "Threshold",
-      "rebalanceYearly": "Annually",
-      "themeCurrentDark": "Currently dark theme",
-      "themeCurrentLight": "Currently light theme",
-      "themeMode": "Theme Mode",
-      "title": "Preferences"
-    },
-    "pricing": {
-      "compare": {
-        "10yr": "10 years",
-        "1yr": "1 year",
-        "24hResponse": "24h response",
-        "3portfolios": "3 portfolios",
-        "all": "All",
-        "all16": "All 16",
-        "analysisTabs": "Analysis tabs",
-        "basic": "Basic",
-        "feature": "Feature",
-        "historyRange": "History range",
-        "portfolioCount": "Portfolio count",
-        "prioritySupport": "Priority support",
-        "unlimited": "Unlimited"
-      },
-      "comparisonTitle": "Plan Comparison",
-      "features": {
-        "10yrData": "10 years of historical data",
-        "1yrData": "1 year of historical data",
-        "advancedBacktest": "Advanced backtest features",
-        "all16Tabs": "All 16 analysis tabs",
-        "allHistoryData": "All historical data",
-        "allProFeatures": "All Pro features included",
-        "apiAccess": "API access",
-        "apiRestWs": "API access (REST + WebSocket)",
-        "basicBacktest": "Basic backtest features",
-        "basicStats": "Basic statistics",
-        "max3Portfolios": "Up to 3 portfolios",
-        "monteCarlo": "Monte Carlo simulation",
-        "optAndFrontier": "Portfolio optimization + efficient frontier",
-        "portfolioOpt": "Portfolio optimization",
-        "prioritySupport": "Priority support",
-        "prioritySupport24h": "24/7 priority support",
-        "unlimitedPortfolios": "Unlimited portfolios"
-      },
-      "intro": "Choose the plan that suits you. All plans include core backtest features.",
-      "noticeBody": "Prices are for display only; the self-hosted version requires no payment.",
-      "noticeTitle": "Notice:",
-      "periodMonth": "/mo",
-      "plans": {
-        "free": {
-          "cta": "Get Started",
-          "desc": "For personal beginners",
-          "price": "Free"
-        },
-        "pro": {
-          "cta": "Upgrade to Pro",
-          "desc": "For professional investors"
-        },
-        "proPlus": {
-          "cta": "Contact Us",
-          "desc": "For institutions and teams"
-        }
-      },
-      "recommended": "Recommended",
-      "title": "Pricing Plans"
-    },
-    "role": {
-      "admin": "Platform Administrator",
-      "local": "Local User"
-    },
-    "settings": "Account Settings",
-    "signOut": "Sign Out",
-    "subscription": {
-      "currentPlanSuffix": "Current plan: {{plan}}",
-      "freePlan": "Free Plan",
-      "localDeploy": "Self-hosted Version",
-      "title": "Subscription Information",
-      "upgrade": "Upgrade Plan"
-    },
-    "title": "Account Center",
-    "upgrade": "Upgrade Plan",
-    "userIdLabel": "User ID: {{userId}}"
   },
   "adminLayout": {
     "adminConsole": "Admin Console",
