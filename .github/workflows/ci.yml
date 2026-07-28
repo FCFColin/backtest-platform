@@ -1,4 +1,4 @@
-﻿﻿﻿﻿name: CI
+name: CI
 
 on:
   push:
@@ -627,19 +627,17 @@ jobs:
   # ============================================================
   # 企业理由：Shift-left security 要求在 CI 阶段扫描镜像漏洞，而非上线后。
   # 镜像 tag 为 git SHA 保证可追溯（latest 是反模式：无法定位是哪次构建）。
-  # Trivy 扫描 HIGH/CRITICAL 漏洞并阻断 CI，防止带漏洞镜像进入生产。
+  # Trivy 扫描 HIGH/CRITICAL 漏洞并阻断 CI，防止带漏洞镜像进入生产（D12-002）。
   # 权衡：CI 增加 3-5 分钟，换取供应链安全。
   docker:
-    name: Docker Build & Security Scan (optional)
-    # Exploratory（非阻断）：镜像构建+Trivy 扫描较重，外部基础镜像漏洞
-    # 不应阻断业务 PR 合并，由 nightly 流水线跟进。
-    continue-on-error: true
+    name: Docker Build & Security Scan (required)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       id-token: write
       attestations: write
       packages: write
+      security-events: write # 上传 SARIF 到 GitHub Security tab（D12-002）
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -707,39 +705,97 @@ jobs:
 
       # 企业理由：Trivy 是 CNCF 毕业项目，容器漏洞扫描行业标准。
       # --severity HIGH,CRITICAL 只关注高危漏洞，避免 LOW/MEDIUM 噪音。
-      # --exit-code 1 使高危漏洞阻断 CI（shift-left security）。
+      # --exit-code 1 使高危漏洞阻断 CI（shift-left security，D12-002）。
       # --ignore-unfixed 只报告已有修复方案的漏洞，减少无法处理的告警。
+      # --format sarif 输出到 GitHub Security tab，便于漏洞趋势追踪与审计。
+      # 每个扫描步骤设 continue-on-error: true 以确保 4 个镜像全部扫描完毕
+      # 并生成完整 SARIF，再由末尾 Security gate 步骤统一判定是否阻断。
       - name: Trivy scan Node API
+        id: trivy-api
         uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/backtest-api:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
+          format: sarif
+          output: trivy-api.sarif
 
       - name: Trivy scan Go data-fetcher
+        id: trivy-data-fetcher
         uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/data-fetcher:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
+          format: sarif
+          output: trivy-data-fetcher.sarif
 
       - name: Trivy scan Go engine
+        id: trivy-engine
         uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/engine-go:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
+          format: sarif
+          output: trivy-engine.sarif
 
       - name: Trivy scan Worker
+        id: trivy-worker
         uses: aquasecurity/trivy-action@0.28.0
+        continue-on-error: true
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/backtest-worker:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: 1
           ignore-unfixed: true
+          format: sarif
+          output: trivy-worker.sarif
+
+      # 合并 4 个镜像的 SARIF 为单一文件，供 upload-sarif 上传到 GitHub Security tab。
+      - name: Merge SARIF results
+        if: always()
+        run: |
+          node <<'SCRIPT'
+          const fs = require('fs');
+          const files = ['trivy-api.sarif', 'trivy-data-fetcher.sarif', 'trivy-engine.sarif', 'trivy-worker.sarif'];
+          const merged = { $schema: 'https://json.schemastore.org/sarif-2.1.0.json', version: '2.1.0', runs: [] };
+          for (const f of files) {
+            if (fs.existsSync(f)) {
+              const data = JSON.parse(fs.readFileSync(f, 'utf8'));
+              if (Array.isArray(data.runs)) merged.runs.push(...data.runs);
+            }
+          }
+          fs.writeFileSync('trivy-results.sarif', JSON.stringify(merged, null, 2));
+          console.log('Merged SARIF runs:', merged.runs.length);
+          SCRIPT
+
+      # 上传 SARIF 到 GitHub Security tab，使漏洞在 PR 与 Code Scanning alerts 中可见。
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
+
+      # Security gate（D12-002）：4 个镜像全部扫描完毕后统一判定。
+      # 若任一镜像存在可修复的 CRITICAL/HIGH 漏洞，则阻断 CI。
+      - name: Security gate (block on CRITICAL/HIGH)
+        if: always()
+        run: |
+          if [ "${{ steps.trivy-api.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy-data-fetcher.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy-engine.outcome }}" = "failure" ] || \
+             [ "${{ steps.trivy-worker.outcome }}" = "failure" ]; then
+            echo "::error::Trivy found CRITICAL/HIGH fixable vulnerabilities - blocking build (D12-002)"
+            exit 1
+          fi
+          echo "No CRITICAL/HIGH fixable vulnerabilities found"
 
       # Supply Chain (ADR-012): 为全部 3 个镜像生成 SBOM（CycloneDX）。
       # 企业为何需要：EO 14028 / EU CRA 要求软件供应链透明度；SBOM 是漏洞响应（"我是否受某 CVE 影响"）
