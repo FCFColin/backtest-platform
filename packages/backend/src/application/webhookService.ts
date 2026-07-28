@@ -19,9 +19,13 @@
 import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
+import { assertSafeUrl } from '../utils/ssrfGuard.js';
 
 /** 单次 HTTP 投递超时（10s），超时即视为失败以释放连接 */
 const WEBHOOK_TIMEOUT_MS = 10_000;
+
+/** 响应体最大读取字节数（1MB，C-003），超过即截断以防止恶意大响应导致 OOM */
+const MAX_RESPONSE_BYTES = 1_048_576;
 
 /** 最大尝试次数（首次 + 4 次重试 = 5 次） */
 const MAX_ATTEMPTS = 5;
@@ -80,6 +84,14 @@ export interface DeliveryResult {
   success: boolean;
   responseCode: number | null;
   responseBody: string;
+  /**
+   * 是否为永久失败（不应重试）。
+   *
+   * 企业理由（C-003）：SSRF 校验失败等配置错误不会因重试而成功，
+   * 走重试阶梯会浪费 24h 并占用 worker；标记为永久失败让
+   * processSingleDelivery 直接置 failed，便于运维尽早发现配置问题。
+   */
+  permanentFailure?: boolean;
 }
 
 /**
@@ -104,8 +116,13 @@ export function signPayload(payload: string, secret: string): string {
  * - X-Webhook-Signature：`sha256=<hex>` HMAC-SHA256 签名（对原始 JSON body 计算）
  * - X-Webhook-Timestamp：发送时刻的 Unix 秒（接收方可校验时间窗防重放）
  *
- * 企业理由：10s 超时（AbortController）避免对端长时间挂起拖垮重试作业；
- * 任意网络错误/超时统一返回 success=false，由调用方按重试策略处理。
+ * 企业理由：
+ * - SSRF 校验（C-003）：fetch 前校验 URL，拒绝指向私网/回环/链路本地的请求，
+ *   防止攻击者通过 webhook 探测内网或窃取云元数据凭证；校验失败标记为
+ *   permanentFailure，不重试（配置错误不会因重试而修复）。
+ * - 10s 超时（AbortController）避免对端长时间挂起拖垮重试作业。
+ * - 响应体大小限制（1MB）避免恶意大响应导致 OOM。
+ * - 任意网络错误/超时统一返回 success=false，由调用方按重试策略处理。
  *
  * @param endpoint - 目标端点（url + secret）
  * @param eventType - 事件类型
@@ -117,6 +134,19 @@ export async function deliverWebhook(
   eventType: string,
   payload: Record<string, unknown>,
 ): Promise<DeliveryResult> {
+  // SSRF 校验（C-003）：fetch 前校验 URL，拒绝私网/回环/链路本地目标
+  try {
+    await assertSafeUrl(endpoint.url);
+  } catch (err) {
+    const msg = `SSRF blocked: ${(err as Error).message}`;
+    return {
+      success: false,
+      responseCode: null,
+      responseBody: msg.slice(0, RESPONSE_BODY_TRUNCATE),
+      permanentFailure: true,
+    };
+  }
+
   const body = JSON.stringify(payload);
   const timestamp = Math.floor(Date.now() / 1000);
   const signature = signPayload(body, endpoint.secret);
@@ -135,7 +165,7 @@ export async function deliverWebhook(
       body,
       signal: controller.signal,
     });
-    const responseText = await res.text();
+    const responseText = await readResponseWithLimit(res, MAX_RESPONSE_BYTES);
     return {
       success: res.ok,
       responseCode: res.status,
@@ -150,6 +180,45 @@ export async function deliverWebhook(
     };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/**
+ * 读取响应体并限制最大字节数，超过则截断。
+ *
+ * 企业理由（C-003）：对端可能返回超大 HTML 错误页或恶意响应，直接
+ * `await res.text()` 会一次性缓冲全部内容，可能 OOM 拖垮 worker。
+ * 流式读取并限制大小可保护重试作业稳定性。
+ *
+ * @param res - fetch 返回的 Response
+ * @param maxBytes - 最大读取字节数
+ * @returns 截断后的响应体字符串
+ */
+async function readResponseWithLimit(res: Response, maxBytes: number): Promise<string> {
+  if (!res.body) {
+    const text = await res.text();
+    return text.length > maxBytes ? text.slice(0, maxBytes) : text;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let received = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > maxBytes) {
+        const keep = value.byteLength - (received - maxBytes);
+        chunks.push(decoder.decode(value.subarray(0, keep), { stream: true }));
+        break;
+      }
+      chunks.push(decoder.decode(value, { stream: true }));
+    }
+    chunks.push(decoder.decode());
+    return chunks.join('');
+  } finally {
+    await reader.cancel();
   }
 }
 
@@ -285,9 +354,8 @@ async function processSingleDelivery(row: {
     return;
   }
 
-  // 投递失败
-  if (newAttemptCount >= MAX_ATTEMPTS) {
-    // 达到上限，标记永久失败并递增端点连续失败计数
+  // 投递失败：永久失败（SSRF 校验失败等）或达到重试上限 → 标记 failed 不重试
+  if (result.permanentFailure || newAttemptCount >= MAX_ATTEMPTS) {
     await pool.query(
       `UPDATE webhook_deliveries
           SET status = 'failed', response_code = $1, response_body = $2,
@@ -295,41 +363,49 @@ async function processSingleDelivery(row: {
         WHERE id = $4`,
       [result.responseCode, result.responseBody, newAttemptCount, deliveryId],
     );
-    // 递增计数；达到阈值自动禁用端点（单条 UPDATE 原子完成判定与禁用）
-    await pool.query(
-      `UPDATE webhook_endpoints
-          SET failed_consecutive_count = failed_consecutive_count + 1,
-              is_active = CASE
-                WHEN failed_consecutive_count + 1 >= $2 THEN FALSE
-                ELSE is_active
-              END,
-              disabled_at = CASE
-                WHEN failed_consecutive_count + 1 >= $2 THEN NOW()
-                ELSE disabled_at
-              END
-        WHERE id = $1`,
-      [endpointId, AUTO_DISABLE_THRESHOLD],
-    );
-    logger.warn(
-      { deliveryId, endpointId, orgId, eventType, attempts: newAttemptCount },
-      '[webhookService] webhook 投递达到上限，标记失败',
-    );
-  } else {
-    // 安排下一次重试（按失败次数取退避阶梯）
-    const delayMs = RETRY_DELAYS_MS[newAttemptCount - 1];
-    const nextRetryAt = new Date(Date.now() + delayMs);
-    await pool.query(
-      `UPDATE webhook_deliveries
-          SET status = 'retrying', response_code = $1, response_body = $2,
-              attempt_count = $3, next_retry_at = $4
-        WHERE id = $5`,
-      [result.responseCode, result.responseBody, newAttemptCount, nextRetryAt, deliveryId],
-    );
-    logger.info(
-      { deliveryId, endpointId, eventType, attempts: newAttemptCount, nextRetryAt },
-      '[webhookService] webhook 投递失败，安排重试',
-    );
+    // 仅重试耗尽才递增端点失败计数；SSRF 等配置错误不递增（非端点持续性故障，避免误禁用）
+    if (!result.permanentFailure) {
+      await pool.query(
+        `UPDATE webhook_endpoints
+            SET failed_consecutive_count = failed_consecutive_count + 1,
+                is_active = CASE
+                  WHEN failed_consecutive_count + 1 >= $2 THEN FALSE
+                  ELSE is_active
+                END,
+                disabled_at = CASE
+                  WHEN failed_consecutive_count + 1 >= $2 THEN NOW()
+                  ELSE disabled_at
+                END
+          WHERE id = $1`,
+        [endpointId, AUTO_DISABLE_THRESHOLD],
+      );
+      logger.warn(
+        { deliveryId, endpointId, orgId, eventType, attempts: newAttemptCount },
+        '[webhookService] webhook 投递达到上限，标记失败',
+      );
+    } else {
+      logger.warn(
+        { deliveryId, endpointId, orgId, eventType, reason: 'permanent_failure' },
+        '[webhookService] webhook 投递永久失败（SSRF 校验失败），标记 failed 不重试',
+      );
+    }
+    return;
   }
+
+  // 安排下一次重试（按失败次数取退避阶梯）
+  const delayMs = RETRY_DELAYS_MS[newAttemptCount - 1];
+  const nextRetryAt = new Date(Date.now() + delayMs);
+  await pool.query(
+    `UPDATE webhook_deliveries
+        SET status = 'retrying', response_code = $1, response_body = $2,
+            attempt_count = $3, next_retry_at = $4
+      WHERE id = $5`,
+    [result.responseCode, result.responseBody, newAttemptCount, nextRetryAt, deliveryId],
+  );
+  logger.info(
+    { deliveryId, endpointId, eventType, attempts: newAttemptCount, nextRetryAt },
+    '[webhookService] webhook 投递失败，安排重试',
+  );
 }
 
 /**

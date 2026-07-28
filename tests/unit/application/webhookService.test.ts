@@ -32,6 +32,17 @@ const fetchMock = vi.hoisted(() => vi.fn());
 vi.stubGlobal('fetch', fetchMock);
 
 // ---------------------------------------------------------------------------
+// Mock：ssrfGuard（C-003，deliverWebhook 在 fetch 前调用 assertSafeUrl）
+// 默认放行所有 URL；个别用例可覆盖为 reject 以验证 SSRF 失败路径
+// ---------------------------------------------------------------------------
+const ssrfMock = vi.hoisted(() => ({
+  assertSafeUrl: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../../../packages/backend/src/utils/ssrfGuard.js', () => ({
+  assertSafeUrl: ssrfMock.assertSafeUrl,
+}));
+
+// ---------------------------------------------------------------------------
 // 导入被测模块（在 mock 注册之后）
 // ---------------------------------------------------------------------------
 import {
@@ -99,6 +110,8 @@ describe('webhookService', () => {
     vi.clearAllMocks();
     poolMocks.pool.query.mockResolvedValue({ rows: [] });
     fetchMock.mockReset();
+    // ssrfGuard 默认放行（C-003），个别用例覆盖为 reject 验证失败路径
+    ssrfMock.assertSafeUrl.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -184,6 +197,26 @@ describe('webhookService', () => {
       fetchMock.mockResolvedValue({ ok: true, status: 200, text: async () => longBody });
       const result = await deliverWebhook({ url: URL, secret: SECRET }, 'Test', {});
       expect(result.responseBody.length).toBe(1000);
+    });
+
+    it('SSRF 校验失败应返回 permanentFailure 且不调用 fetch（C-003）', async () => {
+      ssrfMock.assertSafeUrl.mockRejectedValueOnce(new Error('SSRF blocked: private IP'));
+      const result = await deliverWebhook({ url: URL, secret: SECRET }, 'Test', { a: 1 });
+      expect(result.success).toBe(false);
+      expect(result.responseCode).toBeNull();
+      expect(result.permanentFailure).toBe(true);
+      expect(result.responseBody).toContain('SSRF blocked');
+      // fetch 不应被调用（校验失败即中止，不发起请求）
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('SSRF 校验通过后应正常调用 fetch', async () => {
+      ssrfMock.assertSafeUrl.mockResolvedValueOnce(undefined);
+      fetchMock.mockResolvedValue({ ok: true, status: 200, text: async () => 'ok' });
+      const result = await deliverWebhook({ url: URL, secret: SECRET }, 'Test', { a: 1 });
+      expect(result.success).toBe(true);
+      expect(ssrfMock.assertSafeUrl).toHaveBeenCalledWith(URL);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 
