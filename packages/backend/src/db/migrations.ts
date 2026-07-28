@@ -102,6 +102,44 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '023_cagg_backfill.sql',
     downFile: '023_cagg_backfill_down.sql',
   },
+  // P1-04 RLS 策略扩展：为 webhook/audit/billing 表添加行级安全
+  {
+    version: 24,
+    upFile: '024_rls_extension.sql',
+    downFile: '024_rls_extension_down.sql',
+  },
+  // P2-04 审计日志链式校验：添加 prev_hash 列实现篡改检测链
+  {
+    version: 25,
+    upFile: '025_audit_chain.sql',
+    downFile: '025_audit_chain_down.sql',
+  },
+  // P3-1 战术配置持久化
+  {
+    version: 26,
+    upFile: '026_tactical_configs.sql',
+    downFile: '026_tactical_configs_down.sql',
+  },
+  // P1-02 TimescaleDB 连续聚合策略优化
+  {
+    version: 27,
+    upFile: '027_timescale_cagg.sql',
+    downFile: '027_timescale_cagg_down.sql',
+  },
+  // 注：version 28 已废弃（原 028_announcements.sql 与 029_announcements.sql schema 冲突，
+  // 保留 029 的更完整设计；原 028_custom_tickers.sql 重编号为 030 避免冲突）。
+  // P3-2 公告系统（UUID + RLS + expires_at，应用层 announcementRoutes.ts 引用此 schema）
+  {
+    version: 29,
+    upFile: '029_announcements.sql',
+    downFile: '029_announcements_down.sql',
+  },
+  // P2-6 自定义 Tickers CSV 上传（用户级 RLS 隔离）
+  {
+    version: 30,
+    upFile: '030_custom_tickers.sql',
+    downFile: '030_custom_tickers_down.sql',
+  },
 ];
 
 /**

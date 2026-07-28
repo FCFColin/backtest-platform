@@ -12,6 +12,7 @@
 -- =============================================================================
 
 -- 日度连续聚合（精确到交易日，主要用于 ≤2 年范围回测）
+-- 注：源表为 prices（见 001_init.sql），原 027 误写为 price_data
 CREATE MATERIALIZED VIEW IF NOT EXISTS daily_aggregate
 WITH (timescaledb.continuous) AS
 SELECT
@@ -22,7 +23,7 @@ SELECT
   min(low) AS low,
   last(close, date) AS close,
   sum(volume) AS volume
-FROM price_data
+FROM prices
 GROUP BY ticker, time_bucket('1 day', date)
 WITH NO DATA;
 
@@ -37,15 +38,24 @@ SELECT
   min(low) AS low,
   last(close, date) AS close,
   sum(volume) AS volume
-FROM price_data
+FROM prices
 GROUP BY ticker, time_bucket('7 days', date)
 WITH NO DATA;
 
 -- 回填历史数据（异步执行，可能耗时数分钟）
 -- 注意：refresh_continuous_aggregate 不能在事务中执行，需单独运行
-SELECT timescaledb_internal.job_id, proc_name, schedule_interval
-FROM timescaledb_information.jobs
-WHERE proc_name LIKE '%daily_aggregate%' OR proc_name LIKE '%weekly_aggregate%';
+-- 信息查询：列出已注册的 CAGG 刷新任务（仅日志输出，不影响迁移）
+DO $$
+DECLARE
+  v_job_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_job_count
+  FROM timescaledb_information.jobs
+  WHERE proc_name LIKE '%daily_aggregate%' OR proc_name LIKE '%weekly_aggregate%';
+  RAISE NOTICE 'TimescaleDB CAGG jobs registered: %', v_job_count;
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'CAGG job count query skipped: %', SQLERRM;
+END $$;
 
 -- 启用压缩策略（>30 天的数据自动压缩）
 -- 压缩可将存储降低 5-10x，查询性能提升 2-5x
@@ -62,9 +72,15 @@ ALTER MATERIALIZED VIEW weekly_aggregate SET (
 );
 
 -- 添加压缩策略（30 天后自动压缩）
-SELECT add_compression_policy('daily_aggregate', INTERVAL '30 days');
-SELECT add_compression_policy('weekly_aggregate', INTERVAL '30 days');
+SELECT add_compression_policy('daily_aggregate', INTERVAL '30 days', if_not_exists => TRUE);
+SELECT add_compression_policy('weekly_aggregate', INTERVAL '30 days', if_not_exists => TRUE);
 
--- 权限
-GRANT SELECT ON daily_aggregate TO backtest_app;
-GRANT SELECT ON weekly_aggregate TO backtest_app;
+-- 权限（backtest_app 角色由 007_least_privilege.sql 创建，已存在）
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'backtest_app') THEN
+    GRANT SELECT ON daily_aggregate TO backtest_app;
+    GRANT SELECT ON weekly_aggregate TO backtest_app;
+  END IF;
+END
+$$;

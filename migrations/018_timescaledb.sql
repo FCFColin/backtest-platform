@@ -23,24 +23,29 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 ALTER TABLE prices DROP CONSTRAINT IF EXISTS prices_pkey;
 
 -- 3. 转换为 hypertable：按 date 分区，每 chunk 3 个月
+--    migrate_data => true：prices 表已有 14.5M 行历史数据，需迁移到 hypertable 分区
+--    （新表可省略此参数；含数据时必须指定，否则报 "table is not empty"）
 SELECT create_hypertable(
   'prices',
   'date',
   chunk_time_interval => INTERVAL '3 months',
+  migrate_data => TRUE,
   if_not_exists => TRUE
 );
 
 -- 4. ticker 空间维度：当 ticker 数量 > 10000 时启用 16 分区（spec P1-02 要求）
 --    幂等：add_dimension 已存在时跳过；ticker 不足时跳过避免无谓分区开销。
+--    使用 timescaledb_information.dimensions 公开视图（兼容 TimescaleDB 2.28+，
+--    避免直接访问内部表 _timescaledb_config.dimensions 导致权限/兼容性问题）
 DO $$
 DECLARE
   ticker_count INTEGER;
   dim_exists BOOLEAN;
 BEGIN
-  SELECT COUNT(*) INTO ticker_count FROM ticker;
+  SELECT COUNT(*) INTO ticker_count FROM tickers;
   SELECT EXISTS(
-    SELECT 1 FROM _timescaledb_config.dimensions
-    WHERE hypertable_id = (SELECT id FROM _timescaledb_config.hypertable WHERE table_name = 'prices')
+    SELECT 1 FROM timescaledb_information.dimensions
+    WHERE hypertable_name = 'prices'
       AND column_name = 'ticker'
   ) INTO dim_exists;
   IF ticker_count > 10000 AND NOT dim_exists THEN
@@ -58,26 +63,29 @@ ALTER TABLE prices SET (
 SELECT add_compression_policy('prices', INTERVAL '6 months', if_not_exists => TRUE);
 
 -- 6. Continuous Aggregate：月线 OHLCV（加速回测范围查询/统计）
---    first()/last() 为 TimescaleDB 时序聚合，按 date 排序取首/末值。
+--    time_bucket() 是 TimescaleDB 推荐的时间分桶函数（CAGG 要求使用 time_bucket，
+--    不支持 date_trunc）。first()/last() 为 TimescaleDB 时序聚合，按 date 排序取首/末值。
 --    WITH NO DATA：不立即物化历史数据，由刷新策略增量填充。
 CREATE MATERIALIZED VIEW IF NOT EXISTS prices_monthly
 WITH (timescaledb.continuous) AS
 SELECT
   ticker,
-  date_trunc('month', date) AS month,
+  time_bucket('1 month', date) AS month,
   first(open, date) AS open,
   max(high) AS high,
   min(low) AS low,
   last(close, date) AS close,
   sum(volume) AS volume
 FROM prices
-GROUP BY ticker, date_trunc('month', date)
+GROUP BY ticker, time_bucket('1 month', date)
 WITH NO DATA;
 
--- 7. CAGG 自动刷新策略：每小时刷新最近 1 个月内的聚合（覆盖延迟 < 1 小时）
+-- 7. CAGG 自动刷新策略：每小时刷新最近 3 个月内的聚合（覆盖延迟 < 1 小时）
+--    注意：start_offset 与 end_offset 的窗口必须覆盖至少 2 个月度 bucket，
+--    因此 start_offset 至少为 3 months（覆盖当月 + 上月 + 边界）。
 SELECT add_continuous_aggregate_policy(
   'prices_monthly',
-  start_offset => INTERVAL '1 month',
+  start_offset => INTERVAL '3 months',
   end_offset => INTERVAL '1 hour',
   schedule_interval => INTERVAL '1 hour',
   if_not_exists => TRUE
