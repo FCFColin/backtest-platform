@@ -20,7 +20,7 @@ info:
     - 所有错误使用 RFC 7807 Problem Details：{ success: false, error: { type, title, status, code, detail } }
     - 降级响应包含 degraded: true + degradedWarning
 servers:
-  - url: http://localhost:5001/api/v1
+  - url: http://localhost:15001/api/v1
     description: 本地开发环境
 tags:
   - name: auth
