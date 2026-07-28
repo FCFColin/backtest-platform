@@ -125,6 +125,44 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
   return null;
 }
 
+/**
+ * 获取缓存结果或计算并缓存（singleflight 去重）。
+ *
+ * 流程：内存/Redis 缓存命中则直接返回；未命中时通过 singleflight 去重，
+ * 相同 key 的并发请求共享同一个 Promise，避免惊群效应（cache stampede）。
+ * 首个请求执行 compute 并写入缓存，其余请求等待并复用同一结果。
+ * 异常时通过 .finally 清理 inFlight，确保失败的 key 不阻塞后续重试。
+ *
+ * @param key - {@link backtestCacheKey} 返回值
+ * @param compute - 缓存未命中时的计算函数（如调用 Go 引擎执行回测）
+ * @returns 缓存命中返回缓存结果，否则返回 compute 的结果
+ */
+export async function getOrCompute(
+  key: string,
+  compute: () => Promise<BacktestResult>,
+): Promise<BacktestResult> {
+  // 1. 缓存命中则直接返回（快速路径）
+  const cached = await getBacktestResultCache(key);
+  if (cached) return cached;
+
+  // 2. singleflight：相同 key 的并发请求共享同一 Promise
+  //    缓存未命中后，首个请求创建 Promise 并写入 inFlight；
+  //    后续请求在同步块内发现 inFlight 已存在，直接复用，不重复调用 compute。
+  const existing = inFlight.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    const result = await compute();
+    await setBacktestResultCache(key, result);
+    return result;
+  })().finally(() => {
+    inFlight.delete(key);
+  });
+
+  inFlight.set(key, promise);
+  return promise;
+}
+
 /** 测试用：清空缓存（内存 + Redis best-effort） */
 export function clearBacktestResultCache(): void {
   cache.clear();

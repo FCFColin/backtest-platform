@@ -24,6 +24,7 @@ import {
   backtestCacheKey,
   setBacktestResultCache,
   getBacktestResultCache,
+  getOrCompute,
   clearBacktestResultCache,
 } from '../../../packages/backend/src/application/backtest/backtestResultCache.js';
 import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared';
@@ -149,5 +150,48 @@ describe('backtestResultCache', () => {
     const a = backtestCacheKey(portfolios, parameters, undefined);
     const b = backtestCacheKey(portfolios, parameters, undefined);
     expect(a).toBe(b);
+  });
+
+  it('singleflight: 100 个相同 key 的并发请求只触发 1 次 compute', async () => {
+    const key = backtestCacheKey(portfolios, parameters, TENANT_A);
+    const sfResult: BacktestResult = {
+      portfolios: [{ id: 'sf', name: 'Singleflight', assets: [] }],
+      correlations: [],
+    };
+    const compute = vi.fn(async () => {
+      // 模拟引擎计算延迟，确保 100 个请求在此期间重叠并发
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      return sfResult;
+    });
+
+    const promises = Array.from({ length: 100 }, () => getOrCompute(key, compute));
+    const results = await Promise.all(promises);
+
+    // 引擎（compute）应只被调用 1 次
+    expect(compute).toHaveBeenCalledTimes(1);
+    // 100 个请求应全部返回同一结果引用（共享同一个 Promise）
+    expect(results).toHaveLength(100);
+    for (const r of results) {
+      expect(r).toBe(sfResult);
+    }
+  });
+
+  it('singleflight: compute 异常后清理 inFlight，后续请求可重试', async () => {
+    const key = backtestCacheKey(portfolios, parameters, TENANT_A);
+    let callCount = 0;
+    const compute = vi.fn(async () => {
+      callCount++;
+      if (callCount === 1) throw new Error('engine down');
+      return stubResult;
+    });
+
+    // 第一批：compute 抛异常，inFlight 应被 .finally 清理
+    await expect(getOrCompute(key, compute)).rejects.toThrow('engine down');
+    expect(compute).toHaveBeenCalledTimes(1);
+
+    // 第二批：inFlight 已清理，可重新触发 compute 并成功
+    const result = await getOrCompute(key, compute);
+    expect(result).toBe(stubResult);
+    expect(compute).toHaveBeenCalledTimes(2);
   });
 });

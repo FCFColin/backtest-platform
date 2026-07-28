@@ -17,6 +17,12 @@ import type { RedisOptions } from 'ioredis';
 import { buildRedisBaseOptions, isSentinelMode } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { processPendingDeliveries } from '../application/webhookService.js';
+import {
+  createDeadLetterQueue,
+  isFinalFailure,
+  transferToDlq,
+  SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS,
+} from './dlqConfig.js';
 
 const QUEUE_NAME = 'webhook-retry';
 const JOB_ID = 'webhook-retry-cron'; // 固定 jobId 防止重复注册产生多个重复任务
@@ -40,9 +46,14 @@ export const webhookQueue = new Queue(QUEUE_NAME, {
   connection: connectionOptions,
   defaultJobOptions: {
     removeOnComplete: { count: 100 },
-    removeOnFail: { count: 50 },
+    // C-021: 失败任务保留 7 天（按 age 而非 count），最终失败任务转移到下方 webhookDlq。
+    removeOnFail: { age: SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS },
   },
 });
+
+// C-021: webhook-retry 死信队列——接收最终失败任务，便于追溯/重放。
+// BullMQ 开源版无原生 DLQ，此处手动创建并在 Worker failed 事件中转移（见 dlqConfig.ts）。
+export const webhookDlq = createDeadLetterQueue(QUEUE_NAME);
 
 webhookQueue.on('error', (err) => {
   logger.error({ module: 'webhookQueue', err: err.message }, 'Webhook Queue connection error');
@@ -96,6 +107,24 @@ export function createWebhookRetryWorker(): Worker {
 
   worker.on('error', (err) => {
     logger.error({ module: 'webhookQueue', err: err.message }, 'Webhook retry worker error');
+  });
+
+  // C-021: 失败任务转移到 DLQ。当前 processPendingDeliveries 的错误被上层 try/catch 吞掉
+  // （单次扫描失败不致死，下一 tick 重试），故 BullMQ 视角下任务通常 completed 不会 failed；
+  // 此处仍接入 DLQ 以保持三个队列一致，并为未来调整为抛出失败的场景预留转移通道。
+  worker.on('failed', (job, err) => {
+    logger.error(
+      {
+        module: 'webhookQueue',
+        jobId: job?.id,
+        error: err.message,
+        attemptsMade: job?.attemptsMade,
+      },
+      'Webhook retry job failed',
+    );
+    if (job && isFinalFailure(job)) {
+      void transferToDlq(webhookDlq, QUEUE_NAME, job, err);
+    }
   });
 
   logger.info({ module: 'webhookQueue' }, 'Webhook retry worker created');

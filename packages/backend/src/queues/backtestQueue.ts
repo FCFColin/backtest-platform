@@ -3,6 +3,12 @@ import type { RedisOptions } from 'ioredis';
 import { buildRedisBaseOptions, isSentinelMode, appRedis } from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
+import {
+  createDeadLetterQueue,
+  isFinalFailure,
+  transferToDlq,
+  SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS,
+} from './dlqConfig.js';
 
 // Architecture: BullMQ任务队列，将长任务从同步改为异步
 // 企业为何需要：同步执行长任务阻塞Node.js事件循环，所有其他请求被挂起
@@ -47,7 +53,9 @@ export const backtestQueue = new Queue<BacktestJobData, BacktestJobResult>(QUEUE
   connection: connectionOptions,
   defaultJobOptions: {
     removeOnComplete: { count: 100 },
-    removeOnFail: { count: 50 },
+    // C-021: 失败任务保留 7 天（按 age 而非 count），避免高吞吐场景过早剪枝丢失排障上下文。
+    // 最终失败任务由下方 backtestDlq 接收，事后可经 DLQ 追溯 / 重放。
+    removeOnFail: { age: SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS },
     // Architecture: 指数退避重试，应对 Redis 瞬断、引擎瞬时错误等可恢复故障
     // 企业为何需要：单次失败直接丢弃会导致用户任务丢失，重试提升可靠性
     // 权衡：重试可能放大下游压力，但 3 次上限 + 5s 起步指数退避可控
@@ -57,6 +65,10 @@ export const backtestQueue = new Queue<BacktestJobData, BacktestJobResult>(QUEUE
     backoff: { type: 'exponential', delay: 5000 },
   },
 });
+
+// C-021: backtest-compute 死信队列——接收 3 次重试后仍失败的任务，便于追溯/重放。
+// BullMQ 开源版无原生 DLQ，此处手动创建并在 Worker failed 事件中转移（见 dlqConfig.ts）。
+export const backtestDlq = createDeadLetterQueue(QUEUE_NAME);
 
 backtestQueue.on('error', (err) => {
   logger.error({ module: 'backtestQueue', err: err.message }, 'BullMQ Queue connection error');
@@ -112,6 +124,11 @@ export function createBacktestWorker(
       },
       'Backtest job failed',
     );
+    // C-021: 仅在"最终失败"（重试穷尽）时转移到 DLQ，避免每次重试都重复入队。
+    // transferToDlq 用源 jobId 作为 DLQ job 的 jobId 做幂等去重，转移失败仅告警不影响主流程。
+    if (job && isFinalFailure(job)) {
+      void transferToDlq(backtestDlq, QUEUE_NAME, job, err);
+    }
   });
 
   worker.on('error', (err) => {

@@ -13,6 +13,7 @@ import { Queue } from 'bullmq';
 import type { RedisOptions } from 'ioredis';
 import { buildRedisBaseOptions, isSentinelMode } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
+import { createDeadLetterQueue, SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS } from './dlqConfig.js';
 
 /** 数据更新任务数据 */
 export interface DataUpdateJobData {
@@ -50,9 +51,14 @@ export const dataUpdateQueue = new Queue<DataUpdateJobData, DataUpdateJobResult>
     attempts: 2,
     backoff: { type: 'exponential', delay: 10_000 },
     removeOnComplete: { count: 10 },
-    removeOnFail: { count: 50 },
+    // C-021: 失败任务保留 7 天（按 age 而非 count），最终失败任务转移到下方 dataUpdateDlq。
+    removeOnFail: { age: SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS },
   },
 });
+
+// C-021: data-update 死信队列——接收 2 次重试后仍失败的任务，便于追溯/重放。
+// BullMQ 开源版无原生 DLQ，此处手动创建并在 dataUpdateWorker.ts 的 failed 事件中转移。
+export const dataUpdateDlq = createDeadLetterQueue(QUEUE_NAME);
 
 dataUpdateQueue.on('error', (err) => {
   logger.error({ module: 'dataUpdateQueue', err: err.message }, 'BullMQ data-update queue error');

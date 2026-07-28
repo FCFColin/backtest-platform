@@ -76,7 +76,8 @@ describe('backtestQueue', () => {
         }),
         defaultJobOptions: expect.objectContaining({
           removeOnComplete: { count: 100 },
-          removeOnFail: { count: 50 },
+          // C-021: 失败任务保留 7 天（按 age 而非 count），最终失败任务转移到 DLQ
+          removeOnFail: { age: 604800 },
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
         }),
@@ -89,16 +90,19 @@ describe('backtestQueue', () => {
   });
 
   it('Queue error 回调应记录 error 日志', () => {
-    // 找到 error 回调并调用
-    const errorCall = queueInstanceMocks.on.mock.calls.find(
+    // C-021: 主队列与 DLQ 共享同一 mock 实例，均注册了 'error' 回调。
+    // 调用所有 'error' 回调，验证主队列的错误日志被正确记录。
+    const errorCalls = queueInstanceMocks.on.mock.calls.filter(
       (call: unknown[]) => call[0] === 'error',
     );
-    expect(errorCall).toBeDefined();
-    const errorCallback = errorCall![1] as (err: Error) => void;
-    errorCallback(new Error('redis connection lost'));
+    expect(errorCalls.length).toBeGreaterThan(0);
+    for (const call of errorCalls) {
+      const errorCallback = call[1] as (err: Error) => void;
+      errorCallback(new Error('redis connection lost'));
+    }
 
     expect(loggerMocks.error).toHaveBeenCalledWith(
-      expect.objectContaining({ err: 'redis connection lost' }),
+      expect.objectContaining({ err: 'redis connection lost', module: 'backtestQueue' }),
       'BullMQ Queue connection error',
     );
   });

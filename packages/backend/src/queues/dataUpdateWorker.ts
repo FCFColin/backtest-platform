@@ -18,7 +18,12 @@ import { buildRedisBaseOptions, isSentinelMode } from '../infrastructure/redisCl
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/pool.js';
-import type { DataUpdateJobData, DataUpdateJobResult } from './dataUpdateQueue.js';
+import {
+  dataUpdateDlq,
+  type DataUpdateJobData,
+  type DataUpdateJobResult,
+} from './dataUpdateQueue.js';
+import { isFinalFailure, transferToDlq } from './dlqConfig.js';
 
 const QUEUE_NAME = 'data-update';
 
@@ -197,6 +202,11 @@ export function createDataUpdateWorker(): Worker<DataUpdateJobData, DataUpdateJo
 
   worker.on('failed', (job, err) => {
     logger.error({ jobId: job?.id, err: err.message }, '[dataUpdateWorker] Job failed');
+    // C-021: 仅在"最终失败"（重试穷尽）时转移到 DLQ，避免每次重试都重复入队。
+    // transferToDlq 用源 jobId 作为 DLQ job 的 jobId 做幂等去重，转移失败仅告警不影响主流程。
+    if (job && isFinalFailure(job)) {
+      void transferToDlq(dataUpdateDlq, QUEUE_NAME, job, err);
+    }
   });
 
   return worker;
