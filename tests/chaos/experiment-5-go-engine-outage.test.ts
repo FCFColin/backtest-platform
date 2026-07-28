@@ -10,7 +10,7 @@
  * - Go 引擎停止后：
  *   1) /api/ready 仍可响应，engine.go = false；
  *   2) 回测端点返回 503 + Retry-After 头（fail-closed）；
- *   3) 响应体包含 degraded: true。
+ *   3) 响应体不包含 degraded 字段（fail-closed 503，ADR-031）。
  * - 恢复后：engine.go 回到 true。
  */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -56,6 +56,7 @@ afterAll(async () => {
 describe('Chaos Experiment 5: Go 引擎中断', () => {
   it.skipIf(!fixture.dockerAvailable)('引擎停止后 /api/ready 应报告 go=false', async () => {
     if (!fixture.containerRunning) {
+      // eslint-disable-next-line no-console
       console.warn('skip: backtest-engine-go 容器未运行');
       return;
     }
@@ -74,6 +75,7 @@ describe('Chaos Experiment 5: Go 引擎中断', () => {
 
   it.skipIf(!fixture.dockerAvailable)('回测端点应返回 503（fail-closed）', async () => {
     if (!fixture.containerRunning) {
+      // eslint-disable-next-line no-console
       console.warn('skip: backtest-engine-go 容器未运行');
       return;
     }
@@ -94,25 +96,29 @@ describe('Chaos Experiment 5: Go 引擎中断', () => {
     );
   });
 
-  it.skipIf(!fixture.dockerAvailable)('响应应包含 degraded 标记', async () => {
-    if (!fixture.containerRunning) {
-      console.warn('skip: backtest-engine-go 容器未运行');
-      return;
-    }
+  it.skipIf(!fixture.dockerAvailable)(
+    '响应不应包含 degraded 字段（ADR-031 fail-closed）',
+    async () => {
+      if (!fixture.containerRunning) {
+        // eslint-disable-next-line no-console
+        console.warn('skip: backtest-engine-go 容器未运行');
+        return;
+      }
 
-    await withContainerStopped(
-      CONTAINERS.engineGo,
-      async () => {
-        await new Promise((r) => setTimeout(r, 2000));
-        const res = await fetch(BACKTEST_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(MINIMAL_BACKTEST_BODY),
-        });
-        const json = await res.json();
-        expect(json.degraded).toBe(true);
-      },
-      { readyUrl: READY_URL },
-    );
-  });
+      await withContainerStopped(
+        CONTAINERS.engineGo,
+        async () => {
+          await new Promise((r) => setTimeout(r, 2000));
+          const res = await fetch(BACKTEST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(MINIMAL_BACKTEST_BODY),
+          });
+          const json = await res.json();
+          expect(json.degraded).toBeUndefined();
+        },
+        { readyUrl: READY_URL },
+      );
+    },
+  );
 });

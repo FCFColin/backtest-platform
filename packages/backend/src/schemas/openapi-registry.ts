@@ -1,4 +1,4 @@
-﻿/**
+/**
  * OpenAPI 3.0 规范注册中心（P1-05）。
  *
  * 从现有 Zod schema 自动生成 OpenAPI 规范，消除 5410 行手动 YAML 与代码脱节的风险。
@@ -1050,7 +1050,7 @@ export function generateOpenApiDocument() {
       title: '回测平台 API',
       version: '1.0.0',
       description:
-        '回测平台提供组合回测、资产分析、蒙特卡洛模拟、组合优化、有效前沿、战术分配、信号分析、PCA、LETF、目标优化等量化投资工具。\n\n## 认证\n- 计算端点必须携带 JWT Bearer Token（Authorization: Bearer <accessToken>）\n- 管理端点需 JWT + RBAC 权限\n- 兼容模式：x-api-key 请求头（过渡用，不推荐生产长期依赖）\n- 认证流程：POST /auth/login/password -> accessToken + refreshToken\n- 健康检查 /health 与 /metrics 无需用户 JWT\n\n## 速率限制\n- 普通 API：100 次/15 分钟/IP\n- 计算密集型 API（backtest、backtest-optimizer）：10 次/分钟/IP\n\n## 错误格式\n- 所有错误使用 RFC 7807 Problem Details：{ success: false, error: { type, title, status, code, detail } }\n- 降级响应包含 degraded: true + degradedWarning',
+        '回测平台提供组合回测、资产分析、蒙特卡洛模拟、组合优化、有效前沿、战术分配、信号分析、PCA、LETF、目标优化等量化投资工具。\n\n## 认证\n- 计算端点必须携带 JWT Bearer Token（Authorization: Bearer <accessToken>）\n- 管理端点需 JWT + RBAC 权限\n- 兼容模式：x-api-key 请求头（过渡用，不推荐生产长期依赖）\n- 认证流程：POST /auth/login/password -> accessToken + refreshToken\n- 健康检查 /health 与 /metrics 无需用户 JWT\n\n## 速率限制\n- 普通 API：100 次/15 分钟/IP\n- 计算密集型 API（backtest、backtest-optimizer）：10 次/分钟/IP\n\n## 错误格式\n- 所有错误使用 RFC 7807 Problem Details：{ success: false, error: { type, title, status, code, detail } }\n- 数据服务降级响应包含 degraded: true + degradedWarning（仅数据端点；引擎端点 fail-closed 返回 503 + Retry-After，见 ADR-031）',
     },
     servers: [{ url: 'http://localhost:5001/api/v1', description: '本地开发环境' }],
     tags: TAGS.map((name) => ({ name })),

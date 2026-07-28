@@ -113,7 +113,7 @@ describe('优化器全链路集成测试', () => {
     expect(json.data.optimalWeights).toEqual({ AAPL: 1 });
   });
 
-  it('POST /optimize 同步执行引擎不可用时 fail-closed 503 + degraded', async () => {
+  it('POST /optimize 同步执行引擎不可用时 fail-closed 503（ADR-031）', async () => {
     queueAddMock.mockRejectedValueOnce(new Error('Redis 不可用'));
     executeOptimizationMock.mockRejectedValueOnce(
       new EngineUnavailableErrorStub('/api/engine/optimize', 60),
@@ -128,7 +128,7 @@ describe('优化器全链路集成测试', () => {
     expect(res.headers.get('retry-after')).toBe('60');
     const json = await res.json();
     expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
-    expect(json.degraded).toBe(true);
+    expect(json.degraded).toBeUndefined();
   });
 
   it('POST /optimize 非法 objective 返回校验错误', async () => {

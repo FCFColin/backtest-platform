@@ -123,11 +123,11 @@ npm run test:docker        # All Vitest tests with RUN_TESTCONTAINERS=1 (chaos +
 5. **CORS_ORIGINS=true in production**: 生产环境 hard-fail（拒绝启动），仅在开发环境降级为 warning + 允许所有源。生产部署必须配置 `CORS_ORIGINS` 白名单（逗号分隔），否则启动失败。
 6. **RFC 7807 error format**: All API errors use `{ success: false, error: { type, title, status, code, detail } }`. Breaking change from legacy `{ code, message }`.
 7. **API versioning**: All routes mounted at `/api/v1/`. Legacy `/api/` paths 已废弃；`Deprecation` + `Sunset` headers 仅用于 v1 内部端点迁移。
-8. **Degraded mode**: When engine/data falls back, response includes `degraded: true` + `degradedWarning`. Frontend must display this to users.
+8. **Degraded mode (data service only)**: Data service degradation (PostgreSQL -> Go data-fetcher) includes `degraded: true` + `degradedWarning` in response. Engine unavailability is fail-closed (503 + Retry-After, NO degraded field) per ADR-031. Frontend must display data-service degraded warnings to users.
 
 ## API Patterns
 
-- Response format: `{ success: boolean, data?: T, error?: ProblemDetails, degraded?: boolean, degradedWarning?: string }`
+- Response format: `{ success: boolean, data?: T, error?: ProblemDetails }`. Data service endpoints may include `degraded: boolean` + `degradedWarning: string` (PostgreSQL -> Go data-fetcher fallback). Engine endpoints are fail-closed 503 + Retry-After per ADR-031 (no degraded field).
 - Auth: JWT Bearer token via `Authorization` header, or `x-api-key` header for legacy compat
 - Compute endpoints (`/api/backtest/*`): rate-limited (10 req/min), require auth (optional during transition)
 - Health endpoint: `GET /api/health` (no auth)

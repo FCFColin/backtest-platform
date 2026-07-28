@@ -56,7 +56,6 @@ export interface BacktestExecutionParams {
 
 export interface BacktestExecutionResult {
   result: BacktestResult;
-  degraded: boolean;
 }
 
 export interface Warning {

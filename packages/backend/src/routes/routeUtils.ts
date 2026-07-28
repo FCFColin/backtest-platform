@@ -27,8 +27,6 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
   if (error instanceof EngineUnavailableError) {
     sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
       headers: { 'Retry-After': String(error.retryAfterSeconds) },
-      degraded: true,
-      degradedWarning: error.message,
     });
     return true;
   }

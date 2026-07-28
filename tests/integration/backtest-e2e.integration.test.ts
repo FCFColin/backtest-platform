@@ -2,7 +2,7 @@
  * 回测端到端集成测试（RO-049 SubTask 33.1）
  *
  * 跨层验证：Express 路由 → Zod 校验 → 数据获取 → 引擎调用 → 响应。
- * 重点断言 ADR-031 fail-closed：引擎不可用时返回 503 + degraded，绝不静默本地计算。
+ * 重点断言 ADR-031 fail-closed：引擎不可用时返回 503 + Retry-After，绝不静默本地计算。
  * 引擎与数据服务被 mock 以避免真实外部依赖。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
@@ -126,7 +126,7 @@ describe('回测端到端集成测试', () => {
     expect(json.data.optimalWeights).toEqual({ AAPL: 0.6, MSFT: 0.4 });
   });
 
-  it('POST /optimize 引擎不可用时 fail-closed 返回 503 + degraded（ADR-031）', async () => {
+  it('POST /optimize 引擎不可用时 fail-closed 返回 503（ADR-031）', async () => {
     fetchHistoryDataMock.mockResolvedValueOnce({
       data: {
         AAPL: { '2020-01-01': 100 },
@@ -147,8 +147,8 @@ describe('回测端到端集成测试', () => {
     expect(res.headers.get('retry-after')).toBe('30');
     const json = await res.json();
     expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
-    expect(json.degraded).toBe(true);
-    expect(json.degradedWarning).toBeDefined();
+    expect(json.degraded).toBeUndefined();
+    expect(json.degradedWarning).toBeUndefined();
   });
 
   it('POST /optimize 非法 objective 返回校验错误', async () => {

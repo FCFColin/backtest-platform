@@ -16,7 +16,7 @@ import { buildEngineParams } from './backtest/engineBodyBuilder.js';
 import { getClient } from '../db/pool.js';
 import { writeEventInTransaction } from '../infrastructure/outboxWriter.js';
 import { logger } from '../utils/logger.js';
-import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';
+import { recordBacktestRequest } from '../utils/metrics.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import { Run } from '../domain/aggregates/run.js';
 import { eventDispatcher } from '../domain/events/index.js';
@@ -193,7 +193,6 @@ export async function runBacktest(
       };
 
       const result = await callEngineStrict<BacktestResult>('/api/engine/backtest', engineBody);
-      const degraded = false;
 
       const firstStats = result.portfolios[0]?.statistics;
       const eventId = randomUUID();
@@ -203,7 +202,6 @@ export async function runBacktest(
         totalReturn: firstStats?.totalReturn,
         maxDrawdown: firstStats?.maxDrawdown,
         sharpeRatio: firstStats?.sharpe,
-        degraded,
         tenantId: params.tenantId,
         ownerUserId: params.ownerUserId,
       };
@@ -212,10 +210,7 @@ export async function runBacktest(
 
       logger.info('Backtest completed');
       recordBacktestRequest('portfolio', 'sync', 'success');
-      if (degraded) {
-        recordDegradedResponse('portfolio', 'engine_fallback');
-      }
-      return { result, degraded };
+      return { result };
     } catch (err) {
       span.recordException(err as Error);
       throw err;
