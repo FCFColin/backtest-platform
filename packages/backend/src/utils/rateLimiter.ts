@@ -16,11 +16,13 @@ import type { Request, Response, NextFunction } from 'express';
 import { config } from '../config/index.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
+import { getPrometheusRegister } from './metrics.js';
 
 // P0-05：Prometheus counter——Redis 不可用导致限流 fail-closed 的次数
 const rateLimiterRedisUnavailableCounter = new client.Counter({
   name: 'rate_limiter_redis_unavailable_total',
   help: 'Total times rate limiter fell back to deny-all due to Redis unavailability',
+  registers: [getPrometheusRegister()],
 });
 
 /** Redis 是否可用（启动时检测一次，运行时由 Redis 健康检查更新） */
@@ -149,17 +151,20 @@ interface LimiterOptions {
  */
 function createDenyAllLimiter(code: string, detail: string): ReturnType<typeof rateLimit> {
   return (req: Request, res: Response, _next: NextFunction) => {
-    res.status(503).header('Content-Type', 'application/problem+json').json({
-      success: false,
-      error: {
-        type: 'https://backtest.platform/errors/service-unavailable',
-        title: code,
-        status: 503,
-        code: 'SERVICE_UNAVAILABLE',
-        detail: `Rate limiter unavailable: ${detail}. Redis is required for distributed rate limiting.`,
-        instance: req.path,
-      },
-    });
+    res
+      .status(503)
+      .header('Content-Type', 'application/problem+json')
+      .json({
+        success: false,
+        error: {
+          type: 'https://backtest.platform/errors/service-unavailable',
+          title: code,
+          status: 503,
+          code: 'SERVICE_UNAVAILABLE',
+          detail: `Rate limiter unavailable: ${detail}. Redis is required for distributed rate limiting.`,
+          instance: req.path,
+        },
+      });
   };
 }
 
@@ -174,9 +179,7 @@ function createLimiter(opts: LimiterOptions): ReturnType<typeof rateLimit> {
 
   // P0-05：Redis 不可用且非 admin 路由 → fail-closed (503)
   if (!store && !(opts.passOnStoreError ?? false)) {
-    logger.warn(
-      `[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`,
-    );
+    logger.warn(`[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`);
     return createDenyAllLimiter(opts.code, opts.detail ?? 'Rate limiter unavailable');
   }
 

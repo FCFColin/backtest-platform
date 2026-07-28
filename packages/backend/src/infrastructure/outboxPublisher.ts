@@ -5,6 +5,7 @@
 import pg from 'pg';
 import client from 'prom-client';
 import { logger } from '../utils/logger.js';
+import { getPrometheusRegister } from '../utils/metrics.js';
 import { eventDispatcher } from '../domain/events/index.js';
 import { config } from '../config/index.js';
 
@@ -12,23 +13,23 @@ import { config } from '../config/index.js';
 const outboxUnprocessedCount = new client.Gauge({
   name: 'outbox_unprocessed_count',
   help: 'Number of unprocessed outbox events',
+  registers: [getPrometheusRegister()],
 });
 
 const outboxOldestUnprocessedAgeSeconds = new client.Gauge({
   name: 'outbox_oldest_unprocessed_age_seconds',
   help: 'Age in seconds of the oldest unprocessed outbox event',
+  registers: [getPrometheusRegister()],
 });
 
 const outboxTotalRows = new client.Gauge({
   name: 'outbox_total_rows',
   help: 'Total number of rows in the outbox table',
+  registers: [getPrometheusRegister()],
 });
 
 /** Outbox 清理保留天数，默认 7 天 */
-const OUTBOX_RETENTION_DAYS = parseInt(
-  process.env.OUTBOX_RETENTION_DAYS || '7',
-  10,
-);
+const OUTBOX_RETENTION_DAYS = parseInt(process.env.OUTBOX_RETENTION_DAYS || '7', 10);
 // P3-05 CDC 替代通路：工厂按 CDC_KAFKA_ENABLED 选择实例化 OutboxKafkaConsumer。
 // 运行时单向依赖（本模块 → outboxKafkaConsumer）；outboxKafkaConsumer 仅 type-only 引用本模块，无运行时循环。
 import { OutboxKafkaConsumer } from './outboxKafkaConsumer.js';
@@ -41,11 +42,7 @@ import { OutboxKafkaConsumer } from './outboxKafkaConsumer.js';
  * 不应依赖应用层），采用回调注入——由 server.ts 启动时调用 setWebhookHandler 注册。
  * 未注册时（如测试环境）publisher 跳过 webhook 触发，零行为变更。
  */
-export type WebhookHandler = (
-  orgId: string,
-  eventType: string,
-  payload: unknown,
-) => Promise<void>;
+export type WebhookHandler = (orgId: string, eventType: string, payload: unknown) => Promise<void>;
 
 /**
  * Outbox 消费器公共接口（P3-05）。
@@ -69,10 +66,7 @@ let webhookHandler: WebhookHandler | null = null;
  */
 export function setWebhookHandler(fn: WebhookHandler | null): void {
   webhookHandler = fn;
-  logger.info(
-    { module: 'outboxPublisher', registered: fn !== null },
-    'Webhook handler registered',
-  );
+  logger.info({ module: 'outboxPublisher', registered: fn !== null }, 'Webhook handler registered');
 }
 
 /**
@@ -330,7 +324,7 @@ export class OutboxPublisher {
       const [unprocessedResult, oldestResult, totalResult] = await Promise.all([
         this.pool.query('SELECT COUNT(*) as count FROM outbox WHERE processed_at IS NULL'),
         this.pool.query(
-          "SELECT EXTRACT(EPOCH FROM (NOW() - created_at)) as age FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT 1",
+          'SELECT EXTRACT(EPOCH FROM (NOW() - created_at)) as age FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT 1',
         ),
         this.pool.query('SELECT COUNT(*) as count FROM outbox'),
       ]);
@@ -368,7 +362,11 @@ export class OutboxPublisher {
       );
       if (result.rowCount && result.rowCount > 0) {
         logger.info(
-          { module: 'outboxPublisher', deleted: result.rowCount, retentionDays: OUTBOX_RETENTION_DAYS },
+          {
+            module: 'outboxPublisher',
+            deleted: result.rowCount,
+            retentionDays: OUTBOX_RETENTION_DAYS,
+          },
           'Cleaned up processed outbox events',
         );
       }
@@ -409,10 +407,7 @@ export class OutboxPublisher {
  *              未传时读取 config.CDC_KAFKA_ENABLED 决定。
  * @returns 实现 OutboxConsumer 接口的消费器实例。
  */
-export function createOutboxConsumer(
-  pool: pg.Pool,
-  mode?: 'listen' | 'kafka',
-): OutboxConsumer {
+export function createOutboxConsumer(pool: pg.Pool, mode?: 'listen' | 'kafka'): OutboxConsumer {
   const useKafka = mode === 'kafka' || (mode === undefined && config.CDC_KAFKA_ENABLED);
   if (useKafka) {
     logger.info(
