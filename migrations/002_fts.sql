@@ -22,6 +22,10 @@ CREATE TRIGGER trg_tickers_search_vector
 BEFORE INSERT OR UPDATE ON tickers
 FOR EACH ROW EXECUTE FUNCTION update_ticker_search_vector();
 
+-- DDL/DML 同迁移说明 (M-009)：以下 UPDATE 为一次性数据回填，与上方 DDL（GIN 索引 +
+-- 触发器）必须在同一迁移中执行。原因：触发器依赖 search_vector 列存在，GIN 索引
+-- 依赖 search_vector 已填充。拆分会使迁移中间态存在空向量行，导致索引膨胀与
+-- 查询结果不完整。回填使用 WHERE search_vector IS NULL 保证幂等。
 -- 回填现有数据的搜索向量
 UPDATE tickers SET search_vector =
   setweight(to_tsvector('simple', COALESCE(ticker, '')), 'A') ||

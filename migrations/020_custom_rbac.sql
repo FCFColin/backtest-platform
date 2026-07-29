@@ -59,6 +59,11 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_org ON user_roles(org_id) WHERE org_id
 -- 4) portfolios 增加角色可见性数组（用于组合共享给特定角色）
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS visible_to_roles UUID[];
 
+-- DDL/DML 同迁移说明 (M-009)：以下 INSERT 为系统角色种子数据（is_system=TRUE），
+-- 与上方 CREATE TABLE 必须在同一迁移中执行。原因：应用启动时中间件依赖这三个
+-- 系统角色（admin/analyst/readonly）存在，若拆分到独立 seed 迁移，在 DDL 迁移
+-- 与 seed 迁移之间重启应用会导致 RBAC 查询返回空角色集，全部请求被拒绝。
+-- ON CONFLICT DO NOTHING 保证幂等。系统角色 org_id=NULL，不属任何租户。
 -- 5) 种子系统角色 + 权限（与 rbac.ts ROLE_PERMISSIONS 对齐）
 --    使用 CTE 一次性插入角色并回填权限，避免多次往返
 WITH admin_role AS (

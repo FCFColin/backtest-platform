@@ -27,6 +27,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMPTZ NOT N
 -- 首次登录或重置后强制改密
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_must_change BOOLEAN NOT NULL DEFAULT FALSE;
 
+-- DDL/DML 同迁移说明 (M-009)：以下 UPDATE 为已存在用户回填 password_changed_at = created_at，
+-- 与上方 ALTER TABLE ADD COLUMN 必须在同一迁移中执行。原因：新列 DEFAULT NOW() 会使
+-- 已有用户的 password_changed_at 设为迁移执行时间，立即触发密码过期策略（90 天），
+-- 导致全部存量用户被迫改密。回填为 created_at 保持原有密码生命周期不变。幂等：
+-- 仅更新 password_changed_at = NOW() 的行（即刚由 DEFAULT 填充的行）。
 -- 已存在用户回填 password_changed_at = created_at（避免立即触发密码过期）
 UPDATE users SET password_changed_at = created_at WHERE password_changed_at = NOW();
 

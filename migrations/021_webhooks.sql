@@ -18,10 +18,10 @@
 --     防止持续打死的端点拖垮重试作业。
 --   - URL HTTPS 校验由应用层 zod schema 完成（DB 层不加 CHECK，便于本地 http 调试时
 --     临时放宽；生产校验在路由层）。
---   - secret 列存储 AES-256-GCM 加密后的密文（base64 编码），主密钥由
---     WEBHOOK_SECRET_MASTER_KEY 环境变量提供。应用层（webhookService.ts）
---     在 INSERT 前 encrypt()、在签名前 decrypt()。DB 层不接触明文密钥，
---     即使 DB 泄露攻击者也无法伪造事件签名。
+--   - secret 列为 bytea（AES-256-GCM 密文），配套 secret_iv/secret_tag/
+--     secret_kid 存储加密元数据。主密钥由 WEBHOOK_SECRET_KEK 环境变量提供。
+--     应用层（webhookService.ts）在 INSERT 前 encrypt()、在签名前 decrypt()。
+--     DB 层不接触明文密钥，即使 DB 泄露攻击者也无法伪造事件签名。
 -- =============================================================================
 
 -- 0) pgcrypto 扩展（提供加解密函数，应用层调用 pgp_sym_encrypt/decrypt）
@@ -33,7 +33,10 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   url TEXT NOT NULL,
-  secret TEXT NOT NULL,
+  secret BYTEA NOT NULL,
+  secret_iv BYTEA,
+  secret_tag BYTEA,
+  secret_kid TEXT,
   description TEXT,
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
   subscribed_events TEXT[] NOT NULL DEFAULT '{}',
