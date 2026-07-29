@@ -35,6 +35,8 @@ func handleBacktest(c *gin.Context) {
 	}
 
 	withComputeHandler(c, "回测计算失败", func(ctx context.Context) (*engine.BacktestResult, error) {
+		ctx, span := withComputeSpan(ctx, "backtest.run")
+		defer span.End()
 		return engine.RunBacktest(ctx, req)
 	})
 }

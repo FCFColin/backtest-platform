@@ -58,6 +58,8 @@ func handlePCA(c *gin.Context) {
 		return
 	}
 	withComputeHandler(c, "PCA 计算失败", func(ctx context.Context) (*pca.PCAResult, error) {
+		ctx, span := withComputeSpan(ctx, "pca.compute")
+		defer span.End()
 		return pca.PerformPCA(req)
 	})
 }

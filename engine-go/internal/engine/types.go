@@ -77,118 +77,118 @@ type SkewnessByFrequency struct {
 //     ulcerIndex, beta, upsideBeta, downsideBeta, diversificationRatio, gainLossRatio*
 //   - days (int): maxDrawdownDuration
 type Statistics struct {
-	CAGR                  float64             `json:"cagr"`
-	MWRR                  float64             `json:"mwrr"`
-	Stdev                 float64             `json:"stdev"`
-	Sharpe                float64             `json:"sharpe"`
-	Sortino               float64             `json:"sortino"`
-	MaxDrawdown           float64             `json:"maxDrawdown"`
-	MaxDrawdownDuration   int                 `json:"maxDrawdownDuration"`
-	BestYear              float64             `json:"bestYear"`
-	WorstYear             float64             `json:"worstYear"`
-	AvgYear               float64             `json:"avgYear"`
-	TotalReturn           float64             `json:"totalReturn"`
-	MaxMonthlyReturn      float64             `json:"maxMonthlyReturn"`
-	MinMonthlyReturn      float64             `json:"minMonthlyReturn"`
-	AvgDrawdown           float64             `json:"avgDrawdown"`
-	UlcerIndex            float64             `json:"ulcerIndex"`
-	Calmar                float64             `json:"calmar"`
-	UlcerPerformanceIndex float64             `json:"ulcerPerformanceIndex"`
-	Beta                  float64             `json:"beta"`
-	Alpha                 float64             `json:"alpha"`
-	RSquared              float64             `json:"rSquared"`
-	TrackingError         float64             `json:"trackingError"`
-	InformationRatio      float64             `json:"informationRatio"`
-	UpsideCapture         float64             `json:"upsideCapture"`
-	DownsideCapture       float64             `json:"downsideCapture"`
-	MaxDailyReturn        float64             `json:"maxDailyReturn"`
-	MinDailyReturn        float64             `json:"minDailyReturn"`
-	PWR                   float64             `json:"pwr"`
-	Var                   VaRByFrequency      `json:"var"`
-	Cvar                  VaRByFrequency      `json:"cvar"`
-	Skewness              SkewnessByFrequency `json:"skewness"`
-	ExcessKurtosis        SkewnessByFrequency `json:"excessKurtosis"`
-	WinRate               SkewnessByFrequency `json:"winRate"`
-	PctPositiveDays       float64             `json:"pctPositiveDays"`
+	CAGR                  float64             `json:"cagr"`                  // UNIT: decimal ratio (0.05 = 5%)
+	MWRR                  float64             `json:"mwrr"`                  // UNIT: decimal ratio (0.05 = 5%)
+	Stdev                 float64             `json:"stdev"`                 // UNIT: decimal ratio (0.05 = 5%)
+	Sharpe                float64             `json:"sharpe"`                // UNIT: dimensionless
+	Sortino               float64             `json:"sortino"`               // UNIT: dimensionless
+	MaxDrawdown           float64             `json:"maxDrawdown"`           // UNIT: decimal ratio, negative (e.g. -0.22 = -22%)
+	MaxDrawdownDuration   int                 `json:"maxDrawdownDuration"`   // UNIT: days
+	BestYear              float64             `json:"bestYear"`              // UNIT: decimal ratio (0.05 = 5%)
+	WorstYear             float64             `json:"worstYear"`             // UNIT: decimal ratio (0.05 = 5%)
+	AvgYear               float64             `json:"avgYear"`               // UNIT: decimal ratio (0.05 = 5%)
+	TotalReturn           float64             `json:"totalReturn"`           // UNIT: decimal ratio (0.05 = 5%)
+	MaxMonthlyReturn      float64             `json:"maxMonthlyReturn"`      // UNIT: decimal ratio (0.05 = 5%)
+	MinMonthlyReturn      float64             `json:"minMonthlyReturn"`      // UNIT: decimal ratio (0.05 = 5%)
+	AvgDrawdown           float64             `json:"avgDrawdown"`           // UNIT: decimal ratio, negative (e.g. -0.10 = -10%)
+	UlcerIndex            float64             `json:"ulcerIndex"`            // UNIT: dimensionless
+	Calmar                float64             `json:"calmar"`                // UNIT: dimensionless
+	UlcerPerformanceIndex float64             `json:"ulcerPerformanceIndex"` // UNIT: dimensionless
+	Beta                  float64             `json:"beta"`                  // UNIT: dimensionless
+	Alpha                 float64             `json:"alpha"`                 // UNIT: decimal ratio (0.05 = 5%)
+	RSquared              float64             `json:"rSquared"`              // UNIT: dimensionless [0, 1]
+	TrackingError         float64             `json:"trackingError"`         // UNIT: decimal ratio (0.05 = 5%)
+	InformationRatio      float64             `json:"informationRatio"`      // UNIT: dimensionless
+	UpsideCapture         float64             `json:"upsideCapture"`         // UNIT: decimal ratio (1.0 = 100%)
+	DownsideCapture       float64             `json:"downsideCapture"`       // UNIT: decimal ratio (1.0 = 100%)
+	MaxDailyReturn        float64             `json:"maxDailyReturn"`        // UNIT: decimal ratio (0.05 = 5%)
+	MinDailyReturn        float64             `json:"minDailyReturn"`        // UNIT: decimal ratio (0.05 = 5%)
+	PWR                   float64             `json:"pwr"`                   // UNIT: decimal ratio (0.05 = 5%)
+	Var                   VaRByFrequency      `json:"var"`                   // UNIT: decimal ratio (0.05 = 5%)
+	Cvar                  VaRByFrequency      `json:"cvar"`                  // UNIT: decimal ratio (0.05 = 5%)
+	Skewness              SkewnessByFrequency `json:"skewness"`             // UNIT: dimensionless
+	ExcessKurtosis        SkewnessByFrequency `json:"excessKurtosis"`       // UNIT: dimensionless
+	WinRate               SkewnessByFrequency `json:"winRate"`              // UNIT: decimal ratio (0.5 = 50%)
+	PctPositiveDays       float64             `json:"pctPositiveDays"`       // UNIT: decimal ratio (0.5 = 50%)
 
-	AvgAnnualReturn       float64 `json:"avgAnnualReturn"`
-	AvgMonthlyReturn      float64 `json:"avgMonthlyReturn"`
-	AvgDailyReturn        float64 `json:"avgDailyReturn"`
-	StdevAnnual           float64 `json:"stdevAnnual"`
-	StdevMonthly          float64 `json:"stdevMonthly"`
-	StdevMonthlyRaw       float64 `json:"stdevMonthlyRaw"`
-	StdevDaily            float64 `json:"stdevDaily"`
-	StdevDailyRaw         float64 `json:"stdevDailyRaw"`
-	DownsideDeviation     float64 `json:"downsideDeviation"`
-	DownsideDeviationDailyRaw float64 `json:"downsideDeviationDailyRaw"`
-	DownsideDeviationMonthly float64 `json:"downsideDeviationMonthly"`
-	DownsideDeviationMonthlyRaw float64 `json:"downsideDeviationMonthlyRaw"`
-	DownsideDeviationAnnual float64 `json:"downsideDeviationAnnual"`
-	DrawdownRecoveryFactor float64 `json:"drawdownRecoveryFactor"`
-	M2                    float64 `json:"m2"`
-	Treynor               float64 `json:"treynor"`
-	DiversificationRatio  float64 `json:"diversificationRatio"`
-	BenchmarkCorrelation  float64 `json:"benchmarkCorrelation"`
-	UpsideCorrelation     float64 `json:"upsideCorrelation"`
-	DownsideCorrelation   float64 `json:"downsideCorrelation"`
-	UpsideBeta            float64 `json:"upsideBeta"`
-	DownsideBeta          float64 `json:"downsideBeta"`
-	AlphaDaily            float64 `json:"alphaDaily"`
-	AlphaAnnualized       float64 `json:"alphaAnnualized"`
-	UpsideCaptureDaily    float64 `json:"upsideCaptureDaily"`
-	DownsideCaptureDaily  float64 `json:"downsideCaptureDaily"`
-	CaptureSpreadDaily    float64 `json:"captureSpreadDaily"`
-	UpsideCaptureAnnual   float64 `json:"upsideCaptureAnnual"`
-	DownsideCaptureAnnual float64 `json:"downsideCaptureAnnual"`
-	CaptureSpreadAnnual   float64 `json:"captureSpreadAnnual"`
-	CaptureSpread         float64 `json:"captureSpread"`
-	ActiveReturn          float64 `json:"activeReturn"`
-	VarDaily1             float64 `json:"varDaily1"`
-	VarDaily5             float64 `json:"varDaily5"`
-	VarDaily10            float64 `json:"varDaily10"`
-	CvarDaily1            float64 `json:"cvarDaily1"`
-	CvarDaily5            float64 `json:"cvarDaily5"`
-	CvarDaily10           float64 `json:"cvarDaily10"`
-	VarMonthly1           float64 `json:"varMonthly1"`
-	VarMonthly5           float64 `json:"varMonthly5"`
-	VarMonthly10          float64 `json:"varMonthly10"`
-	CvarMonthly1          float64 `json:"cvarMonthly1"`
-	CvarMonthly5          float64 `json:"cvarMonthly5"`
-	CvarMonthly10         float64 `json:"cvarMonthly10"`
-	VarAnnual1            float64 `json:"varAnnual1"`
-	VarAnnual5            float64 `json:"varAnnual5"`
-	VarAnnual10           float64 `json:"varAnnual10"`
-	CvarAnnual1           float64 `json:"cvarAnnual1"`
-	CvarAnnual5           float64 `json:"cvarAnnual5"`
-	CvarAnnual10          float64 `json:"cvarAnnual10"`
-	SkewnessDaily         float64 `json:"skewnessDaily"`
-	SkewnessMonthly       float64 `json:"skewnessMonthly"`
-	SkewnessAnnual        float64 `json:"skewnessAnnual"`
-	ExcessKurtosisDaily   float64 `json:"excessKurtosisDaily"`
-	ExcessKurtosisMonthly float64 `json:"excessKurtosisMonthly"`
-	ExcessKurtosisAnnual  float64 `json:"excessKurtosisAnnual"`
-	PctPositiveMonths     float64 `json:"pctPositiveMonths"`
-	PctPositiveYears      float64 `json:"pctPositiveYears"`
-	MaxAnnualReturn       float64 `json:"maxAnnualReturn"`
-	MinAnnualReturn       float64 `json:"minAnnualReturn"`
-	AvgDailyGain          float64 `json:"avgDailyGain"`
-	AvgDailyLoss          float64 `json:"avgDailyLoss"`
-	GainLossRatioDaily    float64 `json:"gainLossRatioDaily"`
-	AvgMonthlyGain        float64 `json:"avgMonthlyGain"`
-	AvgMonthlyLoss        float64 `json:"avgMonthlyLoss"`
-	GainLossRatioMonthly  float64 `json:"gainLossRatioMonthly"`
-	AvgAnnualGain         float64 `json:"avgAnnualGain"`
-	AvgAnnualLoss         float64 `json:"avgAnnualLoss"`
-	GainLossRatioAnnual   float64 `json:"gainLossRatioAnnual"`
-	SWR                   float64 `json:"swr"`
-	SWR10Y                float64 `json:"swr10y"`
-	PWR10Y                float64 `json:"pwr10y"`
-	SWR20Y                float64 `json:"swr20y"`
-	PWR20Y                float64 `json:"pwr20y"`
-	SWR30Y                float64 `json:"swr30y"`
-	PWR30Y                float64 `json:"pwr30y"`
-	SWR40Y                float64 `json:"swr40y"`
-	PWR40Y                float64 `json:"pwr40y"`
+	AvgAnnualReturn       float64 `json:"avgAnnualReturn"`       // UNIT: decimal ratio (0.05 = 5%)
+	AvgMonthlyReturn      float64 `json:"avgMonthlyReturn"`      // UNIT: decimal ratio (0.05 = 5%)
+	AvgDailyReturn        float64 `json:"avgDailyReturn"`        // UNIT: decimal ratio (0.05 = 5%)
+	StdevAnnual           float64 `json:"stdevAnnual"`           // UNIT: decimal ratio (0.05 = 5%)
+	StdevMonthly          float64 `json:"stdevMonthly"`          // UNIT: decimal ratio (0.05 = 5%)
+	StdevMonthlyRaw       float64 `json:"stdevMonthlyRaw"`       // UNIT: decimal ratio (0.05 = 5%)
+	StdevDaily            float64 `json:"stdevDaily"`            // UNIT: decimal ratio (0.05 = 5%)
+	StdevDailyRaw         float64 `json:"stdevDailyRaw"`         // UNIT: decimal ratio (0.05 = 5%)
+	DownsideDeviation     float64 `json:"downsideDeviation"`     // UNIT: decimal ratio (0.05 = 5%)
+	DownsideDeviationDailyRaw float64 `json:"downsideDeviationDailyRaw"` // UNIT: decimal ratio (0.05 = 5%)
+	DownsideDeviationMonthly float64 `json:"downsideDeviationMonthly"`   // UNIT: decimal ratio (0.05 = 5%)
+	DownsideDeviationMonthlyRaw float64 `json:"downsideDeviationMonthlyRaw"` // UNIT: decimal ratio (0.05 = 5%)
+	DownsideDeviationAnnual float64 `json:"downsideDeviationAnnual"`     // UNIT: decimal ratio (0.05 = 5%)
+	DrawdownRecoveryFactor float64 `json:"drawdownRecoveryFactor"`      // UNIT: dimensionless
+	M2                    float64 `json:"m2"`                    // UNIT: decimal ratio (0.05 = 5%)
+	Treynor               float64 `json:"treynor"`               // UNIT: decimal ratio (0.05 = 5%)
+	DiversificationRatio  float64 `json:"diversificationRatio"`  // UNIT: dimensionless
+	BenchmarkCorrelation  float64 `json:"benchmarkCorrelation"`  // UNIT: dimensionless [-1, 1]
+	UpsideCorrelation     float64 `json:"upsideCorrelation"`     // UNIT: dimensionless [-1, 1]
+	DownsideCorrelation   float64 `json:"downsideCorrelation"`   // UNIT: dimensionless [-1, 1]
+	UpsideBeta            float64 `json:"upsideBeta"`            // UNIT: dimensionless
+	DownsideBeta          float64 `json:"downsideBeta"`          // UNIT: dimensionless
+	AlphaDaily            float64 `json:"alphaDaily"`            // UNIT: decimal ratio (0.05 = 5%)
+	AlphaAnnualized       float64 `json:"alphaAnnualized"`       // UNIT: decimal ratio (0.05 = 5%)
+	UpsideCaptureDaily    float64 `json:"upsideCaptureDaily"`    // UNIT: decimal ratio (1.0 = 100%)
+	DownsideCaptureDaily  float64 `json:"downsideCaptureDaily"`  // UNIT: decimal ratio (1.0 = 100%)
+	CaptureSpreadDaily    float64 `json:"captureSpreadDaily"`    // UNIT: decimal ratio (1.0 = 100%)
+	UpsideCaptureAnnual   float64 `json:"upsideCaptureAnnual"`   // UNIT: decimal ratio (1.0 = 100%)
+	DownsideCaptureAnnual float64 `json:"downsideCaptureAnnual"` // UNIT: decimal ratio (1.0 = 100%)
+	CaptureSpreadAnnual   float64 `json:"captureSpreadAnnual"`   // UNIT: decimal ratio (1.0 = 100%)
+	CaptureSpread         float64 `json:"captureSpread"`         // UNIT: decimal ratio (1.0 = 100%)
+	ActiveReturn          float64 `json:"activeReturn"`          // UNIT: decimal ratio (0.05 = 5%)
+	VarDaily1             float64 `json:"varDaily1"`             // UNIT: decimal ratio (0.05 = 5%)
+	VarDaily5             float64 `json:"varDaily5"`             // UNIT: decimal ratio (0.05 = 5%)
+	VarDaily10            float64 `json:"varDaily10"`            // UNIT: decimal ratio (0.05 = 5%)
+	CvarDaily1            float64 `json:"cvarDaily1"`            // UNIT: decimal ratio (0.05 = 5%)
+	CvarDaily5            float64 `json:"cvarDaily5"`            // UNIT: decimal ratio (0.05 = 5%)
+	CvarDaily10           float64 `json:"cvarDaily10"`           // UNIT: decimal ratio (0.05 = 5%)
+	VarMonthly1           float64 `json:"varMonthly1"`           // UNIT: decimal ratio (0.05 = 5%)
+	VarMonthly5           float64 `json:"varMonthly5"`           // UNIT: decimal ratio (0.05 = 5%)
+	VarMonthly10          float64 `json:"varMonthly10"`          // UNIT: decimal ratio (0.05 = 5%)
+	CvarMonthly1          float64 `json:"cvarMonthly1"`          // UNIT: decimal ratio (0.05 = 5%)
+	CvarMonthly5          float64 `json:"cvarMonthly5"`          // UNIT: decimal ratio (0.05 = 5%)
+	CvarMonthly10         float64 `json:"cvarMonthly10"`         // UNIT: decimal ratio (0.05 = 5%)
+	VarAnnual1            float64 `json:"varAnnual1"`            // UNIT: decimal ratio (0.05 = 5%)
+	VarAnnual5            float64 `json:"varAnnual5"`            // UNIT: decimal ratio (0.05 = 5%)
+	VarAnnual10           float64 `json:"varAnnual10"`           // UNIT: decimal ratio (0.05 = 5%)
+	CvarAnnual1           float64 `json:"cvarAnnual1"`           // UNIT: decimal ratio (0.05 = 5%)
+	CvarAnnual5           float64 `json:"cvarAnnual5"`           // UNIT: decimal ratio (0.05 = 5%)
+	CvarAnnual10          float64 `json:"cvarAnnual10"`          // UNIT: decimal ratio (0.05 = 5%)
+	SkewnessDaily         float64 `json:"skewnessDaily"`         // UNIT: dimensionless
+	SkewnessMonthly       float64 `json:"skewnessMonthly"`       // UNIT: dimensionless
+	SkewnessAnnual        float64 `json:"skewnessAnnual"`        // UNIT: dimensionless
+	ExcessKurtosisDaily   float64 `json:"excessKurtosisDaily"`   // UNIT: dimensionless
+	ExcessKurtosisMonthly float64 `json:"excessKurtosisMonthly"` // UNIT: dimensionless
+	ExcessKurtosisAnnual  float64 `json:"excessKurtosisAnnual"`  // UNIT: dimensionless
+	PctPositiveMonths     float64 `json:"pctPositiveMonths"`     // UNIT: decimal ratio (0.5 = 50%)
+	PctPositiveYears      float64 `json:"pctPositiveYears"`      // UNIT: decimal ratio (0.5 = 50%)
+	MaxAnnualReturn       float64 `json:"maxAnnualReturn"`       // UNIT: decimal ratio (0.05 = 5%)
+	MinAnnualReturn       float64 `json:"minAnnualReturn"`       // UNIT: decimal ratio (0.05 = 5%)
+	AvgDailyGain          float64 `json:"avgDailyGain"`          // UNIT: decimal ratio (0.05 = 5%)
+	AvgDailyLoss          float64 `json:"avgDailyLoss"`          // UNIT: decimal ratio (0.05 = 5%)
+	GainLossRatioDaily    float64 `json:"gainLossRatioDaily"`    // UNIT: dimensionless
+	AvgMonthlyGain        float64 `json:"avgMonthlyGain"`        // UNIT: decimal ratio (0.05 = 5%)
+	AvgMonthlyLoss        float64 `json:"avgMonthlyLoss"`        // UNIT: decimal ratio (0.05 = 5%)
+	GainLossRatioMonthly  float64 `json:"gainLossRatioMonthly"`  // UNIT: dimensionless
+	AvgAnnualGain         float64 `json:"avgAnnualGain"`         // UNIT: decimal ratio (0.05 = 5%)
+	AvgAnnualLoss         float64 `json:"avgAnnualLoss"`         // UNIT: decimal ratio (0.05 = 5%)
+	GainLossRatioAnnual   float64 `json:"gainLossRatioAnnual"`   // UNIT: dimensionless
+	SWR                   float64 `json:"swr"`                   // UNIT: decimal ratio (0.05 = 5%)
+	SWR10Y                float64 `json:"swr10y"`                // UNIT: decimal ratio (0.05 = 5%)
+	PWR10Y                float64 `json:"pwr10y"`                // UNIT: decimal ratio (0.05 = 5%)
+	SWR20Y                float64 `json:"swr20y"`                // UNIT: decimal ratio (0.05 = 5%)
+	PWR20Y                float64 `json:"pwr20y"`                // UNIT: decimal ratio (0.05 = 5%)
+	SWR30Y                float64 `json:"swr30y"`                // UNIT: decimal ratio (0.05 = 5%)
+	PWR30Y                float64 `json:"pwr30y"`                // UNIT: decimal ratio (0.05 = 5%)
+	SWR40Y                float64 `json:"swr40y"`                // UNIT: decimal ratio (0.05 = 5%)
+	PWR40Y                float64 `json:"pwr40y"`                // UNIT: decimal ratio (0.05 = 5%)
 }
 
 // ============================================================

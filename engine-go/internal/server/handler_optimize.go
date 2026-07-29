@@ -25,6 +25,8 @@ func handleOptimize(c *gin.Context) {
 	}
 
 	withComputeHandler(c, "优化计算失败", func(ctx context.Context) (*optimizer.OptimizeResponse, error) {
+		ctx, span := withComputeSpan(ctx, "optimizer.optimize")
+		defer span.End()
 		return optimizer.Optimize(ctx, req)
 	})
 }
@@ -54,6 +56,8 @@ func handleMonteCarlo(c *gin.Context) {
 	}
 
 	withComputeHandler(c, "蒙特卡洛模拟失败", func(ctx context.Context) (*montecarlo.MonteCarloResult, error) {
+		ctx, span := withComputeSpan(ctx, "montecarlo.simulate")
+		defer span.End()
 		return montecarlo.RunMonteCarlo(ctx, req)
 	})
 }

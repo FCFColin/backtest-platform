@@ -8,6 +8,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Problem RFC 7807 错误响应（AGENTS.md 第 6 条 / RO-045 4xx 透传）
@@ -31,6 +34,12 @@ func newProblem(c *gin.Context, status int, code, title, detail string) {
 	})
 }
 
+// withComputeSpan 创建计算操作的子 span（D9-012 手动业务 span）。
+// 在 Jaeger/Tempo 中可区分时间花在回测计算、蒙特卡洛模拟还是 PCA 分解上。
+func withComputeSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	return otel.Tracer("engine-go").Start(ctx, name, trace.WithAttributes(attrs...))
+}
+
 // withComputeHandler 包装计算类处理器通用逻辑：panic recovery + 创建带 computeTimeout 超时的 context、
 // 调用 fn(ctx) 执行实际计算、错误日志记录，并按统一格式返回 JSON 响应。
 //
@@ -38,7 +47,7 @@ func newProblem(c *gin.Context, status int, code, title, detail string) {
 // 抽取后调用方只需关注 bind 与业务调用本身。panic recovery 确保计算 panic 时返回
 // 结构化 500 响应而非 gin 默认的空体中断，错误经 slog 记录便于排查。
 //
-// 失败响应：HTTP 500 + {"success": false, "error": errMsg}
+// 失败响应：HTTP 500 + RFC 7807 Problem Details（D4-004，统一 error 格式）
 // 成功响应：HTTP 200 + {"success": true, "data": result}
 func withComputeHandler[T any](
 	c *gin.Context,
@@ -48,7 +57,7 @@ func withComputeHandler[T any](
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("计算处理器 panic", "path", c.Request.URL.Path, "panic", r)
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"success": false, "error": errMsg})
+			newProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
 		}
 	}()
 
@@ -58,7 +67,7 @@ func withComputeHandler[T any](
 	result, err := fn(ctx)
 	if err != nil {
 		slog.Error("计算处理器失败", "path", c.Request.URL.Path, "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": errMsg})
+		newProblem(c, http.StatusInternalServerError, "COMPUTE_FAILED", "Computation Failed", errMsg)
 		return
 	}
 

@@ -130,7 +130,7 @@ var allowedBacktestResultExtraFields = []string{
 // 与 packages/shared/types/backtest.ts 的 DrawdownEpisode interface 字段保持一致。
 var expectedDrawdownEpisodeFields = []string{
 	"peakDate", "troughDate", "recoveryDate",
-	"depth", "timeToTrough", "recoveryTime", "totalTime",
+	"depth", "timeToTrough", "recoveryTime", "totalTimeDurationDays",
 	"recoveryFactor", "cagrDuring", "ulcerDuring",
 	"returnFromPeakToTrough", "returnFromTroughToRecovery",
 }

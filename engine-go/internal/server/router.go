@@ -40,6 +40,10 @@ func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 	// 健康检查端点：无需认证，便于负载均衡器/K8s 探针访问
 	r.GET("/api/engine/health", handleHealth)
 
+	// 就绪检查端点（C-008）：独立路径，与 livenessProbe 区分，
+	// 避免依赖故障时 Pod 被重启而非从负载均衡摘除。
+	r.GET("/api/ready", handleReady)
+
 	// Prometheus 指标（T-B4）：与 Node API /api/metrics 对齐，供 Prometheus 抓取。
 	if metricsHandler != nil {
 		r.GET("/metrics", gin.WrapH(metricsHandler))
@@ -91,13 +95,4 @@ func SetupRouter(metricsHandler http.Handler) *gin.Engine {
 	}
 
 	return r
-}
-
-// handleHealth 健康检查端点。
-func handleHealth(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "ok",
-		"engine":  "go",
-		"version": "0.1.0",
-	})
 }
