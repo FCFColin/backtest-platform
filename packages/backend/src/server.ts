@@ -1,4 +1,4 @@
-import { initTracing } from './tracing.js';
+import { initTracing, shutdownTracing } from './tracing.js';
 initTracing();
 
 import app, { server } from './app.js';
@@ -8,8 +8,12 @@ import { initDb } from './infrastructure/dataFacade.js';
 import { bootstrapPlatformAdminKey } from './infrastructure/platformAdminBootstrap.js';
 import { startApiKeyMonitoring } from './infrastructure/apiKeyMonitoring.js';
 import { getPool, getReadPool, closeDb } from './db/pool.js';
+import { appRedis } from './infrastructure/redisClient.js';
 import { createOutboxConsumer, setWebhookHandler } from './infrastructure/outboxPublisher.js';
-import { registerTimescaleMetrics } from './utils/metrics.js';
+import { registerTimescaleMetrics, registerQueueMetrics } from './utils/metrics.js';
+import { backtestQueue } from './queues/backtestQueue.js';
+import { dataUpdateQueue } from './queues/dataUpdateQueue.js';
+import { webhookQueue } from './queues/webhookQueue.js';
 import { eventDispatcher } from './domain/events/index.js';
 import { BacktestCompletedHandler } from './application/backtestCompletedHandler.js';
 import { RunCompletedHandler } from './application/runCompletedHandler.js';
@@ -44,10 +48,30 @@ server.listen(PORT, async () => {
       const { rows } = await getReadPool().query(sql);
       return rows as Array<Record<string, unknown>>;
     });
+    // D9-H1：注册 BullMQ 队列深度指标（告警引用的 bullmq_queue_size）
+    registerQueueMetrics([backtestQueue, dataUpdateQueue, webhookQueue]);
     // P0-04：initSchema 完成后，将环境变量 ADMIN_API_KEY 一次性迁移为 DB 平台 break-glass 密钥
     await bootstrapPlatformAdminKey();
     // P0-04/T5：启动陈旧密钥定时巡检（更新 Prometheus gauge + 告警）
     startApiKeyMonitoring();
+
+    // 预热连接：DB、Redis、Go 引擎，避免首次请求冷启动延迟
+    try {
+      const conn = await getPool().connect();
+      conn.release();
+      logger.info('[startup] DB 连接预热完成');
+    } catch { /* 预热失败不影响启动 */ }
+    try {
+      await appRedis.ping();
+      logger.info('[startup] appRedis 连接预热完成');
+    } catch { /* 预热失败不影响启动 */ }
+    try {
+      await fetch(`${config.GO_ENGINE_URL}/api/engine/health`, { signal: AbortSignal.timeout(3000) });
+      logger.info('[startup] Go 引擎连接预热完成');
+    } catch { /* 预热失败不影响启动 */ }
+    // 预热 /data/meta 缓存，使首次页面加载无需等待 14.5M 行聚合查询
+    const { warmMetaCache } = await import('./routes/dataRoutes.js');
+    await warmMetaCache();
   } catch (err) {
     logger.warn({ err }, '[startup] 数据库初始化失败');
   }
@@ -110,6 +134,7 @@ function triggerShutdown(signal: string, exitCode: number = 0): void {
         outboxConsumer = null;
       }
       await closeDb();
+      await shutdownTracing();
       logger.info('Graceful shutdown complete');
     } catch (err) {
       logger.error({ err }, 'Error during shutdown');

@@ -54,3 +54,23 @@ export function parseCorsOrigins(raw: string | undefined): CorsOrigins {
     .map((s) => s.trim())
     .filter(Boolean);
 }
+
+/**
+ * 读取必需的环境变量 secret，缺失时 fail-fast 抛出错误（H-006）。
+ *
+ * 企业理由：JWT_SECRET / ENGINE_AUTH_TOKEN / DATA_SERVICE_AUTH_TOKEN 等安全敏感配置
+ * 不应有硬编码默认值——源码公开即等于密钥泄露。缺失时必须立即抛出，而非使用默认值静默启动。
+ *
+ * @param name - 环境变量名
+ * @returns 环境变量值（非空字符串）
+ * @throws 如果环境变量未设置或为空字符串
+ */
+export function requireSecret(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `${name} is required. Set it in .env (see .env.example).`,
+    );
+  }
+  return value;
+}

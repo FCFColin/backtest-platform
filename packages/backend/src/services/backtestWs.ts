@@ -1,16 +1,17 @@
 /**
  * WebSocket 实时进度推送服务端（P1-04）。
  *
- * 设计要点（ADR-045 多 Pod 广播）：
+ * 设计要点（ADR-045 多 Pod 广播 + D3-002 共享订阅）：
  * - 路径：/api/v1/ws/runs/:jobId
  * - 握手鉴权：query 参数 ?token=<JWT> 或 Sec-WebSocket-Protocol: bearer.<JWT>
  *   （浏览器 WebSocket API 无法设置自定义 Header，故走 query/subprotocol）
  * - 进度来源：Worker 进程将 BullMQ progress/completed/failed 事件 publish 到
- *   Redis channel `backtest:progress:{jobId}`，本服务端订阅 channel 并转发给客户端。
+ *   Redis channel backtest:progress:{jobId}，本服务端订阅 channel 并转发给客户端。
  *   Redis Pub/Sub 天然支持多订阅者——每个 Pod 的 WS 服务端各自订阅同一 channel，
  *   客户端连到任意 Pod 都能收到进度（多 Pod 广播）。
- * - 连接隔离：每个 WS 连接创建独立的 ioredis 订阅连接（subscribe 模式下同一连接
- *   无法执行其他命令），连接关闭时 quit 释放，避免连接泄漏。
+ * - 共享订阅（D3-002）：单个进程维护一个共享 Redis 订阅连接，通过
+ *   Map<channel, Set<WebSocket>> 在内存中路由消息到对应客户端，避免每连接独占
+ *   Redis 订阅。同一 channel 的多个连接复用一个 Redis subscription，大幅减少连接数。
  *
  * 安全：
  * - 握手必须验证 JWT（复用 verifyToken，含 alg:none 防护与吊销检查），失败返回 401
@@ -37,6 +38,116 @@ const wsConnectionsActive = new client.Gauge({
   help: 'Active WebSocket connections for backtest progress streaming',
   registers: [getPrometheusRegister()],
 });
+
+// =============================================================================
+// D3-002：共享 Redis 订阅 + 内存路由
+// =============================================================================
+// 原设计：每个 WS 连接创建独立的 ioredis 订阅连接，N 个连接 = N 个 Redis connection。
+// 问题：高并发场景下 Redis 连接数线性增长，浪费资源。
+// 优化：进程级单例 subscriber，通过 Map<channel, Set<WebSocket>> 路由消息到对应客户端。
+// 同一 channel 的多个连接复用一个 Redis subscription，连接数从 O(N) 降至 O(1)+O(channels)。
+
+/** 共享 Redis 订阅连接（懒初始化，进程级单例） */
+let sharedSubscriber: IORedis | null = null;
+let subscriberInitPromise: Promise<IORedis> | null = null;
+
+/** channel 订阅该 channel 的 WebSocket 连接集合 */
+const channelClients = new Map<string, Set<WebSocket>>();
+
+/** channel 订阅操作的 Promise（防止并发连接同时 subscribe 同一 channel） */
+const channelSubscriptions = new Map<string, Promise<void>>();
+
+/**
+ * 获取或初始化共享 Redis 订阅连接。
+ *
+ * 使用懒初始化：首次调用时创建，后续复用。ioredis 自动重连并重新订阅已注册的 channel。
+ * @returns 共享 ioredis 订阅连接
+ */
+async function ensureSharedSubscriber(): Promise<IORedis> {
+  if (sharedSubscriber) return sharedSubscriber;
+  if (subscriberInitPromise) return subscriberInitPromise;
+
+  subscriberInitPromise = (async () => {
+    const sub = new IORedis({
+      ...buildRedisBaseOptions(),
+      maxRetriesPerRequest: null,
+      enableReadyCheck: true,
+    });
+
+    sub.on('error', (err) => {
+      logger.warn({ err: String(err) }, '[ws] 共享 Redis 订阅连接错误');
+    });
+
+    sub.on('message', (channel, message) => {
+      const clients = channelClients.get(channel);
+      if (!clients || clients.size === 0) return;
+      for (const ws of clients) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(message);
+        }
+      }
+    });
+
+    sharedSubscriber = sub;
+    logger.info('[ws] 共享 Redis 订阅连接已创建');
+    return sub;
+  })();
+
+  return subscriberInitPromise;
+}
+
+/**
+ * 将 WebSocket 连接注册到共享订阅：加入内存路由表，必要时订阅 Redis channel。
+ *
+ * 同一 channel 的首个连接触发 Redis subscribe；后续连接仅加入内存 Set。
+ * @param channel - Redis channel 名称
+ * @param ws - WebSocket 连接实例
+ * @throws 当 Redis subscribe 失败时抛出错误
+ */
+async function subscribeChannel(channel: string, ws: WebSocket): Promise<void> {
+  const sub = await ensureSharedSubscriber();
+
+  let clients = channelClients.get(channel);
+  if (!clients) {
+    clients = new Set();
+    channelClients.set(channel, clients);
+  }
+  clients.add(ws);
+
+  if (!channelSubscriptions.has(channel)) {
+    const subscribePromise = sub.subscribe(channel).then(() => undefined);
+    channelSubscriptions.set(channel, subscribePromise);
+    try {
+      await subscribePromise;
+    } catch (err) {
+      channelSubscriptions.delete(channel);
+      channelClients.delete(channel);
+      throw err;
+    }
+  } else {
+    await channelSubscriptions.get(channel);
+  }
+}
+
+/**
+ * 将 WebSocket 连接从共享订阅注销：从内存路由表移除，必要时取消 Redis 订阅。
+ *
+ * 当 channel 的最后一个连接关闭时，取消 Redis subscribe 释放资源。
+ * @param channel - Redis channel 名称
+ * @param ws - WebSocket 连接实例
+ */
+function unsubscribeChannel(channel: string, ws: WebSocket): void {
+  const clients = channelClients.get(channel);
+  if (!clients) return;
+  clients.delete(ws);
+  if (clients.size === 0) {
+    channelClients.delete(channel);
+    channelSubscriptions.delete(channel);
+    if (sharedSubscriber) {
+      sharedSubscriber.unsubscribe(channel).catch(() => undefined);
+    }
+  }
+}
 
 /**
  * 从握手请求中提取 jobId。
@@ -91,56 +202,25 @@ function rejectHandshake(socket: Duplex, statusCode: number, reason: string): vo
 }
 
 /**
- * 处理单个 WS 连接的生命周期：订阅 Redis channel → 转发消息 → 关闭时清理。
+ * 处理单个 WS 连接的生命周期：注册到共享订阅 转发消息 关闭时清理。
  *
- * 每个连接独占一个 ioredis 订阅连接。subscribe 模式下同一连接不能发其他命令，
- * 故无法复用 appRedis（应用层连接需保留 publish/ping 能力）。
+ * D3-002：不再每连接创建独立 Redis subscriber，而是注册到进程级共享 subscriber。
  */
 function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
   wsConnectionsActive.inc();
   const channel = `${CHANNEL_PREFIX}${jobId}`;
-  logger.info({ jobId, userId }, '[ws] 连接已建立，订阅 Redis channel');
-
-  const subscriber = new IORedis({
-    ...buildRedisBaseOptions(),
-    maxRetriesPerRequest: null,
-    enableReadyCheck: true,
-  });
+  logger.info({ jobId, userId }, '[ws] 连接已建立，注册到共享订阅');
 
   let cleaned = false;
   const cleanup = (): void => {
     if (cleaned) return;
     cleaned = true;
     wsConnectionsActive.dec();
-    subscriber.unsubscribe(channel).catch(() => undefined);
-    subscriber.quit().catch(() => undefined);
+    unsubscribeChannel(channel, ws);
   };
 
-  subscriber.on('error', (err) => {
-    logger.warn({ err: String(err), jobId }, '[ws] Redis 订阅连接错误');
-  });
-
-  subscriber.on('message', (ch, message) => {
-    if (ch !== channel) return;
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(message);
-    }
-  });
-
-  subscriber.subscribe(channel, (err) => {
-    if (err) {
-      logger.warn({ err: String(err), jobId }, '[ws] Redis subscribe 失败');
-      ws.close(1011, 'Subscription failed');
-      return;
-    }
-    // 推送一次握手确认，便于客户端识别连接就绪（非进度消息，type=connected 区分）
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'connected', jobId, channel }));
-    }
-  });
-
   ws.on('close', () => {
-    logger.info({ jobId, userId }, '[ws] 连接已关闭，取消 Redis 订阅');
+    logger.info({ jobId, userId }, '[ws] 连接已关闭，取消 channel 注册');
     cleanup();
   });
 
@@ -148,6 +228,19 @@ function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
     logger.warn({ err: String(err), jobId }, '[ws] 连接异常');
     cleanup();
   });
+
+  subscribeChannel(channel, ws)
+    .then(() => {
+      // 推送一次握手确认，便于客户端识别连接就绪（非进度消息，type=connected 区分）
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'connected', jobId, channel }));
+      }
+    })
+    .catch((err) => {
+      logger.warn({ err: String(err), jobId }, '[ws] Redis subscribe 失败');
+      ws.close(1011, 'Subscription failed');
+      cleanup();
+    });
 }
 
 /**

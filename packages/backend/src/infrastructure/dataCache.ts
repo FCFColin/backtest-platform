@@ -206,6 +206,13 @@ async function readCache(key: string): Promise<unknown> {
     return null;
   }
   try {
+    // await 间隙后重新检查 L1（其他并发请求可能已回填）
+    const l1After = l1Get(key);
+    if (l1After !== null) {
+      recordCacheHit('data_cache_l1', true);
+      return l1After;
+    }
+
     const raw = await appRedis.get(key);
     if (!raw) {
       recordCacheHit('data_cache_l2', false);
@@ -216,8 +223,10 @@ async function readCache(key: string): Promise<unknown> {
       recordCacheHit('data_cache_l2', false);
       return null;
     }
-    // 回填 L1，后续命中走快速路径
-    l1Set(key, data);
+    // 回填前再次检查 L1，避免覆盖并发写入的更新值
+    if (l1Get(key) === null) {
+      l1Set(key, data);
+    }
     recordCacheHit('data_cache_l2', true);
     return data;
   } catch (err) {

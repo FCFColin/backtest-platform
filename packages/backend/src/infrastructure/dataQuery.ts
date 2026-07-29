@@ -9,19 +9,12 @@
  * 无限制地累加响应体会导致内存溢出（OOM）。通过 MAX_RESPONSE_BODY_SIZE 环境变量
  * 配置上限（默认 50MB），超限时销毁请求并拒绝。
  */
-import http from 'http';
 import CircuitBreaker from 'opossum';
 
-/** HTTP 响应体最大字节数（默认 50MB），可通过 MAX_RESPONSE_BODY_SIZE 环境变量配置。 */
-const MAX_RESPONSE_BODY_SIZE = parseInt(
-  process.env.MAX_RESPONSE_BODY_SIZE || String(50 * 1024 * 1024),
-  10,
-);
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/dateUtils.js';
-import { config } from '../config/index.js';
 import { getReadPool } from '../db/pool.js';
-import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../utils/metrics.js';
+import { registerCircuitBreakerMetrics } from '../utils/metrics.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import {
   writeCache,
@@ -31,6 +24,7 @@ import {
   HISTORY_CACHE_TTL_SEC,
   SEARCH_CACHE_TTL_SEC,
 } from './dataCache.js';
+import { callGoDataService } from './goDataServiceClient.js';
 
 interface TickerSearchResult {
   ticker: string;
@@ -48,6 +42,7 @@ const pgCircuitBreaker = new CircuitBreaker(
     timeout: 10000,
     errorThresholdPercentage: 50,
     resetTimeout: 10000,
+    volumeThreshold: 5,
     rollingCountTimeout: 60000,
     rollingCountBuckets: 6,
   },
@@ -67,123 +62,6 @@ registerCircuitBreakerMetrics('postgres', pgCircuitBreaker);
 
 function isDbAvailable(): boolean {
   return !pgCircuitBreaker.opened;
-}
-
-class Semaphore {
-  private permits: number;
-  private readonly maxPermits: number;
-  private waitQueue: Array<() => void> = [];
-
-  constructor(maxConcurrency: number) {
-    this.permits = maxConcurrency;
-    this.maxPermits = maxConcurrency;
-  }
-
-  async acquire(): Promise<void> {
-    if (this.permits > 0) {
-      this.permits--;
-      return;
-    }
-    return new Promise<void>((resolve) => {
-      this.waitQueue.push(resolve);
-    });
-  }
-
-  release(): void {
-    const next = this.waitQueue.shift();
-    if (next) {
-      next();
-    } else {
-      this.permits++;
-    }
-  }
-
-  available(): number {
-    return this.permits;
-  }
-
-  total(): number {
-    return this.maxPermits;
-  }
-}
-
-const goServiceSemaphore = new Semaphore(10);
-
-registerSemaphoreMetrics('go_data_service', goServiceSemaphore.total(), () =>
-  goServiceSemaphore.available(),
-);
-
-async function callGoDataService(path: string): Promise<string> {
-  await goServiceSemaphore.acquire();
-  try {
-    const baseUrl = config.GO_DATA_SERVICE_URL || 'http://127.0.0.1:15003';
-    const url = `${baseUrl}${path}`;
-
-    return await new Promise<string>((resolve, reject) => {
-      const req = http.request(
-        url,
-        {
-          method: 'GET',
-          timeout: config.GO_DATA_SERVICE_TIMEOUT_MS,
-          headers: {
-            'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
-          },
-        },
-        (res) => {
-          // P0-03：Content-Length 预检——如果响应头声明的大小已超限，直接拒绝不等数据到达
-          const contentLength = parseInt(res.headers['content-length'] || '', 10);
-          if (!Number.isNaN(contentLength) && contentLength > MAX_RESPONSE_BODY_SIZE) {
-            res.destroy();
-            reject(
-              new Error(
-                `Go data service response too large: Content-Length ${contentLength} exceeds limit ${MAX_RESPONSE_BODY_SIZE}`,
-              ),
-            );
-            return;
-          }
-
-          let body = '';
-          let receivedBytes = 0;
-          res.on('data', (chunk: Buffer) => {
-            // P0-03：累加已接收字节数，超限则销毁响应流并拒绝
-            receivedBytes += chunk.length;
-            if (receivedBytes > MAX_RESPONSE_BODY_SIZE) {
-              res.destroy();
-              reject(
-                new Error(
-                  `Go data service response too large: received ${receivedBytes} bytes exceeds limit ${MAX_RESPONSE_BODY_SIZE}`,
-                ),
-              );
-              return;
-            }
-            body += chunk.toString();
-          });
-          res.on('end', () => {
-            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-              resolve(body);
-            } else {
-              reject(
-                new Error(`Go data service returned HTTP ${res.statusCode}: ${body.slice(0, 200)}`),
-              );
-            }
-          });
-        },
-      );
-
-      req.on('error', (err: Error) => {
-        reject(new Error(`Go data service request failed: ${err.message}`));
-      });
-
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error('Go data service request timed out after 30 seconds'));
-      });
-
-      req.end();
-    });
-  } finally {
-    goServiceSemaphore.release();
-  }
 }
 
 /** 从 DB 行中计算日期交集 */
@@ -300,6 +178,7 @@ async function fetchMissingFromGoService(
   startDate: string,
   endDate: string,
   cacheKey: string,
+  orgId?: string,
 ): Promise<Record<string, Record<string, number>>> {
   const goResult: Record<string, Record<string, number>> = {};
 
@@ -308,6 +187,7 @@ async function fetchMissingFromGoService(
       try {
         const response = await callGoDataService(
           `/api/data/price/${ticker}?start=${startDate}&end=${endDate}`,
+          orgId,
         );
         const parsed = JSON.parse(response);
         if (parsed.success && Array.isArray(parsed.data)) {
@@ -476,7 +356,7 @@ export async function validateTickers(
  * @param market - 可选市场过滤（如 'US'、'HK'），未指定则查全部
  * @returns 匹配的标的列表；无匹配或查询失败时返回空数组
  */
-export async function searchTickers(query: string, market?: string): Promise<TickerSearchResult[]> {
+export async function searchTickers(query: string, market?: string, orgId?: string): Promise<TickerSearchResult[]> {
   if (!validateSearchQuery(query, market)) return [];
 
   const dbResult = await searchTickersFromDb(query, market);
@@ -487,7 +367,7 @@ export async function searchTickers(query: string, market?: string): Promise<Tic
   if (cached) return cached as TickerSearchResult[];
 
   try {
-    const response = await callGoDataService(`/api/data/search?q=${encodeURIComponent(query)}`);
+    const response = await callGoDataService(`/api/data/search?q=${encodeURIComponent(query)}`, orgId);
     const parsed = JSON.parse(response);
     if (parsed.success && Array.isArray(parsed.data)) {
       const data = parsed.data.map((r: { ticker: string; name: string; market: string }) => ({

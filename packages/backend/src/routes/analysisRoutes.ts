@@ -22,7 +22,7 @@ import { Router, type Request, type Response } from 'express';
 import type { LETFRequest, PCARequest, GoalOptimizerRequest } from '@backtest/shared/types';
 import { logger } from '../utils/logger.js';
 import { validate } from '../middleware/validate.js';
-import { sendProblem, ValidationError } from '../utils/errors.js';
+import { sendProblem } from '../utils/errors.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { computeMiddleware, computeMiddlewareNoQuota } from '../middleware/middlewareChains.js';
 import { Permission } from '../middleware/rbac.js';
@@ -31,6 +31,8 @@ import {
   pcaAnalyzeSchema,
   letfAnalyzeSchema,
   goalOptimizerSchema,
+  factorRegressionSchema,
+  calculatorBodySchema,
 } from '../schemas/analysisSchemas.js';
 import { executeLetfAnalyzeWithFetch } from '../application/analysis-orchestrator.js';
 import { executePcaAnalyzeWithFetch } from '../application/analysis-orchestrator.js';
@@ -139,16 +141,10 @@ analysisRouter.use(
 const factorRegressionSubRouter = Router();
 factorRegressionSubRouter.post(
   '/factor-regression',
+  validate(factorRegressionSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const { monthlyReturns, ffData, factors, startDate, endDate } = req.body;
-
-      if (!monthlyReturns || !Array.isArray(monthlyReturns) || monthlyReturns.length === 0) {
-        throw new ValidationError('monthlyReturns 不能为空');
-      }
-      if (!ffData || !Array.isArray(ffData) || ffData.length === 0) {
-        throw new ValidationError('ffData 不能为空');
-      }
 
       logger.info('[FactorRegression] 开始回归');
       const result = await callEngineStrict('/api/engine/factor-regression', {
@@ -178,6 +174,7 @@ const VALID_CALC_TYPES = ['cagr', 'swr', 'frontier'];
 const calculatorSubRouter = Router();
 calculatorSubRouter.post(
   '/:type',
+  validate(calculatorBodySchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const { type } = req.params;

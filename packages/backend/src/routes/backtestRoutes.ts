@@ -89,7 +89,7 @@ router.get(
         return;
       }
 
-      const results = await searchTickers(query.trim());
+      const results = await searchTickers(query.trim(), undefined, req.tenantId);
       res.json({ success: true, data: results.slice(0, limit) });
     },
     {
@@ -150,9 +150,9 @@ router.post(
           '[backtest] BullMQ 队列不可用，fail-closed 返回 503',
         );
         recordBacktestRequest('portfolio', 'async', 'queue_error');
-        sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', {
+        sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
           detail: 'Compute queue temporarily unavailable. Please retry later.',
-          retryAfter: 30,
+          headers: { 'Retry-After': '30' },
         });
       }
     },
@@ -241,7 +241,7 @@ router.get(
       };
 
       if (status === 'completed' && job.returnvalue) {
-        const returnValue = job.returnvalue as unknown as BacktestJobResult;
+        const returnValue = job.returnvalue as BacktestJobResult;
         if (returnValue.status === 'completed' && returnValue.result) {
           // portfolio job 的 result 形状：{ data, warnings, dateRange }
           data.result = returnValue.result;
@@ -355,7 +355,7 @@ router.post(
         portfolio?: Portfolio;
         portfolios?: Portfolio[];
         parameters: BacktestParameters;
-        mcParams?: object;
+        mcParams?: Record<string, unknown>;
       };
 
       const portfolioList = (portfolios || (portfolio ? [portfolio] : undefined))!;

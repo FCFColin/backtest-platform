@@ -20,6 +20,35 @@ import { validateQuery } from '../middleware/validate.js';
 import { historyQuerySchema, searchQuerySchema } from '../schemas/data.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import { SYNTHETIC_TICKERS } from '../infrastructure/syntheticTickers.js';
+import { getPool } from '../db/pool.js';
+
+// 内存缓存：/data/meta 聚合查询结果，5 分钟 TTL
+let metaCache: { data: object; expiry: number } | null = null;
+const META_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/** 预热 /data/meta 缓存，服务器启动时调用 */
+export async function warmMetaCache(): Promise<void> {
+  try {
+    const pool = getPool();
+    const result = await pool.query(
+      `SELECT
+         (SELECT MAX(date) FROM prices) AS "lastUpdated",
+         (SELECT MIN(date) FROM prices) AS "earliestDate",
+         (SELECT COUNT(*) FROM tickers) AS "tickerCount",
+         (SELECT approximate_row_count('public.prices'::regclass)) AS "dataPointCount"`,
+    );
+    const row = result.rows[0] ?? {};
+    metaCache = {
+      data: {
+        lastUpdated: row.lastUpdated ?? null,
+        tickerCount: Number(row.tickerCount) || 0,
+        earliestDate: row.earliestDate ?? null,
+        dataPointCount: Number(row.dataPointCount) || 0,
+      },
+      expiry: Date.now() + META_CACHE_TTL_MS,
+    };
+  } catch { /* 预热失败不影响启动 */ }
+}
 
 const router = Router();
 
@@ -52,6 +81,7 @@ router.get(
         tickerList,
         startDate,
         endDate,
+        req.tenantId,
       );
 
       const response: Record<string, unknown> = { success: true, data };
@@ -80,7 +110,7 @@ router.get(
     async (req: Request, res: Response): Promise<void> => {
       const { query, market } = req.query as { query: string; market?: string };
 
-      const results = await searchTickers(query, market);
+      const results = await searchTickers(query, market, req.tenantId);
 
       res.json({ success: true, data: results });
     },
@@ -160,26 +190,28 @@ router.get(
   '/meta',
   asyncRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const pool = (await import('@/db/index.js')).default;
+      if (metaCache && Date.now() < metaCache.expiry) {
+        res.json({ success: true, data: metaCache.data });
+        return;
+      }
+      const pool = getPool();
       try {
         const result = await pool.query(
           `SELECT
-             MAX(bar_date) AS "lastUpdated",
-             COUNT(DISTINCT ticker) AS "tickerCount",
-             MIN(bar_date) AS "earliestDate",
-             COUNT(*) AS "dataPointCount"
-           FROM market_data`,
+             (SELECT MAX(date) FROM prices) AS "lastUpdated",
+             (SELECT MIN(date) FROM prices) AS "earliestDate",
+             (SELECT COUNT(*) FROM tickers) AS "tickerCount",
+(SELECT approximate_row_count('public.prices'::regclass)) AS "dataPointCount"`,
         );
         const row = result.rows[0] ?? {};
-        res.json({
-          success: true,
-          data: {
-            lastUpdated: row.lastUpdated ?? null,
-            tickerCount: Number(row.tickerCount) ?? 0,
-            earliestDate: row.earliestDate ?? null,
-            dataPointCount: Number(row.dataPointCount) ?? 0,
-          },
-        });
+        const data = {
+          lastUpdated: row.lastUpdated ?? null,
+          tickerCount: Number(row.tickerCount) || 0,
+          earliestDate: row.earliestDate ?? null,
+          dataPointCount: Number(row.dataPointCount) || 0,
+        };
+        metaCache = { data, expiry: Date.now() + META_CACHE_TTL_MS };
+        res.json({ success: true, data });
       } catch {
         res.json({
           success: true,

@@ -12,7 +12,7 @@ import { sendProblem } from '../utils/errors.js';
 import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hashUserId, requireUser } from '../middleware/authTypes.js';
 import { validate } from '../middleware/validate.js';
-import { registerSchema } from '../schemas/auth.js';
+import { registerSchema, verifyEmailSchema, resendVerificationSchema } from '../schemas/auth.js';
 import { createUserTx, getUserByEmail } from '../repositories/userRepo.js';
 import { issueEmailVerificationToken, verifyEmailToken } from '../application/auth/userService.js';
 import { getClient } from '../db/pool.js';
@@ -103,12 +103,8 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
  *
  * 请求体：{ token }
  */
-router.post('/verify-email', async (req: Request, res: Response) => {
-  const { token } = req.body as { token?: string };
-  if (!token) {
-    sendProblem(res, 422, 'MISSING_TOKEN');
-    return;
-  }
+router.post('/verify-email', validate(verifyEmailSchema), async (req: Request, res: Response) => {
+  const { token } = req.body;
   const userId = await verifyEmailToken(token);
   if (!userId) {
     sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
@@ -120,13 +116,9 @@ router.post('/verify-email', async (req: Request, res: Response) => {
 /**
  * POST /api/v1/auth/resend-verification - 重发验证邮件（需登录，ADR-035）
  */
-router.post('/resend-verification', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/resend-verification', jwtAuth, validate(resendVerificationSchema), async (req: AuthenticatedRequest, res: Response) => {
   if (!requireUser(req, res)) return;
-  const { email } = req.body as { email?: string };
-  if (!email) {
-    sendProblem(res, 422, 'MISSING_EMAIL');
-    return;
-  }
+  const { email } = req.body;
   try {
     const token = await issueEmailVerificationToken(req.user.sub);
     await sendVerificationEmail(email, token);

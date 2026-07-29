@@ -1,44 +1,33 @@
-/**
- * marketStats 的纯辅助函数与类型定义（无 DB I/O 副作用）。
+﻿/**
+ * 市场数据统计 — 纯辅助函数。
+ *
+ * 从 marketStats.ts 拆分（P3-2 M-005）：将无副作用的纯函数集中到本文件，
+ * 便于单元测试与跨模块复用。所有 DB 查询函数保留在 marketStats.ts。
  */
-import type { MarketStats } from '@backtest/shared/types';
-import { bytesToMb } from './marketStorageStats.js';
+import type {
+  DbMarketStats,
+  TickerAggRow,
+  ProcessTickerRowOpts,
+  MarketStatsAccumulators,
+} from './marketStatsTypes.js';
 
-export type DbMarketStats = MarketStats;
+// ---------------------------------------------------------------------------
+// 字节转换
+// ---------------------------------------------------------------------------
 
-/** ticker 聚合行（来自 PostgreSQL 查询） */
-export interface TickerAggRow {
-  ticker: string;
-  market: string;
-  category: string;
-  exchange: string;
-  n_points: number;
-  first_date: string | null;
-  last_date: string | null;
+/**
+ * 将字节数转为 MB（保留 1 位小数）。
+ *
+ * @param bytes 字节数
+ * @returns 对应的 MB 数值（保留 1 位小数）
+ */
+export function bytesToMb(bytes: number): number {
+  return Math.round((bytes / 1024 / 1024) * 10) / 10;
 }
 
-/** processTickerRow 的累加器状态 */
-export interface TickerRowState {
-  earliest: string | null;
-  latest: string | null;
-  tickers5y: number;
-  tickers10y: number;
-  tickers20y: number;
-  totalDataPoints: number;
-  allPoints: number[];
-}
-
-/** processTickerRow 的全部参数 */
-export interface ProcessTickerRowOpts {
-  row: TickerAggRow;
-  byMarket: DbMarketStats['by_market'];
-  byType: Record<string, number>;
-  byExchange: Record<string, number>;
-  byDecade: Record<string, number>;
-  byYearCount: Record<string, number>;
-  sampleTickers: DbMarketStats['sample_tickers'];
-  state: TickerRowState;
-}
+// ---------------------------------------------------------------------------
+// 市场代码 / 类型 / 交易所推断
+// ---------------------------------------------------------------------------
 
 /**
  * 根据 ticker 后缀或显式市场字段推断市场代码。
@@ -56,9 +45,6 @@ export function inferMarket(ticker: string, market: string): string {
 
 /**
  * 按 ticker 后缀推导交易所代码（与 Go provider.DeriveExchange 保持一致）。
- *
- * 用于填充 by_exchange 分布统计。当 DB 的 tickers.exchange 列为空时（如历史数据未回填），
- * 作为兜底推导，确保按交易所分布不再全部显示"未知"。
  *
  * @param ticker ticker 符号
  * @returns 交易所代码（SZSE / SSE / US）
@@ -125,6 +111,10 @@ function categorizeSampleKey(market: string, ttype: string): string {
   return '';
 }
 
+// ---------------------------------------------------------------------------
+// 年代 / 年限 / 维度统计累加
+// ---------------------------------------------------------------------------
+
 /**
  * 累计年代与年限桶统计。
  *
@@ -144,19 +134,6 @@ export function accumulateYearStats(
   const bucket = yearBucket(firstDate, lastDate);
   byYearCount[bucket] = (byYearCount[bucket] || 0) + 1;
   return { years: parseInt(lastDate.slice(0, 4), 10) - parseInt(firstDate.slice(0, 4), 10) };
-}
-
-/**
- * 按维度分组的统计累加器（marketStatsHelpers 内部聚合用）。
- *
- * 企业理由：updateMarketStats 原接收 byMarket / byType / byExchange 三个独立参数，
- * 加上 market / ttype / exchange 后达 6 个参数，违反 max-params(5) 规约。
- * 将三个累加器聚合为单一对象，降至 4 个参数，同时强调三者总是一起传递与变异。
- */
-export interface MarketStatsAccumulators {
-  byMarket: DbMarketStats['by_market'];
-  byType: Record<string, number>;
-  byExchange: Record<string, number>;
 }
 
 /**
@@ -199,7 +176,7 @@ function updateDateRangeStats(
   lastDate: string,
   byDecade: Record<string, number>,
   byYearCount: Record<string, number>,
-  state: TickerRowState,
+  state: { earliest: string | null; latest: string | null; tickers5y: number; tickers10y: number; tickers20y: number },
 ): void {
   if (!firstDate) return;
   if (!state.earliest || firstDate < state.earliest) state.earliest = firstDate;

@@ -56,11 +56,14 @@ function signPayload(payload: string): string {
 
 /**
  * 验证审计日志 payload 的 HMAC 签名。
- * 未配置 AUDIT_HMAC_KEY 时返回 true（无密钥=不验证）。
+ * Security (D2-010): 未配置 AUDIT_HMAC_KEY 时返回 false（fail-closed，验证失败）。
  */
 export function verifyPayload(payload: string, signature: string): boolean {
   const key = config.AUDIT_HMAC_KEY;
-  if (!key) return true; // No key = no verification
+  if (!key) {
+    logger.warn('AUDIT_HMAC_KEY not set, audit payload verification fails closed (returns false)');
+    return false;
+  }
   const expected = crypto.createHmac('sha256', key).update(payload).digest('hex');
   const sigBuf = Buffer.from(signature);
   const expBuf = Buffer.from(expected);

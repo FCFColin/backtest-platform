@@ -83,7 +83,7 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
     let KafkaCtor: KafkaCtorType | null = null;
     try {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- kafkajs 未安装时类型解析失败；运行时动态 import 兼容未安装场景（P3-05）
-      // @ts-ignore
+      // @ts-expect-error
       const mod = await import('kafkajs');
       KafkaCtor = (mod as { Kafka: KafkaCtorType }).Kafka;
     } catch (err) {

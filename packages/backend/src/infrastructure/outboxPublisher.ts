@@ -8,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from '../utils/metrics.js';
 import { eventDispatcher } from '../domain/events/index.js';
 import { config } from '../config/index.js';
+import pLimit from 'p-limit';
 
 // P1-05：Outbox 监控指标
 const outboxUnprocessedCount = new client.Gauge({
@@ -30,6 +31,9 @@ const outboxTotalRows = new client.Gauge({
 
 /** Outbox 清理保留天数，默认 7 天 */
 const OUTBOX_RETENTION_DAYS = parseInt(process.env.OUTBOX_RETENTION_DAYS || '7', 10);
+
+/** Outbox 事件发布并发上限（D3-003：批量并发处理，避免串行阻塞） */
+const OUTBOX_PUBLISH_CONCURRENCY = 10;
 // P3-05 CDC 替代通路：工厂按 CDC_KAFKA_ENABLED 选择实例化 OutboxKafkaConsumer。
 // 运行时单向依赖（本模块 → outboxKafkaConsumer）；outboxKafkaConsumer 仅 type-only 引用本模块，无运行时循环。
 import { OutboxKafkaConsumer } from './outboxKafkaConsumer.js';
@@ -171,20 +175,30 @@ export class OutboxPublisher {
         'SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, tenant_id FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT 100',
       );
 
+      const events = result.rows;
+      const limit = pLimit(OUTBOX_PUBLISH_CONCURRENCY);
+      const settled = await Promise.allSettled(
+        events.map((event: { id: string; event_type: string; aggregate_type: string; aggregate_id: string; payload: unknown; created_at: Date | string; tenant_id?: string | null }) =>
+          limit(async () => {
+            await this.routeEvent(event);
+            // P2-02：事件路由后触发匹配的 webhook 订阅（回调由 server.ts 注入）。
+            this.triggerWebhookSafely(event);
+            return event.id;
+          }),
+        ),
+      );
       const processedIds: string[] = [];
-      for (const event of result.rows) {
-        try {
-          await this.routeEvent(event);
-          // P2-02：事件路由后触发匹配的 webhook 订阅（回调由 server.ts 注入）。
-          this.triggerWebhookSafely(event);
-          processedIds.push(event.id);
+      for (let i = 0; i < settled.length; i++) {
+        const s = settled[i];
+        if (s.status === 'fulfilled') {
+          processedIds.push(s.value);
           logger.info(
-            { module: 'outboxPublisher', eventId: event.id, eventType: event.event_type },
+            { module: 'outboxPublisher', eventId: s.value, eventType: events[i].event_type },
             'Outbox event processed',
           );
-        } catch (err) {
+        } else {
           logger.error(
-            { module: 'outboxPublisher', err: (err as Error).message, eventId: event.id },
+            { module: 'outboxPublisher', err: (s.reason as Error)?.message, eventId: events[i].id },
             'Failed to process outbox event',
           );
         }
@@ -355,10 +369,11 @@ export class OutboxPublisher {
          WHERE id IN (
            SELECT id FROM outbox
            WHERE processed_at IS NOT NULL
-             AND created_at < NOW() - INTERVAL '${OUTBOX_RETENTION_DAYS} days'
+             AND created_at < NOW() - INTERVAL '1 day' * $1
            ORDER BY created_at ASC
            LIMIT 10000
          )`,
+        [OUTBOX_RETENTION_DAYS],
       );
       if (result.rowCount && result.rowCount > 0) {
         logger.info(

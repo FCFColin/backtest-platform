@@ -20,11 +20,13 @@ import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { validate } from '../middleware/validate.js';
+import { emptyBodySchema } from '../schemas/shared.js';
 import { sendProblem } from '../utils/errors.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { crudRouteHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
 import { withTenant } from '../db/pool.js';
-import { deliverWebhook } from '../application/webhookService.js';
+import { deliverWebhook, createWebhook } from '../application/webhookService.js';
+import { decrypt } from '../utils/envelopeEncryption.js';
 
 const router = Router();
 
@@ -38,7 +40,7 @@ const createWebhookSchema = z.object({
     .trim()
     .url('URL 格式非法')
     .refine((v) => v.startsWith('https://'), 'URL 必须为 HTTPS'),
-  secret: z.string().min(8, 'secret 至少 8 字符').max(256, 'secret 过长'),
+  secret: z.string().min(32, 'secret 至少 32 字符以保证 HMAC-SHA256 安全强度').max(256, 'secret 过长'),
   description: z.string().trim().max(500).optional(),
   subscribedEvents: z.array(z.string().trim().min(1)).min(1, '至少订阅一个事件'),
 });
@@ -158,24 +160,25 @@ router.post(
         description?: string;
         subscribedEvents: string[];
       };
-      const created = await withTenant(orgId, async (client) => {
-        const { rows } = await client.query(
-          `INSERT INTO webhook_endpoints (org_id, url, secret, description, subscribed_events)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id, url, description, is_active, subscribed_events, created_at`,
-          [orgId, body.url, body.secret, body.description ?? null, body.subscribedEvents],
-        );
-        return rows[0];
-      });
+      // C-024：通过 createWebhook 在入库前加密 secret，DB 仅存密文
+      const created = await withTenant(orgId, async (client) =>
+        createWebhook(client, {
+          orgId,
+          url: body.url,
+          secret: body.secret,
+          description: body.description,
+          subscribedEvents: body.subscribedEvents,
+        }),
+      );
       res.status(201).json({
         success: true,
         data: {
           id: created.id,
           url: created.url,
           description: created.description,
-          isActive: created.is_active,
-          subscribedEvents: created.subscribed_events,
-          createdAt: new Date(created.created_at).toISOString(),
+          isActive: created.isActive,
+          subscribedEvents: created.subscribedEvents,
+          createdAt: new Date(created.createdAt).toISOString(),
         },
       });
     },
@@ -280,6 +283,7 @@ router.delete(
  */
 router.post(
   '/:id/test',
+  validate(emptyBodySchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const authReq = req as AuthenticatedRequest;
@@ -296,7 +300,7 @@ router.post(
       // 加载端点（含 secret 用于签名），创建投递记录并立即投递
       const result = await withTenant(orgId, async (client) => {
         const { rows } = await client.query(
-          `SELECT id, url, secret FROM webhook_endpoints WHERE id = $1 AND org_id = $2`,
+          `SELECT id, url, secret, secret_iv, secret_tag, secret_kid FROM webhook_endpoints WHERE id = $1 AND org_id = $2`,
           [webhookId, orgId],
         );
         if (rows.length === 0) return { notFound: true as const };
@@ -316,8 +320,21 @@ router.post(
         sendProblem(res, 404, 'WEBHOOK_NOT_FOUND');
         return;
       }
+      // C-024：从 DB 读出密文 secret 并 decrypt 为明文用于 HMAC 签名
+      const plaintextSecret = await decrypt({
+        ciphertext: Buffer.isBuffer(result.endpoint.secret)
+          ? result.endpoint.secret
+          : Buffer.from(result.endpoint.secret),
+        iv: Buffer.isBuffer(result.endpoint.secret_iv)
+          ? result.endpoint.secret_iv
+          : Buffer.from(result.endpoint.secret_iv),
+        tag: Buffer.isBuffer(result.endpoint.secret_tag)
+          ? result.endpoint.secret_tag
+          : Buffer.from(result.endpoint.secret_tag),
+        kid: result.endpoint.secret_kid,
+      });
       const delivery = await deliverWebhook(
-        { url: result.endpoint.url, secret: result.endpoint.secret },
+        { url: result.endpoint.url, secret: plaintextSecret },
         'WebhookTest',
         testPayload,
       );

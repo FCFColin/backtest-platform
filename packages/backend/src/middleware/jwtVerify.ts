@@ -61,7 +61,7 @@ async function validateJwtPayload(
   algorithm: string,
   span: Span,
 ): Promise<JwtPayload | null> {
-  const jwtPayload = payload as unknown as JwtPayload;
+  const jwtPayload = payload as JwtPayload;
   if (!hasRequiredClaims(jwtPayload)) {
     span.setAttribute('verify.result', 'failed_missing_claims');
     return null;

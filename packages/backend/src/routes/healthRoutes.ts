@@ -6,6 +6,7 @@
  * GET /api/v1/debug/health - 调试子系统存活探测（需 DEBUG_AUTH_TOKEN 鉴权，T-29）
  */
 
+import crypto from 'crypto';
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
@@ -18,16 +19,46 @@ import { crudRouteHandler } from './routeUtils.js';
 const router = Router();
 
 /**
+ * 恒定时间字符串比较（D2-004）。
+ *
+ * 使用 crypto.timingSafeEqual 防止计时侧信道攻击。长度不匹配时直接返回 false
+ * （攻击者可控输入长度，且 secret 长度本身不属于敏感信息）。
+ *
+ * @param a - 用户提供的令牌
+ * @param b - 服务端配置的令牌
+ * @returns 两字符串内容与长度均一致时返回 true
+ */
+function safeEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a, 'utf-8');
+  const bBuf = Buffer.from(b, 'utf-8');
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+/**
  * 校验运维端点 Bearer 令牌（与 /metrics 共用 METRICS_AUTH_TOKEN）。
  *
- * @returns true 表示已鉴权或未配置令牌（开发/内网）
+ * D2-005：未配置 METRICS_AUTH_TOKEN 时 fail-closed 返回 403（不再免鉴权）。
+ * 令牌已配置但不匹配时返回 401。仅当令牌已配置且恒定时间匹配时放行。
+ * D2-004：令牌比较使用 crypto.timingSafeEqual 防计时侧信道。
+ *
+ * @param req - Express 请求
+ * @param res - Express 响应（鉴权失败时直接写入错误响应）
+ * @returns true 表示已鉴权通过；false 表示已写入错误响应，调用方应 return
  */
-function isOpsEndpointAuthorized(req: Request): boolean {
+function authorizeOpsEndpoint(req: Request, res: Response): boolean {
   const metricsToken = config.METRICS_AUTH_TOKEN;
-  if (!metricsToken) return true;
+  if (!metricsToken) {
+    sendProblem(res, 403, 'METRICS_AUTH_NOT_CONFIGURED');
+    return false;
+  }
   const auth = req.headers.authorization;
   const provided = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  return provided === metricsToken;
+  if (!safeEqual(provided, metricsToken)) {
+    sendProblem(res, 401, 'UNAUTHORIZED');
+    return false;
+  }
+  return true;
 }
 
 /**
@@ -93,10 +124,7 @@ router.get('/health', (_req: Request, res: Response) => {
  * 配置 METRICS_AUTH_TOKEN 时须 Bearer 鉴权（与 /metrics 一致）。
  */
 router.get('/ready', async (req: Request, res: Response) => {
-  if (!isOpsEndpointAuthorized(req)) {
-    sendProblem(res, 401, 'UNAUTHORIZED');
-    return;
-  }
+  if (!authorizeOpsEndpoint(req, res)) return;
 
   try {
     const [goEngineOk, goDataOk, dbOk, redisOk, sentinelHealth] = await Promise.all([
@@ -174,10 +202,7 @@ router.get(
   '/metrics',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      if (!isOpsEndpointAuthorized(req)) {
-        sendProblem(res, 401, 'UNAUTHORIZED');
-        return;
-      }
+      if (!authorizeOpsEndpoint(req, res)) return;
       res.set('Content-Type', getPrometheusRegister().contentType);
       res.end(await getPrometheusRegister().metrics());
     },
@@ -195,7 +220,11 @@ router.get(
 // 仅当 DEBUG_AUTH_TOKEN 配置时启用，未配置时返回 404。
 // ---------------------------------------------------------------------------
 
-/** 校验调试端点 Bearer 令牌（DEBUG_AUTH_TOKEN） */
+/**
+ * 校验调试端点 Bearer 令牌（DEBUG_AUTH_TOKEN）。
+ *
+ * D2-004：令牌比较使用 crypto.timingSafeEqual（恒定时间）防计时侧信道。
+ */
 function checkDebugAuth(req: Request, res: Response): boolean {
   const token = config.DEBUG_AUTH_TOKEN;
   if (!token) {
@@ -204,7 +233,7 @@ function checkDebugAuth(req: Request, res: Response): boolean {
   }
   const auth = req.headers.authorization;
   const provided = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (provided !== token) {
+  if (!safeEqual(provided, token)) {
     sendProblem(res, 401, 'UNAUTHORIZED');
     return false;
   }

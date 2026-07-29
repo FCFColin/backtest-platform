@@ -51,8 +51,13 @@ export interface SsrfCheckOptions {
   resolveDns?: boolean;
 }
 
+/** 校验单个 IPv4 八位组是否无效（非数字或越界）。 */
+function isInvalidOctet(p: number): boolean {
+  return Number.isNaN(p) || p < 0 || p > 255;
+}
+
 /**
- * 校验单个 IPv4 地址是否为私网/保留地址。
+ * 校验 IPv4 首二字节是否落入禁止段。
  *
  * 私有段参考 RFC 1918 + RFC 3927（链路本地）+ RFC 5735（特殊用途）：
  * - 0.0.0.0/8        未分配（"本机"语义，可被解释为 localhost）
@@ -64,25 +69,35 @@ export interface SsrfCheckOptions {
  * - 192.168.0.0/16   私网 C（RFC 1918）
  * - 224.0.0.0/4      多播
  * - 240.0.0.0/4      保留
+ */
+function isForbiddenIpv4Range(a: number, b: number): boolean {
+  // 0.0.0.0/8 未分配 / 10.0.0.0/8 私网 A / 127.0.0.0/8 回环
+  if (a === 0 || a === 10 || a === 127) return true;
+  // 169.254.0.0/16 链路本地（云元数据）
+  if (a === 169 && b === 254) return true;
+  // 172.16.0.0/12 私网 B
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  // 192.168.0.0/16 私网 C
+  if (a === 192 && b === 168) return true;
+  // 100.64.0.0/10 CGNAT
+  if (a === 100 && b >= 64 && b <= 127) return true;
+  // 224.0.0.0/4 多播 + 240.0.0.0/4 保留
+  return a >= 224;
+}
+
+/**
+ * 校验单个 IPv4 地址是否为私网/保留地址。
  *
  * @param ip - IPv4 字符串（已通过 isIP 校验格式）
  * @returns true 表示地址被禁止
  */
 function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split('.').map(Number);
-  if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) {
+  if (parts.length !== 4 || parts.some(isInvalidOctet)) {
     return true; // 格式错误一律拒绝（防御性）
   }
   const [a, b] = parts;
-  if (a === 0) return true; // 0.0.0.0/8 未分配
-  if (a === 10) return true; // 10.0.0.0/8 私网 A
-  if (a === 127) return true; // 127.0.0.0/8 回环
-  if (a === 169 && b === 254) return true; // 169.254.0.0/16 链路本地（云元数据）
-  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 私网 B
-  if (a === 192 && b === 168) return true; // 192.168.0.0/16 私网 C
-  if (a === 100 && b >= 64 && b <= 127) return true; // 100.64.0.0/10 CGNAT
-  if (a >= 224) return true; // 224.0.0.0/4 多播 + 240.0.0.0/4 保留
-  return false;
+  return isForbiddenIpv4Range(a, b);
 }
 
 /**
@@ -132,6 +147,77 @@ function isForbiddenIp(ip: string): boolean {
   return false; // 非 IP 字面量，由调用方处理
 }
 
+/** 校验协议 / userinfo / 端口（assertSafeUrl 步骤 2-4，提取以降低复杂度）。 */
+function validateUrlBasics(parsed: URL, allowedPorts: ReadonlySet<number>): void {
+  if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
+    throw new SsrfValidationError(
+      `Protocol '${parsed.protocol}' not allowed (only http: and https: permitted)`,
+      'SSRF_PROTOCOL_FORBIDDEN',
+    );
+  }
+
+  if (parsed.username || parsed.password) {
+    throw new SsrfValidationError(
+      'URL must not contain userinfo (user:password@)',
+      'SSRF_USERINFO_FORBIDDEN',
+    );
+  }
+
+  const port = parsed.port ? Number(parsed.port) : parsed.protocol === 'https:' ? 443 : 80;
+  if (!allowedPorts.has(port)) {
+    throw new SsrfValidationError(
+      `Port ${port} not allowed (permitted: ${[...allowedPorts].sort((a, b) => a - b).join(', ')})`,
+      'SSRF_PORT_FORBIDDEN',
+    );
+  }
+}
+
+/** 校验主机名：IP 字面量直接校验，域名 DNS 解析后校验（assertSafeUrl 步骤 5）。 */
+async function validateHostname(parsed: URL, resolveDns: boolean): Promise<void> {
+  // IPv6 字面量在 URL 中带方括号（如 [::1]），WHATWG URL hostname 保留方括号，
+  // 而 isIP 无法识别带括号的形式，需先剥离方括号再校验
+  const rawHostname = parsed.hostname;
+  const hostname =
+    rawHostname.startsWith('[') && rawHostname.endsWith(']')
+      ? rawHostname.slice(1, -1)
+      : rawHostname;
+  const ipFamily = isIP(hostname);
+  if (ipFamily !== 0) {
+    if (isForbiddenIp(hostname)) {
+      throw new SsrfValidationError(
+        `IP ${hostname} is forbidden (private/loopback/link-local)`,
+        'SSRF_PRIVATE_IP',
+      );
+    }
+    return;
+  }
+
+  if (!resolveDns) return;
+  let addrs: string[];
+  try {
+    addrs = await dns.resolve4(hostname);
+  } catch (err) {
+    throw new SsrfValidationError(
+      `DNS resolution failed for ${hostname}: ${(err as Error).message}`,
+      'SSRF_DNS_FAILED',
+    );
+  }
+  if (addrs.length === 0) {
+    throw new SsrfValidationError(
+      `DNS returned no A records for ${hostname}`,
+      'SSRF_DNS_EMPTY',
+    );
+  }
+  for (const addr of addrs) {
+    if (isForbiddenIp(addr)) {
+      throw new SsrfValidationError(
+        `Resolved IP ${addr} for ${hostname} is forbidden (DNS rebinding to private/loopback)`,
+        'SSRF_DNS_REBINDING',
+      );
+    }
+  }
+}
+
 /**
  * 校验 URL 是否符合 SSRF 防护策略。
  *
@@ -159,73 +245,9 @@ export async function assertSafeUrl(
     throw new SsrfValidationError(`Invalid URL: ${url}`, 'SSRF_INVALID_URL');
   }
 
-  // 2. 协议校验
-  if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
-    throw new SsrfValidationError(
-      `Protocol '${parsed.protocol}' not allowed (only http: and https: permitted)`,
-      'SSRF_PROTOCOL_FORBIDDEN',
-    );
-  }
-
-  // 3. 禁止 userinfo（避免 http://user:pass@evil/ 注入与凭证泄露）
-  if (parsed.username || parsed.password) {
-    throw new SsrfValidationError(
-      'URL must not contain userinfo (user:password@)',
-      'SSRF_USERINFO_FORBIDDEN',
-    );
-  }
-
-  // 4. 端口校验（未显式端口时使用协议默认端口）
-  const port = parsed.port ? Number(parsed.port) : parsed.protocol === 'https:' ? 443 : 80;
-  if (!allowedPorts.has(port)) {
-    throw new SsrfValidationError(
-      `Port ${port} not allowed (permitted: ${[...allowedPorts].sort((a, b) => a - b).join(', ')})`,
-      'SSRF_PORT_FORBIDDEN',
-    );
-  }
+  // 2-4. 协议 / userinfo / 端口校验
+  validateUrlBasics(parsed, allowedPorts);
 
   // 5. 主机名校验：IP 字面量直接校验，域名 DNS 解析后校验
-  // IPv6 字面量在 URL 中带方括号（如 [::1]），WHATWG URL hostname 保留方括号，
-  // 而 isIP 无法识别带括号的形式，需先剥离方括号再校验
-  const rawHostname = parsed.hostname;
-  const hostname =
-    rawHostname.startsWith('[') && rawHostname.endsWith(']')
-      ? rawHostname.slice(1, -1)
-      : rawHostname;
-  const ipFamily = isIP(hostname);
-  if (ipFamily !== 0) {
-    if (isForbiddenIp(hostname)) {
-      throw new SsrfValidationError(
-        `IP ${hostname} is forbidden (private/loopback/link-local)`,
-        'SSRF_PRIVATE_IP',
-      );
-    }
-    return;
-  }
-
-  // 域名：DNS 解析后逐个校验所有 A 记录（防 DNS rebinding）
-  if (!resolveDns) return;
-  let addrs: string[];
-  try {
-    addrs = await dns.resolve4(hostname);
-  } catch (err) {
-    throw new SsrfValidationError(
-      `DNS resolution failed for ${hostname}: ${(err as Error).message}`,
-      'SSRF_DNS_FAILED',
-    );
-  }
-  if (addrs.length === 0) {
-    throw new SsrfValidationError(
-      `DNS returned no A records for ${hostname}`,
-      'SSRF_DNS_EMPTY',
-    );
-  }
-  for (const addr of addrs) {
-    if (isForbiddenIp(addr)) {
-      throw new SsrfValidationError(
-        `Resolved IP ${addr} for ${hostname} is forbidden (DNS rebinding to private/loopback)`,
-        'SSRF_DNS_REBINDING',
-      );
-    }
-  }
+  await validateHostname(parsed, resolveDns);
 }

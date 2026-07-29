@@ -107,11 +107,22 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
   const redisOk = await getRedisHealth();
   if (redisOk) {
     try {
+      // await 间隙后重新检查内存缓存（其他并发请求可能已回填）
+      const entryAfter = cache.get(key);
+      if (entryAfter && Date.now() <= entryAfter.expiresAt) {
+        cache.delete(key);
+        cache.set(key, entryAfter);
+        recordCacheHit('backtest_result_cache', true);
+        return entryAfter.result;
+      }
+
       const raw = await appRedis.get(`${BACKTEST_CACHE_REDIS_PREFIX}${key}`);
       if (raw) {
         const result = JSON.parse(raw) as BacktestResult;
-        // 回填内存缓存，后续命中走快速路径
-        cache.set(key, { result, expiresAt: Date.now() + TTL_MS });
+        // 回填前再次检查，避免覆盖并发写入的更新值
+        if (!cache.has(key)) {
+          cache.set(key, { result, expiresAt: Date.now() + TTL_MS });
+        }
         recordCacheHit('backtest_result_cache', true);
         return result;
       }

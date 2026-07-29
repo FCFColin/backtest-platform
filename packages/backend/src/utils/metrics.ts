@@ -443,6 +443,42 @@ export function registerTimescaleMetrics(
   setInterval(sample, TIMESCALE_METRICS_INTERVAL_MS).unref();
 }
 
+// ─── BullMQ 队列指标（D9-H1：告警引用的队列深度指标） ───
+
+/** BullMQ 队列深度（waiting + active + delayed），按 queue 名分组。 */
+const bullmqQueueSize = new client.Gauge({
+  name: 'bullmq_queue_size',
+  help: 'Number of jobs in BullMQ queue (waiting + active + delayed)',
+  labelNames: ['queue'],
+  registers: [register],
+});
+
+/** BullMQ 队列指标采集间隔（毫秒）。 */
+const QUEUE_METRICS_INTERVAL_MS = 10_000;
+
+/**
+ * 注册 BullMQ 队列深度采集器，定时查询各队列的 job 计数。
+ *
+ * @param queues - BullMQ Queue 实例数组（需具备 name 属性和 getJobCounts 方法）
+ */
+export function registerQueueMetrics(
+  queues: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>,
+): void {
+  const refresh = async (): Promise<void> => {
+    for (const q of queues) {
+      try {
+        const counts = await q.getJobCounts();
+        const depth = (counts.waiting ?? 0) + (counts.active ?? 0) + (counts.delayed ?? 0);
+        bullmqQueueSize.set({ queue: q.name }, depth);
+      } catch {
+        // 队列查询失败不阻断指标采集（Redis 瞬断时 gauge 保持上次值）
+      }
+    }
+  };
+  refresh();
+  setInterval(refresh, QUEUE_METRICS_INTERVAL_MS).unref();
+}
+
 /** 返回 Prometheus register 实例，用于 /metrics 端点。 */
 export function getPrometheusRegister(): client.Registry {
   return register;

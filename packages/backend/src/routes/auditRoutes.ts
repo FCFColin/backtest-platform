@@ -59,7 +59,7 @@ router.get(
       // validateQuery 中间件已用 zod coerce 将 page/limit 转为 number，
       // 但 Express 的 req.query 类型仍是 ParsedQs（string 值），
       // 需经 unknown 中转才能赋值到 zod 推断出的强类型。
-      const q = req.query as unknown as z.infer<typeof querySchema>;
+      const q = req.query as z.infer<typeof querySchema>;
       const result = await queryAuditLogs(
         {
           orgId: q.org_id,

@@ -146,25 +146,23 @@ export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunc
  * 可选 JWT 认证中间件。部分端点（如回测执行）需识别用户身份但不强制要求认证，
  * 未认证用户以 readonly 角色访问。权衡：可选认证降低安全门槛，但渐进式引入比一刀切更可行。
  */
-/** 可选模式：处理 Bearer Token，失败时匿名放行 */
-async function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunction): Promise<void> {
+/**
+ * 可选模式：处理 Bearer Token，失败时匿名放行。
+ *
+ * D2-006：JWT 验证通过后须校验账户停用/会话撤销状态。
+ * 若账户已停用或会话已撤销，返回 401 而非匿名放行——
+ * 持有已失效令牌的用户应被告知令牌失效，而非静默降级为匿名。
+ * Redis/DB 故障时 fail-closed 返回 401（不静默放行）。
+ */
+async function handleOptionalBearer(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
   const payload = token ? await verifyToken(token) : null;
-  if (payload) {
-    req.user = payload;
-    attachAuthLogContext(req);
-    logger.info(
-      {
-        middleware: 'optionalJwtAuth',
-        path: req.path,
-        userId: hashUserId(req.user?.sub),
-        role: req.user?.role,
-        requestId: req.id,
-      },
-      '[jwtAuth] JWT 认证通过',
-    );
-  } else {
+  if (!payload) {
     req.user = null;
     logger.warn(
       {
@@ -175,7 +173,51 @@ async function handleOptionalBearer(req: AuthenticatedRequest, next: NextFunctio
       },
       '[jwtAuth] JWT 认证失败，可选认证放行',
     );
+    next();
+    return;
   }
+  // D2-006：令牌有效但须校验会话撤销与账户停用状态
+  try {
+    if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
+      logger.warn(
+        { middleware: 'optionalJwtAuth', path: req.path, userId: hashUserId(payload.sub), requestId: req.id },
+        '[jwtAuth] 会话已全局撤销，拒绝访问（可选认证路径）',
+      );
+      recordAuthFailure(req.path, 'session_revoked');
+      sendProblem(res, 401, 'SESSION_REVOKED');
+      return;
+    }
+    if (!(await isUserSessionValid(payload.sub))) {
+      logger.warn(
+        { middleware: 'optionalJwtAuth', path: req.path, userId: hashUserId(payload.sub), requestId: req.id },
+        '[jwtAuth] 用户已停用，拒绝访问（可选认证路径）',
+      );
+      recordAuthFailure(req.path, 'account_disabled');
+      sendProblem(res, 401, 'ACCOUNT_DISABLED');
+      return;
+    }
+  } catch {
+    // Redis/DB 故障：fail-closed，不静默放行
+    logger.warn(
+      { middleware: 'optionalJwtAuth', path: req.path, userId: hashUserId(payload.sub), requestId: req.id },
+      '[jwtAuth] 会话状态校验异常，fail-closed 拒绝（可选认证路径）',
+    );
+    recordAuthFailure(req.path, 'session_check_error');
+    sendProblem(res, 401, 'AUTH_CHECK_FAILED');
+    return;
+  }
+  req.user = payload;
+  attachAuthLogContext(req);
+  logger.info(
+    {
+      middleware: 'optionalJwtAuth',
+      path: req.path,
+      userId: hashUserId(req.user?.sub),
+      role: req.user?.role,
+      requestId: req.id,
+    },
+    '[jwtAuth] JWT 认证通过',
+  );
   next();
 }
 
@@ -190,7 +232,10 @@ export function optionalJwtAuth(
   );
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
-    handleOptionalBearer(req, next);
+    void handleOptionalBearer(req, res, next).catch((err) => {
+      logger.error({ err, path: req.path, requestId: req.id }, '[jwtAuth] handleOptionalBearer unhandled rejection');
+      next(err);
+    });
   } else {
     // P0-04：handleOptionalApiKey 内部 try/catch 自处理错误，void 标注无未捕获 rejection
     void handleOptionalApiKey(req, res, next);

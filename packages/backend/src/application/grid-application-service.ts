@@ -82,5 +82,5 @@ export async function executeGridSearch(body: Record<string, unknown>): Promise<
     `[tactical-grid] 网格搜索完成: ${totalCombinations}个组合, 耗时${Date.now() - startTime}ms`,
   );
 
-  return { success: true, data: response as unknown as Record<string, unknown> };
+  return { success: true, data: response as Record<string, unknown> };
 }

@@ -96,17 +96,23 @@ const sdk = new NodeSDK({
 export function initTracing(): void {
   try {
     sdk.start();
-    // 优雅关闭：进程退出前 flush 所有 span
-    process.on('SIGTERM', async () => {
-      try {
-        await sdk.shutdown();
-      } catch {
-        // shutdown 失败不影响进程退出
-      }
-      process.exit(0);
-    });
   } catch (err) {
     // OTel 初始化失败不应阻止应用启动
     logger.warn({ err }, 'OpenTelemetry 初始化失败，链路追踪不可用');
+  }
+}
+
+/**
+ * 优雅关闭 OTel SDK，flush 所有待发送的 span。
+ *
+ * 应在 server.ts / workerEntrypoint.ts 的优雅关闭序列中调用，
+ * 位于 HTTP server 关闭和 DB 连接池关闭之后、process.exit 之前。
+ * 由调用方负责协调关闭顺序，避免与 server 的 SIGTERM 处理器竞态（D9-H6）。
+ */
+export async function shutdownTracing(): Promise<void> {
+  try {
+    await sdk.shutdown();
+  } catch {
+    // shutdown 失败不影响进程退出
   }
 }

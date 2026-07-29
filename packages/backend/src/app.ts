@@ -134,7 +134,12 @@ app.use(
 
 // Stripe webhook 需原始请求体做签名校验，必须在 json 解析之前
 app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  void billingWebhookHandler(req, res);
+  billingWebhookHandler(req, res).catch((err) => {
+    logger.error({ err }, '[app] Stripe webhook handler unhandled rejection');
+    if (!res.headersSent) {
+      res.status(500).json({ received: false });
+    }
+  });
 });
 
 app.use(express.json({ limit: '10mb' }));

@@ -39,3 +39,10 @@ export const tickerListQuerySchema = z.object({
 export const tickerSearchQuerySchema = z.object({
   q: z.string().min(1).max(100),
 });
+
+/** POST /api/v1/data/custom — 自定义标的上传请求体校验 */
+export const customTickerCreateSchema = z.object({
+  ticker: z.string().trim().min(1, 'ticker 不能为空').max(50),
+  name: z.string().max(200).optional(),
+  data: z.array(z.record(z.string(), z.unknown())).min(1, 'data 不能为空').max(10000),
+});

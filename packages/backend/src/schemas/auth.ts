@@ -15,3 +15,23 @@ export const registerSchema = z.object({
   password: z.string().min(6, '密码至少6个字符').max(256),
   orgName: z.string().max(100).trim().optional(),
 });
+
+/** POST /api/v1/auth/refresh — 请求体校验 */
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, 'refreshToken 不能为空'),
+});
+
+/** POST /api/v1/auth/switch-org — 请求体校验 */
+export const switchOrgSchema = z.object({
+  orgId: z.string().min(1, 'orgId 不能为空'),
+});
+
+/** POST /api/v1/auth/verify-email — 请求体校验 */
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'token 不能为空'),
+});
+
+/** POST /api/v1/auth/resend-verification — 请求体校验 */
+export const resendVerificationSchema = z.object({
+  email: z.string().email('邮箱格式不正确').max(254).trim().toLowerCase(),
+});

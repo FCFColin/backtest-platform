@@ -3,6 +3,7 @@
  *
  * 负责蒙特卡洛模拟端点的数据获取与引擎调用编排。
  */
+import pLimit from 'p-limit';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
@@ -19,6 +20,9 @@ import {
 import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 
+/** 引擎调用并发上限（D3-004：防止大量组合同时调用引擎导致过载） */
+const ENGINE_CONCURRENCY_LIMIT = 10;
+
 /**
  * 运行蒙特卡洛模拟。
  *
@@ -27,7 +31,7 @@ import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 export async function runMonteCarlo(
   portfolioList: Portfolio[],
   parameters: BacktestParameters,
-  mcParams?: object,
+  mcParams?: Record<string, unknown>,
 ): Promise<{ data: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
   const { tickers } = collectTickersFromPortfolios(portfolioList);
   const allTickers = new Set(tickers);
@@ -53,16 +57,19 @@ export async function runMonteCarlo(
       ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
       : parameters;
 
+  const limit = pLimit(ENGINE_CONCURRENCY_LIMIT);
   const results = await Promise.all(
     portfolioList.map((p) =>
-      callEngineStrict('/api/engine/monte-carlo', {
-        portfolio: translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody(),
-        priceData: filterPriceData(priceData, allTickers),
-        params: buildEngineParams(effectiveParameters),
-        cpiData,
-        exchangeRates,
-        mcParams: sanitizedMcParams,
-      }),
+      limit(() =>
+        callEngineStrict('/api/engine/monte-carlo', {
+          portfolio: translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody(),
+          priceData: filterPriceData(priceData, allTickers),
+          params: buildEngineParams(effectiveParameters),
+          cpiData,
+          exchangeRates,
+          mcParams: sanitizedMcParams,
+        }),
+      ),
     ),
   );
 

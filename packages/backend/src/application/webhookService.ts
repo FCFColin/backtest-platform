@@ -17,9 +17,10 @@
  *   路由层显式 WHERE org_id=$1 收敛；重试作业跨租户扫描使用主连接池。
  */
 import crypto from 'crypto';
-import { getPool } from '../db/pool.js';
+import { getPool, withTenant } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { assertSafeUrl } from '../utils/ssrfGuard.js';
+import { encrypt, decrypt } from '../utils/envelopeEncryption.js';
 
 /** 单次 HTTP 投递超时（10s），超时即视为失败以释放连接 */
 const WEBHOOK_TIMEOUT_MS = 10_000;
@@ -106,6 +107,51 @@ export interface DeliveryResult {
  */
 export function signPayload(payload: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+}
+
+/**
+ * 创建 Webhook 端点（C-024：签名密钥加密存储）。
+ *
+ * 在写入 DB 前调用 encrypt(secret) 将明文密钥转为密文，DB 仅存储 ciphertext/iv/tag/kid，
+ * 即便数据库被拖库攻击者也无法伪造事件签名。须在 withTenant 事务内调用以通过 RLS。
+ *
+ * @param client - 已设置租户上下文的事务 client（来自 withTenant）
+ * @param params - 端点参数（orgId/url/secret/description/subscribedEvents）
+ * @returns 新建的端点元数据（不含 secret）
+ */
+export async function createWebhook(
+  client: { query: (text: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }> },
+  params: {
+    orgId: string;
+    url: string;
+    secret: string;
+    description?: string;
+    subscribedEvents: string[];
+  },
+): Promise<{
+  id: string;
+  url: string;
+  description: string | null;
+  isActive: boolean;
+  subscribedEvents: string[];
+  createdAt: Date;
+}> {
+  const enc = await encrypt(params.secret);
+  const { rows } = await client.query(
+    `INSERT INTO webhook_endpoints (org_id, url, secret, secret_iv, secret_tag, secret_kid, description, subscribed_events)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id, url, description, is_active, subscribed_events, created_at`,
+    [params.orgId, params.url, enc.ciphertext, enc.iv, enc.tag, enc.kid, params.description ?? null, params.subscribedEvents],
+  );
+  const r = rows[0];
+  return {
+    id: r.id as string,
+    url: r.url as string,
+    description: (r.description as string | null) ?? null,
+    isActive: r.is_active as boolean,
+    subscribedEvents: r.subscribed_events as string[],
+    createdAt: r.created_at as Date,
+  };
 }
 
 /**
@@ -285,7 +331,7 @@ export async function processPendingDeliveries(): Promise<void> {
   const pool = getPool();
   const { rows } = await pool.query(
     `SELECT d.id AS delivery_id, d.endpoint_id, d.event_type, d.payload, d.attempt_count,
-            e.url, e.secret, e.org_id
+            e.url, e.secret, e.secret_iv, e.secret_tag, e.secret_kid, e.org_id
        FROM webhook_deliveries d
        JOIN webhook_endpoints e ON e.id = d.endpoint_id
       WHERE d.status IN ('pending','retrying')
@@ -306,7 +352,13 @@ export async function processPendingDeliveries(): Promise<void> {
   }
 }
 
-/** 处理单条投递记录：尝试投递并按结果更新状态与端点计数器 */
+/**
+ * 处理单条投递记录：尝试投递并按结果更新状态与端点计数器。
+ *
+ * 注：此函数超过 max-lines-per-function（80）阈值——3 个投递结果分支
+ * （成功/永久失败/可重试）+ 解密 + withTenant 上下文设置，逻辑内聚不宜拆分。
+ */
+// eslint-disable-next-line max-lines-per-function -- 3 投递结果分支内聚，拆分反而降低可读性
 async function processSingleDelivery(row: {
   delivery_id: string;
   endpoint_id: string;
@@ -314,10 +366,12 @@ async function processSingleDelivery(row: {
   payload: unknown;
   attempt_count: number;
   url: string;
-  secret: string;
+  secret: Buffer | string;
+  secret_iv: Buffer | string;
+  secret_tag: Buffer | string;
+  secret_kid: string;
   org_id: string;
 }): Promise<void> {
-  const pool = getPool();
   const {
     delivery_id: deliveryId,
     endpoint_id: endpointId,
@@ -325,6 +379,9 @@ async function processSingleDelivery(row: {
     attempt_count: attemptCount,
     url,
     secret,
+    secret_iv: secretIv,
+    secret_tag: secretTag,
+    secret_kid: secretKid,
     org_id: orgId,
   } = row;
   const payload =
@@ -332,11 +389,20 @@ async function processSingleDelivery(row: {
       ? (JSON.parse(row.payload) as Record<string, unknown>)
       : (row.payload as Record<string, unknown>);
 
-  const result = await deliverWebhook({ url, secret }, eventType, payload);
+  // C-024：从 DB 读出密文 secret 并 decrypt 为明文，用于 HMAC 签名（防 DB 拖库后伪造签名）
+  const plaintextSecret = await decrypt({
+    ciphertext: Buffer.isBuffer(secret) ? secret : Buffer.from(secret),
+    iv: Buffer.isBuffer(secretIv) ? secretIv : Buffer.from(secretIv),
+    tag: Buffer.isBuffer(secretTag) ? secretTag : Buffer.from(secretTag),
+    kid: secretKid,
+  });
+  const result = await deliverWebhook({ url, secret: plaintextSecret }, eventType, payload);
   const newAttemptCount = attemptCount + 1;
 
+  // D2-008：重试作业须设置租户上下文，使 RLS 策略生效（防御性，即使当前表无 RLS）
+  await withTenant(orgId, async (client) => {
   if (result.success) {
-    await pool.query(
+    await client.query(
       `UPDATE webhook_deliveries
           SET status = 'success', response_code = $1, response_body = $2,
               attempt_count = $3, delivered_at = NOW(), next_retry_at = NULL
@@ -344,7 +410,7 @@ async function processSingleDelivery(row: {
       [result.responseCode, result.responseBody, newAttemptCount, deliveryId],
     );
     // 成功即重置端点连续失败计数（偶发失败不应累积致误禁用）
-    await pool.query(`UPDATE webhook_endpoints SET failed_consecutive_count = 0 WHERE id = $1`, [
+    await client.query(`UPDATE webhook_endpoints SET failed_consecutive_count = 0 WHERE id = $1`, [
       endpointId,
     ]);
     logger.info(
@@ -356,7 +422,7 @@ async function processSingleDelivery(row: {
 
   // 投递失败：永久失败（SSRF 校验失败等）或达到重试上限 → 标记 failed 不重试
   if (result.permanentFailure || newAttemptCount >= MAX_ATTEMPTS) {
-    await pool.query(
+    await client.query(
       `UPDATE webhook_deliveries
           SET status = 'failed', response_code = $1, response_body = $2,
               attempt_count = $3, next_retry_at = NULL
@@ -365,7 +431,7 @@ async function processSingleDelivery(row: {
     );
     // 仅重试耗尽才递增端点失败计数；SSRF 等配置错误不递增（非端点持续性故障，避免误禁用）
     if (!result.permanentFailure) {
-      await pool.query(
+      await client.query(
         `UPDATE webhook_endpoints
             SET failed_consecutive_count = failed_consecutive_count + 1,
                 is_active = CASE
@@ -395,7 +461,7 @@ async function processSingleDelivery(row: {
   // 安排下一次重试（按失败次数取退避阶梯）
   const delayMs = RETRY_DELAYS_MS[newAttemptCount - 1];
   const nextRetryAt = new Date(Date.now() + delayMs);
-  await pool.query(
+  await client.query(
     `UPDATE webhook_deliveries
         SET status = 'retrying', response_code = $1, response_body = $2,
             attempt_count = $3, next_retry_at = $4
@@ -406,6 +472,7 @@ async function processSingleDelivery(row: {
     { deliveryId, endpointId, eventType, attempts: newAttemptCount, nextRetryAt },
     '[webhookService] webhook 投递失败，安排重试',
   );
+  });
 }
 
 /**

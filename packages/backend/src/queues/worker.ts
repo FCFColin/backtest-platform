@@ -279,14 +279,26 @@ const worker = createBacktestWorker(processBacktestJob);
 
 logger.info('[worker] Backtest worker started, waiting for jobs...');
 
-// 优雅关闭（Task 5.3）
+// 优雅关闭（Task 5.3, D9-H5）
 //
 // 企业理由：Worker 收到 SIGTERM 时需等待当前任务完成，
 // 避免任务中途被杀导致数据不一致。30s 强制退出兜底防止
 // worker.close() 因长任务挂起。标志位防止重复触发。
+//
+// D9-H5：信号处理器由统一入口 workerEntrypoint.ts 注册，此处仅导出
+// shutdownWorker 供其调用。不在此处调用 process.exit——退出时机由调用方
+// （workerEntrypoint.ts）控制，确保 closeDb + shutdownTracing 能完整执行。
 let workerShuttingDown = false;
 
-async function shutdownWorker(signal: string): Promise<void> {
+/**
+ * 关闭 Backtest Worker，等待当前任务完成。
+ *
+ * 不调用 process.exit——由调用方（workerEntrypoint.ts）在完成全部关闭步骤
+ * （DB、tracing）后统一退出。仅保留 30s 强制退出兜底防止 worker.close() 挂起。
+ *
+ * @param signal - 触发关闭的信号名称
+ */
+export async function shutdownWorker(signal: string): Promise<void> {
   if (workerShuttingDown) {
     logger.info({ signal }, '[worker] 已在关闭流程中，忽略重复信号');
     return;
@@ -302,19 +314,12 @@ async function shutdownWorker(signal: string): Promise<void> {
 
   try {
     await worker.close();
-    logger.info('[worker] Graceful shutdown complete');
+    logger.info('[worker] Backtest worker closed');
   } catch (err) {
     logger.error({ err }, '[worker] Error during shutdown');
   } finally {
     clearTimeout(forceExitTimeout);
-    process.exit(0);
+    // D9-H5: process.exit(0) removed—caller (workerEntrypoint.ts) controls exit timing
   }
 }
 
-process.on('SIGTERM', () => {
-  void shutdownWorker('SIGTERM');
-});
-
-process.on('SIGINT', () => {
-  void shutdownWorker('SIGINT');
-});

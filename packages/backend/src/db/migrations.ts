@@ -140,6 +140,72 @@ const migrations: Array<{ version: number; upFile: string; downFile: string }> =
     upFile: '030_custom_tickers.sql',
     downFile: '030_custom_tickers_down.sql',
   },
+  // P1-1 C-002: FORCE ROW LEVEL SECURITY on all multi-tenant tables
+  {
+    version: 31,
+    upFile: '031_force_rls.sql',
+    downFile: '031_force_rls_down.sql',
+  },
+  // P1-1 C-002: Enable RLS on api_keys/invitations + create org_memberships table
+  {
+    version: 32,
+    upFile: '032_enable_rls_api_keys_invitations.sql',
+    downFile: '032_enable_rls_api_keys_invitations_down.sql',
+  },
+  // P1-1 C-002: backtest_app full DML grants + default privileges
+  {
+    version: 33,
+    upFile: '033_backtest_app_grants.sql',
+    downFile: '033_backtest_app_grants_down.sql',
+  },
+  // P1-1 C-024: webhook_endpoints.secret encrypted storage (bytea + iv/tag/kid)
+  {
+    version: 34,
+    upFile: '034_webhook_secret_encrypt.sql',
+    downFile: '034_webhook_secret_encrypt_down.sql',
+  },
+  // P2-2 D8-H1: prices hypertable idempotent safety net (018 already converted; 035 is no-op)
+  {
+    version: 35,
+    upFile: '035_prices_hypertable.sql',
+    downFile: '035_prices_hypertable_down.sql',
+  },
+  // P2-2 D8-H2: audit_logs add user_agent/metadata + idempotent RLS (table exists via 022)
+  {
+    version: 36,
+    upFile: '036_audit_logs.sql',
+    downFile: '036_audit_logs_down.sql',
+  },
+  // P2-2 D8-H3: invitations RLS idempotent (032 already enabled RLS; 037 is safety net)
+  {
+    version: 37,
+    upFile: '037_invitations_rls.sql',
+    downFile: '037_invitations_rls_down.sql',
+  },
+  // P2-2 D8-H4: backtest_runs.status default completed -> queued (+ extend CHECK constraint)
+  {
+    version: 38,
+    upFile: '038_backtest_runs_default_status.sql',
+    downFile: '038_backtest_runs_default_status_down.sql',
+  },
+  // P2-2 D8-H5: prices DOUBLE -> NUMERIC(19,6) dual-write columns (do not drop old yet)
+  {
+    version: 39,
+    upFile: '039_prices_numeric.sql',
+    downFile: '039_prices_numeric_down.sql',
+  },
+  // P2-2 D8-H6: FK column indexes (6 FKs without indexes, all -> users.id)
+  {
+    version: 40,
+    upFile: '040_fk_indexes.sql',
+    downFile: '040_fk_indexes_down.sql',
+  },
+  // D8-H6 补充: user_roles.role_id FK index (PK 最左列是 user_id, role_id 无独立索引)
+  {
+    version: 44,
+    upFile: '044_user_roles_role_id_idx.sql',
+    downFile: '044_user_roles_role_id_idx_down.sql',
+  },
 ];
 
 /**

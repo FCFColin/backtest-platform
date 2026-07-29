@@ -107,7 +107,7 @@ export function attachAuthLogContext(req: AuthenticatedRequest): void {
   const sub = req.user?.sub;
   if (!sub) return;
   const reqWithLog = req as AuthenticatedRequest & {
-    log?: { child: (b: object) => { child: (b: object) => unknown } };
+    log?: { child: (b: Record<string, unknown>) => { child: (b: Record<string, unknown>) => unknown } };
   };
   if (reqWithLog.log && typeof reqWithLog.log.child === 'function') {
     const userId = hashUserId(sub);

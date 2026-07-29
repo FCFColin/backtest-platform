@@ -114,7 +114,9 @@ export async function runPortfolioBacktest(opts: {
 
   // 结果写入阶段：90% -> 100%（缓存写入 + 结果压缩）
   const cacheKey = backtestCacheKey(portfolios, parameters, tenantId);
-  void setBacktestResultCache(cacheKey, result);
+  void setBacktestResultCache(cacheKey, result).catch((err) =>
+    logger.error({ err, cacheKey }, '[backtest-service] Failed to set backtest result cache'),
+  );
   onProgress?.(100);
 
   const dateRange = calculateDateRange(

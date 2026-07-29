@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { validateQuery } from '../middleware/validate.js';
+import { validateQuery, validate } from '../middleware/validate.js';
 import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/data.js';
 import {
   getEngineStatus,
@@ -10,10 +10,11 @@ import {
   resolveUniverseFromCacheStats,
 } from '../infrastructure/tickerDataService.js';
 import { searchTickers } from '../infrastructure/dataFacade.js';
-import { scanMarketStatsFromDb } from '../db/marketStats.js';
+import { scanMarketStatsFromDb, getLastUpdated } from '../db/marketStats.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import { startUpdate, stopUpdate, getUpdateStatus } from '../infrastructure/dataFetch.js';
+import { emptyBodySchema } from '../schemas/shared.js';
 import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
@@ -40,13 +41,12 @@ router.get(
   ),
 );
 
-/** 最后更新日期：从 PostgreSQL 查询 MAX(bar_date) */
+/** 最后更新日期：从 PostgreSQL 查询 MAX(updated_at)（轻量查询，30s 缓存） */
 router.get(
   '/last-updated',
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const stats = await scanMarketStatsFromDb();
-      const lastUpdated = stats?.date_ranges?.latest ?? '';
+      const lastUpdated = await getLastUpdated();
       res.json({ success: true, data: { lastUpdated } });
     },
     {
@@ -56,16 +56,16 @@ router.get(
   ),
 );
 
-/** 详细统计（实时从 PostgreSQL 查询；P1-2 移除内存 cachedStats，每次直查 PG） */
+/** 详细统计（从 PostgreSQL 聚合，进程内 60s TTL 缓存；?force=1 跳过缓存） */
 router.get(
   '/stats',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       res.setHeader('Cache-Control', 'no-cache');
-      void isForceRefresh(req); // force 参数保留接口兼容，但不再需要内存缓存穿透
+      const force = isForceRefresh(req);
 
       const t0 = Date.now();
-      const stats = await scanMarketStatsFromDb();
+      const stats = await scanMarketStatsFromDb(force);
 
       let body: { success: true; data: unknown };
       if (!stats) {
@@ -128,7 +128,7 @@ router.get(
         sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
-      const results = await searchTickers(query);
+      const results = await searchTickers(query, undefined, req.tenantId);
       res.json({ success: true, data: results });
     },
     {
@@ -158,6 +158,7 @@ for (const path of ['/update/full', '/update/refetch'] as const) {
   router.put(
     path,
     requireDataManage,
+    validate(emptyBodySchema),
     crudRouteHandler(
       async (_req: Request, res: Response): Promise<void> => {
         const result = await startUpdate('full');
@@ -175,6 +176,7 @@ for (const path of ['/update/full', '/update/refetch'] as const) {
 router.patch(
   '/update/inc',
   requireDataManage,
+  validate(emptyBodySchema),
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const result = await startUpdate('incremental');
@@ -191,6 +193,7 @@ router.patch(
 router.patch(
   '/resume',
   requireDataManage,
+  validate(emptyBodySchema),
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const result = await startUpdate('incremental');
@@ -207,6 +210,7 @@ router.patch(
 router.post(
   '/update/stop',
   requireDataManage,
+  validate(emptyBodySchema),
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const result = await stopUpdate();
@@ -223,6 +227,7 @@ router.post(
 router.put(
   '/universe',
   requireDataManage,
+  validate(emptyBodySchema),
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const stats = await scanMarketStatsFromDb();
@@ -266,7 +271,7 @@ router.get(
 );
 
 /** 重新生成元信息：数据来自 PostgreSQL，无需操作 */
-router.put('/regenerate-meta', requireDataManage, (_req: Request, res: Response): void => {
+router.put('/regenerate-meta', requireDataManage, validate(emptyBodySchema), (_req: Request, res: Response): void => {
   res.json({
     success: true,
     data: {

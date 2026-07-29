@@ -22,12 +22,13 @@ export async function signFile(filePath: string): Promise<void> {
 
 /**
  * 校验数据文件的 HMAC-SHA256 签名。
- * 未配置 AUDIT_HMAC_KEY 时返回 true（无密钥=不校验）。
+ * Security (D2-010): 未配置 AUDIT_HMAC_KEY 时返回 false（fail-closed，验证失败）。
  * 签名文件不存在或校验失败时返回 false。
  */
 export async function verifyFile(filePath: string): Promise<boolean> {
   const key = config.AUDIT_HMAC_KEY;
-  if (!key) return true;
+  // Security (D2-010): fail-closed — 未配置密钥时验证失败而非通过
+  if (!key) return false;
 
   try {
     const [content, signature] = await Promise.all([
@@ -57,7 +58,7 @@ export function signFileSync(filePath: string): void {
 }
 
 /**
- * verifyFile 的同步版本。未配置 AUDIT_HMAC_KEY 时返回 true（无密钥=不校验）。
+ * verifyFile 的同步版本。Security (D2-010): 未配置 AUDIT_HMAC_KEY 时返回 false（fail-closed）。
  * 内容与 .sig 不匹配、签名缺失或读取异常时返回 false。
  *
  * Security (T-06)：在读取缓存内容并据其产生回测结果前校验完整性，防止被篡改的缓存
@@ -66,7 +67,8 @@ export function signFileSync(filePath: string): void {
  */
 export function verifyFileSync(filePath: string): boolean {
   const key = config.AUDIT_HMAC_KEY;
-  if (!key) return true;
+  // Security (D2-010): fail-closed — 未配置密钥时验证失败而非通过
+  if (!key) return false;
   try {
     const content = fsSync.readFileSync(filePath);
     const signature = fsSync.readFileSync(filePath + '.sig', 'utf-8');

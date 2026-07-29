@@ -30,15 +30,17 @@ interface SentinelNode {
  * @returns Sentinel 节点数组；REDIS_SENTINELS 未设置时返回 null
  */
 function parseSentinels(): SentinelNode[] | null {
-  const raw = config.REDIS_SENTINELS.trim();
-  if (!raw) return null;
+  const raw = config.REDIS_SENTINELS;
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
   const nodes: SentinelNode[] = [];
-  for (const part of raw.split(',')) {
-    const trimmed = part.trim();
-    if (!trimmed) continue;
-    const [host, portStr] = trimmed.split(':');
+  for (const part of trimmed.split(',')) {
+    const trimmedPart = part.trim();
+    if (!trimmedPart) continue;
+    const [host, portStr] = trimmedPart.split(':');
     if (!host) {
-      logger.warn({ sentinel: trimmed }, '[redis] Sentinel 条目缺少 host，已忽略');
+      logger.warn({ sentinel: trimmedPart }, '[redis] Sentinel 条目缺少 host，已忽略');
       continue;
     }
     nodes.push({ host, port: portStr ? Number(portStr) : 26379 });
@@ -120,7 +122,11 @@ export function buildRedisBaseOptions(): RedisOptions {
     }
     return opts;
   }
-  return parseRedisUrl(config.REDIS_URL);
+  if (config.REDIS_URL) {
+    return parseRedisUrl(config.REDIS_URL);
+  }
+  // REDIS_URL 未配置时回退到 ioredis 默认值（127.0.0.1:6379），仅开发/测试环境使用
+  return {};
 }
 
 // Security (T-28 / 输出过滤)：仅记录连接模式与是否配置凭证，绝不记录 URL/密码片段

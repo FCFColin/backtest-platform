@@ -9,7 +9,7 @@
  * 迁移到 DB 后即不再被运行时鉴权路径引用。
  */
 
-import { resolveJwtAlgorithm } from './env.js';
+import { resolveJwtAlgorithm, requireSecret } from './env.js';
 
 /** 认证与 JWT 配置片段。 */
 export const authConfig = {
@@ -20,7 +20,7 @@ export const authConfig = {
   DEV_SKIP_AUTH: process.env.DEV_SKIP_AUTH === 'true',
 
   /** JWT 签名密钥（T-P1-8），生产环境必须通过环境变量注入。@default "dev-only-jwt-secret-change-in-production" */
-  JWT_SECRET: process.env.JWT_SECRET || 'dev-only-jwt-secret-change-in-production',
+  JWT_SECRET: requireSecret('JWT_SECRET'),
 
   /** JWT Access Token 有效期（秒）。@default 900（15 分钟） */
   JWT_ACCESS_TTL: parseInt(process.env.JWT_ACCESS_TTL || '900', 10),

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 计费路由（Stripe，ADR-036）
  *
  * 挂载于 /api/v1/billing（jwtAuth + resolveTenant 前置）。本路由内部对写操作追加
@@ -9,6 +9,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate.js';
+import { emptyBodySchema } from '../schemas/shared.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
@@ -118,7 +119,7 @@ router.post(
 );
 
 /** POST /api/v1/billing/portal - 创建 Billing Portal 会话（admin） */
-router.post('/portal', requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/portal', requireAdmin, validate(emptyBodySchema), async (req: AuthenticatedRequest, res: Response) => {
   if (!isBillingEnabled()) {
     sendProblem(res, 503, 'BILLING_DISABLED');
     return;

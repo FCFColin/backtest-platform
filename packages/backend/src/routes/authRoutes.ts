@@ -24,7 +24,7 @@ import {
 } from '../middleware/jwtAuth.js';
 import { hashUserId, requireUser } from '../middleware/authTypes.js';
 import { validate } from '../middleware/validate.js';
-import { loginPasswordSchema } from '../schemas/auth.js';
+import { loginPasswordSchema, refreshTokenSchema, switchOrgSchema } from '../schemas/auth.js';
 import registrationRoutes from './authRegistrationRoutes.js';
 import { verifyUser } from '../application/auth/userService.js';
 import {
@@ -192,13 +192,8 @@ router.use(registrationRoutes);
  * 用户无需频繁重新登录。Refresh Token 轮换机制——每次刷新后旧 token 失效。
  * POST 语义正确——创建新的令牌资源。
  */
-router.post('/refresh', async (req: Request, res: Response) => {
-  const { refreshToken } = req.body as { refreshToken?: string };
-
-  if (!refreshToken) {
-    sendProblem(res, 422, 'MISSING_REFRESH_TOKEN');
-    return;
-  }
+router.post('/refresh', validate(refreshTokenSchema), async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
 
   const result = await refreshAccessToken(refreshToken);
   if (!result) {
@@ -294,13 +289,9 @@ router.get('/orgs', jwtAuth, async (req: AuthenticatedRequest, res: Response) =>
  * 以更新 tenant_id/org_role。安全关键：服务端通过 getMembership 校验用户确属
  * 目标组织，杜绝用户伪造 orgId 越权进入他租户（隔离的最终防线仍是 Postgres RLS）。
  */
-router.post('/switch-org', jwtAuth, async (req: AuthenticatedRequest, res: Response) => {
+router.post('/switch-org', jwtAuth, validate(switchOrgSchema), async (req: AuthenticatedRequest, res: Response) => {
   if (!requireUser(req, res)) return;
-  const { orgId } = req.body as { orgId?: string };
-  if (!orgId) {
-    sendProblem(res, 422, 'MISSING_ORG_ID');
-    return;
-  }
+  const { orgId } = req.body;
 
   const membership = await getMembership(req.user.sub, orgId);
   if (!membership) {

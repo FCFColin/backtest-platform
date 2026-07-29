@@ -327,7 +327,7 @@ const MC_PARAMS_ALLOWED_KEYS = new Set([
 ]);
 
 /** 过滤 mcParams 中的未知键，仅保留白名单字段。 */
-export function sanitizeMcParams(mcParams: object | undefined): Record<string, unknown> {
+export function sanitizeMcParams(mcParams: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!mcParams || typeof mcParams !== 'object' || Array.isArray(mcParams)) return {};
   const raw = mcParams as Record<string, unknown>;
   const sanitized: Record<string, unknown> = {};

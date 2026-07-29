@@ -46,3 +46,19 @@ export const goalOptimizerSchema = z.object({
     .optional(),
   numSimulations: z.number().int().positive().optional(),
 });
+
+/** POST /api/v1/analysis/factor-regression — 请求体校验 */
+export const factorRegressionSchema = z.object({
+  monthlyReturns: z.array(z.number()).min(1, 'monthlyReturns 不能为空'),
+  ffData: z.array(z.record(z.string(), z.unknown())).min(1, 'ffData 不能为空'),
+  factors: z.array(z.string()).optional(),
+  startDate: z.string().max(50).optional(),
+  endDate: z.string().max(50).optional(),
+});
+
+/** POST /api/v1/calculators/:type — body 因 type 而异，校验为对象即可 */
+export const calculatorBodySchema = z
+  .object({})
+  .passthrough()
+  .optional()
+  .default({});

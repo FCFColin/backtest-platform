@@ -5,7 +5,8 @@
 import { Router, type Request, type Response } from 'express';
 import { pool } from '../db/pool.js';
 import { asyncRouteHandler } from './routeUtils.js';
-import { sendProblem } from '../utils/errors.js';
+import { validate } from '../middleware/validate.js';
+import { createAnnouncementSchema } from '../schemas/announcement.js';
 
 const router = Router();
 
@@ -36,13 +37,10 @@ router.get(
  */
 router.post(
   '/',
+  validate(createAnnouncementSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const { title, body, category, severity } = req.body;
-      if (!title || !body) {
-        sendProblem(res, 422, 'MISSING_PARAMS');
-        return;
-      }
       const result = await pool.query(
         `INSERT INTO announcements (title, body, category, severity, created_by)
          VALUES ($1, $2, $3, $4, $5)

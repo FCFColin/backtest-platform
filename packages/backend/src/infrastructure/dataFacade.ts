@@ -71,13 +71,14 @@ export async function fetchHistoryData(
   tickers: string[],
   startDate: string,
   endDate: string,
+  orgId?: string,
 ): Promise<HistoryDataResult> {
   return tracer.startActiveSpan('dataService.fetchHistoryData', async (span) => {
     try {
       span.setAttribute('ticker_count', tickers.length);
       span.setAttribute('start_date', startDate);
       span.setAttribute('end_date', endDate);
-      return await fetchHistoryDataImpl(tickers, startDate, endDate, span);
+      return await fetchHistoryDataImpl(tickers, startDate, endDate, span, orgId);
     } catch (err) {
       span.recordException(err as Error);
       throw err;
@@ -92,8 +93,8 @@ async function fetchFromGoWithDegradation(
   tickersToFetch: string[],
   startDate: string,
   endDate: string,
-  cacheKey: string,
   result: Record<string, Record<string, number>>,
+  ctx: { cacheKey: string; orgId?: string },
 ): Promise<{ degraded: boolean; degradedWarning?: string }> {
   let effectiveStart = startDate;
   let effectiveEnd = endDate;
@@ -106,7 +107,8 @@ async function fetchFromGoWithDegradation(
     tickersToFetch,
     effectiveStart,
     effectiveEnd,
-    cacheKey,
+    ctx.cacheKey,
+    ctx.orgId,
   );
   Object.assign(result, goResult);
 
@@ -136,6 +138,7 @@ async function fetchHistoryDataImpl(
   startDate: string,
   endDate: string,
   span: Span,
+  orgId?: string,
 ): Promise<HistoryDataResult> {
   const fetchStart = Date.now();
   const result: Record<string, Record<string, number>> = {};
@@ -209,8 +212,8 @@ async function fetchHistoryDataImpl(
     tickersToFetch,
     startDate,
     endDate,
-    cacheKey,
     result,
+    { cacheKey, orgId },
   );
   if (goDegradation.degraded) {
     degraded = true;

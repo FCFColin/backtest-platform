@@ -8,6 +8,8 @@ import { sendProblem } from '../utils/errors.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import { pool } from '../db/pool.js';
+import { validate } from '../middleware/validate.js';
+import { customTickerCreateSchema } from '../schemas/data.js';
 
 const router = Router();
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);
@@ -20,7 +22,7 @@ router.get(
   '/custom',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const userId = req.user?.id;
+      const userId = req.user?.sub;
       if (!userId) {
         sendProblem(res, 401, 'UNAUTHORIZED');
         return;
@@ -42,18 +44,15 @@ router.get(
 router.post(
   '/custom',
   requireDataManage,
+  validate(customTickerCreateSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const userId = req.user?.id;
+      const userId = req.user?.sub;
       if (!userId) {
         sendProblem(res, 401, 'UNAUTHORIZED');
         return;
       }
       const { ticker, name, data } = req.body;
-      if (!ticker || !data) {
-        sendProblem(res, 422, 'MISSING_PARAMS');
-        return;
-      }
       const result = await pool.query(
         `INSERT INTO custom_tickers (user_id, ticker, name, data)
          VALUES ($1, $2, $3, $4)
@@ -77,7 +76,7 @@ router.delete(
   requireDataManage,
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const userId = req.user?.id;
+      const userId = req.user?.sub;
       if (!userId) {
         sendProblem(res, 401, 'UNAUTHORIZED');
         return;

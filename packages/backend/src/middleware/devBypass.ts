@@ -25,7 +25,7 @@ export function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boo
   logger.info({ middleware: 'jwtAuth', path: req.path }, '[jwtAuth] 开发旁路认证（readonly）');
   req.user = {
     sub: 'dev-user',
-    role: 'readonly',
+    role: 'analyst',
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + ACCESS_TOKEN_EXPIRES_IN_SEC,
   };

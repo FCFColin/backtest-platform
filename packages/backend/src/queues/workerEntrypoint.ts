@@ -11,7 +11,7 @@
  * Architecture: Worker 独立进程（ADR-037 tenant-fair 调度 + ADR-031 fail-closed）
  * 企业为何需要：Worker 崩溃不影响 API 服务，可独立水平扩展、独立资源配额、独立滚动更新
  */
-import { initTracing } from '../tracing.js';
+import { initTracing, shutdownTracing } from '../tracing.js';
 initTracing();
 
 import { validateConfig } from '../config/index.js';
@@ -24,7 +24,7 @@ import { RunCompletedHandler } from '../application/runCompletedHandler.js';
 import { createWebhookRetryWorker, scheduleWebhookRetryJob } from './webhookQueue.js';
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
 import { startHeartbeat } from './healthCheck.js';
-import './worker.js'; // Backtest worker (module-level side effect: creates Worker at import time)
+import { shutdownWorker } from './worker.js'; // Backtest worker (module-level side effect: creates Worker at import time)
 import type { Worker } from 'bullmq';
 
 validateConfig();
@@ -79,13 +79,12 @@ async function shutdown(signal: string): Promise<void> {
       dataUpdateWorker = null;
     }
 
-    // backtest worker 的关闭由 worker.ts 模块内的 SIGTERM/SIGINT 处理器负责。
-    // 但由于本入口也注册了信号处理器，需要手动触发 worker.ts 的关闭。
-    // worker.ts 模块级代码已注册了 SIGTERM/SIGINT，会自动执行。
-    // 此处等待一小段时间让 worker.ts 完成关闭。
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // D9-H5: 直接调用 worker.ts 导出的 shutdownWorker，消除竞态（不再依赖两组 SIGTERM 处理器）。
+    await shutdownWorker(signal);
 
     await closeDb();
+    // D9-H6: 关闭 OTel SDK，flush 所有 span（由 tracing.ts 统一管理，不再在 tracing.ts 注册 SIGTERM）。
+    await shutdownTracing();
     logger.info('[worker-entry] Graceful shutdown complete');
   } catch (err) {
     logger.error({ err }, '[worker-entry] Error during shutdown');
@@ -153,4 +152,7 @@ process.on('unhandledRejection', (reason) => {
   void shutdown('unhandledRejection');
 });
 
-void main();
+void main().catch((err) => {
+  logger.error({ err }, '[worker-entry] Fatal error during startup');
+  process.exit(1);
+});

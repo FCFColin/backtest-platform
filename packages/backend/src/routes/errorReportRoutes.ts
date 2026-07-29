@@ -11,28 +11,11 @@
  */
 
 import { Router, type Request, type Response } from 'express';
-import { z } from 'zod';
 import { logger } from '../utils/logger.js';
-import { sendProblem } from '../utils/errors.js';
+import { validate } from '../middleware/validate.js';
+import { errorReportSchema } from '../schemas/errorReport.js';
 
 const router = Router();
-
-/** 错误上报请求体 Zod schema */
-const errorReportSchema = z.object({
-  message: z.string().min(1).max(2000),
-  stack: z.string().max(10000).optional(),
-  context: z
-    .object({
-      component: z.string().max(200).optional(),
-      action: z.string().max(200).optional(),
-      jobId: z.string().max(100).optional(),
-    })
-    .passthrough()
-    .optional(),
-  timestamp: z.string().max(50).optional(),
-  url: z.string().max(500).optional(),
-  userAgent: z.string().max(500).optional(),
-});
 
 /**
  * POST /api/v1/errors — 接收前端错误报告。
@@ -40,16 +23,8 @@ const errorReportSchema = z.object({
  * 将前端错误写入 Pino 结构化日志，供 OTel/Prometheus 采集系统聚合分析。
  * 无需认证（认证失败时前端也需要上报），限流由全局 apiLimiter 覆盖。
  */
-router.post('/', (req: Request, res: Response) => {
-  const parseResult = errorReportSchema.safeParse(req.body);
-  if (!parseResult.success) {
-    sendProblem(res, 400, 'INVALID_ERROR_REPORT', {
-      detail: 'Error report payload validation failed',
-    });
-    return;
-  }
-
-  const { message, stack, context, timestamp, url, userAgent } = parseResult.data;
+router.post('/', validate(errorReportSchema), (req: Request, res: Response) => {
+  const { message, stack, context, timestamp, url, userAgent } = req.body;
 
   // 写入结构化日志，OTel 可采集
   logger.warn(

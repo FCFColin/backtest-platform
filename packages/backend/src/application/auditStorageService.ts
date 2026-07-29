@@ -326,10 +326,10 @@ export async function verifyAuditIntegrity(logId: string): Promise<{
   const storedSignature = rows[0].hmac_signature as string;
   const payload = rows[0].payload;
 
-  // 未配置密钥时视为通过（无密钥=不校验，与 auditLog.verifyPayload 一致）
+  // Security (D2-010): fail-closed — 未配置密钥时验证失败（与 auditLog.verifyPayload 一致）
   const key = config.AUDIT_HMAC_KEY;
   if (!key) {
-    return { valid: true, expected: '', actual: storedSignature };
+    return { valid: false, expected: '', actual: storedSignature };
   }
 
   // payload 从 JSONB 读出后重新序列化，与写入时的序列化结果可能键顺序不同，
@@ -395,6 +395,32 @@ function mapAuditLogRow(row: {
 }
 
 /**
+ * 校验单条审计记录的 prev_hash 链式完整性（从 verifyAuditChain 提取以降低认知复杂度）。
+ *
+ * @param row - 当前审计记录（id / hmac_signature / prev_hash）
+ * @param prevId - 前一条记录的 id（null 表示链头）
+ * @param prevSig - 前一条记录的 hmac_signature（null 表示链头）
+ * @param brokenLinks - 断裂点收集数组（原地修改）
+ */
+function checkChainLink(
+  row: { id: string; hmac_signature: string; prev_hash: string | null },
+  prevId: string | null,
+  prevSig: string | null,
+  brokenLinks: Array<{ id: string; expectedPrevHash: string; actualPrevHash: string | null }>,
+): void {
+  if (prevId === null || prevSig === null) return;
+
+  const expectedPrevHash = crypto
+    .createHash('sha256')
+    .update(`${prevId}${prevSig}`)
+    .digest('hex');
+
+  const actualPrevHash = row.prev_hash;
+  if (actualPrevHash !== expectedPrevHash) {
+    brokenLinks.push({ id: row.id, expectedPrevHash, actualPrevHash });
+  }
+}
+/**
  * P2-04: 验证审计日志链式完整性。
  *
  * 遍历 audit_logs 表（按 created_at 顺序），对每条记录：
@@ -412,38 +438,58 @@ export async function verifyAuditChain(): Promise<{
   brokenLinks: Array<{ id: string; expectedPrevHash: string; actualPrevHash: string | null }>;
 }> {
   const pool = getPool();
-  const result = await pool.query(
-    'SELECT id, hmac_signature, prev_hash FROM audit_logs ORDER BY created_at ASC, id ASC',
-  );
-
   const brokenLinks: Array<{ id: string; expectedPrevHash: string; actualPrevHash: string | null }> = [];
   let prevId: string | null = null;
   let prevSig: string | null = null;
+  let totalChecked = 0;
+  const BATCH_SIZE = 1000;
 
-  for (const row of result.rows) {
-    if (prevId !== null && prevSig !== null) {
-      const expectedPrevHash = crypto
-        .createHash('sha256')
-        .update(`${prevId}${prevSig}`)
-        .digest('hex');
+  // 分页验证，避免一次加载数百万行
+  let hasMore = true;
+  let lastId: string | null = null;
 
-      const actualPrevHash = row.prev_hash as string | null;
-      if (actualPrevHash !== expectedPrevHash) {
-        brokenLinks.push({
-          id: row.id as string,
-          expectedPrevHash,
-          actualPrevHash,
-        });
-      }
+  while (hasMore) {
+    let query: string;
+    const params: unknown[] = [BATCH_SIZE];
+
+    if (lastId === null) {
+      query = 'SELECT id, hmac_signature, prev_hash FROM audit_logs ORDER BY created_at ASC, id ASC LIMIT $1';
+    } else {
+      query = `SELECT id, hmac_signature, prev_hash FROM audit_logs WHERE (created_at, id) > (SELECT created_at, id FROM audit_logs WHERE id = $2) ORDER BY created_at ASC, id ASC LIMIT $1`;
+      params.push(lastId);
     }
-    prevId = row.id as string;
-    prevSig = row.hmac_signature as string;
+
+    const result = await pool.query(query, params);
+
+    if (result.rows.length === 0) {
+      hasMore = false;
+      break;
+    }
+
+    for (const row of result.rows) {
+      checkChainLink(
+        row as { id: string; hmac_signature: string; prev_hash: string | null },
+        prevId,
+        prevSig,
+        brokenLinks,
+      );
+      prevId = row.id as string;
+      prevSig = row.hmac_signature as string;
+      totalChecked++;
+    }
+
+    lastId = result.rows[result.rows.length - 1].id as string;
+
+    // 更新进度日志
+    if (totalChecked % 5000 === 0) {
+      logger.info(`[auditStorage] 审计链验证进度: ${totalChecked} 条已检查`);
+    }
   }
 
   const valid = brokenLinks.length === 0;
   logger.info(
-    { module: 'auditStorage', totalChecked: result.rows.length, brokenLinks: brokenLinks.length },
+    { module: 'auditStorage', totalChecked, brokenLinks: brokenLinks.length },
     '[auditStorage] 链式完整性校验完成',
   );
-  return { valid, totalChecked: result.rows.length, brokenLinks };
+  return { valid, totalChecked, brokenLinks };
 }

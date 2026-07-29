@@ -8,7 +8,7 @@
  * 中间件编排语义不变，仅消除代码重复。
  */
 import type { RequestHandler } from 'express';
-import { optionalJwtAuth, assignGuestAnalyst, assignGuestReadonly, jwtAuth } from './jwtAuth.js';
+import { optionalJwtAuth, assignGuestReadonly, jwtAuth } from './jwtAuth.js';
 import { resolveTenant, requireTenant } from './tenantContext.js';
 import { requirePermission, Permission } from './rbac.js';
 import { enforceQuota } from './quota.js';
@@ -16,22 +16,24 @@ import { auditLog } from './auditLog.js';
 import { idempotencyKey } from './idempotency.js';
 import { USAGE_METRIC } from '../config/planLimits.js';
 
-const computeAuth: RequestHandler[] = [optionalJwtAuth, assignGuestAnalyst];
+const computeAuth: RequestHandler[] = [jwtAuth];
 
 const computeQuotaHandler: RequestHandler = (req, res, next) => {
   void enforceQuota(USAGE_METRIC.BACKTEST)(req, res, next);
 };
 
 /**
- * 计算端点中间件链：可选认证 → 访客 analyst → 租户解析 → 权限 → 配额 → 审计。
+ * 计算端点中间件链：JWT 认证 → 租户解析 → 权限 → 配额 → 审计。
+ * D2-007：计算端点须强制认证（不再允许匿名 analyst 访客）。
  */
 export function computeMiddleware(permission: Permission): RequestHandler[] {
   return [...computeAuth, resolveTenant, requirePermission(permission), computeQuotaHandler, auditLog];
 }
 
 /**
- * 计算端点中间件链（无配额）：可选认证 → 访客 analyst → 租户解析 → 权限 → 审计。
+ * 计算端点中间件链（无配额）：JWT 认证 → 租户解析 → 权限 → 审计。
  * 用于不需配额的计算端点（如因子回归、计算器）。
+ * D2-007：计算端点须强制认证（不再允许匿名 analyst 访客）。
  */
 export function computeMiddlewareNoQuota(permission: Permission): RequestHandler[] {
   return [...computeAuth, resolveTenant, requirePermission(permission), auditLog];

@@ -3,11 +3,11 @@
  *
  * 企业理由：Express 默认无请求级超时，当 Go 引擎无响应或下游服务挂起时，
  * HTTP 连接被无限占用，最终耗尽连接池导致服务不可用。
- * 此中间件为所有请求设置 30s 上限，超时后返回 503 Problem Detail（RFC 7807）。
+ * 此中间件为所有请求设置 30s 上限，超时后返回 408 RFC 7807 Problem Details。
  *
  * 设计要点：
- * - 超时时返回 503（Service Unavailable）而非 408（Request Timeout），
- *   因为 503 含 Retry-After 语义，更符合"服务暂时不可用"的实际情况
+ * - 超时时返回 408（Request Timeout）+ RFC 7807 格式（success/error 包装），
+ *   经 sendProblem 统一输出，与全平台错误格式一致（P2-4 / D4-003）
  * - 使用 `res.on('finish')` 和 `res.on('close')` 清理定时器，防止内存泄漏
  * - 仅在 `!res.headersSent` 时发送响应，避免重复响应
  * - 计算端点可通过路由级覆盖延长超时（或依赖 Go 引擎端点的自身超时）
@@ -15,9 +15,13 @@
 
 import type { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.js';
+import { sendProblem } from '../utils/errors.js';
 
 /** 默认全局请求超时：30 秒 */
 const DEFAULT_TIMEOUT_MS = 30_000;
+
+/** Retry-After 头值（秒），与 DEFAULT_TIMEOUT_MS 对齐 */
+const TIMEOUT_RETRY_AFTER_SECONDS = '30';
 
 /**
  * 创建请求超时中间件。
@@ -33,11 +37,9 @@ export function requestTimeout(timeoutMs: number = DEFAULT_TIMEOUT_MS) {
           { method: req.method, path: req.path, timeoutMs },
           'Request timeout: request exceeded time limit',
         );
-        res.status(503).set('Retry-After', '30').json({
-          type: 'https://errors.backtest.io/timeout',
-          title: 'Request Timeout',
-          status: 503,
+        sendProblem(res, 408, 'REQUEST_TIMEOUT', 'Request Timeout', {
           detail: 'Request processing exceeded time limit',
+          headers: { 'Retry-After': TIMEOUT_RETRY_AFTER_SECONDS },
         });
       }
     }, timeoutMs);
