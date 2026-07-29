@@ -91,7 +91,7 @@ func (ds *DataStore) Pool() *pgxpool.Pool {
 	return ds.pool
 }
 
-func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, error) {
+func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDate string) ([]PricePoint, bool, error) {
 	query := `SELECT date, open, high, low, close, volume, adjusted_close FROM prices WHERE ticker = $1`
 	args := []interface{}{ticker}
 	argIdx := 2
@@ -109,7 +109,7 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 
 	rows, err := ds.pool.Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("查询价格数据失败: %w", err)
+		return nil, false, fmt.Errorf("查询价格数据失败: %w", err)
 	}
 	defer rows.Close()
 
@@ -119,7 +119,7 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 		var date time.Time
 		var adjClose *float64
 		if err := rows.Scan(&date, &p.Open, &p.High, &p.Low, &p.Close, &p.Volume, &adjClose); err != nil {
-			return nil, fmt.Errorf("扫描价格行失败: %w", err)
+			return nil, false, fmt.Errorf("扫描价格行失败: %w", err)
 		}
 		p.Date = date.Format("2006-01-02")
 		if adjClose != nil {
@@ -129,7 +129,7 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 	}
 
 	if len(prices) > 0 {
-		return prices, nil
+		return prices, false, nil
 	}
 
 	if startDate == "" {
@@ -141,10 +141,10 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 
 	fetchedPrices, err := ds.fetchAndStoreFromProvider(ctx, ticker, startDate, endDate)
 	if err != nil {
-		return nil, fmt.Errorf("标的数据不存在: %s", ticker)
+		return nil, false, fmt.Errorf("标的数据不存在: %s", ticker)
 	}
 
-	return filterPricePointsByDate(fetchedPrices, startDate, endDate), nil
+	return filterPricePointsByDate(fetchedPrices, startDate, endDate), true, nil
 }
 
 func filterPricePointsByDate(prices []PricePoint, startDate, endDate string) []PricePoint {
@@ -222,13 +222,22 @@ func (ds *DataStore) writeGoPricesToDB(ctx context.Context, ticker string, price
 
 	for _, p := range prices {
 		adjClose := p.AdjustedClose
+		// D8-H5 dual-write: 写入 *_numeric 列（NUMERIC(19,6) 精确金额）。
+		// 前置条件：迁移 039_prices_numeric.sql 已应用（新增 *_numeric 列）。
+		// 部署顺序：先重启 backend（执行 039）再部署 data-fetcher，否则 INSERT 报列不存在。
 		batch.Queue(`
-			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			INSERT INTO prices (ticker, date, open, high, low, close, volume, adjusted_close,
+				open_numeric, high_numeric, low_numeric, close_numeric, adjusted_close_numeric)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8,
+				$9::numeric, $10::numeric, $11::numeric, $12::numeric, $13::numeric)
 			ON CONFLICT (ticker, date) DO UPDATE SET
 				open = EXCLUDED.open, high = EXCLUDED.high, low = EXCLUDED.low,
-				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close
-		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, adjClose)
+				close = EXCLUDED.close, volume = EXCLUDED.volume, adjusted_close = EXCLUDED.adjusted_close,
+				open_numeric = EXCLUDED.open_numeric, high_numeric = EXCLUDED.high_numeric,
+				low_numeric = EXCLUDED.low_numeric, close_numeric = EXCLUDED.close_numeric,
+				adjusted_close_numeric = EXCLUDED.adjusted_close_numeric
+		`, ticker, p.Date, p.Open, p.High, p.Low, p.Close, p.Volume, adjClose,
+			p.Open, p.High, p.Low, p.Close, adjClose)
 	}
 
 	br := ds.pool.SendBatch(ctx, batch)

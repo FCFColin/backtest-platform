@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"data-fetcher/internal/handlers"
@@ -106,5 +107,81 @@ func BenchmarkIsValidTicker(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		handlers.IsValidTicker("VTI")
+	}
+}
+
+// ============================================================
+// D5-004: main 包覆盖率提升 — newRegistry / newDefaultConfig
+// ============================================================
+
+// TestNewDefaultConfig_DefaultValues 无环境变量时应返回默认值。
+func TestNewDefaultConfig_DefaultValues(t *testing.T) {
+	os.Unsetenv("DATABASE_URL")
+	cfg := newDefaultConfig()
+	if cfg.Port != "5003" {
+		t.Errorf("default Port = %q, want 5003", cfg.Port)
+	}
+	if cfg.DatabaseURL != "" {
+		t.Errorf("default DatabaseURL = %q, want empty", cfg.DatabaseURL)
+	}
+}
+
+// TestNewDefaultConfig_WithDatabaseURL 环境变量 DATABASE_URL 应被读取并 TrimSpace。
+func TestNewDefaultConfig_WithDatabaseURL(t *testing.T) {
+	os.Setenv("DATABASE_URL", "  postgres://localhost/test  ")
+	defer os.Unsetenv("DATABASE_URL")
+	cfg := newDefaultConfig()
+	if cfg.DatabaseURL != "postgres://localhost/test" {
+		t.Errorf("DatabaseURL = %q, want trimmed URL", cfg.DatabaseURL)
+	}
+}
+
+// TestNewRegistry_DefaultPriority 默认降级链应为 yfinance -> finnhub -> twelvedata -> akshare。
+func TestNewRegistry_DefaultPriority(t *testing.T) {
+	os.Unsetenv("DATA_PROVIDER_PRIORITY")
+	reg := newRegistry()
+	if reg == nil {
+		t.Fatal("newRegistry returned nil")
+	}
+	tickers := reg.ForTicker("AAPL")
+	if len(tickers) == 0 {
+		t.Error("expected at least one provider for AAPL")
+	}
+	if len(tickers) == 0 || tickers[0] == nil {
+		t.Error("first provider should be non-nil")
+	}
+}
+
+// TestNewRegistry_CustomPriority 自定义 DATA_PROVIDER_PRIORITY 应被解析。
+func TestNewRegistry_CustomPriority(t *testing.T) {
+	os.Setenv("DATA_PROVIDER_PRIORITY", "yfinance,akshare")
+	defer os.Unsetenv("DATA_PROVIDER_PRIORITY")
+	reg := newRegistry()
+	if reg == nil {
+		t.Fatal("newRegistry returned nil")
+	}
+	if len(reg.ForTicker("VTI")) == 0 {
+		t.Error("expected providers for VTI")
+	}
+}
+
+// TestNewRegistry_EmptyPriority 空字符串优先级应回退到默认链。
+func TestNewRegistry_EmptyPriority(t *testing.T) {
+	os.Setenv("DATA_PROVIDER_PRIORITY", "")
+	defer os.Unsetenv("DATA_PROVIDER_PRIORITY")
+	reg := newRegistry()
+	if reg == nil {
+		t.Fatal("newRegistry returned nil with empty priority env")
+	}
+}
+
+// TestConfigStruct 验证 Config 结构体字段可读写。
+func TestConfigStruct(t *testing.T) {
+	c := &Config{Port: "8080", DatabaseURL: "postgres://x"}
+	if c.Port != "8080" {
+		t.Errorf("Port = %q, want 8080", c.Port)
+	}
+	if c.DatabaseURL != "postgres://x" {
+		t.Errorf("DatabaseURL = %q, want postgres://x", c.DatabaseURL)
 	}
 }

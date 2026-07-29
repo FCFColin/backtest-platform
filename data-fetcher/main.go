@@ -124,6 +124,9 @@ func main() {
 	r.Use(cors.New(corsConfig))
 
 	r.GET("/api/data/health", handlers.HandleHealth(ds))
+
+	// 就绪检查端点（C-008）：独立路径，DB 故障时摘除流量而非重启 Pod。
+	r.GET("/api/ready", handlers.HandleReady(ds.Pool()))
 	r.GET("/metrics", gin.WrapH(metricsHandler))
 
 	authed := r.Group("/")
