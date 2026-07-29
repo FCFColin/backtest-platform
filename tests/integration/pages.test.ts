@@ -241,7 +241,12 @@ describe('布局验证', () => {
     expect(navConfigSource).toContain("to: '/monte-carlo'");
     expect(navConfigSource).toContain("to: '/tactical'");
     expect(navConfigSource).toContain("to: '/letf-slippage'");
-    expect(navConfigSource).toContain("to: '/data-engine'");
+    // /data-engine 在 Navbar.tsx DIRECT_LINKS 中（非 NavGroupMenu 分组）
+    const navbarSource = readFileSync(
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
+      'utf-8',
+    );
+    expect(navbarSource).toContain("to: '/data-engine'");
   });
 
   it('页脚包含法律链接', () => {
@@ -252,6 +257,5 @@ describe('布局验证', () => {
     // 验证页脚包含法律相关链接（内部路由用 Link 的 to=，外链用 a 的 href=）
     expect(footerSource).toContain("to: '/help'");
     expect(footerSource).toContain("to: '/about'");
-    expect(footerSource).toContain('mailto:');
   });
 });

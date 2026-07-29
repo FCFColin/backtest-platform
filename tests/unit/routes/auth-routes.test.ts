@@ -327,15 +327,15 @@ describe('authRoutes - 登录与会话端点', () => {
       expect(res.status).toBe(401);
     });
 
-    it('缺失 refreshToken 应返回 422', async () => {
+    it('缺失 refreshToken 应返回 400', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
       const body = await res.json();
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_REFRESH_TOKEN');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -469,7 +469,7 @@ describe('authRoutes - 登录与会话端点', () => {
       expect(body.error.code).toBe('ORG_INACTIVE');
     });
 
-    it('缺少 orgId 应返回 422', async () => {
+    it('缺少 orgId 应返回 400', async () => {
       injectUser();
       const res = await fetch(`${server.url}/api/v1/auth/switch-org`, {
         method: 'POST',
@@ -478,8 +478,8 @@ describe('authRoutes - 登录与会话端点', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_ORG_ID');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('未认证应返回 401', async () => {
@@ -646,7 +646,7 @@ describe('authRegistrationRoutes', () => {
   });
 
   describe('POST /verify-email', () => {
-    it('缺 token 应返回 422 MISSING_TOKEN', async () => {
+    it('缺 token 应返回 400 VALIDATION_ERROR', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/verify-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -654,8 +654,8 @@ describe('authRegistrationRoutes', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_TOKEN');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
       expect(mocks.registration.verifyEmailToken).not.toHaveBeenCalled();
     });
 
@@ -690,7 +690,7 @@ describe('authRegistrationRoutes', () => {
   });
 
   describe('POST /resend-verification', () => {
-    it('缺 email 应返回 422 MISSING_EMAIL（jwtAuth 已通过）', async () => {
+    it('缺 email 应返回 400 VALIDATION_ERROR（jwtAuth 已通过）', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -698,8 +698,8 @@ describe('authRegistrationRoutes', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_EMAIL');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
       expect(mocks.jwtAuth.jwtAuth).toHaveBeenCalled();
       expect(mocks.registration.issueEmailVerificationToken).not.toHaveBeenCalled();
     });

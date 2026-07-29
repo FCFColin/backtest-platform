@@ -171,7 +171,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
       const jobId = `job-${jobStore.size + 1}`;
       jobStore.set(jobId, {
         id: jobId,
-        state: 'waiting',
+        state: 'delayed',
         progress: 0,
         data,
       });
@@ -310,8 +310,7 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     expect(json.success).toBe(false);
     expect(json.error.code).toBe('JOB_NOT_FOUND');
   });
-
-  it('场景5: 队列不可用时降级为同步执行返回 200', async () => {
+  it('场景5: 队列不可用时 fail-closed 返回 503（ADR-031）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis connection refused'));
 
     const res = await fetch(`${server.url}/api/backtest/portfolio`, {
@@ -319,11 +318,13 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequestBody()),
     });
-
-    expect(res.status).toBe(200);
+    // ADR-031: 队列不可用时 fail-closed 返回 503 + Retry-After，不再回退同步执行
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Retry-After')).toBe('30');
     const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.data).toBeDefined();
-    expect(m.runPortfolioBacktest).toHaveBeenCalledTimes(1);
+    expect(json.success).toBe(false);
+    expect(json.error).toBeDefined();
+    // 同步回退已废弃，runPortfolioBacktest 不应被调用
+    expect(m.runPortfolioBacktest).not.toHaveBeenCalled();
   });
 });

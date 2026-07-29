@@ -521,9 +521,10 @@ describe('processBacktestJob - 任务分发', () => {
   });
 });
 
-describe('shutdownWorker 与信号处理（优雅关闭）', () => {
+describe('shutdownWorker（优雅关闭，D9-H5: 信号处理器已移至 workerEntrypoint.ts）', () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
   let workerCloseMock: ReturnType<typeof vi.fn>;
+  let workerModule: typeof import('../../../packages/backend/src/queues/worker.js');
 
   beforeEach(async () => {
     workerCloseMock = vi.fn().mockResolvedValue(undefined);
@@ -534,9 +535,9 @@ describe('shutdownWorker 与信号处理（优雅关闭）', () => {
     }));
 
     // 重置模块缓存 + 动态导入,获取 fresh workerShuttingDown=false 的模块实例
-    // 信号 handler 会被 signalCapture(vi.hoisted) 捕获,无需真实注册到 process
+    // D9-H5: worker.ts 不再注册 SIGTERM/SIGINT 处理器,直接导出 shutdownWorker 供调用
     vi.resetModules();
-    await import('../../../packages/backend/src/queues/worker.js');
+    workerModule = await import('../../../packages/backend/src/queues/worker.js');
 
     vi.useFakeTimers();
     exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
@@ -549,39 +550,40 @@ describe('shutdownWorker 与信号处理（优雅关闭）', () => {
     vi.resetModules();
   });
 
-  it('SIGTERM 正常关闭 + SIGINT 重复信号提前返回（覆盖信号注册与 shutdownWorker 主路径）', async () => {
-    // SIGTERM 正常路径:worker.close() 调用 + process.exit(0)
-    signalCapture.captured.SIGTERM!();
+  it('shutdownWorker 正常关闭 + 重复调用提前返回（D9-H5: 不再注册信号处理器）', async () => {
+    // D9-H5: shutdownWorker 直接导出调用,不再通过 process.on 注册信号处理器
+    // process.exit(0) 已移除——退出时机由调用方 workerEntrypoint.ts 控制
+    await workerModule.shutdownWorker('SIGTERM');
     await vi.runAllTimersAsync();
 
     expect(workerCloseMock).toHaveBeenCalledTimes(1);
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(exitSpy).not.toHaveBeenCalled();
 
-    // SIGINT 重复信号:workerShuttingDown=true,提前返回,不再调用 worker.close
+    // 重复调用:workerShuttingDown=true,提前返回,不再调用 worker.close
     workerCloseMock.mockClear();
     exitSpy.mockClear();
 
-    signalCapture.captured.SIGINT!();
+    await workerModule.shutdownWorker('SIGINT');
     await vi.runAllTimersAsync();
 
     expect(workerCloseMock).not.toHaveBeenCalled();
   });
 
-  it('worker.close() 抛异常 - 异常被吞且 process.exit(0) 仍被调用（容错路径）', async () => {
+  it('worker.close() 抛异常 - 异常被吞且 process.exit 不被调用（D9-H5: exit 由调用方控制）', async () => {
     workerCloseMock.mockRejectedValueOnce(new Error('close failed'));
 
-    signalCapture.captured.SIGTERM!();
+    await workerModule.shutdownWorker('SIGTERM');
     await vi.runAllTimersAsync();
 
     expect(workerCloseMock).toHaveBeenCalledTimes(1);
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(exitSpy).not.toHaveBeenCalled();
   });
 
   it('forceExitTimeout 30s - worker.close() 不 resolve 时 process.exit(1)（兜底路径）', async () => {
     // worker.close() 永不 resolve,模拟 worker.close() 因长任务挂起
     workerCloseMock.mockReturnValueOnce(new Promise<void>(() => {}));
 
-    signalCapture.captured.SIGTERM!();
+    void workerModule.shutdownWorker('SIGTERM');
     // 推进 30s 触发 forceExitTimeout
     await vi.advanceTimersByTimeAsync(30000);
 

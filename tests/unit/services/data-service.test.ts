@@ -129,7 +129,11 @@ vi.mock('../../../packages/backend/src/utils/integrity.js', () => ({
   signFile: integrityMocks.signFile,
   verifyFile: integrityMocks.verifyFile,
 }));
-vi.mock('http', () => ({ default: { request: httpMocks.request }, request: httpMocks.request }));
+vi.mock('http', () => ({
+  default: { request: httpMocks.request },
+  request: httpMocks.request,
+  Agent: vi.fn(() => ({ sockets: {}, destroy: vi.fn() })),
+}));
 
 import {
   fetchHistoryData,

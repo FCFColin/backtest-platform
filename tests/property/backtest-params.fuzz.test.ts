@@ -27,7 +27,7 @@ function validateBacktestParams(params: {
 describe('P3-04: Fuzz 测试 — 回测参数验证', () => {
   it('正数 initialCapital 不应返回错误', () => {
     fc.assert(
-      fc.property(fc.float({ min: 0.01, max: 1e9 }), (capital) => {
+      fc.property(fc.double({ min: 0.01, max: 1e9, noNaN: true, noDefaultInfinity: true }), (capital) => {
         const result = validateBacktestParams({
           initialCapital: capital,
           tickers: ['AAPL'],
@@ -41,7 +41,7 @@ describe('P3-04: Fuzz 测试 — 回测参数验证', () => {
 
   it('负数 initialCapital 应返回错误', () => {
     fc.assert(
-      fc.property(fc.float({ min: -1e9, max: -0.01 }), (capital) => {
+      fc.property(fc.double({ min: -1e9, max: -0.01, noNaN: true, noDefaultInfinity: true }), (capital) => {
         const result = validateBacktestParams({
           initialCapital: capital,
           tickers: ['AAPL'],

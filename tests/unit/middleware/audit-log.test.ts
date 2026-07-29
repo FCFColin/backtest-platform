@@ -230,10 +230,10 @@ describe('verifyPayload HMAC 签名', () => {
     config.AUDIT_HMAC_KEY = originalKey;
   });
 
-  it('未配置 AUDIT_HMAC_KEY 时应跳过验证（返回 true）', async () => {
+  it('未配置 AUDIT_HMAC_KEY 时应 fail-closed（返回 false，D2-010）', async () => {
     config.AUDIT_HMAC_KEY = '';
     const { verifyPayload } = await import('../../../packages/backend/src/middleware/auditLog.js');
-    expect(verifyPayload('{"a":1}', 'any-signature')).toBe(true);
+    expect(verifyPayload('{"a":1}', 'any-signature')).toBe(false);
   });
 
   it('签名长度不一致应返回 false（防 timingSafeEqual 抛错）', async () => {

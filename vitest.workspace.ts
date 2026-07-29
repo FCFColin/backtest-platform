@@ -87,6 +87,8 @@ export default defineWorkspace([
         'tests/contract/**/*.test.ts',
         'tests/fuzz/**/*.test.ts',
         'tests/property/**/*.pbt.ts',
+        // D5-002: 同时匹配 .fuzz.test.ts（原 pbt.ts 模式漏匹配）
+        'tests/property/**/*.test.ts',
         'packages/shared/**/*.test.ts',
       ],
       exclude: ['tests/chaos/**', 'tests/**/*.bench.ts'],
@@ -145,12 +147,13 @@ export default defineWorkspace([
         'tests/unit/hooks/**/*.test.{ts,tsx}',
         'tests/unit/components/**/*.test.{ts,tsx}',
         'tests/unit/pages/**/*.test.{ts,tsx}',
-        'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,ticker-presets,url-state}.test.ts',
+        'tests/unit/utils/{admin-stats,api-client,auth-tokens,chart-data-merge,color-scale,config-api,format,portfolio-storage,stats,ticker-presets,url-state,formatter-boundaries}.test.ts',
       ],
       deps: {
         moduleDirectories: ['node_modules', 'packages/frontend/node_modules'],
       },
       environment: 'jsdom',
+      setupFiles: ['tests/setup-browser.ts'],
       coverage: coverageConfig,
     },
     resolve: {

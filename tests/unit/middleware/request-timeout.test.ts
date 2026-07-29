@@ -18,6 +18,7 @@ import { requestTimeout } from '../../../packages/backend/src/middleware/request
  * 创建支持事件监听的 mock Response。
  * requestTimeout 中间件需要 res.on('finish') 和 res.on('close') 来清理定时器，
  * 标准 createMockResponse 不包含 EventEmitter 功能。
+ * sendProblem 使用 res.status().header().json() 链式调用，故需 header 方法。
  */
 function createEventMockResponse() {
   const listeners: Record<string, (() => void)[]> = {};
@@ -25,7 +26,9 @@ function createEventMockResponse() {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
+    header: vi.fn().mockReturnThis(),
     headersSent: false,
+    req: undefined,
     on: vi.fn((event: string, cb: () => void) => {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(cb);
@@ -57,7 +60,7 @@ describe('requestTimeout', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
-  it('请求超时后应返回 503 Problem Detail + Retry-After 头', () => {
+  it('请求超时后应返回 408 RFC 7807 Problem Detail + Retry-After 头', () => {
     const middleware = requestTimeout(5_000);
     const req = { method: 'POST', path: '/api/v1/backtest/portfolio' };
     const res = createEventMockResponse();
@@ -68,14 +71,18 @@ describe('requestTimeout', () => {
     // 推进时间到超时
     vi.advanceTimersByTime(5_000);
 
-    expect(res.status).toHaveBeenCalledWith(503);
-    expect(res.set).toHaveBeenCalledWith('Retry-After', '30');
+    expect(res.status).toHaveBeenCalledWith(408);
+    expect(res.header).toHaveBeenCalledWith('Retry-After', '30');
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'https://errors.backtest.io/timeout',
-        title: 'Request Timeout',
-        status: 503,
-        detail: 'Request processing exceeded time limit',
+        success: false,
+        error: expect.objectContaining({
+          type: 'https://backtest.platform/errors/REQUEST_TIMEOUT',
+          title: 'Request Timeout',
+          status: 408,
+          code: 'REQUEST_TIMEOUT',
+          detail: 'Request processing exceeded time limit',
+        }),
       }),
     );
   });
@@ -164,6 +171,6 @@ describe('requestTimeout', () => {
 
     // 30 秒应超时
     vi.advanceTimersByTime(1_000);
-    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.status).toHaveBeenCalledWith(408);
   });
 });

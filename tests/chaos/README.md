@@ -22,7 +22,7 @@ docker compose up -d
 docker compose ps
 
 # 3. 运行 chaos 测试
-npm run test:chaos
+pnpm test:chaos
 ```
 
 ## 跳过条件

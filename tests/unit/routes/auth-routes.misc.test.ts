@@ -171,8 +171,8 @@ describe('authRoutes - 会话与组织端点', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_REFRESH_TOKEN');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
   });
 
@@ -355,7 +355,7 @@ describe('authRoutes - 会话与组织端点', () => {
       expect(body.error.code).toBe('ORG_INACTIVE');
     });
 
-    it('缺少 orgId 应返回 422', async () => {
+    it('缺少 orgId 应返回 400', async () => {
       injectUser();
       const res = await fetch(`${server.url}/api/v1/auth/switch-org`, {
         method: 'POST',
@@ -364,8 +364,8 @@ describe('authRoutes - 会话与组织端点', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_ORG_ID');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('未认证应返回 401', async () => {

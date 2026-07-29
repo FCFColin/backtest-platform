@@ -36,10 +36,10 @@ docker compose up -d postgres redis engine-go data-fetcher
 docker compose ps  # 确认 postgres / redis / engine-go / data-fetcher healthy
 
 # 3. 运行 E2E 测试(Playwright 会自动启动 backend API)
-npm run test:e2e:ui
+pnpm test:e2e:ui
 
 # 或带浏览器 UI 调试
-npm run test:e2e:ui:headed
+pnpm test:e2e:ui:headed
 ```
 
 ## 跳过条件

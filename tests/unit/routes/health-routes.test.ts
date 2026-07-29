@@ -100,9 +100,12 @@ describe('healthRoutes', () => {
 
   describe('GET /api/ready', () => {
     it('Go 引擎可用时应返回 status=ok', async () => {
+      config.METRICS_AUTH_TOKEN = 'test-metrics-token';
       globalThis.fetch = createFetchMock({ goEngine: { ok: true, status: 200 } }) as typeof fetch;
 
-      const res = await fetch(`${server.url}/api/ready`);
+      const res = await fetch(`${server.url}/api/ready`, {
+        headers: { Authorization: 'Bearer test-metrics-token' },
+      });
       const body = await res.json();
 
       expect(res.status).toBe(200);
@@ -113,11 +116,14 @@ describe('healthRoutes', () => {
     });
 
     it('Go 引擎不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
+      config.METRICS_AUTH_TOKEN = 'test-metrics-token';
       globalThis.fetch = createFetchMock({
         goEngine: new Error('ECONNREFUSED'),
       }) as typeof fetch;
 
-      const res = await fetch(`${server.url}/api/ready`);
+      const res = await fetch(`${server.url}/api/ready`, {
+        headers: { Authorization: 'Bearer test-metrics-token' },
+      });
       const body = await res.json();
 
       expect(res.status).toBe(503);
@@ -131,11 +137,21 @@ describe('healthRoutes', () => {
       const res = await fetch(`${server.url}/api/ready`);
       expect(res.status).toBe(401);
     });
+
+    it('D2-005: 未配置 METRICS_AUTH_TOKEN 时 /ready 应返回 403', async () => {
+      config.METRICS_AUTH_TOKEN = '';
+
+      const res = await fetch(`${server.url}/api/ready`);
+      expect(res.status).toBe(403);
+    });
   });
 
   describe('GET /api/metrics', () => {
     it('应返回 Prometheus text format', async () => {
-      const res = await fetch(`${server.url}/api/metrics`);
+      config.METRICS_AUTH_TOKEN = 'test-metrics-token';
+      const res = await fetch(`${server.url}/api/metrics`, {
+        headers: { Authorization: 'Bearer test-metrics-token' },
+      });
       const text = await res.text();
 
       expect(res.status).toBe(200);
@@ -144,7 +160,10 @@ describe('healthRoutes', () => {
     });
 
     it('应包含 saturation 指标（T-P1-1）', async () => {
-      const res = await fetch(`${server.url}/api/metrics`);
+      config.METRICS_AUTH_TOKEN = 'test-metrics-token';
+      const res = await fetch(`${server.url}/api/metrics`, {
+        headers: { Authorization: 'Bearer test-metrics-token' },
+      });
       const text = await res.text();
 
       expect(text).toContain('node_eventloop_lag_seconds');
@@ -156,6 +175,13 @@ describe('healthRoutes', () => {
 
       const res = await fetch(`${server.url}/api/metrics`);
       expect(res.status).toBe(401);
+    });
+
+    it('D2-005: 未配置 METRICS_AUTH_TOKEN 时 /metrics 应返回 403', async () => {
+      config.METRICS_AUTH_TOKEN = '';
+
+      const res = await fetch(`${server.url}/api/metrics`);
+      expect(res.status).toBe(403);
     });
   });
 });

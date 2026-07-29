@@ -34,6 +34,7 @@ import {
   getDbEngineStatus,
   inferMarket,
   deriveExchangeFromTicker,
+  __clearCachesForTests,
 } from '../../../packages/backend/src/db/marketStats.js';
 
 describe('bytesToMb', () => {
@@ -50,6 +51,7 @@ describe('getMarketDataStorageBytes', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __clearCachesForTests();
     mockPool = createMockPool();
     dbMocks.getReadPool.mockReturnValue(mockPool);
   });
@@ -81,6 +83,7 @@ describe('scanMarketStatsFromDb', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __clearCachesForTests();
     mockPool = createMockPool();
     dbMocks.getReadPool.mockReturnValue(mockPool);
   });
@@ -267,6 +270,7 @@ describe('getDbEngineStatus', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __clearCachesForTests();
     mockPool = createMockPool();
     dbMocks.getReadPool.mockReturnValue(mockPool);
   });

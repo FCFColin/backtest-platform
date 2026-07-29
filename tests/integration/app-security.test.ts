@@ -4,6 +4,10 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import type { Server } from 'http';
 
+vi.hoisted(() => {
+  process.env.METRICS_AUTH_TOKEN = 'test-metrics-token';
+});
+
 vi.mock('argon2', () => ({
   default: {
     hash: vi.fn().mockResolvedValue('$argon2id$mock-hash$v=19$m=65536,t=3,p=4$mock'),
@@ -99,7 +103,9 @@ describe('App 安全中间件', () => {
   });
 
   it('GET /api/metrics 应返回 Prometheus 文本', async () => {
-    const res = await fetch(`${baseUrl}/api/metrics`);
+    const res = await fetch(`${baseUrl}/api/metrics`, {
+      headers: { Authorization: 'Bearer test-metrics-token' },
+    });
     expect(res.ok).toBe(true);
     const text = await res.text();
     expect(text.length).toBeGreaterThan(10);

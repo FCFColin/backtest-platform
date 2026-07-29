@@ -1,10 +1,12 @@
 /**
- * API Key 认证中间件单元测试（ADR-033 + P0-04）
+ * API Key 认证中间件单元测试（ADR-033 + P0-04 + D4-010）
  *
  * 企业理由：x-api-key 是 CLI/自动化脚本的主认证方式（按组织 DB 密钥），
  * 同时也是平台 break-glass 入口。P0-04 后两条路径统一走 DB（verifyApiKey）：
  * 1. 按组织 DB 密钥（is_platform_admin=FALSE）——注入租户上下文
  * 2. 平台 break-glass DB 密钥（is_platform_admin=TRUE）——注入 platform_admin 角色
+ *
+ * D4-010 / ADR-045：基础设施错误（Redis/DB）fail-closed 503，不再静默吞掉。
  *
  * Mock 策略：mock logger、apiKeyVerifier（verifyApiKey）、errors（sendProblem）、authTypes。
  */
@@ -50,7 +52,7 @@ beforeEach(() => {
 });
 
 /**
- * 等待 Promise 微任务队列 flush（handleApiKeyAuth 使用 .then() 而非 await）
+ * 等待 Promise 微任务队列 flush（handleApiKeyAuth 使用 async/await）
  */
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 10));
@@ -145,7 +147,8 @@ describe('handleApiKeyAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('verifyApiKey 抛出异常应返回 401', async () => {
+  // D4-010 / ADR-045：基础设施错误（Redis/DB）fail-closed 503，不再静默吞掉返回 401
+  it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection error'));
     const { req, res, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_key' },
@@ -154,8 +157,12 @@ describe('handleApiKeyAuth', () => {
     await flushPromises();
     expect(mocks.sendProblem).toHaveBeenCalledWith(
       expect.anything(),
-      401,
-      'INVALID_API_KEY',
+      503,
+      'AUTH_SERVICE_UNAVAILABLE',
+      'Authentication Service Unavailable',
+      expect.objectContaining({
+        detail: expect.any(String),
+      }),
     );
     expect(next).not.toHaveBeenCalled();
   });
@@ -213,18 +220,23 @@ describe('handleOptionalApiKey', () => {
     expect(req.user).toBeNull();
   });
 
-  // P0-04：修复前 verifyApiKey 抛异常会 fire-and-forget 导致 unhandledRejection
-  // 修复后：resolveApiKeyUser 内部 catch 返回 null → handleOptionalApiKey 匿名放行
-  // （resolveApiKeyUser 自身有 try/catch，将 verifyApiKey 异常转为 null 返回）
-  it('verifyApiKey 抛出异常应匿名放行（resolveApiKeyUser 内部 catch）（P0-04）', async () => {
+  // D4-010 / ADR-045：基础设施错误 fail-closed 503，不再匿名放行（安全优先）
+  it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
     const { req, res, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_key' },
     });
     await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(next).toHaveBeenCalledWith(); // 无参数=匿名放行
-    expect(req.user).toBeNull();
+    expect(mocks.sendProblem).toHaveBeenCalledWith(
+      res,
+      503,
+      'AUTH_SERVICE_UNAVAILABLE',
+      'Authentication Service Unavailable',
+      expect.objectContaining({
+        detail: expect.any(String),
+      }),
+    );
+    expect(next).not.toHaveBeenCalled();
   });
 
   // P0-04：超时保护——resolveApiKeyUser 挂起 5s 后返回 504

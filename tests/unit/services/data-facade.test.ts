@@ -273,6 +273,7 @@ describe('dataFacade', () => {
         '2024-01-02',
         '2024-01-03',
         'cache-key',
+        undefined,
       );
     });
 
@@ -324,6 +325,7 @@ describe('dataFacade', () => {
         '2000-01-01',
         '2024-01-01', // toDateStr mock 返回值
         'cache-key',
+        undefined,
       );
     });
 

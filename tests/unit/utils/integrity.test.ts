@@ -166,12 +166,12 @@ describe('integrity - HMAC 签名校验', () => {
       expect(ok).toBe(false);
     });
 
-    it('未配置 AUDIT_HMAC_KEY 时应返回 true（无密钥=不校验）', async () => {
+    it('未配置 AUDIT_HMAC_KEY 时应返回 false（fail-closed，D2-010）', async () => {
       config.AUDIT_HMAC_KEY = '';
       const filePath = path.join(tmpDir, 'data.json');
       await fs.writeFile(filePath, 'content');
       const ok = await verifyFile(filePath);
-      expect(ok).toBe(true);
+      expect(ok).toBe(false);
     });
   });
 
@@ -321,11 +321,11 @@ describe('integrity - HMAC 签名校验', () => {
       expect(verifyFileSync(filePath)).toBe(false);
     });
 
-    it('未配置密钥时 verifyFileSync 应返回 true', () => {
+    it('未配置密钥时 verifyFileSync 应返回 false（fail-closed，D2-010）', () => {
       config.AUDIT_HMAC_KEY = '';
       const filePath = path.join(tmpDir, 'no-key.json');
       fsSync.writeFileSync(filePath, 'data');
-      expect(verifyFileSync(filePath)).toBe(true);
+      expect(verifyFileSync(filePath)).toBe(false);
     });
 
     it('缺失 .sig 时 verifyFileSync 应返回 false', () => {

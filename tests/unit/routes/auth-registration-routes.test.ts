@@ -234,7 +234,7 @@ describe('authRegistrationRoutes', () => {
   });
 
   describe('POST /verify-email', () => {
-    it('缺 token 应返回 422 MISSING_TOKEN', async () => {
+    it('缺 token 应返回 400 VALIDATION_ERROR', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/verify-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,8 +242,8 @@ describe('authRegistrationRoutes', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_TOKEN');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
       expect(mocks.verifyEmailToken).not.toHaveBeenCalled();
     });
 
@@ -279,7 +279,7 @@ describe('authRegistrationRoutes', () => {
   });
 
   describe('POST /resend-verification', () => {
-    it('缺 email 应返回 422 MISSING_EMAIL（jwtAuth 已通过）', async () => {
+    it('缺 email 应返回 400 VALIDATION_ERROR（jwtAuth 已通过）', async () => {
       const res = await fetch(`${server.url}/api/v1/auth/resend-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -287,8 +287,8 @@ describe('authRegistrationRoutes', () => {
       });
       const body = await res.json();
 
-      expect(res.status).toBe(422);
-      expect(body.error.code).toBe('MISSING_EMAIL');
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
       // jwtAuth 已通过（mock 注入了 req.user）
       expect(mocks.jwtAuth).toHaveBeenCalled();
       expect(mocks.issueEmailVerificationToken).not.toHaveBeenCalled();

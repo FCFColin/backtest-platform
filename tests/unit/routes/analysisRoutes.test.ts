@@ -223,7 +223,7 @@ describe('analysisRoutes - PCA: POST /api/v1/pca/analyze', () => {
     expect(res.status).toBe(400);
   });
 
-  it('重复 ticker 去重后不足 2 个应返回 422', async () => {
+  it('重复 ticker 去重后不足 2 个应返回 400', async () => {
     const res = await fetch(`${server.url}/api/v1/pca/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -682,7 +682,7 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
     });
   });
 
-  it('缺失 monthlyReturns 应返回 422', async () => {
+  it('缺失 monthlyReturns 应返回 400', async () => {
     const res = await fetch(`${server.url}/api/v1/analysis/factor-regression`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -690,41 +690,41 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
     });
     const body = await res.json();
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_ERROR');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
-  it('monthlyReturns 为空数组应返回 422', async () => {
+  it('monthlyReturns 为空数组应返回 400', async () => {
     const res = await fetch(`${server.url}/api/v1/analysis/factor-regression`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ monthlyReturns: [], ffData: [{ mktRF: 0.02 }] }),
     });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
-  it('monthlyReturns 为非数组（字符串）应返回 422', async () => {
+  it('monthlyReturns 为非数组（字符串）应返回 400', async () => {
     const res = await fetch(`${server.url}/api/v1/analysis/factor-regression`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ monthlyReturns: 'not-array', ffData: [{ mktRF: 0.02 }] }),
     });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
-  it('ffData 为空数组应返回 422', async () => {
+  it('ffData 为空数组应返回 400', async () => {
     const res = await fetch(`${server.url}/api/v1/analysis/factor-regression`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ monthlyReturns: [0.01], ffData: [] }),
     });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(400);
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
 
@@ -812,7 +812,7 @@ describe('analysisRoutes - Calculator: POST /api/v1/calculators/:type', () => {
     }
   });
 
-  it('无效 type 应返回 422 CALC_INVALID_TYPE 且不调用引擎', async () => {
+  it('无效 type 应返回 400 CALC_INVALID_TYPE 且不调用引擎', async () => {
     const res = await fetch(`${server.url}/api/v1/calculators/invalid`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

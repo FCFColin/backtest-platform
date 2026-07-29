@@ -15,14 +15,20 @@ import crypto from 'crypto';
 // Mock：pg pool（getPool 返回带 query 的 mock pool）
 // ---------------------------------------------------------------------------
 const poolMocks = vi.hoisted(() => {
+  const queryFn = vi.fn().mockResolvedValue({ rows: [] });
   const pool = {
-    query: vi.fn().mockResolvedValue({ rows: [] }),
+    query: queryFn,
   };
   return { pool };
 });
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks.pool),
+  // D2-008: withTenant mock — calls callback with a client sharing the same queryFn,
+  // so all pool.query and client.query calls go through the same mock for test assertions.
+  withTenant: vi.fn(async (_tenantId: string, fn: (client: { query: typeof poolMocks.pool.query }) => Promise<void>) => {
+    await fn({ query: poolMocks.pool.query });
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -40,6 +46,24 @@ const ssrfMock = vi.hoisted(() => ({
 }));
 vi.mock('../../../packages/backend/src/utils/ssrfGuard.js', () => ({
   assertSafeUrl: ssrfMock.assertSafeUrl,
+}));
+
+// ---------------------------------------------------------------------------
+// Mock：envelopeEncryption（C-024，processSingleDelivery 调用 decrypt）
+// decrypt 默认返回 SECRET，使现有投递流程测试无需感知加密；encrypt 返回 dummy。
+// ---------------------------------------------------------------------------
+const envEncMock = vi.hoisted(() => ({
+  encrypt: vi.fn().mockResolvedValue({
+    ciphertext: Buffer.from('enc'),
+    iv: Buffer.from('iv'),
+    tag: Buffer.from('tag'),
+    kid: 'default',
+  }),
+  decrypt: vi.fn(),
+}));
+vi.mock('../../../packages/backend/src/utils/envelopeEncryption.js', () => ({
+  encrypt: envEncMock.encrypt,
+  decrypt: envEncMock.decrypt,
 }));
 
 // ---------------------------------------------------------------------------
@@ -72,7 +96,10 @@ function makeDeliveryRow(
     payload: unknown;
     attempt_count: number;
     url: string;
-    secret: string;
+    secret: Buffer | string;
+    secret_iv: Buffer | string;
+    secret_tag: Buffer | string;
+    secret_kid: string;
     org_id: string;
   }> = {},
 ) {
@@ -83,7 +110,10 @@ function makeDeliveryRow(
     payload: { runId: 'run-1' },
     attempt_count: 0,
     url: URL,
-    secret: SECRET,
+    secret: Buffer.from('enc'),
+    secret_iv: Buffer.from('iv'),
+    secret_tag: Buffer.from('tag'),
+    secret_kid: 'default',
     org_id: ORG_ID,
     ...overrides,
   };
@@ -112,6 +142,8 @@ describe('webhookService', () => {
     fetchMock.mockReset();
     // ssrfGuard 默认放行（C-003），个别用例覆盖为 reject 验证失败路径
     ssrfMock.assertSafeUrl.mockResolvedValue(undefined);
+    // envelopeEncryption.decrypt 默认返回 SECRET，使投递流程测试无需感知加密（C-024）
+    envEncMock.decrypt.mockResolvedValue(SECRET);
   });
 
   afterEach(() => {

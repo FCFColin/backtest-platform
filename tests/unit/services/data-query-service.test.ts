@@ -56,6 +56,7 @@ vi.mock('opossum', () => ({
 vi.mock('http', () => ({
   default: { request: httpMocks.request },
   request: httpMocks.request,
+  Agent: vi.fn(() => ({ sockets: {}, destroy: vi.fn() })),
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({

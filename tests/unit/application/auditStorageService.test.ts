@@ -384,13 +384,13 @@ describe('auditStorageService', () => {
       expect(result.actual).toBe('');
     });
 
-    it('未配置 AUDIT_HMAC_KEY 时应返回 valid=true（无密钥=不校验）', async () => {
+    it('未配置 AUDIT_HMAC_KEY 时应返回 valid=false（fail-closed，D2-010）', async () => {
       config.AUDIT_HMAC_KEY = '';
       poolMocks.pool.query.mockResolvedValueOnce({
         rows: [{ payload: { a: 1 }, hmac_signature: 'some-sig' }],
       });
       const result = await verifyAuditIntegrity(LOG_ID);
-      expect(result.valid).toBe(true);
+      expect(result.valid).toBe(false);
       expect(result.expected).toBe('');
     });
   });
