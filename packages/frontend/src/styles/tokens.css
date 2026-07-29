@@ -27,7 +27,7 @@
 
   --fg: 222 47% 11%;
   --fg-secondary: 217 19% 35%;
-  --fg-tertiary: 217 20% 65%;
+  --fg-tertiary: 217 20% 45%;
   --fg-disabled: 217 20% 65%;
 
   --brand: 217 91% 53%;
@@ -79,7 +79,7 @@
   --support-soft: #ccfbf1;
   --color-success: #16a34a;
   --success-light: rgba(22, 163, 74, 0.12);
-  --color-warning: #d97706;
+  --color-warning: #b45309;
   --warning-light: rgba(217, 119, 6, 0.12);
   --color-danger: #dc2626;
   --danger-light: rgba(220, 38, 38, 0.12);
@@ -151,7 +151,7 @@
 
   --fg: 220 10% 92%;
   --fg-secondary: 220 9% 66%;
-  --fg-tertiary: 220 9% 46%;
+  --fg-tertiary: 220 9% 52%;
   --fg-disabled: 220 9% 33%;
 
   --brand: 217 91% 60%;

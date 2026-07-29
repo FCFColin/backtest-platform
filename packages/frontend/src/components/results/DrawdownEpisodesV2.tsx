@@ -4,6 +4,7 @@
  *   getSeverity: ≥20% severe / ≥10% moderate / else mild。
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { formatPercent, formatDuration } from '@/lib/formatters.js';
 import { cn } from '@/lib/utils.js';
@@ -22,6 +23,7 @@ type Severity = 'all' | 'severe' | 'moderate' | 'mild';
  * @returns 回撤片段容器元素。
  */
 export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
+  const { t } = useTranslation();
   const [severity, setSeverity] = useState<Severity>('all');
   const [sortBy, setSortBy] = useState<'depth' | 'duration' | 'recovery'>('depth');
   const [displayLimit, setDisplayLimit] = useState(5);
@@ -37,64 +39,39 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
   const displayed = filtered.slice(0, displayLimit);
   const hasMore = filtered.length > displayLimit;
 
-  const summary = {
-    total: episodes.length,
-    maxDepth: Math.min(...episodes.map((e) => e.depth), 0),
-    avgDepth: episodes.length > 0 ? episodes.reduce((s, e) => s + e.depth, 0) / episodes.length : 0,
-    avgRecovery:
-      episodes.filter((e) => e.recoveryTime > 0).reduce((s, e) => s + e.recoveryTime, 0) /
-      Math.max(episodes.filter((e) => e.recoveryTime > 0).length, 1),
-  };
-
   return (
     <div className="bg-surface border border-border rounded-xl" data-testid="drawdown-episodes-panel">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
-        <h3 className="text-h3">回撤片段</h3>
+        <h3 className="text-h3">{t('components.drawdownEpisodes.title')}</h3>
         <div className="flex items-center gap-2">
           <select
             value={severity}
             onChange={(e) => setSeverity(e.target.value as Severity)}
             className="text-caption bg-input-bg border border-border rounded-md px-2 py-1 text-fg"
+            aria-label={t('components.drawdownEpisodes.aria.severity')}
             data-testid="filter-severity"
           >
-            <option value="all">全部</option>
-            <option value="severe">严重 (≥20%)</option>
-            <option value="moderate">中等 (≥10%)</option>
-            <option value="mild">轻微 (&lt;10%)</option>
+            <option value="all">{t('components.drawdownEpisodes.filter.all')}</option>
+            <option value="severe">{t('components.drawdownEpisodes.filter.severe')}</option>
+            <option value="moderate">{t('components.drawdownEpisodes.filter.moderate')}</option>
+            <option value="mild">{t('components.drawdownEpisodes.filter.mild')}</option>
           </select>
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as 'depth' | 'duration' | 'recovery')}
             className="text-caption bg-input-bg border border-border rounded-md px-2 py-1 text-fg"
+            aria-label={t('components.drawdownEpisodes.aria.sortBy')}
             data-testid="sort-selector"
           >
-            <option value="depth">按深度</option>
-            <option value="duration">按持续时间</option>
-            <option value="recovery">按恢复因子</option>
+            <option value="depth">{t('components.drawdownEpisodes.sort.depth')}</option>
+            <option value="duration">{t('components.drawdownEpisodes.sort.duration')}</option>
+            <option value="recovery">{t('components.drawdownEpisodes.sort.recovery')}</option>
           </select>
         </div>
       </div>
 
-      {/* 摘要行 */}
-      <div className="grid grid-cols-4 gap-6 px-6 py-4 border-b border-border-subtle">
-        <div>
-          <div className="text-label-tiny text-fg-tertiary">总回撤次数</div>
-          <div className="text-h3 font-mono tabular-nums">{summary.total}</div>
-        </div>
-        <div>
-          <div className="text-label-tiny text-fg-tertiary">最大回撤</div>
-          <div className="text-h3 font-mono tabular-nums text-neg">{formatPercent(summary.maxDepth)}</div>
-        </div>
-        <div>
-          <div className="text-label-tiny text-fg-tertiary">平均回撤</div>
-          <div className="text-h3 font-mono tabular-nums text-neg">{formatPercent(summary.avgDepth)}</div>
-        </div>
-        <div>
-          <div className="text-label-tiny text-fg-tertiary">平均恢复时长</div>
-          <div className="text-h3 font-mono tabular-nums">{formatDuration(Math.round(summary.avgRecovery))}</div>
-        </div>
-      </div>
+      <DrawdownSummary episodes={episodes} />
 
       {/* 回撤列表 */}
       <div>
@@ -108,7 +85,7 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
               className="text-caption text-brand hover:underline"
               data-testid="show-more-episodes"
             >
-              显示更多 {Math.min(10, filtered.length - displayLimit)} 段
+              {t('components.drawdownEpisodes.showMore', { count: Math.min(10, filtered.length - displayLimit) })}
             </button>
           </div>
         )}
@@ -117,8 +94,46 @@ export function DrawdownEpisodesV2({ episodes }: DrawdownEpisodesV2Props) {
   );
 }
 
+/**
+ * DrawdownSummary: 回撤摘要行（4列指标）。
+ * @param props - episodes。
+ * @returns 摘要行元素。
+ */
+function DrawdownSummary({ episodes }: { episodes: DrawdownEpisode[] }) {
+  const { t } = useTranslation();
+  const summary = {
+    total: episodes.length,
+    maxDepth: Math.min(...episodes.map((e) => e.depth), 0),
+    avgDepth: episodes.length > 0 ? episodes.reduce((s, e) => s + e.depth, 0) / episodes.length : 0,
+    avgRecovery:
+      episodes.filter((e) => e.recoveryTime > 0).reduce((s, e) => s + e.recoveryTime, 0) /
+      Math.max(episodes.filter((e) => e.recoveryTime > 0).length, 1),
+  };
+  return (
+    <div className="grid grid-cols-4 gap-6 px-6 py-4 border-b border-border-subtle">
+      <div>
+        <div className="text-label-tiny text-fg-tertiary">{t('components.drawdownEpisodes.summary.totalDrawdowns')}</div>
+        <div className="text-h3 font-mono tabular-nums">{summary.total}</div>
+      </div>
+      <div>
+        <div className="text-label-tiny text-fg-tertiary">{t('components.drawdownEpisodes.summary.maxDrawdown')}</div>
+        <div className="text-h3 font-mono tabular-nums text-neg">{formatPercent(summary.maxDepth)}</div>
+      </div>
+      <div>
+        <div className="text-label-tiny text-fg-tertiary">{t('components.drawdownEpisodes.summary.avgDrawdown')}</div>
+        <div className="text-h3 font-mono tabular-nums text-neg">{formatPercent(summary.avgDepth)}</div>
+      </div>
+      <div>
+        <div className="text-label-tiny text-fg-tertiary">{t('components.drawdownEpisodes.summary.avgRecoveryDuration')}</div>
+        <div className="text-h3 font-mono tabular-nums">{formatDuration(Math.round(summary.avgRecovery))}</div>
+      </div>
+    </div>
+  );
+}
+
 function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; testId: string }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation();
   const sev = getSeverity(episode.depth);
 
   return (
@@ -146,7 +161,7 @@ function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; tes
           </div>
           <div className="text-caption text-fg-tertiary flex flex-col items-end">
             <span data-testid="episode-status">
-              {episode.recoveryDate ? '已恢复' : '进行中'}
+              {episode.recoveryDate ? t('components.drawdownEpisodes.status.recovered') : t('components.drawdownEpisodes.status.ongoing')}
             </span>
             <span className="font-mono tabular-nums" data-testid="episode-duration">
               {formatDuration(episode.totalTimeDurationDays)}
@@ -161,17 +176,17 @@ function DrawdownEpisodeRow({ episode, testId }: { episode: DrawdownEpisode; tes
       </button>
       {expanded && (
         <div className="px-6 pb-4 pl-11 grid grid-cols-2 md:grid-cols-3 gap-4 bg-surface-sunken/30">
-          <DetailField label="跌至谷底" value={formatDuration(episode.timeToTrough)} />
+          <DetailField label={t('components.drawdownEpisodes.detail.timeToTrough')} value={formatDuration(episode.timeToTrough)} />
           {episode.recoveryTime > 0 && (
-            <DetailField label="恢复时间" value={formatDuration(episode.recoveryTime)} />
+            <DetailField label={t('components.drawdownEpisodes.detail.recoveryTime')} value={formatDuration(episode.recoveryTime)} />
           )}
           {episode.recoveryFactor !== undefined && (
-            <DetailField label="恢复因子" value={episode.recoveryFactor.toFixed(2)} />
+            <DetailField label={t('components.drawdownEpisodes.detail.recoveryFactor')} value={episode.recoveryFactor.toFixed(2)} />
           )}
           {episode.cagrDuring !== undefined && (
-            <DetailField label="期间 CAGR" value={formatPercent(episode.cagrDuring)} colorize />
+            <DetailField label={t('components.drawdownEpisodes.detail.periodCagr')} value={formatPercent(episode.cagrDuring)} colorize />
           )}
-          <DetailField label="期间 Ulcer" value={episode.ulcerDuring.toFixed(2)} />
+          <DetailField label={t('components.drawdownEpisodes.detail.periodUlcer')} value={episode.ulcerDuring.toFixed(2)} />
         </div>
       )}
     </div>

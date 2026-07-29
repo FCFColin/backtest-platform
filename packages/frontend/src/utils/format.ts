@@ -1,3 +1,5 @@
+import i18n from '@/i18n/index.js';
+
 export function fmtDate(d?: string): string {
   if (!d) return '—';
   return d;
@@ -15,14 +17,33 @@ export function fmtDate(d?: string): string {
 export function formatDuration(days: number | undefined | null): string {
   if (days == null || Number.isNaN(days)) return '—';
   const totalDays = Math.round(days);
-  if (totalDays < 1) return '0天';
-  if (totalDays < 30) return `${totalDays}天`;
+  if (totalDays < 1) return i18n.t('format.durationZero');
+  if (totalDays < 30) return i18n.t('format.durationDays', { count: totalDays });
   const months = Math.round(totalDays / 30);
-  if (months < 12) return `${months}个月`;
+  if (months < 12) return i18n.t('format.durationMonths', { count: months });
   const years = Math.floor(totalDays / 365);
   const remainingMonths = Math.round((totalDays % 365) / 30);
-  if (remainingMonths === 0) return `${years}年`;
-  return `${years}年${remainingMonths}个月`;
+  if (remainingMonths === 0) return i18n.t('format.durationYears', { count: years });
+  return i18n.t('format.durationYearsMonths', { years, months: remainingMonths });
+}
+
+
+/**
+ * 格式化年数为人类可读字符串。规则：
+ * - null/undefined/NaN: "—"
+ * - <=0: "0天"
+ * - >0: "X年Y个月"（不足 1 年仅显示月份）
+ * @param years - 年数
+ * @returns 格式化后的字符串
+ */
+export function fmtYears(years: number | undefined | null): string {
+  if (years == null || Number.isNaN(years)) return '—';
+  if (years <= 0) return i18n.t('format.durationZero');
+  const wholeYears = Math.floor(years);
+  const remainingMonths = Math.round((years - wholeYears) * 12);
+  if (wholeYears === 0) return i18n.t('format.durationMonths', { count: remainingMonths });
+  if (remainingMonths === 0) return i18n.t('format.durationYears', { count: wholeYears });
+  return i18n.t('format.durationYearsMonths', { years: wholeYears, months: remainingMonths });
 }
 
 export function fmtPct(v: number | undefined | null, decimals = 2): string {

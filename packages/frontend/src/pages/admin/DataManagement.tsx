@@ -3,7 +3,7 @@
  * @description 管理后台数据源管理，支持查看、刷新及触发数据采集任务
  * @route /admin/data
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Database,
@@ -297,6 +297,13 @@ export default function DataManagement() {
   const [stats, setStats] = useState<DataStats>(defaultDataStats);
   const [loading, setLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState('');
+  const actionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
+    if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -348,11 +355,11 @@ export default function DataManagement() {
           ? t('adminPage.dataManagement.actionTriggered', { label })
           : t('adminPage.dataManagement.actionFailed', { error: json.error }),
       );
-      if (json.success) setTimeout(fetchData, 2000);
+      if (json.success) refetchTimerRef.current = setTimeout(fetchData, 2000);
     } catch {
       setActionMsg(t('adminPage.dataManagement.actionRequestFailed', { label }));
     }
-    setTimeout(() => setActionMsg(''), 5000);
+    actionTimerRef.current = setTimeout(() => setActionMsg(''), 5000);
   };
 
   return (

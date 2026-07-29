@@ -1,4 +1,5 @@
 import type { PortfolioMode } from './monteCarloTypes.js';
+import i18n from '@/i18n/index.js';
 
 interface PresetButtonProps {
   label: string;
@@ -11,7 +12,7 @@ function createDefaultPortfolio(suffix: number): {
   rebalanceFrequency: string;
 } {
   return {
-    name: `组合 ${suffix}`,
+    name: i18n.t('common.portfolioSuffix', { suffix }),
     assets:
       suffix === 1
         ? [
@@ -39,7 +40,7 @@ export function buildPresets(t: {
 }): PresetButtonProps[] {
   return [
     {
-      label: '60/40 退休回测',
+      label: i18n.t('monteCarlo.presets.preset6040'),
       onClick: () => {
         t.setPortfolioMode(1);
         t.setPortfolios([
@@ -59,7 +60,7 @@ export function buildPresets(t: {
       },
     },
     {
-      label: '全股定投 30 年',
+      label: i18n.t('monteCarlo.presets.presetAllStockDCA'),
       onClick: () => {
         t.setPortfolioMode(1);
         t.setPortfolios([
@@ -73,7 +74,7 @@ export function buildPresets(t: {
       },
     },
     {
-      label: '三基金 25 年',
+      label: i18n.t('monteCarlo.presets.presetThreeFund'),
       onClick: () => {
         t.setPortfolioMode(1);
         t.setPortfolios([

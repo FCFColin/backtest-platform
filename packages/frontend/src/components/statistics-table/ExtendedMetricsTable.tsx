@@ -4,6 +4,7 @@
  *   Skewness/Kurtosis/Kelly/Alpha/R²/TrackingError/InfoRatio/
  *   Best/Worst Year&Month/Up&Down Capture/Positive&Negative Months%。
  */
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils.js';
 import { formatPercent, formatNumber } from '@/lib/formatters.js';
 
@@ -48,6 +49,7 @@ const EXTENDED_COLUMNS = [
  * @returns 高级指标横向表格元素。
  */
 export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) {
+  const { t } = useTranslation();
   return (
     <div className="mt-4 border border-border rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
@@ -55,7 +57,7 @@ export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) 
           <thead>
             <tr className="bg-surface-sunken border-b border-border">
               <th className="h-10 px-3 text-left text-label-tiny text-fg-tertiary sticky left-0 bg-surface-sunken z-10">
-                组合
+                {t('results.extendedMetrics.portfolio')}
               </th>
               {EXTENDED_COLUMNS.map((col) => (
                 <th key={col.key} className="h-10 px-3 text-right text-label-tiny text-fg-tertiary">

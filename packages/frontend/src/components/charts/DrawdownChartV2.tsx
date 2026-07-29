@@ -4,6 +4,7 @@
  *   结构同 GrowthChartV2 但无 Legend。
  */
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AreaChart,
   Area,
@@ -31,12 +32,13 @@ interface DrawdownChartV2Props {
  * @returns 面积图元素（h-[440px]）。
  */
 export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
+  const { t } = useTranslation();
   const chartData = useMemo(() => {
     const merged: Record<string, Record<string, string | number>> = {};
     portfolios.forEach((p) => {
       p.drawdownCurve.forEach((point) => {
         if (!merged[point.date]) merged[point.date] = { date: point.date };
-        merged[point.date][p.id] = point.drawdown;
+        merged[point.date][p.id] = -Math.abs(point.drawdown);
       });
     });
     return Object.values(merged).sort((a, b) =>
@@ -44,21 +46,26 @@ export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
     );
   }, [portfolios]);
 
-  const totalMonths = chartData.length;
+  const totalMonths = useMemo(() => {
+    if (chartData.length <= 1) return 1;
+    const first = new Date(String(chartData[0].date));
+    const last = new Date(String(chartData[chartData.length - 1].date));
+    return Math.max(1, (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth());
+  }, [chartData]);
 
   return (
     <div className="bg-surface border border-border rounded-xl">
       <div className="px-6 pt-5 pb-3">
-        <h3 className="text-h3">回撤走势</h3>
+        <h3 className="text-h3">{t('charts.drawdown.title')}</h3>
       </div>
       {chartData.length === 0 ? (
         <div className="px-6 pb-4">
           <ChartEmptyState />
         </div>
       ) : (
-        <div className="h-[440px] px-6">
+        <div className="h-[440px]">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={CHART_MARGIN}>
+            <AreaChart data={chartData} margin={{ ...CHART_MARGIN, left: 64, right: 8 }}>
             <defs>
               <linearGradient id="dangerGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="hsl(var(--danger))" stopOpacity={0.4} />
@@ -81,7 +88,7 @@ export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
             <Tooltip
               contentStyle={CHART_TOOLTIP_STYLE}
               formatter={(value: number, name: string) => [formatPercent(value), name]}
-              labelFormatter={(label) => `日期: ${label}`}
+              labelFormatter={(label) => t('charts.drawdown.dateLabel', { label })}
             />
             {portfolios.map((p, i) => (
               <Area

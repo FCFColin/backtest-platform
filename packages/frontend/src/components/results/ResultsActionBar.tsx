@@ -4,6 +4,7 @@
  *   h-14 bg-sticky-bg/95 backdrop-blur-md，左：标题+时间范围，右：操作按钮+导出。
  */
 import { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, Bookmark, Bell, Save, Download, RefreshCw, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button.js';
 import {
@@ -25,12 +26,89 @@ interface ResultsActionBarProps {
   onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
 }
 
+/** 操作栏右侧动作按钮组的 props */
+interface ActionBarActionsProps {
+  onRefresh?: () => void;
+  onShare?: () => void;
+  onSaveBacktest?: () => void;
+  onEmailAlerts?: () => void;
+  onSavePortfolio?: () => void;
+  onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
+}
+
+/**
+ * ActionBarActions: 操作栏右侧按钮组（刷新/分享/保存/导出）。
+ * @param props - 5 个回调 + onExport。
+ * @returns 按钮组元素。
+ */
+function ActionBarActions({
+  onRefresh,
+  onShare,
+  onSaveBacktest,
+  onEmailAlerts,
+  onSavePortfolio,
+  onExport,
+}: ActionBarActionsProps) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={onRefresh}
+        title={t('results.actionBar.refresh')}
+      >
+        <RefreshCw className="h-4 w-4" />
+      </Button>
+      <div className="w-px h-5 bg-border mx-1" />
+      <Button variant="ghost" size="sm" onClick={onShare}>
+        <Link className="h-4 w-4 mr-1.5" /> {t('results.actionBar.share')}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onSaveBacktest}>
+        <Bookmark className="h-4 w-4 mr-1.5" /> {t('results.actionBar.saveBacktest')}
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onEmailAlerts}>
+        <Bell className="h-4 w-4 mr-1.5" /> {t('results.actionBar.emailAlerts')}
+        <PlanBadge tier="pro" className="ml-1.5" />
+      </Button>
+      <Button variant="ghost" size="sm" onClick={onSavePortfolio}>
+        <Save className="h-4 w-4 mr-1.5" /> {t('results.actionBar.savePortfolio')}
+      </Button>
+      <div className="w-px h-5 bg-border mx-1" />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="secondary" size="sm">
+            <Download className="h-4 w-4 mr-1.5" />
+            {t('results.actionBar.export')}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => onExport?.('csv')}>
+            {t('results.actionBar.exportCsv')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('json')}>
+            {t('results.actionBar.exportJson')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('png')}>
+            {t('results.actionBar.exportPng')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('pdf')}>
+            {t('results.actionBar.exportPdf')}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 /**
  * 智能 Sticky 结果操作栏。
  * @param props - timeRange + 5 个回调 + onExport。
  * @returns 操作栏元素（含 sentinel）。
  */
 export function ResultsActionBar(props: ResultsActionBarProps) {
+  const { t } = useTranslation();
   const [sticky, setSticky] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
@@ -55,10 +133,13 @@ export function ResultsActionBar(props: ResultsActionBarProps) {
       >
         <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-h3">结果</h2>
+            <h2 className="text-h3">{t('results.actionBar.title')}</h2>
             <span className="text-caption text-fg-tertiary font-mono tabular-nums">
-              {props.timeRange.years.toFixed(2)} 年 · {props.timeRange.start} 至{' '}
-              {props.timeRange.end}
+              {t('results.actionBar.timeRange', {
+                years: props.timeRange.years.toFixed(2),
+                start: props.timeRange.start,
+                end: props.timeRange.end,
+              })}
             </span>
             <Button variant="ghost" size="icon" className="h-6 w-6">
               <Info className="h-3.5 w-3.5 text-fg-tertiary" />
@@ -67,54 +148,14 @@ export function ResultsActionBar(props: ResultsActionBarProps) {
 
           <div className="flex-1" />
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={props.onRefresh}
-              title="刷新"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-            <div className="w-px h-5 bg-border mx-1" />
-            <Button variant="ghost" size="sm" onClick={props.onShare}>
-              <Link className="h-4 w-4 mr-1.5" /> 分享
-            </Button>
-            <Button variant="ghost" size="sm" onClick={props.onSaveBacktest}>
-              <Bookmark className="h-4 w-4 mr-1.5" /> 保存回测
-            </Button>
-            <Button variant="ghost" size="sm" onClick={props.onEmailAlerts}>
-              <Bell className="h-4 w-4 mr-1.5" /> 邮件提醒
-              <PlanBadge tier="pro" className="ml-1.5" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={props.onSavePortfolio}>
-              <Save className="h-4 w-4 mr-1.5" /> 保存组合
-            </Button>
-            <div className="w-px h-5 bg-border mx-1" />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="secondary" size="sm">
-                  <Download className="h-4 w-4 mr-1.5" />
-                  导出
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => props.onExport?.('csv')}>
-                  CSV (数据)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => props.onExport?.('json')}>
-                  JSON (完整配置+结果)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => props.onExport?.('png')}>
-                  PNG (图表)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => props.onExport?.('pdf')}>
-                  PDF (报告)
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <ActionBarActions
+            onRefresh={props.onRefresh}
+            onShare={props.onShare}
+            onSaveBacktest={props.onSaveBacktest}
+            onEmailAlerts={props.onEmailAlerts}
+            onSavePortfolio={props.onSavePortfolio}
+            onExport={props.onExport}
+          />
         </div>
       </div>
     </>

@@ -3,7 +3,7 @@
  * @description 用 shadcn Tabs 分 backtest/whatif/alerts 三 tab，每 tab 用 Card 包裹。
  *              Alerts tab 用 Switch + Checkbox + Field/Input + Button。
  */
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, Mail } from 'lucide-react';
 import type { EmailAlertConfig } from '@backtest/shared/types/tactical';
@@ -98,7 +98,12 @@ function AlertsTab() {
     triggers: ['signal_change'],
   });
   const [saved, setSaved] = useState(false);
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { isLoading, error, run, setError } = useAsyncAction();
+
+  useEffect(() => () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+  }, []);
 
   const toggleTrigger = (trigger: EmailAlertConfig['triggers'][number]) => {
     setConfig((prev) => ({
@@ -121,7 +126,7 @@ function AlertsTab() {
         t('tactical.results.alertSaveFailed'),
       );
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      savedTimerRef.current = setTimeout(() => setSaved(false), 3000);
     });
   };
 

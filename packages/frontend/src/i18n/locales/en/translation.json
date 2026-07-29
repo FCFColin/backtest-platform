@@ -190,7 +190,8 @@
     "dataEngine": "Data Engine",
     "brandName": "Backtest Platform",
     "switchToLight": "Switch to light theme",
-    "switchToDark": "Switch to dark theme"
+    "switchToDark": "Switch to dark theme",
+    "menu": "Menu"
   },
   "ticker": {
     "synthetic": "Synthetic",
@@ -304,7 +305,8 @@
     "collapse": "Collapse",
     "learnMore": "Learn More",
     "equalize": "Equalize",
-    "normalize": "Normalize"
+    "normalize": "Normalize",
+    "portfolioSuffix": "Portfolio {{suffix}}"
   },
   "tabs": {
     "summary": "Summary",
@@ -376,7 +378,7 @@
       }
     },
     "runButton": "BACKTEST",
-    "running": "Running...",
+    "running": "Backtesting...",
     "savePortfolio": "Save Portfolio",
     "loadPortfolio": "Load Portfolio",
     "shareLink": "Generate Share Link",
@@ -494,7 +496,10 @@
       "totalCombos": "Total Combinations",
       "weightPlaceholder": "Enter weight, e.g. 30"
     },
-    "emptyPortfolios": "Please add at least one portfolio"
+    "emptyPortfolios": "Please add at least one portfolio",
+    "complete": "Complete",
+    "completeWithTime": "{{seconds}}s complete",
+    "run": "Run Backtest"
   },
   "optimizer": {
     "title": "Portfolio Optimization",
@@ -733,7 +738,11 @@
     "adjustFixedCashflowsForInflation": "Adjust Fixed Cashflows for Inflation",
     "annualCashflowGrowth": "Annual Cashflow Growth",
     "months": "mo",
-    "advanced": "Advanced"
+    "advanced": "Advanced",
+    "rebalanceFrequency": "Rebalance Frequency",
+    "threshold": "Threshold",
+    "initialCapital": "Initial Capital",
+    "thresholdWithValue": "Threshold ({{value}}%)"
   },
   "toolPage": {
     "dateRange": "Date range",
@@ -812,6 +821,16 @@
       "monthLabel": "Month {{n}}",
       "noData": "No data",
       "title": "Seasonality"
+    },
+    "drawdown": {
+      "title": "Drawdown Trend"
+    },
+    "growth": {
+      "title": "Portfolio Value Trend",
+      "logScale": "Log Scale",
+      "showChart": "Show Chart",
+      "hideChart": "Hide Chart",
+      "dateLabel": "Date: {{label}}"
     }
   },
   "portfolio": {
@@ -1068,11 +1087,73 @@
     "gridTooMany": "Grid search too large",
     "gridBadRequest": "Invalid grid parameters",
     "pcaMinAssets": "PCA requires at least 2 assets",
-    "retryIn": "Retry in {{seconds}}s"
+    "retryIn": "Retry in {{seconds}}s",
+    "routeErrorTitle": "This section could not load ({{route}})",
+    "routeErrorMessage": "Something went wrong while rendering this page. You can retry without reloading the whole app.",
+    "routeRetry": "Retry",
+    "invalidCredentials": "Invalid username or password",
+    "acceptInviteFailed": "Failed to accept invitation",
+    "switchOrgFailed": "Failed to switch organization",
+    "operationFailed": "Operation failed",
+    "atLeastOneTicker": "Please enter at least one ticker",
+    "atLeastOneRebalanceFreq": "Please select at least one rebalancing frequency",
+    "optimizerFailed": "Optimization failed",
+    "atLeastTwoTickers": "Please enter at least two tickers",
+    "computeFailed": "Computation failed",
+    "correlationFailed": "Correlation matrix computation failed",
+    "atLeastOneAsset": "Please add at least one asset",
+    "atLeastOneFreq": "Please select at least one rebalancing frequency",
+    "rebalancingSensitivityFailed": "Rebalancing sensitivity analysis failed",
+    "analysisFailed": "Analysis failed",
+    "simulationFailed": "Simulation failed",
+    "noResults": "No results ({{label}})",
+    "backtestFailedLabel": "Backtest failed ({{label}})"
   },
   "results": {
     "hideDetailedMetrics": "Hide detailed metrics",
-    "showDetailedMetrics": "Show detailed metrics"
+    "showDetailedMetrics": "Show detailed metrics",
+    "tabs": {
+      "summary": "Overview",
+      "metrics": "Metrics",
+      "stats": "Statistics",
+      "custom": "Custom Metrics",
+      "extended": "Extended Metrics",
+      "drawdowns": "Drawdowns",
+      "episodes": "Drawdown Episodes",
+      "analysis": "Drawdown Analysis",
+      "returns": "Returns",
+      "distribution": "Return Distribution",
+      "rolling": "Rolling Metrics",
+      "seasonality": "Seasonality",
+      "yearly": "Yearly Returns",
+      "cashflows": "Cash Flows",
+      "flows": "Cash Flow Details",
+      "turnover": "Turnover & Tax",
+      "rebalance": "Rebalance Stats",
+      "advanced": "Advanced",
+      "allocation": "Allocation",
+      "pie": "Allocation Pie",
+      "correlation": "Correlation & Beta",
+      "regression": "Regression Analysis",
+      "trend": "Trend Chart"
+    },
+    "actionBar": {
+      "title": "Results",
+      "timeRange": "{{years}} yrs · {{start}} to {{end}}",
+      "refresh": "Refresh",
+      "share": "Share",
+      "saveBacktest": "Save Backtest",
+      "emailAlerts": "Email Alerts",
+      "savePortfolio": "Save Portfolio",
+      "export": "Export",
+      "exportCsv": "CSV (Data)",
+      "exportJson": "JSON (Full Config + Results)",
+      "exportPng": "PNG (Chart)",
+      "exportPdf": "PDF (Report)"
+    },
+    "extendedMetrics": {
+      "portfolio": "Portfolio"
+    }
   },
   "tacticalResults": {
     "growthTitle": "Growth Curve",
@@ -1109,7 +1190,11 @@
     "seoSimulatableDesc": "Retirement withdrawal strategies, DCA plans, fixed withdrawal plans, observing survival probability across thousands of simulated market paths.",
     "seoOutput": "Output Results",
     "seoOutputDesc": "Distribution statistics table (Summary), portfolio value range chart, success probability curves, multi-metric distribution histograms, representative scenario paths.",
-    "presets": "Preset Examples",
+    "presets": {
+      "preset6040": "60/40 Retirement",
+      "presetAllStockDCA": "All-Stock DCA 30y",
+      "presetThreeFund": "Three-Fund 25y"
+    },
     "relatedTools": "Related Tools:",
     "results": {
       "metric": "Metric",
@@ -2319,6 +2404,9 @@
       ]
     }
   },
+  "a11y": {
+    "skipToMain": "Skip to main content"
+  },
   "toolRoutes": {
     "loading": "Loading..."
   },
@@ -2429,7 +2517,9 @@
       "sessionExpired": "Your session has expired due to inactivity. Please log in again.",
       "submit": "Log In",
       "submitting": "Logging in...",
-      "username": "Username"
+      "username": "Username",
+      "usernameRequired": "Username is required",
+      "passwordRequired": "Password is required"
     },
     "signup": {
       "createAccount": "Create Account",
@@ -2442,7 +2532,13 @@
       "submitting": "Signing up...",
       "successTitle": "Registration Successful",
       "verificationEmailPrefix": "A verification email has been sent to",
-      "verificationEmailSuffix": "Please check your email to verify."
+      "verificationEmailSuffix": "Please check your email to verify.",
+      "usernameMinLength": "Username must be at least 3 characters",
+      "usernameMaxLength": "Username must be at most 30 characters",
+      "emailInvalid": "Please enter a valid email",
+      "passwordMinLength": "Password must be at least 8 characters",
+      "orgNameRequired": "Organization name is required",
+      "orgNameMaxLength": "Organization name must be at most 100 characters"
     },
     "verifyEmail": {
       "goToLogin": "Go to Login",
@@ -2607,6 +2703,39 @@
         "recoveryFactor": "Recovery Factor",
         "cagrDuring": "CAGR During",
         "ulcerDuring": "Ulcer During"
+      },
+      "filter": {
+        "all": "All",
+        "severe": "Severe (≥20%)",
+        "moderate": "Moderate (≥10%)",
+        "mild": "Mild (<10%)"
+      },
+      "sort": {
+        "depth": "By Depth",
+        "duration": "By Duration",
+        "recovery": "By Recovery Factor"
+      },
+      "summary": {
+        "totalDrawdowns": "Total Drawdowns",
+        "maxDrawdown": "Max Drawdown",
+        "avgDrawdown": "Average Drawdown",
+        "avgRecoveryDuration": "Avg Recovery Duration"
+      },
+      "showMore": "Show {{count}} more",
+      "status": {
+        "recovered": "Recovered",
+        "ongoing": "Ongoing"
+      },
+      "detail": {
+        "timeToTrough": "Time to Trough",
+        "recoveryTime": "Recovery Time",
+        "recoveryFactor": "Recovery Factor",
+        "periodCagr": "Period CAGR",
+        "periodUlcer": "Period Ulcer"
+      },
+      "aria": {
+        "severity": "Filter by severity",
+        "sortBy": "Sort episodes"
       }
     },
     "errorBoundary": {
@@ -2778,5 +2907,53 @@
     "toolSeoCard": {
       "relatedTools": "Related Tools:"
     }
+  },
+  "statsTable": {
+    "portfolioName": "Portfolio",
+    "endingValue": "Ending Value",
+    "totalContributions": "Total Contributed",
+    "cumulativeReturn": "Cumulative Return",
+    "cagr": "CAGR",
+    "mwrr": "MWRR",
+    "maxDrawdown": "Max Drawdown",
+    "avgDrawdown": "Avg Drawdown",
+    "longestDrawdown": "Longest Drawdown",
+    "volatility": "Volatility",
+    "sharpe": "Sharpe",
+    "sortino": "Sortino",
+    "calmar": "Calmar",
+    "ulcerIndex": "Ulcer",
+    "upi": "UPI",
+    "diversificationRatio": "Diversification Ratio",
+    "beta": "Beta",
+    "ui": {
+      "title": "Statistics Overview",
+      "portfolioCount": "{{count}} portfolios",
+      "columnCount": "{{count}} columns",
+      "collapseExtended": "Collapse extended metrics",
+      "expandExtended": "Expand extended metrics (+30)"
+    }
+  },
+  "format": {
+    "durationDays": "{{count}} days",
+    "durationZero": "0 days",
+    "durationMonths": "{{count}} months",
+    "durationYears": "{{count}} years",
+    "durationYearsMonths": "{{years}}y {{months}}m",
+    "durationMonthShort": "{{count}}mo",
+    "durationYearsShort": "{{count}}y"
+  },
+  "portfolioEditor": {
+    "addPortfolio": "Add Portfolio",
+    "blankPortfolio": "Blank Portfolio",
+    "fromPreset": "Start from Preset",
+    "fromSaved": "Import from Saved",
+    "glidepathPortfolio": "Glidepath Portfolio",
+    "loadExample": "Load Example"
+  },
+  "notifications": {
+    "title": "Product Updates",
+    "latest": "Latest updates",
+    "empty": "No announcements"
   }
 }

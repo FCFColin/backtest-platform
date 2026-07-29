@@ -6,67 +6,68 @@
  *   tab 状态 localStorage 保存。
  */
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils.js';
 
 interface SubTab {
   key: string;
-  label: string;
+  labelKey: string;
 }
 
 interface TabGroup {
   key: string;
-  label: string;
+  labelKey: string;
   subTabs: SubTab[];
 }
 
-/** Tab 结构定义 */
+/** Tab 结构定义（label 字段为 i18n key，运行时通过 t() 解析） */
 const TAB_STRUCTURE: TabGroup[] = [
-  { key: 'summary', label: '概览', subTabs: [] },
+  { key: 'summary', labelKey: 'results.tabs.summary', subTabs: [] },
   {
     key: 'metrics',
-    label: '指标',
+    labelKey: 'results.tabs.metrics',
     subTabs: [
-      { key: 'stats', label: '统计指标' },
-      { key: 'custom', label: '自定义指标' },
-      { key: 'extended', label: '扩展指标' },
+      { key: 'stats', labelKey: 'results.tabs.stats' },
+      { key: 'custom', labelKey: 'results.tabs.custom' },
+      { key: 'extended', labelKey: 'results.tabs.extended' },
     ],
   },
   {
     key: 'drawdowns',
-    label: '回撤',
+    labelKey: 'results.tabs.drawdowns',
     subTabs: [
-      { key: 'episodes', label: '回撤片段' },
-      { key: 'analysis', label: '回撤分析' },
+      { key: 'episodes', labelKey: 'results.tabs.episodes' },
+      { key: 'analysis', labelKey: 'results.tabs.analysis' },
     ],
   },
   {
     key: 'returns',
-    label: '收益',
+    labelKey: 'results.tabs.returns',
     subTabs: [
-      { key: 'distribution', label: '收益分布' },
-      { key: 'rolling', label: '滚动指标' },
-      { key: 'seasonality', label: '季节性' },
-      { key: 'yearly', label: '年度收益' },
+      { key: 'distribution', labelKey: 'results.tabs.distribution' },
+      { key: 'rolling', labelKey: 'results.tabs.rolling' },
+      { key: 'seasonality', labelKey: 'results.tabs.seasonality' },
+      { key: 'yearly', labelKey: 'results.tabs.yearly' },
     ],
   },
   {
     key: 'cashflows',
-    label: '现金流',
+    labelKey: 'results.tabs.cashflows',
     subTabs: [
-      { key: 'flows', label: '现金流详情' },
-      { key: 'turnover', label: '周转与税务' },
-      { key: 'rebalance', label: '再平衡统计' },
+      { key: 'flows', labelKey: 'results.tabs.flows' },
+      { key: 'turnover', labelKey: 'results.tabs.turnover' },
+      { key: 'rebalance', labelKey: 'results.tabs.rebalance' },
     ],
   },
   {
     key: 'advanced',
-    label: '高级',
+    labelKey: 'results.tabs.advanced',
     subTabs: [
-      { key: 'allocation', label: '配置' },
-      { key: 'pie', label: '配置饼图' },
-      { key: 'correlation', label: '相关性与Beta' },
-      { key: 'regression', label: '回归分析' },
-      { key: 'trend', label: '趋势图' },
+      { key: 'allocation', labelKey: 'results.tabs.allocation' },
+      { key: 'pie', labelKey: 'results.tabs.pie' },
+      { key: 'correlation', labelKey: 'results.tabs.correlation' },
+      { key: 'regression', labelKey: 'results.tabs.regression' },
+      { key: 'trend', labelKey: 'results.tabs.trend' },
     ],
   },
 ];
@@ -84,6 +85,7 @@ interface ResultsTabsV2Props {
  * @returns Tab 容器元素。
  */
 export function ResultsTabsV2({ onTabChange, children }: ResultsTabsV2Props) {
+  const { t } = useTranslation();
   const [primaryTab, setPrimaryTab] = useState('summary');
   const [subTabState, setSubTabState] = useState<Record<string, string>>({});
 
@@ -104,12 +106,12 @@ export function ResultsTabsV2({ onTabChange, children }: ResultsTabsV2Props) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ primary: primaryTab, sub: subTabState }));
   }, [primaryTab, subTabState]);
 
-  const currentTab = TAB_STRUCTURE.find((t) => t.key === primaryTab);
+  const currentTab = TAB_STRUCTURE.find((tab) => tab.key === primaryTab);
   const currentSubTab = subTabState[primaryTab] ?? currentTab?.subTabs[0]?.key;
 
   const handlePrimaryChange = (key: string) => {
     setPrimaryTab(key);
-    const tab = TAB_STRUCTURE.find((t) => t.key === key);
+    const tab = TAB_STRUCTURE.find((tab) => tab.key === key);
     const sub = subTabState[key] ?? tab?.subTabs[0]?.key;
     onTabChange?.(key, sub);
   };
@@ -133,7 +135,7 @@ export function ResultsTabsV2({ onTabChange, children }: ResultsTabsV2Props) {
                 primaryTab === tab.key ? 'text-fg' : 'text-fg-tertiary hover:text-fg',
               )}
             >
-              {tab.label}
+              {t(tab.labelKey)}
               {primaryTab === tab.key && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-brand" />
               )}
@@ -157,7 +159,7 @@ export function ResultsTabsV2({ onTabChange, children }: ResultsTabsV2Props) {
                     : 'text-fg-tertiary hover:text-fg hover:bg-hover/50',
                 )}
               >
-                {subTab.label}
+                {t(subTab.labelKey)}
               </button>
             ))}
           </div>

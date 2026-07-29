@@ -4,6 +4,7 @@
  *   数字 font-mono tabular-nums text-right，正负色 text-pos/text-neg。
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowUp, ArrowDown, Download, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button.js';
 import {
@@ -25,22 +26,22 @@ interface StatColumn {
 }
 
 const DEFAULT_COLUMNS: StatColumn[] = [
-  { key: 'name', label: '组合', format: 'text', sticky: 'left', minWidth: '140px' },
-  { key: 'endingValue', label: '终值', format: 'currency' },
-  { key: 'totalContributions', label: '总投入', format: 'currency' },
-  { key: 'cumulativeReturn', label: '累计收益', format: 'percent', colorize: true },
+  { key: 'name', label: 'statsTable.portfolioName', format: 'text', sticky: 'left', minWidth: '140px' },
+  { key: 'endingValue', label: 'statsTable.endingValue', format: 'currency' },
+  { key: 'totalContributions', label: 'statsTable.totalContributions', format: 'currency' },
+  { key: 'cumulativeReturn', label: 'statsTable.cumulativeReturn', format: 'percent', colorize: true },
   { key: 'cagr', label: 'CAGR', format: 'percent', colorize: true },
   { key: 'mwrr', label: 'MWRR', format: 'percent', colorize: true },
-  { key: 'maxDrawdown', label: '最大回撤', format: 'percent', colorize: true },
-  { key: 'avgDrawdown', label: '平均回撤', format: 'percent', colorize: true },
-  { key: 'longestDrawdown', label: '最长回撤', format: 'duration' },
-  { key: 'volatility', label: '波动率', format: 'percent' },
-  { key: 'sharpe', label: '夏普', format: 'number' },
-  { key: 'sortino', label: '索提诺', format: 'number' },
-  { key: 'calmar', label: '卡尔玛', format: 'number' },
+  { key: 'maxDrawdown', label: 'statsTable.maxDrawdown', format: 'percent', colorize: true },
+  { key: 'avgDrawdown', label: 'statsTable.avgDrawdown', format: 'percent', colorize: true },
+  { key: 'longestDrawdown', label: 'statsTable.longestDrawdown', format: 'duration' },
+  { key: 'volatility', label: 'statsTable.volatility', format: 'percent' },
+  { key: 'sharpe', label: 'statsTable.sharpe', format: 'number' },
+  { key: 'sortino', label: 'statsTable.sortino', format: 'number' },
+  { key: 'calmar', label: 'statsTable.calmar', format: 'number' },
   { key: 'ulcerIndex', label: 'Ulcer', format: 'number' },
   { key: 'upi', label: 'UPI', format: 'number' },
-  { key: 'diversificationRatio', label: '分散比', format: 'number' },
+  { key: 'diversificationRatio', label: 'statsTable.diversificationRatio', format: 'number' },
   { key: 'beta', label: 'Beta', format: 'number' },
 ];
 
@@ -83,6 +84,7 @@ export function StatisticsTableV2({
   onExport,
   extendedTable,
 }: StatisticsTableV2Props) {
+  const { t } = useTranslation();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
@@ -136,9 +138,9 @@ export function StatisticsTableV2({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h3 className="text-h3">统计概览</h3>
+          <h3 className="text-h3">{t('statsTable.ui.title')}</h3>
           <span className="text-caption text-fg-tertiary">
-            {portfolios.length} 个组合 · {visibleColumns.length} 列
+            {t('statsTable.ui.portfolioCount', { count: portfolios.length })} · {t('statsTable.ui.columnCount', { count: visibleColumns.length })}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -148,7 +150,7 @@ export function StatisticsTableV2({
             onClick={() => setExpanded(!expanded)}
             className="text-caption"
           >
-            {expanded ? '收起详细指标' : '展开详细指标 (+30 列)'}
+            {expanded ? t('statsTable.ui.collapseExtended') : t('statsTable.ui.expandExtended')}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

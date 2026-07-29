@@ -1,4 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '@/store/authStore';
 
 interface ProtectedRouteProps {
@@ -7,7 +8,9 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, requireAdmin }: ProtectedRouteProps) {
-  const { user, initialized } = useAuthStore();
+  const { user, initialized } = useAuthStore(
+    useShallow((s) => ({ user: s.user, initialized: s.initialized })),
+  );
   const location = useLocation();
 
   if (!initialized) return null;

@@ -4,6 +4,7 @@
  *   对数坐标切换 + 隐藏/显示 + 导出 + Tooltip backdrop-blur + 底部 Legend。
  */
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   LineChart,
   Line,
@@ -26,7 +27,6 @@ import {
   CHART_GRID_PROPS,
   AXIS_TICK_STYLE,
   CHART_LINE_STYLE,
-  CHART_MARGIN,
 } from '@/lib/chart-theme.js';
 import { formatCurrency } from '@/lib/formatters.js';
 import { cn } from '@/lib/utils.js';
@@ -53,6 +53,7 @@ export function GrowthChartV2({
   benchmark,
   onExport,
 }: GrowthChartV2Props) {
+  const { t } = useTranslation();
   void onExport;
   const [logScale, setLogScale] = useState(false);
   const [timeRange, setTimeRange] = useState<'1Y' | '5Y' | '10Y' | 'MAX'>('MAX');
@@ -89,7 +90,9 @@ export function GrowthChartV2({
 
   const filteredData = useMemo(() => {
     if (timeRange === 'MAX') return chartData;
-    const cutoff = new Date();
+    if (chartData.length === 0) return chartData;
+    const lastDate = new Date(String(chartData[chartData.length - 1].date));
+    const cutoff = new Date(lastDate);
     if (timeRange === '1Y') cutoff.setFullYear(cutoff.getFullYear() - 1);
     if (timeRange === '5Y') cutoff.setFullYear(cutoff.getFullYear() - 5);
     if (timeRange === '10Y') cutoff.setFullYear(cutoff.getFullYear() - 10);
@@ -102,9 +105,9 @@ export function GrowthChartV2({
     <div className="bg-surface border border-border rounded-xl">
       {/* Header */}
       <div className="flex items-center justify-between px-6 pt-5 pb-3">
-        <h3 className="text-h3">组合价值走势</h3>
+        <h3 className="text-h3">{t('charts.growth.title')}</h3>
         <div className="flex items-center gap-1">
-          <div className="flex items-center gap-0.5 mr-2 bg-input-bg rounded-md p-0.5">
+          <div className="flex items-center gap-0.5 mr-2 bg-input-bg rounded-md p-0.5" data-testid="chart-time-range">
             {(['1Y', '5Y', '10Y', 'MAX'] as const).map((range) => (
               <button
                 key={range}
@@ -124,7 +127,8 @@ export function GrowthChartV2({
             size="icon"
             className="h-8 w-8"
             onClick={() => setLogScale(!logScale)}
-            title="对数坐标"
+            title={t('charts.growth.logScale')}
+            data-testid="chart-log-toggle"
           >
             <FunctionSquare className={cn('h-4 w-4', logScale && 'text-brand')} />
           </Button>
@@ -133,7 +137,7 @@ export function GrowthChartV2({
             size="icon"
             className="h-8 w-8"
             onClick={() => setHidden(!hidden)}
-            title={hidden ? '显示图表' : '隐藏图表'}
+            title={hidden ? t('charts.growth.showChart') : t('charts.growth.hideChart')}
           >
             {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
@@ -148,9 +152,9 @@ export function GrowthChartV2({
           </div>
         ) : (
           <>
-            <div className="h-[440px] px-6">
+            <div className="h-[440px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={filteredData} margin={CHART_MARGIN}>
+                <LineChart data={filteredData} margin={{ top: 20, right: 32, bottom: 20, left: 32 }}>
                 <CartesianGrid {...CHART_GRID_PROPS} />
                 <XAxis
                   dataKey="date"
@@ -170,7 +174,7 @@ export function GrowthChartV2({
                     CURRENCY_EXACT_FORMATTER(value, currency),
                     name,
                   ]}
-                  labelFormatter={(label) => `日期: ${label}`}
+                  labelFormatter={(label) => t('charts.growth.dateLabel', { label })}
                 />
                 {portfolios.map((p, i) =>
                   hiddenIds.has(p.id) ? null : (

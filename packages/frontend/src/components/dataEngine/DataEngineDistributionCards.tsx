@@ -19,14 +19,15 @@ const BAR_FILL = '#3b82f6'; // Blue-500 from PORTFOLIO_COLORS
 const AXIS_TICK_COLOR = 'var(--text-muted)';
 
 /**
- * 数据年限分布桶的数值序顺序（后端 yearBucket 生成 ${lo}-${lo+4}年 标签）。
- * 字典序会把 "10-14年" 排到 "5-9年" 之前，故显式定义顺序。
+ * 提取年限桶标签的起始数值用于排序（后端 yearBucket 生成 ${lo}-${lo+4}年 标签）。
+ * 字典序会把 "10-14年" 排到 "5-9年" 之前，故按起始数值排序。
+ * @param bucket 后端聚合的年限桶标签。
+ * @returns 桶起始数值；无法解析时返回大数排到末尾。
  */
-const AGE_BUCKET_ORDER_ZH = [
-  '0-4年', '5-9年', '10-14年', '15-19年',
-  '20-24年', '25-29年', '30-34年', '35-39年',
-  '40-44年', '45-49年', '50-54年', '55-59年', '60-64年',
-];
+function ageBucketSortValue(bucket: string): number {
+  const match = bucket.match(/^(\d+)/);
+  return match ? parseInt(match[1], 10) : 999;
+}
 
 /** 年代标签的数值序顺序（后端 decadeLabel 生成 ${decade}s 标签）。 */
 const DECADE_ORDER = ['1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'];
@@ -37,11 +38,7 @@ const DECADE_ORDER = ['1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '202
  * @returns 按数值序排列的新数组。
  */
 function sortAgeBucketEntries(entries: [string, number][]): [string, number][] {
-  return [...entries].sort((a, b) => {
-    const ai = AGE_BUCKET_ORDER_ZH.indexOf(a[0]);
-    const bi = AGE_BUCKET_ORDER_ZH.indexOf(b[0]);
-    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-  });
+  return [...entries].sort((a, b) => ageBucketSortValue(a[0]) - ageBucketSortValue(b[0]));
 }
 
 /**

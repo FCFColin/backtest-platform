@@ -53,8 +53,9 @@ function DcaParamsSection({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field>
-          <FieldLabel>{t('lumpSumDca.dcaFrequency')}</FieldLabel>
+          <FieldLabel htmlFor="lumpsum-dca-frequency">{t('lumpSumDca.dcaFrequency')}</FieldLabel>
           <select
+            id="lumpsum-dca-frequency"
             className={selectClassName}
             value={dcaFrequency}
             onChange={(e) => setDcaFrequency(e.target.value as DcaFrequency)}

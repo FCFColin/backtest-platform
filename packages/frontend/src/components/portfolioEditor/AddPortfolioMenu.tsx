@@ -2,6 +2,7 @@
  * @file AddPortfolioMenu 组件
  * @description 添加组合下拉菜单：空白/预设/已保存/滑行路径/加载示例。
  */
+import { useTranslation } from 'react-i18next';
 import { Plus, ChevronDown, BookOpen, History, TrendingUp, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button.js';
 import {
@@ -22,31 +23,32 @@ interface AddPortfolioMenuProps {
  * @returns 下拉菜单按钮元素。
  */
 export function AddPortfolioMenu({ onAdd }: AddPortfolioMenuProps) {
+  const { t } = useTranslation();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="secondary" size="sm">
           <Plus className="h-4 w-4 mr-1" />
-          添加组合
+          {t('portfolioEditor.addPortfolio')}
           <ChevronDown className="h-4 w-4 ml-1" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => onAdd('empty')}>
-          <Plus className="h-4 w-4 mr-2" /> 空白组合
+          <Plus className="h-4 w-4 mr-2" /> {t('portfolioEditor.blankPortfolio')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onAdd('preset')}>
-          <BookOpen className="h-4 w-4 mr-2" /> 从预设开始
+          <BookOpen className="h-4 w-4 mr-2" /> {t('portfolioEditor.fromPreset')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onAdd('saved')}>
-          <History className="h-4 w-4 mr-2" /> 从已保存导入
+          <History className="h-4 w-4 mr-2" /> {t('portfolioEditor.fromSaved')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onAdd('glidepath')}>
-          <TrendingUp className="h-4 w-4 mr-2" /> 滑行路径组合
+          <TrendingUp className="h-4 w-4 mr-2" /> {t('portfolioEditor.glidepathPortfolio')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => onAdd('example')}>
-          <Sparkles className="h-4 w-4 mr-2" /> 加载示例
+          <Sparkles className="h-4 w-4 mr-2" /> {t('portfolioEditor.loadExample')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

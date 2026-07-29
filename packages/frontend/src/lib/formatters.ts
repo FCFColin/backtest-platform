@@ -4,6 +4,8 @@
  *   所有函数均对 null/undefined/NaN 安全：传入非法值时返回 '—'（em-dash 占位符）。
  */
 
+import i18n from '../i18n/index.js';
+
 /** 非法值占位符（em-dash）。 */
 const NULL_PLACEHOLDER = '—';
 
@@ -64,31 +66,34 @@ export function formatCurrencyShort(
 
 /**
  * 格式化百分比值。
- * @param value - 数值（如 12.34 表示 12.34%），可为 null/undefined/NaN。
+ * 契约：所有输入均为小数比率（如 0.0918 = 9.18%），函数内部乘 100 后格式化。
+ * @param value - 小数比率（如 0.0918 表示 9.18%），可为 null/undefined/NaN。
  * @param digits - 小数位数，默认 2。
- * @returns 格式化后的百分比字符串；非法值返回 '—'。
+ * @returns 格式化后的百分比字符串（如 "9.18%"）；非法值返回 '—'。
  */
 export function formatPercent(
   value: number | null | undefined,
   digits: number = 2,
 ): string {
   if (isInvalidNumber(value)) return NULL_PLACEHOLDER;
-  return `${value.toFixed(digits)}%`;
+  return `${(value * 100).toFixed(digits)}%`;
 }
 
 /**
  * 格式化带符号百分比（正数加 + 号）。
- * @param value - 数值，可为 null/undefined/NaN。
+ * 契约：所有输入均为小数比率（如 -0.2278 = -22.78%），函数内部乘 100 后格式化。
+ * @param value - 小数比率，可为 null/undefined/NaN。
  * @param digits - 小数位数，默认 2。
- * @returns 带符号的百分比字符串；非法值返回 '—'。
+ * @returns 带符号的百分比字符串（如 "-22.78%"）；非法值返回 '—'。
  */
 export function formatPercentSigned(
   value: number | null | undefined,
   digits: number = 2,
 ): string {
   if (isInvalidNumber(value)) return NULL_PLACEHOLDER;
-  const sign = value >= 0 ? '+' : '';
-  return `${sign}${value.toFixed(digits)}%`;
+  const percent = value * 100;
+  const sign = percent >= 0 ? '+' : '';
+  return `${sign}${percent.toFixed(digits)}%`;
 }
 
 /**
@@ -98,10 +103,10 @@ export function formatPercentSigned(
  */
 export function formatDuration(days: number | null | undefined): string {
   if (isInvalidNumber(days)) return NULL_PLACEHOLDER;
-  if (days < 30) return `${days}天`;
-  if (days < 365) return `${Math.round(days / 30)}月`;
+  if (days < 30) return i18n.t('format.durationDays', { count: days });
+  if (days < 365) return i18n.t('format.durationMonthShort', { count: Math.round(days / 30) });
   const years = days / 365;
-  return `${years.toFixed(1)}年`;
+  return i18n.t('format.durationYearsShort', { count: years.toFixed(1) });
 }
 
 /**

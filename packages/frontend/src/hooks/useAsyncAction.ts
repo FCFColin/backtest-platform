@@ -9,6 +9,7 @@
  * await run(async () => { await fetch(...); });
  */
 import { useState, useCallback } from 'react';
+import i18n from '@/i18n/index.js';
 
 /** useAsyncAction 返回值结构 */
 interface UseAsyncActionResult {
@@ -44,7 +45,7 @@ export function useAsyncAction(): UseAsyncActionResult {
       const result = await task();
       return result;
     } catch (e) {
-      const message = e instanceof Error ? e.message : '操作失败';
+      const message = e instanceof Error ? e.message : i18n.t('errors.operationFailed');
       setError(message);
       return undefined;
     } finally {

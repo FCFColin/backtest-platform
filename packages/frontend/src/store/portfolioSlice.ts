@@ -1,4 +1,5 @@
 import type { Portfolio, Asset } from '@backtest/shared';
+import i18n from '@/i18n/index.js';
 import { createEmptyPortfolio, createPortfolioFromPreset } from './backtestHelpers.js';
 import type { SetFn, GetFn } from './types.js';
 
@@ -27,7 +28,7 @@ function duplicatePortfolioAction(set: SetFn, get: GetFn, id: string): void {
     const copy: Portfolio = {
       ...source,
       id: `portfolio-${Date.now()}-${next}`,
-      name: `${source.name} (副本)`,
+      name: `${source.name} (${i18n.t('common.copy')})`,
       assets: source.assets.map((a) => ({ ...a })),
     };
     return { portfolioCounter: next, portfolios: [...state.portfolios, copy] };

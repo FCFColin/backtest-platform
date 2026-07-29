@@ -26,7 +26,8 @@ export function MemberTable({
 }: MemberTableProps) {
   const { t } = useTranslation();
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+    <div className="overflow-x-auto">
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
       <thead>
         <tr>
           <th style={TABLE_TH}>{t('orgMembers.table.user')}</th>
@@ -75,6 +76,7 @@ export function MemberTable({
           </tr>
         ))}
       </tbody>
-    </table>
+      </table>
+    </div>
   );
 }

@@ -85,7 +85,7 @@ function NavbarMobileMenu({
   return (
     <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
       <SheetTrigger asChild>
-        <Button variant="icon" size="icon" className="md:hidden" aria-label="Menu">
+        <Button variant="icon" size="icon" className="md:hidden" aria-label={t('nav.menu')}>
           <Menu />
         </Button>
       </SheetTrigger>
@@ -136,7 +136,7 @@ function NavbarActions() {
           )
         }
         title={t('lang.switchLang')}
-        aria-label={t('lang.switchLang')}
+        aria-label={`${t('lang.switchLang')} (${i18n.language === 'zh-CN' ? 'ZH' : 'EN'})`}
         className="gap-1 px-2"
         data-testid="language-selector"
       >
@@ -162,7 +162,7 @@ function NavbarActions() {
         size="sm"
         onClick={toggleCurrency}
         title={t('lang.switchCurrency')}
-        aria-label={t('lang.switchCurrency')}
+        aria-label={`${t('lang.switchCurrency')} (${baseCurrency === 'usd' ? 'USD' : 'CNY'})`}
         data-testid="currency-selector"
       >
         {baseCurrency === 'usd' ? 'USD' : 'CNY'}

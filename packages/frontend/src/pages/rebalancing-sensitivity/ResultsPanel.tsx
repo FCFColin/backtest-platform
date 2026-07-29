@@ -136,6 +136,7 @@ function OffsetSelector({ s }: { s: RebalancingState }) {
         {t('rebalancingSensitivity.results.frequency')}:
       </span>
       <select
+        aria-label={t('rebalancingSensitivity.results.frequency')}
         className={selectClassName}
         value={s.offsetFreq}
         onChange={(e) => {

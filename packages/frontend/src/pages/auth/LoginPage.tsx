@@ -12,6 +12,7 @@ import ErrorBanner from '@/components/ErrorBanner';
 import AuthPageLayout from '@/components/auth/AuthPageLayout';
 import AuthFormField from '@/components/auth/AuthFormField';
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
+import { loginSchema, firstZodErrorKey } from '@/lib/authValidation.js';
 
 export default function LoginPage() {
   const { t } = useTranslation();
@@ -23,6 +24,7 @@ export default function LoginPage() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [searchParams] = useSearchParams();
   const sessionExpired = searchParams.get('reason') === 'session_expired';
@@ -35,6 +37,13 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validation = loginSchema.safeParse({ username: username.trim(), password });
+    const zodError = firstZodErrorKey(validation);
+    if (zodError) {
+      setFormError(t(zodError));
+      return;
+    }
+    setFormError(null);
     const ok = await loginPassword(username.trim(), password);
     if (ok) navigate(redirectTo, { replace: true });
   };
@@ -66,7 +75,7 @@ export default function LoginPage() {
           type="password"
           autoComplete="current-password"
         />
-        <ErrorBanner message={error || sessionMessage} />
+        <ErrorBanner message={formError || error || sessionMessage} />
         <AuthSubmitButton
           loading={loading}
           icon={<LogIn className="w-4 h-4" />}

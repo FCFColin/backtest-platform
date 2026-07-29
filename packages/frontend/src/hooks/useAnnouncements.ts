@@ -1,8 +1,10 @@
 /**
  * @file useAnnouncements hook
  * @description 从后端获取公告列表，管理已读状态（localStorage）。
+ *   D10-013: 使用 apiFetch + silent:true 静默降级，避免 5xx 响应触发错误 Toast。
  */
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '@/utils/apiClient.js';
 
 export interface Announcement {
   id: number;
@@ -33,7 +35,7 @@ export function useAnnouncements() {
       // 忽略
     }
 
-    fetch('/api/v1/announcements')
+    apiFetch('/api/v1/announcements', { silent: true })
       .then((res) => (res.ok ? res.json() : { data: [] }))
       .then((json) => {
         const data = json.data ?? json ?? [];

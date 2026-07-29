@@ -3,7 +3,7 @@
  * @description 管理后台系统配置，包括服务地址、应用参数等可持久化设置项
  * @route /admin/settings
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Settings, Server, Database, RefreshCw, RotateCcw } from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
@@ -197,6 +197,11 @@ export default function SystemSettings() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const clearMsgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (clearMsgTimerRef.current) clearTimeout(clearMsgTimerRef.current);
+  }, []);
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
@@ -232,12 +237,12 @@ export default function SystemSettings() {
     } catch {
       setSaveMsg(t('adminPage.dataManagement.actionRequestFailed', { label: '' }));
     }
-    setTimeout(() => setSaveMsg(''), 5000);
+    clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
   };
 
   const handleRestart = (service: string) => {
     setSaveMsg(t('adminPage.settings.restartHint', { service }));
-    setTimeout(() => setSaveMsg(''), 5000);
+    clearMsgTimerRef.current = setTimeout(() => setSaveMsg(''), 5000);
   };
 
   return (

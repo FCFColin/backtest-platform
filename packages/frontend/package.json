@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@backtest/shared": "workspace:*",
+    "@hookform/resolvers": "^5.5.7",
     "@radix-ui/react-checkbox": "^1.3.9",
     "@radix-ui/react-collapsible": "^1.1.18",
     "@radix-ui/react-dialog": "^1.1.21",
@@ -26,6 +27,7 @@
     "@radix-ui/react-slot": "^1.3.1",
     "@radix-ui/react-switch": "^1.3.5",
     "@radix-ui/react-tabs": "^1.1.19",
+    "@tanstack/react-virtual": "^3.14.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "i18next": "^26.3.1",
@@ -33,11 +35,13 @@
     "lucide-react": "^0.511.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.83.0",
     "react-i18next": "^17.0.8",
     "react-router-dom": "^7.3.0",
     "recharts": "^2.15.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "zod": "^4.4.3",
     "zustand": "^5.0.3"
   },
   "devDependencies": {

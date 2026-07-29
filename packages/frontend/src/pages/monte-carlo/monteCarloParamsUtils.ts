@@ -18,7 +18,7 @@ import {
 
 function createDefaultPortfolio(suffix: number): PortfolioState {
   return {
-    name: `组合 ${suffix}`,
+    name: i18n.t('common.portfolioSuffix', { suffix }),
     assets:
       suffix === 1
         ? [
@@ -82,7 +82,7 @@ function validatePortfolios(
 async function fetchMcResult(
   idx: number,
   portfolios: PortfolioState[],
-  reqBody: { parameters: object; mcParams: object; objectives: object },
+  reqBody: { parameters: Record<string, unknown>; mcParams: Record<string, unknown>; objectives: Record<string, unknown> },
 ): Promise<MonteCarloResult> {
   const p = portfolios[idx];
   const res = await apiFetch('/api/v1/backtest/monte-carlo', {
@@ -97,9 +97,9 @@ async function fetchMcResult(
       ...reqBody,
     }),
   });
-  if (!res.ok) throw new Error(`组合 ${idx + 1}: HTTP ${res.status}`);
+  if (!res.ok) throw new Error(i18n.t('errors.simulationFailed') + ' ' + (idx + 1));
   const json = await res.json();
-  if (json.success === false) throw new Error(json.error || `组合 ${idx + 1} 模拟失败`);
+  if (json.success === false) throw new Error(json.error || i18n.t('errors.simulationFailed'));
   return json.data ?? json;
 }
 
@@ -175,7 +175,7 @@ async function executeSimulation(
     setters.setResults1(results[0]);
     if (results[1]) setters.setResults2(results[1]);
   } catch (e) {
-    setters.setError(e instanceof Error ? e.message : '模拟失败');
+    setters.setError(e instanceof Error ? e.message : i18n.t('errors.simulationFailed'));
   } finally {
     setters.setIsLoading(false);
   }

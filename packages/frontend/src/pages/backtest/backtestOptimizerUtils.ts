@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import i18n from '@/i18n/index.js';
 import type {
   RebalanceFrequency,
   BacktestOptimizerObjective as Objective,
@@ -174,11 +175,11 @@ function useBacktestOptSetters() {
 async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) {
   const validAssets = s.assets.filter((a) => a.ticker.trim());
   if (validAssets.length === 0) {
-    s.setError('请至少输入一个标的代码');
+    s.setError(i18n.t('errors.atLeastOneTicker'));
     return;
   }
   if (s.frequencies.length === 0) {
-    s.setError('请至少选择一个再平衡频率');
+    s.setError(i18n.t('errors.atLeastOneRebalanceFreq'));
     return;
   }
   s.setIsLoading(true);
@@ -212,13 +213,13 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
       best?: BestResultItem | null;
       benchmarkGrowth?: { date: string; value: number }[] | null;
       totalCombinations?: number;
-    }>('/api/v1/backtest-optimizer/optimize', body, '优化失败');
+    }>('/api/v1/backtest-optimizer/optimize', body, i18n.t('errors.optimizerFailed'));
     s.setResults(data.results ?? []);
     s.setBest(data.best ?? null);
     s.setBenchmarkGrowth(data.benchmarkGrowth ?? null);
     s.setTotalCombos(data.totalCombinations ?? 0);
   } catch (e) {
-    s.setError(e instanceof Error ? e.message : '优化失败');
+    s.setError(e instanceof Error ? e.message : i18n.t('errors.optimizerFailed'));
   } finally {
     s.setIsLoading(false);
   }

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router-dom';
 import { useAsyncAction } from '../../hooks/useAsyncAction.js';
 import { useOptimizerLikeState } from '../../hooks/useOptimizerLikeState.js';
@@ -17,7 +18,7 @@ function buildPortfolioData(
     portfolios: [
       {
         id: `portfolio-${Date.now()}-1`,
-        name: '前沿组合',
+        name: i18n.t('statsTable.portfolioName'),
         assets: Object.entries(p.weights).map(([ticker, weight]) => ({
           ticker,
           weight: Math.round(weight * 10000) / 100,
@@ -63,7 +64,7 @@ async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFron
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
-  if (json.success === false) throw new Error(json.error || '计算失败');
+  if (json.success === false) throw new Error(json.error || i18n.t('errors.computeFailed'));
   return json.data ?? json;
 }
 
@@ -199,7 +200,7 @@ function useEfficientFrontierState() {
   const runFrontier = () => {
     const validTickers = s.tickers.filter(Boolean);
     if (validTickers.length < 2) {
-      s.setError('请至少输入两个标的代码');
+      s.setError(i18n.t('errors.atLeastTwoTickers'));
       return;
     }
     s.setSelectedPoint(null);
@@ -221,7 +222,7 @@ function useEfficientFrontierState() {
       s.setResults(data);
       const corr = await fetchCorrelations(validTickers, s.startDate, s.endDate);
       if (corr) s.setCorrelations(corr);
-      else s.setCorrelationError('相关性矩阵计算失败');
+      else s.setCorrelationError(i18n.t('errors.correlationFailed'));
     });
   };
 

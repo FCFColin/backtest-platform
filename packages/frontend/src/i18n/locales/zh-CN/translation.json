@@ -190,7 +190,8 @@
     "dataEngine": "数据引擎",
     "brandName": "回测平台",
     "switchToLight": "切换到浅色主题",
-    "switchToDark": "切换到深色主题"
+    "switchToDark": "切换到深色主题",
+    "menu": "菜单"
   },
   "ticker": {
     "synthetic": "合成标的",
@@ -271,7 +272,7 @@
     "date": "日期",
     "add": "添加",
     "remove": "删除",
-    "copy": "复制",
+    "copy": "副本",
     "share": "分享",
     "import": "导入",
     "export": "导出",
@@ -304,7 +305,8 @@
     "collapse": "收起",
     "equalize": "等分",
     "learnMore": "了解更多",
-    "normalize": "归一化"
+    "normalize": "归一化",
+    "portfolioSuffix": "组合 {{suffix}}"
   },
   "tabs": {
     "summary": "概览",
@@ -376,7 +378,7 @@
       }
     },
     "runButton": "运行回测",
-    "running": "运行中...",
+    "running": "回测中...",
     "savePortfolio": "保存组合",
     "loadPortfolio": "加载组合",
     "shareLink": "生成分享链接",
@@ -494,7 +496,10 @@
       "totalCombos": "总组合数",
       "weightPlaceholder": "输入权重，如 30"
     },
-    "emptyPortfolios": "请至少添加一个投资组合"
+    "emptyPortfolios": "请至少添加一个投资组合",
+    "complete": "完成",
+    "completeWithTime": "{{seconds}}s 完成",
+    "run": "运行回测"
   },
   "optimizer": {
     "title": "组合优化",
@@ -733,7 +738,11 @@
     "adjustFixedCashflowsForInflation": "按通胀调整固定金额",
     "annualCashflowGrowth": "现金流年增长率",
     "months": "月",
-    "advanced": "高级选项"
+    "advanced": "高级选项",
+    "rebalanceFrequency": "再平衡频率",
+    "threshold": "阈值",
+    "initialCapital": "初始资金",
+    "thresholdWithValue": "阈值({{value}}%)"
   },
   "toolPage": {
     "dateRange": "日期范围",
@@ -812,6 +821,16 @@
       "monthLabel": "{{n}} 月",
       "noData": "暂无数据",
       "title": "季节性"
+    },
+    "drawdown": {
+      "title": "回撤走势"
+    },
+    "growth": {
+      "title": "组合价值走势",
+      "logScale": "对数坐标",
+      "showChart": "显示图表",
+      "hideChart": "隐藏图表",
+      "dateLabel": "日期: {{label}}"
     }
   },
   "portfolio": {
@@ -1068,11 +1087,73 @@
     "gridTooMany": "网格搜索数量过多",
     "gridBadRequest": "网格搜索参数无效",
     "pcaMinAssets": "PCA 至少需要 2 个标的",
-    "retryIn": "{{seconds}}秒后重试"
+    "retryIn": "{{seconds}}秒后重试",
+    "routeErrorTitle": "该区块加载失败 ({{route}})",
+    "routeErrorMessage": "渲染此页面时出现问题。你可以就地重试，无需刷新整个应用。",
+    "routeRetry": "重试",
+    "invalidCredentials": "用户名或密码错误",
+    "acceptInviteFailed": "接受邀请失败",
+    "switchOrgFailed": "切换组织失败",
+    "operationFailed": "操作失败",
+    "atLeastOneTicker": "请至少输入一个标的代码",
+    "atLeastOneRebalanceFreq": "请至少选择一个再平衡频率",
+    "optimizerFailed": "优化失败",
+    "atLeastTwoTickers": "请至少输入两个标的代码",
+    "computeFailed": "计算失败",
+    "correlationFailed": "相关性矩阵计算失败",
+    "atLeastOneAsset": "请至少添加一个标的",
+    "atLeastOneFreq": "请至少选择一个调仓频率",
+    "rebalancingSensitivityFailed": "再平衡敏感性分析失败",
+    "analysisFailed": "分析失败",
+    "simulationFailed": "模拟失败",
+    "noResults": "无结果 ({{label}})",
+    "backtestFailedLabel": "回测失败 ({{label}})"
   },
   "results": {
     "hideDetailedMetrics": "收起详细指标",
-    "showDetailedMetrics": "展开详细指标"
+    "showDetailedMetrics": "展开详细指标",
+    "tabs": {
+      "summary": "概览",
+      "metrics": "指标",
+      "stats": "统计指标",
+      "custom": "自定义指标",
+      "extended": "扩展指标",
+      "drawdowns": "回撤",
+      "episodes": "回撤片段",
+      "analysis": "回撤分析",
+      "returns": "收益",
+      "distribution": "收益分布",
+      "rolling": "滚动指标",
+      "seasonality": "季节性",
+      "yearly": "年度收益",
+      "cashflows": "现金流",
+      "flows": "现金流详情",
+      "turnover": "周转与税务",
+      "rebalance": "再平衡统计",
+      "advanced": "高级",
+      "allocation": "配置",
+      "pie": "配置饼图",
+      "correlation": "相关性与Beta",
+      "regression": "回归分析",
+      "trend": "趋势图"
+    },
+    "actionBar": {
+      "title": "结果",
+      "timeRange": "{{years}} 年 · {{start}} 至 {{end}}",
+      "refresh": "刷新",
+      "share": "分享",
+      "saveBacktest": "保存回测",
+      "emailAlerts": "邮件提醒",
+      "savePortfolio": "保存组合",
+      "export": "导出",
+      "exportCsv": "CSV (数据)",
+      "exportJson": "JSON (完整配置+结果)",
+      "exportPng": "PNG (图表)",
+      "exportPdf": "PDF (报告)"
+    },
+    "extendedMetrics": {
+      "portfolio": "组合"
+    }
   },
   "tacticalResults": {
     "growthTitle": "收益曲线",
@@ -1109,7 +1190,11 @@
     "seoSimulatableDesc": "退休提款策略、定投计划、固定提取方案，观察其在数千条模拟市场路径下的表现与存活概率。",
     "seoOutput": "输出结果",
     "seoOutputDesc": "分布统计表(Summary)、组合价值范围图、成功概率曲线、多指标分布直方图、代表性场景路径。",
-    "presets": "预设示例",
+    "presets": {
+      "preset6040": "60/40 退休回测",
+      "presetAllStockDCA": "全股定投 30 年",
+      "presetThreeFund": "三基金 25 年"
+    },
     "relatedTools": "相关工具：",
     "results": {
       "metric": "指标",
@@ -2319,6 +2404,9 @@
       ]
     }
   },
+  "a11y": {
+    "skipToMain": "跳到主要内容"
+  },
   "toolRoutes": {
     "loading": "加载中..."
   },
@@ -2429,7 +2517,9 @@
       "sessionExpired": "会话因长时间未操作已过期，请重新登录。",
       "submit": "登录",
       "submitting": "登录中...",
-      "username": "用户名"
+      "username": "用户名",
+      "usernameRequired": "请输入用户名",
+      "passwordRequired": "请输入密码"
     },
     "signup": {
       "createAccount": "创建账户",
@@ -2442,7 +2532,13 @@
       "submitting": "注册中...",
       "successTitle": "注册成功",
       "verificationEmailPrefix": "验证邮件已发送至",
-      "verificationEmailSuffix": "请查收邮件完成验证。"
+      "verificationEmailSuffix": "请查收邮件完成验证。",
+      "usernameMinLength": "用户名至少 3 个字符",
+      "usernameMaxLength": "用户名最多 30 个字符",
+      "emailInvalid": "请输入有效邮箱",
+      "passwordMinLength": "密码至少 8 位",
+      "orgNameRequired": "请输入组织名称",
+      "orgNameMaxLength": "组织名称最多 100 个字符"
     },
     "verifyEmail": {
       "goToLogin": "前往登录",
@@ -2607,6 +2703,39 @@
         "recoveryFactor": "恢复因子",
         "cagrDuring": "期间CAGR",
         "ulcerDuring": "期间Ulcer指数"
+      },
+      "filter": {
+        "all": "全部",
+        "severe": "严重 (≥20%)",
+        "moderate": "中等 (≥10%)",
+        "mild": "轻微 (<10%)"
+      },
+      "sort": {
+        "depth": "按深度",
+        "duration": "按持续时间",
+        "recovery": "按恢复因子"
+      },
+      "summary": {
+        "totalDrawdowns": "总回撤次数",
+        "maxDrawdown": "最大回撤",
+        "avgDrawdown": "平均回撤",
+        "avgRecoveryDuration": "平均恢复时长"
+      },
+      "showMore": "显示更多 {{count}} 段",
+      "status": {
+        "recovered": "已恢复",
+        "ongoing": "进行中"
+      },
+      "detail": {
+        "timeToTrough": "跌至谷底",
+        "recoveryTime": "恢复时间",
+        "recoveryFactor": "恢复因子",
+        "periodCagr": "期间 CAGR",
+        "periodUlcer": "期间 Ulcer"
+      },
+      "aria": {
+        "severity": "按严重度筛选",
+        "sortBy": "排序方式"
       }
     },
     "errorBoundary": {
@@ -2778,5 +2907,53 @@
     "toolSeoCard": {
       "relatedTools": "相关工具："
     }
+  },
+  "statsTable": {
+    "portfolioName": "组合",
+    "endingValue": "终值",
+    "totalContributions": "总投入",
+    "cumulativeReturn": "累计收益",
+    "cagr": "CAGR",
+    "mwrr": "MWRR",
+    "maxDrawdown": "最大回撤",
+    "avgDrawdown": "平均回撤",
+    "longestDrawdown": "最长回撤",
+    "volatility": "波动率",
+    "sharpe": "夏普",
+    "sortino": "索提诺",
+    "calmar": "卡尔玛",
+    "ulcerIndex": "Ulcer",
+    "upi": "UPI",
+    "diversificationRatio": "分散比",
+    "beta": "Beta",
+    "ui": {
+      "title": "统计概览",
+      "portfolioCount": "{{count}} 个组合",
+      "columnCount": "{{count}} 列",
+      "collapseExtended": "收起详细指标",
+      "expandExtended": "展开详细指标 (+30)"
+    }
+  },
+  "format": {
+    "durationDays": "{{count}}天",
+    "durationZero": "0天",
+    "durationMonths": "{{count}}个月",
+    "durationYears": "{{count}}年",
+    "durationYearsMonths": "{{years}}年{{months}}个月",
+    "durationMonthShort": "{{count}}月",
+    "durationYearsShort": "{{count}}年"
+  },
+  "portfolioEditor": {
+    "addPortfolio": "添加组合",
+    "blankPortfolio": "空白组合",
+    "fromPreset": "从预设开始",
+    "fromSaved": "从已保存导入",
+    "glidepathPortfolio": "滑行路径组合",
+    "loadExample": "加载示例"
+  },
+  "notifications": {
+    "title": "产品动态",
+    "latest": "最新更新",
+    "empty": "暂无公告"
   }
 }

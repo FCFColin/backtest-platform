@@ -15,7 +15,7 @@ import { StatisticsTableV2 } from '@/components/statistics-table/StatisticsTable
 import { ExtendedMetricsTable } from '@/components/statistics-table/ExtendedMetricsTable.js';
 import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import type { Portfolio, PortfolioResult } from '@backtest/shared';
+import { type Portfolio, type PortfolioResult, toStatsRecord } from '@backtest/shared';
 
 const GrowthChartV2 = lazy(() =>
   import('@/components/charts/GrowthChartV2').then((m) => ({ default: m.GrowthChartV2 })),
@@ -183,7 +183,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
         portfolios={pf.map((p) => ({
           id: p.name,
           name: p.name,
-          stats: p.statistics as unknown as Record<string, number>,
+          stats: toStatsRecord(p.statistics),
         }))}
         colors={pf.map((_, i) => getPortfolioColor(i))}
         extendedTable={
@@ -191,7 +191,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
             portfolios={pf.map((p) => ({
               id: p.name,
               name: p.name,
-              stats: p.statistics as unknown as Record<string, number>,
+              stats: toStatsRecord(p.statistics),
             }))}
           />
         }
@@ -204,7 +204,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
       portfolios={pf.map((p) => ({
         id: p.name,
         name: p.name,
-        stats: p.statistics as unknown as Record<string, number>,
+        stats: toStatsRecord(p.statistics),
       }))}
       colors={pf.map((_, i) => getPortfolioColor(i))}
       extendedTable={
@@ -212,7 +212,7 @@ const TAB_RENDERERS: Record<string, (c: TabCtx) => ReactNode> = {
           portfolios={pf.map((p) => ({
             id: p.name,
             name: p.name,
-            stats: p.statistics as unknown as Record<string, number>,
+            stats: toStatsRecord(p.statistics),
           }))}
         />
       }

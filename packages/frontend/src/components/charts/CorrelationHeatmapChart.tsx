@@ -151,6 +151,7 @@ function RollingCorrelationControls({
           {t('charts.correlation.portfolioA')}
         </span>
         <select
+          aria-label={t('charts.correlation.portfolioA')}
           value={selectedPair ? selectedPair[0] : 0}
           onChange={(e) => {
             const i = parseInt(e.target.value);
@@ -170,6 +171,7 @@ function RollingCorrelationControls({
           {t('charts.correlation.portfolioB')}
         </span>
         <select
+          aria-label={t('charts.correlation.portfolioB')}
           value={selectedPair ? selectedPair[1] : 1}
           onChange={(e) => {
             const j = parseInt(e.target.value);
@@ -189,6 +191,7 @@ function RollingCorrelationControls({
           {t('charts.correlation.windowDays')}
         </span>
         <select
+          aria-label={t('charts.correlation.windowDays')}
           value={rollingWindow}
           onChange={(e) => onSetWindow(parseInt(e.target.value))}
           style={selectStyle}

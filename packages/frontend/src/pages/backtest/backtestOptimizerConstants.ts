@@ -1,4 +1,5 @@
 import type { BacktestOptimizerObjective as Objective, OptimizeResultItem } from '@backtest/shared';
+import i18n from '@/i18n/index.js';
 import { REBALANCE_LABELS } from '@backtest/shared';
 import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
 import type { Column } from '../../components/SortableTable.js';
@@ -18,33 +19,33 @@ export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
 export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
   {
     key: 'rebalanceFrequency',
-    label: '再平衡频率',
+    label: i18n.t('params.rebalanceFrequency'),
     sortValue: (r) => r.rebalanceFrequency,
     render: (r) =>
       r.rebalanceFrequency === 'threshold'
-        ? `阈值(${r.rebalanceThreshold}%)`
+        ? i18n.t('params.thresholdWithValue', { value: r.rebalanceThreshold })
         : (REBALANCE_LABELS[r.rebalanceFrequency] ?? r.rebalanceFrequency),
   },
   {
     key: 'rebalanceThreshold',
-    label: '阈值',
+    label: i18n.t('params.threshold'),
     sortValue: (r) => r.rebalanceThreshold ?? 0,
     render: (r) => (r.rebalanceThreshold !== undefined ? `${r.rebalanceThreshold}%` : '-'),
   },
   {
     key: 'initialCapital',
-    label: '初始资金',
+    label: i18n.t('params.initialCapital'),
     sortValue: (r) => r.initialCapital,
     render: (r) => fmtDollar(r.initialCapital),
   },
   { key: 'cagr', label: 'CAGR', sortValue: (r) => r.cagr, render: (r) => fmtPct(r.cagr) },
   {
     key: 'maxDrawdown',
-    label: '最大回撤',
+    label: i18n.t('statsTable.maxDrawdown'),
     sortValue: (r) => r.maxDrawdown,
     render: (r) => fmtPct(r.maxDrawdown),
   },
-  { key: 'stdev', label: '波动率', sortValue: (r) => r.stdev, render: (r) => fmtPct(r.stdev) },
+  { key: 'stdev', label: i18n.t('statsTable.volatility'), sortValue: (r) => r.stdev, render: (r) => fmtPct(r.stdev) },
   { key: 'sharpe', label: 'Sharpe', sortValue: (r) => r.sharpe, render: (r) => fmtNum(r.sharpe) },
   {
     key: 'sortino',

@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Play, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button.js';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface RunBacktestButtonProps {
   onRun: () => void;
@@ -21,6 +22,7 @@ interface RunBacktestButtonProps {
  * @returns 按钮元素，状态自动切换。
  */
 export function RunBacktestButton({ onRun, isRunning, runComplete, elapsedMs }: RunBacktestButtonProps) {
+  const { t } = useTranslation();
   const [showComplete, setShowComplete] = useState(false);
 
   useEffect(() => {
@@ -35,7 +37,7 @@ export function RunBacktestButton({ onRun, isRunning, runComplete, elapsedMs }: 
     return (
       <Button variant="primary" size="default" disabled className="min-w-[160px]">
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-        回测中...
+        {t('backtest.running')}
       </Button>
     );
   }
@@ -52,7 +54,7 @@ export function RunBacktestButton({ onRun, isRunning, runComplete, elapsedMs }: 
         disabled
       >
         <Check className="h-4 w-4 mr-2" />
-        {elapsedMs ? `${(elapsedMs / 1000).toFixed(1)}s 完成` : '完成'}
+        {elapsedMs ? t('backtest.completeWithTime', { seconds: (elapsedMs / 1000).toFixed(1) }) : t('backtest.complete')}
       </Button>
     );
   }
@@ -60,7 +62,7 @@ export function RunBacktestButton({ onRun, isRunning, runComplete, elapsedMs }: 
   return (
     <Button variant="primary" size="default" onClick={onRun} className="min-w-[160px]">
       <Play className="h-4 w-4 mr-2" />
-      运行回测
+      {t('backtest.run')}
     </Button>
   );
 }

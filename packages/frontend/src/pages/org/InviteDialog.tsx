@@ -128,7 +128,8 @@ interface InvitationTableProps {
 function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableProps) {
   const { t } = useTranslation();
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div className="overflow-x-auto">
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
       <thead>
         <tr>
           <th style={TABLE_TH}>{t('orgMembers.invite.tableEmail')}</th>
@@ -165,6 +166,7 @@ function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableP
           </tr>
         ))}
       </tbody>
-    </table>
+      </table>
+    </div>
   );
 }

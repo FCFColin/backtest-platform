@@ -8,11 +8,7 @@ import { PromoBar } from '@/components/layout/PromoBar.js';
 import Toast from '@/components/Toast';
 import { useAuthStore } from '@/store/authStore';
 import { useIdleTimeout } from '@/hooks/useIdleTimeout';
-import { ToolRoutes } from '@/routes';
-import { PublicRoutes } from '@/routes/PublicRoutes';
-import { AuthRoutes } from '@/routes/AuthRoutes';
-import { AccountRoutes } from '@/routes/AccountRoutes';
-import { AdminRoutes } from '@/routes/AdminRoutes';
+import { AppRoutes } from '@/routes';
 
 function AppLayout() {
   const location = useLocation();
@@ -31,6 +27,13 @@ function AppLayout() {
 
   return (
     <>
+      {/* D10-014: skip-to-main-content 链接，键盘用户跳过 PromoBar/Navbar 直达主内容 */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand focus:text-brand-fg focus:rounded focus:outline-none focus:ring-2 focus:ring-brand"
+      >
+        {t('a11y.skipToMain')}
+      </a>
       {!isAdmin && (
         <PromoBar
           id="synthetic-tickers-2026"
@@ -42,12 +45,12 @@ function AppLayout() {
       )}
       {!isAdmin && <Navbar />}
       <Toast />
-      <main style={{ paddingTop: isAdmin ? 0 : 80, flex: '1 0 auto' }}>
-        <ToolRoutes />
-        <PublicRoutes />
-        <AuthRoutes />
-        <AccountRoutes />
-        <AdminRoutes />
+      <main
+        id="main-content"
+        tabIndex={-1}
+        style={{ paddingTop: isAdmin ? 0 : 80, flex: '1 0 auto', outline: 'none' }}
+      >
+        <AppRoutes />
       </main>
       {!isAdmin && <Footer />}
     </>

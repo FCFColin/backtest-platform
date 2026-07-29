@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import i18n from '@/i18n/index.js';
 import type { RebalanceFrequency } from '@backtest/shared';
 import { useListState } from '../../hooks/useListState.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -108,10 +109,10 @@ function createRebalancingRunners(
 ) {
   const validate = (): Array<{ ticker: string; weight: number }> | string => {
     const validAssets = assets.filter((a) => a.ticker.trim() !== '');
-    if (validAssets.length === 0) return '请至少添加一个标的';
+    if (validAssets.length === 0) return i18n.t('errors.atLeastOneAsset');
     const weightErr = validateAssetWeights(assets);
     if (weightErr) return weightErr;
-    if (s.selectedFreqs.length === 0) return '请至少选择一个调仓频率';
+    if (s.selectedFreqs.length === 0) return i18n.t('errors.atLeastOneFreq');
     return validAssets;
   };
 
@@ -126,7 +127,7 @@ function createRebalancingRunners(
         await Promise.all(OFFSETS.map((o) => fetchOffsetResult(o, freq, validAssets, params))),
       );
     } catch {
-      s.setError('再平衡敏感性分析失败');
+      s.setError(i18n.t('errors.rebalancingSensitivityFailed'));
     } finally {
       s.setIsLoadingOffset(false);
     }
@@ -152,7 +153,7 @@ function createRebalancingRunners(
       s.setResults(all);
       if (s.selectedFreqs.length > 0) void runOffsetScanInner(s.selectedFreqs[0], validAssets);
     } catch (e) {
-      s.setError(e instanceof Error ? e.message : '分析失败');
+      s.setError(e instanceof Error ? e.message : i18n.t('errors.analysisFailed'));
     } finally {
       s.setIsLoading(false);
     }

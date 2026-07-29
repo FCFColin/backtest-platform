@@ -4,6 +4,7 @@
  *   markAllRead 逻辑通过 localStorage 记录已读。
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet.js';
@@ -15,6 +16,7 @@ import { useAnnouncements } from '@/hooks/useAnnouncements.js';
  * @returns 铃铛按钮 + Sheet 抽屉。
  */
 export function NotificationBell() {
+  const { t } = useTranslation();
   const { announcements, unreadCount, markAllRead } = useAnnouncements();
   const [open, setOpen] = useState(false);
 
@@ -44,13 +46,13 @@ export function NotificationBell() {
       <SheetContent side="right" className="w-[400px] p-0">
         <SheetHeader className="p-4 border-b border-border">
           <div className="flex items-center justify-between">
-            <SheetTitle>产品动态</SheetTitle>
-            <span className="text-caption text-fg-tertiary">最新更新</span>
+            <SheetTitle>{t('notifications.title')}</SheetTitle>
+            <span className="text-caption text-fg-tertiary">{t('notifications.latest')}</span>
           </div>
         </SheetHeader>
         <div className="overflow-y-auto max-h-[calc(100dvh-4rem)]">
           {announcements.length === 0 ? (
-            <div className="p-8 text-center text-caption text-fg-tertiary">暂无公告</div>
+            <div className="p-8 text-center text-caption text-fg-tertiary">{t('notifications.empty')}</div>
           ) : (
             announcements.map((ann) => (
               <div

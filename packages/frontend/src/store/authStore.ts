@@ -8,6 +8,7 @@
 import { create } from 'zustand';
 import { apiFetch } from '@/utils/apiClient';
 import { setTokens, clearTokens, getRefreshToken, refreshTokens } from '@/utils/authTokens';
+import i18n from '@/i18n/index.js';
 
 // ============ 异步状态 helper（合并自 utils/asyncSlice.ts） ============
 
@@ -109,7 +110,7 @@ async function loginPasswordAction(
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
-      set(asyncFail(body?.detail || '用户名或密码错误'));
+      set(asyncFail(body?.detail || i18n.t('errors.invalidCredentials')));
       return false;
     }
     setTokens(body.data.accessToken, body.data.refreshToken);
@@ -141,7 +142,7 @@ async function registerAction(
     });
     const body = await res.json();
     if (!res.ok) {
-      set(asyncFail(body?.detail || '注册失败'));
+      set(asyncFail(body?.detail || i18n.t('errors.registerFailed')));
       return false;
     }
     set(asyncSuccess());
@@ -166,7 +167,7 @@ async function acceptInviteAction(
     });
     const body = await res.json();
     if (!res.ok) {
-      set(asyncFail(body?.detail || '接受邀请失败'));
+      set(asyncFail(body?.detail || i18n.t('errors.acceptInviteFailed')));
       return { ok: false };
     }
     set(asyncSuccess());
@@ -204,7 +205,7 @@ async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
-      set(asyncFail(body?.detail || '切换组织失败'));
+      set(asyncFail(body?.detail || i18n.t('errors.switchOrgFailed')));
       return false;
     }
     setTokens(body.data.accessToken, body.data.refreshToken);

@@ -1,4 +1,5 @@
 import type { RebalanceFrequency } from '@backtest/shared';
+import i18n from '@/i18n/index.js';
 import {
   REBALANCE_FREQUENCIES,
   REBALANCE_FREQUENCY_COLORS,
@@ -124,7 +125,7 @@ export function extractFreqResult(
       }>;
     }
   )?.portfolios?.[0];
-  if (!p) throw new Error(`无结果 (${label})`);
+  if (!p) throw new Error(i18n.t('errors.noResults', { label }));
   const stats = p.statistics ?? {};
   return {
     frequency: freq,
@@ -177,7 +178,7 @@ export async function fetchFreqResult(
   });
   if (!res.ok) throw new Error(`HTTP ${res.status} (${opt.label})`);
   const json = await res.json();
-  if (json.success === false) throw new Error(json.error || `回测失败 (${opt.label})`);
+  if (json.success === false) throw new Error(json.error || i18n.t('errors.backtestFailedLabel', { label: opt.label }));
   return extractFreqResult(json, freq, opt.label, opt.color);
 }
 

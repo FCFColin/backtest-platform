@@ -13,6 +13,7 @@ import ErrorBanner from '@/components/ErrorBanner';
 import AuthPageLayout from '@/components/auth/AuthPageLayout';
 import AuthFormField from '@/components/auth/AuthFormField';
 import AuthSubmitButton from '@/components/auth/AuthSubmitButton';
+import { signupSchema, firstZodErrorKey } from '@/lib/authValidation.js';
 
 function SignupSuccess({ email }: { email: string }) {
   const { t } = useTranslation();
@@ -56,15 +57,19 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [orgName, setOrgName] = useState('');
   const [done, setDone] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ok = await register({
-      username: username.trim(),
-      password,
-      email: email.trim(),
-      orgName: orgName.trim(),
-    });
+    const payload = { username: username.trim(), password, email: email.trim(), orgName: orgName.trim() };
+    const validation = signupSchema.safeParse(payload);
+    const zodError = firstZodErrorKey(validation);
+    if (zodError) {
+      setFormError(t(zodError));
+      return;
+    }
+    setFormError(null);
+    const ok = await register(payload);
     if (ok) setDone(true);
   };
 
@@ -109,7 +114,7 @@ export default function SignupPage() {
           minLength={8}
         />
         <AuthFormField label={t('auth.signup.orgName')} value={orgName} onChange={setOrgName} />
-        <ErrorBanner message={error} />
+        <ErrorBanner message={formError || error} />
         <AuthSubmitButton
           loading={loading}
           icon={<UserPlus className="w-4 h-4" />}

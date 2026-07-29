@@ -39,7 +39,7 @@ function FooterLink({ to, href, label }: FooterLinkDef) {
 function FooterSection({ title, links }: { title: string; links: FooterLinkDef[] }) {
   return (
     <div>
-      <h4 className="text-label-tiny text-fg-tertiary mb-3">{title}</h4>
+      <h2 className="text-label-tiny text-fg-tertiary mb-3">{title}</h2>
       <ul className="space-y-2">
         {links.map((link) => (
           <li key={link.label}>
@@ -96,17 +96,19 @@ function FooterBrand() {
           href="https://github.com"
           target="_blank"
           rel="noreferrer"
+          aria-label="GitHub"
           className="text-fg-tertiary hover:text-fg"
         >
-          <Github className="h-4 w-4" />
+          <Github className="h-4 w-4" aria-hidden="true" />
         </a>
         <a
           href="https://twitter.com"
           target="_blank"
           rel="noreferrer"
+          aria-label="Twitter"
           className="text-fg-tertiary hover:text-fg"
         >
-          <Twitter className="h-4 w-4" />
+          <Twitter className="h-4 w-4" aria-hidden="true" />
         </a>
       </div>
     </div>
@@ -123,7 +125,7 @@ function FooterDataColumn() {
 
   return (
     <div>
-      <h4 className="text-label-tiny text-fg-tertiary mb-3">{t('footer.sections.data')}</h4>
+      <h2 className="text-label-tiny text-fg-tertiary mb-3">{t('footer.sections.data')}</h2>
       <div className="space-y-2 text-caption text-fg-tertiary">
         <div>
           <div className="text-fg-secondary">{t('footer.data.source')}</div>

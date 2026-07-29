@@ -2,8 +2,10 @@
  * @file useDataMeta hook
  * @description 从后端获取数据元信息（最后更新/标的数/最早日期/数据点数）。
  *   5 分钟内存缓存。
+ *   D10-013: 使用 apiFetch + silent:true 静默降级，避免 5xx 响应触发错误 Toast。
  */
 import { useState, useEffect } from 'react';
+import { apiFetch } from '@/utils/apiClient.js';
 
 export interface DataMeta {
   lastUpdated: string;
@@ -30,7 +32,7 @@ export function useDataMeta(): DataMeta | null {
       return;
     }
 
-    fetch('/api/v1/data/meta')
+    apiFetch('/api/v1/data/meta', { silent: true })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
         const data = json?.data ?? json;
