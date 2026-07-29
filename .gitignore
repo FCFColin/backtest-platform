@@ -113,3 +113,39 @@ docs/inspections/archive/
 
 # Turborepo
 .turbo/
+# Temporary patch/apply scripts
+__apply*.mjs
+__test_helper.txt
+__unleash_block.yml
+
+# Test output artifacts
+test-json.txt
+test-regex.mjs
+trivy-test.txt
+test-output.*
+tmp-p0-test.log
+
+# Go coverage and binary artifacts
+engine-go/*.exe
+engine-go/coverage*
+engine-go/engine-cov*
+data-fetcher/*cov*
+data-fetcher/coverage*
+data-fetcher/*.exe
+data-fetcher/mid
+data-fetcher/df-final
+
+# One-time fix scripts
+scripts/_tmp_*
+scripts/apply-migrations-*
+scripts/fix-*.cjs
+scripts/scan-*.cjs
+scripts/wrap-routes.cjs
+scripts/seed-announcements.mjs
+scripts/benchmark-*.mjs
+scripts/create-*.sql
+
+# SQL backups
+*.dump
+pg-backup.sql
+
