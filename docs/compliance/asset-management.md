@@ -37,7 +37,7 @@
 
 | 组件       | 版本      | 许可证             | 漏洞扫描                |
 | ---------- | --------- | ------------------ | ----------------------- |
-| Node.js    | 20 LTS    | MIT                | npm audit               |
+| Node.js    | 20 LTS    | MIT                | pnpm audit               |
 | PostgreSQL | 16        | PostgreSQL License | govulncheck (Go client) |
 | Go         | 1.22/1.23 | BSD-3-Clause       | govulncheck             |
 | Redis      | 7         | BSD-3-Clause       | —                       |
@@ -58,7 +58,7 @@ SBOM 制品保留 30 天，用于漏洞响应（快速定位受影响组件）�
 ## 3. 资产变更追踪
 
 - 所有资产变更通过 Git PR + CI 审查
-- 依赖升级须通过 `security-scan` job（npm audit + govulncheck）
+- 依赖升级须通过 `security-scan` job（pnpm audit + govulncheck）
 - 镜像版本以 Git SHA 标记，可追溯
 - 审计日志记录所有数据资产变更（写操作）
 

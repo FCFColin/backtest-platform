@@ -99,7 +99,7 @@
 
 ```bash
 # 运行所有混沌实验
-npm run test:chaos
+pnpm test:chaos
 
 # 运行单个实验
 npx vitest run -c vitest.config.chaos.ts tests/chaos/experiment-1-db-disconnect.test.ts

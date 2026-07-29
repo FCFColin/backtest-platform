@@ -33,7 +33,7 @@
 | XSS 防护     | React 自动转义，禁止 `dangerouslySetInnerHTML` | ESLint react/no-danger |
 | 敏感数据     | 禁止日志输出密码/token                         | ESLint 自定义规则      |
 | 密钥管理     | 禁止硬编码密钥                                 | gitleaks CI 扫描       |
-| 依赖管理     | pnpm lockfile + npm audit                      | CI security-scan       |
+| 依赖管理     | pnpm lockfile + pnpm audit                      | CI security-scan       |
 
 ### 2.2 Go (Engine/Data-fetcher)
 
@@ -57,7 +57,7 @@ PR 审查时须确认：
 - [ ] 无硬编码密钥/密码
 - [ ] 无敏感信息日志输出
 - [ ] 错误处理不泄露内部信息
-- [ ] 新依赖通过 npm audit / govulncheck
+- [ ] 新依赖通过 pnpm audit / govulncheck
 - [ ] 数据库迁移可回滚（down 脚本）
 - [ ] 审计日志覆盖写操作
 
@@ -67,7 +67,7 @@ PR 审查时须确认：
 
 | CI Job               | 安全检查                             | 阻断级别               |
 | -------------------- | ------------------------------------ | ---------------------- |
-| `security-scan`      | npm audit (high) + govulncheck       | **阻断**               |
+| `security-scan`      | pnpm audit (high) + govulncheck       | **阻断**               |
 | `gitleaks`           | 密钥泄露扫描                         | **阻断**               |
 | `node-quick`         | TypeScript 类型检查 + ESLint         | **阻断**               |
 | `go` / `go-engine`   | go vet + golangci-lint + govulncheck | **阻断**               |
@@ -83,4 +83,4 @@ PR 审查时须确认：
 | 8.1.5.2 a) | 安全开发规范 | SDL + 编码规范 + CI 门禁        | ✅   |
 | 8.1.5.2 b) | 代码安全审查 | PR review + CI 自动检查         | ✅   |
 | 8.1.5.2 c) | 安全测试     | 单元/集成/混沌/E2E 测试         | ✅   |
-| 8.1.5.2 d) | 漏洞管理     | npm audit + govulncheck + Trivy | ✅   |
+| 8.1.5.2 d) | 漏洞管理     | pnpm audit + govulncheck + Trivy | ✅   |

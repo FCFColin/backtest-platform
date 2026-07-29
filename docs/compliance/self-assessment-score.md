@@ -67,7 +67,7 @@
 | a)  | 攻击检测 | 2    | 异常登录 + 限流告警             |
 | b)  | 攻击记录 | 2    | 审计日志 + Prometheus           |
 | c)  | 入侵告警 | 2    | AlertManager 告警链路           |
-| d)  | 漏洞扫描 | 2    | npm audit + govulncheck + Trivy |
+| d)  | 漏洞扫描 | 2    | pnpm audit + govulncheck + Trivy |
 | e)  | WAF      | 1    | APISIX waf 已部署，规则待完善   | -1  |
 
 ### 安全区域边界（7/10）

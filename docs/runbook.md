@@ -1,6 +1,6 @@
 # 运维手册（Runbook）
 
-> 最后更新：2026-06-25  
+> 最后更新：2026-07-29  
 > 适用版本：企业级 Round 2 实施后
 
 ## 一、服务架构概览
@@ -8,7 +8,7 @@
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────────┐
 │  前端 Vite   │───▶│  后端 API     │───▶│  Go 引擎     │
-│  port 15173 │    │  Express      │    │  :5002/15004 │
+│  port 15173 │    │  Express      │    │  15004 (host) / 5004 (container) │
 └──────────────┘    │  port 15001   │    └──────┬──────┘
                    └──────┬───────┘           │ fail-closed 503
                           │                   (ADR-031)
@@ -24,9 +24,9 @@
 
 | 服务         | 端口      | 启动命令                              | 健康检查                                       |
 | ------------ | --------- | ------------------------------------- | ---------------------------------------------- |
-| 前端（开发） | 15173     | `npm run client:dev`                  | `curl http://localhost:15173`                   |
-| 后端 API     | 15001      | `npm run dev`                         | `curl http://localhost:15001/api/health`        |
-| Go 引擎      | 5002/15004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:5002/api/engine/health` |
+| 前端（开发） | 15173     | `pnpm --filter @backtest/frontend dev`                  | `curl http://localhost:15173`                   |
+| 后端 API     | 15001      | `pnpm --filter @backtest/backend dev`                         | `curl http://localhost:15001/api/health`        |
+| Go 引擎      | 15004 | `cd engine-go && go run ./cmd/server` | `curl http://127.0.0.1:15004/api/engine/health` |
 | Go 数据服务  | 15003      | `cd data-fetcher && go run .`         | `curl http://localhost:15003/api/data/health`   |
 
 ## 二、启动与停止
@@ -35,7 +35,7 @@
 
 ```powershell
 # 启动前端 + 后端（concurrently）
-npm run dev
+pnpm dev
 
 # 单独启动 Go 引擎（另一个终端）
 cd engine-go; go run ./cmd/server
@@ -48,7 +48,7 @@ cd data-fetcher; go run .
 
 ```powershell
 # 1. 构建前端
-npm run build
+pnpm build
 
 # 2. 启动 Go 引擎
 cd engine-go; go run ./cmd/server &
@@ -57,7 +57,7 @@ cd engine-go; go run ./cmd/server &
 cd data-fetcher; go run . &
 
 # 4. 启动后端 API（托管 dist/ 静态文件）
-NODE_ENV=production node --import tsx api/app.ts
+NODE_ENV=production node --import tsx packages/backend/src/app.ts
 ```
 
 ### 停止服务
@@ -79,7 +79,7 @@ curl http://localhost:15001/api/health
 curl http://localhost:15001/api/metrics
 
 # Go 引擎健康
-curl http://127.0.0.1:5002/api/engine/health
+curl http://127.0.0.1:15004/api/engine/health
 
 # Go 数据服务健康
 curl http://localhost:15003/api/data/health
@@ -105,7 +105,7 @@ curl http://localhost:15003/api/data/health
 **排查步骤**：
 
 1. 检查 Go 引擎进程是否运行：`Get-Process go`
-2. 检查端口 5002 是否监听：`netstat -ano | findstr 5002`
+2. 检查端口 15004 是否监听：`netstat -ano | findstr 15004`
 3. 尝试手动启动：`cd engine-go; go run ./cmd/server`
 4. 查看构建错误：`cd engine-go; go build ./cmd/server 2>&1`
 5. 检查后端日志中的 Go 引擎调用错误
@@ -133,7 +133,7 @@ curl http://localhost:15003/api/data/health
 
 1. 检查后端 API 是否运行：`curl http://localhost:15001/api/health`
 2. 检查浏览器控制台错误
-3. 检查前端构建产物：`npm run build`
+3. 检查前端构建产物：`pnpm build`
 4. 开发模式检查 Vite 服务器：`curl http://localhost:5175`
 
 ### 故障 4：Go 数据服务不可用
@@ -212,8 +212,8 @@ curl http://localhost:15003/api/data/health
 2. **迁移失败回滚**：调用 rollbackSchema 回退到指定版本
 
    ```powershell
-   kubectl exec -it api-pod -- node -e \
-     "const {rollbackSchema,closeDb}=require('./dist/db/pool.js');rollbackSchema(0).then(closeDb)"
+   kubectl exec -it api-pod -- node --input-type=module -e \
+     "import {rollbackSchema,closeDb} from './dist/db/pool.js';rollbackSchema(0).then(closeDb)"
    ```
 
 3. **磁盘满清理**：
@@ -242,7 +242,7 @@ curl http://localhost:15003/api/data/health
 ### 前置条件
 
 - Node.js 20+
-- Go 1.22+
+- Go 1.26+
 - 数据文件已就位（`data/tickers/` 目录）
 
 ### 部署步骤
@@ -256,7 +256,7 @@ curl http://localhost:15003/api/data/health
 2. **安装依赖**
 
    ```powershell
-   npm ci
+   pnpm install --frozen-lockfile
    cd engine-go; go build ./cmd/server; cd ..
    cd data-fetcher; go mod download; cd ..
    ```
@@ -264,15 +264,15 @@ curl http://localhost:15003/api/data/health
 3. **构建前端**
 
    ```powershell
-   npm run build
+   pnpm build
    ```
 
 4. **验证构建**
 
    ```powershell
-   npm run check    # TypeScript 类型检查
-   npm run lint     # ESLint 检查
-   npm run test:unit  # 单元测试
+   pnpm check    # TypeScript 类型检查
+   pnpm lint     # ESLint 检查
+   pnpm test:unit  # 单元测试
    ```
 
 5. **配置环境变量**
@@ -295,7 +295,7 @@ curl http://localhost:15003/api/data/health
 
    ```powershell
    # 部署 PostgreSQL 后，运行 initSchema 创建表结构
-   node -e "const{initSchema,closeDb}=require('./dist/db/pool.js');initSchema().then(closeDb)"
+   node --input-type=module -e "import {initSchema,closeDb} from './dist/db/pool.js';initSchema().then(closeDb)"
    ```
 
 7. **启动服务**（按顺序）
@@ -341,8 +341,8 @@ git log --oneline -5          # 查看最近提交
 git checkout <stable-commit>  # 回滚到稳定版本
 
 # 3. 重新构建
-npm ci
-npm run build
+pnpm install --frozen-lockfile
+pnpm build
 cd engine-go; go build ./cmd/server; cd ..
 
 # 4. 重启服务（按部署指南步骤 6）
@@ -395,11 +395,11 @@ Remove-Item packages/backend/data/cache/stats_cache.json -ErrorAction SilentlyCo
 
 | 命令                             | 说明                   |
 | -------------------------------- | ---------------------- |
-| `npm run check`                  | TypeScript 类型检查    |
-| `npm run lint`                   | ESLint 检查            |
-| `npm run test:unit`              | 单元测试（169 用例）   |
-| `npm run test:e2e`               | E2E 测试（需后端运行） |
-| `npm run build`                  | 构建前端               |
+| `pnpm check`                  | TypeScript 类型检查    |
+| `pnpm lint`                   | ESLint 检查            |
+| `pnpm test:unit`              | 单元测试   |
+| `pnpm test:e2e:ui`           | E2E 测试（需后端运行） |
+| `pnpm build`                  | 构建前端               |
 | `go test ./...`（engine-go/）    | Go 引擎测试            |
 | `go test ./...`（data-fetcher/） | Go 数据服务测试        |
 

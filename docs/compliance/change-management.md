@@ -34,7 +34,7 @@
 
 ```
 1. 创建分支（feature/* / fix/* / refactor/*）
-2. 开发 + 本地测试（npm run dev / npm run test:unit）
+2. 开发 + 本地测试（pnpm dev / pnpm test:unit）
 3. 提交 PR → CI 自动检查（type-check / lint / test / security-scan）
 4. Code Review（至少 1 人 approve）
 5. 合并到 main → CI 自动部署（staging）

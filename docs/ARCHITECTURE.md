@@ -159,7 +159,7 @@ flowchart TB
 | `tacticalGridRoutes.ts`      | `/api/v1/tactical-grid`                                          | 战术网格搜索（参数空间遍历优化）                              |
 | `signalRoutes.ts`            | `/api/v1/signal`                                                 | 信号分析（单/双/多信号）                                      |
 | `analysisRoutes.ts`          | `/api/v1/{pca,letf,goal-optimizer,factor-regression,calculator}` | 分析类薄路由合并（PCA / LETF / 目标优化 / 因子回归 / 计算器） |
-| `authRoutes.ts`              | `/api/v1/auth`                                                   | 认证鉴权（登录、令牌刷新、登出、身份查询）                    |
+| `authRoutes.ts`              | `/api/v1/auth`                                                   | 认证鉴权（登录、令牌刷新、登出、身份查询；含子路由 `authRegistrationRoutes.ts` 处理注册与邮箱验证） |
 | `apiKeyRoutes.ts`            | `/api/v1/keys`                                                   | 按组织 API Key 管理（ADR-033）                                |
 | `portfolioRoutes.ts`         | `/api/v1/portfolios`                                             | 租户作用域组合持久化（ADR-034）                               |
 | `configRoutes.ts`            | `/api/v1/configs`                                                | 租户作用域命名配置持久化（ADR-034）                           |
@@ -168,6 +168,15 @@ flowchart TB
 | `billingRoutes.ts`           | `/api/v1/billing`                                                | Stripe 计费（订阅、Checkout、Portal，ADR-036）                |
 | `jobRoutes.ts`               | `/api/v1`                                                        | 异步任务状态查询（ADR-019 所有权隔离）                        |
 | `adminRoutes.ts`             | `/api/v1/admin`                                                  | 管理后台接口                                                  |
+| `adminKeyRoutes.ts`          | `/api/v1/admin/keys`                                             | 管理后台 API Key 管理（ADMIN_ACCESS）                         |
+| `auditRoutes.ts`             | `/api/v1/admin/audit-logs`                                       | 审计日志查询（P2-03 不可篡改审计存储）                        |
+| `rbacRoutes.ts`              | `/api/v1/admin`                                                  | RBAC 角色与权限管理（requireTenant 中间件）                   |
+| `customTickerRoutes.ts`      | `/api/v1/data/custom`                                            | 自定义标的元数据管理                                          |
+| `announcementRoutes.ts`      | `/api/v1/announcements`                                          | 平台公告发布与查询                                            |
+| `tacticalConfigRoutes.ts`    | `/api/v1/tactical/configs`                                       | 战术配置持久化（ADR-034）                                     |
+| `errorReportRoutes.ts`       | `/api/v1/errors`                                                 | 前端错误上报（P1-3，无需认证，限流由全局 apiLimiter 覆盖）    |
+| `featureFlagRoutes.ts`       | `/api/v1/feature-flags`                                          | 特性开关查询（Unleash 集成）                                  |
+| `webhookRoutes.ts`           | `/api/v1/webhooks`                                               | Webhook 端点管理（P2-02，ADMIN_ACCESS）                       |
 
 > 注：认证授权已实现 JWT + RBAC 模型（见 [ADR-017](adr/ADR-017-认证授权模型.md)），保留 `x-api-key` 兼容模式（analyst 角色）。
 
@@ -258,7 +267,7 @@ flowchart TB
 
 ```
 data/
-├── market/tickers/    # 标的行情 JSON（仅用于 npm run import:tickers 导入，非运行时降级）
+├── market/tickers/    # 标的行情 JSON（仅用于 pnpm import:tickers 导入，非运行时降级）
 └── cache/             # 运行时缓存 (gitignore)
 ```
 
@@ -279,14 +288,14 @@ data/
 
 ### 9.3 数据存储演进：JSON → SQLite → PostgreSQL
 
-- 早期采用 JSON 文件存储（见 ADR-002，已被 ADR-006 取代）
-- 2026-06 初，数据读取路径迁移至 SQLite（better-sqlite3 + WAL 模式，见 ADR-006）
+- 早期采用 JSON 文件存储（见 ADR-002，已被 ADR-007 取代）
+- 2026-06 初，数据读取路径迁移至 SQLite（better-sqlite3 + WAL 模式，中间过渡方案）
 - 2026-06 中，从 SQLite 迁移至 PostgreSQL（pgx + pg 驱动，见 ADR-007）
   - 解除多实例水平扩展阻塞（SQLite 单文件无法跨 Pod 共享）
   - 获得连接池、全文搜索（tsvector + GIN）、流复制等企业级能力
 - `packages/backend/src/db/` 实现版本化 schema 迁移和 JSON→PostgreSQL 导入
-- JSON 文件仅用于 `npm run import:tickers` 导入，非运行时降级路径（ADR-031 fail-closed）
-- 迁移决策详见 [ADR-006](adr/ADR-006-SQLite迁移决策.md)、[ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)
+- JSON 文件仅用于 `pnpm import:tickers` 导入，非运行时降级路径（ADR-031 fail-closed）
+- 迁移决策详见 [ADR-007](adr/ADR-007-PostgreSQL迁移决策.md)
 
 ### 9.4 已知局限性
 
@@ -326,7 +335,7 @@ data/
 | [ADR-035](adr/ADR-035-自助注册与组织邀请.md)                    | 自助注册与组织邀请                         | 已接受 |
 | [ADR-036](adr/ADR-036-Stripe计费.md)                            | Stripe 计费                                | 已接受 |
 | [ADR-037](adr/ADR-037-配额计量与公平调度.md)                    | 配额计量与公平调度                         | 已接受 |
-| [ADR-038](adr/ADR-038-ci-tiering-and-dependency-enforcement.md) | CI 分层与依赖方向强制                      | 已接受 |
+| [ADR-052](adr/ADR-052-ci-tiering-and-dependency-enforcement.md) | CI 分层与依赖方向强制                      | 已实施 |
 | [ADR-042](adr/ADR-042-api-packages-consolidation.md)            | API 包合并                                 | 已接受 |
 | [ADR-043](adr/ADR-043-baostock-provider双通路职责分离.md)       | baostock 双通路职责分离                    | 已接受 |
 | [ADR-044](adr/ADR-044-otel-saas-replacement.md)                 | OTel SaaS 替换（go-shared + 环境变量切换） | 已接受 |

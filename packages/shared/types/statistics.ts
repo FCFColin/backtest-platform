@@ -333,3 +333,22 @@ export function createEmptyStatistics(): Statistics {
     winRate: { ...ZERO_SKEW },
   };
 }
+
+/**
+ * 将 Statistics 转换为表格组件可消费的扁平 Record<string, number> 视图。
+ *
+ * 企业为何需要：Statistics 接口含嵌套对象字段（var/cvar/skewness/excessKurtosis/winRate）
+ * 用于分组展示，但 StatisticsTableV2/ExtendedMetricsTable 仅按字符串 key 访问扁平数字
+ * 字段（cagr/sharpe/etc.）。此前调用方在 BacktestResults.tsx 用 `as unknown as
+ * Record<string, number>` 双重断言绕过类型系统（D6-013）。本 helper 集中类型断言到
+ * 单一位置，便于审计与维护；调用方使用 `toStatsRecord(p.statistics)` 即可。
+ *
+ * 安全性论证：表格组件访问未知 key 时使用 `?? 0` 兜底，列定义仅包含扁平字段名
+ * （如 'var5'/'cvar5'），永远不会访问嵌套对象字段（var/cvar 等），故运行时安全。
+ *
+ * @param stats - 完整 Statistics 对象（含嵌套对象字段）
+ * @returns 表格组件可消费的扁平 Record<string, number> 视图
+ */
+export function toStatsRecord(stats: Statistics): Record<string, number> {
+  return stats as unknown as Record<string, number>;
+}

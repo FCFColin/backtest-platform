@@ -1,14 +1,16 @@
-# Agent Guide — 回测平台 (Backtest Platform)
+﻿# Agent Guide — 回测平台 (Backtest Platform)
 
 ## Quick Start
 
-```powershell
-npm install          # Install dependencies
-npm run dev          # Start frontend (15173) + backend API (15001)
-npm run check        # TypeScript type check (tsc --noEmit)
-npm run lint         # ESLint
-npm run test         # Vitest (all tests)
-npm run test:unit    # Unit tests only
+**Prerequisites**: Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+
+
+`powershell
+pnpm install         # Install dependencies
+pnpm dev             # Start frontend (15173) + backend API (15001)
+pnpm check           # TypeScript type check (tsc --noEmit)
+pnpm lint            # ESLint
+pnpm test            # Vitest (all tests)
+pnpm test:unit       # Unit tests only
 ```
 
 ## Tech Stack
@@ -30,7 +32,7 @@ npm run test:unit    # Unit tests only
 - **4 services, 2 languages (TS/Go)**: Frontend → Express API → Go engine + Go data service
 - **Degradation**: Engine: Go → fail-closed 503 (ADR-031); Data: PostgreSQL → Go data-fetcher (missing tickers only). JSON files are import-only, not runtime fallback.
 - Full topology: `docs/ARCHITECTURE.md`
-- All ADRs: `docs/adr/` (28 active records; see `docs/adr/README.md` for full index including deleted/merged)
+- All ADRs: `docs/adr/` (39 active records; see `docs/adr/README.md` for full index including deleted/merged)
 
 ## Conventions
 
@@ -63,18 +65,18 @@ npm run test:unit    # Unit tests only
 - Vitest for unit/integration/contract/chaos/property tests
 - Playwright for E2E UI tests
 - Test files co-located in `tests/` top-level directory
-- Coverage target: lines ≥80%, functions ≥80%, branches ≥70%, statements ≥80%
+- Coverage target: lines ≥80%, functions ≥80%, branches ≥70%, statements ≥80%（以 `scripts/check-coverage.mjs` 为权威源）
 
 #### Test Commands
 
 ```powershell
-npm run test:unit          # Vitest unit tests (mocks, no DB)
-npm run test:integration   # Vitest integration tests (testcontainers; Docker for full coverage)
-npm run test:contract      # OpenAPI 3.0 contract conformance (coverage ≥95%)
-npm run test:chaos         # Chaos experiments (requires Docker + full application stack)
-npm run test:property      # Property-based invariant tests (fast-check, no Docker)
-npm run test:e2e:ui        # Playwright browser E2E (requires postgres + redis + engine-go + data-fetcher)
-npm run test:docker        # All Vitest tests with RUN_TESTCONTAINERS=1 (chaos + integration Docker paths)
+pnpm test:unit              # Vitest unit tests (mocks, no DB)
+pnpm test:integration       # Vitest integration tests (testcontainers; Docker for full coverage)
+pnpm test:contract          # OpenAPI 3.0 contract conformance (coverage ≥95%)
+pnpm test:chaos              # Chaos experiments (requires Docker + full application stack)
+pnpm test:property           # Property-based invariant tests (fast-check, no Docker)
+pnpm test:e2e:ui              # Playwright browser E2E (requires postgres + redis + engine-go + data-fetcher)
+pnpm test:docker              # All Vitest tests with RUN_TESTCONTAINERS=1 (chaos + integration Docker paths)
 ```
 
 #### Test Directories

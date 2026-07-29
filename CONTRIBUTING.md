@@ -1,4 +1,4 @@
-# 贡献指南
+﻿# 贡献指南
 
 > **企业理由**：统一的贡献规范能降低协作摩擦、减少代码审查中的低级争议、保证多语言多运行时项目的一致性与可维护性，从而加速交付并降低线上故障风险。
 
@@ -26,7 +26,7 @@
 | 工具    | 最低版本 | 用途                                               |
 | ------- | -------- | -------------------------------------------------- |
 | Node.js | 20+      | 前端 / API 服务                                    |
-| Go      | 1.22+    | 计算引擎 (engine-go) + 数据抓取服务 (data-fetcher) |
+| Go      | 1.26+    | 计算引擎 (engine-go) + 数据抓取服务 (data-fetcher) |
 | Docker  | 20.10+   | 容器化构建与本地服务编排                           |
 | Git     | 2.40+    | 版本控制                                           |
 
@@ -39,7 +39,7 @@
 git clone <repo-url> && cd 回测平台
 
 # 2. 安装 Node.js 依赖
-npm install
+pnpm install
 
 # 3. 安装 Go 依赖（计算引擎 engine-go + 数据服务 data-fetcher）
 cd engine-go && go mod download && cd ..
@@ -64,7 +64,7 @@ docker compose up -d
 
 - **格式化**：Prettier（配置见项目根目录 `prettier.config.*`）
 - **Lint**：ESLint（配置见 `.eslintrc.*`）
-- 运行：`npm run lint` / `npm run format`
+- 运行：`pnpm lint` / `pnpm format`
 
 ### Go
 
@@ -185,12 +185,7 @@ main          ← 受保护，仅通过 PR 合入，禁止直接推送
 
 - 每个模块须有单元测试，覆盖核心逻辑路径
 - Go：`go test ./...`，目标覆盖率 ≥ 70%
-- TypeScript：`npm run test`（Vitest），目标覆盖率 ≥ 70%
-
-### 一致性测试
-
-- 回测引擎的 Go 实现与 Node 参考实现须有一致性测试确保结果对齐
-- 一致性测试用例放在 `tests/consistency/` 目录下
+- TypeScript：`pnpm test`（Vitest），目标覆盖率 lines/functions/statements ≥80%, branches ≥70%（以 `scripts/check-coverage.mjs` 为权威源）
 
 ### 测试目录结构
 
@@ -200,12 +195,11 @@ main          ← 受保护，仅通过 PR 合入，禁止直接推送
 | ----------- | -------------------- | ----------------------------------------- |
 | 单元测试    | `tests/unit/`        | 模块级独立逻辑测试，mock 外部依赖         |
 | 集成测试    | `tests/integration/` | 多模块协作、API 与数据库交互验证          |
-| 一致性测试  | `tests/consistency/` | Go 引擎与 Node 参考实现的同一算法结果对齐 |
 | 契约测试    | `tests/contract/`    | 服务间接口契约验证，防止破坏性变更        |
 | 混沌测试    | `tests/chaos/`       | 故障注入下的系统韧性验证                  |
-| 基准测试    | `tests/benchmark/`   | 核心操作性能基线，检测性能回归            |
-| 模糊测试    | `tests/fuzz/`        | 随机/异常输入的鲁棒性验证                 |
+| 属性测试    | `tests/property/`    | 基于不变式的属性测试（fast-check）        |
 | E2E UI 测试 | `tests/e2e/ui/`      | 关键业务流程的 Playwright 端到端 UI 测试  |
+| 测试辅助    | `tests/helpers/`     | 共享测试夹具与 mock                       |
 
 - E2E UI 测试覆盖关键业务流程（数据抓取 → 回测计算 → 结果输出）
 - 可使用 Docker Compose 搭建完整测试环境
@@ -226,7 +220,7 @@ Test<功能>_<场景>_<预期结果>
 
 | 语言       | 锁文件              | 命令          |
 | ---------- | ------------------- | ------------- |
-| TypeScript | `package-lock.json` | `npm install` |
+| TypeScript | `pnpm-lock.yaml` | `pnpm install` |
 | Go         | `go.sum`            | `go mod tidy` |
 
 - 新增依赖须在 PR 中说明理由，避免引入功能重复的包

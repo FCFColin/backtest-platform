@@ -9,9 +9,9 @@
 
 ```bash
 # 火焰图（CPU 热点）
-npm run profile:flame
+pnpm profile:flame
 # Doctor（事件循环延迟、GC、I/O 诊断 + 建议）
-npm run profile:doctor
+pnpm profile:doctor
 ```
 
 运行后对服务施加负载（见 `scripts/load/`），Ctrl-C 结束，clinic 生成 HTML 报告。

@@ -87,7 +87,7 @@ _暂无未发布变更。最新发布见 [0.4.0]。_
   - `tests/unit/middleware/auth.test.ts`：12 个测试（requireApiKey 7 分支 + optionalApiKey 5 分支），使用 `vi.hoisted()` 解决 mock 变量提升
   - `tests/unit/middleware/auditLog.test.ts`：9 个测试（GET/HEAD/OPTIONS 跳过、POST/PUT/DELETE 注册 finish 回调、审计日志记录、anonymous userId、API Key 哈希化）
   - `tests/unit/routes/healthRoutes.test.ts`：5 个测试（health 端点 Go 引擎可用/不可用/非 2xx + metrics 端点 Prometheus 格式 + saturation 指标验证），使用 Express `app.listen(0)` + 真实 fetch 替代 supertest
-  - `vitest.config.ts` 添加 coverage thresholds：lines 70% / functions 70% / branches 60% / statements 70%
+  - `vitest.config.ts` 添加 coverage thresholds：lines 70% / functions 70% / branches 60% / statements 70%（后提升至 lines/functions/statements ≥80%, branches ≥70%，见 `scripts/check-coverage.mjs`）
 - **T-P1-8 JWT/RBAC 接入**：从死代码升级为生产可用认证授权
   - 配置层：新增 `JWT_SECRET` / `JWT_ACCESS_TTL` / `JWT_REFRESH_TTL` 配置项；`validateConfig()` 校验生产环境 JWT_SECRET 必须修改默认值
   - 认证路由：新增 4 端点 `POST /api/auth/{login,refresh,logout}` + `GET /api/auth/me`，支持 Refresh Token 轮换，登录使用 `timingSafeEqual` 防时序攻击

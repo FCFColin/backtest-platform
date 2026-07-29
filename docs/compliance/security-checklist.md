@@ -92,7 +92,7 @@
   - 计划：P2-01 APISIX 网关部署后启用 waf 插件
   - 当前：Nginx 基础请求过滤
 
-- [x] **c) 已知漏洞扫描（govulncheck + npm audit）**
+- [x] **c) 已知漏洞扫描（govulncheck + pnpm audit）**
   - 实现：CI `security-scan` job 阻断合并（P1-04 T1）
   - 文档：`docs/compliance/vulnerability-management.md`
 

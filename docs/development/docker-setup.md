@@ -9,7 +9,7 @@
 | Windows        | 10 build 19044+ | Windows 11 推荐;WSL2 需内核 5.10+          |
 | Docker Desktop | 4.30+           | 启用 WSL2 backend,不要用 Hyper-V backend   |
 | WSL2           | 内核 5.10+      | `wsl --update` 升级                        |
-| pnpm           | 9.x             | 项目包管理器                               |
+| pnpm           | 11.x            | 项目包管理器                               |
 | Node.js        | 20.x            | 与 CI 一致(see `.github/workflows/ci.yml`) |
 
 ## 2. 安装步骤
@@ -89,7 +89,7 @@ docker compose down
 ### 4.1 一键跑全套(推荐)
 
 ```powershell
-npm run test:docker
+pnpm test:docker
 ```
 
 该脚本等价于 `cross-env RUN_TESTCONTAINERS=1 vitest run`,会启用所有依赖 Docker 的测试路径。
@@ -106,7 +106,7 @@ docker compose up -d postgres redis engine-go api
 npx wait-on http://127.0.0.1:15001/api/health --timeout 120000
 
 # 跑 chaos(5 个 experiment 全部执行,不再 7 skip)
-npm run test:chaos
+pnpm test:chaos
 ```
 
 ### 4.3 单独跑 integration
@@ -116,10 +116,10 @@ integration 测试通过 testcontainers 自启动临时 postgres 容器,不需�
 ```powershell
 # 设置环境变量启用 testcontainers 路径
 $env:RUN_TESTCONTAINERS=1
-npm run test:integration
+pnpm test:integration
 
 # 或一次性
-cross-env RUN_TESTCONTAINERS=1 npm run test:integration
+cross-env RUN_TESTCONTAINERS=1 pnpm test:integration
 ```
 
 启用后,Docker 路径 41 个集成测试从 skip 恢复为执行(总 skip 从 70 降至 ≤29)。

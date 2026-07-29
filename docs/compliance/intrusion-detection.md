@@ -56,7 +56,7 @@
 | 措施         | 实现                                       | 状态       |
 | ------------ | ------------------------------------------ | ---------- |
 | 镜像漏洞扫描 | Trivy CI 扫描（HIGH/CRITICAL）             | ✅         |
-| 依赖漏洞扫描 | npm audit + govulncheck CI 阻断            | ✅         |
+| 依赖漏洞扫描 | pnpm audit + govulncheck CI 阻断            | ✅         |
 | 最小权限容器 | 非 root 用户运行                           | ✅         |
 | 只读文件系统 | K8s securityContext readOnlyRootFilesystem | ✅（生产） |
 
@@ -86,4 +86,4 @@
 | 8.1.3.4 a) | 攻击行为检测 | 异常登录检测 + WAF + 限流       | ✅   |
 | 8.1.3.4 b) | 攻击行为记录 | 审计日志 + Prometheus 指标      | ✅   |
 | 8.1.3.4 c) | 入侵告警     | AlertManager 告警链路           | ✅   |
-| 8.1.3.4 d) | 漏洞扫描     | npm audit + govulncheck + Trivy | ✅   |
+| 8.1.3.4 d) | 漏洞扫描     | pnpm audit + govulncheck + Trivy | ✅   |
