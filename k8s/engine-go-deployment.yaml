@@ -23,9 +23,15 @@ spec:
         app.kubernetes.io/part-of: backtest-platform
     spec:
       terminationGracePeriodSeconds: 35
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: engine-go
-          image: backtest-platform/engine-go
+          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
+          image: backtest-platform/engine-go:v1.0.0
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -66,7 +72,7 @@ spec:
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /api/engine/health
+              path: /api/ready
               port: 5004
             initialDelaySeconds: 5
             periodSeconds: 10

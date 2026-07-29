@@ -1,0 +1,51 @@
+# 回测平台 (Backtest Platform)
+
+> 面向个人投资者的专业组合回测、蒙特卡洛模拟、因子回归与战术分配工具。
+> 支持合成标的历史回测至 1962 年。前端 React 18 + TypeScript，后端 Express + Go 引擎。
+
+## 主要工具
+
+- [组合回测](/): 资产配置回测，支持调仓、现金流、多币种
+- [蒙特卡洛模拟](/monte-carlo): 基于历史数据的随机路径模拟
+- [组合优化器](/optimizer): 基于约束条件的最优权重搜索
+- [有效前沿](/efficient-frontier): 马科维茨有效前沿可视化
+- [因子回归](/factor-regression): 多因子模型回归分析
+- [主成分分析](/pca): 资产收益率 PCA 降维
+- [战术分配](/tactical): 基于信号的战术资产分配
+- [战术网格搜索](/tactical-grid): 多参数网格搜索
+- [信号分析](/signal-analyzer): 单信号回测
+- [双信号](/dual-signal): 双信号组合回测
+- [多信号](/multi-signal): 多信号组合回测
+- [LETF 滑点](/letf-slippage): 杠杆 ETF 滑点分析
+- [一次性 vs 定投](/lumpsum-vs-dca): 一次性投入与定投对比
+- [目标优化器](/goal-optimizer): 基于目标收益的权重优化
+- [调仓敏感性](/rebalancing-sensitivity): 调仓频率敏感性分析
+- [计算器](/calculators): 金融计算器集合
+- [组合对比](/portfolio-comparison): 多组合横向对比
+- [SWR](/swr): 安全提取率计算
+- [TVM 扫描器](/tvm-scanner): 时间价值扫描器
+- [数据引擎](/data-engine): 数据源与覆盖范围
+
+## 公开页面
+
+- [关于](/about): 平台介绍
+- [帮助](/help): 使用文档
+- [定价](/pricing): 订阅方案
+- [更新日志](/changelog): 版本变更记录
+- [联系](/contact): 联系方式
+
+## API
+
+- [API 文档](/api/docs): OpenAPI 3.0 规范
+- [健康检查](/api/health): 服务健康状态
+
+## 文档
+
+- [架构文档](https://github.com/backtest-platform/docs/ARCHITECTURE.md): 系统架构
+- [ADR](https://github.com/backtest-platform/docs/adr/): 架构决策记录
+
+## 可选
+
+- [工作区](/workspace): 自定义工作区（需登录）
+- [账户](/account): 账户设置（需登录）
+- [管理后台](/admin): 平台管理（需管理员）

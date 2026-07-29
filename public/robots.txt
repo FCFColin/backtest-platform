@@ -1,0 +1,23 @@
+# 回测平台 robots.txt
+# 允许搜索引擎抓取公开页面，禁止抓取 API 与认证/账户/管理后台
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /help
+Allow: /pricing
+Allow: /changelog
+Allow: /contact
+Disallow: /api/
+Disallow: /admin
+Disallow: /account
+Disallow: /billing
+Disallow: /org/
+Disallow: /login
+Disallow: /signup
+Disallow: /verify-email
+Disallow: /accept-invite
+
+# AI 爬虫友好：指向 llms.txt
+# https://llmstxt.org
+
+Sitemap: /sitemap.xml

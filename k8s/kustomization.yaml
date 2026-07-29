@@ -21,6 +21,7 @@ resources:
   - api-pdb.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
+  - frontend-pdb.yaml
   - ingress.yaml
   - engine-go-deployment.yaml
   - engine-go-service.yaml
@@ -29,16 +30,19 @@ resources:
   - data-fetcher-deployment.yaml
   - data-fetcher-service.yaml
   - data-fetcher-pdb.yaml
+  - data-fetcher-hpa.yaml
   - worker-deployment.yaml
   - worker-pdb.yaml
+  - worker-hpa.yaml
   - postgres.yaml
   - pgbouncer.yaml
   - redis.yaml
-  - otel-collector.yaml
+  # DEPRECATED (ADR-044): self-hosted OTel Collector 已由 SaaS 直出替代
+  # 保留文件供参考，但不包含在 kustomize 构建中
+  # - otel-collector.yaml
   - canary-deployment.yaml
   - mtls-issuer.yaml
   - unleash-deployment.yaml
-  - unleash-secret.yaml.example
   - prometheus-rules.yaml
   - alertmanager-deployment.yaml
   - network-policies/

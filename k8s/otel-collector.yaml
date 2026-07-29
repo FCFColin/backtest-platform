@@ -1,3 +1,8 @@
+# DEPRECATED (ADR-044): This self-hosted OTel Collector has been replaced by SaaS direct export.
+# Services now export traces directly to SaaS backend via OTEL_EXPORTER_OTLP_ENDPOINT env var.
+# This file is retained for reference only and is NOT included in kustomization.yaml.
+# To re-enable self-hosted Collector, add this file back to kustomization.yaml and set
+# OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 in the configmap.
 # 企业理由：OTel Collector 是可观测性数据管道的核心组件，接收所有服务的 trace 数据
 # 并转发到后端（Jaeger/Tempo）。无 Collector 时，每个服务需直连后端，耦合度高，
 # 且无法统一采样、过滤和批处理策略。

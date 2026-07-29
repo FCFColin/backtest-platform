@@ -39,7 +39,6 @@ resources:
   - ../canary-deployment.yaml
   - ../mtls-issuer.yaml
   - ../unleash-deployment.yaml
-  - ../unleash-secret.yaml.example
   - ../prometheus-rules.yaml
   - ../alertmanager-deployment.yaml
   - ../network-policies/

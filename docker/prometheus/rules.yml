@@ -8,7 +8,7 @@
 #   http_requests_total{method,route,status_code}  应用层 prom-client
 #   http_request_duration_seconds_bucket     应用层 prom-client（直方图）
 #   up{job=...}                              Prometheus 抓取健康
-#   pg_up / pg_replication_lag_seconds       postgres_exporter
+#   pg_up / pg_replication_lag       postgres_exporter
 #   bullmq_queue_size                        bullmq-exporter（需独立部署）
 #   node_filesystem_avail_bytes / _size_bytes node_exporter
 #
@@ -106,7 +106,7 @@ groups:
 
       # PG 复制延迟 > 5s（P1-03 读写分离，从库滞后影响读一致性）
       - alert: ReplicationLag
-        expr: pg_replication_lag_seconds > 5
+        expr: pg_replication_lag > 5
         for: 2m
         labels:
           severity: warning

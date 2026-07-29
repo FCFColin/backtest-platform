@@ -34,7 +34,7 @@ const PAGES = [
   { slug: 'dual-signal', path: '/dual-signal' },
   { slug: 'multi-signal', path: '/multi-signal' },
   { slug: 'pca', path: '/pca' },
-  { slug: 'letf', path: '/letf' },
+  { slug: 'letf', path: '/letf-slippage' },
   { slug: 'factor-regression', path: '/factor-regression' },
   { slug: 'goal-optimizer', path: '/goal-optimizer' },
   { slug: 'calculators', path: '/calculators' },

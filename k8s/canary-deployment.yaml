@@ -4,7 +4,7 @@
 # 异常自动回滚，正常则逐步提升至 100%。
 #
 # 依赖：Istio (VirtualService + DestinationRule) 实现按权重流量切分。
-# 回滚机制：Prometheus 指标异常 → ArgoCD 自动回滚到 stable。
+# 回滚机制：当前为手动回滚（ArgoCD Rollouts 自动回滚尚未实现，计划引入 AnalysisTemplate + Rollout CRD）。
 #
 # 参考：ADR-036（Stripe billing + canary deployment）
 
@@ -31,9 +31,21 @@ spec:
         track: canary
     spec:
       terminationGracePeriodSeconds: 35
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: api
-          image: registry.example.com/backtest-api:canary
+          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
+          image: backtest-platform/api:v1.0.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 5001
           envFrom:
@@ -60,6 +72,12 @@ spec:
             limits:
               cpu: 1000m
               memory: 1Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 # Istio VirtualService：按权重切分流量（canary 10%，stable 90%）
 apiVersion: networking.istio.io/v1beta1

@@ -29,9 +29,15 @@ spec:
         app.kubernetes.io/part-of: backtest-platform
     spec:
       terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: worker
-          image: backtest-platform/worker
+          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
+          image: backtest-platform/worker:v1.0.0
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

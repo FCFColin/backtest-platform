@@ -24,15 +24,26 @@ data:
     reserve_pool_timeout = 3
     server_idle_timeout = 300
     server_lifetime = 3600
-    auth_type = md5
+    auth_type = scram-sha-256
     auth_file = /etc/pgbouncer/userlist.txt
     log_connections = 0
     log_disconnections = 0
     stats_period = 60
     admin_users = backtest
 
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pgbouncer-userlist
+  namespace: backtest-platform
+  labels:
+    app.kubernetes.io/part-of: backtest-platform
+type: Opaque
+stringData:
   userlist.txt: |
-    "backtest" "md5XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    "backtest" "SCRAM-SHA-256$4096:placeholder=="
+    "backtest_app" "SCRAM-SHA-256$4096:placeholder=="
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -54,10 +65,18 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
-        readOnlyRootFilesystem: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: pgbouncer
           image: edoburu/pgbouncer:1.23.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 5432
           env:
@@ -71,6 +90,9 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/pgbouncer
+            - name: userlist
+              mountPath: /etc/pgbouncer/userlist.txt
+              subPath: userlist.txt
           resources:
             requests:
               memory: 32Mi
@@ -92,6 +114,9 @@ spec:
         - name: config
           configMap:
             name: pgbouncer-config
+        - name: userlist
+          secret:
+            secretName: pgbouncer-userlist
 ---
 apiVersion: v1
 kind: Service

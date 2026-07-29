@@ -51,7 +51,7 @@ spec:
         # 故障转移进行中——Sentinel 正在选举新 master
         - alert: RedisSentinelFailoverInProgress
           expr: |
-            max(redis_sentinel_master_failover_status{state="failover_in_progress"} == 1) by (master)
+            max(redis_sentinel_master_status{state="failover_in_progress"} == 1) by (master)
           for: 30s
           labels:
             severity: critical
@@ -142,7 +142,7 @@ spec:
         # 从节点复制延迟过高——min-slaves-max-lag=10 即将触发
         - alert: RedisReplicationLagHigh
           expr: |
-            max(redis_replication_lag_seconds) by (addr) > 5
+            max(redis_replication_offset_diff_lag_seconds) by (addr) > 5
           for: 2m
           labels:
             severity: warning
@@ -187,7 +187,7 @@ spec:
 #   http_requests_total{method,route,status_code}   应用层 prom-client
 #   http_request_duration_seconds_bucket            应用层 prom-client（直方图）
 #   up{job=...}                                     Prometheus 抓取健康
-#   pg_up / pg_replication_lag_seconds              postgres_exporter
+#   pg_up / pg_replication_lag              postgres_exporter
 #   bullmq_queue_size                               bullmq-exporter（需独立部署）
 #   node_filesystem_avail_bytes / _size_bytes       node_exporter
 #
@@ -290,7 +290,7 @@ spec:
 
         # PG 复制延迟 > 5s（P1-03 读写分离，从库滞后影响读一致性）
         - alert: ReplicationLag
-          expr: pg_replication_lag_seconds > 5
+          expr: pg_replication_lag > 5
           for: 2m
           labels:
             severity: warning

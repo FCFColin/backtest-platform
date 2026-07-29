@@ -35,9 +35,15 @@ spec:
         app.kubernetes.io/part-of: backtest-platform
     spec:
       terminationGracePeriodSeconds: 35
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
       containers:
         - name: frontend
-          image: backtest-platform/frontend
+          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
+          image: backtest-platform/frontend:v1.0.0
           securityContext:
             runAsNonRoot: true
             runAsUser: 101 # nginx:stable-alpine 内置 nginx 用户 UID/GID 101
