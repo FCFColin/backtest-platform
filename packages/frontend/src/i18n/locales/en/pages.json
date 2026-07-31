@@ -1,8 +1,5 @@
 {
   "about": {
-    "title": "About the Platform",
-    "limitsTitle": "Usage Limits",
-    "upgradeTitle": "Upgrade Plans",
     "tabs": {
       "about": "About",
       "limits": "Limits",
@@ -11,72 +8,15 @@
     "brandName": "Backtest Platform",
     "versionInfo": "v1.0.0 · Self-hosted · Full data sovereignty",
     "intro": "The Backtest Platform is an open-source portfolio backtesting tool supporting multiple markets (US/China/HK/Japan/Europe etc.), multiple currencies (USD/CNY), inflation adjustment, FX conversion, Monte Carlo simulation, portfolio optimization, and efficient frontier analysis. All data is stored locally — no registration required, no privacy leakage risk.",
-    "features": {
-      "localDeployTitle": "Self-Hosted",
-      "localDeployDesc": "All data stored locally, never uploaded to the cloud — privacy-first",
-      "multiMarketTitle": "Multi-Market Support",
-      "multiMarketDesc": "US, China, HK, Japan, Europe and other major global markets",
-      "highPerfTitle": "High-Performance Engine",
-      "highPerfDesc": "Rust backtest engine + Go data service, millisecond response",
-      "richDataTitle": "Rich Data",
-      "richDataDesc": "12,000+ tickers, including price, fundamentals, and factor data"
-    },
     "techStackTitle": "Tech Stack",
     "techStackContent": "Rust (backtest engine) · Go (data service) · TypeScript (frontend + API glue) · React + Recharts",
     "limits": {
       "intro": "This is a self-hosted edition with no cloud restrictions. The following limits apply only to data fetching and compute resources:",
-      "portfolioCountLabel": "Portfolios",
-      "portfolioCountValue": "Unlimited",
-      "portfolioCountDesc": "Backtest any number of portfolios concurrently",
-      "tickerCountLabel": "Tickers",
-      "tickerCountValue": "12,000+",
-      "tickerCountDesc": "Cached tickers, continuously growing",
-      "backtestRangeLabel": "Backtest Time Range",
-      "backtestRangeValue": "Full History",
-      "backtestRangeDesc": "From earliest available data to date",
-      "mcSimLabel": "Monte Carlo Simulation",
-      "mcSimValue": "Unlimited",
-      "mcSimDesc": "Local compute, no iteration cap",
-      "fetchFreqLabel": "Data Fetch Frequency",
-      "fetchFreqValue": "Conservative",
-      "fetchFreqDesc": "Yahoo 30 req/min, iTick requires token",
-      "concurrentLabel": "Concurrent Backtests",
-      "concurrentValue": "CPU-Bound",
-      "concurrentDesc": "Go engine uses goroutines for parallelism",
       "noticeTitle": "Note",
       "noticeContent": "Data fetching is subject to third-party API rate limits. yfinance defaults to 30 req/min; iTick API requires registration for a token. Prefer incremental updates over full refreshes to avoid triggering rate limits."
     },
     "upgrade": {
       "intro": "The current version already includes all core features. The following are optional enhancement plans:",
-      "freePlanTitle": "Free Edition (Current)",
-      "freePlanPrice": "Free",
-      "freePlanFeatures": [
-        "Portfolio backtest + 16 analysis tabs",
-        "Monte Carlo simulation",
-        "Portfolio optimization + efficient frontier",
-        "Asset analysis",
-        "12,000+ tickers",
-        "USD/CNY dual currency",
-        "Inflation adjustment + FX conversion"
-      ],
-      "dataPlanTitle": "Data Enhancement",
-      "dataPlanPrice": "Self-configured",
-      "dataPlanFeatures": [
-        "iTick API token (real-time quotes)",
-        "TradingView Screener (fundamental data)",
-        "BaoStock TCP direct (China A-shares)",
-        "Custom data source integration",
-        "Faster fetch speeds",
-        "Higher factor coverage"
-      ],
-      "perfPlanTitle": "Performance Enhancement",
-      "perfPlanPrice": "Hardware Upgrade",
-      "perfPlanFeatures": [
-        "More CPU cores → faster Monte Carlo",
-        "SSD → faster data loading",
-        "More RAM → more cached tickers",
-        "GPU acceleration (future support)"
-      ],
       "currentPlan": "Current Plan"
     }
   },
@@ -263,40 +203,6 @@
         "periodic": "Periodic Rebalancing: Restore portfolio weights to target proportions at fixed frequencies (monthly/quarterly/annually).",
         "threshold": "Threshold Rebalancing: Trigger rebalancing when asset weights deviate from target by more than a set threshold (e.g., 5%).",
         "buyHold": "Buy and Hold: No rebalancing after initial setup; let weights drift freely with the market."
-      },
-      "metrics": {
-        "cagr": {
-          "fullName": "Compound Annual Growth Rate",
-          "desc": "The annualized geometric mean return over the entire backtest period — the most core long-term return metric."
-        },
-        "sharpe": {
-          "fullName": "Sharpe Ratio",
-          "desc": "Excess return per unit of total risk. R_f is the risk-free rate (default 0); σ_p is the annualized standard deviation of returns."
-        },
-        "sortino": {
-          "fullName": "Sortino Ratio",
-          "desc": "Similar to Sharpe, but uses only downside volatility as the risk measure — does not penalize upside volatility, better aligning with investor intuition."
-        },
-        "mdd": {
-          "fullName": "Maximum Drawdown",
-          "desc": "The largest peak-to-trough decline in history — measures the worst-case loss magnitude."
-        },
-        "volatility": {
-          "fullName": "Annualized Volatility",
-          "desc": "Daily return standard deviation annualized over 252 trading days — measures portfolio return volatility."
-        },
-        "calmar": {
-          "fullName": "Calmar Ratio",
-          "desc": "Annualized return per unit of maximum drawdown — reflects the reward for taking drawdown risk."
-        },
-        "beta": {
-          "fullName": "Beta Coefficient",
-          "desc": "Systematic risk exposure relative to a benchmark index. β=1 means moving in sync with the benchmark; β>1 is more aggressive."
-        },
-        "alpha": {
-          "fullName": "Alpha",
-          "desc": "Excess return after accounting for systematic risk — measures active management ability."
-        }
       }
     },
     "data": {

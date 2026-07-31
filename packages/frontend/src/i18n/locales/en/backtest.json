@@ -165,9 +165,6 @@
     "run": "Run Backtest"
   },
   "params": {
-    "title": "Parameter Settings",
-    "basicParams": "Basic Parameters",
-    "basicParamsInfo": "Set backtest date range, starting value, currency, inflation adjustment, rolling window and benchmark ticker.",
     "allHistory": "All History",
     "customRange": "Custom Range",
     "dateRange": "Date Range",
@@ -180,25 +177,10 @@
     "currency": "Currency",
     "inflationAdjust": "Inflation Adjust",
     "adjustForInflation": "Adjust for inflation",
-    "useUSCPI": "Use US CPI",
-    "useCNCPI": "Use CN CPI",
     "rollingWindow": "Rolling Window",
-    "extendedStats": "Extended Stats",
     "extendedWithdrawalStats": "Extended withdrawal stats",
     "pickBenchmarkTicker": "Pick benchmark ticker",
-    "benchmark": "Benchmark",
-    "selectBenchmark": "Select Benchmark",
-    "advancedSettings": "Portfolio Advanced Settings",
-    "advancedSettingsInfo": "Set annual drag, total return mode and rebalancing deviation bands for each portfolio. Bands support symmetric (absolute/relative) and asymmetric (upper/lower) modes.",
-    "annualDrag": "Annual Drag",
-    "totalReturnMode": "Total Return Mode",
-    "enableRebalanceBands": "Enable Rebalancing Bands",
-    "absoluteBandSymmetric": "Absolute Band (Symmetric)",
-    "relativeBandSymmetric": "Relative Band (Symmetric)",
-    "upperBandAsymmetric": "Upper Band (Asymmetric)",
-    "lowerBandAsymmetric": "Lower Band (Asymmetric)",
     "cashflowLegs": "Cashflow Legs",
-    "cashflowLegsInfo": "Periodic cashflows: set amount, type (contribution/withdrawal), frequency, offset and end date. Multiple legs can be added.",
     "amount": "Amount",
     "cashflowType": "Cashflow Type",
     "contribution": "Contribution",
@@ -212,7 +194,6 @@
     "until": "Until",
     "addCashflowLeg": "Add Cashflow Leg",
     "oneTimeCashflow": "One-Time Cashflow",
-    "oneTimeCashflowInfo": "One-time contribution or withdrawal on a specified date. Multiple entries can be added.",
     "type": "Type",
     "date": "Date",
     "addOneTimeCashflow": "Add One-Time Cashflow",
@@ -227,6 +208,15 @@
   },
   "portfolio": {
     "title": "Portfolio",
+    "save": "Save",
+    "saveTitle": "Save Portfolio",
+    "share": "Share",
+    "shareTitle": "Share Portfolio",
+    "metaSaved": "Meta saved",
+    "addTag": "Add tag",
+    "removeTag": "Remove tag",
+    "loadPreset": "Load preset",
+    "presetLoaded": "Preset loaded",
     "load": "Load",
     "addPortfolio": "Add Portfolio",
     "addEmpty": "Add Empty",
@@ -234,32 +224,6 @@
     "addAsset": "Add Asset",
     "addSaved": "Add Saved",
     "addGlidepath": "Add Glidepath",
-    "preset": {
-      "60-40": {
-        "label": "60/40 Stocks/Bonds",
-        "description": "VTI 60% / BND 40%"
-      },
-      "80-20": {
-        "label": "80/20 Stocks/Bonds",
-        "description": "VTI 80% / BND 20%"
-      },
-      "40-60": {
-        "label": "40/60 Stocks/Bonds",
-        "description": "VTI 40% / BND 60%"
-      },
-      "three-fund": {
-        "label": "Three-Fund Portfolio",
-        "description": "VTI 50% / VXUS 30% / BND 20%"
-      },
-      "all-weather": {
-        "label": "All-Weather Portfolio",
-        "description": "VTI 30% / TLT 40% / GLD 15% / DBC 15%"
-      },
-      "permanent": {
-        "label": "Permanent Portfolio",
-        "description": "VTI 25% / TLT 25% / GLD 25% / SHV 25%"
-      }
-    },
     "newGlidepath": "New Glide Path",
     "name": "Name",
     "sourcePortfolio": "Source Portfolio",
@@ -273,73 +237,25 @@
     "copyPortfolio": "Copy Portfolio",
     "saveAsJson": "Save as JSON",
     "savedAsJson": "Portfolio saved as JSON file",
-    "rebalance": "Rebalance",
-    "rebalanceNone": "No Rebalancing",
-    "rebalanceAnnual": "Annually",
-    "rebalanceQuarterly": "Quarterly",
-    "rebalanceMonthly": "Monthly",
-    "rebalanceWeekly": "Weekly",
-    "rebalanceDaily": "Daily",
-    "rebalanceThreshold": "Threshold Rebalancing",
     "offset": "Offset",
     "offsetTitle": "Trading days offset from period end",
     "drag": "Drag",
     "dragTitle": "Annual drag percentage, e.g. 0.5 means an extra 0.5% deduction per year",
     "totalReturn": "Total Return",
     "deviationBands": "Deviation Bands",
-    "absoluteDeviation": "Absolute Deviation",
-    "absoluteDeviationTitle": "Absolute deviation percentage, e.g. 5 means rebalance triggered when weight deviates 5% from target",
-    "relativeDeviation": "Relative Deviation",
-    "relativeDeviationTitle": "Relative deviation percentage, e.g. 20 means rebalance triggered when weight deviates 20% from target",
     "evenDistribute": "Even Distribution",
     "stretchTo100": "Stretch to 100%",
     "tickerPlaceholder": "Enter ticker",
     "total": "Total",
-    "weight": "Weight",
     "loadExample": "Load Example",
     "loadCompareExample": "Load Comparison Example",
     "emptyPortfolios": "No portfolios added yet",
     "comingSoon": "Feature coming soon",
-    "deepAnalysis": "Deep Analysis",
-    "singleBacktest": "Single Backtest",
-    "monteCarlo": "Monte Carlo",
-    "efficientFrontier": "Efficient Frontier",
-    "factorRegression": "Factor Regression"
-  },
-  "portfolioComparison": {
-    "title": "Portfolio Comparison",
-    "seoSubtitle": "Cross-period, cross-currency comparison matrix",
-    "seoDesc": "Compare multiple portfolio performances",
-    "description": "Select multiple portfolios for comprehensive cross-period analysis."
+    "deepAnalysis": "Deep Analysis"
   },
   "results": {
     "hideDetailedMetrics": "Hide detailed metrics",
     "showDetailedMetrics": "Show detailed metrics",
-    "tabs": {
-      "summary": "Overview",
-      "metrics": "Metrics",
-      "stats": "Statistics",
-      "custom": "Custom Metrics",
-      "extended": "Extended Metrics",
-      "drawdowns": "Drawdowns",
-      "episodes": "Drawdown Episodes",
-      "analysis": "Drawdown Analysis",
-      "returns": "Returns",
-      "distribution": "Return Distribution",
-      "rolling": "Rolling Metrics",
-      "seasonality": "Seasonality",
-      "yearly": "Yearly Returns",
-      "cashflows": "Cash Flows",
-      "flows": "Cash Flow Details",
-      "turnover": "Turnover & Tax",
-      "rebalance": "Rebalance Stats",
-      "advanced": "Advanced",
-      "allocation": "Allocation",
-      "pie": "Allocation Pie",
-      "correlation": "Correlation & Beta",
-      "regression": "Regression Analysis",
-      "trend": "Trend Chart"
-    },
     "actionBar": {
       "title": "Results",
       "timeRange": "{{years}} yrs · {{start}} to {{end}}",
@@ -357,22 +273,6 @@
     "extendedMetrics": {
       "portfolio": "Portfolio"
     }
-  },
-  "swr": {
-    "title": "Safe Withdrawal Rate",
-    "seoSubtitle": "SWR analysis tool",
-    "seoDesc": "Calculate retirement withdrawal success rate",
-    "description": "Set portfolio weights, withdrawal strategy and retirement period."
-  },
-  "tvmScanner": {
-    "title": "Time Value of Money Scanner",
-    "seoSubtitle": "3-variable heatmap scanner",
-    "seoDesc": "Scan years, rates, amounts to generate heatmap",
-    "description": "Select X/Y/Color variables for multi-dimensional scanning."
-  },
-  "workspace": {
-    "title": "My Workspace",
-    "description": "Manage your tickers, portfolios, strategies and run history."
   },
   "chartBenchmark": {
     "title": "Chart Library Benchmark"

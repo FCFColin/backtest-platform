@@ -29,16 +29,8 @@
       "coverYears": "覆盖 {{years}} 年",
       "dataCoverageRange": "数据覆盖范围",
       "dataSource": "数据源",
-      "lastUpdated": "最近更新",
-      "recordCount": "记录数",
       "statsLoadFailed": "统计信息加载失败",
-      "status": "状态",
-      "statusActive": "活跃",
-      "statusInactive": "未激活",
-      "statusUnknown": "未知",
-      "type": "类型",
-      "typeApi": "API",
-      "typeLocal": "本地"
+      "statusInactive": "未激活"
     },
     "monitor": {
       "autoRefresh": "自动刷新",
@@ -53,8 +45,6 @@
       "refresh": "刷新",
       "rssMemory": "RSS 内存",
       "serviceHealth": "服务健康状态",
-      "statusDegraded": "降级",
-      "statusHealthy": "健康",
       "tickerCount": "标的数：{{count}}",
       "uptime": "运行时间",
       "version": "版本"

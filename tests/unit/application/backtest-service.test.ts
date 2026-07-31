@@ -1,63 +1,41 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import { mockLogger } from '../../helpers/mockFactories.js';
+import {
+  preparePortfolioBacktest,
+  collectInvalidTickerWarnings,
+} from '../../../packages/backend/src/application/backtest-helpers.js';
+import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
+import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
-const engineMocks = vi.hoisted(() => ({
-  callEngineStrict: vi.fn(),
-}));
-
-const eventMocks = vi.hoisted(() => ({
-  dispatch: vi.fn(async () => {}),
-}));
-
-// 事务型 outbox 写入与 DB 客户端 mock：
-// 服务以 fire-and-forget 异步 IIFE 写 outbox 后再 dispatch，
-// 测试需 mock getClient/writeEventInTransaction 使该异步链路可完成。
+const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
+const eventMocks = vi.hoisted(() => ({ dispatch: vi.fn(async () => {}) }));
+// 事务型 outbox 写入与 DB 客户端 mock：服务以 fire-and-forget 异步 IIFE 写 outbox 后再 dispatch
 const dbMocks = vi.hoisted(() => ({
-  getClient: vi.fn(async () => ({
-    query: vi.fn(async () => ({ rows: [] })),
-    release: vi.fn(),
-  })),
+  getClient: vi.fn(async () => ({ query: vi.fn(async () => ({ rows: [] })), release: vi.fn() })),
 }));
-
-const outboxMocks = vi.hoisted(() => ({
-  writeEventInTransaction: vi.fn(async () => {}),
-}));
-
+const outboxMocks = vi.hoisted(() => ({ writeEventInTransaction: vi.fn(async () => {}) }));
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
-  child: vi.fn(() => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  })),
+  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
 // Mock 引擎调用：fail-closed（ADR-031），callEngineStrict 直接返回引擎结果
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
 }));
-
 // Mock 事件分发器：避免加载 handlers（依赖 db 连接）
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
-  eventDispatcher: {
-    dispatch: eventMocks.dispatch,
-  },
+  eventDispatcher: { dispatch: eventMocks.dispatch },
 }));
-
-// Mock DB 客户端与 outbox 写入：避免真实 Postgres 连接，使异步 outbox/事件链路可完成
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getClient: dbMocks.getClient,
-}));
-
+// Mock DB 客户端与 outbox 写入：避免真实 Postgres 连接
+vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getClient: dbMocks.getClient }));
 vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));
-
 // Mock logger：避免 pino 初始化与 OTel 依赖
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
@@ -74,7 +52,6 @@ const mockPortfolio: Portfolio = {
   ],
   rebalanceFrequency: 'monthly',
 };
-
 const mockParameters: BacktestParameters = {
   startDate: '2020-01-02',
   endDate: '2020-12-31',
@@ -83,16 +60,13 @@ const mockParameters: BacktestParameters = {
   rollingWindowMonths: 12,
   benchmarkTicker: 'SPY',
 };
-
 const mockPriceData = {
   AAPL: { '2020-01-02': 100, '2020-01-03': 101 },
   BND: { '2020-01-02': 50, '2020-01-03': 51 },
   SPY: { '2020-01-02': 300, '2020-01-03': 302 },
 };
-
 const mockCpiData = { '2020-01-01': 258.8 };
 const mockExchangeRates = { '2020-01-01': 6.96 };
-
 const mockBacktestResult: BacktestResult = {
   portfolios: [
     {
@@ -122,6 +96,14 @@ const mockBacktestResult: BacktestResult = {
   ],
   correlations: [[1]],
 };
+const executeRun = () =>
+  runBacktest({
+    portfolios: [mockPortfolio],
+    parameters: mockParameters,
+    priceData: mockPriceData,
+    cpiData: mockCpiData,
+    exchangeRates: mockExchangeRates,
+  });
 
 describe('runBacktest', () => {
   beforeEach(() => {
@@ -130,14 +112,7 @@ describe('runBacktest', () => {
   });
 
   it('runBacktest 应以正确参数调用引擎', async () => {
-    await runBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-      priceData: mockPriceData,
-      cpiData: mockCpiData,
-      exchangeRates: mockExchangeRates,
-    });
-
+    await executeRun();
     // 引擎应被 fail-closed 调用一次，指向 Go 回测端点
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
     const [endpoint, body] = engineMocks.callEngineStrict.mock.calls[0];
@@ -152,24 +127,14 @@ describe('runBacktest', () => {
   });
 
   it('runBacktest 应将 BacktestCompleted 事件写入 outbox', async () => {
-    await runBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-      priceData: mockPriceData,
-      cpiData: mockCpiData,
-      exchangeRates: mockExchangeRates,
-    });
-
+    await executeRun();
     // 事件写入 outbox 是异步 fire-and-forget，需等待
     await vi.waitFor(() => expect(outboxMocks.writeEventInTransaction).toHaveBeenCalledTimes(1));
-
     const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
-    // 事件类型与聚合信息
     expect(outboxCall.eventType).toBe('BacktestCompleted');
     expect(outboxCall.aggregateType).toBe('BacktestSession');
     expect(outboxCall.aggregateId).toMatch(/^backtest-\d+$/);
     expect(outboxCall.eventId).toBeDefined();
-    // 事件负载应包含关键指标摘要
     expect(outboxCall.payload.startingValue).toBe(10000);
     expect(outboxCall.payload.portfolioCount).toBe(1);
     expect(outboxCall.payload.totalReturn).toBe(0.2);
@@ -178,14 +143,7 @@ describe('runBacktest', () => {
   });
 
   it('runBacktest 应返回引擎结果', async () => {
-    const result = await runBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-      priceData: mockPriceData,
-      cpiData: mockCpiData,
-      exchangeRates: mockExchangeRates,
-    });
-
+    const result = await executeRun();
     // 返回的 result 应为引擎返回的同一对象（原样透传）
     expect(result.result).toBe(mockBacktestResult);
   });
@@ -202,17 +160,8 @@ describe('runBacktest', () => {
   });
 
   it('eventDispatcher.dispatch 失败时应记录错误但不影响主流程', async () => {
-    // RunStarted + BacktestCompleted 两个事件均会调用 dispatch，统一 reject
     eventMocks.dispatch.mockRejectedValue(new Error('dispatch failed'));
-
-    const result = await runBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-      priceData: mockPriceData,
-      cpiData: mockCpiData,
-      exchangeRates: mockExchangeRates,
-    });
-
+    const result = await executeRun();
     expect(result.result).toBe(mockBacktestResult);
     await vi.waitFor(() =>
       expect(loggerMocks.error).toHaveBeenCalledWith(
@@ -224,20 +173,9 @@ describe('runBacktest', () => {
 
   it('writeEventInTransaction 失败时应回滚事务并记录 outbox 错误', async () => {
     const queryMock = vi.fn(async () => ({ rows: [] }));
-    dbMocks.getClient.mockResolvedValueOnce({
-      query: queryMock,
-      release: vi.fn(),
-    });
+    dbMocks.getClient.mockResolvedValueOnce({ query: queryMock, release: vi.fn() });
     outboxMocks.writeEventInTransaction.mockRejectedValueOnce(new Error('write failed'));
-
-    const result = await runBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-      priceData: mockPriceData,
-      cpiData: mockCpiData,
-      exchangeRates: mockExchangeRates,
-    });
-
+    const result = await executeRun();
     expect(result.result).toBe(mockBacktestResult);
     await vi.waitFor(() =>
       expect(loggerMocks.error).toHaveBeenCalledWith(
@@ -245,7 +183,6 @@ describe('runBacktest', () => {
         'Failed to write BacktestCompleted event to outbox',
       ),
     );
-
     const queries = queryMock.mock.calls.map((c) => c[0]);
     expect(queries).toContain('BEGIN');
     expect(queries).toContain('ROLLBACK');
@@ -257,19 +194,112 @@ describe('runBacktest', () => {
       portfolios: [],
       correlations: [],
     } as BacktestResult);
-
-    await runBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-      priceData: mockPriceData,
-      cpiData: mockCpiData,
-      exchangeRates: mockExchangeRates,
-    });
-
+    await executeRun();
     await vi.waitFor(() => expect(outboxMocks.writeEventInTransaction).toHaveBeenCalledTimes(1));
     const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
     expect(outboxCall.payload.totalReturn).toBeUndefined();
     expect(outboxCall.payload.maxDrawdown).toBeUndefined();
     expect(outboxCall.payload.sharpeRatio).toBeUndefined();
+  });
+});
+
+function makePortfolio(id: string, tickers: string[]): Portfolio {
+  return {
+    id,
+    name: id,
+    assets: tickers.map((t) => ({ ticker: t, weight: 100 / tickers.length })),
+    rebalanceFrequency: 'none',
+  };
+}
+const baseParams: BacktestParameters = {
+  startDate: '2020-01-02',
+  endDate: '2020-12-31',
+  startingValue: 10000,
+  benchmarkTicker: '',
+  adjustForInflation: false,
+  rollingWindowMonths: 12,
+};
+
+describe('preparePortfolioBacktest', () => {
+  it('合法输入应收集全部 ticker 并包含 benchmark', () => {
+    const { allTickers, warnings } = preparePortfolioBacktest(
+      [makePortfolio('p1', ['AAPL', 'MSFT'])],
+      { ...baseParams, benchmarkTicker: 'SPY' },
+    );
+    expect(allTickers.has('AAPL')).toBe(true);
+    expect(allTickers.has('MSFT')).toBe(true);
+    expect(allTickers.has('SPY')).toBe(true);
+    expect(warnings).toEqual([]);
+  });
+
+  it.each<[keyof BacktestParameters, string]>([
+    ['startDate', '2020/01/02'],
+    ['endDate', 'not-a-date'],
+  ])('%s 非法日期应抛出 422 可映射错误', (field, value) => {
+    expect(() =>
+      preparePortfolioBacktest([makePortfolio('p1', ['AAPL'])], {
+        ...baseParams,
+        [field]: value,
+      } as BacktestParameters),
+    ).toThrow('Invalid date format');
+  });
+
+  it.each<[string, Portfolio[]]>([
+    [
+      `组合数超过 ${MAX_TICKERS} 应拒绝`,
+      Array.from({ length: MAX_TICKERS + 1 }, (_, i) => makePortfolio(`p${i}`, ['AAPL'])),
+    ],
+    [
+      `资产总数超过 ${MAX_TICKERS} 应拒绝（单组合多标的）`,
+      [
+        makePortfolio(
+          'p1',
+          Array.from({ length: MAX_TICKERS + 1 }, (_, i) => `T${i}`),
+        ),
+      ],
+    ],
+  ])('%s', (_title, portfolios) => {
+    expect(() => preparePortfolioBacktest(portfolios, baseParams)).toThrow(`max ${MAX_TICKERS}`);
+  });
+
+  it('空组合列表应返回空 ticker 集合', () => {
+    const { allTickers } = preparePortfolioBacktest([], baseParams);
+    expect(allTickers.size).toBe(0);
+  });
+});
+
+describe('collectInvalidTickerWarnings', () => {
+  it('缺失价格序列应写入 warnings', () => {
+    const warnings: Warning[] = [];
+    const result = collectInvalidTickerWarnings(
+      new Set(['AAPL', 'GHOST']),
+      { AAPL: { '2020-01-02': 100 } },
+      warnings,
+    );
+    expect(result).toEqual(['GHOST']);
+    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: ['GHOST'] });
+  });
+
+  it('空对象序列应视为无效 ticker', () => {
+    const warnings: Warning[] = [];
+    collectInvalidTickerWarnings(new Set(['EMPTY']), { EMPTY: {} }, warnings);
+    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: ['EMPTY'] });
+  });
+
+  it('全部有效时不应追加 warning', () => {
+    const warnings: Warning[] = [];
+    const result = collectInvalidTickerWarnings(
+      new Set(['AAPL']),
+      { AAPL: { '2020-01-02': 150.5 } },
+      warnings,
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('恶意 ticker 名仍应被识别为无数据（不崩溃）', () => {
+    const evil = "'; DROP TABLE prices; --";
+    const warnings: Warning[] = [];
+    expect(() => collectInvalidTickerWarnings(new Set([evil]), {}, warnings)).not.toThrow();
+    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: [evil] });
   });
 });

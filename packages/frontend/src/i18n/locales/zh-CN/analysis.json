@@ -1,28 +1,19 @@
 {
   "analysis": {
-    "title": "资产分析",
     "startAnalysis": "开始分析",
     "analyzing": "分析中...",
     "analysisFailed": "分析失败",
     "noResultsHint": "设置参数后点击「开始分析」查看结果",
-    "tickerList": "标的列表",
-    "tickerListInfo": "添加一个或多个标的代码（如 ETF、股票）进行比较分析",
     "tickerPlaceholder": "输入代码，如 SPY",
-    "addAsset": "添加标的",
-    "timeRange": "时间范围",
     "startDate": "开始日期",
     "endDate": "结束日期",
     "startingValue": "初始资金",
-    "analysisSettings": "分析设置",
     "rollingWindow": "滚动窗口",
     "correlationWindow": "相关窗口",
     "adjustInflation": "调整通胀（CPI）",
-    "inflationOnHint": "使用 CPI 数据调整收益，显示实际购买力变化",
-    "inflationOffHint": "显示名义收益（未调整通胀）",
     "errorMinOneTicker": "请至少输入一个标的代码",
     "statsOverview": "统计概览",
     "growthCurve": "增长曲线",
-    "drawdown": "回撤",
     "correlationMatrix": "相关性矩阵",
     "telltaleChart": "述事图 (Telltale)",
     "telltaleNeedTwo": "需要至少2个资产才能显示述事图",
@@ -31,42 +22,20 @@
     "betaMatrix": "Beta 矩阵",
     "rollingCorrelation": "滚动相关性",
     "correlation": "相关性",
-    "rollingCAGR": "滚动 CAGR",
-    "rollingVolatility": "滚动波动率",
-    "rollingExcess": "滚动超额收益",
-    "rollingSkewness": "滚动偏度",
-    "rollingKurtosis": "滚动峰度",
-    "rollingKelly": "滚动 Kelly",
     "riskVsReturn": "风险 vs 收益",
     "risk": "风险",
-    "annualReturns": "年度收益",
     "monthlyReturnsHeatmap": "月度收益热力图",
-    "maxDrawdownDuration": "最长回撤",
-    "seoDesc": "资产分析工具帮助您使用与回测模块相同的数据和日期规则，比较一个或多个标的的总回报、回撤、波动率、相关性及不同市场环境下的表现。",
-    "seoAnalyzable": "可分析内容",
-    "seoAnalyzableDesc": "ETF、基金、股票的增长曲线、回撤曲线、滚动收益、相关性矩阵及关键统计指标。",
-    "seoViewable": "可查看指标",
-    "seoViewableDesc": "年化收益(CAGR)、标准差、夏普比率、最大回撤、滚动窗口收益、相关性系数。",
-    "relatedTools": "相关工具：",
-    "analysisParams": "分析参数",
     "avgDrawdown": "平均回撤",
     "ulcerIndex": "Ulcer Index"
   },
   "monteCarlo": {
-    "title": "蒙特卡洛模拟",
     "emptyTickerWarning": "组合 {{index}} 请至少添加一个标的",
     "weightSumWarning": "组合 {{index}} 权重合计必须为 100%",
-    "seoDesc": "本工具使用区块自举法对历史市场数据进行重采样，让您研究大量可能的组合路径，而非仅回放一段固定历史。",
-    "seoSimulatable": "可模拟内容",
-    "seoSimulatableDesc": "退休提款策略、定投计划、固定提取方案，观察其在数千条模拟市场路径下的表现与存活概率。",
-    "seoOutput": "输出结果",
-    "seoOutputDesc": "分布统计表(Summary)、组合价值范围图、成功概率曲线、多指标分布直方图、代表性场景路径。",
     "presets": {
       "preset6040": "60/40 退休回测",
       "presetAllStockDCA": "全股定投 30 年",
       "presetThreeFund": "三基金 25 年"
     },
-    "relatedTools": "相关工具：",
     "fanChart": {
       "title": "蒙特卡洛扇形图",
       "band5_95": "5-95% 区间",
@@ -85,8 +54,6 @@
       "noData": "暂无数据",
       "year": "年",
       "years": "年限",
-      "median": "中位数",
-      "mean": "均值",
       "frequency": "频次",
       "medianLabel": "中位数: {{value}}",
       "meanLabel": "均值: {{value}}",
@@ -109,57 +76,34 @@
       }
     },
     "params": {
-      "allHistory": "全部历史",
       "buildModeInfo": "选择标准模式或前沿模式",
       "buildModeTitle": "构建模式",
       "dualGoalInfo": "设置两个目标及其权重，系统将加权优化",
       "dualGoalTitle": "双目标优化",
-      "endDate": "结束日期",
       "frontierMode": "前沿模式",
       "frontierModeDesc": "生成有效前沿，展示风险-收益权衡",
       "goal1": "目标 1",
       "goal1Weight": "目标 1 权重",
       "goal2": "目标 2",
-      "goalMaxCagrPercentile": "最大化 CAGR 百分位",
-      "goalMaxFinalValue": "最大化终值",
-      "goalMaxSharpe": "最大化夏普比率",
-      "goalMaxSuccessRate": "最大化成功率",
-      "goalMinMaxDrawdown": "最小化最大回撤",
-      "goalMinVolatility": "最小化波动率",
-      "maxBlock": "最大区块",
-      "minBlock": "最小区块",
       "portfolioConfigInfo": "添加参与模拟的标的与权重",
       "portfolioConfigTitle": "组合配置",
       "portfolioCount": "组合数量",
       "portfolioModeN": "模式 {{mode}}",
-      "randomSeed": "随机种子",
       "randomSeedPlaceholder": "留空使用随机种子",
-      "rebalanceMonthly": "每月",
-      "rebalanceNone": "不调仓",
-      "rebalanceQuarterly": "每季度",
-      "rebalanceYearly": "每年",
-      "simCount": "模拟次数",
       "simParamsInfo": "设置模拟年限、次数、区块大小与随机种子",
       "simParamsTitle": "模拟参数",
       "simulating": "模拟中...",
-      "simYears": "模拟年限",
       "standardMode": "标准模式",
       "standardModeDesc": "运行标准蒙特卡洛模拟",
-      "startDate": "开始日期",
-      "startingValue": "初始资金",
       "startSim": "开始模拟",
-      "withReplacement": "有放回抽样",
-      "yearSuffix": "年"
+      "withReplacement": "有放回抽样"
     }
   },
   "mcOptimizer": {
     "title": "蒙特卡洛优化器",
-    "seoSubtitle": "在蒙特卡洛路径下寻找最优权重",
-    "seoDesc": "基于蒙特卡洛模拟的权重优化",
     "description": "在蒙特卡洛模拟路径下，寻找最大化中位 CAGR 或最小化回撤的最优权重。"
   },
   "optimizer": {
-    "title": "组合优化",
     "startCalc": "开始计算",
     "optimizing": "优化中...",
     "calculatingStats": "正在计算回测统计...",
@@ -168,24 +112,13 @@
     "assetSelection": "资产选择",
     "assetSelectionInfo": "输入参与优化的标的代码，至少需要两个",
     "tickerPlaceholder": "输入代码，如 VTI",
-    "addAsset": "添加标的",
-    "basicParams": "基本参数",
-    "basicParamsInfo": "设置优化目标、权重限制与求解器",
     "solverSettings": "求解设置",
     "solverSettingsInfo": "设置优化目标、权重限制与求解器",
     "allHistory": "全部历史",
-    "startDate": "开始日期",
-    "endDate": "结束日期",
-    "objective": "优化目标",
-    "maxSharpe": "最大化夏普比",
-    "minVolatility": "最小化波动率",
-    "maxReturn": "最大化收益",
     "minWeight": "最小权重",
     "maxWeight": "最大权重",
     "tbillRate": "T-Bill利率",
     "solver": "求解器",
-    "solverMarkowitz": "Markowitz",
-    "solverGA": "遗传算法(GA)",
     "allowShort": "允许做空",
     "historicalConstraints": "历史约束优化",
     "historicalConstraintsInfo": "基于历史回测指标的过滤条件，启用后仅返回满足约束的组合",
@@ -206,11 +139,6 @@
     "constraintsSummary": "约束条件",
     "errorMinTwoTickers": "请至少输入两个标的代码",
     "errorMinGtMax": "最小权重不能大于最大权重",
-    "seoDesc": "组合优化工具帮助您搜索最优资产配置，而非手动试错。输入一组标的代码，设定权重限制，选择优化目标，让系统为您搜索最符合历史数据和约束条件的组合。",
-    "seoObjective": "优化目标",
-    "seoObjectiveDesc": "最大化夏普比率、最小化波动率、最大化收益，并支持多约束条件、做空、持仓数限制与遗传算法求解。",
-    "seoOutput": "输出结果",
-    "seoOutputDesc": "最优权重分配、预期收益率、预期波动率、夏普比率，以及有效前沿散点图与约束条件汇总。",
     "minSharpeLabel": "最小Sharpe",
     "minSortinoLabel": "最小Sortino",
     "maxAvgDDLabel": "最大平均回撤",
@@ -219,8 +147,7 @@
     "maxMaxDDLabel": "最大回撤上限",
     "placeholderDD": "如 20",
     "placeholderCagr": "如 5",
-    "placeholderVol": "如 15",
-    "relatedTools": "相关工具："
+    "placeholderVol": "如 15"
   },
   "efficientFrontier": {
     "title": "有效前沿",
@@ -300,62 +227,6 @@
     }
   },
   "tactical": {
-    "title": "战术分配",
-    "strategyParams": "战术策略参数",
-    "seo": {
-      "desc": "战术分配工具基于技术指标（SMA/EMA/RSI/MACD/布林带/动量）构建交易信号，支持多信号聚合（投票/加权平均/排名）生成动态权重切换策略，运行历史回测并与等权基准对比，同时提供 What-If 实时信号查询与邮件告警配置。",
-      "configurableTitle": "可配置内容",
-      "configurableDesc": "技术指标参数、信号触发条件、目标权重、聚合方式、再平衡频率。",
-      "viewableTitle": "可查看结果",
-      "viewableDesc": "收益曲线、统计指标、信号切换历史、实时价格与信号状态。"
-    },
-    "indicators": {
-      "sma": "SMA 简单均线",
-      "ema": "EMA 指数均线",
-      "rsi": "RSI 相对强弱",
-      "macd": "MACD",
-      "bollinger": "Bollinger 布林带",
-      "bollingerDesc": "价格在布林带中的相对位置（0=下轨，0.5=中轨，1=上轨，>1=突破上轨，<0=跌破下轨）",
-      "momentum": "Momentum 动量"
-    },
-    "operators": {
-      "gt": "大于",
-      "lt": "小于",
-      "cross_above": "交叉上穿",
-      "cross_below": "交叉下穿"
-    },
-    "rebalanceOptions": {
-      "daily": "每日",
-      "weekly": "每周",
-      "monthly": "每月",
-      "quarterly": "每季",
-      "annual": "每年",
-      "none": "不调仓"
-    },
-    "aggregation": {
-      "voting": "投票",
-      "weighted_average": "加权平均",
-      "rank": "排名"
-    },
-    "rankingMethod": {
-      "fixed_share": "固定份额",
-      "risk_parity": "风险平价"
-    },
-    "alertTrigger": {
-      "signal_change": "信号变化",
-      "rebalance": "再平衡",
-      "threshold": "阈值触发"
-    },
-    "alertTriggerDesc": {
-      "signal_change": "当激活信号发生切换时触发",
-      "rebalance": "每次再平衡调仓时触发",
-      "threshold": "指标突破设定阈值时触发"
-    },
-    "tabs": {
-      "backtest": "回测结果",
-      "whatif": "What If",
-      "alerts": "邮件告警"
-    },
     "defaultSignalName": "信号 {{index}}",
     "defaultStrategyName": "战术策略",
     "validateErrors": {
@@ -375,12 +246,9 @@
       "targetWeights": "目标权重（激活时切换）",
       "addAsset": "添加标的",
       "signalBuilder": "信号构建器",
-      "signalBuilderInfo": "基于技术指标构建交易信号。每个信号包含若干触发条件（全部满足时激活）及目标权重（激活时切换的配置）",
       "addSignal": "添加信号",
       "rankingMethod": "排名方式",
-      "topNUnit": "个",
       "aggregationConfig": "聚合配置",
-      "aggregationConfigInfo": "多信号同时激活时的权重合成方式",
       "aggregationMethod": "聚合方式",
       "backtestParams": "回测参数",
       "startDate": "开始日期",
@@ -397,18 +265,6 @@
     "results": {
       "tactical": "战术分配",
       "benchmark": "等权基准",
-      "cagr": "年化收益率 (CAGR)",
-      "totalReturn": "累计收益",
-      "stdev": "年化波动率",
-      "sharpe": "夏普比率",
-      "maxDrawdown": "最大回撤",
-      "calmar": "卡尔玛比率",
-      "pctPositiveDays": "正收益日占比",
-      "maxDailyReturn": "最大日收益",
-      "minDailyReturn": "最大日亏损",
-      "buy": "买入",
-      "sell": "卖出",
-      "hold": "持有",
       "ticker": "标的",
       "latestPrice": "最新价格",
       "signalDate": "信号日期",
@@ -446,42 +302,16 @@
     }
   },
   "tacticalGrid": {
-    "title": "战术网格搜索",
-    "paramsSettings": "参数设置",
-    "objectives": {
-      "maxCAGR": "最大化 CAGR（年化收益）",
-      "minDrawdown": "最小化最大回撤",
-      "maxSharpe": "最大化 Sharpe（夏普比率）"
-    },
-    "objectiveLabels": {
-      "maxCAGR": "CAGR",
-      "minDrawdown": "回撤(负值)",
-      "maxSharpe": "Sharpe"
-    },
-    "paramLabels": {
-      "rsiPeriod": "RSI 周期",
-      "oversoldThreshold": "超卖阈值",
-      "period": "{{indicator}} 周期",
-      "breakoutThreshold": "突破阈值(%)"
-    },
-    "validateErrors": {
-      "emptyTicker": "请输入标的代码",
-      "invalidStep": "步长必须大于 0",
-      "minGtMax": "参数最小值不能大于最大值",
-      "tooManyCombinations": "参数组合过多({{total}})，请缩小范围（上限500）"
-    },
     "searchFailed": "网格搜索失败",
     "params": {
       "min": "最小",
       "max": "最大",
       "step": "步长",
       "signalGrid": "信号参数网格",
-      "signalGridInfo": "选择技术指标与参数范围，系统将遍历所有参数组合（笛卡尔积）寻找最优信号参数",
       "indicator": "技术指标",
       "rsiHint": "RSI 低于超卖阈值时入场，高于 100-阈值 时离场",
       "breakoutHint": "价格突破均线±阈值% 时入场，跌破均线∓阈值% 时离场",
       "backtestParams": "回测参数",
-      "backtestParamsInfo": "设置交易标的、时间范围、初始资金与再平衡频率",
       "ticker": "标的代码",
       "tickerPlaceholder": "如 SPY",
       "startDate": "开始日期",
@@ -489,7 +319,6 @@
       "startingValue": "初始资金",
       "rebalanceFreq": "再平衡频率",
       "objectiveSection": "优化目标",
-      "objectiveSectionInfo": "选择用于排序参数组合的优化目标",
       "objective": "目标",
       "searching": "搜索中...",
       "startSearch": "开始网格搜索"
@@ -516,32 +345,6 @@
       "heatmapCellTitle": "{{p1Label}}={{p1}}, {{p2Label}}={{p2}}\n{{objectiveLabel}}: {{value}}"
     }
   },
-  "tacticalResults": {
-    "growthTitle": "收益曲线",
-    "statsTitle": "统计指标",
-    "signalHistoryTitle": "信号切换历史（再平衡日）",
-    "whatIfTitle": "实时价格与信号查询",
-    "whatIfDesc": "输入标的代码（逗号或空格分隔），查询最新价格及当前策略信号状态",
-    "whatIfQuery": "查询",
-    "whatIfQuerying": "查询中...",
-    "whatIfEmpty": "输入标的代码后点击「查询」查看结果",
-    "alertTitle": "邮件告警配置",
-    "alertDesc": "配置信号触发时的邮件通知，配置暂存于服务端内存",
-    "alertEnable": "启用邮件告警",
-    "alertEmail": "告警邮箱",
-    "alertTriggerLabel": "触发条件",
-    "alertSave": "保存告警配置",
-    "alertSaving": "保存中...",
-    "alertSaved": "告警配置已保存",
-    "alertEmailRequired": "启用告警时必须填写邮箱",
-    "tactical": "战术分配",
-    "equalWeight": "等权基准",
-    "activeSignals": "激活信号",
-    "targetWeights": "目标权重",
-    "noneEqualWeight": "无（等权）",
-    "backtestRunFailed": "回测失败：{{error}}",
-    "noResultsHint": "配置信号与参数后点击「运行战术回测」查看结果"
-  },
   "signal": {
     "common": {
       "tickerLabel": "标的代码",
@@ -561,8 +364,6 @@
       "noSignal": "当前参数下未生成任何信号"
     },
     "analyzer": {
-      "title": "单信号分析",
-      "paramsTitle": "分析参数",
       "indicatorSection": "标的与指标",
       "indicatorSectionInfo": "选择标的与技术指标，根据指标交叉/突破生成买卖信号",
       "indicator": "技术指标",
@@ -571,9 +372,6 @@
       "thresholdHint": "阈值含义：RSI 为超卖阈值；Bollinger 为标准差倍数；SMA/EMA/MACD 不使用。",
       "signalConfigSection": "信号配置",
       "signalType": "信号类型",
-      "signalTypeEntry": "入场（买入）",
-      "signalTypeExit": "出场（卖出）",
-      "signalTypeBoth": "两者",
       "statTotalSignals": "总信号数",
       "statWinRate": "胜率",
       "statAvgReturn": "平均收益",
@@ -586,15 +384,10 @@
       "equityCurve": "权益曲线"
     },
     "dual": {
-      "title": "双信号对比",
-      "paramsTitle": "分析参数",
       "signal1Config": "信号 1 配置",
       "signal2Config": "信号 2 配置",
       "combinationSection": "组合方式",
       "combinationLogic": "组合逻辑",
-      "combinationAnd": "AND（两者同向）",
-      "combinationOr": "OR（任一触发）",
-      "combinationXor": "XOR（恰好一个）",
       "indicator": "技术指标",
       "period": "周期",
       "threshold": "阈值",
@@ -608,27 +401,14 @@
       "combinedShort": "组合",
       "signalComparison": "信号对比（{{count}}）",
       "equityCurveComparison": "权益曲线对比",
-      "statTotalSignals": "总信号数",
-      "statWinRate": "胜率",
-      "statAvgReturn": "平均收益",
-      "statMaxDrawdown": "最大回撤",
-      "statSharpe": "夏普",
       "colDate": "日期"
     },
     "multi": {
-      "title": "多信号聚合",
-      "paramsTitle": "分析参数",
       "signalList": "信号列表",
       "signalListInfo": "添加多个技术指标信号，可单独删除",
       "addSignal": "添加信号",
       "aggregationSection": "聚合配置",
       "aggregationMethod": "聚合方式",
-      "aggregationWeighted": "加权",
-      "aggregationVoting": "投票",
-      "aggregationRank": "排名",
-      "descWeighted": "加权：按权重对信号方向加权求和，正值买入、负值卖出。在信号列表中设置各信号权重。",
-      "descVoting": "投票：多数信号同向时触发（买入数 > 卖出数 则买入，反之卖出）。",
-      "descRank": "排名：取历史胜率最高的触发信号方向。",
       "backtestParams": "回测参数",
       "errMinOneSignal": "请至少添加一个信号",
       "aggStatsTitle": "聚合信号统计",
@@ -641,11 +421,6 @@
       "colContribution": "贡献度（平均收益）",
       "colWinRate": "胜率",
       "colTotalSignals": "信号数",
-      "statTotalSignals": "总信号数",
-      "statWinRate": "胜率",
-      "statAvgReturn": "平均收益",
-      "statMaxDrawdown": "最大回撤",
-      "statSharpe": "夏普",
       "period": "周期",
       "threshold": "阈值",
       "weight": "权重",
@@ -653,11 +428,8 @@
     }
   },
   "pca": {
-    "title": "主成分分析（PCA）",
-    "paramsTitle": "PCA 参数",
     "analyzing": "分析中...",
     "startAnalysis": "开始分析",
-    "analysisFailed": "分析失败：",
     "analysisFailedPrefix": "分析失败：",
     "errMinTwoTickers": "PCA 分析至少需要 2 个标的代码",
     "errAnalyze": "PCA 分析失败",
@@ -665,17 +437,13 @@
     "asset": {
       "section": "资产选择",
       "sectionInfo": "添加 2 个或以上标的代码，PCA 将基于它们的日收益率进行分析",
-      "tickerPlaceholder": "输入代码，如 SPY",
-      "delete": "删除",
-      "addTicker": "添加标的"
+      "tickerPlaceholder": "输入代码，如 SPY"
     },
     "dateRange": {
-      "section": "时间范围",
       "startDate": "开始日期",
       "endDate": "结束日期"
     },
     "params": {
-      "section": "分析参数",
       "numComponents": "主成分数量",
       "numComponentsSuffix": "个",
       "numComponentsPlaceholder": "自动",
@@ -687,28 +455,16 @@
       "cumulativeVarianceLabel": "累计方差",
       "loadingMatrix": "载荷矩阵",
       "scatterTitle": "主成分得分散点图（PC1 vs PC2）"
-    },
-    "seo": {
-      "desc": "主成分分析（PCA）工具对多个资产的日收益率进行降维分析，提取主要驱动因子，帮助您理解资产组合的风险结构与共同变动来源。",
-      "analyzableTitle": "可分析内容",
-      "analyzableDesc": "特征值、累计方差解释率、载荷矩阵（各资产对主成分的贡献）、主成分得分。",
-      "scenarioTitle": "适用场景",
-      "scenarioDesc": "识别资产组合的主要风险因子、降维可视化、构建因子模型与组合分散化分析。"
     }
   },
   "letf": {
-    "title": "LETF 滑点分析",
-    "paramsTitle": "LETF 参数",
     "analyzing": "分析中...",
     "startAnalysis": "开始分析",
-    "analysisFailed": "分析失败：",
     "analysisFailedPrefix": "分析失败：",
     "errEmptyTickers": "请输入杠杆 ETF 和基准指数代码",
     "errAnalyze": "LETF 滑点分析失败",
     "emptyHint": "设置参数后点击「开始分析」查看结果",
     "etf": {
-      "section": "ETF 选择",
-      "sectionInfo": "杠杆 ETF（如 TQQQ/UPRO）与对应基准指数（如 QQQ/SPY），杠杆倍数需与 ETF 实际杠杆一致",
       "letfTicker": "杠杆 ETF",
       "letfTickerPlaceholder": "如 TQQQ",
       "benchmarkTicker": "基准指数",
@@ -716,7 +472,6 @@
       "leverage": "杠杆倍数"
     },
     "dateRange": {
-      "section": "时间范围",
       "startDate": "开始日期",
       "endDate": "结束日期"
     },
@@ -737,24 +492,10 @@
     },
     "stats": {
       "metric": "指标",
-      "value": "数值",
-      "benchmarkReturn": "基准收益",
-      "letfReturn": "LETF 收益",
-      "expectedReturn": "预期收益",
-      "slippage": "滑点",
-      "annualDecay": "年化拖累"
-    },
-    "seo": {
-      "desc": "杠杆 ETF（LETF）滑点分析工具，量化杠杆 ETF 相对基准指数的预期收益与实际收益之间的偏差，揭示长期持有杠杆 ETF 的衰减拖累。",
-      "analyzableTitle": "可分析内容",
-      "analyzableDesc": "每日/累积滑点曲线、年化拖累、实际杠杆 vs 名义杠杆、基准与 LETF 收益对比。",
-      "scenarioTitle": "适用场景",
-      "scenarioDesc": "评估杠杆 ETF 长期持有的衰减成本、验证杠杆复利偏差、对比不同 LETF 的跟踪效率。"
+      "value": "数值"
     }
   },
   "goalOptimizer": {
-    "title": "目标优化器",
-    "paramsTitle": "目标优化参数",
     "optimizing": "优化中...",
     "startOptimize": "开始优化",
     "optFailed": "优化失败",
@@ -805,19 +546,9 @@
       "achieveProb": "达成目标概率",
       "targetInitialYears": "目标 {{target}} · 初始 {{initial}} · {{years}} 年",
       "emptyHint": "设置目标与资产配置后点击「开始优化」查看结果"
-    },
-    "seo": {
-      "desc": "目标优化器基于历史收益分布进行蒙特卡洛模拟，计算您达成财务目标的概率，并给出建议的资产配置与定期投入方案。",
-      "analyzableTitle": "可分析内容",
-      "analyzableDesc": "设定目标金额、初始资金与时间范围，基于资产配置的历史收益特征模拟数千条未来路径。",
-      "outputTitle": "输出结果",
-      "outputDesc": "达成目标的成功概率、终值概率分布曲线、中位数/P10/P90 最优路径、预期收益与所需定期投入。"
     }
   },
   "factorRegression": {
-    "title": "因子回归分析",
-    "paramsTitle": "因子回归参数",
-    "paramsSettings": "参数设置",
     "allHistory": "全部历史",
     "startDate": "开始日期",
     "endDate": "结束日期",
@@ -830,7 +561,6 @@
     "startAnalysis": "开始分析",
     "analysisFailed": "分析失败",
     "errEmptyAssets": "请至少添加一个标的",
-    "errWeightSum": "权重合计必须为 100%",
     "errNoFactor": "请至少选择一个因子",
     "errRegFailed": "回归计算失败",
     "errLoadFF": "加载 Fama-French 因子数据失败",
@@ -838,18 +568,6 @@
     "errNoPriceData": "无法获取足够的价格数据",
     "errInsufficientData": "数据点不足（至少需要 3 个月）",
     "errRegCompute": "因子回归计算失败",
-    "factors": {
-      "mktRf": "MKT-RF",
-      "mktRfDesc": "市场超额收益",
-      "smb": "SMB",
-      "smbDesc": "小盘股溢价",
-      "hml": "HML",
-      "hmlDesc": "价值股溢价"
-    },
-    "rfSources": {
-      "us3m": "美国3月期国债",
-      "us1y": "美国1年期国债"
-    },
     "results": {
       "title": "Fama-French 三因子回归结果",
       "coefficient": "系数",
@@ -864,13 +582,6 @@
       "hmlDesc": "价值因子载荷，正值偏向价值股",
       "rSquaredDesc": "模型解释力，越接近1说明因子对收益的解释越充分",
       "mockNotice": "因子数据来源于 Kenneth French 数据库（模拟数据）。完整版将接入实时 Fama-French 因子数据。"
-    },
-    "seo": {
-      "desc": "使用 Fama-French 三因子模型（MKT-RF、SMB、HML）对投资组合进行回归分析，分解组合收益来源，计算 Alpha、Beta、规模因子和价值因子载荷，以及 R² 和残差。",
-      "analyzableTitle": "可分析内容",
-      "analyzableDesc": "组合超额收益中来自市场、规模、价值因子的贡献比例，以及经理的 Alpha 能力。",
-      "factorTitle": "因子说明",
-      "factorDesc": "MKT-RF：市场超额收益；SMB：小盘股减大盘股；HML：价值股减成长股。数据来源于 Kenneth French 数据库。"
     }
   },
   "rebalancingSensitivity": {
@@ -933,8 +644,6 @@
     }
   },
   "lumpSumDca": {
-    "title": "一次性投资 vs 定投",
-    "paramsSettings": "参数设置",
     "dcaParams": "定投参数",
     "dcaFrequency": "DCA节奏",
     "dcaMonthly": "每月",
@@ -947,7 +656,6 @@
     "startCompare": "开始对比",
     "compareFailed": "对比失败",
     "errEmptyAssets": "请至少添加一个标的",
-    "errWeightSum": "权重合计必须为 100%",
     "errLumpSumFailed": "一次性投资回测失败",
     "errDcaFailed": "定投回测失败",
     "errLumpSumNoResult": "一次性投资无结果",
@@ -956,15 +664,6 @@
     "dcaLabel": "定投",
     "stats": {
       "metric": "指标",
-      "finalValue": "终值",
-      "cagr": "CAGR",
-      "stdev": "波动率",
-      "maxDrawdown": "最大回撤",
-      "sharpe": "夏普比率",
-      "sortino": "Sortino",
-      "calmar": "Calmar",
-      "maxDrawdownDuration": "最长回撤期",
-      "ulcerIndex": "Ulcer Index",
       "days": "{{count}} 天"
     },
     "conclusion": {
@@ -984,13 +683,6 @@
     "results": {
       "growthCurveTitle": "增长曲线对比",
       "statsTitle": "统计对比"
-    },
-    "seo": {
-      "desc": "对比一次性投入与定期定额投资（DCA）在同一组合上的表现差异。一次性投资在期初全额投入，定投则将资金分批投入，观察两种策略在不同市场环境下的终值与风险特征。",
-      "configurableTitle": "可分析内容",
-      "configurableDesc": "一次性投入 vs 按月/按季度定投的增长曲线、终值、CAGR、波动率、最大回撤、夏普比率等。",
-      "strategyTitle": "策略说明",
-      "strategyDesc": "定投将初始资金均分为若干期，每期等额投入；未投入资金可选择投入短期国债（T-Bill）获取无风险收益。"
     }
   },
   "calculators": {
@@ -1053,14 +745,6 @@
       "yearSuffix": "年"
     },
     "page": {
-      "featureAdvancedDesc": "双基金、风险贡献、SWR 等高级计算器",
-      "featureAdvancedTitle": "高级计算器",
-      "featureBasicDesc": "CAGR、未来值、假设收益等基础计算器",
-      "featureBasicTitle": "基础计算器",
-      "featureLeverageDesc": "杠杆衰减、Kelly 公式、期权杠杆等杠杆计算器",
-      "featureLeverageTitle": "杠杆计算器",
-      "seoDesc": "投资计算器集合，包含 CAGR、未来值、杠杆衰减、Kelly 公式、期权杠杆、双基金、风险贡献、SWR 等工具。",
-      "subtitle": "常用投资计算工具",
       "title": "投资计算器"
     },
     "portfolio": {
@@ -1121,7 +805,6 @@
     "loadTimeout": "数据引擎加载超时，请确认后端服务已启动后重试",
     "networkError": "网络错误：无法连接到服务端，请确认后端服务已启动",
     "universeLabel": "标的宇宙",
-    "cachedCount": "已缓存",
     "totalDataPoints": "数据点总数",
     "avgPointsPerTicker": "点/标的",
     "timeRange": "最早起始",
@@ -1129,14 +812,12 @@
     "deepHistoryHighlight": "可追溯至 {{year}} 年，历史跨度 {{years}} 年",
     "diskUsage": "数据库占用",
     "dbStorageSub": "PostgreSQL 表空间（含索引）",
-    "cachedTickersLabel": "个已入库标的",
     "dataCoverage": "数据覆盖率",
     "totalCoverage": "总覆盖率",
     "fiveYearsPlus": "5年以上数据",
     "tenYearsPlus": "10年以上数据",
     "twentyYearsPlus": "20年以上数据",
     "adjCloseData": "后复权数据",
-    "dividendData": "含分红数据",
     "byMarket": "按市场分布",
     "usStock": "美股",
     "cnStock": "A股",
@@ -1149,8 +830,6 @@
     "cached": "已缓存",
     "byExchange": "按交易所分布 (Top 10)",
     "unknown": "未知",
-    "byDecade": "数据起始年代分布",
-    "byYearCount": "数据年限分布",
     "sampleTickers": "样本标的",
     "usStockCategory": "美股股票",
     "usEtfCategory": "美股ETF",

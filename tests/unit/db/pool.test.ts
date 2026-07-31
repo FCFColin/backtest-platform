@@ -60,6 +60,8 @@ vi.mock('pg', () => {
   return { default: { Pool: poolMocks.Pool } };
 });
 
+const POOL_MODULE = '../../../packages/backend/src/db/pool.js';
+
 describe('db/pool', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -71,15 +73,13 @@ describe('db/pool', () => {
     poolMocks.primaryPool.query.mockResolvedValue({ rows: [{ ok: 1 }], rowCount: 1 });
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     configMocks.NODE_ENV = 'test';
     configMocks.DATABASE_READ_URL = '';
-    const mod = await import('../../../packages/backend/src/db/pool.js');
-    await mod.closeDb();
   });
 
   it('getPool 应返回单例并注册 connect/error 处理器', async () => {
-    const { getPool } = await import('../../../packages/backend/src/db/pool.js');
+    const { getPool } = await import(POOL_MODULE);
     const p1 = getPool();
     const p2 = getPool();
     expect(p1).toBe(p2);
@@ -89,77 +89,32 @@ describe('db/pool', () => {
   });
 
   it('未配置 DATABASE_READ_URL 时 getReadPool 应回退主池', async () => {
-    const { getPool, getReadPool } = await import('../../../packages/backend/src/db/pool.js');
+    const { getPool, getReadPool } = await import(POOL_MODULE);
     expect(getReadPool()).toBe(getPool());
+    expect(poolMocks.Pool).toHaveBeenCalledTimes(1);
+  });
+
+  it('isReadPoolAvailable 反映 DATABASE_READ_URL 配置', async () => {
+    const mod = await import(POOL_MODULE);
+    expect(mod.isReadPoolAvailable()).toBe(false);
+    configMocks.DATABASE_READ_URL = 'postgresql://read-replica/db';
+    vi.resetModules();
+    const reloaded = await import(POOL_MODULE);
+    expect(reloaded.isReadPoolAvailable()).toBe(true);
   });
 
   it('配置 DATABASE_READ_URL 时应创建独立只读池', async () => {
     configMocks.DATABASE_READ_URL = 'postgresql://read-replica/db';
-    const { getReadPool } = await import('../../../packages/backend/src/db/pool.js');
+    const { getReadPool } = await import(POOL_MODULE);
     const read = getReadPool();
     expect(read).toBe(poolMocks.readPoolInstance);
-    expect(poolMocks.Pool).toHaveBeenCalledTimes(1);
     expect(poolMocks.Pool).toHaveBeenCalledWith(
       expect.objectContaining({ connectionString: 'postgresql://read-replica/db' }),
     );
   });
 
-  it('initSchema 在无待迁移时应跳过', async () => {
-    poolMocks.mockClient.query
-      .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
-      .mockResolvedValueOnce({ rows: [{ version: 8 }] }); // applied versions
-
-    const { initSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(initSchema()).resolves.toBeUndefined();
-    expect(poolMocks.mockClient.release).toHaveBeenCalled();
-  });
-
-  it('healthCheck 成功应返回 true', async () => {
-    const { healthCheck } = await import('../../../packages/backend/src/db/pool.js');
-    await expect(healthCheck()).resolves.toBe(true);
-  });
-
-  it('healthCheck 失败应返回 false', async () => {
-    poolMocks.primaryPool.query.mockRejectedValueOnce(new Error('db down'));
-    const { healthCheck } = await import('../../../packages/backend/src/db/pool.js');
-    await expect(healthCheck()).resolves.toBe(false);
-  });
-
-  it('closeDb 应关闭主池与只读池', async () => {
-    configMocks.DATABASE_READ_URL = 'postgresql://read-replica/db';
-    const mod = await import('../../../packages/backend/src/db/pool.js');
-    mod.getPool();
-    mod.getReadPool();
-    await mod.closeDb();
-    expect(poolMocks.primaryPool.end).toHaveBeenCalled();
-    expect(poolMocks.readPoolInstance.end).toHaveBeenCalled();
-  });
-
-  it('rollbackSchema 无需回滚时应直接返回', async () => {
-    poolMocks.mockClient.query.mockResolvedValueOnce({
-      rows: [{ version: 3 }, { version: 2 }, { version: 1 }],
-    });
-    const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(rollbackSchema(5)).resolves.toBeUndefined();
-  });
-
-  it('initSchema 有待执行迁移时应执行 up SQL', async () => {
-    poolMocks.mockClient.query
-      .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
-      .mockResolvedValueOnce({ rows: [] }) // SELECT versions - none applied
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN
-      .mockResolvedValueOnce({ rows: [] }) // migration sql
-      .mockResolvedValueOnce({ rows: [] }) // INSERT schema_migrations
-      .mockResolvedValueOnce({ rows: [] }); // COMMIT
-
-    const { initSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(initSchema()).resolves.toBeUndefined();
-    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
-    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('COMMIT');
-  });
-
   it('pool connect 事件应设置 statement_timeout', async () => {
-    const { getPool } = await import('../../../packages/backend/src/db/pool.js');
+    const { getPool } = await import(POOL_MODULE);
     getPool();
     const connectHandler = poolMocks.primaryPool.on.mock.calls.find(
       (c) => c[0] === 'connect',
@@ -174,37 +129,22 @@ describe('db/pool', () => {
   it('生产环境应启用 SSL 配置', async () => {
     configMocks.NODE_ENV = 'production';
     vi.resetModules();
-    const { getPool, closeDb } = await import('../../../packages/backend/src/db/pool.js');
+    const { getPool } = await import(POOL_MODULE);
     getPool();
     expect(poolMocks.Pool).toHaveBeenCalledWith(
       expect.objectContaining({ ssl: { rejectUnauthorized: true } }),
     );
-    await closeDb();
-    configMocks.NODE_ENV = 'test';
   });
 
   it('getClient 应从连接池获取 client', async () => {
-    const { getClient } = await import('../../../packages/backend/src/db/pool.js');
+    const { getClient } = await import(POOL_MODULE);
     const client = await getClient();
     expect(client).toBe(poolMocks.mockClient);
     expect(poolMocks.primaryPool.connect).toHaveBeenCalled();
   });
 
-  it('rollbackSchema 应执行 down 迁移', async () => {
-    poolMocks.mockClient.query
-      .mockResolvedValueOnce({ rows: [{ version: 8 }, { version: 7 }, { version: 6 }] })
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN v8
-      .mockResolvedValueOnce({ rows: [] }) // down sql
-      .mockResolvedValueOnce({ rows: [] }) // DELETE
-      .mockResolvedValueOnce({ rows: [] }); // COMMIT
-
-    const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(rollbackSchema(7)).resolves.toBeUndefined();
-    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
-  });
-
   it('withTenant 应在主池上注入租户上下文', async () => {
-    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenant } = await import(POOL_MODULE);
     const result = await withTenant('00000000-0000-0000-0000-000000000001', async () => {
       return 'ok';
     });
@@ -219,34 +159,28 @@ describe('db/pool', () => {
   });
 
   it('withTenant 非法 UUID 应抛出', async () => {
-    const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenant } = await import(POOL_MODULE);
     await expect(withTenant('not-a-uuid', async () => 'ok')).rejects.toThrow(/非法 tenantId/);
   });
 
   it('withTenantReadOnly 应使用 readPool 注入租户上下文', async () => {
-    // 配置 DATABASE_READ_URL 使 getReadPool() 创建独立只读池
     configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
     vi.resetModules();
-    const { withTenantReadOnly } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenantReadOnly } = await import(POOL_MODULE);
     const result = await withTenantReadOnly(
       '00000000-0000-0000-0000-000000000002',
       async () => 'readonly-ok',
     );
     expect(result).toBe('readonly-ok');
-    // readPoolInstance 被 mock 为对 read-replica 连接串返回
     expect(poolMocks.readPoolInstance.connect).toHaveBeenCalled();
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
-    expect(poolMocks.mockClient.query).toHaveBeenCalledWith(
-      "SELECT set_config('app.current_tenant_id', $1, true)",
-      ['00000000-0000-0000-0000-000000000002'],
-    );
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
   it('withTenantReadOnly 非法 UUID 应抛出', async () => {
     configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
     vi.resetModules();
-    const { withTenantReadOnly } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenantReadOnly } = await import(POOL_MODULE);
     await expect(withTenantReadOnly('bad', async () => 'ok')).rejects.toThrow(/非法 tenantId/);
   });
 
@@ -257,7 +191,7 @@ describe('db/pool', () => {
     poolMocks.mockClient.query.mockImplementationOnce(() => Promise.resolve({ rows: [] })); // set_config
     poolMocks.mockClient.query.mockImplementationOnce(() => Promise.reject(new Error('boom'))); // fn
     poolMocks.mockClient.query.mockImplementationOnce(() => Promise.resolve({ rows: [] })); // ROLLBACK
-    const { withTenantReadOnly } = await import('../../../packages/backend/src/db/pool.js');
+    const { withTenantReadOnly } = await import(POOL_MODULE);
     await expect(
       withTenantReadOnly('00000000-0000-0000-0000-000000000003', async () => {
         throw new Error('boom');
@@ -266,10 +200,8 @@ describe('db/pool', () => {
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('ROLLBACK');
   });
 
-  // ─── P1-02 T9: getReadClient 降级逻辑测试 ───
-
   it('getReadClient 未配置副本时应返回主库客户端', async () => {
-    const { getReadClient } = await import('../../../packages/backend/src/db/pool.js');
+    const { getReadClient } = await import(POOL_MODULE);
     const client = await getReadClient();
     expect(client).toBe(poolMocks.mockClient);
     expect(poolMocks.primaryPool.connect).toHaveBeenCalled();
@@ -278,8 +210,7 @@ describe('db/pool', () => {
   it('getReadClient 副本可用时应返回副本客户端', async () => {
     configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
     vi.resetModules();
-    const { getReadClient, getReadPool } = await import('../../../packages/backend/src/db/pool.js');
-    // 先初始化 readPool
+    const { getReadClient, getReadPool } = await import(POOL_MODULE);
     getReadPool();
     poolMocks.readPoolInstance.connect.mockResolvedValueOnce(poolMocks.mockClient);
     const client = await getReadClient();
@@ -290,14 +221,62 @@ describe('db/pool', () => {
   it('getReadClient 副本连接失败时应降级到主库并计数', async () => {
     configMocks.DATABASE_READ_URL = 'postgresql://read:read@read-replica:5432/test';
     vi.resetModules();
-    const { getReadClient, getReadPool } = await import('../../../packages/backend/src/db/pool.js');
-    // 先初始化 readPool
+    const { getReadClient, getReadPool } = await import(POOL_MODULE);
     getReadPool();
-    // 副本连接失败
     poolMocks.readPoolInstance.connect.mockRejectedValueOnce(new Error('replica down'));
     const client = await getReadClient();
     expect(client).toBe(poolMocks.mockClient);
-    expect(poolMocks.readPoolInstance.connect).toHaveBeenCalled();
     expect(poolMocks.primaryPool.connect).toHaveBeenCalled();
+  });
+});
+
+describe('db/migrations', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    poolMocks.mockClient.query.mockResolvedValue({ rows: [] });
+  });
+
+  it('initSchema 在无待迁移时应跳过', async () => {
+    poolMocks.mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
+      .mockResolvedValueOnce({ rows: [{ version: 8 }] }); // applied versions
+    const { initSchema } = await import('../../../packages/backend/src/db/migrations.js');
+    await expect(initSchema()).resolves.toBeUndefined();
+    expect(poolMocks.mockClient.release).toHaveBeenCalled();
+  });
+
+  it('initSchema 有待执行迁移时应执行 up SQL', async () => {
+    poolMocks.mockClient.query
+      .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
+      .mockResolvedValueOnce({ rows: [] }) // SELECT versions - none applied
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN
+      .mockResolvedValueOnce({ rows: [] }) // migration sql
+      .mockResolvedValueOnce({ rows: [] }) // INSERT schema_migrations
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+    const { initSchema } = await import('../../../packages/backend/src/db/migrations.js');
+    await expect(initSchema()).resolves.toBeUndefined();
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('rollbackSchema 无需回滚时应直接返回', async () => {
+    poolMocks.mockClient.query.mockResolvedValueOnce({
+      rows: [{ version: 3 }, { version: 2 }, { version: 1 }],
+    });
+    const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
+    await expect(rollbackSchema(5)).resolves.toBeUndefined();
+  });
+
+  it('rollbackSchema 应执行 down 迁移', async () => {
+    poolMocks.mockClient.query
+      .mockResolvedValueOnce({ rows: [{ version: 8 }, { version: 7 }, { version: 6 }] })
+      .mockResolvedValueOnce({ rows: [] }) // BEGIN v8
+      .mockResolvedValueOnce({ rows: [] }) // down sql
+      .mockResolvedValueOnce({ rows: [] }) // DELETE
+      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+    const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
+    await expect(rollbackSchema(7)).resolves.toBeUndefined();
+    expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
   });
 });

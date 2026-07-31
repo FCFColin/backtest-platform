@@ -94,6 +94,7 @@ vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
 
 vi.mock('../../../packages/backend/src/application/completedHandlers.js', () => ({
   BacktestCompletedHandler: vi.fn().mockImplementation(() => ({})),
+  RunCompletedHandler: vi.fn().mockImplementation(() => ({})),
 }));
 
 vi.mock('../../../packages/backend/src/application/webhookService.js', () => ({

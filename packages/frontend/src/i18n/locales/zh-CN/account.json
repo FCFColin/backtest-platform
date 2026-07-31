@@ -130,7 +130,6 @@
     "userIdLabel": "用户 ID：{{userId}}"
   },
   "orgMembers": {
-    "title": "成员管理",
     "orgLabel": "组织：",
     "table": {
       "user": "用户",

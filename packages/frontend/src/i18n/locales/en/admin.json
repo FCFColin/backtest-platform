@@ -29,16 +29,8 @@
       "coverYears": "Covers {{years}} years",
       "dataCoverageRange": "Data Coverage Range",
       "dataSource": "Data Source",
-      "lastUpdated": "Last Updated",
-      "recordCount": "Record Count",
       "statsLoadFailed": "Failed to load statistics",
-      "status": "Status",
-      "statusActive": "Active",
-      "statusInactive": "Inactive",
-      "statusUnknown": "Unknown",
-      "type": "Type",
-      "typeApi": "API",
-      "typeLocal": "Local"
+      "statusInactive": "Inactive"
     },
     "monitor": {
       "autoRefresh": "Auto Refresh",
@@ -53,8 +45,6 @@
       "refresh": "Refresh",
       "rssMemory": "RSS Memory",
       "serviceHealth": "Service Health",
-      "statusDegraded": "Degraded",
-      "statusHealthy": "Healthy",
       "tickerCount": "Ticker Count: {{count}}",
       "uptime": "Uptime",
       "version": "Version"

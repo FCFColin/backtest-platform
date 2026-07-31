@@ -130,7 +130,6 @@
     "userIdLabel": "User ID: {{userId}}"
   },
   "orgMembers": {
-    "title": "Member Management",
     "orgLabel": "Organization:",
     "table": {
       "user": "User",

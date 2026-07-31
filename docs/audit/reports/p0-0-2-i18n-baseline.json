@@ -1,22 +1,11 @@
 {
-  "timestamp": "2026-07-31T13:33:18.308Z",
-  "zhKeyCount": 2290,
-  "enKeyCount": 2290,
+  "timestamp": "2026-07-31T14:56:46.297Z",
+  "zhKeyCount": 1568,
+  "enKeyCount": 1568,
   "usedKeyCount": 1359,
   "missingInEn": [],
   "missingInZh": [],
-  "undefinedInSource": [
-    "charts.drawdown.dateLabel",
-    "portfolio.metaSaved",
-    "portfolio.removeTag",
-    "portfolio.addTag",
-    "portfolio.loadPreset",
-    "portfolio.presetLoaded",
-    "portfolio.shareTitle",
-    "portfolio.share",
-    "portfolio.saveTitle",
-    "portfolio.save"
-  ],
+  "undefinedInSource": [],
   "unusedZh": [
     "account.billing.checkoutFailed",
     "account.billing.portalFailed",
@@ -39,5 +28,5 @@
     "account.pricing.compare.all",
     "account.pricing.compare.all16"
   ],
-  "status": "FAIL"
+  "status": "PASS"
 }
