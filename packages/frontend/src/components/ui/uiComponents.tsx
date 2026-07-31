@@ -43,7 +43,7 @@ const wrapPrimitive = <T extends WrapComp>(
   return Wrapped;
 };
 
-const badgeVariants = cva(
+export const badgeVariants = cva(
   'inline-flex items-center gap-1.5 rounded-full border font-medium transition-colors',
   {
     variants: {
@@ -69,15 +69,13 @@ const badgeVariants = cva(
     defaultVariants: { variant: 'asset', size: 'default' },
   },
 );
-export { badgeVariants };
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
-const Badge = ({ className, variant, size, ...props }: BadgeProps) => (
+export const Badge = ({ className, variant, size, ...props }: BadgeProps) => (
   <div className={cn(badgeVariants({ variant, size }), className)} {...props} />
 );
-export { Badge };
 
-const buttonVariants = cva(
+export const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors duration-150 ease-out-quart focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0',
   {
     variants: {
@@ -108,8 +106,7 @@ export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
-export { buttonVariants };
-const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button';
     return (
@@ -118,10 +115,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   },
 );
 Button.displayName = 'Button';
-export { Button };
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
-const Input = React.forwardRef<HTMLInputElement, InputProps>(
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, ...props }, ref) => (
     <input
       type={type}
@@ -136,13 +132,12 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ),
 );
 Input.displayName = 'Input';
-export { Input };
 
 interface AffixInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   prefix?: React.ReactNode;
   suffix?: React.ReactNode;
 }
-const AffixInput = React.forwardRef<HTMLInputElement, AffixInputProps>(
+export const AffixInput = React.forwardRef<HTMLInputElement, AffixInputProps>(
   ({ className, prefix, suffix, ...props }, ref) => (
     <div className="relative flex items-center">
       {prefix !== undefined && (
@@ -164,7 +159,6 @@ const AffixInput = React.forwardRef<HTMLInputElement, AffixInputProps>(
   ),
 );
 AffixInput.displayName = 'AffixInput';
-export { AffixInput };
 
 const alertVariants = cva(
   'relative w-full rounded-lg border px-4 py-3 text-sm [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-fg-tertiary [&>svg~*]:pl-7',
@@ -178,7 +172,7 @@ const alertVariants = cva(
     defaultVariants: { variant: 'default' },
   },
 );
-const Alert = React.forwardRef<
+export const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
 >(({ className, variant, ...props }, ref) => (
@@ -195,7 +189,6 @@ export const AlertDescription = wrapPrimitive(
   'text-body text-fg-secondary [&_p]:leading-relaxed',
   'AlertDescription',
 );
-export { Alert };
 
 export const Card = wrapPrimitive('div', 'rounded-xl border border-border bg-surface', 'Card');
 export const CardHeader = wrapPrimitive('div', 'flex flex-col space-y-1.5 p-6 pb-5', 'CardHeader');
@@ -377,7 +370,7 @@ export const SelectItem = wrapPrimitive(
 );
 export { SelectContent };
 
-const Separator = React.forwardRef<
+export const Separator = React.forwardRef<
   React.ElementRef<typeof SeparatorPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof SeparatorPrimitive.Root>
 >(({ className, orientation = 'horizontal', decorative = true, ...props }, ref) => (
@@ -394,7 +387,6 @@ const Separator = React.forwardRef<
   />
 ));
 Separator.displayName = SeparatorPrimitive.Root.displayName;
-export { Separator };
 
 export const Sheet = SheetPrimitive.Root;
 export const SheetTrigger = SheetPrimitive.Trigger;
@@ -414,7 +406,7 @@ const sheetVariants = cva(
     defaultVariants: { side: 'right' },
   },
 );
-const SheetContent = React.forwardRef<
+export const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & VariantProps<typeof sheetVariants>
 >(({ side = 'right', className, children, ...props }, ref) => (
@@ -438,12 +430,10 @@ export const SheetHeader = wrapPrimitive(
   'SheetHeader',
 );
 export const SheetTitle = wrapPrimitive(SheetPrimitive.Title, 'text-h2 text-fg', 'SheetTitle');
-export { SheetContent };
 
-const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+export const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn('animate-pulse rounded-md bg-input-bg', className)} {...props} />
 );
-export { Skeleton };
 
 export const Switch = wrapPrimitive(
   SwitchPrimitive.Root,
@@ -478,10 +468,8 @@ interface TooltipTriggerProps {
   children: ReactNode;
   asChild?: boolean;
 }
-function TooltipTrigger({ children, asChild }: TooltipTriggerProps) {
-  if (asChild && isValidElement(children)) return <>{children}</>;
-  return <span>{children}</span>;
-}
+const TooltipTrigger = ({ children, asChild }: TooltipTriggerProps) =>
+  asChild && isValidElement(children) ? <>{children}</> : <span>{children}</span>;
 interface TooltipContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
