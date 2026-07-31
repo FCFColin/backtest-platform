@@ -7,6 +7,7 @@ import (
 	"engine-go/internal/engine"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/indicators"
+	"engine-go/internal/mathutil"
 	"math"
 	"slices"
 	"strconv"
@@ -437,14 +438,7 @@ func RunTacticalBacktest(ctx context.Context, req TacticalBacktestRequest) (*Tac
 		for i, g := range growthCurve {
 			values[i], dts[i] = g.Value, g.Date
 		}
-		dailyRets := make([]float64, 0, len(values)-1)
-		for i := 1; i < len(values); i++ {
-			r := 0.0
-			if values[i-1] > 0 {
-				r = (values[i] - values[i-1]) / values[i-1]
-			}
-			dailyRets = append(dailyRets, r)
-		}
+		dailyRets := mathutil.DailyReturnsWithZeros(values)
 		stats = engine.CalculateStatisticsFromRequest(engine.StatisticsRequest{Values: values, Dates: dts, StartingValue: req.StartingValue, DailyReturns: dailyRets, AnnualReturnValues: []float64{}, MonthlyReturnValues: []float64{}, MwrrCashflows: []engine.Cashflow{}})
 	}
 	return &TacticalBacktestResult{Portfolio: engine.PortfolioResult{Name: "战术分配", GrowthCurve: growthCurve, Statistics: stats}, SignalHistory: signalHistory}, nil

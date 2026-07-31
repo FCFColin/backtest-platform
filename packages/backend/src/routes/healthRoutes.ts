@@ -36,25 +36,29 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 /**
- * 校验运维端点 Bearer 令牌（与 /metrics 共用 METRICS_AUTH_TOKEN）。
- *
- * D2-005：未配置 METRICS_AUTH_TOKEN 时 fail-closed 返回 403（不再免鉴权）。
- * 令牌已配置但不匹配时返回 401。仅当令牌已配置且恒定时间匹配时放行。
- * D2-004：令牌比较使用 crypto.timingSafeEqual 防计时侧信道。
+ * 校验运维端点 Bearer 令牌（恒定时间比较，D2-004/005）。
  *
  * @param req - Express 请求
  * @param res - Express 响应（鉴权失败时直接写入错误响应）
+ * @param expectedToken - 期望的令牌（未配置时 fail-closed）
+ * @param notConfiguredCode - 未配置令牌时的错误码（/metrics 用 METRICS_AUTH_NOT_CONFIGURED，debug 用 NOT_FOUND）
+ * @param notConfiguredStatus - 未配置令牌时的状态码（/metrics 用 403，debug 用 404）
  * @returns true 表示已鉴权通过；false 表示已写入错误响应，调用方应 return
  */
-function authorizeOpsEndpoint(req: Request, res: Response): boolean {
-  const metricsToken = config.METRICS_AUTH_TOKEN;
-  if (!metricsToken) {
-    sendProblem(res, 403, 'METRICS_AUTH_NOT_CONFIGURED');
+function checkBearerToken(
+  req: Request,
+  res: Response,
+  expectedToken: string | undefined,
+  notConfiguredCode: string,
+  notConfiguredStatus: number,
+): boolean {
+  if (!expectedToken) {
+    sendProblem(res, notConfiguredStatus, notConfiguredCode);
     return false;
   }
   const auth = req.headers.authorization;
   const provided = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!safeEqual(provided, metricsToken)) {
+  if (!safeEqual(provided, expectedToken)) {
     sendProblem(res, 401, 'UNAUTHORIZED');
     return false;
   }
@@ -120,7 +124,8 @@ router.get('/health', (_req: Request, res: Response) => {
  * 配置 METRICS_AUTH_TOKEN 时须 Bearer 鉴权（与 /metrics 一致）。
  */
 router.get('/ready', async (req: Request, res: Response) => {
-  if (!authorizeOpsEndpoint(req, res)) return;
+  if (!checkBearerToken(req, res, config.METRICS_AUTH_TOKEN, 'METRICS_AUTH_NOT_CONFIGURED', 403))
+    return;
 
   try {
     const [goEngineOk, goDataOk, dbOk, redisOk, sentinelHealth] = await Promise.all([
@@ -197,8 +202,11 @@ router.get('/ready', async (req: Request, res: Response) => {
 router.get(
   '/metrics',
   crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      if (!authorizeOpsEndpoint(req, res)) return;
+    async (req, res): Promise<void> => {
+      if (
+        !checkBearerToken(req, res, config.METRICS_AUTH_TOKEN, 'METRICS_AUTH_NOT_CONFIGURED', 403)
+      )
+        return;
       res.set('Content-Type', getPrometheusRegister().contentType);
       res.end(await getPrometheusRegister().metrics());
     },
@@ -214,24 +222,9 @@ router.get(
 // 企业理由：生产排障需 CPU/堆快照，但端点必须鉴权以防信息泄露。
 // 仅当 DEBUG_AUTH_TOKEN 配置时启用，未配置时返回 404。
 
-function checkDebugAuth(req: Request, res: Response): boolean {
-  const token = config.DEBUG_AUTH_TOKEN;
-  if (!token) {
-    sendProblem(res, 404, 'NOT_FOUND');
-    return false;
-  }
-  const auth = req.headers.authorization;
-  const provided = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-  if (!safeEqual(provided, token)) {
-    sendProblem(res, 401, 'UNAUTHORIZED');
-    return false;
-  }
-  return true;
-}
-
 /** GET /api/v1/debug/health — 调试子系统存活探测 */
 router.get('/v1/debug/health', (req, res) => {
-  if (!checkDebugAuth(req, res)) return;
+  if (!checkBearerToken(req, res, config.DEBUG_AUTH_TOKEN, 'NOT_FOUND', 404)) return;
   res.json({
     success: true,
     data: {

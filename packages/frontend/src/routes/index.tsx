@@ -34,10 +34,14 @@ const MultiSignalPage = lazy(() => import('@/pages/signal/MultiSignalPage'));
 const LETFSlippagePage = lazy(() => import('@/pages/letf/LETFSlippagePage'));
 const TacticalGridPage = lazy(() => import('@/pages/tactical/TacticalGridPage'));
 const GoalOptimizerPage = lazy(() => import('@/pages/goal-optimizer/GoalOptimizerPage'));
-const AboutPage = lazy(() => import('@/pages/AboutPage'));
-const ContactPage = lazy(() => import('@/pages/ContactPage'));
+const AboutPage = lazy(() => import('@/pages/staticPages').then((m) => ({ default: m.AboutPage })));
+const ContactPage = lazy(() =>
+  import('@/pages/staticPages').then((m) => ({ default: m.ContactPage })),
+);
 const HelpPage = lazy(() => import('@/pages/HelpPage'));
-const ChangelogPage = lazy(() => import('@/pages/ChangelogPage'));
+const ChangelogPage = lazy(() =>
+  import('@/pages/staticPages').then((m) => ({ default: m.ChangelogPage })),
+);
 const ChartBenchmarkPage = lazy(
   () => import('@/pages/prototype/chart-benchmark/ChartBenchmarkPage'),
 );

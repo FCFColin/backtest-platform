@@ -78,3 +78,78 @@ func Covariance(x, y []float64) float64 {
 	}
 	return cov / float64(n-1)
 }
+
+// DailyReturns 计算价格序列的日收益率；前一日价格非正时跳过该日。
+func DailyReturns(prices []float64) []float64 {
+	if len(prices) < 2 {
+		return nil
+	}
+	rets := make([]float64, 0, len(prices)-1)
+	for i := 1; i < len(prices); i++ {
+		if prices[i-1] > 0 {
+			rets = append(rets, (prices[i]-prices[i-1])/prices[i-1])
+		}
+	}
+	return rets
+}
+
+// DailyReturnsWithZeros 计算价格序列的日收益率；前一日价格非正时补 0（保持与输入等长）。
+func DailyReturnsWithZeros(prices []float64) []float64 {
+	if len(prices) < 2 {
+		return nil
+	}
+	rets := make([]float64, len(prices)-1)
+	for i := 1; i < len(prices); i++ {
+		if prices[i-1] > 0 {
+			rets[i-1] = (prices[i] - prices[i-1]) / prices[i-1]
+		}
+	}
+	return rets
+}
+
+// DownsideDeviation 计算下行偏差：低于目标收益率 mar 的超额收益平方均值开方。
+func DownsideDeviation(returns []float64, mar float64) float64 {
+	if len(returns) == 0 {
+		return 0
+	}
+	var sumSquared float64
+	for _, r := range returns {
+		if excess := r - mar; excess < 0 {
+			sumSquared += excess * excess
+		}
+	}
+	return math.Sqrt(sumSquared / float64(len(returns)))
+}
+
+// Histogram 将 values 等宽分箱（binCount 箱），返回各箱计数与区间端点。
+func Histogram(values []float64, binCount int) (counts []int, minVal, maxVal float64) {
+	if len(values) == 0 || binCount <= 0 {
+		return nil, 0, 0
+	}
+	minVal, maxVal = values[0], values[0]
+	for _, v := range values[1:] {
+		if v < minVal {
+			minVal = v
+		}
+		if v > maxVal {
+			maxVal = v
+		}
+	}
+	counts = make([]int, binCount)
+	if maxVal == minVal {
+		counts[0] = len(values)
+		return counts, minVal, maxVal
+	}
+	binWidth := (maxVal - minVal) / float64(binCount)
+	for _, v := range values {
+		bin := int((v - minVal) / binWidth)
+		if bin >= binCount {
+			bin = binCount - 1
+		}
+		if bin < 0 {
+			bin = 0
+		}
+		counts[bin]++
+	}
+	return counts, minVal, maxVal
+}

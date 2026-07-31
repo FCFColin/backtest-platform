@@ -59,15 +59,23 @@ server.listen(PORT, async () => {
       const conn = await getPool().connect();
       conn.release();
       logger.info('[startup] DB 连接预热完成');
-    } catch { /* 预热失败不影响启动 */ }
+    } catch {
+      /* 预热失败不影响启动 */
+    }
     try {
       await appRedis.ping();
       logger.info('[startup] appRedis 连接预热完成');
-    } catch { /* 预热失败不影响启动 */ }
+    } catch {
+      /* 预热失败不影响启动 */
+    }
     try {
-      await fetch(`${config.GO_ENGINE_URL}/api/engine/health`, { signal: AbortSignal.timeout(3000) });
+      await fetch(`${config.GO_ENGINE_URL}/api/engine/health`, {
+        signal: AbortSignal.timeout(3000),
+      });
       logger.info('[startup] Go 引擎连接预热完成');
-    } catch { /* 预热失败不影响启动 */ }
+    } catch {
+      /* 预热失败不影响启动 */
+    }
     // 预热 /data/meta 缓存，使首次页面加载无需等待 14.5M 行聚合查询
     const { warmMetaCache } = await import('./routes/dataRoutes.js');
     await warmMetaCache();
@@ -149,7 +157,7 @@ function triggerShutdown(signal: string, exitCode: number = 0): void {
  *
  * @param _server - HTTP server 实例（保留参数兼容旧调用，实际使用模块级 server）
  */
-export function setupGracefulShutdown(_server: Server): void {
+function setupGracefulShutdown(_server: Server): void {
   process.on('SIGTERM', () => triggerShutdown('SIGTERM', 0));
   process.on('SIGINT', () => triggerShutdown('SIGINT', 0));
 }

@@ -49,6 +49,32 @@ function buildBacktestResponse(
   return response;
 }
 
+/**
+ * 同步计算端点统一骨架：执行 → 记录指标 → buildBacktestResponse 响应。
+ * 消除 /analysis、/monte-carlo、/optimize、/efficient-frontier 的重复样板。
+ */
+function computeRoute(
+  metric: string,
+  logMsg: string,
+  code: string,
+  fn: (req: Request) => Promise<{
+    data: unknown;
+    warnings?: (Warning | string)[];
+    dateRange?: unknown;
+  }>,
+): RequestHandler {
+  return asyncRouteHandler(
+    async (req, res) => {
+      const startTime = Date.now();
+      const { data, warnings, dateRange } = await fn(req);
+      recordBacktestRequest(metric, 'sync', 'success');
+      res.json(buildBacktestResponse(data, warnings, dateRange));
+      logger.info(`[backtest] ${metric} completed in ${Date.now() - startTime}ms`);
+    },
+    { logMsg, code, endpoint: metric },
+  );
+}
+
 router.get(
   '/search',
   asyncRouteHandler(
@@ -89,12 +115,10 @@ router.post(
           tenantId: authReq.tenantId,
           ownerUserId: ownerOf(authReq),
         } as BacktestJobData);
-        res
-          .status(202)
-          .json({
-            success: true,
-            data: { jobId: job.id, status: 'queued', statusUrl: `/api/v1/backtest/runs/${job.id}` },
-          });
+        res.status(202).json({
+          success: true,
+          data: { jobId: job.id, status: 'queued', statusUrl: `/api/v1/backtest/runs/${job.id}` },
+        });
         recordBacktestRequest('portfolio', 'async', 'success');
       } catch (queueError) {
         logger.error(
@@ -130,8 +154,7 @@ router.get(
   '/runs/:jobId',
   crudRouteHandler(
     // eslint-disable-next-line complexity
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
+    async (req, res): Promise<void> => {
       const jobId = req.params.jobId;
       if (!jobId) {
         sendProblem(res, 400, 'INVALID_ID');
@@ -143,14 +166,14 @@ router.get(
         return;
       }
       // 越权访问返回 404 不泄露任务存在：仅所有者本人 / admin / 同租户可见
-      const requester = authReq.user;
+      const requester = req.user;
       if (requester) {
         const ownerId = job.data?.userId;
         const jobTenant = job.data?.tenantId;
         const hasOwnership =
           (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
         const passesTenantCheck =
-          !jobTenant || jobTenant === authReq.tenantId || requester.platform_admin === true;
+          !jobTenant || jobTenant === req.tenantId || requester.platform_admin === true;
         if (!hasOwnership || !passesTenantCheck) {
           sendProblem(res, 404, 'JOB_NOT_FOUND');
           return;
@@ -200,102 +223,65 @@ router.post(
 router.post(
   '/analysis',
   validate(analysisSchema),
-  asyncRouteHandler(
-    async (req, res) => {
-      const { tickers, parameters } = req.body as {
-        tickers: string[];
-        parameters: BacktestParameters;
-      };
-      const result = await runAnalysis(tickers, parameters);
-      recordBacktestRequest('analysis', 'sync', 'success');
-      const { warnings, dateRange, ...data } = result as Record<string, unknown> & {
-        warnings?: Warning[];
-        dateRange?: unknown;
-      };
-      res.json(buildBacktestResponse(data, warnings, dateRange));
-    },
-    { logMsg: 'Analysis error', code: 'ANALYSIS_ERROR', endpoint: 'analysis' },
-  ),
+  computeRoute('analysis', 'Analysis error', 'ANALYSIS_ERROR', async (req) => {
+    const { tickers, parameters } = req.body as {
+      tickers: string[];
+      parameters: BacktestParameters;
+    };
+    const result = (await runAnalysis(tickers, parameters)) as Record<string, unknown> & {
+      warnings?: Warning[];
+      dateRange?: unknown;
+    };
+    const { warnings, dateRange, ...data } = result;
+    return { data, warnings, dateRange };
+  }),
 );
 
 router.post(
   '/monte-carlo',
   validate(monteCarloSchema),
-  asyncRouteHandler(
-    async (req, res) => {
-      const startTime = Date.now();
-      const { portfolio, portfolios, parameters, mcParams } = req.body as {
-        portfolio?: Portfolio;
-        portfolios?: Portfolio[];
-        parameters: BacktestParameters;
-        mcParams?: Record<string, unknown>;
-      };
-      const portfolioList = (portfolios || (portfolio ? [portfolio] : undefined))!;
-      const { data, warnings, dateRange } = await runMonteCarlo(
-        portfolioList,
-        parameters,
-        mcParams,
-      );
-      recordBacktestRequest('monte-carlo', 'sync', 'success');
-      res.json(buildBacktestResponse(data, warnings, dateRange));
-      logger.info(`[backtest] Monte Carlo completed in ${Date.now() - startTime}ms`);
-    },
-    { logMsg: 'Monte Carlo simulation error', code: 'MONTE_CARLO_ERROR', endpoint: 'monte-carlo' },
-  ),
+  computeRoute('monte-carlo', 'Monte Carlo simulation error', 'MONTE_CARLO_ERROR', async (req) => {
+    const { portfolio, portfolios, parameters, mcParams } = req.body as {
+      portfolio?: Portfolio;
+      portfolios?: Portfolio[];
+      parameters: BacktestParameters;
+      mcParams?: Record<string, unknown>;
+    };
+    const portfolioList = (portfolios || (portfolio ? [portfolio] : undefined))!;
+    return runMonteCarlo(portfolioList, parameters, mcParams);
+  }),
 );
 
 router.post(
   '/optimize',
   validate(optimizeSchema),
-  asyncRouteHandler(
-    async (req, res) => {
-      const startTime = Date.now();
-      const { tickers, objective, constraints, parameters, numIterations } = req.body as {
-        tickers: string[];
-        objective: 'maxSharpe' | 'minVolatility' | 'maxReturn';
-        constraints?: { minWeight?: number; maxWeight?: number };
-        parameters: BacktestParameters;
-        numIterations?: number;
-      };
-      const { data, warnings, dateRange } = await runOptimization(
-        tickers,
-        objective,
-        constraints || {},
-        parameters,
-        numIterations,
-      );
-      logger.info(`[backtest] Optimization completed in ${Date.now() - startTime}ms`);
-      recordBacktestRequest('optimize', 'sync', 'success');
-      res.json(buildBacktestResponse(data, warnings, dateRange));
-    },
-    { logMsg: 'Optimization error', code: 'OPTIMIZATION_ERROR', endpoint: 'optimize' },
-  ),
+  computeRoute('optimize', 'Optimization error', 'OPTIMIZATION_ERROR', async (req) => {
+    const { tickers, objective, constraints, parameters, numIterations } = req.body as {
+      tickers: string[];
+      objective: 'maxSharpe' | 'minVolatility' | 'maxReturn';
+      constraints?: { minWeight?: number; maxWeight?: number };
+      parameters: BacktestParameters;
+      numIterations?: number;
+    };
+    return runOptimization(tickers, objective, constraints || {}, parameters, numIterations);
+  }),
 );
 
 router.post(
   '/efficient-frontier',
   validate(efficientFrontierSchema),
-  asyncRouteHandler(
-    async (req, res) => {
+  computeRoute(
+    'efficient-frontier',
+    'Efficient frontier error',
+    'EFFICIENT_FRONTIER_ERROR',
+    async (req) => {
       const { tickers, numPoints, parameters, riskFreeRate } = req.body as {
         tickers: string[];
         numPoints?: number;
         parameters: BacktestParameters;
         riskFreeRate?: number;
       };
-      const { data, warnings, dateRange } = await runEfficientFrontier(
-        tickers,
-        parameters,
-        numPoints,
-        riskFreeRate,
-      );
-      recordBacktestRequest('efficient-frontier', 'sync', 'success');
-      res.json(buildBacktestResponse(data, warnings, dateRange));
-    },
-    {
-      logMsg: 'Efficient frontier error',
-      code: 'EFFICIENT_FRONTIER_ERROR',
-      endpoint: 'efficient-frontier',
+      return runEfficientFrontier(tickers, parameters, numPoints, riskFreeRate);
     },
   ),
 );

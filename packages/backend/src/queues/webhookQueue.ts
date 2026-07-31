@@ -53,7 +53,7 @@ export const webhookQueue = new Queue(QUEUE_NAME, {
 
 // C-021: webhook-retry 死信队列——接收最终失败任务，便于追溯/重放。
 // BullMQ 开源版无原生 DLQ，此处手动创建并在 Worker failed 事件中转移（见 dlqConfig.ts）。
-export const webhookDlq = createDeadLetterQueue(QUEUE_NAME);
+const webhookDlq = createDeadLetterQueue(QUEUE_NAME);
 
 webhookQueue.on('error', (err) => {
   logger.error({ module: 'webhookQueue', err: err.message }, 'Webhook Queue connection error');

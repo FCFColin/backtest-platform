@@ -1,5 +1,4 @@
-import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
-import type { ComputeToolConfig } from '../../components/shells/types.js';
+import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { useAnalysisPageState } from '@/hooks/useAnalysisPageState.js';
 import { AnalysisParamsPanel } from './AnalysisParams.js';
 import { AnalysisResultsPanel } from './AnalysisResults.js';
@@ -27,7 +26,17 @@ function AnalysisParamsWrapper({ state }: { state: State }) {
   );
 }
 function AnalysisResultsWrapper({ state }: { state: State }) {
-  return <AnalysisResultsPanel error={state.error} results={state.results} activeTab={state.activeTab} setActiveTab={state.setActiveTab} isLoading={state.isLoading} correlationWindow={state.correlationWindow} rollingWindow={state.rollingWindow} />;
+  return (
+    <AnalysisResultsPanel
+      error={state.error}
+      results={state.results}
+      activeTab={state.activeTab}
+      setActiveTab={state.setActiveTab}
+      isLoading={state.isLoading}
+      correlationWindow={state.correlationWindow}
+      rollingWindow={state.rollingWindow}
+    />
+  );
 }
 const config: ComputeToolConfig<State> = {
   titleKey: 'analysis.title',
@@ -35,15 +44,15 @@ const config: ComputeToolConfig<State> = {
   hideParamsTitle: true,
   seoFeatures: [
     { titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoAnalyzableDesc' },
-    { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' }
+    { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' },
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
     { titleKey: 'optimizer.title', href: '/optimizer' },
-    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' }
+    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
   ],
   params: AnalysisParamsWrapper,
-  results: AnalysisResultsWrapper
+  results: AnalysisResultsWrapper,
 };
 export default function AnalysisPage() {
   const s = useAnalysisPageState();

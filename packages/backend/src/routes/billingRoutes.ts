@@ -31,6 +31,15 @@ const router = Router();
 
 const requireAdmin = requirePermission(Permission.ADMIN_ACCESS);
 
+/** 计费未启用时发送 503 并返回 false。 */
+function requireBillingEnabled(res: Response): boolean {
+  if (!isBillingEnabled()) {
+    sendProblem(res, 503, 'BILLING_DISABLED');
+    return false;
+  }
+  return true;
+}
+
 interface BillingErrorCheck {
   check: string;
   status: number;
@@ -82,10 +91,7 @@ router.post(
   requireAdmin,
   validate(checkoutSchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    if (!isBillingEnabled()) {
-      sendProblem(res, 503, 'BILLING_DISABLED');
-      return;
-    }
+    if (!requireBillingEnabled(res)) return;
     const { plan } = req.body as { plan: 'pro' | 'enterprise' };
     const base = config.APP_BASE_URL;
     try {
@@ -118,32 +124,34 @@ router.post(
 );
 
 /** POST /api/v1/billing/portal - 创建 Billing Portal 会话（admin） */
-router.post('/portal', requireAdmin, validate(emptyBodySchema), async (req: AuthenticatedRequest, res: Response) => {
-  if (!isBillingEnabled()) {
-    sendProblem(res, 503, 'BILLING_DISABLED');
-    return;
-  }
-  try {
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
-    const url = await createPortalSession(tenantId, `${config.APP_BASE_URL}/account`);
-    res.json({ success: true, data: { url } });
-  } catch (err) {
-    handleBillingError(res, err, {
-      logMsg: '创建 Portal 失败',
-      fallbackCode: 'PORTAL_FAILED',
-      fallbackDetail: 'Failed to create management session',
-      orgId: req.tenantId,
-      checks: [
-        {
-          check: 'no_customer',
-          status: 404,
-          code: 'NO_CUSTOMER',
-        },
-      ],
-    });
-  }
-});
+router.post(
+  '/portal',
+  requireAdmin,
+  validate(emptyBodySchema),
+  async (req: AuthenticatedRequest, res: Response) => {
+    if (!requireBillingEnabled(res)) return;
+    try {
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      const url = await createPortalSession(tenantId, `${config.APP_BASE_URL}/account`);
+      res.json({ success: true, data: { url } });
+    } catch (err) {
+      handleBillingError(res, err, {
+        logMsg: '创建 Portal 失败',
+        fallbackCode: 'PORTAL_FAILED',
+        fallbackDetail: 'Failed to create management session',
+        orgId: req.tenantId,
+        checks: [
+          {
+            check: 'no_customer',
+            status: 404,
+            code: 'NO_CUSTOMER',
+          },
+        ],
+      });
+    }
+  },
+);
 
 /** Stripe 事件去重 TTL（24 小时），覆盖 Stripe 最大重试窗口 */
 const STRIPE_EVENT_DEDUP_TTL_SECONDS = 24 * 60 * 60;

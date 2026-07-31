@@ -7,6 +7,7 @@
  */
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
+import { rowMapper, iso } from './rowMapper.js';
 
 export interface TacticalConfigRecord {
   id: string;
@@ -18,39 +19,27 @@ export interface TacticalConfigRecord {
   updatedAt: string;
 }
 
-export interface CreateTacticalConfigInput {
+interface CreateTacticalConfigInput {
   name: string;
   description?: string;
   config: Record<string, unknown>;
 }
 
-export interface UpdateTacticalConfigInput {
+interface UpdateTacticalConfigInput {
   name?: string;
   description?: string;
   config?: Record<string, unknown>;
 }
 
-interface TacticalConfigRow {
-  id: string;
-  name: string;
-  description: string | null;
-  config: Record<string, unknown>;
-  user_id: string;
-  created_at: Date | string;
-  updated_at: Date | string;
-}
-
-function mapRow(row: TacticalConfigRow): TacticalConfigRecord {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
-    config: row.config,
-    userId: row.user_id,
-    createdAt: new Date(row.created_at).toISOString(),
-    updatedAt: new Date(row.updated_at).toISOString(),
-  };
-}
+const mapRow = rowMapper<TacticalConfigRecord>({
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  config: 'config',
+  userId: 'user_id',
+  createdAt: (r) => iso(r.created_at),
+  updatedAt: (r) => iso(r.updated_at),
+});
 
 const SELECT_COLS = 'id, name, description, config, user_id, created_at, updated_at';
 
@@ -91,7 +80,7 @@ export async function findById(tenantId: string, id: string): Promise<TacticalCo
       `SELECT ${SELECT_COLS} FROM tactical_configs WHERE id = $1`,
       [id],
     );
-    return rows.length > 0 ? mapRow(rows[0] as TacticalConfigRow) : null;
+    return rows.length > 0 ? mapRow(rows[0]) : null;
   });
 }
 
@@ -116,7 +105,7 @@ export async function create(
       [tenantId, userId, input.name, input.description ?? null, input.config],
     );
     logger.info({ tenantId, userId, configId: rows[0].id }, '[tactical-config] Created');
-    return mapRow(rows[0] as TacticalConfigRow);
+    return mapRow(rows[0]);
   });
 }
 
@@ -162,7 +151,7 @@ export async function update(
     );
     if (rows.length === 0) return null;
     logger.info({ tenantId, configId: id }, '[tactical-config] Updated');
-    return mapRow(rows[0] as TacticalConfigRow);
+    return mapRow(rows[0]);
   });
 }
 

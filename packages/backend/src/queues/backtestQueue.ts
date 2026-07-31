@@ -68,7 +68,7 @@ export const backtestQueue = new Queue<BacktestJobData, BacktestJobResult>(QUEUE
 
 // C-021: backtest-compute 死信队列——接收 3 次重试后仍失败的任务，便于追溯/重放。
 // BullMQ 开源版无原生 DLQ，此处手动创建并在 Worker failed 事件中转移（见 dlqConfig.ts）。
-export const backtestDlq = createDeadLetterQueue(QUEUE_NAME);
+const backtestDlq = createDeadLetterQueue(QUEUE_NAME);
 
 backtestQueue.on('error', (err) => {
   logger.error({ module: 'backtestQueue', err: err.message }, 'BullMQ Queue connection error');

@@ -86,37 +86,21 @@ func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDat
 	if len(tradingDates) == 0 {
 		return nil, fmt.Errorf("日期范围内无交易数据")
 	}
-	weights := make(map[string]float64, len(portfolio.Assets))
-	for _, a := range portfolio.Assets {
-		weights[a.Ticker] = a.Weight / 100.0
+	tickers := make([]string, len(portfolio.Assets))
+	weights := make([]float64, len(portfolio.Assets))
+	for i, a := range portfolio.Assets {
+		tickers[i] = a.Ticker
+		weights[i] = a.Weight / 100.0
 	}
-	type assetPrices struct {
-		prices []float64
-		weight float64
+	dates := make([]string, len(tradingDates))
+	for i, d := range tradingDates {
+		dates[i] = d.Format("2006-01-02")
 	}
-	assetList := make([]assetPrices, 0, len(portfolio.Assets))
-	for _, a := range portfolio.Assets {
-		assetList = append(assetList, assetPrices{prices: engineutil.ExtractPrices(priceData, a.Ticker, tradingDates), weight: weights[a.Ticker]})
-	}
-	returns := make([]float64, 0, len(tradingDates)-1)
-	for i := 1; i < len(tradingDates); i++ {
-		weightedReturn := 0.0
-		totalWeight := 0.0
-		for _, ap := range assetList {
-			prevPrice := ap.prices[i-1]
-			currPrice := ap.prices[i]
-			if prevPrice > 0 && currPrice > 0 {
-				weightedReturn += ap.weight * ((currPrice - prevPrice) / prevPrice)
-				totalWeight += ap.weight
-			}
+	returns := engineutil.WeightedDailyReturns(tickers, weights, priceData, dates, true, true)
+	if portfolio.Drag > 0 {
+		for i := range returns {
+			returns[i] -= portfolio.Drag / float64(mcTradingDays)
 		}
-		if totalWeight > 0 {
-			weightedReturn /= totalWeight
-		}
-		if portfolio.Drag > 0 {
-			weightedReturn -= portfolio.Drag / float64(mcTradingDays)
-		}
-		returns = append(returns, weightedReturn)
 	}
 	return returns, nil
 }
@@ -133,17 +117,8 @@ func computePerPathMetrics(paths [][]float64, startingValue float64, numYears in
 }
 func calcPathMetrics(path []float64, startingValue float64, years float64) PathMetrics {
 	finalValue := path[len(path)-1]
-	cagr := 0.0
-	if startingValue > 0 && years > 0 && finalValue > 0 {
-		cagr = math.Pow(finalValue/startingValue, 1.0/years) - 1
-	}
-	pathLen := len(path)
-	dailyRets := make([]float64, pathLen-1)
-	for j := 1; j < pathLen; j++ {
-		if path[j-1] > 0 {
-			dailyRets[j-1] = (path[j] - path[j-1]) / path[j-1]
-		}
-	}
+	cagr := engine.CalcCAGR(startingValue, finalValue, years)
+	dailyRets := mathutil.DailyReturnsWithZeros(path)
 	maxDD := engine.CalcMaxDrawdown(path).MaxDrawdown
 	vol := 0.0
 	if len(dailyRets) > 1 {
@@ -178,17 +153,8 @@ func computeMCStatistics(paths [][]float64, threshold float64, startingValue flo
 	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: mathutil.Mean(finalValues), SuccessRate: float64(successCount) / float64(n)}
 }
 func mcSortino(dailyRets []float64, cagr float64) float64 {
-	if len(dailyRets) == 0 {
-		return 0
-	}
 	dailyRF := mcRiskFreeRate / float64(mcTradingDays)
-	sumSq := 0.0
-	for _, r := range dailyRets {
-		if excess := r - dailyRF; excess < 0 {
-			sumSq += excess * excess
-		}
-	}
-	downsideDev := math.Sqrt(sumSq/float64(len(dailyRets))) * math.Sqrt(float64(mcTradingDays))
+	downsideDev := mathutil.DownsideDeviation(dailyRets, dailyRF) * math.Sqrt(float64(mcTradingDays))
 	if downsideDev == 0 {
 		return 0
 	}
@@ -364,27 +330,14 @@ func computeFinalDistribution(paths [][]float64) []float64 {
 	for i, path := range paths {
 		finalValues[i] = path[len(path)-1]
 	}
-	sorted := make([]float64, len(finalValues))
-	copy(sorted, finalValues)
-	slices.Sort(sorted)
-	minVal := sorted[0]
-	maxVal := sorted[len(sorted)-1]
+	counts, minVal, maxVal := mathutil.Histogram(finalValues, mcHistogramBins)
+	result := make([]float64, len(counts))
 	if maxVal == minVal {
-		result := make([]float64, mcHistogramBins)
-		result[mcHistogramBins/2] = float64(len(paths))
+		result[len(counts)/2] = float64(len(paths))
 		return result
 	}
-	binWidth := (maxVal - minVal) / float64(mcHistogramBins)
-	result := make([]float64, mcHistogramBins)
-	for _, v := range finalValues {
-		bin := int((v - minVal) / binWidth)
-		if bin >= mcHistogramBins {
-			bin = mcHistogramBins - 1
-		}
-		if bin < 0 {
-			bin = 0
-		}
-		result[bin]++
+	for i, c := range counts {
+		result[i] = float64(c)
 	}
 	return result
 }

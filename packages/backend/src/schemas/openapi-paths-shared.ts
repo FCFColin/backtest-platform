@@ -7,7 +7,7 @@
 import { z } from 'zod';
 import { reg, idParam } from './openapi-components.js';
 
-export type RegOpts = Parameters<typeof reg>[0];
+type RegOpts = Parameters<typeof reg>[0];
 export { idParam };
 
 // 高频重复的 errors 数组与 params 结构，注册时直接复用（保证各端点错误码一致）
@@ -22,8 +22,8 @@ export const VALIDATION_CONFLICT_ERR = [400, 401, 403, 422, 409, 500];
 export const UPDATE_ERR = [400, 401, 403, 404, 422, 500];
 export const BACKTEST_ERR = [400, 401, 422, 500, 503];
 export const TACTICAL_ERR = [400, 401, 422, 503];
-export const CRUD_CREATE_ERR = [400, 401, 422];
-export const CRUD_UPDATE_ERR = [400, 401, 404, 422];
+const CRUD_CREATE_ERR = [400, 401, 422];
+const CRUD_UPDATE_ERR = [400, 401, 404, 422];
 export const STATUS_ERR = [401, 503];
 export const WITH_ID_PARAM = { params: idParam() } as const;
 export const WITH_USER_ID_PARAM = { params: idParam('userId') } as const;
@@ -68,7 +68,7 @@ export function pubReg(
   reg({ method, path, tag, summary, errors, body, okDescription });
 }
 
-export interface CrudOpts {
+interface CrudOpts {
   tag: string;
   basePath: string;
   listSummary: string;

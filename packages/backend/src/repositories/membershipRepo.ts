@@ -14,6 +14,7 @@
  */
 import { getPool } from '../db/pool.js';
 import type { OrgRole } from '../middleware/jwtAuth.js';
+import { rowMapper, iso } from './rowMapper.js';
 
 export type GlobalRole = 'admin' | 'analyst' | 'readonly';
 
@@ -34,23 +35,21 @@ interface OrgMember {
   createdAt: string;
 }
 
-function mapRow(row: {
-  org_id: string;
-  org_name: string;
-  org_slug: string;
-  org_plan: string;
-  org_status: string;
-  role: OrgRole;
-}): Membership {
-  return {
-    orgId: row.org_id,
-    orgName: row.org_name,
-    orgSlug: row.org_slug,
-    orgPlan: row.org_plan,
-    orgStatus: row.org_status,
-    role: row.role,
-  };
-}
+const mapRow = rowMapper<Membership>({
+  orgId: 'org_id',
+  orgName: 'org_name',
+  orgSlug: 'org_slug',
+  orgPlan: 'org_plan',
+  orgStatus: 'org_status',
+  role: 'role',
+});
+const mapOrgMember = rowMapper<OrgMember>({
+  userId: 'user_id',
+  username: 'username',
+  email: (r) => (r.email as string | null) ?? null,
+  role: 'role',
+  createdAt: (r) => iso(r.created_at),
+});
 
 /**
  * 查询用户的全部组织成员关系（按角色优先级与创建时间排序）。
@@ -110,11 +109,5 @@ export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
       ORDER BY m.created_at ASC`,
     [orgId],
   );
-  return rows.map((r) => ({
-    userId: r.user_id,
-    username: r.username,
-    email: r.email ?? null,
-    role: r.role,
-    createdAt: new Date(r.created_at).toISOString(),
-  }));
+  return rows.map(mapOrgMember);
 }

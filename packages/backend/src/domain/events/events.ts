@@ -21,12 +21,6 @@ export const RUN_CANCELLED_EVENT = 'RunCancelled' as const;
 
 export const RUN_AGGREGATE_TYPE = 'Run' as const;
 
-export type RunEventType =
-  | typeof RUN_STARTED_EVENT
-  | typeof RUN_COMPLETED_EVENT
-  | typeof RUN_FAILED_EVENT
-  | typeof RUN_CANCELLED_EVENT;
-
 export interface DomainEvent {
   eventType: string;
   aggregateType: string;

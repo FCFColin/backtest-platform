@@ -10,10 +10,18 @@ const gauge = (name: string, help: string, labelNames: string[] = []): client.Ga
   new client.Gauge({ name, help, labelNames, registers: [register] });
 const counter = (name: string, help: string, labelNames: string[] = []): client.Counter =>
   new client.Counter({ name, help, labelNames, registers: [register] });
-const histogram = (name: string, help: string, labelNames: string[], buckets: number[]): client.Histogram =>
+const histogram = (
+  name: string,
+  help: string,
+  labelNames: string[],
+  buckets: number[],
+): client.Histogram =>
   new client.Histogram({ name, help, labelNames, buckets, registers: [register] });
 
-export const eventLoopLagSeconds = gauge('node_eventloop_lag_seconds', 'Event loop lag (P99) in seconds, sampled every 10s');
+export const eventLoopLagSeconds = gauge(
+  'node_eventloop_lag_seconds',
+  'Event loop lag (P99) in seconds, sampled every 10s',
+);
 const eventLoopMonitor = monitorEventLoopDelay({ resolution: 20 });
 eventLoopMonitor.enable();
 setInterval(() => {
@@ -22,43 +30,115 @@ setInterval(() => {
 }, 10_000).unref();
 
 // 状态码映射：0=closed, 1=open, 2=halfOpen
-export const circuitBreakerState = gauge('circuit_breaker_state', 'Circuit breaker state: 0=closed, 1=open, 2=halfOpen', ['name']);
-export const dataServiceSemaphoreAvailable = gauge('data_service_semaphore_permits_available', 'Available permits of data-service concurrency semaphore', ['name']);
-export const dataServiceSemaphoreTotal = gauge('data_service_semaphore_permits_max', 'Max permits of data-service concurrency semaphore (configured limit)', ['name']);
+export const circuitBreakerState = gauge(
+  'circuit_breaker_state',
+  'Circuit breaker state: 0=closed, 1=open, 2=halfOpen',
+  ['name'],
+);
+export const dataServiceSemaphoreAvailable = gauge(
+  'data_service_semaphore_permits_available',
+  'Available permits of data-service concurrency semaphore',
+  ['name'],
+);
+export const dataServiceSemaphoreTotal = gauge(
+  'data_service_semaphore_permits_max',
+  'Max permits of data-service concurrency semaphore (configured limit)',
+  ['name'],
+);
 
-export function registerCircuitBreakerMetrics(name: string, breaker: {
-  on(event: 'open', cb: () => void): unknown;
-  on(event: 'halfOpen', cb: () => void): unknown;
-  on(event: 'close', cb: () => void): unknown;
-}): void {
+export function registerCircuitBreakerMetrics(
+  name: string,
+  breaker: {
+    on(event: 'open', cb: () => void): unknown;
+    on(event: 'halfOpen', cb: () => void): unknown;
+    on(event: 'close', cb: () => void): unknown;
+  },
+): void {
   breaker.on('open', () => circuitBreakerState.set({ name }, 1));
   breaker.on('halfOpen', () => circuitBreakerState.set({ name }, 2));
   breaker.on('close', () => circuitBreakerState.set({ name }, 0));
   circuitBreakerState.set({ name }, 0);
 }
 
-export function registerSemaphoreMetrics(name: string, total: number, getAvailable: () => number): void {
+export function registerSemaphoreMetrics(
+  name: string,
+  total: number,
+  getAvailable: () => number,
+): void {
   dataServiceSemaphoreTotal.set({ name }, total);
   dataServiceSemaphoreAvailable.set({ name }, getAvailable());
   setInterval(() => dataServiceSemaphoreAvailable.set({ name }, getAvailable()), 5_000).unref();
 }
 
-export const httpRequestDurationMicroseconds = histogram('http_request_duration_seconds', 'Duration of HTTP requests in seconds', ['method', 'route', 'status_code'], [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 10, 30]);
-export const httpRequestsTotal = counter('http_requests_total', 'Total number of HTTP requests', ['method', 'route', 'status_code']);
-export const engineCallsTotal = counter('go_engine_calls_total', 'Total number of calls to Go engine', ['result']);
-export const engineCallDuration = histogram('go_engine_call_duration_seconds', 'Duration of Go engine calls in seconds', ['result'], [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120]);
+export const httpRequestDurationMicroseconds = histogram(
+  'http_request_duration_seconds',
+  'Duration of HTTP requests in seconds',
+  ['method', 'route', 'status_code'],
+  [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 10, 30],
+);
+export const httpRequestsTotal = counter('http_requests_total', 'Total number of HTTP requests', [
+  'method',
+  'route',
+  'status_code',
+]);
+export const engineCallsTotal = counter(
+  'go_engine_calls_total',
+  'Total number of calls to Go engine',
+  ['result'],
+);
+export const engineCallDuration = histogram(
+  'go_engine_call_duration_seconds',
+  'Duration of Go engine calls in seconds',
+  ['result'],
+  [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60, 120],
+);
 // 引擎不可用次数（ADR-031 fail-closed 语义）
-export const engineUnavailableTotal = counter('engine_unavailable_total', 'Total number of engine unavailable events (Go circuit breaker open/fail-closed)', ['reason']);
+export const engineUnavailableTotal = counter(
+  'engine_unavailable_total',
+  'Total number of engine unavailable events (Go circuit breaker open/fail-closed)',
+  ['reason'],
+);
 
-const backtestRequestsTotal = counter('backtest_requests_total', 'Total backtest-related API requests', ['endpoint', 'mode', 'status']);
-const degradedResponsesTotal = counter('degraded_responses_total', 'Responses served in degraded mode', ['endpoint', 'reason']);
-const cacheHitsTotal = counter('cache_hits_total', 'Cache hit/miss count by layer', ['layer', 'result']);
-const cacheEvictionsTotal = counter('cache_evictions_total', 'Cache evictions by level (l1 = in-process LRU capacity eviction)', ['level']);
-const authFailuresTotal = counter('auth_failures_total', 'Authentication/authorization failures by endpoint and reason', ['endpoint', 'reason']);
+const backtestRequestsTotal = counter(
+  'backtest_requests_total',
+  'Total backtest-related API requests',
+  ['endpoint', 'mode', 'status'],
+);
+const degradedResponsesTotal = counter(
+  'degraded_responses_total',
+  'Responses served in degraded mode',
+  ['endpoint', 'reason'],
+);
+const cacheHitsTotal = counter('cache_hits_total', 'Cache hit/miss count by layer', [
+  'layer',
+  'result',
+]);
+const cacheEvictionsTotal = counter(
+  'cache_evictions_total',
+  'Cache evictions by level (l1 = in-process LRU capacity eviction)',
+  ['level'],
+);
+const authFailuresTotal = counter(
+  'auth_failures_total',
+  'Authentication/authorization failures by endpoint and reason',
+  ['endpoint', 'reason'],
+);
 // 标签 is_platform_admin 区分平台 break-glass 密钥（应触发告警）与租户密钥
-export const apiKeysStaleCount = gauge('api_keys_stale_count', 'Active API keys not used within the staleness threshold (by is_platform_admin)', ['is_platform_admin']);
-const pgPoolWaitingCount = gauge('pg_pool_waiting_count', 'Number of queued requests waiting for a pool connection', ['pool']);
-const pgPoolTotalCount = gauge('pg_pool_connection_count', 'Current connections in the pool (idle + in use)', ['pool']);
+export const apiKeysStaleCount = gauge(
+  'api_keys_stale_count',
+  'Active API keys not used within the staleness threshold (by is_platform_admin)',
+  ['is_platform_admin'],
+);
+const pgPoolWaitingCount = gauge(
+  'pg_pool_waiting_count',
+  'Number of queued requests waiting for a pool connection',
+  ['pool'],
+);
+const pgPoolTotalCount = gauge(
+  'pg_pool_connection_count',
+  'Current connections in the pool (idle + in use)',
+  ['pool'],
+);
 
 // 清洗指标标签值：替换非法字符为 `_`，截断到 maxLength。allowSlash=true 允许 `/`（路由型标签）
 function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {
@@ -76,7 +156,11 @@ export function getRoutePattern(req: Pick<Request, 'baseUrl' | 'route' | 'path'>
   return normalized.slice(0, 128);
 }
 
-export function recordBacktestRequest(endpoint: string, mode: 'sync' | 'async', status: 'success' | 'error' | 'timeout' | 'queue_error'): void {
+export function recordBacktestRequest(
+  endpoint: string,
+  mode: 'sync' | 'async',
+  status: 'success' | 'error' | 'timeout' | 'queue_error',
+): void {
   backtestRequestsTotal.inc({ endpoint, mode, status });
 }
 export function recordDegradedResponse(endpoint: string, reason: string): void {
@@ -89,10 +173,16 @@ export function recordCacheEviction(level: 'l1'): void {
   cacheEvictionsTotal.inc({ level });
 }
 export function recordAuthFailure(endpoint: string, reason: string): void {
-  authFailuresTotal.inc({ endpoint: sanitizeMetricLabel(endpoint, 128, true), reason: sanitizeMetricLabel(reason) });
+  authFailuresTotal.inc({
+    endpoint: sanitizeMetricLabel(endpoint, 128, true),
+    reason: sanitizeMetricLabel(reason),
+  });
 }
 
-export function registerPgPoolMetrics(poolName: string, getStats: () => { waitingCount: number; totalCount: number }): void {
+export function registerPgPoolMetrics(
+  poolName: string,
+  getStats: () => { waitingCount: number; totalCount: number },
+): void {
   const refresh = (): void => {
     const stats = getStats();
     pgPoolWaitingCount.set({ pool: poolName }, stats.waitingCount);
@@ -115,21 +205,48 @@ export function resetMetrics(): void {
 }
 
 // 等保三级 8.1.4 b) 入侵检测要求
-export const authIpLockoutCounter = counter('auth_ip_lockout_total', 'Total number of IP addresses blocked due to suspicious login activity (cross-account brute force)');
+export const authIpLockoutCounter = counter(
+  'auth_ip_lockout_total',
+  'Total number of IP addresses blocked due to suspicious login activity (cross-account brute force)',
+);
 // 副本不可用时自动降级到主库的次数
-export const readPoolFallbackCounter = counter('read_pool_fallback_total', 'Number of times read pool fell back to write pool due to connection failure');
+export const readPoolFallbackCounter = counter(
+  'read_pool_fallback_total',
+  'Number of times read pool fell back to write pool due to connection failure',
+);
 // Redis/DB 不可用时 fail-closed 路径递增
-export const quotaEnforcementFailures = counter('quota_enforcement_failures_total', 'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)', ['quota_key', 'reason']);
+export const quotaEnforcementFailures = counter(
+  'quota_enforcement_failures_total',
+  'Total number of quota enforcement failures (Redis/DB unavailable, fail-closed)',
+  ['quota_key', 'reason'],
+);
 
-export const timescaledbCompressedChunks = gauge('timescaledb_compressed_chunks', 'Number of compressed chunks in prices hypertable');
-export const timescaledbUncompressedChunks = gauge('timescaledb_uncompressed_chunks', 'Number of uncompressed chunks in prices hypertable');
+const timescaledbCompressedChunks = gauge(
+  'timescaledb_compressed_chunks',
+  'Number of compressed chunks in prices hypertable',
+);
+const timescaledbUncompressedChunks = gauge(
+  'timescaledb_uncompressed_chunks',
+  'Number of uncompressed chunks in prices hypertable',
+);
 // 0-1，压缩后/压缩前
-export const timescaledbCompressionRatio = gauge('timescaledb_compression_ratio', 'Compression ratio of prices hypertable (after/before, lower is better)');
-export const timescaledbCaggRows = gauge('timescaledb_cagg_rows', 'Total rows in prices_monthly continuous aggregate');
-export const timescaledbChunkCount = gauge('timescaledb_chunk_count', 'Total number of chunks in prices hypertable');
+const timescaledbCompressionRatio = gauge(
+  'timescaledb_compression_ratio',
+  'Compression ratio of prices hypertable (after/before, lower is better)',
+);
+const timescaledbCaggRows = gauge(
+  'timescaledb_cagg_rows',
+  'Total rows in prices_monthly continuous aggregate',
+);
+const timescaledbChunkCount = gauge(
+  'timescaledb_chunk_count',
+  'Total number of chunks in prices hypertable',
+);
 
 // 注册 TimescaleDB 指标采集器。使用回调函数模式避免与 pool.ts 的循环依赖
-export function registerTimescaleMetrics(queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>): void {
+export function registerTimescaleMetrics(
+  queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>,
+): void {
   const setNum = (g: client.Gauge, v: unknown): void => g.set(Number(v ?? 0));
   const sample = async (): Promise<void> => {
     try {
@@ -171,9 +288,15 @@ export function registerTimescaleMetrics(queryFn: (sql: string) => Promise<Array
   setInterval(sample, 60_000).unref();
 }
 
-const bullmqQueueSize = gauge('bullmq_queue_size', 'Number of jobs in BullMQ queue (waiting + active + delayed)', ['queue']);
+const bullmqQueueSize = gauge(
+  'bullmq_queue_size',
+  'Number of jobs in BullMQ queue (waiting + active + delayed)',
+  ['queue'],
+);
 
-export function registerQueueMetrics(queues: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>): void {
+export function registerQueueMetrics(
+  queues: Array<{ name: string; getJobCounts: () => Promise<Record<string, number>> }>,
+): void {
   const refresh = async (): Promise<void> => {
     for (const q of queues) {
       try {
@@ -189,18 +312,49 @@ export function registerQueueMetrics(queues: Array<{ name: string; getJobCounts:
   setInterval(refresh, 10_000).unref();
 }
 
-export const frontendWebVital = gauge('frontend_web_vital', 'Web Vitals from real-user monitoring (lcp/cls/inp/fcp/ttfb)', ['metric', 'route']);
-export const frontendApiCallDuration = histogram('frontend_api_call_duration_seconds', 'API call duration from frontend perspective (includes network latency)', ['endpoint', 'method', 'status_code'], [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30]);
-export const frontendComponentRender = histogram('frontend_component_render_duration_seconds', 'React component render duration from Profiler', ['component', 'phase'], [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1]);
-export const frontendPageLoad = histogram('frontend_page_load_seconds', 'Page load timing from Navigation Timing API', ['metric'], [0.1, 0.5, 1, 2, 3, 5, 10]);
+const frontendWebVital = gauge(
+  'frontend_web_vital',
+  'Web Vitals from real-user monitoring (lcp/cls/inp/fcp/ttfb)',
+  ['metric', 'route'],
+);
+const frontendApiCallDuration = histogram(
+  'frontend_api_call_duration_seconds',
+  'API call duration from frontend perspective (includes network latency)',
+  ['endpoint', 'method', 'status_code'],
+  [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30],
+);
+const frontendComponentRender = histogram(
+  'frontend_component_render_duration_seconds',
+  'React component render duration from Profiler',
+  ['component', 'phase'],
+  [0.001, 0.005, 0.01, 0.016, 0.05, 0.1, 0.5, 1],
+);
+const frontendPageLoad = histogram(
+  'frontend_page_load_seconds',
+  'Page load timing from Navigation Timing API',
+  ['metric'],
+  [0.1, 0.5, 1, 2, 3, 5, 10],
+);
 
 export function recordFrontendWebVital(metric: string, value: number, route?: string): void {
   frontendWebVital.set({ metric, route: route || 'unknown' }, value);
 }
-export function recordFrontendApiCall(endpoint: string, method: string, statusCode: number, durationMs: number): void {
-  frontendApiCallDuration.observe({ endpoint: endpoint.slice(0, 128), method, status_code: String(statusCode) }, durationMs / 1000);
+export function recordFrontendApiCall(
+  endpoint: string,
+  method: string,
+  statusCode: number,
+  durationMs: number,
+): void {
+  frontendApiCallDuration.observe(
+    { endpoint: endpoint.slice(0, 128), method, status_code: String(statusCode) },
+    durationMs / 1000,
+  );
 }
-export function recordFrontendComponentRender(component: string, phase: string, durationMs: number): void {
+export function recordFrontendComponentRender(
+  component: string,
+  phase: string,
+  durationMs: number,
+): void {
   frontendComponentRender.observe({ component: component.slice(0, 128), phase }, durationMs / 1000);
 }
 export function recordFrontendPageLoad(metric: string, value: number): void {

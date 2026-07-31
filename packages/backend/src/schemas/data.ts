@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { paginationQuerySchema } from './shared.js';
 
 // Validation: 数据服务路由请求体/查询参数运行时校验（/api/v1/data/*）
 // 企业为何需要：TypeScript类型仅在编译时检查，运行时req.body/query可包含任意数据
@@ -26,10 +27,7 @@ export const cpiQuerySchema = z.object({
   endDate: z.string().date().optional(),
 });
 
-export const tickerListQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
-});
+export const tickerListQuerySchema = z.object(paginationQuerySchema);
 
 export const tickerSearchQuerySchema = z.object({
   q: z.string().min(1).max(100),

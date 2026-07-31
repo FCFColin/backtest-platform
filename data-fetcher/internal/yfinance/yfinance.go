@@ -46,11 +46,11 @@ func (p *yahooProvider) Name() string {
 	return "yfinance"
 }
 func (p *yahooProvider) FetchStockDaily(ticker, startDate, endDate string) ([]provider.DailyPrice, error) {
-	startUnix, err := dateToUnix(startDate)
+	startUnix, err := providerutil.DateToUnix(startDate)
 	if err != nil {
 		return nil, fmt.Errorf("无效的起始日期 %s: %w", startDate, err)
 	}
-	endUnix, err := dateToUnix(endDate)
+	endUnix, err := providerutil.DateToUnix(endDate)
 	if err != nil {
 		return nil, fmt.Errorf("无效的结束日期 %s: %w", endDate, err)
 	}
@@ -168,11 +168,4 @@ func parseSearchResponse(body []byte) ([]provider.TickerInfo, error) {
 		results = append(results, provider.TickerInfo{Ticker: q.Symbol, Name: name, Market: "美股"})
 	}
 	return results, nil
-}
-func dateToUnix(dateStr string) (int64, error) {
-	t, err := time.Parse("2006-01-02", dateStr)
-	if err != nil {
-		return 0, err
-	}
-	return t.Unix(), nil
 }

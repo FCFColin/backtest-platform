@@ -51,7 +51,7 @@ const DEEP_ANALYSIS_ITEMS: {
   { type: 'ef', icon: BarChart3, labelKey: 'portfolio.efficientFrontier' },
   { type: 'fr', icon: Sigma, labelKey: 'portfolio.factorRegression' },
 ];
-interface PortfolioCardV2Props {
+interface PortfolioCardProps {
   portfolio: StorePortfolio;
   index: number;
   color: string;
@@ -64,7 +64,7 @@ interface PortfolioCardV2Props {
   onDeepAnalysis: (type: 'backtest' | 'mc' | 'ef' | 'fr') => void;
 }
 // eslint-disable-next-line max-lines-per-function -- 组合卡片渲染分支多，拆分反而损失内聚
-export function PortfolioCardV2({
+export function PortfolioCard({
   portfolio,
   color,
   rebalanceOptions,
@@ -74,7 +74,7 @@ export function PortfolioCardV2({
   onDuplicate,
   onSave,
   onDeepAnalysis,
-}: PortfolioCardV2Props) {
+}: PortfolioCardProps) {
   const { t } = useTranslation();
   const tw = portfolio.assets.reduce((sum, a) => sum + a.weight, 0);
   const isComplete = Math.abs(tw - 100) <= 0.01;

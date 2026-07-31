@@ -82,12 +82,12 @@ function recordDegraded(endpoint: string | undefined): void {
  * 统一异步路由包装：错误优先级 EngineUnavailable→503/Retry-After、ApplicationError→对应状态码、其余→500。
  */
 export function asyncRouteHandler(
-  fn: (req: Request, res: Response) => Promise<void>,
+  fn: (req: AuthenticatedRequest, res: Response) => Promise<void>,
   errorConfig: RouteErrorConfig,
 ) {
   return async (req: Request, res: Response): Promise<void> => {
     try {
-      await fn(req, res);
+      await fn(req as AuthenticatedRequest, res);
     } catch (error) {
       if (handleEngineUnavailable(res, error)) {
         recordDegraded(errorConfig.endpoint);
@@ -106,12 +106,12 @@ export function asyncRouteHandler(
 
 /** CRUD 路由包装：不耦合引擎指标，统一 500 兜底；handler 内 sendProblem 的 4xx/404 不被拦截。 */
 export function crudRouteHandler(
-  fn: (req: Request, res: Response) => Promise<void>,
+  fn: (req: AuthenticatedRequest, res: Response) => Promise<void>,
   errorConfig: RouteErrorConfig,
 ): RequestHandler {
   return async (req, res): Promise<void> => {
     try {
-      await fn(req, res);
+      await fn(req as AuthenticatedRequest, res);
     } catch (err) {
       logger.error({ err: err as Error, path: req.path, method: req.method }, errorConfig.logMsg);
       sendProblem(res, 500, errorConfig.code);
@@ -119,8 +119,41 @@ export function crudRouteHandler(
   };
 }
 
+/**
+ * 租户守卫 CRUD handler：解析 tenantId 后调用 fn（tenantId 缺失时 401，无需 handler 内重复守卫）。
+ * 适用所有"requireTenantId + if (!orgId) return"模式的 crud handler。
+ */
+export function tenantHandler(
+  logMsg: string,
+  code: string,
+  fn: (req: AuthenticatedRequest, res: Response, tenantId: string) => Promise<void>,
+): RequestHandler {
+  return crudRouteHandler(
+    async (req, res) => {
+      const tenantId = requireTenantId(req, res);
+      if (!tenantId) return;
+      await fn(req, res, tenantId);
+    },
+    { logMsg, code },
+  );
+}
+
+/** 简单 JSON 响应 handler：`res.json({ success: true, data: await fn(...) })`。 */
+export function jsonRoute(
+  logMsg: string,
+  code: string,
+  fn: (req: AuthenticatedRequest, res: Response) => Promise<unknown>,
+): RequestHandler {
+  return crudRouteHandler(
+    async (req, res) => {
+      res.json({ success: true, data: await fn(req, res) });
+    },
+    { logMsg, code },
+  );
+}
+
 /** 租户作用域 CRUD 仓储最小接口：所有方法以 tenantId 为首参（RLS 隔离边界），update 可选。 */
-export interface TenantCrudRepo<T> {
+interface TenantCrudRepo<T> {
   list(tenantId: string, limit?: number, offset?: number): Promise<T[]>;
   get(tenantId: string, id: string): Promise<T | null>;
   create(tenantId: string, ownerUserId: string | null, input: unknown): Promise<T>;
@@ -128,7 +161,7 @@ export interface TenantCrudRepo<T> {
   remove(tenantId: string, id: string): Promise<boolean>;
 }
 
-export interface TenantCrudConfig {
+interface TenantCrudConfig {
   resource: string; // 日志前缀，如 'configs' → '[configs] 列表失败'
   codePrefix: string; // 错误码前缀，如 'CONFIG' → CONFIG_LIST_FAILED
   notFoundCode: string; // 404 错误码，如 'CONFIG_NOT_FOUND'
@@ -138,25 +171,24 @@ export interface TenantCrudConfig {
   beforeCreate?: (req: AuthenticatedRequest, res: Response) => Promise<boolean>; // 创建前钩子（如配额检查）；返回 false 表示已响应拒绝
 }
 
+const CRUD_LABELS: Record<string, string> = {
+  list: '列表',
+  get: '获取',
+  create: '创建',
+  update: '更新',
+  delete: '删除',
+};
+
 /** 生成标准租户作用域 CRUD 路由（GET /、GET /:id、POST /、PUT /:id、DELETE /:id），消除重复样板。 */
 
 export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudConfig): Router {
   const router = Router();
   const handler = cfg.metricPrefix ? asyncRouteHandler : crudRouteHandler;
-  const endpoint = (action: string): string | undefined =>
-    cfg.metricPrefix ? `${cfg.metricPrefix}-${action}` : undefined;
-  const LABELS: Record<string, string> = {
-    list: '列表',
-    get: '获取',
-    create: '创建',
-    update: '更新',
-    delete: '删除',
-  };
   const h = (action: string, fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
     handler(fn, {
-      logMsg: `[${cfg.resource}] ${LABELS[action]}失败`,
+      logMsg: `[${cfg.resource}] ${CRUD_LABELS[action]}失败`,
       code: `${cfg.codePrefix}_${action.toUpperCase()}_FAILED`,
-      endpoint: endpoint(action),
+      ...(cfg.metricPrefix ? { endpoint: `${cfg.metricPrefix}-${action}` } : {}),
     });
   const tenantOf = (req: Request, res: Response): string | null =>
     requireTenantId(req as AuthenticatedRequest, res);
@@ -193,12 +225,10 @@ export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudC
       const tenantId = tenantOf(req, res);
       if (!tenantId) return;
       if (cfg.beforeCreate && !(await cfg.beforeCreate(req as AuthenticatedRequest, res))) return;
-      res
-        .status(201)
-        .json({
-          success: true,
-          data: await service.create(tenantId, ownerOf(req as AuthenticatedRequest), req.body),
-        });
+      res.status(201).json({
+        success: true,
+        data: await service.create(tenantId, ownerOf(req as AuthenticatedRequest), req.body),
+      });
     }),
   );
 

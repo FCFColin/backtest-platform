@@ -22,7 +22,7 @@ import {
 } from '../queues/dataUpdateQueue.js';
 import { logger } from '../utils/logger.js';
 
-export interface UpdateStatus {
+interface UpdateStatus {
   running: boolean;
   mode: 'full' | 'incremental' | null;
   startedAt: string | null;

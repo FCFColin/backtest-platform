@@ -138,6 +138,20 @@ func buildSignalDirMap(signals []SignalPoint) map[string]SignalDir {
 	}
 	return m
 }
+func mergedSignalDates(dirMaps ...map[string]SignalDir) []string {
+	dateSet := make(map[string]bool)
+	for _, m := range dirMaps {
+		for d := range m {
+			dateSet[d] = true
+		}
+	}
+	allDates := make([]string, 0, len(dateSet))
+	for d := range dateSet {
+		allDates = append(allDates, d)
+	}
+	sort.Strings(allDates)
+	return allDates
+}
 func combineDir(s1, s2 *SignalDir, method string) *SignalDir {
 	switch method {
 	case "and":
@@ -167,18 +181,7 @@ func AnalyzeDualSignal(cfg1, cfg2 SignalAnalysisRequest, data1, data2 []PricePoi
 	result2 := AnalyzeSignal(cfg2, data2)
 	map1 := buildSignalDirMap(result1.Signals)
 	map2 := buildSignalDirMap(result2.Signals)
-	dateSet := make(map[string]bool)
-	for d := range map1 {
-		dateSet[d] = true
-	}
-	for d := range map2 {
-		dateSet[d] = true
-	}
-	allDates := make([]string, 0, len(dateSet))
-	for d := range dateSet {
-		allDates = append(allDates, d)
-	}
-	sort.Strings(allDates)
+	allDates := mergedSignalDates(map1, map2)
 	priceMap := make(map[string]float64)
 	for _, d := range data1 {
 		priceMap[d.Date] = d.Price
@@ -215,17 +218,7 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 	for i, r := range perSignal {
 		dirMaps[i] = buildSignalDirMap(r.Signals)
 	}
-	dateSet := make(map[string]bool)
-	for _, m := range dirMaps {
-		for d := range m {
-			dateSet[d] = true
-		}
-	}
-	allDates := make([]string, 0, len(dateSet))
-	for d := range dateSet {
-		allDates = append(allDates, d)
-	}
-	sort.Strings(allDates)
+	allDates := mergedSignalDates(dirMaps...)
 	priceMap := make(map[string]float64)
 	for _, d := range data {
 		priceMap[d.Date] = d.Price

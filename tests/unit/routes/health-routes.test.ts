@@ -115,20 +115,6 @@ describe('healthRoutes', () => {
       expect(res.headers.get('Retry-After')).toBe('30');
       expect(body.error.code).toBe('ENGINE_UNAVAILABLE');
     });
-
-    it('配置 METRICS_AUTH_TOKEN 时未鉴权应返回 401', async () => {
-      config.METRICS_AUTH_TOKEN = 'secret-metrics-token';
-
-      const res = await fetch(`${server.url}/api/ready`);
-      expect(res.status).toBe(401);
-    });
-
-    it('D2-005: 未配置 METRICS_AUTH_TOKEN 时 /ready 应返回 403', async () => {
-      config.METRICS_AUTH_TOKEN = '';
-
-      const res = await fetch(`${server.url}/api/ready`);
-      expect(res.status).toBe(403);
-    });
   });
 
   describe('GET /api/metrics', () => {
@@ -154,19 +140,25 @@ describe('healthRoutes', () => {
       expect(text).toContain('node_eventloop_lag_seconds');
       expect(text).toContain('circuit_breaker_state');
     });
+  });
 
-    it('配置 METRICS_AUTH_TOKEN 时未鉴权应返回 401', async () => {
+  it.each(['/ready', '/metrics'] as const)(
+    '配置 METRICS_AUTH_TOKEN 时未鉴权访问 %s 应返回 401',
+    async (path) => {
       config.METRICS_AUTH_TOKEN = 'secret-metrics-token';
 
-      const res = await fetch(`${server.url}/api/metrics`);
+      const res = await fetch(`${server.url}/api${path}`);
       expect(res.status).toBe(401);
-    });
+    },
+  );
 
-    it('D2-005: 未配置 METRICS_AUTH_TOKEN 时 /metrics 应返回 403', async () => {
+  it.each(['/ready', '/metrics'] as const)(
+    'D2-005: 未配置 METRICS_AUTH_TOKEN 时 %s 应返回 403',
+    async (path) => {
       config.METRICS_AUTH_TOKEN = '';
 
-      const res = await fetch(`${server.url}/api/metrics`);
+      const res = await fetch(`${server.url}/api${path}`);
       expect(res.status).toBe(403);
-    });
-  });
+    },
+  );
 });

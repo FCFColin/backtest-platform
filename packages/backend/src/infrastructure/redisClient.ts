@@ -148,7 +148,7 @@ export function markRedisUnhealthy(): void {
 // ping 成功只能证明当前节点存活，无法证明"是 master"或"从节点拓扑健康"。
 // 通过 INFO replication 检查 role:master 与 connected_slaves>=1；非 Sentinel 模式返回 null（仅 ping 已足够）。
 // /api/ready 消费此结果：Sentinel 模式下 master 健康 false 即 503。
-export interface SentinelMasterHealth {
+interface SentinelMasterHealth {
   isMaster: boolean | null; // 当前节点是否为 master（非 Sentinel 模式为 null）
   connectedSlaves: number | null; // 已连接从节点数（非 Sentinel 模式为 null）
 }

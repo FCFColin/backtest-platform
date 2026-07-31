@@ -57,13 +57,11 @@
 
 ## 6. 事件处置流程
 
-| 事件              | 症状                 | 处置                                        |
-| ----------------- | -------------------- | ------------------------------------------- |
-| PostgreSQL 不可用 | API 503, health=down | pg_isready → 连接池 → backup-restore.sh     |
-| Redis 不可用      | 认证/限流降级        | ping → Sentinel 切换(<30s)                  |
-| engine-go 不可用  | 503+Retry-After      | curl health → 日志 → restart（fail-closed） |
-| 密钥泄露          | gitleaks/审计异常    | 轮换 → 撤 session → 审日志 → 安全报告       |
-| DDoS              | 请求飙升             | 限流 → IP 黑名单 → 云 DDoS 防护             |
+| 事件         | 症状              | 处置                                  |
+| ------------ | ----------------- | ------------------------------------- |
+| 密钥泄露     | gitleaks/审计异常 | 轮换 → 撤 session → 审日志 → 安全报告 |
+| DDoS         | 请求飙升          | 限流 → IP 黑名单 → 云 DDoS 防护       |
+| 基础设施故障 | —                 | PG/Redis/引擎恢复流程见 runbooks/     |
 
 响应: P0 15min 接报/1h 恢复；P1 30min/4h；P2 2h/24h。事后: P0/P1 48h 内报告；P0 全员复盘。
 

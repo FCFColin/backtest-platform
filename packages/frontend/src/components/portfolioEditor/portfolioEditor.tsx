@@ -6,7 +6,7 @@ import { Play as PlayIcon, Loader2, Check } from '@/icons/icons.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 export { GlidepathForm } from './portfolioEditorFields.js';
-export { PortfolioCardV2 } from './portfolioEditorCard.js';
+export { PortfolioCard } from './portfolioEditorCard.js';
 
 export type StorePortfolio = ReturnType<typeof useBacktestStore.getState>['portfolios'][number];
 export type TFunc = (key: string) => string;

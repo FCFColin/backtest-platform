@@ -3,8 +3,7 @@ import ErrorBanner from '../../components/ErrorBanner.js';
 import { FrontierParams } from './EfficientFrontierParams.js';
 import { FrontierResults } from './EfficientFrontierResults.js';
 import { useEfficientFrontierState } from './EfficientFrontierUtils.js';
-import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
-import type { ComputeToolConfig } from '../../components/shells/types.js';
+import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 type FrontierState = ReturnType<typeof useEfficientFrontierState>;
 function FrontierParamsWrapper({ state }: { state: FrontierState }) {
   return (
@@ -40,10 +39,33 @@ function FrontierResultsWrapper({ state }: { state: FrontierState }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
-      {state.error && <ErrorBanner message={`${t('efficientFrontier.calcFailed')}: ${state.error}`} variant="error" />}
-      {state.correlationError && !state.error && <ErrorBanner message={state.correlationError} variant="warning" />}
+      {state.error && (
+        <ErrorBanner
+          message={`${t('efficientFrontier.calcFailed')}: ${state.error}`}
+          variant="error"
+        />
+      )}
+      {state.correlationError && !state.error && (
+        <ErrorBanner message={state.correlationError} variant="warning" />
+      )}
       {state.results && state.results.frontier.length > 0 && (
-        <FrontierResults results={state.results} scatterData={state.scatterData} sharpeRange={state.sharpeRange} maxSharpe={state.maxSharpe} allocationData={state.allocationData} allAssetTickers={state.allAssetTickers} correlations={state.correlations} correlationError={state.correlationError} selectedPoint={state.selectedPoint} rebalanceFrequency={state.rebalanceFrequency} allowCash={state.allowCash} returnObjective={state.returnObjective} solver={state.solver} onSelectPoint={state.setSelectedPoint} onLoadInBacktester={state.handleLoadInBacktester} />
+        <FrontierResults
+          results={state.results}
+          scatterData={state.scatterData}
+          sharpeRange={state.sharpeRange}
+          maxSharpe={state.maxSharpe}
+          allocationData={state.allocationData}
+          allAssetTickers={state.allAssetTickers}
+          correlations={state.correlations}
+          correlationError={state.correlationError}
+          selectedPoint={state.selectedPoint}
+          rebalanceFrequency={state.rebalanceFrequency}
+          allowCash={state.allowCash}
+          returnObjective={state.returnObjective}
+          solver={state.solver}
+          onSelectPoint={state.setSelectedPoint}
+          onLoadInBacktester={state.handleLoadInBacktester}
+        />
       )}
     </div>
   );
@@ -54,20 +76,20 @@ const config: ComputeToolConfig<FrontierState> = {
   seoFeatures: [
     {
       titleKey: 'efficientFrontier.seo.visualizationTitle',
-      descKey: 'efficientFrontier.seo.visualizationDesc'
+      descKey: 'efficientFrontier.seo.visualizationDesc',
     },
     {
       titleKey: 'efficientFrontier.seo.constraintsTitle',
-      descKey: 'efficientFrontier.seo.constraintsDesc'
-    }
+      descKey: 'efficientFrontier.seo.constraintsDesc',
+    },
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
     { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
-    { titleKey: 'nav.assetAnalysis', href: '/analysis' }
+    { titleKey: 'nav.assetAnalysis', href: '/analysis' },
   ],
   params: FrontierParamsWrapper,
-  results: FrontierResultsWrapper
+  results: FrontierResultsWrapper,
 };
 export default function EfficientFrontierPage() {
   const s = useEfficientFrontierState();

@@ -47,12 +47,12 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 			rollingReturns[i] = DataPoint{Date: r.Date, Value: r.Return}
 		}
 		portfolioResults = append(portfolioResults, PortfolioResult{Name: pf.Name, GrowthCurve: curve, DrawdownCurve: ddCurve, RollingReturns: rollingReturns, AnnualReturns: annualReturnsFromCurve(curve), MonthlyReturns: monthlyReturnsFromCurve(curve), Statistics: stats, DrawdownEpisodes: episodes, AllocationHistory: allocHist})
-		portfolioDailyReturns = append(portfolioDailyReturns, dailyReturns(extractValues(curve)))
+		portfolioDailyReturns = append(portfolioDailyReturns, mathutil.DailyReturns(extractValues(curve)))
 	}
 	correlations := CalcCorrelationMatrix(portfolioDailyReturns)
 	assetDailyReturns := make([][]float64, 0, len(assetTickers))
 	for _, ticker := range assetTickers {
-		assetDailyReturns = append(assetDailyReturns, dailyReturns(engineutil.ExtractPrices(req.PriceData, ticker, tradingDates)))
+		assetDailyReturns = append(assetDailyReturns, mathutil.DailyReturns(engineutil.ExtractPrices(req.PriceData, ticker, tradingDates)))
 	}
 	assetCorrelations := CalcCorrelationMatrix(assetDailyReturns)
 	result := &BacktestResult{Portfolios: portfolioResults, Correlations: correlations, BenchmarkGrowth: benchmarkGrowth, AssetTickers: assetTickers, AssetCorrelations: assetCorrelations}
@@ -84,18 +84,6 @@ func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, trad
 		curve[i] = DataPoint{Date: tradingDates[i].Format("2006-01-02"), Value: startValue * (p / startPrice)}
 	}
 	return curve
-}
-func dailyReturns(values []float64) []float64 {
-	if len(values) < 2 {
-		return nil
-	}
-	rets := make([]float64, 0, len(values)-1)
-	for i := 1; i < len(values); i++ {
-		if values[i-1] > 0 {
-			rets = append(rets, (values[i]-values[i-1])/values[i-1])
-		}
-	}
-	return rets
 }
 func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, error) {
 	startValue := params.StartingValue
@@ -277,11 +265,11 @@ func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve
 	var benchDailyReturns []float64
 	var benchmarkCagr *float64
 	if len(benchCurve) >= 2 {
-		benchDailyReturns = dailyReturns(extractValues(benchCurve))
+		benchDailyReturns = mathutil.DailyReturns(extractValues(benchCurve))
 		c := CalcCAGR(benchCurve[0].Value, benchCurve[len(benchCurve)-1].Value, float64(len(benchCurve))/float64(tradingDays))
 		benchmarkCagr = &c
 	}
-	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: dailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: []Cashflow{{Value: -startValue, Time: 0}}, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
+	result := CalculateStatisticsFromRequest(StatisticsRequest{Values: values, Dates: dates, StartingValue: startValue, DailyReturns: mathutil.DailyReturns(values), AnnualReturnValues: annualReturnValues, MonthlyReturnValues: monthlyReturnValues, MwrrCashflows: []Cashflow{{Value: -startValue, Time: 0}}, BenchmarkDailyReturns: benchDailyReturns, BenchmarkCagr: benchmarkCagr})
 	if endValue <= 0 {
 		result.MWRR = 0
 	}
@@ -341,20 +329,26 @@ func getPriceWithFX(ticker, date string, priceData PriceDataMap, exchangeRates m
 		return 0
 	}
 	if len(exchangeRates) > 0 {
-		if rate, ok := exchangeRates[date]; ok {
+		if rate, ok := lookupBackdated(date, exchangeRates, 10, func(t time.Time) string { return t.Format("2006-01-02") }); ok {
 			return raw * rate
-		}
-		if d, err := time.Parse("2006-01-02", date); err == nil {
-			search := d
-			for k := 0; k < 10; k++ {
-				search = search.AddDate(0, 0, -1)
-				if rate, ok := exchangeRates[search.Format("2006-01-02")]; ok {
-					return raw * rate
-				}
-			}
 		}
 	}
 	return raw
+}
+func lookupBackdated(date string, data map[string]float64, maxDays int, key func(time.Time) string) (float64, bool) {
+	if v, ok := data[date]; ok {
+		return v, true
+	}
+	if d, err := time.Parse("2006-01-02", date); err == nil {
+		search := d
+		for k := 0; k < maxDays; k++ {
+			search = search.AddDate(0, 0, -1)
+			if v, ok := data[key(search)]; ok {
+				return v, true
+			}
+		}
+	}
+	return 0, false
 }
 func adjustForInflation(curve []DataPoint, vals []float64, dates []string, cpiData map[string]float64, enabled bool) {
 	if !enabled || len(cpiData) == 0 {
@@ -437,25 +431,11 @@ func buildPeriodicCashflowMap(legs []CashflowLeg, dates []string) (map[string]fl
 	return m, nil
 }
 func findCPIForDate(date string, cpiData map[string]float64) float64 {
-	if v, ok := cpiData[date]; ok {
-		return v
-	}
 	if len(date) < 7 {
 		return 0
 	}
-	monthStart := date[:7] + "-01"
-	if v, ok := cpiData[monthStart]; ok {
+	if v, ok := lookupBackdated(date, cpiData, 24, func(t time.Time) string { return t.Format("2006-01") + "-01" }); ok {
 		return v
-	}
-	if d, err := time.Parse("2006-01-02", date); err == nil {
-		search := d
-		for k := 0; k < 24; k++ {
-			search = search.AddDate(0, 0, -1)
-			key := search.Format("2006-01") + "-01"
-			if v, ok := cpiData[key]; ok {
-				return v
-			}
-		}
 	}
 	return 0
 }

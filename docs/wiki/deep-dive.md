@@ -101,5 +101,5 @@ config/: env.ts（Zod 验证）、index.ts（导出）、limits.ts（计划配�
 
 ## 13. 关键约束
 
-- Go 引擎唯一（ADR-031），无 Node 降级；数据降级 PG→data-fetcher（degraded: true）
+- 降级语义见 [ARCHITECTURE.md §3](../ARCHITECTURE.md#3-降级策略)（引擎 fail-closed 503 无 degraded；数据服务 degraded: true）
 - x-api-key 路径 /api/v1/keys（非 /api/v1/api-keys）；Worker 独立进程；Stripe Webhook 独立挂载（签名验证, 无 jwtAuth）

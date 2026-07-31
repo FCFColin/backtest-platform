@@ -15,7 +15,7 @@ import argon2 from 'argon2';
 import { config } from '../../config/index.js';
 import { getPool } from '../../db/pool.js';
 
-export interface PasswordValidationResult {
+interface PasswordValidationResult {
   valid: boolean;
   /** 失败原因列表（valid=false 时存在） */
   errors: string[];

@@ -48,11 +48,11 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 		"https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=%s&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt=101&fqt=1&beg=%s&end=%s",
 		secid, beg, ed,
 	)
-	result, err := breaker.Execute(func() (interface{}, error) { return doWithRetry(url) })
+	prices, err := doWithRetry(url)
 	if err != nil {
 		return nil, fmt.Errorf("akshare FetchStockDaily 失败: %w", err)
 	}
-	return result.([]provider.DailyPrice), nil
+	return prices, nil
 }
 func doWithRetry(url string) ([]provider.DailyPrice, error) {
 	return httpclient.DoGetWithBreaker(breaker, httpClient, url, parseDailyPrices)

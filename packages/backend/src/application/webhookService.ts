@@ -15,16 +15,7 @@ const AUTO_DISABLE_THRESHOLD = 5;
 const RESPONSE_BODY_TRUNCATE = 1000;
 const RETRY_BATCH_SIZE = 100;
 
-export const WEBHOOK_EVENT_TYPES = {
-  BACKTEST_COMPLETED: 'backtest.completed',
-  BACKTEST_FAILED: 'backtest.failed',
-  API_VERSION_DEPRECATED: 'api.version.deprecated',
-} as const;
-export const VALID_WEBHOOK_EVENTS: ReadonlySet<string> = new Set(
-  Object.values(WEBHOOK_EVENT_TYPES),
-);
-
-export interface WebhookEndpoint {
+interface WebhookEndpoint {
   id: string;
   orgId: string;
   url: string;
@@ -33,7 +24,7 @@ export interface WebhookEndpoint {
   subscribedEvents: string[];
   failedConsecutiveCount: number;
 }
-export interface DeliveryResult {
+interface DeliveryResult {
   success: boolean;
   responseCode: number | null;
   responseBody: string;

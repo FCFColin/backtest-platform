@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Response } from 'express';
 import { backtestQueue } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { logger } from '../utils/logger.js';
@@ -87,9 +87,8 @@ function authorizeJob(
 jobRoutes.get(
   '/jobs/:id',
   crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      const requester = authReq.user;
+    async (req, res): Promise<void> => {
+      const requester = req.user;
       if (!requester) {
         sendProblem(res, 401, 'UNAUTHORIZED');
         return;
@@ -101,7 +100,7 @@ jobRoutes.get(
         return;
       }
 
-      if (authorizeJob(res, job, requester, authReq.tenantId, req.params.id)) return;
+      if (authorizeJob(res, job, requester, req.tenantId, req.params.id)) return;
 
       const state = await job.getState();
       res.json({ success: true, data: buildJobResult(job, state) });

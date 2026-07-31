@@ -4,7 +4,7 @@
  */
 import type { Response } from 'express';
 
-export interface SendProblemOptions {
+interface SendProblemOptions {
   detail?: string;
   /** 用于引擎 fail-closed 503（ADR-031） */
   headers?: Record<string, string>;
@@ -116,26 +116,3 @@ export function sendProblem(
   };
   r.json(body);
 }
-
-export const ErrorCodes = {
-  VALIDATION_ERROR: 'VALIDATION_ERROR',
-  TICKER_NOT_FOUND: 'TICKER_NOT_FOUND',
-  TICKER_DATA_INSUFFICIENT: 'TICKER_DATA_INSUFFICIENT',
-  INVALID_WEIGHT_SUM: 'INVALID_WEIGHT_SUM',
-  EMPTY_PORTFOLIO: 'EMPTY_PORTFOLIO',
-  ENGINE_UNAVAILABLE: 'ENGINE_UNAVAILABLE',
-  REDIS_UNAVAILABLE: 'REDIS_UNAVAILABLE',
-  DATA_FETCH_FAILED: 'DATA_FETCH_FAILED',
-  DATA_DEGRADED: 'DATA_DEGRADED',
-  AUTH_REQUIRED: 'AUTH_REQUIRED',
-  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
-  INVALID_DATE_RANGE: 'INVALID_DATE_RANGE',
-  NETWORK_ERROR: 'NETWORK_ERROR',
-  TIMEOUT: 'TIMEOUT',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-  BACKTEST_ERROR: 'BACKTEST_ERROR',
-  INVALID_TICKER: 'INVALID_TICKER',
-  MISSING_PARAMS: 'MISSING_PARAMS',
-} as const;
-
-export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];

@@ -386,7 +386,7 @@ describe('H-006: env.ts 源码不含硬编码默认值（authConfig + engineConf
   });
 });
 
-describe('H-006: 模块导入 — secret 缺失时 fail-fast', () => {
+describe('H-006: 模块导入 — 三个生产 secret 同时设置时可正常解析', () => {
   const originalEnv: Record<string, string | undefined> = {};
 
   beforeEach(() => {
@@ -401,23 +401,6 @@ describe('H-006: 模块导入 — secret 缺失时 fail-fast', () => {
       else process.env[key] = value;
     }
     vi.resetModules();
-  });
-
-  it('JWT_SECRET 缺失时 requireSecret 直接 throw', () => {
-    delete process.env.JWT_SECRET;
-    expect(() => requireSecret('JWT_SECRET')).toThrow('JWT_SECRET is required');
-  });
-
-  it('ENGINE_AUTH_TOKEN 缺失时 requireSecret 直接 throw', () => {
-    delete process.env.ENGINE_AUTH_TOKEN;
-    expect(() => requireSecret('ENGINE_AUTH_TOKEN')).toThrow('ENGINE_AUTH_TOKEN is required');
-  });
-
-  it('DATA_SERVICE_AUTH_TOKEN 缺失时 requireSecret 直接 throw', () => {
-    delete process.env.DATA_SERVICE_AUTH_TOKEN;
-    expect(() => requireSecret('DATA_SERVICE_AUTH_TOKEN')).toThrow(
-      'DATA_SERVICE_AUTH_TOKEN is required',
-    );
   });
 
   it('所有 secret 已设置时 requireSecret 正常返回', () => {

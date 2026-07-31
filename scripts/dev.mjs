@@ -5,44 +5,25 @@
  * 自动找空闲端口，后台启动服务（HEADLESS=false 或 --interactive 可切前台交互模式）。
  */
 
-import { spawn, exec, execSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { spawn, execSync } from 'node:child_process';
+import { existsSync, mkdirSync } from 'node:fs';
 import { appendFile } from 'node:fs/promises';
 import { createServer, Socket } from 'node:net';
-import path from 'node:path';
-
-const isWin = process.platform === 'win32';
-const npxCmd = isWin ? 'npx.cmd' : 'npx';
-const nodeCmd = isWin ? 'node.exe' : 'node';
-const composeCmd = 'docker';
-
-import { pathToFileURL } from 'node:url';
-import { fileURLToPath } from 'node:url';
+import { isWin, npxCmd, nodeCmd, PROJECT_ROOT, tsxLoaderUrl } from './_dev-shared.mjs';
 
 /** 项目根目录 */
-const ROOT = path.resolve(fileURLToPath(import.meta.url), '../..');
+const ROOT = PROJECT_ROOT;
 
-/** 在 pnpm node_modules/.pnpm 下找 tsx loader 路径 */
-function findTsxLoader() {
-  const pnpmDir = path.join(ROOT, 'node_modules', '.pnpm');
-  if (!existsSync(pnpmDir)) return undefined;
-  const entries = readdirSync(pnpmDir);
-  const tsxDir = entries.find((d) => d.startsWith('tsx@'));
-  if (!tsxDir) return undefined;
-  const loader = path.join(pnpmDir, tsxDir, 'node_modules', 'tsx', 'dist', 'loader.mjs');
-  return existsSync(loader) ? loader : undefined;
-}
-const tsxLoaderPath = findTsxLoader();
-if (!tsxLoaderPath) {
+if (!tsxLoaderUrl) {
   console.error(
     '[dev] 错误：找不到 tsx/dist/loader.mjs（node_modules/.pnpm/tsx@*/），请检查 pnpm install',
   );
   process.exit(1);
 }
-const tsxLoaderUrl = pathToFileURL(tsxLoaderPath).href;
 
 const HEADLESS = process.env.HEADLESS !== 'false' && !process.argv.includes('--interactive');
 const LOG_DIR = path.resolve('.dev-logs');
+const composeCmd = 'docker';
 
 const DATA_FETCHER_HEALTH_URL = process.env.GO_DATA_SERVICE_URL
   ? `${process.env.GO_DATA_SERVICE_URL.replace(/\/$/, '')}/api/data/health`

@@ -1,29 +1,45 @@
 import { PCAParamsPanel } from './PCAParams.js';
 import { PCAResultsPanel } from './PCAResults.js';
 import { usePcaPageState } from './usePcaPageState.js';
-import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
-import type { ComputeToolConfig } from '../../components/shells/types.js';
+import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 type PCAState = ReturnType<typeof usePcaPageState>;
 function PCAParamsWrapper({ state }: { state: PCAState }) {
-  return <PCAParamsPanel tickers={state.tickers} startDate={state.startDate} endDate={state.endDate} numComponents={state.numComponents} isLoading={state.isLoading} onAddTicker={state.addTicker} onRemoveTicker={state.removeTicker} onUpdateTicker={state.updateTicker} onStartDateChange={state.setStartDate} onEndDateChange={state.setEndDate} onNumComponentsChange={state.setNumComponents} onRun={state.runAnalysis} />;
+  return (
+    <PCAParamsPanel
+      tickers={state.tickers}
+      startDate={state.startDate}
+      endDate={state.endDate}
+      numComponents={state.numComponents}
+      isLoading={state.isLoading}
+      onAddTicker={state.addTicker}
+      onRemoveTicker={state.removeTicker}
+      onUpdateTicker={state.updateTicker}
+      onStartDateChange={state.setStartDate}
+      onEndDateChange={state.setEndDate}
+      onNumComponentsChange={state.setNumComponents}
+      onRun={state.runAnalysis}
+    />
+  );
 }
 function PCAResultsWrapper({ state }: { state: PCAState }) {
-  return <PCAResultsPanel results={state.results} error={state.error} isLoading={state.isLoading} />;
+  return (
+    <PCAResultsPanel results={state.results} error={state.error} isLoading={state.isLoading} />
+  );
 }
 const config: ComputeToolConfig<PCAState> = {
   titleKey: 'pca.title',
   seoDescKey: 'pca.seo.desc',
   seoFeatures: [
     { titleKey: 'pca.seo.analyzableTitle', descKey: 'pca.seo.analyzableDesc' },
-    { titleKey: 'pca.seo.scenarioTitle', descKey: 'pca.seo.scenarioDesc' }
+    { titleKey: 'pca.seo.scenarioTitle', descKey: 'pca.seo.scenarioDesc' },
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
-    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' }
+    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
   ],
   params: PCAParamsWrapper,
-  results: PCAResultsWrapper
+  results: PCAResultsWrapper,
 };
 export default function PCAPage() {
   const s = usePcaPageState();

@@ -42,7 +42,7 @@ import {
 
 const EXPORT_BATCH_SIZE = 100;
 
-export interface ExportResult {
+interface ExportResult {
   processed: number;
   exported: number;
   skipped: number;

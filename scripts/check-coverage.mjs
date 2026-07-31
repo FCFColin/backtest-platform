@@ -110,8 +110,6 @@ const CRITICAL_FILES = [
   'packages/backend/src/utils/integrity.ts',
   'packages/backend/src/utils/tickerValidation.ts',
   'packages/backend/src/middleware/validate.ts',
-  'packages/backend/src/middleware/jwtAuth.ts',
-  'packages/backend/src/middleware/jwtAuth.ts',
   'packages/backend/src/infrastructure/outboxWriter.ts',
   'packages/backend/src/infrastructure/outboxPublisher.ts',
   'packages/backend/src/utils/numericRange.ts',

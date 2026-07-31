@@ -1,4 +1,4 @@
-import type { Response, NextFunction } from 'express';
+﻿import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from './jwtAuth.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
@@ -35,7 +35,7 @@ const ROLE_PERMISSIONS: Record<Role, Set<Permission>> = {
   [Role.READONLY]: new Set([Permission.DATA_READ, Permission.SIGNAL_READ]),
 };
 
-export function assertRbacConfig(): void {
+function assertRbacConfig(): void {
   if (Object.keys(ROLE_PERMISSIONS).length === 0) {
     throw new Error('[RBAC] Permission matrix is empty — check configuration');
   }
@@ -119,15 +119,25 @@ function authorizePrelude(
   return 'continue';
 }
 
+/** 权限不足统一拒绝：warn 日志 + 认证失败指标 + 403。 */
+function denyInsufficientPermission(
+  req: AuthenticatedRequest,
+  res: Response,
+  permission: Permission,
+  message: string,
+): void {
+  logRbac('warn', req, permission, message);
+  recordAuthFailure(getRoutePattern(req), 'insufficient_permission');
+  sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
+}
+
 export function requirePermission(permission: Permission) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     const prelude = authorizePrelude(req, res, next, permission, '权限检查');
     if (prelude !== 'continue') return;
-    const userRole = effectiveRole(req.user) as Role;
+    const userRole = effectiveRole(req.user!) as Role;
     if (!hasPermission(userRole, permission)) {
-      logRbac('warn', req, permission, '权限不足，访问拒绝');
-      recordAuthFailure(getRoutePattern(req), 'insufficient_permission');
-      sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
+      denyInsufficientPermission(req, res, permission, '权限不足，访问拒绝');
       return;
     }
     next();
@@ -155,24 +165,20 @@ export function requirePermissionFromDb(permission: Permission) {
     const prelude = authorizePrelude(req, res, next, permission, '权限检查（DB）');
     if (prelude !== 'continue') return;
     try {
-      const perms = await resolveUserPermissions(req.user);
+      const perms = await resolveUserPermissions(req.user!);
       if (!perms.includes(permission)) {
-        logRbac('warn', req, permission, '权限不足，访问拒绝（DB）');
-        recordAuthFailure(getRoutePattern(req), 'insufficient_permission');
-        sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
+        denyInsufficientPermission(req, res, permission, '权限不足，访问拒绝（DB）');
         return;
       }
       next();
     } catch (err) {
       logger.error(
-        { err, middleware: 'rbac', permission, userId: req.user.sub, path: req.path },
+        { err, middleware: 'rbac', permission, userId: req.user!.sub, path: req.path },
         '[rbac] DB 权限解析失败，回退到 legacy 检查',
       );
-      const userRole = effectiveRole(req.user) as Role;
+      const userRole = effectiveRole(req.user!) as Role;
       if (!hasPermission(userRole, permission)) {
-        logRbac('warn', req, permission, '权限不足（legacy 回退）');
-        recordAuthFailure(getRoutePattern(req), 'insufficient_permission');
-        sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
+        denyInsufficientPermission(req, res, permission, '权限不足（legacy 回退）');
         return;
       }
       next();

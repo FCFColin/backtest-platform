@@ -2,14 +2,11 @@ package main
 
 import (
 	"context"
-	"data-fetcher/internal/akshare"
-	"data-fetcher/internal/finnhub"
 	"data-fetcher/internal/handlers"
 	"data-fetcher/internal/middleware"
 	"data-fetcher/internal/provider"
+	"data-fetcher/internal/registry"
 	"data-fetcher/internal/store"
-	"data-fetcher/internal/twelvedata"
-	"data-fetcher/internal/yfinance"
 	gosharedhttp "github.com/backtest/go-shared/http"
 	gosharedlog "github.com/backtest/go-shared/log"
 	gosharedmw "github.com/backtest/go-shared/middleware"
@@ -28,25 +25,7 @@ import (
 )
 
 func newRegistry() *provider.Registry {
-	prio := os.Getenv("DATA_PROVIDER_PRIORITY")
-	var priorities []string
-	if prio != "" {
-		priorities = strings.Split(prio, ",")
-	} else {
-		priorities = []string{"yfinance", "finnhub", "twelvedata", "akshare"}
-	}
-	reg := provider.NewRegistry(priorities)
-	for _, p := range []provider.Provider{
-		yfinance.NewProvider(),
-		finnhub.NewProvider(),
-		twelvedata.NewProvider(),
-		akshare.NewProvider(),
-	} {
-		if p != nil {
-			reg.Register(p)
-		}
-	}
-	return reg
+	return registry.New()
 }
 
 type Config struct {

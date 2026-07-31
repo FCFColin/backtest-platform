@@ -170,72 +170,29 @@ describe('listOrgMembers', () => {
   });
 });
 
-describe('updateMemberRole', () => {
-  it.each([
-    [
-      '成员存在且非 owner 时应更新角色返回 ok',
-      [{ role: 'analyst' }],
-      { rowCount: 1 },
-      undefined,
-      'ok',
-    ],
+describe.each([
+  ['updateMemberRole', updateMemberRole, 'UPDATE memberships SET role'],
+  ['removeMember', removeMember, 'DELETE FROM memberships'],
+] as const)('%s', (_fnName, fn, sqlFrag) => {
+  it.each<[string, unknown[], unknown, unknown, string]>([
+    ['成员存在且非 owner 时返回 ok', [{ role: 'analyst' }], { rowCount: 1 }, undefined, 'ok'],
     ['成员不存在应返回 not_found', [], undefined, undefined, 'not_found'],
     [
-      'owner 降级时若为最后一个 owner 应返回 last_owner',
+      '最后一个 owner 应返回 last_owner',
       [{ role: 'owner' }],
       { rows: [{ c: 1 }] },
       undefined,
       'last_owner',
     ],
-    [
-      'owner 降级时若存在多个 owner 应成功',
-      [{ role: 'owner' }],
-      { rows: [{ c: 2 }] },
-      { rowCount: 1 },
-      'ok',
-    ],
+    ['存在多个 owner 时应成功', [{ role: 'owner' }], { rows: [{ c: 2 }] }, { rowCount: 1 }, 'ok'],
   ])('%s', async (_n, memberRows, q2, q3, expected) => {
     dbMocks.query.mockResolvedValueOnce({ rows: memberRows });
     if (q2) dbMocks.query.mockResolvedValueOnce(q2);
     if (q3) dbMocks.query.mockResolvedValueOnce(q3);
-    const r = await updateMemberRole('org-1', 'u1', 'admin');
+    const r = await fn('org-1', 'u1', 'admin');
     expect(r).toBe(expected);
     if (expected === 'ok') {
-      expect(
-        dbMocks.query.mock.calls.some((c) => String(c[0]).includes('UPDATE memberships SET role')),
-      ).toBe(true);
-    }
-  });
-});
-
-describe('removeMember', () => {
-  it.each([
-    ['成员存在且非 owner 时应移除返回 ok', [{ role: 'analyst' }], { rowCount: 1 }, undefined, 'ok'],
-    ['成员不存在应返回 not_found', [], undefined, undefined, 'not_found'],
-    [
-      'owner 移除时若为最后一个应返回 last_owner',
-      [{ role: 'owner' }],
-      { rows: [{ c: 1 }] },
-      undefined,
-      'last_owner',
-    ],
-    [
-      'owner 移除时若存在多个 owner 应成功',
-      [{ role: 'owner' }],
-      { rows: [{ c: 2 }] },
-      { rowCount: 1 },
-      'ok',
-    ],
-  ])('%s', async (_n, memberRows, q2, q3, expected) => {
-    dbMocks.query.mockResolvedValueOnce({ rows: memberRows });
-    if (q2) dbMocks.query.mockResolvedValueOnce(q2);
-    if (q3) dbMocks.query.mockResolvedValueOnce(q3);
-    const r = await removeMember('org-1', 'u1');
-    expect(r).toBe(expected);
-    if (expected === 'ok') {
-      expect(
-        dbMocks.query.mock.calls.some((c) => String(c[0]).includes('DELETE FROM memberships')),
-      ).toBe(true);
+      expect(dbMocks.query.mock.calls.some((c) => String(c[0]).includes(sqlFrag))).toBe(true);
     }
   });
 });

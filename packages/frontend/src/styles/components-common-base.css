@@ -165,43 +165,12 @@ a:hover {
   color: hsl(var(--brand));
 }
 
-.divider-v {
-  width: 1px;
-  height: 14px;
-  background: var(--border-soft);
-  flex-shrink: 0;
-}
-
-.btn-upgrade-slim {
-  padding: 4px 12px;
-  font-size: 12px;
-  background: linear-gradient(135deg, hsl(var(--warning)), color-mix(in srgb, hsl(var(--warning)) 80%, #000));
-  color: #fff;
-  border: none;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  white-space: nowrap;
-  transition: background 0.15s;
-}
-
-.btn-upgrade-slim:hover {
-  background: linear-gradient(135deg, color-mix(in srgb, hsl(var(--warning)) 70%, #fff), hsl(var(--warning)));
-}
-
 .bt-page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   padding: 0 4px;
   margin-bottom: 12px;
-}
-
-.bt-page-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .bt-page-title {
@@ -211,33 +180,6 @@ a:hover {
   color: var(--text-strong);
   line-height: 1.15;
   margin: 0;
-}
-
-.bt-empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-}
-
-.bt-empty-state .empty-state-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
-  opacity: 0.5;
-}
-
-.bt-empty-state .empty-state-title {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.bt-empty-state .empty-state-desc {
-  font-size: 13px;
-  color: var(--text-muted);
 }
 
 .bt-main-card {

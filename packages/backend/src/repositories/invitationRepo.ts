@@ -14,6 +14,7 @@ import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex } from '../utils/crypto.js';
 import type { OrgRole } from '../middleware/jwtAuth.js';
+import { rowMapper, iso, toIso } from './rowMapper.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -33,27 +34,16 @@ interface CreatedInvitation extends InvitationRecord {
   token: string;
 }
 
-function mapRow(row: {
-  id: string;
-  org_id: string;
-  email: string;
-  role: OrgRole;
-  invited_by: string | null;
-  expires_at: Date | string;
-  accepted_at: Date | string | null;
-  created_at: Date | string;
-}): InvitationRecord {
-  return {
-    id: row.id,
-    orgId: row.org_id,
-    email: row.email,
-    role: row.role,
-    invitedBy: row.invited_by,
-    expiresAt: new Date(row.expires_at).toISOString(),
-    acceptedAt: row.accepted_at ? new Date(row.accepted_at).toISOString() : null,
-    createdAt: new Date(row.created_at).toISOString(),
-  };
-}
+const mapRow = rowMapper<InvitationRecord>({
+  id: 'id',
+  orgId: 'org_id',
+  email: 'email',
+  role: 'role',
+  invitedBy: 'invited_by',
+  expiresAt: (r) => iso(r.expires_at),
+  acceptedAt: (r) => toIso(r.accepted_at),
+  createdAt: (r) => iso(r.created_at),
+});
 
 /**
  * 创建组织邀请（同组织同邮箱若已有待处理邀请，先撤销旧的再建新）。

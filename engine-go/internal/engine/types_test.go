@@ -139,60 +139,37 @@ func assertJSONFields(t *testing.T, typ reflect.Type, expected, allowedExtra []s
 			typeName, extra, missing, expected, goFields)
 	}
 }
-func TestStatisticsJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(Statistics{}), expectedStatisticsFields, nil, false, "Statistics")
-}
-func TestBacktestParamsJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(BacktestParams{}), expectedBacktestParamsFields, nil, true, "BacktestParams")
-}
-func TestPortfolioInputJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(PortfolioInput{}), expectedPortfolioInputFields, nil, true, "PortfolioInput")
-}
-func TestRebalanceBandsJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(RebalanceBands{}), expectedRebalanceBandsFields, nil, true, "RebalanceBands")
-}
-func TestCashflowLegJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(CashflowLeg{}), expectedCashflowLegFields, nil, true, "CashflowLeg")
-}
-func TestOneTimeCashflowJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(OneTimeCashflow{}), expectedOneTimeCashflowFields, nil, true, "OneTimeCashflow")
-}
-func TestAssetInputJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(AssetInput{}), expectedAssetInputFields, nil, true, "AssetInput")
-}
-func TestPortfolioResultJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(PortfolioResult{}), expectedPortfolioResultFields, nil, false, "PortfolioResult")
-}
-func TestBacktestResultJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(BacktestResult{}), expectedBacktestResultFields, allowedBacktestResultExtraFields, true, "BacktestResult")
-}
-func TestDrawdownEpisodeJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(DrawdownEpisode{}), expectedDrawdownEpisodeFields, nil, true, "DrawdownEpisode")
-}
-func TestDataPointJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(DataPoint{}), expectedDataPointFields, nil, true, "DataPoint")
-}
-func TestDrawdownPointJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(DrawdownPoint{}), expectedDrawdownPointFields, nil, true, "DrawdownPoint")
-}
-func TestAnnualReturnJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(AnnualReturn{}), expectedAnnualReturnFields, nil, true, "AnnualReturn")
-}
-func TestMonthlyReturnJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(MonthlyReturn{}), expectedMonthlyReturnFields, nil, true, "MonthlyReturn")
-}
-func TestRollingReturnJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(RollingReturn{}), expectedRollingReturnFields, nil, true, "RollingReturn")
-}
-func TestAllocationPointJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(AllocationPoint{}), expectedAllocationPointFields, nil, true, "AllocationPoint")
-}
-func TestVaRLevelsJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(VaRLevels{}), expectedVaRLevelsFields, nil, true, "VaRLevels")
-}
-func TestVaRByFrequencyJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(VaRByFrequency{}), expectedVaRByFrequencyFields, nil, true, "VaRByFrequency")
-}
-func TestSkewnessByFrequencyJSONTags(t *testing.T) {
-	assertJSONFields(t, reflect.TypeOf(SkewnessByFrequency{}), expectedSkewnessByFrequencyFields, nil, true, "SkewnessByFrequency")
+func TestJSONTagsConformance(t *testing.T) {
+	cases := []struct {
+		name     string
+		typ      reflect.Type
+		expected []string
+		allowed  []string
+		exact    bool
+	}{
+		{"Statistics", reflect.TypeOf(Statistics{}), expectedStatisticsFields, nil, false},
+		{"BacktestParams", reflect.TypeOf(BacktestParams{}), expectedBacktestParamsFields, nil, true},
+		{"PortfolioInput", reflect.TypeOf(PortfolioInput{}), expectedPortfolioInputFields, nil, true},
+		{"RebalanceBands", reflect.TypeOf(RebalanceBands{}), expectedRebalanceBandsFields, nil, true},
+		{"CashflowLeg", reflect.TypeOf(CashflowLeg{}), expectedCashflowLegFields, nil, true},
+		{"OneTimeCashflow", reflect.TypeOf(OneTimeCashflow{}), expectedOneTimeCashflowFields, nil, true},
+		{"AssetInput", reflect.TypeOf(AssetInput{}), expectedAssetInputFields, nil, true},
+		{"PortfolioResult", reflect.TypeOf(PortfolioResult{}), expectedPortfolioResultFields, nil, false},
+		{"BacktestResult", reflect.TypeOf(BacktestResult{}), expectedBacktestResultFields, allowedBacktestResultExtraFields, true},
+		{"DrawdownEpisode", reflect.TypeOf(DrawdownEpisode{}), expectedDrawdownEpisodeFields, nil, true},
+		{"DataPoint", reflect.TypeOf(DataPoint{}), expectedDataPointFields, nil, true},
+		{"DrawdownPoint", reflect.TypeOf(DrawdownPoint{}), expectedDrawdownPointFields, nil, true},
+		{"AnnualReturn", reflect.TypeOf(AnnualReturn{}), expectedAnnualReturnFields, nil, true},
+		{"MonthlyReturn", reflect.TypeOf(MonthlyReturn{}), expectedMonthlyReturnFields, nil, true},
+		{"RollingReturn", reflect.TypeOf(RollingReturn{}), expectedRollingReturnFields, nil, true},
+		{"AllocationPoint", reflect.TypeOf(AllocationPoint{}), expectedAllocationPointFields, nil, true},
+		{"VaRLevels", reflect.TypeOf(VaRLevels{}), expectedVaRLevelsFields, nil, true},
+		{"VaRByFrequency", reflect.TypeOf(VaRByFrequency{}), expectedVaRByFrequencyFields, nil, true},
+		{"SkewnessByFrequency", reflect.TypeOf(SkewnessByFrequency{}), expectedSkewnessByFrequencyFields, nil, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assertJSONFields(t, tc.typ, tc.expected, tc.allowed, tc.exact, tc.name)
+		})
+	}
 }

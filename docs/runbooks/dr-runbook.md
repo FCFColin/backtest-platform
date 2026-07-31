@@ -1,12 +1,6 @@
 # 灾难恢复 Runbook（DR Runbook）
 
-## 恢复目标
-
-RPO < 2 分钟（WAL 实时归档）；RTO: PG < 30min, 引擎 < 5min, 全量 < 4h。
-
-## 备份策略
-
-PG: WAL-G 每日全量 + 实时 WAL（保留 7 份）；Redis: RDB 快照（非持久化数据）；配置/密钥: K8s Secret + Git。
+> 恢复目标（RPO < 2min；RTO: PG < 30min, 引擎 < 5min, 全量 < 4h）、备份策略与演练计划见 [ADR-038](../adr/ADR-038-DR-Strategy.md)。
 
 ## 恢复流程
 
@@ -21,13 +15,3 @@ PG: WAL-G 每日全量 + 实时 WAL（保留 7 份）；Redis: RDB 快照（非�
 ### 区域级灾难（全量恢复）
 
 新区域部署基础设施 → 对象存储恢复 PG 全量 + WAL → 部署应用镜像（GHCR, 按 Git SHA）→ 验证全链路健康 → 切换 DNS。
-
-## 演练计划
-
-| 项目                      | 频率   |
-| ------------------------- | ------ |
-| PostgreSQL 恢复           | 每月   |
-| Redis 故障转移 / 密钥轮换 | 每季度 |
-| 全量区域切换              | 每年   |
-
-详见 ADR-038。

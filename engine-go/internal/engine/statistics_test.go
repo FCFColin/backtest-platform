@@ -5,12 +5,6 @@ import (
 	"testing"
 )
 
-func assertFloatApprox10(t *testing.T, got, want float64, label string) {
-	t.Helper()
-	if math.Abs(got-want) > 1e-10 {
-		t.Errorf("%s = %v, want %v", label, got, want)
-	}
-}
 func TestCalcCAGR(t *testing.T) {
 	cases := []struct {
 		name                              string
@@ -26,7 +20,7 @@ func TestCalcCAGR(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assertFloatApprox10(t, CalcCAGR(tc.startValue, tc.endValue, tc.years), tc.want, "CalcCAGR")
+			assertFloatApprox(t, CalcCAGR(tc.startValue, tc.endValue, tc.years), tc.want, "CalcCAGR")
 		})
 	}
 }
@@ -62,7 +56,7 @@ func TestCalcAnnualizedStdev(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assertFloatApprox10(t, CalcAnnualizedStdev(tc.dailyReturns), tc.want, "CalcAnnualizedStdev")
+			assertFloatApprox(t, CalcAnnualizedStdev(tc.dailyReturns), tc.want, "CalcAnnualizedStdev")
 		})
 	}
 }
@@ -83,7 +77,7 @@ func TestCalcRatioFuncs(t *testing.T) {
 		{"UPI normal case", CalcUPI, 0.10, 0.15, (0.10 - 0.02) / 0.15},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) { assertFloatApprox10(t, tc.fn(tc.a, tc.b), tc.want, "ratio") })
+		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.a, tc.b), tc.want, "ratio") })
 	}
 }
 func TestCalcSortino(t *testing.T) {
@@ -150,7 +144,7 @@ func TestCalcCorrelation(t *testing.T) {
 		{"truncated to shorter", []float64{1, 2, 3, 4}, []float64{2, 4, 6}, 1},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) { assertFloatApprox10(t, CalcCorrelation(tc.a, tc.b), tc.want, "CalcCorrelation") })
+		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcCorrelation(tc.a, tc.b), tc.want, "CalcCorrelation") })
 	}
 }
 func TestCalcDailyReturns(t *testing.T) {
@@ -171,7 +165,7 @@ func TestCalcDailyReturns(t *testing.T) {
 				t.Fatalf("len = %v, want %v", len(got), len(tc.want))
 			}
 			for i := range got {
-				assertFloatApprox10(t, got[i], tc.want[i], "CalcDailyReturns[i]")
+				assertFloatApprox(t, got[i], tc.want[i], "CalcDailyReturns[i]")
 			}
 		})
 	}
@@ -190,7 +184,7 @@ func TestCalcTotalReturn(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			assertFloatApprox10(t, CalcTotalReturn(tc.start, tc.end), tc.want, "CalcTotalReturn")
+			assertFloatApprox(t, CalcTotalReturn(tc.start, tc.end), tc.want, "CalcTotalReturn")
 		})
 	}
 }
@@ -209,7 +203,7 @@ func TestMinMaxValue(t *testing.T) {
 		{"MinValue all negative", MinValue, []float64{-0.05, -0.10, -0.15}, -0.15},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) { assertFloatApprox10(t, tc.fn(tc.vals), tc.want, "value") })
+		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.vals), tc.want, "value") })
 	}
 }
 func TestCalcDrawdownMetrics(t *testing.T) {
@@ -227,6 +221,6 @@ func TestCalcDrawdownMetrics(t *testing.T) {
 		{"UlcerIndex monotonic down", CalcUlcerIndex, []float64{100, 80, 60}, math.Sqrt(((100.0-80.0)*(100.0-80.0)/(100.0*100.0) + (100.0-60.0)*(100.0-60.0)/(100.0*100.0)) / 3.0)},
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) { assertFloatApprox10(t, tc.fn(tc.vals), tc.want, "metric") })
+		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.vals), tc.want, "metric") })
 	}
 }

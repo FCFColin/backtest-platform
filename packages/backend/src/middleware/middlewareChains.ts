@@ -8,7 +8,13 @@
  * 中间件编排语义不变，仅消除代码重复。
  */
 import type { RequestHandler } from 'express';
-import { optionalJwtAuth, assignGuestReadonly, jwtAuth, auditLog, idempotencyKey } from './jwtAuth.js';
+import {
+  optionalJwtAuth,
+  assignGuestReadonly,
+  jwtAuth,
+  auditLog,
+  idempotencyKey,
+} from './jwtAuth.js';
 import { resolveTenant, requireTenant } from './tenantContext.js';
 import { requirePermission, Permission } from './rbac.js';
 import { enforceQuota } from './quota.js';
@@ -21,20 +27,26 @@ const computeQuotaHandler: RequestHandler = (req, res, next) => {
 };
 
 /**
- * 计算端点中间件链：JWT 认证 → 租户解析 → 权限 → 配额 → 审计。
+ * 计算端点中间件链：JWT 认证 → 租户解析 → 权限 → [配额] → 审计。
  * D2-007：计算端点须强制认证（不再允许匿名 analyst 访客）。
+ * withQuota=false 用于不需配额的计算端点（如因子回归、计算器）。
  */
-export function computeMiddleware(permission: Permission): RequestHandler[] {
-  return [...computeAuth, resolveTenant, requirePermission(permission), computeQuotaHandler, auditLog];
+function computeChain(permission: Permission, withQuota: boolean): RequestHandler[] {
+  return [
+    ...computeAuth,
+    resolveTenant,
+    requirePermission(permission),
+    ...(withQuota ? [computeQuotaHandler] : []),
+    auditLog,
+  ];
 }
 
-/**
- * 计算端点中间件链（无配额）：JWT 认证 → 租户解析 → 权限 → 审计。
- * 用于不需配额的计算端点（如因子回归、计算器）。
- * D2-007：计算端点须强制认证（不再允许匿名 analyst 访客）。
- */
+export function computeMiddleware(permission: Permission): RequestHandler[] {
+  return computeChain(permission, true);
+}
+
 export function computeMiddlewareNoQuota(permission: Permission): RequestHandler[] {
-  return [...computeAuth, resolveTenant, requirePermission(permission), auditLog];
+  return computeChain(permission, false);
 }
 
 export function crudMiddleware(permission: Permission): RequestHandler[] {
@@ -47,5 +59,11 @@ export const readOnlyAuth: RequestHandler[] = [optionalJwtAuth, assignGuestReado
  * 管理端点中间件链：JWT 认证 → 租户解析 → ADMIN 权限 → 审计 → 幂等键。
  */
 export function adminMiddleware(): RequestHandler[] {
-  return [jwtAuth, resolveTenant, requirePermission(Permission.ADMIN_ACCESS), auditLog, idempotencyKey];
+  return [
+    jwtAuth,
+    resolveTenant,
+    requirePermission(Permission.ADMIN_ACCESS),
+    auditLog,
+    idempotencyKey,
+  ];
 }

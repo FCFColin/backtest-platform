@@ -31,16 +31,6 @@ try {
   rateLimiterRedisUnavailableCounter.inc();
 }
 
-export function updateRedisAvailability(available: boolean): void {
-  if (available === redisAvailable) return;
-  redisAvailable = available;
-  if (available) logger.info('[rate-limit] Redis 恢复可用，限流器恢复正常');
-  else {
-    logger.warn('[rate-limit] Redis 不可用，限流器 fail-closed (503)');
-    rateLimiterRedisUnavailableCounter.inc();
-  }
-}
-
 function createRateLimiterStore(prefix: string): RedisStore | undefined {
   if (!redisAvailable) return undefined;
   try {

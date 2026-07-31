@@ -2,65 +2,25 @@ package finnhub
 
 import (
 	"data-fetcher/internal/httpclient"
-	"data-fetcher/internal/provider"
-	"encoding/json"
-	"errors"
+	"data-fetcher/internal/providerutil"
 	"os"
 	"testing"
 	"time"
 )
 
-func parseCandleResponse(body []byte) ([]provider.DailyPrice, error) {
-	var resp candleResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	if resp.S == "no_data" {
-		return []provider.DailyPrice{}, nil
-	}
-	if resp.S != "ok" {
-		return nil, errors.New("Finnhub API 错误: status=" + resp.S)
-	}
-	n := len(resp.T)
-	if n == 0 {
-		return []provider.DailyPrice{}, nil
-	}
-	prices := make([]provider.DailyPrice, 0, n)
-	for i := 0; i < n; i++ {
-		if i >= len(resp.C) {
-			break
-		}
-		if resp.C[i] == 0 {
-			continue
-		}
-		prices = append(prices, provider.DailyPrice{
-			Date: time.Unix(resp.T[i], 0).Format("2006-01-02"), Open: resp.O[i],
-			High: resp.H[i], Low: resp.L[i], Close: resp.C[i],
-			Volume: int64(resp.V[i]), AdjustedClose: resp.C[i]})
-	}
-	return prices, nil
-}
-func parseSearchResponse(body []byte) ([]provider.TickerInfo, error) {
-	var resp searchResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	var results []provider.TickerInfo
-	for _, r := range resp.Result {
-		results = append(results, provider.TickerInfo{Ticker: r.Symbol, Name: r.Description, Market: "美股"})
-	}
-	return results, nil
-}
 func TestDateToUnix(t *testing.T) {
-	ts := dateToUnix("2024-01-01")
+	ts, err := providerutil.DateToUnix("2024-01-01")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if ts != 1704067200 {
-		t.Errorf("dateToUnix(\"2024-01-01\") = %d, want 1704067200", ts)
+		t.Errorf("DateToUnix(\"2024-01-01\") = %d, want 1704067200", ts)
 	}
 }
 func TestDateToUnix_Invalid(t *testing.T) {
-	ts := dateToUnix("invalid-date")
-	if ts != 0 {
-		t.Errorf("dateToUnix(\"invalid-date\") = %d, want 0", ts)
+	ts, err := providerutil.DateToUnix("invalid-date")
+	if err == nil {
+		t.Fatalf("expected error for invalid date, got nil (ts=%d)", ts)
 	}
 }
 func TestParseCandleResponse_Success(t *testing.T) {

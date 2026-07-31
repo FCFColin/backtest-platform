@@ -4,7 +4,17 @@ package providerutil
 import (
 	"strconv"
 	"strings"
+	"time"
 )
+
+// DateToUnix 将 "2006-01-02" 日期字符串转换为 Unix 秒时间戳。
+func DateToUnix(dateStr string) (int64, error) {
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return 0, err
+	}
+	return t.Unix(), nil
+}
 
 func ToFloat64(v interface{}) float64 {
 	if v == nil {

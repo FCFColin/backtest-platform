@@ -15,8 +15,9 @@
  */
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import { Run, type RunStatus } from '../domain/aggregates/run.js';
+import { rowMapper, iso } from './rowMapper.js';
 
-export type BacktestRunStatus = 'pending' | 'running' | 'completed' | 'failed';
+type BacktestRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 const DOMAIN_TO_DB_STATUS: Record<RunStatus, BacktestRunStatus> = {
   queued: 'pending',
@@ -43,25 +44,15 @@ interface BacktestRunInput {
   status?: BacktestRunStatus;
 }
 
-function mapRow(row: {
-  id: string;
-  name: string | null;
-  request: unknown;
-  result: unknown | null;
-  status: BacktestRunStatus;
-  owner_user_id: string | null;
-  created_at: Date | string;
-}): BacktestRunRecord {
-  return {
-    id: row.id,
-    name: row.name,
-    request: row.request,
-    result: row.result,
-    status: row.status,
-    ownerUserId: row.owner_user_id,
-    createdAt: new Date(row.created_at).toISOString(),
-  };
-}
+const mapRow = rowMapper<BacktestRunRecord>({
+  id: 'id',
+  name: 'name',
+  request: 'request',
+  result: 'result',
+  status: 'status',
+  ownerUserId: 'owner_user_id',
+  createdAt: (r) => iso(r.created_at),
+});
 
 const SELECT_COLS = 'id, name, request, result, status, owner_user_id, created_at';
 

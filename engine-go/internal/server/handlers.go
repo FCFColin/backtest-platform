@@ -51,6 +51,13 @@ func withComputeHandler[T any](c *gin.Context, errMsg string, fn func(ctx contex
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": result})
 }
+func withSpannedCompute[T any](c *gin.Context, errMsg, spanName string, fn func(ctx context.Context) (T, error)) {
+	withComputeHandler(c, errMsg, func(ctx context.Context) (T, error) {
+		ctx, span := withComputeSpan(ctx, spanName)
+		defer span.End()
+		return fn(ctx)
+	})
+}
 
 /** 解析 JSON 请求体；失败时发送 400 并返回 false。 */
 func bindJSON[T any](c *gin.Context, code, msg string, req *T) bool {
@@ -94,9 +101,7 @@ func handleBacktest(c *gin.Context) {
 		newProblem(c, http.StatusBadRequest, "BACKTEST_EMPTY_PRICE_DATA", "Bad Request", "priceData 不能为空")
 		return
 	}
-	withComputeHandler(c, "回测计算失败", func(ctx context.Context) (*engine.BacktestResult, error) {
-		ctx, span := withComputeSpan(ctx, "backtest.run")
-		defer span.End()
+	withSpannedCompute(c, "回测计算失败", "backtest.run", func(ctx context.Context) (*engine.BacktestResult, error) {
 		return engine.RunBacktest(ctx, req)
 	})
 }
@@ -143,9 +148,7 @@ func handlePCA(c *gin.Context) {
 		newProblem(c, http.StatusBadRequest, "PCA_INSUFFICIENT_TICKERS", "Bad Request", "至少需要 2 个 ticker")
 		return
 	}
-	withComputeHandler(c, "PCA 计算失败", func(ctx context.Context) (*pca.PCAResult, error) {
-		ctx, span := withComputeSpan(ctx, "pca.compute")
-		defer span.End()
+	withSpannedCompute(c, "PCA 计算失败", "pca.compute", func(ctx context.Context) (*pca.PCAResult, error) {
 		return pca.PerformPCA(req)
 	})
 }
@@ -183,9 +186,7 @@ func handleOptimize(c *gin.Context) {
 	if !bindJSON(c, "OPTIMIZE_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
 		return
 	}
-	withComputeHandler(c, "优化计算失败", func(ctx context.Context) (*optimizer.OptimizeResponse, error) {
-		ctx, span := withComputeSpan(ctx, "optimizer.optimize")
-		defer span.End()
+	withSpannedCompute(c, "优化计算失败", "optimizer.optimize", func(ctx context.Context) (*optimizer.OptimizeResponse, error) {
 		return optimizer.Optimize(ctx, req)
 	})
 }
@@ -203,9 +204,7 @@ func handleMonteCarlo(c *gin.Context) {
 	if !bindJSON(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
 		return
 	}
-	withComputeHandler(c, "蒙特卡洛模拟失败", func(ctx context.Context) (*montecarlo.MonteCarloResult, error) {
-		ctx, span := withComputeSpan(ctx, "montecarlo.simulate")
-		defer span.End()
+	withSpannedCompute(c, "蒙特卡洛模拟失败", "montecarlo.simulate", func(ctx context.Context) (*montecarlo.MonteCarloResult, error) {
 		return montecarlo.RunMonteCarlo(ctx, req)
 	})
 }
@@ -236,6 +235,15 @@ func handleTacticalGridSearch(c *gin.Context) {
 		return tactical.RunGridSearch(ctx, req)
 	})
 }
+
+/** 校验请求参数；失败时发送 400 并返回 false。 */
+func requireParam(c *gin.Context, code, detail string, ok bool) bool {
+	if !ok {
+		newProblem(c, http.StatusBadRequest, code, "Bad Request", detail)
+	}
+	return ok
+}
+
 func handleCalculators(c *gin.Context) {
 	var req struct {
 		Type     string                              `json:"type"`
@@ -248,20 +256,17 @@ func handleCalculators(c *gin.Context) {
 	}
 	switch req.Type {
 	case "cagr":
-		if req.CAGR == nil {
-			newProblem(c, http.StatusBadRequest, "CALC_MISSING_CAGR", "Bad Request", "cagr 类型需要 cagr 参数")
+		if !requireParam(c, "CALC_MISSING_CAGR", "cagr 类型需要 cagr 参数", req.CAGR != nil) {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": calculators.CalcCAGR(*req.CAGR)})
 	case "swr":
-		if req.SWR == nil {
-			newProblem(c, http.StatusBadRequest, "CALC_MISSING_SWR", "Bad Request", "swr 类型需要 swr 参数")
+		if !requireParam(c, "CALC_MISSING_SWR", "swr 类型需要 swr 参数", req.SWR != nil) {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": calculators.CalcSWR(*req.SWR)})
 	case "frontier":
-		if req.Frontier == nil {
-			newProblem(c, http.StatusBadRequest, "CALC_MISSING_FRONTIER", "Bad Request", "frontier 类型需要 frontier 参数")
+		if !requireParam(c, "CALC_MISSING_FRONTIER", "frontier 类型需要 frontier 参数", req.Frontier != nil) {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"success": true, "data": calculators.CalcTwoFundFrontier(*req.Frontier)})

@@ -7,6 +7,7 @@
  * config 以 JSONB 原样存储完整回测请求（组合 + 参数），加载时直接回填前端。
  */
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
+import { rowMapper, iso } from './rowMapper.js';
 
 interface SavedConfigRecord {
   id: string;
@@ -22,23 +23,14 @@ interface SavedConfigInput {
   config: unknown;
 }
 
-function mapRow(row: {
-  id: string;
-  name: string;
-  config: unknown;
-  owner_user_id: string | null;
-  created_at: Date | string;
-  updated_at: Date | string;
-}): SavedConfigRecord {
-  return {
-    id: row.id,
-    name: row.name,
-    config: row.config,
-    ownerUserId: row.owner_user_id,
-    createdAt: new Date(row.created_at).toISOString(),
-    updatedAt: new Date(row.updated_at).toISOString(),
-  };
-}
+const mapRow = rowMapper<SavedConfigRecord>({
+  id: 'id',
+  name: 'name',
+  config: 'config',
+  ownerUserId: 'owner_user_id',
+  createdAt: (r) => iso(r.created_at),
+  updatedAt: (r) => iso(r.updated_at),
+});
 
 const SELECT_COLS = 'id, name, config, owner_user_id, created_at, updated_at';
 

@@ -5,6 +5,7 @@
  * 由应用层在解析出租户后强制隔离。
  */
 import { getPool } from '../db/pool.js';
+import { rowMapper } from './rowMapper.js';
 
 /** 组织摘要（不含敏感字段，可安全返回前端） */
 interface OrgSummary {
@@ -14,6 +15,14 @@ interface OrgSummary {
   plan: string;
   status: string;
 }
+
+const mapOrgSummary = rowMapper<OrgSummary>({
+  orgId: 'id',
+  name: 'name',
+  slug: 'slug',
+  plan: 'plan',
+  status: 'status',
+});
 
 /**
  * 获取组织摘要（id/name/slug/plan/status）。
@@ -28,13 +37,7 @@ export async function getOrg(orgId: string): Promise<OrgSummary | null> {
     [orgId],
   );
   if (rows.length === 0) return null;
-  return {
-    orgId: rows[0].id,
-    name: rows[0].name,
-    slug: rows[0].slug,
-    plan: rows[0].plan,
-    status: rows[0].status,
-  };
+  return mapOrgSummary(rows[0]);
 }
 
 /**

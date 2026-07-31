@@ -16,6 +16,7 @@ import {
   jwtAuth,
   type AuthenticatedRequest,
   type TenantContext,
+  type Role,
 } from '../middleware/jwtAuth.js';
 import { hashUserId, requireUser } from '../middleware/jwtAuth.js';
 import { validate } from '../middleware/miscMiddleware.js';
@@ -73,6 +74,19 @@ const REFRESH_COOKIE_BASE = {
 const REFRESH_COOKIE_OPTIONS = { ...REFRESH_COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 }; // 7 天，与 JWT_REFRESH_TTL 对齐
 const REFRESH_COOKIE_CLEAR_OPTIONS = { ...REFRESH_COOKIE_BASE }; // 不传 maxAge
 
+/** 签发 access + refresh 令牌并写 RT Cookie（登录 / 切换组织共用）。 */
+async function issueSession(
+  res: Response,
+  userId: string,
+  role: Role,
+  tenant: TenantContext | undefined,
+): Promise<string> {
+  const accessToken = await generateToken(userId, role, tenant);
+  const refreshToken = await generateRefreshToken(userId, role, undefined, tenant);
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTIONS);
+  return accessToken;
+}
+
 const router = Router();
 
 /** POST /api/v1/auth/login/password — argon2id + 常量时间比较 + 枚举防护；RT 写 httpOnly Cookie（P0-1 BFF）。 */
@@ -114,8 +128,7 @@ router.post(
         effectiveRole = orgRoleToGlobalRole(membership.role);
         tenant = { tenantId: membership.orgId, orgRole: membership.role, platformAdmin };
       }
-      const accessToken = await generateToken(user.id, effectiveRole, tenant);
-      const refreshToken = await generateRefreshToken(user.id, effectiveRole, undefined, tenant);
+      const accessToken = await issueSession(res, user.id, effectiveRole, tenant);
       logger.info(
         {
           userId: user.id,
@@ -126,7 +139,6 @@ router.post(
         },
         '[auth] 密码登录成功',
       );
-      res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTIONS);
       res.json({
         success: true,
         data: {
@@ -204,13 +216,12 @@ router.get(
   '/orgs',
   jwtAuth,
   asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!requireUser(authReq, res)) return;
-      const memberships = await getUserMemberships(authReq.user.sub);
+    async (req, res): Promise<void> => {
+      if (!requireUser(req, res)) return;
+      const memberships = await getUserMemberships(req.user.sub);
       res.json({
         success: true,
-        data: { activeOrgId: authReq.user.tenant_id ?? null, orgs: memberships.map(orgSummary) },
+        data: { activeOrgId: req.user.tenant_id ?? null, orgs: memberships.map(orgSummary) },
       });
     },
     { logMsg: 'List user orgs error', code: 'ORG_LIST_ERROR', endpoint: 'auth-orgs' },
@@ -223,14 +234,13 @@ router.post(
   jwtAuth,
   validate(switchOrgSchema),
   asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!requireUser(authReq, res)) return;
+    async (req, res): Promise<void> => {
+      if (!requireUser(req, res)) return;
       const { orgId } = req.body;
-      const membership = await getMembership(authReq.user.sub, orgId);
+      const membership = await getMembership(req.user.sub, orgId);
       if (!membership) {
         logger.warn(
-          { userId: hashUserId(authReq.user.sub), orgId },
+          { userId: hashUserId(req.user.sub), orgId },
           '[auth] switch-org 拒绝：非该组织成员',
         );
         sendProblem(res, 403, 'NOT_A_MEMBER');
@@ -240,17 +250,15 @@ router.post(
         sendProblem(res, 403, 'ORG_INACTIVE');
         return;
       }
-      const platformAdmin = await isPlatformAdmin(authReq.user.sub);
+      const platformAdmin = await isPlatformAdmin(req.user.sub);
       const role = orgRoleToGlobalRole(membership.role);
       const tenant: TenantContext = {
         tenantId: membership.orgId,
         orgRole: membership.role,
         platformAdmin,
       };
-      const accessToken = await generateToken(authReq.user.sub, role, tenant);
-      const refreshToken = await generateRefreshToken(authReq.user.sub, role, undefined, tenant);
-      logger.info({ userId: hashUserId(authReq.user.sub), orgId, role }, '[auth] 切换活跃组织成功');
-      res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTIONS);
+      const accessToken = await issueSession(res, req.user.sub, role, tenant);
+      logger.info({ userId: hashUserId(req.user.sub), orgId, role }, '[auth] 切换活跃组织成功');
       res.json({ success: true, data: { accessToken, role, org: orgSummary(membership) } });
     },
     { logMsg: 'Switch org error', code: 'SWITCH_ORG_ERROR', endpoint: 'auth-switch-org' },
@@ -262,13 +270,12 @@ router.delete(
   '/me',
   jwtAuth,
   asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      if (!requireUser(authReq, res)) return;
+    async (req, res): Promise<void> => {
+      if (!requireUser(req, res)) return;
       const { anonymizeUser } = await import('../repositories/userRepo.js');
-      await revokeAllUserSessions(authReq.user.sub);
-      const ok = await anonymizeUser(authReq.user.sub);
-      logger.info({ userId: hashUserId(authReq.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
+      await revokeAllUserSessions(req.user.sub);
+      const ok = await anonymizeUser(req.user.sub);
+      logger.info({ userId: hashUserId(req.user.sub), ok }, '[auth] 用户自助删除（匿名化）');
       res.json({ success: true, data: { anonymized: ok } });
     },
     { logMsg: 'Account deletion error', code: 'ACCOUNT_DELETE_ERROR', endpoint: 'auth-me-delete' },

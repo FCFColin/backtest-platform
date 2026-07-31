@@ -2,22 +2,23 @@ package yfinance
 
 import (
 	"data-fetcher/internal/httpclient"
+	"data-fetcher/internal/providerutil"
 	"strconv"
 	"testing"
 	"time"
 )
 
 func TestDateToUnix_Valid(t *testing.T) {
-	ts, err := dateToUnix("2024-01-01")
+	ts, err := providerutil.DateToUnix("2024-01-01")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if ts != 1704067200 {
-		t.Errorf("dateToUnix(\"2024-01-01\") = %d, want 1704067200", ts)
+		t.Errorf("DateToUnix(\"2024-01-01\") = %d, want 1704067200", ts)
 	}
 }
 func TestDateToUnix_Invalid(t *testing.T) {
-	_, err := dateToUnix("invalid-date")
+	_, err := providerutil.DateToUnix("invalid-date")
 	if err == nil {
 		t.Fatal("expected error for invalid date, got nil")
 	}

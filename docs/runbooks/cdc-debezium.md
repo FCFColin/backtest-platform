@@ -1,8 +1,6 @@
 # CDC Debezium Runbook（P3-05）
 
-## 架构
-
-PostgreSQL(outbox) → Debezium Connector → Kafka → API 消费者。替代 LISTEN/NOTIFY 用于多 Pod 水平扩展（ADR-014）。
+> 架构与决策见 [ADR-014](../adr/ADR-014-事件溯源Outbox方案.md)：PostgreSQL(outbox) → Debezium Connector → Kafka → 消费组（多 Pod 分区消费），替代 LISTEN/NOTIFY。
 
 ## 本地启动
 
@@ -14,11 +12,10 @@ PostgreSQL(outbox) → Debezium Connector → Kafka → API 消费者。替代 L
 
 ## 监控
 
-| 指标           | 查询                                                                                             |
-| -------------- | ------------------------------------------------------------------------------------------------ |
-| connector 状态 | curl .../connectors/postgres-cdc/status                                                          |
-| 复制槽堆积     | `SELECT slot_name, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) FROM pg_replication_slots` |
-| 消费组 lag     | `kafka-consumer-groups --describe --group backtest-api`                                          |
+| 指标       | 查询                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------ |
+| 复制槽堆积 | `SELECT slot_name, pg_wal_lsn_diff(pg_current_wal_lsn(), restart_lsn) FROM pg_replication_slots` |
+| 消费组 lag | `kafka-consumer-groups --describe --group backtest-api`                                          |
 
 ## 故障模式与恢复
 
@@ -37,5 +34,3 @@ PostgreSQL(outbox) → Debezium Connector → Kafka → API 消费者。替代 L
 ### 切换回 LISTEN/NOTIFY（降级）
 
 停 API → `CDC_KAFKA_ENABLED=false` → 重启（createOutboxConsumer 返回 OutboxPublisher）→ 补偿扫描拾取 `processed_at IS NULL` 积压。
-
-详见 ADR-014。

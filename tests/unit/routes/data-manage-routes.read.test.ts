@@ -32,12 +32,55 @@ describe('dataManageRoutes - GET /status', () => {
     expect(body.data.totalTickers).toBe(500);
     expect(body.data.cachedTickers).toBe(100);
   });
-  it('getEngineStatus 抛错时应返回 500', async () => {
-    engineServiceMocks.getEngineStatus.mockRejectedValue(new Error('status error'));
-    const res = await fetch(`${server.url}/api/v1/data/manage/status`);
-    const body = await res.json();
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('STATUS_ERROR');
+});
+
+describe('dataManageRoutes - 读端点抛错统一映射为 500', () => {
+  it.each<[string, string, () => void, string | null]>([
+    [
+      '/status',
+      '',
+      () => engineServiceMocks.getEngineStatus.mockRejectedValue(new Error('status error')),
+      'STATUS_ERROR',
+    ],
+    [
+      '/stats?force=1',
+      '',
+      () => engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('scan error')),
+      'STATS_ERROR',
+    ],
+    [
+      '/tickers',
+      '',
+      () => engineServiceMocks.getTickerList.mockRejectedValue(new Error('list error')),
+      'TICKER_LIST_ERROR',
+    ],
+    [
+      '/search?q=test',
+      '',
+      () => engineServiceMocks.searchTickers.mockRejectedValue(new Error('search error')),
+      null,
+    ],
+    [
+      '/ticker/AAPL',
+      '',
+      () =>
+        engineServiceMocks.loadTickerData.mockImplementation(() => {
+          throw new Error('load error');
+        }),
+      null,
+    ],
+  ])('%s 抛错时应返回 500', async (path, _arrangePlaceholder, arrange, code) => {
+    vi.clearAllMocks();
+    arrange();
+    const server = await startAppUnauthenticated();
+    try {
+      const res = await fetch(`${server.url}/api/v1/data/manage${path}`);
+      const body = await res.json();
+      expect(res.status).toBe(500);
+      if (code) expect(body.error.code).toBe(code);
+    } finally {
+      await server.close();
+    }
   });
 });
 
@@ -72,13 +115,6 @@ describe('dataManageRoutes - GET /stats', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.stats).toBeNull();
-  });
-  it('scanMarketStatsFromDb 抛错时应返回 500', async () => {
-    engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('scan error'));
-    const res = await fetch(`${server.url}/api/v1/data/manage/stats?force=1`);
-    const body = await res.json();
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('STATS_ERROR');
   });
 });
 
@@ -120,13 +156,6 @@ describe('dataManageRoutes - GET /tickers', () => {
     expect(body.pagination.limit).toBe(30);
     expect(body.pagination.totalPages).toBe(4);
   });
-  it('getTickerList 抛错时应返回 500', async () => {
-    engineServiceMocks.getTickerList.mockRejectedValue(new Error('list error'));
-    const res = await fetch(`${server.url}/api/v1/data/manage/tickers`);
-    const body = await res.json();
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('TICKER_LIST_ERROR');
-  });
 });
 
 describe('dataManageRoutes - GET /search', () => {
@@ -152,11 +181,6 @@ describe('dataManageRoutes - GET /search', () => {
   it('缺少 q 参数应返回 422', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/search`);
     expect(res.status).toBe(422);
-  });
-  it('searchTickers 抛错时应返回 500', async () => {
-    engineServiceMocks.searchTickers.mockRejectedValue(new Error('search error'));
-    const res = await fetch(`${server.url}/api/v1/data/manage/search?q=test`);
-    expect(res.status).toBe(500);
   });
 });
 
@@ -188,13 +212,6 @@ describe('dataManageRoutes - GET /ticker/:id', () => {
     engineServiceMocks.loadTickerData.mockReturnValue(null);
     const res = await fetch(`${server.url}/api/v1/data/manage/ticker/UNKNOWN`);
     expect(res.status).toBe(404);
-  });
-  it('loadTickerData 抛错时应返回 500', async () => {
-    engineServiceMocks.loadTickerData.mockImplementation(() => {
-      throw new Error('load error');
-    });
-    const res = await fetch(`${server.url}/api/v1/data/manage/ticker/AAPL`);
-    expect(res.status).toBe(500);
   });
 });
 

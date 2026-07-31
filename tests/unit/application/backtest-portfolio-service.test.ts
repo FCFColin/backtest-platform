@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
+import type { Warning } from '../../../packages/backend/src/application/backtest-helpers.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
 const helpersMocks = vi.hoisted(() => ({
@@ -63,6 +64,21 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
   filterPriceData: helpersMocks.filterPriceData,
   translateDomainError: helpersMocks.translateDomainError,
   collectDomainTickers: helpersMocks.collectDomainTickers,
+  pushDegradedWarning: (warnings: Warning[], degraded: boolean, degradedWarning?: string) => {
+    if (degraded)
+      warnings.push({
+        code: 'DATA_DEGRADED',
+        message: degradedWarning || '数据服务降级，部分数据可能缺失',
+      });
+  },
+  clampParametersToDataRange: (
+    parameters: Pick<BacktestParameters, 'startDate' | 'endDate'>,
+    effectiveStartDate: string,
+    effectiveEndDate: string,
+  ) =>
+    effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
+      ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
+      : parameters,
 }));
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({

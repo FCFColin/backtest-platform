@@ -76,6 +76,19 @@ async function verifyRoleInOrg(res: Response, roleId: string, orgId: string): Pr
   return true;
 }
 
+/** 统一守卫：UUID 参数校验 + 租户上下文 + 角色归属校验；任一失败已响应，返回 null。 */
+async function guardRoleInOrg(
+  req: AuthenticatedRequest,
+  res: Response,
+  idParam: string,
+): Promise<string | null> {
+  if (!requireUuidParam(res, idParam)) return null;
+  const tenantId = requireTenantId(req, res);
+  if (!tenantId) return null;
+  if (!(await verifyRoleInOrg(res, idParam, tenantId))) return null;
+  return tenantId;
+}
+
 // 角色 CRUD
 
 /** GET /api/v1/admin/roles — 列出租户角色 + 系统角色 */
@@ -113,10 +126,7 @@ router.put(
   '/roles/:id',
   validate(updateRoleSchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireUuidParam(res, req.params.id)) return;
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
-    if (!(await verifyRoleInOrg(res, req.params.id, tenantId))) return;
+    if (!(await guardRoleInOrg(req, res, req.params.id))) return;
     const { name, description } = req.body as { name: string; description?: string };
     const result = await updateRole(req.params.id, name, description ?? null);
     if (result === 'not_found') {
@@ -133,10 +143,7 @@ router.put(
 
 /** DELETE /api/v1/admin/roles/:id — 删除角色（拒绝系统角色） */
 router.delete('/roles/:id', async (req: AuthenticatedRequest, res: Response) => {
-  if (!requireUuidParam(res, req.params.id)) return;
-  const tenantId = requireTenantId(req, res);
-  if (!tenantId) return;
-  if (!(await verifyRoleInOrg(res, req.params.id, tenantId))) return;
+  if (!(await guardRoleInOrg(req, res, req.params.id))) return;
   const result = await deleteRole(req.params.id);
   if (result === 'not_found') {
     sendProblem(res, 404, 'ROLE_NOT_FOUND');
@@ -149,13 +156,9 @@ router.delete('/roles/:id', async (req: AuthenticatedRequest, res: Response) => 
   res.json({ success: true, data: { deleted: true } });
 });
 
-
 /** GET /api/v1/admin/roles/:id/permissions — 列出角色权限 */
 router.get('/roles/:id/permissions', async (req: AuthenticatedRequest, res: Response) => {
-  if (!requireUuidParam(res, req.params.id)) return;
-  const tenantId = requireTenantId(req, res);
-  if (!tenantId) return;
-  if (!(await verifyRoleInOrg(res, req.params.id, tenantId))) return;
+  if (!(await guardRoleInOrg(req, res, req.params.id))) return;
   res.json({ success: true, data: await getRolePermissions(req.params.id) });
 });
 
@@ -164,10 +167,8 @@ router.put(
   '/roles/:id/permissions',
   validate(setPermissionsSchema),
   async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireUuidParam(res, req.params.id)) return;
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
-    if (!(await verifyRoleInOrg(res, req.params.id, tenantId))) return;
+    if (!(await guardRoleInOrg(req, res, req.params.id))) return;
+    const tenantId = req.tenantId!;
     const { permissions } = req.body as { permissions: string[] };
     const result = await setRolePermissions(req.params.id, permissions);
     if (result === 'not_found') {
@@ -184,7 +185,6 @@ router.put(
   },
 );
 
-
 /** GET /api/v1/admin/users/:userId/roles — 列出用户角色 */
 router.get('/users/:userId/roles', async (req: AuthenticatedRequest, res: Response) => {
   if (!requireUuidParam(res, req.params.userId)) return;
@@ -197,12 +197,10 @@ router.post(
   validate(assignRoleSchema),
   async (req: AuthenticatedRequest, res: Response) => {
     if (!requireUuidParam(res, req.params.userId)) return;
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
     const { roleId } = req.body as { roleId: string };
     // 验证目标角色属于当前租户（防止跨租户绑定系统外的角色）
-    if (!(await verifyRoleInOrg(res, roleId, tenantId))) return;
-    await assignUserRole(req.params.userId, roleId, tenantId);
+    if (!(await guardRoleInOrg(req, res, roleId))) return;
+    await assignUserRole(req.params.userId, roleId, req.tenantId);
     await invalidateUserPermissions(req.params.userId);
     res.status(201).json({ success: true, data: { assigned: true } });
   },

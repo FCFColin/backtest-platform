@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowUp, ArrowDown, Download, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/components/ui/uiComponents.js';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/uiComponents.js';
 import { cn } from '@/lib/utils.js';
 import { formatCurrency, formatPercent, formatDuration, formatNumber } from '@/utils/format.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
@@ -15,10 +20,21 @@ interface StatColumn {
   minWidth?: string;
 }
 const DEFAULT_COLUMNS: StatColumn[] = [
-  { key: 'name', label: 'statsTable.portfolioName', format: 'text', sticky: 'left', minWidth: '140px' },
+  {
+    key: 'name',
+    label: 'statsTable.portfolioName',
+    format: 'text',
+    sticky: 'left',
+    minWidth: '140px',
+  },
   { key: 'endingValue', label: 'statsTable.endingValue', format: 'currency' },
   { key: 'totalContributions', label: 'statsTable.totalContributions', format: 'currency' },
-  { key: 'cumulativeReturn', label: 'statsTable.cumulativeReturn', format: 'percent', colorize: true },
+  {
+    key: 'cumulativeReturn',
+    label: 'statsTable.cumulativeReturn',
+    format: 'percent',
+    colorize: true,
+  },
   { key: 'cagr', label: 'CAGR', format: 'percent', colorize: true },
   { key: 'mwrr', label: 'MWRR', format: 'percent', colorize: true },
   { key: 'maxDrawdown', label: 'statsTable.maxDrawdown', format: 'percent', colorize: true },
@@ -31,9 +47,9 @@ const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'ulcerIndex', label: 'Ulcer', format: 'number' },
   { key: 'upi', label: 'UPI', format: 'number' },
   { key: 'diversificationRatio', label: 'statsTable.diversificationRatio', format: 'number' },
-  { key: 'beta', label: 'Beta', format: 'number' }
+  { key: 'beta', label: 'Beta', format: 'number' },
 ];
-interface StatisticsTableV2Props {
+interface StatisticsTableProps {
   portfolios: Array<{
     id: string;
     name: string;
@@ -44,7 +60,12 @@ interface StatisticsTableV2Props {
   extendedTable?: React.ReactNode;
 }
 // eslint-disable-next-line max-lines-per-function
-export function StatisticsTableV2({ portfolios, colors, onExport, extendedTable }: StatisticsTableV2Props) {
+export function StatisticsTable({
+  portfolios,
+  colors,
+  onExport,
+  extendedTable,
+}: StatisticsTableProps) {
   const { t } = useTranslation();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
@@ -67,7 +88,10 @@ export function StatisticsTableV2({ portfolios, colors, onExport, extendedTable 
     if (col.key === 'name') {
       return (
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: colors[index] ?? '#888' }} />
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ background: colors[index] ?? '#888' }}
+          />
           <span className="truncate">{portfolio.name}</span>
         </div>
       );
@@ -93,11 +117,17 @@ export function StatisticsTableV2({ portfolios, colors, onExport, extendedTable 
         <div className="flex items-center gap-2">
           <h3 className="text-h3">{t('statsTable.ui.title')}</h3>
           <span className="text-caption text-fg-tertiary">
-            {t('statsTable.ui.portfolioCount', { count: portfolios.length })} · {t('statsTable.ui.columnCount', { count: visibleColumns.length })}
+            {t('statsTable.ui.portfolioCount', { count: portfolios.length })} ·{' '}
+            {t('statsTable.ui.columnCount', { count: visibleColumns.length })}
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="text-caption">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setExpanded(!expanded)}
+            className="text-caption"
+          >
             {expanded ? t('statsTable.ui.collapseExtended') : t('statsTable.ui.expandExtended')}
           </Button>
           <DropdownMenu>
@@ -134,9 +164,20 @@ export function StatisticsTableV2({ portfolios, colors, onExport, extendedTable 
             <thead>
               <tr className="bg-surface-sunken border-b border-border">
                 {visibleColumns.map((col) => (
-                  <th key={col.key} className={cn('h-10 px-3 text-fg-tertiary text-label-tiny', col.format === 'text' ? 'text-left' : 'text-right', col.sticky === 'left' && 'sticky left-0 bg-surface-sunken z-10')} style={{ minWidth: col.minWidth }}>
+                  <th
+                    key={col.key}
+                    className={cn(
+                      'h-10 px-3 text-fg-tertiary text-label-tiny',
+                      col.format === 'text' ? 'text-left' : 'text-right',
+                      col.sticky === 'left' && 'sticky left-0 bg-surface-sunken z-10',
+                    )}
+                    style={{ minWidth: col.minWidth }}
+                  >
                     <button
-                      className={cn('inline-flex items-center gap-1 hover:text-fg transition-colors', col.format !== 'text' && 'ml-auto')}
+                      className={cn(
+                        'inline-flex items-center gap-1 hover:text-fg transition-colors',
+                        col.format !== 'text' && 'ml-auto',
+                      )}
                       onClick={() => {
                         if (sortKey === col.key) {
                           setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -147,7 +188,12 @@ export function StatisticsTableV2({ portfolios, colors, onExport, extendedTable 
                       }}
                     >
                       {col.label}
-                      {sortKey === col.key && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+                      {sortKey === col.key &&
+                        (sortDir === 'asc' ? (
+                          <ArrowUp className="h-3 w-3" />
+                        ) : (
+                          <ArrowDown className="h-3 w-3" />
+                        ))}
                     </button>
                   </th>
                 ))}
@@ -155,11 +201,28 @@ export function StatisticsTableV2({ portfolios, colors, onExport, extendedTable 
             </thead>
             <tbody>
               {sortedPortfolios.map((p, i) => (
-                <tr key={p.id} className={cn('h-12 border-b border-border-subtle', 'hover:bg-hover/50 transition-colors', i === sortedPortfolios.length - 1 && 'border-b-0')}>
+                <tr
+                  key={p.id}
+                  className={cn(
+                    'h-12 border-b border-border-subtle',
+                    'hover:bg-hover/50 transition-colors',
+                    i === sortedPortfolios.length - 1 && 'border-b-0',
+                  )}
+                >
                   {visibleColumns.map((col) => {
                     const value = col.key === 'name' ? p.name : (p.stats[col.key] as number);
                     return (
-                      <td key={col.key} data-testid={STAT_KEY_TO_TESTID[col.key]} className={cn('px-3', col.format === 'text' ? 'text-left' : 'text-right', col.format !== 'text' && 'font-mono tabular-nums', col.sticky === 'left' && 'sticky left-0 bg-surface z-10', col.colorize && typeof value === 'number' && getColorClass(value))}>
+                      <td
+                        key={col.key}
+                        data-testid={STAT_KEY_TO_TESTID[col.key]}
+                        className={cn(
+                          'px-3',
+                          col.format === 'text' ? 'text-left' : 'text-right',
+                          col.format !== 'text' && 'font-mono tabular-nums',
+                          col.sticky === 'left' && 'sticky left-0 bg-surface z-10',
+                          col.colorize && typeof value === 'number' && getColorClass(value),
+                        )}
+                      >
                         {renderCell(p, col, i)}
                       </td>
                     );

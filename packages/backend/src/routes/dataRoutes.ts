@@ -9,6 +9,20 @@ import { asyncRouteHandler } from './routeUtils.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { SYNTHETIC_TICKERS } from '../infrastructure/syntheticTickers.js';
 import { getReadPool } from '../db/pool.js';
+import { rowMapper, toIso } from '../repositories/rowMapper.js';
+
+interface RecentUpdateRow {
+  ticker: string;
+  name: string;
+  lastBarDate: string | null;
+  updatedAt: string | null;
+}
+const mapRecentUpdate = rowMapper<RecentUpdateRow>({
+  ticker: 'ticker',
+  name: 'name',
+  lastBarDate: 'last_bar_date',
+  updatedAt: (r) => toIso(r.updated_at),
+});
 
 let metaCache: { data: object; expiry: number } | null = null;
 const META_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -228,19 +242,7 @@ router.get(
       );
       res.json({
         success: true,
-        data: result.rows.map(
-          (r: {
-            ticker: string;
-            name: string;
-            last_bar_date: string | null;
-            updated_at: Date | null;
-          }) => ({
-            ticker: r.ticker,
-            name: r.name,
-            lastBarDate: r.last_bar_date,
-            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
-          }),
-        ),
+        data: result.rows.map(mapRecentUpdate),
       });
     },
     {

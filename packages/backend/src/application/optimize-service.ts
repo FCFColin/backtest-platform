@@ -14,6 +14,7 @@ import {
   translateDomainError,
   collectInvalidTickerWarnings,
   calculateDateRange,
+  pushDegradedWarning,
 } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 import { logger } from '../utils/logger.js';
@@ -45,11 +46,7 @@ async function runCompute(
   );
   const allTickers = new Set(tickers);
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-  if (degraded)
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
+  pushDegradedWarning(warnings, degraded, degradedWarning);
   const result = await callEngineStrict<Record<string, unknown>>(path, {
     tickers,
     priceData: filterPriceData(priceData, allTickers),
@@ -180,9 +177,7 @@ async function computeBestResult(
 }
 
 /** 运行回测优化器参数搜索。校验失败时返回 { success: false, error }。 */
-export async function executeOptimization(
-  body: Record<string, unknown>,
-): Promise<{
+export async function executeOptimization(body: Record<string, unknown>): Promise<{
   success: boolean;
   data?: Record<string, unknown>;
   warnings?: Warning[];
@@ -208,11 +203,7 @@ export async function executeOptimization(
   );
   if (invalidTickers.length > 0)
     return { success: false, error: `以下标的代码无效：${invalidTickers.join(', ')}` };
-  if (degraded)
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
+  pushDegradedWarning(warnings, degraded, degradedWarning);
   const combos = buildCombinations(parameterSpace);
   if (combos.length === 0) return { success: false, error: '参数空间为空，请检查范围与步长' };
   if (combos.length > MAX_OPTIMIZER_COMBINATIONS)

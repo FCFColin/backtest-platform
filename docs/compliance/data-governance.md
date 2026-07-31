@@ -28,26 +28,17 @@ GDPR: 被遗忘权(anonymize/delete)、最小化(仅 username+hash)、可追溯(
 
 ## 3. RBAC 与多租户
 
-角色: ADMIN（全部管理）/ ANALYST（回测·分析·组合·数据）/ READONLY（只读）。七权限: BACKTEST/ANALYSIS/PORTFOLIO_MANAGE/DATA_MANAGE/ADMIN/KEY_MANAGE/BILLING_MANAGE。
-
-多租户: 共享 schema + tenant_id + RLS；withTenant(tenantId, fn) 事务内 SET LOCAL app.current_tenant_id；市场数据表不启用 RLS（全局共享）。
+角色与权限定义、多租户 RLS 隔离实现见 ADR-017/ADR-032（共享 schema + tenant_id + withTenant 事务内 SET LOCAL；市场数据表不启用 RLS 全局共享）。
 
 ## 4. 认证与会话
 
-JWT(jose RS256): Access 15min, Refresh 7d + 轮换（Redis）；x-api-key → analyst 角色（按 org 收敛）；MFA/TOTP 管理员强制；Idempotency-Key 中间件；ADMIN_API_KEY 仅 break-glass。
-
-会话: Access 15min / Refresh 7d / 空闲 30min / 绝对 24h；同用户最多 5 个活跃 Refresh Token。
+JWT / x-api-key / Idempotency-Key / break-glass 模型见 ADR-017。
+会话: Access 15min / Refresh 7d / 空闲 30min / 绝对 24h；同用户最多 5 个活跃 Refresh Token；MFA/TOTP 管理员强制。
 密码: 12 位+四类字符, 90 天轮换, 历史 5 次不重复；5 次失败锁 15min, IP 10 次/h 封 1h。
 
 ## 5. 备份与恢复
 
-| 组件       | 方案                      | RPO    | 保留     |
-| ---------- | ------------------------- | ------ | -------- |
-| PostgreSQL | WAL-G 每日全量+实时 WAL   | < 2min | 7 份全量 |
-| Redis      | RDB 快照(非持久化数据)    | 不保证 | —        |
-| 配置/密钥  | K8s Secret + Git 版本控制 | —      | Git 历史 |
-
-RTO: PG < 30min, 引擎 < 5min, 全量恢复 < 4h。恢复: `bash scripts/backup-restore.sh LATEST`；PITR 用 recovery_target_time；验证 pg_verifybackup + WAL 完整性。
+方案与 RTO/RPO 目标（WAL-G 每日全量+实时 WAL 保留 7 份, Redis RDB, K8s Secret）见 ADR-038；恢复流程见 runbooks/dr-runbook.md（`bash scripts/backup-restore.sh LATEST`、PITR 用 recovery_target_time、pg_verifybackup + WAL 完整性验证）。
 
 ## 6. 等保对照
 

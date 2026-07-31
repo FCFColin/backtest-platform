@@ -14,16 +14,14 @@ import { apiKeysStaleCount } from '../utils/metrics.js';
 const STALE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 /** 未使用阈值天数（平台 break-glass 密钥默认 7 天）。 */
-export const STALE_THRESHOLD_DAYS = 7;
+const STALE_THRESHOLD_DAYS = 7;
 
 /**
  * 巡检一次陈旧密钥并更新 Prometheus gauge。
  *
  * @param thresholdDays - 未使用阈值天数
  */
-export async function refreshStaleApiKeyMetrics(
-  thresholdDays = STALE_THRESHOLD_DAYS,
-): Promise<void> {
+async function refreshStaleApiKeyMetrics(thresholdDays = STALE_THRESHOLD_DAYS): Promise<void> {
   const stale = await findStaleApiKeys(thresholdDays);
   let platformCount = 0;
   let tenantCount = 0;

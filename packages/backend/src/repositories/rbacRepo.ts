@@ -5,8 +5,9 @@
  */
 import { getPool, withTenant, withTenantReadOnly } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
+import { rowMapper, iso } from './rowMapper.js';
 
-export interface RoleRecord {
+interface RoleRecord {
   id: string;
   orgId: string | null;
   name: string;
@@ -16,33 +17,28 @@ export interface RoleRecord {
   updatedAt: string;
 }
 
-export interface UserRoleRecord {
+interface UserRoleRecord {
   userId: string;
   roleId: string;
   orgId: string | null;
   createdAt: string;
 }
 
-function mapRoleRow(row: {
-  id: string; org_id: string | null; name: string; description: string | null;
-  is_system: boolean; created_at: Date | string; updated_at: Date | string;
-}): RoleRecord {
-  return {
-    id: row.id, orgId: row.org_id, name: row.name, description: row.description,
-    isSystem: row.is_system,
-    createdAt: new Date(row.created_at).toISOString(),
-    updatedAt: new Date(row.updated_at).toISOString(),
-  };
-}
-
-function mapUserRoleRow(row: {
-  user_id: string; role_id: string; org_id: string | null; created_at: Date | string;
-}): UserRoleRecord {
-  return {
-    userId: row.user_id, roleId: row.role_id, orgId: row.org_id,
-    createdAt: new Date(row.created_at).toISOString(),
-  };
-}
+const mapRoleRow = rowMapper<RoleRecord>({
+  id: 'id',
+  orgId: 'org_id',
+  name: 'name',
+  description: 'description',
+  isSystem: 'is_system',
+  createdAt: (r) => iso(r.created_at),
+  updatedAt: (r) => iso(r.updated_at),
+});
+const mapUserRoleRow = rowMapper<UserRoleRecord>({
+  userId: 'user_id',
+  roleId: 'role_id',
+  orgId: 'org_id',
+  createdAt: (r) => iso(r.created_at),
+});
 
 const ROLE_COLS = 'id, org_id, name, description, is_system, created_at, updated_at';
 
@@ -58,7 +54,11 @@ export async function getRolesByOrg(orgId: string): Promise<RoleRecord[]> {
 }
 
 /** 创建租户自定义角色（is_system=FALSE）。 */
-export async function createRole(orgId: string, name: string, description: string | null): Promise<RoleRecord> {
+export async function createRole(
+  orgId: string,
+  name: string,
+  description: string | null,
+): Promise<RoleRecord> {
   return withTenant(orgId, async (client) => {
     const { rows } = await client.query(
       `INSERT INTO roles (org_id, name, description, is_system) VALUES ($1, $2, $3, FALSE) RETURNING ${ROLE_COLS}`,
@@ -70,14 +70,24 @@ export async function createRole(orgId: string, name: string, description: strin
 
 /** 更新角色（名称/描述）。系统角色禁止修改。返回 'not_found' / 'system_role' / 记录。 */
 export async function updateRole(
-  roleId: string, name: string, description: string | null,
+  roleId: string,
+  name: string,
+  description: string | null,
 ): Promise<RoleRecord | 'not_found' | 'system_role'> {
   const client = await getPool().connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query('SELECT is_system FROM roles WHERE id = $1 FOR UPDATE', [roleId]);
-    if (rows.length === 0) { await client.query('ROLLBACK'); return 'not_found'; }
-    if (rows[0].is_system === true) { await client.query('ROLLBACK'); return 'system_role'; }
+    const { rows } = await client.query('SELECT is_system FROM roles WHERE id = $1 FOR UPDATE', [
+      roleId,
+    ]);
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return 'not_found';
+    }
+    if (rows[0].is_system === true) {
+      await client.query('ROLLBACK');
+      return 'system_role';
+    }
     const { rows: updated } = await client.query(
       `UPDATE roles SET name = $2, description = $3, updated_at = NOW() WHERE id = $1 RETURNING ${ROLE_COLS}`,
       [roleId, name, description],
@@ -85,7 +95,11 @@ export async function updateRole(
     await client.query('COMMIT');
     return mapRoleRow(updated[0]);
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (e) { logger.error({ err: e }, '[rbacRepo] updateRole ROLLBACK 失败'); }
+    try {
+      await client.query('ROLLBACK');
+    } catch (e) {
+      logger.error({ err: e }, '[rbacRepo] updateRole ROLLBACK 失败');
+    }
     throw err;
   } finally {
     client.release();
@@ -97,14 +111,26 @@ export async function deleteRole(roleId: string): Promise<boolean | 'not_found' 
   const client = await getPool().connect();
   try {
     await client.query('BEGIN');
-    const { rows } = await client.query('SELECT is_system FROM roles WHERE id = $1 FOR UPDATE', [roleId]);
-    if (rows.length === 0) { await client.query('ROLLBACK'); return 'not_found'; }
-    if (rows[0].is_system === true) { await client.query('ROLLBACK'); return 'system_role'; }
+    const { rows } = await client.query('SELECT is_system FROM roles WHERE id = $1 FOR UPDATE', [
+      roleId,
+    ]);
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return 'not_found';
+    }
+    if (rows[0].is_system === true) {
+      await client.query('ROLLBACK');
+      return 'system_role';
+    }
     await client.query('DELETE FROM roles WHERE id = $1', [roleId]);
     await client.query('COMMIT');
     return true;
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (e) { logger.error({ err: e }, '[rbacRepo] deleteRole ROLLBACK 失败'); }
+    try {
+      await client.query('ROLLBACK');
+    } catch (e) {
+      logger.error({ err: e }, '[rbacRepo] deleteRole ROLLBACK 失败');
+    }
     throw err;
   } finally {
     client.release();
@@ -114,18 +140,25 @@ export async function deleteRole(roleId: string): Promise<boolean | 'not_found' 
 /** 获取角色权限列表。 */
 export async function getRolePermissions(roleId: string): Promise<string[]> {
   const { rows } = await getPool().query(
-    'SELECT permission FROM role_permissions WHERE role_id = $1 ORDER BY permission', [roleId],
+    'SELECT permission FROM role_permissions WHERE role_id = $1 ORDER BY permission',
+    [roleId],
   );
   return rows.map((r: { permission: string }) => r.permission);
 }
 
 /** 替换角色全部权限（先删后插，事务原子）。返回 'ok' / 'not_found'。 */
-export async function setRolePermissions(roleId: string, permissions: string[]): Promise<'ok' | 'not_found'> {
+export async function setRolePermissions(
+  roleId: string,
+  permissions: string[],
+): Promise<'ok' | 'not_found'> {
   const client = await getPool().connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query('SELECT id FROM roles WHERE id = $1', [roleId]);
-    if (rows.length === 0) { await client.query('ROLLBACK'); return 'not_found'; }
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return 'not_found';
+    }
     await client.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
     if (permissions.length > 0) {
       // 批量插入：unnest 展开数组，单次往返
@@ -137,7 +170,11 @@ export async function setRolePermissions(roleId: string, permissions: string[]):
     await client.query('COMMIT');
     return 'ok';
   } catch (err) {
-    try { await client.query('ROLLBACK'); } catch (e) { logger.error({ err: e }, '[rbacRepo] setRolePermissions ROLLBACK 失败'); }
+    try {
+      await client.query('ROLLBACK');
+    } catch (e) {
+      logger.error({ err: e }, '[rbacRepo] setRolePermissions ROLLBACK 失败');
+    }
     throw err;
   } finally {
     client.release();
@@ -154,7 +191,11 @@ export async function getUserRoles(userId: string): Promise<UserRoleRecord[]> {
 }
 
 /** 为用户分配角色（幂等）。 */
-export async function assignUserRole(userId: string, roleId: string, orgId: string | null): Promise<void> {
+export async function assignUserRole(
+  userId: string,
+  roleId: string,
+  orgId: string | null,
+): Promise<void> {
   await getPool().query(
     `INSERT INTO user_roles (user_id, role_id, org_id) VALUES ($1, $2, $3) ON CONFLICT (user_id, role_id) DO NOTHING`,
     [userId, roleId, orgId],
@@ -164,7 +205,8 @@ export async function assignUserRole(userId: string, roleId: string, orgId: stri
 /** 移除用户角色绑定。 */
 export async function removeUserRole(userId: string, roleId: string): Promise<boolean> {
   const { rowCount } = await getPool().query(
-    'DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2', [userId, roleId],
+    'DELETE FROM user_roles WHERE user_id = $1 AND role_id = $2',
+    [userId, roleId],
   );
   return (rowCount ?? 0) > 0;
 }
@@ -180,6 +222,8 @@ export async function getUserPermissions(userId: string): Promise<string[]> {
 
 /** 查询绑定指定角色的用户 ID（角色权限变更时缓存失效用）。 */
 export async function getUserIdsByRole(roleId: string): Promise<string[]> {
-  const { rows } = await getPool().query('SELECT user_id FROM user_roles WHERE role_id = $1', [roleId]);
+  const { rows } = await getPool().query('SELECT user_id FROM user_roles WHERE role_id = $1', [
+    roleId,
+  ]);
   return rows.map((r: { user_id: string }) => r.user_id);
 }

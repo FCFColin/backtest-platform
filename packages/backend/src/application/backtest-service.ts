@@ -33,6 +33,8 @@ import {
   collectDomainTickers,
   filterPriceData,
   calculateDateRange,
+  pushDegradedWarning,
+  clampParametersToDataRange,
 } from './backtest-helpers.js';
 
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
@@ -59,17 +61,14 @@ export async function runPortfolioBacktest(opts: {
     await fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate);
   onProgress?.(30);
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-  if (degraded)
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
+  pushDegradedWarning(warnings, degraded, degradedWarning);
   const { cpiData, exchangeRates } = await loadMacroData(parameters);
   onProgress?.(35);
-  const effectiveParameters =
-    effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
-      ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
-      : parameters;
+  const effectiveParameters = clampParametersToDataRange(
+    parameters,
+    effectiveStartDate,
+    effectiveEndDate,
+  );
   const { result } = await withTimeout(
     runBacktest({
       portfolios,

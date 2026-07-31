@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SignJWT, importJWK, generateKeyPair, exportPKCS8, exportSPKI, jwtVerify } from 'jose';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { SignJWT, importJWK, generateKeyPair, jwtVerify } from 'jose';
 import {
   setupJwtAuthTestMocks,
   base64urlEncode,
@@ -11,7 +11,16 @@ import {
   createJwtAuthMockNext,
   awaitMiddleware,
 } from '../../helpers/expressMocks.js';
-import { mocks, redisMocks, fsMocks, apiKeyMocks, mockUser } from './jwtAuth.shared.js';
+import {
+  mocks,
+  redisMocks,
+  fsMocks,
+  apiKeyMocks,
+  mockUser,
+  setupRsaKeys,
+  resetRsaConfig,
+  reloadJwtAuthModule,
+} from './jwtAuth.shared.js';
 
 import {
   generateToken,
@@ -83,29 +92,6 @@ function decodePayload(token: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
 }
 const HACKER = { sub: 'hacker', role: 'admin', iat: 0, exp: 9999999999 };
-async function reloadModule() {
-  vi.resetModules();
-  return import('../../../packages/backend/src/middleware/jwtAuth.js');
-}
-async function setupRsaKeys(env = 'production') {
-  const { publicKey, privateKey } = await generateKeyPair('RS256', {
-    modulusLength: 2048,
-    extractable: true,
-  });
-  const privatePem = await exportPKCS8(privateKey);
-  const publicPem = await exportSPKI(publicKey);
-  mocks.config.JWT_PRIVATE_KEY = privatePem;
-  mocks.config.JWT_PUBLIC_KEY = publicPem;
-  mocks.config.NODE_ENV = env;
-  mocks.config.JWT_ALGORITHM = 'RS256';
-  return { publicKey, privateKey, privatePem, publicPem };
-}
-function resetRsaConfig() {
-  mocks.config.JWT_PRIVATE_KEY = '';
-  mocks.config.JWT_PRIVATE_KEY_FILE = '';
-  mocks.config.JWT_PUBLIC_KEY = '';
-  mocks.config.JWT_PUBLIC_KEY_FILE = '';
-}
 
 describe('JWT 生成与验证', () => {
   beforeEach(() => setupAuthEnv());
@@ -368,7 +354,7 @@ describe('verifyToken RS256 算法边界', () => {
     ],
   ])('%s 应被拒绝', async (_n, build) => {
     const keys = await setupRsaKeys();
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     expect(await mod.verifyToken(await build(keys))).toBeNull();
   });
 });
@@ -383,7 +369,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
     mocks.config.JWT_ALGORITHM = 'RS256';
   });
   it('开发模式无密钥配置时应自动生成密钥对并完成签发验证', async () => {
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     const t = await mod.generateToken('dev-user-rs', 'admin');
     const p = await mod.verifyToken(t);
     expect(p!.sub).toBe('dev-user-rs');
@@ -392,7 +378,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
   });
   it('生产环境内联 PEM 应签发并验证 access token（含公钥 jwtVerify）', async () => {
     await setupRsaKeys('production');
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     const t = await mod.generateToken('rs256-user', 'admin');
     const p = await mod.verifyToken(t);
     expect(p!.sub).toBe('rs256-user');
@@ -414,7 +400,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
       if (String(fp).includes('public')) return publicPem;
       throw new Error('ENOENT');
     });
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     const t = await mod.generateToken('file-pem-user', 'readonly');
     expect(t.split('.')).toHaveLength(3);
     expect(fsMocks.readFileSync).toHaveBeenCalledWith('/secrets/private.pem', 'utf-8');
@@ -424,12 +410,12 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
   it('生产环境缺少 RSA 密钥应拒绝签发与验证', async () => {
     resetRsaConfig();
     mocks.config.NODE_ENV = 'production';
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     await expect(mod.generateToken('prod-user', 'admin')).rejects.toThrow(/JWT_PRIVATE_KEY/);
     await expect(mod.getOrCachePublicKey()).rejects.toThrow(/JWT_PUBLIC_KEY/);
   });
   it('RS256 refresh token 生命周期应完整', async () => {
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     const r = await mod.refreshAccessToken(
       await mod.generateRefreshToken('rs256-refresh', 'analyst'),
     );
@@ -437,7 +423,7 @@ describe('jwtAuth RS256 路径（PEM 加载与签发）', () => {
     expect(r!.accessToken).toBeTruthy();
   });
   it('getUserById 失败时 jwtAuth 应拒绝访问', async () => {
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     const { getUserById: g } =
       await import('../../../packages/backend/src/repositories/userRepo.js');
     redisMocks.useRedisSuccess();

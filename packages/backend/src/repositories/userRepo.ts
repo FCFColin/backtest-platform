@@ -14,6 +14,7 @@ import argon2 from 'argon2';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
+import { rowMapper } from './rowMapper.js';
 
 export interface User {
   id: string;
@@ -29,15 +30,13 @@ export interface User {
  * @param row - 数据库行（可包含额外字段如 password_hash，会被忽略）
  * @returns User 实体
  */
-export function rowToUser(row: Record<string, unknown>): User {
-  return {
-    id: row.id as string,
-    username: row.username as string,
-    role: row.role as 'admin' | 'analyst' | 'readonly',
-    createdAt: row.created_at as Date,
-    isActive: row.is_active as boolean,
-  };
-}
+export const rowToUser = rowMapper<User>({
+  id: 'id',
+  username: 'username',
+  role: (r) => r.role as User['role'],
+  createdAt: (r) => r.created_at as Date,
+  isActive: 'is_active',
+});
 
 /**
  * 计算 argon2id 密码哈希（OWASP 推荐参数）。

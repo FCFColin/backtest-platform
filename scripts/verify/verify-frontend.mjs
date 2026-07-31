@@ -1,15 +1,8 @@
-﻿// scripts/verify/C-004-005-006-019-frontend.mjs
+﻿// scripts/verify/verify-frontend.mjs
 //
 // P0-4 验证：前端 4 项 CRITICAL 修复真实性验证（C-004 / C-005 / C-006 / C-019）
-//
-// 说明（重要）：
-//   任务要求使用 chrome-devtools MCP 工具进行动态验证，但本次运行时 MCP 服务器
-//   `mcp_plugin_Chrome_DevTools_chrome-devtools` 未连接（run_mcp 返回 "MCP tool is not found"），
-//   且 on-disk 声明路径 s_回测平台-9c1e0a21 不存在（实际为 s_量化平台-bc492fe8）。
-//   属于基础设施不可用（非本子智能体可控）。dev server (vite :15173) 已正常运行，
-//   `@playwright/test`（tmp.md P0-4 原始方案所用库）在根目录可解析。
-//   为产出真实验证证据而非 3/4 项 SKIP，按 tmp.md 原方案使用 Playwright chromium 作为后备，
-//   并在最终报告中明确记录此后备。静态检查 (C-019 grep useEngineHealth) 不受影响。
+// 原方案要求 chrome-devtools MCP 动态验证；MCP 不可用时按 tmp.md 原方案改用 Playwright chromium 后备，
+// 并在报告中记录。静态检查 (C-019 grep useEngineHealth) 不受影响。
 //
 // 验证项：
 //   C-004 Navbar/PromoBar 路由断链（登录链接 404）— 点击登录链接验证 URL=/login 非 404
@@ -17,7 +10,7 @@
 //   C-006 CLS=1.05 修复（目标 < 0.1）— PerformanceObserver 实测 layout-shift
 //   C-019 删除 useEngineHealth 死代码 — grepInCode 0 匹配
 //
-// 运行：node scripts/verify/C-004-005-006-019-frontend.mjs
+// 运行：node scripts/verify/verify-frontend.mjs
 //   前置：dev server 在 http://localhost:15173/ 运行（vite）
 
 import { chromium } from '@playwright/test';

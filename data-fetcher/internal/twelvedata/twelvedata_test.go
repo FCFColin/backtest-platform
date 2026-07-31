@@ -2,10 +2,6 @@ package twelvedata
 
 import (
 	"data-fetcher/internal/httpclient"
-	"data-fetcher/internal/provider"
-	"data-fetcher/internal/providerutil"
-	"encoding/json"
-	"errors"
 	"os"
 	"testing"
 	"time"
@@ -46,44 +42,6 @@ func TestSearchTicker_NotImplemented(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unimplemented SearchTicker, got nil")
 	}
-}
-func parseTimeSeries(body []byte, startDate, endDate string) ([]provider.DailyPrice, error) {
-	var resp timeSeriesResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return nil, err
-	}
-	if resp.Status == "error" {
-		msg := resp.Message
-		if msg == "" {
-			msg = "unknown error"
-		}
-		return nil, errors.New("Twelve Data API 错误: " + msg)
-	}
-	if resp.Status != "ok" {
-		return nil, errors.New("Twelve Data API 异常状态: " + resp.Status)
-	}
-	start, _ := time.Parse("2006-01-02", startDate)
-	end, _ := time.Parse("2006-01-02", endDate)
-	var prices []provider.DailyPrice
-	for _, v := range resp.Values {
-		t, err := time.Parse("2006-01-02", v.Datetime)
-		if err != nil {
-			continue
-		}
-		if t.Before(start) || t.After(end) {
-			continue
-		}
-		close := providerutil.ParseStringFloat(v.Close)
-		if close == 0 {
-			continue
-		}
-		prices = append(prices, provider.DailyPrice{
-			Date: v.Datetime, Open: providerutil.ParseStringFloat(v.Open),
-			High: providerutil.ParseStringFloat(v.High),
-			Low:  providerutil.ParseStringFloat(v.Low), Close: close,
-			Volume: providerutil.ParseStringInt(v.Volume), AdjustedClose: close})
-	}
-	return prices, nil
 }
 func TestParseTimeSeries_Success(t *testing.T) {
 	body := []byte(`{

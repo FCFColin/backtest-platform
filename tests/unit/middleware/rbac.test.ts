@@ -222,22 +222,17 @@ describe('安全攻击用例', () => {
   });
 
   it.each([
-    { name: '大小写绕过：角色 "Admin"（大写 A）不应匹配 "admin"', role: 'Admin' },
-    { name: '空白字符绕过：角色 " admin "（含空格）应被拒绝', role: ' admin ' },
-    { name: '空角色字符串应被拒绝', role: '' },
-  ])('$name', ({ role }) => {
-    const req = createMockRequest({ sub: 'attacker', role });
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    const middleware = requirePermission(Permission.DATA_READ);
-    middleware(req, res, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(403);
-  });
-
-  it.each([
+    {
+      name: '大小写绕过：角色 "Admin"（大写 A）不应匹配 "admin"',
+      role: 'Admin',
+      permission: Permission.DATA_READ,
+    },
+    {
+      name: '空白字符绕过：角色 " admin "（含空格）应被拒绝',
+      role: ' admin ',
+      permission: Permission.DATA_READ,
+    },
+    { name: '空角色字符串应被拒绝', role: '', permission: Permission.DATA_READ },
     {
       name: '权限提升：role="user" 访问 admin 端点应被拒绝（403）',
       role: 'user',

@@ -1,20 +1,11 @@
 package goaloptimizer
 
 import (
+	"engine-go/internal/enginetest"
 	"math"
 	"testing"
-	"time"
 )
 
-func makePriceData(ticker, startDate string, days int, startPrice, dailyGrowth float64) map[string]map[string]float64 {
-	pd := map[string]map[string]float64{ticker: {}}
-	t, _ := time.Parse("2006-01-02", startDate)
-	for i := 0; i < days; i++ {
-		date := t.AddDate(0, 0, i).Format("2006-01-02")
-		pd[ticker][date] = startPrice * (1 + dailyGrowth*float64(i))
-	}
-	return pd
-}
 func TestOptimizeGoals_EmptyAssets(t *testing.T) {
 	req := GoalOptimizerRequest{
 		TargetAmount: 20000, InitialAmount: 10000, Years: 1,
@@ -33,7 +24,7 @@ func TestOptimizeGoals_EmptyAssets(t *testing.T) {
 	}
 }
 func TestOptimizeGoals_Deterministic(t *testing.T) {
-	pd := makePriceData("A", "2024-01-01", 260, 100, 0.001)
+	pd := enginetest.LinearPriceData("A", "2024-01-01", 260, 100, 0.001)
 	numSims := 100
 	req := GoalOptimizerRequest{
 		TargetAmount: 20000, InitialAmount: 10000, Years: 1,
@@ -56,7 +47,7 @@ func TestOptimizeGoals_Deterministic(t *testing.T) {
 	}
 }
 func TestOptimizeGoals_GuaranteedSuccess(t *testing.T) {
-	pd := makePriceData("A", "2024-01-01", 260, 100, 0.001)
+	pd := enginetest.LinearPriceData("A", "2024-01-01", 260, 100, 0.001)
 	numSims := 50
 	req := GoalOptimizerRequest{
 		TargetAmount:  5000, // < InitialAmount
@@ -73,7 +64,7 @@ func TestOptimizeGoals_GuaranteedSuccess(t *testing.T) {
 	}
 }
 func TestOptimizeGoals_StrictConstraintFiltersAll(t *testing.T) {
-	pd := makePriceData("A", "2024-01-01", 260, 100, 0.001)
+	pd := enginetest.LinearPriceData("A", "2024-01-01", 260, 100, 0.001)
 	numSims := 50
 	maxDD := -1.0
 	req := GoalOptimizerRequest{
@@ -93,7 +84,7 @@ func TestOptimizeGoals_StrictConstraintFiltersAll(t *testing.T) {
 	}
 }
 func TestOptimizeGoals_ResultStructure(t *testing.T) {
-	pd := makePriceData("A", "2024-01-01", 260, 100, 0.001)
+	pd := enginetest.LinearPriceData("A", "2024-01-01", 260, 100, 0.001)
 	numSims := 100
 	req := GoalOptimizerRequest{
 		TargetAmount: 15000, InitialAmount: 10000, Years: 1,
@@ -140,7 +131,7 @@ func TestOptimizeGoals_ResultStructure(t *testing.T) {
 	})
 }
 func TestOptimizeGoals_NumSimulationsClamped(t *testing.T) {
-	pd := makePriceData("A", "2024-01-01", 260, 100, 0.001)
+	pd := enginetest.LinearPriceData("A", "2024-01-01", 260, 100, 0.001)
 	t.Run("NumSimulations超过10000被截断", func(t *testing.T) {
 		huge := 999999
 		req := GoalOptimizerRequest{

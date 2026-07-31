@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { validateQuery, validate } from '../middleware/miscMiddleware.js';
@@ -15,8 +15,7 @@ import { isValidTicker } from '../utils/tickerValidation.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import { startUpdate, stopUpdate, getUpdateStatus } from '../infrastructure/dataFetch.js';
 import { emptyBodySchema } from '../schemas/shared.js';
-import { crudRouteHandler } from './routeUtils.js';
-import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { crudRouteHandler, jsonRoute } from './routeUtils.js';
 
 const router = Router();
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);
@@ -33,7 +32,7 @@ const UPDATE_LOG: Record<string, string> = {
 };
 function updateRoute(mode: 'full' | 'incremental' | 'stop', code: string) {
   return crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
+    async (_req, res): Promise<void> => {
       const result = mode === 'stop' ? await stopUpdate() : await startUpdate(mode);
       res.json({ success: result.success, data: result });
     },
@@ -44,23 +43,15 @@ function updateRoute(mode: 'full' | 'incremental' | 'stop', code: string) {
 /** 引擎状态 */
 router.get(
   '/status',
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      res.json({ success: true, data: await getEngineStatus() });
-    },
-    { logMsg: '[dataManage] 获取引擎状态失败', code: 'STATUS_ERROR' },
-  ),
+  jsonRoute('[dataManage] 获取引擎状态失败', 'STATUS_ERROR', async () => getEngineStatus()),
 );
 
 /** 最后更新日期：从 PostgreSQL 查询 MAX(updated_at)（轻量查询，30s 缓存） */
 router.get(
   '/last-updated',
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      res.json({ success: true, data: { lastUpdated: await getLastUpdated() } });
-    },
-    { logMsg: '[dataManage] 获取最后更新日期失败', code: 'LAST_UPDATED_ERROR' },
-  ),
+  jsonRoute('[dataManage] 获取最后更新日期失败', 'LAST_UPDATED_ERROR', async () => ({
+    lastUpdated: await getLastUpdated(),
+  })),
 );
 
 /** 详细统计（PostgreSQL 聚合，进程内 60s TTL 缓存；?force=1 跳过缓存） */
@@ -111,7 +102,7 @@ router.get(
   '/search',
   validateQuery(tickerSearchQuerySchema),
   crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+    async (req, res): Promise<void> => {
       const query = req.query.q as string;
       if (!query) {
         sendProblem(res, 422, 'MISSING_PARAMS');
@@ -119,7 +110,7 @@ router.get(
       }
       res.json({
         success: true,
-        data: await searchTickers(query, undefined, (req as AuthenticatedRequest).tenantId),
+        data: await searchTickers(query, undefined, req.tenantId),
       });
     },
     { logMsg: '[dataManage] 搜索标的失败', code: 'SEARCH_ERROR' },
@@ -129,12 +120,7 @@ router.get(
 /** 更新状态查询 */
 router.get(
   '/update/status',
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      res.json({ success: true, data: await getUpdateStatus() });
-    },
-    { logMsg: '[dataManage] 获取更新状态失败', code: 'UPDATE_STATUS_ERROR' },
-  ),
+  jsonRoute('[dataManage] 获取更新状态失败', 'UPDATE_STATUS_ERROR', async () => getUpdateStatus()),
 );
 
 /** 全量更新：获取所有标的所有数据 */

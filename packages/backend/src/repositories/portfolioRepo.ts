@@ -18,6 +18,7 @@ import { DomainValidationError } from '../domain/errors.js';
 import { Ticker, Weight } from '../domain/value-objects/index.js';
 import { ValidationError } from '../utils/errors.js';
 import type { Asset, RebalanceFrequency } from '@backtest/shared';
+import { rowMapper, iso } from './rowMapper.js';
 
 interface PortfolioRecord {
   id: string;
@@ -35,25 +36,15 @@ interface PortfolioInput {
   rebalanceFrequency?: RebalanceFrequency;
 }
 
-function mapRow(row: {
-  id: string;
-  name: string;
-  assets: Asset[];
-  rebalance_frequency: string;
-  owner_user_id: string | null;
-  created_at: Date | string;
-  updated_at: Date | string;
-}): PortfolioRecord {
-  return {
-    id: row.id,
-    name: row.name,
-    assets: row.assets,
-    rebalanceFrequency: row.rebalance_frequency,
-    ownerUserId: row.owner_user_id,
-    createdAt: new Date(row.created_at).toISOString(),
-    updatedAt: new Date(row.updated_at).toISOString(),
-  };
-}
+const mapRow = rowMapper<PortfolioRecord>({
+  id: 'id',
+  name: 'name',
+  assets: 'assets',
+  rebalanceFrequency: 'rebalance_frequency',
+  ownerUserId: 'owner_user_id',
+  createdAt: (r) => iso(r.created_at),
+  updatedAt: (r) => iso(r.updated_at),
+});
 
 const SELECT_COLS = 'id, name, assets, rebalance_frequency, owner_user_id, created_at, updated_at';
 

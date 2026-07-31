@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex, hashApiKeyArgon2id } from '../utils/crypto.js';
+import { rowMapper, iso, toIso } from './rowMapper.js';
 
 /** 明文密钥前缀（标识环境/用途，便于在日志/告警中识别泄露形态） */
 export const KEY_PREFIX = 'bpk_live_';
@@ -31,7 +32,7 @@ interface ApiKeyRecord {
 interface CreatedApiKey extends ApiKeyRecord {
   plaintext: string;
 }
-export interface StaleApiKey {
+interface StaleApiKey {
   id: string;
   orgId: string | null;
   isPlatformAdmin: boolean;
@@ -44,7 +45,6 @@ export interface StaleApiKey {
 const PLATFORM_KEY_COLUMNS =
   'id, org_id, name, key_prefix, is_platform_admin, created_by, created_at, last_used_at, revoked_at, expires_at';
 
-const toIso = (v: Date | string | null): string | null => (v ? new Date(v).toISOString() : null);
 type ApiKeyRow = {
   id: string;
   org_id: string | null;
@@ -57,20 +57,27 @@ type ApiKeyRow = {
   revoked_at: Date | string | null;
   expires_at: Date | string | null;
 };
-function mapRow(row: ApiKeyRow): ApiKeyRecord {
-  return {
-    id: row.id,
-    orgId: row.org_id,
-    name: row.name,
-    keyPrefix: row.key_prefix,
-    isPlatformAdmin: row.is_platform_admin,
-    createdBy: row.created_by,
-    createdAt: new Date(row.created_at).toISOString(),
-    lastUsedAt: toIso(row.last_used_at),
-    revokedAt: toIso(row.revoked_at),
-    expiresAt: toIso(row.expires_at),
-  };
-}
+const mapRow = rowMapper<ApiKeyRecord>({
+  id: 'id',
+  orgId: 'org_id',
+  name: 'name',
+  keyPrefix: 'key_prefix',
+  isPlatformAdmin: 'is_platform_admin',
+  createdBy: 'created_by',
+  createdAt: (r) => iso(r.created_at),
+  lastUsedAt: (r) => toIso(r.last_used_at),
+  revokedAt: (r) => toIso(r.revoked_at),
+  expiresAt: (r) => toIso(r.expires_at),
+});
+const mapStaleApiKey = rowMapper<StaleApiKey>({
+  id: 'id',
+  orgId: 'org_id',
+  isPlatformAdmin: 'is_platform_admin',
+  name: 'name',
+  keyPrefix: 'key_prefix',
+  lastUsedAt: (r) => toIso(r.last_used_at),
+  createdAt: (r) => iso(r.created_at),
+});
 
 function generatePlatformKeyPlaintext(): string {
   return `${KEY_PREFIX}${crypto.randomBytes(32).toString('base64url')}`;
@@ -237,23 +244,5 @@ export async function findStaleApiKeys(thresholdDays: number): Promise<StaleApiK
     `SELECT id, org_id, is_platform_admin, name, key_prefix, last_used_at, created_at FROM api_keys WHERE revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW()) AND (last_used_at IS NULL OR last_used_at < NOW() - make_interval(days => $1))`,
     [thresholdDays],
   );
-  return rows.map(
-    (r: {
-      id: string;
-      org_id: string | null;
-      is_platform_admin: boolean;
-      name: string;
-      key_prefix: string;
-      last_used_at: Date | string | null;
-      created_at: Date | string;
-    }) => ({
-      id: r.id,
-      orgId: r.org_id,
-      isPlatformAdmin: r.is_platform_admin,
-      name: r.name,
-      keyPrefix: r.key_prefix,
-      lastUsedAt: toIso(r.last_used_at),
-      createdAt: new Date(r.created_at).toISOString(),
-    }),
-  );
+  return rows.map(mapStaleApiKey);
 }

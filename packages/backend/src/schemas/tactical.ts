@@ -74,9 +74,6 @@ export const updateTacticalConfigSchema = z.object({
   config: z.record(z.string(), z.unknown()).optional(),
 });
 
-export type CreateTacticalConfigBody = z.infer<typeof createTacticalConfigSchema>;
-export type UpdateTacticalConfigBody = z.infer<typeof updateTacticalConfigSchema>;
-
 export type TacticalBacktestRequest = z.infer<typeof tacticalBacktestSchema>;
 
 // 战术网格搜索路由请求体校验（POST /api/tactical-grid/search）

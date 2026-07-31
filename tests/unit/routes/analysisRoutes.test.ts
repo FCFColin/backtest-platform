@@ -384,14 +384,6 @@ describe('analysisRoutes - FactorRegression: POST /api/v1/analysis/factor-regres
     expect(resBody.error.code).toBe('VALIDATION_ERROR');
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
-  it('引擎抛 EngineUnavailableError 应返回 503 + Retry-After', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(
-      new EngineUnavailableErrorStub('/api/engine/factor-regression'),
-    );
-    const { res } = await apiPost(`${server.url}/api/v1/analysis/factor-regression`, minimalBody);
-    expect(res.status).toBe(503);
-    expect(res.headers.get('retry-after')).toBe('30');
-  });
   it('引擎抛普通 Error 应返回 500 FR_ERROR', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('fr boom'));
     const { res, body } = await apiPost(

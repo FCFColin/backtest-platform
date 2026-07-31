@@ -1,11 +1,10 @@
-
 import { Router, type Request, type Response } from 'express';
 import { callService } from '../utils/httpClient.js';
 import { scanTickersStats, getUniverseStats } from '../infrastructure/tickerDataService.js';
 import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import { jwtAuth } from '../middleware/jwtAuth.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import { listRuns, type BacktestRunRecord } from '../repositories/backtestRunRepo.js';
 import { crudRouteHandler } from './routeUtils.js';
@@ -42,16 +41,50 @@ function defaultTickerStats(): DbMarketStats {
   };
 }
 
+/** 进程内存/运行时长快照（/stats 与 /system 共用，消除两处重复采集）。 */
+function collectSystemSnapshot(): {
+  memory: {
+    rss: number;
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
+    arrayBuffers: number;
+    rssMb: number;
+    heapUsedMb: number;
+    heapTotalMb: number;
+    externalMb: number;
+  };
+  uptimeSeconds: number;
+  uptimeFormatted: string;
+} {
+  const memUsage = process.memoryUsage();
+  const uptimeSeconds = process.uptime();
+  return {
+    memory: {
+      rss: memUsage.rss,
+      heapUsed: memUsage.heapUsed,
+      heapTotal: memUsage.heapTotal,
+      external: memUsage.external,
+      arrayBuffers: memUsage.arrayBuffers,
+      rssMb: toMB(memUsage.rss),
+      heapUsedMb: toMB(memUsage.heapUsed),
+      heapTotalMb: toMB(memUsage.heapTotal),
+      externalMb: toMB(memUsage.external),
+    },
+    uptimeSeconds,
+    uptimeFormatted: formatUptime(uptimeSeconds),
+  };
+}
+
 function buildStatsResponseData(args: {
   engineHealth: Awaited<ReturnType<typeof checkServiceHealth>>;
   goHealth: Awaited<ReturnType<typeof checkServiceHealth>>;
   tickerStats: ReturnType<typeof defaultTickerStats>;
   universeStats: Awaited<ReturnType<typeof getUniverseStats>>;
   backtestHistory: BacktestRunRecord[];
+  system: ReturnType<typeof collectSystemSnapshot>;
 }) {
-  const { engineHealth, goHealth, tickerStats, universeStats, backtestHistory } = args;
-  const memUsage = process.memoryUsage();
-  const uptimeSeconds = process.uptime();
+  const { engineHealth, goHealth, tickerStats, universeStats, backtestHistory, system } = args;
   return {
     services: { go_engine: engineHealth, go_data_service: goHealth },
     data_stats: {
@@ -75,13 +108,13 @@ function buildStatsResponseData(args: {
     },
     system: {
       memory: {
-        rss_mb: toMB(memUsage.rss),
-        heap_used_mb: toMB(memUsage.heapUsed),
-        heap_total_mb: toMB(memUsage.heapTotal),
-        external_mb: toMB(memUsage.external),
+        rss_mb: system.memory.rssMb,
+        heap_used_mb: system.memory.heapUsedMb,
+        heap_total_mb: system.memory.heapTotalMb,
+        external_mb: system.memory.externalMb,
       },
-      uptime_seconds: Math.round(uptimeSeconds),
-      uptime_formatted: formatUptime(uptimeSeconds),
+      uptime_seconds: Math.round(system.uptimeSeconds),
+      uptime_formatted: system.uptimeFormatted,
     },
     backtest_history: backtestHistory,
   };
@@ -132,7 +165,7 @@ router.get(
   jwtAuth,
   requirePermission(Permission.ADMIN_ACCESS),
   crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+    async (req, res): Promise<void> => {
       // 并行检查服务健康（Go 引擎为唯一计算引擎，ADR-008）
       const [engineHealth, goHealth] = await Promise.all([
         checkServiceHealth(config.GO_ENGINE_URL, '/api/engine/health', 'Go引擎'),
@@ -141,7 +174,7 @@ router.get(
 
       // 回测历史：当请求带有活跃租户时，返回该租户最近的运行记录（ADR-034）。
       // 无租户上下文（如破窗平台密钥未选组织）时返回空数组，保持向后兼容。
-      const tenantId = (req as AuthenticatedRequest).tenantId;
+      const tenantId = req.tenantId;
       let backtestHistory: BacktestRunRecord[] = [];
       if (tenantId) {
         try {
@@ -164,6 +197,7 @@ router.get(
           tickerStats,
           universeStats,
           backtestHistory,
+          system: collectSystemSnapshot(),
         }),
       });
     },
@@ -180,9 +214,7 @@ router.get(
   requirePermission(Permission.ADMIN_ACCESS),
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const memUsage = process.memoryUsage();
-      const uptimeSeconds = process.uptime();
-
+      const system = collectSystemSnapshot();
       const tickerStats =
         (await scanTickersStats()) ??
         ({
@@ -200,18 +232,18 @@ router.get(
         success: true,
         data: {
           memory: {
-            rss: memUsage.rss,
-            heap_total: memUsage.heapTotal,
-            heap_used: memUsage.heapUsed,
-            external: memUsage.external,
-            array_buffers: memUsage.arrayBuffers,
-            rss_mb: toMB(memUsage.rss),
-            heap_used_mb: toMB(memUsage.heapUsed),
-            heap_total_mb: toMB(memUsage.heapTotal),
+            rss: system.memory.rss,
+            heap_total: system.memory.heapTotal,
+            heap_used: system.memory.heapUsed,
+            external: system.memory.external,
+            array_buffers: system.memory.arrayBuffers,
+            rss_mb: system.memory.rssMb,
+            heap_used_mb: system.memory.heapUsedMb,
+            heap_total_mb: system.memory.heapTotalMb,
           },
           uptime: {
-            seconds: Math.round(uptimeSeconds),
-            formatted: formatUptime(uptimeSeconds),
+            seconds: Math.round(system.uptimeSeconds),
+            formatted: system.uptimeFormatted,
           },
           data_directory: {
             total_size_mb: tickerStats.data_quality.total_size_mb,

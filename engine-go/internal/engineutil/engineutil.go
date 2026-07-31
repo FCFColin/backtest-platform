@@ -239,3 +239,27 @@ func ExtractPrices(priceData map[string]map[string]float64, ticker string, dates
 	}
 	return prices
 }
+
+// WeightedDailyReturns 计算多资产加权组合的日收益率序列（dates 为对齐后的交易日，权重与 tickers 一一对应）。
+// requireBoth 为 true 时仅当前后两日价格均有效才计入该资产；normalize 为 true 时将结果除以有效资产权重之和。
+func WeightedDailyReturns(tickers []string, weights []float64, priceData map[string]map[string]float64, dates []string, requireBoth, normalize bool) []float64 {
+	returns := make([]float64, 0, len(dates)-1)
+	for i := 1; i < len(dates); i++ {
+		weighted := 0.0
+		totalWeight := 0.0
+		for j, ticker := range tickers {
+			prev := priceData[ticker][dates[i-1]]
+			curr := priceData[ticker][dates[i]]
+			if prev <= 0 || (requireBoth && curr <= 0) {
+				continue
+			}
+			weighted += weights[j] * ((curr - prev) / prev)
+			totalWeight += weights[j]
+		}
+		if normalize && totalWeight > 0 {
+			weighted /= totalWeight
+		}
+		returns = append(returns, weighted)
+	}
+	return returns
+}

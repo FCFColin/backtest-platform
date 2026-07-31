@@ -6,7 +6,7 @@
  * 写操作（改名、改成员角色、移除成员、邀请增删）要求 ADMIN_ACCESS（owner/admin）。
  * 接受邀请 POST /invitations/accept 仅需登录（受邀者尚不属于该组织，不能要求 requireTenant）。
  */
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
@@ -14,7 +14,7 @@ import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { requireTenant } from '../middleware/tenantContext.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { crudRouteHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
+import { tenantHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
 import {
   getOrg,
   updateOrgName,
@@ -157,29 +157,20 @@ router.post(
   '/invitations',
   requireAdmin,
   validate(inviteSchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      const orgId = requireTenantId(authReq, res);
-      if (!orgId) return;
-      const { email, role } = req.body as { email: string; role: 'admin' | 'analyst' | 'readonly' };
-      const inv = await createInvitation(orgId, email, role, authReq.user?.sub ?? null);
-      const org = await getOrg(orgId);
-      try {
-        await sendInvitationEmail(email, org?.name ?? '组织', inv.token);
-      } catch (err) {
-        logger.warn({ err: String(err), orgId, email }, '[orgRoutes] 邀请邮件发送失败');
-      }
-      res.status(201).json({
-        success: true,
-        data: { id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt },
-      });
-    },
-    {
-      logMsg: '[orgRoutes] 创建邀请失败',
-      code: 'INVITE_CREATE_FAILED',
-    },
-  ),
+  tenantHandler('[orgRoutes] 创建邀请失败', 'INVITE_CREATE_FAILED', async (req, res, orgId) => {
+    const { email, role } = req.body as { email: string; role: 'admin' | 'analyst' | 'readonly' };
+    const inv = await createInvitation(orgId, email, role, req.user?.sub ?? null);
+    const org = await getOrg(orgId);
+    try {
+      await sendInvitationEmail(email, org?.name ?? '组织', inv.token);
+    } catch (err) {
+      logger.warn({ err: String(err), orgId, email }, '[orgRoutes] 邀请邮件发送失败');
+    }
+    res.status(201).json({
+      success: true,
+      data: { id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt },
+    });
+  }),
 );
 
 /** DELETE /api/v1/orgs/invitations/:id - 撤销邀请（admin） */

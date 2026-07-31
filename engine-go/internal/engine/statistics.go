@@ -82,7 +82,7 @@ func CalcCorrelation(returns1, returns2 []float64) float64 {
 	}
 	return mathutil.Covariance(r1, r2) / math.Sqrt(var1*var2)
 }
-func CalcDailyReturns(prices []float64) []float64 { return dailyReturns(prices) }
+func CalcDailyReturns(prices []float64) []float64 { return mathutil.DailyReturns(prices) }
 func CalcTotalReturn(startValue, endValue float64) float64 {
 	if startValue <= 0 {
 		return 0
@@ -113,33 +113,11 @@ func ratioPositive(values []float64) float64 {
 	}
 	return float64(count) / float64(len(values))
 }
-func sampleVariance(values []float64) float64 {
-	n := len(values)
-	if n < 2 {
-		return 0
-	}
-	m := mathutil.Mean(values)
-	var sum float64
-	for _, v := range values {
-		d := v - m
-		sum += d * d
-	}
-	return sum / float64(n-1)
-}
 func CalcDownsideDeviation(returns []float64, mar float64, periodsPerYear float64) float64 {
 	return CalcDownsideDeviationRaw(returns, mar) * math.Sqrt(periodsPerYear)
 }
 func CalcDownsideDeviationRaw(returns []float64, mar float64) float64 {
-	if len(returns) == 0 {
-		return 0
-	}
-	var sumSquared float64
-	for _, r := range returns {
-		if excess := r - mar; excess < 0 {
-			sumSquared += excess * excess
-		}
-	}
-	return math.Sqrt(sumSquared / float64(len(returns)))
+	return mathutil.DownsideDeviation(returns, mar)
 }
 func CalcAvgGainLoss(returns []float64) (avgGain, avgLoss, gainLossRatio float64) {
 	var sumGains, sumLosses float64
@@ -253,7 +231,7 @@ func standardizedMomentSum(returns []float64, power float64) (sum float64, n int
 	if n < int(power) {
 		return 0, 0, false
 	}
-	stdev := math.Sqrt(sampleVariance(returns))
+	stdev := mathutil.Std(returns)
 	if stdev == 0 {
 		return 0, 0, false
 	}

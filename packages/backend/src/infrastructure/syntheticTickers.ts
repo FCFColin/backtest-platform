@@ -4,7 +4,7 @@
  *   前端通过 /api/v1/data/synthetic 获取此列表用于展示和自动补全。
  */
 
-export interface SyntheticTicker {
+interface SyntheticTicker {
   ticker: string;
   name: string;
   category: string;

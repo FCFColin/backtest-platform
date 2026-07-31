@@ -1,13 +1,30 @@
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { Eye, EyeOff, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState.js';
-import { currencyFormatter, YEAR_ONLY_TICK_FORMATTER, SMART_DATE_INTERVAL, getPortfolioColor, CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE, CHART_LINE_STYLE } from '@/lib/chart-theme.js';
+import {
+  currencyFormatter,
+  YEAR_ONLY_TICK_FORMATTER,
+  SMART_DATE_INTERVAL,
+  getPortfolioColor,
+  CHART_TOOLTIP_STYLE,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  CHART_LINE_STYLE,
+} from '@/lib/chart-theme.js';
 import { formatCurrency } from '@/utils/format.js';
 import { cn } from '@/lib/utils.js';
-interface GrowthChartV2Props {
+interface GrowthChartProps {
   portfolios: Array<{
     id: string;
     name: string;
@@ -18,7 +35,12 @@ interface GrowthChartV2Props {
   onExport?: (format: 'png' | 'svg' | 'csv') => void;
 }
 // eslint-disable-next-line max-lines-per-function
-export function GrowthChartV2({ portfolios, currency = 'USD', benchmark, onExport }: GrowthChartV2Props) {
+export function GrowthChart({
+  portfolios,
+  currency = 'USD',
+  benchmark,
+  onExport,
+}: GrowthChartProps) {
   const { t } = useTranslation();
   void onExport;
   const [logScale, setLogScale] = useState(false);
@@ -67,18 +89,41 @@ export function GrowthChartV2({ portfolios, currency = 'USD', benchmark, onExpor
       <div className="flex items-center justify-between px-6 pt-5 pb-3">
         <h3 className="text-h3">{t('charts.growth.title')}</h3>
         <div className="flex items-center gap-1">
-          <div className="flex items-center gap-0.5 mr-2 bg-input-bg rounded-md p-0.5" data-testid="chart-time-range">
+          <div
+            className="flex items-center gap-0.5 mr-2 bg-input-bg rounded-md p-0.5"
+            data-testid="chart-time-range"
+          >
             {(['1Y', '5Y', '10Y', 'MAX'] as const).map((range) => (
-              <button key={range} onClick={() => setTimeRange(range)} className={cn('px-2.5 py-1 text-caption font-medium rounded transition-colors', timeRange === range ? 'bg-surface text-fg' : 'text-fg-tertiary hover:text-fg')}>
+              <button
+                key={range}
+                onClick={() => setTimeRange(range)}
+                className={cn(
+                  'px-2.5 py-1 text-caption font-medium rounded transition-colors',
+                  timeRange === range ? 'bg-surface text-fg' : 'text-fg-tertiary hover:text-fg',
+                )}
+              >
                 {range}
               </button>
             ))}
           </div>
           <div className="w-px h-5 bg-border mx-1" />
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLogScale(!logScale)} title={t('charts.growth.logScale')} data-testid="chart-log-toggle">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setLogScale(!logScale)}
+            title={t('charts.growth.logScale')}
+            data-testid="chart-log-toggle"
+          >
             <FunctionSquare className={cn('h-4 w-4', logScale && 'text-brand')} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setHidden(!hidden)} title={hidden ? t('charts.growth.showChart') : t('charts.growth.hideChart')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setHidden(!hidden)}
+            title={hidden ? t('charts.growth.showChart') : t('charts.growth.hideChart')}
+          >
             {hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
           </Button>
         </div>
@@ -93,13 +138,57 @@ export function GrowthChartV2({ portfolios, currency = 'USD', benchmark, onExpor
           <>
             <div className="h-[440px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={filteredData} margin={{ top: 20, right: 32, bottom: 20, left: 32 }}>
+                <LineChart
+                  data={filteredData}
+                  margin={{ top: 20, right: 32, bottom: 20, left: 32 }}
+                >
                   <CartesianGrid {...CHART_GRID_PROPS} />
-                  <XAxis dataKey="date" tickFormatter={YEAR_ONLY_TICK_FORMATTER} interval={SMART_DATE_INTERVAL(totalMonths)} tick={AXIS_TICK_STYLE} />
-                  <YAxis tickFormatter={(v: number) => currencyFormatter(v, currency)} tick={AXIS_TICK_STYLE} scale={logScale ? 'log' : 'linear'} domain={logScale ? [1, 'auto'] : ['auto', 'auto']} />
-                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number, name: string) => [currencyFormatter(value, currency, 2), name]} labelFormatter={(label) => t('charts.growth.dateLabel', { label })} isAnimationActive={!isLargeDataset} animationDuration={isLargeDataset ? 0 : 150} />
-                  {portfolios.map((p, i) => (hiddenIds.has(p.id) ? null : <Line key={p.id} type="monotone" dataKey={p.id} name={p.name} stroke={getPortfolioColor(i)} {...CHART_LINE_STYLE} />))}
-                  {benchmark && <Line type="monotone" dataKey="benchmark" name={benchmark.name} stroke="hsl(var(--fg-tertiary))" strokeDasharray="4 4" strokeWidth={1.5} dot={false} isAnimationActive={false} />}
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={YEAR_ONLY_TICK_FORMATTER}
+                    interval={SMART_DATE_INTERVAL(totalMonths)}
+                    tick={AXIS_TICK_STYLE}
+                  />
+                  <YAxis
+                    tickFormatter={(v: number) => currencyFormatter(v, currency)}
+                    tick={AXIS_TICK_STYLE}
+                    scale={logScale ? 'log' : 'linear'}
+                    domain={logScale ? [1, 'auto'] : ['auto', 'auto']}
+                  />
+                  <Tooltip
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    formatter={(value: number, name: string) => [
+                      currencyFormatter(value, currency, 2),
+                      name,
+                    ]}
+                    labelFormatter={(label) => t('charts.growth.dateLabel', { label })}
+                    isAnimationActive={!isLargeDataset}
+                    animationDuration={isLargeDataset ? 0 : 150}
+                  />
+                  {portfolios.map((p, i) =>
+                    hiddenIds.has(p.id) ? null : (
+                      <Line
+                        key={p.id}
+                        type="monotone"
+                        dataKey={p.id}
+                        name={p.name}
+                        stroke={getPortfolioColor(i)}
+                        {...CHART_LINE_STYLE}
+                      />
+                    ),
+                  )}
+                  {benchmark && (
+                    <Line
+                      type="monotone"
+                      dataKey="benchmark"
+                      name={benchmark.name}
+                      stroke="hsl(var(--fg-tertiary))"
+                      strokeDasharray="4 4"
+                      strokeWidth={1.5}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -109,10 +198,26 @@ export function GrowthChartV2({ portfolios, currency = 'USD', benchmark, onExpor
                 const isHidden = hiddenIds.has(p.id);
                 const currentValue = p.growthCurve[p.growthCurve.length - 1]?.value;
                 return (
-                  <button key={p.id} type="button" onClick={() => toggleVisibility(p.id)} className={cn('flex items-center gap-2 transition-opacity', isHidden ? 'opacity-30' : 'opacity-100')} data-testid={`legend-${p.id}`} data-hidden={isHidden}>
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleVisibility(p.id)}
+                    className={cn(
+                      'flex items-center gap-2 transition-opacity',
+                      isHidden ? 'opacity-30' : 'opacity-100',
+                    )}
+                    data-testid={`legend-${p.id}`}
+                    data-hidden={isHidden}
+                  >
                     <div className="w-3 h-0.5" style={{ background: getPortfolioColor(i) }} />
-                    <span className={cn('text-caption text-fg', isHidden && 'line-through')}>{p.name}</span>
-                    {currentValue !== undefined && !isHidden && <span className="text-caption font-mono tabular-nums text-fg-tertiary">{formatCurrency(currentValue, currency)}</span>}
+                    <span className={cn('text-caption text-fg', isHidden && 'line-through')}>
+                      {p.name}
+                    </span>
+                    {currentValue !== undefined && !isHidden && (
+                      <span className="text-caption font-mono tabular-nums text-fg-tertiary">
+                        {formatCurrency(currentValue, currency)}
+                      </span>
+                    )}
                   </button>
                 );
               })}

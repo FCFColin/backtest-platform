@@ -38,105 +38,84 @@ import { executePcaAnalyzeWithFetch } from '../application/analysis-orchestrator
 import { executeGoalOptimizeWithFetch } from '../application/analysis-orchestrator.js';
 import { asyncRouteHandler } from './routeUtils.js';
 
-
 const analysisRouter = Router();
 
-// --- PCA: BACKTEST_RUN + 配额 ------------------------------------------------
-const pcaSubRouter = Router();
-pcaSubRouter.post(
-  '/analyze',
-  validate(pcaAnalyzeSchema),
-  asyncRouteHandler(
+/** 分析类端点统一骨架：开始日志 → 执行 → 完成耗时日志 → 统一响应（消除 3 处 WithFetch 端点重复样板）。 */
+function timedCompute(
+  metric: string,
+  code: string,
+  startLog: (req: Request) => string,
+  fn: (req: Request) => Promise<unknown>,
+) {
+  return asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       const startTime = Date.now();
-      const body = req.body as PCARequest;
-      const cleanTickers = body.tickers
+      logger.info(startLog(req));
+      const result = await fn(req);
+      logger.info(`[${metric}] 完成, 耗时 ${Date.now() - startTime}ms`);
+      res.json({ success: true, data: result });
+    },
+    { logMsg: `[${metric}] 失败`, code, endpoint: metric },
+  );
+}
+
+// --- PCA: BACKTEST_RUN + 配额 ------------------------------------------------
+analysisRouter.post(
+  '/pca/analyze',
+  ...computeMiddleware(Permission.BACKTEST_RUN),
+  validate(pcaAnalyzeSchema),
+  timedCompute(
+    'PCA',
+    'PCA_ERROR',
+    (req) => {
+      const cleanTickers = (req.body as PCARequest).tickers
         .map((t: string) => String(t).trim().toUpperCase())
         .filter(Boolean);
-      logger.info(
-        `[PCA] 开始分析: tickers=${cleanTickers.join(',')}, range=${body.startDate}~${body.endDate}`,
-      );
-
-      const result = await executePcaAnalyzeWithFetch(body);
-
-      logger.info(
-        `[PCA] 分析完成: ${result.eigenvalues.length} 个主成分, 耗时 ${Date.now() - startTime}ms`,
-      );
-      res.json({ success: true, data: result });
+      return `[PCA] 开始分析: tickers=${cleanTickers.join(',')}, range=${(req.body as PCARequest).startDate}~${(req.body as PCARequest).endDate}`;
     },
-    {
-      logMsg: '[PCA] 分析失败',
-      code: 'PCA_ERROR',
-      endpoint: 'pca',
-    },
+    async (req) => executePcaAnalyzeWithFetch(req.body as PCARequest),
   ),
 );
-analysisRouter.use('/pca', ...computeMiddleware(Permission.BACKTEST_RUN), pcaSubRouter);
 
 // --- LETF: BACKTEST_RUN + 配额 ------------------------------------------------
-const letfSubRouter = Router();
-letfSubRouter.post(
-  '/analyze',
+analysisRouter.post(
+  '/letf/analyze',
+  ...computeMiddleware(Permission.BACKTEST_RUN),
   validate(letfAnalyzeSchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const startTime = Date.now();
+  timedCompute(
+    'LETF',
+    'LETF_ERROR',
+    (req) => {
       const body = req.body as LETFRequest;
-      logger.info(`[LETF] 开始分析: letf=${body.letfTicker}, bench=${body.benchmarkTicker}`);
-
-      const result = await executeLetfAnalyzeWithFetch(body);
-
-      logger.info(`[LETF] 分析完成, 耗时 ${Date.now() - startTime}ms`);
-      res.json({ success: true, data: result });
+      return `[LETF] 开始分析: letf=${body.letfTicker}, bench=${body.benchmarkTicker}`;
     },
-    {
-      logMsg: '[LETF] 分析失败',
-      code: 'LETF_ERROR',
-      endpoint: 'letf',
-    },
+    async (req) => executeLetfAnalyzeWithFetch(req.body as LETFRequest),
   ),
 );
-analysisRouter.use('/letf', ...computeMiddleware(Permission.BACKTEST_RUN), letfSubRouter);
 
 // --- 目标优化: STRATEGY_MANAGE + 配额 -----------------------------------------
-const goalOptimizerSubRouter = Router();
-goalOptimizerSubRouter.post(
-  '/optimize',
+analysisRouter.post(
+  '/goal-optimizer/optimize',
+  ...computeMiddleware(Permission.STRATEGY_MANAGE),
   validate(goalOptimizerSchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const startTime = Date.now();
+  timedCompute(
+    'GoalOptimizer',
+    'GOAL_OPTIMIZER_ERROR',
+    (req) => {
       const request = req.body as GoalOptimizerRequest;
       const tickers = request.assets
         .filter((a) => a.ticker?.trim())
         .map((a) => a.ticker.trim().toUpperCase());
-
-      logger.info(
-        `[GoalOptimizer] target=${request.targetAmount}, assets=${tickers.map((t) => sanitizeLog(t)).join(',')}`,
-      );
-
-      const result = await executeGoalOptimizeWithFetch(request);
-
-      logger.info(`[GoalOptimizer] 完成, 耗时 ${Date.now() - startTime}ms`);
-      res.json({ success: true, data: result });
+      return `[GoalOptimizer] target=${request.targetAmount}, assets=${tickers.map((t) => sanitizeLog(t)).join(',')}`;
     },
-    {
-      logMsg: '[GoalOptimizer] 优化失败',
-      code: 'GOAL_OPTIMIZER_ERROR',
-      endpoint: 'goal-optimizer',
-    },
+    async (req) => executeGoalOptimizeWithFetch(req.body as GoalOptimizerRequest),
   ),
-);
-analysisRouter.use(
-  '/goal-optimizer',
-  ...computeMiddleware(Permission.STRATEGY_MANAGE),
-  goalOptimizerSubRouter,
 );
 
 // --- 因子回归: BACKTEST_RUN 无配额 --------------------------------------------
-const factorRegressionSubRouter = Router();
-factorRegressionSubRouter.post(
-  '/factor-regression',
+analysisRouter.post(
+  '/analysis/factor-regression',
+  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
   validate(factorRegressionSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -159,17 +138,12 @@ factorRegressionSubRouter.post(
     },
   ),
 );
-analysisRouter.use(
-  '/analysis',
-  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
-  factorRegressionSubRouter,
-);
 
 // --- 计算器: BACKTEST_RUN 无配额 ----------------------------------------------
 const VALID_CALC_TYPES = ['cagr', 'swr', 'frontier'];
-const calculatorSubRouter = Router();
-calculatorSubRouter.post(
-  '/:type',
+analysisRouter.post(
+  '/calculators/:type',
+  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
   validate(calculatorBodySchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -191,11 +165,6 @@ calculatorSubRouter.post(
       endpoint: 'calculator',
     },
   ),
-);
-analysisRouter.use(
-  '/calculators',
-  ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
-  calculatorSubRouter,
 );
 
 export default analysisRouter;

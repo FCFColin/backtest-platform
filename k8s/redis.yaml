@@ -1,16 +1,8 @@
 # =============================================================================
 # Redis 7 Sentinel 高可用拓扑（ADR-045：取代单实例 + 内存降级）
-# 企业理由：ADR-018 选 Redis 作共享状态存储（刷新令牌/限流/幂等/BullMQ），
-# 单实例 = 单点故障；多 Pod 下"内存降级"导致跨 Pod 状态不一致（令牌互相踢出）。
-# ADR-045：1 主 + 2 从 + 3 Sentinel（quorum=2），自动故障转移，删除应用层
-# "Redis 故障降级为内存"代码路径（改为显式 503 + 告警）。
-#
-# 拓扑：redis StatefulSet(3) → redis-0(master)/redis-1,2(replica)
-#       redis-sentinel StatefulSet(3) → quorum=2；均配 Headless Service 提供稳定 DNS
-#       PDB minAvailable: 2（Sentinel 与数据节点各一）保证 quorum 可达成
+# 1 主 + 2 从 + 3 Sentinel（quorum=2），自动故障转移，删除"故障降级为内存"代码路径（改显式 503 + 告警）。
 # 关键参数：monitor quorum=2；min-slaves-to-write=1；min-slaves-max-lag=10；
-#       down-after-milliseconds 5000；failover-timeout 30000；StorageClass Retain
-# 客户端：ioredis Sentinel 模式（redisClient.ts），故障转移后自动重连新主。
+#       down-after-milliseconds 5000；failover-timeout 30000；StorageClass Retain。
 # 本地等价拓扑验证见 docker-compose.yml redis-master/replica/sentinel。
 # =============================================================================
 

@@ -2,8 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useGoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
 import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
 import { GoalOptimizerResultsPanel } from './GoalOptimizerResults.js';
-import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
-import type { ComputeToolConfig } from '../../components/shells/types.js';
+import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 type GOState = ReturnType<typeof useGoalOptimizerState>;
 function GOParamsWrapper({ state }: { state: GOState }) {
   return (
@@ -33,23 +32,32 @@ function GOParamsWrapper({ state }: { state: GOState }) {
   );
 }
 function GOResultsWrapper({ state }: { state: GOState }) {
-  return <GoalOptimizerResultsPanel results={state.results} error={state.error} isLoading={state.isLoading} targetAmount={state.targetAmount} initialAmount={state.initialAmount} years={state.years} />;
+  return (
+    <GoalOptimizerResultsPanel
+      results={state.results}
+      error={state.error}
+      isLoading={state.isLoading}
+      targetAmount={state.targetAmount}
+      initialAmount={state.initialAmount}
+      years={state.years}
+    />
+  );
 }
 const config: ComputeToolConfig<GOState> = {
   titleKey: 'goalOptimizer.title',
   seoDescKey: 'goalOptimizer.seo.desc',
   seoFeatures: [
     { titleKey: 'goalOptimizer.seo.analyzableTitle', descKey: 'goalOptimizer.seo.analyzableDesc' },
-    { titleKey: 'goalOptimizer.seo.outputTitle', descKey: 'goalOptimizer.seo.outputDesc' }
+    { titleKey: 'goalOptimizer.seo.outputTitle', descKey: 'goalOptimizer.seo.outputDesc' },
   ],
   relatedTools: [
     { titleKey: 'nav.monteCarlo', href: '/monte-carlo' },
     { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
-    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' }
+    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
   ],
   hideParamsTitle: true,
   params: GOParamsWrapper,
-  results: GOResultsWrapper
+  results: GOResultsWrapper,
 };
 export default function GoalOptimizerPage() {
   const { t } = useTranslation();

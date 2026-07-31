@@ -49,7 +49,7 @@ SaaS 一键启动: `pnpm dev:saas`（含 PG + Redis docker-compose）。
     docker compose up -d             # 全栈
     docker compose -f docker-compose.chaos.yml up -d   # chaos 测试栈
 
-端口: 15173 前端 / 15001 API / 15004 引擎 / 15003 数据服务 / 5432 PG / 6379 Redis / 9090 Prometheus / 3000 Grafana。
+端口与拓扑见 [ARCHITECTURE.md §4](../ARCHITECTURE.md#4-服务与端口)。
 
 ## 6. 已知坑点
 

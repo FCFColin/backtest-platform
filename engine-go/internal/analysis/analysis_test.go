@@ -2,17 +2,11 @@ package analysis
 
 import (
 	"context"
+	"engine-go/internal/enginetest"
 	"math"
 	"testing"
 )
 
-func makePriceData(ticker string, dates []string, prices []float64) map[string]map[string]float64 {
-	pd := map[string]map[string]float64{ticker: {}}
-	for i, d := range dates {
-		pd[ticker][d] = prices[i]
-	}
-	return pd
-}
 func TestRunAnalysisEmptyTickers(t *testing.T) {
 	req := AnalysisRequest{Tickers: []string{}, PriceData: map[string]map[string]float64{}, Params: AnalysisParams{StartingValue: 10000}}
 	result, err := RunAnalysis(context.Background(), req)
@@ -26,7 +20,7 @@ func TestRunAnalysisEmptyTickers(t *testing.T) {
 func TestRunAnalysisSingleTickerGrowthCurve(t *testing.T) {
 	dates := []string{"2024-01-02", "2024-01-03", "2024-01-04"}
 	prices := []float64{100, 110, 120}
-	req := AnalysisRequest{Tickers: []string{"SPY"}, PriceData: makePriceData("SPY", dates, prices), Params: AnalysisParams{StartingValue: 10000, RollingWindowMonths: 12}}
+	req := AnalysisRequest{Tickers: []string{"SPY"}, PriceData: enginetest.SeriesPriceData("SPY", dates, prices), Params: AnalysisParams{StartingValue: 10000, RollingWindowMonths: 12}}
 	result, err := RunAnalysis(context.Background(), req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -51,7 +45,7 @@ func TestRunAnalysisSingleTickerGrowthCurve(t *testing.T) {
 func TestRunAnalysisDefaultStartingValue(t *testing.T) {
 	dates := []string{"2024-01-02", "2024-01-03"}
 	prices := []float64{50, 100}
-	req := AnalysisRequest{Tickers: []string{"X"}, PriceData: makePriceData("X", dates, prices), Params: AnalysisParams{StartingValue: 0}}
+	req := AnalysisRequest{Tickers: []string{"X"}, PriceData: enginetest.SeriesPriceData("X", dates, prices), Params: AnalysisParams{StartingValue: 0}}
 	result, err := RunAnalysis(context.Background(), req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -63,7 +57,7 @@ func TestRunAnalysisDefaultStartingValue(t *testing.T) {
 func TestRunAnalysisInsufficientData(t *testing.T) {
 	dates := []string{"2024-01-02"}
 	prices := []float64{100}
-	req := AnalysisRequest{Tickers: []string{"LONE"}, PriceData: makePriceData("LONE", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
+	req := AnalysisRequest{Tickers: []string{"LONE"}, PriceData: enginetest.SeriesPriceData("LONE", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
 	result, err := RunAnalysis(context.Background(), req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -80,7 +74,7 @@ func TestRunAnalysisContextCancellation(t *testing.T) {
 	cancel()
 	dates := []string{"2024-01-02", "2024-01-03"}
 	prices := []float64{100, 110}
-	req := AnalysisRequest{Tickers: []string{"CTX"}, PriceData: makePriceData("CTX", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
+	req := AnalysisRequest{Tickers: []string{"CTX"}, PriceData: enginetest.SeriesPriceData("CTX", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
 	_, err := RunAnalysis(ctx, req)
 	if err == nil {
 		t.Error("expected context cancellation error, got nil")
@@ -113,7 +107,7 @@ func TestRunAnalysisCorrelationMatrix(t *testing.T) {
 func TestRunAnalysisTotalReturn(t *testing.T) {
 	dates := []string{"2024-01-02", "2024-01-03", "2024-01-04"}
 	prices := []float64{100, 120, 150}
-	req := AnalysisRequest{Tickers: []string{"TR"}, PriceData: makePriceData("TR", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
+	req := AnalysisRequest{Tickers: []string{"TR"}, PriceData: enginetest.SeriesPriceData("TR", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
 	result, err := RunAnalysis(context.Background(), req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -127,7 +121,7 @@ func TestRunAnalysisTotalReturn(t *testing.T) {
 func TestRunAnalysisBetaAlphaZeroWithoutBenchmark(t *testing.T) {
 	dates := []string{"2024-01-02", "2024-01-03", "2024-01-04"}
 	prices := []float64{100, 110, 120}
-	req := AnalysisRequest{Tickers: []string{"NOBENCH"}, PriceData: makePriceData("NOBENCH", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
+	req := AnalysisRequest{Tickers: []string{"NOBENCH"}, PriceData: enginetest.SeriesPriceData("NOBENCH", dates, prices), Params: AnalysisParams{StartingValue: 10000}}
 	result, err := RunAnalysis(context.Background(), req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

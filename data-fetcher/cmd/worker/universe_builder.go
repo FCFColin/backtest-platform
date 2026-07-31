@@ -60,9 +60,9 @@ func parsePipeDelimited(data []byte, skipHeaders bool) [][]string {
 	}
 	return rows
 }
-func parseNASDAQList(data []byte) []TickerEntry {
+func parseMarketList(rows [][]string, nameIdx, etfIdx int, skipTest bool) []TickerEntry {
 	var entries []TickerEntry
-	for _, fields := range parsePipeDelimited(data, true) {
+	for _, fields := range rows {
 		if len(fields) < 2 {
 			continue
 		}
@@ -71,14 +71,13 @@ func parseNASDAQList(data []byte) []TickerEntry {
 			continue
 		}
 		name := ""
-		if len(fields) > 1 {
-			name = fields[1]
+		if len(fields) > nameIdx {
+			name = fields[nameIdx]
 		}
-		isTest := len(fields) > 3 && strings.ToUpper(fields[3]) == "Y"
-		isETF := len(fields) > 6 && strings.ToUpper(fields[6]) == "Y"
-		if isTest {
+		if skipTest && len(fields) > 3 && strings.ToUpper(fields[3]) == "Y" {
 			continue
 		}
+		isETF := len(fields) > etfIdx && strings.ToUpper(fields[etfIdx]) == "Y"
 		category := "US Equity"
 		if isETF {
 			category = "ETF"
@@ -87,28 +86,11 @@ func parseNASDAQList(data []byte) []TickerEntry {
 	}
 	return entries
 }
+func parseNASDAQList(data []byte) []TickerEntry {
+	return parseMarketList(parsePipeDelimited(data, true), 1, 6, true)
+}
 func parseOtherList(data []byte) []TickerEntry {
-	var entries []TickerEntry
-	for _, fields := range parsePipeDelimited(data, true) {
-		if len(fields) < 2 {
-			continue
-		}
-		symbol := fields[0]
-		if symbol == "" {
-			continue
-		}
-		name := ""
-		if len(fields) > 2 {
-			name = fields[2]
-		}
-		isETF := len(fields) > 5 && strings.ToUpper(fields[5]) == "Y"
-		category := "US Equity"
-		if isETF {
-			category = "ETF"
-		}
-		entries = append(entries, TickerEntry{Ticker: symbol, Name: name, Category: category, Market: "US"})
-	}
-	return entries
+	return parseMarketList(parsePipeDelimited(data, true), 2, 5, false)
 }
 func loadTickersFromFile(path string) ([]TickerEntry, error) {
 	f, err := os.Open(path)
@@ -201,49 +183,45 @@ func writeTickersToDB(ctx context.Context, pool *pgxpool.Pool, entries []TickerE
 	return inserted, nil
 }
 func cmdFetchUniverse(cfg *WorkerConfig, filePath string) error {
-	ctx := context.Background()
-	pool, err := initDB(ctx, cfg.DatabaseURL)
-	if err != nil {
-		return fmt.Errorf("数据库连接失败: %w", err)
-	}
-	defer pool.Close()
-	var allEntries []TickerEntry
-	if filePath != "" {
-		entries, err := loadTickersFromFile(filePath)
+	return withPool(cfg, func(ctx context.Context, pool *pgxpool.Pool) error {
+		var allEntries []TickerEntry
+		if filePath != "" {
+			entries, err := loadTickersFromFile(filePath)
+			if err != nil {
+				return err
+			}
+			allEntries = entries
+		} else {
+			slog.Info("从 NASDAQ/NYSE/AMEX 下载 ticker 列表...")
+			nasdaqData, err := downloadURL(nasdaqListURL)
+			if err != nil {
+				return fmt.Errorf("获取 NASDAQ 列表失败: %w", err)
+			}
+			nasdaqEntries := parseNASDAQList(nasdaqData)
+			slog.Info("NASDAQ 列表", "count", len(nasdaqEntries))
+			otherData, err := downloadURL(otherListURL)
+			if err != nil {
+				return fmt.Errorf("获取 Other 列表失败: %w", err)
+			}
+			otherEntries := parseOtherList(otherData)
+			slog.Info("NYSE/AMEX 列表", "count", len(otherEntries))
+			allEntries = mergeAndDedup(nasdaqEntries, otherEntries)
+		}
+		var filtered []TickerEntry
+		for _, e := range allEntries {
+			if strings.Contains(strings.ToUpper(e.Name), "TEST") {
+				continue
+			}
+			filtered = append(filtered, e)
+		}
+		slog.Info("ticker 过滤后", "total", len(filtered))
+		inserted, err := writeTickersToDB(ctx, pool, filtered)
 		if err != nil {
-			return err
+			return fmt.Errorf("写入数据库失败: %w", err)
 		}
-		allEntries = entries
-	} else {
-		slog.Info("从 NASDAQ/NYSE/AMEX 下载 ticker 列表...")
-		nasdaqData, err := downloadURL(nasdaqListURL)
-		if err != nil {
-			return fmt.Errorf("获取 NASDAQ 列表失败: %w", err)
-		}
-		nasdaqEntries := parseNASDAQList(nasdaqData)
-		slog.Info("NASDAQ 列表", "count", len(nasdaqEntries))
-		otherData, err := downloadURL(otherListURL)
-		if err != nil {
-			return fmt.Errorf("获取 Other 列表失败: %w", err)
-		}
-		otherEntries := parseOtherList(otherData)
-		slog.Info("NYSE/AMEX 列表", "count", len(otherEntries))
-		allEntries = mergeAndDedup(nasdaqEntries, otherEntries)
-	}
-	var filtered []TickerEntry
-	for _, e := range allEntries {
-		if strings.Contains(strings.ToUpper(e.Name), "TEST") {
-			continue
-		}
-		filtered = append(filtered, e)
-	}
-	slog.Info("ticker 过滤后", "total", len(filtered))
-	inserted, err := writeTickersToDB(ctx, pool, filtered)
-	if err != nil {
-		return fmt.Errorf("写入数据库失败: %w", err)
-	}
-	slog.Info("全量 ticker 获取完成", "inserted", inserted)
-	return nil
+		slog.Info("全量 ticker 获取完成", "inserted", inserted)
+		return nil
+	})
 }
 
 type TickerMeta struct {

@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { generateKeyPair, exportPKCS8, exportSPKI } from 'jose';
 import {
   createLoggerMocks,
   createRedisModuleMock,
@@ -64,4 +65,33 @@ export function mockUser(isActive = true, role: 'admin' | 'readonly' = 'admin'):
     createdAt: new Date(),
     isActive,
   }));
+}
+
+/** 生成 RS256 密钥对并写入 mocks.config（PEM 内联），返回密钥供测试签发 */
+export async function setupRsaKeys(env = 'production') {
+  const { publicKey, privateKey } = await generateKeyPair('RS256', {
+    modulusLength: 2048,
+    extractable: true,
+  });
+  const privatePem = await exportPKCS8(privateKey);
+  const publicPem = await exportSPKI(publicKey);
+  mocks.config.JWT_PRIVATE_KEY = privatePem;
+  mocks.config.JWT_PUBLIC_KEY = publicPem;
+  mocks.config.NODE_ENV = env;
+  mocks.config.JWT_ALGORITHM = 'RS256';
+  return { publicKey, privateKey, privatePem, publicPem };
+}
+
+/** 清空 PEM 配置（内联 + 文件路径），恢复无密钥基线 */
+export function resetRsaConfig(): void {
+  mocks.config.JWT_PRIVATE_KEY = '';
+  mocks.config.JWT_PRIVATE_KEY_FILE = '';
+  mocks.config.JWT_PUBLIC_KEY = '';
+  mocks.config.JWT_PUBLIC_KEY_FILE = '';
+}
+
+/** 重置模块缓存并重新加载 jwtAuth 模块（读取最新 mocks.config） */
+export async function reloadJwtAuthModule() {
+  vi.resetModules();
+  return import('../../../packages/backend/src/middleware/jwtAuth.js');
 }

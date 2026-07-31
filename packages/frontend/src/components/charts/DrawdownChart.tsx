@@ -1,17 +1,33 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { YEAR_ONLY_TICK_FORMATTER, SMART_DATE_INTERVAL, CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE, CHART_MARGIN, getPortfolioColor } from '@/lib/chart-theme.js';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
+import {
+  YEAR_ONLY_TICK_FORMATTER,
+  SMART_DATE_INTERVAL,
+  CHART_TOOLTIP_STYLE,
+  CHART_GRID_PROPS,
+  AXIS_TICK_STYLE,
+  CHART_MARGIN,
+  getPortfolioColor,
+} from '@/lib/chart-theme.js';
 import { formatPercent } from '@/utils/format.js';
 import { ChartEmptyState } from '@/components/charts/ChartEmptyState.js';
-interface DrawdownChartV2Props {
+interface DrawdownChartProps {
   portfolios: Array<{
     id: string;
     name: string;
     drawdownCurve: Array<{ date: string; drawdown: number }>;
   }>;
 }
-export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
+export function DrawdownChart({ portfolios }: DrawdownChartProps) {
   const { t } = useTranslation();
   const chartData = useMemo(() => {
     const merged: Record<string, Record<string, string | number>> = {};
@@ -27,7 +43,10 @@ export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
     if (chartData.length <= 1) return 1;
     const first = new Date(String(chartData[0].date));
     const last = new Date(String(chartData[chartData.length - 1].date));
-    return Math.max(1, (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth());
+    return Math.max(
+      1,
+      (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth(),
+    );
   }, [chartData]);
   return (
     <div className="bg-surface border border-border rounded-xl">
@@ -49,11 +68,36 @@ export function DrawdownChartV2({ portfolios }: DrawdownChartV2Props) {
                 </linearGradient>
               </defs>
               <CartesianGrid {...CHART_GRID_PROPS} />
-              <XAxis dataKey="date" tickFormatter={YEAR_ONLY_TICK_FORMATTER} interval={SMART_DATE_INTERVAL(totalMonths)} tick={AXIS_TICK_STYLE} />
-              <YAxis tickFormatter={(v: number) => formatPercent(v)} tick={AXIS_TICK_STYLE} domain={['auto', 0]} reversed={false} />
-              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number, name: string) => [formatPercent(value), name]} labelFormatter={(label) => t('charts.drawdown.dateLabel', { label })} isAnimationActive={chartData.length < 100} animationDuration={chartData.length >= 100 ? 0 : 150} />
+              <XAxis
+                dataKey="date"
+                tickFormatter={YEAR_ONLY_TICK_FORMATTER}
+                interval={SMART_DATE_INTERVAL(totalMonths)}
+                tick={AXIS_TICK_STYLE}
+              />
+              <YAxis
+                tickFormatter={(v: number) => formatPercent(v)}
+                tick={AXIS_TICK_STYLE}
+                domain={['auto', 0]}
+                reversed={false}
+              />
+              <Tooltip
+                contentStyle={CHART_TOOLTIP_STYLE}
+                formatter={(value: number, name: string) => [formatPercent(value), name]}
+                labelFormatter={(label) => t('charts.drawdown.dateLabel', { label })}
+                isAnimationActive={chartData.length < 100}
+                animationDuration={chartData.length >= 100 ? 0 : 150}
+              />
               {portfolios.map((p, i) => (
-                <Area key={p.id} type="monotone" dataKey={p.id} name={p.name} stroke={getPortfolioColor(i)} fill="url(#dangerGradient)" strokeWidth={1.5} isAnimationActive={false} />
+                <Area
+                  key={p.id}
+                  type="monotone"
+                  dataKey={p.id}
+                  name={p.name}
+                  stroke={getPortfolioColor(i)}
+                  fill="url(#dangerGradient)"
+                  strokeWidth={1.5}
+                  isAnimationActive={false}
+                />
               ))}
             </AreaChart>
           </ResponsiveContainer>

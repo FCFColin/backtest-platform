@@ -50,15 +50,6 @@ Barrel export from index.ts。关键类型: Portfolio, BacktestParameters, Stati
 类型化错误: AppError 基类 → ValidationError/AuthError/EngineUnavailableError 等；ErrorCodes 常量。
 降级差异: 数据服务 degraded: true + degradedWarning；引擎 503 无 degraded（ADR-031）。
 
-## 7. 测试
+## 7. 关键 ADR 对照
 
-| 类型         | 目录                             | 说明                                  |
-| ------------ | -------------------------------- | ------------------------------------- |
-| 集成 / 单元  | tests/integration/ / tests/unit/ | testcontainers PG+Redis / mocks 无 DB |
-| Chaos / 契约 | tests/chaos/ / tests/contract/   | 网络分区·容器重启 / OpenAPI 3.0 ≥95%  |
-
-覆盖率门控: lines/functions ≥ 80%, branches ≥ 70%（scripts/check-coverage.mjs）。
-
-## 8. 关键 ADR 对照
-
-ADR-007 PostgreSQL / 013 DDD / 014 Outbox+CDC / 017 JWT+RBAC+API Key / 032 多租户 RLS / 045 Redis fail-closed 分化。
+ADR-007 PostgreSQL / 013 DDD / 014 Outbox+CDC / 017 JWT+RBAC+API Key / 032 多租户 RLS / 045 Redis fail-closed 分化。完整索引见 [ARCHITECTURE.md](../ARCHITECTURE.md#11-adr-索引)。

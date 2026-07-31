@@ -74,13 +74,11 @@ func calcPortfolioDailyReturns(assets []Asset, priceData map[string]map[string]f
 	if totalWeight == 0 {
 		return nil
 	}
+	tickers := make([]string, len(validAssets))
 	weights := make([]float64, len(validAssets))
 	for i, a := range validAssets {
-		weights[i] = math.Abs(a.Weight) / totalWeight
-	}
-	tickers := make([]string, len(validAssets))
-	for i, a := range validAssets {
 		tickers[i] = a.Ticker
+		weights[i] = math.Abs(a.Weight) / totalWeight
 	}
 	allDates := engineutil.AlignDates(tickers, priceData)
 	var commonDates []string
@@ -92,19 +90,7 @@ func calcPortfolioDailyReturns(assets []Asset, priceData map[string]map[string]f
 	if len(commonDates) < 2 {
 		return nil
 	}
-	var returns []float64
-	for i := 1; i < len(commonDates); i++ {
-		portfolioReturn := 0.0
-		for j := 0; j < len(validAssets); j++ {
-			prev := priceData[validAssets[j].Ticker][commonDates[i-1]]
-			curr := priceData[validAssets[j].Ticker][commonDates[i]]
-			if prev > 0 {
-				portfolioReturn += weights[j] * ((curr - prev) / prev)
-			}
-		}
-		returns = append(returns, portfolioReturn)
-	}
-	return returns
+	return engineutil.WeightedDailyReturns(tickers, weights, priceData, commonDates, false, false)
 }
 func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
 	validAssets := make([]Asset, 0, len(req.Assets))
@@ -205,40 +191,18 @@ func buildProbabilityCurve(finalValues []float64) []ProbabilityPoint {
 	if len(finalValues) == 0 {
 		return nil
 	}
-	minVal := finalValues[0]
-	maxVal := finalValues[0]
-	for _, v := range finalValues {
-		if v < minVal {
-			minVal = v
-		}
-		if v > maxVal {
-			maxVal = v
-		}
-	}
+	const binCount = 50
+	counts, minVal, maxVal := mathutil.Histogram(finalValues, binCount)
 	if maxVal == minVal {
 		return []ProbabilityPoint{{Amount: math.Round(minVal), Probability: 1}}
 	}
-	binCount := 50
 	binWidth := (maxVal - minVal) / float64(binCount)
-	bins := make([]ProbabilityPoint, binCount)
-	for i := 0; i < binCount; i++ {
-		bins[i] = ProbabilityPoint{Amount: math.Round(minVal + (float64(i)+0.5)*binWidth), Probability: 0}
-	}
-	for _, v := range finalValues {
-		idx := int((v - minVal) / binWidth)
-		if idx >= binCount {
-			idx = binCount - 1
-		}
-		if idx < 0 {
-			idx = 0
-		}
-		bins[idx].Probability++
-	}
 	total := float64(len(finalValues))
-	for i := range bins {
-		bins[i].Probability /= total
+	result := make([]ProbabilityPoint, binCount)
+	for i, c := range counts {
+		result[i] = ProbabilityPoint{Amount: math.Round(minVal + (float64(i)+0.5)*binWidth), Probability: float64(c) / total}
 	}
-	return bins
+	return result
 }
 func buildOptimalPath(paths [][]float64, years float64) []OptimalPathPoint {
 	var result []OptimalPathPoint

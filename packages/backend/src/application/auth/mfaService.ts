@@ -127,11 +127,6 @@ export async function generateBackupCodes(): Promise<{ plaintext: string[]; hash
   return { plaintext, hashes };
 }
 
-/** 保存备份码哈希到用户记录。 */
-export async function saveBackupCodes(userId: string, hashes: string[]): Promise<void> {
-  await getPool().query('UPDATE users SET mfa_backup_codes = $1 WHERE id = $2', [hashes, userId]);
-}
-
 /** 验证并消费一个备份码（一次性，验证后从数组移除）。 */
 export async function verifyBackupCode(userId: string, code: string): Promise<boolean> {
   const client = await getPool().connect();

@@ -3,17 +3,17 @@
  * 鉴权链：jwtAuth → resolveTenant → requireTenant → requirePermission(ADMIN_ACCESS)（ADR-033，与 API Key 同级）。
  * 所有查询经 withTenant 开启租户事务；secret 永不返回响应体。
  */
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { validate } from '../middleware/miscMiddleware.js';
 import { emptyBodySchema } from '../schemas/shared.js';
 import { sendProblem } from '../utils/errors.js';
-import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { crudRouteHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
+import { tenantHandler, requireUuidParam } from './routeUtils.js';
 import { withTenant } from '../db/pool.js';
 import { deliverWebhook, createWebhook } from '../application/webhookService.js';
 import { decrypt } from '../utils/crypto.js';
+import { rowMapper, iso, toIso } from '../repositories/rowMapper.js';
 
 const router = Router();
 const DELIVERIES_PAGE_SIZE = 100;
@@ -50,57 +50,45 @@ interface DeliveryRow {
   createdAt: string;
 }
 
-const toIso = (v: Date | string | null): string | null => (v ? new Date(v).toISOString() : null);
-function mapDeliveryRow(row: {
-  id: string;
-  event_type: string;
-  status: string;
-  response_code: number | null;
-  attempt_count: number;
-  next_retry_at: Date | string | null;
-  delivered_at: Date | string | null;
-  created_at: Date | string;
-}): DeliveryRow {
-  return {
-    id: row.id,
-    eventType: row.event_type,
-    status: row.status,
-    responseCode: row.response_code,
-    attemptCount: row.attempt_count,
-    nextRetryAt: toIso(row.next_retry_at),
-    deliveredAt: toIso(row.delivered_at),
-    createdAt: new Date(row.created_at).toISOString(),
-  };
-}
-interface WebhookRow {
+const mapDeliveryRow = rowMapper<DeliveryRow>({
+  id: 'id',
+  eventType: 'event_type',
+  status: 'status',
+  responseCode: 'response_code',
+  attemptCount: 'attempt_count',
+  nextRetryAt: (r) => toIso(r.next_retry_at),
+  deliveredAt: (r) => toIso(r.delivered_at),
+  createdAt: (r) => iso(r.created_at),
+});
+interface WebhookView {
   id: string;
   url: string;
   description: string | null;
-  is_active: boolean;
-  subscribed_events: string[];
-  failed_consecutive_count: number;
-  disabled_at: Date | string | null;
-  created_at: Date | string;
-  updated_at: Date | string;
+  isActive: boolean;
+  subscribedEvents: string[];
+  failedConsecutiveCount: number;
+  disabledAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
-const toWebhookView = (r: WebhookRow): Record<string, unknown> => ({
-  id: r.id,
-  url: r.url,
-  description: r.description,
-  isActive: r.is_active,
-  subscribedEvents: r.subscribed_events,
-  failedConsecutiveCount: r.failed_consecutive_count,
-  disabledAt: toIso(r.disabled_at),
-  createdAt: toIso(r.created_at),
-  updatedAt: toIso(r.updated_at),
+const toWebhookView = rowMapper<WebhookView>({
+  id: 'id',
+  url: 'url',
+  description: 'description',
+  isActive: 'is_active',
+  subscribedEvents: 'subscribed_events',
+  failedConsecutiveCount: 'failed_consecutive_count',
+  disabledAt: (r) => toIso(r.disabled_at),
+  createdAt: (r) => toIso(r.created_at),
+  updatedAt: (r) => toIso(r.updated_at),
 });
 
 router.get(
   '/',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const orgId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!orgId) return;
+  tenantHandler(
+    '[webhookRoutes] 列出 webhook 失败',
+    'WEBHOOK_LIST_FAILED',
+    async (_req, res, orgId) => {
       const endpoints = await withTenant(orgId, async (client) => {
         const { rows } = await client.query(
           `SELECT id, url, description, is_active, subscribed_events, failed_consecutive_count, disabled_at, created_at, updated_at FROM webhook_endpoints WHERE org_id = $1 ORDER BY created_at DESC`,
@@ -110,17 +98,16 @@ router.get(
       });
       res.json({ success: true, data: endpoints });
     },
-    { logMsg: '[webhookRoutes] 列出 webhook 失败', code: 'WEBHOOK_LIST_FAILED' },
   ),
 );
 
 router.post(
   '/',
   validate(createWebhookSchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const orgId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!orgId) return;
+  tenantHandler(
+    '[webhookRoutes] 创建 webhook 失败',
+    'WEBHOOK_CREATE_FAILED',
+    async (req, res, orgId) => {
       const body = req.body as {
         url: string;
         secret: string;
@@ -137,32 +124,29 @@ router.post(
           subscribedEvents: body.subscribedEvents,
         }),
       );
-      res
-        .status(201)
-        .json({
-          success: true,
-          data: {
-            id: created.id,
-            url: created.url,
-            description: created.description,
-            isActive: created.isActive,
-            subscribedEvents: created.subscribedEvents,
-            createdAt: new Date(created.createdAt).toISOString(),
-          },
-        });
+      res.status(201).json({
+        success: true,
+        data: {
+          id: created.id,
+          url: created.url,
+          description: created.description,
+          isActive: created.isActive,
+          subscribedEvents: created.subscribedEvents,
+          createdAt: new Date(created.createdAt).toISOString(),
+        },
+      });
     },
-    { logMsg: '[webhookRoutes] 创建 webhook 失败', code: 'WEBHOOK_CREATE_FAILED' },
   ),
 );
 
 router.put(
   '/:id',
   validate(updateWebhookSchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+  tenantHandler(
+    '[webhookRoutes] 更新 webhook 失败',
+    'WEBHOOK_UPDATE_FAILED',
+    async (req, res, orgId) => {
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!orgId) return;
       const webhookId = req.params.id;
       const body = req.body as {
         url?: string;
@@ -200,17 +184,16 @@ router.put(
         },
       });
     },
-    { logMsg: '[webhookRoutes] 更新 webhook 失败', code: 'WEBHOOK_UPDATE_FAILED' },
   ),
 );
 
 router.delete(
   '/:id',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+  tenantHandler(
+    '[webhookRoutes] 删除 webhook 失败',
+    'WEBHOOK_DELETE_FAILED',
+    async (req, res, orgId) => {
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!orgId) return;
       const webhookId = req.params.id;
       const deleted = await withTenant(
         orgId,
@@ -228,18 +211,17 @@ router.delete(
       }
       res.json({ success: true, data: { id: webhookId, deleted: true } });
     },
-    { logMsg: '[webhookRoutes] 删除 webhook 失败', code: 'WEBHOOK_DELETE_FAILED' },
   ),
 );
 
 router.post(
   '/:id/test',
   validate(emptyBodySchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+  tenantHandler(
+    '[webhookRoutes] 测试 webhook 失败',
+    'WEBHOOK_TEST_FAILED',
+    async (req, res, orgId) => {
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!orgId) return;
       const webhookId = req.params.id;
       const testPayload = {
         event: 'WebhookTest',
@@ -298,17 +280,16 @@ router.post(
         },
       });
     },
-    { logMsg: '[webhookRoutes] 测试 webhook 失败', code: 'WEBHOOK_TEST_FAILED' },
   ),
 );
 
 router.get(
   '/:id/deliveries',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
+  tenantHandler(
+    '[webhookRoutes] 查询投递历史失败',
+    'WEBHOOK_DELIVERIES_FAILED',
+    async (req, res, orgId) => {
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!orgId) return;
       const webhookId = req.params.id;
       // 校验端点归属本组织（防跨租户读取投递历史）
       const deliveries = await withTenant(orgId, async (client) => {
@@ -329,7 +310,6 @@ router.get(
       }
       res.json({ success: true, data: deliveries });
     },
-    { logMsg: '[webhookRoutes] 查询投递历史失败', code: 'WEBHOOK_DELIVERIES_FAILED' },
   ),
 );
 

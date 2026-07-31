@@ -2,34 +2,15 @@ package engine
 
 import (
 	"context"
+	"engine-go/internal/enginetest"
 	"engine-go/internal/engineutil"
 	"testing"
 	"time"
 )
 
-func buildTestPriceData() PriceDataMap {
-	priceData := make(PriceDataMap, 3)
-	tickers := []string{"VTI", "BND", "GLD"}
-	bases := []float64{100, 50, 80}
-	for idx, ticker := range tickers {
-		prices := make(map[string]float64, 100)
-		base := bases[idx]
-		for i := 0; i < 100; i++ {
-			date := time.Date(2023, 1, 3, 0, 0, 0, 0, time.UTC).AddDate(0, 0, i)
-			wd := date.Weekday()
-			if wd == time.Saturday || wd == time.Sunday {
-				continue
-			}
-			prices[date.Format("2006-01-02")] = base
-			base *= 1.0003
-		}
-		priceData[ticker] = prices
-	}
-	return priceData
-}
 func TestRunBacktest(t *testing.T) {
 	t.Run("基本回测应成功", func(t *testing.T) {
-		priceData := buildTestPriceData()
+		priceData := enginetest.ThreeTickerData(time.Date(2023, 1, 3, 0, 0, 0, 0, time.UTC), 100, 0.0003)
 		req := BacktestRequest{
 			Portfolios: []PortfolioInput{{Name: "60/40",
 				Assets:             []AssetInput{{Ticker: "VTI", Weight: 60}, {Ticker: "BND", Weight: 40}},
@@ -53,12 +34,11 @@ func TestRunBacktest(t *testing.T) {
 		}
 	})
 	t.Run("日期范围无数据应报错", func(t *testing.T) {
-		req := BacktestRequest{
+		_, err := RunBacktest(context.Background(), BacktestRequest{
 			Portfolios: []PortfolioInput{{Name: "test", Assets: []AssetInput{{Ticker: "VTI", Weight: 100}}}},
-			PriceData:  buildTestPriceData(),
+			PriceData:  enginetest.ThreeTickerData(time.Date(2023, 1, 3, 0, 0, 0, 0, time.UTC), 100, 0.0003),
 			Params:     BacktestParams{StartDate: "2099-01-01", EndDate: "2099-12-31"},
-		}
-		_, err := RunBacktest(context.Background(), req)
+		})
 		if err == nil {
 			t.Fatal("无数据日期范围应返回错误")
 		}
@@ -101,27 +81,6 @@ func TestFilterByDateRange(t *testing.T) {
 		}
 	})
 }
-func newBenchPriceData() PriceDataMap {
-	priceData := make(PriceDataMap, 3)
-	tickers := []string{"VTI", "BND", "GLD"}
-	for _, ticker := range tickers {
-		prices := make(map[string]float64, 2520)
-		base := 100.0
-		for i := 0; i < 2520; i++ {
-			date := time.Date(2014, 1, 2, 0, 0, 0, 0, time.UTC).
-				AddDate(0, 0, i)
-			wd := date.Weekday()
-			if wd == time.Saturday || wd == time.Sunday {
-				continue
-			}
-			dateStr := date.Format("2006-01-02")
-			base *= 1.0 + 0.0003
-			prices[dateStr] = base
-		}
-		priceData[ticker] = prices
-	}
-	return priceData
-}
 func newBenchBacktestRequest() BacktestRequest {
 	return BacktestRequest{
 		Portfolios: []PortfolioInput{{Name: "60/40",
@@ -129,7 +88,7 @@ func newBenchBacktestRequest() BacktestRequest {
 			RebalanceFrequency: "monthly", Drag: 0, TotalReturn: true,
 		},
 		},
-		PriceData:     newBenchPriceData(),
+		PriceData:     enginetest.ThreeTickerData(time.Date(2014, 1, 2, 0, 0, 0, 0, time.UTC), 2520, 0.0003),
 		CPIData:       map[string]float64{},
 		ExchangeRates: map[string]float64{},
 		Params:        BacktestParams{StartDate: "2014-01-02", EndDate: "2023-12-29", StartingValue: 10000, AdjustForInflation: false, RollingWindowMonths: 12, BenchmarkTicker: "VTI"},

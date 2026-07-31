@@ -8,6 +8,7 @@ import type { PoolClient } from 'pg';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/pool.js';
+import { rowMapper, iso, toIso } from '../repositories/rowMapper.js';
 
 /** 与迁移 022 的 CHECK 约束对齐 */
 export type AuditAction =
@@ -40,7 +41,7 @@ export interface AuditLogRow {
   exportedAt: string | null;
   createdAt: string;
 }
-export interface AuditLogQueryFilters {
+interface AuditLogQueryFilters {
   orgId?: string;
   eventType?: string;
   userId?: string;
@@ -48,14 +49,14 @@ export interface AuditLogQueryFilters {
   startDate?: string;
   endDate?: string;
 }
-export interface PaginatedAuditLogs {
+interface PaginatedAuditLogs {
   logs: AuditLogRow[];
   total: number;
   page: number;
   limit: number;
 }
 
-export const UNEXPORTED_BATCH_LIMIT = 100;
+const UNEXPORTED_BATCH_LIMIT = 100;
 
 const AUDIT_LOG_COLUMNS =
   'id, event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, object_key, exported_at, created_at';
@@ -212,28 +213,25 @@ export async function verifyAuditIntegrity(
   return { valid, expected, actual: storedSignature };
 }
 
-function mapAuditLogRow(row: Record<string, unknown>): AuditLogRow {
-  const payload = row.payload;
-  return {
-    id: row.id as string,
-    eventType: row.event_type as string,
-    userId: row.user_id as string | null,
-    orgId: row.org_id as string | null,
-    ipAddress: row.ip_address as string | null,
-    action: row.action as string,
-    resourceType: row.resource_type as string | null,
-    resourceId: row.resource_id as string | null,
-    payload:
-      typeof payload === 'string'
-        ? (JSON.parse(payload) as Record<string, unknown>)
-        : (payload as Record<string, unknown>),
-    hmacSignature: row.hmac_signature as string,
-    prevHash: row.prev_hash as string | null,
-    objectKey: row.object_key as string | null,
-    exportedAt: row.exported_at ? new Date(row.exported_at as string).toISOString() : null,
-    createdAt: new Date(row.created_at as string).toISOString(),
-  };
-}
+const mapAuditLogRow = rowMapper<AuditLogRow>({
+  id: 'id',
+  eventType: 'event_type',
+  userId: 'user_id',
+  orgId: 'org_id',
+  ipAddress: 'ip_address',
+  action: 'action',
+  resourceType: 'resource_type',
+  resourceId: 'resource_id',
+  payload: (r) =>
+    typeof r.payload === 'string'
+      ? (JSON.parse(r.payload) as Record<string, unknown>)
+      : (r.payload as Record<string, unknown>),
+  hmacSignature: 'hmac_signature',
+  prevHash: 'prev_hash',
+  objectKey: 'object_key',
+  exportedAt: (r) => toIso(r.exported_at),
+  createdAt: (r) => iso(r.created_at),
+});
 
 /** P2-04: 验证审计日志链式完整性：遍历重算 prev_hash 与存储值比对，不匹配记为断裂点。分页验证避免一次加载数百万行。 */
 // eslint-disable-next-line sonarjs/cognitive-complexity

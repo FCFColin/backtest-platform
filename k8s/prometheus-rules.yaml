@@ -1,9 +1,6 @@
 # =============================================================================
 # Prometheus 告警规则（含 Redis Sentinel 高可用告警，ADR-045 T7）
-# Sentinel 自动恢复 < 30s 是 SLO；master 故障转移 / 仲裁丢失 / 写入拒绝均需感知。
-# 部署：Prometheus rule_files 引用或 PrometheusRule CRD（kube-prometheus-stack）应用。
-# 与 ADR-045 对应：failover-timeout 30000 → 30s；min-slaves-to-write=1 → RefusedWrites；
-# PDB minAvailable: 2 → SentinelQuorumLoss。
+# 与 ADR-045 对应：failover-timeout 30000 → 30s；min-slaves-to-write=1 → RefusedWrites；PDB minAvailable: 2 → SentinelQuorumLoss。
 # =============================================================================
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -156,9 +153,7 @@ spec:
 ---
 # =============================================================================
 # P1-10 平台告警规则（backtest-platform-alerts）— 核心依赖与性能 SLO
-# 指标来源：应用层 prom-client（metrics.ts）+ 基础设施 exporter（pg/redis/node）。
-# 与 docker/prometheus/rules.yml 内容对齐；Redis 告警见上方 redis-sentinel-alerts。
-# AlertManager 通知通道与抑制见 k8s/alertmanager-deployment.yaml ConfigMap。
+# 指标来源：应用层 prom-client（metrics.ts）+ 基础设施 exporter（pg/redis/node）；与 docker/prometheus/rules.yml 对齐。
 # =============================================================================
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule

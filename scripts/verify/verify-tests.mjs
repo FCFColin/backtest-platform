@@ -3,12 +3,12 @@
 // 合并自：C-012-unit-tests.mjs + C-013-coverage-gate.mjs + C-014-go-coverage.mjs + H-zod-coverage.mjs
 import { readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { runCmd, writeAggregatedResult, fileExists, readFileContent, PROJECT_ROOT_PATH } from './_lib.mjs';
+import { runCmd, fileExists, readFileContent, runCheck, finishVerify, PROJECT_ROOT_PATH } from './_lib.mjs';
 
 const results = {};
 
 // ── C-012: 单元测试验证 ────────────────────────────────────────
-try {
+await runCheck(results, 'C-012', () => {
   const r = runCmd('npm run test:unit', { timeout: 300000, env: { FORCE_COLOR: '0', NO_COLOR: '1' } });
   let output = (r.out + '\n' + r.err).trim();
   output = output.replace(/\x1b\[[0-9;]*m/g, '');
@@ -50,17 +50,15 @@ try {
   else if (isCrash) summary = '单测运行异常: exit code ' + r.code + ', 无法解析测试摘要（runner 可能崩溃）';
   else summary = '单测失败: ' + testsFailed + ' failed / ' + testsPassed + ' passed / ' + testsSkipped + ' skipped (exit code: ' + r.code + ')';
 
-  results['C-012'] = {
+  return {
     status: isPass ? 'PASS' : 'FAIL',
     summary,
     details: { exitCode: r.code, testsPassed, testsFailed, testsSkipped, filesPassed: files.passed, filesFailed: files.failed, failedTests: failedTests.slice(0, 10), outputTail: output.slice(-3000) },
   };
-} catch (e) {
-  results['C-012'] = { status: 'FAIL', summary: '验证脚本异常: ' + e.message, details: { error: e.message } };
-}
+});
 
 // ── C-013: 覆盖率门控脚本行为验证 ──────────────────────────────
-try {
+await runCheck(results, 'C-013', () => {
   const checks = [];
   const scriptExists = fileExists('scripts/check-coverage.mjs');
   checks.push({ name: 'check-coverage.mjs 存在', pass: scriptExists, detail: scriptExists ? 'scripts/check-coverage.mjs 已找到' : 'scripts/check-coverage.mjs 不存在' });
@@ -113,63 +111,56 @@ try {
 
   const allPass = checks.every((c) => c.pass);
   const passedCount = checks.filter((c) => c.pass).length;
-  results['C-013'] = {
+  return {
     status: allPass ? 'PASS' : 'FAIL',
     summary: allPass ? `覆盖率门控脚本行为验证通过（${passedCount}/${checks.length} 项检查通过）` : `覆盖率门控脚本行为验证失败（${passedCount}/${checks.length} 项通过）`,
     details: { checks, scriptExists, runtimeExitCode, verifiedBehaviors: ['缺失 coverage-summary.json 时 exit(1)', 'JSON 解析失败时 exit(1)', '缺少 total 字段时 exit(1)', '全局门槛检查（lines/functions/statements ≥80%, branches ≥70%）', '失败时 exit(1) / 通过时 exit(0)', '运行时退出码非崩溃且语义一致'] },
   };
-} catch (e) {
-  results['C-013'] = { status: 'FAIL', summary: `验证脚本异常: ${e.message}`, details: { error: e.message } };
-}
+});
 
 // ── C-014: Go 覆盖率验证 ───────────────────────────────────────
-try {
+await runCheck(results, 'C-014', () => {
   const engineDir = join(PROJECT_ROOT_PATH, 'engine-go');
   if (!existsSync(engineDir)) {
-    results['C-014'] = { status: 'FAIL', summary: 'engine-go 目录不存在' };
-  } else {
-    const testR = runCmd('cd engine-go && go test ./... -coverprofile=coverage.out', { timeout: 300000 });
-    const testOutput = (testR.out + '\n' + testR.err).trim();
-    if (testR.code !== 0) {
-      results['C-014'] = { status: 'FAIL', summary: `go test 失败 (exit code ${testR.code})`, details: { exitCode: testR.code, outputTail: testOutput.slice(-2000) } };
+    return { status: 'FAIL', summary: 'engine-go 目录不存在' };
+  }
+  const testR = runCmd('cd engine-go && go test ./... -coverprofile=coverage.out', { timeout: 300000 });
+  const testOutput = (testR.out + '\n' + testR.err).trim();
+  if (testR.code !== 0) {
+    return { status: 'FAIL', summary: `go test 失败 (exit code ${testR.code})`, details: { exitCode: testR.code, outputTail: testOutput.slice(-2000) } };
+  }
+  const coverR = runCmd('cd engine-go && go tool cover -func=coverage.out');
+  const coverOutput = coverR.out.trim();
+  if (coverR.code !== 0 || !coverOutput) {
+    return { status: 'FAIL', summary: `go tool cover 执行失败 (exit code ${coverR.code})`, details: { err: coverR.err, out: coverR.out.slice(-500) } };
+  }
+  const lines = coverOutput.split('\n');
+  const totalLine = lines[lines.length - 1];
+  const totalMatch = totalLine.match(/([\d.]+)%/);
+  const totalCoverage = totalMatch ? parseFloat(totalMatch[1]) : 0;
+  const targetPkgs = ['signal', 'pca', 'letf', 'factorregression', 'goaloptimizer', 'mathutil', 'calculators', 'engine/tactical'];
+  const pkgResults = {};
+  for (const pkg of targetPkgs) {
+    const pkgLines = lines.filter((l) => l.includes(`internal/${pkg}/`));
+    if (pkgLines.length === 0) {
+      pkgResults[pkg] = { found: false, maxCoverage: 0, note: '未在覆盖率报告中找到' };
     } else {
-      const coverR = runCmd('cd engine-go && go tool cover -func=coverage.out');
-      const coverOutput = coverR.out.trim();
-      if (coverR.code !== 0 || !coverOutput) {
-        results['C-014'] = { status: 'FAIL', summary: `go tool cover 执行失败 (exit code ${coverR.code})`, details: { err: coverR.err, out: coverR.out.slice(-500) } };
-      } else {
-        const lines = coverOutput.split('\n');
-        const totalLine = lines[lines.length - 1];
-        const totalMatch = totalLine.match(/([\d.]+)%/);
-        const totalCoverage = totalMatch ? parseFloat(totalMatch[1]) : 0;
-        const targetPkgs = ['signal', 'pca', 'letf', 'factorregression', 'goaloptimizer', 'mathutil', 'calculators', 'engine/tactical'];
-        const pkgResults = {};
-        for (const pkg of targetPkgs) {
-          const pkgLines = lines.filter((l) => l.includes(`internal/${pkg}/`));
-          if (pkgLines.length === 0) {
-            pkgResults[pkg] = { found: false, maxCoverage: 0, note: '未在覆盖率报告中找到' };
-          } else {
-            const pcts = pkgLines.map((l) => { const m = l.match(/([\d.]+)%/); return m ? parseFloat(m[1]) : 0; });
-            pkgResults[pkg] = { found: true, maxCoverage: parseFloat(Math.max(...pcts).toFixed(2)), avgCoverage: parseFloat((pcts.reduce((a, b) => a + b, 0) / pcts.length).toFixed(2)), functionCount: pkgLines.length };
-          }
-        }
-        const allPkgsHaveCoverage = Object.values(pkgResults).every((r) => r.found && r.maxCoverage > 0);
-        const totalPass = totalCoverage >= 70;
-        const isPass = totalPass && allPkgsHaveCoverage;
-        results['C-014'] = {
-          status: isPass ? 'PASS' : 'FAIL',
-          summary: isPass ? `Go 覆盖率达标: 总覆盖率 ${totalCoverage}% (>= 70%), 8 个目标包均有覆盖` : `Go 覆盖率未达标: 总覆盖率 ${totalCoverage}% (需 >= 70%), ${allPkgsHaveCoverage ? '8 个目标包均有覆盖' : '部分目标包无覆盖'}`,
-          details: { totalCoverage, totalPass, targetPackages: pkgResults, testExitCode: testR.code, totalLine },
-        };
-      }
+      const pcts = pkgLines.map((l) => { const m = l.match(/([\d.]+)%/); return m ? parseFloat(m[1]) : 0; });
+      pkgResults[pkg] = { found: true, maxCoverage: parseFloat(Math.max(...pcts).toFixed(2)), avgCoverage: parseFloat((pcts.reduce((a, b) => a + b, 0) / pcts.length).toFixed(2)), functionCount: pkgLines.length };
     }
   }
-} catch (e) {
-  results['C-014'] = { status: 'FAIL', summary: `验证脚本异常: ${e.message}`, details: { error: e.message } };
-}
+  const allPkgsHaveCoverage = Object.values(pkgResults).every((r) => r.found && r.maxCoverage > 0);
+  const totalPass = totalCoverage >= 70;
+  const isPass = totalPass && allPkgsHaveCoverage;
+  return {
+    status: isPass ? 'PASS' : 'FAIL',
+    summary: isPass ? `Go 覆盖率达标: 总覆盖率 ${totalCoverage}% (>= 70%), 8 个目标包均有覆盖` : `Go 覆盖率未达标: 总覆盖率 ${totalCoverage}% (需 >= 70%), ${allPkgsHaveCoverage ? '8 个目标包均有覆盖' : '部分目标包无覆盖'}`,
+    details: { totalCoverage, totalPass, targetPackages: pkgResults, testExitCode: testR.code, totalLine },
+  };
+});
 
 // ── H-zod-coverage: Zod 验证覆盖率 ─────────────────────────────
-try {
+await runCheck(results, 'H-zod-coverage', () => {
   const HZOD_ROUTES_REL_DIR = 'packages/backend/src/routes';
   const HZOD_ROUTES_ABS_DIR = join(process.cwd(), HZOD_ROUTES_REL_DIR);
   const HZOD_NON_ROUTE_FILES = new Set(['routeUtils.ts']);
@@ -205,31 +196,27 @@ try {
 
   const files = listRouteFiles();
   if (files.length === 0) {
-    results['H-zod-coverage'] = { status: 'FAIL', summary: `routes 目录为空或不存在: ${HZOD_ROUTES_REL_DIR}`, details: { routesDir: HZOD_ROUTES_REL_DIR, fileCount: 0 } };
-  } else {
-    const allMissing = [];
-    const perFile = {};
-    let totalRoutes = 0, validatedRoutes = 0;
-    for (const f of files) {
-      const missing = findUnvalidatedRoutes(f);
-      const content = readFileContent(join(HZOD_ROUTES_REL_DIR, f));
-      const routeCount = (content.match(/router\.(post|put|patch)\s*\(/g) || []).length;
-      totalRoutes += routeCount;
-      validatedRoutes += routeCount - missing.length;
-      perFile[f] = { total: routeCount, missing: missing.length, missingRoutes: missing };
-      allMissing.push(...missing);
-    }
-    const allValidated = allMissing.length === 0;
-    const coveragePct = totalRoutes > 0 ? ((validatedRoutes / totalRoutes) * 100).toFixed(1) : '0.0';
-    results['H-zod-coverage'] = {
-      status: allValidated ? 'PASS' : 'FAIL',
-      summary: allValidated ? `all POST/PUT/PATCH have Zod validation (${validatedRoutes}/${totalRoutes} routes, ${coveragePct}%)` : `${allMissing.length} POST/PUT/PATCH route(s) missing Zod validation (${validatedRoutes}/${totalRoutes} validated, ${coveragePct}%)`,
-      details: { routesDir: HZOD_ROUTES_REL_DIR, filesScanned: files.length, totalRoutes, validatedRoutes, missingCount: allMissing.length, coveragePct: `${coveragePct}%`, missingRoutes: allMissing, perFile },
-    };
+    return { status: 'FAIL', summary: `routes 目录为空或不存在: ${HZOD_ROUTES_REL_DIR}`, details: { routesDir: HZOD_ROUTES_REL_DIR, fileCount: 0 } };
   }
-} catch (e) {
-  results['H-zod-coverage'] = { status: 'FAIL', summary: `验证脚本异常: ${e.message}`, details: { error: e.message } };
-}
+  const allMissing = [];
+  const perFile = {};
+  let totalRoutes = 0, validatedRoutes = 0;
+  for (const f of files) {
+    const missing = findUnvalidatedRoutes(f);
+    const content = readFileContent(join(HZOD_ROUTES_REL_DIR, f));
+    const routeCount = (content.match(/router\.(post|put|patch)\s*\(/g) || []).length;
+    totalRoutes += routeCount;
+    validatedRoutes += routeCount - missing.length;
+    perFile[f] = { total: routeCount, missing: missing.length, missingRoutes: missing };
+    allMissing.push(...missing);
+  }
+  const allValidated = allMissing.length === 0;
+  const coveragePct = totalRoutes > 0 ? ((validatedRoutes / totalRoutes) * 100).toFixed(1) : '0.0';
+  return {
+    status: allValidated ? 'PASS' : 'FAIL',
+    summary: allValidated ? `all POST/PUT/PATCH have Zod validation (${validatedRoutes}/${totalRoutes} routes, ${coveragePct}%)` : `${allMissing.length} POST/PUT/PATCH route(s) missing Zod validation (${validatedRoutes}/${totalRoutes} validated, ${coveragePct}%)`,
+    details: { routesDir: HZOD_ROUTES_REL_DIR, filesScanned: files.length, totalRoutes, validatedRoutes, missingCount: allMissing.length, coveragePct: `${coveragePct}%`, missingRoutes: allMissing, perFile },
+  };
+});
 
-writeAggregatedResult('verify-tests', results);
-process.exit(0);
+finishVerify('verify-tests', results);

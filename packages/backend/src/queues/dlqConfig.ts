@@ -27,11 +27,11 @@ import { logger } from '../utils/logger.js';
 
 export const SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS = 86400 * 7;
 
-export const DLQ_COMPLETED_RETENTION_AGE_SECONDS = 86400 * 30;
+const DLQ_COMPLETED_RETENTION_AGE_SECONDS = 86400 * 30;
 
-export const DLQ_NAME_SUFFIX = '-dlq';
+const DLQ_NAME_SUFFIX = '-dlq';
 
-export interface DlqJobData {
+interface DlqJobData {
   sourceQueue: string;
   sourceJobId: string;
   sourceJobName?: string;

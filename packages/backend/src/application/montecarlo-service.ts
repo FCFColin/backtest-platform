@@ -11,6 +11,8 @@ import {
   translateDomainError,
   collectInvalidTickerWarnings,
   calculateDateRange,
+  pushDegradedWarning,
+  clampParametersToDataRange,
 } from './backtest-helpers.js';
 import type { Portfolio, BacktestParameters } from '@backtest/shared/types';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
@@ -40,20 +42,16 @@ export async function runMonteCarlo(
 
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
 
-  if (degraded) {
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
-  }
+  pushDegradedWarning(warnings, degraded, degradedWarning);
 
   const sanitizedMcParams = sanitizeMcParams(mcParams);
   const { cpiData, exchangeRates } = await loadMacroData(parameters);
 
-  const effectiveParameters =
-    effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
-      ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
-      : parameters;
+  const effectiveParameters = clampParametersToDataRange(
+    parameters,
+    effectiveStartDate,
+    effectiveEndDate,
+  );
 
   const limit = pLimit(ENGINE_CONCURRENCY_LIMIT);
   const results = await Promise.all(

@@ -43,7 +43,7 @@ const FLAG_SNAPSHOT_KEY = 'unleash:flags:snapshot';
 const SNAPSHOT_WRITE_THROTTLE_MS = 5 * 60 * 1000;
 
 /** Unleash 上下文（与 unleash-client SDK Context 对齐的子集） */
-export interface UnleashContext {
+interface UnleashContext {
   userId?: string;
   properties?: Record<string, unknown>;
 }

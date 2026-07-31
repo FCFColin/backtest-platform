@@ -33,18 +33,10 @@ export async function verifyApiKeyArgon2id(encoded: string, plaintext: string): 
   }
 }
 
-/** @deprecated 优先使用独立 encrypt/decrypt 函数与新的 EncryptedPayload（Buffer 形式）。 */
-export interface EnvelopeEncryptedPayload {
-  ciphertext: string;
-  encryptedDek: string;
-  iv: string;
-  authTag: string;
-}
-
 /**
  * Webhook secret 加密结果（Buffer 形式，映射到 webhook_endpoints 列）。
  */
-export interface EncryptedPayload {
+interface EncryptedPayload {
   ciphertext: Buffer;
   iv: Buffer;
   tag: Buffer;
@@ -91,7 +83,11 @@ export async function encrypt(plaintext: string, kek?: string): Promise<Encrypte
  */
 export async function decrypt(payload: EncryptedPayload, kek?: string): Promise<string> {
   const { key } = resolveKek(kek);
-  if (!Buffer.isBuffer(payload.ciphertext) || !Buffer.isBuffer(payload.iv) || !Buffer.isBuffer(payload.tag)) {
+  if (
+    !Buffer.isBuffer(payload.ciphertext) ||
+    !Buffer.isBuffer(payload.iv) ||
+    !Buffer.isBuffer(payload.tag)
+  ) {
     throw new Error('decrypt 入参 ciphertext/iv/tag 必须为 Buffer');
   }
   const decipher = crypto.createDecipheriv(AES_GCM_ALGORITHM, key, payload.iv);

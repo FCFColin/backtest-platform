@@ -92,6 +92,28 @@ export function collectInvalidTickerWarnings(
   return invalidTickers;
 }
 
+/** 数据服务降级时追加 DATA_DEGRADED warning（消除 5 处重复的降级告警样板）。 */
+export function pushDegradedWarning(
+  warnings: Warning[],
+  degraded: boolean,
+  degradedWarning?: string,
+): void {
+  if (degraded)
+    warnings.push({
+      code: 'DATA_DEGRADED',
+      message: degradedWarning || '数据服务降级，部分数据可能缺失',
+    });
+}
+
+/** 用数据实际覆盖范围裁剪参数日期（请求超范围/全历史时生效，消除 2 处重复 clamp 样板）。 */
+export function clampParametersToDataRange<
+  T extends Pick<BacktestParameters, 'startDate' | 'endDate'>,
+>(parameters: T, effectiveStartDate: string, effectiveEndDate: string): T {
+  return effectiveStartDate !== parameters.startDate || effectiveEndDate !== parameters.endDate
+    ? { ...parameters, startDate: effectiveStartDate, endDate: effectiveEndDate }
+    : parameters;
+}
+
 export function collectDomainTickers(
   domainPortfolios: DomainPortfolio[],
   benchmarkTicker: string,
@@ -113,7 +135,7 @@ export function filterPriceData(
   return filtered;
 }
 
-export function inferDateRangeFromData(
+function inferDateRangeFromData(
   data: Record<string, Record<string, number>>,
 ): { min: string; max: string } | null {
   let minDate: string | null = null;

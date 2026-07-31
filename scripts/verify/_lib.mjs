@@ -199,5 +199,33 @@ export function needsManualReview(issueId, reason, details = {}) {
   };
 }
 
+/**
+ * 执行单个验证项：统一 try/catch 包装，异常时记为 FAIL
+ * @param {Record<string, object>} results - 聚合结果容器
+ * @param {string} issueId - 验证项 ID（如 C-002）
+ * @param {() => (object | Promise<object>)} fn - 验证逻辑，返回 {status, summary, details}
+ */
+export async function runCheck(results, issueId, fn) {
+  try {
+    results[issueId] = await fn();
+  } catch (e) {
+    results[issueId] = {
+      status: 'FAIL',
+      summary: `验证脚本异常: ${e.message}`,
+      details: { error: e.message, stack: e.stack },
+    };
+  }
+}
+
+/**
+ * 输出聚合结果并以 0 退出（verify 脚本统一收尾）
+ * @param {string} aggregateId - 聚合 ID（如 verify-backend）
+ * @param {Record<string, object>} results - 子项结果
+ */
+export function finishVerify(aggregateId, results) {
+  writeAggregatedResult(aggregateId, results);
+  process.exit(0);
+}
+
 export const PROJECT_ROOT_PATH = PROJECT_ROOT;
 export const VERIFY_OUTPUT_DIR = OUTPUT_DIR;

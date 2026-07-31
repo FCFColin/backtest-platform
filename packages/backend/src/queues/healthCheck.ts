@@ -17,7 +17,7 @@ const HEARTBEAT_KEY = 'worker:heartbeat';
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
 /** Heartbeat 超时阈值（45 秒，3 个间隔） */
-export const HEARTBEAT_TIMEOUT_MS = 45_000;
+const HEARTBEAT_TIMEOUT_MS = 45_000;
 
 /**
  * 启动 Redis heartbeat 定时器。
@@ -64,7 +64,7 @@ async function writeHeartbeat(): Promise<void> {
  *
  * @returns heartbeat 是否存活
  */
-export async function checkHeartbeat(): Promise<boolean> {
+async function checkHeartbeat(): Promise<boolean> {
   try {
     const value = await appRedis.get(HEARTBEAT_KEY);
     return value !== null;

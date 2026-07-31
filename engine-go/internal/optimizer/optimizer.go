@@ -149,14 +149,7 @@ func computeReturnCovariance(tickers []string, priceData map[string]map[string]f
 	}
 	dailyReturns := make([][]float64, n)
 	for i := 0; i < n; i++ {
-		dailyReturns[i] = make([]float64, m-1)
-		for j := 0; j < m-1; j++ {
-			if prices[i][j] == 0 {
-				dailyReturns[i][j] = 0
-			} else {
-				dailyReturns[i][j] = prices[i][j+1]/prices[i][j] - 1
-			}
-		}
+		dailyReturns[i] = mathutil.DailyReturnsWithZeros(prices[i])
 	}
 	mu := make([]float64, n)
 	for i := 0; i < n; i++ {

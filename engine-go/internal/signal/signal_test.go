@@ -2,19 +2,11 @@ package signal
 
 import (
 	"context"
+	"engine-go/internal/enginetest"
 	"math"
 	"testing"
-	"time"
 )
 
-func makePricePoints(startDate string, prices []float64) []PricePoint {
-	t, _ := time.Parse("2006-01-02", startDate)
-	pts := make([]PricePoint, len(prices))
-	for i, p := range prices {
-		pts[i] = PricePoint{Date: t.AddDate(0, 0, i).Format("2006-01-02"), Price: p}
-	}
-	return pts
-}
 func trendPrices() []float64 {
 	up := []float64{100, 102, 104, 106, 108, 110, 112, 114, 116, 118}
 	down := []float64{118, 116, 114, 112, 110, 108, 106, 104, 102, 100}
@@ -70,7 +62,7 @@ func TestAnalyzeSignal_EmptyData(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_SMA(t *testing.T) {
-	data := makePricePoints("2024-01-01", trendPrices())
+	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "sma", Period: 5, SignalType: ""}
 	r := AnalyzeSignal(req, data)
 	t.Run("产生信号", func(t *testing.T) {
@@ -115,7 +107,7 @@ func TestAnalyzeSignal_SMA(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_FilterByType(t *testing.T) {
-	data := makePricePoints("2024-01-01", trendPrices())
+	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	t.Run("entry只保留买入", func(t *testing.T) {
 		req := SignalAnalysisRequest{Indicator: "sma", Period: 5, SignalType: "entry"}
 		r := AnalyzeSignal(req, data)
@@ -136,7 +128,7 @@ func TestAnalyzeSignal_FilterByType(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_PeriodTooSmall(t *testing.T) {
-	data := makePricePoints("2024-01-01", trendPrices())
+	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "sma", Period: 1}
 	r := AnalyzeSignal(req, data)
 	if r.Statistics.TotalSignals < 0 {
@@ -144,7 +136,7 @@ func TestAnalyzeSignal_PeriodTooSmall(t *testing.T) {
 	}
 }
 func TestAnalyzeSignal_UnknownIndicator(t *testing.T) {
-	data := makePricePoints("2024-01-01", trendPrices())
+	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "unknown_indicator", Period: 5}
 	r := AnalyzeSignal(req, data)
 	if len(r.Signals) != 0 {
@@ -152,7 +144,7 @@ func TestAnalyzeSignal_UnknownIndicator(t *testing.T) {
 	}
 }
 func TestAnalyzeDualSignal(t *testing.T) {
-	data := makePricePoints("2024-01-01", trendPrices())
+	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	cfg1 := SignalAnalysisRequest{Indicator: "sma", Period: 5}
 	cfg2 := SignalAnalysisRequest{Indicator: "ema", Period: 5}
 	t.Run("and组合", func(t *testing.T) {
@@ -182,7 +174,7 @@ func TestAnalyzeDualSignal(t *testing.T) {
 	})
 }
 func TestAnalyzeMultiSignal(t *testing.T) {
-	data := makePricePoints("2024-01-01", trendPrices())
+	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	configs := []SignalAnalysisRequest{{Indicator: "sma", Period: 5}, {Indicator: "ema", Period: 5}, {Indicator: "rsi", Period: 5}}
 	t.Run("weighted聚合", func(t *testing.T) {
 		r := AnalyzeMultiSignal(context.Background(), configs, data, "weighted", []float64{0.5, 0.3, 0.2})

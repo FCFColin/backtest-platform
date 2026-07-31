@@ -29,34 +29,23 @@ describe('PORTFOLIO_COLORS', () => {
 });
 
 describe('getPortfolioColor', () => {
-  it('索引 0 返回第一个颜色', () => {
-    expect(getPortfolioColor(0)).toBe(PORTFOLIO_COLORS[0]);
-  });
-
-  it('索引 7 返回最后一个颜色', () => {
-    expect(getPortfolioColor(7)).toBe(PORTFOLIO_COLORS[7]);
-  });
-
-  it('索引 8 循环回第一个颜色', () => {
-    expect(getPortfolioColor(8)).toBe(PORTFOLIO_COLORS[0]);
-  });
-
-  it('索引 15 循环回第七个颜色', () => {
-    expect(getPortfolioColor(15)).toBe(PORTFOLIO_COLORS[7]);
+  it.each([
+    [0, PORTFOLIO_COLORS[0]],
+    [7, PORTFOLIO_COLORS[7]],
+    [8, PORTFOLIO_COLORS[0]],
+    [15, PORTFOLIO_COLORS[7]],
+  ])('索引 %i 应返回对应颜色（循环取模）', (index, expected) => {
+    expect(getPortfolioColor(index)).toBe(expected);
   });
 });
 
 describe('YEAR_ONLY_TICK_FORMATTER', () => {
-  it('从 YYYY-MM-DD 截取年份', () => {
-    expect(YEAR_ONLY_TICK_FORMATTER('2024-01-15')).toBe('2024');
-  });
-
-  it('从 YYYY-MM 截取年份', () => {
-    expect(YEAR_ONLY_TICK_FORMATTER('2024-06')).toBe('2024');
-  });
-
-  it('空字符串返回空字符串', () => {
-    expect(YEAR_ONLY_TICK_FORMATTER('')).toBe('');
+  it.each([
+    ['2024-01-15', '2024'],
+    ['2024-06', '2024'],
+    ['', ''],
+  ])('%s 应返回 %s', (input, expected) => {
+    expect(YEAR_ONLY_TICK_FORMATTER(input)).toBe(expected);
   });
 });
 
@@ -67,90 +56,41 @@ describe('DATE_TICK_FORMATTER', () => {
 });
 
 describe('SMART_DATE_INTERVAL', () => {
-  it('12 个月以内返回 1（每月）', () => {
-    expect(SMART_DATE_INTERVAL(1)).toBe(1);
-    expect(SMART_DATE_INTERVAL(12)).toBe(1);
-  });
-
-  it('13-60 个月返回 6（每半年）', () => {
-    expect(SMART_DATE_INTERVAL(13)).toBe(6);
-    expect(SMART_DATE_INTERVAL(60)).toBe(6);
-  });
-
-  it('61-120 个月返回 12（每年）', () => {
-    expect(SMART_DATE_INTERVAL(61)).toBe(12);
-    expect(SMART_DATE_INTERVAL(120)).toBe(12);
-  });
-
-  it('121-240 个月返回 24（每两年）', () => {
-    expect(SMART_DATE_INTERVAL(121)).toBe(24);
-    expect(SMART_DATE_INTERVAL(240)).toBe(24);
-  });
-
-  it('240 个月以上返回 60（每五年）', () => {
-    expect(SMART_DATE_INTERVAL(241)).toBe(60);
-    expect(SMART_DATE_INTERVAL(600)).toBe(60);
+  it.each([
+    [1, 1],
+    [10, 1],
+    [12, 1],
+    [13, 6],
+    [50, 6],
+    [60, 6],
+    [61, 12],
+    [100, 12],
+    [120, 12],
+    [121, 24],
+    [200, 24],
+    [240, 24],
+    [241, 60],
+    [600, 60],
+    [1000, 60],
+  ])('%i 个月应返回 %i（%i 月内每 N 月一个刻度）', (months, interval) => {
+    expect(SMART_DATE_INTERVAL(months)).toBe(interval);
   });
 });
 
-describe('SMART_DATE_INTERVAL（基于月数）', () => {
-  it('≤12 个月返回 1（每月）', () => {
-    expect(SMART_DATE_INTERVAL(10)).toBe(1);
-    expect(SMART_DATE_INTERVAL(12)).toBe(1);
-  });
-
-  it('13-60 个月返回 6（每半年）', () => {
-    expect(SMART_DATE_INTERVAL(50)).toBe(6);
-    expect(SMART_DATE_INTERVAL(60)).toBe(6);
-  });
-
-  it('61-120 个月返回 12（每年）', () => {
-    expect(SMART_DATE_INTERVAL(100)).toBe(12);
-    expect(SMART_DATE_INTERVAL(120)).toBe(12);
-  });
-
-  it('121-240 个月返回 24（每两年）', () => {
-    expect(SMART_DATE_INTERVAL(200)).toBe(24);
-    expect(SMART_DATE_INTERVAL(240)).toBe(24);
-  });
-
-  it('240 个月以上返回 60（每五年）', () => {
-    expect(SMART_DATE_INTERVAL(1000)).toBe(60);
-  });
-});
-
-describe('currencyFormatter (无小数, digits=0)', () => {
-  it('格式化正整数为货币（无小数）', () => {
-    const result = currencyFormatter(350000);
-    expect(result).toBe('$350,000');
-  });
-
-  it('格式化 0 为 $0', () => {
-    expect(currencyFormatter(0)).toBe('$0');
-  });
-
-  it('截断小数位', () => {
-    expect(currencyFormatter(350000.99)).toBe('$350,001');
+describe('currencyFormatter', () => {
+  it.each([
+    [350000, 0, '$350,000'],
+    [0, 0, '$0'],
+    [350000.99, 0, '$350,001'],
+    [350000, 2, '$350,000.00'],
+    [350000.5, 2, '$350,000.50'],
+  ] as const)('digits=%i 时应格式化 %i 为 %s', (value, digits, expected) => {
+    expect(currencyFormatter(value, 'USD', digits)).toBe(expected);
   });
 
   it('支持自定义货币', () => {
-    const result = currencyFormatter(1000, 'EUR');
-    expect(result).toContain('1,000');
-  });
-});
-
-describe('currencyFormatter (2位小数, digits=2)', () => {
-  it('格式化为 2 位小数货币', () => {
-    expect(currencyFormatter(350000, 'USD', 2)).toBe('$350,000.00');
-  });
-
-  it('保留小数位', () => {
-    expect(currencyFormatter(350000.5, 'USD', 2)).toBe('$350,000.50');
-  });
-
-  it('支持自定义货币', () => {
-    const result = currencyFormatter(99.99, 'EUR', 2);
-    expect(result).toContain('99.99');
+    expect(currencyFormatter(1000, 'EUR')).toContain('1,000');
+    expect(currencyFormatter(99.99, 'EUR', 2)).toContain('99.99');
   });
 });
 

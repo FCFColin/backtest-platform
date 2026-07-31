@@ -19,7 +19,7 @@ function createValidator(source: 'body' | 'query', statusCode: number) {
 export const validate = createValidator('body', 400);
 export const validateQuery = createValidator('query', 422);
 
-export interface DeprecationConfig {
+interface DeprecationConfig {
   deprecated: string;
   sunset?: string;
   successor?: string;

@@ -25,6 +25,15 @@ func IsValidTicker(ticker string) bool {
 	}
 	return tickerPattern.MatchString(ticker)
 }
+func validateTickers(c *gin.Context, tickers []string) bool {
+	for _, t := range tickers {
+		if !IsValidTicker(t) {
+			newProblem(c, http.StatusBadRequest, "INVALID_TICKER", "Invalid Ticker", "ticker参数格式非法: "+t)
+			return false
+		}
+	}
+	return true
+}
 func HandleSearch(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		query := c.Query("q")
@@ -75,11 +84,8 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 			newProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
 			return
 		}
-		for _, t := range req.Tickers {
-			if !IsValidTicker(t) {
-				newProblem(c, http.StatusBadRequest, "INVALID_TICKER", "Invalid Ticker", "ticker参数格式非法: "+t)
-				return
-			}
+		if !validateTickers(c, req.Tickers) {
+			return
 		}
 		result := make(map[string]interface{})
 		var mu sync.Mutex
@@ -129,11 +135,8 @@ func HandleValidateTickers(ds *store.DataStore) gin.HandlerFunc {
 			newProblem(c, http.StatusBadRequest, "VALIDATION_ERROR", "Validation Error", "请求格式错误")
 			return
 		}
-		for _, t := range req.Tickers {
-			if !IsValidTicker(t) {
-				newProblem(c, http.StatusBadRequest, "INVALID_TICKER", "Invalid Ticker", "ticker参数格式非法: "+t)
-				return
-			}
+		if !validateTickers(c, req.Tickers) {
+			return
 		}
 		valid, invalid, err := ds.BatchValidateTickers(c.Request.Context(), req.Tickers)
 		if err != nil {

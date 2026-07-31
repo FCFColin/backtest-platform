@@ -2,28 +2,11 @@ package tactical
 
 import (
 	"context"
+	"engine-go/internal/enginetest"
 	"math"
 	"testing"
-	"time"
 )
 
-func makeDates(startDate string, n int) []string {
-	t, _ := time.Parse("2006-01-02", startDate)
-	dates := make([]string, n)
-	for i := 0; i < n; i++ {
-		dates[i] = t.AddDate(0, 0, i).Format("2006-01-02")
-	}
-	return dates
-}
-func makePriceMap(ticker string, dates []string, prices []float64) map[string]map[string]float64 {
-	pd := map[string]map[string]float64{ticker: {}}
-	for i, d := range dates {
-		if i < len(prices) {
-			pd[ticker][d] = prices[i]
-		}
-	}
-	return pd
-}
 func trendPrices30() []float64 {
 	down := []float64{110, 108, 106, 104, 102, 100, 98, 96, 94, 92}
 	up := []float64{94, 96, 98, 100, 102, 104, 106, 108, 110, 112}
@@ -31,9 +14,9 @@ func trendPrices30() []float64 {
 	return append(append(down, up...), more...)
 }
 func setupData() (dates []string, prices []float64, pd map[string]map[string]float64) {
-	dates = makeDates("2024-01-01", 30)
 	prices = trendPrices30()
-	pd = makePriceMap("A", dates, prices)
+	dates = enginetest.Dates("2024-01-01", len(prices))
+	pd = enginetest.SeriesPriceData("A", dates, prices)
 	return
 }
 func baseTacticalReq(strategy TacticalStrategy) TacticalBacktestRequest {

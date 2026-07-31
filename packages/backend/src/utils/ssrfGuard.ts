@@ -32,7 +32,7 @@ export class SsrfValidationError extends Error {
   }
 }
 
-export interface SsrfCheckOptions {
+interface SsrfCheckOptions {
   allowedPorts?: ReadonlySet<number>;
   resolveDns?: boolean;
 }
@@ -164,10 +164,7 @@ async function validateHostname(parsed: URL, resolveDns: boolean): Promise<void>
     );
   }
   if (addrs.length === 0) {
-    throw new SsrfValidationError(
-      `DNS returned no A records for ${hostname}`,
-      'SSRF_DNS_EMPTY',
-    );
+    throw new SsrfValidationError(`DNS returned no A records for ${hostname}`, 'SSRF_DNS_EMPTY');
   }
   for (const addr of addrs) {
     if (isForbiddenIp(addr)) {
@@ -182,10 +179,7 @@ async function validateHostname(parsed: URL, resolveDns: boolean): Promise<void>
 /**
  * @throws SsrfValidationError 当 URL 违反任一策略
  */
-export async function assertSafeUrl(
-  url: string,
-  options: SsrfCheckOptions = {},
-): Promise<void> {
+export async function assertSafeUrl(url: string, options: SsrfCheckOptions = {}): Promise<void> {
   const { allowedPorts = DEFAULT_ALLOWED_PORTS, resolveDns = true } = options;
 
   let parsed: URL;

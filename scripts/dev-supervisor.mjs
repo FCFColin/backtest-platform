@@ -15,19 +15,14 @@
  */
 
 import { spawn } from 'node:child_process';
-import { readdirSync, existsSync, writeFileSync, readFileSync, unlinkSync, mkdirSync } from 'node:fs';
+import { existsSync, writeFileSync, readFileSync, unlinkSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
+import { nodeCmd, PROJECT_ROOT, tsxLoaderUrl } from './_dev-shared.mjs';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = PROJECT_ROOT;
 const LOG_DIR = path.join(ROOT, '.dev-logs');
 const PID_FILE = path.join(LOG_DIR, 'dev-bg-pids.json');
 const LOCK_FILE = path.join(LOG_DIR, 'dev-supervisor.lock');
-
-const isWin = process.platform === 'win32';
-const nodeCmd = isWin ? 'node.exe' : 'node';
 
 // ── 读 .env ──
 function loadEnv() {
@@ -46,17 +41,6 @@ function loadEnv() {
     result[key] = value;
   }
   return result;
-}
-
-// ── 找 tsx loader ──
-function findTsxLoader() {
-  const pnpmDir = path.join(ROOT, 'node_modules', '.pnpm');
-  if (!existsSync(pnpmDir)) return undefined;
-  const entries = readdirSync(pnpmDir);
-  const tsxDir = entries.find((d) => d.startsWith('tsx@'));
-  if (!tsxDir) return undefined;
-  const loader = path.join(pnpmDir, tsxDir, 'node_modules', 'tsx', 'dist', 'loader.mjs');
-  return existsSync(loader) ? loader : undefined;
 }
 
 // ── 日志 ──
@@ -108,12 +92,10 @@ function checkLock() {
 
 // ── 主逻辑 ──
 const dotEnv = loadEnv();
-const tsxLoader = findTsxLoader();
-if (!tsxLoader) {
+if (!tsxLoaderUrl) {
   log('supervisor', '找不到 tsx loader，退出');
   process.exit(1);
 }
-const tsxLoaderUrl = pathToFileURL(tsxLoader).href;
 
 const env = {
   ...process.env,

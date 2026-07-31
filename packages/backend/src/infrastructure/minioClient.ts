@@ -27,7 +27,7 @@ import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
 /** 审计日志专用 bucket 名称 */
-export const AUDIT_BUCKET = 'audit-logs';
+const AUDIT_BUCKET = 'audit-logs';
 
 let minioClient: Client | null = null;
 
@@ -151,31 +151,5 @@ export async function uploadAuditObject(key: string, data: string | Buffer): Pro
   } catch (err) {
     logger.error({ err: (err as Error).message, key }, '[minio] 审计对象上传失败');
     return false;
-  }
-}
-
-/**
- * 下载审计对象（用于完整性校验或审计追溯）。
- *
- * @param key - 对象键
- * @returns 对象内容字符串；MinIO 未配置或对象不存在时返回 null
- */
-export async function downloadAuditObject(key: string): Promise<string | null> {
-  const client = getClient();
-  if (!client) {
-    logger.warn({ module: 'minioClient', key }, '[minio] MinIO 未配置，跳过审计对象下载');
-    return null;
-  }
-
-  try {
-    const stream = await client.getObject(AUDIT_BUCKET, key);
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    return Buffer.concat(chunks).toString('utf-8');
-  } catch (err) {
-    logger.error({ err: (err as Error).message, key }, '[minio] 审计对象下载失败');
-    return null;
   }
 }

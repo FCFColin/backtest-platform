@@ -3,7 +3,7 @@ import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Users, Loader2 } from 'lucide-react';
-import { StandardPageShell } from '../components/shells/StandardPageShell.js';
+import { StandardPageShell } from '../components/shells/index.js';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';
 import { MemberTable } from './org/MemberTable.js';
@@ -26,7 +26,22 @@ interface MembersContentProps {
   onSendInvite: (e: FormEvent) => void;
   onRevokeInvite: (id: string) => void;
 }
-function MembersContent({ members, invitations, loading, error, isAdmin, busy, inviteEmail, inviteRole, onChangeRole, onRemoveMember, onInviteEmailChange, onInviteRoleChange, onSendInvite, onRevokeInvite }: MembersContentProps) {
+function MembersContent({
+  members,
+  invitations,
+  loading,
+  error,
+  isAdmin,
+  busy,
+  inviteEmail,
+  inviteRole,
+  onChangeRole,
+  onRemoveMember,
+  onInviteEmailChange,
+  onInviteRoleChange,
+  onSendInvite,
+  onRevokeInvite,
+}: MembersContentProps) {
   if (error) {
     return <ErrorBanner message={error} style={{ marginBottom: 14 }} />;
   }
@@ -39,8 +54,25 @@ function MembersContent({ members, invitations, loading, error, isAdmin, busy, i
   }
   return (
     <>
-      <MemberTable members={members} isAdmin={isAdmin} busy={busy} onChangeRole={onChangeRole} onRemoveMember={onRemoveMember} />
-      {isAdmin && <InviteDialog invitations={invitations} inviteEmail={inviteEmail} inviteRole={inviteRole} busy={busy} onInviteEmailChange={onInviteEmailChange} onInviteRoleChange={onInviteRoleChange} onSendInvite={onSendInvite} onRevokeInvite={onRevokeInvite} />}
+      <MemberTable
+        members={members}
+        isAdmin={isAdmin}
+        busy={busy}
+        onChangeRole={onChangeRole}
+        onRemoveMember={onRemoveMember}
+      />
+      {isAdmin && (
+        <InviteDialog
+          invitations={invitations}
+          inviteEmail={inviteEmail}
+          inviteRole={inviteRole}
+          busy={busy}
+          onInviteEmailChange={onInviteEmailChange}
+          onInviteRoleChange={onInviteRoleChange}
+          onSendInvite={onSendInvite}
+          onRevokeInvite={onRevokeInvite}
+        />
+      )}
     </>
   );
 }
@@ -48,7 +80,10 @@ function UnauthedMembers() {
   const { t } = useTranslation();
   return (
     <div className="bt-page" style={{ maxWidth: 720, margin: '0 auto' }}>
-      <div className="bt-main-card card" style={{ padding: 28, marginTop: 40, textAlign: 'center' }}>
+      <div
+        className="bt-main-card card"
+        style={{ padding: 28, marginTop: 40, textAlign: 'center' }}
+      >
         <p style={{ color: 'var(--text-muted)' }}>
           {t('orgMembers.unauthed.prefix')}{' '}
           <Link to="/login" style={{ color: 'hsl(var(--brand))' }}>
@@ -68,7 +103,18 @@ export default function OrgMembersPage() {
   const isAdmin = orgRole === 'owner' || orgRole === 'admin';
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<Role>('analyst');
-  const { members, invitations, loading, error, busy, load, changeRole, removeMember, sendInvite, revokeInvite } = useOrgMembersState(isAdmin);
+  const {
+    members,
+    invitations,
+    loading,
+    error,
+    busy,
+    load,
+    changeRole,
+    removeMember,
+    sendInvite,
+    revokeInvite,
+  } = useOrgMembersState(isAdmin);
   useEffect(() => {
     if (isAuthed) void load();
   }, [isAuthed, load]);
@@ -81,12 +127,29 @@ export default function OrgMembersPage() {
     <StandardPageShell
       config={{
         titleKey: 'orgMembers.title',
-        headerExtra: <Users className="w-5 h-5" style={{ color: 'hsl(var(--brand))' }} />
+        headerExtra: <Users className="w-5 h-5" style={{ color: 'hsl(var(--brand))' }} />,
       }}
     >
       <div className="bt-main-card card" style={{ padding: 24, marginTop: 28 }}>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>{org ? `${t('orgMembers.orgLabel')}${org.name}` : t('orgMembers.orgLabel')}</p>
-        <MembersContent members={members} invitations={invitations} loading={loading} error={error} isAdmin={isAdmin} busy={busy} inviteEmail={inviteEmail} inviteRole={inviteRole} onChangeRole={changeRole} onRemoveMember={removeMember} onInviteEmailChange={setInviteEmail} onInviteRoleChange={setInviteRole} onSendInvite={handleSubmitInvite} onRevokeInvite={revokeInvite} />
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 16px' }}>
+          {org ? `${t('orgMembers.orgLabel')}${org.name}` : t('orgMembers.orgLabel')}
+        </p>
+        <MembersContent
+          members={members}
+          invitations={invitations}
+          loading={loading}
+          error={error}
+          isAdmin={isAdmin}
+          busy={busy}
+          inviteEmail={inviteEmail}
+          inviteRole={inviteRole}
+          onChangeRole={changeRole}
+          onRemoveMember={removeMember}
+          onInviteEmailChange={setInviteEmail}
+          onInviteRoleChange={setInviteRole}
+          onSendInvite={handleSubmitInvite}
+          onRevokeInvite={revokeInvite}
+        />
       </div>
     </StandardPageShell>
   );

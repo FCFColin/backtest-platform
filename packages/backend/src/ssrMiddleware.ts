@@ -73,10 +73,6 @@ function setCache(key: string, html: string): void {
   }
   ssrCache.set(key, { html, ts: Date.now() });
 }
-/** 清除 SSR 缓存（warmMetaCache 触发时调用） */
-export function clearSsrCache(): void {
-  ssrCache.clear();
-}
 
 function loadHtmlTemplate(): { head: string; tail: string } | null {
   try {
@@ -111,6 +107,66 @@ async function loadSsrRenderFn(): Promise<RenderFn | null> {
   }
 }
 
+/** 构建 SSR HTML head：内联 CSS + entry script 优先级 + 页面预加载链接 + 预取数据注入。 */
+function buildSsrHead(templateHead: string): string {
+  let head = templateHead;
+
+  // 替换 CSS link 为内联 style（消除渲染阻塞）
+  if (cssContent) {
+    head = head.replace(
+      /<link rel="stylesheet"[^>]*\/assets\/style-[^"]*\.css[^>]*>/,
+      `<style>${cssContent}</style>`,
+    );
+  }
+
+  // 主 entry script 加 fetchpriority=high，让浏览器优先下载关键 JS
+  const entryScript = templateHead.match(/<script[^>]*src="\/assets\/index-[^"]*\.js"[^>]*>/);
+  if (entryScript) {
+    head = head.replace(
+      entryScript[0],
+      entryScript[0].replace('></script>', ' fetchpriority="high"></script>'),
+    );
+  }
+
+  // 按优先级预加载：导航栏页面用 modulepreload（高优先级，关键路径），其余用 prefetch（空闲时）
+  const KEY_PAGES = [
+    'MonteCarloPage',
+    'OptimizerPage',
+    'AboutPage',
+    'AnalysisPage',
+    'PricingPage',
+    'TacticalPage',
+    'HelpPage',
+    'LoginPage',
+  ];
+  try {
+    const assets = fs.readdirSync(path.resolve(FRONTEND_DIST, 'assets'));
+    const allPages = assets.filter((f) =>
+      /^(MonteCarlo|Optimizer|Analysis|About|Pricing|Login|BacktestOptimizer|SignalAnalyzer|TacticalPage|DataEngine|EfficientFrontier|Calculators|FactorRegression|PCAPage|LETFSlippage|GoalOptimizer|RebalancingSensitivity|LumpSumVsDCA|TacticalGrid|DualSignal|MultiSignal|AdminDashboard|SystemMonitor|DataManagement|SystemSettings|ChartBenchmark)Page-.*\.js$/.test(
+        f,
+      ),
+    );
+    const preloadLinks = allPages
+      .map((f) => {
+        const isKey = KEY_PAGES.some((k) => f.startsWith(k));
+        return `<link rel="${isKey ? 'modulepreload' : 'prefetch'}" href="/assets/${f}" crossorigin>`;
+      })
+      .join('\n    ');
+    head = head.replace('</head>', `    ${preloadLinks}\n  </head>`);
+  } catch {
+    /* 构建产物读取失败时跳过 */
+  }
+
+  // 注入服务端预取数据（避免客户端重复 fetch）
+  if (metaCache) {
+    head = head.replace(
+      '</head>',
+      `    <script>window.__INITIAL_DATA__=${metaCache}</script>\n  </head>`,
+    );
+  }
+  return head;
+}
+
 export async function ssrMiddleware(req: Request, res: Response): Promise<void> {
   if (req.path.startsWith('/api/') || req.path.startsWith('/assets/')) return;
 
@@ -141,64 +197,7 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     const stream = await renderFn(url);
     const renderMs = Math.round(performance.now() - t0);
 
-    // 构建 HTML head：内联 CSS + modulepreload + meta 数据
-    let head = htmlTemplate.head;
-
-    // 替换 CSS link 为内联 style（消除渲染阻塞）
-    if (cssContent) {
-      head = head.replace(
-        /<link rel="stylesheet"[^>]*\/assets\/style-[^"]*\.css[^>]*>/,
-        `<style>${cssContent}</style>`,
-      );
-    }
-
-    // 主 entry script 加 fetchpriority=high，让浏览器优先下载关键 JS
-    const entryScript = htmlTemplate.head.match(
-      /<script[^>]*src="\/assets\/index-[^"]*\.js"[^>]*>/,
-    );
-    if (entryScript) {
-      head = head.replace(
-        entryScript[0],
-        entryScript[0].replace('></script>', ' fetchpriority="high"></script>'),
-      );
-    }
-
-    // 按优先级预加载：导航栏页面用 modulepreload（高优先级，关键路径），其余用 prefetch（空闲时）
-    const KEY_PAGES = [
-      'MonteCarloPage',
-      'OptimizerPage',
-      'AboutPage',
-      'AnalysisPage',
-      'PricingPage',
-      'TacticalPage',
-      'HelpPage',
-      'LoginPage',
-    ];
-    try {
-      const assets = fs.readdirSync(path.resolve(FRONTEND_DIST, 'assets'));
-      const allPages = assets.filter((f) =>
-        /^(MonteCarlo|Optimizer|Analysis|About|Pricing|Login|BacktestOptimizer|SignalAnalyzer|TacticalPage|DataEngine|EfficientFrontier|Calculators|FactorRegression|PCAPage|LETFSlippage|GoalOptimizer|RebalancingSensitivity|LumpSumVsDCA|TacticalGrid|DualSignal|MultiSignal|AdminDashboard|SystemMonitor|DataManagement|SystemSettings|ChartBenchmark)Page-.*\.js$/.test(
-          f,
-        ),
-      );
-      const preloadLinks = allPages
-        .map((f) => {
-          const isKey = KEY_PAGES.some((k) => f.startsWith(k));
-          return `<link rel="${isKey ? 'modulepreload' : 'prefetch'}" href="/assets/${f}" crossorigin>`;
-        })
-        .join('\n    ');
-      head = head.replace('</head>', `    ${preloadLinks}\n  </head>`);
-    } catch {
-      /* 构建产物读取失败时跳过 */
-    }
-
-    // 注入服务端预取数据（避免客户端重复 fetch）
-    if (metaCache) {
-      head = head.replace(
-        '</head>',
-        `    <script>window.__INITIAL_DATA__=${metaCache}</script>\n  </head>`,
-      );
-    }
+    const head = buildSsrHead(htmlTemplate.head);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Rendered-By', 'ssr');

@@ -2,8 +2,7 @@ import { useMonteCarloState } from './monteCarloUtils.js';
 import { McParamsPanel } from './MonteCarloParams.js';
 import { MonteCarloResultsPanel } from './MonteCarloResults.js';
 import { buildPresets } from './monteCarloUtils.js';
-import { ComputeToolShell } from '../../components/shells/ComputeToolShell.js';
-import type { ComputeToolConfig } from '../../components/shells/types.js';
+import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import type { McState } from './monteCarloUtils.js';
 function McParamsWrapper({ state }: { state: McState }) {
   return <McParamsPanel s={state} />;

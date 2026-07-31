@@ -20,6 +20,7 @@ import { validateQuery } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { crudRouteHandler, requireUuidParam } from './routeUtils.js';
 import { queryAuditLogs, verifyAuditIntegrity } from '../application/auditStorageService.js';
+import { paginationQuerySchema } from '../schemas/shared.js';
 
 const router = Router();
 
@@ -33,8 +34,7 @@ const querySchema = z.object({
   // 接受 ISO 8601 日期或日期时间，由 PostgreSQL 自动解析（created_at >= / <=）
   start_date: z.string().min(1).optional(),
   end_date: z.string().min(1).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(200).default(50),
+  ...paginationQuerySchema,
 });
 
 /**

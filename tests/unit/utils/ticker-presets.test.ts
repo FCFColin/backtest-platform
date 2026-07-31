@@ -71,18 +71,6 @@ describe('TickerPresets - 无重复', () => {
 });
 
 describe('TickerPresets - 分类非空', () => {
-  it('SIM_TICKERS 所有分类非空', () => {
-    for (const preset of SIM_TICKERS) {
-      expect(preset.category.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('ETF_PRESETS 所有分类非空', () => {
-    for (const preset of ETF_PRESETS) {
-      expect(preset.category.length).toBeGreaterThan(0);
-    }
-  });
-
   it('SIM_TICKERS 所有分类为 Index/Bond/Commodity（非 SIM）', () => {
     const validCategories = ['Index', 'Bond', 'Commodity'];
     for (const preset of SIM_TICKERS) {
@@ -126,16 +114,8 @@ describe('TickerPresets - ticker 格式', () => {
 });
 
 describe('filterTickers', () => {
-  it('空输入返回空数组', () => {
-    expect(filterTickers('')).toEqual([]);
-  });
-
-  it('null 输入返回空数组', () => {
-    expect(filterTickers(null as unknown as string)).toEqual([]);
-  });
-
-  it('undefined 输入返回空数组', () => {
-    expect(filterTickers(undefined as unknown as string)).toEqual([]);
+  it.each(['', null, undefined])('空/无效输入 %j 返回空数组', (input) => {
+    expect(filterTickers(input as unknown as string)).toEqual([]);
   });
 
   it('按 ticker 前缀匹配（大写输入）', () => {
@@ -163,14 +143,13 @@ describe('filterTickers', () => {
     expect(result.every((p) => p.name.includes('ETF'))).toBe(true);
   });
 
-  it('limit 参数限制返回数量', () => {
-    const result = filterTickers('S', 3);
-    expect(result.length).toBeLessThanOrEqual(3);
-  });
-
-  it('默认 limit 为 8', () => {
-    const result = filterTickers('S');
-    expect(result.length).toBeLessThanOrEqual(8);
+  it.each<[number | undefined, string]>([
+    [3, 'limit 限制返回数量'],
+    [undefined, '默认 limit'],
+    [0, 'limit=0'],
+  ])('%s：%s', (limit, _label) => {
+    const result = filterTickers('S', limit);
+    expect(result.length).toBeLessThanOrEqual(limit ?? 8);
   });
 
   it('无匹配时返回空数组', () => {

@@ -1,6 +1,19 @@
 import i18n from '@/i18n/index.js';
 const NULL_PLACEHOLDER = '—';
-const MONTH_NAMES_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+const MONTH_NAMES_SHORT = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const;
 function isInvalidNumber(value: number | null | undefined): value is null | undefined {
   return value == null || Number.isNaN(value);
 }
@@ -37,7 +50,11 @@ export function fmtDate(value: string | Date | null | undefined): string {
       monthIndex = Number(match[2]) - 1;
       day = Number(match[3]);
       const verify = new Date(year, monthIndex, day);
-      if (verify.getFullYear() !== year || verify.getMonth() !== monthIndex || verify.getDate() !== day) {
+      if (
+        verify.getFullYear() !== year ||
+        verify.getMonth() !== monthIndex ||
+        verify.getDate() !== day
+      ) {
         return NULL_PLACEHOLDER;
       }
     } else {
@@ -81,23 +98,26 @@ export function formatCurrency(value: number | null | undefined, currency: strin
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(value);
   }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   }).format(value);
 }
-export function formatCurrencyShort(value: number | null | undefined, currency: string = 'USD'): string {
+export function formatCurrencyShort(
+  value: number | null | undefined,
+  currency: string = 'USD',
+): string {
   if (isInvalidNumber(value)) return NULL_PLACEHOLDER;
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(value);
 }
 export function formatPercent(value: number | null | undefined, digits: number = 2): string {
@@ -113,8 +133,4 @@ export function formatPercentSigned(value: number | null | undefined, digits: nu
 export function formatNumber(value: number | null | undefined, digits: number = 2): string {
   if (isInvalidNumber(value)) return NULL_PLACEHOLDER;
   return value.toFixed(digits);
-}
-export function formatInteger(value: number | null | undefined): string {
-  if (isInvalidNumber(value)) return NULL_PLACEHOLDER;
-  return Math.trunc(value).toString();
 }

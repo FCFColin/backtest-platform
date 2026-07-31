@@ -25,9 +25,12 @@ import {
   ensureTickerHasData,
   normalizeTickers,
 } from './backtest/priceDataUtils.js';
-import { fetchPriceDataWithRange, calculateDateRange } from './backtest-helpers.js';
+import {
+  fetchPriceDataWithRange,
+  calculateDateRange,
+  pushDegradedWarning,
+} from './backtest-helpers.js';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
-
 
 /** 组装分析结果：提取引擎返回的 assets/correlations，附加 warnings 和 dateRange。 */
 function assembleAnalysisResult(
@@ -63,19 +66,14 @@ export async function runAnalysis(
   tickers: string[],
   parameters: BacktestParameters,
 ): Promise<Record<string, unknown> & { warnings?: Warning[]; dateRange?: DateRangeInfo }> {
-  const {
-    priceData,
-    degraded,
-    degradedWarning,
-  } = await fetchPriceDataWithRange(tickers, parameters.startDate, parameters.endDate);
+  const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(
+    tickers,
+    parameters.startDate,
+    parameters.endDate,
+  );
   const warnings: Warning[] = [];
 
-  if (degraded) {
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
-  }
+  pushDegradedWarning(warnings, degraded, degradedWarning);
 
   const validTickers = tickers.filter((t) => priceData[t] && Object.keys(priceData[t]).length > 0);
   if (validTickers.length === 0) {
@@ -202,7 +200,6 @@ export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
     (priceData) => executeLetfAnalyze(req, priceData),
   );
 }
-
 
 export function validateGoalOptimizerAssets(request: GoalOptimizerRequest): string[] {
   const validAssets = request.assets.filter((a) => a.ticker && a.ticker.trim());

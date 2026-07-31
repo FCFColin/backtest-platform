@@ -100,17 +100,21 @@ func (ds *DataStore) GetPriceData(ctx context.Context, ticker, startDate, endDat
 	if len(prices) > 0 {
 		return prices, false, nil
 	}
+	startDate, endDate = defaultDateRange(startDate, endDate)
+	fetchedPrices, err := ds.fetchAndStoreFromProvider(ctx, ticker, startDate, endDate)
+	if err != nil {
+		return nil, false, fmt.Errorf("标的数据不存在: %s", ticker)
+	}
+	return filterPricePointsByDate(fetchedPrices, startDate, endDate), true, nil
+}
+func defaultDateRange(startDate, endDate string) (string, string) {
 	if startDate == "" {
 		startDate = "2000-01-01"
 	}
 	if endDate == "" {
 		endDate = time.Now().Format("2006-01-02")
 	}
-	fetchedPrices, err := ds.fetchAndStoreFromProvider(ctx, ticker, startDate, endDate)
-	if err != nil {
-		return nil, false, fmt.Errorf("标的数据不存在: %s", ticker)
-	}
-	return filterPricePointsByDate(fetchedPrices, startDate, endDate), true, nil
+	return startDate, endDate
 }
 func filterPricePointsByDate(prices []PricePoint, startDate, endDate string) []PricePoint {
 	var filtered []PricePoint
@@ -130,14 +134,7 @@ func (ds *DataStore) fetchAndStoreFromProvider(ctx context.Context, ticker, star
 	if len(providers) == 0 {
 		return nil, fmt.Errorf("没有可用的数据源: %s", ticker)
 	}
-	goStart := startDate
-	if goStart == "" {
-		goStart = "2000-01-01"
-	}
-	goEnd := endDate
-	if goEnd == "" {
-		goEnd = time.Now().Format("2006-01-02")
-	}
+	goStart, goEnd := defaultDateRange(startDate, endDate)
 	dailyPrices, providerName, err := provider.FetchWithFallback(providers, ticker, goStart, goEnd)
 	if err != nil {
 		return nil, fmt.Errorf("从 provider 获取 %s 失败: %w", ticker, err)

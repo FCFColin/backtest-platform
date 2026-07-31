@@ -10,13 +10,12 @@
  * - GET    /            列出本组织密钥（含已吊销，审计用）
  * - DELETE /:id         吊销指定密钥
  */
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
-import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { createApiKey, listApiKeys, revokeApiKey } from '../repositories/apiKeyRepo.js';
-import { crudRouteHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
+import { tenantHandler, requireUuidParam } from './routeUtils.js';
 
 const router = Router();
 
@@ -31,14 +30,11 @@ const createKeySchema = z.object({
 router.post(
   '/',
   validate(createKeySchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      const orgId = requireTenantId(authReq, res);
-      if (!orgId) return;
-      const createdBy = authReq.user?.sub?.startsWith('apikey:')
-        ? null
-        : (authReq.user?.sub ?? null);
+  tenantHandler(
+    '[apiKeyRoutes] 创建 API Key 失败',
+    'API_KEY_CREATE_FAILED',
+    async (req, res, orgId) => {
+      const createdBy = req.user?.sub?.startsWith('apikey:') ? null : (req.user?.sub ?? null);
       const key = await createApiKey(orgId, (req.body as { name: string }).name, createdBy);
       res.status(201).json({
         success: true,
@@ -52,10 +48,6 @@ router.post(
         },
       });
     },
-    {
-      logMsg: '[apiKeyRoutes] 创建 API Key 失败',
-      code: 'API_KEY_CREATE_FAILED',
-    },
   ),
 );
 
@@ -65,17 +57,11 @@ router.post(
  */
 router.get(
   '/',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      const orgId = requireTenantId(authReq, res);
-      if (!orgId) return;
-      const keys = await listApiKeys(orgId);
-      res.json({ success: true, data: keys });
-    },
-    {
-      logMsg: '[apiKeyRoutes] 列出 API Key 失败',
-      code: 'API_KEY_LIST_FAILED',
+  tenantHandler(
+    '[apiKeyRoutes] 列出 API Key 失败',
+    'API_KEY_LIST_FAILED',
+    async (_req, res, orgId) => {
+      res.json({ success: true, data: await listApiKeys(orgId) });
     },
   ),
 );
@@ -86,12 +72,11 @@ router.get(
  */
 router.delete(
   '/:id',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
+  tenantHandler(
+    '[apiKeyRoutes] 吊销 API Key 失败',
+    'API_KEY_REVOKE_FAILED',
+    async (req, res, orgId) => {
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(authReq, res);
-      if (!orgId) return;
       const keyId = req.params.id;
       const ok = await revokeApiKey(orgId, keyId);
       if (!ok) {
@@ -99,10 +84,6 @@ router.delete(
         return;
       }
       res.json({ success: true, data: { id: keyId, revoked: true } });
-    },
-    {
-      logMsg: '[apiKeyRoutes] 吊销 API Key 失败',
-      code: 'API_KEY_REVOKE_FAILED',
     },
   ),
 );

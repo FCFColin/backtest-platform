@@ -1,5 +1,5 @@
 ﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { decodeJwt, jwtVerify, generateKeyPair, exportPKCS8, exportSPKI } from 'jose';
+import { decodeJwt, jwtVerify } from 'jose';
 import type { Response } from 'express';
 import {
   createIdempotencyReqRes,
@@ -13,7 +13,15 @@ import { RedisUnavailableError } from '../../../packages/backend/src/utils/error
 // userRepo 的 vi.mock 在 jwtAuth.shared.ts 中注册（提升执行）；本文件的
 // getUserById 静态 import 必须位于 shared import 之后，才能命中同一 mock 实例
 // （拆分后回归修复：重复注册会生成两个实例，SUT 与断言引用不一致）。
-import { mocks, redisMocks, fsMocks, mockUser } from './jwtAuth.shared.js';
+import {
+  mocks,
+  redisMocks,
+  fsMocks,
+  mockUser,
+  setupRsaKeys,
+  resetRsaConfig,
+  reloadJwtAuthModule,
+} from './jwtAuth.shared.js';
 import { getUserById } from '../../../packages/backend/src/repositories/userRepo.js';
 
 import {
@@ -40,29 +48,6 @@ async function expireStoredToken(user: string) {
   entry.expiresAt = Math.floor(Date.now() / 1000) - 10;
   redisMocks.store.set(key, JSON.stringify(entry));
   return t;
-}
-async function reloadModule() {
-  vi.resetModules();
-  return import('../../../packages/backend/src/middleware/jwtAuth.js');
-}
-async function setupRsaKeys(env = 'production') {
-  const { publicKey, privateKey } = await generateKeyPair('RS256', {
-    modulusLength: 2048,
-    extractable: true,
-  });
-  const privatePem = await exportPKCS8(privateKey);
-  const publicPem = await exportSPKI(publicKey);
-  mocks.config.JWT_PRIVATE_KEY = privatePem;
-  mocks.config.JWT_PUBLIC_KEY = publicPem;
-  mocks.config.NODE_ENV = env;
-  mocks.config.JWT_ALGORITHM = 'RS256';
-  return { publicKey, privateKey, privatePem, publicPem };
-}
-function resetRsaConfig() {
-  mocks.config.JWT_PRIVATE_KEY = '';
-  mocks.config.JWT_PRIVATE_KEY_FILE = '';
-  mocks.config.JWT_PUBLIC_KEY = '';
-  mocks.config.JWT_PUBLIC_KEY_FILE = '';
 }
 
 describe('Refresh Token 生命周期与 Redis', () => {
@@ -266,13 +251,13 @@ describe('getOrCache* 密钥加载（jwtSigner）', () => {
   });
   it('生产环境应从环境变量加载私钥与公钥', async () => {
     await setupRsaKeys('production');
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     expect(await mod.getOrCachePrivateKey()).toBeTruthy();
     expect(await mod.getOrCachePublicKey()).toBeTruthy();
   });
   it('密钥加载应缓存（重复调用返回同一密钥）', async () => {
     mocks.config.NODE_ENV = 'development';
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     expect(await mod.getOrCachePrivateKey()).toBe(await mod.getOrCachePrivateKey());
     expect(await mod.getOrCachePublicKey()).toBe(await mod.getOrCachePublicKey());
     expect(await mod.getOrCacheHS256Key()).toBe(await mod.getOrCacheHS256Key());
@@ -308,14 +293,14 @@ describe('getOrCache* 密钥加载（jwtSigner）', () => {
     mocks.config.JWT_PRIVATE_KEY = '';
     mocks.config.JWT_PRIVATE_KEY_FILE = filePath;
     mocks.config.NODE_ENV = 'production';
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     const p = mod.getOrCachePrivateKey();
     if (pattern) await expect(p).rejects.toThrow(pattern);
     else await expect(p).rejects.toThrow();
   });
   it('HS256 密钥应从 JWT_SECRET 派生并完成签发验证', async () => {
     mocks.config.JWT_ALGORITHM = 'HS256';
-    const mod = await reloadModule();
+    const mod = await reloadJwtAuthModule();
     const key = await mod.getOrCacheHS256Key();
     expect(key).toBeTruthy();
     const { payload } = await jwtVerify(await mod.generateToken('hs256-test', 'analyst'), key, {

@@ -24,7 +24,7 @@ import {
   PLATFORM_ADMIN_KEY_MAX_TTL_DAYS,
 } from '../repositories/apiKeyRepo.js';
 import { markApiKeyRevoked } from '../infrastructure/apiKeyVerifier.js';
-import { crudRouteHandler, requireUuidParam } from './routeUtils.js';
+import { crudRouteHandler, jsonRoute, requireUuidParam } from './routeUtils.js';
 
 const router = Router();
 
@@ -136,15 +136,8 @@ router.delete(
 router.get(
   '/',
   requirePlatformAdmin,
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      const keys = await listPlatformAdminKeys();
-      res.json({ success: true, data: keys });
-    },
-    {
-      logMsg: '[adminKeyRoutes] 列出平台密钥失败',
-      code: 'PLATFORM_ADMIN_KEY_LIST_FAILED',
-    },
+  jsonRoute('[adminKeyRoutes] 列出平台密钥失败', 'PLATFORM_ADMIN_KEY_LIST_FAILED', async () =>
+    listPlatformAdminKeys(),
   ),
 );
 
