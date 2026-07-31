@@ -37,7 +37,7 @@ const router = Router();
  *
  * 无需认证，限流由全局 apiLimiter 覆盖。
  */
-// eslint-disable-next-line complexity, sonarjs/cognitive-complexity
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity, max-lines-per-function
 router.post('/', validate(errorReportSchema), (req: Request, res: Response) => {
   const {
     type,
