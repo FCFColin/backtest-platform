@@ -14,14 +14,21 @@ import type { Warning } from '../application/backtest-helpers.js';
 import { runMonteCarlo } from '../application/montecarlo-service.js';
 import { runOptimization, runEfficientFrontier } from '../application/optimize-service.js';
 import { extractBacktestSeries } from '../application/backtest/compressBacktestResult.js';
-import { backtestCacheKey, getBacktestResultCache } from '../application/backtest/backtestResultCache.js';
+import {
+  backtestCacheKey,
+  getBacktestResultCache,
+} from '../application/backtest/backtestResultCache.js';
 import { searchTickers } from '../infrastructure/dataFacade.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
 import { asyncRouteHandler, crudRouteHandler, ownerOf } from './routeUtils.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { backtestQueue, type BacktestJobData, type BacktestJobResult } from '../queues/backtestQueue.js';
+import {
+  backtestQueue,
+  type BacktestJobData,
+  type BacktestJobResult,
+} from '../queues/backtestQueue.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import {
   portfolioBacktestSchema,
@@ -34,7 +41,11 @@ import {
 
 const router = Router();
 
-function buildBacktestResponse(data: unknown, warnings: (Warning | string)[] = [], dateRange?: unknown): Record<string, unknown> {
+function buildBacktestResponse(
+  data: unknown,
+  warnings: (Warning | string)[] = [],
+  dateRange?: unknown,
+): Record<string, unknown> {
   const response: Record<string, unknown> = { success: true, data };
   if (warnings.length > 0) {
     response.warnings = warnings.map((w: Warning | string): Warning =>
@@ -55,7 +66,11 @@ router.get(
         sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
-      const results = await searchTickers(query.trim(), undefined, (req as AuthenticatedRequest).tenantId);
+      const results = await searchTickers(
+        query.trim(),
+        undefined,
+        (req as AuthenticatedRequest).tenantId,
+      );
       res.json({ success: true, data: results.slice(0, limit) });
     },
     { logMsg: 'Ticker search error', code: 'SEARCH_ERROR', endpoint: 'backtest-search' },
@@ -68,7 +83,10 @@ router.post(
   validate(portfolioBacktestSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const { portfolios, parameters } = req.body as { portfolios: Portfolio[]; parameters: BacktestParameters };
+      const { portfolios, parameters } = req.body as {
+        portfolios: Portfolio[];
+        parameters: BacktestParameters;
+      };
       const authReq = req as AuthenticatedRequest;
       try {
         const job = await backtestQueue.add('portfolio', {
@@ -84,12 +102,21 @@ router.post(
         });
         recordBacktestRequest('portfolio', 'async', 'success');
       } catch (queueError) {
-        logger.error({ err: (queueError as Error).message }, '[backtest] BullMQ 队列不可用，fail-closed 返回 503');
+        logger.error(
+          { err: (queueError as Error).message },
+          '[backtest] BullMQ 队列不可用，fail-closed 返回 503',
+        );
         recordBacktestRequest('portfolio', 'async', 'queue_error');
-        sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
-          detail: 'Compute queue temporarily unavailable. Please retry later.',
-          headers: { 'Retry-After': '30' },
-        });
+        sendProblem(
+          res,
+          503,
+          'SERVICE_TEMPORARILY_UNAVAILABLE',
+          'Service temporarily unavailable',
+          {
+            detail: 'Compute queue temporarily unavailable. Please retry later.',
+            headers: { 'Retry-After': '30' },
+          },
+        );
       }
     },
     { logMsg: 'Portfolio backtest error', code: 'BACKTEST_ERROR', endpoint: 'portfolio-backtest' },
@@ -107,6 +134,7 @@ function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 
 router.get(
   '/runs/:jobId',
   crudRouteHandler(
+    // eslint-disable-next-line complexity
     async (req: Request, res: Response): Promise<void> => {
       const authReq = req as AuthenticatedRequest;
       const jobId = req.params.jobId;
@@ -124,8 +152,10 @@ router.get(
       if (requester) {
         const ownerId = job.data?.userId;
         const jobTenant = job.data?.tenantId;
-        const hasOwnership = (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
-        const passesTenantCheck = !jobTenant || jobTenant === authReq.tenantId || requester.platform_admin === true;
+        const hasOwnership =
+          (ownerId !== undefined && ownerId === requester.sub) || requester.role === 'admin';
+        const passesTenantCheck =
+          !jobTenant || jobTenant === authReq.tenantId || requester.platform_admin === true;
         if (!hasOwnership || !passesTenantCheck) {
           sendProblem(res, 404, 'JOB_NOT_FOUND');
           return;
@@ -160,7 +190,11 @@ router.post(
         parameters: BacktestParameters;
         series: string[];
       };
-      const cacheKey = backtestCacheKey(portfolios, parameters, (req as AuthenticatedRequest).tenantId);
+      const cacheKey = backtestCacheKey(
+        portfolios,
+        parameters,
+        (req as AuthenticatedRequest).tenantId,
+      );
       const cached = await getBacktestResultCache(cacheKey);
       if (!cached) {
         sendProblem(res, 404, 'BACKTEST_CACHE_MISS');
@@ -177,7 +211,10 @@ router.post(
   validate(analysisSchema),
   asyncRouteHandler(
     async (req, res) => {
-      const { tickers, parameters } = req.body as { tickers: string[]; parameters: BacktestParameters };
+      const { tickers, parameters } = req.body as {
+        tickers: string[];
+        parameters: BacktestParameters;
+      };
       const result = await runAnalysis(tickers, parameters);
       recordBacktestRequest('analysis', 'sync', 'success');
       const { warnings, dateRange, ...data } = result as Record<string, unknown> & {
@@ -203,7 +240,11 @@ router.post(
         mcParams?: Record<string, unknown>;
       };
       const portfolioList = (portfolios || (portfolio ? [portfolio] : undefined))!;
-      const { data, warnings, dateRange } = await runMonteCarlo(portfolioList, parameters, mcParams);
+      const { data, warnings, dateRange } = await runMonteCarlo(
+        portfolioList,
+        parameters,
+        mcParams,
+      );
       recordBacktestRequest('monte-carlo', 'sync', 'success');
       res.json(buildBacktestResponse(data, warnings, dateRange));
       logger.info(`[backtest] Monte Carlo completed in ${Date.now() - startTime}ms`);
@@ -251,11 +292,20 @@ router.post(
         parameters: BacktestParameters;
         riskFreeRate?: number;
       };
-      const { data, warnings, dateRange } = await runEfficientFrontier(tickers, parameters, numPoints, riskFreeRate);
+      const { data, warnings, dateRange } = await runEfficientFrontier(
+        tickers,
+        parameters,
+        numPoints,
+        riskFreeRate,
+      );
       recordBacktestRequest('efficient-frontier', 'sync', 'success');
       res.json(buildBacktestResponse(data, warnings, dateRange));
     },
-    { logMsg: 'Efficient frontier error', code: 'EFFICIENT_FRONTIER_ERROR', endpoint: 'efficient-frontier' },
+    {
+      logMsg: 'Efficient frontier error',
+      code: 'EFFICIENT_FRONTIER_ERROR',
+      endpoint: 'efficient-frontier',
+    },
   ),
 );
 

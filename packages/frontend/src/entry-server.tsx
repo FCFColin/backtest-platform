@@ -20,42 +20,56 @@ if (typeof globalThis.localStorage === 'undefined') {
     get length() {
       return Object.keys(store).length;
     },
-    key: (i: number) => Object.keys(store)[i] ?? null
+    key: (i: number) => Object.keys(store)[i] ?? null,
   };
 }
 if (typeof globalThis.matchMedia === 'undefined') {
-  globalThis.matchMedia = () => ({ matches: false, media: '', onchange: null, addListener: () => {}, removeListener: () => {}, addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false });
+  globalThis.matchMedia = () => ({
+    matches: false,
+    media: '',
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  });
 }
+const ANALYSIS_PREFIXES = [
+  '/monte-carlo',
+  '/optimizer',
+  '/analysis',
+  '/efficient-frontier',
+  '/data-engine',
+  '/rebalancing',
+  '/lumpsum',
+  '/factor-regression',
+  '/calculators',
+  '/tactical',
+  '/backtest-optimizer',
+  '/pca',
+  '/signal',
+  '/letf',
+  '/goal-optimizer',
+  '/portfolio-comparison',
+  '/swr',
+  '/tvm',
+  '/workspace',
+  '/prototype',
+];
+const PREFIX_NS: ReadonlyArray<readonly [readonly string[], string]> = [
+  [['/about', '/contact', '/help', '/changelog', '/pricing', '/limits', '/upgrade'], 'pages'],
+  [['/login', '/signup', '/verify', '/accept'], 'auth'],
+  [['/legal'], 'legal'],
+  [['/account', '/org', '/billing'], 'account'],
+  [['/admin'], 'admin'],
+];
 function nsForUrl(url: string): string {
   if (url === '/' || url.startsWith('/?')) return 'backtest';
-  if (
-    url.startsWith('/monte-carlo') ||
-    url.startsWith('/optimizer') ||
-    url.startsWith('/analysis') ||
-    url.startsWith('/efficient-frontier') ||
-    url.startsWith('/data-engine') ||
-    url.startsWith('/rebalancing') ||
-    url.startsWith('/lumpsum') ||
-    url.startsWith('/factor-regression') ||
-    url.startsWith('/calculators') ||
-    url.startsWith('/tactical') ||
-    url.startsWith('/backtest-optimizer') ||
-    url.startsWith('/pca') ||
-    url.startsWith('/signal') ||
-    url.startsWith('/letf') ||
-    url.startsWith('/goal-optimizer') ||
-    url.startsWith('/portfolio-comparison') ||
-    url.startsWith('/swr') ||
-    url.startsWith('/tvm') ||
-    url.startsWith('/workspace') ||
-    url.startsWith('/prototype')
-  )
-    return 'analysis';
-  if (url.startsWith('/about') || url.startsWith('/contact') || url.startsWith('/help') || url.startsWith('/changelog') || url.startsWith('/pricing') || url.startsWith('/limits') || url.startsWith('/upgrade')) return 'pages';
-  if (url.startsWith('/login') || url.startsWith('/signup') || url.startsWith('/verify') || url.startsWith('/accept')) return 'auth';
-  if (url.startsWith('/legal')) return 'legal';
-  if (url.startsWith('/account') || url.startsWith('/org') || url.startsWith('/billing')) return 'account';
-  if (url.startsWith('/admin')) return 'admin';
+  if (ANALYSIS_PREFIXES.some((p) => url.startsWith(p))) return 'analysis';
+  for (const [prefixes, ns] of PREFIX_NS) {
+    if (prefixes.some((p) => url.startsWith(p))) return ns;
+  }
   return 'common';
 }
 export async function render(url: string) {
@@ -72,13 +86,15 @@ export async function render(url: string) {
         const data = JSON.parse(fs.default.readFileSync(localePath, 'utf-8'));
         i18n.addResourceBundle(i18n.language, ns, data, true, true);
       }
-    } catch {}
+    } catch {
+      // SSR 时区文件缺失则跳过命名空间加载
+    }
   }
   return renderToPipeableStream(
     <StaticRouter location={url}>
       <ErrorBoundary>
         <AppShell />
       </ErrorBoundary>
-    </StaticRouter>
+    </StaticRouter>,
   );
 }

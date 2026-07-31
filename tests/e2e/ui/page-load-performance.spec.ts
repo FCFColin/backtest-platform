@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- 性能指标输出到终端 */
 import { test, expect } from '@playwright/test';
 
 const FCP_BUDGET_MS = Number(process.env.PAGE_LOAD_BUDGET_FCP ?? 100);
@@ -50,7 +51,12 @@ test.describe('页面导航性能预算', () => {
   });
 
   const NAVIGATIONS = [
-    { label: '蒙特卡洛模拟', linkRole: 'link', linkName: /monte carlo|蒙特卡洛/i, route: '/monte-carlo' },
+    {
+      label: '蒙特卡洛模拟',
+      linkRole: 'link',
+      linkName: /monte carlo|蒙特卡洛/i,
+      route: '/monte-carlo',
+    },
     { label: '优化器', linkRole: 'link', linkName: /optimizer|优化器/i, route: '/optimizer' },
     { label: 'PCA 分析', linkRole: 'link', linkName: /pca/i, route: '/pca' },
     { label: '定价', linkRole: 'link', linkName: /pricing|定价/i, route: '/pricing' },

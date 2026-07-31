@@ -19,7 +19,9 @@ export function useAnnouncements() {
     try {
       const saved = localStorage.getItem(READ_KEY);
       if (saved) setReadIds(new Set(JSON.parse(saved)));
-    } catch {}
+    } catch {
+      // localStorage 不可用时视为无已读记录
+    }
     if (!pendingAnnouncementsPromise) {
       pendingAnnouncementsPromise = apiFetch('/api/v1/announcements', { silent: true })
         .then((res) => (res.ok ? res.json() : { data: [] }))

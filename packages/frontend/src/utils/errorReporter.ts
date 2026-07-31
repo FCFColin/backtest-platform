@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-export type ReportType = 'error' | 'vital' | 'api_timing' | 'component_render' | 'page_timing' | 'navigation';
+export type ReportType =
+  'error' | 'vital' | 'api_timing' | 'component_render' | 'page_timing' | 'navigation';
 export interface ErrorContext {
   component?: string;
   action?: string;
@@ -15,8 +16,9 @@ function getTraceId(): string | undefined {
     if (apiEntries.length > 0) {
       return undefined;
     }
-  } catch {}
-  return undefined;
+  } catch {
+    // 资源条目不可用时静默跳过
+  }
 }
 function sendReport(type: ReportType, payload: Record<string, unknown>): void {
   const body = {
@@ -25,13 +27,13 @@ function sendReport(type: ReportType, payload: Record<string, unknown>): void {
     timestamp: new Date().toISOString(),
     url: window.location.href,
     userAgent: navigator.userAgent,
-    traceId: getTraceId()
+    traceId: getTraceId(),
   };
   fetch(ERROR_REPORT_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-    keepalive: true
+    keepalive: true,
   }).catch(() => {});
 }
 export function reportError(error: unknown, context: ErrorContext = {}): void {
@@ -39,7 +41,7 @@ export function reportError(error: unknown, context: ErrorContext = {}): void {
     // eslint-disable-next-line no-console -- 开发环境直接输出到控制台
     console.error('[ErrorReporter]', {
       message: error instanceof Error ? error.message : String(error),
-      context
+      context,
     });
     return;
   }
@@ -49,13 +51,19 @@ export function reportError(error: unknown, context: ErrorContext = {}): void {
     sendReport('error', {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
-      context
+      context,
     });
   } finally {
     isReporting = false;
   }
 }
-export function reportPerformance(type: Extract<ReportType, 'vital' | 'api_timing' | 'component_render' | 'page_timing' | 'navigation'>, data: Record<string, unknown>): void {
+export function reportPerformance(
+  type: Extract<
+    ReportType,
+    'vital' | 'api_timing' | 'component_render' | 'page_timing' | 'navigation'
+  >,
+  data: Record<string, unknown>,
+): void {
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console -- 开发环境直接输出
     console.log(`[Performance/${type}]`, data);
@@ -140,7 +148,7 @@ const ERROR_I18N_MAP: Record<string, string> = {
   PAYMENT_REQUIRED: 'errors.quotaExceeded',
   ID_INVALID: 'errors.missingParams',
   PORTFOLIO_WEIGHT_SUM: 'errors.invalidWeightSum',
-  PCA_MIN_ASSETS: 'errors.pcaMinAssets'
+  PCA_MIN_ASSETS: 'errors.pcaMinAssets',
 };
 export interface ApiError {
   code?: string;

@@ -12,11 +12,19 @@ let pendingMetaPromise: Promise<DataMeta | null> | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
 function getPreloadedMeta(): DataMeta | null {
   try {
-    const global = typeof window !== 'undefined' ? (window as any).__INITIAL_DATA__ : null;
+    const global =
+      typeof window !== 'undefined'
+        ? (window as { __INITIAL_DATA__?: unknown }).__INITIAL_DATA__
+        : null;
     if (!global) return null;
     const data = global.data ?? global;
     if (data?.tickerCount !== undefined && data?.lastUpdated) {
-      return { lastUpdated: data.lastUpdated, tickerCount: data.tickerCount, earliestDate: data.earliestDate || '', dataPointCount: data.dataPointCount || 0 };
+      return {
+        lastUpdated: data.lastUpdated,
+        tickerCount: data.tickerCount,
+        earliestDate: data.earliestDate || '',
+        dataPointCount: data.dataPointCount || 0,
+      };
     }
   } catch {
     /* 忽略 */

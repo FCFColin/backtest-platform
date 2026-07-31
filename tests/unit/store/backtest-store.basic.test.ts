@@ -8,12 +8,19 @@ vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
 
 import { extractApiErrorDetail } from '../../../packages/frontend/src/store/backtestHelpers.js';
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
+import type { Portfolio } from '../../../packages/shared/types/portfolio.js';
 import { mockBacktestParams } from '../../helpers/storeFixtures.js';
 import { resetBacktestStoreState } from '../../helpers/backtestStoreFixtures.js';
 
 const S = () => useBacktestStore.getState();
-const addLeg = () => { S().addCashflowLeg(); return S().parameters.cashflowLegs![0].id; };
-const addOneTime = () => { S().addOneTimeCashflow(); return S().parameters.oneTimeCashflows![0].id; };
+const addLeg = () => {
+  S().addCashflowLeg();
+  return S().parameters.cashflowLegs![0].id;
+};
+const addOneTime = () => {
+  S().addOneTimeCashflow();
+  return S().parameters.oneTimeCashflows![0].id;
+};
 beforeEach(() => resetBacktestStoreState(mockFetch));
 
 describe('addPortfolio', () => {
@@ -166,16 +173,38 @@ describe('addGlidepath', () => {
     S().addGlidepath('My Glidepath', p1Id, p2Id, 10);
     expect(S().portfolios.length).toBe(before + 1);
     const gp = S().portfolios[2];
-    expect(gp).toMatchObject({ isGlidepath: true, name: 'My Glidepath', glidepathFrom: p1Id, glidepathTo: p2Id, glidepathYears: 10 });
+    expect(gp).toMatchObject({
+      isGlidepath: true,
+      name: 'My Glidepath',
+      glidepathFrom: p1Id,
+      glidepathTo: p2Id,
+      glidepathYears: 10,
+    });
     expect(gp.assets).toEqual(S().portfolios[0].assets);
   });
 });
 
 describe('batchUpdateAssets', () => {
   it.each([
-    ['matching indices', 'p1', [{ index: 0, weight: 50 }, { index: 1, weight: 50 }], [50, 50]],
+    [
+      'matching indices',
+      'p1',
+      [
+        { index: 0, weight: 50 },
+        { index: 1, weight: 50 },
+      ],
+      [50, 50],
+    ],
     ['non-matching portfolioId', 'non-existent', [{ index: 0, weight: 100 }], [60, 40]],
-    ['skip non-existent indices', 'p1', [{ index: 0, weight: 80 }, { index: 99, weight: 20 }], [80, 40]],
+    [
+      'skip non-existent indices',
+      'p1',
+      [
+        { index: 0, weight: 80 },
+        { index: 99, weight: 20 },
+      ],
+      [80, 40],
+    ],
   ])('updates %s', (_n, pid, updates, [w0, w1]) => {
     S().batchUpdateAssets(pid, updates);
     const a = S().portfolios[0].assets;
@@ -187,8 +216,19 @@ describe('batchUpdateAssets', () => {
 describe('loadFromShare', () => {
   it('从分享数据加载，覆盖现有状态', () => {
     S().loadFromShare({
-      portfolios: [{ id: 'shared-1', name: '分享组合', assets: [{ ticker: 'SPY', weight: 100 }], rebalanceFrequency: 'annual' }],
-      parameters: mockBacktestParams({ startDate: '2015-01-01', startingValue: 20000, benchmarkTicker: '' }),
+      portfolios: [
+        {
+          id: 'shared-1',
+          name: '分享组合',
+          assets: [{ ticker: 'SPY', weight: 100 }],
+          rebalanceFrequency: 'annual',
+        },
+      ],
+      parameters: mockBacktestParams({
+        startDate: '2015-01-01',
+        startingValue: 20000,
+        benchmarkTicker: '',
+      }),
     });
     const state = S();
     expect(state.portfolios.length).toBe(1);
@@ -199,7 +239,13 @@ describe('loadFromShare', () => {
   });
   it('分享数据中无id时自动生成', () => {
     S().loadFromShare({
-      portfolios: [{ name: '无ID组合', assets: [{ ticker: 'VTI', weight: 100 }], rebalanceFrequency: 'none' } as any],
+      portfolios: [
+        {
+          name: '无ID组合',
+          assets: [{ ticker: 'VTI', weight: 100 }],
+          rebalanceFrequency: 'none',
+        } as unknown as Portfolio,
+      ],
       parameters: mockBacktestParams({ benchmarkTicker: '' }),
     });
     expect(S().portfolios[0].id).toBeTruthy();
@@ -209,9 +255,21 @@ describe('loadFromShare', () => {
 describe('extractApiErrorDetail', () => {
   it.each<[string, unknown, string]>([
     ['returns detail field when present', { detail: 'invalid ticker' }, 'invalid ticker'],
-    ['detail takes priority over error field', { detail: 'priority', error: 'ignored' }, 'priority'],
-    ['returns error string when detail absent', { error: 'something went wrong' }, 'something went wrong'],
-    ['returns nested error.detail when error is object with detail', { error: { detail: 'nested detail' } }, 'nested detail'],
+    [
+      'detail takes priority over error field',
+      { detail: 'priority', error: 'ignored' },
+      'priority',
+    ],
+    [
+      'returns error string when detail absent',
+      { error: 'something went wrong' },
+      'something went wrong',
+    ],
+    [
+      'returns nested error.detail when error is object with detail',
+      { error: { detail: 'nested detail' } },
+      'nested detail',
+    ],
   ])('%s', (_n, input, expected) => {
     expect(extractApiErrorDetail(input)).toBe(expected);
   });
@@ -230,12 +288,33 @@ describe('extractApiErrorDetail', () => {
 
 describe('loadFromShare - edge cases', () => {
   it.each<[string, { id: string; name: string; rebalanceFrequency: string }[], string[]]>([
-    ['handles portfolio id with no numeric suffix', [{ id: 'custom-portfolio', name: 'Custom', rebalanceFrequency: 'none' }], ['custom-portfolio']],
-    ['handles portfolio id ending with non-numeric suffix', [{ id: 'portfolio-abc', name: 'Alpha', rebalanceFrequency: 'monthly' }], ['portfolio-abc']],
-    ['handles multiple portfolios with mixed id patterns', [{ id: 'a', name: 'A', rebalanceFrequency: 'none' }, { id: 'portfolio-99', name: 'B', rebalanceFrequency: 'none' }], ['a', 'portfolio-99']],
+    [
+      'handles portfolio id with no numeric suffix',
+      [{ id: 'custom-portfolio', name: 'Custom', rebalanceFrequency: 'none' }],
+      ['custom-portfolio'],
+    ],
+    [
+      'handles portfolio id ending with non-numeric suffix',
+      [{ id: 'portfolio-abc', name: 'Alpha', rebalanceFrequency: 'monthly' }],
+      ['portfolio-abc'],
+    ],
+    [
+      'handles multiple portfolios with mixed id patterns',
+      [
+        { id: 'a', name: 'A', rebalanceFrequency: 'none' },
+        { id: 'portfolio-99', name: 'B', rebalanceFrequency: 'none' },
+      ],
+      ['a', 'portfolio-99'],
+    ],
   ])('%s', (_n, portfolios, expectedIds) => {
-    const mapped = portfolios.map((p) => ({ ...p, assets: [{ ticker: 'SPY', weight: 100 }] })) as any;
-    S().loadFromShare({ portfolios: mapped, parameters: mockBacktestParams({ benchmarkTicker: '' }) });
+    const mapped = portfolios.map((p) => ({
+      ...p,
+      assets: [{ ticker: 'SPY', weight: 100 }],
+    })) as unknown as Portfolio[];
+    S().loadFromShare({
+      portfolios: mapped,
+      parameters: mockBacktestParams({ benchmarkTicker: '' }),
+    });
     const state = S();
     expect(state.portfolios.length).toBe(expectedIds.length);
     expectedIds.forEach((id, i) => expect(state.portfolios[i].id).toBe(id));

@@ -42,6 +42,7 @@ describe('Chaos Experiment 3: High Concurrency + Graceful Shutdown', () => {
     async () => {
       // 前置条件：API 容器必须运行
       if (!fixture.containerRunning) {
+        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
         console.warn('skip: backtest-api 容器未运行');
         return;
       }

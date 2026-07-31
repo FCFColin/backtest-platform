@@ -12,7 +12,6 @@ import {
   CHART_GRID_PROPS,
   AXIS_TICK_STYLE,
   CHART_LINE_STYLE,
-  LEGEND_WRAPPER_STYLE,
   getCorrelationColor,
   wrapTooltipFormatter,
 } from '../../../packages/frontend/src/lib/chart-theme.js';
@@ -262,7 +261,7 @@ describe('wrapTooltipFormatter', () => {
   });
 
   it('包装返回 [value, name] 元组', () => {
-    const formatter = (value: number, _name: string) => '$100';
+    const formatter = (_value: number, _name: string) => '$100';
     const wrapped = wrapTooltipFormatter(formatter)!;
     const result = wrapped(100, 'Portfolio A');
     expect(result[0]).toBe('$100');
@@ -270,7 +269,7 @@ describe('wrapTooltipFormatter', () => {
   });
 
   it('包装返回 [formattedValue, formattedName] 元组', () => {
-    const formatter = (value: number, _name: string) => ['$100', 'Custom'] as [string, string];
+    const formatter = (_value: number, _name: string) => ['$100', 'Custom'] as [string, string];
     const wrapped = wrapTooltipFormatter(formatter)!;
     const result = wrapped(100, 'Original');
     expect(result[0]).toBe('$100');

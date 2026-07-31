@@ -15,7 +15,12 @@ import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { errorReportSchema } from '../schemas/misc-schemas.js';
-import { recordFrontendWebVital, recordFrontendApiCall, recordFrontendComponentRender, recordFrontendPageLoad } from '../utils/metrics.js';
+import {
+  recordFrontendWebVital,
+  recordFrontendApiCall,
+  recordFrontendComponentRender,
+  recordFrontendPageLoad,
+} from '../utils/metrics.js';
 
 const router = Router();
 
@@ -32,8 +37,25 @@ const router = Router();
  *
  * 无需认证，限流由全局 apiLimiter 覆盖。
  */
+// eslint-disable-next-line complexity, sonarjs/cognitive-complexity
 router.post('/', validate(errorReportSchema), (req: Request, res: Response) => {
-  const { type, message, stack, traceId, context, timestamp, url, userAgent, value, metric, endpoint, route, statusCode, component, phase } = req.body;
+  const {
+    type,
+    message,
+    stack,
+    traceId,
+    context,
+    timestamp,
+    url,
+    userAgent,
+    value,
+    metric,
+    endpoint,
+    route,
+    statusCode,
+    component,
+    phase,
+  } = req.body;
 
   const logPayload: Record<string, unknown> = {
     type,
@@ -60,7 +82,12 @@ router.post('/', validate(errorReportSchema), (req: Request, res: Response) => {
         '[frontend-api-timing] API call timing reported',
       );
       if (typeof endpoint === 'string' && typeof value === 'number') {
-        recordFrontendApiCall(endpoint, req.method || 'GET', typeof statusCode === 'number' ? statusCode : 0, value);
+        recordFrontendApiCall(
+          endpoint,
+          req.method || 'GET',
+          typeof statusCode === 'number' ? statusCode : 0,
+          value,
+        );
       }
       break;
 

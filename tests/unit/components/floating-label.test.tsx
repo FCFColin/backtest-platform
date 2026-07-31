@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { FloatingLabelInput } from '../../../packages/frontend/src/components/form/FloatingLabelInput.js';
 import { FloatingLabelDate } from '../../../packages/frontend/src/components/form/FloatingLabelDate.js';
 

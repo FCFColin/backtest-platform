@@ -11,7 +11,8 @@ import { logger } from '../utils/logger.js';
 import { getPool } from '../db/pool.js';
 
 /** 与迁移 022 的 CHECK 约束对齐 */
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'READ' | 'EXPORT' | 'CONFIG';
+export type AuditAction =
+  'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT' | 'READ' | 'EXPORT' | 'CONFIG';
 
 export interface AuditLogEntry {
   eventType: string;
@@ -87,25 +88,45 @@ export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): 
     'SELECT id, hmac_signature FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 1',
   );
   const prevRow = prevResult.rows[0];
-  const prevHash = prevRow ? computePrevHash(prevRow.id as string, prevRow.hmac_signature as string) : null;
+  const prevHash = prevRow
+    ? computePrevHash(prevRow.id as string, prevRow.hmac_signature as string)
+    : null;
   const { rows } = await conn.query(
     `INSERT INTO audit_logs
        (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
      RETURNING id`,
     [
-      entry.eventType, entry.userId ?? null, entry.orgId ?? null, entry.ipAddress ?? null,
-      entry.action, entry.resourceType ?? null, entry.resourceId ?? null,
-      payloadStr, signature, prevHash,
+      entry.eventType,
+      entry.userId ?? null,
+      entry.orgId ?? null,
+      entry.ipAddress ?? null,
+      entry.action,
+      entry.resourceType ?? null,
+      entry.resourceId ?? null,
+      payloadStr,
+      signature,
+      prevHash,
     ],
   );
   const id = rows[0].id as string;
-  logger.debug({ module: 'auditStorage', id, eventType: entry.eventType, action: entry.action, hasPrevHash: prevHash !== null }, '[auditStorage] 审计日志已写入（含链式 prev_hash）');
+  logger.debug(
+    {
+      module: 'auditStorage',
+      id,
+      eventType: entry.eventType,
+      action: entry.action,
+      hasPrevHash: prevHash !== null,
+    },
+    '[auditStorage] 审计日志已写入（含链式 prev_hash）',
+  );
   return id;
 }
 
 /** 查询未导出至 MinIO 的审计日志（按创建时间正序，便于按日期分组导出）。 */
-export async function getUnexportedAuditLogs(limit: number = UNEXPORTED_BATCH_LIMIT): Promise<AuditLogRow[]> {
+export async function getUnexportedAuditLogs(
+  limit: number = UNEXPORTED_BATCH_LIMIT,
+): Promise<AuditLogRow[]> {
   const { rows } = await getPool().query(
     `SELECT ${AUDIT_LOG_COLUMNS} FROM audit_logs WHERE exported_at IS NULL ORDER BY created_at ASC LIMIT $1`,
     [limit],
@@ -120,7 +141,10 @@ export async function markExported(ids: string[], objectKey: string): Promise<vo
     `UPDATE audit_logs SET exported_at = NOW(), object_key = $2 WHERE id = ANY($1::uuid[])`,
     [ids, objectKey],
   );
-  logger.info({ module: 'auditStorage', count: ids.length, objectKey }, '[auditStorage] 审计日志已标记为已导出');
+  logger.info(
+    { module: 'auditStorage', count: ids.length, objectKey },
+    '[auditStorage] 审计日志已标记为已导出',
+  );
 }
 
 /** 分页查询审计日志（动态 WHERE 拼接，参数化查询防 SQL 注入）。 */
@@ -172,7 +196,10 @@ export async function queryAuditLogs(
 export async function verifyAuditIntegrity(
   logId: string,
 ): Promise<{ valid: boolean; expected: string; actual: string }> {
-  const { rows } = await getPool().query(`SELECT payload, hmac_signature FROM audit_logs WHERE id = $1`, [logId]);
+  const { rows } = await getPool().query(
+    `SELECT payload, hmac_signature FROM audit_logs WHERE id = $1`,
+    [logId],
+  );
   if (rows.length === 0) return { valid: false, expected: '', actual: '' };
   const storedSignature = rows[0].hmac_signature as string;
   const payload = rows[0].payload;
@@ -185,7 +212,10 @@ export async function verifyAuditIntegrity(
   const expBuf = Buffer.from(expected);
   const valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
   if (!valid) {
-    logger.warn({ module: 'auditStorage', logId }, '[auditStorage] 审计日志完整性校验失败（疑似篡改）');
+    logger.warn(
+      { module: 'auditStorage', logId },
+      '[auditStorage] 审计日志完整性校验失败（疑似篡改）',
+    );
   }
   return { valid, expected, actual: storedSignature };
 }
@@ -214,13 +244,18 @@ function mapAuditLogRow(row: Record<string, unknown>): AuditLogRow {
 }
 
 /** P2-04: 验证审计日志链式完整性。遍历 audit_logs 重算 prev_hash 与存储值比对，不匹配记为断裂点。 */
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export async function verifyAuditChain(): Promise<{
   valid: boolean;
   totalChecked: number;
   brokenLinks: Array<{ id: string; expectedPrevHash: string; actualPrevHash: string | null }>;
 }> {
   const pool = getPool();
-  const brokenLinks: Array<{ id: string; expectedPrevHash: string; actualPrevHash: string | null }> = [];
+  const brokenLinks: Array<{
+    id: string;
+    expectedPrevHash: string;
+    actualPrevHash: string | null;
+  }> = [];
   let prevId: string | null = null;
   let prevSig: string | null = null;
   let totalChecked = 0;
@@ -254,6 +289,9 @@ export async function verifyAuditChain(): Promise<{
     }
   }
   const valid = brokenLinks.length === 0;
-  logger.info({ module: 'auditStorage', totalChecked, brokenLinks: brokenLinks.length }, '[auditStorage] 链式完整性校验完成');
+  logger.info(
+    { module: 'auditStorage', totalChecked, brokenLinks: brokenLinks.length },
+    '[auditStorage] 链式完整性校验完成',
+  );
   return { valid, totalChecked, brokenLinks };
 }

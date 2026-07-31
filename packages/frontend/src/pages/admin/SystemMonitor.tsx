@@ -37,13 +37,25 @@ const defaultMonitorData: MonitorData = {
   services: [
     { name: 'adminPage.dashboard.goEngine', status: 'down', latency: 0 },
     { name: 'adminPage.dashboard.goDataService', status: 'down', latency: 0 },
-    { name: 'adminPage.dashboard.nodeService', status: 'down', latency: 0 }
+    { name: 'adminPage.dashboard.nodeService', status: 'down', latency: 0 },
   ],
   system: { memoryMB: 0, heapUsedMB: 0, uptime: '-', uptimeSeconds: 0 },
-  dataDir: { totalSizeMB: 0, tickerCount: 0, totalDataPoints: 0 }
+  dataDir: { totalSizeMB: 0, tickerCount: 0, totalDataPoints: 0 },
 };
-function buildServiceHealth(name: string, raw: { status?: string; latency_ms?: number; version?: string; error?: string } | undefined, fallbackDown = true): ServiceHealth {
-  return raw ? { name, status: raw.status === 'healthy' ? 'healthy' : 'down', latency: raw.latency_ms || 0, version: raw.version, message: raw.error } : { name, status: fallbackDown ? 'down' : 'healthy', latency: 0 };
+function buildServiceHealth(
+  name: string,
+  raw: { status?: string; latency_ms?: number; version?: string; error?: string } | undefined,
+  fallbackDown = true,
+): ServiceHealth {
+  return raw
+    ? {
+        name,
+        status: raw.status === 'healthy' ? 'healthy' : 'down',
+        latency: raw.latency_ms || 0,
+        version: raw.version,
+        message: raw.error,
+      }
+    : { name, status: fallbackDown ? 'down' : 'healthy', latency: 0 };
 }
 async function fetchServices(): Promise<ServiceHealth[]> {
   const res = await apiFetch('/api/v1/admin/stats');
@@ -51,7 +63,11 @@ async function fetchServices(): Promise<ServiceHealth[]> {
   const json = await res.json();
   if (!json.success || !json.data) return defaultMonitorData.services;
   const s = json.data.services;
-  return [buildServiceHealth('adminPage.dashboard.goEngine', s?.go_engine), buildServiceHealth('adminPage.dashboard.goDataService', s?.go_data_service), buildServiceHealth('adminPage.dashboard.nodeService', undefined, false)];
+  return [
+    buildServiceHealth('adminPage.dashboard.goEngine', s?.go_engine),
+    buildServiceHealth('adminPage.dashboard.goDataService', s?.go_data_service),
+    buildServiceHealth('adminPage.dashboard.nodeService', undefined, false),
+  ];
 }
 function buildMonitorData(d: Record<string, unknown>, services: ServiceHealth[]): MonitorData {
   const mem = d.memory as Record<string, number> | undefined;
@@ -59,10 +75,20 @@ function buildMonitorData(d: Record<string, unknown>, services: ServiceHealth[])
   const dd = d.data_directory as Record<string, number> | undefined;
   return {
     services,
-    system: { memoryMB: mem?.rss_mb || 0, heapUsedMB: mem?.heap_used_mb || 0, uptime: (up?.formatted as string) || '-', uptimeSeconds: (up?.seconds as number) || 0 },
-    dataDir: { totalSizeMB: dd?.total_size_mb || 0, tickerCount: dd?.ticker_file_count || 0, totalDataPoints: dd?.total_data_points || 0 }
+    system: {
+      memoryMB: mem?.rss_mb || 0,
+      heapUsedMB: mem?.heap_used_mb || 0,
+      uptime: (up?.formatted as string) || '-',
+      uptimeSeconds: (up?.seconds as number) || 0,
+    },
+    dataDir: {
+      totalSizeMB: dd?.total_size_mb || 0,
+      tickerCount: dd?.ticker_file_count || 0,
+      totalDataPoints: dd?.total_data_points || 0,
+    },
   };
 }
+// eslint-disable-next-line max-lines-per-function
 export default function SystemMonitor() {
   const { t } = useTranslation();
   const [data, setData] = useState<MonitorData>(defaultMonitorData);
@@ -86,8 +112,16 @@ export default function SystemMonitor() {
   };
   usePolling(fetchMonitorData, 10000, { enabled: autoRefresh, deps: [autoRefresh] });
   const memBars = [
-    { label: t('adminPage.monitor.rssMemory'), valueMB: data.system.memoryMB, totalMB: data.system.memoryMB },
-    { label: t('adminPage.monitor.heapUsed'), valueMB: data.system.heapUsedMB, totalMB: data.system.memoryMB }
+    {
+      label: t('adminPage.monitor.rssMemory'),
+      valueMB: data.system.memoryMB,
+      totalMB: data.system.memoryMB,
+    },
+    {
+      label: t('adminPage.monitor.heapUsed'),
+      valueMB: data.system.heapUsedMB,
+      totalMB: data.system.memoryMB,
+    },
   ];
   return (
     <div className="space-y-6">
@@ -98,19 +132,47 @@ export default function SystemMonitor() {
             {t('adminPage.monitor.refresh')}
           </Button>
           <label className="flex items-center gap-2 text-sm text-fg-secondary">
-            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="h-4 w-4 rounded border-border" />
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
             {t('adminPage.monitor.autoRefresh')}
           </label>
         </div>
-        <div className="text-xs text-fg-tertiary">{lastRefresh ? t('adminPage.monitor.lastUpdate', { time: lastRefresh }) : t('adminPage.monitor.notRefreshed')}</div>
+        <div className="text-xs text-fg-tertiary">
+          {lastRefresh
+            ? t('adminPage.monitor.lastUpdate', { time: lastRefresh })
+            : t('adminPage.monitor.notRefreshed')}
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <KpiCard label={t('adminPage.dashboard.nodeMemory')} value={`${data.system.memoryMB} MB`} subtitle={t('adminPage.monitor.heapUsage', { heap: data.system.heapUsedMB })} icon={<HardDrive className="h-5 w-5" />} color="blue" />
-        <KpiCard label={t('adminPage.monitor.uptime')} value={data.system.uptime} icon={<Clock className="h-5 w-5" />} color="green" />
-        <KpiCard label={t('adminPage.monitor.dataDirectory')} value={`${(data.dataDir.totalSizeMB / 1024).toFixed(1)} GB`} subtitle={t('adminPage.monitor.tickerCount', { count: data.dataDir.tickerCount })} icon={<Activity className="h-5 w-5" />} color="purple" />
+        <KpiCard
+          label={t('adminPage.dashboard.nodeMemory')}
+          value={`${data.system.memoryMB} MB`}
+          subtitle={t('adminPage.monitor.heapUsage', { heap: data.system.heapUsedMB })}
+          icon={<HardDrive className="h-5 w-5" />}
+          color="blue"
+        />
+        <KpiCard
+          label={t('adminPage.monitor.uptime')}
+          value={data.system.uptime}
+          icon={<Clock className="h-5 w-5" />}
+          color="green"
+        />
+        <KpiCard
+          label={t('adminPage.monitor.dataDirectory')}
+          value={`${(data.dataDir.totalSizeMB / 1024).toFixed(1)} GB`}
+          subtitle={t('adminPage.monitor.tickerCount', { count: data.dataDir.tickerCount })}
+          icon={<Activity className="h-5 w-5" />}
+          color="purple"
+        />
       </div>
       <Card className="p-4">
-        <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.monitor.serviceHealth')}</h2>
+        <h2 className="mb-4 text-sm font-semibold text-fg">
+          {t('adminPage.monitor.serviceHealth')}
+        </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {data.services.map((service) => (
             <Card key={service.name} className="p-4">
@@ -161,7 +223,11 @@ export default function SystemMonitor() {
         <div className="mt-4 grid grid-cols-2 gap-4">
           <div className="rounded-lg border border-border-subtle p-3">
             <p className="text-xs text-fg-tertiary">{t('dataEngine.totalDataPoints')}</p>
-            <p className="text-lg font-bold text-fg">{data.dataDir.totalDataPoints > 0 ? `${(data.dataDir.totalDataPoints / 1000000).toFixed(1)}M` : '-'}</p>
+            <p className="text-lg font-bold text-fg">
+              {data.dataDir.totalDataPoints > 0
+                ? `${(data.dataDir.totalDataPoints / 1000000).toFixed(1)}M`
+                : '-'}
+            </p>
           </div>
           <div className="rounded-lg border border-border-subtle p-3">
             <p className="text-xs text-fg-tertiary">{t('adminPage.dashboard.tickerFileCount')}</p>

@@ -36,6 +36,7 @@ describe('Chaos Experiment 1: Database Disconnect', () => {
     async () => {
       // 前置条件：PostgreSQL 容器必须运行
       if (!fixture.containerRunning) {
+        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
         console.warn('skip: backtest-postgres 容器未运行');
         return;
       }

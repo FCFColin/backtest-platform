@@ -1,8 +1,4 @@
-
-import express, { type Express, type Request, type Response, type NextFunction } from 'express';
-import { vi } from 'vitest';
-import type { AuthenticatedRequest } from '../../packages/backend/src/middleware/jwtAuth.js';
-import { EventEmitter } from 'events';
+import express, { type Express, type Request } from 'express';
 
 const API_PORT = 15001;
 

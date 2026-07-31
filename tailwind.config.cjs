@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CJS 配置文件必须使用 require */
 const path = require('path');
 const animate = require('tailwindcss-animate');
 

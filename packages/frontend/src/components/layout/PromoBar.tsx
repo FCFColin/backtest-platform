@@ -13,14 +13,21 @@ interface PromoBarProps {
 const VARIANT_STYLES = {
   info: 'bg-brand-subtle/8 border-brand/20 text-fg',
   success: 'bg-success-subtle/10 border-success/20 text-fg',
-  warning: 'bg-warning-subtle/10 border-warning/20 text-fg'
+  warning: 'bg-warning-subtle/10 border-warning/20 text-fg',
 } as const;
 const DOT_STYLES = {
   info: 'bg-brand',
   success: 'bg-success',
-  warning: 'bg-warning'
+  warning: 'bg-warning',
 } as const;
-export function PromoBar({ id, message, ctaLabel, ctaLink, variant = 'info', dismissible = true }: PromoBarProps) {
+export function PromoBar({
+  id,
+  message,
+  ctaLabel,
+  ctaLink,
+  variant = 'info',
+  dismissible = true,
+}: PromoBarProps) {
   const storageKey = `promo-dismissed-${id}`;
   const [dismissed, setDismissed] = useState(() => {
     try {
@@ -33,7 +40,9 @@ export function PromoBar({ id, message, ctaLabel, ctaLink, variant = 'info', dis
     setDismissed(true);
     try {
       localStorage.setItem(storageKey, '1');
-    } catch {}
+    } catch {
+      // 存储不可用时不持久化关闭状态
+    }
   };
   if (dismissed) return null;
   return (
@@ -42,13 +51,20 @@ export function PromoBar({ id, message, ctaLabel, ctaLink, variant = 'info', dis
         <span className={cn('w-2 h-2 rounded-full animate-pulse', DOT_STYLES[variant])} />
         <span className="text-body">{message}</span>
         {ctaLabel && ctaLink && (
-          <Link to={ctaLink} className="text-body font-medium text-brand hover:underline flex items-center gap-1">
+          <Link
+            to={ctaLink}
+            className="text-body font-medium text-brand hover:underline flex items-center gap-1"
+          >
             {ctaLabel}
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         )}
         {dismissible && (
-          <button onClick={handleDismiss} className="ml-auto p-1 hover:bg-hover rounded-md transition-colors" aria-label="Close announcement">
+          <button
+            onClick={handleDismiss}
+            className="ml-auto p-1 hover:bg-hover rounded-md transition-colors"
+            aria-label="Close announcement"
+          >
             <X className="h-4 w-4 text-fg-tertiary" />
           </button>
         )}

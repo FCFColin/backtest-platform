@@ -35,6 +35,7 @@ describe('Chaos Experiment 2: External Service Unreachable', () => {
     async () => {
       // 前置条件：data-fetcher 容器必须运行
       if (!fixture.containerRunning) {
+        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
         console.warn('skip: backtest-data-fetcher 容器未运行');
         return;
       }

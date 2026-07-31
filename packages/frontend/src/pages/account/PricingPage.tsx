@@ -48,23 +48,24 @@ function usePlans(): Plan[] {
       desc: t(p.descKey),
       recommended: p.recommended,
       features: p.features.map((f) => ({ text: t(f.key), included: f.included })),
-      cta: t(p.ctaKey)
+      cta: t(p.ctaKey),
     };
   });
 }
-const resolveCellValue = (value: string, t: (key: string) => string) => (STATIC_SYMBOLS.has(value) ? value : t(value));
+const resolveCellValue = (value: string, t: (key: string) => string) =>
+  STATIC_SYMBOLS.has(value) ? value : t(value);
 const gridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
   gap: 16,
   marginBottom: 24,
-  alignItems: 'stretch'
+  alignItems: 'stretch',
 };
 const thStyle = (align: string, color: string, weight: number): React.CSSProperties => ({
   textAlign: align as React.CSSProperties['textAlign'],
   padding: '10px 12px',
   color,
-  fontWeight: weight
+  fontWeight: weight,
 });
 export default function PricingPage() {
   const { t } = useTranslation();
@@ -75,7 +76,17 @@ export default function PricingPage() {
         <h1 className="bt-page-title">{t('account.pricing.title')}</h1>
       </div>
       <div className="bt-main-card card" style={{ padding: 24 }}>
-        <div style={{ fontSize: 14, color: 'var(--text-body)', lineHeight: 1.8, marginBottom: 24, textAlign: 'center' }}>{t('account.pricing.intro')}</div>
+        <div
+          style={{
+            fontSize: 14,
+            color: 'var(--text-body)',
+            lineHeight: 1.8,
+            marginBottom: 24,
+            textAlign: 'center',
+          }}
+        >
+          {t('account.pricing.intro')}
+        </div>
         <div style={gridStyle}>
           {plans.map((plan) => (
             <PlanCard key={plan.name} plan={plan} />
@@ -91,14 +102,21 @@ function ComparisonTable() {
   const { t } = useTranslation();
   const rows = pricingData.comparisonRows as ComparisonRowEntry[];
   const ths: { text: string; align: string; color: string; weight: number }[] = [
-    { text: t('account.pricing.compare.feature'), align: 'left', color: 'var(--text-muted)', weight: 600 },
+    {
+      text: t('account.pricing.compare.feature'),
+      align: 'left',
+      color: 'var(--text-muted)',
+      weight: 600,
+    },
     { text: 'Free', align: 'center', color: 'var(--text-muted)', weight: 600 },
     { text: 'Pro', align: 'center', color: 'var(--brand)', weight: 700 },
-    { text: 'Pro+', align: 'center', color: 'var(--text-muted)', weight: 600 }
+    { text: 'Pro+', align: 'center', color: 'var(--text-muted)', weight: 600 },
   ];
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 12 }}>{t('account.pricing.comparisonTitle')}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)', marginBottom: 12 }}>
+        {t('account.pricing.comparisonTitle')}
+      </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
@@ -114,9 +132,24 @@ function ComparisonTable() {
             {rows.map((r) => {
               const cells = [
                 { v: t(r.featureKey), color: 'var(--text-body)', weight: 500, align: 'left' },
-                { v: resolveCellValue(r.free, t), color: 'var(--text-muted)', weight: 400, align: 'center' },
-                { v: resolveCellValue(r.pro, t), color: 'var(--brand)', weight: 600, align: 'center' },
-                { v: resolveCellValue(r.proPlus, t), color: 'var(--text-body)', weight: 400, align: 'center' }
+                {
+                  v: resolveCellValue(r.free, t),
+                  color: 'var(--text-muted)',
+                  weight: 400,
+                  align: 'center',
+                },
+                {
+                  v: resolveCellValue(r.pro, t),
+                  color: 'var(--brand)',
+                  weight: 600,
+                  align: 'center',
+                },
+                {
+                  v: resolveCellValue(r.proPlus, t),
+                  color: 'var(--text-body)',
+                  weight: 400,
+                  align: 'center',
+                },
               ];
               return (
                 <tr key={r.featureKey} style={{ borderBottom: '1px solid var(--border-soft)' }}>
@@ -145,7 +178,7 @@ function PricingNotice() {
         borderRadius: 'var(--radius-control)',
         fontSize: 12,
         color: 'var(--text-muted)',
-        lineHeight: 1.7
+        lineHeight: 1.7,
       }}
     >
       <strong style={{ color: 'var(--text-body)' }}>{t('account.pricing.noticeTitle')}</strong>
@@ -153,6 +186,7 @@ function PricingNotice() {
     </div>
   );
 }
+// eslint-disable-next-line max-lines-per-function
 function PlanCard({ plan }: { plan: Plan }) {
   const isRecommended = plan.recommended;
   const brandColor = 'hsl(var(--brand))';
@@ -167,7 +201,7 @@ function PlanCard({ plan }: { plan: Plan }) {
     fontWeight: 600,
     cursor: 'pointer',
     fontFamily: 'inherit',
-    transition: 'background 0.15s'
+    transition: 'background 0.15s',
   };
   return (
     <div
@@ -178,7 +212,7 @@ function PlanCard({ plan }: { plan: Plan }) {
         border: isRecommended ? '2px solid var(--brand)' : '1px solid var(--border-soft)',
         position: 'relative',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
       }}
     >
       {isRecommended && <RecommendedBadge />}
@@ -188,25 +222,31 @@ function PlanCard({ plan }: { plan: Plan }) {
           alignItems: 'center',
           gap: 8,
           marginBottom: 8,
-          color: isRecommended ? brandColor : 'var(--text-muted)'
+          color: isRecommended ? brandColor : 'var(--text-muted)',
         }}
       >
         {plan.icon}
-        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>{plan.name}</span>
+        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-strong)' }}>
+          {plan.name}
+        </span>
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 8 }}>
         <span
           style={{
             fontSize: 32,
             fontWeight: 800,
-            color: isRecommended ? brandColor : 'var(--text-strong)'
+            color: isRecommended ? brandColor : 'var(--text-strong)',
           }}
         >
           {plan.price}
         </span>
-        {plan.period && <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{plan.period}</span>}
+        {plan.period && (
+          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{plan.period}</span>
+        )}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20, minHeight: 32 }}>{plan.desc}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20, minHeight: 32 }}>
+        {plan.desc}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
         {plan.features.map((f, i) => {
           const Icon = f.included ? Check : X;
@@ -217,13 +257,13 @@ function PlanCard({ plan }: { plan: Plan }) {
                 style={{
                   color: f.included ? 'hsl(var(--success))' : 'var(--text-muted)',
                   opacity: f.included ? 1 : 0.5,
-                  flexShrink: 0
+                  flexShrink: 0,
                 }}
               />
               <span
                 style={{
                   color: f.included ? 'var(--text-body)' : 'var(--text-muted)',
-                  opacity: f.included ? 1 : 0.7
+                  opacity: f.included ? 1 : 0.7,
                 }}
               >
                 {f.text}
@@ -251,7 +291,7 @@ function RecommendedBadge() {
         fontSize: 11,
         fontWeight: 700,
         borderRadius: 12,
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
       }}
     >
       {t('account.pricing.recommended')}

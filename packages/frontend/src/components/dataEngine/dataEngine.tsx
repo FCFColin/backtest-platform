@@ -1,8 +1,27 @@
+/* eslint-disable react-refresh/only-export-components -- 导出共享工具常量，Plan-1 拆分 */
 import * as React from 'react';
 import { useState, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Play, RotateCcw, Zap, Database, BarChart3, Clock, HardDrive } from 'lucide-react';
-import { BarChart, Bar as RechartsBar, XAxis, YAxis, CartesianGrid, Cell, LabelList, ResponsiveContainer } from 'recharts';
+import {
+  RefreshCw,
+  Play,
+  RotateCcw,
+  Zap,
+  Database,
+  BarChart3,
+  Clock,
+  HardDrive,
+} from 'lucide-react';
+import {
+  BarChart,
+  Bar as RechartsBar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  ResponsiveContainer,
+} from 'recharts';
 import { Card, Button, Skeleton } from '@/components/ui/uiComponents';
 import type { MarketStats } from '@backtest/shared/types';
 import { apiFetch } from '../../utils/apiClient.js';
@@ -41,7 +60,8 @@ function getLoadStage(t: TFunc, count: number): string {
 function classifyError(t: TFunc, res: Response, json: Record<string, unknown> | null): string {
   const status = res.status || (typeof json?.status === 'number' ? json.status : 0);
   if (status === 401 || status === 403) return t('dataEngine.authFailed');
-  if (json?.errorType === 'scan_failed') return `${t('dataEngine.scanFailed')}：${json.error || t('dataEngine.unknown')}`;
+  if (json?.errorType === 'scan_failed')
+    return `${t('dataEngine.scanFailed')}：${json.error || t('dataEngine.unknown')}`;
   if (res.status >= 500) return t('dataEngine.serverError');
   return t('dataEngine.loadFailed');
 }
@@ -84,9 +104,14 @@ async function createPoll(ctx: Omit<PollCtx, 'poll'>): Promise<void> {
   const poll = async () => {
     const fullCtx: PollCtx = { ...ctx, poll };
     try {
-      const statsUrl = ctx.force ? '/api/v1/data/manage/stats?force=1' : '/api/v1/data/manage/stats';
+      const statsUrl = ctx.force
+        ? '/api/v1/data/manage/stats?force=1'
+        : '/api/v1/data/manage/stats';
       const res = await apiFetch(statsUrl);
-      if (ctx.pollCountRef.current === 0 && Date.now() - ctx.fetchStartRef.current > INITIAL_TIMEOUT_MS) {
+      if (
+        ctx.pollCountRef.current === 0 &&
+        Date.now() - ctx.fetchStartRef.current > INITIAL_TIMEOUT_MS
+      ) {
         ctx.setLoading(false);
         ctx.setError(ctx.t('dataEngine.connectionTimeout'));
         return;
@@ -108,7 +133,11 @@ async function createPoll(ctx: Omit<PollCtx, 'poll'>): Promise<void> {
       reportError(e, { component: 'DataEngine', action: 'fetchStats' });
       useToastStore.getState().addToast('error', ctx.t('dataEngine.statsLoadFailed'));
       ctx.setLoading(false);
-      ctx.setError(e instanceof TypeError && e.message.includes('fetch') ? ctx.t('dataEngine.networkError') : ctx.t('dataEngine.loadFailed'));
+      ctx.setError(
+        e instanceof TypeError && e.message.includes('fetch')
+          ? ctx.t('dataEngine.networkError')
+          : ctx.t('dataEngine.loadFailed'),
+      );
     }
   };
   await poll();
@@ -127,7 +156,7 @@ export async function doFetchStats(
     setError: (v: string) => void;
     setLoadStage: (v: string) => void;
     setScanning: (v: boolean) => void;
-  }
+  },
 ) {
   const t0 = Date.now();
   refs.fetchStartRef.current = t0;
@@ -141,10 +170,16 @@ export async function doFetchStats(
     t0,
     pollCountRef: refs.pollCountRef,
     fetchStartRef: refs.fetchStartRef,
-    ...setters
+    ...setters,
   });
 }
-export async function doActionFn(t: TFunc, url: string, label: string, setActionMsg: (v: string) => void, method: 'POST' | 'PUT' | 'PATCH' = 'POST') {
+export async function doActionFn(
+  t: TFunc,
+  url: string,
+  label: string,
+  setActionMsg: (v: string) => void,
+  method: 'POST' | 'PUT' | 'PATCH' = 'POST',
+) {
   setActionMsg(`${label}...`);
   try {
     const res = await apiFetch(url, { method });
@@ -166,17 +201,36 @@ function UniverseInfo({ universe }: { universe: UniverseStats }) {
   const { t } = useTranslation();
   return (
     <Card className="p-4 text-caption text-fg-tertiary">
-      {t('dataEngine.universeLastRefresh')}: {universe.updated_at ? new Date(universe.updated_at).toLocaleString('zh-CN') : t('dataEngine.notRefreshed')}
+      {t('dataEngine.universeLastRefresh')}:{' '}
+      {universe.updated_at
+        ? new Date(universe.updated_at).toLocaleString('zh-CN')
+        : t('dataEngine.notRefreshed')}
       {' | '}
-      <span className="font-mono tabular-nums">{fmt(universe.total)}</span> {t('dataEngine.totalTickers')}
+      <span className="font-mono tabular-nums">{fmt(universe.total)}</span>{' '}
+      {t('dataEngine.totalTickers')}
       {' | '}
-      {t('dataEngine.stock')} <span className="font-mono tabular-nums">{fmt(universe.stats?.stocks || 0)}</span> + ETF <span className="font-mono tabular-nums">{fmt(universe.stats?.etfs || 0)}</span> + {t('dataEngine.index')} <span className="font-mono tabular-nums">{fmt(universe.stats?.indices || 0)}</span>
+      {t('dataEngine.stock')}{' '}
+      <span className="font-mono tabular-nums">{fmt(universe.stats?.stocks || 0)}</span> + ETF{' '}
+      <span className="font-mono tabular-nums">{fmt(universe.stats?.etfs || 0)}</span> +{' '}
+      {t('dataEngine.index')}{' '}
+      <span className="font-mono tabular-nums">{fmt(universe.stats?.indices || 0)}</span>
       {' | '}
-      {t('dataEngine.usStocks')} <span className="font-mono tabular-nums">{fmt(universe.stats?.us || 0)}</span> + {t('dataEngine.cnStocks')} <span className="font-mono tabular-nums">{fmt(universe.stats?.cn || 0)}</span>
+      {t('dataEngine.usStocks')}{' '}
+      <span className="font-mono tabular-nums">{fmt(universe.stats?.us || 0)}</span> +{' '}
+      {t('dataEngine.cnStocks')}{' '}
+      <span className="font-mono tabular-nums">{fmt(universe.stats?.cn || 0)}</span>
     </Card>
   );
 }
-function DataEngineActionButtons({ actionMsg, fetchStats, doAction }: { actionMsg: string; fetchStats: (force?: boolean) => void; doAction: (url: string, label: string, method: ActionMethod) => void }) {
+function DataEngineActionButtons({
+  actionMsg,
+  fetchStats,
+  doAction,
+}: {
+  actionMsg: string;
+  fetchStats: (force?: boolean) => void;
+  doAction: (url: string, label: string, method: ActionMethod) => void;
+}) {
   const { t } = useTranslation();
   const user = useAuthStore((state) => state.user);
   const role = user ? effectiveRole(user) : '';
@@ -188,16 +242,40 @@ function DataEngineActionButtons({ actionMsg, fetchStats, doAction }: { actionMs
         <Button variant="primary" size="sm" onClick={() => fetchStats(true)}>
           <RefreshCw className="size-3.5" /> {t('dataEngine.refreshStats')}
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => doAction('/api/v1/data/manage/update/inc', t('dataEngine.incrementalUpdate'), 'PATCH')}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() =>
+            doAction('/api/v1/data/manage/update/inc', t('dataEngine.incrementalUpdate'), 'PATCH')
+          }
+        >
           <Play className="size-3.5" /> {t('dataEngine.incrementalUpdate')}
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => doAction('/api/v1/data/manage/update/refetch', t('dataEngine.refetch'), 'PUT')}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() =>
+            doAction('/api/v1/data/manage/update/refetch', t('dataEngine.refetch'), 'PUT')
+          }
+        >
           <RotateCcw className="size-3.5" /> {t('dataEngine.refetch')}
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => doAction('/api/v1/data/manage/update/full', t('dataEngine.fullUpdate'), 'PUT')}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() =>
+            doAction('/api/v1/data/manage/update/full', t('dataEngine.fullUpdate'), 'PUT')
+          }
+        >
           <Zap className="size-3.5" /> {t('dataEngine.fullUpdate')}
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => doAction('/api/v1/data/manage/universe', t('dataEngine.refreshUniverse'), 'PUT')}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() =>
+            doAction('/api/v1/data/manage/universe', t('dataEngine.refreshUniverse'), 'PUT')
+          }
+        >
           <Database className="size-3.5" /> {t('dataEngine.refreshUniverse')}
         </Button>
         {actionMsg && <span className="text-caption font-semibold text-brand">{actionMsg}</span>}
@@ -205,7 +283,19 @@ function DataEngineActionButtons({ actionMsg, fetchStats, doAction }: { actionMs
     </Card>
   );
 }
-export function DataEngineDashboard({ stats, universe, actionMsg, fetchStats, doAction }: { stats: Stats; universe: UniverseStats | null; actionMsg: string; fetchStats: (force?: boolean) => void; doAction: (url: string, label: string, method: ActionMethod) => void }) {
+export function DataEngineDashboard({
+  stats,
+  universe,
+  actionMsg,
+  fetchStats,
+  doAction,
+}: {
+  stats: Stats;
+  universe: UniverseStats | null;
+  actionMsg: string;
+  fetchStats: (force?: boolean) => void;
+  doAction: (url: string, label: string, method: ActionMethod) => void;
+}) {
   return (
     <>
       <DataEngineActionButtons actionMsg={actionMsg} fetchStats={fetchStats} doAction={doAction} />
@@ -225,7 +315,17 @@ export function DataEngineDashboard({ stats, universe, actionMsg, fetchStats, do
     </>
   );
 }
-function StatCard({ icon, label, value, sub }: { icon: ReactNode; label: string; value: string; sub: string }) {
+function StatCard({
+  icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+}) {
   return (
     <Card className="p-4">
       <div className="mb-2 flex items-center gap-2 text-brand">
@@ -248,12 +348,21 @@ function ProgressBar({ label, current, total }: { label: string; current: number
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded bg-input-bg">
-        <div className="h-full rounded bg-brand transition-[width] duration-500" style={{ width: `${pctVal}%` }} />
+        <div
+          className="h-full rounded bg-brand transition-[width] duration-500"
+          style={{ width: `${pctVal}%` }}
+        />
       </div>
     </div>
   );
 }
-export function DataEngineOverviewCards({ stats, universe }: { stats: Stats; universe: UniverseStats | null }) {
+export function DataEngineOverviewCards({
+  stats,
+  universe,
+}: {
+  stats: Stats;
+  universe: UniverseStats | null;
+}) {
   const { t } = useTranslation();
   const totalUniverse = universe?.total || stats.total_cached || 0;
   const totalCached = stats.total_cached || 0;
@@ -265,19 +374,45 @@ export function DataEngineOverviewCards({ stats, universe }: { stats: Stats; uni
     historyYears != null && earliestDate
       ? t('dataEngine.deepHistoryHighlight', {
           year: earliestDate.slice(0, 4),
-          years: historyYears
+          years: historyYears,
         })
       : `${t('dataEngine.to')} ${latestDate || '-'}`;
   return (
     <div className="my-2 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
-      <StatCard icon={<Database className="size-5" />} label={t('dataEngine.universeLabel')} value={fmt(totalUniverse)} sub={`${t('dataEngine.cached')} ${fmt(totalCached)} (${coverageBase > 0 ? ((totalCached / coverageBase) * 100).toFixed(1) : 0}%)`} />
-      <StatCard icon={<BarChart3 className="size-5" />} label={t('dataEngine.totalDataPoints')} value={fmt(stats.data_quality.total_data_points || 0)} sub={`${t('dataEngine.avgPointsPerTicker')} ${fmt(stats.coverage.avg_data_points || 0)}`} />
-      <StatCard icon={<Clock className="size-5" />} label={t('dataEngine.timeRange')} value={earliestDate || '-'} sub={timeRangeSub} />
-      <StatCard icon={<HardDrive className="size-5" />} label={t('dataEngine.diskUsage')} value={formatStorageMb(stats.data_quality.total_size_mb || 0)} sub={t('dataEngine.dbStorageSub')} />
+      <StatCard
+        icon={<Database className="size-5" />}
+        label={t('dataEngine.universeLabel')}
+        value={fmt(totalUniverse)}
+        sub={`${t('dataEngine.cached')} ${fmt(totalCached)} (${coverageBase > 0 ? ((totalCached / coverageBase) * 100).toFixed(1) : 0}%)`}
+      />
+      <StatCard
+        icon={<BarChart3 className="size-5" />}
+        label={t('dataEngine.totalDataPoints')}
+        value={fmt(stats.data_quality.total_data_points || 0)}
+        sub={`${t('dataEngine.avgPointsPerTicker')} ${fmt(stats.coverage.avg_data_points || 0)}`}
+      />
+      <StatCard
+        icon={<Clock className="size-5" />}
+        label={t('dataEngine.timeRange')}
+        value={earliestDate || '-'}
+        sub={timeRangeSub}
+      />
+      <StatCard
+        icon={<HardDrive className="size-5" />}
+        label={t('dataEngine.diskUsage')}
+        value={formatStorageMb(stats.data_quality.total_size_mb || 0)}
+        sub={t('dataEngine.dbStorageSub')}
+      />
     </div>
   );
 }
-export function DataEngineCoverageBars({ stats, universe }: { stats: Stats; universe: UniverseStats | null }) {
+export function DataEngineCoverageBars({
+  stats,
+  universe,
+}: {
+  stats: Stats;
+  universe: UniverseStats | null;
+}) {
   const { t } = useTranslation();
   const totalUniverse = universe?.total || stats.total_cached || 0;
   const totalCached = stats.total_cached || 0;
@@ -285,11 +420,31 @@ export function DataEngineCoverageBars({ stats, universe }: { stats: Stats; univ
   return (
     <Card className="p-4">
       <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.dataCoverage')}</div>
-      <ProgressBar label={t('dataEngine.totalCoverage')} current={totalCached} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.fiveYearsPlus')} current={stats.coverage.tickers_with_5y_plus || 0} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.tenYearsPlus')} current={stats.coverage.tickers_with_10y_plus || 0} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.twentyYearsPlus')} current={stats.coverage.tickers_with_20y_plus || 0} total={coverageBase} />
-      <ProgressBar label={t('dataEngine.adjCloseData')} current={stats.data_quality.with_adj_close || 0} total={coverageBase} />
+      <ProgressBar
+        label={t('dataEngine.totalCoverage')}
+        current={totalCached}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.fiveYearsPlus')}
+        current={stats.coverage.tickers_with_5y_plus || 0}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.tenYearsPlus')}
+        current={stats.coverage.tickers_with_10y_plus || 0}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.twentyYearsPlus')}
+        current={stats.coverage.tickers_with_20y_plus || 0}
+        total={coverageBase}
+      />
+      <ProgressBar
+        label={t('dataEngine.adjCloseData')}
+        current={stats.data_quality.with_adj_close || 0}
+        total={coverageBase}
+      />
     </Card>
   );
 }
@@ -313,11 +468,24 @@ function sortDecadeEntries(entries: [string, number][]): [string, number][] {
 function MiniBar({ pct }: { pct: number }) {
   return (
     <div className="h-1 overflow-hidden rounded bg-input-bg">
-      <div className="h-full rounded bg-brand transition-[width] duration-400" style={{ width: `${pct}%` }} />
+      <div
+        className="h-full rounded bg-brand transition-[width] duration-400"
+        style={{ width: `${pct}%` }}
+      />
     </div>
   );
 }
-function DistributionRow({ label, count, maxCount, bold = false }: { label: string; count: number; maxCount: number; bold?: boolean }) {
+function DistributionRow({
+  label,
+  count,
+  maxCount,
+  bold = false,
+}: {
+  label: string;
+  count: number;
+  maxCount: number;
+  bold?: boolean;
+}) {
   const barPct = maxCount > 0 ? (count / maxCount) * 100 : 0;
   return (
     <div className="mb-1.5">
@@ -329,15 +497,27 @@ function DistributionRow({ label, count, maxCount, bold = false }: { label: stri
     </div>
   );
 }
-export function MarketDistributionCard({ stats, universe }: { stats: Stats; universe: UniverseStats | null }) {
+export function MarketDistributionCard({
+  stats,
+  universe,
+}: {
+  stats: Stats;
+  universe: UniverseStats | null;
+}) {
   const { t } = useTranslation();
   const marketEntries = stats.by_market ? Object.entries(stats.by_market) : [];
-  const maxCount = marketEntries.length > 0 ? Math.max(...marketEntries.map(([, d]) => d.count)) : 0;
+  const maxCount =
+    marketEntries.length > 0 ? Math.max(...marketEntries.map(([, d]) => d.count)) : 0;
   return (
     <Card className="p-4">
       <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.byMarket')}</div>
       {marketEntries.map(([market, data]) => {
-        const label = market === 'US' ? t('dataEngine.usStock') : market === 'CN' ? t('dataEngine.cnStock') : market;
+        const label =
+          market === 'US'
+            ? t('dataEngine.usStock')
+            : market === 'CN'
+              ? t('dataEngine.cnStock')
+              : market;
         return (
           <div key={market} className="mb-2.5">
             <div className="mb-0.75 flex justify-between text-label">
@@ -365,10 +545,12 @@ export function MarketDistributionCard({ stats, universe }: { stats: Stats; univ
         <div className="mt-3 border-t border-subtle pt-3 text-caption text-fg-tertiary">
           <div className="mb-1 font-semibold">{t('dataEngine.universeVsCache')}</div>
           <div>
-            {t('dataEngine.usStocks')}: {fmt(universe.stats.us)} → {t('dataEngine.cached')} {fmt(stats.by_market?.US?.count)}
+            {t('dataEngine.usStocks')}: {fmt(universe.stats.us)} → {t('dataEngine.cached')}{' '}
+            {fmt(stats.by_market?.US?.count)}
           </div>
           <div>
-            {t('dataEngine.cnStocks')}: {fmt(universe.stats.cn)} → {t('dataEngine.cached')} {fmt(stats.by_market?.CN?.count)}
+            {t('dataEngine.cnStocks')}: {fmt(universe.stats.cn)} → {t('dataEngine.cached')}{' '}
+            {fmt(stats.by_market?.CN?.count)}
           </div>
         </div>
       )}
@@ -387,7 +569,12 @@ export function ExchangeDistributionCard({ stats }: { stats: Stats }) {
     <Card className="p-4">
       <div className="mb-3 text-body font-semibold text-fg">{t('dataEngine.byExchange')}</div>
       {exchangeEntries.map(([exchange, count]) => (
-        <DistributionRow key={exchange} label={exchange || t('dataEngine.unknown')} count={count} maxCount={maxCount} />
+        <DistributionRow
+          key={exchange}
+          label={exchange || t('dataEngine.unknown')}
+          count={count}
+          maxCount={maxCount}
+        />
       ))}
     </Card>
   );
@@ -397,7 +584,9 @@ export function DecadeDistributionCard({ stats }: { stats: Stats }) {
   return <DistributionBarCard titleKey="dataEngine.byDecade" entries={entries} />;
 }
 export function YearCountDistributionCard({ stats }: { stats: Stats }) {
-  const entries = stats.by_year_count ? sortAgeBucketEntries(Object.entries(stats.by_year_count)) : [];
+  const entries = stats.by_year_count
+    ? sortAgeBucketEntries(Object.entries(stats.by_year_count))
+    : [];
   return <DistributionBarCard titleKey="dataEngine.byYearCount" entries={entries} />;
 }
 interface DistributionBarCardProps {
@@ -414,10 +603,24 @@ function DistributionBarCard({ titleKey, entries }: DistributionBarCardProps) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 20, right: 8, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" vertical={false} />
-            <XAxis dataKey="bucket" tick={{ fontSize: 10, fill: AXIS_TICK_COLOR }} tickLine={false} axisLine={{ stroke: 'var(--border-soft)' }} interval={0} angle={entries.length > 8 ? -35 : 0} textAnchor={entries.length > 8 ? 'end' : 'middle'} height={entries.length > 8 ? 50 : 30} />
+            <XAxis
+              dataKey="bucket"
+              tick={{ fontSize: 10, fill: AXIS_TICK_COLOR }}
+              tickLine={false}
+              axisLine={{ stroke: 'var(--border-soft)' }}
+              interval={0}
+              angle={entries.length > 8 ? -35 : 0}
+              textAnchor={entries.length > 8 ? 'end' : 'middle'}
+              height={entries.length > 8 ? 50 : 30}
+            />
             <YAxis hide />
             <RechartsBar dataKey="count" fill={BAR_FILL} radius={[3, 3, 0, 0]} maxBarSize={60}>
-              <LabelList dataKey="count" position="top" style={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'monospace' }} formatter={(v: number) => fmt(v)} />
+              <LabelList
+                dataKey="count"
+                position="top"
+                style={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'monospace' }}
+                formatter={(v: number) => fmt(v)}
+              />
               {data.map((entry) => (
                 <Cell key={entry.bucket} fill={BAR_FILL} />
               ))}
@@ -466,14 +669,22 @@ export function RecentUpdatesCard() {
           ))}
         </div>
       ) : updates.length === 0 ? (
-        <div className="text-caption text-fg-tertiary text-center py-6">{t('dataEngine.noRecentUpdates')}</div>
+        <div className="text-caption text-fg-tertiary text-center py-6">
+          {t('dataEngine.noRecentUpdates')}
+        </div>
       ) : (
         <div className="space-y-1">
           {updates.map((u) => (
-            <div key={u.ticker} className="flex items-center gap-3 py-[3px] text-caption" data-testid={`recent-update-${u.ticker}`}>
+            <div
+              key={u.ticker}
+              className="flex items-center gap-3 py-[3px] text-caption"
+              data-testid={`recent-update-${u.ticker}`}
+            >
               <span className="font-mono text-fg w-20 flex-shrink-0">{u.ticker}</span>
               <span className="text-fg-secondary truncate flex-1">{u.name}</span>
-              <span className="font-mono tabular-nums text-fg-tertiary">{u.lastBarDate ?? '—'}</span>
+              <span className="font-mono tabular-nums text-fg-tertiary">
+                {u.lastBarDate ?? '—'}
+              </span>
             </div>
           ))}
         </div>
@@ -488,7 +699,7 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
     us_etf: t('dataEngine.usEtfCategory'),
     cn_stock: t('dataEngine.cnStockCategory'),
     cn_etf: t('dataEngine.cnEtfCategory'),
-    index: t('dataEngine.indexCategory')
+    index: t('dataEngine.indexCategory'),
   };
   return (
     <Card className="p-4">
@@ -498,9 +709,14 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
           ([category, items]) =>
             items.length > 0 && (
               <div key={category} className="mb-3">
-                <div className="mb-1 text-caption font-semibold text-brand">{categoryLabels[category] || category}</div>
+                <div className="mb-1 text-caption font-semibold text-brand">
+                  {categoryLabels[category] || category}
+                </div>
                 {items.map((tk) => (
-                  <div key={tk.ticker} className="flex justify-between py-0.5 text-caption text-fg-secondary">
+                  <div
+                    key={tk.ticker}
+                    className="flex justify-between py-0.5 text-caption text-fg-secondary"
+                  >
                     <span className="font-medium">{tk.ticker}</span>
                     <span className="text-fg-tertiary">
                       {tk.first_date} ~ {tk.last_date} ({fmt(tk.data_points)}
@@ -509,7 +725,7 @@ export function SampleTickersCard({ stats }: { stats: Stats }) {
                   </div>
                 ))}
               </div>
-            )
+            ),
         )}
     </Card>
   );

@@ -16,12 +16,12 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
   const originalEnd = res.end.bind(res);
   let body = Buffer.alloc(0);
 
-  res.write = function (chunk: any, ..._args: any[]) {
+  res.write = function (chunk: Buffer | string, ..._args: unknown[]): boolean {
     if (chunk) body = Buffer.concat([body, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
     return true;
-  } as any;
+  } as unknown as Response['write'];
 
-  res.end = function (chunk?: any, ..._args: any[]) {
+  res.end = function (chunk?: Buffer | string, ..._args: unknown[]): void {
     if (chunk) body = Buffer.concat([body, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
 
     if (body.length < 1024 || res.statusCode === 204 || res.statusCode === 304) {
@@ -32,18 +32,22 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
     }
 
     if (acceptBrotli) {
-      zlib.brotliCompress(body, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6 } }, (err, compressed) => {
-        if (err) {
-          originalWrite(body);
+      zlib.brotliCompress(
+        body,
+        { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 6 } },
+        (err, compressed) => {
+          if (err) {
+            originalWrite(body);
+            originalEnd();
+            return;
+          }
+          res.removeHeader('Content-Length');
+          res.setHeader('Content-Encoding', 'br');
+          res.setHeader('Vary', 'Accept-Encoding');
+          originalWrite(compressed);
           originalEnd();
-          return;
-        }
-        res.removeHeader('Content-Length');
-        res.setHeader('Content-Encoding', 'br');
-        res.setHeader('Vary', 'Accept-Encoding');
-        originalWrite(compressed);
-        originalEnd();
-      });
+        },
+      );
     } else if (acceptGzip) {
       zlib.gzip(body, { level: 6 }, (err, compressed) => {
         if (err) {
@@ -61,7 +65,7 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
       originalWrite(body);
       originalEnd();
     }
-  } as any;
+  } as unknown as Response['end'];
   next();
 }
 
@@ -73,20 +77,29 @@ function getHintsLinks(): string[] {
   if (hintsLinks) return hintsLinks;
   try {
     const files = fs.readdirSync(FRONTEND_DIST);
-    const indexJs = files.find(f => f.startsWith('index-') && f.endsWith('.js'));
-    const styleCss = files.find(f => f.startsWith('style-') && f.endsWith('.css'));
+    const indexJs = files.find((f) => f.startsWith('index-') && f.endsWith('.js'));
+    const styleCss = files.find((f) => f.startsWith('style-') && f.endsWith('.css'));
     hintsLinks = [
       ...(indexJs ? [`</assets/${indexJs}>; rel=modulepreload; as=script`] : []),
       ...(styleCss ? [`</assets/${styleCss}>; rel=preload; as=style`] : []),
     ];
-  } catch { hintsLinks = []; }
+  } catch {
+    hintsLinks = [];
+  }
   return hintsLinks;
 }
 
-export function createEarlyHintsMiddleware(): (req: Request, res: Response, next: NextFunction) => void {
+export function createEarlyHintsMiddleware(): (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => void {
   const links = getHintsLinks();
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (req.path.startsWith('/api/') || links.length === 0) { next(); return; }
+    if (req.path.startsWith('/api/') || links.length === 0) {
+      next();
+      return;
+    }
     if (res.writeEarlyHints) {
       res.writeEarlyHints({ link: links });
     }

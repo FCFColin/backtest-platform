@@ -67,6 +67,7 @@ describe('Chaos Experiment 4: Redis 中断', () => {
     'Redis 停止后 API 不崩溃，且健康检查反映 redis=false',
     async () => {
       if (!fixture.containerRunning) {
+        // eslint-disable-next-line no-console -- 混沌实验跳过说明需输出到终端
         console.warn('skip: backtest-redis 容器未运行');
         return;
       }

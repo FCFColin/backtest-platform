@@ -68,6 +68,7 @@ describe('ErrorBoundary', () => {
         <BrokenChild shouldThrow={true} />
       </ErrorBoundary>,
     );
+    // eslint-disable-next-line no-console -- 断言错误上报被触发
     expect(console.error).toHaveBeenCalled();
   });
 
