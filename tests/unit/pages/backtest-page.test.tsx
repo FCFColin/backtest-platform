@@ -10,7 +10,7 @@
  * 断言标题（i18n key 透传）与各 slot stub 出现。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -69,13 +69,13 @@ describe('BacktestPage (smoke)', () => {
     pageState.portfolios = [{ name: 'SPY', assets: [] }];
   });
 
-  it('happy path: 装配标题与全部面板 slot', () => {
+  it('happy path: 装配标题与全部面板 slot', async () => {
     render(<BacktestPage />);
     expect(screen.getByTestId('backtest-hero')).toBeTruthy();
-    expect(screen.getByTestId('backtest-params')).toBeTruthy();
-    expect(screen.getByTestId('portfolio-editor')).toBeTruthy();
-    expect(screen.getByTestId('backtest-toolbar')).toBeTruthy();
-    expect(screen.getByTestId('backtest-results')).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('backtest-params')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('portfolio-editor')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('backtest-toolbar')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('backtest-results')).toBeTruthy());
   });
 
   it('edge path: 空组合状态下仍渲染标题不崩溃', () => {

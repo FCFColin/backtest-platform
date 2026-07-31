@@ -1,18 +1,3 @@
-/**
- * Chaos Experiment 3: High Concurrency + Graceful Shutdown（vitest 集成测试）
- *
- * SRE: 验证优雅关闭期间在途请求的完成情况
- * 企业为何需要：K8s 滚动更新时发送 SIGTERM 后等待 terminationGracePeriodSeconds，
- * 在途请求丢失意味着用户看到错误，影响可用性 SLO。本测试验证优雅关闭可靠性。
- *
- * 权衡：实验需要发送 SIGTERM，但验证优雅关闭的可靠性至关重要。
- *
- * 重构说明（Task 5.14/5.15）：
- * - SIGTERM 在并发请求 in-flight 时发送，并非简单的 stop→assert→start 模式，
- *   因此不使用 withContainerStopped。
- * - 用 setupChaosFixture(CONTAINERS.api) 替代内联 isDockerAvailable/
- *   isContainerRunning + afterAll startContainer + waitForHealthy 样板。
- */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   CONTAINERS,
@@ -27,13 +12,6 @@ const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const HEALTH_URL = `${API_URL}/api/health`;
 const CONCURRENT_REQUESTS = 100;
 
-/**
- * 业务端点：/api/v1/data/history
- *
- * 企业理由：原脚本仅测试 /api/health（不涉及 DB/外部服务），
- * 无法验证真实业务路径的优雅关闭。本测试使用 /api/v1/data/history，
- * 该端点涉及 Go 数据服务调用 + DB 查询 + JSON 降级，能真实反映业务请求生命周期。
- */
 const BUSINESS_ENDPOINT = `${API_URL}/api/v1/data/history?tickers=SPY&startDate=2020-01-01&endDate=2024-12-31`;
 
 // top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值

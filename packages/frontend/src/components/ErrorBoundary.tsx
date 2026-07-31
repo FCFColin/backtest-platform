@@ -1,44 +1,13 @@
-/**
- * @file 错误边界组件
- * @description 捕获子组件树渲染异常，展示降级 UI 防止整页白屏
- */
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import i18n from '../i18n/index.js';
 import { reportError } from '../utils/errorReporter.js';
-
-/**
- * ErrorBoundary 组件的 Props。
- */
 interface ErrorBoundaryProps {
-  /** 子组件树，将被错误边界包裹。 */
   children: ReactNode;
 }
-
-/**
- * ErrorBoundary 组件的 State。
- */
 interface ErrorBoundaryState {
-  /** 是否已捕获到渲染异常。true 时显示错误 UI。 */
   hasError: boolean;
-  /** 捕获到的错误对象。 */
   error: Error | null;
 }
-
-/**
- * React 错误边界组件。
- *
- * 捕获子组件树在渲染、生命周期及构造函数中抛出的 JavaScript 错误，
- * 并展示友好的错误提示页面，避免整个应用白屏崩溃。
- *
- * 注意：错误边界不会捕获事件回调、异步代码、SSR 或错误边界自身的错误。
- *
- * @example
- * ```tsx
- * <ErrorBoundary>
- *   <App />
- * </ErrorBoundary>
- * ```
- */
 const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
@@ -48,22 +17,17 @@ const ERROR_CONTAINER_STYLE: React.CSSProperties = {
   padding: '24px',
   fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
   color: 'var(--text-strong)',
-  textAlign: 'center',
+  textAlign: 'center'
 };
-
-const STYLE_TAG = (
-  <style>{`.error-refresh-btn:hover { background-color: var(--brand-hover) !important; }`}</style>
-);
-
+const STYLE_TAG = <style>{`.error-refresh-btn:hover { background-color: var(--brand-hover) !important; }`}</style>;
 const ERROR_DETAIL_STYLE: React.CSSProperties = {
   fontSize: '12px',
   color: 'var(--text-muted)',
   margin: '0 0 16px',
   maxWidth: '500px',
   wordBreak: 'break-word',
-  fontFamily: 'monospace',
+  fontFamily: 'monospace'
 };
-
 const REFRESH_BTN_STYLE: React.CSSProperties = {
   padding: '10px 24px',
   fontSize: '14px',
@@ -73,85 +37,51 @@ const REFRESH_BTN_STYLE: React.CSSProperties = {
   border: 'none',
   borderRadius: '6px',
   cursor: 'pointer',
-  transition: 'background-color 0.2s',
+  transition: 'background-color 0.2s'
 };
-
 export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
-
-  /**
-   * 在子组件抛出错误时更新 state，触发错误 UI 渲染。
-   */
   static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
-
-  /**
-   * 捕获错误信息，可用于上报日志。
-   *
-   * @param error - 抛出的错误对象。
-   * @param errorInfo - React 组件栈信息。
-   */
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // P1-3: 使用统一错误上报工具，替代 console.error
     reportError(error, {
       component: 'ErrorBoundary',
       action: 'componentDidCatch',
-      componentStack: errorInfo.componentStack,
+      componentStack: errorInfo.componentStack
     });
   }
-
-  /**
-   * 刷新当前页面，用于从错误状态恢复。
-   */
   private handleRefresh = (): void => {
     window.location.reload();
   };
-
   render(): ReactNode {
     if (this.state.hasError) return this.renderErrorUI();
     return this.props.children;
   }
-
   private renderErrorUI(): ReactNode {
     return (
       <>
         {STYLE_TAG}
         <div style={ERROR_CONTAINER_STYLE}>
-          <div
-            style={{ fontSize: '48px', marginBottom: '16px' }}
-            role="img"
-            aria-label={i18n.t('components.errorBoundary.errorAlert')}
-          >
+          <div style={{ fontSize: '48px', marginBottom: '16px' }} role="img" aria-label={i18n.t('components.errorBoundary.errorAlert')}>
             ⚠️
           </div>
-          <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>
-            {i18n.t('errors.pageErrorTitle')}
-          </h1>
+          <h1 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px' }}>{i18n.t('errors.pageErrorTitle')}</h1>
           <p
             style={{
               fontSize: '14px',
               color: 'var(--text-muted)',
               margin: '0 0 24px',
-              maxWidth: '400px',
+              maxWidth: '400px'
             }}
           >
             {i18n.t('errors.pageErrorMessage')}
           </p>
-          {this.state.error && (
-            <p style={ERROR_DETAIL_STYLE}>
-              {this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={this.handleRefresh}
-            style={REFRESH_BTN_STYLE}
-            className="error-refresh-btn"
-          >
+          {this.state.error && <p style={ERROR_DETAIL_STYLE}>{this.state.error.message?.slice(0, 200) || String(this.state.error).slice(0, 200)}</p>}
+          <button type="button" onClick={this.handleRefresh} style={REFRESH_BTN_STYLE} className="error-refresh-btn">
             {i18n.t('errors.pageRefresh')}
           </button>
         </div>

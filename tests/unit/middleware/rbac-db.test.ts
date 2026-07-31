@@ -77,10 +77,6 @@ describe('requirePermissionFromDb', () => {
     vi.clearAllMocks();
   });
 
-  // -------------------------------------------------------------------------
-  // 缓存命中路径
-  // -------------------------------------------------------------------------
-
   it('缓存命中时应使用缓存权限且不查 DB', async () => {
     mocks.getCachedUserPermissions.mockResolvedValue(['backtest:run', 'data:read']);
     const req = createMockRequest({ sub: 'u1', role: 'analyst' });
@@ -109,10 +105,6 @@ describe('requirePermissionFromDb', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(mocks.getUserPermissions).not.toHaveBeenCalled();
   });
-
-  // -------------------------------------------------------------------------
-  // 缓存未命中路径
-  // -------------------------------------------------------------------------
 
   it('缓存未命中时应查 DB 并回写缓存', async () => {
     mocks.getCachedUserPermissions.mockResolvedValue(null);
@@ -182,10 +174,6 @@ describe('requirePermissionFromDb', () => {
     expect(next).toHaveBeenCalled();
   });
 
-  // -------------------------------------------------------------------------
-  // platform_admin 与认证
-  // -------------------------------------------------------------------------
-
   it('platform_admin 应绕过全部检查', async () => {
     const req = createMockRequest({
       sub: 'platform-op',
@@ -214,10 +202,6 @@ describe('requirePermissionFromDb', () => {
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(401);
   });
-
-  // -------------------------------------------------------------------------
-  // 故障容错
-  // -------------------------------------------------------------------------
 
   it('DB 查询异常时应回退到 legacy 检查保证可用性', async () => {
     mocks.getCachedUserPermissions.mockResolvedValue(null);

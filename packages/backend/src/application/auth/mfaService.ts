@@ -27,9 +27,7 @@ const TOTP_DIGITS = 6;
 /** TOTP 容差步数（±N 步，防止时钟漂移） */
 const TOTP_TOLERANCE_STEPS = 1;
 
-// ---------------------------------------------------------------------------
 // Base32 编解码（RFC 4648）
-// ---------------------------------------------------------------------------
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -71,9 +69,7 @@ function base32Decode(encoded: string): Buffer {
   return Buffer.from(bytes);
 }
 
-// ---------------------------------------------------------------------------
 // TOTP 核心（RFC 6238）
-// ---------------------------------------------------------------------------
 
 /**
  * 计算给定时间步的 TOTP 值。
@@ -98,7 +94,6 @@ function hotp(secret: Buffer, counter: number): string {
   return otp.toString().padStart(TOTP_DIGITS, '0');
 }
 
-/** 当前时间步 */
 function currentStep(): number {
   return Math.floor(Date.now() / 1000 / TOTP_STEP_SEC);
 }
@@ -125,9 +120,7 @@ export function verifyTotp(secret: string, token: string): boolean {
   return false;
 }
 
-// ---------------------------------------------------------------------------
 // MFA 生命周期管理
-// ---------------------------------------------------------------------------
 
 /**
  * 生成 MFA 密钥与 otpauth:// URI（用于 QR 码展示）。

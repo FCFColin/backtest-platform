@@ -1,9 +1,7 @@
 /**
  * PostgreSQL Schema 迁移管理（ADR-007）。
- *
  * 迁移 SQL 提取到 migrations/ 独立文件，便于 DBA 审查与 CI 回滚测试。
  */
-
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config/index.js';
@@ -12,210 +10,49 @@ import { getPool } from './pool.js';
 
 const MIGRATIONS_DIR = config.MIGRATIONS_DIR;
 
-/**
- * 从 migrations/ 目录读取 SQL 文件内容
- */
+/** 读取 migrations/ 目录的 SQL 文件内容。 */
 function readMigrationFile(filename: string): string {
-  const filePath = path.join(MIGRATIONS_DIR, filename);
-  return fs.readFileSync(filePath, 'utf-8');
+  return fs.readFileSync(path.join(MIGRATIONS_DIR, filename), 'utf-8');
 }
 
-/**
- * 从 SQL 文件内容中提取 `-- 描述：xxx` 行作为迁移描述
- */
+/** 从 SQL 文件提取 `-- 描述：xxx` 行作为迁移描述。 */
 function extractDescription(sql: string): string {
   const match = sql.match(/^-- 描述：(.+)$/m);
   return match ? match[1].trim() : '';
 }
 
 /**
- * 迁移注册表：每个版本对应一对 up/down SQL 文件，版本号从 1 递增。
+ * 迁移注册表：downFile 由 upFile 派生（{name}_down.sql），版本号从 1 递增。
+ * version 28 已废弃（028_announcements 与 029 schema 冲突，保留 029；原 028_custom_tickers 重编号为 030）。
  */
-const migrations: Array<{ version: number; upFile: string; downFile: string }> = [
-  { version: 1, upFile: '001_init.sql', downFile: '001_init_down.sql' },
-  { version: 2, upFile: '002_fts.sql', downFile: '002_fts_down.sql' },
-  { version: 3, upFile: '003_index_cleanup.sql', downFile: '003_index_cleanup_down.sql' },
-  { version: 4, upFile: '004_users.sql', downFile: '004_users_down.sql' },
-  { version: 5, upFile: '005_outbox.sql', downFile: '005_outbox_down.sql' },
-  { version: 6, upFile: '006_outbox_dedup.sql', downFile: '006_outbox_dedup_down.sql' },
-  { version: 7, upFile: '007_least_privilege.sql', downFile: '007_least_privilege_down.sql' },
-  { version: 8, upFile: '008_checks.sql', downFile: '008_checks_down.sql' },
-  { version: 9, upFile: '009_tenancy.sql', downFile: '009_tenancy_down.sql' },
-  { version: 10, upFile: '010_user_email.sql', downFile: '010_user_email_down.sql' },
-  { version: 11, upFile: '011_billing.sql', downFile: '011_billing_down.sql' },
-  { version: 12, upFile: '012_usage.sql', downFile: '012_usage_down.sql' },
-  {
-    version: 13,
-    upFile: '013_drop_redundant_index.sql',
-    downFile: '013_drop_redundant_index_down.sql',
-  },
-  {
-    version: 14,
-    upFile: '014_drop_chk_prices_volume_nonnegative.sql',
-    downFile: '014_drop_chk_prices_volume_nonnegative_down.sql',
-  },
-  {
-    version: 15,
-    upFile: '015_add_exchange_column.sql',
-    downFile: '015_add_exchange_column_down.sql',
-  },
-  {
-    version: 16,
-    upFile: '016_backtest_progress.sql',
-    downFile: '016_backtest_progress_down.sql',
-  },
-  {
-    version: 17,
-    upFile: '017_admin_api_key_db.sql',
-    downFile: '017_admin_api_key_db_down.sql',
-  },
-  {
-    version: 18,
-    upFile: '018_timescaledb.sql',
-    downFile: '018_timescaledb_down.sql',
-  },
-  {
-    version: 19,
-    upFile: '019_security_compliance.sql',
-    downFile: '019_security_compliance_down.sql',
-  },
-  {
-    version: 20,
-    upFile: '020_custom_rbac.sql',
-    downFile: '020_custom_rbac_down.sql',
-  },
-  // P2-02 Webhook 系统：version 21 紧随 P2-01 RBAC（version 20）之后。
-  {
-    version: 21,
-    upFile: '021_webhooks.sql',
-    downFile: '021_webhooks_down.sql',
-  },
-  // P2-03 不可篡改审计存储：version 22 紧随 P2-02 Webhook（version 21）之后。
-  {
-    version: 22,
-    upFile: '022_audit_storage.sql',
-    downFile: '022_audit_storage_down.sql',
-  },
-  // P1-01 CAGG 回填 + 刷新策略调整：回填 prices_monthly 历史数据并优化刷新策略
-  {
-    version: 23,
-    upFile: '023_cagg_backfill.sql',
-    downFile: '023_cagg_backfill_down.sql',
-  },
-  // P1-04 RLS 策略扩展：为 webhook/audit/billing 表添加行级安全
-  {
-    version: 24,
-    upFile: '024_rls_extension.sql',
-    downFile: '024_rls_extension_down.sql',
-  },
-  // P2-04 审计日志链式校验：添加 prev_hash 列实现篡改检测链
-  {
-    version: 25,
-    upFile: '025_audit_chain.sql',
-    downFile: '025_audit_chain_down.sql',
-  },
-  // P3-1 战术配置持久化
-  {
-    version: 26,
-    upFile: '026_tactical_configs.sql',
-    downFile: '026_tactical_configs_down.sql',
-  },
-  // P1-02 TimescaleDB 连续聚合策略优化
-  {
-    version: 27,
-    upFile: '027_timescale_cagg.sql',
-    downFile: '027_timescale_cagg_down.sql',
-  },
-  // 注：version 28 已废弃（原 028_announcements.sql 与 029_announcements.sql schema 冲突，
-  // 保留 029 的更完整设计；原 028_custom_tickers.sql 重编号为 030 避免冲突）。
-  // P3-2 公告系统（UUID + RLS + expires_at，应用层 announcementRoutes.ts 引用此 schema）
-  {
-    version: 29,
-    upFile: '029_announcements.sql',
-    downFile: '029_announcements_down.sql',
-  },
-  // P2-6 自定义 Tickers CSV 上传（用户级 RLS 隔离）
-  {
-    version: 30,
-    upFile: '030_custom_tickers.sql',
-    downFile: '030_custom_tickers_down.sql',
-  },
-  // P1-1 C-002: FORCE ROW LEVEL SECURITY on all multi-tenant tables
-  {
-    version: 31,
-    upFile: '031_force_rls.sql',
-    downFile: '031_force_rls_down.sql',
-  },
-  // P1-1 C-002: Enable RLS on api_keys/invitations + create org_memberships table
-  {
-    version: 32,
-    upFile: '032_enable_rls_api_keys_invitations.sql',
-    downFile: '032_enable_rls_api_keys_invitations_down.sql',
-  },
-  // P1-1 C-002: backtest_app full DML grants + default privileges
-  {
-    version: 33,
-    upFile: '033_backtest_app_grants.sql',
-    downFile: '033_backtest_app_grants_down.sql',
-  },
-  // P1-1 C-024: webhook_endpoints.secret encrypted storage (bytea + iv/tag/kid)
-  {
-    version: 34,
-    upFile: '034_webhook_secret_encrypt.sql',
-    downFile: '034_webhook_secret_encrypt_down.sql',
-  },
-  // P2-2 D8-H1: prices hypertable idempotent safety net (018 already converted; 035 is no-op)
-  {
-    version: 35,
-    upFile: '035_prices_hypertable.sql',
-    downFile: '035_prices_hypertable_down.sql',
-  },
-  // P2-2 D8-H2: audit_logs add user_agent/metadata + idempotent RLS (table exists via 022)
-  {
-    version: 36,
-    upFile: '036_audit_logs.sql',
-    downFile: '036_audit_logs_down.sql',
-  },
-  // P2-2 D8-H3: invitations RLS idempotent (032 already enabled RLS; 037 is safety net)
-  {
-    version: 37,
-    upFile: '037_invitations_rls.sql',
-    downFile: '037_invitations_rls_down.sql',
-  },
-  // P2-2 D8-H4: backtest_runs.status default completed -> queued (+ extend CHECK constraint)
-  {
-    version: 38,
-    upFile: '038_backtest_runs_default_status.sql',
-    downFile: '038_backtest_runs_default_status_down.sql',
-  },
-  // P2-2 D8-H5: prices DOUBLE -> NUMERIC(19,6) dual-write columns (do not drop old yet)
-  {
-    version: 39,
-    upFile: '039_prices_numeric.sql',
-    downFile: '039_prices_numeric_down.sql',
-  },
-  // P2-2 D8-H6: FK column indexes (6 FKs without indexes, all -> users.id)
-  {
-    version: 40,
-    upFile: '040_fk_indexes.sql',
-    downFile: '040_fk_indexes_down.sql',
-  },
-  // D8-H6 补充: user_roles.role_id FK index (PK 最左列是 user_id, role_id 无独立索引)
-  {
-    version: 44,
-    upFile: '044_user_roles_role_id_idx.sql',
-    downFile: '044_user_roles_role_id_idx_down.sql',
-  },
-];
+const migrations: Array<{ version: number; upFile: string; downFile: string }> = (
+  [
+    [1, '001_init.sql'], [2, '002_fts.sql'], [3, '003_index_cleanup.sql'],
+    [4, '004_users.sql'], [5, '005_outbox.sql'], [6, '006_outbox_dedup.sql'],
+    [7, '007_least_privilege.sql'], [8, '008_checks.sql'], [9, '009_tenancy.sql'],
+    [10, '010_user_email.sql'], [11, '011_billing.sql'], [12, '012_usage.sql'],
+    [13, '013_drop_redundant_index.sql'], [14, '014_drop_chk_prices_volume_nonnegative.sql'],
+    [15, '015_add_exchange_column.sql'], [16, '016_backtest_progress.sql'],
+    [17, '017_admin_api_key_db.sql'], [18, '018_timescaledb.sql'],
+    [19, '019_security_compliance.sql'], [20, '020_custom_rbac.sql'],
+    [21, '021_webhooks.sql'], [22, '022_audit_storage.sql'], [23, '023_cagg_backfill.sql'],
+    [24, '024_rls_extension.sql'], [25, '025_audit_chain.sql'], [26, '026_tactical_configs.sql'],
+    [27, '027_timescale_cagg.sql'], [28, '028_placeholder.sql'], [29, '029_announcements.sql'],
+    [30, '030_custom_tickers.sql'], [31, '031_force_rls.sql'],
+    [32, '032_enable_rls_api_keys_invitations.sql'], [33, '033_backtest_app_grants.sql'],
+    [34, '034_webhook_secret_encrypt.sql'], [35, '035_prices_hypertable.sql'],
+    [36, '036_audit_logs.sql'], [37, '037_invitations_rls.sql'],
+    [38, '038_backtest_runs_default_status.sql'], [39, '039_prices_numeric.sql'],
+    [40, '040_fk_indexes.sql'], [41, '041_drop_redundant_indexes.sql'],
+    [42, '042_updated_at_triggers.sql'], [43, '043_api_keys_hash_check.sql'],
+    [44, '044_user_roles_role_id_idx.sql'], [45, '045_financial_numeric_cutover.sql'],
+  ] as Array<[number, string]>
+).map(([version, upFile]) => ({ version, upFile, downFile: upFile.replace('.sql', '_down.sql') }));
 
-/**
- * 初始化数据库 schema（执行未应用的迁移）
- */
+/** 初始化数据库 schema（执行未应用的迁移）。 */
 export async function initSchema(): Promise<void> {
-  const pool = getPool();
-  const client = await pool.connect();
+  const client = await getPool().connect();
   const t0 = Date.now();
-
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -227,35 +64,25 @@ export async function initSchema(): Promise<void> {
 
     const { rows } = await client.query('SELECT version FROM schema_migrations ORDER BY version');
     const appliedVersions = new Set(rows.map((r: { version: number }) => r.version));
-
     const pendingMigrations = migrations.filter((m) => !appliedVersions.has(m.version));
+    const currentVersion = appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0;
+    const targetVersion = migrations[migrations.length - 1].version;
 
     if (pendingMigrations.length === 0) {
-      const currentVersion = appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0;
       logger.info({ currentVersion }, '[db] Schema 已是最新，无需迁移');
       return;
     }
 
-    logger.info(
-      {
-        currentVersion: appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0,
-        targetVersion: migrations[migrations.length - 1].version,
-      },
-      '[db] Schema 迁移开始',
-    );
+    logger.info({ currentVersion, targetVersion }, '[db] Schema 迁移开始');
 
     for (const m of pendingMigrations) {
       const sql = readMigrationFile(m.upFile);
       const description = extractDescription(sql);
       logger.info({ version: m.version, description }, '[db] 执行迁移');
-
       try {
         await client.query('BEGIN');
         await client.query(sql);
-        await client.query('INSERT INTO schema_migrations (version, description) VALUES ($1, $2)', [
-          m.version,
-          description,
-        ]);
+        await client.query('INSERT INTO schema_migrations (version, description) VALUES ($1, $2)', [m.version, description]);
         await client.query('COMMIT');
       } catch (err) {
         await client.query('ROLLBACK');
@@ -264,35 +91,19 @@ export async function initSchema(): Promise<void> {
       }
     }
 
-    logger.info(
-      {
-        fromVersion: appliedVersions.size > 0 ? Math.max(...appliedVersions) : 0,
-        toVersion: migrations[migrations.length - 1].version,
-        durationMs: Date.now() - t0,
-      },
-      '[db] Schema 迁移完成',
-    );
+    logger.info({ fromVersion: currentVersion, toVersion: targetVersion, durationMs: Date.now() - t0 }, '[db] Schema 迁移完成');
   } finally {
     client.release();
   }
 }
 
-/**
- * 回滚指定版本的迁移
- */
+/** 回滚指定版本以上的迁移。 */
 export async function rollbackSchema(targetVersion: number): Promise<void> {
-  const pool = getPool();
-  const client = await pool.connect();
-
+  const client = await getPool().connect();
   try {
-    const { rows } = await client.query(
-      'SELECT version FROM schema_migrations ORDER BY version DESC',
-    );
+    const { rows } = await client.query('SELECT version FROM schema_migrations ORDER BY version DESC');
     const appliedVersions = rows.map((r: { version: number }) => r.version);
-
-    const toRollback = migrations.filter(
-      (m) => appliedVersions.includes(m.version) && m.version > targetVersion,
-    );
+    const toRollback = migrations.filter((m) => appliedVersions.includes(m.version) && m.version > targetVersion);
 
     if (toRollback.length === 0) {
       logger.info({ targetVersion }, '[db] 无需回滚');
@@ -303,7 +114,6 @@ export async function rollbackSchema(targetVersion: number): Promise<void> {
       const sql = readMigrationFile(m.downFile);
       const description = extractDescription(sql);
       logger.info({ version: m.version, description }, '[db] 执行回滚');
-
       try {
         await client.query('BEGIN');
         await client.query(sql);
@@ -315,7 +125,6 @@ export async function rollbackSchema(targetVersion: number): Promise<void> {
         throw err;
       }
     }
-
     logger.info({ targetVersion }, '[db] Schema 回滚完成');
   } finally {
     client.release();

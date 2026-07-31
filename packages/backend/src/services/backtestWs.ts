@@ -39,19 +39,15 @@ const wsConnectionsActive = new client.Gauge({
   registers: [getPrometheusRegister()],
 });
 
-// =============================================================================
 // D3-002：共享 Redis 订阅 + 内存路由
-// =============================================================================
 // 原设计：每个 WS 连接创建独立的 ioredis 订阅连接，N 个连接 = N 个 Redis connection。
 // 问题：高并发场景下 Redis 连接数线性增长，浪费资源。
 // 优化：进程级单例 subscriber，通过 Map<channel, Set<WebSocket>> 路由消息到对应客户端。
 // 同一 channel 的多个连接复用一个 Redis subscription，连接数从 O(N) 降至 O(1)+O(channels)。
 
-/** 共享 Redis 订阅连接（懒初始化，进程级单例） */
 let sharedSubscriber: IORedis | null = null;
 let subscriberInitPromise: Promise<IORedis> | null = null;
 
-/** channel 订阅该 channel 的 WebSocket 连接集合 */
 const channelClients = new Map<string, Set<WebSocket>>();
 
 /** channel 订阅操作的 Promise（防止并发连接同时 subscribe 同一 channel） */
@@ -193,7 +189,6 @@ function extractToken(req: IncomingMessage): string | null {
   return null;
 }
 
-/** 写入 HTTP 错误响应并关闭 socket（握手阶段拒绝）。 */
 function rejectHandshake(socket: Duplex, statusCode: number, reason: string): void {
   if (!socket.destroyed && socket.writable) {
     socket.write(`HTTP/1.1 ${statusCode} ${reason}\r\nConnection: close\r\n\r\n`);
@@ -201,11 +196,6 @@ function rejectHandshake(socket: Duplex, statusCode: number, reason: string): vo
   socket.destroy();
 }
 
-/**
- * 处理单个 WS 连接的生命周期：注册到共享订阅 转发消息 关闭时清理。
- *
- * D3-002：不再每连接创建独立 Redis subscriber，而是注册到进程级共享 subscriber。
- */
 function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
   wsConnectionsActive.inc();
   const channel = `${CHANNEL_PREFIX}${jobId}`;

@@ -1,1 +1,1 @@
-export { ParamCard, ParamRow, ParamGroup, ParamSection, ActionBar } from './paramsLayout.js';
+export { ParamCard, ParamRow, ParamGroup } from './paramsLayout.js';

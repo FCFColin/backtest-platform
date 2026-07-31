@@ -1,11 +1,8 @@
-/**
- * @vitest-environment happy-dom
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import TickerInput from '../../../packages/frontend/src/components/TickerInput.js';
 
-vi.mock('../../../packages/frontend/src/utils/tickerPresets.js', () => ({
+vi.mock('../../../packages/frontend/src/utils/constants.js', () => ({
   ALL_TICKER_PRESETS: [],
 }));
 

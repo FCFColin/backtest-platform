@@ -3,155 +3,60 @@ import {
   loginSchema,
   loginPasswordSchema,
   registerSchema,
-} from '../../../packages/backend/src/schemas/auth.js';
+} from '../../../packages/backend/src/schemas/misc-schemas.js';
 
 describe('loginSchema', () => {
-  it('应接受合法 API Key', () => {
-    const r = loginSchema.safeParse({ apiKey: 'sk-abc123' });
-    expect(r.success).toBe(true);
-  });
-
-  it('空 API Key 应拒绝', () => {
-    const r = loginSchema.safeParse({ apiKey: '' });
-    expect(r.success).toBe(false);
-  });
-
-  it('超过 512 字符的 API Key 应拒绝', () => {
-    const r = loginSchema.safeParse({ apiKey: 'a'.repeat(513) });
-    expect(r.success).toBe(false);
+  it.each([
+    ['合法 API Key', { apiKey: 'sk-abc123' }, true],
+    ['空 API Key', { apiKey: '' }, false],
+    ['超过 512 字符', { apiKey: 'a'.repeat(513) }, false],
+  ])('%s 应 %s', (_n, data, shouldPass) => {
+    expect(loginSchema.safeParse(data).success).toBe(shouldPass);
   });
 });
 
 describe('loginPasswordSchema', () => {
-  it('应接受合法凭据', () => {
-    const r = loginPasswordSchema.safeParse({ username: 'admin', password: 'secret123' });
-    expect(r.success).toBe(true);
-  });
-
-  it('空用户名应拒绝', () => {
-    const r = loginPasswordSchema.safeParse({ username: '', password: 'secret123' });
-    expect(r.success).toBe(false);
-  });
-
-  it('空密码应拒绝', () => {
-    const r = loginPasswordSchema.safeParse({ username: 'admin', password: '' });
-    expect(r.success).toBe(false);
-  });
-
-  it('超过 100 字符的用户名应拒绝', () => {
-    const r = loginPasswordSchema.safeParse({ username: 'a'.repeat(101), password: 'secret' });
-    expect(r.success).toBe(false);
-  });
-
-  it('超过 256 字符的密码应拒绝', () => {
-    const r = loginPasswordSchema.safeParse({ username: 'admin', password: 'a'.repeat(257) });
-    expect(r.success).toBe(false);
+  it.each([
+    ['合法凭据', { username: 'admin', password: 'secret123' }, true],
+    ['空用户名', { username: '', password: 'secret123' }, false],
+    ['空密码', { username: 'admin', password: '' }, false],
+    ['用户名超 100 字符', { username: 'a'.repeat(101), password: 'secret' }, false],
+    ['密码超 256 字符', { username: 'admin', password: 'a'.repeat(257) }, false],
+  ])('%s 应 %s', (_n, data, shouldPass) => {
+    expect(loginPasswordSchema.safeParse(data).success).toBe(shouldPass);
   });
 
   it('用户名前后空格应被 trim', () => {
     const r = loginPasswordSchema.safeParse({ username: '  admin  ', password: 'secret' });
     expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.username).toBe('admin');
-    }
+    if (r.success) expect(r.data.username).toBe('admin');
   });
 });
 
 describe('registerSchema', () => {
-  it('应接受合法注册信息', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: 'user@example.com',
-      password: 'password123',
-    });
-    expect(r.success).toBe(true);
-  });
+  const valid = { username: 'newuser', email: 'user@example.com', password: 'password123' };
 
-  it('用户名少于 2 字符应拒绝', () => {
-    const r = registerSchema.safeParse({
-      username: 'a',
-      email: 'user@example.com',
-      password: 'password123',
-    });
-    expect(r.success).toBe(false);
-  });
-
-  it('用户名超过 50 字符应拒绝', () => {
-    const r = registerSchema.safeParse({
-      username: 'a'.repeat(51),
-      email: 'user@example.com',
-      password: 'password123',
-    });
-    expect(r.success).toBe(false);
-  });
-
-  it('邮箱格式不正确应拒绝', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: 'not-an-email',
-      password: 'password123',
-    });
-    expect(r.success).toBe(false);
+  it.each([
+    ['合法注册', valid, true],
+    ['用户名少于 2 字符', { ...valid, username: 'a' }, false],
+    ['用户名超 50 字符', { ...valid, username: 'a'.repeat(51) }, false],
+    ['邮箱格式不正确', { ...valid, email: 'not-an-email' }, false],
+    ['密码少于 6 字符', { ...valid, password: '12345' }, false],
+    ['密码超 256 字符', { ...valid, password: 'a'.repeat(257) }, false],
+    ['邮箱超 254 字符', { ...valid, email: `${'a'.repeat(249)}@b.com` }, false],
+  ])('%s 应 %s', (_n, data, shouldPass) => {
+    expect(registerSchema.safeParse(data).success).toBe(shouldPass);
   });
 
   it('邮箱应转为小写', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: 'User@Example.COM',
-      password: 'password123',
-    });
+    const r = registerSchema.safeParse({ ...valid, email: 'User@Example.COM' });
     expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.email).toBe('user@example.com');
-    }
-  });
-
-  it('密码少于 6 字符应拒绝', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: 'user@example.com',
-      password: '12345',
-    });
-    expect(r.success).toBe(false);
-  });
-
-  it('密码超过 256 字符应拒绝', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: 'user@example.com',
-      password: 'a'.repeat(257),
-    });
-    expect(r.success).toBe(false);
-  });
-
-  it('邮箱超过 254 字符应拒绝', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: `${'a'.repeat(249)}@b.com`,
-      password: 'password123',
-    });
-    expect(r.success).toBe(false);
+    if (r.success) expect(r.data.email).toBe('user@example.com');
   });
 
   it('orgName 为可选', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: 'user@example.com',
-      password: 'password123',
-      orgName: 'My Org',
-    });
+    const r = registerSchema.safeParse({ ...valid, orgName: 'My Org' });
     expect(r.success).toBe(true);
-    if (r.success) {
-      expect(r.data.orgName).toBe('My Org');
-    }
-  });
-
-  it('orgName 为空时可缺省', () => {
-    const r = registerSchema.safeParse({
-      username: 'newuser',
-      email: 'user@example.com',
-      password: 'password123',
-    });
-    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.orgName).toBe('My Org');
   });
 });

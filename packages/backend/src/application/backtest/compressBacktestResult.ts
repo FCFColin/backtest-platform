@@ -1,18 +1,10 @@
-/**
- * 压缩回测 API 响应体积（SaaS 首屏/图表渲染性能）
- *
- * 引擎按日频返回全量曲线（15 年 ≈ 4000 点/序列），JSON 可达 1MB+，
- * 浏览器解析与 Recharts 渲染成为瓶颈。统计指标已在全量数据上算完，降采样仅影响传输与绘图。
- */
 import type { BacktestResult, PortfolioResult } from '@backtest/shared/types';
 
 /** 同步首屏响应曲线点数（Summary 页足够） */
 export const MAX_SYNC_CHART_POINTS = 400;
 
-/** 常规压缩曲线最大点数（15 年日频 ≈ 4000 点降采样至 800，兼顾精度与首屏体积） */
 const MAX_CHART_POINTS = 800;
 
-/** 首屏 sync 响应省略的序列字段（由 /portfolio/series 缓存补全） */
 const SYNC_OMIT_PORTFOLIO_FIELDS = [
   'allocationHistory',
   'drawdownEpisodes',
@@ -32,7 +24,6 @@ function omitPortfolioFields(
   return next;
 }
 
-/** 生成均匀采样索引（保留首尾） */
 function chartSampleIndices(length: number, maxPoints: number): number[] {
   if (length <= maxPoints) {
     return Array.from({ length }, (_, i) => i);
@@ -114,7 +105,6 @@ export function compressBacktestResultForSync(result: BacktestResult): BacktestR
   };
 }
 
-/** 从完整结果提取按需序列（tab 缓存补全，降采样至 MAX_CHART_POINTS） */
 export function extractBacktestSeries(
   result: BacktestResult,
   series: string[],

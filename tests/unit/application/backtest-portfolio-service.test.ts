@@ -1,18 +1,7 @@
-/**
- * runPortfolioBacktest 单元测试（P0-02 T1）
- *
- * 企业理由：runPortfolioBacktest 是组合回测的完整编排入口（薄路由调用），
- * 覆盖：领域校验 → 数据获取 → 无效标的检测 → 宏观数据加载 →
- *       引擎调用（带超时）→ 缓存写入 → 结果压缩 → 返回
- *
- * 测试策略：mock backtest-helpers 中的编排函数 + runBacktest 的底层依赖，
- * 验证 runPortfolioBacktest 的编排逻辑（参数透传、警告组装、缓存写入、结果压缩）。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted：mock 引用 =====
 const helpersMocks = vi.hoisted(() => ({
   preparePortfolioBacktest: vi.fn(),
   fetchPriceDataWithRange: vi.fn(),
@@ -73,7 +62,6 @@ const configMocks = vi.hoisted(() => ({
   BACKTEST_SYNC_TIMEOUT_MS: 120000,
 }));
 
-// ===== Mock 模块 =====
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
   preparePortfolioBacktest: helpersMocks.preparePortfolioBacktest,
   fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
@@ -89,7 +77,7 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
 }));
 
-vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({
+vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { dispatch: eventMocks.dispatch },
 }));
 
@@ -114,7 +102,7 @@ vi.mock('../../../packages/backend/src/application/backtest/compressBacktestResu
   compressBacktestResultForSync: compressMocks.compressBacktestResultForSync,
 }));
 
-vi.mock('../../../packages/backend/src/utils/timeout.js', () => ({
+vi.mock('../../../packages/backend/src/utils/misc.js', () => ({
   withTimeout: timeoutMocks.withTimeout,
   TimeoutError: class TimeoutError extends Error {},
 }));
@@ -129,7 +117,6 @@ vi.mock('../../../packages/backend/src/application/backtest/engineBodyBuilder.js
 
 import { runPortfolioBacktest } from '../../../packages/backend/src/application/backtest-service.js';
 
-// ===== 测试数据 =====
 const mockPortfolio: Portfolio = {
   id: 'p1',
   name: 'Test',
@@ -173,7 +160,6 @@ const mockBacktestResult: BacktestResult = {
   correlations: [[1]],
 };
 
-// ===== 测试用例 =====
 describe('runPortfolioBacktest', () => {
   beforeEach(() => {
     vi.clearAllMocks();

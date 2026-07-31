@@ -1,19 +1,7 @@
-/**
- * 测试辅助：共享 mock 工厂
- *
- * 企业理由：15+ 测试文件重复定义相同的 logger mock 和 vi.hoisted 模式，
- * 每次新增日志方法（如 child/trace）需逐文件修改，易遗漏。
- * 本模块集中维护共享 mock 工厂，消除重复，确保行为一致。
- *
- * 用法：
- *   import { createLoggerMocks, mockLogger } from '../helpers/mockFactories.js';
- *   const loggerMocks = createLoggerMocks();
- *   vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: mockLogger(loggerMocks) }));
- */
 
 import { vi } from 'vitest';
+import type { PoolClient } from 'pg';
 
-/** Logger mock 方法集合 */
 interface LoggerMocks {
   info: ReturnType<typeof vi.fn>;
   warn: ReturnType<typeof vi.fn>;
@@ -134,30 +122,13 @@ export function createConfigMocks(
   };
 }
 
-/**
- * Redis mock 配置选项
- *
- * 企业理由：16 个测试文件重复定义 redisMocks，变体包括：
- * - 简单 vi.fn 列表（backtest-result-cache、worker 等）
- * - Map/Set 支撑的内存模式（jwt-auth、refresh-token、idempotency）
- * - 事件 handlers/emit 模式（data-service、login-lockout）
- * - 全部 reject 模式（jwt-auth.rs256）
- * 本工厂通过选项组合统一这些变体，消除重复。
- */
 interface RedisMocksOptions {
-  /** 包含 Map<string,string> 支撑的 store + resetStore 辅助方法（jwt-auth/refresh-token/idempotency 内存模式） */
   withStore?: boolean;
-  /** 包含 Map<string,Set<string>> 支撑的 sets + sadd/smembers 方法（要求 withStore） */
   withSets?: boolean;
-  /** 包含事件 handlers map + emit 方法，on 调用会存储 handler（data-service/login-lockout 事件模式） */
   withHandlers?: boolean;
-  /** 包含 useMemoryFallback + useRedisSuccess 辅助方法（要求 withStore；jwt-auth/refresh-token/idempotency） */
   withMemoryHelpers?: boolean;
-  /** useMemoryFallback 抛出的错误消息（默认 'Redis not available in test'） */
   memoryFallbackErrorMessage?: string;
-  /** 额外方法或覆写（最后应用，覆盖默认值；如 { scan: vi.fn().mockResolvedValue(['0', []]) }） */
   methods?: Record<string, ReturnType<typeof vi.fn>>;
-  /** 若提供，所有默认方法（ping/get/set/del/expire/[sadd]/[smembers]）reject 该错误（jwt-auth.rs256 模式） */
   rejectWithError?: Error;
 }
 
@@ -319,22 +290,6 @@ export function createRedisModuleMock(
   };
 }
 
-/**
- * JWT 认证测试专用 config mock 工厂
- *
- * 企业理由：4 个 jwt-auth 测试文件重复定义相同的 config 块（13 个字段），
- * 每次新增字段需逐文件修改。本工厂集中维护 jwtAuth 测试默认值，
- * 与 createConfigMocks 区别在于仅包含 jwtAuth 关心的字段，且 JWT_ALGORITHM 为字面量联合类型。
- *
- * 用法：
- *   const mocks = vi.hoisted(() => ({ config: {} as JwtAuthConfigMocks }));
- *   vi.mock('.../config/index.js', () => ({
- *     config: Object.assign(mocks.config, createJwtAuthConfigMocks()),
- *     validateConfig: vi.fn(),
- *   }));
- */
-
-/** JWT 认证测试 config mock 类型（JWT_ALGORITHM 为字面量联合，便于赋值时类型检查） */
 export interface JwtAuthConfigMocks {
   NODE_ENV: string;
   JWT_SECRET: string;
@@ -370,4 +325,25 @@ export function createJwtAuthConfigMocks(
     DEV_SKIP_AUTH: false,
     ...overrides,
   };
+}
+
+/**
+ * 构造一个 mock pg.Pool,默认 query 返回空结果集
+ * @returns 包含 mock query 方法的对象(可强转为 pg.Pool)
+ */
+export function createMockPool(): { query: ReturnType<typeof vi.fn> } {
+  return {
+    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+  } as unknown as { query: ReturnType<typeof vi.fn> };
+}
+
+/**
+ * 构造一个 mock PoolClient,记录所有 query 调用
+ * @returns 包含 mock query + release 方法的 PoolClient
+ */
+export function createMockClient(): PoolClient & { query: ReturnType<typeof vi.fn> } {
+  return {
+    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
+    release: vi.fn(),
+  } as unknown as PoolClient & { query: ReturnType<typeof vi.fn> };
 }

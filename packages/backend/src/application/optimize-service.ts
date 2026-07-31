@@ -11,7 +11,7 @@ import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
-  fetchPriceData,
+  fetchPriceDataWithRange,
   filterPriceData,
   translateDomainError,
   collectInvalidTickerWarnings,
@@ -32,9 +32,7 @@ import {
   type OptimizeResultItem,
 } from '../domain/services/optimizer-domain.js';
 
-// ---------------------------------------------------------------------------
 // 组合优化 / 有效前沿
-// ---------------------------------------------------------------------------
 
 /**
  * 运行组合优化。
@@ -52,10 +50,10 @@ export async function runOptimization(
   const warnings: Warning[] = [];
 
   const {
-    data: priceData,
+    priceData,
     degraded,
     degradedWarning,
-  } = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+  } = await fetchPriceDataWithRange(tickers, parameters.startDate, parameters.endDate);
   const allTickers = new Set(tickers);
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
 
@@ -100,10 +98,10 @@ export async function runEfficientFrontier(
   const warnings: Warning[] = [];
 
   const {
-    data: priceData,
+    priceData,
     degraded,
     degradedWarning,
-  } = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+  } = await fetchPriceDataWithRange(tickers, parameters.startDate, parameters.endDate);
   const allTickers = new Set(tickers);
   const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
 
@@ -133,9 +131,7 @@ export async function runEfficientFrontier(
   return { data, warnings, dateRange };
 }
 
-// ---------------------------------------------------------------------------
 // 回测优化器（参数空间搜索）
-// ---------------------------------------------------------------------------
 
 /** 按资金分组运行回测，收集结果项（经 Go 引擎，ADR-031 fail-closed） */
 async function runBacktestGroups(
@@ -251,10 +247,10 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
 
   const warnings: Warning[] = [];
   const {
-    data: priceData,
+    priceData,
     degraded,
     degradedWarning,
-  } = await fetchPriceData(Array.from(allTickers), parameters.startDate, parameters.endDate);
+  } = await fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate);
 
   const invalidTickers: string[] = Array.from(allTickers).filter(
     (t) => !priceData[t] || Object.keys(priceData[t]).length === 0,

@@ -20,13 +20,12 @@
  */
 import { Router, type Request, type Response } from 'express';
 import type { LETFRequest, PCARequest, GoalOptimizerRequest } from '@backtest/shared/types';
-import { logger } from '../utils/logger.js';
-import { validate } from '../middleware/validate.js';
+import { logger, sanitizeLog } from '../utils/logger.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { computeMiddleware, computeMiddlewareNoQuota } from '../middleware/middlewareChains.js';
 import { Permission } from '../middleware/rbac.js';
-import { sanitizeLog } from '../utils/logSanitizer.js';
 import {
   pcaAnalyzeSchema,
   letfAnalyzeSchema,
@@ -39,9 +38,6 @@ import { executePcaAnalyzeWithFetch } from '../application/analysis-orchestrator
 import { executeGoalOptimizeWithFetch } from '../application/analysis-orchestrator.js';
 import { asyncRouteHandler } from './routeUtils.js';
 
-// ---------------------------------------------------------------------------
-// 主路由
-// ---------------------------------------------------------------------------
 
 const analysisRouter = Router();
 

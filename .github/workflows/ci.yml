@@ -30,6 +30,16 @@ jobs:
       - run: pnpm lint
       - run: pnpm check
 
+  migration-check:
+    name: Migration Integrity Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - run: node scripts/check-migrations.mjs
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest

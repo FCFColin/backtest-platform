@@ -1,4 +1,5 @@
-﻿import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import i18n from '../../../packages/frontend/src/i18n/index.js';
 import {
   fmtDate,
   fmtYears,
@@ -6,124 +7,97 @@ import {
   fmtRatio,
   fmtNum,
   fmtDollar,
+  formatCurrency,
+  formatCurrencyShort,
+  formatPercent,
+  formatPercentSigned,
+  formatNumber,
 } from '../../../packages/frontend/src/utils/format.js';
 
 describe('fmtDate', () => {
-  it('undefined 应返回占位符', () => {
-    expect(fmtDate()).toBe('—');
+  const originalLng = i18n.language;
+  afterEach(() => {
+    i18n.changeLanguage(originalLng);
   });
 
-  it('空字符串应返回占位符', () => {
-    expect(fmtDate('')).toBe('—');
+  it.each([undefined, '', null, 'not-a-date', '2024-13-45'])('无效输入 %p 应返回占位符', (v) => {
+    expect(fmtDate(v as string | undefined)).toBe('—');
   });
 
-  it('有效日期字符串应原样返回', () => {
-    expect(fmtDate('2024-01-15')).toBe('2024-01-15');
-  });
-});
-
-describe('fmtYears', () => {
-  it('null 应返回占位符', () => {
-    expect(fmtYears(null)).toBe('—');
+  it.each([
+    ['zh-CN', '2024年1月15日'],
+    ['en', 'Jan 15, 2024'],
+  ])('%s 应格式化为对应格式', (lng, expected) => {
+    i18n.changeLanguage(lng);
+    expect(fmtDate('2024-01-15')).toBe(expected);
   });
 
-  it('undefined 应返回占位符', () => {
-    expect(fmtYears(undefined)).toBe('—');
-  });
-
-  it('NaN 应返回占位符', () => {
-    expect(fmtYears(NaN)).toBe('—');
-  });
-
-  it('零值应格式化', () => {
-    expect(fmtYears(0)).toBe('0天');
-  });
-
-  it('正值应保留两位小数', () => {
-    expect(fmtYears(5.5)).toBe('5年6个月');
-  });
-
-  it('负值应正确格式化', () => {
-    expect(fmtYears(-1.234)).toBe('0天');
+  it('应支持 Date 对象输入', () => {
+    i18n.changeLanguage('zh-CN');
+    expect(fmtDate(new Date(2024, 0, 15))).toBe('2024年1月15日');
   });
 });
 
-describe('fmtPct', () => {
-  it('null 应返回占位符', () => {
-    expect(fmtPct(null)).toBe('—');
+describe.each([
+  ['fmtYears', fmtYears, [[0, '0天'], [5.5, '5年6个月'], [-1.234, '0天']]],
+  ['fmtPct', fmtPct, [[0, '0.00%'], [0.0523, '5.23%'], [-0.1, '-10.00%'], [1, '100.00%']]],
+  ['fmtRatio', fmtRatio, [[0, '0.00'], [1.5, '1.50'], [3.456, '3.46']]],
+])('%s', (_name, fn, cases) => {
+  it.each([null, undefined, NaN])('无效输入 %p 应返回占位符', (v) => {
+    expect(fn(v)).toBe('—');
   });
-
-  it('undefined 应返回占位符', () => {
-    expect(fmtPct(undefined)).toBe('—');
-  });
-
-  it('NaN 应返回占位符', () => {
-    expect(fmtPct(NaN)).toBe('—');
-  });
-
-  it('零值应格式化', () => {
-    expect(fmtPct(0)).toBe('0.00%');
-  });
-
-  it('小数应转为百分比', () => {
-    expect(fmtPct(0.0523)).toBe('5.23%');
-  });
-
-  it('负值应正确格式化', () => {
-    expect(fmtPct(-0.1)).toBe('-10.00%');
-  });
-
-  it('1 应为 100%', () => {
-    expect(fmtPct(1)).toBe('100.00%');
-  });
-});
-
-describe('fmtRatio', () => {
-  it('null 应返回占位符', () => {
-    expect(fmtRatio(null)).toBe('—');
-  });
-
-  it('undefined 应返回占位符', () => {
-    expect(fmtRatio(undefined)).toBe('—');
-  });
-
-  it('NaN 应返回占位符', () => {
-    expect(fmtRatio(NaN)).toBe('—');
-  });
-
-  it('零值应格式化', () => {
-    expect(fmtRatio(0)).toBe('0.00');
-  });
-
-  it('正值应保留两位小数', () => {
-    expect(fmtRatio(1.5)).toBe('1.50');
-  });
-
-  it('三位小数应四舍五入', () => {
-    expect(fmtRatio(3.456)).toBe('3.46');
+  it.each(cases)('输入 %p 应返回 %p', (input, expected) => {
+    expect(fn(input as number)).toBe(expected as string);
   });
 });
 
 describe('fmtNum', () => {
-  it('null / undefined / NaN 应返回占位符', () => {
-    expect(fmtNum(null)).toBe('—');
-    expect(fmtNum(undefined)).toBe('—');
-    expect(fmtNum(NaN)).toBe('—');
+  it.each([null, undefined, NaN])('无效输入 %p 应返回占位符', (v) => {
+    expect(fmtNum(v as number | null | undefined)).toBe('—');
   });
-
-  it('应支持自定义小数位数并四舍五入', () => {
-    expect(fmtNum(0)).toBe('0.00');
-    expect(fmtNum(1.236, 2)).toBe('1.24');
-    expect(fmtNum(1.5, 0)).toBe('2');
+  it.each([
+    [0, undefined, '0.00'],
+    [1.236, 2, '1.24'],
+    [1.5, 0, '2'],
+  ])('fmtNum(%p, %p) 应返回 %p', (v, digits, expected) => {
+    expect(fmtNum(v, digits as number | undefined)).toBe(expected as string);
   });
 });
 
 describe('fmtDollar', () => {
-  it('应格式化为美元（无小数，带千分位）', () => {
-    expect(fmtDollar(1234)).toBe('$1,234');
+  it.each([[1234, '$1,234'], [0, '$0']])('fmtDollar(%p) 应返回 %p', (v, expected) => {
+    expect(fmtDollar(v)).toBe(expected);
+  });
+});
+
+describe('formatters — Infinity/极端值边界（D5-010）', () => {
+  it.each([
+    ['formatCurrency', formatCurrency],
+    ['formatPercent', formatPercent],
+    ['formatPercentSigned', formatPercentSigned],
+    ['formatNumber', formatNumber],
+    ['formatCurrencyShort', formatCurrencyShort],
+  ])('%s(Infinity/-Infinity/MAX_VALUE/MIN_VALUE/MAX_SAFE_INTEGER) 不应抛异常', (_n, fn) => {
+    expect(() => fn(Infinity)).not.toThrow();
+    expect(() => fn(-Infinity)).not.toThrow();
+    expect(() => fn(Number.MAX_VALUE)).not.toThrow();
+    expect(() => fn(Number.MIN_VALUE)).not.toThrow();
+    expect(() => fn(Number.MAX_SAFE_INTEGER)).not.toThrow();
   });
 
-  it('零值应返回 $0', () => {
-    expect(fmtDollar(0)).toBe('$0');
+  it.each([
+    ['formatCurrency', formatCurrency],
+    ['formatPercent', formatPercent],
+    ['formatPercentSigned', formatPercentSigned],
+    ['formatNumber', formatNumber],
+    ['formatCurrencyShort', formatCurrencyShort],
+  ])('%s(NaN/null/undefined) 应返回占位符', (_n, fn) => {
+    expect(fn(NaN)).toBe('—');
+    expect(fn(null as unknown as number)).toBe('—');
+    expect(fn(undefined as unknown as number)).toBe('—');
+  });
+
+  it('formatCurrency(-0) 应格式化为含 0 的字符串', () => {
+    expect(formatCurrency(-0)).toMatch(/0/);
   });
 });

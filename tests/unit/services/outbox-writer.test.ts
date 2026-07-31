@@ -13,7 +13,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-import { createMockClient } from '../../helpers/dbMocks.js';
+import { createMockClient } from '../../helpers/mockFactories.js';
 
 // Mock logger：避免 pino 初始化与 OTel 依赖
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));

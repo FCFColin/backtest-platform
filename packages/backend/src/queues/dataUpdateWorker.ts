@@ -36,7 +36,6 @@ const connectionOptions: RedisOptions = {
 /** 每批处理的标的数量（避免单次 HTTP 请求过大） */
 const BATCH_SIZE = 50;
 
-/** data-fetcher 批量价格端点请求超时（ms） */
 const BATCH_TIMEOUT_MS = 120_000;
 
 /**
@@ -140,7 +139,6 @@ async function processDataUpdateJob(job: Job<DataUpdateJobData>): Promise<DataUp
   let completedTickers = 0;
   const failedTickers: string[] = [];
 
-  // 分批处理
   for (let i = 0; i < allTickers.length; i += BATCH_SIZE) {
     const batch = allTickers.slice(i, i + BATCH_SIZE);
 
@@ -156,7 +154,6 @@ async function processDataUpdateJob(job: Job<DataUpdateJobData>): Promise<DataUp
       failedTickers.push(...batch);
     }
 
-    // 报告进度
     await job.updateProgress(i + batch.length);
   }
 

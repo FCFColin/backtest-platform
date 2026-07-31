@@ -1,8 +1,3 @@
-/**
- * grid-search 领域逻辑单元测试
- *
- * 覆盖参数校验、参数值生成、组合计数与上限检查。
- */
 import { describe, it, expect } from 'vitest';
 import {
   validateGridSearchRequest,

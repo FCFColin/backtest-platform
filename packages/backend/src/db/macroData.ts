@@ -6,7 +6,7 @@
  */
 import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
-import { toDateStr } from '../utils/dateUtils.js';
+import { toDateStr } from '../utils/misc.js';
 
 const exchangeRateCache: Record<string, Record<string, number>> = {};
 

@@ -1,24 +1,12 @@
 import { useState } from 'react';
 import i18n from '@/i18n/index.js';
-import type {
-  RebalanceFrequency,
-  BacktestOptimizerObjective as Objective,
-  OptimizeResultItem,
-  BestResultItem,
-} from '@backtest/shared';
+import type { RebalanceFrequency, BacktestOptimizerObjective as Objective, OptimizeResultItem, BestResultItem } from '@backtest/shared';
 import { apiPostJSON } from '@/utils/apiClient';
-import { useListState } from '../../hooks/useListState.js';
-import { useOptimizerLikeState } from '../../hooks/useOptimizerLikeState.js';
+import { useListState, useOptimizerLikeState } from '../../hooks/miscHooks.js';
 import { buildOptimizeBody } from './backtestOptimizerBuilders.js';
-
-// 三个类型已上提到 @backtest/shared，此处 re-export 保留本模块既有导入路径
-// （Objective 为兼容别名，对应 shared 中的 BacktestOptimizerObjective）。
 export type { Objective, OptimizeResultItem, BestResultItem };
-
-// 常量与构建器已拆分到独立模块，此处 re-export 保留本模块既有导入路径。
 export { FREQ_OPTIONS, OBJECTIVE_SORT_KEY, TABLE_COLUMNS } from './backtestOptimizerConstants.js';
 export { buildChartData, buildBestMetrics } from './backtestOptimizerBuilders.js';
-
 export interface BacktestOptimizerState {
   assets: Array<{ ticker: string; weight: string }>;
   frequencies: RebalanceFrequency[];
@@ -62,7 +50,6 @@ export interface BacktestOptimizerState {
   setBenchmarkTicker: (v: string) => void;
   runOptimize: () => Promise<void>;
 }
-
 function useAssetListState() {
   const { items, setItems, addItem, removeItem, updateItem } = useListState<{
     ticker: string;
@@ -70,31 +57,25 @@ function useAssetListState() {
   }>(
     [
       { ticker: 'VTI', weight: '60' },
-      { ticker: 'BND', weight: '40' },
+      { ticker: 'BND', weight: '40' }
     ],
     () => ({ ticker: '', weight: '' }),
-    1,
+    1
   );
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) =>
-    updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) => updateItem(i, (prev) => ({ ...prev, [field]: val }));
   return {
     assets: items,
     setAssets: setItems,
     addAsset: addItem,
     removeAsset: removeItem,
-    updateAsset,
+    updateAsset
   };
 }
-
 function useFrequencyState() {
   const [frequencies, setFrequencies] = useState<RebalanceFrequency[]>(['quarterly']);
-  const toggleFreq = (freq: RebalanceFrequency) =>
-    setFrequencies((prev) =>
-      prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
-    );
+  const toggleFreq = (freq: RebalanceFrequency) => setFrequencies((prev) => (prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq]));
   return { frequencies, setFrequencies, toggleFreq };
 }
-
 function useGridParams() {
   const [thrMin, setThrMin] = useState('5');
   const [thrMax, setThrMax] = useState('20');
@@ -103,15 +84,20 @@ function useGridParams() {
   const [capMax, setCapMax] = useState('10000');
   const [capStep, setCapStep] = useState('1000');
   return {
-    thrMin, setThrMin,
-    thrMax, setThrMax,
-    thrStep, setThrStep,
-    capMin, setCapMin,
-    capMax, setCapMax,
-    capStep, setCapStep,
+    thrMin,
+    setThrMin,
+    thrMax,
+    setThrMax,
+    thrStep,
+    setThrStep,
+    capMin,
+    setCapMin,
+    capMax,
+    setCapMax,
+    capStep,
+    setCapStep
   };
 }
-
 function useConstraintState() {
   const [objective, setObjective] = useState<Objective>('maxSharpe');
   const [enableMaxDD, setEnableMaxDD] = useState(false);
@@ -119,31 +105,24 @@ function useConstraintState() {
   const [enableMinCagr, setEnableMinCagr] = useState(false);
   const [minCagr, setMinCagr] = useState('5');
   return {
-    objective, setObjective,
-    enableMaxDD, setEnableMaxDD,
-    maxDD, setMaxDD,
-    enableMinCagr, setEnableMinCagr,
-    minCagr, setMinCagr,
+    objective,
+    setObjective,
+    enableMaxDD,
+    setEnableMaxDD,
+    maxDD,
+    setMaxDD,
+    enableMinCagr,
+    setEnableMinCagr,
+    minCagr,
+    setMinCagr
   };
 }
-
 function useBacktestOptSetters() {
   const { assets, setAssets, addAsset, removeAsset, updateAsset } = useAssetListState();
   const { frequencies, setFrequencies, toggleFreq } = useFrequencyState();
   const grid = useGridParams();
   const constraints = useConstraintState();
-  const {
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results,
-    setResults,
-  } = useOptimizerLikeState<OptimizeResultItem[]>();
+  const { startDate, setStartDate, endDate, setEndDate, isLoading, setIsLoading, error, setError, results, setResults } = useOptimizerLikeState<OptimizeResultItem[]>();
   const [benchmarkTicker, setBenchmarkTicker] = useState('VTI');
   const [best, setBest] = useState<BestResultItem | null>(null);
   const [benchmarkGrowth, setBenchmarkGrowth] = useState<Array<{
@@ -151,27 +130,37 @@ function useBacktestOptSetters() {
     value: number;
   }> | null>(null);
   const [totalCombos, setTotalCombos] = useState(0);
-
   return {
     ...grid,
     ...constraints,
-    assets, frequencies,
-    startDate, endDate,
+    assets,
+    frequencies,
+    startDate,
+    endDate,
     benchmarkTicker,
-    isLoading, error,
-    results, best,
-    benchmarkGrowth, totalCombos,
-    setAssets, setFrequencies,
-    setStartDate, setEndDate,
+    isLoading,
+    error,
+    results,
+    best,
+    benchmarkGrowth,
+    totalCombos,
+    setAssets,
+    setFrequencies,
+    setStartDate,
+    setEndDate,
     setBenchmarkTicker,
-    setIsLoading, setError,
-    setResults, setBest,
-    setBenchmarkGrowth, setTotalCombos,
-    addAsset, removeAsset,
-    updateAsset, toggleFreq,
+    setIsLoading,
+    setError,
+    setResults,
+    setBest,
+    setBenchmarkGrowth,
+    setTotalCombos,
+    addAsset,
+    removeAsset,
+    updateAsset,
+    toggleFreq
   };
 }
-
 async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) {
   const validAssets = s.assets.filter((a) => a.ticker.trim());
   if (validAssets.length === 0) {
@@ -197,7 +186,7 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
         thrStep: s.thrStep,
         capMin: s.capMin,
         capMax: s.capMax,
-        capStep: s.capStep,
+        capStep: s.capStep
       },
       { startDate: s.startDate, endDate: s.endDate, benchmarkTicker: s.benchmarkTicker },
       {
@@ -205,8 +194,8 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
         enableMaxDD: s.enableMaxDD,
         maxDD: s.maxDD,
         enableMinCagr: s.enableMinCagr,
-        minCagr: s.minCagr,
-      },
+        minCagr: s.minCagr
+      }
     );
     const data = await apiPostJSON<{
       results?: OptimizeResultItem[];
@@ -224,12 +213,8 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
     s.setIsLoading(false);
   }
 }
-
 export function useOptimizerState(): BacktestOptimizerState {
   const s = useBacktestOptSetters();
   const runOptimize = () => runBacktestOptimize(s);
-  // 内部 setter（setAssets/setFrequencies/setIsLoading/setError/setResults/setBest/
-  // setBenchmarkGrowth/setTotalCombos）随 spread 暴露到运行时但不在 BacktestOptimizerState 类型中，
-  // TypeScript 结构类型允许返回对象包含额外字段，消费者无法经由类型系统访问这些内部字段。
   return { ...s, runOptimize };
 }

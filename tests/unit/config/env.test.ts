@@ -1,11 +1,3 @@
-/**
- * env.ts 单元测试
- *
- * 企业理由：env.ts 提供 JWT 算法解析与 CORS 来源解析两个共享纯函数，
- * 被 configObject 启动期消费。直接测试覆盖各分支：
- * - resolveJwtAlgorithm：显式 JWT_ALGORITHM 优先 / 生产默认 RS256 / 非生产默认 HS256
- * - parseCorsOrigins：空值与通配符返回 true / 逗号分隔列表 trim + 过滤空条目
- */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 

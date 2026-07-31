@@ -1,7 +1,13 @@
 /* ============================================
    基础重置样式
    主题变量已迁移至 tokens.css（P3-3）
+   合并自 components-common.css（@import 入口）+ utilities.css（响应式）
    ============================================ */
+
+/* 组件公共样式 @import（合并自 components-common.css 入口） */
+@import './components-common-base.css';
+@import './components-common-buttons.css';
+@import './components-common-tables.css';
 
 * {
   box-sizing: border-box;
@@ -39,4 +45,14 @@ button {
 
 input, select, textarea {
   font-family: inherit;
+}
+
+/* ============================================
+   响应式（合并自 utilities.css）
+   ============================================ */
+@media (max-width: 768px) {
+  .bt-page {
+    padding: 12px;
+    padding-top: 0;
+  }
 }

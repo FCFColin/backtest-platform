@@ -6,7 +6,7 @@
  */
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { logger } from '../utils/logger.js';
-import { toDateStr } from '../utils/dateUtils.js';
+import { toDateStr } from '../utils/misc.js';
 import { scanMarketStatsFromDb, getDbEngineStatus, type DbMarketStats } from '../db/marketStats.js';
 import { getReadPool } from '../db/pool.js';
 
@@ -106,12 +106,10 @@ export async function loadTickerData(ticker: string): Promise<Record<string, unk
   }
 }
 
-/** 从数据库获取统计（替代 JSON 缓存） */
 export function scanTickersStats(_force = false): Promise<DbMarketStats | null> {
   return scanMarketStatsFromDb();
 }
 
-/** 从数据库统计推导宇宙规模 */
 export function resolveUniverseFromCacheStats(stats: DbMarketStats | null): {
   total: number;
   updated_at: string;

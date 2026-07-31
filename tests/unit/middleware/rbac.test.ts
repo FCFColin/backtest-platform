@@ -1,10 +1,3 @@
-/**
- * RBAC 中间件单元测试
- *
- * 企业理由：安全核心无测试，权限绕过风险高。
- * 三角色×七权限矩阵测试确保权限配置无遗漏。
- * Table-Driven 模式（it.each）使权限矩阵一目了然。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requirePermission, Permission } from '../../../packages/backend/src/middleware/rbac.js';
 import {

@@ -1,9 +1,11 @@
-/**
- * @vitest-environment happy-dom
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import { RunBacktestButton } from '../../../packages/frontend/src/components/portfolioEditor/RunBacktestButton.js';
+import { RunBacktestButton } from '../../../packages/frontend/src/components/portfolioEditor/portfolioEditor.js';
+import { loadNamespace } from '../../../packages/frontend/src/i18n/index.js';
+
+beforeEach(async () => {
+  await loadNamespace('backtest');
+});
 
 describe('RunBacktestButton', () => {
   it('idle 状态显示运行回测按钮', () => {

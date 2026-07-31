@@ -1,21 +1,6 @@
-/**
- * redis 客户端单元测试
- *
- * 企业理由：Redis 连接配置错误会导致 BullMQ 队列不可用或应用层
- * 缓存失效。测试覆盖：
- * - redisConnection 与 appRedis 正确导出
- * - appRedis 配置 maxRetriesPerRequest=3（有限重试）
- * - redisConnection 配置 maxRetriesPerRequest=null（BullMQ 要求）
- * - appRedis 注册 error/connect/reconnecting 事件回调
- * - ADR-045：Sentinel 模式连接选项与单实例回退
- *
- * 权衡：mock ioredis，不验证真实 Redis 连接行为。
- */
-
 import { describe, it, expect, vi } from 'vitest';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted =====
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -53,14 +38,15 @@ const ioredisMocks = vi.hoisted(() => {
   };
 });
 
-// ===== Mock 模块 =====
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/env.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),
+  requireSecret: vi.fn(),
+  parseCorsOrigins: vi.fn(),
+  resolveJwtAlgorithm: vi.fn(),
 }));
 
 vi.mock('ioredis', () => ({
@@ -207,9 +193,7 @@ describe('redisConnection 与 appRedis 配置隔离', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // ADR-045：Sentinel 模式连接选项
-// ---------------------------------------------------------------------------
 
 describe('Redis Sentinel 模式（ADR-045）', () => {
   it('配置 REDIS_SENTINELS 时应使用 Sentinel 连接选项', async () => {
@@ -220,7 +204,12 @@ describe('Redis Sentinel 模式（ADR-045）', () => {
       REDIS_SENTINEL_NAME: 'mymaster',
       REDIS_PASSWORD: 'secret',
     });
-    vi.doMock('../../../packages/backend/src/config/index.js', () => ({ config: sentinelConfig }));
+    vi.doMock('../../../packages/backend/src/config/env.js', () => ({
+      config: sentinelConfig,
+      requireSecret: vi.fn(),
+      parseCorsOrigins: vi.fn(),
+      resolveJwtAlgorithm: vi.fn(),
+    }));
 
     // 新的 instances 收集器，避免与前面单实例用例混淆
     const sentinelInstances: Array<{ options: Record<string, unknown> }> = [];
@@ -256,7 +245,7 @@ describe('Redis Sentinel 模式（ADR-045）', () => {
     expect(sentinelInstances[0].options.name).toBe('mymaster');
     expect(sentinelInstances[1].options.sentinels).toEqual(opts.sentinels);
 
-    vi.doUnmock('../../../packages/backend/src/config/index.js');
+    vi.doUnmock('../../../packages/backend/src/config/env.js');
     vi.doUnmock('ioredis');
   });
 });

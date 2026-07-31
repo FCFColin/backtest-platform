@@ -1,9 +1,3 @@
-/**
- * P3-04: 基础 Fuzz 测试 — 回测参数输入验证
- *
- * 企业理由：Fuzz 测试通过随机输入发现边界条件 bug，
- * 正整数溢出、空字符串、超大数值等可能绕过前端验证。
- */
 
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';

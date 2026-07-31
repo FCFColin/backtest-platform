@@ -1,64 +1,31 @@
-/**
- * @file 管理后台布局
- * @description 管理后台外壳布局，包含可折叠侧边栏导航及内容区域 Outlet
- */
 import { useState, type ComponentType } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  LayoutDashboard,
-  Activity,
-  Database,
-  History,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  BarChart3,
-  ArrowLeft,
-  Menu,
-} from 'lucide-react';
-
+import { LayoutDashboard, Activity, Database, History, Settings, ChevronLeft, ChevronRight, BarChart3, ArrowLeft, Menu } from 'lucide-react';
 const SIDEBAR_ITEMS = [
   { to: '/admin', icon: LayoutDashboard, labelKey: 'adminLayout.dashboard', end: true },
   { to: '/admin/monitor', icon: Activity, labelKey: 'adminLayout.monitor' },
   { to: '/admin/data', icon: Database, labelKey: 'adminLayout.dataManagement' },
   { to: '/admin/history', icon: History, labelKey: 'adminLayout.history' },
-  { to: '/admin/settings', icon: Settings, labelKey: 'adminLayout.settings' },
+  { to: '/admin/settings', icon: Settings, labelKey: 'adminLayout.settings' }
 ];
-
 export default function AdminLayout() {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
-
   const currentItem = SIDEBAR_ITEMS.find((item) => {
     if (item.end) return location.pathname === '/admin';
     return location.pathname.startsWith(item.to);
   });
   const currentLabel = currentItem ? t(currentItem.labelKey) : t('adminLayout.adminConsole');
-
   return (
     <div className="flex h-dvh overflow-hidden bg-app">
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-      <AdminSidebar
-        collapsed={collapsed}
-        setCollapsed={setCollapsed}
-        mobileOpen={mobileOpen}
-        setMobileOpen={setMobileOpen}
-        t={t}
-      />
+      {mobileOpen && <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} />}
+      <AdminSidebar collapsed={collapsed} setCollapsed={setCollapsed} mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} t={t} />
       <div className="flex flex-1 flex-col overflow-hidden bg-app">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
-          <button
-            className="rounded p-1.5 hover:bg-hover lg:hidden"
-            onClick={() => setMobileOpen(true)}
-          >
+          <button className="rounded p-1.5 hover:bg-hover lg:hidden" onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5 text-fg-secondary" />
           </button>
           <h1 className="text-base font-semibold text-fg">{currentLabel}</h1>
@@ -70,20 +37,7 @@ export default function AdminLayout() {
     </div>
   );
 }
-
-function AdminSidebar({
-  collapsed,
-  setCollapsed,
-  mobileOpen,
-  setMobileOpen,
-  t,
-}: {
-  collapsed: boolean;
-  setCollapsed: (v: boolean) => void;
-  mobileOpen: boolean;
-  setMobileOpen: (v: boolean) => void;
-  t: (key: string) => string;
-}) {
+function AdminSidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen, t }: { collapsed: boolean; setCollapsed: (v: boolean) => void; mobileOpen: boolean; setMobileOpen: (v: boolean) => void; t: (key: string) => string }) {
   return (
     <aside
       className={`
@@ -97,36 +51,18 @@ function AdminSidebar({
     >
       <div className="flex h-14 items-center gap-2 border-b border-border px-3">
         <BarChart3 className="h-5 w-5 shrink-0 text-brand" />
-        {!collapsed && (
-          <span className="text-sm font-bold tracking-wide text-fg">
-            {t('adminLayout.adminConsole')}
-          </span>
-        )}
-        <button
-          className="ml-auto hidden rounded p-1 hover:bg-hover lg:block"
-          onClick={() => setCollapsed(!collapsed)}
-        >
+        {!collapsed && <span className="text-sm font-bold tracking-wide text-fg">{t('adminLayout.adminConsole')}</span>}
+        <button className="ml-auto hidden rounded p-1 hover:bg-hover lg:block" onClick={() => setCollapsed(!collapsed)}>
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </button>
       </div>
       <nav className="flex-1 overflow-y-auto py-3">
         {SIDEBAR_ITEMS.map((item) => (
-          <SidebarLink
-            key={item.to}
-            to={item.to}
-            icon={item.icon}
-            label={t(item.labelKey)}
-            collapsed={collapsed}
-            end={item.end}
-            onClick={() => setMobileOpen(false)}
-          />
+          <SidebarLink key={item.to} to={item.to} icon={item.icon} label={t(item.labelKey)} collapsed={collapsed} end={item.end} onClick={() => setMobileOpen(false)} />
         ))}
       </nav>
       <div className="border-t border-border p-2">
-        <NavLink
-          to="/"
-          className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-fg-tertiary transition-colors hover:bg-hover hover:text-fg"
-        >
+        <NavLink to="/" className="flex items-center gap-2 rounded-md px-2 py-2 text-sm text-fg-tertiary transition-colors hover:bg-hover hover:text-fg">
           <ArrowLeft className="h-4 w-4 shrink-0" />
           {!collapsed && <span>{t('adminLayout.backToSite')}</span>}
         </NavLink>
@@ -134,34 +70,9 @@ function AdminSidebar({
     </aside>
   );
 }
-
-function SidebarLink({
-  to,
-  icon: Icon,
-  label,
-  collapsed,
-  end,
-  onClick,
-}: {
-  to: string;
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  collapsed: boolean;
-  end?: boolean;
-  onClick?: () => void;
-}) {
+function SidebarLink({ to, icon: Icon, label, collapsed, end, onClick }: { to: string; icon: ComponentType<{ className?: string }>; label: string; collapsed: boolean; end?: boolean; onClick?: () => void }) {
   return (
-    <NavLink
-      to={to}
-      end={end}
-      onClick={onClick}
-      className={({ isActive }) =>
-        `flex items-center gap-3 mx-2 rounded-md px-2 py-2 text-sm font-medium transition-colors ${
-          isActive ? 'bg-hover text-fg' : 'text-fg-secondary hover:bg-hover hover:text-fg'
-        } ${collapsed ? 'justify-center' : ''}`
-      }
-      title={collapsed ? label : undefined}
-    >
+    <NavLink to={to} end={end} onClick={onClick} className={({ isActive }) => `flex items-center gap-3 mx-2 rounded-md px-2 py-2 text-sm font-medium transition-colors ${isActive ? 'bg-hover text-fg' : 'text-fg-secondary hover:bg-hover hover:text-fg'} ${collapsed ? 'justify-center' : ''}`} title={collapsed ? label : undefined}>
       <Icon className="h-4 w-4 shrink-0" />
       {!collapsed && <span>{label}</span>}
     </NavLink>

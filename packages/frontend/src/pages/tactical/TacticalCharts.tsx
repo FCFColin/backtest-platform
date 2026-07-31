@@ -1,25 +1,16 @@
-/**
- * @file 战术回测结果图表与统计展示
- * @description 增长曲线图、统计指标对比表与空态。容器统一用 shadcn Card + chart-theme，
- *              数字采用 font-mono tabular-nums 对齐。
- */
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/uiComponents';
 import { EmptyState } from '@/components/EmptyState';
 import { SortableTable, type Column } from '@/components/SortableTable';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import { buildGrowthData, buildStatRows, type StatRow } from './tacticalResultUtils';
 import { SignalHistoryTable } from './TacticalTables';
 import type { BacktestResponse } from './TacticalUtils';
-
-/** 图表卡片标题行 */
 function ChartCardTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-3 text-h3 text-fg">{children}</h3>;
 }
-
-/** 战术策略 vs 基准增长曲线 */
 function GrowthChart({ growthData }: { growthData: Array<Record<string, number | string>> }) {
   const { t } = useTranslation();
   return (
@@ -34,15 +25,13 @@ function GrowthChart({ growthData }: { growthData: Array<Record<string, number |
           {
             dataKey: 'benchmark',
             legendName: t('tactical.results.benchmark'),
-            strokeDasharray: '6 3',
-          },
+            strokeDasharray: '6 3'
+          }
         ]}
       />
     </Card>
   );
 }
-
-/** 回测结果 Tab：增长曲线 + 统计指标表 + 信号历史 */
 function BacktestResultTab({ results }: { results: BacktestResponse }) {
   const { t } = useTranslation();
   const { portfolio, benchmark, signalHistory } = results;
@@ -54,41 +43,27 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
       key: 'tactical',
       label: t('tactical.results.tactical'),
       sortValue: (r) => r._sortTactical,
-      render: (r) => <span className="font-mono tabular-nums">{r.tactical}</span>,
+      render: (r) => <span className="font-mono tabular-nums">{r.tactical}</span>
     },
     {
       key: 'benchmark',
       label: t('tactical.results.benchmark'),
-      render: (r) => <span className="font-mono tabular-nums">{r.benchmark}</span>,
-    },
+      render: (r) => <span className="font-mono tabular-nums">{r.benchmark}</span>
+    }
   ];
   return (
     <div className="flex flex-col gap-3">
       <GrowthChart growthData={growthData} />
       <Card className="p-4">
         <ChartCardTitle>{t('tactical.results.statsTitle')}</ChartCardTitle>
-        <SortableTable
-          columns={statColumns}
-          data={statRows}
-          initialSortKey="tactical"
-          initialSortDir="desc"
-        />
+        <SortableTable columns={statColumns} data={statRows} initialSortKey="tactical" initialSortDir="desc" />
       </Card>
       {signalHistory.length > 0 && <SignalHistoryTable signalHistory={signalHistory} />}
     </div>
   );
 }
-
-/** 回测空态占位 */
 function BacktestEmptyState() {
   const { t } = useTranslation();
-  return (
-    <EmptyState
-      icon={LineChart}
-      title={t('tactical.results.noResultsHint')}
-      className="py-16"
-    />
-  );
+  return <EmptyState icon={LineChart} title={t('tactical.results.noResultsHint')} className="py-16" />;
 }
-
 export { BacktestResultTab, BacktestEmptyState };

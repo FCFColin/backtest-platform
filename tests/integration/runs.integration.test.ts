@@ -1,9 +1,3 @@
-/**
- * 回测运行历史（backtest_runs）CRUD 集成测试（RO-049）
- *
- * 跨层验证：Express 路由 → backtestRunRepo（withTenant RLS）→ PostgreSQL。
- * 运行记录是不可变快照，无 PUT 更新语义。使用 testcontainers 起真实 PG。
- */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
 

@@ -19,18 +19,15 @@ import { callEngineStrict } from '../utils/engineClient.js';
 import { logger } from '../utils/logger.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
 import { ValidationError } from '../utils/errors.js';
-import { toDateStr, todayStr } from '../utils/dateUtils.js';
+import { toDateStr, todayStr } from '../utils/misc.js';
 import {
   ensurePriceDataExists,
   ensureTickerHasData,
   normalizeTickers,
 } from './backtest/priceDataUtils.js';
-import { fetchPriceData, calculateDateRange } from './backtest-helpers.js';
+import { fetchPriceDataWithRange, calculateDateRange } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 
-// ---------------------------------------------------------------------------
-// 单资产分析
-// ---------------------------------------------------------------------------
 
 /** 组装分析结果：提取引擎返回的 assets/correlations，附加 warnings 和 dateRange。 */
 function assembleAnalysisResult(
@@ -67,10 +64,10 @@ export async function runAnalysis(
   parameters: BacktestParameters,
 ): Promise<Record<string, unknown> & { warnings?: Warning[]; dateRange?: DateRangeInfo }> {
   const {
-    data: priceData,
+    priceData,
     degraded,
     degradedWarning,
-  } = await fetchPriceData(tickers, parameters.startDate, parameters.endDate);
+  } = await fetchPriceDataWithRange(tickers, parameters.startDate, parameters.endDate);
   const warnings: Warning[] = [];
 
   if (degraded) {
@@ -108,9 +105,7 @@ export async function runAnalysis(
   return assembleAnalysisResult(result, warnings, dateRange);
 }
 
-// ---------------------------------------------------------------------------
 // PCA 主成分分析
-// ---------------------------------------------------------------------------
 
 /**
  * 执行 PCA 分析。
@@ -168,9 +163,7 @@ export async function executePcaAnalyzeWithFetch(body: PCARequest) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // LETF 滑点分析
-// ---------------------------------------------------------------------------
 
 /**
  * 执行 LETF 滑点分析。
@@ -210,11 +203,7 @@ export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// 目标优化
-// ---------------------------------------------------------------------------
 
-/** 校验目标优化请求资产列表。 */
 export function validateGoalOptimizerAssets(request: GoalOptimizerRequest): string[] {
   const validAssets = request.assets.filter((a) => a.ticker && a.ticker.trim());
   if (validAssets.length === 0) {

@@ -195,21 +195,6 @@ export default defineWorkspace([
       },
     },
   },
-  // ── api-client：SDK 单元测试（Node 环境，mock global fetch）──
-  {
-    test: {
-      name: 'api-client',
-      globals: true,
-      include: ['packages/api-client/tests/**/*.test.ts'],
-      environment: 'node',
-    },
-    resolve: {
-      alias: {
-        '@backtest/shared/types': path.resolve(__dirname, 'packages/shared/types/index.ts'),
-        '@backtest/shared': path.resolve(__dirname, 'packages/shared/types/index.ts'),
-      },
-    },
-  },
   // ── chaos：Docker 依赖的混沌工程测试 ──
   {
     test: {

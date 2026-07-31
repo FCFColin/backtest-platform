@@ -19,9 +19,7 @@ import { createHash } from 'node:crypto';
 
 /** 用户名维度：触发锁定的连续失败次数阈值 */
 const MAX_FAILED_ATTEMPTS = 5;
-/** 用户名维度：锁定时长（秒） */
 const LOCKOUT_DURATION_SEC = 15 * 60;
-/** 用户名维度：失败计数窗口（秒）——窗口内累计失败 */
 const FAILURE_WINDOW_SEC = 15 * 60;
 
 const KEY_PREFIX = 'login_fail:';
@@ -86,9 +84,7 @@ export async function clearFailures(username: string): Promise<void> {
   });
 }
 
-// ---------------------------------------------------------------------------
 // IP 维度异常登录检测（P1-09 等保三级 8.1.4 b)
-// ---------------------------------------------------------------------------
 
 /**
  * 检查 IP 是否因异常登录行为被封锁。

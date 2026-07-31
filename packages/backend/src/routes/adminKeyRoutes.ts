@@ -12,10 +12,10 @@
  */
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { recordAuthFailure } from '../utils/metrics.js';
+import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import {
   rotatePlatformAdminKey,
@@ -36,7 +36,7 @@ const router = Router();
  */
 function requirePlatformAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   if (req.user?.platform_admin !== true) {
-    recordAuthFailure(req.path, 'not_platform_admin');
+    recordAuthFailure(getRoutePattern(req), 'not_platform_admin');
     sendProblem(res, 403, 'INSUFFICIENT_PERMISSION');
     return;
   }

@@ -1,80 +1,31 @@
 # ADR 索引
 
-> 架构决策记录（ADR）编号是不可变标识符。被删除或合并的 ADR 编号不再复用，gaps 是正常的。
->
-> 本索引基于 `docs/adr/` 目录实际文件遍历生成，每条记录对应一个实际文件。
+> 编号不可变, gaps 表示被取代/删除/合并的决策。
 
-## 当前有效 ADR
+## 当前有效 ADR（19 条）
 
-| ADR                                                         | 决策                                                                          | 状态     | 落地状态                                          |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------- | -------- | ------------------------------------------------- |
-| [ADR-004](ADR-004-Express框架选型.md)                       | Express 作为 API 框架                                                         | 已接受   | ✅ 已落地                                         |
-| [ADR-005](ADR-005-Pino日志选型.md)                          | Pino 作为结构化日志库                                                         | 已接受   | ✅ 已落地                                         |
-| [ADR-007](ADR-007-PostgreSQL迁移决策.md)                    | PostgreSQL 作为主数据库                                                       | 已接受   | ✅ 已落地                                         |
-| [ADR-008](ADR-008-语言精简决策.md)                          | 精简为 Go + TypeScript                                                        | 已接受   | ✅ 已落地                                         |
-| [ADR-009](ADR-009-请求体校验库选型.md)                      | Zod 作为运行时校验库                                                          | 已接受   | ✅ 已落地                                         |
-| [ADR-011](ADR-011-长任务异步化方案.md)                      | BullMQ + Redis 异步任务                                                       | 已接受   | ✅ 已落地                                         |
-| [ADR-012](ADR-012-SBOM与制品签名方案.md)                    | 供应链安全：SBOM + SLSA Provenance + cosign Keyless                           | 已接受   | ⚠️ 部分（cosign keyless 需 OIDC provider 配置）   |
-| [ADR-013](ADR-013-领域模型重构策略.md)                      | 渐进式 DDD：Value Object → Aggregate → Domain Event                           | 已接受   | ⚠️ 部分（Run/Job 聚合根已落地，Phase 1-3 推进中） |
-| [ADR-014](ADR-014-事件溯源Outbox方案.md)                    | PostgreSQL LISTEN/NOTIFY + Outbox 表                                          | 已接受   | ✅ 已落地                                         |
-| [ADR-015](ADR-015-可观测性技术选型.md)                      | OpenTelemetry + pino + prom-client                                            | 已接受   | ✅ 已落地                                         |
-| [ADR-016](ADR-016-熔断器策略.md)                            | opossum（Node）+ gobreaker（Go）熔断器                                        | 已接受   | ✅ 已落地                                         |
-| [ADR-017](ADR-017-认证授权模型.md)                          | JWT + RBAC（3 角色 × 7 权限），x-api-key 兼容                                 | 已接受   | ✅ 已落地                                         |
-| [ADR-018](ADR-018-Redis选型.md)                             | Redis 用于 session/限流/缓存                                                  | 已接受   | ✅ 已落地                                         |
-| [ADR-019](ADR-019-异步任务越权防护与所有权模型.md)          | 任务归属提交者，越权校验                                                      | 已接受   | ✅ 已落地                                         |
-| [ADR-020](ADR-020-限流fail-closed分级策略.md)               | 限流 fail-closed 分级策略（含全局 apiLimiter）                                | 已接受   | ✅ 已落地                                         |
-| [ADR-023](ADR-023-数据隐私分类与删除权实现.md)              | 数据分类 + GDPR 删除权                                                        | 已接受   | ⚠️ 待落地（删除权 API 未实现）                    |
-| [ADR-024](ADR-024-Outbox强一致与消费者幂等.md)              | Outbox 强一致 + 消费者幂等 + 重试边界                                         | 已接受   | ✅ 已落地                                         |
-| [ADR-026](ADR-026-开发环境认证旁路安全边界.md)              | 开发环境认证旁路安全边界                                                      | 已接受   | ✅ 已落地                                         |
-| [ADR-027](ADR-027-100x容量拐点与缓解.md)                    | 100x 容量瓶颈分析                                                             | 已接受   | 📋 分析文档                                       |
-| [ADR-031](ADR-031-单引擎fail-closed降级.md)                 | Go 单引擎，不可用时 fail-closed 503                                           | 已接受   | ✅ 已落地                                         |
-| [ADR-032](ADR-032-多租户RLS隔离模型.md)                     | PostgreSQL RLS 多租户隔离                                                     | 已接受   | ✅ 已落地                                         |
-| [ADR-033](ADR-033-按组织API密钥.md)                         | 按组织 API 密钥（哈希存储、可吊销）                                           | 已接受   | ✅ 已落地                                         |
-| [ADR-034](ADR-034-服务端持久化与前端认证.md)                | 服务端持久化 + Refresh Token                                                  | 已接受   | ✅ 已落地                                         |
-| [ADR-035](ADR-035-自助注册与组织邀请.md)                    | 自助注册 + 邀请流程                                                           | 已接受   | ✅ 已落地                                         |
-| [ADR-036](ADR-036-Stripe计费.md)                            | Stripe 计费集成                                                               | 已接受   | ✅ 已落地                                         |
-| [ADR-037](ADR-037-配额计量与公平调度.md)                    | 月度配额计量 + 公平调度                                                       | 已接受   | ✅ 已落地                                         |
-| [ADR-038](ADR-038-DR-Strategy.md)                           | 灾难恢复策略（PostgreSQL/Redis/K8s/可用区故障）                               | Proposed | 📋 待落地                                         |
-| [ADR-039](ADR-039-Multi-Region-Deployment.md)               | 多区域部署策略（中国等保三级 + 海外低延迟）                                   | Proposed | 📋 待落地                                         |
-| [ADR-040](ADR-040-Data-Lifecycle-Management.md)             | 数据生命周期管理（审计日志 7 年保留 + 注销删除）                              | Proposed | 📋 待落地                                         |
-| [ADR-041](ADR-041-Service-Boundary-Strategy.md)             | 服务边界预切割策略（逻辑边界 + 微服务化触发条件）                             | Proposed | 📋 待落地                                         |
-| [ADR-042](ADR-042-api-packages-consolidation.md)            | API 包合并                                                                    | 已实施   | ✅ 已落地                                         |
-| [ADR-043](ADR-043-baostock-provider双通路职责分离.md)       | baostock 直连与 Provider Registry 双通路职责分离                              | 已实施   | ✅ 已落地                                         |
-| [ADR-044](ADR-044-otel-saas-replacement.md)                 | OTel SaaS 替换（go-shared + `OTEL_EXPORTER_OTLP_ENDPOINT` 环境变量切换）      | 已接受   | ✅ 已落地                                         |
-| [ADR-045](ADR-045-Redis-Sentinel高可用.md)                  | Redis Sentinel 高可用（1主+2从+3哨兵，删除内存降级）                          | 已接受   | ✅ 已落地                                         |
-| [ADR-046](ADR-046-API版本生命周期策略.md)                   | API 版本废弃机制（`Deprecation`/`Sunset`/`Link` 头，RFC 8594）                | 已接受   | ✅ 已落地                                         |
-| [ADR-047](ADR-047-后端模块化策略.md)                        | 后端模块化（逻辑边界 + 编译优化 + 微服务化触发条件）                          | 已接受   | ✅ 已落地                                         |
-| [ADR-050](ADR-050-module-federation.md)                     | 微前端 Module Federation 架构预留（exposes OptimizerPage/SignalAnalyzerPage） | 已接受   | ✅ 已落地（架构预留）                             |
-| [ADR-051](ADR-051-cdc-debezium.md)                          | CDC via Debezium → Kafka → 消费组（Outbox 多 Pod 水平扩展，门控默认关闭）     | Accepted | ⚠️ 部分（`CDC_KAFKA_ENABLED` 门控，默认关闭）     |
-| [ADR-052](ADR-052-ci-tiering-and-dependency-enforcement.md) | CI 分层（required/optional）+ dependency-cruiser 依赖方向强制                 | 已实施   | ✅ 已落地                                         |
+| ADR     | 主题                                | 状态   |
+| ------- | ----------------------------------- | ------ |
+| ADR-004 | Express 框架选型                    | 已接受 |
+| ADR-007 | PostgreSQL 迁移                     | 已接受 |
+| ADR-008 | Go+TS 语言精简                      | 已接受 |
+| ADR-013 | DDD 渐进式重构                      | 已接受 |
+| ADR-014 | Outbox + LISTEN/NOTIFY + CDC        | 已接受 |
+| ADR-015 | 可观测性(OTel + Pino + prom-client) | 已接受 |
+| ADR-016 | 熔断器 + 限流 fail-closed           | 已接受 |
+| ADR-017 | JWT + RBAC + API Key                | 已接受 |
+| ADR-018 | Redis + Sentinel HA                 | 已接受 |
+| ADR-023 | 数据隐私 + GDPR + 生命周期          | 已接受 |
+| ADR-031 | 单引擎 fail-closed 降级             | 已接受 |
+| ADR-032 | 多租户 RLS + BFF 认证               | 已接受 |
+| ADR-036 | Stripe 计费 + 配额                  | 已接受 |
+| ADR-038 | 灾难恢复策略                        | 已接受 |
+| ADR-046 | API 版本生命周期                    | 已接受 |
+| ADR-047 | 后端模块化                          | 已接受 |
+| ADR-050 | Module Federation 预留              | 已接受 |
+| ADR-052 | CI 分层 + 供应链安全                | 已实施 |
+| ADR-053 | Node 层库选型                       | 已接受 |
 
-## 已删除（被取代或低价值）
+## 已删除（被取代/合并/低价值）
 
-> 以下 ADR 编号已被删除或合并，编号不再复用。ADR-039/040/041 曾被误标为已删除，实际已作为独立 Proposed 决策存在（见上表）。
-
-| 原 ADR  | 内容                              | 处理方式                                       |
-| ------- | --------------------------------- | ---------------------------------------------- |
-| ADR-001 | 多语言架构（Rust+Node+Go+Python） | 被 ADR-008 取代（精简为 Go+TS）                |
-| ADR-002 | JSON 文件存储                     | 被 ADR-006 → ADR-007 取代（PostgreSQL）        |
-| ADR-003 | Rust 主引擎 + Node 降级           | 被 ADR-008 + ADR-031 取代（Go 单引擎）         |
-| ADR-006 | SQLite 迁移                       | 被 ADR-007 取代（PostgreSQL）                  |
-| ADR-010 | gitleaks 密钥扫描工具选型         | 删除：工具配置非架构决策                       |
-| ADR-021 | ESLint 复杂度量化门控             | 删除：lint 规则配置非架构决策                  |
-| ADR-022 | SLSA 出处证明与全量 SBOM 治理     | 合并入 ADR-012（供应链安全统一决策）           |
-| ADR-025 | 全局 apiLimiter fail-closed       | 合并入 ADR-020（限流分级策略统一决策）         |
-| ADR-028 | 重试与幂等边界                    | 合并入 ADR-024（Outbox + 幂等 + 重试统一决策） |
-| ADR-029 | Cursor 分页（暂不实现）           | 删除：未实施的探索性决策                       |
-| ADR-030 | Distroless 评估（仅 PoC）         | 删除：仅 PoC 评估，无落地                      |
-
-## 待落地优先级
-
-| ADR     | 待落地项                                                            | 优先级 |
-| ------- | ------------------------------------------------------------------- | ------ |
-| ADR-012 | cosign keyless OIDC provider 配置                                   | P2     |
-| ADR-023 | GDPR 删除权 API 实现                                                | P2     |
-| ADR-013 | domain 层参与计算路径（当前仅 portfolioRepo 使用 Portfolio 聚合根） | P1     |
-| ADR-038 | 灾难恢复策略落地（多 AZ/区域容灾）                                  | P2     |
-| ADR-039 | 多区域部署落地（等保合规 + 海外节点）                               | P2     |
-| ADR-040 | 数据生命周期策略落地（保留/归档/删除流水线）                        | P2     |
-| ADR-041 | 服务边界切割触发条件评估                                            | P3     |
-| ADR-051 | CDC 通路启用（多 Pod 水平扩展时开启 `CDC_KAFKA_ENABLED`）           | P3     |
+ADR-001(多语言, 被 008 取代), ADR-002(JSON 存储, 被 007 取代), ADR-003(Rust 引擎, 被 031 取代), ADR-005/006(SQLite, 被 007 取代), ADR-009-012(低价值合并), ADR-019/026/033(合并到 017), ADR-034/035(合并到 032), ADR-042(合并到 047), ADR-045(Redis 策略, 合并到 018)。

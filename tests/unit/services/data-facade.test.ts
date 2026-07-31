@@ -1,21 +1,6 @@
-/**
- * dataFacade 单元测试（P0-02 T12）
- *
- * 企业理由：dataFacade 是数据访问编排核心，承载三条数据源分支：
- * 1. PostgreSQL 命中（无缺失标的）→ 直接返回
- * 2. 缓存命中（readCache 返回数据）→ 合并缓存返回
- * 3. Go data-fetcher 降级（缺失标的实时拉取，失败则标记 degraded）
- *
- * 降级信息必须通过返回值传递（P0 修复消除全局可变变量并发竞争），
- * 调用方据此时传播到 API 响应。本测试验证三条分支 + 降级标记 + initDb 容错。
- *
- * 权衡：仅验证编排逻辑与降级语义，不验证真实 DB/Go 行为（属集成测试范畴）。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前绑定 =====
 // 注意：vi.hoisted 回调在 import 初始化前执行，不可调用导入的工厂函数，
 // 须内联 vi.fn()（与 outbox-publisher.test.ts 模式一致）。
 const loggerMocks = vi.hoisted(() => ({
@@ -53,7 +38,6 @@ const dateUtilsMocks = vi.hoisted(() => ({
   toDateStr: vi.fn(),
 }));
 
-// ===== Mock 模块 =====
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
@@ -76,7 +60,7 @@ vi.mock('../../../packages/backend/src/db/migrations.js', () => ({
   initSchema: migrationsMocks.initSchema,
 }));
 
-vi.mock('../../../packages/backend/src/utils/dateUtils.js', () => ({
+vi.mock('../../../packages/backend/src/utils/misc.js', () => ({
   toDateStr: dateUtilsMocks.toDateStr,
 }));
 

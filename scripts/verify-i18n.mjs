@@ -2,7 +2,7 @@
 /**
  * verify-i18n.mjs — i18n 双语同步验证脚本 (P0-0-2)
  *
- * 检查 zh-CN / en 两个 translation.json 之间 key 是否对齐，
+ * 检查 zh-CN / en 两个语言目录（各命名空间 JSON 合并）之间 key 是否对齐，
  * 以及前端源代码中使用的 t('xxx') key 是否全部已定义。
  *
  * 用法：node scripts/verify-i18n.mjs
@@ -16,12 +16,28 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const ROOT = resolve(__dirname, '..');
 
-const zhPath = join(ROOT, 'packages/frontend/src/i18n/locales/zh-CN/translation.json');
-const enPath = join(ROOT, 'packages/frontend/src/i18n/locales/en/translation.json');
+const LOCALES_DIR = join(ROOT, 'packages/frontend/src/i18n/locales');
 const srcDir = join(ROOT, 'packages/frontend/src');
 
-const zh = JSON.parse(readFileSync(zhPath, 'utf-8'));
-const en = JSON.parse(readFileSync(enPath, 'utf-8'));
+/**
+ * Merge every <lang>/<ns>.json file in a locale dir into one object,
+ * mirroring how the runtime loads namespaces via loadNamespace().
+ * @param {string} lang - Locale dir name (e.g. 'zh-CN').
+ * @returns {Record<string, unknown>} Merged namespace object.
+ */
+function loadMerged(lang) {
+  const merged = {};
+  const dir = join(LOCALES_DIR, lang);
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.json')) continue;
+    const data = JSON.parse(readFileSync(join(dir, name), 'utf-8'));
+    Object.assign(merged, data);
+  }
+  return merged;
+}
+
+const zh = loadMerged('zh-CN');
+const en = loadMerged('en');
 
 /**
  * Flatten nested object to dot-notation keys.

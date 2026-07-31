@@ -1,18 +1,3 @@
-/**
- * Chaos Experiment 1: Database Disconnect（vitest 集成测试）
- *
- * SRE: 验证 PostgreSQL 网络分区时的系统行为
- * 企业为何需要：K8s 滚动更新、网络分区、数据库维护都可能导致连接断开，
- * 熔断器应在故障期间快速失败（Open），恢复后自动回到 Closed。
- *
- * 权衡：实验需要 Docker 环境，无 Docker 时自动 skip。
- *
- * 重构说明（Task 5.14/5.15）：
- * - 用 setupChaosFixture(CONTAINERS.postgres, reconnectContainer) 替代内联
- *   isDockerAvailable/isContainerRunning + afterAll reconnectContainer 样板。
- * - 网络分区模式（disconnect/reconnect）保留在 it 块内，因 withContainerStopped
- *   仅适配 stop/start 模式。
- */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   CONTAINERS,
@@ -28,13 +13,6 @@ const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const HEALTH_URL = `${API_URL}/api/health`;
 const METRICS_URL = `${API_URL}/api/metrics`;
 
-/**
- * DB 相关端点：/api/v1/data/history
- *
- * 该端点优先调用 Go 数据服务，失败后降级到 fetchHistoryData（使用 pgCircuitBreaker 查询 PostgreSQL），
- * DB 不可用时进一步降级到本地 JSON 文件。因此 DB 断开后应返回 200 + degraded 标记，
- * 而非 500 内部错误——这是熔断器保护的核心目标。
- */
 const DB_ENDPOINT = `${API_URL}/api/v1/data/history?tickers=SPY&startDate=2020-01-01&endDate=2024-12-31`;
 
 // top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值

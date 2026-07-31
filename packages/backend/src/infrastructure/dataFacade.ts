@@ -13,12 +13,11 @@
 
 import { trace, type Span } from '@opentelemetry/api';
 import { logger } from '../utils/logger.js';
-import { toDateStr } from '../utils/dateUtils.js';
+import { toDateStr } from '../utils/misc.js';
 import { initSchema } from '../db/migrations.js';
 import { getCacheKey, readCache } from './dataCache.js';
 import { queryPricesFromDb, fetchMissingFromGoService, validateTickers } from './dataQuery.js';
 
-/** OTel tracer（无 SDK 初始化时返回 NoopTracer，不影响测试与运行） */
 const tracer = trace.getTracer('backtest-platform', '1.0.0');
 
 /**
@@ -124,7 +123,6 @@ async function fetchFromGoWithDegradation(
   return { degraded: false };
 }
 
-/** 记录非法 ticker 告警日志（提取自 fetchHistoryDataImpl 以控制函数行数） */
 function logInvalidTickers(invalidTickers: string[]): void {
   if (invalidTickers.length === 0) return;
   logger.warn(

@@ -1,14 +1,9 @@
-/**
- * 蒙特卡洛模拟应用服务。
- *
- * 负责蒙特卡洛模拟端点的数据获取与引擎调用编排。
- */
 import pLimit from 'p-limit';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
-  collectTickersFromPortfolios,
+  collectDomainTickers,
   fetchPriceDataWithRange,
   filterPriceData,
   loadMacroData,
@@ -33,8 +28,11 @@ export async function runMonteCarlo(
   parameters: BacktestParameters,
   mcParams?: Record<string, unknown>,
 ): Promise<{ data: unknown; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const { tickers } = collectTickersFromPortfolios(portfolioList);
-  const allTickers = new Set(tickers);
+  const domainPortfolios = portfolioList.map((p) =>
+    translateDomainError(() => DomainPortfolio.fromDTO(p)),
+  );
+  const allTickers = collectDomainTickers(domainPortfolios, '');
+  const tickers = Array.from(allTickers);
   const warnings: Warning[] = [];
 
   const { priceData, effectiveStartDate, effectiveEndDate, degraded, degradedWarning } =
@@ -59,10 +57,10 @@ export async function runMonteCarlo(
 
   const limit = pLimit(ENGINE_CONCURRENCY_LIMIT);
   const results = await Promise.all(
-    portfolioList.map((p) =>
+    domainPortfolios.map((dp) =>
       limit(() =>
         callEngineStrict('/api/engine/monte-carlo', {
-          portfolio: translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody(),
+          portfolio: dp.toEngineBody(),
           priceData: filterPriceData(priceData, allTickers),
           params: buildEngineParams(effectiveParameters),
           cpiData,

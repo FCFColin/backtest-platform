@@ -1,19 +1,16 @@
 /**
  * 回测优化器路由 — POST /api/backtest-optimizer/optimize
  *
- * 异步优先（BullMQ），队列不可用时回退同步执行。
+ * 异步优先（BullMQ），队列不可用时 fail-closed 503 per ADR-031。
  * 错误处理统一走 asyncRouteHandler。
  */
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
-import { config } from '../config/index.js';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { backtestOptimizerSchema } from '../schemas/optimizer.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
-import { withTimeout } from '../utils/timeout.js';
-import { executeOptimization } from '../application/optimize-service.js';
 import { asyncRouteHandler } from './routeUtils.js';
 
 const router = Router();
@@ -46,31 +43,17 @@ router.post(
             statusUrl: `/api/v1/jobs/${job.id}`,
           },
         });
-        return;
       } catch (queueError) {
-        logger.warn(
-          { error: (queueError as Error).message },
-          '[backtest-optimizer] BullMQ不可用，回退到同步执行',
+        // ADR-031：队列不可用时 fail-closed 返回 503 + Retry-After，不再回退到同步执行。
+        // 同步回退会阻塞 Node.js 事件循环，且多实例场景下无法保证请求路由到同一引擎实例。
+        logger.error(
+          { err: (queueError as Error).message },
+          '[backtest-optimizer] BullMQ 队列不可用，fail-closed 返回 503',
         );
-      }
-
-      // 同步降级：队列不可用时直接执行
-      const result = await withTimeout(
-        executeOptimization(req.body as Record<string, unknown>),
-        config.SYNC_COMPUTE_TIMEOUT_MS,
-        'backtest-optimizer 同步执行',
-      );
-      if (result.success) {
-        const response: Record<string, unknown> = { success: true, data: result.data };
-        if (result.warnings && result.warnings.length > 0) {
-          response.warnings = result.warnings;
-        }
-        if (result.dateRange) {
-          response.dateRange = result.dateRange;
-        }
-        res.json(response);
-      } else {
-        sendProblem(res, 400, 'OPTIMIZER_BAD_REQUEST');
+        sendProblem(res, 503, 'OPTIMIZER_QUEUE_UNAVAILABLE', 'Service temporarily unavailable', {
+          detail: 'Optimizer queue is not available. Please retry in a moment.',
+          headers: { 'Retry-After': '60' },
+        });
       }
     },
     {

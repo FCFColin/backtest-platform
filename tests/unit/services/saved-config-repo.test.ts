@@ -1,8 +1,3 @@
-/**
- * savedConfigRepo 单元测试（LIMIT 行为 + 边界 + CRUD 返回）
- *
- * Mock 策略同 persistence-repos.test.ts：mock db.withTenant 直接执行回调。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dbMocks = vi.hoisted(() => ({

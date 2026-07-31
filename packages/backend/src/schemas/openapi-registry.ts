@@ -1,22 +1,20 @@
 /**
- * OpenAPI 3.0 规范注册中心入口（P1-05，D6-002 拆分后主索引）。
- *
- * 本文件是 schema -> OpenAPI 的编排入口：
- * - 通过 openapi-components.ts 提供共享 registry / reg / idParam
- * - 通过 openapi-paths-*.ts 各模块注册具体路由端点
- * - generateOpenApiDocument() 生成完整 OpenAPI 3.0 文档
- *
+ * OpenAPI 3.0 规范注册中心入口（P1-05）。
+ * 本文件是 schema -> OpenAPI 的编排入口：通过 openapi-components.ts 提供共享 registry / reg / idParam，
+ * 通过 openapi-paths-*.ts 各模块注册具体路由端点，generateOpenApiDocument() 生成完整 OpenAPI 3.0 文档。
  * 生成入口：scripts/generate-openapi.ts -> docs/openapi.yaml
- * Swagger UI：packages/backend/src/middleware/openapiUi.ts -> GET /api/docs（仅开发环境）
+ * Swagger UI：packages/backend/src/middleware/miscMiddleware.ts -> GET /api/docs（仅开发环境）
  */
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { registry } from './openapi-components.js';
-import { registerAuthPaths } from './openapi-paths-auth.js';
-import { registerBacktestPaths } from './openapi-paths-backtest.js';
-import { registerDataPaths } from './openapi-paths-data.js';
-import { registerAdminPaths } from './openapi-paths-admin.js';
+import {
+  registerAuthPaths,
+  registerAdminPaths,
+  registerBacktestPaths,
+  registerDataPaths,
+} from './openapi-paths.js';
 
-// 模块加载时注册全部路径（与拆分前行为一致，保证 generateOpenApiDocument 调用时 definitions 已就绪）。
+// 模块加载时注册全部路径（保证 generateOpenApiDocument 调用时 definitions 已就绪）。
 registerAuthPaths();
 registerBacktestPaths();
 registerDataPaths();
@@ -55,11 +53,6 @@ const TAGS = [
   'feature-flags',
 ];
 
-/**
- * 生成完整 OpenAPI 3.0 文档对象。
- *
- * @returns OpenAPI 3.0.3 文档（可直接 JSON.stringify 或交由 yaml 序列化）。
- */
 export function generateOpenApiDocument() {
   const generator = new OpenApiGeneratorV3(registry.definitions);
   return generator.generateDocument({

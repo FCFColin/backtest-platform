@@ -1,16 +1,3 @@
-/**
- * 通用加密原语单元测试（crypto.ts）
- *
- * 企业理由：API Key 哈希存储、邮箱验证令牌、邀请令牌均依赖本模块的 SHA-256 与
- * argon2id 实现。测试覆盖：
- * - sha256Hex：已知向量、空串、Unicode、确定性、输出形态
- * - hashApiKeyArgon2id：返回 argon2id 编码哈希、不同输入产生不同哈希、随机盐
- * - verifyApiKeyArgon2id：空 encoded 直接返回 false、正确密钥匹配、错误密钥拒绝、
- *   损坏哈希触发 catch 分支返回 false（避免侧信道）
- *
- * 实现说明：使用真实 node:crypto 与 argon2（不 mock），与 integrity.test.ts 同策略，
- * 保证原语行为与生产一致。argon2id 默认参数对少量调用足够快。
- */
 import { describe, it, expect } from 'vitest';
 import crypto from 'crypto';
 import {

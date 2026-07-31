@@ -1,0 +1,166 @@
+{
+  "account": {
+    "billing": {
+      "adminOnlyNotice": "仅管理员可管理订阅",
+      "checkoutFailed": "结账失败",
+      "current": "当前",
+      "currentOrg": "当前组织",
+      "currentPlanPrefix": "当前方案：",
+      "disabledNotice": "订阅管理未启用",
+      "loginRequiredLink": "登录",
+      "loginRequiredPrefix": "请先",
+      "loginRequiredSuffix": "后管理订阅。",
+      "managePortal": "管理订阅门户",
+      "orgPrefix": "组织：{{name}}",
+      "plans": {
+        "enterprise": {
+          "feature1": "无限制组合与回测",
+          "feature2": "API 访问（REST + WebSocket）",
+          "feature3": "24/7 优先支持",
+          "price": "联系我们"
+        },
+        "pro": {
+          "feature1": "高级回测功能",
+          "feature2": "无限组合数量",
+          "feature3": "10 年历史数据",
+          "price": "$29/月"
+        }
+      },
+      "portalFailed": "订阅门户打开失败",
+      "statusPrefix": "状态：{{status}}",
+      "title": "订阅与账单",
+      "upgradeTo": "升级到 {{name}}"
+    },
+    "localDeployNotice": "您正在使用本地部署版本，所有功能均已开放。",
+    "login": "登录",
+    "myWorkspace": "我的工作区",
+    "preferences": {
+      "currency": "货币单位",
+      "currencyCNY": "人民币 (CNY)",
+      "currencyDesc": "选择回测结果显示的货币单位",
+      "currencyEUR": "欧元 (EUR)",
+      "currencyHKD": "港币 (HKD)",
+      "currencyJPY": "日元 (JPY)",
+      "currencyUSD": "美元 (USD)",
+      "rebalance": "调仓频率",
+      "rebalanceBuyHold": "买入持有",
+      "rebalanceDesc": "设置默认的调仓频率",
+      "rebalanceMonthly": "每月",
+      "rebalanceQuarterly": "每季度",
+      "rebalanceThreshold": "阈值调仓",
+      "rebalanceYearly": "每年",
+      "themeCurrentDark": "当前为深色主题",
+      "themeCurrentLight": "当前为浅色主题",
+      "themeMode": "主题模式",
+      "title": "偏好设置"
+    },
+    "pricing": {
+      "compare": {
+        "10yr": "10 年",
+        "1yr": "1 年",
+        "24hResponse": "24 小时响应",
+        "3portfolios": "3 个组合",
+        "all": "全部",
+        "all16": "全部 16 个",
+        "analysisTabs": "分析标签页",
+        "basic": "基础",
+        "feature": "功能",
+        "historyRange": "历史数据范围",
+        "portfolioCount": "组合数量",
+        "prioritySupport": "优先支持",
+        "unlimited": "无限制"
+      },
+      "comparisonTitle": "方案对比",
+      "features": {
+        "10yrData": "10 年历史数据",
+        "1yrData": "1 年历史数据",
+        "advancedBacktest": "高级回测功能",
+        "all16Tabs": "全部 16 个分析标签页",
+        "allHistoryData": "全部历史数据",
+        "allProFeatures": "包含所有 Pro 功能",
+        "apiAccess": "API 访问",
+        "apiRestWs": "API 访问（REST + WebSocket）",
+        "basicBacktest": "基础回测功能",
+        "basicStats": "基础统计指标",
+        "max3Portfolios": "最多 3 个组合",
+        "monteCarlo": "蒙特卡洛模拟",
+        "optAndFrontier": "组合优化 + 有效前沿",
+        "portfolioOpt": "组合优化",
+        "prioritySupport": "优先支持",
+        "prioritySupport24h": "24/7 优先支持",
+        "unlimitedPortfolios": "无限制组合数量"
+      },
+      "intro": "选择适合您的方案，所有方案均包含核心回测功能。",
+      "noticeBody": "价格为示例展示，本地部署版本无需付费。",
+      "noticeTitle": "提示：",
+      "periodMonth": "/月",
+      "plans": {
+        "free": {
+          "cta": "开始使用",
+          "desc": "适合个人入门使用",
+          "price": "免费"
+        },
+        "pro": {
+          "cta": "升级到 Pro",
+          "desc": "适合专业投资者"
+        },
+        "proPlus": {
+          "cta": "联系我们",
+          "desc": "适合机构与团队"
+        }
+      },
+      "recommended": "推荐",
+      "title": "定价方案"
+    },
+    "role": {
+      "admin": "平台管理员",
+      "local": "本地用户"
+    },
+    "settings": "账户设置",
+    "signOut": "退出登录",
+    "subscription": {
+      "currentPlanSuffix": "当前方案：{{plan}}",
+      "freePlan": "免费版",
+      "localDeploy": "本地部署版本",
+      "title": "订阅信息",
+      "upgrade": "升级方案"
+    },
+    "title": "账户中心",
+    "upgrade": "升级订阅",
+    "userIdLabel": "用户 ID：{{userId}}"
+  },
+  "orgMembers": {
+    "title": "成员管理",
+    "orgLabel": "组织：",
+    "table": {
+      "user": "用户",
+      "email": "邮箱",
+      "role": "角色",
+      "action": "操作"
+    },
+    "invite": {
+      "title": "邀请成员",
+      "emailPlaceholder": "邀请邮箱",
+      "send": "发送邀请",
+      "tableEmail": "邮箱",
+      "tableRole": "角色",
+      "tableStatus": "状态",
+      "tableAction": "操作",
+      "accepted": "已接受",
+      "pending": "待接受",
+      "revokeTitle": "撤销邀请",
+      "removeTitle": "移除成员"
+    },
+    "error": {
+      "updateRole": "更新角色失败",
+      "removeMember": "移除成员失败",
+      "sendInvite": "发送邀请失败",
+      "revokeInvite": "撤销邀请失败"
+    },
+    "unauthed": {
+      "prefix": "请先",
+      "login": "登录",
+      "suffix": "后管理组织成员。"
+    }
+  }
+}

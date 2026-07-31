@@ -22,7 +22,6 @@ import {
 } from '../queues/dataUpdateQueue.js';
 import { logger } from '../utils/logger.js';
 
-/** 更新状态（从 BullMQ job 状态派生，不再使用内存全局变量） */
 export interface UpdateStatus {
   running: boolean;
   mode: 'full' | 'incremental' | null;

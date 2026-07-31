@@ -5,9 +5,7 @@ import {
   YEAR_ONLY_TICK_FORMATTER,
   DATE_TICK_FORMATTER,
   SMART_DATE_INTERVAL,
-  smartDateInterval,
-  CURRENCY_TICK_FORMATTER,
-  CURRENCY_EXACT_FORMATTER,
+  currencyFormatter,
   PERCENT_TICK_FORMATTER,
   CHART_TOOLTIP_STYLE,
   CHART_MARGIN,
@@ -96,56 +94,63 @@ describe('SMART_DATE_INTERVAL', () => {
   });
 });
 
-describe('smartDateInterval (legacy)', () => {
-  it('20 点以内返回 0（全部显示）', () => {
-    expect(smartDateInterval(10)).toBe(0);
-    expect(smartDateInterval(20)).toBe(0);
+describe('SMART_DATE_INTERVAL（基于月数）', () => {
+  it('≤12 个月返回 1（每月）', () => {
+    expect(SMART_DATE_INTERVAL(10)).toBe(1);
+    expect(SMART_DATE_INTERVAL(12)).toBe(1);
   });
 
-  it('21-100 点返回 4（每 5 个）', () => {
-    expect(smartDateInterval(50)).toBe(4);
+  it('13-60 个月返回 6（每半年）', () => {
+    expect(SMART_DATE_INTERVAL(50)).toBe(6);
+    expect(SMART_DATE_INTERVAL(60)).toBe(6);
   });
 
-  it('101-500 点返回 19（每 20 个）', () => {
-    expect(smartDateInterval(200)).toBe(19);
+  it('61-120 个月返回 12（每年）', () => {
+    expect(SMART_DATE_INTERVAL(100)).toBe(12);
+    expect(SMART_DATE_INTERVAL(120)).toBe(12);
   });
 
-  it('500 点以上返回 49（每 50 个）', () => {
-    expect(smartDateInterval(1000)).toBe(49);
+  it('121-240 个月返回 24（每两年）', () => {
+    expect(SMART_DATE_INTERVAL(200)).toBe(24);
+    expect(SMART_DATE_INTERVAL(240)).toBe(24);
+  });
+
+  it('240 个月以上返回 60（每五年）', () => {
+    expect(SMART_DATE_INTERVAL(1000)).toBe(60);
   });
 });
 
-describe('CURRENCY_TICK_FORMATTER', () => {
+describe('currencyFormatter (无小数, digits=0)', () => {
   it('格式化正整数为货币（无小数）', () => {
-    const result = CURRENCY_TICK_FORMATTER(350000);
+    const result = currencyFormatter(350000);
     expect(result).toBe('$350,000');
   });
 
   it('格式化 0 为 $0', () => {
-    expect(CURRENCY_TICK_FORMATTER(0)).toBe('$0');
+    expect(currencyFormatter(0)).toBe('$0');
   });
 
   it('截断小数位', () => {
-    expect(CURRENCY_TICK_FORMATTER(350000.99)).toBe('$350,001');
+    expect(currencyFormatter(350000.99)).toBe('$350,001');
   });
 
   it('支持自定义货币', () => {
-    const result = CURRENCY_TICK_FORMATTER(1000, 'EUR');
+    const result = currencyFormatter(1000, 'EUR');
     expect(result).toContain('1,000');
   });
 });
 
-describe('CURRENCY_EXACT_FORMATTER', () => {
+describe('currencyFormatter (2位小数, digits=2)', () => {
   it('格式化为 2 位小数货币', () => {
-    expect(CURRENCY_EXACT_FORMATTER(350000)).toBe('$350,000.00');
+    expect(currencyFormatter(350000, 'USD', 2)).toBe('$350,000.00');
   });
 
   it('保留小数位', () => {
-    expect(CURRENCY_EXACT_FORMATTER(350000.5)).toBe('$350,000.50');
+    expect(currencyFormatter(350000.5, 'USD', 2)).toBe('$350,000.50');
   });
 
   it('支持自定义货币', () => {
-    const result = CURRENCY_EXACT_FORMATTER(99.99, 'EUR');
+    const result = currencyFormatter(99.99, 'EUR', 2);
     expect(result).toContain('99.99');
   });
 });

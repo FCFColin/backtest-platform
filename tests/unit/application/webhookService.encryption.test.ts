@@ -1,22 +1,9 @@
-/**
- * Webhook secret 应用层加密单元测试（C-024）
- *
- * 覆盖：
- * - envelopeEncryption encrypt/decrypt 往返一致性
- * - encrypt 每次产生不同密文（随机 IV）
- * - decrypt 用错误 KEK 应抛错（认证失败）
- * - createWebhook 存储 ciphertext 而非明文 secret
- * - processSingleDelivery 从 DB 读出后 decrypt 得到明文用于 HMAC 签名
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // 固定 KEK，避免依赖 .env（任意字符串，内部经 sha256 派生为 32 字节密钥）
 const TEST_KEK = 'test-webhook-kek-32bytes-string-pad';
 const WRONG_KEK = 'wrong-kek-completely-different-string!!';
 
-// ---------------------------------------------------------------------------
-// Mock：pg pool（processPendingDeliveries 使用 getPool）
-// ---------------------------------------------------------------------------
 const poolMocks = vi.hoisted(() => {
   const pool = { query: vi.fn().mockResolvedValue({ rows: [] }) };
   return { pool };
@@ -26,28 +13,19 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTenant: vi.fn(async (_orgId: string, fn: (client: typeof poolMocks.pool) => Promise<void>) => fn(poolMocks.pool)),
 }));
 
-// ---------------------------------------------------------------------------
-// Mock：global.fetch（deliverWebhook 使用）
-// ---------------------------------------------------------------------------
 const fetchMock = vi.hoisted(() => vi.fn());
 vi.stubGlobal('fetch', fetchMock);
 
-// ---------------------------------------------------------------------------
-// Mock：ssrfGuard（C-003 已 PASS，默认放行，保留 SSRF 防护链路）
-// ---------------------------------------------------------------------------
 const ssrfMock = vi.hoisted(() => ({ assertSafeUrl: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('../../../packages/backend/src/utils/ssrfGuard.js', () => ({
   assertSafeUrl: ssrfMock.assertSafeUrl,
 }));
 
-// ---------------------------------------------------------------------------
-// 导入被测模块（在 mock 注册之后）。envelopeEncryption 不 mock，使用真实加解密。
-// ---------------------------------------------------------------------------
 import {
   encrypt,
   decrypt,
   type EncryptedPayload,
-} from '../../../packages/backend/src/utils/envelopeEncryption.js';
+} from '../../../packages/backend/src/utils/crypto.js';
 import {
   createWebhook,
   processPendingDeliveries,
@@ -187,7 +165,7 @@ describe('processPendingDeliveries (C-024 解密签名)', () => {
     const body = (call[1] as { body: string }).body;
     const headers = (call[1] as { headers: Record<string, string> }).headers;
     const sigHeader = headers['X-Webhook-Signature'];
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
+     
     const crypto = await import('crypto');
     const expectedSig = 'sha256=' + crypto.createHmac('sha256', PLAINTEXT_SECRET).update(body).digest('hex');
     expect(sigHeader).toBe(expectedSig);

@@ -1,8 +1,3 @@
-/**
- * 管理后台路由
- * GET /api/admin/stats  - 仪表盘统计数据
- * GET /api/admin/system - 系统资源信息
- */
 
 import { Router, type Request, type Response } from 'express';
 import { callService } from '../utils/httpClient.js';
@@ -47,7 +42,6 @@ function defaultTickerStats(): DbMarketStats {
   };
 }
 
-/** 构建仪表盘响应数据 */
 function buildStatsResponseData(args: {
   engineHealth: Awaited<ReturnType<typeof checkServiceHealth>>;
   goHealth: Awaited<ReturnType<typeof checkServiceHealth>>;
@@ -133,10 +127,6 @@ function formatUptime(uptimeSeconds: number): string {
   return `${minutes}分钟`;
 }
 
-/**
- * GET /api/admin/stats - 仪表盘统计数据
- * 包含：服务健康、数据统计、系统信息、回测历史（空）
- */
 router.get(
   '/stats',
   jwtAuth,
@@ -184,9 +174,6 @@ router.get(
   ),
 );
 
-/**
- * GET /api/admin/system - 系统资源信息
- */
 router.get(
   '/system',
   jwtAuth,

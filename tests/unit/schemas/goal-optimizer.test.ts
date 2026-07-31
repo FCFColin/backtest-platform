@@ -1,14 +1,3 @@
-/**
- * goalOptimizer schema 单元测试
- *
- * 企业理由：目标优化器参数校验失败会导致 Monte Carlo 模拟
- * 使用非法参数崩溃。测试覆盖：
- * - 合法输入通过校验
- * - targetAmount/initialAmount/years 非正数抛错
- * - assets 为空抛错
- * - numSimulations 非正整数抛错
- */
-
 import { describe, it, expect } from 'vitest';
 import { goalOptimizerSchema } from '../../../packages/backend/src/schemas/analysisSchemas.js';
 

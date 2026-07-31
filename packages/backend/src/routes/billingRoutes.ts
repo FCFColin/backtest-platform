@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 计费路由（Stripe，ADR-036）
  *
  * 挂载于 /api/v1/billing（jwtAuth + resolveTenant 前置）。本路由内部对写操作追加
@@ -8,7 +8,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { emptyBodySchema } from '../schemas/shared.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -76,7 +76,6 @@ router.get('/subscription', async (req: AuthenticatedRequest, res: Response) => 
   });
 });
 
-/** POST /api/v1/billing/checkout - 创建订阅 Checkout 会话（admin） */
 const checkoutSchema = z.object({ plan: z.enum(['pro', 'enterprise']) });
 router.post(
   '/checkout',

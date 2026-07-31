@@ -1,17 +1,18 @@
-﻿# Agent Guide — 回测平台 (Backtest Platform)
+# Agent Guide — 回测平台 (Backtest Platform)
 
 ## Quick Start
 
 **Prerequisites**: Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+
 
 `powershell
-pnpm install         # Install dependencies
-pnpm dev             # Start frontend (15173) + backend API (15001)
-pnpm check           # TypeScript type check (tsc --noEmit)
-pnpm lint            # ESLint
-pnpm test            # Vitest (all tests)
-pnpm test:unit       # Unit tests only
-```
+pnpm install # Install dependencies
+pnpm dev # Start frontend (15173) + backend API (15001)
+pnpm check # TypeScript type check (tsc --noEmit)
+pnpm lint # ESLint
+pnpm test # Vitest (all tests)
+pnpm test:unit # Unit tests only
+
+````
 
 ## Tech Stack
 
@@ -32,7 +33,7 @@ pnpm test:unit       # Unit tests only
 - **4 services, 2 languages (TS/Go)**: Frontend → Express API → Go engine + Go data service
 - **Degradation**: Engine: Go → fail-closed 503 (ADR-031); Data: PostgreSQL → Go data-fetcher (missing tickers only). JSON files are import-only, not runtime fallback.
 - Full topology: `docs/ARCHITECTURE.md`
-- All ADRs: `docs/adr/` (39 active records; see `docs/adr/README.md` for full index including deleted/merged)
+- All ADRs: `docs/adr/` (19 active records; see `docs/adr/README.md` for full index including deleted/merged)
 
 ## Conventions
 
@@ -77,7 +78,7 @@ pnpm test:chaos              # Chaos experiments (requires Docker + full applica
 pnpm test:property           # Property-based invariant tests (fast-check, no Docker)
 pnpm test:e2e:ui              # Playwright browser E2E (requires postgres + redis + engine-go + data-fetcher)
 pnpm test:docker              # All Vitest tests with RUN_TESTCONTAINERS=1 (chaos + integration Docker paths)
-```
+````
 
 #### Test Directories
 
@@ -98,29 +99,29 @@ pnpm test:docker              # All Vitest tests with RUN_TESTCONTAINERS=1 (chao
 
 ## Key ADR References
 
-| ADR     | Decision                                               |
-| ------- | ------------------------------------------------------ |
-| ADR-004 | Express over Fastify/NestJS                            |
-| ADR-007 | PostgreSQL over SQLite for horizontal scaling          |
-| ADR-008 | Go + TypeScript over 4-language architecture           |
-| ADR-009 | Zod over Joi/class-validator for runtime validation    |
-| ADR-013 | DDD aggregates + event sourcing in domain layer        |
-| ADR-016 | Circuit breakers via opossum (Node) + gobreaker (Go)   |
-| ADR-017 | JWT + RBAC (3 roles × 7 permissions), x-api-key compat |
-| ADR-018 | Redis for distributed session/rate-limit/cache         |
-| ADR-019 | Job ownership + async task privilege guard             |
-| ADR-031 | Single Go engine fail-closed (no Node/Rust fallback)   |
-| ADR-032 | Multi-tenant RLS isolation                             |
-| ADR-033 | Per-org API keys (hashed + revocable)                  |
-| ADR-036 | Stripe billing integration                             |
-| ADR-042 | API packages consolidation                             |
-| ADR-044 | OTel SaaS replacement (go-shared + env var switching)  |
+| ADR     | Decision                                                        |
+| ------- | --------------------------------------------------------------- |
+| ADR-004 | Express over Fastify/NestJS                                     |
+| ADR-007 | PostgreSQL over SQLite for horizontal scaling                   |
+| ADR-008 | Go + TypeScript over 4-language architecture                    |
+| ADR-013 | DDD aggregates + event sourcing in domain layer                 |
+| ADR-014 | Outbox (LISTEN/NOTIFY + CDC) + consumer idempotency             |
+| ADR-015 | OTel + pino + prom-client, SaaS backend (go-shared)             |
+| ADR-016 | Circuit breakers + rate-limit fail-closed tiering               |
+| ADR-017 | JWT + RBAC + task ownership + per-org API keys                  |
+| ADR-018 | Redis + Sentinel HA (no memory degradation)                     |
+| ADR-031 | Single Go engine fail-closed (no Node/Rust fallback)            |
+| ADR-032 | Multi-tenant SaaS (RLS + persistence + BFF auth + registration) |
+| ADR-036 | Stripe billing + per-plan quota + fair scheduling               |
+| ADR-047 | Backend code organization (package merge + modularization)      |
+| ADR-052 | CI tiering + dependency enforcement + SBOM + cosign             |
+| ADR-053 | Node layer libraries (Pino + Zod + BullMQ)                      |
 
 ## Known Gotchas
 
-1. **Go data service semaphore=10**: `dataQuery.ts` 中 `goServiceSemaphore = new Semaphore(10)` 限制并发 Go HTTP 调用（默认 10）。Python data CLI 已退役（原 api/python/ 已随 ADR-042 合并删除），admin bulk-ingest 端点返回 501。
+1. **Go data service semaphore=10**: `dataQuery.ts` 中 `goServiceSemaphore = new Semaphore(10)` 限制并发 Go HTTP 调用（默认 10）。Python data CLI 已退役（原 api/python/ 已随 ADR-047 合并删除），admin bulk-ingest 端点返回 501。
 2. **Single Go engine + fail-closed**: Go engine is the only backtest/MC/optimizer engine (Rust `engine-rs/` deleted). When unavailable, engine-canonical compute returns 503 + Retry-After (ADR-031); never silently Node-computed.
-3. **x-api-key compat risk**: ADR-033 已支持按组织 API 密钥（哈希存储、可吊销、可审计，泄露爆炸半径收敛到单组织）。仅 `ADMIN_API_KEY` 作为平台 break-glass 静态凭证不可吊销，须严格保管并尽量少用。
+3. **x-api-key compat risk**: ADR-017 已支持按组织 API 密钥（哈希存储、可吊销、可审计，泄露爆炸半径收敛到单组织）。仅 `ADMIN_API_KEY` 作为平台 break-glass 静态凭证不可吊销，须严格保管并尽量少用。
 4. **Redis dependency**: Auth module uses Redis for Refresh Tokens. Redis failure degrades to in-memory (single-instance only, multi-instance session inconsistent).
 5. **CORS_ORIGINS=true in production**: 生产环境 hard-fail（拒绝启动），仅在开发环境降级为 warning + 允许所有源。生产部署必须配置 `CORS_ORIGINS` 白名单（逗号分隔），否则启动失败。
 6. **RFC 7807 error format**: All API errors use `{ success: false, error: { type, title, status, code, detail } }`. Breaking change from legacy `{ code, message }`.

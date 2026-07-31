@@ -1,13 +1,8 @@
-﻿/**
- * OpenAPI 3.0 共享组件与路径注册辅助（P1-05，D6-002 拆分自 openapi-registry.ts）。
- *
- * 本文件是 schema -> OpenAPI 的共享基础设施：
- * - 扩展 Zod 以支持 .openapi() 元数据
- * - 维护全局 OpenAPIRegistry 单例
- * - 注册通用安全方案 / 幂等键 / RFC 7807 错误结构 / 成功信封
- * - 提供 reg() 路径注册辅助函数，压缩重复结构
- *
- * 各 openapi-paths-*.ts 模块通过调用 registerXxxPaths() 注册具体端点。
+/**
+ * OpenAPI 3.0 共享组件与路径注册辅助（P1-05）。
+ * 本文件是 schema -> OpenAPI 的共享基础设施：扩展 Zod 支持 .openapi() 元数据、
+ * 维护全局 OpenAPIRegistry 单例、注册通用安全方案/幂等键/RFC 7807 错误结构/成功信封、
+ * 提供 reg() 路径注册辅助函数。各 openapi-paths-*.ts 模块通过调用 registerXxxPaths() 注册具体端点。
  */
 import {
   OpenAPIRegistry,
@@ -19,10 +14,6 @@ import { z } from 'zod';
 extendZodWithOpenApi(z);
 
 export const registry = new OpenAPIRegistry();
-
-// ---------------------------------------------------------------------------
-// 通用组件：安全方案 / 幂等键 / RFC 7807 错误结构 / 成功信封
-// ---------------------------------------------------------------------------
 
 registry.registerComponent('securitySchemes', 'BearerAuth', {
   type: 'http',
@@ -96,9 +87,7 @@ export const AcceptedEnvelope = registry.register(
   }),
 );
 
-// ---------------------------------------------------------------------------
 // 路径注册辅助：压缩重复结构，确保每个 operation 含 summary + responses + 描述
-// ---------------------------------------------------------------------------
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
@@ -115,10 +104,8 @@ interface RegPathOpts {
   query?: z.ZodType;
   ok?: z.ZodType;
   okDescription?: string;
-  /** 202 Accepted 响应 schema（异步端点使用，如回测组合入队）。 */
   accepted?: z.ZodType;
   acceptedDescription?: string;
-  /** 错误响应码列表；默认 [400,401,422,500]，健康检查传 []。 */
   errors?: number[];
 }
 
@@ -159,11 +146,7 @@ function buildResponses(opts: RegPathOpts) {
   return responses;
 }
 
-/**
- * 注册单个 OpenAPI 路径，统一处理 security/body/params/query/responses。
- *
- * @param opts - 路径注册选项（method/path/tag/summary 等）
- */
+/** 注册单个 OpenAPI 路径，统一处理 security/body/params/query/responses。 */
 export function reg(opts: RegPathOpts): void {
   const request: Record<string, unknown> = {};
   if (opts.params) request.params = opts.params;
@@ -189,12 +172,6 @@ export function reg(opts: RegPathOpts): void {
   });
 }
 
-/**
- * 创建标准 id 路径参数 schema。
- *
- * @param name - 参数名（默认 'id'）
- * @returns z.object({ [name]: z.string() })
- */
 export function idParam(name = 'id') {
   return z.object({ [name]: z.string() });
 }

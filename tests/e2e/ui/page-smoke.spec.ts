@@ -1,10 +1,3 @@
-/**
- * 页面冒烟测试（合并自 tactical / signal-analyzer / pca / goal-optimizer 4 个 spec）
- *
- * 企业理由：4 个分析页面共享相同的冒烟测试模式（标题可见 + 参数面板可见），
- * 用 for...of 参数化消除重复的 beforeEach + goto + expect 样板。
- * tactical 页面额外验证"结果区域存在"，作为独立 test 保留。
- */
 import { test, expect } from '@playwright/test';
 
 interface PageSmokeCase {

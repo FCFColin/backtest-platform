@@ -1,20 +1,6 @@
-/**
- * BacktestCompletedHandler 单元测试
- *
- * ADR-024 / T-11：处理器已重构为**纯观测副作用**（仅日志/指标），不再写 outbox。
- * 企业理由：outbox 的唯一写入点为 application/backtest-service 的事务写入；
- * 处理器再写 outbox 会造成重复写入并形成 OutboxPublisher→dispatch→再写→NOTIFY 的反馈环。
- * 本测试覆盖：
- * - 正确订阅 BacktestCompleted 事件类型
- * - handle 正确记录日志（含 totalReturn/maxDrawdown/sharpeRatio）
- * - handle 不再访问数据库（不写 outbox、不发 NOTIFY）
- * - 缺失指标字段时仍正常处理
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted =====
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -32,8 +18,6 @@ const poolMocks = vi.hoisted(() => ({
   query: vi.fn(),
 }));
 
-// ===== Mock 模块 =====
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
@@ -43,8 +27,8 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks),
 }));
 
-import { BacktestCompletedHandler } from '../../../packages/backend/src/application/backtestCompletedHandler.js';
-import type { DomainEvent } from '../../../packages/backend/src/domain/events/EventDispatcher.js';
+import { BacktestCompletedHandler } from '../../../packages/backend/src/application/completedHandlers.js';
+import type { DomainEvent } from '../../../packages/backend/src/domain/events/events.js';
 
 function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
   return {

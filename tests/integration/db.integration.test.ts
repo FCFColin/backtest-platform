@@ -1,14 +1,3 @@
-/**
- * PostgreSQL 集成测试（testcontainers）
- *
- * 企业理由：集成测试仅 CI 运行（依赖 GitHub Actions 服务容器），
- * 开发者本地无法验证 DB 交互逻辑。testcontainers 自动拉起
- * Docker 容器中的 PostgreSQL，使集成测试本地可运行。
- * 权衡：需要本地 Docker 环境，但比共享测试数据库更隔离、更可重现。
- *
- * 容器启动/Docker 检测/schema 初始化已抽至 tests/helpers/testcontainersPg.ts，
- * 与 6 个 SaaS 路由集成测试共享同一套容器管理逻辑。
- */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
 import { isDockerAvailable, setupTestContainer, type TestContainerContext } from '../helpers/testcontainersPg.js';

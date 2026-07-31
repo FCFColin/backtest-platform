@@ -14,9 +14,8 @@ import { registerTimescaleMetrics, registerQueueMetrics } from './utils/metrics.
 import { backtestQueue } from './queues/backtestQueue.js';
 import { dataUpdateQueue } from './queues/dataUpdateQueue.js';
 import { webhookQueue } from './queues/webhookQueue.js';
-import { eventDispatcher } from './domain/events/index.js';
-import { BacktestCompletedHandler } from './application/backtestCompletedHandler.js';
-import { RunCompletedHandler } from './application/runCompletedHandler.js';
+import { eventDispatcher } from './domain/events/events.js';
+import { BacktestCompletedHandler, RunCompletedHandler } from './application/completedHandlers.js';
 import { triggerWebhooks } from './application/webhookService.js';
 import type { Server } from 'http';
 // P3-05：OutboxConsumer 接口类型——由 createOutboxConsumer 工厂按 CDC_KAFKA_ENABLED 选择实现
@@ -133,8 +132,8 @@ function triggerShutdown(signal: string, exitCode: number = 0): void {
         await outboxConsumer.stop();
         outboxConsumer = null;
       }
-      await closeDb();
       await shutdownTracing();
+      await closeDb();
       logger.info('Graceful shutdown complete');
     } catch (err) {
       logger.error({ err }, 'Error during shutdown');

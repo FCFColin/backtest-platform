@@ -1,6 +1,3 @@
-/**
- * 密码策略服务单元测试（P1-09 等保三级 8.1.4）
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const poolMocks = vi.hoisted(() => {

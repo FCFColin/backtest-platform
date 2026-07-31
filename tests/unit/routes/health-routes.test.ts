@@ -1,14 +1,3 @@
-/**
- * 健康检查路由单元测试（T-P1-5.1）
- *
- * 企业理由：健康检查端点是 K8s 探针的基础，故障会导致 Pod 被误杀。
- * 测试覆盖：轻量 /health、深度 /ready、metrics 端点返回格式。
- *
- * 实现：使用 Express app.listen + 真实 fetch（不依赖 supertest），
- * 在随机端口启动真实 HTTP 服务。mock fetch 时仅拦截 Go 引擎/数据服务 URL，
- * 放行测试服务器自身的请求。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactories.js';
@@ -39,10 +28,6 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
 import { config } from '../../../packages/backend/src/config/index.js';
 import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
 
-/**
- * 创建拦截外部引擎/数据服务 URL 的 fetch mock，
- * 其他请求（如测试服务器自身）走真实 fetch。
- */
 function createFetchMock(options: {
   goEngine?: { ok: boolean; status: number } | Error;
   goData?: { ok: boolean; status: number } | Error;

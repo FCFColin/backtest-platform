@@ -1,21 +1,6 @@
-/**
- * RunCompletedHandler 单元测试
- *
- * ADR-013 Phase 3：处理器为纯观测副作用（仅日志），不访问数据库、不重复持久化。
- * Run 聚合根的持久化由 worker 的 save() 完成；本 handler 仅消费 RunCompleted 事件做日志。
- *
- * 覆盖：
- * - 正确订阅 RunCompleted 事件类型
- * - handle 正确记录日志（含 aggregateId/ownerUserId）
- * - handle 不访问数据库
- * - handle 不抛出错误
- * - payload 缺字段时也正常处理
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted =====
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -33,8 +18,6 @@ const poolMocks = vi.hoisted(() => ({
   query: vi.fn(),
 }));
 
-// ===== Mock 模块 =====
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
@@ -46,8 +29,8 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   withTenantReadOnly: vi.fn(),
 }));
 
-import { RunCompletedHandler } from '../../../packages/backend/src/application/runCompletedHandler.js';
-import type { DomainEvent } from '../../../packages/backend/src/domain/events/EventDispatcher.js';
+import { RunCompletedHandler } from '../../../packages/backend/src/application/completedHandlers.js';
+import type { DomainEvent } from '../../../packages/backend/src/domain/events/events.js';
 
 function makeEvent(payload: Record<string, unknown> = {}): DomainEvent {
   return {

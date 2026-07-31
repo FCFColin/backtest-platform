@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 数据查询基础设施 — 熔断器 / 信号量 / HTTP agent。
  *
  * 从 dataQuery.ts 拆分（P3-2 M-005）：将 PostgreSQL 熔断器、Go 数据服务并发信号量、
@@ -9,18 +9,14 @@ import CircuitBreaker from 'opossum';
 import { logger } from '../utils/logger.js';
 import { registerSemaphoreMetrics, registerCircuitBreakerMetrics } from '../utils/metrics.js';
 
-/** Go 数据服务 HTTP keepAlive agent，复用 TCP 连接减少握手开销 */
 export const goDataServiceAgent = new Agent({ keepAlive: true, keepAliveMsecs: 1000, maxSockets: 50 });
 
-/** HTTP 响应体最大字节数（默认 50MB），可通过 MAX_RESPONSE_BODY_SIZE 环境变量配置。 */
 export const MAX_RESPONSE_BODY_SIZE = parseInt(
   process.env.MAX_RESPONSE_BODY_SIZE || String(50 * 1024 * 1024),
   10,
 );
 
-// ---------------------------------------------------------------------------
 // PostgreSQL 熔断器
-// ---------------------------------------------------------------------------
 
 export const pgCircuitBreaker = new CircuitBreaker(
   async (queryText: string, params?: unknown[]) => {
@@ -57,9 +53,7 @@ export function isDbAvailable(): boolean {
   return !pgCircuitBreaker.opened;
 }
 
-// ---------------------------------------------------------------------------
 // Go 数据服务并发信号量（按租户隔离）
-// ---------------------------------------------------------------------------
 
 export class Semaphore {
   private permits: number;
@@ -114,7 +108,6 @@ registerSemaphoreMetrics('go_data_service', defaultGoServiceSemaphore.total(), (
   defaultGoServiceSemaphore.available(),
 );
 
-/** 获取指定租户的 Go 数据服务信号量；无 orgId 时返回默认信号量 */
 export function getTenantSemaphore(orgId?: string): Semaphore {
   if (!orgId) return defaultGoServiceSemaphore;
   let sem = tenantSemaphores.get(orgId);

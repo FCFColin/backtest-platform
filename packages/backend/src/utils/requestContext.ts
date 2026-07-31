@@ -16,18 +16,11 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { propagation, context } from '@opentelemetry/api';
 
 interface RequestContext {
-  /** pino-http 生成的请求唯一 ID，用于跨服务日志关联 */
   requestId: string;
 }
 
 export const requestContextStorage = new AsyncLocalStorage<RequestContext>();
 
-/**
- * 获取当前异步上下文中的 request_id。
- *
- * 在请求处理链路内（经 app.ts 中间件 run 包裹）返回 request_id；
- * 在请求链路外（如启动脚本、定时任务）返回 undefined。
- */
 export function getRequestId(): string | undefined {
   return requestContextStorage.getStore()?.requestId;
 }

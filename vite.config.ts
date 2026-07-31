@@ -113,6 +113,43 @@ export default defineConfig(async ({ command }) => {
         : []),
       react(),
       (await import('vite-tsconfig-paths')).default(),
+      // PWA / Service Worker — 预缓存 app shell 实现离线加载与秒开
+      // 仅在非 Vite 开发服务器（即 build 命令）时启用，避免 dev 模式下 SW 干扰 HMR
+      ...(command === 'build'
+        ? [
+            (await import('vite-plugin-pwa')).VitePWA({
+              registerType: 'autoUpdate',
+              includeAssets: ['favicon.svg'],
+              manifest: {
+                name: 'testfolio - Portfolio Backtester',
+                short_name: 'testfolio',
+                description: '面向个人投资者的专业组合回测工具',
+                theme_color: '#0b0c0f',
+                background_color: '#0b0c0f',
+                display: 'standalone',
+                icons: [
+                  { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml' },
+                ],
+              },
+              workbox: {
+                globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+                navigateFallback: '/index.html',
+                navigationPreload: true,
+                runtimeCaching: [
+                  {
+                    urlPattern: /^https?:\/\/.*\/api\/v1\/data\/meta/,
+                    handler: 'NetworkFirst',
+                    options: { cacheName: 'api-meta', expiration: { maxEntries: 1, maxAgeSeconds: 1800 } },
+                  },
+                  {
+                    urlPattern: /^https?:\/\/.*\/api\/.*/,
+                    handler: 'NetworkOnly',
+                  },
+                ],
+              },
+            }),
+          ]
+        : []),
       ...(enableCoverage && command === 'serve'
         ? [
             (await import('vite-plugin-istanbul')).default({
@@ -146,16 +183,51 @@ export default defineConfig(async ({ command }) => {
       exclude: ['zustand'],
     },
     build: {
-      // Module Federation 要求（ADR-050）：esnext + 关闭 modulePreload / cssCodeSplit
+      // MF 不要求 modulePreload: false（经源码验证，1.4.1 不检查此配置）；开启后 Vite 自动注入 modulepreload，减少 waterfall
       target: 'esnext',
-      modulePreload: false,
+      modulePreload: true,
       cssCodeSplit: false,
+      // SSR 构建入口由 CLI --ssr 传递，确保 SSR 构建时输出 asset 文件
+      ssrEmitAssets: true,
       rollupOptions: {
         output: {
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-            'chart-vendor': ['recharts'],
-            'state-vendor': ['zustand'],
+          manualChunks(id: string) {
+            // SSR 构建不拆分 chunk（单一文件模块解析更可靠）
+            if (process.env.VITE_SSR === 'true') return;
+
+            // 将 src/utils 和 src/hooks 下的小模块合并为 shared-utils，减少 < 5KB 碎片请求
+            if (id.includes('packages/frontend/src/utils/') || id.includes('packages/frontend/src/hooks/')) {
+              return 'shared-utils';
+            }
+            // 解析包名：从 node_modules 路径中提取
+            const nmIdx = id.lastIndexOf('node_modules');
+            if (nmIdx === -1) return;
+            const afterNm = id.slice(nmIdx + 13);
+            const pkg = afterNm.startsWith('@')
+              ? afterNm.slice(1).split('/')[0] + '/' + afterNm.slice(1).split('/')[1]
+              : afterNm.split('/')[0];
+            // 特殊处理：react-dom/server 分离（客户端不需要服务端渲染代码）
+            if (pkg === 'react-dom') {
+              const subPath = afterNm.split('/').slice(1).join('/');
+              if (subPath.startsWith('server')) return 'react-dom-server';
+              if (subPath.startsWith('client')) return 'react-dom-client';
+              return 'react-dom'; // main entry
+            }
+
+            const CHUNKS: Record<string, string[]> = {
+              'react-router': ['react-router-dom'],
+              'react-core': ['react', 'scheduler'],
+              // chart-vendor 已移除，让 Rollup 自动按需拆分 recharts 模块
+              'state-vendor': ['zustand'],
+              'ui-vendor': ['@radix-ui', 'class-variance-authority', 'clsx', 'tailwind-merge', 'tailwindcss-animate'],
+              'icon-vendor': ['lucide-react'],
+              'i18n-vendor': ['i18next', 'i18next-browser-languagedetector', 'react-i18next'],
+              'form-vendor': ['react-hook-form', '@hookform'],
+              'util-vendor': ['zod', 'web-vitals', '@tanstack'],
+            };
+            for (const [chunk, pkgs] of Object.entries(CHUNKS)) {
+              if (pkgs.some(p => pkg.startsWith(p))) return chunk;
+            }
           },
         },
       },

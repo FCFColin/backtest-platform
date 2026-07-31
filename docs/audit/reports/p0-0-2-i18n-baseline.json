@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-07-31T13:33:18.308Z",
+  "zhKeyCount": 2290,
+  "enKeyCount": 2290,
+  "usedKeyCount": 1359,
+  "missingInEn": [],
+  "missingInZh": [],
+  "undefinedInSource": [
+    "charts.drawdown.dateLabel",
+    "portfolio.metaSaved",
+    "portfolio.removeTag",
+    "portfolio.addTag",
+    "portfolio.loadPreset",
+    "portfolio.presetLoaded",
+    "portfolio.shareTitle",
+    "portfolio.share",
+    "portfolio.saveTitle",
+    "portfolio.save"
+  ],
+  "unusedZh": [
+    "account.billing.checkoutFailed",
+    "account.billing.portalFailed",
+    "account.billing.title",
+    "account.myWorkspace",
+    "account.preferences.currencyCNY",
+    "account.preferences.currencyEUR",
+    "account.preferences.currencyHKD",
+    "account.preferences.currencyJPY",
+    "account.preferences.currencyUSD",
+    "account.preferences.rebalanceBuyHold",
+    "account.preferences.rebalanceMonthly",
+    "account.preferences.rebalanceQuarterly",
+    "account.preferences.rebalanceThreshold",
+    "account.preferences.rebalanceYearly",
+    "account.pricing.compare.10yr",
+    "account.pricing.compare.1yr",
+    "account.pricing.compare.24hResponse",
+    "account.pricing.compare.3portfolios",
+    "account.pricing.compare.all",
+    "account.pricing.compare.all16"
+  ],
+  "status": "FAIL"
+}

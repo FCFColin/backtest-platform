@@ -1,15 +1,3 @@
-/**
- * P0-01 T3 · 异步回测全链路集成测试
- *
- * 验证 POST /api/v1/backtest/portfolio → 202 → 轮询 → completed/failed 的完整异步链路。
- * 与 tests/unit/routes/backtest-async.test.ts（单元级 mock）互补，本文件聚焦：
- *   1. 端到端异步流程（入队 → 轮询 → 终态）
- *   2. Worker 处理完成后状态流转
- *   3. 幂等性（相同请求返回已有 jobId）
- *
- * 依赖：Express app + mock BullMQ queue + mock Go engine，不启动真实 Docker 容器。
- * 源文件: tmp.md L143-152
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mockLogger, createConfigMocks } from '../helpers/mockFactories.js';
 import {
@@ -20,8 +8,6 @@ import {
   type BacktestMockHandles,
 } from '../helpers/backtestRoutesFixtures.js';
 import backtestRoutes from '../../packages/backend/src/routes/backtestRoutes.js';
-
-// ===== vi.hoisted: mock 句柄 =====
 
 const m = vi.hoisted<BacktestMockHandles>(() => ({
   runBacktest: vi.fn(),
@@ -36,9 +22,9 @@ const m = vi.hoisted<BacktestMockHandles>(() => ({
   buildEngineParams: vi.fn(),
   preparePortfolioBacktest: vi.fn(),
   collectInvalidTickerWarnings: vi.fn(),
-  collectTickersFromPortfolios: vi.fn(),
+  collectDomainTickers: vi.fn(),
   filterPriceData: vi.fn(),
-  fetchPriceData: vi.fn(),
+  fetchPriceDataWithRange: vi.fn(),
   loadMacroData: vi.fn(),
   validateTickers: vi.fn(),
   portfolioToDomain: vi.fn(),
@@ -74,8 +60,6 @@ const queueMocks = vi.hoisted(() => ({
   getJob: vi.fn(),
 }));
 
-// ===== vi.mock =====
-
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
   httpLogger: vi.fn(),
@@ -104,9 +88,9 @@ vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 vi.mock('../../packages/backend/src/application/backtest-helpers.js', () => ({
   preparePortfolioBacktest: m.preparePortfolioBacktest,
   collectInvalidTickerWarnings: m.collectInvalidTickerWarnings,
-  collectTickersFromPortfolios: m.collectTickersFromPortfolios,
+  collectDomainTickers: m.collectDomainTickers,
   filterPriceData: m.filterPriceData,
-  fetchPriceData: m.fetchPriceData,
+  fetchPriceDataWithRange: m.fetchPriceDataWithRange,
   loadMacroData: m.loadMacroData,
   sanitizeMcParams: m.sanitizeMcParams,
   validateTickers: m.validateTickers,
@@ -156,8 +140,6 @@ vi.mock('../../packages/backend/src/infrastructure/redisClient.js', () => {
 
 configurePortfolioBacktestMocks(m);
 configureTickerHelpersMocks(m);
-
-// ===== 测试用例 =====
 
 describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   let server: { url: string; close: () => Promise<void> };

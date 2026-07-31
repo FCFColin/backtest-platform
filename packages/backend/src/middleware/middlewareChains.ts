@@ -8,13 +8,11 @@
  * 中间件编排语义不变，仅消除代码重复。
  */
 import type { RequestHandler } from 'express';
-import { optionalJwtAuth, assignGuestReadonly, jwtAuth } from './jwtAuth.js';
+import { optionalJwtAuth, assignGuestReadonly, jwtAuth, auditLog, idempotencyKey } from './jwtAuth.js';
 import { resolveTenant, requireTenant } from './tenantContext.js';
 import { requirePermission, Permission } from './rbac.js';
 import { enforceQuota } from './quota.js';
-import { auditLog } from './auditLog.js';
-import { idempotencyKey } from './idempotency.js';
-import { USAGE_METRIC } from '../config/planLimits.js';
+import { USAGE_METRIC } from '../config/index.js';
 
 const computeAuth: RequestHandler[] = [jwtAuth];
 
@@ -39,16 +37,10 @@ export function computeMiddlewareNoQuota(permission: Permission): RequestHandler
   return [...computeAuth, resolveTenant, requirePermission(permission), auditLog];
 }
 
-/**
- * CRUD 端点中间件链：JWT 认证 → 租户解析 → 要求租户 → 权限。
- */
 export function crudMiddleware(permission: Permission): RequestHandler[] {
   return [jwtAuth, resolveTenant, requireTenant, requirePermission(permission)];
 }
 
-/**
- * 只读数据端点中间件链：可选认证 → 访客只读。
- */
 export const readOnlyAuth: RequestHandler[] = [optionalJwtAuth, assignGuestReadonly];
 
 /**

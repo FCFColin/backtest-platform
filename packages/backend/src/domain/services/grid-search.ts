@@ -1,9 +1,3 @@
-/**
- * 战术网格搜索领域逻辑。
- *
- * 纯函数、无副作用，可独立单元测试。
- * 从 grid-application-service.ts 抽离，使 application 层只负责编排。
- */
 import type { GridParamRange } from '@backtest/shared/types/tactical';
 
 export const MAX_GRID_COMBINATIONS = 200;
@@ -21,7 +15,6 @@ export interface GridSearchDomainRequest {
   topN?: number;
 }
 
-/** 校验网格搜索请求，返回错误消息或 null */
 export function validateGridSearchRequest(request: GridSearchDomainRequest): string | null {
   if (!request.indicator || !request.param1 || !request.param2) {
     return '缺少必要参数: indicator, param1, param2';
@@ -35,7 +28,6 @@ export function validateGridSearchRequest(request: GridSearchDomainRequest): str
   return null;
 }
 
-/** 生成参数值列表 */
 function generateParamValues(range: GridParamRange): number[] {
   const values: number[] = [];
   if (range.step > 0) {
@@ -48,7 +40,6 @@ function generateParamValues(range: GridParamRange): number[] {
   return values;
 }
 
-/** 计算参数组合总数 */
 export function countCombinations(param1: GridParamRange, param2: GridParamRange): number {
   return generateParamValues(param1).length * generateParamValues(param2).length;
 }

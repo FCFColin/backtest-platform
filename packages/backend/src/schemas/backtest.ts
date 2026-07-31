@@ -171,7 +171,6 @@ export const efficientFrontierSchema = z.object({
   numIterations: z.number().optional(),
 });
 
-/** POST /api/backtest/portfolio/series — 从 LRU 缓存补全 tab 序列 */
 export const portfolioSeriesSchema = portfolioBacktestSchema.extend({
   series: z.array(z.enum(['rollingReturns', 'allocationHistory', 'drawdownEpisodes'])).min(1),
 });

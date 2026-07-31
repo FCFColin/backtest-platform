@@ -1,12 +1,6 @@
-/**
- * optimize-service 单元测试
- *
- * 合并后覆盖：回测优化器参数搜索（executeOptimization）。
- * 所有计算逻辑已迁移到 Go 引擎，测试通过 mock callEngineStrict 验证编排逻辑。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
+import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 
 const mocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
@@ -24,9 +18,18 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-vi.mock('../../../packages/backend/src/utils/timeout.js', () => ({
+vi.mock('../../../packages/backend/src/utils/misc.js', () => ({
   withTimeout: vi.fn((promise: Promise<unknown>) => promise),
   TimeoutError: class TimeoutError extends Error {},
+  numericRange: (min: number, max: number, step: number, decimals = 2): number[] => {
+    if (step <= 0 || min > max) return [min];
+    const factor = 10 ** decimals;
+    const result: number[] = [];
+    for (let v = min; v <= max + 1e-9; v += step) {
+      result.push(Math.round(v * factor) / factor);
+    }
+    return result;
+  },
 }));
 
 import {

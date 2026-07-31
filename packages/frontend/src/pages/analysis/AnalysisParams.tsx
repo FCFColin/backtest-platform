@@ -4,28 +4,14 @@ import { Play, X } from 'lucide-react';
 import LoadingButton from '../../components/LoadingButton.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
-import { buttonVariants } from '@/components/ui/button-variants';
+import { Input } from '@/components/ui/uiComponents';
+import { Switch } from '@/components/ui/uiComponents';
+import { Badge } from '@/components/ui/uiComponents';
+import { buttonVariants } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
-
-/**
- * 资产标的输入：以 Badge 标签形式展示已选 ticker，支持逗号/空格批量录入与单个删除。
- * @param tickers - 当前 ticker 列表
- * @param setTickers - 更新 ticker 列表
- * @returns 渲染的标的输入区
- */
-function TickerInput({
-  tickers,
-  setTickers,
-}: {
-  tickers: string[];
-  setTickers: (v: string[]) => void;
-}) {
+function TickerInput({ tickers, setTickers }: { tickers: string[]; setTickers: (v: string[]) => void }) {
   const { t } = useTranslation();
   const [newTicker, setNewTicker] = useState('');
-
   const commitNewTicker = () => {
     const raw = newTicker.trim();
     if (!raw) return;
@@ -42,7 +28,6 @@ function TickerInput({
     setTickers([...tickers.filter(Boolean), ...uniqueNew]);
     setNewTicker('');
   };
-
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {tickers.filter(Boolean).map((ticker, idx) => (
@@ -51,11 +36,9 @@ function TickerInput({
           <button
             type="button"
             onClick={() => {
-              const validTickers = tickers.filter(Boolean);
-              const originalIdx = tickers.indexOf(ticker);
-              setTickers(
-                validTickers.length <= 1 ? [''] : tickers.filter((_, i) => i !== originalIdx),
-              );
+              const valid = tickers.filter(Boolean);
+              const oi = tickers.indexOf(ticker);
+              setTickers(valid.length <= 1 ? [''] : tickers.filter((_, i) => i !== oi));
             }}
             className="ml-0.5 inline-flex items-center justify-center rounded-sm p-0.5 text-current opacity-60 transition-colors duration-150 ease-out-quart hover:bg-brand/20 hover:opacity-100"
             aria-label={t('common.remove')}
@@ -76,18 +59,11 @@ function TickerInput({
         }}
         onBlur={commitNewTicker}
         placeholder={t('analysis.tickerPlaceholder')}
-        className={cn(
-          'flex h-8 w-32 rounded-md bg-input-bg border border-border px-2 py-1 text-label text-fg',
-          'placeholder:text-fg-tertiary hover:border-border-strong',
-          'focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15',
-          'transition-colors duration-150',
-        )}
+        className={cn('flex h-8 w-32 rounded-md bg-input-bg border border-border px-2 py-1 text-label text-fg', 'placeholder:text-fg-tertiary hover:border-border-strong', 'focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15', 'transition-colors duration-150')}
       />
     </div>
   );
 }
-
-/** 资产分析参数面板 props */
 interface AnalysisParamsPanelProps {
   tickers: string[];
   setTickers: (v: string[]) => void;
@@ -106,18 +82,13 @@ interface AnalysisParamsPanelProps {
   isLoading: boolean;
   runAnalysis: () => void;
 }
-
-/** 全历史开关 + 起止日期字段组 */
-function AnalysisDateFields({
-  startDate,
-  endDate,
-  setStartDate,
-  setEndDate,
-  allHistory,
-}: Pick<AnalysisParamsPanelProps, 'startDate' | 'endDate' | 'setStartDate' | 'setEndDate'> & {
-  allHistory: boolean;
-}) {
+type DateProps = Pick<AnalysisParamsPanelProps, 'startDate' | 'endDate' | 'setStartDate' | 'setEndDate'>;
+function AnalysisDateFields({ startDate, endDate, setStartDate, setEndDate, allHistory }: DateProps & { allHistory: boolean }) {
   const { t } = useTranslation();
+  const dateFields = [
+    { id: 'analysis-start-date', label: t('analysis.startDate'), value: startDate, onChange: setStartDate },
+    { id: 'analysis-end-date', label: t('analysis.endDate'), value: endDate, onChange: setEndDate }
+  ];
   return (
     <>
       <Field>
@@ -140,148 +111,64 @@ function AnalysisDateFields({
           </FieldLabel>
         </div>
       </Field>
-      <Field>
-        <FieldLabel htmlFor="analysis-start-date">{t('analysis.startDate')}</FieldLabel>
-        <Input
-          id="analysis-start-date"
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          disabled={allHistory}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="analysis-end-date">{t('analysis.endDate')}</FieldLabel>
-        <Input
-          id="analysis-end-date"
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          disabled={allHistory}
-        />
-      </Field>
+      {dateFields.map((f) => (
+        <Field key={f.id}>
+          <FieldLabel htmlFor={f.id}>{f.label}</FieldLabel>
+          <Input id={f.id} type="date" value={f.value} onChange={(e) => f.onChange(e.target.value)} disabled={allHistory} />
+        </Field>
+      ))}
     </>
   );
 }
-
-/** 数值参数字段组：初始资金 + 滚动窗口 + 相关性窗口 */
-function AnalysisNumericFields({
-  startingValue,
-  setStartingValue,
-  rollingWindow,
-  setRollingWindow,
-  correlationWindow,
-  setCorrelationWindow,
-}: Pick<
-  AnalysisParamsPanelProps,
-  | 'startingValue'
-  | 'setStartingValue'
-  | 'rollingWindow'
-  | 'setRollingWindow'
-  | 'correlationWindow'
-  | 'setCorrelationWindow'
->) {
+type NumProps = Pick<AnalysisParamsPanelProps, 'startingValue' | 'setStartingValue' | 'rollingWindow' | 'setRollingWindow' | 'correlationWindow' | 'setCorrelationWindow'>;
+function AnalysisNumericFields({ startingValue, setStartingValue, rollingWindow, setRollingWindow, correlationWindow, setCorrelationWindow }: NumProps) {
   const { t } = useTranslation();
+  const monthFields = [
+    { id: 'analysis-rolling-window', label: t('analysis.rollingWindow'), value: rollingWindow, onChange: setRollingWindow },
+    { id: 'analysis-correlation-window', label: t('analysis.correlationWindow'), value: correlationWindow, onChange: setCorrelationWindow }
+  ];
   return (
     <>
       <Field>
         <FieldLabel htmlFor="analysis-starting-value">{t('analysis.startingValue')}</FieldLabel>
         <div className="relative">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary">
-            $
-          </span>
-          <Input
-            id="analysis-starting-value"
-            type="number"
-            className="pl-7"
-            value={startingValue}
-            onChange={(e) => setStartingValue(Number(e.target.value))}
-          />
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary">$</span>
+          <Input id="analysis-starting-value" type="number" className="pl-7" value={startingValue} onChange={(e) => setStartingValue(Number(e.target.value))} />
         </div>
       </Field>
-      <Field>
-        <FieldLabel htmlFor="analysis-rolling-window">{t('analysis.rollingWindow')}</FieldLabel>
-        <div className="relative">
-          <Input
-            id="analysis-rolling-window"
-            type="number"
-            className="pr-14"
-            value={rollingWindow}
-            onChange={(e) => setRollingWindow(Number(e.target.value))}
-          />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-            {t('common.months')}
-          </span>
-        </div>
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="analysis-correlation-window">
-          {t('analysis.correlationWindow')}
-        </FieldLabel>
-        <div className="relative">
-          <Input
-            id="analysis-correlation-window"
-            type="number"
-            className="pr-14"
-            value={correlationWindow}
-            onChange={(e) => setCorrelationWindow(Number(e.target.value))}
-          />
-          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-            {t('common.months')}
-          </span>
-        </div>
-      </Field>
+      {monthFields.map((f) => (
+        <Field key={f.id}>
+          <FieldLabel htmlFor={f.id}>{f.label}</FieldLabel>
+          <div className="relative">
+            <Input id={f.id} type="number" className="pr-14" value={f.value} onChange={(e) => f.onChange(Number(e.target.value))} />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">{t('common.months')}</span>
+          </div>
+        </Field>
+      ))}
     </>
   );
 }
-
-/** 通胀调整开关 + 运行按钮 */
-function AnalysisInflationAndRun({
-  adjustForInflation,
-  setAdjustForInflation,
-  isLoading,
-  runAnalysis,
-}: Pick<
-  AnalysisParamsPanelProps,
-  'adjustForInflation' | 'setAdjustForInflation' | 'isLoading' | 'runAnalysis'
->) {
+type RunProps = Pick<AnalysisParamsPanelProps, 'adjustForInflation' | 'setAdjustForInflation' | 'isLoading' | 'runAnalysis'>;
+function AnalysisInflationAndRun({ adjustForInflation, setAdjustForInflation, isLoading, runAnalysis }: RunProps) {
   const { t } = useTranslation();
   return (
     <>
       <Field>
         <div className="flex items-center gap-2">
-          <Switch
-            id="analysis-adjust-inflation"
-            checked={adjustForInflation}
-            onCheckedChange={setAdjustForInflation}
-          />
+          <Switch id="analysis-adjust-inflation" checked={adjustForInflation} onCheckedChange={setAdjustForInflation} />
           <FieldLabel htmlFor="analysis-adjust-inflation" className="text-label text-fg">
             {t('analysis.adjustInflation')}
           </FieldLabel>
         </div>
       </Field>
       <div className="flex justify-end sm:col-span-1 lg:col-span-2">
-        <LoadingButton
-          isLoading={isLoading}
-          onClick={runAnalysis}
-          loadingText={t('analysis.analyzing')}
-          className={buttonVariants({ variant: 'primary', size: 'default' })}
-        >
+        <LoadingButton isLoading={isLoading} onClick={runAnalysis} loadingText={t('analysis.analyzing')} className={buttonVariants({ variant: 'primary', size: 'default' })}>
           <Play className="size-4" /> {t('analysis.startAnalysis')}
         </LoadingButton>
       </div>
     </>
   );
 }
-
-/**
- * 资产分析参数面板。
- *
- * 以 Field + Input/Switch 重构为响应式栅格：tickers 占满整行，其余字段在
- * sm/lg 断点下两/三列排布；布尔开关用 Switch，数值输入带前缀/后缀。
- * @param props - 见各字段 setter 与运行回调
- * @returns 渲染的参数栅格
- */
 export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
   const allHistory = props.startDate === '' && props.endDate === '';
   return (
@@ -289,27 +176,9 @@ export function AnalysisParamsPanel(props: AnalysisParamsPanelProps) {
       <Field className="sm:col-span-2 lg:col-span-3">
         <TickerInput tickers={props.tickers} setTickers={props.setTickers} />
       </Field>
-      <AnalysisDateFields
-        startDate={props.startDate}
-        endDate={props.endDate}
-        setStartDate={props.setStartDate}
-        setEndDate={props.setEndDate}
-        allHistory={allHistory}
-      />
-      <AnalysisNumericFields
-        startingValue={props.startingValue}
-        setStartingValue={props.setStartingValue}
-        rollingWindow={props.rollingWindow}
-        setRollingWindow={props.setRollingWindow}
-        correlationWindow={props.correlationWindow}
-        setCorrelationWindow={props.setCorrelationWindow}
-      />
-      <AnalysisInflationAndRun
-        adjustForInflation={props.adjustForInflation}
-        setAdjustForInflation={props.setAdjustForInflation}
-        isLoading={props.isLoading}
-        runAnalysis={props.runAnalysis}
-      />
+      <AnalysisDateFields startDate={props.startDate} endDate={props.endDate} setStartDate={props.setStartDate} setEndDate={props.setEndDate} allHistory={allHistory} />
+      <AnalysisNumericFields startingValue={props.startingValue} setStartingValue={props.setStartingValue} rollingWindow={props.rollingWindow} setRollingWindow={props.setRollingWindow} correlationWindow={props.correlationWindow} setCorrelationWindow={props.setCorrelationWindow} />
+      <AnalysisInflationAndRun adjustForInflation={props.adjustForInflation} setAdjustForInflation={props.setAdjustForInflation} isLoading={props.isLoading} runAnalysis={props.runAnalysis} />
     </div>
   );
 }

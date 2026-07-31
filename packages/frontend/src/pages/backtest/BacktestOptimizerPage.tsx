@@ -1,13 +1,20 @@
-/**
- * @file 回测优化器页面
- * @description 遍历再平衡参数空间（频率 × 阈值 × 初始资金）运行回测，
- *              按优化目标排序，输出最优参数组合、对比表与收益曲线对比图。
- * @route /backtest-optimizer
- */
+import { ComputeToolShell } from '@/components/shells/index.js';
+import type { ComputeToolConfig } from '@/components/shells/index.js';
 import { useOptimizerState } from './backtestOptimizerUtils.js';
-import { OptimizerPageShell } from './backtestOptimizerComponents.js';
-
+import type { BacktestOptimizerState } from './backtestOptimizerUtils.js';
+import { OptimizerParams, OptimizerResults } from './backtestOptimizerComponents.js';
+const config: ComputeToolConfig<BacktestOptimizerState> = {
+  titleKey: 'backtest.optimizer.pageTitle',
+  seoDescKey: 'backtest.optimizer.seoDesc',
+  seoFeatures: [
+    { titleKey: 'backtest.optimizer.featureParamSpaceTitle', descKey: 'backtest.optimizer.featureParamSpaceDesc' },
+    { titleKey: 'backtest.optimizer.featureMultiObjectiveTitle', descKey: 'backtest.optimizer.featureMultiObjectiveDesc' }
+  ],
+  paramsTitleKey: 'backtest.optimizer.paramSettings',
+  params: ({ state }) => <OptimizerParams s={state} />,
+  results: ({ state }) => <OptimizerResults s={state} />
+};
 export default function BacktestOptimizerPage() {
   const s = useOptimizerState();
-  return <OptimizerPageShell s={s} />;
+  return <ComputeToolShell config={config} state={s} />;
 }

@@ -1,40 +1,17 @@
-/**
- * @file 优化器结果面板
- * @description 基于 Card / ChartCard / SimpleTable / StatCard 重构为 token 化结果区：
- *   最优权重条形图、最优组合指标表、有效前沿散点图、约束摘要 StatCard 网格。
- *   错误/空/加载态统一走 ErrorBanner / EmptyState / LoadingState。所有 i18n key 与取值逻辑保持不变。
- */
 import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-  ScatterChart,
-  Scatter,
-  ZAxis,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
-import {
-  CHART_TOOLTIP_STYLE,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-} from '@/lib/chart-theme.js';
+import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/chart-theme.js';
 import { SimpleTable, type SimpleTableColumn } from '@/components/SimpleTable.js';
 import ChartCard from '@/components/ChartCard.js';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/uiComponents';
 import ErrorBanner from '@/components/ErrorBanner.js';
 import { EmptyState } from '@/components/EmptyState.js';
 import { LoadingState } from '@/components/LoadingState.js';
 import { fmtPct, fmtNum } from '@/utils/format';
-
 const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', label: 'CAGR', fmt: 'pct' },
   { key: 'stdev', label: 'Volatility', fmt: 'pct' },
@@ -44,10 +21,8 @@ const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }
   { key: 'sortino', label: 'Sortino', fmt: 'num' },
   { key: 'calmar', label: 'Calmar', fmt: 'num' },
   { key: 'ulcerIndex', label: 'Ulcer Index', fmt: 'num' },
-  { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' },
+  { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' }
 ];
-
-/** 关键指标 StatCard：label + 等宽 tabular-nums 数值。 */
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-elevated px-3 py-2.5">
@@ -56,8 +31,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-/** 约束摘要：按启用条件过滤后渲染 StatCard 网格。 */
 function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const cards: Array<{ show: boolean; label: string; value: string }> = [
@@ -67,64 +40,55 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
     {
       show: true,
       label: t('optimizer.allowShort'),
-      value: s.allowShort ? t('common.yes') : t('common.no'),
+      value: s.allowShort ? t('common.yes') : t('common.no')
     },
     {
       show: s.enableMinCagr && s.minCagr !== '',
       label: t('optimizer.minCagrLabel'),
-      value: `${s.minCagr}%`,
+      value: `${s.minCagr}%`
     },
     { show: s.minSharpe !== '', label: t('optimizer.minSharpeLabel'), value: s.minSharpe },
     { show: s.minSortino !== '', label: t('optimizer.minSortinoLabel'), value: s.minSortino },
     {
       show: s.enableMaxVol && s.maxVol !== '',
       label: t('optimizer.maxVolLabel'),
-      value: `${s.maxVol}%`,
+      value: `${s.maxVol}%`
     },
     {
       show: s.enableMaxDD && s.maxMaxDD !== '',
       label: t('optimizer.maxMaxDDLabel'),
-      value: `${s.maxMaxDD}%`,
+      value: `${s.maxMaxDD}%`
     },
     { show: s.maxAvgDD !== '', label: t('optimizer.maxAvgDDLabel'), value: `${s.maxAvgDD}%` },
     { show: s.maxHoldings !== '', label: t('optimizer.maxHoldings'), value: s.maxHoldings },
     {
       show: s.minWeightToInclude !== '',
       label: t('optimizer.minWeightToInclude'),
-      value: `${s.minWeightToInclude}%`,
+      value: `${s.minWeightToInclude}%`
     },
     {
       show: true,
       label: t('optimizer.solver'),
-      value: s.solver === 'markowitz' ? 'Markowitz' : 'GA',
-    },
+      value: s.solver === 'markowitz' ? 'Markowitz' : 'GA'
+    }
   ];
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      {cards.filter((c) => c.show).map((c, i) => (
-        <StatCard key={i} label={c.label} value={c.value} />
-      ))}
+      {cards
+        .filter((c) => c.show)
+        .map((c, i) => (
+          <StatCard key={i} label={c.label} value={c.value} />
+        ))}
     </div>
   );
 }
-
-/** 最优权重横向条形图。 */
 function WeightBarChart({ data }: { data: Array<{ ticker: string; weight: number; fill: string }> }) {
   return (
     <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
       <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
         <CartesianGrid {...CHART_GRID_PROPS} horizontal={false} />
-        <XAxis
-          type="number"
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={(v: number) => `${v}%`}
-        />
-        <YAxis
-          type="category"
-          dataKey="ticker"
-          tick={{ fill: 'var(--fg)', fontSize: 13, fontWeight: 500 }}
-          width={56}
-        />
+        <XAxis type="number" tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
+        <YAxis type="category" dataKey="ticker" tick={{ fill: 'var(--fg)', fontSize: 13, fontWeight: 500 }} width={56} />
         <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
         <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
           {data.map((entry, index) => (
@@ -135,15 +99,7 @@ function WeightBarChart({ data }: { data: Array<{ ticker: string; weight: number
     </ResponsiveContainer>
   );
 }
-
-/** 最优组合指标表。 */
-function MetricsTable({
-  backtestStats,
-  results,
-}: {
-  backtestStats: Statistics | null;
-  results: OptimizerResultExt;
-}) {
+function MetricsTable({ backtestStats, results }: { backtestStats: Statistics | null; results: OptimizerResultExt }) {
   const { t } = useTranslation();
   const getVal = (key: keyof Statistics, fmt: 'pct' | 'num'): string => {
     const val = backtestStats ? backtestStats[key] : undefined;
@@ -159,20 +115,12 @@ function MetricsTable({
       key: 'value',
       label: t('optimizer.optimalPortfolio'),
       align: 'right',
-      render: (r) => getVal(r.key, r.fmt),
-    },
+      render: (r) => getVal(r.key, r.fmt)
+    }
   ];
   return <SimpleTable columns={columns} data={METRICS_ROWS} rowKey={(r) => String(r.key)} />;
 }
-
-/** 有效前沿散点图：候选组合 + 最优点。 */
-function FrontierChart({
-  data,
-  results,
-}: {
-  data: Array<{ expectedReturn: number; expectedVolatility: number }>;
-  results: OptimizerResultExt;
-}) {
+function FrontierChart({ data, results }: { data: Array<{ expectedReturn: number; expectedVolatility: number }>; results: OptimizerResultExt }) {
   const { t } = useTranslation();
   if (data.length === 0) return null;
   return (
@@ -187,7 +135,7 @@ function FrontierChart({
             position: 'insideBottom',
             offset: -5,
             fontSize: 12,
-            fill: 'var(--fg-tertiary)',
+            fill: 'var(--fg-tertiary)'
           }}
         />
         <YAxis
@@ -198,7 +146,7 @@ function FrontierChart({
             angle: -90,
             position: 'insideLeft',
             fontSize: 12,
-            fill: 'var(--fg-tertiary)',
+            fill: 'var(--fg-tertiary)'
           }}
         />
         <ZAxis range={[36, 36]} />
@@ -206,7 +154,7 @@ function FrontierChart({
         <Scatter
           data={data.map((p) => ({
             expectedVolatility: p.expectedVolatility,
-            expectedReturn: p.expectedReturn,
+            expectedReturn: p.expectedReturn
           }))}
           fill={CHART_COLORS[0]}
           fillOpacity={0.6}
@@ -215,8 +163,8 @@ function FrontierChart({
           data={[
             {
               expectedVolatility: results.expectedVolatility,
-              expectedReturn: results.expectedReturn,
-            },
+              expectedReturn: results.expectedReturn
+            }
           ]}
           fill={CHART_COLORS[3]}
           shape="star"
@@ -225,8 +173,6 @@ function FrontierChart({
     </ResponsiveContainer>
   );
 }
-
-/** 优化器结果面板：错误/加载/空态优先短路，否则渲染权重图 + 指标表 + 前沿图 + 约束摘要。 */
 export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   if (s.error) {
@@ -241,7 +187,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
   const weightBarData = Object.entries(s.results.optimalWeights).map(([ticker, weight], i) => ({
     ticker,
     weight: Number((weight * 100).toFixed(1)),
-    fill: CHART_COLORS[i % CHART_COLORS.length],
+    fill: CHART_COLORS[i % CHART_COLORS.length]
   }));
   return (
     <div className="flex flex-col gap-5">
@@ -256,16 +202,13 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
       >
         <WeightBarChart data={weightBarData} />
       </ChartCard>
-
       <section>
         <div className="mb-3 text-h3 font-semibold text-fg">{t('optimizer.optimalMetrics')}</div>
         <MetricsTable backtestStats={s.backtestStats} results={s.results} />
       </section>
-
       <ChartCard title={t('optimizer.efficientFrontier')}>
         <FrontierChart data={s.results.frontier ?? []} results={s.results} />
       </ChartCard>
-
       <section>
         <div className="mb-3 text-h3 font-semibold text-fg">{t('optimizer.constraintsSummary')}</div>
         <ConstraintsSummary s={s} />

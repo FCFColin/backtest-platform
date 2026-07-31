@@ -1,33 +1,14 @@
-/**
- * @file 前端通用常量
- * @description 集中管理散落在各 hooks/pages 中的默认日期等硬编码字面量，便于统一维护
- */
 import type { BacktestParameters, BaseCurrency, CashflowLeg, OneTimeCashflow } from '@backtest/shared';
-
-/** 默认分析起始日期 */
 export const DEFAULT_START_DATE = '2015-01-01';
-
-/** 默认分析结束日期 */
 export const DEFAULT_END_DATE = '2024-12-31';
-
-/** 默认回测起始日期（更长历史区间） */
 export const DEFAULT_BACKTEST_START_DATE = '2010-01-01';
-
-/**
- * 回测请求中各页面共享的基础 parameters 字段
- *
- * 仅包含跨页面一致的字段；startDate/endDate/startingValue/adjustForInflation/baseCurrency
- * 等页面特定字段由调用方 spread 后追加或 override。
- */
 export const BASE_BACKTEST_PARAMS = {
   rollingWindowMonths: 12,
   benchmarkTicker: '',
   extendedWithdrawalStats: false,
   cashflowLegs: [] as unknown[],
-  oneTimeCashflows: [] as unknown[],
+  oneTimeCashflows: [] as unknown[]
 };
-
-/** buildBacktestParameters 的可选覆盖项 */
 export interface BuildBacktestParametersOptions {
   startingValue?: number;
   adjustForInflation?: boolean;
@@ -38,27 +19,8 @@ export interface BuildBacktestParametersOptions {
   cashflowLegs?: CashflowLeg[];
   oneTimeCashflows?: OneTimeCashflow[];
 }
-
-/** buildBacktestParameters 返回的 parameters 对象类型（复用 shared 权威定义） */
 export type { BacktestParameters };
-
-/**
- * 构建回测请求中的 parameters 对象（统一各页面调用样板）
- *
- * 默认值与 EfficientFrontierUtils 既有实现保持一致（startingValue=10000,
- * adjustForInflation=false, baseCurrency='usd', rollingWindowMonths=12 等）。
- * 调用方可通过 options 覆盖任意字段。
- *
- * @param startDate - 回测起始日期（YYYY-MM-DD）
- * @param endDate - 回测结束日期（YYYY-MM-DD）
- * @param options - 可选覆盖项；未传字段使用默认值
- * @returns 完整的回测 parameters 对象
- */
-export function buildBacktestParameters(
-  startDate: string,
-  endDate: string,
-  options?: BuildBacktestParametersOptions,
-): BacktestParameters {
+export function buildBacktestParameters(startDate: string, endDate: string, options?: BuildBacktestParametersOptions): BacktestParameters {
   const defaults: BacktestParameters = {
     startDate,
     endDate,
@@ -69,7 +31,49 @@ export function buildBacktestParameters(
     baseCurrency: 'usd',
     extendedWithdrawalStats: false,
     cashflowLegs: [],
-    oneTimeCashflows: [],
+    oneTimeCashflows: []
   };
   return { ...defaults, ...options };
+}
+interface TickerPreset {
+  ticker: string;
+  name: string;
+  category: string;
+  sourceTicker?: string;
+}
+export const SIM_TICKERS: TickerPreset[] = [
+  { ticker: 'SPYSIM', name: 'S&P 500 指数 (Total Return)', category: 'Index', sourceTicker: 'SPY' },
+  { ticker: 'BNDSIM', name: '美国综合债券 (Total Return)', category: 'Bond', sourceTicker: 'AGG' },
+  { ticker: 'GLDSIM', name: '黄金 (Total Return)', category: 'Commodity', sourceTicker: 'GLD' },
+  { ticker: 'QQQSIM', name: '纳斯达克 100 (Total Return)', category: 'Index', sourceTicker: 'QQQ' },
+  { ticker: 'VTISIM', name: '美国全市场 (Total Return)', category: 'Index', sourceTicker: 'VTI' },
+  { ticker: 'TLTSIM', name: '长期美国国债 (Total Return)', category: 'Bond', sourceTicker: 'TLT' }
+];
+export const ETF_PRESETS: TickerPreset[] = [
+  { ticker: 'SPY', name: 'S&P 500 ETF', category: 'US Equity' },
+  { ticker: 'VTI', name: '全市场 ETF', category: 'US Equity' },
+  { ticker: 'QQQ', name: '纳斯达克 100 ETF', category: 'US Equity' },
+  { ticker: 'BND', name: '全债券 ETF', category: 'Bond' },
+  { ticker: 'AGG', name: '综合债券 ETF', category: 'Bond' },
+  { ticker: 'TLT', name: '长期国债 ETF', category: 'Bond' },
+  { ticker: 'GLD', name: '黄金 ETF', category: 'Commodity' },
+  { ticker: 'VT', name: '全球市场 ETF', category: 'International' },
+  { ticker: 'VXUS', name: '国际市场 ETF', category: 'International' },
+  { ticker: 'EEM', name: '新兴市场 ETF', category: 'International' },
+  { ticker: 'IWM', name: '罗素 2000 ETF', category: 'US Equity' },
+  { ticker: 'VTV', name: '价值股 ETF', category: 'US Equity' },
+  { ticker: 'VUG', name: '成长股 ETF', category: 'US Equity' },
+  { ticker: 'SCHD', name: '红利 ETF', category: 'US Equity' },
+  { ticker: 'TIP', name: '通胀保护债券 ETF', category: 'Bond' },
+  { ticker: 'LQD', name: '公司债 ETF', category: 'Bond' },
+  { ticker: 'HYG', name: '高收益债 ETF', category: 'Bond' },
+  { ticker: 'VNQ', name: '房地产 ETF', category: 'Real Estate' },
+  { ticker: 'GSG', name: '商品 ETF', category: 'Commodity' },
+  { ticker: 'DBC', name: '综合商品 ETF', category: 'Commodity' }
+];
+export const ALL_TICKER_PRESETS = [...SIM_TICKERS, ...ETF_PRESETS];
+export function filterTickers(input: string, limit: number = 8): TickerPreset[] {
+  if (!input || input.length < 1) return [];
+  const upper = input.toUpperCase();
+  return ALL_TICKER_PRESETS.filter((p) => p.ticker.startsWith(upper) || p.name.includes(input)).slice(0, limit);
 }

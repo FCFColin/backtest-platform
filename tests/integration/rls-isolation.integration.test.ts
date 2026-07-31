@@ -1,17 +1,3 @@
-/**
- * RLS 跨租户隔离集成测试（P0-03）
- *
- * 企业理由：RLS 策略写在 migration 009 中，但 withTenantReadOnly 迁移前从未被调用——
- * 所有租户表读取走 withTenant（写池）。本测试验证迁移后 withTenantReadOnly 正确
- * 激活 RLS，跨租户数据不可见。
- *
- * 测试场景：
- *   1. Org A 创建 portfolio → Org B 上下文查询 → 返回空（RLS 隔离）
- *   2. Org A 创建 backtest_run → Org B 上下文查询 → 返回空
- *   3. Org A 创建 saved_config → Org B 上下文查询 → 返回空
- *   4. EXPLAIN 验证 RLS Filter 生效
- *   5. 未设置租户上下文 → 查询返回零行（fail-safe）
- */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
 
@@ -50,10 +36,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     await ctx.cleanup();
   });
 
-  // -------------------------------------------------------------------------
-  // Portfolios RLS
-  // -------------------------------------------------------------------------
-
   it('Org A 的 portfolio 对 Org B 不可见（withTenantReadOnly）', async () => {
     // Org A 创建 portfolio
     const created = await withTenant(orgA, async (client) => {
@@ -81,10 +63,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     expect(orgAResults).toHaveLength(1);
     expect(orgAResults[0].id).toBe(created);
   });
-
-  // -------------------------------------------------------------------------
-  // backtest_runs RLS
-  // -------------------------------------------------------------------------
 
   it('Org A 的 backtest_run 对 Org B 不可见（withTenantReadOnly）', async () => {
     const created = await withTenant(orgA, async (client) => {
@@ -120,10 +98,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     expect(orgAResults[0].id).toBe(created);
   });
 
-  // -------------------------------------------------------------------------
-  // saved_configs RLS
-  // -------------------------------------------------------------------------
-
   it('Org A 的 saved_config 对 Org B 不可见（withTenantReadOnly）', async () => {
     const created = await withTenant(orgA, async (client) => {
       const { rows } = await client.query(
@@ -149,10 +123,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     expect(orgAResults[0].id).toBe(created);
   });
 
-  // -------------------------------------------------------------------------
-  // EXPLAIN 验证 RLS Filter
-  // -------------------------------------------------------------------------
-
   it('EXPLAIN 输出包含 RLS Filter（tenant_isolation 策略生效）', async () => {
     const explainResult = await withTenantReadOnly(orgA, async (client) => {
       const { rows } = await client.query('EXPLAIN (FORMAT TEXT) SELECT * FROM portfolios');
@@ -163,10 +133,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     expect(explainResult).toContain('Filter');
     expect(explainResult.toLowerCase()).toContain('current_setting');
   });
-
-  // -------------------------------------------------------------------------
-  // Fail-safe：未设置租户上下文 → 返回零行
-  // -------------------------------------------------------------------------
 
   it('未设置租户上下文时查询返回零行（fail-safe，拒绝优于泄露）', async () => {
     const pool = getPool();
@@ -186,9 +152,7 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     }
   });
 
-  // -------------------------------------------------------------------------
   // 写入隔离：Org B 不能写入 Org A 的 tenant_id
-  // -------------------------------------------------------------------------
 
   it('Org B 上下文不能插入 Org A tenant_id 的数据（WITH CHECK 策略拒绝）', async () => {
     await expect(

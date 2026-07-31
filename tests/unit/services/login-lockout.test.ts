@@ -1,6 +1,3 @@
-/**
- * loginLockout 单元测试（T-12）
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
@@ -20,12 +17,10 @@ const redisMocks = vi.hoisted(() => {
     expire: vi.fn(),
     set: vi.fn(),
     del: vi.fn(),
-    /** 切换到 Redis 可用状态：ping 成功 + emit ready 让 redisHealth 缓存为 true */
     useRedisSuccess() {
       redisMocks.ping.mockResolvedValue('PONG');
       redisMocks.emit('ready');
     },
-    /** 切换到 Redis 不可用状态：ping 失败 + emit error 让 redisHealth 缓存为 false */
     useMemoryFallback() {
       redisMocks.ping.mockRejectedValue(new Error('Redis not available'));
       redisMocks.emit('error');
@@ -71,7 +66,6 @@ import {
 } from '../../../packages/backend/src/application/auth/loginLockout.js';
 import { createHash } from 'node:crypto';
 
-/** 计算测试 IP 的 SHA-256 哈希（与 loginLockout.hashIp 一致） */
 function hashIp(ip: string): string {
   return createHash('sha256').update(ip).digest('hex');
 }
@@ -124,10 +118,6 @@ describe('loginLockout', () => {
     redisMocks.useMemoryFallback();
     await expect(recordFailure('dave')).rejects.toThrow('Redis unavailable');
   });
-
-  // -------------------------------------------------------------------------
-  // IP 维度异常登录检测（P1-09 等保三级 8.1.4 b)
-  // -------------------------------------------------------------------------
 
   it('空 IP 时 isIpBlocked 应返回 0', async () => {
     await expect(isIpBlocked('')).resolves.toBe(0);

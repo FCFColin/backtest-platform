@@ -1,11 +1,3 @@
-/**
- * Go 引擎调用客户端（ADR-008 单引擎 + ADR-031 fail-closed）。
- *
- * callEngineStrict：经 opossum 熔断器 + 指数退避重试调用 Go 引擎。
- * 不可用时抛出 EngineUnavailableError（同步请求翻译为 503 + Retry-After）。
- * 4xx 透传 UpstreamProblemError（参数错误不代表服务不可用）。
- */
-
 import CircuitBreaker from 'opossum';
 import { z } from 'zod';
 import { callService } from './httpClient.js';
@@ -105,11 +97,9 @@ export class EngineUnavailableError extends Error {
 /**
  * 调用 Go 引擎并返回严格类型化结果（ADR-031 fail-closed）。
  *
- * @param endpoint - 引擎端点路径（如 '/api/engine/backtest'）
- * @param body - 请求体
- * @param responseSchema - 可选的 Zod schema，提供时对引擎响应做运行时校验。
- *   校验失败时抛出 Error（不降级），避免类型炸弹向后传播。
- *   未提供时回退到 `as T` 断言（向后兼容）。
+ * responseSchema 提供时对引擎响应做运行时校验，校验失败时抛出 Error（不降级），
+ * 避免类型炸弹向后传播。未提供时回退到 `as T` 断言（向后兼容）。
+ *
  * @throws {EngineUnavailableError} Go 引擎不可用时
  * @throws {UpstreamProblemError} Go 引擎返回 4xx
  * @throws {Error} responseSchema 校验失败时
@@ -119,8 +109,8 @@ export async function callEngineStrict<T>(
   body: unknown,
   responseSchema?: z.ZodType<T>,
 ): Promise<T> {
+  const t0 = Date.now();
   try {
-    const t0 = Date.now();
     const result = await retryWithBackoff(() => goCircuitBreaker.fire(endpoint, body));
     const elapsed = Date.now() - t0;
     recordEngineCall(true);
@@ -143,15 +133,16 @@ export async function callEngineStrict<T>(
 
     return result as T;
   } catch (err) {
+    const elapsed = Date.now() - t0;
     if (err instanceof UpstreamProblemError) {
       recordEngineCall(false, err.code);
-      engineCallDuration.observe({ result: 'client_error' }, 0);
+      engineCallDuration.observe({ result: 'client_error' }, elapsed / 1000);
       logger.warn(`[callEngineStrict] ${endpoint} Go 引擎返回 4xx: ${err.status} ${err.code}`);
       throw err;
     }
     const errMsg = errorMessage(err);
     recordEngineCall(false, errMsg);
-    engineCallDuration.observe({ result: 'unavailable' }, 0);
+    engineCallDuration.observe({ result: 'unavailable' }, elapsed / 1000);
     logger.error({ err }, `[callEngineStrict] ${endpoint} Go 引擎不可用，fail-closed 返回 503`);
     throw new EngineUnavailableError(endpoint);
   }

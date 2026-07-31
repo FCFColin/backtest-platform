@@ -19,8 +19,8 @@ import { logger } from '../utils/logger.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import { Run } from '../domain/aggregates/run.js';
-import { eventDispatcher } from '../domain/events/index.js';
-import { withTimeout } from '../utils/timeout.js';
+import { eventDispatcher } from '../domain/events/events.js';
+import { withTimeout } from '../utils/misc.js';
 import { config } from '../config/index.js';
 import { compressBacktestResultForSync } from './backtest/compressBacktestResult.js';
 import { backtestCacheKey, setBacktestResultCache } from './backtest/backtestResultCache.js';
@@ -222,9 +222,6 @@ export async function runBacktest(
   });
 }
 
-// ---------------------------------------------------------------------------
-// 模块级私有函数
-// ---------------------------------------------------------------------------
 
 /**
  * 发布 BacktestCompleted 领域事件。
@@ -259,11 +256,6 @@ function publishBacktestEvent(
   });
 }
 
-/**
- * 将 BacktestCompleted 事件写入 outbox 表。
- *
- * 在事务中写入事件并 NOTIFY outbox_channel，失败时回滚并释放连接。
- */
 async function writeBacktestEventToOutbox(
   aggregateId: string,
   eventId: string,

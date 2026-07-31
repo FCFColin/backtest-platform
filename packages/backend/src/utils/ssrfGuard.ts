@@ -1,39 +1,28 @@
 /**
- * SSRF 防护工具（C-003）
+ * SSRF 防护工具（C-003）。
  *
- * Architecture: 通用安全工具 — 在服务端发起外部 HTTP 请求前校验目标 URL。
- * 企业为何需要：Webhook URL 由用户配置，若无校验，攻击者可让服务器向
- * 云元数据端点（169.254.169.254）、localhost、内网服务等发起请求，
- * 窃取 IAM 凭证或探测内网，导致整个集群被接管。本模块在 fetch 前校验
- * URL，拒绝指向私网/链路本地/回环地址的请求。
+ * Webhook URL 由用户配置，若无校验，攻击者可让服务器向云元数据端点
+ * （169.254.169.254）、localhost、内网服务等发起请求，窃取 IAM 凭证或探测内网，
+ * 导致整个集群被接管。本模块在 fetch 前校验 URL，拒绝指向私网/链路本地/回环地址的请求。
  *
  * 防护层级（纵深防御）：
  * 1. URL 解析：仅 http/https，禁止 userinfo（避免 http://user@evil/ 注入）
  * 2. 端口校验：仅允许白名单端口（80/443/8080/8443）
- * 3. 主机名解析：
- *    - IP 字面量直接校验（IPv4 + IPv6）
- *    - 域名先 DNS 解析再逐个校验所有 A 记录（防 DNS rebinding）
+ * 3. 主机名解析：IP 字面量直接校验（IPv4 + IPv6）；
+ *    域名先 DNS 解析再逐个校验所有 A 记录（防 DNS rebinding）
  * 4. IP 校验：拒绝私网/链路本地/回环/未分配/多播/保留地址段
  *
- * 权衡：DNS 解析后 IP 仍可能在 fetch 时被 rebinding 改写，但 Node.js
- * fetch 内部会缓存短时间内 DNS 结果，且解析后立即投递，时间窗很小。
- * 完整防护需在 undici agent 层 pin IP，但当前复杂度不值得。
+ * 权衡：DNS 解析后 IP 仍可能在 fetch 时被 rebinding 改写，但 Node.js fetch
+ * 内部会缓存短时间内 DNS 结果，且解析后立即投递，时间窗很小。完整防护需在
+ * undici agent 层 pin IP，但当前复杂度不值得。
  */
 import dns from 'dns/promises';
 import { isIP } from 'net';
 
-/** 允许的协议 */
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 
-/** 默认允许的端口（HTTP 标准 + 常见 webhook 端口） */
 const DEFAULT_ALLOWED_PORTS = new Set([80, 443, 8080, 8443]);
 
-/**
- * SSRF 校验失败错误。
- *
- * 携带 error code 便于调用方区分失败原因（协议/端口/IP/DNS），
- * 路由层可据此返回差异化错误响应。
- */
 export class SsrfValidationError extends Error {
   readonly code: string;
   constructor(message: string, code: string = 'SSRF_BLOCKED') {
@@ -43,15 +32,11 @@ export class SsrfValidationError extends Error {
   }
 }
 
-/** 校验选项 */
 export interface SsrfCheckOptions {
-  /** 允许的端口集合（默认 [80, 443, 8080, 8443]） */
   allowedPorts?: ReadonlySet<number>;
-  /** 是否执行 DNS 解析后校验 IP（防 DNS rebinding，默认 true） */
   resolveDns?: boolean;
 }
 
-/** 校验单个 IPv4 八位组是否无效（非数字或越界）。 */
 function isInvalidOctet(p: number): boolean {
   return Number.isNaN(p) || p < 0 || p > 255;
 }
@@ -85,12 +70,6 @@ function isForbiddenIpv4Range(a: number, b: number): boolean {
   return a >= 224;
 }
 
-/**
- * 校验单个 IPv4 地址是否为私网/保留地址。
- *
- * @param ip - IPv4 字符串（已通过 isIP 校验格式）
- * @returns true 表示地址被禁止
- */
 function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split('.').map(Number);
   if (parts.length !== 4 || parts.some(isInvalidOctet)) {
@@ -103,18 +82,8 @@ function isPrivateIPv4(ip: string): boolean {
 /**
  * 校验单个 IPv6 地址是否为私网/保留地址。
  *
- * 拒绝段：
- * - ::1            回环
- * - ::             未指定
- * - fc00::/7       ULA（RFC 4193，对应 IPv4 私网）
- * - fe80::/10      链路本地
- * - ff00::/8       多播
- *
  * 安全策略：仅允许 2000::/3 全球单播（公网），其他保留段一律拒绝。
  * IPv6 字面量在 webhook URL 中极少出现，严格策略不影响实用性。
- *
- * @param ip - IPv6 字符串（压缩形式，已通过 isIP 校验格式）
- * @returns true 表示地址被禁止
  */
 function isPrivateIPv6(ip: string): boolean {
   const lower = ip.toLowerCase();
@@ -134,12 +103,6 @@ function isPrivateIPv6(ip: string): boolean {
   return false;
 }
 
-/**
- * 校验 IP 字面量是否被禁止（IPv4 或 IPv6）。
- *
- * @param ip - IP 字符串
- * @returns true 表示地址被禁止（私网/保留/链路本地等）
- */
 function isForbiddenIp(ip: string): boolean {
   const family = isIP(ip);
   if (family === 4) return isPrivateIPv4(ip);
@@ -147,7 +110,6 @@ function isForbiddenIp(ip: string): boolean {
   return false; // 非 IP 字面量，由调用方处理
 }
 
-/** 校验协议 / userinfo / 端口（assertSafeUrl 步骤 2-4，提取以降低复杂度）。 */
 function validateUrlBasics(parsed: URL, allowedPorts: ReadonlySet<number>): void {
   if (!ALLOWED_PROTOCOLS.has(parsed.protocol)) {
     throw new SsrfValidationError(
@@ -172,7 +134,6 @@ function validateUrlBasics(parsed: URL, allowedPorts: ReadonlySet<number>): void
   }
 }
 
-/** 校验主机名：IP 字面量直接校验，域名 DNS 解析后校验（assertSafeUrl 步骤 5）。 */
 async function validateHostname(parsed: URL, resolveDns: boolean): Promise<void> {
   // IPv6 字面量在 URL 中带方括号（如 [::1]），WHATWG URL hostname 保留方括号，
   // 而 isIP 无法识别带括号的形式，需先剥离方括号再校验
@@ -219,16 +180,6 @@ async function validateHostname(parsed: URL, resolveDns: boolean): Promise<void>
 }
 
 /**
- * 校验 URL 是否符合 SSRF 防护策略。
- *
- * 步骤：
- * 1. URL 必须可解析且协议为 http/https
- * 2. 禁止 URL 中嵌入 userinfo（避免通过 userinfo 注入或混淆）
- * 3. 端口必须在白名单内（默认 80/443/8080/8443）
- * 4. 主机名为 IP 字面量时直接校验；为域名时 DNS 解析后逐个校验
- *
- * @param url - 待校验的完整 URL 字符串
- * @param options - 可选配置（自定义端口白名单、是否解析 DNS）
  * @throws SsrfValidationError 当 URL 违反任一策略
  */
 export async function assertSafeUrl(
@@ -237,7 +188,6 @@ export async function assertSafeUrl(
 ): Promise<void> {
   const { allowedPorts = DEFAULT_ALLOWED_PORTS, resolveDns = true } = options;
 
-  // 1. URL 解析
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -245,9 +195,6 @@ export async function assertSafeUrl(
     throw new SsrfValidationError(`Invalid URL: ${url}`, 'SSRF_INVALID_URL');
   }
 
-  // 2-4. 协议 / userinfo / 端口校验
   validateUrlBasics(parsed, allowedPorts);
-
-  // 5. 主机名校验：IP 字面量直接校验，域名 DNS 解析后校验
   await validateHostname(parsed, resolveDns);
 }

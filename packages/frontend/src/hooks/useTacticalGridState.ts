@@ -1,25 +1,11 @@
-/**
- * @file 战术网格搜索页面状态管理 hook
- * @description 承载 TacticalGridPage 的全部 state、参数校验与搜索执行逻辑
- */
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { useComputeTool } from './useComputeTool.js';
+import { useComputeTool } from './miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import {
-  countCombinations,
-  getParamLabelKeys,
-  validateGridParams,
-} from '../pages/tactical/tacticalGridUtils.js';
-import type {
-  IndicatorType,
-  ObjectiveType,
-  GridParamRange,
-  TacticalGridResponse,
-} from '../pages/tactical/tacticalGridUtils.js';
-
+import { countCombinations, getParamLabelKeys, validateGridParams } from '../pages/tactical/tacticalGridUtils.js';
+import type { IndicatorType, ObjectiveType, GridParamRange, TacticalGridResponse } from '../pages/tactical/tacticalGridUtils.js';
 export interface TacticalGridState {
   indicator: IndicatorType;
   setIndicator: (v: IndicatorType) => void;
@@ -45,12 +31,6 @@ export interface TacticalGridState {
   runSearch: () => void;
   paramLabels: { p1: string; p2: string };
 }
-
-/**
- * 战术网格搜索页面状态 hook
- * @param t - i18n 翻译函数
- * @returns 全部状态 + 派生标签 + 搜索执行函数
- */
 export function useTacticalGridState(t: TFunction): TacticalGridState {
   const [indicator, setIndicator] = useState<IndicatorType>('sma');
   const [param1, setParam1] = useState<GridParamRange>({ min: 10, max: 50, step: 5 });
@@ -65,7 +45,7 @@ export function useTacticalGridState(t: TFunction): TacticalGridState {
     isLoading,
     error,
     results,
-    runCompute: runSearch,
+    runCompute: runSearch
   } = useComputeTool<TacticalGridResponse>(
     async () => {
       const trimmedTicker = ticker.trim().toUpperCase();
@@ -81,26 +61,22 @@ export function useTacticalGridState(t: TFunction): TacticalGridState {
           startingValue,
           rebalanceFrequency,
           objective,
-          topN: 10,
+          topN: 10
         },
-        t('tacticalGrid.searchFailed'),
+        t('tacticalGrid.searchFailed')
       );
     },
     () => {
       const errorKey = validateGridParams(ticker, param1, param2);
       if (!errorKey) return null;
-      return errorKey === 'tacticalGrid.validateErrors.tooManyCombinations'
-        ? t(errorKey, { total: countCombinations(param1, param2) })
-        : t(errorKey);
-    },
+      return errorKey === 'tacticalGrid.validateErrors.tooManyCombinations' ? t(errorKey, { total: countCombinations(param1, param2) }) : t(errorKey);
+    }
   );
-
   const paramLabelKeys = getParamLabelKeys(indicator);
   const paramLabels = {
     p1: t(paramLabelKeys.p1, { indicator: indicator.toUpperCase() }),
-    p2: t(paramLabelKeys.p2),
+    p2: t(paramLabelKeys.p2)
   };
-
   return {
     indicator,
     setIndicator,
@@ -124,6 +100,6 @@ export function useTacticalGridState(t: TFunction): TacticalGridState {
     error,
     results,
     runSearch,
-    paramLabels,
+    paramLabels
   };
 }

@@ -1,10 +1,10 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
-import compression from 'compression';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { createServer } from 'node:http';
 import { config } from './config/index.js';
-import { jwtAuth } from './middleware/jwtAuth.js';
+import { jwtAuth, auditLog, idempotencyKey } from './middleware/jwtAuth.js';
 import { resolveTenant, requireTenant } from './middleware/tenantContext.js';
 import {
   computeMiddleware,
@@ -14,11 +14,9 @@ import {
   adminMiddleware,
 } from './middleware/middlewareChains.js';
 import { requirePermission, Permission } from './middleware/rbac.js';
-import { auditLog } from './middleware/auditLog.js';
-import { idempotencyKey } from './middleware/idempotency.js';
 import { httpLogger, logger } from './utils/logger.js';
 import { requestContextStorage } from './utils/requestContext.js';
-import { httpRequestDurationMicroseconds, httpRequestsTotal } from './utils/metrics.js';
+import { httpRequestDurationMicroseconds, httpRequestsTotal, getRoutePattern } from './utils/metrics.js';
 import {
   apiLimiter,
   computeLimiter,
@@ -54,9 +52,9 @@ import healthRoutes from './routes/healthRoutes.js';
 import errorReportRoutes from './routes/errorReportRoutes.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import { jobRoutes } from './routes/jobRoutes.js';
-import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
-import { requestTimeout } from './middleware/requestTimeout.js';
-import { setupOpenApiUi } from './middleware/openapiUi.js';
+import { errorHandler, notFoundHandler, requestTimeout } from './middleware/errorHandler.js';
+import { brotliCompress, createEarlyHintsMiddleware } from './middleware/brotliCompress.js';
+import { setupOpenApiUi } from './middleware/miscMiddleware.js';
 import { setupBacktestWebSocket } from './services/backtestWs.js';
 
 const app: express.Application = express();
@@ -80,17 +78,25 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on('finish', () => {
-    const duration = (Date.now() - start) / 1000;
-    const route = req.route?.path || req.path || 'unknown';
-    const labels = { method: req.method, route, status_code: String(res.statusCode) };
-    httpRequestDurationMicroseconds.observe(labels, duration);
-    httpRequestsTotal.inc(labels);
+    try {
+      const duration = (Date.now() - start) / 1000;
+      const route = getRoutePattern(req);
+      const labels = { method: req.method, route, status_code: String(res.statusCode) };
+      httpRequestDurationMicroseconds.observe(labels, duration);
+      httpRequestsTotal.inc(labels);
+    } catch (err) {
+      logger.warn({ err }, 'Failed to record HTTP metrics');
+    }
   });
   next();
 });
 
 // P3-5: 全局请求超时（30s 上限），超时返回 503 Problem Detail
 app.use(requestTimeout(30_000));
+
+// 103 Early Hints — 非 API 请求提前推送关键资源链接
+// 在静态文件中间件之前注册，确保 HTML 响应前推送提示
+app.use(createEarlyHintsMiddleware());
 
 // 安全头 + CORS
 app.use(
@@ -122,15 +128,7 @@ const corsOptions =
     : cors({ origin: config.CORS_ORIGINS });
 app.use(corsOptions);
 
-app.use(
-  compression({
-    threshold: 1024,
-    filter: (req, res) => {
-      if (req.headers['x-no-compression']) return false;
-      return compression.filter(req, res);
-    },
-  }),
-);
+app.use(brotliCompress);
 
 // Stripe webhook 需原始请求体做签名校验，必须在 json 解析之前
 app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
@@ -144,6 +142,8 @@ app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// P0-1 BFF 模式：解析 httpOnly Cookie 中的 Refresh Token
+app.use(cookieParser());
 
 // P2-1: OpenAPI 请求/响应运行时验证（仅非生产环境）
 // 开发/staging 环境启用，生产环境跳过（零运行时开销）
@@ -245,15 +245,29 @@ app.use('/api/v1', jwtAuth, resolveTenant, jobRoutes);
 // Swagger UI (P1-05) - 仅非生产环境
 setupOpenApiUi(app);
 
-// 静态文件 + SPA 回退
+// SSR 渲染（生产模式）— 在静态文件之前，确保 HTML 请求走 SSR
+// 非 API 请求先尝试 SSR 渲染，失败降级到 index.html
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
-  app.use(
-    express.static(config.FRONTEND_DIST_DIR, {
-      maxAge: config.NODE_ENV === 'production' ? '1y' : 0,
-    }),
-  );
-  app.get(/^\/(?!api\/).*/, (_req: Request, res: Response) => {
+  const { ssrMiddleware } = await import('./ssrMiddleware.js');
+  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);
+  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) => {
     res.sendFile(config.FRONTEND_DIST_DIR + '/index.html');
+  });
+}
+
+// 静态文件 — 只匹配 /assets/ 等非 HTML 路径
+// HTML 由 SSR 或 SPA fallback 处理
+if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/assets/') || req.path === '/favicon.svg' ||
+        req.path === '/manifest.webmanifest' || req.path === '/registerSW.js' ||
+        req.path === '/sw.js' || req.path.startsWith('/workbox-')) {
+      express.static(config.FRONTEND_DIST_DIR, {
+        maxAge: config.NODE_ENV === 'production' ? '1y' : 0,
+      })(req, res, next);
+    } else {
+      next();
+    }
   });
 }
 

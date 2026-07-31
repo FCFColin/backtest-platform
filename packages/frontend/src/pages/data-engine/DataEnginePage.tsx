@@ -1,16 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { RotateCcw } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/uiComponents';
+import { Button } from '@/components/ui/uiComponents';
 import { useDataEngineState } from '../../hooks/useDataEngineState.js';
-import { DataEngineDashboard } from '../../components/dataEngine/DataEngineDashboard.js';
-import { DataEngineSkeleton } from '../../components/dataEngine/DataEngineSkeleton.js';
-
-/**
- * DataEngineError: 数据引擎加载错误卡片，含重试按钮。
- * @param props - error/onRetry。
- * @returns 渲染的错误卡片。
- */
+import { DataEngineDashboard, DataEngineSkeleton } from '../../components/dataEngine/dataEngine.js';
 function DataEngineError({ error, onRetry }: { error: string; onRetry: () => void }) {
   const { t } = useTranslation();
   return (
@@ -22,16 +15,9 @@ function DataEngineError({ error, onRetry }: { error: string; onRetry: () => voi
     </Card>
   );
 }
-
-/**
- * DataEnginePage: 数据引擎页面，展示数据覆盖统计与管理动作。
- * @returns 渲染的数据引擎页面。
- */
 export default function DataEnginePage() {
   const { t } = useTranslation();
-  const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } =
-    useDataEngineState();
-
+  const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } = useDataEngineState();
   return (
     <div className="flex w-full flex-col gap-3">
       <h1 className="text-display text-fg">{t('dataEngine.title')}</h1>
@@ -40,21 +26,12 @@ export default function DataEnginePage() {
       ) : !stats ? (
         <>
           <DataEngineSkeleton />
-          <div
-            aria-live="polite"
-            className="min-h-4 text-center text-caption text-fg-tertiary"
-          >
+          <div aria-live="polite" className="min-h-4 text-center text-caption text-fg-tertiary">
             {loadStage}
           </div>
         </>
       ) : (
-        <DataEngineDashboard
-          stats={stats}
-          universe={universe}
-          actionMsg={actionMsg}
-          fetchStats={fetchStats}
-          doAction={doAction}
-        />
+        <DataEngineDashboard stats={stats} universe={universe} actionMsg={actionMsg} fetchStats={fetchStats} doAction={doAction} />
       )}
     </div>
   );

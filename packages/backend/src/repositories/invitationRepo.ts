@@ -13,9 +13,8 @@ import crypto from 'crypto';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex } from '../utils/crypto.js';
-import type { OrgRole } from '../middleware/authTypes.js';
+import type { OrgRole } from '../middleware/jwtAuth.js';
 
-/** 邀请有效期（毫秒，7 天） */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** 邀请记录（不含令牌哈希，可安全返回） */
@@ -30,7 +29,6 @@ interface InvitationRecord {
   createdAt: string;
 }
 
-/** 创建结果，含一次性明文令牌（用于邮件链接） */
 interface CreatedInvitation extends InvitationRecord {
   token: string;
 }

@@ -1,12 +1,3 @@
-/**
- * Chaos 测试跨平台 Docker 工具集
- *
- * 企业理由：原 chaos 实验脚本使用 PowerShell 和 Linux tc 命令，
- * 无法跨平台运行。本模块封装跨平台 Docker 操作（docker network/kill/inspect），
- * 使 chaos 测试在 Windows/Linux/macOS 上均可运行。
- *
- * 权衡：依赖 Docker CLI（而非 Docker API），但 CLI 是最稳定的跨平台接口。
- */
 import { exec } from 'child_process';
 import { promisify } from 'util';
 
@@ -27,9 +18,6 @@ export const CONTAINERS = {
   redis: 'backtest-redis',
 } as const;
 
-/**
- * Docker 网络名（docker-compose 默认创建的 network）
- */
 const NETWORK_NAME = 'backtest_default';
 
 /**
@@ -230,15 +218,9 @@ export async function withContainerStopped<T>(
   }
 }
 
-/**
- * Chaos fixture 状态（由 setupChaosFixture 返回）
- */
 export interface ChaosFixture {
-  /** Docker 是否可用（供 it.skipIf 在 test 注册时读取） */
   dockerAvailable: boolean;
-  /** 目标容器是否运行中（测试前置条件） */
   containerRunning: boolean;
-  /** 在 afterAll 中调用以恢复容器 */
   recover: () => Promise<void>;
 }
 

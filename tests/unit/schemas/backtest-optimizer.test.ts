@@ -1,15 +1,3 @@
-/**
- * backtestOptimizer schema 单元测试
- *
- * 企业理由：回测优化器参数空间校验失败会导致无效网格搜索，
- * 浪费计算资源。测试覆盖：
- * - 合法输入通过校验
- * - portfolio.assets 为空抛错
- * - parameterSpace.rebalanceFrequencies 为空抛错
- * - objective 非法枚举抛错
- * - step 非正数抛错
- */
-
 import { describe, it, expect } from 'vitest';
 import { backtestOptimizerSchema } from '../../../packages/backend/src/schemas/optimizer.js';
 

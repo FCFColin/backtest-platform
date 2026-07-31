@@ -1,14 +1,3 @@
-/**
- * 数据获取服务单元测试
- *
- * 企业理由：dataFetchService 管理 BullMQ 数据更新任务的生命周期，
- * 包括启动、停止、状态查询。测试覆盖：状态快照隔离、重复启动拒绝、
- * 增量模式参数、已停止时停止的优雅处理。
- *
- * P1-2 重构：child_process.spawn 已替换为 BullMQ 异步任务，
- * 测试 mock dataUpdateQueue + getActiveUpdateJobs 而非 child_process。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const loggerMocks = vi.hoisted(() => ({
@@ -26,7 +15,6 @@ const loggerMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 
-/** 创建模拟的 BullMQ Job 对象 */
 function makeMockJob(opts: {
   id?: string;
   state?: string;

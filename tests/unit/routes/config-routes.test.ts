@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../../../packages/backend/src/middleware/validate.js', () => ({
+vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({
   validate: () => (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 

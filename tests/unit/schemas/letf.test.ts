@@ -1,14 +1,3 @@
-/**
- * letf schema 单元测试
- *
- * 企业理由：LETF 滑点分析参数校验失败会导致杠杆计算错误，
- * 影响投资决策。测试覆盖：
- * - 合法输入通过校验
- * - 缺少必填字段抛 ZodError
- * - leverage 非正数抛错
- * - 字符串为空抛错
- */
-
 import { describe, it, expect } from 'vitest';
 import { letfAnalyzeSchema } from '../../../packages/backend/src/schemas/analysisSchemas.js';
 

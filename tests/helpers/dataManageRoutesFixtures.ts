@@ -1,20 +1,3 @@
-/**
- * 测试辅助：dataManageRoutes 共享 fixtures
- *
- * 企业理由：data-manage-routes 测试在多个 describe 块中重复定义 app factory、
- * engine/dataFetch 服务 mock 工厂与 mock stats。抽到共享模块便于复用与维护，
- * 新增端点或调整 mock 默认值只需修改一处。
- *
- * 用法：
- *   import {
- *     engineServiceMocks,
- *     dataFetchMocks,
- *     startApp,
- *     startAppUnauthenticated,
- *     createMockStats,
- *     dataManageRoutes,
- *   } from '../../helpers/dataManageRoutesFixtures.js';
- */
 
 import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from './expressApp.js';
@@ -56,9 +39,7 @@ vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLog
 
 import dataManageRoutes from '../../packages/backend/src/routes/dataManageRoutes.js';
 
-/** 引擎服务 mock 集合（与 vi.mock 工厂返回同一对象引用） */
 export const engineServiceMocks = internalMocks.engine;
-/** 数据更新服务 mock 集合（与 vi.mock 工厂返回同一对象引用） */
 export const dataFetchMocks = internalMocks.dataFetch;
 
 /**

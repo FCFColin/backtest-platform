@@ -8,15 +8,12 @@
  * 检查在模块顶层（import 时即触发），不依赖任何异步初始化，确保 fail-fast。
  */
 
-/** 安全敏感字段及其默认值清单 */
 interface SecretCheck {
   /** 配置项名称（与 config 对象的 key 一致） */
   name: string;
-  /** 已知的开发默认值 */
   defaultValue: string;
 }
 
-/** 所有需要检查的安全敏感字段 */
 const SECRET_CHECKS: readonly SecretCheck[] = [
   {
     name: 'JWT_SECRET',
@@ -33,13 +30,8 @@ const SECRET_CHECKS: readonly SecretCheck[] = [
 ] as const;
 
 /**
- * 断言配置对象不含默认密钥值。
- *
  * 仅在 NODE_ENV=production 时检查。开发环境使用默认值是正常的（快速启动）。
  * 检测到默认值时打印违规字段名并终止进程（exit code 1）。
- *
- * @param config - 已组装的扁平配置对象（configObject.ts 传入）
- * @throws 如果 NODE_ENV=production 且存在默认密钥 → process.exit(1)
  */
 export function assertNoDefaultSecrets(config: Record<string, unknown>): void {
   if (process.env.NODE_ENV !== 'production') return;

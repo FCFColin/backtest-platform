@@ -11,7 +11,7 @@
 import { Router, type Request, type Response } from 'express';
 import type { EmailAlertConfig } from '@backtest/shared/types/tactical';
 import { logger } from '../utils/logger.js';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,

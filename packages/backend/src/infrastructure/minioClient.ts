@@ -29,7 +29,6 @@ import { logger } from '../utils/logger.js';
 /** 审计日志专用 bucket 名称 */
 export const AUDIT_BUCKET = 'audit-logs';
 
-/** 单例 MinIO 客户端（懒初始化） */
 let minioClient: Client | null = null;
 
 /**

@@ -7,12 +7,12 @@
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { tacticalGridSearchSchema } from '../schemas/tactical.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
-import { withTimeout } from '../utils/timeout.js';
+import { withTimeout } from '../utils/misc.js';
 import {
   executeGridSearch,
   MAX_GRID_COMBINATIONS,

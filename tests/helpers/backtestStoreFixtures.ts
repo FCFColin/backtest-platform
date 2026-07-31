@@ -1,24 +1,8 @@
-/**
- * 测试辅助：backtestStore 共享 setup helpers
- *
- * vi.mock 调用因 Vitest hoisting 必须留在测试文件顶部，本文件仅提取可复用的
- * 状态重置与 fetch mock 辅助函数，消除 api/results 合并文件中的重复 helper。
- *
- * 用法：
- *   import {
- *     resetBacktestStoreState,
- *     mockFetchOnce,
- *     setSinglePortfolioResult,
- *   } from '../../helpers/backtestStoreFixtures.js';
- *
- *   beforeEach(() => resetBacktestStoreState(mockFetch));
- */
 import { vi } from 'vitest';
 import type { PortfolioResult } from '../../packages/shared/types/backtest.js';
 import { useBacktestStore } from '../../packages/frontend/src/store/backtestStore.js';
 import { mockPortfolio, mockBacktestParams, mockPortfolioResult } from './storeFixtures.js';
 
-/** mockFetch 类型别名（`const mockFetch = vi.fn();` 的类型） */
 type MockFetch = ReturnType<typeof vi.fn>;
 
 /**
@@ -76,9 +60,6 @@ export function mockFetchReject(mockFetch: MockFetch, error: unknown): void {
   mockFetch.mockRejectedValueOnce(error);
 }
 
-/**
- * 空成功响应（用于 runBacktest 简单成功路径）
- */
 export function emptySuccessResponse(): unknown {
   return {
     success: true,

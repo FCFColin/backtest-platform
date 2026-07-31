@@ -1,25 +1,17 @@
-/**
- * @file DualSignal 页面状态 hook
- * @description 抽离自 DualSignalPage 的状态管理与请求逻辑，便于独立测试与复用。
- */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SignalAnalysisRequest, DualSignalConfig } from '@backtest/shared/types/signal';
-import { useComputeTool } from '../../hooks/useComputeTool.js';
+import { useComputeTool } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import i18n from '../../i18n/index.js';
 import type { DualSignalResponse } from './signalTypes.js';
-
-/** 单信号配置（页面内简化结构） */
 export interface SignalCfg {
   indicator: string;
   period: number;
   threshold: number;
 }
-
-/** DualSignal 页面状态 hook 返回值 */
-interface UseDualSignalStateResult {
+export interface UseDualSignalStateResult {
   cfg1: SignalCfg;
   cfg2: SignalCfg;
   combinationMethod: 'and' | 'or' | 'xor';
@@ -37,8 +29,6 @@ interface UseDualSignalStateResult {
   setEndDate: (v: string) => void;
   runAnalysis: () => void;
 }
-
-/** DualSignal 页面状态 hook */
 export function useDualSignalState(): UseDualSignalStateResult {
   const { t } = useTranslation();
   const [cfg1, setCfg1] = useState<SignalCfg>({ indicator: 'SMA', period: 20, threshold: 30 });
@@ -51,7 +41,7 @@ export function useDualSignalState(): UseDualSignalStateResult {
     isLoading,
     error,
     results,
-    runCompute: runAnalysis,
+    runCompute: runAnalysis
   } = useComputeTool<DualSignalResponse>(
     async () => {
       const buildReq = (c: SignalCfg): SignalAnalysisRequest => ({
@@ -61,22 +51,17 @@ export function useDualSignalState(): UseDualSignalStateResult {
         threshold: c.threshold,
         startDate,
         endDate,
-        signalType: 'both',
+        signalType: 'both'
       });
       const reqBody: DualSignalConfig = {
         signal1: buildReq(cfg1),
         signal2: buildReq(cfg2),
-        combinationMethod,
+        combinationMethod
       };
-      return apiPostJSON<DualSignalResponse>(
-        '/api/v1/signal/dual',
-        reqBody,
-        i18n.t('signal.common.errAnalyze'),
-      );
+      return apiPostJSON<DualSignalResponse>('/api/v1/signal/dual', reqBody, i18n.t('signal.common.errAnalyze'));
     },
-    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker')),
+    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker'))
   );
-
   return {
     cfg1,
     cfg2,
@@ -93,6 +78,6 @@ export function useDualSignalState(): UseDualSignalStateResult {
     setTicker,
     setStartDate,
     setEndDate,
-    runAnalysis,
+    runAnalysis
   };
 }

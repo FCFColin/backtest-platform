@@ -1,14 +1,3 @@
-/**
- * montecarlo-service 单元测试 — runMonteCarlo
- *
- * 覆盖：单组合返回 results[0]、多组合返回数组、mcParams 白名单过滤、
- * 编排链路（collectTickersFromPortfolios/fetchPriceData/sanitizeMcParams/loadMacroData）、
- * 引擎错误传播、参数透传。
- *
- * Mock 策略：mock callEngineStrict + backtest-helpers + engineBodyBuilder + logger。
- * 不 mock 领域层（Portfolio.fromDTO / toEngineBody），保留真实业务逻辑。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { mockLogger } from '../../helpers/mockFactories.js';
@@ -18,7 +7,7 @@ const engineMocks = vi.hoisted(() => ({
 }));
 
 const helpersMocks = vi.hoisted(() => ({
-  collectTickersFromPortfolios: vi.fn(),
+  collectDomainTickers: vi.fn(),
   fetchPriceDataWithRange: vi.fn(),
   filterPriceData: vi.fn(),
   loadMacroData: vi.fn(),
@@ -46,7 +35,7 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
-  collectTickersFromPortfolios: helpersMocks.collectTickersFromPortfolios,
+  collectDomainTickers: helpersMocks.collectDomainTickers,
   fetchPriceDataWithRange: helpersMocks.fetchPriceDataWithRange,
   filterPriceData: helpersMocks.filterPriceData,
   loadMacroData: helpersMocks.loadMacroData,
@@ -90,10 +79,7 @@ function makeTranslateDomainError() {
 describe('runMonteCarlo', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    helpersMocks.collectTickersFromPortfolios.mockReturnValue({
-      tickers: ['AAPL', 'BND'],
-      totalAssets: 2,
-    });
+    helpersMocks.collectDomainTickers.mockReturnValue(new Set(['AAPL', 'BND']));
     helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
       priceData: {
         AAPL: { '2020-01-02': 100 },
@@ -162,10 +148,10 @@ describe('runMonteCarlo', () => {
     expect(helpersMocks.sanitizeMcParams).toHaveBeenCalledWith(undefined);
   });
 
-  it('编排链路：collectTickersFromPortfolios → fetchPriceDataWithRange → sanitizeMcParams → loadMacroData', async () => {
+  it('编排链路：collectDomainTickers → fetchPriceDataWithRange → sanitizeMcParams → loadMacroData', async () => {
     await runMonteCarlo([mockPortfolio], mockParameters);
 
-    expect(helpersMocks.collectTickersFromPortfolios).toHaveBeenCalledWith([mockPortfolio]);
+    expect(helpersMocks.collectDomainTickers).toHaveBeenCalledWith(expect.any(Array), "");
     expect(helpersMocks.fetchPriceDataWithRange).toHaveBeenCalledWith(
       ['AAPL', 'BND'],
       '2020-01-02',

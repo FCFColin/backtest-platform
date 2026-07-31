@@ -1,10 +1,3 @@
-/**
- * 审计日志中间件单元测试（T-P1-5.3）
- *
- * 企业理由：审计日志是合规要求（SOC 2/ISO 27001），测试覆盖：
- * 写操作记录、读操作跳过、响应完成后捕获 statusCode。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createMockRequest, createMockResponse } from '../../helpers/expressMocks.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
@@ -25,7 +18,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-import { auditLog } from '../../../packages/backend/src/middleware/auditLog.js';
+import { auditLog } from '../../../packages/backend/src/middleware/jwtAuth.js';
 import { config } from '../../../packages/backend/src/config/index.js';
 
 function createMockReqRes(opts: {
@@ -232,13 +225,13 @@ describe('verifyPayload HMAC 签名', () => {
 
   it('未配置 AUDIT_HMAC_KEY 时应 fail-closed（返回 false，D2-010）', async () => {
     config.AUDIT_HMAC_KEY = '';
-    const { verifyPayload } = await import('../../../packages/backend/src/middleware/auditLog.js');
+    const { verifyPayload } = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     expect(verifyPayload('{"a":1}', 'any-signature')).toBe(false);
   });
 
   it('签名长度不一致应返回 false（防 timingSafeEqual 抛错）', async () => {
     config.AUDIT_HMAC_KEY = 'test-hmac-key';
-    const { verifyPayload } = await import('../../../packages/backend/src/middleware/auditLog.js');
+    const { verifyPayload } = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     expect(verifyPayload('payload', 'short')).toBe(false);
   });
 
@@ -247,7 +240,7 @@ describe('verifyPayload HMAC 签名', () => {
     const crypto = await import('crypto');
     const payload = '{"userId":"u1","action":"login"}';
     const sig = crypto.createHmac('sha256', 'test-hmac-key').update(payload).digest('hex');
-    const { verifyPayload } = await import('../../../packages/backend/src/middleware/auditLog.js');
+    const { verifyPayload } = await import('../../../packages/backend/src/middleware/jwtAuth.js');
     expect(verifyPayload(payload, sig)).toBe(true);
   });
 

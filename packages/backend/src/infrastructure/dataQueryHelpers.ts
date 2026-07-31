@@ -1,13 +1,12 @@
-﻿/**
+/**
  * 数据查询辅助函数 — 日期区间计算 / 行分组 / 搜索校验。
  *
  * 从 dataQuery.ts 拆分（P3-2 M-005）：将无状态辅助函数集中到本文件。
  */
 import { logger } from '../utils/logger.js';
-import { toDateStr } from '../utils/dateUtils.js';
+import { toDateStr } from '../utils/misc.js';
 import { pgCircuitBreaker } from './dataQueryInfrastructure.js';
 
-/** 从 DB 行中计算日期交集 */
 export function computeIntersection(
   rangeRows: Array<{ first: Date | string; last: Date | string }>,
   defaultStart: string | null,
@@ -41,7 +40,6 @@ export async function computeCommonDateRange(
   return computeIntersection(rangeRows, null, null);
 }
 
-/** 将查询行按 ticker 分组为 price map */
 export function groupRowsByTicker(
   rows: Array<{ ticker: string; date: Date | string; close: number }>,
 ): Record<string, Record<string, number>> {
@@ -54,7 +52,6 @@ export function groupRowsByTicker(
   return grouped;
 }
 
-/** 校验搜索查询字符串与市场过滤字段 */
 export function validateSearchQuery(query: string, market?: string): boolean {
   if (query.length > 100) {
     logger.warn(`[dataService] searchTickers: query 超过 100 字符限制 (${query.length})`);

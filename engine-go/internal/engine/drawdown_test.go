@@ -1,185 +1,75 @@
 package engine
-
 import (
-	"math"
-	"testing"
+    "math"
+    "testing"
 )
-
+func assertInt(t *testing.T, got, want int, label string) {
+	t.Helper()
+if got != want { t.Errorf("%s = %d, want %d", label, got, want) }
+}
+func assertFloat(t *testing.T, got, want float64, label string) {
+	t.Helper()
+if math.Abs(got-want) > 1e-6 { t.Errorf("%s = %v, want %v", label, got, want) }
+}
+func assertStr(t *testing.T, got, want, label string) {
+	t.Helper()
+if got != want { t.Errorf("%s = %q, want %q", label, got, want) }
+}
 func TestDetectDrawdownEpisodes(t *testing.T) {
-	t.Run("insufficient data", func(t *testing.T) {
-		curve := []DataPoint{{Date: "2024-01-01", Value: 100}}
-		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 0 {
-			t.Errorf("expected 0 episodes, got %d", len(episodes))
-		}
-	})
-
-	t.Run("monotonic up", func(t *testing.T) {
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110},
-			{Date: "2024-01-03", Value: 120},
-		}
-		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 0 {
-			t.Errorf("expected 0 episodes, got %d", len(episodes))
-		}
-	})
-
-	t.Run("single drawdown with recovery", func(t *testing.T) {
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110},
-			{Date: "2024-01-03", Value: 90},
-			{Date: "2024-01-04", Value: 80},
-			{Date: "2024-01-05", Value: 110},
-		}
-		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 1 {
-			t.Fatalf("expected 1 episode, got %d", len(episodes))
-		}
-		expectedDD := (110.0 - 80.0) / 110.0
-		if math.Abs(episodes[0].Depth-expectedDD) > 1e-6 {
-			t.Errorf("expected drawdown %v, got %v", expectedDD, episodes[0].Depth)
-		}
-		if episodes[0].PeakDate != "2024-01-02" {
-			t.Errorf("expected peak 2024-01-02, got %s", episodes[0].PeakDate)
-		}
-		if episodes[0].TroughDate != "2024-01-04" {
-			t.Errorf("expected trough 2024-01-04, got %s", episodes[0].TroughDate)
-		}
-		if episodes[0].RecoveryDate != "2024-01-05" {
-			t.Errorf("expected recovery 2024-01-05, got %s", episodes[0].RecoveryDate)
-		}
-		// P0-1: 验证 TotalTimeDurationDays 为天数而非年
-		if episodes[0].TotalTimeDurationDays != 3 {
-			t.Errorf("expected TotalTimeDurationDays=3 (days), got %d", episodes[0].TotalTimeDurationDays)
-		}
-	})
-
+	zeroCases := []struct {
+		name  string
+		curve []DataPoint
+	}{
+		{"insufficient data", []DataPoint{{Date: "2024-01-01", Value: 100}}},
+{"monotonic up", []DataPoint{ {Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 120} }},
+{"drawdown below threshold ignored", []DataPoint{ {Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 105}, {Date: "2024-01-03", Value: 101}, {Date: "2024-01-04", Value: 106} }},
+	}
+	for _, tc := range zeroCases {
+t.Run(tc.name, func(t *testing.T) { if got := detectDrawdownEpisodes(tc.curve); len(got) != 0 { t.Errorf("expected 0 episodes, got %d", len(got)) } })
+	}
+	singleCases := []struct {
+		name          string
+		curve         []DataPoint
+		depth         float64
+		peakDate      string
+		troughDate    string
+		recoveryDate  string
+		checkRecovery bool
+		totalDays     int
+	}{
+		{"single drawdown with recovery", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 90}, {Date: "2024-01-04", Value: 80}, {Date: "2024-01-05", Value: 110}}, (110.0 - 80.0) / 110.0, "2024-01-02", "2024-01-04", "2024-01-05", true, 3},
+		{"unclosed drawdown at end", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 90}, {Date: "2024-01-04", Value: 85}}, (110.0 - 85.0) / 110.0, "", "", "", true, 2},
+		{"trough updates within drawdown", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 95}, {Date: "2024-01-04", Value: 85}, {Date: "2024-01-05", Value: 110}}, (110.0 - 85.0) / 110.0, "", "2024-01-04", "", false, 3},
+		{"long duration drawdown days not years", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-02-01", Value: 80}, {Date: "2024-03-01", Value: 70}, {Date: "2024-04-01", Value: 75}, {Date: "2024-05-01", Value: 90}, {Date: "2024-06-01", Value: 100}}, 0, "", "", "", false, 152},
+	}
+	for _, tc := range singleCases {
+		t.Run(tc.name, func(t *testing.T) {
+			episodes := detectDrawdownEpisodes(tc.curve)
+if len(episodes) != 1 { t.Fatalf("expected 1 episode, got %d", len(episodes)) }
+			ep := episodes[0]
+if tc.depth != 0 { assertFloat(t, ep.Depth, tc.depth, "depth") }
+if tc.peakDate != "" { assertStr(t, ep.PeakDate, tc.peakDate, "peakDate") }
+if tc.troughDate != "" { assertStr(t, ep.TroughDate, tc.troughDate, "troughDate") }
+if tc.checkRecovery { assertStr(t, ep.RecoveryDate, tc.recoveryDate, "recoveryDate") }
+if tc.totalDays != 0 { assertInt(t, ep.TotalTimeDurationDays, tc.totalDays, "totalTimeDurationDays") }
+		})
+	}
 	t.Run("multiple drawdowns", func(t *testing.T) {
-		// 100 → 110 → 90 → 110 → 100 → 80 → 105
-		// Episode 1: peak=110(day2), trough=90(day3), recovery=110(day4), dd=(110-90)/110=0.1818
-		// Episode 2: peak=110(day4), trough=80(day6), recovery=105(day7)... wait, 105 < 110, not recovered
-		// Actually: day4=110 (peak), day5=100, day6=80 (trough), day7=105
-		// 105 < 110 so still in drawdown at end → unclosed episode
 		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110},
-			{Date: "2024-01-03", Value: 90},
-			{Date: "2024-01-04", Value: 110},
-			{Date: "2024-01-05", Value: 100},
-			{Date: "2024-01-06", Value: 80},
+			{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110},
+			{Date: "2024-01-03", Value: 90}, {Date: "2024-01-04", Value: 110},
+			{Date: "2024-01-05", Value: 100}, {Date: "2024-01-06", Value: 80},
 			{Date: "2024-01-07", Value: 105},
 		}
 		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 2 {
-			t.Fatalf("expected 2 episodes, got %d", len(episodes))
-		}
-		expectedDD1 := (110.0 - 90.0) / 110.0
-		if math.Abs(episodes[0].Depth-expectedDD1) > 1e-6 {
-			t.Errorf("episode 1 drawdown = %v, want %v", episodes[0].Depth, expectedDD1)
-		}
-		if episodes[0].RecoveryDate != "2024-01-04" {
-			t.Errorf("episode 1 recovery = %s, want 2024-01-04", episodes[0].RecoveryDate)
-		}
-		expectedDD2 := (110.0 - 80.0) / 110.0
-		if math.Abs(episodes[1].Depth-expectedDD2) > 1e-6 {
-			t.Errorf("episode 2 drawdown = %v, want %v", episodes[1].Depth, expectedDD2)
-		}
-		if episodes[1].RecoveryDate != "" {
-			t.Errorf("episode 2 should be unclosed, got recovery=%s", episodes[1].RecoveryDate)
-		}
-	})
-
-	t.Run("drawdown below threshold ignored", func(t *testing.T) {
-		// 4% drawdown is below 5% threshold
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 105},
-			{Date: "2024-01-03", Value: 101},
-			{Date: "2024-01-04", Value: 106},
-		}
-		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 0 {
-			t.Errorf("expected 0 episodes for sub-threshold drawdown, got %d", len(episodes))
-		}
-	})
-
-	t.Run("unclosed drawdown at end", func(t *testing.T) {
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110},
-			{Date: "2024-01-03", Value: 90},
-			{Date: "2024-01-04", Value: 85},
-		}
-		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 1 {
-			t.Fatalf("expected 1 episode, got %d", len(episodes))
-		}
-		expectedDD := (110.0 - 85.0) / 110.0
-		if math.Abs(episodes[0].Depth-expectedDD) > 1e-6 {
-			t.Errorf("drawdown = %v, want %v", episodes[0].Depth, expectedDD)
-		}
-		if episodes[0].RecoveryDate != "" {
-			t.Errorf("expected empty recovery date, got %s", episodes[0].RecoveryDate)
-		}
-		// P0-1: 验证未恢复回撤的 TotalTimeDurationDays
-		if episodes[0].TotalTimeDurationDays != 2 {
-			t.Errorf("expected TotalTimeDurationDays=2 (days from peak to end), got %d", episodes[0].TotalTimeDurationDays)
-		}
-	})
-
-	t.Run("trough updates within drawdown", func(t *testing.T) {
-		// peak=110, then 95, then 85 (new trough), then recovery to 110
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110},
-			{Date: "2024-01-03", Value: 95},
-			{Date: "2024-01-04", Value: 85},
-			{Date: "2024-01-05", Value: 110},
-		}
-		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 1 {
-			t.Fatalf("expected 1 episode, got %d", len(episodes))
-		}
-		expectedDD := (110.0 - 85.0) / 110.0
-		if math.Abs(episodes[0].Depth-expectedDD) > 1e-6 {
-			t.Errorf("drawdown = %v, want %v (trough updated)", episodes[0].Depth, expectedDD)
-		}
-		if episodes[0].TroughDate != "2024-01-04" {
-			t.Errorf("trough date = %s, want 2024-01-04", episodes[0].TroughDate)
-		}
-		// P0-1: 验证 TotalTimeDurationDays
-		if episodes[0].TotalTimeDurationDays != 3 {
-			t.Errorf("expected TotalTimeDurationDays=3, got %d", episodes[0].TotalTimeDurationDays)
-		}
-	})
-
-	// P0-1: 新增测试 - 长期回撤验证天数不会被误当作年
-	t.Run("long duration drawdown days not years", func(t *testing.T) {
-		// 峰值在 2024-01-01，谷值在 2024-03-01（59天后），恢复在 2024-06-01（152天后）
-		// TotalTimeDurationDays 应为 152 天，不应被解释为 152 年
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-02-01", Value: 80},
-			{Date: "2024-03-01", Value: 70},
-			{Date: "2024-04-01", Value: 75},
-			{Date: "2024-05-01", Value: 90},
-			{Date: "2024-06-01", Value: 100},
-		}
-		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 1 {
-			t.Fatalf("expected 1 episode, got %d", len(episodes))
-		}
-		if episodes[0].TotalTimeDurationDays != 152 {
-			t.Errorf("expected TotalTimeDurationDays=152 (days), got %d — must not be interpreted as years", episodes[0].TotalTimeDurationDays)
-		}
+if len(episodes) != 2 { t.Fatalf("expected 2 episodes, got %d", len(episodes)) }
+		assertFloat(t, episodes[0].Depth, (110.0-90.0)/110.0, "episode 1 depth")
+		assertStr(t, episodes[0].RecoveryDate, "2024-01-04", "episode 1 recovery")
+		assertFloat(t, episodes[1].Depth, (110.0-80.0)/110.0, "episode 2 depth")
+		assertStr(t, episodes[1].RecoveryDate, "", "episode 2 recovery")
 	})
 }
-
 func TestComputeDrawdownCurve(t *testing.T) {
-	// 从 []DataPoint 提取 values/dates 供 CalcDrawdownCurve 使用
 	toCurve := func(points []DataPoint) ([]float64, []string) {
 		values := make([]float64, len(points))
 		dates := make([]string, len(points))
@@ -189,68 +79,30 @@ func TestComputeDrawdownCurve(t *testing.T) {
 		}
 		return values, dates
 	}
-
-	t.Run("empty curve", func(t *testing.T) {
-		got := CalcDrawdownCurve(nil, nil)
-		if got != nil {
-			t.Error("expected nil for empty curve")
-		}
-	})
-
-	t.Run("monotonic up", func(t *testing.T) {
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110},
-			{Date: "2024-01-03", Value: 120},
-		}
-		vals, dates := toCurve(curve)
-		got := CalcDrawdownCurve(vals, dates)
-		if len(got) != 3 {
-			t.Fatalf("expected 3 points, got %d", len(got))
-		}
-		for _, p := range got {
-			if p.Drawdown != 0 {
-				t.Errorf("point %s drawdown = %v, want 0", p.Date, p.Drawdown)
+t.Run("empty curve", func(t *testing.T) { if got := CalcDrawdownCurve(nil, nil); got != nil { t.Error("expected nil for empty curve") } })
+	cases := []struct {
+		name  string
+		curve []DataPoint
+		check func(*testing.T, []DrawdownPoint)
+	}{
+		{"monotonic up", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 120}}, func(t *testing.T, got []DrawdownPoint) {
+if len(got) != 3 { t.Fatalf("expected 3 points, got %d", len(got)) }
+			for _, p := range got {
+if p.Drawdown != 0 { t.Errorf("point %s drawdown = %v, want 0", p.Date, p.Drawdown) }
 			}
-		}
-	})
-
-	t.Run("peak and recovery", func(t *testing.T) {
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 90},
-			{Date: "2024-01-03", Value: 110},
-		}
-		vals, dates := toCurve(curve)
-		got := CalcDrawdownCurve(vals, dates)
-		if len(got) != 3 {
-			t.Fatalf("expected 3 points, got %d", len(got))
-		}
-		if got[0].Drawdown != 0 {
-			t.Errorf("point 0 drawdown = %v, want 0", got[0].Drawdown)
-		}
-		expectedDD1 := (100.0 - 90.0) / 100.0
-		if math.Abs(got[1].Drawdown-expectedDD1) > 1e-6 {
-			t.Errorf("point 1 drawdown = %v, want %v", got[1].Drawdown, expectedDD1)
-		}
-		if got[2].Drawdown != 0 {
-			t.Errorf("point 2 (recovery) drawdown = %v, want 0", got[2].Drawdown)
-		}
-	})
-
-	t.Run("drawdown dates preserved", func(t *testing.T) {
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 80},
-		}
-		vals, dates := toCurve(curve)
-		got := CalcDrawdownCurve(vals, dates)
-		if got[0].Date != "2024-01-01" || got[1].Date != "2024-01-02" {
-			t.Errorf("dates not preserved: got %s, %s", got[0].Date, got[1].Date)
-		}
-	})
+		}},
+		{"peak and recovery", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 90}, {Date: "2024-01-03", Value: 110}}, func(t *testing.T, got []DrawdownPoint) {
+if len(got) != 3 { t.Fatalf("expected 3 points, got %d", len(got)) }
+if got[0].Drawdown != 0 { t.Errorf("point 0 drawdown = %v, want 0", got[0].Drawdown) }
+			assertFloat(t, got[1].Drawdown, (100.0-90.0)/100.0, "point 1 drawdown")
+if got[2].Drawdown != 0 { t.Errorf("point 2 (recovery) drawdown = %v, want 0", got[2].Drawdown) }
+		}},
+		{"drawdown dates preserved", []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 80}}, func(t *testing.T, got []DrawdownPoint) {
+if got[0].Date != "2024-01-01" || got[1].Date != "2024-01-02" { t.Errorf("dates not preserved: got %s, %s", got[0].Date, got[1].Date) }
+		}},
+	}
+for _, tc := range cases { t.Run(tc.name, func(t *testing.T) { vals, dates := toCurve(tc.curve); tc.check(t, CalcDrawdownCurve(vals, dates)) }) }
 }
-
 func TestDaysBetween(t *testing.T) {
 	tests := []struct {
 		name string
@@ -265,147 +117,47 @@ func TestDaysBetween(t *testing.T) {
 		{"reverse order", "2024-01-11", "2024-01-01", 10},
 		{"bad date", "not-a-date", "2024-01-01", 0},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := daysBetween(tt.d1, tt.d2)
-			if got != tt.want {
-				t.Errorf("daysBetween(%q, %q) = %v, want %v", tt.d1, tt.d2, got, tt.want)
-			}
-		})
-	}
+for _, tt := range tests { t.Run(tt.name, func(t *testing.T) { assertInt(t, daysBetween(tt.d1, tt.d2), tt.want, "daysBetween") }) }
 }
-
-// P0-2: 测试回撤片段衍生字段的正确性
 func TestDrawdownEpisodeFields(t *testing.T) {
 	t.Run("quick recovery episode", func(t *testing.T) {
-		// 峰值=110 (day1), 谷值=99 (day2), 恢复=110 (day3)
-		// depth = (110-99)/110 ≈ 0.1 (10%, > 5% threshold)
-		// timeToTrough = 1 day, recoveryTime = 1 day, totalTime = 2 days
-		// recoveryFactor = 1/1 = 1.0
-		// cagrDuring: (110/110)^(365/2) - 1 = 0
-		// ulcerDuring: sqrt(mean(dd^2)) where dd values are [0, ~0.1, 0]
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110}, // peak
-			{Date: "2024-01-03", Value: 99},  // trough (dd = 10%)
-			{Date: "2024-01-04", Value: 110},  // recovery
-		}
+		curve := []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 99}, {Date: "2024-01-04", Value: 110}}
 		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 1 {
-			t.Fatalf("expected 1 episode, got %d", len(episodes))
-		}
+if len(episodes) != 1 { t.Fatalf("expected 1 episode, got %d", len(episodes)) }
 		ep := episodes[0]
-		if ep.TimeToTrough != 1 {
-			t.Errorf("TimeToTrough = %d, want 1", ep.TimeToTrough)
-		}
-		if ep.RecoveryTime != 1 {
-			t.Errorf("RecoveryTime = %d, want 1", ep.RecoveryTime)
-		}
-		if ep.TotalTimeDurationDays != 2 {
-			t.Errorf("TotalTimeDurationDays = %d, want 2", ep.TotalTimeDurationDays)
-		}
-		if math.Abs(ep.RecoveryFactor-1.0) > 1e-6 {
-			t.Errorf("RecoveryFactor = %v, want 1.0", ep.RecoveryFactor)
-		}
-		if math.Abs(ep.CagrDuring-0.0) > 1e-6 {
-			t.Errorf("CagrDuring = %v, want 0 (no net change)", ep.CagrDuring)
-		}
-		if ep.UlcerDuring <= 0 {
-			t.Errorf("UlcerDuring = %v, should be > 0", ep.UlcerDuring)
-		}
-		if ep.ReturnFromPeakToTrough >= 0 {
-			t.Errorf("ReturnFromPeakToTrough = %v, should be negative", ep.ReturnFromPeakToTrough)
-		}
-		if ep.ReturnFromTroughToRecovery == nil {
-			t.Error("ReturnFromTroughToRecovery should not be nil for recovered episode")
-		}
+		assertInt(t, ep.TimeToTrough, 1, "TimeToTrough")
+		assertInt(t, ep.RecoveryTime, 1, "RecoveryTime")
+		assertInt(t, ep.TotalTimeDurationDays, 2, "TotalTimeDurationDays")
+		assertFloat(t, ep.RecoveryFactor, 1.0, "RecoveryFactor")
+		assertFloat(t, ep.CagrDuring, 0.0, "CagrDuring")
+if ep.UlcerDuring <= 0 { t.Errorf("UlcerDuring = %v, should be > 0", ep.UlcerDuring) }
+if ep.ReturnFromPeakToTrough >= 0 { t.Errorf("ReturnFromPeakToTrough = %v, should be negative", ep.ReturnFromPeakToTrough) }
+if ep.ReturnFromTroughToRecovery == nil { t.Error("ReturnFromTroughToRecovery should not be nil for recovered episode") }
 	})
-
 	t.Run("unrecovered episode fields", func(t *testing.T) {
-		// 峰值=110 (day1), 谷值=85 (day3), no recovery at end
-		// recoveryDate = "", recoveryTime = 0, recoveryFactor = 0
-		// cagrDuring: from peak to end value
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 100},
-			{Date: "2024-01-02", Value: 110}, // peak
-			{Date: "2024-01-03", Value: 90},
-			{Date: "2024-01-04", Value: 85}, // trough, still in drawdown
-		}
+		curve := []DataPoint{{Date: "2024-01-01", Value: 100}, {Date: "2024-01-02", Value: 110}, {Date: "2024-01-03", Value: 90}, {Date: "2024-01-04", Value: 85}}
 		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 1 {
-			t.Fatalf("expected 1 episode, got %d", len(episodes))
-		}
+if len(episodes) != 1 { t.Fatalf("expected 1 episode, got %d", len(episodes)) }
 		ep := episodes[0]
-		if ep.RecoveryDate != "" {
-			t.Errorf("RecoveryDate = %q, want empty", ep.RecoveryDate)
-		}
-		if ep.RecoveryTime != 0 {
-			t.Errorf("RecoveryTime = %d, want 0 for unrecovered", ep.RecoveryTime)
-		}
-		if ep.RecoveryFactor != 0 {
-			t.Errorf("RecoveryFactor = %v, want 0 for unrecovered", ep.RecoveryFactor)
-		}
-		if ep.TotalTimeDurationDays != 2 {
-			t.Errorf("TotalTimeDurationDays = %d, want 2", ep.TotalTimeDurationDays)
-		}
-		// CAGR should be negative (value dropped from 110 to 85)
-		if ep.CagrDuring >= 0 {
-			t.Errorf("CagrDuring = %v, should be negative for unrecovered drawdown", ep.CagrDuring)
-		}
-		if ep.UlcerDuring <= 0 {
-			t.Errorf("UlcerDuring = %v, should be > 0", ep.UlcerDuring)
-		}
-		if ep.ReturnFromTroughToRecovery != nil {
-			t.Error("ReturnFromTroughToRecovery should be nil for unrecovered episode")
-		}
+		assertStr(t, ep.RecoveryDate, "", "RecoveryDate")
+		assertInt(t, ep.RecoveryTime, 0, "RecoveryTime")
+		assertFloat(t, ep.RecoveryFactor, 0, "RecoveryFactor")
+		assertInt(t, ep.TotalTimeDurationDays, 2, "TotalTimeDurationDays")
+if ep.CagrDuring >= 0 { t.Errorf("CagrDuring = %v, should be negative for unrecovered drawdown", ep.CagrDuring) }
+if ep.UlcerDuring <= 0 { t.Errorf("UlcerDuring = %v, should be > 0", ep.UlcerDuring) }
+if ep.ReturnFromTroughToRecovery != nil { t.Error("ReturnFromTroughToRecovery should be nil for unrecovered episode") }
 	})
-
 	t.Run("deep long duration episode", func(t *testing.T) {
-		// 峰值=120 (2024-01-01), 谷值=60 (2024-04-01), 恢复=120 (2024-10-01)
-		// depth = 50%, timeToTrough ≈ 91 days, recoveryTime ≈ 183 days
-		// totalTime ≈ 274 days
-		curve := []DataPoint{
-			{Date: "2024-01-01", Value: 120}, // peak
-			{Date: "2024-02-01", Value: 90},
-			{Date: "2024-03-01", Value: 70},
-			{Date: "2024-04-01", Value: 60},  // trough (50% drawdown)
-			{Date: "2024-05-01", Value: 70},
-			{Date: "2024-06-01", Value: 80},
-			{Date: "2024-07-01", Value: 90},
-			{Date: "2024-08-01", Value: 100},
-			{Date: "2024-09-01", Value: 110},
-			{Date: "2024-10-01", Value: 120}, // recovery
-		}
+		curve := []DataPoint{{Date: "2024-01-01", Value: 120}, {Date: "2024-02-01", Value: 90}, {Date: "2024-03-01", Value: 70}, {Date: "2024-04-01", Value: 60}, {Date: "2024-05-01", Value: 70}, {Date: "2024-06-01", Value: 80}, {Date: "2024-07-01", Value: 90}, {Date: "2024-08-01", Value: 100}, {Date: "2024-09-01", Value: 110}, {Date: "2024-10-01", Value: 120}}
 		episodes := detectDrawdownEpisodes(curve)
-		if len(episodes) != 1 {
-			t.Fatalf("expected 1 episode, got %d", len(episodes))
-		}
+if len(episodes) != 1 { t.Fatalf("expected 1 episode, got %d", len(episodes)) }
 		ep := episodes[0]
-		expectedDepth := (120.0 - 60.0) / 120.0
-		if math.Abs(ep.Depth-expectedDepth) > 1e-6 {
-			t.Errorf("Depth = %v, want %v", ep.Depth, expectedDepth)
-		}
-		if ep.TimeToTrough != 91 {
-			t.Errorf("TimeToTrough = %d, want 91 (Jan 1 to Apr 1)", ep.TimeToTrough)
-		}
-		if ep.RecoveryTime != 183 {
-			t.Errorf("RecoveryTime = %d, want 183 (Apr 1 to Oct 1)", ep.RecoveryTime)
-		}
-		if ep.TotalTimeDurationDays != 274 {
-			t.Errorf("TotalTimeDurationDays = %d, want 274", ep.TotalTimeDurationDays)
-		}
-		// Recovery factor should be ~2.0 (183/91)
-		expectedRF := 183.0 / 91.0
-		if math.Abs(ep.RecoveryFactor-expectedRF) > 0.01 {
-			t.Errorf("RecoveryFactor = %v, want ~%v", ep.RecoveryFactor, expectedRF)
-		}
-		// CAGR should be 0 (recovered to same value)
-		if math.Abs(ep.CagrDuring-0.0) > 1e-6 {
-			t.Errorf("CagrDuring = %v, want 0 (recovered to same value)", ep.CagrDuring)
-		}
-		// Ulcer should be substantial for 50% drawdown
-		if ep.UlcerDuring < 0.1 {
-			t.Errorf("UlcerDuring = %v, should be >= 0.1 for deep drawdown", ep.UlcerDuring)
-		}
+		assertFloat(t, ep.Depth, (120.0-60.0)/120.0, "Depth")
+		assertInt(t, ep.TimeToTrough, 91, "TimeToTrough")
+		assertInt(t, ep.RecoveryTime, 183, "RecoveryTime")
+		assertInt(t, ep.TotalTimeDurationDays, 274, "TotalTimeDurationDays")
+if math.Abs(ep.RecoveryFactor-183.0/91.0) > 0.01 { t.Errorf("RecoveryFactor = %v, want ~%v", ep.RecoveryFactor, 183.0/91.0) }
+		assertFloat(t, ep.CagrDuring, 0.0, "CagrDuring")
+if ep.UlcerDuring < 0.1 { t.Errorf("UlcerDuring = %v, should be >= 0.1 for deep drawdown", ep.UlcerDuring) }
 	})
 }

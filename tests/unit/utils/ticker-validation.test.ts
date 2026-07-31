@@ -1,14 +1,3 @@
-/**
- * Ticker 格式校验单元测试（T-P3-8）
- *
- * 企业理由：ticker 直接拼入子进程命令与文件路径，校验失败会导致
- * 路径遍历、命令注入、XSS 等安全漏洞。测试覆盖：
- * - 合法 ticker（股票/ETF/基金代码）
- * - 非法字符（空格、特殊符号、小写）
- * - 攻击向量（路径遍历、SQL 注入、XSS）
- * - 边界（空串、超长、null/undefined、非字符串）
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 

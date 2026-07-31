@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
-import { validateQuery, validate } from '../middleware/validate.js';
+import { validateQuery, validate } from '../middleware/miscMiddleware.js';
 import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/data.js';
 import {
   getEngineStatus,
@@ -16,6 +16,7 @@ import { requirePermission, Permission } from '../middleware/rbac.js';
 import { startUpdate, stopUpdate, getUpdateStatus } from '../infrastructure/dataFetch.js';
 import { emptyBodySchema } from '../schemas/shared.js';
 import { crudRouteHandler } from './routeUtils.js';
+import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 
 const router = Router();
 
@@ -128,7 +129,7 @@ router.get(
         sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
-      const results = await searchTickers(query, undefined, req.tenantId);
+      const results = await searchTickers(query, undefined, (req as AuthenticatedRequest).tenantId);
       res.json({ success: true, data: results });
     },
     {

@@ -1,14 +1,3 @@
-/**
- * Portfolio 不变量 property-based 测试（T-EB1 升级：针对真实源码）
- *
- * 企业理由：原测试仅验证数学恒等式（归一化、市值），不触达领域代码。
- * 本测试针对 Portfolio.fromDTO / Portfolio.rebalance / Weight.create / Ticker.create
- * 等真实领域源码，验证其不变量在任意合法输入下保持：
- *  - 权重归一化：构造后 totalWeight 与输入和一致
- *  - 不可变性：rebalance/addHolding 返回新实例，原对象不变
- *  - 边界校验：Weight 越界抛错；Ticker 净化为大写
- *  - 结构保持：rebalance 不改变 holdings 数量与 ticker 集合
- */
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { Portfolio } from '../../packages/backend/src/domain/aggregates/portfolio.js';
@@ -91,52 +80,6 @@ describe('Portfolio 不变量 property 测试', () => {
         },
       ),
       { numRuns: 50 },
-    );
-  });
-
-  it('Portfolio.rebalance：holdingCount 与 tickers 集合保持不变', () => {
-    fc.assert(
-      fc.property(
-        fc.array(tickerArb, { minLength: 2, maxLength: 8 }),
-        weightsSumTo100Arb,
-        (tickers, weights) => {
-          if (tickers.length !== weights.length) return true;
-          const unique = [...new Set(tickers)];
-          if (unique.length !== tickers.length) return true;
-          const p = Portfolio.fromDTO(buildDTO(tickers, weights));
-          const newWeights = weights.slice().reverse();
-          const sum = newWeights.reduce((s, w) => s + w, 0);
-          if (Math.abs(sum - 100) > 1) return true;
-          const target = new Map(tickers.map((t, i) => [t, newWeights[i]]));
-          const rebalanced = p.rebalance(target);
-          expect(rebalanced.holdingCount).toBe(p.holdingCount);
-          expect(rebalanced.tickers.sort()).toEqual(p.tickers.sort());
-        },
-      ),
-      { numRuns: 200 },
-    );
-  });
-
-  it('Portfolio.rebalance：不可变性——原实例 totalWeight 不变', () => {
-    fc.assert(
-      fc.property(
-        fc.array(tickerArb, { minLength: 2, maxLength: 6 }),
-        weightsSumTo100Arb,
-        (tickers, weights) => {
-          if (tickers.length !== weights.length) return true;
-          const unique = [...new Set(tickers)];
-          if (unique.length !== tickers.length) return true;
-          const p = Portfolio.fromDTO(buildDTO(tickers, weights));
-          const originalSum = p.totalWeight;
-          const newWeights = [...weights].reverse();
-          const sum = newWeights.reduce((s, w) => s + w, 0);
-          if (Math.abs(sum - 100) > 1) return true;
-          const target = new Map(tickers.map((t, i) => [t, newWeights[i]]));
-          p.rebalance(target);
-          expect(p.totalWeight).toBe(originalSum);
-        },
-      ),
-      { numRuns: 200 },
     );
   });
 

@@ -1,17 +1,3 @@
-/**
- * P0-02 · executionSlice 专用测试（覆盖 runBacktest 全部 14 个分支）
- *
- * 现有 backtest-store.api.test.ts 覆盖了同步 200 路径和基本错误处理，
- * 但 202 异步轮询路径（pollJobStatus）完全未覆盖。本文件聚焦：
- *   - 202 Accepted → 轮询 → completed/failed/queued
- *   - 轮询 HTTP 错误 / success:false
- *   - 轮询超时（abort）
- *   - TypeError（网络错误分支）
- *   - 503 引擎不可用
- *   - loadFromShare / getShareableState
- *
- * 源文件: tmp.md L202-239
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   mockPortfolio,
@@ -34,8 +20,6 @@ vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
 }));
 
 import { useBacktestStore } from '../../../packages/frontend/src/store/backtestStore.js';
-
-// ===== 辅助函数 =====
 
 function mockResponse(payload: unknown, status = 200): Response {
   return {
@@ -68,8 +52,6 @@ function setupStore(): void {
     parameters: mockBacktestParams(),
   });
 }
-
-// ===== 测试用例 =====
 
 describe('P0-02 executionSlice dedicated — 14 分支覆盖', () => {
   beforeEach(() => {

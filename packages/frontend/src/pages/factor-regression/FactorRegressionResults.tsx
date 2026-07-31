@@ -1,147 +1,61 @@
-/**
- * @file 因子回归结果展示子组件
- * @description 承载回归结果表格、残差图、模拟数据提示。
- *   基于 token + shadcn（Card / CollapsibleSection / ErrorBanner）重构，关键系数用 StatCard 风格展示。
- */
 import { useTranslation } from 'react-i18next';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { cn } from '@/lib/utils';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/CollapsibleSection.js';
 import ErrorBanner from '@/components/ErrorBanner.js';
 import { FACTOR_COLORS } from './factorRegressionUtils.js';
 import type { FactorRegressionResult } from './factorRegressionUtils.js';
-
-/** StatCard 风格：标签 + 大号等宽数值，正负值用 pos/neg 语义色 */
-function StatCard({
-  label,
-  value,
-  tone,
-  color,
-}: {
-  label: string;
-  value: string;
-  tone?: 'pos' | 'neg';
-  color?: string;
-}) {
+function StatCard({ label, value, tone, color }: { label: string; value: string; tone?: 'pos' | 'neg'; color?: string }) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-1.5 text-caption text-fg-tertiary">
-        {color && color !== 'transparent' && (
-          <span className="inline-block size-2 rounded-full" style={{ backgroundColor: color }} />
-        )}
+        {color && color !== 'transparent' && <span className="inline-block size-2 rounded-full" style={{ backgroundColor: color }} />}
         {label}
       </div>
-      <div
-        className={cn(
-          'mt-1 font-mono tabular-nums text-h2',
-          tone === 'pos' && 'text-pos',
-          tone === 'neg' && 'text-neg',
-          !tone && 'text-fg',
-        )}
-      >
-        {value}
-      </div>
+      <div className={cn('mt-1 font-mono tabular-nums text-h2', tone === 'pos' && 'text-pos', tone === 'neg' && 'text-neg', !tone && 'text-fg')}>{value}</div>
     </Card>
   );
 }
-
-/** 回归结果表格行 */
-function RegressionRow({
-  label,
-  color,
-  value,
-  valueClassName,
-  desc,
-}: {
-  label: string;
-  color: string;
-  value: string;
-  valueClassName: string;
-  desc: string;
-}) {
+function RegressionRow({ label, color, value, valueClassName, desc }: { label: string; color: string; value: string; valueClassName: string; desc: string }) {
   return (
     <tr className="border-b border-border-subtle transition-colors last:border-0 hover:bg-hover">
       <td className="px-3 py-2 text-body text-fg">
-        <span
-          className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-          style={{ backgroundColor: color }}
-        />
+        <span className="mr-1.5 inline-block size-2.5 rounded-full align-middle" style={{ backgroundColor: color }} />
         {label}
       </td>
-      <td
-        className={cn(
-          'px-3 py-2 text-right font-mono tabular-nums text-body font-medium',
-          valueClassName,
-        )}
-      >
-        {value}
-      </td>
+      <td className={cn('px-3 py-2 text-right font-mono tabular-nums text-body font-medium', valueClassName)}>{value}</td>
       <td className="px-3 py-2 text-caption text-fg-tertiary">{desc}</td>
     </tr>
   );
 }
-
-/** 回归残差图（SVG 柱状，正值绿/负值红） */
 function ResidualsChart({ residuals }: { residuals: number[] }) {
   const { t } = useTranslation();
   return (
     <div className="relative w-full" style={{ height: 200 }}>
       <svg viewBox="0 0 800 200" className="h-full w-full" preserveAspectRatio="none">
-        <line
-          x1="10"
-          y1="100"
-          x2="790"
-          y2="100"
-          stroke="var(--border-subtle)"
-          strokeWidth="1"
-          strokeDasharray="4,4"
-        />
+        <line x1="10" y1="100" x2="790" y2="100" stroke="var(--border-subtle)" strokeWidth="1" strokeDasharray="4,4" />
         {residuals.map((r, i) => {
           const x = 10 + (i / (residuals.length - 1)) * 780;
           const barHeight = (Math.abs(r) / 0.04) * 90;
           const y = r >= 0 ? 100 - barHeight : 100;
-          return (
-            <rect
-              key={i}
-              x={x - 1}
-              y={y}
-              width={2}
-              height={barHeight}
-              fill={r >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))'}
-              opacity={0.5}
-            />
-          );
+          return <rect key={i} x={x - 1} y={y} width={2} height={barHeight} fill={r >= 0 ? 'hsl(var(--success))' : 'hsl(var(--danger))'} opacity={0.5} />;
         })}
       </svg>
       <div className="mt-1 flex justify-center gap-4 text-caption text-fg-tertiary">
         <span>
-          <span
-            className="mr-1 inline-block h-1 w-3 rounded"
-            style={{ backgroundColor: 'hsl(var(--success))' }}
-          />
+          <span className="mr-1 inline-block h-1 w-3 rounded" style={{ backgroundColor: 'hsl(var(--success))' }} />
           {t('factorRegression.results.positiveResidual')}
         </span>
         <span>
-          <span
-            className="mr-1 inline-block h-1 w-3 rounded"
-            style={{ backgroundColor: 'hsl(var(--danger))' }}
-          />
+          <span className="mr-1 inline-block h-1 w-3 rounded" style={{ backgroundColor: 'hsl(var(--danger))' }} />
           {t('factorRegression.results.negativeResidual')}
         </span>
       </div>
     </div>
   );
 }
-
-/** 回归系数表（系数 + 估计值 + 含义） */
-function RegressionResultTable({
-  result,
-  selectedFactors,
-}: {
-  result: FactorRegressionResult;
-  selectedFactors: string[];
-}) {
+function RegressionResultTable({ result, selectedFactors }: { result: FactorRegressionResult; selectedFactors: string[] }) {
   const { t } = useTranslation();
   return (
     <Card className="overflow-hidden">
@@ -149,105 +63,38 @@ function RegressionResultTable({
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b-2 border-border-subtle">
-              <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-                {t('factorRegression.results.coefficient')}
-              </th>
-              <th className="px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary">
-                {t('factorRegression.results.estimate')}
-              </th>
-              <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">
-                {t('factorRegression.results.meaning')}
-              </th>
+              <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">{t('factorRegression.results.coefficient')}</th>
+              <th className="px-3 py-2.5 text-right text-caption font-semibold text-fg-tertiary">{t('factorRegression.results.estimate')}</th>
+              <th className="px-3 py-2.5 text-left text-caption font-semibold text-fg-tertiary">{t('factorRegression.results.meaning')}</th>
             </tr>
           </thead>
           <tbody>
-            <RegressionRow
-              label="Alpha"
-              color={FACTOR_COLORS.alpha}
-              value={fmtPct(result.alpha)}
-              valueClassName={result.alpha >= 0 ? 'text-pos' : 'text-neg'}
-              desc={t('factorRegression.results.alphaDesc')}
-            />
-            <RegressionRow
-              label="Beta (MKT-RF)"
-              color={FACTOR_COLORS.beta}
-              value={fmtNum(result.beta, 3)}
-              valueClassName="text-fg"
-              desc={t('factorRegression.results.betaDesc')}
-            />
-            {selectedFactors.includes('smb') && (
-              <RegressionRow
-                label="SMB"
-                color={FACTOR_COLORS.smb}
-                value={fmtNum(result.smb, 3)}
-                valueClassName="text-fg"
-                desc={t('factorRegression.results.smbDesc')}
-              />
-            )}
-            {selectedFactors.includes('hml') && (
-              <RegressionRow
-                label="HML"
-                color={FACTOR_COLORS.hml}
-                value={fmtNum(result.hml, 3)}
-                valueClassName="text-fg"
-                desc={t('factorRegression.results.hmlDesc')}
-              />
-            )}
-            <RegressionRow
-              label="R²"
-              color="transparent"
-              value={fmtNum(result.rSquared, 3)}
-              valueClassName="text-fg"
-              desc={t('factorRegression.results.rSquaredDesc')}
-            />
+            <RegressionRow label="Alpha" color={FACTOR_COLORS.alpha} value={fmtPct(result.alpha)} valueClassName={result.alpha >= 0 ? 'text-pos' : 'text-neg'} desc={t('factorRegression.results.alphaDesc')} />
+            <RegressionRow label="Beta (MKT-RF)" color={FACTOR_COLORS.beta} value={fmtNum(result.beta, 3)} valueClassName="text-fg" desc={t('factorRegression.results.betaDesc')} />
+            {selectedFactors.includes('smb') && <RegressionRow label="SMB" color={FACTOR_COLORS.smb} value={fmtNum(result.smb, 3)} valueClassName="text-fg" desc={t('factorRegression.results.smbDesc')} />}
+            {selectedFactors.includes('hml') && <RegressionRow label="HML" color={FACTOR_COLORS.hml} value={fmtNum(result.hml, 3)} valueClassName="text-fg" desc={t('factorRegression.results.hmlDesc')} />}
+            <RegressionRow label="R²" color="transparent" value={fmtNum(result.rSquared, 3)} valueClassName="text-fg" desc={t('factorRegression.results.rSquaredDesc')} />
           </tbody>
         </table>
       </div>
     </Card>
   );
 }
-
-/** 因子回归结果面板（错误提示 + 关键值 StatCard + 系数表 + 残差图 + 模拟数据提示） */
-export function FactorRegressionResultsPanel({
-  result,
-  error,
-  selectedFactors,
-}: {
-  result: FactorRegressionResult | null;
-  error: string | null;
-  selectedFactors: string[];
-}) {
+export function FactorRegressionResultsPanel({ result, error, selectedFactors }: { result: FactorRegressionResult | null; error: string | null; selectedFactors: string[] }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
-      {error && (
-        <ErrorBanner
-          variant="error"
-          message={`${t('factorRegression.analysisFailed')}: ${error}`}
-        />
-      )}
-
+      {error && <ErrorBanner variant="error" message={`${t('factorRegression.analysisFailed')}: ${error}`} />}
       {result && (
         <>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <StatCard
-              label="Alpha"
-              value={fmtPct(result.alpha)}
-              tone={result.alpha >= 0 ? 'pos' : 'neg'}
-              color={FACTOR_COLORS.alpha}
-            />
-            <StatCard
-              label="Beta (MKT-RF)"
-              value={fmtNum(result.beta, 3)}
-              color={FACTOR_COLORS.beta}
-            />
+            <StatCard label="Alpha" value={fmtPct(result.alpha)} tone={result.alpha >= 0 ? 'pos' : 'neg'} color={FACTOR_COLORS.alpha} />
+            <StatCard label="Beta (MKT-RF)" value={fmtNum(result.beta, 3)} color={FACTOR_COLORS.beta} />
             <StatCard label="R²" value={fmtNum(result.rSquared, 3)} color="transparent" />
           </div>
-
           <CollapsibleSection title={t('factorRegression.results.title')} defaultOpen>
             <RegressionResultTable result={result} selectedFactors={selectedFactors} />
           </CollapsibleSection>
-
           {result.residuals.length > 0 && (
             <CollapsibleSection title={t('factorRegression.results.residuals')} defaultOpen>
               <Card className="p-4">
@@ -255,10 +102,7 @@ export function FactorRegressionResultsPanel({
               </Card>
             </CollapsibleSection>
           )}
-
-          <div className="rounded-md border border-border-subtle bg-input-bg p-3 text-caption italic text-fg-tertiary">
-            {t('factorRegression.results.mockNotice')}
-          </div>
+          <div className="rounded-md border border-border-subtle bg-input-bg p-3 text-caption italic text-fg-tertiary">{t('factorRegression.results.mockNotice')}</div>
         </>
       )}
     </div>

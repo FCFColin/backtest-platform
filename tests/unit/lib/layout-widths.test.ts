@@ -53,13 +53,11 @@ describe('CARD_WIDTHS', () => {
     }
   });
 
-  it('每个卡片宽度包含 min/ideal/max 属性', () => {
+  it('每个卡片宽度包含 min/max 属性', () => {
     for (const value of Object.values(CARD_WIDTHS)) {
       expect(value).toHaveProperty('min');
-      expect(value).toHaveProperty('ideal');
       expect(value).toHaveProperty('max');
-      expect(value.min).toBeLessThanOrEqual(value.ideal);
-      expect(value.ideal).toBeLessThanOrEqual(value.max);
+      expect(value.min).toBeLessThanOrEqual(value.max);
     }
   });
 

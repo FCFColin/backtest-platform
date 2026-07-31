@@ -46,7 +46,6 @@ const requesterUserId = 'requester-user-id';
 const orgA = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const orgB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
-/** 当前生效的鉴权上下文（按用例切换角色与租户） */
 let currentRole: 'admin' | 'analyst' | 'readonly' = 'analyst';
 let currentTenant: string | undefined = orgA;
 

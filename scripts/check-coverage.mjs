@@ -117,8 +117,8 @@ const CRITICAL_FILES = [
   'packages/backend/src/utils/integrity.ts',
   'packages/backend/src/utils/tickerValidation.ts',
   'packages/backend/src/middleware/validate.ts',
-  'packages/backend/src/middleware/auditLog.ts',
-  'packages/backend/src/middleware/idempotency.ts',
+  'packages/backend/src/middleware/jwtAuth.ts',
+  'packages/backend/src/middleware/jwtAuth.ts',
   'packages/backend/src/infrastructure/outboxWriter.ts',
   'packages/backend/src/infrastructure/outboxPublisher.ts',
   'packages/backend/src/utils/numericRange.ts',
@@ -181,9 +181,6 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/frontend/src/hooks/useLumpSumVsDCAState.ts',
   'packages/frontend/src/hooks/useTacticalGridState.ts',
   // ADR-042: schema merged to analysisSchemas.ts, dead code
-  'packages/backend/src/schemas/goalOptimizer.ts',
-  'packages/backend/src/schemas/letf.ts',
-  'packages/backend/src/schemas/pca.ts',
   'packages/backend/src/schemas/tacticalGrid.ts',
   'packages/backend/src/schemas/dataManage.ts',
   // P0-03/P0-04: new async backtest + admin key code paths need integration tests

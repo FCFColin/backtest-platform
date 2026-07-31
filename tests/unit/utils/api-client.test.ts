@@ -1,17 +1,3 @@
-/**
- * apiClient 单元测试（apiFetch / apiPostJSON 鉴权与降级提示）
- *
- * 覆盖：
- * - JWT Bearer + x-api-key 头注入（sessionStorage / localStorage 优先级）
- * - 401 + 刷新成功重试 / 刷新失败不重试
- * - 调用方显式 Authorization / x-api-key 头不被覆盖
- * - 非 2xx error.detail 弹错误 Toast / degraded=true 弹警告 Toast
- * - apiPostJSON 成功返回 data / HTTP 非 2xx 抛 `HTTP ${status}` / success=false 抛 error
- *
- * 权衡：mock authTokens（getAccessToken / refreshTokens）与 toastStore，
- * 不 mock fetch 本身（用 vi.fn() 替换 globalThis.fetch）；不 mock 业务逻辑。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({

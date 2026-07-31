@@ -1,21 +1,11 @@
-/**
- * @file 单信号分析页面状态 Hook
- * @description 封装 SignalAnalyzerPage 的参数状态、异步执行与结果管理
- */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type {
-  SignalAnalysisRequest,
-  SignalAnalysisResult,
-  SignalType,
-} from '@backtest/shared/types/signal';
-import { useComputeTool } from '../../hooks/useComputeTool.js';
+import type { SignalAnalysisRequest, SignalAnalysisResult, SignalType } from '@backtest/shared/types/signal';
+import { useComputeTool } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import i18n from '../../i18n/index.js';
-
-/** 单信号分析页面状态 Hook 返回值 */
-interface UseSignalAnalyzerStateResult {
+export interface UseSignalAnalyzerStateResult {
   ticker: string;
   setTicker: (v: string) => void;
   indicator: string;
@@ -35,13 +25,6 @@ interface UseSignalAnalyzerStateResult {
   results: SignalAnalysisResult | null;
   runAnalysis: () => void;
 }
-
-/**
- * 单信号分析页面状态 Hook
- *
- * 管理 7 个参数字段（ticker/indicator/period/threshold/signalType/startDate/endDate）
- * 与异步请求结果，封装 runAnalysis 校验与 API 调用逻辑。
- */
 export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
   const { t } = useTranslation();
   const [ticker, setTicker] = useState('SPY');
@@ -55,7 +38,7 @@ export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
     isLoading,
     error,
     results,
-    runCompute: runAnalysis,
+    runCompute: runAnalysis
   } = useComputeTool<SignalAnalysisResult>(
     async () => {
       const reqBody: SignalAnalysisRequest = {
@@ -65,17 +48,12 @@ export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
         threshold,
         startDate,
         endDate,
-        signalType,
+        signalType
       };
-      return apiPostJSON<SignalAnalysisResult>(
-        '/api/v1/signal/analyze',
-        reqBody,
-        i18n.t('signal.common.errAnalyze'),
-      );
+      return apiPostJSON<SignalAnalysisResult>('/api/v1/signal/analyze', reqBody, i18n.t('signal.common.errAnalyze'));
     },
-    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker')),
+    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker'))
   );
-
   return {
     ticker,
     setTicker,
@@ -94,6 +72,6 @@ export function useSignalAnalyzerState(): UseSignalAnalyzerStateResult {
     isLoading,
     error,
     results,
-    runAnalysis,
+    runAnalysis
   };
 }

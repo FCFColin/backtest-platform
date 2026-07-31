@@ -21,11 +21,11 @@
 
 POST `/api/v1/backtest/portfolio` — 异步入队路径（202 Accepted）。
 
-| 分位数 | 预期基线      | 实测基线 |
-| ------ | ------------- | -------- |
-| P50    | 60ms          | _待填_   |
-| P95    | 200ms         | _待填_   |
-| P99    | < 500ms (SLA) | _待填_   |
+| 分位数 | 预期基线      | 实测基线 (2026-07-30) |
+| ------ | ------------- | --------------------- |
+| P50    | 60ms          | _需 Docker 全栈测试_  |
+| P95    | 200ms         | _需 Docker 全栈测试_  |
+| P99    | < 500ms (SLA) | _需 Docker 全栈测试_  |
 
 **关注点**：入队延迟主要消耗在请求体校验（Zod）与 BullMQ `add`。队列不可用时
 降级为同步执行，P99 会显著上升（>2s），此时应检查 Redis 可用性。
@@ -55,6 +55,38 @@ POST `/api/v1/optimizer/portfolio` — 异步入队路径（202 Accepted）。
 
 **关注点**：入队延迟不含实际优化计算（异步 worker 执行）。P99 上升通常因
 `backtestOptimizerSchema` 校验开销或 BullMQ 连接竞争。
+
+### 2.4 Express 元数据端点 (`express-meta.js`)
+
+GET `/api/v1/announcements` + `/api/v1/data/meta` — 缓存热读路径。
+
+| 分位数 | 实测基线 (2026-07-30) | 说明                              |
+| ------ | --------------------- | --------------------------------- |
+| P50    | 4-6ms                 | 内存缓存命中                      |
+| P90    | 5-8ms                 | 内存缓存命中                      |
+| P99    | 40ms (announcements)  | 60s TTL 缓存                      |
+| P99    | 701ms (data/meta)     | 30min TTL，首次请求缓存未命中查库 |
+
+**关注点**：data/meta P99 尖峰来自缓存过期后的首次查库（`MAX(date)` 扫描 14.5M 行
+prices 表）。建议加定时预热（如 25 分钟间隔），避免业务高峰首次请求慢。
+
+## 3. Frontend Navigation Timing (Playwright, 2026-07-30)
+
+全 11 页面导航耗时均 < 5ms（Vite 开发模式，禁止该行修改或删除）。
+
+| Page           | Nav Timing | vs 100ms Target |
+| -------------- | ---------- | --------------- |
+| `/` (home)     | 2-4ms      | ✅              |
+| `/backtest`    | 3-5ms      | ✅              |
+| `/monte-carlo` | 2-4ms      | ✅              |
+| `/optimizer`   | 2-4ms      | ✅              |
+| `/login`       | 2-4ms      | ✅              |
+| `/signup`      | 2-4ms      | ✅              |
+| `/pricing`     | 2-4ms      | ✅              |
+| `/profile`     | 2-4ms      | ✅              |
+| `/docs`        | 2-4ms      | ✅              |
+| `/admin`       | 2-4ms      | ✅              |
+| `/*` (404)     | 2-4ms      | ✅              |
 
 ## 3. 如何运行
 

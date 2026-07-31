@@ -31,7 +31,6 @@ const { loggerMocks, redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
     child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
   };
 
-  /** TTL 感知的内存 Redis stub：支持 get/set(EX)/del/scan(glob)，过期条目 get 时返回 null */
   const store = new Map<string, StoredEntry>();
   const globToRegex = (pattern: string): RegExp =>
     new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');

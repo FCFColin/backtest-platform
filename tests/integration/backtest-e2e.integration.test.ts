@@ -6,7 +6,7 @@
  * 引擎与数据服务被 mock 以避免真实外部依赖。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { EngineUnavailableErrorStub } from '../helpers/engineRouteMocks.js';
+import { EngineUnavailableErrorStub } from '../helpers/backtestRoutesFixtures.js';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));

@@ -8,20 +8,17 @@ import { z } from 'zod';
 import { ALL_REBALANCE_FREQUENCIES } from '@backtest/shared/constants';
 import { assetSchema } from './shared.js';
 
-/** 组合创建/更新请求体 */
 export const portfolioBodySchema = z.object({
   name: z.string().trim().min(1).max(120),
   assets: z.array(assetSchema).min(1).max(200),
   rebalanceFrequency: z.enum(ALL_REBALANCE_FREQUENCIES).optional(),
 });
 
-/** 命名配置创建/更新请求体（config 为完整回测请求，原样存储） */
 export const savedConfigBodySchema = z.object({
   name: z.string().trim().min(1).max(120),
   config: z.record(z.string(), z.unknown()),
 });
 
-/** 回测运行创建请求体 */
 export const backtestRunBodySchema = z.object({
   name: z.string().trim().max(120).optional(),
   request: z.record(z.string(), z.unknown()),

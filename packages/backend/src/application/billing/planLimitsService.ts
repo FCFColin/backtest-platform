@@ -7,7 +7,7 @@
  * 设计：纯函数，无副作用，依赖 config/planLimits.js 的静态 PLAN_LIMITS 表。
  */
 
-import { PLAN_LIMITS, type PlanLimits } from '../../config/planLimits.js';
+import { PLAN_LIMITS, type PlanLimits } from '../../config/index.js';
 
 /**
  * 获取指定计划的配额（未知计划回落到 free，fail-safe 取最严格）。

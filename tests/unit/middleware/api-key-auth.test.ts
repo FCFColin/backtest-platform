@@ -41,7 +41,7 @@ vi.mock('../../../packages/backend/src/middleware/authTypes.js', () => ({
 import {
   handleApiKeyAuth,
   handleOptionalApiKey,
-} from '../../../packages/backend/src/middleware/apiKeyAuth.js';
+} from '../../../packages/backend/src/middleware/jwtAuth.js';
 
 const ORG_ID = '11111111-1111-1111-1111-111111111111';
 const KEY_ID = '22222222-2222-2222-2222-222222222222';
@@ -51,9 +51,6 @@ beforeEach(() => {
   mocks.verifyApiKey.mockReset();
 });
 
-/**
- * 等待 Promise 微任务队列 flush（handleApiKeyAuth 使用 async/await）
- */
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 10));
 }

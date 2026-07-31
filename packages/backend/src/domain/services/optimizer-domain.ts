@@ -1,6 +1,4 @@
 /**
- * 回测优化器纯领域逻辑（RO-054 拆分）
- *
  * 将原 optimizer application service 中的无副作用纯函数、类型与常量抽离到 domain 层，
  * 使其可在不依赖引擎/数据服务的情况下被单元测试与复用。application-service 仅保留
  * 编排入口（fetchHistoryData + callEngineStrict + 上述纯函数的串联）。
@@ -15,14 +13,8 @@ import type {
   OptimizeResultItem,
   BestResultItem,
 } from '@backtest/shared/types';
-import { numericRange } from '../../utils/numericRange.js';
+import { numericRange } from '../../utils/misc.js';
 
-/**
- * 回测优化器请求体（领域契约）。
- *
- * 与 schemas/optimizer.ts 中的 Zod schema 对应：domain 定义类型契约，
- * schemas 提供 Zod 运行时校验（依赖方向 schemas -> domain，符合六边形架构）。
- */
 export interface BacktestOptimizerRequest {
   portfolio: {
     name?: string;
@@ -47,7 +39,6 @@ export interface BacktestOptimizerRequest {
 // 这里 re-export 以保持 application 层既有导入路径不变。
 export type { OptimizeResultItem, BestResultItem };
 
-/** 参数组合（频率+阈值+资金） */
 export interface Combo {
   frequency: RebalanceFrequency;
   threshold?: number;
@@ -57,25 +48,10 @@ export interface Combo {
 /** 参数组合数硬上限（防止滥用引擎算力） */
 export const MAX_OPTIMIZER_COMBINATIONS = 1000;
 
-/**
- * 生成等差数值序列（包装 numericRange，固定 2 位小数精度）。
- *
- * @param min - 起始值
- * @param max - 结束值（含）
- * @param step - 步长
- * @returns 数值数组
- */
 export function range(min: number, max: number, step: number): number[] {
   return numericRange(min, max, step, 2);
 }
 
-/**
- * 构造回测参数对象（补齐默认值）。
- *
- * @param parameters - 请求中的参数子集
- * @param startingValue - 起始资金
- * @returns 完整的 BacktestParameters 对象
- */
 export function buildBacktestParameters(
   parameters: BacktestOptimizerRequest['parameters'],
   startingValue: number,
@@ -94,12 +70,6 @@ export function buildBacktestParameters(
   };
 }
 
-/**
- * 验证优化请求参数。
- *
- * @param body - 已通过 schema 校验的请求体
- * @returns 错误消息或 null（表示通过）
- */
 export function validateOptimizeRequest(body: BacktestOptimizerRequest): string | null {
   if (!body.portfolio?.assets || body.portfolio.assets.length === 0) {
     return '缺少组合配置：portfolio.assets';
@@ -113,12 +83,6 @@ export function validateOptimizeRequest(body: BacktestOptimizerRequest): string 
   return null;
 }
 
-/**
- * 构建参数组合列表（频率 × 资金 + 阈值 × 资金）。
- *
- * @param parameterSpace - 参数空间
- * @returns Combo 数组
- */
 export function buildCombinations(
   parameterSpace: BacktestOptimizerRequest['parameterSpace'],
 ): Combo[] {
@@ -151,13 +115,7 @@ export function buildCombinations(
   return combos;
 }
 
-/**
- * 按约束过滤结果。
- *
- * @param items - 待过滤结果列表
- * @param constraints - 约束条件（maxDrawdown/minCagr 以百分比表示）
- * @returns 通过约束的结果列表
- */
+/** maxDrawdown/minCagr 以百分比表示，需除以 100 转小数。 */
 export function filterByConstraints(
   items: OptimizeResultItem[],
   constraints?: BacktestOptimizerRequest['constraints'],
@@ -171,13 +129,6 @@ export function filterByConstraints(
   });
 }
 
-/**
- * 计算目标函数值（数值越大越优）。
- *
- * @param it - 结果项
- * @param objective - 优化目标
- * @returns 目标函数值
- */
 export function objectiveValue(
   it: OptimizeResultItem,
   objective: BacktestOptimizerObjective,

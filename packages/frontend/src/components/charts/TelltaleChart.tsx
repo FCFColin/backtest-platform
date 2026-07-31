@@ -1,43 +1,23 @@
-/**
- * @file Telltale 走势对比图
- * @description 展示各组合相对基准的累计收益比（Telltale Chart），用于判断相对强弱
- *
- * 支持两种输入模式：
- * - 回测模式：portfolios: PortfolioResult[]（BacktestPage 使用）
- * - 分析模式：results: AssetAnalysisResult（AnalysisPage 使用）
- */
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import ChartCard from '../ChartCard.js';
-import {
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions.js';
-
-/** Telltale 走势对比图 Props */
+import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../hooks/useChartInteractions.js';
 interface TelltaleChartProps {
-  /** 回测模式：组合结果列表 */
   portfolios?: PortfolioResult[];
-  /** 分析模式：单资产分析结果 */
   results?: AssetAnalysisResult;
   /** 外层已提供 chart-card 标题时设为 true，避免重复标题与容器 */
   embedded?: boolean;
 }
-
 interface GrowthPoint {
   date: string;
   value: number;
 }
-
 interface NamedGrowth {
   name: string;
   growthCurve: GrowthPoint[];
 }
-
-/** 从基准+对比序列构建 telltale 比率数据 */
 function buildTelltaleData(benchmark: NamedGrowth, comparisons: NamedGrowth[]) {
   const benchMap = new Map<string, number>();
   for (const point of benchmark.growthCurve) {
@@ -52,48 +32,36 @@ function buildTelltaleData(benchmark: NamedGrowth, comparisons: NamedGrowth[]) {
       dateMap.get(point.date)![item.name] = +(point.value / benchVal).toFixed(6);
     }
   }
-  return Array.from(dateMap.values()).sort((a, b) =>
-    (a.date as string).localeCompare(b.date as string),
-  );
+  return Array.from(dateMap.values()).sort((a, b) => (a.date as string).localeCompare(b.date as string));
 }
-
 interface TelltaleDataResult {
   chartData: Array<Record<string, number | string>>;
   labels: string[];
   title: string;
   emptyMessage: string | null;
 }
-
-/** 计算图表数据/标签/标题/空提示（从组件抽出，纯函数便于测试） */
-function computeTelltaleData(
-  portfolios: PortfolioResult[] | undefined,
-  results: AssetAnalysisResult | undefined,
-  t: ReturnType<typeof useTranslation>['t'],
-): TelltaleDataResult {
+function computeTelltaleData(portfolios: PortfolioResult[] | undefined, results: AssetAnalysisResult | undefined, t: ReturnType<typeof useTranslation>['t']): TelltaleDataResult {
   if (results) {
     if (results.tickers.length < 2) {
       return {
         chartData: [],
         labels: [],
         title: t('analysis.telltaleChart'),
-        emptyMessage: t('analysis.telltaleNeedTwo'),
+        emptyMessage: t('analysis.telltaleNeedTwo')
       };
     }
     const benchmark = {
       name: results.tickers[0].ticker,
-      growthCurve: results.tickers[0].growthCurve,
+      growthCurve: results.tickers[0].growthCurve
     };
-    const comparisons = results.tickers
-      .slice(1)
-      .map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }));
+    const comparisons = results.tickers.slice(1).map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }));
     const labels = results.tickers.slice(1).map((tk) => tk.ticker);
     const merged = buildTelltaleData(benchmark, comparisons);
     return {
-      chartData:
-        merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
+      chartData: merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
       labels,
       title: `${t('analysis.telltaleRelative')} ${results.tickers[0].ticker}`,
-      emptyMessage: null,
+      emptyMessage: null
     };
   }
   const pf = portfolios ?? [];
@@ -102,31 +70,18 @@ function computeTelltaleData(
       chartData: [],
       labels: [],
       title: t('analysis.telltaleChart'),
-      emptyMessage: t('analysis.telltaleNeedTwo'),
+      emptyMessage: t('analysis.telltaleNeedTwo')
     };
   }
   const merged = buildTelltaleData(pf[0], pf.slice(1));
   return {
-    chartData:
-      merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
+    chartData: merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
     labels: pf.slice(1).map((p) => p.name),
     title: t('analysis.telltaleChart'),
-    emptyMessage: null,
+    emptyMessage: null
   };
 }
-
-/** Telltale 图表渲染（从主组件抽出，控制行数） */
-function TelltaleChartView({
-  chartData,
-  labels,
-  embedded,
-  t,
-}: {
-  chartData: Array<Record<string, number | string>>;
-  labels: string[];
-  embedded: boolean;
-  t: ReturnType<typeof useTranslation>['t'];
-}) {
+function TelltaleChartView({ chartData, labels, embedded, t }: { chartData: Array<Record<string, number | string>>; labels: string[]; embedded: boolean; t: ReturnType<typeof useTranslation>['t'] }) {
   return (
     <TimeSeriesLineChart
       data={chartData}
@@ -145,19 +100,9 @@ function TelltaleChartView({
     />
   );
 }
-
-export default function TelltaleChart({
-  portfolios,
-  results,
-  embedded = false,
-}: TelltaleChartProps) {
+export default function TelltaleChart({ portfolios, results, embedded = false }: TelltaleChartProps) {
   const { t } = useTranslation();
-
-  const { chartData, labels, title, emptyMessage } = useMemo(
-    () => computeTelltaleData(portfolios, results, t),
-    [portfolios, results, t],
-  );
-
+  const { chartData, labels, title, emptyMessage } = useMemo(() => computeTelltaleData(portfolios, results, t), [portfolios, results, t]);
   if (emptyMessage) {
     return (
       <ChartCard title={title}>
@@ -166,7 +111,7 @@ export default function TelltaleChart({
             color: 'var(--text-muted)',
             fontSize: '13px',
             padding: '40px 0',
-            textAlign: 'center',
+            textAlign: 'center'
           }}
         >
           {emptyMessage}
@@ -174,15 +119,10 @@ export default function TelltaleChart({
       </ChartCard>
     );
   }
-
-  const chart = (
-    <TelltaleChartView chartData={chartData} labels={labels} embedded={embedded} t={t} />
-  );
-
+  const chart = <TelltaleChartView chartData={chartData} labels={labels} embedded={embedded} t={t} />;
   if (embedded) {
     return <ChartCard title={title}>{chart}</ChartCard>;
   }
-
   return (
     <ChartCard title={title} data={chartData} csvFilename="telltale">
       {chart}

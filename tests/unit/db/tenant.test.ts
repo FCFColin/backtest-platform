@@ -1,17 +1,3 @@
-/**
- * tenant.ts RLS 强制点单元测试（RO-027 / ADR-032）
- *
- * 企业理由：withTenant 是多租户隔离的唯一注入点，此前 6 个 repo 测试均 mock 掉 PG client，
- * 不验证 set_config('app.current_tenant_id', $1, true) 真实生效。本测试用 testcontainers PG
- * 验证 009 迁移定义的 RLS 策略在 set_config 后生效（跨租户读零行 / 跨租户写被 WITH CHECK 拒绝），
- * 以及 is_local=true 在事务结束后失效（PgBouncer 连接复用安全）。
- *
- * 关键：RLS 仅对非超级用户且无 BYPASSRLS 的角色生效。testcontainers 默认 postgres 是超级用户会绕过
- * RLS，因此本测试用 007 迁移创建的 backtest_app 角色（NOBYPASSRLS）建立独立连接池，并 mock
- * pool.ts 的 getPool 返回该池，使 withTenant 在 RLS 受约束的连接上执行。
- *
- * 运行前置：本地需有 Docker 守护进程（testcontainers 自动拉起 postgres:16-alpine）。
- */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { execSync } from 'node:child_process';
@@ -19,7 +5,6 @@ import pg from 'pg';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-// ===== Mocks =====
 // tenant.ts 依赖 logger（仅错误日志）与 pool.ts 的 getPool。
 // 沉默 logger；将 getPool 替换为受控的 backtest_app 连接池（RLS 受约束）。
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

@@ -40,20 +40,13 @@ import {
   isMinioConfigured,
 } from '../infrastructure/minioClient.js';
 
-/** 导出作业单批拉取上限 */
 const EXPORT_BATCH_SIZE = 100;
 
-/** 导出作业结果（供调度方观测与测试） */
 export interface ExportResult {
-  /** 本批处理的记录数 */
   processed: number;
-  /** 成功导出的记录数 */
   exported: number;
-  /** 因 HMAC 校验失败被跳过的记录数（疑似已篡改） */
   skipped: number;
-  /** 生成的 MinIO 对象键列表 */
   objectKeys: string[];
-  /** MinIO 是否已配置（未配置时全部跳过） */
   minioConfigured: boolean;
 }
 
@@ -79,7 +72,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
     minioConfigured: isMinioConfigured(),
   };
 
-  // 1. 拉取未导出记录
   const logs = await getUnexportedAuditLogs(EXPORT_BATCH_SIZE);
   result.processed = logs.length;
   if (logs.length === 0) {
@@ -99,7 +91,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
   // 3. 确保 bucket 存在
   await ensureBucketExists();
 
-  // 4. 逐条校验 HMAC 完整性，跳过已篡改记录
   const validLogs: AuditLogRow[] = [];
   for (const log of logs) {
     const verification = await verifyAuditIntegrity(log.id);
@@ -122,7 +113,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
     return result;
   }
 
-  // 5. 按日期分组（UTC），每组生成一个 JSONL 对象
   const groupedByKey = groupByDate(validLogs);
 
   for (const [dateKey, groupLogs] of groupedByKey) {
@@ -130,7 +120,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
     const objectKey = `audit/${dateKey}/${batchId}.jsonl`;
     const jsonl = buildJsonl(groupLogs);
 
-    // 6. 上传至 MinIO
     const uploaded = await uploadAuditObject(objectKey, jsonl);
     if (uploaded) {
       result.exported += groupLogs.length;

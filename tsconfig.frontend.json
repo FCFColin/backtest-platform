@@ -12,5 +12,6 @@
     },
     "types": []
   },
-  "include": ["packages/frontend/src", "packages/shared"]
+  "include": ["packages/frontend/src", "packages/shared"],
+  "exclude": ["node_modules", "packages/frontend/src/entry-server.tsx"]
 }

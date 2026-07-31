@@ -7,24 +7,25 @@ import { Router, type Request, type Response } from 'express';
 import { sendProblem } from '../utils/errors.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
 import { asyncRouteHandler } from './routeUtils.js';
+import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { pool } from '../db/pool.js';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { customTickerCreateSchema } from '../schemas/data.js';
 
 const router = Router();
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);
 
-/**
- * GET /api/v1/data/custom
- * 获取当前用户的所有自定义标的
- */
 router.get(
   '/custom',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const userId = req.user?.sub;
+      const userId = (req as AuthenticatedRequest).user?.sub;
       if (!userId) {
         sendProblem(res, 401, 'UNAUTHORIZED');
+        return;
+      }
+      if (!pool) {
+        sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
         return;
       }
       const result = await pool.query(
@@ -37,22 +38,22 @@ router.get(
   ),
 );
 
-/**
- * POST /api/v1/data/custom
- * 上传自定义标的（CSV 数据）
- */
 router.post(
   '/custom',
   requireDataManage,
   validate(customTickerCreateSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const userId = req.user?.sub;
+      const userId = (req as AuthenticatedRequest).user?.sub;
       if (!userId) {
         sendProblem(res, 401, 'UNAUTHORIZED');
         return;
       }
       const { ticker, name, data } = req.body;
+      if (!pool) {
+        sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
+        return;
+      }
       const result = await pool.query(
         `INSERT INTO custom_tickers (user_id, ticker, name, data)
          VALUES ($1, $2, $3, $4)
@@ -76,12 +77,16 @@ router.delete(
   requireDataManage,
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const userId = req.user?.sub;
+      const userId = (req as AuthenticatedRequest).user?.sub;
       if (!userId) {
         sendProblem(res, 401, 'UNAUTHORIZED');
         return;
       }
       const { ticker } = req.params;
+      if (!pool) {
+        sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
+        return;
+      }
       await pool.query('DELETE FROM custom_tickers WHERE user_id = $1 AND ticker = $2', [
         userId,
         ticker,

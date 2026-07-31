@@ -1,24 +1,16 @@
-/**
- * 回测工具函数与共享类型。
- *
- * 从 backtest-service.ts 拆分，供 backtest-service / analysis-service /
- * montecarlo-service / optimize-service 共享使用。
- */
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { loadCpiMap } from '../infrastructure/cpiLoader.js';
-import { withTimeout } from '../utils/timeout.js';
+import { withTimeout } from '../utils/misc.js';
 import { loadExchangeRatesFromDb } from '../db/macroData.js';
 import { ValidationError } from '../utils/errors.js';
 import { DomainValidationError } from '../domain/errors.js';
-import { isValidDate } from '../utils/dateUtils.js';
+import { isValidDate } from '../utils/misc.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
 import type { Portfolio, BacktestParameters, BacktestResult, PriceData } from '@backtest/shared';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 
-// ---------------------------------------------------------------------------
 // 领域异常翻译 — domain 层抛出 DomainValidationError（无 HTTP 语义），
 // application 层统一翻译为 ValidationError（HTTP 422）供路由层处理。
-// ---------------------------------------------------------------------------
 
 /**
  * 执行领域构造操作，将 DomainValidationError 翻译为 ValidationError。
@@ -38,9 +30,7 @@ export function translateDomainError<T>(fn: () => T): T {
   }
 }
 
-// ---------------------------------------------------------------------------
 // 请求/响应类型
-// ---------------------------------------------------------------------------
 
 export interface BacktestExecutionParams {
   portfolios: Portfolio[];
@@ -48,7 +38,6 @@ export interface BacktestExecutionParams {
   priceData: PriceData;
   cpiData?: Record<string, number>;
   exchangeRates?: Record<string, number>;
-  /** 租户 ID，用于领域事件持久化（可选，异步路径必填） */
   tenantId?: string;
   /** 提交者用户 ID，用于领域事件审计（可选） */
   ownerUserId?: string;
@@ -64,7 +53,6 @@ export interface Warning {
   tickers?: string[];
 }
 
-/** 回测请求与实际生效日期范围（可能因数据缺失而被裁剪）。 */
 export interface DateRangeInfo {
   requested: { start: string; end: string };
   actual: { start: string; end: string };
@@ -77,9 +65,7 @@ interface PortfolioBacktestPrep {
   warnings: Warning[];
 }
 
-// ---------------------------------------------------------------------------
 // DDD 领域映射 — 将请求体原始 Portfolio 转为 DDD 聚合根
-// ---------------------------------------------------------------------------
 
 /**
  * 将请求体中的原始 Portfolio 转为 DDD 聚合根（携带完整配置）。
@@ -95,9 +81,6 @@ function portfolioToDomain(raw: Portfolio): DomainPortfolio {
   return translateDomainError(() => DomainPortfolio.fromDTO(raw));
 }
 
-// ---------------------------------------------------------------------------
-// 共享工具函数
-// ---------------------------------------------------------------------------
 
 /** 校验日期格式与 ticker 数量，收集回测所需标的集合。 */
 export function preparePortfolioBacktest(
@@ -149,21 +132,6 @@ export function collectInvalidTickerWarnings(
   return invalidTickers;
 }
 
-/** 从组合列表中收集所有唯一 ticker 与资产总数。 */
-export function collectTickersFromPortfolios(portfolioList: Portfolio[]): {
-  tickers: string[];
-  totalAssets: number;
-} {
-  const allTickers = new Set<string>();
-  let totalAssets = 0;
-  for (const p of portfolioList) {
-    for (const asset of p.assets) allTickers.add(asset.ticker);
-    totalAssets += p.assets.length;
-  }
-  return { tickers: Array.from(allTickers), totalAssets };
-}
-
-/** 从领域组合中收集唯一 ticker（含基准标的）。 */
 export function collectDomainTickers(
   domainPortfolios: DomainPortfolio[],
   benchmarkTicker: string,
@@ -180,7 +148,6 @@ export function collectDomainTickers(
   return allTickers;
 }
 
-/** 过滤 priceData，只保留指定 tickers 的数据。 */
 export function filterPriceData(
   priceData: PriceData,
   tickers: Set<string>,
@@ -194,29 +161,6 @@ export function filterPriceData(
   return filtered;
 }
 
-/** 带超时地获取历史价格数据。 */
-export async function fetchPriceData(
-  tickers: string[],
-  startDate: string,
-  endDate: string,
-): Promise<{
-  data: Record<string, Record<string, number>>;
-  degraded: boolean;
-  degradedWarning?: string;
-}> {
-  const result = await withTimeout(
-    fetchHistoryData(tickers, startDate, endDate),
-    60_000,
-    'fetch-history-data',
-  );
-  return {
-    data: result.data,
-    degraded: result.degraded,
-    degradedWarning: result.degradedWarning,
-  };
-}
-
-/** 从 priceData 中推断实际日期范围（所有 ticker 的并集）。 */
 export function inferDateRangeFromData(
   data: Record<string, Record<string, number>>,
 ): { min: string; max: string } | null {
@@ -267,11 +211,6 @@ export function calculateDateRange(
   return range;
 }
 
-/**
- * 获取历史价格数据并返回实际生效的日期范围。
- *
- * 始终从获取到的数据中推断实际日期范围，无论是"全部历史"模式还是显式日期模式。
- */
 export async function fetchPriceDataWithRange(
   tickers: string[],
   startDate: string,
@@ -326,7 +265,6 @@ const MC_PARAMS_ALLOWED_KEYS = new Set([
   'seed',
 ]);
 
-/** 过滤 mcParams 中的未知键，仅保留白名单字段。 */
 export function sanitizeMcParams(mcParams: Record<string, unknown> | undefined): Record<string, unknown> {
   if (!mcParams || typeof mcParams !== 'object' || Array.isArray(mcParams)) return {};
   const raw = mcParams as Record<string, unknown>;

@@ -19,8 +19,6 @@ vi.hoisted(() => {
   process.env.MAX_RESPONSE_BODY_SIZE = '100';
 });
 
-// ===== Mock 依赖 =====
-
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -99,10 +97,6 @@ beforeEach(() => {
 });
 
 describe('P0-03: callGoDataService 响应体大小限制（MAX_RESPONSE_BODY_SIZE=100 bytes）', () => {
-  /**
-   * Mock HTTP 响应，支持 headers（含 Content-Length）、分块数据和 destroy 追踪。
-   * 当 destroyed 被设置为 true 后，停止发送后续 chunk。
-   */
   function mockHttpResponse(opts: {
     data?: string;
     statusCode?: number;

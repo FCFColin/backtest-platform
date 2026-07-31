@@ -1,15 +1,9 @@
-/**
- * @file 资产分析页面状态管理 hook
- * @description 承载 AnalysisPage 的全部 state、ticker CRUD 与分析执行逻辑
- */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult } from '@backtest/shared';
-import { useComputeTool } from './useComputeTool.js';
-import { useListState } from './useListState.js';
+import { useComputeTool, useListState } from './miscHooks.js';
 import { fetchAnalysisResult } from '../pages/analysis/analysisUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-
 interface AnalysisPageState {
   tickers: string[];
   startDate: string;
@@ -36,17 +30,9 @@ interface AnalysisPageState {
   updateTicker: (idx: number, val: string) => void;
   runAnalysis: () => void;
 }
-
-/** 资产分析页面状态 hook */
 export function useAnalysisPageState(): AnalysisPageState {
   const { t } = useTranslation();
-  const {
-    items: tickers,
-    setItems: setTickers,
-    addItem: addTicker,
-    removeItem: removeTicker,
-    updateItem,
-  } = useListState<string>(['SPY', 'TLT', 'GLD'], () => '', 1);
+  const { items: tickers, setItems: setTickers, addItem: addTicker, removeItem: removeTicker, updateItem } = useListState<string>(['SPY', 'TLT', 'GLD'], () => '', 1);
   const updateTicker = (idx: number, val: string) => updateItem(idx, () => val);
   const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
@@ -60,7 +46,7 @@ export function useAnalysisPageState(): AnalysisPageState {
     error,
     results,
     setResults,
-    runCompute: runAnalysis,
+    runCompute: runAnalysis
   } = useComputeTool<AssetAnalysisResult>(
     async () => {
       const validTickers = tickers.filter(Boolean).map((tk) => tk.toUpperCase());
@@ -72,14 +58,13 @@ export function useAnalysisPageState(): AnalysisPageState {
           startingValue,
           adjustForInflation,
           rollingWindow,
-          correlationWindow,
+          correlationWindow
         },
-        t,
+        t
       );
     },
-    () => (tickers.filter(Boolean).length > 0 ? null : t('analysis.errorMinOneTicker')),
+    () => (tickers.filter(Boolean).length > 0 ? null : t('analysis.errorMinOneTicker'))
   );
-
   return {
     tickers,
     startDate,
@@ -104,6 +89,6 @@ export function useAnalysisPageState(): AnalysisPageState {
     addTicker,
     removeTicker,
     updateTicker,
-    runAnalysis,
+    runAnalysis
   };
 }

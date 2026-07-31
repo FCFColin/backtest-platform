@@ -1,21 +1,12 @@
-/**
- * @file 自定义指标表格
- * @description 展示各投资组合的自选统计指标对比表格。
- *   行渲染与表头复用 statistics-table/ 子目录的共享组件，消除与 StatisticsTable 的重复逻辑。
- */
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PortfolioResult, Statistics } from '@backtest/shared';
 import ChartCard from './ChartCard.js';
 import { StatisticsTableHeader, MetricsRows } from './statistics-table/index.js';
 import type { StatRow } from './statistics-table/types.js';
-
-/** 自定义指标表格 Props */
 interface CustomMetricsTableProps {
   portfolios: PortfolioResult[];
 }
-
-/** 可选指标全集 */
 const ALL_METRICS: StatRow[] = [
   { label: 'stats.cagr', key: 'cagr', fmt: 'pct' },
   { label: 'stats.mwrr', key: 'mwrr', fmt: 'pct' },
@@ -40,30 +31,10 @@ const ALL_METRICS: StatRow[] = [
   { label: 'stats.swr10y', key: 'swr10y', fmt: 'pct' },
   { label: 'stats.pwr10y', key: 'pwr10y', fmt: 'pct' },
   { label: 'stats.swr30y', key: 'swr30y', fmt: 'pct' },
-  { label: 'stats.pwr30y', key: 'pwr30y', fmt: 'pct' },
+  { label: 'stats.pwr30y', key: 'pwr30y', fmt: 'pct' }
 ];
-
-const DEFAULT_KEYS: (keyof Statistics)[] = [
-  'cagr',
-  'stdev',
-  'sharpe',
-  'sortino',
-  'maxDrawdown',
-  'calmar',
-  'beta',
-  'alpha',
-  'swr10y',
-  'pwr30y',
-];
-
-/** 指标选择下拉项 */
-function MetricDropdownItems({
-  selectedKeys,
-  onToggle,
-}: {
-  selectedKeys: Set<keyof Statistics>;
-  onToggle: (key: keyof Statistics) => void;
-}) {
+const DEFAULT_KEYS: (keyof Statistics)[] = ['cagr', 'stdev', 'sharpe', 'sortino', 'maxDrawdown', 'calmar', 'beta', 'alpha', 'swr10y', 'pwr30y'];
+function MetricDropdownItems({ selectedKeys, onToggle }: { selectedKeys: Set<keyof Statistics>; onToggle: (key: keyof Statistics) => void }) {
   const { t } = useTranslation();
   return (
     <>
@@ -80,23 +51,16 @@ function MetricDropdownItems({
               cursor: 'pointer',
               fontSize: '13px',
               color: 'var(--text-body)',
-              backgroundColor: checked ? 'var(--bg-subtle)' : 'transparent',
+              backgroundColor: checked ? 'var(--bg-subtle)' : 'transparent'
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-subtle)';
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = checked
-                ? 'var(--bg-subtle)'
-                : 'transparent';
+              (e.currentTarget as HTMLElement).style.backgroundColor = checked ? 'var(--bg-subtle)' : 'transparent';
             }}
           >
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={() => onToggle(m.key)}
-              style={{ accentColor: 'var(--accent)' }}
-            />
+            <input type="checkbox" checked={checked} onChange={() => onToggle(m.key)} style={{ accentColor: 'var(--accent)' }} />
             {t(m.label)}
           </label>
         );
@@ -104,19 +68,10 @@ function MetricDropdownItems({
     </>
   );
 }
-
-/** 指标选择下拉 */
-function MetricSelector({
-  selectedKeys,
-  onToggle,
-}: {
-  selectedKeys: Set<keyof Statistics>;
-  onToggle: (key: keyof Statistics) => void;
-}) {
+function MetricSelector({ selectedKeys, onToggle }: { selectedKeys: Set<keyof Statistics>; onToggle: (key: keyof Statistics) => void }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -124,7 +79,6 @@ function MetricSelector({
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
@@ -136,12 +90,12 @@ function MetricSelector({
           color: 'var(--text-body)',
           border: '1px solid var(--border-soft)',
           borderRadius: 'var(--radius-control)',
-          cursor: 'pointer',
+          cursor: 'pointer'
         }}
       >
         {t('components.customMetricsTable.selectMetrics', {
           selected: selectedKeys.size,
-          total: ALL_METRICS.length,
+          total: ALL_METRICS.length
         })}
       </button>
       {open && (
@@ -159,7 +113,7 @@ function MetricSelector({
             maxHeight: '320px',
             overflowY: 'auto',
             minWidth: '200px',
-            padding: '4px 0',
+            padding: '4px 0'
           }}
         >
           <MetricDropdownItems selectedKeys={selectedKeys} onToggle={onToggle} />
@@ -168,13 +122,9 @@ function MetricSelector({
     </div>
   );
 }
-
 export default function CustomMetricsTable({ portfolios }: CustomMetricsTableProps) {
   const { t } = useTranslation();
-  const [selectedKeys, setSelectedKeys] = useState<Set<keyof Statistics>>(
-    () => new Set(DEFAULT_KEYS),
-  );
-
+  const [selectedKeys, setSelectedKeys] = useState<Set<keyof Statistics>>(() => new Set(DEFAULT_KEYS));
   const toggleKey = (key: keyof Statistics) => {
     setSelectedKeys((prev) => {
       const next = new Set(prev);
@@ -183,9 +133,7 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
       return next;
     });
   };
-
   const visibleMetrics = ALL_METRICS.filter((m) => selectedKeys.has(m.key));
-
   if (portfolios.length === 0) {
     return (
       <ChartCard title={t('tabs.myMetrics')}>
@@ -195,17 +143,10 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
       </ChartCard>
     );
   }
-
   return (
-    <ChartCard
-      title={t('tabs.myMetrics')}
-      headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}
-    >
+    <ChartCard title={t('tabs.myMetrics')} headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}>
       {visibleMetrics.length === 0 ? (
-        <div
-          className="text-label"
-          style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
-        >
+        <div className="text-label" style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>
           {t('components.customMetricsTable.selectAtLeastOne')}
         </div>
       ) : (

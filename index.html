@@ -10,6 +10,8 @@
     />
     <meta name="robots" content="index,follow" />
     <meta name="theme-color" content="#0b0c0f" />
+    <!-- API 服务 preconnect（减少跨端口连接建立延迟） -->
+    <link rel="preconnect" href="//localhost:15001" crossorigin />
     <title>testfolio - Portfolio Backtester</title>
     <script type="module">
       if (import.meta.hot?.on) {
@@ -22,7 +24,7 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/packages/frontend/src/main.tsx"></script>
+    <div id="root"><!--ssr-outlet--></div>
+    <script type="module" src="/packages/frontend/src/main.tsx" fetchpriority="high"></script>
   </body>
 </html>

@@ -22,11 +22,9 @@ import { logger } from '../utils/logger.js';
 export interface OutboxEvent {
   /** 聚合根类型（如 'BacktestSession'、'audit'） */
   aggregateType: string;
-  /** 聚合根 ID（如 'backtest-1700000000000'） */
   aggregateId: string;
   /** 事件类型（如 'BacktestCompleted'、'AuditEvent'） */
   eventType: string;
-  /** 事件负载，序列化为 JSONB 存储 */
   payload: Record<string, unknown>;
   /**
    * 去重键（ADR-024 / T-11）。提供时，重复写入相同 eventId 将被 ON CONFLICT 吞掉，

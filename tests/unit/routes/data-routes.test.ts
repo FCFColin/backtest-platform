@@ -1,9 +1,3 @@
-/**
- * 数据路由单元测试
- *
- * 路由层仅负责 HTTP 适配：请求解析 → 调用 dataService → 响应格式化。
- * Go 服务降级逻辑在 dataService 内部处理，路由测试只验证 HTTP 行为。
- */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';

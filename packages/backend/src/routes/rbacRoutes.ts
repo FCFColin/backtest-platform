@@ -16,7 +16,7 @@
  */
 import { Router, type Response } from 'express';
 import { z } from 'zod';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
@@ -76,9 +76,7 @@ async function verifyRoleInOrg(res: Response, roleId: string, orgId: string): Pr
   return true;
 }
 
-// ---------------------------------------------------------------------------
 // 角色 CRUD
-// ---------------------------------------------------------------------------
 
 /** GET /api/v1/admin/roles — 列出租户角色 + 系统角色 */
 router.get('/roles', async (req: AuthenticatedRequest, res: Response) => {
@@ -151,9 +149,6 @@ router.delete('/roles/:id', async (req: AuthenticatedRequest, res: Response) => 
   res.json({ success: true, data: { deleted: true } });
 });
 
-// ---------------------------------------------------------------------------
-// 角色权限管理
-// ---------------------------------------------------------------------------
 
 /** GET /api/v1/admin/roles/:id/permissions — 列出角色权限 */
 router.get('/roles/:id/permissions', async (req: AuthenticatedRequest, res: Response) => {
@@ -189,9 +184,6 @@ router.put(
   },
 );
 
-// ---------------------------------------------------------------------------
-// 用户角色绑定
-// ---------------------------------------------------------------------------
 
 /** GET /api/v1/admin/users/:userId/roles — 列出用户角色 */
 router.get('/users/:userId/roles', async (req: AuthenticatedRequest, res: Response) => {

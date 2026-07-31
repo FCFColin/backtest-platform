@@ -1,5 +1,5 @@
 import IORedis, { type RedisOptions } from 'ioredis';
-import { config } from '../config/index.js';
+import { config } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
 // Architecture: Redis Sentinel 高可用连接配置（ADR-045）
@@ -8,7 +8,6 @@ import { logger } from '../utils/logger.js';
 // 权衡：Sentinel 拓扑（1主+2从+3Sentinel=6 Pod）资源占用更高，但 100K MAU 下无需分片，
 // Sentinel 比 Cluster 运维更简单且 BullMQ 兼容性更好（ADR-045 方案对比）。
 
-// ---------------------------------------------------------------------------
 // Redis 连接选项构造（Sentinel 优先，回退 REDIS_URL 单实例）
 //
 // 解析逻辑：
@@ -16,9 +15,7 @@ import { logger } from '../utils/logger.js';
 // 2. 否则 → 解析 REDIS_URL 为单实例选项（开发回退，ADR-045 向后兼容）
 //
 // BullMQ 与应用层共用此构造逻辑，避免 backtestQueue.ts 重复解析。
-// ---------------------------------------------------------------------------
 
-/** Sentinel 节点主机:端口对 */
 interface SentinelNode {
   host: string;
   port: number;
@@ -61,7 +58,6 @@ function parseRedisUrl(url: string): RedisOptions {
     port: parsed.port ? Number(parsed.port) : 6379,
   };
   if (parsed.username) options.username = decodeURIComponent(parsed.username);
-  // 优先使用 REDIS_PASSWORD 环境变量，否则取 URL 中的凭证
   if (config.REDIS_PASSWORD) {
     options.password = config.REDIS_PASSWORD;
   } else if (parsed.password) {
@@ -73,17 +69,14 @@ function parseRedisUrl(url: string): RedisOptions {
   return options;
 }
 
-/** Sentinel 模式是否启用（生产环境） */
 export const isSentinelMode = parseSentinels() !== null;
 
-// ---------------------------------------------------------------------------
 // P0-3：Redis 模式生产断言
 //
 // 生产环境必须使用 Sentinel 高可用——单机 Redis 是单点故障，
 // master Pod 挂掉 = 全平台认证/限流/队列失效。
 // Staging 环境允许单机但发出警告（建议与生产保持一致）。
 // 开发环境允许单机模式（零额外依赖）。
-// ---------------------------------------------------------------------------
 if (config.NODE_ENV === 'production' && !isSentinelMode) {
   throw new Error(
     'FATAL: Production environment requires Redis Sentinel ' +
@@ -139,9 +132,7 @@ logger.info(
   '[redis] 连接配置已初始化',
 );
 
-// ---------------------------------------------------------------------------
 // BullMQ 专用连接（maxRetriesPerRequest=null，无限重试）
-// ---------------------------------------------------------------------------
 
 /**
  * BullMQ 专用 Redis 连接。
@@ -155,9 +146,7 @@ export const redisConnection = new IORedis({
   enableReadyCheck: false,
 });
 
-// ---------------------------------------------------------------------------
 // 应用层通用 Redis 客户端（maxRetriesPerRequest=3，有限重试）
-// ---------------------------------------------------------------------------
 
 /**
  * 通用 Redis 客户端（应用层使用）。
@@ -191,7 +180,6 @@ appRedis.on('reconnecting', () => {
   logger.info('[redis] appRedis 重连中');
 });
 
-// ---------------------------------------------------------------------------
 // Redis 健康检测（统一模块）
 //
 // 集中管理 Redis 连接状态，取代 refreshToken / idempotency / loginLockout /
@@ -247,7 +235,6 @@ export function markRedisUnhealthy(): void {
   setRedisHealth(false);
 }
 
-// ---------------------------------------------------------------------------
 // Sentinel master 健康检测（T6 / ADR-045）
 //
 // 在 Sentinel 模式下，ping 成功只能证明当前连接的节点存活，无法证明
@@ -257,7 +244,6 @@ export function markRedisUnhealthy(): void {
 //
 // 在非 Sentinel 模式下直接返回 null（不参与就绪判定，仅 ping 已足够）。
 // 健康路由 /api/ready 消费此结果：Sentinel 模式下 master 健康false 即 503。
-// ---------------------------------------------------------------------------
 
 export interface SentinelMasterHealth {
   /** 当前节点是否为 master（Sentinel 模式下；非 Sentinel 模式为 null） */

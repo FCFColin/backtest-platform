@@ -1,18 +1,3 @@
-/**
- * 测试辅助：backtestStore factory + Portfolio / BacktestParams fixtures
- *
- * 保留 mockPortfolio / mockBacktestParams / mockPortfolioResult / mockBacktestResult。
- * Phase 5.6 已删除 mockEmptyBacktestResult + mockStatistics（已内联到 mockPortfolioResult）。
- * 2026-07 合并 routeFixtures.ts：新增 createMockPriceData（路由测试 mock 价格工厂）。
- *
- * 用法：
- *   import { mockPortfolio, mockBacktestParams, mockBacktestResult, createMockPriceData } from '../helpers/storeFixtures.js';
- *   useBacktestStore.getState().loadFromShare({
- *     portfolios: [mockPortfolio()],
- *     parameters: mockBacktestParams(),
- *   });
- *   const priceData = createMockPriceData({ numDays: 30, startPrice: 301 });
- */
 
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import type { BacktestResult, PortfolioResult } from '../../packages/shared/types/backtest.js';
@@ -103,17 +88,9 @@ export function mockBacktestResult(overrides: Partial<BacktestResult> = {}): Bac
   };
 }
 
-/**
- * createMockPriceData 配置选项（合并自 routeFixtures.ts）
- */
 export interface MockPriceDataOptions {
-  /** 生成天数（默认 2）
-   * 对应原 backtest-optimizer-routes（2 天）/tactical-routes（3 天）/tactical-grid-routes（30 天）
-   */
   numDays?: number;
-  /** 第 0 天起始价（默认 300），第 i 天价格为 startPrice + i */
   startPrice?: number;
-  /** 标的 ticker（默认 'SPY'） */
   ticker?: string;
 }
 

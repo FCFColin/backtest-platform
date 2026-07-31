@@ -1,14 +1,3 @@
-/**
- * pca schema 单元测试
- *
- * 企业理由：PCA 分析需要至少 2 个资产才能计算协方差矩阵，
- * 校验失败会导致线性代数运算抛出运行时异常。测试覆盖：
- * - 合法输入通过校验
- * - tickers 少于 2 个抛错
- * - 缺少日期字段抛错
- * - numComponents 非正整数抛错
- */
-
 import { describe, it, expect } from 'vitest';
 import { pcaAnalyzeSchema } from '../../../packages/backend/src/schemas/analysisSchemas.js';
 

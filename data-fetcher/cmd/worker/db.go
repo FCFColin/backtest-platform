@@ -1,48 +1,28 @@
 package main
-
-// 数据库连接与 schema 初始化、标的列表加载。
-// 从 cmd/worker/main.go 抽取（Task 2.7 单一职责拆分）。
-
 import (
-	"context"
-	"fmt"
-	"log/slog"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+    "context"
+    "fmt"
+    "log/slog"
+    "github.com/jackc/pgx/v5"
+    "github.com/jackc/pgx/v5/pgxpool"
 )
-
-// initDB 建立数据库连接池并确保 schema 存在。
 func initDB(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	if databaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL 未设置")
-	}
+	if databaseURL == "" { return nil, fmt.Errorf("DATABASE_URL 未设置") }
 	config, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err)
-	}
+	if err != nil { return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err) }
 	config.MaxConns = 5
-
 	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return nil, fmt.Errorf("连接数据库失败: %w", err)
-	}
-
+	if err != nil { return nil, fmt.Errorf("连接数据库失败: %w", err) }
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("数据库 Ping 失败: %w", err)
 	}
-
-	// 确保 schema 存在
 	if err := ensureSchema(ctx, pool); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("初始化 schema 失败: %w", err)
 	}
-
 	return pool, nil
 }
-
-// ensureSchema 创建必要的表结构（幂等）。
 func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS prices (
@@ -57,14 +37,12 @@ func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
 		PRIMARY KEY (ticker, date)
 	);
 	CREATE INDEX IF NOT EXISTS idx_prices_ticker_date ON prices (ticker, date);
-
 	CREATE TABLE IF NOT EXISTS tickers (
 		ticker TEXT PRIMARY KEY,
 		category TEXT NOT NULL DEFAULT '',
 		market TEXT NOT NULL DEFAULT '',
 		exchange TEXT NOT NULL DEFAULT ''
 	);
-
 	CREATE TABLE IF NOT EXISTS worker_progress (
 		ticker   TEXT PRIMARY KEY,
 		last_date DATE,
@@ -74,44 +52,26 @@ func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err := pool.Exec(ctx, schema)
 	return err
 }
-
-// loadTickerList 从 tickers 表加载所有标的代码（按字母序）。
 func loadTickerList(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {
-	if pool == nil {
-		return nil, fmt.Errorf("数据库未连接")
-	}
+	if pool == nil { return nil, fmt.Errorf("数据库未连接") }
 	rows, err := pool.Query(ctx, "SELECT ticker FROM tickers ORDER BY ticker")
-	if err != nil {
-		return nil, fmt.Errorf("查询标的列表失败: %w", err)
-	}
+	if err != nil { return nil, fmt.Errorf("查询标的列表失败: %w", err) }
 	defer rows.Close()
-
 	var tickers []string
 	for rows.Next() {
 		var t string
-		if err := rows.Scan(&t); err != nil {
-			return nil, fmt.Errorf("扫描标的行失败: %w", err)
-		}
+		if err := rows.Scan(&t); err != nil { return nil, fmt.Errorf("扫描标的行失败: %w", err) }
 		tickers = append(tickers, t)
 	}
 	return tickers, nil
 }
-
-// isTickerTableEmpty 检查 tickers 表是否为空。
 func isTickerTableEmpty(ctx context.Context, pool *pgxpool.Pool) (bool, error) {
 	var count int
-	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM tickers").Scan(&count); err != nil {
-		return false, fmt.Errorf("查询 tickers 表计数失败: %w", err)
-	}
+if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM tickers").Scan(&count); err != nil { return false, fmt.Errorf("查询 tickers 表计数失败: %w", err) }
 	return count == 0, nil
 }
-
-// seedUniverse 将默认 ETF 宇宙批量插入到 tickers 表（幂等）。
 func seedUniverse(ctx context.Context, pool *pgxpool.Pool) error {
-	if pool == nil {
-		return fmt.Errorf("数据库未连接")
-	}
-
+	if pool == nil { return fmt.Errorf("数据库未连接") }
 	batch := &pgx.Batch{}
 	for _, meta := range DefaultETFUniverse {
 		batch.Queue(`
@@ -123,16 +83,9 @@ func seedUniverse(ctx context.Context, pool *pgxpool.Pool) error {
 				exchange = EXCLUDED.exchange
 		`, meta.Ticker, meta.Category, meta.Market, "")
 	}
-
 	br := pool.SendBatch(ctx, batch)
 	defer br.Close()
-
-	for range DefaultETFUniverse {
-		if _, err := br.Exec(); err != nil {
-			return fmt.Errorf("插入 ticker 失败: %w", err)
-		}
-	}
-
+	for range DefaultETFUniverse { if _, err := br.Exec(); err != nil { return fmt.Errorf("插入 ticker 失败: %w", err) } }
 	slog.Info("已种子化默认 ETF 宇宙", "count", len(DefaultETFUniverse))
 	return nil
 }

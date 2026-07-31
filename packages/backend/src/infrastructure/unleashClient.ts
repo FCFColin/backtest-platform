@@ -48,10 +48,6 @@ export interface UnleashContext {
   properties?: Record<string, unknown>;
 }
 
-/**
- * 单例表面：暴露 isInitialized 与 isEnabled。
- * 初始化失败时 isEnabled 保持恒 false，调用方无需感知 SDK 内部状态。
- */
 export interface UnleashSingleton {
   isInitialized: boolean;
   isEnabled: (flagName: string, context?: UnleashContext) => boolean;
@@ -68,7 +64,6 @@ let client: Unleash | null = null;
 
 /** Redis 快照缓存：从 Redis 加载的 flag 定义，用于 Unleash 不可用时的降级 */
 let flagSnapshot: FlagDefinition[] | null = null;
-/** 上次写入 Redis 的时间戳（节流控制） */
 let lastSnapshotWrite = 0;
 
 /**

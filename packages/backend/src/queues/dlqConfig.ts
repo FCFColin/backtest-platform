@@ -25,30 +25,19 @@ import type { RedisOptions } from 'ioredis';
 import { buildRedisBaseOptions } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 
-/** 源队列失败任务保留时长（7 天），到期后由 Redis 自动清理 */
 export const SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS = 86400 * 7;
 
-/** DLQ 完成态任务保留时长（30 天），便于事后追溯 / 重放 / 根因分析 */
 export const DLQ_COMPLETED_RETENTION_AGE_SECONDS = 86400 * 30;
 
-/** 源队列失败任务最终归宿：DLQ 队列名后缀 */
 export const DLQ_NAME_SUFFIX = '-dlq';
 
-/** DLQ 任务数据结构（源任务元数据 + 失败上下文） */
 export interface DlqJobData {
-  /** 源队列名（如 backtest-compute） */
   sourceQueue: string;
-  /** 源任务 ID */
   sourceJobId: string;
-  /** 源任务名称 */
   sourceJobName?: string;
-  /** 源任务原始数据（用于事后重放） */
   data: unknown;
-  /** 失败错误消息 */
   error: string;
-  /** 已重试次数（含本次失败，反映源队列 attempts 耗尽情况） */
   attemptsMade: number;
-  /** 转移到 DLQ 的时间戳（ms） */
   transferredAt: number;
 }
 

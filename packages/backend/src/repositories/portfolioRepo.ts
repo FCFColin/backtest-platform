@@ -19,7 +19,6 @@ import { Ticker, Weight } from '../domain/value-objects/index.js';
 import { ValidationError } from '../utils/errors.js';
 import type { Asset, RebalanceFrequency } from '@backtest/shared';
 
-/** 组合记录（已序列化为 API 友好结构，DB 持久化层 DTO） */
 interface PortfolioRecord {
   id: string;
   name: string;
@@ -30,7 +29,6 @@ interface PortfolioRecord {
   updatedAt: string;
 }
 
-/** 创建/更新组合的输入 */
 interface PortfolioInput {
   name: string;
   assets: Asset[];

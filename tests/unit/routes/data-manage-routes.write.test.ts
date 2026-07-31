@@ -1,15 +1,3 @@
-/**
- * 数据引擎管理路由单元测试 —— 写端点与废弃端点
- *
- * 企业理由：数据管理路由的写端点（全量/增量更新、停止、resume、universe、
- * regenerate-meta）受 DATA_MANAGE 权限保护，HTTP 方法语义正确性影响客户端集成。
- * 测试覆盖：权限校验、成功/错误路径、废弃 POST 端点兼容性。
- *
- * 共享 setup（app factory / 服务 mock / mock stats）抽到
- * tests/helpers/dataManageRoutesFixtures.ts，便于复用与维护。
- * 只读端点测试见 data-manage-routes.read.test.ts。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   engineServiceMocks,

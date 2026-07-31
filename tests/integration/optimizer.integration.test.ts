@@ -1,32 +1,20 @@
 /**
  * 优化器全链路集成测试（RO-049 SubTask 33.1）
  *
- * 跨层验证：Express 路由 → Zod 校验 → BullMQ 异步提交 / 同步回退 → 引擎 → 响应。
+ * 跨层验证：Express 路由 → Zod 校验 → BullMQ 异步提交 → 响应。
  * 重点覆盖 ADR-034 异步任务携带租户/owner 归属，与 ADR-031 fail-closed。
  */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { EngineUnavailableErrorStub } from '../helpers/engineRouteMocks.js';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
 
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-const { queueAddMock, executeOptimizationMock } = vi.hoisted(() => ({
+const { queueAddMock } = vi.hoisted(() => ({
   queueAddMock: vi.fn(),
-  executeOptimizationMock: vi.fn(),
-}));
-
-vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
-  EngineUnavailableError: EngineUnavailableErrorStub,
-  callEngineStrict: vi.fn(),
-  resetEngineAvailability: vi.fn(),
 }));
 
 vi.mock('../../packages/backend/src/queues/backtestQueue.js', () => ({
   backtestQueue: { add: queueAddMock },
-}));
-
-vi.mock('../../packages/backend/src/application/optimize-service.js', () => ({
-  executeOptimization: executeOptimizationMock,
 }));
 
 import express from 'express';
@@ -95,29 +83,8 @@ describe('优化器全链路集成测试', () => {
     );
   });
 
-  it('POST /optimize 队列不可用时回退同步执行并返回 200', async () => {
+  it('POST /optimize 队列不可用时 fail-closed 返回 503（ADR-031）', async () => {
     queueAddMock.mockRejectedValueOnce(new Error('Redis 不可用'));
-    executeOptimizationMock.mockResolvedValueOnce({
-      success: true,
-      data: { optimalWeights: { AAPL: 1 }, sharpe: 1.2 },
-    });
-
-    const res = await fetch(`${baseUrl}/api/v1/backtest-optimizer/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(validBody),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.success).toBe(true);
-    expect(json.data.optimalWeights).toEqual({ AAPL: 1 });
-  });
-
-  it('POST /optimize 同步执行引擎不可用时 fail-closed 503（ADR-031）', async () => {
-    queueAddMock.mockRejectedValueOnce(new Error('Redis 不可用'));
-    executeOptimizationMock.mockRejectedValueOnce(
-      new EngineUnavailableErrorStub('/api/engine/optimize', 60),
-    );
 
     const res = await fetch(`${baseUrl}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
@@ -127,8 +94,9 @@ describe('优化器全链路集成测试', () => {
     expect(res.status).toBe(503);
     expect(res.headers.get('retry-after')).toBe('60');
     const json = await res.json();
-    expect(json.error.code).toBe('ENGINE_UNAVAILABLE');
-    expect(json.degraded).toBeUndefined();
+    expect(json.error.code).toBe('OPTIMIZER_QUEUE_UNAVAILABLE');
+    expect(json.success).toBe(false);
+    expect(json.data).toBeUndefined();
   });
 
   it('POST /optimize 非法 objective 返回校验错误', async () => {

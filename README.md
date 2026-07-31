@@ -25,8 +25,8 @@
                        └──────────┘            └────────────┘
 ```
 
-| 服务        | 语言       | 目录                     | 端口 | 职责                                 |
-| ----------- | ---------- | ------------------------ | ---- | ------------------------------------ |
+| 服务        | 语言       | 目录                     | 端口  | 职责                                 |
+| ----------- | ---------- | ------------------------ | ----- | ------------------------------------ |
 | 前端 Web    | React/TS   | `packages/frontend/src/` | 15173 | UI 渲染、用户交互                    |
 | 后端 API    | Express/TS | `packages/backend/src/`  | 15001 | 路由编排、鉴权、降级调度             |
 | Go 计算引擎 | Go         | `engine-go/`             | 15004 | 主计算引擎（回测/MC/优化/前沿/分析） |
@@ -147,30 +147,30 @@ pnpm test:e2e     # 仅 E2E 测试
 
 ## 环境变量
 
-| 变量                                           | 默认值                  | 说明                                                    |
-| ---------------------------------------------- | ----------------------- | ------------------------------------------------------- |
-| `PORT`                                         | 15001                   | 后端 API 端口                                           |
+| 变量                                           | 默认值                   | 说明                                                    |
+| ---------------------------------------------- | ------------------------ | ------------------------------------------------------- |
+| `PORT`                                         | 15001                    | 后端 API 端口                                           |
 | `GO_ENGINE_URL`                                | `http://127.0.0.1:15004` | Go 计算引擎地址（唯一引擎）                             |
-| `ENGINE_TIMEOUT_MS`                            | `5000`                  | 引擎调用超时（毫秒，兼容旧名 `RUST_ENGINE_TIMEOUT_MS`） |
+| `ENGINE_TIMEOUT_MS`                            | `5000`                   | 引擎调用超时（毫秒，兼容旧名 `RUST_ENGINE_TIMEOUT_MS`） |
 | `GO_DATA_SERVICE_URL`                          | `http://127.0.0.1:15003` | Go 数据服务地址                                         |
-| `DATABASE_URL`                                 | -                       | PostgreSQL 连接串                                       |
-| `REDIS_URL`                                    | -                       | Redis 连接串（会话/限流/队列）                          |
-| `NODE_ENV`                                     | -                       | 环境（development 显示错误详情）                        |
-| `APP_BASE_URL`                                 | `http://localhost:15173` | 验证/邀请/计费跳转链接基址（ADR-035/036）               |
-| `EMAIL_TRANSPORT`                              | `console`               | 邮件传输：`console`（开发打日志）/`smtp`（ADR-035）     |
-| `EMAIL_SMTP_*`                                 | -                       | SMTP 主机/端口/账号（`EMAIL_TRANSPORT=smtp` 时必填）    |
-| `STRIPE_SECRET_KEY`                            | -                       | Stripe 密钥（留空则计费端点返回 503，ADR-036）          |
-| `STRIPE_WEBHOOK_SECRET`                        | -                       | Stripe webhook 签名密钥                                 |
-| `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | -                       | 各付费计划的 Stripe Price ID                            |
+| `DATABASE_URL`                                 | -                        | PostgreSQL 连接串                                       |
+| `REDIS_URL`                                    | -                        | Redis 连接串（会话/限流/队列）                          |
+| `NODE_ENV`                                     | -                        | 环境（development 显示错误详情）                        |
+| `APP_BASE_URL`                                 | `http://localhost:15173` | 验证/邀请/计费跳转链接基址（ADR-032/036）               |
+| `EMAIL_TRANSPORT`                              | `console`                | 邮件传输：`console`（开发打日志）/`smtp`（ADR-032）     |
+| `EMAIL_SMTP_*`                                 | -                        | SMTP 主机/端口/账号（`EMAIL_TRANSPORT=smtp` 时必填）    |
+| `STRIPE_SECRET_KEY`                            | -                        | Stripe 密钥（留空则计费端点返回 503，ADR-036）          |
+| `STRIPE_WEBHOOK_SECRET`                        | -                        | Stripe webhook 签名密钥                                 |
+| `STRIPE_PRICE_PRO` / `STRIPE_PRICE_ENTERPRISE` | -                        | 各付费计划的 Stripe Price ID                            |
 
-## 多租户 SaaS（ADR-032 ~ ADR-037）
+## 多租户 SaaS（ADR-032 + ADR-036）
 
 - **租户隔离**：共享 schema + `tenant_id` + Postgres RLS（ADR-032），经 `withTenant()` 设置事务级租户上下文。
-- **按组织 API 密钥**：哈希存储、可吊销、按组织管理，`/api/v1/keys`（ADR-033）；`ADMIN_API_KEY` 降级为平台 break-glass 密钥。
-- **服务端持久化 + 前端认证**：组合/命名配置/回测历史落库并按租户隔离；前端 Bearer 会话 + 自动刷新 + 组织切换（ADR-034）。
-- **自助注册 + 邀请**：邮箱注册（建组织 + owner）、邮箱验证、组织成员/邀请管理（ADR-035，nodemailer）。
+- **按组织 API 密钥**：哈希存储、可吊销、按组织管理，`/api/v1/keys`（ADR-017）；`ADMIN_API_KEY` 降级为平台 break-glass 密钥。
+- **服务端持久化 + 前端认证**：组合/命名配置/回测历史落库并按租户隔离；前端 BFF 会话（Refresh Token 存 httpOnly Cookie）+ 自动刷新 + 组织切换（ADR-032）。
+- **自助注册 + 邀请**：邮箱注册（建组织 + owner）、邮箱验证、组织成员/邀请管理（ADR-032，nodemailer）。
 - **Stripe 计费**：Checkout / Billing Portal / webhook（原始体签名校验），订阅状态权威回写组织计划（ADR-036）。
-- **配额与公平调度**：按计划月度次数/标的数/并发/速率上限，用量计量（`usage_events`/`usage_counters` + Redis），租户公平的 worker 在途上限（ADR-037）。
+- **配额与公平调度**：按计划月度次数/标的数/并发/速率上限，用量计量（`usage_events`/`usage_counters` + Redis），租户公平的 worker 在途上限（ADR-036）。
 
 ## 文档
 

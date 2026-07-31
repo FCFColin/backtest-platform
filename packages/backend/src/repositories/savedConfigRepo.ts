@@ -8,7 +8,6 @@
  */
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
 
-/** 命名配置记录 */
 interface SavedConfigRecord {
   id: string;
   name: string;
@@ -18,7 +17,6 @@ interface SavedConfigRecord {
   updatedAt: string;
 }
 
-/** 创建/更新输入 */
 interface SavedConfigInput {
   name: string;
   config: unknown;

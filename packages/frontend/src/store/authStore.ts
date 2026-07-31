@@ -1,35 +1,20 @@
-/**
- * 认证 / 多租户会话状态（ADR-034）
- *
- * 管理登录态、当前用户、活跃组织与可切换组织列表。令牌本身由 authTokens 模块持有
- * （access 内存、refresh localStorage）；本 store 只保存可展示的会话元数据，并暴露
- * 登录 / 登出 / 刷新会话 / 切换组织的动作供 UI 调用。
- */
 import { create } from 'zustand';
 import { apiFetch } from '@/utils/apiClient';
-import { setTokens, clearTokens, getRefreshToken, refreshTokens } from '@/utils/authTokens';
+import { setTokens, clearTokens, refreshTokens } from '@/utils/authTokens';
 import i18n from '@/i18n/index.js';
-
-// ============ 异步状态 helper（合并自 utils/asyncSlice.ts） ============
-
 interface AsyncSlice {
   loading: boolean;
   error: string | null;
 }
-
 function asyncStart(): Partial<AsyncSlice> {
   return { loading: true, error: null };
 }
-
 function asyncFail(error: unknown): Partial<AsyncSlice> {
   return { loading: false, error: String(error) };
 }
-
 function asyncSuccess(): Partial<AsyncSlice> {
   return { loading: false, error: null };
 }
-
-/** 组织摘要（与后端 orgSummary 对齐） */
 interface OrgSummary {
   orgId: string;
   name: string;
@@ -38,8 +23,6 @@ interface OrgSummary {
   status: string;
   role: string;
 }
-
-/** 当前用户会话信息 */
 interface AuthUser {
   userId: string;
   role: string;
@@ -47,39 +30,25 @@ interface AuthUser {
   orgRole: string | null;
   platformAdmin: boolean;
 }
-
 interface AuthState {
   user: AuthUser | null;
   org: OrgSummary | null;
   orgs: OrgSummary[];
-  /** 空闲会话超时时间（毫秒，0=禁用），由登录响应设置（P0-04） */
   idleTimeoutMs: number;
-  /** 是否已完成初始会话恢复（避免首屏闪烁） */
   initialized: boolean;
   loading: boolean;
   error: string | null;
-
   loginPassword: (username: string, password: string) => Promise<boolean>;
-  /** 自助注册：创建用户 + 组织 + owner 成员，并触发验证邮件。成功不自动登录。 */
-  register: (input: {
-    username: string;
-    password: string;
-    email: string;
-    orgName: string;
-  }) => Promise<boolean>;
-  /** 接受组织邀请（需已登录）。成功后刷新 orgs 列表。 */
+  register: (input: { username: string; password: string; email: string; orgName: string }) => Promise<boolean>;
   acceptInvite: (token: string) => Promise<{ ok: boolean; orgId?: string }>;
   logout: () => Promise<void>;
   switchOrg: (orgId: string) => Promise<boolean>;
   loadOrgs: () => Promise<void>;
-  /** 应用启动时调用：若 localStorage 有 refresh token 则尝试静默恢复会话 */
   init: () => Promise<void>;
   isAuthenticated: () => boolean;
 }
-
 type SetFn = (partial: Partial<AuthState> | ((state: AuthState) => Partial<AuthState>)) => void;
 type GetFn = () => AuthState;
-
 async function fetchMe(): Promise<AuthUser | null> {
   const res = await apiFetch('/api/v1/auth/me', { silent: true });
   if (!res.ok) return null;
@@ -91,35 +60,30 @@ async function fetchMe(): Promise<AuthUser | null> {
     role: d.role,
     tenantId: d.tenantId ?? null,
     orgRole: d.orgRole ?? null,
-    platformAdmin: d.platformAdmin === true,
+    platformAdmin: d.platformAdmin === true
   };
 }
-
-async function loginPasswordAction(
-  set: SetFn,
-  get: GetFn,
-  username: string,
-  password: string,
-): Promise<boolean> {
+async function loginPasswordAction(set: SetFn, get: GetFn, username: string, password: string): Promise<boolean> {
   set(asyncStart());
   try {
     const res = await fetch('/api/v1/auth/login/password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      credentials: 'include',
+      body: JSON.stringify({ username, password })
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
       set(asyncFail(body?.detail || i18n.t('errors.invalidCredentials')));
       return false;
     }
-    setTokens(body.data.accessToken, body.data.refreshToken);
+    setTokens(body.data.accessToken);
     const user = await fetchMe();
     set({
       user,
       org: body.data.org ?? null,
       idleTimeoutMs: body.data.idleTimeoutMs ?? 0,
-      ...asyncSuccess(),
+      ...asyncSuccess()
     });
     await get().loadOrgs();
     return true;
@@ -128,17 +92,13 @@ async function loginPasswordAction(
     return false;
   }
 }
-
-async function registerAction(
-  set: SetFn,
-  input: { username: string; password: string; email: string; orgName: string },
-): Promise<boolean> {
+async function registerAction(set: SetFn, input: { username: string; password: string; email: string; orgName: string }): Promise<boolean> {
   set(asyncStart());
   try {
     const res = await fetch('/api/v1/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
+      body: JSON.stringify(input)
     });
     const body = await res.json();
     if (!res.ok) {
@@ -152,18 +112,13 @@ async function registerAction(
     return false;
   }
 }
-
-async function acceptInviteAction(
-  set: SetFn,
-  get: GetFn,
-  token: string,
-): Promise<{ ok: boolean; orgId?: string }> {
+async function acceptInviteAction(set: SetFn, get: GetFn, token: string): Promise<{ ok: boolean; orgId?: string }> {
   set(asyncStart());
   try {
     const res = await apiFetch('/api/v1/orgs/invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token })
     });
     const body = await res.json();
     if (!res.ok) {
@@ -178,37 +133,31 @@ async function acceptInviteAction(
     return { ok: false };
   }
 }
-
 async function logoutAction(set: SetFn): Promise<void> {
-  const refreshToken = getRefreshToken();
   try {
-    if (refreshToken) {
-      await fetch('/api/v1/auth/logout', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-    }
+    await fetch('/api/v1/auth/logout', {
+      method: 'DELETE',
+      credentials: 'include'
+    });
     // eslint-disable-next-line no-empty -- 服务端撤销失败也要清空本地会话
   } catch {}
   clearTokens();
   set({ user: null, org: null, orgs: [], idleTimeoutMs: 0 });
 }
-
 async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
   set(asyncStart());
   try {
     const res = await apiFetch('/api/v1/auth/switch-org', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orgId }),
+      body: JSON.stringify({ orgId })
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
       set(asyncFail(body?.detail || i18n.t('errors.switchOrgFailed')));
       return false;
     }
-    setTokens(body.data.accessToken, body.data.refreshToken);
+    setTokens(body.data.accessToken);
     const user = await fetchMe();
     set({ user, org: body.data.org ?? null, ...asyncSuccess() });
     return true;
@@ -217,7 +166,6 @@ async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
     return false;
   }
 }
-
 async function loadOrgsAction(set: SetFn): Promise<void> {
   try {
     const res = await apiFetch('/api/v1/auth/orgs', { silent: true });
@@ -230,16 +178,14 @@ async function loadOrgsAction(set: SetFn): Promise<void> {
     // eslint-disable-next-line no-empty -- 组织列表拉取失败，保持现有状态
   } catch {}
 }
-
 async function initAction(set: SetFn, get: GetFn): Promise<void> {
   if (get().initialized) return;
-  if (!getRefreshToken()) {
-    set({ initialized: true });
-    return;
-  }
   try {
     const ok = await refreshTokens();
-    if (!ok) return;
+    if (!ok) {
+      set({ initialized: true });
+      return;
+    }
     const user = await fetchMe();
     set({ user });
     if (user) await get().loadOrgs();
@@ -247,7 +193,6 @@ async function initAction(set: SetFn, get: GetFn): Promise<void> {
     set({ initialized: true });
   }
 }
-
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   org: null,
@@ -256,7 +201,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialized: false,
   loading: false,
   error: null,
-
   isAuthenticated: () => get().user !== null,
   loginPassword: (username, password) => loginPasswordAction(set, get, username, password),
   register: (input) => registerAction(set, input),
@@ -264,5 +208,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => logoutAction(set),
   switchOrg: (orgId) => switchOrgAction(set, orgId),
   loadOrgs: () => loadOrgsAction(set),
-  init: () => initAction(set, get),
+  init: () => initAction(set, get)
 }));

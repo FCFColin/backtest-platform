@@ -6,17 +6,9 @@ import { GrowthChart } from './AnalysisGrowthChart.js';
 import { DrawdownChartV2 } from './DrawdownChartV2.js';
 import { CorrelationMatrixTable } from './CorrelationMatrixTable.js';
 import ChartCard from '../ChartCard.js';
-
-export const OverviewCharts = memo(function OverviewCharts({
-  results,
-  StatsTable,
-}: {
-  results: AssetAnalysisResult;
-  StatsTable: React.ComponentType<{ tickers: AssetAnalysisResult['tickers'] }>;
-}) {
+export const OverviewCharts = memo(function OverviewCharts({ results, StatsTable }: { results: AssetAnalysisResult; StatsTable: React.ComponentType<{ tickers: AssetAnalysisResult['tickers'] }> }) {
   const { t } = useTranslation();
   const { tickers, portfolioResults, growthData } = useAnalysisData(results, 12, 12);
-
   return (
     <div className="space-y-6">
       <ChartCard title={t('analysis.statsOverview')}>
@@ -24,9 +16,7 @@ export const OverviewCharts = memo(function OverviewCharts({
       </ChartCard>
       <GrowthChart growthData={growthData} portfolioResults={portfolioResults} />
       <DrawdownChartV2 portfolios={portfolioResults} />
-      {results.correlations && results.correlations.length >= 2 && (
-        <CorrelationMatrixTable tickers={tickers} correlations={results.correlations} />
-      )}
+      {results.correlations && results.correlations.length >= 2 && <CorrelationMatrixTable tickers={tickers} correlations={results.correlations} />}
     </div>
   );
 });

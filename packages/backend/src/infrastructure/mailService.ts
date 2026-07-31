@@ -13,7 +13,6 @@ import { logger } from '../utils/logger.js';
 
 let transporter: Transporter | null = null;
 
-/** 懒初始化 nodemailer transport（按配置选择 SMTP 或 console 日志传输）。 */
 function getTransporter(): Transporter | null {
   if (config.EMAIL_TRANSPORT !== 'smtp') return null;
   if (transporter) return transporter;
@@ -28,7 +27,6 @@ function getTransporter(): Transporter | null {
   return transporter;
 }
 
-/** 单封邮件内容 */
 interface MailMessage {
   to: string;
   subject: string;

@@ -1,14 +1,34 @@
-/**
- * @vitest-environment node
- */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('@/i18n/index.js', () => ({
+  default: {
+    t: (key: string, options?: Record<string, unknown>) => {
+      const map: Record<string, string> = {
+        'format.durationDays': '{count}天',
+        'format.durationMonthShort': '{count}个月',
+        'format.durationYearsShort': '{count}年',
+      };
+      const template = map[key] || key;
+      if (options) {
+        let result = template;
+        for (const [k, v] of Object.entries(options)) {
+          result = result.replace(`{${k}}`, String(v));
+        }
+        return result;
+      }
+      return template;
+    },
+    language: 'zh-CN',
+  },
+}));
+
 import {
   formatCurrency,
   formatPercent,
   formatDuration,
   formatNumber,
   formatPercentSigned,
-} from '../../../packages/frontend/src/lib/formatters.js';
+} from '../../../packages/frontend/src/utils/format.js';
 
 describe('formatters', () => {
   describe('formatCurrency', () => {

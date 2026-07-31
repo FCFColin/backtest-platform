@@ -113,13 +113,11 @@ const CPI_DEGRADED_WARNING = 'Go 数据服务不可用，已降级到 PostgreSQL
  * cpiService 不感知 HTTP，由路由负责 sendProblem 与 JSON 结构。
  */
 interface CpiRouteResult {
-  /** CPI 数据（Go 原始响应或 PG `[{date, value}]` 数组） */
   data: unknown;
   /** 是否从 PG 降级路径获取（Go 服务不可用） */
   degraded: boolean;
   /** 降级说明（degraded=true 时附带） */
   degradedWarning?: string;
-  /** Go 与 PG 均无数据，路由应返回 404 */
   notFound: boolean;
 }
 
@@ -145,7 +143,6 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
     return { data: goResult, degraded: false, notFound: false };
   }
 
-  // 2. 内存缓存
   if (cpiCache[country]?.routeData) {
     return {
       data: cpiCache[country]!.routeData,
@@ -167,6 +164,5 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
     };
   }
 
-  // 4. 全失败
   return { data: null, degraded: false, notFound: true };
 }

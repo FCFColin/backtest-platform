@@ -1,13 +1,3 @@
-/**
- * 组织成员服务单元测试（ADR-032）
- *
- * 企业理由：多租户身份解析是隔离与鉴权的入口。本测试验证：
- * 1. orgRoleToGlobalRole 正确把组织角色映射为全局 RBAC 角色（owner→admin）
- * 2. resolveDefaultOrg 在多组织/多角色下挑选稳定且符合优先级的默认活跃组织
- * 3. getMembership/isPlatformAdmin 的查询与边界行为
- *
- * Mock 策略：mock db.getPool().query，避免真实数据库依赖。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dbMocks = vi.hoisted(() => ({

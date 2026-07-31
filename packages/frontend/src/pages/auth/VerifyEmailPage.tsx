@@ -1,17 +1,10 @@
-/**
- * @file 邮箱验证页
- * @description 从 URL ?token= 读取验证令牌，自动调用后端验证邮箱并展示结果。
- * @route /verify-email
- */
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { apiFetch } from '@/utils/apiClient';
 import AuthPageLayout from '@/components/auth/AuthPageLayout';
-
 type Status = 'pending' | 'success' | 'error';
-
 export default function VerifyEmailPage() {
   const { t } = useTranslation();
   const [params] = useSearchParams();
@@ -19,7 +12,6 @@ export default function VerifyEmailPage() {
   const [status, setStatus] = useState<Status>('pending');
   const [message, setMessage] = useState(t('auth.verifyEmail.pending'));
   const ran = useRef(false);
-
   useEffect(() => {
     if (ran.current) return;
     ran.current = true;
@@ -33,7 +25,7 @@ export default function VerifyEmailPage() {
         const res = await apiFetch('/api/v1/auth/verify-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
+          body: JSON.stringify({ token })
         });
         const body = await res.json();
         if (res.ok && body?.data?.verified) {
@@ -49,23 +41,9 @@ export default function VerifyEmailPage() {
       }
     })();
   }, [token, t]);
-
-  const statusIcon =
-    status === 'pending' ? (
-      <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'hsl(var(--brand))' }} />
-    ) : status === 'success' ? (
-      <CheckCircle2 className="w-10 h-10" style={{ color: 'var(--success, #16a34a)' }} />
-    ) : (
-      <XCircle className="w-10 h-10" style={{ color: 'var(--danger, #dc2626)' }} />
-    );
-
+  const statusIcon = status === 'pending' ? <Loader2 className="w-10 h-10 animate-spin" style={{ color: 'hsl(var(--brand))' }} /> : status === 'success' ? <CheckCircle2 className="w-10 h-10" style={{ color: 'var(--success, #16a34a)' }} /> : <XCircle className="w-10 h-10" style={{ color: 'var(--danger, #dc2626)' }} />;
   return (
-    <AuthPageLayout
-      centered
-      maxWidth={460}
-      icon={<div style={{ margin: '0 auto 12px' }}>{statusIcon}</div>}
-      title={t('auth.verifyEmail.title')}
-    >
+    <AuthPageLayout centered maxWidth={460} icon={<div style={{ margin: '0 auto 12px' }}>{statusIcon}</div>} title={t('auth.verifyEmail.title')}>
       <p style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>{message}</p>
       {status !== 'pending' && (
         <div style={{ marginTop: 18 }}>
@@ -76,7 +54,7 @@ export default function VerifyEmailPage() {
               display: 'inline-flex',
               height: 40,
               alignItems: 'center',
-              padding: '0 18px',
+              padding: '0 18px'
             }}
           >
             {t('auth.verifyEmail.goToLogin')}

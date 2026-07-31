@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 市场数据统计 — 类型定义。
  *
  * 从 marketStats.ts 拆分（P3-2 M-005）：将纯类型集中到本文件，便于跨模块复用。
@@ -22,7 +22,6 @@ export interface TickerAggRow {
   last_date: string | null;
 }
 
-/** processTickerRow 的累加器状态 */
 export interface TickerRowState {
   earliest: string | null;
   latest: string | null;
@@ -33,7 +32,6 @@ export interface TickerRowState {
   allPoints: number[];
 }
 
-/** processTickerRow 的全部参数 */
 export interface ProcessTickerRowOpts {
   row: TickerAggRow;
   byMarket: DbMarketStats['by_market'];
@@ -56,7 +54,6 @@ export interface MarketStatsAccumulators {
   byExchange: Record<string, number>;
 }
 
-/** 引擎状态摘要查询结果 */
 export interface DbEngineStatusResult {
   totalTickers: number;
   cachedTickers: number;

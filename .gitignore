@@ -149,3 +149,4 @@ scripts/create-*.sql
 *.dump
 pg-backup.sql
 
+/test-results.json

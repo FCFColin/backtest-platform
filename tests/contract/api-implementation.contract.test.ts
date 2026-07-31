@@ -1,16 +1,3 @@
-/**
- * OpenAPI 契约测试 — API 实现一致性验证（D5-009）
- *
- * 企业理由：openapi.contract.test.ts 仅验证 spec 自身结构（$ref、responses、security），
- * 无法发现 "spec 定义了路径但 Express 未实现" 或 "Express 实现了路径但 spec 未记录" 的偏差。
- * 本测试通过静态分析 app.ts 路由挂载 + 路由文件中的 router.METHOD() 调用，
- * 提取实际实现的路径集合，与 OpenAPI spec 路径交叉比对。
- *
- * 覆盖：
- * 1. spec 路径子集实现覆盖（spec 中每个路径都应在 Express 中有对应路由）
- * 2. 实现路径子集 spec 覆盖（Express 路由应在 spec 中有记录，豁免 /health /ready /metrics）
- * 3. HTTP 方法一致性（spec 与实现的方法集合应匹配）
- */
 import { describe, it, expect } from 'vitest';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import fs from 'fs';
@@ -23,16 +10,13 @@ const openapiPath = path.resolve(__dirname, '../../docs/openapi.yaml');
 const appSrcPath = path.resolve(__dirname, '../../packages/backend/src/app.ts');
 const routesDir = path.resolve(__dirname, '../../packages/backend/src/routes');
 
-/** OpenAPI 路径 -> 方法集合 */
 type SpecPaths = Map<string, Set<string>>;
 
-/** 规范化路径：移除尾部斜杠（根路径 / 除外） */
 function normalizePath(p: string): string {
   if (p.length > 1 && p.endsWith('/')) return p.slice(0, -1);
   return p;
 }
 
-/** 从 OpenAPI spec 提取所有路径 + 方法 */
 async function extractSpecPaths(): Promise<SpecPaths> {
   const doc = (await SwaggerParser.validate(openapiPath)) as {
     paths: Record<string, Record<string, unknown> | undefined>;
@@ -76,7 +60,6 @@ function extractMountPoints(): MountPoint[] {
   return mounts;
 }
 
-/** 从路由文件提取所有 router.METHOD('/path', ...) 调用 */
 function extractRoutesFromFile(filePath: string): Array<{ method: string; path: string }> {
   if (!fs.existsSync(filePath)) return [];
   const content = fs.readFileSync(filePath, 'utf8');
@@ -105,12 +88,10 @@ function extractRoutesFromFile(filePath: string): Array<{ method: string; path: 
   return routes;
 }
 
-/** 将 Express 路径参数 :id 转换为 OpenAPI 路径参数 {id} */
 function expressToOpenApiPath(exprPath: string): string {
   return normalizePath(exprPath.replace(/:(\w+)/g, '{$1}'));
 }
 
-/** 合并挂载点前缀和路由路径，生成 OpenAPI 格式的完整路径 */
 function buildImplementedPaths(): SpecPaths {
   const mounts = extractMountPoints();
   const result: SpecPaths = new Map();
@@ -132,7 +113,6 @@ function buildImplementedPaths(): SpecPaths {
   return result;
 }
 
-/** 豁免路径前缀（实现中存在但 spec 不需要记录的路径） */
 const EXEMPT_PREFIXES = ['/health', '/ready', '/metrics'];
 
 describe('OpenAPI 契约测试 — API 实现一致性（D5-009）', () => {

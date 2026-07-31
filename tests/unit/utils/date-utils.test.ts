@@ -1,15 +1,5 @@
-/**
- * dateUtils 单元测试
- *
- * 企业理由：日期校验是回测参数的基础校验，校验失败会导致后续查询
- * 返回错误结果或抛出未捕获异常。测试覆盖：
- * - 合法 YYYY-MM-DD 格式
- * - 空字符串（表示"全部历史"，业务约定合法）
- * - 非法格式（斜杠分隔、两位年份、月份越界等仅做格式校验）
- */
-
 import { describe, it, expect } from 'vitest';
-import { isValidDate } from '../../../packages/backend/src/utils/dateUtils.js';
+import { isValidDate } from '../../../packages/backend/src/utils/misc.js';
 
 describe('isValidDate', () => {
   describe('合法输入', () => {

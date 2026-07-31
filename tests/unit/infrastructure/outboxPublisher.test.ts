@@ -1,9 +1,3 @@
-/**
- * H-005 单元测试：outboxPublisher SQL 参数化验证
- *
- * 企业理由：cleanupProcessedOutboxEvents 原先使用字符串插值 INTERVAL '${OUTBOX_RETENTION_DAYS} days'，
- * 存在 SQL 注入风险。修复后使用参数化查询 INTERVAL '1 day' * $1。
- */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -13,7 +7,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })) },
 }));
 vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({ getPrometheusRegister: () => ({ registerMetric: vi.fn() }) }));
-vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({ eventDispatcher: { dispatch: vi.fn() } }));
+vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({ eventDispatcher: { dispatch: vi.fn() } }));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({ config: { CDC_KAFKA_ENABLED: false } }));
 vi.mock('../../../packages/backend/src/infrastructure/outboxKafkaConsumer.js', () => ({ OutboxKafkaConsumer: vi.fn() }));
 

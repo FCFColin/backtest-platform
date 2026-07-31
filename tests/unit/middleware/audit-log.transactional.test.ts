@@ -1,27 +1,7 @@
-/**
- * auditLog 事务双写单元测试（Task 11.4）
- *
- * 企业理由：writeOutboxEvent 现支持两种模式：
- * 1. 独立模式（无 client）：使用连接池 + NOTIFY，向后兼容中间件异步调用
- * 2. 事务模式（传入 client）：参与调用方事务，不发送 NOTIFY，异常向上传播触发 ROLLBACK
- *
- * 测试覆盖：
- * - 事务模式下使用传入的 client（而非 getPool）
- * - 事务模式下不发送 NOTIFY（NOTIFY 应由调用方在 COMMIT 后发送）
- * - 事务模式下异常向上传播（触发 ROLLBACK）
- * - 独立模式下使用连接池
- * - 独立模式下发送 NOTIFY
- * - 独立模式下异常被吞掉（不阻塞响应）
- *
- * 权衡：不修改既有 audit-log.test.ts（保持向后兼容测试稳定），
- * 新增独立测试文件覆盖事务双写契约。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-import { createMockClient } from '../../helpers/dbMocks.js';
+import { createMockClient } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====
 const loggerMocks = vi.hoisted(() => ({}) as ReturnType<typeof createLoggerMocks>);
 
 const poolMocks = vi.hoisted(() => ({
@@ -39,7 +19,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: poolMocks.query }),
 }));
 
-import { writeOutboxEvent } from '../../../packages/backend/src/middleware/auditLog.js';
+import { writeOutboxEvent } from '../../../packages/backend/src/middleware/jwtAuth.js';
 
 describe('writeOutboxEvent 事务双写', () => {
   beforeEach(() => {

@@ -1,16 +1,3 @@
-/**
- * DomainEventDispatcher 单元测试（ADR-013 Task 8.5）
- *
- * 企业理由：领域事件分发器是 DDD 解耦的核心基础设施，测试覆盖：
- * - 注册处理器后能正确分发
- * - 无处理器时不抛错（渐进迁移兼容）
- * - 单个处理器失败不阻塞其他处理器（allSettled 隔离性）
- * - 同一事件类型的多个处理器均被调用
- *
- * 权衡：仅测试分发器自身行为，处理器内部逻辑（outbox 写入等）
- * 由各自处理器的测试覆盖，避免重复 mock。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // 使用 vi.hoisted 保证 mock 在 import 之前生效
@@ -37,13 +24,12 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   },
 }));
 
-import { DomainEventDispatcher } from '../../../packages/backend/src/domain/events/EventDispatcher.js';
+import { DomainEventDispatcher } from '../../../packages/backend/src/domain/events/events.js';
 import type {
   DomainEvent,
   EventHandler,
-} from '../../../packages/backend/src/domain/events/EventDispatcher.js';
+} from '../../../packages/backend/src/domain/events/events.js';
 
-/** 构造测试用领域事件 */
 function createEvent(eventType: string, aggregateId = 'portfolio-1'): DomainEvent {
   return {
     eventType,
@@ -54,7 +40,6 @@ function createEvent(eventType: string, aggregateId = 'portfolio-1'): DomainEven
   };
 }
 
-/** 构造测试用事件处理器 */
 function createHandler(eventType: string, handleFn?: (event: DomainEvent) => void): EventHandler {
   return {
     eventType,

@@ -1,6 +1,3 @@
-/**
- * App 安全中间件集成测试（T-E2）
- */
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import type { Server } from 'http';
 

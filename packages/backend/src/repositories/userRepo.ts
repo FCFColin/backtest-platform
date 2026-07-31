@@ -15,7 +15,6 @@ import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 
-/** 用户实体（应用层只读视图，不含 password_hash） */
 export interface User {
   id: string;
   username: string;

@@ -1,16 +1,3 @@
-/**
- * rateLimiter.ts 单元测试（P0-05 更新）
- *
- * 企业理由：限流器 keyGenerator 决定多租户/多用户场景下的限流粒度，
- * 错误的 key 会导致租户间相互影响或绕过限流。测试覆盖：
- * - computeRateLimitKey：tenantId / Bearer JWT(tenant_id) / x-api-key 三条分支
- * - authRateLimitKey：body.username 优先于 apiKey / refreshToken
- * - P0-05：Redis 不可用 → 非 admin 限流器 fail-closed (503)
- *
- * 权衡：mock express-rate-limit 捕获 keyGenerator 选项以直接测试纯函数逻辑。
- * 两套 RedisStore mock：成功路径（测试 keyGenerator）+ 失败路径（测试 503）。
- */
-
 import { describe, it, expect, vi } from 'vitest';
 import type { Request } from 'express';
 import crypto from 'node:crypto';
@@ -69,7 +56,12 @@ vi.mock('prom-client', () => ({
   },
 }));
 
-import { computeLimiter, loginLimiter } from '../../../packages/backend/src/utils/rateLimiter.js';
+import {
+  apiLimiter,
+  computeLimiter,
+  adminLimiter,
+  loginLimiter,
+} from '../../../packages/backend/src/utils/rateLimiter.js';
 
 interface LimiterOptions {
   keyGenerator?: (req: Request) => string;
@@ -79,6 +71,8 @@ interface LimiterOptions {
 
 const computeOpts = (computeLimiter as unknown as { __options: LimiterOptions }).__options;
 const loginOpts = (loginLimiter as unknown as { __options: LimiterOptions }).__options;
+const apiOpts = (apiLimiter as unknown as { __options: LimiterOptions }).__options;
+const adminOpts = (adminLimiter as unknown as { __options: LimiterOptions }).__options;
 
 function makeRequest(overrides: Record<string, unknown> = {}): Request {
   return { headers: {}, ip: '127.0.0.1', ...overrides } as unknown as Request;
@@ -137,5 +131,36 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
   it('authRateLimitKey: 无 body 标识时 fallback 到 IP', () => {
     const req = makeRequest();
     expect(loginOpts.keyGenerator!(req)).toBe('127.0.0.1');
+  });
+
+  // P0-XX：JWT 感知键生成器——已认证用户按 userId:ip 组合键限流，
+  // 避免 NAT/企业代理后多用户共享同一 IP 限流桶。
+  it('computeRateLimitKey: req.user 优先于 tenantId/JWT/API Key', () => {
+    const req = makeRequest({
+      user: { sub: 'user-xyz' },
+      tenantId: 'org-123',
+      headers: { 'x-api-key': 'bpk_live_test123' },
+    });
+    expect(computeOpts.keyGenerator!(req)).toBe('user-xyz:127.0.0.1');
+  });
+
+  it('jwtAwareKeyGenerator (apiLimiter): 已认证用户按 userId:ip 组合键', () => {
+    const req = makeRequest({ user: { sub: 'user-abc' } });
+    expect(apiOpts.keyGenerator!(req)).toBe('user-abc:127.0.0.1');
+  });
+
+  it('jwtAwareKeyGenerator (apiLimiter): 未认证回退到 ip: 前缀', () => {
+    const req = makeRequest();
+    expect(apiOpts.keyGenerator!(req)).toBe('ip:127.0.0.1');
+  });
+
+  it('jwtAwareKeyGenerator (adminLimiter): 已认证用户按 userId:ip 组合键', () => {
+    const req = makeRequest({ user: { sub: 'admin-1' } });
+    expect(adminOpts.keyGenerator!(req)).toBe('admin-1:127.0.0.1');
+  });
+
+  it('jwtAwareKeyGenerator (adminLimiter): 未认证回退到 ip: 前缀', () => {
+    const req = makeRequest();
+    expect(adminOpts.keyGenerator!(req)).toBe('ip:127.0.0.1');
   });
 });

@@ -1,4 +1,6 @@
 -- 009 回滚：移除多租户隔离（RLS 策略 + 租户表 + 控制平面表 + outbox 列）
+-- ⚠️ 数据丢失警告：DROP TABLE 会永久删除 backtest_runs/saved_configs/portfolios/
+--   api_keys/memberships/organizations 全部业务数据，仅在新环境或备份后执行。
 
 -- 1. 删除 RLS 策略（表删除会一并移除策略，此处显式以便单独回滚验证）
 DROP POLICY IF EXISTS tenant_isolation_portfolios ON portfolios;

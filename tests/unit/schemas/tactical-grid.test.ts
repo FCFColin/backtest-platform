@@ -1,15 +1,3 @@
-/**
- * tacticalGrid schema 单元测试
- *
- * 企业理由：战术网格搜索参数空间校验失败会导致无效参数组合，
- * 浪费计算资源。测试覆盖：
- * - 合法输入通过校验
- * - param1/param2.step 非正数抛错
- * - indicator 非法枚举抛错
- * - startingValue 非正数抛错
- * - 日期格式校验
- */
-
 import { describe, it, expect } from 'vitest';
 import { tacticalGridSearchSchema } from '../../../packages/backend/src/schemas/tactical.js';
 

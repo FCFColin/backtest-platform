@@ -13,7 +13,6 @@ const { loggerMocks, redisStub, healthMock } = vi.hoisted(() => {
     child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
   };
 
-  /** 内存版 Redis stub：支持 get/set(EX TTL 忽略，单测不验证过期)/del/scan(glob) */
   const store = new Map<string, string>();
   const globToRegex = (pattern: string): RegExp =>
     new RegExp('^' + pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');

@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import type { Statistics } from '@backtest/shared';
-import { useOptimizerLikeState } from '../../hooks/useOptimizerLikeState.js';
+import { useOptimizerLikeState } from '../../hooks/miscHooks.js';
 import type { OptimizerStateParams, OptimizerResultExt, SolverType } from './optimizerApi.js';
 import { fetchStats, loadInBacktesterAction, runOptimizeApi } from './optimizerApi.js';
-
 export type { SolverType, OptimizerResultExt } from './optimizerApi.js';
-
 export interface EfficientFrontierState {
   tickers: string[];
   setTickers: React.Dispatch<React.SetStateAction<string[]>>;
@@ -55,7 +53,6 @@ export interface EfficientFrontierState {
   runOptimize: () => Promise<void>;
   handleLoadInBacktester: () => void;
 }
-
 function useWeightConstraints() {
   const [minWeight, setMinWeight] = useState(0);
   const [maxWeight, setMaxWeight] = useState(100);
@@ -63,14 +60,18 @@ function useWeightConstraints() {
   const [allowShort, setAllowShort] = useState(false);
   const [solver, setSolver] = useState<SolverType>('markowitz');
   return {
-    minWeight, setMinWeight,
-    maxWeight, setMaxWeight,
-    tbillRate, setTbillRate,
-    allowShort, setAllowShort,
-    solver, setSolver,
+    minWeight,
+    setMinWeight,
+    maxWeight,
+    setMaxWeight,
+    tbillRate,
+    setTbillRate,
+    allowShort,
+    setAllowShort,
+    solver,
+    setSolver
   };
 }
-
 function useOptimizerConstraints() {
   const [minCagr, setMinCagr] = useState('');
   const [minSharpe, setMinSharpe] = useState('');
@@ -84,24 +85,45 @@ function useOptimizerConstraints() {
   const [enableMinCagr, setEnableMinCagr] = useState(false);
   const [enableMaxVol, setEnableMaxVol] = useState(false);
   return {
-    minCagr, setMinCagr,
-    minSharpe, setMinSharpe,
-    minSortino, setMinSortino,
-    maxVol, setMaxVol,
-    maxMaxDD, setMaxMaxDD,
-    maxAvgDD, setMaxAvgDD,
-    maxHoldings, setMaxHoldings,
-    minWeightToInclude, setMinWeightToInclude,
-    enableMaxDD, setEnableMaxDD,
-    enableMinCagr, setEnableMinCagr,
-    enableMaxVol, setEnableMaxVol,
+    minCagr,
+    setMinCagr,
+    minSharpe,
+    setMinSharpe,
+    minSortino,
+    setMinSortino,
+    maxVol,
+    setMaxVol,
+    maxMaxDD,
+    setMaxMaxDD,
+    maxAvgDD,
+    setMaxAvgDD,
+    maxHoldings,
+    setMaxHoldings,
+    minWeightToInclude,
+    setMinWeightToInclude,
+    enableMaxDD,
+    setEnableMaxDD,
+    enableMinCagr,
+    setEnableMinCagr,
+    enableMaxVol,
+    setEnableMaxVol
   };
 }
-
 function useOptimizerSetters() {
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND']);
   const [objective, setObjective] = useState('maxSharpe');
-  const {
+  const { startDate, setStartDate, endDate, setEndDate, isLoading, setIsLoading, error, setError, results, setResults } = useOptimizerLikeState<OptimizerResultExt>();
+  const weights = useWeightConstraints();
+  const constraints = useOptimizerConstraints();
+  const [isCalculatingStats, setIsCalculatingStats] = useState(false);
+  const [backtestStats, setBacktestStats] = useState<Statistics | null>(null);
+  return {
+    ...weights,
+    ...constraints,
+    tickers,
+    setTickers,
+    objective,
+    setObjective,
     startDate,
     setStartDate,
     endDate,
@@ -112,29 +134,13 @@ function useOptimizerSetters() {
     setError,
     results,
     setResults,
-  } = useOptimizerLikeState<OptimizerResultExt>();
-  const weights = useWeightConstraints();
-  const constraints = useOptimizerConstraints();
-  const [isCalculatingStats, setIsCalculatingStats] = useState(false);
-  const [backtestStats, setBacktestStats] = useState<Statistics | null>(null);
-  return {
-    ...weights,
-    ...constraints,
-    tickers, setTickers,
-    objective, setObjective,
-    startDate, setStartDate,
-    endDate, setEndDate,
-    isLoading, setIsLoading,
-    error, setError,
-    results, setResults,
-    isCalculatingStats, setIsCalculatingStats,
-    backtestStats, setBacktestStats,
+    isCalculatingStats,
+    setIsCalculatingStats,
+    backtestStats,
+    setBacktestStats
   };
 }
-
-function buildOptimizerStateParams(
-  s: ReturnType<typeof useOptimizerSetters>,
-): OptimizerStateParams {
+function buildOptimizerStateParams(s: ReturnType<typeof useOptimizerSetters>): OptimizerStateParams {
   return {
     tickers: s.tickers,
     startDate: s.startDate,
@@ -155,15 +161,10 @@ function buildOptimizerStateParams(
     minWeightToInclude: s.minWeightToInclude,
     enableMaxDD: s.enableMaxDD,
     enableMinCagr: s.enableMinCagr,
-    enableMaxVol: s.enableMaxVol,
+    enableMaxVol: s.enableMaxVol
   };
 }
-
-async function runOptimizeAction(
-  s: ReturnType<typeof useOptimizerSetters>,
-  state: OptimizerStateParams,
-  t: (k: string) => string,
-) {
+async function runOptimizeAction(s: ReturnType<typeof useOptimizerSetters>, state: OptimizerStateParams, t: (k: string) => string) {
   if (s.tickers.filter(Boolean).length < 2) {
     s.setError(t('optimizer.errorMinTwoTickers'));
     return;
@@ -190,17 +191,10 @@ async function runOptimizeAction(
     s.setIsLoading(false);
   }
 }
-
-export function useOptimizerState(
-  t: (k: string) => string,
-  navigate: (path: string) => void,
-): EfficientFrontierState {
+export function useOptimizerState(t: (k: string) => string, navigate: (path: string) => void): EfficientFrontierState {
   const s = useOptimizerSetters();
   const state = buildOptimizerStateParams(s);
   const runOptimize = () => runOptimizeAction(s, state, t);
   const handleLoadInBacktester = () => loadInBacktesterAction(s, t, navigate);
-  // 内部 setter（setIsLoading/setIsCalculatingStats/setError/setResults/setBacktestStats）
-  // 随 spread 暴露到运行时但不在 EfficientFrontierState 类型中，TypeScript 结构类型允许返回对象
-  // 包含额外字段，消费者无法经由类型系统访问这些内部字段。
   return { ...s, runOptimize, handleLoadInBacktester };
 }

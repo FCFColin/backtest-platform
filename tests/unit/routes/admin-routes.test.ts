@@ -1,10 +1,3 @@
-/**
- * 管理后台路由单元测试
- *
- * 企业理由：管理后台仪表盘统计数据和系统资源信息是运维监控的基础，
- * 服务健康检查错误会导致误判。测试覆盖：服务健康/不健康、统计扫描、系统信息。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactories.js';

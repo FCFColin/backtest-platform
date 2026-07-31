@@ -8,7 +8,6 @@
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 
-/** 战术配置记录（API 友好结构，DB 持久化层 DTO） */
 export interface TacticalConfigRecord {
   id: string;
   name: string;
@@ -19,21 +18,18 @@ export interface TacticalConfigRecord {
   updatedAt: string;
 }
 
-/** 创建战术配置的输入 */
 export interface CreateTacticalConfigInput {
   name: string;
   description?: string;
   config: Record<string, unknown>;
 }
 
-/** 更新战术配置的输入 */
 export interface UpdateTacticalConfigInput {
   name?: string;
   description?: string;
   config?: Record<string, unknown>;
 }
 
-/** DB 行类型映射 */
 interface TacticalConfigRow {
   id: string;
   name: string;
@@ -180,10 +176,10 @@ export async function update(
 export async function remove(tenantId: string, id: string): Promise<boolean> {
   return withTenant(tenantId, async (client) => {
     const result = await client.query('DELETE FROM tactical_configs WHERE id = $1', [id]);
-    if (result.rowCount > 0) {
+    if ((result.rowCount ?? 0) > 0) {
       logger.info({ tenantId, configId: id }, '[tactical-config] Deleted');
     }
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   });
 }
 

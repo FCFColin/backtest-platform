@@ -29,10 +29,10 @@ if (onlyArg) {
   scripts = allScripts.filter(f => rx.test(f));
 }
 if (skipFrontend) {
-  scripts = scripts.filter(f => !f.includes('frontend') && !f.includes('C-004') && !f.includes('C-005') && !f.includes('C-006') && !f.includes('C-019'));
+  scripts = scripts.filter(f => f !== 'verify-frontend.mjs');
 }
 if (skipDb) {
-  scripts = scripts.filter(f => !f.includes('C-001') && !f.includes('C-002') && !f.includes('C-017') && !f.includes('C-024'));
+  scripts = scripts.filter(f => f !== 'verify-data.mjs' && f !== 'verify-backend.mjs');
 }
 
 console.log(`\n=== Critical Fixes Verification Runner ===`);

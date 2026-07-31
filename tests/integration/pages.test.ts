@@ -15,7 +15,6 @@ beforeAll(async () => {
   serverAvailable = await checkServerAvailable(`${BASE_URL}/api/health`);
 });
 
-// ===== 1. 数据引擎页面测试 =====
 describe('数据引擎页面', () => {
   it.skipIf(!serverAvailable)('正常加载：应显示统计数据', async () => {
     // 模拟前端轮询逻辑：访问 /api/data/manage/stats 验证返回结构
@@ -70,7 +69,6 @@ describe('数据引擎页面', () => {
   });
 });
 
-// ===== 2. 引擎状态指示器测试 =====
 describe('引擎状态指示器', () => {
   it.skipIf(!serverAvailable)('Go 引擎可用时返回 ok', async () => {
     const res = await fetch(`${BASE_URL}/api/ready`);
@@ -95,7 +93,6 @@ describe('引擎状态指示器', () => {
   });
 });
 
-// ===== 3. 新增工具页面 API 测试 =====
 describe('新增工具页面 API', () => {
   it.skipIf(!serverAvailable)('PCA 分析端点存在', async () => {
     // POST /api/pca/analyze，验证返回结构
@@ -224,7 +221,6 @@ describe('新增工具页面 API', () => {
   });
 });
 
-// ===== 4. 布局验证 =====
 describe('布局验证', () => {
   it('导航栏包含所有工具页面入口', () => {
     // CSR应用：导航链接在客户端渲染，路由定义集中在 navConfig.ts，验证其包含所有工具页面路由

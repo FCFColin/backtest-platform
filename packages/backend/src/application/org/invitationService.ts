@@ -8,7 +8,7 @@
  */
 import { getPool } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
-import type { OrgRole } from '../../middleware/authTypes.js';
+import type { OrgRole } from '../../middleware/jwtAuth.js';
 import { sha256Hex } from '../../utils/crypto.js';
 
 export {
@@ -17,7 +17,6 @@ export {
   revokeInvitation,
 } from '../../repositories/invitationRepo.js';
 
-/** 接受邀请的结果 */
 type AcceptResult =
   | { ok: true; orgId: string; role: OrgRole }
   | { ok: false; reason: 'invalid' | 'expired' | 'already' };

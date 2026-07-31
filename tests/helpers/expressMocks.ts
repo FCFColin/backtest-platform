@@ -1,22 +1,8 @@
-/**
- * 测试辅助：Express 中间件 Mock 工厂
- *
- * 企业理由：6+ 个中间件测试文件各自定义略有不同的 mock 请求/响应/next
- * 辅助函数，签名不一致且大量使用 any。本模块集中维护类型安全的 mock 工厂，
- * 消除重复，确保行为一致。
- *
- * 用法：
- *   import { createMockRequest, createMockResponse, createMockNext } from '../helpers/expressMocks.js';
- *   const req = createMockRequest({ method: 'POST', body: { name: 'test' } });
- *   const res = createMockResponse();
- *   const next = createMockNext();
- */
 
 import { vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../packages/backend/src/middleware/jwtAuth.js';
 
-/** Mock Request 的可扩展属性类型 */
 interface MockRequestOverrides {
   method?: string;
   url?: string;
@@ -30,7 +16,6 @@ interface MockRequestOverrides {
   [key: string]: unknown;
 }
 
-/** Mock Response 方法集合 */
 interface MockResponse {
   status: ReturnType<typeof vi.fn>;
   json: ReturnType<typeof vi.fn> & { (body: unknown): void };
@@ -139,17 +124,6 @@ export async function awaitMiddleware(
   });
 }
 
-/**
- * jwtAuth 测试专用 mock 工厂（返回 AuthenticatedRequest 类型）
- *
- * 企业理由：jwt-auth.* 测试需要 req.user 为 JwtPayload | null 类型，
- * 通用 createMockRequest 返回 Request（user 为 unknown）会导致类型不兼容。
- * 本组函数与原 jwt-auth.helpers.ts 实现一致，集中到 expressMocks.ts 后
- * 消除 jwt-auth.helpers.ts 单独文件。
- *
- * 用法：
- *   import { createJwtAuthMockRequest, createJwtAuthMockResponse, createJwtAuthMockNext } from '../helpers/expressMocks.js';
- */
 export function createJwtAuthMockRequest(
   overrides: Record<string, unknown> = {},
 ): AuthenticatedRequest {

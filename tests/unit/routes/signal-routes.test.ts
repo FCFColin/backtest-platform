@@ -1,14 +1,7 @@
-/**
- * 信号分析路由单元测试
- *
- * 企业理由：信号分析（单/双/多）是交易策略核心，参数校验和数据完整性
- * 影响信号正确性。测试覆盖：成功分析、参数校验失败、价格数据缺失、引擎异常。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
-import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
+import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
   fetchHistoryData: vi.fn(),

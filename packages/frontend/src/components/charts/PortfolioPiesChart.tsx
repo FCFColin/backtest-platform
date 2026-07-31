@@ -1,19 +1,12 @@
-/**
- * @file 投资组合饼图
- * @description 以饼图形式展示各投资组合的资产配置比例
- */
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 import { ChartTooltip, ChartLegend } from './ChartAxis.js';
-
-/** 投资组合饼图 Props */
 interface PortfolioPiesChartProps {
   portfolios: Array<Pick<Portfolio, 'name' | 'assets'>>;
 }
-
 export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartProps) {
   const { t } = useTranslation();
   if (portfolios.length === 0) {
@@ -25,9 +18,7 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
       </ChartCard>
     );
   }
-
   const portfoliosWithAssets = portfolios.filter((p) => p.assets && p.assets.length > 0);
-
   if (portfoliosWithAssets.length === 0) {
     return (
       <ChartCard title={t('charts.portfolioPies.title')}>
@@ -37,51 +28,26 @@ export default function PortfolioPiesChart({ portfolios }: PortfolioPiesChartPro
       </ChartCard>
     );
   }
-
   const pieWidth = portfoliosWithAssets.length <= 2 ? 50 : 33;
-
-  // 汇总所有组合的资产权重，用于 CSV 导出
-  const exportData = portfoliosWithAssets.flatMap((p) =>
-    p.assets.map((a) => ({ portfolio: p.name, ticker: a.ticker, weight: a.weight })),
-  );
-
+  const exportData = portfoliosWithAssets.flatMap((p) => p.assets.map((a) => ({ portfolio: p.name, ticker: a.ticker, weight: a.weight })));
   return (
-    <ChartCard
-      title={t('charts.portfolioPies.title')}
-      data={exportData}
-      csvFilename="portfolio-pies"
-    >
+    <ChartCard title={t('charts.portfolioPies.title')} data={exportData} csvFilename="portfolio-pies">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px' }}>
         {portfoliosWithAssets.map((portfolio) => {
           const pieData = portfolio.assets.map((a) => ({
             name: a.ticker,
-            value: a.weight,
+            value: a.weight
           }));
-
           return (
-            <div
-              key={portfolio.name}
-              style={{ width: `${pieWidth}%`, minWidth: 200, textAlign: 'center' }}
-            >
+            <div key={portfolio.name} style={{ width: `${pieWidth}%`, minWidth: 200, textAlign: 'center' }}>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, value }) => `${name} ${value}%`}
-                  >
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({ name, value }) => `${name} ${value}%`}>
                     {pieData.map((_, idx) => (
                       <Cell key={`cell-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <ChartTooltip
-                    cursor={false}
-                    formatter={(value: number, name: string) => [`${value}%`, name]}
-                  />
+                  <ChartTooltip cursor={false} formatter={(value: number, name: string) => [`${value}%`, name]} />
                   <ChartLegend />
                 </PieChart>
               </ResponsiveContainer>

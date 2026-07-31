@@ -1,10 +1,7 @@
 import { z } from 'zod';
 
 /**
- * 分析类路由共享 Schema（ADR-042 路由整合）
- *
- * 合并原独立文件 pca.ts / letf.ts / goalOptimizer.ts，
- * 三者均仅被 analysisRoutes.ts 导入，合并消除 3 个独立文件的维护开销。
+ * 分析类路由共享 Schema（ADR-042 路由整合）。
  */
 
 // POST /api/v1/pca/analyze
@@ -47,7 +44,6 @@ export const goalOptimizerSchema = z.object({
   numSimulations: z.number().int().positive().optional(),
 });
 
-/** POST /api/v1/analysis/factor-regression — 请求体校验 */
 export const factorRegressionSchema = z.object({
   monthlyReturns: z.array(z.number()).min(1, 'monthlyReturns 不能为空'),
   ffData: z.array(z.record(z.string(), z.unknown())).min(1, 'ffData 不能为空'),
@@ -56,7 +52,6 @@ export const factorRegressionSchema = z.object({
   endDate: z.string().max(50).optional(),
 });
 
-/** POST /api/v1/calculators/:type — body 因 type 而异，校验为对象即可 */
 export const calculatorBodySchema = z
   .object({})
   .passthrough()

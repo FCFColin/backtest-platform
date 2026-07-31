@@ -1,9 +1,6 @@
-/**
- * @vitest-environment happy-dom
- */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useTheme } from '../../../packages/frontend/src/hooks/useTheme.js';
+import { useTheme } from '../../../packages/frontend/src/hooks/miscHooks.js';
 
 describe('useTheme', () => {
   const storage = new Map<string, string>();

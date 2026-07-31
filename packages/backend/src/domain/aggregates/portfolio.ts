@@ -1,8 +1,5 @@
-// DDD: Portfolio Aggregate — 事务边界 + 业务规则
-//
-// 充血模型：组合聚合根封装了权重校验、持仓管理、集中度分析、再平衡判断等业务逻辑。
-// 携带完整配置（再平衡策略、拖累、滑行路径），是 application service 的标准输入类型。
-// application 层通过 fromDTO() 从请求 DTO 构造聚合根，通过 toEngineBody() 序列化为引擎请求体，
+// 充血模型：组合聚合根封装权重校验、持仓管理等业务逻辑。
+// application 层通过 fromDTO() 构造聚合根，通过 toEngineBody() 序列化为引擎请求体，
 // 整个流程中值对象（Ticker/Weight）始终保留，不再中途丢弃。
 
 import { Ticker, Weight } from '../value-objects/index.js';
@@ -18,11 +15,7 @@ export interface PortfolioHolding {
   weight: Weight;
 }
 
-/** 组合权重和容差（百分比点） */
 const PORTFOLIO_WEIGHT_SUM_TOLERANCE = 1;
-
-/** 单一持仓集中度阈值（百分比），超过此值视为高集中度 */
-export const CONCENTRATION_THRESHOLD = 40;
 
 interface PortfolioProps {
   id: string;
@@ -76,8 +69,6 @@ export class Portfolio {
   }
 
   /**
-   * 从共享层 DTO 构造聚合根。
-   *
    * 逐资产创建 Ticker（安全净化）+ Weight（0–100 百分比校验），
    * 再由构造器校验权重和 ≈ 100。携带完整再平衡/glidepath 配置。
    *
@@ -114,7 +105,7 @@ export class Portfolio {
     });
   }
 
-  /** 低级工厂：仅用于 domain 层内部构造或测试 */
+  /** 仅用于 domain 层内部构造或测试 */
   static create(
     id: string,
     name: string,
@@ -139,73 +130,23 @@ export class Portfolio {
     });
   }
 
-  getHoldings(): ReadonlyArray<PortfolioHolding> {
-    return Object.freeze([...this.holdings]);
-  }
-
-  /** 持仓数量 */
   get holdingCount(): number {
     return this.holdings.length;
   }
 
-  /** 所有持仓的 ticker 列表 */
   get tickers(): string[] {
     return this.holdings.map((h) => h.ticker.value);
   }
 
-  /** 权重总和 */
   get totalWeight(): number {
     return this.holdings.reduce((acc, h) => acc + h.weight.value, 0);
   }
 
-  /** 最大单一持仓权重 */
   get maxWeight(): number {
     return this.holdings.reduce((max, h) => Math.max(max, h.weight.value), 0);
   }
 
-  /** 是否高集中度（任一持仓超过阈值） */
-  get isConcentrated(): boolean {
-    return this.maxWeight > CONCENTRATION_THRESHOLD;
-  }
-
-  /** 查找指定 ticker 的持仓 */
-  findHolding(ticker: Ticker): PortfolioHolding | undefined {
-    return this.holdings.find((h) => h.ticker.equals(ticker));
-  }
-
-  addHolding(holding: PortfolioHolding): Portfolio {
-    return Portfolio.create(this.id, this.name, [...this.holdings, holding], this.configSnapshot);
-  }
-
-  removeHolding(ticker: Ticker): Portfolio {
-    const newHoldings = this.holdings.filter((h) => !h.ticker.equals(ticker));
-    return Portfolio.create(this.id, this.name, newHoldings, this.configSnapshot);
-  }
-
-  /** 调整持仓权重（返回新 Portfolio，原对象不可变） */
-  rebalance(targetWeights: Map<string, number>): Portfolio {
-    const newHoldings = this.holdings.map((h) => {
-      const target = targetWeights.get(h.ticker.value);
-      if (target === undefined) {
-        throw new Error(`No target weight for ticker: ${h.ticker.value}`);
-      }
-      return { ticker: h.ticker, weight: Weight.create(target) };
-    });
-    return Portfolio.create(this.id, this.name, newHoldings, this.configSnapshot);
-  }
-
-  /** 检查是否需要再平衡（任一持仓偏离目标超过阈值） */
-  needsRebalance(targetWeights: Map<string, number>, threshold: number): boolean {
-    return this.holdings.some((h) => {
-      const target = targetWeights.get(h.ticker.value);
-      if (target === undefined) return true;
-      return Math.abs(h.weight.value - target) > threshold;
-    });
-  }
-
   /**
-   * 序列化为 Go 引擎请求体格式。
-   *
    * 值对象在此处解包为原始值，是值对象生命周期的终点。
    * 替代独立的 buildEnginePortfolioBody() 函数，确保序列化逻辑与领域模型同源。
    */
@@ -233,9 +174,6 @@ export class Portfolio {
   }
 
   /**
-   * 序列化为持久化层 DTO（与 portfolios 表 schema 对齐）。
-   *
-   * 值对象在此处解包为原始值，资产列表已经过聚合根构造时的净化与校验，
    * application 层持久化时应使用此 DTO 而非原始请求体的 assets，
    * 确保落库数据与领域不变量一致（ADR-013）。
    */
@@ -248,23 +186,6 @@ export class Portfolio {
       name: this.name,
       assets: this.holdings.map((h) => ({ ticker: h.ticker.value, weight: h.weight.value })),
       rebalanceFrequency: this.rebalanceFrequency,
-    };
-  }
-
-  /** 获取当前配置快照（用于不可变更新时保留配置） */
-  private get configSnapshot(): Partial<Pick<Portfolio, ConfigKeys>> {
-    return {
-      rebalanceFrequency: this.rebalanceFrequency,
-      rebalanceThreshold: this.rebalanceThreshold,
-      rebalanceOffset: this.rebalanceOffset,
-      rebalanceBands: this.rebalanceBands,
-      drag: this.drag,
-      totalReturn: this.totalReturn,
-      isGlidepath: this.isGlidepath,
-      glidepathFrom: this.glidepathFrom,
-      glidepathTo: this.glidepathTo,
-      glidepathYears: this.glidepathYears,
-      glidepathToWeights: this.glidepathToWeights,
     };
   }
 

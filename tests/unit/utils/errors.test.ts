@@ -1,23 +1,7 @@
-/**
- * errors 单元测试（RFC 7807 Problem Details）
- *
- * 企业理由：统一错误响应格式是前后端契约的基础，格式错误会导致
- * 前端无法解析错误信息。测试覆盖：
- * - sendProblem 正确设置状态码、Content-Type、错误体
- * - instance 字段从 res.req.path 提取
- * - 缺少 req 时 instance 为 undefined
- */
-
 import { describe, it, expect } from 'vitest';
 import { sendProblem } from '../../../packages/backend/src/utils/errors.js';
 import { createMockResponse } from '../../helpers/expressMocks.js';
 
-/**
- * 创建带可选 req.path 的 mock Response（复用 expressMocks.createMockResponse）
- *
- * sendProblem 内部从 res.req.path 提取 instance 字段，故需在标准 mock 基础上
- * 注入 req 属性。
- */
 function createMockRes(path?: string) {
   const res = createMockResponse();
   res.req = path ? { path } : undefined;

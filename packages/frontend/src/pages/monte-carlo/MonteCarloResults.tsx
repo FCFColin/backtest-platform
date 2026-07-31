@@ -1,52 +1,22 @@
-/**
- * @file 蒙特卡洛结果面板（shadcn Tabs 容器）
- * @description 组合 StatsGrid + shadcn Tabs + 当前 Tab 内容；支持单/双组合展示。
- *   双组合模式下两个组合共享 activeTab 与 distMetric。
- */
 import type { MonteCarloResult } from '@backtest/shared';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import type { DistMetric, ResultTab, PortfolioState, PortfolioMode } from './monteCarloTypes.js';
-import { RESULT_TABS } from './monteCarloSharedConstants.js';
+import { Separator } from '@/components/ui/uiComponents';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
+import type { DistMetric, ResultTab, PortfolioState, PortfolioMode } from './monteCarloUtils.js';
+import { RESULT_TABS } from './monteCarloUtils.js';
 import { StatsGrid, PortfolioLabel, McErrorState, McEmptyState } from './MonteCarloShared.js';
+import { lazy, Suspense } from 'react';
+import { Loader2 } from '@/icons/icons.js';
 import { MonteCarloSummaryTab } from './MonteCarloSummaryTab.js';
-import { MonteCarloRangeTab } from './MonteCarloRangeTab.js';
-import { MonteCarloSuccessTab } from './MonteCarloSuccessTab.js';
-import { MonteCarloDistributionsTab } from './MonteCarloDistributionsTab.js';
-import { MonteCarloScenariosTab } from './MonteCarloScenariosTab.js';
-
-function ResultsDisplay({
-  r,
-  label,
-  colorIdx,
-  portfolioMode,
-  activeTab,
-  startingValue,
-  numSimulations,
-  distMetric,
-  setDistMetric,
-  onTabChange,
-}: {
-  r: MonteCarloResult;
-  label: string;
-  colorIdx: number;
-  portfolioMode: PortfolioMode;
-  activeTab: ResultTab;
-  startingValue: number;
-  numSimulations: number;
-  distMetric: DistMetric;
-  setDistMetric: (m: DistMetric) => void;
-  onTabChange: (tab: ResultTab) => void;
-}) {
+const MonteCarloRangeTab = lazy(() => import('./MonteCarloRangeTab.js').then((m) => ({ default: m.MonteCarloRangeTab })));
+const MonteCarloSuccessTab = lazy(() => import('./MonteCarloSuccessTab.js').then((m) => ({ default: m.MonteCarloSuccessTab })));
+const MonteCarloDistributionsTab = lazy(() => import('./MonteCarloDistributionsTab.js').then((m) => ({ default: m.MonteCarloDistributionsTab })));
+const MonteCarloScenariosTab = lazy(() => import('./MonteCarloScenariosTab.js').then((m) => ({ default: m.MonteCarloScenariosTab })));
+function ResultsDisplay({ r, label, colorIdx, portfolioMode, activeTab, startingValue, numSimulations, distMetric, setDistMetric, onTabChange }: { r: MonteCarloResult; label: string; colorIdx: number; portfolioMode: PortfolioMode; activeTab: ResultTab; startingValue: number; numSimulations: number; distMetric: DistMetric; setDistMetric: (m: DistMetric) => void; onTabChange: (tab: ResultTab) => void }) {
   return (
     <div key={label}>
       {portfolioMode === 2 && <PortfolioLabel label={label} colorIdx={colorIdx} />}
       <StatsGrid r={r} startingValue={startingValue} numSimulations={numSimulations} />
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => onTabChange(v as ResultTab)}
-        className="w-full"
-      >
+      <Tabs value={activeTab} onValueChange={(v) => onTabChange(v as ResultTab)} className="w-full">
         <TabsList className="mb-4 flex-wrap">
           {RESULT_TABS.map((tab) => (
             <TabsTrigger key={tab.key} value={tab.key}>
@@ -59,90 +29,64 @@ function ResultsDisplay({
             <MonteCarloSummaryTab r={r} startingValue={startingValue} />
           </TabsContent>
           <TabsContent value="range">
-            <MonteCarloRangeTab r={r} startingValue={startingValue} />
+            <Suspense
+              fallback={
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                </div>
+              }
+            >
+              <MonteCarloRangeTab r={r} startingValue={startingValue} />
+            </Suspense>
           </TabsContent>
           <TabsContent value="success">
-            <MonteCarloSuccessTab r={r} />
+            <Suspense
+              fallback={
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                </div>
+              }
+            >
+              <MonteCarloSuccessTab r={r} />
+            </Suspense>
           </TabsContent>
           <TabsContent value="distributions">
-            <MonteCarloDistributionsTab
-              r={r}
-              distMetric={distMetric}
-              setDistMetric={setDistMetric}
-              startingValue={startingValue}
-            />
+            <Suspense
+              fallback={
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                </div>
+              }
+            >
+              <MonteCarloDistributionsTab r={r} distMetric={distMetric} setDistMetric={setDistMetric} startingValue={startingValue} />
+            </Suspense>
           </TabsContent>
           <TabsContent value="scenarios">
-            <MonteCarloScenariosTab r={r} startingValue={startingValue} />
+            <Suspense
+              fallback={
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
+                </div>
+              }
+            >
+              <MonteCarloScenariosTab r={r} startingValue={startingValue} />
+            </Suspense>
           </TabsContent>
         </div>
       </Tabs>
     </div>
   );
 }
-
-/**
- * 蒙特卡洛结果面板：错误态 / 空态 / 单/双组合结果展示。
- * 双组合模式下两个组合共享 activeTab 与 distMetric。
- */
-export function MonteCarloResultsPanel({
-  error,
-  results1,
-  results2,
-  portfolios,
-  portfolioMode,
-  activeTab,
-  setActiveTab,
-  startingValue,
-  numSimulations,
-  distMetric,
-  setDistMetric,
-}: {
-  error: string | null;
-  results1: MonteCarloResult | null;
-  results2: MonteCarloResult | null;
-  portfolios: PortfolioState[];
-  portfolioMode: PortfolioMode;
-  activeTab: ResultTab;
-  setActiveTab: (tab: ResultTab) => void;
-  startingValue: number;
-  numSimulations: number;
-  distMetric: DistMetric;
-  setDistMetric: (m: DistMetric) => void;
-}) {
+export function MonteCarloResultsPanel({ error, results1, results2, portfolios, portfolioMode, activeTab, setActiveTab, startingValue, numSimulations, distMetric, setDistMetric }: { error: string | null; results1: MonteCarloResult | null; results2: MonteCarloResult | null; portfolios: PortfolioState[]; portfolioMode: PortfolioMode; activeTab: ResultTab; setActiveTab: (tab: ResultTab) => void; startingValue: number; numSimulations: number; distMetric: DistMetric; setDistMetric: (m: DistMetric) => void }) {
   if (error) return <McErrorState error={error} />;
   if (!results1 && !results2) return <McEmptyState />;
   return (
     <div className="flex flex-col gap-6">
-      {results1 && (
-        <ResultsDisplay
-          r={results1}
-          label={portfolios[0].name}
-          colorIdx={0}
-          portfolioMode={portfolioMode}
-          activeTab={activeTab}
-          startingValue={startingValue}
-          numSimulations={numSimulations}
-          distMetric={distMetric}
-          setDistMetric={setDistMetric}
-          onTabChange={setActiveTab}
-        />
-      )}
+      {results1 && <ResultsDisplay r={results1} label={portfolios[0].name} colorIdx={0} portfolioMode={portfolioMode} activeTab={activeTab} startingValue={startingValue} numSimulations={numSimulations} distMetric={distMetric} setDistMetric={setDistMetric} onTabChange={setActiveTab} />}
       {results2 && (
         <>
           <Separator />
-          <ResultsDisplay
-            r={results2}
-            label={portfolios[1].name}
-            colorIdx={1}
-            portfolioMode={portfolioMode}
-            activeTab={activeTab}
-            startingValue={startingValue}
-            numSimulations={numSimulations}
-            distMetric={distMetric}
-            setDistMetric={setDistMetric}
-            onTabChange={setActiveTab}
-          />
+          <ResultsDisplay r={results2} label={portfolios[1].name} colorIdx={1} portfolioMode={portfolioMode} activeTab={activeTab} startingValue={startingValue} numSimulations={numSimulations} distMetric={distMetric} setDistMetric={setDistMetric} onTabChange={setActiveTab} />
         </>
       )}
     </div>

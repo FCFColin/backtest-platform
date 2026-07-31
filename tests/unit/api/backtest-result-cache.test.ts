@@ -1,6 +1,3 @@
-/**
- * backtestResultCache LRU + TTL 单元测试
- */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { createRedisModuleMock } from '../../helpers/mockFactories.js';
 

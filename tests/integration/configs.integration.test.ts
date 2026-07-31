@@ -1,9 +1,3 @@
-/**
- * 命名配置（saved_configs）CRUD 集成测试（RO-049）
- *
- * 跨层验证：Express 路由 → savedConfigRepo（withTenant RLS）→ PostgreSQL。
- * 使用 testcontainers 起真实 PG，验证 RLS 租户隔离与完整 CRUD 生命周期。
- */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
 

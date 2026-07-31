@@ -1,15 +1,3 @@
-/**
- * cpiService 单元测试 — loadCpiMap + fetchCpiForRoute + 三级降级策略
- *
- * 覆盖：fetchCpiForRoute 三级降级（Go → 缓存 → PG → notFound）、
- * loadCpiMap 缓存命中/未命中/PG-空-Go-fallback、fetchCpiMapFromGo 扁平化（date slice 0-10）。
- *
- * Mock 策略：mock callGoDataService + loadCpiSeriesFromDb + logger。
- * cpiCache 是模块私有状态，通过给每个测试分配独立 country 隔离缓存污染。
- *
- * 缓存命中场景在单个测试内做两次调用（第一次写入，第二次命中），保证测试独立性。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger } from '../../helpers/mockFactories.js';
 

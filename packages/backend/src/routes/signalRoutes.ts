@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from '../schemas/signal.js';
 import {
   executeSignalAnalyze,

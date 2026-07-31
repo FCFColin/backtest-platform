@@ -1,14 +1,3 @@
-/**
- * 数据引擎管理路由单元测试 —— 只读查询端点
- *
- * 企业理由：数据管理路由的只读端点（状态、统计、分页、搜索、ticker 详情、
- * 更新状态查询）影响客户端数据展示。测试覆盖：正常路径、错误路径、参数校验。
- *
- * 共享 setup（app factory / 服务 mock / mock stats）抽到
- * tests/helpers/dataManageRoutesFixtures.ts，便于复用与维护。
- * 写端点测试见 data-manage-routes.write.test.ts。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   engineServiceMocks,

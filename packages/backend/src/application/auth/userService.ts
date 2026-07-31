@@ -14,7 +14,6 @@ import { logger } from '../../utils/logger.js';
 import { rowToUser, type User } from '../../repositories/userRepo.js';
 import { sha256Hex } from '../../utils/crypto.js';
 
-/** 邮箱验证令牌有效期（毫秒，24 小时） */
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -48,7 +47,6 @@ export async function verifyUser(username: string, password: string): Promise<Us
     return null;
   }
 
-  // 更新最后登录时间
   await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [user.id]);
 
   return rowToUser(user);

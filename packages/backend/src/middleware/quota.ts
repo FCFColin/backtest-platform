@@ -25,7 +25,6 @@ import { getMonthlyUsage, recordUsage } from '../application/billing/usageServic
 import { appRedis } from '../infrastructure/redisClient.js';
 import { quotaEnforcementFailures } from '../utils/metrics.js';
 
-/** 从常见请求体形态推断标的数量（tickers/assets/symbols） */
 function extractTickerCount(body: unknown): number {
   if (!body || typeof body !== 'object') return 0;
   const b = body as Record<string, unknown>;
@@ -94,7 +93,6 @@ export function enforceQuota(metric: string) {
     }
 
     try {
-      // 1. 查询组织计划
       let plan: string | null = null;
       try {
         const org = await getOrg(tenantId);
@@ -104,16 +102,15 @@ export function enforceQuota(metric: string) {
         // 元数据查询失败可能是 DB 不可用，此时配额无法校验，不应放行
         logger.error({ err: String(err), tenantId }, '[quota] 组织查询失败，fail-closed');
         quotaEnforcementFailures.inc({ quota_key: metric, reason: 'org_query_failed' });
-        sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', {
+        sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
           detail: 'Service temporarily unavailable. Please try again later.',
-          retryAfter: 30,
+          headers: { 'Retry-After': '30' },
         });
         return;
       }
 
       const limits = getPlanLimits(plan);
 
-      // 2. 单次标的数上限
       const tickerCount = extractTickerCount(req.body);
       if (tickerCount > limits.maxTickers) {
         sendProblem(res, 422, 'TICKERS_LIMIT_EXCEEDED');
@@ -138,7 +135,6 @@ export function enforceQuota(metric: string) {
         return;
       }
 
-      // 4. 月度用量上限（DB 持久化检查，与 Redis 短期窗口互补）
       if (Number.isFinite(limits.backtestsPerMonth)) {
         const used = await getMonthlyUsage(tenantId, metric);
         if (used >= limits.backtestsPerMonth) {
@@ -161,9 +157,9 @@ export function enforceQuota(metric: string) {
       // 记录到 Prometheus，方便告警
       quotaEnforcementFailures.inc({ quota_key: metric, reason: 'redis_unavailable' });
 
-      sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', {
+      sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
         detail: 'Service temporarily unavailable. Please try again later.',
-        retryAfter: 30,
+        headers: { 'Retry-After': '30' },
       });
     }
   };

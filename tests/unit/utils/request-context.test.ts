@@ -1,14 +1,3 @@
-/**
- * requestContext 单元测试（AsyncLocalStorage）
- *
- * 企业理由：request_id 是分布式系统日志关联的最小可行单元，
- * AsyncLocalStorage 在异步链路中隐式传播 requestId。测试覆盖：
- * - 请求链路外 getRequestId 返回 undefined
- * - 请求链路内 getRequestId 返回当前 requestId
- * - 嵌套 run 调用应正确切换上下文
- * - 异步操作（setTimeout/Promise）中上下文应正确传播
- */
-
 import { describe, it, expect } from 'vitest';
 import {
   requestContextStorage,

@@ -12,7 +12,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { createApiKey, listApiKeys, revokeApiKey } from '../repositories/apiKeyRepo.js';
@@ -20,7 +20,6 @@ import { crudRouteHandler, requireTenantId, requireUuidParam } from './routeUtil
 
 const router = Router();
 
-/** 创建密钥请求体 */
 const createKeySchema = z.object({
   name: z.string().trim().min(1, '名称不能为空').max(120, '名称过长'),
 });

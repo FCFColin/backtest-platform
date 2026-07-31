@@ -3,25 +3,22 @@ import { TacticalResultsPanel } from './TacticalResults.js';
 import { useTacticalPageState } from './TacticalUtils.js';
 import { ComputeToolShell } from '../../components/shells/index.js';
 import type { ComputeToolConfig } from '../../components/shells/index.js';
-
 type TacticalPageState = ReturnType<typeof useTacticalPageState>;
-
 const config: ComputeToolConfig<TacticalPageState> = {
   titleKey: 'tactical.title',
   seoDescKey: 'tactical.seo.desc',
   seoFeatures: [
     { titleKey: 'tactical.seo.configurableTitle', descKey: 'tactical.seo.configurableDesc' },
-    { titleKey: 'tactical.seo.viewableTitle', descKey: 'tactical.seo.viewableDesc' },
+    { titleKey: 'tactical.seo.viewableTitle', descKey: 'tactical.seo.viewableDesc' }
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
-    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
+    { titleKey: 'nav.portfolioOptimize', href: '/optimizer' }
   ],
   params: TacticalParamsPanel,
-  results: TacticalResultsPanel,
+  results: TacticalResultsPanel
 };
-
 export default function TacticalPage() {
   const s = useTacticalPageState();
   return <ComputeToolShell config={config} state={s} />;

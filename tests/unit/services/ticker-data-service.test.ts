@@ -1,13 +1,7 @@
-/**
- * EngineService 单元测试
- *
- * 行情读取与统计均来自 PostgreSQL；stats 缓存文件仅加速展示。
- */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks, mockLogger } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted =====
 const loggerMocks = vi.hoisted(() => ({}) as ReturnType<typeof createLoggerMocks>);
 
 const tickerValidationMocks = vi.hoisted(() => ({
@@ -38,8 +32,6 @@ const fsPromisesMocks = vi.hoisted(() => ({
   readdir: vi.fn().mockResolvedValue([]),
   stat: vi.fn(),
 }));
-
-// ===== Mock 模块 =====
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => {
   Object.assign(loggerMocks, createLoggerMocks());

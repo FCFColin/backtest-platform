@@ -15,8 +15,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createLoggerMocks, mockLogger } from '../../helpers/mockFactories.js';
 
-// ===== Mock 模块（vi.mock 会被提升到顶部）=====
-
 const loggerMocks = createLoggerMocks();
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -45,9 +43,11 @@ vi.mock('../../../packages/backend/src/app.js', () => ({
   server: mockServer,
 }));
 
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: { API_PORT: 5001 },
-  validateConfig: vi.fn(),
+vi.mock('../../../packages/backend/src/config/env.js', () => ({
+  config: { API_PORT: 5001, NODE_ENV: 'test' },
+  requireSecret: vi.fn(),
+  parseCorsOrigins: vi.fn(),
+  resolveJwtAlgorithm: vi.fn(),
 }));
 
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
@@ -82,11 +82,17 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
   registerTimescaleMetrics: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({
+vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { register: vi.fn() },
+  RUN_COMPLETED_EVENT: 'RunCompleted',
+  RUN_STARTED_EVENT: 'RunStarted',
+  RUN_FAILED_EVENT: 'RunFailed',
+  RUN_CANCELLED_EVENT: 'RunCancelled',
+  RUN_AGGREGATE_TYPE: 'Run',
+  DomainEventDispatcher: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/application/backtestCompletedHandler.js', () => ({
+vi.mock('../../../packages/backend/src/application/completedHandlers.js', () => ({
   BacktestCompletedHandler: vi.fn().mockImplementation(() => ({})),
 }));
 

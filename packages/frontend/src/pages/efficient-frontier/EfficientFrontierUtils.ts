@@ -1,19 +1,12 @@
 import { useState, useMemo } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router-dom';
-import { useAsyncAction } from '../../hooks/useAsyncAction.js';
-import { useOptimizerLikeState } from '../../hooks/useOptimizerLikeState.js';
+import { useAsyncAction, useOptimizerLikeState } from '../../hooks/miscHooks.js';
 import { apiFetch } from '@/utils/apiClient';
 import type { EfficientFrontierResult, EfficientFrontierPoint } from '@backtest/shared';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './efficientFrontierTypes.js';
 import { buildBacktestParameters } from '@/utils/constants';
-
-function buildPortfolioData(
-  p: EfficientFrontierPoint,
-  rebalanceFrequency: string,
-  startDate: string,
-  endDate: string,
-) {
+function buildPortfolioData(p: EfficientFrontierPoint, rebalanceFrequency: string, startDate: string, endDate: string) {
   return {
     portfolios: [
       {
@@ -21,18 +14,17 @@ function buildPortfolioData(
         name: i18n.t('statsTable.portfolioName'),
         assets: Object.entries(p.weights).map(([ticker, weight]) => ({
           ticker,
-          weight: Math.round(weight * 10000) / 100,
+          weight: Math.round(weight * 10000) / 100
         })),
         rebalanceFrequency: rebalanceFrequency || 'quarterly',
         rebalanceOffset: 0,
         drag: 0,
-        totalReturn: true,
-      },
+        totalReturn: true
+      }
     ],
-    parameters: buildBacktestParameters(startDate, endDate),
+    parameters: buildBacktestParameters(startDate, endDate)
   };
 }
-
 interface FetchFrontierParams {
   validTickers: string[];
   numPoints: number;
@@ -45,7 +37,6 @@ interface FetchFrontierParams {
   startDate: string;
   endDate: string;
 }
-
 async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFrontierResult> {
   const res = await apiFetch('/api/v1/backtest/efficient-frontier', {
     method: 'POST',
@@ -59,60 +50,48 @@ async function fetchFrontier(params: FetchFrontierParams): Promise<EfficientFron
       allowCash: params.allowCash,
       returnObjective: params.returnObjective,
       solver: params.solver,
-      parameters: buildBacktestParameters(params.startDate, params.endDate),
-    }),
+      parameters: buildBacktestParameters(params.startDate, params.endDate)
+    })
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (json.success === false) throw new Error(json.error || i18n.t('errors.computeFailed'));
   return json.data ?? json;
 }
-
-async function fetchCorrelations(
-  validTickers: string[],
-  startDate: string,
-  endDate: string,
-): Promise<{ tickers: string[]; matrix: number[][] } | null> {
+async function fetchCorrelations(validTickers: string[], startDate: string, endDate: string): Promise<{ tickers: string[]; matrix: number[][] } | null> {
   const btBody = {
     portfolios: [
       {
         name: 'temp',
         assets: validTickers.map((t) => ({
           ticker: t,
-          weight: Math.round((100 / validTickers.length) * 100) / 100,
+          weight: Math.round((100 / validTickers.length) * 100) / 100
         })),
         rebalanceFrequency: 'yearly',
         rebalanceOffset: 0,
         drag: 0,
-        totalReturn: true,
-      },
+        totalReturn: true
+      }
     ],
-    parameters: buildBacktestParameters(startDate, endDate),
+    parameters: buildBacktestParameters(startDate, endDate)
   };
   const btRes = await apiFetch('/api/v1/backtest/portfolio', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(btBody),
+    body: JSON.stringify(btBody)
   });
   if (!btRes.ok) return null;
   const btJson = await btRes.json();
   const btData = btJson.data ?? btJson;
-  if (btData.assetTickers && btData.assetCorrelations)
-    return { tickers: btData.assetTickers, matrix: btData.assetCorrelations };
+  if (btData.assetTickers && btData.assetCorrelations) return { tickers: btData.assetTickers, matrix: btData.assetCorrelations };
   return null;
 }
-
 function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
-  const maxSharpe = results?.frontier.length
-    ? results.frontier.reduce(
-        (best, p) => (p.sharpeRatio > best.sharpeRatio ? p : best),
-        results.frontier[0],
-      )
-    : undefined;
+  const maxSharpe = results?.frontier.length ? results.frontier.reduce((best, p) => (p.sharpeRatio > best.sharpeRatio ? p : best), results.frontier[0]) : undefined;
   const sharpeRange = results?.frontier.length
     ? {
         min: Math.min(...results.frontier.map((p) => p.sharpeRatio)),
-        max: Math.max(...results.frontier.map((p) => p.sharpeRatio)),
+        max: Math.max(...results.frontier.map((p) => p.sharpeRatio))
       }
     : { min: 0, max: 1 };
   const scatterData = results
@@ -120,7 +99,7 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
         expectedVolatility: p.expectedVolatility,
         expectedReturn: p.expectedReturn,
         sharpeRatio: p.sharpeRatio,
-        idx,
+        idx
       }))
     : [];
   const allocationData = results
@@ -135,15 +114,10 @@ function computeFrontierDerivedData(results: EfficientFrontierResult | null) {
   const allAssetTickers = results?.frontier.length ? Object.keys(results.frontier[0].weights) : [];
   return { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers };
 }
-
 function useEfficientFrontierStateInner() {
   const navigate = useNavigate();
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND', 'TLT']);
-  // 复用 useOptimizerLikeState 提供 startDate/endDate/results + setter。
-  // isLoading/error 由下方 useAsyncAction 统一管理（提供 run 包装异步执行），
-  // 故 shared hook 的 isLoading/error/setIsLoading/setError 在此处未使用。
-  const { startDate, setStartDate, endDate, setEndDate, results, setResults } =
-    useOptimizerLikeState<EfficientFrontierResult>();
+  const { startDate, setStartDate, endDate, setEndDate, results, setResults } = useOptimizerLikeState<EfficientFrontierResult>();
   const [numPoints, setNumPoints] = useState(20);
   const [solveSpeed, setSolveSpeed] = useState<SolveSpeed>('fast');
   const [minInclusionWeight, setMinInclusionWeight] = useState(0);
@@ -160,28 +134,42 @@ function useEfficientFrontierStateInner() {
   const [solver, setSolver] = useState<FrontierSolver>('markowitz');
   return {
     navigate,
-    tickers, setTickers,
-    startDate, setStartDate,
-    endDate, setEndDate,
-    numPoints, setNumPoints,
-    solveSpeed, setSolveSpeed,
-    minInclusionWeight, setMinInclusionWeight,
-    isLoading, error,
-    run, setError,
-    results, setResults,
-    selectedPoint, setSelectedPoint,
-    correlations, setCorrelations,
-    correlationError, setCorrelationError,
-    rebalanceFrequency, setRebalanceFrequency,
-    allowCash, setAllowCash,
-    returnObjective, setReturnObjective,
-    solver, setSolver,
+    tickers,
+    setTickers,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    numPoints,
+    setNumPoints,
+    solveSpeed,
+    setSolveSpeed,
+    minInclusionWeight,
+    setMinInclusionWeight,
+    isLoading,
+    error,
+    run,
+    setError,
+    results,
+    setResults,
+    selectedPoint,
+    setSelectedPoint,
+    correlations,
+    setCorrelations,
+    correlationError,
+    setCorrelationError,
+    rebalanceFrequency,
+    setRebalanceFrequency,
+    allowCash,
+    setAllowCash,
+    returnObjective,
+    setReturnObjective,
+    solver,
+    setSolver
   };
 }
-
 function useEfficientFrontierState() {
   const s = useEfficientFrontierStateInner();
-
   const addTicker = () => s.setTickers([...s.tickers, '']);
   const removeTicker = (i: number) => {
     if (s.tickers.length > 2) s.setTickers(s.tickers.filter((_, idx) => idx !== i));
@@ -191,12 +179,7 @@ function useEfficientFrontierState() {
     n[i] = val;
     s.setTickers(n);
   };
-
-  const { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers } = useMemo(
-    () => computeFrontierDerivedData(s.results),
-    [s.results],
-  );
-
+  const { maxSharpe, sharpeRange, scatterData, allocationData, allAssetTickers } = useMemo(() => computeFrontierDerivedData(s.results), [s.results]);
   const runFrontier = () => {
     const validTickers = s.tickers.filter(Boolean);
     if (validTickers.length < 2) {
@@ -217,7 +200,7 @@ function useEfficientFrontierState() {
         returnObjective: s.returnObjective,
         solver: s.solver,
         startDate: s.startDate,
-        endDate: s.endDate,
+        endDate: s.endDate
       });
       s.setResults(data);
       const corr = await fetchCorrelations(validTickers, s.startDate, s.endDate);
@@ -225,17 +208,12 @@ function useEfficientFrontierState() {
       else s.setCorrelationError(i18n.t('errors.correlationFailed'));
     });
   };
-
   const handleLoadInBacktester = (point?: EfficientFrontierPoint) => {
     const p = point || maxSharpe;
     if (!p) return;
-    localStorage.setItem(
-      'bt_load_from_optimizer',
-      JSON.stringify(buildPortfolioData(p, s.rebalanceFrequency, s.startDate, s.endDate)),
-    );
+    localStorage.setItem('bt_load_from_optimizer', JSON.stringify(buildPortfolioData(p, s.rebalanceFrequency, s.startDate, s.endDate)));
     s.navigate('/');
   };
-
   return {
     ...s,
     addTicker,
@@ -247,8 +225,7 @@ function useEfficientFrontierState() {
     allocationData,
     allAssetTickers,
     runFrontier,
-    handleLoadInBacktester,
+    handleLoadInBacktester
   };
 }
-
 export { useEfficientFrontierState };

@@ -4,9 +4,8 @@ import {
   ETF_PRESETS,
   ALL_TICKER_PRESETS,
   filterTickers,
-} from '../../../packages/frontend/src/utils/tickerPresets.js';
+} from '../../../packages/frontend/src/utils/constants.js';
 
-// ===== 数据完整性 =====
 describe('TickerPresets - 数据完整性', () => {
   it('SIM_TICKERS 所有预设都有必需字段（ticker/name/category）', () => {
     for (const preset of SIM_TICKERS) {
@@ -51,7 +50,6 @@ describe('TickerPresets - 数据完整性', () => {
   });
 });
 
-// ===== 无重复 ticker =====
 describe('TickerPresets - 无重复', () => {
   it('SIM_TICKERS 内无重复 ticker', () => {
     const tickers = SIM_TICKERS.map((p) => p.ticker);
@@ -72,7 +70,6 @@ describe('TickerPresets - 无重复', () => {
   });
 });
 
-// ===== 分类非空 =====
 describe('TickerPresets - 分类非空', () => {
   it('SIM_TICKERS 所有分类非空', () => {
     for (const preset of SIM_TICKERS) {
@@ -101,7 +98,6 @@ describe('TickerPresets - 分类非空', () => {
   });
 });
 
-// ===== ticker 格式 =====
 describe('TickerPresets - ticker 格式', () => {
   it('SIM_TICKERS 所有 ticker 以 SIM 结尾', () => {
     for (const preset of SIM_TICKERS) {
@@ -129,7 +125,6 @@ describe('TickerPresets - ticker 格式', () => {
   });
 });
 
-// ===== filterTickers =====
 describe('filterTickers', () => {
   it('空输入返回空数组', () => {
     expect(filterTickers('')).toEqual([]);

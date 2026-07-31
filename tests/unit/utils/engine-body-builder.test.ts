@@ -1,17 +1,3 @@
-/**
- * engineBodyBuilder + Portfolio.toEngineBody() 单元测试
- *
- * buildEnginePortfolioBody 已移除，序列化逻辑统一由 Portfolio 聚合根的 toEngineBody() 承担。
- * 测试覆盖：
- * - Portfolio.toEngineBody() 正确映射基础字段
- * - rebalanceBands.enabled=false 时 bands 为 undefined
- * - rebalanceBands.enabled=true 时 bands 包含 absolute/relative
- * - isGlidepath=false 时 glidepath 字段为 undefined
- * - isGlidepath=true 时 glidepath 字段正确映射
- * - buildEngineParams 正确映射参数字段
- * - 可选字段缺失时使用默认值
- */
-
 import { describe, it, expect } from 'vitest';
 import { buildEngineParams } from '../../../packages/backend/src/application/backtest/engineBodyBuilder.js';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';

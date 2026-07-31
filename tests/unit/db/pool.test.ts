@@ -1,9 +1,3 @@
-/**
- * db/pool.ts 单元测试
- *
- * 覆盖连接池单例、只读池回退、initSchema/rollbackSchema/healthCheck/closeDb。
- * 使用 mock pg/fs，不依赖真实 PostgreSQL。
- */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const poolMocks = vi.hoisted(() => {

@@ -27,17 +27,14 @@ import { requireRedis } from '../utils/redisFallback.js';
 /** Redis 吊销缓存 key 前缀 */
 const APIKEY_REVOKED_PREFIX = 'apikey:revoked:';
 
-/** 校验通过后解析出的上下文 */
 interface VerifiedApiKey {
   /** 所属组织（租户）UUID；平台密钥为 null */
   orgId: string | null;
-  /** 密钥记录 UUID */
   keyId: string;
   /** 是否平台 break-glass 密钥（注入 platform_admin 角色） */
   isPlatformAdmin: boolean;
 }
 
-/** DB 命中的候选密钥行 */
 interface ApiKeyCandidate {
   id: string;
   org_id: string | null;

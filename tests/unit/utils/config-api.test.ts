@@ -2,9 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   lsSave: vi.fn(),
-  lsLoad: vi.fn<
-    () => { id: string; name: string; savedAt: string; portfolios: never[]; parameters: object }[]
-  >(() => []),
+  lsLoad: vi.fn<() => { id: string; name: string; savedAt: string; portfolios: never[]; parameters: object }[]>(() => []),
   lsDelete: vi.fn(),
   apiFetch: vi.fn(),
   storage: {} as Record<string, string>,
@@ -18,44 +16,22 @@ vi.mock('../../../packages/frontend/src/utils/portfolioStorage', () => ({
   deleteNamedConfig: mocks.lsDelete,
   type: {},
 }));
-vi.mock('@/store/authStore', () => ({
-  useAuthStore: { getState: mocks.getState, setState: vi.fn() },
-}));
+vi.mock('@/store/authStore', () => ({ useAuthStore: { getState: mocks.getState, setState: vi.fn() } }));
 
-const TEST_PORTFOLIO = {
-  id: 'p1',
-  name: 'pf',
-  tickers: ['AAPL'],
-  weights: [1],
-  rebalanceFreq: 'monthly' as const,
-} as const;
+const TEST_PORTFOLIO = { id: 'p1', name: 'pf', tickers: ['AAPL'], weights: [1], rebalanceFreq: 'monthly' as const } as const;
 const TEST_PARAMS = { regimeFilter: false, maxDrawdown: 0.2 };
-const LOCAL_CONFIG = {
-  id: 'l1',
-  name: 'local',
-  savedAt: '2025-01-01T00:00:00Z',
-  portfolios: [],
-  parameters: {},
-};
+const LOCAL_CONFIG = { id: 'l1', name: 'local', savedAt: '2025-01-01T00:00:00Z', portfolios: [], parameters: {} };
 
 function stubLocalStorage() {
   const s = mocks.storage;
   for (const k of Object.keys(s)) delete s[k];
   globalThis.localStorage = {
     getItem: vi.fn((k: string) => s[k] ?? null),
-    setItem: vi.fn((k: string, v: string) => {
-      s[k] = v;
-    }),
-    removeItem: vi.fn((k: string) => {
-      delete s[k];
-    }),
-    clear: vi.fn(() => {
-      for (const k of Object.keys(s)) delete s[k];
-    }),
+    setItem: vi.fn((k: string, v: string) => { s[k] = v; }),
+    removeItem: vi.fn((k: string) => { delete s[k]; }),
+    clear: vi.fn(() => { for (const k of Object.keys(s)) delete s[k]; }),
     key: vi.fn(() => null),
-    get length() {
-      return Object.keys(s).length;
-    },
+    get length() { return Object.keys(s).length; },
   } as unknown as Storage;
 }
 
@@ -70,122 +46,53 @@ async function importMod() {
   return import('../../../packages/frontend/src/utils/configApi.js');
 }
 
+function mockServer(body: unknown) {
+  mocks.apiFetch.mockResolvedValueOnce({ ok: true, json: async () => body });
+}
+
 describe('listNamedConfigs', () => {
   it('未登录时直接返回本地配置', async () => {
     mocks.getState.mockReturnValue({ user: null });
     mocks.lsLoad.mockReturnValue([LOCAL_CONFIG]);
     const { listNamedConfigs } = await importMod();
-    const result = await listNamedConfigs();
-    expect(result).toEqual([LOCAL_CONFIG]);
+    expect(await listNamedConfigs()).toEqual([LOCAL_CONFIG]);
     expect(mocks.apiFetch).not.toHaveBeenCalled();
   });
 
   it('已登录时调用服务端接口', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [
-          {
-            id: 's1',
-            name: 'server-config',
-            config: { portfolios: [TEST_PORTFOLIO], parameters: TEST_PARAMS },
-            createdAt: '2025-06-01T00:00:00Z',
-          },
-        ],
-      }),
-    });
+    mockServer({ data: [{ id: 's1', name: 'server-config', config: { portfolios: [TEST_PORTFOLIO], parameters: TEST_PARAMS }, createdAt: '2025-06-01T00:00:00Z' }] });
     const { listNamedConfigs } = await importMod();
     const result = await listNamedConfigs();
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe('server-config');
   });
 
-  it('服务端返回非 ok 时回退本地', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({ ok: false, json: async () => ({}) });
+  it.each([
+    ['服务端返回非 ok', false],
+    ['服务端抛错', 'throw'],
+  ])('%s 时回退本地', async (_n, mode) => {
+    if (mode === 'throw') mocks.apiFetch.mockRejectedValueOnce(new Error('network'));
+    else mocks.apiFetch.mockResolvedValueOnce({ ok: false, json: async () => ({}) });
     mocks.lsLoad.mockReturnValue([LOCAL_CONFIG]);
     const { listNamedConfigs } = await importMod();
-    const result = await listNamedConfigs();
-    expect(result).toHaveLength(1);
-    expect(result[0].name).toBe('local');
+    expect(await listNamedConfigs()).toHaveLength(1);
   });
 
-  it('服务端抛错时回退本地', async () => {
-    mocks.apiFetch.mockRejectedValueOnce(new Error('network'));
-    mocks.lsLoad.mockReturnValue([LOCAL_CONFIG]);
+  it.each([
+    ['ok 但无 data 字段', { success: true }],
+    ['data 为 null', { data: null }],
+  ])('服务端返回 %s 时返回空数组', async (_n, body) => {
+    mockServer(body);
     const { listNamedConfigs } = await importMod();
-    const result = await listNamedConfigs();
-    expect(result).toHaveLength(1);
+    expect(await listNamedConfigs()).toEqual([]);
   });
 
-  it('服务端返回 ok 但无 data 字段时返回空数组', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true }),
-    });
-    const { listNamedConfigs } = await importMod();
-    const result = await listNamedConfigs();
-    expect(result).toEqual([]);
-  });
-
-  it('服务端返回 data 为 null 时返回空数组', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ data: null }),
-    });
-    const { listNamedConfigs } = await importMod();
-    const result = await listNamedConfigs();
-    expect(result).toEqual([]);
-  });
-
-  it('服务端返回 config 为 null 时使用空默认值', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [{ id: 's1', name: 'null-config', config: null, createdAt: '2025-06-01T00:00:00Z' }],
-      }),
-    });
-    const { listNamedConfigs } = await importMod();
-    const result = await listNamedConfigs();
-    expect(result).toHaveLength(1);
-    expect(result[0].portfolios).toEqual([]);
-    expect(result[0].parameters).toEqual({});
-  });
-
-  it('服务端返回 config 含 null portfolios/parameters 时使用默认值', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [
-          {
-            id: 's2',
-            name: 'partial-config',
-            config: { portfolios: null, parameters: null },
-            createdAt: '2025-06-01T00:00:00Z',
-          },
-        ],
-      }),
-    });
-    const { listNamedConfigs } = await importMod();
-    const result = await listNamedConfigs();
-    expect(result).toHaveLength(1);
-    expect(result[0].portfolios).toEqual([]);
-    expect(result[0].parameters).toEqual({});
-  });
-
-  it('服务端返回 config 缺 portfolios/parameters 时使用默认值', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        data: [
-          {
-            id: 's3',
-            name: 'missing-fields',
-            config: {},
-            createdAt: '2025-06-01T00:00:00Z',
-          },
-        ],
-      }),
-    });
+  it.each([
+    ['config 为 null', null],
+    ['config 含 null portfolios/parameters', { portfolios: null, parameters: null }],
+    ['config 缺 portfolios/parameters', {}],
+  ])('服务端返回 %s 时使用默认值', async (_n, config) => {
+    mockServer({ data: [{ id: 's1', name: 'n', config, createdAt: '2025-06-01T00:00:00Z' }] });
     const { listNamedConfigs } = await importMod();
     const result = await listNamedConfigs();
     expect(result).toHaveLength(1);
@@ -204,13 +111,10 @@ describe('saveNamedConfigApi', () => {
   });
 
   it('已登录时写服务端', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    mockServer({});
     const { saveNamedConfigApi } = await importMod();
     await saveNamedConfigApi('test', [TEST_PORTFOLIO], TEST_PARAMS);
-    expect(mocks.apiFetch).toHaveBeenCalledWith(
-      '/api/v1/configs',
-      expect.objectContaining({ method: 'POST' }),
-    );
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/api/v1/configs', expect.objectContaining({ method: 'POST' }));
   });
 });
 
@@ -224,13 +128,10 @@ describe('deleteNamedConfigApi', () => {
   });
 
   it('已登录时删服务端', async () => {
-    mocks.apiFetch.mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+    mockServer({});
     const { deleteNamedConfigApi } = await importMod();
     await deleteNamedConfigApi('s1');
-    expect(mocks.apiFetch).toHaveBeenCalledWith(
-      '/api/v1/configs/s1',
-      expect.objectContaining({ method: 'DELETE' }),
-    );
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/api/v1/configs/s1', expect.objectContaining({ method: 'DELETE' }));
   });
 });
 
@@ -250,15 +151,7 @@ describe('importLocalConfigsOnce', () => {
   });
 
   it('有本地配置时逐条迁移', async () => {
-    mocks.lsLoad.mockReturnValue([
-      {
-        id: 'l1',
-        name: 'legacy',
-        savedAt: '',
-        portfolios: [TEST_PORTFOLIO],
-        parameters: TEST_PARAMS,
-      },
-    ]);
+    mocks.lsLoad.mockReturnValue([{ id: 'l1', name: 'legacy', savedAt: '', portfolios: [TEST_PORTFOLIO], parameters: TEST_PARAMS }]);
     mocks.apiFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
     const { importLocalConfigsOnce } = await importMod();
     await importLocalConfigsOnce();
@@ -274,9 +167,7 @@ describe('importLocalConfigsOnce', () => {
   });
 
   it('迁移失败时静默（不抛异常）', async () => {
-    mocks.lsLoad.mockReturnValue([
-      { id: 'l1', name: 'legacy', savedAt: '', portfolios: [], parameters: {} },
-    ]);
+    mocks.lsLoad.mockReturnValue([{ id: 'l1', name: 'legacy', savedAt: '', portfolios: [], parameters: {} }]);
     mocks.apiFetch.mockRejectedValueOnce(new Error('server down'));
     const { importLocalConfigsOnce } = await importMod();
     await expect(importLocalConfigsOnce()).resolves.toBeUndefined();

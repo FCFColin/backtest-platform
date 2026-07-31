@@ -3,9 +3,7 @@ import type { ComputeToolConfig } from '../../components/shells/types.js';
 import { useAnalysisPageState } from '@/hooks/useAnalysisPageState.js';
 import { AnalysisParamsPanel } from './AnalysisParams.js';
 import { AnalysisResultsPanel } from './AnalysisResults.js';
-
 type State = ReturnType<typeof useAnalysisPageState>;
-
 function AnalysisParamsWrapper({ state }: { state: State }) {
   return (
     <AnalysisParamsPanel
@@ -28,38 +26,25 @@ function AnalysisParamsWrapper({ state }: { state: State }) {
     />
   );
 }
-
 function AnalysisResultsWrapper({ state }: { state: State }) {
-  return (
-    <AnalysisResultsPanel
-      error={state.error}
-      results={state.results}
-      activeTab={state.activeTab}
-      setActiveTab={state.setActiveTab}
-      isLoading={state.isLoading}
-      correlationWindow={state.correlationWindow}
-      rollingWindow={state.rollingWindow}
-    />
-  );
+  return <AnalysisResultsPanel error={state.error} results={state.results} activeTab={state.activeTab} setActiveTab={state.setActiveTab} isLoading={state.isLoading} correlationWindow={state.correlationWindow} rollingWindow={state.rollingWindow} />;
 }
-
 const config: ComputeToolConfig<State> = {
   titleKey: 'analysis.title',
   seoDescKey: 'analysis.seoDesc',
   hideParamsTitle: true,
   seoFeatures: [
     { titleKey: 'analysis.seoAnalyzable', descKey: 'analysis.seoAnalyzableDesc' },
-    { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' },
+    { titleKey: 'analysis.seoViewable', descKey: 'analysis.seoViewableDesc' }
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
     { titleKey: 'optimizer.title', href: '/optimizer' },
-    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
+    { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' }
   ],
   params: AnalysisParamsWrapper,
-  results: AnalysisResultsWrapper,
+  results: AnalysisResultsWrapper
 };
-
 export default function AnalysisPage() {
   const s = useAnalysisPageState();
   return <ComputeToolShell config={config} state={s} />;

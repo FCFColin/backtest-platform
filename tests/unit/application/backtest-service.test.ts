@@ -1,21 +1,7 @@
-/**
- * BacktestApplicationService 单元测试（Task 9.4）
- *
- * 企业理由：应用服务是 DDD 分层中编排回测执行的核心节点，测试覆盖：
- * - 正确参数透传到引擎（确保服务不篡改入参）
- * - BacktestCompleted 领域事件被发布（确保审计链路不被遗漏）
- * - 引擎结果被正确返回（确保响应格式不变）
- *
- * 权衡：通过 mock callEngineStrict 强制触发引擎路径，
- * 使被 mock 的 runPortfolioBacktest 被实际调用，从而可验证参数透传。
- * 不测试 Rust/Go 引擎路径（属于集成测试范畴）。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Portfolio, BacktestParameters, BacktestResult } from '@backtest/shared';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted：保证 mock 引用在 vi.mock 工厂执行前就绑定 =====
 const engineMocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),
 }));
@@ -51,15 +37,13 @@ const loggerMocks = vi.hoisted(() => ({
   })),
 }));
 
-// ===== Mock 模块 =====
-
 // Mock 引擎调用：fail-closed（ADR-031），callEngineStrict 直接返回引擎结果
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
 }));
 
 // Mock 事件分发器：避免加载 handlers（依赖 db 连接）
-vi.mock('../../../packages/backend/src/domain/events/index.js', () => ({
+vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: {
     dispatch: eventMocks.dispatch,
   },
@@ -80,8 +64,6 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 }));
 
 import { runBacktest } from '../../../packages/backend/src/application/backtest-service.js';
-
-// ===== 测试数据 =====
 
 const mockPortfolio: Portfolio = {
   id: 'p1',
@@ -140,8 +122,6 @@ const mockBacktestResult: BacktestResult = {
   ],
   correlations: [[1]],
 };
-
-// ===== 测试用例 =====
 
 describe('runBacktest', () => {
   beforeEach(() => {

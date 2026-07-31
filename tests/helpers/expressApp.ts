@@ -1,46 +1,18 @@
-/**
- * 测试辅助：Express 应用工厂
- *
- * 企业理由：22 个路由测试文件各自定义了近乎相同的 startApp() 函数，
- * 在随机端口启动 Express 应用并返回 { url, close }。
- * 每次修改（如增加 body parser、调整关闭逻辑）需逐文件修改，易遗漏。
- * 本模块提供统一的 startExpressApp 函数，消除重复。
- *
- * 用法：
- *   import { startExpressApp } from '../helpers/expressApp.js';
- *   import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
- *   const server = await startExpressApp(app => app.use('/api', healthRoutes));
- */
 
-import express, { type Express, type Request } from 'express';
+import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import { vi } from 'vitest';
+import type { AuthenticatedRequest } from '../../packages/backend/src/middleware/jwtAuth.js';
+import { EventEmitter } from 'events';
 
-/**
- * API 服务端口（真实后端固定端口）
- *
- * 与 startExpressApp 使用的随机端口（0）不同：integration 测试需要访问实际
- * 运行的后端服务（npm run dev 启动的 15001 端口），故保留固定端口常量。
- * 合并自 tests/helpers/constants.ts。
- */
 const API_PORT = 15001;
 
-/** API 服务基础 URL（integration 测试访问真实后端时使用） */
 export const API_BASE_URL = `http://localhost:${API_PORT}`;
 
-/** 启动后的测试服务器句柄 */
 export interface TestServer {
-  /** 服务器基础 URL（如 http://127.0.0.1:34567） */
   url: string;
-  /** 关闭服务器（返回 Promise 以确保连接完全释放） */
   close: () => Promise<void>;
 }
 
-/**
- * 测试用 Request 类型，扩展 Express Request 以支持测试中注入的鉴权/租户属性。
- *
- * 企业理由：路由测试需要在 req 上注入 tenantId/user 等属性模拟鉴权链，
- * 使用 any 会丢失类型安全。此类型集中定义测试可用的扩展属性，
- * 消除 22+ 个路由测试文件中的 `req: any` 反模式。
- */
 export interface TestRequest extends Request {
   tenantId?: string;
   user?: {
@@ -54,9 +26,7 @@ export interface TestRequest extends Request {
   };
 }
 
-/** startExpressApp 的可选配置 */
 interface StartExpressAppOptions {
-  /** 请求体大小限制（如 '10mb'），默认不设限制使用 Express 默认值 */
   bodyLimit?: string;
 }
 

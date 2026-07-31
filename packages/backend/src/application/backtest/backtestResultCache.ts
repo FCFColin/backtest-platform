@@ -25,7 +25,6 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-// ─── Singleflight：并发请求去重 ───
 
 const inFlight = new Map<string, Promise<BacktestResult>>();
 
@@ -90,7 +89,6 @@ export async function setBacktestResultCache(key: string, result: BacktestResult
 export async function getBacktestResultCache(key: string): Promise<BacktestResult | null> {
   evictExpired();
 
-  // 1. 内存优先（快速路径）
   const entry = cache.get(key);
   if (entry) {
     if (Date.now() > entry.expiresAt) {
@@ -152,7 +150,6 @@ export async function getOrCompute(
   key: string,
   compute: () => Promise<BacktestResult>,
 ): Promise<BacktestResult> {
-  // 1. 缓存命中则直接返回（快速路径）
   const cached = await getBacktestResultCache(key);
   if (cached) return cached;
 

@@ -8,10 +8,8 @@ import http, { Agent } from 'http';
 import { config } from '../config/index.js';
 import { registerSemaphoreMetrics } from '../utils/metrics.js';
 
-/** Go 数据服务 HTTP keepAlive agent，复用 TCP 连接减少握手开销 */
 const goDataServiceAgent = new Agent({ keepAlive: true, keepAliveMsecs: 1000, maxSockets: 50 });
 
-/** HTTP 响应体最大字节数（默认 50MB），可通过 MAX_RESPONSE_BODY_SIZE 环境变量配置。 */
 const MAX_RESPONSE_BODY_SIZE = parseInt(
   process.env.MAX_RESPONSE_BODY_SIZE || String(50 * 1024 * 1024),
   10,

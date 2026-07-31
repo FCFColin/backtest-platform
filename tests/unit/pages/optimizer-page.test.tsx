@@ -10,7 +10,7 @@
  * useNavigate 由 vitest workspace 全局别名（tests/mocks/react-router-dom.tsx）提供。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -43,11 +43,11 @@ describe('OptimizerPage (smoke)', () => {
     pageState.tickers = ['SPY', 'BND'];
   });
 
-  it('happy path: 装配标题与参数/结果面板 slot', () => {
+  it('happy path: 装配标题与参数/结果面板 slot', async () => {
     render(<OptimizerPage />);
     expect(screen.getByText('optimizer.title')).toBeTruthy();
-    expect(screen.getByTestId('optimizer-params')).toBeTruthy();
-    expect(screen.getByTestId('optimizer-results')).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('optimizer-params')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('optimizer-results')).toBeTruthy());
   });
 
   it('edge path: 空 tickers 状态下仍渲染标题不崩溃', () => {

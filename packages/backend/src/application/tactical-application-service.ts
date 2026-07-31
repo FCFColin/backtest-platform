@@ -27,7 +27,6 @@ interface TacticalBacktestResult {
   }>;
 }
 
-/** 从策略中收集所有涉及的 ticker */
 export function collectTickers(strategy: TacticalStrategy): string[] {
   const set = new Set<string>();
   for (const signal of strategy.signals) {
@@ -45,10 +44,6 @@ interface BenchmarkParams {
   priceData: Record<string, Record<string, number>>;
 }
 
-/**
- * 构造等权基准组合并调用引擎回测。
- * 失败时返回空结果，不阻断主流程。
- */
 async function runBenchmarkBacktest(params: BenchmarkParams): Promise<PortfolioResult> {
   const { allTickers, startDate, endDate, startingValue, rebalanceFrequency, priceData } = params;
   const benchmarkPortfolio = translateDomainError(() =>
@@ -168,9 +163,6 @@ export async function executeTacticalBacktest(
   };
 }
 
-/**
- * 校验并接受战术告警配置。
- */
 export function saveTacticalAlertConfig(config: EmailAlertConfig): EmailAlertConfig {
   if (config.enabled && !config.email) {
     throw new ValidationError('启用告警时必须填写邮箱');

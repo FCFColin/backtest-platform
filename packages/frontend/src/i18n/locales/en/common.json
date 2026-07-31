@@ -1,0 +1,742 @@
+{
+  "a11y": {
+    "skipToMain": "Skip to main content"
+  },
+  "ariaLabels": {
+    "weightInput": "Weight input (percentage)"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "noData": "No data",
+    "startBacktest": "Start Backtest",
+    "startAnalysis": "Start Analysis",
+    "startOptimize": "Start Optimization",
+    "running": "Running...",
+    "retry": "Retry",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "save": "Save",
+    "close": "Close",
+    "metric": "Metric",
+    "date": "Date",
+    "add": "Add",
+    "remove": "Remove",
+    "copy": "Copy",
+    "share": "Share",
+    "import": "Import",
+    "export": "Export",
+    "yes": "Yes",
+    "no": "No",
+    "days": "days",
+    "year": "year",
+    "month": "month",
+    "years": "years",
+    "months": "months",
+    "percent": "%",
+    "ticker": "Ticker",
+    "latestPrice": "Latest Price",
+    "signalDate": "Signal Date",
+    "signalStatus": "Signal Status",
+    "buy": "Buy",
+    "sell": "Sell",
+    "hold": "Hold",
+    "upgrade": "Upgrade",
+    "about": "About",
+    "limits": "Limits",
+    "createFreeAccount": "Create Free Account",
+    "myWorkspace": "My Workspace",
+    "docs": "Docs",
+    "pricing": "Pricing",
+    "signIn": "Sign In",
+    "loadSaved": "LOAD SAVED",
+    "loadSavedBacktest": "LOAD SAVED BACKTEST",
+    "loadSavedAnalysis": "LOAD SAVED ANALYSIS",
+    "collapse": "Collapse",
+    "learnMore": "Learn More",
+    "equalize": "Equalize",
+    "normalize": "Normalize",
+    "portfolioSuffix": "Portfolio {{suffix}}",
+    "offlineBanner": "You are currently offline. Some features may be unavailable.",
+    "backOnline": "Back online",
+    "goHome": "Go home",
+    "reload": "Reload"
+  },
+  "lang": {
+    "zh": "中文",
+    "en": "EN",
+    "switchLang": "Switch Language",
+    "switchCurrency": "Switch currency"
+  },
+  "toolRoutes": {
+    "loading": "Loading..."
+  },
+  "errors": {
+    "401": {
+      "title": "Unauthorized",
+      "description": "Please sign in to access this page."
+    },
+    "403": {
+      "title": "Forbidden",
+      "description": "You do not have permission to access this resource. Contact your administrator if you need access."
+    },
+    "404": {
+      "title": "Page Not Found",
+      "description": "The page you are looking for does not exist or has been moved."
+    },
+    "429": {
+      "title": "Too Many Requests",
+      "description": "You have sent too many requests in a short period. Please retry after {{seconds}} seconds."
+    },
+    "500": {
+      "title": "Internal Server Error",
+      "description": "The server encountered an internal error. Please reload the page. If the problem persists, contact your administrator."
+    },
+    "503": {
+      "title": "Service Unavailable",
+      "description": "The compute engine is temporarily unavailable. Please retry after {{seconds}} seconds."
+    },
+    "pageErrorTitle": "Something went wrong",
+    "pageErrorMessage": "Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.",
+    "pageRefresh": "Refresh page",
+    "degradedMode": "Degraded mode:",
+    "degradedDefaultWarning": "Some features may be unavailable or using fallback data.",
+    "letfTickerRequired": "Please enter leveraged ETF and benchmark ticker symbols",
+    "letfAnalysisFailed": "LETF slippage analysis failed",
+    "dualSignalTickerRequired": "Please enter a ticker symbol",
+    "dualSignalAnalysisFailed": "Analysis failed",
+    "tacticalTickerRequired": "Please enter at least one ticker symbol",
+    "unknown": "Unknown error, please try again",
+    "validationError": "Validation failed",
+    "engineUnavailable": "Compute engine unavailable",
+    "engineError": "Compute engine error",
+    "computeTimeout": "Computation timed out",
+    "dataDegraded": "Some data unavailable, results may be incomplete",
+    "tickerNotFound": "Ticker not found",
+    "tickerDataInsufficient": "Insufficient historical data",
+    "tickerDataFetchFailed": "Failed to fetch market data",
+    "invalidWeightSum": "Weights must sum to 100%",
+    "emptyPortfolio": "Portfolio cannot be empty",
+    "unauthorized": "Please sign in",
+    "missingCredentials": "Missing credentials",
+    "sessionRevoked": "Session expired, please sign in again",
+    "accountDisabled": "Account disabled",
+    "accountLocked": "Account locked",
+    "forbidden": "Access denied",
+    "insufficientPermission": "Insufficient permission",
+    "notFound": "Resource not found",
+    "portfolioNotFound": "Portfolio not found",
+    "configNotFound": "Config not found",
+    "runNotFound": "Run not found",
+    "jobNotFound": "Job not found",
+    "apiKeyNotFound": "API key not found",
+    "orgNotFound": "Organization not found",
+    "memberNotFound": "Member not found",
+    "lastOwner": "Cannot remove last owner",
+    "rateLimited": "Too many requests",
+    "quotaExceeded": "Quota exceeded",
+    "internalError": "Internal server error",
+    "networkError": "Network error",
+    "requestTimeout": "Request timeout",
+    "requestFailed": "Request failed",
+    "invalidTicker": "Invalid ticker",
+    "invalidDateRange": "Invalid date range",
+    "missingParams": "Missing parameters",
+    "backtestFailed": "Backtest failed",
+    "dataFetchFailed": "Data fetch failed",
+    "emailTaken": "Email already taken",
+    "usernameTaken": "Username already taken",
+    "registerFailed": "Registration failed",
+    "billingDisabled": "Billing disabled",
+    "tickerLimitExceeded": "Ticker limit exceeded",
+    "invalidCountry": "Invalid country",
+    "cpiNotFound": "CPI data not found",
+    "databaseUnavailable": "Database unavailable",
+    "noActiveTenant": "No active organization",
+    "invalidApiKey": "Invalid API key",
+    "idempotencyKeyInvalid": "Invalid idempotency key",
+    "optimizerBadRequest": "Invalid optimizer parameters",
+    "analysisInvalidType": "Invalid analysis type",
+    "gridTooMany": "Grid search too large",
+    "gridBadRequest": "Invalid grid parameters",
+    "pcaMinAssets": "PCA requires at least 2 assets",
+    "retryIn": "Retry in {{seconds}}s",
+    "routeErrorTitle": "This section could not load ({{route}})",
+    "routeErrorMessage": "Something went wrong while rendering this page. You can retry without reloading the whole app.",
+    "routeRetry": "Retry",
+    "invalidCredentials": "Invalid username or password",
+    "acceptInviteFailed": "Failed to accept invitation",
+    "switchOrgFailed": "Failed to switch organization",
+    "operationFailed": "Operation failed",
+    "atLeastOneTicker": "Please enter at least one ticker",
+    "atLeastOneRebalanceFreq": "Please select at least one rebalancing frequency",
+    "optimizerFailed": "Optimization failed",
+    "atLeastTwoTickers": "Please enter at least two tickers",
+    "computeFailed": "Computation failed",
+    "correlationFailed": "Correlation matrix computation failed",
+    "atLeastOneAsset": "Please add at least one asset",
+    "atLeastOneFreq": "Please select at least one rebalancing frequency",
+    "rebalancingSensitivityFailed": "Rebalancing sensitivity analysis failed",
+    "analysisFailed": "Analysis failed",
+    "simulationFailed": "Simulation failed",
+    "noResults": "No results ({{label}})",
+    "backtestFailedLabel": "Backtest failed ({{label}})"
+  },
+  "footer": {
+    "brandTagline": "Professional backtesting platform for individual investors",
+    "status": {
+      "operational": "All systems operational",
+      "degraded": "System degraded"
+    },
+    "sections": {
+      "product": "Product",
+      "resources": "Resources",
+      "company": "Company",
+      "data": "Data"
+    },
+    "product": {
+      "portfolioBacktest": "Portfolio Backtest",
+      "monteCarlo": "Monte Carlo",
+      "optimizer": "Optimizer",
+      "tactical": "Tactical Allocation",
+      "analysis": "Analysis Tools"
+    },
+    "resources": {
+      "docs": "Documentation",
+      "apiRef": "API Reference",
+      "changelog": "Changelog",
+      "helpCenter": "Help Center",
+      "feedback": "Feedback",
+      "methodology": "Methodology"
+    },
+    "company": {
+      "about": "About",
+      "pricing": "Pricing",
+      "contact": "Contact Us",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "disclaimer": "Disclaimer"
+    },
+    "data": {
+      "source": "Data Source",
+      "sourceValue": "yfinance · finnhub · akshare · BaoStock",
+      "updated": "Data Updated",
+      "historyDepth": "History Depth",
+      "historyDepthValue": "from {{date}}",
+      "coverage": "Tickers Covered",
+      "coverageValue": "{{count}}"
+    },
+    "disclaimer": "This platform is for research and educational purposes only and does not constitute investment advice",
+    "disclaimerLink": "Disclaimer",
+    "copyright": "© {{year}} {{brand}}"
+  },
+  "nav": {
+    "backtest": "Backtest",
+    "analysisOptimization": "Analysis & Optimize",
+    "tacticalSignal": "Tactical & Signal",
+    "docs": "Docs",
+    "pricing": "Pricing",
+    "portfolioBacktest": "Portfolio Backtest",
+    "backtestOptimizer": "Backtest Optimizer",
+    "rebalancingSensitivity": "Rebalancing Sensitivity",
+    "assetAnalysis": "Asset Analysis",
+    "factorRegression": "Factor Regression",
+    "pca": "PCA",
+    "portfolioOptimize": "Portfolio Optimization",
+    "efficientFrontier": "Efficient Frontier",
+    "monteCarlo": "Monte Carlo",
+    "goalOptimizer": "Goal Optimizer",
+    "tacticalAllocation": "Tactical Allocation",
+    "tacticalGrid": "Tactical Grid Search",
+    "signalAnalyzer": "Signal Analyzer",
+    "dualSignal": "Dual Signal",
+    "multiSignal": "Multi Signal",
+    "lumpsumVsDca": "Lump Sum vs DCA",
+    "lumpSumDca": "Lump Sum vs DCA",
+    "portfolioComparison": "Portfolio Comparison",
+    "letfAnalysis": "LETF Analysis",
+    "calculators": "Calculators",
+    "dataEngine": "Data Engine",
+    "brandName": "Backtest Platform",
+    "switchToLight": "Switch to light theme",
+    "switchToDark": "Switch to dark theme",
+    "menu": "Menu"
+  },
+  "format": {
+    "durationDays": "{{count}} days",
+    "durationZero": "0 days",
+    "durationMonths": "{{count}} months",
+    "durationYears": "{{count}} years",
+    "durationYearsMonths": "{{years}}y {{months}}m",
+    "durationMonthShort": "{{count}}mo",
+    "durationYearsShort": "{{count}}y"
+  },
+  "layout": {
+    "authMenu": {
+      "account": "Account",
+      "accountCenter": "Account Center",
+      "login": "Log In",
+      "logout": "Log Out",
+      "memberManagement": "Member Management",
+      "noOrgSelected": "No Organization Selected",
+      "platformAdminPrefix": "Platform Administrator",
+      "switchOrg": "Switch Organization"
+    },
+    "toolPageLayout": {
+      "collapseParams": "Collapse Parameters",
+      "defaultParamsTitle": "Parameters",
+      "expandParams": "Expand Parameters"
+    },
+    "toolSeoCard": {
+      "relatedTools": "Related Tools:"
+    }
+  },
+  "components": {
+    "cashflowsLog": {
+      "endDate": "End Date",
+      "notSet": "Not Set",
+      "offsetDays": "Offset Days",
+      "oneTime": "One-Time",
+      "periodic": "Periodic",
+      "title": "Cashflows Log",
+      "untilEndOfBacktest": "Until End of Backtest"
+    },
+    "chartExporter": {
+      "defaultLabel": "Chart"
+    },
+    "customMetricsTable": {
+      "noData": "No data",
+      "selectAtLeastOne": "Please select at least one metric",
+      "selectMetrics": "Select Metrics ({{selected}}/{{total}})"
+    },
+    "drawdownEpisodes": {
+      "noData": "No data",
+      "title": "Drawdown Episodes",
+      "headers": {
+        "peakDate": "Peak Date",
+        "troughDate": "Trough Date",
+        "recoveryDate": "Recovery Date",
+        "depth": "Depth",
+        "timeToTrough": "Time to Trough",
+        "recoveryTime": "Recovery Time",
+        "totalTime": "Total Time",
+        "recoveryFactor": "Recovery Factor",
+        "cagrDuring": "CAGR During",
+        "ulcerDuring": "Ulcer During"
+      },
+      "statLabels": {
+        "min": "Min",
+        "median": "Median",
+        "avg": "Avg",
+        "max": "Max"
+      },
+      "summaryLabels": {
+        "depth": "Depth",
+        "timeToTrough": "Time to Trough",
+        "recoveryTime": "Recovery Time",
+        "totalTime": "Total Time",
+        "recoveryFactor": "Recovery Factor",
+        "cagrDuring": "CAGR During",
+        "ulcerDuring": "Ulcer During"
+      },
+      "filter": {
+        "all": "All",
+        "severe": "Severe (≥20%)",
+        "moderate": "Moderate (≥10%)",
+        "mild": "Mild (<10%)"
+      },
+      "sort": {
+        "depth": "By Depth",
+        "duration": "By Duration",
+        "recovery": "By Recovery Factor"
+      },
+      "summary": {
+        "totalDrawdowns": "Total Drawdowns",
+        "maxDrawdown": "Max Drawdown",
+        "avgDrawdown": "Average Drawdown",
+        "avgRecoveryDuration": "Avg Recovery Duration"
+      },
+      "showMore": "Show {{count}} more",
+      "status": {
+        "recovered": "Recovered",
+        "ongoing": "Ongoing"
+      },
+      "detail": {
+        "timeToTrough": "Time to Trough",
+        "recoveryTime": "Recovery Time",
+        "recoveryFactor": "Recovery Factor",
+        "periodCagr": "Period CAGR",
+        "periodUlcer": "Period Ulcer"
+      },
+      "aria": {
+        "severity": "Filter by severity",
+        "sortBy": "Sort episodes"
+      }
+    },
+    "errorBoundary": {
+      "errorAlert": "Error"
+    },
+    "rebalancingStats": {
+      "bandsDisabled": "Deviation Bands Disabled",
+      "bandsText": "Deviation Bands: {{absolute}} Absolute / {{relative}} Relative",
+      "deviationThreshold": "Deviation Threshold",
+      "noData": "No data",
+      "offsetDays": "Offset Days",
+      "rebalanceBands": "Rebalancing Bands"
+    },
+    "statisticsTable": {
+      "noData": "No data",
+      "title": "Statistics Table",
+      "groups": {
+        "return": "Returns",
+        "volatility": "Volatility",
+        "downsideDeviation": "Downside Deviation",
+        "drawdown": "Drawdown",
+        "riskAdjusted": "Risk-Adjusted Returns",
+        "benchmark": "Benchmark Comparison",
+        "captureRatio": "Capture Ratios",
+        "activeManagement": "Active Management",
+        "varCvar": "VaR/CVaR",
+        "distribution": "Return Distribution",
+        "positiveRatio": "Positive Period Ratio",
+        "extremeReturns": "Extreme Returns",
+        "avgGainLoss": "Average Gains/Losses",
+        "withdrawalRate": "Withdrawal Rates",
+        "core": "Core Metrics"
+      },
+      "labels": {
+        "avgAnnualReturn": "Avg Annual Return",
+        "avgMonthlyReturn": "Avg Monthly Return",
+        "avgDailyReturn": "Avg Daily Return",
+        "bestYear": "Best Year",
+        "worstYear": "Worst Year",
+        "stdevAnnualized": "Annualized Std Dev",
+        "stdevAnnual": "Annual Std Dev",
+        "stdevMonthlyAnnualized": "Monthly Std Dev (Ann.)",
+        "stdevMonthlyRaw": "Monthly Std Dev (Raw)",
+        "stdevDailyAnnualized": "Daily Std Dev (Ann.)",
+        "stdevDailyRaw": "Daily Std Dev (Raw)",
+        "downsideDeviationAnnualized": "Annualized Downside Dev",
+        "downsideDeviationDailyRaw": "Daily Downside Dev (Raw)",
+        "downsideDeviationMonthly": "Monthly Downside Dev (Ann.)",
+        "downsideDeviationMonthlyRaw": "Monthly Downside Dev (Raw)",
+        "downsideDeviationAnnual": "Annual Downside Dev",
+        "avgDrawdown": "Avg Drawdown",
+        "maxDrawdownDuration": "Max Drawdown Duration",
+        "drawdownRecoveryFactor": "Drawdown Recovery Factor",
+        "ulcerIndex": "Ulcer Index",
+        "m2": "M² (Modigliani Risk-Adj)",
+        "ulcerPerformanceIndex": "Ulcer Performance Index",
+        "diversificationRatio": "Diversification Ratio",
+        "benchmarkCorrelation": "Benchmark Correlation",
+        "upsideCorrelation": "Upside Correlation",
+        "downsideCorrelation": "Downside Correlation",
+        "upsideBeta": "Upside Beta",
+        "downsideBeta": "Downside Beta",
+        "alphaDaily": "Daily Alpha",
+        "alphaAnnualized": "Annualized Alpha",
+        "treynor": "Treynor Ratio",
+        "upsideCapture": "Upside Capture (Monthly)",
+        "downsideCapture": "Downside Capture (Monthly)",
+        "captureSpread": "Capture Spread (Monthly)",
+        "upsideCaptureDaily": "Upside Capture (Daily)",
+        "downsideCaptureDaily": "Downside Capture (Daily)",
+        "captureSpreadDaily": "Capture Spread (Daily)",
+        "upsideCaptureAnnual": "Upside Capture (Annual)",
+        "downsideCaptureAnnual": "Downside Capture (Annual)",
+        "captureSpreadAnnual": "Capture Spread (Annual)",
+        "activeReturn": "Active Return",
+        "trackingError": "Tracking Error",
+        "informationRatio": "Information Ratio",
+        "varDaily1": "Daily VaR (1%)",
+        "varDaily5": "Daily VaR (5%)",
+        "varDaily10": "Daily VaR (10%)",
+        "cvarDaily1": "Daily CVaR (1%)",
+        "cvarDaily5": "Daily CVaR (5%)",
+        "cvarDaily10": "Daily CVaR (10%)",
+        "varMonthly1": "Monthly VaR (1%)",
+        "varMonthly5": "Monthly VaR (5%)",
+        "varMonthly10": "Monthly VaR (10%)",
+        "cvarMonthly1": "Monthly CVaR (1%)",
+        "cvarMonthly5": "Monthly CVaR (5%)",
+        "cvarMonthly10": "Monthly CVaR (10%)",
+        "varAnnual1": "Annual VaR (1%)",
+        "varAnnual5": "Annual VaR (5%)",
+        "varAnnual10": "Annual VaR (10%)",
+        "cvarAnnual1": "Annual CVaR (1%)",
+        "cvarAnnual5": "Annual CVaR (5%)",
+        "cvarAnnual10": "Annual CVaR (10%)",
+        "skewnessDaily": "Daily Skewness",
+        "skewnessMonthly": "Monthly Skewness",
+        "skewnessAnnual": "Annual Skewness",
+        "excessKurtosisDaily": "Daily Excess Kurtosis",
+        "excessKurtosisMonthly": "Monthly Excess Kurtosis",
+        "excessKurtosisAnnual": "Annual Excess Kurtosis",
+        "pctPositiveDays": "Positive Days %",
+        "pctPositiveMonths": "Positive Months %",
+        "maxDailyReturn": "Max Daily Return",
+        "minDailyReturn": "Min Daily Return",
+        "maxMonthlyReturn": "Max Monthly Return",
+        "minMonthlyReturn": "Min Monthly Return",
+        "maxAnnualReturn": "Max Annual Return",
+        "minAnnualReturn": "Min Annual Return",
+        "avgDailyGain": "Avg Daily Gain",
+        "avgDailyLoss": "Avg Daily Loss",
+        "gainLossRatioDaily": "Daily Gain/Loss Ratio",
+        "avgMonthlyGain": "Avg Monthly Gain",
+        "avgMonthlyLoss": "Avg Monthly Loss",
+        "gainLossRatioMonthly": "Monthly Gain/Loss Ratio",
+        "avgAnnualGain": "Avg Annual Gain",
+        "avgAnnualLoss": "Avg Annual Loss",
+        "gainLossRatioAnnual": "Annual Gain/Loss Ratio",
+        "swr10y": "SWR 10Y",
+        "pwr10y": "PWR 10Y",
+        "swr20y": "SWR 20Y",
+        "pwr20y": "PWR 20Y",
+        "swr30y": "SWR 30Y",
+        "pwr30y": "PWR 30Y",
+        "swr40y": "SWR 40Y",
+        "pwr40y": "PWR 40Y"
+      }
+    },
+    "tickerInput": {
+      "placeholder": "Enter ticker, e.g. VTI",
+      "searching": "Searching..."
+    },
+    "tickerTagInput": {
+      "placeholder": "Enter a ticker and press Enter to add...",
+      "remove": "Remove",
+      "removeTicker": "Remove {{ticker}}"
+    },
+    "turnoverTaxReport": {
+      "columns": {
+        "annualTurnover": "Annual Turnover",
+        "observations": "Observations",
+        "portfolio": "Portfolio",
+        "taxDrag": "Tax Drag",
+        "years": "Years"
+      },
+      "description": "Shows annual turnover and tax drag for each portfolio, assuming a tax rate of",
+      "noData": "No data",
+      "taxRateAssumption": "Tax Rate Assumption",
+      "taxRateHint": "Assumes a capital gains tax rate of",
+      "title": "Turnover & Tax Report"
+    }
+  },
+  "chart": {
+    "emptyData": "No data available"
+  },
+  "charts": {
+    "logScale": "Log Scale",
+    "annualReturn": {
+      "tableTitle": "Annual Returns Table",
+      "title": "Annual Returns"
+    },
+    "correlation": {
+      "assetCorrelationTitle": "Asset Correlation",
+      "betaTableTitle": "Beta Table (Benchmark: {{baseName}})",
+      "correlation": "Correlation",
+      "dateLabel": "Date: {{label}}",
+      "defaultTitle": "Correlation Matrix",
+      "insufficientData": "Insufficient data (window: {{window}})",
+      "needTwoAssets": "At least 2 assets required",
+      "noData": "No data",
+      "portfolio": "Portfolio",
+      "portfolioA": "Portfolio A",
+      "portfolioB": "Portfolio B",
+      "portfolioCorrelationTitle": "Portfolio Correlation",
+      "rollingTitle": "Rolling Correlation",
+      "selectTwoPortfolios": "Please select two portfolios",
+      "windowDays": "Window (days)"
+    },
+    "monthlyHeatmap": {
+      "titleWithName": "{{name}} Monthly Returns Heatmap"
+    },
+    "portfolioAllocation": {
+      "initialWeightHint": "Initial Weight",
+      "noAssets": "No assets",
+      "noData": "No data",
+      "startDate": "Start Date",
+      "title": "Portfolio Allocation"
+    },
+    "portfolioPies": {
+      "noAssets": "No assets",
+      "noData": "No data",
+      "title": "Allocation Pies"
+    },
+    "regression": {
+      "baseDailyReturn": "Benchmark Daily Return",
+      "dailyReturnAxis": "{{name}} Daily Return",
+      "dateLabel": "Date: {{label}}",
+      "metric": "Metric",
+      "needTwoPortfolios": "At least 2 portfolios required",
+      "panelTitle": "{{baseName}} vs {{targetName}}",
+      "residual": "Residual",
+      "residualAxisLabel": "Residual",
+      "residualChartTitle": "Residual Chart",
+      "residualDesc": "Regression residual: the portion of portfolio daily return above/below the regression model prediction",
+      "targetDailyReturn": "Target Daily Return",
+      "title": "Regression Analysis",
+      "value": "Value"
+    },
+    "riskReturn": {
+      "noData": "No data",
+      "returnAxis": "Return (%)",
+      "returnRate": "Return",
+      "title": "Risk vs Return",
+      "volatility": "Volatility",
+      "volatilityAxis": "Volatility (%)"
+    },
+    "rollingReturn": {
+      "dateLabel": "Date: {{label}}",
+      "title": "Rolling Return"
+    },
+    "seasonality": {
+      "avgReturnAxis": "Average Return",
+      "monthLabel": "Month {{n}}",
+      "noData": "No data",
+      "title": "Seasonality"
+    },
+    "drawdown": {
+      "title": "Drawdown Trend"
+    },
+    "growth": {
+      "title": "Portfolio Value Trend",
+      "logScale": "Log Scale",
+      "showChart": "Show Chart",
+      "hideChart": "Hide Chart",
+      "dateLabel": "Date: {{label}}"
+    }
+  },
+  "hero": {
+    "syntheticPromo": {
+      "title": "Synthetic tickers extend 60/40 backtests to 40+ years",
+      "description": "VTISIM · BNDSIM · SPYSIM and 20+ synthetic tickers ready",
+      "cta": "View all"
+    }
+  },
+  "promo": {
+    "synthetic": {
+      "message": "Synthetic tickers support backtesting back to 1962",
+      "ctaLabel": "Try now"
+    }
+  },
+  "ticker": {
+    "synthetic": "Synthetic",
+    "dataSources": "Data Sources",
+    "historyRange": "History since: {{from}} ({{years}} years)"
+  },
+  "notifications": {
+    "title": "Product Updates",
+    "latest": "Latest updates",
+    "empty": "No announcements"
+  },
+  "jobStatus": {
+    "queued": "Queued",
+    "running": "Running",
+    "completed": "Completed",
+    "failed": "Failed",
+    "timeout": "Timed out",
+    "cancel": "Cancel job",
+    "retry": "Retry",
+    "progress": "Progress",
+    "estimatedTimeRemaining": "Estimated {{seconds}}s remaining",
+    "cancelFailed": "Cancel failed",
+    "retryFailed": "Retry failed"
+  },
+  "stats": {
+    "survivorshipBiasWarning": "⚠️ Backtest results may be affected by survivorship bias. Historical data may exclude delisted/bankrupt companies, causing returns to be overstated. See <link>Methodology</link>."
+  },
+  "statsTable": {
+    "portfolioName": "Portfolio",
+    "endingValue": "Ending Value",
+    "totalContributions": "Total Contributed",
+    "cumulativeReturn": "Cumulative Return",
+    "cagr": "CAGR",
+    "mwrr": "MWRR",
+    "maxDrawdown": "Max Drawdown",
+    "avgDrawdown": "Avg Drawdown",
+    "longestDrawdown": "Longest Drawdown",
+    "volatility": "Volatility",
+    "sharpe": "Sharpe",
+    "sortino": "Sortino",
+    "calmar": "Calmar",
+    "ulcerIndex": "Ulcer",
+    "upi": "UPI",
+    "diversificationRatio": "Diversification Ratio",
+    "beta": "Beta",
+    "ui": {
+      "title": "Statistics Overview",
+      "portfolioCount": "{{count}} portfolios",
+      "columnCount": "{{count}} columns",
+      "collapseExtended": "Collapse extended metrics",
+      "expandExtended": "Expand extended metrics (+30)"
+    }
+  },
+  "tabs": {
+    "summary": "Summary",
+    "returns": "Returns",
+    "events": "Events",
+    "allocation": "Allocation",
+    "signalsStatus": "Signals & Status",
+    "telltale": "Telltale",
+    "correlationsBeta": "Correlations & Beta",
+    "rollingMetrics": "Rolling Metrics",
+    "riskVsReturn": "Risk vs Return",
+    "metrics": "Metrics",
+    "myMetrics": "My Metrics",
+    "returnsDist": "Returns Distribution",
+    "rolling": "Rolling",
+    "seasonality": "Seasonality",
+    "riskReturn": "Risk & Return",
+    "withdrawal": "Withdrawal",
+    "cashflows": "Cashflows",
+    "rebalancing": "Rebalancing",
+    "turnover": "Turnover & Tax",
+    "portfolioAllocation": "Allocation",
+    "pies": "Pies",
+    "correlation": "Correlation & Beta",
+    "regression": "Regression",
+    "annualReturns": "Annual Returns",
+    "monthlyReturns": "Monthly Returns",
+    "dailyReturns": "Daily Returns",
+    "yearlyReturns": "Yearly Returns",
+    "drawdown": "Drawdown"
+  },
+  "portfolioEditor": {
+    "addPortfolio": "Add Portfolio",
+    "blankPortfolio": "Blank Portfolio",
+    "fromPreset": "Start from Preset",
+    "fromSaved": "Import from Saved",
+    "glidepathPortfolio": "Glidepath Portfolio",
+    "loadExample": "Load Example"
+  },
+  "summarySidebar": {
+    "title": "Key Metrics",
+    "cagr": "CAGR",
+    "totalReturn": "Total Return",
+    "maxDrawdown": "Max Drawdown",
+    "sharpe": "Sharpe Ratio",
+    "sortino": "Sortino Ratio",
+    "bestYear": "Best Year",
+    "worstYear": "Worst Year",
+    "positiveYears": "Positive Years"
+  },
+  "underwaterCurve": {
+    "title": "Underwater Curve",
+    "description": "Drawdown depth over time — shows how long and how deep the portfolio was below its peak.",
+    "maxDrawdown": "Max Drawdown",
+    "underwaterPct": "Time Underwater",
+    "longestStreak": "Longest Underwater",
+    "dataPoints": "{{count}} data points",
+    "dateLabel": "Date: {{label}}"
+  },
+  "yearlyReturns": {
+    "title": "Yearly Returns",
+    "year": "Year",
+    "benchmark": "Benchmark",
+    "vsBenchmark": "vs Benchmark",
+    "positiveSummary": "{{positive}} / {{total}} positive years"
+  }
+}

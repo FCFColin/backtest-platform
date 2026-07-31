@@ -1,8 +1,3 @@
-/**
- * MFA 服务单元测试（P1-09 等保三级）
- *
- * 覆盖 TOTP 生成/验证、Base32 编解码、MFA 启用/禁用、备份码生成/消费。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const poolMocks = vi.hoisted(() => {

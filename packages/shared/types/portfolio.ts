@@ -49,6 +49,9 @@ export interface RebalanceBands {
  * glidepathToWeights 在目标组合资产与源组合资产顺序不一致时显式指定目标权重映射。
  *
  * totalReturn：启用后分红不提取而再投资，影响增长曲线计算。
+ *
+ * tags：用户自定义标签，用于分组、检索与标识（如 "防御"、"核心"、"观察列表"）。
+ * 仅前端展示与本地持久化使用，不参与回测计算。
  */
 export interface Portfolio {
   id: string;
@@ -65,6 +68,8 @@ export interface Portfolio {
   glidepathTo?: string;
   glidepathYears?: number;
   glidepathToWeights?: number[];
+  /** 用户自定义标签，用于分组、检索与标识（不参与回测计算） */
+  tags?: string[];
 }
 
 /** 现金流发生频率 */

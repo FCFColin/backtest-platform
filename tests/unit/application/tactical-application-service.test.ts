@@ -1,12 +1,6 @@
-/**
- * tactical-application-service 单元测试（T-30）
- *
- * 引擎计算已迁移到 Go，测试 mock engineClient + fetchHistoryData 验证编排逻辑。
- * 合并后的服务函数内部完成数据获取，不再由调用方传入 priceData。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
+import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 
 const engineMocks = vi.hoisted(() => ({
   callEngineStrict: vi.fn(),

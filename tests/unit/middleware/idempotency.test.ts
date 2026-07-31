@@ -1,14 +1,3 @@
-/**
- * 幂等性 Key 中间件单元测试（T-P1-5.3 / ADR-045）
- *
- * 企业理由：幂等性中间件保护写操作不被重复执行，是 API 可靠性的关键保障。
- * 测试覆盖：非 POST 放行、无 Key 放行、Key 命中缓存、Key 首次请求缓存写入、
- * 超长 Key 拒绝、失败响应不缓存、Redis 成功路径、安全攻击用例。
- *
- * ADR-045：删除内存回退路径。Redis 不可用时返回 503 + Retry-After（fail-closed），
- * 不再降级到进程内 Map（跨 Pod 不一致会导致重复写入）。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Response } from 'express';
 import { createMockRequest, createMockResponse } from '../../helpers/expressMocks.js';
@@ -19,7 +8,7 @@ import {
   SQL_INJECTION_KEY,
   XSS_KEY,
   NEWLINE_INJECTION_KEY,
-} from '../../helpers/idempotencyFixtures.js';
+} from '../../helpers/authFixtures.js';
 
 // Mock logger 以避免 OTel/pino 初始化副作用
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
@@ -37,9 +26,8 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
 // ADR-045：默认 Redis 可用（业务逻辑测试）。fail-closed 行为在独立 describe 中验证。
 redisMocks.useRedisSuccess();
 
-import { idempotencyKey } from '../../../packages/backend/src/middleware/idempotency.js';
+import { idempotencyKey } from '../../../packages/backend/src/middleware/jwtAuth.js';
 
-/** 创建无 idempotency-key 头的 mock 三件套（用于放行路径测试） */
 function createMockReqResWithoutKey(method = 'POST') {
   const req = createMockRequest({
     method,
@@ -231,9 +219,7 @@ describe('idempotencyKey 缓存行为（Redis 模式）', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // ADR-045：Redis 不可用时 fail-closed（返回 503 + Retry-After，不再降级到内存）
-// ---------------------------------------------------------------------------
 
 describe('idempotencyKey Redis 不可用时 fail-closed（ADR-045）', () => {
   beforeEach(() => {

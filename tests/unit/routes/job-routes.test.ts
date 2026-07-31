@@ -1,10 +1,3 @@
-/**
- * 任务状态路由单元测试
- *
- * 企业理由：异步任务提交后，客户端需轮询获取结果，状态查询的正确性
- * 直接影响前端展示。测试覆盖：任务存在（completed/failed）、任务不存在、查询异常。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
 

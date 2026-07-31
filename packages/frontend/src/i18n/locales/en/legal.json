@@ -1,0 +1,124 @@
+{
+  "legal": {
+    "terms": {
+      "title": "Terms of Service",
+      "lastUpdated": "Last updated: July 29, 2026",
+      "intro": "Welcome to the Backtest Platform (\"the Platform\"). Before using the services provided by the Platform, please read the following terms of service carefully. By using the Platform, you acknowledge that you have read, understood, and agreed to be bound by these terms.",
+      "sections": {
+        "acceptance": {
+          "title": "Acceptance of Terms",
+          "body": [
+            "By accessing, browsing, or using any feature of the Platform, you confirm that you have read, understood, and agreed to the entirety of these Terms of Service and the Privacy Policy.",
+            "If you do not agree with any part of these Terms, please stop using the Platform immediately.",
+            "The Platform reserves the right to modify these Terms at any time. Modified terms take effect upon publication. Continued use of the Platform constitutes acceptance of the modified terms."
+          ]
+        },
+        "license": {
+          "title": "License to Use",
+          "body": [
+            "Subject to your compliance with these Terms, the Platform grants you a limited, non-exclusive, non-transferable license to use the backtesting, analysis, and visualization features for personal research and educational purposes.",
+            "You may not use the Platform for any commercial or illegal purposes, may not reverse engineer, decompile, or disassemble the Platform, and may not circumvent the Platform's security measures in any way.",
+            "All intellectual property rights in the Platform's content (including but not limited to text, charts, algorithms, and trademarks) belong to the Platform or its licensors and may not be copied, distributed, or derived without written permission."
+          ]
+        },
+        "disclaimer": {
+          "title": "Disclaimer",
+          "body": [
+            "The Platform is provided for research and educational purposes only and does not constitute any investment advice, offer, or solicitation.",
+            "All backtest results, statistical data, and analysis charts provided by the Platform are based on historical data and do not represent future performance. Investing involves risk, and past performance does not predict future results.",
+            "You are solely responsible for any investment decisions made based on the Platform's information. The Platform is not liable for any investment losses you may incur."
+          ]
+        },
+        "liability": {
+          "title": "Limitation of Liability",
+          "body": [
+            "To the maximum extent permitted by applicable law, the Platform, its operators, employees, and affiliates shall not be liable for any direct, indirect, incidental, special, or consequential damages arising from the use of or inability to use the Platform.",
+            "The Platform does not guarantee the continuity, reliability, or accuracy of its services, does not guarantee error-free data, and is not liable for data delays or interruptions.",
+            "You agree to indemnify and hold the Platform harmless from any claims, losses, or damages arising from your violation of these Terms or improper use of the Platform."
+          ]
+        }
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "lastUpdated": "Last updated: July 29, 2026",
+      "intro": "This Privacy Policy explains how the Platform collects, uses, retains, and protects your personal information. This policy complies with applicable data protection regulations including GDPR, PIPL, and CCPA (see ADR-023 Data Privacy Classification and Right to Deletion).",
+      "sections": {
+        "dataCollection": {
+          "title": "Data Collection",
+          "body": [
+            "The Platform follows the principle of data minimization, collecting only the personal information necessary to provide its services: username (hashed), email address, and organization name.",
+            "The Platform does not collect unnecessary personally identifiable information (PII). Passwords are stored in hashed form, and the Platform cannot access your plaintext password.",
+            "For security and audit purposes, the Platform records login events, operation logs, and usage events. See the data classification document and PII field registry for details."
+          ]
+        },
+        "dataUse": {
+          "title": "Data Use",
+          "body": [
+            "Your personal information is used only for: providing backtesting and analysis services, authentication and session management, organization member management, billing and quota control, security audit and compliance requirements.",
+            "The Platform does not sell your personal information to third parties. Without your explicit consent, your data will not be used for marketing purposes.",
+            "Some service features may require data transmission to third-party service providers (e.g., data source APIs). The Platform ensures such transmissions follow the minimization principle and are contractually bound."
+          ]
+        },
+        "dataRetention": {
+          "title": "Data Retention & Deletion",
+          "body": [
+            "The Platform follows a clear data retention and archival strategy: backtest results are retained for 90 days (hot storage) to 3 years (deleted after archival); audit logs are retained for 7 years (compliance requirement); usage events are retained for 13 months before being aggregated into statistics.",
+            "Under GDPR Article 17 (Right to be Forgotten), you have the right to request deletion of your personal data. The Platform provides a three-tier deletion mechanism: deactivation (soft delete, reversible), anonymization (default recommended, erases identifiers but retains audit records), and hard deletion (complete deletion).",
+            "Please note: for compliance obligations, audit logs are not deleted during the retention period; only user identifiers are anonymized. To exercise your right to deletion, please use account settings or contact our support team."
+          ]
+        },
+        "cookiePolicy": {
+          "title": "Cookie Policy",
+          "body": [
+            "The Platform uses an httpOnly cookie to store the refresh token, ensuring session security. This cookie is not accessible via JavaScript, effectively preventing cross-site scripting (XSS) attacks.",
+            "The Platform does not use third-party tracking cookies or advertising cookies. Only essential session cookies are used to maintain login state.",
+            "You can manage or delete cookies through your browser settings, but disabling cookies may cause login functionality to not work properly."
+          ]
+        }
+      }
+    },
+    "disclaimer": {
+      "title": "Risk Disclosure",
+      "lastUpdated": "Last updated: July 29, 2026",
+      "intro": "This risk disclosure statement is intended to help you understand the inherent risks and limitations of using the Platform for backtesting analysis. Please read the following carefully before making any investment decisions.",
+      "methodologyPrefix": "For detailed information about data processing methodology and survivorship bias, please refer to the",
+      "methodologyLink": "Methodology documentation",
+      "methodologySuffix": ".",
+      "sections": {
+        "riskDisclosure": {
+          "title": "Risk Disclosure",
+          "body": [
+            "All content provided by the Platform is for research and educational purposes only and does not constitute investment advice, securities recommendations, or trading instructions.",
+            "Backtest results are simulated based on historical data and do not represent actual trading results. Historical performance does not predict future results, and investing may result in capital loss.",
+            "You should fully understand investment risks, consult a licensed financial advisor when necessary, and invest only money you can afford to lose."
+          ]
+        },
+        "survivorshipBias": {
+          "title": "Survivorship Bias",
+          "body": [
+            "The Platform's historical data may contain survivorship bias: delisted, merged, or bankrupt tickers may not be in the current dataset, causing backtest results to be systematically overstated.",
+            "To mitigate survivorship bias, the Platform makes every effort to include delisted tickers in data acquisition. For data processing methodology and known limitations, please refer to the methodology documentation.",
+            "You should consider the potential impact of survivorship bias when interpreting backtest results and avoid overly optimistic expectations of returns."
+          ]
+        },
+        "backtestLimitations": {
+          "title": "Backtest Limitations",
+          "body": [
+            "Backtesting cannot replicate all factors in actual trading, including but not limited to: market impact costs, slippage, liquidity constraints, trading latency, partial fills, and emotional factors.",
+            "The Platform's backtesting engine uses simplified transaction cost assumptions (e.g., fixed rates) in calculations, which may differ from actual trading costs.",
+            "Overfitting is a common risk in strategy backtesting: strategies that perform well on historical data may not remain effective in the future. It is recommended to use out-of-sample data validation and Monte Carlo simulation to assess strategy robustness."
+          ]
+        },
+        "dataSource": {
+          "title": "Data Source Disclaimer",
+          "body": [
+            "The Platform's historical market data is sourced from third-party data providers (including yfinance, finnhub, akshare, BaoStock, etc.). The Platform makes no express or implied warranty regarding the completeness, accuracy, timeliness, or reliability of the data.",
+            "Third-party data may contain errors, omissions, or delays. Changes in data source service availability, API changes, or data format adjustments may affect the Platform's data acquisition capabilities.",
+            "You should independently verify key data when using the Platform. The Platform is not liable for any losses arising from reliance on the data."
+          ]
+        }
+      }
+    }
+  }
+}

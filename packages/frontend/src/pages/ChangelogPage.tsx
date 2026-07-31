@@ -1,61 +1,44 @@
-/**
- * @file 更新日志页面
- * @description 展示项目版本更新历史，按版本倒序排列，分类标注变更类型
- * @route /changelog
- */
 import { useTranslation } from 'react-i18next';
 import { GitCommit, Plus, Wrench, Bug, Calendar } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-
+import { Card } from '@/components/ui/uiComponents';
+import { Badge } from '@/components/ui/uiComponents';
 type ChangeType = 'added' | 'improved' | 'fixed';
-
 interface ChangeEntry {
   type: ChangeType;
   text: string;
 }
-
 interface VersionEntry {
   version: string;
   date: string;
   highlight?: string;
   changes: ChangeEntry[];
 }
-
-/** useVersions: 从 i18n 读取版本列表 */
 function useVersions(): VersionEntry[] {
   const { t } = useTranslation();
-  const raw = t('changelog.versions', { returnObjects: true }) as Record<
-    string,
-    { date: string; highlight?: string; changes: ChangeEntry[] }
-  >;
+  const raw = t('changelog.versions', { returnObjects: true }) as Record<string, { date: string; highlight?: string; changes: ChangeEntry[] }>;
   return Object.entries(raw).map(([version, v]) => ({ version, ...v }));
 }
-
-/** useTypeConfig: 变更类型 → Badge variant + 图标映射 */
 function useTypeConfig(): Record<ChangeType, { label: string; variant: 'success' | 'asset' | 'secondary'; icon: ReactNode }> {
   const { t } = useTranslation();
   return {
     added: {
       label: t('changelog.added'),
       variant: 'success',
-      icon: <Plus className="size-3" />,
+      icon: <Plus className="size-3" />
     },
     improved: {
       label: t('changelog.improved'),
       variant: 'asset',
-      icon: <Wrench className="size-3" />,
+      icon: <Wrench className="size-3" />
     },
     fixed: {
       label: t('changelog.fixed'),
       variant: 'secondary',
-      icon: <Bug className="size-3" />,
-    },
+      icon: <Bug className="size-3" />
+    }
   };
 }
-
-/** ChangeTag: 变更条目标签 */
 function ChangeTag({ c }: { c: ChangeEntry }) {
   const cfg = useTypeConfig()[c.type];
   return (
@@ -65,8 +48,6 @@ function ChangeTag({ c }: { c: ChangeEntry }) {
     </Badge>
   );
 }
-
-/** VersionTimelineItem: 单条版本时间线项 */
 function VersionTimelineItem({ v }: { v: VersionEntry }) {
   return (
     <div className="relative pb-7 pl-11">
@@ -78,11 +59,7 @@ function VersionTimelineItem({ v }: { v: VersionEntry }) {
             <Calendar className="size-3" />
             {v.date}
           </span>
-          {v.highlight && (
-            <span className="rounded-full bg-brand/10 px-2 py-0.5 text-label-tiny font-semibold text-brand">
-              {v.highlight}
-            </span>
-          )}
+          {v.highlight && <span className="rounded-full bg-brand/10 px-2 py-0.5 text-label-tiny font-semibold text-brand">{v.highlight}</span>}
         </div>
         <div className="mt-3 flex flex-col gap-1.5">
           {v.changes.map((c, i) => (
@@ -96,11 +73,6 @@ function VersionTimelineItem({ v }: { v: VersionEntry }) {
     </div>
   );
 }
-
-/**
- * ChangelogPage: 更新日志页面，按版本倒序展示变更时间线。
- * @returns 渲染的更新日志页面。
- */
 export default function ChangelogPage() {
   const { t } = useTranslation();
   const versions = useVersions();

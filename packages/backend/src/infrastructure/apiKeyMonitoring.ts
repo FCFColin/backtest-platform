@@ -11,7 +11,6 @@ import { logger } from '../utils/logger.js';
 import { findStaleApiKeys } from '../repositories/apiKeyRepo.js';
 import { apiKeysStaleCount } from '../utils/metrics.js';
 
-/** 巡检间隔（毫秒），1 小时。 */
 const STALE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 /** 未使用阈值天数（平台 break-glass 密钥默认 7 天）。 */

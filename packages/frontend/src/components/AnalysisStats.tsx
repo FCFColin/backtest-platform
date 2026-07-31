@@ -4,7 +4,6 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { fmtPct } from '@/utils/format';
-
 const STATS_COLUMNS: {
   key: keyof Statistics;
   labelKey: string;
@@ -20,37 +19,16 @@ const STATS_COLUMNS: {
   { key: 'calmar', labelKey: 'Calmar', fmt: 'ratio' },
   { key: 'ulcerIndex', labelKey: 'analysis.ulcerIndex', fmt: 'ratio' },
   { key: 'ulcerPerformanceIndex', labelKey: 'UPI', fmt: 'ratio' },
-  { key: 'beta', labelKey: 'Beta', fmt: 'ratio' },
+  { key: 'beta', labelKey: 'Beta', fmt: 'ratio' }
 ];
-
-/**
- * 统计表表头：metrics 列 + 各 ticker 列（带颜色圆点）。
- * @param tickers - 资产分析结果的 tickers
- * @param metricLabel - metrics 列标题
- * @returns 渲染的 thead
- */
-function StatsTableHeader({
-  tickers,
-  metricLabel,
-}: {
-  tickers: AssetAnalysisResult['tickers'];
-  metricLabel: string;
-}) {
+function StatsTableHeader({ tickers, metricLabel }: { tickers: AssetAnalysisResult['tickers']; metricLabel: string }) {
   return (
     <thead>
       <tr className="bg-elevated">
-        <th className="py-2 px-3 text-left text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle">
-          {metricLabel}
-        </th>
+        <th className="py-2 px-3 text-left text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle">{metricLabel}</th>
         {tickers.map((tk, idx) => (
-          <th
-            key={tk.ticker}
-            className="py-2 px-3 text-right text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap"
-          >
-            <span
-              className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-            />
+          <th key={tk.ticker} className="py-2 px-3 text-right text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap">
+            <span className="mr-1.5 inline-block size-2.5 rounded-full align-middle" style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }} />
             {tk.ticker}
           </th>
         ))}
@@ -58,24 +36,11 @@ function StatsTableHeader({
     </thead>
   );
 }
-
-/**
- * 资产分析统计表。
- *
- * 行为各统计指标，列为各 ticker；数值列使用等宽 tabular-nums 对齐。
- * 外层 Card 由调用方（OverviewCharts 的 ChartCard）提供。
- * @param props - tickers: 资产分析结果的 tickers
- * @returns 渲染的统计表
- */
-export const StatsTable = memo(function StatsTable({
-  tickers,
-}: {
-  tickers: AssetAnalysisResult['tickers'];
-}) {
+export const StatsTable = memo(function StatsTable({ tickers }: { tickers: AssetAnalysisResult['tickers'] }) {
   const { t } = useTranslation();
   const cols = STATS_COLUMNS.map((c) => ({
     ...c,
-    label: c.labelKey.includes('.') ? t(c.labelKey) : c.labelKey,
+    label: c.labelKey.includes('.') ? t(c.labelKey) : c.labelKey
   }));
   const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') => {
     if (v === undefined || v === null) return '-';
@@ -92,14 +57,9 @@ export const StatsTable = memo(function StatsTable({
             if (!tickers.some((tk) => tk.statistics[col.key] != null)) return null;
             return (
               <tr key={col.key} className={ri % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}>
-                <td className="py-2 px-3 text-fg-secondary border-b border-border-subtle">
-                  {col.label}
-                </td>
+                <td className="py-2 px-3 text-fg-secondary border-b border-border-subtle">{col.label}</td>
                 {tickers.map((tk) => (
-                  <td
-                    key={tk.ticker}
-                    className="py-2 px-3 text-right font-mono tabular-nums font-medium text-fg border-b border-border-subtle whitespace-nowrap"
-                  >
+                  <td key={tk.ticker} className="py-2 px-3 text-right font-mono tabular-nums font-medium text-fg border-b border-border-subtle whitespace-nowrap">
                     {fmt(tk.statistics[col.key] as number | undefined, col.fmt)}
                   </td>
                 ))}

@@ -1,19 +1,6 @@
-/**
- * backtestQueue 单元测试
- *
- * 企业理由：BullMQ 任务队列是异步任务的基础设施，队列与 Worker
- * 配置错误会导致任务丢失或重复执行。测试覆盖：
- * - backtestQueue 正确导出 Queue 实例
- * - createBacktestWorker 创建 Worker 并注册事件回调
- * - Worker completed/failed/error 事件正确触发日志
- *
- * 权衡：mock bullmq 的 Queue 和 Worker，不验证真实 Redis 连接。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted =====
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -38,14 +25,37 @@ const workerInstanceMocks = vi.hoisted(() => ({
 const QueueMock = vi.hoisted(() => vi.fn(() => queueInstanceMocks));
 const WorkerMock = vi.hoisted(() => vi.fn(() => workerInstanceMocks));
 
-// ===== Mock 模块 =====
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
+vi.mock('../../../packages/backend/src/config/env.js', () => ({
   config: createConfigMocks({ REDIS_URL: 'redis://localhost:6379' }),
+  requireSecret: vi.fn(),
+  parseCorsOrigins: vi.fn(),
+  resolveJwtAlgorithm: vi.fn(),
+}));
+
+vi.mock('ioredis', () => ({
+  default: vi.fn(() => ({ on: vi.fn(), publish: vi.fn().mockResolvedValue(undefined) })),
+}));
+
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
+  buildRedisBaseOptions: vi.fn(() => ({
+    host: 'localhost',
+    port: 6379,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+  })),
+  isSentinelMode: false,
+  appRedis: { on: vi.fn(), publish: vi.fn().mockResolvedValue(undefined) },
+}));
+
+vi.mock('../../../packages/backend/src/queues/dlqConfig.js', () => ({
+  createDeadLetterQueue: vi.fn(() => ({ on: vi.fn() })),
+  isFinalFailure: vi.fn(() => false),
+  transferToDlq: vi.fn(),
+  SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS: 86400 * 7,
 }));
 
 vi.mock('bullmq', () => ({

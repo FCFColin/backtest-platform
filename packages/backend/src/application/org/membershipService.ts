@@ -11,7 +11,7 @@
  */
 import { getPool } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
-import type { OrgRole } from '../../middleware/authTypes.js';
+import type { OrgRole } from '../../middleware/jwtAuth.js';
 import {
   getUserMemberships,
   type Membership,
@@ -41,7 +41,6 @@ export function orgRoleToGlobalRole(role: OrgRole): GlobalRole {
   return role === 'owner' ? 'admin' : role;
 }
 
-/** 角色优先级，用于在多组织中挑选"默认活跃组织"（owner > admin > analyst > readonly） */
 const ROLE_PRIORITY: Record<OrgRole, number> = {
   owner: 3,
   admin: 2,

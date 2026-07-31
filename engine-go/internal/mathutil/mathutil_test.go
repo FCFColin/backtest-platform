@@ -1,17 +1,13 @@
 package mathutil
-
 import (
-	"math"
-	"math/rand"
-	"testing"
+    "math"
+    "math/rand"
+    "testing"
 )
-
 const approxTol = 1e-9
-
 func approxEqual(a, b float64) bool {
 	return math.Abs(a-b) < approxTol
 }
-
 func TestSum(t *testing.T) {
 	tests := []struct {
 		name string
@@ -25,14 +21,9 @@ func TestSum(t *testing.T) {
 		{"nil切片返回0", nil, 0},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := Sum(tc.arr); !approxEqual(got, tc.want) {
-				t.Errorf("Sum(%v) = %v, want %v", tc.arr, got, tc.want)
-			}
-		})
+t.Run(tc.name, func(t *testing.T) { if got := Sum(tc.arr); !approxEqual(got, tc.want) { t.Errorf("Sum(%v) = %v, want %v", tc.arr, got, tc.want) } })
 	}
 }
-
 func TestMean(t *testing.T) {
 	tests := []struct {
 		name string
@@ -46,14 +37,9 @@ func TestMean(t *testing.T) {
 		{"nil切片返回0", nil, 0},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := Mean(tc.arr); !approxEqual(got, tc.want) {
-				t.Errorf("Mean(%v) = %v, want %v", tc.arr, got, tc.want)
-			}
-		})
+t.Run(tc.name, func(t *testing.T) { if got := Mean(tc.arr); !approxEqual(got, tc.want) { t.Errorf("Mean(%v) = %v, want %v", tc.arr, got, tc.want) } })
 	}
 }
-
 func TestStd(t *testing.T) {
 	tests := []struct {
 		name string
@@ -67,15 +53,9 @@ func TestStd(t *testing.T) {
 		{"nil切片返回0", nil, 0},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := Std(tc.arr)
-			if math.Abs(got-tc.want) > 1e-6 {
-				t.Errorf("Std(%v) = %v, want %v", tc.arr, got, tc.want)
-			}
-		})
+t.Run(tc.name, func(t *testing.T) { got := Std(tc.arr); if math.Abs(got-tc.want) > 1e-6 { t.Errorf("Std(%v) = %v, want %v", tc.arr, got, tc.want) } })
 	}
 }
-
 func TestPercentile(t *testing.T) {
 	arr := []float64{1, 2, 3, 4, 5}
 	tests := []struct {
@@ -93,26 +73,18 @@ func TestPercentile(t *testing.T) {
 		{"nil切片返回0", nil, 0.5, 0},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := Percentile(tc.arr, tc.p); !approxEqual(got, tc.want) {
-				t.Errorf("Percentile(%v, %v) = %v, want %v", tc.arr, tc.p, got, tc.want)
-			}
-		})
+t.Run(tc.name, func(t *testing.T) { if got := Percentile(tc.arr, tc.p); !approxEqual(got, tc.want) { t.Errorf("Percentile(%v, %v) = %v, want %v", tc.arr, tc.p, got, tc.want) } })
 	}
 }
-
 func TestPercentile_NotMutatingInput(t *testing.T) {
 	arr := []float64{5, 3, 1, 4, 2}
 	original := make([]float64, len(arr))
 	copy(original, arr)
 	_ = Percentile(arr, 0.5)
 	for i := range arr {
-		if arr[i] != original[i] {
-			t.Errorf("Percentile 修改了输入切片, idx=%d got=%v want=%v", i, arr[i], original[i])
-		}
+if arr[i] != original[i] { t.Errorf("Percentile 修改了输入切片, idx=%d got=%v want=%v", i, arr[i], original[i]) }
 	}
 }
-
 func TestGaussianRandom(t *testing.T) {
 	t.Run("确定性种子可复现", func(t *testing.T) {
 		r1 := rand.New(rand.NewSource(42))
@@ -121,38 +93,25 @@ func TestGaussianRandom(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			v1 := GaussianRandom(r1, mean, std)
 			v2 := GaussianRandom(r2, mean, std)
-			if v1 != v2 {
-				t.Errorf("相同种子应产生相同序列, idx=%d v1=%v v2=%v", i, v1, v2)
-			}
+if v1 != v2 { t.Errorf("相同种子应产生相同序列, idx=%d v1=%v v2=%v", i, v1, v2) }
 		}
 	})
-
 	t.Run("统计特性_均值和标准差", func(t *testing.T) {
 		rnd := rand.New(rand.NewSource(123))
 		mean, std := 0.05, 0.2
 		samples := make([]float64, 10000)
-		for i := range samples {
-			samples[i] = GaussianRandom(rnd, mean, std)
-		}
+		for i := range samples { samples[i] = GaussianRandom(rnd, mean, std) }
 		gotMean := Mean(samples)
 		gotStd := Std(samples)
-		if math.Abs(gotMean-mean) > 0.02 {
-			t.Errorf("均值偏差过大: got=%v want≈%v", gotMean, mean)
-		}
-		if math.Abs(gotStd-std) > 0.02 {
-			t.Errorf("标准差偏差过大: got=%v want≈%v", gotStd, std)
-		}
+if math.Abs(gotMean-mean) > 0.02 { t.Errorf("均值偏差过大: got=%v want≈%v", gotMean, mean) }
+if math.Abs(gotStd-std) > 0.02 { t.Errorf("标准差偏差过大: got=%v want≈%v", gotStd, std) }
 	})
-
-	t.Run("零标准差返回均值", func(t *testing.T) {
-		rnd := rand.New(rand.NewSource(1))
-		v := GaussianRandom(rnd, 5.0, 0.0)
-		if !approxEqual(v, 5.0) {
-			t.Errorf("std=0 时应返回均值, got=%v want=5.0", v)
-		}
-	})
+t.Run("零标准差返回均值", func(t *testing.T) {
+			rnd := rand.New(rand.NewSource(1))
+			v := GaussianRandom(rnd, 5.0, 0.0)
+			if !approxEqual(v, 5.0) { t.Errorf("std=0 时应返回均值, got=%v want=5.0", v) }
+		})
 }
-
 func TestCovariance(t *testing.T) {
 	tests := []struct {
 		name string
@@ -168,11 +127,9 @@ func TestCovariance(t *testing.T) {
 		{"nil切片返回0", nil, nil, 0},
 	}
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+t.Run(tc.name, func(t *testing.T) {
 			got := Covariance(tc.x, tc.y)
-			if math.Abs(got-tc.want) > 1e-6 {
-				t.Errorf("Covariance(%v, %v) = %v, want %v", tc.x, tc.y, got, tc.want)
-			}
+			if math.Abs(got-tc.want) > 1e-6 { t.Errorf("Covariance(%v, %v) = %v, want %v", tc.x, tc.y, got, tc.want) }
 		})
 	}
 }

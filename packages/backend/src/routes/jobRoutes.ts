@@ -11,7 +11,6 @@ import { crudRouteHandler } from './routeUtils.js';
 
 export const jobRoutes = Router();
 
-/** 构建任务查询响应体 */
 function buildJobResult(
   job: NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>,
   state: string,

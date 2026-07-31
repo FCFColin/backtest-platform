@@ -1,14 +1,3 @@
-/**
- * signal schema 单元测试
- *
- * 企业理由：信号分析参数校验失败会导致指标计算错误，
- * 影响交易信号准确性。测试覆盖：
- * - signalAnalyzeSchema 合法/非法输入
- * - signalDualSchema 双信号组合校验
- * - signalMultiSchema 多信号聚合校验
- * - 枚举值校验（signalType/combinationMethod/aggregationMethod）
- */
-
 import { describe, it, expect } from 'vitest';
 import {
   signalAnalyzeSchema,

@@ -1,18 +1,3 @@
-/**
- * metrics 单元测试（Prometheus 指标）
- *
- * 企业理由：Prometheus 指标是 K8s 生态监控告警的基础，指标注册失败
- * 会导致告警缺失。测试覆盖：
- * - 指标对象正确导出（Gauge/Counter/Histogram）
- * - recordEngineCall 正确递增计数器
- * - recordEngineUnavailable 正确递增计数器并清洗 reason
- * - registerCircuitBreakerMetrics 注册事件回调
- * - registerSemaphoreMetrics 设置初始值
- * - resetMetrics / getPrometheusRegister 不抛错
- *
- * 权衡：不验证 Prometheus 文本格式输出（需集成 /metrics 端点）。
- */
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   eventLoopLagSeconds,
@@ -79,7 +64,6 @@ describe('指标对象导出', () => {
   });
 });
 
-/** 读取带标签的计数器/Gauge 当前值；无匹配标签返回 undefined */
 async function metricValue(
   metric: {
     get: () => Promise<{ values: Array<{ value: number; labels: Record<string, string> }> }>;
@@ -112,22 +96,11 @@ describe('recordEngineCall', () => {
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBeUndefined();
   });
 
-  it('success=false 且带 error 时应同时递增 engineUnavailableTotal', async () => {
+  it('success=false 且带 error 时应仅递增 engineCallsTotal（engineUnavailableTotal 由 recordEngineUnavailable 独立管理）', async () => {
     recordEngineCall(false, 'engine_timeout');
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
-    expect(await metricValue(engineUnavailableTotal, { reason: 'engine_timeout' })).toBe(1);
-  });
-
-  it('error 含特殊字符时应被清洗为下划线后作为标签值', async () => {
-    recordEngineCall(false, 'error: connection lost!');
-    // 非 [a-zA-Z0-9_-] 字符（: 空格 !）逐一替换为 _
-    expect(await metricValue(engineUnavailableTotal, { reason: 'error__connection_lost_' })).toBe(
-      1,
-    );
-  });
-
-  it('success=false 但 error 为空时不应产生任何 engineUnavailable 序列', async () => {
-    recordEngineCall(false);
+    // engineUnavailableTotal 不再由 recordEngineCall 管理，
+    // 应由 circuit breaker 的 open/fallback 事件通过 recordEngineUnavailable 独立递增
     const snapshot = await engineUnavailableTotal.get();
     expect(snapshot.values).toHaveLength(0);
   });

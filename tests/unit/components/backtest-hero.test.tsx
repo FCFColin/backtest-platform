@@ -1,6 +1,3 @@
-/**
- * @vitest-environment happy-dom
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BacktestHero } from '../../../packages/frontend/src/pages/backtest/BacktestHero.js';

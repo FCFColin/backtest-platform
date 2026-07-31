@@ -16,14 +16,13 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { validateQuery } from '../middleware/validate.js';
+import { validateQuery } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { crudRouteHandler, requireUuidParam } from './routeUtils.js';
 import { queryAuditLogs, verifyAuditIntegrity } from '../application/auditStorageService.js';
 
 const router = Router();
 
-/** 查询参数校验（所有字段可选，page/limit 有默认值） */
 const querySchema = z.object({
   org_id: z.string().uuid().optional(),
   event_type: z.string().trim().max(100).optional(),
@@ -59,7 +58,7 @@ router.get(
       // validateQuery 中间件已用 zod coerce 将 page/limit 转为 number，
       // 但 Express 的 req.query 类型仍是 ParsedQs（string 值），
       // 需经 unknown 中转才能赋值到 zod 推断出的强类型。
-      const q = req.query as z.infer<typeof querySchema>;
+      const q = req.query as unknown as z.infer<typeof querySchema>;
       const result = await queryAuditLogs(
         {
           orgId: q.org_id,

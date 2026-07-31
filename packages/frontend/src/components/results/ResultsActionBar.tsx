@@ -1,21 +1,10 @@
-/**
- * @file ResultsActionBar 组件
- * @description 智能 Sticky 操作栏：IntersectionObserver 检测结果区可见性。
- *   h-14 bg-sticky-bg/95 backdrop-blur-md，左：标题+时间范围，右：操作按钮+导出。
- */
 import { useEffect, useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Bookmark, Bell, Save, Download, RefreshCw, Info } from 'lucide-react';
-import { Button } from '@/components/ui/button.js';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from '@/components/ui/dropdown-menu.js';
+import { Button } from '@/components/ui/uiComponents.js';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/uiComponents.js';
 import { PlanBadge } from '@/components/layout/PlanBadge.js';
 import { cn } from '@/lib/utils.js';
-
 interface ResultsActionBarProps {
   timeRange: { start: string; end: string; years: number };
   onRefresh?: () => void;
@@ -25,8 +14,6 @@ interface ResultsActionBarProps {
   onSavePortfolio?: () => void;
   onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
 }
-
-/** 操作栏右侧动作按钮组的 props */
 interface ActionBarActionsProps {
   onRefresh?: () => void;
   onShare?: () => void;
@@ -35,30 +22,11 @@ interface ActionBarActionsProps {
   onSavePortfolio?: () => void;
   onExport?: (format: 'csv' | 'json' | 'png' | 'pdf') => void;
 }
-
-/**
- * ActionBarActions: 操作栏右侧按钮组（刷新/分享/保存/导出）。
- * @param props - 5 个回调 + onExport。
- * @returns 按钮组元素。
- */
-function ActionBarActions({
-  onRefresh,
-  onShare,
-  onSaveBacktest,
-  onEmailAlerts,
-  onSavePortfolio,
-  onExport,
-}: ActionBarActionsProps) {
+function ActionBarActions({ onRefresh, onShare, onSaveBacktest, onEmailAlerts, onSavePortfolio, onExport }: ActionBarActionsProps) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center gap-1">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8"
-        onClick={onRefresh}
-        title={t('results.actionBar.refresh')}
-      >
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRefresh} title={t('results.actionBar.refresh')}>
         <RefreshCw className="h-4 w-4" />
       </Button>
       <div className="w-px h-5 bg-border mx-1" />
@@ -84,53 +52,30 @@ function ActionBarActions({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onExport?.('csv')}>
-            {t('results.actionBar.exportCsv')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('json')}>
-            {t('results.actionBar.exportJson')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('png')}>
-            {t('results.actionBar.exportPng')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onExport?.('pdf')}>
-            {t('results.actionBar.exportPdf')}
-          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('csv')}>{t('results.actionBar.exportCsv')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('json')}>{t('results.actionBar.exportJson')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('png')}>{t('results.actionBar.exportPng')}</DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onExport?.('pdf')}>{t('results.actionBar.exportPdf')}</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
   );
 }
-
-/**
- * 智能 Sticky 结果操作栏。
- * @param props - timeRange + 5 个回调 + onExport。
- * @returns 操作栏元素（含 sentinel）。
- */
 export function ResultsActionBar(props: ResultsActionBarProps) {
   const { t } = useTranslation();
   const [sticky, setSticky] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setSticky(!entry.isIntersecting), {
-      threshold: 0,
+      threshold: 0
     });
     if (sentinelRef.current) observer.observe(sentinelRef.current);
     return () => observer.disconnect();
   }, []);
-
   return (
     <>
       <div ref={sentinelRef} className="h-0" />
-      <div
-        className={cn(
-          'transition-all duration-200',
-          sticky
-            ? 'sticky top-0 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md'
-            : 'h-14 bg-transparent border-b border-border-subtle',
-        )}
-      >
+      <div className={cn('transition-all duration-200', sticky ? 'sticky top-0 z-40 h-14 bg-sticky-bg/95 backdrop-blur-md border-b border-border shadow-md' : 'h-14 bg-transparent border-b border-border-subtle')}>
         <div className="max-w-[1440px] mx-auto h-full px-6 flex items-center gap-4">
           <div className="flex items-center gap-3">
             <h2 className="text-h3">{t('results.actionBar.title')}</h2>
@@ -138,24 +83,15 @@ export function ResultsActionBar(props: ResultsActionBarProps) {
               {t('results.actionBar.timeRange', {
                 years: props.timeRange.years.toFixed(2),
                 start: props.timeRange.start,
-                end: props.timeRange.end,
+                end: props.timeRange.end
               })}
             </span>
             <Button variant="ghost" size="icon" className="h-6 w-6">
               <Info className="h-3.5 w-3.5 text-fg-tertiary" />
             </Button>
           </div>
-
           <div className="flex-1" />
-
-          <ActionBarActions
-            onRefresh={props.onRefresh}
-            onShare={props.onShare}
-            onSaveBacktest={props.onSaveBacktest}
-            onEmailAlerts={props.onEmailAlerts}
-            onSavePortfolio={props.onSavePortfolio}
-            onExport={props.onExport}
-          />
+          <ActionBarActions onRefresh={props.onRefresh} onShare={props.onShare} onSaveBacktest={props.onSaveBacktest} onEmailAlerts={props.onEmailAlerts} onSavePortfolio={props.onSavePortfolio} onExport={props.onExport} />
         </div>
       </div>
     </>

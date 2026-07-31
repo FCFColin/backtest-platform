@@ -12,7 +12,7 @@ import {
   logFlagAccess,
   PLAN_LIMIT_FLAGS,
   type FlagContext,
-} from '../config/featureFlags.js';
+} from '../config/index.js';
 
 const router = Router();
 

@@ -1,13 +1,3 @@
-/**
- * 按组织 API Key 服务单元测试（ADR-033）
- *
- * 企业理由：API Key 是服务端到服务端的高权限凭证。本测试验证：
- * 1. 创建仅存储哈希、明文一次性返回、前缀正确（不泄露可重建信息）
- * 2. 校验拒绝非法形态/已吊销密钥，命中后异步更新 last_used_at
- * 3. 吊销以 org_id 收敛（防跨租户），幂等返回布尔
- *
- * Mock 策略：mock db.getPool().query，避免真实数据库依赖。
- */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dbMocks = vi.hoisted(() => ({

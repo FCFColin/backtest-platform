@@ -1,19 +1,3 @@
-/**
- * Chaos Experiment 2: External Service Unreachable（vitest 集成测试）
- *
- * SRE: 验证外部数据服务（Go data-fetcher）不可达时的降级行为
- * 企业为何需要：第三方 API 不稳定是常见故障源，熔断器 + 本地缓存降级
- * 是可用性保障。本测试验证 go_data_service 熔断器 Open 后降级到本地数据。
- *
- * 权衡：原脚本使用 Linux tc 注入延迟，跨平台不可用。
- * 本测试采用 Option C（停止 data-fetcher 容器）模拟服务不可达，
- * 最可移植且能验证熔断器 + 降级链路。
- *
- * 重构说明（Task 5.14/5.15）：
- * - 用 setupChaosFixture(CONTAINERS.dataFetcher) 替代内联 isDockerAvailable/
- *   isContainerRunning + afterAll startContainer 样板。
- * - it 块内的 stop/start + try/finally 改用 withContainerStopped 高阶函数。
- */
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import {
   CONTAINERS,
@@ -28,10 +12,6 @@ const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const HEALTH_URL = `${API_URL}/api/health`;
 const METRICS_URL = `${API_URL}/api/metrics`;
 
-/**
- * /api/v1/data/history 端点优先调用 Go 数据服务（goDataServiceBreaker），
- * 失败后降级到 PostgreSQL / JSON 文件。Go 服务不可达时应返回 200 + degraded 标记。
- */
 const DATA_ENDPOINT = `${API_URL}/api/v1/data/history?tickers=SPY&startDate=2020-01-01&endDate=2024-12-31`;
 
 // top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值

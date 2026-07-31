@@ -1,6 +1,3 @@
-/**
- * @file Analysis charts barrel — re-exports from charts/ analysis components
- */
 export { OverviewCharts } from './charts/OverviewCharts.js';
 export { default as TelltaleChart } from './charts/TelltaleChart.js';
 export { CorrelationMatrixTable } from './charts/CorrelationMatrixTable.js';

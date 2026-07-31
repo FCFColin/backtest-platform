@@ -7,12 +7,6 @@
  * 翻译为 HTTP 错误，保持依赖方向 application → domain 单向。
  */
 
-/**
- * 领域验证错误。
- *
- * 由领域聚合根 / 值对象在校验失败时抛出（如权重和不为 100、ticker 非法）。
- * application 层捕获后翻译为 ValidationError（HTTP 422）。
- */
 export class DomainValidationError extends Error {
   /** 校验失败的字段名（可选，用于定位） */
   readonly field?: string;

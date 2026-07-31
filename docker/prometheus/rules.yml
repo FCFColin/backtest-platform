@@ -131,6 +131,20 @@ groups:
           description: 'HTTP 请求 P99 延迟 > 1s 已持续 5 分钟。按 route 拆分定位慢端点：histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))。排查 DB 慢查询、引擎计算、事件循环阻塞。'
           runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
 
+      # P90 延迟 > 100ms（5 分钟窗口）
+      - alert: HighP90Latency
+        expr: |
+          histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.1
+        for: 5m
+        labels:
+          severity: notice
+          service: api
+          category: latency
+        annotations:
+          summary: 'High P90 latency ({{ $value }}s)'
+          description: 'HTTP 请求 P90 延迟 > 100ms 已持续 5 分钟。按 route 拆分定位慢端点，优先排查缓存缺失和 DB 查询性能。'
+          runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
+
       # 磁盘可用空间 < 10%（node_exporter，排除 overlay/tmpfs 等伪文件系统）
       - alert: DiskSpaceLow
         expr: |

@@ -3,7 +3,7 @@ import {
   pickByThreshold,
   pickByAbsThreshold,
   interpolateHsl,
-} from '../../../packages/frontend/src/utils/colorScale.js';
+} from '../../../packages/frontend/src/lib/chart-theme.js';
 
 describe('pickByThreshold', () => {
   it('非负阈值用 >=：value=0 应落入最负带（中性色），保证 0 不被最正带捕获', () => {

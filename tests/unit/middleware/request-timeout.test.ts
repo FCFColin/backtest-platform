@@ -12,14 +12,8 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: loggerMocks,
 }));
 
-import { requestTimeout } from '../../../packages/backend/src/middleware/requestTimeout.js';
+import { requestTimeout } from '../../../packages/backend/src/middleware/errorHandler.js';
 
-/**
- * 创建支持事件监听的 mock Response。
- * requestTimeout 中间件需要 res.on('finish') 和 res.on('close') 来清理定时器，
- * 标准 createMockResponse 不包含 EventEmitter 功能。
- * sendProblem 使用 res.status().header().json() 链式调用，故需 header 方法。
- */
 function createEventMockResponse() {
   const listeners: Record<string, (() => void)[]> = {};
   return {

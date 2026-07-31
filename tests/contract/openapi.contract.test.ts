@@ -1,17 +1,3 @@
-/**
- * OpenAPI 契约测试（P2-1 重写：使用 @apidevtools/swagger-parser 替代行级正则解析）
- *
- * 企业理由：行级正则解析 YAML 脆弱且无法验证实际实现一致性。
- * swagger-parser 提供真正的 YAML/JSON 解析 + $ref 解析 + 结构验证，
- * 能检测 spec 内部引用断裂、schema 格式错误等结构性缺陷。
- *
- * 测试覆盖：
- * 1. spec 元数据完整性（版本号、标题、路径数量）
- * 2. 所有 operation 有 responses + summary
- * 3. 所有 operation 有 security 定义（或继承顶层 security）
- * 4. 4xx 错误响应引用 ProblemDetails schema
- * 5. spec 本身通过 SwaggerParser.validate（$ref 解析 + 结构合法）
- */
 import { describe, it, expect } from 'vitest';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import fs from 'fs';
@@ -22,7 +8,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const openapiPath = path.resolve(__dirname, '../../docs/openapi.yaml');
 
-/** OpenAPI 3.0 Document 类型（简化版，仅测试所需字段） */
 interface OpenAPIV3Document {
   openapi: string;
   info: { title: string; version: string };
@@ -41,7 +26,6 @@ async function getApiDoc(): Promise<OpenAPIV3Document> {
   return apiDoc;
 }
 
-/** 提取所有 operation（path × method） */
 interface Operation {
   path: string;
   method: string;

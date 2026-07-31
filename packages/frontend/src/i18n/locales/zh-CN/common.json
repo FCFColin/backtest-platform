@@ -1,0 +1,742 @@
+{
+  "a11y": {
+    "skipToMain": "跳到主要内容"
+  },
+  "ariaLabels": {
+    "weightInput": "权重输入（百分比）"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "出错了",
+    "noData": "暂无数据",
+    "startBacktest": "开始回测",
+    "startAnalysis": "开始分析",
+    "startOptimize": "开始优化",
+    "running": "运行中...",
+    "retry": "重试",
+    "confirm": "确认",
+    "cancel": "取消",
+    "delete": "删除",
+    "save": "保存",
+    "close": "关闭",
+    "metric": "指标",
+    "date": "日期",
+    "add": "添加",
+    "remove": "删除",
+    "copy": "副本",
+    "share": "分享",
+    "import": "导入",
+    "export": "导出",
+    "yes": "是",
+    "no": "否",
+    "days": "天",
+    "year": "年",
+    "month": "月",
+    "years": "年",
+    "months": "月",
+    "percent": "%",
+    "ticker": "标的",
+    "latestPrice": "最新价格",
+    "signalDate": "信号日期",
+    "signalStatus": "信号状态",
+    "buy": "买入",
+    "sell": "卖出",
+    "hold": "持有",
+    "upgrade": "升级",
+    "about": "关于",
+    "limits": "限制",
+    "createFreeAccount": "免费注册",
+    "myWorkspace": "我的工作区",
+    "docs": "文档",
+    "pricing": "定价",
+    "signIn": "登录",
+    "loadSaved": "加载已保存",
+    "loadSavedBacktest": "加载已保存回测",
+    "loadSavedAnalysis": "加载已保存分析",
+    "collapse": "收起",
+    "equalize": "等分",
+    "learnMore": "了解更多",
+    "normalize": "归一化",
+    "portfolioSuffix": "组合 {{suffix}}",
+    "offlineBanner": "您当前处于离线状态，部分功能可能不可用",
+    "backOnline": "已恢复在线",
+    "goHome": "返回首页",
+    "reload": "重新加载"
+  },
+  "lang": {
+    "zh": "中文",
+    "en": "EN",
+    "switchLang": "切换语言",
+    "switchCurrency": "切换货币"
+  },
+  "toolRoutes": {
+    "loading": "加载中..."
+  },
+  "errors": {
+    "401": {
+      "title": "未登录",
+      "description": "请登录后再访问此页面。"
+    },
+    "403": {
+      "title": "无权访问",
+      "description": "您没有权限访问此资源。如需权限，请联系管理员。"
+    },
+    "404": {
+      "title": "页面未找到",
+      "description": "您访问的页面不存在或已被移动。"
+    },
+    "429": {
+      "title": "请求过于频繁",
+      "description": "您的请求过于频繁，请稍后重试。{{seconds}}秒后可重试。"
+    },
+    "500": {
+      "title": "服务器错误",
+      "description": "服务器遇到内部错误，请刷新页面重试。如果问题持续，请联系管理员。"
+    },
+    "503": {
+      "title": "服务暂不可用",
+      "description": "计算引擎暂不可用，请稍后重试。{{seconds}}秒后可重试。"
+    },
+    "pageErrorTitle": "页面出错了",
+    "pageErrorMessage": "抱歉，页面遇到了问题。请刷新页面，如果问题持续存在，请联系管理员。",
+    "pageRefresh": "刷新页面",
+    "degradedMode": "降级模式：",
+    "degradedDefaultWarning": "部分功能可能不可用或正在使用备用数据。",
+    "letfTickerRequired": "请输入杠杆 ETF 和基准指数代码",
+    "letfAnalysisFailed": "LETF 滑点分析失败",
+    "dualSignalTickerRequired": "请输入标的代码",
+    "dualSignalAnalysisFailed": "分析失败",
+    "tacticalTickerRequired": "请输入至少一个标的代码",
+    "unknown": "未知错误，请稍后重试",
+    "validationError": "参数校验失败",
+    "engineUnavailable": "计算引擎暂不可用",
+    "engineError": "计算引擎错误",
+    "computeTimeout": "计算超时，请缩小范围后重试",
+    "dataDegraded": "部分数据不可用，结果可能不完整",
+    "tickerNotFound": "找不到该标的",
+    "tickerDataInsufficient": "标的历史数据不足",
+    "tickerDataFetchFailed": "获取标的行情失败",
+    "invalidWeightSum": "权重之和必须为 100%",
+    "emptyPortfolio": "投资组合不能为空",
+    "unauthorized": "请先登录",
+    "missingCredentials": "缺少登录凭证",
+    "sessionRevoked": "登录已失效，请重新登录",
+    "accountDisabled": "账号已被停用",
+    "accountLocked": "账号已被锁定",
+    "forbidden": "无权访问",
+    "insufficientPermission": "权限不足",
+    "notFound": "资源不存在",
+    "portfolioNotFound": "投资组合不存在",
+    "configNotFound": "配置不存在",
+    "runNotFound": "运行记录不存在",
+    "jobNotFound": "任务不存在",
+    "apiKeyNotFound": "API 密钥不存在",
+    "orgNotFound": "组织不存在",
+    "memberNotFound": "成员不存在",
+    "lastOwner": "无法移除最后一位所有者",
+    "rateLimited": "请求过于频繁，请稍后重试",
+    "quotaExceeded": "已超出配额限制",
+    "internalError": "服务器内部错误",
+    "networkError": "网络连接失败",
+    "requestTimeout": "请求超时",
+    "requestFailed": "请求失败",
+    "invalidTicker": "无效的标的代码",
+    "invalidDateRange": "日期范围无效",
+    "missingParams": "缺少必要参数",
+    "backtestFailed": "回测失败",
+    "dataFetchFailed": "数据获取失败",
+    "emailTaken": "该邮箱已被注册",
+    "usernameTaken": "该用户名已被占用",
+    "registerFailed": "注册失败",
+    "billingDisabled": "计费功能未启用",
+    "tickerLimitExceeded": "超出标的数量上限",
+    "invalidCountry": "无效的国家/地区",
+    "cpiNotFound": "CPI 数据不存在",
+    "databaseUnavailable": "数据库暂不可用",
+    "noActiveTenant": "无激活的组织",
+    "invalidApiKey": "无效的 API 密钥",
+    "idempotencyKeyInvalid": "幂等键无效",
+    "optimizerBadRequest": "优化器参数无效",
+    "analysisInvalidType": "分析类型无效",
+    "gridTooMany": "网格搜索数量过多",
+    "gridBadRequest": "网格搜索参数无效",
+    "pcaMinAssets": "PCA 至少需要 2 个标的",
+    "retryIn": "{{seconds}}秒后重试",
+    "routeErrorTitle": "该区块加载失败 ({{route}})",
+    "routeErrorMessage": "渲染此页面时出现问题。你可以就地重试，无需刷新整个应用。",
+    "routeRetry": "重试",
+    "invalidCredentials": "用户名或密码错误",
+    "acceptInviteFailed": "接受邀请失败",
+    "switchOrgFailed": "切换组织失败",
+    "operationFailed": "操作失败",
+    "atLeastOneTicker": "请至少输入一个标的代码",
+    "atLeastOneRebalanceFreq": "请至少选择一个再平衡频率",
+    "optimizerFailed": "优化失败",
+    "atLeastTwoTickers": "请至少输入两个标的代码",
+    "computeFailed": "计算失败",
+    "correlationFailed": "相关性矩阵计算失败",
+    "atLeastOneAsset": "请至少添加一个标的",
+    "atLeastOneFreq": "请至少选择一个调仓频率",
+    "rebalancingSensitivityFailed": "再平衡敏感性分析失败",
+    "analysisFailed": "分析失败",
+    "simulationFailed": "模拟失败",
+    "noResults": "无结果 ({{label}})",
+    "backtestFailedLabel": "回测失败 ({{label}})"
+  },
+  "footer": {
+    "brandTagline": "面向个人投资者的专业回测平台",
+    "status": {
+      "operational": "系统运行正常",
+      "degraded": "系统降级"
+    },
+    "sections": {
+      "product": "产品",
+      "resources": "资源",
+      "company": "公司",
+      "data": "数据"
+    },
+    "product": {
+      "portfolioBacktest": "组合回测",
+      "monteCarlo": "蒙特卡洛",
+      "optimizer": "优化器",
+      "tactical": "战术分配",
+      "analysis": "分析工具"
+    },
+    "resources": {
+      "docs": "文档",
+      "apiRef": "API 参考",
+      "changelog": "更新日志",
+      "helpCenter": "帮助中心",
+      "feedback": "反馈",
+      "methodology": "方法论"
+    },
+    "company": {
+      "about": "关于",
+      "pricing": "定价",
+      "contact": "联系我们",
+      "privacy": "隐私政策",
+      "terms": "服务条款",
+      "disclaimer": "免责声明"
+    },
+    "data": {
+      "source": "数据来源",
+      "sourceValue": "yfinance · finnhub · akshare · BaoStock",
+      "updated": "数据更新",
+      "historyDepth": "历史深度",
+      "historyDepthValue": "{{date}} 起",
+      "coverage": "覆盖标的",
+      "coverageValue": "{{count}} 个"
+    },
+    "disclaimer": "本平台仅供研究与教育目的，不构成投资建议",
+    "disclaimerLink": "免责声明",
+    "copyright": "© {{year}} {{brand}}"
+  },
+  "nav": {
+    "backtest": "回测",
+    "analysisOptimization": "分析优化",
+    "tacticalSignal": "战术信号",
+    "docs": "文档",
+    "pricing": "定价",
+    "portfolioBacktest": "组合回测",
+    "backtestOptimizer": "回测优化器",
+    "rebalancingSensitivity": "调仓敏感性",
+    "assetAnalysis": "资产分析",
+    "factorRegression": "因子回归",
+    "pca": "主成分分析",
+    "portfolioOptimize": "组合优化",
+    "efficientFrontier": "有效前沿",
+    "monteCarlo": "蒙特卡洛",
+    "goalOptimizer": "目标优化器",
+    "tacticalAllocation": "战术分配",
+    "tacticalGrid": "战术网格搜索",
+    "signalAnalyzer": "信号分析",
+    "dualSignal": "双信号",
+    "multiSignal": "多信号",
+    "lumpsumVsDca": "一次性vs定投",
+    "lumpSumDca": "一次投入 vs 定投",
+    "portfolioComparison": "组合对比",
+    "letfAnalysis": "LETF 分析",
+    "calculators": "计算器",
+    "dataEngine": "数据引擎",
+    "brandName": "回测平台",
+    "switchToLight": "切换到浅色主题",
+    "switchToDark": "切换到深色主题",
+    "menu": "菜单"
+  },
+  "format": {
+    "durationDays": "{{count}}天",
+    "durationZero": "0天",
+    "durationMonths": "{{count}}个月",
+    "durationYears": "{{count}}年",
+    "durationYearsMonths": "{{years}}年{{months}}个月",
+    "durationMonthShort": "{{count}}月",
+    "durationYearsShort": "{{count}}年"
+  },
+  "layout": {
+    "authMenu": {
+      "account": "账户",
+      "accountCenter": "账户中心",
+      "login": "登录",
+      "logout": "退出",
+      "memberManagement": "成员管理",
+      "noOrgSelected": "未选择组织",
+      "platformAdminPrefix": "平台管理员",
+      "switchOrg": "切换组织"
+    },
+    "toolPageLayout": {
+      "collapseParams": "收起参数",
+      "defaultParamsTitle": "参数",
+      "expandParams": "展开参数"
+    },
+    "toolSeoCard": {
+      "relatedTools": "相关工具："
+    }
+  },
+  "components": {
+    "cashflowsLog": {
+      "endDate": "结束日期",
+      "notSet": "未设置",
+      "offsetDays": "偏移天数",
+      "oneTime": "一次性",
+      "periodic": "周期性",
+      "title": "现金流日志",
+      "untilEndOfBacktest": "至回测结束"
+    },
+    "chartExporter": {
+      "defaultLabel": "图表"
+    },
+    "customMetricsTable": {
+      "noData": "暂无数据",
+      "selectAtLeastOne": "请至少选择一个指标",
+      "selectMetrics": "选择指标（{{selected}}/{{total}}）"
+    },
+    "drawdownEpisodes": {
+      "noData": "暂无数据",
+      "title": "回撤片段",
+      "headers": {
+        "peakDate": "峰值日期",
+        "troughDate": "谷值日期",
+        "recoveryDate": "恢复日期",
+        "depth": "回撤深度",
+        "timeToTrough": "跌至谷底时间",
+        "recoveryTime": "恢复时间",
+        "totalTime": "总持续时间",
+        "recoveryFactor": "恢复因子",
+        "cagrDuring": "期间CAGR",
+        "ulcerDuring": "期间Ulcer指数"
+      },
+      "statLabels": {
+        "min": "最小",
+        "median": "中位",
+        "avg": "平均",
+        "max": "最大"
+      },
+      "summaryLabels": {
+        "depth": "回撤深度",
+        "timeToTrough": "跌至谷底时间",
+        "recoveryTime": "恢复时间",
+        "totalTime": "总持续时间",
+        "recoveryFactor": "恢复因子",
+        "cagrDuring": "期间CAGR",
+        "ulcerDuring": "期间Ulcer指数"
+      },
+      "filter": {
+        "all": "全部",
+        "severe": "严重 (≥20%)",
+        "moderate": "中等 (≥10%)",
+        "mild": "轻微 (<10%)"
+      },
+      "sort": {
+        "depth": "按深度",
+        "duration": "按持续时间",
+        "recovery": "按恢复因子"
+      },
+      "summary": {
+        "totalDrawdowns": "总回撤次数",
+        "maxDrawdown": "最大回撤",
+        "avgDrawdown": "平均回撤",
+        "avgRecoveryDuration": "平均恢复时长"
+      },
+      "showMore": "显示更多 {{count}} 段",
+      "status": {
+        "recovered": "已恢复",
+        "ongoing": "进行中"
+      },
+      "detail": {
+        "timeToTrough": "跌至谷底",
+        "recoveryTime": "恢复时间",
+        "recoveryFactor": "恢复因子",
+        "periodCagr": "期间 CAGR",
+        "periodUlcer": "期间 Ulcer"
+      },
+      "aria": {
+        "severity": "按严重度筛选",
+        "sortBy": "排序方式"
+      }
+    },
+    "errorBoundary": {
+      "errorAlert": "错误"
+    },
+    "rebalancingStats": {
+      "bandsDisabled": "偏离带已禁用",
+      "bandsText": "偏离带：{{absolute}}绝对 / {{relative}}相对",
+      "deviationThreshold": "偏离阈值",
+      "noData": "暂无数据",
+      "offsetDays": "偏移天数",
+      "rebalanceBands": "再平衡带"
+    },
+    "statisticsTable": {
+      "noData": "暂无数据",
+      "title": "统计表",
+      "groups": {
+        "return": "收益",
+        "volatility": "波动率",
+        "downsideDeviation": "下行偏差",
+        "drawdown": "回撤",
+        "riskAdjusted": "风险调整收益",
+        "benchmark": "基准对比",
+        "captureRatio": "捕获比率",
+        "activeManagement": "主动管理",
+        "varCvar": "VaR/CVaR",
+        "distribution": "收益分布",
+        "positiveRatio": "正收益占比",
+        "extremeReturns": "极端收益",
+        "avgGainLoss": "平均盈亏",
+        "withdrawalRate": "提款率",
+        "core": "核心指标"
+      },
+      "labels": {
+        "avgAnnualReturn": "平均年化收益",
+        "avgMonthlyReturn": "平均月度收益",
+        "avgDailyReturn": "平均日收益",
+        "bestYear": "最佳年度收益",
+        "worstYear": "最差年度收益",
+        "stdevAnnualized": "年化标准差",
+        "stdevAnnual": "年度标准差",
+        "stdevMonthlyAnnualized": "月度标准差(年化)",
+        "stdevMonthlyRaw": "月度标准差(原始)",
+        "stdevDailyAnnualized": "日度标准差(年化)",
+        "stdevDailyRaw": "日度标准差(原始)",
+        "downsideDeviationAnnualized": "年化下行偏差",
+        "downsideDeviationDailyRaw": "日度下行偏差(原始)",
+        "downsideDeviationMonthly": "月度下行偏差(年化)",
+        "downsideDeviationMonthlyRaw": "月度下行偏差(原始)",
+        "downsideDeviationAnnual": "年度下行偏差",
+        "avgDrawdown": "平均回撤",
+        "maxDrawdownDuration": "最长回撤持续期",
+        "drawdownRecoveryFactor": "回撤恢复因子",
+        "ulcerIndex": "溃疡指数",
+        "m2": "M² 风险调整收益",
+        "ulcerPerformanceIndex": "溃疡绩效指数",
+        "diversificationRatio": "分散化比率",
+        "benchmarkCorrelation": "基准相关性",
+        "upsideCorrelation": "上行相关性",
+        "downsideCorrelation": "下行相关性",
+        "upsideBeta": "上行Beta",
+        "downsideBeta": "下行Beta",
+        "alphaDaily": "日度Alpha",
+        "alphaAnnualized": "年化Alpha",
+        "treynor": "特雷诺比率",
+        "upsideCapture": "上行捕获比率(月度)",
+        "downsideCapture": "下行捕获比率(月度)",
+        "captureSpread": "捕获价差(月度)",
+        "upsideCaptureDaily": "上行捕获比率(日度)",
+        "downsideCaptureDaily": "下行捕获比率(日度)",
+        "captureSpreadDaily": "捕获价差(日度)",
+        "upsideCaptureAnnual": "上行捕获比率(年度)",
+        "downsideCaptureAnnual": "下行捕获比率(年度)",
+        "captureSpreadAnnual": "捕获价差(年度)",
+        "activeReturn": "主动收益",
+        "trackingError": "跟踪误差",
+        "informationRatio": "信息比率",
+        "varDaily1": "日度VaR (1%)",
+        "varDaily5": "日度VaR (5%)",
+        "varDaily10": "日度VaR (10%)",
+        "cvarDaily1": "日度CVaR (1%)",
+        "cvarDaily5": "日度CVaR (5%)",
+        "cvarDaily10": "日度CVaR (10%)",
+        "varMonthly1": "月度VaR (1%)",
+        "varMonthly5": "月度VaR (5%)",
+        "varMonthly10": "月度VaR (10%)",
+        "cvarMonthly1": "月度CVaR (1%)",
+        "cvarMonthly5": "月度CVaR (5%)",
+        "cvarMonthly10": "月度CVaR (10%)",
+        "varAnnual1": "年度VaR (1%)",
+        "varAnnual5": "年度VaR (5%)",
+        "varAnnual10": "年度VaR (10%)",
+        "cvarAnnual1": "年度CVaR (1%)",
+        "cvarAnnual5": "年度CVaR (5%)",
+        "cvarAnnual10": "年度CVaR (10%)",
+        "skewnessDaily": "日度偏度",
+        "skewnessMonthly": "月度偏度",
+        "skewnessAnnual": "年度偏度",
+        "excessKurtosisDaily": "日度超额峰度",
+        "excessKurtosisMonthly": "月度超额峰度",
+        "excessKurtosisAnnual": "年度超额峰度",
+        "pctPositiveDays": "正收益日占比",
+        "pctPositiveMonths": "正收益月占比",
+        "maxDailyReturn": "最大日收益",
+        "minDailyReturn": "最大日亏损",
+        "maxMonthlyReturn": "最大月收益",
+        "minMonthlyReturn": "最大月亏损",
+        "maxAnnualReturn": "最大年收益",
+        "minAnnualReturn": "最大年亏损",
+        "avgDailyGain": "平均日盈利",
+        "avgDailyLoss": "平均日亏损",
+        "gainLossRatioDaily": "日度盈亏比",
+        "avgMonthlyGain": "平均月盈利",
+        "avgMonthlyLoss": "平均月亏损",
+        "gainLossRatioMonthly": "月度盈亏比",
+        "avgAnnualGain": "平均年盈利",
+        "avgAnnualLoss": "平均年亏损",
+        "gainLossRatioAnnual": "年度盈亏比",
+        "swr10y": "SWR 10年",
+        "pwr10y": "PWR 10年",
+        "swr20y": "SWR 20年",
+        "pwr20y": "PWR 20年",
+        "swr30y": "SWR 30年",
+        "pwr30y": "PWR 30年",
+        "swr40y": "SWR 40年",
+        "pwr40y": "PWR 40年"
+      }
+    },
+    "tickerInput": {
+      "placeholder": "输入代码，如 VTI",
+      "searching": "搜索中..."
+    },
+    "tickerTagInput": {
+      "placeholder": "输入代码回车添加...",
+      "remove": "移除",
+      "removeTicker": "移除 {{ticker}}"
+    },
+    "turnoverTaxReport": {
+      "columns": {
+        "annualTurnover": "年化周转率",
+        "observations": "观测数",
+        "portfolio": "组合",
+        "taxDrag": "税务拖累",
+        "years": "年数"
+      },
+      "description": "展示各组合的年化周转率与税务拖累，假设税率为",
+      "noData": "暂无数据",
+      "taxRateAssumption": "税率假设",
+      "taxRateHint": "假设资本利得税率为",
+      "title": "周转与税务报告"
+    }
+  },
+  "chart": {
+    "emptyData": "暂无数据"
+  },
+  "charts": {
+    "logScale": "对数坐标",
+    "annualReturn": {
+      "tableTitle": "年度收益表",
+      "title": "年度收益"
+    },
+    "correlation": {
+      "assetCorrelationTitle": "资产相关性",
+      "betaTableTitle": "Beta 表（基准：{{baseName}}）",
+      "correlation": "相关性",
+      "dateLabel": "日期: {{label}}",
+      "defaultTitle": "相关性矩阵",
+      "insufficientData": "数据不足（窗口：{{window}}）",
+      "needTwoAssets": "至少需要 2 个资产",
+      "noData": "暂无数据",
+      "portfolio": "组合",
+      "portfolioA": "组合 A",
+      "portfolioB": "组合 B",
+      "portfolioCorrelationTitle": "组合相关性",
+      "rollingTitle": "滚动相关性",
+      "selectTwoPortfolios": "请选择两个组合",
+      "windowDays": "窗口（天）"
+    },
+    "monthlyHeatmap": {
+      "titleWithName": "{{name}} 月度收益热力图"
+    },
+    "portfolioAllocation": {
+      "initialWeightHint": "初始权重",
+      "noAssets": "暂无资产",
+      "noData": "暂无数据",
+      "startDate": "开始日期",
+      "title": "组合配置"
+    },
+    "portfolioPies": {
+      "noAssets": "暂无资产",
+      "noData": "暂无数据",
+      "title": "配置饼图"
+    },
+    "regression": {
+      "baseDailyReturn": "基准日收益",
+      "dailyReturnAxis": "{{name}} 日收益",
+      "dateLabel": "日期: {{label}}",
+      "metric": "指标",
+      "needTwoPortfolios": "至少需要 2 个组合",
+      "panelTitle": "{{baseName}} vs {{targetName}}",
+      "residual": "残差",
+      "residualAxisLabel": "残差",
+      "residualChartTitle": "残差图",
+      "residualDesc": "回归残差：组合日收益超出/低于回归模型预测的部分",
+      "targetDailyReturn": "目标日收益",
+      "title": "回归分析",
+      "value": "数值"
+    },
+    "riskReturn": {
+      "noData": "暂无数据",
+      "returnAxis": "收益率 (%)",
+      "returnRate": "收益率",
+      "title": "风险 vs 收益",
+      "volatility": "波动率",
+      "volatilityAxis": "波动率 (%)"
+    },
+    "rollingReturn": {
+      "dateLabel": "日期: {{label}}",
+      "title": "滚动收益"
+    },
+    "seasonality": {
+      "avgReturnAxis": "平均收益",
+      "monthLabel": "{{n}} 月",
+      "noData": "暂无数据",
+      "title": "季节性"
+    },
+    "drawdown": {
+      "title": "回撤走势"
+    },
+    "growth": {
+      "title": "组合价值走势",
+      "logScale": "对数坐标",
+      "showChart": "显示图表",
+      "hideChart": "隐藏图表",
+      "dateLabel": "日期: {{label}}"
+    }
+  },
+  "hero": {
+    "syntheticPromo": {
+      "title": "合成标的可将 60/40 回测拓展至 40 年以上",
+      "description": "VTISIM · BNDSIM · SPYSIM 等 20+ 合成标的已就绪",
+      "cta": "查看全部"
+    }
+  },
+  "promo": {
+    "synthetic": {
+      "message": "合成标的支持回测至 1962 年",
+      "ctaLabel": "立即体验"
+    }
+  },
+  "ticker": {
+    "synthetic": "合成标的",
+    "dataSources": "数据来源",
+    "historyRange": "历史起始: {{from}}（约 {{years}} 年）"
+  },
+  "notifications": {
+    "title": "产品动态",
+    "latest": "最新更新",
+    "empty": "暂无公告"
+  },
+  "jobStatus": {
+    "queued": "排队中",
+    "running": "运行中",
+    "completed": "已完成",
+    "failed": "已失败",
+    "timeout": "已超时",
+    "cancel": "取消任务",
+    "retry": "重试",
+    "progress": "进度",
+    "estimatedTimeRemaining": "预计剩余 {{seconds}} 秒",
+    "cancelFailed": "取消失败",
+    "retryFailed": "重试失败"
+  },
+  "stats": {
+    "survivorshipBiasWarning": "⚠️ 回测结果可能受幸存者偏差影响。历史数据可能不包含已退市/破产的公司，导致回测收益被高估。详见 <link>方法论</link>。"
+  },
+  "statsTable": {
+    "portfolioName": "组合",
+    "endingValue": "终值",
+    "totalContributions": "总投入",
+    "cumulativeReturn": "累计收益",
+    "cagr": "CAGR",
+    "mwrr": "MWRR",
+    "maxDrawdown": "最大回撤",
+    "avgDrawdown": "平均回撤",
+    "longestDrawdown": "最长回撤",
+    "volatility": "波动率",
+    "sharpe": "夏普",
+    "sortino": "索提诺",
+    "calmar": "卡尔玛",
+    "ulcerIndex": "Ulcer",
+    "upi": "UPI",
+    "diversificationRatio": "分散比",
+    "beta": "Beta",
+    "ui": {
+      "title": "统计概览",
+      "portfolioCount": "{{count}} 个组合",
+      "columnCount": "{{count}} 列",
+      "collapseExtended": "收起详细指标",
+      "expandExtended": "展开详细指标 (+30)"
+    }
+  },
+  "tabs": {
+    "summary": "概览",
+    "returns": "收益",
+    "events": "事件",
+    "allocation": "配置",
+    "signalsStatus": "信号与状态",
+    "telltale": "趋势图",
+    "correlationsBeta": "相关性&Beta",
+    "rollingMetrics": "滚动指标",
+    "riskVsReturn": "风险vs收益",
+    "metrics": "统计指标",
+    "myMetrics": "自定义指标",
+    "returnsDist": "收益分布",
+    "rolling": "滚动指标",
+    "seasonality": "季节性",
+    "riskReturn": "风险与收益",
+    "withdrawal": "提款统计",
+    "cashflows": "现金流",
+    "rebalancing": "再平衡统计",
+    "turnover": "周转与税务",
+    "portfolioAllocation": "组合配置",
+    "pies": "配置饼图",
+    "correlation": "相关性与Beta",
+    "regression": "回归",
+    "annualReturns": "年度收益",
+    "monthlyReturns": "月度收益",
+    "dailyReturns": "日收益分布",
+    "yearlyReturns": "逐年收益",
+    "drawdown": "水下曲线"
+  },
+  "portfolioEditor": {
+    "addPortfolio": "添加组合",
+    "blankPortfolio": "空白组合",
+    "fromPreset": "从预设开始",
+    "fromSaved": "从已保存导入",
+    "glidepathPortfolio": "滑行路径组合",
+    "loadExample": "加载示例"
+  },
+  "summarySidebar": {
+    "title": "关键指标",
+    "cagr": "年化收益",
+    "totalReturn": "总收益",
+    "maxDrawdown": "最大回撤",
+    "sharpe": "夏普比率",
+    "sortino": "索提诺比率",
+    "bestYear": "最佳年份",
+    "worstYear": "最差年份",
+    "positiveYears": "正收益年数"
+  },
+  "underwaterCurve": {
+    "title": "水下曲线",
+    "description": "回撤深度随时间变化 — 展示组合低于峰值的时间长度和深度。",
+    "maxDrawdown": "最大回撤",
+    "underwaterPct": "水下时间占比",
+    "longestStreak": "最长水下周期",
+    "dataPoints": "{{count}} 个数据点",
+    "dateLabel": "日期：{{label}}"
+  },
+  "yearlyReturns": {
+    "title": "逐年收益",
+    "year": "年份",
+    "benchmark": "基准",
+    "vsBenchmark": "vs 基准",
+    "positiveSummary": "{{positive}} / {{total}} 个正收益年份"
+  }
+}

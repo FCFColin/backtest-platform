@@ -26,12 +26,6 @@ if (config.NODE_ENV === 'development') {
   diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.INFO);
 }
 
-/**
- * OTel Collector 端点配置
- *
- * 默认使用 stdout exporter（零依赖），生产环境可配置 OTLP exporter
- * 指向 Jaeger/Tempo/Grafana Alloy 等 collector。
- */
 const otlpEndpoint = config.OTEL_EXPORTER_OTLP_ENDPOINT.replace(/\/+$/, '');
 
 // OTLP HTTP/proto exporter 在显式传入 url 时不会自动追加信号路径，
@@ -73,6 +67,18 @@ const sdk = new NodeSDK({
       // 禁用不需要的 instrumentation 减少开销
       '@opentelemetry/instrumentation-fs': { enabled: false },
       '@opentelemetry/instrumentation-dns': { enabled: true },
+      // 过滤健康检查和指标端点的噪音 span，减少 OTel collector 负载
+      '@opentelemetry/instrumentation-http': {
+        ignoreIncomingRequestHook: (request: { url?: string }) => {
+          const url = request.url ?? '';
+          return url === '/metrics' || url === '/health' || url === '/ready';
+        },
+      },
+      '@opentelemetry/instrumentation-express': {
+        ignoreLayers: [
+          (name: string) => name === '/metrics' || name === '/health' || name === '/ready',
+        ],
+      },
     }),
     // 企业理由：DB 查询是回测关键路径（占 30-60% 耗时），无 DB span 无法定位慢查询根因。
     // PgInstrumentation 为 pg 模块的 pool.query/client.query 自动创建 span，

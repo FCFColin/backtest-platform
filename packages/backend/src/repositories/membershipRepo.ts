@@ -13,28 +13,19 @@
  * services/membershipService.ts。
  */
 import { getPool } from '../db/pool.js';
-import type { OrgRole } from '../middleware/authTypes.js';
+import type { OrgRole } from '../middleware/jwtAuth.js';
 
-/** 全局（legacy）角色集合，用于与既有 RBAC（req.user.role）兼容 */
 export type GlobalRole = 'admin' | 'analyst' | 'readonly';
 
-/** 用户在某组织内的成员关系（含组织摘要信息） */
 export interface Membership {
-  /** 组织（租户）UUID */
   orgId: string;
-  /** 组织显示名 */
   orgName: string;
-  /** 组织 slug（URL 友好唯一标识） */
   orgSlug: string;
-  /** 订阅计划 */
   orgPlan: string;
-  /** 组织状态（active/suspended/canceled） */
   orgStatus: string;
-  /** 当前用户在该组织内的角色 */
   role: OrgRole;
 }
 
-/** 组织内某成员（含用户名/邮箱，用于成员管理 UI） */
 interface OrgMember {
   userId: string;
   username: string;

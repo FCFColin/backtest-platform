@@ -1,14 +1,7 @@
-/**
- * 战术网格搜索路由单元测试
- *
- * 企业理由：网格搜索遍历参数组合运行回测，异步任务提交和同步回退
- * 影响系统可用性。测试覆盖：异步提交、同步回退、参数校验、组合上限。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
-import { EngineUnavailableErrorStub } from '../../helpers/engineRouteMocks.js';
+import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 import { createMockPriceData } from '../../helpers/storeFixtures.js';
 
 const dataServiceMocks = vi.hoisted(() => ({
@@ -56,12 +49,9 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   EngineUnavailableError: EngineUnavailableErrorStub,
 }));
 
-vi.mock('../../../packages/backend/src/utils/logSanitizer.js', () => ({
-  sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
-}));
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
+  sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
 }));
 
 import tacticalGridRoutes from '../../../packages/backend/src/routes/tacticalGridRoutes.js';

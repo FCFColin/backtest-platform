@@ -15,7 +15,6 @@ import { config } from '../../config/index.js';
 import { getPool } from '../../db/pool.js';
 import { logger } from '../../utils/logger.js';
 
-/** 可购买的付费计划 */
 type BillablePlan = 'pro' | 'enterprise';
 
 let stripe: Stripe | null = null;
@@ -32,7 +31,6 @@ export function getStripe(): Stripe | null {
   return stripe;
 }
 
-/** 计费是否已启用（密钥已配置） */
 export function isBillingEnabled(): boolean {
   return Boolean(config.STRIPE_SECRET_KEY);
 }
@@ -172,7 +170,6 @@ async function orgIdForCustomer(customerId: string): Promise<string | null> {
   return rows.length > 0 ? (rows[0].org_id as string) : null;
 }
 
-/** 把订阅状态映射到 organizations.status（active/suspended/canceled） */
 function orgStatusFromSub(subStatus: string): 'active' | 'suspended' | 'canceled' {
   if (subStatus === 'active' || subStatus === 'trialing') return 'active';
   if (subStatus === 'canceled' || subStatus === 'incomplete_expired') return 'canceled';

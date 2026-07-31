@@ -1,21 +1,3 @@
-/**
- * Chaos: DB Outage via testcontainers（RO-049 SubTask 33.2）
- *
- * 迁移自 tests/chaos/experiment-1-db-disconnect.test.ts。
- * 原 chaos 实验依赖 docker-compose 预启动的 backtest-postgres 容器 + 运行中的 API 服务器，
- * 无 docker-compose 环境时 it.skipIf(!dockerAvailable) 跳过。
- *
- * 本集成测试用 testcontainers 起独立 PG 容器（不依赖 docker-compose），
- * 直接调用 fetchHistoryDataWithDegraded 验证 ADR-031 / gotcha #8 降级链路：
- * - 稳态：PG up → 返回数据，degraded=false
- * - PG down → queryPricesFromDb 捕获连接错误，dbDegraded=true → degraded=true
- * - 恢复：PG restart + closeDb() 重建连接池 → 正常返回数据，degraded=false
- *
- * 权衡：仍依赖 Docker daemon（testcontainers 需要），无 Docker 时 skipIf 跳过。
- * 不依赖 docker-compose 预启动容器，任何 Docker 环境均可运行。
- * 不测试 HTTP 层（/metrics 熔断器状态）——那需要完整 API 服务器，
- * 本测试聚焦数据服务层的降级契约。
- */
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
 
@@ -72,12 +54,6 @@ const dockerAvailable = isDockerAvailable();
 
 let container: StartedPostgreSqlContainer;
 
-/**
- * 创建并初始化 PG 容器：启动容器、设置 DATABASE_URL、初始化 schema、插入测试数据。
- *
- * testcontainers 默认 autoRemove=true，stop() 会删除容器而非仅停止，
- * 因此 PG down 测试后无法 restart，需新建容器恢复。
- */
 async function createAndSetupContainer(): Promise<StartedPostgreSqlContainer> {
   const c = await new PostgreSqlContainer('postgres:16-alpine')
     .withDatabase('backtest_test')

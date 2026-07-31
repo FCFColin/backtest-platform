@@ -103,26 +103,26 @@ export interface Statistics {
   };
 
   // 扁平 VaR/CVaR 字段（兼容表格访问）
-  var5: number;
-  cvar5: number;
-  varDaily1: number;
-  varDaily5: number;
-  varDaily10: number;
-  cvarDaily1: number;
-  cvarDaily5: number;
-  cvarDaily10: number;
-  varMonthly1: number;
-  varMonthly5: number;
-  varMonthly10: number;
-  cvarMonthly1: number;
-  cvarMonthly5: number;
-  cvarMonthly10: number;
-  varAnnual1: number;
-  varAnnual5: number;
-  varAnnual10: number;
-  cvarAnnual1: number;
-  cvarAnnual5: number;
-  cvarAnnual10: number;
+  var5?: number;
+  cvar5?: number;
+  varDaily1?: number;
+  varDaily5?: number;
+  varDaily10?: number;
+  cvarDaily1?: number;
+  cvarDaily5?: number;
+  cvarDaily10?: number;
+  varMonthly1?: number;
+  varMonthly5?: number;
+  varMonthly10?: number;
+  cvarMonthly1?: number;
+  cvarMonthly5?: number;
+  cvarMonthly10?: number;
+  varAnnual1?: number;
+  varAnnual5?: number;
+  varAnnual10?: number;
+  cvarAnnual1?: number;
+  cvarAnnual5?: number;
+  cvarAnnual10?: number;
 
   // 分布特征（偏度和超额峰度）
   skewness: {
@@ -130,17 +130,17 @@ export interface Statistics {
     monthly: number;
     annual: number;
   };
-  skewnessDaily: number;
-  skewnessMonthly: number;
-  skewnessAnnual: number;
+  skewnessDaily?: number;
+  skewnessMonthly?: number;
+  skewnessAnnual?: number;
   excessKurtosis: {
     daily: number;
     monthly: number;
     annual: number;
   };
-  excessKurtosisDaily: number;
-  excessKurtosisMonthly: number;
-  excessKurtosisAnnual: number;
+  excessKurtosisDaily?: number;
+  excessKurtosisMonthly?: number;
+  excessKurtosisAnnual?: number;
 
   // 正收益比例（按时间维度）
   winRate: {
@@ -255,32 +255,6 @@ const ZERO_NUM_FIELDS = [
   'activeReturn',
   'trackingError',
   'informationRatio',
-  'var5',
-  'cvar5',
-  'varDaily1',
-  'varDaily5',
-  'varDaily10',
-  'cvarDaily1',
-  'cvarDaily5',
-  'cvarDaily10',
-  'varMonthly1',
-  'varMonthly5',
-  'varMonthly10',
-  'cvarMonthly1',
-  'cvarMonthly5',
-  'cvarMonthly10',
-  'varAnnual1',
-  'varAnnual5',
-  'varAnnual10',
-  'cvarAnnual1',
-  'cvarAnnual5',
-  'cvarAnnual10',
-  'skewnessDaily',
-  'skewnessMonthly',
-  'skewnessAnnual',
-  'excessKurtosisDaily',
-  'excessKurtosisMonthly',
-  'excessKurtosisAnnual',
   'pctPositiveDays',
   'pctPositiveMonths',
   'pctPositiveYears',
@@ -350,5 +324,39 @@ export function createEmptyStatistics(): Statistics {
  * @returns 表格组件可消费的扁平 Record<string, number> 视图
  */
 export function toStatsRecord(stats: Statistics): Record<string, number> {
-  return stats as unknown as Record<string, number>;
+  const record = stats as unknown as Record<string, number>;
+  // 适配层：从嵌套结构填充扁平字段（兼容表格组件的字符串 key 访问）
+  if (stats.var) {
+    record.varDaily1 = stats.var.daily?.[1] ?? 0;
+    record.varDaily5 = stats.var.daily?.[5] ?? 0;
+    record.varDaily10 = stats.var.daily?.[10] ?? 0;
+    record.cvarDaily1 = stats.cvar?.daily?.[1] ?? 0;
+    record.cvarDaily5 = stats.cvar?.daily?.[5] ?? 0;
+    record.cvarDaily10 = stats.cvar?.daily?.[10] ?? 0;
+    record.varMonthly1 = stats.var.monthly?.[1] ?? 0;
+    record.varMonthly5 = stats.var.monthly?.[5] ?? 0;
+    record.varMonthly10 = stats.var.monthly?.[10] ?? 0;
+    record.cvarMonthly1 = stats.cvar?.monthly?.[1] ?? 0;
+    record.cvarMonthly5 = stats.cvar?.monthly?.[5] ?? 0;
+    record.cvarMonthly10 = stats.cvar?.monthly?.[10] ?? 0;
+    record.varAnnual1 = stats.var.annual?.[1] ?? 0;
+    record.varAnnual5 = stats.var.annual?.[5] ?? 0;
+    record.varAnnual10 = stats.var.annual?.[10] ?? 0;
+    record.cvarAnnual1 = stats.cvar?.annual?.[1] ?? 0;
+    record.cvarAnnual5 = stats.cvar?.annual?.[5] ?? 0;
+    record.cvarAnnual10 = stats.cvar?.annual?.[10] ?? 0;
+    record.var5 = stats.var.daily?.[5] ?? 0;
+    record.cvar5 = stats.cvar?.daily?.[5] ?? 0;
+  }
+  if (stats.skewness) {
+    record.skewnessDaily = stats.skewness.daily ?? 0;
+    record.skewnessMonthly = stats.skewness.monthly ?? 0;
+    record.skewnessAnnual = stats.skewness.annual ?? 0;
+  }
+  if (stats.excessKurtosis) {
+    record.excessKurtosisDaily = stats.excessKurtosis.daily ?? 0;
+    record.excessKurtosisMonthly = stats.excessKurtosis.monthly ?? 0;
+    record.excessKurtosisAnnual = stats.excessKurtosis.annual ?? 0;
+  }
+  return record;
 }

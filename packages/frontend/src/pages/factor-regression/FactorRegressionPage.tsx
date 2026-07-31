@@ -4,66 +4,36 @@ import type { ComputeToolConfig } from '../../components/shells/types.js';
 import { useFactorRegressionState } from '@/hooks/useFactorRegressionState.js';
 import { FactorRegressionParamsPanel } from './FactorRegressionParams.js';
 import { FactorRegressionResultsPanel } from './FactorRegressionResults.js';
-
-/** 因子回归页面状态类型（由 hook 推导，消除 any） */
 type State = ReturnType<typeof useFactorRegressionState>;
-
 function ParamsWrapper({ state }: { state: State }) {
   return (
-    <FactorRegressionParamsPanel
-      startDate={state.startDate}
-      endDate={state.endDate}
-      returnFrequency={state.returnFrequency}
-      rfSource={state.rfSource}
-      selectedFactors={state.selectedFactors}
-      assets={state.assets}
-      totalWeight={state.totalWeight}
-      isLoading={state.isLoading}
-      onStartDateChange={state.setStartDate}
-      onEndDateChange={state.setEndDate}
-      onReturnFrequencyChange={state.setReturnFrequency}
-      onRfSourceChange={state.setRfSource}
-      onToggleFactor={state.toggleFactor}
-      onAddAsset={state.addAsset}
-      onRemoveAsset={state.removeAsset}
-      onUpdateAsset={state.updateAsset}
-      onRun={state.runRegression}
-    />
+    <FactorRegressionParamsPanel startDate={state.startDate} endDate={state.endDate} returnFrequency={state.returnFrequency} rfSource={state.rfSource} selectedFactors={state.selectedFactors} assets={state.assets} totalWeight={state.totalWeight} isLoading={state.isLoading} onStartDateChange={state.setStartDate} onEndDateChange={state.setEndDate} onReturnFrequencyChange={state.setReturnFrequency} onRfSourceChange={state.setRfSource} onToggleFactor={state.toggleFactor} onAddAsset={state.addAsset} onRemoveAsset={state.removeAsset} onUpdateAsset={state.updateAsset} onRun={state.runRegression} />
   );
 }
-
 function ResultsWrapper({ state }: { state: State }) {
-  return (
-    <FactorRegressionResultsPanel
-      result={state.result}
-      error={state.error}
-      selectedFactors={state.selectedFactors}
-    />
-  );
+  return <FactorRegressionResultsPanel result={state.result} error={state.error} selectedFactors={state.selectedFactors} />;
 }
-
 const config: ComputeToolConfig<State> = {
   titleKey: 'factorRegression.title',
   seoDescKey: 'factorRegression.seo.desc',
   seoFeatures: [
     {
       titleKey: 'factorRegression.seo.analyzableTitle',
-      descKey: 'factorRegression.seo.analyzableDesc',
+      descKey: 'factorRegression.seo.analyzableDesc'
     },
     {
       titleKey: 'factorRegression.seo.factorTitle',
-      descKey: 'factorRegression.seo.factorDesc',
-    },
+      descKey: 'factorRegression.seo.factorDesc'
+    }
   ],
   relatedTools: [
     { titleKey: 'nav.portfolioBacktest', href: '/' },
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
-    { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' },
+    { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' }
   ],
   params: ParamsWrapper,
-  results: ResultsWrapper,
+  results: ResultsWrapper
 };
-
 export default function FactorRegressionPage() {
   const { t } = useTranslation();
   const s = useFactorRegressionState(t);

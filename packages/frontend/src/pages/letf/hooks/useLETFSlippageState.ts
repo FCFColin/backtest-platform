@@ -1,16 +1,10 @@
-/**
- * @file LETF Slippage 页面状态管理 hook
- * @description 从 LETFSlippagePage.tsx 拆出的状态与处理函数，避免触发 max-lines-per-function 规则
- */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LETFResult } from '@backtest/shared';
-import { useComputeTool } from '../../../hooks/useComputeTool.js';
+import { useComputeTool } from '../../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-
-/** LETF Slippage 页面的状态与处理函数集合 */
 export function useLETFSlippageState() {
   const { t } = useTranslation();
   const [letfTicker, setLetfTicker] = useState('TQQQ');
@@ -22,7 +16,7 @@ export function useLETFSlippageState() {
     isLoading,
     error,
     results,
-    runCompute: runAnalysis,
+    runCompute: runAnalysis
   } = useComputeTool<LETFResult>(
     async () =>
       apiPostJSON<LETFResult>(
@@ -32,13 +26,12 @@ export function useLETFSlippageState() {
           benchmarkTicker: benchmarkTicker.trim(),
           leverage,
           startDate,
-          endDate,
+          endDate
         },
-        i18n.t('letf.errAnalyze'),
+        i18n.t('letf.errAnalyze')
       ),
-    () => (letfTicker.trim() && benchmarkTicker.trim() ? null : t('letf.errEmptyTickers')),
+    () => (letfTicker.trim() && benchmarkTicker.trim() ? null : t('letf.errEmptyTickers'))
   );
-
   return {
     letfTicker,
     benchmarkTicker,
@@ -53,6 +46,6 @@ export function useLETFSlippageState() {
     setLeverage,
     setStartDate,
     setEndDate,
-    runAnalysis,
+    runAnalysis
   };
 }

@@ -17,21 +17,14 @@ import { getPool, closeDb } from '../../packages/backend/src/db/pool.js';
 import { initSchema } from '../../packages/backend/src/db/migrations.js';
 import { startExpressApp, type TestServer } from './expressApp.js';
 
-/** testcontainers PG 容器上下文 */
 export interface TestContainerContext {
-  /** 已启动的 PG 容器实例 */
   container: StartedPostgreSqlContainer;
-  /** 清理容器与连接池 */
   cleanup: () => Promise<void>;
 }
 
-/** 种子数据：组织 + 用户 + 成员关系 */
 export interface SeedData {
-  /** 组织（租户）UUID */
   orgId: string;
-  /** 用户 UUID */
   userId: string;
-  /** 第二个 owner 用户 UUID（用于"最后一个 owner 保护"场景下安全降级 userId） */
   secondUserId: string;
 }
 

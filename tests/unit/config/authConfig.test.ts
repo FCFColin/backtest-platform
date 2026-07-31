@@ -1,10 +1,3 @@
-/**
- * H-006 单元测试：硬编码 secret 移除验证
- *
- * 企业理由：JWT_SECRET / ENGINE_AUTH_TOKEN / DATA_SERVICE_AUTH_TOKEN 原先有
- * 硬编码默认值（|| 'dev-...'），源码公开即等于密钥泄露。修复后使用 requireSecret()
- * 在 env var 缺失时 fail-fast throw。
- */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
@@ -46,45 +39,26 @@ describe('H-006: requireSecret — secret 缺失时 throw', () => {
   });
 });
 
-describe('H-006: authConfig / engineConfig 源码不含硬编码默认值', () => {
-  it("authConfig.ts 不含 hardcoded dev- defaults", () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'packages/backend/src/config/authConfig.ts'),
-      'utf-8',
-    );
-    expect(source).not.toContain("|| 'dev-");
+describe('H-006: env.ts 源码不含硬编码默认值（authConfig + engineConfig 合并后）', () => {
+  const envSource = readFileSync(
+    resolve(process.cwd(), 'packages/backend/src/config/env.ts'),
+    'utf-8',
+  );
+
+  it("env.ts 不含 hardcoded dev- defaults", () => {
+    expect(envSource).not.toContain("|| 'dev-");
   });
 
-  it("engineConfig.ts 不含 hardcoded dev- defaults", () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'packages/backend/src/config/engineConfig.ts'),
-      'utf-8',
-    );
-    expect(source).not.toContain("|| 'dev-");
+  it('env.ts 使用 requireSecret 获取 JWT_SECRET', () => {
+    expect(envSource).toContain("requireSecret('JWT_SECRET')");
   });
 
-  it('authConfig.ts 使用 requireSecret 获取 JWT_SECRET', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'packages/backend/src/config/authConfig.ts'),
-      'utf-8',
-    );
-    expect(source).toContain("requireSecret('JWT_SECRET')");
+  it('env.ts 使用 requireSecret 获取 ENGINE_AUTH_TOKEN', () => {
+    expect(envSource).toContain("requireSecret('ENGINE_AUTH_TOKEN')");
   });
 
-  it('engineConfig.ts 使用 requireSecret 获取 ENGINE_AUTH_TOKEN', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'packages/backend/src/config/engineConfig.ts'),
-      'utf-8',
-    );
-    expect(source).toContain("requireSecret('ENGINE_AUTH_TOKEN')");
-  });
-
-  it('engineConfig.ts 使用 requireSecret 获取 DATA_SERVICE_AUTH_TOKEN', () => {
-    const source = readFileSync(
-      resolve(process.cwd(), 'packages/backend/src/config/engineConfig.ts'),
-      'utf-8',
-    );
-    expect(source).toContain("requireSecret('DATA_SERVICE_AUTH_TOKEN')");
+  it('env.ts 使用 requireSecret 获取 DATA_SERVICE_AUTH_TOKEN', () => {
+    expect(envSource).toContain("requireSecret('DATA_SERVICE_AUTH_TOKEN')");
   });
 });
 

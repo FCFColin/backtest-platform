@@ -1,16 +1,3 @@
-/**
- * httpClient 单元测试（callService 超时/降级/4xx 透传）
- *
- * 覆盖：
- * - 成功响应 + trace 头合并 + x-request-id 注入
- * - 4xx RFC 7807 / Go 旧格式 / 非 JSON / 空 body 透传为 UpstreamProblemError
- * - 5xx / 超时（AbortError）/ 网络错误降级返回 null
- * - resp.text() 抛错时兜底为空字符串
- *
- * 权衡：mock getRequestId / getTracePropagationHeaders / logger / global fetch，
- * 不 mock errors.js（UpstreamProblemError / errorMessage 为纯函数，保持真实行为）。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({

@@ -91,7 +91,7 @@ describe('deletePortfolio', () => {
   });
 });
 
-describe('listPortfolios', () => {
+describe('listPortfolios — LIMIT 与分页', () => {
   it('应使用默认 limit 和 offset', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     await listPortfolios(TENANT);
@@ -114,6 +114,19 @@ describe('listPortfolios', () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     await listPortfolios(TENANT, 50, -5);
     expect(dbMocks.query).toHaveBeenCalledWith(expect.any(String), [50, 0]);
+  });
+
+  it('limit 为 0 应传 0（不返回结果）', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    await listPortfolios(TENANT, 0);
+    const [, params] = dbMocks.query.mock.calls[0];
+    expect(params[0]).toBe(0);
+  });
+
+  it('空数据库应返回空数组', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    const r = await listPortfolios(TENANT);
+    expect(r).toEqual([]);
   });
 
   it('应返回映射后的 PortfolioRecord 数组', async () => {
@@ -147,6 +160,20 @@ describe('createPortfolio', () => {
     });
     const insertParams = dbMocks.query.mock.calls[0][1];
     expect(insertParams[4]).toBe('monthly');
+  });
+
+  it('空 ownerUserId 应返回 null ownerUserId 字段', async () => {
+    dbMocks.query.mockResolvedValueOnce({
+      rows: [{ ...baseRow, owner_user_id: null }],
+    });
+    const r = await createPortfolio(TENANT, null, {
+      name: 'Test',
+      assets: [
+        { ticker: 'SPY', weight: 60 },
+        { ticker: 'BND', weight: 40 },
+      ],
+    });
+    expect(r.ownerUserId).toBeNull();
   });
 });
 

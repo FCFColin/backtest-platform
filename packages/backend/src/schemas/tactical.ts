@@ -66,7 +66,6 @@ export const tacticalAlertSchema = z.object({
   config: emailAlertConfigSchema,
 });
 
-// ---------------------------------------------------------------------------
 // 战术配置 CRUD 校验（P1-1 持久化）
 // GET    /api/v1/tactical/configs          — 列表（分页）
 // POST   /api/v1/tactical/configs          — 创建
@@ -74,18 +73,16 @@ export const tacticalAlertSchema = z.object({
 // PUT    /api/v1/tactical/configs/:id      — 更新
 // DELETE /api/v1/tactical/configs/:id      — 删除
 
-/** 创建战术配置请求体 */
 export const createTacticalConfigSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  config: z.record(z.unknown()),
+  config: z.record(z.string(), z.unknown()),
 });
 
-/** 更新战术配置请求体（部分字段） */
 export const updateTacticalConfigSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type CreateTacticalConfigBody = z.infer<typeof createTacticalConfigSchema>;
@@ -93,7 +90,6 @@ export type UpdateTacticalConfigBody = z.infer<typeof updateTacticalConfigSchema
 
 export type TacticalBacktestRequest = z.infer<typeof tacticalBacktestSchema>;
 
-// ---------------------------------------------------------------------------
 // 战术网格搜索路由请求体校验（POST /api/tactical-grid/search）
 
 const paramRangeSchema = z.object({

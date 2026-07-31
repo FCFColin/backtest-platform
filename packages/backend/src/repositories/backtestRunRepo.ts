@@ -16,10 +16,8 @@
 import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import { Run, type RunStatus } from '../domain/aggregates/run.js';
 
-/** 回测运行状态（DB schema 值） */
 export type BacktestRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-/** 领域 RunStatus → DB status 映射（'queued' 在 DB 层仍记为 'pending'） */
 const DOMAIN_TO_DB_STATUS: Record<RunStatus, BacktestRunStatus> = {
   queued: 'pending',
   running: 'running',
@@ -28,12 +26,10 @@ const DOMAIN_TO_DB_STATUS: Record<RunStatus, BacktestRunStatus> = {
   cancelled: 'failed',
 };
 
-/** DB status → 领域 RunStatus 映射（'pending' 在领域层恢复为 'queued'） */
 function dbToDomainStatus(db: BacktestRunStatus): RunStatus {
   return db === 'pending' ? 'queued' : db;
 }
 
-/** 回测运行记录 */
 export interface BacktestRunRecord {
   id: string;
   name: string | null;
@@ -44,7 +40,6 @@ export interface BacktestRunRecord {
   createdAt: string;
 }
 
-/** 创建回测运行输入 */
 interface BacktestRunInput {
   name?: string | null;
   request: unknown;

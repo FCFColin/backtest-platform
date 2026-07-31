@@ -22,9 +22,6 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
-}));
-
-vi.mock('../../../packages/backend/src/utils/logSanitizer.js', () => ({
   sanitizeLog: mocks.sanitizeLog,
 }));
 

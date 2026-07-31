@@ -1,14 +1,3 @@
-/**
- * authRegistrationRoutes 单元测试 — POST /register / /verify-email / /resend-verification
- *
- * 覆盖：注册成功/EMAIL_TAKEN/duplicate key/500、verify-email 缺 token/无效 token/成功、
- * resend-verification 缺 email/成功。
- *
- * Mock 策略：mock jwtAuth（注入 req.user）/getUserByEmail/createUserTx/getClient/
- * issueEmailVerificationToken/verifyEmailToken/sendVerificationEmail/logger。
- * 不 mock requireUser/hashUserId/validate/registerSchema/sendProblem，保留真实业务逻辑。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
@@ -48,6 +37,14 @@ const loggerMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
   jwtAuth: mocks.jwtAuth,
+  hashUserId: (sub?: string) => sub,
+  requireUser: (req: Request, res: Response) => {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', title: 'Unauthorized', status: 401 } });
+      return false;
+    }
+    return true;
+  },
 }));
 
 vi.mock('../../../packages/backend/src/repositories/userRepo.js', () => ({

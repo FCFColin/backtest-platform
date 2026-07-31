@@ -16,7 +16,7 @@ import type { Response, NextFunction } from 'express';
 import type { AuthenticatedRequest, TenantedRequest } from './jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { isUuid } from '../utils/validation.js';
+import { isUuid } from '../utils/misc.js';
 
 /**
  * 软解析租户上下文：将 JWT 的 tenant_id 解析到 req.tenantId。

@@ -1,21 +1,11 @@
-/**
- * @file StatisticsTableV2 组件
- * @description 17 列横向统计表格：列排序 + 列隐藏 + sticky 首列 + 横向滚动。
- *   数字 font-mono tabular-nums text-right，正负色 text-pos/text-neg。
- */
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowUp, ArrowDown, Download, Settings2 } from 'lucide-react';
-import { Button } from '@/components/ui/button.js';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-} from '@/components/ui/dropdown-menu.js';
+import { Button } from '@/components/ui/uiComponents.js';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/components/ui/uiComponents.js';
 import { cn } from '@/lib/utils.js';
-import { formatCurrency, formatPercent, formatDuration, formatNumber } from '@/lib/formatters.js';
-
+import { formatCurrency, formatPercent, formatDuration, formatNumber } from '@/utils/format.js';
+import { STAT_KEY_TO_TESTID } from './types.js';
 interface StatColumn {
   key: string;
   label: string;
@@ -24,7 +14,6 @@ interface StatColumn {
   sticky?: 'left' | 'right';
   minWidth?: string;
 }
-
 const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'name', label: 'statsTable.portfolioName', format: 'text', sticky: 'left', minWidth: '140px' },
   { key: 'endingValue', label: 'statsTable.endingValue', format: 'currency' },
@@ -42,26 +31,8 @@ const DEFAULT_COLUMNS: StatColumn[] = [
   { key: 'ulcerIndex', label: 'Ulcer', format: 'number' },
   { key: 'upi', label: 'UPI', format: 'number' },
   { key: 'diversificationRatio', label: 'statsTable.diversificationRatio', format: 'number' },
-  { key: 'beta', label: 'Beta', format: 'number' },
+  { key: 'beta', label: 'Beta', format: 'number' }
 ];
-
-/** 统计列 key → data-testid 映射，供契约校验脚本定位指标值单元格 */
-const STAT_KEY_TO_TESTID: Record<string, string> = {
-  endingValue: 'stat-ending-value',
-  cagr: 'stat-cagr',
-  mwrr: 'stat-mwrr',
-  maxDrawdown: 'stat-max-drawdown',
-  avgDrawdown: 'stat-avg-drawdown',
-  volatility: 'stat-volatility',
-  sharpe: 'stat-sharpe',
-  sortino: 'stat-sortino',
-  calmar: 'stat-calmar',
-  ulcerIndex: 'stat-ulcer',
-  upi: 'stat-upi',
-  diversificationRatio: 'stat-diversification',
-  beta: 'stat-beta',
-};
-
 interface StatisticsTableV2Props {
   portfolios: Array<{
     id: string;
@@ -72,26 +43,14 @@ interface StatisticsTableV2Props {
   onExport?: () => void;
   extendedTable?: React.ReactNode;
 }
-
-/**
- * 17 列统计表格 V2。
- * @param props - portfolios/colors/onExport/extendedTable。
- * @returns 统计表格元素。
- */
-export function StatisticsTableV2({
-  portfolios,
-  colors,
-  onExport,
-  extendedTable,
-}: StatisticsTableV2Props) {
+// eslint-disable-next-line max-lines-per-function
+export function StatisticsTableV2({ portfolios, colors, onExport, extendedTable }: StatisticsTableV2Props) {
   const { t } = useTranslation();
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(false);
-
   const visibleColumns = DEFAULT_COLUMNS.filter((c) => !hiddenColumns.has(c.key));
-
   const sortedPortfolios = [...portfolios].sort((a, b) => {
     if (!sortKey) return 0;
     const av = a.stats[sortKey] as number;
@@ -99,21 +58,16 @@ export function StatisticsTableV2({
     if (typeof av !== 'number' || typeof bv !== 'number') return 0;
     return sortDir === 'asc' ? av - bv : bv - av;
   });
-
   const getColorClass = (value: number): string => {
     if (value > 0) return 'text-pos';
     if (value < 0) return 'text-neg';
     return 'text-fg';
   };
-
   const renderCell = (portfolio: (typeof portfolios)[0], col: StatColumn, index: number) => {
     if (col.key === 'name') {
       return (
         <div className="flex items-center gap-2">
-          <span
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ background: colors[index] ?? '#888' }}
-          />
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: colors[index] ?? '#888' }} />
           <span className="truncate">{portfolio.name}</span>
         </div>
       );
@@ -133,7 +87,6 @@ export function StatisticsTableV2({
         return String(value);
     }
   };
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -144,12 +97,7 @@ export function StatisticsTableV2({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setExpanded(!expanded)}
-            className="text-caption"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setExpanded(!expanded)} className="text-caption">
             {expanded ? t('statsTable.ui.collapseExtended') : t('statsTable.ui.expandExtended')}
           </Button>
           <DropdownMenu>
@@ -180,27 +128,15 @@ export function StatisticsTableV2({
           </Button>
         </div>
       </div>
-
       <div className="border border-border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-caption">
             <thead>
               <tr className="bg-surface-sunken border-b border-border">
                 {visibleColumns.map((col) => (
-                  <th
-                    key={col.key}
-                    className={cn(
-                      'h-10 px-3 text-fg-tertiary text-label-tiny',
-                      col.format === 'text' ? 'text-left' : 'text-right',
-                      col.sticky === 'left' && 'sticky left-0 bg-surface-sunken z-10',
-                    )}
-                    style={{ minWidth: col.minWidth }}
-                  >
+                  <th key={col.key} className={cn('h-10 px-3 text-fg-tertiary text-label-tiny', col.format === 'text' ? 'text-left' : 'text-right', col.sticky === 'left' && 'sticky left-0 bg-surface-sunken z-10')} style={{ minWidth: col.minWidth }}>
                     <button
-                      className={cn(
-                        'inline-flex items-center gap-1 hover:text-fg transition-colors',
-                        col.format !== 'text' && 'ml-auto',
-                      )}
+                      className={cn('inline-flex items-center gap-1 hover:text-fg transition-colors', col.format !== 'text' && 'ml-auto')}
                       onClick={() => {
                         if (sortKey === col.key) {
                           setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
@@ -211,12 +147,7 @@ export function StatisticsTableV2({
                       }}
                     >
                       {col.label}
-                      {sortKey === col.key &&
-                        (sortDir === 'asc' ? (
-                          <ArrowUp className="h-3 w-3" />
-                        ) : (
-                          <ArrowDown className="h-3 w-3" />
-                        ))}
+                      {sortKey === col.key && (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
                     </button>
                   </th>
                 ))}
@@ -224,28 +155,11 @@ export function StatisticsTableV2({
             </thead>
             <tbody>
               {sortedPortfolios.map((p, i) => (
-                <tr
-                  key={p.id}
-                  className={cn(
-                    'h-12 border-b border-border-subtle',
-                    'hover:bg-hover/50 transition-colors',
-                    i === sortedPortfolios.length - 1 && 'border-b-0',
-                  )}
-                >
+                <tr key={p.id} className={cn('h-12 border-b border-border-subtle', 'hover:bg-hover/50 transition-colors', i === sortedPortfolios.length - 1 && 'border-b-0')}>
                   {visibleColumns.map((col) => {
                     const value = col.key === 'name' ? p.name : (p.stats[col.key] as number);
                     return (
-                      <td
-                        key={col.key}
-                        data-testid={STAT_KEY_TO_TESTID[col.key]}
-                        className={cn(
-                          'px-3',
-                          col.format === 'text' ? 'text-left' : 'text-right',
-                          col.format !== 'text' && 'font-mono tabular-nums',
-                          col.sticky === 'left' && 'sticky left-0 bg-surface z-10',
-                          col.colorize && typeof value === 'number' && getColorClass(value),
-                        )}
-                      >
+                      <td key={col.key} data-testid={STAT_KEY_TO_TESTID[col.key]} className={cn('px-3', col.format === 'text' ? 'text-left' : 'text-right', col.format !== 'text' && 'font-mono tabular-nums', col.sticky === 'left' && 'sticky left-0 bg-surface z-10', col.colorize && typeof value === 'number' && getColorClass(value))}>
                         {renderCell(p, col, i)}
                       </td>
                     );
@@ -256,7 +170,6 @@ export function StatisticsTableV2({
           </table>
         </div>
       </div>
-
       {expanded && extendedTable}
     </div>
   );

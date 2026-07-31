@@ -15,15 +15,12 @@ import { buildRedisBaseOptions, isSentinelMode } from '../infrastructure/redisCl
 import { logger } from '../utils/logger.js';
 import { createDeadLetterQueue, SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS } from './dlqConfig.js';
 
-/** 数据更新任务数据 */
 export interface DataUpdateJobData {
-  /** 更新模式：全量或增量 */
   mode: 'full' | 'incremental';
   /** 触发者用户 ID（用于审计） */
   triggeredBy?: string;
 }
 
-/** 数据更新任务结果 */
 export interface DataUpdateJobResult {
   status: 'completed' | 'failed';
   totalTickers: number;

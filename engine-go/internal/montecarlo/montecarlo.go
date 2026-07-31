@@ -1,25 +1,21 @@
 // Package montecarlo 提供蒙特卡洛模拟核心计算逻辑（T-ARCH-2.3）。
-//
-// 企业理由：蒙特卡洛模拟是退休规划和风险管理的核心工具。通过从历史收益率中
-// 重采样生成大量未来路径，为投资者提供概率化的投资结果预测，帮助投资者理解
-// 投资结果的不确定性范围，而非仅依赖单一历史路径。
-//
-// 算法：块自助法（Block Bootstrap）保留收益率序列的自相关结构，
-// 比简单随机采样更准确地反映金融时间序列的持续性特征（如波动聚集）。
-// 使用 goroutine 并行模拟，可将 1000 次模拟从约 2 秒缩短到约 0.3 秒。
 package montecarlo
-
 import (
-	"context"
-	"fmt"
-
-	"engine-go/internal/engineutil"
+    "context"
+    "crypto/rand"
+    "encoding/binary"
+    "fmt"
+    "math"
+    mrand "math/rand"
+    "runtime"
+    "slices"
+    "sort"
+    "sync"
+    "time"
+    "engine-go/internal/engine"
+    "engine-go/internal/engineutil"
+    "engine-go/internal/mathutil"
 )
-
-// ============================================================
-// 常量
-// ============================================================
-
 const (
 	mcTradingDays   = 252  // 年交易日数
 	mcRiskFreeRate  = 0.02 // 无风险利率
@@ -27,144 +23,58 @@ const (
 	mcDefaultSims   = 1000 // 默认模拟次数
 	mcDefaultYears  = 20   // 默认模拟年数
 )
-
-// 类型定义已拆分至 mc_types.go。
-
-// ============================================================
-// 核心算法
-// ============================================================
-
-// RunMonteCarlo 执行蒙特卡洛模拟，是模块的主入口函数
-//
-// 企业理由：蒙特卡洛模拟通过从历史收益率中重采样生成大量未来路径，
-// 为投资者提供概率化的投资结果预测。这是退休规划和风险管理的核心工具，
-// 帮助投资者理解投资结果的不确定性范围，而非仅依赖单一历史路径。
-// ctx 用于 per-request 超时控制（handler 层 WithTimeout），在并行模拟前检查取消信号。
-// 注：runSimulations 内部 goroutine 受 per-request deadline 兜底；此处检查避免在已超时请求上启动模拟。
 func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResult, error) {
-	// 1. 参数校验与默认值
 	applyDefaults(&req)
-
-	// 2. 计算组合历史日收益率
 	dailyReturns, err := computePortfolioDailyReturns(req.Portfolio, req.PriceData, req.Params)
-	if err != nil {
-		return nil, fmt.Errorf("计算组合日收益率失败: %w", err)
-	}
+	if err != nil { return nil, fmt.Errorf("计算组合日收益率失败: %w", err) }
 	if len(dailyReturns) < mcTradingDays {
 		return nil, fmt.Errorf("历史数据不足：需要至少1年(%d天)的日收益率，实际%d天",
 			mcTradingDays, len(dailyReturns))
 	}
-
-	// 企业理由：并行模拟是耗时主体，启动前检查 ctx 是否已超时/取消。
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-
-	// 3. 并行执行蒙特卡洛模拟
+	select { case <-ctx.Done(): return nil, ctx.Err(); default: }
 	totalDays := req.MCParams.NumYears * mcTradingDays
 	paths := runSimulations(ctx, dailyReturns, totalDays, req.MCParams.NumSimulations,
 		req.MCParams, req.Params.StartingValue)
-
-	// 4. 计算百分位数
 	percentiles := computePercentiles(paths, totalDays)
-
-	// 5. 计算成功概率（基于 successThreshold）
 	successProb := computeSuccessProbability(paths, req.MCParams.SuccessThreshold,
 		req.Params.StartingValue)
-
-	// 6. 计算三种成功概率类型（按年采样）
 	successProbs := computeSuccessProbabilities(paths, req.Params.StartingValue,
 		req.MCParams.NumYears)
-
-	// 7. 计算最终分布直方图
 	finalDist := computeFinalDistribution(paths)
-
-	// 8. 计算每条路径的指标
 	perPathMetrics := computePerPathMetrics(paths, req.Params.StartingValue,
 		req.MCParams.NumYears)
-
-	// 9. 计算统计摘要
 	stats := computeMCStatistics(paths, req.MCParams.SuccessThreshold,
 		req.Params.StartingValue)
-
-	// 10. 计算代表性路径
 	repPaths := computeRepresentativePaths(paths, totalDays)
-
 	return &MonteCarloResult{
-		Percentiles:          percentiles,
-		SuccessProbability:   successProb,
-		FinalDistribution:    finalDist,
-		Statistics:           stats,
-		PerPathMetrics:       perPathMetrics,
-		RepresentativePaths:  repPaths,
-		SuccessProbabilities: successProbs,
-	}, nil
+		Percentiles: percentiles, SuccessProbability: successProb, FinalDistribution: finalDist,
+		Statistics: stats, PerPathMetrics: perPathMetrics, RepresentativePaths: repPaths,
+		SuccessProbabilities: successProbs}, nil
 }
-
-// applyDefaults 应用默认参数值
-//
-// 企业理由：合理的默认值降低使用门槛，同时允许高级用户自定义参数。
-// 默认值基于行业惯例：1000次模拟提供稳定的统计估计，20年覆盖典型退休规划期。
 func applyDefaults(req *MonteCarloRequest) {
-	if req.MCParams.NumSimulations <= 0 {
-		req.MCParams.NumSimulations = mcDefaultSims
-	}
-	if req.MCParams.NumYears <= 0 {
-		req.MCParams.NumYears = mcDefaultYears
-	}
-	if req.MCParams.MinBlockYears <= 0 {
-		req.MCParams.MinBlockYears = 1
-	}
-	if req.MCParams.MaxBlockYears <= 0 {
-		req.MCParams.MaxBlockYears = 5
-	}
+if req.MCParams.NumSimulations <= 0 { req.MCParams.NumSimulations = mcDefaultSims }
+if req.MCParams.NumYears <= 0 { req.MCParams.NumYears = mcDefaultYears }
+if req.MCParams.MinBlockYears <= 0 { req.MCParams.MinBlockYears = 1 }
+if req.MCParams.MaxBlockYears <= 0 { req.MCParams.MaxBlockYears = 5 }
 	if req.MCParams.MinBlockYears > req.MCParams.MaxBlockYears {
 		req.MCParams.MinBlockYears, req.MCParams.MaxBlockYears =
 			req.MCParams.MaxBlockYears, req.MCParams.MinBlockYears
 	}
-	if req.Params.StartingValue <= 0 {
-		req.Params.StartingValue = 10000
-	}
-	if req.MCParams.SuccessThreshold <= 0 {
-		req.MCParams.SuccessThreshold = 1.0
-	}
+if req.Params.StartingValue <= 0 { req.Params.StartingValue = 10000 }
+if req.MCParams.SuccessThreshold <= 0 { req.MCParams.SuccessThreshold = 1.0 }
 }
-
-// computePortfolioDailyReturns 计算组合历史日收益率（加权平均）
-//
-// 企业理由：组合日收益率是蒙特卡洛模拟的输入基础。使用加权平均
-// 假设组合按目标权重配置，这是蒙特卡洛模拟的标准做法。
-// 对于缺失数据的资产，按可用资产重新归一化权重，避免数据偏差。
 func computePortfolioDailyReturns(
 	portfolio MCPortfolioInput,
 	priceData PriceDataMap,
 	params MCBacktestParams,
 ) ([]float64, error) {
-	if len(portfolio.Assets) == 0 {
-		return nil, fmt.Errorf("组合无资产")
-	}
-
-	// 解析交易日
+	if len(portfolio.Assets) == 0 { return nil, fmt.Errorf("组合无资产") }
 	tradingDates, err := engineutil.ParseTradingDates(priceData)
-	if err != nil {
-		return nil, fmt.Errorf("解析交易日失败: %w", err)
-	}
-
-	// 日期范围过滤
+	if err != nil { return nil, fmt.Errorf("解析交易日失败: %w", err) }
 	tradingDates = engineutil.FilterByDateRange(tradingDates, params.StartDate, params.EndDate)
-	if len(tradingDates) == 0 {
-		return nil, fmt.Errorf("日期范围内无交易数据")
-	}
-
-	// 构建权重映射（前端传入百分比，转换为小数）
+	if len(tradingDates) == 0 { return nil, fmt.Errorf("日期范围内无交易数据") }
 	weights := make(map[string]float64, len(portfolio.Assets))
-	for _, a := range portfolio.Assets {
-		weights[a.Ticker] = a.Weight / 100.0
-	}
-
-	// 提取各资产价格序列
+	for _, a := range portfolio.Assets { weights[a.Ticker] = a.Weight / 100.0 }
 	type assetPrices struct {
 		prices []float64
 		weight float64
@@ -172,18 +82,12 @@ func computePortfolioDailyReturns(
 	assetList := make([]assetPrices, 0, len(portfolio.Assets))
 	for _, a := range portfolio.Assets {
 		prices := engineutil.ExtractPrices(priceData, a.Ticker, tradingDates)
-		assetList = append(assetList, assetPrices{
-			prices: prices,
-			weight: weights[a.Ticker],
-		})
+		assetList = append(assetList, assetPrices{ prices: prices, weight: weights[a.Ticker], })
 	}
-
-	// 计算组合日收益率
 	returns := make([]float64, 0, len(tradingDates)-1)
 	for i := 1; i < len(tradingDates); i++ {
 		weightedReturn := 0.0
 		totalWeight := 0.0
-
 		for _, ap := range assetList {
 			prevPrice := ap.prices[i-1]
 			currPrice := ap.prices[i]
@@ -193,19 +97,338 @@ func computePortfolioDailyReturns(
 				totalWeight += ap.weight
 			}
 		}
-
-		// 企业理由：归一化权重，避免缺失数据导致收益偏低
-		if totalWeight > 0 {
-			weightedReturn /= totalWeight
-		}
-
-		// 企业理由：拖累（drag）模拟管理费、交易成本等持续性损耗
-		if portfolio.Drag > 0 {
-			weightedReturn -= portfolio.Drag / float64(mcTradingDays)
-		}
-
+if totalWeight > 0 { weightedReturn /= totalWeight }
+if portfolio.Drag > 0 { weightedReturn -= portfolio.Drag / float64(mcTradingDays) }
 		returns = append(returns, weightedReturn)
 	}
-
 	return returns, nil
+}
+func computePerPathMetrics(paths [][]float64, startingValue float64, numYears int) []PathMetrics {
+	if len(paths) == 0 { return nil }
+	metrics := make([]PathMetrics, len(paths))
+	years := float64(numYears)
+	for i, path := range paths { metrics[i] = calcPathMetrics(path, startingValue, years) }
+	return metrics
+}
+func calcPathMetrics(path []float64, startingValue float64, years float64) PathMetrics {
+	finalValue := path[len(path)-1]
+	cagr := 0.0
+if startingValue > 0 && years > 0 && finalValue > 0 { cagr = math.Pow(finalValue/startingValue, 1.0/years) - 1 }
+	pathLen := len(path)
+	dailyRets := make([]float64, pathLen-1)
+	for j := 1; j < pathLen; j++ {
+if path[j-1] > 0 { dailyRets[j-1] = (path[j] - path[j-1]) / path[j-1] }
+	}
+	maxDD := engine.CalcMaxDrawdown(path).MaxDrawdown
+	vol := 0.0
+if len(dailyRets) > 1 { vol = mathutil.Std(dailyRets) * math.Sqrt(float64(mcTradingDays)) }
+	sharpe := 0.0
+if vol > 0 { sharpe = (cagr - mcRiskFreeRate) / vol }
+	sortino := mcSortino(dailyRets, cagr)
+return PathMetrics{ FinalValue: finalValue, CAGR: cagr, MaxDrawdown: maxDD, Volatility: vol, Sharpe: sharpe, Sortino: sortino }
+}
+func computeMCStatistics(paths [][]float64, threshold float64, startingValue float64) MCStatistics {
+	if len(paths) == 0 { return MCStatistics{} }
+	finalValues := make([]float64, len(paths))
+	target := startingValue * threshold
+	successCount := 0
+	for i, path := range paths {
+		finalValues[i] = path[len(path)-1]
+if finalValues[i] >= target { successCount++ }
+	}
+	slices.Sort(finalValues)
+	n := len(finalValues)
+	medianIdx := n / 2
+	medianVal := finalValues[medianIdx]
+if n%2 == 0 && medianIdx > 0 { medianVal = (finalValues[medianIdx-1] + finalValues[medianIdx]) / 2 }
+	meanVal := mathutil.Mean(finalValues)
+return MCStatistics{ MedianFinalValue: medianVal, MeanFinalValue: meanVal, SuccessRate: float64(successCount) / float64(n) }
+}
+func mcSortino(dailyRets []float64, cagr float64) float64 {
+	if len(dailyRets) == 0 { return 0 }
+	dailyRF := mcRiskFreeRate / float64(mcTradingDays)
+	sumSq := 0.0
+	for _, r := range dailyRets {
+		excess := r - dailyRF
+if excess < 0 { sumSq += excess * excess }
+	}
+	downsideDev := math.Sqrt(sumSq/float64(len(dailyRets))) * math.Sqrt(float64(mcTradingDays))
+	if downsideDev == 0 { return 0 }
+	return (cagr - mcRiskFreeRate) / downsideDev
+}
+type MonteCarloRequest struct {
+	Portfolio MCPortfolioInput `json:"portfolio"`
+	PriceData PriceDataMap     `json:"priceData"`
+	Params    MCBacktestParams `json:"params"`
+	MCParams  MCSimParams      `json:"mcParams"`
+}
+type MCPortfolioInput struct {
+	Name               string       `json:"name"`
+	Assets             []AssetInput `json:"assets"`
+	RebalanceFrequency string       `json:"rebalanceFrequency"`
+	Drag               float64      `json:"drag"`
+	TotalReturn        bool         `json:"totalReturn"`
+}
+type AssetInput struct {
+	Ticker string  `json:"ticker"`
+	Weight float64 `json:"weight"`
+}
+type PriceDataMap = engine.PriceDataMap
+type MCBacktestParams struct {
+	StartDate           string  `json:"startDate"`
+	EndDate             string  `json:"endDate"`
+	StartingValue       float64 `json:"startingValue"`
+	AdjustForInflation  bool    `json:"adjustForInflation"`
+	RollingWindowMonths int     `json:"rollingWindowMonths"`
+	BenchmarkTicker     string  `json:"benchmarkTicker"`
+}
+type MCSimParams struct {
+	NumSimulations   int     `json:"numSimulations"`
+	NumYears         int     `json:"numYears"`
+	MinBlockYears    int     `json:"minBlockYears"`
+	MaxBlockYears    int     `json:"maxBlockYears"`
+	SuccessThreshold float64 `json:"successThreshold"`
+}
+type MonteCarloResult struct {
+	Percentiles          MCPercentiles          `json:"percentiles"`
+	SuccessProbability   []float64              `json:"successProbability"`
+	FinalDistribution    []float64              `json:"finalDistribution"`
+	Statistics           MCStatistics           `json:"statistics"`
+	PerPathMetrics       []PathMetrics          `json:"perPathMetrics"`
+	RepresentativePaths  MCRepresentativePaths  `json:"representativePaths"`
+	SuccessProbabilities MCSuccessProbabilities `json:"successProbabilities"`
+}
+type MCPercentiles struct {
+	P5  []float64 `json:"p5"`
+	P10 []float64 `json:"p10"`
+	P25 []float64 `json:"p25"`
+	P50 []float64 `json:"p50"`
+	P75 []float64 `json:"p75"`
+	P90 []float64 `json:"p90"`
+	P95 []float64 `json:"p95"`
+}
+type MCStatistics struct {
+	MedianFinalValue float64 `json:"medianFinalValue"`
+	MeanFinalValue   float64 `json:"meanFinalValue"`
+	SuccessRate      float64 `json:"successRate"`
+}
+type PathMetrics struct {
+	FinalValue  float64 `json:"finalValue"`
+	CAGR        float64 `json:"cagr"`
+	MaxDrawdown float64 `json:"maxDrawdown"`
+	Volatility  float64 `json:"volatility"`
+	Sharpe      float64 `json:"sharpe"`
+	Sortino     float64 `json:"sortino"`
+}
+type MCRepresentativePaths struct {
+	Best   []float64 `json:"best"`
+	P25    []float64 `json:"p25"`
+	Median []float64 `json:"median"`
+	P75    []float64 `json:"p75"`
+	Worst  []float64 `json:"worst"`
+}
+type MCSuccessProbabilities struct {
+	Survival            []float64 `json:"survival"`
+	CapitalPreservation []float64 `json:"capitalPreservation"`
+	Profit              []float64 `json:"profit"`
+}
+func computePercentiles(paths [][]float64, totalDays int) MCPercentiles {
+	numSims := len(paths)
+	if numSims == 0 { return MCPercentiles{} }
+	p5 := make([]float64, totalDays)
+	p10 := make([]float64, totalDays)
+	p25 := make([]float64, totalDays)
+	p50 := make([]float64, totalDays)
+	p75 := make([]float64, totalDays)
+	p90 := make([]float64, totalDays)
+	p95 := make([]float64, totalDays)
+	type pctTarget struct {
+		pct float64
+		dst *[]float64
+	}
+targets := []pctTarget{ {0.05, &p5}, {0.10, &p10}, {0.25, &p25}, {0.50, &p50}, {0.75, &p75}, {0.90, &p90}, {0.95, &p95} }
+	values := make([]float64, numSims)
+	for day := 0; day < totalDays; day++ {
+		for i, path := range paths { values[i] = path[day] }
+		slices.Sort(values)
+		for _, t := range targets {
+			idx := int(float64(numSims-1) * t.pct)
+			idx = max(0, min(idx, numSims-1))
+			(*t.dst)[day] = values[idx]
+		}
+	}
+	return MCPercentiles{ P5: p5, P10: p10, P25: p25, P50: p50, P75: p75, P90: p90, P95: p95, }
+}
+func computeSuccessProbability(paths [][]float64, threshold float64, startingValue float64) []float64 {
+	if len(paths) == 0 { return nil }
+	totalDays := len(paths[0])
+	target := startingValue * threshold
+	result := make([]float64, totalDays)
+	numSims := float64(len(paths))
+	for day := 0; day < totalDays; day++ {
+		success := 0
+		for _, path := range paths {
+if path[day] >= target { success++ }
+		}
+		result[day] = float64(success) / numSims
+	}
+	return result
+}
+func computeSuccessProbabilities(paths [][]float64, startingValue float64, numYears int) MCSuccessProbabilities {
+	if len(paths) == 0 { return MCSuccessProbabilities{} }
+	survival := make([]float64, numYears)
+	capitalPreservation := make([]float64, numYears)
+	profit := make([]float64, numYears)
+	n := float64(len(paths))
+	pathLen := len(paths[0])
+	for year := 1; year <= numYears; year++ {
+		dayIdx := year*mcTradingDays - 1
+if dayIdx >= pathLen { dayIdx = pathLen - 1 }
+		survCount := 0
+		capPresCount := 0
+		profitCount := 0
+		for _, path := range paths {
+			val := path[dayIdx]
+if val > 0 { survCount++ }
+if val >= startingValue { capPresCount++ }
+if val > startingValue { profitCount++ }
+		}
+		idx := year - 1
+		survival[idx] = float64(survCount) / n
+		capitalPreservation[idx] = float64(capPresCount) / n
+		profit[idx] = float64(profitCount) / n
+	}
+return MCSuccessProbabilities{ Survival: survival, CapitalPreservation: capitalPreservation, Profit: profit }
+}
+func computeFinalDistribution(paths [][]float64) []float64 {
+	if len(paths) == 0 { return nil }
+	finalValues := make([]float64, len(paths))
+	for i, path := range paths { finalValues[i] = path[len(path)-1] }
+	sorted := make([]float64, len(finalValues))
+	copy(sorted, finalValues)
+	slices.Sort(sorted)
+	minVal := sorted[0]
+	maxVal := sorted[len(sorted)-1]
+	if maxVal == minVal {
+		result := make([]float64, mcHistogramBins)
+		result[mcHistogramBins/2] = float64(len(paths))
+		return result
+	}
+	binWidth := (maxVal - minVal) / float64(mcHistogramBins)
+	result := make([]float64, mcHistogramBins)
+	for _, v := range finalValues {
+		bin := int((v - minVal) / binWidth)
+if bin >= mcHistogramBins { bin = mcHistogramBins - 1 }
+if bin < 0 { bin = 0 }
+		result[bin]++
+	}
+	return result
+}
+func computeRepresentativePaths(paths [][]float64, totalDays int) MCRepresentativePaths {
+	if len(paths) == 0 { return MCRepresentativePaths{} }
+	type pathIndex struct {
+		idx        int
+		finalValue float64
+	}
+	sorted := make([]pathIndex, len(paths))
+	for i, path := range paths { sorted[i] = pathIndex{idx: i, finalValue: path[len(path)-1]} }
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].finalValue < sorted[j].finalValue })
+	n := len(sorted)
+	worstIdx := 0
+	p25Idx := int(float64(n) * 0.25)
+	medianIdx := n / 2
+	p75Idx := int(float64(n) * 0.75)
+	bestIdx := n - 1
+	return MCRepresentativePaths{
+		Worst:  downsampleMonthly(paths[sorted[worstIdx].idx]),
+		P25:    downsampleMonthly(paths[sorted[p25Idx].idx]),
+		Median: downsampleMonthly(paths[sorted[medianIdx].idx]),
+		P75:    downsampleMonthly(paths[sorted[p75Idx].idx]),
+		Best:   downsampleMonthly(paths[sorted[bestIdx].idx]),
+	}
+}
+func downsampleMonthly(path []float64) []float64 {
+	result := make([]float64, 0, len(path)/21+1)
+	for i := 0; i < len(path); i += 21 { result = append(result, path[i]) }
+if len(path) > 0 && (len(path)-1)%21 != 0 { result = append(result, path[len(path)-1]) }
+	return result
+}
+func runSimulations(
+	ctx context.Context,
+	historicalReturns []float64,
+	totalDays int,
+	numSims int,
+	mcParams MCSimParams,
+	startingValue float64,
+) [][]float64 {
+	numCPU := runtime.NumCPU()
+if numCPU > numSims { numCPU = numSims }
+if numCPU < 1 { numCPU = 1 }
+	paths := make([][]float64, numSims)
+	var wg sync.WaitGroup
+	simsPerWorker := numSims / numCPU
+	extra := numSims % numCPU
+	idx := 0
+	for w := 0; w < numCPU; w++ {
+		count := simsPerWorker
+if w < extra { count++ }
+		if count == 0 { continue }
+		startIdx := idx
+		idx += count
+		wg.Add(1)
+		go func(start, n int) {
+			defer wg.Done()
+			var seed int64
+			var seedBuf [8]byte
+			if _, err := rand.Read(seedBuf[:]); err == nil {
+				seed = int64(binary.LittleEndian.Uint64(seedBuf[:]))
+} else { seed = time.Now().UnixNano() + int64(start)
+			}
+			rng := mrand.New(mrand.NewSource(seed))
+			for i := start; i < start+n; i++ {
+				select { case <-ctx.Done(): return; default: }
+				path := make([]float64, totalDays)
+				generatePath(path, historicalReturns, totalDays, mcParams, startingValue, rng)
+				paths[i] = path
+			}
+		}(startIdx, count)
+	}
+	wg.Wait()
+	return paths
+}
+func generatePath(
+	path []float64,
+	historicalReturns []float64,
+	totalDays int,
+	mcParams MCSimParams,
+	startingValue float64,
+	rng *mrand.Rand,
+) {
+	minBlockDays := mcParams.MinBlockYears * mcTradingDays
+	maxBlockDays := mcParams.MaxBlockYears * mcTradingDays
+	n := len(historicalReturns)
+if minBlockDays > n { minBlockDays = n }
+if maxBlockDays > n { maxBlockDays = n }
+	simReturns := blockBootstrapSample(historicalReturns, totalDays, minBlockDays, maxBlockDays, rng)
+	returnsToPath(path, simReturns, startingValue)
+}
+func blockBootstrapSample(historicalReturns []float64, totalDays int, minBlockDays, maxBlockDays int, rng *mrand.Rand) []float64 {
+	n := len(historicalReturns)
+	result := make([]float64, 0, totalDays)
+	for len(result) < totalDays {
+		blockLen := minBlockDays
+if maxBlockDays > minBlockDays { blockLen = minBlockDays + rng.Intn(maxBlockDays-minBlockDays+1) }
+		startPos := rng.Intn(n)
+		end := startPos + blockLen
+if end > n { end = n }
+		result = append(result, historicalReturns[startPos:end]...)
+	}
+	return result[:totalDays]
+}
+func returnsToPath(path []float64, returns []float64, startingValue float64) {
+	path[0] = startingValue
+	for i := 1; i < len(path); i++ {
+		path[i] = path[i-1] * (1.0 + returns[i-1])
+if path[i] < 0 { path[i] = 0 }
+	}
 }

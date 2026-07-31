@@ -13,10 +13,10 @@
 
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { eventDispatcher } from '../domain/events/index.js';
+import { eventDispatcher } from '../domain/events/events.js';
 // type-only import：避免运行时与 outboxPublisher.ts 形成循环依赖
 // （outboxPublisher.ts 的 factory 运行时 import 本模块，此处仅取类型，编译期擦除）。
-import type { OutboxConsumer, WebhookHandler } from './outboxPublisher.js';
+import type { OutboxConsumer, WebhookHandler } from './outboxTypes.js';
 
 /** topic 名前缀，与 connector 的 route.topic.replacement `backtest.${routedByValue}` 对齐。 */
 const TOPIC_PREFIX = 'backtest.';
@@ -33,7 +33,6 @@ const TOPIC_PREFIX = 'backtest.';
  * 与 OutboxPublisher 相同的 start()/stop() 接口，由 createOutboxConsumer 工厂按
  * CDC_KAFKA_ENABLED 选择实例化哪个实现。
  */
-/** kafkajs 最小契约（依赖未安装时以 unknown 表达，安装后由运行时校验）。 */
 interface KafkaLike {
   consumer(opts: { groupId: string }): KafkaConsumerLike;
 }
@@ -82,8 +81,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
     }
     let KafkaCtor: KafkaCtorType | null = null;
     try {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- kafkajs 未安装时类型解析失败；运行时动态 import 兼容未安装场景（P3-05）
-      // @ts-expect-error
       const mod = await import('kafkajs');
       KafkaCtor = (mod as { Kafka: KafkaCtorType }).Kafka;
     } catch (err) {
@@ -138,7 +135,7 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
         try {
           await this.consumer.disconnect();
         } catch {
-          // ignore
+          // disconnect 失败可忽略：启动已失败，consumer 即将置 null
         }
         this.consumer = null;
       }

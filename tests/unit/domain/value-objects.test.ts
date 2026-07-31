@@ -1,9 +1,3 @@
-/**
- * Value Objects 单元测试（Weight + Ticker）
- *
- * 合并自 weight.test.ts 与 ticker.test.ts：两者均测 domain/value-objects/index.js
- * 同一模块，按职责聚合消除过小文件。
- */
 import { describe, it, expect } from 'vitest';
 import { Weight, Ticker } from '../../../packages/backend/src/domain/value-objects/index.js';
 
@@ -24,28 +18,6 @@ describe('Weight.create', () => {
 
   it('应拒绝大于 100', () => {
     expect(() => Weight.create(101)).toThrow(/between 0 and 100/);
-  });
-
-  it('toFraction 转为小数', () => {
-    expect(Weight.create(60).toFraction()).toBeCloseTo(0.6);
-  });
-});
-
-describe('Weight.equals', () => {
-  it('相同值应相等', () => {
-    expect(Weight.create(50).equals(Weight.create(50))).toBe(true);
-  });
-
-  it('微小误差应视为相等', () => {
-    expect(Weight.create(50).equals(Weight.create(50.000001))).toBe(true);
-  });
-
-  it('不同值应不相等', () => {
-    expect(Weight.create(50).equals(Weight.create(60))).toBe(false);
-  });
-
-  it('边界值 0 和 0 应相等', () => {
-    expect(Weight.create(0).equals(Weight.create(0))).toBe(true);
   });
 });
 
@@ -123,38 +95,6 @@ describe('Ticker.create', () => {
       const ticker = Ticker.create(' AAPL');
       expect(ticker.value).toBe('AAPL');
     });
-  });
-});
-
-describe('Ticker.equals', () => {
-  it('相同 value 应相等', () => {
-    const t1 = Ticker.create('AAPL');
-    const t2 = Ticker.create('AAPL');
-    expect(t1.equals(t2)).toBe(true);
-  });
-
-  it('不同 value 应不相等', () => {
-    const t1 = Ticker.create('AAPL');
-    const t2 = Ticker.create('MSFT');
-    expect(t1.equals(t2)).toBe(false);
-  });
-
-  it('大小写不同的输入应相等（归一化后比较）', () => {
-    const t1 = Ticker.create('AAPL');
-    const t2 = Ticker.create('aapl');
-    expect(t1.equals(t2)).toBe(true);
-  });
-
-  it('带后缀的相同 ticker 应相等', () => {
-    const t1 = Ticker.create('510300.SS');
-    const t2 = Ticker.create('510300.SS');
-    expect(t1.equals(t2)).toBe(true);
-  });
-
-  it('带后缀的不同 ticker 应不相等', () => {
-    const t1 = Ticker.create('510300.SS');
-    const t2 = Ticker.create('510300.SZ');
-    expect(t1.equals(t2)).toBe(false);
   });
 });
 

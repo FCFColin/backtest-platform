@@ -1,13 +1,6 @@
-/**
- * @file ExtendedMetricsTable 组件
- * @description 30+ 高级指标横向表格：VaR/CVaR/Sortino Bear&Bull/Sharpe Bear&Bull/
- *   Skewness/Kurtosis/Kelly/Alpha/R²/TrackingError/InfoRatio/
- *   Best/Worst Year&Month/Up&Down Capture/Positive&Negative Months%。
- */
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils.js';
-import { formatPercent, formatNumber } from '@/lib/formatters.js';
-
+import { formatPercent, formatNumber } from '@/utils/format.js';
 interface ExtendedMetricsTableProps {
   portfolios: Array<{
     id: string;
@@ -15,8 +8,6 @@ interface ExtendedMetricsTableProps {
     stats: Record<string, number>;
   }>;
 }
-
-/** 高级指标列定义 */
 const EXTENDED_COLUMNS = [
   { key: 'var95', label: 'VaR 95%', format: 'percent' as const },
   { key: 'var99', label: 'VaR 99%', format: 'percent' as const },
@@ -40,14 +31,8 @@ const EXTENDED_COLUMNS = [
   { key: 'upCapture', label: 'Up Capture', format: 'percent' as const },
   { key: 'downCapture', label: 'Down Capture', format: 'percent' as const },
   { key: 'positiveMonthsPct', label: 'Positive Months %', format: 'percent' as const },
-  { key: 'negativeMonthsPct', label: 'Negative Months %', format: 'percent' as const },
+  { key: 'negativeMonthsPct', label: 'Negative Months %', format: 'percent' as const }
 ];
-
-/**
- * 高级指标表格组件。
- * @param props - portfolios（含 stats 的组合列表）。
- * @returns 高级指标横向表格元素。
- */
 export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) {
   const { t } = useTranslation();
   return (
@@ -56,9 +41,7 @@ export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) 
         <table className="w-full text-caption">
           <thead>
             <tr className="bg-surface-sunken border-b border-border">
-              <th className="h-10 px-3 text-left text-label-tiny text-fg-tertiary sticky left-0 bg-surface-sunken z-10">
-                {t('results.extendedMetrics.portfolio')}
-              </th>
+              <th className="h-10 px-3 text-left text-label-tiny text-fg-tertiary sticky left-0 bg-surface-sunken z-10">{t('results.extendedMetrics.portfolio')}</th>
               {EXTENDED_COLUMNS.map((col) => (
                 <th key={col.key} className="h-10 px-3 text-right text-label-tiny text-fg-tertiary">
                   {col.label}
@@ -73,14 +56,7 @@ export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) 
                 {EXTENDED_COLUMNS.map((col) => {
                   const value = p.stats[col.key] ?? 0;
                   return (
-                    <td
-                      key={col.key}
-                      className={cn(
-                        'px-3 text-right font-mono tabular-nums',
-                        col.format === 'percent' && value < 0 && 'text-neg',
-                        col.format === 'percent' && value > 0 && 'text-pos',
-                      )}
-                    >
+                    <td key={col.key} className={cn('px-3 text-right font-mono tabular-nums', col.format === 'percent' && value < 0 && 'text-neg', col.format === 'percent' && value > 0 && 'text-pos')}>
                       {col.format === 'percent' ? formatPercent(value) : formatNumber(value)}
                     </td>
                   );

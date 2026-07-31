@@ -1,13 +1,3 @@
-/**
- * @vitest-environment happy-dom
- *
- * StatisticsTable 子组件单元测试
- *
- * 原 StatisticsTable 组件已拆分为 statistics-table/ 目录下的子组件
- *（StatisticsTableHeader / MetricsRows / StatisticsGroupRows /
- *  HierarchicalMetricsRows / MetricsToggle），本测试覆盖这些子组件的
- * 渲染逻辑：表头组合名、指标行渲染、空值占位、分组标题、层级展开。
- */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 

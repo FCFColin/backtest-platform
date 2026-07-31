@@ -1,45 +1,17 @@
-/** @file Shared helpers & types for analysis charts */
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
-
-/** 热力图梯度配色（绿=正值，红=负值） */
-const HEAT_COLORS = {
-  strongPositive: '#1a7a3a',
-  moderatePositive: '#2e8b57',
-  weakPositive: '#8bc9a3',
-  faintNegative: '#f5d5d5',
-  weakNegative: '#e8a0a0',
-  moderateNegative: '#d47070',
-  strongNegative: '#c94a4a',
-  neutral: 'var(--bg-subtle)',
-} as const;
-
-export function getHeatColor(val: number | null): string {
-  if (val === null) return HEAT_COLORS.neutral;
-  if (val > 5) return HEAT_COLORS.strongPositive;
-  if (val > 2) return HEAT_COLORS.moderatePositive;
-  if (val > 0) return HEAT_COLORS.weakPositive;
-  if (val > -1) return HEAT_COLORS.faintNegative;
-  if (val > -2) return HEAT_COLORS.weakNegative;
-  if (val > -5) return HEAT_COLORS.moderateNegative;
-  return HEAT_COLORS.strongNegative;
-}
-
 export type RollingMetricKey = 'cagr' | 'volatility' | 'excess' | 'skewness' | 'kurtosis' | 'kelly';
 export type RiskMetricKey = 'stdev' | 'maxDrawdown' | 'avgDrawdown' | 'ulcerIndex';
-
 function calcCagr(window: number[], windowDays: number): number {
   let cumProd = 1;
   for (const r of window) cumProd *= 1 + r;
   const years = windowDays / TRADING_DAYS_PER_YEAR;
   return Math.pow(cumProd, 1 / years) - 1;
 }
-
 function calcVolatility(window: number[]): number {
   const mean = window.reduce((s, r) => s + r, 0) / window.length;
   const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
   return Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
-
 function calcSkewness(window: number[]): number {
   const n = window.length;
   const mean = window.reduce((s, r) => s + r, 0) / n;
@@ -49,7 +21,6 @@ function calcSkewness(window: number[]): number {
   const sumCubed = window.reduce((s, r) => s + ((r - mean) / stdev) ** 3, 0);
   return (n / ((n - 1) * (n - 2))) * sumCubed;
 }
-
 function calcKurtosis(window: number[]): number {
   const n = window.length;
   if (n < 4) return 0;
@@ -58,32 +29,21 @@ function calcKurtosis(window: number[]): number {
   if (variance === 0) return 0;
   const stdev = Math.sqrt(variance);
   const sumFourth = window.reduce((s, r) => s + ((r - mean) / stdev) ** 4, 0);
-  return (
-    ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sumFourth -
-    (3 * (n - 1) ** 2) / ((n - 2) * (n - 3))
-  );
+  return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sumFourth - (3 * (n - 1) ** 2) / ((n - 2) * (n - 3));
 }
-
 function calcKelly(window: number[]): number {
   const mean = window.reduce((s, r) => s + r, 0) / window.length;
   const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
   return variance > 0 ? mean / variance : 0;
 }
-
 const METRIC_CALCULATORS: Record<string, (w: number[], wd: number) => number> = {
   cagr: (w, wd) => calcCagr(w, wd),
   volatility: (w) => calcVolatility(w),
   skewness: (w) => calcSkewness(w),
   kurtosis: (w) => calcKurtosis(w),
-  kelly: (w) => calcKelly(w),
+  kelly: (w) => calcKelly(w)
 };
-
-export function computeRollingMetric(
-  dailyReturns: number[],
-  dates: string[],
-  windowDays: number,
-  metric: RollingMetricKey,
-): Array<{ date: string; value: number }> {
+export function computeRollingMetric(dailyReturns: number[], dates: string[], windowDays: number, metric: RollingMetricKey): Array<{ date: string; value: number }> {
   const result: Array<{ date: string; value: number }> = [];
   if (dailyReturns.length < windowDays) return result;
   const calculator = METRIC_CALCULATORS[metric];
@@ -94,23 +54,15 @@ export function computeRollingMetric(
   }
   return result;
 }
-
-export function computeRollingExcessReturn(
-  dailyReturns: number[],
-  benchmarkDailyReturns: number[],
-  dates: string[],
-  windowDays: number,
-): Array<{ date: string; value: number }> {
+export function computeRollingExcessReturn(dailyReturns: number[], benchmarkDailyReturns: number[], dates: string[], windowDays: number): Array<{ date: string; value: number }> {
   const result: Array<{ date: string; value: number }> = [];
   const n = Math.min(dailyReturns.length, benchmarkDailyReturns.length);
   if (n < windowDays) return result;
-
   for (let i = windowDays; i <= n; i++) {
     const wAsset = dailyReturns.slice(i - windowDays, i);
     const wBench = benchmarkDailyReturns.slice(i - windowDays, i);
     const dateIdx = i;
     if (dateIdx >= dates.length) continue;
-
     let cumAsset = 1,
       cumBench = 1;
     for (let j = 0; j < wAsset.length; j++) {

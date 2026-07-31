@@ -1,7 +1,5 @@
 /**
- * 速率限制配置
- *
- * 集中管理所有限流器定义与键生成函数，从 app.ts 拆分而来。
+ * 速率限制配置（集中管理所有限流器定义与键生成函数）。
  *
  * P0-05：Redis 不可用时限流 fail-closed——生产环境多实例部署时，内存存储
  * 会导致每实例独立计数，实际限流上限 = 配置值 × 实例数，等同无限流。
@@ -12,24 +10,21 @@ import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import crypto from 'crypto';
 import client from 'prom-client';
-import type { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { config } from '../config/index.js';
 import { appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { getPrometheusRegister } from './metrics.js';
 
-// P0-05：Prometheus counter——Redis 不可用导致限流 fail-closed 的次数
 const rateLimiterRedisUnavailableCounter = new client.Counter({
   name: 'rate_limiter_redis_unavailable_total',
   help: 'Total times rate limiter fell back to deny-all due to Redis unavailability',
   registers: [getPrometheusRegister()],
 });
 
-/** Redis 是否可用（启动时检测一次，运行时由 Redis 健康检查更新） */
 let redisAvailable = false;
 
 try {
-  // 尝试创建一个测试 RedisStore 来检测 Redis 连接是否可用
   new RedisStore({
     sendCommand: (...args: string[]) =>
       (appRedis.call as (...a: string[]) => Promise<unknown>)(...args) as Promise<RedisReply>,
@@ -41,11 +36,6 @@ try {
   rateLimiterRedisUnavailableCounter.inc();
 }
 
-/**
- * 更新 Redis 可用状态（供 Redis 健康检查回调调用）。
- *
- * @param available - Redis 是否可用
- */
 export function updateRedisAvailability(available: boolean): void {
   if (available !== redisAvailable) {
     redisAvailable = available;
@@ -92,6 +82,12 @@ function extractJwtIdentifier(authHeader: string): string | null {
 }
 
 function computeRateLimitKey(req: Request): string {
+  // 已认证请求（jwtAuth 中间件已注入 req.user）优先按 userId:ip 组合键限流，
+  // 避免 NAT/企业代理后多用户共享同一 IP 限流桶。
+  const user = (req as { user?: { sub?: string } }).user;
+  if (user?.sub) {
+    return `${user.sub}:${req.ip ?? ''}`;
+  }
   const tenantId = (req as { tenantId?: string }).tenantId;
   if (typeof tenantId === 'string' && tenantId.length > 0) return `tenant:${tenantId}`;
   const authHeader = req.headers.authorization;
@@ -119,7 +115,25 @@ function authRateLimitKey(req: Request): string {
   return req.ip ?? '';
 }
 
-/** 构建 RFC 7807 格式的限流错误响应体。 */
+/**
+ * JWT 感知的通用键生成器。
+ *
+ * 已认证请求（jwtAuth 中间件已注入 req.user）按 `userId:ip` 组合键限流——
+ * 同一用户在不同 IP 仍受独立计数，且 NAT/企业代理后多用户不再共享同一 IP 限流桶。
+ * 未认证请求回退到 `ip:` 前缀的 IP 键。
+ *
+ * 用于通用与管理限流器（apiLimiter / adminLimiter），这些路由在认证中间件之后执行，
+ * 可安全依赖 req.user。认证类端点（login/register/refresh）在认证之前执行，
+ * 不应使用此生成器——它们继续使用 authRateLimitKey 基于 body 标识限流。
+ */
+function jwtAwareKeyGenerator(req: Request): string {
+  const user = (req as { user?: { sub?: string } }).user;
+  if (user?.sub) {
+    return `${user.sub}:${req.ip ?? ''}`;
+  }
+  return `ip:${req.ip ?? ''}`;
+}
+
 function buildRateLimitMessage(code: string, detail?: string) {
   return {
     success: false,
@@ -145,11 +159,9 @@ interface LimiterOptions {
 
 /**
  * 创建 deny-all 中间件：Redis 不可用时拒绝所有请求（P0-05 fail-closed）。
- *
- * 返回 503 SERVICE_UNAVAILABLE + RFC 7807 错误格式。
  * adminLimiter 例外（passOnStoreError=true）：管理接口仍允许通过，便于运维排查。
  */
-function createDenyAllLimiter(code: string, detail: string): ReturnType<typeof rateLimit> {
+function createDenyAllLimiter(code: string, detail: string): RequestHandler {
   return (req: Request, res: Response, _next: NextFunction) => {
     res
       .status(503)
@@ -170,14 +182,13 @@ function createDenyAllLimiter(code: string, detail: string): ReturnType<typeof r
 
 /**
  * 创建限流器，统一 standardHeaders/legacyHeaders/store 公共字段。
- *
  * P0-05：Redis 不可用时（store=undefined 且 passOnStoreError=false），
  * 返回 deny-all 中间件而非降级到内存存储。
  */
-function createLimiter(opts: LimiterOptions): ReturnType<typeof rateLimit> {
+function createLimiter(opts: LimiterOptions): RequestHandler {
   const store = createRateLimiterStore(opts.storePrefix);
 
-  // P0-05：Redis 不可用且非 admin 路由 → fail-closed (503)
+  // Redis 不可用且非 admin 路由 → fail-closed (503)
   if (!store && !(opts.passOnStoreError ?? false)) {
     logger.warn(`[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`);
     return createDenyAllLimiter(opts.code, opts.detail ?? 'Rate limiter unavailable');
@@ -199,6 +210,7 @@ export const apiLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   storePrefix: 'rl:api:',
+  keyGenerator: jwtAwareKeyGenerator,
   code: 'RATE_LIMITED',
   detail: '请求过于频繁，请稍后再试',
 });
@@ -217,6 +229,7 @@ export const adminLimiter = createLimiter({
   max: 30,
   storePrefix: 'rl:admin:',
   passOnStoreError: true,
+  keyGenerator: jwtAwareKeyGenerator,
   code: 'RATE_LIMITED',
   detail: '管理接口请求过于频繁，请稍后再试',
 });

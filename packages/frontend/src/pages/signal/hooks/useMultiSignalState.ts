@@ -1,21 +1,11 @@
-/**
- * @file useMultiSignalState Hook
- * @description 多信号聚合页面状态管理：信号列表、权重、聚合方式、回测参数与异步分析
- */
 import { useState } from 'react';
 import type { SignalAnalysisRequest, MultiSignalConfig } from '@backtest/shared/types/signal';
-import { useComputeTool } from '../../../hooks/useComputeTool.js';
+import { useComputeTool } from '../../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import type { AggregationMethod, MultiSignalResponse, SignalItem } from '../signalTypes.js';
-
-/** 信号列表与权重的增删改操作；通过 state 元组传入以保持与父 hook 同一引用 */
-function useSignalActions(
-  signalsState: [SignalItem[], React.Dispatch<React.SetStateAction<SignalItem[]>>],
-  weightsState: [number[], React.Dispatch<React.SetStateAction<number[]>>],
-  nextIdState: [number, React.Dispatch<React.SetStateAction<number>>],
-) {
+function useSignalActions(signalsState: [SignalItem[], React.Dispatch<React.SetStateAction<SignalItem[]>>], weightsState: [number[], React.Dispatch<React.SetStateAction<number[]>>], nextIdState: [number, React.Dispatch<React.SetStateAction<number>>]) {
   const [signals, setSignals] = signalsState;
   const [weights, setWeights] = weightsState;
   const [nextId, setNextId] = nextIdState;
@@ -30,8 +20,7 @@ function useSignalActions(
     setSignals(signals.filter((s) => s.id !== id));
     if (idx >= 0) setWeights(weights.filter((_, i) => i !== idx));
   };
-  const updateSignal = (id: number, patch: Partial<SignalItem>) =>
-    setSignals(signals.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  const updateSignal = (id: number, patch: Partial<SignalItem>) => setSignals(signals.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   const updateWeight = (idx: number, val: number) => {
     const next = [...weights];
     next[idx] = val;
@@ -39,12 +28,11 @@ function useSignalActions(
   };
   return { addSignal, removeSignal, updateSignal, updateWeight };
 }
-
-/** 多信号聚合页面状态：聚合信号列表、权重、聚合方式、回测参数与分析结果 */
+export type UseMultiSignalStateResult = ReturnType<typeof useMultiSignalState>;
 export function useMultiSignalState() {
   const [signals, setSignals] = useState<SignalItem[]>([
     { id: 1, indicator: 'SMA', period: 20, threshold: 30 },
-    { id: 2, indicator: 'RSI', period: 14, threshold: 30 },
+    { id: 2, indicator: 'RSI', period: 14, threshold: 30 }
   ]);
   const [weights, setWeights] = useState<number[]>([0.5, 0.5]);
   const [aggregationMethod, setAggregationMethod] = useState<AggregationMethod>('weighted');
@@ -55,7 +43,7 @@ export function useMultiSignalState() {
     isLoading,
     error,
     results,
-    runCompute: runAnalysis,
+    runCompute: runAnalysis
   } = useComputeTool<MultiSignalResponse>(
     async () => {
       const reqSignals: SignalAnalysisRequest[] = signals.map((s) => ({
@@ -65,33 +53,23 @@ export function useMultiSignalState() {
         threshold: s.threshold,
         startDate,
         endDate,
-        signalType: 'both',
+        signalType: 'both'
       }));
       const reqBody: MultiSignalConfig = {
         signals: reqSignals,
         aggregationMethod,
-        weights: aggregationMethod === 'weighted' ? weights : undefined,
+        weights: aggregationMethod === 'weighted' ? weights : undefined
       };
-      return apiPostJSON<MultiSignalResponse>(
-        '/api/v1/signal/multi',
-        reqBody,
-        i18n.t('signal.common.errAnalyze'),
-      );
+      return apiPostJSON<MultiSignalResponse>('/api/v1/signal/multi', reqBody, i18n.t('signal.common.errAnalyze'));
     },
     () => {
       if (!ticker.trim()) return i18n.t('signal.common.errEmptyTicker');
       if (signals.length === 0) return i18n.t('signal.multi.errMinOneSignal');
       return null;
-    },
+    }
   );
   const [nextId, setNextId] = useState(3);
-
-  const { addSignal, removeSignal, updateSignal, updateWeight } = useSignalActions(
-    [signals, setSignals],
-    [weights, setWeights],
-    [nextId, setNextId],
-  );
-
+  const { addSignal, removeSignal, updateSignal, updateWeight } = useSignalActions([signals, setSignals], [weights, setWeights], [nextId, setNextId]);
   return {
     signals,
     weights,
@@ -110,6 +88,6 @@ export function useMultiSignalState() {
     setTicker,
     setStartDate,
     setEndDate,
-    runAnalysis,
+    runAnalysis
   };
 }

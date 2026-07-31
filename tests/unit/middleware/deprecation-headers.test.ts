@@ -7,7 +7,7 @@
  * 直接调用中间件函数测试，不依赖 supertest（项目未安装该依赖）。
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createDeprecationMiddleware } from '../../../packages/backend/src/middleware/deprecationHeaders.js';
+import { createDeprecationMiddleware } from '../../../packages/backend/src/middleware/miscMiddleware.js';
 
 interface MockResponse {
   headers: Record<string, string>;

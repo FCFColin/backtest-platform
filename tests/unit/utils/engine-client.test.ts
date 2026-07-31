@@ -1,20 +1,6 @@
-/**
- * 引擎调用与降级单元测试
- *
- * 企业理由（ADR-008 / ADR-031）：Go 引擎是唯一主引擎，Rust 引擎已退役。
- * callEngineStrict 为 fail-closed（Go 不可用时抛 EngineUnavailableError）。
- * 本测试覆盖：
- * 1. Go 引擎可用时返回 Go 引擎结果
- * 2. callEngineStrict 在 Go 不可用时 fail-closed 抛出 EngineUnavailableError
- * 3. resetEngineAvailability
- *
- * 权衡：mock opossum CircuitBreaker 与 callService，不验证真实 HTTP 行为。
- */
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
 
-// ===== vi.hoisted =====
 const cbMocks = vi.hoisted(() => {
   const goCB = {
     fire: vi.fn(),
@@ -56,8 +42,6 @@ const metricsMocks = vi.hoisted(() => ({
   engineCallDuration: { observe: vi.fn() },
   registerCircuitBreakerMetrics: vi.fn(),
 }));
-
-// ===== Mock 模块 =====
 
 vi.mock('opossum', () => ({
   default: vi.fn(() => cbMocks.factory()),

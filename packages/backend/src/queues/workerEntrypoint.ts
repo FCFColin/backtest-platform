@@ -18,9 +18,8 @@ import { validateConfig } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { initDb } from '../infrastructure/dataFacade.js';
 import { closeDb } from '../db/pool.js';
-import { eventDispatcher } from '../domain/events/index.js';
-import { BacktestCompletedHandler } from '../application/backtestCompletedHandler.js';
-import { RunCompletedHandler } from '../application/runCompletedHandler.js';
+import { eventDispatcher } from '../domain/events/events.js';
+import { BacktestCompletedHandler, RunCompletedHandler } from '../application/completedHandlers.js';
 import { createWebhookRetryWorker, scheduleWebhookRetryJob } from './webhookQueue.js';
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
 import { startHeartbeat } from './healthCheck.js';
@@ -133,7 +132,6 @@ async function main(): Promise<void> {
   logger.info('[worker-entry] All workers started, waiting for jobs...');
 }
 
-// 注册信号处理器
 process.on('SIGTERM', () => {
   void shutdown('SIGTERM');
 });

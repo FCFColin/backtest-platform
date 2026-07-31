@@ -15,3 +15,28 @@ export function notFoundHandler(req: Request, res: Response): void {
   logger.info({ method: req.method, path: req.path }, '[app] 404 未匹配路由');
   sendProblem(res, 404, 'NOT_FOUND');
 }
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+const TIMEOUT_RETRY_AFTER_SECONDS = '30';
+
+export function requestTimeout(timeoutMs: number = DEFAULT_TIMEOUT_MS) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const timer = setTimeout(() => {
+      if (!res.headersSent) {
+        logger.warn(
+          { method: req.method, path: req.path, timeoutMs },
+          'Request timeout: request exceeded time limit',
+        );
+        sendProblem(res, 408, 'REQUEST_TIMEOUT', 'Request Timeout', {
+          detail: 'Request processing exceeded time limit',
+          headers: { 'Retry-After': TIMEOUT_RETRY_AFTER_SECONDS },
+        });
+      }
+    }, timeoutMs);
+
+    res.on('finish', () => clearTimeout(timer));
+    res.on('close', () => clearTimeout(timer));
+
+    next();
+  };
+}

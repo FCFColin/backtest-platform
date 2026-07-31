@@ -8,7 +8,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { validate } from '../middleware/validate.js';
+import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
@@ -36,9 +36,7 @@ const ROLE_ENUM = z.enum(['owner', 'admin', 'analyst', 'readonly']);
 
 const requireAdmin = requirePermission(Permission.ADMIN_ACCESS);
 
-// ---------------------------------------------------------------------------
 // 接受邀请：仅需登录（不要求活跃租户，因受邀者尚未加入）。在 tenant 中间件之前注册。
-// ---------------------------------------------------------------------------
 const acceptSchema = z.object({ token: z.string().min(1).max(256) });
 router.post(
   '/invitations/accept',
@@ -73,7 +71,6 @@ router.get('/current', async (req: AuthenticatedRequest, res: Response) => {
   res.json({ success: true, data: org });
 });
 
-/** PATCH /api/v1/orgs/current - 更新组织名称（admin） */
 const updateOrgSchema = z.object({ name: z.string().trim().min(1).max(120) });
 router.patch(
   '/current',
@@ -98,7 +95,6 @@ router.get('/members', async (req: AuthenticatedRequest, res: Response) => {
   res.json({ success: true, data: await listOrgMembers(tenantId) });
 });
 
-/** PATCH /api/v1/orgs/members/:userId - 修改成员角色（admin） */
 const roleSchema = z.object({ role: ROLE_ENUM });
 router.patch(
   '/members/:userId',
@@ -153,7 +149,6 @@ router.get('/invitations', requireAdmin, async (req: AuthenticatedRequest, res: 
   res.json({ success: true, data: await listInvitations(tenantId) });
 });
 
-/** POST /api/v1/orgs/invitations - 创建邀请并发送邮件（admin） */
 const inviteSchema = z.object({
   email: z.string().email(),
   role: ROLE_ENUM.exclude(['owner']).default('analyst'),

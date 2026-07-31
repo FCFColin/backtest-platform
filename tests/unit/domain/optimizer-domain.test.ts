@@ -1,9 +1,3 @@
-/**
- * optimizer-domain 纯领域逻辑单元测试
- *
- * 覆盖：参数序列生成、回测参数构建、请求校验、组合构建、约束过滤、目标函数。
- * 所有函数无副作用，可直接测试无需 mock。
- */
 import { describe, it, expect } from 'vitest';
 import {
   MAX_OPTIMIZER_COMBINATIONS,

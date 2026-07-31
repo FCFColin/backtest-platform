@@ -14,7 +14,6 @@ import { logger } from '../utils/logger.js';
 /** Heartbeat key 前缀 */
 const HEARTBEAT_KEY = 'worker:heartbeat';
 
-/** Heartbeat 写入间隔（15 秒） */
 const HEARTBEAT_INTERVAL_MS = 15_000;
 
 /** Heartbeat 超时阈值（45 秒，3 个间隔） */
@@ -29,7 +28,6 @@ export const HEARTBEAT_TIMEOUT_MS = 45_000;
  * @returns setInterval 句柄（关闭时 clearInterval）
  */
 export function startHeartbeat(): ReturnType<typeof setInterval> {
-  // 立即写入一次
   void writeHeartbeat();
 
   const timer = setInterval(() => {
@@ -49,11 +47,6 @@ export function startHeartbeat(): ReturnType<typeof setInterval> {
   return timer;
 }
 
-/**
- * 向 Redis 写入 heartbeat。
- *
- * 失败时仅记录 warn（不 throw），heartbeat 中断会被健康检查端检测到。
- */
 async function writeHeartbeat(): Promise<void> {
   try {
     const now = new Date().toISOString();

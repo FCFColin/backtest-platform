@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 市场数据统计 — 从 PostgreSQL 聚合市场数据统计（替代 JSON 文件扫描）。
  *
  * 合并自 marketStatsHelpers.ts + marketStorageStats.ts + marketStats.ts。
@@ -41,9 +41,7 @@ import {
   buildMarketStatsResult,
 } from './marketStatsHelpers.js';
 
-// ---------------------------------------------------------------------------
 // 进程内 TTL 缓存（避免每次请求都执行昂贵的聚合查询）
-// ---------------------------------------------------------------------------
 
 interface TtlCacheEntry<T> {
   data: T;
@@ -67,9 +65,7 @@ function makeTtlCache<T>(ttlMs: number) {
   };
 }
 
-// ---------------------------------------------------------------------------
 // 表空间占用统计
-// ---------------------------------------------------------------------------
 
 const MARKET_DATA_TABLES = ['tickers', 'prices', 'cpi_data', 'exchange_rates'] as const;
 
@@ -97,9 +93,6 @@ export async function getMarketDataStorageBytes(): Promise<number> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// 主查询函数
-// ---------------------------------------------------------------------------
 
 /** 进程内 TTL 缓存：scanMarketStatsFromDb() 结果缓存 60 秒 */
 const marketStatsCache = makeTtlCache<DbMarketStats>(60_000);
@@ -260,9 +253,7 @@ export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
   }
 }
 
-// ---------------------------------------------------------------------------
 // 测试专用：清空所有 TTL 缓存
-// ---------------------------------------------------------------------------
 
 /**
  * 清空所有进程内 TTL 缓存（marketStatsCache / lastUpdatedCache / dbEngineStatusCache）。

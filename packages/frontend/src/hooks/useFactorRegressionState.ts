@@ -1,21 +1,11 @@
-/**
- * @file 因子回归页面状态管理 hook
- * @description 承载 FactorRegressionPage 的全部 state、参数校验与回归执行逻辑
- */
 import { useState } from 'react';
 import type { TFunction } from 'i18next';
-import { useAsyncAction } from './useAsyncAction.js';
-import { useListState } from './useListState.js';
+import { useAsyncAction, useListState } from './miscHooks.js';
 import { useToastStore } from '@/store/toastStore';
 import { fetchRegression } from '../pages/factor-regression/factorRegressionUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
-import type {
-  AssetItem,
-  FactorRegressionResult,
-  ReturnFrequency,
-} from '../pages/factor-regression/factorRegressionUtils.js';
-
+import type { AssetItem, FactorRegressionResult, ReturnFrequency } from '../pages/factor-regression/factorRegressionUtils.js';
 interface FactorRegressionState {
   startDate: string;
   endDate: string;
@@ -37,7 +27,6 @@ interface FactorRegressionState {
   removeAsset: (i: number) => void;
   updateAsset: (i: number, field: 'ticker' | 'weight', val: string | number) => void;
 }
-
 interface RegressionValidationSuccess {
   validAssets: AssetItem[];
 }
@@ -45,13 +34,7 @@ interface RegressionValidationError {
   error: string;
 }
 type RegressionValidation = RegressionValidationSuccess | RegressionValidationError;
-
-/** 校验回归参数，返回 { validAssets } 或 { error } */
-function validateRegressionParams(
-  assets: AssetItem[],
-  selectedFactors: string[],
-  t: TFunction,
-): RegressionValidation {
+function validateRegressionParams(assets: AssetItem[], selectedFactors: string[], t: TFunction): RegressionValidation {
   const validAssets = assets.filter((a) => a.ticker.trim() !== '');
   if (validAssets.length === 0) return { error: t('factorRegression.errEmptyAssets') };
   const weightErr = validateAssetWeights(assets);
@@ -59,12 +42,6 @@ function validateRegressionParams(
   if (selectedFactors.length === 0) return { error: t('factorRegression.errNoFactor') };
   return { validAssets };
 }
-
-/**
- * 因子回归页面状态 hook
- * @param t - i18n 翻译函数
- * @returns 全部状态 + 派生字段 + 资产 CRUD + 回归执行函数
- */
 export function useFactorRegressionState(t: TFunction): FactorRegressionState {
   const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
@@ -75,24 +52,19 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
     items: assets,
     addItem: addAsset,
     removeItem: removeAsset,
-    updateItem,
+    updateItem
   } = useListState<AssetItem>(
     [
       { ticker: 'VTI', weight: 60 },
-      { ticker: 'BND', weight: 40 },
+      { ticker: 'BND', weight: 40 }
     ],
     () => ({ ticker: '', weight: 0 }),
-    0,
+    0
   );
   const { isLoading, error, run, setError } = useAsyncAction();
   const [result, setResult] = useState<FactorRegressionResult | null>(null);
-
-  const toggleFactor = (key: string) =>
-    setSelectedFactors((prev) =>
-      prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key],
-    );
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) =>
-    updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  const toggleFactor = (key: string) => setSelectedFactors((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) => updateItem(i, (prev) => ({ ...prev, [field]: val }));
   const totalWeight = assets.reduce((s, a) => s + (a.weight || 0), 0);
   const runRegression = () => {
     const validation = validateRegressionParams(assets, selectedFactors, t);
@@ -109,7 +81,7 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
           endDate,
           selectedFactors,
           returnFrequency,
-          rfSource,
+          rfSource
         });
         setResult(r);
       } catch (e) {
@@ -119,7 +91,6 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
       }
     });
   };
-
   return {
     startDate,
     endDate,
@@ -139,6 +110,6 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
     toggleFactor,
     addAsset,
     removeAsset,
-    updateAsset,
+    updateAsset
   };
 }

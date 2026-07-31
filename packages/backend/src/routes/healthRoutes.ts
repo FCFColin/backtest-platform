@@ -61,10 +61,6 @@ function authorizeOpsEndpoint(req: Request, res: Response): boolean {
   return true;
 }
 
-/**
- * 探测一个 HTTP 依赖的连通性（带超时）。
- * 任何异常（超时、连接拒绝、非 2xx）均视为不可用，返回 false。
- */
 async function checkHttp(url: string, timeoutMs = 2000): Promise<boolean> {
   try {
     const controller = new AbortController();
@@ -213,18 +209,11 @@ router.get(
   ),
 );
 
-// ---------------------------------------------------------------------------
 // 调试端点（原 debugRoutes.ts 合并，T-29）
 //
 // 企业理由：生产排障需 CPU/堆快照，但端点必须鉴权以防信息泄露。
 // 仅当 DEBUG_AUTH_TOKEN 配置时启用，未配置时返回 404。
-// ---------------------------------------------------------------------------
 
-/**
- * 校验调试端点 Bearer 令牌（DEBUG_AUTH_TOKEN）。
- *
- * D2-004：令牌比较使用 crypto.timingSafeEqual（恒定时间）防计时侧信道。
- */
 function checkDebugAuth(req: Request, res: Response): boolean {
   const token = config.DEBUG_AUTH_TOKEN;
   if (!token) {

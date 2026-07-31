@@ -6,26 +6,20 @@
  *
  * 所有数据操作经 tacticalConfigRepository（withTenant / withTenantReadOnly），
  * 在事务内激活 app.current_tenant_id 由 PostgreSQL RLS 强制租户隔离。
- *
- * 创建时执行配额检查（maxTacticalConfigs 按计划等级区分）。
+ * 创建时经 beforeCreate 执行配额检查（maxTacticalConfigs 按计划等级区分）。
  */
-import { Router, type Request, type Response } from 'express';
-import { validate } from '../middleware/validate.js';
+import { tenantCrudRoutes, requireTenantId, ownerOf } from './routeUtils.js';
 import { sendProblem } from '../utils/errors.js';
+import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import {
   createTacticalConfigSchema,
   updateTacticalConfigSchema,
-  type CreateTacticalConfigBody,
-  type UpdateTacticalConfigBody,
 } from '../schemas/tactical.js';
 import * as tacticalConfigRepo from '../repositories/tacticalConfigRepository.js';
 import { getOrg } from '../application/org/membershipService.js';
 import { getPlanLimits } from '../application/billing/planLimitsService.js';
-import { crudRouteHandler, ownerOf, requireTenantId, requireUuidParam } from './routeUtils.js';
 import { logger } from '../utils/logger.js';
-
-const router = Router();
 
 /**
  * 查询当前租户的计划配额上限（maxTacticalConfigs）。
@@ -41,134 +35,44 @@ async function getMaxTacticalConfigs(tenantId: string): Promise<number> {
   }
 }
 
-// GET / — 列表（分页）
-router.get(
-  '/',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!tenantId) return;
-      const limit = req.query.limit ? Math.min(Number(req.query.limit), 200) : 50;
-      const offset = req.query.offset ? Math.max(Number(req.query.offset), 0) : 0;
-      const data = await tacticalConfigRepo.findByTenant(tenantId, Math.max(1, limit), offset);
-      res.json({ success: true, data });
-    },
-    {
-      logMsg: '[tactical-config] 列表失败',
-      code: 'TACTICAL_CONFIG_LIST_FAILED',
-    },
-  ),
+/**
+ * 创建前钩子：校验用户身份 + 计划配额（超出返回 402）。
+ * 返回 false 表示已发送拒绝响应，终止创建。
+ */
+async function beforeCreate(req: AuthenticatedRequest, res: Response): Promise<boolean> {
+  const tenantId = requireTenantId(req, res);
+  if (!tenantId) return false;
+  if (!ownerOf(req)) {
+    sendProblem(res, 401, 'UNAUTHORIZED');
+    return false;
+  }
+  const maxConfigs = await getMaxTacticalConfigs(tenantId);
+  if (Number.isFinite(maxConfigs)) {
+    const currentCount = await tacticalConfigRepo.count(tenantId);
+    if (currentCount >= maxConfigs) {
+      sendProblem(res, 402, 'TACTICAL_CONFIG_QUOTA_EXCEEDED', undefined, {
+        detail: `战术配置数量已达上限 (${currentCount}/${maxConfigs})，请升级计划或删除旧配置`,
+      });
+      return false;
+    }
+  }
+  return true;
+}
+
+export default tenantCrudRoutes(
+  {
+    list: tacticalConfigRepo.findByTenant,
+    get: tacticalConfigRepo.findById,
+    create: tacticalConfigRepo.create,
+    update: tacticalConfigRepo.update,
+    remove: tacticalConfigRepo.remove,
+  },
+  {
+    resource: 'tactical-config',
+    codePrefix: 'TACTICAL_CONFIG',
+    notFoundCode: 'TACTICAL_CONFIG_NOT_FOUND',
+    createSchema: createTacticalConfigSchema,
+    updateSchema: updateTacticalConfigSchema,
+    beforeCreate,
+  },
 );
-
-// GET /:id — 详情
-router.get(
-  '/:id',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!tenantId) return;
-      if (!requireUuidParam(res, req.params.id)) return;
-      const config = await tacticalConfigRepo.findById(tenantId, req.params.id);
-      if (!config) {
-        sendProblem(res, 404, 'TACTICAL_CONFIG_NOT_FOUND');
-        return;
-      }
-      res.json({ success: true, data: config });
-    },
-    {
-      logMsg: '[tactical-config] 获取失败',
-      code: 'TACTICAL_CONFIG_GET_FAILED',
-    },
-  ),
-);
-
-// POST / — 创建（含配额检查）
-router.post(
-  '/',
-  validate(createTacticalConfigSchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!tenantId) return;
-      const userId = ownerOf(req as AuthenticatedRequest);
-      if (!userId) {
-        sendProblem(res, 401, 'UNAUTHORIZED');
-        return;
-      }
-
-      // 配额检查：每租户战术配置上限
-      const maxConfigs = await getMaxTacticalConfigs(tenantId);
-      if (Number.isFinite(maxConfigs)) {
-        const currentCount = await tacticalConfigRepo.count(tenantId);
-        if (currentCount >= maxConfigs) {
-          sendProblem(res, 402, 'TACTICAL_CONFIG_QUOTA_EXCEEDED', undefined, {
-            detail: `战术配置数量已达上限 (${currentCount}/${maxConfigs})，请升级计划或删除旧配置`,
-          });
-          return;
-        }
-      }
-
-      const created = await tacticalConfigRepo.create(
-        tenantId,
-        userId,
-        req.body as CreateTacticalConfigBody,
-      );
-      res.status(201).json({ success: true, data: created });
-    },
-    {
-      logMsg: '[tactical-config] 创建失败',
-      code: 'TACTICAL_CONFIG_CREATE_FAILED',
-    },
-  ),
-);
-
-// PUT /:id — 更新
-router.put(
-  '/:id',
-  validate(updateTacticalConfigSchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!tenantId) return;
-      if (!requireUuidParam(res, req.params.id)) return;
-      const updated = await tacticalConfigRepo.update(
-        tenantId,
-        req.params.id,
-        req.body as UpdateTacticalConfigBody,
-      );
-      if (!updated) {
-        sendProblem(res, 404, 'TACTICAL_CONFIG_NOT_FOUND');
-        return;
-      }
-      res.json({ success: true, data: updated });
-    },
-    {
-      logMsg: '[tactical-config] 更新失败',
-      code: 'TACTICAL_CONFIG_UPDATE_FAILED',
-    },
-  ),
-);
-
-// DELETE /:id — 删除
-router.delete(
-  '/:id',
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-      if (!tenantId) return;
-      if (!requireUuidParam(res, req.params.id)) return;
-      const ok = await tacticalConfigRepo.remove(tenantId, req.params.id);
-      if (!ok) {
-        sendProblem(res, 404, 'TACTICAL_CONFIG_NOT_FOUND');
-        return;
-      }
-      res.json({ success: true, data: { id: req.params.id, deleted: true } });
-    },
-    {
-      logMsg: '[tactical-config] 删除失败',
-      code: 'TACTICAL_CONFIG_DELETE_FAILED',
-    },
-  ),
-);
-
-export default router;

@@ -1,14 +1,3 @@
-/**
- * 测试辅助：data service Go HTTP 调用 stub
- *
- * 仅保留 setupHttpGetSuccess + setupHttpGetError。
- * Phase 5.5 已清理 4 个未用导出（createCircuitBreakerMock/mockTickerData/
- * mockDataServiceResponse/createFsSyncMock）。
- *
- * 用法：
- *   import { setupHttpGetSuccess, setupHttpGetError } from '../helpers/dataServiceFixtures.js';
- *   setupHttpGetSuccess(JSON.stringify({ success: true, data: [...] }));
- */
 
 import { vi } from 'vitest';
 import { EventEmitter } from 'events';

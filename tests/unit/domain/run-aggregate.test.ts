@@ -1,15 +1,3 @@
-/**
- * Run 聚合根单元测试
- *
- * 覆盖：
- * - create() 初始状态为 queued，产生 RunStarted 事件
- * - 状态机合法路径：queued → running → completed（产生 RunCompleted）
- * - 状态机合法路径：queued → running → failed（产生 RunFailed）
- * - 状态机合法路径：queued → cancelled（产生 RunCancelled）
- * - 终态非法转换：completed/failed/cancelled → start/complete/fail/cancel 抛错
- * - pullEvents() 取出后清空
- */
-
 import { describe, it, expect } from 'vitest';
 import { Run } from '../../../packages/backend/src/domain/aggregates/run.js';
 import { DomainValidationError } from '../../../packages/backend/src/domain/errors.js';

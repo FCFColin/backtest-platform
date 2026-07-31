@@ -1,107 +1,32 @@
-/**
- * @file 蒙特卡洛结果 - 区间 Tab
- * @description 展示组合价值的百分位区间带（P5-P95 / P25-P75 + 中位线）
- */
 import { useTranslation } from 'react-i18next';
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  Line,
-} from 'recharts';
-import { Card } from '@/components/ui/card';
+import { Card } from '@/components/ui/uiComponents';
 import type { MonteCarloResult } from '@backtest/shared';
-import {
-  CHART_TOOLTIP_STYLE,
-  CHART_GRID_PROPS,
-  AXIS_TICK_STYLE,
-} from '@/lib/chart-theme.js';
-import {
-  buildRangeData,
-  RANGE_AREAS,
-  rangeLines,
-  monthFormatter,
-  dollarKFormatter,
-  dollarFormatter,
-  yearLabelFormatter,
-  type RangeDataPoint,
-} from './monteCarloTransforms.js';
-
-function RangeChart({ data }: { data: RangeDataPoint[] }) {
+import { buildFanChartData, fanAreas, fanMedianLine, type FanDataPoint } from './monteCarloUtils.js';
+import { MonteCarloTerminalHistogram } from './MonteCarloTerminalHistogram.js';
+import SvgFanChart from './SvgFanChart.js';
+function FanChart({ data }: { data: FanDataPoint[] }) {
   const { t } = useTranslation();
-  return (
-    <ResponsiveContainer width="100%" height={450}>
-      <AreaChart data={data} margin={{ top: 10, right: 30, left: 10, bottom: 20 }}>
-        <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
-        <XAxis
-          dataKey="month"
-          tick={AXIS_TICK_STYLE}
-          tickFormatter={monthFormatter}
-          interval={11}
-        />
-        <YAxis tick={AXIS_TICK_STYLE} tickFormatter={dollarKFormatter} />
-        <Tooltip
-          formatter={dollarFormatter}
-          labelFormatter={(l: number) => yearLabelFormatter(t, l)}
-          contentStyle={CHART_TOOLTIP_STYLE}
-        />
-        <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
-        {RANGE_AREAS.map((a) => (
-          <Area
-            key={a.dataKey + a.stackId}
-            type="monotone"
-            dataKey={a.dataKey}
-            stackId={a.stackId}
-            stroke="none"
-            fill={a.fill}
-            fillOpacity={a.fillOpacity}
-            name={a.name}
-          />
-        ))}
-        {rangeLines(t).map((l) => (
-          <Line
-            key={l.dataKey}
-            type="monotone"
-            dataKey={l.dataKey}
-            stroke={l.stroke}
-            strokeWidth={l.strokeWidth}
-            strokeDasharray={l.dash}
-            dot={false}
-            name={l.name}
-          />
-        ))}
-      </AreaChart>
-    </ResponsiveContainer>
-  );
+  const areas = fanAreas(t);
+  const median = fanMedianLine(t);
+  return <SvgFanChart data={data} band5_95Name={areas[0]?.name ?? ''} band25_75Name={areas[1]?.name ?? ''} medianName={median.name} />;
 }
-
-/** 区间 Tab：百分位区间带图 */
-export function MonteCarloRangeTab({
-  r,
-  startingValue,
-}: {
-  r: MonteCarloResult;
-  startingValue: number;
-}) {
+export function MonteCarloRangeTab({ r, startingValue }: { r: MonteCarloResult; startingValue: number }) {
   const { t } = useTranslation();
-  const data = buildRangeData(r, startingValue);
+  const data = buildFanChartData(r, startingValue);
   if (data.length === 0) {
     return (
       <Card className="p-5">
-        <div className="py-6 text-center text-caption text-fg-tertiary">
-          {t('monteCarlo.results.noData')}
-        </div>
+        <div className="py-6 text-center text-caption text-fg-tertiary">{t('monteCarlo.results.noData')}</div>
       </Card>
     );
   }
   return (
-    <Card className="p-5">
-      <RangeChart data={data} />
-    </Card>
+    <div className="flex flex-col gap-4">
+      <Card className="p-5">
+        <h4 className="mb-3 text-sm font-semibold tabular-nums text-fg-secondary">{t('monteCarlo.fanChart.title')}</h4>
+        <FanChart data={data} />
+      </Card>
+      <MonteCarloTerminalHistogram r={r} startingValue={startingValue} />
+    </div>
   );
 }

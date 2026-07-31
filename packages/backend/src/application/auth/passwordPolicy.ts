@@ -15,14 +15,12 @@ import argon2 from 'argon2';
 import { config } from '../../config/index.js';
 import { getPool } from '../../db/pool.js';
 
-/** 密码校验结果 */
 export interface PasswordValidationResult {
   valid: boolean;
   /** 失败原因列表（valid=false 时存在） */
   errors: string[];
 }
 
-/** 字符类别检测结果 */
 interface CharClasses {
   upper: boolean;
   lower: boolean;
@@ -30,7 +28,6 @@ interface CharClasses {
   special: boolean;
 }
 
-/** 检测密码包含的字符类别数 */
 function detectCharClasses(password: string): CharClasses {
   return {
     upper: /[A-Z]/.test(password),

@@ -1,51 +1,58 @@
-/**
- * @file useDataMeta hook
- * @description 从后端获取数据元信息（最后更新/标的数/最早日期/数据点数）。
- *   5 分钟内存缓存。
- *   D10-013: 使用 apiFetch + silent:true 静默降级，避免 5xx 响应触发错误 Toast。
- */
 import { useState, useEffect } from 'react';
 import { apiFetch } from '@/utils/apiClient.js';
-
 export interface DataMeta {
   lastUpdated: string;
   tickerCount: number;
   earliestDate: string;
   dataPointCount: number;
 }
-
-/** 内存缓存 */
 let cachedMeta: DataMeta | null = null;
 let cacheTime = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 分钟
-
-/**
- * 获取数据元信息 hook（5 分钟缓存）。
- * @returns meta 或 null（加载中）。
- */
+let pendingMetaPromise: Promise<DataMeta | null> | null = null;
+const CACHE_TTL = 5 * 60 * 1000;
+function getPreloadedMeta(): DataMeta | null {
+  try {
+    const global = typeof window !== 'undefined' ? (window as any).__INITIAL_DATA__ : null;
+    if (!global) return null;
+    const data = global.data ?? global;
+    if (data?.tickerCount !== undefined && data?.lastUpdated) {
+      return { lastUpdated: data.lastUpdated, tickerCount: data.tickerCount, earliestDate: data.earliestDate || '', dataPointCount: data.dataPointCount || 0 };
+    }
+  } catch {
+    /* 忽略 */
+  }
+  return null;
+}
+const preloaded = getPreloadedMeta();
+if (preloaded) {
+  cachedMeta = preloaded;
+  cacheTime = Date.now();
+}
 export function useDataMeta(): DataMeta | null {
   const [meta, setMeta] = useState<DataMeta | null>(cachedMeta);
-
   useEffect(() => {
     if (cachedMeta && Date.now() - cacheTime < CACHE_TTL) {
       setMeta(cachedMeta);
       return;
     }
-
-    apiFetch('/api/v1/data/meta', { silent: true })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
-        const data = json?.data ?? json;
-        if (data && data.lastUpdated) {
-          cachedMeta = data;
-          cacheTime = Date.now();
-          setMeta(data);
-        }
-      })
-      .catch(() => {
-        setMeta(null);
-      });
+    if (!pendingMetaPromise) {
+      pendingMetaPromise = apiFetch('/api/v1/data/meta', { silent: true })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          const data = json?.data ?? json;
+          if (data && data.lastUpdated) {
+            cachedMeta = data;
+            cacheTime = Date.now();
+            return data;
+          }
+          return null;
+        })
+        .catch(() => null)
+        .finally(() => {
+          pendingMetaPromise = null;
+        });
+    }
+    pendingMetaPromise.then((data) => setMeta(data));
   }, []);
-
   return meta;
 }
