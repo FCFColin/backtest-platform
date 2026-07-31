@@ -5,18 +5,19 @@ import { SignJWT, generateKeyPair, importPKCS8, importSPKI, importJWK, jwtVerify
 import { trace, type Span } from '@opentelemetry/api';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { sendProblem, RedisUnavailableError, errorMessage } from '../utils/errors.js';
+import { sendProblem, errorMessage } from '../utils/errors.js';
 import { recordAuthFailure, getRoutePattern } from '../utils/metrics.js';
 import type { OrgRole } from '@backtest/shared/types/org';
-import { appRedis, getRedisHealth, markRedisUnhealthy } from '../infrastructure/redisClient.js';
-import { getUserById } from '../repositories/userRepo.js';
-import { requireRedis } from '../utils/redisFallback.js';
-import { verifyApiKey } from '../infrastructure/apiKeyVerifier.js';
-import type { PoolClient } from 'pg';
-import { getPool } from '../db/pool.js';
+import { authenticateWithApiKey } from './apiKeyAuth.js';
+import {
+  ACCESS_TOKEN_EXPIRES_IN_SEC,
+  ROLE_TTL,
+  isAccessTokenRevokedForUser,
+  isUserSessionValid,
+} from './tokenStore.js';
 
 export type { OrgRole };
-type Role = 'admin' | 'analyst' | 'readonly';
+export type Role = 'admin' | 'analyst' | 'readonly';
 
 export interface TenantContext {
   tenantId?: string;
@@ -41,48 +42,21 @@ export interface TenantedRequest extends Request {
   user?: JwtPayload | null;
   tenantId: string;
 }
-export interface RefreshTokenEntry {
-  userId: string;
-  role: Role;
-  expiresAt: number;
-  familyId: string;
-  tenantId?: string;
-  orgRole?: OrgRole;
-  platformAdmin?: boolean;
-}
-export interface TokenFamilyEntry {
-  lastToken: string;
-  revoked: boolean;
-}
-
-export const ACCESS_TOKEN_EXPIRES_IN_SEC = config.JWT_ACCESS_TTL;
-export const REFRESH_TOKEN_EXPIRES_IN_SEC = config.JWT_REFRESH_TTL;
-export const REFRESH_TOKEN_PREFIX = 'refresh_token:';
-export const TOKEN_FAMILY_PREFIX = 'token_family:';
-
-/** 按角色取 access token TTL；admin 空闲不过期（TTL=0），兜底用全局配置。 */
-const ROLE_TTL: Record<Role, number> = {
-  readonly: config.SESSION_IDLE_TIMEOUT_READONLY_SEC,
-  analyst: config.SESSION_IDLE_TIMEOUT_ANALYST_SEC,
-  admin: 0,
-};
-export function getRoleBasedAccessTtl(role: Role): number {
-  return ROLE_TTL[role] || config.JWT_ACCESS_TTL;
-}
 
 /** 日志脱敏：用户标识取 sha256 前 16 位。 */
 export function hashUserId(sub: string | undefined): string | undefined {
   return sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
 }
 
+type LoggableRequest = AuthenticatedRequest & {
+  log?: {
+    child: (b: Record<string, unknown>) => { child: (b: Record<string, unknown>) => unknown };
+  };
+};
 export function attachAuthLogContext(req: AuthenticatedRequest): void {
   const sub = req.user?.sub;
   if (!sub) return;
-  const reqWithLog = req as AuthenticatedRequest & {
-    log?: {
-      child: (b: Record<string, unknown>) => { child: (b: Record<string, unknown>) => unknown };
-    };
-  };
+  const reqWithLog = req as LoggableRequest;
   if (reqWithLog.log && typeof reqWithLog.log.child === 'function')
     reqWithLog.log = reqWithLog.log.child({
       user_id: hashUserId(sub),
@@ -99,66 +73,10 @@ export function requireUser(
   }
   return true;
 }
-export function tenantFromEntry(entry: RefreshTokenEntry): TenantContext {
-  return { tenantId: entry.tenantId, orgRole: entry.orgRole, platformAdmin: entry.platformAdmin };
-}
-
-const SYSTEM_USER_IDS = new Set(['dev-user', 'api-key-user']);
-export async function isUserSessionValid(userId: string): Promise<boolean> {
-  if (SYSTEM_USER_IDS.has(userId)) return true;
-  try {
-    const user = await getUserById(userId);
-    return user !== null && user.isActive;
-  } catch (err) {
-    logger.warn({ err: String(err), userId }, '[jwtAuth] 用户状态查询失败，拒绝会话');
-    return false;
-  }
-}
 
 /** 统一认证日志上下文。 */
-function authCtx(middleware: string, req: AuthenticatedRequest): Record<string, unknown> {
+export function authCtx(middleware: string, req: AuthenticatedRequest): Record<string, unknown> {
   return { middleware, path: req.path, requestId: req.id };
-}
-
-export async function generateRefreshToken(
-  userId: string,
-  role: Role,
-  existingFamilyId?: string,
-  tenant?: TenantContext,
-): Promise<string> {
-  if (!(await getRedisHealth()))
-    throw new RedisUnavailableError(`Redis unavailable (generateRefreshToken:${userId})`);
-  const token = crypto.randomBytes(32).toString('hex');
-  const now = Math.floor(Date.now() / 1000);
-  const familyId = existingFamilyId || crypto.randomBytes(16).toString('hex');
-  const ttlSec = REFRESH_TOKEN_EXPIRES_IN_SEC;
-  const entry: RefreshTokenEntry = {
-    userId,
-    role,
-    expiresAt: now + ttlSec,
-    familyId,
-    tenantId: tenant?.tenantId,
-    orgRole: tenant?.orgRole,
-    platformAdmin: tenant?.platformAdmin,
-  };
-  try {
-    await appRedis.set(`${REFRESH_TOKEN_PREFIX}${token}`, JSON.stringify(entry), 'EX', ttlSec);
-    await appRedis.set(
-      `${TOKEN_FAMILY_PREFIX}${familyId}`,
-      JSON.stringify({ lastToken: token, revoked: false } satisfies TokenFamilyEntry),
-      'EX',
-      ttlSec,
-    );
-    const userFamiliesKey = `user_families:${userId}`;
-    await appRedis.sadd(userFamiliesKey, familyId);
-    await appRedis.expire(userFamiliesKey, ttlSec);
-    logger.info({ userId, familyId }, '[jwtAuth] Redis: Refresh Token 已存储');
-  } catch (err) {
-    logger.warn({ err: String(err) }, '[jwtAuth] Redis 存储失败，抛出 RedisUnavailableError');
-    markRedisUnhealthy();
-    throw new RedisUnavailableError(`Redis write failed (generateRefreshToken): ${String(err)}`);
-  }
-  return token;
 }
 
 type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
@@ -169,7 +87,7 @@ let devKeyPair: { privateKey: JoseKey; publicKey: JoseKey } | null = null;
 async function generateDevKeyPair(): Promise<{ privateKey: JoseKey; publicKey: JoseKey }> {
   if (devKeyPair) return devKeyPair;
   const { publicKey, privateKey } = await generateKeyPair('RS256', { modulusLength: 2048 });
-  devKeyPair = { privateKey, publicKey };
+  devKeyPair = { publicKey, privateKey };
   logger.info('[jwtAuth] 已自动生成开发环境 RSA 密钥对（进程重启后失效）');
   return devKeyPair;
 }
@@ -231,7 +149,7 @@ export async function generateToken(
     sub: userId,
     role,
     iat: now,
-    exp: now + getRoleBasedAccessTtl(role),
+    exp: now + (ROLE_TTL[role] || config.JWT_ACCESS_TTL),
   };
   if (tenant?.tenantId) payload.tenant_id = tenant.tenantId;
   if (tenant?.orgRole) payload.org_role = tenant.orgRole;
@@ -266,14 +184,20 @@ async function validateJwtPayload(
   span.setAttribute('verify.result', 'success');
   return jwtPayload;
 }
+async function verifyWithAlgorithm(
+  token: string,
+  algorithm: 'RS256' | 'HS256',
+  span: Span,
+): Promise<JwtPayload | null> {
+  const key = algorithm === 'RS256' ? await getOrCachePublicKey() : await getOrCacheHS256Key();
+  const { payload } = await jwtVerify(token, key, { algorithms: [algorithm] });
+  return validateJwtPayload(payload, algorithm, span);
+}
 async function verifyJwt(token: string): Promise<JwtPayload | null> {
   return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
     try {
       try {
-        const { payload } = await jwtVerify(token, await getOrCachePublicKey(), {
-          algorithms: ['RS256'],
-        });
-        return await validateJwtPayload(payload, 'RS256', span);
+        return await verifyWithAlgorithm(token, 'RS256', span);
       } catch {
         /* RS256 失败，按策略决定是否回退 HS256 */
       }
@@ -282,10 +206,7 @@ async function verifyJwt(token: string): Promise<JwtPayload | null> {
         return null;
       }
       try {
-        const { payload } = await jwtVerify(token, await getOrCacheHS256Key(), {
-          algorithms: ['HS256'],
-        });
-        return await validateJwtPayload(payload, 'HS256', span);
+        return await verifyWithAlgorithm(token, 'HS256', span);
       } catch {
         span.setAttribute('verify.result', 'failed');
         return null;
@@ -299,173 +220,7 @@ export async function verifyToken(token: string): Promise<JwtPayload | null> {
   return verifyJwt(token);
 }
 
-const USER_FAMILIES_PREFIX = 'user_families:';
-const USER_REVOKED_PREFIX = 'user_revoked:';
-
-async function setFamilyRevoked(
-  familyId: string,
-  lastToken: string,
-  revoked = true,
-): Promise<void> {
-  await appRedis.set(
-    `${TOKEN_FAMILY_PREFIX}${familyId}`,
-    JSON.stringify({ lastToken, revoked } satisfies TokenFamilyEntry),
-    'EX',
-    REFRESH_TOKEN_EXPIRES_IN_SEC,
-  );
-}
-async function revokeFamilyRedis(familyId: string): Promise<void> {
-  const familyRaw = await appRedis.get(`${TOKEN_FAMILY_PREFIX}${familyId}`);
-  if (familyRaw) {
-    const family = JSON.parse(familyRaw) as TokenFamilyEntry;
-    if (family.lastToken) await appRedis.del(`${REFRESH_TOKEN_PREFIX}${family.lastToken}`);
-  }
-  await setFamilyRevoked(familyId, '', true);
-}
-export async function revokeRefreshToken(refreshToken: string): Promise<void> {
-  await requireRedis(`revoke:${refreshToken}`, () => revokeRefreshTokenRedis(refreshToken));
-}
-async function revokeRefreshTokenRedis(refreshToken: string): Promise<void> {
-  const tokenKey = `${REFRESH_TOKEN_PREFIX}${refreshToken}`;
-  const raw = await appRedis.get(tokenKey);
-  if (raw) {
-    const entry: RefreshTokenEntry = JSON.parse(raw);
-    await revokeFamilyRedis(entry.familyId);
-    await appRedis.del(tokenKey);
-    logger.info({ familyId: entry.familyId }, '[jwtAuth] Redis: Refresh Token 及其 Family 已撤销');
-  }
-  const usedRaw = await appRedis.get(`${REFRESH_TOKEN_PREFIX}used:${refreshToken}`);
-  if (usedRaw) {
-    const { familyId } = JSON.parse(usedRaw) as { familyId: string };
-    await revokeFamilyRedis(familyId);
-    await appRedis.del(`${REFRESH_TOKEN_PREFIX}used:${refreshToken}`);
-  }
-}
-export async function isAccessTokenRevokedForUser(
-  userId: string,
-  tokenIat: number,
-): Promise<boolean> {
-  return requireRedis(`${USER_REVOKED_PREFIX}${userId}`, async () => {
-    const raw = await appRedis.get(`${USER_REVOKED_PREFIX}${userId}`);
-    if (!raw) return false;
-    const revokedAt = Number.parseInt(raw, 10);
-    return Number.isFinite(revokedAt) && tokenIat <= revokedAt;
-  });
-}
-export async function revokeAllUserSessions(userId: string): Promise<void> {
-  const revokedAt = Math.floor(Date.now() / 1000);
-  await requireRedis(`revoke-all:${userId}`, async () => {
-    const familiesKey = `${USER_FAMILIES_PREFIX}${userId}`;
-    const familyIds = await appRedis.smembers(familiesKey);
-    for (const familyId of familyIds) await revokeFamilyRedis(familyId);
-    if (familyIds.length > 0) await appRedis.del(familiesKey);
-    await appRedis.set(
-      `${USER_REVOKED_PREFIX}${userId}`,
-      String(revokedAt),
-      'EX',
-      REFRESH_TOKEN_EXPIRES_IN_SEC,
-    );
-    logger.info({ userId, familyCount: familyIds.length }, '[jwtAuth] Redis: 用户全部会话已撤销');
-  });
-}
-export async function refreshAccessToken(
-  refreshToken: string,
-): Promise<{ accessToken: string; refreshToken: string } | null> {
-  return requireRedis(`refresh:${refreshToken}`, () => refreshAccessTokenRedis(refreshToken));
-}
-async function issueRotatedTokens(
-  entry: RefreshTokenEntry,
-): Promise<{ accessToken: string; refreshToken: string }> {
-  const tenant = tenantFromEntry(entry);
-  const accessToken = await generateToken(entry.userId, entry.role, tenant);
-  const newRefreshToken = await generateRefreshToken(
-    entry.userId,
-    entry.role,
-    entry.familyId,
-    tenant,
-  );
-  return { accessToken, refreshToken: newRefreshToken };
-}
-async function refreshAccessTokenRedis(
-  refreshToken: string,
-): Promise<{ accessToken: string; refreshToken: string } | null> {
-  const tokenKey = `${REFRESH_TOKEN_PREFIX}${refreshToken}`;
-  const raw = await appRedis.get(tokenKey);
-  if (!raw) return checkReuseAndRevoke(refreshToken);
-  const entry: RefreshTokenEntry = JSON.parse(raw);
-  const now = Math.floor(Date.now() / 1000);
-  if (entry.expiresAt < now) {
-    await appRedis.del(tokenKey);
-    return null;
-  }
-  if (!(await isUserSessionValid(entry.userId))) {
-    await appRedis.del(tokenKey);
-    logger.warn({ userId: hashUserId(entry.userId) }, '[jwtAuth] 用户已停用，拒绝 refresh');
-    return null;
-  }
-  const familyRaw = await appRedis.get(`${TOKEN_FAMILY_PREFIX}${entry.familyId}`);
-  if (familyRaw && (JSON.parse(familyRaw) as TokenFamilyEntry).revoked) {
-    logger.warn(
-      { familyId: entry.familyId },
-      '[jwtAuth] Token family 已被撤销（复用检测触发），拒绝刷新',
-    );
-    await appRedis.del(tokenKey);
-    return null;
-  }
-  const usedKey = `${REFRESH_TOKEN_PREFIX}used:${refreshToken}`;
-  await appRedis.set(
-    usedKey,
-    JSON.stringify({ familyId: entry.familyId }),
-    'EX',
-    REFRESH_TOKEN_EXPIRES_IN_SEC,
-  );
-  await appRedis.del(tokenKey);
-  return issueRotatedTokens(entry);
-}
-async function checkReuseAndRevoke(refreshToken: string): Promise<null> {
-  const usedRaw = await appRedis.get(`${REFRESH_TOKEN_PREFIX}used:${refreshToken}`);
-  if (!usedRaw) return null;
-  const { familyId } = JSON.parse(usedRaw) as { familyId: string };
-  logger.warn({ familyId }, '[jwtAuth] 检测到 Refresh Token 复用！撤销整个 Token Family');
-  await revokeFamilyRedis(familyId);
-  return null;
-}
-
-async function resolveApiKeyUser(apiKey: string): Promise<JwtPayload | null> {
-  if (typeof apiKey !== 'string' || apiKey.length === 0 || apiKey.length > 128) return null;
-  const nowSec = Math.floor(Date.now() / 1000);
-  const verified = await verifyApiKey(apiKey);
-  if (!verified) return null;
-  const common = {
-    iat: nowSec,
-    exp: nowSec + ACCESS_TOKEN_EXPIRES_IN_SEC,
-    api_key_id: verified.keyId,
-  };
-  if (verified.isPlatformAdmin)
-    return { sub: 'platform:break-glass', role: 'admin', platform_admin: true, ...common };
-  return {
-    sub: `apikey:${verified.keyId}`,
-    role: 'analyst',
-    tenant_id: verified.orgId ?? undefined,
-    org_role: 'analyst',
-    ...common,
-  };
-}
-function logApiKeyAuth(req: AuthenticatedRequest, middleware: string): void {
-  logger.info(
-    {
-      ...authCtx(middleware, req),
-      userId: hashUserId(req.user?.sub),
-      role: req.user?.role,
-      tenantId: req.user?.tenant_id,
-      platformAdmin: req.user?.platform_admin === true,
-    },
-    '[jwtAuth] API Key 认证通过',
-  );
-}
-
-const API_KEY_RESOLUTION_TIMEOUT_MS = 5000;
-function authFail(
+export function authFail(
   middleware: string,
   req: AuthenticatedRequest,
   error: string,
@@ -481,89 +236,6 @@ function authSuccess(middleware: string, req: AuthenticatedRequest, next: NextFu
     '[jwtAuth] JWT 认证通过',
   );
   next();
-}
-export async function handleApiKeyAuth(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  const apiKey = req.headers['x-api-key'] as string | undefined;
-  if (!apiKey) return;
-  try {
-    const user = await resolveApiKeyUser(apiKey);
-    if (user) {
-      req.user = user;
-      attachAuthLogContext(req);
-      logApiKeyAuth(req, 'jwtAuth');
-      next();
-      return;
-    }
-    authFail('jwtAuth', req, 'API Key 无效');
-    sendProblem(res, 401, 'INVALID_API_KEY');
-  } catch (err) {
-    logger.error(
-      { ...authCtx('jwtAuth', req), err },
-      '[jwtAuth] API Key 验证基础设施错误，fail-closed 503',
-    );
-    sendProblem(res, 503, 'AUTH_SERVICE_UNAVAILABLE', 'Authentication Service Unavailable', {
-      detail: 'API key validation service is temporarily unavailable',
-    });
-  }
-}
-export async function handleOptionalApiKey(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  const apiKey = req.headers['x-api-key'] as string | undefined;
-  if (!apiKey) {
-    req.user = null;
-    logger.info(
-      { ...authCtx('optionalJwtAuth', req) },
-      '[jwtAuth] 无有效 Bearer Token/API Key，匿名放行',
-    );
-    next();
-    return;
-  }
-  try {
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(
-        () => reject(new Error('API_KEY_RESOLUTION_TIMEOUT')),
-        API_KEY_RESOLUTION_TIMEOUT_MS,
-      ),
-    );
-    const user = await Promise.race([resolveApiKeyUser(apiKey), timeoutPromise]);
-    if (user) {
-      req.user = user;
-      attachAuthLogContext(req);
-      logApiKeyAuth(req, 'optionalJwtAuth');
-    } else {
-      req.user = null;
-      logger.info(
-        { ...authCtx('optionalJwtAuth', req) },
-        '[jwtAuth] 无有效 Bearer Token/API Key，匿名放行',
-      );
-    }
-    next();
-  } catch (err) {
-    if (err instanceof Error && err.message === 'API_KEY_RESOLUTION_TIMEOUT') {
-      logger.warn(
-        { ...authCtx('optionalJwtAuth', req) },
-        '[jwtAuth] API Key 解析超时（5s），返回 504',
-      );
-      sendProblem(res, 504, 'GATEWAY_TIMEOUT', 'API Key Resolution Timeout', {
-        detail: 'The API key resolution service did not respond within 5 seconds',
-      });
-      return;
-    }
-    logger.error(
-      { ...authCtx('optionalJwtAuth', req), err },
-      '[jwtAuth] API Key 验证基础设施错误，fail-closed 503',
-    );
-    sendProblem(res, 503, 'AUTH_SERVICE_UNAVAILABLE', 'Authentication Service Unavailable', {
-      detail: 'API key validation service is temporarily unavailable',
-    });
-  }
 }
 
 function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
@@ -615,58 +287,35 @@ function bearerToken(req: AuthenticatedRequest): string {
   const authHeader = req.headers.authorization;
   return authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
 }
-async function handleBearerTokenAuth(
+async function authenticateWithBearer(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
+  optional: boolean,
 ): Promise<void> {
+  const middleware = optional ? 'optionalJwtAuth' : 'jwtAuth';
   const token = bearerToken(req);
   const payload = token ? await verifyToken(token) : null;
   if (!payload) {
-    authFail('jwtAuth', req, 'JWT token 无效或已过期', 'invalid_token');
+    if (optional) {
+      req.user = null;
+      logger.warn(
+        { ...authCtx(middleware, req), error: 'JWT token 无效或已过期' },
+        '[jwtAuth] JWT 认证失败，可选认证放行',
+      );
+      next();
+      return;
+    }
+    authFail(middleware, req, 'JWT token 无效或已过期', 'invalid_token');
     sendProblem(res, 401, 'INVALID_TOKEN');
     return;
   }
-  if (await denyIfRevokedOrDisabled(payload, req, res, 'jwtAuth')) return;
-  req.user = payload;
-  authSuccess('jwtAuth', req, next);
-}
-export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  logger.info({ ...authCtx('jwtAuth', req), method: req.method }, '[jwtAuth] JWT 认证检查');
-  if (tryDevBypass(req, next)) return;
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    handleBearerTokenAuth(req, res, next);
-    return;
-  }
-  if (req.headers['x-api-key']) {
-    handleApiKeyAuth(req, res, next);
-    return;
-  }
-  authFail('jwtAuth', req, '缺少认证凭证', 'missing_credentials');
-  sendProblem(res, 401, 'MISSING_CREDENTIALS');
-}
-async function handleOptionalBearer(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  const token = bearerToken(req);
-  const payload = token ? await verifyToken(token) : null;
-  if (!payload) {
-    req.user = null;
-    logger.warn(
-      { ...authCtx('optionalJwtAuth', req), error: 'JWT token 无效或已过期' },
-      '[jwtAuth] JWT 认证失败，可选认证放行',
-    );
-    next();
-    return;
-  }
   try {
-    if (await denyIfRevokedOrDisabled(payload, req, res, 'optionalJwtAuth')) return;
-  } catch {
+    if (await denyIfRevokedOrDisabled(payload, req, res, middleware)) return;
+  } catch (err) {
+    if (!optional) throw err;
     logger.warn(
-      { ...authCtx('optionalJwtAuth', req), userId: hashUserId(payload.sub) },
+      { ...authCtx(middleware, req), userId: hashUserId(payload.sub) },
       '[jwtAuth] 会话状态校验异常，fail-closed 拒绝（可选认证路径）',
     );
     recordAuthFailure(getRoutePattern(req), 'session_check_error');
@@ -674,29 +323,55 @@ async function handleOptionalBearer(
     return;
   }
   req.user = payload;
-  authSuccess('optionalJwtAuth', req, next);
+  authSuccess(middleware, req, next);
+}
+async function authenticate(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+  optional: boolean,
+): Promise<void> {
+  const middleware = optional ? 'optionalJwtAuth' : 'jwtAuth';
+  logger.info(
+    { ...authCtx(middleware, req), method: req.method },
+    optional ? '[jwtAuth] 可选 JWT 认证检查' : '[jwtAuth] JWT 认证检查',
+  );
+  if (!optional && tryDevBypass(req, next)) return;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    if (optional) {
+      void authenticateWithBearer(req, res, next, true).catch((err) => {
+        logger.error(
+          { err, path: req.path, requestId: req.id },
+          '[jwtAuth] handleOptionalBearer unhandled rejection',
+        );
+        next(err);
+      });
+      return;
+    }
+    await authenticateWithBearer(req, res, next, false);
+    return;
+  }
+  if (req.headers['x-api-key']) {
+    await authenticateWithApiKey(req, res, next, optional);
+    return;
+  }
+  if (optional) {
+    await authenticateWithApiKey(req, res, next, true);
+    return;
+  }
+  authFail(middleware, req, '缺少认证凭证', 'missing_credentials');
+  sendProblem(res, 401, 'MISSING_CREDENTIALS');
+}
+export function jwtAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  void authenticate(req, res, next, false);
 }
 export function optionalJwtAuth(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction,
 ): void {
-  logger.info(
-    { ...authCtx('optionalJwtAuth', req), method: req.method },
-    '[jwtAuth] 可选 JWT 认证检查',
-  );
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    void handleOptionalBearer(req, res, next).catch((err) => {
-      logger.error(
-        { err, path: req.path, requestId: req.id },
-        '[jwtAuth] handleOptionalBearer unhandled rejection',
-      );
-      next(err);
-    });
-  } else {
-    void handleOptionalApiKey(req, res, next);
-  }
+  void authenticate(req, res, next, true);
 }
 export function assignGuestReadonly(
   req: AuthenticatedRequest,
@@ -711,190 +386,23 @@ export function assignGuestReadonly(
   next();
 }
 
-interface CachedResult {
-  statusCode: number;
-  body: unknown;
-  timestamp: number;
-}
-const KEY_TTL_SEC = 3600;
-const IDEMPOTENCY_REDIS_KEY_PREFIX = 'idempotency:';
+// ============ 拆分后从各内聚文件再导出（保持既有 import 路径不变）============
 
-export function idempotencyKey(req: Request, res: Response, next: NextFunction): void {
-  if (req.method.toUpperCase() !== 'POST') {
-    next();
-    return;
-  }
-  const key = req.headers['idempotency-key'] as string | undefined;
-  if (!key) {
-    next();
-    return;
-  }
-  if (key.length > 128) {
-    sendProblem(res, 400, 'INVALID_IDEMPOTENCY_KEY');
-    return;
-  }
-  void handleWithRedis(key, req, res, next);
-}
-function redisUnavailable(res: Response): void {
-  sendProblem(res, 503, 'REDIS_UNAVAILABLE', undefined, {
-    detail: 'Idempotency key requires Redis; please retry',
-    headers: { 'Retry-After': '30' },
-  });
-}
-function interceptResponse(
-  res: Response,
-  storageKey: string,
-  storeFn: (key: string, entry: CachedResult) => void,
-): void {
-  const originalJson = res.json.bind(res);
-  res.json = function (body: unknown): Response {
-    if (res.statusCode >= 200 && res.statusCode < 300)
-      storeFn(storageKey, { statusCode: res.statusCode, body, timestamp: Date.now() });
-    return originalJson(body);
-  };
-}
-async function handleWithRedis(
-  key: string,
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
-  const redisKey = `${IDEMPOTENCY_REDIS_KEY_PREFIX}${key}`;
-  if (!(await getRedisHealth())) return redisUnavailable(res);
-  try {
-    const cached = await appRedis.get(redisKey);
-    if (cached) {
-      const result: CachedResult = JSON.parse(cached);
-      logger.info(
-        { middleware: 'idempotency', key, path: req.path, requestId: req.id },
-        '[idempotency] Redis 幂等性 Key 命中缓存，返回缓存结果',
-      );
-      res.status(result.statusCode).json(result.body);
-      return;
-    }
-    interceptResponse(res, redisKey, (k, entry) => {
-      appRedis
-        .set(k, JSON.stringify(entry), 'EX', KEY_TTL_SEC, 'NX')
-        .then(() =>
-          logger.info(
-            { middleware: 'idempotency', key, path: req.path, requestId: req.id },
-            '[idempotency] Redis 幂等性 Key 缓存写入',
-          ),
-        )
-        .catch((err: unknown) =>
-          logger.warn(
-            { middleware: 'idempotency', key, err: String(err) },
-            '[idempotency] Redis 缓存写入失败',
-          ),
-        );
-    });
-    next();
-  } catch (err) {
-    logger.warn(
-      { middleware: 'idempotency', key, err: String(err) },
-      '[idempotency] Redis 操作异常，返回 503',
-    );
-    markRedisUnhealthy();
-    redisUnavailable(res);
-  }
-}
-
-// ============ 审计日志中间件（合并自 middleware/auditLog.ts）============
-
-const auditLogger = logger.child({ audit: true, module: 'audit' });
-const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-function hashApiKey(apiKey: string | undefined): string {
-  return apiKey
-    ? crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16)
-    : 'anonymous';
-}
-function signPayload(payload: string): string {
-  const key = config.AUDIT_HMAC_KEY;
-  if (!key) {
-    logger.warn('AUDIT_HMAC_KEY not set, audit log signing disabled');
-    return '';
-  }
-  return crypto.createHmac('sha256', key).update(payload).digest('hex');
-}
-export function verifyPayload(payload: string, signature: string): boolean {
-  const key = config.AUDIT_HMAC_KEY;
-  if (!key) {
-    logger.warn('AUDIT_HMAC_KEY not set, audit payload verification fails closed (returns false)');
-    return false;
-  }
-  const expected = crypto.createHmac('sha256', key).update(payload).digest('hex');
-  const sigBuf = Buffer.from(signature),
-    expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length) return false;
-  return crypto.timingSafeEqual(sigBuf, expBuf);
-}
-export async function writeOutboxEvent(
-  auditEntry: Record<string, unknown>,
-  client?: PoolClient,
-): Promise<void> {
-  const conn = client ?? getPool();
-  const payload = JSON.stringify(auditEntry);
-  const signature = signPayload(payload);
-  try {
-    await conn.query(
-      'INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload) VALUES ($1, $2, $3, $4)',
-      ['audit', String(auditEntry.userId || 'unknown'), 'AuditEvent', { ...auditEntry, signature }],
-    );
-    // 仅独立模式发送 NOTIFY；事务模式由调用方在 COMMIT 后发送，避免回滚产生无效通知
-    if (!client) await conn.query('NOTIFY outbox_channel');
-    logger.debug(
-      { middleware: 'auditLog', transactional: !!client },
-      '[auditLog] outbox 事件写入成功',
-    );
-  } catch (err) {
-    if (client) {
-      logger.error(
-        { err, middleware: 'auditLog' },
-        '[auditLog] outbox 事务写入失败，将触发事务回滚',
-      );
-      throw err;
-    }
-    logger.warn(
-      { err, middleware: 'auditLog' },
-      '[auditLog] outbox 事件写入失败，审计日志仍已记录到 pino 日志流',
-    );
-  }
-}
-export function auditLog(req: Request, res: Response, next: NextFunction): void {
-  if (!WRITE_METHODS.has(req.method.toUpperCase())) {
-    next();
-    return;
-  }
-  res.on('finish', () => {
-    const jwtSub = (req as AuthenticatedRequest).user?.sub;
-    const userId = jwtSub ?? hashApiKey(req.headers['x-api-key'] as string | undefined);
-    const auditEntry = {
-      timestamp: new Date().toISOString(),
-      method: req.method,
-      path: req.originalUrl || req.url,
-      userId,
-      ip: req.ip || req.socket.remoteAddress || 'unknown',
-      userAgent: req.headers['user-agent'] || 'unknown',
-      statusCode: res.statusCode,
-      result: res.statusCode < 400 ? 'success' : 'failure',
-    };
-    logger.info(
-      {
-        middleware: 'auditLog',
-        method: req.method,
-        path: req.path,
-        userId,
-        statusCode: res.statusCode,
-        requestId: req.id,
-        audit: true,
-      },
-      '[auditLog] 审计记录写入',
-    );
-    auditLogger.info(
-      auditEntry,
-      `[audit] ${req.method} ${req.originalUrl || req.url} → ${res.statusCode}`,
-    );
-    void writeOutboxEvent(auditEntry);
-  });
-  next();
-}
+export {
+  RefreshTokenEntry,
+  TokenFamilyEntry,
+  ACCESS_TOKEN_EXPIRES_IN_SEC,
+  REFRESH_TOKEN_EXPIRES_IN_SEC,
+  REFRESH_TOKEN_PREFIX,
+  TOKEN_FAMILY_PREFIX,
+  tenantFromEntry,
+  generateRefreshToken,
+  refreshAccessToken,
+  revokeRefreshToken,
+  revokeAllUserSessions,
+  isAccessTokenRevokedForUser,
+  isUserSessionValid,
+} from './tokenStore.js';
+export { auditLog, writeOutboxEvent, verifyPayload } from './auditMiddleware.js';
+export { idempotencyKey } from './idempotency.js';
+export { handleApiKeyAuth, handleOptionalApiKey } from './apiKeyAuth.js';

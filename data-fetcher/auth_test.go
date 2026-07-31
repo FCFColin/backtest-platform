@@ -1,13 +1,16 @@
 package main
+
 import (
-    "net/http"
-    "net/http/httptest"
-    "os"
-    "testing"
-    gosharedmw "github.com/backtest/go-shared/middleware"
-    "github.com/gin-gonic/gin"
+	gosharedmw "github.com/backtest/go-shared/middleware"
+	"github.com/gin-gonic/gin"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
 )
+
 const testDataServiceToken = "test-data-service-secret-token"
+
 func dataServiceAuthMiddleware() gin.HandlerFunc {
 	return gosharedmw.SharedTokenAuthMiddleware(
 		"X-Data-Service-Auth",
@@ -22,7 +25,9 @@ func newAuthTestRouter() *gin.Engine {
 	r.GET("/api/data/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	authed := r.Group("/")
 	authed.Use(dataServiceAuthMiddleware())
-	{ authed.GET("/api/data/search", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"success": true}) }) }
+	{
+		authed.GET("/api/data/search", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"success": true}) })
+	}
 	return r
 }
 func TestDataServiceAuthPassesWithCorrectToken(t *testing.T) {
@@ -33,7 +38,9 @@ func TestDataServiceAuthPassesWithCorrectToken(t *testing.T) {
 	req.Header.Set("X-Data-Service-Auth", testDataServiceToken)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-if w.Code != http.StatusOK { t.Errorf("expected 200 with correct token, got %d, body=%s", w.Code, w.Body.String()) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 with correct token, got %d, body=%s", w.Code, w.Body.String())
+	}
 }
 func TestDataServiceAuthFailsWithMissingHeader(t *testing.T) {
 	os.Setenv("DATA_SERVICE_AUTH_TOKEN", testDataServiceToken)
@@ -42,7 +49,9 @@ func TestDataServiceAuthFailsWithMissingHeader(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/data/search", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-if w.Code != http.StatusUnauthorized { t.Errorf("expected 401 with missing header, got %d, body=%s", w.Code, w.Body.String()) }
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401 with missing header, got %d, body=%s", w.Code, w.Body.String())
+	}
 }
 func TestDataServiceHealthAccessibleWithoutAuth(t *testing.T) {
 	os.Setenv("DATA_SERVICE_AUTH_TOKEN", testDataServiceToken)
@@ -51,5 +60,7 @@ func TestDataServiceHealthAccessibleWithoutAuth(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/data/health", nil)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-if w.Code != http.StatusOK { t.Errorf("expected 200 on health without auth, got %d, body=%s", w.Code, w.Body.String()) }
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 on health without auth, got %d, body=%s", w.Code, w.Body.String())
+	}
 }

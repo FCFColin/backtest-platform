@@ -1,21 +1,28 @@
 // Package handlers 提供 data-fetcher 服务的 HTTP 处理器。
 package handlers
+
 import (
-    "context"
-    "log/slog"
-    "net/http"
-    "regexp"
-    "strings"
-    "sync"
-    "time"
-    "data-fetcher/internal/store"
-    "github.com/gin-gonic/gin"
-    sharedhttp "github.com/backtest/go-shared/http"
+	"context"
+	"data-fetcher/internal/store"
+	sharedhttp "github.com/backtest/go-shared/http"
+	"github.com/gin-gonic/gin"
+	"log/slog"
+	"net/http"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
 )
+
 var tickerPattern = regexp.MustCompile(`^[A-Z0-9._-]{1,20}$`)
+
 func IsValidTicker(ticker string) bool {
-	if ticker == "" || len(ticker) > 20 { return false }
-	if strings.Contains(ticker, "..") || strings.ContainsAny(ticker, `/\`) { return false }
+	if ticker == "" || len(ticker) > 20 {
+		return false
+	}
+	if strings.Contains(ticker, "..") || strings.ContainsAny(ticker, `/\`) {
+		return false
+	}
 	return tickerPattern.MatchString(ticker)
 }
 func HandleSearch(ds *store.DataStore) gin.HandlerFunc {
@@ -83,7 +90,9 @@ func HandleBatchPriceData(ds *store.DataStore) gin.HandlerFunc {
 			wg.Add(1)
 			go func(t string) {
 				defer func() {
-if r := recover(); r != nil { slog.Error("batch price data goroutine panic", "ticker", t, "panic", r) }
+					if r := recover(); r != nil {
+						slog.Error("batch price data goroutine panic", "ticker", t, "panic", r)
+					}
 				}()
 				defer wg.Done()
 				sem <- struct{}{}
@@ -94,7 +103,9 @@ if r := recover(); r != nil { slog.Error("batch price data goroutine panic", "ti
 					result[t] = map[string]string{"error": "标的数据不可用"}
 				} else {
 					result[t] = prices
-if degraded { degradedCount++ }
+					if degraded {
+						degradedCount++
+					}
 				}
 				mu.Unlock()
 			}(ticker)
@@ -129,7 +140,7 @@ func HandleValidateTickers(ds *store.DataStore) gin.HandlerFunc {
 			newProblem(c, http.StatusInternalServerError, "VALIDATION_FAILED", "Validation Failed", "校验失败")
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{ "success": true, "data": gin.H{ "valid":   valid, "invalid": invalid, }, })
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"valid": valid, "invalid": invalid}})
 	}
 }
 func HandleCPI(ds *store.DataStore) gin.HandlerFunc {
@@ -175,10 +186,12 @@ func HandleHealth(ds *store.DataStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var tickerCount, priceCount int
 		if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM tickers").Scan(&tickerCount); err != nil {
-			c.JSON(http.StatusOK, gin.H{ "status":  "degraded", "engine":  "go", "version": "0.1.0", "error":   "查询标的数失败", })
+			c.JSON(http.StatusOK, gin.H{"status": "degraded", "engine": "go", "version": "0.1.0", "error": "查询标的数失败"})
 			return
 		}
-if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices").Scan(&priceCount); err != nil { priceCount = 0 }
+		if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices").Scan(&priceCount); err != nil {
+			priceCount = 0
+		}
 		c.JSON(http.StatusOK, gin.H{
 			"status":       "ok",
 			"engine":       "go",
@@ -188,13 +201,17 @@ if err := ds.Pool().QueryRow(c.Request.Context(), "SELECT COUNT(*) FROM prices")
 		})
 	}
 }
+
 type Problem = sharedhttp.Problem
+
 func newProblem(c *gin.Context, status int, code, title, detail string) {
 	sharedhttp.NewProblem(c, status, code, title, detail)
 }
+
 type Pinger interface {
 	Ping(ctx context.Context) error
 }
+
 func HandleReady(p Pinger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if err := p.Ping(c.Request.Context()); err != nil {
@@ -207,6 +224,6 @@ func HandleReady(p Pinger) gin.HandlerFunc {
 			})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{ "status":  "ready", "engine":  "go", "service": "data-fetcher", })
+		c.JSON(http.StatusOK, gin.H{"status": "ready", "engine": "go", "service": "data-fetcher"})
 	}
 }

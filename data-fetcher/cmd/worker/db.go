@@ -1,18 +1,26 @@
 package main
+
 import (
-    "context"
-    "fmt"
-    "log/slog"
-    "github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/pgxpool"
+	"context"
+	"fmt"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"log/slog"
 )
+
 func initDB(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
-	if databaseURL == "" { return nil, fmt.Errorf("DATABASE_URL 未设置") }
+	if databaseURL == "" {
+		return nil, fmt.Errorf("DATABASE_URL 未设置")
+	}
 	config, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil { return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("解析 DATABASE_URL 失败: %w", err)
+	}
 	config.MaxConns = 5
 	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil { return nil, fmt.Errorf("连接数据库失败: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("连接数据库失败: %w", err)
+	}
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, fmt.Errorf("数据库 Ping 失败: %w", err)
@@ -53,25 +61,35 @@ func ensureSchema(ctx context.Context, pool *pgxpool.Pool) error {
 	return err
 }
 func loadTickerList(ctx context.Context, pool *pgxpool.Pool) ([]string, error) {
-	if pool == nil { return nil, fmt.Errorf("数据库未连接") }
+	if pool == nil {
+		return nil, fmt.Errorf("数据库未连接")
+	}
 	rows, err := pool.Query(ctx, "SELECT ticker FROM tickers ORDER BY ticker")
-	if err != nil { return nil, fmt.Errorf("查询标的列表失败: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("查询标的列表失败: %w", err)
+	}
 	defer rows.Close()
 	var tickers []string
 	for rows.Next() {
 		var t string
-		if err := rows.Scan(&t); err != nil { return nil, fmt.Errorf("扫描标的行失败: %w", err) }
+		if err := rows.Scan(&t); err != nil {
+			return nil, fmt.Errorf("扫描标的行失败: %w", err)
+		}
 		tickers = append(tickers, t)
 	}
 	return tickers, nil
 }
 func isTickerTableEmpty(ctx context.Context, pool *pgxpool.Pool) (bool, error) {
 	var count int
-if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM tickers").Scan(&count); err != nil { return false, fmt.Errorf("查询 tickers 表计数失败: %w", err) }
+	if err := pool.QueryRow(ctx, "SELECT COUNT(*) FROM tickers").Scan(&count); err != nil {
+		return false, fmt.Errorf("查询 tickers 表计数失败: %w", err)
+	}
 	return count == 0, nil
 }
 func seedUniverse(ctx context.Context, pool *pgxpool.Pool) error {
-	if pool == nil { return fmt.Errorf("数据库未连接") }
+	if pool == nil {
+		return fmt.Errorf("数据库未连接")
+	}
 	batch := &pgx.Batch{}
 	for _, meta := range DefaultETFUniverse {
 		batch.Queue(`
@@ -85,7 +103,11 @@ func seedUniverse(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	br := pool.SendBatch(ctx, batch)
 	defer br.Close()
-	for range DefaultETFUniverse { if _, err := br.Exec(); err != nil { return fmt.Errorf("插入 ticker 失败: %w", err) } }
+	for range DefaultETFUniverse {
+		if _, err := br.Exec(); err != nil {
+			return fmt.Errorf("插入 ticker 失败: %w", err)
+		}
+	}
 	slog.Info("已种子化默认 ETF 宇宙", "count", len(DefaultETFUniverse))
 	return nil
 }

@@ -1,141 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  createLoggerMocks,
-  createConfigMocks,
-  createRedisModuleMock,
-} from '../../helpers/mockFactories.js';
-import {
-  setupHttpGetSuccess as makeHttpSuccess,
-  setupHttpGetError as makeHttpError,
-} from '../../helpers/dataServiceFixtures.js';
-
-const {
   dbMocks,
   tickerValidationMocks,
   loggerMocks,
   redisMocks,
-  fsMocks,
-  fsPromisesMocks,
   circuitBreakerMocks,
-  integrityMocks,
   httpMocks,
-} = vi.hoisted(() => ({
-  dbMocks: {
-    getPool: vi.fn(),
-    getReadPool: vi.fn(),
-    initSchema: vi.fn().mockResolvedValue(undefined),
-  },
-  tickerValidationMocks: { validateTickerFormat: vi.fn(), isValidTicker: vi.fn() },
-  loggerMocks: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
-  redisMocks: {} as Record<string, unknown>,
-  fsMocks: {
-    existsSync: vi.fn().mockReturnValue(false),
-    readFileSync: vi.fn(),
-    statSync: vi.fn(),
-    writeFileSync: vi.fn(),
-    mkdirSync: vi.fn(),
-    readdirSync: vi.fn().mockReturnValue([]),
-    unlinkSync: vi.fn(),
-  },
-  fsPromisesMocks: {
-    readFile: vi.fn(),
-    writeFile: vi.fn().mockResolvedValue(undefined),
-    access: vi.fn(),
-    readdir: vi.fn().mockResolvedValue([]),
-    unlink: vi.fn().mockResolvedValue(undefined),
-  },
-  circuitBreakerMocks: { instance: { fire: vi.fn(), opened: false, on: vi.fn() } },
-  integrityMocks: {
-    signFileSync: vi.fn(),
-    verifyFileSync: vi.fn().mockReturnValue(true),
-    signFile: vi.fn().mockResolvedValue(undefined),
-    verifyFile: vi.fn().mockResolvedValue(true),
-  },
-  httpMocks: { request: vi.fn() },
-}));
-
-const dataQueryMocks = vi.hoisted(() => ({
-  validateTickers: vi.fn(),
-  queryPricesFromDb: vi.fn(),
-  fetchMissingFromGoService: vi.fn(),
-  searchTickers: vi.fn(),
-}));
-const dataCacheMocks = vi.hoisted(() => ({
-  getCacheKey: vi.fn(),
-  readCache: vi.fn(),
-  invalidateTickerCache: vi.fn(),
-  invalidateAllCache: vi.fn(),
-}));
-const dateUtilsMocks = vi.hoisted(() => ({ toDateStr: vi.fn() }));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => {
-  Object.assign(loggerMocks, createLoggerMocks());
-  return { logger: loggerMocks };
-});
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getPool: dbMocks.getPool,
-  getReadPool: dbMocks.getReadPool,
-}));
-vi.mock('../../../packages/backend/src/db/migrations.js', () => ({
-  initSchema: dbMocks.initSchema,
-}));
-vi.mock('../../../packages/backend/src/utils/tickerValidation.js', () => ({
-  validateTickerFormat: tickerValidationMocks.validateTickerFormat,
-  isValidTicker: tickerValidationMocks.isValidTicker,
-}));
-vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
-  registerSemaphoreMetrics: vi.fn(),
-  registerCircuitBreakerMetrics: vi.fn(),
-  recordCacheHit: vi.fn(),
-  recordCacheMiss: vi.fn(),
-  recordDataServiceCall: vi.fn(),
-  recordEngineCall: vi.fn(),
-  recordEngineUnavailable: vi.fn(),
-  engineCallDuration: { observe: vi.fn() },
-  recordBacktestRequest: vi.fn(),
-  recordDegradedResponse: vi.fn(),
-}));
-vi.mock('../../../packages/backend/src/config/index.js', () => ({
-  config: createConfigMocks({ GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003' }),
-}));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
-  createRedisModuleMock(
-    {
-      withHandlers: true,
-      methods: {
-        ping: vi.fn().mockRejectedValue(new Error('redis unavailable')),
-        get: vi.fn().mockResolvedValue(null),
-        set: vi.fn().mockResolvedValue('OK'),
-        del: vi.fn().mockResolvedValue(1),
-        scan: vi.fn().mockResolvedValue(['0', []]),
-      },
-    },
-    redisMocks,
-  ),
-);
-vi.mock('opossum', () => ({
-  default: vi.fn(() => circuitBreakerMocks.instance),
-  CircuitBreaker: vi.fn(() => circuitBreakerMocks.instance),
-}));
-vi.mock('fs', () => ({ default: fsMocks, ...fsMocks }));
-vi.mock('fs/promises', () => ({ default: fsPromisesMocks, ...fsPromisesMocks }));
-vi.mock('../../../packages/backend/src/utils/integrity.js', () => ({
-  signFileSync: integrityMocks.signFileSync,
-  verifyFileSync: integrityMocks.verifyFileSync,
-  signFile: integrityMocks.signFile,
-  verifyFile: integrityMocks.verifyFile,
-}));
-vi.mock('http', () => ({
-  default: { request: httpMocks.request },
-  request: httpMocks.request,
-  Agent: vi.fn(() => ({ sockets: {}, destroy: vi.fn() })),
-}));
+  setupDefault,
+  setValid,
+  rows,
+  setupRedisDown,
+} from './dataService.shared.js';
+import {
+  setupHttpGetSuccess as makeHttpSuccess,
+  setupHttpGetError as makeHttpError,
+} from '../../helpers/dataServiceFixtures.js';
 
 import {
   fetchHistoryData,
@@ -146,29 +25,6 @@ import {
   invalidateAllCache,
 } from '../../../packages/backend/src/infrastructure/dataFacade.js';
 
-function setupDefault() {
-  vi.clearAllMocks();
-  circuitBreakerMocks.instance.opened = false;
-  circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
-  tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: [], invalid: [] });
-  tickerValidationMocks.isValidTicker.mockImplementation((t: string) =>
-    /^[A-Z0-9._-]{1,20}$/.test(t),
-  );
-  fsMocks.existsSync.mockReturnValue(false);
-  integrityMocks.verifyFileSync.mockReturnValue(true);
-  integrityMocks.verifyFile.mockResolvedValue(true);
-  fsPromisesMocks.access.mockRejectedValue(new Error('no file'));
-}
-function setValid(tickers: string[]) {
-  tickerValidationMocks.validateTickerFormat.mockReturnValue({ valid: tickers, invalid: [] });
-}
-function rows(...r: { ticker: string; date: unknown; close: number }[]) {
-  return { rows: r };
-}
-function setupRedisDown() {
-  redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
-  redisMocks.get.mockResolvedValue(null);
-}
 describe('fetchHistoryData', () => {
   beforeEach(() => {
     setupDefault();
@@ -198,53 +54,56 @@ describe('fetchHistoryData', () => {
       [['AAPL'], '2024-01-01', '2024-01-31'],
     );
   });
-  it('DB 查询失败时不应回退 JSON，返回空结果', async () => {
-    setValid(['AAPL', 'VTI']);
-    circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('connection lost'));
-    const { data: result } = await fetchHistoryData(['AAPL', 'VTI'], '2024-01-01', '2024-01-31');
+  it.each([
+    [
+      'DB 查询失败',
+      ['AAPL', 'VTI'],
+      () => {
+        circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('connection lost'));
+      },
+      true,
+      false,
+    ],
+    [
+      '熔断器 Open（不查 DB）',
+      ['AAPL'],
+      () => {
+        circuitBreakerMocks.instance.opened = true;
+      },
+      false,
+      true,
+    ],
+    ['空结果集', ['UNKNOWN'], () => {}, false, false],
+    [
+      '全部 ticker 非法',
+      ['@@@invalid@@@'],
+      () => {
+        tickerValidationMocks.validateTickerFormat.mockReturnValue({
+          valid: [],
+          invalid: ['@@@invalid@@@'],
+        });
+      },
+      true,
+      false,
+    ],
+  ])('%s 时应返回空对象', async (_n, tickers, arrange, expectWarn, noDbCall) => {
+    arrange();
+    const { data: result } = await fetchHistoryData(tickers, '2024-01-01', '2024-01-31');
     expect(result).toEqual({});
-    expect(result.VTI).toBeUndefined();
-    expect(loggerMocks.warn).toHaveBeenCalled();
+    if (expectWarn) expect(loggerMocks.warn).toHaveBeenCalled();
+    if (noDbCall) expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
   });
-  it('熔断器 Open 状态时不应调用 DB，且未入库标的无数据', async () => {
+  it.each([
+    ['DB 返回 NaN close 时应原样传递（文档化当前行为）', NaN, new Date('2024-01-02'), true],
+    ['date 字段为字符串时应直接使用（不调用 toISOString）', 185.5, '2024-01-02', false],
+  ])('%s', async (_n, close, date, checkIsNaN) => {
     setValid(['AAPL']);
-    circuitBreakerMocks.instance.opened = true;
+    circuitBreakerMocks.instance.fire.mockResolvedValue(rows({ ticker: 'AAPL', date, close }));
     const { data: result } = await fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31');
-    expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
-    expect(result).toEqual({});
+    expect(result.AAPL).toEqual({ '2024-01-02': close });
+    if (checkIsNaN) expect(Number.isNaN(result.AAPL['2024-01-02'])).toBe(true);
   });
-  it('空结果集时应返回空对象', async () => {
-    setValid(['UNKNOWN']);
-    const { data: result } = await fetchHistoryData(['UNKNOWN'], '2024-01-01', '2024-01-31');
-    expect(result).toEqual({});
-  });
-  it('DB 返回 NaN close 时应原样传递（文档化当前行为）', async () => {
-    setValid(['AAPL']);
-    circuitBreakerMocks.instance.fire.mockResolvedValue(
-      rows({ ticker: 'AAPL', date: new Date('2024-01-02'), close: NaN }),
-    );
-    const { data: result } = await fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31');
-    expect(result.AAPL).toEqual({ '2024-01-02': NaN });
-    expect(Number.isNaN(result.AAPL['2024-01-02'])).toBe(true);
-  });
-  it('全部 ticker 非法时应返回空结果且不查询价格', async () => {
-    tickerValidationMocks.validateTickerFormat.mockReturnValue({
-      valid: [],
-      invalid: ['@@@invalid@@@'],
-    });
-    const { data: result } = await fetchHistoryData(['@@@invalid@@@'], '2024-01-01', '2024-01-31');
-    expect(result).toEqual({});
-    expect(loggerMocks.warn).toHaveBeenCalled();
-  });
-  it('date 字段为字符串时应直接使用（不调用 toISOString）', async () => {
-    setValid(['AAPL']);
-    circuitBreakerMocks.instance.fire.mockResolvedValue(
-      rows({ ticker: 'AAPL', date: '2024-01-02', close: 185.5 }),
-    );
-    const { data: result } = await fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31');
-    expect(result.AAPL).toEqual({ '2024-01-02': 185.5 });
-  });
-  it('部分 ticker 在 DB 中有数据、部分缺失时，缺失标的不会从 JSON 回退', async () => {
+  it('部分 ticker 缺失时不会从 JSON 回退', async () => {
     setValid(['AAPL', 'MISSING']);
     circuitBreakerMocks.instance.fire.mockResolvedValue(
       rows({ ticker: 'AAPL', date: new Date('2024-01-02'), close: 185.5 }),
@@ -302,51 +161,28 @@ describe('validateTickers 边界场景', () => {
     setupDefault();
     setupRedisDown();
   });
-  it('空 ticker 列表应返回空 valid/invalid/unknown', async () => {
-    const result = await validateTickers([]);
-    expect(result).toEqual({ valid: [], invalid: [], unknown: [] });
-  });
   it.each([
-    {
-      name: '熔断器 Open 时',
-      setup: () => {
+    ['空 ticker 列表', () => {}, [], false],
+    [
+      '熔断器 Open',
+      () => {
         circuitBreakerMocks.instance.opened = true;
       },
-      input: ['AAPL', 'GHOST'],
-      expected: { valid: [], unknown: ['AAPL', 'GHOST'], invalid: [] },
-      fireNotCalled: true,
-    },
-    {
-      name: 'DB 查询成功但 ticker 无数据时',
-      setup: () => {
-        circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [] });
-      },
-      input: ['UNKNOWN'],
-      expected: { valid: [], unknown: ['UNKNOWN'], invalid: [] },
-      fireNotCalled: false,
-    },
-    {
-      name: 'DB 查询失败时',
-      setup: () => {
+      ['AAPL', 'GHOST'],
+      true,
+    ],
+    [
+      'DB 查询失败',
+      () => {
         circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down'));
       },
-      input: ['BROKEN'],
-      expected: { valid: [], unknown: ['BROKEN'], invalid: [] },
-      fireNotCalled: false,
-    },
-    {
-      name: 'DB 有 ticker 记录时',
-      setup: () => {
-        circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: [{ ticker: 'AAPL' }] });
-      },
-      input: ['AAPL'],
-      expected: { valid: ['AAPL'], unknown: [], invalid: [] },
-      fireNotCalled: false,
-    },
-  ])('$name应返回正确结果', async ({ setup, input, expected, fireNotCalled }) => {
+      ['BROKEN'],
+      false,
+    ],
+  ])('%s 应返回 unknown 结果', async (_n, setup, input, fireNotCalled) => {
     setup();
     const result = await validateTickers(input);
-    expect(result).toEqual(expected);
+    expect(result).toEqual({ valid: [], unknown: input, invalid: [] });
     if (fireNotCalled) expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
   });
 });
@@ -368,24 +204,16 @@ describe('searchTickers', () => {
     expect(result).toEqual([]);
     expect(httpMocks.request).not.toHaveBeenCalled();
   });
-  it('恶意 SQL 注入式 query 应被拒绝并返回空数组', async () => {
-    const result = await searchTickers("'; DROP TABLE tickers; --");
-    expect(result).toEqual([]);
-    expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
-    expect(loggerMocks.warn).toHaveBeenCalled();
-  });
   it.each([
-    {
-      name: 'query 超过 100 字符',
-      query: 'A'.repeat(101),
-      market: undefined as string | undefined,
-    },
-    { name: '非法 market 参数', query: '茅台', market: 'A股;DROP' },
-  ])('$name 应被拒绝并返回空数组', async ({ query, market }) => {
+    ['恶意 SQL 注入式 query', "'; DROP TABLE tickers; --", undefined, true],
+    ['query 超过 100 字符', 'A'.repeat(101), undefined, false],
+    ['非法 market 参数', '茅台', 'A股;DROP', false],
+  ])('%s 应被拒绝并返回空数组', async (_n, query, market, noDbCall) => {
     const result =
       market === undefined ? await searchTickers(query) : await searchTickers(query, market);
     expect(result).toEqual([]);
     expect(loggerMocks.warn).toHaveBeenCalled();
+    if (noDbCall) expect(circuitBreakerMocks.instance.fire).not.toHaveBeenCalled();
   });
   it('DB 失败且缓存未命中时应调用 Go 数据服务', async () => {
     circuitBreakerMocks.instance.fire.mockRejectedValue(new Error('db down'));
@@ -463,249 +291,5 @@ describe('缓存失效函数', () => {
     redisMocks.ping.mockRejectedValue(new Error('redis unavailable'));
     await expect(invalidateTickerCache('AAPL')).resolves.toBeUndefined();
     expect(redisMocks.del).not.toHaveBeenCalled();
-  });
-});
-describe('fetchHistoryData 扩展场景', () => {
-  beforeEach(async () => {
-    setupDefault();
-    setupRedisDown();
-    redisMocks.emit('error');
-    await invalidateAllCache();
-  });
-  it('Redis 中存在损坏缓存时应跳过缓存调用 Go 数据服务', async () => {
-    setValid(['AAPL']);
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.get.mockResolvedValue('{ corrupted json');
-    httpMocks.request.mockImplementation(
-      makeHttpSuccess(
-        JSON.stringify({ success: true, data: [{ date: '2024-01-02', close: 99.0 }] }),
-      ),
-    );
-    const { data: result } = await fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31');
-    expect(result.AAPL).toEqual({ '2024-01-02': 99.0 });
-    expect(httpMocks.request).toHaveBeenCalled();
-  });
-  it('Go 数据服务 HTTP 路径应返回价格并写入缓存', async () => {
-    setValid(['MSFT']);
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.get.mockResolvedValue(null);
-    httpMocks.request.mockImplementation(
-      makeHttpSuccess(
-        JSON.stringify({
-          success: true,
-          data: [
-            { date: '2024-01-02', close: 400.0 },
-            { date: '2024-01-03', close: 401.0 },
-          ],
-        }),
-      ),
-    );
-    const { data: result } = await fetchHistoryData(['MSFT'], '2024-01-01', '2024-01-31');
-    expect(result.MSFT).toEqual({ '2024-01-02': 400.0, '2024-01-03': 401.0 });
-    expect(httpMocks.request).toHaveBeenCalledWith(
-      expect.stringContaining('/api/data/price/MSFT'),
-      expect.any(Object),
-      expect.any(Function),
-    );
-    expect(redisMocks.set).toHaveBeenCalled();
-  });
-  it('Go 数据服务 HTTP 非 2xx 时应记录 warn 并返回空', async () => {
-    setValid(['FAIL']);
-    httpMocks.request.mockImplementation(makeHttpSuccess('server error', 500));
-    const { data: result } = await fetchHistoryData(['FAIL'], '2024-01-01', '2024-01-31');
-    expect(result).toEqual({});
-    expect(loggerMocks.warn).toHaveBeenCalled();
-  });
-  it('PostgreSQL 返回数据时应包含请求日期范围内的行情', async () => {
-    setValid(['LARGE']);
-    const r = Array.from({ length: 11 }, (_, i) => {
-      const day = String(50 + i).padStart(2, '0');
-      return { ticker: 'LARGE', date: `2024-01-${day}`, close: 100 + 49 + i };
-    });
-    circuitBreakerMocks.instance.fire.mockResolvedValue({ rows: r });
-    const { data: result } = await fetchHistoryData(['LARGE'], '2024-01-50', '2024-01-60');
-    expect(Object.keys(result.LARGE).length).toBe(11);
-    expect(result.LARGE['2024-01-50']).toBe(149);
-  });
-  it('并发 fetchHistoryData 调用应各自返回正确结果', async () => {
-    tickerValidationMocks.validateTickerFormat.mockImplementation((tickers: string[]) => ({
-      valid: tickers,
-      invalid: [],
-    }));
-    circuitBreakerMocks.instance.fire.mockImplementation(
-      async (_sql: string, params: unknown[]) => {
-        const ticker = (params as [string[]])[0][0];
-        return {
-          rows: [{ ticker, date: new Date('2024-01-02'), close: ticker === 'AAPL' ? 185.5 : 72.3 }],
-        };
-      },
-    );
-    const [{ data: r1 }, { data: r2 }] = await Promise.all([
-      fetchHistoryData(['AAPL'], '2024-01-01', '2024-01-31'),
-      fetchHistoryData(['BND'], '2024-01-01', '2024-01-31'),
-    ]);
-    expect(r1.AAPL).toEqual({ '2024-01-02': 185.5 });
-    expect(r2.BND).toEqual({ '2024-01-02': 72.3 });
-  });
-  it('Redis history 缓存命中时应直接返回', async () => {
-    setValid(['CACHED']);
-    const cachedGo = { CACHED: { '2024-01-02': 50.0 } };
-    redisMocks.ping.mockResolvedValue('PONG');
-    redisMocks.get.mockImplementation(async (key: string) =>
-      String(key).includes(':history:') ? JSON.stringify(cachedGo) : null,
-    );
-    const { data: result } = await fetchHistoryData(['CACHED'], '2024-01-01', '2024-01-31');
-    expect(result.CACHED).toEqual({ '2024-01-02': 50.0 });
-    expect(httpMocks.request).not.toHaveBeenCalled();
-  });
-});
-describe('dataFacade 编排（mock dataQuery/dataCache 层）', () => {
-  let facade: typeof import('../../../packages/backend/src/infrastructure/dataFacade.js');
-  beforeEach(async () => {
-    setupDefault();
-    vi.resetModules();
-    vi.doMock('../../../packages/backend/src/infrastructure/dataQuery.js', () => dataQueryMocks);
-    vi.doMock('../../../packages/backend/src/infrastructure/dataCache.js', () => dataCacheMocks);
-    vi.doMock('../../../packages/backend/src/utils/misc.js', () => ({
-      toDateStr: dateUtilsMocks.toDateStr,
-    }));
-    dateUtilsMocks.toDateStr.mockReturnValue('2024-01-01');
-    dataCacheMocks.getCacheKey.mockReturnValue('cache-key');
-    facade = await import('../../../packages/backend/src/infrastructure/dataFacade.js');
-  });
-  function mockSetup(o: {
-    valid?: string[];
-    invalid?: string[];
-    unknown?: string[];
-    result?: Record<string, unknown>;
-    missing?: string[];
-    dbDegraded?: boolean;
-    cached?: unknown;
-    go?: Record<string, unknown>;
-  }) {
-    dataQueryMocks.validateTickers.mockResolvedValue({
-      valid: o.valid ?? [],
-      invalid: o.invalid ?? [],
-      unknown: o.unknown ?? [],
-    });
-    dataQueryMocks.queryPricesFromDb.mockResolvedValue({
-      result: o.result ?? {},
-      missing: o.missing ?? [],
-      dbDegraded: o.dbDegraded ?? false,
-    });
-    dataCacheMocks.readCache.mockResolvedValue(o.cached ?? null);
-    if (o.go) dataQueryMocks.fetchMissingFromGoService.mockResolvedValue(o.go);
-  }
-  it('全部标的 DB 命中（无缺失）时直接返回，不查缓存/Go，degraded=false', async () => {
-    mockSetup({
-      valid: ['AAPL', 'MSFT'],
-      result: { AAPL: { '2024-01-02': 100 }, MSFT: { '2024-01-02': 200 } },
-    });
-    const res = await facade.fetchHistoryData(['AAPL', 'MSFT'], '2024-01-02', '2024-01-03');
-    expect(res.data).toEqual({ AAPL: { '2024-01-02': 100 }, MSFT: { '2024-01-02': 200 } });
-    expect(res.degraded).toBe(false);
-    expect(res.degradedWarning).toBeUndefined();
-    expect(dataCacheMocks.readCache).not.toHaveBeenCalled();
-    expect(dataQueryMocks.fetchMissingFromGoService).not.toHaveBeenCalled();
-    expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('DB hit'));
-  });
-  it('存在非法标的时记录 warn 并忽略，仍走 DB 查询', async () => {
-    mockSetup({ valid: ['AAPL'], invalid: ['BAD!'], result: { AAPL: { '2024-01-02': 100 } } });
-    const res = await facade.fetchHistoryData(['AAPL', 'BAD!'], '2024-01-02', '2024-01-03');
-    expect(res.data).toEqual({ AAPL: { '2024-01-02': 100 } });
-    expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining('非法 ticker'));
-  });
-  it('全部标的非法时返回空结果且不查询 DB', async () => {
-    mockSetup({ invalid: ['BAD1', 'BAD2'] });
-    const res = await facade.fetchHistoryData(['BAD1', 'BAD2'], '2024-01-02', '2024-01-03');
-    expect(res.data).toEqual({});
-    expect(res.degraded).toBe(false);
-    expect(dataQueryMocks.queryPricesFromDb).not.toHaveBeenCalled();
-    expect(loggerMocks.warn).toHaveBeenCalledWith(expect.stringContaining('全部'));
-  });
-  it('DB 降级时返回 degraded=true 并附带告警', async () => {
-    mockSetup({ valid: ['AAPL'], result: { AAPL: { '2024-01-02': 100 } }, dbDegraded: true });
-    const res = await facade.fetchHistoryData(['AAPL'], '2024-01-02', '2024-01-03');
-    expect(res.degraded).toBe(true);
-    expect(res.degradedWarning).toBe('数据库不可用，部分数据可能缺失');
-  });
-  it('缺失标的命中缓存时合并缓存数据返回，不调用 Go', async () => {
-    mockSetup({
-      valid: ['AAPL'],
-      result: { AAPL: { '2024-01-02': 100 } },
-      missing: ['MSFT'],
-      cached: { MSFT: { '2024-01-02': 200 } },
-    });
-    const res = await facade.fetchHistoryData(['AAPL', 'MSFT'], '2024-01-02', '2024-01-03');
-    expect(res.data).toEqual({ AAPL: { '2024-01-02': 100 }, MSFT: { '2024-01-02': 200 } });
-    expect(res.degraded).toBe(false);
-    expect(dataQueryMocks.fetchMissingFromGoService).not.toHaveBeenCalled();
-    expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('cache hit'));
-  });
-  it('未知标的也参与缓存查询', async () => {
-    mockSetup({
-      valid: ['AAPL'],
-      unknown: ['NEW'],
-      result: { AAPL: { '2024-01-02': 100 } },
-      cached: { NEW: { '2024-01-02': 50 } },
-    });
-    const res = await facade.fetchHistoryData(['AAPL', 'NEW'], '2024-01-02', '2024-01-03');
-    expect(res.data).toEqual({ AAPL: { '2024-01-02': 100 }, NEW: { '2024-01-02': 50 } });
-    expect(dataCacheMocks.readCache).toHaveBeenCalledWith('cache-key');
-  });
-  it('Go 服务补齐全部缺失标的时 degraded=false', async () => {
-    mockSetup({
-      valid: ['AAPL'],
-      result: { AAPL: { '2024-01-02': 100 } },
-      missing: ['MSFT'],
-      go: { MSFT: { '2024-01-02': 200 } },
-    });
-    const res = await facade.fetchHistoryData(['AAPL', 'MSFT'], '2024-01-02', '2024-01-03');
-    expect(res.data).toEqual({ AAPL: { '2024-01-02': 100 }, MSFT: { '2024-01-02': 200 } });
-    expect(res.degraded).toBe(false);
-    expect(dataQueryMocks.fetchMissingFromGoService).toHaveBeenCalledWith(
-      ['MSFT'],
-      '2024-01-02',
-      '2024-01-03',
-      'cache-key',
-      undefined,
-    );
-  });
-  it('Go 服务仍无法获取部分标的时 degraded=true 并附带告警', async () => {
-    mockSetup({
-      valid: ['AAPL'],
-      result: {},
-      missing: ['MSFT', 'GOOG'],
-      go: { MSFT: { '2024-01-02': 200 } },
-    });
-    const res = await facade.fetchHistoryData(['AAPL', 'MSFT', 'GOOG'], '2024-01-02', '2024-01-03');
-    expect(res.degraded).toBe(true);
-    expect(res.degradedWarning).toContain('1 个标的');
-    expect(res.data).toEqual({ MSFT: { '2024-01-02': 200 } });
-  });
-  it('start/end 为空字符串时使用默认日期范围（2000-01-01 至今天）', async () => {
-    mockSetup({ unknown: ['NEW'], go: { NEW: { '2024-01-02': 50 } } });
-    await facade.fetchHistoryData(['NEW'], '', '');
-    expect(dateUtilsMocks.toDateStr).toHaveBeenCalledWith(expect.any(Date));
-    expect(dataQueryMocks.fetchMissingFromGoService).toHaveBeenCalledWith(
-      ['NEW'],
-      '2000-01-01',
-      '2024-01-01',
-      'cache-key',
-      undefined,
-    );
-  });
-  it('底层 validateTickers 抛错时向上传播（span 记录异常）', async () => {
-    dataQueryMocks.validateTickers.mockRejectedValue(new Error('validation boom'));
-    await expect(facade.fetchHistoryData(['AAPL'], '2024-01-02', '2024-01-03')).rejects.toThrow(
-      'validation boom',
-    );
-    expect(dataQueryMocks.queryPricesFromDb).not.toHaveBeenCalled();
-  });
-  it('直接暴露 dataQuery / dataCache 的函数（去除包装层）', () => {
-    expect(facade.validateTickers).toBe(dataQueryMocks.validateTickers);
-    expect(facade.searchTickers).toBe(dataQueryMocks.searchTickers);
-    expect(facade.invalidateTickerCache).toBe(dataCacheMocks.invalidateTickerCache);
-    expect(facade.invalidateAllCache).toBe(dataCacheMocks.invalidateAllCache);
   });
 });

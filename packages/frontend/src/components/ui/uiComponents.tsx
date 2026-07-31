@@ -1,7 +1,6 @@
 /* eslint-disable react-refresh/only-export-components -- 导出共享工具常量，Plan-1 重写 */
 import * as React from 'react';
 import {
-  forwardRef,
   isValidElement,
   type ReactNode,
   type HTMLAttributes,
@@ -22,6 +21,27 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Check, Circle, ChevronDown, ChevronUp, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// 多个 Radix/HTML 包装组件仅 class 不同，工厂统一 forwardRef 样板；content 用于渲染固定子节点
+type WrapComp = React.ComponentType<Record<string, unknown>> | keyof React.JSX.IntrinsicElements;
+const wrapPrimitive = <T extends WrapComp>(
+  Comp: T,
+  baseClass: string,
+  displayName?: string,
+  content?: (children: ReactNode, props: Record<string, unknown>) => ReactNode,
+) => {
+  const Element = Comp as React.JSXElementConstructor<Record<string, unknown>>;
+  const Wrapped = React.forwardRef<Record<string, unknown>, React.ComponentPropsWithoutRef<T>>(
+    ({ className, children, ...props }, ref) => (
+      <Element ref={ref} className={cn(baseClass, className)} {...props}>
+        {content ? content(children, props) : children}
+      </Element>
+    ),
+  );
+  Wrapped.displayName =
+    displayName ?? (Comp as { displayName?: string }).displayName ?? 'Primitive';
+  return Wrapped;
+};
 
 const badgeVariants = cva(
   'inline-flex items-center gap-1.5 rounded-full border font-medium transition-colors',
@@ -165,104 +185,49 @@ const Alert = React.forwardRef<
   <div ref={ref} role="alert" className={cn(alertVariants({ variant }), className)} {...props} />
 ));
 Alert.displayName = 'Alert';
-const AlertTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
-    <h5
-      ref={ref}
-      className={cn('text-h3 text-fg font-medium leading-none tracking-tight', className)}
-      {...props}
-    />
-  ),
+export const AlertTitle = wrapPrimitive(
+  'h5',
+  'text-h3 text-fg font-medium leading-none tracking-tight',
+  'AlertTitle',
 );
-AlertTitle.displayName = 'AlertTitle';
-const AlertDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn('text-body text-fg-secondary [&_p]:leading-relaxed', className)}
-    {...props}
-  />
-));
-AlertDescription.displayName = 'AlertDescription';
-export { Alert, AlertTitle, AlertDescription };
+export const AlertDescription = wrapPrimitive(
+  'div',
+  'text-body text-fg-secondary [&_p]:leading-relaxed',
+  'AlertDescription',
+);
+export { Alert };
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('rounded-xl border border-border bg-surface', className)}
-      {...props}
-    />
-  ),
-);
-Card.displayName = 'Card';
-const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('flex flex-col space-y-1.5 p-6 pb-5', className)} {...props} />
-  ),
-);
-CardHeader.displayName = 'CardHeader';
-const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadingElement>>(
-  ({ className, ...props }, ref) => (
-    <h2 ref={ref} className={cn('text-h2 text-fg', className)} {...props} />
-  ),
-);
-CardTitle.displayName = 'CardTitle';
-const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn('p-6 pt-0', className)} {...props} />
-  ),
-);
-CardContent.displayName = 'CardContent';
-export { Card, CardHeader, CardTitle, CardContent };
+export const Card = wrapPrimitive('div', 'rounded-xl border border-border bg-surface', 'Card');
+export const CardHeader = wrapPrimitive('div', 'flex flex-col space-y-1.5 p-6 pb-5', 'CardHeader');
+export const CardTitle = wrapPrimitive('h2', 'text-h2 text-fg', 'CardTitle');
+export const CardContent = wrapPrimitive('div', 'p-6 pt-0', 'CardContent');
 
-const Checkbox = React.forwardRef<
-  React.ElementRef<typeof CheckboxPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof CheckboxPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <CheckboxPrimitive.Root
-    ref={ref}
-    className={cn(
-      'peer h-4 w-4 shrink-0 rounded-sm border border-border-strong bg-input-bg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand data-[state=checked]:text-brand-fg',
-      className,
-    )}
-    {...props}
-  >
+export const Checkbox = wrapPrimitive(
+  CheckboxPrimitive.Root,
+  'peer h-4 w-4 shrink-0 rounded-sm border border-border-strong bg-input-bg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand data-[state=checked]:text-brand-fg',
+  'Checkbox',
+  () => (
     <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current">
       <Check className="size-3.5" />
     </CheckboxPrimitive.Indicator>
-  </CheckboxPrimitive.Root>
-));
-Checkbox.displayName = CheckboxPrimitive.Root.displayName;
-export { Checkbox };
+  ),
+);
 
-const Collapsible = CollapsiblePrimitive.Root;
-const CollapsibleTrigger = CollapsiblePrimitive.Trigger;
-const CollapsibleContent = React.forwardRef<
-  React.ElementRef<typeof CollapsiblePrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof CollapsiblePrimitive.Content>
->(({ className, ...props }, ref) => (
-  <CollapsiblePrimitive.Content
-    ref={ref}
-    className={cn(
-      'overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up',
-      className,
-    )}
-    {...props}
-  />
-));
-CollapsibleContent.displayName = CollapsiblePrimitive.Content.displayName;
-export { Collapsible, CollapsibleTrigger, CollapsibleContent };
+export const Collapsible = CollapsiblePrimitive.Root;
+export const CollapsibleTrigger = CollapsiblePrimitive.Trigger;
+export const CollapsibleContent = wrapPrimitive(
+  CollapsiblePrimitive.Content,
+  'overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up',
+  'CollapsibleContent',
+);
 
-const DropdownMenu = DropdownMenuPrimitive.Root;
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+export const DropdownMenu = DropdownMenuPrimitive.Root;
+export const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
 const itemBase =
   'relative flex cursor-pointer select-none items-center rounded-md text-body text-fg-secondary outline-none transition-colors duration-150 focus:bg-hover focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-50';
 const contentAnim =
   'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2';
-const DropdownMenuContent = React.forwardRef<
+export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
 >(({ className, sideOffset = 4, ...props }, ref) => (
@@ -280,134 +245,77 @@ const DropdownMenuContent = React.forwardRef<
   </DropdownMenuPrimitive.Portal>
 ));
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName;
-const DropdownMenuItem = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Item>
->(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.Item
-    ref={ref}
-    className={cn(itemBase, 'px-2 py-1.5 [&_svg]:size-4 [&_svg]:mr-2', className)}
-    {...props}
-  />
-));
-DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
-const DropdownMenuCheckboxItem = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.CheckboxItem>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.CheckboxItem>
->(({ className, children, checked, ...props }, ref) => (
-  <DropdownMenuPrimitive.CheckboxItem
-    ref={ref}
-    checked={checked}
-    className={cn(itemBase, 'py-1.5 pl-8 pr-2', className)}
-    {...props}
-  >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <DropdownMenuPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-brand" />
-      </DropdownMenuPrimitive.ItemIndicator>
-    </span>
-    {children}
-  </DropdownMenuPrimitive.CheckboxItem>
-));
-DropdownMenuCheckboxItem.displayName = DropdownMenuPrimitive.CheckboxItem.displayName;
-const DropdownMenuSeparator = React.forwardRef<
-  React.ElementRef<typeof DropdownMenuPrimitive.Separator>,
-  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Separator>
->(({ className, ...props }, ref) => (
-  <DropdownMenuPrimitive.Separator
-    ref={ref}
-    className={cn('-mx-1 my-1 h-px bg-border', className)}
-    {...props}
-  />
-));
-DropdownMenuSeparator.displayName = DropdownMenuPrimitive.Separator.displayName;
-export {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuCheckboxItem,
-  DropdownMenuSeparator,
-};
-
-const labelVariants = cva(
-  'text-label font-medium text-fg-secondary leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+export const DropdownMenuItem = wrapPrimitive(
+  DropdownMenuPrimitive.Item,
+  cn(itemBase, 'px-2 py-1.5 [&_svg]:size-4 [&_svg]:mr-2'),
+  'DropdownMenuItem',
 );
-const Label = React.forwardRef<
-  React.ElementRef<typeof LabelPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof LabelPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <LabelPrimitive.Root ref={ref} className={cn(labelVariants(), className)} {...props} />
-));
-Label.displayName = LabelPrimitive.Root.displayName;
-export { Label };
+export const DropdownMenuCheckboxItem = wrapPrimitive(
+  DropdownMenuPrimitive.CheckboxItem,
+  cn(itemBase, 'py-1.5 pl-8 pr-2'),
+  'DropdownMenuCheckboxItem',
+  (children) => (
+    <>
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check className="h-4 w-4 text-brand" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </>
+  ),
+);
+export const DropdownMenuSeparator = wrapPrimitive(
+  DropdownMenuPrimitive.Separator,
+  '-mx-1 my-1 h-px bg-border',
+  'DropdownMenuSeparator',
+);
 
-const Progress = React.forwardRef<
-  React.ElementRef<typeof ProgressPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof ProgressPrimitive.Root>
->(({ className, value, ...props }, ref) => (
-  <ProgressPrimitive.Root
-    ref={ref}
-    className={cn('relative h-2 w-full overflow-hidden bg-input-bg rounded-full', className)}
-    {...props}
-  >
+export const Label = wrapPrimitive(
+  LabelPrimitive.Root,
+  'text-label font-medium text-fg-secondary leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
+  'Label',
+);
+
+export const Progress = wrapPrimitive(
+  ProgressPrimitive.Root,
+  'relative h-2 w-full overflow-hidden bg-input-bg rounded-full',
+  'Progress',
+  (_, { value }) => (
     <ProgressPrimitive.Indicator
       className="h-full w-full flex-1 bg-brand rounded-full transition-all"
       style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
     />
-  </ProgressPrimitive.Root>
-));
-Progress.displayName = ProgressPrimitive.Root.displayName;
-export { Progress };
+  ),
+);
 
-const RadioGroup = React.forwardRef<
-  React.ElementRef<typeof RadioGroupPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <RadioGroupPrimitive.Root ref={ref} className={cn('grid gap-2', className)} {...props} />
-));
-RadioGroup.displayName = RadioGroupPrimitive.Root.displayName;
-const RadioGroupItem = React.forwardRef<
-  React.ElementRef<typeof RadioGroupPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof RadioGroupPrimitive.Item>
->(({ className, ...props }, ref) => (
-  <RadioGroupPrimitive.Item
-    ref={ref}
-    className={cn(
-      'aspect-square h-4 w-4 rounded-full border border-border-strong text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-brand',
-      className,
-    )}
-    {...props}
-  >
+export const RadioGroup = wrapPrimitive(RadioGroupPrimitive.Root, 'grid gap-2', 'RadioGroup');
+export const RadioGroupItem = wrapPrimitive(
+  RadioGroupPrimitive.Item,
+  'aspect-square h-4 w-4 rounded-full border border-border-strong text-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-brand',
+  'RadioGroupItem',
+  () => (
     <RadioGroupPrimitive.Indicator className="flex items-center justify-center">
       <Circle className="size-3.5 fill-brand text-brand" />
     </RadioGroupPrimitive.Indicator>
-  </RadioGroupPrimitive.Item>
-));
-RadioGroupItem.displayName = RadioGroupPrimitive.Item.displayName;
-export { RadioGroup, RadioGroupItem };
+  ),
+);
 
-const Select = SelectPrimitive.Root;
-const SelectValue = SelectPrimitive.Value;
-const SelectTrigger = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      'flex h-10 w-full items-center justify-between rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
-      className,
-    )}
-    {...props}
-  >
-    {children}
-    <SelectPrimitive.Icon asChild>
-      <ChevronDown className="h-4 w-4 opacity-50" />
-    </SelectPrimitive.Icon>
-  </SelectPrimitive.Trigger>
-));
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
+export const Select = SelectPrimitive.Root;
+export const SelectValue = SelectPrimitive.Value;
+export const SelectTrigger = wrapPrimitive(
+  SelectPrimitive.Trigger,
+  'flex h-10 w-full items-center justify-between rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+  'SelectTrigger',
+  (children) => (
+    <>
+      {children}
+      <SelectPrimitive.Icon asChild>
+        <ChevronDown className="h-4 w-4 opacity-50" />
+      </SelectPrimitive.Icon>
+    </>
+  ),
+);
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -443,28 +351,22 @@ const SelectContent = React.forwardRef<
   </SelectPrimitive.Portal>
 ));
 SelectContent.displayName = SelectPrimitive.Content.displayName;
-const SelectItem = React.forwardRef<
-  React.ElementRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
-  <SelectPrimitive.Item
-    ref={ref}
-    className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-body text-fg-secondary outline-none transition-colors duration-150 focus:bg-hover focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[state=checked]:text-brand',
-      className,
-    )}
-    {...props}
-  >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" />
-      </SelectPrimitive.ItemIndicator>
-    </span>
-    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-  </SelectPrimitive.Item>
-));
-SelectItem.displayName = SelectPrimitive.Item.displayName;
-export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem };
+export const SelectItem = wrapPrimitive(
+  SelectPrimitive.Item,
+  'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-body text-fg-secondary outline-none transition-colors duration-150 focus:bg-hover focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[state=checked]:text-brand',
+  'SelectItem',
+  (children) => (
+    <>
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <SelectPrimitive.ItemIndicator>
+          <Check className="h-4 w-4" />
+        </SelectPrimitive.ItemIndicator>
+      </span>
+      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+    </>
+  ),
+);
+export { SelectContent };
 
 const Separator = React.forwardRef<
   React.ElementRef<typeof SeparatorPrimitive.Root>,
@@ -485,8 +387,8 @@ const Separator = React.forwardRef<
 Separator.displayName = SeparatorPrimitive.Root.displayName;
 export { Separator };
 
-const Sheet = SheetPrimitive.Root;
-const SheetTrigger = SheetPrimitive.Trigger;
+export const Sheet = SheetPrimitive.Root;
+export const SheetTrigger = SheetPrimitive.Trigger;
 const sheetVariants = cva(
   'fixed z-50 gap-4 bg-surface p-6 shadow-lg border-border transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-300 data-[state=closed]:duration-300',
   {
@@ -521,92 +423,44 @@ const SheetContent = React.forwardRef<
   </SheetPrimitive.Portal>
 ));
 SheetContent.displayName = SheetPrimitive.Content.displayName;
-const SheetHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn('flex flex-col gap-1.5 text-center sm:text-left', className)}
-      {...props}
-    />
-  ),
+export const SheetHeader = wrapPrimitive(
+  'div',
+  'flex flex-col gap-1.5 text-center sm:text-left',
+  'SheetHeader',
 );
-SheetHeader.displayName = 'SheetHeader';
-const SheetTitle = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Title>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Title>
->(({ className, ...props }, ref) => (
-  <SheetPrimitive.Title ref={ref} className={cn('text-h2 text-fg', className)} {...props} />
-));
-SheetTitle.displayName = SheetPrimitive.Title.displayName;
-export { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle };
+export const SheetTitle = wrapPrimitive(SheetPrimitive.Title, 'text-h2 text-fg', 'SheetTitle');
+export { SheetContent };
 
 const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn('animate-pulse rounded-md bg-input-bg', className)} {...props} />
 );
 export { Skeleton };
 
-const Switch = React.forwardRef<
-  React.ElementRef<typeof SwitchPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SwitchPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <SwitchPrimitive.Root
-    ref={ref}
-    className={cn(
-      'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border bg-input-bg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand',
-      className,
-    )}
-    {...props}
-  >
+export const Switch = wrapPrimitive(
+  SwitchPrimitive.Root,
+  'peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-border bg-input-bg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/15 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-brand data-[state=checked]:border-brand',
+  'Switch',
+  () => (
     <SwitchPrimitive.Thumb className="pointer-events-none block size-4 rounded-full bg-fg shadow-lg ring-0 transition-transform duration-150 ease-out-quart translate-x-0.5 data-[state=checked]:translate-x-[18px]" />
-  </SwitchPrimitive.Root>
-));
-Switch.displayName = SwitchPrimitive.Root.displayName;
-export { Switch };
+  ),
+);
 
-const Tabs = TabsPrimitive.Root;
-const TabsList = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn(
-      'inline-flex h-9 items-center justify-center bg-input-bg border border-border rounded-md p-1',
-      className,
-    )}
-    {...props}
-  />
-));
-TabsList.displayName = TabsPrimitive.List.displayName;
-const TabsTrigger = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-body font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-hover data-[state=active]:text-fg data-[state=inactive]:text-fg-tertiary',
-      className,
-    )}
-    {...props}
-  />
-));
-TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
-const TabsContent = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.Content
-    ref={ref}
-    className={cn(
-      'mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
-      className,
-    )}
-    {...props}
-  />
-));
-TabsContent.displayName = TabsPrimitive.Content.displayName;
-export { Tabs, TabsList, TabsTrigger, TabsContent };
+export const Tabs = TabsPrimitive.Root;
+export const TabsList = wrapPrimitive(
+  TabsPrimitive.List,
+  'inline-flex h-9 items-center justify-center bg-input-bg border border-border rounded-md p-1',
+  'TabsList',
+);
+export const TabsTrigger = wrapPrimitive(
+  TabsPrimitive.Trigger,
+  'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-body font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-hover data-[state=active]:text-fg data-[state=inactive]:text-fg-tertiary',
+  'TabsTrigger',
+);
+export const TabsContent = wrapPrimitive(
+  TabsPrimitive.Content,
+  'mt-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+  'TabsContent',
+);
 
 function Tooltip({ children }: { children: ReactNode }) {
   return <div className="relative inline-flex group">{children}</div>;
@@ -622,7 +476,7 @@ function TooltipTrigger({ children, asChild }: TooltipTriggerProps) {
 interface TooltipContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
-const TooltipContent = forwardRef<HTMLDivElement, TooltipContentProps>(
+const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
   ({ children, className, ...props }, ref) => (
     <div
       ref={ref}

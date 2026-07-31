@@ -1,28 +1,33 @@
 package main
+
 import (
-    "flag"
-    "fmt"
-    "log/slog"
-    "os"
-    "strings"
-    "time"
-    "data-fetcher/internal/akshare"
-    "data-fetcher/internal/finnhub"
-    "data-fetcher/internal/provider"
-    "data-fetcher/internal/twelvedata"
-    "data-fetcher/internal/yfinance"
+	"data-fetcher/internal/akshare"
+	"data-fetcher/internal/finnhub"
+	"data-fetcher/internal/provider"
+	"data-fetcher/internal/twelvedata"
+	"data-fetcher/internal/yfinance"
+	"flag"
+	"fmt"
+	"log/slog"
+	"os"
+	"strings"
+	"time"
 )
+
 type WorkerConfig struct {
 	DatabaseURL string
 }
+
 func defaultWorkerConfig() *WorkerConfig {
-	return &WorkerConfig{ DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")), }
+	return &WorkerConfig{DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL"))}
 }
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{ Level: slog.LevelInfo, }))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	slog.SetDefault(logger)
 	cfg := defaultWorkerConfig()
-if dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); dbURL != "" { cfg.DatabaseURL = dbURL }
+	if dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); dbURL != "" {
+		cfg.DatabaseURL = dbURL
+	}
 	fetchCmd := flag.NewFlagSet("fetch", flag.ExitOnError)
 	fetchTicker := fetchCmd.String("ticker", "", "标的代码 (e.g. SPY, 000001_SZ)")
 	fetchStart := fetchCmd.String("start", "2000-01-01", "起始日期 (YYYY-MM-DD)")
@@ -60,7 +65,8 @@ if dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); dbURL != "" { cfg.Data
 		os.Exit(1)
 	}
 	switch os.Args[1] {
-	case "fetch": fetchCmd.Parse(os.Args[2:])
+	case "fetch":
+		fetchCmd.Parse(os.Args[2:])
 		if *fetchTicker == "" {
 			fmt.Println("错误: 必须指定 --ticker")
 			os.Exit(1)
@@ -69,31 +75,38 @@ if dbURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); dbURL != "" { cfg.Data
 			slog.Error("fetch 失败", "error", err)
 			os.Exit(1)
 		}
-	case "update": updateCmd.Parse(os.Args[2:])
+	case "update":
+		updateCmd.Parse(os.Args[2:])
 		if err := cmdUpdate(cfg, *updateIncremental, *updateStart, *updateEnd); err != nil {
 			slog.Error("update 失败", "error", err)
 			os.Exit(1)
 		}
-	case "seed": seedCmd.Parse(os.Args[2:])
+	case "seed":
+		seedCmd.Parse(os.Args[2:])
 		if err := cmdSeed(cfg); err != nil {
 			slog.Error("seed 失败", "error", err)
 			os.Exit(1)
 		}
-	case "fetch-universe": fetchUniverseCmd.Parse(os.Args[2:])
+	case "fetch-universe":
+		fetchUniverseCmd.Parse(os.Args[2:])
 		if err := cmdFetchUniverse(cfg, *fetchUniverseFile); err != nil {
 			slog.Error("fetch-universe 失败", "error", err)
 			os.Exit(1)
 		}
-	case "fetch-sim": fetchSIMCmd.Parse(os.Args[2:])
+	case "fetch-sim":
+		fetchSIMCmd.Parse(os.Args[2:])
 		if err := cmdFetchSIM(cfg, *fetchSIMStart, *fetchSIMEnd); err != nil {
 			slog.Error("fetch-sim 失败", "error", err)
 			os.Exit(1)
 		}
-	default: fmt.Printf("未知命令: %s\n", os.Args[1])
+	default:
+		fmt.Printf("未知命令: %s\n", os.Args[1])
 		os.Exit(1)
 	}
 }
+
 var reg *provider.Registry
+
 func init() {
 	prio := os.Getenv("DATA_PROVIDER_PRIORITY")
 	var priorities []string
@@ -109,6 +122,8 @@ func init() {
 		twelvedata.NewProvider(),
 		akshare.NewProvider(),
 	} {
-if p != nil { reg.Register(p) }
+		if p != nil {
+			reg.Register(p)
+		}
 	}
 }

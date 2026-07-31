@@ -1,21 +1,37 @@
 package httpclient
+
 import (
-    "net/http"
-    "net/http/httptest"
-    "strings"
-    "sync/atomic"
-    "testing"
-    "time"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
 )
+
 func TestNew_DefaultOptions(t *testing.T) {
 	c := New("test-service", Options{})
-if c == nil { t.Fatal("New() returned nil") }
-if c.serviceName != "test-service" { t.Errorf("serviceName = %q, want test-service", c.serviceName) }
-if c.requestDelay != 500*time.Millisecond { t.Errorf("requestDelay = %v, want 500ms", c.requestDelay) }
-if c.maxRetries != 3 { t.Errorf("maxRetries = %d, want 3", c.maxRetries) }
-if len(c.userAgents) != 1 { t.Errorf("userAgents len = %d, want 1", len(c.userAgents)) }
-if c.httpClient == nil { t.Error("httpClient is nil") }
-if c.httpClient.Jar == nil { t.Error("cookie jar not set") }
+	if c == nil {
+		t.Fatal("New() returned nil")
+	}
+	if c.serviceName != "test-service" {
+		t.Errorf("serviceName = %q, want test-service", c.serviceName)
+	}
+	if c.requestDelay != 500*time.Millisecond {
+		t.Errorf("requestDelay = %v, want 500ms", c.requestDelay)
+	}
+	if c.maxRetries != 3 {
+		t.Errorf("maxRetries = %d, want 3", c.maxRetries)
+	}
+	if len(c.userAgents) != 1 {
+		t.Errorf("userAgents len = %d, want 1", len(c.userAgents))
+	}
+	if c.httpClient == nil {
+		t.Error("httpClient is nil")
+	}
+	if c.httpClient.Jar == nil {
+		t.Error("cookie jar not set")
+	}
 }
 func TestNew_CustomOptions(t *testing.T) {
 	uas := []string{"UA1", "UA2"}
@@ -24,10 +40,18 @@ func TestNew_CustomOptions(t *testing.T) {
 		ReadTimeout: 15 * time.Second, MaxRetries: 5, UserAgents: uas,
 		ExtraHeaders: map[string]string{"X-Custom": "val"},
 	})
-if c.requestDelay != 100*time.Millisecond { t.Errorf("requestDelay = %v, want 100ms", c.requestDelay) }
-if c.maxRetries != 5 { t.Errorf("maxRetries = %d, want 5", c.maxRetries) }
-if len(c.userAgents) != 2 { t.Errorf("userAgents len = %d, want 2", len(c.userAgents)) }
-if _, ok := c.extraHeaders["X-Custom"]; !ok { t.Error("extraHeaders missing X-Custom") }
+	if c.requestDelay != 100*time.Millisecond {
+		t.Errorf("requestDelay = %v, want 100ms", c.requestDelay)
+	}
+	if c.maxRetries != 5 {
+		t.Errorf("maxRetries = %d, want 5", c.maxRetries)
+	}
+	if len(c.userAgents) != 2 {
+		t.Errorf("userAgents len = %d, want 2", len(c.userAgents))
+	}
+	if _, ok := c.extraHeaders["X-Custom"]; !ok {
+		t.Error("extraHeaders missing X-Custom")
+	}
 }
 func TestGet_Success(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -37,8 +61,12 @@ func TestGet_Success(t *testing.T) {
 	defer ts.Close()
 	c := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1})
 	body, err := c.Get(ts.URL)
-if err != nil { t.Fatalf("unexpected error: %v", err) }
-if string(body) != `{"hello":"world"}` { t.Errorf("body = %q, want {\"hello\":\"world\"}", string(body)) }
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(body) != `{"hello":"world"}` {
+		t.Errorf("body = %q, want {\"hello\":\"world\"}", string(body))
+	}
 }
 func TestGet_SetsUserAgent(t *testing.T) {
 	var receivedUA string
@@ -50,8 +78,12 @@ func TestGet_SetsUserAgent(t *testing.T) {
 	uas := []string{"TestUA/1.0"}
 	c := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1, UserAgents: uas})
 	_, err := c.Get(ts.URL)
-if err != nil { t.Fatalf("unexpected error: %v", err) }
-if receivedUA != "TestUA/1.0" { t.Errorf("User-Agent = %q, want TestUA/1.0", receivedUA) }
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedUA != "TestUA/1.0" {
+		t.Errorf("User-Agent = %q, want TestUA/1.0", receivedUA)
+	}
 }
 func TestGet_SetsExtraHeaders(t *testing.T) {
 	var receivedHeader string
@@ -66,8 +98,12 @@ func TestGet_SetsExtraHeaders(t *testing.T) {
 		ExtraHeaders: map[string]string{"X-Custom-Header": "custom-value"},
 	})
 	_, err := c.Get(ts.URL)
-if err != nil { t.Fatalf("unexpected error: %v", err) }
-if receivedHeader != "custom-value" { t.Errorf("X-Custom-Header = %q, want custom-value", receivedHeader) }
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedHeader != "custom-value" {
+		t.Errorf("X-Custom-Header = %q, want custom-value", receivedHeader)
+	}
 }
 func TestGet_ExtraHeadersOverride(t *testing.T) {
 	var receivedHeader string
@@ -82,8 +118,12 @@ func TestGet_ExtraHeadersOverride(t *testing.T) {
 		ExtraHeaders: map[string]string{"X-Override": "default"},
 	})
 	_, err := c.Get(ts.URL, map[string]string{"X-Override": "overridden"})
-if err != nil { t.Fatalf("unexpected error: %v", err) }
-if receivedHeader != "overridden" { t.Errorf("X-Override = %q, want overridden", receivedHeader) }
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedHeader != "overridden" {
+		t.Errorf("X-Override = %q, want overridden", receivedHeader)
+	}
 }
 func TestGet_HTTP500_Retries(t *testing.T) {
 	var attempts int32
@@ -94,8 +134,12 @@ func TestGet_HTTP500_Retries(t *testing.T) {
 	defer ts.Close()
 	c := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 2})
 	_, err := c.Get(ts.URL)
-if err == nil { t.Fatal("expected error for HTTP 500, got nil") }
-if atomic.LoadInt32(&attempts) != 2 { t.Errorf("attempts = %d, want 2 (retries)", atomic.LoadInt32(&attempts)) }
+	if err == nil {
+		t.Fatal("expected error for HTTP 500, got nil")
+	}
+	if atomic.LoadInt32(&attempts) != 2 {
+		t.Errorf("attempts = %d, want 2 (retries)", atomic.LoadInt32(&attempts))
+	}
 }
 func TestGet_429_RetriesAndRateLimited(t *testing.T) {
 	var attempts int32
@@ -107,9 +151,15 @@ func TestGet_429_RetriesAndRateLimited(t *testing.T) {
 	defer ts.Close()
 	c := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 2})
 	_, err := c.Get(ts.URL)
-if err == nil { t.Fatal("expected error for 429, got nil") }
-if !strings.Contains(err.Error(), "限流") { t.Errorf("error message = %q, want contains 限流", err.Error()) }
-if atomic.LoadInt32(&attempts) != 2 { t.Errorf("attempts = %d, want 2", atomic.LoadInt32(&attempts)) }
+	if err == nil {
+		t.Fatal("expected error for 429, got nil")
+	}
+	if !strings.Contains(err.Error(), "限流") {
+		t.Errorf("error message = %q, want contains 限流", err.Error())
+	}
+	if atomic.LoadInt32(&attempts) != 2 {
+		t.Errorf("attempts = %d, want 2", atomic.LoadInt32(&attempts))
+	}
 }
 func TestGet_429_ThenSuccess(t *testing.T) {
 	var attempts int32
@@ -126,41 +176,57 @@ func TestGet_429_ThenSuccess(t *testing.T) {
 	defer ts.Close()
 	c := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 3})
 	body, err := c.Get(ts.URL)
-if err != nil { t.Fatalf("unexpected error: %v", err) }
-if string(body) != `{"ok":true}` { t.Errorf("body = %q, want {\"ok\":true}", string(body)) }
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(body) != `{"ok":true}` {
+		t.Errorf("body = %q, want {\"ok\":true}", string(body))
+	}
 }
 func TestParseRetryAfter_IntegerSeconds(t *testing.T) {
 	h := http.Header{}
 	h.Set("Retry-After", "10")
 	d := parseRetryAfter(h)
-if d != 10*time.Second { t.Errorf("parseRetryAfter(\"10\") = %v, want 10s", d) }
+	if d != 10*time.Second {
+		t.Errorf("parseRetryAfter(\"10\") = %v, want 10s", d)
+	}
 }
 func TestParseRetryAfter_Empty(t *testing.T) {
 	h := http.Header{}
 	d := parseRetryAfter(h)
-if d != 5*time.Second { t.Errorf("parseRetryAfter(empty) = %v, want 5s (default)", d) }
+	if d != 5*time.Second {
+		t.Errorf("parseRetryAfter(empty) = %v, want 5s (default)", d)
+	}
 }
 func TestParseRetryAfter_Invalid(t *testing.T) {
 	h := http.Header{}
 	h.Set("Retry-After", "not-a-number")
 	d := parseRetryAfter(h)
-if d != 5*time.Second { t.Errorf("parseRetryAfter(invalid) = %v, want 5s (default)", d) }
+	if d != 5*time.Second {
+		t.Errorf("parseRetryAfter(invalid) = %v, want 5s (default)", d)
+	}
 }
 func TestParseRetryAfter_HTTPDate(t *testing.T) {
 	h := http.Header{}
 	h.Set("Retry-After", "Wed, 21 Oct 2099 07:28:00 GMT")
 	d := parseRetryAfter(h)
-if d <= 0 { t.Errorf("parseRetryAfter(future date) = %v, want positive duration", d) }
+	if d <= 0 {
+		t.Errorf("parseRetryAfter(future date) = %v, want positive duration", d)
+	}
 }
 func TestThrottle_EnforcesDelay(t *testing.T) {
-	c := New("test", Options{ RequestDelay: 50 * time.Millisecond, MaxRetries:   1, })
+	c := New("test", Options{RequestDelay: 50 * time.Millisecond, MaxRetries: 1})
 	start := time.Now()
 	c.throttle() // 第一次无延迟
 	elapsed1 := time.Since(start)
-if elapsed1 > 30*time.Millisecond { t.Errorf("first throttle took %v, should be near-instant", elapsed1) }
+	if elapsed1 > 30*time.Millisecond {
+		t.Errorf("first throttle took %v, should be near-instant", elapsed1)
+	}
 	c.throttle() // 第二次应等待 50ms
 	elapsed2 := time.Since(start)
-if elapsed2 < 40*time.Millisecond { t.Errorf("second throttle took %v, should be >= 40ms (requestDelay)", elapsed2) }
+	if elapsed2 < 40*time.Millisecond {
+		t.Errorf("second throttle took %v, should be >= 40ms (requestDelay)", elapsed2)
+	}
 }
 func TestRandomUA_ReturnsValidAgent(t *testing.T) {
 	uas := []string{"UA1", "UA2", "UA3"}
@@ -174,7 +240,9 @@ func TestRandomUA_ReturnsValidAgent(t *testing.T) {
 				break
 			}
 		}
-if !found { t.Errorf("randomUA() returned %q not in list %v", ua, uas) }
+		if !found {
+			t.Errorf("randomUA() returned %q not in list %v", ua, uas)
+		}
 	}
 }
 func TestGet_Non200Status(t *testing.T) {
@@ -185,7 +253,9 @@ func TestGet_Non200Status(t *testing.T) {
 	defer ts.Close()
 	c := New("test", Options{RequestDelay: 1 * time.Millisecond, MaxRetries: 1})
 	_, err := c.Get(ts.URL)
-if err == nil { t.Fatal("expected error for 404, got nil") }
+	if err == nil {
+		t.Fatal("expected error for 404, got nil")
+	}
 }
 func TestGet_ConnectionError(t *testing.T) {
 	c := New("test", Options{
@@ -195,10 +265,18 @@ func TestGet_ConnectionError(t *testing.T) {
 		ReadTimeout:    100 * time.Millisecond,
 	})
 	_, err := c.Get("http://127.0.0.1:1/test")
-if err == nil { t.Fatal("expected error for connection refused, got nil") }
+	if err == nil {
+		t.Fatal("expected error for connection refused, got nil")
+	}
 }
 func TestMin(t *testing.T) {
-if min(3, 5) != 3 { t.Errorf("min(3,5) = %d, want 3", min(3, 5)) }
-if min(5, 3) != 3 { t.Errorf("min(5,3) = %d, want 3", min(5, 3)) }
-if min(0, 0) != 0 { t.Errorf("min(0,0) = %d, want 0", min(0, 0)) }
+	if min(3, 5) != 3 {
+		t.Errorf("min(3,5) = %d, want 3", min(3, 5))
+	}
+	if min(5, 3) != 3 {
+		t.Errorf("min(5,3) = %d, want 3", min(5, 3))
+	}
+	if min(0, 0) != 0 {
+		t.Errorf("min(0,0) = %d, want 0", min(0, 0))
+	}
 }

@@ -1,13 +1,15 @@
 // Package provider 提供数据源接口、注册表与跨 provider 共享的基础设施。
 package provider
+
 import (
-    "fmt"
-    "log/slog"
-    "regexp"
-    "strings"
-    "time"
-    "github.com/sony/gobreaker"
+	"fmt"
+	"github.com/sony/gobreaker"
+	"log/slog"
+	"regexp"
+	"strings"
+	"time"
 )
+
 type DailyPrice struct {
 	Date          string
 	Open          float64
@@ -32,8 +34,9 @@ type Registry struct {
 	providers  map[string]Provider
 	priorities []string
 }
+
 func NewRegistry(priorities []string) *Registry {
-	return &Registry{ providers:  make(map[string]Provider), priorities: priorities, }
+	return &Registry{providers: make(map[string]Provider), priorities: priorities}
 }
 func (r *Registry) Register(p Provider) {
 	r.providers[p.Name()] = p
@@ -44,7 +47,9 @@ func (r *Registry) ForTicker(ticker string) []Provider {
 	if strings.HasSuffix(upper, ".SZ") || strings.HasSuffix(upper, ".SH") ||
 		strings.HasSuffix(upper, "_SZ") || strings.HasSuffix(upper, "_SH") {
 		providers := r.forMarket("akshare")
-		if len(providers) > 0 { return providers }
+		if len(providers) > 0 {
+			return providers
+		}
 		return r.forMarket(r.priorities...)
 	}
 	return r.forMarket(r.priorities...)
@@ -54,7 +59,9 @@ func (r *Registry) forMarket(allow ...string) []Provider {
 	for _, name := range r.priorities {
 		for _, allowed := range allow {
 			if name == allowed {
-if p, ok := r.providers[name]; ok { result = append(result, p) }
+				if p, ok := r.providers[name]; ok {
+					result = append(result, p)
+				}
 				break
 			}
 		}
@@ -65,7 +72,9 @@ func FetchWithFallback(providers []Provider, ticker, startDate, endDate string) 
 	var lastErr error
 	for _, p := range providers {
 		prices, err := p.FetchStockDaily(ticker, startDate, endDate)
-		if err == nil { return prices, p.Name(), nil }
+		if err == nil {
+			return prices, p.Name(), nil
+		}
 		lastErr = err
 		slog.Warn("数据源获取失败，切换到下一个",
 			"provider", p.Name(),
@@ -75,10 +84,19 @@ func FetchWithFallback(providers []Provider, ticker, startDate, endDate string) 
 	}
 	return nil, "", fmt.Errorf("所有数据源均失败: %w", lastErr)
 }
-var ( reSZExchange  = regexp.MustCompile(`(?i)[._]SZ$`); reSSEExchange = regexp.MustCompile(`(?i)[._](SS|SH)$`) )
+
+var (
+	reSZExchange  = regexp.MustCompile(`(?i)[._]SZ$`)
+	reSSEExchange = regexp.MustCompile(`(?i)[._](SS|SH)$`)
+)
+
 func DeriveExchange(ticker string) string {
-	if reSZExchange.MatchString(ticker) { return "SZSE" }
-	if reSSEExchange.MatchString(ticker) { return "SSE" }
+	if reSZExchange.MatchString(ticker) {
+		return "SZSE"
+	}
+	if reSSEExchange.MatchString(ticker) {
+		return "SSE"
+	}
 	return "US"
 }
 func NewProviderBreaker(name string, maxRequests uint32) *gobreaker.CircuitBreaker {

@@ -1,19 +1,25 @@
 package akshare
+
 import (
-    "encoding/json"
-    "fmt"
-    "strings"
-    "time"
-    "data-fetcher/internal/httpclient"
-    "data-fetcher/internal/provider"
-    "data-fetcher/internal/providerutil"
+	"data-fetcher/internal/httpclient"
+	"data-fetcher/internal/provider"
+	"data-fetcher/internal/providerutil"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
 )
+
 var userAgents = []string{
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 	"Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0",
 }
-var ( breaker = provider.NewProviderBreaker("akshare", 3); httpClient *httpclient.Client )
+var (
+	breaker    = provider.NewProviderBreaker("akshare", 3)
+	httpClient *httpclient.Client
+)
+
 func init() {
 	httpClient = httpclient.New("akshare", httpclient.Options{
 		RequestDelay: 600 * time.Millisecond,
@@ -24,7 +30,9 @@ func init() {
 		},
 	})
 }
+
 type akshareProvider struct{}
+
 func NewProvider() provider.Provider {
 	return &akshareProvider{}
 }
@@ -41,7 +49,9 @@ func (p *akshareProvider) FetchStockDaily(ticker, startDate, endDate string) ([]
 		secid, beg, ed,
 	)
 	result, err := breaker.Execute(func() (interface{}, error) { return doWithRetry(url) })
-	if err != nil { return nil, fmt.Errorf("akshare FetchStockDaily 失败: %w", err) }
+	if err != nil {
+		return nil, fmt.Errorf("akshare FetchStockDaily 失败: %w", err)
+	}
 	return result.([]provider.DailyPrice), nil
 }
 func doWithRetry(url string) ([]provider.DailyPrice, error) {
@@ -59,9 +69,12 @@ func parseCodeAndMarket(ticker string) (code, market string) {
 	} else if idx := strings.LastIndex(code, "."); idx > 0 {
 		code = code[:idx]
 	}
-	if isSH { return code, "1" }
+	if isSH {
+		return code, "1"
+	}
 	return code, "0"
 }
+
 type eastMoneyResponse struct {
 	Data *struct {
 		Code   string   `json:"code"`
@@ -70,14 +83,21 @@ type eastMoneyResponse struct {
 		Klines []string `json:"klines"`
 	} `json:"data"`
 }
+
 func parseDailyPrices(body []byte) ([]provider.DailyPrice, error) {
 	var raw eastMoneyResponse
-	if err := json.Unmarshal(body, &raw); err != nil { return nil, fmt.Errorf("JSON 解析失败: %w", err) }
-	if raw.Data == nil { return nil, fmt.Errorf("API 返回空数据") }
+	if err := json.Unmarshal(body, &raw); err != nil {
+		return nil, fmt.Errorf("JSON 解析失败: %w", err)
+	}
+	if raw.Data == nil {
+		return nil, fmt.Errorf("API 返回空数据")
+	}
 	var prices []provider.DailyPrice
 	for _, kline := range raw.Data.Klines {
 		parts := strings.Split(kline, ",")
-		if len(parts) < 11 { continue }
+		if len(parts) < 11 {
+			continue
+		}
 		prices = append(prices, provider.DailyPrice{
 			Date: parts[0], Open: providerutil.ParseStringFloat(parts[1]),
 			Close:         providerutil.ParseStringFloat(parts[2]),

@@ -6,12 +6,7 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
-  child: vi.fn(() => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  })),
+  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -47,9 +42,7 @@ describe('Run Aggregate', () => {
       'completed',
       'RunCompleted',
       true,
-      (r: Run) => {
-        expect(r.result).toEqual({ totalReturn: 0.15 });
-      },
+      (r: Run) => expect(r.result).toEqual({ totalReturn: 0.15 }),
       () => {},
     ],
     [
@@ -58,19 +51,16 @@ describe('Run Aggregate', () => {
       'failed',
       'RunFailed',
       true,
-      (r: Run) => {
-        expect(r.failureReason).toBe('engine unavailable');
-      },
-      (e: { payload: Record<string, unknown> }[]) => {
-        expect(e[0].payload.failureReason).toBe('engine unavailable');
-      },
+      (r: Run) => expect(r.failureReason).toBe('engine unavailable'),
+      (e: { payload: Record<string, unknown> }[]) =>
+        expect(e[0].payload.failureReason).toBe('engine unavailable'),
     ],
     ['cancel', undefined, 'cancelled', 'RunCancelled', false, () => {}, () => {}],
   ])(
     '%s 后进入终态并产生 %s 事件',
     async (_method, arg, status, eventType, fromStart, state, event) => {
       const run = Run.create({ id: 'r1', request: {} });
-      run.pullEvents(); // 清空 RunStarted
+      run.pullEvents();
       if (fromStart) run.start();
       (run as unknown as Record<string, (a: unknown) => void>)[_method](arg);
       expect(run.status).toBe(status);
@@ -143,86 +133,68 @@ describe('Run Aggregate', () => {
     });
   });
 
-  describe('complete', () => {
-    it('queued → complete 抛错（必须先 start）', () => {
-      const run = Run.create({ id: 'r1', request: {} });
-      expect(() => run.complete({})).toThrow(DomainValidationError);
-      expect(() => run.complete({})).toThrow("expected 'running'");
-    });
+  it.each([
+    ['complete', (r: Run) => r.complete({}), "expected 'running'"],
+    ['fail', (r: Run) => r.fail('err'), null],
+  ])('queued → %s 抛错（必须先 start）', (_op, invoke, msg) => {
+    const run = Run.create({ id: 'r1', request: {} });
+    expect(() => invoke(run)).toThrow(DomainValidationError);
+    if (msg) expect(() => invoke(run)).toThrow(msg);
   });
 
-  describe('fail', () => {
-    it('queued → fail 抛错（必须先 start）', () => {
-      const run = Run.create({ id: 'r1', request: {} });
-      expect(() => run.fail('err')).toThrow(DomainValidationError);
-    });
+  it('running → cancelled 合法', () => {
+    const run = Run.create({ id: 'r1', request: {} });
+    run.pullEvents();
+    run.start();
+    run.cancel();
+    expect(run.status).toBe('cancelled');
   });
 
-  describe('cancel', () => {
-    it('running → cancelled 合法', () => {
-      const run = Run.create({ id: 'r1', request: {} });
-      run.pullEvents(); // 清空 RunStarted
-      run.start();
-      run.cancel();
-      expect(run.status).toBe('cancelled');
-    });
+  it.each([
+    ['start', (r: Run) => r.start()],
+    ['complete', (r: Run) => r.complete({})],
+    ['cancel', (r: Run) => r.cancel()],
+  ])('completed → %s 抛错（终态不可转换）', (_op, invoke) => {
+    const run = Run.create({ id: 'r1', request: {} });
+    run.start();
+    run.complete({});
+    expect(() => invoke(run)).toThrow(DomainValidationError);
+  });
+  it('failed → fail 抛错（终态不可重复失败）', () => {
+    const run = Run.create({ id: 'r1', request: {} });
+    run.start();
+    run.fail('first error');
+    expect(() => run.fail('second error')).toThrow(DomainValidationError);
   });
 
-  describe('终态不可转换', () => {
-    it.each([
-      ['start', (r: Run) => r.start()],
-      ['complete', (r: Run) => r.complete({})],
-      ['cancel', (r: Run) => r.cancel()],
-    ])('completed → %s 抛错（终态不可转换）', (_op, invoke) => {
-      const run = Run.create({ id: 'r1', request: {} });
-      run.start();
-      run.complete({});
-      expect(() => invoke(run)).toThrow(DomainValidationError);
-    });
-    it('failed → fail 抛错（终态不可重复失败）', () => {
-      const run = Run.create({ id: 'r1', request: {} });
-      run.start();
-      run.fail('first error');
-      expect(() => run.fail('second error')).toThrow(DomainValidationError);
-    });
+  it('pullEvents 取出后清空，再次调用返回空数组', () => {
+    const run = Run.create({ id: 'r1', request: {} });
+    expect(run.pullEvents()).toHaveLength(1);
+    expect(run.pullEvents()).toHaveLength(0);
   });
-
-  describe('pullEvents', () => {
-    it('取出后清空，再次调用返回空数组', () => {
-      const run = Run.create({ id: 'r1', request: {} });
-      const first = run.pullEvents();
-      expect(first).toHaveLength(1);
-      const second = run.pullEvents();
-      expect(second).toHaveLength(0);
-    });
-    it.each([
-      ['complete', 'RunCompleted'],
-      ['fail', 'RunFailed'],
-    ])('完整生命周期：create→start→%s 产生 RunStarted + %s', (method, eventType) => {
-      const run = Run.create({ id: 'r1', request: {} });
-      run.start();
-      (run as unknown as Record<string, (a: unknown) => void>)[method](
-        method === 'complete' ? { result: 1 } : 'timeout',
-      );
-      const events = run.pullEvents();
-      expect(events.map((e) => e.eventType)).toEqual(['RunStarted', eventType]);
-    });
+  it.each([
+    ['complete', 'RunCompleted'],
+    ['fail', 'RunFailed'],
+  ])('完整生命周期：create→start→%s 产生 RunStarted + %s', (method, eventType) => {
+    const run = Run.create({ id: 'r1', request: {} });
+    run.start();
+    (run as unknown as Record<string, (a: unknown) => void>)[method](
+      method === 'complete' ? { result: 1 } : 'timeout',
+    );
+    expect(run.pullEvents().map((e) => e.eventType)).toEqual(['RunStarted', eventType]);
   });
 });
 
 describe('Portfolio Aggregate', () => {
-  describe('create', () => {
-    it('权重和为 100 时创建成功', () => {
-      const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
-      expect(p.holdingCount).toBe(2);
-    });
-    it('权重和偏差超过容差时抛出错误', () => {
-      expect(() => Portfolio.create('p1', 'Test', [makeHolding('AAPL', 50)])).toThrow(
-        'weights must sum to ~100',
-      );
-    });
+  it('权重和为 100 时创建成功', () => {
+    const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
+    expect(p.holdingCount).toBe(2);
   });
-
+  it('权重和偏差超过容差时抛出错误', () => {
+    expect(() => Portfolio.create('p1', 'Test', [makeHolding('AAPL', 50)])).toThrow(
+      'weights must sum to ~100',
+    );
+  });
   describe('properties', () => {
     const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
     it('holdingCount 返回持仓数量', () => {
@@ -247,93 +219,53 @@ describe('Weight.create', () => {
     [50, '一半'],
     [25, '四分之一'],
   ])('应接受 %s（%s）', (value) => {
-    const weight = Weight.create(value);
-    expect(weight.value).toBe(value);
+    expect(Weight.create(value).value).toBe(value);
   });
-
-  it('应拒绝负数', () => {
-    expect(() => Weight.create(-1)).toThrow(/between 0 and 100/);
-  });
-
-  it('应拒绝大于 100', () => {
-    expect(() => Weight.create(101)).toThrow(/between 0 and 100/);
+  it.each([
+    [-1, '负数'],
+    [101, '大于 100'],
+  ])('应拒绝%s（%s）', (value) => {
+    expect(() => Weight.create(value)).toThrow(/between 0 and 100/);
   });
 });
 
 describe('Ticker.create', () => {
-  describe('合法 ticker', () => {
-    it.each([
-      ['AAPL', 'AAPL', '美股代码'],
-      ['MSFT', 'MSFT', '美股代码'],
-      ['VTI', 'VTI', 'ETF 代码'],
-      ['A', 'A', '单字符'],
-      ['ABCDE', 'ABCDE', '5 字符'],
-      ['ABCDEFGHIJ', 'ABCDEFGHIJ', '10 字符（上限）'],
-      ['123', '123', '数字代码'],
-      ['A1B2', 'A1B2', '字母数字混合'],
-      ['510300.SS', '510300.SS', 'A 股带后缀'],
-      ['600519.SH', '600519.SH', '沪市后缀'],
-      ['000001.SZ', '000001.SZ', '深市后缀'],
-    ])('应接受 %s（%s）', (input, expected) => {
-      const ticker = Ticker.create(input);
-      expect(ticker.value).toBe(expected);
-    });
-
-    it('应将小写转为大写（大小写归一化）', () => {
-      const ticker = Ticker.create('aapl');
-      expect(ticker.value).toBe('AAPL');
-    });
-
-    it('应去除首尾空格', () => {
-      const ticker = Ticker.create('  AAPL  ');
-      expect(ticker.value).toBe('AAPL');
-    });
-
-    it('小写带后缀应转为大写带后缀', () => {
-      const ticker = Ticker.create('510300.ss');
-      expect(ticker.value).toBe('510300.SS');
-    });
+  it.each([
+    ['AAPL', 'AAPL', '美股代码'],
+    ['MSFT', 'MSFT', '美股代码'],
+    ['VTI', 'VTI', 'ETF 代码'],
+    ['A', 'A', '单字符'],
+    ['ABCDE', 'ABCDE', '5 字符'],
+    ['ABCDEFGHIJ', 'ABCDEFGHIJ', '10 字符（上限）'],
+    ['123', '123', '数字代码'],
+    ['A1B2', 'A1B2', '字母数字混合'],
+    ['510300.SS', '510300.SS', 'A 股带后缀'],
+    ['600519.SH', '600519.SH', '沪市后缀'],
+    ['000001.SZ', '000001.SZ', '深市后缀'],
+    ['aapl', 'AAPL', '小写转大写（归一化）'],
+    ['  AAPL  ', 'AAPL', '去除首尾空格'],
+    ['510300.ss', '510300.SS', '小写带后缀'],
+    ['AAPL ', 'AAPL', '尾随空格 trim 后合法'],
+    [' AAPL', 'AAPL', '前导空格 trim 后合法'],
+  ])('应接受 %s（%s）', (input, expected) => {
+    expect(Ticker.create(input).value).toBe(expected);
   });
-
-  describe('非法 ticker', () => {
-    it.each([
-      ['AAPL!', '感叹号'],
-      ['AAPL@', 'at 符号'],
-      ['AAPL#', '井号'],
-      ['AA PL', '中间空格'],
-      ['中证500', '非 ASCII 字符'],
-      ['AAPL.BCD', '后缀超过 2 字符'],
-      ['AAPL.', '后缀为空'],
-      ['.SS', '主体为空'],
-      ['AAPL-SZ', '连字符非法'],
-      ['AAPL_SS', '下划线非法'],
-    ])('应拒绝 %s（%s）', (input) => {
-      expect(() => Ticker.create(input)).toThrow(/Invalid ticker/);
-    });
-
-    it('应拒绝超过 10 字符的 ticker（不含后缀）', () => {
-      expect(() => Ticker.create('ABCDEFGHIJK')).toThrow(/Invalid ticker/);
-    });
-
-    it('应拒绝空字符串', () => {
-      expect(() => Ticker.create('')).toThrow(/Invalid ticker/);
-    });
-
-    it('应拒绝仅含空格的字符串（trim 后为空）', () => {
-      expect(() => Ticker.create('   ')).toThrow(/Invalid ticker/);
-    });
-
-    // 注：'AAPL ' 和 ' AAPL' 在 trim 后变为 'AAPL'，是合法的
-    // 这是 Ticker.create 的归一化行为（先 trim 再校验）
-    it('尾随空格应在 trim 后通过校验（归一化行为）', () => {
-      const ticker = Ticker.create('AAPL ');
-      expect(ticker.value).toBe('AAPL');
-    });
-
-    it('前导空格应在 trim 后通过校验（归一化行为）', () => {
-      const ticker = Ticker.create(' AAPL');
-      expect(ticker.value).toBe('AAPL');
-    });
+  it.each([
+    ['AAPL!', '感叹号'],
+    ['AAPL@', 'at 符号'],
+    ['AAPL#', '井号'],
+    ['AA PL', '中间空格'],
+    ['中证500', '非 ASCII 字符'],
+    ['AAPL.BCD', '后缀超过 2 字符'],
+    ['AAPL.', '后缀为空'],
+    ['.SS', '主体为空'],
+    ['AAPL-SZ', '连字符非法'],
+    ['AAPL_SS', '下划线非法'],
+    ['ABCDEFGHIJK', '超过 10 字符（不含后缀）'],
+    ['', '空字符串'],
+    ['   ', '仅含空格（trim 后为空）'],
+  ])('应拒绝 %s（%s）', (input) => {
+    expect(() => Ticker.create(input)).toThrow(/Invalid ticker/);
   });
 });
 
@@ -349,10 +281,7 @@ describe('Ticker.toString', () => {
 
 describe('Ticker 不变性', () => {
   it('value 属性应通过 readonly 修饰符保护（编译时检查）', () => {
-    const ticker = Ticker.create('AAPL');
-    expect(ticker.value).toBe('AAPL');
-    // 注：TypeScript 的 readonly 是编译时约束，运行时不强制。
-    // 此处仅验证 value 属性存在且可读，不可变性由 TS 编译器保证。
+    expect(Ticker.create('AAPL').value).toBe('AAPL');
   });
 });
 
@@ -375,6 +304,15 @@ function createHandler(eventType: string, handleFn?: (event: DomainEvent) => voi
   };
 }
 
+function createFailingHandler(eventType: string): EventHandler {
+  return {
+    eventType,
+    handle: vi.fn(async () => {
+      throw new Error('handler failure');
+    }),
+  };
+}
+
 describe('DomainEventDispatcher', () => {
   let dispatcher: DomainEventDispatcher;
 
@@ -386,20 +324,14 @@ describe('DomainEventDispatcher', () => {
   it('register() 应添加处理器，使 dispatch 能调用到它', async () => {
     const handler = createHandler('TestEvent');
     dispatcher.register(handler);
-
     const event = createEvent('TestEvent');
     await dispatcher.dispatch(event);
-
     expect(handler.handle).toHaveBeenCalledTimes(1);
     expect(handler.handle).toHaveBeenCalledWith(event);
   });
 
   it('dispatch() 无注册处理器时应正常返回，不抛错', async () => {
-    const event = createEvent('UnregisteredEvent');
-
-    // 不应抛出异常
-    await expect(dispatcher.dispatch(event)).resolves.toBeUndefined();
-    // 应记录 info 日志（便于排障，但不报错）
+    await expect(dispatcher.dispatch(createEvent('UnregisteredEvent'))).resolves.toBeUndefined();
     expect(loggerMocks.info).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'UnregisteredEvent' }),
       'No handlers registered for event',
@@ -407,30 +339,17 @@ describe('DomainEventDispatcher', () => {
   });
 
   it('dispatch() 单个处理器失败时不应阻塞其他处理器', async () => {
-    const failingHandler: EventHandler = {
-      eventType: 'TestEvent',
-      handle: vi.fn(async () => {
-        throw new Error('handler failure');
-      }),
-    };
+    const failingHandler = createFailingHandler('TestEvent');
     const successHandler = createHandler('TestEvent');
-
     dispatcher.register(failingHandler);
     dispatcher.register(successHandler);
-
-    const event = createEvent('TestEvent');
-    await dispatcher.dispatch(event);
-
-    // 失败的处理器应被调用
+    await dispatcher.dispatch(createEvent('TestEvent'));
     expect(failingHandler.handle).toHaveBeenCalledTimes(1);
-    // 成功的处理器也应被调用（allSettled 隔离性）
     expect(successHandler.handle).toHaveBeenCalledTimes(1);
-    // 应记录错误日志
     expect(loggerMocks.error).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'TestEvent' }),
       'Event handler failed',
     );
-    // 应记录警告日志（部分处理器失败）
     expect(loggerMocks.warn).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'TestEvent', errorCount: 1 }),
       'Some event handlers failed',
@@ -438,36 +357,26 @@ describe('DomainEventDispatcher', () => {
   });
 
   it('dispatch() 同一事件类型的多个处理器均应被调用', async () => {
-    const handler1 = createHandler('MultiEvent');
-    const handler2 = createHandler('MultiEvent');
-    const handler3 = createHandler('MultiEvent');
-
-    dispatcher.register(handler1);
-    dispatcher.register(handler2);
-    dispatcher.register(handler3);
-
+    const handlers = [
+      createHandler('MultiEvent'),
+      createHandler('MultiEvent'),
+      createHandler('MultiEvent'),
+    ];
+    handlers.forEach((h) => dispatcher.register(h));
     const event = createEvent('MultiEvent');
     await dispatcher.dispatch(event);
-
-    expect(handler1.handle).toHaveBeenCalledTimes(1);
-    expect(handler2.handle).toHaveBeenCalledTimes(1);
-    expect(handler3.handle).toHaveBeenCalledTimes(1);
-    // 所有处理器都应收到同一个事件对象
-    expect(handler1.handle).toHaveBeenCalledWith(event);
-    expect(handler2.handle).toHaveBeenCalledWith(event);
-    expect(handler3.handle).toHaveBeenCalledWith(event);
+    for (const h of handlers) {
+      expect(h.handle).toHaveBeenCalledTimes(1);
+      expect(h.handle).toHaveBeenCalledWith(event);
+    }
   });
 
   it('dispatch() 应只调用对应事件类型的处理器，不调用其他类型', async () => {
     const targetHandler = createHandler('TargetEvent');
     const otherHandler = createHandler('OtherEvent');
-
     dispatcher.register(targetHandler);
     dispatcher.register(otherHandler);
-
-    const event = createEvent('TargetEvent');
-    await dispatcher.dispatch(event);
-
+    await dispatcher.dispatch(createEvent('TargetEvent'));
     expect(targetHandler.handle).toHaveBeenCalledTimes(1);
     expect(otherHandler.handle).not.toHaveBeenCalled();
   });
@@ -475,17 +384,11 @@ describe('DomainEventDispatcher', () => {
   it('register() 同一事件类型多次注册应累积处理器', async () => {
     const handler1 = createHandler('AccumEvent');
     const handler2 = createHandler('AccumEvent');
-
     dispatcher.register(handler1);
     dispatcher.register(handler2);
-
-    const event = createEvent('AccumEvent');
-    await dispatcher.dispatch(event);
-
-    // 两次注册的处理器都应被调用
+    await dispatcher.dispatch(createEvent('AccumEvent'));
     expect(handler1.handle).toHaveBeenCalledTimes(1);
     expect(handler2.handle).toHaveBeenCalledTimes(1);
-    // 应记录 handlerCount=2
     expect(loggerMocks.info).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'AccumEvent', handlerCount: 2 }),
       'Dispatching domain event',
@@ -493,28 +396,10 @@ describe('DomainEventDispatcher', () => {
   });
 
   it('dispatch() 所有处理器均失败时应记录警告且不抛错', async () => {
-    const failingHandler1: EventHandler = {
-      eventType: 'AllFailEvent',
-      handle: vi.fn(async () => {
-        throw new Error('failure 1');
-      }),
-    };
-    const failingHandler2: EventHandler = {
-      eventType: 'AllFailEvent',
-      handle: vi.fn(async () => {
-        throw new Error('failure 2');
-      }),
-    };
-
-    dispatcher.register(failingHandler1);
-    dispatcher.register(failingHandler2);
-
-    const event = createEvent('AllFailEvent');
-    // 不应抛出异常（allSettled 吞掉错误）
-    await expect(dispatcher.dispatch(event)).resolves.toBeUndefined();
-    // 应记录 2 个错误
+    dispatcher.register(createFailingHandler('AllFailEvent'));
+    dispatcher.register(createFailingHandler('AllFailEvent'));
+    await expect(dispatcher.dispatch(createEvent('AllFailEvent'))).resolves.toBeUndefined();
     expect(loggerMocks.error).toHaveBeenCalledTimes(2);
-    // 应记录警告（errorCount=2）
     expect(loggerMocks.warn).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'AllFailEvent', errorCount: 2 }),
       'Some event handlers failed',
@@ -551,9 +436,7 @@ describe('BacktestCompletedHandler', () => {
   });
 
   it('handle 应记录 info 日志（含关键指标）', async () => {
-    const event = makeEvent();
-    await handler.handle(event);
-
+    await handler.handle(makeEvent());
     expect(loggerMocks.info).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: 'BacktestCompleted',
@@ -567,23 +450,19 @@ describe('BacktestCompletedHandler', () => {
   });
 
   it('handle 不应访问数据库（不写 outbox、不发 NOTIFY）', async () => {
-    const event = makeEvent();
-    await handler.handle(event);
-
+    await handler.handle(makeEvent());
     // ADR-024：处理器为纯观测副作用，不得调用 pool.query。
     expect(poolMocks.query).not.toHaveBeenCalled();
   });
 
   it('handle 不应抛出错误', async () => {
-    const event = makeEvent();
-    await expect(handler.handle(event)).resolves.toBeUndefined();
+    await expect(handler.handle(makeEvent())).resolves.toBeUndefined();
   });
 
   it('payload 缺少指标字段时也应正常处理', async () => {
-    const event = makeEvent({});
+    const event = makeEvent();
     (event as Record<string, unknown>).payload = {};
     await handler.handle(event);
-
     expect(loggerMocks.info).toHaveBeenCalledWith(
       expect.objectContaining({
         totalReturn: undefined,

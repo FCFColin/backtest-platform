@@ -49,7 +49,9 @@ export function assertRbacConfig(): void {
   for (const [role, perms] of Object.entries(ROLE_PERMISSIONS)) {
     for (const perm of perms) {
       if (!validPermissions.has(perm as string)) {
-        throw new Error(`[RBAC] Role "${role}" references unknown permission "${String(perm)}" — check configuration`);
+        throw new Error(
+          `[RBAC] Role "${role}" references unknown permission "${String(perm)}" — check configuration`,
+        );
       }
     }
   }
@@ -78,24 +80,49 @@ function logRbac(
   extra?: Record<string, unknown>,
 ): void {
   logger[level](
-    { middleware: 'rbac', permission, userId: req.user?.sub, role: req.user?.role, path: req.path, requestId: req.id, ...extra },
+    {
+      middleware: 'rbac',
+      permission,
+      userId: req.user?.sub,
+      role: req.user?.role,
+      path: req.path,
+      requestId: req.id,
+      ...extra,
+    },
     `[rbac] ${message}`,
   );
 }
 
+/**
+ * 两个权限中间件共享的前置检查：认证缺失 → 401；平台管理员 → 直接放行。
+ *
+ * @returns 'allowed' 已放行（调用方应立即 return）；'denied' 已响应错误；'continue' 继续业务判断
+ */
+function authorizePrelude(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction,
+  permission: Permission,
+  logLabel: string,
+): 'allowed' | 'denied' | 'continue' {
+  logRbac('info', req, permission, logLabel);
+  if (!req.user) {
+    recordAuthFailure(getRoutePattern(req), 'missing_auth');
+    sendProblem(res, 401, 'MISSING_AUTH');
+    return 'denied';
+  }
+  if (req.user.platform_admin === true) {
+    logRbac('info', req, permission, '平台管理员放行', { platformAdmin: true });
+    next();
+    return 'allowed';
+  }
+  return 'continue';
+}
+
 export function requirePermission(permission: Permission) {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    logRbac('info', req, permission, '权限检查');
-    if (!req.user) {
-      recordAuthFailure(getRoutePattern(req), 'missing_auth');
-      sendProblem(res, 401, 'MISSING_AUTH');
-      return;
-    }
-    if (req.user.platform_admin === true) {
-      logRbac('info', req, permission, '平台管理员放行', { platformAdmin: true });
-      next();
-      return;
-    }
+    const prelude = authorizePrelude(req, res, next, permission, '权限检查');
+    if (prelude !== 'continue') return;
     const userRole = effectiveRole(req.user) as Role;
     if (!hasPermission(userRole, permission)) {
       logRbac('warn', req, permission, '权限不足，访问拒绝');
@@ -125,17 +152,8 @@ async function resolveUserPermissions(
 
 export function requirePermissionFromDb(permission: Permission) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
-    logRbac('info', req, permission, '权限检查（DB）');
-    if (!req.user) {
-      recordAuthFailure(getRoutePattern(req), 'missing_auth');
-      sendProblem(res, 401, 'MISSING_AUTH');
-      return;
-    }
-    if (req.user.platform_admin === true) {
-      logRbac('info', req, permission, '平台管理员放行', { platformAdmin: true });
-      next();
-      return;
-    }
+    const prelude = authorizePrelude(req, res, next, permission, '权限检查（DB）');
+    if (prelude !== 'continue') return;
     try {
       const perms = await resolveUserPermissions(req.user);
       if (!perms.includes(permission)) {
@@ -146,7 +164,10 @@ export function requirePermissionFromDb(permission: Permission) {
       }
       next();
     } catch (err) {
-      logger.error({ err, middleware: 'rbac', permission, userId: req.user.sub, path: req.path }, '[rbac] DB 权限解析失败，回退到 legacy 检查');
+      logger.error(
+        { err, middleware: 'rbac', permission, userId: req.user.sub, path: req.path },
+        '[rbac] DB 权限解析失败，回退到 legacy 检查',
+      );
       const userRole = effectiveRole(req.user) as Role;
       if (!hasPermission(userRole, permission)) {
         logRbac('warn', req, permission, '权限不足（legacy 回退）');

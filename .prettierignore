@@ -43,3 +43,8 @@ simple-check.txt
 
 # Knip deadcode analysis artifacts (tool-generated baselines and config)
 knip*.json
+
+# Machine-consumed contract/data (compact form, not human-formatted)
+docs/openapi.yaml
+docker/grafana/dashboards/backtest-platform.json
+

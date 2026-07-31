@@ -1,24 +1,35 @@
 package main
+
 import (
-    "context"
-    "fmt"
-    "log/slog"
-    "data-fetcher/internal/provider"
-    "github.com/jackc/pgx/v5"
-    "github.com/jackc/pgx/v5/pgxpool"
+	"context"
+	"data-fetcher/internal/provider"
+	"fmt"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"log/slog"
 )
+
 type dailyPrice = provider.DailyPrice
+
 func fetchAndStore(ctx context.Context, pool *pgxpool.Pool, ticker, startDate, endDate string) error {
-	if pool == nil { return fmt.Errorf("数据库未连接，无法写入数据") }
+	if pool == nil {
+		return fmt.Errorf("数据库未连接，无法写入数据")
+	}
 	if IsSIMTicker(ticker) {
 		def := GetSIMDefinition(ticker)
-		if def == nil { return fmt.Errorf("未知的 SIM Ticker: %s", ticker) }
+		if def == nil {
+			return fmt.Errorf("未知的 SIM Ticker: %s", ticker)
+		}
 		return spliceSIMData(ctx, pool, def, startDate, endDate)
 	}
 	providers := reg.ForTicker(ticker)
-	if len(providers) == 0 { return fmt.Errorf("没有可用的数据源: %s", ticker) }
+	if len(providers) == 0 {
+		return fmt.Errorf("没有可用的数据源: %s", ticker)
+	}
 	prices, providerName, err := provider.FetchWithFallback(providers, ticker, startDate, endDate)
-	if err != nil { return fmt.Errorf("获取 %s 数据失败: %w", ticker, err) }
+	if err != nil {
+		return fmt.Errorf("获取 %s 数据失败: %w", ticker, err)
+	}
 	if len(prices) == 0 {
 		slog.Warn("无数据", "ticker", ticker, "provider", providerName)
 		return nil
@@ -29,12 +40,24 @@ func fetchAndStore(ctx context.Context, pool *pgxpool.Pool, ticker, startDate, e
 func sanitizePrices(prices []dailyPrice) []dailyPrice {
 	valid := make([]dailyPrice, 0, len(prices))
 	for _, p := range prices {
-if p.High < p.Low { p.High, p.Low = p.Low, p.High }
-if p.Open < p.Low { p.Open = p.Low }
-if p.Close < p.Low { p.Close = p.Low }
-if p.High < p.Open { p.High = p.Open }
-if p.High < p.Close { p.High = p.Close }
-if p.Volume < 0 { p.Volume = 0 }
+		if p.High < p.Low {
+			p.High, p.Low = p.Low, p.High
+		}
+		if p.Open < p.Low {
+			p.Open = p.Low
+		}
+		if p.Close < p.Low {
+			p.Close = p.Low
+		}
+		if p.High < p.Open {
+			p.High = p.Open
+		}
+		if p.High < p.Close {
+			p.High = p.Close
+		}
+		if p.Volume < 0 {
+			p.Volume = 0
+		}
 		valid = append(valid, p)
 	}
 	return valid
@@ -53,12 +76,18 @@ func writePricesToDB(ctx context.Context, pool *pgxpool.Pool, ticker string, pri
 	}
 	br := pool.SendBatch(ctx, batch)
 	defer br.Close()
-	for range prices { if _, err := br.Exec(); err != nil { return fmt.Errorf("写入数据库失败: %w", err) } }
+	for range prices {
+		if _, err := br.Exec(); err != nil {
+			return fmt.Errorf("写入数据库失败: %w", err)
+		}
+	}
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO tickers (ticker, exchange) VALUES ($1, $2)
 		ON CONFLICT (ticker) DO UPDATE SET exchange = EXCLUDED.exchange
 		WHERE tickers.exchange = ''
-	`, ticker, provider.DeriveExchange(ticker)); err != nil { return fmt.Errorf("更新 tickers.exchange 失败: %w", err) }
+	`, ticker, provider.DeriveExchange(ticker)); err != nil {
+		return fmt.Errorf("更新 tickers.exchange 失败: %w", err)
+	}
 	lastDate := prices[len(prices)-1].Date
 	_, err := pool.Exec(ctx, `
 		INSERT INTO worker_progress (ticker, last_date, updated_at)

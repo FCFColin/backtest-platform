@@ -43,9 +43,15 @@ const ChartBenchmarkPage = lazy(
 );
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
-const TermsOfServicePage = lazy(() => import('@/pages/legal/TermsOfServicePage'));
-const PrivacyPolicyPage = lazy(() => import('@/pages/legal/PrivacyPolicyPage'));
-const DisclaimerPage = lazy(() => import('@/pages/legal/DisclaimerPage'));
+const TermsOfServicePage = lazy(() =>
+  import('@/pages/legal/legalPages').then((m) => ({ default: m.TermsOfServicePage })),
+);
+const PrivacyPolicyPage = lazy(() =>
+  import('@/pages/legal/legalPages').then((m) => ({ default: m.PrivacyPolicyPage })),
+);
+const DisclaimerPage = lazy(() =>
+  import('@/pages/legal/legalPages').then((m) => ({ default: m.DisclaimerPage })),
+);
 const OrgMembersPage = lazy(() => import('@/pages/OrgMembersPage'));
 const BillingPage = lazy(() => import('@/pages/account/BillingPage'));
 const AdminLayout = lazy(() => import('@/components/admin/AdminLayout'));

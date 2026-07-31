@@ -1,13 +1,19 @@
 // Package letf 提供杠杆 ETF 滑点分析功能。
 package letf
+
 import (
-    "errors"
-    "math"
-    "sort"
-    "engine-go/internal/engineutil"
-    "engine-go/internal/mathutil"
+	"engine-go/internal/engineutil"
+	"engine-go/internal/mathutil"
+	"errors"
+	"math"
+	"sort"
 )
-const ( tradingDaysPerYear = engineutil.TradingDaysPerYear; effectiveLeverageWindow = 20 )
+
+const (
+	tradingDaysPerYear      = engineutil.TradingDaysPerYear
+	effectiveLeverageWindow = 20
+)
+
 type SlippagePoint struct {
 	Date     string  `json:"date"`
 	Slippage float64 `json:"slippage"`
@@ -33,37 +39,52 @@ type PricePoint struct {
 	Date  string  `json:"date"`
 	Price float64 `json:"price"`
 }
+
 func alignSeries(letfSeries, benchSeries []PricePoint) []alignedPoint {
 	benchMap := make(map[string]float64)
-	for _, p := range benchSeries { benchMap[p.Date] = p.Price }
+	for _, p := range benchSeries {
+		benchMap[p.Date] = p.Price
+	}
 	var aligned []alignedPoint
 	for _, p := range letfSeries {
-if benchPrice, ok := benchMap[p.Date]; ok { aligned = append(aligned, alignedPoint{Date: p.Date, LETFPrice: p.Price, BenchPrice: benchPrice}) }
+		if benchPrice, ok := benchMap[p.Date]; ok {
+			aligned = append(aligned, alignedPoint{Date: p.Date, LETFPrice: p.Price, BenchPrice: benchPrice})
+		}
 	}
 	return aligned
 }
+
 type alignedPoint struct {
 	Date       string
 	LETFPrice  float64
 	BenchPrice float64
 }
+
 func calcDailyReturn(prev, curr float64) float64 {
-	if prev != 0 { return (curr - prev) / prev }
+	if prev != 0 {
+		return (curr - prev) / prev
+	}
 	return 0
 }
 func calcRollingBeta(letfReturns, benchReturns []float64) (float64, bool) {
 	n := effectiveLeverageWindow
-	if len(letfReturns) < n { return 0, false }
+	if len(letfReturns) < n {
+		return 0, false
+	}
 	start := len(letfReturns) - n
 	letfTail := letfReturns[start : start+n]
 	benchTail := benchReturns[start : start+n]
 	varBench := mathutil.Covariance(benchTail, benchTail)
-	if varBench > 0 { return mathutil.Covariance(letfTail, benchTail) / varBench, true }
+	if varBench > 0 {
+		return mathutil.Covariance(letfTail, benchTail) / varBench, true
+	}
 	return 0, false
 }
 func AnalyzeSlippage(req LETFRequest) (*LETFResult, error) {
 	aligned := alignSeries(req.LETFSeries, req.BenchSeries)
-	if len(aligned) < 2 { return nil, errors.New("有效价格数据不足，至少需要 2 个交易日") }
+	if len(aligned) < 2 {
+		return nil, errors.New("有效价格数据不足，至少需要 2 个交易日")
+	}
 	var slippageCurve []SlippagePoint
 	var effectiveLeverage []*float64
 	cumBench := 1.0
@@ -89,9 +110,11 @@ func AnalyzeSlippage(req LETFRequest) (*LETFResult, error) {
 			if ok {
 				v := beta
 				effectiveLeverage = append(effectiveLeverage, &v)
-} else { effectiveLeverage = append(effectiveLeverage, nil)
+			} else {
+				effectiveLeverage = append(effectiveLeverage, nil)
 			}
-} else { effectiveLeverage = append(effectiveLeverage, nil)
+		} else {
+			effectiveLeverage = append(effectiveLeverage, nil)
 		}
 	}
 	benchmarkReturn := cumBench - 1
@@ -115,7 +138,9 @@ func AnalyzeSlippage(req LETFRequest) (*LETFResult, error) {
 func ToPricePoints(tickerData map[string]float64) []PricePoint {
 	var result []PricePoint
 	for date, price := range tickerData {
-if price > 0 && !math.IsNaN(price) { result = append(result, PricePoint{Date: date, Price: price}) }
+		if price > 0 && !math.IsNaN(price) {
+			result = append(result, PricePoint{Date: date, Price: price})
+		}
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Date < result[j].Date })
 	return result

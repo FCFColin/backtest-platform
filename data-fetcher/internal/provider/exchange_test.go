@@ -1,5 +1,7 @@
 package provider
+
 import "testing"
+
 func TestDeriveExchange(t *testing.T) {
 	cases := []struct {
 		ticker string
@@ -22,6 +24,8 @@ func TestDeriveExchange(t *testing.T) {
 	}
 	for _, c := range cases {
 		got := DeriveExchange(c.ticker)
-if got != c.want { t.Errorf("DeriveExchange(%q) = %q, want %q", c.ticker, got, c.want) }
+		if got != c.want {
+			t.Errorf("DeriveExchange(%q) = %q, want %q", c.ticker, got, c.want)
+		}
 	}
 }

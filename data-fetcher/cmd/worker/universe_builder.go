@@ -1,33 +1,41 @@
 package main
+
 import (
-    "bufio"
-    "context"
-    "fmt"
-    "io"
-    "log/slog"
-    "net/http"
-    "os"
-    "strings"
-    "time"
-    "github.com/jackc/pgx/v5/pgxpool"
-    "data-fetcher/internal/provider"
+	"bufio"
+	"context"
+	"data-fetcher/internal/provider"
+	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 )
+
 const (
 	nasdaqListURL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 	otherListURL  = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 )
+
 type TickerEntry struct {
 	Ticker   string
 	Name     string
 	Category string
 	Market   string
 }
+
 func downloadURL(url string) ([]byte, error) {
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Get(url)
-	if err != nil { return nil, fmt.Errorf("下载 %s 失败: %w", url, err) }
+	if err != nil {
+		return nil, fmt.Errorf("下载 %s 失败: %w", url, err)
+	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK { return nil, fmt.Errorf("下载 %s 返回状态码 %d", url, resp.StatusCode) }
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("下载 %s 返回状态码 %d", url, resp.StatusCode)
+	}
 	return io.ReadAll(resp.Body)
 }
 func parsePipeDelimited(data []byte, skipHeaders bool) [][]string {
@@ -35,11 +43,19 @@ func parsePipeDelimited(data []byte, skipHeaders bool) [][]string {
 	scanner := bufio.NewScanner(strings.NewReader(string(data)))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" { continue }
-		if skipHeaders && strings.HasPrefix(line, "Symbol|") { continue }
-		if strings.HasPrefix(line, "File Creation") { continue }
+		if line == "" {
+			continue
+		}
+		if skipHeaders && strings.HasPrefix(line, "Symbol|") {
+			continue
+		}
+		if strings.HasPrefix(line, "File Creation") {
+			continue
+		}
 		fields := strings.Split(line, "|")
-		for i := range fields { fields[i] = strings.TrimSpace(fields[i]) }
+		for i := range fields {
+			fields[i] = strings.TrimSpace(fields[i])
+		}
 		rows = append(rows, fields)
 	}
 	return rows
@@ -47,60 +63,96 @@ func parsePipeDelimited(data []byte, skipHeaders bool) [][]string {
 func parseNASDAQList(data []byte) []TickerEntry {
 	var entries []TickerEntry
 	for _, fields := range parsePipeDelimited(data, true) {
-		if len(fields) < 2 { continue }
+		if len(fields) < 2 {
+			continue
+		}
 		symbol := fields[0]
-		if symbol == "" { continue }
+		if symbol == "" {
+			continue
+		}
 		name := ""
-if len(fields) > 1 { name = fields[1] }
+		if len(fields) > 1 {
+			name = fields[1]
+		}
 		isTest := len(fields) > 3 && strings.ToUpper(fields[3]) == "Y"
 		isETF := len(fields) > 6 && strings.ToUpper(fields[6]) == "Y"
-		if isTest { continue }
+		if isTest {
+			continue
+		}
 		category := "US Equity"
-if isETF { category = "ETF" }
-		entries = append(entries, TickerEntry{ Ticker: symbol, Name: name, Category: category, Market: "US", })
+		if isETF {
+			category = "ETF"
+		}
+		entries = append(entries, TickerEntry{Ticker: symbol, Name: name, Category: category, Market: "US"})
 	}
 	return entries
 }
 func parseOtherList(data []byte) []TickerEntry {
 	var entries []TickerEntry
 	for _, fields := range parsePipeDelimited(data, true) {
-		if len(fields) < 2 { continue }
+		if len(fields) < 2 {
+			continue
+		}
 		symbol := fields[0]
-		if symbol == "" { continue }
+		if symbol == "" {
+			continue
+		}
 		name := ""
-if len(fields) > 2 { name = fields[2] }
+		if len(fields) > 2 {
+			name = fields[2]
+		}
 		isETF := len(fields) > 5 && strings.ToUpper(fields[5]) == "Y"
 		category := "US Equity"
-if isETF { category = "ETF" }
-		entries = append(entries, TickerEntry{ Ticker: symbol, Name: name, Category: category, Market: "US", })
+		if isETF {
+			category = "ETF"
+		}
+		entries = append(entries, TickerEntry{Ticker: symbol, Name: name, Category: category, Market: "US"})
 	}
 	return entries
 }
 func loadTickersFromFile(path string) ([]TickerEntry, error) {
 	f, err := os.Open(path)
-	if err != nil { return nil, fmt.Errorf("打开文件 %s 失败: %w", path, err) }
+	if err != nil {
+		return nil, fmt.Errorf("打开文件 %s 失败: %w", path, err)
+	}
 	defer f.Close()
 	var entries []TickerEntry
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") { continue }
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
 		var fields []string
 		switch {
-		case strings.Contains(line, "|"): fields = strings.Split(line, "|")
-		case strings.Contains(line, ","): fields = strings.Split(line, ",")
-		case strings.Contains(line, "\t"): fields = strings.Split(line, "\t")
-		default: fields = []string{line}
+		case strings.Contains(line, "|"):
+			fields = strings.Split(line, "|")
+		case strings.Contains(line, ","):
+			fields = strings.Split(line, ",")
+		case strings.Contains(line, "\t"):
+			fields = strings.Split(line, "\t")
+		default:
+			fields = []string{line}
 		}
-		for i := range fields { fields[i] = strings.TrimSpace(fields[i]) }
+		for i := range fields {
+			fields[i] = strings.TrimSpace(fields[i])
+		}
 		ticker := fields[0]
-		if ticker == "" { continue }
+		if ticker == "" {
+			continue
+		}
 		name := ""
-if len(fields) > 1 { name = fields[1] }
+		if len(fields) > 1 {
+			name = fields[1]
+		}
 		category := ""
-if len(fields) > 2 { category = fields[2] }
-if category == "" { category = "Custom" }
-		entries = append(entries, TickerEntry{ Ticker: ticker, Name: name, Category: category, Market: "Custom", })
+		if len(fields) > 2 {
+			category = fields[2]
+		}
+		if category == "" {
+			category = "Custom"
+		}
+		entries = append(entries, TickerEntry{Ticker: ticker, Name: name, Category: category, Market: "Custom"})
 	}
 	slog.Info("从文件加载 ticker", "path", path, "count", len(entries))
 	return entries, nil
@@ -121,14 +173,18 @@ func mergeAndDedup(lists ...[]TickerEntry) []TickerEntry {
 		}
 	}
 	result := make([]TickerEntry, 0, len(seen))
-	for _, e := range seen { result = append(result, e) }
+	for _, e := range seen {
+		result = append(result, e)
+	}
 	return result
 }
 func writeTickersToDB(ctx context.Context, pool *pgxpool.Pool, entries []TickerEntry) (int, error) {
 	inserted := 0
 	for _, e := range entries {
 		category := e.Category
-if category == "" { category = "Custom" }
+		if category == "" {
+			category = "Custom"
+		}
 		_, err := pool.Exec(ctx, `
 			INSERT INTO tickers (ticker, category, market, exchange)
 			VALUES ($1, $2, $3, $4)
@@ -147,42 +203,56 @@ if category == "" { category = "Custom" }
 func cmdFetchUniverse(cfg *WorkerConfig, filePath string) error {
 	ctx := context.Background()
 	pool, err := initDB(ctx, cfg.DatabaseURL)
-	if err != nil { return fmt.Errorf("数据库连接失败: %w", err) }
+	if err != nil {
+		return fmt.Errorf("数据库连接失败: %w", err)
+	}
 	defer pool.Close()
 	var allEntries []TickerEntry
 	if filePath != "" {
 		entries, err := loadTickersFromFile(filePath)
-		if err != nil { return err }
+		if err != nil {
+			return err
+		}
 		allEntries = entries
 	} else {
 		slog.Info("从 NASDAQ/NYSE/AMEX 下载 ticker 列表...")
 		nasdaqData, err := downloadURL(nasdaqListURL)
-		if err != nil { return fmt.Errorf("获取 NASDAQ 列表失败: %w", err) }
+		if err != nil {
+			return fmt.Errorf("获取 NASDAQ 列表失败: %w", err)
+		}
 		nasdaqEntries := parseNASDAQList(nasdaqData)
 		slog.Info("NASDAQ 列表", "count", len(nasdaqEntries))
 		otherData, err := downloadURL(otherListURL)
-		if err != nil { return fmt.Errorf("获取 Other 列表失败: %w", err) }
+		if err != nil {
+			return fmt.Errorf("获取 Other 列表失败: %w", err)
+		}
 		otherEntries := parseOtherList(otherData)
 		slog.Info("NYSE/AMEX 列表", "count", len(otherEntries))
 		allEntries = mergeAndDedup(nasdaqEntries, otherEntries)
 	}
 	var filtered []TickerEntry
 	for _, e := range allEntries {
-		if strings.Contains(strings.ToUpper(e.Name), "TEST") { continue }
+		if strings.Contains(strings.ToUpper(e.Name), "TEST") {
+			continue
+		}
 		filtered = append(filtered, e)
 	}
 	slog.Info("ticker 过滤后", "total", len(filtered))
 	inserted, err := writeTickersToDB(ctx, pool, filtered)
-	if err != nil { return fmt.Errorf("写入数据库失败: %w", err) }
+	if err != nil {
+		return fmt.Errorf("写入数据库失败: %w", err)
+	}
 	slog.Info("全量 ticker 获取完成", "inserted", inserted)
 	return nil
 }
+
 type TickerMeta struct {
 	Ticker   string
 	Name     string
 	Market   string
 	Category string
 }
+
 var DefaultETFUniverse = []TickerMeta{
 	{Ticker: "SHY", Name: "1-3 Year Treasury Bond", Market: "US", Category: "Bond"},
 	{Ticker: "IEI", Name: "3-7 Year Treasury Bond", Market: "US", Category: "Bond"},

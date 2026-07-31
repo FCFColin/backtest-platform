@@ -1,11 +1,13 @@
 // Package middleware 提供 data-fetcher 服务的 HTTP 中间件与 CORS 配置。
 package middleware
+
 import (
-    "os"
-    "strings"
-    "time"
-    "github.com/gin-contrib/cors"
+	"github.com/gin-contrib/cors"
+	"os"
+	"strings"
+	"time"
 )
+
 func BuildCorsConfig() cors.Config {
 	raw := os.Getenv("CORS_ORIGINS")
 	var origins []string
@@ -14,7 +16,9 @@ func BuildCorsConfig() cors.Config {
 	} else {
 		for _, s := range strings.Split(raw, ",") {
 			s = strings.TrimSpace(s)
-if s != "" { origins = append(origins, s) }
+			if s != "" {
+				origins = append(origins, s)
+			}
 		}
 	}
 	return cors.Config{

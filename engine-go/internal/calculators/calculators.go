@@ -1,11 +1,13 @@
 // Package calculators 提供金融计算器功能。
 package calculators
+
 import (
-    "math"
-    "math/rand"
-    "engine-go/internal/engine"
-    "engine-go/internal/mathutil"
+	"engine-go/internal/engine"
+	"engine-go/internal/mathutil"
+	"math"
+	"math/rand"
 )
+
 type CAGRRequest struct {
 	InitialAmount float64 `json:"initialAmount"`
 	FinalAmount   float64 `json:"finalAmount"`
@@ -16,12 +18,16 @@ type CAGRResult struct {
 	TotalReturn float64 `json:"totalReturn"`
 	Multiplier  float64 `json:"multiplier"`
 }
+
 func CalcCAGR(req CAGRRequest) CAGRResult {
-	if req.InitialAmount <= 0 || req.Years <= 0 { return CAGRResult{} }
+	if req.InitialAmount <= 0 || req.Years <= 0 {
+		return CAGRResult{}
+	}
 	multiplier := req.FinalAmount / req.InitialAmount
 	cagr := engine.CalcCAGR(req.InitialAmount, req.FinalAmount, req.Years)
-	return CAGRResult{ CAGR:        cagr, TotalReturn: req.FinalAmount - req.InitialAmount, Multiplier:  multiplier, }
+	return CAGRResult{CAGR: cagr, TotalReturn: req.FinalAmount - req.InitialAmount, Multiplier: multiplier}
 }
+
 type LumpSumResult struct {
 	LumpSumFinal float64 `json:"lumpSumFinal"`
 	DCAFinal     float64 `json:"dcaFinal"`
@@ -41,8 +47,11 @@ type SWRResult struct {
 	MaxPortfolio   float64 `json:"maxPortfolio"`
 	SafeWithdrawal float64 `json:"safeWithdrawal"`
 }
+
 func CalcSWR(req SWRRequest) SWRResult {
-	if req.InitialAmount <= 0 || req.Years <= 0 { return SWRResult{} }
+	if req.InitialAmount <= 0 || req.Years <= 0 {
+		return SWRResult{}
+	}
 	numSims := 1000
 	survivalCount := 0
 	minPort := math.Inf(1)
@@ -58,14 +67,21 @@ func CalcSWR(req SWRRequest) SWRResult {
 				break
 			}
 		}
-if portfolio > 0 { survivalCount++ }
-if portfolio < minPort { minPort = portfolio }
-if portfolio > maxPort { maxPort = portfolio }
+		if portfolio > 0 {
+			survivalCount++
+		}
+		if portfolio < minPort {
+			minPort = portfolio
+		}
+		if portfolio > maxPort {
+			maxPort = portfolio
+		}
 	}
 	successRate := float64(survivalCount) / float64(numSims)
 	safe := req.InitialAmount * successRate * 0.9
-return SWRResult{ SuccessRate: successRate, MinPortfolio: minPort, MaxPortfolio: maxPort, SafeWithdrawal: safe }
+	return SWRResult{SuccessRate: successRate, MinPortfolio: minPort, MaxPortfolio: maxPort, SafeWithdrawal: safe}
 }
+
 type TwoFundFrontierRequest struct {
 	Asset1Return float64 `json:"asset1Return"`
 	Asset1Stdev  float64 `json:"asset1Stdev"`
@@ -80,9 +96,12 @@ type FrontierPoint struct {
 	Return  float64 `json:"return"`
 	Stdev   float64 `json:"stdev"`
 }
+
 func CalcTwoFundFrontier(req TwoFundFrontierRequest) []FrontierPoint {
 	n := req.NumPoints
-if n <= 0 { n = 20 }
+	if n <= 0 {
+		n = 20
+	}
 	result := make([]FrontierPoint, n+1)
 	for i := 0; i <= n; i++ {
 		w1 := float64(i) / float64(n)
@@ -92,7 +111,7 @@ if n <= 0 { n = 20 }
 			w2*w2*req.Asset2Stdev*req.Asset2Stdev +
 			2*w1*w2*req.Correlation*req.Asset1Stdev*req.Asset2Stdev
 		stdev := math.Sqrt(math.Max(0, variance))
-		result[i] = FrontierPoint{ Weight1: w1, Weight2: w2, Return:  portReturn, Stdev:   stdev, }
+		result[i] = FrontierPoint{Weight1: w1, Weight2: w2, Return: portReturn, Stdev: stdev}
 	}
 	return result
 }

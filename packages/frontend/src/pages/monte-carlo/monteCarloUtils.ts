@@ -30,70 +30,40 @@ export const RESULT_TABS: { key: ResultTab; label: string }[] = [
   { key: 'distributions', label: 'Distributions' },
   { key: 'scenarios', label: 'Scenarios' },
 ];
-interface PresetButtonProps {
-  label: string;
-  onClick: () => void;
-}
-function createDefaultPortfolio(suffix: number): PortfolioState {
-  return {
-    name: i18n.t('common.portfolioSuffix', { suffix }),
-    assets:
-      suffix === 1
-        ? [
-            { ticker: 'VTI', weight: 60 },
-            { ticker: 'BND', weight: 40 },
-          ]
-        : [
-            { ticker: 'VXUS', weight: 50 },
-            { ticker: 'BND', weight: 50 },
-          ],
-    rebalanceFrequency: 'yearly',
-  };
-}
-const PRESETS: Array<{
-  labelKey: string;
-  assets: PortfolioState['assets'];
-  years: number;
-  sims: number;
-  value: number;
-  min: number;
-  max: number;
-}> = [
-  {
-    labelKey: 'monteCarlo.presets.preset6040',
-    assets: [
-      { ticker: 'VTI', weight: 60 },
-      { ticker: 'BND', weight: 40 },
+const DEFAULT_ASSETS: Record<1 | 2, PortfolioState['assets']> = {
+  1: [
+    { ticker: 'VTI', weight: 60 },
+    { ticker: 'BND', weight: 40 },
+  ],
+  2: [
+    { ticker: 'VXUS', weight: 50 },
+    { ticker: 'BND', weight: 50 },
+  ],
+};
+const createDefaultPortfolio = (suffix: number): PortfolioState => ({
+  name: i18n.t('common.portfolioSuffix', { suffix }),
+  assets: DEFAULT_ASSETS[suffix === 1 ? 1 : 2],
+  rebalanceFrequency: 'yearly',
+});
+// [labelKey, assets, years, sims, value, min, max] — min/max 缺省为 1/5
+const PRESETS: Array<[string, PortfolioState['assets'], number, number, number, number?, number?]> =
+  [
+    ['monteCarlo.presets.preset6040', DEFAULT_ASSETS[1], 20, 500, 100000],
+    ['monteCarlo.presets.presetAllStockDCA', [{ ticker: 'VTI', weight: 100 }], 30, 1000, 50000],
+    [
+      'monteCarlo.presets.presetThreeFund',
+      [
+        { ticker: 'VTI', weight: 50 },
+        { ticker: 'VXUS', weight: 30 },
+        { ticker: 'BND', weight: 20 },
+      ],
+      25,
+      500,
+      200000,
+      2,
+      8,
     ],
-    years: 20,
-    sims: 500,
-    value: 100000,
-    min: 1,
-    max: 5,
-  },
-  {
-    labelKey: 'monteCarlo.presets.presetAllStockDCA',
-    assets: [{ ticker: 'VTI', weight: 100 }],
-    years: 30,
-    sims: 1000,
-    value: 50000,
-    min: 1,
-    max: 5,
-  },
-  {
-    labelKey: 'monteCarlo.presets.presetThreeFund',
-    assets: [
-      { ticker: 'VTI', weight: 50 },
-      { ticker: 'VXUS', weight: 30 },
-      { ticker: 'BND', weight: 20 },
-    ],
-    years: 25,
-    sims: 500,
-    value: 200000,
-    min: 2,
-    max: 8,
-  },
-];
+  ];
 export function buildPresets(t: {
   setPortfolioMode: (m: PortfolioMode) => void;
   setPortfolios: (p: PortfolioState[]) => void;
@@ -102,17 +72,17 @@ export function buildPresets(t: {
   setStartingValue: (n: number) => void;
   setMinBlock: (n: number) => void;
   setMaxBlock: (n: number) => void;
-}): PresetButtonProps[] {
-  return PRESETS.map((p) => ({
-    label: i18n.t(p.labelKey),
+}): Array<{ label: string; onClick: () => void }> {
+  return PRESETS.map(([labelKey, assets, years, sims, value, min, max]) => ({
+    label: i18n.t(labelKey),
     onClick: () => {
       t.setPortfolioMode(1);
-      t.setPortfolios([{ ...createDefaultPortfolio(1), assets: p.assets }]);
-      t.setNumYears(p.years);
-      t.setNumSimulations(p.sims);
-      t.setStartingValue(p.value);
-      t.setMinBlock(p.min);
-      t.setMaxBlock(p.max);
+      t.setPortfolios([{ ...createDefaultPortfolio(1), assets }]);
+      t.setNumYears(years);
+      t.setNumSimulations(sims);
+      t.setStartingValue(value);
+      t.setMinBlock(min ?? 1);
+      t.setMaxBlock(max ?? 5);
     },
   }));
 }
@@ -135,11 +105,10 @@ function usePortfolioOperations(
     aIdx: number,
     field: 'ticker' | 'weight',
     val: string | number,
-  ) => {
-    const next = [...portfolios[pIdx].assets];
-    next[aIdx] = { ...next[aIdx], [field]: val };
-    updatePortfolio(pIdx, { assets: next });
-  };
+  ) =>
+    updatePortfolio(pIdx, {
+      assets: portfolios[pIdx].assets.map((a, i) => (i === aIdx ? { ...a, [field]: val } : a)),
+    });
   const getTotalWeight = (pIdx: number) =>
     portfolios[pIdx].assets.reduce((s, a) => s + (a.weight || 0), 0);
   const isComplete = (pIdx: number) => getTotalWeight(pIdx) === 100;
@@ -186,81 +155,6 @@ async function fetchMcResult(
   if (json.success === false) throw new Error(json.error || i18n.t('errors.simulationFailed'));
   return json.data ?? json;
 }
-interface SimExecParams {
-  portfolios: PortfolioState[];
-  portfolioMode: PortfolioMode;
-  isComplete: (pIdx: number) => boolean;
-  numYears: number;
-  numSimulations: number;
-  minBlock: number;
-  maxBlock: number;
-  withReplacement: boolean;
-  randomSeed: string;
-  startDate: string;
-  endDate: string;
-  startingValue: number;
-  simMode: SimMode;
-  goal1: string;
-  goal2: string;
-  goalWeight: number;
-}
-interface SimSetters {
-  setError: (e: string | null) => void;
-  setIsLoading: (b: boolean) => void;
-  setResults1: (r: MonteCarloResult | null) => void;
-  setResults2: (r: MonteCarloResult | null) => void;
-}
-async function executeSimulation(params: SimExecParams, setters: SimSetters): Promise<void> {
-  const validationError = validatePortfolios(
-    params.portfolios,
-    params.portfolioMode,
-    params.isComplete,
-  );
-  if (validationError) {
-    setters.setError(validationError);
-    return;
-  }
-  setters.setIsLoading(true);
-  setters.setError(null);
-  setters.setResults1(null);
-  setters.setResults2(null);
-  const reqBody = {
-    parameters: {
-      ...BASE_BACKTEST_PARAMS,
-      startDate: params.startDate,
-      endDate: params.endDate,
-      startingValue: params.startingValue,
-      adjustForInflation: false,
-      baseCurrency: 'usd' as const,
-    },
-    mcParams: {
-      numYears: params.numYears,
-      numSimulations: params.numSimulations,
-      minBlockYears: params.minBlock,
-      maxBlockYears: params.maxBlock,
-      withReplacement: params.withReplacement,
-      seed: params.randomSeed ? Number(params.randomSeed) : undefined,
-    },
-    objectives: {
-      mode: params.simMode,
-      goal1: params.goal1,
-      goal2: params.goal2,
-      goal1Weight: params.goalWeight / 100,
-      goal2Weight: (100 - params.goalWeight) / 100,
-    },
-  };
-  try {
-    const promises = [fetchMcResult(0, params.portfolios, reqBody)];
-    if (params.portfolioMode === 2) promises.push(fetchMcResult(1, params.portfolios, reqBody));
-    const results = await Promise.all(promises);
-    setters.setResults1(results[0]);
-    if (results[1]) setters.setResults2(results[1]);
-  } catch (e) {
-    setters.setError(e instanceof Error ? e.message : i18n.t('errors.simulationFailed'));
-  } finally {
-    setters.setIsLoading(false);
-  }
-}
 function useMcSetters() {
   const [portfolioMode, setPortfolioMode] = useState<PortfolioMode>(1);
   const [numYears, setNumYears] = useState(20);
@@ -278,7 +172,7 @@ function useMcSetters() {
   const [results2, setResults2] = useState<MonteCarloResult | null>(null);
   const [activeTab, setActiveTab] = useState<ResultTab>('summary');
   const [distMetric, setDistMetric] = useState<DistMetric>('finalValue');
-  const [portfolios, setPortfolios] = useState<PortfolioState[]>([
+  const [portfolios, setPortfolios] = useState([
     createDefaultPortfolio(1),
     createDefaultPortfolio(2),
   ]);
@@ -331,66 +225,84 @@ function useMcSetters() {
     setGoalWeight,
   };
 }
+type McSetters = ReturnType<typeof useMcSetters>;
+type PortfolioOps = ReturnType<typeof usePortfolioOperations>;
+async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void> {
+  const validationError = validatePortfolios(s.portfolios, s.portfolioMode, ops.isComplete);
+  if (validationError) {
+    s.setError(validationError);
+    return;
+  }
+  s.setIsLoading(true);
+  s.setError(null);
+  s.setResults1(null);
+  s.setResults2(null);
+  const reqBody = {
+    parameters: {
+      ...BASE_BACKTEST_PARAMS,
+      startDate: s.startDate,
+      endDate: s.endDate,
+      startingValue: s.startingValue,
+      adjustForInflation: false,
+      baseCurrency: 'usd' as const,
+    },
+    mcParams: {
+      numYears: s.numYears,
+      numSimulations: s.numSimulations,
+      minBlockYears: s.minBlock,
+      maxBlockYears: s.maxBlock,
+      withReplacement: s.withReplacement,
+      seed: s.randomSeed ? Number(s.randomSeed) : undefined,
+    },
+    objectives: {
+      mode: s.simMode,
+      goal1: s.goal1,
+      goal2: s.goal2,
+      goal1Weight: s.goalWeight / 100,
+      goal2Weight: (100 - s.goalWeight) / 100,
+    },
+  };
+  try {
+    const fetch = (idx: number) => fetchMcResult(idx, s.portfolios, reqBody);
+    const [r1, r2] = await Promise.all(s.portfolioMode === 2 ? [fetch(0), fetch(1)] : [fetch(0)]);
+    s.setResults1(r1);
+    if (r2) s.setResults2(r2);
+  } catch (e) {
+    s.setError(e instanceof Error ? e.message : i18n.t('errors.simulationFailed'));
+  } finally {
+    s.setIsLoading(false);
+  }
+}
 export function useMonteCarloState() {
   const s = useMcSetters();
-  const portfolioOps = usePortfolioOperations(s.portfolios, s.setPortfolios);
-  const runSimulation = () =>
-    executeSimulation(
-      {
-        portfolios: s.portfolios,
-        portfolioMode: s.portfolioMode,
-        ...portfolioOps,
-        numYears: s.numYears,
-        numSimulations: s.numSimulations,
-        minBlock: s.minBlock,
-        maxBlock: s.maxBlock,
-        withReplacement: s.withReplacement,
-        randomSeed: s.randomSeed,
-        startDate: s.startDate,
-        endDate: s.endDate,
-        startingValue: s.startingValue,
-        simMode: s.simMode,
-        goal1: s.goal1,
-        goal2: s.goal2,
-        goalWeight: s.goalWeight,
-      },
-      {
-        setError: s.setError,
-        setIsLoading: s.setIsLoading,
-        setResults1: s.setResults1,
-        setResults2: s.setResults2,
-      },
-    );
-  return { ...s, ...portfolioOps, runSimulation };
+  const ops = usePortfolioOperations(s.portfolios, s.setPortfolios);
+  return { ...s, ...ops, runSimulation: () => executeSimulation(s, ops) };
 }
 export type McState = ReturnType<typeof useMonteCarloState>;
-export const metricLabels = (t: TFunction): Record<DistMetric, string> => ({
-  finalValue: t('monteCarlo.results.metrics.finalValue'),
-  cagr: t('monteCarlo.results.metrics.cagr'),
-  maxDrawdown: t('monteCarlo.results.metrics.maxDrawdown'),
-  volatility: t('monteCarlo.results.metrics.volatility'),
-  sharpe: t('monteCarlo.results.metrics.sharpe'),
-  sortino: t('monteCarlo.results.metrics.sortino'),
-});
-export const METRIC_FORMAT: Record<DistMetric, (v: number) => string> = {
-  finalValue: fmtDollar,
-  cagr: fmtPct,
-  maxDrawdown: fmtPct,
-  volatility: fmtPct,
-  sharpe: fmtNum,
-  sortino: fmtNum,
-};
-export const SUMMARY_STATS = [
-  'Min',
-  'P10',
-  'P25',
-  'P50',
-  'Mean',
-  'P75',
-  'P90',
-  'Max',
-  'Std',
-] as const;
+const DIST_METRICS: Array<{ key: DistMetric; labelKey: string; format: (v: number) => string }> = [
+  { key: 'finalValue', labelKey: 'monteCarlo.results.metrics.finalValue', format: fmtDollar },
+  { key: 'cagr', labelKey: 'monteCarlo.results.metrics.cagr', format: fmtPct },
+  { key: 'maxDrawdown', labelKey: 'monteCarlo.results.metrics.maxDrawdown', format: fmtPct },
+  { key: 'volatility', labelKey: 'monteCarlo.results.metrics.volatility', format: fmtPct },
+  { key: 'sharpe', labelKey: 'monteCarlo.results.metrics.sharpe', format: fmtNum },
+  { key: 'sortino', labelKey: 'monteCarlo.results.metrics.sortino', format: fmtNum },
+];
+export const metricLabels = (t: TFunction) =>
+  Object.fromEntries(DIST_METRICS.map((m) => [m.key, t(m.labelKey)])) as Record<DistMetric, string>;
+export const METRIC_FORMAT = Object.fromEntries(
+  DIST_METRICS.map((m) => [m.key, m.format]),
+) as Record<DistMetric, (v: number) => string>;
+const SUMMARY_QUANTILES: Array<[string, number]> = [
+  ['Min', 0],
+  ['P10', 0.1],
+  ['P25', 0.25],
+  ['P50', 0.5],
+  ['Mean', -1],
+  ['P75', 0.75],
+  ['P90', 0.9],
+  ['Max', 1],
+];
+export const SUMMARY_STATS = SUMMARY_QUANTILES.map(([name]) => name).concat('Std');
 export interface FanDataPoint {
   month: number;
   band5_95: [number, number];
@@ -416,15 +328,11 @@ export const dollarKFormatter = (v: number) => `$${(v / 1000).toFixed(0)}k`;
 export const dollarFormatter = fmtDollar;
 export const yearLabelFormatter = (t: TFunction, l: number) =>
   `${(l / 12).toFixed(1)} ${t('monteCarlo.results.year')}`;
-function sampleMonths(len: number): Array<{ day: number; month: number }> {
-  const out: Array<{ day: number; month: number }> = [{ day: 0, month: 0 }];
-  let day = 0,
-    month = 0;
-  while (day < len - 1) {
+function sampleMonths(len: number) {
+  const out = [{ day: 0, month: 0 }];
+  for (let day = 0, month = 1; day < len - 1; month++) {
     day = Math.min(day + 21, len - 1);
-    month++;
     out.push({ day, month });
-    if (day >= len - 1) break;
   }
   return out;
 }
@@ -433,7 +341,7 @@ function buildBins<T extends { range: string; count: number; minVal: number }>(
   binCount: number,
   formatBin: (v: number) => string,
   makeBin: (range: string, minVal: number) => T,
-): { min: number; max: number; binWidth: number; bins: T[] } {
+) {
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const binWidth = (max - min) / binCount || 1;
@@ -441,9 +349,7 @@ function buildBins<T extends { range: string; count: number; minVal: number }>(
     makeBin(formatBin(min + i * binWidth), min + i * binWidth),
   );
   for (const v of vals) {
-    let idx = Math.floor((v - min) / binWidth);
-    if (idx >= binCount) idx = binCount - 1;
-    if (idx < 0) idx = 0;
+    const idx = Math.min(binCount - 1, Math.max(0, Math.floor((v - min) / binWidth)));
     bins[idx].count++;
   }
   return { min, max, binWidth, bins };
@@ -451,39 +357,24 @@ function buildBins<T extends { range: string; count: number; minVal: number }>(
 const labelForBin =
   (min: number, binWidth: number, formatBin: (v: number) => string) => (val: number) =>
     formatBin(Math.floor((val - min) / binWidth) * binWidth + min);
-const binLabel = (metric: DistMetric) => (v: number) => {
-  if (metric === 'finalValue') return dollarKFormatter(v);
-  if (metric === 'cagr' || metric === 'maxDrawdown' || metric === 'volatility')
-    return `${(v * 100).toFixed(1)}%`;
-  return v.toFixed(2);
-};
-const SUMMARY_QUANTILES: Array<[string, number]> = [
-  ['Min', 0],
-  ['P10', 0.1],
-  ['P25', 0.25],
-  ['P50', 0.5],
-  ['Mean', -1],
-  ['P75', 0.75],
-  ['P90', 0.9],
-  ['Max', 1],
-];
+const pct1 = (v: number) => `${(v * 100).toFixed(1)}%`;
+const binLabel = (metric: DistMetric) =>
+  metric === 'finalValue'
+    ? dollarKFormatter
+    : metric === 'cagr' || metric === 'maxDrawdown' || metric === 'volatility'
+      ? pct1
+      : (v: number) => v.toFixed(2);
+const metricValues = (metrics: PerPathMetrics[], metric: DistMetric, startingValue: number) =>
+  metric === 'finalValue'
+    ? metrics.map((m) => m.finalValue * startingValue)
+    : metrics.map((m) => m[metric]);
 export function buildSummaryData(r: MonteCarloResult, startingValue: number, t: TFunction) {
   const metrics = r.perPathMetrics;
   if (!metrics || metrics.length === 0) return null;
-  const keys: DistMetric[] = [
-    'finalValue',
-    'cagr',
-    'maxDrawdown',
-    'volatility',
-    'sharpe',
-    'sortino',
-  ];
+  const keys = Object.keys(METRIC_FORMAT) as DistMetric[];
   const labels = metricLabels(t);
   return keys.map((key) => {
-    const vals =
-      key === 'finalValue'
-        ? metrics.map((m) => m.finalValue * startingValue)
-        : metrics.map((m) => m[key]);
+    const vals = metricValues(metrics, key, startingValue);
     const p = (frac: number) => percentile(vals, frac);
     const m = mean(vals);
     const s = std(vals);
@@ -512,10 +403,7 @@ export function buildDistHistogram(
   metric: DistMetric,
   startingValue: number,
 ) {
-  const vals =
-    metric === 'finalValue'
-      ? metrics.map((m) => m.finalValue * startingValue)
-      : metrics.map((m) => m[metric]);
+  const vals = metricValues(metrics, metric, startingValue);
   if (vals.length === 0) return { data: [], medianLabel: '', meanLabel: '' };
   const formatBin = binLabel(metric);
   const { min, binWidth, bins } = buildBins(vals, 40, formatBin, (range, minVal) => ({
@@ -548,20 +436,17 @@ export function buildScenarioData(r: MonteCarloResult, startingValue: number) {
     })),
   };
 }
-export const fanAreas = (t: TFunction) => [
-  {
-    dataKey: 'band5_95',
-    fill: CHART_COLORS[0],
-    fillOpacity: 0.08,
-    name: t('monteCarlo.fanChart.band5_95'),
-  },
-  {
-    dataKey: 'band25_75',
-    fill: CHART_COLORS[0],
-    fillOpacity: 0.18,
-    name: t('monteCarlo.fanChart.band25_75'),
-  },
+const FAN_BANDS: Array<[string, number, string]> = [
+  ['band5_95', 0.08, 'monteCarlo.fanChart.band5_95'],
+  ['band25_75', 0.18, 'monteCarlo.fanChart.band25_75'],
 ];
+export const fanAreas = (t: TFunction) =>
+  FAN_BANDS.map(([dataKey, fillOpacity, nameKey]) => ({
+    dataKey,
+    fill: CHART_COLORS[0],
+    fillOpacity,
+    name: t(nameKey),
+  }));
 export const fanMedianLine = (t: TFunction) => ({
   dataKey: 'p50',
   stroke: CHART_COLORS[0],

@@ -1,10 +1,12 @@
 // Package analysis 提供单资产分析功能（T-ARCH-2.5）。
 package analysis
+
 import (
-    "context"
-    "engine-go/internal/engine"
-    "engine-go/internal/engineutil"
+	"context"
+	"engine-go/internal/engine"
+	"engine-go/internal/engineutil"
 )
+
 type AnalysisRequest struct {
 	Tickers   []string                      `json:"tickers"`
 	PriceData map[string]map[string]float64 `json:"priceData"` // ticker -> date -> price
@@ -32,12 +34,19 @@ type AssetAnalysisItem struct {
 	RollingReturns []engine.RollingReturn `json:"rollingReturns"`
 	Statistics     engine.Statistics      `json:"statistics"`
 }
+
 func RunAnalysis(ctx context.Context, req AnalysisRequest) (AnalysisResult, error) {
-	if len(req.Tickers) == 0 { return AnalysisResult{}, nil }
+	if len(req.Tickers) == 0 {
+		return AnalysisResult{}, nil
+	}
 	startingValue := req.Params.StartingValue
-if startingValue <= 0 { startingValue = 10000 }
+	if startingValue <= 0 {
+		startingValue = 10000
+	}
 	rollingWindowMonths := req.Params.RollingWindowMonths
-if rollingWindowMonths <= 0 { rollingWindowMonths = 12 }
+	if rollingWindowMonths <= 0 {
+		rollingWindowMonths = 12
+	}
 	dates := engineutil.GetSortedDates(req.PriceData, req.Tickers)
 	filteredDates := engineutil.FilterDates(dates, req.Params.StartDate, req.Params.EndDate)
 	type tickerData struct {
@@ -57,10 +66,14 @@ if rollingWindowMonths <= 0 { rollingWindowMonths = 12 }
 	}
 	assets := make([]AssetAnalysisItem, 0, len(req.Tickers))
 	for _, ticker := range req.Tickers {
-		select { case <-ctx.Done(): return AnalysisResult{}, ctx.Err(); default: }
+		select {
+		case <-ctx.Done():
+			return AnalysisResult{}, ctx.Err()
+		default:
+		}
 		td := tickerMap[ticker]
 		if td == nil || len(td.prices) < 2 {
-			assets = append(assets, AssetAnalysisItem{ Ticker:     ticker, Statistics: engine.Statistics{}, })
+			assets = append(assets, AssetAnalysisItem{Ticker: ticker, Statistics: engine.Statistics{}})
 			continue
 		}
 		prices := td.prices
@@ -71,16 +84,20 @@ if rollingWindowMonths <= 0 { rollingWindowMonths = 12 }
 		growthCurve := make([]engine.DataPoint, len(prices))
 		for i, p := range prices {
 			values[i] = (p / basePrice) * startingValue
-			growthCurve[i] = engine.DataPoint{ Date:  priceDates[i], Value: values[i], }
+			growthCurve[i] = engine.DataPoint{Date: priceDates[i], Value: values[i]}
 		}
 		drawdownCurve := engine.CalcDrawdownCurve(values, priceDates)
 		rollingReturns := engine.CalcRollingReturns(values, priceDates, rollingWindowMonths)
 		annualReturns := engine.CalcAnnualReturns(values, priceDates)
 		monthlyReturns := engine.CalcMonthlyReturns(values, priceDates)
 		annualReturnValues := make([]float64, len(annualReturns))
-		for i, ar := range annualReturns { annualReturnValues[i] = ar.Return }
+		for i, ar := range annualReturns {
+			annualReturnValues[i] = ar.Return
+		}
 		monthlyReturnValues := make([]float64, len(monthlyReturns))
-		for i, mr := range monthlyReturns { monthlyReturnValues[i] = mr.Return }
+		for i, mr := range monthlyReturns {
+			monthlyReturnValues[i] = mr.Return
+		}
 		statistics := engine.CalculateStatisticsFromRequest(engine.StatisticsRequest{
 			Values: values, Dates: priceDates, StartingValue: startingValue,
 			DailyReturns: dailyReturns, AnnualReturnValues: annualReturnValues,
@@ -93,10 +110,12 @@ if rollingWindowMonths <= 0 { rollingWindowMonths = 12 }
 	returnsList := make([][]float64, len(req.Tickers))
 	for i, t := range req.Tickers {
 		td := tickerMap[t]
-if td != nil { returnsList[i] = td.returns }
+		if td != nil {
+			returnsList[i] = td.returns
+		}
 	}
 	correlations := engine.CalcCorrelationMatrix(returnsList)
-	return AnalysisResult{ Assets:       assets, Correlations: correlations, }, nil
+	return AnalysisResult{Assets: assets, Correlations: correlations}, nil
 }
 func extractPrices(priceData map[string]map[string]float64, ticker string, dates []string) ([]float64, []string) {
 	prices := make([]float64, 0, len(dates))

@@ -45,7 +45,7 @@ const PLATFORM_KEY_COLUMNS =
   'id, org_id, name, key_prefix, is_platform_admin, created_by, created_at, last_used_at, revoked_at, expires_at';
 
 const toIso = (v: Date | string | null): string | null => (v ? new Date(v).toISOString() : null);
-function mapRow(row: {
+type ApiKeyRow = {
   id: string;
   org_id: string | null;
   name: string;
@@ -56,7 +56,8 @@ function mapRow(row: {
   last_used_at: Date | string | null;
   revoked_at: Date | string | null;
   expires_at: Date | string | null;
-}): ApiKeyRecord {
+};
+function mapRow(row: ApiKeyRow): ApiKeyRecord {
   return {
     id: row.id,
     orgId: row.org_id,
@@ -123,7 +124,7 @@ export async function revokeApiKey(orgId: string, keyId: string): Promise<boolea
 // 平台 break-glass 密钥管理（P0-04）
 
 type Queryable = {
-  query: (text: string, params?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>;
+  query: (text: string, params?: unknown[]) => Promise<{ rows: ApiKeyRow[] }>;
 };
 interface InsertPlatformKeyArgs {
   plaintext: string;

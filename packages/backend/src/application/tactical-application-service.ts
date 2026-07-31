@@ -3,10 +3,9 @@
  *
  * 计算逻辑已迁移到 Go 引擎 /api/engine/tactical-backtest（ADR-031）。
  */
-import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical';
+import type { TacticalStrategy } from '@backtest/shared/types/tactical';
 import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
-import { ValidationError } from '../utils/errors.js';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
@@ -210,10 +209,4 @@ export async function executeTacticalWhatIf(
       signals: lastEntry.activeSignals,
     };
   });
-}
-export function saveTacticalAlertConfig(config: EmailAlertConfig): EmailAlertConfig {
-  if (config.enabled && !config.email) {
-    throw new ValidationError('启用告警时必须填写邮箱');
-  }
-  return config;
 }

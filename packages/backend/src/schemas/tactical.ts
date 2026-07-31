@@ -5,16 +5,6 @@ import { ALL_REBALANCE_FREQUENCIES, TECHNICAL_INDICATORS } from '@backtest/share
 // 企业为何需要：TypeScript类型仅在编译时检查，运行时req.body可包含任意数据
 // 权衡：增加schema定义维护成本，但安全性远高于类型断言
 
-const emailAlertConfigSchema = z.object({
-  enabled: z.boolean(),
-  email: z.string().optional(),
-  triggers: z.array(z.enum(['signal_change', 'rebalance', 'threshold'])).optional(),
-});
-
-export const tacticalAlertSchema = z.object({
-  config: emailAlertConfigSchema,
-});
-
 const signalConditionSchema = z.object({
   indicator: z.enum(TECHNICAL_INDICATORS),
   period: z.number(),

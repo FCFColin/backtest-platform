@@ -11,7 +11,7 @@ import { backtestOptimizerSchema } from '../schemas/optimizer.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, ownerOf } from './routeUtils.js';
 
 const router = Router();
 
@@ -30,10 +30,7 @@ router.post(
           payload: req.body,
           userId,
           tenantId: authReq.tenantId,
-          ownerUserId:
-            userId && !userId.startsWith('apikey:') && !userId.startsWith('platform:')
-              ? userId
-              : null,
+          ownerUserId: ownerOf(authReq),
         } as BacktestJobData);
 
         res.status(202).json({

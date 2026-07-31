@@ -1,18 +1,22 @@
 package main
+
 import (
-    "context"
-    "fmt"
-    "log/slog"
-    "sort"
-    "data-fetcher/internal/provider"
-    "github.com/jackc/pgx/v5/pgxpool"
+	"context"
+	"data-fetcher/internal/provider"
+	"fmt"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"log/slog"
+	"sort"
 )
+
 type SIMSegmentType string
+
 const (
 	SegmentYahoo     SIMSegmentType = "yahoo"
 	SegmentCSV       SIMSegmentType = "csv"
 	SegmentKenFrench SIMSegmentType = "kenfrench"
 )
+
 type SIMSegment struct {
 	Type         SIMSegmentType
 	Source       string
@@ -28,7 +32,9 @@ type SIMTickerDefinition struct {
 	Description string
 	Segments    []SIMSegment
 }
+
 const simEndDate = "2099-12-31"
+
 func simSeg(source, start string, expense float64) SIMSegment {
 	return SIMSegment{Type: SegmentYahoo, Source: source, StartDate: start, EndDate: simEndDate, ExpenseRatio: expense}
 }
@@ -38,6 +44,7 @@ func simSegRange(source, start, end string, expense float64) SIMSegment {
 func simDef(ticker, name, category, desc string, segs ...SIMSegment) SIMTickerDefinition {
 	return SIMTickerDefinition{Ticker: ticker, Name: name, Category: category, Description: desc, Segments: segs}
 }
+
 var simDefinitions = map[string]SIMTickerDefinition{
 	"IEFSIM":   simDef("IEFSIM", "中期国债 (Total Return)", "Bond", "中期美国国债全回报指数。2002年前使用国债利率推算，2002年后使用 IEF。", simSeg("IEF", "2002-07-26", 0.0015)),
 	"SHVSIM":   simDef("SHVSIM", "短期国债 (Total Return)", "Bond", "短期美国国债全回报指数。2007年后使用 SHV。", simSeg("SHV", "2007-01-11", 0.0015)),
@@ -59,23 +66,30 @@ var simDefinitions = map[string]SIMTickerDefinition{
 	"GLDSIM":   simDef("GLDSIM", "黄金 (Total Return)", "Commodity", "黄金全回报指数。2004年前使用 LBMA 黄金价格，2004年后使用 GLD。", simSeg("GLD", "2004-11-18", 0.0040)),
 	"TLTSIM":   simDef("TLTSIM", "长期美国国债 (Total Return)", "Bond", "长期美国国债全回报指数。2002年前使用国债利率推算，2002年后使用 TLT。", simSeg("TLT", "2002-07-22", 0.0015)),
 }
+
 func IsSIMTicker(ticker string) bool {
 	_, ok := simDefinitions[ticker]
 	return ok
 }
 func GetSIMDefinition(ticker string) *SIMTickerDefinition {
-	if def, ok := simDefinitions[ticker]; ok { return &def }
+	if def, ok := simDefinitions[ticker]; ok {
+		return &def
+	}
 	return nil
 }
 func GetAllSIMTickers() []string {
 	tickers := make([]string, 0, len(simDefinitions))
-	for t := range simDefinitions { tickers = append(tickers, t) }
+	for t := range simDefinitions {
+		tickers = append(tickers, t)
+	}
 	sort.Strings(tickers)
 	return tickers
 }
 func GetSIMSourceTickers(ticker string) []string {
 	def, ok := simDefinitions[ticker]
-	if !ok { return nil }
+	if !ok {
+		return nil
+	}
 	seen := make(map[string]bool)
 	var result []string
 	for _, seg := range def.Segments {
@@ -88,23 +102,31 @@ func GetSIMSourceTickers(ticker string) []string {
 }
 func GetEarliestStartDate(ticker string) string {
 	def, ok := simDefinitions[ticker]
-	if !ok || len(def.Segments) == 0 { return "" }
+	if !ok || len(def.Segments) == 0 {
+		return ""
+	}
 	earliest := def.Segments[0].StartDate
 	for _, seg := range def.Segments[1:] {
-if seg.StartDate < earliest { earliest = seg.StartDate }
+		if seg.StartDate < earliest {
+			earliest = seg.StartDate
+		}
 	}
 	return earliest
 }
+
 type segmentData struct {
 	seg    *SIMSegment
 	prices []dailyPrice
 }
+
 func spliceSIMData(ctx context.Context, pool *pgxpool.Pool, def *SIMTickerDefinition, startDate, endDate string) error {
 	slog.Info("开始拼接 SIM 数据", "ticker", def.Ticker, "segments", len(def.Segments))
 	var segments []segmentData
 	for i := range def.Segments {
 		seg := &def.Segments[i]
-		if seg.EndDate < startDate || seg.StartDate > endDate { continue }
+		if seg.EndDate < startDate || seg.StartDate > endDate {
+			continue
+		}
 		actualStart := max(startDate, seg.StartDate)
 		actualEnd := min(endDate, seg.EndDate)
 		prices, err := fetchSegmentData(ctx, pool, seg, actualStart, actualEnd)
@@ -116,23 +138,31 @@ func spliceSIMData(ctx context.Context, pool *pgxpool.Pool, def *SIMTickerDefini
 			slog.Warn("Segment 无数据", "ticker", def.Ticker, "source", seg.Source)
 			continue
 		}
-if seg.ExpenseRatio > 0 { prices = applyExpenseRatio(prices, seg.ExpenseRatio) }
+		if seg.ExpenseRatio > 0 {
+			prices = applyExpenseRatio(prices, seg.ExpenseRatio)
+		}
 		segments = append(segments, segmentData{seg: seg, prices: prices})
 		slog.Info("Segment 获取完成", "ticker", def.Ticker, "source", seg.Source, "count", len(prices))
 	}
-	if len(segments) == 0 { return fmt.Errorf("所有 Segment 均无数据") }
+	if len(segments) == 0 {
+		return fmt.Errorf("所有 Segment 均无数据")
+	}
 	allPrices := normalizeAndMergeSegments(segments)
 	slog.Info("SIM 数据拼接完成", "ticker", def.Ticker, "total_rows", len(allPrices), "segments_used", len(segments))
 	return writePricesToDB(ctx, pool, def.Ticker, allPrices)
 }
 func fetchSegmentData(ctx context.Context, pool *pgxpool.Pool, seg *SIMSegment, startDate, endDate string) ([]dailyPrice, error) {
 	switch seg.Type {
-	case SegmentYahoo: return fetchYahooSegment(seg.Source, startDate, endDate)
-	default: return nil, fmt.Errorf("不支持的 Segment 类型: %s", seg.Type)
+	case SegmentYahoo:
+		return fetchYahooSegment(seg.Source, startDate, endDate)
+	default:
+		return nil, fmt.Errorf("不支持的 Segment 类型: %s", seg.Type)
 	}
 }
 func normalizeAndMergeSegments(segments []segmentData) []dailyPrice {
-	if len(segments) == 0 { return nil }
+	if len(segments) == 0 {
+		return nil
+	}
 	var result []dailyPrice
 	for _, seg := range segments {
 		prices := seg.prices
@@ -156,15 +186,21 @@ func normalizeAndMergeSegments(segments []segmentData) []dailyPrice {
 			}
 			prices = normalized
 		}
-if len(prices) > 1 { result = append(result, prices[1:]...) }
+		if len(prices) > 1 {
+			result = append(result, prices[1:]...)
+		}
 	}
 	return result
 }
 func fetchYahooSegment(ticker, startDate, endDate string) ([]dailyPrice, error) {
 	providers := reg.ForTicker(ticker)
-	if len(providers) == 0 { return nil, fmt.Errorf("没有可用的数据源: %s", ticker) }
+	if len(providers) == 0 {
+		return nil, fmt.Errorf("没有可用的数据源: %s", ticker)
+	}
 	prices, _, err := provider.FetchWithFallback(providers, ticker, startDate, endDate)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	result := make([]dailyPrice, len(prices))
 	for i, p := range prices {
 		result[i] = dailyPrice{
@@ -180,7 +216,9 @@ func fetchYahooSegment(ticker, startDate, endDate string) ([]dailyPrice, error) 
 	return result, nil
 }
 func applyExpenseRatio(prices []dailyPrice, expenseRatio float64) []dailyPrice {
-	if len(prices) == 0 { return prices }
+	if len(prices) == 0 {
+		return prices
+	}
 	dailyDrag := expenseRatio / 252.0
 	result := make([]dailyPrice, len(prices))
 	result[0] = prices[0]

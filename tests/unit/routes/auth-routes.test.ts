@@ -11,7 +11,6 @@ import {
   createLoginLockoutMocks,
   createMembershipServiceMocks,
 } from '../../helpers/authFixtures.js';
-
 const mocks = vi.hoisted(() => ({
   config: {} as Record<string, unknown>,
   jwtAuth: {} as Record<string, unknown>,
@@ -86,10 +85,8 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => {
   Object.assign(mocks.logger, createLoggerMocks());
   return { logger: mocks.logger };
 });
-
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
 import authRegistrationRoutes from '../../../packages/backend/src/routes/authRegistrationRoutes.js';
-
 type VFn = ReturnType<typeof vi.fn>;
 const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
 const JH = { 'Content-Type': 'application/json' };
@@ -138,16 +135,23 @@ const apiPost = (u: string, b?: unknown, h: Record<string, string> = {}) =>
   reqJson(u, 'POST', b, h);
 const apiDelete = (u: string, h: Record<string, string> = {}) => reqJson(u, 'DELETE', undefined, h);
 const apiGet = (u: string, h: Record<string, string> = {}) => reqJson(u, 'GET', undefined, h);
-function mockVerifyUser(id = 'user-123', role = 'admin') {
-  fn(mocks.userService, 'verifyUser').mockResolvedValueOnce({
-    id,
-    username: 'testuser',
-    role,
-    createdAt: new Date(),
-    isActive: true,
-  });
+function userRecord(id: string, role: string) {
+  return { id, username: 'testuser', role, createdAt: new Date(), isActive: true };
 }
-
+function mockVerifyUser(id = 'user-123', role = 'admin') {
+  fn(mocks.userService, 'verifyUser').mockResolvedValueOnce(userRecord(id, role));
+}
+function mockOrg(overrides: Record<string, unknown> = {}) {
+  return {
+    orgId: '11111111-1111-4111-8111-111111111111',
+    orgName: 'Acme',
+    orgSlug: 'acme',
+    orgPlan: 'pro',
+    orgStatus: 'active',
+    role: 'owner',
+    ...overrides,
+  };
+}
 describe('authRoutes - 登录与会话端点', () => {
   let server: TestServer;
   beforeEach(async () => {
@@ -161,10 +165,9 @@ describe('authRoutes - 登录与会话端点', () => {
       app.use('/api/v1/auth', authRoutes);
     });
   });
-  afterEach(async () => {
-    await server.close();
-  });
+  afterEach(() => server.close());
   const loginUrl = () => `${server.url}/api/v1/auth/login/password`;
+  const switchUrl = () => `${server.url}/api/v1/auth/switch-org`;
   it('正确凭证应返回 access token 并通过 Set-Cookie 下发 refresh token', async () => {
     mockVerifyUser('user-123', 'admin');
     const { res, body } = await apiPost(loginUrl(), validPasswordLoginPayload);
@@ -177,10 +180,10 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(res.headers.get('set-cookie')).toContain('rt=');
   });
   it.each([
-    ['错误密码', null, 'wrong-pass'],
-    ['不存在用户', null, 'any-pass'],
-  ])('%s 应返回 401 INVALID_CREDENTIALS（防枚举）', async (_n, vr, pwd) => {
-    fn(mocks.userService, 'verifyUser').mockResolvedValueOnce(vr);
+    ['错误密码', 'wrong-pass'],
+    ['不存在用户', 'any-pass'],
+  ])('%s 应返回 401 INVALID_CREDENTIALS（防枚举）', async (_n, pwd) => {
+    fn(mocks.userService, 'verifyUser').mockResolvedValueOnce(null);
     const { res, body } = await apiPost(loginUrl(), { username: 'testuser', password: pwd });
     expect(res.status).toBe(401);
     expect(body.error.code).toBe('INVALID_CREDENTIALS');
@@ -208,14 +211,7 @@ describe('authRoutes - 登录与会话端点', () => {
   it('解析到默认组织时应以组织角色签发并返回 org 摘要', async () => {
     mockVerifyUser('user-777', 'readonly');
     fn(mocks.membershipService, 'isPlatformAdmin').mockResolvedValueOnce(false);
-    fn(mocks.membershipService, 'resolveDefaultOrg').mockResolvedValueOnce({
-      orgId: '11111111-1111-4111-8111-111111111111',
-      orgName: 'Acme',
-      orgSlug: 'acme',
-      orgPlan: 'pro',
-      orgStatus: 'active',
-      role: 'owner',
-    });
+    fn(mocks.membershipService, 'resolveDefaultOrg').mockResolvedValueOnce(mockOrg());
     const { res, body } = await apiPost(loginUrl(), { username: 'orguser', password: 'pass' });
     expect(res.status).toBe(200);
     expect(body.data.role).toBe('admin');
@@ -232,6 +228,7 @@ describe('authRoutes - 登录与会话端点', () => {
   });
   it('无组织成员关系时 org 为 null 且沿用全局角色', async () => {
     mockVerifyUser('user-888', 'analyst');
+    fn(mocks.membershipService, 'resolveDefaultOrg').mockResolvedValueOnce(null);
     const { res, body } = await apiPost(loginUrl(), { username: 'soloer', password: 'pass' });
     expect(res.status).toBe(200);
     expect(body.data.role).toBe('analyst');
@@ -270,21 +267,20 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(res.status).toBe(401);
     expect(body.error.code).toBe('REFRESH_TOKEN_MISSING');
   });
-  it('logout 携带 refresh cookie 应调用撤销并清除 cookie', async () => {
-    fn(mocks.jwtAuth, 'revokeRefreshToken').mockResolvedValueOnce(undefined);
-    const { res, body } = await apiDelete(`${server.url}/api/v1/auth/logout`, {
-      Cookie: 'rt=token-to-revoke',
-    });
+  it.each([
+    ['携带 refresh cookie 应撤销并清除 cookie', { Cookie: 'rt=token-to-revoke' }, true],
+    ['未携带 refresh cookie 也应返回成功', undefined, false],
+  ])('logout %s', async (_n, headers, expectRevoke) => {
+    if (expectRevoke) fn(mocks.jwtAuth, 'revokeRefreshToken').mockResolvedValueOnce(undefined);
+    const { res, body } = await apiDelete(`${server.url}/api/v1/auth/logout`, headers);
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(mocks.jwtAuth.revokeRefreshToken).toHaveBeenCalledWith('token-to-revoke');
-    expect(res.headers.get('set-cookie')).toContain('rt=');
-  });
-  it('logout 未携带 refresh cookie 也应返回成功', async () => {
-    const { res, body } = await apiDelete(`${server.url}/api/v1/auth/logout`);
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(mocks.jwtAuth.revokeRefreshToken).not.toHaveBeenCalled();
+    if (expectRevoke) {
+      expect(mocks.jwtAuth.revokeRefreshToken).toHaveBeenCalledWith('token-to-revoke');
+      expect(res.headers.get('set-cookie')).toContain('rt=');
+    } else {
+      expect(mocks.jwtAuth.revokeRefreshToken).not.toHaveBeenCalled();
+    }
   });
   it('GET /me 路由直接调用应返回 401（未注入 req.user）', async () => {
     const { res, body } = await apiGet(`${server.url}/api/v1/auth/me`);
@@ -316,20 +312,10 @@ describe('authRoutes - 登录与会话端点', () => {
   it('switch-org 成员且组织 active 时应返回新 access token 并通过 Set-Cookie 下发新 RT', async () => {
     const orgId = '22222222-2222-4222-8222-222222222222';
     injectUser('user-switch', 'analyst');
-    fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce({
-      orgId,
-      orgName: 'Beta',
-      orgSlug: 'beta',
-      orgPlan: 'free',
-      orgStatus: 'active',
-      role: 'admin',
-    });
+    const beta = { orgName: 'Beta', orgSlug: 'beta', orgPlan: 'free', role: 'admin' };
+    fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(mockOrg({ orgId, ...beta }));
     fn(mocks.membershipService, 'isPlatformAdmin').mockResolvedValueOnce(false);
-    const { res, body } = await apiPost(
-      `${server.url}/api/v1/auth/switch-org`,
-      { orgId },
-      { Authorization: 'Bearer t' },
-    );
+    const { res, body } = await apiPost(switchUrl(), { orgId }, { Authorization: 'Bearer t' });
     expect(res.status).toBe(200);
     expect(body.data.accessToken).toBe('access-token-mock');
     expect(body.data.org.orgId).toBe(orgId);
@@ -345,7 +331,7 @@ describe('authRoutes - 登录与会话端点', () => {
     injectUser();
     fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(null);
     const { res, body } = await apiPost(
-      `${server.url}/api/v1/auth/switch-org`,
+      switchUrl(),
       { orgId: '33333333-3333-4333-8333-333333333333' },
       { Authorization: 'Bearer t' },
     );
@@ -354,16 +340,16 @@ describe('authRoutes - 登录与会话端点', () => {
   });
   it('switch-org 组织非 active 应返回 403 ORG_INACTIVE', async () => {
     injectUser();
-    fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce({
-      orgId: '44444444-4444-4444-8444-444444444444',
-      orgName: 'Gamma',
-      orgSlug: 'gamma',
-      orgPlan: 'free',
-      orgStatus: 'suspended',
-      role: 'owner',
-    });
+    fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(
+      mockOrg({
+        orgId: '44444444-4444-4444-8444-444444444444',
+        orgName: 'Gamma',
+        orgSlug: 'gamma',
+        orgStatus: 'suspended',
+      }),
+    );
     const { res, body } = await apiPost(
-      `${server.url}/api/v1/auth/switch-org`,
+      switchUrl(),
       { orgId: '44444444-4444-4444-8444-444444444444' },
       { Authorization: 'Bearer t' },
     );
@@ -372,43 +358,30 @@ describe('authRoutes - 登录与会话端点', () => {
   });
   it('switch-org 缺少 orgId 应返回 400', async () => {
     injectUser();
-    const { res, body } = await apiPost(
-      `${server.url}/api/v1/auth/switch-org`,
-      {},
-      { Authorization: 'Bearer t' },
-    );
+    const { res, body } = await apiPost(switchUrl(), {}, { Authorization: 'Bearer t' });
     expect(res.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_ERROR');
   });
   it('switch-org 未认证应返回 401', async () => {
     passthroughJwtAuth();
-    const { res } = await apiPost(`${server.url}/api/v1/auth/switch-org`, {
-      orgId: '55555555-5555-4555-8555-555555555555',
-    });
+    const { res } = await apiPost(switchUrl(), { orgId: '55555555-5555-4555-8555-555555555555' });
     expect(res.status).toBe(401);
   });
   it('GET /orgs 应返回成员组织列表与活跃组织', async () => {
-    injectUser('user-orgs', 'analyst', { tenant_id: '66666666-6666-4666-8666-666666666666' });
+    const orgId = '66666666-6666-4666-8666-666666666666';
+    injectUser('user-orgs', 'analyst', { tenant_id: orgId });
     fn(mocks.membershipService, 'getUserMemberships').mockResolvedValueOnce([
-      {
-        orgId: '66666666-6666-4666-8666-666666666666',
-        orgName: 'Delta',
-        orgSlug: 'delta',
-        orgPlan: 'pro',
-        orgStatus: 'active',
-        role: 'analyst',
-      },
+      mockOrg({ orgId, orgName: 'Delta', orgSlug: 'delta', role: 'analyst' }),
     ]);
     const { res, body } = await apiGet(`${server.url}/api/v1/auth/orgs`, {
       Authorization: 'Bearer t',
     });
     expect(res.status).toBe(200);
-    expect(body.data.activeOrgId).toBe('66666666-6666-4666-8666-666666666666');
+    expect(body.data.activeOrgId).toBe(orgId);
     expect(body.data.orgs).toHaveLength(1);
     expect(body.data.orgs[0].slug).toBe('delta');
   });
 });
-
 describe('authRegistrationRoutes', () => {
   let server: TestServer;
   function makeClient(overrides: Record<string, unknown> = {}) {
@@ -420,22 +393,18 @@ describe('authRegistrationRoutes', () => {
       .mockResolvedValueOnce({});
     return { query, release: vi.fn(), ...overrides };
   }
+  const EMAIL = 'new@example.com';
+  const TOKEN = 'token-abc';
   const validRegisterBody = {
-    username: 'newuser',
-    email: 'new@example.com',
+    username: 'nu',
+    email: EMAIL,
     password: 'secret123',
-    orgName: 'Acme Inc',
+    orgName: 'Acme',
   };
   beforeEach(async () => {
     vi.clearAllMocks();
     fn(mocks.registration, 'getUserByEmail').mockResolvedValue(null);
-    fn(mocks.registration, 'createUserTx').mockResolvedValue({
-      id: 'user-uuid-123',
-      username: 'newuser',
-      role: 'admin',
-      createdAt: new Date(),
-      isActive: true,
-    });
+    fn(mocks.registration, 'createUserTx').mockResolvedValue(userRecord('user-uuid-123', 'admin'));
     fn(mocks.registration, 'getClient').mockResolvedValue(makeClient());
     fn(mocks.registration, 'issueEmailVerificationToken').mockResolvedValue('token-abc');
     fn(mocks.registration, 'verifyEmailToken').mockResolvedValue('user-uuid-123');
@@ -443,11 +412,8 @@ describe('authRegistrationRoutes', () => {
     injectUser('user-123', 'admin', { iat: 1, exp: 9999999999 });
     server = await startExpressApp((app) => app.use('/api/v1/auth', authRegistrationRoutes));
   });
-  afterEach(async () => {
-    await server.close();
-  });
+  afterEach(() => server.close());
   const regUrl = (p: string) => `${server.url}/api/v1/auth/${p}`;
-
   it('注册成功应返回 201 + userId，事务正确提交且发送验证邮件', async () => {
     const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
     expect(res.status).toBe(201);
@@ -459,20 +425,13 @@ describe('authRegistrationRoutes', () => {
     expect(calls.some((s: string) => String(s).includes('INSERT INTO organizations'))).toBe(true);
     expect(calls.some((s: string) => String(s).includes('INSERT INTO memberships'))).toBe(true);
     expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-uuid-123');
-    expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith(
-      'new@example.com',
-      'token-abc',
-    );
+    expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith(EMAIL, 'token-abc');
     expect(client.release).toHaveBeenCalled();
   });
   it('邮箱已被注册应返回 409 EMAIL_TAKEN，不进入事务', async () => {
-    fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce({
-      id: 'existing-user',
-      username: 'existing',
-      role: 'analyst',
-      createdAt: new Date(),
-      isActive: true,
-    });
+    fn(mocks.registration, 'getUserByEmail').mockResolvedValueOnce(
+      userRecord('existing-user', 'analyst'),
+    );
     const { res, body } = await apiPost(regUrl('register'), validRegisterBody);
     expect(res.status).toBe(409);
     expect(body.error.code).toBe('EMAIL_TAKEN');
@@ -532,9 +491,6 @@ describe('authRegistrationRoutes', () => {
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-123');
-    expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith(
-      'me@example.com',
-      'token-abc',
-    );
+    expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith('me@example.com', TOKEN);
   });
 });

@@ -1,11 +1,13 @@
 // Package engine 的类型一致性单测。
 package engine
+
 import (
-    "reflect"
-    "sort"
-    "strings"
-    "testing"
+	"reflect"
+	"sort"
+	"strings"
+	"testing"
 )
+
 var expectedStatisticsFields = []string{
 	"cagr", "mwrr", "totalReturn", "bestYear", "worstYear", "avgYear",
 	"avgAnnualReturn", "avgMonthlyReturn", "avgDailyReturn",
@@ -84,19 +86,26 @@ var expectedAllocationPointFields = []string{"date", "weights"}
 var expectedVaRLevelsFields = []string{"1", "5", "10"}
 var expectedVaRByFrequencyFields = []string{"daily", "monthly", "annual"}
 var expectedSkewnessByFrequencyFields = []string{"daily", "monthly", "annual"}
+
 func extractJSONFields(t reflect.Type) []string {
 	var names []string
 	for i := 0; i < t.NumField(); i++ {
 		tag := t.Field(i).Tag.Get("json")
-		if tag == "" || tag == "-" { continue }
+		if tag == "" || tag == "-" {
+			continue
+		}
 		name := strings.Split(tag, ",")[0]
-if name != "" { names = append(names, name) }
+		if name != "" {
+			names = append(names, name)
+		}
 	}
 	return names
 }
 func toSet(items []string) map[string]bool {
 	m := make(map[string]bool, len(items))
-	for _, item := range items { m[item] = true }
+	for _, item := range items {
+		m[item] = true
+	}
 	return m
 }
 func assertJSONFields(t *testing.T, typ reflect.Type, expected, allowedExtra []string, exact bool, typeName string) {
@@ -107,12 +116,16 @@ func assertJSONFields(t *testing.T, typ reflect.Type, expected, allowedExtra []s
 	goSet := toSet(goFields)
 	var extra []string
 	for _, f := range goFields {
-if !expectedSet[f] && !allowedSet[f] { extra = append(extra, f) }
+		if !expectedSet[f] && !allowedSet[f] {
+			extra = append(extra, f)
+		}
 	}
 	var missing []string
 	if exact {
 		for _, f := range expected {
-if !goSet[f] { missing = append(missing, f) }
+			if !goSet[f] {
+				missing = append(missing, f)
+			}
 		}
 	}
 	if len(extra) > 0 || len(missing) > 0 {

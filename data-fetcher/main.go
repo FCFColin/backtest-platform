@@ -1,30 +1,32 @@
 package main
+
 import (
-    "context"
-    "log/slog"
-    "net/http"
-    "os"
-    "strings"
-    "time"
-    gosharedhttp "github.com/backtest/go-shared/http"
-    gosharedlog "github.com/backtest/go-shared/log"
-    gosharedmw "github.com/backtest/go-shared/middleware"
-    "github.com/backtest/go-shared/observability"
-    "github.com/gin-contrib/cors"
-    "github.com/gin-gonic/gin"
-    "github.com/ulule/limiter/v3"
-    mgin "github.com/ulule/limiter/v3/drivers/middleware/gin"
-    "github.com/ulule/limiter/v3/drivers/store/memory"
-    "go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-    "data-fetcher/internal/akshare"
-    "data-fetcher/internal/finnhub"
-    "data-fetcher/internal/handlers"
-    "data-fetcher/internal/middleware"
-    "data-fetcher/internal/provider"
-    "data-fetcher/internal/store"
-    "data-fetcher/internal/twelvedata"
-    "data-fetcher/internal/yfinance"
+	"context"
+	"data-fetcher/internal/akshare"
+	"data-fetcher/internal/finnhub"
+	"data-fetcher/internal/handlers"
+	"data-fetcher/internal/middleware"
+	"data-fetcher/internal/provider"
+	"data-fetcher/internal/store"
+	"data-fetcher/internal/twelvedata"
+	"data-fetcher/internal/yfinance"
+	gosharedhttp "github.com/backtest/go-shared/http"
+	gosharedlog "github.com/backtest/go-shared/log"
+	gosharedmw "github.com/backtest/go-shared/middleware"
+	"github.com/backtest/go-shared/observability"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"github.com/ulule/limiter/v3"
+	mgin "github.com/ulule/limiter/v3/drivers/middleware/gin"
+	"github.com/ulule/limiter/v3/drivers/store/memory"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"log/slog"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 )
+
 func newRegistry() *provider.Registry {
 	prio := os.Getenv("DATA_PROVIDER_PRIORITY")
 	var priorities []string
@@ -40,21 +42,27 @@ func newRegistry() *provider.Registry {
 		twelvedata.NewProvider(),
 		akshare.NewProvider(),
 	} {
-if p != nil { reg.Register(p) }
+		if p != nil {
+			reg.Register(p)
+		}
 	}
 	return reg
 }
+
 type Config struct {
 	Port        string
 	DatabaseURL string
 }
+
 func newDefaultConfig() *Config {
-	return &Config{ Port:        "5003", DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL")), }
+	return &Config{Port: "5003", DatabaseURL: strings.TrimSpace(os.Getenv("DATABASE_URL"))}
 }
 func main() {
 	gosharedlog.InitDefault()
 	cfg := newDefaultConfig()
-if port := os.Getenv("DATA_FETCHER_PORT"); port != "" { cfg.Port = port }
+	if port := os.Getenv("DATA_FETCHER_PORT"); port != "" {
+		cfg.Port = port
+	}
 	slog.Info("Go数据获取服务启动", "module", "main", "version", "0.1.0", "port", cfg.Port)
 	ctx := context.Background()
 	reg := newRegistry()

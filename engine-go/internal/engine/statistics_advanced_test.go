@@ -1,11 +1,15 @@
 package engine
+
 import (
-    "math"
-    "testing"
+	"math"
+	"testing"
 )
+
 func assertFloatApprox(t *testing.T, got, want float64, label string) {
 	t.Helper()
-if math.Abs(got-want) > 1e-10 { t.Errorf("%s = %v, want %v", label, got, want) }
+	if math.Abs(got-want) > 1e-10 {
+		t.Errorf("%s = %v, want %v", label, got, want)
+	}
 }
 func TestCalcBeta(t *testing.T) {
 	cases := []struct {
@@ -19,7 +23,9 @@ func TestCalcBeta(t *testing.T) {
 		{"zero benchmark variance", []float64{0.01, 0.02}, []float64{0, 0}, 0},
 	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcBeta(tc.portfolioReturns, tc.benchmarkReturns), tc.want, "CalcBeta") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcBeta(tc.portfolioReturns, tc.benchmarkReturns), tc.want, "CalcBeta")
+		})
 	}
 }
 func TestCalcAlpha(t *testing.T) {
@@ -34,9 +40,11 @@ func TestCalcAlpha(t *testing.T) {
 		{"outperforming", 0.15, 1.2, 0.10, 0.15 - (0.02 + 1.2*(0.10-0.02))},
 	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcAlpha(tc.cagr, tc.beta, tc.benchmarkCagr), tc.want, "CalcAlpha") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcAlpha(tc.cagr, tc.beta, tc.benchmarkCagr), tc.want, "CalcAlpha")
+		})
 	}
-t.Run("zero beta alpha equals excess return", func(t *testing.T) { assertFloatApprox(t, CalcAlpha(0.10, 0, 0.08), 0.10-0.02, "CalcAlpha") })
+	t.Run("zero beta alpha equals excess return", func(t *testing.T) { assertFloatApprox(t, CalcAlpha(0.10, 0, 0.08), 0.10-0.02, "CalcAlpha") })
 }
 func TestCalcRSquared(t *testing.T) {
 	cases := []struct {
@@ -50,7 +58,9 @@ func TestCalcRSquared(t *testing.T) {
 		{"inverse perfect fit", []float64{1, 2, 3}, []float64{3, 2, 1}, 1},
 	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcRSquared(tc.portfolioReturns, tc.benchmarkReturns), tc.want, "CalcRSquared") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcRSquared(tc.portfolioReturns, tc.benchmarkReturns), tc.want, "CalcRSquared")
+		})
 	}
 }
 func TestCalcTrackingError(t *testing.T) {
@@ -65,22 +75,26 @@ func TestCalcTrackingError(t *testing.T) {
 		{"known deviation", []float64{0.04, 0, -0.04}, []float64{0, 0, 0}, math.Sqrt(0.0016) * math.Sqrt(252)},
 	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcTrackingError(tc.portfolioReturns, tc.benchmarkReturns), tc.want, "CalcTrackingError") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcTrackingError(tc.portfolioReturns, tc.benchmarkReturns), tc.want, "CalcTrackingError")
+		})
 	}
 }
 func TestCalcInformationRatio(t *testing.T) {
-cases := []struct {
+	cases := []struct {
 		name          string
 		alpha         float64
 		trackingError float64
 		want          float64
-		}{
+	}{
 		{"zero tracking error", 0.05, 0, 0},
 		{"normal case", 0.05, 0.10, 0.5},
 		{"negative alpha", -0.02, 0.10, -0.2},
-		}
+	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcInformationRatio(tc.alpha, tc.trackingError), tc.want, "CalcInformationRatio") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcInformationRatio(tc.alpha, tc.trackingError), tc.want, "CalcInformationRatio")
+		})
 	}
 }
 func TestCalcCaptureRatios(t *testing.T) {
@@ -97,7 +111,9 @@ func TestCalcCaptureRatios(t *testing.T) {
 		{"downside no downside days", CalcDownsideCapture, []float64{0.01, 0.02}, []float64{0.01, 0.02}, 0},
 		{"downside single downside day", CalcDownsideCapture, []float64{-0.05, 0.10}, []float64{-0.02, 0.05}, 2.5},
 	}
-for _, tc := range cases { t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.p, tc.b), tc.want, "CaptureRatio") }) }
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.p, tc.b), tc.want, "CaptureRatio") })
+	}
 }
 func TestCalcVaR(t *testing.T) {
 	cases := []struct {
@@ -110,7 +126,9 @@ func TestCalcVaR(t *testing.T) {
 		{"95% confidence", []float64{-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04}, 0.95, 0.03},
 		{"90% confidence", []float64{-0.05, -0.03, -0.02, 0, 0.01, 0.02, 0.03, 0.04}, 0.90, 0.05},
 	}
-for _, tc := range cases { t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcVaR(tc.dailyReturns, tc.confidence), tc.want, "CalcVaR") }) }
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcVaR(tc.dailyReturns, tc.confidence), tc.want, "CalcVaR") })
+	}
 }
 func TestCalcCVaR(t *testing.T) {
 	cases := []struct {
@@ -124,7 +142,9 @@ func TestCalcCVaR(t *testing.T) {
 		{"two tail values at 75pct confidence", []float64{-0.06, -0.04, -0.02, 0, 0.01, 0.02, 0.03, 0.04}, 0.75, 0.05},
 	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcCVaR(tc.dailyReturns, tc.confidence), tc.want, "CalcCVaR") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcCVaR(tc.dailyReturns, tc.confidence), tc.want, "CalcCVaR")
+		})
 	}
 }
 func TestCalcSkewness(t *testing.T) {
@@ -138,7 +158,9 @@ func TestCalcSkewness(t *testing.T) {
 		{"zero variance", []float64{1, 1, 1}, 0},
 		{"right skewed", []float64{1, 1, 1, 10}, 2.0},
 	}
-for _, tc := range cases { t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcSkewness(tc.returns), tc.want, "CalcSkewness") }) }
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcSkewness(tc.returns), tc.want, "CalcSkewness") })
+	}
 }
 func TestCalcExcessKurtosis(t *testing.T) {
 	cases := []struct {
@@ -151,41 +173,67 @@ func TestCalcExcessKurtosis(t *testing.T) {
 		{"uniform-like negative excess", []float64{-2, -1, 0, 1, 2}, -1.2},
 	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, CalcExcessKurtosis(tc.returns), tc.want, "CalcExcessKurtosis") })
+		t.Run(tc.name, func(t *testing.T) {
+			assertFloatApprox(t, CalcExcessKurtosis(tc.returns), tc.want, "CalcExcessKurtosis")
+		})
 	}
 }
 func TestCalcPWR(t *testing.T) {
 	t.Run("empty", func(t *testing.T) { assertFloatApprox(t, CalcPWR(nil), 0, "CalcPWR") })
 	t.Run("consistent returns converge to return rate", func(t *testing.T) {
 		annualReturns := make([]float64, 500)
-		for i := range annualReturns { annualReturns[i] = 0.05 }
+		for i := range annualReturns {
+			annualReturns[i] = 0.05
+		}
 		got := CalcPWR(annualReturns)
-if math.Abs(got-0.05) > 1e-3 { t.Errorf("CalcPWR() = %v, want ~0.05", got) }
+		if math.Abs(got-0.05) > 1e-3 {
+			t.Errorf("CalcPWR() = %v, want ~0.05", got)
+		}
 	})
 }
 func TestCalcDrawdownCurve(t *testing.T) {
 	values := []float64{100, 110, 90, 80, 110}
 	dates := []string{"2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"}
 	got := CalcDrawdownCurve(values, dates)
-if len(got) != len(values) { t.Fatalf("CalcDrawdownCurve() len = %v, want %v", len(got), len(values)) }
-if got[0].Drawdown != 0 { t.Errorf("first point drawdown = %v, want 0", got[0].Drawdown) }
+	if len(got) != len(values) {
+		t.Fatalf("CalcDrawdownCurve() len = %v, want %v", len(got), len(values))
+	}
+	if got[0].Drawdown != 0 {
+		t.Errorf("first point drawdown = %v, want 0", got[0].Drawdown)
+	}
 	assertFloatApprox(t, got[2].Drawdown, (110.0-90.0)/110.0, "point 2 drawdown")
 	assertFloatApprox(t, got[3].Drawdown, (110.0-80.0)/110.0, "point 3 drawdown")
-if got[4].Drawdown != 0 { t.Errorf("recovery point drawdown = %v, want 0", got[4].Drawdown) }
+	if got[4].Drawdown != 0 {
+		t.Errorf("recovery point drawdown = %v, want 0", got[4].Drawdown)
+	}
 }
 func TestCalcRollingReturns(t *testing.T) {
-t.Run("insufficient window", func(t *testing.T) { if CalcRollingReturns([]float64{100, 110}, []string{"2024-01-01", "2024-01-02"}, 12) != nil { t.Error("expected nil for insufficient window") } })
-t.Run("empty values", func(t *testing.T) { if CalcRollingReturns(nil, nil, 1) != nil { t.Error("expected nil for empty values") } })
+	t.Run("insufficient window", func(t *testing.T) {
+		if CalcRollingReturns([]float64{100, 110}, []string{"2024-01-01", "2024-01-02"}, 12) != nil {
+			t.Error("expected nil for insufficient window")
+		}
+	})
+	t.Run("empty values", func(t *testing.T) {
+		if CalcRollingReturns(nil, nil, 1) != nil {
+			t.Error("expected nil for empty values")
+		}
+	})
 }
 func TestCalcAnnualReturns(t *testing.T) {
 	values := []float64{100, 110, 120, 130}
 	dates := []string{"2023-01-01", "2023-06-01", "2024-01-01", "2024-06-01"}
 	got := CalcAnnualReturns(values, dates)
-if len(got) == 0 { t.Fatal("CalcAnnualReturns() returned empty") }
-if got[0].Year != 2023 { t.Errorf("got[0].Year = %d, want 2023", got[0].Year) }
+	if len(got) == 0 {
+		t.Fatal("CalcAnnualReturns() returned empty")
+	}
+	if got[0].Year != 2023 {
+		t.Errorf("got[0].Year = %d, want 2023", got[0].Year)
+	}
 	assertFloatApprox(t, got[0].Return, 110.0/100.0-1, "2023 return")
 	if len(got) > 1 {
-if got[1].Year != 2024 { t.Errorf("got[1].Year = %d, want 2024", got[1].Year) }
+		if got[1].Year != 2024 {
+			t.Errorf("got[1].Year = %d, want 2024", got[1].Year)
+		}
 		assertFloatApprox(t, got[1].Return, 130.0/110.0-1, "2024 return")
 	}
 }
@@ -193,17 +241,23 @@ func TestCalcMonthlyReturns(t *testing.T) {
 	values := []float64{100, 110, 120}
 	dates := []string{"2024-01-05", "2024-01-15", "2024-02-05"}
 	got := CalcMonthlyReturns(values, dates)
-if len(got) == 0 { t.Fatal("CalcMonthlyReturns() returned empty") }
+	if len(got) == 0 {
+		t.Fatal("CalcMonthlyReturns() returned empty")
+	}
 	wants := map[int]float64{1: 0.1, 2: 0}
 	found := map[int]bool{}
 	for _, mr := range got {
-		if mr.Year != 2024 { continue }
+		if mr.Year != 2024 {
+			continue
+		}
 		if want, ok := wants[mr.Month]; ok {
 			found[mr.Month] = true
 			assertFloatApprox(t, mr.Return, want, "month return")
 		}
 	}
 	for m := range wants {
-if !found[m] { t.Errorf("month %d not found in monthly returns", m) }
+		if !found[m] {
+			t.Errorf("month %d not found in monthly returns", m)
+		}
 	}
 }

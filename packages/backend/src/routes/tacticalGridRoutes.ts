@@ -2,6 +2,12 @@
  * 战术网格搜索路由 — POST /api/tactical-grid/search
  *
  * 异步优先（BullMQ），队列不可用时回退同步执行。
+ *
+ * E6 说明（与 ADR-031 的关系）：backtest/optimizer 对引擎不可用是 fail-closed 503，
+ * 本端点的同步回退是**显式豁免**——网格搜索的计算在 Node 侧执行（Node-canonical，
+ * 非引擎计算），同步回退不产生"与权威引擎不一致的数字"风险，只是阻塞事件循环
+ * 换取可用性；组合数上限（MAX_GRID_COMBINATIONS）已限制最坏耗时。如需严格
+ * fail-closed，删除下方 catch 中的同步路径即可。
  * 错误处理统一走 asyncRouteHandler。
  */
 import { Router, type Request, type Response } from 'express';
@@ -18,7 +24,7 @@ import {
   MAX_GRID_COMBINATIONS,
 } from '../application/grid-application-service.js';
 import type { TacticalGridRequest } from '../application/grid-application-service.js';
-import { asyncRouteHandler } from './routeUtils.js';
+import { asyncRouteHandler, ownerOf } from './routeUtils.js';
 
 const router = Router();
 
@@ -45,10 +51,7 @@ router.post(
           payload: req.body,
           userId,
           tenantId: authReq.tenantId,
-          ownerUserId:
-            userId && !userId.startsWith('apikey:') && !userId.startsWith('platform:')
-              ? userId
-              : null,
+          ownerUserId: ownerOf(authReq),
         } as BacktestJobData);
 
         res.status(202).json({
