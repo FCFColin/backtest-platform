@@ -17,7 +17,7 @@ function getPreloadedMeta(): DataMeta | null {
         ? (window as { __INITIAL_DATA__?: unknown }).__INITIAL_DATA__
         : null;
     if (!global) return null;
-    const data = global.data ?? global;
+    const data = ((global as Record<string, unknown>).data ?? global) as Partial<DataMeta>;
     if (data?.tickerCount !== undefined && data?.lastUpdated) {
       return {
         lastUpdated: data.lastUpdated,

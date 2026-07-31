@@ -3,13 +3,13 @@ import {
   engineServiceMocks,
   dataFetchMocks,
   startAppUnauthenticated,
+  startApp,
   createMockStats,
 } from '../../helpers/dataManageRoutesFixtures.js';
 import type { TestServer } from '../../helpers/expressApp.js';
 
 describe('dataManageRoutes - GET /status', () => {
   let server: TestServer;
-
   beforeEach(async () => {
     vi.clearAllMocks();
     engineServiceMocks.getEngineStatus.mockResolvedValue({
@@ -21,27 +21,21 @@ describe('dataManageRoutes - GET /status', () => {
     });
     server = await startAppUnauthenticated();
   });
-
   afterEach(async () => {
     await server.close();
   });
-
   it('应返回引擎状态', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/status`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.totalTickers).toBe(500);
     expect(body.data.cachedTickers).toBe(100);
   });
-
   it('getEngineStatus 抛错时应返回 500', async () => {
     engineServiceMocks.getEngineStatus.mockRejectedValue(new Error('status error'));
-
     const res = await fetch(`${server.url}/api/v1/data/manage/status`);
     const body = await res.json();
-
     expect(res.status).toBe(500);
     expect(body.error.code).toBe('STATUS_ERROR');
   });
@@ -49,7 +43,6 @@ describe('dataManageRoutes - GET /status', () => {
 
 describe('dataManageRoutes - GET /stats', () => {
   let server: TestServer;
-
   beforeEach(async () => {
     vi.clearAllMocks();
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(createMockStats());
@@ -60,40 +53,30 @@ describe('dataManageRoutes - GET /stats', () => {
     });
     server = await startAppUnauthenticated();
   });
-
   afterEach(async () => {
     await server.close();
   });
-
   it('有统计数据时应返回统计和宇宙数据', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/stats`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.stats.total_cached).toBe(50);
     expect(body.data.universe.total).toBe(500);
   });
-
   it('无统计数据时应返回 null', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
-
     // ?force=1 穿透 60s 内存缓存（Task 3.4），确保 mock 覆盖生效
     const res = await fetch(`${server.url}/api/v1/data/manage/stats?force=1`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.stats).toBeNull();
   });
-
   it('scanMarketStatsFromDb 抛错时应返回 500', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('scan error'));
-
-    // ?force=1 穿透 60s 内存缓存（Task 3.4），确保 mock 覆盖生效
     const res = await fetch(`${server.url}/api/v1/data/manage/stats?force=1`);
     const body = await res.json();
-
     expect(res.status).toBe(500);
     expect(body.error.code).toBe('STATS_ERROR');
   });
@@ -101,27 +84,24 @@ describe('dataManageRoutes - GET /stats', () => {
 
 describe('dataManageRoutes - GET /tickers', () => {
   let server: TestServer;
-
   beforeEach(async () => {
     vi.clearAllMocks();
-    const tickerList = Array.from({ length: 100 }, (_, i) => ({
-      ticker: `TICK${i}`,
-      name: `Ticker ${i}`,
-      category: 'stock',
-      market: 'US',
-    }));
-    engineServiceMocks.getTickerList.mockResolvedValue(tickerList);
+    engineServiceMocks.getTickerList.mockResolvedValue(
+      Array.from({ length: 100 }, (_, i) => ({
+        ticker: `TICK${i}`,
+        name: `Ticker ${i}`,
+        category: 'stock',
+        market: 'US',
+      })),
+    );
     server = await startAppUnauthenticated();
   });
-
   afterEach(async () => {
     await server.close();
   });
-
   it('默认分页应返回第一页 50 条', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/tickers`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data).toHaveLength(50);
@@ -130,11 +110,9 @@ describe('dataManageRoutes - GET /tickers', () => {
     expect(body.pagination.total).toBe(100);
     expect(body.pagination.totalPages).toBe(2);
   });
-
   it('自定义分页参数应正确切片', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/tickers?page=2&limit=30`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.data).toHaveLength(30);
     expect(body.data[0].ticker).toBe('TICK30');
@@ -142,13 +120,10 @@ describe('dataManageRoutes - GET /tickers', () => {
     expect(body.pagination.limit).toBe(30);
     expect(body.pagination.totalPages).toBe(4);
   });
-
   it('getTickerList 抛错时应返回 500', async () => {
     engineServiceMocks.getTickerList.mockRejectedValue(new Error('list error'));
-
     const res = await fetch(`${server.url}/api/v1/data/manage/tickers`);
     const body = await res.json();
-
     expect(res.status).toBe(500);
     expect(body.error.code).toBe('TICKER_LIST_ERROR');
   });
@@ -156,7 +131,6 @@ describe('dataManageRoutes - GET /tickers', () => {
 
 describe('dataManageRoutes - GET /search', () => {
   let server: TestServer;
-
   beforeEach(async () => {
     vi.clearAllMocks();
     engineServiceMocks.searchTickers.mockResolvedValue([
@@ -164,115 +138,235 @@ describe('dataManageRoutes - GET /search', () => {
     ]);
     server = await startAppUnauthenticated();
   });
-
   afterEach(async () => {
     await server.close();
   });
-
   it('有 query 参数时应返回搜索结果', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/search?q=aapl`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data).toHaveLength(1);
     expect(body.data[0].ticker).toBe('AAPL');
   });
-
   it('缺少 q 参数应返回 422', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/search`);
-
     expect(res.status).toBe(422);
   });
-
   it('searchTickers 抛错时应返回 500', async () => {
     engineServiceMocks.searchTickers.mockRejectedValue(new Error('search error'));
-
     const res = await fetch(`${server.url}/api/v1/data/manage/search?q=test`);
-
     expect(res.status).toBe(500);
   });
 });
 
 describe('dataManageRoutes - GET /ticker/:id', () => {
   let server: TestServer;
-
   beforeEach(async () => {
     vi.clearAllMocks();
     engineServiceMocks.loadTickerData.mockReturnValue({ ticker: 'AAPL', data: [1, 2, 3] });
     server = await startAppUnauthenticated();
   });
-
   afterEach(async () => {
     await server.close();
   });
-
   it('有效 ticker 应返回数据', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/ticker/AAPL`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.ticker).toBe('AAPL');
   });
-
   it.each([
     ['超长 ticker 格式应返回 422', 'AAAAAAAAAAAAAAAAAAAAA'],
     ['小写 ticker 应返回 422（仅允许大写）', 'aapl'],
-  ])('无效 ticker（%s）', async (_label, ticker) => {
+  ])('%s', async (_label, ticker) => {
     const res = await fetch(`${server.url}/api/v1/data/manage/ticker/${ticker}`);
-
     expect(res.status).toBe(422);
   });
-
   it('ticker 不存在时应返回 404', async () => {
     engineServiceMocks.loadTickerData.mockReturnValue(null);
-
     const res = await fetch(`${server.url}/api/v1/data/manage/ticker/UNKNOWN`);
-
     expect(res.status).toBe(404);
   });
-
   it('loadTickerData 抛错时应返回 500', async () => {
     engineServiceMocks.loadTickerData.mockImplementation(() => {
       throw new Error('load error');
     });
-
     const res = await fetch(`${server.url}/api/v1/data/manage/ticker/AAPL`);
-
     expect(res.status).toBe(500);
   });
 });
 
-describe('dataManageRoutes - 更新状态查询', () => {
+describe('dataManageRoutes - GET /update/status', () => {
   let server: TestServer;
-  const mockStatus = {
-    running: false,
-    workerPid: null,
-    mode: null,
-    startedAt: null,
-    completedTickers: 10,
-    totalTickers: 100,
-    lastError: null,
-  };
-
   beforeEach(async () => {
     vi.clearAllMocks();
-    dataFetchMocks.getUpdateStatus.mockReturnValue(mockStatus);
+    dataFetchMocks.getUpdateStatus.mockReturnValue({
+      running: false,
+      workerPid: null,
+      mode: null,
+      startedAt: null,
+      completedTickers: 10,
+      totalTickers: 100,
+      lastError: null,
+    });
     server = await startAppUnauthenticated();
   });
-
   afterEach(async () => {
     await server.close();
   });
-
   it('GET /update/status 应返回更新状态', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/update/status`);
     const body = await res.json();
-
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.completedTickers).toBe(10);
     expect(body.data.totalTickers).toBe(100);
+  });
+});
+
+describe('dataManageRoutes - 写端点权限保护（对抗性）', () => {
+  let server: TestServer;
+  afterEach(async () => {
+    await server.close();
+  });
+  it('未认证请求写端点应返回 401（鉴权先于业务逻辑）', async () => {
+    vi.clearAllMocks();
+    server = await startApp(null);
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/full`, { method: 'PUT' });
+    expect(res.status).toBe(401);
+  });
+  it('readonly 角色（无 DATA_MANAGE 权限）写端点应返回 403', async () => {
+    vi.clearAllMocks();
+    server = await startApp('readonly');
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
+    expect(res.status).toBe(403);
+  });
+  it('analyst 角色具备 DATA_MANAGE 权限，鉴权放行后不返回 401/403/501', async () => {
+    vi.clearAllMocks();
+    server = await startApp('analyst');
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/inc`, { method: 'PATCH' });
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+    expect(res.status).not.toBe(501);
+  });
+  it('数据摄取端点应已从 501 退役状态激活', async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+    for (const [method, path] of [
+      ['PUT', '/update/full'],
+      ['PATCH', '/update/inc'],
+      ['PUT', '/universe'],
+      ['PUT', '/regenerate-meta'],
+    ] as const) {
+      const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
+      expect(res.status).not.toBe(501);
+    }
+  });
+});
+
+describe.each([
+  ['PUT', '/update/full', 'full', true],
+  ['PATCH', '/update/inc', 'incremental', false],
+])('dataManageRoutes - %s %s', (method, path, mode, hasDataSuccess) => {
+  let server: TestServer;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+  afterEach(async () => {
+    await server.close();
+  });
+  it('startUpdate 成功时应返回成功', async () => {
+    dataFetchMocks.startUpdate.mockResolvedValue({
+      success: true,
+      message: '更新已启动',
+      pid: 12345,
+    });
+    const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(dataFetchMocks.startUpdate).toHaveBeenCalledWith(mode);
+    if (hasDataSuccess) expect(body.data.success).toBe(true);
+  });
+  it('startUpdate 抛错时应返回 500', async () => {
+    dataFetchMocks.startUpdate.mockRejectedValue(new Error('启动失败'));
+    const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UPDATE_ERROR');
+  });
+});
+
+describe('dataManageRoutes - POST /update/stop', () => {
+  let server: TestServer;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+  afterEach(async () => {
+    await server.close();
+  });
+  it('停止成功时应返回成功', async () => {
+    dataFetchMocks.stopUpdate.mockReturnValue({ success: true, message: '更新已停止' });
+    const res = await fetch(`${server.url}/api/v1/data/manage/update/stop`, { method: 'POST' });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.success).toBe(true);
+  });
+});
+
+describe('dataManageRoutes - PUT /universe', () => {
+  let server: TestServer;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+  afterEach(async () => {
+    await server.close();
+  });
+  it('正常时应返回标的信息', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(createMockStats());
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.total).toBe(50);
+    expect(body.data.message).toContain('PostgreSQL');
+  });
+  it('scanMarketStatsFromDb 抛错时应返回 500', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('universe error'));
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
+    const body = await res.json();
+    expect(res.status).toBe(500);
+    expect(body.error.code).toBe('UNIVERSE_ERROR');
+  });
+  it('stats 为 null 时 total 应为 0', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
+    const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data.total).toBe(0);
+  });
+});
+
+describe('dataManageRoutes - PUT /regenerate-meta', () => {
+  let server: TestServer;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp('admin');
+  });
+  afterEach(async () => {
+    await server.close();
+  });
+  it('应直接返回成功（数据由 PostgreSQL 实时计算）', async () => {
+    const res = await fetch(`${server.url}/api/v1/data/manage/regenerate-meta`, { method: 'PUT' });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.message).toContain('PostgreSQL');
   });
 });

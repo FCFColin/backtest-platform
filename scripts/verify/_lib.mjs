@@ -9,12 +9,12 @@ import { join, resolve, sep } from 'node:path';
 import pg from 'pg';
 
 const PROJECT_ROOT = resolve(process.cwd());
-const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', '2026-07-28', 'verify');
+const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 mkdirSync(OUTPUT_DIR, { recursive: true });
 mkdirSync(join(OUTPUT_DIR, 'screenshots'), { recursive: true });
 
 /**
- * 写入单个 issue 的验证结果到 docs/audit/2026-07-28/verify/{issueId}-reverify.json
+ * 写入单个 issue 的验证结果到 docs/audit/verify/{issueId}-reverify.json
  * @param {string} issueId - 问题 ID（如 C-001）
  * @param {{status: 'PASS'|'FAIL'|'SKIP'|'NEEDS_MANUAL_REVIEW', summary: string, details?: object, error?: string}} result
  * @returns {boolean} 是否 PASS

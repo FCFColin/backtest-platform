@@ -26,10 +26,6 @@ const DOMAIN_TO_DB_STATUS: Record<RunStatus, BacktestRunStatus> = {
   cancelled: 'failed',
 };
 
-function dbToDomainStatus(db: BacktestRunStatus): RunStatus {
-  return db === 'pending' ? 'queued' : db;
-}
-
 export interface BacktestRunRecord {
   id: string;
   name: string | null;
@@ -183,34 +179,5 @@ export async function save(tenantId: string, run: Run): Promise<BacktestRunRecor
       ],
     );
     return mapRow(rows[0]);
-  });
-}
-
-/**
- * 按 ID 取回 Run 聚合根（含 domain 层状态映射）。
- *
- * 'pending' 自动恢复为领域 'queued'，便于 application 层基于聚合根状态决策。
- * 不存在时返回 null。
- *
- * @param tenantId - 活跃组织 UUID
- * @param id - 运行 UUID
- */
-export async function getRunAggregate(tenantId: string, id: string): Promise<Run | null> {
-  return withTenantReadOnly(tenantId, async (client) => {
-    const { rows } = await client.query(`SELECT ${SELECT_COLS} FROM backtest_runs WHERE id = $1`, [
-      id,
-    ]);
-    if (rows.length === 0) return null;
-    const row = rows[0];
-    return Run.fromRow({
-      id: row.id,
-      name: row.name,
-      request: row.request,
-      result: row.result,
-      status: dbToDomainStatus(row.status),
-      ownerUserId: row.owner_user_id,
-      // startedAt/completedAt 未在 schema 中持久化，此处不重建
-      skipInitialEvent: true,
-    });
   });
 }

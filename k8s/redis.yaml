@@ -1,43 +1,22 @@
 # =============================================================================
 # Redis 7 Sentinel 高可用拓扑（ADR-045：取代单实例 + 内存降级）
-# =============================================================================
+# 企业理由：ADR-018 选 Redis 作共享状态存储（刷新令牌/限流/幂等/BullMQ），
+# 单实例 = 单点故障；多 Pod 下"内存降级"导致跨 Pod 状态不一致（令牌互相踢出）。
+# ADR-045：1 主 + 2 从 + 3 Sentinel（quorum=2），自动故障转移，删除应用层
+# "Redis 故障降级为内存"代码路径（改为显式 503 + 告警）。
 #
-# 企业理由：ADR-018 选 Redis 作为共享状态存储（刷新令牌/限流/幂等/BullMQ），
-# 但单实例 = 单点故障，且 K8s 多 Pod 下的"内存降级"导致跨 Pod 状态不一致
-# （Pod A 签发的 refresh token Pod B 验证不到 → 用户被踢出）。
-#
-# ADR-045 决策：部署 Redis Sentinel（1 主 + 2 从 + 3 Sentinel），自动故障转移，
-# 并删除应用层所有"Redis 故障降级为内存模式"代码路径（改为显式 503 + 告警）。
-#
-# 拓扑：
-#   redis StatefulSet (replicas=3)        → redis-0(master) / redis-1,2(replica)
-#   redis-sentinel StatefulSet (replicas=3) → 3 个 Sentinel 节点，quorum=2
-#   redis (Headless)                      → 稳定 DNS：redis-0.redis / redis-1.redis / redis-2.redis
-#   redis-sentinel (Headless)             → 稳定 DNS：redis-sentinel-{0,1,2}.redis-sentinel:26379
-#   redis-sentinel-pdb (PDB)              → minAvailable: 2，保证 quorum 可达成
-#
-# 关键参数（ADR-045 Checklist）：
-#   - sentinel monitor mymaster redis-0.redis 6379 2  (quorum=2)
-#   - min-slaves-to-write=1                           (脑裂防护：无从节点确认则拒绝写入)
-#   - min-slaves-max-lag=10                           (从节点最大延迟 10s)
-#   - sentinel down-after-milliseconds mymaster 5000  (5s 主观下线)
-#   - sentinel failover-timeout mymaster 30000        (30s 故障转移超时)
-#   - StorageClass reclaimPolicy: Retain               (PVC 不被意外删除)
-#
-# 客户端连接：ioredis Sentinel 模式（见 redisClient.ts），不直连 redis Service。
-# ioredis 向 Sentinel 查询当前 master 地址，故障转移后自动重连新 master。
-#
-# 与 docker-compose 一致性：docker-compose.yml 提供 redis-master + 2 replica +
-# 3 sentinel 的本地等价拓扑，用于本地验证故障转移（见 ADR-045 验证段）。
+# 拓扑：redis StatefulSet(3) → redis-0(master)/redis-1,2(replica)
+#       redis-sentinel StatefulSet(3) → quorum=2；均配 Headless Service 提供稳定 DNS
+#       PDB minAvailable: 2（Sentinel 与数据节点各一）保证 quorum 可达成
+# 关键参数：monitor quorum=2；min-slaves-to-write=1；min-slaves-max-lag=10；
+#       down-after-milliseconds 5000；failover-timeout 30000；StorageClass Retain
+# 客户端：ioredis Sentinel 模式（redisClient.ts），故障转移后自动重连新主。
+# 本地等价拓扑验证见 docker-compose.yml redis-master/replica/sentinel。
 # =============================================================================
 
 ---
-# StorageClass：reclaimPolicy=Retain 防止 PVC 被意外删除导致会话/队列状态丢失
-# 企业理由：StatefulSet 删除时默认 PVC 保留策略由 StorageClass 控制。
-# Delete 策略会随 Pod 删除回收 PVC，导致 Redis 数据全丢（含刷新令牌 → 全员登出）。
-# Retain 确保 PVC 仅由管理员手动回收。
-# 注：provisioner 需匹配集群。dev/kind 用 rancher.io/local-path；
-# EKS 用 kubernetes.io/aws-ebs；GKE 用 pd.csi.storage.gke.io。
+# StorageClass：reclaimPolicy=Retain 防止 PVC 随 Pod 删除被回收（数据全丢 → 全员登出）。
+# provisioner 需匹配集群：dev/kind=rancher.io/local-path，EKS=kubernetes.io/aws-ebs，GKE=pd.csi.storage.gke.io
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -48,10 +27,9 @@ provisioner: rancher.io/local-path # dev/kind；生产应改用云厂商 provisi
 reclaimPolicy: Retain # ADR-045 Checklist：防止 PVC 意外删除
 volumeBindingMode: WaitForFirstConsumer
 ---
-# Redis 启动脚本与 Sentinel 配置（ConfigMap）
-# 企业理由：StatefulSet 的 3 个 Pod 共享同一模板，但 redis-0 作主、redis-1/2 作从。
-# 通过 entrypoint.sh 根据 Pod 序号选择角色，避免拆 2 个 StatefulSet。
-# Sentinel 配置初始指向 redis-0.redis，故障转移后 Sentinel 自行重写（需可写卷）。
+# ConfigMap：Redis 启动脚本 + Sentinel 初始配置
+# entrypoint.sh 根据 Pod 序号选角色（redis-0 主 / 1,2 从），避免拆 2 个 StatefulSet。
+# Sentinel 配置初始指向 redis-0.redis，故障转移后自行重写（需可写卷）。
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -61,44 +39,35 @@ metadata:
     app: redis
     app.kubernetes.io/part-of: backtest-platform
 data:
-  # Redis 启动脚本：根据 hostname 序号决定 master/replica 角色
-  # redis-0 → master（min-slaves-to-write/min-slaves-max-lag 防脑裂）
-  # redis-1, redis-2 → replica of redis-0.redis:6379
+  # 启动脚本：redis-0 → master（防脑裂参数）；redis-1/2 → replica of redis-0.redis:6379
   entrypoint.sh: |
     #!/bin/sh
     set -e
     ORDINAL="${HOSTNAME##*-}"
     if [ "$ORDINAL" = "0" ]; then
-      # 主节点：启用 AOF + 脑裂防护
-      # min-slaves-to-write=1：至少 1 个从节点 ACK 才接受写入
-      # min-slaves-max-lag=10：从节点延迟超 10s 视为不可用
+      # 主节点：AOF + 至少 1 从节点 ACK 才写（min-slaves-to-write=1），延迟 >10s 视为不可用
       exec redis-server \
         --appendonly yes \
         --min-slaves-to-write 1 \
         --min-slaves-max-lag 10 \
         --save 60 1000
     else
-      # 从节点：复制 redis-0.redis（Headless Service 提供稳定 DNS）
-      # 故障转移后 Sentinel 会通过 REPLICAOF NO ONE 提升为新主
+      # 从节点：复制 redis-0.redis；故障转移后 Sentinel 以 REPLICAOF NO ONE 提升新主
       exec redis-server \
         --appendonly yes \
         --replicaof redis-0.redis 6379 \
         --replica-read-only yes
     fi
-  # Sentinel 初始配置（运行时 Sentinel 会重写此文件）
-  # 文件挂载到可写 emptyDir（sentinel-conf），ConfigMap 仅作初始化模板
+  # Sentinel 初始配置（挂载到可写 emptyDir，运行时 Sentinel 会重写此文件）
   sentinel.conf: |
     port 26379
     dir /data
     # 监控 mymaster = redis-0.redis:6379，quorum=2（3 节点中 2 个同意即故障转移）
     sentinel monitor mymaster redis-0.redis 6379 2
-    # 5s 无响应判定主观下线（SDOWN），足够快感知故障又不误判
+    # 5s 无响应判定主观下线（SDOWN）；30s 故障转移超时；并行同步仅 1 从避免雪崩
     sentinel down-after-milliseconds mymaster 5000
-    # 30s 故障转移超时（ADR-045 Checklist：< 30s 切换）
     sentinel failover-timeout mymaster 30000
-    # 每次故障转移只让 1 个从节点同步新主，避免全量同步雪崩
     sentinel parallel-syncs mymaster 1
-    # Sentinel 自身持久化与日志
     sentinel deny-scripts-reconfig yes
 ---
 # Redis StatefulSet（1 主 + 2 从，共 3 副本）
@@ -122,7 +91,7 @@ spec:
         app: redis
         app.kubernetes.io/part-of: backtest-platform
     spec:
-      # 安全上下文：以 redis 用户（UID 999）运行，禁止 root（CIS 5.2.6）
+      # 安全上下文：redis 用户（UID 999）运行，禁止 root（CIS 5.2.6）
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -131,15 +100,19 @@ spec:
         capabilities:
           drop:
             - ALL
-      # 初始化：拷贝 entrypoint.sh 到可写 emptyDir 并赋可执行权限
-      # （ConfigMap 挂载的文件默认不可写，需拷贝到 emptyDir 修改权限）
+      # initContainer 把 entrypoint.sh 拷贝到可写 emptyDir（ConfigMap 挂载默认不可写）
       initContainers:
         - name: init-script
           image: redis:7-alpine
           securityContext:
             runAsNonRoot: true
             runAsUser: 999
-          command: ['sh', '-c', 'cp /configmap/entrypoint.sh /scripts/entrypoint.sh && chmod +x /scripts/entrypoint.sh']
+          command:
+            [
+              'sh',
+              '-c',
+              'cp /configmap/entrypoint.sh /scripts/entrypoint.sh && chmod +x /scripts/entrypoint.sh',
+            ]
           volumeMounts:
             - name: configmap
               mountPath: /configmap
@@ -160,7 +133,7 @@ spec:
             limits:
               memory: '256Mi'
               cpu: '0.5'
-          # 存活探针：redis-cli ping 检测进程存活（含"正在加载 RDB"中间态）
+          # 探针均用 redis-cli ping（含"正在加载 RDB"中间态）；流量由 Sentinel 路由
           livenessProbe:
             exec:
               command: ['redis-cli', 'ping']
@@ -168,8 +141,6 @@ spec:
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
-          # 就绪探针：主从均用 ping；从节点未同步完成时 ping 仍返回 PONG，
-          # 但流量由 Sentinel 路由，Service 仅用于 DNS 解析，不影响
           readinessProbe:
             exec:
               command: ['redis-cli', 'ping']
@@ -200,9 +171,7 @@ spec:
           requests:
             storage: 1Gi # 开发环境 1Gi；生产建议 5Gi+
 ---
-# Redis Headless Service（提供稳定 Pod DNS：redis-0.redis / redis-1.redis / redis-2.redis）
-# 企业理由：Sentinel 配置与 replicaof 需稳定主机名，Headless Service 让每个 Pod
-# 拥有独立 A 记录。故障转移后 Sentinel 通过此 DNS 追踪新主。
+# Redis Headless Service：稳定 Pod DNS（redis-{0,1,2}.redis）供 Sentinel/replicaof 使用；
 # 不用 ClusterIP：客户端经 Sentinel 路由，无需单一 VIP。
 apiVersion: v1
 kind: Service
@@ -222,7 +191,7 @@ spec:
   selector:
     app: redis
 ---
-# Redis Sentinel StatefulSet（3 节点，quorum=2）
+# Redis Sentinel StatefulSet（3 节点，quorum=2，容忍 1 节点故障）
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -251,15 +220,19 @@ spec:
         capabilities:
           drop:
             - ALL
-      # 初始化：从 ConfigMap 拷贝 sentinel.conf 到可写 emptyDir
-      # （Sentinel 故障转移时会重写 sentinel.conf，必须可写）
+      # initContainer 拷贝 sentinel.conf 到可写 emptyDir（故障转移时 Sentinel 需重写）
       initContainers:
         - name: init-sentinel-conf
           image: redis:7-alpine
           securityContext:
             runAsNonRoot: true
             runAsUser: 999
-          command: ['sh', '-c', 'cp /configmap/sentinel.conf /sentinel-conf/sentinel.conf && chmod 644 /sentinel-conf/sentinel.conf']
+          command:
+            [
+              'sh',
+              '-c',
+              'cp /configmap/sentinel.conf /sentinel-conf/sentinel.conf && chmod 644 /sentinel-conf/sentinel.conf',
+            ]
           volumeMounts:
             - name: configmap
               mountPath: /configmap
@@ -280,7 +253,6 @@ spec:
             limits:
               memory: '64Mi'
               cpu: '0.2'
-          # 存活探针：redis-cli -p 26379 ping 检测 Sentinel 进程存活
           livenessProbe:
             exec:
               command: ['redis-cli', '-p', '26379', 'ping']
@@ -310,8 +282,7 @@ spec:
         - name: sentinel-data
           emptyDir: {}
 ---
-# Redis Sentinel Headless Service（提供稳定 Pod DNS：redis-sentinel-{0,1,2}.redis-sentinel:26379）
-# 企业理由：ioredis Sentinel 模式需稳定 Sentinel 主机名列表。
+# Sentinel Headless Service：稳定 DNS redis-sentinel-{0,1,2}.redis-sentinel:26379（ioredis 需要）
 apiVersion: v1
 kind: Service
 metadata:
@@ -330,10 +301,8 @@ spec:
   selector:
     app: redis-sentinel
 ---
-# PodDisruptionBudget：Sentinel 至少保持 2 个 Pod 可用（ADR-045 Checklist）
-# 企业理由：quorum=2 要求 3 节点中至少 2 个存活才能故障转移。
-# PDB 阻止自愿驱逐（如节点维护、滚动更新）导致 quorum 丢失。
-# 非自愿驱逐（节点硬故障）不受 PDB 限制，但 K8s 调度器会尽快补足副本。
+# PDB：Sentinel 至少 2 个 Pod 可用（quorum=2 需要 3 节点中 2 个存活才能故障转移）。
+# 阻止自愿驱逐（节点维护/滚动更新）导致 quorum 丢失；非自愿驱逐由调度器补足。
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -348,10 +317,8 @@ spec:
     matchLabels:
       app: redis-sentinel
 ---
-# PodDisruptionBudget：Redis 数据节点至少保持 2 个 Pod 可用（1 主 + 1 从）
-# 企业理由：min-slaves-to-write=1 要求主节点至少有 1 个从节点 ACK 才接受写入。
-# 若仅剩 1 个 Pod（无论主从），主节点会因无从节点确认而拒绝写入。
-# PDB 保证自愿驱逐期间至少 2 个 Pod，维持主从拓扑。
+# PDB：Redis 数据节点至少 2 个 Pod 可用（1 主 + 1 从）。
+# min-slaves-to-write=1 要求主节点至少 1 个从节点 ACK 才接受写入，仅剩 1 Pod 会拒绝写入。
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

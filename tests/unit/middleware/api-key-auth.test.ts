@@ -7,8 +7,6 @@
  * 2. 平台 break-glass DB 密钥（is_platform_admin=TRUE）——注入 platform_admin 角色
  *
  * D4-010 / ADR-045：基础设施错误（Redis/DB）fail-closed 503，不再静默吞掉。
- *
- * Mock 策略：mock logger、apiKeyVerifier（verifyApiKey）、errors（sendProblem）、authTypes。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockMiddleware } from '../../helpers/expressMocks.js';
@@ -23,15 +21,12 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
-
 vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
   verifyApiKey: mocks.verifyApiKey,
 }));
-
 vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
   sendProblem: mocks.sendProblem,
 }));
-
 vi.mock('../../../packages/backend/src/middleware/authTypes.js', () => ({
   ACCESS_TOKEN_EXPIRES_IN_SEC: 900,
   attachAuthLogContext: mocks.attachAuthLogContext,
@@ -56,100 +51,53 @@ function flushPromises(): Promise<void> {
 }
 
 describe('handleApiKeyAuth', () => {
-  it('缺失 API Key 应直接返回（不断言、不阻断、不调 verifyApiKey）', () => {
-    const { req, res, next } = createMockMiddleware({ headers: {} });
-    handleApiKeyAuth(req, res, next);
-    expect(next).not.toHaveBeenCalled();
-    expect(mocks.sendProblem).not.toHaveBeenCalled();
-    expect(mocks.verifyApiKey).not.toHaveBeenCalled();
-    expect(req.user).toBeUndefined();
-  });
-
-  it('空字符串 API Key 应直接返回（同缺失，由下游中间件处理）', () => {
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': '' },
-    });
+  it.each([
+    ['缺失 API Key 应直接返回（不断言、不阻断、不调 verifyApiKey）', {}, false],
+    ['空字符串 API Key 应直接返回（同缺失，由下游中间件处理）', { 'x-api-key': '' }, false],
+  ])('%s', (_n, headers, _unused) => {
+    const { req, res, next } = createMockMiddleware({ headers });
     handleApiKeyAuth(req, res, next);
     expect(next).not.toHaveBeenCalled();
     expect(mocks.sendProblem).not.toHaveBeenCalled();
     expect(mocks.verifyApiKey).not.toHaveBeenCalled();
   });
-
   it('超长 API Key（>128 字符）应返回 401', async () => {
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'x'.repeat(129) },
-    });
+    const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'x'.repeat(129) } });
     handleApiKeyAuth(req, res, next);
     await flushPromises();
-    expect(mocks.sendProblem).toHaveBeenCalledWith(
-      expect.anything(),
-      401,
-      'INVALID_API_KEY',
-    );
+    expect(mocks.sendProblem).toHaveBeenCalledWith(expect.anything(), 401, 'INVALID_API_KEY');
     expect(next).not.toHaveBeenCalled();
   });
-
-  it('有效 DB API Key 应认证通过并设置 req.user（租户密钥路径）', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce({
-      orgId: ORG_ID,
-      keyId: KEY_ID,
-      isPlatformAdmin: false,
-    });
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_validkey123' },
-    });
+  it.each([
+    [
+      '有效 DB API Key 应认证通过并设置 req.user（租户密钥路径）',
+      { orgId: ORG_ID, keyId: KEY_ID, isPlatformAdmin: false },
+      { sub: `apikey:${KEY_ID}`, role: 'analyst', tenant_id: ORG_ID },
+    ],
+    [
+      '平台 break-glass 密钥应注入 platform_admin 角色（P0-04）',
+      { orgId: null, keyId: KEY_ID, isPlatformAdmin: true },
+      { sub: 'platform:break-glass', role: 'admin', platform_admin: true },
+    ],
+    ['无效 API Key（verifyApiKey 返回 null）应返回 401', null, null],
+  ])('%s', async (_n, verified, expected) => {
+    mocks.verifyApiKey.mockResolvedValueOnce(verified);
+    const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
     handleApiKeyAuth(req, res, next);
     await flushPromises();
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(req.user).toMatchObject({
-      sub: `apikey:${KEY_ID}`,
-      role: 'analyst',
-      tenant_id: ORG_ID,
-    });
-    expect(mocks.sendProblem).not.toHaveBeenCalled();
+    if (expected) {
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(req.user).toMatchObject(expected);
+      expect(mocks.sendProblem).not.toHaveBeenCalled();
+    } else {
+      expect(mocks.sendProblem).toHaveBeenCalledWith(expect.anything(), 401, 'INVALID_API_KEY');
+      expect(next).not.toHaveBeenCalled();
+    }
   });
-
-  it('平台 break-glass 密钥应注入 platform_admin 角色（P0-04）', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce({
-      orgId: null,
-      keyId: KEY_ID,
-      isPlatformAdmin: true,
-    });
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_breakglasskey' },
-    });
-    handleApiKeyAuth(req, res, next);
-    await flushPromises();
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(req.user).toMatchObject({
-      sub: 'platform:break-glass',
-      role: 'admin',
-      platform_admin: true,
-    });
-    expect(mocks.sendProblem).not.toHaveBeenCalled();
-  });
-
-  it('无效 API Key（verifyApiKey 返回 null）应返回 401', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce(null);
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_wrongkey' },
-    });
-    handleApiKeyAuth(req, res, next);
-    await flushPromises();
-    expect(mocks.sendProblem).toHaveBeenCalledWith(
-      expect.anything(),
-      401,
-      'INVALID_API_KEY',
-    );
-    expect(next).not.toHaveBeenCalled();
-  });
-
   // D4-010 / ADR-045：基础设施错误（Redis/DB）fail-closed 503，不再静默吞掉返回 401
   it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection error'));
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_key' },
-    });
+    const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
     handleApiKeyAuth(req, res, next);
     await flushPromises();
     expect(mocks.sendProblem).toHaveBeenCalledWith(
@@ -157,9 +105,7 @@ describe('handleApiKeyAuth', () => {
       503,
       'AUTH_SERVICE_UNAVAILABLE',
       'Authentication Service Unavailable',
-      expect.objectContaining({
-        detail: expect.any(String),
-      }),
+      expect.objectContaining({ detail: expect.any(String) }),
     );
     expect(next).not.toHaveBeenCalled();
   });
@@ -172,70 +118,40 @@ describe('handleOptionalApiKey', () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(req.user).toBeNull();
   });
-
-  it('有效 DB API Key 应认证通过并放行（租户密钥路径）', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce({
-      orgId: ORG_ID,
-      keyId: KEY_ID,
-      isPlatformAdmin: false,
-    });
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_valid' },
-    });
+  it.each([
+    [
+      '有效 DB API Key 应认证通过并放行（租户密钥路径）',
+      { orgId: ORG_ID, keyId: KEY_ID, isPlatformAdmin: false },
+      { sub: `apikey:${KEY_ID}`, tenant_id: ORG_ID },
+    ],
+    [
+      '平台 break-glass 密钥应认证通过并放行（P0-04）',
+      { orgId: null, keyId: KEY_ID, isPlatformAdmin: true },
+      { sub: 'platform:break-glass', platform_admin: true },
+    ],
+    ['无效 API Key 应设 req.user=null 并放行（可选不阻断）', null, null],
+  ])('%s', async (_n, verified, expected) => {
+    mocks.verifyApiKey.mockResolvedValueOnce(verified);
+    const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
     await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
     expect(next).toHaveBeenCalledTimes(1);
-    expect(req.user).toMatchObject({
-      sub: `apikey:${KEY_ID}`,
-      tenant_id: ORG_ID,
-    });
+    if (expected) expect(req.user).toMatchObject(expected);
+    else expect(req.user).toBeNull();
   });
-
-  it('平台 break-glass 密钥应认证通过并放行（P0-04）', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce({
-      orgId: null,
-      keyId: KEY_ID,
-      isPlatformAdmin: true,
-    });
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_breakglass' },
-    });
-    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(req.user).toMatchObject({
-      sub: 'platform:break-glass',
-      platform_admin: true,
-    });
-  });
-
-  it('无效 API Key 应设 req.user=null 并放行（可选不阻断）', async () => {
-    mocks.verifyApiKey.mockResolvedValueOnce(null);
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_invalid' },
-    });
-    await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(req.user).toBeNull();
-  });
-
   // D4-010 / ADR-045：基础设施错误 fail-closed 503，不再匿名放行（安全优先）
   it('verifyApiKey 抛出异常应返回 503 AUTH_SERVICE_UNAVAILABLE（fail-closed）（D4-010）', async () => {
     mocks.verifyApiKey.mockRejectedValueOnce(new Error('DB connection failed'));
-    const { req, res, next } = createMockMiddleware({
-      headers: { 'x-api-key': 'bpk_live_key' },
-    });
+    const { req, res, next } = createMockMiddleware({ headers: { 'x-api-key': 'bpk_live_key' } });
     await handleOptionalApiKey(req as AuthenticatedRequest, res, next);
     expect(mocks.sendProblem).toHaveBeenCalledWith(
       res,
       503,
       'AUTH_SERVICE_UNAVAILABLE',
       'Authentication Service Unavailable',
-      expect.objectContaining({
-        detail: expect.any(String),
-      }),
+      expect.objectContaining({ detail: expect.any(String) }),
     );
     expect(next).not.toHaveBeenCalled();
   });
-
   // P0-04：超时保护——resolveApiKeyUser 挂起 5s 后返回 504
   it('resolveApiKeyUser 超时应返回 504 Gateway Timeout（P0-04）', async () => {
     // 模拟 verifyApiKey 永不 resolve（挂起）
@@ -243,23 +159,17 @@ describe('handleOptionalApiKey', () => {
     const { req, res, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_hanging' },
     });
-
-    // 使用 fake timers 加速超时
     vi.useFakeTimers();
     const promise = handleOptionalApiKey(req as AuthenticatedRequest, res, next);
-    // 快进 5s 触发超时
-    vi.advanceTimersByTime(5000);
+    vi.advanceTimersByTime(5000); // 快进 5s 触发超时
     await promise;
     vi.useRealTimers();
-
     expect(mocks.sendProblem).toHaveBeenCalledWith(
       res,
       504,
       'GATEWAY_TIMEOUT',
       'API Key Resolution Timeout',
-      expect.objectContaining({
-        detail: expect.stringContaining('5 seconds'),
-      }),
+      expect.objectContaining({ detail: expect.stringContaining('5 seconds') }),
     );
     expect(next).not.toHaveBeenCalled();
   });

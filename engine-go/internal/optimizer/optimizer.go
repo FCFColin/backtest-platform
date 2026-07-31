@@ -1,14 +1,14 @@
 // Package optimizer 提供投资组合优化和有效前沿计算。
 package optimizer
 import (
-    "context"
-    "fmt"
-    "math"
-    "math/rand"
-    "slices"
-    "engine-go/internal/engineutil"
-    "engine-go/internal/mathutil"
-    "gonum.org/v1/gonum/mat"
+	"context"
+	"fmt"
+	"math"
+	"math/rand"
+	"slices"
+	"engine-go/internal/engineutil"
+	"engine-go/internal/mathutil"
+	"gonum.org/v1/gonum/mat"
 )
 const (
 	riskFreeRate       = engineutil.RiskFreeRate
@@ -20,42 +20,17 @@ const (
 	projIterations     = 500
 	subsetLimit        = 15
 )
-type OptimizeRequest struct {
-	Tickers       []string                      `json:"tickers"`
-	PriceData     map[string]map[string]float64 `json:"priceData"`
-	Objective     string                        `json:"objective"`
-	Constraints   Constraints                   `json:"constraints"`
-	NumIterations int                           `json:"numIterations"`
-}
-type Constraints struct {
-	MinWeight float64 `json:"minWeight"`
-	MaxWeight float64 `json:"maxWeight"`
-}
-type OptimizeResponse struct {
-	OptimalWeights     map[string]float64 `json:"optimalWeights"`
-	ExpectedReturn     float64            `json:"expectedReturn"`
-	ExpectedVolatility float64            `json:"expectedVolatility"`
-	SharpeRatio        float64            `json:"sharpeRatio"`
-}
-type FrontierRequest struct {
-	Tickers   []string                      `json:"tickers"`
-	PriceData map[string]map[string]float64 `json:"priceData"`
-	NumPoints int                           `json:"numPoints"`
-}
-type FrontierResponse struct {
-	Frontier []FrontierPoint `json:"frontier"`
-}
-type FrontierPoint struct {
-	Weights            map[string]float64 `json:"weights"`
-	ExpectedReturn     float64            `json:"expectedReturn"`
-	ExpectedVolatility float64            `json:"expectedVolatility"`
-	SharpeRatio        float64            `json:"sharpeRatio"`
-}
+type OptimizeRequest struct { Tickers []string `json:"tickers"`; PriceData map[string]map[string]float64 `json:"priceData"`; Objective string `json:"objective"`; Constraints Constraints `json:"constraints"`; NumIterations int `json:"numIterations"` }
+type Constraints struct { MinWeight float64 `json:"minWeight"`; MaxWeight float64 `json:"maxWeight"` }
+type OptimizeResponse struct { OptimalWeights map[string]float64 `json:"optimalWeights"`; ExpectedReturn float64 `json:"expectedReturn"`; ExpectedVolatility float64 `json:"expectedVolatility"`; SharpeRatio float64 `json:"sharpeRatio"` }
+type FrontierRequest struct { Tickers []string `json:"tickers"`; PriceData map[string]map[string]float64 `json:"priceData"`; NumPoints int `json:"numPoints"` }
+type FrontierResponse struct { Frontier []FrontierPoint `json:"frontier"` }
+type FrontierPoint struct { Weights map[string]float64 `json:"weights"`; ExpectedReturn float64 `json:"expectedReturn"`; ExpectedVolatility float64 `json:"expectedVolatility"`; SharpeRatio float64 `json:"sharpeRatio"` }
 func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, error) {
 	if len(req.Tickers) == 0 { return nil, fmt.Errorf("tickers 不能为空") }
-if req.NumIterations <= 0 { req.NumIterations = defaultIterations }
-if req.Constraints.MinWeight < 0 { req.Constraints.MinWeight = 0 }
-if req.Constraints.MaxWeight <= 0 { req.Constraints.MaxWeight = 1 }
+	if req.NumIterations <= 0 { req.NumIterations = defaultIterations }
+	if req.Constraints.MinWeight < 0 { req.Constraints.MinWeight = 0 }
+	if req.Constraints.MaxWeight <= 0 { req.Constraints.MaxWeight = 1 }
 	mu, sigma, err := computeReturnCovariance(req.Tickers, req.PriceData)
 	if err != nil { return nil, err }
 	select { case <-ctx.Done(): return nil, ctx.Err(); default: }
@@ -68,12 +43,11 @@ if req.Constraints.MaxWeight <= 0 { req.Constraints.MaxWeight = 1 }
 	default: return nil, fmt.Errorf("不支持的优化目标: %s", req.Objective)
 	}
 	ret, vol, sharpe := portfolioMetrics(weights, mu, sigma)
-	weightMap := makeWeightMap(req.Tickers, weights)
-return &OptimizeResponse{ OptimalWeights: weightMap, ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe }, nil
+	return &OptimizeResponse{OptimalWeights: makeWeightMap(req.Tickers, weights), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe}, nil
 }
 func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*FrontierResponse, error) {
 	if len(req.Tickers) == 0 { return nil, fmt.Errorf("tickers 不能为空") }
-if req.NumPoints <= 0 { req.NumPoints = defaultFrontierPts }
+	if req.NumPoints <= 0 { req.NumPoints = defaultFrontierPts }
 	mu, sigma, err := computeReturnCovariance(req.Tickers, req.PriceData)
 	if err != nil { return nil, err }
 	sigma = ensurePD(sigma)
@@ -84,14 +58,14 @@ if req.NumPoints <= 0 { req.NumPoints = defaultFrontierPts }
 	retMaxRet, _, _ := portfolioMetrics(wMaxRet, mu, sigma)
 	minRet := retMinVol
 	maxRet := retMaxRet
-if maxRet <= minRet { maxRet = minRet + 0.01 }
+	if maxRet <= minRet { maxRet = minRet + 0.01 }
 	frontier := make([]FrontierPoint, 0, req.NumPoints)
 	for i := 0; i < req.NumPoints; i++ {
 		select { case <-ctx.Done(): return nil, ctx.Err(); default: }
 		targetRet := minRet + (maxRet-minRet)*float64(i)/float64(req.NumPoints-1)
 		w := solveFrontierPoint(mu, sigma, targetRet, constraints)
 		ret, vol, sharpe := portfolioMetrics(w, mu, sigma)
-frontier = append(frontier, FrontierPoint{ Weights: makeWeightMap(req.Tickers, w), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe })
+		frontier = append(frontier, FrontierPoint{Weights: makeWeightMap(req.Tickers, w), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe})
 	}
 	return &FrontierResponse{Frontier: frontier}, nil
 }
@@ -104,45 +78,19 @@ func computeReturnCovariance(tickers []string, priceData map[string]map[string]f
 	}
 	m := len(alignedDates)
 	prices := make([][]float64, n)
-	for i, t := range tickers {
-		prices[i] = make([]float64, m)
-		for j, d := range alignedDates { prices[i][j] = priceData[t][d] }
-	}
+	for i, t := range tickers { prices[i] = make([]float64, m); for j, d := range alignedDates { prices[i][j] = priceData[t][d] } }
 	dailyReturns := make([][]float64, n)
-	for i := 0; i < n; i++ {
-		dailyReturns[i] = make([]float64, m-1)
-		for j := 0; j < m-1; j++ {
-			if prices[i][j] == 0 {
-				dailyReturns[i][j] = 0
-} else { dailyReturns[i][j] = prices[i][j+1]/prices[i][j] - 1
-			}
-		}
-	}
+	for i := 0; i < n; i++ { dailyReturns[i] = make([]float64, m-1); for j := 0; j < m-1; j++ { if prices[i][j] == 0 { dailyReturns[i][j] = 0 } else { dailyReturns[i][j] = prices[i][j+1]/prices[i][j] - 1 } } }
 	mu := make([]float64, n)
-	for i := 0; i < n; i++ {
-		cumProd := 1.0
-		for _, r := range dailyReturns[i] { cumProd *= (1 + r) }
-		mu[i] = math.Pow(cumProd, float64(tradingDaysPerYear)/float64(len(dailyReturns[i]))) - 1
-	}
+	for i := 0; i < n; i++ { cumProd := 1.0; for _, r := range dailyReturns[i] { cumProd *= (1 + r) }; mu[i] = math.Pow(cumProd, float64(tradingDaysPerYear)/float64(len(dailyReturns[i]))) - 1 }
 	cov := make([][]float64, n)
 	for i := 0; i < n; i++ { cov[i] = make([]float64, n) }
-	for i := 0; i < n; i++ {
-		for j := i; j < n; j++ {
-			covVal := mathutil.Covariance(dailyReturns[i], dailyReturns[j]) * float64(tradingDaysPerYear)
-			cov[i][j] = covVal
-			cov[j][i] = covVal
-		}
-	}
+	for i := 0; i < n; i++ { for j := i; j < n; j++ { covVal := mathutil.Covariance(dailyReturns[i], dailyReturns[j]) * float64(tradingDaysPerYear); cov[i][j] = covVal; cov[j][i] = covVal } }
 	return mu, cov, nil
 }
-func computeLagrangeCoeffs(sigmaInvOnes, sigmaInvMu, mu []float64) (float64, float64, float64) {
-	var a, b, cc float64
-	for i := range mu {
-		a += sigmaInvOnes[i]
-		b += sigmaInvMu[i]
-		cc += mu[i] * sigmaInvMu[i]
-	}
-	return a, b, cc
+func computeLagrangeCoeffs(sigmaInvOnes, sigmaInvMu, mu []float64) (a, b, cc float64) {
+	for i := range mu { a += sigmaInvOnes[i]; b += sigmaInvMu[i]; cc += mu[i] * sigmaInvMu[i] }
+	return
 }
 func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Constraints) []float64 {
 	n := len(mu)
@@ -161,9 +109,7 @@ func solveFrontierPoint(mu []float64, sigma [][]float64, targetRet float64, c Co
 	for i := 0; i < n; i++ { weights[i] = lambda1*sigmaInvOnes[i] + lambda2*sigmaInvMu[i] }
 	for _, w := range weights { if w < -1e-10 { return linearInterpolationFallback(mu, sigma, targetRet, c) } }
 	sumW := mathutil.Sum(weights)
-	if math.Abs(sumW) > 1e-15 {
-		for i := range weights { weights[i] /= sumW }
-	}
+	if math.Abs(sumW) > 1e-15 { for i := range weights { weights[i] /= sumW } }
 	if satisfiesConstraints(weights, c) { return weights }
 	return clipWeights(weights, c)
 }
@@ -173,28 +119,21 @@ func linearInterpolationFallback(mu []float64, sigma [][]float64, targetRet floa
 	retMin, _, _ := portfolioMetrics(wMinVol, mu, sigma)
 	retMax, _, _ := portfolioMetrics(wMaxRet, mu, sigma)
 	if math.Abs(retMax-retMin) < 1e-15 { return wMinVol }
-	t := (targetRet - retMin) / (retMax - retMin)
-	t = math.Max(0, math.Min(1, t))
-	n := len(mu)
-	weights := make([]float64, n)
-	for i := 0; i < n; i++ { weights[i] = (1-t)*wMinVol[i] + t*wMaxRet[i] }
+	t := math.Max(0, math.Min(1, (targetRet-retMin)/(retMax-retMin)))
+	weights := make([]float64, len(mu))
+	for i := range mu { weights[i] = (1-t)*wMinVol[i] + t*wMaxRet[i] }
 	return weights
 }
-func portfolioMetrics(w, mu []float64, sigma [][]float64) (float64, float64, float64) {
-	ret := 0.0
+func portfolioMetrics(w, mu []float64, sigma [][]float64) (ret, vol, sharpe float64) {
 	for i := range mu { ret += w[i] * mu[i] }
 	wSigma := denseMulVec(sigma, w)
 	variance := 0.0
 	for i := range w { variance += w[i] * wSigma[i] }
-	vol := math.Sqrt(math.Max(0, variance))
-	sharpe := 0.0
-if vol > 1e-10 { sharpe = (ret - riskFreeRate) / vol }
-	return ret, vol, sharpe
+	vol = math.Sqrt(math.Max(0, variance))
+	if vol > 1e-10 { sharpe = (ret - riskFreeRate) / vol }
+	return
 }
-func satisfiesConstraints(w []float64, c Constraints) bool {
-	for _, v := range w { if v < c.MinWeight-1e-10 || v > c.MaxWeight+1e-10 { return false } }
-	return true
-}
+func satisfiesConstraints(w []float64, c Constraints) bool { for _, v := range w { if v < c.MinWeight-1e-10 || v > c.MaxWeight+1e-10 { return false } }; return true }
 type clipOpts struct {
 	maxIter  int  // 1 = single pass (clipWeights); >1 = iterate until constraints satisfied (projectWeights)
 	absCheck bool // true: |sum|<1e-15 -> uniform (projectWeights); false: sum<=1e-15 -> uniform (clipWeights)
@@ -206,32 +145,19 @@ func clipAndNormalize(w []float64, c Constraints, opts clipOpts) []float64 {
 	for i := 0; i < opts.maxIter; i++ {
 		for j := range result { result[j] = math.Max(c.MinWeight, math.Min(c.MaxWeight, result[j])) }
 		sumW := mathutil.Sum(result)
-		var returnUniform bool
-		if opts.absCheck {
-			returnUniform = math.Abs(sumW) < 1e-15
-} else { returnUniform = sumW <= 1e-15
-		}
-		if returnUniform {
-			for j := range result { result[j] = 1.0 / float64(n) }
-			return result
-		}
+		returnUniform := math.Abs(sumW) < 1e-15
+		if !opts.absCheck { returnUniform = sumW <= 1e-15 }
+		if returnUniform { for j := range result { result[j] = 1.0 / float64(n) }; return result }
 		for j := range result { result[j] /= sumW }
 		if opts.maxIter > 1 && satisfiesConstraints(result, c) { break }
 	}
 	return result
 }
-func projectWeights(w []float64, c Constraints) []float64 {
-	return clipAndNormalize(w, c, clipOpts{maxIter: 100, absCheck: true})
-}
-func clipWeights(w []float64, c Constraints) []float64 {
-	return clipAndNormalize(w, c, clipOpts{maxIter: 1, absCheck: false})
-}
+func projectWeights(w []float64, c Constraints) []float64 { return clipAndNormalize(w, c, clipOpts{maxIter: 100, absCheck: true}) }
+func clipWeights(w []float64, c Constraints) []float64 { return clipAndNormalize(w, c, clipOpts{maxIter: 1, absCheck: false}) }
 func isValidPortfolio(w []float64) bool {
 	sumW := 0.0
-	for _, v := range w {
-		if v < -1e-6 { return false }
-		sumW += v
-	}
+	for _, v := range w { if v < -1e-6 { return false }; sumW += v }
 	return math.Abs(sumW-1.0) < 0.01
 }
 func makeWeightMap(tickers []string, weights []float64) map[string]float64 {
@@ -255,10 +181,7 @@ func randomSearch(mu []float64, sigma [][]float64, c Constraints, objective stri
 		case "maxReturn": score = ret
 		default: score = sharpe
 		}
-		if score > bestScore {
-			bestScore = score
-			copy(bestWeights, w)
-		}
+		if score > bestScore { bestScore = score; copy(bestWeights, w) }
 	}
 	return bestWeights
 }
@@ -268,91 +191,60 @@ func randomWeights(n int, c Constraints, rng *rand.Rand) []float64 {
 	for i := 0; i < n-1; i++ {
 		maxAlloc := math.Min(c.MaxWeight, remaining)
 		minAlloc := math.Max(c.MinWeight, 0)
-		if maxAlloc < minAlloc {
-			weights[i] = minAlloc
-} else { weights[i] = minAlloc + rng.Float64()*(maxAlloc-minAlloc)
-		}
-		remaining -= weights[i]
-		if remaining <= 0 {
-			remaining = 0
-			break
-		}
+		if maxAlloc < minAlloc { weights[i] = minAlloc } else { weights[i] = minAlloc + rng.Float64()*(maxAlloc-minAlloc) }
+		if remaining -= weights[i]; remaining <= 0 { remaining = 0; break }
 	}
 	weights[n-1] = remaining
-if weights[n-1] > c.MaxWeight { weights[n-1] = c.MaxWeight }
-if weights[n-1] < c.MinWeight && remaining > c.MinWeight { weights[n-1] = c.MinWeight }
+	if weights[n-1] > c.MaxWeight { weights[n-1] = c.MaxWeight }
+	if weights[n-1] < c.MinWeight && remaining > c.MinWeight { weights[n-1] = c.MinWeight }
 	sumW := mathutil.Sum(weights)
-	if sumW > 0 {
-		for i := range weights { weights[i] /= sumW }
-	}
+	if sumW > 0 { for i := range weights { weights[i] /= sumW } }
 	return weights
 }
+func flatten(a [][]float64) []float64 { flat := make([]float64, 0, len(a)*len(a[0])); for _, row := range a { flat = append(flat, row...) }; return flat }
 func invertDense(a [][]float64) ([][]float64, error) {
 	n := len(a)
 	if n == 0 { return nil, fmt.Errorf("矩阵为空") }
-	flat := make([]float64, 0, n*n)
-	for _, row := range a { flat = append(flat, row...) }
-	m := mat.NewDense(n, n, flat)
+	m := mat.NewDense(n, n, flatten(a))
 	var inv mat.Dense
 	if err := inv.Inverse(m); err != nil { return nil, fmt.Errorf("矩阵奇异，无法求逆: %w", err) }
 	result := make([][]float64, n)
-	for i := 0; i < n; i++ {
-		result[i] = make([]float64, n)
-		for j := 0; j < n; j++ { result[i][j] = inv.At(i, j) }
-	}
+	for i := 0; i < n; i++ { result[i] = make([]float64, n); for j := 0; j < n; j++ { result[i][j] = inv.At(i, j) } }
 	return result, nil
 }
 func denseMulVec(matrix [][]float64, vec []float64) []float64 {
-	n := len(matrix)
-	if n == 0 { return nil }
-	p := len(vec)
-	flat := make([]float64, 0, n*p)
-	for _, row := range matrix { flat = append(flat, row...) }
-	m := mat.NewDense(n, p, flat)
-	v := mat.NewVecDense(p, vec)
+	if len(matrix) == 0 { return nil }
+	m := mat.NewDense(len(matrix), len(vec), flatten(matrix))
+	v := mat.NewVecDense(len(vec), vec)
 	var result mat.VecDense
 	result.MulVec(m, v)
 	return result.RawVector().Data
 }
 func largestEigenvalue(a [][]float64) float64 {
-	n := len(a)
-	if n == 0 { return 0 }
-	flat := make([]float64, 0, n*n)
-	for _, row := range a { flat = append(flat, row...) }
-	sym := mat.NewSymDense(n, flat)
+	if len(a) == 0 { return 0 }
 	var es mat.EigenSym
-	if !es.Factorize(sym, false) { return 0 }
-	vals := es.Values(nil)
-	if len(vals) == 0 { return 0 }
-	return slices.Max(vals)
+	if !es.Factorize(mat.NewSymDense(len(a), flatten(a)), false) { return 0 }
+	if vals := es.Values(nil); len(vals) > 0 { return slices.Max(vals) }
+	return 0
 }
 func ensurePD(sigma [][]float64) [][]float64 {
-	n := len(sigma)
 	reg := regStart
 	for attempt := 0; attempt < regMaxAttempts; attempt++ {
 		if isPD(sigma) { return sigma }
 		result := cloneMatrix(sigma)
-		for i := 0; i < n; i++ { result[i][i] += reg }
-		sigma = result
-		reg *= 10
+		for i := range sigma { result[i][i] += reg }
+		sigma, reg = result, reg*10
 	}
 	return sigma
 }
 func isPD(a [][]float64) bool {
-	n := len(a)
-	if n == 0 { return false }
-	flat := make([]float64, 0, n*n)
-	for _, row := range a { flat = append(flat, row...) }
-	sym := mat.NewSymDense(n, flat)
+	if len(a) == 0 { return false }
 	var chol mat.Cholesky
-	return chol.Factorize(sym)
+	return chol.Factorize(mat.NewSymDense(len(a), flatten(a)))
 }
 func cloneMatrix(a [][]float64) [][]float64 {
 	n := len(a)
 	result := make([][]float64, n)
-	for i := 0; i < n; i++ {
-		result[i] = make([]float64, len(a[i]))
-		copy(result[i], a[i])
-	}
+	for i := 0; i < n; i++ { result[i] = make([]float64, len(a[i])); copy(result[i], a[i]) }
 	return result
 }

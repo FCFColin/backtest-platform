@@ -1,4 +1,4 @@
-// scripts/verify/run-all.mjs
+﻿// scripts/verify/run-all.mjs
 // 聚合执行所有 CRITICAL 验证脚本，输出汇总 markdown 报告
 // 用法：node scripts/verify/run-all.mjs [--pattern=C-*] [--skip-frontend]
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 
 const PROJECT_ROOT = resolve(process.cwd());
 const VERIFY_DIR = join(PROJECT_ROOT, 'scripts', 'verify');
-const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', '2026-07-28', 'verify');
+const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
 
 // 解析参数
 const args = process.argv.slice(2);

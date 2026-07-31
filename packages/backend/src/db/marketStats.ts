@@ -1,15 +1,8 @@
 /**
- * 市场数据统计 — 从 PostgreSQL 聚合市场数据统计（替代 JSON 文件扫描）。
- *
- * 合并自 marketStatsHelpers.ts + marketStorageStats.ts + marketStats.ts。
- * P3-2 M-005：纯类型拆分至 marketStatsTypes.ts，纯辅助函数拆分至 marketStatsHelpers.ts。
+ * 市场数据统计 — 从 PostgreSQL 聚合（替代 JSON 文件扫描）。
+ * 合并自 marketStatsHelpers.ts + marketStorageStats.ts + marketStats.ts；P3-2 M-005：类型在 marketStatsTypes.ts，纯函数在 marketStatsHelpers.ts。
  * 本文件保留 DB 查询 + 进程内 TTL 缓存 + 公共 API 再导出。
- *
- * RLS 说明（P0-03 审计结论）：本模块查询 tickers / prices 等全局共享市场数据表，
- * 不含 tenant_id 列，不启用 RLS。直连 getReadPool() 是正确设计。
- *
- * 性能说明：scanMarketStatsFromDb() 和 getDbEngineStatus() 使用进程内 TTL 缓存，
- * 避免每次请求都执行昂贵的聚合查询。缓存由调用侧统一控制，无需 Redis。
+ * RLS 说明：tickers/prices 为全局共享市场数据表，无 tenant_id 列，不启用 RLS，直连 getReadPool() 是正确设计。
  */
 import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
@@ -36,10 +29,7 @@ export {
 } from './marketStatsHelpers.js';
 
 import type { DbMarketStats, TickerAggRow, DbEngineStatusResult } from './marketStatsTypes.js';
-import {
-  processTickerRow,
-  buildMarketStatsResult,
-} from './marketStatsHelpers.js';
+import { processTickerRow, buildMarketStatsResult } from './marketStatsHelpers.js';
 
 // 进程内 TTL 缓存（避免每次请求都执行昂贵的聚合查询）
 
@@ -47,7 +37,6 @@ interface TtlCacheEntry<T> {
   data: T;
   expiresAt: number;
 }
-
 function makeTtlCache<T>(ttlMs: number) {
   let entry: TtlCacheEntry<T> | null = null;
   return {
@@ -66,24 +55,13 @@ function makeTtlCache<T>(ttlMs: number) {
 }
 
 // 表空间占用统计
-
 const MARKET_DATA_TABLES = ['tickers', 'prices', 'cpi_data', 'exchange_rates'] as const;
 
-/**
- * 查询行情相关 PostgreSQL 表的实际磁盘占用（含 TOAST 与索引）。
- *
- * @returns 字节数；查询失败时返回 0
- */
+/** 查询行情相关 PostgreSQL 表的实际磁盘占用（含 TOAST 与索引）。查询失败返回 0。 */
 export async function getMarketDataStorageBytes(): Promise<number> {
   try {
-    const pool = getReadPool();
-    const { rows } = await pool.query<{ total_bytes: string }>(
-      `SELECT COALESCE(SUM(pg_total_relation_size(quote_ident(c.relname)::regclass)), 0)::text AS total_bytes
-       FROM pg_class c
-       JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = 'public'
-         AND c.relkind = 'r'
-         AND c.relname = ANY($1::text[])`,
+    const { rows } = await getReadPool().query<{ total_bytes: string }>(
+      `SELECT COALESCE(SUM(pg_total_relation_size(quote_ident(c.relname)::regclass)), 0)::text AS total_bytes FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname = ANY($1::text[])`,
       [MARKET_DATA_TABLES],
     );
     return parseInt(rows[0]?.total_bytes ?? '0', 10) || 0;
@@ -93,43 +71,20 @@ export async function getMarketDataStorageBytes(): Promise<number> {
   }
 }
 
-
 /** 进程内 TTL 缓存：scanMarketStatsFromDb() 结果缓存 60 秒 */
 const marketStatsCache = makeTtlCache<DbMarketStats>(60_000);
 
-/**
- * 从 PostgreSQL tickers + prices 表聚合数据引擎统计。
- *
- * 结果缓存在进程内 60 秒，避免每次请求都执行昂贵的表聚合查询。
- *
- * @param force - 强制刷新缓存（跳过 TTL）
- * @returns 统计快照；数据库不可用时返回 null
- */
+/** 从 PostgreSQL tickers + prices 聚合数据引擎统计。结果缓存 60 秒；数据库不可用返回 null。 */
 export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStats | null> {
   if (!force) {
     const cached = marketStatsCache.get();
     if (cached) return cached;
   }
-
   try {
-    const pool = getReadPool();
-    const { rows } = await pool.query<TickerAggRow>(`
-      SELECT
-        t.ticker,
-        COALESCE(t.market, '') AS market,
-        COALESCE(t.category, '') AS category,
-        COALESCE(t.exchange, '') AS exchange,
-        COUNT(p.date)::int AS n_points,
-        MIN(p.date)::text AS first_date,
-        MAX(p.date)::text AS last_date
-      FROM tickers t
-      INNER JOIN prices p ON p.ticker = t.ticker
-      GROUP BY t.ticker, t.market, t.category, t.exchange
-      HAVING COUNT(p.date) > 0
-    `);
-
+    const { rows } = await getReadPool().query<TickerAggRow>(
+      `SELECT t.ticker, COALESCE(t.market, '') AS market, COALESCE(t.category, '') AS category, COALESCE(t.exchange, '') AS exchange, COUNT(p.date)::int AS n_points, MIN(p.date)::text AS first_date, MAX(p.date)::text AS last_date FROM tickers t INNER JOIN prices p ON p.ticker = t.ticker GROUP BY t.ticker, t.market, t.category, t.exchange HAVING COUNT(p.date) > 0`,
+    );
     if (rows.length === 0) return null;
-
     const byMarket: DbMarketStats['by_market'] = {};
     const byType: Record<string, number> = {};
     const byExchange: Record<string, number> = {};
@@ -151,8 +106,7 @@ export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStat
       totalDataPoints: 0,
       allPoints: [] as number[],
     };
-
-    for (const row of rows) {
+    for (const row of rows)
       processTickerRow({
         row,
         byMarket,
@@ -163,10 +117,7 @@ export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStat
         sampleTickers,
         state,
       });
-    }
-
     const storageBytes = await getMarketDataStorageBytes();
-
     const result = buildMarketStatsResult({
       rows,
       byMarket,
@@ -179,7 +130,6 @@ export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStat
       allPoints: state.allPoints,
       storageBytes,
     });
-
     marketStatsCache.set(result);
     return result;
   } catch (err) {
@@ -191,19 +141,12 @@ export async function scanMarketStatsFromDb(force = false): Promise<DbMarketStat
 /** 进程内 TTL 缓存：getLastUpdated() 结果缓存 30 秒 */
 const lastUpdatedCache = makeTtlCache<string>(30_000);
 
-/**
- * 轻量查询：获取市场数据最后更新日期。
- *
- * 仅查询 MAX(updated_at) FROM tickers，避免 scanMarketStatsFromDb() 的聚合开销。
- * 结果缓存在进程内 30 秒。
- */
+/** 轻量查询：MAX(updated_at) FROM tickers（避免聚合开销）。缓存 30 秒。 */
 export async function getLastUpdated(): Promise<string> {
   const cached = lastUpdatedCache.get();
   if (cached !== null) return cached;
-
   try {
-    const pool = getReadPool();
-    const { rows } = await pool.query<{ last: Date | null }>(
+    const { rows } = await getReadPool().query<{ last: Date | null }>(
       'SELECT MAX(updated_at) AS last FROM tickers',
     );
     const result = rows[0]?.last ? new Date(rows[0].last).toISOString() : '';
@@ -214,32 +157,21 @@ export async function getLastUpdated(): Promise<string> {
   }
 }
 
-/** 进程内 TTL 缓存：getDbEngineStatus() 结果缓存 30 秒 */
+/** 进程内 TTL 缓存：getDbEngineStatus() 结果缓存 30 秒（避免 COUNT(DISTINCT ticker) 在大表上的扫描开销） */
 const dbEngineStatusCache = makeTtlCache<DbEngineStatusResult>(30_000);
 
-/**
- * 引擎状态摘要（PostgreSQL）
- *
- * 结果缓存在进程内 30 秒，避免 COUNT(DISTINCT ticker) 在 prices 大表上的扫描开销。
- *
- * @returns tickers 总数 / 已缓存 tickers 数 / 最后更新时间；查询失败时各字段归零
- */
+/** 引擎状态摘要（PostgreSQL）：tickers 总数 / 已缓存数 / 最后更新时间；查询失败各字段归零。 */
 export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
   const cached = dbEngineStatusCache.get();
   if (cached) return cached;
-
   try {
-    const pool = getReadPool();
-    const { rows } = await pool.query<{
+    const { rows } = await getReadPool().query<{
       total: string;
       with_prices: string;
       last_update: Date | null;
-    }>(`
-      SELECT
-        (SELECT COUNT(*)::text FROM tickers) AS total,
-        (SELECT COUNT(DISTINCT ticker)::text FROM prices) AS with_prices,
-        (SELECT MAX(updated_at) FROM tickers) AS last_update
-    `);
+    }>(
+      `SELECT (SELECT COUNT(*)::text FROM tickers) AS total, (SELECT COUNT(DISTINCT ticker)::text FROM prices) AS with_prices, (SELECT MAX(updated_at) FROM tickers) AS last_update`,
+    );
     const row = rows[0];
     const result = {
       totalTickers: parseInt(row?.total ?? '0', 10),
@@ -253,14 +185,7 @@ export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
   }
 }
 
-// 测试专用：清空所有 TTL 缓存
-
-/**
- * 清空所有进程内 TTL 缓存（marketStatsCache / lastUpdatedCache / dbEngineStatusCache）。
- *
- * 仅供单元测试在 beforeEach 中调用，避免测试间缓存污染导致脏数据。
- * 生产代码不应调用此函数。
- */
+// 测试专用：清空所有 TTL 缓存（避免测试间缓存污染导致脏数据；生产代码不应调用）
 export function __clearCachesForTests(): void {
   marketStatsCache.clear();
   lastUpdatedCache.clear();

@@ -24,12 +24,12 @@ const DEFAULT_CONFIG: AppConfig = {
   services: [
     { name: 'adminPage.dashboard.goEngine', url: 'http://127.0.0.1:15004', status: 'down' },
     { name: 'adminPage.dashboard.goDataService', url: 'http://127.0.0.1:3003', status: 'down' },
-    { name: 'adminPage.dashboard.nodeService', url: 'http://127.0.0.1:3001', status: 'down' }
+    { name: 'adminPage.dashboard.nodeService', url: 'http://127.0.0.1:3001', status: 'down' },
   ],
   nodeEnv: 'development',
   nodeVersion: '-',
   platform: '-',
-  pid: 0
+  pid: 0,
 };
 function buildServicesFromApi(d: Record<string, unknown>): ServiceConfig[] {
   const svc = d.services as Record<string, { status?: string; version?: string }> | undefined;
@@ -38,19 +38,19 @@ function buildServicesFromApi(d: Record<string, unknown>): ServiceConfig[] {
       name: 'adminPage.dashboard.goEngine',
       url: 'http://127.0.0.1:15004',
       status: svc?.go_engine?.status === 'healthy' ? 'healthy' : 'down',
-      version: svc?.go_engine?.version
+      version: svc?.go_engine?.version,
     },
     {
       name: 'adminPage.dashboard.goDataService',
       url: 'http://127.0.0.1:3003',
       status: svc?.goDataService?.status === 'healthy' ? 'healthy' : 'down',
-      version: svc?.goDataService?.version
+      version: svc?.goDataService?.version,
     },
     {
       name: 'adminPage.dashboard.nodeService',
       url: 'http://127.0.0.1:3001',
-      status: svc?.nodeServer?.status === 'healthy' ? 'healthy' : 'down'
-    }
+      status: svc?.nodeServer?.status === 'healthy' ? 'healthy' : 'down',
+    },
   ];
 }
 function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
@@ -63,14 +63,25 @@ function ServiceConfigSection({ services }: { services: ServiceConfig[] }) {
       </div>
       <div className="space-y-3">
         {services.map((service) => (
-          <div key={service.name} className="flex items-center justify-between rounded-lg border border-border-subtle p-3">
+          <div
+            key={service.name}
+            className="flex items-center justify-between rounded-lg border border-border-subtle p-3"
+          >
             <div>
               <p className="text-sm font-medium text-fg-secondary">{t(service.name)}</p>
               <p className="text-xs text-fg-tertiary">{service.url}</p>
             </div>
             <div className="flex items-center gap-3">
-              {service.version && <span className="text-xs text-fg-tertiary">v{service.version}</span>}
-              <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${service.status === 'healthy' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>{service.status === 'healthy' ? t('adminPage.settings.statusOnline') : t('adminPage.dataManagement.statusInactive')}</span>
+              {service.version && (
+                <span className="text-xs text-fg-tertiary">v{service.version}</span>
+              )}
+              <span
+                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${service.status === 'healthy' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}
+              >
+                {service.status === 'healthy'
+                  ? t('adminPage.settings.statusOnline')
+                  : t('adminPage.dataManagement.statusInactive')}
+              </span>
             </div>
           </div>
         ))}
@@ -120,7 +131,10 @@ function DataManagementSection({ onClearCache, onRestart }: DataManagementProps)
         <h2 className="text-sm font-semibold text-fg">{t('adminPage.settings.dataManagement')}</h2>
       </div>
       <div className="flex flex-wrap gap-3">
-        <button onClick={onClearCache} className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-sm font-medium text-warning hover:bg-warning/20">
+        <button
+          onClick={onClearCache}
+          className="flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/10 px-3 py-2 text-sm font-medium text-warning hover:bg-warning/20"
+        >
           <RotateCcw className="h-4 w-4" />
           {t('adminPage.settings.refetchData')}
         </button>
@@ -139,7 +153,7 @@ function ArchitectureSection() {
     { color: 'bg-brand', text: t('adminPage.settings.archGoEngine') },
     { color: 'bg-success', text: t('adminPage.settings.archGoData') },
     { color: 'bg-warning', text: t('adminPage.settings.archNode') },
-    { color: 'bg-purple-500', text: t('adminPage.settings.archVite') }
+    { color: 'bg-purple-500', text: t('adminPage.settings.archVite') },
   ];
   return (
     <Card className="p-4">
@@ -167,7 +181,7 @@ export default function SystemSettings() {
     () => () => {
       if (clearMsgTimerRef.current) clearTimeout(clearMsgTimerRef.current);
     },
-    []
+    [],
   );
   const fetchConfig = useCallback(async () => {
     setLoading(true);
@@ -191,9 +205,13 @@ export default function SystemSettings() {
   const handleClearCache = async () => {
     setSaveMsg(t('adminPage.settings.clearingCache'));
     try {
-      const res = await apiFetch('/api/v1/data/manage/update/refetch', { method: 'POST' });
+      const res = await apiFetch('/api/v1/data/manage/update/full', { method: 'PUT' });
       const json = await res.json();
-      setSaveMsg(json.success ? t('adminPage.settings.cacheCleared') : t('adminPage.dataManagement.actionFailed', { error: json.error }));
+      setSaveMsg(
+        json.success
+          ? t('adminPage.settings.cacheCleared')
+          : t('adminPage.dataManagement.actionFailed', { error: json.error }),
+      );
     } catch {
       setSaveMsg(t('adminPage.dataManagement.actionRequestFailed', { label: '' }));
     }

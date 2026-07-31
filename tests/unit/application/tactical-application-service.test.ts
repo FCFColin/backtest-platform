@@ -22,7 +22,6 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 import {
   executeTacticalBacktest,
   executeTacticalWhatIf,
-  saveTacticalAlertConfig,
   collectTickers,
 } from '../../../packages/backend/src/application/tactical-application-service.js';
 import type { TacticalStrategy } from '@backtest/shared/types/tactical.js';
@@ -106,12 +105,6 @@ describe('tactical-application-service', () => {
         rebalanceFrequency: 'monthly',
       }),
     ).rejects.toThrow('Price data not found for');
-  });
-
-  it('saveTacticalAlertConfig 启用时无邮箱应抛错', () => {
-    expect(() => saveTacticalAlertConfig({ enabled: true, email: '', triggers: [] })).toThrow(
-      '邮箱',
-    );
   });
 
   it('executeTacticalWhatIf 应返回最近信号权重', async () => {

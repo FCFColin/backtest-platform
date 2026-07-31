@@ -1,11 +1,7 @@
 /**
- * 速率限制配置（集中管理所有限流器定义与键生成函数）。
- *
- * P0-05：Redis 不可用时限流 fail-closed——生产环境多实例部署时，内存存储
- * 会导致每实例独立计数，实际限流上限 = 配置值 × 实例数，等同无限流。
- * 改为 Redis 不可用时返回 503，拒绝所有请求直到 Redis 恢复。
+ * 速率限制配置（集中管理限流器定义与键生成）。
+ * P0-05：Redis 不可用时限流 fail-closed——多实例下内存存储会变成"配置值 × 实例数"，等同无限流，故返回 503 拒绝所有请求直到 Redis 恢复。
  */
-
 import rateLimit from 'express-rate-limit';
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
 import crypto from 'crypto';
@@ -23,7 +19,6 @@ const rateLimiterRedisUnavailableCounter = new client.Counter({
 });
 
 let redisAvailable = false;
-
 try {
   new RedisStore({
     sendCommand: (...args: string[]) =>
@@ -37,21 +32,17 @@ try {
 }
 
 export function updateRedisAvailability(available: boolean): void {
-  if (available !== redisAvailable) {
-    redisAvailable = available;
-    if (available) {
-      logger.info('[rate-limit] Redis 恢复可用，限流器恢复正常');
-    } else {
-      logger.warn('[rate-limit] Redis 不可用，限流器 fail-closed (503)');
-      rateLimiterRedisUnavailableCounter.inc();
-    }
+  if (available === redisAvailable) return;
+  redisAvailable = available;
+  if (available) logger.info('[rate-limit] Redis 恢复可用，限流器恢复正常');
+  else {
+    logger.warn('[rate-limit] Redis 不可用，限流器 fail-closed (503)');
+    rateLimiterRedisUnavailableCounter.inc();
   }
 }
 
 function createRateLimiterStore(prefix: string): RedisStore | undefined {
-  if (!redisAvailable) {
-    return undefined;
-  }
+  if (!redisAvailable) return undefined;
   try {
     return new RedisStore({
       sendCommand: (...args: string[]) =>
@@ -82,12 +73,9 @@ function extractJwtIdentifier(authHeader: string): string | null {
 }
 
 function computeRateLimitKey(req: Request): string {
-  // 已认证请求（jwtAuth 中间件已注入 req.user）优先按 userId:ip 组合键限流，
-  // 避免 NAT/企业代理后多用户共享同一 IP 限流桶。
+  // 已认证（jwtAuth 已注入 req.user）优先按 userId:ip 组合键，避免 NAT/代理后多用户共享同一 IP 限流桶
   const user = (req as { user?: { sub?: string } }).user;
-  if (user?.sub) {
-    return `${user.sub}:${req.ip ?? ''}`;
-  }
+  if (user?.sub) return `${user.sub}:${req.ip ?? ''}`;
   const tenantId = (req as { tenantId?: string }).tenantId;
   if (typeof tenantId === 'string' && tenantId.length > 0) return `tenant:${tenantId}`;
   const authHeader = req.headers.authorization;
@@ -96,9 +84,8 @@ function computeRateLimitKey(req: Request): string {
     if (jwtId) return jwtId;
   }
   const apiKey = req.headers['x-api-key'];
-  if (typeof apiKey === 'string' && apiKey.length > 0) {
+  if (typeof apiKey === 'string' && apiKey.length > 0)
     return `apikey:${crypto.createHash('sha256').update(apiKey).digest('hex').slice(0, 16)}`;
-  }
   return req.ip ?? '';
 }
 
@@ -106,31 +93,20 @@ function authRateLimitKey(req: Request): string {
   const body = req.body as
     { username?: string; apiKey?: string; refreshToken?: string } | undefined;
   if (body?.username) return `user:${body.username}`;
-  if (body?.apiKey) {
+  if (body?.apiKey)
     return `apikey:${crypto.createHash('sha256').update(body.apiKey).digest('hex').slice(0, 16)}`;
-  }
-  if (body?.refreshToken) {
+  if (body?.refreshToken)
     return `refresh:${crypto.createHash('sha256').update(body.refreshToken).digest('hex').slice(0, 16)}`;
-  }
   return req.ip ?? '';
 }
 
 /**
- * JWT 感知的通用键生成器。
- *
- * 已认证请求（jwtAuth 中间件已注入 req.user）按 `userId:ip` 组合键限流——
- * 同一用户在不同 IP 仍受独立计数，且 NAT/企业代理后多用户不再共享同一 IP 限流桶。
- * 未认证请求回退到 `ip:` 前缀的 IP 键。
- *
- * 用于通用与管理限流器（apiLimiter / adminLimiter），这些路由在认证中间件之后执行，
- * 可安全依赖 req.user。认证类端点（login/register/refresh）在认证之前执行，
- * 不应使用此生成器——它们继续使用 authRateLimitKey 基于 body 标识限流。
+ * JWT 感知键生成器（apiLimiter/adminLimiter 用，这些路由在认证中间件之后执行可依赖 req.user）。
+ * 已认证按 `userId:ip` 组合键；未认证回退 `ip:` 前缀 IP 键。认证端点（认证前执行）不用此生成器，用 authRateLimitKey。
  */
 function jwtAwareKeyGenerator(req: Request): string {
   const user = (req as { user?: { sub?: string } }).user;
-  if (user?.sub) {
-    return `${user.sub}:${req.ip ?? ''}`;
-  }
+  if (user?.sub) return `${user.sub}:${req.ip ?? ''}`;
   return `ip:${req.ip ?? ''}`;
 }
 
@@ -157,10 +133,7 @@ interface LimiterOptions {
   passOnStoreError?: boolean;
 }
 
-/**
- * 创建 deny-all 中间件：Redis 不可用时拒绝所有请求（P0-05 fail-closed）。
- * adminLimiter 例外（passOnStoreError=true）：管理接口仍允许通过，便于运维排查。
- */
+/** deny-all 中间件：Redis 不可用时拒绝所有请求（P0-05 fail-closed）。adminLimiter 例外（passOnStoreError=true）便于运维排查。 */
 function createDenyAllLimiter(code: string, detail: string): RequestHandler {
   return (req: Request, res: Response, _next: NextFunction) => {
     res
@@ -180,20 +153,13 @@ function createDenyAllLimiter(code: string, detail: string): RequestHandler {
   };
 }
 
-/**
- * 创建限流器，统一 standardHeaders/legacyHeaders/store 公共字段。
- * P0-05：Redis 不可用时（store=undefined 且 passOnStoreError=false），
- * 返回 deny-all 中间件而非降级到内存存储。
- */
+/** 创建限流器：统一 standardHeaders/legacyHeaders/store。Redis 不可用且非 admin 路由 → deny-all（P0-05，不降级内存存储）。 */
 function createLimiter(opts: LimiterOptions): RequestHandler {
   const store = createRateLimiterStore(opts.storePrefix);
-
-  // Redis 不可用且非 admin 路由 → fail-closed (503)
   if (!store && !(opts.passOnStoreError ?? false)) {
     logger.warn(`[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`);
     return createDenyAllLimiter(opts.code, opts.detail ?? 'Rate limiter unavailable');
   }
-
   return rateLimit({
     windowMs: opts.windowMs,
     max: opts.max,
@@ -214,7 +180,6 @@ export const apiLimiter = createLimiter({
   code: 'RATE_LIMITED',
   detail: '请求过于频繁，请稍后再试',
 });
-
 export const computeLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: config.COMPUTE_RATE_LIMIT_MAX,
@@ -223,7 +188,6 @@ export const computeLimiter = createLimiter({
   code: 'RATE_LIMITED',
   detail: '请求过于频繁，请稍后再试',
 });
-
 export const adminLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 30,
@@ -233,7 +197,6 @@ export const adminLimiter = createLimiter({
   code: 'RATE_LIMITED',
   detail: '管理接口请求过于频繁，请稍后再试',
 });
-
 export const loginLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -242,7 +205,6 @@ export const loginLimiter = createLimiter({
   code: 'AUTH_RATE_LIMITED',
   detail: '登录尝试过于频繁，请稍后再试',
 });
-
 export const refreshLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -251,7 +213,6 @@ export const refreshLimiter = createLimiter({
   code: 'AUTH_RATE_LIMITED',
   detail: '刷新尝试过于频繁，请稍后再试',
 });
-
 export const registerLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 3,

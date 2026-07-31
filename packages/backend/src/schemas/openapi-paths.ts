@@ -19,11 +19,10 @@ import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from './sign
 import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,
-  tacticalAlertSchema,
   tacticalGridSearchSchema,
 } from './tactical.js';
 import { pcaAnalyzeSchema, letfAnalyzeSchema, goalOptimizerSchema } from './analysisSchemas.js';
-import { loginSchema, loginPasswordSchema, registerSchema } from './misc-schemas.js';
+import { loginPasswordSchema, registerSchema } from './misc-schemas.js';
 import {
   portfolioBodySchema,
   savedConfigBodySchema,
@@ -31,7 +30,7 @@ import {
 } from './persistence.js';
 type RegOpts = Parameters<typeof reg>[0];
 
-// eslint-disable-next-line max-params
+// eslint-disable-next-line max-params -- OpenAPI 路径注册 DSL，参数为注册项字段
 function sec(
   method: RegOpts['method'],
   path: string,
@@ -131,10 +130,7 @@ function registerRbacRolePaths(): void {
     'rbac',
     '替换角色的全部权限',
     [400, 401, 403, 404, 422, 500],
-    {
-      params: idParam(),
-      body: z.object({ permissions: z.array(z.string()) }),
-    },
+    { params: idParam(), body: z.object({ permissions: z.array(z.string()) }) },
   );
 }
 
@@ -267,15 +263,6 @@ function registerMiscPaths(): void {
   sec('get', '/feature-flags', 'feature-flags', '查询全部功能开关的当前状态', [401, 500]);
 }
 function registerAuthLoginPaths(): void {
-  reg({
-    method: 'post',
-    path: '/auth/login',
-    tag: 'auth',
-    summary: 'API Key 登录',
-    body: loginSchema,
-    okDescription: '返回 accessToken/refreshToken',
-    errors: [400, 401, 429],
-  });
   reg({
     method: 'post',
     path: '/auth/login/password',
@@ -456,9 +443,6 @@ function registerTacticalPaths(): void {
   sec('post', '/tactical/what-if', 'tactical', '战术 What-If 分析', [400, 401, 422, 503], {
     body: tacticalWhatIfSchema,
   });
-  sec('post', '/tactical/alerts', 'tactical', '配置战术告警', [400, 401, 422], {
-    body: tacticalAlertSchema,
-  });
   sec(
     'post',
     '/tactical-grid/search',
@@ -552,7 +536,6 @@ function registerDataManageUpdatePaths(): void {
   sec('get', '/data/manage/update/status', 'data-manage', '更新任务状态', [401]);
   sec('put', '/data/manage/update/full', 'data-manage', '触发全量更新', [401, 403, 409, 503]);
   sec('patch', '/data/manage/update/inc', 'data-manage', '触发增量更新', [401, 403, 503]);
-  sec('patch', '/data/manage/resume', 'data-manage', '恢复暂停的更新', [401, 403, 409]);
   sec('post', '/data/manage/update/stop', 'data-manage', '停止更新任务', [401, 403, 409]);
   sec('put', '/data/manage/universe', 'data-manage', '更新标的池', [401, 403, 422]);
   sec('put', '/data/manage/regenerate-meta', 'data-manage', '重生成标的元数据', [401, 403, 503]);

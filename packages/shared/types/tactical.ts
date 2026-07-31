@@ -57,10 +57,3 @@ export interface WhatIfResult {
   signalDate: string;
   signalType: 'buy' | 'sell' | 'hold';
 }
-
-/** 邮件告警配置 */
-export interface EmailAlertConfig {
-  enabled: boolean;
-  email: string;
-  triggers: Array<'signal_change' | 'rebalance' | 'threshold'>;
-}

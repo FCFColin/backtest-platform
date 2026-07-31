@@ -34,7 +34,9 @@ export async function warmMetaCache(): Promise<void> {
   try {
     const result = await getReadPool().query(META_SQL);
     metaCache = { data: buildMetaData(result.rows[0]), expiry: Date.now() + META_CACHE_TTL_MS };
-  } catch { /* 预热失败不影响启动 */ }
+  } catch {
+    /* 预热失败不影响启动 */
+  }
 }
 
 const router = Router();
@@ -44,14 +46,24 @@ router.get(
   validateQuery(historyQuerySchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const { tickers, startDate, endDate } = req.query as { tickers: string; startDate: string; endDate: string };
-      const tickerList = tickers.split(',').map((t) => t.trim()).filter(Boolean);
+      const { tickers, startDate, endDate } = req.query as {
+        tickers: string;
+        startDate: string;
+        endDate: string;
+      };
+      const tickerList = tickers
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
       if (tickerList.length > MAX_TICKERS) {
         sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED');
         return;
       }
       const { data, degraded, degradedWarning } = await fetchHistoryData(
-        tickerList, startDate, endDate, (req as AuthenticatedRequest).tenantId,
+        tickerList,
+        startDate,
+        endDate,
+        (req as AuthenticatedRequest).tenantId,
       );
       const response: Record<string, unknown> = { success: true, data };
       if (degraded) {
@@ -109,7 +121,11 @@ router.get(
       res.set('Cache-Control', 'public, max-age=300');
       res.json({ success: true, data: SYNTHETIC_TICKERS });
     },
-    { logMsg: 'Synthetic tickers fetch error', code: 'SYNTHETIC_FETCH_ERROR', endpoint: 'data-synthetic' },
+    {
+      logMsg: 'Synthetic tickers fetch error',
+      code: 'SYNTHETIC_FETCH_ERROR',
+      endpoint: 'data-synthetic',
+    },
   ),
 );
 
@@ -143,11 +159,51 @@ router.get(
         sendProblem(res, 400, 'BAD_REQUEST', 'Bad Request', { detail: 'ticker required' });
         return;
       }
-      res.set('Cache-Control', 'public, max-age=60');
-      res.json({
-        success: true,
-        data: { ticker, name: ticker, exchange: 'NYSE', currency: 'USD', earliestDate: '1962-01-02', isSynthetic: false },
-      });
+      const synthetic = SYNTHETIC_TICKERS.find((s) => s.ticker === ticker);
+      if (synthetic) {
+        res.set('Cache-Control', 'public, max-age=60');
+        res.json({
+          success: true,
+          data: {
+            ticker,
+            name: synthetic.name,
+            exchange: 'SIM',
+            currency: 'USD',
+            earliestDate: synthetic.earliestDate,
+            isSynthetic: true,
+          },
+        });
+        return;
+      }
+      try {
+        const { rows } = await getReadPool().query(
+          'SELECT t.ticker, t.category AS name, t.market, t.exchange, MIN(p.date) AS earliest FROM tickers t LEFT JOIN prices p ON p.ticker = t.ticker WHERE t.ticker = $1 GROUP BY t.ticker',
+          [ticker],
+        );
+        if (rows.length === 0) {
+          sendProblem(res, 404, 'TICKER_NOT_FOUND', 'Not Found', {
+            detail: `ticker ${ticker} 未知`,
+          });
+          return;
+        }
+        const row = rows[0];
+        res.set('Cache-Control', 'public, max-age=60');
+        res.json({
+          success: true,
+          data: {
+            ticker: row.ticker,
+            name: row.name || row.ticker,
+            exchange: row.exchange || (row.market === 'cn' ? 'SSE/SZSE' : 'NYSE'),
+            currency: row.market === 'cn' ? 'CNY' : 'USD',
+            earliestDate: row.earliest ?? null,
+            isSynthetic: false,
+          },
+        });
+      } catch {
+        sendProblem(res, 503, 'DATA_UNAVAILABLE', 'Service Unavailable', {
+          detail: '元数据暂不可用，请稍后重试',
+        });
+      }
     },
     { logMsg: 'Ticker meta fetch error', code: 'TICKER_META_ERROR', endpoint: 'data-ticker-meta' },
   ),
@@ -172,19 +228,35 @@ router.get(
       );
       res.json({
         success: true,
-        data: result.rows.map((r: { ticker: string; name: string; last_bar_date: string | null; updated_at: Date | null }) => ({
-          ticker: r.ticker,
-          name: r.name,
-          lastBarDate: r.last_bar_date,
-          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
-        })),
+        data: result.rows.map(
+          (r: {
+            ticker: string;
+            name: string;
+            last_bar_date: string | null;
+            updated_at: Date | null;
+          }) => ({
+            ticker: r.ticker,
+            name: r.name,
+            lastBarDate: r.last_bar_date,
+            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null,
+          }),
+        ),
       });
     },
-    { logMsg: 'Recent updates fetch error', code: 'RECENT_UPDATES_ERROR', endpoint: 'data-recent-updates' },
+    {
+      logMsg: 'Recent updates fetch error',
+      code: 'RECENT_UPDATES_ERROR',
+      endpoint: 'data-recent-updates',
+    },
   ),
 );
 
 // 定时预热 /data/meta 缓存（每 25 分钟），避免缓存过期后首次请求扫描大表
-setInterval(() => { void warmMetaCache(); }, META_CACHE_TTL_MS - 5 * 60 * 1000);
+setInterval(
+  () => {
+    void warmMetaCache();
+  },
+  META_CACHE_TTL_MS - 5 * 60 * 1000,
+);
 
 export default router;

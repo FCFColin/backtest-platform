@@ -168,10 +168,7 @@ func cmdFetchUniverse(cfg *WorkerConfig, filePath string) error {
 	}
 	var filtered []TickerEntry
 	for _, e := range allEntries {
-		upper := strings.ToUpper(e.Ticker)
 		if strings.Contains(strings.ToUpper(e.Name), "TEST") { continue }
-		if strings.HasSuffix(upper, "Z") && len(upper) > 4 {
-		}
 		filtered = append(filtered, e)
 	}
 	slog.Info("ticker 过滤后", "total", len(filtered))

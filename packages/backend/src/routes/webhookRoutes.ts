@@ -1,9 +1,7 @@
 /**
  * Webhook 端点管理路由（P2-02）。
- * 挂载于 /api/v1/webhooks，鉴权链：jwtAuth → resolveTenant → requireTenant → requirePermission(ADMIN_ACCESS)。
- * webhook 配置含签名密钥，属组织管理操作，与 API Key 管理同权限级别（ADR-033）。
- * 所有查询经 withTenant 开启租户事务（即便 webhook 表未启用 RLS，也通过显式 WHERE org_id=$1 收敛）；
- * secret 永不返回响应体。
+ * 鉴权链：jwtAuth → resolveTenant → requireTenant → requirePermission(ADMIN_ACCESS)（ADR-033，与 API Key 同级）。
+ * 所有查询经 withTenant 开启租户事务；secret 永不返回响应体。
  */
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
@@ -20,10 +18,17 @@ import { decrypt } from '../utils/crypto.js';
 const router = Router();
 const DELIVERIES_PAGE_SIZE = 100;
 
-const httpsUrl = z.string().trim().url('URL 格式非法').refine((v) => v.startsWith('https://'), 'URL 必须为 HTTPS');
+const httpsUrl = z
+  .string()
+  .trim()
+  .url('URL 格式非法')
+  .refine((v) => v.startsWith('https://'), 'URL 必须为 HTTPS');
 const createWebhookSchema = z.object({
   url: httpsUrl,
-  secret: z.string().min(32, 'secret 至少 32 字符以保证 HMAC-SHA256 安全强度').max(256, 'secret 过长'),
+  secret: z
+    .string()
+    .min(32, 'secret 至少 32 字符以保证 HMAC-SHA256 安全强度')
+    .max(256, 'secret 过长'),
   description: z.string().trim().max(500).optional(),
   subscribedEvents: z.array(z.string().trim().min(1)).min(1, '至少订阅一个事件'),
 });
@@ -45,7 +50,17 @@ interface DeliveryRow {
   createdAt: string;
 }
 
-function mapDeliveryRow(row: { id: string; event_type: string; status: string; response_code: number | null; attempt_count: number; next_retry_at: Date | string | null; delivered_at: Date | string | null; created_at: Date | string }): DeliveryRow {
+const toIso = (v: Date | string | null): string | null => (v ? new Date(v).toISOString() : null);
+function mapDeliveryRow(row: {
+  id: string;
+  event_type: string;
+  status: string;
+  response_code: number | null;
+  attempt_count: number;
+  next_retry_at: Date | string | null;
+  delivered_at: Date | string | null;
+  created_at: Date | string;
+}): DeliveryRow {
   return {
     id: row.id,
     eventType: row.event_type,
@@ -57,34 +72,41 @@ function mapDeliveryRow(row: { id: string; event_type: string; status: string; r
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
-
-const toIso = (v: Date | string | null): string | null => (v ? new Date(v).toISOString() : null);
+interface WebhookRow {
+  id: string;
+  url: string;
+  description: string | null;
+  is_active: boolean;
+  subscribed_events: string[];
+  failed_consecutive_count: number;
+  disabled_at: Date | string | null;
+  created_at: Date | string;
+  updated_at: Date | string;
+}
+const toWebhookView = (r: WebhookRow): Record<string, unknown> => ({
+  id: r.id,
+  url: r.url,
+  description: r.description,
+  isActive: r.is_active,
+  subscribedEvents: r.subscribed_events,
+  failedConsecutiveCount: r.failed_consecutive_count,
+  disabledAt: toIso(r.disabled_at),
+  createdAt: toIso(r.created_at),
+  updatedAt: toIso(r.updated_at),
+});
 
 router.get(
   '/',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      const orgId = requireTenantId(authReq, res);
+      const orgId = requireTenantId(req as AuthenticatedRequest, res);
       if (!orgId) return;
       const endpoints = await withTenant(orgId, async (client) => {
         const { rows } = await client.query(
           `SELECT id, url, description, is_active, subscribed_events, failed_consecutive_count, disabled_at, created_at, updated_at FROM webhook_endpoints WHERE org_id = $1 ORDER BY created_at DESC`,
           [orgId],
         );
-        return rows.map(
-          (r: { id: string; url: string; description: string | null; is_active: boolean; subscribed_events: string[]; failed_consecutive_count: number; disabled_at: Date | string | null; created_at: Date | string; updated_at: Date | string }) => ({
-            id: r.id,
-            url: r.url,
-            description: r.description,
-            isActive: r.is_active,
-            subscribedEvents: r.subscribed_events,
-            failedConsecutiveCount: r.failed_consecutive_count,
-            disabledAt: toIso(r.disabled_at),
-            createdAt: toIso(r.created_at),
-            updatedAt: toIso(r.updated_at),
-          }),
-        );
+        return rows.map(toWebhookView);
       });
       res.json({ success: true, data: endpoints });
     },
@@ -97,25 +119,37 @@ router.post(
   validate(createWebhookSchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
-      const orgId = requireTenantId(authReq, res);
+      const orgId = requireTenantId(req as AuthenticatedRequest, res);
       if (!orgId) return;
-      const body = req.body as { url: string; secret: string; description?: string; subscribedEvents: string[] };
-      // C-024：通过 createWebhook 在入库前加密 secret，DB 仅存密文
+      const body = req.body as {
+        url: string;
+        secret: string;
+        description?: string;
+        subscribedEvents: string[];
+      };
+      // C-024：入库前加密 secret，DB 仅存密文
       const created = await withTenant(orgId, (client) =>
-        createWebhook(client, { orgId, url: body.url, secret: body.secret, description: body.description, subscribedEvents: body.subscribedEvents }),
+        createWebhook(client, {
+          orgId,
+          url: body.url,
+          secret: body.secret,
+          description: body.description,
+          subscribedEvents: body.subscribedEvents,
+        }),
       );
-      res.status(201).json({
-        success: true,
-        data: {
-          id: created.id,
-          url: created.url,
-          description: created.description,
-          isActive: created.isActive,
-          subscribedEvents: created.subscribedEvents,
-          createdAt: new Date(created.createdAt).toISOString(),
-        },
-      });
+      res
+        .status(201)
+        .json({
+          success: true,
+          data: {
+            id: created.id,
+            url: created.url,
+            description: created.description,
+            isActive: created.isActive,
+            subscribedEvents: created.subscribedEvents,
+            createdAt: new Date(created.createdAt).toISOString(),
+          },
+        });
     },
     { logMsg: '[webhookRoutes] 创建 webhook 失败', code: 'WEBHOOK_CREATE_FAILED' },
   ),
@@ -126,19 +160,29 @@ router.put(
   validate(updateWebhookSchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(authReq, res);
+      const orgId = requireTenantId(req as AuthenticatedRequest, res);
       if (!orgId) return;
       const webhookId = req.params.id;
-      const body = req.body as { url?: string; description?: string; subscribedEvents?: string[]; isActive?: boolean };
-      const updated = await withTenant(orgId, async (client) => {
-        const { rows, rowCount } = await client.query(
+      const body = req.body as {
+        url?: string;
+        description?: string;
+        subscribedEvents?: string[];
+        isActive?: boolean;
+      };
+      const updated = await withTenant(orgId, async (client) =>
+        client.query(
           `UPDATE webhook_endpoints SET url = COALESCE($3, url), description = COALESCE($4, description), subscribed_events = COALESCE($5, subscribed_events), is_active = COALESCE($6, is_active) WHERE id = $1 AND org_id = $2 RETURNING id, url, description, is_active, subscribed_events, updated_at`,
-          [webhookId, orgId, body.url ?? null, body.description ?? null, body.subscribedEvents ?? null, body.isActive ?? null],
-        );
-        return { rows, rowCount };
-      });
+          [
+            webhookId,
+            orgId,
+            body.url ?? null,
+            body.description ?? null,
+            body.subscribedEvents ?? null,
+            body.isActive ?? null,
+          ],
+        ),
+      );
       if (!updated.rowCount || updated.rowCount === 0) {
         sendProblem(res, 404, 'WEBHOOK_NOT_FOUND');
         return;
@@ -164,15 +208,20 @@ router.delete(
   '/:id',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(authReq, res);
+      const orgId = requireTenantId(req as AuthenticatedRequest, res);
       if (!orgId) return;
       const webhookId = req.params.id;
-      const deleted = await withTenant(orgId, async (client) => {
-        const { rowCount } = await client.query(`DELETE FROM webhook_endpoints WHERE id = $1 AND org_id = $2`, [webhookId, orgId]);
-        return rowCount ?? 0;
-      });
+      const deleted = await withTenant(
+        orgId,
+        async (client) =>
+          (
+            await client.query(`DELETE FROM webhook_endpoints WHERE id = $1 AND org_id = $2`, [
+              webhookId,
+              orgId,
+            ])
+          ).rowCount ?? 0,
+      );
       if (deleted === 0) {
         sendProblem(res, 404, 'WEBHOOK_NOT_FOUND');
         return;
@@ -188,12 +237,16 @@ router.post(
   validate(emptyBodySchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(authReq, res);
+      const orgId = requireTenantId(req as AuthenticatedRequest, res);
       if (!orgId) return;
       const webhookId = req.params.id;
-      const testPayload = { event: 'WebhookTest', message: 'Test event from backtesting platform', timestamp: new Date().toISOString(), nonce: crypto.randomUUID() };
+      const testPayload = {
+        event: 'WebhookTest',
+        message: 'Test event from backtesting platform',
+        timestamp: new Date().toISOString(),
+        nonce: crypto.randomUUID(),
+      };
       const result = await withTenant(orgId, async (client) => {
         const { rows } = await client.query(
           `SELECT id, url, secret, secret_iv, secret_tag, secret_kid FROM webhook_endpoints WHERE id = $1 AND org_id = $2`,
@@ -205,14 +258,13 @@ router.post(
           `INSERT INTO webhook_deliveries (endpoint_id, event_type, payload, status) VALUES ($1, 'WebhookTest', $2::jsonb, 'pending') RETURNING id`,
           [webhookId, JSON.stringify(testPayload)],
         );
-        // 立即尝试投递（脱离事务，HTTP 不应占用 DB 连接）
-        return { notFound: false as const, endpoint, deliveryId: ins.rows[0].id };
+        return { notFound: false as const, endpoint, deliveryId: ins.rows[0].id }; // 投递在事务外执行，HTTP 不应占用 DB 连接
       });
       if (result.notFound) {
         sendProblem(res, 404, 'WEBHOOK_NOT_FOUND');
         return;
       }
-      // C-024：从 DB 读出密文 secret 并 decrypt 为明文用于 HMAC 签名
+      // C-024：从 DB 读出密文 secret 并 decrypt 用于 HMAC 签名
       const toBuf = (v: unknown): Buffer => (Buffer.isBuffer(v) ? v : Buffer.from(v as string));
       const plaintextSecret = await decrypt({
         ciphertext: toBuf(result.endpoint.secret),
@@ -220,11 +272,20 @@ router.post(
         tag: toBuf(result.endpoint.secret_tag),
         kid: result.endpoint.secret_kid,
       });
-      const delivery = await deliverWebhook({ url: result.endpoint.url, secret: plaintextSecret }, 'WebhookTest', testPayload);
+      const delivery = await deliverWebhook(
+        { url: result.endpoint.url, secret: plaintextSecret },
+        'WebhookTest',
+        testPayload,
+      );
       await withTenant(orgId, (client) =>
         client.query(
           `UPDATE webhook_deliveries SET status = $1, response_code = $2, response_body = $3, attempt_count = 1, delivered_at = NOW(), next_retry_at = NULL WHERE id = $4`,
-          [delivery.success ? 'success' : 'failed', delivery.responseCode, delivery.responseBody, result.deliveryId],
+          [
+            delivery.success ? 'success' : 'failed',
+            delivery.responseCode,
+            delivery.responseBody,
+            result.deliveryId,
+          ],
         ),
       );
       res.json({
@@ -245,14 +306,16 @@ router.get(
   '/:id/deliveries',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      const authReq = req as AuthenticatedRequest;
       if (!requireUuidParam(res, req.params.id)) return;
-      const orgId = requireTenantId(authReq, res);
+      const orgId = requireTenantId(req as AuthenticatedRequest, res);
       if (!orgId) return;
       const webhookId = req.params.id;
+      // 校验端点归属本组织（防跨租户读取投递历史）
       const deliveries = await withTenant(orgId, async (client) => {
-        // 校验端点归属本组织（防跨租户读取投递历史）
-        const { rows: own } = await client.query(`SELECT 1 FROM webhook_endpoints WHERE id = $1 AND org_id = $2`, [webhookId, orgId]);
+        const { rows: own } = await client.query(
+          `SELECT 1 FROM webhook_endpoints WHERE id = $1 AND org_id = $2`,
+          [webhookId, orgId],
+        );
         if (own.length === 0) return null;
         const { rows } = await client.query(
           `SELECT id, event_type, status, response_code, attempt_count, next_retry_at, delivered_at, created_at FROM webhook_deliveries WHERE endpoint_id = $1 ORDER BY created_at DESC LIMIT $2`,

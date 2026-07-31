@@ -38,36 +38,44 @@ import {
   type Membership,
 } from '../application/org/membershipService.js';
 
-/** 空闲会话超时（P0-04）：analyst 60min，admin/readonly/未知 30min（更严格）。 */
+/** 空闲会话超时（P0-04）：analyst 60min，其他 30min（更严格）。 */
 function getIdleTimeoutMs(role: string): number {
-  return (role === 'analyst' ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000;
+  return (
+    (role === 'analyst'
+      ? authConfig.SESSION_IDLE_TIMEOUT_ANALYST_SEC
+      : authConfig.SESSION_IDLE_TIMEOUT_READONLY_SEC) * 1000
+  );
 }
-
 /** 客户端真实 IP（P0-05）：X-Forwarded-For 优先，回退 req.ip。 */
 function getClientIp(req: Request): string {
   const xff = req.headers['x-forwarded-for'];
   return typeof xff === 'string' && xff.length > 0 ? xff.split(',')[0].trim() : (req.ip ?? '');
 }
-
 function orgSummary(m: Membership): Record<string, unknown> {
-  return { orgId: m.orgId, name: m.orgName, slug: m.orgSlug, plan: m.orgPlan, status: m.orgStatus, role: m.role };
+  return {
+    orgId: m.orgId,
+    name: m.orgName,
+    slug: m.orgSlug,
+    plan: m.orgPlan,
+    status: m.orgStatus,
+    role: m.role,
+  };
 }
 
 // P0-1 BFF：Refresh Token httpOnly Cookie（防 XSS/CSRF，path 收敛到 /api/v1/auth）
 const REFRESH_COOKIE_NAME = 'rt';
 const REFRESH_COOKIE_BASE = {
-  httpOnly: true, secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const, path: '/api/v1/auth',
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict' as const,
+  path: '/api/v1/auth',
 };
 const REFRESH_COOKIE_OPTIONS = { ...REFRESH_COOKIE_BASE, maxAge: 7 * 24 * 60 * 60 * 1000 }; // 7 天，与 JWT_REFRESH_TTL 对齐
 const REFRESH_COOKIE_CLEAR_OPTIONS = { ...REFRESH_COOKIE_BASE }; // 不传 maxAge
 
 const router = Router();
 
-/**
- * POST /api/v1/auth/login/password - 用户名+密码登录
- * argon2id 哈希 + 常量时间比较 + 用户名枚举防护；RT 写入 httpOnly Cookie（P0-1 BFF）。
- */
+/** POST /api/v1/auth/login/password — argon2id + 常量时间比较 + 枚举防护；RT 写 httpOnly Cookie（P0-1 BFF）。 */
 router.post(
   '/login/password',
   validate(loginPasswordSchema),
@@ -75,35 +83,29 @@ router.post(
     async (req: Request, res: Response): Promise<void> => {
       const { username, password } = req.body;
       const clientIp = getClientIp(req);
-
-      // P0-05：IP 维度封锁检查（跨账号撞库检测，等保三级 8.1.4 b)）
-      const ipBlockTtl = await isIpBlocked(clientIp);
+      const ipBlockTtl = await isIpBlocked(clientIp); // P0-05：IP 维度撞库检测（等保三级 8.1.4 b)）
       if (ipBlockTtl > 0) {
         logger.warn({ clientIp: 'hidden', ipBlockTtl }, '[auth] IP 被封锁，拒绝登录');
         res.set('Retry-After', String(ipBlockTtl));
         sendProblem(res, 429, 'IP_BLOCKED');
         return;
       }
-
       const lockRemaining = await isLockedOut(username);
       if (lockRemaining > 0) {
         logger.warn({ username }, '[auth] 账户锁定中，拒绝登录尝试');
         sendProblem(res, 429, 'ACCOUNT_LOCKED');
         return;
       }
-
-      // verifyUser 内部 argon2id 常量时间比较，用户不存在时仍执行哈希运算防时序攻击
-      const user = await verifyUser(username, password);
+      const user = await verifyUser(username, password); // 内部 argon2id 常量时间比较，不存在时仍哈希防时序攻击
       if (!user) {
-        // Security (T-12): 记录失败用于锁定计数（账号维度 + IP 维度）
+        // Security (T-12)：账号 + IP 维度记录失败用于锁定计数
         await recordFailure(username);
         await recordIpFailure(clientIp);
         sendProblem(res, 401, 'INVALID_CREDENTIALS');
         return;
       }
       await clearFailures(username);
-
-      // 多租户上下文解析（ADR-032）：org 成员角色覆盖全局角色（owner→admin）
+      // 多租户上下文（ADR-032）：org 成员角色覆盖全局角色（owner→admin）
       const platformAdmin = await isPlatformAdmin(user.id);
       const membership = await resolveDefaultOrg(user.id);
       let effectiveRole = user.role;
@@ -112,12 +114,16 @@ router.post(
         effectiveRole = orgRoleToGlobalRole(membership.role);
         tenant = { tenantId: membership.orgId, orgRole: membership.role, platformAdmin };
       }
-
       const accessToken = await generateToken(user.id, effectiveRole, tenant);
       const refreshToken = await generateRefreshToken(user.id, effectiveRole, undefined, tenant);
-
       logger.info(
-        { userId: user.id, username: user.username, role: effectiveRole, tenantId: membership?.orgId, platformAdmin },
+        {
+          userId: user.id,
+          username: user.username,
+          role: effectiveRole,
+          tenantId: membership?.orgId,
+          platformAdmin,
+        },
         '[auth] 密码登录成功',
       );
       res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTIONS);
@@ -138,7 +144,7 @@ router.post(
 
 router.use(registrationRoutes);
 
-/** POST /api/v1/auth/refresh - BFF：RT 从 httpOnly Cookie 读取，轮换后写回，旧 RT 失效。 */
+/** POST /api/v1/auth/refresh — RT 从 httpOnly Cookie 读取，轮换后写回，旧 RT 失效。 */
 router.post(
   '/refresh',
   asyncRouteHandler(
@@ -150,11 +156,10 @@ router.post(
       }
       const result = await refreshAccessToken(refreshToken);
       if (!result) {
-        // 无效 RT：清除 Cookie，避免浏览器持有过期凭证
         res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_CLEAR_OPTIONS);
         sendProblem(res, 401, 'INVALID_REFRESH_TOKEN');
         return;
-      }
+      } // 无效 RT：清 Cookie，避免浏览器持有过期凭证
       res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
       res.json({ success: true, data: { accessToken: result.accessToken } });
     },
@@ -162,7 +167,7 @@ router.post(
   ),
 );
 
-/** DELETE /api/v1/auth/logout - 登出（撤销 RT + 清除 Cookie） */
+/** DELETE /api/v1/auth/logout — 撤销 RT + 清除 Cookie。 */
 router.delete(
   '/logout',
   asyncRouteHandler(
@@ -172,8 +177,7 @@ router.delete(
         await revokeRefreshToken(refreshToken);
         logger.info('[auth] Refresh Token 已撤销');
       }
-      // 无论 RT 是否存在都清除 Cookie，确保浏览器不残留过期凭证
-      res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTIONS);
+      res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTIONS); // 无论 RT 是否存在都清除，避免浏览器残留过期凭证
       res.json({ success: true });
     },
     { logMsg: 'Logout error', code: 'LOGOUT_ERROR', endpoint: 'auth-logout' },
@@ -213,10 +217,7 @@ router.get(
   ),
 );
 
-/**
- * POST /api/v1/auth/switch-org - 切换活跃组织，重签令牌
- * 安全关键：服务端校验成员身份，杜绝伪造 orgId 越权（最终防线是 Postgres RLS）。
- */
+/** POST /api/v1/auth/switch-org — 服务端校验成员身份，杜绝伪造 orgId 越权（最终防线是 Postgres RLS）。 */
 router.post(
   '/switch-org',
   jwtAuth,
@@ -226,26 +227,28 @@ router.post(
       const authReq = req as AuthenticatedRequest;
       if (!requireUser(authReq, res)) return;
       const { orgId } = req.body;
-
       const membership = await getMembership(authReq.user.sub, orgId);
       if (!membership) {
-        // 不区分"组织不存在"与"无权进入"，避免泄露他租户组织是否存在
-        logger.warn({ userId: hashUserId(authReq.user.sub), orgId }, '[auth] switch-org 拒绝：非该组织成员');
+        logger.warn(
+          { userId: hashUserId(authReq.user.sub), orgId },
+          '[auth] switch-org 拒绝：非该组织成员',
+        );
         sendProblem(res, 403, 'NOT_A_MEMBER');
         return;
-      }
+      } // 不区分"组织不存在"与"无权进入"，避免泄露他租户组织
       if (membership.orgStatus !== 'active') {
         sendProblem(res, 403, 'ORG_INACTIVE');
         return;
       }
-
       const platformAdmin = await isPlatformAdmin(authReq.user.sub);
       const role = orgRoleToGlobalRole(membership.role);
-      const tenant: TenantContext = { tenantId: membership.orgId, orgRole: membership.role, platformAdmin };
-
+      const tenant: TenantContext = {
+        tenantId: membership.orgId,
+        orgRole: membership.role,
+        platformAdmin,
+      };
       const accessToken = await generateToken(authReq.user.sub, role, tenant);
       const refreshToken = await generateRefreshToken(authReq.user.sub, role, undefined, tenant);
-
       logger.info({ userId: hashUserId(authReq.user.sub), orgId, role }, '[auth] 切换活跃组织成功');
       res.cookie(REFRESH_COOKIE_NAME, refreshToken, REFRESH_COOKIE_OPTIONS);
       res.json({ success: true, data: { accessToken, role, org: orgSummary(membership) } });
@@ -254,7 +257,7 @@ router.post(
   ),
 );
 
-/** DELETE /api/v1/auth/me - 删除当前账户（GDPR Art.17 被遗忘权，匿名化 + 撤销会话） */
+/** DELETE /api/v1/auth/me — GDPR Art.17 被遗忘权：匿名化 + 撤销会话。 */
 router.delete(
   '/me',
   jwtAuth,

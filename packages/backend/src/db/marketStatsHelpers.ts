@@ -1,8 +1,6 @@
 /**
- * 市场数据统计 — 纯辅助函数。
- *
- * 从 marketStats.ts 拆分（P3-2 M-005）：将无副作用的纯函数集中到本文件，
- * 便于单元测试与跨模块复用。所有 DB 查询函数保留在 marketStats.ts。
+ * 市场数据统计 — 纯辅助函数（从 marketStats.ts 拆分，P3-2 M-005）。
+ * 无副作用纯函数集中于此便于单测与复用；所有 DB 查询函数保留在 marketStats.ts。
  */
 import type {
   DbMarketStats,
@@ -11,51 +9,29 @@ import type {
   MarketStatsAccumulators,
 } from './marketStatsTypes.js';
 
-
-/**
- * 将字节数转为 MB（保留 1 位小数）。
- *
- * @param bytes 字节数
- * @returns 对应的 MB 数值（保留 1 位小数）
- */
+/** 字节数 → MB（保留 1 位小数）。 */
 export function bytesToMb(bytes: number): number {
   return Math.round((bytes / 1024 / 1024) * 10) / 10;
 }
 
 // 市场代码 / 类型 / 交易所推断
 
-/**
- * 根据 ticker 后缀或显式市场字段推断市场代码。
- *
- * @param ticker ticker 符号
- * @param market 显式市场字段
- * @returns 推断出的市场代码（CN / US 等）
- */
+/** 根据 ticker 后缀或显式市场字段推断市场代码（CN / US）。 */
 export function inferMarket(ticker: string, market: string): string {
   if (market) return market.toUpperCase();
-  // 同时支持点号后缀（000001.SZ）与下划线后缀（000001_SZ），修复 A 股计数为 0 的 bug（Task 5.1）
+  // 同时支持点号（000001.SZ）与下划线（000001_SZ）后缀，修复 A 股计数为 0 的 bug（Task 5.1）
   if (/[._](SZ|SS|SH)$/i.test(ticker)) return 'CN';
   return 'US';
 }
 
-/**
- * 按 ticker 后缀推导交易所代码（与 Go provider.DeriveExchange 保持一致）。
- *
- * @param ticker ticker 符号
- * @returns 交易所代码（SZSE / SSE / US）
- */
+/** 按 ticker 后缀推导交易所代码（与 Go provider.DeriveExchange 保持一致）。 */
 export function deriveExchangeFromTicker(ticker: string): string {
   if (/[._]SZ$/i.test(ticker)) return 'SZSE';
   if (/[._](SS|SH)$/i.test(ticker)) return 'SSE';
   return 'US';
 }
 
-/**
- * 根据 category 推断 ticker 类型。
- *
- * @param category 类别字段
- * @returns ETF / INDEX / STOCK
- */
+/** 根据 category 推断 ticker 类型（ETF / INDEX / STOCK）。 */
 export function inferType(category: string): string {
   const c = (category || '').toUpperCase();
   if (c.includes('ETF')) return 'ETF';
@@ -63,60 +39,36 @@ export function inferType(category: string): string {
   return 'STOCK';
 }
 
-/**
- * 将首日日期转换为年代标签（如 1990s）。
- *
- * @param firstDate YYYY-MM-DD 格式日期字符串
- * @returns 年代标签；解析失败返回 'unknown'
- */
+/** 首日日期 → 年代标签（如 1990s）；解析失败返回 'unknown'。 */
 export function decadeLabel(firstDate: string): string {
   const y = parseInt(firstDate.slice(0, 4), 10);
   if (Number.isNaN(y)) return 'unknown';
   return `${Math.floor(y / 10) * 10}s`;
 }
 
-/**
- * 根据首末日期计算 5 年跨度桶标签。
- *
- * @param firstDate 首个日期
- * @param lastDate 末个日期
- * @returns 桶标签（如 "5-9年"）
- */
+/** 首末日期 → 5 年跨度桶标签（如 "5-9年"）。 */
 function yearBucket(firstDate: string, lastDate: string): string {
   const startY = parseInt(firstDate.slice(0, 4), 10);
   const endY = parseInt((lastDate || firstDate).slice(0, 4), 10);
-  const years = endY - startY;
-  const lo = Math.floor(years / 5) * 5;
+  const lo = Math.floor((endY - startY) / 5) * 5;
   return `${lo}-${lo + 4}年`;
 }
 
-/**
- * 判断样本 ticker 的分类键。
- *
- * @param market 市场代码
- * @param ttype ticker 类型
- * @returns 分类键（us_stock / us_etf / cn_stock / cn_etf / index），不匹配返回空串
- */
+const SAMPLE_KEY_MAP: Array<[string, string, string]> = [
+  ['US', 'STOCK', 'us_stock'],
+  ['US', 'ETF', 'us_etf'],
+  ['CN', 'STOCK', 'cn_stock'],
+  ['CN', 'ETF', 'cn_etf'],
+];
+/** 判断样本 ticker 的分类键；不匹配返回空串。 */
 function categorizeSampleKey(market: string, ttype: string): string {
-  if (market === 'US' && ttype === 'STOCK') return 'us_stock';
-  if (market === 'US' && ttype === 'ETF') return 'us_etf';
-  if (market === 'CN' && ttype === 'STOCK') return 'cn_stock';
-  if (market === 'CN' && ttype === 'ETF') return 'cn_etf';
-  if (ttype === 'INDEX') return 'index';
-  return '';
+  for (const [m, t, key] of SAMPLE_KEY_MAP) if (market === m && ttype === t) return key;
+  return ttype === 'INDEX' ? 'index' : '';
 }
 
 // 年代 / 年限 / 维度统计累加
 
-/**
- * 累计年代与年限桶统计。
- *
- * @param firstDate 首个日期
- * @param lastDate 末个日期
- * @param byDecade 年代桶累加器
- * @param byYearCount 年限桶累加器
- * @returns 该 ticker 跨度年限
- */
+/** 累计年代与年限桶统计，返回该 ticker 跨度年限。 */
 export function accumulateYearStats(
   firstDate: string,
   lastDate: string,
@@ -129,14 +81,7 @@ export function accumulateYearStats(
   return { years: parseInt(lastDate.slice(0, 4), 10) - parseInt(firstDate.slice(0, 4), 10) };
 }
 
-/**
- * 更新市场/类型/交易所统计累加器。
- *
- * @param market 市场代码
- * @param ttype ticker 类型
- * @param exchange 交易所代码（SZSE / SSE / US 等）；由调用方从 DB 列或 ticker 推导得出
- * @param acc 按维度分组的累加器（byMarket / byType / byExchange）
- */
+/** 更新市场/类型/交易所统计累加器。 */
 export function updateMarketStats(
   market: string,
   ttype: string,
@@ -149,27 +94,24 @@ export function updateMarketStats(
   if (ttype === 'STOCK') byMarket[market].stocks++;
   else if (ttype === 'ETF') byMarket[market].etfs++;
   else if (ttype === 'INDEX') byMarket[market].indices++;
-
   byType[ttype] = (byType[ttype] || 0) + 1;
   // 使用真实交易所代码替代原硬编码空键，修复"未知"分布（Task 4.3）
   byExchange[exchange] = (byExchange[exchange] || 0) + 1;
 }
 
-/**
- * 更新日期范围与年限覆盖率统计。
- *
- * @param firstDate 首个日期
- * @param lastDate 末个日期
- * @param byDecade 年代桶累加器
- * @param byYearCount 年限桶累加器
- * @param state 累加器状态
- */
+/** 更新日期范围与年限覆盖率统计。 */
 function updateDateRangeStats(
   firstDate: string,
   lastDate: string,
   byDecade: Record<string, number>,
   byYearCount: Record<string, number>,
-  state: { earliest: string | null; latest: string | null; tickers5y: number; tickers10y: number; tickers20y: number },
+  state: {
+    earliest: string | null;
+    latest: string | null;
+    tickers5y: number;
+    tickers10y: number;
+    tickers20y: number;
+  },
 ): void {
   if (!firstDate) return;
   if (!state.earliest || firstDate < state.earliest) state.earliest = firstDate;
@@ -180,27 +122,20 @@ function updateDateRangeStats(
   if (years >= 20) state.tickers20y++;
 }
 
-/**
- * 处理单行 ticker 聚合数据，更新统计累加器。
- *
- * @param opts 单行数据与全部累加器引用
- */
+/** 处理单行 ticker 聚合数据，更新统计累加器。 */
 export function processTickerRow(opts: ProcessTickerRowOpts): void {
   const { row, byMarket, byType, byExchange, byDecade, byYearCount, sampleTickers, state } = opts;
   const market = inferMarket(row.ticker, row.market);
   const ttype = inferType(row.category);
-  // 优先使用 DB 的 tickers.exchange 列；为空时由 ticker 后缀兜底推导（Task 4.3）
+  // 优先 DB 的 tickers.exchange 列；为空时由 ticker 后缀兜底推导（Task 4.3）
   const exchange = row.exchange || deriveExchangeFromTicker(row.ticker);
   const nPoints = row.n_points;
   const firstDate = row.first_date || '';
   const lastDate = row.last_date || '';
-
   state.totalDataPoints += nPoints;
   state.allPoints.push(nPoints);
-
   updateMarketStats(market, ttype, exchange, { byMarket, byType, byExchange });
   updateDateRangeStats(firstDate, lastDate, byDecade, byYearCount, state);
-
   const sampleKey = categorizeSampleKey(market, ttype);
   if (sampleKey && sampleTickers[sampleKey as keyof typeof sampleTickers].length < 5) {
     sampleTickers[sampleKey as keyof typeof sampleTickers].push({
@@ -213,12 +148,7 @@ export function processTickerRow(opts: ProcessTickerRowOpts): void {
   }
 }
 
-/**
- * 构建市场统计结果对象。
- *
- * @param args 累加后的统计数据与表空间占用字节数
- * @returns 完整的 DbMarketStats 快照
- */
+/** 构建市场统计结果对象（DbMarketStats 快照）。 */
 export function buildMarketStatsResult(args: {
   rows: TickerAggRow[];
   byMarket: DbMarketStats['by_market'];
@@ -254,7 +184,6 @@ export function buildMarketStatsResult(args: {
     allPoints.length > 0 ? Math.round(allPoints.reduce((a, b) => a + b, 0) / allPoints.length) : 0;
   const sorted = [...allPoints].sort((a, b) => a - b);
   const medianPoints = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0;
-
   return {
     generated_at: new Date().toISOString(),
     total_cached: rows.length,

@@ -9,17 +9,6 @@ export interface ErrorContext {
 }
 const ERROR_REPORT_ENDPOINT = '/api/v1/errors';
 let isReporting = false;
-function getTraceId(): string | undefined {
-  try {
-    const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
-    const apiEntries = entries.filter((e) => e.name.includes('/api/'));
-    if (apiEntries.length > 0) {
-      return undefined;
-    }
-  } catch {
-    // 资源条目不可用时静默跳过
-  }
-}
 function sendReport(type: ReportType, payload: Record<string, unknown>): void {
   const body = {
     type,
@@ -27,7 +16,6 @@ function sendReport(type: ReportType, payload: Record<string, unknown>): void {
     timestamp: new Date().toISOString(),
     url: window.location.href,
     userAgent: navigator.userAgent,
-    traceId: getTraceId(),
   };
   fetch(ERROR_REPORT_ENDPOINT, {
     method: 'POST',

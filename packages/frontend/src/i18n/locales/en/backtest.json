@@ -251,7 +251,24 @@
     "loadCompareExample": "Load Comparison Example",
     "emptyPortfolios": "No portfolios added yet",
     "comingSoon": "Feature coming soon",
-    "deepAnalysis": "Deep Analysis"
+    "deepAnalysis": "Deep Analysis",
+    "preset": {
+      "6040": { "label": "60/40 Stocks/Bonds", "description": "Classic 60% stocks + 40% bonds" },
+      "80-20": {
+        "label": "80/20 Stocks/Bonds",
+        "description": "Equity-heavy 80% stocks + 20% bonds"
+      },
+      "40-60": {
+        "label": "40/60 Stocks/Bonds",
+        "description": "Bond-heavy 40% stocks + 60% bonds"
+      },
+      "three-fund": { "label": "Three-Fund", "description": "US + Global + Bonds" },
+      "allWeather": { "label": "All Weather", "description": "Risk-parity four assets" },
+      "permanent": { "label": "Permanent", "description": "Harry Browne four-way split" },
+      "mag7": { "label": "Mag 7", "description": "Equal-weight mega-cap tech" },
+      "sp500": { "label": "S&P 500", "description": "Single-asset benchmark" },
+      "csi300": { "label": "CSI 300", "description": "China A-share benchmark" }
+    }
   },
   "results": {
     "hideDetailedMetrics": "Hide detailed metrics",

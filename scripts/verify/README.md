@@ -4,9 +4,9 @@
 
 ## 用途
 
-对 [`docs/audit/2026-07-28/CRITICAL-FIXES.md`](../../docs/audit/2026-07-28/CRITICAL-FIXES.md) 中智能体 A 声称修复的 21 项 CRITICAL，以及智能体 B 独立发现的问题，做**独立的真实性核查**。
+对 CRITICAL 级修复（迁移链/RLS/SSRF/熔断/限流/幂等/审计加密等）做**独立的真实性核查**。历史核查报告见 `docs/audit/`。
 
-不信任"DONE"标记。每一项都由独立验证脚本跑一遍，输出 `docs/audit/2026-07-28/verify/{issue-id}-reverify.json`。
+不信任"DONE"标记。每一项都由独立验证脚本跑一遍，输出 `docs/audit/verify/{issue-id}-reverify.json`。
 
 ## 判定规则
 
@@ -52,10 +52,10 @@ node scripts/verify/run-all.mjs --skip-db
 
 ## 输出
 
-- 每个验证脚本输出 `docs/audit/2026-07-28/verify/{issue-id}-reverify.json`
-- 前端验证脚本输出截图到 `docs/audit/2026-07-28/verify/screenshots/`
-- `run-all.mjs` 聚合输出 `docs/audit/2026-07-28/verify/SUMMARY.md`
-- 主线程基于以上产出 `docs/audit/2026-07-28/verify/REALITY-CHECK.md`
+- 每个验证脚本输出 `docs/audit/verify/{issue-id}-reverify.json`
+- 前端验证脚本输出截图到 `docs/audit/verify/screenshots/`
+- `run-all.mjs` 聚合输出 `docs/audit/verify/SUMMARY.md`
+- 主线程基于以上产出 `docs/audit/verify/REALITY-CHECK.md`
 
 ## CI 集成
 

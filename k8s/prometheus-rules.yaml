@@ -1,20 +1,9 @@
 # =============================================================================
 # Prometheus 告警规则（含 Redis Sentinel 高可用告警，ADR-045 T7）
-# =============================================================================
-#
-# 企业理由：ADR-045 部署 Redis Sentinel 后，需对故障转移事件告警——
-# Sentinel 自动恢复 < 30s 是 SLO，但运维仍需感知：
-# - master Pod 故障转移事件（sentinel 是否正常工作）
-# - Sentinel 仲裁丢失（2/3 节点不可用即无法故障转移）
-# - Redis 写入拒绝（min-slaves-to-write 触发，脑裂或全从节点失联）
-#
-# 部署：在 Prometheus 配置中 rule_files 引用此文件，或通过 PrometheusRule
-# CRD（kube-prometheus-stack）应用。Alertmanager 通过 P1-10 配置通知渠道。
-#
-# 与 ADR-045 关键参数对应：
-#   - sentinel failover-timeout mymaster 30000  → 30s 内告警
-#   - min-slaves-to-write=1                     → RedisRefusedWrites 检测
-#   - PDB minAvailable: 2 (Sentinel)            → SentinelQuorumLoss 检测
+# Sentinel 自动恢复 < 30s 是 SLO；master 故障转移 / 仲裁丢失 / 写入拒绝均需感知。
+# 部署：Prometheus rule_files 引用或 PrometheusRule CRD（kube-prometheus-stack）应用。
+# 与 ADR-045 对应：failover-timeout 30000 → 30s；min-slaves-to-write=1 → RefusedWrites；
+# PDB minAvailable: 2 → SentinelQuorumLoss。
 # =============================================================================
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -26,13 +15,10 @@ metadata:
     prometheus: k8s
 spec:
   groups:
-    # =========================================================================
-    # P0 告警：Redis Sentinel 故障转移与可用性（立即响应）
-    # =========================================================================
+    # P0：Sentinel 故障转移与可用性（立即响应）
     - name: redis-sentinel-critical
       rules:
-        # Sentinel 检测到 master 不可用并触发故障转移
-        # redis_sentinel_tilt 与 sentinel 的 SENTINEL master 命令的 o_down/s_down 状态对应
+        # Sentinel 检测到 master 不可用并触发故障转移（对应 o_down/s_down）
         - alert: RedisSentinelMasterDown
           expr: |
             max(redis_sentinel_master_status{state=~"s_down|o_down"} == 1) by (master, sentinel)
@@ -48,7 +34,7 @@ spec:
               If RedisSentinelFailoverInProgress persists > 1m, investigate Sentinel quorum.
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#master-down'
 
-        # 故障转移进行中——Sentinel 正在选举新 master
+        # 故障转移进行中——超过 30s 需人工介入
         - alert: RedisSentinelFailoverInProgress
           expr: |
             max(redis_sentinel_master_status{state="failover_in_progress"} == 1) by (master)
@@ -64,8 +50,7 @@ spec:
               Check: kubectl -n backtest-platform logs -l app=redis-sentinel
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#failover-stuck'
 
-        # Redis 实例不可达（应用层 ping 失败）
-        # redis_up 由 redis_exporter 提供；30s 容忍瞬时网络抖动
+        # Redis 实例不可达（redis_up 由 redis_exporter 提供；30s 容忍瞬时抖动）
         - alert: RedisDown
           expr: redis_up == 0
           for: 30s
@@ -81,8 +66,7 @@ spec:
               Check: kubectl -n backtest-platform get pods -l app=redis
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#redis-down'
 
-        # 写入被拒——min-slaves-to-write 触发，脑裂或全从节点失联
-        # 应用层应通过 REDIS_UNAVAILABLE 503 感知；此处对 Redis 指标告警
+        # 写入被拒——min-slaves-to-write 触发（脑裂或全从节点失联）
         - alert: RedisRefusedWrites
           expr: |
             max(redis_rejected_connections_total) by (addr) > 0
@@ -100,13 +84,10 @@ spec:
               Check slave replication: redis-cli -h <master> INFO replication
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#rejected-writes'
 
-    # =========================================================================
-    # P1 告警：Sentinel 仲裁与从节点拓扑（30 分钟内响应）
-    # =========================================================================
+    # P1：Sentinel 仲裁与从节点拓扑（30 分钟内响应）
     - name: redis-sentinel-warning
       rules:
-        # Sentinel 仲裁丢失——可用 Sentinel 数 < 2 (quorum=2)
-        # PDB minAvailable: 2 保证自愿驱逐不破坏 quorum；非自愿驱逐需手动恢复
+        # Sentinel 仲裁丢失——可用 Sentinel < 2（quorum=2；PDB minAvailable: 2 防自愿驱逐）
         - alert: RedisSentinelQuorumLoss
           expr: |
             count(up{job="redis-sentinel"} == 1) < 2
@@ -123,7 +104,7 @@ spec:
               Check: kubectl -n backtest-platform get pods -l app=redis-sentinel
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#quorum-loss'
 
-        # 从节点数 < 1——min-slaves-to-write 即将触发
+        # 从节点 < 1——min-slaves-to-write 即将触发
         - alert: RedisNoSlavesConnected
           expr: |
             max(redis_connected_slaves) by (addr) < 1
@@ -139,7 +120,7 @@ spec:
               Check replica pods: kubectl -n backtest-platform get pods -l app=redis
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#no-slaves'
 
-        # 从节点复制延迟过高——min-slaves-max-lag=10 即将触发
+        # 复制延迟过高——min-slaves-max-lag=10 即将触发
         - alert: RedisReplicationLagHigh
           expr: |
             max(redis_replication_offset_diff_lag_seconds) by (addr) > 5
@@ -174,25 +155,10 @@ spec:
 
 ---
 # =============================================================================
-# P1-10 平台告警规则（backtest-platform-alerts）
-# =============================================================================
-#
-# 企业理由：P0-05 仅覆盖 Redis Sentinel HA 告警；平台核心依赖（Go 引擎 / PostgreSQL /
-# 熔断器 / 队列）与性能 SLO（错误率 / 延迟 / 复制 / 磁盘）缺运行时告警。
-# 本 PrometheusRule 扩展（不覆盖 redis-sentinel-alerts），与
-# docker/prometheus/rules.yml 内容对齐。
-#
-# 指标来源（packages/backend/src/utils/metrics.ts + 基础设施 exporter）：
-#   circuit_breaker_state{name}                     应用层 prom-client
-#   http_requests_total{method,route,status_code}   应用层 prom-client
-#   http_request_duration_seconds_bucket            应用层 prom-client（直方图）
-#   up{job=...}                                     Prometheus 抓取健康
-#   pg_up / pg_replication_lag              postgres_exporter
-#   bullmq_queue_size                               bullmq-exporter（需独立部署）
-#   node_filesystem_avail_bytes / _size_bytes       node_exporter
-#
-# 注：RedisDown / RedisSentinelMasterDown 由 redis-sentinel-alerts（P0-05）已定义，不重复。
-# AlertManager 通知通道与抑制规则见 k8s/alertmanager-deployment.yaml ConfigMap。
+# P1-10 平台告警规则（backtest-platform-alerts）— 核心依赖与性能 SLO
+# 指标来源：应用层 prom-client（metrics.ts）+ 基础设施 exporter（pg/redis/node）。
+# 与 docker/prometheus/rules.yml 内容对齐；Redis 告警见上方 redis-sentinel-alerts。
+# AlertManager 通知通道与抑制见 k8s/alertmanager-deployment.yaml ConfigMap。
 # =============================================================================
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -204,13 +170,11 @@ metadata:
     prometheus: k8s
 spec:
   groups:
-    # =========================================================================
-    # P0 告警：核心依赖与熔断（立即响应）
-    # =========================================================================
+    # P0：核心依赖与熔断（立即响应）
     - name: backtest-platform-critical
       interval: 15s
       rules:
-        # Go 回测引擎不可达（ADR-031：唯一引擎，不可用即 fail-closed 503）
+        # Go 引擎不可达（ADR-031：唯一引擎，不可用即 fail-closed 503）
         - alert: GoEngineDown
           expr: up{job="engine-go"} == 0
           for: 1m
@@ -223,8 +187,7 @@ spec:
             description: 'Go 回测引擎 {{ $labels.instance }} 抓取失败已 1 分钟。ADR-031 下引擎不可用 → API fail-closed 返回 503 + Retry-After，回测/蒙特卡洛/优化全部不可用。检查 Pod 状态与 /api/engine/health。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#go-engine-down'
 
-        # 熔断器打开（ADR-016：引擎/PG 依赖熔断，open 态快速失败）
-        # circuit_breaker_state: 0=closed, 1=open, 2=halfOpen
+        # 熔断器打开（ADR-016：0=closed, 1=open, 2=halfOpen）
         - alert: CircuitBreakerOpen
           expr: circuit_breaker_state == 1
           for: 0m
@@ -250,7 +213,7 @@ spec:
             description: 'postgres_exporter 报告 pg_up == 0 已 30s。PostgreSQL 为主数据存储（ADR-007），不可用时认证/回测/审计均受影响。检查 PG 进程、PgBouncer、磁盘与复制状态。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#postgres-down'
 
-        # 回测队列堆积（ADR-011：长任务异步化，BullMQ 队列深度 >100 持续 5m）
+        # 回测队列堆积（ADR-011：BullMQ 队列深度 >100 持续 5m）
         - alert: BacktestQueueDepth
           expr: bullmq_queue_size > 100
           for: 5m
@@ -263,14 +226,11 @@ spec:
             description: 'BullMQ 队列 {{ $labels.queue }} 深度 > 100 已持续 5 分钟，回测任务积压。检查 Worker 副本数 / 引擎吞吐 / 是否有卡死任务，必要时 HPA 扩容。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#backtest-queue-depth'
 
-    # =========================================================================
-    # P1 告警：性能与容量（30 分钟内响应）
-    # =========================================================================
+    # P1：性能与容量（30 分钟内响应）
     - name: backtest-platform-warning
       interval: 30s
       rules:
-        # 5xx 错误率 > 5%（5 分钟窗口）
-        # http_requests_total 标签为 status_code（metrics.ts 实际命名）
+        # 5xx 错误率 > 5%（5 分钟窗口；标签为 status_code）
         - alert: HighErrorRate
           expr: |
             (
@@ -329,7 +289,7 @@ spec:
             description: 'HTTP 请求 P90 延迟 > 100ms 已持续 5 分钟。按 route 拆分定位慢端点，优先排查缓存缺失和 DB 查询性能。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
 
-        # 磁盘可用空间 < 10%（node_exporter，排除 overlay/tmpfs 等伪文件系统）
+        # 磁盘可用空间 < 10%（node_exporter，排除伪文件系统）
         - alert: DiskSpaceLow
           expr: |
             (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}
@@ -345,8 +305,7 @@ spec:
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#disk-space-low'
 
         # P0-05：异常登录检测——IP 封锁计数激增（等保三级 8.1.4 b) 入侵防范）
-        # auth_ip_lockout_total 由 loginLockout.ts 在 IP 封锁时递增
-        # 5 分钟内 >3 个 IP 被封锁表明撞库攻击正在进行
+        # auth_ip_lockout_total 由 loginLockout.ts 递增；5 分钟内 >3 个 IP 封锁表明撞库攻击
         - alert: SuspiciousLoginActivity
           expr: increase(auth_ip_lockout_total[5m]) > 3
           for: 0m
@@ -359,8 +318,7 @@ spec:
             description: '5 分钟内超过 3 个 IP 因跨账号登录失败被封锁，可能正在进行撞库攻击。检查 auth 日志中的 SUSPICIOUS_LOGIN_IP 事件，确认是否需要手动扩大封锁范围或启用 WAF 规则。'
             runbook_url: 'https://backtest.platform/runbooks/suspicious-login'
 
-        # P0-06：WAL-G 备份过期（等保三级 8.1.4 数据备份与恢复）
-        # 超过 26 小时无成功全量备份（每日备份 + 2h 容忍窗口）
+        # P0-06：WAL-G 备份过期（26h 无成功全量备份 = 每日备份 + 2h 容忍窗口）
         - alert: WalgBackupStale
           expr: time() - walg_backup_last_success_timestamp > 93600
           for: 5m

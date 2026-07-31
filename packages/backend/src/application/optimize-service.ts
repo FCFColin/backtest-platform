@@ -1,10 +1,8 @@
 /**
  * 优化应用服务（统一函数导出）。
- *
  * 合并了原 optimize-service.ts（组合优化/有效前沿）与 optimizer-application-service.ts（回测优化器参数搜索）。
  * 所有计算逻辑已迁移到 Go 引擎（ADR-031），此服务仅负责数据获取编排与引擎调用。
- *
- * 纯领域逻辑（参数组合生成、约束过滤、目标函数等）在 domain/optimizer-domain.ts 中。
+ * 纯领域逻辑（参数组合生成、约束过滤等）在 domain/optimizer-domain.ts 中。
  */
 import type { Portfolio, BacktestResult, BacktestParameters } from '@backtest/shared/types';
 import { callEngineStrict } from '../utils/engineClient.js';
@@ -32,13 +30,42 @@ import {
   type OptimizeResultItem,
 } from '../domain/services/optimizer-domain.js';
 
-// 组合优化 / 有效前沿
+// 组合优化 / 有效前沿 — 公共编排：数据获取 → 无效标的检测 → 降级告警 → 引擎调用 → 日期范围
+async function runCompute(
+  path: string,
+  tickers: string[],
+  parameters: BacktestParameters,
+  bodyExtra: Record<string, unknown>,
+): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
+  const warnings: Warning[] = [];
+  const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(
+    tickers,
+    parameters.startDate,
+    parameters.endDate,
+  );
+  const allTickers = new Set(tickers);
+  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
+  if (degraded)
+    warnings.push({
+      code: 'DATA_DEGRADED',
+      message: degradedWarning || '数据服务降级，部分数据可能缺失',
+    });
+  const result = await callEngineStrict<Record<string, unknown>>(path, {
+    tickers,
+    priceData: filterPriceData(priceData, allTickers),
+    ...bodyExtra,
+  });
+  const data = (result as { data?: Record<string, unknown> }).data ?? result;
+  const dateRange = calculateDateRange(
+    parameters.startDate,
+    parameters.endDate,
+    priceData,
+    invalidTickers,
+  );
+  return { data, warnings, dateRange };
+}
 
-/**
- * 运行组合优化。
- *
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+/** 运行组合优化。 @throws {EngineUnavailableError} Go 引擎不可用时 */
 export async function runOptimization(
   tickers: string[],
   objective: 'maxSharpe' | 'minVolatility' | 'maxReturn',
@@ -46,89 +73,24 @@ export async function runOptimization(
   parameters: BacktestParameters,
   numIterations?: number,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const cappedIterations = numIterations ? Math.min(numIterations, 100000) : 10000;
-  const warnings: Warning[] = [];
-
-  const {
-    priceData,
-    degraded,
-    degradedWarning,
-  } = await fetchPriceDataWithRange(tickers, parameters.startDate, parameters.endDate);
-  const allTickers = new Set(tickers);
-  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-
-  if (degraded) {
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
-  }
-
-  const result = await callEngineStrict<Record<string, unknown>>('/api/engine/optimize', {
-    tickers,
-    priceData: filterPriceData(priceData, allTickers),
+  return runCompute('/api/engine/optimize', tickers, parameters, {
     objective,
     constraints: constraints || {},
-    numIterations: cappedIterations,
+    numIterations: numIterations ? Math.min(numIterations, 100000) : 10000,
   });
-
-  const engineResp = result as { data?: Record<string, unknown> };
-  const data = engineResp?.data ?? result;
-  const dateRange = calculateDateRange(
-    parameters.startDate,
-    parameters.endDate,
-    priceData,
-    invalidTickers,
-  );
-
-  return { data, warnings, dateRange };
 }
 
-/**
- * 计算有效前沿。
- *
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
+/** 计算有效前沿。 @throws {EngineUnavailableError} Go 引擎不可用时 */
 export async function runEfficientFrontier(
   tickers: string[],
   parameters: BacktestParameters,
   numPoints?: number,
   riskFreeRate?: number,
 ): Promise<{ data: Record<string, unknown>; warnings: Warning[]; dateRange: DateRangeInfo }> {
-  const warnings: Warning[] = [];
-
-  const {
-    priceData,
-    degraded,
-    degradedWarning,
-  } = await fetchPriceDataWithRange(tickers, parameters.startDate, parameters.endDate);
-  const allTickers = new Set(tickers);
-  const invalidTickers = collectInvalidTickerWarnings(allTickers, priceData, warnings);
-
-  if (degraded) {
-    warnings.push({
-      code: 'DATA_DEGRADED',
-      message: degradedWarning || '数据服务降级，部分数据可能缺失',
-    });
-  }
-
-  const result = await callEngineStrict<Record<string, unknown>>('/api/engine/efficient-frontier', {
-    tickers,
-    priceData: filterPriceData(priceData, allTickers),
+  return runCompute('/api/engine/efficient-frontier', tickers, parameters, {
     numPoints: numPoints || 20,
     riskFreeRate: riskFreeRate || 0.02,
   });
-
-  const engineResp = result as { data?: Record<string, unknown> };
-  const data = engineResp?.data ?? result;
-  const dateRange = calculateDateRange(
-    parameters.startDate,
-    parameters.endDate,
-    priceData,
-    invalidTickers,
-  );
-
-  return { data, warnings, dateRange };
 }
 
 // 回测优化器（参数空间搜索）
@@ -141,13 +103,11 @@ async function runBacktestGroups(
   priceData: Record<string, Record<string, number>>,
 ): Promise<{ items: OptimizeResultItem[] }> {
   const items: OptimizeResultItem[] = [];
-
   const byCapital = new Map<number, Combo[]>();
   for (const c of combos) {
     if (!byCapital.has(c.capital)) byCapital.set(c.capital, []);
     byCapital.get(c.capital)!.push(c);
   }
-
   for (const [capital, group] of byCapital) {
     const portfolios: Portfolio[] = group.map((c, idx) => ({
       id: `opt-${idx}`,
@@ -159,15 +119,13 @@ async function runBacktestGroups(
       drag: 0,
       totalReturn: true,
     }));
-    const btParams = buildBacktestParameters(parameters, capital);
     const btResult = await callEngineStrict<BacktestResult>('/api/engine/backtest', {
       portfolios: portfolios.map((p) =>
         translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody(),
       ),
       priceData,
-      params: buildEngineParams(btParams),
+      params: buildEngineParams(buildBacktestParameters(parameters, capital)),
     });
-
     for (let j = 0; j < group.length; j++) {
       const stats = btResult.portfolios[j].statistics;
       items.push({
@@ -183,7 +141,6 @@ async function runBacktestGroups(
       });
     }
   }
-
   return { items };
 }
 
@@ -222,12 +179,10 @@ async function computeBestResult(
   };
 }
 
-/**
- * 运行回测优化器参数搜索。
- *
- * @returns 成功时 { success: true, data, warnings?, dateRange? }；校验失败时 { success: false, error }
- */
-export async function executeOptimization(body: Record<string, unknown>): Promise<{
+/** 运行回测优化器参数搜索。校验失败时返回 { success: false, error }。 */
+export async function executeOptimization(
+  body: Record<string, unknown>,
+): Promise<{
   success: boolean;
   data?: Record<string, unknown>;
   warnings?: Warning[];
@@ -237,75 +192,52 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   const startTime = Date.now();
   const req = body as unknown as OptimizeRequest;
   const { portfolio, parameterSpace, parameters, objective, constraints } = req;
-
   const validationError = validateOptimizeRequest(req);
   if (validationError) return { success: false, error: validationError };
-
   const allTickers = new Set<string>();
   for (const a of portfolio.assets) allTickers.add(a.ticker);
   if (parameters.benchmarkTicker) allTickers.add(parameters.benchmarkTicker);
-
   const warnings: Warning[] = [];
-  const {
-    priceData,
-    degraded,
-    degradedWarning,
-  } = await fetchPriceDataWithRange(Array.from(allTickers), parameters.startDate, parameters.endDate);
-
+  const { priceData, degraded, degradedWarning } = await fetchPriceDataWithRange(
+    Array.from(allTickers),
+    parameters.startDate,
+    parameters.endDate,
+  );
   const invalidTickers: string[] = Array.from(allTickers).filter(
     (t) => !priceData[t] || Object.keys(priceData[t]).length === 0,
   );
-  if (invalidTickers.length > 0) {
+  if (invalidTickers.length > 0)
     return { success: false, error: `以下标的代码无效：${invalidTickers.join(', ')}` };
-  }
-
-  if (degraded) {
+  if (degraded)
     warnings.push({
       code: 'DATA_DEGRADED',
       message: degradedWarning || '数据服务降级，部分数据可能缺失',
     });
-  }
-
   const combos = buildCombinations(parameterSpace);
-  if (combos.length === 0) {
-    return { success: false, error: '参数空间为空，请检查范围与步长' };
-  }
-  if (combos.length > MAX_OPTIMIZER_COMBINATIONS) {
+  if (combos.length === 0) return { success: false, error: '参数空间为空，请检查范围与步长' };
+  if (combos.length > MAX_OPTIMIZER_COMBINATIONS)
     return {
       success: false,
       error: `参数组合数 ${combos.length} 超过上限 ${MAX_OPTIMIZER_COMBINATIONS}，请缩小参数空间`,
     };
-  }
-
   logger.info(`[backtest-optimizer] 开始优化：${combos.length} 个组合，目标=${objective}`);
-
   const { items } = await runBacktestGroups(combos, portfolio, parameters, priceData);
   const filtered = filterByConstraints(items, constraints);
   filtered.sort((a, b) => objectiveValue(b, objective) - objectiveValue(a, objective));
-
   let best: BestResultItem | null = null;
   let benchmarkGrowth: Array<{ date: string; value: number }> | null = null;
-
   if (filtered.length > 0) {
     const result = await computeBestResult(filtered[0], portfolio, parameters, priceData);
     best = result.best;
     benchmarkGrowth = result.benchmarkGrowth;
   }
-
   logger.info(
     `[backtest-optimizer] 优化完成：${combos.length} 组合，${filtered.length} 通过过滤，耗时 ${Date.now() - startTime}ms`,
   );
-
   const dateRange = calculateDateRange(parameters.startDate, parameters.endDate, priceData);
-
   return {
     success: true,
-    data: {
-      results: filtered,
-      best,
-      benchmarkGrowth,
-      totalCombinations: combos.length,
-    },
+    data: { results: filtered, best, benchmarkGrowth, totalCombinations: combos.length },
     warnings: warnings.length > 0 ? warnings : undefined,
     dateRange,
   };

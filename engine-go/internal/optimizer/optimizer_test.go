@@ -132,7 +132,12 @@ func TestComputeReturnCovariance(t *testing.T) {
 {"对齐后不足 2 天应报错", []string{"A", "B"}, map[string]map[string]float64{ "A": {"2023-01-03": 100.0}, "B": {"2023-01-03": 50.0} }, "不足 2 天数据应返回错误"},
 	}
 	for _, tc := range errorCases {
-t.Run(tc.name, func(t *testing.T) { _, _, err := computeReturnCovariance(tc.tickers, tc.priceData) if err == nil { t.Fatal(tc.errMsg) } })
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := computeReturnCovariance(tc.tickers, tc.priceData)
+			if err == nil {
+				t.Fatal(tc.errMsg)
+			}
+		})
 	}
 	t.Run("正常收益率和协方差计算", func(t *testing.T) {
 		priceData := buildOptimizerPriceData( []string{"A", "B"}, 300, []float64{100, 50}, []float64{0.001, 0.0005}, )

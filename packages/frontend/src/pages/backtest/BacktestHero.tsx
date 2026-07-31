@@ -14,7 +14,7 @@ const RESEARCH_TOOLS = [
   { key: 'ef', path: '/efficient-frontier' },
   { key: 'fr', path: '/factor-regression' },
   { key: 'pca', path: '/pca' },
-  { key: 'letf', path: '/letf' },
+  { key: 'letf', path: '/letf-slippage' },
 ] as const;
 function HeroDetails() {
   const { t } = useTranslation();

@@ -9,7 +9,6 @@ vi.mock('../../../packages/frontend/src/utils/apiClient.js', () => ({
 vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
   useToastStore: { getState: () => ({ addToast: vi.fn() }) },
 }));
-
 import {
   extractApiErrorDetail,
   normalizeBacktestResult,
@@ -32,65 +31,67 @@ import {
 } from '../../helpers/backtestStoreFixtures.js';
 
 const S = () => useBacktestStore.getState();
-const addLeg = () => {
-  S().addCashflowLeg();
-  return S().parameters.cashflowLegs![0].id;
-};
-const addOneTime = () => {
-  S().addOneTimeCashflow();
-  return S().parameters.oneTimeCashflows![0].id;
-};
 beforeEach(() => resetBacktestStoreState(mockFetch));
+const okPayload = (extra: Record<string, unknown> = {}) => ({
+  success: true,
+  data: mockBacktestResult(),
+  ...extra,
+});
+const emptyGrowth = () =>
+  mockBacktestResult({ portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })] });
+const topLevelPayload = () => ({
+  success: true,
+  portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })],
+  correlations: [],
+  benchmarkGrowth: [],
+});
 
 describe('addPortfolio', () => {
-  it('添加新组合，包含默认VTI+BND', () => {
+  it('添加新组合，包含默认 6040（SPY+BND，D1 预设合并后规范资产）', () => {
     S().addPortfolio('60-40');
     const p = S().portfolios[1];
     expect(S().portfolios.length).toBe(2);
-    expect(p.assets[0]).toMatchObject({ ticker: 'VTI', weight: 60 });
+    expect(p.assets[0]).toMatchObject({ ticker: 'SPY', weight: 60 });
     expect(p.assets[1]).toMatchObject({ ticker: 'BND', weight: 40 });
     expect(p.rebalanceFrequency).toBe('quarterly');
   });
 });
-
 describe('duplicatePortfolio', () => {
-  it('复制存在的组合', () => {
+  it('复制存在的组合（新 id，副本独立）', () => {
     S().duplicatePortfolio('p1');
     const after = S().portfolios;
     expect(after.length).toBe(2);
     expect(after[1].name).toBe('Portfolio 1 (副本)');
     expect(after[1].assets).toEqual(after[0].assets);
     expect(after[1].id).not.toBe('p1');
-  });
-  it('复制后修改副本不影响原组合', () => {
-    S().duplicatePortfolio('p1');
-    S().updateAsset(S().portfolios[1].id, 0, { weight: 80 });
-    expect(S().portfolios[0].assets[0].weight).toBe(60);
-    expect(S().portfolios[1].assets[0].weight).toBe(80);
+    S().updateAsset(after[1].id, 0, { weight: 80 });
+    const updated = S().portfolios;
+    expect(updated[0].assets[0].weight).toBe(60);
+    expect(updated[1].assets[0].weight).toBe(80);
   });
   it('复制不存在的id，不增加组合', () => {
     S().duplicatePortfolio('not-exist');
     expect(S().portfolios.length).toBe(1);
   });
 });
-
 describe('removePortfolio', () => {
-  it('只有1个组合时也能删除', () => {
-    S().removePortfolio('p1');
-    expect(S().portfolios.length).toBe(0);
-  });
-  it('有2个组合时可以删除', () => {
-    S().addPortfolio();
-    S().removePortfolio(S().portfolios[1].id);
-    expect(S().portfolios.length).toBe(1);
-    expect(S().portfolios[0].id).toBe('p1');
-  });
-  it('删除不存在的id无影响', () => {
-    S().removePortfolio('not-exist');
-    expect(S().portfolios.length).toBe(1);
+  it.each([
+    ['只有1个组合时也能删除', () => 'p1', 0],
+    [
+      '有2个组合时可以删除',
+      () => {
+        S().addPortfolio();
+        return S().portfolios[1].id;
+      },
+      1,
+    ],
+    ['删除不存在的id无影响', () => 'not-exist', 1],
+  ])('%s', (_n, target, len) => {
+    S().removePortfolio(target());
+    expect(S().portfolios.length).toBe(len);
+    if (len === 1) expect(S().portfolios[0].id).toBe('p1');
   });
 });
-
 describe('addAsset', () => {
   it('添加空资产到存在的组合', () => {
     S().addAsset('p1');
@@ -104,7 +105,6 @@ describe('addAsset', () => {
     expect(S().portfolios[0].assets.length).toBe(2);
   });
 });
-
 describe('removeAsset', () => {
   it.each<[string, string, string, number, string | null]>([
     ['删除存在的资产', 'p1', 'VTI', 1, 'BND'],
@@ -117,9 +117,8 @@ describe('removeAsset', () => {
     if (firstTicker) expect(after.assets[0].ticker).toBe(firstTicker);
   });
 });
-
 describe('updateAsset', () => {
-  it('更新存在的资产权重', () => {
+  it('更新存在的资产权重，其他资产不变', () => {
     S().updateAsset('p1', 0, { weight: 70 });
     const a = S().portfolios[0].assets;
     expect(a[0].weight).toBe(70);
@@ -137,7 +136,6 @@ describe('updateAsset', () => {
     expect(S().portfolios[0].assets[0].weight).toBe(60);
   });
 });
-
 describe('updatePortfolio', () => {
   it.each([
     ['名称', { name: '我的组合' }, 'name', '我的组合'],
@@ -158,10 +156,9 @@ describe('updatePortfolio', () => {
     expect(S().portfolios[0].name).toBe('Portfolio 1');
   });
 });
-
 describe('updateParameter', () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  it.each<[string, any, any]>([
+  it.each<[string, any]>([
     ['startingValue', 50000],
     ['startDate', '2015-01-01'],
     ['endDate', '2023-12-31'],
@@ -174,7 +171,6 @@ describe('updateParameter', () => {
     expect((S().parameters as any)[key]).toBe(value);
   });
 });
-
 describe('addGlidepath', () => {
   it.each([
     ['non-existent', 'p1'],
@@ -202,7 +198,6 @@ describe('addGlidepath', () => {
     expect(gp.assets).toEqual(S().portfolios[0].assets);
   });
 });
-
 describe('batchUpdateAssets', () => {
   it.each([
     [
@@ -231,9 +226,8 @@ describe('batchUpdateAssets', () => {
     expect(a[1].weight).toBe(w1);
   });
 });
-
 describe('loadFromShare', () => {
-  it('从分享数据加载，覆盖现有状态', () => {
+  it('从分享数据加载，覆盖现有状态；无id时自动生成', () => {
     S().loadFromShare({
       portfolios: [
         {
@@ -255,8 +249,7 @@ describe('loadFromShare', () => {
     expect(state.portfolios[0].assets[0].ticker).toBe('SPY');
     expect(state.parameters.startingValue).toBe(20000);
     expect(state.results).toBeNull();
-  });
-  it('分享数据中无id时自动生成', () => {
+    expect(state.portfolios[0].id).toBe('shared-1');
     S().loadFromShare({
       portfolios: [
         {
@@ -269,43 +262,6 @@ describe('loadFromShare', () => {
     });
     expect(S().portfolios[0].id).toBeTruthy();
   });
-});
-
-describe('extractApiErrorDetail', () => {
-  it.each<[string, unknown, string]>([
-    ['returns detail field when present', { detail: 'invalid ticker' }, 'invalid ticker'],
-    [
-      'detail takes priority over error field',
-      { detail: 'priority', error: 'ignored' },
-      'priority',
-    ],
-    [
-      'returns error string when detail absent',
-      { error: 'something went wrong' },
-      'something went wrong',
-    ],
-    [
-      'returns nested error.detail when error is object with detail',
-      { error: { detail: 'nested detail' } },
-      'nested detail',
-    ],
-  ])('%s', (_n, input, expected) => {
-    expect(extractApiErrorDetail(input)).toBe(expected);
-  });
-  it.each<[string, unknown]>([
-    ['returns default for null', null],
-    ['returns default for undefined', undefined],
-    ['returns default for primitive string', 'hello'],
-    ['returns default for number', 42],
-    ['returns default for empty object', {}],
-  ])('%s', (_n, input) => {
-    const result = extractApiErrorDetail(input);
-    expect(typeof result).toBe('string');
-    expect(result.length).toBeGreaterThan(0);
-  });
-});
-
-describe('loadFromShare - edge cases', () => {
   it.each<[string, { id: string; name: string; rebalanceFrequency: string }[], string[]]>([
     [
       'handles portfolio id with no numeric suffix',
@@ -339,88 +295,122 @@ describe('loadFromShare - edge cases', () => {
     expectedIds.forEach((id, i) => expect(state.portfolios[i].id).toBe(id));
   });
 });
-
-describe('cashflowLeg operations', () => {
-  it('addCashflowLeg adds with defaults', () => {
-    S().addCashflowLeg();
-    const leg = S().parameters.cashflowLegs![0];
-    expect(leg).toMatchObject({ amount: 0, type: 'contribution', frequency: 'yearly' });
-    expect(leg.id).toBeTruthy();
+describe('extractApiErrorDetail', () => {
+  it.each<[string, unknown, string | null]>([
+    ['returns detail field when present', { detail: 'invalid ticker' }, 'invalid ticker'],
+    [
+      'detail takes priority over error field',
+      { detail: 'priority', error: 'ignored' },
+      'priority',
+    ],
+    [
+      'returns error string when detail absent',
+      { error: 'something went wrong' },
+      'something went wrong',
+    ],
+    [
+      'returns nested error.detail when error is object with detail',
+      { error: { detail: 'nested detail' } },
+      'nested detail',
+    ],
+    ['returns default for null', null, null],
+    ['returns default for undefined', undefined, null],
+    ['returns default for primitive string', 'hello', null],
+    ['returns default for number', 42, null],
+    ['returns default for empty object', {}, null],
+  ])('%s', (_n, input, expected) => {
+    const result = extractApiErrorDetail(input);
+    if (expected === null) {
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+    } else {
+      expect(result).toBe(expected);
+    }
   });
-  it('addCashflowLeg appends to existing', () => {
-    S().addCashflowLeg();
-    S().addCashflowLeg();
-    expect(S().parameters.cashflowLegs!.length).toBe(2);
+});
+const cashflowOps = [
+  {
+    key: 'cashflowLeg',
+    add: () => S().addCashflowLeg(),
+    remove: (id: string) => S().removeCashflowLeg(id),
+    update: (id: string, patch: Record<string, unknown>) => S().updateCashflowLeg(id, patch),
+    list: () => S().parameters.cashflowLegs!,
+    defaults: { amount: 0, type: 'contribution', frequency: 'yearly' },
+    updates: [
+      ['amount', { amount: 5000 }, 'amount', 5000],
+      ['amount=0', { amount: 0 }, 'amount', 0],
+      ['negative amount', { amount: -100 }, 'amount', -100],
+      ['type', { type: 'withdrawal' }, 'type', 'withdrawal'],
+    ] as Array<[string, Record<string, unknown>, string, unknown]>,
+  },
+  {
+    key: 'oneTimeCashflow',
+    add: () => S().addOneTimeCashflow(),
+    remove: (id: string) => S().removeOneTimeCashflow(id),
+    update: (id: string, patch: Record<string, unknown>) => S().updateOneTimeCashflow(id, patch),
+    list: () => S().parameters.oneTimeCashflows!,
+    defaults: { amount: 0, type: 'contribution', date: '2010-01-01' },
+    updates: [['amount and type', { amount: 10000, type: 'withdrawal' }, null, null]] as Array<
+      [string, Record<string, unknown>, string | null, unknown]
+    >,
+  },
+];
+describe.each(cashflowOps)(
+  '$key operations',
+  ({ add, remove, update, list, defaults, updates }) => {
+    it('add adds with defaults and appends to existing', () => {
+      add();
+      expect(list()[0]).toMatchObject(defaults);
+      expect(list()[0].id).toBeTruthy();
+      add();
+      expect(list().length).toBe(2);
+    });
+    it.each([
+      ['removes by id', true],
+      ['non-existent id does nothing', false],
+    ])('remove %s', (_n, useRealId) => {
+      add();
+      remove(useRealId ? list()[0].id : 'not-exist');
+      expect(list().length).toBe(useRealId ? 0 : 1);
+    });
+    it.each(updates)('update %s', (_n, patch, key, expected) => {
+      add();
+      const id = list()[0].id;
+      update(id, patch);
+      if (key === null) {
+        expect(list()[0]).toMatchObject(patch);
+      } else {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        expect((list()[0] as any)[key]).toBe(expected);
+      }
+    });
+    it('update with non-existent id does nothing', () => {
+      add();
+      update('not-exist', { amount: 999 });
+      expect(list()[0].amount).toBe(0);
+    });
+  },
+);
+describe('setHasLoadedFromShare / setResults / setActiveTab / getShareableState', () => {
+  it('sets the flag to true/false', () => {
+    S().setHasLoadedFromShare(true);
+    expect(S().hasLoadedFromShare).toBe(true);
+    S().setHasLoadedFromShare(false);
+    expect(S().hasLoadedFromShare).toBe(false);
   });
-  it.each<[string, boolean]>([
-    ['removes by id', true],
-    ['non-existent id does nothing', false],
-  ])('removeCashflowLeg %s', (_n, useRealId) => {
-    S().addCashflowLeg();
-    S().removeCashflowLeg(useRealId ? S().parameters.cashflowLegs![0].id : 'not-exist');
-    expect(S().parameters.cashflowLegs!.length).toBe(useRealId ? 0 : 1);
-  });
-  it.each([
-    ['amount', { amount: 5000 }, 'amount', 5000],
-    ['amount=0', { amount: 0 }, 'amount', 0],
-    ['negative amount', { amount: -100 }, 'amount', -100],
-    ['type', { type: 'withdrawal' }, 'type', 'withdrawal'],
-  ])('updateCashflowLeg updates %s', (_n, update, key, expected) => {
-    const id = addLeg();
-    S().updateCashflowLeg(id, update);
+  it('设置和清除结果', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((S().parameters.cashflowLegs![0] as any)[key]).toBe(expected);
+    const r = { portfolios: [], correlations: [], benchmarkGrowth: [] } as any;
+    S().setResults(r);
+    expect(S().results).toEqual(r);
+    S().setResults(null);
+    expect(S().results).toBeNull();
   });
-  it('updateCashflowLeg with non-existent id does nothing', () => {
-    S().addCashflowLeg();
-    S().updateCashflowLeg('not-exist', { amount: 999 });
-    expect(S().parameters.cashflowLegs![0].amount).toBe(0);
+  it.each(['drawdown', 'rolling', 'growth'])('切换tab到%s', (tab) => {
+    S().setActiveTab(tab);
+    expect(S().activeTab).toBe(tab);
   });
-});
-
-describe('oneTimeCashflow operations', () => {
-  it('addOneTimeCashflow adds with defaults', () => {
-    S().addOneTimeCashflow();
-    const cf = S().parameters.oneTimeCashflows![0];
-    expect(cf).toMatchObject({ amount: 0, type: 'contribution', date: '2010-01-01' });
-    expect(cf.id).toBeTruthy();
-  });
-  it('addOneTimeCashflow appends to existing', () => {
-    S().addOneTimeCashflow();
-    S().addOneTimeCashflow();
-    expect(S().parameters.oneTimeCashflows!.length).toBe(2);
-  });
-  it.each<[string, boolean]>([
-    ['removes by id', true],
-    ['non-existent id does nothing', false],
-  ])('removeOneTimeCashflow %s', (_n, useRealId) => {
-    S().addOneTimeCashflow();
-    S().removeOneTimeCashflow(useRealId ? S().parameters.oneTimeCashflows![0].id : 'not-exist');
-    expect(S().parameters.oneTimeCashflows!.length).toBe(useRealId ? 0 : 1);
-  });
-  it('updateOneTimeCashflow updates amount and type', () => {
-    const id = addOneTime();
-    S().updateOneTimeCashflow(id, { amount: 10000, type: 'withdrawal' });
-    const cf = S().parameters.oneTimeCashflows![0];
-    expect(cf.amount).toBe(10000);
-    expect(cf.type).toBe('withdrawal');
-  });
-  it('updateOneTimeCashflow with non-existent id does nothing', () => {
-    S().addOneTimeCashflow();
-    S().updateOneTimeCashflow('not-exist', { amount: 999 });
-    expect(S().parameters.oneTimeCashflows![0].amount).toBe(0);
-  });
-});
-
-describe('setHasLoadedFromShare', () => {
-  it.each([true, false])('sets the flag to %s', (flag) => {
-    S().setHasLoadedFromShare(flag);
-    expect(S().hasLoadedFromShare).toBe(flag);
-  });
-});
-
-describe('getShareableState', () => {
-  it('returns portfolios and parameters without other state', () => {
+  it('getShareableState 仅返回 portfolios 和 parameters', () => {
     const state = S();
     const shareable = state.getShareableState();
     expect(shareable).toHaveProperty('portfolios');
@@ -430,49 +420,22 @@ describe('getShareableState', () => {
     expect(shareable.parameters).toEqual(state.parameters);
   });
 });
-
 describe('runBacktest', () => {
   it.each([
-    ['成功', { success: true, data: mockBacktestResult() }, true],
-    [
-      '有warnings',
-      { success: true, data: mockBacktestResult(), warnings: ['部分数据缺失', '使用备用数据源'] },
-      false,
-    ],
-    ['空warnings', { success: true, data: mockBacktestResult(), warnings: [] }, false],
-    [
-      '无data字段',
-      {
-        success: true,
-        portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })],
-        correlations: [],
-        benchmarkGrowth: [],
-      },
-      false,
-    ],
+    ['成功', okPayload(), true],
+    ['有warnings', okPayload({ warnings: ['部分数据缺失', '使用备用数据源'] }), false],
+    ['空warnings', okPayload({ warnings: [] }), false],
+    ['无data字段', topLevelPayload(), false],
     [
       'degraded with warning',
-      {
-        success: true,
-        data: mockBacktestResult({
-          portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })],
-        }),
+      okPayload({
+        data: emptyGrowth(),
         degraded: true,
         degradedWarning: 'Service is running in degraded mode',
-      },
+      }),
       false,
     ],
-    [
-      'degraded without warning',
-      {
-        success: true,
-        data: mockBacktestResult({
-          portfolios: [mockPortfolioResult({ growthCurve: [], drawdownCurve: [] })],
-        }),
-        degraded: true,
-      },
-      false,
-    ],
+    ['degraded without warning', okPayload({ data: emptyGrowth(), degraded: true }), false],
   ])('后端返回%s时results不为null', async (_n, payload, checkTab) => {
     mockFetchOnce(mockFetch, payload);
     await S().runBacktest();
@@ -521,15 +484,7 @@ describe('runBacktest', () => {
       rebalanceThreshold: 8,
     });
   });
-  it('aborts previous request on second call', async () => {
-    mockFetch.mockResolvedValueOnce(new Promise(() => {}));
-    mockFetchOnce(mockFetch, emptySuccessResponse());
-    S().runBacktest();
-    await S().runBacktest();
-    expect(S().results).not.toBeNull();
-    expect(S().isLoading).toBe(false);
-  });
-  it('stale catch returns early when requestId mismatches', async () => {
+  it('aborts previous request on second call; stale catch returns early when requestId mismatches', async () => {
     let reject!: (r: unknown) => void;
     mockFetch.mockResolvedValueOnce(
       new Promise<Response>((_, rej) => {
@@ -538,28 +493,62 @@ describe('runBacktest', () => {
     );
     mockFetchOnce(mockFetch, emptySuccessResponse());
     S().runBacktest();
-    S().runBacktest();
+    await S().runBacktest();
+    expect(S().results).not.toBeNull();
+    expect(S().isLoading).toBe(false);
     reject(new Error('stale error'));
     await vi.waitFor(() => {
       expect(S().isLoading).toBe(false);
     });
   });
 });
-
 describe('enrichSeries', () => {
-  it.each([
-    ['results is null', () => {}, ['rollingReturns']],
-    ['no portfolios', () => setResultsWith([]), ['rollingReturns']],
-    ['empty series array', () => setSinglePortfolioResult(), []],
+  it.each<[string, () => void, string[], boolean]>([
+    ['results is null', () => {}, ['rollingReturns'], false],
+    ['no portfolios', () => setResultsWith([]), ['rollingReturns'], false],
+    ['empty series array', () => setSinglePortfolioResult(), [], false],
     [
       'all fields populated',
       () => setSinglePortfolioResult({ rollingReturns: [{ date: '2020-01-02', value: 0.1 }] }),
       ['rollingReturns'],
+      false,
     ],
-  ])('returns early when %s', async (_n, setup, series) => {
+    [
+      'response.ok is false',
+      () => {
+        setSinglePortfolioResult();
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({}),
+        });
+      },
+      ['rollingReturns'],
+      true,
+    ],
+    [
+      'json.success is false',
+      () => {
+        setSinglePortfolioResult();
+        mockFetchOnce(mockFetch, { success: false });
+      },
+      ['rollingReturns'],
+      true,
+    ],
+    [
+      'data with null portfolios',
+      () => {
+        setSinglePortfolioResult();
+        mockFetchOnce(mockFetch, { success: true, data: { portfolios: null } });
+      },
+      ['rollingReturns'],
+      true,
+    ],
+  ])('returns early when %s', async (_n, setup, series, fetchCalled) => {
     setup();
     await S().enrichSeries(series);
-    expect(mockFetch).not.toHaveBeenCalled();
+    if (fetchCalled) expect(mockFetch).toHaveBeenCalledTimes(1);
+    else expect(mockFetch).not.toHaveBeenCalled();
   });
   it('successfully enriches with fetch call', async () => {
     setSinglePortfolioResult();
@@ -585,27 +574,6 @@ describe('enrichSeries', () => {
     await expect(S().enrichSeries(['rollingReturns'])).resolves.toBeUndefined();
     expect(S().results).not.toBeNull();
   });
-  it.each([
-    [
-      'response.ok is false',
-      () =>
-        mockFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          json: () => Promise.resolve({}),
-        }),
-    ],
-    ['json.success is false', () => mockFetchOnce(mockFetch, { success: false })],
-    [
-      'data with null portfolios',
-      () => mockFetchOnce(mockFetch, { success: true, data: { portfolios: null } }),
-    ],
-  ])('returns early when %s', async (_n, setup) => {
-    setSinglePortfolioResult();
-    setup();
-    await S().enrichSeries(['rollingReturns']);
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-  });
   it('preserves portfolio when no matching patch name', async () => {
     setResultsWith([mockPortfolioResult({ name: 'Alpha' }), mockPortfolioResult({ name: 'Beta' })]);
     mockFetchOnce(mockFetch, {
@@ -621,22 +589,6 @@ describe('enrichSeries', () => {
     expect(p[1].rollingReturns).toEqual([]);
   });
 });
-
-describe('setResults / setActiveTab', () => {
-  it('设置和清除结果', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const r = { portfolios: [], correlations: [], benchmarkGrowth: [] } as any;
-    S().setResults(r);
-    expect(S().results).toEqual(r);
-    S().setResults(null);
-    expect(S().results).toBeNull();
-  });
-  it.each(['drawdown', 'rolling', 'growth'])('切换tab到%s', (tab) => {
-    S().setActiveTab(tab);
-    expect(S().activeTab).toBe(tab);
-  });
-});
-
 const STATS = {
   cagr: 0.1,
   stdev: 0.2,

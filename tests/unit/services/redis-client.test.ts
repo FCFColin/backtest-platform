@@ -57,15 +57,10 @@ import {
   redisConnection,
   appRedis,
 } from '../../../packages/backend/src/infrastructure/redisClient.js';
-
 describe('redisConnection（BullMQ 专用）', () => {
-  it('应导出 redisConnection 实例', () => {
+  it('应导出实例并使用解析自 REDIS_URL 的 host/port 连接（单实例模式）', () => {
     expect(redisConnection).toBeDefined();
     expect(typeof redisConnection.on).toBe('function');
-  });
-
-  it('应使用解析自 REDIS_URL 的 host/port 连接（单实例模式）', () => {
-    // ADR-045：单实例模式下 buildRedisBaseOptions 返回 parseRedisUrl 结果 {host, port}
     expect(ioredisMocks.IORedis).toHaveBeenCalledWith(
       expect.objectContaining({
         host: 'localhost',
@@ -75,45 +70,19 @@ describe('redisConnection（BullMQ 专用）', () => {
       }),
     );
   });
-
-  it('maxRetriesPerRequest 应为 null（BullMQ 要求）', () => {
-    // redisConnection 是第一个实例（先创建）
-    const instance = ioredisMocks.instances[0];
-    expect(instance.options.maxRetriesPerRequest).toBeNull();
-  });
-
-  it('enableReadyCheck 应为 false', () => {
-    const instance = ioredisMocks.instances[0];
-    expect(instance.options.enableReadyCheck).toBe(false);
-  });
 });
-
 describe('appRedis（应用层通用）', () => {
-  it('应导出 appRedis 实例', () => {
-    expect(appRedis).toBeDefined();
-    expect(typeof appRedis.on).toBe('function');
-  });
+  const instance = () => ioredisMocks.instances[1];
 
-  it('maxRetriesPerRequest 应为 3（有限重试）', () => {
-    // appRedis 是第二个实例（后创建）
-    const instance = ioredisMocks.instances[1];
-    expect(instance.options.maxRetriesPerRequest).toBe(3);
+  it.each([
+    ['maxRetriesPerRequest 应为 3（有限重试）', 'maxRetriesPerRequest', 3],
+    ['enableReadyCheck 应为 true', 'enableReadyCheck', true],
+    ['lazyConnect 应为 true（延迟连接）', 'lazyConnect', true],
+  ])('%s', (_n, key, expected) => {
+    expect(instance().options[key]).toBe(expected);
   });
-
-  it('enableReadyCheck 应为 true', () => {
-    const instance = ioredisMocks.instances[1];
-    expect(instance.options.enableReadyCheck).toBe(true);
-  });
-
-  it('lazyConnect 应为 true（延迟连接）', () => {
-    const instance = ioredisMocks.instances[1];
-    expect(instance.options.lazyConnect).toBe(true);
-  });
-
   it('retryStrategy 应返回指数退避延迟（上限 5000ms）', () => {
-    const instance = ioredisMocks.instances[1];
-    const retryStrategy = instance.options.retryStrategy as (times: number) => number;
-
+    const retryStrategy = instance().options.retryStrategy as (times: number) => number;
     expect(retryStrategy(1)).toBe(200); // 1 * 200 = 200
     expect(retryStrategy(2)).toBe(400); // 2 * 200 = 400
     expect(retryStrategy(5)).toBe(1000); // 5 * 200 = 1000
@@ -121,75 +90,41 @@ describe('appRedis（应用层通用）', () => {
     expect(retryStrategy(100)).toBe(5000); // 100 * 200 = 20000，但上限 5000
   });
 
-  it('应注册 error 事件回调', () => {
-    const instance = ioredisMocks.instances[1];
-    expect(instance.on).toHaveBeenCalledWith('error', expect.any(Function));
+  it.each([
+    ['error', 'error'],
+    ['connect', 'connect'],
+    ['reconnecting', 'reconnecting'],
+    ['ready', 'ready'],
+    ['end', 'end'],
+  ])('应注册 %s 事件回调（健康监测）', (_n, event) => {
+    expect(instance().on).toHaveBeenCalledWith(event, expect.any(Function));
   });
 
-  it('应注册 connect 事件回调', () => {
-    const instance = ioredisMocks.instances[1];
-    expect(instance.on).toHaveBeenCalledWith('connect', expect.any(Function));
-  });
-
-  it('应注册 reconnecting 事件回调', () => {
-    const instance = ioredisMocks.instances[1];
-    expect(instance.on).toHaveBeenCalledWith('reconnecting', expect.any(Function));
-  });
-
-  it('error 事件回调应记录 warn 日志', () => {
-    const instance = ioredisMocks.instances[1];
-    const errorCall = instance.on.mock.calls.find((call: unknown[]) => call[0] === 'error');
-    const errorCallback = errorCall![1] as (err: Error) => void;
-    errorCallback(new Error('ECONNREFUSED'));
-
-    expect(loggerMocks.warn).toHaveBeenCalledWith(
-      expect.objectContaining({ err: expect.stringContaining('ECONNREFUSED') }),
-      expect.stringContaining('appRedis 连接错误'),
-    );
-  });
-
-  it('connect 事件回调应记录 info 日志', () => {
-    const instance = ioredisMocks.instances[1];
-    const connectCall = instance.on.mock.calls.find((call: unknown[]) => call[0] === 'connect');
-    const connectCallback = connectCall![1] as () => void;
-    connectCallback();
-
-    expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('appRedis 连接成功'));
-  });
-
-  it('reconnecting 事件回调应记录 info 日志', () => {
-    const instance = ioredisMocks.instances[1];
-    const reconnectingCall = instance.on.mock.calls.find(
-      (call: unknown[]) => call[0] === 'reconnecting',
-    );
-    const reconnectingCallback = reconnectingCall![1] as () => void;
-    reconnectingCallback();
-
-    expect(loggerMocks.info).toHaveBeenCalledWith(expect.stringContaining('appRedis 重连中'));
-  });
-
-  it('应注册 ready 事件回调（健康监测）', () => {
-    const instance = ioredisMocks.instances[1];
-    expect(instance.on).toHaveBeenCalledWith('ready', expect.any(Function));
-  });
-
-  it('应注册 end 事件回调（健康监测）', () => {
-    const instance = ioredisMocks.instances[1];
-    expect(instance.on).toHaveBeenCalledWith('end', expect.any(Function));
+  it.each([
+    ['error 事件回调应记录 warn 日志', 'error', 'appRedis 连接错误', 'warn'],
+    ['connect 事件回调应记录 info 日志', 'connect', 'appRedis 连接成功', 'info'],
+    ['reconnecting 事件回调应记录 info 日志', 'reconnecting', 'appRedis 重连中', 'info'],
+  ])('%s', (_n, event, message, level) => {
+    const call = instance().on.mock.calls.find((c: unknown[]) => c[0] === event);
+    const callback = call![1] as (err?: Error) => void;
+    callback(event === 'error' ? new Error('ECONNREFUSED') : undefined);
+    const fn = loggerMocks[level as 'info' | 'warn'];
+    if (event === 'error') {
+      expect(fn).toHaveBeenCalledWith(
+        expect.objectContaining({ err: expect.stringContaining('ECONNREFUSED') }),
+        expect.stringContaining(message),
+      );
+    } else {
+      expect(fn).toHaveBeenCalledWith(expect.stringContaining(message));
+    }
   });
 });
 
 describe('redisConnection 与 appRedis 配置隔离', () => {
-  it('两个连接应使用不同的 maxRetriesPerRequest 配置', () => {
-    const bullmqInstance = ioredisMocks.instances[0];
-    const appInstance = ioredisMocks.instances[1];
-
-    expect(bullmqInstance.options.maxRetriesPerRequest).toBeNull();
-    expect(appInstance.options.maxRetriesPerRequest).toBe(3);
-  });
-
-  it('两个连接应是不同实例', () => {
+  it('两个连接应是不同实例且使用不同的 maxRetriesPerRequest 配置', () => {
     expect(redisConnection).not.toBe(appRedis);
+    expect(ioredisMocks.instances[0].options.maxRetriesPerRequest).toBeNull();
+    expect(ioredisMocks.instances[1].options.maxRetriesPerRequest).toBe(3);
   });
 });
 

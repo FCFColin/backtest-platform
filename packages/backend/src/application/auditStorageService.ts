@@ -1,6 +1,5 @@
 /**
- * 审计存储服务（P2-03 不可篡改审计存储）。
- * HMAC-SHA256 签名提供篡改检测；prev_hash 链式 hash 提供完整性校验。
+ * 审计存储服务（P2-03 不可篡改审计存储）：HMAC-SHA256 签名防篡改 + prev_hash 链式完整性校验。
  * 与 outbox 互补：outbox 是临时事件队列，audit_logs 是持久化审计存储（保留 ≥180 天）。
  * 未配置 AUDIT_HMAC_KEY 时签名返回空字符串，校验 fail-closed（D2-010）。
  */
@@ -24,7 +23,6 @@ export interface AuditLogEntry {
   resourceId?: string | null;
   payload: Record<string, unknown>;
 }
-
 export interface AuditLogRow {
   id: string;
   eventType: string;
@@ -36,13 +34,12 @@ export interface AuditLogRow {
   resourceId: string | null;
   payload: Record<string, unknown>;
   hmacSignature: string;
-  /** P2-04: 前一条记录的链式 hash（SHA256(prev.id || prev.hmac_signature)） */
-  prevHash: string | null;
+  /** P2-04: 前一条记录的链式 hash（SHA256(prev.id || prev.hmac_signature)） */ prevHash:
+    string | null;
   objectKey: string | null;
   exportedAt: string | null;
   createdAt: string;
 }
-
 export interface AuditLogQueryFilters {
   orgId?: string;
   eventType?: string;
@@ -51,7 +48,6 @@ export interface AuditLogQueryFilters {
   startDate?: string;
   endDate?: string;
 }
-
 export interface PaginatedAuditLogs {
   logs: AuditLogRow[];
   total: number;
@@ -61,10 +57,10 @@ export interface PaginatedAuditLogs {
 
 export const UNEXPORTED_BATCH_LIMIT = 100;
 
-const AUDIT_LOG_COLUMNS = `id, event_type, user_id, org_id, ip_address, action, resource_type, resource_id,
-  payload, hmac_signature, object_key, exported_at, created_at`;
+const AUDIT_LOG_COLUMNS =
+  'id, event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, object_key, exported_at, created_at';
 
-/** 对审计日志 payload 字符串进行 HMAC-SHA256 签名。密钥由 KMS 管理，DBA 无法伪造。未配置密钥返回空字符串。 */
+/** 对审计日志 payload 做 HMAC-SHA256 签名。密钥由 KMS 管理，DBA 无法伪造。未配置密钥返回空字符串。 */
 export function signAuditEntry(payload: string): string {
   const key = config.AUDIT_HMAC_KEY;
   if (!key) {
@@ -74,12 +70,12 @@ export function signAuditEntry(payload: string): string {
   return crypto.createHmac('sha256', key).update(payload).digest('hex');
 }
 
-/** 计算 prev_hash = SHA256(id || hmac_signature)，用于链式完整性校验。 */
+/** prev_hash = SHA256(id || hmac_signature)，用于链式完整性校验。 */
 function computePrevHash(id: string, signature: string): string {
   return crypto.createHash('sha256').update(`${id}${signature}`).digest('hex');
 }
 
-/** 将审计日志写入 audit_logs 表（含 HMAC 签名 + 链式 prev_hash）。client 可选，传入时参与调用方事务。 */
+/** 写入审计日志（含 HMAC 签名 + 链式 prev_hash）。client 可选，传入时参与调用方事务。 */
 export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): Promise<string> {
   const conn = client ?? getPool();
   const payloadStr = JSON.stringify(entry.payload);
@@ -92,10 +88,7 @@ export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): 
     ? computePrevHash(prevRow.id as string, prevRow.hmac_signature as string)
     : null;
   const { rows } = await conn.query(
-    `INSERT INTO audit_logs
-       (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
-     RETURNING id`,
+    `INSERT INTO audit_logs (event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, prev_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10) RETURNING id`,
     [
       entry.eventType,
       entry.userId ?? null,
@@ -189,8 +182,7 @@ export async function queryAuditLogs(
 }
 
 /**
- * 校验审计日志的 HMAC 完整性（篡改检测）。
- * 重算 payload 的 HMAC 与存储的 hmac_signature 比对，使用 crypto.timingSafeEqual 常量时间比较防时序攻击。
+ * 校验审计日志的 HMAC 完整性（篡改检测）：重算 payload HMAC 与存储值比对，timingSafeEqual 常量时间防时序攻击。
  * 未配置 AUDIT_HMAC_KEY 时 fail-closed 返回 valid=false（D2-010）。
  */
 export async function verifyAuditIntegrity(
@@ -203,20 +195,20 @@ export async function verifyAuditIntegrity(
   if (rows.length === 0) return { valid: false, expected: '', actual: '' };
   const storedSignature = rows[0].hmac_signature as string;
   const payload = rows[0].payload;
-  // Security (D2-010): fail-closed — 未配置密钥时验证失败
   const key = config.AUDIT_HMAC_KEY;
   if (!key) return { valid: false, expected: '', actual: storedSignature };
-  const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const expected = crypto.createHmac('sha256', key).update(payloadStr).digest('hex');
+  const expected = crypto
+    .createHmac('sha256', key)
+    .update(typeof payload === 'string' ? payload : JSON.stringify(payload))
+    .digest('hex');
   const sigBuf = Buffer.from(storedSignature);
   const expBuf = Buffer.from(expected);
   const valid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
-  if (!valid) {
+  if (!valid)
     logger.warn(
       { module: 'auditStorage', logId },
       '[auditStorage] 审计日志完整性校验失败（疑似篡改）',
     );
-  }
   return { valid, expected, actual: storedSignature };
 }
 
@@ -243,7 +235,7 @@ function mapAuditLogRow(row: Record<string, unknown>): AuditLogRow {
   };
 }
 
-/** P2-04: 验证审计日志链式完整性。遍历 audit_logs 重算 prev_hash 与存储值比对，不匹配记为断裂点。 */
+/** P2-04: 验证审计日志链式完整性：遍历重算 prev_hash 与存储值比对，不匹配记为断裂点。分页验证避免一次加载数百万行。 */
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export async function verifyAuditChain(): Promise<{
   valid: boolean;
@@ -259,11 +251,9 @@ export async function verifyAuditChain(): Promise<{
   let prevId: string | null = null;
   let prevSig: string | null = null;
   let totalChecked = 0;
-  const BATCH_SIZE = 1000;
   let lastId: string | null = null;
-  // 分页验证，避免一次加载数百万行
   while (true) {
-    const params: unknown[] = [BATCH_SIZE];
+    const params: unknown[] = [1000];
     const query =
       lastId === null
         ? 'SELECT id, hmac_signature, prev_hash FROM audit_logs ORDER BY created_at ASC, id ASC LIMIT $1'
@@ -275,23 +265,20 @@ export async function verifyAuditChain(): Promise<{
       const r = row as { id: string; hmac_signature: string; prev_hash: string | null };
       if (prevId !== null && prevSig !== null) {
         const expectedPrevHash = computePrevHash(prevId, prevSig);
-        if (r.prev_hash !== expectedPrevHash) {
+        if (r.prev_hash !== expectedPrevHash)
           brokenLinks.push({ id: r.id, expectedPrevHash, actualPrevHash: r.prev_hash });
-        }
       }
       prevId = r.id;
       prevSig = r.hmac_signature;
       totalChecked++;
     }
     lastId = result.rows[result.rows.length - 1].id as string;
-    if (totalChecked % 5000 === 0) {
+    if (totalChecked % 5000 === 0)
       logger.info(`[auditStorage] 审计链验证进度: ${totalChecked} 条已检查`);
-    }
   }
-  const valid = brokenLinks.length === 0;
   logger.info(
     { module: 'auditStorage', totalChecked, brokenLinks: brokenLinks.length },
     '[auditStorage] 链式完整性校验完成',
   );
-  return { valid, totalChecked, brokenLinks };
+  return { valid: brokenLinks.length === 0, totalChecked, brokenLinks };
 }

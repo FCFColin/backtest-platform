@@ -53,7 +53,9 @@ function setupStore(): void {
   });
 }
 
-describe('P0-02 executionSlice dedicated — 14 分支覆盖', () => {
+const store = () => useBacktestStore.getState();
+
+describe('P0-02 executionSlice dedicated — 分支覆盖', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockFetch.mockReset();
@@ -65,126 +67,21 @@ describe('P0-02 executionSlice dedicated — 14 分支覆盖', () => {
     vi.useRealTimers();
   });
 
-  // ── 分支1: 同步 200 成功 ──
+  const pollRun = async (jobId: string, ...responses: Response[]) => {
+    mockFetch.mockResolvedValueOnce(mock202(jobId));
+    for (const r of responses) mockFetch.mockResolvedValueOnce(r);
+    const promise = store().runBacktest();
+    for (let i = 0; i < responses.length; i++) await vi.advanceTimersByTimeAsync(600 * (i + 1));
+    await promise;
+  };
+
   it('同步 200 OK → 正常返回结果', async () => {
     mockFetch.mockResolvedValueOnce(mockResponse({ success: true, data: mockBacktestResult() }));
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).not.toBeNull();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
+    await store().runBacktest();
+    expect(store().results).not.toBeNull();
+    expect(store().isLoading).toBe(false);
   });
 
-  // ── 分支2: 空组合拦截 ──
-  it('空组合 → warning toast + 不发请求', async () => {
-    useBacktestStore.getState().loadFromShare({ portfolios: [], parameters: mockBacktestParams() });
-    await useBacktestStore.getState().runBacktest();
-    expect(mockFetch).not.toHaveBeenCalled();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
-  });
-
-  // ── 分支3: 202 → 轮询 → completed ──
-  it('202 Accepted → 轮询 → completed → 写入结果', async () => {
-    const mockResult = mockBacktestResult();
-    mockFetch
-      .mockResolvedValueOnce(mock202('job-1'))
-      .mockResolvedValueOnce(
-        mockPollResult('completed', {
-          result: { data: mockResult, warnings: [], dateRange: null },
-        }),
-      );
-
-    const promise = useBacktestStore.getState().runBacktest();
-    await vi.advanceTimersByTimeAsync(600);
-    await promise;
-
-    expect(useBacktestStore.getState().results).not.toBeNull();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
-  });
-
-  // ── 分支4: 202 → 轮询 → failed ──
-  it('202 Accepted → 轮询 → failed → 错误处理', async () => {
-    mockFetch
-      .mockResolvedValueOnce(mock202('job-2'))
-      .mockResolvedValueOnce(mockPollResult('failed', { error: 'Engine timeout' }));
-
-    const promise = useBacktestStore.getState().runBacktest();
-    await vi.advanceTimersByTimeAsync(600);
-    await promise;
-
-    expect(useBacktestStore.getState().results).toBeNull();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
-  });
-
-  // ── 分支5: 202 → 轮询 → queued → completed（多轮轮询）──
-  it('202 → 轮询 queued → running → completed（指数退避多轮）', async () => {
-    const mockResult = mockBacktestResult();
-    mockFetch
-      .mockResolvedValueOnce(mock202('job-3'))
-      .mockResolvedValueOnce(mockPollResult('queued'))
-      .mockResolvedValueOnce(mockPollResult('running'))
-      .mockResolvedValueOnce(
-        mockPollResult('completed', {
-          result: { data: mockResult, warnings: [], dateRange: null },
-        }),
-      );
-
-    const promise = useBacktestStore.getState().runBacktest();
-    // 第一次轮询 500ms
-    await vi.advanceTimersByTimeAsync(600);
-    // 第二次轮询 1000ms
-    await vi.advanceTimersByTimeAsync(1100);
-    // 第三次轮询 2000ms
-    await vi.advanceTimersByTimeAsync(2100);
-    await promise;
-
-    expect(useBacktestStore.getState().results).not.toBeNull();
-    expect(mockFetch).toHaveBeenCalledTimes(4); // 1 POST + 3 polls
-  });
-
-  // ── 分支6: 202 → 轮询 HTTP 错误 ──
-  it('202 → 轮询返回 HTTP 500 → 错误处理', async () => {
-    mockFetch
-      .mockResolvedValueOnce(mock202('job-4'))
-      .mockResolvedValueOnce(mockResponse({ success: false, error: 'DB error' }, 500));
-
-    const promise = useBacktestStore.getState().runBacktest();
-    await vi.advanceTimersByTimeAsync(600);
-    await promise;
-
-    expect(useBacktestStore.getState().results).toBeNull();
-  });
-
-  // ── 分支7: 202 → 轮询 success:false ──
-  it('202 → 轮询返回 success:false → 错误处理', async () => {
-    mockFetch
-      .mockResolvedValueOnce(mock202('job-5'))
-      .mockResolvedValueOnce(mockResponse({ success: false, error: 'Job lost' }, 200));
-
-    const promise = useBacktestStore.getState().runBacktest();
-    await vi.advanceTimersByTimeAsync(600);
-    await promise;
-
-    expect(useBacktestStore.getState().results).toBeNull();
-  });
-
-  // ── 分支8: TypeError（网络错误）──
-  it('TypeError → networkError toast', async () => {
-    mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).toBeNull();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
-  });
-
-  // ── 分支9: 503 引擎不可用 ──
-  it('HTTP 503 → 错误处理（引擎不可用）', async () => {
-    mockFetch.mockResolvedValueOnce(
-      mockResponse({ success: false, error: { detail: 'Engine unavailable' } }, 503),
-    );
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).toBeNull();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
-  });
-
-  // ── 分支10: degraded 响应 ──
   it('degraded: true + degradedWarning → 正常返回结果', async () => {
     mockFetch.mockResolvedValueOnce(
       mockResponse({
@@ -194,47 +91,91 @@ describe('P0-02 executionSlice dedicated — 14 分支覆盖', () => {
         degradedWarning: 'Running in degraded mode',
       }),
     );
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).not.toBeNull();
+    await store().runBacktest();
+    expect(store().results).not.toBeNull();
   });
 
-  // ── 分支11: 取消前一个请求（竞态）──
+  it('空组合 → warning toast + 不发请求', async () => {
+    store().loadFromShare({ portfolios: [], parameters: mockBacktestParams() });
+    await store().runBacktest();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(store().isLoading).toBe(false);
+  });
+
+  it('202 Accepted → 轮询 completed → 写入结果', async () => {
+    await pollRun(
+      'job-1',
+      mockPollResult('completed', {
+        result: { data: mockBacktestResult(), warnings: [], dateRange: null },
+      }),
+    );
+    expect(store().results).not.toBeNull();
+    expect(store().isLoading).toBe(false);
+  });
+
+  it('202 → 轮询 queued → running → completed（指数退避多轮）', async () => {
+    await pollRun(
+      'job-3',
+      mockPollResult('queued'),
+      mockPollResult('running'),
+      mockPollResult('completed', {
+        result: { data: mockBacktestResult(), warnings: [], dateRange: null },
+      }),
+    );
+    expect(store().results).not.toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(4); // 1 POST + 3 polls
+  });
+
+  it.each([
+    ['轮询返回 HTTP 500', mockResponse({ success: false, error: 'DB error' }, 500)],
+    ['轮询返回 success:false', mockResponse({ success: false, error: 'Job lost' }, 200)],
+    ['轮询返回 failed 状态', mockPollResult('failed', { error: 'Engine timeout' })],
+  ])('202 → %s → 错误处理', async (_n, pollRes) => {
+    await pollRun('job-x', pollRes);
+    expect(store().results).toBeNull();
+    expect(store().isLoading).toBe(false);
+  });
+
+  it.each([
+    [
+      'TypeError（网络错误）',
+      () => mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch')),
+    ],
+    [
+      'HTTP 503 引擎不可用',
+      () =>
+        mockFetch.mockResolvedValueOnce(
+          mockResponse({ success: false, error: { detail: 'Engine unavailable' } }, 503),
+        ),
+    ],
+    [
+      'AbortError（超时取消）',
+      () => mockFetch.mockRejectedValueOnce(new DOMException('Aborted', 'AbortError')),
+    ],
+    [
+      'success:false + 嵌套 error.detail',
+      () =>
+        mockFetch.mockResolvedValueOnce(
+          mockResponse({ success: false, error: { detail: 'Invalid params' } }),
+        ),
+    ],
+    ['非 Error 类型抛出', () => mockFetch.mockRejectedValueOnce({ code: 42 })],
+  ])('%s → 错误处理', async (_n, setup) => {
+    setup();
+    await store().runBacktest();
+    expect(store().results).toBeNull();
+    expect(store().isLoading).toBe(false);
+  });
+
   it('第二次 runBacktest 中止前一个请求', async () => {
     mockFetch
       .mockResolvedValueOnce(new Promise(() => {})) // 永不 resolve（模拟挂起）
       .mockResolvedValueOnce(mockResponse({ success: true, data: mockBacktestResult() }));
-    useBacktestStore.getState().runBacktest(); // 不 await
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).not.toBeNull();
-  });
-
-  // ── 分支12: AbortError（超时取消）──
-  it('AbortError → timeout toast + 结果清空', async () => {
-    mockFetch.mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'));
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).toBeNull();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
-  });
-
-  // ── 分支13: success:false + 嵌套 error ──
-  it('success:false + error.detail → toast 显示 detail', async () => {
-    mockFetch.mockResolvedValueOnce(
-      mockResponse({ success: false, error: { detail: 'Invalid params' } }),
-    );
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).toBeNull();
-  });
-
-  // ── 分支14: 非标准错误对象（无 message）──
-  it('非 Error 类型抛出 → runFailed toast', async () => {
-    mockFetch.mockRejectedValueOnce({ code: 42 });
-    await useBacktestStore.getState().runBacktest();
-    expect(useBacktestStore.getState().results).toBeNull();
-    expect(useBacktestStore.getState().isLoading).toBe(false);
+    store().runBacktest(); // 不 await
+    await store().runBacktest();
+    expect(store().results).not.toBeNull();
   });
 });
-
-// ── loadFromShare / getShareableState 覆盖 ──
 
 describe('P0-02 executionSlice — loadFromShare & getShareableState', () => {
   beforeEach(() => {
@@ -245,8 +186,8 @@ describe('P0-02 executionSlice — loadFromShare & getShareableState', () => {
   it('loadFromShare 设置组合+参数+重置结果', () => {
     const portfolios = [mockPortfolio({ id: 'p2', name: 'New Portfolio' })];
     const parameters = mockBacktestParams({ startDate: '2020-01-01' });
-    useBacktestStore.getState().loadFromShare({ portfolios, parameters });
-    const state = useBacktestStore.getState();
+    store().loadFromShare({ portfolios, parameters });
+    const state = store();
     expect(state.portfolios).toHaveLength(1);
     expect(state.portfolios[0].name).toBe('New Portfolio');
     expect(state.results).toBeNull();
@@ -254,7 +195,7 @@ describe('P0-02 executionSlice — loadFromShare & getShareableState', () => {
   });
 
   it('getShareableState 返回当前 portfolios + parameters', () => {
-    const shareable = useBacktestStore.getState().getShareableState();
+    const shareable = store().getShareableState();
     expect(shareable.portfolios).toBeDefined();
     expect(shareable.parameters).toBeDefined();
   });

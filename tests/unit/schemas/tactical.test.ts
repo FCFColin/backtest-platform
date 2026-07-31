@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,
-  tacticalAlertSchema,
 } from '../../../packages/backend/src/schemas/tactical.js';
 
 function makeValidCondition() {
@@ -51,17 +50,48 @@ describe('tacticalBacktestSchema', () => {
   });
 
   it.each<Mutator>([
-    (d) => { delete d.strategy; },
-    (d) => { (d.strategy as Record<string, unknown>).id = ''; },
-    (d) => { (d.strategy as Record<string, unknown>).signals = []; },
-    (d) => { ((d.strategy as Record<string, unknown>).signals as Record<string, unknown>[])[0].conditions = []; },
-    (d) => { (((d.strategy as Record<string, unknown>).signals as Record<string, unknown>[])[0].conditions as Record<string, unknown>[])[0].indicator = 'invalid'; },
-    (d) => { (((d.strategy as Record<string, unknown>).signals as Record<string, unknown>[])[0].conditions as Record<string, unknown>[])[0].operator = 'invalid'; },
-    (d) => { (d.strategy as Record<string, unknown>).aggregationMethod = 'invalid'; },
-    (d) => { d.startingValue = 0; },
-    (d) => { d.startingValue = -100; },
-    (d) => { d.rebalanceFrequency = 'invalid'; },
-    (d) => { (((d.strategy as Record<string, unknown>).signals as Record<string, unknown>[])[0]).targetWeights = []; },
+    (d) => {
+      delete d.strategy;
+    },
+    (d) => {
+      (d.strategy as Record<string, unknown>).id = '';
+    },
+    (d) => {
+      (d.strategy as Record<string, unknown>).signals = [];
+    },
+    (d) => {
+      ((d.strategy as Record<string, unknown>).signals as Record<string, unknown>[])[0].conditions =
+        [];
+    },
+    (d) => {
+      (
+        ((d.strategy as Record<string, unknown>).signals as Record<string, unknown>[])[0]
+          .conditions as Record<string, unknown>[]
+      )[0].indicator = 'invalid';
+    },
+    (d) => {
+      (
+        ((d.strategy as Record<string, unknown>).signals as Record<string, unknown>[])[0]
+          .conditions as Record<string, unknown>[]
+      )[0].operator = 'invalid';
+    },
+    (d) => {
+      (d.strategy as Record<string, unknown>).aggregationMethod = 'invalid';
+    },
+    (d) => {
+      d.startingValue = 0;
+    },
+    (d) => {
+      d.startingValue = -100;
+    },
+    (d) => {
+      d.rebalanceFrequency = 'invalid';
+    },
+    (d) => {
+      (
+        (d.strategy as Record<string, unknown>).signals as Record<string, unknown>[]
+      )[0].targetWeights = [];
+    },
   ])('非法字段应抛错 %#', (mutate) => {
     const data = makeValidBacktest();
     mutate(data);
@@ -87,30 +117,5 @@ describe('tacticalWhatIfSchema', () => {
 
   it('缺少 tickers 应抛错', () => {
     expect(() => tacticalWhatIfSchema.parse({})).toThrow();
-  });
-});
-
-describe('tacticalAlertSchema', () => {
-  it.each([
-    ['完整合法', { enabled: true, email: 'test@example.com', triggers: ['signal_change', 'rebalance'] }],
-    ['enabled=false', { enabled: false }],
-    ['triggers=threshold', { enabled: true, triggers: ['threshold'] }],
-  ])('合法输入（%s）应通过校验', (_n, config) => {
-    expect(() => tacticalAlertSchema.parse({ config })).not.toThrow();
-  });
-
-  it.each([
-    ['enabled 类型错误', { enabled: 'true' }],
-    ['triggers 含非法枚举', { enabled: true, triggers: ['invalid_trigger'] }],
-  ])('%s 应抛错', (_n, config) => {
-    expect(() => tacticalAlertSchema.parse({ config })).toThrow();
-  });
-
-  it('缺少 config 应抛错', () => {
-    expect(() => tacticalAlertSchema.parse({})).toThrow();
-  });
-
-  it('缺少 enabled 应抛错', () => {
-    expect(() => tacticalAlertSchema.parse({ config: { email: 'test@example.com' } })).toThrow();
   });
 });

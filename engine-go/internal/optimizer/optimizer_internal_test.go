@@ -97,7 +97,12 @@ func TestIsValidPortfolio(t *testing.T) {
 		{"等权组合", []float64{0.333, 0.333, 0.334}, true},
 	}
 	for _, tt := range tests {
-t.Run(tt.name, func(t *testing.T) { result := isValidPortfolio(tt.weights) if result != tt.expected { t.Errorf("期望 %v，实际 %v", tt.expected, result) } })
+		t.Run(tt.name, func(t *testing.T) {
+			result := isValidPortfolio(tt.weights)
+			if result != tt.expected {
+				t.Errorf("期望 %v，实际 %v", tt.expected, result)
+			}
+		})
 	}
 }
 func TestOptimizeMaxReturn(t *testing.T) {
@@ -129,9 +134,16 @@ func TestCovariance(t *testing.T) {
 		var variance float64
 		for _, v := range x { variance += (v - m) * (v - m) }
 		variance /= float64(len(x) - 1)
-if math.Abs(cov-variance) > 1e-10 { t.Errorf("相同序列协方差应等于方差：cov=%.6f, var=%.6f", cov, variance) }
+		if math.Abs(cov-variance) > 1e-10 {
+			t.Errorf("相同序列协方差应等于方差：cov=%.6f, var=%.6f", cov, variance)
+		}
 	})
-t.Run("空序列应返回 0", func(t *testing.T) { cov := mathutil.Covariance([]float64{}, []float64{}) if cov != 0 { t.Errorf("空序列协方差应返回 0，实际 %.6f", cov) } })
+	t.Run("空序列应返回 0", func(t *testing.T) {
+		cov := mathutil.Covariance([]float64{}, []float64{})
+		if cov != 0 {
+			t.Errorf("空序列协方差应返回 0，实际 %.6f", cov)
+		}
+	})
 }
 func TestClipWeights(t *testing.T) {
 	t.Run("裁剪后权重和应接近 1", func(t *testing.T) {

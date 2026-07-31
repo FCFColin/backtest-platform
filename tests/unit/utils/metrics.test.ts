@@ -18,49 +18,19 @@ import {
 } from '../../../packages/backend/src/utils/metrics.js';
 
 describe('指标对象导出', () => {
-  it('eventLoopLagSeconds 应为 Gauge 实例', () => {
-    expect(eventLoopLagSeconds).toBeDefined();
-    expect(typeof eventLoopLagSeconds.set).toBe('function');
-  });
-
-  it('circuitBreakerState 应为带 name 标签的 Gauge', () => {
-    expect(circuitBreakerState).toBeDefined();
-    expect(typeof circuitBreakerState.set).toBe('function');
-  });
-
-  it('dataServiceSemaphoreAvailable 应为 Gauge', () => {
-    expect(dataServiceSemaphoreAvailable).toBeDefined();
-    expect(typeof dataServiceSemaphoreAvailable.set).toBe('function');
-  });
-
-  it('dataServiceSemaphoreTotal 应为 Gauge', () => {
-    expect(dataServiceSemaphoreTotal).toBeDefined();
-    expect(typeof dataServiceSemaphoreTotal.set).toBe('function');
-  });
-
-  it('httpRequestDurationMicroseconds 应为 Histogram', () => {
-    expect(httpRequestDurationMicroseconds).toBeDefined();
-    expect(typeof httpRequestDurationMicroseconds.observe).toBe('function');
-  });
-
-  it('httpRequestsTotal 应为 Counter', () => {
-    expect(httpRequestsTotal).toBeDefined();
-    expect(typeof httpRequestsTotal.inc).toBe('function');
-  });
-
-  it('engineCallsTotal 应为带 result 标签的 Counter', () => {
-    expect(engineCallsTotal).toBeDefined();
-    expect(typeof engineCallsTotal.inc).toBe('function');
-  });
-
-  it('engineCallDuration 应为 Histogram', () => {
-    expect(engineCallDuration).toBeDefined();
-    expect(typeof engineCallDuration.observe).toBe('function');
-  });
-
-  it('engineUnavailableTotal 应为带 reason 标签的 Counter', () => {
-    expect(engineUnavailableTotal).toBeDefined();
-    expect(typeof engineUnavailableTotal.inc).toBe('function');
+  it.each<[string, unknown, string]>([
+    ['eventLoopLagSeconds 应为 Gauge 实例', eventLoopLagSeconds, 'set'],
+    ['circuitBreakerState 应为带 name 标签的 Gauge', circuitBreakerState, 'set'],
+    ['dataServiceSemaphoreAvailable 应为 Gauge', dataServiceSemaphoreAvailable, 'set'],
+    ['dataServiceSemaphoreTotal 应为 Gauge', dataServiceSemaphoreTotal, 'set'],
+    ['httpRequestDurationMicroseconds 应为 Histogram', httpRequestDurationMicroseconds, 'observe'],
+    ['httpRequestsTotal 应为 Counter', httpRequestsTotal, 'inc'],
+    ['engineCallsTotal 应为带 result 标签的 Counter', engineCallsTotal, 'inc'],
+    ['engineCallDuration 应为 Histogram', engineCallDuration, 'observe'],
+    ['engineUnavailableTotal 应为带 reason 标签的 Counter', engineUnavailableTotal, 'inc'],
+  ])('%s', (_n, metric, method) => {
+    expect(metric).toBeDefined();
+    expect(typeof (metric as Record<string, unknown>)[method]).toBe('function');
   });
 });
 
@@ -111,30 +81,19 @@ describe('recordEngineUnavailable', () => {
     resetMetrics();
   });
 
-  it('应将 engineUnavailableTotal 对应 reason 递增到精确值', async () => {
-    recordEngineUnavailable('engine_down');
-    recordEngineUnavailable('engine_down');
-    recordEngineUnavailable('engine_down');
-    expect(await metricValue(engineUnavailableTotal, { reason: 'engine_down' })).toBe(3);
-  });
-
-  it('reason 含特殊字符时应被清洗为确定的标签值', async () => {
-    recordEngineUnavailable('error: timeout (5000ms)');
-    // ': ( )' 等字符替换为 _
-    expect(await metricValue(engineUnavailableTotal, { reason: 'error__timeout__5000ms_' })).toBe(
+  it.each<[string, string, number, string]>([
+    ['应将 engineUnavailableTotal 对应 reason 递增到精确值', 'engine_down', 3, 'engine_down'],
+    [
+      'reason 含特殊字符时应被清洗为确定的标签值',
+      'error: timeout (5000ms)',
       1,
-    );
-  });
-
-  it('reason 含中文时应被整体清洗为下划线（防止标签基数爆炸/注入）', async () => {
-    recordEngineUnavailable('引擎超时');
-    // 4 个中文字符 → 4 个下划线
-    expect(await metricValue(engineUnavailableTotal, { reason: '____' })).toBe(1);
-  });
-
-  it('reason 为空字符串时应以空标签记录而非抛错', async () => {
-    recordEngineUnavailable('');
-    expect(await metricValue(engineUnavailableTotal, { reason: '' })).toBe(1);
+      'error__timeout__5000ms_',
+    ],
+    ['reason 含中文时应被整体清洗为下划线（防止标签基数爆炸/注入）', '引擎超时', 1, '____'],
+    ['reason 为空字符串时应以空标签记录而非抛错', '', 1, ''],
+  ])('%s', async (_n, reason, times, expectedLabel) => {
+    for (let i = 0; i < times; i++) recordEngineUnavailable(reason);
+    expect(await metricValue(engineUnavailableTotal, { reason: expectedLabel })).toBe(times);
   });
 });
 
@@ -143,58 +102,34 @@ describe('registerCircuitBreakerMetrics', () => {
     resetMetrics();
   });
 
-  it('应注册 open/halfOpen/close 事件回调并设置初始状态为 0', () => {
+  function breakerWithCallbacks(name: string) {
+    const callbacks: Record<string, () => void> = {};
     const breaker = {
-      on: vi.fn(),
+      on: vi.fn((event: string, cb: () => void) => {
+        callbacks[event] = cb;
+      }),
     };
-    registerCircuitBreakerMetrics('test-breaker', breaker as unknown as never);
+    registerCircuitBreakerMetrics(name, breaker as unknown as never);
+    return callbacks;
+  }
 
+  it('应注册 open/halfOpen/close 事件回调并设置初始状态为 0（closed）', async () => {
+    const breaker = { on: vi.fn() };
+    registerCircuitBreakerMetrics('test-breaker', breaker as unknown as never);
     expect(breaker.on).toHaveBeenCalledWith('open', expect.any(Function));
     expect(breaker.on).toHaveBeenCalledWith('halfOpen', expect.any(Function));
     expect(breaker.on).toHaveBeenCalledWith('close', expect.any(Function));
+    expect(await metricValue(circuitBreakerState, { name: 'test-breaker' })).toBe(0);
   });
 
-  it('注册后初始状态应为 0（closed），open 回调应置为 1', async () => {
-    const callbacks: Record<string, () => void> = {};
-    const breaker = {
-      on: vi.fn((event: string, cb: () => void) => {
-        callbacks[event] = cb;
-      }),
-    };
-    registerCircuitBreakerMetrics('cb-1', breaker as unknown as never);
-
-    // 注册即设初始状态 closed=0
-    expect(await metricValue(circuitBreakerState, { name: 'cb-1' })).toBe(0);
-    callbacks.open();
-    expect(await metricValue(circuitBreakerState, { name: 'cb-1' })).toBe(1);
-  });
-
-  it('halfOpen 回调应将状态置为 2', async () => {
-    const callbacks: Record<string, () => void> = {};
-    const breaker = {
-      on: vi.fn((event: string, cb: () => void) => {
-        callbacks[event] = cb;
-      }),
-    };
-    registerCircuitBreakerMetrics('cb-2', breaker as unknown as never);
-
-    callbacks.halfOpen();
-    expect(await metricValue(circuitBreakerState, { name: 'cb-2' })).toBe(2);
-  });
-
-  it('open 后 close 回调应将状态复位为 0', async () => {
-    const callbacks: Record<string, () => void> = {};
-    const breaker = {
-      on: vi.fn((event: string, cb: () => void) => {
-        callbacks[event] = cb;
-      }),
-    };
-    registerCircuitBreakerMetrics('cb-3', breaker as unknown as never);
-
-    callbacks.open();
-    expect(await metricValue(circuitBreakerState, { name: 'cb-3' })).toBe(1);
-    callbacks.close();
-    expect(await metricValue(circuitBreakerState, { name: 'cb-3' })).toBe(0);
+  it.each<[string, string[], number]>([
+    ['open 回调应将状态置为 1', ['open'], 1],
+    ['halfOpen 回调应将状态置为 2', ['halfOpen'], 2],
+    ['open 后 close 回调应将状态复位为 0', ['open', 'close'], 0],
+  ])('%s', async (_n, events, expected) => {
+    const callbacks = breakerWithCallbacks('cb-1');
+    for (const e of events) callbacks[e]();
+    expect(await metricValue(circuitBreakerState, { name: 'cb-1' })).toBe(expected);
   });
 });
 
@@ -203,32 +138,23 @@ describe('registerSemaphoreMetrics', () => {
     resetMetrics();
   });
 
-  it('应将 total 与 available 初始值写入对应 Gauge', async () => {
-    const getAvailable = vi.fn(() => 2);
-    registerSemaphoreMetrics('sem-1', 3, getAvailable);
-    expect(getAvailable).toHaveBeenCalled();
-    expect(await metricValue(dataServiceSemaphoreTotal, { name: 'sem-1' })).toBe(3);
-    expect(await metricValue(dataServiceSemaphoreAvailable, { name: 'sem-1' })).toBe(2);
-  });
-
-  it('available 为 0（饱和）时应如实记录 0 而非缺省', async () => {
-    registerSemaphoreMetrics('sem-2', 3, () => 0);
-    expect(await metricValue(dataServiceSemaphoreAvailable, { name: 'sem-2' })).toBe(0);
-    expect(await metricValue(dataServiceSemaphoreTotal, { name: 'sem-2' })).toBe(3);
-  });
-
-  it('available 等于 total（完全空闲）时应记录满许可', async () => {
-    registerSemaphoreMetrics('sem-3', 3, () => 3);
-    expect(await metricValue(dataServiceSemaphoreAvailable, { name: 'sem-3' })).toBe(3);
+  it.each<[string, number, () => number, number]>([
+    ['应将 total 与 available 初始值写入对应 Gauge', 3, () => 2, 2],
+    ['available 为 0（饱和）时应如实记录 0 而非缺省', 3, () => 0, 0],
+    ['available 等于 total（完全空闲）时应记录满许可', 3, () => 3, 3],
+  ])('%s', async (_n, total, getAvailable, expectedAvailable) => {
+    const spy = vi.fn(getAvailable);
+    registerSemaphoreMetrics('sem-1', total, spy);
+    expect(spy).toHaveBeenCalled();
+    expect(await metricValue(dataServiceSemaphoreTotal, { name: 'sem-1' })).toBe(total);
+    expect(await metricValue(dataServiceSemaphoreAvailable, { name: 'sem-1' })).toBe(
+      expectedAvailable,
+    );
   });
 });
 
 describe('resetMetrics', () => {
-  it('应不抛错地重置所有指标', () => {
-    expect(() => resetMetrics()).not.toThrow();
-  });
-
-  it('多次调用应幂等', () => {
+  it('应不抛错地重置所有指标且多次调用幂等', () => {
     expect(() => {
       resetMetrics();
       resetMetrics();
@@ -238,22 +164,14 @@ describe('resetMetrics', () => {
 });
 
 describe('getPrometheusRegister', () => {
-  it('应返回 Registry 实例', () => {
+  it('应返回 Registry 实例，支持 metrics() 与 getMetricsAsJSON()', async () => {
     const register = getPrometheusRegister();
     expect(register).toBeDefined();
     expect(typeof register.metrics).toBe('function');
-  });
-
-  it('返回的 register 应支持 metrics() 方法生成 Prometheus 文本格式', async () => {
-    const register = getPrometheusRegister();
     const metricsText = await register.metrics();
     expect(typeof metricsText).toBe('string');
     // 应包含已注册的指标名称
     expect(metricsText.length).toBeGreaterThan(0);
-  });
-
-  it('返回的 register 应支持 getMetricsAsJSON 方法', async () => {
-    const register = getPrometheusRegister();
     const metrics = await register.getMetricsAsJSON();
     expect(Array.isArray(metrics)).toBe(true);
   });

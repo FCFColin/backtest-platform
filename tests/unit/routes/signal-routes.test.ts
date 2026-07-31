@@ -3,36 +3,23 @@ import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { mockLogger } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
 
-const dataServiceMocks = vi.hoisted(() => ({
-  fetchHistoryData: vi.fn(),
-}));
-
-const engineMocks = vi.hoisted(() => ({
-  callEngineStrict: vi.fn(),
-}));
-
+const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
+const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
-  child: vi.fn(() => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  })),
+  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataServiceMocks.fetchHistoryData,
 }));
-
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
   EngineUnavailableError: EngineUnavailableErrorStub,
 }));
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
@@ -57,295 +44,98 @@ const mockEngineResult = {
   equityCurve: [{ date: '2020-01-01', value: 10000 }],
 };
 
-describe('signalRoutes - POST /api/signal/analyze', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: {
-        SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 },
-      },
-      degraded: false,
-    });
-    engineMocks.callEngineStrict.mockResolvedValue(mockEngineResult);
-    server = await startExpressApp((app) => app.use('/api/signal', signalRoutes));
+async function apiPost(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
+  return { res, body: await res.json().catch(() => null) };
+}
 
-  afterEach(async () => {
-    await server.close();
-  });
-
-  it('有效参数应返回单信号分析结果', async () => {
-    const res = await fetch(`${server.url}/api/signal/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createSignalConfig()),
-    });
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.signals).toHaveLength(1);
-    expect(body.data.statistics.winRate).toBe(1.0);
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
-  });
-
-  it('缺少 ticker 应返回 400（zod 校验失败）', async () => {
-    const req = createSignalConfig();
-    delete (req as Record<string, unknown>).ticker;
-
-    const res = await fetch(`${server.url}/api/signal/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
-  });
-
-  it('无效 signalType 应返回 400（zod 校验失败）', async () => {
-    const req = createSignalConfig();
-    (req as Record<string, unknown>).signalType = 'invalid';
-
-    const res = await fetch(`${server.url}/api/signal/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-  });
-
-  it('价格数据缺失时应返回 404', async () => {
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: { SPY: {} }, degraded: false });
-
-    const res = await fetch(`${server.url}/api/signal/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createSignalConfig()),
-    });
-    const body = await res.json();
-
-    expect(res.status).toBe(404);
-    expect(body.error.code).toBe('DATA_NOT_FOUND');
-  });
-
-  it('引擎抛错时应返回 500', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('signal engine error'));
-
-    const res = await fetch(`${server.url}/api/signal/analyze`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(createSignalConfig()),
-    });
-
-    expect(res.status).toBe(500);
-  });
-});
-
-describe('signalRoutes - POST /api/signal/dual', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: {
-        SPY: { '2020-01-01': 300.0 },
-        QQQ: { '2020-01-01': 200.0 },
-      },
-      degraded: false,
-    });
-    engineMocks.callEngineStrict.mockResolvedValue({
-      ...mockEngineResult,
-      equityCurve: [],
-    });
-    server = await startExpressApp((app) => app.use('/api/signal', signalRoutes));
-  });
-
-  afterEach(async () => {
-    await server.close();
-  });
-
-  it('有效参数应返回双信号分析结果', async () => {
-    const req = {
+describe.each([
+  {
+    path: '/api/signal/analyze',
+    data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
+    engineResult: mockEngineResult,
+    validReq: () => createSignalConfig(),
+    validation: [
+      [
+        '缺少 ticker',
+        () => {
+          const r = createSignalConfig();
+          delete (r as Record<string, unknown>).ticker;
+          return r;
+        },
+      ],
+      ['无效 signalType', () => ({ ...createSignalConfig(), signalType: 'invalid' })],
+    ],
+  },
+  {
+    path: '/api/signal/dual',
+    data: { SPY: { '2020-01-01': 300.0 }, QQQ: { '2020-01-01': 200.0 } },
+    engineResult: { ...mockEngineResult, equityCurve: [] },
+    validReq: () => ({
       signal1: createSignalConfig('SPY'),
       signal2: createSignalConfig('QQQ'),
-      combinationMethod: 'and' as const,
-    };
-
-    const res = await fetch(`${server.url}/api/signal/dual`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.signals).toHaveLength(1);
-    expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
-  });
-
-  it('缺少 combinationMethod 应返回 400（zod 校验失败）', async () => {
-    const req = {
-      signal1: createSignalConfig('SPY'),
-      signal2: createSignalConfig('QQQ'),
-    };
-
-    const res = await fetch(`${server.url}/api/signal/dual`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-    expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
-  });
-
-  it('价格数据缺失时应返回 404', async () => {
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: { SPY: {} }, degraded: false });
-
-    const req = {
-      signal1: createSignalConfig('SPY'),
-      signal2: createSignalConfig('QQQ'),
-      combinationMethod: 'and' as const,
-    };
-
-    const res = await fetch(`${server.url}/api/signal/dual`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(404);
-  });
-
-  it('引擎抛错时应返回 500', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('dual signal error'));
-
-    const req = {
-      signal1: createSignalConfig('SPY'),
-      signal2: createSignalConfig('QQQ'),
-      combinationMethod: 'and' as const,
-    };
-
-    const res = await fetch(`${server.url}/api/signal/dual`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(500);
-  });
-});
-
-describe('signalRoutes - POST /api/signal/multi', () => {
-  let server: TestServer;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    dataServiceMocks.fetchHistoryData.mockResolvedValue({
-      data: {
-        SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 },
-      },
-      degraded: false,
-    });
-    engineMocks.callEngineStrict.mockResolvedValue({
-      ...mockEngineResult,
-      equityCurve: [],
-    });
-    server = await startExpressApp((app) => app.use('/api/signal', signalRoutes));
-  });
-
-  afterEach(async () => {
-    await server.close();
-  });
-
-  it('有效参数应返回多信号分析结果', async () => {
-    const req = {
+      combinationMethod: 'and',
+    }),
+    validation: [
+      [
+        '缺少 combinationMethod',
+        () => ({ signal1: createSignalConfig('SPY'), signal2: createSignalConfig('QQQ') }),
+      ],
+    ],
+  },
+  {
+    path: '/api/signal/multi',
+    data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
+    engineResult: { ...mockEngineResult, equityCurve: [] },
+    validReq: () => ({
       signals: [
         createSignalConfig('SPY'),
         { ...createSignalConfig('SPY'), indicator: 'rsi', period: 14, threshold: 30 },
       ],
-      aggregationMethod: 'voting' as const,
-    };
+      aggregationMethod: 'voting',
+    }),
+    validation: [
+      ['空 signals 数组', () => ({ signals: [], aggregationMethod: 'voting' })],
+      ['缺少 aggregationMethod', () => ({ signals: [createSignalConfig('SPY')] })],
+    ],
+  },
+])('signalRoutes - POST $path', (c) => {
+  let server: TestServer;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: c.data, degraded: false });
+    engineMocks.callEngineStrict.mockResolvedValue(c.engineResult);
+    server = await startExpressApp((app) => app.use('/api/signal', signalRoutes));
+  });
+  afterEach(async () => {
+    await server.close();
+  });
 
-    const res = await fetch(`${server.url}/api/signal/multi`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-    const body = await res.json();
-
+  it('有效参数应返回分析结果', async () => {
+    const { res, body } = await apiPost(`${server.url}${c.path}`, c.validReq());
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.signals).toHaveLength(1);
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
-
-  it('空 signals 数组应返回 400（zod 校验失败）', async () => {
-    const req = {
-      signals: [],
-      aggregationMethod: 'voting' as const,
-    };
-
-    const res = await fetch(`${server.url}/api/signal/multi`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
+  it.each(c.validation)('%s 应返回 400（zod 校验失败）', async (_n, getReq) => {
+    const { res } = await apiPost(`${server.url}${c.path}`, getReq());
     expect(res.status).toBe(400);
     expect(engineMocks.callEngineStrict).not.toHaveBeenCalled();
   });
-
-  it('缺少 aggregationMethod 应返回 400（zod 校验失败）', async () => {
-    const req = {
-      signals: [createSignalConfig('SPY')],
-    };
-
-    const res = await fetch(`${server.url}/api/signal/multi`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
-    expect(res.status).toBe(400);
-  });
-
   it('价格数据缺失时应返回 404', async () => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: { SPY: {} }, degraded: false });
-
-    const req = {
-      signals: [createSignalConfig('SPY')],
-      aggregationMethod: 'voting' as const,
-    };
-
-    const res = await fetch(`${server.url}/api/signal/multi`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
+    const { res, body } = await apiPost(`${server.url}${c.path}`, c.validReq());
     expect(res.status).toBe(404);
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
-
   it('引擎抛错时应返回 500', async () => {
-    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('multi signal error'));
-
-    const req = {
-      signals: [createSignalConfig('SPY')],
-      aggregationMethod: 'voting' as const,
-    };
-
-    const res = await fetch(`${server.url}/api/signal/multi`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req),
-    });
-
+    engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('signal engine error'));
+    const { res } = await apiPost(`${server.url}${c.path}`, c.validReq());
     expect(res.status).toBe(500);
   });
 });

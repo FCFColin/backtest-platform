@@ -11,6 +11,18 @@ let readPool: pg.Pool | null = null;
 
 export { pool as writePool, pool, readPool };
 
+/** 关闭主/只读连接池（优雅关停时调用；未初始化时为空操作）。 */
+export async function closeDb(): Promise<void> {
+  if (pool) {
+    await pool.end().catch((err: Error) => logger.error({ err }, '[db] 主连接池关闭失败'));
+    pool = null;
+  }
+  if (readPool) {
+    await readPool.end().catch((err: Error) => logger.error({ err }, '[db] 只读连接池关闭失败'));
+    readPool = null;
+  }
+}
+
 interface CreatePoolOptions {
   connectionString: string;
   poolName: string;
@@ -64,7 +76,10 @@ export function getReadPool(): pg.Pool {
   if (readPool) return readPool;
   const readUrl = config.DATABASE_READ_URL;
   if (!readUrl) return getPool();
-  readPool = createAndInstrumentPool({ connectionString: readUrl, poolName: 'PostgreSQL 只读连接池' });
+  readPool = createAndInstrumentPool({
+    connectionString: readUrl,
+    poolName: 'PostgreSQL 只读连接池',
+  });
   registerPgPoolMetrics('read', () => ({
     waitingCount: readPool?.waitingCount ?? 0,
     totalCount: readPool?.totalCount ?? 0,

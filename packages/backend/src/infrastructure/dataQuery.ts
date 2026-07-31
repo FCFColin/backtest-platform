@@ -1,6 +1,5 @@
 /** 市场数据查询模块（价格 / Ticker 搜索）。prices/tickers 全局共享无 RLS，直连 getReadPool() 正确。P0-03：限制 Go 服务响应体大小防 OOM。 */
 import CircuitBreaker from 'opossum';
-
 import { logger } from '../utils/logger.js';
 import { toDateStr } from '../utils/misc.js';
 import { getReadPool } from '../db/pool.js';
@@ -34,9 +33,15 @@ const pgCircuitBreaker = new CircuitBreaker(
     rollingCountBuckets: 6,
   },
 );
-pgCircuitBreaker.on('open', () => logger.warn('[dataService] PostgreSQL 熔断器 OPEN：后续查询将失败直至恢复'));
-pgCircuitBreaker.on('halfOpen', () => logger.info('[dataService] PostgreSQL 熔断器 HALF-OPEN：放行探测查询'));
-pgCircuitBreaker.on('close', () => logger.info('[dataService] PostgreSQL 熔断器 CLOSED：PostgreSQL 恢复正常'));
+pgCircuitBreaker.on('open', () =>
+  logger.warn('[dataService] PostgreSQL 熔断器 OPEN：后续查询将失败直至恢复'),
+);
+pgCircuitBreaker.on('halfOpen', () =>
+  logger.info('[dataService] PostgreSQL 熔断器 HALF-OPEN：放行探测查询'),
+);
+pgCircuitBreaker.on('close', () =>
+  logger.info('[dataService] PostgreSQL 熔断器 CLOSED：PostgreSQL 恢复正常'),
+);
 registerCircuitBreakerMetrics('postgres', pgCircuitBreaker);
 
 function isDbAvailable(): boolean {
@@ -68,7 +73,11 @@ async function queryPricesFromDb(
   startDate: string,
   endDate: string,
   hasUnknownTickers: boolean,
-): Promise<{ result: Record<string, Record<string, number>>; missing: string[]; dbDegraded: boolean }> {
+): Promise<{
+  result: Record<string, Record<string, number>>;
+  missing: string[];
+  dbDegraded: boolean;
+}> {
   if (!isDbAvailable()) return { result: {}, missing: [...validTickers], dbDegraded: true };
   try {
     let effectiveStart = startDate;
@@ -83,15 +92,19 @@ async function queryPricesFromDb(
         effectiveEnd = toDateStr(new Date());
       }
     }
-    if (validTickers.length === 0 && hasUnknownTickers) return { result: {}, missing: [], dbDegraded: false };
+    if (validTickers.length === 0 && hasUnknownTickers)
+      return { result: {}, missing: [], dbDegraded: false };
     const { rows } = await pgCircuitBreaker.fire(
       'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3 ORDER BY date',
       [validTickers, effectiveStart, effectiveEnd],
     );
     const result: Record<string, Record<string, number>> = {};
-    for (const { ticker, date, close } of rows as Array<{ ticker: string; date: Date | string; close: number }>) {
+    for (const { ticker, date, close } of rows as Array<{
+      ticker: string;
+      date: Date | string;
+      close: number;
+    }>)
       (result[ticker] ??= {})[toDateStr(date)] = close;
-    }
     const missing = validTickers.filter((t) => !result[t] || Object.keys(result[t]).length === 0);
     return { result, missing, dbDegraded: false };
   } catch (err) {
@@ -110,21 +123,28 @@ async function fetchMissingFromGoService(
   const goResult: Record<string, Record<string, number>> = {};
   try {
     const results = await Promise.all(
-      stillMissing.map(async (ticker): Promise<{ ticker: string; priceMap: Record<string, number> } | null> => {
-        try {
-          const response = await callGoDataService(`/api/data/price/${ticker}?start=${startDate}&end=${endDate}`, orgId);
-          const parsed = JSON.parse(response);
-          if (parsed.success && Array.isArray(parsed.data)) {
-            const priceMap = Object.fromEntries(
-              parsed.data.map((p: { date: string; close: number }) => [p.date, p.close]),
+      stillMissing.map(
+        async (ticker): Promise<{ ticker: string; priceMap: Record<string, number> } | null> => {
+          try {
+            const response = await callGoDataService(
+              `/api/data/price/${ticker}?start=${startDate}&end=${endDate}`,
+              orgId,
             );
-            if (Object.keys(priceMap).length > 0) return { ticker, priceMap };
+            const parsed = JSON.parse(response);
+            if (parsed.success && Array.isArray(parsed.data)) {
+              const priceMap = Object.fromEntries(
+                parsed.data.map((p: { date: string; close: number }) => [p.date, p.close]),
+              );
+              if (Object.keys(priceMap).length > 0) return { ticker, priceMap };
+            }
+          } catch (tickerErr) {
+            logger.warn(
+              `[dataService] Go data service failed for ${ticker}: ${(tickerErr as Error).message}`,
+            );
           }
-        } catch (tickerErr) {
-          logger.warn(`[dataService] Go data service failed for ${ticker}: ${(tickerErr as Error).message}`);
-        }
-        return null;
-      }),
+          return null;
+        },
+      ),
     );
     for (const r of results) {
       if (r) {
@@ -132,7 +152,8 @@ async function fetchMissingFromGoService(
         await setPriceCache(r.ticker, r.priceMap);
       }
     }
-    if (Object.keys(goResult).length > 0) await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
+    if (Object.keys(goResult).length > 0)
+      await writeCache(cacheKey, goResult, HISTORY_CACHE_TTL_SEC);
   } catch (err) {
     logger.warn(`[dataService] Go data service failed: ${(err as Error).message}`);
   }
@@ -161,12 +182,20 @@ function validateSearchQuery(query: string, market?: string): boolean {
   return true;
 }
 
-async function searchTickersFromDb(query: string, market?: string): Promise<TickerSearchResult[] | null> {
+async function searchTickersFromDb(
+  query: string,
+  market?: string,
+): Promise<TickerSearchResult[] | null> {
   if (!isDbAvailable()) return null;
   try {
-    const tsQueryStr = query.split(/\s+/).filter((w) => w.length > 0).map((w) => w.replace(/'/g, "''")).join(' & ');
+    const tsQueryStr = query
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+      .map((w) => w.replace(/'/g, "''"))
+      .join(' & ');
     if (tsQueryStr.length === 0) return [];
-    let sql = 'SELECT ticker, category, market FROM tickers WHERE search_vector @@ to_tsquery($1, $2)';
+    let sql =
+      'SELECT ticker, category, market FROM tickers WHERE search_vector @@ to_tsquery($1, $2)';
     const params: unknown[] = ['simple', tsQueryStr];
     if (market) {
       sql += ' AND market = $3';
@@ -177,16 +206,23 @@ async function searchTickersFromDb(query: string, market?: string): Promise<Tick
     if (rows.length === 0) return [];
     // JS 侧兜底：SQL LIMIT 20 已限制生产结果，30 为防御性上限（mock/降级绕过 SQL 时仍保证上限）
     return rows
-      .map((r: { ticker: string; category: string; market: string }) => ({ ticker: r.ticker, name: r.category, market: r.market }))
+      .map((r: { ticker: string; category: string; market: string }) => ({
+        ticker: r.ticker,
+        name: r.category,
+        market: r.market,
+      }))
       .slice(0, 30);
   } catch (err) {
-    logger.warn({ err }, '[dataService] searchTickers: PostgreSQL 全文搜索失败，回退到 Go 数据服务');
+    logger.warn(
+      { err },
+      '[dataService] searchTickers: PostgreSQL 全文搜索失败，回退到 Go 数据服务',
+    );
     return null;
   }
 }
 
 /**
- * 校验给定标的代码。valid: DB 存在；unknown: 格式合法但 DB 不存在（可由 Go 服务实时获取）；invalid: 格式非法。
+ * 校验标的代码：valid=DB 存在；unknown=格式合法但 DB 不存在（可由 Go 服务实时获取）；invalid=格式非法。
  * DB 不可用时格式合法的标记为 unknown（不抛错，便于调用方降级处理）。
  */
 export async function validateTickers(
@@ -200,7 +236,10 @@ export async function validateTickers(
   }
   if (!isDbAvailable()) return { valid: [], invalid, unknown: formatValid };
   try {
-    const { rows } = await pgCircuitBreaker.fire('SELECT ticker FROM tickers WHERE ticker = ANY($1)', [formatValid]);
+    const { rows } = await pgCircuitBreaker.fire(
+      'SELECT ticker FROM tickers WHERE ticker = ANY($1)',
+      [formatValid],
+    );
     const dbValidSet = new Set(rows.map((r: { ticker: string }) => r.ticker));
     return {
       valid: formatValid.filter((t) => dbValidSet.has(t)),
@@ -208,15 +247,15 @@ export async function validateTickers(
       unknown: formatValid.filter((t) => !dbValidSet.has(t)),
     };
   } catch (err) {
-    logger.warn({ err }, '[dataService] validateTickers: PostgreSQL 查询失败，将格式合法ticker标记为unknown');
+    logger.warn(
+      { err },
+      '[dataService] validateTickers: PostgreSQL 查询失败，将格式合法ticker标记为unknown',
+    );
     return { valid: [], invalid, unknown: formatValid };
   }
 }
 
-/**
- * 搜索标的代码或名称。
- * 优先查 PostgreSQL，未命中查文件缓存，最后调 Go data service 实时搜索。Go 失败返回空数组。
- */
+/** 搜索标的代码或名称：优先 PostgreSQL，其次缓存，最后 Go data service 实时搜索（失败返回空数组）。 */
 export async function searchTickers(
   query: string,
   market?: string,
@@ -229,7 +268,10 @@ export async function searchTickers(
   const cached = await readCache(cacheKey);
   if (cached) return cached as TickerSearchResult[];
   try {
-    const response = await callGoDataService(`/api/data/search?q=${encodeURIComponent(query)}`, orgId);
+    const response = await callGoDataService(
+      `/api/data/search?q=${encodeURIComponent(query)}`,
+      orgId,
+    );
     const parsed = JSON.parse(response);
     if (parsed.success && Array.isArray(parsed.data)) {
       const data = parsed.data.map((r: { ticker: string; name: string; market: string }) => ({
@@ -242,41 +284,10 @@ export async function searchTickers(
     }
     return [];
   } catch (err) {
-    logger.warn(`Go data service search failed, returning empty results: ${(err as Error).message}`);
-    return [];
-  }
-}
-
-/** 从 prices_monthly CAGG 查询月线收盘价（P1-01 T7）。预计算月线 OHLCV，物化视图获得 10-100x 性能提升。 */
-export async function queryMonthlyPricesFromDb(
-  validTickers: string[],
-  startDate: string,
-  endDate: string,
-): Promise<Record<string, Record<string, number>>> {
-  if (!isDbAvailable() || validTickers.length === 0) return {};
-  try {
-    const { rows } = await pgCircuitBreaker.fire(
-      'SELECT ticker, month, close FROM prices_monthly WHERE ticker = ANY($1) AND month >= $2 AND month <= $3 ORDER BY month',
-      [validTickers, startDate, endDate],
+    logger.warn(
+      `Go data service search failed, returning empty results: ${(err as Error).message}`,
     );
-    const grouped: Record<string, Record<string, number>> = {};
-    for (const { ticker, month, close } of rows as Array<{ ticker: string; month: Date | string; close: number }>) {
-      (grouped[ticker] ??= {})[toDateStr(month)] = close;
-    }
-    return grouped;
-  } catch (err) {
-    logger.warn(`[dataQuery] prices_monthly CAGG query failed, falling back to daily query: ${(err as Error).message}`);
-    // CAGG 不可用时降级为日度查询取月末值
-    const dailyResult = await queryPricesFromDb(validTickers, startDate, endDate, false);
-    const monthlyResult: Record<string, Record<string, number>> = {};
-    for (const [ticker, dailyPrices] of Object.entries(dailyResult.result)) {
-      monthlyResult[ticker] = Object.fromEntries(
-        Object.keys(dailyPrices)
-          .sort()
-          .map((d) => [d.substring(0, 7) + '-01', dailyPrices[d]]),
-      );
-    }
-    return monthlyResult;
+    return [];
   }
 }
 

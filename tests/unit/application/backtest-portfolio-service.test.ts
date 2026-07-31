@@ -22,10 +22,7 @@ const eventMocks = vi.hoisted(() => ({
 }));
 
 const dbMocks = vi.hoisted(() => ({
-  getClient: vi.fn(async () => ({
-    query: vi.fn(async () => ({ rows: [] })),
-    release: vi.fn(),
-  })),
+  getClient: vi.fn(async () => ({ query: vi.fn(async () => ({ rows: [] })), release: vi.fn() })),
 }));
 
 const outboxMocks = vi.hoisted(() => ({
@@ -37,12 +34,7 @@ const loggerMocks = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
   debug: vi.fn(),
-  child: vi.fn(() => ({
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-  })),
+  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
 const cacheMocks = vi.hoisted(() => ({
@@ -160,20 +152,21 @@ const mockBacktestResult: BacktestResult = {
   correlations: [[1]],
 };
 
+const priceDataResult = (overrides: Record<string, unknown> = {}) => ({
+  priceData: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
+  effectiveStartDate: '2020-01-02',
+  effectiveEndDate: '2020-12-31',
+  degraded: false,
+  ...overrides,
+});
 describe('runPortfolioBacktest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-
     helpersMocks.preparePortfolioBacktest.mockReturnValue({
       allTickers: new Set(['AAPL', 'SPY']),
       warnings: [],
     });
-    helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
-      priceData: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
-      effectiveStartDate: '2020-01-02',
-      effectiveEndDate: '2020-12-31',
-      degraded: false,
-    });
+    helpersMocks.fetchPriceDataWithRange.mockResolvedValue(priceDataResult());
     helpersMocks.collectInvalidTickerWarnings.mockReturnValue([]);
     helpersMocks.loadMacroData.mockResolvedValue({ cpiData: {}, exchangeRates: {} });
     helpersMocks.calculateDateRange.mockReturnValue({
@@ -196,12 +189,10 @@ describe('runPortfolioBacktest', () => {
     cacheMocks.backtestCacheKey.mockReturnValue('test-cache-key');
   });
 
-  it('应完成完整编排流程并返回压缩后的结果', async () => {
-    const result = await runPortfolioBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-    });
-
+  const run = (opts: Record<string, unknown> = {}) =>
+    runPortfolioBacktest({ portfolios: [mockPortfolio], parameters: mockParameters, ...opts });
+  it('应完成完整编排流程：调用引擎、压缩、withTimeout 包装并返回结果', async () => {
+    const result = await run();
     expect(helpersMocks.preparePortfolioBacktest).toHaveBeenCalledWith(
       [mockPortfolio],
       mockParameters,
@@ -212,82 +203,48 @@ describe('runPortfolioBacktest', () => {
     expect(compressMocks.compressBacktestResultForSync).toHaveBeenCalledWith(mockBacktestResult);
     expect(result.result).toBe(mockBacktestResult);
     expect(result.warnings).toEqual([]);
+    expect(timeoutMocks.withTimeout).toHaveBeenCalled();
+    expect(configMocks.BACKTEST_SYNC_TIMEOUT_MS).toBe(120000);
   });
-
-  it('应将结果写入缓存', async () => {
-    await runPortfolioBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-      tenantId: 'tenant-1',
-    });
-
+  it.each([
+    ['无租户时缓存 key 不含租户', {}, undefined],
+    ['带 tenantId 时缓存 key 应包含租户', { tenantId: 'tenant-1' }, 'tenant-1'],
+  ])('%s，且结果写入缓存', async (_n, opts, tenantId) => {
+    await run(opts);
     expect(cacheMocks.backtestCacheKey).toHaveBeenCalledWith(
       [mockPortfolio],
       mockParameters,
-      'tenant-1',
+      tenantId,
     );
     expect(cacheMocks.setBacktestResultCache).toHaveBeenCalledWith(
       'test-cache-key',
       mockBacktestResult,
     );
   });
-
   it('数据降级时应添加 DATA_DEGRADED 警告', async () => {
-    helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
-      priceData: { AAPL: { '2020-01-02': 100 } },
-      effectiveStartDate: '2020-01-02',
-      effectiveEndDate: '2020-12-31',
-      degraded: true,
-      degradedWarning: 'Go 数据服务降级',
-    });
-
-    const result = await runPortfolioBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-    });
-
-    expect(result.warnings).toContainEqual({
-      code: 'DATA_DEGRADED',
-      message: 'Go 数据服务降级',
-    });
+    helpersMocks.fetchPriceDataWithRange.mockResolvedValue(
+      priceDataResult({
+        priceData: { AAPL: { '2020-01-02': 100 } },
+        degraded: true,
+        degradedWarning: 'Go 数据服务降级',
+      }),
+    );
+    const result = await run();
+    expect(result.warnings).toContainEqual({ code: 'DATA_DEGRADED', message: 'Go 数据服务降级' });
   });
-
   it('日期范围调整时应使用 effective 日期调用引擎', async () => {
-    helpersMocks.fetchPriceDataWithRange.mockResolvedValue({
-      priceData: { AAPL: { '2020-01-03': 101 } },
-      effectiveStartDate: '2020-01-03',
-      effectiveEndDate: '2020-12-30',
-      degraded: false,
-    });
-
-    await runPortfolioBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-    });
-
-    const engineCallArgs = engineMocks.callEngineStrict.mock.calls[0];
-    const engineBody = engineCallArgs[1];
-    expect(engineBody.params).toBeDefined();
+    helpersMocks.fetchPriceDataWithRange.mockResolvedValue(
+      priceDataResult({
+        priceData: { AAPL: { '2020-01-03': 101 } },
+        effectiveStartDate: '2020-01-03',
+        effectiveEndDate: '2020-12-30',
+      }),
+    );
+    await run();
+    expect(engineMocks.callEngineStrict.mock.calls[0][1].params).toBeDefined();
   });
-
   it('引擎不可用时应抛出错误（fail-closed ADR-031）', async () => {
     engineMocks.callEngineStrict.mockRejectedValue(new Error('ENGINE_UNAVAILABLE'));
-
-    await expect(
-      runPortfolioBacktest({
-        portfolios: [mockPortfolio],
-        parameters: mockParameters,
-      }),
-    ).rejects.toThrow('ENGINE_UNAVAILABLE');
-  });
-
-  it('应通过 withTimeout 包装引擎调用', async () => {
-    await runPortfolioBacktest({
-      portfolios: [mockPortfolio],
-      parameters: mockParameters,
-    });
-
-    expect(timeoutMocks.withTimeout).toHaveBeenCalled();
-    expect(configMocks.BACKTEST_SYNC_TIMEOUT_MS).toBe(120000);
+    await expect(run()).rejects.toThrow('ENGINE_UNAVAILABLE');
   });
 });

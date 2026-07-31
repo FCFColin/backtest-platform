@@ -1,12 +1,8 @@
 /**
  * 一键开发启动脚本
  *
- * 自动启动所有开发依赖：Docker 基础设施 → Go 引擎 → Data Fetcher → Worker → API + 前端
- * 自动找空闲端口，后台启动服务（不绑定终端），输出访问地址。
- * 可通过 HEADLESS=false 或 --interactive 切换到前台交互模式。
- *
- * 流程：基础设施 → engine-go → dist build → 后台启动 API + Worker (SERVE_STATIC=true)
- * 访问 http://localhost:<port>/
+ * 自动启动所有开发依赖：Docker 基础设施 → Go 引擎 → Data Fetcher → Worker → API + 前端。
+ * 自动找空闲端口，后台启动服务（HEADLESS=false 或 --interactive 可切前台交互模式）。
  */
 
 import { spawn, exec, execSync } from 'node:child_process';

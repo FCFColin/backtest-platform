@@ -16,7 +16,11 @@ import {
 import { requirePermission, Permission } from './middleware/rbac.js';
 import { httpLogger, logger } from './utils/logger.js';
 import { requestContextStorage } from './utils/requestContext.js';
-import { httpRequestDurationMicroseconds, httpRequestsTotal, getRoutePattern } from './utils/metrics.js';
+import {
+  httpRequestDurationMicroseconds,
+  httpRequestsTotal,
+  getRoutePattern,
+} from './utils/metrics.js';
 import {
   apiLimiter,
   computeLimiter,
@@ -59,19 +63,15 @@ import { setupBacktestWebSocket } from './services/backtestWs.js';
 
 const app: express.Application = express();
 
-// 信任反向代理的 X-Forwarded-For，使 express-rate-limit 取到真实客户端 IP
-app.set('trust proxy', config.TRUST_PROXY_HOPS);
+app.set('trust proxy', config.TRUST_PROXY_HOPS); // 信任 X-Forwarded-For，使 rate-limit 取到真实客户端 IP
 
 app.use(httpLogger);
 
 // 将 request_id 放入 AsyncLocalStorage，使下游 callService 能注入 x-request-id
 app.use((req: Request, _res: Response, next: NextFunction) => {
   const requestId = req.id !== undefined ? String(req.id) : undefined;
-  if (requestId) {
-    requestContextStorage.run({ requestId }, () => next());
-  } else {
-    next();
-  }
+  if (requestId) requestContextStorage.run({ requestId }, () => next());
+  else next();
 });
 
 // Prometheus HTTP 指标采集
@@ -79,10 +79,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on('finish', () => {
     try {
-      const duration = (Date.now() - start) / 1000;
-      const route = getRoutePattern(req);
-      const labels = { method: req.method, route, status_code: String(res.statusCode) };
-      httpRequestDurationMicroseconds.observe(labels, duration);
+      const labels = {
+        method: req.method,
+        route: getRoutePattern(req),
+        status_code: String(res.statusCode),
+      };
+      httpRequestDurationMicroseconds.observe(labels, (Date.now() - start) / 1000);
       httpRequestsTotal.inc(labels);
     } catch (err) {
       logger.warn({ err }, 'Failed to record HTTP metrics');
@@ -94,8 +96,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // P3-5: 全局请求超时（30s 上限），超时返回 503 Problem Detail
 app.use(requestTimeout(30_000));
 
-// 103 Early Hints — 非 API 请求提前推送关键资源链接
-// 在静态文件中间件之前注册，确保 HTML 响应前推送提示
+// 103 Early Hints — 在静态文件中间件之前注册，确保 HTML 响应前推送关键资源链接
 app.use(createEarlyHintsMiddleware());
 
 // 安全头 + CORS
@@ -116,13 +117,11 @@ app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   next();
 });
-
 const corsOptions =
   config.CORS_ORIGINS === true
     ? (() => {
-        if (config.NODE_ENV === 'production') {
+        if (config.NODE_ENV === 'production')
           throw new Error('[CORS] 生产环境禁止 CORS_ORIGINS 通配');
-        }
         return cors();
       })()
     : cors({ origin: config.CORS_ORIGINS });
@@ -134,19 +133,15 @@ app.use(brotliCompress);
 app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   billingWebhookHandler(req, res).catch((err) => {
     logger.error({ err }, '[app] Stripe webhook handler unhandled rejection');
-    if (!res.headersSent) {
-      res.status(500).json({ received: false });
-    }
+    if (!res.headersSent) res.status(500).json({ received: false });
   });
 });
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-// P0-1 BFF 模式：解析 httpOnly Cookie 中的 Refresh Token
-app.use(cookieParser());
+app.use(cookieParser()); // P0-1 BFF 模式：解析 httpOnly Cookie 中的 Refresh Token
 
-// P2-1: OpenAPI 请求/响应运行时验证（仅非生产环境）
-// 开发/staging 环境启用，生产环境跳过（零运行时开销）
+// P2-1: OpenAPI 运行时验证（仅非生产环境，生产零运行时开销）
 if (config.NODE_ENV !== 'production') {
   void (async () => {
     try {
@@ -160,7 +155,6 @@ if (config.NODE_ENV !== 'production') {
         }),
       );
     } catch (err) {
-      // express-openapi-validator 未安装时跳过（生产环境正常路径）
       logger.warn({ err }, '[app] OpenAPI validator not available, skipping runtime validation');
     }
   })();
@@ -171,20 +165,22 @@ app.use('/api/v1/backtest', (req, _res, next) => {
   if (req.method === 'GET') return next();
   computeLimiter(req, _res, next);
 });
-app.use('/api/v1/backtest-optimizer', computeLimiter);
-app.use('/api/v1/tactical', computeLimiter);
-app.use('/api/v1/pca', computeLimiter);
-app.use('/api/v1/signal', computeLimiter);
-app.use('/api/v1/letf', computeLimiter);
-app.use('/api/v1/tactical-grid', computeLimiter);
-app.use('/api/v1/goal-optimizer', computeLimiter);
+for (const p of [
+  '/api/v1/backtest-optimizer',
+  '/api/v1/tactical',
+  '/api/v1/pca',
+  '/api/v1/signal',
+  '/api/v1/letf',
+  '/api/v1/tactical-grid',
+  '/api/v1/goal-optimizer',
+])
+  app.use(p, computeLimiter);
 app.use('/api/v1/admin', adminLimiter);
 app.use('/api/v1/data/manage', adminLimiter);
 app.use('/api/v1/auth/login', loginLimiter);
 app.use('/api/v1/auth/register', registerLimiter);
 app.use('/api/v1/auth/refresh', refreshLimiter);
-// 健康检查在全局限流器之前，避免探活被 429 误杀
-app.use('/api', healthRoutes);
+app.use('/api', healthRoutes); // 健康检查在全局限流器之前，避免探活被 429 误杀
 app.use('/api/', apiLimiter);
 
 // 路由挂载（仅 v1，legacy 路径已废弃）
@@ -217,24 +213,17 @@ app.use(
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
   tacticalGridRoutes,
 );
-
-// 分析类路由合并挂载（ADR-042）：pca/letf/goal-optimizer/calculators/factor-regression
-// 内部按子路径应用不同中间件链（computeMiddleware/computeMiddlewareNoQuota + Permission）
+// 分析类路由合并挂载（ADR-042）：内部按子路径应用不同中间件链
 app.use('/api/v1', analysisRoutes);
-
 app.use('/api/v1/admin', ...adminMiddleware(), adminRoutes);
-// P2-03 不可篡改审计存储：管理后台审计日志查询（ADMIN_ACCESS 权限）
-app.use('/api/v1/admin/audit-logs', ...adminMiddleware(), auditRoutes);
+app.use('/api/v1/admin/audit-logs', ...adminMiddleware(), auditRoutes); // P2-03 审计日志查询（ADMIN_ACCESS）
 app.use('/api/v1/admin/keys', jwtAuth, auditLog, adminKeyRoutes);
 app.use('/api/v1/admin', requireTenant, rbacRoutes);
 app.use('/api/v1/auth', authRoutes);
-// P1-3: 前端错误上报端点（无需认证，限流由全局 apiLimiter 覆盖）
-app.use('/api/v1/errors', errorReportRoutes);
+app.use('/api/v1/errors', errorReportRoutes); // 前端错误上报，无需认证（全局 apiLimiter 覆盖）
 app.use('/api/v1/feature-flags', jwtAuth, featureFlagRoutes);
-
 app.use('/api/v1/keys', ...crudMiddleware(Permission.ADMIN_ACCESS), apiKeyRoutes);
-// P2-02 Webhook 管理：JWT + 租户 + ADMIN_ACCESS（与 API Key 管理同权限级别）
-app.use('/api/v1/webhooks', ...crudMiddleware(Permission.ADMIN_ACCESS), webhookRoutes);
+app.use('/api/v1/webhooks', ...crudMiddleware(Permission.ADMIN_ACCESS), webhookRoutes); // P2-02 与 API Key 同权限级别
 app.use('/api/v1/portfolios', ...crudMiddleware(Permission.BACKTEST_RUN), portfolioRoutes);
 app.use('/api/v1/configs', ...crudMiddleware(Permission.BACKTEST_RUN), configRoutes);
 app.use('/api/v1/runs', ...crudMiddleware(Permission.BACKTEST_RUN), runRoutes);
@@ -245,23 +234,26 @@ app.use('/api/v1', jwtAuth, resolveTenant, jobRoutes);
 // Swagger UI (P1-05) - 仅非生产环境
 setupOpenApiUi(app);
 
-// SSR 渲染（生产模式）— 在静态文件之前，确保 HTML 请求走 SSR
-// 非 API 请求先尝试 SSR 渲染，失败降级到 index.html
+// SSR 渲染（生产/静态服务模式）— 在静态文件之前，HTML 请求走 SSR，失败降级 index.html
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   const { ssrMiddleware } = await import('./ssrMiddleware.js');
   app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);
-  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) => {
-    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html');
-  });
+  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) =>
+    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html'),
+  );
 }
 
-// 静态文件 — 只匹配 /assets/ 等非 HTML 路径
-// HTML 由 SSR 或 SPA fallback 处理
+// 静态文件 — 只匹配 /assets/ 等非 HTML 路径（HTML 由 SSR 或 SPA fallback 处理）
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   app.use((req, res, next) => {
-    if (req.path.startsWith('/assets/') || req.path === '/favicon.svg' ||
-        req.path === '/manifest.webmanifest' || req.path === '/registerSW.js' ||
-        req.path === '/sw.js' || req.path.startsWith('/workbox-')) {
+    if (
+      req.path.startsWith('/assets/') ||
+      req.path === '/favicon.svg' ||
+      req.path === '/manifest.webmanifest' ||
+      req.path === '/registerSW.js' ||
+      req.path === '/sw.js' ||
+      req.path.startsWith('/workbox-')
+    ) {
       express.static(config.FRONTEND_DIST_DIR, {
         maxAge: config.NODE_ENV === 'production' ? '1y' : 0,
       })(req, res, next);

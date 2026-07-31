@@ -2,30 +2,17 @@ import IORedis, { type RedisOptions } from 'ioredis';
 import { config } from '../config/env.js';
 import { logger } from '../utils/logger.js';
 
-// Architecture: Redis Sentinel 高可用连接配置（ADR-045）
-// 企业为何需要：单实例 Redis 是单点故障，master Pod 挂掉 = 全平台认证失效。
-// Sentinel 模式下 ioredis 自动向 Sentinel 查询 master 地址，故障转移后自动重连新 master。
-// 权衡：Sentinel 拓扑（1主+2从+3Sentinel=6 Pod）资源占用更高，但 100K MAU 下无需分片，
-// Sentinel 比 Cluster 运维更简单且 BullMQ 兼容性更好（ADR-045 方案对比）。
-
-// Redis 连接选项构造（Sentinel 优先，回退 REDIS_URL 单实例）
-//
-// 解析逻辑：
-// 1. config.REDIS_SENTINELS 非空 → Sentinel 模式（生产）
-// 2. 否则 → 解析 REDIS_URL 为单实例选项（开发回退，ADR-045 向后兼容）
-//
-// BullMQ 与应用层共用此构造逻辑，避免 backtestQueue.ts 重复解析。
+// Architecture: Redis Sentinel 高可用连接（ADR-045）
+// 单实例 Redis 是单点故障；Sentinel 模式下 ioredis 自动查询 master 地址，故障转移后自动重连新 master。
+// 权衡：1主+2从+3Sentinel 资源占用更高，但 100K MAU 无需分片，Sentinel 比 Cluster 运维更简单且 BullMQ 兼容性更好。
+// 解析逻辑：REDIS_SENTINELS 非空 → Sentinel（生产）；否则 REDIS_URL 单实例（开发回退）。BullMQ 与应用层共用，避免重复解析。
 
 interface SentinelNode {
   host: string;
   port: number;
 }
 
-/**
- * 解析 REDIS_SENTINELS 环境变量（逗号分隔的 host:port 列表）为 Sentinel 节点数组。
- *
- * @returns Sentinel 节点数组；REDIS_SENTINELS 未设置时返回 null
- */
+/** 解析 REDIS_SENTINELS（逗号分隔 host:port）为节点数组；未设置返回 null。 */
 function parseSentinels(): SentinelNode[] | null {
   const raw = config.REDIS_SENTINELS;
   if (!raw || typeof raw !== 'string') return null;
@@ -45,12 +32,7 @@ function parseSentinels(): SentinelNode[] | null {
   return nodes.length > 0 ? nodes : null;
 }
 
-/**
- * 解析 REDIS_URL（支持 redis:// 与 rediss://、含凭证与库号）为 ioredis 选项。
- *
- * BullMQ/ioredis 的 connection 只接受标准 ioredis 选项（host/port/password/db/tls），
- * 没有 connectionString 字段——传入它会被忽略并回退到默认 127.0.0.1:6379。
- */
+/** 解析 REDIS_URL（支持 redis:// 与 rediss://、含凭证与库号）为 ioredis 选项。BullMQ 连接只接受标准选项，无 connectionString 字段。 */
 function parseRedisUrl(url: string): RedisOptions {
   const parsed = new URL(url);
   const options: RedisOptions = {
@@ -58,11 +40,8 @@ function parseRedisUrl(url: string): RedisOptions {
     port: parsed.port ? Number(parsed.port) : 6379,
   };
   if (parsed.username) options.username = decodeURIComponent(parsed.username);
-  if (config.REDIS_PASSWORD) {
-    options.password = config.REDIS_PASSWORD;
-  } else if (parsed.password) {
-    options.password = decodeURIComponent(parsed.password);
-  }
+  if (config.REDIS_PASSWORD) options.password = config.REDIS_PASSWORD;
+  else if (parsed.password) options.password = decodeURIComponent(parsed.password);
   const db = parsed.pathname.replace(/^\//, '');
   if (db) options.db = Number(db);
   if (parsed.protocol === 'rediss:') options.tls = {};
@@ -71,58 +50,36 @@ function parseRedisUrl(url: string): RedisOptions {
 
 export const isSentinelMode = parseSentinels() !== null;
 
-// P0-3：Redis 模式生产断言
-//
-// 生产环境必须使用 Sentinel 高可用——单机 Redis 是单点故障，
-// master Pod 挂掉 = 全平台认证/限流/队列失效。
-// Staging 环境允许单机但发出警告（建议与生产保持一致）。
-// 开发环境允许单机模式（零额外依赖）。
+// P0-3：生产必须 Sentinel（单机 Redis 是单点故障，master 挂掉 = 全平台认证/限流/队列失效）；staging 警告；开发允许单机
 if (config.NODE_ENV === 'production' && !isSentinelMode) {
   throw new Error(
-    'FATAL: Production environment requires Redis Sentinel ' +
-      '(REDIS_SENTINELS must be configured with at least 3 nodes). ' +
-      'Single-node Redis is not acceptable in production.',
+    'FATAL: Production environment requires Redis Sentinel (REDIS_SENTINELS must be configured with at least 3 nodes). Single-node Redis is not acceptable in production.',
   );
 }
-
 if (config.NODE_ENV === 'staging' && !isSentinelMode) {
   logger.warn(
     { mode: 'standalone' },
-    'WARN: Staging environment using standalone Redis. ' +
-      'Consider switching to Sentinel for production parity.',
+    'WARN: Staging environment using standalone Redis. Consider switching to Sentinel for production parity.',
   );
 }
 
-/**
- * 构造基础 Redis 连接选项（Sentinel 或单实例）。
- *
- * 不包含 maxRetriesPerRequest/enableReadyCheck/lazyConnect 等差异化配置，
- * 由调用方按用途（BullMQ vs 应用层）注入。
- * @returns ioredis RedisOptions
- */
+/** 构造基础 Redis 连接选项（Sentinel 或单实例）。不含 maxRetriesPerRequest/enableReadyCheck 等差异化配置，由调用方注入。 */
 export function buildRedisBaseOptions(): RedisOptions {
   const sentinels = parseSentinels();
   if (sentinels) {
-    const opts: RedisOptions = {
-      sentinels,
-      name: config.REDIS_SENTINEL_NAME,
-    };
+    const opts: RedisOptions = { sentinels, name: config.REDIS_SENTINEL_NAME };
     if (config.REDIS_PASSWORD) {
-      // Sentinel 模式下 password 用于 Redis 数据节点；
-      // sentinelPassword 单独配置（此处与数据节点同密码，简化运维）
+      // Sentinel 模式 password 用于数据节点；sentinelPassword 单独配置（此处同密码，简化运维）
       opts.password = config.REDIS_PASSWORD;
       opts.sentinelPassword = config.REDIS_PASSWORD;
     }
     return opts;
   }
-  if (config.REDIS_URL) {
-    return parseRedisUrl(config.REDIS_URL);
-  }
-  // REDIS_URL 未配置时回退到 ioredis 默认值（127.0.0.1:6379），仅开发/测试环境使用
-  return {};
+  if (config.REDIS_URL) return parseRedisUrl(config.REDIS_URL);
+  return {}; // 未配置时回退 ioredis 默认 127.0.0.1:6379，仅开发/测试使用
 }
 
-// Security (T-28 / 输出过滤)：仅记录连接模式与是否配置凭证，绝不记录 URL/密码片段
+// Security (T-28)：仅记录连接模式与是否配置凭证，绝不记录 URL/密码片段
 logger.info(
   {
     mode: isSentinelMode ? 'sentinel' : 'standalone',
@@ -132,67 +89,31 @@ logger.info(
   '[redis] 连接配置已初始化',
 );
 
-// BullMQ 专用连接（maxRetriesPerRequest=null，无限重试）
-
-/**
- * BullMQ 专用 Redis 连接。
- *
- * maxRetriesPerRequest=null 是 BullMQ 硬性要求（队列阻塞读取需无限重试）。
- * enableReadyCheck=false 避免 BullMQ 启动时与 Redis 就绪检查竞态。
- */
+// BullMQ 专用连接：maxRetriesPerRequest=null 是硬性要求（队列阻塞读取需无限重试）；enableReadyCheck=false 避免启动竞态
 export const redisConnection = new IORedis({
   ...buildRedisBaseOptions(),
   maxRetriesPerRequest: null, // BullMQ requires this
   enableReadyCheck: false,
 });
 
-// 应用层通用 Redis 客户端（maxRetriesPerRequest=3，有限重试）
-
-/**
- * 通用 Redis 客户端（应用层使用）。
- *
- * 企业理由：与 BullMQ 专用 redisConnection 分离，配置不同的重连策略。
- * BullMQ 要求 maxRetriesPerRequest=null（无限重试），而应用层需要
- * 有限重试（maxRetriesPerRequest: 3）避免请求长时间挂起。
- * lazyConnect 延迟连接，Redis 不可用时不阻止应用启动。
- * 权衡：引入第二个 Redis 连接占用额外资源，但职责分离更清晰。
- */
+// 应用层通用客户端：与 BullMQ 分离以配置不同重连策略——有限重试（3）避免请求长时间挂起；lazyConnect 使 Redis 不可用时不阻止启动
 export const appRedis = new IORedis({
   ...buildRedisBaseOptions(),
   maxRetriesPerRequest: 3,
   enableReadyCheck: true,
   lazyConnect: true,
   retryStrategy(times) {
-    const delay = Math.min(times * 200, 5000);
-    return delay;
+    return Math.min(times * 200, 5000);
   },
 });
 
-appRedis.on('error', (err) => {
-  logger.warn({ err: String(err) }, '[redis] appRedis 连接错误');
-});
+appRedis.on('error', (err) => logger.warn({ err: String(err) }, '[redis] appRedis 连接错误'));
+appRedis.on('connect', () => logger.info('[redis] appRedis 连接成功'));
+appRedis.on('reconnecting', () => logger.info('[redis] appRedis 重连中'));
 
-appRedis.on('connect', () => {
-  logger.info('[redis] appRedis 连接成功');
-});
-
-appRedis.on('reconnecting', () => {
-  logger.info('[redis] appRedis 重连中');
-});
-
-// Redis 健康检测（统一模块）
-//
-// 集中管理 Redis 连接状态，取代 refreshToken / idempotency / loginLockout /
-// dataCache / backtestResultCache 各自维护的本地 boolean flag + listener + ping 实现。
-//
-// - 缓存最近一次 ping/事件结果（5 秒 TTL），避免高频调用
-// - 监听 appRedis 的 ready/reconnecting/end/error 事件，立即更新状态
-// - 异步 API getRedisHealth() / 标记 API markRedisUnhealthy()
-// - markRedisUnhealthy() 供 Redis 命令执行失败时立即标记不可用，
-//   避免 5 秒缓存窗口内反复重试已知不可用的 Redis
-
+// Redis 健康检测：集中管理连接状态，取代各模块本地 boolean flag + listener + ping 实现。
+// 缓存最近 ping/事件结果（5s TTL）避免高频调用；监听 ready/reconnecting/end/error 立即更新；markRedisUnhealthy 供命令失败时立即标记。
 const REDIS_HEALTH_CACHE_TTL_MS = 5000;
-
 let redisHealthCached = false;
 let redisHealthLastCheck = 0;
 
@@ -200,21 +121,14 @@ function setRedisHealth(ok: boolean): void {
   redisHealthLastCheck = Date.now();
   redisHealthCached = ok;
 }
-
 appRedis.on('ready', () => setRedisHealth(true));
 appRedis.on('reconnecting', () => setRedisHealth(false));
 appRedis.on('end', () => setRedisHealth(false));
 appRedis.on('error', () => setRedisHealth(false));
 
-/**
- * 异步获取 Redis 健康状态（带 5 秒缓存）。
- *
- * @returns Redis 是否可用
- */
+/** 异步获取 Redis 健康状态（带 5 秒缓存）。 */
 export async function getRedisHealth(): Promise<boolean> {
-  if (Date.now() - redisHealthLastCheck < REDIS_HEALTH_CACHE_TTL_MS) {
-    return redisHealthCached;
-  }
+  if (Date.now() - redisHealthLastCheck < REDIS_HEALTH_CACHE_TTL_MS) return redisHealthCached;
   try {
     const result = await appRedis.ping();
     setRedisHealth(result === 'PONG');
@@ -225,44 +139,25 @@ export async function getRedisHealth(): Promise<boolean> {
   }
 }
 
-/**
- * 立即标记 Redis 为不可用（操作失败时调用）。
- *
- * 用于 Redis 命令执行失败但尚未触发 error 事件的场景，
- * 避免 5 秒缓存窗口内反复重试已知不可用的 Redis。
- */
+/** 立即标记 Redis 不可用（命令失败但尚未触发 error 事件时调用，避免 5s 窗口内反复重试已知不可用的 Redis）。 */
 export function markRedisUnhealthy(): void {
   setRedisHealth(false);
 }
 
 // Sentinel master 健康检测（T6 / ADR-045）
-//
-// 在 Sentinel 模式下，ping 成功只能证明当前连接的节点存活，无法证明
-// "该节点是 master"或"从节点拓扑健康"。本函数通过 INFO replication 检查：
-// - role:master —— 当前节点确为 master（Sentinel 故障转移后，旧 master 应已降级）
-// - connected_slaves >= 1 —— 至少有 1 个从节点同步（min-slaves-to-write 前置条件）
-//
-// 在非 Sentinel 模式下直接返回 null（不参与就绪判定，仅 ping 已足够）。
-// 健康路由 /api/ready 消费此结果：Sentinel 模式下 master 健康false 即 503。
-
+// ping 成功只能证明当前节点存活，无法证明"是 master"或"从节点拓扑健康"。
+// 通过 INFO replication 检查 role:master 与 connected_slaves>=1；非 Sentinel 模式返回 null（仅 ping 已足够）。
+// /api/ready 消费此结果：Sentinel 模式下 master 健康 false 即 503。
 export interface SentinelMasterHealth {
-  /** 当前节点是否为 master（Sentinel 模式下；非 Sentinel 模式为 null） */
-  isMaster: boolean | null;
-  /** 已连接从节点数（Sentinel 模式下；非 Sentinel 模式为 null） */
-  connectedSlaves: number | null;
+  isMaster: boolean | null; // 当前节点是否为 master（非 Sentinel 模式为 null）
+  connectedSlaves: number | null; // 已连接从节点数（非 Sentinel 模式为 null）
 }
 
-/**
- * 查询 Redis 复制状态（Sentinel 模式下用于 master 健康检查）。
- *
- * @returns Sentinel 模式返回 {isMaster, connectedSlaves}；非 Sentinel 模式返回 {isMaster: null, connectedSlaves: null}
- */
+/** 查询 Redis 复制状态（Sentinel 模式下用于 master 健康检查）。 */
 export async function checkSentinelMaster(): Promise<SentinelMasterHealth> {
-  if (!isSentinelMode) {
-    return { isMaster: null, connectedSlaves: null };
-  }
+  if (!isSentinelMode) return { isMaster: null, connectedSlaves: null };
   try {
-    // INFO replication 返回纯文本，需解析 role:master 与 connected_slaves:N
+    // INFO replication 返回纯文本，解析 role:master 与 connected_slaves:N
     const info = (await appRedis.info('replication')) as string;
     const roleMatch = info.match(/^role:([a-z]+)/m);
     const slavesMatch = info.match(/^connected_slaves:(\d+)/m);

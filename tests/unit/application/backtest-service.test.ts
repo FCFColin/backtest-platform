@@ -104,28 +104,24 @@ const executeRun = () =>
     cpiData: mockCpiData,
     exchangeRates: mockExchangeRates,
   });
-
 describe('runBacktest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     engineMocks.callEngineStrict.mockResolvedValue(mockBacktestResult);
   });
-
-  it('runBacktest 应以正确参数调用引擎', async () => {
-    await executeRun();
-    // 引擎应被 fail-closed 调用一次，指向 Go 回测端点
+  it('应以正确参数调用引擎并返回同一结果对象', async () => {
+    const result = await executeRun();
     expect(engineMocks.callEngineStrict).toHaveBeenCalledTimes(1);
     const [endpoint, body] = engineMocks.callEngineStrict.mock.calls[0];
     expect(endpoint).toBe('/api/engine/backtest');
-    // 请求体应包含组合、价格数据、参数与宏观数据
     expect(body).toMatchObject({
       portfolios: expect.any(Array),
       priceData: expect.objectContaining({ AAPL: expect.any(Object) }),
       cpiData: mockCpiData,
       exchangeRates: mockExchangeRates,
     });
+    expect(result.result).toBe(mockBacktestResult);
   });
-
   it('runBacktest 应将 BacktestCompleted 事件写入 outbox', async () => {
     await executeRun();
     // 事件写入 outbox 是异步 fire-and-forget，需等待
@@ -141,14 +137,7 @@ describe('runBacktest', () => {
     expect(outboxCall.payload.maxDrawdown).toBe(0.15);
     expect(outboxCall.payload.sharpeRatio).toBe(1.5);
   });
-
-  it('runBacktest 应返回引擎结果', async () => {
-    const result = await executeRun();
-    // 返回的 result 应为引擎返回的同一对象（原样透传）
-    expect(result.result).toBe(mockBacktestResult);
-  });
-
-  it('runBacktest 在引擎不可用时应抛出 EngineUnavailableError（fail-closed）', async () => {
+  it('runBacktest 在引擎不可用时应抛出错误（fail-closed）', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('ENGINE_UNAVAILABLE'));
     await expect(
       runBacktest({
@@ -158,7 +147,6 @@ describe('runBacktest', () => {
       }),
     ).rejects.toThrow();
   });
-
   it('eventDispatcher.dispatch 失败时应记录错误但不影响主流程', async () => {
     eventMocks.dispatch.mockRejectedValue(new Error('dispatch failed'));
     const result = await executeRun();
@@ -170,7 +158,6 @@ describe('runBacktest', () => {
       ),
     );
   });
-
   it('writeEventInTransaction 失败时应回滚事务并记录 outbox 错误', async () => {
     const queryMock = vi.fn(async () => ({ rows: [] }));
     dbMocks.getClient.mockResolvedValueOnce({ query: queryMock, release: vi.fn() });
@@ -188,7 +175,6 @@ describe('runBacktest', () => {
     expect(queries).toContain('ROLLBACK');
     expect(queries).not.toContain('COMMIT');
   });
-
   it('引擎返回空 portfolios 时事件负载统计字段应为 undefined', async () => {
     engineMocks.callEngineStrict.mockResolvedValueOnce({
       portfolios: [],
@@ -219,7 +205,6 @@ const baseParams: BacktestParameters = {
   adjustForInflation: false,
   rollingWindowMonths: 12,
 };
-
 describe('preparePortfolioBacktest', () => {
   it('合法输入应收集全部 ticker 并包含 benchmark', () => {
     const { allTickers, warnings } = preparePortfolioBacktest(
@@ -261,45 +246,44 @@ describe('preparePortfolioBacktest', () => {
   ])('%s', (_title, portfolios) => {
     expect(() => preparePortfolioBacktest(portfolios, baseParams)).toThrow(`max ${MAX_TICKERS}`);
   });
-
   it('空组合列表应返回空 ticker 集合', () => {
-    const { allTickers } = preparePortfolioBacktest([], baseParams);
-    expect(allTickers.size).toBe(0);
+    expect(preparePortfolioBacktest([], baseParams).allTickers.size).toBe(0);
   });
 });
-
 describe('collectInvalidTickerWarnings', () => {
-  it('缺失价格序列应写入 warnings', () => {
-    const warnings: Warning[] = [];
-    const result = collectInvalidTickerWarnings(
+  it.each([
+    [
+      '缺失价格序列应写入 warnings',
       new Set(['AAPL', 'GHOST']),
       { AAPL: { '2020-01-02': 100 } },
-      warnings,
-    );
-    expect(result).toEqual(['GHOST']);
-    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: ['GHOST'] });
-  });
-
-  it('空对象序列应视为无效 ticker', () => {
-    const warnings: Warning[] = [];
-    collectInvalidTickerWarnings(new Set(['EMPTY']), { EMPTY: {} }, warnings);
-    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: ['EMPTY'] });
-  });
-
-  it('全部有效时不应追加 warning', () => {
-    const warnings: Warning[] = [];
-    const result = collectInvalidTickerWarnings(
+      ['GHOST'],
+      { code: 'TICKER_NOT_FOUND', tickers: ['GHOST'] },
+    ],
+    [
+      '空对象序列应视为无效 ticker',
+      new Set(['EMPTY']),
+      { EMPTY: {} },
+      ['EMPTY'],
+      { code: 'TICKER_NOT_FOUND', tickers: ['EMPTY'] },
+    ],
+    [
+      '全部有效时不应追加 warning',
       new Set(['AAPL']),
       { AAPL: { '2020-01-02': 150.5 } },
-      warnings,
-    );
-    expect(result).toEqual([]);
-  });
-
-  it('恶意 ticker 名仍应被识别为无数据（不崩溃）', () => {
-    const evil = "'; DROP TABLE prices; --";
+      [],
+      undefined,
+    ],
+    [
+      '恶意 ticker 名仍应被识别为无数据（不崩溃）',
+      new Set(["'; DROP TABLE prices; --"]),
+      {},
+      ["'; DROP TABLE prices; --"],
+      { code: 'TICKER_NOT_FOUND', tickers: ["'; DROP TABLE prices; --"] },
+    ],
+  ])('%s', (_n, tickers, priceData, expectedList, expectedWarning) => {
     const warnings: Warning[] = [];
-    expect(() => collectInvalidTickerWarnings(new Set([evil]), {}, warnings)).not.toThrow();
-    expect(warnings[0]).toEqual({ code: 'TICKER_NOT_FOUND', tickers: [evil] });
+    const result = collectInvalidTickerWarnings(tickers, priceData, warnings);
+    expect(result).toEqual(expectedList);
+    if (expectedWarning) expect(warnings[0]).toEqual(expectedWarning);
   });
 });

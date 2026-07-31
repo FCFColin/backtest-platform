@@ -1,6 +1,8 @@
 /* eslint-disable max-lines-per-function, sonarjs/cognitive-complexity -- 图表组件库，渲染分支多，Plan-1 重写 */
 import { useMemo, useState, useCallback, type CSSProperties } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
+
+type Orientation = 'bottom' | 'left';
 interface TickLineConfig {
   length: number;
   color?: string;
@@ -12,7 +14,7 @@ interface AxisLabelConfig {
   style?: CSSProperties;
 }
 interface SvgAxisProps {
-  orientation: 'bottom' | 'left';
+  orientation: Orientation;
   range: number;
   ticks: Array<{ value: number; label: string }>;
   label?: AxisLabelConfig | string;
@@ -23,9 +25,25 @@ interface SvgAxisProps {
   offset: number;
   hideLine?: boolean;
 }
-function isAxisLabelConfig(v: AxisLabelConfig | string | undefined): v is AxisLabelConfig {
-  return typeof v === 'object' && v !== null && 'value' in v;
-}
+const DEFAULT_TICK_STYLE: CSSProperties = {
+  fill: 'hsl(var(--fg-tertiary))',
+  fontSize: 11,
+  fontFamily: 'Geist Mono Variable',
+};
+const isAxisLabelConfig = (v: AxisLabelConfig | string | undefined): v is AxisLabelConfig =>
+  typeof v === 'object' && v !== null && 'value' in v;
+type Line4 = [number, number, number, number];
+const axisLine = (o: Orientation, range: number, offset: number): Line4 =>
+  o === 'bottom' ? [0, offset, range, offset] : [offset, 0, offset, range];
+const gridLine = (o: Orientation, v: number, range: number, offset: number): Line4 =>
+  o === 'bottom' ? [v, 0, v, offset] : [0, v, range, v];
+const tickMark = (o: Orientation, v: number, offset: number, len: number): Line4 =>
+  o === 'bottom' ? [v, offset, v, offset + len] : [offset - len, v, offset, v];
+const tickTextPos = (o: Orientation, v: number, offset: number, len: number) =>
+  o === 'bottom'
+    ? { x: v, y: offset + len + 12, textAnchor: 'middle' as const }
+    : { x: offset - len - 6, y: v + 4, textAnchor: 'end' as const };
+const LABEL_STYLE: CSSProperties = { fill: 'var(--text-muted)', fontSize: 12 };
 export function SvgAxis({
   orientation,
   range,
@@ -34,136 +52,78 @@ export function SvgAxis({
   gridLines = false,
   gridColor = 'var(--chart-grid)',
   tickLine = { length: 5 },
-  tickStyle = { fill: 'hsl(var(--fg-tertiary))', fontSize: 11, fontFamily: 'Geist Mono Variable' },
+  tickStyle = DEFAULT_TICK_STYLE,
   offset,
   hideLine = false,
 }: SvgAxisProps) {
   const isBottom = orientation === 'bottom';
-  const tickLineLen = typeof tickLine === 'boolean' ? (tickLine ? 5 : 0) : tickLine.length;
+  const len = typeof tickLine === 'boolean' ? (tickLine ? 5 : 0) : tickLine.length;
+  const [axX1, axY1, axX2, axY2] = axisLine(orientation, range, offset);
+  const labelProps = isBottom
+    ? { x: range / 2, y: offset + 36 }
+    : { x: -range / 2, y: 16, transform: 'rotate(-90)' };
   return (
     <g className="svg-axis">
       {!hideLine && (
-        <line
-          x1={isBottom ? 0 : offset}
-          y1={isBottom ? offset : 0}
-          x2={isBottom ? range : offset}
-          y2={isBottom ? offset : range}
-          stroke="var(--border-soft)"
-          strokeWidth={1}
-        />
+        <line x1={axX1} y1={axY1} x2={axX2} y2={axY2} stroke="var(--border-soft)" strokeWidth={1} />
       )}
       {gridLines &&
-        ticks.map((tick, i) => {
-          if (isBottom) {
-            return (
-              <line
-                key={`grid-${i}`}
-                x1={tick.value}
-                y1={0}
-                x2={tick.value}
-                y2={offset}
-                stroke={gridColor}
-                strokeWidth={1}
-                strokeDasharray="3 3"
-              />
-            );
-          }
+        ticks.map((t, i) => {
+          const [x1, y1, x2, y2] = gridLine(orientation, t.value, range, offset);
           return (
             <line
               key={`grid-${i}`}
-              x1={0}
-              y1={tick.value}
-              x2={range}
-              y2={tick.value}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
               stroke={gridColor}
               strokeWidth={1}
               strokeDasharray="3 3"
             />
           );
         })}
-      {ticks.map((tick, i) => {
-        if (isBottom) {
-          return (
-            <g key={`tick-${i}`}>
-              {tickLineLen > 0 && (
-                <line
-                  x1={tick.value}
-                  y1={offset}
-                  x2={tick.value}
-                  y2={offset + tickLineLen}
-                  stroke="var(--border-soft)"
-                  strokeWidth={1}
-                />
-              )}
-              <text
-                x={tick.value}
-                y={offset + tickLineLen + 12}
-                textAnchor="middle"
-                style={tickStyle as Record<string, string | number>}
-              >
-                {tick.label}
-              </text>
-            </g>
-          );
-        }
+      {ticks.map((t, i) => {
+        const [x1, y1, x2, y2] = tickMark(orientation, t.value, offset, len);
+        const tp = tickTextPos(orientation, t.value, offset, len);
         return (
           <g key={`tick-${i}`}>
-            {tickLineLen > 0 && (
-              <line
-                x1={offset - tickLineLen}
-                y1={tick.value}
-                x2={offset}
-                y2={tick.value}
-                stroke="var(--border-soft)"
-                strokeWidth={1}
-              />
+            {len > 0 && (
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--border-soft)" strokeWidth={1} />
             )}
             <text
-              x={offset - tickLineLen - 6}
-              y={tick.value + 4}
-              textAnchor="end"
+              x={tp.x}
+              y={tp.y}
+              textAnchor={tp.textAnchor}
               style={tickStyle as Record<string, string | number>}
             >
-              {tick.label}
+              {t.label}
             </text>
           </g>
         );
       })}
-      {label &&
-        (() => {
-          const labelText = isAxisLabelConfig(label) ? label.value : label;
-          if (isBottom) {
-            return (
-              <text
-                x={range / 2}
-                y={offset + 36}
-                textAnchor="middle"
-                style={{ fill: 'var(--text-muted)', fontSize: 12 }}
-              >
-                {labelText}
-              </text>
-            );
-          }
-          return (
-            <text
-              x={-range / 2}
-              y={16}
-              textAnchor="middle"
-              transform={`rotate(-90)`}
-              style={{ fill: 'var(--text-muted)', fontSize: 12 }}
-            >
-              {labelText}
-            </text>
-          );
-        })()}
+      {label && (
+        <text {...labelProps} textAnchor="middle" style={LABEL_STYLE}>
+          {isAxisLabelConfig(label) ? label.value : label}
+        </text>
+      )}
     </g>
   );
 }
+
 interface TooltipDataItem {
   name: string;
   value: string | number;
   color: string;
 }
+interface TooltipState {
+  active: boolean;
+  x: number;
+  y: number;
+  label: string;
+  data: TooltipDataItem[];
+}
+const HIDDEN_TOOLTIP: TooltipState = { active: false, x: 0, y: 0, label: '', data: [] };
 interface SvgTooltipProps {
   active: boolean;
   position: { x: number; y: number };
@@ -189,14 +149,11 @@ const TOOLTIP_STYLE: CSSProperties = {
 };
 export function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipProps) {
   if (!active || data.length === 0) return null;
-  const style: CSSProperties = {
-    ...TOOLTIP_STYLE,
-    left: `${position.x + offset}px`,
-    top: `${position.y - 10}px`,
-  };
   return (
-    <div style={style}>
-      {label !== undefined && label !== null && (
+    <div
+      style={{ ...TOOLTIP_STYLE, left: `${position.x + offset}px`, top: `${position.y - 10}px` }}
+    >
+      {label != null && (
         <div style={{ marginBottom: 6, fontWeight: 600, color: 'hsl(var(--fg-strong))' }}>
           {label}
         </div>
@@ -209,8 +166,8 @@ export function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTo
               width: 8,
               height: 8,
               borderRadius: '50%',
-              backgroundColor: item.color,
               flexShrink: 0,
+              backgroundColor: item.color,
             }}
           />
           <span style={{ color: 'hsl(var(--fg-tertiary))' }}>{item.name}</span>
@@ -222,6 +179,7 @@ export function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTo
     </div>
   );
 }
+
 interface SvgLegendSeries {
   name: string;
   color: string;
@@ -263,8 +221,8 @@ export function SvgLegend({ series, onToggle }: SvgLegendProps) {
               width: 10,
               height: 10,
               borderRadius: '50%',
-              backgroundColor: s.color,
               flexShrink: 0,
+              backgroundColor: s.color,
             }}
           />
           <span>{s.name}</span>
@@ -273,41 +231,42 @@ export function SvgLegend({ series, onToggle }: SvgLegendProps) {
     </div>
   );
 }
+
 interface ReferenceDotConfig {
   x: string | number;
   y: number;
   name: string;
   value: number;
 }
-interface SvgAreaChartProps {
-  data: Array<Record<string, number | string>>;
-  seriesNames: string[];
-  xDataKey: string;
-  width: number;
-  height: number;
-  margin: { top: number; right: number; bottom: number; left: number };
-  yTickFormatter?: (v: number) => string;
-  yDomain?: [number | 'auto', number | 'auto'];
-  fillOpacity?: number;
-  strokeWidth?: number;
-  showLegend?: boolean;
-  colorOffset?: number;
-  referenceDots?: ReferenceDotConfig[];
-  useGradient?: boolean;
-  hideAxisLines?: boolean;
-  tooltipValueFormatter?: (value: number, name: string) => [string, string] | string;
-  tooltipLabelFormatter?: (label: string) => string;
+interface ChartMargin {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
 }
-interface TooltipState {
-  active: boolean;
-  x: number;
-  y: number;
-  label: string;
-  data: Array<{ name: string; value: string; color: string }>;
-}
-const HIDDEN_TOOLTIP: TooltipState = { active: false, x: 0, y: 0, label: '', data: [] };
+type ChartPoint = Record<string, number | string>;
+const seriesColor = (idx: number) => CHART_COLORS[idx % CHART_COLORS.length];
+const linearScale = (min: number, max: number, start: number, span: number) => (v: number) =>
+  start + ((v - min) / (max - min)) * span;
+const toggleInSet = (prev: Set<string>, name: string) => {
+  const next = new Set(prev);
+  if (next.has(name)) next.delete(name);
+  else next.add(name);
+  return next;
+};
+const formatTooltipValue = (r: [string, string] | string) => (Array.isArray(r) ? r[0] : r);
 const gradId = (name: string) => `svg-area-grad-${name.replace(/\s+/g, '-')}`;
-function computeYTicks(min: number, max: number, count = 5): number[] {
+const XTICK_STYLE: CSSProperties = {
+  fill: 'hsl(var(--fg-tertiary))',
+  fontSize: 11,
+  fontFamily: 'Geist Mono Variable',
+};
+interface XTickPixel {
+  value: number;
+  label: string;
+  show?: boolean;
+}
+function computeTicks(min: number, max: number, count = 5): number[] {
   if (min === max) {
     const v = min === 0 ? 1 : Math.abs(min);
     min -= v;
@@ -324,6 +283,67 @@ function computeYTicks(min: number, max: number, count = 5): number[] {
   for (let v = niceMin; v <= niceMax + niceStep * 0.001; v += niceStep)
     ticks.push(Math.round(v * 1e10) / 1e10);
   return ticks;
+}
+function XAxisTicks({
+  ticks,
+  plotBottom,
+  maxLabelLen,
+  style = XTICK_STYLE,
+}: {
+  ticks: XTickPixel[];
+  plotBottom: number;
+  maxLabelLen?: number;
+  style?: CSSProperties;
+}) {
+  return (
+    <>
+      {ticks.map((t, i) => {
+        if (t.show === false) return null;
+        const label =
+          maxLabelLen && t.label.length > maxLabelLen + 3 ? t.label.slice(0, maxLabelLen) : t.label;
+        return (
+          <g key={`xtick-${i}`}>
+            <line
+              x1={t.value}
+              y1={plotBottom}
+              x2={t.value}
+              y2={plotBottom + 5}
+              stroke="var(--border-soft)"
+              strokeWidth={1}
+            />
+            <text
+              x={t.value}
+              y={plotBottom + 16}
+              textAnchor="middle"
+              style={style as Record<string, string | number>}
+            >
+              {label}
+            </text>
+          </g>
+        );
+      })}
+    </>
+  );
+}
+
+interface SvgAreaChartProps {
+  data: ChartPoint[];
+  seriesNames: string[];
+  xDataKey: string;
+  width: number;
+  height: number;
+  margin: ChartMargin;
+  yTickFormatter?: (v: number) => string;
+  yDomain?: [number | 'auto', number | 'auto'];
+  fillOpacity?: number;
+  strokeWidth?: number;
+  showLegend?: boolean;
+  colorOffset?: number;
+  referenceDots?: ReferenceDotConfig[];
+  useGradient?: boolean;
+  hideAxisLines?: boolean;
+  tooltipValueFormatter?: (value: number, name: string) => [string, string] | string;
+  tooltipLabelFormatter?: (label: string) => string;
 }
 export function SvgAreaChart({
   data,
@@ -346,33 +366,28 @@ export function SvgAreaChart({
 }: SvgAreaChartProps) {
   const [tooltip, setTooltip] = useState<TooltipState>(HIDDEN_TOOLTIP);
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
-  const { top: plotTop, left: plotLeft } = margin;
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const plotBottom = plotTop + plotHeight;
+  const plotBottom = margin.top + plotHeight;
   const visibleSeries = seriesNames.filter((n) => !hiddenSeries.has(n));
   const xStep = data.length > 1 ? plotWidth / (data.length - 1) : plotWidth;
-  const colorOf = useCallback(
-    (idx: number) => CHART_COLORS[(idx + colorOffset) % CHART_COLORS.length],
-    [colorOffset],
-  );
+  const colorOf = useCallback((idx: number) => seriesColor(idx + colorOffset), [colorOffset]);
   const { yMin, yMax, yTicks } = useMemo(() => {
     let min = yDomain && yDomain[0] !== 'auto' ? yDomain[0] : 0;
     let max = yDomain && yDomain[1] !== 'auto' ? yDomain[1] : 1;
-    if (!yDomain || yDomain[0] === 'auto' || yDomain[1] === 'auto') {
+    if (!yDomain || yDomain[0] === 'auto' || yDomain[1] === 'auto')
       for (const d of data)
         for (const name of seriesNames) {
           const v = Number(d[name]) || 0;
           if (v < min) min = v;
           if (v > max) max = v;
         }
-    }
-    const ticks = computeYTicks(min, max);
+    const ticks = computeTicks(min, max);
     return { yMin: ticks[0], yMax: ticks[ticks.length - 1], yTicks: ticks };
   }, [data, seriesNames, yDomain]);
   const yScale = useMemo(
-    () => (v: number) => plotTop + plotHeight - ((v - yMin) / (yMax - yMin)) * plotHeight,
-    [plotTop, plotHeight, yMin, yMax],
+    () => linearScale(yMin, yMax, margin.top + plotHeight, -plotHeight),
+    [yMin, yMax, margin.top, plotHeight],
   );
   const { yTickPixels, xTickPixels } = useMemo(
     () => ({
@@ -381,18 +396,18 @@ export function SvgAreaChart({
         label: yTickFormatter ? yTickFormatter(t) : t.toFixed(2),
       })),
       xTickPixels: data.map((d, i) => ({
-        value: plotLeft + i * xStep,
+        value: margin.left + i * xStep,
         label: String(d[xDataKey] ?? ''),
       })),
     }),
-    [yTicks, yScale, yTickFormatter, data, xDataKey, plotLeft, xStep],
+    [yTicks, yScale, yTickFormatter, data, xDataKey, margin.left, xStep],
   );
   const areaPaths = useMemo(
     () =>
       visibleSeries.map((name) => {
         const seriesIdx = seriesNames.indexOf(name);
         const points = data.map((d, i) => ({
-          x: plotLeft + i * xStep,
+          x: margin.left + i * xStep,
           y: yScale(Number(d[name]) || 0),
         }));
         const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
@@ -406,12 +421,22 @@ export function SvgAreaChart({
           points,
         };
       }),
-    [visibleSeries, seriesNames, data, plotLeft, xStep, yScale, plotBottom, useGradient, colorOf],
+    [
+      visibleSeries,
+      seriesNames,
+      data,
+      margin.left,
+      xStep,
+      yScale,
+      plotBottom,
+      useGradient,
+      colorOf,
+    ],
   );
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       const mx = e.clientX - e.currentTarget.getBoundingClientRect().left;
-      const dataIdx = Math.round((mx - plotLeft) / xStep);
+      const dataIdx = Math.round((mx - margin.left) / xStep);
       if (dataIdx < 0 || dataIdx >= data.length) {
         setTooltip(HIDDEN_TOOLTIP);
         return;
@@ -423,7 +448,7 @@ export function SvgAreaChart({
         const r = tooltipValueFormatter?.(val, name);
         return {
           name,
-          value: r ? (Array.isArray(r) ? r[0] : r) : val.toFixed(2),
+          value: r ? formatTooltipValue(r) : val.toFixed(2),
           color: colorOf(seriesNames.indexOf(name)),
         };
       });
@@ -439,7 +464,7 @@ export function SvgAreaChart({
       data,
       xDataKey,
       xStep,
-      plotLeft,
+      margin.left,
       visibleSeries,
       seriesNames,
       tooltipValueFormatter,
@@ -449,13 +474,7 @@ export function SvgAreaChart({
   );
   const handleMouseLeave = useCallback(() => setTooltip(HIDDEN_TOOLTIP), []);
   const handleLegendToggle = useCallback(
-    (name: string) =>
-      setHiddenSeries((prev) => {
-        const next = new Set(prev);
-        if (next.has(name)) next.delete(name);
-        else next.add(name);
-        return next;
-      }),
+    (name: string) => setHiddenSeries((prev) => toggleInSet(prev, name)),
     [],
   );
   return (
@@ -487,36 +506,10 @@ export function SvgAreaChart({
           gridLines
           gridColor="hsl(var(--chart-grid))"
           tickLine={false}
-          offset={plotLeft}
+          offset={margin.left}
           hideLine={hideAxisLines}
         />
-        {xTickPixels.map((t, i) => {
-          const label = t.label.length > 10 ? t.label.slice(0, 7) : t.label;
-          return (
-            <g key={`xtick-${i}`}>
-              <line
-                x1={t.value}
-                y1={plotBottom}
-                x2={t.value}
-                y2={plotBottom + 5}
-                stroke="var(--border-soft)"
-                strokeWidth={1}
-              />
-              <text
-                x={t.value}
-                y={plotBottom + 16}
-                textAnchor="middle"
-                style={{
-                  fill: 'hsl(var(--fg-tertiary))',
-                  fontSize: 11,
-                  fontFamily: 'Geist Mono Variable',
-                }}
-              >
-                {label}
-              </text>
-            </g>
-          );
-        })}
+        <XAxisTicks ticks={xTickPixels} plotBottom={plotBottom} maxLabelLen={7} />
         {areaPaths.map((area) => (
           <g key={area.name}>
             <path
@@ -540,12 +533,12 @@ export function SvgAreaChart({
           </g>
         ))}
         {referenceDots?.map((dot, idx) => {
-          const color = colorOf(idx);
           const dataIdx = data.findIndex(
             (d) => d[xDataKey] === dot.x || String(d[xDataKey]) === String(dot.x),
           );
-          const cx = dataIdx >= 0 ? plotLeft + dataIdx * xStep : plotLeft + plotWidth / 2;
+          const cx = dataIdx >= 0 ? margin.left + dataIdx * xStep : margin.left + plotWidth / 2;
           const cy = yScale(dot.y);
+          const color = seriesColor(idx);
           return (
             <g key={`ref-${idx}`}>
               <circle
@@ -589,13 +582,14 @@ export function SvgAreaChart({
     </div>
   );
 }
+
 interface SvgBarChartProps {
-  data: Array<Record<string, number | string>>;
+  data: ChartPoint[];
   seriesNames: string[];
   xDataKey: string;
   width: number;
   height: number;
-  margin: { top: number; right: number; bottom: number; left: number };
+  margin: ChartMargin;
   yTickFormatter: (v: number) => string;
   yLabel?: string;
   barRadius?: number;
@@ -608,36 +602,8 @@ interface SvgBarChartProps {
   onMouseMove?: (activePayload: unknown) => void;
   onMouseLeave?: () => void;
 }
-interface TooltipState {
-  active: boolean;
-  x: number;
-  y: number;
-  label: string;
-  data: Array<{ name: string; value: string; color: string }>;
-}
-function computeYTicksBar(min: number, max: number, count: number = 5): number[] {
-  if (min === max) {
-    const v = min === 0 ? 1 : Math.abs(min);
-    min = min - v;
-    max = max + v;
-  }
-  const range = max - min;
-  const roughStep = range / (count - 1);
-  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
-  const residual = roughStep / magnitude;
-  let niceStep: number;
-  if (residual <= 1.5) niceStep = 1 * magnitude;
-  else if (residual <= 3.5) niceStep = 2 * magnitude;
-  else if (residual <= 7.5) niceStep = 5 * magnitude;
-  else niceStep = 10 * magnitude;
-  const niceMin = Math.floor(min / niceStep) * niceStep;
-  const niceMax = Math.ceil(max / niceStep) * niceStep;
-  const ticks: number[] = [];
-  for (let v = niceMin; v <= niceMax + niceStep * 0.001; v += niceStep) {
-    ticks.push(Math.round(v * 1e10) / 1e10);
-  }
-  return ticks;
-}
+const barFill = (val: number, idx: number, signColor: boolean) =>
+  signColor ? (val >= 0 ? 'var(--success)' : 'var(--error)') : seriesColor(idx);
 export function SvgBarChart({
   data,
   seriesNames,
@@ -655,13 +621,7 @@ export function SvgBarChart({
   xTickInterval,
   tooltipValueFormatter,
 }: SvgBarChartProps) {
-  const [tooltip, setTooltip] = useState<TooltipState>({
-    active: false,
-    x: 0,
-    y: 0,
-    label: '',
-    data: [],
-  });
+  const [tooltip, setTooltip] = useState<TooltipState>(HIDDEN_TOOLTIP);
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set());
   const plotLeft = margin.left;
   const plotTop = margin.top;
@@ -671,32 +631,29 @@ export function SvgBarChart({
   const { yMin, yMax, yTicks } = useMemo(() => {
     let min = 0;
     let max = 0;
-    for (const d of data) {
+    for (const d of data)
       for (const name of seriesNames) {
         const v = Number(d[name]) || 0;
         if (v < min) min = v;
         if (v > max) max = v;
       }
-    }
-    if (min === 0 && max === 0) {
-      max = 1;
-    }
-    const yTicks = computeYTicksBar(min, max);
-    return { yMin: yTicks[0], yMax: yTicks[yTicks.length - 1], yTicks };
+    if (min === 0 && max === 0) max = 1;
+    const ticks = computeTicks(min, max);
+    return { yMin: ticks[0], yMax: ticks[ticks.length - 1], yTicks: ticks };
   }, [data, seriesNames]);
-  const yScale = useMemo(() => {
-    return (v: number) => plotTop + plotHeight - ((v - yMin) / (yMax - yMin)) * plotHeight;
-  }, [plotTop, plotHeight, yMin, yMax]);
+  const yScale = useMemo(
+    () => linearScale(yMin, yMax, plotTop + plotHeight, -plotHeight),
+    [plotTop, plotHeight, yMin, yMax],
+  );
   const yTickPixels = useMemo(
     () => yTicks.map((t) => ({ value: yScale(t), label: yTickFormatter(t) })),
     [yTicks, yScale, yTickFormatter],
   );
-  const barWidth = useMemo(() => {
-    const totalBars = visibleSeries.length || 1;
-    const groupWidth = plotWidth / data.length;
-    return Math.max(4, (groupWidth * 0.7) / totalBars);
-  }, [plotWidth, data.length, visibleSeries.length]);
   const groupWidth = plotWidth / data.length;
+  const barWidth = useMemo(
+    () => Math.max(4, (groupWidth * 0.7) / (visibleSeries.length || 1)),
+    [groupWidth, visibleSeries.length],
+  );
   const xTickPixels = useMemo(() => {
     const interval = xTickInterval ?? 1;
     return data.map((d, i) => ({
@@ -705,42 +662,30 @@ export function SvgBarChart({
       show: i % interval === 0,
     }));
   }, [data, xDataKey, plotLeft, groupWidth, xTickInterval]);
+  const signColor = seriesNames.length === 1 && signColorSingleSeries;
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
-      const svg = e.currentTarget;
-      const rect = svg.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
+      const mx = e.clientX - e.currentTarget.getBoundingClientRect().left;
       const dataIdx = Math.floor((mx - plotLeft) / groupWidth);
       if (dataIdx < 0 || dataIdx >= data.length) {
-        setTooltip({ active: false, x: 0, y: 0, label: '', data: [] });
+        setTooltip(HIDDEN_TOOLTIP);
         return;
       }
       const point = data[dataIdx];
-      const label = String(point[xDataKey] ?? '');
       const items = visibleSeries.map((name) => {
         const val = Number(point[name]) || 0;
-        const formatted = tooltipValueFormatter
-          ? (() => {
-              const r = tooltipValueFormatter(val, name);
-              return Array.isArray(r) ? r[0] : r;
-            })()
-          : String(val);
+        const r = tooltipValueFormatter?.(val, name);
         return {
           name,
-          value: formatted,
-          color:
-            seriesNames.length === 1 && signColorSingleSeries
-              ? val >= 0
-                ? 'var(--success)'
-                : 'var(--error)'
-              : CHART_COLORS[seriesNames.indexOf(name) % CHART_COLORS.length],
+          value: r ? formatTooltipValue(r) : String(val),
+          color: barFill(val, seriesNames.indexOf(name), signColor),
         };
       });
       setTooltip({
         active: true,
         x: e.clientX,
         y: e.clientY,
-        label,
+        label: String(point[xDataKey] ?? ''),
         data: items,
       });
     },
@@ -751,28 +696,22 @@ export function SvgBarChart({
       groupWidth,
       visibleSeries,
       seriesNames,
-      signColorSingleSeries,
+      signColor,
       tooltipValueFormatter,
     ],
   );
-  const handleMouseLeave = useCallback(() => {
-    setTooltip({ active: false, x: 0, y: 0, label: '', data: [] });
-  }, []);
-  const handleLegendToggle = useCallback((name: string) => {
-    setHiddenSeries((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }, []);
-  const xTickStyle = xTickFontSize
+  const handleMouseLeave = useCallback(() => setTooltip(HIDDEN_TOOLTIP), []);
+  const handleLegendToggle = useCallback(
+    (name: string) => setHiddenSeries((prev) => toggleInSet(prev, name)),
+    [],
+  );
+  const xTickStyle: CSSProperties = xTickFontSize
     ? {
         fill: 'hsl(var(--fg-tertiary))',
         fontSize: xTickFontSize,
         fontFamily: 'Geist Mono Variable',
       }
-    : { fill: 'hsl(var(--fg-tertiary))', fontSize: 11, fontFamily: 'Geist Mono Variable' };
+    : XTICK_STYLE;
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <svg
@@ -793,29 +732,7 @@ export function SvgBarChart({
           offset={plotLeft}
           hideLine
         />
-        {xTickPixels.map((t, i) => {
-          if (!t.show) return null;
-          return (
-            <g key={`xtick-${i}`}>
-              <line
-                x1={t.value}
-                y1={plotTop + plotHeight}
-                x2={t.value}
-                y2={plotTop + plotHeight + 5}
-                stroke="var(--border-soft)"
-                strokeWidth={1}
-              />
-              <text
-                x={t.value}
-                y={plotTop + plotHeight + 16}
-                textAnchor="middle"
-                style={xTickStyle as Record<string, string | number>}
-              >
-                {t.label}
-              </text>
-            </g>
-          );
-        })}
+        <XAxisTicks ticks={xTickPixels} plotBottom={plotTop + plotHeight} style={xTickStyle} />
         {data.map((point, dataIdx) => {
           const startX =
             plotLeft +
@@ -824,13 +741,7 @@ export function SvgBarChart({
             (visibleSeries.length * barWidth) / 2;
           return visibleSeries.map((name, seriesIdx) => {
             const val = Number(point[name]) || 0;
-            const seriesColorIdx = seriesNames.indexOf(name);
-            const color =
-              seriesNames.length === 1 && signColorSingleSeries
-                ? val >= 0
-                  ? 'var(--success)'
-                  : 'var(--error)'
-                : CHART_COLORS[seriesColorIdx % CHART_COLORS.length];
+            const color = barFill(val, seriesNames.indexOf(name), signColor);
             const barX = startX + seriesIdx * barWidth;
             const barH = Math.abs((val - yMin) / (yMax - yMin)) * plotHeight;
             const barY = val >= 0 ? yScale(val) : yScale(0);
@@ -860,7 +771,7 @@ export function SvgBarChart({
         <SvgLegend
           series={seriesNames.map((name, idx) => ({
             name,
-            color: CHART_COLORS[idx % CHART_COLORS.length],
+            color: seriesColor(idx),
             visible: !hiddenSeries.has(name),
           }))}
           onToggle={handleLegendToggle}
@@ -869,8 +780,9 @@ export function SvgBarChart({
     </div>
   );
 }
+
 interface SvgScatterChartProps {
-  data: Array<Record<string, string | number>>;
+  data: ChartPoint[];
   xDataKey: string;
   xName: string;
   yDataKey: string;
@@ -880,39 +792,9 @@ interface SvgScatterChartProps {
   nameDataKey?: string;
   width: number;
   height: number;
-  margin: { top: number; right: number; bottom: number; left: number };
+  margin: ChartMargin;
   tooltipFormatter?: (value: number | string, name: string) => [string, string];
   tooltipLabelFormatter?: (label: string) => string;
-}
-interface TooltipState {
-  active: boolean;
-  x: number;
-  y: number;
-  label: string;
-  data: Array<{ name: string; value: string; color: string }>;
-}
-function computeTicks(min: number, max: number, count: number = 5): number[] {
-  if (min === max) {
-    const v = min === 0 ? 1 : Math.abs(min);
-    min = min - v;
-    max = max + v;
-  }
-  const range = max - min;
-  const roughStep = range / (count - 1);
-  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
-  const residual = roughStep / magnitude;
-  let niceStep: number;
-  if (residual <= 1.5) niceStep = 1 * magnitude;
-  else if (residual <= 3.5) niceStep = 2 * magnitude;
-  else if (residual <= 7.5) niceStep = 5 * magnitude;
-  else niceStep = 10 * magnitude;
-  const niceMin = Math.floor(min / niceStep) * niceStep;
-  const niceMax = Math.ceil(max / niceStep) * niceStep;
-  const ticks: number[] = [];
-  for (let v = niceMin; v <= niceMax + niceStep * 0.001; v += niceStep) {
-    ticks.push(Math.round(v * 1e10) / 1e10);
-  }
-  return ticks;
 }
 export function SvgScatterChart({
   data,
@@ -929,13 +811,7 @@ export function SvgScatterChart({
   tooltipFormatter,
   tooltipLabelFormatter,
 }: SvgScatterChartProps) {
-  const [tooltip, setTooltip] = useState<TooltipState>({
-    active: false,
-    x: 0,
-    y: 0,
-    label: '',
-    data: [],
-  });
+  const [tooltip, setTooltip] = useState<TooltipState>(HIDDEN_TOOLTIP);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const plotLeft = margin.left;
   const plotTop = margin.top;
@@ -943,8 +819,8 @@ export function SvgScatterChart({
   const plotHeight = height - margin.top - margin.bottom;
   const { xMin, xMax, yMin, yMax, xTicks, yTicks } = useMemo(() => {
     let xMin = Infinity,
-      xMax = -Infinity;
-    let yMin = Infinity,
+      xMax = -Infinity,
+      yMin = Infinity,
       yMax = -Infinity;
     for (const d of data) {
       const xv = Number(d[xDataKey]) || 0;
@@ -974,20 +850,12 @@ export function SvgScatterChart({
     };
   }, [data, xDataKey, yDataKey]);
   const xScale = useMemo(
-    () => (v: number) => plotLeft + ((v - xMin) / (xMax - xMin)) * plotWidth,
+    () => linearScale(xMin, xMax, plotLeft, plotWidth),
     [plotLeft, plotWidth, xMin, xMax],
   );
   const yScale = useMemo(
-    () => (v: number) => plotTop + plotHeight - ((v - yMin) / (yMax - yMin)) * plotHeight,
+    () => linearScale(yMin, yMax, plotTop + plotHeight, -plotHeight),
     [plotTop, plotHeight, yMin, yMax],
-  );
-  const xTickPixels = useMemo(
-    () => xTicks.map((t) => ({ value: xScale(t), label: t.toFixed(2) })),
-    [xTicks, xScale],
-  );
-  const yTickPixels = useMemo(
-    () => yTicks.map((t) => ({ value: yScale(t), label: t.toFixed(2) })),
-    [yTicks, yScale],
   );
   const scatterPoints = useMemo(
     () =>
@@ -996,7 +864,7 @@ export function SvgScatterChart({
         cx: xScale(Number(d[xDataKey]) || 0),
         cy: yScale(Number(d[yDataKey]) || 0),
         name: String(d[nameDataKey] ?? ''),
-        color: CHART_COLORS[idx % CHART_COLORS.length],
+        color: seriesColor(idx),
         xVal: Number(d[xDataKey]) || 0,
         yVal: Number(d[yDataKey]) || 0,
       })),
@@ -1017,37 +885,34 @@ export function SvgScatterChart({
         }
       }
       if (closestIdx < 0) {
-        setTooltip({ active: false, x: 0, y: 0, label: '', data: [] });
+        setTooltip(HIDDEN_TOOLTIP);
         setHoveredIdx(null);
         return;
       }
       const pt = scatterPoints[closestIdx];
       setHoveredIdx(closestIdx);
-      const label = tooltipLabelFormatter ? tooltipLabelFormatter(pt.name) : pt.name;
-      const items = [];
-      if (tooltipFormatter) {
-        const xFormatted = tooltipFormatter(pt.xVal, xName);
-        items.push({
-          name: Array.isArray(xFormatted) ? xFormatted[1] : xName,
-          value: Array.isArray(xFormatted) ? xFormatted[0] : String(pt.xVal),
-          color: pt.color,
-        });
-        const yFormatted = tooltipFormatter(pt.yVal, yName);
-        items.push({
-          name: Array.isArray(yFormatted) ? yFormatted[1] : yName,
-          value: Array.isArray(yFormatted) ? yFormatted[0] : String(pt.yVal),
-          color: pt.color,
-        });
-      } else {
-        items.push({ name: xName, value: pt.xVal.toFixed(2), color: pt.color });
-        items.push({ name: yName, value: pt.yVal.toFixed(2), color: pt.color });
-      }
-      setTooltip({ active: true, x: e.clientX, y: e.clientY, label, data: items });
+      const formatItem = (v: number | string, name: string, fallback: string): TooltipDataItem => {
+        if (!tooltipFormatter) return { name, value: fallback, color: pt.color };
+        const r = tooltipFormatter(v, name);
+        return Array.isArray(r)
+          ? { name: r[1], value: r[0], color: pt.color }
+          : { name, value: String(v), color: pt.color };
+      };
+      setTooltip({
+        active: true,
+        x: e.clientX,
+        y: e.clientY,
+        label: tooltipLabelFormatter ? tooltipLabelFormatter(pt.name) : pt.name,
+        data: [
+          formatItem(pt.xVal, xName, pt.xVal.toFixed(2)),
+          formatItem(pt.yVal, yName, pt.yVal.toFixed(2)),
+        ],
+      });
     },
     [scatterPoints, xName, yName, tooltipFormatter, tooltipLabelFormatter],
   );
   const handleMouseLeave = useCallback(() => {
-    setTooltip({ active: false, x: 0, y: 0, label: '', data: [] });
+    setTooltip(HIDDEN_TOOLTIP);
     setHoveredIdx(null);
   }, []);
   return (
@@ -1062,7 +927,7 @@ export function SvgScatterChart({
         <SvgAxis
           orientation="left"
           range={plotHeight}
-          ticks={yTickPixels}
+          ticks={yTicks.map((t) => ({ value: yScale(t), label: t.toFixed(2) }))}
           label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft' } : undefined}
           gridLines
           gridColor="hsl(var(--chart-grid))"
@@ -1073,7 +938,7 @@ export function SvgScatterChart({
         <SvgAxis
           orientation="bottom"
           range={plotWidth}
-          ticks={xTickPixels}
+          ticks={xTicks.map((t) => ({ value: xScale(t), label: t.toFixed(2) }))}
           label={xLabel ? { value: xLabel, position: 'insideBottom' } : undefined}
           gridLines
           gridColor="hsl(var(--chart-grid))"

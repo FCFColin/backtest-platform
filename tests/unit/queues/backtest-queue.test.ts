@@ -67,14 +67,10 @@ import {
   backtestQueue,
   createBacktestWorker,
 } from '../../../packages/backend/src/queues/backtestQueue.js';
-
 describe('backtestQueue', () => {
-  it('应导出 Queue 实例', () => {
+  it('应导出 Queue 实例，使用正确连接配置并注册 error 回调', () => {
     expect(backtestQueue).toBeDefined();
     expect(typeof backtestQueue.on).toBe('function');
-  });
-
-  it('Queue 应使用正确的连接配置', () => {
     expect(QueueMock).toHaveBeenCalledWith(
       'backtest-compute',
       expect.objectContaining({
@@ -93,12 +89,8 @@ describe('backtestQueue', () => {
         }),
       }),
     );
-  });
-
-  it('Queue 应注册 error 事件回调', () => {
     expect(queueInstanceMocks.on).toHaveBeenCalledWith('error', expect.any(Function));
   });
-
   it('Queue error 回调应记录 error 日志', () => {
     // C-021: 主队列与 DLQ 共享同一 mock 实例，均注册了 'error' 回调。
     // 调用所有 'error' 回调，验证主队列的错误日志被正确记录。
@@ -117,7 +109,6 @@ describe('backtestQueue', () => {
     );
   });
 });
-
 describe('createBacktestWorker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -126,7 +117,12 @@ describe('createBacktestWorker', () => {
     // 重新导入模块以重新触发 Queue 构造
   });
 
-  it('应创建 Worker 并返回实例', () => {
+  const makeWorker = () => createBacktestWorker(vi.fn());
+  const getCallback = (event: string) => {
+    const call = workerInstanceMocks.on.mock.calls.find((c: unknown[]) => c[0] === event);
+    return call![1];
+  };
+  it('应创建 Worker（concurrency=4）并返回实例', () => {
     const processFn = vi.fn().mockResolvedValue({ status: 'completed' });
     const worker = createBacktestWorker(processFn);
 
@@ -134,30 +130,16 @@ describe('createBacktestWorker', () => {
     expect(WorkerMock).toHaveBeenCalledWith(
       'backtest-compute',
       processFn,
-      expect.objectContaining({
-        concurrency: 4,
-      }),
+      expect.objectContaining({ concurrency: 4 }),
     );
-  });
-
-  it('应注册 completed/failed/error 事件回调', () => {
-    const processFn = vi.fn();
-    createBacktestWorker(processFn);
-
     const eventNames = workerInstanceMocks.on.mock.calls.map((call: unknown[]) => call[0]);
     expect(eventNames).toContain('completed');
     expect(eventNames).toContain('failed');
     expect(eventNames).toContain('error');
   });
-
   it('completed 事件应记录 info 日志', () => {
-    const processFn = vi.fn();
-    createBacktestWorker(processFn);
-
-    const completedCall = workerInstanceMocks.on.mock.calls.find(
-      (call: unknown[]) => call[0] === 'completed',
-    );
-    const completedCallback = completedCall![1] as (job: unknown) => void;
+    makeWorker();
+    const completedCallback = getCallback('completed') as (job: unknown) => void;
     completedCallback({
       id: 'job-123',
       data: { type: 'optimizer' },
@@ -175,19 +157,13 @@ describe('createBacktestWorker', () => {
     );
   });
 
-  it('failed 事件应记录 error 日志', () => {
-    const processFn = vi.fn();
-    createBacktestWorker(processFn);
-
-    const failedCall = workerInstanceMocks.on.mock.calls.find(
-      (call: unknown[]) => call[0] === 'failed',
-    );
-    const failedCallback = failedCall![1] as (job: unknown, err: Error) => void;
+  it('failed 事件应记录 error 日志，job 为 null 时不应抛错', () => {
+    makeWorker();
+    const failedCallback = getCallback('failed') as (job: unknown, err: Error) => void;
     failedCallback(
       { id: 'job-456', data: { type: 'grid-search' }, attemptsMade: 3 },
       new Error('engine timeout'),
     );
-
     expect(loggerMocks.error).toHaveBeenCalledWith(
       expect.objectContaining({
         jobId: 'job-456',
@@ -197,28 +173,12 @@ describe('createBacktestWorker', () => {
       }),
       'Backtest job failed',
     );
-  });
-
-  it('failed 事件 job 为 null 时不应抛错', () => {
-    const processFn = vi.fn();
-    createBacktestWorker(processFn);
-
-    const failedCall = workerInstanceMocks.on.mock.calls.find(
-      (call: unknown[]) => call[0] === 'failed',
-    );
-    const failedCallback = failedCall![1] as (job: unknown, err: Error) => void;
-
     expect(() => failedCallback(null, new Error('job not found'))).not.toThrow();
   });
 
   it('error 事件应记录 error 日志', () => {
-    const processFn = vi.fn();
-    createBacktestWorker(processFn);
-
-    const errorCall = workerInstanceMocks.on.mock.calls.find(
-      (call: unknown[]) => call[0] === 'error',
-    );
-    const errorCallback = errorCall![1] as (err: Error) => void;
+    makeWorker();
+    const errorCallback = getCallback('error') as (err: Error) => void;
     errorCallback(new Error('worker connection lost'));
 
     expect(loggerMocks.error).toHaveBeenCalledWith(
@@ -227,21 +187,8 @@ describe('createBacktestWorker', () => {
     );
   });
 
-  it('应使用 concurrency=4 (WORKER_CONCURRENCY 默认值)', () => {
-    const processFn = vi.fn();
-    createBacktestWorker(processFn);
-
-    expect(WorkerMock).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.any(Function),
-      expect.objectContaining({ concurrency: 4 }),
-    );
-  });
-
   it('应记录 Worker 创建日志', () => {
-    const processFn = vi.fn();
-    createBacktestWorker(processFn);
-
+    makeWorker();
     expect(loggerMocks.info).toHaveBeenCalledWith(
       expect.objectContaining({ module: 'backtestQueue', concurrency: 4 }),
       'Creating BullMQ worker...',

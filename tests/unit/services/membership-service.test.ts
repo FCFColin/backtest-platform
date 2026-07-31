@@ -25,6 +25,8 @@ import {
   updateOrgName,
 } from '../../../packages/backend/src/application/org/membershipService.js';
 
+beforeEach(() => vi.clearAllMocks());
+
 function row(orgId: string, role: string, status = 'active') {
   return {
     org_id: orgId,
@@ -37,110 +39,100 @@ function row(orgId: string, role: string, status = 'active') {
 }
 
 describe('orgRoleToGlobalRole', () => {
-  it('owner 应映射为 admin', () => {
-    expect(orgRoleToGlobalRole('owner')).toBe('admin');
-  });
-  it('其它角色应原样返回', () => {
-    expect(orgRoleToGlobalRole('admin')).toBe('admin');
-    expect(orgRoleToGlobalRole('analyst')).toBe('analyst');
-    expect(orgRoleToGlobalRole('readonly')).toBe('readonly');
+  it.each([
+    ['owner 应映射为 admin', 'owner', 'admin'],
+    ['其它角色应原样返回', 'analyst', 'analyst'],
+    ['readonly 应原样返回', 'readonly', 'readonly'],
+  ])('%s', (_n, role, expected) => {
+    expect(orgRoleToGlobalRole(role)).toBe(expected);
   });
 });
 
 describe('getUserMemberships', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('应映射数据库行为 Membership 对象', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [row('a', 'owner')] });
-    const result = await getUserMemberships('u1');
-    expect(result).toEqual([
-      {
-        orgId: 'a',
-        orgName: 'Org a',
-        orgSlug: 'org-a',
-        orgPlan: 'free',
-        orgStatus: 'active',
-        role: 'owner',
-      },
-    ]);
-  });
-
-  it('无成员关系时应返回空数组', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getUserMemberships('u1')).toEqual([]);
+  it.each([
+    [
+      '应映射数据库行为 Membership 对象',
+      [{ rows: [row('a', 'owner')] }],
+      [
+        {
+          orgId: 'a',
+          orgName: 'Org a',
+          orgSlug: 'org-a',
+          orgPlan: 'free',
+          orgStatus: 'active',
+          role: 'owner',
+        },
+      ],
+    ],
+    ['无成员关系时应返回空数组', [{ rows: [] }], []],
+  ])('%s', async (_n, queryResult, expected) => {
+    dbMocks.query.mockResolvedValueOnce(queryResult[0]);
+    expect(await getUserMemberships('u1')).toEqual(expected);
   });
 });
 
 describe('getMembership', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('属于组织时应返回成员关系', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [row('a', 'analyst')] });
+  it.each([
+    ['属于组织时应返回成员关系', [{ rows: [row('a', 'analyst')] }], true],
+    ['不属于组织时应返回 null', [{ rows: [] }], false],
+  ])('%s', async (_n, queryResult, found) => {
+    dbMocks.query.mockResolvedValueOnce(queryResult[0]);
     const m = await getMembership('u1', 'a');
-    expect(m?.orgId).toBe('a');
-    expect(m?.role).toBe('analyst');
-  });
-
-  it('不属于组织时应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getMembership('u1', 'a')).toBeNull();
+    if (found) {
+      expect(m?.orgId).toBe('a');
+      expect(m?.role).toBe('analyst');
+    } else {
+      expect(m).toBeNull();
+    }
   });
 });
 
 describe('resolveDefaultOrg', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('应优先选择角色优先级最高的组织（owner > analyst）', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [row('a', 'analyst'), row('b', 'owner')] });
+  it.each([
+    [
+      '应优先选择角色优先级最高的组织（owner > analyst）',
+      [row('a', 'analyst'), row('b', 'owner')],
+      'b',
+      'owner',
+    ],
+    [
+      '应跳过非 active 组织优先选 active',
+      [row('a', 'owner', 'suspended'), row('b', 'readonly', 'active')],
+      'b',
+      'readonly',
+    ],
+    [
+      '全部非 active 时回退到非 active 集合并按角色优先级选取',
+      [row('a', 'readonly', 'suspended'), row('b', 'owner', 'canceled')],
+      'b',
+      'owner',
+    ],
+    ['无成员关系时应返回 null', [], null, null],
+  ])('%s', async (_n, rows, orgId, role) => {
+    dbMocks.query.mockResolvedValueOnce({ rows });
     const m = await resolveDefaultOrg('u1');
-    expect(m?.orgId).toBe('b');
-    expect(m?.role).toBe('owner');
-  });
-
-  it('应跳过非 active 组织优先选 active', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [row('a', 'owner', 'suspended'), row('b', 'readonly', 'active')],
-    });
-    const m = await resolveDefaultOrg('u1');
-    expect(m?.orgId).toBe('b');
-  });
-
-  it('全部非 active 时回退到非 active 集合并按角色优先级选取', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [row('a', 'readonly', 'suspended'), row('b', 'owner', 'canceled')],
-    });
-    const m = await resolveDefaultOrg('u1');
-    expect(m?.orgId).toBe('b');
-  });
-
-  it('无成员关系时应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await resolveDefaultOrg('u1')).toBeNull();
+    if (orgId === null) {
+      expect(m).toBeNull();
+    } else {
+      expect(m?.orgId).toBe(orgId);
+      expect(m?.role).toBe(role);
+    }
   });
 });
 
 describe('isPlatformAdmin', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('is_platform_admin=true 时返回 true', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ is_platform_admin: true }] });
-    expect(await isPlatformAdmin('u1')).toBe(true);
-  });
-
-  it('用户不存在时返回 false', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await isPlatformAdmin('u1')).toBe(false);
-  });
-
-  it('查询异常时保守返回 false', async () => {
-    dbMocks.query.mockRejectedValueOnce(new Error('db down'));
-    expect(await isPlatformAdmin('u1')).toBe(false);
+  it.each([
+    ['is_platform_admin=true 时返回 true', { rows: [{ is_platform_admin: true }] }, true],
+    ['用户不存在时返回 false', { rows: [] }, false],
+    ['查询异常时保守返回 false', new Error('db down'), false],
+  ])('%s', async (_n, result, expected) => {
+    if (result instanceof Error) dbMocks.query.mockRejectedValueOnce(result);
+    else dbMocks.query.mockResolvedValueOnce(result);
+    expect(await isPlatformAdmin('u1')).toBe(expected);
   });
 });
 
 describe('listOrgMembers', () => {
-  beforeEach(() => vi.clearAllMocks());
-
   const memberRow = (userId: string, role: string) => ({
     user_id: userId,
     role,
@@ -179,106 +171,103 @@ describe('listOrgMembers', () => {
 });
 
 describe('updateMemberRole', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('成员存在且非 owner 时应更新角色返回 ok', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ role: 'analyst' }] });
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
+  it.each([
+    [
+      '成员存在且非 owner 时应更新角色返回 ok',
+      [{ role: 'analyst' }],
+      { rowCount: 1 },
+      undefined,
+      'ok',
+    ],
+    ['成员不存在应返回 not_found', [], undefined, undefined, 'not_found'],
+    [
+      'owner 降级时若为最后一个 owner 应返回 last_owner',
+      [{ role: 'owner' }],
+      { rows: [{ c: 1 }] },
+      undefined,
+      'last_owner',
+    ],
+    [
+      'owner 降级时若存在多个 owner 应成功',
+      [{ role: 'owner' }],
+      { rows: [{ c: 2 }] },
+      { rowCount: 1 },
+      'ok',
+    ],
+  ])('%s', async (_n, memberRows, q2, q3, expected) => {
+    dbMocks.query.mockResolvedValueOnce({ rows: memberRows });
+    if (q2) dbMocks.query.mockResolvedValueOnce(q2);
+    if (q3) dbMocks.query.mockResolvedValueOnce(q3);
     const r = await updateMemberRole('org-1', 'u1', 'admin');
-    expect(r).toBe('ok');
-    expect(dbMocks.query.mock.calls[1][0]).toContain('UPDATE memberships SET role');
-  });
-
-  it('成员不存在应返回 not_found', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await updateMemberRole('org-1', 'ghost', 'admin')).toBe('not_found');
-  });
-
-  it('owner 降级时若为最后一个 owner 应返回 last_owner', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ role: 'owner' }] });
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ c: 1 }] });
-    const r = await updateMemberRole('org-1', 'u1', 'analyst');
-    expect(r).toBe('last_owner');
-  });
-
-  it('owner 降级时若存在多个 owner 应成功', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ role: 'owner' }] });
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ c: 2 }] });
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
-    const r = await updateMemberRole('org-1', 'u1', 'analyst');
-    expect(r).toBe('ok');
+    expect(r).toBe(expected);
+    if (expected === 'ok') {
+      expect(
+        dbMocks.query.mock.calls.some((c) => String(c[0]).includes('UPDATE memberships SET role')),
+      ).toBe(true);
+    }
   });
 });
 
 describe('removeMember', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('成员存在且非 owner 时应移除返回 ok', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ role: 'analyst' }] });
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
+  it.each([
+    ['成员存在且非 owner 时应移除返回 ok', [{ role: 'analyst' }], { rowCount: 1 }, undefined, 'ok'],
+    ['成员不存在应返回 not_found', [], undefined, undefined, 'not_found'],
+    [
+      'owner 移除时若为最后一个应返回 last_owner',
+      [{ role: 'owner' }],
+      { rows: [{ c: 1 }] },
+      undefined,
+      'last_owner',
+    ],
+    [
+      'owner 移除时若存在多个 owner 应成功',
+      [{ role: 'owner' }],
+      { rows: [{ c: 2 }] },
+      { rowCount: 1 },
+      'ok',
+    ],
+  ])('%s', async (_n, memberRows, q2, q3, expected) => {
+    dbMocks.query.mockResolvedValueOnce({ rows: memberRows });
+    if (q2) dbMocks.query.mockResolvedValueOnce(q2);
+    if (q3) dbMocks.query.mockResolvedValueOnce(q3);
     const r = await removeMember('org-1', 'u1');
-    expect(r).toBe('ok');
-    expect(dbMocks.query.mock.calls[1][0]).toContain('DELETE FROM memberships');
-  });
-
-  it('成员不存在应返回 not_found', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await removeMember('org-1', 'ghost')).toBe('not_found');
-  });
-
-  it('owner 移除时若为最后一个应返回 last_owner', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ role: 'owner' }] });
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ c: 1 }] });
-    const r = await removeMember('org-1', 'u1');
-    expect(r).toBe('last_owner');
-  });
-
-  it('owner 移除时若存在多个 owner 应成功', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ role: 'owner' }] });
-    dbMocks.query.mockResolvedValueOnce({ rows: [{ c: 2 }] });
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
-    const r = await removeMember('org-1', 'u1');
-    expect(r).toBe('ok');
+    expect(r).toBe(expected);
+    if (expected === 'ok') {
+      expect(
+        dbMocks.query.mock.calls.some((c) => String(c[0]).includes('DELETE FROM memberships')),
+      ).toBe(true);
+    }
   });
 });
 
 describe('getOrg', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('应返回组织摘要', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [{ id: 'org-1', name: 'My Org', slug: 'my-org', plan: 'pro', status: 'active' }],
-    });
+  it.each([
+    [
+      '应返回组织摘要',
+      { rows: [{ id: 'org-1', name: 'My Org', slug: 'my-org', plan: 'pro', status: 'active' }] },
+      { orgId: 'org-1', name: 'My Org', slug: 'my-org', plan: 'pro', status: 'active' },
+    ],
+    ['不存在应返回 null', { rows: [] }, null],
+  ])('%s', async (_n, result, expected) => {
+    dbMocks.query.mockResolvedValueOnce(result);
     const org = await getOrg('org-1');
-    expect(org).toMatchObject({
-      orgId: 'org-1',
-      name: 'My Org',
-      slug: 'my-org',
-      plan: 'pro',
-      status: 'active',
-    });
-  });
-
-  it('不存在应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getOrg('missing')).toBeNull();
+    if (expected === null) expect(org).toBeNull();
+    else expect(org).toMatchObject(expected as Record<string, string>);
   });
 });
 
 describe('updateOrgName', () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it('成功更新应返回 true', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
-    expect(await updateOrgName('org-1', 'New Name')).toBe(true);
-    expect(dbMocks.query).toHaveBeenCalledWith(
-      expect.stringContaining('UPDATE organizations SET name'),
-      ['org-1', 'New Name'],
-    );
-  });
-
-  it('无匹配组织应返回 false', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 0 });
-    expect(await updateOrgName('missing', 'X')).toBe(false);
+  it.each([
+    ['成功更新应返回 true', { rowCount: 1 }, true],
+    ['无匹配组织应返回 false', { rowCount: 0 }, false],
+  ])('%s', async (_n, result, expected) => {
+    dbMocks.query.mockResolvedValueOnce(result);
+    expect(await updateOrgName('org-1', 'New Name')).toBe(expected);
+    if (expected) {
+      expect(dbMocks.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE organizations SET name'),
+        ['org-1', 'New Name'],
+      );
+    }
   });
 });

@@ -26,19 +26,6 @@ export function trackApiCall(fetchPromise: Promise<Response>, url: string, metho
       });
     });
 }
-export function onComponentRender(
-  id: string,
-  phase: 'mount' | 'update',
-  actualDuration: number,
-): void {
-  if (actualDuration > 16) {
-    reportPerformance('component_render', {
-      component: id,
-      phase,
-      value: Math.round(actualDuration * 100) / 100,
-    });
-  }
-}
 let lastNavStart = 0;
 export function onNavStart(): void {
   lastNavStart = performance.now();
@@ -95,39 +82,11 @@ export function addSample(type: string, value: number, metric?: string): void {
     sampleBuffer.splice(0, 50);
   }
 }
-export function getSampleSummary(): Record<
-  string,
-  { count: number; avg: number; p50: number; p95: number }
-> {
-  const groups: Record<string, number[]> = {};
-  for (const s of sampleBuffer) {
-    const key = s.metric ? `${s.type}:${s.metric}` : s.type;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(s.value);
-  }
-  const summary: Record<string, { count: number; avg: number; p50: number; p95: number }> = {};
-  for (const [key, vals] of Object.entries(groups)) {
-    const sorted = [...vals].sort((a, b) => a - b);
-    summary[key] = {
-      count: vals.length,
-      avg: vals.reduce((a, b) => a + b, 0) / vals.length,
-      p50: sorted[Math.floor(sorted.length * 0.5)] || 0,
-      p95: sorted[Math.floor(sorted.length * 0.95)] || 0,
-    };
-  }
-  return summary;
-}
 export function startPerformanceMonitoring(): void {
   if (flushTimer) return;
   flushTimer = window.setInterval(() => {
     sampleBuffer.length = 0;
   }, FLUSH_INTERVAL_MS);
-}
-export function stopPerformanceMonitoring(): void {
-  if (flushTimer) {
-    window.clearInterval(flushTimer);
-    flushTimer = null;
-  }
 }
 export function initVitalsReporting(): void {
   onLCP((metric) => {

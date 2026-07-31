@@ -1,8 +1,15 @@
 import i18n from '../i18n/index.js';
-import type { BacktestResult, Portfolio, BacktestParameters, Statistics, RebalanceFrequency } from '@backtest/shared';
+import type {
+  BacktestResult,
+  Portfolio,
+  BacktestParameters,
+  Statistics,
+  RebalanceFrequency,
+} from '@backtest/shared';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validatePortfolioCore } from '@/utils/validation';
 import { getErrorI18nKey } from '../utils/errorReporter.js';
+import { PRESET_PORTFOLIOS, findPresetPortfolio } from './presetPortfolios.js';
 export function extractApiErrorDetail(json: unknown): string {
   if (!json || typeof json !== 'object') return i18n.t('backtest.runFailed');
   const body = json as Record<string, unknown>;
@@ -33,12 +40,12 @@ export function normalizeBacktestResult(raw: unknown): BacktestResult {
       rollingReturns: p.rollingReturns ?? [],
       allocationHistory: p.allocationHistory ?? [],
       drawdownEpisodes: p.drawdownEpisodes ?? [],
-      statistics: p.statistics ?? emptyStats
+      statistics: p.statistics ?? emptyStats,
     })),
     correlations: data.correlations ?? [],
     assetTickers: data.assetTickers ?? [],
     assetCorrelations: data.assetCorrelations ?? [],
-    benchmarkGrowth: data.benchmarkGrowth ?? []
+    benchmarkGrowth: data.benchmarkGrowth ?? [],
   };
 }
 export const defaultParameters: BacktestParameters = {
@@ -51,7 +58,7 @@ export const defaultParameters: BacktestParameters = {
   benchmarkTicker: 'SPY',
   extendedWithdrawalStats: false,
   cashflowLegs: [],
-  oneTimeCashflows: []
+  oneTimeCashflows: [],
 };
 export const createDefaultPortfolio = (counter: number): Portfolio => {
   return {
@@ -59,12 +66,12 @@ export const createDefaultPortfolio = (counter: number): Portfolio => {
     name: `Portfolio ${counter}`,
     assets: [
       { id: `asset-${Date.now()}-1`, ticker: 'VTI', weight: 60 },
-      { id: `asset-${Date.now()}-2`, ticker: 'BND', weight: 40 }
+      { id: `asset-${Date.now()}-2`, ticker: 'BND', weight: 40 },
     ],
     rebalanceFrequency: 'quarterly',
     rebalanceOffset: 0,
     drag: 0,
-    totalReturn: true
+    totalReturn: true,
   };
 };
 export const createEmptyPortfolio = (counter: number): Portfolio => {
@@ -75,12 +82,12 @@ export const createEmptyPortfolio = (counter: number): Portfolio => {
     assets: [
       { id: `asset-${now}-0`, ticker: '', weight: 0 },
       { id: `asset-${now}-1`, ticker: '', weight: 0 },
-      { id: `asset-${now}-2`, ticker: '', weight: 0 }
+      { id: `asset-${now}-2`, ticker: '', weight: 0 },
     ],
     rebalanceFrequency: 'quarterly',
     rebalanceOffset: 0,
     drag: 0,
-    totalReturn: true
+    totalReturn: true,
   };
 };
 export interface PortfolioPresetAsset {
@@ -94,91 +101,35 @@ export interface PortfolioPreset {
   assets: PortfolioPresetAsset[];
   rebalanceFrequency: RebalanceFrequency;
 }
-export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = [
-  {
-    id: '60-40',
-    labelKey: 'portfolio.preset.60-40.label',
-    descriptionKey: 'portfolio.preset.60-40.description',
-    assets: [
-      { ticker: 'VTI', weight: 60 },
-      { ticker: 'BND', weight: 40 }
-    ],
-    rebalanceFrequency: 'quarterly'
-  },
-  {
-    id: '80-20',
-    labelKey: 'portfolio.preset.80-20.label',
-    descriptionKey: 'portfolio.preset.80-20.description',
-    assets: [
-      { ticker: 'VTI', weight: 80 },
-      { ticker: 'BND', weight: 20 }
-    ],
-    rebalanceFrequency: 'quarterly'
-  },
-  {
-    id: '40-60',
-    labelKey: 'portfolio.preset.40-60.label',
-    descriptionKey: 'portfolio.preset.40-60.description',
-    assets: [
-      { ticker: 'VTI', weight: 40 },
-      { ticker: 'BND', weight: 60 }
-    ],
-    rebalanceFrequency: 'quarterly'
-  },
-  {
-    id: 'three-fund',
-    labelKey: 'portfolio.preset.three-fund.label',
-    descriptionKey: 'portfolio.preset.three-fund.description',
-    assets: [
-      { ticker: 'VTI', weight: 50 },
-      { ticker: 'VXUS', weight: 30 },
-      { ticker: 'BND', weight: 20 }
-    ],
-    rebalanceFrequency: 'quarterly'
-  },
-  {
-    id: 'all-weather',
-    labelKey: 'portfolio.preset.all-weather.label',
-    descriptionKey: 'portfolio.preset.all-weather.description',
-    assets: [
-      { ticker: 'VTI', weight: 30 },
-      { ticker: 'TLT', weight: 40 },
-      { ticker: 'GLD', weight: 15 },
-      { ticker: 'DBC', weight: 15 }
-    ],
-    rebalanceFrequency: 'quarterly'
-  },
-  {
-    id: 'permanent',
-    labelKey: 'portfolio.preset.permanent.label',
-    descriptionKey: 'portfolio.preset.permanent.description',
-    assets: [
-      { ticker: 'VTI', weight: 25 },
-      { ticker: 'TLT', weight: 25 },
-      { ticker: 'GLD', weight: 25 },
-      { ticker: 'SHV', weight: 25 }
-    ],
-    rebalanceFrequency: 'quarterly'
-  }
-];
+// D1 合并：预设数据统一来自 store/presetPortfolios.ts（唯一权威源），
+// 此处为兼容旧编辑器（components/PortfolioEditor.tsx）的派生视图。
+// 语义重复项（60-40→6040、all-weather→allWeather）以新组件版为准。
+export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = PRESET_PORTFOLIOS.map((p) => ({
+  id: p.id,
+  labelKey: p.nameKey,
+  descriptionKey: p.descriptionKey,
+  assets: p.assets,
+  rebalanceFrequency: p.rebalanceFrequency ?? 'quarterly',
+}));
 export const createPortfolioFromPreset = (presetId: string, counter: number): Portfolio => {
-  const preset = PORTFOLIO_PRESETS.find((p) => p.id === presetId);
+  // 经 findPresetPortfolio 解析：兼容旧 id 别名（60-40→6040、all-weather→allWeather）
+  const preset = findPresetPortfolio(presetId);
   if (!preset) {
     throw new Error(`Unknown portfolio preset: ${presetId}`);
   }
   const now = Date.now();
   return {
     id: `portfolio-${now}-${counter}`,
-    name: i18n.t(preset.labelKey),
+    name: i18n.t(preset.nameKey),
     assets: preset.assets.map((a, idx) => ({
       id: `asset-${now}-${idx}`,
       ticker: a.ticker,
-      weight: a.weight
+      weight: a.weight,
     })),
-    rebalanceFrequency: preset.rebalanceFrequency,
+    rebalanceFrequency: preset.rebalanceFrequency ?? 'quarterly',
     rebalanceOffset: 0,
     drag: 0,
-    totalReturn: true
+    totalReturn: true,
   };
 };
 export function validatePortfolios(portfolios: Portfolio[]): string | null {
@@ -194,7 +145,7 @@ export function validatePortfolios(portfolios: Portfolio[]): string | null {
         ? i18n.t('backtest.emptyTickerWarning')
         : i18n.t('backtest.weightSumWarning', {
             name: portfolios[idx].name,
-            total: total.toFixed(2)
-          })
+            total: total.toFixed(2),
+          }),
   });
 }

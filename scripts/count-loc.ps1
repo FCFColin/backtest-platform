@@ -1,19 +1,21 @@
-# count-loc.ps1 — 全文件口径行数统计（对齐 structural-slim-down 计划基准 141,714）
+# count-loc.ps1 — 全文件口径行数统计（对齐 structural-slim-down 计划）
 #
-# 口径（2026-07-31 计划实测基准同源）：
+# 口径（2026-07-31 复现验证）：
 #   - 统计仓库内所有文本文件（.ts/.tsx/.go/.md/.yaml/.json/.css/.mjs/.sh/.ps1/.sql 等）
 #   - 物理行数（含空行），逐文件 Measure-Object -Line 累加
-#   - 排除目录：node_modules / dist / .cache / coverage / .git / \data\（数据文件）
+#   - 排除目录：node_modules / dist / .cache / coverage / .git / \data\（数据文件）/ .trae（计划辅助文档）
 #   - 排除二进制与产物扩展名（见 $binaryExts）
 #
-# 计划基准：141,714 行（2026-07-31）。目标：<= 70,857 行（-50%）/ 99,200 行（-30%）。
+# 基线 179,541 行：瘦身前 commit c10bc33（df4d779 父提交）全仓库统一口径实测
+# （git archive 复现 + 同口径统计；原 141,714 与任何实测时点不符，已废弃）。
+# 目标：<= 89,770 行（-50%）/ 125,678 行（-30%）。
 
 $root = 'd:\Project\回测平台'
-$baseline = 141714
-$target50 = 70857
+$baseline = 179541
+$target50 = 89770
 $target30 = [math]::Floor($baseline * 0.70)
 
-$excludeDir = '\\node_modules\\|\\dist\\|\\dist-ssr\\|\\\.cache\\|\\coverage\\|\\\.git\\|\\data\\|\\.dev-logs\\|\\.vite\\'
+$excludeDir = '\\node_modules\\|\\dist\\|\\dist-ssr\\|\\\.cache\\|\\coverage\\|\\\.git\\|\\data\\|\\.dev-logs\\|\\.vite\\|\\.trae\\'
 $binaryExts = @(
   '.exe', '.dll', '.so', '.dylib', '.gz', '.zip', '.tar', '.7z', '.rar',
   '.csv', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2',

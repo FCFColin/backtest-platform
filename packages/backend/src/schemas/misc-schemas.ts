@@ -16,10 +16,6 @@ export const registerSchema = z.object({
   orgName: z.string().max(100).trim().optional(),
 });
 
-export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1, 'refreshToken 不能为空'),
-});
-
 export const switchOrgSchema = z.object({
   orgId: z.string().min(1, 'orgId 不能为空'),
 });
@@ -40,7 +36,10 @@ export const createAnnouncementSchema = z.object({
 });
 
 export const errorReportSchema = z.object({
-  type: z.enum(['error', 'vital', 'api_timing', 'component_render', 'page_timing', 'navigation']).optional().default('error'),
+  type: z
+    .enum(['error', 'vital', 'api_timing', 'component_render', 'page_timing', 'navigation'])
+    .optional()
+    .default('error'),
   message: z.string().min(1).max(2000).optional(),
   stack: z.string().max(10000).optional(),
   traceId: z.string().max(64).optional(),

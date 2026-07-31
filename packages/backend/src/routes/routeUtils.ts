@@ -1,12 +1,6 @@
 /**
  * 路由层共享工具 — HTTP 适配层关注点。
- *
- * 仅包含与 HTTP 请求/响应直接相关的工具函数：
- * - 错误翻译（应用错误 → HTTP 状态码）
- * - 统一异步路由处理器包装器
- *
- * P0 统一错误处理：asyncRouteHandler 自动捕获 ApplicationError 子类，
- * 消除路由层字符串匹配错误的反模式。所有计算端点路由统一使用此包装器。
+ * 错误翻译（应用错误 → HTTP 状态码）+ 统一异步路由包装 + 租户 CRUD 路由生成。
  */
 import type { Request, Response, RequestHandler } from 'express';
 import { Router } from 'express';
@@ -20,11 +14,7 @@ import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hasTenant } from '../middleware/tenantContext.js';
 import { validate } from '../middleware/miscMiddleware.js';
 
-/**
- * 将引擎不可用错误翻译为 503 + Retry-After（ADR-031 fail-closed）。
- *
- * @returns 若已处理该错误返回 true，调用方应 return。
- */
+/** 引擎不可用 → 503 + Retry-After（ADR-031 fail-closed）。已处理返回 true。 */
 function handleEngineUnavailable(res: Response, error: unknown): boolean {
   if (error instanceof EngineUnavailableError) {
     sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
@@ -39,14 +29,7 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
   return false;
 }
 
-/**
- * 统一应用错误翻译。
- *
- * 自动将 ApplicationError 子类翻译为对应的 HTTP 状态码 + RFC 7807 响应体。
- * 消除路由层字符串匹配错误的反模式。
- *
- * @returns 若已处理该错误返回 true，调用方应 return。
- */
+/** 应用错误 → 对应 HTTP 状态码 + RFC 7807（消除路由层字符串匹配错误的反模式）。已处理返回 true。 */
 function handleApplicationError(res: Response, error: unknown): boolean {
   if (error instanceof ApplicationError) {
     sendProblem(res, error.statusCode, error.errorCode);
@@ -86,28 +69,18 @@ interface RouteErrorConfig {
   endpoint?: string;
 }
 
-/**
- * 统一异步路由处理器包装：捕获应用错误并格式化 HTTP 响应。
- *
- * 错误处理优先级：
- * 1. EngineUnavailableError → 503 + Retry-After（fail-closed，ADR-031）
- * 2. UpstreamProblemError → 透传上游 4xx 状态码
- * 3. ApplicationError（ValidationError/DataNotFoundError）→ 对应 HTTP 状态码
- * 4. 其他 Error → 500 + 通用错误消息
- *
- * 所有计算端点路由统一使用此包装器，确保错误处理模式一致。
- */
 function recordEndpointError(endpoint: string | undefined): void {
-  if (!endpoint) return;
-  recordBacktestRequest(endpoint, 'sync', 'error');
+  if (endpoint) recordBacktestRequest(endpoint, 'sync', 'error');
 }
-
 function recordDegraded(endpoint: string | undefined): void {
   if (!endpoint) return;
   recordBacktestRequest(endpoint, 'sync', 'error');
   recordDegradedResponse(endpoint, 'engine_unavailable');
 }
 
+/**
+ * 统一异步路由包装：错误优先级 EngineUnavailable→503/Retry-After、ApplicationError→对应状态码、其余→500。
+ */
 export function asyncRouteHandler(
   fn: (req: Request, res: Response) => Promise<void>,
   errorConfig: RouteErrorConfig,
@@ -131,21 +104,7 @@ export function asyncRouteHandler(
   };
 }
 
-/**
- * 包装 CRUD 路由处理器，提供统一的错误处理。
- *
- * 与 {@link asyncRouteHandler} 的区别：不耦合引擎指标记录
- * （recordBacktestRequest/recordDegradedResponse），适用于非计算端点
- * 的 CRUD 路由（配置/组合/任务/数据管理等）。
- *
- * 行为：捕获 handler 抛出的任意错误，记录日志（含请求路径与方法），
- * 统一返回 500 + RFC 7807 错误响应。handler 内部仍可直接调用 sendProblem
- * 返回 4xx/404 等业务错误——这些不会被本包装器拦截。
- *
- * @param fn - 路由业务逻辑，接收 Request/Response
- * @param errorConfig - 错误处理配置（logMsg 日志消息、code 错误码、endpoint 可选端点标识）
- * @returns Express RequestHandler
- */
+/** CRUD 路由包装：不耦合引擎指标，统一 500 兜底；handler 内 sendProblem 的 4xx/404 不被拦截。 */
 export function crudRouteHandler(
   fn: (req: Request, res: Response) => Promise<void>,
   errorConfig: RouteErrorConfig,
@@ -160,11 +119,7 @@ export function crudRouteHandler(
   };
 }
 
-/**
- * 租户作用域 CRUD 仓储的最小统一接口。
- *
- * 所有方法以 tenantId 为首参（RLS 隔离边界），update 可选（只读资源无更新语义）。
- */
+/** 租户作用域 CRUD 仓储最小接口：所有方法以 tenantId 为首参（RLS 隔离边界），update 可选。 */
 export interface TenantCrudRepo<T> {
   list(tenantId: string, limit?: number, offset?: number): Promise<T[]>;
   get(tenantId: string, id: string): Promise<T | null>;
@@ -174,127 +129,108 @@ export interface TenantCrudRepo<T> {
 }
 
 export interface TenantCrudConfig {
-  /** 日志前缀，如 'configs' → '[configs] 列表失败' */
-  resource: string;
-  /** 错误码前缀，如 'CONFIG' → CONFIG_LIST_FAILED */
-  codePrefix: string;
-  /** 404 错误码，如 'CONFIG_NOT_FOUND' */
-  notFoundCode: string;
+  resource: string; // 日志前缀，如 'configs' → '[configs] 列表失败'
+  codePrefix: string; // 错误码前缀，如 'CONFIG' → CONFIG_LIST_FAILED
+  notFoundCode: string; // 404 错误码，如 'CONFIG_NOT_FOUND'
   createSchema?: ZodSchema;
   updateSchema?: ZodSchema;
-  /** 若设置则使用 asyncRouteHandler（映射领域错误 + 记录计算指标），否则 crudRouteHandler */
-  metricPrefix?: string;
-  /** 创建前钩子（如配额检查）：返回 false 表示已发送拒绝响应，终止创建 */
-  beforeCreate?: (req: AuthenticatedRequest, res: Response) => Promise<boolean>;
+  metricPrefix?: string; // 设置则用 asyncRouteHandler（映射领域错误 + 记录计算指标），否则 crudRouteHandler
+  beforeCreate?: (req: AuthenticatedRequest, res: Response) => Promise<boolean>; // 创建前钩子（如配额检查）；返回 false 表示已响应拒绝
 }
 
-/**
- * 生成标准租户作用域 CRUD 路由（GET /、GET /:id、POST /、PUT /:id、DELETE /:id）。
- *
- * 消除 config/portfolio/run/tactical-config 等路由文件里重复的
- * requireTenantId + requireUuidParam + 404 sendProblem 样板。
- */
-// eslint-disable-next-line max-lines-per-function
-export function tenantCrudRoutes<T>(
-  service: TenantCrudRepo<T>,
-  cfg: TenantCrudConfig,
-): Router {
+/** 生成标准租户作用域 CRUD 路由（GET /、GET /:id、POST /、PUT /:id、DELETE /:id），消除重复样板。 */
+
+export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudConfig): Router {
   const router = Router();
   const handler = cfg.metricPrefix ? asyncRouteHandler : crudRouteHandler;
   const endpoint = (action: string): string | undefined =>
     cfg.metricPrefix ? `${cfg.metricPrefix}-${action}` : undefined;
+  const LABELS: Record<string, string> = {
+    list: '列表',
+    get: '获取',
+    create: '创建',
+    update: '更新',
+    delete: '删除',
+  };
+  const h = (action: string, fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
+    handler(fn, {
+      logMsg: `[${cfg.resource}] ${LABELS[action]}失败`,
+      code: `${cfg.codePrefix}_${action.toUpperCase()}_FAILED`,
+      endpoint: endpoint(action),
+    });
+  const tenantOf = (req: Request, res: Response): string | null =>
+    requireTenantId(req as AuthenticatedRequest, res);
 
   router.get(
     '/',
-    handler(
-      async (req: Request, res: Response): Promise<void> => {
-        const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-        if (!tenantId) return;
-        const limit = req.query.limit ? Math.min(Number(req.query.limit) || 50, 200) : 50;
-        const offset = req.query.offset ? Math.max(Number(req.query.offset) || 0, 0) : 0;
-        res.json({
-          success: true,
-          data: await service.list(tenantId, Math.max(1, limit), offset),
-        });
-      },
-      { logMsg: `[${cfg.resource}] 列表失败`, code: `${cfg.codePrefix}_LIST_FAILED`, endpoint: endpoint('list') },
-    ),
+    h('list', async (req, res) => {
+      const tenantId = tenantOf(req, res);
+      if (!tenantId) return;
+      const limit = Math.max(1, Math.min(Number(req.query.limit) || 50, 200));
+      const offset = Math.max(Number(req.query.offset) || 0, 0);
+      res.json({ success: true, data: await service.list(tenantId, limit, offset) });
+    }),
   );
 
   router.get(
     '/:id',
-    handler(
-      async (req: Request, res: Response): Promise<void> => {
-        const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-        if (!tenantId) return;
-        if (!requireUuidParam(res, req.params.id)) return;
-        const item = await service.get(tenantId, req.params.id);
-        if (!item) {
-          sendProblem(res, 404, cfg.notFoundCode);
-          return;
-        }
-        res.json({ success: true, data: item });
-      },
-      { logMsg: `[${cfg.resource}] 获取失败`, code: `${cfg.codePrefix}_GET_FAILED`, endpoint: endpoint('get') },
-    ),
+    h('get', async (req, res) => {
+      const tenantId = tenantOf(req, res);
+      if (!tenantId || !requireUuidParam(res, req.params.id)) return;
+      const item = await service.get(tenantId, req.params.id);
+      if (!item) {
+        sendProblem(res, 404, cfg.notFoundCode);
+        return;
+      }
+      res.json({ success: true, data: item });
+    }),
   );
 
   router.post(
     '/',
     ...(cfg.createSchema ? [validate(cfg.createSchema)] : []),
-    handler(
-      async (req: Request, res: Response): Promise<void> => {
-        const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-        if (!tenantId) return;
-        if (cfg.beforeCreate && !(await cfg.beforeCreate(req as AuthenticatedRequest, res))) return;
-        const created = await service.create(
-          tenantId,
-          ownerOf(req as AuthenticatedRequest),
-          req.body,
-        );
-        res.status(201).json({ success: true, data: created });
-      },
-      { logMsg: `[${cfg.resource}] 创建失败`, code: `${cfg.codePrefix}_CREATE_FAILED`, endpoint: endpoint('create') },
-    ),
+    h('create', async (req, res) => {
+      const tenantId = tenantOf(req, res);
+      if (!tenantId) return;
+      if (cfg.beforeCreate && !(await cfg.beforeCreate(req as AuthenticatedRequest, res))) return;
+      res
+        .status(201)
+        .json({
+          success: true,
+          data: await service.create(tenantId, ownerOf(req as AuthenticatedRequest), req.body),
+        });
+    }),
   );
 
   if (service.update) {
     router.put(
       '/:id',
       ...(cfg.updateSchema ? [validate(cfg.updateSchema)] : []),
-      handler(
-        async (req: Request, res: Response): Promise<void> => {
-          const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-          if (!tenantId) return;
-          if (!requireUuidParam(res, req.params.id)) return;
-          const updated = await service.update!(tenantId, req.params.id, req.body);
-          if (!updated) {
-            sendProblem(res, 404, cfg.notFoundCode);
-            return;
-          }
-          res.json({ success: true, data: updated });
-        },
-        { logMsg: `[${cfg.resource}] 更新失败`, code: `${cfg.codePrefix}_UPDATE_FAILED`, endpoint: endpoint('update') },
-      ),
+      h('update', async (req, res) => {
+        const tenantId = tenantOf(req, res);
+        if (!tenantId || !requireUuidParam(res, req.params.id)) return;
+        const updated = await service.update!(tenantId, req.params.id, req.body);
+        if (!updated) {
+          sendProblem(res, 404, cfg.notFoundCode);
+          return;
+        }
+        res.json({ success: true, data: updated });
+      }),
     );
   }
 
   router.delete(
     '/:id',
-    handler(
-      async (req: Request, res: Response): Promise<void> => {
-        const tenantId = requireTenantId(req as AuthenticatedRequest, res);
-        if (!tenantId) return;
-        if (!requireUuidParam(res, req.params.id)) return;
-        const ok = await service.remove(tenantId, req.params.id);
-        if (!ok) {
-          sendProblem(res, 404, cfg.notFoundCode);
-          return;
-        }
-        res.json({ success: true, data: { id: req.params.id, deleted: true } });
-      },
-      { logMsg: `[${cfg.resource}] 删除失败`, code: `${cfg.codePrefix}_DELETE_FAILED`, endpoint: endpoint('delete') },
-    ),
+    h('delete', async (req, res) => {
+      const tenantId = tenantOf(req, res);
+      if (!tenantId || !requireUuidParam(res, req.params.id)) return;
+      const ok = await service.remove(tenantId, req.params.id);
+      if (!ok) {
+        sendProblem(res, 404, cfg.notFoundCode);
+        return;
+      }
+      res.json({ success: true, data: { id: req.params.id, deleted: true } });
+    }),
   );
 
   return router;

@@ -35,7 +35,12 @@ func TestCalcMWRR(t *testing.T) {
 		{"invest 100 receive 110 in 1yr", []Cashflow{{-100, 0}, {110, 1}}, 0.1},
 	}
 	for _, tc := range cases {
-t.Run(tc.name, func(t *testing.T) { got := CalcMWRR(tc.cashflows) if math.Abs(got-tc.want) > 1e-6 { t.Errorf("CalcMWRR() = %v, want %v", got, tc.want) } })
+		t.Run(tc.name, func(t *testing.T) {
+			got := CalcMWRR(tc.cashflows)
+			if math.Abs(got-tc.want) > 1e-6 {
+				t.Errorf("CalcMWRR() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 func TestCalcAnnualizedStdev(t *testing.T) {

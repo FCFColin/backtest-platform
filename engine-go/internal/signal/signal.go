@@ -1,66 +1,51 @@
-// Package signal 提供信号分析功能（单信号/双信号/多信号）。
+﻿// Package signal 提供信号分析功能（单信号/双信号/多信号）。
 package signal
 import (
-    "context"
-    "math"
-    "sort"
-    "strings"
-    "engine-go/internal/engine"
-    "engine-go/internal/engineutil"
-    "engine-go/internal/indicators"
-    "engine-go/internal/mathutil"
+	"context"
+	"math"
+	"sort"
+	"strings"
+	"engine-go/internal/engine"
+	"engine-go/internal/engineutil"
+	"engine-go/internal/indicators"
+	"engine-go/internal/mathutil"
 )
 func detectCrossSignals(data []PricePoint, prevVals, curVals, prices []float64) []SignalPoint {
 	var signals []SignalPoint
 	for i := 1; i < len(prices); i++ {
-if math.IsNaN(curVals[i]) || math.IsNaN(prevVals[i]) || math.IsNaN(curVals[i-1]) || math.IsNaN(prevVals[i-1]) { continue }
+		if math.IsNaN(curVals[i]) || math.IsNaN(prevVals[i]) || math.IsNaN(curVals[i-1]) || math.IsNaN(prevVals[i-1]) { continue }
 		crossedUp := prevVals[i-1] <= curVals[i-1] && prevVals[i] > curVals[i]
 		crossedDown := prevVals[i-1] >= curVals[i-1] && prevVals[i] < curVals[i]
-		if crossedUp {
-			signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalBuy, Price: prices[i]})
-} else if crossedDown { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalSell, Price: prices[i]})
-		}
+		if crossedUp { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalBuy, Price: prices[i]}) } else if crossedDown { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalSell, Price: prices[i]}) }
 	}
 	return signals
 }
 func generateMaSignals(ind string, prices []float64, data []PricePoint, safePeriod int) []SignalPoint {
 	var ma []float64
-	if ind == "sma" {
-		ma = indicators.CalcSMA(prices, safePeriod)
-} else { ma = indicators.CalcEMA(prices, safePeriod)
-	}
+	if ind == "sma" { ma = indicators.CalcSMA(prices, safePeriod) } else { ma = indicators.CalcEMA(prices, safePeriod) }
 	return detectCrossSignals(data, prices, ma, prices)
 }
 func generateRsiSignals(prices []float64, data []PricePoint, safePeriod int, threshold float64) []SignalPoint {
 	rsi := indicators.CalcRSI(prices, safePeriod)
 	oversold := 30.0
-if threshold > 0 { oversold = threshold }
+	if threshold > 0 { oversold = threshold }
 	overbought := 100 - oversold
 	var signals []SignalPoint
 	for i := 1; i < len(prices); i++ {
 		if math.IsNaN(rsi[i]) || math.IsNaN(rsi[i-1]) { continue }
-		if rsi[i-1] >= oversold && rsi[i] < oversold {
-			signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalBuy, Price: prices[i]})
-} else if rsi[i-1] <= overbought && rsi[i] > overbought { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalSell, Price: prices[i]})
-		}
+		if rsi[i-1] >= oversold && rsi[i] < oversold { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalBuy, Price: prices[i]}) } else if rsi[i-1] <= overbought && rsi[i] > overbought { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalSell, Price: prices[i]}) }
 	}
 	return signals
 }
-func generateMacdSignals(prices []float64, data []PricePoint) []SignalPoint {
-	macd, signal, _ := indicators.CalcMACD(prices)
-	return detectCrossSignals(data, macd, signal, prices)
-}
+func generateMacdSignals(prices []float64, data []PricePoint) []SignalPoint { macd, signal, _ := indicators.CalcMACD(prices); return detectCrossSignals(data, macd, signal, prices) }
 func generateBollingerSignals(prices []float64, data []PricePoint, safePeriod int, threshold float64) []SignalPoint {
 	mult := 2.0
-if threshold > 0 { mult = threshold }
+	if threshold > 0 { mult = threshold }
 	upper, _, lower := indicators.CalcBollinger(prices, safePeriod, mult)
 	var signals []SignalPoint
 	for i := 1; i < len(prices); i++ {
 		if math.IsNaN(upper[i]) || math.IsNaN(lower[i]) || math.IsNaN(upper[i-1]) || math.IsNaN(lower[i-1]) { continue }
-		if prices[i-1] >= lower[i-1] && prices[i] < lower[i] {
-			signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalBuy, Price: prices[i]})
-} else if prices[i-1] <= upper[i-1] && prices[i] > upper[i] { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalSell, Price: prices[i]})
-		}
+		if prices[i-1] >= lower[i-1] && prices[i] < lower[i] { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalBuy, Price: prices[i]}) } else if prices[i-1] <= upper[i-1] && prices[i] > upper[i] { signals = append(signals, SignalPoint{Date: data[i].Date, Type: SignalSell, Price: prices[i]}) }
 	}
 	return signals
 }
@@ -70,7 +55,7 @@ func generateRawSignals(indicator string, period int, threshold float64, data []
 	if len(prices) < 2 { return nil }
 	ind := strings.ToLower(indicator)
 	safePeriod := period
-if safePeriod < 2 { safePeriod = 2 }
+	if safePeriod < 2 { safePeriod = 2 }
 	switch ind {
 	case "sma", "ema": return generateMaSignals(ind, prices, data, safePeriod)
 	case "rsi": return generateRsiSignals(prices, data, safePeriod, threshold)
@@ -87,19 +72,16 @@ func filterByType(signals []SignalPoint, signalType string) []SignalPoint {
 	default: return signals
 	}
 	var result []SignalPoint
-	for _, s := range signals {
-if s.Type == want { result = append(result, s) }
-	}
+	for _, s := range signals { if s.Type == want { result = append(result, s) } }
 	return result
 }
 func AnalyzeSignal(req SignalAnalysisRequest, data []PricePoint) SignalAnalysisResult {
 	rawSignals := generateRawSignals(req.Indicator, req.Period, req.Threshold, data)
 	signals := filterByType(rawSignals, req.SignalType)
 	stats := calcStatistics(signals)
-	equityCurve, maxDD, sharpe := calcEquityCurve(signals, data)
-	stats.MaxDrawdown = maxDD
-	stats.Sharpe = sharpe
-	return SignalAnalysisResult{ Signals:     signals, Statistics:  stats, EquityCurve: equityCurve, }
+	var equityCurve []EquityPoint
+	equityCurve, stats.MaxDrawdown, stats.Sharpe = calcEquityCurve(signals, data)
+	return SignalAnalysisResult{Signals: signals, Statistics: stats, EquityCurve: equityCurve}
 }
 func buildSignalDirMap(signals []SignalPoint) map[string]SignalDir {
 	m := make(map[string]SignalDir)
@@ -135,20 +117,16 @@ func AnalyzeDualSignal(cfg1, cfg2 SignalAnalysisRequest, data1, data2 []PricePoi
 	var combinedSignals []SignalPoint
 	for _, date := range allDates {
 		var s1, s2 *SignalDir
-if v, ok := map1[date]; ok { s1 = &v }
-if v, ok := map2[date]; ok { s2 = &v }
+		if v, ok := map1[date]; ok { s1 = &v }
+		if v, ok := map2[date]; ok { s2 = &v }
 		combined := combineDir(s1, s2, combinationMethod)
-		entry := ComparisonEntry{Date: date, Signal1: s1, Signal2: s2, Combined: combined}
-		comparison = append(comparison, entry)
-		if combined != nil {
-if price, ok := priceMap[date]; ok { combinedSignals = append(combinedSignals, SignalPoint{Date: date, Type: *combined, Price: price}) }
-		}
+		comparison = append(comparison, ComparisonEntry{Date: date, Signal1: s1, Signal2: s2, Combined: combined})
+		if combined != nil { if price, ok := priceMap[date]; ok { combinedSignals = append(combinedSignals, SignalPoint{Date: date, Type: *combined, Price: price}) } }
 	}
 	combinedStats := calcStatistics(combinedSignals)
-	equityCurve, maxDD, sharpe := calcEquityCurve(combinedSignals, data1)
-	combinedStats.MaxDrawdown = maxDD
-	combinedStats.Sharpe = sharpe
-return DualSignalResult{ Signal1: result1, Signal2: result2, Combined: SignalAnalysisResult{Signals: combinedSignals, Statistics: combinedStats, EquityCurve: equityCurve}, Comparison: comparison }
+	var equityCurve []EquityPoint
+	equityCurve, combinedStats.MaxDrawdown, combinedStats.Sharpe = calcEquityCurve(combinedSignals, data1)
+	return DualSignalResult{Signal1: result1, Signal2: result2, Combined: SignalAnalysisResult{Signals: combinedSignals, Statistics: combinedStats, EquityCurve: equityCurve}, Comparison: comparison}
 }
 func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, data []PricePoint, aggregationMethod string, weights []float64) MultiSignalResult {
 	perSignal := make([]SignalAnalysisResult, len(configs))
@@ -156,22 +134,16 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 	dirMaps := make([]map[string]SignalDir, len(perSignal))
 	for i, r := range perSignal { dirMaps[i] = buildSignalDirMap(r.Signals) }
 	dateSet := make(map[string]bool)
-	for _, m := range dirMaps {
-		for d := range m { dateSet[d] = true }
-	}
+	for _, m := range dirMaps { for d := range m { dateSet[d] = true } }
 	allDates := make([]string, 0, len(dateSet))
 	for d := range dateSet { allDates = append(allDates, d) }
 	sort.Strings(allDates)
 	priceMap := make(map[string]float64)
 	for _, d := range data { priceMap[d.Date] = d.Price }
 	rawWeights := make([]float64, len(configs))
-	if len(weights) == len(configs) {
-		for i, w := range weights { rawWeights[i] = max(0, w) }
-} else { each := 1.0 / float64(len(configs))
-		for i := range rawWeights { rawWeights[i] = each }
-	}
+	if len(weights) == len(configs) { for i, w := range weights { rawWeights[i] = max(0, w) } } else { each := 1.0 / float64(len(configs)); for i := range rawWeights { rawWeights[i] = each } }
 	wSum := mathutil.Sum(rawWeights)
-if wSum == 0 { wSum = 1 }
+	if wSum == 0 { wSum = 1 }
 	var aggregatedSignals []SignalPoint
 	for _, date := range allDates {
 		score := 0.0
@@ -186,40 +158,27 @@ if wSum == 0 { wSum = 1 }
 			if dir == SignalBuy {
 				score += rawWeights[i] / wSum
 				buys++
-				if winRate > bestRank {
-					bestRank = winRate
-					b := SignalBuy
-					bestDir = &b
-				}
-} else if dir == SignalSell { score -= rawWeights[i] / wSum
+				if winRate > bestRank { bestRank = winRate; b := SignalBuy; bestDir = &b }
+			} else if dir == SignalSell {
+				score -= rawWeights[i] / wSum
 				sells++
-				if winRate > bestRank {
-					bestRank = winRate
-					b := SignalSell
-					bestDir = &b
-				}
+				if winRate > bestRank { bestRank = winRate; b := SignalSell; bestDir = &b }
 			}
 		}
 		var aggDir *SignalDir
 		switch aggregationMethod {
 		case "weighted": if score > 0 { b := SignalBuy; aggDir = &b } else if score < 0 { s := SignalSell; aggDir = &s }
 		case "voting": if buys > sells { b := SignalBuy; aggDir = &b } else if sells > buys { s := SignalSell; aggDir = &s }
-		default: // rank
-			aggDir = bestDir
+		default: aggDir = bestDir // rank
 		}
-		if aggDir != nil {
-if price, ok := priceMap[date]; ok { aggregatedSignals = append(aggregatedSignals, SignalPoint{Date: date, Type: *aggDir, Price: price}) }
-		}
+		if aggDir != nil { if price, ok := priceMap[date]; ok { aggregatedSignals = append(aggregatedSignals, SignalPoint{Date: date, Type: *aggDir, Price: price}) } }
 	}
 	aggStats := calcStatistics(aggregatedSignals)
-	equityCurve, maxDD, sharpe := calcEquityCurve(aggregatedSignals, data)
-	aggStats.MaxDrawdown = maxDD
-	aggStats.Sharpe = sharpe
+	var equityCurve []EquityPoint
+	equityCurve, aggStats.MaxDrawdown, aggStats.Sharpe = calcEquityCurve(aggregatedSignals, data)
 	contributions := make([]Contribution, len(perSignal))
-	for i, r := range perSignal {
-contributions[i] = Contribution{ Index: i, Indicator: configs[i].Indicator, Contribution: r.Statistics.AvgReturn, Statistics: r.Statistics }
-	}
-return MultiSignalResult{ Aggregated: SignalAnalysisResult{ Signals: aggregatedSignals, Statistics: aggStats, EquityCurve: equityCurve }, Contributions: contributions }
+	for i, r := range perSignal { contributions[i] = Contribution{Index: i, Indicator: configs[i].Indicator, Contribution: r.Statistics.AvgReturn, Statistics: r.Statistics} }
+	return MultiSignalResult{Aggregated: SignalAnalysisResult{Signals: aggregatedSignals, Statistics: aggStats, EquityCurve: equityCurve}, Contributions: contributions}
 }
 const ( initialCapital = 10000.0; tradingDaysPerYear = engineutil.TradingDaysPerYear )
 func calcStatistics(signals []SignalPoint) SignalStats {
@@ -229,15 +188,7 @@ func calcStatistics(signals []SignalPoint) SignalStats {
 	returnSum := 0.0
 	var pendingBuy *float64
 	for _, s := range signals {
-		if s.Type == SignalBuy {
-			p := s.Price
-			pendingBuy = &p
-} else if s.Type == SignalSell && pendingBuy != nil { ret := (s.Price - *pendingBuy) / *pendingBuy
-			returnSum += ret
-			completedTrades++
-if ret > 0 { wins++ }
-			pendingBuy = nil
-		}
+		if s.Type == SignalBuy { p := s.Price; pendingBuy = &p } else if s.Type == SignalSell && pendingBuy != nil { ret := (s.Price - *pendingBuy) / *pendingBuy; returnSum += ret; completedTrades++; if ret > 0 { wins++ }; pendingBuy = nil }
 	}
 	winRate := 0.0
 	avgReturn := 0.0
@@ -245,7 +196,7 @@ if ret > 0 { wins++ }
 		winRate = float64(wins) / float64(completedTrades)
 		avgReturn = returnSum / float64(completedTrades)
 	}
-	return SignalStats{ TotalSignals: totalSignals, WinRate: winRate, AvgReturn: avgReturn, MaxDrawdown: 0, Sharpe: 0, }
+	return SignalStats{TotalSignals: totalSignals, WinRate: winRate, AvgReturn: avgReturn, MaxDrawdown: 0, Sharpe: 0}
 }
 func calcEquityCurve(signals []SignalPoint, data []PricePoint) (equityCurve []EquityPoint, maxDrawdown, sharpe float64) {
 	signalMap := make(map[string]SignalDir)
@@ -258,104 +209,38 @@ func calcEquityCurve(signals []SignalPoint, data []PricePoint) (equityCurve []Eq
 	for _, point := range data {
 		sig, ok := signalMap[point.Date]
 		if ok {
-			if sig == SignalBuy && !inPosition {
-				shares = capital / point.Price
-				inPosition = true
-} else if sig == SignalSell && inPosition { capital = shares * point.Price
-				shares = 0
-				inPosition = false
-			}
+			if sig == SignalBuy && !inPosition { shares = capital / point.Price; inPosition = true } else if sig == SignalSell && inPosition { capital = shares * point.Price; shares = 0; inPosition = false }
 		}
 		equity := capital
-if inPosition { equity = shares * point.Price }
-		equityCurve = append(equityCurve, EquityPoint{ Date:  point.Date, Value: math.Round(equity*100) / 100, })
-if prevEquity > 0 { dailyReturns = append(dailyReturns, (equity-prevEquity)/prevEquity) }
+		if inPosition { equity = shares * point.Price }
+		equityCurve = append(equityCurve, EquityPoint{Date: point.Date, Value: math.Round(equity*100) / 100})
+		if prevEquity > 0 { dailyReturns = append(dailyReturns, (equity-prevEquity)/prevEquity) }
 		prevEquity = equity
 	}
 	values := make([]float64, len(equityCurve))
 	for i, p := range equityCurve { values[i] = p.Value }
 	maxDrawdown = engine.CalcMaxDrawdown(values).MaxDrawdown
 	stdev := engine.CalcAnnualizedStdev(dailyReturns)
-	if len(equityCurve) >= 2 {
-		years := float64(len(equityCurve)-1) / tradingDaysPerYear
-		cagr := engine.CalcCAGR(equityCurve[0].Value, equityCurve[len(equityCurve)-1].Value, years)
-		sharpe = engine.CalcSharpe(cagr, stdev)
-	}
+	if len(equityCurve) >= 2 { years := float64(len(equityCurve)-1) / tradingDaysPerYear; cagr := engine.CalcCAGR(equityCurve[0].Value, equityCurve[len(equityCurve)-1].Value, years); sharpe = engine.CalcSharpe(cagr, stdev) }
 	return
 }
-type PricePoint struct {
-	Date  string  `json:"date"`
-	Price float64 `json:"price"`
-}
+type PricePoint struct { Date string `json:"date"`; Price float64 `json:"price"` }
 type SignalDir string
 const ( SignalBuy SignalDir = "buy"; SignalSell SignalDir = "sell" )
-type SignalPoint struct {
-	Date  string    `json:"date"`
-	Type  SignalDir `json:"type"`
-	Price float64   `json:"price"`
-}
-type SignalStats struct {
-	TotalSignals int     `json:"totalSignals"`
-	WinRate      float64 `json:"winRate"`
-	AvgReturn    float64 `json:"avgReturn"`
-	MaxDrawdown  float64 `json:"maxDrawdown"`
-	Sharpe       float64 `json:"sharpe"`
-}
-type EquityPoint struct {
-	Date  string  `json:"date"`
-	Value float64 `json:"value"`
-}
-type SignalAnalysisResult struct {
-	Signals     []SignalPoint `json:"signals"`
-	Statistics  SignalStats   `json:"statistics"`
-	EquityCurve []EquityPoint `json:"equityCurve"`
-}
-type SignalAnalysisRequest struct {
-	Ticker     string  `json:"ticker"`
-	Indicator  string  `json:"indicator"`
-	Period     int     `json:"period"`
-	Threshold  float64 `json:"threshold"`
-	StartDate  string  `json:"startDate"`
-	EndDate    string  `json:"endDate"`
-	SignalType string  `json:"signalType"`
-}
-type DualSignalConfig struct {
-	Signal1           SignalAnalysisRequest `json:"signal1"`
-	Signal2           SignalAnalysisRequest `json:"signal2"`
-	CombinationMethod string                `json:"combinationMethod"`
-}
-type MultiSignalConfig struct {
-	Signals           []SignalAnalysisRequest `json:"signals"`
-	AggregationMethod string                  `json:"aggregationMethod"`
-	Weights           []float64               `json:"weights"`
-}
-type DualSignalResult struct {
-	Signal1    SignalAnalysisResult `json:"signal1"`
-	Signal2    SignalAnalysisResult `json:"signal2"`
-	Combined   SignalAnalysisResult `json:"combined"`
-	Comparison []ComparisonEntry    `json:"comparison"`
-}
-type ComparisonEntry struct {
-	Date     string     `json:"date"`
-	Signal1  *SignalDir `json:"signal1"`
-	Signal2  *SignalDir `json:"signal2"`
-	Combined *SignalDir `json:"combined"`
-}
-type MultiSignalResult struct {
-	Aggregated    SignalAnalysisResult `json:"aggregated"`
-	Contributions []Contribution       `json:"contributions"`
-}
-type Contribution struct {
-	Index        int         `json:"index"`
-	Indicator    string      `json:"indicator"`
-	Contribution float64     `json:"contribution"`
-	Statistics   SignalStats `json:"statistics"`
-}
+type SignalPoint struct { Date string `json:"date"`; Type SignalDir `json:"type"`; Price float64 `json:"price"` }
+type SignalStats struct { TotalSignals int `json:"totalSignals"`; WinRate float64 `json:"winRate"`; AvgReturn float64 `json:"avgReturn"`; MaxDrawdown float64 `json:"maxDrawdown"`; Sharpe float64 `json:"sharpe"` }
+type EquityPoint struct { Date string `json:"date"`; Value float64 `json:"value"` }
+type SignalAnalysisResult struct { Signals []SignalPoint `json:"signals"`; Statistics SignalStats `json:"statistics"`; EquityCurve []EquityPoint `json:"equityCurve"` }
+type SignalAnalysisRequest struct { Ticker string `json:"ticker"`; Indicator string `json:"indicator"`; Period int `json:"period"`; Threshold float64 `json:"threshold"`; StartDate string `json:"startDate"`; EndDate string `json:"endDate"`; SignalType string `json:"signalType"` }
+type DualSignalConfig struct { Signal1 SignalAnalysisRequest `json:"signal1"`; Signal2 SignalAnalysisRequest `json:"signal2"`; CombinationMethod string `json:"combinationMethod"` }
+type MultiSignalConfig struct { Signals []SignalAnalysisRequest `json:"signals"`; AggregationMethod string `json:"aggregationMethod"`; Weights []float64 `json:"weights"` }
+type DualSignalResult struct { Signal1 SignalAnalysisResult `json:"signal1"`; Signal2 SignalAnalysisResult `json:"signal2"`; Combined SignalAnalysisResult `json:"combined"`; Comparison []ComparisonEntry `json:"comparison"` }
+type ComparisonEntry struct { Date string `json:"date"`; Signal1 *SignalDir `json:"signal1"`; Signal2 *SignalDir `json:"signal2"`; Combined *SignalDir `json:"combined"` }
+type MultiSignalResult struct { Aggregated SignalAnalysisResult `json:"aggregated"`; Contributions []Contribution `json:"contributions"` }
+type Contribution struct { Index int `json:"index"`; Indicator string `json:"indicator"`; Contribution float64 `json:"contribution"`; Statistics SignalStats `json:"statistics"` }
 func ToPricePoints(tickerData map[string]float64) []PricePoint {
 	var result []PricePoint
-	for date, price := range tickerData {
-if !math.IsNaN(price) && price > 0 { result = append(result, PricePoint{Date: date, Price: price}) }
-	}
+	for date, price := range tickerData { if !math.IsNaN(price) && price > 0 { result = append(result, PricePoint{Date: date, Price: price}) } }
 	sort.Slice(result, func(i, j int) bool { return result[i].Date < result[j].Date })
 	return result
 }

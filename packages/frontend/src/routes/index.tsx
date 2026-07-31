@@ -15,9 +15,13 @@ const SignupPage = lazy(() => import('@/pages/auth/SignupPage'));
 const PricingPage = lazy(() => import('@/pages/account/PricingPage'));
 const AccountPage = lazy(() => import('@/pages/account/AccountPage'));
 const AnalysisPage = lazy(() => import('@/pages/analysis/AnalysisPage'));
-const EfficientFrontierPage = lazy(() => import('@/pages/efficient-frontier/EfficientFrontierPage'));
+const EfficientFrontierPage = lazy(
+  () => import('@/pages/efficient-frontier/EfficientFrontierPage'),
+);
 const DataEnginePage = lazy(() => import('@/pages/data-engine/DataEnginePage'));
-const RebalancingSensitivityPage = lazy(() => import('@/pages/rebalancing-sensitivity/RebalancingSensitivityPage'));
+const RebalancingSensitivityPage = lazy(
+  () => import('@/pages/rebalancing-sensitivity/RebalancingSensitivityPage'),
+);
 const LumpSumVsDCAPage = lazy(() => import('@/pages/lump-sum-dca/LumpSumVsDCAPage'));
 const FactorRegressionPage = lazy(() => import('@/pages/factor-regression/FactorRegressionPage'));
 const CalculatorsPage = lazy(() => import('@/pages/calculators/CalculatorsPage'));
@@ -34,8 +38,9 @@ const AboutPage = lazy(() => import('@/pages/AboutPage'));
 const ContactPage = lazy(() => import('@/pages/ContactPage'));
 const HelpPage = lazy(() => import('@/pages/HelpPage'));
 const ChangelogPage = lazy(() => import('@/pages/ChangelogPage'));
-const MCOptimizerPage = lazy(() => import('@/pages/monte-carlo/optimizer/MCOptimizerPage'));
-const ChartBenchmarkPage = lazy(() => import('@/pages/prototype/chart-benchmark/ChartBenchmarkPage'));
+const ChartBenchmarkPage = lazy(
+  () => import('@/pages/prototype/chart-benchmark/ChartBenchmarkPage'),
+);
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
 const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
 const TermsOfServicePage = lazy(() => import('@/pages/legal/TermsOfServicePage'));
@@ -56,7 +61,7 @@ function useRouteFallback() {
         padding: '80px 16px',
         textAlign: 'center',
         color: 'var(--text-muted)',
-        minHeight: '80vh'
+        minHeight: '80vh',
       }}
     >
       <div className="animate-spin mx-auto mb-4 h-8 w-8 border-2 border-current border-t-transparent rounded-full" />
@@ -86,9 +91,6 @@ const ROUTE_NS: Record<string, string> = {
   'letf-slippage': 'analysis',
   'goal-optimizer': 'analysis',
   'portfolio-comparison': 'analysis',
-  swr: 'analysis',
-  'tvm-scanner': 'analysis',
-  workspace: 'analysis',
   'chart-benchmark': 'analysis',
   about: 'pages',
   contact: 'pages',
@@ -112,7 +114,7 @@ const ROUTE_NS: Record<string, string> = {
   'admin-monitor': 'admin',
   'admin-data': 'admin',
   'admin-settings': 'admin',
-  'not-found': 'common'
+  'not-found': 'common',
 };
 function withBoundary(element: ReactNode, routeName: string): ReactNode {
   const ns = ROUTE_NS[routeName] ?? 'common';
@@ -136,11 +138,14 @@ interface RouteDef {
 const TOOL_ROUTES: RouteDef[] = [
   { path: '/analysis', element: <AnalysisPage />, name: 'analysis' },
   { path: '/monte-carlo', element: <MonteCarloPage />, name: 'monte-carlo' },
-  { path: '/monte-carlo/optimizer', element: <MCOptimizerPage />, name: 'mc-optimizer' },
   { path: '/optimizer', element: <OptimizerPage />, name: 'optimizer' },
   { path: '/efficient-frontier', element: <EfficientFrontierPage />, name: 'efficient-frontier' },
   { path: '/data-engine', element: <DataEnginePage />, name: 'data-engine' },
-  { path: '/rebalancing-sensitivity', element: <RebalancingSensitivityPage />, name: 'rebalancing-sensitivity' },
+  {
+    path: '/rebalancing-sensitivity',
+    element: <RebalancingSensitivityPage />,
+    name: 'rebalancing-sensitivity',
+  },
   { path: '/lumpsum-vs-dca', element: <LumpSumVsDCAPage />, name: 'lumpsum-vs-dca' },
   { path: '/factor-regression', element: <FactorRegressionPage />, name: 'factor-regression' },
   { path: '/calculators', element: <CalculatorsPage />, name: 'calculators' },
@@ -153,11 +158,17 @@ const TOOL_ROUTES: RouteDef[] = [
   { path: '/multi-signal', element: <MultiSignalPage />, name: 'multi-signal' },
   { path: '/letf-slippage', element: <LETFSlippagePage />, name: 'letf-slippage' },
   { path: '/goal-optimizer', element: <GoalOptimizerPage />, name: 'goal-optimizer' },
-  { path: '/portfolio-comparison', element: <PlaceholderPage titleKey="portfolioComparison.title" descKey="portfolioComparison.description" />, name: 'portfolio-comparison' },
-  { path: '/swr', element: <PlaceholderPage titleKey="swr.title" descKey="swr.description" />, name: 'swr' },
-  { path: '/tvm-scanner', element: <PlaceholderPage titleKey="tvmScanner.title" descKey="tvmScanner.description" />, name: 'tvm-scanner' },
-  { path: '/workspace', element: <PlaceholderPage titleKey="workspace.title" descKey="workspace.description" />, name: 'workspace' },
-  { path: '/prototype/chart-benchmark', element: <ChartBenchmarkPage />, name: 'chart-benchmark' }
+  {
+    path: '/portfolio-comparison',
+    element: (
+      <PlaceholderPage
+        titleKey="portfolioComparison.title"
+        descKey="portfolioComparison.description"
+      />
+    ),
+    name: 'portfolio-comparison',
+  },
+  { path: '/prototype/chart-benchmark', element: <ChartBenchmarkPage />, name: 'chart-benchmark' },
 ];
 const PUBLIC_ROUTES: RouteDef[] = [
   { path: '/about', element: <AboutPage />, name: 'about' },
@@ -166,26 +177,32 @@ const PUBLIC_ROUTES: RouteDef[] = [
   { path: '/changelog', element: <ChangelogPage />, name: 'changelog' },
   { path: '/pricing', element: <PricingPage />, name: 'pricing' },
   { path: '/limits', element: <AboutPage section="limits" />, name: 'limits' },
-  { path: '/upgrade', element: <AboutPage section="upgrade" />, name: 'upgrade' }
+  { path: '/upgrade', element: <AboutPage section="upgrade" />, name: 'upgrade' },
 ];
 const AUTH_ROUTES: RouteDef[] = [
   { path: '/login', element: <LoginPage />, name: 'login' },
   { path: '/signup', element: <SignupPage />, name: 'signup' },
   { path: '/verify-email', element: <VerifyEmailPage />, name: 'verify-email' },
-  { path: '/accept-invite', element: <AcceptInvitePage />, name: 'accept-invite' }
+  { path: '/accept-invite', element: <AcceptInvitePage />, name: 'accept-invite' },
 ];
 const LEGAL_ROUTES: RouteDef[] = [
   { path: '/legal/terms', element: <TermsOfServicePage />, name: 'legal-terms' },
   { path: '/legal/privacy', element: <PrivacyPolicyPage />, name: 'legal-privacy' },
-  { path: '/legal/disclaimer', element: <DisclaimerPage />, name: 'legal-disclaimer' }
+  { path: '/legal/disclaimer', element: <DisclaimerPage />, name: 'legal-disclaimer' },
 ];
 const ACCOUNT_ROUTES: RouteDef[] = [
   { path: '/account', element: <AccountPage />, name: 'account' },
   { path: '/org/members', element: <OrgMembersPage />, name: 'org-members' },
-  { path: '/billing', element: <BillingPage />, name: 'billing' }
+  { path: '/billing', element: <BillingPage />, name: 'billing' },
 ];
 function renderRoutes(routes: RouteDef[], protect = false): ReactNode[] {
-  return routes.map((r) => <Route key={r.path} path={r.path} element={protect ? protectedElement(r.element, r.name) : withBoundary(r.element, r.name)} />);
+  return routes.map((r) => (
+    <Route
+      key={r.path}
+      path={r.path}
+      element={protect ? protectedElement(r.element, r.name) : withBoundary(r.element, r.name)}
+    />
+  ));
 }
 function RouteChangeTracker(): null {
   const location = useLocation();

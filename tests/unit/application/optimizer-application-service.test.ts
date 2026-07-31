@@ -58,39 +58,40 @@ function mockPriceDataResponse() {
   return { data: { AAPL: { '2020-01-01': 100 } }, degraded: false };
 }
 
+const params = { startDate: '2020-01-01', endDate: '2020-12-31' };
+const priceData = () => ({
+  data: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
+  degraded: false,
+});
 describe('executeOptimization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns error when portfolio assets is missing', async () => {
-    const result = await executeOptimization(validBody({ portfolio: { name: 'test' } }));
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('缺少组合配置：portfolio.assets');
-  });
-
-  it('returns error when no rebalance frequencies', async () => {
-    const result = await executeOptimization(
+  it.each([
+    [
+      'portfolio.assets 缺失',
+      validBody({ portfolio: { name: 'test' } }),
+      '缺少组合配置：portfolio.assets',
+    ],
+    [
+      '未选择再平衡频率',
       validBody({ parameterSpace: { initialCapital: { min: 10000, max: 10000, step: 0 } } }),
-    );
+      '请至少选择一个再平衡频率',
+    ],
+    ['缺少回测日期范围', validBody({ parameters: { startDate: undefined } }), '缺少回测日期范围'],
+  ])('返回错误：%s', async (_n, body, expected) => {
+    const result = await executeOptimization(body);
     expect(result.success).toBe(false);
-    expect(result.error).toBe('请至少选择一个再平衡频率');
+    expect(result.error).toBe(expected);
   });
-
-  it('returns error when startDate or endDate missing', async () => {
-    const result = await executeOptimization(validBody({ parameters: { startDate: undefined } }));
-    expect(result.success).toBe(false);
-    expect(result.error).toBe('缺少回测日期范围');
-  });
-
-  it('returns error when ticker data not found', async () => {
+  it('ticker 数据不存在时应返回错误', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce({ data: { AAPL: {} }, degraded: false });
     const result = await executeOptimization(validBody());
     expect(result.success).toBe(false);
     expect(result.error).toBe('以下标的代码无效：AAPL');
   });
-
-  it('returns success on valid optimization', async () => {
+  it('有效请求应返回成功并包含 results/best', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
     mocks.callEngineStrict
       .mockResolvedValueOnce({
@@ -123,7 +124,6 @@ describe('executeOptimization', () => {
 
     const result = await executeOptimization(validBody());
     expect(result.success).toBe(true);
-    expect(result.data).toBeDefined();
     const data = result.data as Record<string, unknown>;
     expect(Array.isArray(data.results)).toBe(true);
     expect((data.results as unknown[]).length).toBe(2);
@@ -131,8 +131,7 @@ describe('executeOptimization', () => {
     expect((data.best as Record<string, unknown>).cagr).toBe(0.12);
     expect(mocks.callEngineStrict).toHaveBeenCalledTimes(2);
   });
-
-  it('throws EngineUnavailableError when engine is unavailable (fail-closed)', async () => {
+  it('引擎不可用时抛出 EngineUnavailableError（fail-closed）', async () => {
     mocks.fetchHistoryData.mockResolvedValueOnce(mockPriceDataResponse());
     mocks.callEngineStrict.mockRejectedValueOnce(
       new EngineUnavailableErrorStub('/api/engine/backtest'),
@@ -144,19 +143,12 @@ describe('executeOptimization', () => {
     expect(mocks.callEngineStrict).toHaveBeenCalledTimes(1);
   });
 });
-
 describe('runOptimization', () => {
-  const parameters = { startDate: '2020-01-01', endDate: '2020-12-31' };
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   it('正常路径：获取数据、调用引擎、返回结果', async () => {
-    mocks.fetchHistoryData.mockResolvedValue({
-      data: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
-      degraded: false,
-    });
+    mocks.fetchHistoryData.mockResolvedValue(priceData());
     mocks.callEngineStrict.mockResolvedValue({
       data: { weights: { AAPL: 0.6, SPY: 0.4 }, sharpe: 1.5 },
     });
@@ -165,7 +157,7 @@ describe('runOptimization', () => {
       ['AAPL', 'SPY'],
       'maxSharpe',
       { minWeight: 0, maxWeight: 1 },
-      parameters,
+      params,
     );
 
     expect(mocks.callEngineStrict).toHaveBeenCalledWith(
@@ -182,52 +174,44 @@ describe('runOptimization', () => {
     expect(result.dateRange).toBeDefined();
   });
 
-  it('数据降级时应添加 DATA_DEGRADED 警告', async () => {
-    mocks.fetchHistoryData.mockResolvedValue({
-      data: { AAPL: { '2020-01-02': 100 } },
-      degraded: true,
-      degradedWarning: 'Go fetcher 降级',
-    });
-    mocks.callEngineStrict.mockResolvedValue({ foo: 'bar' });
-
-    const result = await runOptimization(['AAPL'], 'minVolatility', {}, parameters);
-
-    expect(result.warnings).toContainEqual({
-      code: 'DATA_DEGRADED',
-      message: 'Go fetcher 降级',
-    });
-  });
-
-  it('部分 ticker 缺失时应添加 TICKER_NOT_FOUND 警告', async () => {
-    mocks.fetchHistoryData.mockResolvedValue({
-      data: { AAPL: { '2020-01-02': 100 } },
-      degraded: false,
-    });
+  it.each([
+    [
+      '数据降级时应添加 DATA_DEGRADED 警告',
+      { data: { AAPL: { '2020-01-02': 100 } }, degraded: true, degradedWarning: 'Go fetcher 降级' },
+      (r: { warnings: Array<{ code: string; message: string }> }) =>
+        expect(r.warnings).toContainEqual({ code: 'DATA_DEGRADED', message: 'Go fetcher 降级' }),
+      ['AAPL'],
+      'minVolatility',
+      {},
+    ],
+    [
+      '部分 ticker 缺失时应添加 TICKER_NOT_FOUND 警告',
+      { data: { AAPL: { '2020-01-02': 100 } }, degraded: false },
+      (r: { warnings: Array<{ code: string; tickers: string[] }> }) =>
+        expect(r.warnings).toContainEqual({ code: 'TICKER_NOT_FOUND', tickers: ['MISSING'] }),
+      ['AAPL', 'MISSING'],
+      'maxReturn',
+      {},
+    ],
+    [
+      'numIterations 超过 100000 时应截断为 100000',
+      { data: { AAPL: { '2020-01-02': 100 } }, degraded: false },
+      (_r: unknown) =>
+        expect(mocks.callEngineStrict).toHaveBeenCalledWith(
+          '/api/engine/optimize',
+          expect.objectContaining({ numIterations: 100000 }),
+        ),
+      ['AAPL'],
+      'maxSharpe',
+      {},
+    ],
+  ])('%s', async (_n, fetchRes, check, tickers, objective, constraints) => {
+    mocks.fetchHistoryData.mockResolvedValue(fetchRes);
     mocks.callEngineStrict.mockResolvedValue({});
-
-    const result = await runOptimization(['AAPL', 'MISSING'], 'maxReturn', {}, parameters);
-
-    expect(result.warnings).toContainEqual({
-      code: 'TICKER_NOT_FOUND',
-      tickers: ['MISSING'],
-    });
+    const iterations = _n.includes('100000') ? 500000 : undefined;
+    const result = await runOptimization(tickers, objective, constraints, params, iterations);
+    check(result);
   });
-
-  it('numIterations 超过 100000 时应截断为 100000', async () => {
-    mocks.fetchHistoryData.mockResolvedValue({
-      data: { AAPL: { '2020-01-02': 100 } },
-      degraded: false,
-    });
-    mocks.callEngineStrict.mockResolvedValue({});
-
-    await runOptimization(['AAPL'], 'maxSharpe', {}, parameters, 500000);
-
-    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
-      '/api/engine/optimize',
-      expect.objectContaining({ numIterations: 100000 }),
-    );
-  });
-
   it('引擎返回无 data 字段时应使用原始结果', async () => {
     mocks.fetchHistoryData.mockResolvedValue({
       data: { AAPL: { '2020-01-02': 100 } },
@@ -235,58 +219,47 @@ describe('runOptimization', () => {
     });
     mocks.callEngineStrict.mockResolvedValue({ direct: 'result' });
 
-    const result = await runOptimization(['AAPL'], 'maxSharpe', {}, parameters);
+    const result = await runOptimization(['AAPL'], 'maxSharpe', {}, params);
 
     expect(result.data).toEqual({ direct: 'result' });
   });
 });
-
 describe('runEfficientFrontier', () => {
-  const parameters = { startDate: '2020-01-01', endDate: '2020-12-31' };
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('正常路径：获取数据、调用引擎、返回结果（默认 numPoints=20, riskFreeRate=0.02）', async () => {
-    mocks.fetchHistoryData.mockResolvedValue({
-      data: { AAPL: { '2020-01-02': 100 }, SPY: { '2020-01-02': 300 } },
-      degraded: false,
-    });
-    mocks.callEngineStrict.mockResolvedValue({
-      data: { frontier: [{ return: 0.1, risk: 0.15 }] },
-    });
-
-    const result = await runEfficientFrontier(['AAPL', 'SPY'], parameters);
-
-    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
-      '/api/engine/efficient-frontier',
-      expect.objectContaining({
-        tickers: ['AAPL', 'SPY'],
-        numPoints: 20,
-        riskFreeRate: 0.02,
-      }),
-    );
-    expect(result.data).toEqual({ frontier: [{ return: 0.1, risk: 0.15 }] });
-    expect(result.warnings).toEqual([]);
-    expect(result.dateRange).toBeDefined();
-  });
-
-  it('自定义 numPoints 和 riskFreeRate 应传入引擎', async () => {
-    mocks.fetchHistoryData.mockResolvedValue({
-      data: { AAPL: { '2020-01-02': 100 } },
-      degraded: false,
-    });
-    mocks.callEngineStrict.mockResolvedValue({});
-
-    await runEfficientFrontier(['AAPL'], parameters, 50, 0.05);
-
-    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
-      '/api/engine/efficient-frontier',
+  it.each<[string, number | undefined, number | undefined, unknown, unknown, string[]]>([
+    [
+      '正常路径：默认 numPoints=20, riskFreeRate=0.02',
+      undefined,
+      undefined,
+      expect.objectContaining({ tickers: ['AAPL', 'SPY'], numPoints: 20, riskFreeRate: 0.02 }),
+      { frontier: [{ return: 0.1, risk: 0.15 }] },
+      ['AAPL', 'SPY'],
+    ],
+    [
+      '自定义 numPoints 和 riskFreeRate 应传入引擎',
+      50,
+      0.05,
       expect.objectContaining({ numPoints: 50, riskFreeRate: 0.05 }),
+      {},
+      ['AAPL'],
+    ],
+  ])('%s', async (_n, numPoints, riskFreeRate, engineExpect, engineRes, tickers) => {
+    mocks.fetchHistoryData.mockResolvedValue(priceData());
+    mocks.callEngineStrict.mockResolvedValue({ data: engineRes });
+    const result = await runEfficientFrontier(tickers, params, numPoints, riskFreeRate);
+    expect(mocks.callEngineStrict).toHaveBeenCalledWith(
+      '/api/engine/efficient-frontier',
+      engineExpect,
     );
+    if (numPoints === undefined) {
+      expect(result.data).toEqual(engineRes);
+      expect(result.warnings).toEqual([]);
+      expect(result.dateRange).toBeDefined();
+    }
   });
-
   it('数据降级时应添加 DATA_DEGRADED 警告', async () => {
     mocks.fetchHistoryData.mockResolvedValue({
       data: { AAPL: { '2020-01-02': 100 } },
@@ -295,7 +268,7 @@ describe('runEfficientFrontier', () => {
     });
     mocks.callEngineStrict.mockResolvedValue({});
 
-    const result = await runEfficientFrontier(['AAPL'], parameters);
+    const result = await runEfficientFrontier(['AAPL'], params);
 
     expect(result.warnings).toContainEqual({
       code: 'DATA_DEGRADED',

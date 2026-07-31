@@ -24,7 +24,7 @@ import { chromium } from '@playwright/test';
 import { writeAggregatedResult, grepInCode } from './_lib.mjs';
 
 const BASE = 'http://localhost:15173';
-const SHOTS = 'docs/audit/2026-07-28/verify/screenshots';
+const SHOTS = 'docs/audit/verify/screenshots';
 
 const results = {
   C004: { status: 'SKIP', summary: '未执行', details: {} },

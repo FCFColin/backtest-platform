@@ -19,12 +19,26 @@ import { crudRouteHandler } from './routeUtils.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 
 const router = Router();
-
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);
 
 function isForceRefresh(req: Request): boolean {
   const v = req.query.force;
   return v === '1' || v === 'true';
+}
+/** 更新类动作统一处理（full/inc→startUpdate，stop→stopUpdate）。 */
+const UPDATE_LOG: Record<string, string> = {
+  full: '全量更新',
+  incremental: '增量更新',
+  stop: '停止更新',
+};
+function updateRoute(mode: 'full' | 'incremental' | 'stop', code: string) {
+  return crudRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      const result = mode === 'stop' ? await stopUpdate() : await startUpdate(mode);
+      res.json({ success: result.success, data: result });
+    },
+    { logMsg: `[dataManage] ${UPDATE_LOG[mode]}失败`, code },
+  );
 }
 
 /** 引擎状态 */
@@ -32,13 +46,9 @@ router.get(
   '/status',
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const status = await getEngineStatus();
-      res.json({ success: true, data: status });
+      res.json({ success: true, data: await getEngineStatus() });
     },
-    {
-      logMsg: '[dataManage] 获取引擎状态失败',
-      code: 'STATUS_ERROR',
-    },
+    { logMsg: '[dataManage] 获取引擎状态失败', code: 'STATUS_ERROR' },
   ),
 );
 
@@ -47,45 +57,30 @@ router.get(
   '/last-updated',
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const lastUpdated = await getLastUpdated();
-      res.json({ success: true, data: { lastUpdated } });
+      res.json({ success: true, data: { lastUpdated: await getLastUpdated() } });
     },
-    {
-      logMsg: '[dataManage] 获取最后更新日期失败',
-      code: 'LAST_UPDATED_ERROR',
-    },
+    { logMsg: '[dataManage] 获取最后更新日期失败', code: 'LAST_UPDATED_ERROR' },
   ),
 );
 
-/** 详细统计（从 PostgreSQL 聚合，进程内 60s TTL 缓存；?force=1 跳过缓存） */
+/** 详细统计（PostgreSQL 聚合，进程内 60s TTL 缓存；?force=1 跳过缓存） */
 router.get(
   '/stats',
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
       res.setHeader('Cache-Control', 'no-cache');
-      const force = isForceRefresh(req);
-
       const t0 = Date.now();
-      const stats = await scanMarketStatsFromDb(force);
-
-      let body: { success: true; data: unknown };
-      if (!stats) {
-        body = {
-          success: true,
-          data: { stats: null, universe: { total: 0, updated_at: '', stats: {} } },
-        };
-      } else {
-        const universe = resolveUniverseFromCacheStats(stats);
-        body = { success: true, data: { stats, universe } };
-      }
-
+      const stats = await scanMarketStatsFromDb(isForceRefresh(req));
+      const body = stats
+        ? { success: true, data: { stats, universe: resolveUniverseFromCacheStats(stats) } }
+        : {
+            success: true,
+            data: { stats: null, universe: { total: 0, updated_at: '', stats: {} } },
+          };
       res.json(body);
       logger.info(`[dataManageRoutes] /stats 总耗时 ${Date.now() - t0}ms`);
     },
-    {
-      logMsg: '[dataManage] 获取统计失败',
-      code: 'STATS_ERROR',
-    },
+    { logMsg: '[dataManage] 获取统计失败', code: 'STATS_ERROR' },
   ),
 );
 
@@ -98,23 +93,16 @@ router.get(
       const tickers = await getTickerList();
       const total = tickers.length;
       const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
-      const MAX_LIMIT = 200;
-      const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
       const totalPages = Math.ceil(total / limit);
       const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginatedData = tickers.slice(start, end);
-
       res.json({
         success: true,
-        data: paginatedData,
+        data: tickers.slice(start, start + limit),
         pagination: { page, limit, total, totalPages },
       });
     },
-    {
-      logMsg: '[dataManage] 获取标的列表失败',
-      code: 'TICKER_LIST_ERROR',
-    },
+    { logMsg: '[dataManage] 获取标的列表失败', code: 'TICKER_LIST_ERROR' },
   ),
 );
 
@@ -129,13 +117,12 @@ router.get(
         sendProblem(res, 422, 'MISSING_PARAMS');
         return;
       }
-      const results = await searchTickers(query, undefined, (req as AuthenticatedRequest).tenantId);
-      res.json({ success: true, data: results });
+      res.json({
+        success: true,
+        data: await searchTickers(query, undefined, (req as AuthenticatedRequest).tenantId),
+      });
     },
-    {
-      logMsg: '[dataManage] 搜索标的失败',
-      code: 'SEARCH_ERROR',
-    },
+    { logMsg: '[dataManage] 搜索标的失败', code: 'SEARCH_ERROR' },
   ),
 );
 
@@ -144,84 +131,32 @@ router.get(
   '/update/status',
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
-      const status = await getUpdateStatus();
-      res.json({ success: true, data: status });
+      res.json({ success: true, data: await getUpdateStatus() });
     },
-    {
-      logMsg: '[dataManage] 获取更新状态失败',
-      code: 'UPDATE_STATUS_ERROR',
-    },
+    { logMsg: '[dataManage] 获取更新状态失败', code: 'UPDATE_STATUS_ERROR' },
   ),
 );
 
-/** 全量更新/重新拉取：获取所有标的所有数据 */
-for (const path of ['/update/full', '/update/refetch'] as const) {
-  router.put(
-    path,
-    requireDataManage,
-    validate(emptyBodySchema),
-    crudRouteHandler(
-      async (_req: Request, res: Response): Promise<void> => {
-        const result = await startUpdate('full');
-        res.json({ success: result.success, data: result });
-      },
-      {
-        logMsg: `[dataManage] ${path} 失败`,
-        code: 'UPDATE_ERROR',
-      },
-    ),
-  );
-}
-
+/** 全量更新：获取所有标的所有数据 */
+router.put(
+  '/update/full',
+  requireDataManage,
+  validate(emptyBodySchema),
+  updateRoute('full', 'UPDATE_ERROR'),
+);
 /** 增量更新：仅获取新增日期的数据 */
 router.patch(
   '/update/inc',
   requireDataManage,
   validate(emptyBodySchema),
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      const result = await startUpdate('incremental');
-      res.json({ success: result.success, data: result });
-    },
-    {
-      logMsg: '[dataManage] 增量更新失败',
-      code: 'UPDATE_ERROR',
-    },
-  ),
+  updateRoute('incremental', 'UPDATE_ERROR'),
 );
-
-/** 暂停后继续：等价于增量更新 */
-router.patch(
-  '/resume',
-  requireDataManage,
-  validate(emptyBodySchema),
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      const result = await startUpdate('incremental');
-      res.json({ success: result.success, data: result });
-    },
-    {
-      logMsg: '[dataManage] 恢复更新失败',
-      code: 'UPDATE_ERROR',
-    },
-  ),
-);
-
 /** 停止当前运行的更新任务 */
 router.post(
   '/update/stop',
   requireDataManage,
   validate(emptyBodySchema),
-  crudRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      const result = await stopUpdate();
-      res.json({ success: result.success, data: result });
-    },
-    {
-      logMsg: '[dataManage] 停止更新失败',
-      code: 'UPDATE_STOP_ERROR',
-    },
-  ),
+  updateRoute('stop', 'UPDATE_STOP_ERROR'),
 );
 
 /** 刷新标的列表：数据已在 PostgreSQL 中，直接返回成功 */
@@ -240,10 +175,7 @@ router.put(
         },
       });
     },
-    {
-      logMsg: '[dataManage] 刷新标的列表失败',
-      code: 'UNIVERSE_ERROR',
-    },
+    { logMsg: '[dataManage] 刷新标的列表失败', code: 'UNIVERSE_ERROR' },
   ),
 );
 
@@ -258,27 +190,24 @@ router.get(
         return;
       }
       const data = await loadTickerData(ticker);
-      if (data) {
-        res.json({ success: true, data });
-      } else {
-        sendProblem(res, 404, 'TICKER_NOT_FOUND');
-      }
+      if (data) res.json({ success: true, data });
+      else sendProblem(res, 404, 'TICKER_NOT_FOUND');
     },
-    {
-      logMsg: '[dataManage] 加载标的数据失败',
-      code: 'TICKER_LOAD_ERROR',
-    },
+    { logMsg: '[dataManage] 加载标的数据失败', code: 'TICKER_LOAD_ERROR' },
   ),
 );
 
 /** 重新生成元信息：数据来自 PostgreSQL，无需操作 */
-router.put('/regenerate-meta', requireDataManage, validate(emptyBodySchema), (_req: Request, res: Response): void => {
-  res.json({
-    success: true,
-    data: {
-      message: '元信息已由 PostgreSQL 实时计算，无需重新生成。',
-    },
-  });
-});
+router.put(
+  '/regenerate-meta',
+  requireDataManage,
+  validate(emptyBodySchema),
+  (_req: Request, res: Response): void => {
+    res.json({
+      success: true,
+      data: { message: '元信息已由 PostgreSQL 实时计算，无需重新生成。' },
+    });
+  },
+);
 
 export default router;

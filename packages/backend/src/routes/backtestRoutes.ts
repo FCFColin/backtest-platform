@@ -1,11 +1,5 @@
 /**
- * 回测路由 — 纯 HTTP 适配层（薄路由模式）。
- * 路由只负责：请求解析 → 调用 application 层 → 响应格式化。
- * POST /api/backtest/portfolio        — 组合回测（异步 202）
- * GET  /api/backtest/runs/:jobId       — 查询异步回测任务状态（P0-03）
- * POST /api/backtest/portfolio/series — 从缓存补全 tab 序列
- * POST /api/backtest/analysis / monte-carlo / optimize / efficient-frontier
- * GET  /api/backtest/search           — 搜索 ticker
+ * 回测路由 — 纯 HTTP 适配层（薄路由模式）：请求解析 → application 层 → 响应格式化。
  */
 import { Router, type Request, type Response } from 'express';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
@@ -47,11 +41,10 @@ function buildBacktestResponse(
   dateRange?: unknown,
 ): Record<string, unknown> {
   const response: Record<string, unknown> = { success: true, data };
-  if (warnings.length > 0) {
+  if (warnings.length > 0)
     response.warnings = warnings.map((w: Warning | string): Warning =>
       typeof w === 'string' ? { code: 'WARNING', message: w } : w,
     );
-  }
   if (dateRange) response.dateRange = dateRange;
   return response;
 }
@@ -77,7 +70,7 @@ router.get(
   ),
 );
 
-// 组合回测：P0-02 统一异步模式（202 + 入队），队列不可用时 fail-closed 503（ADR-031）。
+// 组合回测：P0-02 统一异步模式（202 + 入队），队列不可用 fail-closed 503（ADR-031）。
 router.post(
   '/portfolio',
   validate(portfolioBacktestSchema),
@@ -96,10 +89,12 @@ router.post(
           tenantId: authReq.tenantId,
           ownerUserId: ownerOf(authReq),
         } as BacktestJobData);
-        res.status(202).json({
-          success: true,
-          data: { jobId: job.id, status: 'queued', statusUrl: `/api/v1/backtest/runs/${job.id}` },
-        });
+        res
+          .status(202)
+          .json({
+            success: true,
+            data: { jobId: job.id, status: 'queued', statusUrl: `/api/v1/backtest/runs/${job.id}` },
+          });
         recordBacktestRequest('portfolio', 'async', 'success');
       } catch (queueError) {
         logger.error(
@@ -147,7 +142,7 @@ router.get(
         sendProblem(res, 404, 'JOB_NOT_FOUND');
         return;
       }
-      // 校验调用方是否有权访问该 job（所有者本人 / admin / 同租户）。越权返回 404（不泄露任务存在）。
+      // 越权访问返回 404 不泄露任务存在：仅所有者本人 / admin / 同租户可见
       const requester = authReq.user;
       if (requester) {
         const ownerId = job.data?.userId;
@@ -166,14 +161,10 @@ router.get(
       const data: Record<string, unknown> = { jobId, status, progress };
       if (status === 'completed' && job.returnvalue) {
         const returnValue = job.returnvalue as BacktestJobResult;
-        if (returnValue.status === 'completed' && returnValue.result) {
+        if (returnValue.status === 'completed' && returnValue.result)
           data.result = returnValue.result;
-        } else if (returnValue.status === 'failed') {
-          data.error = returnValue.error;
-        }
-      } else if (status === 'failed') {
-        data.error = job.failedReason || 'Job execution failed';
-      }
+        else if (returnValue.status === 'failed') data.error = returnValue.error;
+      } else if (status === 'failed') data.error = job.failedReason || 'Job execution failed';
       res.json({ success: true, data });
     },
     { logMsg: '[backtestRoutes] 查询异步任务状态失败', code: 'JOB_STATUS_ERROR' },

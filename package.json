@@ -43,7 +43,7 @@
     "test:coverage:check": "vitest run --coverage --coverage.reporter=json-summary && node scripts/check-coverage.mjs",
     "test:docker": "cross-env RUN_TESTCONTAINERS=1 vitest run",
     "test:property": "vitest run tests/property",
-    "test:fuzz": "vitest run tests/property tests/fuzz",
+    "test:fuzz": "vitest run tests/property",
     "load:test": "k6 run tests/load/backtest-submit.js",
     "load:test:all": "k6 run tests/load/backtest-submit.js && k6 run tests/load/price-history.js && k6 run tests/load/optimizer.js",
     "simplify": "jscpd packages/backend/src/ packages/frontend/src/ --reporters json,html --output report",

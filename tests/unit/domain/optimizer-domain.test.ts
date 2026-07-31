@@ -10,6 +10,11 @@ import {
   type OptimizeResultItem,
 } from '../../../packages/backend/src/domain/services/optimizer-domain.js';
 import type { BacktestOptimizerRequest } from '../../../packages/backend/src/schemas/optimizer.js';
+import {
+  validateGridSearchRequest,
+  countCombinations,
+  type GridSearchDomainRequest,
+} from '../../../packages/backend/src/domain/services/grid-search.js';
 
 function validRequest(overrides: Partial<BacktestOptimizerRequest> = {}): BacktestOptimizerRequest {
   return {
@@ -42,20 +47,13 @@ function makeItem(overrides: Partial<OptimizeResultItem> = {}): OptimizeResultIt
 }
 
 describe('range', () => {
-  it('正步长生成等差数列', () => {
-    expect(range(1, 5, 1)).toEqual([1, 2, 3, 4, 5]);
-  });
-
-  it('步长为 2 时跳过中间值', () => {
-    expect(range(0, 10, 2)).toEqual([0, 2, 4, 6, 8, 10]);
-  });
-
-  it('min === max 时返回单元素', () => {
-    expect(range(5, 5, 1)).toEqual([5]);
-  });
-
-  it('浮点步长保留两位小数', () => {
-    expect(range(0, 0.03, 0.01)).toEqual([0, 0.01, 0.02, 0.03]);
+  it.each([
+    ['正步长生成等差数列', [1, 5, 1], [1, 2, 3, 4, 5]],
+    ['步长为 2 时跳过中间值', [0, 10, 2], [0, 2, 4, 6, 8, 10]],
+    ['min === max 时返回单元素', [5, 5, 1], [5]],
+    ['浮点步长保留两位小数', [0, 0.03, 0.01], [0, 0.01, 0.02, 0.03]],
+  ])('%s', (_n, [min, max, step], expected) => {
+    expect(range(min, max, step)).toEqual(expected);
   });
 });
 
@@ -97,29 +95,21 @@ describe('validateOptimizeRequest', () => {
     expect(validateOptimizeRequest(validRequest())).toBeNull();
   });
 
-  it('缺少 portfolio.assets 返回错误', () => {
-    expect(validateOptimizeRequest(validRequest({ portfolio: { assets: [] } }))).toContain(
-      'portfolio.assets',
-    );
-  });
-
-  it('缺少 rebalanceFrequencies 返回错误', () => {
-    expect(
-      validateOptimizeRequest(
-        validRequest({
-          parameterSpace: {
-            rebalanceFrequencies: [],
-            initialCapital: { min: 10000, max: 20000, step: 10000 },
-          },
-        }),
-      ),
-    ).toContain('再平衡频率');
-  });
-
-  it('缺少日期范围返回错误', () => {
-    expect(
-      validateOptimizeRequest(validRequest({ parameters: { startDate: '', endDate: '' } })),
-    ).toContain('日期');
+  it.each([
+    ['缺少 portfolio.assets 返回错误', { portfolio: { assets: [] } }, 'portfolio.assets'],
+    [
+      '缺少 rebalanceFrequencies 返回错误',
+      {
+        parameterSpace: {
+          rebalanceFrequencies: [],
+          initialCapital: { min: 10000, max: 20000, step: 10000 },
+        },
+      },
+      '再平衡频率',
+    ],
+    ['缺少日期范围返回错误', { parameters: { startDate: '', endDate: '' } }, '日期'],
+  ])('%s', (_n, overrides, fragment) => {
+    expect(validateOptimizeRequest(validRequest(overrides))).toContain(fragment);
   });
 });
 
@@ -165,51 +155,78 @@ describe('filterByConstraints', () => {
     makeItem({ cagr: 0.08, maxDrawdown: 0.15 }),
   ];
 
-  it('无约束时返回全部', () => {
-    expect(filterByConstraints(items)).toHaveLength(3);
+  it.each([
+    ['无约束时返回全部', {}, 3],
+    ['maxDrawdown 约束过滤超出项', { maxDrawdown: 20 }, 2],
+    ['minCagr 约束过滤低于项', { minCagr: 8 }, 2],
+    ['同时约束时取交集', { maxDrawdown: 20, minCagr: 8 }, 1],
+  ])('%s', (_n, constraints, len) => {
+    const filtered = filterByConstraints(items, constraints as never);
+    expect(filtered).toHaveLength(len);
   });
 
-  it('maxDrawdown 约束过滤超出项', () => {
+  it('maxDrawdown 过滤后全部 <= 0.2', () => {
     const filtered = filterByConstraints(items, { maxDrawdown: 20 });
-    expect(filtered).toHaveLength(2);
     expect(filtered.every((it) => it.maxDrawdown <= 0.2)).toBe(true);
-  });
-
-  it('minCagr 约束过滤低于项', () => {
-    const filtered = filterByConstraints(items, { minCagr: 8 });
-    expect(filtered).toHaveLength(2);
-    expect(filtered.every((it) => it.cagr >= 0.08)).toBe(true);
-  });
-
-  it('同时约束时取交集', () => {
-    const filtered = filterByConstraints(items, { maxDrawdown: 20, minCagr: 8 });
-    expect(filtered).toHaveLength(1);
-    expect(filtered[0].cagr).toBe(0.08);
   });
 });
 
 describe('objectiveValue', () => {
   const item = makeItem({ cagr: 0.1, maxDrawdown: 0.2, sharpe: 1.5, sortino: 2.0 });
 
-  it('maxCagr 返回 cagr', () => {
-    expect(objectiveValue(item, 'maxCagr')).toBe(0.1);
-  });
-
-  it('minMaxDrawdown 返回负的 maxDrawdown', () => {
-    expect(objectiveValue(item, 'minMaxDrawdown')).toBe(-0.2);
-  });
-
-  it('maxSharpe 返回 sharpe', () => {
-    expect(objectiveValue(item, 'maxSharpe')).toBe(1.5);
-  });
-
-  it('maxSortino 返回 sortino', () => {
-    expect(objectiveValue(item, 'maxSortino')).toBe(2.0);
+  it.each<[string, string, number]>([
+    ['maxCagr 返回 cagr', 'maxCagr', 0.1],
+    ['minMaxDrawdown 返回负的 maxDrawdown', 'minMaxDrawdown', -0.2],
+    ['maxSharpe 返回 sharpe', 'maxSharpe', 1.5],
+    ['maxSortino 返回 sortino', 'maxSortino', 2.0],
+  ])('%s', (_n, objective, expected) => {
+    expect(objectiveValue(item, objective as never)).toBe(expected);
   });
 });
 
 describe('MAX_OPTIMIZER_COMBINATIONS', () => {
   it('上限值为 1000', () => {
     expect(MAX_OPTIMIZER_COMBINATIONS).toBe(1000);
+  });
+});
+
+function validGridRequest(
+  overrides: Partial<GridSearchDomainRequest> = {},
+): GridSearchDomainRequest {
+  return {
+    indicator: 'rsi',
+    param1: { min: 2, max: 10, step: 2 },
+    param2: { min: 5, max: 25, step: 5 },
+    tickers: ['SPY'],
+    startDate: '2020-01-01',
+    endDate: '2024-12-31',
+    startingValue: 10000,
+    rebalanceFrequency: 'monthly',
+    objective: 'maxSharpe',
+    ...overrides,
+  };
+}
+
+describe('validateGridSearchRequest', () => {
+  it('有效请求返回 null', () => {
+    expect(validateGridSearchRequest(validGridRequest())).toBeNull();
+  });
+
+  it.each([
+    ['缺少 indicator 返回错误', { indicator: '' }, 'indicator'],
+    ['空 tickers 返回错误', { tickers: [] }, '标的代码'],
+    ['缺少日期返回错误', { startDate: '' }, '起止日期'],
+  ])('%s', (_n, overrides, fragment) => {
+    expect(validateGridSearchRequest(validGridRequest(overrides))).toContain(fragment);
+  });
+});
+
+describe('countCombinations', () => {
+  it('返回两个参数范围的笛卡尔积大小', () => {
+    expect(countCombinations({ min: 2, max: 10, step: 2 }, { min: 5, max: 25, step: 5 })).toBe(25);
+  });
+
+  it('步长为零时只算 1 个值', () => {
+    expect(countCombinations({ min: 5, max: 5, step: 0 }, { min: 5, max: 5, step: 0 })).toBe(1);
   });
 });

@@ -6,6 +6,7 @@
 import type { TacticalStrategy, EmailAlertConfig } from '@backtest/shared/types/tactical';
 import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types/index';
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
+import { ValidationError } from '../utils/errors.js';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/engineBodyBuilder.js';
@@ -13,7 +14,6 @@ import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js'
 import { Ticker, Weight } from '../domain/value-objects/index.js';
 import { createEmptyStatistics } from '@backtest/shared/types';
 import { logger } from '../utils/logger.js';
-import { ValidationError } from '../utils/errors.js';
 import { ensurePriceDataExists, ensureSufficientTradingDays } from './backtest/priceDataUtils.js';
 import { translateDomainError } from './backtest-helpers.js';
 
@@ -163,13 +163,6 @@ export async function executeTacticalBacktest(
   };
 }
 
-export function saveTacticalAlertConfig(config: EmailAlertConfig): EmailAlertConfig {
-  if (config.enabled && !config.email) {
-    throw new ValidationError('启用告警时必须填写邮箱');
-  }
-  return config;
-}
-
 /**
  * 运行战术分配 what-if 查询：获取最近信号状态（含数据获取）。
  *
@@ -217,4 +210,10 @@ export async function executeTacticalWhatIf(
       signals: lastEntry.activeSignals,
     };
   });
+}
+export function saveTacticalAlertConfig(config: EmailAlertConfig): EmailAlertConfig {
+  if (config.enabled && !config.email) {
+    throw new ValidationError('启用告警时必须填写邮箱');
+  }
+  return config;
 }

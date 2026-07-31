@@ -1,7 +1,12 @@
 import { Link } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/uiComponents';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 export const NAV_GROUP_KEYS = [
   {
@@ -11,8 +16,8 @@ export const NAV_GROUP_KEYS = [
       { to: '/backtest-optimizer', key: 'backtestOptimizer' },
       { to: '/rebalancing-sensitivity', key: 'rebalancingSensitivity' },
       { to: '/lumpsum-vs-dca', key: 'lumpSumDca' },
-      { to: '/comparison', key: 'portfolioComparison' }
-    ]
+      { to: '/portfolio-comparison', key: 'portfolioComparison' },
+    ],
   },
   {
     key: 'analysisOptimization',
@@ -23,8 +28,8 @@ export const NAV_GROUP_KEYS = [
       { to: '/optimizer', key: 'portfolioOptimize' },
       { to: '/efficient-frontier', key: 'efficientFrontier' },
       { to: '/monte-carlo', key: 'monteCarlo' },
-      { to: '/goal-optimizer', key: 'goalOptimizer' }
-    ]
+      { to: '/goal-optimizer', key: 'goalOptimizer' },
+    ],
   },
   {
     key: 'tacticalSignal',
@@ -35,18 +40,38 @@ export const NAV_GROUP_KEYS = [
       { to: '/dual-signal', key: 'dualSignal' },
       { to: '/multi-signal', key: 'multiSignal' },
       { to: '/letf-slippage', key: 'letfAnalysis' },
-      { to: '/calculators', key: 'calculators' }
-    ]
-  }
+      { to: '/calculators', key: 'calculators' },
+    ],
+  },
 ] as const;
-export function NavGroup({ group, isActive, isOpen, onToggle, t }: { group: (typeof NAV_GROUP_KEYS)[number]; isActive: (to: string) => boolean; isOpen: boolean; onToggle: (key: string) => void; t: (key: string) => string }) {
+export function NavGroup({
+  group,
+  isActive,
+  isOpen,
+  onToggle,
+  t,
+}: {
+  group: (typeof NAV_GROUP_KEYS)[number];
+  isActive: (to: string) => boolean;
+  isOpen: boolean;
+  onToggle: (key: string) => void;
+  t: (key: string) => string;
+}) {
   const groupActive = group.items.some((item) => isActive(item.to));
   return (
     <DropdownMenu open={isOpen} onOpenChange={(open) => onToggle(open ? group.key : '')}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className={cn('h-9 px-2.5 text-label text-fg-secondary hover:bg-hover hover:text-fg [&_svg]:size-3', groupActive && 'text-fg')}>
+        <Button
+          variant="ghost"
+          className={cn(
+            'h-9 px-2.5 text-label text-fg-secondary hover:bg-hover hover:text-fg [&_svg]:size-3',
+            groupActive && 'text-fg',
+          )}
+        >
           {t(`nav.${group.key}`)}
-          <ChevronDown className={cn('transition-transform duration-150', isOpen && 'rotate-180')} />
+          <ChevronDown
+            className={cn('transition-transform duration-150', isOpen && 'rotate-180')}
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-[14rem]">

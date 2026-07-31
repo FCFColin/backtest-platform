@@ -52,9 +52,6 @@ const ANALYSIS_PREFIXES = [
   '/letf',
   '/goal-optimizer',
   '/portfolio-comparison',
-  '/swr',
-  '/tvm',
-  '/workspace',
   '/prototype',
 ];
 const PREFIX_NS: ReadonlyArray<readonly [readonly string[], string]> = [

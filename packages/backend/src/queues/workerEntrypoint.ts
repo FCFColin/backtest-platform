@@ -21,6 +21,7 @@ import { closeDb } from '../db/pool.js';
 import { eventDispatcher } from '../domain/events/events.js';
 import { BacktestCompletedHandler, RunCompletedHandler } from '../application/completedHandlers.js';
 import { createWebhookRetryWorker, scheduleWebhookRetryJob } from './webhookQueue.js';
+import { createAuditExportWorker, scheduleAuditExportJob } from './auditExportQueue.js';
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
 import { startHeartbeat } from './healthCheck.js';
 import { shutdownWorker } from './worker.js'; // Backtest worker (module-level side effect: creates Worker at import time)
@@ -33,6 +34,7 @@ eventDispatcher.register(new BacktestCompletedHandler());
 eventDispatcher.register(new RunCompletedHandler());
 
 let webhookWorker: Worker | null = null;
+let auditExportWorker: Worker | null = null;
 let dataUpdateWorker: Worker | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -70,6 +72,12 @@ async function shutdown(signal: string): Promise<void> {
     if (webhookWorker) {
       await webhookWorker.close();
       webhookWorker = null;
+    }
+
+    // 关闭 audit-export worker
+    if (auditExportWorker) {
+      await auditExportWorker.close();
+      auditExportWorker = null;
     }
 
     // 关闭 data-update worker
@@ -120,6 +128,15 @@ async function main(): Promise<void> {
     logger.info('[worker-entry] Data update worker started');
   } catch (err) {
     logger.warn({ err }, '[worker-entry] Data update worker startup failed');
+  }
+
+  // 启动 audit-export worker（P2-03 WORM 审计导出，每 5 分钟；MinIO 未配置时导出作业内部 fail-closed）
+  try {
+    auditExportWorker = createAuditExportWorker();
+    await scheduleAuditExportJob();
+    logger.info('[worker-entry] Audit export worker started');
+  } catch (err) {
+    logger.warn({ err }, '[worker-entry] Audit export worker startup failed');
   }
 
   // 启动 Redis heartbeat 健康检查

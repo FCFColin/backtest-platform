@@ -14,20 +14,26 @@ const FRONTEND_DIST = config.FRONTEND_DIST_DIR;
 // 预加载关键 CSS 内容 → 内联到 HTML 消除渲染阻塞
 let cssContent: string | null = null;
 try {
-  const cssFiles = fs.readdirSync(path.resolve(FRONTEND_DIST, 'assets')).filter(f => f.startsWith('style-') && f.endsWith('.css'));
+  const cssFiles = fs
+    .readdirSync(path.resolve(FRONTEND_DIST, 'assets'))
+    .filter((f) => f.startsWith('style-') && f.endsWith('.css'));
   if (cssFiles.length > 0) {
     cssContent = fs.readFileSync(path.resolve(FRONTEND_DIST, 'assets', cssFiles[0]), 'utf-8');
     logger.info(`[ssr] 内联 CSS: ${cssFiles[0]} (${(cssContent.length / 1024).toFixed(1)} KB)`);
   }
-} catch { /* 构建产物没有 CSS 文件时忽略 */ }
+} catch {
+  /* 构建产物没有 CSS 文件时忽略 */
+}
 
 // 预加载关键 API 数据（服务端缓存热，避免客户端重复 fetch）
+// E5 修复：此前误用 GO_ENGINE_URL(15004)+5004 fallback——/api/v1/data/meta 是 Node API(15001) 的端点，
+// 改为自引用 API 端口（SSR 由 Node API 进程渲染，回环自取即可）。
 let metaCache: string | null = null;
 async function prefetchMeta(): Promise<void> {
   try {
-    const resp = await fetch(`${config.GO_ENGINE_URL || 'http://localhost:5004'}/api/v1/data/meta`, {
+    const resp = await fetch(`http://127.0.0.1:${config.API_PORT}/api/v1/data/meta`, {
       signal: AbortSignal.timeout(2000),
-      headers: { 'Accept': 'application/json' },
+      headers: { Accept: 'application/json' },
     });
     if (resp.ok) {
       const json = await resp.json();
@@ -147,7 +153,9 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     }
 
     // 主 entry script 加 fetchpriority=high，让浏览器优先下载关键 JS
-    const entryScript = htmlTemplate.head.match(/<script[^>]*src="\/assets\/index-[^"]*\.js"[^>]*>/);
+    const entryScript = htmlTemplate.head.match(
+      /<script[^>]*src="\/assets\/index-[^"]*\.js"[^>]*>/,
+    );
     if (entryScript) {
       head = head.replace(
         entryScript[0],
@@ -156,21 +164,40 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     }
 
     // 按优先级预加载：导航栏页面用 modulepreload（高优先级，关键路径），其余用 prefetch（空闲时）
-    const KEY_PAGES = ['MonteCarloPage', 'OptimizerPage', 'AboutPage', 'AnalysisPage', 'PricingPage', 'TacticalPage', 'HelpPage', 'LoginPage'];
+    const KEY_PAGES = [
+      'MonteCarloPage',
+      'OptimizerPage',
+      'AboutPage',
+      'AnalysisPage',
+      'PricingPage',
+      'TacticalPage',
+      'HelpPage',
+      'LoginPage',
+    ];
     try {
       const assets = fs.readdirSync(path.resolve(FRONTEND_DIST, 'assets'));
-      const allPages = assets.filter(f => /^(MonteCarlo|Optimizer|Analysis|About|Pricing|Login|BacktestOptimizer|SignalAnalyzer|TacticalPage|DataEngine|EfficientFrontier|Calculators|FactorRegression|PCAPage|LETFSlippage|GoalOptimizer|RebalancingSensitivity|LumpSumVsDCA|TacticalGrid|DualSignal|MultiSignal|AdminDashboard|SystemMonitor|DataManagement|SystemSettings|ChartBenchmark)Page-.*\.js$/.test(f));
-      const preloadLinks = allPages.map(f => {
-        const isKey = KEY_PAGES.some(k => f.startsWith(k));
-        return `<link rel="${isKey ? 'modulepreload' : 'prefetch'}" href="/assets/${f}" crossorigin>`;
-      }).join('\n    ');
+      const allPages = assets.filter((f) =>
+        /^(MonteCarlo|Optimizer|Analysis|About|Pricing|Login|BacktestOptimizer|SignalAnalyzer|TacticalPage|DataEngine|EfficientFrontier|Calculators|FactorRegression|PCAPage|LETFSlippage|GoalOptimizer|RebalancingSensitivity|LumpSumVsDCA|TacticalGrid|DualSignal|MultiSignal|AdminDashboard|SystemMonitor|DataManagement|SystemSettings|ChartBenchmark)Page-.*\.js$/.test(
+          f,
+        ),
+      );
+      const preloadLinks = allPages
+        .map((f) => {
+          const isKey = KEY_PAGES.some((k) => f.startsWith(k));
+          return `<link rel="${isKey ? 'modulepreload' : 'prefetch'}" href="/assets/${f}" crossorigin>`;
+        })
+        .join('\n    ');
       head = head.replace('</head>', `    ${preloadLinks}\n  </head>`);
-    } catch { /* 构建产物读取失败时跳过 */ }
+    } catch {
+      /* 构建产物读取失败时跳过 */
+    }
 
     // 注入服务端预取数据（避免客户端重复 fetch）
     if (metaCache) {
-      head = head.replace('</head>',
-        `    <script>window.__INITIAL_DATA__=${metaCache}</script>\n  </head>`);
+      head = head.replace(
+        '</head>',
+        `    <script>window.__INITIAL_DATA__=${metaCache}</script>\n  </head>`,
+      );
     }
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -179,7 +206,10 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
 
     // 给主 entry script 加 fetchpriority="high" 提升关键 JS 下载优先级
     let tail = htmlTemplate.tail;
-    tail = tail.replace(/(<script[^>]*src="[^"]*index-[^"]*\.js"[^>]*)>/g, '$1 fetchpriority="high">');
+    tail = tail.replace(
+      /(<script[^>]*src="[^"]*index-[^"]*\.js"[^>]*)>/g,
+      '$1 fetchpriority="high">',
+    );
 
     const totalMs = Math.round(performance.now() - startTotal);
     res.setHeader('Server-Timing', `render;dur=${renderMs}, total;dur=${totalMs}`);
@@ -188,7 +218,9 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     let body = head;
     const passThrough = new PassThrough();
     passThrough.pipe(res, { end: false });
-    passThrough.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+    passThrough.on('data', (chunk: Buffer) => {
+      body += chunk.toString();
+    });
     passThrough.on('end', () => {
       body += tail;
       res.end(tail);

@@ -8,6 +8,7 @@ import { sendProblem } from '../utils/errors.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import { validate } from '../middleware/miscMiddleware.js';
+import { adminMiddleware } from '../middleware/middlewareChains.js';
 import { createAnnouncementSchema } from '../schemas/misc-schemas.js';
 
 const router = Router();
@@ -45,8 +46,10 @@ router.get(
   ),
 );
 
+// 写端点仅管理员（E4：此前 POST 免认证可任意发布，与"管理员发布"声明不符；GET 保持公开）
 router.post(
   '/',
+  ...adminMiddleware(),
   validate(createAnnouncementSchema),
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -59,7 +62,13 @@ router.post(
         `INSERT INTO announcements (title, body, category, severity, created_by)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING id, title, published_at`,
-        [title, body, category ?? 'general', severity ?? 'info', (req as AuthenticatedRequest).user?.sub],
+        [
+          title,
+          body,
+          category ?? 'general',
+          severity ?? 'info',
+          (req as AuthenticatedRequest).user?.sub,
+        ],
       );
       announcementCache = null;
       res.json({ success: true, data: result.rows[0] });
