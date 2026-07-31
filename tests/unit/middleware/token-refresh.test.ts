@@ -226,7 +226,7 @@ describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
     vi.mocked(getUserById).mockRejectedValueOnce(new Error('empty id'));
     expect(await isUserSessionValid('')).toBe(false);
   });
-  it('未记录撤销或 iat 晚于撤销时间应返回 false，早于则 true', async () => {
+  it('未记录撤销或 iat 晚于撤销时间应返回 false，早于则 true，且撤销检查走 Redis get', async () => {
     expect(await isAccessTokenRevokedForUser('unrevoked-user', 1000)).toBe(false);
     expect(await isAccessTokenRevokedForUser('unknown-user', 100)).toBe(false);
     await revokeAllUserSessions('revoked-check-user');
@@ -234,10 +234,6 @@ describe('isUserSessionValid 与 isAccessTokenRevokedForUser', () => {
     expect(
       await isAccessTokenRevokedForUser('revoked-check-user', Math.floor(Date.now() / 1000) + 3600),
     ).toBe(false);
-  });
-  it('撤销检查应调用 Redis get', async () => {
-    await revokeAllUserSessions('redis-revoked-user');
-    expect(await isAccessTokenRevokedForUser('redis-revoked-user', 1)).toBe(true);
     expect(redisMocks.get).toHaveBeenCalled();
   });
 });
@@ -359,6 +355,9 @@ describe('idempotencyKey 中间件', () => {
   it.each([
     ['首次请求放行，重复 Key 返回缓存结果', 'dup-key-basic', false],
     ['首次 POST 写入 Redis，二次请求从 Redis 返回缓存', 'redis-dup-key', true],
+    ['SQL 注入 Key 应被安全存储并命中缓存', SQL_INJECTION_KEY, false],
+    ['XSS 载荷 Key 应被安全存储并命中缓存', XSS_KEY, false],
+    ['换行符注入 Key 应被安全存储并命中缓存', NEWLINE_INJECTION_KEY, false],
   ])('%s', async (_n, key, assertRedis) => {
     const cachedBody = { success: true, data: 'cached' };
     const r1 = createIdempotencyReqRes(key);
@@ -401,20 +400,6 @@ describe('idempotencyKey 中间件', () => {
       expect(next).not.toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith(cachedBody);
     }
-  });
-  it.each([
-    ['SQL 注入', SQL_INJECTION_KEY],
-    ['XSS 载荷', XSS_KEY],
-    ['换行符注入', NEWLINE_INJECTION_KEY],
-  ])('%s Key 应被安全存储并命中缓存', async (_n, key) => {
-    const body = { success: true };
-    const r1 = createIdempotencyReqRes(key);
-    await passOnce(r1, body);
-    const r2 = createIdempotencyReqRes(key);
-    idempotencyKey(r2.req, r2.res, r2.next);
-    await vi.waitFor(() => expect(r2.res.status).toHaveBeenCalledWith(200));
-    expect(r2.next).not.toHaveBeenCalled();
-    expect(r2.res.json).toHaveBeenCalledWith(body);
   });
   it('Redis 缓存写入失败应记录 warn 且不阻塞响应', async () => {
     redisMocks.set.mockRejectedValueOnce(new Error('redis set failed'));

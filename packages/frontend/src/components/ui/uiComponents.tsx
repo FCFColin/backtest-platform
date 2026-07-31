@@ -227,6 +227,10 @@ const itemBase =
   'relative flex cursor-pointer select-none items-center rounded-md text-body text-fg-secondary outline-none transition-colors duration-150 focus:bg-hover focus:text-fg data-[disabled]:pointer-events-none data-[disabled]:opacity-50';
 const contentAnim =
   'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2';
+// 菜单项勾选指示器（DropdownMenuCheckboxItem/SelectItem 共用）
+const CheckIndicator = ({ children }: { children: ReactNode }) => (
+  <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">{children}</span>
+);
 export const DropdownMenuContent = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Content>
@@ -256,11 +260,11 @@ export const DropdownMenuCheckboxItem = wrapPrimitive(
   'DropdownMenuCheckboxItem',
   (children) => (
     <>
-      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <CheckIndicator>
         <DropdownMenuPrimitive.ItemIndicator>
           <Check className="h-4 w-4 text-brand" />
         </DropdownMenuPrimitive.ItemIndicator>
-      </span>
+      </CheckIndicator>
       {children}
     </>
   ),
@@ -316,6 +320,15 @@ export const SelectTrigger = wrapPrimitive(
     </>
   ),
 );
+const SelectScrollButton = (Comp: typeof SelectPrimitive.ScrollUpButton, Icon: typeof ChevronUp) =>
+  wrapPrimitive(
+    Comp,
+    'flex cursor-default items-center justify-center py-1',
+    'SelectScrollButton',
+    () => <Icon className="h-4 w-4 text-fg-tertiary" />,
+  );
+const SelectScrollUpButton = SelectScrollButton(SelectPrimitive.ScrollUpButton, ChevronUp);
+const SelectScrollDownButton = SelectScrollButton(SelectPrimitive.ScrollDownButton, ChevronDown);
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
@@ -332,9 +345,7 @@ const SelectContent = React.forwardRef<
       position={position}
       {...props}
     >
-      <SelectPrimitive.ScrollUpButton className="flex cursor-default items-center justify-center py-1">
-        <ChevronUp className="h-4 w-4 text-fg-tertiary" />
-      </SelectPrimitive.ScrollUpButton>
+      <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(
           'p-1',
@@ -344,9 +355,7 @@ const SelectContent = React.forwardRef<
       >
         {children}
       </SelectPrimitive.Viewport>
-      <SelectPrimitive.ScrollDownButton className="flex cursor-default items-center justify-center py-1">
-        <ChevronDown className="h-4 w-4 text-fg-tertiary" />
-      </SelectPrimitive.ScrollDownButton>
+      <SelectScrollDownButton />
     </SelectPrimitive.Content>
   </SelectPrimitive.Portal>
 ));
@@ -357,11 +366,11 @@ export const SelectItem = wrapPrimitive(
   'SelectItem',
   (children) => (
     <>
-      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <CheckIndicator>
         <SelectPrimitive.ItemIndicator>
           <Check className="h-4 w-4" />
         </SelectPrimitive.ItemIndicator>
-      </span>
+      </CheckIndicator>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     </>
   ),

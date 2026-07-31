@@ -123,13 +123,24 @@ func filterByType(signals []SignalPoint, signalType string) []SignalPoint {
 	}
 	return result
 }
-func AnalyzeSignal(req SignalAnalysisRequest, data []PricePoint) SignalAnalysisResult {
-	rawSignals := generateRawSignals(req.Indicator, req.Period, req.Threshold, data)
-	signals := filterByType(rawSignals, req.SignalType)
+
+// finalizeResult 汇总信号：统计指标 + 权益曲线（三个分析入口共用同一收尾逻辑）
+func finalizeResult(signals []SignalPoint, data []PricePoint) SignalAnalysisResult {
 	stats := calcStatistics(signals)
 	var equityCurve []EquityPoint
 	equityCurve, stats.MaxDrawdown, stats.Sharpe = calcEquityCurve(signals, data)
 	return SignalAnalysisResult{Signals: signals, Statistics: stats, EquityCurve: equityCurve}
+}
+func priceMapFrom(data []PricePoint) map[string]float64 {
+	m := make(map[string]float64, len(data))
+	for _, d := range data {
+		m[d.Date] = d.Price
+	}
+	return m
+}
+func AnalyzeSignal(req SignalAnalysisRequest, data []PricePoint) SignalAnalysisResult {
+	signals := filterByType(generateRawSignals(req.Indicator, req.Period, req.Threshold, data), req.SignalType)
+	return finalizeResult(signals, data)
 }
 func buildSignalDirMap(signals []SignalPoint) map[string]SignalDir {
 	m := make(map[string]SignalDir)
@@ -182,10 +193,7 @@ func AnalyzeDualSignal(cfg1, cfg2 SignalAnalysisRequest, data1, data2 []PricePoi
 	map1 := buildSignalDirMap(result1.Signals)
 	map2 := buildSignalDirMap(result2.Signals)
 	allDates := mergedSignalDates(map1, map2)
-	priceMap := make(map[string]float64)
-	for _, d := range data1 {
-		priceMap[d.Date] = d.Price
-	}
+	priceMap := priceMapFrom(data1)
 	var comparison []ComparisonEntry
 	var combinedSignals []SignalPoint
 	for _, date := range allDates {
@@ -204,10 +212,7 @@ func AnalyzeDualSignal(cfg1, cfg2 SignalAnalysisRequest, data1, data2 []PricePoi
 			}
 		}
 	}
-	combinedStats := calcStatistics(combinedSignals)
-	var equityCurve []EquityPoint
-	equityCurve, combinedStats.MaxDrawdown, combinedStats.Sharpe = calcEquityCurve(combinedSignals, data1)
-	return DualSignalResult{Signal1: result1, Signal2: result2, Combined: SignalAnalysisResult{Signals: combinedSignals, Statistics: combinedStats, EquityCurve: equityCurve}, Comparison: comparison}
+	return DualSignalResult{Signal1: result1, Signal2: result2, Combined: finalizeResult(combinedSignals, data1), Comparison: comparison}
 }
 func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, data []PricePoint, aggregationMethod string, weights []float64) MultiSignalResult {
 	perSignal := make([]SignalAnalysisResult, len(configs))
@@ -219,10 +224,7 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 		dirMaps[i] = buildSignalDirMap(r.Signals)
 	}
 	allDates := mergedSignalDates(dirMaps...)
-	priceMap := make(map[string]float64)
-	for _, d := range data {
-		priceMap[d.Date] = d.Price
-	}
+	priceMap := priceMapFrom(data)
 	rawWeights := make([]float64, len(configs))
 	if len(weights) == len(configs) {
 		for i, w := range weights {
@@ -296,14 +298,11 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 			}
 		}
 	}
-	aggStats := calcStatistics(aggregatedSignals)
-	var equityCurve []EquityPoint
-	equityCurve, aggStats.MaxDrawdown, aggStats.Sharpe = calcEquityCurve(aggregatedSignals, data)
 	contributions := make([]Contribution, len(perSignal))
 	for i, r := range perSignal {
 		contributions[i] = Contribution{Index: i, Indicator: configs[i].Indicator, Contribution: r.Statistics.AvgReturn, Statistics: r.Statistics}
 	}
-	return MultiSignalResult{Aggregated: SignalAnalysisResult{Signals: aggregatedSignals, Statistics: aggStats, EquityCurve: equityCurve}, Contributions: contributions}
+	return MultiSignalResult{Aggregated: finalizeResult(aggregatedSignals, data), Contributions: contributions}
 }
 
 const (

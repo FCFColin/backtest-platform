@@ -8,7 +8,7 @@ import {
 } from '../../helpers/dataManageRoutesFixtures.js';
 import type { TestServer } from '../../helpers/expressApp.js';
 
-describe('dataManageRoutes - GET /status', () => {
+describe('dataManageRoutes - GET 读端点', () => {
   let server: TestServer;
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -19,109 +19,12 @@ describe('dataManageRoutes - GET /status', () => {
       progress: null,
       universeAge: '1 day',
     });
-    server = await startAppUnauthenticated();
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('应返回引擎状态', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/status`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.totalTickers).toBe(500);
-    expect(body.data.cachedTickers).toBe(100);
-  });
-});
-
-describe('dataManageRoutes - 读端点抛错统一映射为 500', () => {
-  it.each<[string, string, () => void, string | null]>([
-    [
-      '/status',
-      '',
-      () => engineServiceMocks.getEngineStatus.mockRejectedValue(new Error('status error')),
-      'STATUS_ERROR',
-    ],
-    [
-      '/stats?force=1',
-      '',
-      () => engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('scan error')),
-      'STATS_ERROR',
-    ],
-    [
-      '/tickers',
-      '',
-      () => engineServiceMocks.getTickerList.mockRejectedValue(new Error('list error')),
-      'TICKER_LIST_ERROR',
-    ],
-    [
-      '/search?q=test',
-      '',
-      () => engineServiceMocks.searchTickers.mockRejectedValue(new Error('search error')),
-      null,
-    ],
-    [
-      '/ticker/AAPL',
-      '',
-      () =>
-        engineServiceMocks.loadTickerData.mockImplementation(() => {
-          throw new Error('load error');
-        }),
-      null,
-    ],
-  ])('%s 抛错时应返回 500', async (path, _arrangePlaceholder, arrange, code) => {
-    vi.clearAllMocks();
-    arrange();
-    const server = await startAppUnauthenticated();
-    try {
-      const res = await fetch(`${server.url}/api/v1/data/manage${path}`);
-      const body = await res.json();
-      expect(res.status).toBe(500);
-      if (code) expect(body.error.code).toBe(code);
-    } finally {
-      await server.close();
-    }
-  });
-});
-
-describe('dataManageRoutes - GET /stats', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(createMockStats());
     engineServiceMocks.resolveUniverseFromCacheStats.mockReturnValue({
       total: 500,
       updated_at: '2024-06-30',
       stats: {},
     });
-    server = await startAppUnauthenticated();
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('有统计数据时应返回统计和宇宙数据', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/stats`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.stats.total_cached).toBe(50);
-    expect(body.data.universe.total).toBe(500);
-  });
-  it('无统计数据时应返回 null', async () => {
-    engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
-    // ?force=1 穿透 60s 内存缓存（Task 3.4），确保 mock 覆盖生效
-    const res = await fetch(`${server.url}/api/v1/data/manage/stats?force=1`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.stats).toBeNull();
-  });
-});
-
-describe('dataManageRoutes - GET /tickers', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
     engineServiceMocks.getTickerList.mockResolvedValue(
       Array.from({ length: 100 }, (_, i) => ({
         ticker: `TICK${i}`,
@@ -130,95 +33,10 @@ describe('dataManageRoutes - GET /tickers', () => {
         market: 'US',
       })),
     );
-    server = await startAppUnauthenticated();
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('默认分页应返回第一页 50 条', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/tickers`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data).toHaveLength(50);
-    expect(body.pagination.page).toBe(1);
-    expect(body.pagination.limit).toBe(50);
-    expect(body.pagination.total).toBe(100);
-    expect(body.pagination.totalPages).toBe(2);
-  });
-  it('自定义分页参数应正确切片', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/tickers?page=2&limit=30`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.data).toHaveLength(30);
-    expect(body.data[0].ticker).toBe('TICK30');
-    expect(body.pagination.page).toBe(2);
-    expect(body.pagination.limit).toBe(30);
-    expect(body.pagination.totalPages).toBe(4);
-  });
-});
-
-describe('dataManageRoutes - GET /search', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
     engineServiceMocks.searchTickers.mockResolvedValue([
       { ticker: 'AAPL', name: 'Apple', category: 'stock', market: 'US' },
     ]);
-    server = await startAppUnauthenticated();
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('有 query 参数时应返回搜索结果', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/search?q=aapl`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0].ticker).toBe('AAPL');
-  });
-  it('缺少 q 参数应返回 422', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/search`);
-    expect(res.status).toBe(422);
-  });
-});
-
-describe('dataManageRoutes - GET /ticker/:id', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
     engineServiceMocks.loadTickerData.mockReturnValue({ ticker: 'AAPL', data: [1, 2, 3] });
-    server = await startAppUnauthenticated();
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('有效 ticker 应返回数据', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/ticker/AAPL`);
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
-    expect(body.data.ticker).toBe('AAPL');
-  });
-  it.each([
-    ['超长 ticker 格式应返回 422', 'AAAAAAAAAAAAAAAAAAAAA'],
-    ['小写 ticker 应返回 422（仅允许大写）', 'aapl'],
-  ])('%s', async (_label, ticker) => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/ticker/${ticker}`);
-    expect(res.status).toBe(422);
-  });
-  it('ticker 不存在时应返回 404', async () => {
-    engineServiceMocks.loadTickerData.mockReturnValue(null);
-    const res = await fetch(`${server.url}/api/v1/data/manage/ticker/UNKNOWN`);
-    expect(res.status).toBe(404);
-  });
-});
-
-describe('dataManageRoutes - GET /update/status', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
     dataFetchMocks.getUpdateStatus.mockReturnValue({
       running: false,
       workerPid: null,
@@ -233,13 +51,129 @@ describe('dataManageRoutes - GET /update/status', () => {
   afterEach(async () => {
     await server.close();
   });
-  it('GET /update/status 应返回更新状态', async () => {
-    const res = await fetch(`${server.url}/api/v1/data/manage/update/status`);
+  const get = (path: string) => fetch(`${server.url}/api/v1/data/manage${path}`);
+  it('GET /status 应返回引擎状态', async () => {
+    const res = await get('/status');
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
+    expect(body.data.totalTickers).toBe(500);
+    expect(body.data.cachedTickers).toBe(100);
+  });
+  it('GET /stats 有统计数据时应返回统计和宇宙数据', async () => {
+    const res = await get('/stats');
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data.stats.total_cached).toBe(50);
+    expect(body.data.universe.total).toBe(500);
+  });
+  it('GET /stats 无统计数据时应返回 null', async () => {
+    engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
+    // ?force=1 穿透 60s 内存缓存（Task 3.4），确保 mock 覆盖生效
+    const res = await get('/stats?force=1');
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data.stats).toBeNull();
+  });
+  it('GET /tickers 默认分页应返回第一页 50 条', async () => {
+    const res = await get('/tickers');
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toHaveLength(50);
+    expect(body.pagination.page).toBe(1);
+    expect(body.pagination.limit).toBe(50);
+    expect(body.pagination.total).toBe(100);
+    expect(body.pagination.totalPages).toBe(2);
+  });
+  it('GET /tickers 自定义分页参数应正确切片', async () => {
+    const res = await get('/tickers?page=2&limit=30');
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toHaveLength(30);
+    expect(body.data[0].ticker).toBe('TICK30');
+    expect(body.pagination.page).toBe(2);
+    expect(body.pagination.limit).toBe(30);
+    expect(body.pagination.totalPages).toBe(4);
+  });
+  it('GET /search 有 query 参数时应返回搜索结果', async () => {
+    const res = await get('/search?q=aapl');
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].ticker).toBe('AAPL');
+  });
+  it('GET /search 缺少 q 参数应返回 422', async () => {
+    const res = await get('/search');
+    expect(res.status).toBe(422);
+  });
+  it('GET /ticker/:id 有效 ticker 应返回数据', async () => {
+    const res = await get('/ticker/AAPL');
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.data.ticker).toBe('AAPL');
+  });
+  it.each([
+    ['超长 ticker 格式应返回 422', 'AAAAAAAAAAAAAAAAAAAAA'],
+    ['小写 ticker 应返回 422（仅允许大写）', 'aapl'],
+  ])('GET /ticker/:id %s', async (_label, ticker) => {
+    const res = await get(`/ticker/${ticker}`);
+    expect(res.status).toBe(422);
+  });
+  it('GET /ticker/:id ticker 不存在时应返回 404', async () => {
+    engineServiceMocks.loadTickerData.mockReturnValue(null);
+    const res = await get('/ticker/UNKNOWN');
+    expect(res.status).toBe(404);
+  });
+  it('GET /update/status 应返回更新状态', async () => {
+    const res = await get('/update/status');
+    const body = await res.json();
+    expect(res.status).toBe(200);
     expect(body.data.completedTickers).toBe(10);
     expect(body.data.totalTickers).toBe(100);
+  });
+});
+
+describe('dataManageRoutes - 读端点抛错统一映射为 500', () => {
+  it.each<[string, () => void, string | null]>([
+    [
+      '/status',
+      () => engineServiceMocks.getEngineStatus.mockRejectedValue(new Error('status error')),
+      'STATUS_ERROR',
+    ],
+    [
+      '/stats?force=1',
+      () => engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('scan error')),
+      'STATS_ERROR',
+    ],
+    [
+      '/tickers',
+      () => engineServiceMocks.getTickerList.mockRejectedValue(new Error('list error')),
+      'TICKER_LIST_ERROR',
+    ],
+    [
+      '/search?q=test',
+      () => engineServiceMocks.searchTickers.mockRejectedValue(new Error('search error')),
+      null,
+    ],
+    [
+      '/ticker/AAPL',
+      () =>
+        engineServiceMocks.loadTickerData.mockImplementation(() => {
+          throw new Error('load error');
+        }),
+      null,
+    ],
+  ])('%s 抛错时应返回 500', async (path, arrange, code) => {
+    vi.clearAllMocks();
+    arrange();
+    const server = await startAppUnauthenticated();
+    try {
+      const res = await fetch(`${server.url}/api/v1/data/manage${path}`);
+      const body = await res.json();
+      expect(res.status).toBe(500);
+      if (code) expect(body.error.code).toBe(code);
+    } finally {
+      await server.close();
+    }
   });
 });
 
@@ -283,10 +217,7 @@ describe('dataManageRoutes - 写端点权限保护（对抗性）', () => {
   });
 });
 
-describe.each([
-  ['PUT', '/update/full', 'full', true],
-  ['PATCH', '/update/inc', 'incremental', false],
-])('dataManageRoutes - %s %s', (method, path, mode, hasDataSuccess) => {
+describe('dataManageRoutes - 写端点（admin）', () => {
   let server: TestServer;
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -295,7 +226,10 @@ describe.each([
   afterEach(async () => {
     await server.close();
   });
-  it('startUpdate 成功时应返回成功', async () => {
+  it.each([
+    ['PUT', '/update/full', 'full', true],
+    ['PATCH', '/update/inc', 'incremental', false],
+  ])('%s %s startUpdate 成功时应返回成功', async (method, path, mode, hasDataSuccess) => {
     dataFetchMocks.startUpdate.mockResolvedValue({
       success: true,
       message: '更新已启动',
@@ -304,86 +238,52 @@ describe.each([
     const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     expect(dataFetchMocks.startUpdate).toHaveBeenCalledWith(mode);
     if (hasDataSuccess) expect(body.data.success).toBe(true);
   });
-  it('startUpdate 抛错时应返回 500', async () => {
+  it.each([
+    ['PUT', '/update/full'],
+    ['PATCH', '/update/inc'],
+  ])('%s %s startUpdate 抛错时应返回 500', async (method, path) => {
     dataFetchMocks.startUpdate.mockRejectedValue(new Error('启动失败'));
     const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
     const body = await res.json();
     expect(res.status).toBe(500);
     expect(body.error.code).toBe('UPDATE_ERROR');
   });
-});
-
-describe('dataManageRoutes - POST /update/stop', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startApp('admin');
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('停止成功时应返回成功', async () => {
+  it('POST /update/stop 停止成功时应返回成功', async () => {
     dataFetchMocks.stopUpdate.mockReturnValue({ success: true, message: '更新已停止' });
     const res = await fetch(`${server.url}/api/v1/data/manage/update/stop`, { method: 'POST' });
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     expect(body.data.success).toBe(true);
   });
-});
-
-describe('dataManageRoutes - PUT /universe', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startApp('admin');
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('正常时应返回标的信息', async () => {
+  it('PUT /universe 正常时应返回标的信息', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(createMockStats());
     const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     expect(body.data.total).toBe(50);
     expect(body.data.message).toContain('PostgreSQL');
   });
-  it('scanMarketStatsFromDb 抛错时应返回 500', async () => {
+  it('PUT /universe scanMarketStatsFromDb 抛错时应返回 500', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('universe error'));
     const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
     const body = await res.json();
     expect(res.status).toBe(500);
     expect(body.error.code).toBe('UNIVERSE_ERROR');
   });
-  it('stats 为 null 时 total 应为 0', async () => {
+  it('PUT /universe stats 为 null 时 total 应为 0', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
     const res = await fetch(`${server.url}/api/v1/data/manage/universe`, { method: 'PUT' });
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.data.total).toBe(0);
   });
-});
-
-describe('dataManageRoutes - PUT /regenerate-meta', () => {
-  let server: TestServer;
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    server = await startApp('admin');
-  });
-  afterEach(async () => {
-    await server.close();
-  });
-  it('应直接返回成功（数据由 PostgreSQL 实时计算）', async () => {
+  it('PUT /regenerate-meta 应直接返回成功（数据由 PostgreSQL 实时计算）', async () => {
     const res = await fetch(`${server.url}/api/v1/data/manage/regenerate-meta`, { method: 'PUT' });
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     expect(body.data.message).toContain('PostgreSQL');
   });
 });

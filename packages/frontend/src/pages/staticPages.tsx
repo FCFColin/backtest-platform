@@ -17,9 +17,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
-import { Button } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
-import { Badge } from '@/components/ui/uiComponents';
+import { Badge, Button, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { StaticPageShell } from '@/components/layout/StaticPageShell.js';
 import { useToastStore } from '@/store/toastStore';
@@ -329,14 +327,13 @@ export function ChangelogPage() {
   );
 }
 
+const CONTACT_LINK_CLS =
+  'flex items-center gap-3 rounded-xl border border-border bg-input-bg p-4 no-underline text-fg-secondary transition-colors hover:border-border-strong';
 function ContactLinks({ onGithubClick }: { onGithubClick: () => void }) {
   const { t } = useTranslation();
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <a
-        href="mailto:support@example.com"
-        className="flex items-center gap-3 rounded-xl border border-border bg-input-bg p-4 no-underline text-fg-secondary transition-colors hover:border-border-strong"
-      >
+      <a href="mailto:support@example.com" className={CONTACT_LINK_CLS}>
         <Mail className="size-5 text-brand" />
         <div>
           <div className="text-body font-semibold">{t('contact.emailSupportTitle')}</div>
@@ -349,7 +346,7 @@ function ContactLinks({ onGithubClick }: { onGithubClick: () => void }) {
           e.preventDefault();
           onGithubClick();
         }}
-        className="flex items-center gap-3 rounded-xl border border-border bg-input-bg p-4 no-underline text-fg-secondary transition-colors hover:border-border-strong"
+        className={CONTACT_LINK_CLS}
       >
         <Github className="size-5 text-brand" />
         <div>

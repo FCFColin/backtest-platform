@@ -42,7 +42,7 @@ const topLevelPayload = () => ({
 });
 
 describe('extractApiErrorDetail', () => {
-  it.each<[string, unknown, string | null]>([
+  it.each<[string, unknown, string]>([
     ['returns detail field when present', { detail: 'invalid ticker' }, 'invalid ticker'],
     [
       'detail takes priority over error field',
@@ -59,19 +59,19 @@ describe('extractApiErrorDetail', () => {
       { error: { detail: 'nested detail' } },
       'nested detail',
     ],
-    ['returns default for null', null, null],
-    ['returns default for undefined', undefined, null],
-    ['returns default for primitive string', 'hello', null],
-    ['returns default for number', 42, null],
-    ['returns default for empty object', {}, null],
   ])('%s', (_n, input, expected) => {
+    expect(extractApiErrorDetail(input)).toBe(expected);
+  });
+  it.each<[string, unknown]>([
+    ['null', null],
+    ['undefined', undefined],
+    ['primitive string', 'hello'],
+    ['number', 42],
+    ['empty object', {}],
+  ])('returns default for %s', (_n, input) => {
     const result = extractApiErrorDetail(input);
-    if (expected === null) {
-      expect(typeof result).toBe('string');
-      expect(result.length).toBeGreaterThan(0);
-    } else {
-      expect(result).toBe(expected);
-    }
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
   });
 });
 describe('setHasLoadedFromShare / setResults / setActiveTab / getShareableState', () => {

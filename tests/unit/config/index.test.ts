@@ -7,18 +7,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { mockLogger } from '../../helpers/mockFactories.js';
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: loggerMocks,
 }));
 // Mock dotenv 避免 .env 干扰
 vi.mock('dotenv', () => ({
@@ -114,82 +106,44 @@ describe('validateConfig - 生产环境（严格校验）', () => {
   });
   afterEach(() => restore());
 
-  it.each<[string, () => void, string]>([
-    [
-      '默认 JWT_SECRET',
-      () => {
-        config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
-      },
-      'JWT_SECRET',
-    ],
-    [
-      '默认 ENGINE_AUTH_TOKEN',
-      () => {
-        config.ENGINE_AUTH_TOKEN = 'dev-engine-auth-token';
-      },
-      'ENGINE_AUTH_TOKEN',
-    ],
-    [
-      'ENGINE_AUTH_TOKEN 为空',
-      () => {
-        config.ENGINE_AUTH_TOKEN = '';
-      },
-      'ENGINE_AUTH_TOKEN',
-    ],
+  it.each<[string, Record<string, unknown>, string]>([
+    ['默认 JWT_SECRET', { JWT_SECRET: 'dev-only-jwt-secret-change-in-production' }, 'JWT_SECRET'],
+    ['默认 ENGINE_AUTH_TOKEN', { ENGINE_AUTH_TOKEN: 'dev-engine-auth-token' }, 'ENGINE_AUTH_TOKEN'],
+    ['ENGINE_AUTH_TOKEN 为空', { ENGINE_AUTH_TOKEN: '' }, 'ENGINE_AUTH_TOKEN'],
     [
       '默认 DATA_SERVICE_AUTH_TOKEN',
-      () => {
-        config.DATA_SERVICE_AUTH_TOKEN = 'dev-data-service-auth-token';
-      },
+      { DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token' },
       'DATA_SERVICE_AUTH_TOKEN',
     ],
     [
       'RS256 缺 PRIVATE_KEY',
-      () => {
-        config.JWT_ALGORITHM = 'RS256';
-        config.JWT_PRIVATE_KEY = '';
-        config.JWT_PRIVATE_KEY_FILE = '';
-      },
+      { JWT_ALGORITHM: 'RS256', JWT_PRIVATE_KEY: '', JWT_PRIVATE_KEY_FILE: '' },
       'JWT_PRIVATE_KEY',
     ],
     [
       'RS256 缺 PUBLIC_KEY',
-      () => {
-        config.JWT_ALGORITHM = 'RS256';
-        config.JWT_PRIVATE_KEY = 'fake-private-key';
-        config.JWT_PUBLIC_KEY = '';
-        config.JWT_PUBLIC_KEY_FILE = '';
+      {
+        JWT_ALGORITHM: 'RS256',
+        JWT_PRIVATE_KEY: 'fake-private-key',
+        JWT_PUBLIC_KEY: '',
+        JWT_PUBLIC_KEY_FILE: '',
       },
       'JWT_PUBLIC_KEY',
     ],
-    [
-      'TRUST_PROXY_HOPS 为负数',
-      () => {
-        (config as Record<string, unknown>).TRUST_PROXY_HOPS = -1;
-      },
-      'TRUST_PROXY_HOPS',
-    ],
+    ['TRUST_PROXY_HOPS 为负数', { TRUST_PROXY_HOPS: -1 }, 'TRUST_PROXY_HOPS'],
     [
       'EMAIL_TRANSPORT=smtp 未设置 EMAIL_SMTP_HOST',
-      () => {
-        config.EMAIL_TRANSPORT = 'smtp';
-        config.EMAIL_SMTP_HOST = '';
-      },
+      { EMAIL_TRANSPORT: 'smtp', EMAIL_SMTP_HOST: '' },
       'EMAIL_SMTP_HOST',
     ],
-  ])('%s 应抛错', (_n, mutate, code) => {
-    mutate();
+  ])('%s 应抛错', (_n, patch, code) => {
+    Object.assign(config, patch);
     expect(() => validateConfig()).toThrow(code);
   });
 
-  it('DATABASE_URL 未通过环境变量设置应抛错', () => {
-    delete process.env.DATABASE_URL;
-    expect(() => validateConfig()).toThrow('DATABASE_URL');
-  });
-
-  it('生产环境未设置 TRUST_PROXY_HOPS 应抛错', () => {
-    delete process.env.TRUST_PROXY_HOPS;
-    expect(() => validateConfig()).toThrow('TRUST_PROXY_HOPS');
+  it.each(['DATABASE_URL', 'TRUST_PROXY_HOPS'])('%s 未通过环境变量设置应抛错', (key) => {
+    delete process.env[key];
+    expect(() => validateConfig()).toThrow(key);
   });
 
   it('所有配置正确时不应抛错', () => {
@@ -299,39 +253,27 @@ describe('P0-02: assertNoDefaultSecrets — 默认密钥启动拦截', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('开发环境 + 默认密钥 → 不退出（允许开发环境使用默认值）', () => {
-    process.env.NODE_ENV = 'development';
-    const config = {
-      JWT_SECRET: 'dev-only-jwt-secret-change-in-production',
-      ENGINE_AUTH_TOKEN: 'dev-engine-auth-token',
-      DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token',
-    };
+  it.each<[string, string | undefined, boolean]>([
+    ['开发环境 + 默认密钥 → 不退出（允许开发环境使用默认值）', 'development', false],
+    ['生产环境 + 全部非默认密钥 → 不退出', 'production', true],
+    ['NODE_ENV 未设置 → 不检查（等同非生产环境）', undefined, false],
+  ])('%s', (_n, nodeEnv, strongSecrets) => {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+    const config = strongSecrets
+      ? {
+          JWT_SECRET: 'a-super-strong-jwt-secret-for-production',
+          ENGINE_AUTH_TOKEN: 'a-super-strong-engine-token',
+          DATA_SERVICE_AUTH_TOKEN: 'a-super-strong-data-service-token',
+        }
+      : {
+          JWT_SECRET: 'dev-only-jwt-secret-change-in-production',
+          ENGINE_AUTH_TOKEN: 'dev-engine-auth-token',
+          DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token',
+        };
     assertNoDefaultSecrets(config);
     expect(exitSpy).not.toHaveBeenCalled();
-    expect(errorSpy).not.toHaveBeenCalled();
-  });
-
-  it('生产环境 + 全部非默认密钥 → 不退出', () => {
-    process.env.NODE_ENV = 'production';
-    const config = {
-      JWT_SECRET: 'a-super-strong-jwt-secret-for-production',
-      ENGINE_AUTH_TOKEN: 'a-super-strong-engine-token',
-      DATA_SERVICE_AUTH_TOKEN: 'a-super-strong-data-service-token',
-    };
-    assertNoDefaultSecrets(config);
-    expect(exitSpy).not.toHaveBeenCalled();
-    expect(errorSpy).not.toHaveBeenCalled();
-  });
-
-  it('NODE_ENV 未设置 → 不检查（等同非生产环境）', () => {
-    delete process.env.NODE_ENV;
-    const config = {
-      JWT_SECRET: 'dev-only-jwt-secret-change-in-production',
-      ENGINE_AUTH_TOKEN: 'dev-engine-auth-token',
-      DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token',
-    };
-    assertNoDefaultSecrets(config);
-    expect(exitSpy).not.toHaveBeenCalled();
+    if (strongSecrets || nodeEnv === 'development') expect(errorSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -347,13 +289,11 @@ describe('H-006: requireSecret — secret 缺失时 throw', () => {
     else process.env.TEST_SECRET_H006 = originalEnv.TEST_SECRET_H006;
   });
 
-  it('env var 缺失时 throw 包含变量名', () => {
-    delete process.env.TEST_SECRET_H006;
-    expect(() => requireSecret('TEST_SECRET_H006')).toThrow('TEST_SECRET_H006');
-  });
-
-  it('env var 为空字符串时 throw', () => {
-    process.env.TEST_SECRET_H006 = '';
+  it.each([
+    ['env var 缺失时 throw 包含变量名', () => delete process.env.TEST_SECRET_H006],
+    ['env var 为空字符串时 throw', () => void (process.env.TEST_SECRET_H006 = '')],
+  ])('%s', (_n, mutate) => {
+    mutate();
     expect(() => requireSecret('TEST_SECRET_H006')).toThrow('TEST_SECRET_H006');
   });
 
@@ -373,17 +313,10 @@ describe('H-006: env.ts 源码不含硬编码默认值（authConfig + engineConf
     expect(envSource).not.toContain("|| 'dev-");
   });
 
-  it('env.ts 使用 requireSecret 获取 JWT_SECRET', () => {
-    expect(envSource).toContain("requireSecret('JWT_SECRET')");
-  });
-
-  it('env.ts 使用 requireSecret 获取 ENGINE_AUTH_TOKEN', () => {
-    expect(envSource).toContain("requireSecret('ENGINE_AUTH_TOKEN')");
-  });
-
-  it('env.ts 使用 requireSecret 获取 DATA_SERVICE_AUTH_TOKEN', () => {
-    expect(envSource).toContain("requireSecret('DATA_SERVICE_AUTH_TOKEN')");
-  });
+  it.each(['JWT_SECRET', 'ENGINE_AUTH_TOKEN', 'DATA_SERVICE_AUTH_TOKEN'])(
+    'env.ts 使用 requireSecret 获取 %s',
+    (key) => expect(envSource).toContain(`requireSecret('${key}')`),
+  );
 });
 
 describe('H-006: 模块导入 — 三个生产 secret 同时设置时可正常解析', () => {

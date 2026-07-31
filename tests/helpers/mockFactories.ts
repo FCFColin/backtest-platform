@@ -1,4 +1,3 @@
-
 import { vi } from 'vitest';
 import type { PoolClient } from 'pg';
 
@@ -11,10 +10,7 @@ interface LoggerMocks {
 }
 
 /**
- * 创建 logger mock 方法集合（vi.hoisted 安全）
- *
- * 必须在 vi.mock 调用前使用，确保 mock 引用在工厂执行前已绑定。
- *
+ * 创建 logger mock 方法集合（vi.hoisted 安全；须在 vi.mock 调用前使用）。
  * @returns 包含 info/warn/error/debug/child 方法的 mock 对象
  */
 export function createLoggerMocks(): LoggerMocks {
@@ -32,12 +28,7 @@ export function createLoggerMocks(): LoggerMocks {
   };
 }
 
-/**
- * 根据 LoggerMocks 构造 logger mock 对象（供 vi.mock 工厂使用）
- *
- * @param mocks - createLoggerMocks() 的返回值
- * @returns 可直接用于 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: ... })) 的对象
- */
+/** 由 createLoggerMocks() 的返回值构造 vi.mock 工厂可用的 logger 对象。 */
 export function mockLogger(mocks: LoggerMocks) {
   return {
     info: mocks.info,
@@ -49,12 +40,7 @@ export function mockLogger(mocks: LoggerMocks) {
 }
 
 /**
- * 创建 config mock 对象（vi.hoisted 安全）
- *
- * 企业理由：17 个测试文件重复定义相同的 config mock 对象（每个文件覆写 1-10 个属性），
- * 新增配置项时需逐文件修改，易遗漏。本工厂集中维护完整 config 默认值，
- * 测试文件只需覆写关心的属性即可。
- *
+ * 创建 config mock 对象（vi.hoisted 安全）。集中维护完整 config 默认值，测试文件只需覆写关心的属性。
  * @param overrides - 要覆写的配置属性（支持全部 config 属性）
  * @returns 完整的 config mock 对象
  */
@@ -133,20 +119,9 @@ interface RedisMocksOptions {
 }
 
 /**
- * 创建 Redis 客户端 mock（appRedis）
- *
- * 工厂在 vi.mock 工厂内调用，通过 target 参数将属性写入 vi.hoisted 创建的占位对象，
- * 使得测试代码可在 top-level 直接引用 redisMocks.useMemoryFallback() 等方法。
- *
- * 用法：
- *   import { createRedisMocks } from '../helpers/mockFactories.js';
- *   const redisMocks = vi.hoisted(() => ({}) as Record<string, unknown>);
- *   vi.mock('.../redisClient.js', () => ({
- *     redisConnection: {},
- *     appRedis: createRedisMocks({ withStore: true, withSets: true, withMemoryHelpers: true }, redisMocks),
- *   }));
- *
- * @param opts - 配置选项，控制包含哪些方法与辅助函数
+ * 创建 Redis 客户端 mock（appRedis）。在 vi.mock 工厂内调用，通过 target 参数将属性写入
+ * vi.hoisted 创建的占位对象，使测试代码可在 top-level 直接引用 useMemoryFallback() 等方法。
+ * @param opts - 控制包含哪些方法与辅助函数
  * @param target - 可选的目标对象（通常为 vi.hoisted 创建的空对象）；不传则新建
  * @returns Redis mock 对象（与 target 同一引用）
  */
@@ -208,16 +183,14 @@ export function createRedisMocks(
   }
 
   if (withMemoryHelpers) {
+    const reject = (key: string, err: Error) =>
+      (target[key] as ReturnType<typeof vi.fn>).mockRejectedValue(err);
     target.useMemoryFallback = () => {
       (target.resetStore as () => void | undefined)?.();
       const err = new Error(memoryFallbackErrorMessage);
-      (target.ping as ReturnType<typeof vi.fn>).mockRejectedValue(err);
-      (target.get as ReturnType<typeof vi.fn>).mockRejectedValue(err);
-      (target.set as ReturnType<typeof vi.fn>).mockRejectedValue(err);
-      (target.del as ReturnType<typeof vi.fn>).mockRejectedValue(err);
-      if (target.sadd) (target.sadd as ReturnType<typeof vi.fn>).mockRejectedValue(err);
-      if (target.smembers) (target.smembers as ReturnType<typeof vi.fn>).mockRejectedValue(err);
-      (target.expire as ReturnType<typeof vi.fn>).mockRejectedValue(err);
+      for (const k of ['ping', 'get', 'set', 'del', 'expire']) reject(k, err);
+      if (target.sadd) reject('sadd', err);
+      if (target.smembers) reject('smembers', err);
       if (target.emit) (target.emit as (e: string, ...a: unknown[]) => void)('error');
     };
     target.useRedisSuccess = () => {
@@ -260,13 +233,8 @@ export function createRedisMocks(
 }
 
 /**
- * 创建 Redis 模块完整 mock（appRedis + getRedisHealth + markRedisUnhealthy）
- *
- * 企业理由：redisClient.ts 合并了 redisHealth.ts 后，getRedisHealth/markRedisUnhealthy
- * 成为模块级导出。测试 mock 须包含这两个函数。getRedisHealth 通过调用 appRedis.ping()
- * 动态返回健康状态，与 createRedisMocks 的 useRedisSuccess/useMemoryFallback 联动——
- * 无需额外维护独立的 health 布尔标志。
- *
+ * 创建 Redis 模块完整 mock（appRedis + getRedisHealth + markRedisUnhealthy）。
+ * getRedisHealth 通过调用 appRedis.ping() 动态返回健康状态，与 useRedisSuccess/useMemoryFallback 联动。
  * @param opts - RedisMocksOptions，控制 appRedis mock 行为
  * @param target - vi.hoisted 创建的占位对象，供测试代码引用 useRedisSuccess 等
  * @returns 完整的 redisClient 模块 mock 对象（含 redisConnection/appRedis/getRedisHealth/markRedisUnhealthy）
@@ -304,8 +272,7 @@ export interface JwtAuthConfigMocks {
 }
 
 /**
- * 创建 jwtAuth 测试专用 config mock
- *
+ * 创建 jwtAuth 测试专用 config mock。
  * @param overrides - 覆盖默认字段（如 { JWT_ALGORITHM: 'RS256', NODE_ENV: 'development' }）
  * @returns 完整的 JwtAuthConfigMocks 对象
  */

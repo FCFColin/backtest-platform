@@ -130,27 +130,35 @@ func calcPathMetrics(path []float64, startingValue float64, years float64) PathM
 	}
 	return PathMetrics{FinalValue: finalValue, CAGR: cagr, MaxDrawdown: maxDD, Volatility: vol, Sharpe: sharpe, Sortino: mcSortino(dailyRets, cagr)}
 }
+
+// finalValues 提取每条路径的期末值（分布/统计/代表路径三处共用）
+func finalValues(paths [][]float64) []float64 {
+	vals := make([]float64, len(paths))
+	for i, p := range paths {
+		vals[i] = p[len(p)-1]
+	}
+	return vals
+}
 func computeMCStatistics(paths [][]float64, threshold float64, startingValue float64) MCStatistics {
 	if len(paths) == 0 {
 		return MCStatistics{}
 	}
-	finalValues := make([]float64, len(paths))
+	finalValuesList := finalValues(paths)
 	target := startingValue * threshold
 	successCount := 0
-	for i, path := range paths {
-		finalValues[i] = path[len(path)-1]
-		if finalValues[i] >= target {
+	for _, v := range finalValuesList {
+		if v >= target {
 			successCount++
 		}
 	}
-	slices.Sort(finalValues)
-	n := len(finalValues)
+	slices.Sort(finalValuesList)
+	n := len(finalValuesList)
 	medianIdx := n / 2
-	medianVal := finalValues[medianIdx]
+	medianVal := finalValuesList[medianIdx]
 	if n%2 == 0 && medianIdx > 0 {
-		medianVal = (finalValues[medianIdx-1] + finalValues[medianIdx]) / 2
+		medianVal = (finalValuesList[medianIdx-1] + finalValuesList[medianIdx]) / 2
 	}
-	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: mathutil.Mean(finalValues), SuccessRate: float64(successCount) / float64(n)}
+	return MCStatistics{MedianFinalValue: medianVal, MeanFinalValue: mathutil.Mean(finalValuesList), SuccessRate: float64(successCount) / float64(n)}
 }
 func mcSortino(dailyRets []float64, cagr float64) float64 {
 	dailyRF := mcRiskFreeRate / float64(mcTradingDays)
@@ -326,11 +334,7 @@ func computeFinalDistribution(paths [][]float64) []float64 {
 	if len(paths) == 0 {
 		return nil
 	}
-	finalValues := make([]float64, len(paths))
-	for i, path := range paths {
-		finalValues[i] = path[len(path)-1]
-	}
-	counts, minVal, maxVal := mathutil.Histogram(finalValues, mcHistogramBins)
+	counts, minVal, maxVal := mathutil.Histogram(finalValues(paths), mcHistogramBins)
 	result := make([]float64, len(counts))
 	if maxVal == minVal {
 		result[len(counts)/2] = float64(len(paths))
@@ -349,9 +353,10 @@ func computeRepresentativePaths(paths [][]float64, totalDays int) MCRepresentati
 		idx        int
 		finalValue float64
 	}
+	finalVals := finalValues(paths)
 	sorted := make([]pathIndex, len(paths))
-	for i, path := range paths {
-		sorted[i] = pathIndex{idx: i, finalValue: path[len(path)-1]}
+	for i, v := range finalVals {
+		sorted[i] = pathIndex{idx: i, finalValue: v}
 	}
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].finalValue < sorted[j].finalValue })
 	n := len(sorted)

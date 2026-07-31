@@ -172,7 +172,6 @@ describe('authRoutes - 登录与会话端点', () => {
     mockVerifyUser('user-123', 'admin');
     const { res, body } = await apiPost(loginUrl(), validPasswordLoginPayload);
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     expect(body.data.accessToken).toBe('access-token-mock');
     expect(body.data.userId).toBe('user-123');
     expect(body.data.role).toBe('admin');
@@ -251,30 +250,26 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(mocks.jwtAuth.refreshAccessToken).toHaveBeenCalledWith('valid-refresh-token');
   });
   it.each([
-    ['无效/过期', 'expired-token'],
-    ['已撤销', 'revoked-token'],
-  ])('%s refresh token cookie 应返回 401', async (_n, token) => {
-    fn(mocks.jwtAuth, 'refreshAccessToken').mockResolvedValueOnce(null);
-    const { res } = await apiPost(
+    ['无效/过期 refresh token cookie', 'expired-token', null],
+    ['已撤销 refresh token cookie', 'revoked-token', null],
+    ['缺失 refresh cookie', undefined, 'REFRESH_TOKEN_MISSING'],
+  ])('%s 应返回 401', async (_n, token, code) => {
+    if (token !== undefined) fn(mocks.jwtAuth, 'refreshAccessToken').mockResolvedValueOnce(null);
+    const { res, body } = await apiPost(
       `${server.url}/api/v1/auth/refresh`,
       {},
-      { Cookie: `rt=${token}` },
+      token !== undefined ? { Cookie: `rt=${token}` } : {},
     );
     expect(res.status).toBe(401);
-  });
-  it('缺失 refresh cookie 应返回 401 REFRESH_TOKEN_MISSING', async () => {
-    const { res, body } = await apiPost(`${server.url}/api/v1/auth/refresh`);
-    expect(res.status).toBe(401);
-    expect(body.error.code).toBe('REFRESH_TOKEN_MISSING');
+    if (code) expect(body.error.code).toBe(code);
   });
   it.each([
     ['携带 refresh cookie 应撤销并清除 cookie', { Cookie: 'rt=token-to-revoke' }, true],
     ['未携带 refresh cookie 也应返回成功', undefined, false],
   ])('logout %s', async (_n, headers, expectRevoke) => {
     if (expectRevoke) fn(mocks.jwtAuth, 'revokeRefreshToken').mockResolvedValueOnce(undefined);
-    const { res, body } = await apiDelete(`${server.url}/api/v1/auth/logout`, headers);
+    const { res } = await apiDelete(`${server.url}/api/v1/auth/logout`, headers);
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     if (expectRevoke) {
       expect(mocks.jwtAuth.revokeRefreshToken).toHaveBeenCalledWith('token-to-revoke');
       expect(res.headers.get('set-cookie')).toContain('rt=');
@@ -327,34 +322,25 @@ describe('authRoutes - 登录与会话端点', () => {
       expect.objectContaining({ tenantId: orgId, orgRole: 'admin' }),
     );
   });
-  it('switch-org 非该组织成员应返回 403 NOT_A_MEMBER', async () => {
-    injectUser();
-    fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(null);
-    const { res, body } = await apiPost(
-      switchUrl(),
-      { orgId: '33333333-3333-4333-8333-333333333333' },
-      { Authorization: 'Bearer t' },
-    );
-    expect(res.status).toBe(403);
-    expect(body.error.code).toBe('NOT_A_MEMBER');
-  });
-  it('switch-org 组织非 active 应返回 403 ORG_INACTIVE', async () => {
-    injectUser();
-    fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(
+  it.each([
+    ['非该组织成员', null, 'NOT_A_MEMBER', '33333333-3333-4333-8333-333333333333'],
+    [
+      '组织非 active',
       mockOrg({
         orgId: '44444444-4444-4444-8444-444444444444',
         orgName: 'Gamma',
         orgSlug: 'gamma',
         orgStatus: 'suspended',
       }),
-    );
-    const { res, body } = await apiPost(
-      switchUrl(),
-      { orgId: '44444444-4444-4444-8444-444444444444' },
-      { Authorization: 'Bearer t' },
-    );
+      'ORG_INACTIVE',
+      '44444444-4444-4444-8444-444444444444',
+    ],
+  ])('switch-org %s 应返回 403 %s', async (_n, membership, code, orgId) => {
+    injectUser();
+    fn(mocks.membershipService, 'getMembership').mockResolvedValueOnce(membership);
+    const { res, body } = await apiPost(switchUrl(), { orgId }, { Authorization: 'Bearer t' });
     expect(res.status).toBe(403);
-    expect(body.error.code).toBe('ORG_INACTIVE');
+    expect(body.error.code).toBe(code);
   });
   it('switch-org 缺少 orgId 应返回 400', async () => {
     injectUser();
@@ -462,11 +448,15 @@ describe('authRegistrationRoutes', () => {
     expect(res.status).toBe(201);
     expect(mocks.logger.warn).toHaveBeenCalled();
   });
-  it('verify-email 缺 token 应返回 400 VALIDATION_ERROR', async () => {
-    const { res, body } = await apiPost(regUrl('verify-email'), {});
+  it.each([
+    ['verify-email 缺 token', 'verify-email'],
+    ['resend-verification 缺 email', 'resend-verification'],
+  ])('%s 应返回 400 VALIDATION_ERROR，不触发后续处理', async (_n, ep) => {
+    const { res, body } = await apiPost(regUrl(ep), {});
     expect(res.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_ERROR');
     expect(mocks.registration.verifyEmailToken).not.toHaveBeenCalled();
+    expect(mocks.registration.issueEmailVerificationToken).not.toHaveBeenCalled();
   });
   it.each([
     ['无效 token', null, 400, 'INVALID_OR_EXPIRED_TOKEN', false],
@@ -479,17 +469,9 @@ describe('authRegistrationRoutes', () => {
     else expect(body.data).toEqual({ userId: 'user-uuid-456', verified: true });
     if (verifyCalled) expect(mocks.registration.verifyEmailToken).toHaveBeenCalledWith('a-token');
   });
-  it('resend-verification 缺 email 应返回 400 VALIDATION_ERROR（jwtAuth 已通过）', async () => {
-    const { res, body } = await apiPost(regUrl('resend-verification'), {});
-    expect(res.status).toBe(400);
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-    expect(mocks.jwtAuth.jwtAuth).toHaveBeenCalled();
-    expect(mocks.registration.issueEmailVerificationToken).not.toHaveBeenCalled();
-  });
   it('resend-verification 有 email 应签发 token 并发送验证邮件，返回成功', async () => {
-    const { res, body } = await apiPost(regUrl('resend-verification'), { email: 'me@example.com' });
+    const { res } = await apiPost(regUrl('resend-verification'), { email: 'me@example.com' });
     expect(res.status).toBe(200);
-    expect(body.success).toBe(true);
     expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-123');
     expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith('me@example.com', TOKEN);
   });

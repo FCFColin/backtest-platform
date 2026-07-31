@@ -19,6 +19,9 @@
  *
  * VaR/CVaR 后缀数字表示置信水平（%），如 varDaily5 = 日频 95% VaR。
  */
+type VarLevel = 1 | 5 | 10;
+type HorizonStats = { daily: number; monthly: number; annual: number };
+type VaRByHorizon = { [H in 'daily' | 'monthly' | 'annual']: { [K in VarLevel]: number } };
 export interface Statistics {
   // 核心收益
   cagr: number;
@@ -91,63 +94,23 @@ export interface Statistics {
   informationRatio: number;
 
   // VaR / CVaR（不同时间维度 × 不同置信水平）
-  var: {
-    daily: { [K in 1 | 5 | 10]: number };
-    monthly: { [K in 1 | 5 | 10]: number };
-    annual: { [K in 1 | 5 | 10]: number };
-  };
-  cvar: {
-    daily: { [K in 1 | 5 | 10]: number };
-    monthly: { [K in 1 | 5 | 10]: number };
-    annual: { [K in 1 | 5 | 10]: number };
-  };
+  var: VaRByHorizon;
+  cvar: VaRByHorizon;
 
   // 扁平 VaR/CVaR 字段（兼容表格访问）
   var5?: number;
   cvar5?: number;
-  varDaily1?: number;
-  varDaily5?: number;
-  varDaily10?: number;
-  cvarDaily1?: number;
-  cvarDaily5?: number;
-  cvarDaily10?: number;
-  varMonthly1?: number;
-  varMonthly5?: number;
-  varMonthly10?: number;
-  cvarMonthly1?: number;
-  cvarMonthly5?: number;
-  cvarMonthly10?: number;
-  varAnnual1?: number;
-  varAnnual5?: number;
-  varAnnual10?: number;
-  cvarAnnual1?: number;
-  cvarAnnual5?: number;
-  cvarAnnual10?: number;
+  [P in `var${'Daily' | 'Monthly' | 'Annual'}${VarLevel}`]?: number;
+  [P in `cvar${'Daily' | 'Monthly' | 'Annual'}${VarLevel}`]?: number;
 
   // 分布特征（偏度和超额峰度）
-  skewness: {
-    daily: number;
-    monthly: number;
-    annual: number;
-  };
-  skewnessDaily?: number;
-  skewnessMonthly?: number;
-  skewnessAnnual?: number;
-  excessKurtosis: {
-    daily: number;
-    monthly: number;
-    annual: number;
-  };
-  excessKurtosisDaily?: number;
-  excessKurtosisMonthly?: number;
-  excessKurtosisAnnual?: number;
+  skewness: HorizonStats;
+  [P in `skewness${'Daily' | 'Monthly' | 'Annual'}`]?: number;
+  excessKurtosis: HorizonStats;
+  [P in `excessKurtosis${'Daily' | 'Monthly' | 'Annual'}`]?: number;
 
   // 正收益比例（按时间维度）
-  winRate: {
-    daily: number;
-    monthly: number;
-    annual: number;
-  };
+  winRate: HorizonStats;
   pctPositiveDays: number;
   pctPositiveMonths: number;
   pctPositiveYears: number;
@@ -197,8 +160,8 @@ export interface WithdrawalStats {
   perpetualRate: number;
 }
 
-const ZERO_VAR = { 1: 0, 5: 0, 10: 0 };
-const ZERO_SKEW = { daily: 0, monthly: 0, annual: 0 };
+const ZERO_VAR: { [K in VarLevel]: number } = { 1: 0, 5: 0, 10: 0 };
+const ZERO_SKEW: HorizonStats = { daily: 0, monthly: 0, annual: 0 };
 
 const ZERO_NUM_FIELDS = [
   'cagr',
@@ -286,12 +249,7 @@ const ZERO_NUM_FIELDS = [
 ] as const;
 
 /**
- * 创建零值 Statistics 骨架（T-24：消除重复的空统计对象字面量）。
- *
- * 企业为何需要：数据不足/计算失败时需返回一个全零的 Statistics 占位。此前该骨架在
- * 引擎多处以对象字面量重复书写，新增统计字段时极易漏改某一处导致类型不一致。集中为
- * 单一工厂后，字段演进只需改一处，编译器保证完整性。
- *
+ * 创建零值 Statistics 骨架（T-24：集中空对象字面量，字段演进只改一处，编译器保证完整性）。
  * @returns 所有必填指标置零的 Statistics 对象
  */
 export function createEmptyStatistics(): Statistics {
@@ -310,53 +268,32 @@ export function createEmptyStatistics(): Statistics {
 
 /**
  * 将 Statistics 转换为表格组件可消费的扁平 Record<string, number> 视图。
- *
- * 企业为何需要：Statistics 接口含嵌套对象字段（var/cvar/skewness/excessKurtosis/winRate）
- * 用于分组展示，但 StatisticsTableV2/ExtendedMetricsTable 仅按字符串 key 访问扁平数字
- * 字段（cagr/sharpe/etc.）。此前调用方在 BacktestResults.tsx 用 `as unknown as
- * Record<string, number>` 双重断言绕过类型系统（D6-013）。本 helper 集中类型断言到
- * 单一位置，便于审计与维护；调用方使用 `toStatsRecord(p.statistics)` 即可。
- *
- * 安全性论证：表格组件访问未知 key 时使用 `?? 0` 兜底，列定义仅包含扁平字段名
- * （如 'var5'/'cvar5'），永远不会访问嵌套对象字段（var/cvar 等），故运行时安全。
- *
+ * 表格组件仅按字符串 key 访问扁平字段（cagr/sharpe/var5 等，未知 key 用 ?? 0 兜底），
+ * 本 helper 把类型断言与嵌套→扁平填充集中到单一位置（替代 D6-013 的双重断言）。
  * @param stats - 完整 Statistics 对象（含嵌套对象字段）
  * @returns 表格组件可消费的扁平 Record<string, number> 视图
  */
 export function toStatsRecord(stats: Statistics): Record<string, number> {
   const record = stats as unknown as Record<string, number>;
   // 适配层：从嵌套结构填充扁平字段（兼容表格组件的字符串 key 访问）
+  const HORIZON_CAPS = [
+    ['daily', 'Daily'],
+    ['monthly', 'Monthly'],
+    ['annual', 'Annual'],
+  ] as const;
+  const LEVELS = [1, 5, 10] as const;
   if (stats.var) {
-    record.varDaily1 = stats.var.daily?.[1] ?? 0;
-    record.varDaily5 = stats.var.daily?.[5] ?? 0;
-    record.varDaily10 = stats.var.daily?.[10] ?? 0;
-    record.cvarDaily1 = stats.cvar?.daily?.[1] ?? 0;
-    record.cvarDaily5 = stats.cvar?.daily?.[5] ?? 0;
-    record.cvarDaily10 = stats.cvar?.daily?.[10] ?? 0;
-    record.varMonthly1 = stats.var.monthly?.[1] ?? 0;
-    record.varMonthly5 = stats.var.monthly?.[5] ?? 0;
-    record.varMonthly10 = stats.var.monthly?.[10] ?? 0;
-    record.cvarMonthly1 = stats.cvar?.monthly?.[1] ?? 0;
-    record.cvarMonthly5 = stats.cvar?.monthly?.[5] ?? 0;
-    record.cvarMonthly10 = stats.cvar?.monthly?.[10] ?? 0;
-    record.varAnnual1 = stats.var.annual?.[1] ?? 0;
-    record.varAnnual5 = stats.var.annual?.[5] ?? 0;
-    record.varAnnual10 = stats.var.annual?.[10] ?? 0;
-    record.cvarAnnual1 = stats.cvar?.annual?.[1] ?? 0;
-    record.cvarAnnual5 = stats.cvar?.annual?.[5] ?? 0;
-    record.cvarAnnual10 = stats.cvar?.annual?.[10] ?? 0;
+    for (const [h, cap] of HORIZON_CAPS)
+      for (const l of LEVELS) {
+        record[`var${cap}${l}`] = stats.var[h]?.[l] ?? 0;
+        record[`cvar${cap}${l}`] = stats.cvar?.[h]?.[l] ?? 0;
+      }
     record.var5 = stats.var.daily?.[5] ?? 0;
     record.cvar5 = stats.cvar?.daily?.[5] ?? 0;
   }
-  if (stats.skewness) {
-    record.skewnessDaily = stats.skewness.daily ?? 0;
-    record.skewnessMonthly = stats.skewness.monthly ?? 0;
-    record.skewnessAnnual = stats.skewness.annual ?? 0;
-  }
-  if (stats.excessKurtosis) {
-    record.excessKurtosisDaily = stats.excessKurtosis.daily ?? 0;
-    record.excessKurtosisMonthly = stats.excessKurtosis.monthly ?? 0;
-    record.excessKurtosisAnnual = stats.excessKurtosis.annual ?? 0;
+  for (const [h, cap] of HORIZON_CAPS) {
+    if (stats.skewness) record[`skewness${cap}`] = stats.skewness[h] ?? 0;
+    if (stats.excessKurtosis) record[`excessKurtosis${cap}`] = stats.excessKurtosis[h] ?? 0;
   }
   return record;
 }

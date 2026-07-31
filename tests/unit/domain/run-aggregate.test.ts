@@ -1,16 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger } from '../../helpers/mockFactories.js';
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(loggerMocks),
+  logger: loggerMocks,
 }));
 
 // db/getPool 仍 mock：用于断言处理器**不再**访问数据库。
@@ -197,17 +189,12 @@ describe('Portfolio Aggregate', () => {
   });
   describe('properties', () => {
     const p = Portfolio.create('p1', 'Test', [makeHolding('AAPL', 60), makeHolding('SPY', 40)]);
-    it('holdingCount 返回持仓数量', () => {
-      expect(p.holdingCount).toBe(2);
-    });
-    it('tickers 返回所有 ticker 值列表', () => {
-      expect(p.tickers).toEqual(['AAPL', 'SPY']);
-    });
-    it('totalWeight 返回权重总和', () => {
-      expect(p.totalWeight).toBe(100);
-    });
-    it('maxWeight 返回最大持仓权重', () => {
-      expect(p.maxWeight).toBe(60);
+    it.each([
+      ['tickers 返回所有 ticker 值列表', (x: Portfolio) => x.tickers, ['AAPL', 'SPY']],
+      ['totalWeight 返回权重总和', (x: Portfolio) => x.totalWeight, 100],
+      ['maxWeight 返回最大持仓权重', (x: Portfolio) => x.maxWeight, 60],
+    ])('%s', (_n, getter, expected) => {
+      expect(getter(p)).toEqual(expected);
     });
   });
 });
@@ -356,12 +343,15 @@ describe('DomainEventDispatcher', () => {
     );
   });
 
-  it('dispatch() 同一事件类型的多个处理器均应被调用', async () => {
-    const handlers = [
-      createHandler('MultiEvent'),
-      createHandler('MultiEvent'),
-      createHandler('MultiEvent'),
-    ];
+  it.each([
+    ['同一事件类型的多个处理器均应被调用', 3, null],
+    [
+      'register 同一事件类型多次注册应累积处理器',
+      2,
+      expect.objectContaining({ eventType: 'MultiEvent', handlerCount: 2 }),
+    ],
+  ])('%s', async (_n, count, logExpect) => {
+    const handlers = Array.from({ length: count }, () => createHandler('MultiEvent'));
     handlers.forEach((h) => dispatcher.register(h));
     const event = createEvent('MultiEvent');
     await dispatcher.dispatch(event);
@@ -369,6 +359,8 @@ describe('DomainEventDispatcher', () => {
       expect(h.handle).toHaveBeenCalledTimes(1);
       expect(h.handle).toHaveBeenCalledWith(event);
     }
+    if (logExpect)
+      expect(loggerMocks.info).toHaveBeenCalledWith(logExpect, 'Dispatching domain event');
   });
 
   it('dispatch() 应只调用对应事件类型的处理器，不调用其他类型', async () => {
@@ -379,20 +371,6 @@ describe('DomainEventDispatcher', () => {
     await dispatcher.dispatch(createEvent('TargetEvent'));
     expect(targetHandler.handle).toHaveBeenCalledTimes(1);
     expect(otherHandler.handle).not.toHaveBeenCalled();
-  });
-
-  it('register() 同一事件类型多次注册应累积处理器', async () => {
-    const handler1 = createHandler('AccumEvent');
-    const handler2 = createHandler('AccumEvent');
-    dispatcher.register(handler1);
-    dispatcher.register(handler2);
-    await dispatcher.dispatch(createEvent('AccumEvent'));
-    expect(handler1.handle).toHaveBeenCalledTimes(1);
-    expect(handler2.handle).toHaveBeenCalledTimes(1);
-    expect(loggerMocks.info).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'AccumEvent', handlerCount: 2 }),
-      'Dispatching domain event',
-    );
   });
 
   it('dispatch() 所有处理器均失败时应记录警告且不抛错', async () => {

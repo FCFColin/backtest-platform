@@ -20,7 +20,7 @@ spec:
           expr: |
             max(redis_sentinel_master_status{state=~"s_down|o_down"} == 1) by (master, sentinel)
           for: 0s
-          labels:
+          labels: &critical-redis-ha
             severity: critical
             category: redis-ha
           annotations:
@@ -36,9 +36,7 @@ spec:
           expr: |
             max(redis_sentinel_master_status{state="failover_in_progress"} == 1) by (master)
           for: 30s
-          labels:
-            severity: critical
-            category: redis-ha
+          labels: *critical-redis-ha
           annotations:
             summary: 'Redis Sentinel failover in progress ({{ $labels.master }})'
             description: |
@@ -51,9 +49,7 @@ spec:
         - alert: RedisDown
           expr: redis_up == 0
           for: 30s
-          labels:
-            severity: critical
-            category: redis-ha
+          labels: *critical-redis-ha
           annotations:
             summary: 'Redis instance down'
             description: |
@@ -70,9 +66,7 @@ spec:
             or
             max(rate(redis_errors_total{type="rejected"}[1m])) by (addr) > 0
           for: 1m
-          labels:
-            severity: critical
-            category: redis-ha
+          labels: *critical-redis-ha
           annotations:
             summary: 'Redis rejecting writes ({{ $labels.addr }})'
             description: |
@@ -89,7 +83,7 @@ spec:
           expr: |
             count(up{job="redis-sentinel"} == 1) < 2
           for: 2m
-          labels:
+          labels: &warning-redis-ha
             severity: warning
             category: redis-ha
           annotations:
@@ -106,9 +100,7 @@ spec:
           expr: |
             max(redis_connected_slaves) by (addr) < 1
           for: 1m
-          labels:
-            severity: warning
-            category: redis-ha
+          labels: *warning-redis-ha
           annotations:
             summary: 'Redis master has no connected slaves'
             description: |
@@ -122,9 +114,7 @@ spec:
           expr: |
             max(redis_replication_offset_diff_lag_seconds) by (addr) > 5
           for: 2m
-          labels:
-            severity: warning
-            category: redis-ha
+          labels: *warning-redis-ha
           annotations:
             summary: 'Redis replication lag high ({{ $labels.addr }})'
             description: |
@@ -138,9 +128,7 @@ spec:
           expr: |
             increase(kube_pod_container_status_restarts_total{container=~"sentinel"}[15m]) > 0
           for: 0m
-          labels:
-            severity: warning
-            category: redis-ha
+          labels: *warning-redis-ha
           annotations:
             summary: 'Redis Sentinel pod restarted'
             description: |

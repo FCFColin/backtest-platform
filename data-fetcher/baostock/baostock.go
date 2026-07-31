@@ -124,16 +124,10 @@ func (c *Client) QueryHistoryKDataPlus(code, fields, startDate, endDate, frequen
 	curPage := 1
 	fieldNames := strings.Split(fields, ",")
 	for {
-		body := "query_history_k_data_plus" +
-			MsgSplit + c.userID +
-			MsgSplit + strconv.Itoa(curPage) +
-			MsgSplit + strconv.Itoa(PerPageCount) +
-			MsgSplit + code +
-			MsgSplit + fields +
-			MsgSplit + startDate +
-			MsgSplit + endDate +
-			MsgSplit + frequency +
-			MsgSplit + adjustFlag
+		body := strings.Join([]string{
+			"query_history_k_data_plus", c.userID, strconv.Itoa(curPage), strconv.Itoa(PerPageCount),
+			code, fields, startDate, endDate, frequency, adjustFlag,
+		}, MsgSplit)
 		debugLog("[BaoStock] K线请求: code=%s fields=%s start=%s end=%s freq=%s adjust=%s",
 			code, fields, startDate, endDate, frequency, adjustFlag)
 		resp, err := c.sendMsg(MsgGetKDataPlusRequest, body)
@@ -153,29 +147,51 @@ func (c *Client) QueryHistoryKDataPlus(code, fields, startDate, endDate, frequen
 	return allData, nil
 }
 func (c *Client) QueryAllStock(date string) ([]StockInfo, error) {
-	body := "query_all_stock" +
-		MsgSplit + c.userID +
-		MsgSplit + "1" +
-		MsgSplit + strconv.Itoa(PerPageCount) +
-		MsgSplit + date
-	resp, err := c.sendMsg(MsgQueryAllStockRequest, body)
+	resp, err := c.sendMsg(MsgQueryAllStockRequest, c.pagedBody("query_all_stock", date))
 	if err != nil {
 		return nil, fmt.Errorf("查询股票列表失败: %w", err)
 	}
 	return c.parseAllStockResponse(resp)
 }
 func (c *Client) QueryTradeDates(startDate, endDate string) ([]string, error) {
-	body := "query_trade_dates" +
-		MsgSplit + c.userID +
-		MsgSplit + "1" +
-		MsgSplit + strconv.Itoa(PerPageCount) +
-		MsgSplit + startDate +
-		MsgSplit + endDate
-	resp, err := c.sendMsg(MsgQueryTradeDatesRequest, body)
+	resp, err := c.sendMsg(MsgQueryTradeDatesRequest, c.pagedBody("query_trade_dates", startDate, endDate))
 	if err != nil {
 		return nil, fmt.Errorf("查询交易日历失败: %w", err)
 	}
 	return c.parseTradeDatesResponse(resp)
+}
+
+// pagedBody 构造分页查询请求体：命令 + userID + page=1 + 页大小 + 业务参数
+func (c *Client) pagedBody(cmd string, args ...string) string {
+	parts := make([]string, 0, 4+len(args))
+	parts = append(parts, cmd, c.userID, "1", strconv.Itoa(PerPageCount))
+	parts = append(parts, args...)
+	return strings.Join(parts, MsgSplit)
+}
+
+// parseBody 剥离消息头并按 MsgSplit 切分响应体；业务码非 0 或格式错误时返回 ok=false
+func parseBody(resp string) ([]string, bool) {
+	if len(resp) <= HeaderLength {
+		return nil, false
+	}
+	bodyArr := strings.Split(resp[HeaderLength:], MsgSplit)
+	if len(bodyArr) < 2 || bodyArr[0] != "0" {
+		return nil, false
+	}
+	return bodyArr, true
+}
+
+// splitCsvRows 提取非 JSON 回退格式的 CSV 行（跳过空行与 CDATA 结尾标记）
+func splitCsvRows(bodyArr []string) [][]string {
+	var rows [][]string
+	for i := 2; i < len(bodyArr); i++ {
+		line := strings.TrimSpace(bodyArr[i])
+		if line == "" || strings.HasPrefix(line, "<![CDATA") {
+			continue
+		}
+		rows = append(rows, strings.Split(line, ","))
+	}
+	return rows
 }
 
 type recordResponse struct {
@@ -222,16 +238,15 @@ func (c *Client) parseKDataResponseDynamic(resp string, fieldNames []string) ([]
 	return nil, true, nil
 }
 func (c *Client) parseAllStockResponse(resp string) ([]StockInfo, error) {
-	if len(resp) <= HeaderLength {
-		return nil, nil
-	}
-	bodyStr := resp[HeaderLength:]
-	bodyArr := strings.Split(bodyStr, MsgSplit)
-	if len(bodyArr) < 2 || bodyArr[0] != "0" {
+	bodyArr, ok := parseBody(resp)
+	if !ok {
+		if len(resp) <= HeaderLength {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("查询股票列表失败")
 	}
 	if respData := findRecordResponse(bodyArr); respData != nil {
-		var stocks []StockInfo
+		stocks := make([]StockInfo, 0, len(respData.Record))
 		for _, row := range respData.Record {
 			si := StockInfo{}
 			if len(row) > 0 {
@@ -248,12 +263,7 @@ func (c *Client) parseAllStockResponse(resp string) ([]StockInfo, error) {
 		return stocks, nil
 	}
 	var stocks []StockInfo
-	for i := 2; i < len(bodyArr); i++ {
-		line := strings.TrimSpace(bodyArr[i])
-		if line == "" || strings.HasPrefix(line, "<![CDATA") {
-			continue
-		}
-		fields := strings.Split(line, ",")
+	for _, fields := range splitCsvRows(bodyArr) {
 		if len(fields) >= 3 {
 			stocks = append(stocks, StockInfo{Code: fields[0], TradeStatus: fields[1], CodeName: fields[2]})
 		}
@@ -261,16 +271,15 @@ func (c *Client) parseAllStockResponse(resp string) ([]StockInfo, error) {
 	return stocks, nil
 }
 func (c *Client) parseTradeDatesResponse(resp string) ([]string, error) {
-	if len(resp) <= HeaderLength {
-		return nil, nil
-	}
-	bodyStr := resp[HeaderLength:]
-	bodyArr := strings.Split(bodyStr, MsgSplit)
-	if len(bodyArr) < 2 || bodyArr[0] != "0" {
+	bodyArr, ok := parseBody(resp)
+	if !ok {
+		if len(resp) <= HeaderLength {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("查询交易日历失败")
 	}
 	if respData := findRecordResponse(bodyArr); respData != nil {
-		var dates []string
+		dates := make([]string, 0, len(respData.Record))
 		for _, row := range respData.Record {
 			if len(row) >= 2 && row[1] == "1" { // is_trading_day == "1"
 				dates = append(dates, row[0])
@@ -279,12 +288,7 @@ func (c *Client) parseTradeDatesResponse(resp string) ([]string, error) {
 		return dates, nil
 	}
 	var dates []string
-	for i := 2; i < len(bodyArr); i++ {
-		line := strings.TrimSpace(bodyArr[i])
-		if line == "" || strings.HasPrefix(line, "<![CDATA") {
-			continue
-		}
-		fields := strings.Split(line, ",")
+	for _, fields := range splitCsvRows(bodyArr) {
 		if len(fields) >= 1 {
 			dates = append(dates, fields[0])
 		}

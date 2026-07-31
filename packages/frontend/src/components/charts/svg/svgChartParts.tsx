@@ -5,13 +5,9 @@ import { CHART_COLORS } from '@backtest/shared';
 type Orientation = 'bottom' | 'left';
 interface TickLineConfig {
   length: number;
-  color?: string;
 }
 interface AxisLabelConfig {
   value: string;
-  angle?: number;
-  position?: 'insideLeft' | 'insideBottom';
-  style?: CSSProperties;
 }
 interface SvgAxisProps {
   orientation: Orientation;
@@ -143,6 +139,15 @@ const TOOLTIP_STYLE: CSSProperties = {
   lineHeight: '1.5',
   whiteSpace: 'nowrap',
 };
+// 图例/提示框通用色点样式
+const swatchStyle = (size: number, color: string): CSSProperties => ({
+  display: 'inline-block',
+  width: size,
+  height: size,
+  borderRadius: '50%',
+  flexShrink: 0,
+  backgroundColor: color,
+});
 export function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipProps) {
   if (!active || data.length === 0) return null;
   return (
@@ -156,16 +161,7 @@ export function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTo
       )}
       {data.map((item, idx) => (
         <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              flexShrink: 0,
-              backgroundColor: item.color,
-            }}
-          />
+          <span style={swatchStyle(8, item.color)} />
           <span style={{ color: 'hsl(var(--fg-tertiary))' }}>{item.name}</span>
           <span style={{ fontWeight: 600, marginLeft: 'auto', fontFamily: 'Geist Mono Variable' }}>
             {item.value}
@@ -211,16 +207,7 @@ export function SvgLegend({ series, onToggle }: SvgLegendProps) {
           }}
           onClick={() => onToggle?.(s.name)}
         >
-          <span
-            style={{
-              display: 'inline-block',
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              flexShrink: 0,
-              backgroundColor: s.color,
-            }}
-          />
+          <span style={swatchStyle(10, s.color)} />
           <span>{s.name}</span>
         </div>
       ))}
@@ -481,7 +468,7 @@ export function LeftAxis({
       gridColor="hsl(var(--chart-grid))"
       tickLine={false}
       offset={offset}
-      label={label ? { value: label, angle: -90, position: 'insideLeft' } : undefined}
+      label={label ? { value: label } : undefined}
       hideLine={hideLine}
     />
   );

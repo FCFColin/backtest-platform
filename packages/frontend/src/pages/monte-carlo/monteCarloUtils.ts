@@ -357,6 +357,15 @@ function buildBins<T extends { range: string; count: number; minVal: number }>(
 const labelForBin =
   (min: number, binWidth: number, formatBin: (v: number) => string) => (val: number) =>
     formatBin(Math.floor((val - min) / binWidth) * binWidth + min);
+// 分布直方图与期末直方图共用：分箱 + 标签生成器
+function buildBinData(vals: number[], binCount: number, formatBin: (v: number) => string) {
+  const { min, binWidth, bins } = buildBins(vals, binCount, formatBin, (range, minVal) => ({
+    range,
+    count: 0,
+    minVal,
+  }));
+  return { bins, labelFor: labelForBin(min, binWidth, formatBin) };
+}
 const pct1 = (v: number) => `${(v * 100).toFixed(1)}%`;
 const binLabel = (metric: DistMetric) =>
   metric === 'finalValue'
@@ -405,13 +414,7 @@ export function buildDistHistogram(
 ) {
   const vals = metricValues(metrics, metric, startingValue);
   if (vals.length === 0) return { data: [], medianLabel: '', meanLabel: '' };
-  const formatBin = binLabel(metric);
-  const { min, binWidth, bins } = buildBins(vals, 40, formatBin, (range, minVal) => ({
-    range,
-    count: 0,
-    minVal,
-  }));
-  const labelFor = labelForBin(min, binWidth, formatBin);
+  const { bins, labelFor } = buildBinData(vals, 40, binLabel(metric));
   const medianVal = percentile(vals, 0.5);
   const meanVal = mean(vals);
   return {
@@ -472,13 +475,7 @@ export function buildTerminalHistogram(
     return { data: [], p5Val: 0, p50Val: 0, p95Val: 0, p5Label: '', p50Label: '', p95Label: '' };
   }
   const vals = metrics.map((m) => m.finalValue * startingValue);
-  const { min, binWidth, bins } = buildBins(
-    vals,
-    25,
-    dollarKFormatter,
-    (range, minVal) => ({ range, count: 0, minVal }) as TerminalBin,
-  );
-  const labelFor = labelForBin(min, binWidth, dollarKFormatter);
+  const { bins, labelFor } = buildBinData(vals, 25, dollarKFormatter);
   const p5Val = percentile(vals, 0.05);
   const p50Val = percentile(vals, 0.5);
   const p95Val = percentile(vals, 0.95);

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { loggerMocks } from '../../helpers/loggerFixture.js';
 import {
   requirePermission,
   requirePermissionFromDb,
@@ -9,14 +10,6 @@ import {
   createMockResponse,
   createMockNext,
 } from '../../helpers/expressMocks.js';
-
-const loggerMocks = vi.hoisted(() => ({
-  info: vi.fn(),
-  warn: vi.fn(),
-  error: vi.fn(),
-  debug: vi.fn(),
-  child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-}));
 
 const mocks = vi.hoisted(() => ({
   getUserPermissions: vi.fn(),
@@ -110,28 +103,22 @@ describe('RBAC requirePermission', () => {
   );
 
   it.each([
-    {
-      name: '无用户信息应返回 401',
-      user: null,
-      permission: Permission.DATA_READ,
-      status: 401,
-      code: 'MISSING_AUTH',
-    },
-    {
-      name: '未知角色应被拒绝访问',
-      user: { sub: 'test-user', role: 'superadmin' },
-      permission: Permission.DATA_READ,
-      status: 403,
-      code: 'INSUFFICIENT_PERMISSION',
-    },
-    {
-      name: '403 响应应包含 INSUFFICIENT_PERMISSION 错误码',
-      user: { sub: 'test-user', role: 'readonly' },
-      permission: Permission.DATA_MANAGE,
-      status: 403,
-      code: 'INSUFFICIENT_PERMISSION',
-    },
-  ])('$name', ({ user, permission, status, code }) => {
+    ['无用户信息应返回 401', null, Permission.DATA_READ, 401, 'MISSING_AUTH'],
+    [
+      '未知角色应被拒绝访问',
+      { sub: 'test-user', role: 'superadmin' },
+      Permission.DATA_READ,
+      403,
+      'INSUFFICIENT_PERMISSION',
+    ],
+    [
+      '403 响应应包含 INSUFFICIENT_PERMISSION 错误码',
+      { sub: 'test-user', role: 'readonly' },
+      Permission.DATA_MANAGE,
+      403,
+      'INSUFFICIENT_PERMISSION',
+    ],
+  ])('%s', (_n, user, permission, status, code) => {
     const req = createMockRequest(user);
     const res = createMockResponse();
     const next = createMockNext();
@@ -155,64 +142,51 @@ describe('RBAC org_role 优先 + platform_admin 放行', () => {
     vi.clearAllMocks();
   });
 
-  it('org_role 应优先于 legacy role：legacy readonly + org_role analyst 可运行回测', () => {
-    const req = createMockRequest({ sub: 'u1', role: 'readonly', org_role: 'analyst' });
+  it.each([
+    [
+      'legacy readonly + org_role analyst 可运行回测',
+      { sub: 'u1', role: 'readonly', org_role: 'analyst' },
+      Permission.BACKTEST_RUN,
+      'allow',
+    ],
+    [
+      'legacy admin + org_role readonly 不能运行回测',
+      { sub: 'u2', role: 'admin', org_role: 'readonly' },
+      Permission.BACKTEST_RUN,
+      403,
+    ],
+    [
+      'org_role owner 归并为 admin，拥有 ADMIN_ACCESS',
+      { sub: 'u3', role: 'readonly', org_role: 'owner' },
+      Permission.ADMIN_ACCESS,
+      'allow',
+    ],
+    [
+      'platform_admin=true 应放行任意权限（即使 role/org_role 为只读）',
+      { sub: 'platform-op', role: 'readonly', org_role: 'readonly', platform_admin: true },
+      Permission.ADMIN_ACCESS,
+      'allow',
+    ],
+    [
+      'platform_admin 优先于缺失用户检查之后执行（无 user 仍 401）',
+      null,
+      Permission.ADMIN_ACCESS,
+      401,
+    ],
+  ])('%s', (_n, user, permission, expected) => {
+    const req = createMockRequest(user);
     const res = createMockResponse();
     const next = createMockNext();
 
-    requirePermission(Permission.BACKTEST_RUN)(req, res, next);
+    requirePermission(permission)(req, res, next);
 
-    expect(next).toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  it('org_role 应优先于 legacy role：legacy admin + org_role readonly 不能运行回测', () => {
-    const req = createMockRequest({ sub: 'u2', role: 'admin', org_role: 'readonly' });
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    requirePermission(Permission.BACKTEST_RUN)(req, res, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(403);
-  });
-
-  it('org_role owner 归并为 admin，拥有 ADMIN_ACCESS', () => {
-    const req = createMockRequest({ sub: 'u3', role: 'readonly', org_role: 'owner' });
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    requirePermission(Permission.ADMIN_ACCESS)(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  it('platform_admin=true 应放行任意权限（即使 role/org_role 为只读）', () => {
-    const req = createMockRequest({
-      sub: 'platform-op',
-      role: 'readonly',
-      org_role: 'readonly',
-      platform_admin: true,
-    });
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    requirePermission(Permission.ADMIN_ACCESS)(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect(res.status).not.toHaveBeenCalled();
-  });
-
-  it('platform_admin 优先于缺失用户检查之后执行（无 user 仍 401）', () => {
-    const req = createMockRequest(null);
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    requirePermission(Permission.ADMIN_ACCESS)(req, res, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
+    if (expected === 'allow') {
+      expect(next).toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+    } else {
+      expect(next).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(expected);
+    }
   });
 });
 
@@ -222,24 +196,12 @@ describe('安全攻击用例', () => {
   });
 
   it.each([
-    {
-      name: '大小写绕过：角色 "Admin"（大写 A）不应匹配 "admin"',
-      role: 'Admin',
-      permission: Permission.DATA_READ,
-    },
-    {
-      name: '空白字符绕过：角色 " admin "（含空格）应被拒绝',
-      role: ' admin ',
-      permission: Permission.DATA_READ,
-    },
-    { name: '空角色字符串应被拒绝', role: '', permission: Permission.DATA_READ },
-    {
-      name: '权限提升：role="user" 访问 admin 端点应被拒绝（403）',
-      role: 'user',
-      permission: Permission.ADMIN_ACCESS,
-    },
-    { name: 'SQL 注入作为角色名应被拒绝', role: "' OR '1'='1", permission: Permission.DATA_READ },
-  ])('$name', ({ role, permission }) => {
+    ['大小写绕过：角色 "Admin"（大写 A）不应匹配 "admin"', 'Admin', Permission.DATA_READ],
+    ['空白字符绕过：角色 " admin "（含空格）应被拒绝', ' admin ', Permission.DATA_READ],
+    ['空角色字符串应被拒绝', '', Permission.DATA_READ],
+    ['权限提升：role="user" 访问 admin 端点应被拒绝（403）', 'user', Permission.ADMIN_ACCESS],
+    ['SQL 注入作为角色名应被拒绝', "' OR '1'='1", Permission.DATA_READ],
+  ])('%s', (_n, role, permission) => {
     const req = createMockRequest({ sub: 'attacker', role });
     const res = createMockResponse();
     const next = createMockNext();
@@ -270,21 +232,15 @@ describe('requirePermissionFromDb', () => {
   });
 
   it.each([
-    {
-      name: '应使用缓存权限且不查 DB',
-      cached: ['backtest:run', 'data:read'],
-      role: 'analyst',
-      permission: Permission.BACKTEST_RUN,
-      allowed: true,
-    },
-    {
-      name: '缓存命中但无所需权限',
-      cached: ['data:read'],
-      role: 'custom',
-      permission: Permission.BACKTEST_RUN,
-      allowed: false,
-    },
-  ])('缓存命中：$name', async ({ cached, role, permission, allowed }) => {
+    [
+      '应使用缓存权限且不查 DB',
+      ['backtest:run', 'data:read'],
+      'analyst',
+      Permission.BACKTEST_RUN,
+      true,
+    ],
+    ['缓存命中但无所需权限', ['data:read'], 'custom', Permission.BACKTEST_RUN, false],
+  ])('缓存命中：%s', async (_n, cached, role, permission, allowed) => {
     mocks.getCachedUserPermissions.mockResolvedValue(cached);
     const req = createMockRequest({ sub: 'u1', role });
     const res = createMockResponse();
@@ -324,26 +280,28 @@ describe('requirePermissionFromDb', () => {
   });
 
   it.each([
-    {
-      name: 'DB 返回空集时回退到 legacy（analyst 有 BACKTEST_RUN）',
-      role: 'analyst',
-      permission: Permission.BACKTEST_RUN,
-      allowed: true,
-    },
-    {
-      name: 'legacy 回退时无权限应返回 403（readonly 访问 admin 端点）',
-      role: 'readonly',
-      permission: Permission.ADMIN_ACCESS,
-      allowed: false,
-    },
-    {
-      name: 'org_role 应优先于 legacy role 用于回退',
-      role: 'readonly',
-      org_role: 'analyst',
-      permission: Permission.BACKTEST_RUN,
-      allowed: true,
-    },
-  ])('缓存未命中且 DB 返回空集：$name', async ({ role, org_role, permission, allowed }) => {
+    [
+      'DB 返回空集时回退到 legacy（analyst 有 BACKTEST_RUN）',
+      'analyst',
+      undefined,
+      Permission.BACKTEST_RUN,
+      true,
+    ],
+    [
+      'legacy 回退时无权限应返回 403（readonly 访问 admin 端点）',
+      'readonly',
+      undefined,
+      Permission.ADMIN_ACCESS,
+      false,
+    ],
+    [
+      'org_role 应优先于 legacy role 用于回退',
+      'readonly',
+      'analyst',
+      Permission.BACKTEST_RUN,
+      true,
+    ],
+  ])('缓存未命中且 DB 返回空集：%s', async (_n, role, org_role, permission, allowed) => {
     mocks.getCachedUserPermissions.mockResolvedValue(null);
     mocks.getUserPermissions.mockResolvedValue([]);
 
@@ -382,32 +340,15 @@ describe('requirePermissionFromDb', () => {
     expect(mocks.getCachedUserPermissions).not.toHaveBeenCalled();
   });
 
-  it('无用户信息时应返回 401', async () => {
-    const req = createMockRequest(null);
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    const middleware = requirePermissionFromDb(Permission.DATA_READ);
-    await middleware(req, res, next);
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(401);
-  });
-
   it.each([
-    {
-      name: 'DB 异常时回退到 legacy 检查保证可用性（admin 有全部权限）',
-      role: 'admin',
-      permission: Permission.ADMIN_ACCESS,
-      allowed: true,
-    },
-    {
-      name: 'DB 异常且 legacy 也无权限时应返回 403',
-      role: 'readonly',
-      permission: Permission.ADMIN_ACCESS,
-      allowed: false,
-    },
-  ])('$name', async ({ role, permission, allowed }) => {
+    [
+      'DB 异常时回退到 legacy 检查保证可用性（admin 有全部权限）',
+      'admin',
+      Permission.ADMIN_ACCESS,
+      true,
+    ],
+    ['DB 异常且 legacy 也无权限时应返回 403', 'readonly', Permission.ADMIN_ACCESS, false],
+  ])('%s', async (_n, role, permission, allowed) => {
     mocks.getCachedUserPermissions.mockResolvedValue(null);
     mocks.getUserPermissions.mockRejectedValue(new Error('DB connection lost'));
 
@@ -428,21 +369,16 @@ describe('requirePermissionFromDb', () => {
   });
 
   it.each([
-    {
-      name: '403 响应应包含 INSUFFICIENT_PERMISSION 错误码',
-      cached: ['data:read'],
-      role: 'custom',
-      permission: Permission.ADMIN_ACCESS,
-      code: 'INSUFFICIENT_PERMISSION',
-    },
-    {
-      name: '401 响应应包含 MISSING_AUTH 错误码',
-      cached: null,
-      role: null,
-      permission: Permission.DATA_READ,
-      code: 'MISSING_AUTH',
-    },
-  ])('$name', async ({ cached, role, permission, code }) => {
+    [
+      '403 响应应包含 INSUFFICIENT_PERMISSION 错误码',
+      ['data:read'],
+      'custom',
+      Permission.ADMIN_ACCESS,
+      403,
+      'INSUFFICIENT_PERMISSION',
+    ],
+    ['401 响应应包含 MISSING_AUTH 错误码', null, null, Permission.DATA_READ, 401, 'MISSING_AUTH'],
+  ])('%s', async (_n, cached, role, permission, status, code) => {
     mocks.getCachedUserPermissions.mockResolvedValue(cached);
     const req = createMockRequest(role ? { sub: 'u1', role } : null);
     const res = createMockResponse();
@@ -451,6 +387,8 @@ describe('requirePermissionFromDb', () => {
     const middleware = requirePermissionFromDb(permission);
     await middleware(req, res, next);
 
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(status);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         success: false,

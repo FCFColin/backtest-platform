@@ -55,10 +55,18 @@ type FrontierPoint struct {
 	SharpeRatio        float64            `json:"sharpeRatio"`
 }
 
-func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, error) {
-	if len(req.Tickers) == 0 {
-		return nil, fmt.Errorf("tickers 不能为空")
+// prepareInputs 校验输入并计算收益/协方差（Optimize 与 ComputeEfficientFrontier 共用）
+func prepareInputs(tickers []string, priceData map[string]map[string]float64) ([]float64, [][]float64, error) {
+	if len(tickers) == 0 {
+		return nil, nil, fmt.Errorf("tickers 不能为空")
 	}
+	mu, sigma, err := computeReturnCovariance(tickers, priceData)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mu, ensurePD(sigma), nil
+}
+func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, error) {
 	if req.NumIterations <= 0 {
 		req.NumIterations = defaultIterations
 	}
@@ -68,7 +76,7 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 	if req.Constraints.MaxWeight <= 0 {
 		req.Constraints.MaxWeight = 1
 	}
-	mu, sigma, err := computeReturnCovariance(req.Tickers, req.PriceData)
+	mu, sigma, err := prepareInputs(req.Tickers, req.PriceData)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +85,6 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 		return nil, ctx.Err()
 	default:
 	}
-	sigma = ensurePD(sigma)
 	var weights []float64
 	switch req.Objective {
 	case "minVolatility":
@@ -93,17 +100,13 @@ func Optimize(ctx context.Context, req OptimizeRequest) (*OptimizeResponse, erro
 	return &OptimizeResponse{OptimalWeights: makeWeightMap(req.Tickers, weights), ExpectedReturn: ret, ExpectedVolatility: vol, SharpeRatio: sharpe}, nil
 }
 func ComputeEfficientFrontier(ctx context.Context, req FrontierRequest) (*FrontierResponse, error) {
-	if len(req.Tickers) == 0 {
-		return nil, fmt.Errorf("tickers 不能为空")
-	}
 	if req.NumPoints <= 0 {
 		req.NumPoints = defaultFrontierPts
 	}
-	mu, sigma, err := computeReturnCovariance(req.Tickers, req.PriceData)
+	mu, sigma, err := prepareInputs(req.Tickers, req.PriceData)
 	if err != nil {
 		return nil, err
 	}
-	sigma = ensurePD(sigma)
 	constraints := Constraints{MinWeight: 0, MaxWeight: 1}
 	wMinVol := optimizeMinVolatility(mu, sigma, constraints, defaultIterations)
 	retMinVol, _, _ := portfolioMetrics(wMinVol, mu, sigma)

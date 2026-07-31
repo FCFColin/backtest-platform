@@ -37,9 +37,21 @@ export function setWebhookHandler(fn: WebhookHandler | null): void {
   logger.info({ module: 'outboxPublisher', registered: fn !== null }, 'Webhook handler registered');
 }
 
-/** 当前注册的 webhook 回调。由 createOutboxConsumer 以 getter 闭包注入消费器（避免循环依赖）；未注册返回 null。 */
-export function getWebhookHandler(): WebhookHandler | null {
-  return webhookHandler;
+// 带模块上下文的日志封装，消除各处重复的 { module: 'outboxPublisher' } 样板
+type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+function moduleLog(level: LogLevel, fields: Record<string, unknown>, msg: string): void {
+  logger[level]({ module: 'outboxPublisher', ...fields }, msg);
+}
+
+/** outbox 表行（handleNotification 与事件路由共用） */
+interface OutboxEventRow {
+  id: string;
+  event_type: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  payload: unknown;
+  created_at: Date | string;
+  tenant_id?: string | null;
 }
 
 export class OutboxPublisher {
@@ -57,49 +69,44 @@ export class OutboxPublisher {
 
   async start(): Promise<void> {
     // 专用 Client（非 Pool）建立持久连接：Pool 不转发 notification 事件
-    logger.info(
-      { module: 'outboxPublisher', connectionString: this.connectionString ? '[set]' : '[empty]' },
+    moduleLog(
+      'info',
+      { connectionString: this.connectionString ? '[set]' : '[empty]' },
       'OutboxPublisher connecting via dedicated pg.Client...',
     );
     this.listener = new pg.Client({ connectionString: this.connectionString });
     try {
       await this.listener.connect();
-      logger.info(
-        { module: 'outboxPublisher' },
-        'OutboxPublisher pg.Client connected successfully',
-      );
+      moduleLog('info', {}, 'OutboxPublisher pg.Client connected successfully');
       await this.listener.query('LISTEN outbox_channel');
       // NOTIFY 不带 payload 仅作唤醒信号；收到后扫描 outbox 表，避免依赖 payload 内容
       this.listener.on('notification', (msg: { channel: string; payload?: string }) => {
-        logger.debug(
-          { module: 'outboxPublisher', channel: msg.channel, payloadLength: msg.payload?.length },
+        moduleLog(
+          'debug',
+          { channel: msg.channel, payloadLength: msg.payload?.length },
           'OutboxPublisher notification received',
         );
         if (msg.channel === 'outbox_channel')
           this.handleNotification().catch((err) =>
-            logger.error(
-              { module: 'outboxPublisher', err: (err as Error).message },
+            moduleLog(
+              'error',
+              { err: (err as Error).message },
               'Unhandled error in handleNotification',
             ),
           );
       });
       this.listener.on('error', (err: Error) =>
-        logger.error(
-          { module: 'outboxPublisher', err: err.message },
-          'OutboxPublisher pg.Client connection error',
-        ),
+        moduleLog('error', { err: err.message }, 'OutboxPublisher pg.Client connection error'),
       );
       this.listener.on('end', () =>
-        logger.warn({ module: 'outboxPublisher' }, 'OutboxPublisher pg.Client connection ended'),
+        moduleLog('warn', {}, 'OutboxPublisher pg.Client connection ended'),
       );
-      logger.info(
-        { module: 'outboxPublisher' },
-        'OutboxPublisher started, listening on outbox_channel',
-      );
+      moduleLog('info', {}, 'OutboxPublisher started, listening on outbox_channel');
     } catch (err) {
       // DB 不可用时优雅降级：记录但不抛出，补偿扫描器仍会重试
-      logger.error(
-        { module: 'outboxPublisher', err: (err as Error).message },
+      moduleLog(
+        'error',
+        { err: (err as Error).message },
         'OutboxPublisher listener start failed, LISTEN disabled',
       );
       if (this.listener) {
@@ -124,24 +131,15 @@ export class OutboxPublisher {
       const result = await this.pool.query(
         'SELECT id, aggregate_type, aggregate_id, event_type, payload, created_at, tenant_id FROM outbox WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT 100',
       );
-      const events = result.rows;
+      const events = result.rows as OutboxEventRow[];
       const limit = pLimit(OUTBOX_PUBLISH_CONCURRENCY);
       const settled = await Promise.allSettled(
-        events.map(
-          (event: {
-            id: string;
-            event_type: string;
-            aggregate_type: string;
-            aggregate_id: string;
-            payload: unknown;
-            created_at: Date | string;
-            tenant_id?: string | null;
-          }) =>
-            limit(async () => {
-              await this.routeEvent(event);
-              this.triggerWebhookSafely(event); // P2-02：路由后触发匹配 webhook（回调由 server.ts 注入）
-              return event.id;
-            }),
+        events.map((event) =>
+          limit(async () => {
+            await this.routeEvent(event);
+            this.triggerWebhookSafely(event); // P2-02：路由后触发匹配 webhook（回调由 server.ts 注入）
+            return event.id;
+          }),
         ),
       );
       const processedIds: string[] = [];
@@ -149,59 +147,44 @@ export class OutboxPublisher {
         const s = settled[i];
         if (s.status === 'fulfilled') {
           processedIds.push(s.value);
-          logger.info(
-            { module: 'outboxPublisher', eventId: s.value, eventType: events[i].event_type },
+          moduleLog(
+            'info',
+            { eventId: s.value, eventType: events[i].event_type },
             'Outbox event processed',
           );
-        } else
-          logger.error(
-            { module: 'outboxPublisher', err: (s.reason as Error)?.message, eventId: events[i].id },
+        } else {
+          moduleLog(
+            'error',
+            { err: (s.reason as Error)?.message, eventId: events[i].id },
             'Failed to process outbox event',
           );
+        }
       }
       if (processedIds.length > 0)
         await this.pool.query('UPDATE outbox SET processed_at = NOW() WHERE id = ANY($1)', [
           processedIds,
         ]);
     } catch (err) {
-      logger.error(
-        { module: 'outboxPublisher', err: (err as Error).message },
-        'Error in handleNotification',
-      );
+      moduleLog('error', { err: (err as Error).message }, 'Error in handleNotification');
     }
   }
 
   /** P2-02：安全触发 webhook handler（失败不阻断 outbox 处理）。仅当事件携带 tenant_id 且已注册 handler 时触发。 */
-  private async triggerWebhookSafely(event: {
-    id: string;
-    event_type: string;
-    payload: unknown;
-    tenant_id?: string | null;
-  }): Promise<void> {
+  private async triggerWebhookSafely(event: OutboxEventRow): Promise<void> {
     if (!webhookHandler || !event.tenant_id) return;
     try {
       await webhookHandler(event.tenant_id, event.event_type, event.payload);
     } catch (whErr) {
-      logger.error(
-        {
-          module: 'outboxPublisher',
-          err: (whErr as Error).message,
-          eventId: event.id,
-          eventType: event.event_type,
-        },
+      moduleLog(
+        'error',
+        { err: (whErr as Error).message, eventId: event.id, eventType: event.event_type },
         'Webhook trigger failed (outbox processing continues)',
       );
     }
   }
 
   /** 将 outbox 事件路由到已注册的领域事件处理器。payload 兼容字符串场景做 JSON.parse。 */
-  private async routeEvent(event: {
-    event_type: string;
-    aggregate_type: string;
-    aggregate_id: string;
-    payload: unknown;
-    created_at: Date | string;
-  }): Promise<void> {
+  private async routeEvent(event: OutboxEventRow): Promise<void> {
     await eventDispatcher.dispatch({
       eventType: event.event_type,
       aggregateType: event.aggregate_type,
@@ -215,24 +198,22 @@ export class OutboxPublisher {
   }
 
   async stop(): Promise<void> {
-    logger.info(
-      { module: 'outboxPublisher', hasListener: !!this.listener },
-      'OutboxPublisher stopping...',
-    );
+    moduleLog('info', { hasListener: !!this.listener }, 'OutboxPublisher stopping...');
     this.stopCompensationScanner();
     if (this.listener) {
       try {
         await this.listener.query('UNLISTEN outbox_channel');
-        logger.info({ module: 'outboxPublisher' }, 'OutboxPublisher UNLISTEN issued');
+        moduleLog('info', {}, 'OutboxPublisher UNLISTEN issued');
         await this.listener.end();
       } catch (err) {
-        logger.error(
-          { module: 'outboxPublisher', err: (err as Error).message },
+        moduleLog(
+          'error',
+          { err: (err as Error).message },
           'Error stopping OutboxPublisher listener',
         );
       }
       this.listener = null;
-      logger.info({ module: 'outboxPublisher' }, 'OutboxPublisher stopped, pg.Client closed');
+      moduleLog('info', {}, 'OutboxPublisher stopped, pg.Client closed');
     }
   }
 
@@ -245,18 +226,16 @@ export class OutboxPublisher {
           "SELECT id FROM outbox WHERE processed_at IS NULL AND created_at < NOW() - INTERVAL '5 minutes' ORDER BY created_at ASC LIMIT 50",
         );
         if (result.rows.length > 0) {
-          logger.warn(
-            { module: 'outboxPublisher', count: result.rows.length },
+          moduleLog(
+            'warn',
+            { count: result.rows.length },
             'Found stuck outbox events, reprocessing',
           );
           await this.handleNotification();
         }
         await this.cleanupProcessedOutboxEvents();
       } catch (err) {
-        logger.error(
-          { module: 'outboxPublisher', err: (err as Error).message },
-          'Compensation scanner error',
-        );
+        moduleLog('error', { err: (err as Error).message }, 'Compensation scanner error');
       }
     }, 60_000);
   }
@@ -275,8 +254,9 @@ export class OutboxPublisher {
       const oldestAge = oldestResult.rows[0]?.age;
       outboxOldestUnprocessedAgeSeconds.set(oldestAge ? Number(oldestAge) : 0);
     } catch (err) {
-      logger.debug(
-        { module: 'outboxPublisher', err: (err as Error).message },
+      moduleLog(
+        'debug',
+        { err: (err as Error).message },
         'Failed to update outbox metrics (non-critical)',
       );
     }
@@ -290,18 +270,16 @@ export class OutboxPublisher {
         [OUTBOX_RETENTION_DAYS],
       );
       if (result.rowCount && result.rowCount > 0)
-        logger.info(
-          {
-            module: 'outboxPublisher',
-            deleted: result.rowCount,
-            retentionDays: OUTBOX_RETENTION_DAYS,
-          },
+        moduleLog(
+          'info',
+          { deleted: result.rowCount, retentionDays: OUTBOX_RETENTION_DAYS },
           'Cleaned up processed outbox events',
         );
       return result.rowCount ?? 0;
     } catch (err) {
-      logger.error(
-        { module: 'outboxPublisher', err: (err as Error).message },
+      moduleLog(
+        'error',
+        { err: (err as Error).message },
         'Failed to cleanup processed outbox events',
       );
       return 0;
@@ -323,15 +301,17 @@ export class OutboxPublisher {
 export function createOutboxConsumer(pool: pg.Pool, mode?: 'listen' | 'kafka'): OutboxConsumer {
   const useKafka = mode === 'kafka' || (mode === undefined && config.CDC_KAFKA_ENABLED);
   if (useKafka) {
-    logger.info(
-      { module: 'outboxPublisher', cdc: true },
+    moduleLog(
+      'info',
+      { cdc: true },
       'createOutboxConsumer: 使用 CDC/Kafka 通路（OutboxKafkaConsumer）',
     );
     // 注入 getter 而非 handler 值：server.ts 创建消费器后才 setWebhookHandler；getter 保证读到最新 handler，且避免反向依赖本模块
     return new OutboxKafkaConsumer(() => webhookHandler);
   }
-  logger.info(
-    { module: 'outboxPublisher', cdc: false },
+  moduleLog(
+    'info',
+    { cdc: false },
     'createOutboxConsumer: 使用 LISTEN/NOTIFY 通路（OutboxPublisher）',
   );
   return new OutboxPublisher(pool);

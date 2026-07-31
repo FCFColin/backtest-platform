@@ -16,10 +16,7 @@ import {
 } from './portfolioEditor/portfolioEditor.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadJSON } from '@/utils/download';
-import { Button } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
-import { AffixInput } from '@/components/ui/uiComponents';
-import { Badge } from '@/components/ui/uiComponents';
+import { AffixInput, Badge, Button, Input } from '@/components/ui/uiComponents';
 interface PortfolioAsset {
   ticker: string;
   weight: number;
@@ -150,6 +147,8 @@ interface AddMenuActions {
   onLoadCompareExample: () => void;
   onComingSoon: () => void;
 }
+const MENU_ITEM_CLS =
+  'flex w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer';
 function MenuButton({
   label,
   icon,
@@ -162,7 +161,7 @@ function MenuButton({
   return (
     <button
       type="button"
-      className="flex items-center gap-2 w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
+      className={`${MENU_ITEM_CLS} items-center gap-2`}
       role="menuitem"
       onClick={onClick}
     >
@@ -274,11 +273,7 @@ function PresetSubmenu({
       onMouseEnter={() => setSubOpen(true)}
       onMouseLeave={() => setSubOpen(false)}
     >
-      <button
-        type="button"
-        className="flex w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
-        role="menuitem"
-      >
+      <button type="button" className={MENU_ITEM_CLS} role="menuitem">
         {t('portfolio.addPreset')}
         <ChevronDown className="w-3 h-3 ml-auto rotate-[-90deg]" />
       </button>
@@ -291,7 +286,7 @@ function PresetSubmenu({
             <button
               key={preset.id}
               type="button"
-              className="flex flex-col gap-0.5 w-full px-3 py-2 text-left bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer"
+              className={`${MENU_ITEM_CLS} flex-col gap-0.5`}
               role="menuitem"
               onClick={() => {
                 onAddPreset(preset.id);

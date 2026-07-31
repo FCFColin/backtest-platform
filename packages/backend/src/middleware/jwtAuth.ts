@@ -79,6 +79,18 @@ export function authCtx(middleware: string, req: AuthenticatedRequest): Record<s
   return { middleware, path: req.path, requestId: req.id };
 }
 
+// 统一带上下文与 '[jwtAuth]' 前缀的日志，消除各处重复的 authCtx 样板
+type AuthLogLevel = 'info' | 'warn' | 'error';
+function authLog(
+  level: AuthLogLevel,
+  middleware: string,
+  req: AuthenticatedRequest,
+  msg: string,
+  extra: Record<string, unknown> = {},
+): void {
+  logger[level]({ ...authCtx(middleware, req), ...extra }, `[jwtAuth] ${msg}`);
+}
+
 type JoseKey = Exclude<Awaited<ReturnType<typeof importPKCS8>>, Uint8Array> | Uint8Array;
 const JWT_SECRET = config.JWT_SECRET;
 const JWT_ALGORITHM = config.JWT_ALGORITHM;
@@ -196,21 +208,21 @@ async function verifyWithAlgorithm(
 async function verifyJwt(token: string): Promise<JwtPayload | null> {
   return tracer.startActiveSpan('jwt.verifyJwt', async (span) => {
     try {
+      let payload: JwtPayload | null = null;
       try {
-        return await verifyWithAlgorithm(token, 'RS256', span);
+        payload = await verifyWithAlgorithm(token, 'RS256', span);
       } catch {
         /* RS256 失败，按策略决定是否回退 HS256 */
       }
-      if (JWT_ALGORITHM !== 'HS256') {
-        span.setAttribute('verify.result', 'failed');
-        return null;
+      if (!payload && JWT_ALGORITHM === 'HS256') {
+        try {
+          payload = await verifyWithAlgorithm(token, 'HS256', span);
+        } catch {
+          /* HS256 校验失败 */
+        }
       }
-      try {
-        return await verifyWithAlgorithm(token, 'HS256', span);
-      } catch {
-        span.setAttribute('verify.result', 'failed');
-        return null;
-      }
+      if (!payload) span.setAttribute('verify.result', 'failed');
+      return payload;
     } finally {
       span.end();
     }
@@ -226,15 +238,15 @@ export function authFail(
   error: string,
   failureCode?: string,
 ): void {
-  logger.warn({ ...authCtx(middleware, req), error }, '[jwtAuth] JWT 认证失败');
+  authLog('warn', middleware, req, 'JWT 认证失败', { error });
   if (failureCode) recordAuthFailure(getRoutePattern(req), failureCode);
 }
 function authSuccess(middleware: string, req: AuthenticatedRequest, next: NextFunction): void {
   attachAuthLogContext(req);
-  logger.info(
-    { ...authCtx(middleware, req), userId: hashUserId(req.user?.sub), role: req.user?.role },
-    '[jwtAuth] JWT 认证通过',
-  );
+  authLog('info', middleware, req, 'JWT 认证通过', {
+    userId: hashUserId(req.user?.sub),
+    role: req.user?.role,
+  });
   next();
 }
 
@@ -245,7 +257,7 @@ function tryDevBypass(req: AuthenticatedRequest, next: NextFunction): boolean {
     config.JWT_SECRET === 'dev-only-jwt-secret-change-in-production'
   ))
     return false;
-  logger.info({ ...authCtx('jwtAuth', req) }, '[jwtAuth] 开发旁路认证（readonly）');
+  authLog('info', 'jwtAuth', req, '开发旁路认证（readonly）');
   const now = Math.floor(Date.now() / 1000);
   req.user = {
     sub: 'dev-user',
@@ -264,19 +276,15 @@ async function denyIfRevokedOrDisabled(
   middleware: string,
 ): Promise<boolean> {
   if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
-    logger.warn(
-      { ...authCtx(middleware, req), userId: hashUserId(payload.sub) },
-      '[jwtAuth] 会话已全局撤销，拒绝访问',
-    );
+    authLog('warn', middleware, req, '会话已全局撤销，拒绝访问', {
+      userId: hashUserId(payload.sub),
+    });
     recordAuthFailure(getRoutePattern(req), 'session_revoked');
     sendProblem(res, 401, 'SESSION_REVOKED');
     return true;
   }
   if (!(await isUserSessionValid(payload.sub))) {
-    logger.warn(
-      { ...authCtx(middleware, req), userId: hashUserId(payload.sub) },
-      '[jwtAuth] 用户已停用，拒绝访问',
-    );
+    authLog('warn', middleware, req, '用户已停用，拒绝访问', { userId: hashUserId(payload.sub) });
     recordAuthFailure(getRoutePattern(req), 'account_disabled');
     sendProblem(res, 401, 'ACCOUNT_DISABLED');
     return true;
@@ -299,10 +307,9 @@ async function authenticateWithBearer(
   if (!payload) {
     if (optional) {
       req.user = null;
-      logger.warn(
-        { ...authCtx(middleware, req), error: 'JWT token 无效或已过期' },
-        '[jwtAuth] JWT 认证失败，可选认证放行',
-      );
+      authLog('warn', middleware, req, 'JWT 认证失败，可选认证放行', {
+        error: 'JWT token 无效或已过期',
+      });
       next();
       return;
     }
@@ -314,10 +321,9 @@ async function authenticateWithBearer(
     if (await denyIfRevokedOrDisabled(payload, req, res, middleware)) return;
   } catch (err) {
     if (!optional) throw err;
-    logger.warn(
-      { ...authCtx(middleware, req), userId: hashUserId(payload.sub) },
-      '[jwtAuth] 会话状态校验异常，fail-closed 拒绝（可选认证路径）',
-    );
+    authLog('warn', middleware, req, '会话状态校验异常，fail-closed 拒绝（可选认证路径）', {
+      userId: hashUserId(payload.sub),
+    });
     recordAuthFailure(getRoutePattern(req), 'session_check_error');
     sendProblem(res, 401, 'AUTH_CHECK_FAILED');
     return;
@@ -332,19 +338,15 @@ async function authenticate(
   optional: boolean,
 ): Promise<void> {
   const middleware = optional ? 'optionalJwtAuth' : 'jwtAuth';
-  logger.info(
-    { ...authCtx(middleware, req), method: req.method },
-    optional ? '[jwtAuth] 可选 JWT 认证检查' : '[jwtAuth] JWT 认证检查',
-  );
+  authLog('info', middleware, req, optional ? '可选 JWT 认证检查' : 'JWT 认证检查', {
+    method: req.method,
+  });
   if (!optional && tryDevBypass(req, next)) return;
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     if (optional) {
       void authenticateWithBearer(req, res, next, true).catch((err) => {
-        logger.error(
-          { err, path: req.path, requestId: req.id },
-          '[jwtAuth] handleOptionalBearer unhandled rejection',
-        );
+        authLog('error', middleware, req, 'handleOptionalBearer unhandled rejection', { err });
         next(err);
       });
       return;

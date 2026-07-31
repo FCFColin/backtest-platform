@@ -18,6 +18,12 @@ const histogram = (
 ): client.Histogram =>
   new client.Histogram({ name, help, labelNames, buckets, registers: [register] });
 
+// 采样类注册的公共骨架：立即采样一次 + setInterval 周期刷新（unref 不阻塞进程退出）
+function startSampler(fn: () => void | Promise<void>, intervalMs: number): void {
+  void fn();
+  setInterval(fn, intervalMs).unref();
+}
+
 export const eventLoopLagSeconds = gauge(
   'node_eventloop_lag_seconds',
   'Event loop lag (P99) in seconds, sampled every 10s',
@@ -66,21 +72,21 @@ export function registerSemaphoreMetrics(
   getAvailable: () => number,
 ): void {
   dataServiceSemaphoreTotal.set({ name }, total);
-  dataServiceSemaphoreAvailable.set({ name }, getAvailable());
-  setInterval(() => dataServiceSemaphoreAvailable.set({ name }, getAvailable()), 5_000).unref();
+  startSampler(() => dataServiceSemaphoreAvailable.set({ name }, getAvailable()), 5_000);
 }
 
+const HTTP_REQUEST_LABELS: string[] = ['method', 'route', 'status_code'];
 export const httpRequestDurationMicroseconds = histogram(
   'http_request_duration_seconds',
   'Duration of HTTP requests in seconds',
-  ['method', 'route', 'status_code'],
+  HTTP_REQUEST_LABELS,
   [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 10, 30],
 );
-export const httpRequestsTotal = counter('http_requests_total', 'Total number of HTTP requests', [
-  'method',
-  'route',
-  'status_code',
-]);
+export const httpRequestsTotal = counter(
+  'http_requests_total',
+  'Total number of HTTP requests',
+  HTTP_REQUEST_LABELS,
+);
 export const engineCallsTotal = counter(
   'go_engine_calls_total',
   'Total number of calls to Go engine',
@@ -188,8 +194,7 @@ export function registerPgPoolMetrics(
     pgPoolWaitingCount.set({ pool: poolName }, stats.waitingCount);
     pgPoolTotalCount.set({ pool: poolName }, stats.totalCount);
   };
-  refresh();
-  setInterval(refresh, 5_000).unref();
+  startSampler(refresh, 5_000);
 }
 
 export function recordEngineCall(success: boolean, _error?: string): void {
@@ -221,14 +226,17 @@ export const quotaEnforcementFailures = counter(
   ['quota_key', 'reason'],
 );
 
-const timescaledbCompressedChunks = gauge(
-  'timescaledb_compressed_chunks',
-  'Number of compressed chunks in prices hypertable',
-);
-const timescaledbUncompressedChunks = gauge(
-  'timescaledb_uncompressed_chunks',
-  'Number of uncompressed chunks in prices hypertable',
-);
+const timescaledbChunkGauges = {
+  total: gauge('timescaledb_chunk_count', 'Total number of chunks in prices hypertable'),
+  compressed: gauge(
+    'timescaledb_compressed_chunks',
+    'Number of compressed chunks in prices hypertable',
+  ),
+  uncompressed: gauge(
+    'timescaledb_uncompressed_chunks',
+    'Number of uncompressed chunks in prices hypertable',
+  ),
+};
 // 0-1，压缩后/压缩前
 const timescaledbCompressionRatio = gauge(
   'timescaledb_compression_ratio',
@@ -237,10 +245,6 @@ const timescaledbCompressionRatio = gauge(
 const timescaledbCaggRows = gauge(
   'timescaledb_cagg_rows',
   'Total rows in prices_monthly continuous aggregate',
-);
-const timescaledbChunkCount = gauge(
-  'timescaledb_chunk_count',
-  'Total number of chunks in prices hypertable',
 );
 
 // 注册 TimescaleDB 指标采集器。使用回调函数模式避免与 pool.ts 的循环依赖
@@ -260,9 +264,9 @@ export function registerTimescaleMetrics(
       `);
       const cs = chunkRows[0];
       if (cs) {
-        setNum(timescaledbChunkCount, cs.total_chunks);
-        setNum(timescaledbCompressedChunks, cs.compressed_chunks);
-        setNum(timescaledbUncompressedChunks, cs.uncompressed_chunks);
+        setNum(timescaledbChunkGauges.total, cs.total_chunks);
+        setNum(timescaledbChunkGauges.compressed, cs.compressed_chunks);
+        setNum(timescaledbChunkGauges.uncompressed, cs.uncompressed_chunks);
       }
       const ratioRows = await queryFn(`
         SELECT
@@ -284,8 +288,7 @@ export function registerTimescaleMetrics(
       // TimescaleDB 未安装或表不存在时静默跳过（开发环境可能未启用）
     }
   };
-  sample();
-  setInterval(sample, 60_000).unref();
+  startSampler(sample, 60_000);
 }
 
 const bullmqQueueSize = gauge(
@@ -308,8 +311,7 @@ export function registerQueueMetrics(
       }
     }
   };
-  refresh();
-  setInterval(refresh, 10_000).unref();
+  startSampler(refresh, 10_000);
 }
 
 const frontendWebVital = gauge(
