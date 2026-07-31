@@ -1,4 +1,4 @@
-openapi: 3.0.3
+﻿openapi: 3.0.3
 info:
   title: 回测平台 API
   version: 1.0.0
@@ -165,48 +165,6 @@ components:
         - success
         - data
 paths:
-  /auth/login:
-    post:
-      summary: API Key 登录
-      tags:
-        - auth
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                apiKey:
-                  type: string
-                  minLength: 1
-                  maxLength: 512
-              required:
-                - apiKey
-      responses:
-        "200":
-          description: 返回 accessToken/refreshToken
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
-          description: 请求参数错误
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: 未认证或令牌失效
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "429":
-          description: 请求过于频繁
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
   /auth/login/password:
     post:
       summary: 用户名密码登录
@@ -230,42 +188,42 @@ paths:
                 - username
                 - password
       responses:
-        "200":
+        '200':
           description: 返回 accessToken/refreshToken
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "429":
+                $ref: '#/components/schemas/ProblemDetail'
+        '429':
           description: 请求过于频繁
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/register:
     post:
       summary: 注册新用户
@@ -297,72 +255,72 @@ paths:
                 - email
                 - password
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "409":
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
           description: 冲突
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "429":
+                $ref: '#/components/schemas/ProblemDetail'
+        '429':
           description: 请求过于频繁
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/refresh:
     post:
       summary: 刷新访问令牌
       tags:
         - auth
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/logout:
     delete:
       summary: 登出（吊销刷新令牌）
@@ -371,24 +329,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/me:
     get:
       summary: 查询当前用户身份
@@ -397,18 +355,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 注销账户
       tags:
@@ -416,24 +374,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/orgs:
     get:
       summary: 查询可切换组织列表
@@ -442,18 +400,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/switch-org:
     post:
       summary: 切换当前组织
@@ -462,54 +420,54 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/verify-email:
     post:
       summary: 邮箱验证
       tags:
         - auth
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /auth/resend-verification:
     post:
       summary: 重发验证邮件
@@ -518,24 +476,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "429":
+                $ref: '#/components/schemas/ProblemDetail'
+        '429':
           description: 请求过于频繁
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/search:
     get:
       summary: 搜索可回测标的
@@ -558,30 +516,30 @@ paths:
           name: market
           in: query
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/portfolio:
     post:
       summary: 组合回测
@@ -663,14 +621,14 @@ paths:
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     endDate:
                       anyOf:
                         - type: string
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     startingValue:
                       type: number
                       minimum: 0
@@ -751,48 +709,48 @@ paths:
                 - portfolios
                 - parameters
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "202":
+                $ref: '#/components/schemas/SuccessResponse'
+        '202':
           description: 任务已入队，通过 GET /backtest/runs/:jobId 轮询结果
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/BacktestJobAccepted"
-        "400":
+                $ref: '#/components/schemas/BacktestJobAccepted'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/portfolio/series:
     post:
       summary: 从缓存补全 Tab 序列
@@ -874,14 +832,14 @@ paths:
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     endDate:
                       anyOf:
                         - type: string
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     startingValue:
                       type: number
                       minimum: 0
@@ -972,30 +930,30 @@ paths:
                 - parameters
                 - series
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/analysis:
     post:
       summary: 资产分析
@@ -1024,14 +982,14 @@ paths:
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     endDate:
                       anyOf:
                         - type: string
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     startingValue:
                       type: number
                       minimum: 0
@@ -1112,42 +1070,42 @@ paths:
                 - tickers
                 - parameters
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/monte-carlo:
     post:
       summary: 蒙特卡洛模拟
@@ -1284,14 +1242,14 @@ paths:
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     endDate:
                       anyOf:
                         - type: string
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     startingValue:
                       type: number
                       minimum: 0
@@ -1386,42 +1344,42 @@ paths:
               required:
                 - parameters
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/optimize:
     post:
       summary: 组合优化
@@ -1463,14 +1421,14 @@ paths:
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     endDate:
                       anyOf:
                         - type: string
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     startingValue:
                       type: number
                       minimum: 0
@@ -1556,42 +1514,42 @@ paths:
                 - objective
                 - parameters
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/efficient-frontier:
     post:
       summary: 有效前沿
@@ -1622,14 +1580,14 @@ paths:
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     endDate:
                       anyOf:
                         - type: string
                           format: date
                         - type: string
                           enum:
-                            - ""
+                            - ''
                     startingValue:
                       type: number
                       minimum: 0
@@ -1714,42 +1672,42 @@ paths:
                 - tickers
                 - parameters
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest/runs/{jobId}:
     get:
       summary: 查询异步回测任务状态
@@ -1764,36 +1722,36 @@ paths:
           name: jobId
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /backtest-optimizer/optimize:
     post:
       summary: 参数空间网格优化
@@ -1918,42 +1876,42 @@ paths:
                 - parameters
                 - objective
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/history:
     get:
       summary: 获取历史行情数据
@@ -1981,36 +1939,36 @@ paths:
           name: endDate
           in: query
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/search:
     get:
       summary: 搜索资产代码
@@ -2033,30 +1991,30 @@ paths:
           name: market
           in: query
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/cpi/{country}:
     get:
       summary: 获取 CPI 数据
@@ -2074,36 +2032,36 @@ paths:
           name: country
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/status:
     get:
       summary: 数据引擎状态
@@ -2112,24 +2070,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/stats:
     get:
       summary: 数据引擎统计
@@ -2138,24 +2096,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/tickers:
     get:
       summary: 标的管理列表（分页）
@@ -2180,24 +2138,24 @@ paths:
           name: limit
           in: query
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/search:
     get:
       summary: 标的搜索
@@ -2214,24 +2172,24 @@ paths:
           name: q
           in: query
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/update/status:
     get:
       summary: 更新任务状态
@@ -2240,18 +2198,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/update/full:
     put:
       summary: 触发全量更新
@@ -2260,36 +2218,36 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "409":
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
           description: 冲突
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/update/inc:
     patch:
       summary: 触发增量更新
@@ -2298,30 +2256,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/resume:
     patch:
       summary: 恢复暂停的更新
@@ -2330,30 +2288,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "409":
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
           description: 冲突
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/update/stop:
     post:
       summary: 停止更新任务
@@ -2362,30 +2320,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "409":
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
           description: 冲突
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/universe:
     put:
       summary: 更新标的池
@@ -2394,30 +2352,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/ticker/{id}:
     get:
       summary: 查询单个标的信息
@@ -2432,30 +2390,30 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /data/manage/regenerate-meta:
     put:
       summary: 重生成标的元数据
@@ -2464,30 +2422,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/stats:
     get:
       summary: 仪表盘统计
@@ -2496,24 +2454,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/system:
     get:
       summary: 系统资源信息
@@ -2522,24 +2480,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/keys/rotate:
     post:
       summary: 轮换 ADMIN_API_KEY
@@ -2548,30 +2506,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/keys/{id}:
     delete:
       summary: 吊销指定密钥
@@ -2586,30 +2544,30 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/keys:
     get:
       summary: 列出平台密钥
@@ -2618,24 +2576,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /keys:
     post:
       summary: 创建组织 API Key
@@ -2655,30 +2613,30 @@ paths:
               required:
                 - name
       responses:
-        "200":
+        '200':
           description: 返回新建 Key（明文仅此一次）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     get:
       summary: 列出组织 API Key
       tags:
@@ -2686,18 +2644,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /keys/{id}:
     delete:
       summary: 吊销组织 API Key
@@ -2712,24 +2670,24 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /portfolios:
     get:
       summary: 列出已保存组合
@@ -2738,18 +2696,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 保存组合
       tags:
@@ -2797,30 +2755,30 @@ paths:
                 - name
                 - assets
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /portfolios/{id}:
     get:
       summary: 查询组合详情
@@ -2835,24 +2793,24 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     put:
       summary: 更新组合
       tags:
@@ -2906,36 +2864,36 @@ paths:
                 - name
                 - assets
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 删除组合
       tags:
@@ -2949,24 +2907,24 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /configs:
     get:
       summary: 列出命名配置
@@ -2975,18 +2933,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 保存命名配置
       tags:
@@ -3011,30 +2969,30 @@ paths:
                 - name
                 - config
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /configs/{id}:
     get:
       summary: 查询配置详情
@@ -3049,24 +3007,24 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     put:
       summary: 更新命名配置
       tags:
@@ -3097,36 +3055,36 @@ paths:
                 - name
                 - config
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 删除命名配置
       tags:
@@ -3140,24 +3098,24 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /runs:
     get:
       summary: 列出回测历史
@@ -3166,18 +3124,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 保存回测历史
       tags:
@@ -3209,30 +3167,30 @@ paths:
               required:
                 - request
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /runs/{id}:
     get:
       summary: 查询回测历史详情
@@ -3247,24 +3205,24 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 删除回测历史
       tags:
@@ -3278,24 +3236,24 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /orgs/current:
     get:
       summary: 查询当前组织
@@ -3304,18 +3262,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     patch:
       summary: 更新当前组织信息
       tags:
@@ -3323,30 +3281,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /orgs/members:
     get:
       summary: 列出组织成员
@@ -3355,18 +3313,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /orgs/members/{userId}:
     patch:
       summary: 更新成员角色
@@ -3381,30 +3339,30 @@ paths:
           name: userId
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 移除成员
       tags:
@@ -3418,30 +3376,30 @@ paths:
           name: userId
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /orgs/invitations:
     get:
       summary: 列出组织邀请
@@ -3450,24 +3408,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 创建组织邀请
       tags:
@@ -3475,30 +3433,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /orgs/invitations/accept:
     post:
       summary: 接受组织邀请
@@ -3507,30 +3465,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "409":
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
           description: 冲突
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /orgs/invitations/{id}:
     delete:
       summary: 撤销组织邀请
@@ -3545,30 +3503,30 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /billing/subscription:
     get:
       summary: 查询当前订阅
@@ -3577,18 +3535,18 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /billing/checkout:
     post:
       summary: 创建 Stripe Checkout Session
@@ -3597,30 +3555,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /billing/portal:
     post:
       summary: 创建 Billing Portal Session
@@ -3629,24 +3587,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /jobs/{id}:
     get:
       summary: 查询异步任务状态
@@ -3661,30 +3619,30 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /tactical/backtest:
     post:
       summary: 战术分配回测
@@ -3820,42 +3778,42 @@ paths:
                 - startingValue
                 - rebalanceFrequency
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /tactical/what-if:
     post:
       summary: 战术 What-If 分析
@@ -3975,36 +3933,36 @@ paths:
               required:
                 - tickers
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /tactical/alerts:
     post:
       summary: 配置战术告警
@@ -4038,30 +3996,30 @@ paths:
               required:
                 - config
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /tactical-grid/search:
     post:
       summary: 战术网格参数搜索
@@ -4159,42 +4117,42 @@ paths:
                 - rebalanceFrequency
                 - objective
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /signal/analyze:
     post:
       summary: 单信号分析
@@ -4239,42 +4197,42 @@ paths:
                 - endDate
                 - signalType
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /signal/dual:
     post:
       summary: 双信号组合分析
@@ -4365,42 +4323,42 @@ paths:
                 - signal2
                 - combinationMethod
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /signal/multi:
     post:
       summary: 多信号聚合分析
@@ -4464,42 +4422,42 @@ paths:
                 - signals
                 - aggregationMethod
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /pca/analyze:
     post:
       summary: PCA 主成分分析
@@ -4533,42 +4491,42 @@ paths:
                 - startDate
                 - endDate
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /letf/analyze:
     post:
       summary: 杠杆 ETF 滑点分析
@@ -4605,42 +4563,42 @@ paths:
                 - startDate
                 - endDate
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /goal-optimizer/optimize:
     post:
       summary: 目标优化（蒙特卡洛达成概率）
@@ -4699,42 +4657,42 @@ paths:
                 - years
                 - assets
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /calculators/{type}:
     post:
       summary: 计算器（按类型）
@@ -4749,36 +4707,36 @@ paths:
           name: type
           in: path
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /analysis/factor-regression:
     post:
       summary: 因子回归分析
@@ -4787,84 +4745,84 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 成功
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "503":
+                $ref: '#/components/schemas/ProblemDetail'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /health:
     get:
       summary: 存活探针
       tags:
         - health
       responses:
-        "200":
+        '200':
           description: 服务存活
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "503":
+                $ref: '#/components/schemas/SuccessResponse'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /ready:
     get:
       summary: 就绪探针
       tags:
         - health
       responses:
-        "200":
+        '200':
           description: 服务就绪
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "503":
+                $ref: '#/components/schemas/SuccessResponse'
+        '503':
           description: 服务不可用（降级或引擎不可用）
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /metrics:
     get:
       summary: Prometheus 指标
       tags:
         - health
       responses:
-        "200":
+        '200':
           description: Prometheus 文本格式指标
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
+                $ref: '#/components/schemas/SuccessResponse'
   /webhooks:
     get:
       summary: 列出当前组织的 webhook 端点
@@ -4873,30 +4831,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 当前组织的 webhook 端点列表（不含 secret）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 创建 webhook 端点（自动生成签名 secret 时使用请求体提供的 secret）
       tags:
@@ -4927,42 +4885,42 @@ paths:
                 - secret
                 - subscribedEvents
       responses:
-        "200":
+        '200':
           description: 新建成功的 webhook 含一个 id， description，isActive，subscribedEvents 等
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /webhooks/{id}:
     put:
       summary: 更新 webhook 端点元数据（url/description/subscribed_events/is_active）
@@ -4994,48 +4952,48 @@ paths:
                 isActive:
                   type: boolean
       responses:
-        "200":
+        '200':
           description: 更新后的 webhook 端点
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 删除 webhook 端点（级联删除投递历史，由 FK ON DELETE CASCADE 保证）
       tags:
@@ -5049,36 +5007,36 @@ paths:
           name: id
           in: path
       responses:
-        "200":
-          description: "删除成功的 webhook id 与 deleted: true 标记（表示该 id 的端点已从当前组织删除）"
+        '200':
+          description: '删除成功的 webhook id 与 deleted: true 标记（表示该 id 的端点已从当前组织删除）'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /webhooks/{id}/test:
     post:
       summary: 发送测试事件：立即投递一次 WebhookTest 事件并记录投递历史
@@ -5099,36 +5057,36 @@ paths:
               type: object
               properties: {}
       responses:
-        "200":
+        '200':
           description: 测试投递结果（deliveryId）+ delivered（是否成功）+ responseCode + responseBody
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /webhooks/{id}/deliveries:
     get:
       summary: 查询投递历史（最近 100 条，按创建时间倒序）
@@ -5143,54 +5101,54 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 投递记录列表，每条含 id（投递记录 id）与 delivery_responseCode.json 形式的元数据
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /announcements:
     get:
       summary: 获取公告列表（公开，无需认证）
       tags:
         - announcements
       responses:
-        "200":
+        '200':
           description: 当前有效的公告列表（不超过 50 条）按 publishedAt 倒序
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "500":
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 发布公告（仅管理员）
       tags:
@@ -5227,42 +5185,42 @@ paths:
                 - title
                 - body
       responses:
-        "200":
+        '200':
           description: 新建成功的公告含自动生成的 id 与 publishedAt
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /tactical/configs:
     get:
       summary: 列出当前租户的战术分配配置列表（分页，默认每页 50）
@@ -5282,30 +5240,30 @@ paths:
           name: offset
           in: query
       responses:
-        "200":
+        '200':
           description: 当前租户的战术分配配置列表
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 新建战术分配配置（含 chart 配置，cs，longSort，shortSort 各字段以及展示用的 name）
       tags:
@@ -5342,42 +5300,42 @@ paths:
               required:
                 - name
       responses:
-        "200":
+        '200':
           description: 新建成功的配置含自动生成的 id 与 description
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /tactical/configs/{id}:
     get:
       summary: 查询单个战术分配配置的详情
@@ -5392,36 +5350,36 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 一个战术分配配置的全部字段（含 chart，cs，longSort，shortSort 等字段）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     put:
       summary: 更新战术分配配置（可更新 name 与各字段，以及 alpha 和 beta 类的相关字段）
       tags:
@@ -5458,48 +5416,48 @@ paths:
                 chart:
                   type: string
       responses:
-        "200":
+        '200':
           description: 更新后的配置，含 cs 与 alpha 相关字段的最新值
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 删除战术分配配置（软删除，将配置的 apply 状态置为 disabled，并记录执行的 actor 与原因）
       tags:
@@ -5513,182 +5471,36 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 删除成功的配置（含已删除的配置 id）以及该 id 关联的审计日志的 id
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-  /data/custom:
-    get:
-      summary: 列出当前租户创建的自定义 ticker 数据（含 symbol 映射，类型，是否激活等字段）
-      tags:
-        - data-custom
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: 当前租户的自定义 ticker 列表，每项含 id（自动生成的 v4 uuid），symbol 映射，isActive 等
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
-          description: 未认证或令牌失效
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
-          description: 无权限
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-    post:
-      summary: 创建集群 ticker 数据（触发后台任务以获取所需的分钟级行情数据）
-      tags:
-        - data-custom
-      security:
-        - BearerAuth: []
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                symbol:
-                  type: string
-                  minLength: 1
-                  maxLength: 50
-                name:
-                  type: string
-                  minLength: 1
-                  maxLength: 255
-                exchange:
-                  type: string
-                currency:
-                  type: string
-              required:
-                - symbol
-                - name
-      responses:
-        "200":
-          description: 新建成功的一个 id（用于后续轮询的 job id）以及内部生成的自定义 ticker 数据
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
-          description: 请求参数错误
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
-          description: 未认证或令牌失效
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
-          description: 无权限
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "409":
-          description: 冲突
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
-          description: 校验失败
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-  /data/custom/{id}:
-    delete:
-      summary: 删除自定义 ticker 数据（包括该 ticker 相关的缓存的行情数据，以及外部数据源对该 ticker 的任何引用）
-      tags:
-        - data-custom
-      security:
-        - BearerAuth: []
-      parameters:
-        - schema:
-            type: string
-          required: true
-          name: id
-          in: path
-      responses:
-        "200":
-          description: "删除成功的自定义 ticker id 与 deleted: true（表示该 id 的数据已从当前租户删除）"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
-          description: 未认证或令牌失效
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
-          description: 无权限
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: 资源不存在
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/audit-logs:
     get:
       summary: 查询审计日志列表（支持按时间范围、actor、action、resource 等条件过滤，分页查询）
@@ -5723,74 +5535,30 @@ paths:
           name: resource
           in: query
       responses:
-        "200":
+        '200':
           description: 审计日志的分页结果，每条含 id（审计事件 id）与 actor（执行者）与 action 与 resource
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-  /admin/audit-logs/{id}:
-    get:
-      summary: 查询单条审计日志的详情（含完整的请求体与响应体的 JSON 元数据）
-      tags:
-        - audit-logs
-      security:
-        - BearerAuth: []
-      parameters:
-        - schema:
-            type: string
-          required: true
-          name: id
-          in: path
-      responses:
-        "200":
-          description: 单条审计日志的详情（含请求的 metadata（含 user agent）与响应的状态码与响应体）
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
-          description: 未认证或令牌失效
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
-          description: 无权限
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
-          description: 资源不存在
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
-          description: 服务器内部错误
-          content:
-            application/problem+json:
-              schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/roles:
     get:
       summary: 查询当前租户可分配的全部角色列表及其关联的权限名称。
@@ -5799,30 +5567,30 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 当前租户可分配的角色列表，每个角色含 id（自动生成的 v4 uuid）与 name 与 description 与 permissions
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 创建一个新角色（含 name 与 description，以及关联的 int array permissions 数组）
       tags:
@@ -5850,48 +5618,48 @@ paths:
                 - name
                 - permissions
       responses:
-        "200":
+        '200':
           description: 新建成功的角色含 id 与 name
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "409":
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
           description: 冲突
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/roles/{id}:
     put:
       summary: 更新角色名称或权限（inner join p_name 查询角色名，以及权限管理的 int array permissions 字段）
@@ -5923,48 +5691,48 @@ paths:
                   items:
                     type: string
       responses:
-        "200":
+        '200':
           description: 更新后的角色含最新的 name 与 description
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     delete:
       summary: 删除自定义角色（软删除，不影响已分配该角色的用户。删除系统内置角色将返回 409）
       tags:
@@ -5978,36 +5746,36 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 删除成功（含已删除的角色 id）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/roles/{id}/permissions:
     get:
       summary: 查询角色拥有的权限列表
@@ -6022,36 +5790,36 @@ paths:
           name: id
           in: path
       responses:
-        "200":
+        '200':
           description: 角色关联的权限 id 列表（int array）以及对应的 api endpoint 名称列表
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     put:
       summary: 替换角色的全部权限（传入 int array permissions 数组，完全替换原有权限）
       tags:
@@ -6077,48 +5845,48 @@ paths:
               required:
                 - permissions
       responses:
-        "200":
+        '200':
           description: 更新后的角色含最新的权限列表
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/users/{userId}/roles:
     get:
       summary: 查询用户被分配的角色列表与对应的 api endpoint 列表
@@ -6133,30 +5901,30 @@ paths:
           name: userId
           in: path
       responses:
-        "200":
+        '200':
           description: 当前租户的用户角色列表（含角色名称与 api endpoint 名称）
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
     post:
       summary: 为用户分配一个或多个角色（传入 array roleIds，幂等：重复分配不会产生副作用的批量更新）
       tags:
@@ -6182,42 +5950,42 @@ paths:
               required:
                 - roleIds
       responses:
-        "200":
+        '200':
           description: 更新后的角色列表
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "401":
+                $ref: '#/components/schemas/ProblemDetail'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /admin/users/{userId}/roles/{roleId}:
     delete:
       summary: 移除用户的某个角色分配（user_role 表的联合主键 userId + roleId，不影响其他角色分配）
@@ -6237,36 +6005,36 @@ paths:
           name: roleId
           in: path
       responses:
-        "200":
+        '200':
           description: 移除成功后的用户剩余的角色列表
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "403":
+                $ref: '#/components/schemas/ProblemDetail'
+        '403':
           description: 无权限
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "404":
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
           description: 资源不存在
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /errors:
     post:
       summary: 前端错误上报端点（用于收集客户端发生的未知与未处理的 javascript 错误，command 与 network 错误，以及渲染阶段的 react 错误）
@@ -6297,36 +6065,36 @@ paths:
               required:
                 - message
       responses:
-        "200":
-          description: "删除成功的用户 id 与 deleted: true 标记（表示错误已记录到后台日志）"
+        '200':
+          description: '删除成功的用户 id 与 deleted: true 标记（表示错误已记录到后台日志）'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "400":
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
           description: 请求参数错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "422":
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
           description: 校验失败
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "429":
+                $ref: '#/components/schemas/ProblemDetail'
+        '429':
           description: 请求过于频繁
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'
   /feature-flags:
     get:
       summary: 查询全部功能开关的当前状态（含是否启用、描述、以及全局或按用户维度的配置）
@@ -6335,21 +6103,21 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: 功能开关列表，每个开关含 key（字符串标识符）与 enabled（是否启用）以及 description
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SuccessResponse"
-        "401":
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
           description: 未认证或令牌失效
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
-        "500":
+                $ref: '#/components/schemas/ProblemDetail'
+        '500':
           description: 服务器内部错误
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ProblemDetail"
+                $ref: '#/components/schemas/ProblemDetail'

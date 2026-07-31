@@ -43,25 +43,40 @@ function extractMountPoints(): MountPoint[] {
   const content = fs.readFileSync(appSrcPath, 'utf8');
   const mounts: MountPoint[] = [];
 
-  // 匹配整个 app.use('path', ...args); 语句（以分号结尾）
+  // 匹配整个 app.use('path', ...args); 语句（可跨行，含尾逗号）
   const mountRegex = /app\.use\(\s*['"`]([^'"`]+)['"`]\s*,([^;]+)\);/g;
   let match: RegExpExecArray | null;
   while ((match = mountRegex.exec(content)) !== null) {
     const prefix = match[1];
     if (!prefix.startsWith('/api/v1')) continue;
 
-    // 从参数列表中提取路由模块名（匹配 xxxRoutes 标识符）
+    // 取参数列表中最后一个 xxxRoutes 标识符（多行挂载可能有多个中间件）
     const args = match[2];
-    const moduleMatch = args.match(/(\w+Routes)\s*\)?\s*$/);
-    if (moduleMatch) {
-      mounts.push({ prefix, routeFile: moduleMatch[1] });
+    const routeModules = args.match(/\b(\w+Routes)\b/g);
+    if (routeModules && routeModules.length > 0) {
+      mounts.push({ prefix, routeFile: routeModules[routeModules.length - 1] });
     }
   }
   return mounts;
 }
 
-function extractRoutesFromFile(filePath: string): Array<{ method: string; path: string }> {
-  if (!fs.existsSync(filePath)) return [];
+/** 解析文件内 `import xxx from '...'` 的相对模块路径。 */
+function resolveImportPath(filePath: string, localName: string): string | null {
+  const content = fs.readFileSync(filePath, 'utf8');
+  const importRegex = new RegExp(`import\\s+${localName}\\s+from\\s+['"]([^'"]+)['"]`);
+  const m = importRegex.exec(content);
+  if (!m) return null;
+  const spec = m[1];
+  if (!spec.startsWith('.')) return null;
+  return path.resolve(path.dirname(filePath), `${spec}.ts`);
+}
+
+function extractRoutesFromFile(
+  filePath: string,
+  seen = new Set<string>(),
+): Array<{ method: string; path: string }> {
+  if (!fs.existsSync(filePath) || seen.has(filePath)) return [];
+  seen.add(filePath);
   const content = fs.readFileSync(filePath, 'utf8');
   const routes: Array<{ method: string; path: string }> = [];
 
@@ -85,6 +100,15 @@ function extractRoutesFromFile(filePath: string): Array<{ method: string; path: 
     }
   }
 
+  // 匹配 router.use(subRoutes) 子挂载，递归提取子路由文件
+  const useRegex = /\brouter\.use\(\s*(\w+Routes)\s*\)/g;
+  while ((match = useRegex.exec(content)) !== null) {
+    const subPath = resolveImportPath(filePath, match[1]);
+    if (subPath) {
+      routes.push(...extractRoutesFromFile(subPath, seen));
+    }
+  }
+
   return routes;
 }
 
@@ -92,21 +116,54 @@ function expressToOpenApiPath(exprPath: string): string {
   return normalizePath(exprPath.replace(/:(\w+)/g, '{$1}'));
 }
 
+/**
+ * tenantCrudRoutes 工厂（routeUtils.ts）生成的标准租户 CRUD 路径：
+ * GET /、POST /、GET /{id}、DELETE /{id}，以及（service 提供 update 时）PUT /{id}。
+ * 静态扫描无法看到工厂内部 router 调用，这里按工厂契约补充。
+ *
+ * @param content - 路由文件内容
+ * @param specPrefix - 挂载前缀（去掉 /api/v1 后）
+ * @returns 工厂生成的路径
+ */
+function factoryRoutesFromFile(
+  content: string,
+  specPrefix: string,
+): Array<{ method: string; path: string }> {
+  if (!content.includes('tenantCrudRoutes(')) return [];
+  const routes: Array<{ method: string; path: string }> = [
+    { method: 'GET', path: specPrefix },
+    { method: 'POST', path: specPrefix },
+    { method: 'GET', path: `${specPrefix}/{id}` },
+    { method: 'DELETE', path: `${specPrefix}/{id}` },
+  ];
+  if (/\bupdate\s*:/.test(content)) {
+    routes.push({ method: 'PUT', path: `${specPrefix}/{id}` });
+  }
+  return routes;
+}
+
 function buildImplementedPaths(): SpecPaths {
   const mounts = extractMountPoints();
   const result: SpecPaths = new Map();
+  const add = (fullPath: string, method: string): void => {
+    if (!result.has(fullPath)) {
+      result.set(fullPath, new Set());
+    }
+    result.get(fullPath)!.add(method);
+  };
 
   for (const mount of mounts) {
     const specPrefix = mount.prefix.replace(/^\/api\/v1/, '');
     const filePath = path.join(routesDir, `${mount.routeFile}.ts`);
 
     const routes = extractRoutesFromFile(filePath);
+    const content = fs.readFileSync(filePath, 'utf8');
     for (const route of routes) {
-      const fullPath = expressToOpenApiPath(specPrefix + route.path);
-      if (!result.has(fullPath)) {
-        result.set(fullPath, new Set());
-      }
-      result.get(fullPath)!.add(route.method);
+      add(expressToOpenApiPath(specPrefix + route.path), route.method);
+    }
+    for (const route of factoryRoutesFromFile(content, specPrefix)) {
+      // 工厂返回的已是完整路径（含 specPrefix）
+      add(normalizePath(route.path), route.method);
     }
   }
 
