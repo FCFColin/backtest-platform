@@ -199,8 +199,12 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
 
     const head = buildSsrHead(htmlTemplate.head);
 
+    // 所有 header 须在 res.write 前设置：head 含内联 CSS，write 大 chunk 会
+    // flush headers，之后 setHeader 抛 ERR_HTTP_HEADERS_SENT
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Rendered-By', 'ssr');
+    res.setHeader('Server-Timing', `render;dur=${renderMs}, total;dur=${totalMs}`);
+    res.setHeader('X-Cache', 'MISS');
     res.write(head);
 
     // 给主 entry script 加 fetchpriority="high" 提升关键 JS 下载优先级
@@ -209,10 +213,6 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
       /(<script[^>]*src="[^"]*index-[^"]*\.js"[^>]*)>/g,
       '$1 fetchpriority="high">',
     );
-
-    const totalMs = Math.round(performance.now() - startTotal);
-    res.setHeader('Server-Timing', `render;dur=${renderMs}, total;dur=${totalMs}`);
-    res.setHeader('X-Cache', 'MISS');
 
     let body = head;
     const passThrough = new PassThrough();

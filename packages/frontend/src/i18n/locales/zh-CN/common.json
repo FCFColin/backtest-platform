@@ -399,10 +399,35 @@
   },
   "tabs": {
     "myMetrics": "自定义指标",
-    "rebalancing": "再平衡统计"
+    "rebalancing": "再平衡统计",
+    "summary": "概览",
+    "returns": "收益",
+    "metrics": "指标",
+    "returnsDist": "收益分布",
+    "yearlyReturns": "年度收益",
+    "rolling": "滚动收益",
+    "seasonality": "季节性",
+    "riskReturn": "风险收益",
+    "drawdown": "回撤",
+    "cashflows": "现金流",
+    "turnover": "换手率与税",
+    "allocation": "配置",
+    "portfolioAllocation": "组合配置",
+    "pies": "饼图",
+    "correlation": "相关性",
+    "telltale": "相对表现",
+    "regression": "回归"
   },
   "summarySidebar": {
-    "title": "关键指标"
+    "title": "关键指标",
+    "cagr": "年化收益率",
+    "totalReturn": "总收益率",
+    "maxDrawdown": "最大回撤",
+    "sharpe": "夏普比率",
+    "sortino": "索提诺比率",
+    "bestYear": "最佳年度",
+    "worstYear": "最差年度",
+    "positiveYears": "正收益年数"
   },
   "underwaterCurve": {
     "title": "水下曲线",

@@ -4,7 +4,7 @@
  * 隔离：api_keys 未启用 RLS（校验发生在尚未解析出租户时），按 org_id 显式收敛。verify 路径见 infrastructure/apiKeyVerifier.ts。
  */
 import crypto from 'crypto';
-import { getPool } from '../db/pool.js';
+import { getPool, withTenant } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { sha256Hex, hashApiKeyArgon2id } from '../utils/crypto.js';
 import { rowMapper, iso, toIso } from './rowMapper.js';
@@ -100,9 +100,12 @@ export async function createApiKey(
 ): Promise<CreatedApiKey> {
   const plaintext = generatePlatformKeyPlaintext();
   const { keyHash, keyHashArgon2, keyPrefix } = await deriveKeyFields(plaintext);
-  const { rows } = await getPool().query(
-    `INSERT INTO api_keys (org_id, name, key_hash, key_hash_argon2, key_prefix, created_by, is_platform_admin) VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING ${PLATFORM_KEY_COLUMNS}`,
-    [orgId, name, keyHash, keyHashArgon2, keyPrefix, createdBy],
+  // RLS FORCE：写必须带租户上下文（app.current_tenant_id）
+  const { rows } = await withTenant(orgId, (client) =>
+    client.query(
+      `INSERT INTO api_keys (org_id, name, key_hash, key_hash_argon2, key_prefix, created_by, is_platform_admin) VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING ${PLATFORM_KEY_COLUMNS}`,
+      [orgId, name, keyHash, keyHashArgon2, keyPrefix, createdBy],
+    ),
   );
   logger.info({ orgId, keyId: rows[0].id, createdBy }, '[apiKeyService] 已创建 API Key');
   return { ...mapRow(rows[0]), plaintext };
@@ -110,18 +113,22 @@ export async function createApiKey(
 
 /** 列出组织下的全部 API Key（含已吊销，用于审计）。 */
 export async function listApiKeys(orgId: string): Promise<ApiKeyRecord[]> {
-  const { rows } = await getPool().query(
-    `SELECT ${PLATFORM_KEY_COLUMNS} FROM api_keys WHERE org_id = $1 ORDER BY created_at DESC`,
-    [orgId],
+  const { rows } = await withTenant(orgId, (client) =>
+    client.query(
+      `SELECT ${PLATFORM_KEY_COLUMNS} FROM api_keys WHERE org_id = $1 ORDER BY created_at DESC`,
+      [orgId],
+    ),
   );
   return rows.map(mapRow);
 }
 
 /** 吊销组织下的某把 API Key（软删除，幂等）。返回 false 表示不存在/不属于该组织/已吊销。 */
 export async function revokeApiKey(orgId: string, keyId: string): Promise<boolean> {
-  const { rowCount } = await getPool().query(
-    `UPDATE api_keys SET revoked_at = NOW() WHERE id = $1 AND org_id = $2 AND revoked_at IS NULL`,
-    [keyId, orgId],
+  const { rowCount } = await withTenant(orgId, (client) =>
+    client.query(
+      `UPDATE api_keys SET revoked_at = NOW() WHERE id = $1 AND org_id = $2 AND revoked_at IS NULL`,
+      [keyId, orgId],
+    ),
   );
   const ok = (rowCount ?? 0) > 0;
   if (ok) logger.info({ orgId, keyId }, '[apiKeyService] 已吊销 API Key');

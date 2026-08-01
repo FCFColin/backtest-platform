@@ -47,17 +47,11 @@ test.describe('数据引擎页面', () => {
     });
 
     // 页面应显示统计卡片（正常状态）或错误信息+重试按钮（错误状态）
-    const statsVisible = await page
-      .getByText(/标的宇宙|Ticker Universe/)
-      .first()
-      .isVisible()
-      .catch(() => false);
-
-    if (statsVisible) {
-      // 正常状态：统计卡片可见
-      await expect(page.getByText(/标的宇宙|Ticker Universe/).first()).toBeVisible();
-    } else {
-      // 错误状态：应有重试按钮
+    try {
+      await expect(page.getByText(/标的宇宙|Ticker Universe/).first()).toBeVisible({
+        timeout: 15_000,
+      });
+    } catch {
       await expect(page.getByRole('button', { name: /重试|Retry/ })).toBeVisible({
         timeout: 10_000,
       });

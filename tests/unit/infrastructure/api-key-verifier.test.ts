@@ -12,6 +12,8 @@ const cryptoMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
+  withTenant: async (_orgId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) =>
+    fn({ query: dbMocks.query }),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

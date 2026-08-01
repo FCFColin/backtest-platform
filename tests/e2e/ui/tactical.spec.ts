@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('战术配置页面（Tactical）', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/tactical', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: /战术|Tactical/ })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /战术分配|Tactical Allocation/ })).toBeVisible({
       timeout: 60_000,
     });
   });

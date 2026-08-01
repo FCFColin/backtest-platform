@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
 import {
   PERF_BUDGET_MS,
   runDefaultBacktest,
@@ -12,7 +12,9 @@ test.describe('回测提速回归', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('navigation')).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText('参数设置').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/基础参数|Basic Parameters/).first()).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   test('P1: 默认回测 — 首屏统计在预算内出现', async ({ page }) => {
@@ -27,7 +29,7 @@ test.describe('回测提速回归', () => {
     await waitForSummaryStats(page, 60_000);
     const runBtn = getRunButton(page);
     await expect(runBtn).toBeEnabled({ timeout: 5_000 });
-    await expect(runBtn).toHaveText(/开始回测|Start Backtest/i);
+    await expect(runBtn).toHaveText(/运行回测|Run Backtest/i);
   });
 
   test('P3: sync 载荷 — 省略 rollingReturns 且体积 <80KB', async ({ page }) => {
@@ -73,7 +75,7 @@ test.describe('回测提速回归', () => {
       { timeout: 30_000 },
     );
 
-    await page.getByTestId('backtest-tab-rolling').click();
+    await page.getByRole('button', { name: /滚动|Rolling/ }).click();
     await seriesResponse;
 
     await expect(page.getByText(/回测失败|run failed/i)).toHaveCount(0);

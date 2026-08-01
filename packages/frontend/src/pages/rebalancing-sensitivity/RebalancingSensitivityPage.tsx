@@ -4,7 +4,7 @@ import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/in
 import { REBALANCE_OPTIONS, useRebalancingState } from './rebalancingSensitivityUtils.js';
 import type { RebalancingState } from './rebalancingSensitivityUtils.js';
 import { ResultsPanel } from './ResultsPanel.js';
-import { BasicParamsRow } from '../../components/ParamsShared.js';
+import { BasicParamsRow } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { Button, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';

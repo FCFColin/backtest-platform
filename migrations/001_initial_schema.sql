@@ -22,12 +22,12 @@ CREATE TABLE IF NOT EXISTS prices (
   id BIGSERIAL PRIMARY KEY,
   ticker VARCHAR(20) NOT NULL REFERENCES tickers(ticker),
   date DATE NOT NULL,
-  open DOUBLE PRECISION,
-  high DOUBLE PRECISION,
-  low DOUBLE PRECISION,
-  close DOUBLE PRECISION,
+  open NUMERIC(19, 6),
+  high NUMERIC(19, 6),
+  low NUMERIC(19, 6),
+  close NUMERIC(19, 6),
   volume BIGINT,
-  adjusted_close DOUBLE PRECISION,
+  adjusted_close NUMERIC(19, 6),
   UNIQUE(ticker, date)
 );
 
@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_prices_date_brin ON prices USING BRIN(date);
 CREATE TABLE IF NOT EXISTS cpi_data (
   country VARCHAR(10) NOT NULL,
   date DATE NOT NULL,
-  value DOUBLE PRECISION NOT NULL,
+  value NUMERIC(19, 6) NOT NULL,
   PRIMARY KEY (country, date)
 );
 
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
   base_currency VARCHAR(10) NOT NULL,
   target_currency VARCHAR(10) NOT NULL,
   date DATE NOT NULL,
-  rate DOUBLE PRECISION NOT NULL,
+  rate NUMERIC(19, 6) NOT NULL,
   PRIMARY KEY (base_currency, target_currency, date)
 );
 
@@ -1634,14 +1634,16 @@ CREATE INDEX IF NOT EXISTS idx_org_memberships_user ON org_memberships(user_id);
 --    写策略强制 org_id 必须匹配当前租户。
 ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_keys FORCE ROW LEVEL SECURITY;
+-- 校验路径在租户解析前访问（key_hash 查询），未设置/空 tenant 时须放行；
+-- NULLIF 防止 current_setting 返回 '' 时 ::uuid 抛 invalid input syntax
 CREATE POLICY api_keys_tenant_isolation
   ON api_keys
   FOR ALL
   USING (
-    org_id = current_setting('app.current_tenant_id', true)::uuid
-    OR current_setting('app.current_tenant_id', true) IS NULL
+    org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+    OR NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL
   )
-  WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid);
+  WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 
 -- 3) invitations：启用 + FORCE RLS（同 api_keys 模式，token_hash 查询需在租户解析前放行）
 ALTER TABLE invitations ENABLE ROW LEVEL SECURITY;
@@ -1650,10 +1652,10 @@ CREATE POLICY invitations_tenant_isolation
   ON invitations
   FOR ALL
   USING (
-    org_id = current_setting('app.current_tenant_id', true)::uuid
-    OR current_setting('app.current_tenant_id', true) IS NULL
+    org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid
+    OR NULLIF(current_setting('app.current_tenant_id', true), '') IS NULL
   )
-  WITH CHECK (org_id = current_setting('app.current_tenant_id', true)::uuid);
+  WITH CHECK (org_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 
 -- 4) org_memberships：启用 + FORCE RLS（严格隔离，无认证放行需求）
 ALTER TABLE org_memberships ENABLE ROW LEVEL SECURITY;
@@ -2098,62 +2100,4 @@ ALTER TABLE api_keys ADD CONSTRAINT api_keys_hash_present
 CREATE INDEX IF NOT EXISTS idx_fk_user_roles_role_id
   ON user_roles (role_id);
 
--- 045_financial_numeric_cutover.sql
--- =============================================================================
--- 迁移 v45：金融金额列 DOUBLE PRECISION -> NUMERIC(19,6) 原地转换
--- 描述：prices/cpi_data/exchange_rates 金额列从浮点原地转换为定点 NUMERIC(19,6)
--- =============================================================================
--- 企业理由（ADR-007）：金融金额必须用定点 NUMERIC 存储。DOUBLE PRECISION 约 15
---   位有效数字，0.1+0.2!=0.3 的浮点误差在 30 年回测复利计算中会放大到百分点级，
---   使净值/夏普比率失真。NUMERIC(19,6) 支持 13 位整数 + 6 位小数，覆盖亿级市值
---   与微价差。
---
--- 背景：039_prices_numeric.sql 已通过双写过渡新增 *_numeric 列（Go data-fetcher
---   双写维护），但原始 DOUBLE 列仍被 TS 应用层读取。本迁移将原始列原地转换为
---   NUMERIC，使所有读取路径（TS + Go）均获得定点精度，无需改动应用代码。
---   *_numeric 列保留（Go data-fetcher 仍写入），后续可在独立迁移中清理。
---
--- 范围：
---   prices: open, high, low, close, adjusted_close（5 列）
---   cpi_data: value（1 列）
---   exchange_rates: rate（1 列）
---   volume（BIGINT，非金额）不动。
---
--- 注意：prices 是 TimescaleDB hypertable（~2.4GB），ALTER COLUMN TYPE 会全表重写，
---   建议在维护窗口执行。CHECK 约束需先删除再重建。迁移 runner 包 BEGIN/COMMIT，
---   不能用 CONCURRENTLY，与 018/039 模式一致。
-
--- 1. 临时删除受影响列上的 CHECK 约束（ALTER TYPE 后重建）
-ALTER TABLE prices DROP CONSTRAINT IF EXISTS prices_ohlc_check;
-ALTER TABLE prices DROP CONSTRAINT IF EXISTS chk_prices_close_positive;
-ALTER TABLE cpi_data DROP CONSTRAINT IF EXISTS chk_cpi_value_positive;
-ALTER TABLE exchange_rates DROP CONSTRAINT IF EXISTS chk_exchange_rate_positive;
-
--- 2. 原地转换 prices 金额列（DOUBLE PRECISION -> NUMERIC(19,6)）
-ALTER TABLE prices ALTER COLUMN open TYPE NUMERIC(19, 6) USING open::numeric(19, 6);
-ALTER TABLE prices ALTER COLUMN high TYPE NUMERIC(19, 6) USING high::numeric(19, 6);
-ALTER TABLE prices ALTER COLUMN low TYPE NUMERIC(19, 6) USING low::numeric(19, 6);
-ALTER TABLE prices ALTER COLUMN close TYPE NUMERIC(19, 6) USING close::numeric(19, 6);
-ALTER TABLE prices ALTER COLUMN adjusted_close TYPE NUMERIC(19, 6) USING adjusted_close::numeric(19, 6);
-
--- 3. 原地转换 cpi_data / exchange_rates
-ALTER TABLE cpi_data ALTER COLUMN value TYPE NUMERIC(19, 6) USING value::numeric(19, 6);
-ALTER TABLE exchange_rates ALTER COLUMN rate TYPE NUMERIC(19, 6) USING rate::numeric(19, 6);
-
--- 4. 重建 CHECK 约束（与 003 prices_ohlc_check / 008 业务约束定义一致）
-ALTER TABLE prices ADD CONSTRAINT prices_ohlc_check CHECK (
-  high >= low
-  AND low <= open
-  AND low <= close
-  AND high >= open
-  AND high >= close
-  AND volume >= 0
-);
-
-ALTER TABLE prices ADD CONSTRAINT chk_prices_close_positive
-  CHECK (close IS NULL OR close > 0);
-
-ALTER TABLE cpi_data ADD CONSTRAINT chk_cpi_value_positive CHECK (value > 0);
-
-ALTER TABLE exchange_rates ADD CONSTRAINT chk_exchange_rate_positive CHECK (rate > 0);
 

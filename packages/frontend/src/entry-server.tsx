@@ -1,6 +1,6 @@
 import { renderToPipeableStream } from 'react-dom/server';
 import { StaticRouter } from 'react-router-dom';
-import ErrorBoundary from './components/ErrorBoundary.js';
+import ErrorBoundary from './components/errorBoundaries.js';
 import AppShell from './AppShell.js';
 import i18n from './i18n/index.js';
 import './i18n';

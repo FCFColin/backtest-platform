@@ -53,11 +53,9 @@ function LabeledField({
 function TickerEditor({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const handleTagChange = (newTickers: string[]) => {
-    const oldLen = s.tickers.length;
-    if (newTickers.length > oldLen) s.setTickers([...s.tickers, '']);
-    else if (newTickers.length < oldLen)
-      s.setTickers(s.tickers.filter((_, idx) => idx < newTickers.length));
-    else s.setTickers(newTickers);
+    // 空行是占位（badge 渲染时过滤）：按非空列表重建，空行保持数量不变
+    const emptyRows = s.tickers.length - s.tickers.filter(Boolean).length;
+    s.setTickers([...newTickers, ...Array(emptyRows).fill('')]);
   };
   return (
     <section className="flex flex-col gap-3">

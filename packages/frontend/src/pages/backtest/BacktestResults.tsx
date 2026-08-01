@@ -27,7 +27,7 @@ import {
   createEmptyStatistics,
 } from '@backtest/shared';
 const GrowthChart = lazy(() =>
-  import('@/components/charts/analysis').then((m) => ({ default: m.GrowthChart })),
+  import('@/components/charts/GrowthChart').then((m) => ({ default: m.GrowthChart })),
 );
 const DrawdownChart = lazy(() =>
   import('@/components/charts/drawdownCharts').then((m) => ({ default: m.DrawdownChart })),

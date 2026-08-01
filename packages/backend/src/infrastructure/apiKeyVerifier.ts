@@ -17,7 +17,7 @@
  *   revoked_at（主连接池，权威源）并记录 warning，不阻断鉴权热路径（ADR-045 内存降级
  *   已退役，但鉴权路径抛 503 过于激进——DB 已保证 revoked_at 即时可见）。
  */
-import { getPool } from '../db/pool.js';
+import { getPool, withTenant } from '../db/pool.js';
 import { logger } from '../utils/logger.js';
 import { KEY_PREFIX, PLATFORM_ADMIN_KEY_MAX_TTL_DAYS } from '../repositories/apiKeyRepo.js';
 import { sha256Hex, verifyApiKeyArgon2id } from '../utils/crypto.js';
@@ -140,11 +140,15 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
   }
 
   // 异步更新 last_used_at，不阻塞鉴权热路径；失败仅记录不影响请求。
-  pool
-    .query('UPDATE api_keys SET last_used_at = NOW() WHERE id = $1', [keyId])
-    .catch((err) =>
-      logger.warn({ err: String(err), keyId }, '[apiKeyService] last_used_at 更新失败'),
-    );
+  // RLS FORCE：写须带租户上下文（org 密钥用 withTenant；平台密钥 org_id 为 NULL 跳过）
+  const touch = candidate.org_id
+    ? withTenant(candidate.org_id, (client) =>
+        client.query('UPDATE api_keys SET last_used_at = NOW() WHERE id = $1', [keyId]),
+      )
+    : Promise.resolve();
+  void touch.catch((err) =>
+    logger.warn({ err: String(err), keyId }, '[apiKeyService] last_used_at 更新失败'),
+  );
 
   return {
     orgId: candidate.org_id,

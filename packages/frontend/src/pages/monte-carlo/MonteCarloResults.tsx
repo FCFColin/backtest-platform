@@ -32,10 +32,10 @@ const MonteCarloRangeTab = lazy(() =>
   import('./MonteCarloRangeTab.js').then((m) => ({ default: m.MonteCarloRangeTab })),
 );
 const MonteCarloSuccessTab = lazy(() =>
-  import('./MonteCarloSuccessTab.js').then((m) => ({ default: m.MonteCarloSuccessTab })),
+  import('./MonteCarloRangeTab.js').then((m) => ({ default: m.MonteCarloSuccessTab })),
 );
 const MonteCarloDistributionsTab = lazy(() =>
-  import('./MonteCarloDistributionsTab.js').then((m) => ({
+  import('./MonteCarloScenariosTab.js').then((m) => ({
     default: m.MonteCarloDistributionsTab,
   })),
 );

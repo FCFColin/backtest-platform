@@ -26,7 +26,8 @@
     "risk": "Risk",
     "monthlyReturnsHeatmap": "Monthly Returns Heatmap",
     "avgDrawdown": "Avg Drawdown",
-    "ulcerIndex": "Ulcer Index"
+    "ulcerIndex": "Ulcer Index",
+    "title": "Asset Analysis"
   },
   "monteCarlo": {
     "emptyTickerWarning": "Portfolio {{index}}: please add at least one ticker",
@@ -81,13 +82,17 @@
       "standardMode": "Standard Mode",
       "standardModeDesc": "Run standard Monte Carlo simulation",
       "startSim": "RUN SIMULATION",
-      "withReplacement": "With Replacement"
+      "withReplacement": "With Replacement",
+      "startDate": "Start Date",
+      "endDate": "End Date"
     },
     "presets": {
       "preset6040": "60/40 Retirement",
       "presetAllStockDCA": "All-Stock DCA 30y",
       "presetThreeFund": "Three-Fund 25y"
-    }
+    },
+    "title": "Monte Carlo Simulation",
+    "presetsLabel": "Presets"
   },
   "optimizer": {
     "startCalc": "OPTIMIZE",
@@ -133,7 +138,8 @@
     "maxMaxDDLabel": "Max Max DD",
     "placeholderDD": "e.g. 20",
     "placeholderCagr": "e.g. 5",
-    "placeholderVol": "e.g. 15"
+    "placeholderVol": "e.g. 15",
+    "title": "Portfolio Optimization"
   },
   "efficientFrontier": {
     "title": "Efficient Frontier",
@@ -275,7 +281,8 @@
       "noResultsHint": "Configure signals and parameters, then click \"Run Tactical Backtest\" to see results",
       "backtestFailed": "Backtest failed",
       "backtestFailedDetail": "Backtest failed: {{error}}"
-    }
+    },
+    "title": "Tactical Allocation"
   },
   "tacticalGrid": {
     "searchFailed": "Grid search failed",
@@ -319,7 +326,8 @@
       "legendHigh": "{{label}} High",
       "heatmapAxisLabel": "{{p1Label}} \\ {{p2Label}}",
       "heatmapCellTitle": "{{p1Label}}={{p1}}, {{p2Label}}={{p2}}\n{{objectiveLabel}}: {{value}}"
-    }
+    },
+    "title": "Tactical Grid"
   },
   "signal": {
     "common": {
@@ -357,7 +365,9 @@
       "colDate": "Date",
       "colType": "Type",
       "colPrice": "Price",
-      "equityCurve": "Equity Curve"
+      "equityCurve": "Equity Curve",
+      "title": "Signal Analysis",
+      "paramsTitle": "Signal Parameters"
     },
     "dual": {
       "signal1Config": "Signal 1 Configuration",
@@ -401,7 +411,8 @@
       "threshold": "Threshold",
       "weight": "Weight",
       "delete": "Remove"
-    }
+    },
+    "title": "Signal Analysis"
   },
   "pca": {
     "analyzing": "Analyzing...",
@@ -431,7 +442,8 @@
       "cumulativeVarianceLabel": "Cumulative Variance",
       "loadingMatrix": "Loading Matrix",
       "scatterTitle": "Principal Component Scores (PC1 vs PC2)"
-    }
+    },
+    "title": "PCA Analysis"
   },
   "letf": {
     "analyzing": "Analyzing...",
@@ -469,7 +481,8 @@
     "stats": {
       "metric": "Metric",
       "value": "Value"
-    }
+    },
+    "title": "Leveraged ETF Slippage"
   },
   "goalOptimizer": {
     "optimizing": "Optimizing...",
@@ -522,7 +535,8 @@
       "achieveProb": "Probability of Reaching Goal",
       "targetInitialYears": "Target {{target}} · Initial {{initial}} · {{years}} years",
       "emptyHint": "Set your goal and asset allocation, then click \"Start Optimization\" to see results"
-    }
+    },
+    "title": "Goal Optimizer"
   },
   "factorRegression": {
     "allHistory": "All History",
@@ -558,7 +572,8 @@
       "hmlDesc": "Value factor loading; positive tilts toward value stocks",
       "rSquaredDesc": "Model explanatory power; closer to 1 means factors explain returns more fully",
       "mockNotice": "Factor data sourced from Kenneth French database (simulated data). The full version will integrate real-time Fama-French factor data."
-    }
+    },
+    "title": "Factor Regression"
   },
   "rebalancingSensitivity": {
     "title": "Rebalancing Sensitivity Analysis",
@@ -659,7 +674,8 @@
     "results": {
       "growthCurveTitle": "Growth Curve Comparison",
       "statsTitle": "Statistics Comparison"
-    }
+    },
+    "title": "Lump Sum vs DCA"
   },
   "calculators": {
     "base": {
@@ -818,5 +834,8 @@
     "notRefreshed": "Not Refreshed",
     "totalTickers": "tickers",
     "statsLoadFailed": "Data engine stats load failed"
+  },
+  "params": {
+    "basicParams": "Basic Parameters"
   }
 }

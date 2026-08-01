@@ -6,7 +6,7 @@ test.describe('组合优化页面', () => {
     await expect(
       page.getByRole('heading', { name: /组合优化|Portfolio Optimization/ }),
     ).toBeVisible({ timeout: 60_000 });
-    await expect(page.getByText(/参数设置|Parameter Settings/).first()).toBeVisible({
+    await expect(page.getByText(/资产选择|Asset Selection/).first()).toBeVisible({
       timeout: 30_000,
     });
   });
@@ -35,14 +35,12 @@ test.describe('组合优化页面', () => {
   });
 
   test('T5: 手动选 VTI+BND 优化 — 验证 CAGR 为正数', async ({ page }) => {
-    // 将第二个 ticker (VXUS) 改为 BND
-    const tickerInputs = page.getByPlaceholder(/输入代码|Enter ticker/);
-    await tickerInputs.nth(1).clear();
-    await tickerInputs.nth(1).fill('BND');
-
-    // 删除第三个 ticker (BND)
-    const removeButtons = page.getByRole('button', { name: /删除|Delete|Remove/ });
-    await removeButtons.nth(2).click();
+    // 标的为 badge 展示：移除 VXUS 与 BND，再输入 BND 添加（保留 VTI）
+    await page.getByRole('button', { name: '移除 VXUS' }).click();
+    await page.getByRole('button', { name: '移除 BND' }).click();
+    const tickerInput = page.getByLabel(/输入代码|Enter ticker/);
+    await tickerInput.fill('BND');
+    await tickerInput.press('Enter');
 
     await page.getByRole('button', { name: /开始计算|Start Calculation/ }).click();
     await waitForOptimizerResults(page);
@@ -61,7 +59,7 @@ test.describe('组合优化页面', () => {
   });
 
   test('T6: 全部历史优化 — 确认不报错', async ({ page }) => {
-    await page.getByRole('checkbox', { name: /全部历史|All History/ }).check();
+    await page.getByRole('switch', { name: /全部历史|All History/ }).check();
     await page.getByRole('button', { name: /开始计算|Start Calculation/ }).click();
 
     // 全部历史模式计算量更大，且可能因连续测试触发 API 限流 (429)

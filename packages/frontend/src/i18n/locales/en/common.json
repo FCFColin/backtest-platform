@@ -399,10 +399,35 @@
   },
   "tabs": {
     "myMetrics": "My Metrics",
-    "rebalancing": "Rebalancing"
+    "rebalancing": "Rebalancing",
+    "summary": "Summary",
+    "returns": "Returns",
+    "metrics": "Metrics",
+    "returnsDist": "Returns Distribution",
+    "yearlyReturns": "Yearly Returns",
+    "rolling": "Rolling",
+    "seasonality": "Seasonality",
+    "riskReturn": "Risk & Return",
+    "drawdown": "Drawdown",
+    "cashflows": "Cashflows",
+    "turnover": "Turnover & Tax",
+    "allocation": "Allocation",
+    "portfolioAllocation": "Portfolio Allocation",
+    "pies": "Pies",
+    "correlation": "Correlation",
+    "telltale": "Telltale",
+    "regression": "Regression"
   },
   "summarySidebar": {
-    "title": "Key Metrics"
+    "title": "Key Metrics",
+    "cagr": "CAGR",
+    "totalReturn": "Total Return",
+    "maxDrawdown": "Max Drawdown",
+    "sharpe": "Sharpe Ratio",
+    "sortino": "Sortino Ratio",
+    "bestYear": "Best Year",
+    "worstYear": "Worst Year",
+    "positiveYears": "Positive Years"
   },
   "underwaterCurve": {
     "title": "Underwater Curve",

@@ -89,6 +89,9 @@ async function pollJobStatus(
       throw new DOMException('Aborted', 'AbortError');
     const pollResponse = await apiFetch(statusUrl, {
       headers: { 'Content-Type': 'application/json' },
+      // 轮询结果每次都要最新值：禁用 HTTP 缓存，否则 ETag 命中返回 304（无 body），
+      // apiClient 将 !ok 视为错误导致轮询中断
+      cache: 'no-store',
       signal,
     });
     const pollJson = await pollResponse.json();

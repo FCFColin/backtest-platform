@@ -12,7 +12,7 @@ const SMOKE_PAGES: PageSmokeCase[] = [
     name: '战术分配',
     url: '/tactical',
     headingRegex: /战术分配/,
-    panelRegex: /战术策略参数/,
+    panelRegex: /基础参数|信号构建器/,
   },
   {
     name: '单信号分析',
@@ -23,7 +23,7 @@ const SMOKE_PAGES: PageSmokeCase[] = [
   {
     name: 'PCA 主成分分析',
     url: '/pca',
-    headingRegex: /主成分分析.*PCA/,
+    headingRegex: /PCA.*主成分分析|主成分分析.*PCA/,
     panelRegex: /开始分析|分析参数|时间范围/,
   },
   {

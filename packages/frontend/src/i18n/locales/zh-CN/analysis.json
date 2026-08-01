@@ -26,7 +26,8 @@
     "risk": "风险",
     "monthlyReturnsHeatmap": "月度收益热力图",
     "avgDrawdown": "平均回撤",
-    "ulcerIndex": "Ulcer Index"
+    "ulcerIndex": "Ulcer Index",
+    "title": "资产分析"
   },
   "monteCarlo": {
     "emptyTickerWarning": "组合 {{index}} 请至少添加一个标的",
@@ -81,13 +82,17 @@
       "standardMode": "标准模式",
       "standardModeDesc": "运行标准蒙特卡洛模拟",
       "startSim": "开始模拟",
-      "withReplacement": "有放回抽样"
+      "withReplacement": "有放回抽样",
+      "startDate": "开始日期",
+      "endDate": "结束日期"
     },
     "presets": {
       "preset6040": "60/40 退休回测",
       "presetAllStockDCA": "全股定投 30 年",
       "presetThreeFund": "三基金 25 年"
-    }
+    },
+    "title": "蒙特卡洛模拟",
+    "presetsLabel": "预设"
   },
   "optimizer": {
     "startCalc": "开始计算",
@@ -133,7 +138,8 @@
     "maxMaxDDLabel": "最大回撤上限",
     "placeholderDD": "如 20",
     "placeholderCagr": "如 5",
-    "placeholderVol": "如 15"
+    "placeholderVol": "如 15",
+    "title": "组合优化"
   },
   "efficientFrontier": {
     "title": "有效前沿",
@@ -275,7 +281,8 @@
       "noResultsHint": "配置信号与参数后点击「运行战术回测」查看结果",
       "backtestFailed": "回测失败",
       "backtestFailedDetail": "回测失败：{{error}}"
-    }
+    },
+    "title": "战术分配"
   },
   "tacticalGrid": {
     "searchFailed": "网格搜索失败",
@@ -319,7 +326,8 @@
       "legendHigh": "{{label}} 高",
       "heatmapAxisLabel": "{{p1Label}} \\ {{p2Label}}",
       "heatmapCellTitle": "{{p1Label}}={{p1}}, {{p2Label}}={{p2}}\n{{objectiveLabel}}: {{value}}"
-    }
+    },
+    "title": "战术网格"
   },
   "signal": {
     "common": {
@@ -357,7 +365,9 @@
       "colDate": "日期",
       "colType": "类型",
       "colPrice": "价格",
-      "equityCurve": "权益曲线"
+      "equityCurve": "权益曲线",
+      "title": "单信号分析",
+      "paramsTitle": "信号参数"
     },
     "dual": {
       "signal1Config": "信号 1 配置",
@@ -401,7 +411,8 @@
       "threshold": "阈值",
       "weight": "权重",
       "delete": "删除"
-    }
+    },
+    "title": "单信号分析"
   },
   "pca": {
     "analyzing": "分析中...",
@@ -431,7 +442,8 @@
       "cumulativeVarianceLabel": "累计方差",
       "loadingMatrix": "载荷矩阵",
       "scatterTitle": "主成分得分散点图（PC1 vs PC2）"
-    }
+    },
+    "title": "PCA 主成分分析"
   },
   "letf": {
     "analyzing": "分析中...",
@@ -469,7 +481,8 @@
     "stats": {
       "metric": "指标",
       "value": "数值"
-    }
+    },
+    "title": "杠杆 ETF 滑点分析"
   },
   "goalOptimizer": {
     "optimizing": "优化中...",
@@ -522,7 +535,8 @@
       "achieveProb": "达成目标概率",
       "targetInitialYears": "目标 {{target}} · 初始 {{initial}} · {{years}} 年",
       "emptyHint": "设置目标与资产配置后点击「开始优化」查看结果"
-    }
+    },
+    "title": "目标优化器"
   },
   "factorRegression": {
     "allHistory": "全部历史",
@@ -558,7 +572,8 @@
       "hmlDesc": "价值因子载荷，正值偏向价值股",
       "rSquaredDesc": "模型解释力，越接近1说明因子对收益的解释越充分",
       "mockNotice": "因子数据来源于 Kenneth French 数据库（模拟数据）。完整版将接入实时 Fama-French 因子数据。"
-    }
+    },
+    "title": "因子回归分析"
   },
   "rebalancingSensitivity": {
     "title": "调仓敏感性分析",
@@ -659,7 +674,8 @@
     "results": {
       "growthCurveTitle": "增长曲线对比",
       "statsTitle": "统计对比"
-    }
+    },
+    "title": "一次性投入 vs 定投"
   },
   "calculators": {
     "base": {
@@ -818,5 +834,8 @@
     "notRefreshed": "未刷新",
     "totalTickers": "个标的",
     "statsLoadFailed": "数据引擎统计信息加载失败"
+  },
+  "params": {
+    "basicParams": "基础参数"
   }
 }

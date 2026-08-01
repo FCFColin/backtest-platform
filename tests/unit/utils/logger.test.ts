@@ -11,8 +11,13 @@
  * 仅锁定模块导出契约。
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { logger, httpLogger } from '../../../packages/backend/src/utils/logger.js';
+
+// 静音真实日志输出，避免污染测试 stdout；断言仍验证调用不抛异常
+beforeAll(() => {
+  logger.level = 'silent';
+});
 
 describe('logger', () => {
   it('应导出 logger 对象', () => {

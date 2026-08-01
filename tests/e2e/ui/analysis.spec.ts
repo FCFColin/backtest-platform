@@ -28,15 +28,12 @@ test.describe('资产分析页面', () => {
   });
 
   test('T13: 自定义标的组合分析 — 添加 VTI，删除 GLD', async ({ page }) => {
-    // 点击"添加标的"按钮添加一行
-    await page.getByRole('button', { name: /添加标的|Add Asset/ }).click();
+    // 标签式输入：输入框输入 VTI 回车添加
+    const tickerInput = page.getByPlaceholder(/输入代码|Enter ticker/).last();
+    await tickerInput.fill('VTI');
+    await tickerInput.press('Enter');
 
-    // 在新增的输入框中填入 VTI
-    const tickerInputs = page.getByPlaceholder(/输入代码|Enter ticker/);
-    const newInput = tickerInputs.nth(3); // 前三个是 SPY、TLT、GLD
-    await newInput.fill('VTI');
-
-    // 删除 GLD（第3个删除按钮，索引2）
+    // 删除 GLD（Badge 上的 X 删除按钮，前三个是 SPY、TLT、GLD）
     const removeButtons = page.getByRole('button', { name: /删除|Delete|Remove/ });
     await removeButtons.nth(2).click();
 
