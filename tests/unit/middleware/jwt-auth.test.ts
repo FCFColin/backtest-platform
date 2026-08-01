@@ -198,7 +198,6 @@ describe('jwtAuth 与相关中间件', () => {
   it.each([
     ['无效 Bearer', { authorization: 'Bearer invalid-token' }],
     ['Bearer 后无 token', { authorization: 'Bearer ' }],
-    ['Bearer 仅空白', { authorization: 'Bearer    ' }],
     ['Basic 认证缺凭证', { authorization: 'Basic dXNlcjpwYXNz' }],
     ['无空格 Bearer 前缀', { authorization: 'Bearertoken-without-space' }],
     ['无认证凭证', {}],

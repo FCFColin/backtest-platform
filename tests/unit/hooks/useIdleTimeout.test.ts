@@ -10,7 +10,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useIdleTimeout } from '../../../packages/frontend/src/hooks/useIdleTimeout';
+import { useIdleTimeout } from '../../../packages/frontend/src/hooks/miscHooks';
 
 // Mock react-router-dom
 const mockNavigate = vi.fn();

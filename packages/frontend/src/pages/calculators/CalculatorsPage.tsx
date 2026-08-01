@@ -1,9 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { ToolPageLayout } from '../../components/layout/ToolPageLayout.js';
-import { CAGRCalculator, FutureValueCalculator, CAGRAssumptionCalculator } from './CAGRCalculators.js';
-import { LeverageDecayCalculator, LeverageETFCalculator, KellyLeverageCalculator, OptionLeverageCalculator } from './LeverageCalculators.js';
+import {
+  CAGRCalculator,
+  FutureValueCalculator,
+  CAGRAssumptionCalculator,
+} from './CAGRCalculators.js';
+import {
+  LeverageDecayCalculator,
+  LeverageETFCalculator,
+  KellyLeverageCalculator,
+  OptionLeverageCalculator,
+} from './LeverageCalculators.js';
 import { SWRCalculator, AssetAllocationRiskCalculator } from './SWRAndRiskCalculators.js';
-import { TwoFundPortfolioCalculator } from './PortfolioCalculators.js';
+import { TwoFundPortfolioCalculator } from './BaseCalculatorUI.js';
 export default function CalculatorsPage() {
   const { t } = useTranslation();
   return (

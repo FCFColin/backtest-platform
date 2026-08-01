@@ -51,42 +51,37 @@ const firstSql = () => mocks.pool.query.mock.calls[0][0] as string;
 describe('createUser - 用户创建', () => {
   beforeEach(() => {
     reset();
-    qOnce([mockUserRecord()]);
+    mocks.pool.query.mockResolvedValue({ rows: [mockUserRecord()] });
   });
-  it.each([
-    { name: 'argon2id 哈希密码', expected: { type: 'argon2id' } },
-    { name: '64MB 内存成本', expected: { memoryCost: 65536 } },
-    { name: '3 次迭代', expected: { timeCost: 3 } },
-  ])('应使用 $name', async ({ expected }) => {
+  it('应使用 argon2id 哈希密码（64MB 内存成本、3 次迭代）', async () => {
     await createUser('testuser', 'password123');
     expect(mocks.argon2.hash).toHaveBeenCalledWith(
       'password123',
-      expect.objectContaining(expected),
+      expect.objectContaining({ type: 'argon2id', memoryCost: 65536, timeCost: 3 }),
     );
   });
-  it.each([
-    { name: '默认 analyst 角色', username: 'testuser', role: undefined, expectedRole: 'analyst' },
-    { name: '指定 admin 角色', username: 'adminuser', role: 'admin', expectedRole: 'admin' },
-    {
-      name: '指定 readonly 角色',
-      username: 'readonlyuser',
-      role: 'readonly',
-      expectedRole: 'readonly',
-    },
-    {
-      name: 'SQL 注入用户名应作为参数传递（不拼接 SQL）',
-      username: "'; DROP TABLE users; --",
-      role: undefined,
-      expectedRole: 'analyst',
-      checkPlaceholders: true,
-    },
-  ])('应支持 $name', async ({ username, role, expectedRole, checkPlaceholders }) => {
-    await createUser(username, 'password123', role);
+  it('应支持默认 analyst 角色、指定 admin/readonly 角色与 SQL 注入用户名（参数化）', async () => {
+    await createUser('testuser', 'password123');
+    await createUser('adminuser', 'password123', 'admin');
+    await createUser('readonlyuser', 'password123', 'readonly');
+    await createUser("'; DROP TABLE users; --", 'password123');
     expect(mocks.pool.query).toHaveBeenCalledWith(
       expect.any(String),
-      expect.arrayContaining([username, 'hashed-password', expectedRole]),
+      expect.arrayContaining(['testuser', 'hashed-password', 'analyst']),
     );
-    if (checkPlaceholders) expect(firstSql()).not.toContain('DROP TABLE');
+    expect(mocks.pool.query).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining(['adminuser', 'hashed-password', 'admin']),
+    );
+    expect(mocks.pool.query).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining(['readonlyuser', 'hashed-password', 'readonly']),
+    );
+    expect(mocks.pool.query).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.arrayContaining(["'; DROP TABLE users; --", 'hashed-password', 'analyst']),
+    );
+    expect(firstSql()).not.toContain('DROP TABLE');
   });
   it('应返回正确的用户对象', async () => {
     expect(await createUser('testuser', 'password123', 'admin')).toEqual({
@@ -230,18 +225,7 @@ describe('getUserByEmail - 按邮箱查询', () => {
   it.each<[string, unknown[], (user: { id: string } | null) => void]>([
     [
       '存在的邮箱应返回用户',
-      [
-        {
-          rows: [
-            mockUserRecord({
-              id: 'u1',
-              username: 'test',
-              role: 'admin',
-              created_at: new Date('2026-01-01'),
-            }),
-          ],
-        },
-      ],
+      [{ rows: [mockUserRecord({ id: 'u1', role: 'admin', created_at: new Date('2026-01-01') })] }],
       (user) => expect(user!.id).toBe('u1'),
     ],
     ['不存在的邮箱应返回 null', [{ rows: [] }], (user) => expect(user).toBeNull()],

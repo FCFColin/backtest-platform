@@ -7,9 +7,14 @@ import { Footer } from '@/components/layout/Footer';
 import { PromoBar } from '@/components/layout/PromoBar.js';
 import Toast from '@/components/Toast';
 import { useAuthStore } from '@/store/authStore';
-import { useIdleTimeout } from '@/hooks/useIdleTimeout';
+import { useIdleTimeout } from '@/hooks/miscHooks';
 import { AppRoutes } from '@/routes';
-import { startPerformanceMonitoring, reportPageLoadTiming, onNavStart, initVitalsReporting } from './utils/performanceReporter.js';
+import {
+  startPerformanceMonitoring,
+  reportPageLoadTiming,
+  onNavStart,
+  initVitalsReporting,
+} from './utils/performanceReporter.js';
 export default function AppShell() {
   const location = useLocation();
   const { t } = useTranslation();
@@ -35,13 +40,28 @@ export default function AppShell() {
   return (
     <>
       <OfflineBanner />
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand focus:text-brand-fg focus:rounded focus:outline-none focus:ring-2 focus:ring-brand">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand focus:text-brand-fg focus:rounded focus:outline-none focus:ring-2 focus:ring-brand"
+      >
         {t('a11y.skipToMain')}
       </a>
-      {!isAdmin && <PromoBar id="synthetic-tickers-2026" message={t('promo.synthetic.message')} ctaLabel={t('promo.synthetic.ctaLabel')} ctaLink="/" variant="info" />}
+      {!isAdmin && (
+        <PromoBar
+          id="synthetic-tickers-2026"
+          message={t('promo.synthetic.message')}
+          ctaLabel={t('promo.synthetic.ctaLabel')}
+          ctaLink="/"
+          variant="info"
+        />
+      )}
       {!isAdmin && <Navbar />}
       <Toast />
-      <main id="main-content" tabIndex={-1} style={{ paddingTop: isAdmin ? 0 : 80, flex: '1 0 auto', outline: 'none' }}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        style={{ paddingTop: isAdmin ? 0 : 80, flex: '1 0 auto', outline: 'none' }}
+      >
         <AppRoutes />
       </main>
       {!isAdmin && <Footer />}

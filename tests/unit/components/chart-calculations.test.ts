@@ -14,7 +14,7 @@ import {
   mean,
   std,
   mergePortfolioSeries,
-} from '../../../packages/frontend/src/utils/stats.js';
+} from '../../../packages/frontend/src/utils/format.js';
 
 describe('chartCalculations.computeRollingMetric', () => {
   it('数据量不足窗口时应返回空数组', () => {

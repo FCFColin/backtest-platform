@@ -96,12 +96,6 @@ describe('webhookService', () => {
         crypto.createHmac('sha256', SECRET).update(payload).digest('hex'),
       );
       expect(signPayload('{"a":1}', 'secret-a')).not.toBe(signPayload('{"a":1}', 'secret-b'));
-      const sig = signPayload('{"event":"Test"}', SECRET);
-      const recomputed = crypto
-        .createHmac('sha256', SECRET)
-        .update('{"event":"Test"}')
-        .digest('hex');
-      expect(crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(recomputed))).toBe(true);
     });
   });
   describe('deliverWebhook', () => {

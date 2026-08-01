@@ -229,22 +229,21 @@ describe('processBacktestJob - 任务分发', () => {
   });
 
   describe('tenant-fair 调度（ADR-037）', () => {
+    const proSlot = () => {
+      mockOrg('pro');
+      vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
+    };
     it.each<[string, string | undefined, () => void, () => void]>([
       [
         '未携带 tenantId 时跳过在途门控（不触碰 Redis）',
         undefined,
         () => {},
-        () => {
-          expect(appRedis.incr).not.toHaveBeenCalled();
-        },
+        () => expect(appRedis.incr).not.toHaveBeenCalled(),
       ],
       [
         '在途数未超上限时正常处理并释放名额',
         TENANT,
-        () => {
-          mockOrg('pro');
-          vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
-        },
+        proSlot,
         () => {
           expect(appRedis.incr).toHaveBeenCalledWith(`inflight:${TENANT}`);
           expect(appRedis.decr).toHaveBeenCalledWith(`inflight:${TENANT}`);
@@ -257,9 +256,7 @@ describe('processBacktestJob - 任务分发', () => {
           vi.mocked(getOrg).mockRejectedValueOnce(new Error('DB 连接失败'));
           vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
         },
-        () => {
-          expect(appRedis.decr).toHaveBeenCalledWith(`inflight:${TENANT}`);
-        },
+        () => expect(appRedis.decr).toHaveBeenCalledWith(`inflight:${TENANT}`),
       ],
       [
         'Redis incr 抛异常时应跳过 fairness 门控',
@@ -268,16 +265,13 @@ describe('processBacktestJob - 任务分发', () => {
           mockOrg('pro');
           vi.mocked(appRedis.incr).mockRejectedValueOnce(new Error('Redis 连接失败'));
         },
-        () => {
-          expect(appRedis.decr).not.toHaveBeenCalled();
-        },
+        () => expect(appRedis.decr).not.toHaveBeenCalled(),
       ],
       [
         'releaseTenantSlot 中 decr 失败应被吞掉（finally 不抛错）',
         TENANT,
         () => {
-          mockOrg('pro');
-          vi.mocked(appRedis.incr).mockResolvedValueOnce(1);
+          proSlot();
           vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中'));
         },
         () => {},
@@ -294,23 +288,12 @@ describe('processBacktestJob - 任务分发', () => {
   });
 
   it.each([
-    [
-      '在途数超过计划上限时抛 DelayedError 并回退计数',
-      () => {
-        mockOrg('free');
-        vi.mocked(appRedis.incr).mockResolvedValueOnce(2);
-      },
-    ],
-    [
-      'cap 超限且 decr 失败时应忽略 decr 错误并抛 DelayedError',
-      () => {
-        mockOrg('free');
-        vi.mocked(appRedis.incr).mockResolvedValueOnce(2);
-        vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中'));
-      },
-    ],
-  ])('%s', async (_n, setup) => {
-    setup();
+    ['在途数超过计划上限时抛 DelayedError 并回退计数', false],
+    ['cap 超限且 decr 失败时应忽略 decr 错误并抛 DelayedError', true],
+  ])('%s', async (_n, decrFails) => {
+    mockOrg('free');
+    vi.mocked(appRedis.incr).mockResolvedValueOnce(2);
+    if (decrFails) vi.mocked(appRedis.decr).mockRejectedValueOnce(new Error('Redis 关闭中'));
     await expect(
       processBacktestJob(makeJob({ type: 'optimizer', payload: {}, tenantId: TENANT })),
     ).rejects.toBeInstanceOf(DelayedError);

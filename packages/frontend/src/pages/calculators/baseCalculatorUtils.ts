@@ -11,7 +11,13 @@ interface TwoFundFrontierResult {
   minVarCagr: number;
   minVarVol: number;
 }
-export function computeTwoFundFrontier(cagrA: number, volA: number, cagrB: number, volB: number, corr: number): TwoFundFrontierResult {
+export function computeTwoFundFrontier(
+  cagrA: number,
+  volA: number,
+  cagrB: number,
+  volB: number,
+  corr: number,
+): TwoFundFrontierResult {
   const muA = cagrA / 100;
   const muB = cagrB / 100;
   const sA = volA / 100;
@@ -30,6 +36,8 @@ export function computeTwoFundFrontier(cagrA: number, volA: number, cagrB: numbe
   let mwA = denom !== 0 ? (sB * sB - covAB) / denom : 0.5;
   mwA = Math.max(0, Math.min(1, mwA));
   const mvCagr = (mwA * muA + (1 - mwA) * muB) * 100;
-  const mvVol = Math.sqrt(mwA * mwA * sA * sA + (1 - mwA) * (1 - mwA) * sB * sB + 2 * mwA * (1 - mwA) * covAB) * 100;
+  const mvVol =
+    Math.sqrt(mwA * mwA * sA * sA + (1 - mwA) * (1 - mwA) * sB * sB + 2 * mwA * (1 - mwA) * covAB) *
+    100;
   return { frontier: pts, minVarW: mwA, minVarCagr: mvCagr, minVarVol: mvVol };
 }

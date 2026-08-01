@@ -177,6 +177,7 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(body.data.role).toBe('admin');
     expect(body.data.refreshToken).toBeUndefined();
     expect(res.headers.get('set-cookie')).toContain('rt=');
+    expect(mocks.userService.verifyUser).toHaveBeenCalledWith('testuser', 'correct-pass');
   });
   it.each([
     ['错误密码', 'wrong-pass'],
@@ -188,17 +189,14 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(body.error.code).toBe('INVALID_CREDENTIALS');
   });
   it.each([
-    ['缺失用户名', { password: 'pass' }],
-    ['缺失密码', { username: 'user' }],
-  ])('%s 应返回 400（zod 校验失败）', async (_n, payload) => {
-    const { res, body } = await apiPost(loginUrl(), payload);
+    ['登录缺失用户名', '/login/password', { password: 'pass' }],
+    ['登录缺失密码', '/login/password', { username: 'user' }],
+    ['switch-org 缺少 orgId', '/switch-org', {}],
+  ])('%s 应返回 400（zod 校验失败）', async (_n, path, payload) => {
+    injectUser();
+    const { res, body } = await apiPost(`${server.url}/api/v1/auth${path}`, payload);
     expect(res.status).toBe(400);
     expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-  it('verifyUser 应使用 argon2id 哈希验证（通过 mock 验证调用）', async () => {
-    mockVerifyUser('user-123', 'analyst');
-    await apiPost(loginUrl(), { username: 'testuser', password: 'pass' });
-    expect(mocks.userService.verifyUser).toHaveBeenCalledWith('testuser', 'pass');
   });
   it('账户锁定时应返回 429', async () => {
     fn(mocks.loginLockout, 'isLockedOut').mockResolvedValueOnce(120);
@@ -207,31 +205,30 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(body.error.code).toBe('ACCOUNT_LOCKED');
     expect(mocks.userService.verifyUser).not.toHaveBeenCalled();
   });
-  it('解析到默认组织时应以组织角色签发并返回 org 摘要', async () => {
-    mockVerifyUser('user-777', 'readonly');
+  it.each<[string, Record<string, unknown> | null, string, string, string]>([
+    ['解析到默认组织时应以组织角色签发并返回 org 摘要', mockOrg(), 'admin', 'user-777', 'readonly'],
+    ['无组织成员关系时 org 为 null 且沿用全局角色', null, 'analyst', 'user-888', 'analyst'],
+  ])('%s', async (_n, org, expectedRole, userId, userRole) => {
+    mockVerifyUser(userId, userRole);
     fn(mocks.membershipService, 'isPlatformAdmin').mockResolvedValueOnce(false);
-    fn(mocks.membershipService, 'resolveDefaultOrg').mockResolvedValueOnce(mockOrg());
+    fn(mocks.membershipService, 'resolveDefaultOrg').mockResolvedValueOnce(org);
     const { res, body } = await apiPost(loginUrl(), { username: 'orguser', password: 'pass' });
     expect(res.status).toBe(200);
-    expect(body.data.role).toBe('admin');
-    expect(body.data.org.orgId).toBe('11111111-1111-4111-8111-111111111111');
-    expect(body.data.org.role).toBe('owner');
-    expect(mocks.jwtAuth.generateToken).toHaveBeenCalledWith(
-      'user-777',
-      'admin',
-      expect.objectContaining({
-        tenantId: '11111111-1111-4111-8111-111111111111',
-        orgRole: 'owner',
-      }),
-    );
-  });
-  it('无组织成员关系时 org 为 null 且沿用全局角色', async () => {
-    mockVerifyUser('user-888', 'analyst');
-    fn(mocks.membershipService, 'resolveDefaultOrg').mockResolvedValueOnce(null);
-    const { res, body } = await apiPost(loginUrl(), { username: 'soloer', password: 'pass' });
-    expect(res.status).toBe(200);
-    expect(body.data.role).toBe('analyst');
-    expect(body.data.org).toBeNull();
+    expect(body.data.role).toBe(expectedRole);
+    if (org) {
+      expect(body.data.org.orgId).toBe('11111111-1111-4111-8111-111111111111');
+      expect(body.data.org.role).toBe('owner');
+      expect(mocks.jwtAuth.generateToken).toHaveBeenCalledWith(
+        userId,
+        'admin',
+        expect.objectContaining({
+          tenantId: '11111111-1111-4111-8111-111111111111',
+          orgRole: 'owner',
+        }),
+      );
+    } else {
+      expect(body.data.org).toBeNull();
+    }
   });
   it('有效 refresh token cookie 应返回新 access token 并轮换 RT cookie', async () => {
     fn(mocks.jwtAuth, 'refreshAccessToken').mockResolvedValueOnce({
@@ -277,10 +274,19 @@ describe('authRoutes - 登录与会话端点', () => {
       expect(mocks.jwtAuth.revokeRefreshToken).not.toHaveBeenCalled();
     }
   });
-  it('GET /me 路由直接调用应返回 401（未注入 req.user）', async () => {
-    const { res, body } = await apiGet(`${server.url}/api/v1/auth/me`);
+  it.each([
+    ['GET /me 未注入 req.user 应返回 401', '/me', 'GET', undefined, 'UNAUTHORIZED'],
+    [
+      'switch-org 未认证应返回 401',
+      '/switch-org',
+      'POST',
+      { orgId: '55555555-5555-4555-8555-555555555555' },
+      null,
+    ],
+  ])('%s', async (_n, path, method, body, code) => {
+    const { res, body: json } = await reqJson(`${server.url}/api/v1/auth${path}`, method, body);
     expect(res.status).toBe(401);
-    expect(body.error.code).toBe('UNAUTHORIZED');
+    if (code) expect(json.error.code).toBe(code);
   });
   it('GET /me jwtAuth 注入 user 时应返回用户信息', async () => {
     const exp = Math.floor(Date.now() / 1000) + 900;
@@ -342,17 +348,6 @@ describe('authRoutes - 登录与会话端点', () => {
     expect(res.status).toBe(403);
     expect(body.error.code).toBe(code);
   });
-  it('switch-org 缺少 orgId 应返回 400', async () => {
-    injectUser();
-    const { res, body } = await apiPost(switchUrl(), {}, { Authorization: 'Bearer t' });
-    expect(res.status).toBe(400);
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-  });
-  it('switch-org 未认证应返回 401', async () => {
-    passthroughJwtAuth();
-    const { res } = await apiPost(switchUrl(), { orgId: '55555555-5555-4555-8555-555555555555' });
-    expect(res.status).toBe(401);
-  });
   it('GET /orgs 应返回成员组织列表与活跃组织', async () => {
     const orgId = '66666666-6666-4666-8666-666666666666';
     injectUser('user-orgs', 'analyst', { tenant_id: orgId });
@@ -405,11 +400,11 @@ describe('authRegistrationRoutes', () => {
     expect(res.status).toBe(201);
     expect(body.data.userId).toBe('user-uuid-123');
     const client = await fn(mocks.registration, 'getClient').mock.results[0].value;
-    const calls = client.query.mock.calls.map((c: unknown[]) => c[0]);
-    expect(calls).toContain('BEGIN');
-    expect(calls).toContain('COMMIT');
-    expect(calls.some((s: string) => String(s).includes('INSERT INTO organizations'))).toBe(true);
-    expect(calls.some((s: string) => String(s).includes('INSERT INTO memberships'))).toBe(true);
+    const sqls = client.query.mock.calls.map((c: unknown[]) => String(c[0]));
+    const has = (f: string) => sqls.some((s) => s.includes(f));
+    expect(
+      ['BEGIN', 'COMMIT', 'INSERT INTO organizations', 'INSERT INTO memberships'].every(has),
+    ).toBe(true);
     expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-uuid-123');
     expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith(EMAIL, 'token-abc');
     expect(client.release).toHaveBeenCalled();

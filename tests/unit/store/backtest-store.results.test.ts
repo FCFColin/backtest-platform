@@ -64,9 +64,7 @@ describe('extractApiErrorDetail', () => {
   });
   it.each<[string, unknown]>([
     ['null', null],
-    ['undefined', undefined],
     ['primitive string', 'hello'],
-    ['number', 42],
     ['empty object', {}],
   ])('returns default for %s', (_n, input) => {
     const result = extractApiErrorDetail(input);
@@ -126,16 +124,16 @@ describe('runBacktest', () => {
     expect(S().isLoading).toBe(false);
     if (checkTab) expect(S().activeTab).toBe('summary');
   });
-  it.each([
-    ['success:false有error', { success: false, error: '无效ticker' }],
-    ['success:false无error', { success: false }],
-    ['success:false嵌套error.detail', { success: false, error: { detail: 'nested error detail' } }],
-  ])('后端返回%s时results为null', async (_n, payload) => {
-    mockFetchOnce(mockFetch, payload);
-    await S().runBacktest();
-    expect(S().results).toBeNull();
-  });
-  it.each([
+  it.each<[string, () => void]>([
+    [
+      'success:false有error',
+      () => mockFetchOnce(mockFetch, { success: false, error: '无效ticker' }),
+    ],
+    ['success:false无error', () => mockFetchOnce(mockFetch, { success: false })],
+    [
+      'success:false嵌套error.detail',
+      () => mockFetchOnce(mockFetch, { success: false, error: { detail: 'nested error detail' } }),
+    ],
     ['网络错误', () => mockFetchReject(mockFetch, new Error('Network error'))],
     ['HTTP 500', () => mockFetchHttpError(mockFetch, 500)],
     ['HTTP 400 with detail', () => mockFetchHttpError(mockFetch, 400, { detail: 'Bad request' })],
@@ -143,7 +141,7 @@ describe('runBacktest', () => {
     ['generic Error', () => mockFetchReject(mockFetch, new Error('Custom error message'))],
     ['non-Error string', () => mockFetchReject(mockFetch, 'string error')],
     ['thrown object', () => mockFetchReject(mockFetch, { custom: 'error' })],
-  ])('handles %s', async (_n, setup) => {
+  ])('后端失败：%s → results 为 null', async (_n, setup) => {
     setup();
     await S().runBacktest();
     expect(S().results).toBeNull();

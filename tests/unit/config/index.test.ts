@@ -165,9 +165,8 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     } catch (e) {
       msg = (e as Error).message;
     }
-    expect(msg).toContain('JWT_SECRET');
-    expect(msg).toContain('ENGINE_AUTH_TOKEN');
-    expect(msg).toContain('DATA_SERVICE_AUTH_TOKEN');
+    for (const k of ['JWT_SECRET', 'ENGINE_AUTH_TOKEN', 'DATA_SERVICE_AUTH_TOKEN'])
+      expect(msg).toContain(k);
   });
 });
 
@@ -239,17 +238,15 @@ describe('P0-02: assertNoDefaultSecrets — 默认密钥启动拦截', () => {
 
   it('生产环境 + 多个默认密钥 → 错误信息包含所有违规字段', () => {
     process.env.NODE_ENV = 'production';
-    const config = {
+    assertNoDefaultSecrets({
       JWT_SECRET: 'dev-only-jwt-secret-change-in-production',
       ENGINE_AUTH_TOKEN: 'dev-engine-auth-token',
       DATA_SERVICE_AUTH_TOKEN: 'dev-data-service-auth-token',
-    };
-    assertNoDefaultSecrets(config);
+    });
     expect(errorSpy).toHaveBeenCalledTimes(1);
     const errorMessage = (errorSpy.mock.calls[0] as unknown[])[0] as string;
-    expect(errorMessage).toContain('JWT_SECRET');
-    expect(errorMessage).toContain('ENGINE_AUTH_TOKEN');
-    expect(errorMessage).toContain('DATA_SERVICE_AUTH_TOKEN');
+    for (const k of ['JWT_SECRET', 'ENGINE_AUTH_TOKEN', 'DATA_SERVICE_AUTH_TOKEN'])
+      expect(errorMessage).toContain(k);
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -365,27 +362,23 @@ describe('resolveJwtAlgorithm', () => {
     expect(resolveJwtAlgorithm()).toBe('RS256');
   });
 
-  it('NODE_ENV 决定默认算法：production→RS256，其他→HS256', () => {
+  it('NODE_ENV 决定默认算法：production→RS256，其他（含未设置）→HS256', () => {
     delete process.env.JWT_ALGORITHM;
-    process.env.NODE_ENV = 'production';
-    expect(resolveJwtAlgorithm()).toBe('RS256');
-
-    process.env.NODE_ENV = 'development';
-    expect(resolveJwtAlgorithm()).toBe('HS256');
-
-    // NODE_ENV 未设置时也应回退到 development→HS256
-    delete process.env.NODE_ENV;
-    expect(resolveJwtAlgorithm()).toBe('HS256');
+    for (const [env, expected] of [
+      ['production', 'RS256'],
+      ['development', 'HS256'],
+      [undefined, 'HS256'],
+    ] as const) {
+      if (env === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = env;
+      expect(resolveJwtAlgorithm()).toBe(expected);
+    }
   });
 });
 
 describe('parseCorsOrigins', () => {
   it('undefined / 空串 / 纯空白 / "*" 应返回 true（允许所有来源）', () => {
-    expect(parseCorsOrigins(undefined)).toBe(true);
-    expect(parseCorsOrigins('')).toBe(true);
-    expect(parseCorsOrigins('   ')).toBe(true);
-    expect(parseCorsOrigins('*')).toBe(true);
-    expect(parseCorsOrigins('  *  ')).toBe(true);
+    for (const v of [undefined, '', '   ', '*', '  *  ']) expect(parseCorsOrigins(v)).toBe(true);
   });
 
   it('逗号分隔列表应返回 trim 后的非空数组', () => {

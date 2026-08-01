@@ -21,7 +21,7 @@ import {
   createEmptyStatistics,
 } from '@backtest/shared';
 const GrowthChart = lazy(() =>
-  import('@/components/charts/GrowthChart').then((m) => ({ default: m.GrowthChart })),
+  import('@/components/charts/analysis').then((m) => ({ default: m.GrowthChart })),
 );
 const DrawdownChart = lazy(() =>
   import('@/components/charts/DrawdownChart').then((m) => ({ default: m.DrawdownChart })),
@@ -38,15 +38,23 @@ const UnderwaterCurve = lazy(() =>
   import('@/components/charts/UnderwaterCurve').then((m) => ({ default: m.UnderwaterCurve })),
 );
 const ReturnsTabDailyChart = lazy(() => import('@/components/charts/ReturnsTabDailyChart'));
-const TelltaleChart = lazy(() => import('@/components/charts/TelltaleChart'));
-const RiskReturnScatter = lazy(() => import('@/components/charts/RiskReturnScatter'));
-const SeasonalityChart = lazy(() => import('@/components/charts/SeasonalityChart'));
+const TelltaleChart = lazy(() =>
+  import('@/components/charts/analysis').then((m) => ({ default: m.TelltaleChart })),
+);
+const RiskReturnScatter = lazy(() =>
+  import('@/components/charts/riskReturn').then((m) => ({ default: m.RiskReturnScatter })),
+);
+const SeasonalityChart = lazy(() =>
+  import('@/components/charts/analysis').then((m) => ({ default: m.SeasonalityChart })),
+);
 const RegressionChart = lazy(() => import('@/components/charts/RegressionChart'));
 const PortfolioAllocationChart = lazy(() => import('@/components/charts/PortfolioAllocationChart'));
 const PortfolioPiesChart = lazy(() => import('@/components/charts/PortfolioPiesChart'));
-const RollingReturnChart = lazy(() => import('@/components/charts/RollingReturnChart'));
+const RollingReturnChart = lazy(() => import('@/components/charts/rolling'));
 const AnnualReturnChart = lazy(() => import('@/components/charts/AnnualReturnChart'));
-const MonthlyHeatmap = lazy(() => import('@/components/charts/MonthlyHeatmap'));
+const MonthlyHeatmap = lazy(() =>
+  import('@/components/charts/analysis').then((m) => ({ default: m.MonthlyHeatmap })),
+);
 const CorrelationWithBeta = lazy(() => import('@/components/charts/CorrelationHeatmapChart'));
 const CustomMetricsTable = lazy(() => import('@/components/CustomMetricsTable'));
 const RebalancingStats = lazy(() => import('@/components/RebalancingStats'));

@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { ShieldAlert, BarChart3 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { formatPct } from './baseCalculatorUtils.js';
 import { Field, ResultRow, CollapsibleCard, InfoBox, SWRChart } from './BaseCalculatorUI.js';
+import { formatPct } from './baseCalculatorUtils.js';
 export function SWRCalculator() {
   const { t } = useTranslation();
   const [expectedReturn, setExpectedReturn] = useState(7);
@@ -34,14 +34,45 @@ export function SWRCalculator() {
   return (
     <CollapsibleCard icon={ShieldAlert} title={t('calculators.swr.title')}>
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t('calculators.swr.expectedReturn')} value={expectedReturn} onChange={setExpectedReturn} suffix="%" step={0.5} />
-        <Field label={t('calculators.swr.volatility')} value={volatility} onChange={setVolatility} suffix="%" step={1} />
-        <Field label={t('calculators.swr.retirementYears')} value={retirementYears} onChange={setRetirementYears} suffix={t('calculators.swr.yearSuffix')} step={1} min={1} />
-        <Field label={t('calculators.swr.successTarget')} value={successTarget} onChange={setSuccessTarget} suffix="%" step={1} min={50} max={99} />
+        <Field
+          label={t('calculators.swr.expectedReturn')}
+          value={expectedReturn}
+          onChange={setExpectedReturn}
+          suffix="%"
+          step={0.5}
+        />
+        <Field
+          label={t('calculators.swr.volatility')}
+          value={volatility}
+          onChange={setVolatility}
+          suffix="%"
+          step={1}
+        />
+        <Field
+          label={t('calculators.swr.retirementYears')}
+          value={retirementYears}
+          onChange={setRetirementYears}
+          suffix={t('calculators.swr.yearSuffix')}
+          step={1}
+          min={1}
+        />
+        <Field
+          label={t('calculators.swr.successTarget')}
+          value={successTarget}
+          onChange={setSuccessTarget}
+          suffix="%"
+          step={1}
+          min={50}
+          max={99}
+        />
       </div>
       <div className="mt-3">
         <ResultRow label={t('calculators.swr.estimatedSwr')} value={formatPct(swr)} tone="brand" />
-        <ResultRow label={t('calculators.swr.annualWithdrawal')} value={(swr * 1000000).toFixed(0)} tone="success" />
+        <ResultRow
+          label={t('calculators.swr.annualWithdrawal')}
+          value={(swr * 1000000).toFixed(0)}
+          tone="success"
+        />
       </div>
       <SWRChart data={portfolioSurvival} />
       <InfoBox>{t('calculators.swr.formula')}</InfoBox>
@@ -54,26 +85,50 @@ interface AllocationRiskComputation {
   riskContributionStock: number;
   riskContributionBond: number;
 }
-function computeAllocationRisk(stockPct: number, bondPct: number, stockVol: number, bondVol: number, correlation: number): AllocationRiskComputation {
+function computeAllocationRisk(
+  stockPct: number,
+  bondPct: number,
+  stockVol: number,
+  bondVol: number,
+  correlation: number,
+): AllocationRiskComputation {
   const wS = stockPct / 100;
   const wB = bondPct / 100;
   const sS = stockVol / 100;
   const sB = bondVol / 100;
   const rho = correlation;
-  const portfolioVol = Math.sqrt(wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB);
+  const portfolioVol = Math.sqrt(
+    wS * wS * sS * sS + wB * wB * sB * sB + 2 * wS * wB * rho * sS * sB,
+  );
   const diversificationBenefit = wS * sS + wB * sB - portfolioVol;
-  const riskContributionStock = (wS * wS * sS * sS + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
-  const riskContributionBond = (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
+  const riskContributionStock =
+    (wS * wS * sS * sS + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
+  const riskContributionBond =
+    (wB * wB * sB * sB + wS * wB * rho * sS * sB) / (portfolioVol * portfolioVol);
   return { portfolioVol, diversificationBenefit, riskContributionStock, riskContributionBond };
 }
 function RiskResults({ result, t }: { result: AllocationRiskComputation; t: TFunction }) {
   return (
     <>
       <div className="mt-2">
-        <ResultRow label={t('calculators.risk.portfolioVol')} value={formatPct(result.portfolioVol)} tone="brand" />
-        <ResultRow label={t('calculators.risk.diversificationBenefit')} value={formatPct(result.diversificationBenefit)} tone="success" />
-        <ResultRow label={t('calculators.risk.stockRiskContribution')} value={formatPct(result.riskContributionStock)} />
-        <ResultRow label={t('calculators.risk.bondRiskContribution')} value={formatPct(result.riskContributionBond)} />
+        <ResultRow
+          label={t('calculators.risk.portfolioVol')}
+          value={formatPct(result.portfolioVol)}
+          tone="brand"
+        />
+        <ResultRow
+          label={t('calculators.risk.diversificationBenefit')}
+          value={formatPct(result.diversificationBenefit)}
+          tone="success"
+        />
+        <ResultRow
+          label={t('calculators.risk.stockRiskContribution')}
+          value={formatPct(result.riskContributionStock)}
+        />
+        <ResultRow
+          label={t('calculators.risk.bondRiskContribution')}
+          value={formatPct(result.riskContributionBond)}
+        />
       </div>
       <InfoBox>{t('calculators.risk.formula')}</InfoBox>
     </>
@@ -86,17 +141,55 @@ export function AssetAllocationRiskCalculator() {
   const [stockVol, setStockVol] = useState(18);
   const [bondVol, setBondVol] = useState(5);
   const [correlation, setCorrelation] = useState(0.2);
-  const result = useMemo(() => computeAllocationRisk(stockPct, bondPct, stockVol, bondVol, correlation), [stockPct, bondPct, stockVol, bondVol, correlation]);
+  const result = useMemo(
+    () => computeAllocationRisk(stockPct, bondPct, stockVol, bondVol, correlation),
+    [stockPct, bondPct, stockVol, bondVol, correlation],
+  );
   return (
     <CollapsibleCard icon={BarChart3} title={t('calculators.risk.title')}>
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t('calculators.risk.stockPct')} value={stockPct} onChange={setStockPct} suffix="%" step={5} min={0} max={100} />
-        <Field label={t('calculators.risk.bondPct')} value={bondPct} onChange={setBondPct} suffix="%" step={5} min={0} max={100} />
-        <Field label={t('calculators.risk.stockVol')} value={stockVol} onChange={setStockVol} suffix="%" step={1} />
-        <Field label={t('calculators.risk.bondVol')} value={bondVol} onChange={setBondVol} suffix="%" step={1} />
+        <Field
+          label={t('calculators.risk.stockPct')}
+          value={stockPct}
+          onChange={setStockPct}
+          suffix="%"
+          step={5}
+          min={0}
+          max={100}
+        />
+        <Field
+          label={t('calculators.risk.bondPct')}
+          value={bondPct}
+          onChange={setBondPct}
+          suffix="%"
+          step={5}
+          min={0}
+          max={100}
+        />
+        <Field
+          label={t('calculators.risk.stockVol')}
+          value={stockVol}
+          onChange={setStockVol}
+          suffix="%"
+          step={1}
+        />
+        <Field
+          label={t('calculators.risk.bondVol')}
+          value={bondVol}
+          onChange={setBondVol}
+          suffix="%"
+          step={1}
+        />
       </div>
       <div className="mt-3">
-        <Field label={t('calculators.risk.correlation')} value={correlation} onChange={setCorrelation} step={0.05} min={-1} max={1} />
+        <Field
+          label={t('calculators.risk.correlation')}
+          value={correlation}
+          onChange={setCorrelation}
+          step={0.05}
+          min={-1}
+          max={1}
+        />
       </div>
       <RiskResults result={result} t={t} />
     </CollapsibleCard>

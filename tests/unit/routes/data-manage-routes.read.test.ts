@@ -74,25 +74,16 @@ describe('dataManageRoutes - GET 读端点', () => {
     expect(res.status).toBe(200);
     expect(body.data.stats).toBeNull();
   });
-  it('GET /tickers 默认分页应返回第一页 50 条', async () => {
-    const res = await get('/tickers');
+  it.each([
+    ['默认分页应返回第一页 50 条', '/tickers', 1, 50, 2, null],
+    ['自定义分页参数应正确切片', '/tickers?page=2&limit=30', 2, 30, 4, 'TICK30'],
+  ])('GET /tickers %s', async (_n, path, page, limit, totalPages, firstTicker) => {
+    const res = await get(path);
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.data).toHaveLength(50);
-    expect(body.pagination.page).toBe(1);
-    expect(body.pagination.limit).toBe(50);
-    expect(body.pagination.total).toBe(100);
-    expect(body.pagination.totalPages).toBe(2);
-  });
-  it('GET /tickers 自定义分页参数应正确切片', async () => {
-    const res = await get('/tickers?page=2&limit=30');
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.data).toHaveLength(30);
-    expect(body.data[0].ticker).toBe('TICK30');
-    expect(body.pagination.page).toBe(2);
-    expect(body.pagination.limit).toBe(30);
-    expect(body.pagination.totalPages).toBe(4);
+    expect(body.data).toHaveLength(limit);
+    if (firstTicker) expect(body.data[0].ticker).toBe(firstTicker);
+    expect(body.pagination).toMatchObject({ page, limit, total: 100, totalPages });
   });
   it('GET /search 有 query 参数时应返回搜索结果', async () => {
     const res = await get('/search?q=aapl');
@@ -136,29 +127,29 @@ describe('dataManageRoutes - 读端点抛错统一映射为 500', () => {
   it.each<[string, () => void, string | null]>([
     [
       '/status',
-      () => engineServiceMocks.getEngineStatus.mockRejectedValue(new Error('status error')),
+      () => engineServiceMocks.getEngineStatus.mockRejectedValue(new Error('err')),
       'STATUS_ERROR',
     ],
     [
       '/stats?force=1',
-      () => engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('scan error')),
+      () => engineServiceMocks.scanMarketStatsFromDb.mockRejectedValue(new Error('err')),
       'STATS_ERROR',
     ],
     [
       '/tickers',
-      () => engineServiceMocks.getTickerList.mockRejectedValue(new Error('list error')),
+      () => engineServiceMocks.getTickerList.mockRejectedValue(new Error('err')),
       'TICKER_LIST_ERROR',
     ],
     [
       '/search?q=test',
-      () => engineServiceMocks.searchTickers.mockRejectedValue(new Error('search error')),
+      () => engineServiceMocks.searchTickers.mockRejectedValue(new Error('err')),
       null,
     ],
     [
       '/ticker/AAPL',
       () =>
         engineServiceMocks.loadTickerData.mockImplementation(() => {
-          throw new Error('load error');
+          throw new Error('err');
         }),
       null,
     ],
@@ -227,29 +218,28 @@ describe('dataManageRoutes - 写端点（admin）', () => {
     await server.close();
   });
   it.each([
-    ['PUT', '/update/full', 'full', true],
+    ['PUT', '/update/full', 'full', false],
     ['PATCH', '/update/inc', 'incremental', false],
-  ])('%s %s startUpdate 成功时应返回成功', async (method, path, mode, hasDataSuccess) => {
-    dataFetchMocks.startUpdate.mockResolvedValue({
-      success: true,
-      message: '更新已启动',
-      pid: 12345,
-    });
+    ['PUT', '/update/full', 'full', true],
+    ['PATCH', '/update/inc', 'incremental', true],
+  ])('%s %s startUpdate %s应返回对应结果', async (method, path, mode, expectError) => {
+    if (expectError) dataFetchMocks.startUpdate.mockRejectedValue(new Error('启动失败'));
+    else
+      dataFetchMocks.startUpdate.mockResolvedValue({
+        success: true,
+        message: '更新已启动',
+        pid: 12345,
+      });
     const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
     const body = await res.json();
-    expect(res.status).toBe(200);
     expect(dataFetchMocks.startUpdate).toHaveBeenCalledWith(mode);
-    if (hasDataSuccess) expect(body.data.success).toBe(true);
-  });
-  it.each([
-    ['PUT', '/update/full'],
-    ['PATCH', '/update/inc'],
-  ])('%s %s startUpdate 抛错时应返回 500', async (method, path) => {
-    dataFetchMocks.startUpdate.mockRejectedValue(new Error('启动失败'));
-    const res = await fetch(`${server.url}/api/v1/data/manage${path}`, { method });
-    const body = await res.json();
-    expect(res.status).toBe(500);
-    expect(body.error.code).toBe('UPDATE_ERROR');
+    if (expectError) {
+      expect(res.status).toBe(500);
+      expect(body.error.code).toBe('UPDATE_ERROR');
+    } else {
+      expect(res.status).toBe(200);
+      expect(body.data.success).toBe(true);
+    }
   });
   it('POST /update/stop 停止成功时应返回成功', async () => {
     dataFetchMocks.stopUpdate.mockReturnValue({ success: true, message: '更新已停止' });

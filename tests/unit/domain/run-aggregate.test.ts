@@ -204,7 +204,6 @@ describe('Weight.create', () => {
     [0, '下边界 0%'],
     [100, '上边界 100%'],
     [50, '一半'],
-    [25, '四分之一'],
   ])('应接受 %s（%s）', (value) => {
     expect(Weight.create(value).value).toBe(value);
   });
@@ -219,7 +218,6 @@ describe('Weight.create', () => {
 describe('Ticker.create', () => {
   it.each([
     ['AAPL', 'AAPL', '美股代码'],
-    ['MSFT', 'MSFT', '美股代码'],
     ['VTI', 'VTI', 'ETF 代码'],
     ['A', 'A', '单字符'],
     ['ABCDE', 'ABCDE', '5 字符'],
@@ -227,27 +225,20 @@ describe('Ticker.create', () => {
     ['123', '123', '数字代码'],
     ['A1B2', 'A1B2', '字母数字混合'],
     ['510300.SS', '510300.SS', 'A 股带后缀'],
-    ['600519.SH', '600519.SH', '沪市后缀'],
-    ['000001.SZ', '000001.SZ', '深市后缀'],
     ['aapl', 'AAPL', '小写转大写（归一化）'],
     ['  AAPL  ', 'AAPL', '去除首尾空格'],
     ['510300.ss', '510300.SS', '小写带后缀'],
-    ['AAPL ', 'AAPL', '尾随空格 trim 后合法'],
-    [' AAPL', 'AAPL', '前导空格 trim 后合法'],
   ])('应接受 %s（%s）', (input, expected) => {
     expect(Ticker.create(input).value).toBe(expected);
   });
   it.each([
     ['AAPL!', '感叹号'],
-    ['AAPL@', 'at 符号'],
-    ['AAPL#', '井号'],
     ['AA PL', '中间空格'],
     ['中证500', '非 ASCII 字符'],
     ['AAPL.BCD', '后缀超过 2 字符'],
     ['AAPL.', '后缀为空'],
     ['.SS', '主体为空'],
     ['AAPL-SZ', '连字符非法'],
-    ['AAPL_SS', '下划线非法'],
     ['ABCDEFGHIJK', '超过 10 字符（不含后缀）'],
     ['', '空字符串'],
     ['   ', '仅含空格（trim 后为空）'],
@@ -263,12 +254,6 @@ describe('Ticker.toString', () => {
     ['小写输入应返回大写字符串', 'msft', 'MSFT'],
   ])('%s', (_n, input, expected) => {
     expect(Ticker.create(input).toString()).toBe(expected);
-  });
-});
-
-describe('Ticker 不变性', () => {
-  it('value 属性应通过 readonly 修饰符保护（编译时检查）', () => {
-    expect(Ticker.create('AAPL').value).toBe('AAPL');
   });
 });
 

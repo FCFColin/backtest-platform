@@ -1,8 +1,17 @@
-import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { useTranslation, type UseTranslationOptions } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import i18n, { loadNamespace } from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+import { useAuthStore } from '@/store/authStore';
 interface UseAsyncActionResult {
   isLoading: boolean;
   error: string | null;
@@ -40,11 +49,17 @@ interface UseListStateResult<T> {
   removeItem: (index: number) => void;
   updateItem: (index: number, updater: (prev: T) => T) => void;
 }
-export function useListState<T>(initial: T[], makeDefault: () => T, minLength = 1): UseListStateResult<T> {
+export function useListState<T>(
+  initial: T[],
+  makeDefault: () => T,
+  minLength = 1,
+): UseListStateResult<T> {
   const [items, setItems] = useState<T[]>(() => initial);
   const addItem = () => setItems((prev) => [...prev, makeDefault()]);
-  const removeItem = (index: number) => setItems((prev) => (prev.length > minLength ? prev.filter((_, i) => i !== index) : prev));
-  const updateItem = (index: number, updater: (prev: T) => T) => setItems((prev) => prev.map((item, i) => (i === index ? updater(item) : item)));
+  const removeItem = (index: number) =>
+    setItems((prev) => (prev.length > minLength ? prev.filter((_, i) => i !== index) : prev));
+  const updateItem = (index: number, updater: (prev: T) => T) =>
+    setItems((prev) => prev.map((item, i) => (i === index ? updater(item) : item)));
   return { items, setItems, addItem, removeItem, updateItem };
 }
 export function useNsT(ns: string, options?: UseTranslationOptions<string>) {
@@ -73,7 +88,7 @@ export function useTheme() {
   return {
     theme,
     toggleTheme,
-    isDark: theme === 'dark'
+    isDark: theme === 'dark',
   };
 }
 interface UsePollingOptions {
@@ -81,7 +96,11 @@ interface UsePollingOptions {
   deps?: unknown[];
   immediate?: boolean;
 }
-export function usePolling(fetchFn: () => void | Promise<void>, intervalMs: number, options: UsePollingOptions = {}): void {
+export function usePolling(
+  fetchFn: () => void | Promise<void>,
+  intervalMs: number,
+  options: UsePollingOptions = {},
+): void {
   const { enabled = true, deps = [], immediate = true } = options;
   useEffect(() => {
     if (!enabled) return;
@@ -99,7 +118,10 @@ interface ComputeToolState<TResult> {
   setResults: (r: TResult | null) => void;
   reset: () => void;
 }
-export function useComputeTool<TResult>(computeFn: () => Promise<TResult>, validateFn?: () => string | null): ComputeToolState<TResult> {
+export function useComputeTool<TResult>(
+  computeFn: () => Promise<TResult>,
+  validateFn?: () => string | null,
+): ComputeToolState<TResult> {
   const { isLoading, error, run, setError, reset: resetAction } = useAsyncAction();
   const [results, setResults] = useState<TResult | null>(null);
   const runCompute = useCallback(() => {
@@ -150,7 +172,7 @@ export function useOptimizerLikeState<TResults>(): OptimizerLikeState<TResults> 
     error,
     setError,
     results,
-    setResults
+    setResults,
   };
 }
 export interface TickerMeta {
@@ -176,7 +198,9 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
     }
     const timer = setTimeout(async () => {
       try {
-        const res = await apiFetch(`/api/v1/data/ticker-meta?ticker=${encodeURIComponent(upper)}`, { silent: true });
+        const res = await apiFetch(`/api/v1/data/ticker-meta?ticker=${encodeURIComponent(upper)}`, {
+          silent: true,
+        });
         if (!res.ok) return;
         const data = (await res.json()) as TickerMeta;
         cache.set(upper, data);
@@ -188,4 +212,66 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
     return () => clearTimeout(timer);
   }, [ticker]);
   return meta;
+}
+const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
+  'mousemove',
+  'keydown',
+  'mousedown',
+  'touchstart',
+  'scroll',
+];
+const HEARTBEAT_INTERVAL_MS = 60_000;
+export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
+  const navigate = useNavigate();
+  const logout = useAuthStore((s) => s.logout);
+  const lastActivityRef = useRef<number>(Date.now());
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const triggeredRef = useRef<boolean>(false);
+  const resetActivity = useCallback(() => {
+    lastActivityRef.current = Date.now();
+  }, []);
+  const triggerTimeout = useCallback(async () => {
+    if (triggeredRef.current) return;
+    triggeredRef.current = true;
+    await logout();
+    navigate('/login?reason=session_expired', { replace: true });
+  }, [logout, navigate]);
+  const checkTimeout = useCallback(() => {
+    if (!enabled || timeoutMs <= 0) return;
+    const elapsed = Date.now() - lastActivityRef.current;
+    if (elapsed >= timeoutMs) {
+      void triggerTimeout();
+    }
+  }, [enabled, timeoutMs, triggerTimeout]);
+  useEffect(() => {
+    if (!enabled || timeoutMs <= 0) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+    triggeredRef.current = false;
+    lastActivityRef.current = Date.now();
+    ACTIVITY_EVENTS.forEach((event) => {
+      window.addEventListener(event, resetActivity, { passive: true });
+    });
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkTimeout();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    timerRef.current = setInterval(checkTimeout, HEARTBEAT_INTERVAL_MS);
+    return () => {
+      ACTIVITY_EVENTS.forEach((event) => {
+        window.removeEventListener(event, resetActivity);
+      });
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [enabled, timeoutMs, resetActivity, checkTimeout]);
 }

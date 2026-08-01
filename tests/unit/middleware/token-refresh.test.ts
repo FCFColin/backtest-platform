@@ -136,9 +136,7 @@ describe('Refresh Token 生命周期与 Redis', () => {
     [
       'Redis entry 已过期',
       async () => expireStoredToken('redis-expired'),
-      (t: string) => {
-        expect(redisMocks.store.has(`refresh_token:${t}`)).toBe(false);
-      },
+      (t: string) => expect(redisMocks.store.has(`refresh_token:${t}`)).toBe(false),
     ],
   ])('%s 应返回 null 并清理', async (_n, build, extra) => {
     const t = await build();

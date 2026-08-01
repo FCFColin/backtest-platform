@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { percentile, mean, std } from '../../../packages/frontend/src/utils/stats.js';
+import { percentile, mean, std } from '../../../packages/frontend/src/utils/format.js';
 
 describe('percentile', () => {
   it('空数组应返回 0', () => {

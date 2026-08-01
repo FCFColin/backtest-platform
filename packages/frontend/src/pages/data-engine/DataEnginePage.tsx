@@ -17,7 +17,8 @@ function DataEngineError({ error, onRetry }: { error: string; onRetry: () => voi
 }
 export default function DataEnginePage() {
   const { t } = useTranslation();
-  const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } = useDataEngineState();
+  const { stats, universe, actionMsg, error, loadStage, fetchStats, doAction } =
+    useDataEngineState();
   return (
     <div className="flex w-full flex-col gap-3">
       <h1 className="text-display text-fg">{t('dataEngine.title')}</h1>
@@ -31,7 +32,13 @@ export default function DataEnginePage() {
           </div>
         </>
       ) : (
-        <DataEngineDashboard stats={stats} universe={universe} actionMsg={actionMsg} fetchStats={fetchStats} doAction={doAction} />
+        <DataEngineDashboard
+          stats={stats}
+          universe={universe}
+          actionMsg={actionMsg}
+          fetchStats={fetchStats}
+          doAction={doAction}
+        />
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import { apiFetch } from '@/utils/apiClient';
 import i18n from '@/i18n/index.js';
 import { validatePortfolioCore } from '@/utils/validation';
 import { fmtDollar, fmtNum, fmtPct } from '@/utils/format';
-import { percentile, mean, std } from '@/utils/stats';
+import { percentile, mean, std } from '@/utils/format';
 import {
   DEFAULT_BACKTEST_START_DATE,
   DEFAULT_END_DATE,

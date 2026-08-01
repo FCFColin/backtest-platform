@@ -24,10 +24,23 @@ export function useDataEngineState(): DataEngineAction {
   const [, setScanning] = useState(false);
   const pollCountRef = useRef(0);
   const fetchStartRef = useRef(0);
-  const fetchStats = useCallback((force = false) => doFetchStats(tRef.current, force, { pollCountRef, fetchStartRef }, { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning }), []);
+  const fetchStats = useCallback(
+    (force = false) =>
+      doFetchStats(
+        tRef.current,
+        force,
+        { pollCountRef, fetchStartRef },
+        { setStats, setUniverse, setLoading, setError, setLoadStage, setScanning },
+      ),
+    [],
+  );
   useEffect(() => {
     fetchStats();
   }, [fetchStats]);
-  const doAction = useCallback((url: string, label: string, method: 'POST' | 'PUT' | 'PATCH') => doActionFn(tRef.current, url, label, setActionMsg, method), []);
+  const doAction = useCallback(
+    (url: string, label: string, method: 'POST' | 'PUT' | 'PATCH') =>
+      doActionFn(tRef.current, url, label, setActionMsg, method),
+    [],
+  );
   return { stats, universe, actionMsg, error, loadStage, fetchStats, doAction };
 }
