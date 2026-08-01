@@ -28,9 +28,9 @@ const mapRecentUpdate = rowMapper<RecentUpdateRow>({
   updatedAt: (r) => toIso(r.updated_at),
 });
 
-// ticker-meta 服务端缓存（60s，与 Cache-Control 响应头一致；避免跨 hypertable chunk 的 MIN(date) 扫描）
+// ticker-meta 服务端缓存（5min，跨 chunk MIN(date) 查询慢，缓存命中避免重复扫描）
 const tickerMetaCache = new Map<string, { data: unknown; at: number }>();
-const TICKER_META_CACHE_TTL = 60_000;
+const TICKER_META_CACHE_TTL = 300_000;
 function cachedTickerMeta(ticker: string): unknown | undefined {
   const hit = tickerMetaCache.get(ticker);
   return hit && Date.now() - hit.at < TICKER_META_CACHE_TTL ? hit.data : undefined;
