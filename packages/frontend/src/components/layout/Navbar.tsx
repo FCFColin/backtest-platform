@@ -68,6 +68,31 @@ export const NAV_GROUP_KEYS = [
     ],
   },
 ] as const;
+// hover 预加载：菜单悬停时提前解析目标页面 chunk，点击导航时零等待
+// （与 routes/index.tsx 的 lazy 定义保持一致；共享模块（signal/tactical）预加载一次即覆盖多入口）
+const NAV_PRELOADS: Record<string, () => Promise<unknown>> = {
+  portfolioBacktest: () => import('@/pages/backtest/BacktestPage'),
+  backtestOptimizer: () => import('@/pages/backtest/BacktestOptimizerPage'),
+  rebalancingSensitivity: () =>
+    import('@/pages/rebalancing-sensitivity/RebalancingSensitivityPage'),
+  lumpSumDca: () => import('@/pages/lump-sum-dca/LumpSumVsDCAPage'),
+  assetAnalysis: () => import('@/pages/analysis/AnalysisResults'),
+  factorRegression: () => import('@/pages/factor-regression/FactorRegressionPage'),
+  pca: () => import('@/pages/pca/PCAPage'),
+  portfolioOptimize: () => import('@/pages/optimizer/OptimizerPage'),
+  efficientFrontier: () => import('@/pages/efficient-frontier/EfficientFrontierResults'),
+  monteCarlo: () => import('@/pages/monte-carlo/MonteCarloResults'),
+  goalOptimizer: () => import('@/pages/goal-optimizer/GoalOptimizerResults'),
+  tacticalAllocation: () => import('@/pages/tactical/TacticalPage'),
+  signalAnalyzer: () => import('@/pages/signal/SignalAnalyzerPage'),
+  letfAnalysis: () => import('@/pages/letf/LETFSlippagePage'),
+  calculators: () => import('@/pages/calculators/BaseCalculatorUI'),
+};
+function preloadGroup(group: (typeof NAV_GROUP_KEYS)[number]): void {
+  for (const item of group.items) {
+    NAV_PRELOADS[item.key]?.().catch(() => {});
+  }
+}
 function NavGroup({
   group,
   isActive,
@@ -91,6 +116,11 @@ function NavGroup({
             'h-9 px-2.5 text-label text-fg-secondary hover:bg-hover hover:text-fg [&_svg]:size-3',
             groupActive && 'text-fg',
           )}
+          // hover 即展开 + 预加载组内页面 chunk，点击菜单项时导航零等待
+          onMouseEnter={() => {
+            if (!isOpen) onToggle(group.key);
+            preloadGroup(group);
+          }}
         >
           {t(`nav.${group.key}`)}
           <ChevronDown
