@@ -60,7 +60,7 @@
 - 相关测试：`pnpm exec vitest run <修改文件的测试>`（TS）或 `go test ./...`（Go）
 - 类型检查：`pnpm exec tsc --noEmit`（TS）
 - 契约测试：`pnpm exec vitest run tests/contract`（如果动了路由/schema/openapi）
-- 最终 `pnpm exec vitest run tests/unit` 全量通过（允许 ≤5 预存失败）
+- 最终 `pnpm exec vitest run tests/unit` 全量通过（0 失败；不允许"预存失败"——任何失败都必须修复，通常根因是模块合并后测试 mock 路径漂移）
 
 ## Quick Start
 
