@@ -152,7 +152,17 @@ function buildSsrHead(templateHead: string): string {
         return `<link rel="${isKey ? 'modulepreload' : 'prefetch'}" href="/assets/${f}" crossorigin>`;
       })
       .join('\n    ');
-    head = head.replace('</head>', `    ${preloadLinks}\n  </head>`);
+    // 共享 vendor chunk（recharts 依赖 YAxis 等，懒加载时按需下载拖慢导航）：
+    // 首页空闲时 prefetch，SPA 导航命中缓存、无需等待下载
+    const vendorPrefetch = assets
+      .filter((f) =>
+        /^(YAxis|generateCategoricalChart|shared-utils|util-vendor|i18n-vendor|icon-vendor|ui-vendor|state-vendor|react-router|react-dom-client)-.*\.js$/.test(
+          f,
+        ),
+      )
+      .map((f) => `<link rel="prefetch" href="/assets/${f}" crossorigin>`)
+      .join('\n    ');
+    head = head.replace('</head>', `    ${preloadLinks}\n    ${vendorPrefetch}\n  </head>`);
   } catch {
     /* 构建产物读取失败时跳过 */
   }

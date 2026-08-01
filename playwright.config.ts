@@ -44,14 +44,16 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx tsx packages/backend/src/server.ts',
+    // 同时拉起后端 API 与队列 worker（回测 job 需 worker 处理）；worker 无 HTTP 健康点，
+    // 由 wrapper 统一管理生命周期，url 仅轮询后端健康
+    command: 'node scripts/e2e-servers.mjs',
     url: `http://localhost:${API_PORT}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,
     env: {
-      DATABASE_URL:
-        process.env.DATABASE_URL ?? 'postgresql://backtest:backtest@localhost:5432/backtest',
+      // DATABASE_URL 不注入：本地走 .env（15442），CI 由 shell 环境显式提供
       API_PORT,
+      DISABLE_RATE_LIMIT: 'true',
       COMPUTE_RATE_LIMIT_MAX: process.env.COMPUTE_RATE_LIMIT_MAX ?? '200',
       SERVE_STATIC: 'true',
       OTEL_EXPORTER_OTLP_ENDPOINT: '',
