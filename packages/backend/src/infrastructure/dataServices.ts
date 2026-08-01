@@ -1,10 +1,11 @@
 /**
  * 数据服务基础设施工具集。
  *
- * 合并 syntheticTickers / cpiLoader / minioClient：
+ * 合并 syntheticTickers / cpiLoader / minioClient / dataFetch：
  * - syntheticTickers: 合成标的元数据列表（与 Go data-fetcher simDefinitions 同步）
  * - cpiLoader: CPI 数据访问统一 facade（PG 主路径 → Go data-fetcher fallback）
  * - minioClient: MinIO S3 兼容客户端（WORM 审计存储）
+ * - dataFetch: 数据更新任务（P1-2 起经 BullMQ 异步入队，不再 spawn Go 子进程）
  */
 
 import { Client } from 'minio';
@@ -12,6 +13,11 @@ import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { loadCpiSeriesFromDb } from '../db/macroData.js';
 import { callGoDataService } from './dataQuery.js';
+import {
+  dataUpdateQueue,
+  getActiveUpdateJobs,
+  type DataUpdateJobData,
+} from '../queues/queueDefinitions.js';
 
 // ── Synthetic Tickers ──────────────────────────────────────────────────────
 
@@ -341,4 +347,98 @@ export async function uploadAuditObject(key: string, data: string | Buffer): Pro
     logger.error({ err: (err as Error).message, key }, '[minio] 审计对象上传失败');
     return false;
   }
+}
+
+// ── 数据更新任务（BullMQ，P1-2 重构替代 spawn/go run）─────────────────────
+
+interface UpdateStatus {
+  running: boolean;
+  mode: 'full' | 'incremental' | null;
+  startedAt: string | null;
+  completedTickers: number;
+  totalTickers: number;
+  lastError: string | null;
+}
+
+const IDLE_STATUS: UpdateStatus = {
+  running: false,
+  mode: null,
+  startedAt: null,
+  completedTickers: 0,
+  totalTickers: 0,
+  lastError: null,
+};
+
+/**
+ * 查询当前更新状态（从 BullMQ job 状态读取，无内存全局变量）。
+ *
+ * @returns 当前更新状态
+ */
+export async function getUpdateStatus(): Promise<UpdateStatus> {
+  const jobs = await getActiveUpdateJobs();
+  if (jobs.length === 0) return { ...IDLE_STATUS };
+
+  const job = jobs[0];
+  const state = await job.getState();
+  const data = job.data as DataUpdateJobData;
+  const progress = typeof job.progress === 'number' ? job.progress : 0;
+
+  return {
+    running: state === 'active' || state === 'waiting' || state === 'delayed',
+    mode: data.mode,
+    startedAt: job.timestamp ? new Date(job.timestamp).toISOString() : null,
+    completedTickers: progress,
+    totalTickers: 0,
+    lastError: null,
+  };
+}
+
+/**
+ * 启动数据更新任务（入队 BullMQ）。
+ *
+ * @param mode - 更新模式：全量或增量
+ * @returns 操作结果
+ */
+export async function startUpdate(
+  mode: 'full' | 'incremental',
+): Promise<{ success: boolean; message: string; jobId?: string }> {
+  const activeJobs = await getActiveUpdateJobs();
+  if (activeJobs.length > 0) {
+    return { success: false, message: '已有更新任务正在运行' };
+  }
+
+  const job = await dataUpdateQueue.add(
+    'data-update',
+    { mode },
+    { jobId: `data-update-${mode}-${Date.now()}` },
+  );
+
+  logger.info({ jobId: job.id, mode }, '[dataFetch] 数据更新任务已入队');
+
+  return {
+    success: true,
+    message: `${mode === 'incremental' ? '增量' : '全量'}更新已启动`,
+    jobId: job.id ?? undefined,
+  };
+}
+
+/**
+ * 停止当前数据更新任务（取消 BullMQ job）。
+ *
+ * @returns 操作结果
+ */
+export async function stopUpdate(): Promise<{ success: boolean; message: string }> {
+  const activeJobs = await getActiveUpdateJobs();
+  if (activeJobs.length === 0) {
+    return { success: false, message: '没有正在运行的更新任务' };
+  }
+
+  const job = activeJobs[0];
+  await job.remove().catch((err: unknown) => {
+    logger.warn({ err: String(err), jobId: job.id }, '[dataFetch] 移除任务失败');
+  });
+
+  logger.info({ jobId: job.id }, '[dataFetch] 更新任务已取消');
+
+  return { success: true, message: '更新已停止' };
 }

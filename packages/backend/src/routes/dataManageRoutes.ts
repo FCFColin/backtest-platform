@@ -2,19 +2,19 @@ import { Router, type Request } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { validateQuery, validate } from '../middleware/miscMiddleware.js';
-import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/data.js';
+import { tickerListQuerySchema, tickerSearchQuerySchema } from '../schemas/analysisSchemas.js';
 import {
   getEngineStatus,
   getTickerList,
   loadTickerData,
   resolveUniverseFromCacheStats,
-} from '../infrastructure/tickerDataService.js';
+} from '../infrastructure/dataQuery.js';
 import { searchTickers } from '../infrastructure/dataFacade.js';
 import { scanMarketStatsFromDb, getLastUpdated } from '../db/marketStats.js';
 import { isValidTicker } from '../utils/tickerValidation.js';
 import { requirePermission, Permission } from '../middleware/rbac.js';
-import { startUpdate, stopUpdate, getUpdateStatus } from '../infrastructure/dataFetch.js';
-import { emptyBodySchema } from '../schemas/shared.js';
+import { startUpdate, stopUpdate, getUpdateStatus } from '../infrastructure/dataServices.js';
+import { emptyBodySchema } from '../schemas/analysisSchemas.js';
 import { crudRouteHandler, jsonRoute } from './routeUtils.js';
 
 const router = Router();

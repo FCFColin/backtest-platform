@@ -6,10 +6,8 @@ const routesPath = resolve(process.cwd(), 'packages/frontend/src/routes/index.ts
 const routesSource = readFileSync(routesPath, 'utf-8');
 
 describe('C-006 Layout Stability — lazy() + fallback 预留高度', () => {
-it('BacktestPage（首屏 `/`）使用 lazy() 懒加载', () => {
-    expect(routesSource).toMatch(
-      /lazy\s*\(\s*\(\)\s*=>\s*import\([^)]*BacktestPage/,
-    );
+  it('BacktestPage（首屏 `/`）使用 lazy() 懒加载', () => {
+    expect(routesSource).toMatch(/lazy\s*\(\s*\(\)\s*=>\s*import\([^)]*BacktestPage/);
   });
 
   it('Suspense fallback 必须预留 minHeight >= 70vh 以消除布局偏移', () => {
@@ -21,7 +19,7 @@ it('BacktestPage（首屏 `/`）使用 lazy() 懒加载', () => {
 
   it('PromoBar 同步读取 dismiss 状态（不在渲染后消失导致 CLS）', () => {
     const promoSource = readFileSync(
-      resolve(process.cwd(), 'packages/frontend/src/components/layout/PromoBar.tsx'),
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
       'utf-8',
     );
     // useState 初始化器中同步读 localStorage，避免先渲染再消失

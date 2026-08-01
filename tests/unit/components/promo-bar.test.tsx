@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PromoBar } from '../../../packages/frontend/src/components/layout/PromoBar.js';
+import { PromoBar } from '../../../packages/frontend/src/components/layout/Navbar.js';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -26,14 +26,7 @@ describe('PromoBar', () => {
   });
 
   it('渲染 CTA 链接', () => {
-    render(
-      <PromoBar
-        id="test-2"
-        message="Test"
-        ctaLabel="Click here"
-        ctaLink="/data-engine"
-      />,
-    );
+    render(<PromoBar id="test-2" message="Test" ctaLabel="Click here" ctaLink="/data-engine" />);
     expect(screen.getByText('Click here')).toBeTruthy();
   });
 
@@ -67,25 +60,19 @@ describe('PromoBar', () => {
   });
 
   it('info variant 包含 brand 相关样式', () => {
-    const { container } = render(
-      <PromoBar id="test-8" message="Info" variant="info" />,
-    );
+    const { container } = render(<PromoBar id="test-8" message="Info" variant="info" />);
     const bar = container.querySelector('.border-b');
     expect(bar?.className).toContain('bg-brand-subtle');
   });
 
   it('success variant 包含 success 相关样式', () => {
-    const { container } = render(
-      <PromoBar id="test-9" message="Success" variant="success" />,
-    );
+    const { container } = render(<PromoBar id="test-9" message="Success" variant="success" />);
     const bar = container.querySelector('.border-b');
     expect(bar?.className).toContain('bg-success-subtle');
   });
 
   it('warning variant 包含 warning 相关样式', () => {
-    const { container } = render(
-      <PromoBar id="test-10" message="Warning" variant="warning" />,
-    );
+    const { container } = render(<PromoBar id="test-10" message="Warning" variant="warning" />);
     const bar = container.querySelector('.border-b');
     expect(bar?.className).toContain('bg-warning-subtle');
   });

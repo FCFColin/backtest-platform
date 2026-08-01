@@ -9,7 +9,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
-import { emptyBodySchema } from '../schemas/shared.js';
+import { emptyBodySchema } from '../schemas/analysisSchemas.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import { config } from '../config/index.js';

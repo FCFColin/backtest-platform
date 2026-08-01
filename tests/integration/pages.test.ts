@@ -223,9 +223,9 @@ describe('新增工具页面 API', () => {
 
 describe('布局验证', () => {
   it('导航栏包含所有工具页面入口', () => {
-    // CSR应用：导航链接在客户端渲染，路由定义集中在 navConfig.ts，验证其包含所有工具页面路由
+    // CSR应用：导航链接在客户端渲染，路由定义集中在 Navbar.tsx，验证其包含所有工具页面路由
     const navConfigSource = readFileSync(
-      resolve(process.cwd(), 'packages/frontend/src/components/layout/NavGroupMenu.tsx'),
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
       'utf-8',
     );
     // 验证关键导航路由存在（覆盖所有工具分组）

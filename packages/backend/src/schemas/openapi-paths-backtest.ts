@@ -13,15 +13,21 @@ import {
   efficientFrontierSchema,
   portfolioSeriesSchema,
 } from './backtest.js';
-import { searchQuerySchema } from './data.js';
-import { backtestOptimizerSchema } from './optimizer.js';
-import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from './analysisSchemas.js';
+import { searchQuerySchema } from './analysisSchemas.js';
+import { backtestOptimizerSchema } from './backtest.js';
+import {
+  signalAnalyzeSchema,
+  signalDualSchema,
+  signalMultiSchema,
+  pcaAnalyzeSchema,
+  letfAnalyzeSchema,
+  goalOptimizerSchema,
+} from './analysisSchemas.js';
 import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,
   tacticalGridSearchSchema,
 } from './tactical.js';
-import { pcaAnalyzeSchema, letfAnalyzeSchema, goalOptimizerSchema } from './analysisSchemas.js';
 import { AcceptedEnvelope } from './openapi-components.js';
 
 function registerBacktestEndpoints(): void {

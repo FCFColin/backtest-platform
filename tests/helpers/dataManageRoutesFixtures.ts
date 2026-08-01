@@ -1,4 +1,3 @@
-
 import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from './expressApp.js';
 import { createLoggerMocks } from './mockFactories.js';
@@ -22,11 +21,8 @@ const internalMocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock(
-  '../../packages/backend/src/infrastructure/tickerDataService.js',
-  () => internalMocks.engine,
-);
-vi.mock('../../packages/backend/src/infrastructure/dataFetch.js', () => internalMocks.dataFetch);
+vi.mock('../../packages/backend/src/infrastructure/dataQuery.js', () => internalMocks.engine);
+vi.mock('../../packages/backend/src/infrastructure/dataServices.js', () => internalMocks.dataFetch);
 // dataManageRoutes 已直接从 db/marketStats.js 与 services/dataService.js 取函数，
 // 因此对这两个模块也注入同一组 mock 引用，使 engineServiceMocks.* 调用仍生效。
 vi.mock('../../packages/backend/src/db/marketStats.js', () => ({

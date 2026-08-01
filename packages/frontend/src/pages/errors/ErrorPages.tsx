@@ -4,6 +4,15 @@ import { Link } from 'react-router-dom';
 import { FileQuestion, LogIn, ShieldX, Gauge, ServerCrash, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents';
 import { StatusErrorPage } from '@/components/errors/StatusErrorPage';
+import { StaticPageShell } from '@/components/layout/StaticPageShell.js';
+export function PlaceholderPage({ titleKey, descKey }: { titleKey: string; descKey: string }) {
+  const { t } = useTranslation();
+  return (
+    <StaticPageShell title={t(titleKey)} titleClassName="text-h1">
+      <p className="text-body text-fg-secondary">{t(descKey)}</p>
+    </StaticPageShell>
+  );
+}
 function NotFoundPage(): ReactNode {
   const { t } = useTranslation();
   return (

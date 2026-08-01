@@ -11,7 +11,7 @@ import { asyncRouteHandler } from './routeUtils.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { pool } from '../db/pool.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { customTickerCreateSchema } from '../schemas/data.js';
+import { customTickerCreateSchema } from '../schemas/analysisSchemas.js';
 
 const router = Router();
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);

@@ -242,7 +242,7 @@ describe('efficientFrontierSchema', () => {
 });
 
 import { describe, it, expect } from 'vitest';
-import { backtestOptimizerSchema } from '../../../packages/backend/src/schemas/optimizer.js';
+import { backtestOptimizerSchema } from '../../../packages/backend/src/schemas/backtest.js';
 
 function makeBacktestInput() {
   return {

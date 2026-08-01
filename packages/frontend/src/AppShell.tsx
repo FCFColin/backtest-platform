@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { OfflineBanner } from '@/components/OfflineBanner';
+import { OfflineBanner } from '@/components/stateDisplay';
 import Navbar from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
-import { PromoBar } from '@/components/layout/PromoBar.js';
-import Toast from '@/components/Toast';
+import { PromoBar } from '@/components/layout/Navbar';
+import { Toast } from '@/components/stateDisplay';
 import { useAuthStore } from '@/store/authStore';
 import { useIdleTimeout } from '@/hooks/miscHooks';
 import { AppRoutes } from '@/routes';

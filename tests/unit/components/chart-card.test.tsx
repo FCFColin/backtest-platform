@@ -1,10 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import ChartCard from '../../../packages/frontend/src/components/ChartCard.js';
-
-vi.mock('../../../packages/frontend/src/components/ChartExporter.js', () => ({
-  ChartExporter: () => null,
-}));
 
 describe('ChartCard', () => {
   it('渲染标题和子内容', () => {

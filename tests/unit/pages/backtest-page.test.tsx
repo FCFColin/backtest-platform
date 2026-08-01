@@ -52,8 +52,9 @@ vi.mock('../../../packages/frontend/src/components/BacktestParamsForm.js', () =>
 vi.mock('../../../packages/frontend/src/components/PortfolioEditor.js', () => ({
   default: () => <div data-testid="portfolio-editor" />,
 }));
-vi.mock('../../../packages/frontend/src/pages/backtest/BacktestToolbar.js', () => ({
-  BacktestToolbar: () => <div data-testid="backtest-toolbar" />,
+vi.mock('../../../packages/frontend/src/store/backtestStore.js', () => ({
+  useBacktestStore: (selector: (s: { isLoading: boolean; portfolios: unknown[] }) => unknown) =>
+    selector({ isLoading: false, portfolios: pageState.portfolios }),
 }));
 vi.mock('../../../packages/frontend/src/pages/backtest/BacktestResults.js', () => ({
   ResultsContent: () => <div data-testid="backtest-results" />,
@@ -74,7 +75,7 @@ describe('BacktestPage (smoke)', () => {
     expect(screen.getByTestId('backtest-hero')).toBeTruthy();
     await waitFor(() => expect(screen.getByTestId('backtest-params')).toBeTruthy());
     await waitFor(() => expect(screen.getByTestId('portfolio-editor')).toBeTruthy());
-    await waitFor(() => expect(screen.getByTestId('backtest-toolbar')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('backtest-run')).toBeTruthy());
     await waitFor(() => expect(screen.getByTestId('backtest-results')).toBeTruthy());
   });
 

@@ -1,6 +1,24 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { Card, CardHeader, CardContent } from '@/components/ui/uiComponents';
-import { ChartExporter } from './ChartExporter.js';
+import { Download } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Card, CardHeader, CardContent, Button } from '@/components/ui/uiComponents';
+import { downloadCSV } from '@/utils/format';
+interface ChartExporterProps {
+  data: Array<Record<string, string | number>>;
+  filename?: string;
+  label?: string;
+}
+export function ChartExporter({ data, filename = 'chart-data', label }: ChartExporterProps) {
+  const { t } = useTranslation();
+  const handleExport = () => downloadCSV(data, filename);
+  const disabled = data.length === 0;
+  return (
+    <Button type="button" variant="ghost" size="sm" onClick={handleExport} disabled={disabled}>
+      <Download />
+      {label ?? t('components.chartExporter.defaultLabel')}
+    </Button>
+  );
+}
 interface ChartCardProps {
   title?: ReactNode;
   data?: Array<Record<string, string | number>>;
@@ -10,7 +28,15 @@ interface ChartCardProps {
   style?: CSSProperties;
   className?: string;
 }
-export default function ChartCard({ title, data, csvFilename, headerExtra, children, style, className }: ChartCardProps) {
+export default function ChartCard({
+  title,
+  data,
+  csvFilename,
+  headerExtra,
+  children,
+  style,
+  className,
+}: ChartCardProps) {
   const hasTitle = title != null;
   const showExporter = data !== undefined && csvFilename !== undefined;
   const hasHeaderExtra = headerExtra != null;

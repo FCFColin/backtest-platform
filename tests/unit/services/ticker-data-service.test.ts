@@ -58,7 +58,7 @@ vi.mock('../../../packages/backend/src/db/marketStats.js', () => ({
   getDbEngineStatus: marketStatsMocks.getDbEngineStatus,
 }));
 
-vi.mock('../../../packages/backend/src/infrastructure/dataQuery.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/goDataServiceClient.js', () => ({
   callGoDataService: goMocks.callGoDataService,
 }));
 
@@ -91,7 +91,7 @@ import {
   getUniverseStats,
   scanTickersStats,
   resolveUniverseFromCacheStats,
-} from '../../../packages/backend/src/infrastructure/tickerDataService.js';
+} from '../../../packages/backend/src/infrastructure/dataQuery.js';
 import {
   loadCpiMap,
   fetchCpiForRoute,

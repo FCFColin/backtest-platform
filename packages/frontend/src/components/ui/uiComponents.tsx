@@ -15,11 +15,11 @@ import * as ProgressPrimitive from '@radix-ui/react-progress';
 import * as RadioGroupPrimitive from '@radix-ui/react-radio-group';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import * as SeparatorPrimitive from '@radix-ui/react-separator';
-import * as SheetPrimitive from '@radix-ui/react-dialog';
 import * as SwitchPrimitive from '@radix-ui/react-switch';
 import * as TabsPrimitive from '@radix-ui/react-tabs';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { Check, Circle, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Check, Circle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
 // 多个 Radix/HTML 包装组件仅 class 不同，工厂统一 forwardRef 样板；content 用于渲染固定子节点
@@ -49,21 +49,14 @@ export const badgeVariants = cva(
     variants: {
       variant: {
         asset: 'bg-brand/10 border-brand/20 text-brand hover:bg-brand/15',
-        'factor-active': 'bg-brand/15 border-brand/40 text-brand',
-        'factor-inactive':
-          'bg-input-bg border-border text-fg-secondary hover:text-fg hover:border-border-strong cursor-pointer',
-        preset:
-          'bg-input-bg border-border text-fg-secondary hover:text-fg hover:border-border-strong cursor-pointer',
         secondary:
           'bg-input-bg border-border text-fg-secondary hover:text-fg hover:border-border-strong',
-        outline: 'border-border text-fg-tertiary bg-transparent uppercase tracking-wider',
         success: 'bg-success/10 border-success/20 text-success',
         danger: 'bg-danger/10 border-danger/20 text-danger',
       },
       size: {
         sm: 'h-6 px-2 text-[11px]',
         default: 'h-7 px-3 text-caption',
-        lg: 'h-9 px-4 text-label',
       },
     },
     defaultVariants: { variant: 'asset', size: 'default' },
@@ -86,8 +79,6 @@ export const buttonVariants = cva(
           'bg-input-bg text-fg-secondary border border-border hover:bg-hover hover:text-fg hover:border-border-strong active:scale-[0.98] transition-transform disabled:opacity-40',
         ghost:
           'bg-transparent text-brand hover:text-brand-hover hover:bg-brand/10 disabled:opacity-40',
-        outline:
-          'border border-border bg-transparent text-fg hover:bg-hover hover:border-border-strong',
         destructive:
           'bg-transparent text-fg-tertiary hover:bg-danger/10 hover:text-danger active:scale-[0.98] transition-transform',
         icon: 'bg-transparent text-fg-tertiary hover:bg-hover hover:text-fg rounded-md',
@@ -261,11 +252,6 @@ export const DropdownMenuCheckboxItem = wrapPrimitive(
     </>
   ),
 );
-export const DropdownMenuSeparator = wrapPrimitive(
-  DropdownMenuPrimitive.Separator,
-  '-mx-1 my-1 h-px bg-border',
-  'DropdownMenuSeparator',
-);
 
 export const Label = wrapPrimitive(
   LabelPrimitive.Root,
@@ -387,49 +373,6 @@ export const Separator = React.forwardRef<
 ));
 Separator.displayName = SeparatorPrimitive.Root.displayName;
 
-export const Sheet = SheetPrimitive.Root;
-export const SheetTrigger = SheetPrimitive.Trigger;
-const sheetVariants = cva(
-  'fixed z-50 gap-4 bg-surface p-6 shadow-lg border-border transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:duration-300 data-[state=closed]:duration-300',
-  {
-    variants: {
-      side: {
-        top: 'inset-x-0 top-0 border-b data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top',
-        bottom:
-          'inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
-        left: 'inset-y-0 left-0 h-full w-3/4 max-w-sm border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left',
-        right:
-          'inset-y-0 right-0 h-full w-3/4 max-w-sm border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right',
-      },
-    },
-    defaultVariants: { side: 'right' },
-  },
-);
-export const SheetContent = React.forwardRef<
-  React.ElementRef<typeof SheetPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & VariantProps<typeof sheetVariants>
->(({ side = 'right', className, children, ...props }, ref) => (
-  <SheetPrimitive.Portal>
-    <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-app/80 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
-    <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
-      {children}
-      <SheetPrimitive.Close
-        className="absolute right-4 top-4 rounded-sm text-fg-tertiary opacity-70 transition-opacity hover:text-fg hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-2 focus-visible:ring-offset-app disabled:pointer-events-none"
-        aria-label="Close"
-      >
-        <X className="size-4" />
-      </SheetPrimitive.Close>
-    </SheetPrimitive.Content>
-  </SheetPrimitive.Portal>
-));
-SheetContent.displayName = SheetPrimitive.Content.displayName;
-export const SheetHeader = wrapPrimitive(
-  'div',
-  'flex flex-col gap-1.5 text-center sm:text-left',
-  'SheetHeader',
-);
-export const SheetTitle = wrapPrimitive(SheetPrimitive.Title, 'text-h2 text-fg', 'SheetTitle');
-
 export const Skeleton = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div className={cn('animate-pulse rounded-md bg-input-bg', className)} {...props} />
 );
@@ -463,11 +406,7 @@ export const TabsContent = wrapPrimitive(
 function Tooltip({ children }: { children: ReactNode }) {
   return <div className="relative inline-flex group">{children}</div>;
 }
-interface TooltipTriggerProps {
-  children: ReactNode;
-  asChild?: boolean;
-}
-const TooltipTrigger = ({ children, asChild }: TooltipTriggerProps) =>
+const TooltipTrigger = ({ children, asChild }: { children: ReactNode; asChild?: boolean }) =>
   asChild && isValidElement(children) ? <>{children}</> : <span>{children}</span>;
 interface TooltipContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
@@ -488,3 +427,33 @@ const TooltipContent = React.forwardRef<HTMLDivElement, TooltipContentProps>(
   ),
 );
 export { Tooltip, TooltipTrigger, TooltipContent };
+interface LoadingButtonProps extends ButtonProps {
+  isLoading: boolean;
+  loadingText?: string;
+}
+export function LoadingButton({
+  isLoading,
+  loadingText,
+  type = 'button',
+  variant = 'primary',
+  disabled,
+  className,
+  style,
+  children,
+  ...rest
+}: LoadingButtonProps) {
+  const { t } = useTranslation();
+  return (
+    <Button
+      type={type}
+      variant={variant}
+      disabled={isLoading || disabled}
+      className={className}
+      style={style}
+      {...rest}
+    >
+      {isLoading && <Loader2 className="animate-spin" />}
+      {isLoading ? (loadingText ?? t('common.loading')) : children}
+    </Button>
+  );
+}

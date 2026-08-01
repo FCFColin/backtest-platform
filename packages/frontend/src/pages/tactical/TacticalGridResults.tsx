@@ -3,7 +3,7 @@ import { Grid3x3 } from 'lucide-react';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { Card } from '@/components/ui/uiComponents';
 import { EmptyState } from '@/components/stateDisplay';
-import ErrorBanner from '@/components/ErrorBanner';
+import { ErrorBanner } from '@/components/stateDisplay';
 import { SortableTable, type Column } from '@/components/SortableTable';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import {

@@ -9,7 +9,7 @@ import {
   objectiveValue,
   type OptimizeResultItem,
 } from '../../../packages/backend/src/domain/services/optimizer-domain.js';
-import type { BacktestOptimizerRequest } from '../../../packages/backend/src/schemas/optimizer.js';
+import type { BacktestOptimizerRequest } from '../../../packages/backend/src/schemas/backtest.js';
 import {
   validateGridSearchRequest,
   countCombinations,

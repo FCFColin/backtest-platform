@@ -7,7 +7,7 @@
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { backtestOptimizerSchema } from '../schemas/optimizer.js';
+import { backtestOptimizerSchema } from '../schemas/backtest.js';
 import { backtestQueue, type BacktestJobData } from '../queues/backtestQueue.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { sendProblem } from '../utils/errors.js';

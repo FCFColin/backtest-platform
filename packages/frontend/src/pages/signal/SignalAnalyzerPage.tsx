@@ -2,15 +2,59 @@ import { ComputeToolShell } from '@/components/shells/index.js';
 import type { ComputeToolConfig } from '@/components/shells/index.js';
 import { useSignalAnalyzerState } from './useSignalAnalyzerState.js';
 import type { UseSignalAnalyzerStateResult } from './useSignalAnalyzerState.js';
-import { SignalAnalyzerParamsPanel } from './SignalAnalyzerParams.js';
-import { SignalAnalyzerResultsPanel } from './SignalAnalyzerResults.js';
-const config: ComputeToolConfig<UseSignalAnalyzerStateResult> = {
+import { useDualSignalState } from './useDualSignalState.js';
+import type { UseDualSignalStateResult } from './useDualSignalState.js';
+import { useMultiSignalState } from './hooks/useMultiSignalState.js';
+import type { UseMultiSignalStateResult } from './hooks/useMultiSignalState.js';
+import { SignalAnalyzerParamsPanel, DualSignalParamsPanel } from './SignalParamsPanel.js';
+import { MultiSignalParamsPanel } from './SignalSelector.js';
+import { SignalAnalyzerResultsPanel, MultiSignalResultsPanel } from './SignalAnalyzerResults.js';
+import { DualSignalResultsPanel } from './DualSignalResults.js';
+const analyzerConfig: ComputeToolConfig<UseSignalAnalyzerStateResult> = {
   titleKey: 'signal.analyzer.title',
   paramsTitleKey: 'signal.analyzer.paramsTitle',
   params: ({ state }) => <SignalAnalyzerParamsPanel state={state} />,
-  results: ({ state }) => <SignalAnalyzerResultsPanel error={state.error} results={state.results} isLoading={state.isLoading} />
+  results: ({ state }) => (
+    <SignalAnalyzerResultsPanel
+      error={state.error}
+      results={state.results}
+      isLoading={state.isLoading}
+    />
+  ),
 };
 export default function SignalAnalyzerPage() {
   const s = useSignalAnalyzerState();
-  return <ComputeToolShell config={config} state={s} />;
+  return <ComputeToolShell config={analyzerConfig} state={s} />;
+}
+const dualConfig: ComputeToolConfig<UseDualSignalStateResult> = {
+  titleKey: 'signal.dual.title',
+  paramsTitleKey: 'signal.dual.paramsTitle',
+  params: ({ state }) => <DualSignalParamsPanel state={state} />,
+  results: ({ state }) => (
+    <DualSignalResultsPanel
+      results={state.results}
+      error={state.error}
+      isLoading={state.isLoading}
+    />
+  ),
+};
+export function DualSignalPage() {
+  const s = useDualSignalState();
+  return <ComputeToolShell config={dualConfig} state={s} />;
+}
+const multiConfig: ComputeToolConfig<UseMultiSignalStateResult> = {
+  titleKey: 'signal.multi.title',
+  paramsTitleKey: 'signal.multi.paramsTitle',
+  params: ({ state }) => <MultiSignalParamsPanel state={state} />,
+  results: ({ state }) => (
+    <MultiSignalResultsPanel
+      results={state.results}
+      error={state.error}
+      isLoading={state.isLoading}
+    />
+  ),
+};
+export function MultiSignalPage() {
+  const s = useMultiSignalState();
+  return <ComputeToolShell config={multiConfig} state={s} />;
 }

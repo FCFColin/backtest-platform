@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, Database, HelpCircle, ChevronDown, Calculator, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { StaticPageShell } from '@/components/layout/StaticPageShell.js';
+import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
 import helpData from './help/helpData.json';
 type Section = 'methodology' | 'data' | 'faq';
 interface MetricInfo {

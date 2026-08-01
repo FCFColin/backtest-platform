@@ -19,7 +19,7 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import { Badge, Button, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { StaticPageShell } from '@/components/layout/StaticPageShell.js';
+import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
 import { useToastStore } from '@/store/toastStore';
 import aboutData from './about/aboutData.json';
 

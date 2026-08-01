@@ -1,6 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ScatterChart, Scatter, ZAxis } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  ScatterChart,
+  Scatter,
+  ZAxis,
+} from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
@@ -8,9 +20,7 @@ import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/ch
 import { SimpleTable, type SimpleTableColumn } from '@/components/SimpleTable.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Button } from '@/components/ui/uiComponents';
-import ErrorBanner from '@/components/ErrorBanner.js';
-import { EmptyState } from '@/components/EmptyState.js';
-import { LoadingState } from '@/components/LoadingState.js';
+import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';
 import { fmtPct, fmtNum } from '@/utils/format';
 const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', label: 'CAGR', fmt: 'pct' },
@@ -21,7 +31,7 @@ const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }
   { key: 'sortino', label: 'Sortino', fmt: 'num' },
   { key: 'calmar', label: 'Calmar', fmt: 'num' },
   { key: 'ulcerIndex', label: 'Ulcer Index', fmt: 'num' },
-  { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' }
+  { key: 'ulcerPerformanceIndex', label: 'UPI', fmt: 'num' },
 ];
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
@@ -40,37 +50,37 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
     {
       show: true,
       label: t('optimizer.allowShort'),
-      value: s.allowShort ? t('common.yes') : t('common.no')
+      value: s.allowShort ? t('common.yes') : t('common.no'),
     },
     {
       show: s.enableMinCagr && s.minCagr !== '',
       label: t('optimizer.minCagrLabel'),
-      value: `${s.minCagr}%`
+      value: `${s.minCagr}%`,
     },
     { show: s.minSharpe !== '', label: t('optimizer.minSharpeLabel'), value: s.minSharpe },
     { show: s.minSortino !== '', label: t('optimizer.minSortinoLabel'), value: s.minSortino },
     {
       show: s.enableMaxVol && s.maxVol !== '',
       label: t('optimizer.maxVolLabel'),
-      value: `${s.maxVol}%`
+      value: `${s.maxVol}%`,
     },
     {
       show: s.enableMaxDD && s.maxMaxDD !== '',
       label: t('optimizer.maxMaxDDLabel'),
-      value: `${s.maxMaxDD}%`
+      value: `${s.maxMaxDD}%`,
     },
     { show: s.maxAvgDD !== '', label: t('optimizer.maxAvgDDLabel'), value: `${s.maxAvgDD}%` },
     { show: s.maxHoldings !== '', label: t('optimizer.maxHoldings'), value: s.maxHoldings },
     {
       show: s.minWeightToInclude !== '',
       label: t('optimizer.minWeightToInclude'),
-      value: `${s.minWeightToInclude}%`
+      value: `${s.minWeightToInclude}%`,
     },
     {
       show: true,
       label: t('optimizer.solver'),
-      value: s.solver === 'markowitz' ? 'Markowitz' : 'GA'
-    }
+      value: s.solver === 'markowitz' ? 'Markowitz' : 'GA',
+    },
   ];
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -82,13 +92,22 @@ function ConstraintsSummary({ s }: { s: EfficientFrontierState }) {
     </div>
   );
 }
-function WeightBarChart({ data }: { data: Array<{ ticker: string; weight: number; fill: string }> }) {
+function WeightBarChart({
+  data,
+}: {
+  data: Array<{ ticker: string; weight: number; fill: string }>;
+}) {
   return (
     <ResponsiveContainer width="100%" height={data.length * 48 + 20}>
       <BarChart data={data} layout="vertical" margin={{ left: 60, right: 40, top: 5, bottom: 5 }}>
         <CartesianGrid {...CHART_GRID_PROPS} horizontal={false} />
         <XAxis type="number" tick={AXIS_TICK_STYLE} tickFormatter={(v: number) => `${v}%`} />
-        <YAxis type="category" dataKey="ticker" tick={{ fill: 'var(--fg)', fontSize: 13, fontWeight: 500 }} width={56} />
+        <YAxis
+          type="category"
+          dataKey="ticker"
+          tick={{ fill: 'var(--fg)', fontSize: 13, fontWeight: 500 }}
+          width={56}
+        />
         <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
         <Bar dataKey="weight" radius={[0, 4, 4, 0]} barSize={24}>
           {data.map((entry, index) => (
@@ -99,7 +118,13 @@ function WeightBarChart({ data }: { data: Array<{ ticker: string; weight: number
     </ResponsiveContainer>
   );
 }
-function MetricsTable({ backtestStats, results }: { backtestStats: Statistics | null; results: OptimizerResultExt }) {
+function MetricsTable({
+  backtestStats,
+  results,
+}: {
+  backtestStats: Statistics | null;
+  results: OptimizerResultExt;
+}) {
   const { t } = useTranslation();
   const getVal = (key: keyof Statistics, fmt: 'pct' | 'num'): string => {
     const val = backtestStats ? backtestStats[key] : undefined;
@@ -115,12 +140,18 @@ function MetricsTable({ backtestStats, results }: { backtestStats: Statistics | 
       key: 'value',
       label: t('optimizer.optimalPortfolio'),
       align: 'right',
-      render: (r) => getVal(r.key, r.fmt)
-    }
+      render: (r) => getVal(r.key, r.fmt),
+    },
   ];
   return <SimpleTable columns={columns} data={METRICS_ROWS} rowKey={(r) => String(r.key)} />;
 }
-function FrontierChart({ data, results }: { data: Array<{ expectedReturn: number; expectedVolatility: number }>; results: OptimizerResultExt }) {
+function FrontierChart({
+  data,
+  results,
+}: {
+  data: Array<{ expectedReturn: number; expectedVolatility: number }>;
+  results: OptimizerResultExt;
+}) {
   const { t } = useTranslation();
   if (data.length === 0) return null;
   return (
@@ -135,7 +166,7 @@ function FrontierChart({ data, results }: { data: Array<{ expectedReturn: number
             position: 'insideBottom',
             offset: -5,
             fontSize: 12,
-            fill: 'var(--fg-tertiary)'
+            fill: 'var(--fg-tertiary)',
           }}
         />
         <YAxis
@@ -146,7 +177,7 @@ function FrontierChart({ data, results }: { data: Array<{ expectedReturn: number
             angle: -90,
             position: 'insideLeft',
             fontSize: 12,
-            fill: 'var(--fg-tertiary)'
+            fill: 'var(--fg-tertiary)',
           }}
         />
         <ZAxis range={[36, 36]} />
@@ -154,7 +185,7 @@ function FrontierChart({ data, results }: { data: Array<{ expectedReturn: number
         <Scatter
           data={data.map((p) => ({
             expectedVolatility: p.expectedVolatility,
-            expectedReturn: p.expectedReturn
+            expectedReturn: p.expectedReturn,
           }))}
           fill={CHART_COLORS[0]}
           fillOpacity={0.6}
@@ -163,8 +194,8 @@ function FrontierChart({ data, results }: { data: Array<{ expectedReturn: number
           data={[
             {
               expectedVolatility: results.expectedVolatility,
-              expectedReturn: results.expectedReturn
-            }
+              expectedReturn: results.expectedReturn,
+            },
           ]}
           fill={CHART_COLORS[3]}
           shape="star"
@@ -187,7 +218,7 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
   const weightBarData = Object.entries(s.results.optimalWeights).map(([ticker, weight], i) => ({
     ticker,
     weight: Number((weight * 100).toFixed(1)),
-    fill: CHART_COLORS[i % CHART_COLORS.length]
+    fill: CHART_COLORS[i % CHART_COLORS.length],
   }));
   return (
     <div className="flex flex-col gap-5">
@@ -210,7 +241,9 @@ export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
         <FrontierChart data={s.results.frontier ?? []} results={s.results} />
       </ChartCard>
       <section>
-        <div className="mb-3 text-h3 font-semibold text-fg">{t('optimizer.constraintsSummary')}</div>
+        <div className="mb-3 text-h3 font-semibold text-fg">
+          {t('optimizer.constraintsSummary')}
+        </div>
         <ConstraintsSummary s={s} />
       </section>
     </div>

@@ -23,7 +23,7 @@ import {
   historyQuerySchema,
   tickerListQuerySchema,
   tickerSearchQuerySchema,
-} from './data.js';
+} from './analysisSchemas.js';
 
 function registerDataEndpoints(): void {
   sec('get', '/data/history', 'data', '获取历史行情数据', TACTICAL_ERR, {

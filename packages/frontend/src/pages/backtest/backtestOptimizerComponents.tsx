@@ -1,17 +1,47 @@
-import { Play, Loader2 } from 'lucide-react';
+import { Play, Loader2, Plus, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { CHART_COLORS } from '@backtest/shared';
 import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
 import { ParamRow, ParamCard } from '../../components/params/paramsLayout.js';
-import { Button } from '@/components/ui/uiComponents';
-import { Card } from '@/components/ui/uiComponents';
+import {
+  Button,
+  Card,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+} from '@/components/ui/uiComponents';
 import { StatCard } from '@/components/cards.js';
-import { buildBestMetrics } from './backtestOptimizerUtils.js';
-import { PortfolioConfigSection } from './backtestOptimizer/PortfolioConfigSection.tsx';
-import { ParameterSpaceSection } from './backtestOptimizer/ParameterSpaceSection.tsx';
-import { ObjectiveSection } from './backtestOptimizer/ObjectiveSection.tsx';
-import { GrowthComparisonChart } from './backtestOptimizer/GrowthComparisonChart.tsx';
-import { ComparisonTableSection } from './backtestOptimizer/ComparisonTableSection.tsx';
-import type { OptimizerSectionProps, BestMetricsCardProps } from './backtestOptimizer/types.js';
+import { SortableTable } from '../../components/SortableTable.js';
+import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
+import {
+  FREQ_OPTIONS,
+  OBJECTIVE_SORT_KEY,
+  TABLE_COLUMNS,
+  buildBestMetrics,
+  buildChartData,
+} from './backtestOptimizerUtils.js';
+import type {
+  BestMetricsCardProps,
+  ComparisonTableSectionProps,
+  ConstraintRowProps,
+  GrowthComparisonChartProps,
+  Objective,
+  OptimizerSectionProps,
+} from './backtestOptimizer/types.js';
 function BacktestRangeSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
@@ -114,5 +144,316 @@ export function OptimizerResults({ s }: OptimizerSectionProps) {
       <GrowthComparisonChart best={s.best} benchmarkGrowth={s.benchmarkGrowth} />
       <ComparisonTableSection results={s.results} objective={s.objective} />
     </div>
+  );
+}
+function PortfolioConfigSection({ s }: OptimizerSectionProps) {
+  const { t } = useTranslation();
+  return (
+    <ParamsSection
+      title={t('backtest.optimizer.portfolioConfig')}
+      info={t('backtest.optimizer.portfolioConfigInfo')}
+    >
+      <div className="flex flex-col gap-2">
+        {s.assets.map((a, i) => (
+          <div key={i} className="flex items-center gap-1.5">
+            <Input
+              type="text"
+              value={a.ticker}
+              onChange={(e) => s.updateAsset(i, 'ticker', e.target.value)}
+              placeholder={t('backtest.optimizer.tickerPlaceholder')}
+              className="flex-1"
+            />
+            <div className="flex items-center gap-1 w-[110px]">
+              <Input
+                type="number"
+                className="font-mono tabular-nums"
+                value={a.weight}
+                onChange={(e) => s.updateAsset(i, 'weight', e.target.value)}
+                placeholder={t('backtest.optimizer.weightPlaceholder')}
+                min={0}
+                max={100}
+              />
+              <span className="text-caption text-fg-tertiary shrink-0">%</span>
+            </div>
+            {s.assets.length > 1 && (
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={() => s.removeAsset(i)}
+                title={t('backtest.optimizer.delete')}
+                aria-label={t('backtest.optimizer.delete')}
+              >
+                <X />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mt-2">
+        <Button variant="ghost" size="sm" onClick={s.addAsset}>
+          <Plus />
+          {t('backtest.optimizer.addTicker')}
+        </Button>
+      </div>
+    </ParamsSection>
+  );
+}
+function FreqMultiSelect({ s }: OptimizerSectionProps) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
+        {t('backtest.optimizer.rebalanceFreq')}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {FREQ_OPTIONS.map((opt) => {
+          const active = s.frequencies.includes(opt.value);
+          return (
+            <Button
+              key={opt.value}
+              variant={active ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => s.toggleFreq(opt.value)}
+            >
+              {opt.label}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+function ThresholdRangeInputs({ s }: OptimizerSectionProps) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
+        {t('backtest.optimizer.thresholdRange')}
+      </div>
+      <ParamRow>
+        {[
+          [t('backtest.optimizer.min'), s.thrMin, s.setThrMin],
+          [t('backtest.optimizer.max'), s.thrMax, s.setThrMax],
+          [t('backtest.optimizer.step'), s.thrStep, s.setThrStep],
+        ].map(([label, val, set]) => (
+          <ParamCard key={label as string} label={label as string}>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                step="0.5"
+                className="font-mono tabular-nums"
+                value={val as string}
+                onChange={(e) => (set as (v: string) => void)(e.target.value)}
+              />
+              <span className="text-caption text-fg-tertiary shrink-0">%</span>
+            </div>
+          </ParamCard>
+        ))}
+      </ParamRow>
+    </div>
+  );
+}
+function CapitalRangeInputs({ s }: OptimizerSectionProps) {
+  const { t } = useTranslation();
+  const fields: Array<[string, string, (v: string) => void]> = [
+    [t('backtest.optimizer.min'), s.capMin, s.setCapMin],
+    [t('backtest.optimizer.max'), s.capMax, s.setCapMax],
+    [t('backtest.optimizer.step'), s.capStep, s.setCapStep],
+  ];
+  return (
+    <div>
+      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
+        {t('backtest.optimizer.capitalRange')}
+      </div>
+      <ParamRow>
+        {fields.map(([label, val, set]) => (
+          <ParamCard key={label} label={label}>
+            <div className="flex items-center gap-2">
+              <span className="text-body text-fg-tertiary font-mono shrink-0">$</span>
+              <Input
+                type="number"
+                step="1000"
+                className="font-mono tabular-nums"
+                value={val}
+                onChange={(e) => set(e.target.value)}
+              />
+            </div>
+          </ParamCard>
+        ))}
+      </ParamRow>
+    </div>
+  );
+}
+function ParameterSpaceSection({ s }: OptimizerSectionProps) {
+  const { t } = useTranslation();
+  return (
+    <ParamsSection
+      title={t('backtest.optimizer.paramSpace')}
+      info={t('backtest.optimizer.paramSpaceInfo')}
+    >
+      <div className="flex flex-col gap-3">
+        <FreqMultiSelect s={s} />
+        <ThresholdRangeInputs s={s} />
+        <CapitalRangeInputs s={s} />
+      </div>
+    </ParamsSection>
+  );
+}
+function ConstraintRow({
+  enabled,
+  setEnabled,
+  label,
+  value,
+  setValue,
+  placeholder,
+}: ConstraintRowProps) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <label className="flex items-center gap-2 w-[130px] mb-0 cursor-pointer">
+        <Switch checked={enabled} onCheckedChange={setEnabled} />
+        <span className="text-caption text-fg-secondary">{label}</span>
+      </label>
+      <div className="flex-1">
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            step="0.1"
+            className="font-mono tabular-nums"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={placeholder}
+            disabled={!enabled}
+          />
+          <span className="text-caption text-fg-tertiary shrink-0">%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+function ObjectiveSection({ s }: OptimizerSectionProps) {
+  const { t } = useTranslation();
+  return (
+    <ParamsSection
+      title={t('backtest.optimizer.objective')}
+      info={t('backtest.optimizer.objectiveInfo')}
+    >
+      <ParamRow>
+        <ParamCard label={t('backtest.optimizer.target')}>
+          <Select value={s.objective} onValueChange={(v) => s.setObjective(v as Objective)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="maxCagr">{t('backtest.optimizer.maxCagr')}</SelectItem>
+              <SelectItem value="minMaxDrawdown">
+                {t('backtest.optimizer.minMaxDrawdown')}
+              </SelectItem>
+              <SelectItem value="maxSharpe">{t('backtest.optimizer.maxSharpe')}</SelectItem>
+              <SelectItem value="maxSortino">{t('backtest.optimizer.maxSortino')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </ParamCard>
+      </ParamRow>
+      <div className="mt-3 flex flex-col gap-3">
+        <ConstraintRow
+          enabled={s.enableMaxDD}
+          setEnabled={s.setEnableMaxDD}
+          label={t('backtest.optimizer.maxDrawdownConstraint')}
+          value={s.maxDD}
+          setValue={s.setMaxDD}
+          placeholder={t('backtest.optimizer.maxDrawdownPlaceholder')}
+        />
+        <ConstraintRow
+          enabled={s.enableMinCagr}
+          setEnabled={s.setEnableMinCagr}
+          label={t('backtest.optimizer.cagrConstraint')}
+          value={s.minCagr}
+          setValue={s.setMinCagr}
+          placeholder={t('backtest.optimizer.cagrPlaceholder')}
+        />
+      </div>
+    </ParamsSection>
+  );
+}
+function GrowthComparisonChart({ best, benchmarkGrowth }: GrowthComparisonChartProps) {
+  const { t } = useTranslation();
+  const chartData = buildChartData(best, benchmarkGrowth);
+  if (chartData.length === 0) return null;
+  return (
+    <>
+      <div className="mb-3 mt-6 text-body font-semibold text-fg">
+        {t('backtest.optimizer.growthComparison')}
+      </div>
+      <ResponsiveContainer width="100%" height={320}>
+        <LineChart data={chartData} margin={{ left: 8, right: 20, top: 5, bottom: 5 }}>
+          <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 12, fill: 'hsl(var(--fg-tertiary))' }}
+            tickFormatter={(d: string) => d.substring(0, 7)}
+            minTickGap={40}
+          />
+          <YAxis
+            tick={{ fontSize: 12, fill: 'hsl(var(--fg-tertiary))' }}
+            tickFormatter={(v: number) => `$${v.toLocaleString('en-US')}`}
+            width={70}
+          />
+          <Tooltip
+            labelFormatter={(d: string) => d}
+            formatter={(v: number, name: string) => [
+              `$${v.toLocaleString('en-US')}`,
+              name === 'portfolio'
+                ? t('backtest.optimizer.bestPortfolio')
+                : t('backtest.optimizer.benchmark'),
+            ]}
+            contentStyle={CHART_TOOLTIP_STYLE}
+          />
+          <Legend
+            formatter={(name: string) =>
+              name === 'portfolio'
+                ? t('backtest.optimizer.bestPortfolio')
+                : t('backtest.optimizer.benchmark')
+            }
+          />
+          <Line
+            type="monotone"
+            dataKey="portfolio"
+            stroke={CHART_COLORS[0]}
+            dot={false}
+            strokeWidth={2}
+          />
+          <Line
+            type="monotone"
+            dataKey="benchmark"
+            stroke={CHART_COLORS[1]}
+            dot={false}
+            strokeWidth={1.5}
+            strokeDasharray="4 2"
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </>
+  );
+}
+function ComparisonTableSection({ results, objective }: ComparisonTableSectionProps) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <div className="mb-3 mt-6 text-body font-semibold text-fg">
+        {t('backtest.optimizer.comparisonTable')}
+      </div>
+      {results.length > 0 ? (
+        <SortableTable
+          columns={TABLE_COLUMNS}
+          data={results}
+          initialSortKey={OBJECTIVE_SORT_KEY[objective]}
+          initialSortDir="desc"
+        />
+      ) : (
+        <div className="py-6 text-center text-body text-fg-tertiary">
+          {t('backtest.optimizer.noConstraintMatch')}
+        </div>
+      )}
+    </>
   );
 }

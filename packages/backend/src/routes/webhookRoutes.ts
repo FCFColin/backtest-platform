@@ -7,7 +7,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { validate } from '../middleware/miscMiddleware.js';
-import { emptyBodySchema } from '../schemas/shared.js';
+import { emptyBodySchema } from '../schemas/analysisSchemas.js';
 import { sendProblem } from '../utils/errors.js';
 import { tenantHandler, requireUuidParam } from './routeUtils.js';
 import { withTenant } from '../db/pool.js';

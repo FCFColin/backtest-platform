@@ -5,7 +5,7 @@ import { StandardPageShell } from '../../components/shells/index.js';
 import { useTranslation } from 'react-i18next';
 import { apiFetch } from '@/utils/apiClient';
 import { useAuthStore } from '@/store/authStore';
-import ErrorBanner from '@/components/ErrorBanner';
+import { ErrorBanner } from '@/components/stateDisplay';
 interface SubscriptionSummary {
   plan: string;
   status: string;

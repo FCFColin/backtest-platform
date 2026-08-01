@@ -1,7 +1,13 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/uiComponents';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/uiComponents';
 import { Input } from '@/components/ui/uiComponents';
 import { Button } from '@/components/ui/uiComponents';
 import { Label } from '@/components/ui/uiComponents';
@@ -13,15 +19,33 @@ import type { AggregationMethod, SignalItem } from './signalTypes.js';
 const AGGREGATION_METHODS: { value: AggregationMethod; label: string }[] = [
   { value: 'weighted', label: 'signal.multi.aggregationWeighted' },
   { value: 'voting', label: 'signal.multi.aggregationVoting' },
-  { value: 'rank', label: 'signal.multi.aggregationRank' }
+  { value: 'rank', label: 'signal.multi.aggregationRank' },
 ];
 const AGGREGATION_DESC: Record<AggregationMethod, string> = {
   weighted: 'signal.multi.descWeighted',
   voting: 'signal.multi.descVoting',
-  rank: 'signal.multi.descRank'
+  rank: 'signal.multi.descRank',
 };
 const ROW_INPUT_CLS = 'h-9 w-16 font-mono tabular-nums';
-function SignalRow({ signal: s, idx, weight, showWeight, canRemove, onUpdateSignal, onRemoveSignal, onUpdateWeight }: { signal: SignalItem; idx: number; weight: number; showWeight: boolean; canRemove: boolean; onUpdateSignal: (id: number, patch: Partial<SignalItem>) => void; onRemoveSignal: (id: number) => void; onUpdateWeight: (idx: number, val: number) => void }) {
+function SignalRow({
+  signal: s,
+  idx,
+  weight,
+  showWeight,
+  canRemove,
+  onUpdateSignal,
+  onRemoveSignal,
+  onUpdateWeight,
+}: {
+  signal: SignalItem;
+  idx: number;
+  weight: number;
+  showWeight: boolean;
+  canRemove: boolean;
+  onUpdateSignal: (id: number, patch: Partial<SignalItem>) => void;
+  onRemoveSignal: (id: number) => void;
+  onUpdateWeight: (idx: number, val: number) => void;
+}) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-md bg-input-bg/50 p-3 hover:bg-hover">
@@ -37,11 +61,40 @@ function SignalRow({ signal: s, idx, weight, showWeight, canRemove, onUpdateSign
           ))}
         </SelectContent>
       </Select>
-      <Input type="number" className={ROW_INPUT_CLS} value={s.period} min={2} title={t('signal.multi.period')} onChange={(e) => onUpdateSignal(s.id, { period: Number(e.target.value) })} />
-      <Input type="number" className={ROW_INPUT_CLS} value={s.threshold} title={t('signal.multi.threshold')} onChange={(e) => onUpdateSignal(s.id, { threshold: Number(e.target.value) })} />
-      {showWeight && <Input type="number" step="0.1" className={`${ROW_INPUT_CLS} w-[72px]`} value={weight} title={t('signal.multi.weight')} onChange={(e) => onUpdateWeight(idx, Number(e.target.value))} />}
+      <Input
+        type="number"
+        className={ROW_INPUT_CLS}
+        value={s.period}
+        min={2}
+        title={t('signal.multi.period')}
+        onChange={(e) => onUpdateSignal(s.id, { period: Number(e.target.value) })}
+      />
+      <Input
+        type="number"
+        className={ROW_INPUT_CLS}
+        value={s.threshold}
+        title={t('signal.multi.threshold')}
+        onChange={(e) => onUpdateSignal(s.id, { threshold: Number(e.target.value) })}
+      />
+      {showWeight && (
+        <Input
+          type="number"
+          step="0.1"
+          className={`${ROW_INPUT_CLS} w-[72px]`}
+          value={weight}
+          title={t('signal.multi.weight')}
+          onChange={(e) => onUpdateWeight(idx, Number(e.target.value))}
+        />
+      )}
       {canRemove && (
-        <Button variant="destructive" size="icon" className="h-9 w-9" onClick={() => onRemoveSignal(s.id)} title={t('signal.multi.delete')} aria-label={t('signal.multi.delete')}>
+        <Button
+          variant="destructive"
+          size="icon"
+          className="h-9 w-9"
+          onClick={() => onRemoveSignal(s.id)}
+          title={t('signal.multi.delete')}
+          aria-label={t('signal.multi.delete')}
+        >
           <X className="size-4" />
         </Button>
       )}
@@ -50,7 +103,15 @@ function SignalRow({ signal: s, idx, weight, showWeight, canRemove, onUpdateSign
 }
 function SignalListSection({ state }: { state: UseMultiSignalStateResult }) {
   const { t } = useTranslation();
-  const { signals, weights, aggregationMethod, addSignal, removeSignal, updateSignal, updateWeight } = state;
+  const {
+    signals,
+    weights,
+    aggregationMethod,
+    addSignal,
+    removeSignal,
+    updateSignal,
+    updateWeight,
+  } = state;
   return (
     <section className="flex flex-col gap-2">
       <div>
@@ -59,7 +120,17 @@ function SignalListSection({ state }: { state: UseMultiSignalStateResult }) {
       </div>
       <div className="flex flex-col gap-2">
         {signals.map((s, idx) => (
-          <SignalRow key={s.id} signal={s} idx={idx} weight={weights[idx] ?? 0} showWeight={aggregationMethod === 'weighted'} canRemove={signals.length > 1} onUpdateSignal={updateSignal} onRemoveSignal={removeSignal} onUpdateWeight={updateWeight} />
+          <SignalRow
+            key={s.id}
+            signal={s}
+            idx={idx}
+            weight={weights[idx] ?? 0}
+            showWeight={aggregationMethod === 'weighted'}
+            canRemove={signals.length > 1}
+            onUpdateSignal={updateSignal}
+            onRemoveSignal={removeSignal}
+            onUpdateWeight={updateWeight}
+          />
         ))}
       </div>
       <Button variant="secondary" size="sm" className="w-fit" onClick={addSignal}>
@@ -77,7 +148,11 @@ function AggregationSection({ state }: { state: UseMultiSignalStateResult }) {
       <h3 className="text-h3 text-fg">{t('signal.multi.aggregationSection')}</h3>
       <Field>
         <FieldLabel>{t('signal.multi.aggregationMethod')}</FieldLabel>
-        <RadioGroup value={aggregationMethod} onValueChange={(v) => setAggregationMethod(v as AggregationMethod)} className="grid grid-cols-3 gap-3">
+        <RadioGroup
+          value={aggregationMethod}
+          onValueChange={(v) => setAggregationMethod(v as AggregationMethod)}
+          className="grid grid-cols-3 gap-3"
+        >
           {AGGREGATION_METHODS.map((m) => {
             const id = `agg-${m.value}`;
             return (
@@ -105,11 +180,21 @@ function BacktestParamsSection({ state }: { state: UseMultiSignalStateResult }) 
         <TickerField value={ticker} onChange={setTicker} />
         <Field>
           <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
-          <Input id={startId} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <Input
+            id={startId}
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
-          <Input id={endId} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <Input
+            id={endId}
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </Field>
       </div>
     </section>

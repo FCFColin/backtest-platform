@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { PlanBadge } from '../../../packages/frontend/src/components/layout/PlanBadge.js';
+import { PlanBadge } from '../../../packages/frontend/src/components/layout/Navbar.js';
 
 describe('PlanBadge', () => {
   it('渲染 free tier 并显示 FREE 标签', () => {

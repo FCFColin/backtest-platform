@@ -66,7 +66,7 @@ import {
   historyQuerySchema,
   searchQuerySchema,
   cpiQuerySchema,
-} from '../../../packages/backend/src/schemas/data.js';
+} from '../../../packages/backend/src/schemas/analysisSchemas.js';
 
 describe('historyQuerySchema', () => {
   it('应接受合法查询', () => {

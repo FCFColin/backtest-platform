@@ -333,7 +333,7 @@ describe('dataFetchService', () => {
   describe('getUpdateStatus', () => {
     it('初始状态应为未运行', async () => {
       const { getUpdateStatus } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const status = await getUpdateStatus();
       expect(status.running).toBe(false);
       expect(status.mode).toBeNull();
@@ -345,7 +345,7 @@ describe('dataFetchService', () => {
 
     it('应返回状态的深拷贝', async () => {
       const { getUpdateStatus } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const status1 = await getUpdateStatus();
       status1.running = true;
       const status2 = await getUpdateStatus();
@@ -357,7 +357,7 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([job]);
 
       const { getUpdateStatus } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const status = await getUpdateStatus();
       expect(status.running).toBe(true);
       expect(status.mode).toBe('incremental');
@@ -371,7 +371,7 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([job]);
 
       const { startUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const result = await startUpdate('full');
       expect(result.success).toBe(false);
       expect(result.message).toContain('已有');
@@ -382,7 +382,7 @@ describe('dataFetchService', () => {
       queueMocks.add.mockResolvedValue({ id: 'job-inc-001' });
 
       const { startUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const result = await startUpdate('incremental');
       expect(result.success).toBe(true);
       expect(result.message).toContain('增量');
@@ -398,7 +398,7 @@ describe('dataFetchService', () => {
       queueMocks.add.mockResolvedValue({ id: 'job-full-001' });
 
       const { startUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const result = await startUpdate('full');
       expect(result.success).toBe(true);
       expect(result.message).toContain('全量');
@@ -413,7 +413,7 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([]);
 
       const { stopUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const result = await stopUpdate();
       expect(result.success).toBe(false);
       expect(result.message).toContain('没有');
@@ -424,7 +424,7 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([job]);
 
       const { stopUpdate } =
-        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
+        await import('../../../packages/backend/src/infrastructure/dataServices.js');
       const result = await stopUpdate();
       expect(result.success).toBe(true);
       expect(result.message).toContain('已停止');

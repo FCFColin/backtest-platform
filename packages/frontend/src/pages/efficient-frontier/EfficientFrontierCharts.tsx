@@ -1,13 +1,37 @@
 import { useTranslation } from 'react-i18next';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis, Cell, AreaChart, Area } from 'recharts';
+import {
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ZAxis,
+  Cell,
+  AreaChart,
+  Area,
+} from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { EfficientFrontierPoint } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, getCorrelationColor } from '@/lib/chart-theme.js';
 import { sharpeToColor } from './efficientFrontierSharedConstants.js';
-import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierShared.js';
+import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierResults.js';
 const TICK_STYLE = { fill: 'hsl(var(--fg-tertiary))', fontSize: 12 } as const;
 const LABEL_FILL = 'hsl(var(--fg-tertiary))';
-function FrontierScatterChartInner({ scatterData, sharpeRange, maxSharpe, frontier, onSelectPoint }: { scatterData: FrontierResultsProps['scatterData']; sharpeRange: { min: number; max: number }; maxSharpe: EfficientFrontierPoint | undefined; frontier: EfficientFrontierPoint[]; onSelectPoint: (p: EfficientFrontierPoint) => void }) {
+function FrontierScatterChartInner({
+  scatterData,
+  sharpeRange,
+  maxSharpe,
+  frontier,
+  onSelectPoint,
+}: {
+  scatterData: FrontierResultsProps['scatterData'];
+  sharpeRange: { min: number; max: number };
+  maxSharpe: EfficientFrontierPoint | undefined;
+  frontier: EfficientFrontierPoint[];
+  onSelectPoint: (p: EfficientFrontierPoint) => void;
+}) {
   const { t } = useTranslation();
   return (
     <ScatterChart>
@@ -20,7 +44,7 @@ function FrontierScatterChartInner({ scatterData, sharpeRange, maxSharpe, fronti
           position: 'insideBottom',
           offset: -5,
           fontSize: 12,
-          fill: LABEL_FILL
+          fill: LABEL_FILL,
         }}
       />
       <YAxis
@@ -31,7 +55,7 @@ function FrontierScatterChartInner({ scatterData, sharpeRange, maxSharpe, fronti
           angle: -90,
           position: 'insideLeft',
           fontSize: 12,
-          fill: LABEL_FILL
+          fill: LABEL_FILL,
         }}
       />
       <ZAxis range={[60, 60]} />
@@ -43,7 +67,10 @@ function FrontierScatterChartInner({ scatterData, sharpeRange, maxSharpe, fronti
         }}
       >
         {scatterData.map((entry, index) => (
-          <Cell key={index} fill={sharpeToColor(entry.sharpeRatio, sharpeRange.min, sharpeRange.max)} />
+          <Cell
+            key={index}
+            fill={sharpeToColor(entry.sharpeRatio, sharpeRange.min, sharpeRange.max)}
+          />
         ))}
       </Scatter>
       {maxSharpe && (
@@ -51,8 +78,8 @@ function FrontierScatterChartInner({ scatterData, sharpeRange, maxSharpe, fronti
           data={[
             {
               expectedVolatility: maxSharpe.expectedVolatility,
-              expectedReturn: maxSharpe.expectedReturn
-            }
+              expectedReturn: maxSharpe.expectedReturn,
+            },
           ]}
           fill={CHART_COLORS[0]}
           shape="star"
@@ -61,26 +88,57 @@ function FrontierScatterChartInner({ scatterData, sharpeRange, maxSharpe, fronti
     </ScatterChart>
   );
 }
-export function FrontierScatterChart({ scatterData, sharpeRange, maxSharpe, frontier, onSelectPoint, onLoadInBacktester }: { scatterData: FrontierResultsProps['scatterData']; sharpeRange: { min: number; max: number }; maxSharpe: EfficientFrontierPoint | undefined; frontier: EfficientFrontierPoint[]; onSelectPoint: (p: EfficientFrontierPoint) => void; onLoadInBacktester: () => void }) {
+export function FrontierScatterChart({
+  scatterData,
+  sharpeRange,
+  maxSharpe,
+  frontier,
+  onSelectPoint,
+  onLoadInBacktester,
+}: {
+  scatterData: FrontierResultsProps['scatterData'];
+  sharpeRange: { min: number; max: number };
+  maxSharpe: EfficientFrontierPoint | undefined;
+  frontier: EfficientFrontierPoint[];
+  onSelectPoint: (p: EfficientFrontierPoint) => void;
+  onLoadInBacktester: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-h3 font-semibold text-fg">{t('efficientFrontier.results.title')}</h3>
-        <LoadInBacktesterButton onClick={onLoadInBacktester} label={t('efficientFrontier.results.loadInBacktester')} />
+        <LoadInBacktesterButton
+          onClick={onLoadInBacktester}
+          label={t('efficientFrontier.results.loadInBacktester')}
+        />
       </div>
       <ResponsiveContainer width="100%" height={400}>
-        <FrontierScatterChartInner scatterData={scatterData} sharpeRange={sharpeRange} maxSharpe={maxSharpe} frontier={frontier} onSelectPoint={onSelectPoint} />
+        <FrontierScatterChartInner
+          scatterData={scatterData}
+          sharpeRange={sharpeRange}
+          maxSharpe={maxSharpe}
+          frontier={frontier}
+          onSelectPoint={onSelectPoint}
+        />
       </ResponsiveContainer>
     </div>
   );
 }
-export function FrontierAllocations({ allocationData, allAssetTickers }: { allocationData: Record<string, number | string>[]; allAssetTickers: string[] }) {
+export function FrontierAllocations({
+  allocationData,
+  allAssetTickers,
+}: {
+  allocationData: Record<string, number | string>[];
+  allAssetTickers: string[];
+}) {
   const { t } = useTranslation();
   if (allocationData.length === 0 || allAssetTickers.length === 0) return null;
   return (
     <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('efficientFrontier.results.frontierAllocations')}</h3>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
+        {t('efficientFrontier.results.frontierAllocations')}
+      </h3>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={allocationData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid {...CHART_GRID_PROPS} stroke="hsl(var(--border-subtle))" />
@@ -92,20 +150,31 @@ export function FrontierAllocations({ allocationData, allAssetTickers }: { alloc
               position: 'insideBottom',
               offset: -5,
               fontSize: 11,
-              fill: LABEL_FILL
+              fill: LABEL_FILL,
             }}
           />
           <YAxis tick={TICK_STYLE} tickFormatter={(v: number) => `${v}%`} domain={[0, 100]} />
           <Tooltip formatter={(v: number) => `${v}%`} contentStyle={CHART_TOOLTIP_STYLE} />
           {allAssetTickers.map((ticker, i) => (
-            <Area key={ticker} type="monotone" dataKey={ticker} stackId="1" stroke={CHART_COLORS[i % CHART_COLORS.length]} fill={CHART_COLORS[i % CHART_COLORS.length]} fillOpacity={0.8} />
+            <Area
+              key={ticker}
+              type="monotone"
+              dataKey={ticker}
+              stackId="1"
+              stroke={CHART_COLORS[i % CHART_COLORS.length]}
+              fill={CHART_COLORS[i % CHART_COLORS.length]}
+              fillOpacity={0.8}
+            />
           ))}
         </AreaChart>
       </ResponsiveContainer>
       <div className="mt-2 flex flex-wrap justify-center gap-4">
         {allAssetTickers.map((ticker, i) => (
           <div key={ticker} className="flex items-center gap-1 text-caption">
-            <span className="inline-block size-3 rounded" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+            <span
+              className="inline-block size-3 rounded"
+              style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+            />
             <span className="text-fg-tertiary">{ticker}</span>
           </div>
         ))}
@@ -113,19 +182,28 @@ export function FrontierAllocations({ allocationData, allAssetTickers }: { alloc
     </div>
   );
 }
-export function CorrelationMatrixView({ correlations }: { correlations: { tickers: string[]; matrix: number[][] } | null }) {
+export function CorrelationMatrixView({
+  correlations,
+}: {
+  correlations: { tickers: string[]; matrix: number[][] } | null;
+}) {
   const { t } = useTranslation();
   if (!correlations || correlations.tickers.length < 2) return null;
   return (
     <div>
-      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">{t('efficientFrontier.results.correlationMatrix')}</h3>
+      <h3 className="mb-3 mt-6 text-h3 font-semibold text-fg">
+        {t('efficientFrontier.results.correlationMatrix')}
+      </h3>
       <div className="overflow-x-auto">
         <table className="border-collapse">
           <thead>
             <tr>
               <th className="px-3 py-2 text-caption font-medium text-fg-tertiary" />
               {correlations.tickers.map((tk) => (
-                <th key={tk} className="px-3 py-2 text-center text-caption font-medium text-fg-tertiary">
+                <th
+                  key={tk}
+                  className="px-3 py-2 text-center text-caption font-medium text-fg-tertiary"
+                >
                   {tk}
                 </th>
               ))}
@@ -145,7 +223,7 @@ export function CorrelationMatrixView({ correlations }: { correlations: { ticker
                         backgroundColor: getCorrelationColor(val),
                         color: Math.abs(val) > 0.6 ? '#fff' : '#000',
                         width: `${Math.max(48, 600 / correlations.tickers.length)}px`,
-                        height: `${Math.max(36, 400 / correlations.tickers.length)}px`
+                        height: `${Math.max(36, 400 / correlations.tickers.length)}px`,
                       }}
                       title={`${rowTicker} vs ${colTicker}: ${val.toFixed(2)}`}
                     >

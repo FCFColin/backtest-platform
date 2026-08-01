@@ -3,6 +3,25 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
 import { Card } from '@/components/ui/uiComponents';
+interface StaticPageShellProps {
+  title: string;
+  cardClassName?: string;
+  titleClassName?: string;
+  children: ReactNode;
+}
+export function StaticPageShell({
+  title,
+  cardClassName = 'p-6',
+  titleClassName = 'text-display',
+  children,
+}: StaticPageShellProps) {
+  return (
+    <div className="flex w-full flex-col gap-3">
+      <h1 className={`${titleClassName} text-fg`}>{title}</h1>
+      <Card className={cardClassName}>{children}</Card>
+    </div>
+  );
+}
 interface ToolPageLayoutProps {
   params: ReactNode;
   results?: ReactNode;
@@ -10,7 +29,13 @@ interface ToolPageLayoutProps {
   title?: string;
   actions?: ReactNode;
 }
-export function ToolPageLayout({ params, results, afterParams, title, actions }: ToolPageLayoutProps) {
+export function ToolPageLayout({
+  params,
+  results,
+  afterParams,
+  title,
+  actions,
+}: ToolPageLayoutProps) {
   return (
     <div className="flex w-full flex-col gap-3">
       <Card className="p-5">
@@ -77,12 +102,17 @@ export function ToolSeoCard({ subtitle, desc, features, related, relatedLabel }:
         ))}
         {related && related.length > 0 && (
           <div className="min-w-0">
-            <div className="mb-1.5 text-label font-semibold text-fg">{relatedLabel ?? t('layout.toolSeoCard.relatedTools')}</div>
+            <div className="mb-1.5 text-label font-semibold text-fg">
+              {relatedLabel ?? t('layout.toolSeoCard.relatedTools')}
+            </div>
             <div className="text-label leading-relaxed text-fg-tertiary">
               {related.map((link, i) => (
                 <span key={link.href}>
                   {i > 0 && <span className="text-fg-tertiary"> · </span>}
-                  <Link to={link.href} className="font-medium text-brand transition-colors duration-150 ease-out-quart hover:text-brand-hover">
+                  <Link
+                    to={link.href}
+                    className="font-medium text-brand transition-colors duration-150 ease-out-quart hover:text-brand-hover"
+                  >
                     {link.title}
                   </Link>
                 </span>

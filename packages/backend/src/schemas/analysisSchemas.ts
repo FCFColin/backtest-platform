@@ -2,8 +2,64 @@ import { z } from 'zod';
 import { SIGNAL_TYPES } from '@backtest/shared/constants';
 
 /**
- * 分析类路由共享 Schema（ADR-042 路由整合）。
+ * 分析/数据类路由共享 Schema（ADR-042 路由整合）。
+ * 合并 analysisSchemas / data / shared：非 backtest/tactical 路由的校验 schema 统一在此。
  */
+
+// ── 共享基础 Schema ────────────────────────────────────────────────────────
+
+/** 共享 asset schema，确保 ticker 字段在所有端点校验一致 */
+export const assetSchema = z.object({
+  ticker: z.string().trim().min(1).max(32),
+  weight: z.number().nonnegative(),
+});
+
+/** 无请求体的 action 端点校验 schema（接受空/无 body，拒绝含字段的 body） */
+export const emptyBodySchema = z.object({}).strict().optional().default({});
+
+/** 分页查询参数（page 默认 1，limit 默认 50 上限 200），供列表类 query schema 复用 */
+export const paginationQuerySchema = {
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+};
+
+// ── 数据服务路由（/api/v1/data/*）──────────────────────────────────────────
+
+export const historyQuerySchema = z
+  .object({
+    tickers: z.string().min(1),
+    startDate: z.string().date(),
+    endDate: z.string().date(),
+  })
+  .refine((q) => q.startDate <= q.endDate, {
+    message: 'startDate must be before or equal to endDate',
+    path: ['endDate'],
+  });
+
+export const searchQuerySchema = z.object({
+  query: z.string().min(1).max(100),
+  market: z.string().max(50).optional(),
+});
+
+export const cpiQuerySchema = z.object({
+  country: z.enum(['us', 'cn', 'US', 'CN']).optional(),
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().optional(),
+});
+
+export const tickerListQuerySchema = z.object(paginationQuerySchema);
+
+export const tickerSearchQuerySchema = z.object({
+  q: z.string().min(1).max(100),
+});
+
+export const customTickerCreateSchema = z.object({
+  ticker: z.string().trim().min(1, 'ticker 不能为空').max(50),
+  name: z.string().max(200).optional(),
+  data: z.array(z.record(z.string(), z.unknown())).min(1, 'data 不能为空').max(10000),
+});
+
+// ── 分析类路由（PCA/LETF/goal-optimizer/factor/signal）────────────────────
 
 // POST /api/v1/pca/analyze
 export const pcaAnalyzeSchema = z.object({

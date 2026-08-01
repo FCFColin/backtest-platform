@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { Users, Loader2 } from 'lucide-react';
+import { Users, Loader2, Mail, Send, Trash2 } from 'lucide-react';
 import { StandardPageShell } from '../components/shells/index.js';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';
-import { MemberTable } from './org/MemberTable.js';
-import { InviteDialog } from './org/InviteDialog.js';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
-import type { Member, Invitation, Role } from './org/orgTypes.js';
+import {
+  ROLES,
+  TABLE_TD,
+  TABLE_TH,
+  type Invitation,
+  type Member,
+  type Role,
+} from './org/orgTypes.js';
 interface MembersContentProps {
   members: Member[];
   invitations: Invitation[];
@@ -152,5 +157,247 @@ export default function OrgMembersPage() {
         />
       </div>
     </StandardPageShell>
+  );
+}
+interface RoleSelectProps {
+  value: string;
+  disabled?: boolean;
+  onChange: (role: Role) => void;
+  className?: string;
+  style?: CSSProperties;
+}
+function RoleSelect({ value, disabled, onChange, className, style }: RoleSelectProps) {
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value as Role)}
+      className={className}
+      style={style}
+    >
+      {ROLES.map((r) => (
+        <option key={r} value={r}>
+          {r}
+        </option>
+      ))}
+    </select>
+  );
+}
+interface MemberTableProps {
+  members: Member[];
+  isAdmin: boolean;
+  busy: boolean;
+  onChangeRole: (userId: string, role: string) => void;
+  onRemoveMember: (userId: string) => void;
+}
+function MemberTable({ members, isAdmin, busy, onChangeRole, onRemoveMember }: MemberTableProps) {
+  const { t } = useTranslation();
+  return (
+    <div className="overflow-x-auto">
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+        <thead>
+          <tr>
+            <th style={TABLE_TH}>{t('orgMembers.table.user')}</th>
+            <th style={TABLE_TH}>{t('orgMembers.table.email')}</th>
+            <th style={TABLE_TH}>{t('orgMembers.table.role')}</th>
+            {isAdmin && <th style={TABLE_TH}>{t('orgMembers.table.action')}</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {members.map((m) => (
+            <tr key={m.userId}>
+              <td style={TABLE_TD}>{m.username}</td>
+              <td style={TABLE_TD}>{m.email ?? '-'}</td>
+              <td style={TABLE_TD}>
+                {isAdmin && m.role !== 'owner' ? (
+                  <RoleSelect
+                    value={m.role}
+                    disabled={busy}
+                    onChange={(r) => void onChangeRole(m.userId, r)}
+                    className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
+                    style={{ height: 32 }}
+                  />
+                ) : (
+                  <span style={{ textTransform: 'capitalize' }}>{m.role}</span>
+                )}
+              </td>
+              {isAdmin && (
+                <td style={TABLE_TD}>
+                  {m.role !== 'owner' && (
+                    <button
+                      onClick={() => void onRemoveMember(m.userId)}
+                      disabled={busy}
+                      title={t('orgMembers.invite.removeTitle')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: 'var(--danger, #dc2626)',
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+interface InviteDialogProps {
+  invitations: Invitation[];
+  inviteEmail: string;
+  inviteRole: Role;
+  busy: boolean;
+  onInviteEmailChange: (v: string) => void;
+  onInviteRoleChange: (r: Role) => void;
+  onSendInvite: (e: FormEvent) => void;
+  onRevokeInvite: (id: string) => void;
+}
+function InviteDialog({
+  invitations,
+  inviteEmail,
+  inviteRole,
+  busy,
+  onInviteEmailChange,
+  onInviteRoleChange,
+  onSendInvite,
+  onRevokeInvite,
+}: InviteDialogProps) {
+  const { t } = useTranslation();
+  return (
+    <div>
+      <h2
+        style={{
+          fontSize: 15,
+          fontWeight: 700,
+          color: 'var(--text-strong)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <Mail className="w-4 h-4" /> {t('orgMembers.invite.title')}
+      </h2>
+      <InviteForm
+        inviteEmail={inviteEmail}
+        inviteRole={inviteRole}
+        busy={busy}
+        onInviteEmailChange={onInviteEmailChange}
+        onInviteRoleChange={onInviteRoleChange}
+        onSendInvite={onSendInvite}
+      />
+      {invitations.length > 0 && (
+        <InvitationTable invitations={invitations} busy={busy} onRevokeInvite={onRevokeInvite} />
+      )}
+    </div>
+  );
+}
+interface InviteFormProps {
+  inviteEmail: string;
+  inviteRole: Role;
+  busy: boolean;
+  onInviteEmailChange: (v: string) => void;
+  onInviteRoleChange: (r: Role) => void;
+  onSendInvite: (e: FormEvent) => void;
+}
+function InviteForm({
+  inviteEmail,
+  inviteRole,
+  busy,
+  onInviteEmailChange,
+  onInviteRoleChange,
+  onSendInvite,
+}: InviteFormProps) {
+  const { t } = useTranslation();
+  return (
+    <form
+      onSubmit={(e) => void onSendInvite(e)}
+      style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}
+    >
+      <input
+        type="email"
+        required
+        placeholder={t('orgMembers.invite.emailPlaceholder')}
+        value={inviteEmail}
+        onChange={(e) => onInviteEmailChange(e.target.value)}
+        className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
+        style={{ height: 38, flex: '1 1 220px' }}
+      />
+      <RoleSelect
+        value={inviteRole}
+        onChange={onInviteRoleChange}
+        className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
+        style={{ height: 38 }}
+      />
+      <button
+        type="submit"
+        disabled={busy}
+        className="main-action-btn"
+        style={{
+          height: 38,
+          padding: '0 16px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+        }}
+      >
+        <Send className="w-4 h-4" /> {t('orgMembers.invite.send')}
+      </button>
+    </form>
+  );
+}
+interface InvitationTableProps {
+  invitations: Invitation[];
+  busy: boolean;
+  onRevokeInvite: (id: string) => void;
+}
+function InvitationTable({ invitations, busy, onRevokeInvite }: InvitationTableProps) {
+  const { t } = useTranslation();
+  return (
+    <div className="overflow-x-auto">
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={TABLE_TH}>{t('orgMembers.invite.tableEmail')}</th>
+            <th style={TABLE_TH}>{t('orgMembers.invite.tableRole')}</th>
+            <th style={TABLE_TH}>{t('orgMembers.invite.tableStatus')}</th>
+            <th style={TABLE_TH}>{t('orgMembers.invite.tableAction')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invitations.map((inv) => (
+            <tr key={inv.id}>
+              <td style={TABLE_TD}>{inv.email}</td>
+              <td style={TABLE_TD}>{inv.role}</td>
+              <td style={TABLE_TD}>
+                {inv.acceptedAt ? t('orgMembers.invite.accepted') : t('orgMembers.invite.pending')}
+              </td>
+              <td style={TABLE_TD}>
+                {!inv.acceptedAt && (
+                  <button
+                    onClick={() => void onRevokeInvite(inv.id)}
+                    disabled={busy}
+                    title={t('orgMembers.invite.revokeTitle')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--danger, #dc2626)',
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

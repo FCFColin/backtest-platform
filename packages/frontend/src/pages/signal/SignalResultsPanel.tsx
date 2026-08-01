@@ -20,7 +20,7 @@ import {
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
 } from '@/lib/chart-theme';
-import ErrorBanner from '@/components/ErrorBanner';
+import { ErrorBanner } from '@/components/stateDisplay';
 import { EmptyState } from '@/components/stateDisplay';
 interface EmptyResultsHintProps {
   text?: string;

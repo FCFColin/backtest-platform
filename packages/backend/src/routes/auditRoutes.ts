@@ -20,7 +20,7 @@ import { validateQuery } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
 import { crudRouteHandler, requireUuidParam } from './routeUtils.js';
 import { queryAuditLogs, verifyAuditIntegrity } from '../application/auditStorageService.js';
-import { paginationQuerySchema } from '../schemas/shared.js';
+import { paginationQuerySchema } from '../schemas/analysisSchemas.js';
 
 const router = Router();
 

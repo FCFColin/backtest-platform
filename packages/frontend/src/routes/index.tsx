@@ -5,18 +5,20 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import { RouteErrorBoundary } from '@/components/errorBoundaries';
 import NsBoundary from '@/components/NsBoundary';
 import { onNavEnd } from '../utils/performanceReporter.js';
-import PlaceholderPage from '@/pages/PlaceholderPage';
+import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
 const BacktestPage = lazy(() => import('@/pages/backtest/BacktestPage'));
-const MonteCarloPage = lazy(() => import('@/pages/monte-carlo/MonteCarloPage'));
+const MonteCarloPage = lazy(() => import('@/pages/monte-carlo/MonteCarloResults'));
 const OptimizerPage = lazy(() => import('@/pages/optimizer/OptimizerPage'));
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'));
-const SignupPage = lazy(() => import('@/pages/auth/SignupPage'));
+const SignupPage = lazy(() =>
+  import('@/pages/auth/LoginPage').then((m) => ({ default: m.SignupPage })),
+);
 const PricingPage = lazy(() => import('@/pages/account/PricingPage'));
 const AccountPage = lazy(() => import('@/pages/account/AccountPage'));
-const AnalysisPage = lazy(() => import('@/pages/analysis/AnalysisPage'));
+const AnalysisPage = lazy(() => import('@/pages/analysis/AnalysisResults'));
 const EfficientFrontierPage = lazy(
-  () => import('@/pages/efficient-frontier/EfficientFrontierPage'),
+  () => import('@/pages/efficient-frontier/EfficientFrontierResults'),
 );
 const DataEnginePage = lazy(() => import('@/pages/data-engine/DataEnginePage'));
 const RebalancingSensitivityPage = lazy(
@@ -24,16 +26,22 @@ const RebalancingSensitivityPage = lazy(
 );
 const LumpSumVsDCAPage = lazy(() => import('@/pages/lump-sum-dca/LumpSumVsDCAPage'));
 const FactorRegressionPage = lazy(() => import('@/pages/factor-regression/FactorRegressionPage'));
-const CalculatorsPage = lazy(() => import('@/pages/calculators/CalculatorsPage'));
+const CalculatorsPage = lazy(() => import('@/pages/calculators/BaseCalculatorUI'));
 const TacticalPage = lazy(() => import('@/pages/tactical/TacticalPage'));
 const BacktestOptimizerPage = lazy(() => import('@/pages/backtest/BacktestOptimizerPage'));
 const PCAPage = lazy(() => import('@/pages/pca/PCAPage'));
 const SignalAnalyzerPage = lazy(() => import('@/pages/signal/SignalAnalyzerPage'));
-const DualSignalPage = lazy(() => import('@/pages/signal/DualSignalPage'));
-const MultiSignalPage = lazy(() => import('@/pages/signal/MultiSignalPage'));
+const DualSignalPage = lazy(() =>
+  import('@/pages/signal/SignalAnalyzerPage').then((m) => ({ default: m.DualSignalPage })),
+);
+const MultiSignalPage = lazy(() =>
+  import('@/pages/signal/SignalAnalyzerPage').then((m) => ({ default: m.MultiSignalPage })),
+);
 const LETFSlippagePage = lazy(() => import('@/pages/letf/LETFSlippagePage'));
-const TacticalGridPage = lazy(() => import('@/pages/tactical/TacticalGridPage'));
-const GoalOptimizerPage = lazy(() => import('@/pages/goal-optimizer/GoalOptimizerPage'));
+const TacticalGridPage = lazy(() =>
+  import('@/pages/tactical/TacticalPage').then((m) => ({ default: m.TacticalGridPage })),
+);
+const GoalOptimizerPage = lazy(() => import('@/pages/goal-optimizer/GoalOptimizerResults'));
 const AboutPage = lazy(() => import('@/pages/staticPages').then((m) => ({ default: m.AboutPage })));
 const ContactPage = lazy(() =>
   import('@/pages/staticPages').then((m) => ({ default: m.ContactPage })),
@@ -46,7 +54,9 @@ const ChartBenchmarkPage = lazy(
   () => import('@/pages/prototype/chart-benchmark/ChartBenchmarkPage'),
 );
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmailPage'));
-const AcceptInvitePage = lazy(() => import('@/pages/auth/AcceptInvitePage'));
+const AcceptInvitePage = lazy(() =>
+  import('@/pages/auth/VerifyEmailPage').then((m) => ({ default: m.AcceptInvitePage })),
+);
 const TermsOfServicePage = lazy(() =>
   import('@/pages/legal/legalPages').then((m) => ({ default: m.TermsOfServicePage })),
 );

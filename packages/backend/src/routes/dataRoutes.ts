@@ -4,7 +4,7 @@ import { fetchCpiForRoute, SYNTHETIC_TICKERS } from '../infrastructure/dataServi
 import { sendProblem } from '../utils/errors.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
 import { validateQuery } from '../middleware/miscMiddleware.js';
-import { historyQuerySchema, searchQuerySchema } from '../schemas/data.js';
+import { historyQuerySchema, searchQuerySchema } from '../schemas/analysisSchemas.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { getReadPool } from '../db/pool.js';
