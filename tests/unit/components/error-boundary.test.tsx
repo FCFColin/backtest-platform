@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ErrorBoundary from '../../../packages/frontend/src/components/ErrorBoundary.js';
+import ErrorBoundary from '../../../packages/frontend/src/components/errorBoundaries.js';
 
 vi.mock('../../../packages/frontend/src/i18n/index.js', () => ({
   default: {

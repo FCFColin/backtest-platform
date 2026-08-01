@@ -11,9 +11,8 @@ import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { AssetAnalysisResult, PortfolioResult } from '@backtest/shared';
 import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip } from './ChartAxis.js';
-import { type RiskMetricKey } from './chartCalculations.js';
-import { ScatterChartContent } from './sharedChartContent.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip, ScatterChartContent } from './sharedChartContent.js';
+import { type RiskMetricKey } from './chartUtils.js';
 import ChartCard from '../ChartCard.js';
 interface ScatterPoint {
   name: string;

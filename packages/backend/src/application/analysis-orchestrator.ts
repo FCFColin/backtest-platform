@@ -20,7 +20,11 @@ import { logger } from '../utils/logger.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
-import { ensurePriceDataExists, ensureTickerHasData } from './backtest/backtestEngineUtils.js';
+import {
+  ensurePriceDataExists,
+  ensureTickerHasData,
+  normalizeTickers,
+} from './backtest/backtestEngineUtils.js';
 import {
   fetchPriceDataWithRange,
   calculateDateRange,

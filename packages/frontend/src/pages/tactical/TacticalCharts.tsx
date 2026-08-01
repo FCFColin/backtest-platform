@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
 import { Card } from '@/components/ui/uiComponents';
-import { EmptyState } from '@/components/EmptyState';
+import { EmptyState } from '@/components/stateDisplay';
 import { SortableTable, type Column } from '@/components/SortableTable';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import { buildGrowthData, buildStatRows, type StatRow } from './tacticalResultUtils';
@@ -25,8 +25,8 @@ function GrowthChart({ growthData }: { growthData: Array<Record<string, number |
           {
             dataKey: 'benchmark',
             legendName: t('tactical.results.benchmark'),
-            strokeDasharray: '6 3'
-          }
+            strokeDasharray: '6 3',
+          },
         ]}
       />
     </Card>
@@ -43,20 +43,25 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
       key: 'tactical',
       label: t('tactical.results.tactical'),
       sortValue: (r) => r._sortTactical,
-      render: (r) => <span className="font-mono tabular-nums">{r.tactical}</span>
+      render: (r) => <span className="font-mono tabular-nums">{r.tactical}</span>,
     },
     {
       key: 'benchmark',
       label: t('tactical.results.benchmark'),
-      render: (r) => <span className="font-mono tabular-nums">{r.benchmark}</span>
-    }
+      render: (r) => <span className="font-mono tabular-nums">{r.benchmark}</span>,
+    },
   ];
   return (
     <div className="flex flex-col gap-3">
       <GrowthChart growthData={growthData} />
       <Card className="p-4">
         <ChartCardTitle>{t('tactical.results.statsTitle')}</ChartCardTitle>
-        <SortableTable columns={statColumns} data={statRows} initialSortKey="tactical" initialSortDir="desc" />
+        <SortableTable
+          columns={statColumns}
+          data={statRows}
+          initialSortKey="tactical"
+          initialSortDir="desc"
+        />
       </Card>
       {signalHistory.length > 0 && <SignalHistoryTable signalHistory={signalHistory} />}
     </div>
@@ -64,6 +69,8 @@ function BacktestResultTab({ results }: { results: BacktestResponse }) {
 }
 function BacktestEmptyState() {
   const { t } = useTranslation();
-  return <EmptyState icon={LineChart} title={t('tactical.results.noResultsHint')} className="py-16" />;
+  return (
+    <EmptyState icon={LineChart} title={t('tactical.results.noResultsHint')} className="py-16" />
+  );
 }
 export { BacktestResultTab, BacktestEmptyState };

@@ -37,7 +37,7 @@ const YearlyReturnsTable = lazy(() =>
 const UnderwaterCurve = lazy(() =>
   import('@/components/charts/UnderwaterCurve').then((m) => ({ default: m.UnderwaterCurve })),
 );
-const ReturnsTabDailyChart = lazy(() => import('@/components/charts/ReturnsTabDailyChart'));
+const ReturnsTabDailyChart = lazy(() => import('@/components/charts/sharedChartContent'));
 const TelltaleChart = lazy(() =>
   import('@/components/charts/analysis').then((m) => ({ default: m.TelltaleChart })),
 );
@@ -48,8 +48,14 @@ const SeasonalityChart = lazy(() =>
   import('@/components/charts/analysis').then((m) => ({ default: m.SeasonalityChart })),
 );
 const RegressionChart = lazy(() => import('@/components/charts/RegressionChart'));
-const PortfolioAllocationChart = lazy(() => import('@/components/charts/PortfolioAllocationChart'));
-const PortfolioPiesChart = lazy(() => import('@/components/charts/PortfolioPiesChart'));
+const PortfolioAllocationChart = lazy(() =>
+  import('@/components/charts/portfolioCharts').then((m) => ({
+    default: m.PortfolioAllocationChart,
+  })),
+);
+const PortfolioPiesChart = lazy(() =>
+  import('@/components/charts/portfolioCharts').then((m) => ({ default: m.default })),
+);
 const RollingReturnChart = lazy(() => import('@/components/charts/rolling'));
 const AnnualReturnChart = lazy(() => import('@/components/charts/AnnualReturnChart'));
 const MonthlyHeatmap = lazy(() =>

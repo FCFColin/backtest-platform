@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import RouteErrorBoundary from '@/components/RouteErrorBoundary';
+import { RouteErrorBoundary } from '@/components/errorBoundaries';
 import NsBoundary from '@/components/NsBoundary';
 import { onNavEnd } from '../utils/performanceReporter.js';
 import PlaceholderPage from '@/pages/PlaceholderPage';

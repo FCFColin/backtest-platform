@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getCorrelationColor } from '@/lib/chart-theme.js';
-import { getCorrelationTextColor } from './correlationDataTransforms.js';
+import { getCorrelationTextColor } from './chartUtils.js';
 import ChartCard from '../ChartCard.js';
 interface MatrixHeatmapProps {
   rowLabels: string[];

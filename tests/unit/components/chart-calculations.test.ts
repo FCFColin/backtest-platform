@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   computeRollingMetric,
   computeRollingExcessReturn,
-} from '../../../packages/frontend/src/components/charts/chartCalculations.js';
+} from '../../../packages/frontend/src/components/charts/chartUtils.js';
 import {
   computeDailyReturns,
   computeBeta,
   computeRollingCorrelation,
   getCorrelationTextColor,
-} from '../../../packages/frontend/src/components/charts/correlationDataTransforms.js';
+} from '../../../packages/frontend/src/components/charts/chartUtils.js';
 import {
   percentile,
   mean,

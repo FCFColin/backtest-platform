@@ -14,14 +14,14 @@ import {
   DATE_TICK_FORMATTER,
   getCorrelationColor,
 } from '@/lib/chart-theme.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
+import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './sharedChartContent.js';
 import { MatrixHeatmap } from './tables.js';
 import { SimpleTable, type SimpleTableColumn } from '../SimpleTable.js';
 import {
   getCorrelationTextColor,
   type RollingCorrelationPoint,
   type BetaRow,
-} from './correlationDataTransforms.js';
+} from './chartUtils.js';
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';

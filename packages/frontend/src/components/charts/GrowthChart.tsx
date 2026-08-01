@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { Eye, EyeOff, FunctionSquare } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
-import { ChartEmptyState } from '@/components/charts/ChartEmptyState.js';
+import { ChartEmptyState } from '@/components/charts/sharedChartContent.js';
 import {
   currencyFormatter,
   YEAR_ONLY_TICK_FORMATTER,

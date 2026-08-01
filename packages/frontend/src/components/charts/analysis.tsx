@@ -4,8 +4,13 @@ import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
 import type { AssetAnalysisResult, PortfolioResult } from '@backtest/shared';
 import { CHART_MARGIN, CHART_GRID_PROPS, getHeatColor } from '@/lib/chart-theme.js';
-import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './ChartAxis.js';
-import { BarChartContent } from './sharedChartContent.js';
+import {
+  ChartXAxis,
+  ChartYAxis,
+  ChartTooltip,
+  ChartLegend,
+  BarChartContent,
+} from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import {
   downsample,
@@ -13,7 +18,7 @@ import {
   DOWNSAMPLE_TARGET,
 } from '../../hooks/useChartInteractions.js';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
-import { DrawdownChart } from './DrawdownChart.js';
+import { DrawdownChart } from './drawdownCharts.js';
 import { CorrelationMatrixTable } from './tables.js';
 import ChartCard from '../ChartCard.js';
 export const GrowthChart = memo(function GrowthChart({
