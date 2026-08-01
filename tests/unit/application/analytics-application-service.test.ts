@@ -27,15 +27,19 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
       });
   },
 }));
-vi.mock('../../../packages/backend/src/application/backtest/backtestEngineUtils.js', () => ({
-  buildEngineParams: vi.fn(() => ({})),
-  ensurePriceDataExists: vi.fn(),
-  ensureTickerHasData: vi.fn(),
-  normalizeTickers: vi.fn((tickers: string[]) =>
-    Array.from(new Set(tickers.map((t: string) => t.trim().toUpperCase()).filter(Boolean))),
-  ),
-  ensureSufficientTradingDays: vi.fn(),
-}));
+vi.mock(
+  '../../../packages/backend/src/application/backtest/backtestEngineUtils.js',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../packages/backend/src/application/backtest/backtestEngineUtils.js')
+      >();
+    return {
+      ...actual,
+      buildEngineParams: vi.fn(() => ({})),
+    };
+  },
+);
 
 import {
   executePcaAnalyze,

@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 
@@ -16,8 +15,9 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   searchTickers: dataServiceMocks.searchTickers,
 }));
 
-vi.mock('../../../packages/backend/src/infrastructure/cpiLoader.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/dataServices.js', () => ({
   fetchCpiForRoute: cpiServiceMocks.fetchCpiForRoute,
+  SYNTHETIC_TICKERS: [],
 }));
 
 import { createLoggerMocks } from '../../helpers/mockFactories.js';

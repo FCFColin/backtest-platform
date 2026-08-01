@@ -33,7 +33,7 @@ vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
 }));
 // Mock DB 客户端与 outbox 写入：避免真实 Postgres 连接
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getClient: dbMocks.getClient }));
-vi.mock('../../../packages/backend/src/infrastructure/outboxWriter.js', () => ({
+vi.mock('../../../packages/backend/src/infrastructure/outbox.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));
 // Mock logger：避免 pino 初始化与 OTel 依赖
