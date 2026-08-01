@@ -198,16 +198,8 @@ app.use('/api/v1', platformRoutes);
 // Swagger UI (P1-05) - 仅非生产环境
 setupOpenApiUi(app);
 
-// SSR 渲染（生产/静态服务模式）— 在静态文件之前，HTML 请求走 SSR，失败降级 index.html
-if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
-  const { ssrMiddleware } = await import('./ssrMiddleware.js');
-  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);
-  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) =>
-    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html'),
-  );
-}
-
 // 静态文件 — 只匹配 /assets/ 等非 HTML 路径（HTML 由 SSR 或 SPA fallback 处理）
+// 须在 SSR 路由之前：registerSW.js/manifest 等若先被 SSR 拦截会返回 HTML（MIME 错误）
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   app.use((req, res, next) => {
     if (
@@ -225,6 +217,15 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
       next();
     }
   });
+}
+
+// SSR 渲染（生产/静态服务模式）— 在静态文件之前，HTML 请求走 SSR，失败降级 index.html
+if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
+  const { ssrMiddleware } = await import('./ssrMiddleware.js');
+  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);
+  app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, (_req: Request, res: Response) =>
+    res.sendFile(config.FRONTEND_DIST_DIR + '/index.html'),
+  );
 }
 
 app.use(errorHandler);
