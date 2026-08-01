@@ -1,13 +1,37 @@
+/* eslint-disable react-refresh/only-export-components -- 认证表单 schema 与组件同文件，拆分独立文件则重复 import */
 import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { LogIn, UserPlus, MailCheck } from 'lucide-react';
+import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';
 import { Checkbox } from '@/components/ui/uiComponents';
-import AuthPageLayout from '@/components/auth/AuthPageLayout';
-import { AuthFormField, AuthSubmitButton } from '@/components/auth/formFields';
-import { loginSchema, signupSchema, firstZodErrorKey } from '@/lib/authValidation.js';
+import AuthPageLayout, { AuthFormField, AuthSubmitButton } from '@/components/auth/formFields';
+export const loginSchema = z.object({
+  username: z.string().min(1, 'auth.login.usernameRequired'),
+  password: z.string().min(1, 'auth.login.passwordRequired'),
+});
+export type LoginFormData = z.infer<typeof loginSchema>;
+export const signupSchema = z.object({
+  username: z
+    .string()
+    .min(3, 'auth.signup.usernameMinLength')
+    .max(30, 'auth.signup.usernameMaxLength'),
+  email: z.string().email('auth.signup.emailInvalid'),
+  password: z.string().min(8, 'auth.signup.passwordMinLength'),
+  orgName: z
+    .string()
+    .min(1, 'auth.signup.orgNameRequired')
+    .max(100, 'auth.signup.orgNameMaxLength'),
+  termsAccepted: z.boolean().refine((v) => v === true, 'auth.signup.termsError'),
+});
+export type SignupFormData = z.infer<typeof signupSchema>;
+export function firstZodErrorKey<T>(result: ReturnType<z.ZodType<T>['safeParse']>): string | null {
+  if (result.success) return null;
+  const firstIssue = result.error.issues[0];
+  return firstIssue ? (firstIssue.message as string) : null;
+}
 export default function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();

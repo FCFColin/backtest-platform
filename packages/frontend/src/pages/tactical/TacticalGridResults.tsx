@@ -4,7 +4,7 @@ import { fmtPct, fmtNum } from '@/utils/format';
 import { Card } from '@/components/ui/uiComponents';
 import { EmptyState } from '@/components/stateDisplay';
 import { ErrorBanner } from '@/components/stateDisplay';
-import { SortableTable, type Column } from '@/components/SortableTable';
+import { SortableTable, type Column } from '@/components/tables';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import {
   computeHeatmapRange,

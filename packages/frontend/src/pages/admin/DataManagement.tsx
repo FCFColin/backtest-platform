@@ -1,11 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Database, RefreshCw, Play, Zap, HardDrive, Calendar, BarChart3, Globe, FileSpreadsheet, CheckCircle, AlertCircle } from 'lucide-react';
+import {
+  Database,
+  RefreshCw,
+  Play,
+  Zap,
+  HardDrive,
+  Calendar,
+  BarChart3,
+  Globe,
+  FileSpreadsheet,
+  CheckCircle,
+  AlertCircle,
+} from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
 import { reportError } from '../../utils/errorReporter.js';
 import { parseMarketBreakdown } from '../../utils/adminStats.js';
-import { KpiCard } from '../../components/admin/KpiCard.js';
+import { KpiCard } from '../../components/admin/AdminLayout.js';
 import { Button } from '../../components/ui/uiComponents.js';
 import { Card } from '../../components/ui/uiComponents.js';
 interface DataSource {
@@ -23,48 +35,120 @@ interface DataStats {
   marketBreakdown: Record<string, number>;
 }
 const defaultDataSources: DataSource[] = [
-  { name: 'adminPage.dataManagement.rustEngine', type: 'api', status: 'unknown', recordCount: 0, lastUpdated: '-' },
-  { name: 'adminPage.dataManagement.goDataService', type: 'api', status: 'unknown', recordCount: 0, lastUpdated: '-' },
-  { name: 'adminPage.dataManagement.localCache', type: 'local', status: 'unknown', recordCount: 0, lastUpdated: '-' }
+  {
+    name: 'adminPage.dataManagement.rustEngine',
+    type: 'api',
+    status: 'unknown',
+    recordCount: 0,
+    lastUpdated: '-',
+  },
+  {
+    name: 'adminPage.dataManagement.goDataService',
+    type: 'api',
+    status: 'unknown',
+    recordCount: 0,
+    lastUpdated: '-',
+  },
+  {
+    name: 'adminPage.dataManagement.localCache',
+    type: 'local',
+    status: 'unknown',
+    recordCount: 0,
+    lastUpdated: '-',
+  },
 ];
 const defaultDataStats: DataStats = {
   totalTickers: 0,
   totalDataPoints: 0,
   dateRange: { earliest: '-', latest: '-' },
   totalSizeMB: 0,
-  marketBreakdown: {}
+  marketBreakdown: {},
 };
 const STATUS_CONFIG = {
-  active: { icon: CheckCircle, labelKey: 'adminPage.dataManagement.statusActive', className: 'bg-success/10 text-success' },
-  inactive: { icon: AlertCircle, labelKey: 'adminPage.dataManagement.statusInactive', className: 'bg-danger/10 text-danger' },
-  unknown: { icon: AlertCircle, labelKey: 'adminPage.dataManagement.statusUnknown', className: 'bg-elevated text-fg-tertiary' }
+  active: {
+    icon: CheckCircle,
+    labelKey: 'adminPage.dataManagement.statusActive',
+    className: 'bg-success/10 text-success',
+  },
+  inactive: {
+    icon: AlertCircle,
+    labelKey: 'adminPage.dataManagement.statusInactive',
+    className: 'bg-danger/10 text-danger',
+  },
+  unknown: {
+    icon: AlertCircle,
+    labelKey: 'adminPage.dataManagement.statusUnknown',
+    className: 'bg-elevated text-fg-tertiary',
+  },
 } as const;
-const TABLE_COLS = ['adminPage.dataManagement.dataSource', 'adminPage.dataManagement.type', 'adminPage.dataManagement.status', 'adminPage.dataManagement.recordCount', 'adminPage.dataManagement.lastUpdated'];
-const getYearDiff = (start: string, end: string) => Math.round((new Date(end).getTime() - new Date(start).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+const TABLE_COLS = [
+  'adminPage.dataManagement.dataSource',
+  'adminPage.dataManagement.type',
+  'adminPage.dataManagement.status',
+  'adminPage.dataManagement.recordCount',
+  'adminPage.dataManagement.lastUpdated',
+];
+const getYearDiff = (start: string, end: string) =>
+  Math.round(
+    (new Date(end).getTime() - new Date(start).getTime()) / (365.25 * 24 * 60 * 60 * 1000),
+  );
 function buildDataStats(d: Record<string, unknown>): DataStats {
   const s = d.stats as Record<string, unknown> | undefined;
   const u = d.universe as Record<string, unknown> | undefined;
   const dq = s?.data_quality as Record<string, number> | undefined;
-  const dateRanges = (s?.date_ranges as { earliest: string; latest: string }) || { earliest: '-', latest: '-' };
+  const dateRanges = (s?.date_ranges as { earliest: string; latest: string }) || {
+    earliest: '-',
+    latest: '-',
+  };
   return {
     totalTickers: (u?.total as number) || 0,
     totalDataPoints: dq?.total_data_points || 0,
     totalSizeMB: dq?.total_size_mb || 0,
     dateRange: dateRanges,
-    marketBreakdown: parseMarketBreakdown(s?.by_market as Record<string, unknown> | undefined)
+    marketBreakdown: parseMarketBreakdown(s?.by_market as Record<string, unknown> | undefined),
   };
 }
 function buildSources(stats: DataStats): DataSource[] {
   const sources = [...defaultDataSources];
-  sources[0] = { ...sources[0], status: 'active', recordCount: stats.totalDataPoints, lastUpdated: stats.dateRange.latest || '-' };
-  sources[2] = { ...sources[2], status: stats.totalTickers > 0 ? 'active' : 'inactive', recordCount: stats.totalTickers, lastUpdated: stats.dateRange.latest || '-' };
+  sources[0] = {
+    ...sources[0],
+    status: 'active',
+    recordCount: stats.totalDataPoints,
+    lastUpdated: stats.dateRange.latest || '-',
+  };
+  sources[2] = {
+    ...sources[2],
+    status: stats.totalTickers > 0 ? 'active' : 'inactive',
+    recordCount: stats.totalTickers,
+    lastUpdated: stats.dateRange.latest || '-',
+  };
   return sources;
 }
-function ActionBar({ loading, actionMsg, onRefresh, onAction }: { loading: boolean; actionMsg: string; onRefresh: () => void; onAction: (url: string, label: string) => void }) {
+function ActionBar({
+  loading,
+  actionMsg,
+  onRefresh,
+  onAction,
+}: {
+  loading: boolean;
+  actionMsg: string;
+  onRefresh: () => void;
+  onAction: (url: string, label: string) => void;
+}) {
   const { t } = useTranslation();
   const actions = [
-    { url: '/api/v1/data/manage/update/inc', label: t('dataEngine.incrementalUpdate'), icon: Play, cls: 'bg-success hover:bg-success/90' },
-    { url: '/api/v1/data/manage/update/full', label: t('dataEngine.fullUpdate'), icon: Zap, cls: 'bg-brand text-brand-fg hover:bg-brand-hover' }
+    {
+      url: '/api/v1/data/manage/update/inc',
+      label: t('dataEngine.incrementalUpdate'),
+      icon: Play,
+      cls: 'bg-success hover:bg-success/90',
+    },
+    {
+      url: '/api/v1/data/manage/update/full',
+      label: t('dataEngine.fullUpdate'),
+      icon: Zap,
+      cls: 'bg-brand text-brand-fg hover:bg-brand-hover',
+    },
   ];
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -73,7 +157,11 @@ function ActionBar({ loading, actionMsg, onRefresh, onAction }: { loading: boole
         {t('dataEngine.refreshStats')}
       </Button>
       {actions.map((a) => (
-        <button key={a.url} onClick={() => onAction(a.url, a.label)} className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${a.cls}`}>
+        <button
+          key={a.url}
+          onClick={() => onAction(a.url, a.label)}
+          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${a.cls}`}
+        >
           <a.icon className="h-4 w-4" /> {a.label}
         </button>
       ))}
@@ -85,7 +173,9 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
   const { t } = useTranslation();
   return (
     <Card className="p-4">
-      <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.dataManagement.dataSource')}</h2>
+      <h2 className="mb-4 text-sm font-semibold text-fg">
+        {t('adminPage.dataManagement.dataSource')}
+      </h2>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -101,25 +191,42 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
             {sources.map((source) => {
               const cfg = STATUS_CONFIG[source.status];
               const StatusIcon = cfg.icon;
-              const last = typeof source.lastUpdated === 'string' && source.lastUpdated.includes('T') ? source.lastUpdated.replace('T', ' ').slice(0, 19) : source.lastUpdated;
+              const last =
+                typeof source.lastUpdated === 'string' && source.lastUpdated.includes('T')
+                  ? source.lastUpdated.replace('T', ' ').slice(0, 19)
+                  : source.lastUpdated;
               return (
                 <tr key={source.name} className="border-b border-border-subtle last:border-0">
                   <td className="py-2.5">
                     <div className="flex items-center gap-2">
-                      {source.type === 'api' ? <Globe className="h-4 w-4 text-brand" /> : <FileSpreadsheet className="h-4 w-4 text-success" />}
+                      {source.type === 'api' ? (
+                        <Globe className="h-4 w-4 text-brand" />
+                      ) : (
+                        <FileSpreadsheet className="h-4 w-4 text-success" />
+                      )}
                       <span className="font-medium text-fg-secondary">{t(source.name)}</span>
                     </div>
                   </td>
                   <td className="py-2.5">
-                    <span className="rounded-full bg-elevated px-2 py-0.5 text-xs text-fg-secondary">{t(source.type === 'api' ? 'adminPage.dataManagement.typeApi' : 'adminPage.dataManagement.typeLocal')}</span>
+                    <span className="rounded-full bg-elevated px-2 py-0.5 text-xs text-fg-secondary">
+                      {t(
+                        source.type === 'api'
+                          ? 'adminPage.dataManagement.typeApi'
+                          : 'adminPage.dataManagement.typeLocal',
+                      )}
+                    </span>
                   </td>
                   <td className="py-2.5">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}
+                    >
                       <StatusIcon className="h-3 w-3" />
                       {t(cfg.labelKey)}
                     </span>
                   </td>
-                  <td className="py-2.5 text-fg-tertiary">{source.recordCount > 0 ? source.recordCount.toLocaleString() : '-'}</td>
+                  <td className="py-2.5 text-fg-tertiary">
+                    {source.recordCount > 0 ? source.recordCount.toLocaleString() : '-'}
+                  </td>
                   <td className="py-2.5 text-fg-tertiary">{last}</td>
                 </tr>
               );
@@ -136,7 +243,9 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
     <>
       {Object.keys(stats.marketBreakdown).length > 0 && (
         <Card className="p-4">
-          <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.dashboard.marketTickerCount')}</h2>
+          <h2 className="mb-4 text-sm font-semibold text-fg">
+            {t('adminPage.dashboard.marketTickerCount')}
+          </h2>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {Object.entries(stats.marketBreakdown)
               .sort(([, a], [, b]) => b - a)
@@ -151,7 +260,9 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
       )}
       {stats.dateRange.earliest !== '-' && (
         <Card className="p-4">
-          <h2 className="mb-4 text-sm font-semibold text-fg">{t('adminPage.dataManagement.dataCoverageRange')}</h2>
+          <h2 className="mb-4 text-sm font-semibold text-fg">
+            {t('adminPage.dataManagement.dataCoverageRange')}
+          </h2>
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <div className="mb-2 flex justify-between text-xs text-fg-tertiary">
@@ -163,7 +274,7 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
               </div>
               <p className="mt-2 text-xs text-fg-tertiary">
                 {t('adminPage.dataManagement.coverYears', {
-                  years: getYearDiff(stats.dateRange.earliest, stats.dateRange.latest)
+                  years: getYearDiff(stats.dateRange.earliest, stats.dateRange.latest),
                 })}
               </p>
             </div>
@@ -176,10 +287,33 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
 function StatsGrid({ stats }: { stats: DataStats }) {
   const { t } = useTranslation();
   const items = [
-    { label: t('adminPage.dashboard.totalTickers'), value: stats.totalTickers.toLocaleString(), icon: <BarChart3 className="h-5 w-5" />, color: 'blue' as const },
-    { label: t('dataEngine.totalDataPoints'), value: stats.totalDataPoints > 0 ? `${(stats.totalDataPoints / 1000000).toFixed(1)}M` : '-', icon: <Database className="h-5 w-5" />, color: 'green' as const },
-    { label: t('adminPage.dashboard.dataCoverage'), value: stats.dateRange.earliest !== '-' ? `${stats.dateRange.earliest} ~ ${stats.dateRange.latest}` : '-', icon: <Calendar className="h-5 w-5" />, color: 'purple' as const },
-    { label: t('dataEngine.diskUsage'), value: stats.totalSizeMB > 0 ? `${(stats.totalSizeMB / 1024).toFixed(1)} GB` : '-', icon: <HardDrive className="h-5 w-5" />, color: 'orange' as const }
+    {
+      label: t('adminPage.dashboard.totalTickers'),
+      value: stats.totalTickers.toLocaleString(),
+      icon: <BarChart3 className="h-5 w-5" />,
+      color: 'blue' as const,
+    },
+    {
+      label: t('dataEngine.totalDataPoints'),
+      value: stats.totalDataPoints > 0 ? `${(stats.totalDataPoints / 1000000).toFixed(1)}M` : '-',
+      icon: <Database className="h-5 w-5" />,
+      color: 'green' as const,
+    },
+    {
+      label: t('adminPage.dashboard.dataCoverage'),
+      value:
+        stats.dateRange.earliest !== '-'
+          ? `${stats.dateRange.earliest} ~ ${stats.dateRange.latest}`
+          : '-',
+      icon: <Calendar className="h-5 w-5" />,
+      color: 'purple' as const,
+    },
+    {
+      label: t('dataEngine.diskUsage'),
+      value: stats.totalSizeMB > 0 ? `${(stats.totalSizeMB / 1024).toFixed(1)} GB` : '-',
+      icon: <HardDrive className="h-5 w-5" />,
+      color: 'orange' as const,
+    },
   ];
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -189,7 +323,8 @@ function StatsGrid({ stats }: { stats: DataStats }) {
     </div>
   );
 }
-export default function DataManagement() {
+export default // eslint-disable-next-line max-lines-per-function -- 数据管理页多区块，内聚保留
+function DataManagement() {
   const { t } = useTranslation();
   const [sources, setSources] = useState<DataSource[]>(defaultDataSources);
   const [stats, setStats] = useState<DataStats>(defaultDataStats);
@@ -202,7 +337,7 @@ export default function DataManagement() {
       if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
       if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
     },
-    []
+    [],
   );
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -221,7 +356,17 @@ export default function DataManagement() {
     try {
       const goRes = await apiFetch('/api/v1/data/health');
       const goStatus: 'active' | 'inactive' = goRes.ok ? 'active' : 'inactive';
-      setSources((prev) => prev.map((s, i) => (i === 1 ? { ...s, status: goStatus, lastUpdated: goRes.ok ? new Date().toISOString().slice(0, 19) : s.lastUpdated } : s)));
+      setSources((prev) =>
+        prev.map((s, i) =>
+          i === 1
+            ? {
+                ...s,
+                status: goStatus,
+                lastUpdated: goRes.ok ? new Date().toISOString().slice(0, 19) : s.lastUpdated,
+              }
+            : s,
+        ),
+      );
     } catch {
       setSources((prev) => prev.map((s, i) => (i === 1 ? { ...s, status: 'inactive' } : s)));
     }
@@ -235,7 +380,11 @@ export default function DataManagement() {
     try {
       const res = await apiFetch(url, { method: 'POST' });
       const json = await res.json();
-      setActionMsg(json.success ? t('adminPage.dataManagement.actionTriggered', { label }) : t('adminPage.dataManagement.actionFailed', { error: json.error }));
+      setActionMsg(
+        json.success
+          ? t('adminPage.dataManagement.actionTriggered', { label })
+          : t('adminPage.dataManagement.actionFailed', { error: json.error }),
+      );
       if (json.success) refetchTimerRef.current = setTimeout(fetchData, 2000);
     } catch {
       setActionMsg(t('adminPage.dataManagement.actionRequestFailed', { label }));
@@ -244,7 +393,12 @@ export default function DataManagement() {
   };
   return (
     <div className="space-y-6">
-      <ActionBar loading={loading} actionMsg={actionMsg} onRefresh={fetchData} onAction={doAction} />
+      <ActionBar
+        loading={loading}
+        actionMsg={actionMsg}
+        onRefresh={fetchData}
+        onAction={doAction}
+      />
       <StatsGrid stats={stats} />
       <DataSourceTable sources={sources} />
       <MarketAndDateSection stats={stats} />

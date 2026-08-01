@@ -15,7 +15,7 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { EfficientFrontierPoint } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, getCorrelationColor } from '@/lib/chart-theme.js';
-import { sharpeToColor } from './efficientFrontierSharedConstants.js';
+import { sharpeToColor } from './EfficientFrontierUtils.js';
 import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierResults.js';
 const TICK_STYLE = { fill: 'hsl(var(--fg-tertiary))', fontSize: 12 } as const;
 const LABEL_FILL = 'hsl(var(--fg-tertiary))';

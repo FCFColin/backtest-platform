@@ -16,7 +16,7 @@ import {
 } from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ChartLegend } from './sharedChartContent.js';
 import { MatrixHeatmap } from './tables.js';
-import { SimpleTable, type SimpleTableColumn } from '../SimpleTable.js';
+import { SimpleTable, type SimpleTableColumn } from '../tables.js';
 import {
   getCorrelationTextColor,
   type RollingCorrelationPoint,

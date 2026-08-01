@@ -1,7 +1,5 @@
 # 后端深度指南（API + Go 引擎 + 数据服务）
 
-> 合并自: wiki/backend.md + wiki/engine.md
-
 ## 1. 目录结构 (packages/backend/src/)
 
     routes/          路由层（healthRoutes, dataRoutes, backtestRoutes, authRoutes 等）

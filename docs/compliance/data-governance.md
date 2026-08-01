@@ -1,7 +1,5 @@
 # 数据治理（等保三级 8.1.3.1 + 8.1.4.1/4.2 + 8.1.4 数据备份）
 
-> 合并自: data-protection + identity-and-access + backup-restore
-
 ## 1. 数据分级与保护
 
 | 级别          | 定义              | 示例                            | 保护                   |

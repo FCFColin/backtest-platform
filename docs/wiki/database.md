@@ -1,7 +1,5 @@
 # 数据库与共享层指南
 
-> 精简自: wiki/database.md（374 行）
-
 ## 1. PostgreSQL Schema 概览
 
 | 类别              | 关键表                                            | 说明                                                    |

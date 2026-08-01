@@ -1,12 +1,14 @@
 /**
  * 分析类路由合并入口（ADR-042 路由整合）
  *
- * 合并以下 5 个原薄路由文件，消除重复的 `Router()` 实例化与 `export default` 样板：
+ * 合并以下薄路由文件，消除重复的 `Router()` 实例化与 `export default` 样板：
  *   - letfRoutes.ts        → POST /letf/analyze
  *   - calculatorRoutes.ts  → POST /calculators/:type
  *   - pcaRoutes.ts         → POST /pca/analyze
  *   - goalOptimizerRoutes  → POST /goal-optimizer/optimize
  *   - factorRegressionRoutes → POST /analysis/factor-regression
+ *   - tacticalRoutes.ts    → POST /tactical/backtest、/tactical/what-if
+ *   - signalRoutes.ts      → POST /signal/analyze、/signal/dual、/signal/multi
  *
  * 挂载方式：app.ts 中 `app.use('/api/v1', analysisRoutes)`，
  * 子路径前缀保持与原路由一致，URL 不变。
@@ -19,6 +21,7 @@
  * `middleware/middlewareChains.ts` 导入，与 app.ts 共享同一份定义。
  */
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 import type { LETFRequest, PCARequest, GoalOptimizerRequest } from '@backtest/shared/types';
 import { logger, sanitizeLog } from '../utils/logger.js';
 import { validate } from '../middleware/miscMiddleware.js';
@@ -32,10 +35,25 @@ import {
   goalOptimizerSchema,
   factorRegressionSchema,
   calculatorBodySchema,
+  signalAnalyzeSchema,
+  signalDualSchema,
+  signalMultiSchema,
 } from '../schemas/analysisSchemas.js';
-import { executeLetfAnalyzeWithFetch } from '../application/analysis-orchestrator.js';
-import { executePcaAnalyzeWithFetch } from '../application/analysis-orchestrator.js';
-import { executeGoalOptimizeWithFetch } from '../application/analysis-orchestrator.js';
+import { tacticalBacktestSchema, tacticalWhatIfSchema } from '../schemas/tactical.js';
+import {
+  executeLetfAnalyzeWithFetch,
+  executePcaAnalyzeWithFetch,
+  executeGoalOptimizeWithFetch,
+} from '../application/analysis-orchestrator.js';
+import {
+  executeTacticalBacktest,
+  executeTacticalWhatIf,
+} from '../application/tactical-application-service.js';
+import {
+  executeSignalAnalyze,
+  executeDualSignalAnalyze,
+  executeMultiSignalAnalyze,
+} from '../application/signal-orchestrator.js';
 import { asyncRouteHandler } from './routeUtils.js';
 
 const analysisRouter = Router();
@@ -166,5 +184,119 @@ analysisRouter.post(
     },
   ),
 );
+
+// --- 战术分配（原 tacticalRoutes.ts 并入）：STRATEGY_MANAGE + 配额 ----------------
+
+analysisRouter.post(
+  '/tactical/backtest',
+  ...computeMiddleware(Permission.STRATEGY_MANAGE),
+  validate(tacticalBacktestSchema),
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const startTime = Date.now();
+      const body = req.body;
+
+      const data = await executeTacticalBacktest(body);
+      res.json({ success: true, data });
+      logger.info(`[tactical] 回测完成，耗时 ${Date.now() - startTime}ms`);
+    },
+    {
+      logMsg: '[tactical] 回测失败',
+      code: 'TACTICAL_BACKTEST_ERROR',
+      endpoint: 'tactical-backtest',
+    },
+  ),
+);
+
+analysisRouter.post(
+  '/tactical/what-if',
+  ...computeMiddleware(Permission.STRATEGY_MANAGE),
+  validate(tacticalWhatIfSchema),
+  asyncRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const { tickers, strategy } = req.body;
+      const results = await executeTacticalWhatIf(tickers, strategy);
+      res.json({ success: true, data: results });
+    },
+    {
+      logMsg: '[tactical] what-if 查询失败',
+      code: 'TACTICAL_WHATIF_ERROR',
+      endpoint: 'tactical-whatif',
+    },
+  ),
+);
+
+// --- 信号分析（原 signalRoutes.ts 并入）：SIGNAL_READ 无配额 ----------------------
+
+type SignalMode = 'analyze' | 'dual' | 'multi';
+
+function runSignalAnalysis(mode: SignalMode, body: unknown): Promise<unknown> {
+  switch (mode) {
+    case 'analyze':
+      return executeSignalAnalyze(body as never);
+    case 'dual':
+      return executeDualSignalAnalyze(body as never);
+    case 'multi':
+      return executeMultiSignalAnalyze(body as never);
+  }
+}
+
+function logSignalContext(mode: SignalMode, body: Record<string, unknown>): void {
+  switch (mode) {
+    case 'analyze':
+      logger.info(
+        `[signal/analyze] ticker=${body.ticker} indicator=${body.indicator} period=${body.period}`,
+      );
+      break;
+    case 'dual': {
+      const cfg1 = (body as { signal1?: { indicator?: string } }).signal1;
+      const cfg2 = (body as { signal2?: { indicator?: string } }).signal2;
+      logger.info(
+        `[signal/dual] s1=${cfg1?.indicator} s2=${cfg2?.indicator} method=${body.combinationMethod}`,
+      );
+      break;
+    }
+    case 'multi': {
+      const configs = (body as { signals?: unknown[] }).signals;
+      logger.info(`[signal/multi] count=${configs?.length} method=${body.aggregationMethod}`);
+      break;
+    }
+  }
+}
+
+const ERROR_CONFIGS: Record<SignalMode, { logMsg: string; code: string; endpoint: string }> = {
+  analyze: {
+    logMsg: '[signal/analyze] 信号分析失败',
+    code: 'SIGNAL_ANALYZE_ERROR',
+    endpoint: 'signal-analyze',
+  },
+  dual: {
+    logMsg: '[signal/dual] 双重信号分析失败',
+    code: 'SIGNAL_DUAL_ERROR',
+    endpoint: 'signal-dual',
+  },
+  multi: {
+    logMsg: '[signal/multi] 多信号分析失败',
+    code: 'SIGNAL_MULTI_ERROR',
+    endpoint: 'signal-multi',
+  },
+};
+
+function registerSignalRoute(mode: SignalMode, path: string, schema: z.ZodTypeAny) {
+  analysisRouter.post(
+    path,
+    ...computeMiddlewareNoQuota(Permission.SIGNAL_READ),
+    validate(schema),
+    asyncRouteHandler(async (req: Request, res: Response): Promise<void> => {
+      logSignalContext(mode, req.body as Record<string, unknown>);
+      const result = await runSignalAnalysis(mode, req.body);
+      res.json({ success: true, data: result });
+    }, ERROR_CONFIGS[mode]),
+  );
+}
+
+registerSignalRoute('analyze', '/signal/analyze', signalAnalyzeSchema);
+registerSignalRoute('dual', '/signal/dual', signalDualSchema);
+registerSignalRoute('multi', '/signal/multi', signalMultiSchema);
 
 export default analysisRouter;

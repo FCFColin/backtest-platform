@@ -17,7 +17,7 @@
 
 仅转发参数的 service 不应存在——**routes 直连 repo**（薄路由）。
 
-- ✅ `routes/portfolioRoutes.ts` 直接 import `repositories/portfolioRepo.ts` CRUD
+- ✅ `routes/workspaceRoutes.ts` 直接 import `repositories/portfolioRepo.ts` CRUD（合并自 portfolio/config/run 三文件）
 - ❌ `portfolio-application-service.ts`（已删除）仅 5 个纯转发函数
 
 ### 3. 纯 fetch-and-call-engine 的编排器 → `services/*Orchestrator`

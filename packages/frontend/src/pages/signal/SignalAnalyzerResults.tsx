@@ -5,8 +5,8 @@ import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import type { MultiSignalResponse } from './signalTypes.js';
 import { Card } from '@/components/ui/uiComponents';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
-import { CollapsibleSection } from '@/components/CollapsibleSection';
-import { SortableTable, type Column } from '../../components/SortableTable.js';
+import { CollapsibleSection } from '@/components/cards';
+import { SortableTable, type Column } from '../../components/tables.js';
 import {
   ResultsContainer,
   AnalysisErrorAlert,

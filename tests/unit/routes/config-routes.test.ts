@@ -27,11 +27,42 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 vi.mock('../../../packages/backend/src/repositories/savedConfigRepo.js', () => mocks.repo);
 
 vi.mock('../../../packages/backend/src/schemas/backtest.js', () => ({
+  portfolioBodySchema: {},
   savedConfigBodySchema: {},
+  backtestRunBodySchema: {},
+  PortfolioBody: Object,
   SavedConfigBody: Object,
+  BacktestRunBody: Object,
 }));
 
-import configRoutes from '../../../packages/backend/src/routes/configRoutes.js';
+vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
+  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
+  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
+  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
+  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
+  hasTenant: vi.fn(() => true),
+}));
+
+vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
+  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  Permission: {
+    BACKTEST_RUN: 'backtest:run',
+    ADMIN_ACCESS: 'admin:access',
+    DATA_READ: 'data:read',
+  },
+}));
+
+vi.mock('../../../packages/backend/src/middleware/quota.js', () => ({
+  enforceQuota: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+import workspaceRoutes from '../../../packages/backend/src/routes/workspaceRoutes.js';
 
 const TENANT = '11111111-1111-1111-1111-111111111111';
 const ITEM_ID = '22222222-2222-2222-2222-222222222222';
@@ -48,7 +79,7 @@ describe('configRoutes', () => {
         req.user = { sub: 'user-1' };
         next();
       });
-      app.use('/api/v1/configs', configRoutes);
+      app.use('/api/v1', workspaceRoutes);
     });
   });
 

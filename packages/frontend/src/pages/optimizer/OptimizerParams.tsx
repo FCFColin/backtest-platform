@@ -12,7 +12,7 @@ import {
 import { Switch } from '@/components/ui/uiComponents';
 import { Button } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
-import { CollapsibleSection } from '@/components/CollapsibleSection.js';
+import { CollapsibleSection } from '@/components/cards.js';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';

@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/uiComponents';
 import { useTickerMeta } from '@/hooks/miscHooks.js';
 import { cn } from '@/lib/utils';
-import { INPUT_WIDTHS } from '@/lib/layout-widths.js';
+import { INPUT_WIDTHS } from '@/utils/constants';
 import type { StorePortfolio, TFunc } from './portfolioEditor.js';
 
 const FIELD_STYLE = {

@@ -1,7 +1,5 @@
 # 安全管理（等保三级 8.1.1-8.1.3.4 + 8.1.5.2/5.3/5.5）
 
-> 合并自: security-operations + infrastructure-security + development-security
-
 ## 1. 入侵检测与防范
 
 异常登录检测: 登录失败 5 次/15min → 锁 15min；IP 失败 10 次/h → 封锁 1h；异地登录 >500km 突变 → 告警；非工作时间(02-06)管理员登录 → 告警。
@@ -29,11 +27,12 @@
 
 需求(威胁建模, PR 含安全考量) → 设计(ADR 审查) → 编码(ESLint+golangci-lint) → 测试(CI) → 部署(Trivy 镜像扫描)。
 
-| CI 门禁                       | 检查                           | 阻断   |
-| ----------------------------- | ------------------------------ | ------ |
-| security-scan                 | pnpm audit(high) + govulncheck | 阻断   |
-| gitleaks / migration-rollback | 密钥泄露 / 迁移可回滚          | 阻断   |
-| docker                        | Trivy(HIGH/CRITICAL)           | 非阻断 |
+| CI 门禁                      | 检查                                                | 阻断 |
+| ---------------------------- | --------------------------------------------------- | ---- |
+| lint / check / deadcode      | ESLint + tsc + 死代码检测                           | 阻断 |
+| migration-check / contract   | 迁移可回滚（check-migrations）/ 契约测试            | 阻断 |
+| unit-tests / critical-verify | 覆盖率门禁（check-coverage）/ CRITICAL 修复验证脚本 | 阻断 |
+| pre-commit（husky）          | gitleaks 密钥扫描（未安装即拒绝）                   | 阻断 |
 
 ## 4. 漏洞管理
 

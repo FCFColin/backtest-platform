@@ -5,7 +5,7 @@ import { Settings, Rocket, ChevronUp, ArrowRight, FlaskConical } from 'lucide-re
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/uiComponents';
 import { Card } from '@/components/ui/uiComponents';
-import { CONTAINER_WIDTHS, CARD_GRID_CLASSES } from '@/lib/layout-widths';
+import { CONTAINER_WIDTHS, CARD_GRID_CLASSES } from '@/utils/constants';
 import { cn } from '@/lib/utils';
 const HERO_STORAGE_KEY = 'backtest-hero-visit-count';
 const RESEARCH_TOOLS = [

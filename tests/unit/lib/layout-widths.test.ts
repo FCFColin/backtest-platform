@@ -4,7 +4,7 @@ import {
   CARD_WIDTHS,
   CARD_GRID_CLASSES,
   CONTAINER_WIDTHS,
-} from '../../../packages/frontend/src/lib/layout-widths.js';
+} from '../../../packages/frontend/src/utils/constants.js';
 
 describe('INPUT_WIDTHS', () => {
   it('包含所有必需的输入宽度键', () => {

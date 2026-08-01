@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
-import type { SolveSpeed, FrontierSolver, ReturnObjective } from './efficientFrontierTypes.js';
+import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
   { value: 'ultrafast', label: t('efficientFrontier.solveSpeed.ultrafast') },

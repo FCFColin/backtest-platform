@@ -4,7 +4,7 @@ import { LineChart } from 'lucide-react';
 import { Card } from '@/components/ui/uiComponents';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
 import { ErrorBanner, EmptyState } from '@/components/stateDisplay';
-import { SortableTable, type Column } from '@/components/SortableTable';
+import { SortableTable, type Column } from '@/components/tables';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';
 import { buildGrowthData, buildStatRows, type StatRow } from './tacticalResultUtils';
 import { SignalHistoryTable, WhatIfTab } from './TacticalTables';

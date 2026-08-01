@@ -29,7 +29,41 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-import backtestOptimizerRoutes from '../../../packages/backend/src/routes/backtestOptimizerRoutes.js';
+vi.mock('../../../packages/backend/src/config/index.js', () => ({
+  config: { SYNC_COMPUTE_TIMEOUT_MS: 500 },
+  validateConfig: vi.fn(),
+  USAGE_METRIC: { BACKTEST: 'backtest' },
+}));
+
+vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
+  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
+  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
+  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
+  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
+  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
+  hasTenant: vi.fn(() => true),
+}));
+
+vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
+  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+  Permission: {
+    BACKTEST_RUN: 'backtest:run',
+    OPTIMIZER_RUN: 'optimizer:run',
+    STRATEGY_MANAGE: 'strategy:manage',
+    SIGNAL_READ: 'signal:read',
+  },
+}));
+
+vi.mock('../../../packages/backend/src/middleware/quota.js', () => ({
+  enforceQuota: () => (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
+import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
 
 function createValidRequest() {
   return {
@@ -55,9 +89,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
   beforeEach(async () => {
     vi.clearAllMocks();
     queueMocks.add.mockResolvedValue({ id: 'opt-job-456' });
-    server = await startExpressApp((app) =>
-      app.use('/api/backtest-optimizer', backtestOptimizerRoutes),
-    );
+    server = await startExpressApp((app) => app.use('/api/v1', jobRoutes));
   });
 
   afterEach(async () => {
@@ -65,7 +97,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
   });
 
   it('异步提交成功时应返回 202 和标准成功形状 {success, data:{jobId, statusUrl}}', async () => {
-    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),
@@ -82,7 +114,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
   it('BullMQ 不可用时应 fail-closed 返回 503 + Retry-After（ADR-031）', async () => {
     queueMocks.add.mockRejectedValue(new Error('Redis unavailable'));
 
-    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),
@@ -101,7 +133,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     delete (req as Record<string, unknown>).portfolio;
 
-    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -115,7 +147,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     req.portfolio.assets = [];
 
-    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -128,7 +160,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     req.parameterSpace.rebalanceFrequencies = [];
 
-    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -141,7 +173,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     delete (req as Record<string, unknown>).parameters.startDate;
 
-    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -154,7 +186,7 @@ describe('backtestOptimizerRoutes - POST /api/backtest-optimizer/optimize', () =
     const req = createValidRequest();
     (req as Record<string, unknown>).objective = 'invalid';
 
-    const res = await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    const res = await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req),
@@ -176,7 +208,7 @@ describe('认证用户请求', () => {
         (req as Record<string, unknown>).tenantId = 'tenant-456';
         next();
       });
-      app.use('/api/backtest-optimizer', backtestOptimizerRoutes);
+      app.use('/api/v1', jobRoutes);
     });
   });
 
@@ -185,7 +217,7 @@ describe('认证用户请求', () => {
   });
 
   it('应设置 ownerUserId 为实际用户 ID', async () => {
-    await fetch(`${server.url}/api/backtest-optimizer/optimize`, {
+    await fetch(`${server.url}/api/v1/backtest-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidRequest()),

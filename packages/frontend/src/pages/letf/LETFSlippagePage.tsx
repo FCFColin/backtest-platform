@@ -1,14 +1,61 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2 } from 'lucide-react';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { Input } from '@/components/ui/uiComponents';
 import { Button } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
-import { useLETFSlippageState } from './hooks/useLETFSlippageState.js';
 import { LETFResultsPanel } from './LETFSlippageResults.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { useComputeTool } from '../../hooks/miscHooks.js';
+import { apiPostJSON } from '@/utils/apiClient';
+import i18n from '../../i18n/index.js';
+import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import type { LETFResult } from '@backtest/shared';
+function useLETFSlippageState() {
+  const { t } = useTranslation();
+  const [letfTicker, setLetfTicker] = useState('TQQQ');
+  const [benchmarkTicker, setBenchmarkTicker] = useState('QQQ');
+  const [leverage, setLeverage] = useState(3);
+  const [startDate, setStartDate] = useState(DEFAULT_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<LETFResult>(
+    async () =>
+      apiPostJSON<LETFResult>(
+        '/api/v1/letf/analyze',
+        {
+          letfTicker: letfTicker.trim(),
+          benchmarkTicker: benchmarkTicker.trim(),
+          leverage,
+          startDate,
+          endDate,
+        },
+        i18n.t('letf.errAnalyze'),
+      ),
+    () => (letfTicker.trim() && benchmarkTicker.trim() ? null : t('letf.errEmptyTickers')),
+  );
+  return {
+    letfTicker,
+    benchmarkTicker,
+    leverage,
+    startDate,
+    endDate,
+    isLoading,
+    error,
+    results,
+    setLetfTicker,
+    setBenchmarkTicker,
+    setLeverage,
+    setStartDate,
+    setEndDate,
+    runAnalysis,
+  };
+}
 interface LETFState {
   letfTicker: string;
   benchmarkTicker: string;

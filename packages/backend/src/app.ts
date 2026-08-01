@@ -6,13 +6,7 @@ import { createServer } from 'node:http';
 import { config } from './config/index.js';
 import { jwtAuth, auditLog, idempotencyKey } from './middleware/jwtAuth.js';
 import { resolveTenant, requireTenant } from './middleware/tenantContext.js';
-import {
-  computeMiddleware,
-  computeMiddlewareNoQuota,
-  crudMiddleware,
-  readOnlyAuth,
-  adminMiddleware,
-} from './middleware/middlewareChains.js';
+import { computeMiddleware, crudMiddleware, readOnlyAuth } from './middleware/middlewareChains.js';
 import { requirePermission, Permission } from './middleware/rbac.js';
 import { httpLogger, logger } from './utils/logger.js';
 import { requestContextStorage } from './utils/requestContext.js';
@@ -31,31 +25,20 @@ import {
 } from './utils/rateLimiter.js';
 import dataRoutes from './routes/dataRoutes.js';
 import dataManageRoutes from './routes/dataManageRoutes.js';
-import customTickerRoutes from './routes/customTickerRoutes.js';
-import announcementRoutes from './routes/announcementRoutes.js';
 import backtestRoutes from './routes/backtestRoutes.js';
-import backtestOptimizerRoutes from './routes/backtestOptimizerRoutes.js';
-import tacticalRoutes from './routes/tacticalRoutes.js';
 import tacticalConfigRoutes from './routes/tacticalConfigRoutes.js';
-import signalRoutes from './routes/signalRoutes.js';
-import tacticalGridRoutes from './routes/tacticalGridRoutes.js';
+import analysisRoutes from './routes/analysisRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-import adminKeyRoutes from './routes/adminKeyRoutes.js';
 import rbacRoutes from './routes/rbacRoutes.js';
 import authRoutes from './routes/authRoutes.js';
-import featureFlagRoutes from './routes/featureFlagRoutes.js';
-import apiKeyRoutes from './routes/apiKeyRoutes.js';
 import webhookRoutes from './routes/webhookRoutes.js';
-import auditRoutes from './routes/auditRoutes.js';
-import portfolioRoutes from './routes/portfolioRoutes.js';
-import configRoutes from './routes/configRoutes.js';
-import runRoutes from './routes/runRoutes.js';
 import orgRoutes from './routes/orgRoutes.js';
 import billingRoutes, { billingWebhookHandler } from './routes/billingRoutes.js';
-import healthRoutes from './routes/healthRoutes.js';
-import errorReportRoutes from './routes/errorReportRoutes.js';
-import analysisRoutes from './routes/analysisRoutes.js';
 import { jobRoutes } from './routes/jobRoutes.js';
+import apiKeyRoutes from './routes/apiKeyRoutes.js';
+import workspaceRoutes from './routes/workspaceRoutes.js';
+import platformRoutes from './routes/platformRoutes.js';
+import healthRoutes from './routes/healthRoutes.js';
 import { errorHandler, notFoundHandler, requestTimeout } from './middleware/errorHandler.js';
 import { brotliCompress, createEarlyHintsMiddleware } from './middleware/brotliCompress.js';
 import { setupOpenApiUi } from './middleware/miscMiddleware.js';
@@ -185,8 +168,6 @@ app.use('/api/', apiLimiter);
 
 // 路由挂载（仅 v1，legacy 路径已废弃）
 app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
-app.use('/api/v1/data/custom', ...readOnlyAuth, customTickerRoutes);
-app.use('/api/v1/announcements', announcementRoutes);
 app.use(
   '/api/v1/data/manage',
   ...readOnlyAuth,
@@ -197,39 +178,22 @@ app.use(
 );
 app.use('/api/v1/backtest', ...computeMiddleware(Permission.BACKTEST_RUN), backtestRoutes);
 app.use(
-  '/api/v1/backtest-optimizer',
-  ...computeMiddleware(Permission.OPTIMIZER_RUN),
-  backtestOptimizerRoutes,
-);
-app.use('/api/v1/tactical', ...computeMiddleware(Permission.STRATEGY_MANAGE), tacticalRoutes);
-app.use(
   '/api/v1/tactical/configs',
   ...crudMiddleware(Permission.STRATEGY_MANAGE),
   tacticalConfigRoutes,
 );
-app.use('/api/v1/signal', ...computeMiddlewareNoQuota(Permission.SIGNAL_READ), signalRoutes);
-app.use(
-  '/api/v1/tactical-grid',
-  ...computeMiddleware(Permission.STRATEGY_MANAGE),
-  tacticalGridRoutes,
-);
-// 分析类路由合并挂载（ADR-042）：内部按子路径应用不同中间件链
+// 分析/计算/密钥/工作台/平台端点合并挂载（ADR-042）：内部按子路径应用不同中间件链
 app.use('/api/v1', analysisRoutes);
-app.use('/api/v1/admin', ...adminMiddleware(), adminRoutes);
-app.use('/api/v1/admin/audit-logs', ...adminMiddleware(), auditRoutes); // P2-03 审计日志查询（ADMIN_ACCESS）
-app.use('/api/v1/admin/keys', jwtAuth, auditLog, adminKeyRoutes);
+app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/admin', requireTenant, rbacRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/errors', errorReportRoutes); // 前端错误上报，无需认证（全局 apiLimiter 覆盖）
-app.use('/api/v1/feature-flags', jwtAuth, featureFlagRoutes);
-app.use('/api/v1/keys', ...crudMiddleware(Permission.ADMIN_ACCESS), apiKeyRoutes);
-app.use('/api/v1/webhooks', ...crudMiddleware(Permission.ADMIN_ACCESS), webhookRoutes); // P2-02 与 API Key 同权限级别
-app.use('/api/v1/portfolios', ...crudMiddleware(Permission.BACKTEST_RUN), portfolioRoutes);
-app.use('/api/v1/configs', ...crudMiddleware(Permission.BACKTEST_RUN), configRoutes);
-app.use('/api/v1/runs', ...crudMiddleware(Permission.BACKTEST_RUN), runRoutes);
+app.use('/api/v1/webhooks', ...crudMiddleware(Permission.ADMIN_ACCESS), webhookRoutes);
 app.use('/api/v1/orgs', jwtAuth, resolveTenant, orgRoutes);
 app.use('/api/v1/billing', jwtAuth, resolveTenant, billingRoutes);
-app.use('/api/v1', jwtAuth, resolveTenant, jobRoutes);
+app.use('/api/v1', jobRoutes);
+app.use('/api/v1', apiKeyRoutes);
+app.use('/api/v1', workspaceRoutes);
+app.use('/api/v1', platformRoutes);
 
 // Swagger UI (P1-05) - 仅非生产环境
 setupOpenApiUi(app);

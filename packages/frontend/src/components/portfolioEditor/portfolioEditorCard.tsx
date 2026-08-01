@@ -30,7 +30,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore.js';
-import { writeStateToURL } from '@/utils/urlState.js';
+import { writeStateToURL } from '@/utils/portfolioStorage.js';
 import { PRESET_PORTFOLIOS, findPresetPortfolio } from '@/store/presetPortfolios.js';
 import {
   GlidepathConfig,

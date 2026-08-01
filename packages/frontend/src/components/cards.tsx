@@ -1,7 +1,54 @@
+import * as React from 'react';
 import type { ReactNode } from 'react';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, ChevronDown } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Card } from '@/components/ui/uiComponents';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
+interface CollapsibleSectionProps {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  icon?: LucideIcon;
+  children: ReactNode;
+  className?: string;
+}
+export function CollapsibleSection({
+  title,
+  description,
+  defaultOpen = false,
+  icon: Icon,
+  children,
+  className,
+}: CollapsibleSectionProps) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className={cn('w-full', className)}>
+      <CollapsibleTrigger
+        className={cn(
+          'group flex w-full items-center justify-between p-4',
+          'hover:bg-hover transition-colors cursor-pointer',
+          'text-left',
+        )}
+      >
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="size-4 text-fg-tertiary shrink-0" />}
+          <div className="flex flex-col">
+            <span className="text-h3 text-fg">{title}</span>
+            {description && <span className="text-caption text-fg-tertiary">{description}</span>}
+          </div>
+        </div>
+        <ChevronDown
+          className={cn(
+            'size-4 text-fg-tertiary transition-transform duration-200 shrink-0',
+            open && 'rotate-180',
+          )}
+        />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-4 pb-4">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
 interface SectionTitleProps {
   icon: ReactNode;
   title: string;
@@ -43,7 +90,8 @@ interface StatCardProps {
 }
 export function StatCard({ label, value, trend, trendValue, icon, children }: StatCardProps) {
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-  const trendClass = trend === 'up' ? 'text-pos' : trend === 'down' ? 'text-neg' : 'text-fg-tertiary';
+  const trendClass =
+    trend === 'up' ? 'text-pos' : trend === 'down' ? 'text-neg' : 'text-fg-tertiary';
   return (
     <Card className="p-5">
       <div className="flex items-center gap-1.5 text-caption text-fg-tertiary uppercase tracking-wide">

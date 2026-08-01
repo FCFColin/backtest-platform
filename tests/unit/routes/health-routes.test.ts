@@ -17,6 +17,10 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003',
   }),
   validateConfig: vi.fn(),
+  PLAN_LIMIT_FLAGS: {
+    enterpriseQuota: 'plan.enterprise-quota',
+    proAnalytics: 'plan.pro-analytics',
+  },
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
@@ -33,7 +37,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
 
 import { config } from '../../../packages/backend/src/config/index.js';
 import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
-import announcementRoutes from '../../../packages/backend/src/routes/announcementRoutes.js';
+import platformRoutes from '../../../packages/backend/src/routes/platformRoutes.js';
 
 function createFetchMock(options: {
   goEngine?: { ok: boolean; status: number } | Error;
@@ -241,7 +245,7 @@ describe('announcementRoutes - 权限（E4）', () => {
   let server: TestServer;
   beforeEach(async () => {
     vi.clearAllMocks();
-    server = await startExpressApp((app) => app.use('/api/v1/announcements', announcementRoutes));
+    server = await startExpressApp((app) => app.use('/api/v1', platformRoutes));
   });
   afterEach(async () => {
     await server.close();

@@ -9,9 +9,9 @@ import {
   deleteNamedConfigApi,
   type SavedPortfolio,
 } from '@/utils/portfolioStorage';
-import { readStateFromURL, writeStateToURL } from '@/utils/urlState';
+import { readStateFromURL, writeStateToURL } from '@/utils/portfolioStorage';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
-import type { BacktestPageState } from '../BacktestPage.types.js';
+import type { BacktestPageState } from '../BacktestPage.js';
 function useUrlShareLoader() {
   const { t } = useTranslation();
   const loadFromShare = useBacktestStore((s) => s.loadFromShare);

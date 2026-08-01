@@ -6,4 +6,4 @@
 | [database.md](./database.md)   | 数据库 schema + RLS + Redis + 共享类型 |
 | [ops-guide.md](./ops-guide.md) | 前端架构 + 运行命令 + 已知坑点         |
 
-> overview/running/backend/engine/frontend/gotchas 已合并到上述文件。架构总览见 [../ARCHITECTURE.md](../ARCHITECTURE.md)。
+> 架构总览见 [../ARCHITECTURE.md](../ARCHITECTURE.md)。

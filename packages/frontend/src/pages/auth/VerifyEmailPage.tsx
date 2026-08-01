@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle2, XCircle, UserPlus, LogIn } from 'lucide-react';
 import { apiFetch } from '@/utils/apiClient';
-import AuthPageLayout from '@/components/auth/AuthPageLayout';
+import AuthPageLayout from '@/components/auth/formFields';
 import { BrandIconBadge } from '@/components/auth/formFields';
 import { useAuthStore } from '@/store/authStore';
 import ErrorBanner from '@/components/ErrorBanner';

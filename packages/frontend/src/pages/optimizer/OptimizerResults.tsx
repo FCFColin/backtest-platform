@@ -17,7 +17,7 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { Statistics } from '@backtest/shared';
 import type { EfficientFrontierState, OptimizerResultExt } from './OptimizerUtils.js';
 import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/chart-theme.js';
-import { SimpleTable, type SimpleTableColumn } from '@/components/SimpleTable.js';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Button } from '@/components/ui/uiComponents';
 import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';

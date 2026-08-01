@@ -1,14 +1,12 @@
 # 运维指南（前端 + 运行命令 + 已知坑点）
 
-> 合并自: wiki/frontend.md + wiki/gotchas.md + wiki/running.md
-
 ## 1. 前端概览
 
 目录: `pages/`（BacktestPage, AnalysisPage 等）、`components/`、`store/`（Zustand 无 persist）、`utils/`、`hooks/`、`i18n/`、`styles/`。
 
 路由: `/` (BacktestPage), /analysis, /monte-carlo, /optimizer, /efficient-frontier, /factor-regression, /calculators, /data-engine, /login, /signup, /account。
 
-技术栈: Zustand（无 persist）、apiClient（Bearer + 401 自动刷新）、Recharts、Tailwind 3、Playwright E2E。
+技术栈: apiClient（Bearer + 401 自动刷新）、Recharts、Tailwind 3、Playwright E2E。
 
 ## 2. 前置要求与开发
 
@@ -18,8 +16,6 @@ Node.js 20+, Go 1.26+, pnpm, PostgreSQL 14+, Redis 6+。
     pnpm dev          # 前端(15173) + 后端 API(15001)
     cd engine-go && go run cmd/server/main.go     # Go 引擎 :15004
     cd data-fetcher && go run cmd/server/main.go  # Go 数据服务 :15003
-
-SaaS 一键启动: `pnpm dev:saas`（含 PG + Redis docker-compose）。
 
 ## 3. 环境变量速查
 

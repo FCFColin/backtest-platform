@@ -8,8 +8,8 @@ import { CHART_GRID_PROPS, CHART_MARGIN } from '@/lib/chart-theme.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
-import { SimpleTable } from '../SimpleTable.js';
-import type { SimpleTableColumn } from '../SimpleTable.js';
+import { SimpleTable } from '../tables.js';
+import type { SimpleTableColumn } from '../tables.js';
 import { computeDailyReturns } from './chartUtils.js';
 interface RegressionChartProps {
   portfolios: PortfolioResult[];

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/uiComponents';
-import { CollapsibleSection } from '@/components/CollapsibleSection.js';
+import { CollapsibleSection } from '@/components/cards.js';
 import { ErrorBanner } from '@/components/stateDisplay.js';
 import { FACTOR_COLORS } from './factorRegressionUtils.js';
 import type { FactorRegressionResult } from './factorRegressionUtils.js';

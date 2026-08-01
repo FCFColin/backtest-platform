@@ -1,15 +1,30 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowUp, ArrowDown, Download, Settings2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Download, Settings2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/uiComponents.js';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
 } from '@/components/ui/uiComponents.js';
 import { cn } from '@/lib/utils.js';
-import { formatCurrency, formatPercent, formatDuration, formatNumber } from '@/utils/format.js';
+import type { PortfolioResult, Statistics } from '@backtest/shared';
+import { CHART_COLORS } from '@backtest/shared';
+import {
+  formatCurrency,
+  formatPercent,
+  formatDuration,
+  formatNumber,
+  fmtPct,
+} from '@/utils/format.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
 interface StatColumn {
   key: string;
@@ -235,5 +250,200 @@ export function StatisticsTable({
       </div>
       {expanded && extendedTable}
     </div>
+  );
+}
+interface ExtendedMetricsTableProps {
+  portfolios: Array<{
+    id: string;
+    name: string;
+    stats: Record<string, number>;
+  }>;
+}
+const EXTENDED_COLUMNS = [
+  { key: 'var95', label: 'VaR 95%', format: 'percent' as const },
+  { key: 'var99', label: 'VaR 99%', format: 'percent' as const },
+  { key: 'cvar95', label: 'CVaR 95%', format: 'percent' as const },
+  { key: 'cvar99', label: 'CVaR 99%', format: 'percent' as const },
+  { key: 'sortinoBear', label: 'Sortino Bear', format: 'number' as const },
+  { key: 'sortinoBull', label: 'Sortino Bull', format: 'number' as const },
+  { key: 'sharpeBear', label: 'Sharpe Bear', format: 'number' as const },
+  { key: 'sharpeBull', label: 'Sharpe Bull', format: 'number' as const },
+  { key: 'skewness', label: 'Skewness', format: 'number' as const },
+  { key: 'kurtosis', label: 'Kurtosis', format: 'number' as const },
+  { key: 'kelly', label: 'Kelly', format: 'percent' as const },
+  { key: 'alpha', label: 'Alpha', format: 'percent' as const },
+  { key: 'r2', label: 'R²', format: 'number' as const },
+  { key: 'trackingError', label: 'Tracking Error', format: 'percent' as const },
+  { key: 'infoRatio', label: 'Info Ratio', format: 'number' as const },
+  { key: 'bestYear', label: 'Best Year', format: 'percent' as const },
+  { key: 'worstYear', label: 'Worst Year', format: 'percent' as const },
+  { key: 'bestMonth', label: 'Best Month', format: 'percent' as const },
+  { key: 'worstMonth', label: 'Worst Month', format: 'percent' as const },
+  { key: 'upCapture', label: 'Up Capture', format: 'percent' as const },
+  { key: 'downCapture', label: 'Down Capture', format: 'percent' as const },
+  { key: 'positiveMonthsPct', label: 'Positive Months %', format: 'percent' as const },
+  { key: 'negativeMonthsPct', label: 'Negative Months %', format: 'percent' as const },
+];
+export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) {
+  const { t } = useTranslation();
+  return (
+    <div className="mt-4 border border-border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-caption">
+          <thead>
+            <tr className="bg-surface-sunken border-b border-border">
+              <th className="h-10 px-3 text-left text-label-tiny text-fg-tertiary sticky left-0 bg-surface-sunken z-10">
+                {t('results.extendedMetrics.portfolio')}
+              </th>
+              {EXTENDED_COLUMNS.map((col) => (
+                <th key={col.key} className="h-10 px-3 text-right text-label-tiny text-fg-tertiary">
+                  {col.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {portfolios.map((p) => (
+              <tr
+                key={p.id}
+                className="h-12 border-b border-border-subtle last:border-b-0 hover:bg-hover/50"
+              >
+                <td className="px-3 text-left sticky left-0 bg-surface z-10">{p.name}</td>
+                {EXTENDED_COLUMNS.map((col) => {
+                  const value = p.stats[col.key] ?? 0;
+                  return (
+                    <td
+                      key={col.key}
+                      className={cn(
+                        'px-3 text-right font-mono tabular-nums',
+                        col.format === 'percent' && value < 0 && 'text-neg',
+                        col.format === 'percent' && value > 0 && 'text-pos',
+                      )}
+                    >
+                      {col.format === 'percent' ? formatPercent(value) : formatNumber(value)}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+const HORIZON_LABELS = [
+  'stats.horizon10y',
+  'stats.horizon20y',
+  'stats.horizon30y',
+  'stats.horizon40y',
+] as const;
+const RATE_ROWS = [
+  {
+    labelKey: 'stats.swr',
+    descKey: 'stats.swrDesc',
+    keys: ['swr10y', 'swr20y', 'swr30y', 'swr40y'] as const,
+  },
+  {
+    labelKey: 'stats.pwr',
+    descKey: 'stats.pwrDesc',
+    keys: ['pwr10y', 'pwr20y', 'pwr30y', 'pwr40y'] as const,
+  },
+] as const;
+export interface WithdrawalRatesCardProps {
+  portfolios: PortfolioResult[];
+}
+function hasWithdrawalData(portfolios: PortfolioResult[]): boolean {
+  return portfolios.some((p) =>
+    RATE_ROWS.some((row) =>
+      row.keys.some((k) => {
+        const v = p.statistics[k];
+        return v != null && v !== 0;
+      }),
+    ),
+  );
+}
+export // eslint-disable-next-line max-lines-per-function -- 提现率卡片多区块渲染，内聚保留
+function WithdrawalRatesCard({ portfolios }: WithdrawalRatesCardProps) {
+  const { t } = useTranslation();
+  if (!hasWithdrawalData(portfolios)) return null;
+  const showName = portfolios.length > 1;
+  return (
+    <Card data-testid="withdrawal-rates-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-h3">
+          {t('components.statisticsTable.groups.withdrawalRate')}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {portfolios.map((p, idx) => {
+          const color = CHART_COLORS[idx % CHART_COLORS.length];
+          return (
+            <div key={p.name} className="space-y-2">
+              {showName && (
+                <div className="flex items-center gap-2 text-caption text-fg-secondary">
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: color }}
+                  />
+                  <span className="truncate">{p.name}</span>
+                </div>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-caption">
+                  <thead>
+                    <tr className="border-b border-border-subtle">
+                      <th className="h-9 pr-3 text-left text-label-tiny text-fg-tertiary" />
+                      {HORIZON_LABELS.map((label) => (
+                        <th
+                          key={label}
+                          className="h-9 px-2 text-right text-label-tiny text-fg-tertiary"
+                        >
+                          {t(label)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {RATE_ROWS.map((row) => (
+                      <tr
+                        key={row.labelKey}
+                        className="border-b border-border-subtle last:border-b-0"
+                      >
+                        <td className="py-2 pr-3 text-left">
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-fg-secondary">{t(row.labelKey)}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info
+                                  className="size-3 cursor-help text-fg-tertiary"
+                                  aria-label={t(row.descKey)}
+                                />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
+                                {t(row.descKey)}
+                              </TooltipContent>
+                            </Tooltip>
+                          </span>
+                        </td>
+                        {row.keys.map((k) => (
+                          <td
+                            key={k}
+                            data-testid={`withdrawal-rate-${k}`}
+                            className="px-2 py-2 text-right font-mono tabular-nums text-fg"
+                          >
+                            {fmtPct(p.statistics[k as keyof Statistics] as number)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }

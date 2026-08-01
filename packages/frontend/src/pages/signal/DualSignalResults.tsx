@@ -4,9 +4,9 @@ import type { TFunction } from 'i18next';
 import { fmtPct, fmtRatio } from '@/utils/format';
 import { CHART_COLORS } from '@backtest/shared';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
-import { CollapsibleSection } from '@/components/CollapsibleSection';
-import { SortableTable, type Column } from '../../components/SortableTable.js';
-import { SimpleTable, type SimpleTableColumn } from '../../components/SimpleTable.js';
+import { CollapsibleSection } from '@/components/cards';
+import { SortableTable, type Column } from '../../components/tables.js';
+import { SimpleTable, type SimpleTableColumn } from '../../components/tables.js';
 import {
   ResultsContainer,
   AnalysisErrorAlert,

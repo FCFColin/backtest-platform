@@ -4,10 +4,14 @@ import { scanTickersStats, getUniverseStats } from '../infrastructure/dataQuery.
 import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { jwtAuth } from '../middleware/jwtAuth.js';
-import { requirePermission, Permission } from '../middleware/rbac.js';
+import { z } from 'zod';
+import { sendProblem } from '../utils/errors.js';
+import { validateQuery } from '../middleware/miscMiddleware.js';
+import { adminMiddleware } from '../middleware/middlewareChains.js';
 import { listRuns, type BacktestRunRecord } from '../repositories/backtestRunRepo.js';
-import { crudRouteHandler } from './routeUtils.js';
+import { crudRouteHandler, requireUuidParam } from './routeUtils.js';
+import { queryAuditLogs, verifyAuditIntegrity } from '../application/auditStorageService.js';
+import { paginationQuerySchema } from '../schemas/analysisSchemas.js';
 
 const router = Router();
 
@@ -162,8 +166,7 @@ function formatUptime(uptimeSeconds: number): string {
 
 router.get(
   '/stats',
-  jwtAuth,
-  requirePermission(Permission.ADMIN_ACCESS),
+  ...adminMiddleware(),
   crudRouteHandler(
     async (req, res): Promise<void> => {
       // 并行检查服务健康（Go 引擎为唯一计算引擎，ADR-008）
@@ -210,8 +213,7 @@ router.get(
 
 router.get(
   '/system',
-  jwtAuth,
-  requirePermission(Permission.ADMIN_ACCESS),
+  ...adminMiddleware(),
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const system = collectSystemSnapshot();
@@ -257,6 +259,73 @@ router.get(
       logMsg: '[Admin System] 获取系统信息失败',
       code: 'ADMIN_SYSTEM_ERROR',
     },
+  ),
+);
+
+// ── 审计日志查询（P2-03 不可篡改审计存储，原 auditRoutes.ts 并入）──────────────
+
+const querySchema = z.object({
+  org_id: z.string().uuid().optional(),
+  event_type: z.string().trim().max(100).optional(),
+  user_id: z.string().uuid().optional(),
+  action: z
+    .enum(['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'READ', 'EXPORT', 'CONFIG'])
+    .optional(),
+  // 接受 ISO 8601 日期或日期时间，由 PostgreSQL 自动解析（created_at >= / <=）
+  start_date: z.string().min(1).optional(),
+  end_date: z.string().min(1).optional(),
+  ...paginationQuerySchema,
+});
+
+/** GET /api/v1/admin/audit-logs — 分页查询审计日志（支持 org_id/event_type/user_id/action/日期范围过滤） */
+router.get(
+  '/audit-logs',
+  ...adminMiddleware(),
+  validateQuery(querySchema),
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      // validateQuery 中间件已用 zod coerce 将 page/limit 转为 number，
+      // 但 Express 的 req.query 类型仍是 ParsedQs（string 值），
+      // 需经 unknown 中转才能赋值到 zod 推断出的强类型。
+      const q = req.query as unknown as z.infer<typeof querySchema>;
+      const result = await queryAuditLogs(
+        {
+          orgId: q.org_id,
+          eventType: q.event_type,
+          userId: q.user_id,
+          action: q.action,
+          startDate: q.start_date,
+          endDate: q.end_date,
+        },
+        q.page,
+        q.limit,
+      );
+      res.json({ success: true, data: result });
+    },
+    { logMsg: '[auditRoutes] 查询审计日志失败', code: 'AUDIT_LOG_QUERY_FAILED' },
+  ),
+);
+
+/**
+ * GET /api/v1/admin/audit-logs/:id/verify — HMAC 完整性校验（篡改检测）。
+ * 重算 payload 的 HMAC-SHA256 并与存储的 hmac_signature 比对，不匹配即表明被篡改。
+ */
+router.get(
+  '/audit-logs/:id/verify',
+  ...adminMiddleware(),
+  crudRouteHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      if (!requireUuidParam(res, req.params.id)) return;
+      const logId = req.params.id;
+      const result = await verifyAuditIntegrity(logId);
+      if (!result.valid && result.expected === '' && result.actual === '') {
+        // 日志不存在
+        sendProblem(res, 404, 'AUDIT_LOG_NOT_FOUND');
+        return;
+      }
+      res.json({ success: true, data: result });
+    },
+    { logMsg: '[auditRoutes] 校验审计完整性失败', code: 'AUDIT_LOG_VERIFY_FAILED' },
   ),
 );
 

@@ -1,7 +1,9 @@
 import { memo, useState, type ChangeEvent, type ReactNode } from 'react';
+import { forwardRef, useId } from 'react';
+import type { InputHTMLAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
-import { ChevronDown, ChevronRight, Info } from 'lucide-react';
+import { ChevronDown, Calendar } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
 import {
@@ -9,18 +11,210 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-  Card,
   Input,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from '@/components/ui/uiComponents';
-import { FloatingLabelInput } from '@/components/form/FloatingLabelInput.js';
-import { FloatingLabelSelect } from '@/components/form/FloatingLabelSelect.js';
-import { FloatingLabelDate } from '@/components/form/FloatingLabelDate.js';
 import { Field, FieldLabel } from '@/components/form/Field';
 import TickerInput from './TickerInput.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { CashflowLegsSection, OneTimeCashflowSection } from './BacktestParamsForm.CashflowLegs.js';
 import { cn } from '@/lib/utils';
 import type { TFunction } from 'i18next';
+interface FloatingLabelInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
+  label: string;
+  prefix?: ReactNode;
+  suffix?: ReactNode;
+  error?: string;
+  hint?: string;
+  containerClassName?: string;
+}
+export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInputProps>(
+  ({ label, prefix, suffix, error, hint, className, containerClassName, id, ...props }, ref) => {
+    const generatedId = useId();
+    const inputId = id ?? generatedId;
+    return (
+      <div className={cn('relative', containerClassName)}>
+        <div
+          className={cn(
+            'relative h-14 rounded-md border transition-colors duration-150 bg-input-bg',
+            error
+              ? 'border-danger focus-within:border-danger'
+              : 'border-border focus-within:border-brand',
+            'group',
+          )}
+        >
+          <label
+            htmlFor={inputId}
+            className={cn(
+              'absolute left-3 top-1.5 z-10 pointer-events-none',
+              'text-label-tiny text-fg-tertiary',
+              'transition-colors duration-150',
+              'group-focus-within:text-brand',
+            )}
+          >
+            {label}
+          </label>
+          {prefix && (
+            <span className="absolute left-3 bottom-2 text-body text-fg-tertiary pointer-events-none">
+              {prefix}
+            </span>
+          )}
+          <input
+            ref={ref}
+            id={inputId}
+            className={cn(
+              'w-full h-full pt-6 pb-2 bg-transparent',
+              'text-body text-fg font-mono tabular-nums',
+              'focus:outline-none placeholder:text-fg-tertiary',
+              prefix ? 'pl-7' : 'pl-3',
+              suffix ? 'pr-16' : 'pr-3',
+              className,
+            )}
+            {...props}
+          />
+          {suffix && (
+            <span className="absolute right-3 bottom-2 text-caption text-fg-tertiary pointer-events-none">
+              {suffix}
+            </span>
+          )}
+        </div>
+        {error && <p className="mt-1 text-caption text-danger">{error}</p>}
+        {!error && hint && <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>}
+      </div>
+    );
+  },
+);
+FloatingLabelInput.displayName = 'FloatingLabelInput';
+interface FloatingLabelDateProps extends InputHTMLAttributes<HTMLInputElement> {
+  label: string;
+  error?: string;
+  hint?: string;
+  containerClassName?: string;
+}
+export const FloatingLabelDate = forwardRef<HTMLInputElement, FloatingLabelDateProps>(
+  ({ label, error, hint, className, containerClassName, id, ...props }, ref) => {
+    const generatedId = useId();
+    const inputId = id ?? generatedId;
+    return (
+      <div className={cn('relative', containerClassName)}>
+        <div
+          className={cn(
+            'relative h-14 rounded-md border transition-colors duration-150 bg-input-bg',
+            error
+              ? 'border-danger focus-within:border-danger'
+              : 'border-border focus-within:border-brand',
+            'group',
+          )}
+        >
+          <label
+            htmlFor={inputId}
+            className={cn(
+              'absolute left-3 top-1.5 z-10 pointer-events-none',
+              'text-label-tiny text-fg-tertiary',
+              'transition-colors duration-150',
+              'group-focus-within:text-brand',
+            )}
+          >
+            {label}
+          </label>
+          <input
+            ref={ref}
+            id={inputId}
+            type="date"
+            className={cn(
+              'w-full h-full pt-6 pb-2 pl-3 pr-10 bg-transparent',
+              'text-body text-fg font-mono tabular-nums',
+              'focus:outline-none',
+              className,
+            )}
+            {...props}
+          />
+          <Calendar className="absolute right-3 bottom-2 h-4 w-4 text-fg-tertiary pointer-events-none" />
+        </div>
+        {error && <p className="mt-1 text-caption text-danger">{error}</p>}
+        {!error && hint && <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>}
+      </div>
+    );
+  },
+);
+FloatingLabelDate.displayName = 'FloatingLabelDate';
+interface FloatingLabelSelectProps {
+  label: string;
+  value?: string;
+  onValueChange?: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  error?: string;
+  hint?: string;
+  placeholder?: string;
+  containerClassName?: string;
+  disabled?: boolean;
+}
+export const FloatingLabelSelect = forwardRef<HTMLButtonElement, FloatingLabelSelectProps>(
+  (
+    {
+      label,
+      value,
+      onValueChange,
+      options,
+      error,
+      hint,
+      placeholder,
+      containerClassName,
+      disabled,
+    },
+    ref,
+  ) => {
+    const inputId = useId();
+    return (
+      <div className={cn('relative', containerClassName)}>
+        <div
+          className={cn(
+            'relative h-14 rounded-md border transition-colors duration-150',
+            'bg-input-bg',
+            error ? 'border-danger' : 'border-border hover:border-border-strong',
+            'group',
+          )}
+        >
+          <label
+            htmlFor={inputId}
+            className="absolute left-3 top-1.5 z-10 pointer-events-none text-label-tiny text-fg-tertiary"
+          >
+            {label}
+          </label>
+          <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+            <SelectTrigger
+              ref={ref}
+              id={inputId}
+              className={cn(
+                'w-full h-full pt-6 pb-2 px-3 pr-9',
+                'flex items-center justify-between',
+                'text-body text-fg text-left',
+                'border-0 bg-transparent focus:outline-none focus:ring-0',
+                '[&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100',
+              )}
+            >
+              <SelectValue placeholder={placeholder} />
+            </SelectTrigger>
+            <SelectContent position="popper" sideOffset={4}>
+              {options.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {error && <p className="mt-1 text-caption text-danger">{error}</p>}
+        {!error && hint && <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>}
+      </div>
+    );
+  },
+);
+FloatingLabelSelect.displayName = 'FloatingLabelSelect';
 export interface TFunctionProp {
   t: TFunction;
 }
@@ -36,61 +230,6 @@ function validateDateChange(
   if (field === 'startDate' && otherDate && value > otherDate) return t('params.startDateAfterEnd');
   if (field === 'endDate' && otherDate && value < otherDate) return t('params.endDateBeforeStart');
   return null;
-}
-interface ParamsSectionProps {
-  title?: string;
-  info?: string;
-  children: ReactNode;
-  defaultOpen?: boolean;
-  plain?: boolean;
-}
-export function ParamsSection({
-  title,
-  info,
-  children,
-  defaultOpen = true,
-  plain = false,
-}: ParamsSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div className={cn(!plain && 'border-b border-border-subtle')}>
-      {title && (
-        <div
-          className="flex items-center justify-between cursor-pointer py-2 px-2 select-none"
-          onClick={() => setOpen(!open)}
-        >
-          <div className="flex items-center gap-1.5">
-            {open ? (
-              <ChevronDown className="size-3.5 text-fg-tertiary" />
-            ) : (
-              <ChevronRight className="size-3.5 text-fg-tertiary" />
-            )}
-            <span
-              className={cn(
-                plain
-                  ? 'text-label font-medium text-fg-tertiary'
-                  : 'text-body font-semibold text-fg',
-              )}
-            >
-              {title}
-            </span>
-          </div>
-          {info && (
-            <div className="relative inline-flex group" onClick={(e) => e.stopPropagation()}>
-              <Info className="size-3.5 cursor-help text-fg-tertiary" />
-              <div className="absolute right-0 top-6 hidden group-hover:block z-10 w-60 rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
-                {info}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-      {open && <div className={cn('px-2', plain ? 'pb-2' : 'pb-4')}>{children}</div>}
-    </div>
-  );
-}
-export function ParamsPanel({ children }: { children: ReactNode }) {
-  return <Card className="flex flex-col p-2">{children}</Card>;
 }
 type BasicParamsField =
   'startDate' | 'endDate' | 'startingValue' | 'baseCurrency' | 'adjustForInflation';

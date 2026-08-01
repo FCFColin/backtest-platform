@@ -86,7 +86,6 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => {
   return { logger: mocks.logger };
 });
 import authRoutes from '../../../packages/backend/src/routes/authRoutes.js';
-import authRegistrationRoutes from '../../../packages/backend/src/routes/authRegistrationRoutes.js';
 type VFn = ReturnType<typeof vi.fn>;
 const fn = (m: Record<string, unknown>, k: string): VFn => m[k] as VFn;
 const JH = { 'Content-Type': 'application/json' };
@@ -391,7 +390,7 @@ describe('authRegistrationRoutes', () => {
     fn(mocks.registration, 'verifyEmailToken').mockResolvedValue('user-uuid-123');
     fn(mocks.registration, 'sendVerificationEmail').mockResolvedValue(undefined);
     injectUser('user-123', 'admin', { iat: 1, exp: 9999999999 });
-    server = await startExpressApp((app) => app.use('/api/v1/auth', authRegistrationRoutes));
+    server = await startExpressApp((app) => app.use('/api/v1/auth', authRoutes));
   });
   afterEach(() => server.close());
   const regUrl = (p: string) => `${server.url}/api/v1/auth/${p}`;

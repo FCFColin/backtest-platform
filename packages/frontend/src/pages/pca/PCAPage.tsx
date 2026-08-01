@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import {
@@ -18,8 +18,12 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { PCAResult } from '@backtest/shared';
 import { Card } from '@/components/ui/uiComponents';
 import { buttonVariants } from '@/components/ui/uiComponents';
-import { CollapsibleSection } from '@/components/CollapsibleSection.js';
+import { CollapsibleSection } from '@/components/cards.js';
 import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';
+import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
+import { apiPostJSON } from '@/utils/apiClient';
+import i18n from '../../i18n/index.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import {
   AXIS_TICK_STYLE,
   CHART_GRID_PROPS,
@@ -28,13 +32,64 @@ import {
   pickByThreshold,
   type ThresholdBand,
 } from '@/lib/chart-theme.js';
+function usePcaPageState() {
+  const { t } = useTranslation();
+  const {
+    items: tickers,
+    addItem: addTicker,
+    removeItem: removeTicker,
+    updateItem,
+  } = useListState<string>(['SPY', 'TLT', 'GLD', 'QQQ'], () => '', 1);
+  const updateTicker = (idx: number, val: string) => updateItem(idx, () => val);
+  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
+  const [numComponents, setNumComponents] = useState<number | ''>('');
+  const {
+    isLoading,
+    error,
+    results,
+    runCompute: runAnalysis,
+  } = useComputeTool<PCAResult>(
+    async () => {
+      const validTickers = tickers.map((tk) => tk.trim()).filter(Boolean);
+      return apiPostJSON<PCAResult>(
+        '/api/v1/pca/analyze',
+        {
+          tickers: validTickers,
+          startDate,
+          endDate,
+          numComponents: numComponents === '' ? undefined : numComponents,
+        },
+        i18n.t('pca.errAnalyze'),
+      );
+    },
+    () =>
+      tickers.map((tk) => tk.trim()).filter(Boolean).length >= 2 ? null : t('pca.errMinTwoTickers'),
+  );
+  return {
+    tickers,
+    startDate,
+    endDate,
+    numComponents,
+    isLoading,
+    error,
+    results,
+    addTicker,
+    removeTicker,
+    updateTicker,
+    setStartDate,
+    setEndDate,
+    setNumComponents,
+    runAnalysis,
+  };
+}
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
 import { Input } from '@/components/ui/uiComponents';
 import { LoadingButton } from '../../components/ui/uiComponents.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
-import { usePcaPageState } from './usePcaPageState.js';
+
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 const LOADING_COLOR_BANDS: ReadonlyArray<ThresholdBand> = [
   { threshold: 0.8, value: '#1a7a3a' },

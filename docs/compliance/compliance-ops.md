@@ -1,7 +1,5 @@
 # 合规运营（等保三级 8.1.5.4 供应链 + 8.1.5.5 人员管理）
 
-> 合并自: third-party-management + user-training + README
-
 ## 第三方供应商管理
 
 | 供应商                   | 服务            | 凭证管理                      |

@@ -1,12 +1,39 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { encodeState, decodeState, readStateFromURL, writeStateToURL, clearStateFromURL, type ShareableState } from '../../../packages/frontend/src/utils/urlState.js';
+import {
+  encodeState,
+  decodeState,
+  readStateFromURL,
+  writeStateToURL,
+  clearStateFromURL,
+  type ShareableState,
+} from '../../../packages/frontend/src/utils/portfolioStorage.js';
 
 const validState: ShareableState = {
-  portfolios: [{ id: 'p1', name: 'Test Portfolio', assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }], rebalanceFrequency: 'quarterly' }],
-  parameters: { startDate: '2010-01-01', endDate: '2024-12-31', startingValue: 10000, adjustForInflation: false, rollingWindowMonths: 12, benchmarkTicker: 'SPY' },
+  portfolios: [
+    {
+      id: 'p1',
+      name: 'Test Portfolio',
+      assets: [
+        { ticker: 'VTI', weight: 60 },
+        { ticker: 'BND', weight: 40 },
+      ],
+      rebalanceFrequency: 'quarterly',
+    },
+  ],
+  parameters: {
+    startDate: '2010-01-01',
+    endDate: '2024-12-31',
+    startingValue: 10000,
+    adjustForInflation: false,
+    rollingWindowMonths: 12,
+    benchmarkTicker: 'SPY',
+  },
 };
 
-const mockWindow = { location: { href: 'https://example.com/', search: '' }, history: { replaceState: vi.fn() } };
+const mockWindow = {
+  location: { href: 'https://example.com/', search: '' },
+  history: { replaceState: vi.fn() },
+};
 
 beforeEach(() => {
   vi.stubGlobal('window', mockWindow);
@@ -16,8 +43,15 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-function makeState(name: string, ticker: string, params?: Partial<typeof validState.parameters>): ShareableState {
-  return { portfolios: [{ id: 'p1', name, assets: [{ ticker, weight: 100 }], rebalanceFrequency: 'none' }], parameters: { ...validState.parameters, ...params } };
+function makeState(
+  name: string,
+  ticker: string,
+  params?: Partial<typeof validState.parameters>,
+): ShareableState {
+  return {
+    portfolios: [{ id: 'p1', name, assets: [{ ticker, weight: 100 }], rebalanceFrequency: 'none' }],
+    parameters: { ...validState.parameters, ...params },
+  };
 }
 
 function encodeInvalid(state: unknown): string {
@@ -25,18 +59,34 @@ function encodeInvalid(state: unknown): string {
 }
 
 describe('encodeState / decodeState - 往返', () => {
-  it('encode → decode 应保持状态一致', () => { const encoded = encodeState(validState); expect(decodeState(encoded)).toEqual(validState); });
-  it('多次 encode 同一状态应得到相同结果（确定性）', () => { expect(encodeState(validState)).toBe(encodeState(validState)); });
+  it('encode → decode 应保持状态一致', () => {
+    const encoded = encodeState(validState);
+    expect(decodeState(encoded)).toEqual(validState);
+  });
+  it('多次 encode 同一状态应得到相同结果（确定性）', () => {
+    expect(encodeState(validState)).toBe(encodeState(validState));
+  });
   it('不同状态应产生不同编码', () => {
     const e1 = encodeState(validState);
-    const e2 = encodeState({ ...validState, parameters: { ...validState.parameters, startingValue: 20000 } });
+    const e2 = encodeState({
+      ...validState,
+      parameters: { ...validState.parameters, startingValue: 20000 },
+    });
     expect(e1).not.toBe(e2);
   });
 });
 
 describe('encodeState', () => {
-  it('返回非空字符串', () => { const encoded = encodeState(validState); expect(typeof encoded).toBe('string'); expect(encoded.length).toBeGreaterThan(0); });
-  it('输出是 base64url 格式（无 +, /, =）', () => { const encoded = encodeState(validState); expect(encoded).not.toMatch(/[+/=]/); expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/); });
+  it('返回非空字符串', () => {
+    const encoded = encodeState(validState);
+    expect(typeof encoded).toBe('string');
+    expect(encoded.length).toBeGreaterThan(0);
+  });
+  it('输出是 base64url 格式（无 +, /, =）', () => {
+    const encoded = encodeState(validState);
+    expect(encoded).not.toMatch(/[+/=]/);
+    expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
+  });
   it('包含中文的状态也能正确编码', () => {
     const state = makeState('我的组合', 'VTI');
     const decoded = decodeState(encodeState(state));
@@ -46,10 +96,17 @@ describe('encodeState', () => {
 });
 
 describe('decodeState', () => {
-  it('空字符串返回 null', () => { expect(decodeState('')).toBeNull(); });
-  it('无效 base64 返回 null', () => { expect(decodeState('!!!invalid!!!')).toBeNull(); });
+  it('空字符串返回 null', () => {
+    expect(decodeState('')).toBeNull();
+  });
+  it('无效 base64 返回 null', () => {
+    expect(decodeState('!!!invalid!!!')).toBeNull();
+  });
   it('非 JSON 字符串返回 null', () => {
-    const notJson = btoa('not a json string').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const notJson = btoa('not a json string')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
     expect(decodeState(notJson)).toBeNull();
   });
   it.each([
@@ -58,15 +115,41 @@ describe('decodeState', () => {
     ['portfolios 缺失', { parameters: validState.parameters }],
     ['parameters 缺失', { portfolios: validState.portfolios }],
     ['parameters 不是对象', { portfolios: validState.portfolios, parameters: 'not-object' }],
-    ['portfolio 的 assets 为空数组', { portfolios: [{ id: 'p1', name: 'Empty', assets: [], rebalanceFrequency: 'none' }], parameters: validState.parameters }],
-    ['portfolio 的 assets 不是数组', { portfolios: [{ id: 'p1', name: 'Bad', assets: 'not-array', rebalanceFrequency: 'none' }], parameters: validState.parameters }],
-  ])('%s 返回 null', (_n, state) => { expect(decodeState(encodeInvalid(state))).toBeNull(); });
+    [
+      'portfolio 的 assets 为空数组',
+      {
+        portfolios: [{ id: 'p1', name: 'Empty', assets: [], rebalanceFrequency: 'none' }],
+        parameters: validState.parameters,
+      },
+    ],
+    [
+      'portfolio 的 assets 不是数组',
+      {
+        portfolios: [{ id: 'p1', name: 'Bad', assets: 'not-array', rebalanceFrequency: 'none' }],
+        parameters: validState.parameters,
+      },
+    ],
+  ])('%s 返回 null', (_n, state) => {
+    expect(decodeState(encodeInvalid(state))).toBeNull();
+  });
 });
 
 describe('readStateFromURL', () => {
-  it('URL 无 ?d= 参数返回 null', () => { mockWindow.location.search = ''; expect(readStateFromURL()).toBeNull(); });
-  it('URL 有 ?d= 参数返回解码状态', () => { mockWindow.location.search = `?d=${encodeState(validState)}`; expect(readStateFromURL()).toEqual(validState); });
-  it.each([['无效', '?d=invalid-base64!!!'], ['空', '?d=']])('URL 有%s ?d= 参数返回 null', (_n, search) => { mockWindow.location.search = search; expect(readStateFromURL()).toBeNull(); });
+  it('URL 无 ?d= 参数返回 null', () => {
+    mockWindow.location.search = '';
+    expect(readStateFromURL()).toBeNull();
+  });
+  it('URL 有 ?d= 参数返回解码状态', () => {
+    mockWindow.location.search = `?d=${encodeState(validState)}`;
+    expect(readStateFromURL()).toEqual(validState);
+  });
+  it.each([
+    ['无效', '?d=invalid-base64!!!'],
+    ['空', '?d='],
+  ])('URL 有%s ?d= 参数返回 null', (_n, search) => {
+    mockWindow.location.search = search;
+    expect(readStateFromURL()).toBeNull();
+  });
 });
 
 describe('writeStateToURL', () => {
@@ -98,7 +181,10 @@ describe('clearStateFromURL', () => {
     expect(url).not.toContain('?d=');
     expect(url).not.toContain('&d=');
   });
-  it('URL 无 ?d= 参数时也不抛错', () => { mockWindow.location.href = 'https://example.com/'; expect(() => clearStateFromURL()).not.toThrow(); });
+  it('URL 无 ?d= 参数时也不抛错', () => {
+    mockWindow.location.href = 'https://example.com/';
+    expect(() => clearStateFromURL()).not.toThrow();
+  });
 });
 
 describe('特殊字符处理', () => {
@@ -114,9 +200,30 @@ describe('特殊字符处理', () => {
   it('多组合状态能正确往返', () => {
     const state: ShareableState = {
       portfolios: [
-        { id: 'p1', name: 'Portfolio 1', assets: [{ ticker: 'VTI', weight: 60 }, { ticker: 'BND', weight: 40 }], rebalanceFrequency: 'quarterly' },
-        { id: 'p2', name: 'Portfolio 2', assets: [{ ticker: 'SPY', weight: 100 }], rebalanceFrequency: 'none' },
-        { id: 'p3', name: 'Portfolio 3', assets: [{ ticker: 'QQQ', weight: 50 }, { ticker: 'GLD', weight: 50 }], rebalanceFrequency: 'monthly' },
+        {
+          id: 'p1',
+          name: 'Portfolio 1',
+          assets: [
+            { ticker: 'VTI', weight: 60 },
+            { ticker: 'BND', weight: 40 },
+          ],
+          rebalanceFrequency: 'quarterly',
+        },
+        {
+          id: 'p2',
+          name: 'Portfolio 2',
+          assets: [{ ticker: 'SPY', weight: 100 }],
+          rebalanceFrequency: 'none',
+        },
+        {
+          id: 'p3',
+          name: 'Portfolio 3',
+          assets: [
+            { ticker: 'QQQ', weight: 50 },
+            { ticker: 'GLD', weight: 50 },
+          ],
+          rebalanceFrequency: 'monthly',
+        },
       ],
       parameters: validState.parameters,
     };

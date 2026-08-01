@@ -278,7 +278,7 @@ describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
   });
 });
 
-import signalRoutes from '../../../packages/backend/src/routes/signalRoutes.js';
+import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
 
 function createSignalConfig(ticker = 'SPY') {
   return {
@@ -309,7 +309,7 @@ async function apiPost(url: string, body: unknown) {
 
 describe.each([
   {
-    path: '/api/signal/analyze',
+    path: '/api/v1/signal/analyze',
     data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
     engineResult: mockSignalResult,
     validReq: () => createSignalConfig(),
@@ -326,7 +326,7 @@ describe.each([
     ],
   },
   {
-    path: '/api/signal/dual',
+    path: '/api/v1/signal/dual',
     data: { SPY: { '2020-01-01': 300.0 }, QQQ: { '2020-01-01': 200.0 } },
     engineResult: { ...mockSignalResult, equityCurve: [] },
     validReq: () => ({
@@ -342,7 +342,7 @@ describe.each([
     ],
   },
   {
-    path: '/api/signal/multi',
+    path: '/api/v1/signal/multi',
     data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
     engineResult: { ...mockSignalResult, equityCurve: [] },
     validReq: () => ({
@@ -363,7 +363,7 @@ describe.each([
     vi.clearAllMocks();
     m.fetchHistoryData.mockResolvedValue({ data: c.data, degraded: false });
     m.callEngineStrict.mockResolvedValue(c.engineResult);
-    server = await startExpressApp((app) => app.use('/api/signal', signalRoutes));
+    server = await startExpressApp((app) => app.use('/api/v1', analysisRoutes));
   });
   afterEach(() => server.close());
 

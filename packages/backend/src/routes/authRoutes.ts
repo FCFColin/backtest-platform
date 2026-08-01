@@ -1,8 +1,9 @@
 /**
- * 认证路由（T-P1-8.3）：JWT 登录/刷新/登出/用户信息/组织切换。
- * 注册与邮箱验证路由见 authRegistrationRoutes.ts。
+ * 认证路由（T-P1-8.3）：JWT 登录/刷新/登出/用户信息/组织切换 +
+ * 注册与邮箱验证（ADR-035，原 authRegistrationRoutes.ts 并入）。
  */
 import { Router, type Request, type Response } from 'express';
+import { randomBytes } from 'node:crypto';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { asyncRouteHandler } from './routeUtils.js';
@@ -20,9 +21,21 @@ import {
 } from '../middleware/jwtAuth.js';
 import { hashUserId, requireUser } from '../middleware/jwtAuth.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { loginPasswordSchema, switchOrgSchema } from '../schemas/tactical.js';
-import registrationRoutes from './authRegistrationRoutes.js';
-import { verifyUser } from '../application/auth/userService.js';
+import {
+  loginPasswordSchema,
+  switchOrgSchema,
+  registerSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+} from '../schemas/tactical.js';
+import {
+  verifyUser,
+  issueEmailVerificationToken,
+  verifyEmailToken,
+} from '../application/auth/userService.js';
+import { createUserTx, getUserByEmail } from '../repositories/userRepo.js';
+import { getClient } from '../db/pool.js';
+import { sendVerificationEmail } from '../infrastructure/mailService.js';
 import {
   isLockedOut,
   recordFailure,
@@ -61,6 +74,18 @@ function orgSummary(m: Membership): Record<string, unknown> {
     status: m.orgStatus,
     role: m.role,
   };
+}
+
+/** 由名称生成 URL 友好且唯一的 org slug（追加随机后缀避免碰撞）。 */
+function slugify(name: string): string {
+  const base =
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60) || 'org';
+  return `${base}-${randomBytes(3).toString('hex')}`;
 }
 
 // P0-1 BFF：Refresh Token httpOnly Cookie（防 XSS/CSRF，path 收敛到 /api/v1/auth）
@@ -154,7 +179,95 @@ router.post(
   ),
 );
 
-router.use(registrationRoutes);
+/** POST /api/v1/auth/register — 自助注册（ADR-035）：单事务创建 用户+组织+owner 成员关系，随后签发邮箱验证令牌并发送邮件（失败不阻塞注册）。 */
+router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
+  const { username, password, email, orgName } = req.body;
+
+  // 预检邮箱占用（最终唯一性仍由 DB 唯一索引兜底）
+  const existing = await getUserByEmail(email);
+  if (existing) {
+    sendProblem(res, 409, 'EMAIL_TAKEN');
+    return;
+  }
+
+  const client = await getClient();
+  let userId = '';
+  try {
+    await client.query('BEGIN');
+    const user = await createUserTx(client, username, password, email, 'admin');
+    userId = user.id;
+    const slug = slugify(orgName);
+    const orgRes = await client.query(
+      `INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id`,
+      [orgName, slug],
+    );
+    const orgId = orgRes.rows[0].id as string;
+    await client.query(`INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, 'owner')`, [
+      orgId,
+      userId,
+    ]);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    const msg = String(err);
+    // 唯一约束冲突（用户名/邮箱/slug）
+    if (msg.includes('duplicate key') || msg.includes('unique')) {
+      sendProblem(res, 409, 'ACCOUNT_CONFLICT');
+      return;
+    }
+    logger.error({ err: msg }, '[auth] 注册失败');
+    sendProblem(res, 500, 'REGISTER_FAILED');
+    return;
+  } finally {
+    client.release();
+  }
+
+  // 事务外发送验证邮件（失败不影响注册成功，用户可重发）
+  try {
+    const token = await issueEmailVerificationToken(userId);
+    await sendVerificationEmail(email, token);
+  } catch (err) {
+    logger.warn({ err: String(err), userId }, '[auth] 验证邮件发送失败（可稍后重发）');
+  }
+
+  logger.info({ userId }, '[auth] 注册成功');
+  res.status(201).json({
+    success: true,
+    data: { userId, message: '注册成功，请查收验证邮件以完成邮箱验证' },
+  });
+});
+
+/** POST /api/v1/auth/verify-email — 校验邮箱验证令牌（ADR-035） */
+router.post('/verify-email', validate(verifyEmailSchema), async (req: Request, res: Response) => {
+  const { token } = req.body;
+  const userId = await verifyEmailToken(token);
+  if (!userId) {
+    sendProblem(res, 400, 'INVALID_OR_EXPIRED_TOKEN');
+    return;
+  }
+  res.json({ success: true, data: { userId, verified: true } });
+});
+
+/** POST /api/v1/auth/resend-verification — 重发验证邮件（需登录；不泄露邮箱是否存在/有效，统一返回成功） */
+router.post(
+  '/resend-verification',
+  jwtAuth,
+  validate(resendVerificationSchema),
+  async (req: AuthenticatedRequest, res: Response) => {
+    if (!requireUser(req, res)) return;
+    const { email } = req.body;
+    try {
+      const token = await issueEmailVerificationToken(req.user.sub);
+      await sendVerificationEmail(email, token);
+    } catch (err) {
+      logger.warn(
+        { err: String(err), userId: hashUserId(req.user.sub) },
+        '[auth] 重发验证邮件失败',
+      );
+    }
+    res.json({ success: true, data: { message: '若邮箱有效，验证邮件已发送' } });
+  },
+);
 
 /** POST /api/v1/auth/refresh — RT 从 httpOnly Cookie 读取，轮换后写回，旧 RT 失效。 */
 router.post(

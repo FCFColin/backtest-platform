@@ -29,6 +29,10 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 
 vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
   jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
+  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
+  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
   AuthenticatedRequest: Object,
 }));
 
@@ -43,9 +47,25 @@ const apiKeyServiceMocks = vi.hoisted(() => ({
   createApiKey: vi.fn(),
   listApiKeys: vi.fn(),
   revokeApiKey: vi.fn(),
+  rotatePlatformAdminKey: vi.fn(),
+  revokePlatformAdminKey: vi.fn(),
+  listPlatformAdminKeys: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => apiKeyServiceMocks);
+vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({
+  ...apiKeyServiceMocks,
+  PLATFORM_ADMIN_KEY_MAX_TTL_DAYS: 90,
+}));
+
+vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => ({
+  markApiKeyRevoked: vi.fn(),
+}));
+
+vi.mock('../../../packages/backend/src/utils/metrics.js', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../packages/backend/src/utils/metrics.js')>();
+  return { ...actual, recordAuthFailure: vi.fn(), getRoutePattern: () => 'route' };
+});
 
 import adminRoutes from '../../../packages/backend/src/routes/adminRoutes.js';
 import apiKeyRoutes from '../../../packages/backend/src/routes/apiKeyRoutes.js';
@@ -222,7 +242,7 @@ describe('apiKeyRoutes', () => {
         req.user = { sub: 'user-1', role: 'admin', tenant_id: ORG, org_role: 'admin' };
         next();
       });
-      app.use('/api/v1/keys', apiKeyRoutes);
+      app.use('/api/v1', apiKeyRoutes);
     });
   });
 

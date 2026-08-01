@@ -5,11 +5,50 @@ import { ComputeToolShell, type ComputeToolConfig } from '../../components/shell
 import BacktestParamsForm from '@/components/BacktestParamsForm.js';
 import PortfolioEditor from '@/components/PortfolioEditor.js';
 import { useBacktestStore } from '@/store/backtestStore';
+import type { TFunction } from 'i18next';
+import type { BacktestParameters, Portfolio } from '@backtest/shared';
 import type { SavedPortfolio } from '@/utils/portfolioStorage';
 import { useBacktestPageState } from './hooks/useBacktestPageState.js';
 import { ResultsContent } from './BacktestResults.js';
 import { BacktestHero } from './BacktestHero.js';
-import type { BacktestToolbarProps } from './BacktestPage.types.js';
+export interface BacktestPageState {
+  t: TFunction;
+  seoProps: {
+    desc: string;
+    features: { title: string; desc: string }[];
+    related: { title: string; href: string }[];
+    relatedLabel: string;
+  };
+  runBacktest: () => void;
+  parameters: BacktestParameters;
+  portfolios: Portfolio[];
+  showSaveInput: boolean;
+  setShowSaveInput: (v: boolean) => void;
+  configName: string;
+  setConfigName: (v: string) => void;
+  showLoadList: boolean;
+  savedConfigs: SavedPortfolio[];
+  handleSaveConfig: () => Promise<void>;
+  handleOpenLoadList: () => Promise<void>;
+  handleLoadConfig: (config: SavedPortfolio) => void;
+  handleDeleteConfig: (id: string) => Promise<void>;
+  handleShareLink: () => Promise<void>;
+}
+type BacktestToolbarProps = Pick<
+  BacktestPageState,
+  | 'runBacktest'
+  | 'showSaveInput'
+  | 'setShowSaveInput'
+  | 'configName'
+  | 'setConfigName'
+  | 'handleSaveConfig'
+  | 'showLoadList'
+  | 'handleOpenLoadList'
+  | 'savedConfigs'
+  | 'handleLoadConfig'
+  | 'handleDeleteConfig'
+  | 'handleShareLink'
+>;
 type BacktestState = ReturnType<typeof useBacktestPageState>;
 type TFunc = (k: string) => string;
 function SaveInputRow({

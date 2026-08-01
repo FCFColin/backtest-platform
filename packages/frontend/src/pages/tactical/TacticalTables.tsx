@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/uiComponents';
 import { Button } from '@/components/ui/uiComponents';
 import { Input } from '@/components/ui/uiComponents';
 import { EmptyState } from '@/components/stateDisplay';
-import { SortableTable, type Column } from '@/components/SortableTable';
+import { SortableTable, type Column } from '@/components/tables';
 import { useAsyncAction } from '@/hooks/miscHooks';
 import { apiPostJSON } from '@/utils/apiClient';
 import { fmtPrice, whatIfSignalColor, whatIfSignalLabel } from './tacticalResultUtils';

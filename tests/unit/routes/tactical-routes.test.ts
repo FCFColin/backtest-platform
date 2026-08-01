@@ -33,20 +33,38 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ NODE_ENV: 'test', SYNC_COMPUTE_TIMEOUT_MS: 500 }),
   validateConfig: vi.fn(),
+  USAGE_METRIC: { BACKTEST: 'backtest' },
 }));
-vi.mock('../../../packages/backend/src/middleware/auth.js', () => ({
+vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
   jwtAuth: (_r: unknown, _s: unknown, next: () => void) => next(),
+  optionalJwtAuth: (_r: unknown, _s: unknown, next: () => void) => next(),
+  assignGuestReadonly: (_r: unknown, _s: unknown, next: () => void) => next(),
+  auditLog: (_r: unknown, _s: unknown, next: () => void) => next(),
+  idempotencyKey: (_r: unknown, _s: unknown, next: () => void) => next(),
+}));
+vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
+  resolveTenant: (_r: unknown, _s: unknown, next: () => void) => next(),
+  requireTenant: (_r: unknown, _s: unknown, next: () => void) => next(),
+  hasTenant: vi.fn(() => true),
 }));
 vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
   requirePermission: () => (_r: unknown, _s: unknown, next: () => void) => next(),
-  Permission: { STRATEGY_MANAGE: 'strategy:manage' },
+  Permission: {
+    BACKTEST_RUN: 'backtest:run',
+    STRATEGY_MANAGE: 'strategy:manage',
+    SIGNAL_READ: 'signal:read',
+    OPTIMIZER_RUN: 'optimizer:run',
+  },
+}));
+vi.mock('../../../packages/backend/src/middleware/quota.js', () => ({
+  enforceQuota: () => (_r: unknown, _s: unknown, next: () => void) => next(),
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
   sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
 }));
 
-import tacticalRoutes from '../../../packages/backend/src/routes/tacticalRoutes.js';
+import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
 
 function createValidStrategy() {
   return {
@@ -124,14 +142,14 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
         ],
       })
       .mockResolvedValueOnce({ portfolios: [createMockPortfolioResult()] });
-    server = await startExpressApp((app) => app.use('/api/tactical', tacticalRoutes));
+    server = await startExpressApp((app) => app.use('/api/v1', analysisRoutes));
   });
   afterEach(async () => {
     await server.close();
   });
 
   it('有效参数应返回回测结果和基准', async () => {
-    const { res, body } = await postJson(server, '/api/tactical/backtest', validBacktestReq());
+    const { res, body } = await postJson(server, '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.portfolio).toBeDefined();
@@ -141,7 +159,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
   });
   it('无效标的数据应返回 404', async () => {
     dataServiceMocks.fetchHistoryData.mockResolvedValue({ data: {}, degraded: false });
-    const { res, body } = await postJson(server, '/api/tactical/backtest', validBacktestReq());
+    const { res, body } = await postJson(server, '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(404);
     expect(body.error.code).toBe('DATA_NOT_FOUND');
   });
@@ -157,14 +175,14 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
     ],
     ['空 signals 数组', validBacktestReq({ ...createValidStrategy(), signals: [] })],
   ])('%s 应返回 400（zod 校验失败）', async (_n, req) => {
-    const { res } = await postJson(server, '/api/tactical/backtest', req);
+    const { res } = await postJson(server, '/api/v1/tactical/backtest', req);
     expect(res.status).toBe(400);
   });
   it('引擎抛错时应返回 500', async () => {
     engineMocks.callEngineStrict
       .mockReset()
       .mockRejectedValueOnce(new Error('tactical engine error'));
-    const { res } = await postJson(server, '/api/tactical/backtest', validBacktestReq());
+    const { res } = await postJson(server, '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(500);
   });
   it('基准回测失败时应使用空结果兜底', async () => {
@@ -181,7 +199,7 @@ describe('tacticalRoutes - POST /api/tactical/backtest', () => {
         ],
       })
       .mockRejectedValueOnce(new Error('benchmark error'));
-    const { res, body } = await postJson(server, '/api/tactical/backtest', validBacktestReq());
+    const { res, body } = await postJson(server, '/api/v1/tactical/backtest', validBacktestReq());
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.data.benchmark.growthCurve).toEqual([]);
@@ -201,14 +219,14 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
         { date: '2020-01-03', activeSignals: ['sig-1'], weights: [{ ticker: 'SPY', weight: 100 }] },
       ],
     });
-    server = await startExpressApp((app) => app.use('/api/tactical', tacticalRoutes));
+    server = await startExpressApp((app) => app.use('/api/v1', analysisRoutes));
   });
   afterEach(async () => {
     await server.close();
   });
 
   it('有效参数应返回信号状态', async () => {
-    const { res, body } = await postJson(server, '/api/tactical/what-if', {
+    const { res, body } = await postJson(server, '/api/v1/tactical/what-if', {
       tickers: ['SPY'],
       strategy: createValidStrategy(),
     });
@@ -218,12 +236,12 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
     expect(body.data[0].weight).toBe(100);
   });
   it('空 tickers 数组应返回 400（zod 校验失败）', async () => {
-    const { res } = await postJson(server, '/api/tactical/what-if', { tickers: [] });
+    const { res } = await postJson(server, '/api/v1/tactical/what-if', { tickers: [] });
     expect(res.status).toBe(400);
   });
   it('引擎抛错时应返回 500', async () => {
     engineMocks.callEngineStrict.mockRejectedValueOnce(new Error('what-if error'));
-    const { res } = await postJson(server, '/api/tactical/what-if', {
+    const { res } = await postJson(server, '/api/v1/tactical/what-if', {
       tickers: ['SPY'],
       strategy: createValidStrategy(),
     });
@@ -231,7 +249,7 @@ describe('tacticalRoutes - POST /api/tactical/what-if', () => {
   });
 });
 
-import tacticalGridRoutes from '../../../packages/backend/src/routes/tacticalGridRoutes.js';
+import { jobRoutes } from '../../../packages/backend/src/routes/jobRoutes.js';
 
 function createValidGridRequest() {
   return {
@@ -269,13 +287,13 @@ describe('tacticalGridRoutes - POST /api/tactical-grid/search', () => {
       degraded: false,
     });
     engineMocks.callEngineStrict.mockResolvedValue(mockGridResult);
-    server = await startExpressApp((app) => app.use('/api/tactical-grid', tacticalGridRoutes));
+    server = await startExpressApp((app) => app.use('/api/v1', jobRoutes));
   });
   afterEach(async () => {
     await server.close();
   });
   async function postGrid(body: unknown) {
-    const res = await fetch(`${server.url}/api/tactical-grid/search`, {
+    const res = await fetch(`${server.url}/api/v1/tactical-grid/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -368,14 +386,14 @@ describe('认证用户请求', () => {
         (req as Record<string, unknown>).tenantId = 'tenant-456';
         next();
       });
-      app.use('/api/tactical-grid', tacticalGridRoutes);
+      app.use('/api/v1', jobRoutes);
     });
   });
   afterEach(async () => {
     await server.close();
   });
   it('应设置 ownerUserId 为实际用户 ID', async () => {
-    await fetch(`${server.url}/api/tactical-grid/search`, {
+    await fetch(`${server.url}/api/v1/tactical-grid/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(createValidGridRequest()),

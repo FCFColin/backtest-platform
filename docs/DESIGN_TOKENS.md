@@ -153,8 +153,7 @@ P0-5 扩展：8 色组合配色、双向网格、backdrop-blur Tooltip、智能�
 ## 14. 验证命令
 
 ```powershell
-npx tsc --noEmit -p tsconfig.frontend.json
-npx vite build --config vite.config.ts
+npx tsc --noEmit -p tsconfig.frontend.json; npx vite build --config vite.config.ts
 # 禁用模式 grep 验证：h-screen / bg-slate- / #000000 / Inter
 ```
 
@@ -174,6 +173,6 @@ npx vite build --config vite.config.ts
 1. **外壳**：工具页 `<ToolPageLayout params results />`，静态页加 `ToolSeoCard`
 2. **分节**：独立区块用 `<Card className="p-5">`
 3. **表单**：`<Field><FieldLabel/><Input/><FieldDescription/><FieldError/></Field>`
-4. **数字**：`<span className="font-mono tabular-nums">`；5. **状态**：ErrorBanner/LoadingState/EmptyState
-5. **响应式**：`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4`；7. **i18n**：全部走 `t()`
+4. **数字/状态**：`<span className="font-mono tabular-nums">`；ErrorBanner/LoadingState/EmptyState
+5. **响应式/i18n**：`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4`；全部文案走 `t()`
 6. **禁用**：`styles/*.css` 自定义类、`bg-slate-*`、`h-screen`、`#000000`、代码中 em-dash

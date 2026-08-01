@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
-import { ParamsPanel, ParamsSection } from '../../components/ParamsPanel.js';
+import { ParamsPanel, ParamsSection } from '../../components/params/paramsLayout.js';
 import { ParamRow, ParamCard } from '../../components/params/paramsLayout.js';
 import {
   Button,
@@ -25,7 +25,7 @@ import {
   Switch,
 } from '@/components/ui/uiComponents';
 import { StatCard } from '@/components/cards.js';
-import { SortableTable } from '../../components/SortableTable.js';
+import { SortableTable } from '../../components/tables.js';
 import { CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import {
   FREQ_OPTIONS,
@@ -41,7 +41,7 @@ import type {
   GrowthComparisonChartProps,
   Objective,
   OptimizerSectionProps,
-} from './backtestOptimizer/types.js';
+} from './backtestOptimizerUtils.js';
 function BacktestRangeSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (

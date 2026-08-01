@@ -1,12 +1,187 @@
 import { useState } from 'react';
 import i18n from '@/i18n/index.js';
-import type { RebalanceFrequency, BacktestOptimizerObjective as Objective, OptimizeResultItem, BestResultItem } from '@backtest/shared';
+import type {
+  RebalanceFrequency,
+  BacktestOptimizerObjective as Objective,
+  OptimizeResultItem,
+  BestResultItem,
+} from '@backtest/shared';
+import { REBALANCE_LABELS, REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
+import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
+import type { Column } from '../../components/tables.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { useListState, useOptimizerLikeState } from '../../hooks/miscHooks.js';
-import { buildOptimizeBody } from './backtestOptimizerBuilders.js';
 export type { Objective, OptimizeResultItem, BestResultItem };
-export { FREQ_OPTIONS, OBJECTIVE_SORT_KEY, TABLE_COLUMNS } from './backtestOptimizerConstants.js';
-export { buildChartData, buildBestMetrics } from './backtestOptimizerBuilders.js';
+export const FREQ_LABELS = REBALANCE_LABELS;
+export const FREQ_OPTIONS = REBALANCE_FREQUENCY_OPTIONS;
+export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
+  maxCagr: 'cagr',
+  minMaxDrawdown: 'maxDrawdown',
+  maxSharpe: 'sharpe',
+  maxSortino: 'sortino',
+};
+export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
+  {
+    key: 'rebalanceFrequency',
+    label: i18n.t('params.rebalanceFrequency'),
+    sortValue: (r) => r.rebalanceFrequency,
+    render: (r) =>
+      r.rebalanceFrequency === 'threshold'
+        ? i18n.t('params.thresholdWithValue', { value: r.rebalanceThreshold })
+        : (REBALANCE_LABELS[r.rebalanceFrequency] ?? r.rebalanceFrequency),
+  },
+  {
+    key: 'rebalanceThreshold',
+    label: i18n.t('params.threshold'),
+    sortValue: (r) => r.rebalanceThreshold ?? 0,
+    render: (r) => (r.rebalanceThreshold !== undefined ? `${r.rebalanceThreshold}%` : '-'),
+  },
+  {
+    key: 'initialCapital',
+    label: i18n.t('params.initialCapital'),
+    sortValue: (r) => r.initialCapital,
+    render: (r) => fmtDollar(r.initialCapital),
+  },
+  { key: 'cagr', label: 'CAGR', sortValue: (r) => r.cagr, render: (r) => fmtPct(r.cagr) },
+  {
+    key: 'maxDrawdown',
+    label: i18n.t('statsTable.maxDrawdown'),
+    sortValue: (r) => r.maxDrawdown,
+    render: (r) => fmtPct(r.maxDrawdown),
+  },
+  {
+    key: 'stdev',
+    label: i18n.t('statsTable.volatility'),
+    sortValue: (r) => r.stdev,
+    render: (r) => fmtPct(r.stdev),
+  },
+  { key: 'sharpe', label: 'Sharpe', sortValue: (r) => r.sharpe, render: (r) => fmtNum(r.sharpe) },
+  {
+    key: 'sortino',
+    label: 'Sortino',
+    sortValue: (r) => r.sortino,
+    render: (r) => fmtNum(r.sortino),
+  },
+  { key: 'calmar', label: 'Calmar', sortValue: (r) => r.calmar, render: (r) => fmtNum(r.calmar) },
+];
+export interface GrowthPoint {
+  date: string;
+  value: number;
+}
+export interface OptimizerSectionProps {
+  s: BacktestOptimizerState;
+}
+export interface BestMetricsCardProps {
+  best: BestResultItem | null;
+  totalCombos: number;
+}
+export interface GrowthComparisonChartProps {
+  best: BestResultItem | null;
+  benchmarkGrowth: GrowthPoint[] | null;
+}
+export interface ComparisonTableSectionProps {
+  results: OptimizeResultItem[];
+  objective: Objective;
+}
+export interface ConstraintRowProps {
+  enabled: boolean;
+  setEnabled: (v: boolean) => void;
+  label: string;
+  value: string;
+  setValue: (v: string) => void;
+  placeholder: string;
+}
+export function buildOptimizeBody(
+  validAssets: Array<{ ticker: string; weight: string }>,
+  frequencies: RebalanceFrequency[],
+  range: {
+    thrMin: string;
+    thrMax: string;
+    thrStep: string;
+    capMin: string;
+    capMax: string;
+    capStep: string;
+  },
+  dates: { startDate: string; endDate: string; benchmarkTicker: string },
+  config: {
+    objective: Objective;
+    enableMaxDD: boolean;
+    maxDD: string;
+    enableMinCagr: boolean;
+    minCagr: string;
+  },
+): Record<string, unknown> {
+  const c: Record<string, number> = {};
+  if (config.enableMaxDD && config.maxDD !== '') c.maxDrawdown = Number(config.maxDD);
+  if (config.enableMinCagr && config.minCagr !== '') c.minCagr = Number(config.minCagr);
+  return {
+    portfolio: {
+      assets: validAssets.map((a) => ({
+        ticker: a.ticker.trim().toUpperCase(),
+        weight: Number(a.weight) || 0,
+      })),
+    },
+    parameterSpace: {
+      rebalanceFrequencies: frequencies,
+      rebalanceThreshold: {
+        min: Number(range.thrMin),
+        max: Number(range.thrMax),
+        step: Number(range.thrStep),
+      },
+      initialCapital: {
+        min: Number(range.capMin),
+        max: Number(range.capMax),
+        step: Number(range.capStep),
+      },
+    },
+    parameters: {
+      startDate: dates.startDate,
+      endDate: dates.endDate,
+      benchmarkTicker: dates.benchmarkTicker.trim().toUpperCase(),
+      baseCurrency: 'usd',
+      adjustForInflation: false,
+    },
+    objective: config.objective,
+    constraints: c,
+  };
+}
+export function buildChartData(
+  best: BestResultItem | null,
+  benchmarkGrowth: Array<{ date: string; value: number }> | null,
+): Array<{ date: string; portfolio: number; benchmark?: number }> {
+  if (!best?.growthCurve) return [];
+  const map = new Map<string, { date: string; portfolio: number; benchmark?: number }>();
+  for (const p of best.growthCurve) map.set(p.date, { date: p.date, portfolio: p.value });
+  if (benchmarkGrowth) {
+    for (const p of benchmarkGrowth) {
+      const entry = map.get(p.date);
+      if (entry) entry.benchmark = p.value;
+      else map.set(p.date, { date: p.date, portfolio: 0, benchmark: p.value });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+export function buildBestMetrics(
+  best: BestResultItem | null,
+): Array<{ label: string; value: string }> {
+  if (!best) return [];
+  return [
+    {
+      label: '再平衡频率',
+      value:
+        best.rebalanceFrequency === 'threshold'
+          ? `阈值(${best.rebalanceThreshold}%)`
+          : (FREQ_LABELS[best.rebalanceFrequency] ?? best.rebalanceFrequency),
+    },
+    { label: '初始资金', value: fmtDollar(best.initialCapital) },
+    { label: 'CAGR', value: fmtPct(best.cagr) },
+    { label: '最大回撤', value: fmtPct(best.maxDrawdown) },
+    { label: '波动率', value: fmtPct(best.stdev) },
+    { label: 'Sharpe', value: fmtNum(best.sharpe) },
+    { label: 'Sortino', value: fmtNum(best.sortino) },
+    { label: 'Calmar', value: fmtNum(best.calmar) },
+  ];
+}
 export interface BacktestOptimizerState {
   assets: Array<{ ticker: string; weight: string }>;
   frequencies: RebalanceFrequency[];
@@ -57,23 +232,27 @@ function useAssetListState() {
   }>(
     [
       { ticker: 'VTI', weight: '60' },
-      { ticker: 'BND', weight: '40' }
+      { ticker: 'BND', weight: '40' },
     ],
     () => ({ ticker: '', weight: '' }),
-    1
+    1,
   );
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) => updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) =>
+    updateItem(i, (prev) => ({ ...prev, [field]: val }));
   return {
     assets: items,
     setAssets: setItems,
     addAsset: addItem,
     removeAsset: removeItem,
-    updateAsset
+    updateAsset,
   };
 }
 function useFrequencyState() {
   const [frequencies, setFrequencies] = useState<RebalanceFrequency[]>(['quarterly']);
-  const toggleFreq = (freq: RebalanceFrequency) => setFrequencies((prev) => (prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq]));
+  const toggleFreq = (freq: RebalanceFrequency) =>
+    setFrequencies((prev) =>
+      prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
+    );
   return { frequencies, setFrequencies, toggleFreq };
 }
 function useGridParams() {
@@ -95,7 +274,7 @@ function useGridParams() {
     capMax,
     setCapMax,
     capStep,
-    setCapStep
+    setCapStep,
   };
 }
 function useConstraintState() {
@@ -114,7 +293,7 @@ function useConstraintState() {
     enableMinCagr,
     setEnableMinCagr,
     minCagr,
-    setMinCagr
+    setMinCagr,
   };
 }
 function useBacktestOptSetters() {
@@ -122,7 +301,18 @@ function useBacktestOptSetters() {
   const { frequencies, setFrequencies, toggleFreq } = useFrequencyState();
   const grid = useGridParams();
   const constraints = useConstraintState();
-  const { startDate, setStartDate, endDate, setEndDate, isLoading, setIsLoading, error, setError, results, setResults } = useOptimizerLikeState<OptimizeResultItem[]>();
+  const {
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    results,
+    setResults,
+  } = useOptimizerLikeState<OptimizeResultItem[]>();
   const [benchmarkTicker, setBenchmarkTicker] = useState('VTI');
   const [best, setBest] = useState<BestResultItem | null>(null);
   const [benchmarkGrowth, setBenchmarkGrowth] = useState<Array<{
@@ -158,7 +348,7 @@ function useBacktestOptSetters() {
     addAsset,
     removeAsset,
     updateAsset,
-    toggleFreq
+    toggleFreq,
   };
 }
 async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) {
@@ -186,7 +376,7 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
         thrStep: s.thrStep,
         capMin: s.capMin,
         capMax: s.capMax,
-        capStep: s.capStep
+        capStep: s.capStep,
       },
       { startDate: s.startDate, endDate: s.endDate, benchmarkTicker: s.benchmarkTicker },
       {
@@ -194,8 +384,8 @@ async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) 
         enableMaxDD: s.enableMaxDD,
         maxDD: s.maxDD,
         enableMinCagr: s.enableMinCagr,
-        minCagr: s.minCagr
-      }
+        minCagr: s.minCagr,
+      },
     );
     const data = await apiPostJSON<{
       results?: OptimizeResultItem[];

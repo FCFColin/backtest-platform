@@ -28,8 +28,17 @@ import {
 } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import ChartCard from '../../components/ChartCard.js';
-import { SortableTable, type Column } from '../../components/SortableTable.js';
-import type { LeverageComparisonDataPoint, SlippageCurveDataPoint } from './letfSlippageTypes.js';
+import { SortableTable, type Column } from '../../components/tables.js';
+interface SlippageCurveDataPoint {
+  date: string;
+  cumulative: number;
+  daily: number;
+}
+interface LeverageComparisonDataPoint {
+  date: string;
+  effective: number | null;
+  nominal: number;
+}
 interface LETFResultsProps {
   results: LETFResult | null;
   error: string | null;

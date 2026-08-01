@@ -1,24 +1,92 @@
 import { useState, memo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
-import type { AssetAnalysisResult } from '@backtest/shared';
+import type { AssetAnalysisResult, Statistics } from '@backtest/shared';
+import { CHART_COLORS } from '@backtest/shared';
 import { AnalysisErrorAlert } from '@/components/resultsShell.js';
 import { EmptyState } from '@/components/stateDisplay';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
-import { TABS } from './analysisUtils.js';
-import { useAnalysisPageState } from '@/hooks/useAnalysisPageState.js';
+import { TABS, fetchAnalysisResult } from './analysisUtils.js';
 import { AnalysisParamsPanel } from './AnalysisParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
+import { fmtPct } from '@/utils/format';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { Loader2 } from '@/icons/icons.js';
+function useAnalysisPageState() {
+  const { t } = useTranslation();
+  const {
+    items: tickers,
+    setItems: setTickers,
+    addItem: addTicker,
+    removeItem: removeTicker,
+    updateItem,
+  } = useListState<string>(['SPY', 'TLT', 'GLD'], () => '', 1);
+  const updateTicker = (idx: number, val: string) => updateItem(idx, () => val);
+  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
+  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
+  const [startingValue, setStartingValue] = useState(10000);
+  const [rollingWindow, setRollingWindow] = useState(12);
+  const [correlationWindow, setCorrelationWindow] = useState(12);
+  const [adjustForInflation, setAdjustForInflation] = useState(false);
+  const [activeTab, setActiveTab] = useState('summary');
+  const {
+    isLoading,
+    error,
+    results,
+    setResults,
+    runCompute: runAnalysis,
+  } = useComputeTool<AssetAnalysisResult>(
+    async () => {
+      const validTickers = tickers.filter(Boolean).map((tk) => tk.toUpperCase());
+      return fetchAnalysisResult(
+        validTickers,
+        {
+          startDate,
+          endDate,
+          startingValue,
+          adjustForInflation,
+          rollingWindow,
+          correlationWindow,
+        },
+        t,
+      );
+    },
+    () => (tickers.filter(Boolean).length > 0 ? null : t('analysis.errorMinOneTicker')),
+  );
+  return {
+    tickers,
+    startDate,
+    endDate,
+    startingValue,
+    rollingWindow,
+    correlationWindow,
+    adjustForInflation,
+    activeTab,
+    isLoading,
+    error,
+    results,
+    setTickers,
+    setStartDate,
+    setEndDate,
+    setStartingValue,
+    setRollingWindow,
+    setCorrelationWindow,
+    setAdjustForInflation,
+    setActiveTab,
+    setResults,
+    addTicker,
+    removeTicker,
+    updateTicker,
+    runAnalysis,
+  };
+}
 const OverviewCharts = lazy(() =>
   import('../../components/charts/analysis.js').then((m) => ({ default: m.OverviewCharts })),
 );
 const TelltaleChart = lazy(() =>
   import('../../components/charts/analysis.js').then((m) => ({ default: m.TelltaleChart })),
-);
-const StatsTable = lazy(() =>
-  import('../../components/AnalysisStats.js').then((m) => ({ default: m.StatsTable })),
 );
 const CorrelationMatrixTable = lazy(() =>
   import('../../components/charts/tables.js').then((m) => ({ default: m.CorrelationMatrixTable })),
@@ -37,11 +105,7 @@ const RollingMetricsChart = lazy(() =>
 const RiskReturnChart = lazy(() =>
   import('../../components/charts/riskReturn.js').then((m) => ({ default: m.RiskReturnChart })),
 );
-const AnnualReturnChart = lazy(() =>
-  import('../../components/charts/AnnualReturnChart.js').then((m) => ({
-    default: m.AnnualReturnChart,
-  })),
-);
+const AnnualReturnChart = lazy(() => import('../../components/charts/AnnualReturnChart.js'));
 const MonthlyHeatmap = lazy(() =>
   import('../../components/charts/analysis.js').then((m) => ({ default: m.MonthlyHeatmap })),
 );
@@ -238,3 +302,93 @@ export default function AnalysisPage() {
   const s = useAnalysisPageState();
   return <ComputeToolShell config={config} state={s} />;
 }
+const STATS_COLUMNS: {
+  key: keyof Statistics;
+  labelKey: string;
+  fmt: 'pct' | 'ratio' | 'duration';
+}[] = [
+  { key: 'cagr', labelKey: 'CAGR', fmt: 'pct' },
+  { key: 'maxDrawdown', labelKey: 'backtest.maxDrawdown', fmt: 'pct' },
+  { key: 'avgDrawdown', labelKey: 'analysis.avgDrawdown', fmt: 'pct' },
+  { key: 'maxDrawdownDuration', labelKey: 'analysis.maxDrawdownDuration', fmt: 'duration' },
+  { key: 'stdev', labelKey: 'backtest.stdev', fmt: 'pct' },
+  { key: 'sharpe', labelKey: 'backtest.sharpeRatio', fmt: 'ratio' },
+  { key: 'sortino', labelKey: 'Sortino', fmt: 'ratio' },
+  { key: 'calmar', labelKey: 'Calmar', fmt: 'ratio' },
+  { key: 'ulcerIndex', labelKey: 'analysis.ulcerIndex', fmt: 'ratio' },
+  { key: 'ulcerPerformanceIndex', labelKey: 'UPI', fmt: 'ratio' },
+  { key: 'beta', labelKey: 'Beta', fmt: 'ratio' },
+];
+function StatsTableHeader({
+  tickers,
+  metricLabel,
+}: {
+  tickers: AssetAnalysisResult['tickers'];
+  metricLabel: string;
+}) {
+  return (
+    <thead>
+      <tr className="bg-elevated">
+        <th className="py-2 px-3 text-left text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle">
+          {metricLabel}
+        </th>
+        {tickers.map((tk, idx) => (
+          <th
+            key={tk.ticker}
+            className="py-2 px-3 text-right text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap"
+          >
+            <span
+              className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
+              style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+            />
+            {tk.ticker}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+export const StatsTable = memo(function StatsTable({
+  tickers,
+}: {
+  tickers: AssetAnalysisResult['tickers'];
+}) {
+  const { t } = useTranslation();
+  const cols = STATS_COLUMNS.map((c) => ({
+    ...c,
+    label: c.labelKey.includes('.') ? t(c.labelKey) : c.labelKey,
+  }));
+  const fmt = (v: number | undefined, f: 'pct' | 'ratio' | 'duration') => {
+    if (v === undefined || v === null) return '-';
+    if (f === 'pct') return fmtPct(v);
+    if (f === 'ratio') return v.toFixed(2);
+    return `${v} ${t('common.days')}`;
+  };
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-body">
+        <StatsTableHeader tickers={tickers} metricLabel={t('common.metric')} />
+        <tbody>
+          {cols.map((col, ri) => {
+            if (!tickers.some((tk) => tk.statistics[col.key] != null)) return null;
+            return (
+              <tr key={col.key} className={ri % 2 === 1 ? 'bg-elevated' : 'bg-transparent'}>
+                <td className="py-2 px-3 text-fg-secondary border-b border-border-subtle">
+                  {col.label}
+                </td>
+                {tickers.map((tk) => (
+                  <td
+                    key={tk.ticker}
+                    className="py-2 px-3 text-right font-mono tabular-nums font-medium text-fg border-b border-border-subtle whitespace-nowrap"
+                  >
+                    {fmt(tk.statistics[col.key] as number | undefined, col.fmt)}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+});
