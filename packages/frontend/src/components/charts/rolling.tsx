@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next';
 import type { AssetAnalysisResult, PortfolioResult } from '@backtest/shared';
 import { TRADING_DAYS_PER_YEAR } from '@backtest/shared/constants';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
-import { useChartCalcWorker, type WorkerTask } from '../../hooks/useWorkerCompute.js';
+import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
 import {
+  mergePortfolioSeries,
   downsample,
   DOWNSAMPLE_THRESHOLD,
   DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions.js';
-import { mergePortfolioSeries } from '../../utils/format.js';
+} from '../../utils/format.js';
 import ChartCard from '../ChartCard.js';
 export const RollingCorrelationChart = memo(function RollingCorrelationChart({
   tickers,

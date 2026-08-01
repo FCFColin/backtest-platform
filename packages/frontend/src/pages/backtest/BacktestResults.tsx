@@ -11,7 +11,7 @@ import { WithdrawalRatesCard } from '@/components/statistics-table/WithdrawalRat
 import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
 import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { downloadFile, dateSuffixedFilename } from '@/utils/download';
+import { downloadFile, dateSuffixedFilename } from '@/utils/format';
 import {
   type Portfolio,
   type PortfolioResult,

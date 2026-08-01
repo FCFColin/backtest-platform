@@ -108,7 +108,6 @@ const CRITICAL_FILES = [
   'packages/backend/src/utils/numericRange.ts',
   'packages/backend/src/db/tenant.ts',
   'packages/frontend/src/store/authStore.ts',
-  'packages/frontend/src/utils/authTokens.ts',
   'packages/backend/src/utils/engineClient.ts',
   'packages/backend/src/infrastructure/dataFacade.ts',
   'packages/backend/src/queues/worker.ts',
@@ -186,7 +185,6 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/application/backtest-helpers.ts',
   'packages/frontend/src/hooks/useOptimizerLikeState.ts',
   'packages/frontend/src/utils/constants.ts',
-  'packages/frontend/src/utils/responseWarnings.ts',
 ];
 
 const failures = [];

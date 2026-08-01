@@ -12,11 +12,7 @@ import {
   BarChartContent,
 } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
-import {
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions.js';
+import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { DrawdownChart } from './drawdownCharts.js';
 import { CorrelationMatrixTable } from './tables.js';

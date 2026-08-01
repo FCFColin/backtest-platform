@@ -3,8 +3,12 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { useBacktestStore } from '@/store/backtestStore';
 import { useToastStore } from '@/store/toastStore';
-import type { SavedPortfolio } from '@/utils/portfolioStorage';
-import { saveNamedConfigApi, listNamedConfigs, deleteNamedConfigApi } from '@/utils/configApi';
+import {
+  saveNamedConfigApi,
+  listNamedConfigs,
+  deleteNamedConfigApi,
+  type SavedPortfolio,
+} from '@/utils/portfolioStorage';
 import { readStateFromURL, writeStateToURL } from '@/utils/urlState';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import type { BacktestPageState } from '../BacktestPage.types.js';
@@ -29,10 +33,11 @@ function useUrlShareLoader() {
         const data = JSON.parse(loadFromOptimizer);
         const sharePortfolios: Portfolio[] = (data.portfolios || []).map((p: Portfolio) => ({
           ...p,
-          id: p.id || `portfolio-${Date.now()}`
+          id: p.id || `portfolio-${Date.now()}`,
         }));
         const shareParameters: BacktestParameters = data.parameters;
-        if (sharePortfolios.length > 0 && shareParameters) loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
+        if (sharePortfolios.length > 0 && shareParameters)
+          loadFromShare({ portfolios: sharePortfolios, parameters: shareParameters });
       } catch {
         useToastStore.getState().addToast('warning', t('backtest.optimizerDataError'));
       }
@@ -44,7 +49,7 @@ function useUrlShareLoader() {
         const data = JSON.parse(json);
         const sharePortfolios: Portfolio[] = (data.p || []).map((p: Portfolio) => ({
           ...p,
-          id: p.id || `portfolio-${Date.now()}`
+          id: p.id || `portfolio-${Date.now()}`,
         }));
         const shareParameters: BacktestParameters = data.params;
         if (sharePortfolios.length > 0 && shareParameters) {
@@ -63,15 +68,15 @@ function buildBacktestSeoProps(t: TFunction) {
     desc: t('backtest.seoDesc'),
     features: [
       { title: t('backtest.seoModelable'), desc: t('backtest.seoModelableDesc') },
-      { title: t('backtest.seoViewable'), desc: t('backtest.seoViewableDesc') }
+      { title: t('backtest.seoViewable'), desc: t('backtest.seoViewableDesc') },
     ],
     related: [
       { title: t('nav.monteCarlo'), href: '/monte-carlo' },
       { title: t('nav.portfolioOptimize'), href: '/optimizer' },
       { title: t('nav.efficientFrontier'), href: '/efficient-frontier' },
-      { title: t('nav.assetAnalysis'), href: '/analysis' }
+      { title: t('nav.assetAnalysis'), href: '/analysis' },
     ],
-    relatedLabel: t('backtest.relatedTools')
+    relatedLabel: t('backtest.relatedTools'),
   };
 }
 export function useBacktestPageState(): BacktestPageState {
@@ -100,7 +105,9 @@ export function useBacktestPageState(): BacktestPageState {
     if (next) setSavedConfigs(await listNamedConfigs());
   };
   const handleLoadConfig = (config: SavedPortfolio) => {
-    useBacktestStore.getState().loadFromShare({ portfolios: config.portfolios, parameters: config.parameters });
+    useBacktestStore
+      .getState()
+      .loadFromShare({ portfolios: config.portfolios, parameters: config.parameters });
     useToastStore.getState().addToast('success', t('backtest.loadedScheme'));
     setShowLoadList(false);
   };
@@ -134,6 +141,6 @@ export function useBacktestPageState(): BacktestPageState {
     handleOpenLoadList,
     handleLoadConfig,
     handleDeleteConfig,
-    handleShareLink
+    handleShareLink,
   };
 }

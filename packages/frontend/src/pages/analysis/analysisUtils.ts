@@ -1,17 +1,18 @@
 import type { AssetAnalysisResult } from '@backtest/shared';
 import { apiFetch } from '../../utils/apiClient.js';
-import { downsample } from '../../hooks/useChartInteractions.js';
+import { downsample } from '../../utils/format.js';
 export const TABS = [
   { key: 'summary', labelKey: 'tabs.summary' },
   { key: 'telltale', labelKey: 'tabs.telltale' },
   { key: 'correlations', labelKey: 'tabs.correlationsBeta' },
   { key: 'rolling', labelKey: 'tabs.rollingMetrics' },
   { key: 'risk-return', labelKey: 'tabs.riskVsReturn' },
-  { key: 'returns', labelKey: 'tabs.returns' }
+  { key: 'returns', labelKey: 'tabs.returns' },
 ] as const;
 function extractErrorDetail(j: Record<string, unknown>, fallback: string): string {
   const err = j.error;
-  if (typeof err === 'object' && err && 'detail' in err) return String((err as { detail?: string }).detail);
+  if (typeof err === 'object' && err && 'detail' in err)
+    return String((err as { detail?: string }).detail);
   if (typeof err === 'string') return err;
   return fallback;
 }
@@ -34,7 +35,7 @@ export async function fetchAnalysisResult(
     rollingWindow: number;
     correlationWindow: number;
   },
-  t: (k: string) => string
+  t: (k: string) => string,
 ): Promise<AssetAnalysisResult> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 180_000);
@@ -56,9 +57,9 @@ export async function fetchAnalysisResult(
           baseCurrency: 'usd',
           extendedWithdrawalStats: false,
           cashflowLegs: [],
-          oneTimeCashflows: []
-        }
-      })
+          oneTimeCashflows: [],
+        },
+      }),
     });
     let json: Record<string, unknown>;
     try {
@@ -70,8 +71,10 @@ export async function fetchAnalysisResult(
     const raw = (json.data ?? json) as Record<string, unknown>;
     const tickers = (raw.tickers ?? raw.assets ?? []) as AssetAnalysisResult['tickers'];
     for (const tk of tickers) {
-      if (tk.growthCurve && tk.growthCurve.length > 500) tk.growthCurve = downsample(tk.growthCurve, 500);
-      if (tk.drawdownCurve && tk.drawdownCurve.length > 500) tk.drawdownCurve = downsample(tk.drawdownCurve, 500);
+      if (tk.growthCurve && tk.growthCurve.length > 500)
+        tk.growthCurve = downsample(tk.growthCurve, 500);
+      if (tk.drawdownCurve && tk.drawdownCurve.length > 500)
+        tk.drawdownCurve = downsample(tk.drawdownCurve, 500);
     }
     return { tickers, correlations: (raw.correlations ?? []) as number[][] };
   } catch (e) {

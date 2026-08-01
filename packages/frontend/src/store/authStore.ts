@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { apiFetch } from '@/utils/apiClient';
-import { setTokens, clearTokens, refreshTokens } from '@/utils/authTokens';
+import { apiFetch, setTokens, clearTokens, refreshTokens } from '@/utils/apiClient';
 import i18n from '@/i18n/index.js';
 interface AsyncSlice {
   loading: boolean;
@@ -39,7 +38,12 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   loginPassword: (username: string, password: string) => Promise<boolean>;
-  register: (input: { username: string; password: string; email: string; orgName: string }) => Promise<boolean>;
+  register: (input: {
+    username: string;
+    password: string;
+    email: string;
+    orgName: string;
+  }) => Promise<boolean>;
   acceptInvite: (token: string) => Promise<{ ok: boolean; orgId?: string }>;
   logout: () => Promise<void>;
   switchOrg: (orgId: string) => Promise<boolean>;
@@ -60,17 +64,22 @@ async function fetchMe(): Promise<AuthUser | null> {
     role: d.role,
     tenantId: d.tenantId ?? null,
     orgRole: d.orgRole ?? null,
-    platformAdmin: d.platformAdmin === true
+    platformAdmin: d.platformAdmin === true,
   };
 }
-async function loginPasswordAction(set: SetFn, get: GetFn, username: string, password: string): Promise<boolean> {
+async function loginPasswordAction(
+  set: SetFn,
+  get: GetFn,
+  username: string,
+  password: string,
+): Promise<boolean> {
   set(asyncStart());
   try {
     const res = await fetch('/api/v1/auth/login/password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password }),
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
@@ -83,7 +92,7 @@ async function loginPasswordAction(set: SetFn, get: GetFn, username: string, pas
       user,
       org: body.data.org ?? null,
       idleTimeoutMs: body.data.idleTimeoutMs ?? 0,
-      ...asyncSuccess()
+      ...asyncSuccess(),
     });
     await get().loadOrgs();
     return true;
@@ -92,13 +101,16 @@ async function loginPasswordAction(set: SetFn, get: GetFn, username: string, pas
     return false;
   }
 }
-async function registerAction(set: SetFn, input: { username: string; password: string; email: string; orgName: string }): Promise<boolean> {
+async function registerAction(
+  set: SetFn,
+  input: { username: string; password: string; email: string; orgName: string },
+): Promise<boolean> {
   set(asyncStart());
   try {
     const res = await fetch('/api/v1/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(input)
+      body: JSON.stringify(input),
     });
     const body = await res.json();
     if (!res.ok) {
@@ -112,13 +124,17 @@ async function registerAction(set: SetFn, input: { username: string; password: s
     return false;
   }
 }
-async function acceptInviteAction(set: SetFn, get: GetFn, token: string): Promise<{ ok: boolean; orgId?: string }> {
+async function acceptInviteAction(
+  set: SetFn,
+  get: GetFn,
+  token: string,
+): Promise<{ ok: boolean; orgId?: string }> {
   set(asyncStart());
   try {
     const res = await apiFetch('/api/v1/orgs/invitations/accept', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token })
+      body: JSON.stringify({ token }),
     });
     const body = await res.json();
     if (!res.ok) {
@@ -137,7 +153,7 @@ async function logoutAction(set: SetFn): Promise<void> {
   try {
     await fetch('/api/v1/auth/logout', {
       method: 'DELETE',
-      credentials: 'include'
+      credentials: 'include',
     });
     // eslint-disable-next-line no-empty -- 服务端撤销失败也要清空本地会话
   } catch {}
@@ -150,7 +166,7 @@ async function switchOrgAction(set: SetFn, orgId: string): Promise<boolean> {
     const res = await apiFetch('/api/v1/auth/switch-org', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orgId })
+      body: JSON.stringify({ orgId }),
     });
     const body = await res.json();
     if (!res.ok || !body?.data?.accessToken) {
@@ -208,5 +224,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: () => logoutAction(set),
   switchOrg: (orgId) => switchOrgAction(set, orgId),
   loadOrgs: () => loadOrgsAction(set),
-  init: () => initAction(set, get)
+  init: () => initAction(set, get),
 }));

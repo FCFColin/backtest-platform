@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { downsample } from '../../../packages/frontend/src/hooks/useChartInteractions.js';
+import { downsample } from '../../../packages/frontend/src/utils/format.js';
 
 describe('downsample', () => {
   it('数据量未超 maxPoints 时应原样返回', () => {

@@ -1,17 +1,31 @@
 /**
- * Stripe 计费服务单元测试（ADR-036）
+ * 计费 / 配额服务单元测试（ADR-036 / ADR-037）
  *
- * 企业理由：计费同步逻辑直接决定租户的计划/状态，错误会造成误收费或越权使用。验证：
- * 1. 计划<->Price 双向映射正确
+ * 企业理由：计费同步逻辑直接决定租户的计划/状态，错误会造成误收费或越权使用；用量是配额判定与
+ * 计费对账的数据源。验证：
+ * 1. 计划<->Price 双向映射正确；计划配额表（PLAN_LIMITS）与 currentPeriod 周期正确
  * 2. getSubscriptionSummary 映射数据库行
  * 3. webhook 同步把订阅状态写回 subscriptions + organizations（取消时回落 free）
+ * 4. recordUsage 双写明细 + 月度聚合（withTenant），并递增 Redis 快路径
+ * 5. getMonthlyUsage 优先 Redis，缺失时回退 DB 并回填
  *
- * Mock 策略：mock config（注入 price/secret）、db.getPool、stripe SDK。
+ * Mock 策略：mock config（注入 price/secret）、db.getPool/withTenant（注入 fake client）、
+ * stripe SDK、appRedis、planLimits.currentPeriod。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
 
-const dbMocks = vi.hoisted(() => ({ query: vi.fn() }));
+const dbMocks = vi.hoisted(() => ({
+  query: vi.fn(),
+  withTenant: vi.fn(),
+  client: { query: vi.fn() },
+}));
+const redisMocks = vi.hoisted(() => ({
+  incrby: vi.fn(),
+  expire: vi.fn(),
+  get: vi.fn(),
+  set: vi.fn(),
+}));
 const stripeMocks = vi.hoisted(() => ({
   subscriptions: { retrieve: vi.fn() },
   customers: { create: vi.fn() },
@@ -41,10 +55,38 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     STRIPE_PRICE_ENTERPRISE: 'price_ent',
     APP_BASE_URL: 'http://localhost:15173',
   }),
+  // planLimitsService 需要（limits.ts 同源值）
+  PLAN_LIMITS: {
+    free: {
+      backtestsPerMonth: 100,
+      maxTickers: 10,
+      asyncConcurrency: 1,
+      rateLimitPerMin: 10,
+      maxTacticalConfigs: 10,
+    },
+    pro: {
+      backtestsPerMonth: 5000,
+      maxTickers: 50,
+      asyncConcurrency: 5,
+      rateLimitPerMin: 60,
+      maxTacticalConfigs: 100,
+    },
+    enterprise: {
+      backtestsPerMonth: Number.POSITIVE_INFINITY,
+      maxTickers: 200,
+      asyncConcurrency: 20,
+      rateLimitPerMin: 300,
+      maxTacticalConfigs: Number.POSITIVE_INFINITY,
+    },
+  },
 }));
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.query }),
+  withTenant: (tenantId: string, fn: (c: unknown) => Promise<unknown>) =>
+    dbMocks.withTenant(tenantId, fn),
+  withTenantReadOnly: (tenantId: string, fn: (c: unknown) => Promise<unknown>) =>
+    dbMocks.withTenant(tenantId, fn),
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
@@ -61,6 +103,10 @@ vi.mock('stripe', () => ({
   },
 }));
 
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
+  appRedis: redisMocks,
+}));
+
 import {
   priceIdForPlan,
   planForPriceId,
@@ -73,8 +119,24 @@ import {
   createPortalSession,
   constructWebhookEvent,
 } from '../../../packages/backend/src/application/billing/billingService.js';
+import {
+  recordUsage,
+  getMonthlyUsage,
+} from '../../../packages/backend/src/application/billing/usageService.js';
+import {
+  getPlanLimits,
+  currentPeriod,
+} from '../../../packages/backend/src/application/billing/planLimitsService.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  dbMocks.withTenant.mockImplementation(async (_t: string, fn: (c: unknown) => Promise<unknown>) =>
+    fn(dbMocks.client),
+  );
+  dbMocks.client.query.mockResolvedValue({ rows: [] });
+});
 
 function makeSub(overrides: Record<string, unknown> = {}) {
   return {
@@ -100,6 +162,54 @@ describe('plan/price 映射', () => {
   });
   it('isBillingEnabled 在配置密钥时为 true', () => {
     expect(isBillingEnabled()).toBe(true);
+  });
+});
+describe('getPlanLimits', () => {
+  it('free 计划应返回 100/月, 10 标的, 1 并发, 10/分钟', () => {
+    const limits = getPlanLimits('free');
+    expect(limits.backtestsPerMonth).toBe(100);
+    expect(limits.maxTickers).toBe(10);
+    expect(limits.asyncConcurrency).toBe(1);
+    expect(limits.rateLimitPerMin).toBe(10);
+  });
+
+  it('pro 计划应返回 5000/月, 50 标的, 5 并发, 60/分钟', () => {
+    const limits = getPlanLimits('pro');
+    expect(limits.backtestsPerMonth).toBe(5000);
+    expect(limits.maxTickers).toBe(50);
+    expect(limits.asyncConcurrency).toBe(5);
+    expect(limits.rateLimitPerMin).toBe(60);
+  });
+
+  it('enterprise 计划应返回 Infinity/月, 200 标的, 20 并发, 300/分钟', () => {
+    const limits = getPlanLimits('enterprise');
+    expect(limits.backtestsPerMonth).toBe(Number.POSITIVE_INFINITY);
+    expect(limits.maxTickers).toBe(200);
+    expect(limits.asyncConcurrency).toBe(20);
+    expect(limits.rateLimitPerMin).toBe(300);
+  });
+
+  it('未知计划应回到 free（fail-safe）', () => {
+    expect(getPlanLimits(null)).toBe(getPlanLimits('free'));
+    expect(getPlanLimits(undefined)).toBe(getPlanLimits('free'));
+    expect(getPlanLimits('unknown')).toBe(getPlanLimits('free'));
+    expect(getPlanLimits('')).toBe(getPlanLimits('free'));
+  });
+});
+describe('currentPeriod', () => {
+  it('应返回 YYYY-MM 格式', () => {
+    const period = currentPeriod(new Date('2026-06-15T12:00:00Z'));
+    expect(period).toBe('2026-06');
+  });
+
+  it('1 月应补零', () => {
+    const period = currentPeriod(new Date('2026-01-01T00:00:00Z'));
+    expect(period).toBe('2026-01');
+  });
+
+  it('默认使用当前时间', () => {
+    const period = currentPeriod();
+    expect(period).toMatch(/^\d{4}-\d{2}$/);
   });
 });
 describe('getSubscriptionSummary', () => {
@@ -264,5 +374,74 @@ describe('constructWebhookEvent', () => {
     const event = constructWebhookEvent(raw, 'sig_123');
     expect(event).toBe(fakeEvent);
     expect(stripeMocks.webhooks.constructEvent).toHaveBeenCalledWith(raw, 'sig_123', 'whsec_123');
+  });
+});
+describe('recordUsage', () => {
+  it('双写明细 + 聚合并递增 Redis', async () => {
+    redisMocks.incrby.mockResolvedValueOnce(1);
+    await recordUsage(ORG, 'backtest', 1, { path: '/x' });
+
+    const sqls = dbMocks.client.query.mock.calls.map((c) => String(c[0]));
+    expect(sqls.some((s) => s.includes('INSERT INTO usage_events'))).toBe(true);
+    expect(sqls.some((s) => s.includes('INSERT INTO usage_counters'))).toBe(true);
+    expect(redisMocks.incrby).toHaveBeenCalledWith(expect.stringContaining(`usage:${ORG}:`), 1);
+    // 首次计数应设置 TTL
+    expect(redisMocks.expire).toHaveBeenCalled();
+  });
+
+  it('DB 失败不抛出（容错）', async () => {
+    dbMocks.withTenant.mockRejectedValueOnce(new Error('db down'));
+    redisMocks.incrby.mockResolvedValueOnce(5);
+    await expect(recordUsage(ORG, 'backtest')).resolves.toBeUndefined();
+  });
+
+  it('Redis incrby 失败应记录警告不抛出', async () => {
+    redisMocks.incrby.mockRejectedValueOnce(new Error('redis down'));
+    await expect(recordUsage(ORG, 'backtest')).resolves.toBeUndefined();
+  });
+});
+describe('getMonthlyUsage', () => {
+  it('Redis 命中时直接返回', async () => {
+    redisMocks.get.mockResolvedValueOnce('42');
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(42);
+    expect(dbMocks.withTenant).not.toHaveBeenCalled();
+  });
+
+  it('Redis 未命中回退 DB 并回填', async () => {
+    redisMocks.get.mockResolvedValueOnce(null);
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 7 }] });
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(7);
+    expect(redisMocks.set).toHaveBeenCalled();
+  });
+
+  it('DB 无记录返回 0', async () => {
+    redisMocks.get.mockResolvedValueOnce(null);
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [] });
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(0);
+  });
+
+  it('Redis get 异常应回退 DB', async () => {
+    redisMocks.get.mockRejectedValueOnce(new Error('redis get down'));
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 3 }] });
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(3);
+  });
+
+  it('回填 Redis 失败应忽略', async () => {
+    redisMocks.get.mockResolvedValueOnce(null);
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 7 }] });
+    redisMocks.set.mockRejectedValueOnce(new Error('set failed'));
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(7);
+  });
+
+  it('DB 查询失败应返回 0 并记录错误', async () => {
+    redisMocks.get.mockResolvedValueOnce(null);
+    dbMocks.client.query.mockRejectedValueOnce(new Error('db error'));
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(0);
+  });
+
+  it('Redis 缓存值为非数字应回退 DB', async () => {
+    redisMocks.get.mockResolvedValueOnce('NaN');
+    dbMocks.client.query.mockResolvedValueOnce({ rows: [{ count: 5 }] });
+    expect(await getMonthlyUsage(ORG, 'backtest')).toBe(5);
   });
 });

@@ -15,7 +15,7 @@ import {
   TotalWeightBlock,
 } from './portfolioEditor/portfolioEditor.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
-import { downloadJSON } from '@/utils/download';
+import { downloadJSON } from '@/utils/format';
 import { AffixInput, Badge, Button, Input } from '@/components/ui/uiComponents';
 interface PortfolioAsset {
   ticker: string;

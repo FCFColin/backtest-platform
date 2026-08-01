@@ -275,3 +275,156 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
     };
   }, [enabled, timeoutMs, resetActivity, checkTimeout]);
 }
+export interface Announcement {
+  id: number;
+  slug: string;
+  title: string;
+  body: string;
+  ctaLabel?: string;
+  ctaLink?: string;
+  variant: 'info' | 'success' | 'warning';
+  publishedAt: string;
+}
+const READ_KEY = 'announcements-read';
+let pendingAnnouncementsPromise: Promise<Announcement[]> | null = null;
+export function useAnnouncements() {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [readIds, setReadIds] = useState<Set<number>>(new Set());
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(READ_KEY);
+      if (saved) setReadIds(new Set(JSON.parse(saved)));
+    } catch {
+      // localStorage 不可用时视为无已读记录
+    }
+    if (!pendingAnnouncementsPromise) {
+      pendingAnnouncementsPromise = apiFetch('/api/v1/announcements', { silent: true })
+        .then((res) => (res.ok ? res.json() : { data: [] }))
+        .then((json) => {
+          const data = json.data ?? json ?? [];
+          return Array.isArray(data) ? data : [];
+        })
+        .catch(() => [])
+        .finally(() => {
+          pendingAnnouncementsPromise = null;
+        });
+    }
+    pendingAnnouncementsPromise.then((data) => setAnnouncements(data));
+  }, []);
+  const unreadCount = announcements.filter((a) => !readIds.has(a.id)).length;
+  const markAllRead = useCallback(() => {
+    const allIds = new Set(announcements.map((a) => a.id));
+    setReadIds(allIds);
+    localStorage.setItem(READ_KEY, JSON.stringify([...allIds]));
+  }, [announcements]);
+  return { announcements, unreadCount, markAllRead };
+}
+export interface DataMeta {
+  lastUpdated: string;
+  tickerCount: number;
+  earliestDate: string;
+  dataPointCount: number;
+}
+let cachedMeta: DataMeta | null = null;
+let cacheTime = 0;
+let pendingMetaPromise: Promise<DataMeta | null> | null = null;
+const CACHE_TTL = 5 * 60 * 1000;
+function getPreloadedMeta(): DataMeta | null {
+  try {
+    const global =
+      typeof window !== 'undefined'
+        ? (window as { __INITIAL_DATA__?: unknown }).__INITIAL_DATA__
+        : null;
+    if (!global) return null;
+    const data = ((global as Record<string, unknown>).data ?? global) as Partial<DataMeta>;
+    if (data?.tickerCount !== undefined && data?.lastUpdated) {
+      return {
+        lastUpdated: data.lastUpdated,
+        tickerCount: data.tickerCount,
+        earliestDate: data.earliestDate || '',
+        dataPointCount: data.dataPointCount || 0,
+      };
+    }
+  } catch {
+    /* 忽略 */
+  }
+  return null;
+}
+const preloaded = getPreloadedMeta();
+if (preloaded) {
+  cachedMeta = preloaded;
+  cacheTime = Date.now();
+}
+export function useDataMeta(): DataMeta | null {
+  const [meta, setMeta] = useState<DataMeta | null>(cachedMeta);
+  useEffect(() => {
+    if (cachedMeta && Date.now() - cacheTime < CACHE_TTL) {
+      setMeta(cachedMeta);
+      return;
+    }
+    if (!pendingMetaPromise) {
+      pendingMetaPromise = apiFetch('/api/v1/data/meta', { silent: true })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json) => {
+          const data = json?.data ?? json;
+          if (data && data.lastUpdated) {
+            cachedMeta = data;
+            cacheTime = Date.now();
+            return data;
+          }
+          return null;
+        })
+        .catch(() => null)
+        .finally(() => {
+          pendingMetaPromise = null;
+        });
+    }
+    pendingMetaPromise.then((data) => setMeta(data));
+  }, []);
+  return meta;
+}
+export type WorkerTask = { type: string; payload: unknown[] };
+export function useChartCalcWorker<T>(task: WorkerTask | null): {
+  data: T | null;
+  isPending: boolean;
+  error: string | null;
+} {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
+  const idRef = useRef(0);
+  const lastTaskKeyRef = useRef('');
+  useEffect(() => {
+    const w = new Worker(new URL('../workers/chartCalc.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    workerRef.current = w;
+    let terminated = false;
+    w.onmessage = (e: MessageEvent<{ id: number; result: T; error?: string }>) => {
+      if (terminated) return;
+      setIsPending(false);
+      if (e.data.error) {
+        setError(e.data.error);
+      } else {
+        setData(e.data.result);
+        setError(null);
+      }
+    };
+    return () => {
+      terminated = true;
+      w.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    if (!task || !workerRef.current) return;
+    const key = task.type + ':' + JSON.stringify(task.payload);
+    if (key === lastTaskKeyRef.current) return;
+    lastTaskKeyRef.current = key;
+    const id = idRef.current++;
+    setIsPending(true);
+    workerRef.current.postMessage({ id, type: task.type, payload: task.payload });
+  }, [task]);
+  return { data, isPending, error };
+}

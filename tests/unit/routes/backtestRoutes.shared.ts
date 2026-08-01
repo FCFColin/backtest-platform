@@ -101,9 +101,16 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   EngineUnavailableError: internalMocks.engineUnavailable,
   resetEngineAvailability: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/application/backtest/backtestEngineUtils.js', () => ({
-  buildEngineParams: internalMocks.m.buildEngineParams,
-}));
+vi.mock(
+  '../../../packages/backend/src/application/backtest/backtestEngineUtils.js',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../../packages/backend/src/application/backtest/backtestEngineUtils.js')
+      >();
+    return { ...actual, buildEngineParams: internalMocks.m.buildEngineParams };
+  },
+);
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   backtestQueue: { add: internalMocks.queue.add, getJob: internalMocks.queue.getJob },
 }));

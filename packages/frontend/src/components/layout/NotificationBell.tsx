@@ -2,9 +2,15 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Bell, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/uiComponents.js';
+import {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/uiComponents.js';
 import { Button } from '@/components/ui/uiComponents.js';
-import { useAnnouncements } from '@/hooks/useAnnouncements.js';
+import { useAnnouncements } from '@/hooks/miscHooks.js';
 export function NotificationBell() {
   const { t } = useTranslation();
   const { announcements, unreadCount, markAllRead } = useAnnouncements();
@@ -18,9 +24,17 @@ export function NotificationBell() {
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8 relative" aria-label="Notifications" data-testid="notification-bell">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 relative"
+          aria-label="Notifications"
+          data-testid="notification-bell"
+        >
           <Bell className="h-4 w-4" />
-          {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-danger animate-pulse" />}
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-danger animate-pulse" />
+          )}
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-[400px] p-0">
@@ -32,10 +46,15 @@ export function NotificationBell() {
         </SheetHeader>
         <div className="overflow-y-auto max-h-[calc(100dvh-4rem)]">
           {announcements.length === 0 ? (
-            <div className="p-8 text-center text-caption text-fg-tertiary">{t('notifications.empty')}</div>
+            <div className="p-8 text-center text-caption text-fg-tertiary">
+              {t('notifications.empty')}
+            </div>
           ) : (
             announcements.map((ann) => (
-              <div key={ann.id} className="p-4 border-b border-border-subtle hover:bg-hover/50 transition-colors">
+              <div
+                key={ann.id}
+                className="p-4 border-b border-border-subtle hover:bg-hover/50 transition-colors"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-label-tiny text-fg-tertiary">#{ann.slug}</span>
                   <time className="text-caption text-fg-tertiary font-mono">{ann.publishedAt}</time>
@@ -43,7 +62,10 @@ export function NotificationBell() {
                 <h4 className="text-body font-semibold mb-1">{ann.title}</h4>
                 <p className="text-caption text-fg-secondary leading-relaxed mb-2">{ann.body}</p>
                 {ann.ctaLabel && ann.ctaLink && (
-                  <Link to={ann.ctaLink} className="text-caption text-brand hover:underline flex items-center gap-1">
+                  <Link
+                    to={ann.ctaLink}
+                    className="text-caption text-brand hover:underline flex items-center gap-1"
+                  >
                     {ann.ctaLabel}
                     <ArrowRight className="h-3 w-3" />
                   </Link>

@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { startExpressApp } from '../../helpers/expressApp.js';
 import { m, loggerMocks, MockEngineUnavailableError } from './backtestRoutes.shared.js';
 import backtestRoutes from '../../../packages/backend/src/routes/backtestRoutes.js';
 import {
@@ -274,5 +275,119 @@ describe.each(engineCases)('backtestRoutes - POST $path', (c) => {
   });
   it.each(c.specials)('%s', async (_n, fn) => {
     await fn(`${server.url}${c.path}`);
+  });
+});
+
+import signalRoutes from '../../../packages/backend/src/routes/signalRoutes.js';
+
+function createSignalConfig(ticker = 'SPY') {
+  return {
+    ticker,
+    indicator: 'sma',
+    period: 20,
+    threshold: 0,
+    startDate: '2020-01-01',
+    endDate: '2024-01-01',
+    signalType: 'both' as const,
+  };
+}
+
+const mockSignalResult = {
+  signals: [{ date: '2020-01-02', type: 'buy', price: 301.0 }],
+  statistics: { totalSignals: 1, winRate: 1.0, avgReturn: 0.01, maxDrawdown: 0, sharpe: 2.0 },
+  equityCurve: [{ date: '2020-01-01', value: 10000 }],
+};
+
+async function apiPost(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return { res, body: await res.json().catch(() => null) };
+}
+
+describe.each([
+  {
+    path: '/api/signal/analyze',
+    data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
+    engineResult: mockSignalResult,
+    validReq: () => createSignalConfig(),
+    validation: [
+      [
+        '缺少 ticker',
+        () => {
+          const r = createSignalConfig();
+          delete (r as Record<string, unknown>).ticker;
+          return r;
+        },
+      ],
+      ['无效 signalType', () => ({ ...createSignalConfig(), signalType: 'invalid' })],
+    ],
+  },
+  {
+    path: '/api/signal/dual',
+    data: { SPY: { '2020-01-01': 300.0 }, QQQ: { '2020-01-01': 200.0 } },
+    engineResult: { ...mockSignalResult, equityCurve: [] },
+    validReq: () => ({
+      signal1: createSignalConfig('SPY'),
+      signal2: createSignalConfig('QQQ'),
+      combinationMethod: 'and',
+    }),
+    validation: [
+      [
+        '缺少 combinationMethod',
+        () => ({ signal1: createSignalConfig('SPY'), signal2: createSignalConfig('QQQ') }),
+      ],
+    ],
+  },
+  {
+    path: '/api/signal/multi',
+    data: { SPY: { '2020-01-01': 300.0, '2020-01-02': 301.0 } },
+    engineResult: { ...mockSignalResult, equityCurve: [] },
+    validReq: () => ({
+      signals: [
+        createSignalConfig('SPY'),
+        { ...createSignalConfig('SPY'), indicator: 'rsi', period: 14, threshold: 30 },
+      ],
+      aggregationMethod: 'voting',
+    }),
+    validation: [
+      ['空 signals 数组', () => ({ signals: [], aggregationMethod: 'voting' })],
+      ['缺少 aggregationMethod', () => ({ signals: [createSignalConfig('SPY')] })],
+    ],
+  },
+])('signalRoutes - POST $path', (c) => {
+  let server: Server;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    m.fetchHistoryData.mockResolvedValue({ data: c.data, degraded: false });
+    m.callEngineStrict.mockResolvedValue(c.engineResult);
+    server = await startExpressApp((app) => app.use('/api/signal', signalRoutes));
+  });
+  afterEach(() => server.close());
+
+  it('有效参数应返回分析结果', async () => {
+    const { res, body } = await apiPost(`${server.url}${c.path}`, c.validReq());
+    expect(res.status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.data.signals).toHaveLength(1);
+    expect(m.callEngineStrict).toHaveBeenCalledTimes(1);
+  });
+  it.each(c.validation)('%s 应返回 400（zod 校验失败）', async (_n, getReq) => {
+    const { res } = await apiPost(`${server.url}${c.path}`, getReq());
+    expect(res.status).toBe(400);
+    expect(m.callEngineStrict).not.toHaveBeenCalled();
+  });
+  it('价格数据缺失时应返回 404', async () => {
+    m.fetchHistoryData.mockResolvedValue({ data: { SPY: {} }, degraded: false });
+    const { res, body } = await apiPost(`${server.url}${c.path}`, c.validReq());
+    expect(res.status).toBe(404);
+    expect(body.error.code).toBe('DATA_NOT_FOUND');
+  });
+  it('引擎抛错时应返回 500', async () => {
+    m.callEngineStrict.mockRejectedValueOnce(new Error('signal engine error'));
+    const { res } = await apiPost(`${server.url}${c.path}`, c.validReq());
+    expect(res.status).toBe(500);
   });
 });

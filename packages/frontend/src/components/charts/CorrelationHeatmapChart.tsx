@@ -25,12 +25,8 @@ import {
 import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
-import {
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions.js';
-import { useChartCalcWorker, type WorkerTask } from '../../hooks/useWorkerCompute.js';
+import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
+import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';
 interface CorrelationMatrixProps {
   tickers: string[];
   correlations: number[][];

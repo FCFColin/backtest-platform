@@ -5,11 +5,7 @@ import { CHART_COLORS } from '@backtest/shared';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 import { CHART_GRID_PROPS, CHART_MARGIN } from '@/lib/chart-theme.js';
-import {
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions.js';
+import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { SimpleTable } from '../SimpleTable.js';

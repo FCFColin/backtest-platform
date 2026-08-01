@@ -2,22 +2,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
-  getAccessToken: vi.fn(),
-  refreshTokens: vi.fn(),
   addToast: vi.fn(),
 }));
 
-vi.mock('../../../packages/frontend/src/utils/authTokens.js', () => ({
-  getAccessToken: mocks.getAccessToken,
-  refreshTokens: mocks.refreshTokens,
-}));
 vi.mock('../../../packages/frontend/src/store/toastStore.js', () => ({
   useToastStore: {
     getState: () => ({ addToast: mocks.addToast }),
   },
 }));
 
-import { apiFetch, apiPostJSON } from '../../../packages/frontend/src/utils/apiClient.js';
+import {
+  apiFetch,
+  apiPostJSON,
+  setTokens,
+  clearTokens,
+  getAccessToken,
+} from '../../../packages/frontend/src/utils/apiClient.js';
 
 const originalFetch = globalThis.fetch;
 
@@ -45,9 +45,8 @@ function makeResponse(opts: MockResponseOpts): Response {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  clearTokens();
   globalThis.fetch = mocks.fetch as unknown as typeof fetch;
-  mocks.getAccessToken.mockReturnValue('');
-  mocks.refreshTokens.mockResolvedValue(false);
   sessionStorage.clear();
   localStorage.clear();
 });
@@ -63,7 +62,7 @@ function lastFetchInit(): RequestInit {
 
 describe('apiFetch', () => {
   it('已登录 + sessionStorage 有 API Key 时附加 Authorization 与 x-api-key 头', async () => {
-    mocks.getAccessToken.mockReturnValue('jwt-token');
+    setTokens('jwt-token');
     sessionStorage.setItem('admin_api_key', btoa('secret-key'));
     mocks.fetch.mockResolvedValue(makeResponse({ ok: true, body: {} }));
 
@@ -87,34 +86,39 @@ describe('apiFetch', () => {
   });
 
   it('已登录 + 401 + 刷新成功应重试一次返回新响应', async () => {
-    mocks.getAccessToken.mockReturnValue('expired');
-    mocks.refreshTokens.mockResolvedValue(true);
+    setTokens('expired');
     const firstResp = makeResponse({ ok: false, status: 401, body: {} });
     const secondResp = makeResponse({ ok: true, body: { ok: true } });
-    mocks.fetch.mockResolvedValueOnce(firstResp).mockResolvedValueOnce(secondResp);
+    mocks.fetch
+      .mockResolvedValueOnce(firstResp)
+      .mockResolvedValueOnce(
+        makeResponse({ ok: true, body: { success: true, data: { accessToken: 'new-at' } } }),
+      )
+      .mockResolvedValueOnce(secondResp);
 
     const res = await apiFetch('/api/foo');
 
-    expect(mocks.refreshTokens).toHaveBeenCalledTimes(1);
-    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    expect(mocks.fetch).toHaveBeenCalledTimes(3);
+    expect(getAccessToken()).toBe('new-at');
     expect(res).toBe(secondResp);
   });
 
   it('已登录 + 401 + 刷新失败应返回原 401 响应（不重试）', async () => {
-    mocks.getAccessToken.mockReturnValue('expired');
-    mocks.refreshTokens.mockResolvedValue(false);
+    setTokens('expired');
     const resp401 = makeResponse({ ok: false, status: 401, body: {} });
-    mocks.fetch.mockResolvedValue(resp401);
+    mocks.fetch
+      .mockResolvedValueOnce(resp401)
+      .mockResolvedValueOnce(makeResponse({ ok: false, status: 401, body: {} }));
 
     const res = await apiFetch('/api/foo');
 
-    expect(mocks.refreshTokens).toHaveBeenCalledTimes(1);
-    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    expect(getAccessToken()).toBe('');
     expect(res).toBe(resp401);
   });
 
   it('调用方显式传入 Authorization / x-api-key 头不被覆盖', async () => {
-    mocks.getAccessToken.mockReturnValue('should-not-be-used');
+    setTokens('should-not-be-used');
     sessionStorage.setItem('admin_api_key', btoa('should-not-be-used'));
     mocks.fetch.mockResolvedValue(makeResponse({ ok: true, body: {} }));
 

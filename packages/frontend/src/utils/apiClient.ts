@@ -1,10 +1,52 @@
-import { getAccessToken, refreshTokens } from './authTokens.js';
 import { useToastStore } from '../store/toastStore.js';
 import i18n from '../i18n/index.js';
 import { getErrorI18nKey } from './errorReporter.js';
 import { trackApiCall } from './performanceReporter.js';
 const ADMIN_API_KEY_STORAGE = 'admin_api_key';
 const FETCH_TIMEOUT_MS = 10_000;
+let accessToken = '';
+export function getAccessToken(): string {
+  return accessToken;
+}
+export function setTokens(access: string): void {
+  accessToken = access;
+}
+export function clearTokens(): void {
+  accessToken = '';
+}
+let inflightRefresh: Promise<boolean> | null = null;
+export function refreshTokens(): Promise<boolean> {
+  if (inflightRefresh) return inflightRefresh;
+  inflightRefresh = (async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      const res = await fetch('/api/v1/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        clearTokens();
+        return false;
+      }
+      const body = await res.json();
+      const data = body?.data;
+      if (data?.accessToken) {
+        setTokens(data.accessToken);
+        return true;
+      }
+      clearTokens();
+      return false;
+    } catch {
+      return false;
+    } finally {
+      inflightRefresh = null;
+    }
+  })();
+  return inflightRefresh;
+}
 function getApiKey(): string {
   try {
     const stored = sessionStorage.getItem(ADMIN_API_KEY_STORAGE);
@@ -61,12 +103,17 @@ async function handleResponseToast(res: Response): Promise<void> {
     }
     if (body?.degraded === true) {
       const warning = body.degradedWarning;
-      useToastStore.getState().addToast('warning', typeof warning === 'string' ? warning : i18n.t('errors.dataDegraded'));
+      useToastStore
+        .getState()
+        .addToast('warning', typeof warning === 'string' ? warning : i18n.t('errors.dataDegraded'));
     }
     // eslint-disable-next-line no-empty -- 非 JSON 响应体无法解析为 { error, degraded } 结构，跳过 Toast 处理
   } catch {}
 }
-export async function apiFetch(input: RequestInfo | URL, init?: (RequestInit & { silent?: boolean }) | undefined): Promise<Response> {
+export async function apiFetch(
+  input: RequestInfo | URL,
+  init?: (RequestInit & { silent?: boolean }) | undefined,
+): Promise<Response> {
   const silent = init?.silent === true;
   const { headers, signal, timeoutId } = buildFetchInit(init);
   const { signal: _origSignal, ...restInit } = init || {};
@@ -75,7 +122,11 @@ export async function apiFetch(input: RequestInfo | URL, init?: (RequestInit & {
       if (timeoutId) clearTimeout(timeoutId);
     });
   const fetchPromise = doFetch();
-  trackApiCall(fetchPromise, input instanceof Request ? input.url : String(input), init?.method || 'GET');
+  trackApiCall(
+    fetchPromise,
+    input instanceof Request ? input.url : String(input),
+    init?.method || 'GET',
+  );
   let res = await fetchPromise;
   if (res?.status === 401 && getAccessToken()) {
     const refreshed = await refreshTokens();
@@ -84,36 +135,50 @@ export async function apiFetch(input: RequestInfo | URL, init?: (RequestInit & {
   if (res && !silent) await handleResponseToast(res);
   return res;
 }
-export async function apiPostJSON<T>(url: string, body: unknown, errorMsg = i18n.t('errors.requestFailed')): Promise<T> {
+export async function apiPostJSON<T>(
+  url: string,
+  body: unknown,
+  errorMsg = i18n.t('errors.requestFailed'),
+): Promise<T> {
   const res = await apiFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (json.success === false) throw new Error(json.error || errorMsg);
   return json.data as T;
 }
-export async function apiGetJSON<T>(url: string, errorMsg = i18n.t('errors.requestFailed')): Promise<T> {
+export async function apiGetJSON<T>(
+  url: string,
+  errorMsg = i18n.t('errors.requestFailed'),
+): Promise<T> {
   const res = await apiFetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (json.success === false) throw new Error(json.error || errorMsg);
   return json.data as T;
 }
-export async function apiPutJSON<T>(url: string, body: unknown, errorMsg = i18n.t('errors.requestFailed')): Promise<T> {
+export async function apiPutJSON<T>(
+  url: string,
+  body: unknown,
+  errorMsg = i18n.t('errors.requestFailed'),
+): Promise<T> {
   const res = await apiFetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   if (json.success === false) throw new Error(json.error || errorMsg);
   return json.data as T;
 }
-export async function apiDeleteJSON<T>(url: string, errorMsg = i18n.t('errors.requestFailed')): Promise<T> {
+export async function apiDeleteJSON<T>(
+  url: string,
+  errorMsg = i18n.t('errors.requestFailed'),
+): Promise<T> {
   const res = await apiFetch(url, { method: 'DELETE' });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();

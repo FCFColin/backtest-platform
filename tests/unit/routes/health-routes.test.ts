@@ -4,6 +4,10 @@ import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactorie
 
 const originalFetch = globalThis.fetch;
 
+const dbMocks = vi.hoisted(() => ({
+  query: vi.fn(),
+}));
+
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
@@ -17,6 +21,8 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => ({ query: vi.fn().mockResolvedValue({ rows: [{ '?column?': 1 }] }) })),
+  pool: { query: dbMocks.query },
+  getReadPool: () => ({ query: dbMocks.query }),
 }));
 
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
@@ -27,6 +33,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
 
 import { config } from '../../../packages/backend/src/config/index.js';
 import healthRoutes from '../../../packages/backend/src/routes/healthRoutes.js';
+import announcementRoutes from '../../../packages/backend/src/routes/announcementRoutes.js';
 
 function createFetchMock(options: {
   goEngine?: { ok: boolean; status: number } | Error;
@@ -161,4 +168,109 @@ describe('healthRoutes', () => {
       expect(res.status).toBe(403);
     },
   );
+});
+
+describe('healthRoutes (debug endpoint) - GET /api/v1/debug/health', () => {
+  let server: TestServer;
+  const originalToken = config.DEBUG_AUTH_TOKEN;
+
+  beforeEach(async () => {
+    server = await startExpressApp((app) => app.use('/api', healthRoutes));
+  });
+
+  afterEach(async () => {
+    await server.close();
+    config.DEBUG_AUTH_TOKEN = originalToken;
+  });
+
+  it('未配置 DEBUG_AUTH_TOKEN 时应返回 404', async () => {
+    config.DEBUG_AUTH_TOKEN = '';
+
+    const res = await fetch(`${server.url}/api/v1/debug/health`);
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error.code).toBe('NOT_FOUND');
+  });
+
+  it('Bearer token 错误时应返回 401', async () => {
+    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
+
+    const res = await fetch(`${server.url}/api/v1/debug/health`, {
+      headers: { Authorization: 'Bearer wrong-token' },
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(json.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('有效 DEBUG_AUTH_TOKEN 时应返回 200', async () => {
+    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
+
+    const res = await fetch(`${server.url}/api/v1/debug/health`, {
+      headers: { Authorization: 'Bearer correct-secret-token' },
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.success).toBe(true);
+    expect(json.data).toMatchObject({
+      node: expect.any(String),
+      pid: expect.any(Number),
+      uptimeSec: expect.any(Number),
+      memory: expect.any(Object),
+    });
+  });
+
+  it('超长恶意 Bearer token 应返回 401', async () => {
+    config.DEBUG_AUTH_TOKEN = 'correct-secret-token';
+    const maliciousToken = 'A'.repeat(10000);
+
+    const res = await fetch(`${server.url}/api/v1/debug/health`, {
+      headers: { Authorization: `Bearer ${maliciousToken}` },
+    });
+    const json = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(json.error.code).toBe('UNAUTHORIZED');
+  });
+});
+
+describe('announcementRoutes - 权限（E4）', () => {
+  let server: TestServer;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startExpressApp((app) => app.use('/api/v1/announcements', announcementRoutes));
+  });
+  afterEach(async () => {
+    await server.close();
+  });
+
+  it('GET / 公开可访问（无需认证）', async () => {
+    dbMocks.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'a1',
+          title: '公告',
+          body: '正文',
+          category: 'info',
+          severity: 'info',
+          published_at: '2026-08-01',
+        },
+      ],
+    });
+    const res = await fetch(`${server.url}/api/v1/announcements`);
+    expect(res.status).toBe(200);
+  });
+
+  it('POST / 无认证时应返回 401（管理员发布）', async () => {
+    const res = await fetch(`${server.url}/api/v1/announcements`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'x', body: 'y' }),
+    });
+    expect(res.status).toBe(401);
+    expect(dbMocks.query).not.toHaveBeenCalled();
+  });
 });

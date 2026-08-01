@@ -5,7 +5,7 @@ import {
   setTokens,
   clearTokens,
   refreshTokens,
-} from '../../../packages/frontend/src/utils/authTokens.js';
+} from '../../../packages/frontend/src/utils/apiClient.js';
 
 const originalFetch = globalThis.fetch;
 
@@ -48,9 +48,7 @@ describe('authTokens', () => {
       await refreshTokens();
 
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
-      const [url, init] = (
-        globalThis.fetch as unknown as ReturnType<typeof vi.fn>
-      ).mock.calls[0];
+      const [url, init] = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
       expect(url).toBe('/api/v1/auth/refresh');
       expect(init.method).toBe('POST');
       expect(init.credentials).toBe('include');

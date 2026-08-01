@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { useToastStore } from '../store/toastStore.js';
+import type { DateRangeInfo } from '../store/types.js';
+import i18n from '../i18n/index.js';
 export type ReportType =
   'error' | 'vital' | 'api_timing' | 'component_render' | 'page_timing' | 'navigation';
 export interface ErrorContext {
@@ -171,4 +174,42 @@ export function getWarningInterpolationParams(warning: WarningInfo): Record<stri
   if (warning.actualStart) params.actualStart = warning.actualStart;
   if (warning.actualEnd) params.actualEnd = warning.actualEnd;
   return params;
+}
+export function processResponseWarnings(json: Record<string, unknown>): WarningInfo[] {
+  const rawWarnings = json.warnings;
+  const warningsList: WarningInfo[] = [];
+  if (Array.isArray(rawWarnings) && rawWarnings.length > 0) {
+    for (const w of rawWarnings) {
+      if (typeof w === 'string') {
+        useToastStore.getState().addToast('warning', w);
+      } else if (w && typeof w === 'object') {
+        const warn = w as WarningInfo;
+        warningsList.push(warn);
+        const key = getWarningI18nKey(warn.code);
+        const params = getWarningInterpolationParams(warn);
+        const message = i18n.t(key, params);
+        useToastStore
+          .getState()
+          .addToast('warning', warn.message ? `${message} - ${warn.message}` : message);
+      }
+    }
+  }
+  return warningsList;
+}
+export function extractDateRange(
+  json: Record<string, unknown>,
+  warnings: WarningInfo[],
+): DateRangeInfo | null {
+  const dr = json.dateRange as DateRangeInfo | undefined;
+  if (dr) return dr;
+  const clampedWarn = warnings.find((w) => w.code === 'DATE_RANGE_CLAMPED');
+  if (clampedWarn) {
+    return {
+      requested: { start: clampedWarn.requestedStart || '', end: clampedWarn.requestedEnd || '' },
+      actual: { start: clampedWarn.actualStart || '', end: clampedWarn.actualEnd || '' },
+      clamped: true,
+      missingTickers: clampedWarn.tickers,
+    };
+  }
+  return null;
 }

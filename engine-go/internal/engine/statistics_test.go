@@ -224,3 +224,31 @@ func TestCalcDrawdownMetrics(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) { assertFloatApprox(t, tc.fn(tc.vals), tc.want, "metric") })
 	}
 }
+func swrVolatileRequest() StatisticsRequest {
+	annualReturns := make([]float64, 50)
+	for i := range annualReturns {
+		annualReturns[i] = 0.08
+	}
+	for i := 0; i < 50; i += 5 {
+		annualReturns[i] = -0.15
+	}
+	return StatisticsRequest{Values: []float64{100, 110}, AnnualReturnValues: annualReturns}
+}
+func TestSWRNotEqualToPWR(t *testing.T) {
+	stats := CalculateStatisticsFromRequest(swrVolatileRequest())
+	if stats.SWR == stats.PWR {
+		t.Errorf("SWR (%v) should differ from PWR (%v) for volatile series", stats.SWR, stats.PWR)
+	}
+	if stats.SWR < 0 {
+		t.Errorf("SWR should be non-negative, got %v", stats.SWR)
+	}
+}
+func TestSWRUsesLongestStandardTerm(t *testing.T) {
+	stats := CalculateStatisticsFromRequest(swrVolatileRequest())
+	if stats.SWR != stats.SWR40Y {
+		t.Errorf("SWR (%v) should equal SWR40Y (%v) when >=40 years of data available", stats.SWR, stats.SWR40Y)
+	}
+	if stats.SWR > stats.SWR30Y {
+		t.Errorf("SWR (%v) should be <= SWR30Y (%v) (longer term = more conservative)", stats.SWR, stats.SWR30Y)
+	}
+}

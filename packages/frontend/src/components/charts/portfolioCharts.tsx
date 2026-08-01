@@ -11,11 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
 import type { Portfolio } from '@backtest/shared';
-import {
-  downsample,
-  DOWNSAMPLE_THRESHOLD,
-  DOWNSAMPLE_TARGET,
-} from '../../hooks/useChartInteractions.js';
+import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
 import { ChartTooltip, ChartLegend, ChartXAxis, ChartYAxis } from './sharedChartContent.js';
 import ChartCard from '../ChartCard.js';

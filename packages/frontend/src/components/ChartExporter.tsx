@@ -1,7 +1,7 @@
 import { Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/uiComponents';
-import { downloadCSV } from '@/utils/download';
+import { downloadCSV } from '@/utils/format';
 interface ChartExporterProps {
   data: Array<Record<string, string | number>>;
   filename?: string;

@@ -3,7 +3,7 @@ import { startTransition } from 'react';
 import i18n from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient.js';
 import { reportError } from '@/utils/errorReporter.js';
-import { processResponseWarnings, extractDateRange } from '@/utils/responseWarnings.js';
+import { processResponseWarnings, extractDateRange } from '@/utils/errorReporter.js';
 import type {
   Portfolio,
   Asset,

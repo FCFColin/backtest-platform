@@ -14,7 +14,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../hooks/miscHooks.js';
 import { useAuthStore } from '@/store/authStore';
-import { importLocalConfigsOnce } from '@/utils/configApi';
+import { importLocalConfigsOnce } from '@/utils/portfolioStorage';
 import { SectionTitle, PrefRow } from '../../components/cards.js';
 import { StandardPageShell } from '../../components/shells/index.js';
 const AVATAR_STYLE: React.CSSProperties = {
