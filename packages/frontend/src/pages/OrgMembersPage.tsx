@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Users, Loader2, Mail, Send, Trash2 } from 'lucide-react';
 import { StandardPageShell } from '../components/shells/index.js';
 import { useAuthStore } from '@/store/authStore';
-import ErrorBanner from '@/components/ErrorBanner';
+import { ErrorBanner } from '@/components/stateDisplay';
 import { useOrgMembersState } from './org/hooks/useOrgMembersState.js';
 import {
   ROLES,

@@ -5,7 +5,7 @@ import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-do
 import { LogIn, UserPlus, MailCheck } from 'lucide-react';
 import { z } from 'zod';
 import { useAuthStore } from '@/store/authStore';
-import ErrorBanner from '@/components/ErrorBanner';
+import { ErrorBanner } from '@/components/stateDisplay';
 import { Checkbox } from '@/components/ui/uiComponents';
 import AuthPageLayout, { AuthFormField, AuthSubmitButton } from '@/components/auth/formFields';
 export const loginSchema = z.object({

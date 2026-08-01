@@ -6,7 +6,7 @@ import { apiFetch } from '@/utils/apiClient';
 import AuthPageLayout from '@/components/auth/formFields';
 import { BrandIconBadge } from '@/components/auth/formFields';
 import { useAuthStore } from '@/store/authStore';
-import ErrorBanner from '@/components/ErrorBanner';
+import { ErrorBanner } from '@/components/stateDisplay';
 type Status = 'pending' | 'success' | 'error';
 export default function VerifyEmailPage() {
   const { t } = useTranslation();

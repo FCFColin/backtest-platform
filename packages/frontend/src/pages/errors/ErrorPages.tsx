@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { FileQuestion, LogIn, ShieldX, Gauge, ServerCrash, Wrench } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Button, Card } from '@/components/ui/uiComponents';
-import { StaticPageShell } from '@/components/layout/StaticPageShell.js';
+import { StaticPageShell } from '@/components/layout/ToolPageLayout.js';
 interface StatusErrorPageProps {
   statusCode: number;
   icon: LucideIcon;

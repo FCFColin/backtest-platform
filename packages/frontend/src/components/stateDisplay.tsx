@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Info,
   X,
+  XCircle,
   CheckCircle2,
   Wifi,
   WifiOff,

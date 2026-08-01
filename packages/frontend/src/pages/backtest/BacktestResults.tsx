@@ -30,7 +30,7 @@ const GrowthChart = lazy(() =>
   import('@/components/charts/analysis').then((m) => ({ default: m.GrowthChart })),
 );
 const DrawdownChart = lazy(() =>
-  import('@/components/charts/DrawdownChart').then((m) => ({ default: m.DrawdownChart })),
+  import('@/components/charts/drawdownCharts').then((m) => ({ default: m.DrawdownChart })),
 );
 const DrawdownEpisodes = lazy(() =>
   import('@/components/results/DrawdownEpisodes').then((m) => ({ default: m.DrawdownEpisodes })),
@@ -41,7 +41,7 @@ const YearlyReturnsTable = lazy(() =>
   })),
 );
 const UnderwaterCurve = lazy(() =>
-  import('@/components/charts/UnderwaterCurve').then((m) => ({ default: m.UnderwaterCurve })),
+  import('@/components/charts/drawdownCharts').then((m) => ({ default: m.UnderwaterCurve })),
 );
 const ReturnsTabDailyChart = lazy(() => import('@/components/charts/sharedChartContent'));
 const TelltaleChart = lazy(() =>
