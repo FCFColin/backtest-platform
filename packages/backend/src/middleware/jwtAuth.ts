@@ -385,9 +385,8 @@ export function assignGuestReadonly(
   next();
 }
 
+export type { RefreshTokenEntry, TokenFamilyEntry } from './tokenStore.js';
 export {
-  RefreshTokenEntry,
-  TokenFamilyEntry,
   ACCESS_TOKEN_EXPIRES_IN_SEC,
   REFRESH_TOKEN_EXPIRES_IN_SEC,
   REFRESH_TOKEN_PREFIX,
