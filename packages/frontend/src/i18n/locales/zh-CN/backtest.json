@@ -243,26 +243,12 @@
     "dragTitle": "年化拖累百分比，如0.5表示每年额外扣除0.5%",
     "totalReturn": "总回报",
     "deviationBands": "偏离带",
-    "evenDistribute": "均匀分配",
-    "stretchTo100": "拉伸到100%",
-    "tickerPlaceholder": "输入代码",
     "total": "合计",
     "loadExample": "加载示例",
     "loadCompareExample": "加载对比示例",
     "emptyPortfolios": "尚未添加投资组合",
     "comingSoon": "功能即将上线",
-    "deepAnalysis": "深度分析",
-    "preset": {
-      "6040": { "label": "60/40 股债", "description": "经典 60% 股票 + 40% 债券" },
-      "80-20": { "label": "80/20 股债", "description": "偏股 80% 股票 + 20% 债券" },
-      "40-60": { "label": "40/60 股债", "description": "偏债 40% 股票 + 60% 债券" },
-      "three-fund": { "label": "三基金组合", "description": "美股 + 全球 + 债券" },
-      "allWeather": { "label": "全天候", "description": "风险平价四资产" },
-      "permanent": { "label": "永久组合", "description": "哈利·布朗四等分组合" },
-      "mag7": { "label": "Mag 7", "description": "七巨头科技股等权" },
-      "sp500": { "label": "标普 500", "description": "单资产基准" },
-      "csi300": { "label": "沪深 300", "description": "A 股单资产基准" }
-    }
+    "deepAnalysis": "深度分析"
   },
   "results": {
     "hideDetailedMetrics": "收起详细指标",

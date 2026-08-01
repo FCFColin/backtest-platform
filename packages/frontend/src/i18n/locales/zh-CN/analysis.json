@@ -31,15 +31,8 @@
   "monteCarlo": {
     "emptyTickerWarning": "组合 {{index}} 请至少添加一个标的",
     "weightSumWarning": "组合 {{index}} 权重合计必须为 100%",
-    "presets": {
-      "preset6040": "60/40 退休回测",
-      "presetAllStockDCA": "全股定投 30 年",
-      "presetThreeFund": "三基金 25 年"
-    },
     "fanChart": {
       "title": "蒙特卡洛扇形图",
-      "band5_95": "5-95% 区间",
-      "band25_75": "25-75% 区间",
       "median": "中位数"
     },
     "histogram": {
@@ -65,15 +58,7 @@
       "noResultsHint": "配置左侧参数并点击「开始模拟」查看结果",
       "survivalProb": "存活概率 (终值>0)",
       "preservationProb": "保本概率 (终值≥初始资金)",
-      "profitProb": "盈利概率 (终值>初始资金)",
-      "metrics": {
-        "finalValue": "终值",
-        "cagr": "CAGR",
-        "maxDrawdown": "最大回撤",
-        "volatility": "波动率",
-        "sharpe": "夏普比率",
-        "sortino": "Sortino比率"
-      }
+      "profitProb": "盈利概率 (终值>初始资金)"
     },
     "params": {
       "buildModeInfo": "选择标准模式或前沿模式",
@@ -97,11 +82,12 @@
       "standardModeDesc": "运行标准蒙特卡洛模拟",
       "startSim": "开始模拟",
       "withReplacement": "有放回抽样"
+    },
+    "presets": {
+      "preset6040": "60/40 退休回测",
+      "presetAllStockDCA": "全股定投 30 年",
+      "presetThreeFund": "三基金 25 年"
     }
-  },
-  "mcOptimizer": {
-    "title": "蒙特卡洛优化器",
-    "description": "在蒙特卡洛模拟路径下，寻找最大化中位 CAGR 或最小化回撤的最优权重。"
   },
   "optimizer": {
     "startCalc": "开始计算",
@@ -286,16 +272,6 @@
       "whatIfFailed": "查询失败",
       "whatIfHint": "输入标的代码后点击「查询」查看结果",
       "whatIfPlaceholder": "如 SPY, TLT, GLD",
-      "alertEmail": "告警邮箱",
-      "alertTrigger": "触发条件",
-      "alertTitle": "邮件告警配置",
-      "alertDesc": "配置信号触发时的邮件通知，配置暂存于服务端内存",
-      "alertEnable": "启用邮件告警",
-      "alertSaving": "保存中...",
-      "alertSave": "保存告警配置",
-      "alertEmailRequired": "启用告警时必须填写邮箱",
-      "alertSaveFailed": "保存失败",
-      "alertSaved": "告警配置已保存",
       "noResultsHint": "配置信号与参数后点击「运行战术回测」查看结果",
       "backtestFailed": "回测失败",
       "backtestFailedDetail": "回测失败：{{error}}"

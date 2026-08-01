@@ -31,15 +31,8 @@
   "monteCarlo": {
     "emptyTickerWarning": "Portfolio {{index}}: please add at least one ticker",
     "weightSumWarning": "Portfolio {{index}}: weights must sum to 100%",
-    "presets": {
-      "preset6040": "60/40 Retirement",
-      "presetAllStockDCA": "All-Stock DCA 30y",
-      "presetThreeFund": "Three-Fund 25y"
-    },
     "fanChart": {
       "title": "Monte Carlo Fan Chart",
-      "band5_95": "5-95% Range",
-      "band25_75": "25-75% Range",
       "median": "Median"
     },
     "histogram": {
@@ -65,15 +58,7 @@
       "noResultsHint": "Configure parameters on the left and click \"Start Simulation\" to see results",
       "survivalProb": "Survival Probability (Final Value > 0)",
       "preservationProb": "Capital Preservation (Final Value ≥ Initial Capital)",
-      "profitProb": "Profit Probability (Final Value > Initial Capital)",
-      "metrics": {
-        "finalValue": "Final Value",
-        "cagr": "CAGR",
-        "maxDrawdown": "Max Drawdown",
-        "volatility": "Volatility",
-        "sharpe": "Sharpe Ratio",
-        "sortino": "Sortino Ratio"
-      }
+      "profitProb": "Profit Probability (Final Value > Initial Capital)"
     },
     "params": {
       "buildModeInfo": "Choose standard mode or frontier mode",
@@ -97,11 +82,12 @@
       "standardModeDesc": "Run standard Monte Carlo simulation",
       "startSim": "RUN SIMULATION",
       "withReplacement": "With Replacement"
+    },
+    "presets": {
+      "preset6040": "60/40 Retirement",
+      "presetAllStockDCA": "All-Stock DCA 30y",
+      "presetThreeFund": "Three-Fund 25y"
     }
-  },
-  "mcOptimizer": {
-    "title": "Monte Carlo Optimizer",
-    "description": "Find optimal weights maximizing median CAGR or minimizing drawdown."
   },
   "optimizer": {
     "startCalc": "OPTIMIZE",
@@ -286,16 +272,6 @@
       "whatIfFailed": "Query failed",
       "whatIfHint": "Enter tickers and click \"Query\" to see results",
       "whatIfPlaceholder": "e.g. SPY, TLT, GLD",
-      "alertEmail": "Alert Email",
-      "alertTrigger": "Trigger Conditions",
-      "alertTitle": "Email Alert Configuration",
-      "alertDesc": "Configure email notifications when signals trigger. Configuration is temporarily stored in server memory",
-      "alertEnable": "Enable Email Alert",
-      "alertSaving": "Saving...",
-      "alertSave": "Save Alert Config",
-      "alertEmailRequired": "Email is required when alerts are enabled",
-      "alertSaveFailed": "Save failed",
-      "alertSaved": "Alert configuration saved",
       "noResultsHint": "Configure signals and parameters, then click \"Run Tactical Backtest\" to see results",
       "backtestFailed": "Backtest failed",
       "backtestFailedDetail": "Backtest failed: {{error}}"

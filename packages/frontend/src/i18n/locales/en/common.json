@@ -2,9 +2,6 @@
   "a11y": {
     "skipToMain": "Skip to main content"
   },
-  "ariaLabels": {
-    "weightInput": "Weight input (percentage)"
-  },
   "common": {
     "loading": "Loading...",
     "error": "Error",
@@ -403,14 +400,6 @@
   "tabs": {
     "myMetrics": "My Metrics",
     "rebalancing": "Rebalancing"
-  },
-  "portfolioEditor": {
-    "addPortfolio": "Add Portfolio",
-    "blankPortfolio": "Blank Portfolio",
-    "fromPreset": "Start from Preset",
-    "fromSaved": "Import from Saved",
-    "glidepathPortfolio": "Glidepath Portfolio",
-    "loadExample": "Load Example"
   },
   "summarySidebar": {
     "title": "Key Metrics"

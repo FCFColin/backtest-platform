@@ -2,9 +2,6 @@
   "a11y": {
     "skipToMain": "跳到主要内容"
   },
-  "ariaLabels": {
-    "weightInput": "权重输入（百分比）"
-  },
   "common": {
     "loading": "加载中...",
     "error": "出错了",
@@ -403,14 +400,6 @@
   "tabs": {
     "myMetrics": "自定义指标",
     "rebalancing": "再平衡统计"
-  },
-  "portfolioEditor": {
-    "addPortfolio": "添加组合",
-    "blankPortfolio": "空白组合",
-    "fromPreset": "从预设开始",
-    "fromSaved": "从已保存导入",
-    "glidepathPortfolio": "滑行路径组合",
-    "loadExample": "加载示例"
   },
   "summarySidebar": {
     "title": "关键指标"
