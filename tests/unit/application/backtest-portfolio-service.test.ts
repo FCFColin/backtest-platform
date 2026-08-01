@@ -101,12 +101,9 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-vi.mock('../../../packages/backend/src/application/backtest/backtestResultCache.js', () => ({
+vi.mock('../../../packages/backend/src/application/backtest/backtestResultUtils.js', () => ({
   backtestCacheKey: cacheMocks.backtestCacheKey,
   setBacktestResultCache: cacheMocks.setBacktestResultCache,
-}));
-
-vi.mock('../../../packages/backend/src/application/backtest/compressBacktestResult.js', () => ({
   compressBacktestResultForSync: compressMocks.compressBacktestResultForSync,
 }));
 
@@ -119,7 +116,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: configMocks,
 }));
 
-vi.mock('../../../packages/backend/src/application/backtest/engineBodyBuilder.js', () => ({
+vi.mock('../../../packages/backend/src/application/backtest/backtestEngineUtils.js', () => ({
   buildEngineParams: vi.fn(() => ({})),
 }));
 

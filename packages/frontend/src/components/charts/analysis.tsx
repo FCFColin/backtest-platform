@@ -86,7 +86,6 @@ export const OverviewCharts = memo(function OverviewCharts({
 interface TelltaleChartProps {
   portfolios?: PortfolioResult[];
   results?: AssetAnalysisResult;
-  /** 外层已提供 chart-card 标题时设为 true，避免重复标题与容器 */
   embedded?: boolean;
 }
 interface GrowthPoint {

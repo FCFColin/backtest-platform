@@ -1,4 +1,3 @@
-// Package engine 提供回测核心计算逻辑。
 package engine
 
 import (

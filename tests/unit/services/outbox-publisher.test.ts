@@ -42,7 +42,7 @@ import { OutboxPublisher } from '../../../packages/backend/src/infrastructure/ou
 import {
   writeEventInTransaction,
   type OutboxEvent,
-} from '../../../packages/backend/src/infrastructure/outboxWriter.js';
+} from '../../../packages/backend/src/infrastructure/outbox.js';
 
 function createMockPool() {
   return {

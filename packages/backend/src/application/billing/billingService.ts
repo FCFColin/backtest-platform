@@ -14,7 +14,6 @@ type BillablePlan = 'pro' | 'enterprise';
 
 let stripe: Stripe | null = null;
 
-/** 懒初始化 Stripe 客户端；未配置密钥返回 null。 */
 export function getStripe(): Stripe | null {
   if (!config.STRIPE_SECRET_KEY) return null;
   if (stripe) return stripe;
@@ -26,19 +25,16 @@ export function isBillingEnabled(): boolean {
   return Boolean(config.STRIPE_SECRET_KEY);
 }
 
-/** 计划名 → Stripe Price ID；未配置时返回空串。 */
 export function priceIdForPlan(plan: BillablePlan): string {
   return plan === 'pro' ? config.STRIPE_PRICE_PRO : config.STRIPE_PRICE_ENTERPRISE;
 }
 
-/** Stripe Price ID → 计划名（webhook 同步用）；未匹配返回 'free'。 */
 export function planForPriceId(priceId: string | null | undefined): 'free' | BillablePlan {
   if (priceId && priceId === config.STRIPE_PRICE_PRO) return 'pro';
   if (priceId && priceId === config.STRIPE_PRICE_ENTERPRISE) return 'enterprise';
   return 'free';
 }
 
-/** 获取或创建组织对应的 Stripe customer，并持久化映射。 @throws 未启用计费时抛出 */
 export async function ensureCustomer(orgId: string, email?: string | null): Promise<string> {
   const s = getStripe();
   if (!s) throw new Error('billing_disabled');
@@ -61,7 +57,6 @@ export async function ensureCustomer(orgId: string, email?: string | null): Prom
   return customer.id;
 }
 
-/** 创建订阅 Checkout 会话。 @throws 未启用计费或价格未配置时抛出 */
 export async function createCheckoutSession(input: {
   orgId: string;
   plan: BillablePlan;
@@ -86,7 +81,6 @@ export async function createCheckoutSession(input: {
   return session.url;
 }
 
-/** 创建 Billing Portal 会话（自助管理/取消订阅）。 @throws 未启用计费或组织无客户记录时抛出 */
 export async function createPortalSession(orgId: string, returnUrl: string): Promise<string> {
   const s = getStripe();
   if (!s) throw new Error('billing_disabled');
@@ -103,7 +97,6 @@ export async function createPortalSession(orgId: string, returnUrl: string): Pro
   return session.url;
 }
 
-/** 校验 webhook 签名并解析事件。 @throws 签名校验失败时抛出 */
 export function constructWebhookEvent(rawBody: Buffer, signature: string): Stripe.Event {
   const s = getStripe();
   if (!s) throw new Error('billing_disabled');
@@ -111,7 +104,6 @@ export function constructWebhookEvent(rawBody: Buffer, signature: string): Strip
   return s.webhooks.constructEvent(rawBody, signature, config.STRIPE_WEBHOOK_SECRET);
 }
 
-/** 按 Stripe customer 反查组织 ID */
 async function orgIdForCustomer(customerId: string): Promise<string | null> {
   const { rows } = await getPool().query(
     'SELECT org_id FROM stripe_customers WHERE stripe_customer_id = $1',
@@ -155,7 +147,6 @@ async function syncSubscription(orgId: string, sub: Stripe.Subscription): Promis
   );
 }
 
-/** 处理 checkout.session.completed 事件 */
 async function handleCheckoutCompleted(s: Stripe, event: Stripe.Event): Promise<void> {
   const session = event.data.object as Stripe.Checkout.Session;
   const orgId =
@@ -167,7 +158,6 @@ async function handleCheckoutCompleted(s: Stripe, event: Stripe.Event): Promise<
   await syncSubscription(orgId, await s.subscriptions.retrieve(subId));
 }
 
-/** 处理 customer.subscription.* 事件 */
 async function handleSubscriptionEvent(event: Stripe.Event): Promise<void> {
   const sub = event.data.object as Stripe.Subscription;
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
@@ -194,10 +184,7 @@ export async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
   else logger.debug({ eventType: event.type }, '[billingService] 忽略未处理的 webhook 事件');
 }
 
-/** 查询组织当前订阅摘要（供前端展示）。 */
-export async function getSubscriptionSummary(
-  orgId: string,
-): Promise<{
+export async function getSubscriptionSummary(orgId: string): Promise<{
   plan: string;
   status: string;
   currentPeriodEnd: string | null;

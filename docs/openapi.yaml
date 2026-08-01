@@ -231,9 +231,7 @@ paths:
                 - username
                 - password
       responses:
-        "200":
-          description: 返回 accessToken/refreshToken
-          content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } }
+        "200": { description: 返回 accessToken/refreshToken, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } } }
         "400": { $ref: "#/components/responses/R1" }
         "401": { $ref: "#/components/responses/R2" }
         "422": { $ref: "#/components/responses/R3" }
@@ -1057,9 +1055,7 @@ paths:
                 - parameters
       responses:
         "200": { $ref: "#/components/responses/R6" }
-        "202":
-          description: 任务已入队，通过 GET /backtest/runs/:jobId 轮询结果
-          content: { application/json: { schema: { $ref: "#/components/schemas/BacktestJobAccepted" } } }
+        "202": { description: 任务已入队，通过 GET /backtest/runs/:jobId 轮询结果, content: { application/json: { schema: { $ref: "#/components/schemas/BacktestJobAccepted" } } } }
         "400": { $ref: "#/components/responses/R1" }
         "401": { $ref: "#/components/responses/R2" }
         "422": { $ref: "#/components/responses/R3" }
@@ -3606,9 +3602,7 @@ paths:
       tags:
         - health
       responses:
-        "200":
-          description: 服务存活
-          content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } }
+        "200": { description: 服务存活, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } } }
         "503": { $ref: "#/components/responses/R10" }
   /ready:
     get:
@@ -3616,9 +3610,7 @@ paths:
       tags:
         - health
       responses:
-        "200":
-          description: 服务就绪
-          content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } }
+        "200": { description: 服务就绪, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } } }
         "503": { $ref: "#/components/responses/R10" }
   /metrics:
     get:
@@ -3626,9 +3618,7 @@ paths:
       tags:
         - health
       responses:
-        "200":
-          description: Prometheus 文本格式指标
-          content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } }
+        "200": { description: Prometheus 文本格式指标, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } } }
   /webhooks:
     get:
       summary: 列出当前组织的 webhook 端点
@@ -3767,9 +3757,7 @@ paths:
       tags:
         - announcements
       responses:
-        "200":
-          description: 当前有效的公告列表
-          content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } }
+        "200": { description: 当前有效的公告列表, content: { application/json: { schema: { $ref: "#/components/schemas/SuccessResponse" } } } }
         "500": { $ref: "#/components/responses/R5" }
     post:
       summary: 发布公告（仅管理员）

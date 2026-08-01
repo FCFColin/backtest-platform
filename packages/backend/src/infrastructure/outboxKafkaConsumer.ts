@@ -6,7 +6,7 @@ import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { eventDispatcher } from '../domain/events/events.js';
 // type-only import：避免运行时与 outboxPublisher.ts 形成循环依赖（factory 运行时 import 本模块，类型在编译期擦除）
-import type { OutboxConsumer, WebhookHandler } from './outboxTypes.js';
+import type { OutboxConsumer, WebhookHandler } from './outbox.js';
 
 /** topic 名前缀，与 connector 的 route.topic.replacement `backtest.${routedByValue}` 对齐。 */
 const TOPIC_PREFIX = 'backtest.';

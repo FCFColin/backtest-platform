@@ -6,7 +6,7 @@
  */
 import type { Portfolio, BacktestResult, BacktestParameters } from '@backtest/shared/types';
 import { callEngineStrict } from '../utils/engineClient.js';
-import { buildEngineParams } from './backtest/engineBodyBuilder.js';
+import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
   fetchPriceDataWithRange,
@@ -31,7 +31,6 @@ import {
   type OptimizeResultItem,
 } from '../domain/services/optimizer-domain.js';
 
-// 组合优化 / 有效前沿 — 公共编排：数据获取 → 无效标的检测 → 降级告警 → 引擎调用 → 日期范围
 async function runCompute(
   path: string,
   tickers: string[],
@@ -62,7 +61,6 @@ async function runCompute(
   return { data, warnings, dateRange };
 }
 
-/** 运行组合优化。 @throws {EngineUnavailableError} Go 引擎不可用时 */
 export async function runOptimization(
   tickers: string[],
   objective: 'maxSharpe' | 'minVolatility' | 'maxReturn',
@@ -77,7 +75,6 @@ export async function runOptimization(
   });
 }
 
-/** 计算有效前沿。 @throws {EngineUnavailableError} Go 引擎不可用时 */
 export async function runEfficientFrontier(
   tickers: string[],
   parameters: BacktestParameters,
@@ -89,8 +86,6 @@ export async function runEfficientFrontier(
     riskFreeRate: riskFreeRate || 0.02,
   });
 }
-
-// 回测优化器（参数空间搜索）
 
 /** 按资金分组运行回测，收集结果项（经 Go 引擎，ADR-031 fail-closed） */
 async function runBacktestGroups(
@@ -176,7 +171,6 @@ async function computeBestResult(
   };
 }
 
-/** 运行回测优化器参数搜索。校验失败时返回 { success: false, error }。 */
 export async function executeOptimization(body: Record<string, unknown>): Promise<{
   success: boolean;
   data?: Record<string, unknown>;

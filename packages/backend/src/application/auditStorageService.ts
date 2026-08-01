@@ -57,11 +57,9 @@ interface PaginatedAuditLogs {
 }
 
 const UNEXPORTED_BATCH_LIMIT = 100;
-
 const AUDIT_LOG_COLUMNS =
   'id, event_type, user_id, org_id, ip_address, action, resource_type, resource_id, payload, hmac_signature, object_key, exported_at, created_at';
 
-/** 对审计日志 payload 做 HMAC-SHA256 签名。密钥由 KMS 管理，DBA 无法伪造。未配置密钥返回空字符串。 */
 export function signAuditEntry(payload: string): string {
   const key = config.AUDIT_HMAC_KEY;
   if (!key) {
@@ -70,13 +68,10 @@ export function signAuditEntry(payload: string): string {
   }
   return crypto.createHmac('sha256', key).update(payload).digest('hex');
 }
-
-/** prev_hash = SHA256(id || hmac_signature)，用于链式完整性校验。 */
 function computePrevHash(id: string, signature: string): string {
   return crypto.createHash('sha256').update(`${id}${signature}`).digest('hex');
 }
 
-/** 写入审计日志（含 HMAC 签名 + 链式 prev_hash）。client 可选，传入时参与调用方事务。 */
 export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): Promise<string> {
   const conn = client ?? getPool();
   const payloadStr = JSON.stringify(entry.payload);
@@ -117,7 +112,6 @@ export async function writeAuditLog(entry: AuditLogEntry, client?: PoolClient): 
   return id;
 }
 
-/** 查询未导出至 MinIO 的审计日志（按创建时间正序，便于按日期分组导出）。 */
 export async function getUnexportedAuditLogs(
   limit: number = UNEXPORTED_BATCH_LIMIT,
 ): Promise<AuditLogRow[]> {
@@ -128,7 +122,6 @@ export async function getUnexportedAuditLogs(
   return rows.map(mapAuditLogRow);
 }
 
-/** 标记审计日志已导出至 MinIO（回填 object_key 与 exported_at）。 */
 export async function markExported(ids: string[], objectKey: string): Promise<void> {
   if (ids.length === 0) return;
   await getPool().query(
@@ -141,7 +134,6 @@ export async function markExported(ids: string[], objectKey: string): Promise<vo
   );
 }
 
-/** 分页查询审计日志（动态 WHERE 拼接，参数化查询防 SQL 注入）。 */
 export async function queryAuditLogs(
   filters: AuditLogQueryFilters,
   page: number = 1,
@@ -182,10 +174,6 @@ export async function queryAuditLogs(
   };
 }
 
-/**
- * 校验审计日志的 HMAC 完整性（篡改检测）：重算 payload HMAC 与存储值比对，timingSafeEqual 常量时间防时序攻击。
- * 未配置 AUDIT_HMAC_KEY 时 fail-closed 返回 valid=false（D2-010）。
- */
 export async function verifyAuditIntegrity(
   logId: string,
 ): Promise<{ valid: boolean; expected: string; actual: string }> {
@@ -233,7 +221,6 @@ const mapAuditLogRow = rowMapper<AuditLogRow>({
   createdAt: (r) => iso(r.created_at),
 });
 
-/** P2-04: 验证审计日志链式完整性：遍历重算 prev_hash 与存储值比对，不匹配记为断裂点。分页验证避免一次加载数百万行。 */
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export async function verifyAuditChain(): Promise<{
   valid: boolean;

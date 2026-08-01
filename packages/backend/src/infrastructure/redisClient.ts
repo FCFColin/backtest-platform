@@ -12,7 +12,6 @@ interface SentinelNode {
   port: number;
 }
 
-/** 解析 REDIS_SENTINELS（逗号分隔 host:port）为节点数组；未设置返回 null。 */
 function parseSentinels(): SentinelNode[] | null {
   const raw = config.REDIS_SENTINELS;
   if (!raw || typeof raw !== 'string') return null;
@@ -32,7 +31,6 @@ function parseSentinels(): SentinelNode[] | null {
   return nodes.length > 0 ? nodes : null;
 }
 
-/** 解析 REDIS_URL（支持 redis:// 与 rediss://、含凭证与库号）为 ioredis 选项。BullMQ 连接只接受标准选项，无 connectionString 字段。 */
 function parseRedisUrl(url: string): RedisOptions {
   const parsed = new URL(url);
   const options: RedisOptions = {
@@ -63,7 +61,6 @@ if (config.NODE_ENV === 'staging' && !isSentinelMode) {
   );
 }
 
-/** 构造基础 Redis 连接选项（Sentinel 或单实例）。不含 maxRetriesPerRequest/enableReadyCheck 等差异化配置，由调用方注入。 */
 export function buildRedisBaseOptions(): RedisOptions {
   const sentinels = parseSentinels();
   if (sentinels) {
@@ -126,7 +123,6 @@ appRedis.on('reconnecting', () => setRedisHealth(false));
 appRedis.on('end', () => setRedisHealth(false));
 appRedis.on('error', () => setRedisHealth(false));
 
-/** 异步获取 Redis 健康状态（带 5 秒缓存）。 */
 export async function getRedisHealth(): Promise<boolean> {
   if (Date.now() - redisHealthLastCheck < REDIS_HEALTH_CACHE_TTL_MS) return redisHealthCached;
   try {
@@ -139,7 +135,6 @@ export async function getRedisHealth(): Promise<boolean> {
   }
 }
 
-/** 立即标记 Redis 不可用（命令失败但尚未触发 error 事件时调用，避免 5s 窗口内反复重试已知不可用的 Redis）。 */
 export function markRedisUnhealthy(): void {
   setRedisHealth(false);
 }
@@ -153,11 +148,9 @@ interface SentinelMasterHealth {
   connectedSlaves: number | null; // 已连接从节点数（非 Sentinel 模式为 null）
 }
 
-/** 查询 Redis 复制状态（Sentinel 模式下用于 master 健康检查）。 */
 export async function checkSentinelMaster(): Promise<SentinelMasterHealth> {
   if (!isSentinelMode) return { isMaster: null, connectedSlaves: null };
   try {
-    // INFO replication 返回纯文本，解析 role:master 与 connected_slaves:N
     const info = (await appRedis.info('replication')) as string;
     const roleMatch = info.match(/^role:([a-z]+)/m);
     const slavesMatch = info.match(/^connected_slaves:(\d+)/m);

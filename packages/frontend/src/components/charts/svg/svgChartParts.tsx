@@ -139,7 +139,6 @@ const TOOLTIP_STYLE: CSSProperties = {
   lineHeight: '1.5',
   whiteSpace: 'nowrap',
 };
-// 图例/提示框通用色点样式
 const swatchStyle = (size: number, color: string): CSSProperties => ({
   display: 'inline-block',
   width: size,

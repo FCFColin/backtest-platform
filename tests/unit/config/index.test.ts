@@ -8,16 +8,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: loggerMocks,
 }));
-// Mock dotenv 避免 .env 干扰
 vi.mock('dotenv', () => ({
   default: { config: vi.fn() },
   config: vi.fn(),
 }));
-
 import { config, validateConfig } from '../../../packages/backend/src/config/index.js';
 import { assertNoDefaultSecrets } from '../../../packages/backend/src/config/assertNoDefaultSecrets.js';
 import {
@@ -25,7 +22,6 @@ import {
   resolveJwtAlgorithm,
   parseCorsOrigins,
 } from '../../../packages/backend/src/config/env.js';
-
 const CFG_KEYS = [
   'NODE_ENV',
   'JWT_SECRET',
@@ -47,7 +43,6 @@ const CFG_KEYS = [
 const ENV_KEYS = ['DATABASE_URL', 'TRUST_PROXY_HOPS'];
 let snap: Record<string, unknown> = {};
 let envSnap: Record<string, string | undefined> = {};
-
 function snapshot() {
   snap = {};
   envSnap = {};
@@ -90,7 +85,6 @@ describe('validateConfig - 开发环境（宽松校验）', () => {
     config.NODE_ENV = env;
     expect(() => validateConfig()).not.toThrow();
   });
-
   it('开发环境允许使用默认 ENGINE_AUTH_TOKEN', () => {
     config.NODE_ENV = 'development';
     config.ENGINE_AUTH_TOKEN = 'dev-engine-auth-token';
@@ -140,21 +134,17 @@ describe('validateConfig - 生产环境（严格校验）', () => {
     Object.assign(config, patch);
     expect(() => validateConfig()).toThrow(code);
   });
-
   it.each(['DATABASE_URL', 'TRUST_PROXY_HOPS'])('%s 未通过环境变量设置应抛错', (key) => {
     delete process.env[key];
     expect(() => validateConfig()).toThrow(key);
   });
-
   it('所有配置正确时不应抛错', () => {
     expect(() => validateConfig()).not.toThrow();
   });
-
   it('REQUIRE_API_KEY=false 时不应抛错（RBAC 始终生效，REQUIRE_API_KEY 已退役）', () => {
     config.REQUIRE_API_KEY = false;
     expect(() => validateConfig()).not.toThrow();
   });
-
   it('多个校验失败时错误信息应包含全部失败项', () => {
     config.JWT_SECRET = 'dev-only-jwt-secret-change-in-production';
     config.ENGINE_AUTH_TOKEN = 'dev-engine-auth-token';
@@ -180,7 +170,6 @@ describe('config 默认值', () => {
   ])('%s 默认应为 %i', (key, expected) => {
     expect((config as Record<string, unknown>)[key]).toBe(expected);
   });
-
   it('GO_ENGINE_URL 默认应指向 15004 端口', () => {
     expect(config.GO_ENGINE_URL).toContain('15004');
   });
@@ -235,7 +224,6 @@ describe('P0-02: assertNoDefaultSecrets — 默认密钥启动拦截', () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(field));
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
-
   it('生产环境 + 多个默认密钥 → 错误信息包含所有违规字段', () => {
     process.env.NODE_ENV = 'production';
     assertNoDefaultSecrets({
@@ -293,7 +281,6 @@ describe('H-006: requireSecret — secret 缺失时 throw', () => {
     mutate();
     expect(() => requireSecret('TEST_SECRET_H006')).toThrow('TEST_SECRET_H006');
   });
-
   it('env var 已设置时返回值', () => {
     process.env.TEST_SECRET_H006 = 'a-strong-secret-value';
     expect(requireSecret('TEST_SECRET_H006')).toBe('a-strong-secret-value');
@@ -309,7 +296,6 @@ describe('H-006: env.ts 源码不含硬编码默认值（authConfig + engineConf
   it('env.ts 不含 hardcoded dev- defaults', () => {
     expect(envSource).not.toContain("|| 'dev-");
   });
-
   it.each(['JWT_SECRET', 'ENGINE_AUTH_TOKEN', 'DATA_SERVICE_AUTH_TOKEN'])(
     'env.ts 使用 requireSecret 获取 %s',
     (key) => expect(envSource).toContain(`requireSecret('${key}')`),
@@ -361,7 +347,6 @@ describe('resolveJwtAlgorithm', () => {
     process.env.NODE_ENV = 'development';
     expect(resolveJwtAlgorithm()).toBe('RS256');
   });
-
   it('NODE_ENV 决定默认算法：production→RS256，其他（含未设置）→HS256', () => {
     delete process.env.JWT_ALGORITHM;
     for (const [env, expected] of [
@@ -380,14 +365,12 @@ describe('parseCorsOrigins', () => {
   it('undefined / 空串 / 纯空白 / "*" 应返回 true（允许所有来源）', () => {
     for (const v of [undefined, '', '   ', '*', '  *  ']) expect(parseCorsOrigins(v)).toBe(true);
   });
-
   it('逗号分隔列表应返回 trim 后的非空数组', () => {
     expect(parseCorsOrigins('https://a.com, https://b.com')).toEqual([
       'https://a.com',
       'https://b.com',
     ]);
   });
-
   it('应过滤空条目（首尾逗号、连续逗号、纯空白条目）', () => {
     expect(parseCorsOrigins(',https://a.com,, ,')).toEqual(['https://a.com']);
   });

@@ -8,16 +8,15 @@ import { logger } from '../utils/logger.js';
 import { recordCacheHit, recordCacheEviction } from '../utils/metrics.js';
 import { appRedis, getRedisHealth, markRedisUnhealthy } from './redisClient.js';
 
-const PRICE_CACHE_TTL_SEC = 86400; // 日线价格收盘后不变，24h
+const PRICE_CACHE_TTL_SEC = 86400;
 const HISTORY_CACHE_TTL_SEC = 86400;
-const SEARCH_CACHE_TTL_SEC = 3600; // 搜索结果 1h（新标的入库后较短时间内可见）
-const REALTIME_CACHE_TTL_SEC = 300; // 实时数据预留（当前无实时入口，供后续行情使用）
-
+const SEARCH_CACHE_TTL_SEC = 3600;
+const REALTIME_CACHE_TTL_SEC = 300;
 const L1_MAX_ENTRIES = 1000;
-const L1_TTL_MS = 5 * 60 * 1000; // 与 backtestResultCache 一致
+const L1_TTL_MS = 5 * 60 * 1000;
 const COMPRESS_THRESHOLD_BYTES = 1024;
-const GZIP_PREFIX = 'gzip:'; // 压缩数据存储前缀标记
-const CACHE_KEY_PREFIX = 'cache:org:'; // 含 org 隔离槽位
+const GZIP_PREFIX = 'gzip:';
+const CACHE_KEY_PREFIX = 'cache:org:';
 const DEFAULT_ORG_ID = 'shared';
 const REDIS_SCAN_COUNT = 100;
 
@@ -27,7 +26,6 @@ interface L1Entry {
 }
 const l1Cache = new Map<string, L1Entry>();
 
-/** 读 L1：命中时刷新 LRU 顺序（delete + set 移末尾），过期剔除。 */
 function l1Get(key: string): unknown | null {
   const entry = l1Cache.get(key);
   if (!entry) return null;
@@ -39,7 +37,6 @@ function l1Get(key: string): unknown | null {
   l1Cache.set(key, entry);
   return entry.data;
 }
-/** 写 L1：超容量时先清过期条目，再按 LRU 淘汰最旧。 */
 function l1Set(key: string, data: unknown): void {
   if (l1Cache.size >= L1_MAX_ENTRIES) evictExpiredL1();
   while (l1Cache.size >= L1_MAX_ENTRIES) {
@@ -64,8 +61,6 @@ function evictExpiredL1(): void {
 function sanitize(s: string): string {
   return s.replace(/[^a-zA-Z0-9._-]/g, '_').substring(0, 50);
 }
-
-/** Redis key：`cache:org:{orgId}:{type}:{sortedParams}`，参数按名排序保证相同参数集生成相同 key。 */
 function getCacheKey(
   type: string,
   params: Record<string, string>,
@@ -77,19 +72,16 @@ function getCacheKey(
     .join('&');
   return `${CACHE_KEY_PREFIX}${sanitize(orgId)}:${sanitize(type)}:${paramStr}`;
 }
-/** 价格缓存 key：`cache:org:{orgId}:price:{ticker}` */
 function priceKey(ticker: string, orgId: string = DEFAULT_ORG_ID): string {
   return getCacheKey('price', { ticker }, orgId);
 }
 
-/** 序列化：JSON.stringify，超过阈值 gzip + base64 并加前缀标记。 */
 function serialize(data: unknown): string {
   const json = JSON.stringify(data);
   return json.length > COMPRESS_THRESHOLD_BYTES
     ? GZIP_PREFIX + gzipSync(Buffer.from(json, 'utf-8')).toString('base64')
     : json;
 }
-/** 反序列化：带 `gzip:` 前缀则解压后解析。失败返回 null。 */
 function deserialize(raw: string): unknown | null {
   try {
     if (raw.startsWith(GZIP_PREFIX))
@@ -103,7 +95,6 @@ function deserialize(raw: string): unknown | null {
   }
 }
 
-/** 读缓存：L1 命中直接返回；未命中查 L2 Redis，命中回填 L1。均未命中返回 null。 */
 async function readCache(key: string): Promise<unknown> {
   const l1 = l1Get(key);
   if (l1 !== null) {
@@ -155,7 +146,6 @@ async function writeCache(key: string, data: unknown, ttlSec: number): Promise<v
   }
 }
 
-/** 扫描匹配 pattern 的 key 并批量删除（best-effort，失败仅告警）。 */
 async function scanDel(pattern: string): Promise<void> {
   if (!(await getRedisHealth())) return;
   try {
@@ -196,7 +186,6 @@ async function clearPriceCache(): Promise<void> {
   await scanDel(`${CACHE_KEY_PREFIX}*:price:*`);
 }
 
-/** 写价格缓存（L1 + L2，TTL 24h）。 */
 async function setPriceCache(
   ticker: string,
   data: Record<string, number>,

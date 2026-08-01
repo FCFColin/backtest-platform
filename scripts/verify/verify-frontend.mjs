@@ -1,19 +1,4 @@
-﻿// scripts/verify/verify-frontend.mjs
-//
-// P0-4 验证：前端 4 项 CRITICAL 修复真实性验证（C-004 / C-005 / C-006 / C-019）
-// 原方案要求 chrome-devtools MCP 动态验证；MCP 不可用时按 tmp.md 原方案改用 Playwright chromium 后备，
-// 并在报告中记录。静态检查 (C-019 grep useEngineHealth) 不受影响。
-//
-// 验证项：
-//   C-004 Navbar/PromoBar 路由断链（登录链接 404）— 点击登录链接验证 URL=/login 非 404
-//   C-005 起始资金默认值 invalid — input.value 非空、validity.valid===true、运行按钮存在且未禁用
-//   C-006 CLS=1.05 修复（目标 < 0.1）— PerformanceObserver 实测 layout-shift
-//   C-019 删除 useEngineHealth 死代码 — grepInCode 0 匹配
-//
-// 运行：node scripts/verify/verify-frontend.mjs
-//   前置：dev server 在 http://localhost:15173/ 运行（vite）
-
-import { chromium } from '@playwright/test';
+﻿import { chromium } from '@playwright/test';
 import { writeAggregatedResult, grepInCode } from './_lib.mjs';
 
 const BASE = 'http://localhost:15173';
@@ -27,7 +12,6 @@ const results = {
   bonusChecks: { status: 'SKIP', summary: '未执行', details: {} },
 };
 
-// ── C-019 静态检查（不依赖浏览器，始终执行）──
 const useEngineHealthRefs = grepInCode(/useEngineHealth/, 'packages/frontend/src', {
   extensions: ['.ts', '.tsx'],
 });
@@ -44,7 +28,6 @@ results.C019 = {
   },
 };
 
-// ── 动态检查（需浏览器）──
 let browser;
 try {
   browser = await chromium.launch({ headless: true });
@@ -65,20 +48,16 @@ const context = await browser.newContext({
 });
 const page = await context.newPage();
 
-// 收集所有失败 navigation（status >= 400 的 document 请求）
 const failedNavigations = [];
 page.on('response', (res) => {
   try {
     if (res.request().resourceType() === 'document' && res.status() >= 400) {
       failedNavigations.push({ url: res.url(), status: res.status() });
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 });
 
 try {
-  // ═══ 场景 1：首页 + 起始资金默认值 (C-005) + bonusChecks ═══
   await page.goto(BASE + '/', { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: SHOTS + '/C-004-homepage.png', fullPage: true });
@@ -124,7 +103,6 @@ try {
     };
   });
 
-  // ═══ 场景 2：Navbar 登录/注册链接 (C-004) ═══
   const navChecks = await page.evaluate(() => {
     const loginLinks = Array.from(document.querySelectorAll('a')).filter((a) =>
       /登录|login/i.test(a.textContent ?? ''),
@@ -163,12 +141,14 @@ try {
   }
 
   results.C004 = {
-    status:
-      loginPageIsValid && navChecks.loginHrefs?.some((h) => h === '/login') ? 'PASS' : 'FAIL',
+    status: loginPageIsValid && navChecks.loginHrefs?.some((h) => h === '/login') ? 'PASS' : 'FAIL',
     summary:
       loginPageIsValid && navChecks.loginHrefs?.some((h) => h === '/login')
         ? '登录链接 href=/login，点击后进入 ' + loginPageUrl + '，无 404'
-        : '登录链接验证失败：hrefs=' + JSON.stringify(navChecks.loginHrefs) + ' url=' + loginPageUrl,
+        : '登录链接验证失败：hrefs=' +
+          JSON.stringify(navChecks.loginHrefs) +
+          ' url=' +
+          loginPageUrl,
     details: {
       loginLinkCount: navChecks.loginLinkCount,
       loginHrefs: navChecks.loginHrefs,
@@ -180,7 +160,6 @@ try {
     },
   };
 
-  // ═══ C-005 起始资金默认值 ═══
   const c005Pass =
     homepageChecks.runButtonExists === true &&
     homepageChecks.runButtonDisabled === false &&
@@ -190,29 +169,38 @@ try {
   results.C005 = {
     status: c005Pass ? 'PASS' : 'FAIL',
     summary: c005Pass
-      ? '起始资金 input 默认值=' + homepageChecks.startingValueValue + '，validity.valid=true，运行按钮存在且未禁用'
-      : '起始资金验证失败：value=' + homepageChecks.startingValueValue + ' valid=' + homepageChecks.startingValueValid + ' runBtn=' + homepageChecks.runButtonExists + ' disabled=' + homepageChecks.runButtonDisabled,
+      ? '起始资金 input 默认值=' +
+        homepageChecks.startingValueValue +
+        '，validity.valid=true，运行按钮存在且未禁用'
+      : '起始资金验证失败：value=' +
+        homepageChecks.startingValueValue +
+        ' valid=' +
+        homepageChecks.startingValueValid +
+        ' runBtn=' +
+        homepageChecks.runButtonExists +
+        ' disabled=' +
+        homepageChecks.runButtonDisabled,
     details: homepageChecks,
   };
 
-  // ═══ 场景 3：CLS 测量 (C-006) ═══
   await page.goto(BASE + '/', { waitUntil: 'load', timeout: 30000 });
-  const clsValue = await page.evaluate(() =>
-    new Promise((resolve) => {
-      let cls = 0;
-      try {
-        const po = new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) {
-            if (!entry.hadRecentInput) cls += entry.value;
-          }
-        });
-        po.observe({ type: 'layout-shift', buffered: true });
-      } catch (e) {
-        resolve({ cls: -1, error: String(e) });
-        return;
-      }
-      setTimeout(() => resolve({ cls: Math.round(cls * 10000) / 10000 }), 3000);
-    }),
+  const clsValue = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        let cls = 0;
+        try {
+          const po = new PerformanceObserver((list) => {
+            for (const entry of list.getEntries()) {
+              if (!entry.hadRecentInput) cls += entry.value;
+            }
+          });
+          po.observe({ type: 'layout-shift', buffered: true });
+        } catch (e) {
+          resolve({ cls: -1, error: String(e) });
+          return;
+        }
+        setTimeout(() => resolve({ cls: Math.round(cls * 10000) / 10000 }), 3000);
+      }),
   );
   const cls = typeof clsValue === 'object' ? clsValue.cls : clsValue;
   const clsError = typeof clsValue === 'object' ? clsValue.error : null;
@@ -225,7 +213,6 @@ try {
     details: { clsValue: cls, threshold: 0.1, error: clsError },
   };
 
-  // ═══ bonusChecks ═══
   const noBonusIssues =
     homepageChecks.h1Count === 1 &&
     homepageChecks.i18nLeakedCount === 0 &&
@@ -235,7 +222,14 @@ try {
     status: noBonusIssues ? 'PASS' : 'FAIL',
     summary: noBonusIssues
       ? '无 bonus 问题：H1=1、无 i18n 泄露、无 NaN、无失败 navigation'
-      : '存在 bonus 问题：H1=' + homepageChecks.h1Count + ' i18n泄露=' + homepageChecks.i18nLeakedCount + ' NaN=' + homepageChecks.nanCount + ' 失败nav=' + failedNavigations.length,
+      : '存在 bonus 问题：H1=' +
+        homepageChecks.h1Count +
+        ' i18n泄露=' +
+        homepageChecks.i18nLeakedCount +
+        ' NaN=' +
+        homepageChecks.nanCount +
+        ' 失败nav=' +
+        failedNavigations.length,
     details: {
       h1Count: homepageChecks.h1Count,
       h1Texts: homepageChecks.h1Texts,
@@ -255,7 +249,11 @@ try {
   if (results.C006.status === 'SKIP')
     results.C006 = { status: 'SKIP', summary: msg, details: { error: String(e?.stack ?? e) } };
   if (results.bonusChecks.status === 'SKIP')
-    results.bonusChecks = { status: 'SKIP', summary: msg, details: { error: String(e?.stack ?? e) } };
+    results.bonusChecks = {
+      status: 'SKIP',
+      summary: msg,
+      details: { error: String(e?.stack ?? e) },
+    };
 } finally {
   await browser.close();
 }

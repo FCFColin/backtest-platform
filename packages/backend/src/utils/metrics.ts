@@ -5,7 +5,6 @@ import type { Request } from 'express';
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
-// 绑定到本模块 register 的工厂函数，避免每处定义重复 registers: [register]
 const gauge = (name: string, help: string, labelNames: string[] = []): client.Gauge =>
   new client.Gauge({ name, help, labelNames, registers: [register] });
 const counter = (name: string, help: string, labelNames: string[] = []): client.Counter =>
@@ -18,7 +17,6 @@ const histogram = (
 ): client.Histogram =>
   new client.Histogram({ name, help, labelNames, buckets, registers: [register] });
 
-// 采样类注册的公共骨架：立即采样一次 + setInterval 周期刷新（unref 不阻塞进程退出）
 function startSampler(fn: () => void | Promise<void>, intervalMs: number): void {
   void fn();
   setInterval(fn, intervalMs).unref();
@@ -35,7 +33,6 @@ setInterval(() => {
   eventLoopMonitor.reset();
 }, 10_000).unref();
 
-// 状态码映射：0=closed, 1=open, 2=halfOpen
 export const circuitBreakerState = gauge(
   'circuit_breaker_state',
   'Circuit breaker state: 0=closed, 1=open, 2=halfOpen',
@@ -146,7 +143,6 @@ const pgPoolTotalCount = gauge(
   ['pool'],
 );
 
-// 清洗指标标签值：替换非法字符为 `_`，截断到 maxLength。allowSlash=true 允许 `/`（路由型标签）
 function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false): string {
   const pattern = allowSlash ? /[^a-zA-Z0-9_/-]/g : /[^a-zA-Z0-9_-]/g;
   return value.replace(pattern, '_').slice(0, maxLength);
@@ -204,7 +200,6 @@ export function recordEngineUnavailable(reason: string): void {
   engineUnavailableTotal.inc({ reason: sanitizeMetricLabel(reason) });
 }
 
-// 测试专用：生产代码零外部引用，仅单元测试直接调用
 export function resetMetrics(): void {
   register.resetMetrics();
 }
@@ -214,7 +209,6 @@ export const authIpLockoutCounter = counter(
   'auth_ip_lockout_total',
   'Total number of IP addresses blocked due to suspicious login activity (cross-account brute force)',
 );
-// 副本不可用时自动降级到主库的次数
 export const readPoolFallbackCounter = counter(
   'read_pool_fallback_total',
   'Number of times read pool fell back to write pool due to connection failure',
@@ -237,7 +231,6 @@ const timescaledbChunkGauges = {
     'Number of uncompressed chunks in prices hypertable',
   ),
 };
-// 0-1，压缩后/压缩前
 const timescaledbCompressionRatio = gauge(
   'timescaledb_compression_ratio',
   'Compression ratio of prices hypertable (after/before, lower is better)',

@@ -6,7 +6,7 @@
  * portfolioRepo（withTenant）按 req.tenantId 隔离 → 响应格式化。
  */
 import { tenantCrudRoutes } from './routeUtils.js';
-import { portfolioBodySchema } from '../schemas/persistence.js';
+import { portfolioBodySchema } from '../schemas/backtest.js';
 import {
   listPortfolios,
   getPortfolio,

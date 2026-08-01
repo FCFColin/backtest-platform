@@ -1,9 +1,9 @@
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
-import { loadCpiMap } from '../infrastructure/cpiLoader.js';
+import { loadCpiMap } from '../infrastructure/dataServices.js';
 import { withTimeout, isValidDate } from '../utils/misc.js';
 import { loadExchangeRatesFromDb } from '../db/macroData.js';
 import { ValidationError } from '../utils/errors.js';
-import { DomainValidationError } from '../domain/errors.js';
+import { DomainValidationError } from '../domain/value-objects/index.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
 import type { Portfolio, BacktestParameters, BacktestResult, PriceData } from '@backtest/shared';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';

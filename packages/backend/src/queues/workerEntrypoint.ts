@@ -20,10 +20,14 @@ import { initDb } from '../infrastructure/dataFacade.js';
 import { closeDb } from '../db/pool.js';
 import { eventDispatcher } from '../domain/events/events.js';
 import { BacktestCompletedHandler, RunCompletedHandler } from '../application/completedHandlers.js';
-import { createWebhookRetryWorker, scheduleWebhookRetryJob } from './webhookQueue.js';
-import { createAuditExportWorker, scheduleAuditExportJob } from './auditExportQueue.js';
+import {
+  createWebhookRetryWorker,
+  scheduleWebhookRetryJob,
+  createAuditExportWorker,
+  scheduleAuditExportJob,
+} from './queueDefinitions.js';
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
-import { startHeartbeat } from './healthCheck.js';
+import { startHeartbeat } from './queueUtils.js';
 import { shutdownWorker } from './worker.js'; // Backtest worker (module-level side effect: creates Worker at import time)
 import type { Worker } from 'bullmq';
 

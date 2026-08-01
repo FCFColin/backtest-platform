@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildEngineParams } from '../../../packages/backend/src/application/backtest/engineBodyBuilder.js';
+import { buildEngineParams } from '../../../packages/backend/src/application/backtest/backtestEngineUtils.js';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
 import type { Portfolio as PortfolioDTO, BacktestParameters } from '@backtest/shared';
 

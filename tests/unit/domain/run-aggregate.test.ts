@@ -4,17 +4,18 @@ import { loggerMocks } from '../../helpers/loggerFixture.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: loggerMocks,
 }));
-
 // db/getPool 仍 mock：用于断言处理器**不再**访问数据库。
 const poolMocks = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks),
 }));
-
 import { Run } from '../../../packages/backend/src/domain/aggregates/run.js';
 import { Portfolio } from '../../../packages/backend/src/domain/aggregates/portfolio.js';
-import { Ticker, Weight } from '../../../packages/backend/src/domain/value-objects/index.js';
-import { DomainValidationError } from '../../../packages/backend/src/domain/errors.js';
+import {
+  DomainValidationError,
+  Ticker,
+  Weight,
+} from '../../../packages/backend/src/domain/value-objects/index.js';
 import { DomainEventDispatcher } from '../../../packages/backend/src/domain/events/events.js';
 import type {
   DomainEvent,
@@ -266,7 +267,6 @@ function createEvent(eventType: string, aggregateId = 'portfolio-1'): DomainEven
     occurredAt: new Date('2026-01-01T00:00:00Z'),
   };
 }
-
 function createHandler(eventType: string, handleFn?: (event: DomainEvent) => void): EventHandler {
   return {
     eventType,
@@ -275,7 +275,6 @@ function createHandler(eventType: string, handleFn?: (event: DomainEvent) => voi
     }),
   };
 }
-
 function createFailingHandler(eventType: string): EventHandler {
   return {
     eventType,
@@ -301,7 +300,6 @@ describe('DomainEventDispatcher', () => {
     expect(handler.handle).toHaveBeenCalledTimes(1);
     expect(handler.handle).toHaveBeenCalledWith(event);
   });
-
   it('dispatch() 无注册处理器时应正常返回，不抛错', async () => {
     await expect(dispatcher.dispatch(createEvent('UnregisteredEvent'))).resolves.toBeUndefined();
     expect(loggerMocks.info).toHaveBeenCalledWith(
@@ -309,7 +307,6 @@ describe('DomainEventDispatcher', () => {
       'No handlers registered for event',
     );
   });
-
   it('dispatch() 单个处理器失败时不应阻塞其他处理器', async () => {
     const failingHandler = createFailingHandler('TestEvent');
     const successHandler = createHandler('TestEvent');
@@ -327,7 +324,6 @@ describe('DomainEventDispatcher', () => {
       'Some event handlers failed',
     );
   });
-
   it.each([
     ['同一事件类型的多个处理器均应被调用', 3, null],
     [
@@ -347,7 +343,6 @@ describe('DomainEventDispatcher', () => {
     if (logExpect)
       expect(loggerMocks.info).toHaveBeenCalledWith(logExpect, 'Dispatching domain event');
   });
-
   it('dispatch() 应只调用对应事件类型的处理器，不调用其他类型', async () => {
     const targetHandler = createHandler('TargetEvent');
     const otherHandler = createHandler('OtherEvent');
@@ -357,7 +352,6 @@ describe('DomainEventDispatcher', () => {
     expect(targetHandler.handle).toHaveBeenCalledTimes(1);
     expect(otherHandler.handle).not.toHaveBeenCalled();
   });
-
   it('dispatch() 所有处理器均失败时应记录警告且不抛错', async () => {
     dispatcher.register(createFailingHandler('AllFailEvent'));
     dispatcher.register(createFailingHandler('AllFailEvent'));
@@ -397,7 +391,6 @@ describe('BacktestCompletedHandler', () => {
   it('应订阅 BacktestCompleted 事件类型', () => {
     expect(handler.eventType).toBe('BacktestCompleted');
   });
-
   it('handle 应记录 info 日志（含关键指标）', async () => {
     await handler.handle(makeEvent());
     expect(loggerMocks.info).toHaveBeenCalledWith(
@@ -411,17 +404,14 @@ describe('BacktestCompletedHandler', () => {
       expect.stringContaining('回测完成事件已接收'),
     );
   });
-
   it('handle 不应访问数据库（不写 outbox、不发 NOTIFY）', async () => {
     await handler.handle(makeEvent());
     // ADR-024：处理器为纯观测副作用，不得调用 pool.query。
     expect(poolMocks.query).not.toHaveBeenCalled();
   });
-
   it('handle 不应抛出错误', async () => {
     await expect(handler.handle(makeEvent())).resolves.toBeUndefined();
   });
-
   it('payload 缺少指标字段时也应正常处理', async () => {
     const event = makeEvent();
     (event as Record<string, unknown>).payload = {};

@@ -150,6 +150,8 @@ yaml = yaml.replace(/^openapi:\s*['"]?3\.0\.3['"]?\s*$/m, 'openapi: 3.0.3');
 // 1) `key:` 与其后独立 `{` 行合并
 // 2) `"code":` + 独立 `$ref:` 行合并为单行引用
 // 3) content -> application/(json|problem+json) -> schema -> $ref 链折叠
+// 4) `"200"` 等响应块 description + content 单行化
+// 5) `required:` 列表数组化
 // eslint-disable-next-line no-constant-condition
 for (let i = 0; i < 50; i++) {
   const next = yaml
@@ -165,6 +167,11 @@ for (let i = 0; i < 50; i++) {
       /^(\s*)content:\r?\n(\s*)application\/(json|problem\+json):\r?\n(\s*)schema:\r?\n(\s*)\$ref: ("#[^"]+"|'#[^']+')$/gm,
       (_m, ind, _i2, mt, _i4, _i5, ref) =>
         `${ind}content: { application/${mt}: { schema: { $ref: ${ref} } } }`,
+    )
+    .replace(
+      /^(\s*)"(\d{3})":\r?\n(\s*)description: (.+)\r?\n(\s*)content: (.+)$/gm,
+      (_m, ind, code, _i3, desc, _i5, content) =>
+        `${ind}"${code}": { description: ${desc}, content: ${content} }`,
     );
   if (next === yaml) break;
   yaml = next;

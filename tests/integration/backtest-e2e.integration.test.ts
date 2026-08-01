@@ -28,12 +28,9 @@ vi.mock('../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   searchTickers: searchTickersMock,
 }));
 
-vi.mock('../../packages/backend/src/application/backtest/compressBacktestResult.js', () => ({
+vi.mock('../../packages/backend/src/application/backtest/backtestResultUtils.js', () => ({
   compressBacktestResultForSync: vi.fn((r) => r),
   extractBacktestSeries: vi.fn(() => ({})),
-}));
-
-vi.mock('../../packages/backend/src/application/backtest/backtestResultCache.js', () => ({
   backtestCacheKey: vi.fn(() => 'cache-key'),
   getBacktestResultCache: vi.fn(() => null),
   setBacktestResultCache: vi.fn(),

@@ -5,7 +5,7 @@
  * → requirePermission(BACKTEST_RUN)。所有操作经 savedConfigRepo（withTenant）隔离。
  */
 import { tenantCrudRoutes } from './routeUtils.js';
-import { savedConfigBodySchema } from '../schemas/persistence.js';
+import { savedConfigBodySchema } from '../schemas/backtest.js';
 import {
   listConfigs,
   getConfig,

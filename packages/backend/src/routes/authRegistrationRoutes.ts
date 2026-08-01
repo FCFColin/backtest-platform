@@ -12,7 +12,11 @@ import { sendProblem } from '../utils/errors.js';
 import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hashUserId, requireUser } from '../middleware/jwtAuth.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { registerSchema, verifyEmailSchema, resendVerificationSchema } from '../schemas/misc-schemas.js';
+import {
+  registerSchema,
+  verifyEmailSchema,
+  resendVerificationSchema,
+} from '../schemas/tactical.js';
 import { createUserTx, getUserByEmail } from '../repositories/userRepo.js';
 import { issueEmailVerificationToken, verifyEmailToken } from '../application/auth/userService.js';
 import { getClient } from '../db/pool.js';
@@ -116,17 +120,25 @@ router.post('/verify-email', validate(verifyEmailSchema), async (req: Request, r
 /**
  * POST /api/v1/auth/resend-verification - 重发验证邮件（需登录，ADR-035）
  */
-router.post('/resend-verification', jwtAuth, validate(resendVerificationSchema), async (req: AuthenticatedRequest, res: Response) => {
-  if (!requireUser(req, res)) return;
-  const { email } = req.body;
-  try {
-    const token = await issueEmailVerificationToken(req.user.sub);
-    await sendVerificationEmail(email, token);
-  } catch (err) {
-    logger.warn({ err: String(err), userId: hashUserId(req.user.sub) }, '[auth] 重发验证邮件失败');
-  }
-  // 不泄露邮箱是否存在/有效，统一返回成功
-  res.json({ success: true, data: { message: '若邮箱有效，验证邮件已发送' } });
-});
+router.post(
+  '/resend-verification',
+  jwtAuth,
+  validate(resendVerificationSchema),
+  async (req: AuthenticatedRequest, res: Response) => {
+    if (!requireUser(req, res)) return;
+    const { email } = req.body;
+    try {
+      const token = await issueEmailVerificationToken(req.user.sub);
+      await sendVerificationEmail(email, token);
+    } catch (err) {
+      logger.warn(
+        { err: String(err), userId: hashUserId(req.user.sub) },
+        '[auth] 重发验证邮件失败',
+      );
+    }
+    // 不泄露邮箱是否存在/有效，统一返回成功
+    res.json({ success: true, data: { message: '若邮箱有效，验证邮件已发送' } });
+  },
+);
 
 export default router;

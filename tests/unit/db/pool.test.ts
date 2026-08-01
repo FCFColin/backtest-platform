@@ -240,7 +240,7 @@ describe('db/migrations', () => {
   it('initSchema 在无待迁移时应跳过', async () => {
     poolMocks.mockClient.query
       .mockResolvedValueOnce({ rows: [] }) // CREATE TABLE
-      .mockResolvedValueOnce({ rows: [{ version: 8 }] }); // applied versions
+      .mockResolvedValueOnce({ rows: [{ version: 1 }] }); // applied versions
     const { initSchema } = await import('../../../packages/backend/src/db/migrations.js');
     await expect(initSchema()).resolves.toBeUndefined();
     expect(poolMocks.mockClient.release).toHaveBeenCalled();
@@ -262,21 +262,16 @@ describe('db/migrations', () => {
 
   it('rollbackSchema 无需回滚时应直接返回', async () => {
     poolMocks.mockClient.query.mockResolvedValueOnce({
-      rows: [{ version: 3 }, { version: 2 }, { version: 1 }],
+      rows: [{ version: 1 }],
     });
     const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(rollbackSchema(5)).resolves.toBeUndefined();
+    await expect(rollbackSchema(1)).resolves.toBeUndefined();
   });
 
   it('rollbackSchema 应执行 down 迁移', async () => {
-    poolMocks.mockClient.query
-      .mockResolvedValueOnce({ rows: [{ version: 8 }, { version: 7 }, { version: 6 }] })
-      .mockResolvedValueOnce({ rows: [] }) // BEGIN v8
-      .mockResolvedValueOnce({ rows: [] }) // down sql
-      .mockResolvedValueOnce({ rows: [] }) // DELETE
-      .mockResolvedValueOnce({ rows: [] }); // COMMIT
+    poolMocks.mockClient.query.mockResolvedValueOnce({ rows: [{ version: 1 }] });
     const { rollbackSchema } = await import('../../../packages/backend/src/db/migrations.js');
-    await expect(rollbackSchema(7)).resolves.toBeUndefined();
+    await expect(rollbackSchema(0)).resolves.toBeUndefined();
     expect(poolMocks.mockClient.query).toHaveBeenCalledWith('BEGIN');
   });
 });

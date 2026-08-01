@@ -1,6 +1,3 @@
-// scripts/verify/verify-data.mjs
-// 数据类验证聚合：C-001 (迁移链) + C-015 (ADR 索引) + C-016 (CHANGELOG) + C-017 (迁移一致性)
-// 合并自：C-001-migration-chain.mjs + C-015-adr-index.mjs + C-016-changelog.mjs + C-017-migration-consistency.mjs
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -15,112 +12,117 @@ import {
 
 const results = {};
 
-// ── C-001: 数据库迁移链完整性验证 ──────────────────────────────
 const C001_EXPECTED_VERSIONS = [
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-  21, 22, 23, 24, 25, 26, 27, 29, 30,
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+  29, 30,
 ];
 const C001_FORBIDDEN_VERSIONS = [28];
 const C001_EXPECTED_TABLES = [
-  'audit_logs', 'webhook_endpoints', 'webhook_deliveries',
-  'tactical_configs', 'announcements', 'custom_tickers',
-  'roles', 'role_permissions', 'user_roles',
+  'audit_logs',
+  'webhook_endpoints',
+  'webhook_deliveries',
+  'tactical_configs',
+  'announcements',
+  'custom_tickers',
+  'roles',
+  'role_permissions',
+  'user_roles',
 ];
 
-await runCheck(results, 'C-001', () => withDb(async (db) => {
-  const versionsRes = await db.query('SELECT version FROM schema_migrations ORDER BY version');
-  const applied = versionsRes.rows.map((r) => r.version);
-  const appliedSet = new Set(applied);
+await runCheck(results, 'C-001', () =>
+  withDb(async (db) => {
+    const versionsRes = await db.query('SELECT version FROM schema_migrations ORDER BY version');
+    const applied = versionsRes.rows.map((r) => r.version);
+    const appliedSet = new Set(applied);
 
-  const missingVersions = C001_EXPECTED_VERSIONS.filter((v) => !appliedSet.has(v));
-  const forbiddenPresent = C001_FORBIDDEN_VERSIONS.filter((v) => appliedSet.has(v));
+    const missingVersions = C001_EXPECTED_VERSIONS.filter((v) => !appliedSet.has(v));
+    const forbiddenPresent = C001_FORBIDDEN_VERSIONS.filter((v) => appliedSet.has(v));
 
-  const tablesRes = await db.query(
-    `SELECT tablename FROM pg_tables
+    const tablesRes = await db.query(
+      `SELECT tablename FROM pg_tables
      WHERE schemaname = 'public'
        AND tablename = ANY($1::text[])`,
-    [C001_EXPECTED_TABLES],
-  );
-  const foundTables = tablesRes.rows.map((r) => r.tablename);
-  const missingTables = C001_EXPECTED_TABLES.filter((t) => !foundTables.includes(t));
+      [C001_EXPECTED_TABLES],
+    );
+    const foundTables = tablesRes.rows.map((r) => r.tablename);
+    const missingTables = C001_EXPECTED_TABLES.filter((t) => !foundTables.includes(t));
 
-  const timescaleExtRes = await db.query(
-    `SELECT extname, extversion FROM pg_extension WHERE extname = 'timescaledb'`,
-  );
-  const timescaleInstalled = timescaleExtRes.rows.length > 0;
+    const timescaleExtRes = await db.query(
+      `SELECT extname, extversion FROM pg_extension WHERE extname = 'timescaledb'`,
+    );
+    const timescaleInstalled = timescaleExtRes.rows.length > 0;
 
-  let pricesIsHypertable = false;
-  let hypertableInfo = null;
-  if (timescaleInstalled) {
-    const hyperRes = await db.query(
-      `SELECT hypertable_name, num_chunks
+    let pricesIsHypertable = false;
+    let hypertableInfo = null;
+    if (timescaleInstalled) {
+      const hyperRes = await db.query(
+        `SELECT hypertable_name, num_chunks
        FROM timescaledb_information.hypertables
        WHERE hypertable_schema = 'public' AND hypertable_name = 'prices'`,
-    );
-    pricesIsHypertable = hyperRes.rows.length > 0;
-    hypertableInfo = hyperRes.rows[0] || null;
-  }
+      );
+      pricesIsHypertable = hyperRes.rows.length > 0;
+      hypertableInfo = hyperRes.rows[0] || null;
+    }
 
-  let announcementsIdType = null;
-  let announcementsIdSchema = null;
-  if (!missingTables.includes('announcements')) {
-    const annColsRes = await db.query(
-      `SELECT column_name, data_type, udt_name
+    let announcementsIdType = null;
+    let announcementsIdSchema = null;
+    if (!missingTables.includes('announcements')) {
+      const annColsRes = await db.query(
+        `SELECT column_name, data_type, udt_name
        FROM information_schema.columns
        WHERE table_schema = 'public' AND table_name = 'announcements'
          AND column_name = 'id'`,
-    );
-    const row = annColsRes.rows[0];
-    if (row) {
-      announcementsIdType = row.data_type;
-      announcementsIdSchema = row.udt_name;
-    }
-  }
-
-  const diagnosticCounts = {};
-  for (const t of ['announcements', 'custom_tickers', 'tactical_configs']) {
-    if (!missingTables.includes(t)) {
-      try {
-        const c = await db.query(`SELECT COUNT(*)::int AS n FROM ${t}`);
-        diagnosticCounts[t] = c.rows[0].n;
-      } catch (e) {
-        diagnosticCounts[t] = `ERR: ${e.message}`;
+      );
+      const row = annColsRes.rows[0];
+      if (row) {
+        announcementsIdType = row.data_type;
+        announcementsIdSchema = row.udt_name;
       }
     }
-  }
 
-  const pass =
-    missingVersions.length === 0 &&
-    forbiddenPresent.length === 0 &&
-    missingTables.length === 0 &&
-    timescaleInstalled &&
-    pricesIsHypertable &&
-    announcementsIdType === 'uuid';
+    const diagnosticCounts = {};
+    for (const t of ['announcements', 'custom_tickers', 'tactical_configs']) {
+      if (!missingTables.includes(t)) {
+        try {
+          const c = await db.query(`SELECT COUNT(*)::int AS n FROM ${t}`);
+          diagnosticCounts[t] = c.rows[0].n;
+        } catch (e) {
+          diagnosticCounts[t] = `ERR: ${e.message}`;
+        }
+      }
+    }
 
-  return {
-    status: pass ? 'PASS' : 'FAIL',
-    summary: `applied=${applied.length} (expect 29), missing=${missingVersions.length}, forbidden_present=${forbiddenPresent.length}, missing_tables=${missingTables.length}, timescale=${timescaleInstalled}, prices_hypertable=${pricesIsHypertable}, announcements_id_type=${announcementsIdType}`,
-    details: {
-      appliedCount: applied.length,
-      appliedVersions: applied,
-      expectedCount: C001_EXPECTED_VERSIONS.length,
-      missingVersions,
-      forbiddenVersionsPresent: forbiddenPresent,
-      foundTables,
-      missingTables,
-      timescaleInstalled,
-      timescaleVersion: timescaleExtRes.rows[0]?.extversion || null,
-      pricesIsHypertable,
-      hypertableInfo,
-      announcementsIdType,
-      announcementsIdUdt: announcementsIdSchema,
-      diagnosticCounts,
-    },
-  };
-}));
+    const pass =
+      missingVersions.length === 0 &&
+      forbiddenPresent.length === 0 &&
+      missingTables.length === 0 &&
+      timescaleInstalled &&
+      pricesIsHypertable &&
+      announcementsIdType === 'uuid';
 
-// ── C-015: ADR 索引验证 ────────────────────────────────────────
+    return {
+      status: pass ? 'PASS' : 'FAIL',
+      summary: `applied=${applied.length} (expect 29), missing=${missingVersions.length}, forbidden_present=${forbiddenPresent.length}, missing_tables=${missingTables.length}, timescale=${timescaleInstalled}, prices_hypertable=${pricesIsHypertable}, announcements_id_type=${announcementsIdType}`,
+      details: {
+        appliedCount: applied.length,
+        appliedVersions: applied,
+        expectedCount: C001_EXPECTED_VERSIONS.length,
+        missingVersions,
+        forbiddenVersionsPresent: forbiddenPresent,
+        foundTables,
+        missingTables,
+        timescaleInstalled,
+        timescaleVersion: timescaleExtRes.rows[0]?.extversion || null,
+        pricesIsHypertable,
+        hypertableInfo,
+        announcementsIdType,
+        announcementsIdUdt: announcementsIdSchema,
+        diagnosticCounts,
+      },
+    };
+  }),
+);
+
 await runCheck(results, 'C-015', () => {
   if (!fileExists('docs/adr/README.md')) {
     return { status: 'FAIL', summary: 'docs/adr/README.md 不存在' };
@@ -136,9 +138,7 @@ await runCheck(results, 'C-015', () => {
   let files = [];
   try {
     files = readdirSync(adrDir).filter((f) => /^ADR-\d+.*\.md$/.test(f));
-  } catch {
-    // 目录不存在或读取失败
-  }
+  } catch {}
   const fileAdrs = new Set(
     files
       .map((f) => {
@@ -148,8 +148,7 @@ await runCheck(results, 'C-015', () => {
       .filter(Boolean),
   );
 
-  const sortByNum = (a, b) =>
-    parseInt(a.replace('ADR-', '')) - parseInt(b.replace('ADR-', ''));
+  const sortByNum = (a, b) => parseInt(a.replace('ADR-', '')) - parseInt(b.replace('ADR-', ''));
   const inIndexNotInFiles = [...activeAdrs].filter((a) => !fileAdrs.has(a)).sort(sortByNum);
   const inFilesNotInIndex = [...fileAdrs]
     .filter((a) => !activeAdrs.has(a) && !deletedAdrs.has(a))
@@ -173,7 +172,6 @@ await runCheck(results, 'C-015', () => {
   };
 });
 
-// ── C-016: CHANGELOG 验证 ──────────────────────────────────────
 await runCheck(results, 'C-016', () => {
   if (!fileExists('CHANGELOG.md')) {
     return { status: 'FAIL', summary: 'CHANGELOG.md 不存在' };
@@ -220,7 +218,6 @@ await runCheck(results, 'C-016', () => {
   };
 });
 
-// ── C-017: 迁移文件命名一致性验证 ─────────────────────────────
 await runCheck(results, 'C-017', async () => {
   const C017_MIGRATIONS_DIR_REL = 'migrations';
   const C017_MIGRATIONS_REG_PATH = 'packages/backend/src/db/migrations.ts';
@@ -272,8 +269,10 @@ await runCheck(results, 'C-017', async () => {
   const regClean = !hasRegV28 || v28RealReg.length === 0;
   const dbClean = dbHasV28 === false;
   const filesComplete =
-    files029Up.length === 1 && files029Down.length === 1 &&
-    files030Up.length === 1 && files030Down.length === 1;
+    files029Up.length === 1 &&
+    files029Down.length === 1 &&
+    files030Up.length === 1 &&
+    files030Down.length === 1;
   const regComplete = hasRegV29 && hasRegV30;
   const pass = fsClean && regClean && dbClean && filesComplete && regComplete && !dbError;
 
@@ -283,8 +282,10 @@ await runCheck(results, 'C-017', async () => {
     details: {
       migrationsDirFiles: allFiles,
       files028,
-      files029Up, files029Down,
-      files030Up, files030Down,
+      files029Up,
+      files029Down,
+      files030Up,
+      files030Down,
       filesComplete,
       regFileExists,
       regHasV29: hasRegV29,

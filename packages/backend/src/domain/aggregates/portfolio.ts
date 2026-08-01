@@ -3,7 +3,7 @@
 // 整个流程中值对象（Ticker/Weight）始终保留，不再中途丢弃。
 
 import { Ticker, Weight } from '../value-objects/index.js';
-import { DomainValidationError } from '../errors.js';
+import { DomainValidationError } from '../value-objects/index.js';
 import type {
   Portfolio as PortfolioDTO,
   RebalanceFrequency,

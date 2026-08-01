@@ -19,7 +19,7 @@ import {
   dataUpdateQueue,
   getActiveUpdateJobs,
   type DataUpdateJobData,
-} from '../queues/dataUpdateQueue.js';
+} from '../queues/queueDefinitions.js';
 import { logger } from '../utils/logger.js';
 
 interface UpdateStatus {

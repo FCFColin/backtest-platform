@@ -37,7 +37,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 import {
   loadCpiMap,
   fetchCpiForRoute,
-} from '../../../packages/backend/src/infrastructure/cpiLoader.js';
+} from '../../../packages/backend/src/infrastructure/dataServices.js';
 
 describe('cpiService', () => {
   beforeEach(() => {

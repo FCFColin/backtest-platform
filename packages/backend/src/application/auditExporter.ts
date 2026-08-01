@@ -38,7 +38,7 @@ import {
   ensureBucketExists,
   uploadAuditObject,
   isMinioConfigured,
-} from '../infrastructure/minioClient.js';
+} from '../infrastructure/dataServices.js';
 
 const EXPORT_BATCH_SIZE = 100;
 

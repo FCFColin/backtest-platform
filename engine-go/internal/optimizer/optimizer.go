@@ -1,4 +1,3 @@
-// Package optimizer 提供投资组合优化和有效前沿计算。
 package optimizer
 
 import (
@@ -55,7 +54,6 @@ type FrontierPoint struct {
 	SharpeRatio        float64            `json:"sharpeRatio"`
 }
 
-// prepareInputs 校验输入并计算收益/协方差（Optimize 与 ComputeEfficientFrontier 共用）
 func prepareInputs(tickers []string, priceData map[string]map[string]float64) ([]float64, [][]float64, error) {
 	if len(tickers) == 0 {
 		return nil, nil, fmt.Errorf("tickers 不能为空")

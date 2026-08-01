@@ -51,7 +51,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: { on: vi.fn(), publish: vi.fn().mockResolvedValue(undefined) },
 }));
 
-vi.mock('../../../packages/backend/src/queues/dlqConfig.js', () => ({
+vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
   createDeadLetterQueue: vi.fn(() => ({ on: vi.fn() })),
   isFinalFailure: vi.fn(() => false),
   transferToDlq: vi.fn(),

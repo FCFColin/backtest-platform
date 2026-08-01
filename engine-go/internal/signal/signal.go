@@ -1,4 +1,3 @@
-// Package signal 提供信号分析功能（单信号/双信号/多信号）。
 package signal
 
 import (
@@ -124,7 +123,6 @@ func filterByType(signals []SignalPoint, signalType string) []SignalPoint {
 	return result
 }
 
-// finalizeResult 汇总信号：统计指标 + 权益曲线（三个分析入口共用同一收尾逻辑）
 func finalizeResult(signals []SignalPoint, data []PricePoint) SignalAnalysisResult {
 	stats := calcStatistics(signals)
 	var equityCurve []EquityPoint
@@ -290,7 +288,7 @@ func AnalyzeMultiSignal(ctx context.Context, configs []SignalAnalysisRequest, da
 				aggDir = &s
 			}
 		default:
-			aggDir = bestDir // rank
+			aggDir = bestDir
 		}
 		if aggDir != nil {
 			if price, ok := priceMap[date]; ok {

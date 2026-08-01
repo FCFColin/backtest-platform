@@ -14,7 +14,7 @@ import type {
 } from '@backtest/shared/types/signal';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
-import { ensurePriceDataExists, ensureTickerHasData } from './backtest/priceDataUtils.js';
+import { ensurePriceDataExists, ensureTickerHasData } from './backtest/backtestEngineUtils.js';
 
 async function runSignalMode(
   mode: 'single' | 'dual' | 'multi',

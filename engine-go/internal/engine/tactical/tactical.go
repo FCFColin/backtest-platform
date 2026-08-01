@@ -1,4 +1,3 @@
-// Package tactical 提供战术分配回测和网格搜索功能。
 package tactical
 
 import (

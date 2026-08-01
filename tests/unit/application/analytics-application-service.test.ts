@@ -27,8 +27,14 @@ vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => (
       });
   },
 }));
-vi.mock('../../../packages/backend/src/application/backtest/engineBodyBuilder.js', () => ({
+vi.mock('../../../packages/backend/src/application/backtest/backtestEngineUtils.js', () => ({
   buildEngineParams: vi.fn(() => ({})),
+  ensurePriceDataExists: vi.fn(),
+  ensureTickerHasData: vi.fn(),
+  normalizeTickers: vi.fn((tickers: string[]) =>
+    Array.from(new Set(tickers.map((t: string) => t.trim().toUpperCase()).filter(Boolean))),
+  ),
+  ensureSufficientTradingDays: vi.fn(),
 }));
 
 import {
@@ -42,7 +48,7 @@ import {
   executeLetfAnalyzeWithFetch,
   executeGoalOptimizeWithFetch,
 } from '../../../packages/backend/src/application/analysis-orchestrator.js';
-import { normalizeTickers } from '../../../packages/backend/src/application/backtest/priceDataUtils.js';
+import { normalizeTickers } from '../../../packages/backend/src/application/backtest/backtestEngineUtils.js';
 
 const mockPriceData = {
   AAPL: { '2020-01-02': 100, '2020-01-03': 101, '2020-01-06': 102 },

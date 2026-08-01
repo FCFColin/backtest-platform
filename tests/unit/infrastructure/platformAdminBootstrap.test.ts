@@ -32,7 +32,7 @@ vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({
   PLATFORM_ADMIN_KEY_MAX_TTL_DAYS: 90,
 }));
 
-import { bootstrapPlatformAdminKey } from '../../../packages/backend/src/infrastructure/platformAdminBootstrap.js';
+import { bootstrapPlatformAdminKey } from '../../../packages/backend/src/infrastructure/adminBoot.js';
 
 describe('bootstrapPlatformAdminKey', () => {
   const originalAdminKey = process.env.ADMIN_API_KEY;

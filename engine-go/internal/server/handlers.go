@@ -1,4 +1,3 @@
-// Package server 提供 HTTP 路由和处理器。
 package server
 
 import (
@@ -59,7 +58,6 @@ func withSpannedCompute[T any](c *gin.Context, errMsg, spanName string, fn func(
 	})
 }
 
-/** 解析 JSON 请求体；失败时发送 400 并返回 false。 */
 func bindJSON[T any](c *gin.Context, code, msg string, req *T) bool {
 	if err := c.ShouldBindJSON(req); err != nil {
 		newProblem(c, http.StatusBadRequest, code, "Bad Request", msg)
@@ -236,7 +234,6 @@ func handleTacticalGridSearch(c *gin.Context) {
 	})
 }
 
-/** 校验请求参数；失败时发送 400 并返回 false。 */
 func requireParam(c *gin.Context, code, detail string, ok bool) bool {
 	if !ok {
 		newProblem(c, http.StatusBadRequest, code, "Bad Request", detail)
@@ -276,7 +273,7 @@ func handleCalculators(c *gin.Context) {
 }
 func handleSignalAnalyze(c *gin.Context) {
 	var req struct {
-		Mode      string                        `json:"mode"` // "single" | "dual" | "multi"
+		Mode      string                        `json:"mode"`
 		Single    *signal.SignalAnalysisRequest `json:"single,omitempty"`
 		Dual      *signal.DualSignalConfig      `json:"dual,omitempty"`
 		Multi     *signal.MultiSignalConfig     `json:"multi,omitempty"`

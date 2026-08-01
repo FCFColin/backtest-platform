@@ -8,7 +8,7 @@ import {
   isFinalFailure,
   transferToDlq,
   SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS,
-} from './dlqConfig.js';
+} from './queueUtils.js';
 
 // Architecture: BullMQ任务队列，将长任务从同步改为异步
 // 企业为何需要：同步执行长任务阻塞Node.js事件循环，所有其他请求被挂起

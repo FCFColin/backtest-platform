@@ -1,6 +1,6 @@
 import pLimit from 'p-limit';
 import { callEngineStrict } from '../utils/engineClient.js';
-import { buildEngineParams } from './backtest/engineBodyBuilder.js';
+import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
   collectDomainTickers,

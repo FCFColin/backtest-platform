@@ -1,13 +1,12 @@
 import { Router, type Request, type Response } from 'express';
 import { fetchHistoryData, searchTickers } from '../infrastructure/dataFacade.js';
-import { fetchCpiForRoute } from '../infrastructure/cpiLoader.js';
+import { fetchCpiForRoute, SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
 import { MAX_TICKERS } from '@backtest/shared/constants';
 import { validateQuery } from '../middleware/miscMiddleware.js';
 import { historyQuerySchema, searchQuerySchema } from '../schemas/data.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { SYNTHETIC_TICKERS } from '../infrastructure/syntheticTickers.js';
 import { getReadPool } from '../db/pool.js';
 import { rowMapper, toIso } from '../repositories/rowMapper.js';
 

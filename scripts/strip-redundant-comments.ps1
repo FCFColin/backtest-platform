@@ -1,10 +1,3 @@
-<#
-.SYNOPSIS
-  删除冗余注释（解释 WHAT 的注释），保留解释 WHY 的注释。
-  规则来自 code-cleanup 任务定义。
-  兼容 Windows PowerShell 5.1。
-#>
-
 [CmdletBinding()]
 param(
     [string[]]$Paths,
@@ -15,11 +8,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---- 解析目标文件列表 ----
 $targetPaths = [System.Collections.Generic.List[string]]::new()
 if ($Paths) {
     foreach ($p in $Paths) {
-        # 支持换行/逗号分隔的多路径传入
         foreach ($split in ($p -split "[`r`n,]")) {
             $t = $split.Trim()
             if ($t) { $targetPaths.Add($t) }
@@ -37,10 +28,8 @@ if ($targetPaths.Count -eq 0) {
     exit 1
 }
 
-# ---- 单行注释判定 ----
 function Test-SeparatorLine {
     param([string]$line)
-    # 纯分隔注释：// ===== xxx ===== / // ------ / // ****** xxx ******
     if ($line -match '^\s*//\s*[-=*]{3,}.*[-=*]{3,}\s*$') { return $true }
     if ($line -match '^\s*//\s*[-=*]{5,}\s*$') { return $true }
     return $false
@@ -56,7 +45,6 @@ function Test-HistoricalMergeComment {
 
 function Test-SectionDivider {
     param([string]$line)
-    # // ----- xxx ----- / // ===== xxx ===== （居中型分隔，至少两侧各有 2 个相同字符）
     if ($line -match '^\s*//\s*-{2,}\s+\S.*\S\s+-{2,}\s*$') { return $true }
     if ($line -match '^\s*//\s*={2,}\s+\S.*\S\s+={2,}\s*$') { return $true }
     if ($line -match '^\s*//\s*~{2,}\s+\S.*\S\s+~{2,}\s*$') { return $true }
@@ -87,28 +75,21 @@ function Test-FunctionalComment {
 
 function Test-WhyComment {
     param([string]$line)
-    # 解释 WHY 的注释：包含这些关键词的整行注释保留
     if ($line -match '^\s*//') {
         if ($line -match 'workaround|hack|WARNING|注意|警告|不能|必须|避免|防止|原因|因为|由于|为了|以防|务必|切勿|不要') {
             return $true
         }
-        # 引用 ADR / P0-0x / RFC 等
         if ($line -match 'ADR-\d+|P0-\d+|RFC\s?\d+|RFC\s?\d+') { return $true }
     }
     return $false
 }
 
-# 判定 JSDoc 块内容是否为可移除的"描述性"块（无功能性标签、非 WHY）
 function Test-JSDocBlockRemovable {
     param([string]$blockText)
-    # 含功能性标签 → 保留
     if ($blockText -match '@param|@returns|@throws|@deprecated|@see|@example|@internal|@public|@private') { return $false }
-    # 含 WHY 关键词 → 保留
     if ($blockText -match 'workaround|hack|WARNING|注意|警告|不能|必须|避免|防止|原因|因为|由于|为了|以防|务必|切勿|不要') { return $false }
     if ($blockText -match 'ADR-\d+|P0-\d+|RFC\s?\d+') { return $false }
-    # 含 TODO/FIXME → 保留（功能性）
     if ($blockText -match 'TODO|FIXME|HACK|XXX') { return $false }
-    # 合并历史 → 可移除
     return $true
 }
 
@@ -125,20 +106,16 @@ function Remove-RedundantComments {
     $removedCount = 0
     $removedSamples = [System.Collections.Generic.List[string]]::new()
 
-    # ---- 处理文件头块注释（仅移除文件最开头的 /** ... */ 描述性块，且内容仅描述文件用途/历史）----
     $startIdx = 0
-    # 跳过开头的空行
     while ($startIdx -lt $lines.Count -and $lines[$startIdx].Trim() -eq '') { $startIdx++ }
 
     if ($startIdx -lt $lines.Count -and $lines[$startIdx].Trim() -eq '/**') {
-        # 寻找结束 */
         $endIdx = -1
         for ($i = $startIdx + 1; $i -lt $lines.Count; $i++) {
             if ($lines[$i] -match '\*/\s*$') { $endIdx = $i; break }
         }
         if ($endIdx -gt 0) {
             $blockText = ($lines[$startIdx..$endIdx] -join ' ')
-            # 判定是否为"描述性文件头"：包含 merged from / 合并自 / 覆盖 / 文件用途 / 详见 等字样
             $isDescriptive = $false
             if ($blockText -match '合并自|merged from|split from|提取自|搬移自|移自|拆分自') { $isDescriptive = $true }
             if ($blockText -match '覆盖[:：]|覆盖范围|详见|见\s+\w+\.test\.ts|本文件|本测试') { $isDescriptive = $true }
@@ -156,7 +133,6 @@ function Remove-RedundantComments {
         }
     }
 
-    # ---- 逐行处理（带前瞻，识别 separator/title/separator 三行块 + JSDoc 块）----
     $i = $startIdx
     while ($i -lt $lines.Count) {
         $line = $lines[$i]
@@ -255,7 +231,6 @@ function Remove-RedundantComments {
         $i++
     }
 
-    # 折叠连续空行为最多 1 个空行
     $collapsed = [System.Collections.Generic.List[string]]::new()
     $prevBlank = $false
     foreach ($l in $out) {
@@ -264,7 +239,6 @@ function Remove-RedundantComments {
         $collapsed.Add($l)
         $prevBlank = $isBlank
     }
-    # 去掉末尾多余空行
     while ($collapsed.Count -gt 0 -and $collapsed[$collapsed.Count - 1].Trim() -eq '') {
         $collapsed.RemoveAt($collapsed.Count - 1)
     }
@@ -288,7 +262,6 @@ function Remove-RedundantComments {
     }
 }
 
-# ---- 主流程 ----
 $results = [System.Collections.Generic.List[pscustomobject]]::new()
 $totalRemoved = 0
 $totalNetDelta = 0

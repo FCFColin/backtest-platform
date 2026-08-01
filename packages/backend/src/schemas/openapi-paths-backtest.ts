@@ -15,7 +15,7 @@ import {
 } from './backtest.js';
 import { searchQuerySchema } from './data.js';
 import { backtestOptimizerSchema } from './optimizer.js';
-import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from './signal.js';
+import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from './analysisSchemas.js';
 import {
   tacticalBacktestSchema,
   tacticalWhatIfSchema,

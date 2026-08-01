@@ -9,7 +9,7 @@ import {
   releaseJobClaim,
   markJobProcessed,
   getProcessedJobResult,
-} from './jobIdempotency.js';
+} from './queueUtils.js';
 import { executeOptimization } from '../application/optimize-service.js';
 import { runPortfolioBacktest } from '../application/backtest-service.js';
 import { executeGridSearch } from '../application/grid-application-service.js';
@@ -47,11 +47,18 @@ async function acquireTenantSlot(tenantId: string, jobId: string): Promise<boole
     if (inflight === 1) await appRedis.expire(key, 3600);
   } catch (err) {
     // Redis 异常时不阻断处理，跳过 fairness 门控
-    logger.warn({ err: String(err), tenantId, jobId }, '[worker] 在途计数失败，跳过 tenant-fair 门控');
+    logger.warn(
+      { err: String(err), tenantId, jobId },
+      '[worker] 在途计数失败，跳过 tenant-fair 门控',
+    );
     return false;
   }
   if (inflight > cap) {
-    try { await appRedis.decr(key); } catch { /* ignore */ }
+    try {
+      await appRedis.decr(key);
+    } catch {
+      /* ignore */
+    }
     logger.info({ jobId, tenantId, cap }, '[worker] 租户在途任务已达上限，延迟重试');
     throw new DelayedError('Tenant concurrency cap reached');
   }
@@ -59,18 +66,28 @@ async function acquireTenantSlot(tenantId: string, jobId: string): Promise<boole
 }
 
 async function releaseTenantSlot(tenantId: string): Promise<void> {
-  try { await appRedis.decr(inflightKey(tenantId)); } catch { /* ignore */ }
+  try {
+    await appRedis.decr(inflightKey(tenantId));
+  } catch {
+    /* ignore */
+  }
 }
 
 async function handleEngineError(err: unknown, jobId: string): Promise<BacktestJobResult> {
   if (err instanceof EngineUnavailableError) {
     await releaseJobClaim(jobId);
-    logger.warn({ jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds }, '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）');
+    logger.warn(
+      { jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds },
+      '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）',
+    );
     throw err;
   }
   if (err instanceof UpstreamProblemError) {
     await releaseJobClaim(jobId);
-    logger.warn({ jobId, status: err.status, code: err.code }, '[worker] Go 引擎返回 4xx，任务标记为永久失败（参数错误不可重试）');
+    logger.warn(
+      { jobId, status: err.status, code: err.code },
+      '[worker] Go 引擎返回 4xx，任务标记为永久失败（参数错误不可重试）',
+    );
     return { status: 'failed', error: err.detail };
   }
   await releaseJobClaim(jobId);
@@ -113,13 +130,22 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   try {
     // portfolio 回测异步执行分支（runPortfolioBacktest 内部已发布 BacktestCompleted 事件）
     if (type === 'portfolio') {
-      const portfolioPayload = payload as { portfolios: unknown[]; parameters: Record<string, unknown> };
+      const portfolioPayload = payload as {
+        portfolios: unknown[];
+        parameters: Record<string, unknown>;
+      };
       const { result, warnings, dateRange } = await runPortfolioBacktest({
-        portfolios: portfolioPayload.portfolios as Parameters<typeof runPortfolioBacktest>[0]['portfolios'],
-        parameters: portfolioPayload.parameters as unknown as Parameters<typeof runPortfolioBacktest>[0]['parameters'],
+        portfolios: portfolioPayload.portfolios as Parameters<
+          typeof runPortfolioBacktest
+        >[0]['portfolios'],
+        parameters: portfolioPayload.parameters as unknown as Parameters<
+          typeof runPortfolioBacktest
+        >[0]['parameters'],
         tenantId: job.data.tenantId,
         ownerUserId: job.data.ownerUserId ?? undefined,
-        onProgress: (pct: number) => { void job.updateProgress(pct); },
+        onProgress: (pct: number) => {
+          void job.updateProgress(pct);
+        },
       });
       const portfolioResult = { data: result, warnings, dateRange };
       await markJobProcessed(jobId, portfolioResult as Record<string, unknown>);
@@ -157,7 +183,12 @@ async function persistRunIfTenant(
   if (!tenantId) return;
   const jobId = String(job.id);
   try {
-    const run = Run.create({ id: jobId, name: type, request: payload, ownerUserId: ownerUserId ?? null });
+    const run = Run.create({
+      id: jobId,
+      name: type,
+      request: payload,
+      ownerUserId: ownerUserId ?? null,
+    });
     run.start();
     run.complete(result);
     await save(tenantId, run);
@@ -167,7 +198,10 @@ async function persistRunIfTenant(
       });
     }
   } catch (err) {
-    logger.warn({ jobId, tenantId, err: String(err) }, '[worker] 回测结果落库失败（结果仍可经任务状态获取）');
+    logger.warn(
+      { jobId, tenantId, err: String(err) },
+      '[worker] 回测结果落库失败（结果仍可经任务状态获取）',
+    );
   }
 }
 

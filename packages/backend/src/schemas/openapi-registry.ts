@@ -7,12 +7,10 @@
  */
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { registry } from './openapi-components.js';
-import {
-  registerAuthPaths,
-  registerAdminPaths,
-  registerBacktestPaths,
-  registerDataPaths,
-} from './openapi-paths.js';
+import { registerAuthPaths } from './openapi-paths-auth.js';
+import { registerAdminPaths } from './openapi-paths-admin.js';
+import { registerBacktestPaths } from './openapi-paths-backtest.js';
+import { registerDataPaths } from './openapi-paths-data.js';
 
 // 模块加载时注册全部路径（保证 generateOpenApiDocument 调用时 definitions 已就绪）。
 registerAuthPaths();

@@ -43,7 +43,6 @@ export interface TenantedRequest extends Request {
   tenantId: string;
 }
 
-/** 日志脱敏：用户标识取 sha256 前 16 位。 */
 export function hashUserId(sub: string | undefined): string | undefined {
   return sub ? crypto.createHash('sha256').update(sub).digest('hex').slice(0, 16) : undefined;
 }
@@ -74,12 +73,10 @@ export function requireUser(
   return true;
 }
 
-/** 统一认证日志上下文。 */
 export function authCtx(middleware: string, req: AuthenticatedRequest): Record<string, unknown> {
   return { middleware, path: req.path, requestId: req.id };
 }
 
-// 统一带上下文与 '[jwtAuth]' 前缀的日志，消除各处重复的 authCtx 样板
 type AuthLogLevel = 'info' | 'warn' | 'error';
 function authLog(
   level: AuthLogLevel,
@@ -212,13 +209,13 @@ async function verifyJwt(token: string): Promise<JwtPayload | null> {
       try {
         payload = await verifyWithAlgorithm(token, 'RS256', span);
       } catch {
-        /* RS256 失败，按策略决定是否回退 HS256 */
+        /* try next algorithm */
       }
       if (!payload && JWT_ALGORITHM === 'HS256') {
         try {
           payload = await verifyWithAlgorithm(token, 'HS256', span);
         } catch {
-          /* HS256 校验失败 */
+          /* try next algorithm */
         }
       }
       if (!payload) span.setAttribute('verify.result', 'failed');
@@ -387,8 +384,6 @@ export function assignGuestReadonly(
   }
   next();
 }
-
-// ============ 拆分后从各内聚文件再导出（保持既有 import 路径不变）============
 
 export {
   RefreshTokenEntry,

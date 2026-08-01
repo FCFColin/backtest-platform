@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SIGNAL_TYPES } from '@backtest/shared/constants';
 
 /**
  * 分析类路由共享 Schema（ADR-042 路由整合）。
@@ -52,8 +53,28 @@ export const factorRegressionSchema = z.object({
   endDate: z.string().max(50).optional(),
 });
 
-export const calculatorBodySchema = z
-  .object({})
-  .passthrough()
-  .optional()
-  .default({});
+export const calculatorBodySchema = z.object({}).passthrough().optional().default({});
+
+const signalAnalysisRequestSchema = z.object({
+  ticker: z.string().min(1),
+  indicator: z.string().min(1),
+  period: z.number(),
+  threshold: z.number(),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  signalType: z.enum(SIGNAL_TYPES),
+});
+
+export const signalAnalyzeSchema = signalAnalysisRequestSchema;
+
+export const signalDualSchema = z.object({
+  signal1: signalAnalysisRequestSchema,
+  signal2: signalAnalysisRequestSchema,
+  combinationMethod: z.enum(['and', 'or', 'xor']),
+});
+
+export const signalMultiSchema = z.object({
+  signals: z.array(signalAnalysisRequestSchema).min(1),
+  aggregationMethod: z.enum(['weighted', 'voting', 'rank']),
+  weights: z.array(z.number()).optional(),
+});

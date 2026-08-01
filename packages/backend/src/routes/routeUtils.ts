@@ -14,7 +14,6 @@ import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { hasTenant } from '../middleware/tenantContext.js';
 import { validate } from '../middleware/miscMiddleware.js';
 
-/** 引擎不可用 → 503 + Retry-After（ADR-031 fail-closed）。已处理返回 true。 */
 function handleEngineUnavailable(res: Response, error: unknown): boolean {
   if (error instanceof EngineUnavailableError) {
     sendProblem(res, 503, 'ENGINE_UNAVAILABLE', undefined, {
@@ -29,7 +28,6 @@ function handleEngineUnavailable(res: Response, error: unknown): boolean {
   return false;
 }
 
-/** 应用错误 → 对应 HTTP 状态码 + RFC 7807（消除路由层字符串匹配错误的反模式）。已处理返回 true。 */
 function handleApplicationError(res: Response, error: unknown): boolean {
   if (error instanceof ApplicationError) {
     sendProblem(res, error.statusCode, error.errorCode);
@@ -78,9 +76,6 @@ function recordDegraded(endpoint: string | undefined): void {
   recordDegradedResponse(endpoint, 'engine_unavailable');
 }
 
-/**
- * 统一异步路由包装：错误优先级 EngineUnavailable→503/Retry-After、ApplicationError→对应状态码、其余→500。
- */
 export function asyncRouteHandler(
   fn: (req: AuthenticatedRequest, res: Response) => Promise<void>,
   errorConfig: RouteErrorConfig,
@@ -104,7 +99,6 @@ export function asyncRouteHandler(
   };
 }
 
-/** CRUD 路由包装：不耦合引擎指标，统一 500 兜底；handler 内 sendProblem 的 4xx/404 不被拦截。 */
 export function crudRouteHandler(
   fn: (req: AuthenticatedRequest, res: Response) => Promise<void>,
   errorConfig: RouteErrorConfig,
@@ -119,10 +113,6 @@ export function crudRouteHandler(
   };
 }
 
-/**
- * 租户守卫 CRUD handler：解析 tenantId 后调用 fn（tenantId 缺失时 401，无需 handler 内重复守卫）。
- * 适用所有"requireTenantId + if (!orgId) return"模式的 crud handler。
- */
 export function tenantHandler(
   logMsg: string,
   code: string,
@@ -138,7 +128,6 @@ export function tenantHandler(
   );
 }
 
-/** 简单 JSON 响应 handler：`res.json({ success: true, data: await fn(...) })`。 */
 export function jsonRoute(
   logMsg: string,
   code: string,
@@ -178,8 +167,6 @@ const CRUD_LABELS: Record<string, string> = {
   update: '更新',
   delete: '删除',
 };
-
-/** 生成标准租户作用域 CRUD 路由（GET /、GET /:id、POST /、PUT /:id、DELETE /:id），消除重复样板。 */
 
 export function tenantCrudRoutes<T>(service: TenantCrudRepo<T>, cfg: TenantCrudConfig): Router {
   const router = Router();

@@ -10,7 +10,7 @@ import {
 import {
   setBacktestResultCache,
   backtestCacheKey,
-} from '../../../packages/backend/src/application/backtest/backtestResultCache.js';
+} from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import { mockBacktestResult } from '../../helpers/storeFixtures.js';
 
 async function postJson(url: string, body: unknown) {

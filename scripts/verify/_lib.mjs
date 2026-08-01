@@ -1,8 +1,6 @@
-// scripts/verify/_lib.mjs
-// 验证脚本共享工具库（跨平台：Windows / Linux / macOS）
-// 提供：DB 连接、文件存在检查、源码 grep、结果输出、命令执行
-// 自动加载 .env（Node 20.6+）
-try { process.loadEnvFile('.env'); } catch { /* .env 不存在或函数不可用 */ }
+try {
+  process.loadEnvFile('.env');
+} catch {}
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join, resolve, sep } from 'node:path';
@@ -36,7 +34,7 @@ export function writeResult(issueId, result) {
  */
 export function writeAggregatedResult(aggregateId, results) {
   const timestamp = new Date().toISOString();
-  const allPass = Object.values(results).every(r => r.status === 'PASS');
+  const allPass = Object.values(results).every((r) => r.status === 'PASS');
   const output = {
     aggregateId,
     timestamp,
@@ -44,7 +42,9 @@ export function writeAggregatedResult(aggregateId, results) {
     results,
   };
   writeFileSync(join(OUTPUT_DIR, `${aggregateId}-reverify.json`), JSON.stringify(output, null, 2));
-  console.log(`[${allPass ? '✓' : '✗'} ${aggregateId}] overall=${allPass ? 'PASS' : 'FAIL'} (${Object.keys(results).length} sub-checks)`);
+  console.log(
+    `[${allPass ? '✓' : '✗'} ${aggregateId}] overall=${allPass ? 'PASS' : 'FAIL'} (${Object.keys(results).length} sub-checks)`,
+  );
   return allPass;
 }
 
@@ -54,8 +54,8 @@ export function writeAggregatedResult(aggregateId, results) {
  */
 export async function withDb(fn, opts = {}) {
   const url = opts.useAppRole
-    ? (process.env.APP_DATABASE_URL || process.env.DATABASE_URL)
-    : (process.env.DATABASE_URL || process.env.APP_DATABASE_URL);
+    ? process.env.APP_DATABASE_URL || process.env.DATABASE_URL
+    : process.env.DATABASE_URL || process.env.APP_DATABASE_URL;
   const client = new pg.Client({ connectionString: url });
   await client.connect();
   try {
@@ -65,9 +65,6 @@ export async function withDb(fn, opts = {}) {
   }
 }
 
-/**
- * 检查文件/目录是否存在
- */
 export function fileExists(relativePath) {
   try {
     const abs = join(PROJECT_ROOT, relativePath);
@@ -78,9 +75,6 @@ export function fileExists(relativePath) {
   }
 }
 
-/**
- * 读取项目内文件内容（相对路径）
- */
 export function readFileContent(relativePath) {
   return readFileSync(join(PROJECT_ROOT, relativePath), 'utf-8');
 }
@@ -93,8 +87,21 @@ export function readFileContent(relativePath) {
  * @returns {{file: string, line: number, text: string}[]}
  */
 export function grepInCode(pattern, relativeDir, opts = {}) {
-  const extensions = opts.extensions ?? ['.ts', '.tsx', '.js', '.mjs', '.go', '.yaml', '.yml', '.json', '.md', '.sql'];
-  const ignoreDirs = new Set(opts.ignoreDirs ?? ['node_modules', 'dist', 'build', '.git', 'coverage', 'docs/audit']);
+  const extensions = opts.extensions ?? [
+    '.ts',
+    '.tsx',
+    '.js',
+    '.mjs',
+    '.go',
+    '.yaml',
+    '.yml',
+    '.json',
+    '.md',
+    '.sql',
+  ];
+  const ignoreDirs = new Set(
+    opts.ignoreDirs ?? ['node_modules', 'dist', 'build', '.git', 'coverage', 'docs/audit'],
+  );
   const maxResults = opts.maxResults ?? 500;
   const results = [];
   const absDir = join(PROJECT_ROOT, relativeDir);
@@ -103,13 +110,21 @@ export function grepInCode(pattern, relativeDir, opts = {}) {
   function walk(dir) {
     if (results.length >= maxResults) return;
     let entries;
-    try { entries = readdirSync(dir); } catch { return; }
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      return;
+    }
     for (const name of entries) {
       if (results.length >= maxResults) return;
       const full = join(dir, name);
       const rel = full.replace(absDir + sep, '').replace(/\//g, sep);
       let st;
-      try { st = statSync(full); } catch { continue; }
+      try {
+        st = statSync(full);
+      } catch {
+        continue;
+      }
       if (st.isDirectory()) {
         if (ignoreDirs.has(name)) continue;
         walk(full);
@@ -117,11 +132,19 @@ export function grepInCode(pattern, relativeDir, opts = {}) {
         const ext = '.' + name.split('.').pop();
         if (!extensions.includes(ext)) continue;
         let content;
-        try { content = readFileSync(full, 'utf-8'); } catch { continue; }
+        try {
+          content = readFileSync(full, 'utf-8');
+        } catch {
+          continue;
+        }
         const lines = content.split('\n');
         for (let i = 0; i < lines.length; i++) {
           if (pattern.test(lines[i])) {
-            results.push({ file: join(relativeDir, rel).replace(/\\/g, '/'), line: i + 1, text: lines[i].trim() });
+            results.push({
+              file: join(relativeDir, rel).replace(/\\/g, '/'),
+              line: i + 1,
+              text: lines[i].trim(),
+            });
             if (results.length >= maxResults) return;
           }
         }
@@ -132,9 +155,6 @@ export function grepInCode(pattern, relativeDir, opts = {}) {
   return results;
 }
 
-/**
- * 统计匹配数量
- */
 export function grepCount(pattern, relativeDir, opts) {
   return grepInCode(pattern, relativeDir, opts).length;
 }
@@ -161,23 +181,16 @@ export function runCmd(cmd, opts = {}) {
   }
 }
 
-/**
- * 通过 docker exec 在 postgres 容器中执行 psql
- */
 export function psqlViaDocker(sql, opts = {}) {
   const user = opts.user ?? 'backtest';
   const db = opts.db ?? 'backtest';
   const container = opts.container ?? 'backtest-postgres';
-  // 用 -t 关闭表头，-A 取消对齐
   const escaped = sql.replace(/'/g, "'\\''");
   const cmd = `docker exec ${container} psql -U ${user} -d ${db} -t -A -F '|' -c '${escaped}'`;
   const r = runCmd(cmd);
   return r;
 }
 
-/**
- * 标记 SKIP（依赖不可用时）
- */
 export function skipResult(issueId, reason, details = {}) {
   return {
     issueId,
@@ -187,9 +200,6 @@ export function skipResult(issueId, reason, details = {}) {
   };
 }
 
-/**
- * 标记 NEEDS_MANUAL_REVIEW
- */
 export function needsManualReview(issueId, reason, details = {}) {
   return {
     issueId,

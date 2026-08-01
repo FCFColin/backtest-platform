@@ -101,7 +101,7 @@ vi.mock('../../../packages/backend/src/application/webhookService.js', () => ({
   triggerWebhooks: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('../../../packages/backend/src/queues/webhookQueue.js', () => ({
+vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
   createWebhookRetryWorker: vi.fn(() => ({
     close: vi.fn().mockResolvedValue(undefined),
   })),

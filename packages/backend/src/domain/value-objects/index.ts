@@ -1,11 +1,18 @@
-// DDD: Value Objects — 不变性+校验
+// DDD: Value Objects + Domain Errors — 不变性+校验+领域异常
 //
-// 企业为何需要：值对象集中校验逻辑，避免散落各处的字符串/数值校验导致不一致
-// 权衡：VO增加一层封装，但校验逻辑集中后修改只需改一处
+// 合并 errors.ts（DomainValidationError）以集中领域层异常定义。
 
-// Weight — 百分比权重（0–100），与引擎 api/engine/portfolio.ts 语义一致
-// T-30：统一权重语义。此前域层用分数(0–1)、引擎用百分比，导致双轨校验。
-// 企业为何需要：单一真相源避免"域校验通过、引擎理解错误"的隐性 bug。
+export class DomainValidationError extends Error {
+  readonly field?: string;
+  readonly value?: unknown;
+
+  constructor(message: string, field?: string, value?: unknown) {
+    super(message);
+    this.name = 'DomainValidationError';
+    this.field = field;
+    this.value = value;
+  }
+}
 
 export class Weight {
   private constructor(public readonly value: number) {
@@ -18,16 +25,6 @@ export class Weight {
     return new Weight(value);
   }
 }
-
-// Ticker — 不变性+校验
-//
-// T-23 两层校验设计（**有意为之，勿盲目合并**——切斯特顿围栏）：
-//  - 本 VO（DOMAIN_TICKER_PATTERN，严格）：领域有效性。代表"系统认可的规范 ticker 形态"
-//    （如 510300.SS 两字母交易所后缀），拒绝下划线/连字符/超长，保证领域模型纯净。
-//  - utils/tickerValidation.ts（TICKER_PATTERN，宽松）：安全净化层。其唯一职责是阻断
-//    路径遍历与子进程注入（仅允许 [A-Z0-9._-]），需兼容数据层实际存在的 VTI.BOND 等历史代码。
-// 两者目的不同（领域有效 vs 注入安全），不能简单合并；故各自保留，并在此显式交叉引用，
-// 避免后人误把"宽松"当 bug 收紧、或把"严格"当 bug 放宽。VO 模式集中为单一导出常量。
 
 const DOMAIN_TICKER_PATTERN = /^[A-Z0-9]{1,10}(\.[A-Z]{2})?$/;
 

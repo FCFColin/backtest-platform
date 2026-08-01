@@ -10,24 +10,19 @@ import {
   createMockResponse,
   createMockNext,
 } from '../../helpers/expressMocks.js';
-
 const mocks = vi.hoisted(() => ({
   getUserPermissions: vi.fn(),
   getCachedUserPermissions: vi.fn(),
   setCachedUserPermissions: vi.fn(),
 }));
-
 vi.mock('../../../packages/backend/src/repositories/rbacRepo.js', () => ({
   getUserPermissions: mocks.getUserPermissions,
 }));
-
 vi.mock('../../../packages/backend/src/infrastructure/rbacCache.js', () => ({
   getCachedUserPermissions: mocks.getCachedUserPermissions,
   setCachedUserPermissions: mocks.setCachedUserPermissions,
 }));
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
-
 function createMockRequest(
   user: { sub: string; role: string; org_role?: string; platform_admin?: boolean } | null,
 ) {
@@ -52,9 +47,7 @@ describe('RBAC requirePermission', () => {
     vi.clearAllMocks();
   });
 
-  // 权限矩阵：三角色 × 七权限，避免遗漏导致权限绕过。
   const permissionMatrix = [
-    // admin 拥有全部权限
     { role: 'admin', permission: Permission.BACKTEST_RUN, allowed: true },
     { role: 'admin', permission: Permission.DATA_MANAGE, allowed: true },
     { role: 'admin', permission: Permission.DATA_READ, allowed: true },
@@ -62,7 +55,6 @@ describe('RBAC requirePermission', () => {
     { role: 'admin', permission: Permission.OPTIMIZER_RUN, allowed: true },
     { role: 'admin', permission: Permission.SIGNAL_READ, allowed: true },
     { role: 'admin', permission: Permission.STRATEGY_MANAGE, allowed: true },
-    // analyst 拥有计算和数据读取权限（无 ADMIN_ACCESS）
     { role: 'analyst', permission: Permission.BACKTEST_RUN, allowed: true },
     { role: 'analyst', permission: Permission.DATA_MANAGE, allowed: true },
     { role: 'analyst', permission: Permission.DATA_READ, allowed: true },
@@ -70,7 +62,6 @@ describe('RBAC requirePermission', () => {
     { role: 'analyst', permission: Permission.OPTIMIZER_RUN, allowed: true },
     { role: 'analyst', permission: Permission.SIGNAL_READ, allowed: true },
     { role: 'analyst', permission: Permission.STRATEGY_MANAGE, allowed: true },
-    // readonly 仅有读取权限
     { role: 'readonly', permission: Permission.BACKTEST_RUN, allowed: false },
     { role: 'readonly', permission: Permission.DATA_MANAGE, allowed: false },
     { role: 'readonly', permission: Permission.DATA_READ, allowed: true },
@@ -155,9 +146,7 @@ describe('RBAC requirePermission', () => {
     const req = createMockRequest(user);
     const res = createMockResponse();
     const next = createMockNext();
-
     requirePermission(permission)(req, res, next);
-
     expect(next).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(status);
     expect(res.json).toHaveBeenCalledWith(
@@ -168,12 +157,10 @@ describe('RBAC requirePermission', () => {
     );
   });
 });
-
 describe('RBAC org_role 优先 + platform_admin 放行', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   it.each([
     [
       'legacy readonly + org_role analyst 可运行回测',
@@ -209,9 +196,7 @@ describe('RBAC org_role 优先 + platform_admin 放行', () => {
     const req = createMockRequest(user);
     const res = createMockResponse();
     const next = createMockNext();
-
     requirePermission(permission)(req, res, next);
-
     if (expected === 'allow') {
       expect(next).toHaveBeenCalled();
       expect(res.status).not.toHaveBeenCalled();
@@ -228,7 +213,6 @@ describe('requirePermissionFromDb', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-
   it.each([
     [
       '缓存命中应使用缓存权限且不查 DB',
@@ -341,7 +325,6 @@ describe('requirePermissionFromDb', () => {
       expect(mocks.getUserPermissions).not.toHaveBeenCalled();
       expect(mocks.setCachedUserPermissions).not.toHaveBeenCalled();
     }
-    // DB 空集回退时回写的也是空集
     if (dbMode === 'empty') expect(mocks.setCachedUserPermissions).toHaveBeenCalledWith('u1', []);
   });
   it('缓存未命中时应查 DB 并回写缓存', async () => {
@@ -358,7 +341,6 @@ describe('requirePermissionFromDb', () => {
       'data:read',
     ]);
   });
-
   it('platform_admin 应绕过全部检查', async () => {
     const req = createMockRequest({
       sub: 'platform-op',

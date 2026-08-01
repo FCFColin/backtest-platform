@@ -17,14 +17,10 @@ import type { LETFRequest } from '@backtest/shared/types/letf';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
 import { logger } from '../utils/logger.js';
-import { buildEngineParams } from './backtest/engineBodyBuilder.js';
+import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
 import { toDateStr, todayStr } from '../utils/misc.js';
-import {
-  ensurePriceDataExists,
-  ensureTickerHasData,
-  normalizeTickers,
-} from './backtest/priceDataUtils.js';
+import { ensurePriceDataExists, ensureTickerHasData } from './backtest/backtestEngineUtils.js';
 import {
   fetchPriceDataWithRange,
   calculateDateRange,

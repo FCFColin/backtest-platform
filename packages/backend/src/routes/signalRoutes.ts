@@ -2,7 +2,11 @@ import { z } from 'zod';
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { signalAnalyzeSchema, signalDualSchema, signalMultiSchema } from '../schemas/signal.js';
+import {
+  signalAnalyzeSchema,
+  signalDualSchema,
+  signalMultiSchema,
+} from '../schemas/analysisSchemas.js';
 import {
   executeSignalAnalyze,
   executeDualSignalAnalyze,

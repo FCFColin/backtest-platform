@@ -8,9 +8,9 @@ import { eventDispatcher } from '../domain/events/events.js';
 import { config } from '../config/index.js';
 import pLimit from 'p-limit';
 import { OutboxKafkaConsumer } from './outboxKafkaConsumer.js';
-import type { WebhookHandler, OutboxConsumer } from './outboxTypes.js';
+import type { WebhookHandler, OutboxConsumer } from './outbox.js';
 
-export type { WebhookHandler, OutboxConsumer } from './outboxTypes.js';
+export type { WebhookHandler, OutboxConsumer } from './outbox.js';
 
 const reg = getPrometheusRegister();
 const mkGauge = (name: string, help: string): client.Gauge =>

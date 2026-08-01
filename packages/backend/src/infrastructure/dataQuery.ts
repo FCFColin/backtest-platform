@@ -48,7 +48,6 @@ function isDbAvailable(): boolean {
   return !pgCircuitBreaker.opened;
 }
 
-/** 计算 ticker 日期范围的交集；defaultStart/End 为空时仅按 DB 数据计算。 */
 async function computeCommonDateRange(
   validTickers: string[],
   hasUnknownTickers: boolean,
@@ -255,7 +254,6 @@ export async function validateTickers(
   }
 }
 
-/** 搜索标的代码或名称：优先 PostgreSQL，其次缓存，最后 Go data service 实时搜索（失败返回空数组）。 */
 export async function searchTickers(
   query: string,
   market?: string,

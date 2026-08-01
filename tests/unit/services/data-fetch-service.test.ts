@@ -37,7 +37,7 @@ const queueMocks = vi.hoisted(() => ({
   getActiveUpdateJobs: vi.fn().mockResolvedValue([]),
 }));
 
-vi.mock('../../../packages/backend/src/queues/dataUpdateQueue.js', () => ({
+vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
   dataUpdateQueue: {
     add: queueMocks.add,
   },
@@ -55,9 +55,8 @@ describe('dataFetchService', () => {
 
   describe('getUpdateStatus', () => {
     it('初始状态应为未运行', async () => {
-      const { getUpdateStatus } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { getUpdateStatus } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const status = await getUpdateStatus();
       expect(status.running).toBe(false);
       expect(status.mode).toBeNull();
@@ -68,9 +67,8 @@ describe('dataFetchService', () => {
     });
 
     it('应返回状态的深拷贝', async () => {
-      const { getUpdateStatus } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { getUpdateStatus } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const status1 = await getUpdateStatus();
       status1.running = true;
       const status2 = await getUpdateStatus();
@@ -81,9 +79,8 @@ describe('dataFetchService', () => {
       const job = makeMockJob({ state: 'active', mode: 'incremental', progress: 50 });
       queueMocks.getActiveUpdateJobs.mockResolvedValue([job]);
 
-      const { getUpdateStatus } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { getUpdateStatus } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const status = await getUpdateStatus();
       expect(status.running).toBe(true);
       expect(status.mode).toBe('incremental');
@@ -96,9 +93,8 @@ describe('dataFetchService', () => {
       const job = makeMockJob({ state: 'active' });
       queueMocks.getActiveUpdateJobs.mockResolvedValue([job]);
 
-      const { startUpdate } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { startUpdate } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = await startUpdate('full');
       expect(result.success).toBe(false);
       expect(result.message).toContain('已有');
@@ -108,9 +104,8 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([]);
       queueMocks.add.mockResolvedValue({ id: 'job-inc-001' });
 
-      const { startUpdate } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { startUpdate } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = await startUpdate('incremental');
       expect(result.success).toBe(true);
       expect(result.message).toContain('增量');
@@ -125,9 +120,8 @@ describe('dataFetchService', () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([]);
       queueMocks.add.mockResolvedValue({ id: 'job-full-001' });
 
-      const { startUpdate } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { startUpdate } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = await startUpdate('full');
       expect(result.success).toBe(true);
       expect(result.message).toContain('全量');
@@ -141,9 +135,8 @@ describe('dataFetchService', () => {
     it('没有运行的任务时应返回失败', async () => {
       queueMocks.getActiveUpdateJobs.mockResolvedValue([]);
 
-      const { stopUpdate } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { stopUpdate } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = await stopUpdate();
       expect(result.success).toBe(false);
       expect(result.message).toContain('没有');
@@ -153,9 +146,8 @@ describe('dataFetchService', () => {
       const job = makeMockJob({ id: 'job-running', state: 'active' });
       queueMocks.getActiveUpdateJobs.mockResolvedValue([job]);
 
-      const { stopUpdate } = await import(
-        '../../../packages/backend/src/infrastructure/dataFetch.js'
-      );
+      const { stopUpdate } =
+        await import('../../../packages/backend/src/infrastructure/dataFetch.js');
       const result = await stopUpdate();
       expect(result.success).toBe(true);
       expect(result.message).toContain('已停止');

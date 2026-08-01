@@ -20,7 +20,7 @@ import {
 } from '../middleware/jwtAuth.js';
 import { hashUserId, requireUser } from '../middleware/jwtAuth.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { loginPasswordSchema, switchOrgSchema } from '../schemas/misc-schemas.js';
+import { loginPasswordSchema, switchOrgSchema } from '../schemas/tactical.js';
 import registrationRoutes from './authRegistrationRoutes.js';
 import { verifyUser } from '../application/auth/userService.js';
 import {

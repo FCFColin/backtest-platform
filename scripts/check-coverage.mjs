@@ -1,11 +1,3 @@
-// 覆盖率门控脚本（Task 19.2 / 对抗性测试门控 / C-013 修复）
-//
-// 分阶段门禁（Phase 1，2026-08 实测基线：lines 6.4% / functions 57.3% / branches 79.0%）：
-//   - Phase 1 门禁=当前基线-回退余量：防回归，让 CI 真实执行覆盖率检查（此前 CI 只跑 test:unit 不收集覆盖率，门禁形同虚设）。
-//   - 每轮补测后上调：Phase 2 → lines 30 / functions 70；Phase 3 → lines 60 / functions 80。
-//   - 最终目标（AGENTS.md 约定）：lines/functions/statements ≥80% / branches ≥70%。
-// 普通文件：行覆盖率 ≥75%；关键文件（认证/金融/安全）：行覆盖率 ≥90%// 分层门控：只检查 backend 全量 + frontend store/hooks/utils；纯 UI 页面/组件由 E2E 覆盖
-
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -40,7 +32,9 @@ if (!coveragePath) {
   console.error('    1. 测试运行失败（vitest 在测试崩溃时不生成覆盖率文件）');
   console.error('       → 请先运行 npm run test:unit 确保所有测试通过');
   console.error('    2. json-summary reporter 未正确配置');
-  console.error('       → 请用 npx vitest run --coverage --coverage.reporter=json-summary 单独生成');
+  console.error(
+    '       → 请用 npx vitest run --coverage --coverage.reporter=json-summary 单独生成',
+  );
   console.error('');
   console.error('  覆盖率门控失败：无法执行任何门槛检查');
   process.exit(1);
@@ -63,7 +57,6 @@ if (!summary || typeof summary !== 'object' || Array.isArray(summary)) {
   process.exit(1);
 }
 
-// ---- 全局门槛检查（summary.total）----
 const total = summary.total;
 if (!total || typeof total !== 'object') {
   console.error('\n[coverage-check] ❌ coverage-summary.json 缺少 total 汇总字段');
@@ -116,7 +109,6 @@ const CRITICAL_FILES = [
   'packages/backend/src/db/tenant.ts',
   'packages/frontend/src/store/authStore.ts',
   'packages/frontend/src/utils/authTokens.ts',
-  // RO-048: 关键业务逻辑文件从 coverage exclude 移除后纳入 90% 门控
   'packages/backend/src/utils/engineClient.ts',
   'packages/backend/src/infrastructure/dataFacade.ts',
   'packages/backend/src/queues/worker.ts',
@@ -124,8 +116,7 @@ const CRITICAL_FILES = [
   'packages/backend/src/queues/backtestQueue.ts',
 ];
 
-// Phase 1 分阶段门禁：逐文件门槛暂挂起（阈值 0 = 不生效）——2026-08 基线有 12+ 文件行覆盖为 0%，
-// 逐文件 75/90 声明值不可达，先由全局门禁防回归；补测到全局 lines≥60% 后恢复逐文件 75/90（Phase 3）。
+// Phase 1: 逐文件门槛暂挂起（阈值 0），2026-08 基线 12+ 文件行覆盖 0%，先由全局门禁防回归
 const MIN_LINE_COVERAGE = 0;
 const CRITICAL_LINE_COVERAGE = 0;
 /**
@@ -138,7 +129,6 @@ const ALLOWED_PREFIXES = [
   'packages/frontend/src/hooks/',
   'packages/frontend/src/utils/',
 ];
-/** 纯类型/barrel/基础设施/外部服务依赖（与 vitest.workspace.ts 的 coverage.exclude 同步） */
 const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/application/cqrs.ts',
   'packages/backend/src/utils/timeout.ts',
@@ -158,13 +148,10 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/frontend/src/store/index.ts',
   'packages/frontend/src/store/types.ts',
   'packages/backend/src/app.ts',
-  // 启动入口/OpenTelemetry 配置/barrel/re-export（不适合单测）
   'packages/backend/src/server.ts',
   'packages/backend/src/tracing.ts',
   'packages/backend/src/domain/events/index.ts',
-  // infrastructure/mailService.ts 是外部 SMTP 服务封装
   'packages/backend/src/infrastructure/mailService.ts',
-  // 页面状态 hooks（强依赖页面组件上下文，由 E2E 覆盖）
   'packages/frontend/src/hooks/useAnalysisPageState.ts',
   'packages/frontend/src/hooks/useComputeTool.ts',
   'packages/frontend/src/hooks/useDataEngineState.ts',
@@ -211,17 +198,14 @@ let criticalCheckedCount = 0;
 const normalize = (p) => p.replace(/\\/g, '/');
 
 for (const [fileKey, data] of Object.entries(summary)) {
-  if (fileKey === 'total') continue; // 全局汇总已在上面单独处理
+  if (fileKey === 'total') continue;
 
   const normalizedFile = normalize(fileKey);
 
-  // 分层门控：只检查 ALLOWED_PREFIXES 中的文件
   if (!ALLOWED_PREFIXES.some((pfx) => normalizedFile.includes(pfx))) continue;
 
-  // 跳过排除文件
   if (PER_FILE_EXCLUDE_SUFFIXES.some((sfx) => normalizedFile.endsWith(sfx))) continue;
 
-  // 跳过测试文件
   if (normalizedFile.endsWith('.test.ts') || normalizedFile.endsWith('.test.tsx')) continue;
   if (normalizedFile.endsWith('.d.ts')) continue;
 
@@ -233,7 +217,6 @@ for (const [fileKey, data] of Object.entries(summary)) {
 
   const linePct = data.lines.pct;
 
-  // 判断是否为关键文件
   const isCritical = CRITICAL_FILES.some((cf) => normalizedFile.endsWith(cf));
 
   if (isCritical) {
@@ -249,17 +232,15 @@ for (const [fileKey, data] of Object.entries(summary)) {
   }
 }
 
-// ---- 汇总输出 ----
 console.log('\n[coverage-check] 覆盖率门控检查');
 
-// 全局门槛
-console.log('\n  全局门槛（Phase 1 分阶段门禁，见文件头说明）:');
+console.log('\n  全局门槛（Phase 1 分阶段门禁）:');
 for (const [metric, threshold] of Object.entries(GLOBAL_THRESHOLDS)) {
   const pct = total[metric]?.pct;
   if (typeof pct === 'number') {
     const status = pct >= threshold ? '✅' : '❌';
     console.log(
-      `    ${status} ${metric.padEnd(11)} ${pct.toFixed(2).padStart(6)}% / ${threshold}%`
+      `    ${status} ${metric.padEnd(11)} ${pct.toFixed(2).padStart(6)}% / ${threshold}%`,
     );
   } else {
     console.log(`    ❌ ${metric.padEnd(11)} 数据缺失 / ${threshold}%`);
@@ -273,7 +254,6 @@ if (globalFailures.length > 0) {
   }
 }
 
-// Per-file
 console.log(`\n  关键文件检查：${criticalCheckedCount} 个（阈值 ${CRITICAL_LINE_COVERAGE}%）`);
 console.log(`  普通文件检查：${checkedCount} 个（阈值 ${MIN_LINE_COVERAGE}%）`);
 
@@ -304,7 +284,6 @@ if (failures.length > 0) {
   }
 }
 
-// ---- 退出码判定（任一类失败即拒绝合并）----
 if (globalFailures.length > 0) {
   console.log('\n[coverage-check] ❌ 全局覆盖率门槛不达标，拒绝合并');
   process.exit(1);

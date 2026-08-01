@@ -7,11 +7,11 @@ import { runAnalysis } from '../application/analysis-orchestrator.js';
 import type { Warning } from '../application/backtest-helpers.js';
 import { runMonteCarlo } from '../application/montecarlo-service.js';
 import { runOptimization, runEfficientFrontier } from '../application/optimize-service.js';
-import { extractBacktestSeries } from '../application/backtest/compressBacktestResult.js';
 import {
+  extractBacktestSeries,
   backtestCacheKey,
   getBacktestResultCache,
-} from '../application/backtest/backtestResultCache.js';
+} from '../application/backtest/backtestResultUtils.js';
 import { searchTickers } from '../infrastructure/dataFacade.js';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
@@ -49,10 +49,6 @@ function buildBacktestResponse(
   return response;
 }
 
-/**
- * 同步计算端点统一骨架：执行 → 记录指标 → buildBacktestResponse 响应。
- * 消除 /analysis、/monte-carlo、/optimize、/efficient-frontier 的重复样板。
- */
 function computeRoute(
   metric: string,
   logMsg: string,
@@ -96,7 +92,6 @@ router.get(
   ),
 );
 
-// 组合回测：P0-02 统一异步模式（202 + 入队），队列不可用 fail-closed 503（ADR-031）。
 router.post(
   '/portfolio',
   validate(portfolioBacktestSchema),
@@ -142,7 +137,6 @@ router.post(
   ),
 );
 
-// 状态映射：waiting/active → running, completed → completed, failed → failed, delayed → queued
 function mapJobState(bullmqState: string): 'queued' | 'running' | 'completed' | 'failed' {
   if (bullmqState === 'completed') return 'completed';
   if (bullmqState === 'failed') return 'failed';

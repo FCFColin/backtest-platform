@@ -5,7 +5,7 @@
 // RunStarted/RunCompleted/RunFailed 由聚合根状态转换触发，更细粒度，两者并行存在。
 
 import { randomUUID } from 'crypto';
-import { DomainValidationError } from '../errors.js';
+import { DomainValidationError } from '../value-objects/index.js';
 import type { DomainEvent } from '../events/events.js';
 
 export type RunStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';

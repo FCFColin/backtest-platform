@@ -45,7 +45,7 @@ import {
   markJobProcessed,
   releaseJobClaim,
   getProcessedJobResult,
-} from '../../../packages/backend/src/queues/jobIdempotency.js';
+} from '../../../packages/backend/src/queues/queueUtils.js';
 
 describe('jobIdempotency', () => {
   beforeEach(() => {

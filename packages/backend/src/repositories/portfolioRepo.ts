@@ -14,8 +14,7 @@ import {
   Portfolio as DomainPortfolio,
   type PortfolioHolding,
 } from '../domain/aggregates/portfolio.js';
-import { DomainValidationError } from '../domain/errors.js';
-import { Ticker, Weight } from '../domain/value-objects/index.js';
+import { DomainValidationError, Ticker, Weight } from '../domain/value-objects/index.js';
 import { ValidationError } from '../utils/errors.js';
 import type { Asset, RebalanceFrequency } from '@backtest/shared';
 import { rowMapper, iso } from './rowMapper.js';

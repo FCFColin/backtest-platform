@@ -174,3 +174,25 @@ export const efficientFrontierSchema = z.object({
 export const portfolioSeriesSchema = portfolioBacktestSchema.extend({
   series: z.array(z.enum(['rollingReturns', 'allocationHistory', 'drawdownEpisodes'])).min(1),
 });
+
+export const portfolioBodySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  assets: z.array(assetSchema).min(1).max(200),
+  rebalanceFrequency: z.enum(ALL_REBALANCE_FREQUENCIES).optional(),
+});
+
+export const savedConfigBodySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  config: z.record(z.string(), z.unknown()),
+});
+
+export const backtestRunBodySchema = z.object({
+  name: z.string().trim().max(120).optional(),
+  request: z.record(z.string(), z.unknown()),
+  result: z.unknown().optional(),
+  status: z.enum(['pending', 'running', 'completed', 'failed']).optional(),
+});
+
+export type PortfolioBody = z.infer<typeof portfolioBodySchema>;
+export type SavedConfigBody = z.infer<typeof savedConfigBodySchema>;
+export type BacktestRunBody = z.infer<typeof backtestRunBodySchema>;

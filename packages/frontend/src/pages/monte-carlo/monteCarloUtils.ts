@@ -45,7 +45,6 @@ const createDefaultPortfolio = (suffix: number): PortfolioState => ({
   assets: DEFAULT_ASSETS[suffix === 1 ? 1 : 2],
   rebalanceFrequency: 'yearly',
 });
-// [labelKey, assets, years, sims, value, min, max] — min/max 缺省为 1/5
 const PRESETS: Array<[string, PortfolioState['assets'], number, number, number, number?, number?]> =
   [
     ['monteCarlo.presets.preset6040', DEFAULT_ASSETS[1], 20, 500, 100000],
@@ -357,7 +356,6 @@ function buildBins<T extends { range: string; count: number; minVal: number }>(
 const labelForBin =
   (min: number, binWidth: number, formatBin: (v: number) => string) => (val: number) =>
     formatBin(Math.floor((val - min) / binWidth) * binWidth + min);
-// 分布直方图与期末直方图共用：分箱 + 标签生成器
 function buildBinData(vals: number[], binCount: number, formatBin: (v: number) => string) {
   const { min, binWidth, bins } = buildBins(vals, binCount, formatBin, (range, minVal) => ({
     range,

@@ -16,12 +16,8 @@ import {
   WITH_USER_ID_PARAM,
   KEY_BODY,
 } from './openapi-paths-shared.js';
-import { loginPasswordSchema, registerSchema } from './misc-schemas.js';
-import {
-  portfolioBodySchema,
-  savedConfigBodySchema,
-  backtestRunBodySchema,
-} from './persistence.js';
+import { loginPasswordSchema, registerSchema } from './tactical.js';
+import { portfolioBodySchema, savedConfigBodySchema, backtestRunBodySchema } from './backtest.js';
 
 function registerAuthLoginPaths(): void {
   pubReg(

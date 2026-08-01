@@ -8,12 +8,15 @@ import type { PortfolioResult, RebalanceFrequency } from '@backtest/shared/types
 import type { TacticalBacktestRequest } from '../schemas/tactical.js';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
 import { callEngineStrict } from '../utils/engineClient.js';
-import { buildEngineParams } from './backtest/engineBodyBuilder.js';
+import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import { Ticker, Weight } from '../domain/value-objects/index.js';
 import { createEmptyStatistics } from '@backtest/shared/types';
 import { logger } from '../utils/logger.js';
-import { ensurePriceDataExists, ensureSufficientTradingDays } from './backtest/priceDataUtils.js';
+import {
+  ensurePriceDataExists,
+  ensureSufficientTradingDays,
+} from './backtest/backtestEngineUtils.js';
 import { translateDomainError } from './backtest-helpers.js';
 
 interface TacticalBacktestResult {

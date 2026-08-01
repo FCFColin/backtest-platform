@@ -1,4 +1,3 @@
-// Package montecarlo 提供蒙特卡洛模拟核心计算逻辑（T-ARCH-2.3）。
 package montecarlo
 
 import (
@@ -19,11 +18,11 @@ import (
 )
 
 const (
-	mcTradingDays   = 252  // 年交易日数
-	mcRiskFreeRate  = 0.02 // 无风险利率
-	mcHistogramBins = 50   // 直方图分箱数
-	mcDefaultSims   = 1000 // 默认模拟次数
-	mcDefaultYears  = 20   // 默认模拟年数
+	mcTradingDays   = 252
+	mcRiskFreeRate  = 0.02
+	mcHistogramBins = 50
+	mcDefaultSims   = 1000
+	mcDefaultYears  = 20
 )
 
 func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResult, error) {
@@ -131,7 +130,6 @@ func calcPathMetrics(path []float64, startingValue float64, years float64) PathM
 	return PathMetrics{FinalValue: finalValue, CAGR: cagr, MaxDrawdown: maxDD, Volatility: vol, Sharpe: sharpe, Sortino: mcSortino(dailyRets, cagr)}
 }
 
-// finalValues 提取每条路径的期末值（分布/统计/代表路径三处共用）
 func finalValues(paths [][]float64) []float64 {
 	vals := make([]float64, len(paths))
 	for i, p := range paths {

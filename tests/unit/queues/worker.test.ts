@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
-
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
   createBacktestWorker: vi.fn(() => ({ close: vi.fn().mockResolvedValue(undefined) })),
@@ -19,7 +18,7 @@ vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   EngineUnavailableError: EngineUnavailableErrorStub,
   callEngineStrict: vi.fn(),
 }));
-vi.mock('../../../packages/backend/src/queues/jobIdempotency.js', () => ({
+vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
   tryClaimJobProcessing: vi.fn().mockResolvedValue('claimed'),
   getProcessedJobResult: vi.fn().mockResolvedValue(null),
   markJobProcessed: vi.fn().mockResolvedValue(undefined),
@@ -67,7 +66,6 @@ const signalCapture = vi.hoisted(() => {
 afterAll(() => {
   process.on = signalCapture.originalOn;
 });
-
 import { processBacktestJob } from '../../../packages/backend/src/queues/worker.js';
 import { executeOptimization } from '../../../packages/backend/src/application/optimize-service.js';
 import { executeGridSearch } from '../../../packages/backend/src/application/grid-application-service.js';
@@ -76,7 +74,7 @@ import {
   getProcessedJobResult,
   releaseJobClaim,
   markJobProcessed,
-} from '../../../packages/backend/src/queues/jobIdempotency.js';
+} from '../../../packages/backend/src/queues/queueUtils.js';
 import { getOrg } from '../../../packages/backend/src/application/org/membershipService.js';
 import { appRedis } from '../../../packages/backend/src/infrastructure/redisClient.js';
 import { DelayedError } from 'bullmq';
@@ -87,7 +85,6 @@ import type {
   BacktestJobResult,
 } from '../../../packages/backend/src/queues/backtestQueue.js';
 import type { Job } from 'bullmq';
-
 function makeJob(data: BacktestJobData, id = 'job-1'): Job<BacktestJobData> {
   return { id, data } as unknown as Job<BacktestJobData>;
 }
@@ -161,7 +158,6 @@ describe('processBacktestJob - 任务分发', () => {
       expect(markJobProcessed).not.toHaveBeenCalled();
     }
   });
-
   it('未知任务类型应返回 failed 且 error 包含未知类型名', async () => {
     const job = makeJob({ type: 'unknown-type' as BacktestJobData['type'], payload: {} });
     const result = await processBacktestJob(job);
@@ -172,7 +168,6 @@ describe('processBacktestJob - 任务分发', () => {
     expect(executeOptimization).not.toHaveBeenCalled();
     expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
   });
-
   it.each([
     [
       'already_processed 且有缓存时应返回缓存结果',
@@ -202,7 +197,6 @@ describe('processBacktestJob - 任务分发', () => {
     }
     expect(executeOptimization).not.toHaveBeenCalled();
   });
-
   it.each([
     [
       'EngineUnavailableError 时应释放 claim 并重抛以触发 BullMQ 重试',
@@ -216,7 +210,6 @@ describe('processBacktestJob - 任务分发', () => {
     if (releaseExpected) expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
     else expect(releaseJobClaim).not.toHaveBeenCalled();
   });
-
   it('UpstreamProblemError（4xx）应释放 claim 并返回 failed 而非重抛', async () => {
     vi.mocked(executeOptimization).mockRejectedValueOnce(
       new UpstreamProblemError(400, 'BACKTEST_BAD_REQUEST', 'Bad Request', '参数组合无效'),
@@ -286,7 +279,6 @@ describe('processBacktestJob - 任务分发', () => {
       check();
     });
   });
-
   it.each([
     ['在途数超过计划上限时抛 DelayedError 并回退计数', false],
     ['cap 超限且 decr 失败时应忽略 decr 错误并抛 DelayedError', true],
@@ -321,7 +313,6 @@ describe('processBacktestJob - 任务分发', () => {
     expect(createRun).not.toHaveBeenCalled();
   });
 });
-
 describe('shutdownWorker（优雅关闭）', () => {
   let exitSpy: ReturnType<typeof vi.spyOn>;
   let workerCloseMock: ReturnType<typeof vi.fn>;

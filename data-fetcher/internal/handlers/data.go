@@ -1,4 +1,3 @@
-// Package handlers 提供 data-fetcher 服务的 HTTP 处理器。
 package handlers
 
 import (

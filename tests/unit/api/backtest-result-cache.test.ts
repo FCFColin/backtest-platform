@@ -23,7 +23,7 @@ import {
   getBacktestResultCache,
   getOrCompute,
   clearBacktestResultCache,
-} from '../../../packages/backend/src/application/backtest/backtestResultCache.js';
+} from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import type { BacktestResult, Portfolio, BacktestParameters } from '@backtest/shared';
 
 const portfolios: Portfolio[] = [

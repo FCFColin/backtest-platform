@@ -9,7 +9,7 @@ import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { adminMiddleware } from '../middleware/middlewareChains.js';
-import { createAnnouncementSchema } from '../schemas/misc-schemas.js';
+import { createAnnouncementSchema } from '../schemas/tactical.js';
 
 const router = Router();
 

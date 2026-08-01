@@ -22,8 +22,8 @@ import {
   dataUpdateDlq,
   type DataUpdateJobData,
   type DataUpdateJobResult,
-} from './dataUpdateQueue.js';
-import { isFinalFailure, transferToDlq } from './dlqConfig.js';
+} from './queueDefinitions.js';
+import { isFinalFailure, transferToDlq } from './queueUtils.js';
 
 const QUEUE_NAME = 'data-update';
 

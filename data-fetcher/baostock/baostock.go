@@ -28,11 +28,11 @@ const (
 	ServerIP                   = "public-api.baostock.com"
 	ServerPort                 = 10030
 	ClientVersion              = "00.9.10"
-	MsgSplit                   = "\x01" // \1 消息内部分隔符
-	MsgEnd                     = "\n"   // 消息间分隔符
+	MsgSplit                   = "\x01"
+	MsgEnd                     = "\n"
 	ResponseEnd                = "<![CDATA[]]>\n"
-	HeaderBodyLength           = 10 // 消息头中消息体长度占位数
-	HeaderLength               = 21 // 消息头固定长度
+	HeaderBodyLength           = 10
+	HeaderLength               = 21
 	PerPageCount               = 10000
 	MsgLoginRequest            = "00"
 	MsgLoginResponse           = "01"
@@ -161,7 +161,6 @@ func (c *Client) QueryTradeDates(startDate, endDate string) ([]string, error) {
 	return c.parseTradeDatesResponse(resp)
 }
 
-// pagedBody 构造分页查询请求体：命令 + userID + page=1 + 页大小 + 业务参数
 func (c *Client) pagedBody(cmd string, args ...string) string {
 	parts := make([]string, 0, 4+len(args))
 	parts = append(parts, cmd, c.userID, "1", strconv.Itoa(PerPageCount))
@@ -169,7 +168,6 @@ func (c *Client) pagedBody(cmd string, args ...string) string {
 	return strings.Join(parts, MsgSplit)
 }
 
-// parseBody 剥离消息头并按 MsgSplit 切分响应体；业务码非 0 或格式错误时返回 ok=false
 func parseBody(resp string) ([]string, bool) {
 	if len(resp) <= HeaderLength {
 		return nil, false
@@ -281,7 +279,7 @@ func (c *Client) parseTradeDatesResponse(resp string) ([]string, error) {
 	if respData := findRecordResponse(bodyArr); respData != nil {
 		dates := make([]string, 0, len(respData.Record))
 		for _, row := range respData.Record {
-			if len(row) >= 2 && row[1] == "1" { // is_trading_day == "1"
+			if len(row) >= 2 && row[1] == "1" {
 				dates = append(dates, row[0])
 			}
 		}
@@ -338,7 +336,7 @@ func (c *Client) sendMsg(msgType, msgBody string) (string, error) {
 		if bytes.HasSuffix(receive, endMarker) {
 			break
 		}
-		if len(receive) > 10*1024*1024 { // 10MB
+		if len(receive) > 10*1024*1024 {
 			return "", fmt.Errorf("响应数据过大")
 		}
 	}

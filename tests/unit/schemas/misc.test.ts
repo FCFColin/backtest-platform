@@ -3,7 +3,7 @@ import {
   loginSchema,
   loginPasswordSchema,
   registerSchema,
-} from '../../../packages/backend/src/schemas/misc-schemas.js';
+} from '../../../packages/backend/src/schemas/tactical.js';
 
 describe('loginSchema', () => {
   it.each([
@@ -146,7 +146,7 @@ import {
   portfolioBodySchema,
   savedConfigBodySchema,
   backtestRunBodySchema,
-} from '../../../packages/backend/src/schemas/persistence.js';
+} from '../../../packages/backend/src/schemas/backtest.js';
 
 describe('portfolioBodySchema', () => {
   const valid = { name: 'My Portfolio', assets: [{ ticker: 'VTI', weight: 60 }] };

@@ -14,7 +14,7 @@
 import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { validate } from '../middleware/miscMiddleware.js';
-import { errorReportSchema } from '../schemas/misc-schemas.js';
+import { errorReportSchema } from '../schemas/tactical.js';
 import {
   recordFrontendWebVital,
   recordFrontendApiCall,

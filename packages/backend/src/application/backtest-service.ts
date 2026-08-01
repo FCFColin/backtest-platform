@@ -5,9 +5,9 @@
 import { randomUUID } from 'crypto';
 import { trace } from '@opentelemetry/api';
 import { callEngineStrict } from '../utils/engineClient.js';
-import { buildEngineParams } from './backtest/engineBodyBuilder.js';
+import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { getClient } from '../db/pool.js';
-import { writeEventInTransaction } from '../infrastructure/outboxWriter.js';
+import { writeEventInTransaction } from '../infrastructure/outbox.js';
 import { logger } from '../utils/logger.js';
 import { recordBacktestRequest } from '../utils/metrics.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
@@ -15,8 +15,11 @@ import { Run } from '../domain/aggregates/run.js';
 import { eventDispatcher } from '../domain/events/events.js';
 import { withTimeout } from '../utils/misc.js';
 import { config } from '../config/index.js';
-import { compressBacktestResultForSync } from './backtest/compressBacktestResult.js';
-import { backtestCacheKey, setBacktestResultCache } from './backtest/backtestResultCache.js';
+import {
+  compressBacktestResultForSync,
+  backtestCacheKey,
+  setBacktestResultCache,
+} from './backtest/backtestResultUtils.js';
 import type {
   BacktestExecutionParams,
   BacktestExecutionResult,

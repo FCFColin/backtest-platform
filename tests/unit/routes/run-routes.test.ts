@@ -25,7 +25,7 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: create
 
 vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => mocks.repo);
 
-vi.mock('../../../packages/backend/src/schemas/persistence.js', () => ({
+vi.mock('../../../packages/backend/src/schemas/backtest.js', () => ({
   backtestRunBodySchema: {},
   BacktestRunBody: Object,
 }));

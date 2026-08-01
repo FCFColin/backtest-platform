@@ -108,7 +108,7 @@ vi.mock('../../packages/backend/src/utils/engineClient.js', () => ({
   },
   resetEngineAvailability: vi.fn(),
 }));
-vi.mock('../../packages/backend/src/application/backtest/engineBodyBuilder.js', () => ({
+vi.mock('../../packages/backend/src/application/backtest/backtestEngineUtils.js', () => ({
   buildEngineParams: m.buildEngineParams,
 }));
 vi.mock('../../packages/backend/src/queues/backtestQueue.js', () => ({

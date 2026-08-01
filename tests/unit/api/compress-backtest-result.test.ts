@@ -4,7 +4,7 @@ import {
   compressBacktestResultForSync,
   extractBacktestSeries,
   MAX_SYNC_CHART_POINTS,
-} from '../../../packages/backend/src/application/backtest/compressBacktestResult.js';
+} from '../../../packages/backend/src/application/backtest/backtestResultUtils.js';
 import type { BacktestResult, PortfolioResult } from '@backtest/shared';
 
 function makePoint(i: number) {
