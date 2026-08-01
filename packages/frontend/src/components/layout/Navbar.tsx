@@ -98,7 +98,7 @@ function NavGroup({
           />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[14rem]">
+      <DropdownMenuContent align="start" className="min-w-[14rem] duration-75">
         {group.items.map((item) => {
           const active = isActive(item.to);
           return (
