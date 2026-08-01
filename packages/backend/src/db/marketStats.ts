@@ -160,7 +160,8 @@ export async function getLastUpdated(): Promise<string> {
 /** 进程内 TTL 缓存：getDbEngineStatus() 结果缓存 30 秒（避免 COUNT(DISTINCT ticker) 在大表上的扫描开销） */
 const dbEngineStatusCache = makeTtlCache<DbEngineStatusResult>(30_000);
 
-/** 引擎状态摘要（PostgreSQL）：tickers 总数 / 已缓存数 / 最后更新时间；查询失败各字段归零。 */
+/** 引擎状态摘要（PostgreSQL）：tickers 总数 / 已缓存数 / 最后更新时间；查询失败各字段归零。
+ * cachedTickers 从 prices_monthly CAGG 读取（避免对 14.5M 行 prices 全扫 COUNT DISTINCT，冷启动从 ~5s 降到毫秒级）。 */
 export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
   const cached = dbEngineStatusCache.get();
   if (cached) return cached;
@@ -170,7 +171,7 @@ export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
       with_prices: string;
       last_update: Date | null;
     }>(
-      `SELECT (SELECT COUNT(*)::text FROM tickers) AS total, (SELECT COUNT(DISTINCT ticker)::text FROM prices) AS with_prices, (SELECT MAX(updated_at) FROM tickers) AS last_update`,
+      `SELECT (SELECT COUNT(*)::text FROM tickers) AS total, (SELECT COUNT(DISTINCT ticker)::text FROM prices_monthly) AS with_prices, (SELECT MAX(updated_at) FROM tickers) AS last_update`,
     );
     const row = rows[0];
     const result = {

@@ -145,6 +145,10 @@ function createDenyAllLimiter(code: string, detail: string): RequestHandler {
 
 /** 创建限流器：统一 standardHeaders/legacyHeaders/store。Redis 不可用且非 admin 路由 → deny-all（P0-05，不降级内存存储）。 */
 function createLimiter(opts: LimiterOptions): RequestHandler {
+  // 开发期性能/契约测试豁免：DISABLE_RATE_LIMIT=true 且非生产环境时跳过限流
+  if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_RATE_LIMIT) {
+    return (_req: Request, _res: Response, next: NextFunction) => next();
+  }
   const store = createRateLimiterStore(opts.storePrefix);
   if (!store && !(opts.passOnStoreError ?? false)) {
     logger.warn(`[rate-limit] Redis 不可用，${opts.storePrefix} 限流器 fail-closed (503)`);

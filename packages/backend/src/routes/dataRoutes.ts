@@ -28,6 +28,14 @@ const mapRecentUpdate = rowMapper<RecentUpdateRow>({
   updatedAt: (r) => toIso(r.updated_at),
 });
 
+// ticker-meta 服务端缓存（60s，与 Cache-Control 响应头一致；避免跨 hypertable chunk 的 MIN(date) 扫描）
+const tickerMetaCache = new Map<string, { data: unknown; at: number }>();
+const TICKER_META_CACHE_TTL = 60_000;
+function cachedTickerMeta(ticker: string): unknown | undefined {
+  const hit = tickerMetaCache.get(ticker);
+  return hit && Date.now() - hit.at < TICKER_META_CACHE_TTL ? hit.data : undefined;
+}
+
 let metaCache: { data: object; expiry: number } | null = null;
 const META_CACHE_TTL_MS = 30 * 60 * 1000;
 
@@ -193,6 +201,12 @@ router.get(
         });
         return;
       }
+      const cached = cachedTickerMeta(ticker);
+      if (cached) {
+        res.set('Cache-Control', 'public, max-age=60');
+        res.json({ success: true, data: cached });
+        return;
+      }
       try {
         const { rows } = await getReadPool().query(
           'SELECT t.ticker, t.category AS name, t.market, t.exchange, MIN(p.date) AS earliest FROM tickers t LEFT JOIN prices p ON p.ticker = t.ticker WHERE t.ticker = $1 GROUP BY t.ticker',
@@ -205,18 +219,17 @@ router.get(
           return;
         }
         const row = rows[0];
+        const data = {
+          ticker: row.ticker,
+          name: row.name || row.ticker,
+          exchange: row.exchange || (row.market === 'cn' ? 'SSE/SZSE' : 'NYSE'),
+          currency: row.market === 'cn' ? 'CNY' : 'USD',
+          earliestDate: row.earliest ?? null,
+          isSynthetic: false,
+        };
+        tickerMetaCache.set(ticker, { data, at: Date.now() });
         res.set('Cache-Control', 'public, max-age=60');
-        res.json({
-          success: true,
-          data: {
-            ticker: row.ticker,
-            name: row.name || row.ticker,
-            exchange: row.exchange || (row.market === 'cn' ? 'SSE/SZSE' : 'NYSE'),
-            currency: row.market === 'cn' ? 'CNY' : 'USD',
-            earliestDate: row.earliest ?? null,
-            isSynthetic: false,
-          },
-        });
+        res.json({ success: true, data });
       } catch {
         sendProblem(res, 503, 'DATA_UNAVAILABLE', 'Service Unavailable', {
           detail: '元数据暂不可用，请稍后重试',
