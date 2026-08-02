@@ -290,7 +290,7 @@ export function useAnnouncements() {
       const saved = localStorage.getItem(READ_KEY);
       if (saved) setReadIds(new Set(JSON.parse(saved)));
     } catch {
-      /* localStorage not available */
+      /* noop */
     }
     if (!pendingAnnouncementsPromise) {
       pendingAnnouncementsPromise = apiFetch('/api/v1/announcements', { silent: true })
@@ -341,7 +341,7 @@ function getPreloadedMeta(): DataMeta | null {
       };
     }
   } catch {
-    /* meta fetch error */
+    /* noop */
   }
   return null;
 }

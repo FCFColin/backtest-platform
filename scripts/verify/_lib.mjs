@@ -4,7 +4,6 @@ try {
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join, resolve, sep } from 'node:path';
-import pg from 'pg';
 
 const PROJECT_ROOT = resolve(process.cwd());
 const OUTPUT_DIR = join(PROJECT_ROOT, 'docs', 'audit', 'verify');
@@ -53,6 +52,7 @@ export function writeAggregatedResult(aggregateId, results) {
  * @param {{useAppRole?: boolean}} [opts] - useAppRole=true 用 backtest_app 角色
  */
 export async function withDb(fn, opts = {}) {
+  const { default: pg } = await import('pg');
   const url = opts.useAppRole
     ? process.env.APP_DATABASE_URL || process.env.DATABASE_URL
     : process.env.DATABASE_URL || process.env.APP_DATABASE_URL;

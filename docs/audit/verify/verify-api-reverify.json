@@ -1,0 +1,61 @@
+{
+  "aggregateId": "verify-api",
+  "timestamp": "2026-08-02T09:05:17.993Z",
+  "overallStatus": "PASS",
+  "results": {
+    "C-022": {
+      "status": "PASS",
+      "summary": "OpenAPI server.url 为 http://localhost:15001 (已修复)",
+      "details": {
+        "files": {
+          "docs/openapi.yaml": {
+            "exists": true,
+            "urls": ["localhost:15001"],
+            "hasOldUrl": false,
+            "hasNewUrl": true
+          },
+          "packages/backend/src/schemas/openapi-registry.ts": {
+            "exists": true,
+            "urls": ["localhost:15001"],
+            "hasOldUrl": false,
+            "hasNewUrl": true
+          }
+        },
+        "hasOldUrl": false,
+        "hasNewUrl": true
+      }
+    },
+    "C-023": {
+      "status": "PASS",
+      "summary": "packages/backend/src/routes/routeUtils.ts 中无 degraded 响应字段 (符合 ADR-031); 4 处 metrics/import/注释被排除",
+      "details": {
+        "totalMatches": 4,
+        "responseFieldCount": 0,
+        "metricsExcluded": 4,
+        "responseFieldLines": [],
+        "metricsLines": [
+          {
+            "line": 9,
+            "text": "import { recordBacktestRequest, recordDegradedResponse } from '../utils/metrics.js';",
+            "reason": "metrics function"
+          },
+          {
+            "line": 70,
+            "text": "function recordDegraded(endpoint: string | undefined): void {",
+            "reason": "metrics function"
+          },
+          {
+            "line": 73,
+            "text": "recordDegradedResponse(endpoint, 'engine_unavailable');",
+            "reason": "metrics function"
+          },
+          {
+            "line": 85,
+            "text": "recordDegraded(errorConfig.endpoint);",
+            "reason": "metrics function"
+          }
+        ]
+      }
+    }
+  }
+}

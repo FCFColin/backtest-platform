@@ -19,6 +19,7 @@ import { reportError } from '../../utils/errorReporter.js';
 import { parseMarketBreakdown } from '../../utils/adminStats.js';
 import { KpiCard } from '../../components/admin/AdminLayout.js';
 import { Button, Card } from '../../components/ui/uiComponents.js';
+
 interface DataSource {
   name: string;
   type: 'api' | 'local';
@@ -33,6 +34,7 @@ interface DataStats {
   totalSizeMB: number;
   marketBreakdown: Record<string, number>;
 }
+
 const defaultDataSources: DataSource[] = [
   {
     name: 'adminPage.dataManagement.rustEngine',
@@ -91,6 +93,7 @@ const getYearDiff = (start: string, end: string) =>
   Math.round(
     (new Date(end).getTime() - new Date(start).getTime()) / (365.25 * 24 * 60 * 60 * 1000),
   );
+
 function buildDataStats(d: Record<string, unknown>): DataStats {
   const s = d.stats as Record<string, unknown> | undefined;
   const u = d.universe as Record<string, unknown> | undefined;
@@ -123,6 +126,7 @@ function buildSources(stats: DataStats): DataSource[] {
   };
   return sources;
 }
+
 function ActionBar({
   loading,
   actionMsg,
@@ -168,6 +172,7 @@ function ActionBar({
     </div>
   );
 }
+
 function DataSourceTable({ sources }: { sources: DataSource[] }) {
   const { t } = useTranslation();
   return (
@@ -236,6 +241,7 @@ function DataSourceTable({ sources }: { sources: DataSource[] }) {
     </Card>
   );
 }
+
 function MarketAndDateSection({ stats }: { stats: DataStats }) {
   const { t } = useTranslation();
   return (
@@ -283,6 +289,7 @@ function MarketAndDateSection({ stats }: { stats: DataStats }) {
     </>
   );
 }
+
 function StatsGrid({ stats }: { stats: DataStats }) {
   const { t } = useTranslation();
   const items = [
@@ -322,8 +329,8 @@ function StatsGrid({ stats }: { stats: DataStats }) {
     </div>
   );
 }
-export default // eslint-disable-next-line max-lines-per-function -- 数据管理页多区块，内聚保留
-function DataManagement() {
+
+export default function DataManagement() {
   const { t } = useTranslation();
   const [sources, setSources] = useState<DataSource[]>(defaultDataSources);
   const [stats, setStats] = useState<DataStats>(defaultDataStats);
