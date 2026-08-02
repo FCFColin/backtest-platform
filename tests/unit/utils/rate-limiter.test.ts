@@ -3,7 +3,6 @@ import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import { mockLogger } from '../../helpers/mockFactories.js';
 
-// vi.hoisted 保证 loggerMocks 在 vi.mock 工厂执行前已绑定
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),
   warn: vi.fn(),
@@ -15,11 +14,9 @@ const loggerMocks = vi.hoisted(() => ({
 // RedisStore 可在"成功/抛错"间切换：抛错时模拟 Redis 不可用（P0-05 fail-closed）
 const redisStoreMocks = vi.hoisted(() => ({ throwOnConstruct: false }));
 
-// 捕获 rateLimit 调用参数，使 keyGenerator 等纯函数可在测试中直接调用
 vi.mock('express-rate-limit', () => ({
   default: vi.fn((opts: Record<string, unknown>) => ({ __options: opts })),
 }));
-// RedisStore 成功/失败双路径
 vi.mock('rate-limit-redis', () => ({
   RedisStore: vi.fn(() => {
     if (redisStoreMocks.throwOnConstruct) throw new Error('Redis connection refused');
@@ -35,7 +32,6 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: { COMPUTE_RATE_LIMIT_MAX: 10 },
 }));
-// Mock prom-client 避免 Prometheus 注册冲突
 vi.mock('prom-client', () => ({
   default: {
     Counter: vi.fn().mockImplementation(() => ({ inc: vi.fn(), labels: vi.fn().mockReturnThis() })),
@@ -44,7 +40,6 @@ vi.mock('prom-client', () => ({
   },
 }));
 
-// 默认（Redis 可用）路径：模块静态加载一次，捕获 __options
 import {
   apiLimiter,
   computeLimiter,
@@ -98,7 +93,6 @@ const hashKey = (prefix: string, value: string): string =>
 
 describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
   // P0-XX：JWT 感知键生成器——已认证用户按 userId:ip 组合键限流，
-  // 避免 NAT/企业代理后多用户共享同一 IP 限流桶。
   it.each([
     [
       'computeRateLimitKey: req.user 优先于 tenantId/JWT/API Key',
@@ -182,7 +176,6 @@ describe('rateLimiter — keyGenerator（Redis 可用路径）', () => {
 // 实际限流上限 = 配置值 × 实例数，等同无限流。必须 fail-closed (503)。
 // 测试策略：mock RedisStore 构造抛错（模拟 Redis 不可用），验证非 admin 限流器
 // 返回 503 + RFC 7807 错误格式；admin 限流器仍降级到 rateLimit（passOnStoreError=true）。
-// 因 redisAvailable 在模块加载期判定，此组通过 vi.resetModules() + 动态 import 重新加载模块。
 describe('P0-05: Redis 不可用 → 限流 fail-closed (503)', () => {
   let mod: typeof import('../../../packages/backend/src/utils/rateLimiter.js');
   beforeAll(async () => {

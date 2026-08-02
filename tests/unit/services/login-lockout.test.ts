@@ -197,7 +197,6 @@ describe('loginLockout', () => {
   });
 
   it('同一 IP 多次失败后应触发封锁（跨账号撞库场景）', async () => {
-    // 模拟 10 次失败（阈值为 10）
     for (let i = 1; i <= 10; i++) {
       redisMocks.incr.mockResolvedValueOnce(i);
       redisMocks.expire.mockResolvedValueOnce(1);
@@ -207,7 +206,6 @@ describe('loginLockout', () => {
       }
       await recordIpFailure('198.51.100.1');
     }
-    // 第 10 次时应设置封锁键
     expect(redisMocks.set).toHaveBeenCalledWith(
       'login_ip_lock:' + hashIp('198.51.100.1'),
       '1',
@@ -225,7 +223,6 @@ describe('loginLockout', () => {
     redisMocks.expire.mockResolvedValueOnce(1);
     await recordIpFailure('2.2.2.2');
 
-    // 两个不同 IP 的失败键应不同（哈希不同）
     const expireCalls = redisMocks.expire.mock.calls;
     expect(expireCalls[0][0]).toBe('login_ip_fail:' + hashIp('1.1.1.1'));
     expect(expireCalls[1][0]).toBe('login_ip_fail:' + hashIp('2.2.2.2'));
@@ -273,7 +270,6 @@ describe('createApiKey', () => {
     // argon2id 编码哈希（P0-04/T6），与密码同策略，同样不含明文
     expect(keyHashArgon2).not.toContain(created.plaintext);
     expect(keyHashArgon2).toMatch(/^\$argon2id\$/);
-    // key_prefix 是明文前缀，不含完整密钥
     expect(created.plaintext.startsWith(keyPrefix)).toBe(true);
   });
 });
@@ -303,7 +299,6 @@ describe('verifyApiKey', () => {
       .mockResolvedValueOnce({ rowCount: 1 }); // UPDATE last_used_at
     const result = await verifyApiKey('bpk_live_validlookingkey');
     expect(result).toEqual({ orgId: ORG, keyId: KEY_ID });
-    // 等待异步 UPDATE
     await new Promise((r) => setTimeout(r, 5));
     expect(dbMocks.query).toHaveBeenCalledTimes(2);
   });

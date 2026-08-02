@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// 使用 vi.hoisted 确保 mock 工厂能访问到状态容器
 const mockState = vi.hoisted(() => {
   const stateMap: Map<number, unknown> = new Map();
   const stateIndex = { value: 0 };
@@ -38,7 +37,6 @@ function renderHook() {
     run: result.run,
     reset: result.reset,
     setError: result.setError,
-    // useState 调用顺序：isLoading=0, error=1
     get isLoading() {
       return mockState.stateMap.get(0) as boolean;
     },
@@ -208,7 +206,14 @@ describe('useAsyncAction - 并发调用与边界情况', () => {
   });
 
   it.each([
-    ['立即抛错', async () => { throw new Error('immediate'); }, undefined, 'immediate'],
+    [
+      '立即抛错',
+      async () => {
+        throw new Error('immediate');
+      },
+      undefined,
+      'immediate',
+    ],
     ['立即返回', async () => 'instant', 'instant', null],
   ])('action %s 也能正常处理', async (_n, action, expected, expectedError) => {
     const hook = renderHook();
@@ -228,7 +233,11 @@ describe('useAsyncAction - 并发调用与边界情况', () => {
   it('连续失败执行多次', async () => {
     const hook = renderHook();
     for (let i = 0; i < 3; i++) {
-      expect(await hook.run(async () => { throw new Error(`error-${i}`); })).toBeUndefined();
+      expect(
+        await hook.run(async () => {
+          throw new Error(`error-${i}`);
+        }),
+      ).toBeUndefined();
       expect(hook.error).toBe(`error-${i}`);
       expect(hook.isLoading).toBe(false);
     }

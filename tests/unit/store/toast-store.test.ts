@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useToastStore } from '../../../packages/frontend/src/store/toastStore.js';
 
 beforeEach(() => {
-  // 清空toast
   const { toasts } = useToastStore.getState();
   toasts.forEach((t) => useToastStore.getState().removeToast(t.id));
 });

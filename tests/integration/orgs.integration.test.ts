@@ -115,7 +115,6 @@ describe.skipIf(!dockerAvailable)('组织与成员管理集成测试', () => {
 
   it('PATCH /members/:userId 拒绝降级最后一个 owner（409）', async () => {
     const pool = getPool();
-    // 移除第二个 owner，使 seed.userId 成为最后一个 owner 以触发保护逻辑
     await pool.query('DELETE FROM memberships WHERE org_id = $1 AND user_id = $2', [
       seed!.orgId,
       seed!.secondUserId,

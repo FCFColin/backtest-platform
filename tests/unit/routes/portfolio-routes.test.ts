@@ -19,7 +19,6 @@ vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({
 vi.mock('../../../packages/backend/src/utils/errors.js', () => {
   // asyncRouteHandler 在 catch 中对 UpstreamProblemError / ApplicationError
   // 做 instanceof 检查，mock 必须提供可调用的构造函数，否则 instanceof
-  // 抛 TypeError 导致响应永远不发出（测试挂起）。
   class ApplicationError extends Error {}
   class UpstreamProblemError extends Error {}
   return {

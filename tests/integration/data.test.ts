@@ -15,14 +15,12 @@ describe('Data Integration', () => {
     const res = await fetch(
       `${BASE}/data/history?ticker=VTI&startDate=2020-01-01&endDate=2020-12-31`,
     );
-    // 无JWT或API Key应被拒绝
     expect(res.status === 401 || res.status === 403).toBe(true);
   });
 
   it.skipIf(!serverAvailable)('GET /data/search 返回正确格式', async () => {
     const res = await fetch(`${BASE}/data/search?query=AAPL`);
     // search端点可能允许匿名访问或需要认证，取决于配置
-    // 至少确保返回JSON格式
     const contentType = res.headers.get('content-type') ?? '';
     expect(contentType.includes('application/json')).toBe(true);
     if (res.ok) {
@@ -35,7 +33,6 @@ describe('Data Integration', () => {
   });
 
   it.skipIf(!serverAvailable)('GET /data/history 返回格式正确（带认证）', async () => {
-    // 尝试匿名访问，如果被拒绝则测试通过（说明鉴权生效）
     const res = await fetch(
       `${BASE}/data/history?ticker=VTI&startDate=2020-01-01&endDate=2020-12-31`,
     );

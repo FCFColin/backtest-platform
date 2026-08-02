@@ -11,6 +11,7 @@ const helpersMocks = vi.hoisted(() => ({
 }));
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
+  unwrapEngineData: <T>(r: unknown) => ((r as { data?: T })?.data ?? r) as T,
 }));
 vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
   fetchHistoryData: dataMocks.fetchHistoryData,

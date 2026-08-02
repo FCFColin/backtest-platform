@@ -15,7 +15,6 @@ const loggerMocks = vi.hoisted(() => ({
   child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
-// 设置同步降级路径超时，使超时测试可接受等待时长
 vi.hoisted(() => {
   process.env.SYNC_COMPUTE_TIMEOUT_MS = '500';
 });
@@ -29,6 +28,7 @@ vi.mock('../../../packages/backend/src/queues/backtestQueue.js', () => ({
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
   EngineUnavailableError: EngineUnavailableErrorStub,
+  unwrapEngineData: <T>(r: unknown): T => ((r as { data?: T })?.data ?? r) as T,
 }));
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ NODE_ENV: 'test', SYNC_COMPUTE_TIMEOUT_MS: 500 }),

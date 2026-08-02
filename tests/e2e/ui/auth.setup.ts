@@ -3,7 +3,6 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 
 // E2E 前置认证：注册 + 登录 + 创建组织 API Key，导出 storageState
 // （计算端点强制认证 D2-007；API Key 无轮换语义，可跨测试复用；
-//  RT 轮换会导致共享 storageState 触发复用检测，故不用 cookie 恢复会话）
 const USER = `e2e_${Date.now()}`;
 const PASSWORD = 'E2ePassword!123';
 

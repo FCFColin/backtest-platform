@@ -85,7 +85,6 @@ import {
 } from '../../../packages/backend/src/infrastructure/redisClient.js';
 
 // redisClient 断言依赖模块加载期（import 时）记录的 IORedis 构造调用，必须先于任何
-// vi.clearAllMocks() 执行，故置于文件顶部（portfolio 各 describe 内 beforeEach 会清空调用记录）。
 describe('redisConnection（BullMQ 专用）', () => {
   it('应导出实例并使用解析自 REDIS_URL 的 host/port 连接（单实例模式）', () => {
     expect(redisConnection).toBeDefined();
@@ -161,7 +160,6 @@ describe('redisConnection 与 appRedis 配置隔离', () => {
 
 describe('Redis Sentinel 模式（ADR-045）', () => {
   it('配置 REDIS_SENTINELS 时应使用 Sentinel 连接选项', async () => {
-    // 重新设置模块缓存，用含 REDIS_SENTINELS 的 config mock 重新加载 redisClient
     vi.resetModules();
     const sentinelConfig = createConfigMocks({
       REDIS_SENTINELS: 'sentinel-0:26379,sentinel-1:26379,sentinel-2:26379',
@@ -175,7 +173,6 @@ describe('Redis Sentinel 模式（ADR-045）', () => {
       resolveJwtAlgorithm: vi.fn(),
     }));
 
-    // 新的 instances 收集器，避免与前面单实例用例混淆
     const sentinelInstances: Array<{ options: Record<string, unknown> }> = [];
     vi.doMock('ioredis', () => ({
       default: vi.fn(function (this: unknown, ...args: unknown[]) {
@@ -203,7 +200,6 @@ describe('Redis Sentinel 模式（ADR-045）', () => {
     expect(opts.password).toBe('secret');
     expect(opts.sentinelPassword).toBe('secret');
 
-    // redisConnection（BullMQ）与 appRedis 两个实例均应携带 sentinels/name
     expect(sentinelInstances).toHaveLength(2);
     expect(sentinelInstances[0].options.sentinels).toEqual(opts.sentinels);
     expect(sentinelInstances[0].options.name).toBe('mymaster');

@@ -43,14 +43,12 @@ function extractMountPoints(): MountPoint[] {
   const content = fs.readFileSync(appSrcPath, 'utf8');
   const mounts: MountPoint[] = [];
 
-  // 匹配整个 app.use('path', ...args); 语句（可跨行，含尾逗号）
   const mountRegex = /app\.use\(\s*['"`]([^'"`]+)['"`]\s*,([^;]+)\);/g;
   let match: RegExpExecArray | null;
   while ((match = mountRegex.exec(content)) !== null) {
     const prefix = match[1];
     if (!prefix.startsWith('/api/v1')) continue;
 
-    // 取参数列表中最后一个 xxxRoutes 标识符（多行挂载可能有多个中间件）
     const args = match[2];
     const routeModules = args.match(/\b(\w+Routes)\b/g);
     if (routeModules && routeModules.length > 0) {
@@ -81,14 +79,12 @@ function extractRoutesFromFile(
   const routes: Array<{ method: string; path: string }> = [];
 
   // 匹配 router.get('/path', ...), router.post('/path', ...), 等
-  // 支持路径前有空格：router.get( '/path',
   const routeRegex = /\brouter\.(get|post|put|delete|patch)\(\s*['"`]([^'"`]+)['"`]/g;
   let match: RegExpExecArray | null;
   while ((match = routeRegex.exec(content)) !== null) {
     routes.push({ method: match[1].toUpperCase(), path: match[2] });
   }
 
-  // 匹配 router.route('/path').get(...).post(...) 链式调用
   const chainRegex = /\brouter\.route\(\s*['"`]([^'"`]+)['"`]\s*\)([^;]+)/g;
   while ((match = chainRegex.exec(content)) !== null) {
     const routePath = match[1];
@@ -100,7 +96,6 @@ function extractRoutesFromFile(
     }
   }
 
-  // 匹配 router.use(subRoutes) 子挂载，递归提取子路由文件
   const useRegex = /\brouter\.use\(\s*(\w+Routes)\s*\)/g;
   while ((match = useRegex.exec(content)) !== null) {
     const subPath = resolveImportPath(filePath, match[1]);
@@ -162,7 +157,6 @@ function buildImplementedPaths(): SpecPaths {
       add(expressToOpenApiPath(specPrefix + route.path), route.method);
     }
     for (const route of factoryRoutesFromFile(content, specPrefix)) {
-      // 工厂返回的已是完整路径（含 specPrefix）
       add(normalizePath(route.path), route.method);
     }
   }

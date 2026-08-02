@@ -38,11 +38,7 @@ export function mockFetchOnce(mockFetch: MockFetch, payload: unknown): void {
  * @param status - HTTP 状态码
  * @param payload - 可选 json() 返回值
  */
-export function mockFetchHttpError(
-  mockFetch: MockFetch,
-  status: number,
-  payload?: unknown,
-): void {
+export function mockFetchHttpError(mockFetch: MockFetch, status: number, payload?: unknown): void {
   mockFetch.mockResolvedValueOnce({
     ok: false,
     status,
@@ -72,9 +68,7 @@ export function emptySuccessResponse(): unknown {
  *
  * @param overrides - 覆盖 mockPortfolioResult 默认字段
  */
-export function setSinglePortfolioResult(
-  overrides: Partial<PortfolioResult> = {},
-): void {
+export function setSinglePortfolioResult(overrides: Partial<PortfolioResult> = {}): void {
   setResultsWith([mockPortfolioResult(overrides)]);
 }
 

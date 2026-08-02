@@ -12,7 +12,6 @@ import { createMockRequest, createMockResponse } from '../../helpers/expressMock
 import { RedisUnavailableError } from '../../../packages/backend/src/utils/errors.js';
 // userRepo 的 vi.mock 在 jwtAuth.shared.ts 中注册（提升执行）；本文件的
 // getUserById 静态 import 必须位于 shared import 之后，才能命中同一 mock 实例
-// （拆分后回归修复：重复注册会生成两个实例，SUT 与断言引用不一致）。
 import {
   mocks,
   redisMocks,

@@ -39,9 +39,34 @@ describe('fmtDate', () => {
 });
 
 describe.each([
-  ['fmtYears', fmtYears, [[0, '0天'], [5.5, '5年6个月'], [-1.234, '0天']]],
-  ['fmtPct', fmtPct, [[0, '0.00%'], [0.0523, '5.23%'], [-0.1, '-10.00%'], [1, '100.00%']]],
-  ['fmtRatio', fmtRatio, [[0, '0.00'], [1.5, '1.50'], [3.456, '3.46']]],
+  [
+    'fmtYears',
+    fmtYears,
+    [
+      [0, '0天'],
+      [5.5, '5年6个月'],
+      [-1.234, '0天'],
+    ],
+  ],
+  [
+    'fmtPct',
+    fmtPct,
+    [
+      [0, '0.00%'],
+      [0.0523, '5.23%'],
+      [-0.1, '-10.00%'],
+      [1, '100.00%'],
+    ],
+  ],
+  [
+    'fmtRatio',
+    fmtRatio,
+    [
+      [0, '0.00'],
+      [1.5, '1.50'],
+      [3.456, '3.46'],
+    ],
+  ],
 ])('%s', (_name, fn, cases) => {
   it.each([null, undefined, NaN])('无效输入 %p 应返回占位符', (v) => {
     expect(fn(v)).toBe('—');
@@ -65,7 +90,10 @@ describe('fmtNum', () => {
 });
 
 describe('fmtDollar', () => {
-  it.each([[1234, '$1,234'], [0, '$0']])('fmtDollar(%p) 应返回 %p', (v, expected) => {
+  it.each([
+    [1234, '$1,234'],
+    [0, '$0'],
+  ])('fmtDollar(%p) 应返回 %p', (v, expected) => {
     expect(fmtDollar(v)).toBe(expected);
   });
 });

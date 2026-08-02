@@ -56,7 +56,6 @@ describe('recordEngineCall', () => {
     recordEngineCall(true);
     recordEngineCall(true);
     expect(await metricValue(engineCallsTotal, { result: 'success' })).toBe(2);
-    // 不应误增 fallback 维度
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBeUndefined();
   });
 
@@ -70,7 +69,6 @@ describe('recordEngineCall', () => {
     recordEngineCall(false, 'engine_timeout');
     expect(await metricValue(engineCallsTotal, { result: 'unavailable' })).toBe(1);
     // engineUnavailableTotal 不再由 recordEngineCall 管理，
-    // 应由 circuit breaker 的 open/fallback 事件通过 recordEngineUnavailable 独立递增
     const snapshot = await engineUnavailableTotal.get();
     expect(snapshot.values).toHaveLength(0);
   });
@@ -170,7 +168,6 @@ describe('getPrometheusRegister', () => {
     expect(typeof register.metrics).toBe('function');
     const metricsText = await register.metrics();
     expect(typeof metricsText).toBe('string');
-    // 应包含已注册的指标名称
     expect(metricsText.length).toBeGreaterThan(0);
     const metrics = await register.getMetricsAsJSON();
     expect(Array.isArray(metrics)).toBe(true);

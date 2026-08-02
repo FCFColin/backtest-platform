@@ -36,10 +36,8 @@ describe('isValidDate', () => {
     ])('应拒绝 %s（%s）', (value) => {
       // 注：当前实现仅做正则格式校验，不校验月份/日期语义
       // 2024-13-01 和 2024-01-32 通过正则，但语义非法
-      // 测试锁定当前行为：仅格式校验
       const result = isValidDate(value);
       if (value === '2024-13-01' || value === '2024-01-32') {
-        // 当前正则 \d{2} 允许 13/32，文档化此行为
         expect(result).toBe(true);
       } else {
         expect(result).toBe(false);
@@ -54,7 +52,6 @@ describe('isValidDate', () => {
 
     // 注：isValidDate 实现中 `if (!value) return true`，
     // null/undefined 为 falsy，被视为"空字符串"（表示不限制），返回 true。
-    // 这是当前实现的行为，测试锁定此行为。
     it('null 应返回 true（falsy 视为空，表示不限制）', () => {
       expect(isValidDate(null as unknown as string)).toBe(true);
     });

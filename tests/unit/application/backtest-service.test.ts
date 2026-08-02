@@ -10,7 +10,6 @@ import { MAX_TICKERS } from '../../../packages/shared/constants.js';
 
 const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
 const eventMocks = vi.hoisted(() => ({ dispatch: vi.fn(async () => {}) }));
-// 事务型 outbox 写入与 DB 客户端 mock：服务以 fire-and-forget 异步 IIFE 写 outbox 后再 dispatch
 const dbMocks = vi.hoisted(() => ({
   getClient: vi.fn(async () => ({ query: vi.fn(async () => ({ rows: [] })), release: vi.fn() })),
 }));
@@ -27,16 +26,13 @@ const loggerMocks = vi.hoisted(() => ({
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
 }));
-// Mock 事件分发器：避免加载 handlers（依赖 db 连接）
 vi.mock('../../../packages/backend/src/domain/events/events.js', () => ({
   eventDispatcher: { dispatch: eventMocks.dispatch },
 }));
-// Mock DB 客户端与 outbox 写入：避免真实 Postgres 连接
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({ getClient: dbMocks.getClient }));
 vi.mock('../../../packages/backend/src/infrastructure/outbox.js', () => ({
   writeEventInTransaction: outboxMocks.writeEventInTransaction,
 }));
-// Mock logger：避免 pino 初始化与 OTel 依赖
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
@@ -124,7 +120,6 @@ describe('runBacktest', () => {
   });
   it('runBacktest 应将 BacktestCompleted 事件写入 outbox', async () => {
     await executeRun();
-    // 事件写入 outbox 是异步 fire-and-forget，需等待
     await vi.waitFor(() => expect(outboxMocks.writeEventInTransaction).toHaveBeenCalledTimes(1));
     const outboxCall = outboxMocks.writeEventInTransaction.mock.calls[0][1];
     expect(outboxCall.eventType).toBe('BacktestCompleted');

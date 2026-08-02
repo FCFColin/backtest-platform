@@ -51,7 +51,6 @@ describe('parseAdminStats', () => {
     const r = parseAdminStats(null);
     expect(r.services.goEngine).toEqual({ status: 'down' });
     expect(r.services.goDataService).toEqual({ status: 'down' });
-    // nodeServer 是硬编码 healthy
     expect(r.services.nodeServer).toEqual({ status: 'healthy', latency: 5 });
     expect(r.dataStats).toEqual({
       totalTickers: 0,
@@ -81,7 +80,6 @@ describe('parseAdminStats', () => {
       message: 'timeout',
     });
 
-    // 其他状态字符串 → down
     const r2 = parseAdminStats({
       services: { go_engine: { status: 'unknown' } },
     });
@@ -103,7 +101,6 @@ describe('parseAdminStats', () => {
     expect(r.dataStats.latestDate).toBe('2024-12-31');
     expect(r.dataStats.marketBreakdown).toEqual({ NYSE: 80, NASDAQ: 48 });
 
-    // total_tickers 缺失时回退 universe_total；再缺失回退 0
     const r2 = parseAdminStats({ data_stats: { universe_total: 99 } });
     expect(r2.dataStats.totalTickers).toBe(99);
     const r3 = parseAdminStats({ data_stats: {} });

@@ -55,7 +55,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
     STRIPE_PRICE_ENTERPRISE: 'price_ent',
     APP_BASE_URL: 'http://localhost:15173',
   }),
-  // planLimitsService 需要（limits.ts 同源值）
   PLAN_LIMITS: {
     free: {
       backtestsPerMonth: 100,
@@ -385,7 +384,6 @@ describe('recordUsage', () => {
     expect(sqls.some((s) => s.includes('INSERT INTO usage_events'))).toBe(true);
     expect(sqls.some((s) => s.includes('INSERT INTO usage_counters'))).toBe(true);
     expect(redisMocks.incrby).toHaveBeenCalledWith(expect.stringContaining(`usage:${ORG}:`), 1);
-    // 首次计数应设置 TTL
     expect(redisMocks.expire).toHaveBeenCalled();
   });
 

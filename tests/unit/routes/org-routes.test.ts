@@ -54,7 +54,6 @@ vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => moc
 vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => mocks.repo);
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
-// validate：runRoutes 传空 schema（{}）时透传；org/billing 传真实 zod schema 时按真实语义校验
 vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({
   validate: (schema: unknown) => (req, res, next) => {
     const result = (

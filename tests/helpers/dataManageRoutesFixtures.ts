@@ -4,7 +4,6 @@ import { createLoggerMocks } from './mockFactories.js';
 
 // vi.hoisted 结果不能直接 export（Vitest 转换会抛 SyntaxError: Cannot export
 // hoisted variable）。统一创建到 internalMocks 内部容器，vi.mock 工厂与对外
-// 导出均通过属性引用获取，确保引用在工厂执行时已绑定且不触发导出限制。
 const internalMocks = vi.hoisted(() => ({
   engine: {
     getEngineStatus: vi.fn(),
@@ -24,7 +23,6 @@ const internalMocks = vi.hoisted(() => ({
 vi.mock('../../packages/backend/src/infrastructure/dataQuery.js', () => internalMocks.engine);
 vi.mock('../../packages/backend/src/infrastructure/dataServices.js', () => internalMocks.dataFetch);
 // dataManageRoutes 已直接从 db/marketStats.js 与 services/dataService.js 取函数，
-// 因此对这两个模块也注入同一组 mock 引用，使 engineServiceMocks.* 调用仍生效。
 vi.mock('../../packages/backend/src/db/marketStats.js', () => ({
   scanMarketStatsFromDb: internalMocks.engine.scanMarketStatsFromDb,
 }));

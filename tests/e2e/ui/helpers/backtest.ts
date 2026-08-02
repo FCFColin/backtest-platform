@@ -1,6 +1,16 @@
 import { expect, type Page } from '@playwright/test';
 
-export const PERF_BUDGET_MS = Number(process.env.E2E_BACKTEST_PERF_MS ?? 12_000);
+export const PERF_BUDGET_MS = Number(process.env.E2E_BACKTEST_PERF_MS ?? 1_000);
+
+// 预热：跑一次默认回测（热 worker 价格缓存与 DB 连接池），
+export async function warmUpBacktest(page: Page): Promise<void> {
+  await page.goto('/', { waitUntil: 'networkidle' });
+  await expect(page.getByText(/基础参数|Basic Parameters/).first()).toBeVisible({
+    timeout: 15_000,
+  });
+  await runDefaultBacktest(page);
+  await waitForSummaryStats(page, 30_000);
+}
 
 async function fillAssetRow(
   page: Page,
@@ -15,7 +25,6 @@ async function fillAssetRow(
 
 export async function runDefaultBacktest(page: Page): Promise<void> {
   // 幂等：serial 模式下页面可能已有组合（上一测试残留），直接用现有组合；
-  // 否则添加空组合（默认 3 行占位），填 VTI 60% + BND 40%，删除第 3 行（校验拒绝空 ticker）
   if ((await page.getByPlaceholder('VTI').count()) === 0) {
     await page.getByRole('button', { name: /添加组合|Add Portfolio/ }).click();
     await page.getByRole('menuitem', { name: /添加空组合|Add Empty/ }).click();

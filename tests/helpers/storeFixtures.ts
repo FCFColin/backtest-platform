@@ -1,4 +1,3 @@
-
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import type { BacktestResult, PortfolioResult } from '../../packages/shared/types/backtest.js';
 

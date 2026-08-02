@@ -114,7 +114,6 @@ describe.skipIf(!dockerAvailable)('Chaos: DB Outage via testcontainers', () => {
       expect(res.degraded).toBe(true);
     } finally {
       // testcontainers 默认 autoRemove=true，stop() 已删除容器，无法 restart。
-      // 新建容器恢复 PG（含 schema + 测试数据），供后续恢复测试使用。
       container = await createAndSetupContainer();
     }
   }, 60000);

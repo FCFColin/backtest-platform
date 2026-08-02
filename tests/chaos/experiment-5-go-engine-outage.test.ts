@@ -25,7 +25,6 @@ const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const READY_URL = `${API_URL}/api/ready`;
 const BACKTEST_URL = `${API_URL}/api/v1/backtest/portfolio`;
 
-// top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值
 let fixture: ChaosFixture = {
   dockerAvailable: false,
   containerRunning: false,

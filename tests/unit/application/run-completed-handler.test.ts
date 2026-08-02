@@ -22,7 +22,6 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
 
-// db/getPool 仍 mock：用于断言处理器不访问数据库。
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks),
   withTenant: vi.fn(),

@@ -14,7 +14,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { logger, httpLogger } from '../../../packages/backend/src/utils/logger.js';
 
-// 静音真实日志输出，避免污染测试 stdout；断言仍验证调用不抛异常
 beforeAll(() => {
   logger.level = 'silent';
 });
@@ -62,7 +61,6 @@ describe('httpLogger', () => {
 
   it('httpLogger 作为 Express 中间件调用不应抛出异常', () => {
     // pino-http 中间件签名：(req, res, next) => void
-    // pino-http 会在 res 上注册 'finish' 事件监听器，故 mock 需提供 res.on
     const mockReq = { headers: {} } as unknown as import('express').Request;
     const mockRes = { on: vi.fn() } as unknown as import('express').Response;
     const mockNext = vi.fn();

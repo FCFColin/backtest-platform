@@ -4,16 +4,23 @@ import {
   runDefaultBacktest,
   waitForSummaryStats,
   getRunButton,
+  warmUpBacktest,
 } from './helpers/backtest.js';
 
 test.describe.configure({ mode: 'serial' });
 
 test.describe('回测提速回归', () => {
+  test.beforeAll(async ({ browser }) => {
+    const ctx = await browser.newContext({ storageState: '.auth/user.json' });
+    const page = await ctx.newPage();
+    await warmUpBacktest(page);
+    await ctx.close();
+  });
   test.beforeEach(async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('navigation')).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole('navigation')).toBeVisible({ timeout: 1_000 });
     await expect(page.getByText(/基础参数|Basic Parameters/).first()).toBeVisible({
-      timeout: 30_000,
+      timeout: 1_000,
     });
   });
 
@@ -26,9 +33,9 @@ test.describe('回测提速回归', () => {
 
   test('P2: 渐进 loading — 统计出现时按钮已恢复可点', async ({ page }) => {
     await runDefaultBacktest(page);
-    await waitForSummaryStats(page, 60_000);
+    await waitForSummaryStats(page, 1_000);
     const runBtn = getRunButton(page);
-    await expect(runBtn).toBeEnabled({ timeout: 5_000 });
+    await expect(runBtn).toBeEnabled({ timeout: 1_000 });
     await expect(runBtn).toHaveText(/运行回测|Run Backtest/i);
   });
 
@@ -50,13 +57,13 @@ test.describe('回测提速回归', () => {
         try {
           portfolioJson = JSON.parse(portfolioResponseBody) as typeof portfolioJson;
         } catch {
-          // 非 JSON 响应忽略
+          /* non-JSON response, ignore */
         }
       }
     });
 
     await runDefaultBacktest(page);
-    await waitForSummaryStats(page, 60_000);
+    await waitForSummaryStats(page, 1_000);
 
     expect(portfolioResponseBody.length).toBeGreaterThan(0);
     expect(portfolioResponseBody.length).toBeLessThan(80 * 1024);
@@ -65,14 +72,14 @@ test.describe('回测提速回归', () => {
 
   test('P4: series 缓存补全 — Rolling tab 触发 /portfolio/series 200', async ({ page }) => {
     await runDefaultBacktest(page);
-    await waitForSummaryStats(page, 60_000);
+    await waitForSummaryStats(page, 1_000);
 
     const seriesResponse = page.waitForResponse(
       (res) =>
         res.url().includes('/portfolio/series') &&
         res.request().method() === 'POST' &&
         res.status() === 200,
-      { timeout: 30_000 },
+      { timeout: 1_000 },
     );
 
     await page.getByRole('button', { name: /滚动|Rolling/ }).click();

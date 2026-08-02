@@ -33,6 +33,7 @@ const loggerMocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
+  unwrapEngineData: <T>(r: unknown) => ((r as { data?: T })?.data ?? r) as T,
 }));
 
 vi.mock('../../../packages/backend/src/application/backtest-helpers.js', () => ({
@@ -87,7 +88,6 @@ const mockParameters: BacktestParameters = {
 };
 
 // translateDomainError 在源码中被以闭包形式调用：translateDomainError(() => DomainPortfolio.fromDTO(p))
-// mock 时实现"直接调用 fn 并返回"，保留真实领域行为
 function makeTranslateDomainError() {
   return vi.fn(<T>(fn: () => T): T => fn());
 }
@@ -188,7 +188,6 @@ describe('runMonteCarlo', () => {
       exchangeRates: {},
       mcParams: { numSimulations: 100 },
     });
-    // portfolio 字段来自 translateDomainError(() => DomainPortfolio.fromDTO(p)).toEngineBody()
     expect(body.portfolio).toBeDefined();
     expect(helpersMocks.translateDomainError).toHaveBeenCalled();
   });

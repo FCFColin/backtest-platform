@@ -82,7 +82,6 @@ describe('backtestQueue', () => {
         }),
         defaultJobOptions: expect.objectContaining({
           removeOnComplete: { count: 100 },
-          // C-021: 失败任务保留 7 天（按 age 而非 count），最终失败任务转移到 DLQ
           removeOnFail: { age: 604800 },
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
@@ -93,7 +92,6 @@ describe('backtestQueue', () => {
   });
   it('Queue error 回调应记录 error 日志', () => {
     // C-021: 主队列与 DLQ 共享同一 mock 实例，均注册了 'error' 回调。
-    // 调用所有 'error' 回调，验证主队列的错误日志被正确记录。
     const errorCalls = queueInstanceMocks.on.mock.calls.filter(
       (call: unknown[]) => call[0] === 'error',
     );
@@ -112,9 +110,7 @@ describe('backtestQueue', () => {
 describe('createBacktestWorker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // 重新设置 Queue.on mock（clearAllMocks 会清除）
     queueInstanceMocks.on.mockClear();
-    // 重新导入模块以重新触发 Queue 构造
   });
 
   const makeWorker = () => createBacktestWorker(vi.fn());

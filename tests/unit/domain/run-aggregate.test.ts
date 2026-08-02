@@ -4,7 +4,6 @@ import { loggerMocks } from '../../helpers/loggerFixture.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: loggerMocks,
 }));
-// db/getPool 仍 mock：用于断言处理器**不再**访问数据库。
 const poolMocks = vi.hoisted(() => ({ query: vi.fn() }));
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: vi.fn(() => poolMocks),

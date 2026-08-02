@@ -289,19 +289,16 @@ describe('cpiService', () => {
     });
 
     it('Go 不可用 + 缓存命中（同一 country 第二次调用）→ degraded=true 返回缓存', async () => {
-      // 第一次：Go 失败 + PG 成功 → 写入 routeData 缓存
       const pgData = [{ date: '2020-01-01', value: 258.8 }];
       macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce(pgData);
       const first = await fetchCpiForRoute('de');
       expect(first.degraded).toBe(true);
 
-      // 第二次：Go 仍失败，PG 不应被再次调用（命中缓存）
       const second = await fetchCpiForRoute('de');
 
       expect(second.degraded).toBe(true);
       expect(second.notFound).toBe(false);
       expect(second.data).toEqual(pgData);
-      // PG 仅在第一次调用
       expect(macroDbMocks.loadCpiSeriesFromDb).toHaveBeenCalledTimes(1);
     });
 
@@ -337,9 +334,7 @@ describe('cpiService', () => {
         '2020-01-01': 258.8,
         '2020-02-01': 259.1,
       });
-      // PG 收到小写 country
       expect(macroDbMocks.loadCpiSeriesFromDb).toHaveBeenCalledWith('jp');
-      // Go fallback 不应被调用
       expect(goMocks.callGoDataService).not.toHaveBeenCalled();
     });
 
@@ -367,7 +362,6 @@ describe('cpiService', () => {
 
       const map = await loadCpiMap('AU');
 
-      // date 应被 slice(0, 10) 截断为 YYYY-MM-DD
       expect(map).toEqual({
         '2020-01-01': 258.8,
         '2020-02-01': 259.1,
@@ -381,7 +375,6 @@ describe('cpiService', () => {
       const map = await loadCpiMap('KR');
 
       expect(map).toEqual({});
-      // 再次调用相同 country，PG 仍应被调用（说明未缓存空结果）
       macroDbMocks.loadCpiSeriesFromDb.mockResolvedValueOnce([]);
       goMocks.callGoDataService.mockResolvedValueOnce(JSON.stringify({ success: true, data: [] }));
       await loadCpiMap('KR');

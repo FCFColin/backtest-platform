@@ -6,7 +6,6 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 // tenant.ts 依赖 logger（仅错误日志）与 pool.ts 的 getPool。
-// 沉默 logger；将 getPool 替换为受控的 backtest_app 连接池（RLS 受约束）。
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: {
     info: vi.fn(),
@@ -21,7 +20,6 @@ const poolHolder = vi.hoisted(() => ({ pool: null as pg.Pool | null }));
 
 // 不能用 importOriginal — 真实 withTenant 闭包捕获真实 getPool，会绕过 mock
 // 连到 config.DATABASE_URL 默认库。这里内联与 pool.ts 等价的实现（UUID 校验 + 事务包装），
-// 调用本 mock 内的 getPool（返回受控 testcontainers 连接池）。
 vi.mock('../../../packages/backend/src/db/pool.js', () => {
   const check = (tenantId: string) => {
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tenantId)) {
@@ -57,7 +55,6 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => {
 
 // Docker + testcontainers 可用性检查：
 // 默认 skip（避免本地 Docker Desktop 故障导致 hook 超时），仅在 CI 或显式设置
-// RUN_TESTCONTAINERS=1 时运行。检测 docker info + 容器实际启动能力。
 let dockerAvailable = process.env.RUN_TESTCONTAINERS === '1';
 if (dockerAvailable) {
   try {
@@ -73,7 +70,6 @@ function readMigration(name: string): string {
   return readFileSync(resolve(MIGRATIONS_DIR, name), 'utf-8');
 }
 
-// 迁移已 rebaseline 为单一初始 schema（含 tenancy/RLS/backtest_app 角色）
 const MIGRATION_FILES = ['001_initial_schema.sql'];
 
 const ORG_A = '11111111-1111-1111-1111-111111111111';
@@ -94,12 +90,10 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
     const adminUri = container.getConnectionUri();
     adminPool = new pg.Pool({ connectionString: adminUri });
 
-    // 以超级用户执行迁移：建表 + RLS 策略 + backtest_app 角色（NOBYPASSRLS）
     for (const file of MIGRATION_FILES) {
       await adminPool.query(readMigration(file));
     }
 
-    // backtest_app 连接池：非超级用户，RLS 策略生效
     const host = container.getHost();
     const port = container.getMappedPort(5432);
     const dbName = container.getDatabase();
@@ -108,7 +102,6 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
     });
     poolHolder.pool = appPool;
 
-    // 测试夹具：两个租户 + 租户 A 的一个组合（超级用户绕过 RLS 直接插入）
     await adminPool.query(
       `INSERT INTO organizations (id, name, slug) VALUES
         ($1, 'Org A', 'org-a'),
@@ -151,7 +144,6 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
     const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
     await expect(
       withTenant(ORG_A, async (client) => {
-        // 以租户 A 上下文尝试写入 tenant_id=租户 B 的记录，WITH CHECK 应拒绝
         await client.query(
           `INSERT INTO portfolios (tenant_id, name, assets, rebalance_frequency)
            VALUES ($1, 'Stolen', '[]'::jsonb, 'none')`,
@@ -160,7 +152,6 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
       }),
     ).rejects.toThrow();
 
-    // 验证事务已回滚：租户 B 仍无数据
     const rows = await withTenant(ORG_B, async (client) => {
       const result = await client.query('SELECT name FROM portfolios');
       return result.rows;
@@ -170,17 +161,14 @@ describe.skipIf(!dockerAvailable)('withTenant RLS 强制点（testcontainers PG,
 
   it('27.2 is_local=true 在事务结束后失效（PgBouncer 连接复用安全）', async () => {
     const { withTenant } = await import('../../../packages/backend/src/db/pool.js');
-    // 在租户上下文内执行一次（设置 app.current_tenant_id）
     await withTenant(ORG_A, async (client) => {
       await client.query('SELECT 1');
     });
 
-    // 事务结束后，同一连接池的新查询应无 app.current_tenant_id（is_local 随 COMMIT 失效）
     const setting = await appPool.query(
       "SELECT current_setting('app.current_tenant_id', true) AS val",
     );
     const val = setting.rows[0].val;
-    // missing_ok=true 未设置时返回空字符串
     expect(val === '' || val === null).toBe(true);
 
     // 无租户上下文时 RLS fail-safe：读到零行（拒绝优于泄露）

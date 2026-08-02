@@ -156,7 +156,6 @@ describe('backtestResultCache', () => {
       correlations: [],
     };
     const compute = vi.fn(async () => {
-      // 模拟引擎计算延迟，确保 100 个请求在此期间重叠并发
       await new Promise((resolve) => setTimeout(resolve, 50));
       return sfResult;
     });
@@ -164,9 +163,7 @@ describe('backtestResultCache', () => {
     const promises = Array.from({ length: 100 }, () => getOrCompute(key, compute));
     const results = await Promise.all(promises);
 
-    // 引擎（compute）应只被调用 1 次
     expect(compute).toHaveBeenCalledTimes(1);
-    // 100 个请求应全部返回同一结果引用（共享同一个 Promise）
     expect(results).toHaveLength(100);
     for (const r of results) {
       expect(r).toBe(sfResult);
@@ -182,11 +179,9 @@ describe('backtestResultCache', () => {
       return stubResult;
     });
 
-    // 第一批：compute 抛异常，inFlight 应被 .finally 清理
     await expect(getOrCompute(key, compute)).rejects.toThrow('engine down');
     expect(compute).toHaveBeenCalledTimes(1);
 
-    // 第二批：inFlight 已清理，可重新触发 compute 并成功
     const result = await getOrCompute(key, compute);
     expect(result).toBe(stubResult);
     expect(compute).toHaveBeenCalledTimes(2);

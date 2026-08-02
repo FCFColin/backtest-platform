@@ -266,9 +266,7 @@ describe('createInvitation', () => {
 
     expect(created.token).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(created.id).toBe(INV_ID);
-    // 第一次调用是清理待处理邀请
     expect(dbMocks.query.mock.calls[0][0]).toContain('DELETE FROM invitations');
-    // 写入的是哈希而非明文
     const insertParams = dbMocks.query.mock.calls[1][1] as unknown[];
     const tokenHash = insertParams[3] as string;
     expect(tokenHash).toMatch(/^[0-9a-f]{64}$/);

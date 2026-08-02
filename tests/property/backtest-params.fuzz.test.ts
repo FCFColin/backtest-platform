@@ -1,8 +1,6 @@
-
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 
-// 模拟回测参数验证函数
 function validateBacktestParams(params: {
   initialCapital: number;
   tickers: string[];
@@ -21,39 +19,48 @@ function validateBacktestParams(params: {
 describe('P3-04: Fuzz 测试 — 回测参数验证', () => {
   it('正数 initialCapital 不应返回错误', () => {
     fc.assert(
-      fc.property(fc.double({ min: 0.01, max: 1e9, noNaN: true, noDefaultInfinity: true }), (capital) => {
-        const result = validateBacktestParams({
-          initialCapital: capital,
-          tickers: ['AAPL'],
-          startDate: '2020-01-01',
-          endDate: '2021-01-01',
-        });
-        expect(result).toBeNull();
-      }),
+      fc.property(
+        fc.double({ min: 0.01, max: 1e9, noNaN: true, noDefaultInfinity: true }),
+        (capital) => {
+          const result = validateBacktestParams({
+            initialCapital: capital,
+            tickers: ['AAPL'],
+            startDate: '2020-01-01',
+            endDate: '2021-01-01',
+          });
+          expect(result).toBeNull();
+        },
+      ),
     );
   });
 
   it('负数 initialCapital 应返回错误', () => {
     fc.assert(
-      fc.property(fc.double({ min: -1e9, max: -0.01, noNaN: true, noDefaultInfinity: true }), (capital) => {
-        const result = validateBacktestParams({
-          initialCapital: capital,
-          tickers: ['AAPL'],
-          startDate: '2020-01-01',
-          endDate: '2021-01-01',
-        });
-        expect(result).toBe('initialCapital must be positive');
-      }),
+      fc.property(
+        fc.double({ min: -1e9, max: -0.01, noNaN: true, noDefaultInfinity: true }),
+        (capital) => {
+          const result = validateBacktestParams({
+            initialCapital: capital,
+            tickers: ['AAPL'],
+            startDate: '2020-01-01',
+            endDate: '2021-01-01',
+          });
+          expect(result).toBe('initialCapital must be positive');
+        },
+      ),
     );
   });
 
   it('任意非空 ticker 列表不应返回 "cannot be empty" 错误', () => {
     fc.assert(
       fc.property(
-        fc.array(fc.string({ minLength: 1, maxLength: 10 }).filter((s) => s.trim().length > 0), {
-          minLength: 1,
-          maxLength: 10,
-        }),
+        fc.array(
+          fc.string({ minLength: 1, maxLength: 10 }).filter((s) => s.trim().length > 0),
+          {
+            minLength: 1,
+            maxLength: 10,
+          },
+        ),
         (tickers) => {
           const result = validateBacktestParams({
             initialCapital: 10000,

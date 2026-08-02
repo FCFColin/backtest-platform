@@ -4,7 +4,6 @@ import { test, expect } from '@playwright/test';
 // 预算基线（2026-08 实测，本机 warm 条件）：
 // FCP 408-436ms | TTFB 49-94ms | Load 249-329ms | 导航 640-680ms（点击→networkidle，
 // 含 ~400KB JS 解析 + React Router transition，架构性固定成本）
-// 预算 = 基线峰值 + 30-40% 余量（防 CI 波动误报，同时捕捉 35%+ 性能蠕变）
 const FCP_BUDGET_MS = Number(process.env.PAGE_LOAD_BUDGET_FCP ?? 700);
 const NAV_BUDGET_MS = Number(process.env.PAGE_LOAD_BUDGET_NAV ?? 700);
 const TTBF_BUDGET_MS = Number(process.env.PAGE_LOAD_BUDGET_TTFB ?? 150);
@@ -12,7 +11,6 @@ const LOAD_BUDGET_MS = Number(process.env.PAGE_LOAD_BUDGET_LOAD ?? 450);
 
 test.describe('页面加载性能预算', () => {
   test.beforeAll(async ({ browser }) => {
-    // 预热：SSR 渲染函数冷启动 + 页面 chunk 下载不计入被测首屏
     const ctx = await browser.newContext({ storageState: '.auth/user.json' });
     const page = await ctx.newPage();
     await page.goto('/', { waitUntil: 'networkidle' });
@@ -68,7 +66,6 @@ test.describe('页面加载性能预算', () => {
 
 test.describe('页面导航性能预算', () => {
   test.beforeEach(async ({ page }) => {
-    // networkidle：确保 SSR 页面 prefetch（vendor chunk 预取）完成，测稳定态导航而非下载竞态
     await page.goto('/', { waitUntil: 'networkidle' });
     await expect(page.getByText(/基础参数|Basic Parameters/).first()).toBeVisible({
       timeout: 15_000,
@@ -96,7 +93,6 @@ test.describe('页面导航性能预算', () => {
     test(`P3: ${nav.label} 导航耗时 < ${NAV_BUDGET_MS}ms`, async ({ page }) => {
       const start = performance.now();
       if (nav.group) {
-        // Radix Dropdown 渲染在 portal，item 语义为 menuitem
         await page
           .getByRole('navigation')
           .getByRole('button', { name: new RegExp(nav.group) })

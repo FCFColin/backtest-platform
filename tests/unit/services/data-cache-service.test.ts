@@ -118,13 +118,11 @@ describe('readCache', () => {
 
   it('L1 未命中但 L2 命中应回填 L1 并返回数据', async () => {
     const key = getCacheKey('history', { tickers: 'SPY' });
-    // 直接写 Redis（绕过 L1）
     redisStub.store.set(key, JSON.stringify({ price: 200 }));
 
     const got = await readCache(key);
     expect(got).toEqual({ price: 200 });
     expect(redisStub.get).toHaveBeenCalledWith(key);
-    // 第二次读应命中 L1，不再访问 Redis
     redisStub.get.mockClear();
     const got2 = await readCache(key);
     expect(got2).toEqual({ price: 200 });
@@ -157,7 +155,6 @@ describe('writeCache', () => {
       'EX',
       HISTORY_CACHE_TTL_SEC,
     );
-    // L1 命中（不访问 Redis）
     redisStub.get.mockClear();
     const got = await readCache(key);
     expect(got).toEqual({ price: 100 });
@@ -171,7 +168,6 @@ describe('writeCache', () => {
     const stored = redisStub.store.get(key);
     expect(stored).toBeDefined();
     expect(stored!.startsWith('gzip:')).toBe(true);
-    // 压缩后仍能正确读回
     const got = await readCache(key);
     expect(got).toEqual(big);
   });
@@ -181,7 +177,6 @@ describe('writeCache', () => {
     const key = getCacheKey('history', { tickers: 'SPY' });
     await expect(writeCache(key, { price: 1 }, HISTORY_CACHE_TTL_SEC)).resolves.toBeUndefined();
     expect(redisStub.set).not.toHaveBeenCalled();
-    // L1 仍有数据
     redisStub.get.mockClear();
     const got = await readCache(key);
     expect(got).toEqual({ price: 1 });
@@ -200,7 +195,6 @@ describe('price cache', () => {
     );
 
     await deletePriceCache('SPY');
-    // Redis 中已无该 key
     expect(redisStub.store.has(key)).toBe(false);
   });
 
@@ -220,7 +214,6 @@ describe('invalidateAllCache', () => {
 
     await invalidateAllCache();
     expect(redisStub.store.size).toBe(0);
-    // L1 已清空：读应 miss
     redisStub.get.mockClear();
     const got = await readCache(getCacheKey('price', { ticker: 'SPY' }));
     expect(got).toBeNull();
@@ -238,7 +231,6 @@ describe('invalidateTickerCache', () => {
     await invalidateTickerCache('SPY');
 
     expect(redisStub.store.has(priceKey)).toBe(false);
-    // history key 含 tickers=SPY 应被清理
     expect(redisStub.store.has(histKey)).toBe(false);
   });
 

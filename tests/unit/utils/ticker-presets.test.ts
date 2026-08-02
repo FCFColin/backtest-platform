@@ -31,11 +31,9 @@ describe('TickerPresets - 数据完整性', () => {
 
   it('ALL_TICKER_PRESETS 是 SIM_TICKERS 与 ETF_PRESETS 的合并', () => {
     expect(ALL_TICKER_PRESETS.length).toBe(SIM_TICKERS.length + ETF_PRESETS.length);
-    // SIM_TICKERS 在前
     for (let i = 0; i < SIM_TICKERS.length; i++) {
       expect(ALL_TICKER_PRESETS[i]).toEqual(SIM_TICKERS[i]);
     }
-    // ETF_PRESETS 在后
     for (let i = 0; i < ETF_PRESETS.length; i++) {
       expect(ALL_TICKER_PRESETS[SIM_TICKERS.length + i]).toEqual(ETF_PRESETS[i]);
     }
@@ -168,7 +166,6 @@ describe('filterTickers', () => {
   });
 
   it('同时按 ticker 和 name 匹配的结果合并', () => {
-    // 'Bond' 匹配 name，'BND' 匹配 ticker
     const result = filterTickers('BND');
     expect(result.some((p) => p.ticker === 'BND')).toBe(true);
     expect(result.some((p) => p.ticker === 'BNDSIM')).toBe(true);

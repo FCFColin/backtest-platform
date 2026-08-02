@@ -22,7 +22,6 @@ describe('getRequestId', () => {
     requestContextStorage.run({ requestId: 'req-b' }, () => {
       expect(getRequestId()).toBe('req-b');
     });
-    // 退出 run 后应回到 undefined
     expect(getRequestId()).toBeUndefined();
   });
 
@@ -38,11 +37,9 @@ describe('getRequestId', () => {
 
   it('异步操作（Promise）中上下文应正确传播', async () => {
     await requestContextStorage.run({ requestId: 'async-req' }, async () => {
-      // 立即 resolve 的 Promise 应保留上下文
       await Promise.resolve();
       expect(getRequestId()).toBe('async-req');
 
-      // setTimeout 后的异步回调应保留上下文
       await new Promise<void>((resolve) => {
         setTimeout(() => {
           expect(getRequestId()).toBe('async-req');

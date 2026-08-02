@@ -24,13 +24,17 @@ describe('RunBacktestButton', () => {
   });
 
   it('complete 状态显示耗时', () => {
-    render(<RunBacktestButton onRun={() => {}} isRunning={false} runComplete={true} elapsedMs={1500} />);
+    render(
+      <RunBacktestButton onRun={() => {}} isRunning={false} runComplete={true} elapsedMs={1500} />,
+    );
     expect(screen.getByText('1.5s 完成')).toBeTruthy();
   });
 
   it('complete 状态 3 秒后消失', () => {
     vi.useFakeTimers();
-    const { rerender } = render(<RunBacktestButton onRun={() => {}} isRunning={false} runComplete={false} />);
+    const { rerender } = render(
+      <RunBacktestButton onRun={() => {}} isRunning={false} runComplete={false} />,
+    );
     rerender(<RunBacktestButton onRun={() => {}} isRunning={false} runComplete={true} />);
     expect(screen.getByText('完成')).toBeTruthy();
     act(() => {

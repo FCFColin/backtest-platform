@@ -5,7 +5,6 @@ import { checkServerAvailable } from '../helpers/chaos.js';
 import { API_BASE_URL } from '../helpers/expressApp.js';
 
 // 集成测试：数据引擎页面、引擎状态指示器、新增工具页面 API、布局验证
-// 这些测试需要后端服务器运行（默认端口 15001），未运行时自动跳过
 
 const BASE_URL = API_BASE_URL;
 
@@ -17,12 +16,10 @@ beforeAll(async () => {
 
 describe('数据引擎页面', () => {
   it.skipIf(!serverAvailable)('正常加载：应显示统计数据', async () => {
-    // 模拟前端轮询逻辑：访问 /api/data/manage/stats 验证返回结构
     const res = await fetch(`${BASE_URL}/api/data/manage/stats`);
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data).toBeDefined();
-    // 数据结构：stats（缓存命中）或 scanning: true（后台扫描中）
     if (json.data.scanning) {
       expect(json.data.scanning).toBe(true);
       expect(json.data.universe).toBeDefined();
@@ -33,7 +30,6 @@ describe('数据引擎页面', () => {
   });
 
   it.skipIf(!serverAvailable)('超时处理：轮询超时后应可重试', async () => {
-    // 模拟前端轮询逻辑：scanning: true 时最多轮询 10 次（MAX_POLL=10）
     const MAX_POLL = 10;
     let pollCount = 0;
     let lastScanning = false;
@@ -44,23 +40,19 @@ describe('数据引擎页面', () => {
       pollCount++;
       if (json.success && json.data?.scanning) {
         lastScanning = true;
-        // 前端会等待 3 秒后重试，这里不实际等待以加速测试
       } else {
         lastScanning = false;
         break;
       }
     }
 
-    // 验证轮询次数不超过上限
     expect(pollCount).toBeLessThanOrEqual(MAX_POLL);
-    // 若持续 scanning，10 次后应停止轮询（前端逻辑）
     if (lastScanning) {
       expect(pollCount).toBe(MAX_POLL);
     }
   });
 
   it.skipIf(!serverAvailable)('错误态：后端不可用时显示错误', async () => {
-    // 模拟后端不可用：调用不存在的管理端点，验证错误结构
     const res = await fetch(`${BASE_URL}/api/data/manage/nonexistent-endpoint`);
     expect(res.ok).toBe(false);
     const json = await res.json();
@@ -95,7 +87,6 @@ describe('引擎状态指示器', () => {
 
 describe('新增工具页面 API', () => {
   it.skipIf(!serverAvailable)('PCA 分析端点存在', async () => {
-    // POST /api/pca/analyze，验证返回结构
     const res = await fetch(`${BASE_URL}/api/pca/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -106,7 +97,6 @@ describe('新增工具页面 API', () => {
       }),
     });
     const json = await res.json();
-    // 端点存在且返回有效结构
     expect(json).toBeDefined();
     expect(json.success).toBe(true);
     expect(json.data).toBeDefined();
@@ -117,7 +107,6 @@ describe('新增工具页面 API', () => {
   });
 
   it.skipIf(!serverAvailable)('信号分析端点存在', async () => {
-    // POST /api/signal/analyze，验证返回结构
     const res = await fetch(`${BASE_URL}/api/signal/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -141,7 +130,6 @@ describe('新增工具页面 API', () => {
   });
 
   it.skipIf(!serverAvailable)('LETF 滑点分析端点存在', async () => {
-    // POST /api/letf/analyze，验证返回结构
     const res = await fetch(`${BASE_URL}/api/letf/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -164,7 +152,6 @@ describe('新增工具页面 API', () => {
   });
 
   it.skipIf(!serverAvailable)('战术分配端点存在', async () => {
-    // POST /api/tactical/backtest，验证返回结构
     const res = await fetch(`${BASE_URL}/api/tactical/backtest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -198,7 +185,6 @@ describe('新增工具页面 API', () => {
   });
 
   it.skipIf(!serverAvailable)('目标优化器端点存在', async () => {
-    // POST /api/goal-optimizer/optimize，验证返回结构
     const res = await fetch(`${BASE_URL}/api/goal-optimizer/optimize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -223,12 +209,10 @@ describe('新增工具页面 API', () => {
 
 describe('布局验证', () => {
   it('导航栏包含所有工具页面入口', () => {
-    // CSR应用：导航链接在客户端渲染，路由定义集中在 Navbar.tsx，验证其包含所有工具页面路由
     const navConfigSource = readFileSync(
       resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
       'utf-8',
     );
-    // 验证关键导航路由存在（覆盖所有工具分组）
     expect(navConfigSource).toContain("to: '/'");
     expect(navConfigSource).toContain("to: '/backtest-optimizer'");
     expect(navConfigSource).toContain("to: '/analysis'");
@@ -237,7 +221,6 @@ describe('布局验证', () => {
     expect(navConfigSource).toContain("to: '/monte-carlo'");
     expect(navConfigSource).toContain("to: '/tactical'");
     expect(navConfigSource).toContain("to: '/letf-slippage'");
-    // /data-engine 在 Navbar.tsx DIRECT_LINKS 中（非 NavGroupMenu 分组）
     const navbarSource = readFileSync(
       resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
       'utf-8',
@@ -250,7 +233,6 @@ describe('布局验证', () => {
       resolve(process.cwd(), 'packages/frontend/src/components/layout/Footer.tsx'),
       'utf-8',
     );
-    // 验证页脚包含法律相关链接（内部路由用 Link 的 to=，外链用 a 的 href=）
     expect(footerSource).toContain("to: '/help'");
     expect(footerSource).toContain("to: '/about'");
   });

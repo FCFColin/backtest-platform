@@ -11,7 +11,6 @@ describe('C-006 Layout Stability — lazy() + fallback 预留高度', () => {
   });
 
   it('Suspense fallback 必须预留 minHeight >= 70vh 以消除布局偏移', () => {
-    // fallback 预留高度，避免懒加载路由内容替换时高度突变
     const match = routesSource.match(/minHeight\s*:\s*['"](\d+)vh['"]/);
     expect(match).not.toBeNull();
     expect(Number(match![1])).toBeGreaterThanOrEqual(70);
@@ -22,7 +21,6 @@ describe('C-006 Layout Stability — lazy() + fallback 预留高度', () => {
       resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
       'utf-8',
     );
-    // useState 初始化器中同步读 localStorage，避免先渲染再消失
     expect(promoSource).toMatch(/localStorage\.getItem/);
     expect(promoSource).toMatch(/useState/);
   });

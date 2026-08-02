@@ -208,7 +208,6 @@ describe('RBAC org_role 优先 + platform_admin 放行', () => {
 });
 
 // P2-01：安全核心中间件 — 覆盖缓存命中零 DB 往返、未命中查 DB 回写、legacy 回退、
-// platform_admin 绕过与 DB 故障回退。
 describe('requirePermissionFromDb', () => {
   beforeEach(() => {
     vi.clearAllMocks();

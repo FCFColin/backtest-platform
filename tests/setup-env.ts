@@ -9,4 +9,5 @@
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'dev-only-jwt-secret-change-in-production';
 process.env.ENGINE_AUTH_TOKEN = process.env.ENGINE_AUTH_TOKEN || 'dev-engine-auth-token';
-process.env.DATA_SERVICE_AUTH_TOKEN = process.env.DATA_SERVICE_AUTH_TOKEN || 'dev-data-service-auth-token';
+process.env.DATA_SERVICE_AUTH_TOKEN =
+  process.env.DATA_SERVICE_AUTH_TOKEN || 'dev-data-service-auth-token';

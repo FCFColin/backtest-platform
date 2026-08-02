@@ -65,7 +65,6 @@ describe('mfaService', () => {
       const { secret } = generateMfaSecret('testuser');
       // 同一 secret 同一时间步应生成相同 TOTP
       // 这里验证 verifyTotp 接受合法格式，但不验证具体码值（依赖时间步）
-      // 用 verifyTotp 验证一个错误码应返回 false
       expect(verifyTotp(secret, '000000')).toBeFalsy();
     });
   });
@@ -166,7 +165,6 @@ describe('mfaService', () => {
       poolMocks.pool.query.mockResolvedValue({
         rows: [{ mfa_secret: secret, mfa_backup_codes: [] }],
       });
-      // 错误的 TOTP 码应返回 false（不验证正确码，因依赖时间步）
       const result = await verifyMfaCode('00000000-0000-0000-0000-000000000001', '999999');
       expect(result).toBe(false);
     });

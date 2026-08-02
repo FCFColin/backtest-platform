@@ -4,7 +4,6 @@ import { Portfolio } from '../../packages/backend/src/domain/aggregates/portfoli
 import { Weight, Ticker } from '../../packages/backend/src/domain/value-objects/index.js';
 import type { Portfolio as PortfolioDTO } from '@backtest/shared/types';
 
-// 生成合法 ticker 字符串：1-10 位字母数字主体 + 可选两字母后缀（仅字母）
 const tickerArb = fc
   .tuple(
     fc.array(fc.constantFrom('A', 'B', 'C', 'D', 'E', 'F', '0', '1', '2', '3'), {
@@ -20,7 +19,6 @@ const tickerArb = fc
     return withSuffix ? `${base}.${suffix}` : base;
   });
 
-// 生成合法权重数组，其和精确等于 100（保证 Weight.create 不抛错）
 const weightsSumTo100Arb = fc
   .array(fc.float({ min: 1, max: 50, noDefaultInfinity: true, noNaN: true }), {
     minLength: 2,
@@ -28,7 +26,6 @@ const weightsSumTo100Arb = fc
   })
   .map((ws) => {
     const sum = ws.reduce((s, w) => s + w, 0);
-    // 按比例缩放使和=100，每个权重保持在 (0, 100) 内
     const factor = 100 / sum;
     return ws.map((w) => w * factor);
   });
@@ -73,7 +70,6 @@ describe('Portfolio 不变量 property 测试', () => {
           if (unique.length !== tickers.length) return true;
           const weights = tickers.map(() => badWeight);
           const sum = weights.reduce((s, w) => s + w, 0);
-          // 跳过边界情况（sum 恰好在 [99, 101] 内时不抛错）
           if (Math.abs(sum - 100) <= 1) return true;
           const dto = buildDTO(tickers, weights);
           expect(() => Portfolio.fromDTO(dto)).toThrow();

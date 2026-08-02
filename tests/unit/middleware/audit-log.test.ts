@@ -20,7 +20,6 @@ const poolMocks = vi.hoisted(() => ({
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
 }));
-// Mock db/pool.js：getPool 返回带 mock query 的对象
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: poolMocks.query }),
 }));
@@ -139,7 +138,6 @@ describe('auditLog 安全攻击用例', () => {
     expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
     const finishCb = res._finishCallback;
     expect(finishCb).toBeDefined();
-    // 应不抛出异常地记录审计日志（path 通过参数化查询安全存储）
     expect(() => finishCb()).not.toThrow();
     expect(loggerMocks.childInfo).toHaveBeenCalled();
     const loggedEntry = loggerMocks.childInfo.mock.calls[0]?.[0];
@@ -151,13 +149,11 @@ describe('auditLog 安全攻击用例', () => {
   });
   it('原型污染：headers 含 __proto__ 不应修改 Object.prototype', () => {
     expect({}.admin).toBeUndefined();
-    // 使用 JSON.parse 模拟来自 HTTP 请求的 headers（__proto__ 作为自有属性）
     const maliciousHeaders = JSON.parse('{"__proto__": {"admin": true}, "x-api-key": "test-key"}');
     const { req, res, next } = createMockReqRes({ method: 'POST', headers: maliciousHeaders });
     auditLog(req, res, next);
     const finishCb = res._finishCallback;
     expect(() => finishCb()).not.toThrow();
-    // 关键安全断言：Object.prototype 未被污染
     expect({}.admin).toBeUndefined();
     expect(loggerMocks.childInfo).toHaveBeenCalled();
   });
@@ -199,7 +195,6 @@ describe('writeOutboxEvent 事务双写', () => {
   const entry456 = { userId: 'user-456', method: 'PUT', path: '/api/update' };
   beforeEach(() => {
     vi.clearAllMocks();
-    // 重置 pool query mock 默认成功
     poolMocks.query.mockResolvedValue({ rows: [], rowCount: 1 });
   });
   it('事务模式应使用传入 client 执行 INSERT（非 NOTIFY）并携带正确参数', async () => {
@@ -207,7 +202,6 @@ describe('writeOutboxEvent 事务双写', () => {
     await writeOutboxEvent(entry123, mockClient);
     expect(mockClient.query).toHaveBeenCalled();
     expect(poolMocks.query).not.toHaveBeenCalled();
-    // 应只调用一次 query（INSERT），NOTIFY 应由调用方在 COMMIT 后发送
     expect(mockClient.query).toHaveBeenCalledTimes(1);
     const sqlArg = mockClient.query.mock.calls[0][0] as string;
     expect(sqlArg).toContain('INSERT INTO outbox');
@@ -220,20 +214,17 @@ describe('writeOutboxEvent 事务双写', () => {
   it('事务模式异常应向上传播（触发调用方 ROLLBACK）并记录 error 日志', async () => {
     const mockClient = createMockClient();
     mockClient.query.mockRejectedValueOnce(new Error('transaction conflict'));
-    // 事务模式下异常应向上传播，而非被吞掉
     await expect(writeOutboxEvent(entry123, mockClient)).rejects.toThrow('transaction conflict');
     expect(loggerMocks.error).toHaveBeenCalled();
   });
   it('独立模式应使用连接池并发送 NOTIFY outbox_channel', async () => {
     await writeOutboxEvent(entry456);
     expect(poolMocks.query).toHaveBeenCalled();
-    // 应调用两次 query：INSERT + NOTIFY
     expect(poolMocks.query).toHaveBeenCalledTimes(2);
     expect(poolMocks.query.mock.calls[1][0]).toBe('NOTIFY outbox_channel');
   });
   it('独立模式异常应被吞掉（不阻塞响应），仅记录 warn', async () => {
     poolMocks.query.mockRejectedValueOnce(new Error('pool connection failed'));
-    // 独立模式不应抛出（中间件异步调用不阻塞响应）
     await expect(writeOutboxEvent(entry456)).resolves.toBeUndefined();
     expect(loggerMocks.warn).toHaveBeenCalled();
   });

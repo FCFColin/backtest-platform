@@ -1,4 +1,3 @@
-
 import { vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
 import type { AuthenticatedRequest } from '../../packages/backend/src/middleware/jwtAuth.js';

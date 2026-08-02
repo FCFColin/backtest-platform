@@ -24,7 +24,6 @@ describe('federation config (ADR-050)', () => {
   it('vite.config.ts 注册 backtest_host federation 并暴露 OptimizerPage / SignalAnalyzerPage', () => {
     expect(viteConfigText).toContain('@originjs/vite-plugin-federation');
     expect(viteConfigText).toContain("name: 'backtest_host'");
-    // 两个 exposes key 均存在（顺序与配置一致）
     expect(viteConfigText).toMatch(/'\.\/OptimizerPage'[\s\S]*?'\.\/SignalAnalyzerPage'/);
   });
 

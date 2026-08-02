@@ -1,7 +1,6 @@
 import { vi } from 'vitest';
 
 // vi.hoisted 结果不能直接 export（Vitest 转换会抛 SyntaxError: Cannot export
-// hoisted variable）。统一创建到 internalMocks 容器，通过属性引用对外导出。
 const internalMocks = vi.hoisted(() => ({
   logger: {
     info: vi.fn(),

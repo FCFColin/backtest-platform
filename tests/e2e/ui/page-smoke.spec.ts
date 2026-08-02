@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test';
+﻿import { test, expect } from '@playwright/test';
+import { expectA11y } from '../../helpers/a11y.js';
 
 interface PageSmokeCase {
   name: string;
@@ -39,22 +40,25 @@ test.describe('页面冒烟测试', () => {
     test(`页面渲染 — 标题正确: ${smoke.name}`, async ({ page }) => {
       await page.goto(smoke.url, { waitUntil: 'domcontentloaded' });
       await expect(page.getByRole('heading', { name: smoke.headingRegex })).toBeVisible({
-        timeout: 60_000,
+        timeout: 1_000,
       });
+      // region: 顶部公告栏/品牌链接是全局布局，不在页面组件控制范围内
+      await expectA11y(page, { rules: ['region', 'color-contrast'] });
     });
   }
 
   for (const smoke of SMOKE_PAGES) {
     test(`页面加载 — 参数面板可见: ${smoke.name}`, async ({ page }) => {
       await page.goto(smoke.url, { waitUntil: 'domcontentloaded' });
-      await expect(page.getByText(smoke.panelRegex).first()).toBeVisible({ timeout: 30_000 });
+      await expect(page.getByText(smoke.panelRegex).first()).toBeVisible({ timeout: 1_000 });
     });
   }
 
   test('战术分配 — 结果区域存在', async ({ page }) => {
     await page.goto('/tactical', { waitUntil: 'domcontentloaded' });
     await expect(page.getByText(/结果|Results|等权基准/).first()).toBeVisible({
-      timeout: 30_000,
+      timeout: 1_000,
     });
+    await expectA11y(page, { rules: ['region', 'color-contrast'] });
   });
 });

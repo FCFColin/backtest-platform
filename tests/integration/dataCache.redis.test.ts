@@ -47,7 +47,6 @@ const { loggerMocks, redisStub, healthMock, markUnhealthy } = vi.hoisted(() => {
       return e.value;
     }),
     set: vi.fn(async (key: string, value: string, ...rest: unknown[]) => {
-      // ioredis: set(key, value, 'EX', seconds)
       let expiresAt = 0;
       const exIdx = rest.indexOf('EX');
       if (exIdx >= 0 && typeof rest[exIdx + 1] === 'number') {
@@ -126,7 +125,6 @@ describe('P0-01 dataCache Redis L1+L2', () => {
         start: '2024-01-01',
         end: '2024-01-31',
       });
-      // 另一实例直接写 Redis（本实例 L1 为空）
       redisStub.store.set(key, {
         value: JSON.stringify({ MSFT: { '2024-01-02': 380 } }),
         expiresAt: 0,
@@ -135,7 +133,6 @@ describe('P0-01 dataCache Redis L1+L2', () => {
       const got = await readCache(key);
       expect(got).toEqual({ MSFT: { '2024-01-02': 380 } });
       expect(redisStub.get).toHaveBeenCalledWith(key);
-      // 回填后二次读命中 L1，不再访问 Redis
       redisStub.get.mockClear();
       const got2 = await readCache(key);
       expect(got2).toEqual({ MSFT: { '2024-01-02': 380 } });
@@ -153,7 +150,6 @@ describe('P0-01 dataCache Redis L1+L2', () => {
 
     it('TTL 过期后 L2 返回 null（验证 TTL 策略生效）', async () => {
       const key = getCacheKey('history', { tickers: 'EXPIRED' });
-      // 写入已过期的条目
       redisStub.store.set(key, { value: JSON.stringify({ x: 1 }), expiresAt: Date.now() - 1000 });
       const got = await readCache(key);
       expect(got).toBeNull();
@@ -181,7 +177,6 @@ describe('P0-01 dataCache Redis L1+L2', () => {
       const key = getCacheKey('history', { tickers: 'SPY' });
       await expect(writeCache(key, { x: 1 }, HISTORY_CACHE_TTL_SEC)).resolves.toBeUndefined();
       expect(redisStub.set).not.toHaveBeenCalled();
-      // L1 仍可命中
       const got = await readCache(key);
       expect(got).toEqual({ x: 1 });
     });

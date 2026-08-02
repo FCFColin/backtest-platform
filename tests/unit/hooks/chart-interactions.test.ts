@@ -37,7 +37,6 @@ describe('downsample', () => {
   it('最后一个点已被步长覆盖时不应重复追加', () => {
     const data = Array.from({ length: 10 }, (_, i) => i);
     const result = downsample(data, 5);
-    // step = ceil(10/5) = 2, indexes: 0,2,4,6,8 → last point 9 different from 8
     expect(result).toEqual([0, 2, 4, 6, 8, 9]);
   });
 

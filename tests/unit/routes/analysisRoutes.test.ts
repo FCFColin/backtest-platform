@@ -11,6 +11,7 @@ vi.mock('../../../packages/backend/src/infrastructure/dataFacade.js', () => ({
 vi.mock('../../../packages/backend/src/utils/engineClient.js', () => ({
   callEngineStrict: engineMocks.callEngineStrict,
   EngineUnavailableError: EngineUnavailableErrorStub,
+  unwrapEngineData: <T>(r: unknown): T => ((r as { data?: T })?.data ?? r) as T,
 }));
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: loggerMocks,

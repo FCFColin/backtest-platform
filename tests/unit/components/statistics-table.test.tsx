@@ -29,7 +29,10 @@ import {
   HierarchicalMetricsRows,
   MetricsToggle,
 } from '../../../packages/frontend/src/components/statistics-table/index.js';
-import type { StatRow, StatGroup } from '../../../packages/frontend/src/components/statistics-table/types.js';
+import type {
+  StatRow,
+  StatGroup,
+} from '../../../packages/frontend/src/components/statistics-table/types.js';
 
 function createPortfolio(name: string, stats: Record<string, number | undefined>) {
   return { name, statistics: stats };
@@ -38,7 +41,13 @@ function createPortfolio(name: string, stats: Record<string, number | undefined>
 const ROWS: StatRow[] = [
   { key: 'cagr', label: 'CAGR', fmt: 'pct', importance: 'primary' },
   { key: 'sharpe', label: '夏普', fmt: 'ratio', importance: 'primary' },
-  { key: 'maxDrawdown', label: '最大回撤', fmt: 'pct', importance: 'secondary', higherIsBetter: false },
+  {
+    key: 'maxDrawdown',
+    label: '最大回撤',
+    fmt: 'pct',
+    importance: 'secondary',
+    higherIsBetter: false,
+  },
   { key: 'ulcerIndex', label: 'Ulcer', fmt: 'num', importance: 'detailed' },
 ];
 
@@ -60,7 +69,6 @@ describe('StatisticsTableHeader', () => {
     expect(screen.getByText('common.metric')).toBeTruthy();
     expect(screen.getByText('组合 A')).toBeTruthy();
     expect(screen.getByText('组合 B')).toBeTruthy();
-    // 颜色圆点渲染
     const dots = container.querySelectorAll('.rounded-full');
     expect(dots.length).toBe(2);
   });
@@ -99,7 +107,6 @@ describe('MetricsRows', () => {
     );
 
     expect(screen.getByText('CAGR')).toBeTruthy();
-    // sharpe/maxDrawdown 无值，不应渲染
     expect(screen.queryByText('夏普')).toBeNull();
     expect(screen.queryByText('最大回撤')).toBeNull();
   });
@@ -141,7 +148,6 @@ describe('StatisticsGroupRows', () => {
 
     expect(screen.getByText('core.group')).toBeTruthy();
     expect(screen.getByText('8.00%')).toBeTruthy();
-    // 分组标题行 colSpan=3
     const groupCell = container.querySelector('.stat-table-group-cell');
     expect(groupCell?.getAttribute('colspan')).toBe('3');
   });
@@ -159,9 +165,7 @@ describe('HierarchicalMetricsRows', () => {
       </table>,
     );
 
-    // primary 指标可见
     expect(screen.getByText('CAGR')).toBeTruthy();
-    // detailed 指标被隐藏
     expect(screen.queryByText('Ulcer')).toBeNull();
   });
 

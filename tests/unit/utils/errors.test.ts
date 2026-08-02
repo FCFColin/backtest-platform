@@ -115,7 +115,6 @@ describe('sendProblem', () => {
   it('应支持链式调用（status/header/json 返回 this）', () => {
     const res = createMockRes();
     sendProblem(res, 400, 'BAD', '错误');
-    // 链式调用：status -> header -> json
     expect(res.status).toHaveBeenCalledTimes(1);
     expect(res.header).toHaveBeenCalledTimes(1);
     expect(res.json).toHaveBeenCalledTimes(1);

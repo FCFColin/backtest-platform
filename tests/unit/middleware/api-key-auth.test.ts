@@ -154,7 +154,6 @@ describe('handleOptionalApiKey', () => {
   });
   // P0-04：超时保护——resolveApiKeyUser 挂起 5s 后返回 504
   it('resolveApiKeyUser 超时应返回 504 Gateway Timeout（P0-04）', async () => {
-    // 模拟 verifyApiKey 永不 resolve（挂起）
     mocks.verifyApiKey.mockReturnValueOnce(new Promise(() => {}));
     const { req, res, next } = createMockMiddleware({
       headers: { 'x-api-key': 'bpk_live_hanging' },

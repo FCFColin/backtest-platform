@@ -3,12 +3,18 @@ import dns from 'dns/promises';
 
 vi.mock('dns/promises', () => ({ default: { resolve4: vi.fn() } }));
 
-import { assertSafeUrl, SsrfValidationError } from '../../../packages/backend/src/utils/ssrfGuard.js';
+import {
+  assertSafeUrl,
+  SsrfValidationError,
+} from '../../../packages/backend/src/utils/ssrfGuard.js';
 
 const PUBLIC_IP = '93.184.216.34';
 
 async function expectRejected(url: string, expectedCode?: string): Promise<void> {
-  const result = await assertSafeUrl(url).then(() => null, (e: unknown) => e as SsrfValidationError);
+  const result = await assertSafeUrl(url).then(
+    () => null,
+    (e: unknown) => e as SsrfValidationError,
+  );
   expect(result).toBeInstanceOf(SsrfValidationError);
   if (expectedCode) expect(result!.code).toBe(expectedCode);
 }
@@ -120,17 +126,23 @@ describe('ssrfGuard', () => {
 
   it('resolveDns=false 时跳过 DNS 解析（仅做 URL/端口校验）', async () => {
     vi.mocked(dns.resolve4).mockResolvedValue(['127.0.0.1']);
-    await expect(assertSafeUrl('https://example.com/', { resolveDns: false })).resolves.toBeUndefined();
+    await expect(
+      assertSafeUrl('https://example.com/', { resolveDns: false }),
+    ).resolves.toBeUndefined();
     expect(dns.resolve4).not.toHaveBeenCalled();
   });
 
   it('自定义端口白名单允许 9000 端口', async () => {
     vi.mocked(dns.resolve4).mockResolvedValue([PUBLIC_IP]);
-    await expect(assertSafeUrl('http://example.com:9000/', { allowedPorts: new Set([80, 443, 9000]) })).resolves.toBeUndefined();
+    await expect(
+      assertSafeUrl('http://example.com:9000/', { allowedPorts: new Set([80, 443, 9000]) }),
+    ).resolves.toBeUndefined();
   });
 
   it('自定义白名单不含 80 时 80 端口应拒绝', async () => {
     vi.mocked(dns.resolve4).mockResolvedValue([PUBLIC_IP]);
-    await expect(assertSafeUrl('http://example.com:80/', { allowedPorts: new Set([443]) })).rejects.toThrow(SsrfValidationError);
+    await expect(
+      assertSafeUrl('http://example.com:80/', { allowedPorts: new Set([443]) }),
+    ).rejects.toThrow(SsrfValidationError);
   });
 });

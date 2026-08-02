@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { createLoggerMocks } from '../helpers/mockFactories.js';
-import { isDockerAvailable, setupTestContainer, type TestContainerContext } from '../helpers/testcontainersPg.js';
+import {
+  isDockerAvailable,
+  setupTestContainer,
+  type TestContainerContext,
+} from '../helpers/testcontainersPg.js';
 
 // Mock logger 打破 config ↔ logger 循环依赖，
-// 避免 config 模块加载时 logger 引用 config 导致 undefined
 vi.mock('../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 import { initSchema, rollbackSchema } from '../../packages/backend/src/db/migrations.js';
@@ -29,11 +32,9 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
   });
 
   it('应成功回滚到指定版本（v3→v2）', async () => {
-    // 回滚到 v2，仅撤销 v3（index_cleanup）的变更
     await rollbackSchema(2);
     const pool = getPool();
     // v3 的 down 文件删除了 CHECK 约束和冗余索引，
-    // 验证 schema_migrations 中 v3 已被移除
     const { rows } = await pool.query('SELECT version FROM schema_migrations ORDER BY version');
     const versions = rows.map((r: { version: number }) => r.version);
     expect(versions).not.toContain(3);
@@ -42,7 +43,6 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
   });
 
   it('应成功重新应用迁移（down→up 循环）', async () => {
-    // 当前在 v2，回滚到 v1，再重新迁移到最新
     await rollbackSchema(1);
     await initSchema();
     const pool = getPool();
@@ -56,26 +56,22 @@ describe.skipIf(!dockerAvailable)('PostgreSQL 集成测试（testcontainers）',
   it('CHECK 约束应拒绝非法数据', async () => {
     await initSchema();
     const pool = getPool();
-    // 先插入一个 ticker
     await pool.query(
       "INSERT INTO tickers (ticker, category, market) VALUES ('TEST', 'test', 'test') ON CONFLICT DO NOTHING",
     );
 
-    // 尝试插入 high < low 的非法数据
     await expect(
       pool.query(
         "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-01', 100, 90, 110, 105, 1000)",
       ),
     ).rejects.toThrow('prices_ohlc_check');
 
-    // 尝试插入 volume < 0 的非法数据（v8 chk_prices_volume_nonnegative）
     await expect(
       pool.query(
         "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-02', 100, 110, 90, 105, -1)",
       ),
     ).rejects.toThrow(/chk_prices_volume_nonnegative|prices_ohlc_check/);
 
-    // 合法数据应成功插入
     await expect(
       pool.query(
         "INSERT INTO prices (ticker, date, open, high, low, close, volume) VALUES ('TEST', '2024-01-01', 100, 110, 90, 105, 1000)",

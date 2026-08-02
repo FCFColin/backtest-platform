@@ -286,7 +286,6 @@ describe('jobRoutes - GET /api/v1/jobs/:id', () => {
   let server: TestServer;
   beforeEach(async () => {
     vi.clearAllMocks();
-    // 测试替身：注入认证身份。默认 admin（绕过所有权校验）；可经 header 覆盖为指定 sub。
     server = await startExpressApp((app) => {
       app.use((req: TestRequest, _res, next) => {
         const sub = (req.headers['x-test-sub'] as string) || 'admin-user';

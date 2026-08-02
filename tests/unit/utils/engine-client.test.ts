@@ -10,7 +10,6 @@ const cbMocks = vi.hoisted(() => {
   };
   return {
     goCB,
-    // 单引擎：每次 new CircuitBreaker 都返回同一个 goCB
     factory: () => goCB,
     reset: () => {
       goCB.fire.mockReset();
@@ -75,7 +74,6 @@ import {
 import { UpstreamProblemError } from '../../../packages/backend/src/utils/errors.js';
 
 // 在模块加载时捕获 callGoEngine（CircuitBreaker 构造器第一个参数）与熔断器事件回调，
-// vi.clearAllMocks 会清空 mock.calls，故必须在顶层（任何 beforeEach 之前）一次性捕获。
 const cbCtorMock = CircuitBreakerDefault as unknown as {
   mock: { calls: Array<Array<unknown>> };
 };

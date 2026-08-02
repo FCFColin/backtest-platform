@@ -39,7 +39,6 @@ const loggerMocks = vi.hoisted(() => ({
   child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
 }));
 
-// 模拟 BullMQ Job store：在内存中跟踪任务状态
 const jobStore = vi.hoisted(
   () =>
     new Map<
@@ -148,7 +147,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     jobStore.clear();
     server = await setupPortfolioServer(backtestRoutes, m);
 
-    // 模拟 BullMQ add：将 job 存入内存 jobStore
     queueMocks.add.mockImplementation(async (name: string, data: Record<string, unknown>) => {
       const jobId = `job-${jobStore.size + 1}`;
       jobStore.set(jobId, {
@@ -160,7 +158,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
       return { id: jobId };
     });
 
-    // 模拟 BullMQ getJob：从 jobStore 获取
     queueMocks.getJob.mockImplementation(async (jobId: string) => {
       const job = jobStore.get(jobId);
       if (!job) return null;
@@ -182,7 +179,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   });
 
   it('场景1: POST /portfolio → 202 Accepted → 轮询 → completed', async () => {
-    // 1. 提交异步任务
     const submitRes = await fetch(`${server.url}/api/backtest/portfolio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -197,13 +193,11 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
 
     const jobId = submitJson.data.jobId;
 
-    // 2. 初始轮询 → queued
     const initialPoll = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
     expect(initialPoll.status).toBe(200);
     const initialJson = await initialPoll.json();
     expect(initialJson.data.status).toBe('queued');
 
-    // 3. 模拟 Worker 处理完成
     const mockResult = {
       data: { portfolios: [{ name: 'Test', growthCurve: [] }] },
       warnings: [],
@@ -214,7 +208,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     job.progress = 100;
     job.returnvalue = { status: 'completed', result: mockResult };
 
-    // 4. 轮询 → completed + result
     const finalPoll = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
     expect(finalPoll.status).toBe(200);
     const finalJson = await finalPoll.json();
@@ -224,7 +217,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   });
 
   it('场景2: POST /portfolio → 202 → Worker 超时 → failed', async () => {
-    // 1. 提交异步任务
     const submitRes = await fetch(`${server.url}/api/backtest/portfolio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -235,13 +227,11 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     const submitJson = await submitRes.json();
     const jobId = submitJson.data.jobId;
 
-    // 2. 模拟 Worker 处理失败（Go Engine 超时）
     const job = jobStore.get(jobId)!;
     job.state = 'failed';
     job.progress = 30;
     job.failedReason = 'Engine timeout after 90s';
 
-    // 3. 轮询 → failed + error
     const pollRes = await fetch(`${server.url}/api/backtest/runs/${jobId}`);
     expect(pollRes.status).toBe(200);
     const pollJson = await pollRes.json();
@@ -252,7 +242,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
   it('场景3: 幂等性 — 相同 Idempotency-Key 返回已有 jobId', async () => {
     const idempotencyKey = 'idem-key-12345';
 
-    // 1. 第一次提交
     const firstRes = await fetch(`${server.url}/api/backtest/portfolio`, {
       method: 'POST',
       headers: {
@@ -267,7 +256,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     const _firstJobId = firstJson.data.jobId;
 
     // 2. 第二次提交（相同 Idempotency-Key）
-    // 注意：实际幂等性由 Idempotency 中间件处理，此处验证 jobStore 中只有一个 job
     const secondRes = await fetch(`${server.url}/api/backtest/portfolio`, {
       method: 'POST',
       headers: {
@@ -280,7 +268,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     expect(secondRes.status).toBe(202);
     const secondJson = await secondRes.json();
 
-    // 验证返回了有效的 jobId（幂等中间件可能返回相同 jobId 或新 jobId）
     expect(secondJson.data.jobId).toBeDefined();
     expect(secondJson.data.status).toBe('queued');
   });
@@ -306,7 +293,6 @@ describe('P0-01 T3 · 异步回测全链路集成测试', () => {
     const json = await res.json();
     expect(json.success).toBe(false);
     expect(json.error).toBeDefined();
-    // 同步回退已废弃，runPortfolioBacktest 不应被调用
     expect(m.runPortfolioBacktest).not.toHaveBeenCalled();
   });
 });

@@ -68,7 +68,6 @@ describe('dataManageRoutes - GET 读端点', () => {
   });
   it('GET /stats 无统计数据时应返回 null', async () => {
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(null);
-    // ?force=1 穿透 60s 内存缓存（Task 3.4），确保 mock 覆盖生效
     const res = await get('/stats?force=1');
     const body = await res.json();
     expect(res.status).toBe(200);

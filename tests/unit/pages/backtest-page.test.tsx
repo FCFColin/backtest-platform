@@ -20,7 +20,6 @@ vi.mock('react-i18next', () => ({
   Trans: ({ i18nKey }: { i18nKey: string }) => i18nKey,
 }));
 
-// 可变状态：让 happy/edge 用例切换 portfolios 取值
 const pageState = vi.hoisted(() => ({
   portfolios: [{ name: 'SPY', assets: [] }] as unknown[],
 }));

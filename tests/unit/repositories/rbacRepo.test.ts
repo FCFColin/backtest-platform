@@ -2,25 +2,71 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const dbMocks = vi.hoisted(() => {
   const mockClient = { query: vi.fn(), release: vi.fn() };
-  return { clientQuery: mockClient.query, clientRelease: mockClient.release, poolQuery: vi.fn(), withTenant: vi.fn(), mockClient };
+  return {
+    clientQuery: mockClient.query,
+    clientRelease: mockClient.release,
+    poolQuery: vi.fn(),
+    withTenant: vi.fn(),
+    mockClient,
+  };
 });
 
 vi.mock('../../../packages/backend/src/db/pool.js', () => ({
   getPool: () => ({ query: dbMocks.poolQuery, connect: async () => dbMocks.mockClient }),
-  withTenant: <T>(tenantId: string, fn: (c: typeof dbMocks.mockClient) => Promise<T>) => { dbMocks.withTenant(tenantId); return fn(dbMocks.mockClient); },
-  withTenantReadOnly: <T>(tenantId: string, fn: (c: typeof dbMocks.mockClient) => Promise<T>) => { dbMocks.withTenant(tenantId); return fn(dbMocks.mockClient); },
+  withTenant: <T>(tenantId: string, fn: (c: typeof dbMocks.mockClient) => Promise<T>) => {
+    dbMocks.withTenant(tenantId);
+    return fn(dbMocks.mockClient);
+  },
+  withTenantReadOnly: <T>(tenantId: string, fn: (c: typeof dbMocks.mockClient) => Promise<T>) => {
+    dbMocks.withTenant(tenantId);
+    return fn(dbMocks.mockClient);
+  },
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })) } }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
+  },
+}));
 
-import { getRolesByOrg, createRole, updateRole, deleteRole, getRolePermissions, setRolePermissions, getUserRoles, assignUserRole, removeUserRole, getUserPermissions, getUserIdsByRole } from '../../../packages/backend/src/repositories/rbacRepo.js';
+import {
+  getRolesByOrg,
+  createRole,
+  updateRole,
+  deleteRole,
+  getRolePermissions,
+  setRolePermissions,
+  getUserRoles,
+  assignUserRole,
+  removeUserRole,
+  getUserPermissions,
+  getUserIdsByRole,
+} from '../../../packages/backend/src/repositories/rbacRepo.js';
 
 const ORG = '11111111-1111-1111-1111-111111111111';
 const ROLE_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const USER_ID = '22222222-2222-2222-2222-222222222222';
 
-const roleRow = { id: ROLE_ID, org_id: ORG, name: 'custom-role', description: '测试角色', is_system: false, created_at: new Date('2026-01-01T00:00:00.000Z'), updated_at: new Date('2026-06-01T00:00:00.000Z') };
-const systemRoleRow = { ...roleRow, id: 'ssssssss-ssss-ssss-ssss-ssssssssssss', org_id: null, name: 'admin', is_system: true };
+const roleRow = {
+  id: ROLE_ID,
+  org_id: ORG,
+  name: 'custom-role',
+  description: '测试角色',
+  is_system: false,
+  created_at: new Date('2026-01-01T00:00:00.000Z'),
+  updated_at: new Date('2026-06-01T00:00:00.000Z'),
+};
+const systemRoleRow = {
+  ...roleRow,
+  id: 'ssssssss-ssss-ssss-ssss-ssssssssssss',
+  org_id: null,
+  name: 'admin',
+  is_system: true,
+};
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -66,7 +112,12 @@ describe('createRole', () => {
 
 describe('updateRole', () => {
   it('应更新非系统角色并返回记录', async () => {
-    mockTx({ rows: [] }, { rows: [{ is_system: false }] }, { rows: [{ ...roleRow, name: 'updated' }] }, { rows: [] });
+    mockTx(
+      { rows: [] },
+      { rows: [{ is_system: false }] },
+      { rows: [{ ...roleRow, name: 'updated' }] },
+      { rows: [] },
+    );
     const result = await updateRole(ROLE_ID, 'updated', '新描述');
     expect(result).not.toBe('not_found');
     expect(result).not.toBe('system_role');
@@ -102,9 +153,14 @@ describe('deleteRole', () => {
 
 describe('getRolePermissions', () => {
   it('应返回权限字符串数组', async () => {
-    dbMocks.poolQuery.mockResolvedValue({ rows: [{ permission: 'backtest:run' }, { permission: 'data:read' }] });
+    dbMocks.poolQuery.mockResolvedValue({
+      rows: [{ permission: 'backtest:run' }, { permission: 'data:read' }],
+    });
     expect(await getRolePermissions(ROLE_ID)).toEqual(['backtest:run', 'data:read']);
-    expect(dbMocks.poolQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT permission FROM role_permissions'), [ROLE_ID]);
+    expect(dbMocks.poolQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT permission FROM role_permissions'),
+      [ROLE_ID],
+    );
   });
 
   it('无权限时应返回空数组', async () => {
@@ -134,9 +190,23 @@ describe('setRolePermissions', () => {
 
 describe('getUserRoles', () => {
   it('应返回用户角色绑定记录', async () => {
-    dbMocks.poolQuery.mockResolvedValue({ rows: [{ user_id: USER_ID, role_id: ROLE_ID, org_id: ORG, created_at: new Date('2026-01-01T00:00:00.000Z') }] });
+    dbMocks.poolQuery.mockResolvedValue({
+      rows: [
+        {
+          user_id: USER_ID,
+          role_id: ROLE_ID,
+          org_id: ORG,
+          created_at: new Date('2026-01-01T00:00:00.000Z'),
+        },
+      ],
+    });
     const result = await getUserRoles(USER_ID);
-    expect(result[0]).toMatchObject({ userId: USER_ID, roleId: ROLE_ID, orgId: ORG, createdAt: '2026-01-01T00:00:00.000Z' });
+    expect(result[0]).toMatchObject({
+      userId: USER_ID,
+      roleId: ROLE_ID,
+      orgId: ORG,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    });
   });
 });
 
@@ -151,7 +221,11 @@ describe('assignUserRole', () => {
 });
 
 describe('removeUserRole', () => {
-  it.each([[1, true], [0, false], [undefined, false]])('rowCount=%s 应返回 %s', async (count, expected) => {
+  it.each([
+    [1, true],
+    [0, false],
+    [undefined, false],
+  ])('rowCount=%s 应返回 %s', async (count, expected) => {
     dbMocks.poolQuery.mockResolvedValue({ rowCount: count });
     expect(await removeUserRole(USER_ID, ROLE_ID)).toBe(expected);
   });
@@ -159,9 +233,14 @@ describe('removeUserRole', () => {
 
 describe('getUserPermissions', () => {
   it('应返回去重后的权限集合（UNION）', async () => {
-    dbMocks.poolQuery.mockResolvedValue({ rows: [{ permission: 'backtest:run' }, { permission: 'data:read' }] });
+    dbMocks.poolQuery.mockResolvedValue({
+      rows: [{ permission: 'backtest:run' }, { permission: 'data:read' }],
+    });
     expect(await getUserPermissions(USER_ID)).toEqual(['backtest:run', 'data:read']);
-    expect(dbMocks.poolQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT DISTINCT rp.permission'), [USER_ID]);
+    expect(dbMocks.poolQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT DISTINCT rp.permission'),
+      [USER_ID],
+    );
   });
 
   it('无角色绑定时应返回空数组', async () => {
@@ -174,7 +253,10 @@ describe('getUserIdsByRole', () => {
   it('应返回绑定该角色的用户 ID 数组', async () => {
     dbMocks.poolQuery.mockResolvedValue({ rows: [{ user_id: 'u1' }, { user_id: 'u2' }] });
     expect(await getUserIdsByRole(ROLE_ID)).toEqual(['u1', 'u2']);
-    expect(dbMocks.poolQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT user_id FROM user_roles WHERE role_id'), [ROLE_ID]);
+    expect(dbMocks.poolQuery).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT user_id FROM user_roles WHERE role_id'),
+      [ROLE_ID],
+    );
   });
 
   it('无用户绑定时应返回空数组', async () => {

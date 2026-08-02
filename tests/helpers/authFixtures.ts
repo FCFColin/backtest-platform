@@ -1,4 +1,3 @@
-
 import { SignJWT, importJWK } from 'jose';
 import { vi } from 'vitest';
 import type { Request, Response, NextFunction } from 'express';
@@ -123,7 +122,10 @@ export function createAuthJwtAuthMocks(target: Record<string, unknown> = {}) {
   target.hashUserId = vi.fn((sub?: string) => sub);
   target.requireUser = vi.fn((req: Request, res: Response) => {
     if (!req.user) {
-      res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', title: 'Unauthorized', status: 401 } });
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', title: 'Unauthorized', status: 401 },
+      });
       return false;
     }
     return true;

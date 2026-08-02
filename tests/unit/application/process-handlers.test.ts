@@ -25,7 +25,6 @@ vi.mock('../../../packages/backend/src/tracing.js', () => ({
   initTracing: vi.fn(),
 }));
 
-// Mock app.js — 提供假的 Express app 和 HTTP server
 const mockServer = {
   listen: vi.fn((port: number, cb?: () => void) => {
     if (cb) cb();
@@ -114,12 +113,9 @@ describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () 
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // 重置模块缓存，使 server.ts 的模块级 shuttingDown 标志重置
     vi.resetModules();
     originalExit = process.exit;
-    // process.exit 替换为 no-op spy，不真正退出测试进程
     exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-      // no-op: 阻止真实退出
       return undefined as never;
     });
   });
@@ -130,27 +126,21 @@ describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () 
   });
 
   it('unhandledRejection 触发后应同步调用 process.exit(1)', async () => {
-    // 动态导入 server.ts（触发模块级副作用：注册 process handlers）
     await import('../../../packages/backend/src/server.js');
 
-    // 等待 listen 回调中的异步操作完成
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     loggerMocks.error.mockClear();
     exitSpy.mockClear();
 
-    // 模拟 unhandledRejection — 同步 exit(1)
     const reason = new Error('test unhandled rejection');
     process.emit('unhandledRejection', reason);
 
-    // 验证 logger.error 被调用（记录错误信息）
     expect(loggerMocks.error).toHaveBeenCalled();
-    // 验证 process.exit 被调用且退出码为 1
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   it('uncaughtException 触发后应通过优雅关闭最终调用 process.exit(1)', async () => {
-    // 动态导入 server.ts
     await import('../../../packages/backend/src/server.js');
 
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -158,41 +148,32 @@ describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () 
     loggerMocks.error.mockClear();
     exitSpy.mockClear();
 
-    // 模拟 uncaughtException — triggerShutdown → server.close(async cb) → process.exit(1)
     const err = new Error('test uncaught exception');
     process.emit('uncaughtException', err);
 
     // server.close 的回调是 async，需等待微任务完成
-    // closeDb/outbox.stop 等 mock 均 resolve 立即完成，await 后即调 process.exit
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // 验证 logger.error 被调用
     expect(loggerMocks.error).toHaveBeenCalled();
-    // 验证 process.exit 被调用且退出码为 1
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
   it('重复触发 uncaughtException 不应多次调用 exit（幂等保护）', async () => {
-    // 每个测试通过 vi.resetModules() 获取全新模块实例，shuttingDown 初始为 false
     await import('../../../packages/backend/src/server.js');
 
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     exitSpy.mockClear();
 
-    // 第一次 uncaughtException 触发 shutdown + exit(1)
     process.emit('uncaughtException', new Error('first'));
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // 第一次调用 exit(1)
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(exitSpy).toHaveBeenCalledTimes(1);
 
-    // 第二次触发应被忽略（shuttingDown = true）
     process.emit('uncaughtException', new Error('second'));
     await new Promise((resolve) => setTimeout(resolve, 100));
 
-    // exit 仍只被调用一次
     expect(exitSpy).toHaveBeenCalledTimes(1);
   });
 });

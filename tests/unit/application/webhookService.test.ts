@@ -232,7 +232,6 @@ describe('webhookService', () => {
   });
 });
 
-// -- C-024：真实 crypto.js（而非上文 mock）经 vi.doUnmock + vi.resetModules + 动态 import 加载
 describe('webhook encryption (C-024)', () => {
   let cryptoMod: typeof import('../../../packages/backend/src/utils/crypto.js');
   beforeEach(async () => {
@@ -307,7 +306,6 @@ describe('webhook encryption (C-024)', () => {
       expect(sql).toContain('INSERT INTO webhook_endpoints');
       expect(sql).toContain('secret_iv');
       expect(sql).toContain('secret_kid');
-      // 参数顺序：org_id, url, secret(ciphertext), secret_iv, secret_tag, secret_kid, description, subscribed_events
       const args = call[1] as unknown[];
       const [storedSecret, storedIv, storedTag, storedKid] = [args[2], args[3], args[4], args[5]];
       expect(Buffer.isBuffer(storedSecret)).toBe(true);

@@ -13,11 +13,9 @@ describe('sha256Hex', () => {
   });
 
   it('应与独立计算的 SHA-256 一致（已知向量）', () => {
-    // SHA-256("hello") 标准向量
     expect(sha256Hex('hello')).toBe(
       '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
     );
-    // SHA-256("abc") 标准向量
     expect(sha256Hex('abc')).toBe(
       'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
     );
@@ -78,7 +76,6 @@ describe('verifyApiKeyArgon2id', () => {
   });
 
   it('损坏的 encoded 应触发 catch 分支返回 false（不抛错）', async () => {
-    // 非法 argon2 编码字符串，argon2.verify 会抛错，被 catch 吞掉返回 false
     expect(await verifyApiKeyArgon2id('not-a-valid-argon2-hash', 'anything')).toBe(false);
   });
 

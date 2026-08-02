@@ -110,7 +110,6 @@ export async function sendSignalToContainer(
   containerName: string,
   signal: string = 'SIGTERM',
 ): Promise<void> {
-  // Cross-platform: use docker kill which works everywhere
   await execAsync(`docker kill --signal=${signal} ${containerName}`);
 }
 
@@ -151,7 +150,7 @@ export async function waitForHealthy(
       const res = await fetch(url);
       if (res.ok) return true;
     } catch {
-      // 服务未就绪，继续轮询
+      /* fetch failed, will retry */
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
@@ -255,7 +254,7 @@ export async function setupChaosFixture(
         try {
           await recoverFn(containerName);
         } catch {
-          // 容器可能已恢复，忽略错误
+          /* recovery may fail, continue */
         }
       }
     },

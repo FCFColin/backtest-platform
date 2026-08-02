@@ -21,7 +21,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     ctx = await setupTestContainer();
 
     const pool = getPool();
-    // 创建两个组织
     const orgAResult = await pool.query(
       "INSERT INTO organizations (name, slug) VALUES ('Org A', 'org-a-' || gen_random_uuid()) RETURNING id",
     );
@@ -37,7 +36,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
   });
 
   it('Org A 的 portfolio 对 Org B 不可见（withTenantReadOnly）', async () => {
-    // Org A 创建 portfolio
     const created = await withTenant(orgA, async (client) => {
       const { rows } = await client.query(
         `INSERT INTO portfolios (tenant_id, name, assets, rebalance_frequency)
@@ -48,14 +46,12 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
       return rows[0].id;
     });
 
-    // Org B 通过 withTenantReadOnly 查询 → 应返回空
     const orgBResults = await withTenantReadOnly(orgB, async (client) => {
       const { rows } = await client.query('SELECT id FROM portfolios');
       return rows;
     });
     expect(orgBResults).toHaveLength(0);
 
-    // Org A 通过 withTenantReadOnly 查询 → 应看到自己的 portfolio
     const orgAResults = await withTenantReadOnly(orgA, async (client) => {
       const { rows } = await client.query('SELECT id FROM portfolios');
       return rows;
@@ -75,21 +71,18 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
       return rows[0].id;
     });
 
-    // Org B 查询 → 空
     const orgBResults = await withTenantReadOnly(orgB, async (client) => {
       const { rows } = await client.query('SELECT id FROM backtest_runs');
       return rows;
     });
     expect(orgBResults).toHaveLength(0);
 
-    // Org B 尝试按 ID 查询 Org A 的 run → 空（RLS 拦截）
     const orgBById = await withTenantReadOnly(orgB, async (client) => {
       const { rows } = await client.query('SELECT id FROM backtest_runs WHERE id = $1', [created]);
       return rows;
     });
     expect(orgBById).toHaveLength(0);
 
-    // Org A 查询 → 可见
     const orgAResults = await withTenantReadOnly(orgA, async (client) => {
       const { rows } = await client.query('SELECT id FROM backtest_runs');
       return rows;
@@ -129,7 +122,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
       return rows.map((r: { 'QUERY PLAN': string }) => r['QUERY PLAN']).join('\n');
     });
 
-    // RLS 策略生成 Filter: (tenant_id = current_setting('app.current_tenant_id'::text)::uuid)
     expect(explainResult).toContain('Filter');
     expect(explainResult.toLowerCase()).toContain('current_setting');
   });
@@ -138,7 +130,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
     const pool = getPool();
     const client = await pool.connect();
     try {
-      // 不设置 app.current_tenant_id，直接查询
       const { rows } = await client.query('SELECT id FROM portfolios');
       expect(rows).toHaveLength(0);
 
@@ -151,8 +142,6 @@ describe.skipIf(!dockerAvailable)('RLS 跨租户隔离集成测试（P0-03）', 
       client.release();
     }
   });
-
-  // 写入隔离：Org B 不能写入 Org A 的 tenant_id
 
   it('Org B 上下文不能插入 Org A tenant_id 的数据（WITH CHECK 策略拒绝）', async () => {
     await expect(

@@ -31,7 +31,6 @@ const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const HEALTH_URL = `${API_URL}/api/ready`;
 const LOGIN_URL = `${API_URL}/api/v1/auth/login/password`;
 
-// top-level 初始值 false，与原模式行为一致：skipIf 在注册时求值
 let fixture: ChaosFixture = {
   dockerAvailable: false,
   containerRunning: false,
@@ -72,26 +71,22 @@ describe('Chaos Experiment 4: Redis 中断', () => {
         return;
       }
 
-      // Step 1: 稳态校验
       const steadyHealthy = await waitForHealthy(HEALTH_URL, 10000);
       expect(steadyHealthy).toBe(true);
       const steady = await getHealth();
       expect(steady.redis).toBe(true);
 
-      // Step 2-3: 停止 Redis → 断言 → 恢复（withContainerStopped 保证恢复）
       await withContainerStopped(
         CONTAINERS.redis,
         async () => {
           await new Promise((r) => setTimeout(r, 2000));
 
-          // 断言 1：/api/ready 不应 5xx（DB 仍在 → 至少 degraded，HTTP 200）
           const down = await getHealth();
           expect(down.status, `health 返回异常: ${down.status}`).toBe(200);
           expect(down.redis, 'redis 依赖应标记为 false').toBe(false);
           expect(['ok', 'degraded']).toContain(down.overall);
 
           // 断言 2：登录端点 fail-closed —— Redis 不可用时不放行（不返回 200 成功）。
-          // 凭证错误时应返回 401（业务拒绝），限流存储故障时应 503/429，绝不 200 放行。
           const loginRes = await fetch(LOGIN_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -102,10 +97,8 @@ describe('Chaos Experiment 4: Redis 中断', () => {
         { settleMs: 0 },
       );
 
-      // Step 4: 恢复校验
       const recovered = await waitForHealthy(HEALTH_URL, 30000);
       expect(recovered).toBe(true);
-      // 给健康探测缓存/连接重建一点时间
       await new Promise((r) => setTimeout(r, 2000));
       const after = await getHealth();
       expect(after.redis).toBe(true);

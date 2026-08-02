@@ -62,7 +62,6 @@ describe('requestTimeout', () => {
 
     middleware(req as never, res as never, next);
 
-    // 推进时间到超时
     vi.advanceTimersByTime(5_000);
 
     expect(res.status).toHaveBeenCalledWith(408);
@@ -108,10 +107,8 @@ describe('requestTimeout', () => {
 
     middleware(req as never, res as never, next);
 
-    // 请求在超时前完成
     res.emit('finish');
 
-    // 推进时间超过超时阈值
     vi.advanceTimersByTime(10_000);
 
     expect(res.status).not.toHaveBeenCalled();
@@ -126,7 +123,6 @@ describe('requestTimeout', () => {
 
     middleware(req as never, res as never, next);
 
-    // 连接关闭
     res.emit('close');
 
     vi.advanceTimersByTime(10_000);
@@ -142,7 +138,6 @@ describe('requestTimeout', () => {
 
     middleware(req as never, res as never, next);
 
-    // 模拟响应已发送
     res.headersSent = true;
 
     vi.advanceTimersByTime(5_000);
@@ -159,11 +154,9 @@ describe('requestTimeout', () => {
 
     middleware(req as never, res as never, next);
 
-    // 29 秒不应超时
     vi.advanceTimersByTime(29_000);
     expect(res.status).not.toHaveBeenCalled();
 
-    // 30 秒应超时
     vi.advanceTimersByTime(1_000);
     expect(res.status).toHaveBeenCalledWith(408);
   });
