@@ -1,87 +1,105 @@
 const TRADING_DAYS_PER_YEAR = 252;
+
+function stats(w: number[]) {
+  const n = w.length;
+  const mean = w.reduce((s, r) => s + r, 0) / n;
+  const variance = n > 1 ? w.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1) : 0;
+  return { mean, variance, stdev: Math.sqrt(variance), n };
+}
+
 function calcCagr(window: number[], windowDays: number): number {
   let cumProd = 1;
   for (const r of window) cumProd *= 1 + r;
-  const years = windowDays / TRADING_DAYS_PER_YEAR;
-  return Math.pow(cumProd, 1 / years) - 1;
+  return Math.pow(cumProd, TRADING_DAYS_PER_YEAR / windowDays) - 1;
 }
+
 function calcVolatility(window: number[]): number {
-  const mean = window.reduce((s, r) => s + r, 0) / window.length;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
-  return Math.sqrt(variance) * Math.sqrt(TRADING_DAYS_PER_YEAR);
+  return stats(window).stdev * Math.sqrt(TRADING_DAYS_PER_YEAR);
 }
+
 function calcSkewness(window: number[]): number {
-  const n = window.length;
-  const mean = window.reduce((s, r) => s + r, 0) / n;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1);
-  if (variance === 0) return 0;
-  const stdev = Math.sqrt(variance);
-  const sumCubed = window.reduce((s, r) => s + ((r - mean) / stdev) ** 3, 0);
-  return (n / ((n - 1) * (n - 2))) * sumCubed;
+  const { mean, stdev, n } = stats(window);
+  if (stdev === 0) return 0;
+  return (n / ((n - 1) * (n - 2))) * window.reduce((s, r) => s + ((r - mean) / stdev) ** 3, 0);
 }
+
 function calcKurtosis(window: number[]): number {
-  const n = window.length;
-  if (n < 4) return 0;
-  const mean = window.reduce((s, r) => s + r, 0) / n;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (n - 1);
-  if (variance === 0) return 0;
-  const stdev = Math.sqrt(variance);
+  const { mean, stdev, n } = stats(window);
+  if (n < 4 || stdev === 0) return 0;
   const sumFourth = window.reduce((s, r) => s + ((r - mean) / stdev) ** 4, 0);
-  return ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sumFourth - (3 * (n - 1) ** 2) / ((n - 2) * (n - 3));
+  return (
+    ((n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))) * sumFourth -
+    (3 * (n - 1) ** 2) / ((n - 2) * (n - 3))
+  );
 }
+
 function calcKelly(window: number[]): number {
-  const mean = window.reduce((s, r) => s + r, 0) / window.length;
-  const variance = window.reduce((s, r) => s + (r - mean) ** 2, 0) / (window.length - 1);
+  const { mean, variance } = stats(window);
   return variance > 0 ? mean / variance : 0;
 }
+
 const METRIC_CALCULATORS: Record<string, (w: number[], wd: number) => number> = {
-  cagr: (w, wd) => calcCagr(w, wd),
+  cagr: calcCagr,
   volatility: (w) => calcVolatility(w),
   skewness: (w) => calcSkewness(w),
   kurtosis: (w) => calcKurtosis(w),
-  kelly: (w) => calcKelly(w)
+  kelly: (w) => calcKelly(w),
 };
-function computeRollingMetric(dailyReturns: number[], dates: string[], windowDays: number, metric: string): Array<{ date: string; value: number }> {
-  const result: Array<{ date: string; value: number }> = [];
-  if (dailyReturns.length < windowDays) return result;
-  const calculator = METRIC_CALCULATORS[metric];
-  if (!calculator) return result;
+
+type Point = { date: string; value: number };
+
+function computeRollingMetric(
+  dailyReturns: number[],
+  dates: string[],
+  windowDays: number,
+  metric: string,
+): Point[] {
+  if (dailyReturns.length < windowDays) return [];
+  const calc = METRIC_CALCULATORS[metric];
+  if (!calc) return [];
+  const result: Point[] = [];
   for (let i = windowDays; i <= dailyReturns.length; i++) {
     if (i >= dates.length) continue;
-    const window = dailyReturns.slice(i - windowDays, i);
-    result.push({ date: dates[i], value: calculator(window, windowDays) });
+    result.push({ date: dates[i], value: calc(dailyReturns.slice(i - windowDays, i), windowDays) });
   }
   return result;
 }
-function computeRollingExcessReturn(dailyReturns: number[], benchmarkDailyReturns: number[], dates: string[], windowDays: number): Array<{ date: string; value: number }> {
-  const result: Array<{ date: string; value: number }> = [];
+
+function computeRollingExcessReturn(
+  dailyReturns: number[],
+  benchmarkDailyReturns: number[],
+  dates: string[],
+  windowDays: number,
+): Point[] {
   const n = Math.min(dailyReturns.length, benchmarkDailyReturns.length);
-  if (n < windowDays) return result;
+  if (n < windowDays) return [];
+  const result: Point[] = [];
+  const years = windowDays / TRADING_DAYS_PER_YEAR;
   for (let i = windowDays; i <= n; i++) {
-    const wAsset = dailyReturns.slice(i - windowDays, i);
-    const wBench = benchmarkDailyReturns.slice(i - windowDays, i);
-    const dateIdx = i;
-    if (dateIdx >= dates.length) continue;
+    if (i >= dates.length) continue;
     let cumAsset = 1,
       cumBench = 1;
-    for (let j = 0; j < wAsset.length; j++) {
-      cumAsset *= 1 + wAsset[j];
-      cumBench *= 1 + wBench[j];
+    for (let j = i - windowDays; j < i; j++) {
+      cumAsset *= 1 + dailyReturns[j];
+      cumBench *= 1 + benchmarkDailyReturns[j];
     }
-    const years = windowDays / TRADING_DAYS_PER_YEAR;
-    const cagrAsset = Math.pow(cumAsset, 1 / years) - 1;
-    const cagrBench = Math.pow(cumBench, 1 / years) - 1;
-    result.push({ date: dates[dateIdx], value: cagrAsset - cagrBench });
+    result.push({
+      date: dates[i],
+      value: Math.pow(cumAsset, 1 / years) - Math.pow(cumBench, 1 / years),
+    });
   }
   return result;
 }
-function computeDailyReturns(curve: Array<{ date: string; value: number }>): number[] {
+
+function computeDailyReturns(curve: Point[]): number[] {
   const returns: number[] = [];
   for (let i = 1; i < curve.length; i++) {
-    if (curve[i - 1].value > 0) returns.push((curve[i].value - curve[i - 1].value) / curve[i - 1].value);
+    if (curve[i - 1].value > 0)
+      returns.push((curve[i].value - curve[i - 1].value) / curve[i - 1].value);
   }
   return returns;
 }
+
 function computeBeta(baseReturns: number[], targetReturns: number[]): number {
   const n = Math.min(baseReturns.length, targetReturns.length);
   if (n < 2) return 0;
@@ -95,10 +113,16 @@ function computeBeta(baseReturns: number[], targetReturns: number[]): number {
   }
   return ssXX > 0 ? ssXY / ssXX : 0;
 }
-function computeRollingCorrelation(baseReturns: number[], targetReturns: number[], dates: string[], windowSize: number): Array<{ date: string; correlation: number }> {
+
+function computeRollingCorrelation(
+  baseReturns: number[],
+  targetReturns: number[],
+  dates: string[],
+  windowSize: number,
+): { date: string; correlation: number }[] {
   const n = Math.min(baseReturns.length, targetReturns.length);
   if (n < windowSize) return [];
-  const result: Array<{ date: string; correlation: number }> = [];
+  const result: { date: string; correlation: number }[] = [];
   const step = Math.max(1, Math.floor((n - windowSize) / 200));
   for (let start = 0; start + windowSize <= n; start += step) {
     const xSlice = baseReturns.slice(start, start + windowSize);
@@ -120,81 +144,112 @@ function computeRollingCorrelation(baseReturns: number[], targetReturns: number[
   }
   return result;
 }
+
+type TickerData = { ticker: string; dailyReturns: number[]; growthCurve: Point[] };
+
 function buildRollingChartData(
-  tickers: Array<{
-    ticker: string;
-    dailyReturns: number[];
-    growthCurve: Array<{ date: string; value: number }>;
-  }>,
+  tickers: TickerData[],
   metric: string,
-  windowDays: number
+  windowDays: number,
 ): Array<Record<string, number | string>> {
   const dateMap = new Map<string, Record<string, number | string>>();
   const isExcess = metric === 'excess';
+  const pctMetrics = metric === 'cagr' || metric === 'volatility' || metric === 'excess';
   for (let i = 0; i < tickers.length; i++) {
     const tk = tickers[i];
     const dates = tk.growthCurve.map((g) => g.date).slice(1);
-    const rollingData = isExcess ? (i === 0 ? [] : computeRollingExcessReturn(tk.dailyReturns, tickers[0].dailyReturns, dates, windowDays)) : computeRollingMetric(tk.dailyReturns, dates, windowDays, metric);
-    for (const point of rollingData) {
-      if (!dateMap.has(point.date)) dateMap.set(point.date, { date: point.date });
-      dateMap.get(point.date)![tk.ticker] = metric === 'cagr' || metric === 'volatility' || metric === 'excess' ? +(point.value * 100).toFixed(2) : +point.value.toFixed(3);
+    const rolling = isExcess
+      ? i === 0
+        ? []
+        : computeRollingExcessReturn(tk.dailyReturns, tickers[0].dailyReturns, dates, windowDays)
+      : computeRollingMetric(tk.dailyReturns, dates, windowDays, metric);
+    for (const p of rolling) {
+      if (!dateMap.has(p.date)) dateMap.set(p.date, { date: p.date });
+      dateMap.get(p.date)![tk.ticker] = pctMetrics
+        ? +(p.value * 100).toFixed(2)
+        : +p.value.toFixed(3);
     }
   }
-  return Array.from(dateMap.values()).sort((a, b) => (a.date as string).localeCompare(b.date as string));
+  return Array.from(dateMap.values()).sort((a, b) =>
+    (a.date as string).localeCompare(b.date as string),
+  );
 }
+
 function buildBetaData(
-  portfolios: Array<{
-    name: string;
-    growthCurve: Array<{ date: string; value: number }>;
-  }>
-): Array<{ name: string; beta: number }> {
+  portfolios: { name: string; growthCurve: Point[] }[],
+): { name: string; beta: number }[] {
   if (portfolios.length < 2) return [];
   const baseReturns = computeDailyReturns(portfolios[0].growthCurve);
   return portfolios.slice(1).map((p) => ({
     name: p.name,
-    beta: computeBeta(baseReturns, computeDailyReturns(p.growthCurve))
+    beta: computeBeta(baseReturns, computeDailyReturns(p.growthCurve)),
   }));
 }
-function buildRollingCorrelationData(portfolioA: { growthCurve: Array<{ date: string; value: number }> }, portfolioB: { growthCurve: Array<{ date: string; value: number }> }, rollingWindow: number): Array<{ date: string; correlation: number }> {
-  const aReturns = computeDailyReturns(portfolioA.growthCurve);
-  const bReturns = computeDailyReturns(portfolioB.growthCurve);
-  const dates = portfolioA.growthCurve.slice(1).map((p) => p.date);
-  return computeRollingCorrelation(aReturns, bReturns, dates, rollingWindow);
+
+function buildRollingCorrelationData(
+  a: { growthCurve: Point[] },
+  b: { growthCurve: Point[] },
+  rollingWindow: number,
+) {
+  return computeRollingCorrelation(
+    computeDailyReturns(a.growthCurve),
+    computeDailyReturns(b.growthCurve),
+    a.growthCurve.slice(1).map((p) => p.date),
+    rollingWindow,
+  );
 }
-self.onmessage = (
-  e: MessageEvent<{
-    id: number;
-    type: string;
-    payload: unknown[];
-  }>
-) => {
+
+self.onmessage = (e: MessageEvent<{ id: number; type: string; payload: unknown[] }>) => {
   const { id, type, payload } = e.data;
   try {
     let result: unknown;
     switch (type) {
       case 'computeRollingMetric':
-        result = computeRollingMetric(payload[0] as number[], payload[1] as string[], payload[2] as number, payload[3] as string);
+        result = computeRollingMetric(
+          payload[0] as number[],
+          payload[1] as string[],
+          payload[2] as number,
+          payload[3] as string,
+        );
         break;
       case 'computeRollingExcessReturn':
-        result = computeRollingExcessReturn(payload[0] as number[], payload[1] as number[], payload[2] as string[], payload[3] as number);
+        result = computeRollingExcessReturn(
+          payload[0] as number[],
+          payload[1] as number[],
+          payload[2] as string[],
+          payload[3] as number,
+        );
         break;
       case 'computeBeta':
         result = computeBeta(payload[0] as number[], payload[1] as number[]);
         break;
       case 'computeRollingCorrelation':
-        result = computeRollingCorrelation(payload[0] as number[], payload[1] as number[], payload[2] as string[], payload[3] as number);
+        result = computeRollingCorrelation(
+          payload[0] as number[],
+          payload[1] as number[],
+          payload[2] as string[],
+          payload[3] as number,
+        );
         break;
       case 'computeDailyReturns':
-        result = computeDailyReturns(payload[0] as Array<{ date: string; value: number }>);
+        result = computeDailyReturns(payload[0] as Point[]);
         break;
       case 'buildRollingChartData':
-        result = buildRollingChartData(payload[0] as Parameters<typeof buildRollingChartData>[0], payload[1] as string, payload[2] as number);
+        result = buildRollingChartData(
+          payload[0] as TickerData[],
+          payload[1] as string,
+          payload[2] as number,
+        );
         break;
       case 'buildBetaData':
         result = buildBetaData(payload[0] as Parameters<typeof buildBetaData>[0]);
         break;
       case 'buildRollingCorrelationData':
-        result = buildRollingCorrelationData(payload[0] as Parameters<typeof buildRollingCorrelationData>[0], payload[1] as Parameters<typeof buildRollingCorrelationData>[1], payload[2] as number);
+        result = buildRollingCorrelationData(
+          payload[0] as Parameters<typeof buildRollingCorrelationData>[0],
+          payload[1] as Parameters<typeof buildRollingCorrelationData>[1],
+          payload[2] as number,
+        );
         break;
       default:
         throw new Error(`Unknown worker task: ${type}`);

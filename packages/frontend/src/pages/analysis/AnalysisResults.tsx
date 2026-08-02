@@ -1,8 +1,7 @@
 import { useState, memo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
-import type { AssetAnalysisResult, Statistics } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
+import { CHART_COLORS, type AssetAnalysisResult, type Statistics } from '@backtest/shared';
 import { AnalysisErrorAlert } from '@/components/resultsShell.js';
 import { EmptyState } from '@/components/stateDisplay';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
@@ -178,23 +177,13 @@ const ReturnsTab = memo(function ReturnsTab({ results }: { results: AssetAnalysi
     </div>
   );
 });
-export const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
-  error,
-  results,
-  activeTab,
-  setActiveTab,
-  isLoading,
-  correlationWindow,
-  rollingWindow,
+const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
+  state: s,
 }: {
-  error: string | null;
-  results: AssetAnalysisResult | null;
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  isLoading: boolean;
-  correlationWindow: number;
-  rollingWindow: number;
+  state: AnalysisPageState;
 }) {
+  const { error, results, activeTab, setActiveTab, isLoading, correlationWindow, rollingWindow } =
+    s;
   const { t } = useTranslation();
   return (
     <div className="space-y-4">
@@ -269,19 +258,6 @@ function AnalysisParamsWrapper({ state }: { state: AnalysisPageState }) {
     />
   );
 }
-function AnalysisResultsWrapper({ state }: { state: AnalysisPageState }) {
-  return (
-    <AnalysisResultsPanel
-      error={state.error}
-      results={state.results}
-      activeTab={state.activeTab}
-      setActiveTab={state.setActiveTab}
-      isLoading={state.isLoading}
-      correlationWindow={state.correlationWindow}
-      rollingWindow={state.rollingWindow}
-    />
-  );
-}
 const config: ComputeToolConfig<AnalysisPageState> = {
   titleKey: 'analysis.title',
   seoDescKey: 'analysis.seoDesc',
@@ -296,7 +272,7 @@ const config: ComputeToolConfig<AnalysisPageState> = {
     { titleKey: 'nav.efficientFrontier', href: '/efficient-frontier' },
   ],
   params: AnalysisParamsWrapper,
-  results: AnalysisResultsWrapper,
+  results: AnalysisResultsPanel,
 };
 export default function AnalysisPage() {
   const s = useAnalysisPageState();

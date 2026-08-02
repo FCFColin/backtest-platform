@@ -1,9 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import { ComputeToolShell, type ComputeToolConfig } from '@/components/shells/index.js';
-import { Card } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
-import { Switch } from '@/components/ui/uiComponents';
+import { Card, Input, Switch } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { BasicParamsRow } from '../../components/BacktestParamsForm.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';

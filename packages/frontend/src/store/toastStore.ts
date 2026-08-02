@@ -16,12 +16,12 @@ export const useToastStore = create<ToastState>((set) => ({
     toastCounter++;
     const id = `toast-${Date.now()}-${toastCounter}`;
     set((state) => ({
-      toasts: [...state.toasts, { id, type, message }]
+      toasts: [...state.toasts, { id, type, message }],
     }));
   },
   removeToast: (id) => {
     set((state) => ({
-      toasts: state.toasts.filter((t) => t.id !== id)
+      toasts: state.toasts.filter((t) => t.id !== id),
     }));
-  }
+  },
 }));

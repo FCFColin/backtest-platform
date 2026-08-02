@@ -28,5 +28,5 @@ export const STAT_KEY_TO_TESTID: Record<string, string> = {
   ulcerPerformanceIndex: 'stat-upi',
   endingValue: 'stat-ending-value',
   volatility: 'stat-volatility',
-  upi: 'stat-upi'
+  upi: 'stat-upi',
 };

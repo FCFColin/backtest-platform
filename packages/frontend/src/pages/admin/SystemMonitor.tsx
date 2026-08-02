@@ -6,9 +6,7 @@ import { usePolling } from '../../hooks/miscHooks.js';
 import { useToastStore } from '../../store/toastStore.js';
 import { reportError } from '../../utils/errorReporter.js';
 import { KpiCard, ServiceStatusBadge } from '../../components/admin/AdminLayout.js';
-import { Button } from '../../components/ui/uiComponents.js';
-import { Card } from '../../components/ui/uiComponents.js';
-import { Progress } from '../../components/ui/uiComponents.js';
+import { Button, Card, Progress } from '../../components/ui/uiComponents.js';
 interface ServiceHealth {
   name: string;
   status: 'healthy' | 'degraded' | 'down';

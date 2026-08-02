@@ -3,17 +3,17 @@ import { Play } from 'lucide-react';
 import { LoadingButton } from '../../components/ui/uiComponents.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
-import { Input } from '@/components/ui/uiComponents';
-import { Checkbox } from '@/components/ui/uiComponents';
 import {
+  Checkbox,
+  Input,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
+  badgeVariants,
+  buttonVariants,
 } from '@/components/ui/uiComponents';
-import { buttonVariants } from '@/components/ui/uiComponents';
-import { badgeVariants } from '@/components/ui/uiComponents';
 import { FACTOR_OPTIONS, RF_SOURCE_OPTIONS } from './factorRegressionUtils.js';
 import type { AssetItem, ReturnFrequency } from './factorRegressionUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
@@ -36,7 +36,7 @@ function FactorSelector({
             onClick={() => onToggle(opt.key)}
             aria-pressed={active}
             className={badgeVariants({
-              variant: active ? 'factor-active' : 'factor-inactive',
+              variant: active ? 'asset' : 'secondary',
               size: 'sm',
               className: 'cursor-pointer',
             })}

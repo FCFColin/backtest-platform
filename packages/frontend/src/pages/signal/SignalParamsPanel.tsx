@@ -37,6 +37,30 @@ export function TickerField({ value, onChange, placeholder }: TickerFieldProps) 
     </Field>
   );
 }
+function IndicatorSelect({
+  value,
+  onChange,
+  id,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  id: string;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger id={id}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {INDICATORS.map((ind) => (
+          <SelectItem key={ind} value={ind}>
+            {ind}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 interface DateRangeFieldsProps {
   startDate: string;
   endDate: string;
@@ -124,18 +148,11 @@ function SignalCfgFields({ cfg, onChange }: SignalCfgFieldsProps) {
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <Field>
         <FieldLabel htmlFor={indId}>{t('signal.dual.indicator')}</FieldLabel>
-        <Select value={cfg.indicator} onValueChange={(v) => onChange({ ...cfg, indicator: v })}>
-          <SelectTrigger id={indId}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {INDICATORS.map((ind) => (
-              <SelectItem key={ind} value={ind}>
-                {ind}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <IndicatorSelect
+          value={cfg.indicator}
+          onChange={(v) => onChange({ ...cfg, indicator: v })}
+          id={indId}
+        />
       </Field>
       <Field>
         <FieldLabel htmlFor={periodId}>{t('signal.dual.period')}</FieldLabel>
@@ -281,18 +298,7 @@ function IndicatorConfigSection({ state }: { state: UseSignalAnalyzerStateResult
         </Field>
         <Field>
           <FieldLabel htmlFor={indId}>{t('signal.analyzer.indicator')}</FieldLabel>
-          <Select value={indicator} onValueChange={setIndicator}>
-            <SelectTrigger id={indId}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INDICATORS.map((ind) => (
-                <SelectItem key={ind} value={ind}>
-                  {ind}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <IndicatorSelect value={indicator} onChange={setIndicator} id={indId} />
         </Field>
         <Field>
           <FieldLabel htmlFor={periodId}>{t('signal.analyzer.period')}</FieldLabel>

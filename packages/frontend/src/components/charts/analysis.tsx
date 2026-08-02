@@ -1,8 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
-import type { AssetAnalysisResult, PortfolioResult } from '@backtest/shared';
+import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { CHART_MARGIN, CHART_GRID_PROPS, getHeatColor } from '@/lib/chart-theme.js';
 import {
   ChartXAxis,

@@ -4,10 +4,7 @@ import { Play, X } from 'lucide-react';
 import { LoadingButton } from '../../components/ui/uiComponents.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { Input } from '@/components/ui/uiComponents';
-import { Switch } from '@/components/ui/uiComponents';
-import { Badge } from '@/components/ui/uiComponents';
-import { buttonVariants } from '@/components/ui/uiComponents';
+import { Badge, Input, Switch, buttonVariants } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 function TickerInput({
   tickers,

@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
-import { Card } from '@/components/ui/uiComponents';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
+import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
 import { ErrorBanner, EmptyState } from '@/components/stateDisplay';
 import { SortableTable, type Column } from '@/components/tables';
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart';

@@ -1,4 +1,4 @@
-/* eslint-disable max-lines-per-function, sonarjs/cognitive-complexity -- 图表组件库，渲染分支多，Plan-1 重写 */
+/* eslint-disable max-lines-per-function -- 图表组件库，渲染分支多，Plan-1 重写 */
 import { useMemo, useCallback, type CSSProperties } from 'react';
 import {
   XAxisTicks,
@@ -171,19 +171,20 @@ function SvgSeriesChart({
       colorOf,
     ],
   );
-  const handleMouseMove = useCallback(
-    buildMouseMoveHandler(setTooltip, {
-      data,
-      xDataKey,
-      visibleSeries,
-      seriesNames,
-      colorOf: (idx, val) => (isArea ? colorOf(idx) : barFill(val, idx, signColor)),
-      indexAt: (mx) =>
-        isArea ? Math.round((mx - plotLeft) / xStep) : Math.floor((mx - plotLeft) / groupWidth),
-      fallbackValue: isArea ? (v: number) => v.toFixed(2) : String,
-      tooltipValueFormatter,
-      tooltipLabelFormatter,
-    }),
+  const handleMouseMove = useMemo(
+    () =>
+      buildMouseMoveHandler(setTooltip, {
+        data,
+        xDataKey,
+        visibleSeries,
+        seriesNames,
+        colorOf: (idx, val) => (isArea ? colorOf(idx) : barFill(val, idx, signColor)),
+        indexAt: (mx) =>
+          isArea ? Math.round((mx - plotLeft) / xStep) : Math.floor((mx - plotLeft) / groupWidth),
+        fallbackValue: isArea ? (v: number) => v.toFixed(2) : String,
+        tooltipValueFormatter,
+        tooltipLabelFormatter,
+      }),
     [
       data,
       xDataKey,
@@ -197,6 +198,7 @@ function SvgSeriesChart({
       signColor,
       tooltipValueFormatter,
       tooltipLabelFormatter,
+      setTooltip,
     ],
   );
   const xTickStyle: CSSProperties = xTickFontSize

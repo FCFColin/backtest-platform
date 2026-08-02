@@ -1,14 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2 } from 'lucide-react';
 import type { RebalanceFrequency } from '@backtest/shared';
-import { Button } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
 import {
+  Button,
+  Input,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
 import { ParamSection } from './TacticalSignalEditor';
@@ -31,6 +31,7 @@ function ParamRangeRow({
         <FieldLabel>{t('tacticalGrid.params.min')}</FieldLabel>
         <Input
           type="number"
+          aria-label={t('tacticalGrid.params.min')}
           className="font-mono tabular-nums"
           value={range.min}
           min={inputMin}
@@ -41,6 +42,7 @@ function ParamRangeRow({
         <FieldLabel>{t('tacticalGrid.params.max')}</FieldLabel>
         <Input
           type="number"
+          aria-label={t('tacticalGrid.params.max')}
           className="font-mono tabular-nums"
           value={range.max}
           min={inputMin}
@@ -51,6 +53,7 @@ function ParamRangeRow({
         <FieldLabel>{t('tacticalGrid.params.step')}</FieldLabel>
         <Input
           type="number"
+          aria-label={t('tacticalGrid.params.step')}
           className="font-mono tabular-nums"
           value={range.step}
           min={0.1}
@@ -70,7 +73,7 @@ function SignalGridSection({ state }: { state: TacticalGridState }) {
         <Field>
           <FieldLabel>{t('tacticalGrid.params.indicator')}</FieldLabel>
           <Select value={indicator} onValueChange={(v) => setIndicator(v as IndicatorType)}>
-            <SelectTrigger>
+            <SelectTrigger aria-label={t('tacticalGrid.params.indicator')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

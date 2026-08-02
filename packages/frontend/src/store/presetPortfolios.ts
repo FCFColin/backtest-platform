@@ -1,12 +1,3 @@
-/**
- * 组合预设（唯一权威源，D1 合并）
- *
- * 历史：曾有两套并存且数据冲突的预设（backtestHelpers.PORTFOLIO_PRESETS 用 VTI 系，
- * 本文件用 SPY 系）。已合并为本文件单一数据源：
- * - 语义重复项保留新组件版（6040=SPY+BND 替代 60-40=VTI+BND；allWeather 替代 all-weather）
- * - 旧版独有项并入（80-20 / 40-60 / three-fund / permanent，沿用 VTI 系资产）
- * - backtestHelpers.PORTFOLIO_PRESETS 改为派生视图，两个编辑器消费同一份数据
- */
 import type { RebalanceFrequency } from '@backtest/shared';
 
 export interface PresetAsset {
@@ -19,9 +10,9 @@ export interface PresetPortfolio {
   descriptionKey: string;
   assets: PresetAsset[];
   tags: string[];
-  /** 旧版预设携带的再平衡频率；缺省时回测页默认 quarterly */
   rebalanceFrequency?: RebalanceFrequency;
 }
+
 export const PRESET_PORTFOLIOS: readonly PresetPortfolio[] = [
   {
     id: '6040',
@@ -122,13 +113,9 @@ export const PRESET_PORTFOLIOS: readonly PresetPortfolio[] = [
     tags: ['benchmark', 'cn', 'single-asset'],
   },
 ];
-/** 旧版预设 id → 新版 id 别名（兼容历史分享链接/已存配置，D1 合并） */
-const PRESET_ID_ALIASES: Record<string, string> = {
-  '60-40': '6040',
-  'all-weather': 'allWeather',
-};
+
+const PRESET_ID_ALIASES: Record<string, string> = { '60-40': '6040', 'all-weather': 'allWeather' };
 
 export function findPresetPortfolio(id: string): PresetPortfolio | null {
-  const canonicalId = PRESET_ID_ALIASES[id] ?? id;
-  return PRESET_PORTFOLIOS.find((p) => p.id === canonicalId) ?? null;
+  return PRESET_PORTFOLIOS.find((p) => p.id === (PRESET_ID_ALIASES[id] ?? id)) ?? null;
 }

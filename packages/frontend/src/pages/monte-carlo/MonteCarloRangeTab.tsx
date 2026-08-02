@@ -13,8 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { Card } from '@/components/ui/uiComponents';
-import { CHART_COLORS } from '@backtest/shared';
-import type { MonteCarloResult } from '@backtest/shared';
+import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
 import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { fmtDollar } from '@/utils/format';
 import {
@@ -79,39 +78,39 @@ export function MonteCarloTerminalHistogram({
             name={t('monteCarlo.histogram.frequency')}
             radius={[2, 2, 0, 0]}
           />
-          <ReferenceLine
-            x={p5Label}
-            stroke={CHART_COLORS[3]}
-            strokeDasharray="4 2"
-            label={{
-              value: t('monteCarlo.histogram.p5', { value: fmtDollar(p5Val) }),
-              position: 'top',
-              fontSize: 11,
-              fill: CHART_COLORS[3],
-            }}
-          />
-          <ReferenceLine
-            x={p50Label}
-            stroke={CHART_COLORS[2]}
-            strokeDasharray="4 2"
-            label={{
-              value: t('monteCarlo.histogram.median', { value: fmtDollar(p50Val) }),
-              position: 'top',
-              fontSize: 11,
-              fill: CHART_COLORS[2],
-            }}
-          />
-          <ReferenceLine
-            x={p95Label}
-            stroke={CHART_COLORS[4]}
-            strokeDasharray="4 2"
-            label={{
-              value: t('monteCarlo.histogram.p95', { value: fmtDollar(p95Val) }),
-              position: 'top',
-              fontSize: 11,
-              fill: CHART_COLORS[4],
-            }}
-          />
+          {[
+            {
+              label: p5Label,
+              color: CHART_COLORS[3],
+              val: fmtDollar(p5Val),
+              key: 'monteCarlo.histogram.p5',
+            },
+            {
+              label: p50Label,
+              color: CHART_COLORS[2],
+              val: fmtDollar(p50Val),
+              key: 'monteCarlo.histogram.median',
+            },
+            {
+              label: p95Label,
+              color: CHART_COLORS[4],
+              val: fmtDollar(p95Val),
+              key: 'monteCarlo.histogram.p95',
+            },
+          ].map((rl) => (
+            <ReferenceLine
+              key={rl.label}
+              x={rl.label}
+              stroke={rl.color}
+              strokeDasharray="4 2"
+              label={{
+                value: t(rl.key, { value: rl.val }),
+                position: 'top',
+                fontSize: 11,
+                fill: rl.color,
+              }}
+            />
+          ))}
         </BarChart>
       </ResponsiveContainer>
     </Card>
@@ -131,6 +130,15 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
   }
   const isLargeDataset = data.length >= 100;
   const seriesAnimationActive = !isLargeDataset;
+  const successLines = [
+    { key: 'survival', color: CHART_COLORS[2], nameKey: 'monteCarlo.results.survivalProb' },
+    {
+      key: 'capitalPreservation',
+      color: CHART_COLORS[0],
+      nameKey: 'monteCarlo.results.preservationProb',
+    },
+    { key: 'profit', color: CHART_COLORS[1], nameKey: 'monteCarlo.results.profitProb' },
+  ];
   return (
     <Card className="p-5">
       <ResponsiveContainer width="100%" height={400}>
@@ -155,33 +163,18 @@ export function MonteCarloSuccessTab({ r }: { r: MonteCarloResult }) {
             animationDuration={isLargeDataset ? 0 : 150}
           />
           <Legend wrapperStyle={{ fontSize: 12, color: 'hsl(var(--fg-tertiary))' }} />
-          <Line
-            type="monotone"
-            dataKey="survival"
-            stroke={CHART_COLORS[2]}
-            strokeWidth={2}
-            dot={false}
-            name={t('monteCarlo.results.survivalProb')}
-            isAnimationActive={seriesAnimationActive}
-          />
-          <Line
-            type="monotone"
-            dataKey="capitalPreservation"
-            stroke={CHART_COLORS[0]}
-            strokeWidth={2}
-            dot={false}
-            name={t('monteCarlo.results.preservationProb')}
-            isAnimationActive={seriesAnimationActive}
-          />
-          <Line
-            type="monotone"
-            dataKey="profit"
-            stroke={CHART_COLORS[1]}
-            strokeWidth={2}
-            dot={false}
-            name={t('monteCarlo.results.profitProb')}
-            isAnimationActive={seriesAnimationActive}
-          />
+          {successLines.map((l) => (
+            <Line
+              key={l.key}
+              type="monotone"
+              dataKey={l.key}
+              stroke={l.color}
+              strokeWidth={2}
+              dot={false}
+              name={t(l.nameKey)}
+              isAnimationActive={seriesAnimationActive}
+            />
+          ))}
         </LineChart>
       </ResponsiveContainer>
     </Card>

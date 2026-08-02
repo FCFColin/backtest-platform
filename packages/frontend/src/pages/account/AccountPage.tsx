@@ -155,8 +155,43 @@ function UserInfoCard({
     </div>
   );
 }
+function ThemeToggleRow({
+  isDark,
+  toggleTheme,
+  t,
+}: {
+  isDark: boolean;
+  toggleTheme: () => void;
+  t: ReturnType<typeof useTranslation>['t'];
+}) {
+  return (
+    <PrefRow
+      icon={<Palette className="w-4 h-4" />}
+      label={t('account.preferences.themeMode')}
+      desc={
+        isDark
+          ? t('account.preferences.themeCurrentDark')
+          : t('account.preferences.themeCurrentLight')
+      }
+    >
+      <div
+        className={`toggle-switch ${isDark ? 'active' : ''}`}
+        onClick={toggleTheme}
+        role="switch"
+        tabIndex={0}
+        aria-checked={isDark}
+        title={isDark ? t('nav.switchToLight') : t('nav.switchToDark')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleTheme();
+          }
+        }}
+      />
+    </PrefRow>
+  );
+}
 function PreferencesSection({
-  theme,
   isDark,
   toggleTheme,
   currency,
@@ -164,7 +199,6 @@ function PreferencesSection({
   onCurrencyChange,
   onRebalanceChange,
 }: {
-  theme: string;
   isDark: boolean;
   toggleTheme: () => void;
   currency: string;
@@ -177,23 +211,7 @@ function PreferencesSection({
     <>
       <SectionTitle icon={<Palette className="w-5 h-5" />} title={t('account.preferences.title')} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 28 }}>
-        <PrefRow
-          icon={<Palette className="w-4 h-4" />}
-          label={t('account.preferences.themeMode')}
-          desc={
-            isDark
-              ? t('account.preferences.themeCurrentDark')
-              : t('account.preferences.themeCurrentLight')
-          }
-        >
-          <div
-            className={`toggle-switch ${isDark ? 'active' : ''}`}
-            onClick={toggleTheme}
-            role="switch"
-            aria-checked={isDark}
-            title={theme === 'dark' ? t('nav.switchToLight') : t('nav.switchToDark')}
-          />
-        </PrefRow>
+        <ThemeToggleRow isDark={isDark} toggleTheme={toggleTheme} t={t} />
         <PrefRow
           icon={<DollarSign className="w-4 h-4" />}
           label={t('account.preferences.currency')}
@@ -272,7 +290,7 @@ function SubscriptionSection({ plan }: { plan: string | undefined }) {
 }
 export default function AccountPage() {
   const { t } = useTranslation();
-  const { theme, toggleTheme, isDark } = useTheme();
+  const { toggleTheme, isDark } = useTheme();
   const [currency, setCurrency] = useState('USD');
   const [rebalance, setRebalance] = useState('quarterly');
   const user = useAuthStore((s) => s.user);
@@ -297,7 +315,6 @@ export default function AccountPage() {
           userId={user?.userId}
         />
         <PreferencesSection
-          theme={theme}
           isDark={isDark}
           toggleTheme={toggleTheme}
           currency={currency}

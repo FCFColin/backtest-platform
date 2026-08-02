@@ -29,18 +29,20 @@ export const defaultParsedAdminStats: ParsedAdminStats = {
   services: {
     goEngine: { status: 'down' },
     goDataService: { status: 'down' },
-    nodeServer: { status: 'down' }
+    nodeServer: { status: 'down' },
   },
   dataStats: {
     totalTickers: 0,
     totalSizeMB: 0,
     earliestDate: '-',
     latestDate: '-',
-    marketBreakdown: {}
+    marketBreakdown: {},
   },
-  system: { memoryMB: 0, uptime: '-' }
+  system: { memoryMB: 0, uptime: '-' },
 };
-export function parseMarketBreakdown(byMarket: Record<string, unknown> | undefined): Record<string, number> {
+export function parseMarketBreakdown(
+  byMarket: Record<string, unknown> | undefined,
+): Record<string, number> {
   const result: Record<string, number> = {};
   if (!byMarket) return result;
   for (const [market, info] of Object.entries(byMarket)) {
@@ -61,7 +63,7 @@ function parseServiceHealth(svc: Record<string, unknown> | undefined): ServiceHe
     status: mapServiceStatus(svc.status),
     latency: svc.latency_ms as number | undefined,
     version: svc.version as string | undefined,
-    message: svc.error as string | undefined
+    message: svc.error as string | undefined,
   };
 }
 function parseServices(services: Record<string, unknown> | undefined): ServiceHealthGroup {
@@ -69,7 +71,7 @@ function parseServices(services: Record<string, unknown> | undefined): ServiceHe
   return {
     goEngine: parseServiceHealth(svcMap?.go_engine),
     goDataService: parseServiceHealth(svcMap?.go_data_service),
-    nodeServer: { status: 'healthy', latency: 5 }
+    nodeServer: { status: 'healthy', latency: 5 },
   };
 }
 function parseDataStats(ds: Record<string, unknown> | undefined): ParsedDataStats {
@@ -80,14 +82,14 @@ function parseDataStats(ds: Record<string, unknown> | undefined): ParsedDataStat
     totalSizeMB: (ds?.total_size_mb as number) || 0,
     earliestDate: ranges?.earliest || '-',
     latestDate: ranges?.latest || '-',
-    marketBreakdown: parseMarketBreakdown(ds?.by_market as Record<string, unknown> | undefined)
+    marketBreakdown: parseMarketBreakdown(ds?.by_market as Record<string, unknown> | undefined),
   };
 }
 function parseSystemInfo(sys: Record<string, unknown> | undefined): ParsedSystemInfo {
   const mem = sys?.memory as Record<string, number> | undefined;
   return {
     memoryMB: mem?.rss_mb || 0,
-    uptime: (sys?.uptime_formatted as string) || '-'
+    uptime: (sys?.uptime_formatted as string) || '-',
   };
 }
 export function parseAdminStats(raw: unknown): ParsedAdminStats {
@@ -95,6 +97,6 @@ export function parseAdminStats(raw: unknown): ParsedAdminStats {
   return {
     services: parseServices(d.services as Record<string, unknown> | undefined),
     dataStats: parseDataStats(d.data_stats as Record<string, unknown> | undefined),
-    system: parseSystemInfo(d.system as Record<string, unknown> | undefined)
+    system: parseSystemInfo(d.system as Record<string, unknown> | undefined),
   };
 }

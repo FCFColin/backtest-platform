@@ -41,7 +41,7 @@ export function useDualSignalState(): UseDualSignalStateResult {
     isLoading,
     error,
     results,
-    runCompute: runAnalysis
+    runCompute: runAnalysis,
   } = useComputeTool<DualSignalResponse>(
     async () => {
       const buildReq = (c: SignalCfg): SignalAnalysisRequest => ({
@@ -51,16 +51,20 @@ export function useDualSignalState(): UseDualSignalStateResult {
         threshold: c.threshold,
         startDate,
         endDate,
-        signalType: 'both'
+        signalType: 'both',
       });
       const reqBody: DualSignalConfig = {
         signal1: buildReq(cfg1),
         signal2: buildReq(cfg2),
-        combinationMethod
+        combinationMethod,
       };
-      return apiPostJSON<DualSignalResponse>('/api/v1/signal/dual', reqBody, i18n.t('signal.common.errAnalyze'));
+      return apiPostJSON<DualSignalResponse>(
+        '/api/v1/signal/dual',
+        reqBody,
+        i18n.t('signal.common.errAnalyze'),
+      );
     },
-    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker'))
+    () => (ticker.trim() ? null : t('signal.common.errEmptyTicker')),
   );
   return {
     cfg1,
@@ -78,6 +82,6 @@ export function useDualSignalState(): UseDualSignalStateResult {
     setTicker,
     setStartDate,
     setEndDate,
-    runAnalysis
+    runAnalysis,
   };
 }

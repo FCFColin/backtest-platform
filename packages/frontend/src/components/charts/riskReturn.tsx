@@ -8,8 +8,7 @@ import {
   LabelList,
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS } from '@backtest/shared';
-import type { AssetAnalysisResult, PortfolioResult } from '@backtest/shared';
+import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
 import { CHART_MARGIN, CHART_GRID_PROPS } from '@/lib/chart-theme.js';
 import { ChartXAxis, ChartYAxis, ChartTooltip, ScatterChartContent } from './sharedChartContent.js';
 import { type RiskMetricKey } from './chartUtils.js';

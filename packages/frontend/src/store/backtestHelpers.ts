@@ -103,7 +103,6 @@ export interface PortfolioPreset {
 }
 // D1 合并：预设数据统一来自 store/presetPortfolios.ts（唯一权威源），
 // 此处为兼容旧编辑器（components/PortfolioEditor.tsx）的派生视图。
-// 语义重复项（60-40→6040、all-weather→allWeather）以新组件版为准。
 export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = PRESET_PORTFOLIOS.map((p) => ({
   id: p.id,
   labelKey: p.nameKey,
@@ -112,7 +111,6 @@ export const PORTFOLIO_PRESETS: readonly PortfolioPreset[] = PRESET_PORTFOLIOS.m
   rebalanceFrequency: p.rebalanceFrequency ?? 'quarterly',
 }));
 export const createPortfolioFromPreset = (presetId: string, counter: number): Portfolio => {
-  // 经 findPresetPortfolio 解析：兼容旧 id 别名（60-40→6040、all-weather→allWeather）
   const preset = findPresetPortfolio(presetId);
   if (!preset) {
     throw new Error(`Unknown portfolio preset: ${presetId}`);

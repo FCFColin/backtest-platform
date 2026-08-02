@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { ScatterChart, Scatter, CartesianGrid, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS } from '@backtest/shared';
-import type { PortfolioResult } from '@backtest/shared';
+import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 import { CHART_GRID_PROPS, CHART_MARGIN } from '@/lib/chart-theme.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';

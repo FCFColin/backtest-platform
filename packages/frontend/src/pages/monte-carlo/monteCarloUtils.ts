@@ -1,16 +1,19 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { TFunction } from 'i18next';
-import type { MonteCarloResult, PerPathMetrics } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
+import {
+  CHART_COLORS,
+  type MonteCarloResult,
+  type PerPathMetrics,
+  type BacktestParameters,
+} from '@backtest/shared';
 import { apiFetch } from '@/utils/apiClient';
 import i18n from '@/i18n/index.js';
 import { validatePortfolioCore } from '@/utils/validation';
-import { fmtDollar, fmtNum, fmtPct } from '@/utils/format';
-import { percentile, mean, std } from '@/utils/format';
+import { fmtDollar, fmtNum, fmtPct, percentile, mean, std } from '@/utils/format';
 import {
   DEFAULT_BACKTEST_START_DATE,
   DEFAULT_END_DATE,
-  BASE_BACKTEST_PARAMS,
+  buildBacktestParameters,
 } from '@/utils/constants';
 
 export type PortfolioMode = 1 | 2;
@@ -131,7 +134,7 @@ async function fetchMcResult(
   idx: number,
   portfolios: PortfolioState[],
   reqBody: {
-    parameters: Record<string, unknown>;
+    parameters: Record<string, unknown> | BacktestParameters;
     mcParams: Record<string, unknown>;
     objectives: Record<string, unknown>;
   },
@@ -237,14 +240,11 @@ async function executeSimulation(s: McSetters, ops: PortfolioOps): Promise<void>
   s.setResults1(null);
   s.setResults2(null);
   const reqBody = {
-    parameters: {
-      ...BASE_BACKTEST_PARAMS,
-      startDate: s.startDate,
-      endDate: s.endDate,
+    parameters: buildBacktestParameters(s.startDate, s.endDate, {
       startingValue: s.startingValue,
       adjustForInflation: false,
-      baseCurrency: 'usd' as const,
-    },
+      baseCurrency: 'usd',
+    }),
     mcParams: {
       numYears: s.numYears,
       numSimulations: s.numSimulations,

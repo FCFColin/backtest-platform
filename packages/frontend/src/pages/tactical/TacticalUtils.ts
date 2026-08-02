@@ -3,8 +3,11 @@ import { useAsyncAction } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-import type { RebalanceFrequency, PortfolioResult } from '@backtest/shared';
-import { REBALANCE_FREQUENCIES } from '@backtest/shared';
+import {
+  REBALANCE_FREQUENCIES,
+  type PortfolioResult,
+  type RebalanceFrequency,
+} from '@backtest/shared';
 import type {
   TacticalStrategy,
   TradingSignal,

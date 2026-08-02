@@ -1,9 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CHART_COLORS } from '@backtest/shared';
-import type { PortfolioResult, AssetAnalysisResult } from '@backtest/shared';
-import { percentile, mean, std, mergePortfolioSeries } from '@/utils/format';
-import { fmtPct } from '@/utils/format';
+import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
+import { percentile, mean, std, mergePortfolioSeries, fmtPct } from '@/utils/format';
 import ChartCard from '../ChartCard.js';
 import { BarChartContent } from './sharedChartContent.js';
 interface AnnualReturnChartProps {

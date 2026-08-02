@@ -29,7 +29,11 @@ function hasWeightIssue(idx: number, isWeightComplete?: (idx: number) => boolean
 function totalWeightOf(p: PortfolioLike): number {
   return p.assets.reduce((s, a) => s + a.weight, 0);
 }
-function findFirstFailure<P extends PortfolioLike>(portfolios: P[], limit: number, check: PortfolioCheck<P>): { idx: number; key: PortfolioValidationKey } | null {
+function findFirstFailure<P extends PortfolioLike>(
+  portfolios: P[],
+  limit: number,
+  check: PortfolioCheck<P>,
+): { idx: number; key: PortfolioValidationKey } | null {
   for (let i = 0; i < limit; i++) {
     const p = portfolios[i];
     if (!p) continue;
@@ -38,16 +42,25 @@ function findFirstFailure<P extends PortfolioLike>(portfolios: P[], limit: numbe
   }
   return null;
 }
-function buildChecks<P extends PortfolioLike>(emptyTickerMode: 'strict' | 'lenient', isWeightComplete: ((idx: number) => boolean) | undefined, passStrategy: 'single-pass' | 'two-pass'): PortfolioCheck<P>[] {
-  const tickerCheck: PortfolioCheck<P> = (p) => (hasTickerIssue(p, emptyTickerMode) ? 'emptyTicker' : null);
-  const weightCheck: PortfolioCheck<P> = (_p, idx) => (hasWeightIssue(idx, isWeightComplete) ? 'weightMismatch' : null);
+function buildChecks<P extends PortfolioLike>(
+  emptyTickerMode: 'strict' | 'lenient',
+  isWeightComplete: ((idx: number) => boolean) | undefined,
+  passStrategy: 'single-pass' | 'two-pass',
+): PortfolioCheck<P>[] {
+  const tickerCheck: PortfolioCheck<P> = (p) =>
+    hasTickerIssue(p, emptyTickerMode) ? 'emptyTicker' : null;
+  const weightCheck: PortfolioCheck<P> = (_p, idx) =>
+    hasWeightIssue(idx, isWeightComplete) ? 'weightMismatch' : null;
   if (passStrategy === 'two-pass') {
     return [tickerCheck, weightCheck];
   }
   const combined: PortfolioCheck<P> = (p, idx) => tickerCheck(p, idx) ?? weightCheck(p, idx);
   return [combined];
 }
-export function validatePortfolioCore<P extends PortfolioLike>(portfolios: P[], options: PortfolioValidationOptions): string | null {
+export function validatePortfolioCore<P extends PortfolioLike>(
+  portfolios: P[],
+  options: PortfolioValidationOptions,
+): string | null {
   const limit = options.limit ?? portfolios.length;
   const emptyTickerMode = options.emptyTickerMode ?? 'strict';
   const passStrategy = options.passStrategy ?? 'single-pass';

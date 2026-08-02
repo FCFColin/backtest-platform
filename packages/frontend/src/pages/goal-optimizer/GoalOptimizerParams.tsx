@@ -1,8 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2, Plus, X } from 'lucide-react';
-import type { InputProps } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
-import { Button } from '@/components/ui/uiComponents';
+import { Button, Input, type InputProps } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
 import type { GoalAsset } from './goalOptimizerUtils.js';

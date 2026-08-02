@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import i18n from '@/i18n/index.js';
-import type {
-  RebalanceFrequency,
-  BacktestOptimizerObjective as Objective,
-  OptimizeResultItem,
-  BestResultItem,
+import {
+  REBALANCE_FREQUENCY_OPTIONS,
+  REBALANCE_LABELS,
+  type BacktestOptimizerObjective as Objective,
+  type BestResultItem,
+  type OptimizeResultItem,
+  type RebalanceFrequency,
 } from '@backtest/shared';
-import { REBALANCE_LABELS, REBALANCE_FREQUENCY_OPTIONS } from '@backtest/shared';
 import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
 import type { Column } from '../../components/tables.js';
 import { apiPostJSON } from '@/utils/apiClient';
@@ -20,6 +21,18 @@ export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxSharpe: 'sharpe',
   maxSortino: 'sortino',
 };
+const pctCol = (key: keyof OptimizeResultItem, label: string): Column<OptimizeResultItem> => ({
+  key,
+  label,
+  sortValue: (r) => r[key] as number,
+  render: (r) => fmtPct(r[key] as number),
+});
+const numCol = (key: keyof OptimizeResultItem, label: string): Column<OptimizeResultItem> => ({
+  key,
+  label,
+  sortValue: (r) => r[key] as number,
+  render: (r) => fmtNum(r[key] as number),
+});
 export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
   {
     key: 'rebalanceFrequency',
@@ -42,27 +55,12 @@ export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
     sortValue: (r) => r.initialCapital,
     render: (r) => fmtDollar(r.initialCapital),
   },
-  { key: 'cagr', label: 'CAGR', sortValue: (r) => r.cagr, render: (r) => fmtPct(r.cagr) },
-  {
-    key: 'maxDrawdown',
-    label: i18n.t('statsTable.maxDrawdown'),
-    sortValue: (r) => r.maxDrawdown,
-    render: (r) => fmtPct(r.maxDrawdown),
-  },
-  {
-    key: 'stdev',
-    label: i18n.t('statsTable.volatility'),
-    sortValue: (r) => r.stdev,
-    render: (r) => fmtPct(r.stdev),
-  },
-  { key: 'sharpe', label: 'Sharpe', sortValue: (r) => r.sharpe, render: (r) => fmtNum(r.sharpe) },
-  {
-    key: 'sortino',
-    label: 'Sortino',
-    sortValue: (r) => r.sortino,
-    render: (r) => fmtNum(r.sortino),
-  },
-  { key: 'calmar', label: 'Calmar', sortValue: (r) => r.calmar, render: (r) => fmtNum(r.calmar) },
+  pctCol('cagr', 'CAGR'),
+  pctCol('maxDrawdown', i18n.t('statsTable.maxDrawdown')),
+  pctCol('stdev', i18n.t('statsTable.volatility')),
+  numCol('sharpe', 'Sharpe'),
+  numCol('sortino', 'Sortino'),
+  numCol('calmar', 'Calmar'),
 ];
 export interface GrowthPoint {
   date: string;

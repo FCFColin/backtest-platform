@@ -140,7 +140,7 @@ export function SvgScatterChart({
         ],
       });
     },
-    [scatterPoints, xName, yName, tooltipFormatter, tooltipLabelFormatter],
+    [scatterPoints, xName, yName, tooltipFormatter, tooltipLabelFormatter, setTooltip],
   );
   const handleMouseLeaveScatter = useCallback(() => {
     handleMouseLeave();

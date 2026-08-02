@@ -340,20 +340,13 @@ function ContactLinks({ onGithubClick }: { onGithubClick: () => void }) {
           <div className="text-caption text-fg-tertiary">support@example.com</div>
         </div>
       </a>
-      <a
-        href="#"
-        onClick={(e) => {
-          e.preventDefault();
-          onGithubClick();
-        }}
-        className={CONTACT_LINK_CLS}
-      >
+      <button type="button" onClick={onGithubClick} className={CONTACT_LINK_CLS}>
         <Github className="size-5 text-brand" />
         <div>
           <div className="text-body font-semibold">{t('contact.githubIssuesTitle')}</div>
           <div className="text-caption text-fg-tertiary">{t('contact.githubIssuesDesc')}</div>
         </div>
-      </a>
+      </button>
     </div>
   );
 }

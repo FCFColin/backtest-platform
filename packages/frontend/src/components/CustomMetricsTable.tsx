@@ -24,17 +24,38 @@ const ALL_METRICS: StatRow[] = [
   { label: 'stats.informationRatio', key: 'informationRatio', fmt: 'num' },
   { label: 'stats.upsideCapture', key: 'upsideCapture', fmt: 'pct' },
   { label: 'stats.downsideCapture', key: 'downsideCapture', fmt: 'pct' },
-  { label: 'stats.skewnessDaily', key: 'skewnessDaily', fmt: 'num' },
-  { label: 'stats.excessKurtosisDaily', key: 'excessKurtosisDaily', fmt: 'num' },
-  { label: 'stats.varDaily5', key: 'varDaily5', fmt: 'pct' },
-  { label: 'stats.cvarDaily5', key: 'cvarDaily5', fmt: 'pct' },
+  { label: 'stats.skewnessDaily', key: 'skewnessDaily' as keyof Statistics, fmt: 'num' },
+  {
+    label: 'stats.excessKurtosisDaily',
+    key: 'excessKurtosisDaily' as keyof Statistics,
+    fmt: 'num',
+  },
+  { label: 'stats.varDaily5', key: 'varDaily5' as keyof Statistics, fmt: 'pct' },
+  { label: 'stats.cvarDaily5', key: 'cvarDaily5' as keyof Statistics, fmt: 'pct' },
   { label: 'stats.swr10y', key: 'swr10y', fmt: 'pct' },
   { label: 'stats.pwr10y', key: 'pwr10y', fmt: 'pct' },
   { label: 'stats.swr30y', key: 'swr30y', fmt: 'pct' },
-  { label: 'stats.pwr30y', key: 'pwr30y', fmt: 'pct' }
+  { label: 'stats.pwr30y', key: 'pwr30y', fmt: 'pct' },
 ];
-const DEFAULT_KEYS: (keyof Statistics)[] = ['cagr', 'stdev', 'sharpe', 'sortino', 'maxDrawdown', 'calmar', 'beta', 'alpha', 'swr10y', 'pwr30y'];
-function MetricDropdownItems({ selectedKeys, onToggle }: { selectedKeys: Set<keyof Statistics>; onToggle: (key: keyof Statistics) => void }) {
+const DEFAULT_KEYS: (keyof Statistics)[] = [
+  'cagr',
+  'stdev',
+  'sharpe',
+  'sortino',
+  'maxDrawdown',
+  'calmar',
+  'beta',
+  'alpha',
+  'swr10y',
+  'pwr30y',
+];
+function MetricDropdownItems({
+  selectedKeys,
+  onToggle,
+}: {
+  selectedKeys: Set<keyof Statistics>;
+  onToggle: (key: keyof Statistics) => void;
+}) {
   const { t } = useTranslation();
   return (
     <>
@@ -51,16 +72,23 @@ function MetricDropdownItems({ selectedKeys, onToggle }: { selectedKeys: Set<key
               cursor: 'pointer',
               fontSize: '13px',
               color: 'var(--text-body)',
-              backgroundColor: checked ? 'var(--bg-subtle)' : 'transparent'
+              backgroundColor: checked ? 'var(--bg-subtle)' : 'transparent',
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--bg-subtle)';
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = checked ? 'var(--bg-subtle)' : 'transparent';
+              (e.currentTarget as HTMLElement).style.backgroundColor = checked
+                ? 'var(--bg-subtle)'
+                : 'transparent';
             }}
           >
-            <input type="checkbox" checked={checked} onChange={() => onToggle(m.key)} style={{ accentColor: 'var(--accent)' }} />
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={() => onToggle(m.key)}
+              style={{ accentColor: 'var(--accent)' }}
+            />
             {t(m.label)}
           </label>
         );
@@ -68,7 +96,13 @@ function MetricDropdownItems({ selectedKeys, onToggle }: { selectedKeys: Set<key
     </>
   );
 }
-function MetricSelector({ selectedKeys, onToggle }: { selectedKeys: Set<keyof Statistics>; onToggle: (key: keyof Statistics) => void }) {
+function MetricSelector({
+  selectedKeys,
+  onToggle,
+}: {
+  selectedKeys: Set<keyof Statistics>;
+  onToggle: (key: keyof Statistics) => void;
+}) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -90,12 +124,12 @@ function MetricSelector({ selectedKeys, onToggle }: { selectedKeys: Set<keyof St
           color: 'var(--text-body)',
           border: '1px solid var(--border-soft)',
           borderRadius: 'var(--radius-control)',
-          cursor: 'pointer'
+          cursor: 'pointer',
         }}
       >
         {t('components.customMetricsTable.selectMetrics', {
           selected: selectedKeys.size,
-          total: ALL_METRICS.length
+          total: ALL_METRICS.length,
         })}
       </button>
       {open && (
@@ -113,7 +147,7 @@ function MetricSelector({ selectedKeys, onToggle }: { selectedKeys: Set<keyof St
             maxHeight: '320px',
             overflowY: 'auto',
             minWidth: '200px',
-            padding: '4px 0'
+            padding: '4px 0',
           }}
         >
           <MetricDropdownItems selectedKeys={selectedKeys} onToggle={onToggle} />
@@ -124,7 +158,9 @@ function MetricSelector({ selectedKeys, onToggle }: { selectedKeys: Set<keyof St
 }
 export default function CustomMetricsTable({ portfolios }: CustomMetricsTableProps) {
   const { t } = useTranslation();
-  const [selectedKeys, setSelectedKeys] = useState<Set<keyof Statistics>>(() => new Set(DEFAULT_KEYS));
+  const [selectedKeys, setSelectedKeys] = useState<Set<keyof Statistics>>(
+    () => new Set(DEFAULT_KEYS),
+  );
   const toggleKey = (key: keyof Statistics) => {
     setSelectedKeys((prev) => {
       const next = new Set(prev);
@@ -144,9 +180,15 @@ export default function CustomMetricsTable({ portfolios }: CustomMetricsTablePro
     );
   }
   return (
-    <ChartCard title={t('tabs.myMetrics')} headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}>
+    <ChartCard
+      title={t('tabs.myMetrics')}
+      headerExtra={<MetricSelector selectedKeys={selectedKeys} onToggle={toggleKey} />}
+    >
       {visibleMetrics.length === 0 ? (
-        <div className="text-label" style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>
+        <div
+          className="text-label"
+          style={{ color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}
+        >
           {t('components.customMetricsTable.selectAtLeastOne')}
         </div>
       ) : (

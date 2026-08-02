@@ -33,28 +33,28 @@ export const FACTOR_OPTIONS = [
   {
     key: 'mktRF',
     label: 'factorRegression.factors.mktRf',
-    desc: 'factorRegression.factors.mktRfDesc'
+    desc: 'factorRegression.factors.mktRfDesc',
   },
   {
     key: 'smb',
     label: 'factorRegression.factors.smb',
-    desc: 'factorRegression.factors.smbDesc'
+    desc: 'factorRegression.factors.smbDesc',
   },
   {
     key: 'hml',
     label: 'factorRegression.factors.hml',
-    desc: 'factorRegression.factors.hmlDesc'
-  }
+    desc: 'factorRegression.factors.hmlDesc',
+  },
 ];
 export const RF_SOURCE_OPTIONS = [
   { value: 'us-3m', label: 'factorRegression.rfSources.us3m' },
-  { value: 'us-1y', label: 'factorRegression.rfSources.us1y' }
+  { value: 'us-1y', label: 'factorRegression.rfSources.us1y' },
 ];
 export const FACTOR_COLORS = {
   alpha: CHART_COLORS[0],
   beta: CHART_COLORS[1],
   smb: CHART_COLORS[2],
-  hml: CHART_COLORS[3]
+  hml: CHART_COLORS[3],
 } as const;
 let ffDataCache: FFDataPoint[] | null = null;
 async function loadFamaFrenchData(): Promise<FFDataPoint[]> {
@@ -69,7 +69,7 @@ function extractTickerReturns(
     ticker: string;
     growthCurve?: Array<{ date: string }>;
     dailyReturns?: number[];
-  }>
+  }>,
 ): Array<{ ticker: string; dailyReturns: number[]; dates: string[] }> {
   const result: Array<{ ticker: string; dailyReturns: number[]; dates: string[] }> = [];
   for (const tk of tickersData) {
@@ -81,8 +81,13 @@ function extractTickerReturns(
   }
   return result;
 }
-function computeCombinedMonthlyReturns(tickerReturns: Array<{ ticker: string; dailyReturns: number[]; dates: string[] }>, weightMap: Map<string, number>): Array<{ date: string; value: number }> {
-  const longest = tickerReturns.reduce((a, b) => (a.dailyReturns.length > b.dailyReturns.length ? a : b));
+function computeCombinedMonthlyReturns(
+  tickerReturns: Array<{ ticker: string; dailyReturns: number[]; dates: string[] }>,
+  weightMap: Map<string, number>,
+): Array<{ date: string; value: number }> {
+  const longest = tickerReturns.reduce((a, b) =>
+    a.dailyReturns.length > b.dailyReturns.length ? a : b,
+  );
   const combinedMonthlyReturns = new Map<string, number>();
   for (let i = 0; i < longest.dailyReturns.length; i++) {
     const date = longest.dates[i];
@@ -100,7 +105,9 @@ function computeCombinedMonthlyReturns(tickerReturns: Array<{ ticker: string; da
     .map(([date, value]) => ({ date, value: value - 1 }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
-export async function fetchRegression(params: FetchRegressionParams): Promise<FactorRegressionResult> {
+export async function fetchRegression(
+  params: FetchRegressionParams,
+): Promise<FactorRegressionResult> {
   const { validAssets, startDate, endDate, selectedFactors } = params;
   const errFetchData = i18n.t('factorRegression.errFetchData');
   const errRegCompute = i18n.t('factorRegression.errRegCompute');
@@ -119,9 +126,9 @@ export async function fetchRegression(params: FetchRegressionParams): Promise<Fa
         benchmarkTicker: '',
         extendedWithdrawalStats: false,
         cashflowLegs: [],
-        oneTimeCashflows: []
-      }
-    })
+        oneTimeCashflows: [],
+      },
+    }),
   });
   if (!analysisRes.ok) throw new Error(errFetchData);
   const analysisJson = await analysisRes.json();
@@ -141,8 +148,8 @@ export async function fetchRegression(params: FetchRegressionParams): Promise<Fa
       ffData,
       factors: selectedFactors,
       startDate,
-      endDate
-    })
+      endDate,
+    }),
   });
   if (!regRes.ok) throw new Error(errRegCompute);
   const regJson = await regRes.json();

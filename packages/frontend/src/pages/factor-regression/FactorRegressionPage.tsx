@@ -196,15 +196,8 @@ function RegressionResultTable({
     </Card>
   );
 }
-function FactorRegressionResultsPanel({
-  result,
-  error,
-  selectedFactors,
-}: {
-  result: FactorRegressionResult | null;
-  error: string | null;
-  selectedFactors: string[];
-}) {
+function FactorRegressionResultsPanel({ state: s }: { state: State }) {
+  const { result, error, selectedFactors } = s;
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
@@ -272,15 +265,6 @@ function ParamsWrapper({ state }: { state: State }) {
     />
   );
 }
-function ResultsWrapper({ state }: { state: State }) {
-  return (
-    <FactorRegressionResultsPanel
-      result={state.result}
-      error={state.error}
-      selectedFactors={state.selectedFactors}
-    />
-  );
-}
 const config: ComputeToolConfig<State> = {
   titleKey: 'factorRegression.title',
   seoDescKey: 'factorRegression.seo.desc',
@@ -300,7 +284,7 @@ const config: ComputeToolConfig<State> = {
     { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' },
   ],
   params: ParamsWrapper,
-  results: ResultsWrapper,
+  results: FactorRegressionResultsPanel,
 };
 export default function FactorRegressionPage() {
   const { t } = useTranslation();

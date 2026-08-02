@@ -12,8 +12,7 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
-import type { EfficientFrontierPoint } from '@backtest/shared';
+import { CHART_COLORS, type EfficientFrontierPoint } from '@backtest/shared';
 import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, getCorrelationColor } from '@/lib/chart-theme.js';
 import { sharpeToColor } from './EfficientFrontierUtils.js';
 import { LoadInBacktesterButton, type FrontierResultsProps } from './EfficientFrontierResults.js';

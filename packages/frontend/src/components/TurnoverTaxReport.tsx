@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PortfolioResult } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
+import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
 import { SortableTable, type Column } from './tables.js';
 import { fmtPct } from '@/utils/format';
 import { Input } from '@/components/ui/uiComponents';

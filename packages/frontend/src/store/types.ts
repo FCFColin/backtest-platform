@@ -1,4 +1,11 @@
-import type { Asset, BacktestParameters, BacktestResult, CashflowLeg, OneTimeCashflow, Portfolio } from '@backtest/shared';
+import type {
+  Asset,
+  BacktestParameters,
+  BacktestResult,
+  CashflowLeg,
+  OneTimeCashflow,
+  Portfolio,
+} from '@backtest/shared';
 import type { WarningInfo } from '../utils/errorReporter.js';
 export type BacktestSeriesField = 'rollingReturns' | 'allocationHistory' | 'drawdownEpisodes';
 export interface DateRangeInfo {
@@ -24,8 +31,32 @@ export interface BacktestState {
   addAsset: (portfolioId: string) => void;
   removeAsset: (portfolioId: string, ticker: string) => void;
   updateAsset: (portfolioId: string, assetIndex: number, updates: Partial<Asset>) => void;
-  batchUpdateAssets: (portfolioId: string, updates: Array<{ index: number; weight: number }>) => void;
-  updatePortfolio: (id: string, updates: Partial<Pick<Portfolio, 'name' | 'assets' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands' | 'drag' | 'totalReturn' | 'isGlidepath' | 'glidepathFrom' | 'glidepathTo' | 'glidepathYears' | 'glidepathToWeights' | 'tags'>>) => void;
+  batchUpdateAssets: (
+    portfolioId: string,
+    updates: Array<{ index: number; weight: number }>,
+  ) => void;
+  updatePortfolio: (
+    id: string,
+    updates: Partial<
+      Pick<
+        Portfolio,
+        | 'name'
+        | 'assets'
+        | 'rebalanceFrequency'
+        | 'rebalanceThreshold'
+        | 'rebalanceOffset'
+        | 'rebalanceBands'
+        | 'drag'
+        | 'totalReturn'
+        | 'isGlidepath'
+        | 'glidepathFrom'
+        | 'glidepathTo'
+        | 'glidepathYears'
+        | 'glidepathToWeights'
+        | 'tags'
+      >
+    >,
+  ) => void;
   addGlidepath: (name: string, fromId: string, toId: string, years: number) => void;
   addCashflowLeg: () => void;
   removeCashflowLeg: (id: string) => void;
@@ -33,7 +64,10 @@ export interface BacktestState {
   addOneTimeCashflow: () => void;
   removeOneTimeCashflow: (id: string) => void;
   updateOneTimeCashflow: (id: string, updates: Partial<OneTimeCashflow>) => void;
-  updateParameter: <K extends keyof BacktestParameters>(key: K, value: BacktestParameters[K]) => void;
+  updateParameter: <K extends keyof BacktestParameters>(
+    key: K,
+    value: BacktestParameters[K],
+  ) => void;
   runBacktest: () => Promise<void>;
   enrichSeries: (series: BacktestSeriesField[]) => Promise<void>;
   setResults: (results: BacktestResult | null) => void;
@@ -42,6 +76,8 @@ export interface BacktestState {
   loadFromShare: (data: { portfolios: Portfolio[]; parameters: BacktestParameters }) => void;
   getShareableState: () => { portfolios: Portfolio[]; parameters: BacktestParameters };
 }
-export type SetFn = (partial: Partial<BacktestState> | ((state: BacktestState) => Partial<BacktestState>)) => void;
+export type SetFn = (
+  partial: Partial<BacktestState> | ((state: BacktestState) => Partial<BacktestState>),
+) => void;
 export type GetFn = () => BacktestState;
 export type { WarningInfo };

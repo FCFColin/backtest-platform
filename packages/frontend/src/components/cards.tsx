@@ -2,8 +2,12 @@ import * as React from 'react';
 import type { ReactNode } from 'react';
 import { TrendingUp, TrendingDown, Minus, ChevronDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Card } from '@/components/ui/uiComponents';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/uiComponents';
+import {
+  Card,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 interface CollapsibleSectionProps {
   title: string;

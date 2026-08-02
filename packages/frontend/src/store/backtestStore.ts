@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import { startTransition } from 'react';
 import i18n from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient.js';
-import { reportError } from '@/utils/errorReporter.js';
-import { processResponseWarnings, extractDateRange } from '@/utils/errorReporter.js';
+import { reportError, processResponseWarnings, extractDateRange } from '@/utils/errorReporter.js';
 import type {
   Portfolio,
   Asset,
@@ -60,10 +59,7 @@ function handleBacktestError(error: unknown): void {
 }
 function cancellableSleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException('Aborted', 'AbortError'));
-      return;
-    }
+    if (signal.aborted) return reject(new DOMException('Aborted', 'AbortError'));
     const timeoutId = setTimeout(() => {
       signal.removeEventListener('abort', onAbort);
       resolve();
@@ -75,22 +71,21 @@ function cancellableSleep(ms: number, signal: AbortSignal): Promise<void> {
     signal.addEventListener('abort', onAbort, { once: true });
   });
 }
-async function pollJobStatus(
+export async function pollJobStatus(
   statusUrl: string,
   signal: AbortSignal,
-  requestId: number,
+  requestId: number | null,
 ): Promise<Record<string, unknown>> {
-  let delay = 500;
+  let delay = 50;
   while (true) {
-    if (signal.aborted || requestId !== currentRequestId)
+    if (signal.aborted || (requestId !== null && requestId !== currentRequestId))
       throw new DOMException('Aborted', 'AbortError');
     await cancellableSleep(delay, signal);
-    if (signal.aborted || requestId !== currentRequestId)
+    if (signal.aborted || (requestId !== null && requestId !== currentRequestId))
       throw new DOMException('Aborted', 'AbortError');
     const pollResponse = await apiFetch(statusUrl, {
       headers: { 'Content-Type': 'application/json' },
       // 轮询结果每次都要最新值：禁用 HTTP 缓存，否则 ETag 命中返回 304（无 body），
-      // apiClient 将 !ok 视为错误导致轮询中断
       cache: 'no-store',
       signal,
     });
@@ -98,11 +93,13 @@ async function pollJobStatus(
     if (!pollResponse.ok || pollJson.success === false)
       throw new Error(extractApiErrorDetail(pollJson));
     const jobData = pollJson.data as {
-      status: string;
+      status?: string;
+      state?: string;
       result?: { data: unknown; warnings: unknown[]; dateRange: unknown };
       error?: string;
     };
-    if (jobData.status === 'completed' && jobData.result) {
+    const jobState = jobData.status ?? jobData.state;
+    if (jobState === 'completed' && jobData.result) {
       return {
         success: true,
         data: jobData.result.data,
@@ -110,8 +107,8 @@ async function pollJobStatus(
         dateRange: jobData.result.dateRange,
       } as Record<string, unknown>;
     }
-    if (jobData.status === 'failed') throw new Error(jobData.error || i18n.t('backtest.runFailed'));
-    delay = Math.min(delay * 2, 5000);
+    if (jobState === 'failed') throw new Error(jobData.error || i18n.t('backtest.runFailed'));
+    delay = Math.min(delay * 2, 500);
   }
 }
 const setIfCurrent = (set: SetFn, requestId: number, patch: Partial<BacktestState>) => {

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -5,8 +6,12 @@ import { fmtPct, fmtRatio } from '@/utils/format';
 import { CHART_COLORS } from '@backtest/shared';
 import type { SignalAnalysisResult } from '@backtest/shared/types/signal';
 import { CollapsibleSection } from '@/components/cards';
-import { SortableTable, type Column } from '../../components/tables.js';
-import { SimpleTable, type SimpleTableColumn } from '../../components/tables.js';
+import {
+  SortableTable,
+  type Column,
+  SimpleTable,
+  type SimpleTableColumn,
+} from '../../components/tables.js';
 import {
   ResultsContainer,
   AnalysisErrorAlert,
@@ -108,9 +113,104 @@ function buildComparisonColumns(t: TFunction): Column<DualSignalResponse['compar
     },
   ];
 }
+// eslint-disable-next-line max-lines-per-function
+function DualSignalResultsBody({
+  t,
+  comparisonColumns,
+  comparison,
+  comparisonPage,
+  prevPage,
+  nextPage,
+  statRows,
+  equityData,
+}: {
+  t: TFunction;
+  comparisonColumns: Column<DualSignalResponse['comparison'][number]>[];
+  comparison: DualSignalResponse['comparison'];
+  comparisonPage: number;
+  prevPage: () => void;
+  nextPage: () => void;
+  statRows: StatRow[];
+  equityData: Array<Record<string, number | string>>;
+}) {
+  const pageSize = 100;
+  const pageRows = comparison.slice(comparisonPage * pageSize, (comparisonPage + 1) * pageSize);
+  return (
+    <ResultsContainer>
+      <StatsComparisonTable statRows={statRows} />
+      <CollapsibleSection
+        title={t('signal.dual.signalComparison', { count: comparison.length })}
+        defaultOpen
+        className="rounded-xl border border-border bg-surface"
+      >
+        {comparison.length > 0 ? (
+          <>
+            <div className="flex items-center justify-between border-b border-border px-4 py-2 text-caption text-fg-tertiary">
+              <span>
+                {comparisonPage * pageSize + 1}–
+                {Math.min((comparisonPage + 1) * pageSize, comparison.length)} / {comparison.length}
+              </span>
+              <span className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={prevPage}
+                  disabled={comparisonPage === 0}
+                  className="btn-ghost btn-sm"
+                >
+                  {t('signal.dual.prevPage')}
+                </button>
+                <button
+                  type="button"
+                  onClick={nextPage}
+                  disabled={comparisonPage >= Math.ceil(comparison.length / pageSize) - 1}
+                  className="btn-ghost btn-sm"
+                >
+                  {t('signal.dual.nextPage')}
+                </button>
+              </span>
+            </div>
+            <SortableTable
+              columns={comparisonColumns}
+              data={pageRows}
+              initialSortKey="date"
+              initialSortDir="asc"
+            />
+          </>
+        ) : (
+          <div className="py-6 text-center text-body text-fg-tertiary">
+            {t('signal.common.noSignal')}
+          </div>
+        )}
+      </CollapsibleSection>
+      <CollapsibleSection
+        title={t('signal.dual.equityCurveComparison')}
+        defaultOpen
+        className="rounded-xl border border-border bg-surface"
+      >
+        <EquityLineChart
+          data={equityData}
+          series={[
+            { dataKey: 'signal1', legendName: t('signal.dual.signal1Short'), strokeWidth: 1.5 },
+            { dataKey: 'signal2', legendName: t('signal.dual.signal2Short'), strokeWidth: 1.5 },
+            { dataKey: 'combined', legendName: t('signal.dual.combinedShort'), strokeWidth: 2.5 },
+          ]}
+          tooltipName=""
+        />
+      </CollapsibleSection>
+    </ResultsContainer>
+  );
+}
 export function DualSignalResultsPanel({ results, error, isLoading }: DualSignalResultsProps) {
   const { t } = useTranslation();
   const comparisonColumns = buildComparisonColumns(t);
+  const [comparisonPage, setComparisonPage] = useState(0);
+  const comparison = results
+    ? results.comparison.filter((r) => r.signal1 || r.signal2 || r.combined)
+    : [];
+  const pageSize = 100;
+  const pageCount = Math.max(1, Math.ceil(comparison.length / pageSize));
+  const prevPage = () => setComparisonPage((p) => Math.max(0, p - 1));
+  const nextPage = () => setComparisonPage((p) => Math.min(pageCount - 1, p + 1));
   const statRows: StatRow[] = results
     ? [
         { name: t('signal.dual.signal1'), stats: results.signal1.statistics },
@@ -123,54 +223,16 @@ export function DualSignalResultsPanel({ results, error, isLoading }: DualSignal
     <ResultsContainer>
       <AnalysisErrorAlert error={error} />
       {results && (
-        <>
-          <StatsComparisonTable statRows={statRows} />
-          <CollapsibleSection
-            title={t('signal.dual.signalComparison', { count: results.comparison.length })}
-            defaultOpen
-            className="rounded-xl border border-border bg-surface"
-          >
-            {results.comparison.length > 0 ? (
-              <SortableTable
-                columns={comparisonColumns}
-                data={results.comparison}
-                initialSortKey="date"
-                initialSortDir="asc"
-              />
-            ) : (
-              <div className="py-6 text-center text-body text-fg-tertiary">
-                {t('signal.common.noSignal')}
-              </div>
-            )}
-          </CollapsibleSection>
-          <CollapsibleSection
-            title={t('signal.dual.equityCurveComparison')}
-            defaultOpen
-            className="rounded-xl border border-border bg-surface"
-          >
-            <EquityLineChart
-              data={equityData}
-              series={[
-                {
-                  dataKey: 'signal1',
-                  legendName: t('signal.dual.signal1Short'),
-                  strokeWidth: 1.5,
-                },
-                {
-                  dataKey: 'signal2',
-                  legendName: t('signal.dual.signal2Short'),
-                  strokeWidth: 1.5,
-                },
-                {
-                  dataKey: 'combined',
-                  legendName: t('signal.dual.combinedShort'),
-                  strokeWidth: 2.5,
-                },
-              ]}
-              tooltipName=""
-            />
-          </CollapsibleSection>
-        </>
+        <DualSignalResultsBody
+          t={t}
+          comparisonColumns={comparisonColumns}
+          comparison={comparison}
+          comparisonPage={comparisonPage}
+          prevPage={prevPage}
+          nextPage={nextPage}
+          statRows={statRows}
+          equityData={equityData}
+        />
       )}
       {!results && !error && !isLoading && <EmptyResultsHint />}
     </ResultsContainer>

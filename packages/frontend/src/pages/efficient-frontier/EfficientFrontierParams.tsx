@@ -1,15 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { Play, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
-import { Checkbox } from '@/components/ui/uiComponents';
 import {
+  Button,
+  Checkbox,
+  Input,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';

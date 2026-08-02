@@ -9,133 +9,133 @@ export const POPULAR_TICKERS: TickerSuggestion[] = [
   {
     ticker: 'VTI',
     name: 'Vanguard Total Stock Market ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'VOO', name: 'Vanguard S&P 500 ETF', market: 'components.tickerInput.markets.us' },
   { ticker: 'QQQ', name: 'Invesco QQQ Trust', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'BND',
     name: 'Vanguard Total Bond Market ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'AGG',
     name: 'iShares Core US Aggregate Bond',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'IWM', name: 'iShares Russell 2000 ETF', market: 'components.tickerInput.markets.us' },
   { ticker: 'EFA', name: 'iShares MSCI EAFE ETF', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'EEM',
     name: 'iShares MSCI Emerging Markets ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'GLD', name: 'SPDR Gold Shares', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'TLT',
     name: 'iShares 20+ Year Treasury Bond',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'VTV', name: 'Vanguard Value ETF', market: 'components.tickerInput.markets.us' },
   { ticker: 'VUG', name: 'Vanguard Growth ETF', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'SCHD',
     name: 'Schwab US Dividend Equity ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'DIA',
     name: 'SPDR Dow Jones Industrial Average',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'IWB', name: 'iShares Russell 1000 ETF', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'IJH',
     name: 'iShares Core S&P Mid-Cap ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'IJR',
     name: 'iShares Core S&P Small-Cap ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'VXUS',
     name: 'Vanguard Total International Stock',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'BNDX',
     name: 'Vanguard Total International Bond',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'TIP', name: 'iShares TIPS Bond ETF', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'HYG',
     name: 'iShares iBoxx $ High Yield Corporate',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'LQD',
     name: 'iShares iBoxx $ Investment Grade Corporate',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'MUB',
     name: 'iShares National Muni Bond ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'VNQ', name: 'Vanguard Real Estate ETF', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'XLF',
     name: 'Financial Select Sector SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'XLK',
     name: 'Technology Select Sector SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'XLV',
     name: 'Health Care Select Sector SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'XLE', name: 'Energy Select Sector SPDR', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'XLY',
     name: 'Consumer Discretionary Select SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'XLP',
     name: 'Consumer Staples Select SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'XLI',
     name: 'Industrial Select Sector SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'XLU',
     name: 'Utilities Select Sector SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'XLB',
     name: 'Materials Select Sector SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'XLC',
     name: 'Communication Services Select SPDR',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'VGT',
     name: 'Vanguard Information Technology ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'VHT', name: 'Vanguard Health Care ETF', market: 'components.tickerInput.markets.us' },
   { ticker: 'VFH', name: 'Vanguard Financials ETF', market: 'components.tickerInput.markets.us' },
@@ -144,24 +144,24 @@ export const POPULAR_TICKERS: TickerSuggestion[] = [
   {
     ticker: 'VCR',
     name: 'Vanguard Consumer Discretionary ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'VDC',
     name: 'Vanguard Consumer Staples ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'VAW', name: 'Vanguard Materials ETF', market: 'components.tickerInput.markets.us' },
   { ticker: 'VPU', name: 'Vanguard Utilities ETF', market: 'components.tickerInput.markets.us' },
   {
     ticker: 'VOX',
     name: 'Vanguard Communication Services ETF',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   {
     ticker: 'VNQI',
     name: 'Vanguard Global ex-US Real Estate',
-    market: 'components.tickerInput.markets.us'
+    market: 'components.tickerInput.markets.us',
   },
   { ticker: 'AAPL', name: 'Apple Inc.', market: 'components.tickerInput.markets.us' },
   { ticker: 'MSFT', name: 'Microsoft Corporation', market: 'components.tickerInput.markets.us' },
@@ -196,72 +196,75 @@ export const POPULAR_TICKERS: TickerSuggestion[] = [
   {
     ticker: '000001.SZ',
     name: 'components.tickerInput.stocks.pinganBank',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '000002.SZ',
     name: 'components.tickerInput.stocks.vankeA',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '000858.SZ',
     name: 'components.tickerInput.stocks.wuliangye',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '600000.SH',
     name: 'components.tickerInput.stocks.spdb',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '600519.SH',
     name: 'components.tickerInput.stocks.moutai',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '601318.SH',
     name: 'components.tickerInput.stocks.pinganInsurance',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '600036.SH',
     name: 'components.tickerInput.stocks.cmb',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '000333.SZ',
     name: 'components.tickerInput.stocks.midea',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '600276.SH',
     name: 'components.tickerInput.stocks.hengrui',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '601012.SH',
     name: 'components.tickerInput.stocks.longi',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '510300.SH',
     name: 'components.tickerInput.stocks.csi300Etf',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '510050.SH',
     name: 'components.tickerInput.stocks.sse50Etf',
-    market: 'components.tickerInput.markets.cn'
+    market: 'components.tickerInput.markets.cn',
   },
   {
     ticker: '159915.SZ',
     name: 'components.tickerInput.stocks.chinextEtf',
-    market: 'components.tickerInput.markets.cn'
-  }
+    market: 'components.tickerInput.markets.cn',
+  },
 ];
 export const PRESET_SUGGESTIONS: TickerSuggestion[] = ALL_TICKER_PRESETS.map((p) => ({
   ticker: p.ticker,
   name: p.name,
-  market: p.category
+  market: p.category,
 }));
-export const LOCAL_SUGGESTIONS: TickerSuggestion[] = [...PRESET_SUGGESTIONS, ...POPULAR_TICKERS.filter((pt) => !ALL_TICKER_PRESETS.some((pp) => pp.ticker === pt.ticker))];
+export const LOCAL_SUGGESTIONS: TickerSuggestion[] = [
+  ...PRESET_SUGGESTIONS,
+  ...POPULAR_TICKERS.filter((pt) => !ALL_TICKER_PRESETS.some((pp) => pp.ticker === pt.ticker)),
+];

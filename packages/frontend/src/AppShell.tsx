@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { OfflineBanner } from '@/components/stateDisplay';
@@ -15,6 +15,11 @@ import {
   onNavStart,
   initVitalsReporting,
 } from './utils/performanceReporter.js';
+// 布局静态区块 memo：路由切换时 AppShell 重渲染，这些组件无 location 依赖，
+const MemoOfflineBanner = memo(OfflineBanner);
+const MemoPromoBar = memo(PromoBar);
+const MemoToast = memo(Toast);
+const MemoFooter = memo(Footer);
 export default function AppShell() {
   const location = useLocation();
   const { t } = useTranslation();
@@ -39,7 +44,7 @@ export default function AppShell() {
   useIdleTimeout(idleTimeoutMs, isAuthenticated);
   return (
     <>
-      <OfflineBanner />
+      <MemoOfflineBanner />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand focus:text-brand-fg focus:rounded focus:outline-none focus:ring-2 focus:ring-brand"
@@ -47,7 +52,7 @@ export default function AppShell() {
         {t('a11y.skipToMain')}
       </a>
       {!isAdmin && (
-        <PromoBar
+        <MemoPromoBar
           id="synthetic-tickers-2026"
           message={t('promo.synthetic.message')}
           ctaLabel={t('promo.synthetic.ctaLabel')}
@@ -56,7 +61,7 @@ export default function AppShell() {
         />
       )}
       {!isAdmin && <Navbar />}
-      <Toast />
+      <MemoToast />
       <main
         id="main-content"
         tabIndex={-1}
@@ -64,7 +69,7 @@ export default function AppShell() {
       >
         <AppRoutes />
       </main>
-      {!isAdmin && <Footer />}
+      {!isAdmin && <MemoFooter />}
     </>
   );
 }

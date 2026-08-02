@@ -82,8 +82,16 @@ export function ParamsSection({
     <div className={cn(!plain && 'border-b border-border-subtle')}>
       {title && (
         <div
+          role="button"
+          tabIndex={0}
           className="flex items-center justify-between cursor-pointer py-2 px-2 select-none"
           onClick={() => setOpen(!open)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setOpen(!open);
+            }
+          }}
         >
           <div className="flex items-center gap-1.5">
             {open ? (
@@ -102,7 +110,16 @@ export function ParamsSection({
             </span>
           </div>
           {info && (
-            <div className="relative inline-flex group" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="relative inline-flex group"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                }
+              }}
+            >
               <Info className="size-3.5 cursor-help text-fg-tertiary" />
               <div className="absolute right-0 top-6 hidden group-hover:block z-10 w-60 rounded-md border border-border bg-elevated p-2 text-caption text-fg-secondary leading-relaxed shadow-lg whitespace-normal">
                 {info}

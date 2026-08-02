@@ -2,16 +2,17 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X } from 'lucide-react';
 import {
+  Button,
+  Input,
+  Label,
+  RadioGroup,
+  RadioGroupItem,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
-import { Button } from '@/components/ui/uiComponents';
-import { Label } from '@/components/ui/uiComponents';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
 import { INDICATORS, RunAnalysisButton, TickerField } from './SignalParamsPanel.js';
 import type { UseMultiSignalStateResult } from './hooks/useMultiSignalState.js';

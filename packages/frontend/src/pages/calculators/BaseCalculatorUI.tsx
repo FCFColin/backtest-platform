@@ -14,10 +14,14 @@ import {
 } from 'recharts';
 import { useTranslation } from 'react-i18next';
 import { CHART_COLORS } from '@backtest/shared';
-import { Card } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
+import {
+  Card,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Input,
+} from '@/components/ui/uiComponents';
 import { Field as FieldShell, FieldLabel } from '@/components/form/Field';
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/uiComponents';
 import { cn } from '@/lib/utils';
 import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/chart-theme';
 import { computeTwoFundFrontier } from './baseCalculatorUtils.js';

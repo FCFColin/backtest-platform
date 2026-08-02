@@ -22,8 +22,7 @@ import {
   type RollingCorrelationPoint,
   type BetaRow,
 } from './chartUtils.js';
-import { CHART_COLORS } from '@backtest/shared';
-import type { PortfolioResult } from '@backtest/shared';
+import { CHART_COLORS, type PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { useChartCalcWorker, type WorkerTask } from '../../hooks/miscHooks.js';

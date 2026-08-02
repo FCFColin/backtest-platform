@@ -4,6 +4,7 @@ import type {
   CashflowLeg,
   OneTimeCashflow,
 } from '@backtest/shared';
+
 export const INPUT_WIDTHS = {
   ticker: 'w-[220px]',
   weight: 'w-[100px]',
@@ -17,6 +18,7 @@ export const INPUT_WIDTHS = {
   selectShort: 'w-[140px]',
   search: 'w-[320px]',
 } as const;
+
 export const CARD_WIDTHS = {
   portfolio: { min: 320, max: 460 },
   cashflow: { min: 300, max: 400 },
@@ -24,6 +26,7 @@ export const CARD_WIDTHS = {
   metric: { min: 200, max: 260 },
   hero: { min: 300, max: 400 },
 } as const;
+
 export const CARD_GRID_CLASSES = {
   portfolio: 'grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4',
   cashflow: 'grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4',
@@ -31,22 +34,18 @@ export const CARD_GRID_CLASSES = {
   metric: 'grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3',
   hero: 'grid grid-cols-1 md:grid-cols-3 gap-6',
 } as const;
+
 export const CONTAINER_WIDTHS = {
   page: 'max-w-[1440px] mx-auto px-6',
   content: 'max-w-[1280px] mx-auto',
   narrow: 'max-w-[860px] mx-auto',
   form: 'max-w-[720px] mx-auto',
 } as const;
+
 export const DEFAULT_START_DATE = '2015-01-01';
 export const DEFAULT_END_DATE = '2024-12-31';
 export const DEFAULT_BACKTEST_START_DATE = '2010-01-01';
-export const BASE_BACKTEST_PARAMS = {
-  rollingWindowMonths: 12,
-  benchmarkTicker: '',
-  extendedWithdrawalStats: false,
-  cashflowLegs: [] as unknown[],
-  oneTimeCashflows: [] as unknown[],
-};
+
 export interface BuildBacktestParametersOptions {
   startingValue?: number;
   adjustForInflation?: boolean;
@@ -57,13 +56,15 @@ export interface BuildBacktestParametersOptions {
   cashflowLegs?: CashflowLeg[];
   oneTimeCashflows?: OneTimeCashflow[];
 }
+
 export type { BacktestParameters };
+
 export function buildBacktestParameters(
   startDate: string,
   endDate: string,
   options?: BuildBacktestParametersOptions,
 ): BacktestParameters {
-  const defaults: BacktestParameters = {
+  return {
     startDate,
     endDate,
     startingValue: 10000,
@@ -74,15 +75,17 @@ export function buildBacktestParameters(
     extendedWithdrawalStats: false,
     cashflowLegs: [],
     oneTimeCashflows: [],
+    ...options,
   };
-  return { ...defaults, ...options };
 }
+
 interface TickerPreset {
   ticker: string;
   name: string;
   category: string;
   sourceTicker?: string;
 }
+
 export const SIM_TICKERS: TickerPreset[] = [
   { ticker: 'SPYSIM', name: 'S&P 500 指数 (Total Return)', category: 'Index', sourceTicker: 'SPY' },
   { ticker: 'BNDSIM', name: '美国综合债券 (Total Return)', category: 'Bond', sourceTicker: 'AGG' },
@@ -91,6 +94,7 @@ export const SIM_TICKERS: TickerPreset[] = [
   { ticker: 'VTISIM', name: '美国全市场 (Total Return)', category: 'Index', sourceTicker: 'VTI' },
   { ticker: 'TLTSIM', name: '长期美国国债 (Total Return)', category: 'Bond', sourceTicker: 'TLT' },
 ];
+
 export const ETF_PRESETS: TickerPreset[] = [
   { ticker: 'SPY', name: 'S&P 500 ETF', category: 'US Equity' },
   { ticker: 'VTI', name: '全市场 ETF', category: 'US Equity' },
@@ -113,9 +117,11 @@ export const ETF_PRESETS: TickerPreset[] = [
   { ticker: 'GSG', name: '商品 ETF', category: 'Commodity' },
   { ticker: 'DBC', name: '综合商品 ETF', category: 'Commodity' },
 ];
+
 export const ALL_TICKER_PRESETS = [...SIM_TICKERS, ...ETF_PRESETS];
-export function filterTickers(input: string, limit: number = 8): TickerPreset[] {
-  if (!input || input.length < 1) return [];
+
+export function filterTickers(input: string, limit = 8): TickerPreset[] {
+  if (!input) return [];
   const upper = input.toUpperCase();
   return ALL_TICKER_PRESETS.filter(
     (p) => p.ticker.startsWith(upper) || p.name.includes(input),

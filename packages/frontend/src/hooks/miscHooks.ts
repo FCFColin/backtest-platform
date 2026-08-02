@@ -26,11 +26,9 @@ export function useAsyncAction(): UseAsyncActionResult {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await task();
-      return result;
+      return await task();
     } catch (e) {
-      const message = e instanceof Error ? e.message : i18n.t('errors.operationFailed');
-      setError(message);
+      setError(e instanceof Error ? e.message : i18n.t('errors.operationFailed'));
       return undefined;
     } finally {
       setIsLoading(false);
@@ -125,17 +123,14 @@ export function useComputeTool<TResult>(
   const { isLoading, error, run, setError, reset: resetAction } = useAsyncAction();
   const [results, setResults] = useState<TResult | null>(null);
   const runCompute = useCallback(() => {
-    if (validateFn) {
-      const validationError = validateFn();
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
+    const validationError = validateFn?.();
+    if (validationError) {
+      setError(validationError);
+      return;
     }
     setResults(null);
     run(async () => {
-      const data = await computeFn();
-      setResults(data);
+      setResults(await computeFn());
     });
   }, [computeFn, validateFn, run, setError]);
   const reset = useCallback(() => {
@@ -187,7 +182,7 @@ const cache = new Map<string, TickerMeta>();
 export function useTickerMeta(ticker: string): TickerMeta | null {
   const [meta, setMeta] = useState<TickerMeta | null>(null);
   useEffect(() => {
-    if (!ticker || ticker.length < 1) {
+    if (!ticker) {
       setMeta(null);
       return;
     }
@@ -295,7 +290,7 @@ export function useAnnouncements() {
       const saved = localStorage.getItem(READ_KEY);
       if (saved) setReadIds(new Set(JSON.parse(saved)));
     } catch {
-      // localStorage 不可用时视为无已读记录
+      /* localStorage not available */
     }
     if (!pendingAnnouncementsPromise) {
       pendingAnnouncementsPromise = apiFetch('/api/v1/announcements', { silent: true })
@@ -309,7 +304,7 @@ export function useAnnouncements() {
           pendingAnnouncementsPromise = null;
         });
     }
-    pendingAnnouncementsPromise.then((data) => setAnnouncements(data));
+    pendingAnnouncementsPromise.then(setAnnouncements);
   }, []);
   const unreadCount = announcements.filter((a) => !readIds.has(a.id)).length;
   const markAllRead = useCallback(() => {
@@ -335,8 +330,8 @@ function getPreloadedMeta(): DataMeta | null {
       typeof window !== 'undefined'
         ? (window as { __INITIAL_DATA__?: unknown }).__INITIAL_DATA__
         : null;
-    if (!global) return null;
-    const data = ((global as Record<string, unknown>).data ?? global) as Partial<DataMeta>;
+    const data = (global &&
+      ((global as Record<string, unknown>).data ?? global)) as Partial<DataMeta>;
     if (data?.tickerCount !== undefined && data?.lastUpdated) {
       return {
         lastUpdated: data.lastUpdated,
@@ -346,7 +341,7 @@ function getPreloadedMeta(): DataMeta | null {
       };
     }
   } catch {
-    /* 忽略 */
+    /* meta fetch error */
   }
   return null;
 }
@@ -367,7 +362,7 @@ export function useDataMeta(): DataMeta | null {
         .then((res) => (res.ok ? res.json() : null))
         .then((json) => {
           const data = json?.data ?? json;
-          if (data && data.lastUpdated) {
+          if (data?.lastUpdated) {
             cachedMeta = data;
             cacheTime = Date.now();
             return data;
@@ -379,7 +374,7 @@ export function useDataMeta(): DataMeta | null {
           pendingMetaPromise = null;
         });
     }
-    pendingMetaPromise.then((data) => setMeta(data));
+    pendingMetaPromise.then(setMeta);
   }, []);
   return meta;
 }

@@ -2,31 +2,34 @@ import type { ReactNode } from 'react';
 import { useToastStore } from '../store/toastStore.js';
 import type { DateRangeInfo } from '../store/types.js';
 import i18n from '../i18n/index.js';
+
 export type ReportType =
   'error' | 'vital' | 'api_timing' | 'component_render' | 'page_timing' | 'navigation';
+
 export interface ErrorContext {
   component?: string;
   action?: string;
   jobId?: string;
   [key: string]: unknown;
 }
+
 const ERROR_REPORT_ENDPOINT = '/api/v1/errors';
-let isReporting = false;
+
 function sendReport(type: ReportType, payload: Record<string, unknown>): void {
-  const body = {
-    type,
-    ...payload,
-    timestamp: new Date().toISOString(),
-    url: window.location.href,
-    userAgent: navigator.userAgent,
-  };
   fetch(ERROR_REPORT_ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      type,
+      ...payload,
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+    }),
     keepalive: true,
   }).catch(() => {});
 }
+
 export function reportError(error: unknown, context: ErrorContext = {}): void {
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console -- 开发环境直接输出到控制台
@@ -36,18 +39,13 @@ export function reportError(error: unknown, context: ErrorContext = {}): void {
     });
     return;
   }
-  if (isReporting) return;
-  isReporting = true;
-  try {
-    sendReport('error', {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      context,
-    });
-  } finally {
-    isReporting = false;
-  }
+  sendReport('error', {
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    context,
+  });
 }
+
 export function reportPerformance(
   type: Extract<
     ReportType,
@@ -62,6 +60,38 @@ export function reportPerformance(
   }
   sendReport(type, data);
 }
+
+const ERROR_I18N_GROUPS: Record<string, string[]> = {
+  'errors.unauthorized': [
+    'UNAUTHORIZED',
+    'AUTH_REQUIRED',
+    'MISSING_AUTH',
+    'INVALID_TOKEN',
+    'INVALID_CREDENTIALS',
+    'INVALID_REFRESH_TOKEN',
+    'SESSION_REVOKED',
+  ],
+  'errors.forbidden': ['FORBIDDEN', 'INSUFFICIENT_PERMISSION', 'NOT_A_MEMBER', 'ORG_INACTIVE'],
+  'errors.notFound': ['NOT_FOUND', 'DATA_NOT_FOUND'],
+  'errors.missingParams': [
+    'MISSING_PARAMS',
+    'MISSING_ORG_ID',
+    'MISSING_TOKEN',
+    'MISSING_EMAIL',
+    'MISSING_REFRESH_TOKEN',
+    'MISSING_REQUIRED_FIELD',
+    'ID_INVALID',
+  ],
+  'errors.internalError': ['INTERNAL_ERROR', 'READINESS_CHECK_ERROR', 'METRICS_GENERATION_FAILED'],
+  'errors.backtestFailed': [
+    'BACKTEST_FAILED',
+    'BACKTEST_ERROR',
+    'CACHE_MISS',
+    'BACKTEST_CACHE_MISS',
+  ],
+  'errors.tickerLimitExceeded': ['TICKER_LIMIT_EXCEEDED', 'TICKERS_LIMIT_EXCEEDED'],
+  'errors.noActiveTenant': ['NO_ACTIVE_TENANT', 'TENANT_REQUIRED'],
+};
 const ERROR_I18N_MAP: Record<string, string> = {
   VALIDATION_ERROR: 'errors.validationError',
   ENGINE_UNAVAILABLE: 'errors.engineUnavailable',
@@ -74,19 +104,29 @@ const ERROR_I18N_MAP: Record<string, string> = {
   INVALID_WEIGHT_SUM: 'errors.invalidWeightSum',
   EMPTY_PORTFOLIO: 'errors.emptyPortfolio',
   DATE_RANGE_CLAMPED: 'warning.dateRangeClamped',
-  UNAUTHORIZED: 'errors.unauthorized',
-  AUTH_REQUIRED: 'errors.unauthorized',
-  MISSING_AUTH: 'errors.unauthorized',
-  MISSING_CREDENTIALS: 'errors.missingCredentials',
-  INVALID_TOKEN: 'errors.unauthorized',
-  SESSION_REVOKED: 'errors.sessionRevoked',
   ACCOUNT_DISABLED: 'errors.accountDisabled',
   ACCOUNT_LOCKED: 'errors.accountLocked',
-  INVALID_CREDENTIALS: 'errors.unauthorized',
-  FORBIDDEN: 'errors.forbidden',
-  INSUFFICIENT_PERMISSION: 'errors.insufficientPermission',
-  NOT_FOUND: 'errors.notFound',
-  DATA_NOT_FOUND: 'errors.notFound',
+  RATE_LIMITED: 'errors.rateLimited',
+  QUOTA_EXCEEDED: 'errors.quotaExceeded',
+  NETWORK_ERROR: 'errors.networkError',
+  TIMEOUT: 'errors.requestTimeout',
+  INVALID_TICKER: 'errors.invalidTicker',
+  INVALID_DATE_RANGE: 'errors.invalidDateRange',
+  BACKTEST_FAILED: 'errors.backtestFailed',
+  DATA_FETCH_FAILED: 'errors.dataFetchFailed',
+  EMAIL_TAKEN: 'errors.emailTaken',
+  USERNAME_TAKEN: 'errors.usernameTaken',
+  REGISTER_FAILED: 'errors.registerFailed',
+  BILLING_DISABLED: 'errors.billingDisabled',
+  INVALID_COUNTRY: 'errors.invalidCountry',
+  CPI_NOT_FOUND: 'errors.cpiNotFound',
+  DATABASE_UNAVAILABLE: 'errors.databaseUnavailable',
+  INVALID_API_KEY: 'errors.invalidApiKey',
+  INVALID_IDEMPOTENCY_KEY: 'errors.idempotencyKeyInvalid',
+  OPTIMIZER_BAD_REQUEST: 'errors.optimizerBadRequest',
+  CALC_INVALID_TYPE: 'errors.analysisInvalidType',
+  GRID_TOO_MANY_COMBINATIONS: 'errors.gridTooMany',
+  GRID_BAD_REQUEST: 'errors.gridBadRequest',
   PORTFOLIO_NOT_FOUND: 'errors.portfolioNotFound',
   CONFIG_NOT_FOUND: 'errors.configNotFound',
   RUN_NOT_FOUND: 'errors.runNotFound',
@@ -95,58 +135,23 @@ const ERROR_I18N_MAP: Record<string, string> = {
   ORG_NOT_FOUND: 'errors.orgNotFound',
   MEMBER_NOT_FOUND: 'errors.memberNotFound',
   LAST_OWNER: 'errors.lastOwner',
-  RATE_LIMITED: 'errors.rateLimited',
-  QUOTA_EXCEEDED: 'errors.quotaExceeded',
-  INTERNAL_ERROR: 'errors.internalError',
-  NETWORK_ERROR: 'errors.networkError',
-  TIMEOUT: 'errors.requestTimeout',
-  INVALID_TICKER: 'errors.invalidTicker',
-  INVALID_DATE_RANGE: 'errors.invalidDateRange',
-  MISSING_PARAMS: 'errors.missingParams',
-  BACKTEST_FAILED: 'errors.backtestFailed',
-  BACKTEST_ERROR: 'errors.backtestFailed',
-  DATA_FETCH_FAILED: 'errors.dataFetchFailed',
-  EMAIL_TAKEN: 'errors.emailTaken',
-  USERNAME_TAKEN: 'errors.usernameTaken',
-  REGISTER_FAILED: 'errors.registerFailed',
-  BILLING_DISABLED: 'errors.billingDisabled',
-  TICKER_LIMIT_EXCEEDED: 'errors.tickerLimitExceeded',
-  INVALID_COUNTRY: 'errors.invalidCountry',
-  CPI_NOT_FOUND: 'errors.cpiNotFound',
-  DATABASE_UNAVAILABLE: 'errors.databaseUnavailable',
-  NO_ACTIVE_TENANT: 'errors.noActiveTenant',
-  INVALID_API_KEY: 'errors.invalidApiKey',
-  INVALID_IDEMPOTENCY_KEY: 'errors.idempotencyKeyInvalid',
-  OPTIMIZER_BAD_REQUEST: 'errors.optimizerBadRequest',
-  CALC_INVALID_TYPE: 'errors.analysisInvalidType',
-  GRID_TOO_MANY_COMBINATIONS: 'errors.gridTooMany',
-  GRID_BAD_REQUEST: 'errors.gridBadRequest',
-  TICKERS_LIMIT_EXCEEDED: 'errors.tickerLimitExceeded',
-  TENANT_REQUIRED: 'errors.noActiveTenant',
-  MISSING_ORG_ID: 'errors.missingParams',
-  MISSING_TOKEN: 'errors.missingParams',
-  MISSING_EMAIL: 'errors.missingParams',
-  MISSING_REFRESH_TOKEN: 'errors.missingParams',
+  MISSING_CREDENTIALS: 'errors.missingCredentials',
   INVALID_OR_EXPIRED_TOKEN: 'errors.invalidToken',
-  INVALID_REFRESH_TOKEN: 'errors.unauthorized',
-  NOT_A_MEMBER: 'errors.forbidden',
-  ORG_INACTIVE: 'errors.forbidden',
-  READINESS_CHECK_ERROR: 'errors.internalError',
-  METRICS_GENERATION_FAILED: 'errors.internalError',
-  CACHE_MISS: 'errors.backtestFailed',
-  BACKTEST_CACHE_MISS: 'errors.backtestFailed',
-  MISSING_REQUIRED_FIELD: 'errors.missingParams',
   PAYMENT_REQUIRED: 'errors.quotaExceeded',
-  ID_INVALID: 'errors.missingParams',
   PORTFOLIO_WEIGHT_SUM: 'errors.invalidWeightSum',
   PCA_MIN_ASSETS: 'errors.pcaMinAssets',
 };
+for (const [key, codes] of Object.entries(ERROR_I18N_GROUPS)) {
+  for (const code of codes) ERROR_I18N_MAP[code] = key;
+}
+
 export interface ApiError {
   code?: string;
   message?: string;
   detail?: string;
   [key: string]: unknown;
 }
+
 export interface WarningInfo {
   code?: string;
   message?: string;
@@ -156,60 +161,51 @@ export interface WarningInfo {
   actualStart?: string;
   actualEnd?: string;
 }
-export function getErrorI18nKey(code?: string): string {
-  if (!code) return 'errors.unknown';
-  return ERROR_I18N_MAP[code] || 'errors.unknown';
-}
-export function getWarningI18nKey(code?: string): string {
-  if (!code) return 'errors.unknown';
-  return ERROR_I18N_MAP[code] || 'errors.unknown';
-}
+
+const getI18nKey = (code?: string): string => (code && ERROR_I18N_MAP[code]) || 'errors.unknown';
+export const getErrorI18nKey = getI18nKey;
+export const getWarningI18nKey = getI18nKey;
+
 export function getWarningInterpolationParams(warning: WarningInfo): Record<string, ReactNode> {
   const params: Record<string, ReactNode> = {};
-  if (warning.tickers && warning.tickers.length > 0) {
-    params.tickers = warning.tickers.join(', ');
+  if (warning.tickers?.length) params.tickers = warning.tickers.join(', ');
+  for (const k of ['requestedStart', 'requestedEnd', 'actualStart', 'actualEnd'] as const) {
+    if (warning[k]) params[k] = warning[k];
   }
-  if (warning.requestedStart) params.requestedStart = warning.requestedStart;
-  if (warning.requestedEnd) params.requestedEnd = warning.requestedEnd;
-  if (warning.actualStart) params.actualStart = warning.actualStart;
-  if (warning.actualEnd) params.actualEnd = warning.actualEnd;
   return params;
 }
+
 export function processResponseWarnings(json: Record<string, unknown>): WarningInfo[] {
-  const rawWarnings = json.warnings;
+  const raw = json.warnings;
+  if (!Array.isArray(raw) || raw.length === 0) return [];
   const warningsList: WarningInfo[] = [];
-  if (Array.isArray(rawWarnings) && rawWarnings.length > 0) {
-    for (const w of rawWarnings) {
-      if (typeof w === 'string') {
-        useToastStore.getState().addToast('warning', w);
-      } else if (w && typeof w === 'object') {
-        const warn = w as WarningInfo;
-        warningsList.push(warn);
-        const key = getWarningI18nKey(warn.code);
-        const params = getWarningInterpolationParams(warn);
-        const message = i18n.t(key, params);
-        useToastStore
-          .getState()
-          .addToast('warning', warn.message ? `${message} - ${warn.message}` : message);
-      }
+  for (const w of raw) {
+    if (typeof w === 'string') {
+      useToastStore.getState().addToast('warning', w);
+    } else if (w && typeof w === 'object') {
+      const warn = w as WarningInfo;
+      warningsList.push(warn);
+      const message = i18n.t(getWarningI18nKey(warn.code), getWarningInterpolationParams(warn));
+      useToastStore
+        .getState()
+        .addToast('warning', warn.message ? `${message} - ${warn.message}` : message);
     }
   }
   return warningsList;
 }
+
 export function extractDateRange(
   json: Record<string, unknown>,
   warnings: WarningInfo[],
 ): DateRangeInfo | null {
   const dr = json.dateRange as DateRangeInfo | undefined;
   if (dr) return dr;
-  const clampedWarn = warnings.find((w) => w.code === 'DATE_RANGE_CLAMPED');
-  if (clampedWarn) {
-    return {
-      requested: { start: clampedWarn.requestedStart || '', end: clampedWarn.requestedEnd || '' },
-      actual: { start: clampedWarn.actualStart || '', end: clampedWarn.actualEnd || '' },
-      clamped: true,
-      missingTickers: clampedWarn.tickers,
-    };
-  }
-  return null;
+  const clamped = warnings.find((w) => w.code === 'DATE_RANGE_CLAMPED');
+  if (!clamped) return null;
+  return {
+    requested: { start: clamped.requestedStart || '', end: clamped.requestedEnd || '' },
+    actual: { start: clamped.actualStart || '', end: clamped.actualEnd || '' },
+    clamped: true,
+    missingTickers: clamped.tickers,
+  };
 }

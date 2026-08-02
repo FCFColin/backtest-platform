@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import type { GoalOptimizerResult } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
+import { CHART_COLORS, type GoalOptimizerResult } from '@backtest/shared';
 import { fmtPct, fmtDollar } from '@/utils/format';
 import { useGoalOptimizerState } from '@/hooks/useGoalOptimizerState.js';
 import { GoalOptimizerParamsPanel } from './GoalOptimizerParams.js';
@@ -25,8 +24,7 @@ import {
   LEGEND_WRAPPER_STYLE,
 } from '@/lib/chart-theme.js';
 import ChartCard from '@/components/ChartCard.js';
-import { Card } from '@/components/ui/uiComponents';
-import { Progress } from '@/components/ui/uiComponents';
+import { Card, Progress } from '@/components/ui/uiComponents';
 import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';
 import { getProbColor } from './goalOptimizerUtils.js';
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {

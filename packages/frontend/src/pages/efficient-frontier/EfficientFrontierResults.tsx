@@ -1,7 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowRight } from 'lucide-react';
-import { CHART_COLORS } from '@backtest/shared';
-import type { EfficientFrontierPoint, EfficientFrontierResult } from '@backtest/shared';
+import {
+  CHART_COLORS,
+  type EfficientFrontierPoint,
+  type EfficientFrontierResult,
+} from '@backtest/shared';
 import { ErrorBanner } from '@/components/stateDisplay';
 import { Button } from '@/components/ui/uiComponents';
 import {

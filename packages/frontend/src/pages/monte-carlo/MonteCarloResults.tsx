@@ -1,7 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MonteCarloResult } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
+import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
 import {
   Card,
   Separator,
@@ -167,7 +166,6 @@ export function MonteCarloSummaryTab({
     </Card>
   );
 }
-// eslint-disable-next-line max-lines-per-function -- 合并页面内多区块渲染，内聚保留
 function ResultsDisplay({
   r,
   label,
@@ -208,35 +206,17 @@ function ResultsDisplay({
             <MonteCarloSummaryTab r={r} startingValue={startingValue} />
           </TabsContent>
           <TabsContent value="range">
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
-                </div>
-              }
-            >
+            <Suspense fallback={<LazyFallback />}>
               <MonteCarloRangeTab r={r} startingValue={startingValue} />
             </Suspense>
           </TabsContent>
           <TabsContent value="success">
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
-                </div>
-              }
-            >
+            <Suspense fallback={<LazyFallback />}>
               <MonteCarloSuccessTab r={r} />
             </Suspense>
           </TabsContent>
           <TabsContent value="distributions">
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
-                </div>
-              }
-            >
+            <Suspense fallback={<LazyFallback />}>
               <MonteCarloDistributionsTab
                 r={r}
                 distMetric={distMetric}
@@ -246,13 +226,7 @@ function ResultsDisplay({
             </Suspense>
           </TabsContent>
           <TabsContent value="scenarios">
-            <Suspense
-              fallback={
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-brand" />
-                </div>
-              }
-            >
+            <Suspense fallback={<LazyFallback />}>
               <MonteCarloScenariosTab r={r} startingValue={startingValue} />
             </Suspense>
           </TabsContent>
@@ -327,6 +301,11 @@ export function MonteCarloResultsPanel({
 function McParamsWrapper({ state }: { state: McState }) {
   return <McParamsPanel s={state} />;
 }
+const LazyFallback = () => (
+  <div className="flex justify-center py-12">
+    <Loader2 className="h-6 w-6 animate-spin text-brand" />
+  </div>
+);
 function McResultsWrapper({ state }: { state: McState }) {
   return (
     <MonteCarloResultsPanel

@@ -8,6 +8,7 @@ interface TickLineConfig {
 }
 interface AxisLabelConfig {
   value: string;
+  position?: string;
 }
 interface SvgAxisProps {
   orientation: Orientation;
@@ -195,6 +196,8 @@ export function SvgLegend({ series, onToggle }: SvgLegendProps) {
     >
       {series.map((s) => (
         <div
+          role="button"
+          tabIndex={0}
           key={s.name}
           style={{
             display: 'flex',
@@ -205,6 +208,12 @@ export function SvgLegend({ series, onToggle }: SvgLegendProps) {
             transition: 'opacity 0.15s',
           }}
           onClick={() => onToggle?.(s.name)}
+          onKeyDown={(e) => {
+            if (onToggle && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              onToggle(s.name);
+            }
+          }}
         >
           <span style={swatchStyle(10, s.color)} />
           <span>{s.name}</span>

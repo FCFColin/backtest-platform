@@ -8,7 +8,7 @@ const ICON_BASE = {
   stroke: 'currentColor',
   strokeWidth: 2,
   strokeLinecap: 'round',
-  strokeLinejoin: 'round'
+  strokeLinejoin: 'round',
 } as const;
 export function AlertCircle(props: SVGProps<SVGSVGElement>) {
   return (

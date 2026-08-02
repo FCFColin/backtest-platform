@@ -4,8 +4,7 @@ import { Settings, Server, Database, RefreshCw, RotateCcw } from 'lucide-react';
 import { apiFetch } from '../../utils/apiClient.js';
 import { useToastStore } from '../../store/toastStore.js';
 import { reportError } from '../../utils/errorReporter.js';
-import { Button } from '../../components/ui/uiComponents.js';
-import { Card } from '../../components/ui/uiComponents.js';
+import { Button, Card } from '../../components/ui/uiComponents.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
 interface ServiceConfig {
   name: string;

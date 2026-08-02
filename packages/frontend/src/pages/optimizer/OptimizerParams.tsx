@@ -1,21 +1,22 @@
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2 } from 'lucide-react';
-import type { InputProps } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
 import {
+  Button,
+  Input,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  type InputProps,
 } from '@/components/ui/uiComponents';
-import { Switch } from '@/components/ui/uiComponents';
-import { Button } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
+
 function PercentInput(props: InputProps) {
   return (
     <div className="relative">
@@ -23,14 +24,6 @@ function PercentInput(props: InputProps) {
       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
         %
       </span>
-    </div>
-  );
-}
-function SectionHeader({ title, info }: { title: string; info?: string }) {
-  return (
-    <div>
-      <div className="text-label font-semibold text-fg">{title}</div>
-      {info && <div className="text-caption text-fg-tertiary">{info}</div>}
     </div>
   );
 }
@@ -50,37 +43,25 @@ function LabeledField({
     </Field>
   );
 }
-function TickerEditor({ s }: { s: EfficientFrontierState }) {
-  const { t } = useTranslation();
-  const handleTagChange = (newTickers: string[]) => {
-    // 空行是占位（badge 渲染时过滤）：按非空列表重建，空行保持数量不变
-    const emptyRows = s.tickers.length - s.tickers.filter(Boolean).length;
-    s.setTickers([...newTickers, ...Array(emptyRows).fill('')]);
-  };
+function SectionHeader({ title, info }: { title: string; info?: string }) {
   return (
-    <section className="flex flex-col gap-3">
-      <SectionHeader
-        title={t('optimizer.assetSelection')}
-        info={t('optimizer.assetSelectionInfo')}
-      />
-      <TickerTagInput
-        tickers={s.tickers.filter(Boolean)}
-        onChange={handleTagChange}
-        minCount={2}
-        placeholder={t('optimizer.tickerPlaceholder')}
-      />
-    </section>
+    <div>
+      <div className="text-label font-semibold text-fg">{title}</div>
+      {info && <div className="text-caption text-fg-tertiary">{info}</div>}
+    </div>
   );
 }
-const OBJECTIVES: { value: 'maxSharpe' | 'minVolatility' | 'maxReturn'; labelKey: string }[] = [
+
+const OBJECTIVES = [
   { value: 'maxSharpe', labelKey: 'optimizer.maxSharpe' },
   { value: 'minVolatility', labelKey: 'optimizer.minVolatility' },
   { value: 'maxReturn', labelKey: 'optimizer.maxReturn' },
-];
-const SOLVERS: { value: 'markowitz' | 'ga'; labelKey: string }[] = [
+] as const;
+const SOLVERS = [
   { value: 'markowitz', labelKey: 'optimizer.solverMarkowitz' },
   { value: 'ga', labelKey: 'optimizer.solverGA' },
-];
+] as const;
+
 function SelectField<T extends string>({
   id,
   value,
@@ -91,7 +72,7 @@ function SelectField<T extends string>({
   id?: string;
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; labelKey: string }[];
+  options: readonly { value: T; labelKey: string }[];
   labelKey: string;
 }) {
   const { t } = useTranslation();
@@ -112,7 +93,30 @@ function SelectField<T extends string>({
     </LabeledField>
   );
 }
-function SolverDateAndObjectiveFields({ s }: { s: EfficientFrontierState }) {
+
+function TickerEditor({ s }: { s: EfficientFrontierState }) {
+  const { t } = useTranslation();
+  const handleTagChange = (newTickers: string[]) => {
+    const emptyRows = s.tickers.length - s.tickers.filter(Boolean).length;
+    s.setTickers([...newTickers, ...Array(emptyRows).fill('')]);
+  };
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeader
+        title={t('optimizer.assetSelection')}
+        info={t('optimizer.assetSelectionInfo')}
+      />
+      <TickerTagInput
+        tickers={s.tickers.filter(Boolean)}
+        onChange={handleTagChange}
+        minCount={2}
+        placeholder={t('optimizer.tickerPlaceholder')}
+      />
+    </section>
+  );
+}
+
+function SolverSettings({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const allHistory = s.startDate === '' && s.endDate === '';
   const dateFields = [
@@ -124,49 +128,6 @@ function SolverDateAndObjectiveFields({ s }: { s: EfficientFrontierState }) {
     },
     { id: 'opt-end-date', labelKey: 'optimizer.endDate', value: s.endDate, setter: s.setEndDate },
   ];
-  return (
-    <>
-      <Field>
-        <div className="flex items-center justify-between">
-          <FieldLabel htmlFor="opt-all-history">{t('optimizer.allHistory')}</FieldLabel>
-          <Switch
-            id="opt-all-history"
-            checked={allHistory}
-            onCheckedChange={(checked) => {
-              if (checked) {
-                s.setStartDate('');
-                s.setEndDate('');
-              } else {
-                s.setStartDate(DEFAULT_BACKTEST_START_DATE);
-                s.setEndDate(DEFAULT_END_DATE);
-              }
-            }}
-          />
-        </div>
-      </Field>
-      {dateFields.map((f) => (
-        <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
-          <Input
-            id={f.id}
-            type="date"
-            value={f.value}
-            disabled={allHistory}
-            onChange={(e) => f.setter(e.target.value)}
-          />
-        </LabeledField>
-      ))}
-      <SelectField
-        id="opt-objective"
-        labelKey="optimizer.objective"
-        value={s.objective}
-        onChange={s.setObjective}
-        options={OBJECTIVES}
-      />
-    </>
-  );
-}
-function SolverWeightsAndTypeFields({ s }: { s: EfficientFrontierState }) {
-  const { t } = useTranslation();
   const weightFields = [
     {
       id: 'opt-min-weight',
@@ -182,57 +143,85 @@ function SolverWeightsAndTypeFields({ s }: { s: EfficientFrontierState }) {
     },
   ];
   return (
-    <>
-      {weightFields.map((f) => (
-        <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
-          <PercentInput
-            id={f.id}
-            value={f.value}
-            min={0}
-            max={100}
-            onChange={(e) => f.setter(Number(e.target.value))}
-          />
-        </LabeledField>
-      ))}
-      <LabeledField htmlFor="opt-tbill" labelKey={t('optimizer.tbillRate')}>
-        <PercentInput
-          id="opt-tbill"
-          step={0.1}
-          value={s.tbillRate}
-          onChange={(e) => s.setTbillRate(Number(e.target.value))}
-        />
-      </LabeledField>
-      <SelectField
-        id="opt-solver"
-        labelKey="optimizer.solver"
-        value={s.solver}
-        onChange={(v) => s.setSolver(v as SolverType)}
-        options={SOLVERS}
-      />
-      <Field>
-        <div className="flex items-center justify-between">
-          <FieldLabel htmlFor="opt-short">{t('optimizer.allowShort')}</FieldLabel>
-          <Switch id="opt-short" checked={s.allowShort} onCheckedChange={s.setAllowShort} />
-        </div>
-      </Field>
-    </>
-  );
-}
-function SolverSettings({ s }: { s: EfficientFrontierState }) {
-  const { t } = useTranslation();
-  return (
     <section className="flex flex-col gap-3">
       <SectionHeader
         title={t('optimizer.solverSettings')}
         info={t('optimizer.solverSettingsInfo')}
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <SolverDateAndObjectiveFields s={s} />
-        <SolverWeightsAndTypeFields s={s} />
+        <Field>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="opt-all-history">{t('optimizer.allHistory')}</FieldLabel>
+            <Switch
+              id="opt-all-history"
+              checked={allHistory}
+              onCheckedChange={(checked) => {
+                if (checked) {
+                  s.setStartDate('');
+                  s.setEndDate('');
+                } else {
+                  s.setStartDate(DEFAULT_BACKTEST_START_DATE);
+                  s.setEndDate(DEFAULT_END_DATE);
+                }
+              }}
+            />
+          </div>
+        </Field>
+        {dateFields.map((f) => (
+          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
+            <Input
+              id={f.id}
+              type="date"
+              value={f.value}
+              disabled={allHistory}
+              onChange={(e) => f.setter(e.target.value)}
+            />
+          </LabeledField>
+        ))}
+        <SelectField
+          id="opt-objective"
+          labelKey="optimizer.objective"
+          value={s.objective}
+          onChange={s.setObjective}
+          options={OBJECTIVES}
+        />
+        {weightFields.map((f) => (
+          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
+            <PercentInput
+              id={f.id}
+              value={f.value}
+              min={0}
+              max={100}
+              onChange={(e) => f.setter(Number(e.target.value))}
+            />
+          </LabeledField>
+        ))}
+        <LabeledField htmlFor="opt-tbill" labelKey={t('optimizer.tbillRate')}>
+          <PercentInput
+            id="opt-tbill"
+            step={0.1}
+            value={s.tbillRate}
+            onChange={(e) => s.setTbillRate(Number(e.target.value))}
+          />
+        </LabeledField>
+        <SelectField
+          id="opt-solver"
+          labelKey="optimizer.solver"
+          value={s.solver}
+          onChange={(v) => s.setSolver(v as SolverType)}
+          options={SOLVERS}
+        />
+        <Field>
+          <div className="flex items-center justify-between">
+            <FieldLabel htmlFor="opt-short">{t('optimizer.allowShort')}</FieldLabel>
+            <Switch id="opt-short" checked={s.allowShort} onCheckedChange={s.setAllowShort} />
+          </div>
+        </Field>
       </div>
     </section>
   );
 }
+
 function ConstraintField({
   label,
   checked,
@@ -264,6 +253,7 @@ function ConstraintField({
     </Field>
   );
 }
+
 function HistoricalConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const fields = [
@@ -305,51 +295,35 @@ function HistoricalConstraints({ s }: { s: EfficientFrontierState }) {
     </CollapsibleSection>
   );
 }
-// eslint-disable-next-line max-lines-per-function -- 合并页面内多区块渲染，内聚保留
+
 function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  const numericFields: {
-    labelKey: string;
-    value: string | number;
-    setter: (v: string) => void;
-    inputType?: 'number' | 'percent';
-    step?: number;
-    min?: number;
-    max?: number;
-  }[] = [
+  const fields = [
     {
       labelKey: 'optimizer.minSharpeLabel',
       value: s.minSharpe,
       setter: s.setMinSharpe,
-      inputType: 'number',
       step: 0.01,
     },
     {
       labelKey: 'optimizer.minSortinoLabel',
       value: s.minSortino,
       setter: s.setMinSortino,
-      inputType: 'number',
       step: 0.01,
     },
     {
       labelKey: 'optimizer.maxAvgDDLabel',
       value: s.maxAvgDD,
       setter: s.setMaxAvgDD,
-      inputType: 'percent',
+      percent: true,
       step: 0.1,
     },
-    {
-      labelKey: 'optimizer.maxHoldings',
-      value: s.maxHoldings,
-      setter: s.setMaxHoldings,
-      inputType: 'number',
-      min: 2,
-    },
+    { labelKey: 'optimizer.maxHoldings', value: s.maxHoldings, setter: s.setMaxHoldings, min: 2 },
     {
       labelKey: 'optimizer.minWeightToInclude',
       value: s.minWeightToInclude,
       setter: s.setMinWeightToInclude,
-      inputType: 'percent',
+      percent: true,
       min: 0,
       max: 100,
     },
@@ -360,9 +334,9 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
       description={t('optimizer.advancedConstraintsInfo')}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {numericFields.map((f) => (
+        {fields.map((f) => (
           <LabeledField key={f.labelKey} labelKey={t(f.labelKey)}>
-            {f.inputType === 'percent' ? (
+            {f.percent ? (
               <PercentInput
                 step={f.step}
                 min={f.min}
@@ -388,6 +362,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
     </CollapsibleSection>
   );
 }
+
 export function OptimizerParams({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const running = s.isLoading || s.isCalculatingStats;

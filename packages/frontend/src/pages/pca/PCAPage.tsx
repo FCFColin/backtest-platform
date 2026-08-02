@@ -14,10 +14,8 @@ import {
   YAxis,
   ZAxis,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
-import type { PCAResult } from '@backtest/shared';
-import { Card } from '@/components/ui/uiComponents';
-import { buttonVariants } from '@/components/ui/uiComponents';
+import { CHART_COLORS, type PCAResult } from '@backtest/shared';
+import { Card, buttonVariants, Input, LoadingButton } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
 import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';
 import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
@@ -32,6 +30,11 @@ import {
   pickByThreshold,
   type ThresholdBand,
 } from '@/lib/chart-theme.js';
+import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
+import { MatrixHeatmap } from '@/components/charts/tables.js';
+import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
+import { TickerTagInput } from '../../components/form/TickerTagInput.js';
+import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 function usePcaPageState() {
   const { t } = useTranslation();
   const {
@@ -83,14 +86,7 @@ function usePcaPageState() {
     runAnalysis,
   };
 }
-import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
-import { MatrixHeatmap } from '@/components/charts/tables.js';
-import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
-import { Input } from '@/components/ui/uiComponents';
-import { LoadingButton } from '../../components/ui/uiComponents.js';
-import { TickerTagInput } from '../../components/form/TickerTagInput.js';
-
-import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+type PCAState = ReturnType<typeof usePcaPageState>;
 const LOADING_COLOR_BANDS: ReadonlyArray<ThresholdBand> = [
   { threshold: 0.8, value: '#1a7a3a' },
   { threshold: 0.6, value: '#2e8b57' },
@@ -105,26 +101,17 @@ const DEFAULT_LOADING_COLOR = '#8b2020';
 function getLoadingColor(loading: number): string {
   return pickByThreshold(loading, LOADING_COLOR_BANDS, DEFAULT_LOADING_COLOR);
 }
-interface PCAParamsProps {
-  tickers: string[];
-  startDate: string;
-  endDate: string;
-  numComponents: number | '';
-  isLoading: boolean;
-  onAddTicker: () => void;
-  onRemoveTicker: (idx: number) => void;
-  onUpdateTicker: (idx: number, val: string) => void;
-  onStartDateChange: (v: string) => void;
-  onEndDateChange: (v: string) => void;
-  onNumComponentsChange: (v: number | '') => void;
-  onRun: () => void;
-}
 function PcaAssetSelection({
   tickers,
   onAddTicker,
   onRemoveTicker,
   onUpdateTicker,
-}: Pick<PCAParamsProps, 'tickers' | 'onAddTicker' | 'onRemoveTicker' | 'onUpdateTicker'>) {
+}: {
+  tickers: string[];
+  onAddTicker: () => void;
+  onRemoveTicker: (idx: number) => void;
+  onUpdateTicker: (idx: number, val: string) => void;
+}) {
   const { t } = useTranslation();
   const handleTagChange = (newTickers: string[]) => {
     const oldLen = tickers.length;
@@ -156,21 +143,22 @@ function PcaAssetSelection({
     </Field>
   );
 }
-function PCAParamsPanel({
-  tickers,
-  startDate,
-  endDate,
-  numComponents,
-  isLoading,
-  onAddTicker,
-  onRemoveTicker,
-  onUpdateTicker,
-  onStartDateChange,
-  onEndDateChange,
-  onNumComponentsChange,
-  onRun,
-}: PCAParamsProps) {
+function PCAParamsPanel({ state: s }: { state: PCAState }) {
   const { t } = useTranslation();
+  const {
+    tickers,
+    startDate,
+    endDate,
+    numComponents,
+    isLoading,
+    addTicker: onAddTicker,
+    removeTicker: onRemoveTicker,
+    updateTicker: onUpdateTicker,
+    setStartDate: onStartDateChange,
+    setEndDate: onEndDateChange,
+    setNumComponents: onNumComponentsChange,
+    runAnalysis: onRun,
+  } = s;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div className="col-span-full">
@@ -232,11 +220,6 @@ function PCAParamsPanel({
       </div>
     </div>
   );
-}
-interface PCAResultsProps {
-  results: PCAResult | null;
-  error: string | null;
-  isLoading: boolean;
 }
 function EigenvalueBarChart({ data }: { data: { component: string; eigenvalue: number }[] }) {
   const { t } = useTranslation();
@@ -339,7 +322,8 @@ function PCAScatterChart({ data }: { data: { pc1: number; pc2: number }[] }) {
     </Card>
   );
 }
-function PCAResultsPanel({ results, error, isLoading }: PCAResultsProps) {
+function PCAResultsPanel({ state: s }: { state: PCAState }) {
+  const { results, error, isLoading } = s;
   const { t } = useTranslation();
   const eigenvalueData = useMemo(() => {
     if (!results) return [];
@@ -357,10 +341,14 @@ function PCAResultsPanel({ results, error, isLoading }: PCAResultsProps) {
   }, [results]);
   const scatterData = useMemo(() => {
     if (!results || results.scores.length === 0) return [];
-    return results.scores.map((row) => ({
-      pc1: +row[0].toFixed(4),
-      pc2: row[1] !== undefined ? +row[1].toFixed(4) : 0,
-    }));
+    const raw = results.scores;
+    const step = Math.max(1, Math.ceil(raw.length / 400));
+    return raw
+      .filter((_, i) => i % step === 0)
+      .map((row) => ({
+        pc1: +row[0].toFixed(4),
+        pc2: row[1] !== undefined ? +row[1].toFixed(4) : 0,
+      }));
   }, [results]);
   return (
     <div className="flex flex-col gap-3">
@@ -390,30 +378,6 @@ function PCAResultsPanel({ results, error, isLoading }: PCAResultsProps) {
     </div>
   );
 }
-type PCAState = ReturnType<typeof usePcaPageState>;
-function PCAParamsWrapper({ state }: { state: PCAState }) {
-  return (
-    <PCAParamsPanel
-      tickers={state.tickers}
-      startDate={state.startDate}
-      endDate={state.endDate}
-      numComponents={state.numComponents}
-      isLoading={state.isLoading}
-      onAddTicker={state.addTicker}
-      onRemoveTicker={state.removeTicker}
-      onUpdateTicker={state.updateTicker}
-      onStartDateChange={state.setStartDate}
-      onEndDateChange={state.setEndDate}
-      onNumComponentsChange={state.setNumComponents}
-      onRun={state.runAnalysis}
-    />
-  );
-}
-function PCAResultsWrapper({ state }: { state: PCAState }) {
-  return (
-    <PCAResultsPanel results={state.results} error={state.error} isLoading={state.isLoading} />
-  );
-}
 const config: ComputeToolConfig<PCAState> = {
   titleKey: 'pca.title',
   seoDescKey: 'pca.seo.desc',
@@ -426,8 +390,8 @@ const config: ComputeToolConfig<PCAState> = {
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
     { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
   ],
-  params: PCAParamsWrapper,
-  results: PCAResultsWrapper,
+  params: PCAParamsPanel,
+  results: PCAResultsPanel,
 };
 export default function PCAPage() {
   const s = usePcaPageState();

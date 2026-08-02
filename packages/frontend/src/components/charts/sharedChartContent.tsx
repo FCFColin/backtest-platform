@@ -230,7 +230,6 @@ export function ScatterChartContent({
   );
 }
 
-// ChartAxis
 interface ChartXAxisProps extends Omit<XAxisProps, 'label' | 'tick' | 'tickFormatter' | 'ref'> {
   dataKey?: string;
   tickFormatter?: (value: number | string) => string;
@@ -371,7 +370,6 @@ ChartYAxis.defaultProps = { yAxisId: 0, type: 'number' };
 ChartTooltip.displayName = 'Tooltip';
 ChartLegend.displayName = 'Legend';
 
-// ChartEmptyState
 interface ChartEmptyStateProps {
   message?: string;
   height?: string;
@@ -392,7 +390,6 @@ export function ChartEmptyState({ message, height = '280px' }: ChartEmptyStatePr
   );
 }
 
-// ReturnsTabDailyChart
 interface ReturnsTabDailyChartProps {
   portfolios: PortfolioResult[];
   bins: Array<{ range: string; [portfolioName: string]: string | number }>;

@@ -11,8 +11,12 @@ import {
   YAxis,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
-import { ParamsPanel, ParamsSection } from '../../components/params/paramsLayout.js';
-import { ParamRow, ParamCard } from '../../components/params/paramsLayout.js';
+import {
+  ParamsPanel,
+  ParamsSection,
+  ParamRow,
+  ParamCard,
+} from '../../components/params/paramsLayout.js';
 import {
   Button,
   Card,
@@ -42,6 +46,8 @@ import type {
   Objective,
   OptimizerSectionProps,
 } from './backtestOptimizerUtils.js';
+const INPUT_CLS =
+  'flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150';
 function BacktestRangeSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
@@ -53,7 +59,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
         <ParamCard label={t('backtest.optimizer.startDate')}>
           <input
             type="date"
-            className="flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150"
+            className={INPUT_CLS}
             value={s.startDate}
             onChange={(e) => s.setStartDate(e.target.value)}
           />
@@ -61,7 +67,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
         <ParamCard label={t('backtest.optimizer.endDate')}>
           <input
             type="date"
-            className="flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150"
+            className={INPUT_CLS}
             value={s.endDate}
             onChange={(e) => s.setEndDate(e.target.value)}
           />
@@ -69,7 +75,7 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
         <ParamCard label={t('backtest.optimizer.benchmarkTicker')}>
           <input
             type="text"
-            className="flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg placeholder:text-fg-tertiary hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150"
+            className={`${INPUT_CLS} placeholder:text-fg-tertiary`}
             value={s.benchmarkTicker}
             onChange={(e) => s.setBenchmarkTicker(e.target.value)}
             placeholder={t('backtest.optimizer.benchmarkPlaceholder')}
@@ -223,60 +229,38 @@ function FreqMultiSelect({ s }: OptimizerSectionProps) {
     </div>
   );
 }
-function ThresholdRangeInputs({ s }: OptimizerSectionProps) {
+function RangeInputs({
+  titleKey,
+  prefix,
+  suffix,
+  step,
+  fields,
+}: {
+  titleKey: string;
+  prefix?: string;
+  suffix?: string;
+  step: string;
+  fields: Array<[string, string, (v: string) => void]>;
+}) {
   const { t } = useTranslation();
   return (
     <div>
-      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
-        {t('backtest.optimizer.thresholdRange')}
-      </div>
-      <ParamRow>
-        {[
-          [t('backtest.optimizer.min'), s.thrMin, s.setThrMin],
-          [t('backtest.optimizer.max'), s.thrMax, s.setThrMax],
-          [t('backtest.optimizer.step'), s.thrStep, s.setThrStep],
-        ].map(([label, val, set]) => (
-          <ParamCard key={label as string} label={label as string}>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                step="0.5"
-                className="font-mono tabular-nums"
-                value={val as string}
-                onChange={(e) => (set as (v: string) => void)(e.target.value)}
-              />
-              <span className="text-caption text-fg-tertiary shrink-0">%</span>
-            </div>
-          </ParamCard>
-        ))}
-      </ParamRow>
-    </div>
-  );
-}
-function CapitalRangeInputs({ s }: OptimizerSectionProps) {
-  const { t } = useTranslation();
-  const fields: Array<[string, string, (v: string) => void]> = [
-    [t('backtest.optimizer.min'), s.capMin, s.setCapMin],
-    [t('backtest.optimizer.max'), s.capMax, s.setCapMax],
-    [t('backtest.optimizer.step'), s.capStep, s.setCapStep],
-  ];
-  return (
-    <div>
-      <div className="mb-1.5 text-caption font-medium text-fg-secondary">
-        {t('backtest.optimizer.capitalRange')}
-      </div>
+      <div className="mb-1.5 text-caption font-medium text-fg-secondary">{t(titleKey)}</div>
       <ParamRow>
         {fields.map(([label, val, set]) => (
           <ParamCard key={label} label={label}>
             <div className="flex items-center gap-2">
-              <span className="text-body text-fg-tertiary font-mono shrink-0">$</span>
+              {prefix && (
+                <span className="text-body text-fg-tertiary font-mono shrink-0">{prefix}</span>
+              )}
               <Input
                 type="number"
-                step="1000"
+                step={step}
                 className="font-mono tabular-nums"
                 value={val}
                 onChange={(e) => set(e.target.value)}
               />
+              {suffix && <span className="text-caption text-fg-tertiary shrink-0">{suffix}</span>}
             </div>
           </ParamCard>
         ))}
@@ -286,6 +270,16 @@ function CapitalRangeInputs({ s }: OptimizerSectionProps) {
 }
 function ParameterSpaceSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
+  const thrFields: Array<[string, string, (v: string) => void]> = [
+    [t('backtest.optimizer.min'), s.thrMin, s.setThrMin],
+    [t('backtest.optimizer.max'), s.thrMax, s.setThrMax],
+    [t('backtest.optimizer.step'), s.thrStep, s.setThrStep],
+  ];
+  const capFields: Array<[string, string, (v: string) => void]> = [
+    [t('backtest.optimizer.min'), s.capMin, s.setCapMin],
+    [t('backtest.optimizer.max'), s.capMax, s.setCapMax],
+    [t('backtest.optimizer.step'), s.capStep, s.setCapStep],
+  ];
   return (
     <ParamsSection
       title={t('backtest.optimizer.paramSpace')}
@@ -293,8 +287,18 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
     >
       <div className="flex flex-col gap-3">
         <FreqMultiSelect s={s} />
-        <ThresholdRangeInputs s={s} />
-        <CapitalRangeInputs s={s} />
+        <RangeInputs
+          titleKey="backtest.optimizer.thresholdRange"
+          suffix="%"
+          step="0.5"
+          fields={thrFields}
+        />
+        <RangeInputs
+          titleKey="backtest.optimizer.capitalRange"
+          prefix="$"
+          step="1000"
+          fields={capFields}
+        />
       </div>
     </ParamsSection>
   );

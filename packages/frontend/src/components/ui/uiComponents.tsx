@@ -22,18 +22,21 @@ import { Check, Circle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 
-// 多个 Radix/HTML 包装组件仅 class 不同，工厂统一 forwardRef 样板；content 用于渲染固定子节点
-type WrapComp = React.ComponentType<Record<string, unknown>> | keyof React.JSX.IntrinsicElements;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type WrapComp = React.ComponentType<any> | keyof React.JSX.IntrinsicElements;
 const wrapPrimitive = <T extends WrapComp>(
   Comp: T,
   baseClass: string,
   displayName?: string,
-  content?: (children: ReactNode, props: Record<string, unknown>) => ReactNode,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  content?: (children: ReactNode, props: any) => ReactNode,
 ) => {
-  const Element = Comp as React.JSXElementConstructor<Record<string, unknown>>;
-  const Wrapped = React.forwardRef<Record<string, unknown>, React.ComponentPropsWithoutRef<T>>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Element = Comp as React.JSXElementConstructor<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const Wrapped = React.forwardRef<any, React.ComponentPropsWithoutRef<T>>(
     ({ className, children, ...props }, ref) => (
-      <Element ref={ref} className={cn(baseClass, className)} {...props}>
+      <Element ref={ref} className={cn(baseClass, className as string)} {...props}>
         {content ? content(children, props) : children}
       </Element>
     ),

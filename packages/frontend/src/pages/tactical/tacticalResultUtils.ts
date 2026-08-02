@@ -11,7 +11,10 @@ export interface StatRow {
 function fmtPrice(v: number): string {
   return v > 0 ? `$${v.toFixed(2)}` : '\u2014';
 }
-function buildGrowthData(portfolio: PortfolioResult, benchmark: PortfolioResult): Array<Record<string, number | string>> {
+function buildGrowthData(
+  portfolio: PortfolioResult,
+  benchmark: PortfolioResult,
+): Array<Record<string, number | string>> {
   const dateMap = new Map<string, Record<string, number | string>>();
   for (const pt of portfolio.growthCurve) {
     if (!dateMap.has(pt.date)) dateMap.set(pt.date, { date: pt.date });
@@ -21,9 +24,15 @@ function buildGrowthData(portfolio: PortfolioResult, benchmark: PortfolioResult)
     if (!dateMap.has(pt.date)) dateMap.set(pt.date, { date: pt.date });
     dateMap.get(pt.date)!['benchmark'] = pt.value;
   }
-  return Array.from(dateMap.values()).sort((a, b) => (a.date as string).localeCompare(b.date as string));
+  return Array.from(dateMap.values()).sort((a, b) =>
+    (a.date as string).localeCompare(b.date as string),
+  );
 }
-function buildStatRows(portfolio: PortfolioResult, benchmark: PortfolioResult, t: TFunction): StatRow[] {
+function buildStatRows(
+  portfolio: PortfolioResult,
+  benchmark: PortfolioResult,
+  t: TFunction,
+): StatRow[] {
   const metrics: Array<{
     key: keyof typeof portfolio.statistics;
     label: string;
@@ -37,13 +46,19 @@ function buildStatRows(portfolio: PortfolioResult, benchmark: PortfolioResult, t
     { key: 'calmar', label: 'tactical.results.calmar', fmt: 'ratio' },
     { key: 'pctPositiveDays', label: 'tactical.results.pctPositiveDays', fmt: 'pct' },
     { key: 'maxDailyReturn', label: 'tactical.results.maxDailyReturn', fmt: 'pct' },
-    { key: 'minDailyReturn', label: 'tactical.results.minDailyReturn', fmt: 'pct' }
+    { key: 'minDailyReturn', label: 'tactical.results.minDailyReturn', fmt: 'pct' },
   ];
   return metrics.map((m) => ({
     metric: t(m.label),
-    tactical: m.fmt === 'pct' ? fmtPct(portfolio.statistics[m.key] as number | undefined) : fmtRatio(portfolio.statistics[m.key] as number | undefined),
-    benchmark: m.fmt === 'pct' ? fmtPct(benchmark.statistics[m.key] as number | undefined) : fmtRatio(benchmark.statistics[m.key] as number | undefined),
-    _sortTactical: (portfolio.statistics[m.key] as number | undefined) ?? 0
+    tactical:
+      m.fmt === 'pct'
+        ? fmtPct(portfolio.statistics[m.key] as number | undefined)
+        : fmtRatio(portfolio.statistics[m.key] as number | undefined),
+    benchmark:
+      m.fmt === 'pct'
+        ? fmtPct(benchmark.statistics[m.key] as number | undefined)
+        : fmtRatio(benchmark.statistics[m.key] as number | undefined),
+    _sortTactical: (portfolio.statistics[m.key] as number | undefined) ?? 0,
   }));
 }
 function whatIfSignalColor(t: WhatIfResult['signalType']): string {

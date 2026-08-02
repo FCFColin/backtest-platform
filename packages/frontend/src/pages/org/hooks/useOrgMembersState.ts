@@ -32,7 +32,10 @@ export function useOrgMembersState(isAdmin: boolean): UseOrgMembersStateResult {
     setLoading(true);
     setError(null);
     try {
-      const [mRes, iRes] = await Promise.all([apiFetch('/api/v1/orgs/members'), isAdmin ? apiFetch('/api/v1/orgs/invitations') : Promise.resolve(null)]);
+      const [mRes, iRes] = await Promise.all([
+        apiFetch('/api/v1/orgs/members'),
+        isAdmin ? apiFetch('/api/v1/orgs/invitations') : Promise.resolve(null),
+      ]);
       if (mRes.ok) setMembers((await mRes.json())?.data ?? []);
       if (iRes && iRes.ok) setInvitations((await iRes.json())?.data ?? []);
     } catch (e) {
@@ -46,7 +49,7 @@ export function useOrgMembersState(isAdmin: boolean): UseOrgMembersStateResult {
       const res = await apiFetch(`/api/v1/orgs/members/${userId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role })
+        body: JSON.stringify({ role }),
       });
       if (!res.ok) setError((await res.json())?.detail || i18n.t('orgMembers.error.updateRole'));
       else await load();
@@ -65,7 +68,7 @@ export function useOrgMembersState(isAdmin: boolean): UseOrgMembersStateResult {
       const res = await apiFetch('/api/v1/orgs/invitations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), role })
+        body: JSON.stringify({ email: email.trim(), role }),
       });
       if (!res.ok) setError((await res.json())?.detail || i18n.t('orgMembers.error.sendInvite'));
       else await load();
@@ -88,6 +91,6 @@ export function useOrgMembersState(isAdmin: boolean): UseOrgMembersStateResult {
     changeRole,
     removeMember,
     sendInvite,
-    revokeInvite
+    revokeInvite,
   };
 }

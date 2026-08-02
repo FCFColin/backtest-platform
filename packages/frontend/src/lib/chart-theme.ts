@@ -7,7 +7,7 @@ export const CHART_TOOLTIP_STYLE: CSSProperties = {
   color: 'hsl(var(--fg))',
   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)',
   backdropFilter: 'blur(8px)',
-  WebkitBackdropFilter: 'blur(8px)'
+  WebkitBackdropFilter: 'blur(8px)',
 } as const;
 export const CHART_MARGIN = { top: 20, right: 40, bottom: 20, left: 80 } as const;
 export const CHART_GRID_PROPS = {
@@ -15,21 +15,30 @@ export const CHART_GRID_PROPS = {
   strokeWidth: 1,
   strokeDasharray: '3 3',
   vertical: true,
-  horizontal: true
+  horizontal: true,
 } as const;
 export const AXIS_TICK_STYLE = {
   fill: 'hsl(var(--fg-tertiary))',
   fontSize: 11,
-  fontFamily: 'Geist Mono Variable'
+  fontFamily: 'Geist Mono Variable',
 } as const;
 export const CHART_LINE_STYLE = {
   strokeWidth: 2.5,
   dot: false,
   activeDot: { r: 4, strokeWidth: 2 },
-  isAnimationActive: false
+  isAnimationActive: false,
 } as const;
 export const LEGEND_WRAPPER_STYLE = { fontSize: '12px', color: 'var(--fg-tertiary)' } as const;
-export const PORTFOLIO_COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))', 'hsl(var(--chart-6))', 'hsl(var(--chart-7))', 'hsl(var(--chart-8))'] as const;
+export const PORTFOLIO_COLORS = [
+  'hsl(var(--chart-1))',
+  'hsl(var(--chart-2))',
+  'hsl(var(--chart-3))',
+  'hsl(var(--chart-4))',
+  'hsl(var(--chart-5))',
+  'hsl(var(--chart-6))',
+  'hsl(var(--chart-7))',
+  'hsl(var(--chart-8))',
+] as const;
 export function getPortfolioColor(index: number): string {
   return PORTFOLIO_COLORS[index % PORTFOLIO_COLORS.length];
 }
@@ -42,12 +51,16 @@ export function SMART_DATE_INTERVAL(totalMonths: number): number {
   if (totalMonths <= 240) return 24;
   return 60;
 }
-export function currencyFormatter(value: number, currency: string = 'USD', digits: number = 0): string {
+export function currencyFormatter(
+  value: number,
+  currency: string = 'USD',
+  digits: number = 0,
+): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
     minimumFractionDigits: digits,
-    maximumFractionDigits: digits
+    maximumFractionDigits: digits,
   }).format(value);
 }
 export function PERCENT_TICK_FORMATTER(value: number, digits: number = 2): string {
@@ -62,12 +75,24 @@ const CORR_COLORS = {
   faintNegative: '#f0c8c8',
   weakNegative: '#d47070',
   moderateNegative: '#b04040',
-  strongNegative: '#8b2020'
+  strongNegative: '#8b2020',
 } as const;
 const POS_CORR_THRESHOLDS = [0.8, 0.6, 0.4, 0.2] as const;
-const POS_CORR_COLORS = [CORR_COLORS.strongPositive, CORR_COLORS.moderatePositive, CORR_COLORS.weakPositive, CORR_COLORS.faintPositive, CORR_COLORS.neutral] as const;
+const POS_CORR_COLORS = [
+  CORR_COLORS.strongPositive,
+  CORR_COLORS.moderatePositive,
+  CORR_COLORS.weakPositive,
+  CORR_COLORS.faintPositive,
+  CORR_COLORS.neutral,
+] as const;
 const NEG_CORR_THRESHOLDS = [-0.8, -0.6, -0.4, -0.2] as const;
-const NEG_CORR_COLORS = [CORR_COLORS.strongNegative, CORR_COLORS.moderateNegative, CORR_COLORS.weakNegative, CORR_COLORS.faintNegative, CORR_COLORS.neutral] as const;
+const NEG_CORR_COLORS = [
+  CORR_COLORS.strongNegative,
+  CORR_COLORS.moderateNegative,
+  CORR_COLORS.weakNegative,
+  CORR_COLORS.faintNegative,
+  CORR_COLORS.neutral,
+] as const;
 export function getCorrelationColor(val: number): string {
   if (val >= 0) {
     const idx = POS_CORR_THRESHOLDS.findIndex((t) => val >= t);
@@ -77,9 +102,25 @@ export function getCorrelationColor(val: number): string {
   return NEG_CORR_COLORS[idx === -1 ? NEG_CORR_COLORS.length - 1 : idx];
 }
 export type TooltipValueFormatter = (value: number, name: string) => [string, string] | string;
-export function wrapTooltipFormatter(userFormatter: TooltipValueFormatter | undefined): ((value: unknown, name: unknown, _item?: unknown, _index?: number, _payload?: unknown) => [ReactNode, ReactNode]) | undefined {
+export function wrapTooltipFormatter(
+  userFormatter: TooltipValueFormatter | undefined,
+):
+  | ((
+      value: unknown,
+      name: unknown,
+      _item?: unknown,
+      _index?: number,
+      _payload?: unknown,
+    ) => [ReactNode, ReactNode])
+  | undefined {
   if (!userFormatter) return undefined;
-  return (value: unknown, name: unknown, _item?: unknown, _index?: number, _payload?: unknown): [ReactNode, ReactNode] => {
+  return (
+    value: unknown,
+    name: unknown,
+    _item?: unknown,
+    _index?: number,
+    _payload?: unknown,
+  ): [ReactNode, ReactNode] => {
     try {
       const result = userFormatter(value as number, name as string);
       if (Array.isArray(result)) {
@@ -100,7 +141,7 @@ const HEAT_COLORS = {
   weakNegative: '#e8a0a0',
   moderateNegative: '#d47070',
   strongNegative: '#c94a4a',
-  neutral: 'var(--bg-subtle)'
+  neutral: 'var(--bg-subtle)',
 } as const;
 export function getHeatColor(val: number | null): string {
   if (val === null) return HEAT_COLORS.neutral;
@@ -116,14 +157,23 @@ export interface ThresholdBand<T = string> {
   threshold: number;
   value: T;
 }
-export function pickByThreshold<T>(value: number, bands: ReadonlyArray<ThresholdBand<T>>, defaultValue: T): T {
+export function pickByThreshold<T>(
+  value: number,
+  bands: ReadonlyArray<ThresholdBand<T>>,
+  defaultValue: T,
+): T {
   for (const band of bands) {
     const matches = band.threshold >= 0 ? value >= band.threshold : value > band.threshold;
     if (matches) return band.value;
   }
   return defaultValue;
 }
-export function pickByAbsThreshold<T>(value: number, threshold: number, highValue: T, lowValue: T): T {
+export function pickByAbsThreshold<T>(
+  value: number,
+  threshold: number,
+  highValue: T,
+  lowValue: T,
+): T {
   return Math.abs(value) > threshold ? highValue : lowValue;
 }
 interface InterpolateHslOptions {
@@ -133,7 +183,12 @@ interface InterpolateHslOptions {
   lightness?: number;
   equalDefault?: string;
 }
-export function interpolateHsl(value: number, min: number, max: number, options: InterpolateHslOptions = {}): string {
+export function interpolateHsl(
+  value: number,
+  min: number,
+  max: number,
+  options: InterpolateHslOptions = {},
+): string {
   const { hueStart = 0, hueEnd = 120, saturation = 70, lightness = 45, equalDefault } = options;
   if (min === max) {
     return equalDefault ?? `hsl(${(hueStart + hueEnd) / 2}, ${saturation}%, ${lightness}%)`;

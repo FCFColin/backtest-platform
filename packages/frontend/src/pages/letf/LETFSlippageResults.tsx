@@ -13,8 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { CHART_COLORS } from '@backtest/shared';
-import type { LETFResult } from '@backtest/shared';
+import { CHART_COLORS, type LETFResult } from '@backtest/shared';
 import { fmtPct } from '@/utils/format';
 import { AnalysisErrorAlert, EmptyResultsHint } from '@/components/resultsShell.js';
 import { Card } from '@/components/ui/uiComponents';

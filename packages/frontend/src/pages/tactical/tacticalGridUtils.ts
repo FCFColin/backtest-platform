@@ -1,5 +1,8 @@
-import type { RebalanceFrequency, GridParamRange } from '@backtest/shared';
-import { REBALANCE_FREQUENCIES } from '@backtest/shared';
+import {
+  REBALANCE_FREQUENCIES,
+  type GridParamRange,
+  type RebalanceFrequency,
+} from '@backtest/shared';
 import { fmtPct, fmtNum } from '@/utils/format';
 import { interpolateHsl } from '@/lib/chart-theme';
 export type IndicatorType = 'sma' | 'ema' | 'rsi';
@@ -36,27 +39,28 @@ export interface TacticalGridResponse {
 export const INDICATOR_OPTIONS: Array<{ value: IndicatorType; label: string }> = [
   { value: 'sma', label: 'tactical.indicators.sma' },
   { value: 'ema', label: 'tactical.indicators.ema' },
-  { value: 'rsi', label: 'tactical.indicators.rsi' }
+  { value: 'rsi', label: 'tactical.indicators.rsi' },
 ];
-export const REBALANCE_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> = REBALANCE_FREQUENCIES.map((value) => ({
-  value,
-  label: `tactical.rebalanceOptions.${value}`
-}));
+export const REBALANCE_OPTIONS: Array<{ value: RebalanceFrequency; label: string }> =
+  REBALANCE_FREQUENCIES.map((value) => ({
+    value,
+    label: `tactical.rebalanceOptions.${value}`,
+  }));
 export const OBJECTIVE_OPTIONS: Array<{ value: ObjectiveType; label: string }> = [
   { value: 'maxCAGR', label: 'tacticalGrid.objectives.maxCAGR' },
   { value: 'minDrawdown', label: 'tacticalGrid.objectives.minDrawdown' },
-  { value: 'maxSharpe', label: 'tacticalGrid.objectives.maxSharpe' }
+  { value: 'maxSharpe', label: 'tacticalGrid.objectives.maxSharpe' },
 ];
 export function getParamLabelKeys(indicator: IndicatorType): { p1: string; p2: string } {
   if (indicator === 'rsi') {
     return {
       p1: 'tacticalGrid.paramLabels.rsiPeriod',
-      p2: 'tacticalGrid.paramLabels.oversoldThreshold'
+      p2: 'tacticalGrid.paramLabels.oversoldThreshold',
     };
   }
   return {
     p1: 'tacticalGrid.paramLabels.period',
-    p2: 'tacticalGrid.paramLabels.breakoutThreshold'
+    p2: 'tacticalGrid.paramLabels.breakoutThreshold',
   };
 }
 export function getHeatmapColor(value: number, min: number, max: number): string {
@@ -90,14 +94,24 @@ export function getCellDisplayValue(cell: number, objective: ObjectiveType): str
   if (objective === 'maxCAGR') return fmtPct(cell);
   return fmtNum(cell, 2);
 }
-export function validateGridParams(ticker: string, param1: GridParamRange, param2: GridParamRange): string | null {
+export function validateGridParams(
+  ticker: string,
+  param1: GridParamRange,
+  param2: GridParamRange,
+): string | null {
   if (!ticker.trim()) return 'tacticalGrid.validateErrors.emptyTicker';
   if (param1.step <= 0 || param2.step <= 0) return 'tacticalGrid.validateErrors.invalidStep';
-  if (param1.min > param1.max || param2.min > param2.max) return 'tacticalGrid.validateErrors.minGtMax';
-  const total = Math.floor((param1.max - param1.min) / param1.step + 1) * Math.floor((param2.max - param2.min) / param2.step + 1);
+  if (param1.min > param1.max || param2.min > param2.max)
+    return 'tacticalGrid.validateErrors.minGtMax';
+  const total =
+    Math.floor((param1.max - param1.min) / param1.step + 1) *
+    Math.floor((param2.max - param2.min) / param2.step + 1);
   if (total > 500) return 'tacticalGrid.validateErrors.tooManyCombinations';
   return null;
 }
 export function countCombinations(param1: GridParamRange, param2: GridParamRange): number {
-  return Math.floor((param1.max - param1.min) / param1.step + 1) * Math.floor((param2.max - param2.min) / param2.step + 1);
+  return (
+    Math.floor((param1.max - param1.min) / param1.step + 1) *
+    Math.floor((param2.max - param2.min) / param2.step + 1)
+  );
 }

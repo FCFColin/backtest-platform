@@ -5,7 +5,11 @@ import { useToastStore } from '@/store/toastStore';
 import { fetchRegression } from '../pages/factor-regression/factorRegressionUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { validateAssetWeights } from '@/utils/validation';
-import type { AssetItem, FactorRegressionResult, ReturnFrequency } from '../pages/factor-regression/factorRegressionUtils.js';
+import type {
+  AssetItem,
+  FactorRegressionResult,
+  ReturnFrequency,
+} from '../pages/factor-regression/factorRegressionUtils.js';
 interface FactorRegressionState {
   startDate: string;
   endDate: string;
@@ -34,7 +38,11 @@ interface RegressionValidationError {
   error: string;
 }
 type RegressionValidation = RegressionValidationSuccess | RegressionValidationError;
-function validateRegressionParams(assets: AssetItem[], selectedFactors: string[], t: TFunction): RegressionValidation {
+function validateRegressionParams(
+  assets: AssetItem[],
+  selectedFactors: string[],
+  t: TFunction,
+): RegressionValidation {
   const validAssets = assets.filter((a) => a.ticker.trim() !== '');
   if (validAssets.length === 0) return { error: t('factorRegression.errEmptyAssets') };
   const weightErr = validateAssetWeights(assets);
@@ -52,19 +60,23 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
     items: assets,
     addItem: addAsset,
     removeItem: removeAsset,
-    updateItem
+    updateItem,
   } = useListState<AssetItem>(
     [
       { ticker: 'VTI', weight: 60 },
-      { ticker: 'BND', weight: 40 }
+      { ticker: 'BND', weight: 40 },
     ],
     () => ({ ticker: '', weight: 0 }),
-    0
+    0,
   );
   const { isLoading, error, run, setError } = useAsyncAction();
   const [result, setResult] = useState<FactorRegressionResult | null>(null);
-  const toggleFactor = (key: string) => setSelectedFactors((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
-  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) => updateItem(i, (prev) => ({ ...prev, [field]: val }));
+  const toggleFactor = (key: string) =>
+    setSelectedFactors((prev) =>
+      prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key],
+    );
+  const updateAsset = (i: number, field: 'ticker' | 'weight', val: string | number) =>
+    updateItem(i, (prev) => ({ ...prev, [field]: val }));
   const totalWeight = assets.reduce((s, a) => s + (a.weight || 0), 0);
   const runRegression = () => {
     const validation = validateRegressionParams(assets, selectedFactors, t);
@@ -81,7 +93,7 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
           endDate,
           selectedFactors,
           returnFrequency,
-          rfSource
+          rfSource,
         });
         setResult(r);
       } catch (e) {
@@ -110,6 +122,6 @@ export function useFactorRegressionState(t: TFunction): FactorRegressionState {
     toggleFactor,
     addAsset,
     removeAsset,
-    updateAsset
+    updateAsset,
   };
 }

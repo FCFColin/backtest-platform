@@ -1,5 +1,4 @@
-import { memo, useState, type ChangeEvent, type ReactNode } from 'react';
-import { forwardRef, useId } from 'react';
+import { memo, useState, type ChangeEvent, type ReactNode, forwardRef, useId } from 'react';
 import type { InputHTMLAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
@@ -189,6 +188,7 @@ export const FloatingLabelSelect = forwardRef<HTMLButtonElement, FloatingLabelSe
             <SelectTrigger
               ref={ref}
               id={inputId}
+              aria-label={label}
               className={cn(
                 'w-full h-full pt-6 pb-2 px-3 pr-9',
                 'flex items-center justify-between',

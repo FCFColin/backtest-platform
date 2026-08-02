@@ -2,21 +2,20 @@ import { useEffect, useState } from 'react';
 import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Button } from '@/components/ui/uiComponents';
-import { Input } from '@/components/ui/uiComponents';
-import { Checkbox } from '@/components/ui/uiComponents';
 import {
+  Button,
+  Checkbox,
+  Input,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { SegmentedControl } from '../../components/form/SegmentedControl.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
-import type { McState } from './monteCarloUtils.js';
-import type { PortfolioState, PortfolioMode } from './monteCarloUtils.js';
+import type { McState, PortfolioMode, PortfolioState } from './monteCarloUtils.js';
 const GOAL_KEYS = [
   'maxCagrPercentile',
   'minMaxDrawdown',
@@ -207,13 +206,7 @@ function SimDateAndCountFields({ s }: { s: McState }) {
       prefix: '$',
     },
   ];
-  return (
-    <>
-      {numFields.map((cfg) => (
-        <BasicField key={cfg.labelKey} t={t} cfg={cfg} />
-      ))}
-    </>
-  );
+  return numFields.map((cfg) => <BasicField key={cfg.labelKey} t={t} cfg={cfg} />);
 }
 function SimBlockAndSeedFields({ s }: { s: McState }) {
   const { t } = useTranslation();
@@ -239,21 +232,17 @@ function SimBlockAndSeedFields({ s }: { s: McState }) {
       placeholder: t('monteCarlo.params.randomSeedPlaceholder'),
     },
   ];
-  return (
-    <>
-      {blockFields.map((cfg) => (
-        <BasicField key={cfg.labelKey} t={t} cfg={cfg} />
-      ))}
-      <Field>
-        <FieldLabel>{t('monteCarlo.params.withReplacement')}</FieldLabel>
-        <Checkbox
-          id="mc-with-replacement"
-          checked={s.withReplacement}
-          onCheckedChange={(c) => s.setWithReplacement(c === true)}
-        />
-      </Field>
-    </>
-  );
+  return [
+    ...blockFields.map((cfg) => <BasicField key={cfg.labelKey} t={t} cfg={cfg} />),
+    <Field key="withReplacement">
+      <FieldLabel>{t('monteCarlo.params.withReplacement')}</FieldLabel>
+      <Checkbox
+        id="mc-with-replacement"
+        checked={s.withReplacement}
+        onCheckedChange={(c) => s.setWithReplacement(c === true)}
+      />
+    </Field>,
+  ];
 }
 function SimParamsSection({ s }: { s: McState }) {
   const { t } = useTranslation();
@@ -389,8 +378,6 @@ function DualGoalSection({ s }: { s: McState }) {
 function McParamsPanel({ s }: { s: McState }) {
   const { t } = useTranslation();
   const { simMode } = s;
-  // 渐进渲染：首帧仅渲染核心组合编辑器（用户主交互区），其余区块下一帧补渲染，
-  // 避免一次同步渲染整个面板阻塞导航
   const [showExtras, setShowExtras] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setShowExtras(true));
@@ -403,7 +390,6 @@ function McParamsPanel({ s }: { s: McState }) {
         <>
           <SimParamsSection s={s} />
           <BuildModeSection s={s} />
-          {/* 双目标仅前沿模式需要 */}
           {simMode === 'frontier' && <DualGoalSection s={s} />}
         </>
       )}

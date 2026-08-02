@@ -128,8 +128,16 @@ export default function AdminLayout() {
     <div className="flex h-dvh overflow-hidden bg-app">
       {mobileOpen && (
         <div
+          role="button"
+          tabIndex={0}
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setMobileOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setMobileOpen(false);
+            }
+          }}
         />
       )}
       <AdminSidebar

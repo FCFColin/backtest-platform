@@ -13,8 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import { Card } from '@/components/ui/uiComponents';
-import { CHART_COLORS } from '@backtest/shared';
-import type { MonteCarloResult } from '@backtest/shared';
+import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
 import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
 import {
@@ -92,32 +91,25 @@ function DistHistogramChart({
           name={t('monteCarlo.results.frequency')}
           radius={[2, 2, 0, 0]}
         />
-        <ReferenceLine
-          x={medianLabel}
-          stroke={CHART_COLORS[2]}
-          strokeDasharray="4 2"
-          label={{
-            value: t('monteCarlo.results.medianLabel', {
-              value: medianVal !== undefined ? METRIC_FORMAT[distMetric](medianVal) : '',
-            }),
-            position: 'top',
-            fontSize: 11,
-            fill: CHART_COLORS[2],
-          }}
-        />
-        <ReferenceLine
-          x={meanLabel}
-          stroke={CHART_COLORS[1]}
-          strokeDasharray="4 2"
-          label={{
-            value: t('monteCarlo.results.meanLabel', {
-              value: meanVal !== undefined ? METRIC_FORMAT[distMetric](meanVal) : '',
-            }),
-            position: 'top',
-            fontSize: 11,
-            fill: CHART_COLORS[1],
-          }}
-        />
+        {[medianLabel, meanLabel].map((label, i) => {
+          const val = [medianVal, meanVal][i];
+          const color = [CHART_COLORS[2], CHART_COLORS[1]][i];
+          const key = ['monteCarlo.results.medianLabel', 'monteCarlo.results.meanLabel'][i];
+          return (
+            <ReferenceLine
+              key={label}
+              x={label}
+              stroke={color}
+              strokeDasharray="4 2"
+              label={{
+                value: t(key, { value: val !== undefined ? METRIC_FORMAT[distMetric](val) : '' }),
+                position: 'top',
+                fontSize: 11,
+                fill: color,
+              }}
+            />
+          );
+        })}
       </BarChart>
     </ResponsiveContainer>
   );
@@ -162,54 +154,28 @@ export function MonteCarloDistributionsTab({
     </Card>
   );
 }
+const SCENARIO_LINES = [
+  { key: 'best', color: CHART_COLORS[2], width: 2, name: 'Best' },
+  { key: 'p75', color: CHART_COLORS[0], width: 1.5, name: 'P75' },
+  { key: 'median', color: CHART_COLORS[4], width: 2.5, name: 'Median' },
+  { key: 'p25', color: CHART_COLORS[1], width: 1.5, name: 'P25' },
+  { key: 'worst', color: CHART_COLORS[3], width: 2, name: 'Worst' },
+];
 function ScenarioLines({ isAnimationActive = true }: { isAnimationActive?: boolean }) {
   return (
     <>
-      <Line
-        type="monotone"
-        dataKey="best"
-        stroke={CHART_COLORS[2]}
-        strokeWidth={2}
-        dot={false}
-        name="Best"
-        isAnimationActive={isAnimationActive}
-      />
-      <Line
-        type="monotone"
-        dataKey="p75"
-        stroke={CHART_COLORS[0]}
-        strokeWidth={1.5}
-        dot={false}
-        name="P75"
-        isAnimationActive={isAnimationActive}
-      />
-      <Line
-        type="monotone"
-        dataKey="median"
-        stroke={CHART_COLORS[4]}
-        strokeWidth={2.5}
-        dot={false}
-        name="Median"
-        isAnimationActive={isAnimationActive}
-      />
-      <Line
-        type="monotone"
-        dataKey="p25"
-        stroke={CHART_COLORS[1]}
-        strokeWidth={1.5}
-        dot={false}
-        name="P25"
-        isAnimationActive={isAnimationActive}
-      />
-      <Line
-        type="monotone"
-        dataKey="worst"
-        stroke={CHART_COLORS[3]}
-        strokeWidth={2}
-        dot={false}
-        name="Worst"
-        isAnimationActive={isAnimationActive}
-      />
+      {SCENARIO_LINES.map((l) => (
+        <Line
+          key={l.key}
+          type="monotone"
+          dataKey={l.key}
+          stroke={l.color}
+          strokeWidth={l.width}
+          dot={false}
+          name={l.name}
+          isAnimationActive={isAnimationActive}
+        />
+      ))}
     </>
   );
 }

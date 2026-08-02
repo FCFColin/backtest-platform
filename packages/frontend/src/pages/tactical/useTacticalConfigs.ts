@@ -38,12 +38,16 @@ export function useTacticalConfigs() {
     void loadList();
   }, [loadList]);
   const save = useCallback(
-    async (name: string, payload: TacticalConfigPayload, description?: string): Promise<boolean> => {
+    async (
+      name: string,
+      payload: TacticalConfigPayload,
+      description?: string,
+    ): Promise<boolean> => {
       try {
         await apiPostJSON<TacticalConfigRecord>('/api/v1/tactical/configs', {
           name,
           description,
-          config: payload
+          config: payload,
         });
         await loadList();
         return true;
@@ -52,7 +56,7 @@ export function useTacticalConfigs() {
         return false;
       }
     },
-    [loadList]
+    [loadList],
   );
   const remove = useCallback(async (id: string): Promise<boolean> => {
     try {

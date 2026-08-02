@@ -6,7 +6,9 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
 }
 export default function ProtectedRoute({ children, requireAdmin }: ProtectedRouteProps) {
-  const { user, initialized } = useAuthStore(useShallow((s) => ({ user: s.user, initialized: s.initialized })));
+  const { user, initialized } = useAuthStore(
+    useShallow((s) => ({ user: s.user, initialized: s.initialized })),
+  );
   const location = useLocation();
   if (!initialized) return null;
   if (!user) {

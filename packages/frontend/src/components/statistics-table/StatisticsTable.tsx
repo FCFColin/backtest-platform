@@ -16,8 +16,7 @@ import {
   TooltipContent,
 } from '@/components/ui/uiComponents.js';
 import { cn } from '@/lib/utils.js';
-import type { PortfolioResult, Statistics } from '@backtest/shared';
-import { CHART_COLORS } from '@backtest/shared';
+import { CHART_COLORS, type PortfolioResult, type Statistics } from '@backtest/shared';
 import {
   formatCurrency,
   formatPercent,
@@ -94,10 +93,13 @@ export function StatisticsTable({
     if (typeof av !== 'number' || typeof bv !== 'number') return 0;
     return sortDir === 'asc' ? av - bv : bv - av;
   });
-  const getColorClass = (value: number): string => {
-    if (value > 0) return 'text-pos';
-    if (value < 0) return 'text-neg';
-    return 'text-fg';
+  const getColorClass = (value: number): string =>
+    value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
+  const FORMAT_FN: Record<string, (v: number) => string> = {
+    currency: formatCurrency,
+    percent: formatPercent,
+    duration: formatDuration,
+    number: formatNumber,
   };
   const renderCell = (portfolio: (typeof portfolios)[0], col: StatColumn, index: number) => {
     if (col.key === 'name') {
@@ -113,18 +115,7 @@ export function StatisticsTable({
     }
     const value = portfolio.stats[col.key];
     if (value === undefined || value === null) return '—';
-    switch (col.format) {
-      case 'currency':
-        return formatCurrency(Number(value));
-      case 'percent':
-        return formatPercent(Number(value));
-      case 'duration':
-        return formatDuration(Number(value));
-      case 'number':
-        return formatNumber(Number(value));
-      default:
-        return String(value);
-    }
+    return FORMAT_FN[col.format]?.(Number(value)) ?? String(value);
   };
   return (
     <div className="space-y-3">

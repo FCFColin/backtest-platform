@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { CHART_COLORS } from '@backtest/shared';
+import { downsample } from '@/utils/format';
 import {
   CHART_TOOLTIP_STYLE,
   CHART_MARGIN,
@@ -20,8 +21,7 @@ import {
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
 } from '@/lib/chart-theme';
-import { ErrorBanner } from '@/components/stateDisplay';
-import { EmptyState } from '@/components/stateDisplay';
+import { ErrorBanner, EmptyState } from '@/components/stateDisplay';
 interface EmptyResultsHintProps {
   text?: string;
 }
@@ -84,9 +84,10 @@ export function EquityLineChart({
   const { t } = useTranslation();
   const resolvedTooltipName = tooltipName ?? t('signal.common.equity');
   const normalized = normalizeSeries(series, defaultStrokeWidth);
+  const chartData = data.length > 600 ? downsample(data, 400) : data;
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={CHART_MARGIN}>
+      <LineChart data={chartData} margin={CHART_MARGIN}>
         <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis dataKey="date" tick={AXIS_TICK_STYLE} tickFormatter={DATE_TICK_FORMATTER} />
         <YAxis

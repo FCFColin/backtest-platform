@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { BarChart3, ChevronDown } from '@/icons/icons.js';
 import { Settings, Rocket, ChevronUp, ArrowRight, FlaskConical } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/uiComponents';
-import { Card } from '@/components/ui/uiComponents';
+import { Button, Card } from '@/components/ui/uiComponents';
 import { CONTAINER_WIDTHS, CARD_GRID_CLASSES } from '@/utils/constants';
 import { cn } from '@/lib/utils';
 const HERO_STORAGE_KEY = 'backtest-hero-visit-count';
@@ -90,7 +89,7 @@ export const BacktestHero = memo(function BacktestHero() {
       const count = parseInt(localStorage.getItem(HERO_STORAGE_KEY) ?? '0');
       localStorage.setItem(HERO_STORAGE_KEY, String(count + 1));
     } catch {
-      // 存储不可用时跳过访问计数
+      /* localStorage not available */
     }
   }, []);
   return (

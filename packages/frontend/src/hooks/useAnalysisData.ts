@@ -24,7 +24,12 @@ function computeBetaMatrix(allReturns: number[][]): number[][] {
   }
   return matrix;
 }
-function computeRollingCorrelation(returns1: number[], returns2: number[], dates: string[], windowDays: number): Array<{ date: string; value: number }> {
+function computeRollingCorrelation(
+  returns1: number[],
+  returns2: number[],
+  dates: string[],
+  windowDays: number,
+): Array<{ date: string; value: number }> {
   const result: Array<{ date: string; value: number }> = [];
   const n = Math.min(returns1.length, returns2.length);
   if (n < windowDays) return result;
@@ -58,9 +63,9 @@ function usePortfolioResults(tickers: AssetAnalysisResult['tickers']) {
         name: tk.ticker,
         growthCurve: tk.growthCurve ?? [],
         drawdownCurve: tk.drawdownCurve ?? [],
-        statistics: (tk.statistics ?? {}) as Record<string, number>
+        statistics: (tk.statistics ?? {}) as Record<string, number>,
       })),
-    [tickers]
+    [tickers],
   );
 }
 function useGrowthData(portfolioResults: ReturnType<typeof usePortfolioResults>) {
@@ -71,28 +76,42 @@ function useGrowthData(portfolioResults: ReturnType<typeof usePortfolioResults>)
         if (!dateMap.has(point.date)) dateMap.set(point.date, { date: point.date });
         dateMap.get(point.date)![p.name] = point.value;
       }
-    return Array.from(dateMap.values()).sort((a, b) => (a.date as string).localeCompare(b.date as string));
+    return Array.from(dateMap.values()).sort((a, b) =>
+      (a.date as string).localeCompare(b.date as string),
+    );
   }, [portfolioResults]);
 }
-export function useAnalysisData(results: AssetAnalysisResult, correlationWindow: number, _rollingWindow: number) {
+export function useAnalysisData(
+  results: AssetAnalysisResult,
+  correlationWindow: number,
+  _rollingWindow: number,
+) {
   const tickers = useMemo(() => results.tickers ?? [], [results.tickers]);
   const tickerNames = useMemo(() => tickers.map((t) => t.ticker), [tickers]);
   const portfolioResults = usePortfolioResults(tickers);
   const growthData = useGrowthData(portfolioResults);
-  const betaMatrix = useMemo(() => computeBetaMatrix(tickers.map((t) => t.dailyReturns)), [tickers]);
+  const betaMatrix = useMemo(
+    () => computeBetaMatrix(tickers.map((t) => t.dailyReturns)),
+    [tickers],
+  );
   const rollingCorrData = useMemo(() => {
     if (tickers.length < 2) return [];
     const dates = tickers[0].growthCurve.map((g) => g.date).slice(1);
     const windowDays = Math.round((correlationWindow * TRADING_DAYS_PER_YEAR) / 12);
-    return computeRollingCorrelation(tickers[0]?.dailyReturns ?? [], tickers[1]?.dailyReturns ?? [], dates, windowDays);
+    return computeRollingCorrelation(
+      tickers[0]?.dailyReturns ?? [],
+      tickers[1]?.dailyReturns ?? [],
+      dates,
+      windowDays,
+    );
   }, [tickers, correlationWindow]);
   const scatterData = useMemo(
     () =>
       tickers.map((tk) => ({
         name: tk.ticker,
-        cagr: +((tk.statistics.cagr ?? 0) * 100).toFixed(2)
+        cagr: +((tk.statistics.cagr ?? 0) * 100).toFixed(2),
       })),
-    [tickers]
+    [tickers],
   );
   return {
     tickers,
@@ -101,6 +120,6 @@ export function useAnalysisData(results: AssetAnalysisResult, correlationWindow:
     growthData,
     betaMatrix,
     rollingCorrData,
-    scatterData
+    scatterData,
   };
 }

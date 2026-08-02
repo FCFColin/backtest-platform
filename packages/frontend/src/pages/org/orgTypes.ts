@@ -21,11 +21,11 @@ export const TABLE_TH: CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
   color: 'var(--text-muted)',
-  padding: '8px 10px'
+  padding: '8px 10px',
 };
 export const TABLE_TD: CSSProperties = {
   fontSize: 13,
   color: 'var(--text-body)',
   padding: '8px 10px',
-  borderTop: '1px solid var(--border, #e5e7eb)'
+  borderTop: '1px solid var(--border, #e5e7eb)',
 };

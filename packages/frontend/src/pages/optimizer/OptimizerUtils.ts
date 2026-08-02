@@ -69,7 +69,7 @@ function useWeightConstraints() {
     allowShort,
     setAllowShort,
     solver,
-    setSolver
+    setSolver,
   };
 }
 function useOptimizerConstraints() {
@@ -106,13 +106,24 @@ function useOptimizerConstraints() {
     enableMinCagr,
     setEnableMinCagr,
     enableMaxVol,
-    setEnableMaxVol
+    setEnableMaxVol,
   };
 }
 function useOptimizerSetters() {
   const [tickers, setTickers] = useState(['VTI', 'VXUS', 'BND']);
   const [objective, setObjective] = useState('maxSharpe');
-  const { startDate, setStartDate, endDate, setEndDate, isLoading, setIsLoading, error, setError, results, setResults } = useOptimizerLikeState<OptimizerResultExt>();
+  const {
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    isLoading,
+    setIsLoading,
+    error,
+    setError,
+    results,
+    setResults,
+  } = useOptimizerLikeState<OptimizerResultExt>();
   const weights = useWeightConstraints();
   const constraints = useOptimizerConstraints();
   const [isCalculatingStats, setIsCalculatingStats] = useState(false);
@@ -137,10 +148,12 @@ function useOptimizerSetters() {
     isCalculatingStats,
     setIsCalculatingStats,
     backtestStats,
-    setBacktestStats
+    setBacktestStats,
   };
 }
-function buildOptimizerStateParams(s: ReturnType<typeof useOptimizerSetters>): OptimizerStateParams {
+function buildOptimizerStateParams(
+  s: ReturnType<typeof useOptimizerSetters>,
+): OptimizerStateParams {
   return {
     tickers: s.tickers,
     startDate: s.startDate,
@@ -161,10 +174,14 @@ function buildOptimizerStateParams(s: ReturnType<typeof useOptimizerSetters>): O
     minWeightToInclude: s.minWeightToInclude,
     enableMaxDD: s.enableMaxDD,
     enableMinCagr: s.enableMinCagr,
-    enableMaxVol: s.enableMaxVol
+    enableMaxVol: s.enableMaxVol,
   };
 }
-async function runOptimizeAction(s: ReturnType<typeof useOptimizerSetters>, state: OptimizerStateParams, t: (k: string) => string) {
+async function runOptimizeAction(
+  s: ReturnType<typeof useOptimizerSetters>,
+  state: OptimizerStateParams,
+  t: (k: string) => string,
+) {
   if (s.tickers.filter(Boolean).length < 2) {
     s.setError(t('optimizer.errorMinTwoTickers'));
     return;
@@ -191,7 +208,10 @@ async function runOptimizeAction(s: ReturnType<typeof useOptimizerSetters>, stat
     s.setIsLoading(false);
   }
 }
-export function useOptimizerState(t: (k: string) => string, navigate: (path: string) => void): EfficientFrontierState {
+export function useOptimizerState(
+  t: (k: string) => string,
+  navigate: (path: string) => void,
+): EfficientFrontierState {
   const s = useOptimizerSetters();
   const state = buildOptimizerStateParams(s);
   const runOptimize = () => runOptimizeAction(s, state, t);

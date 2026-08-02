@@ -33,14 +33,23 @@ interface GoalOptimizerState {
 }
 const DEFAULT_ASSETS: GoalAsset[] = [
   { ticker: 'VTI', weight: 60 },
-  { ticker: 'BND', weight: 40 }
+  { ticker: 'BND', weight: 40 },
 ];
 function useGoalAssets() {
-  const { items, addItem, removeItem, updateItem } = useListState<GoalAsset>(DEFAULT_ASSETS, () => ({ ticker: '', weight: 0 }), 1);
-  const updateAsset = (idx: number, field: 'ticker' | 'weight', val: string | number) => updateItem(idx, (prev) => ({ ...prev, [field]: val }));
+  const { items, addItem, removeItem, updateItem } = useListState<GoalAsset>(
+    DEFAULT_ASSETS,
+    () => ({ ticker: '', weight: 0 }),
+    1,
+  );
+  const updateAsset = (idx: number, field: 'ticker' | 'weight', val: string | number) =>
+    updateItem(idx, (prev) => ({ ...prev, [field]: val }));
   return { assets: items, addAsset: addItem, removeAsset: removeItem, updateAsset };
 }
-function buildOptimizeConstraints(maxDrawdown: number | '', minSuccessRate: number | '', maxVolatility: number | ''): { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number } {
+function buildOptimizeConstraints(
+  maxDrawdown: number | '',
+  minSuccessRate: number | '',
+  maxVolatility: number | '',
+): { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number } {
   const constraints: { maxDrawdown?: number; minSuccessRate?: number; maxVolatility?: number } = {};
   if (maxDrawdown !== '') constraints.maxDrawdown = maxDrawdown / 100;
   if (minSuccessRate !== '') constraints.minSuccessRate = minSuccessRate / 100;
@@ -61,7 +70,7 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
     isLoading,
     error,
     results,
-    runCompute: runOptimize
+    runCompute: runOptimize,
   } = useComputeTool<GoalOptimizerResult>(
     async () => {
       const validAssets = assets.filter((a) => a.ticker.trim());
@@ -75,12 +84,13 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
           years,
           assets: validAssets,
           constraints: Object.keys(constraints).length > 0 ? constraints : undefined,
-          numSimulations
-        })
+          numSimulations,
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
-      if (json.success === false) throw new Error(json.error || i18n.t('goalOptimizer.errOptFailed'));
+      if (json.success === false)
+        throw new Error(json.error || i18n.t('goalOptimizer.errOptFailed'));
       return json.data as GoalOptimizerResult;
     },
     () => {
@@ -91,9 +101,9 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
         targetAmount,
         initialAmount,
         years,
-        t
+        t,
       });
-    }
+    },
   );
   return {
     targetAmount,
@@ -118,6 +128,6 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
     removeAsset,
     updateAsset,
     totalWeight,
-    runOptimize
+    runOptimize,
   };
 }

@@ -14,12 +14,12 @@ if (hasSsrContent) {
     rootEl,
     <StrictMode>
       <App />
-    </StrictMode>
+    </StrictMode>,
   );
 } else {
   createRoot(rootEl).render(
     <StrictMode>
       <App />
-    </StrictMode>
+    </StrictMode>,
   );
 }

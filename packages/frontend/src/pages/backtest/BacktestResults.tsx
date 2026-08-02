@@ -3,8 +3,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Download, Loader2 } from 'lucide-react';
 import { useBacktestStore } from '@/store/backtestStore';
-import { Card } from '@/components/ui/uiComponents';
-import { Button } from '@/components/ui/uiComponents';
+import { Card, Button } from '@/components/ui/uiComponents';
 import {
   StatisticsTable,
   ExtendedMetricsTable,

@@ -84,7 +84,7 @@ export async function render(url: string) {
         i18n.addResourceBundle(i18n.language, ns, data, true, true);
       }
     } catch {
-      // SSR 时区文件缺失则跳过命名空间加载
+      /* locale file not found */
     }
   }
   return renderToPipeableStream(

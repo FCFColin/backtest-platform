@@ -2,16 +2,16 @@ import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { useBacktestStore } from '@/store/backtestStore';
 import { Plus, X } from 'lucide-react';
-import { Input } from '@/components/ui/uiComponents';
-import { AffixInput } from '@/components/ui/uiComponents';
-import { Switch } from '@/components/ui/uiComponents';
-import { Button } from '@/components/ui/uiComponents';
 import {
+  AffixInput,
+  Button,
+  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Switch,
 } from '@/components/ui/uiComponents';
 import type { TFunctionProp } from './BacktestParamsForm.js';
 import type { CashflowLeg } from '@backtest/shared';
