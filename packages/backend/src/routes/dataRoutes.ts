@@ -176,6 +176,26 @@ router.get(
 );
 
 router.get(
+  '/factors',
+  asyncRouteHandler(
+    async (_req: Request, res: Response): Promise<void> => {
+      try {
+        const { rows } = await getReadPool().query(
+          'SELECT date, mkt_rf, smb, hml, rf FROM fama_french_factors ORDER BY date',
+        );
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.json({ success: true, data: rows });
+      } catch {
+        sendProblem(res, 503, 'DATA_UNAVAILABLE', 'Service Unavailable', {
+          detail: 'Fama-French 因子数据暂不可用',
+        });
+      }
+    },
+    { logMsg: 'Fama-French factors fetch error', code: 'FACTORS_ERROR', endpoint: 'data-factors' },
+  ),
+);
+
+router.get(
   '/ticker-meta',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {

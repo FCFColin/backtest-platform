@@ -59,9 +59,15 @@ export const FACTOR_COLORS = {
 let ffDataCache: FFDataPoint[] | null = null;
 async function loadFamaFrenchData(): Promise<FFDataPoint[]> {
   if (ffDataCache) return ffDataCache;
-  const res = await fetch('/data/fama-french-factors.json');
-  if (!res.ok) throw new Error(i18n.t('factorRegression.errLoadFF'));
-  ffDataCache = (await res.json()) as FFDataPoint[];
+  const res = await apiFetch('/api/v1/data/factors');
+  if (!res.success) throw new Error(i18n.t('factorRegression.errLoadFF'));
+  ffDataCache = (res.data as FFDataPoint[]).map((r) => ({
+    date: r.date as string,
+    mktRf: Number(r.mktRf ?? r.mkt_rf) || 0,
+    smb: Number(r.smb) || 0,
+    hml: Number(r.hml) || 0,
+    rf: Number(r.rf) || 0,
+  }));
   return ffDataCache;
 }
 function extractTickerReturns(

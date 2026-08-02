@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS fama_french_factors (
+  date TEXT PRIMARY KEY,
+  mkt_rf DOUBLE PRECISION NOT NULL,
+  smb DOUBLE PRECISION NOT NULL,
+  hml DOUBLE PRECISION NOT NULL,
+  rf DOUBLE PRECISION NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ff_factors_date ON fama_french_factors(date);
