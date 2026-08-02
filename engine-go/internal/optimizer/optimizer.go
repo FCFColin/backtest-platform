@@ -5,10 +5,8 @@ import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
 	"fmt"
-	"gonum.org/v1/gonum/mat"
 	"math"
 	"math/rand"
-	"slices"
 )
 
 const (
@@ -21,38 +19,6 @@ const (
 	projIterations     = 500
 	subsetLimit        = 15
 )
-
-type OptimizeRequest struct {
-	Tickers       []string                      `json:"tickers"`
-	PriceData     map[string]map[string]float64 `json:"priceData"`
-	Objective     string                        `json:"objective"`
-	Constraints   Constraints                   `json:"constraints"`
-	NumIterations int                           `json:"numIterations"`
-}
-type Constraints struct {
-	MinWeight float64 `json:"minWeight"`
-	MaxWeight float64 `json:"maxWeight"`
-}
-type OptimizeResponse struct {
-	OptimalWeights     map[string]float64 `json:"optimalWeights"`
-	ExpectedReturn     float64            `json:"expectedReturn"`
-	ExpectedVolatility float64            `json:"expectedVolatility"`
-	SharpeRatio        float64            `json:"sharpeRatio"`
-}
-type FrontierRequest struct {
-	Tickers   []string                      `json:"tickers"`
-	PriceData map[string]map[string]float64 `json:"priceData"`
-	NumPoints int                           `json:"numPoints"`
-}
-type FrontierResponse struct {
-	Frontier []FrontierPoint `json:"frontier"`
-}
-type FrontierPoint struct {
-	Weights            map[string]float64 `json:"weights"`
-	ExpectedReturn     float64            `json:"expectedReturn"`
-	ExpectedVolatility float64            `json:"expectedVolatility"`
-	SharpeRatio        float64            `json:"sharpeRatio"`
-}
 
 func prepareInputs(tickers []string, priceData map[string]map[string]float64) ([]float64, [][]float64, error) {
 	if len(tickers) == 0 {
@@ -260,8 +226,8 @@ func satisfiesConstraints(w []float64, c Constraints) bool {
 }
 
 type clipOpts struct {
-	maxIter  int  // 1 = single pass (clipWeights); >1 = iterate until constraints satisfied (projectWeights)
-	absCheck bool // true: |sum|<1e-15 -> uniform (projectWeights); false: sum<=1e-15 -> uniform (clipWeights)
+	maxIter  int
+	absCheck bool
 }
 
 func clipAndNormalize(w []float64, c Constraints, opts clipOpts) []float64 {
@@ -374,81 +340,4 @@ func randomWeights(n int, c Constraints, rng *rand.Rand) []float64 {
 		}
 	}
 	return weights
-}
-func flatten(a [][]float64) []float64 {
-	flat := make([]float64, 0, len(a)*len(a[0]))
-	for _, row := range a {
-		flat = append(flat, row...)
-	}
-	return flat
-}
-func invertDense(a [][]float64) ([][]float64, error) {
-	n := len(a)
-	if n == 0 {
-		return nil, fmt.Errorf("矩阵为空")
-	}
-	m := mat.NewDense(n, n, flatten(a))
-	var inv mat.Dense
-	if err := inv.Inverse(m); err != nil {
-		return nil, fmt.Errorf("矩阵奇异，无法求逆: %w", err)
-	}
-	result := make([][]float64, n)
-	for i := 0; i < n; i++ {
-		result[i] = make([]float64, n)
-		for j := 0; j < n; j++ {
-			result[i][j] = inv.At(i, j)
-		}
-	}
-	return result, nil
-}
-func denseMulVec(matrix [][]float64, vec []float64) []float64 {
-	if len(matrix) == 0 {
-		return nil
-	}
-	m := mat.NewDense(len(matrix), len(vec), flatten(matrix))
-	v := mat.NewVecDense(len(vec), vec)
-	var result mat.VecDense
-	result.MulVec(m, v)
-	return result.RawVector().Data
-}
-func largestEigenvalue(a [][]float64) float64 {
-	if len(a) == 0 {
-		return 0
-	}
-	var es mat.EigenSym
-	if !es.Factorize(mat.NewSymDense(len(a), flatten(a)), false) {
-		return 0
-	}
-	if vals := es.Values(nil); len(vals) > 0 {
-		return slices.Max(vals)
-	}
-	return 0
-}
-func ensurePD(sigma [][]float64) [][]float64 {
-	reg := regStart
-	for attempt := 0; attempt < regMaxAttempts; attempt++ {
-		if isPD(sigma) {
-			return sigma
-		}
-		result := cloneMatrix(sigma)
-		for i := range sigma {
-			result[i][i] += reg
-		}
-		sigma, reg = result, reg*10
-	}
-	return sigma
-}
-func isPD(a [][]float64) bool {
-	if len(a) == 0 {
-		return false
-	}
-	var chol mat.Cholesky
-	return chol.Factorize(mat.NewSymDense(len(a), flatten(a)))
-}
-func cloneMatrix(a [][]float64) [][]float64 {
-	result := make([][]float64, len(a))
-	for i := range a {
-		result[i] = slices.Clone(a[i])
-	}
-	return result
 }

@@ -2,19 +2,13 @@ package montecarlo
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/binary"
 	"engine-go/internal/engine"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
 	"fmt"
 	"math"
-	mrand "math/rand"
-	"runtime"
 	"slices"
 	"sort"
-	"sync"
-	"time"
 )
 
 const (
@@ -50,6 +44,7 @@ func RunMonteCarlo(ctx context.Context, req MonteCarloRequest) (*MonteCarloResul
 	repPaths := computeRepresentativePaths(paths, totalDays)
 	return &MonteCarloResult{Percentiles: percentiles, SuccessProbability: successProb, FinalDistribution: finalDist, Statistics: stats, PerPathMetrics: perPathMetrics, RepresentativePaths: repPaths, SuccessProbabilities: successProbs}, nil
 }
+
 func applyDefaults(req *MonteCarloRequest) {
 	if req.MCParams.NumSimulations <= 0 {
 		req.MCParams.NumSimulations = mcDefaultSims
@@ -73,6 +68,7 @@ func applyDefaults(req *MonteCarloRequest) {
 		req.MCParams.SuccessThreshold = 1.0
 	}
 }
+
 func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDataMap, params MCBacktestParams) ([]float64, error) {
 	if len(portfolio.Assets) == 0 {
 		return nil, fmt.Errorf("组合无资产")
@@ -103,6 +99,7 @@ func computePortfolioDailyReturns(portfolio MCPortfolioInput, priceData PriceDat
 	}
 	return returns, nil
 }
+
 func computePerPathMetrics(paths [][]float64, startingValue float64, numYears int) []PathMetrics {
 	if len(paths) == 0 {
 		return nil
@@ -165,83 +162,6 @@ func mcSortino(dailyRets []float64, cagr float64) float64 {
 		return 0
 	}
 	return (cagr - mcRiskFreeRate) / downsideDev
-}
-
-type MonteCarloRequest struct {
-	Portfolio MCPortfolioInput `json:"portfolio"`
-	PriceData PriceDataMap     `json:"priceData"`
-	Params    MCBacktestParams `json:"params"`
-	MCParams  MCSimParams      `json:"mcParams"`
-}
-type MCPortfolioInput struct {
-	Name               string       `json:"name"`
-	Assets             []AssetInput `json:"assets"`
-	RebalanceFrequency string       `json:"rebalanceFrequency"`
-	Drag               float64      `json:"drag"`
-	TotalReturn        bool         `json:"totalReturn"`
-}
-type AssetInput struct {
-	Ticker string  `json:"ticker"`
-	Weight float64 `json:"weight"`
-}
-type PriceDataMap = engine.PriceDataMap
-type MCBacktestParams struct {
-	StartDate           string  `json:"startDate"`
-	EndDate             string  `json:"endDate"`
-	StartingValue       float64 `json:"startingValue"`
-	AdjustForInflation  bool    `json:"adjustForInflation"`
-	RollingWindowMonths int     `json:"rollingWindowMonths"`
-	BenchmarkTicker     string  `json:"benchmarkTicker"`
-}
-type MCSimParams struct {
-	NumSimulations   int     `json:"numSimulations"`
-	NumYears         int     `json:"numYears"`
-	MinBlockYears    int     `json:"minBlockYears"`
-	MaxBlockYears    int     `json:"maxBlockYears"`
-	SuccessThreshold float64 `json:"successThreshold"`
-}
-type MonteCarloResult struct {
-	Percentiles          MCPercentiles          `json:"percentiles"`
-	SuccessProbability   []float64              `json:"successProbability"`
-	FinalDistribution    []float64              `json:"finalDistribution"`
-	Statistics           MCStatistics           `json:"statistics"`
-	PerPathMetrics       []PathMetrics          `json:"perPathMetrics"`
-	RepresentativePaths  MCRepresentativePaths  `json:"representativePaths"`
-	SuccessProbabilities MCSuccessProbabilities `json:"successProbabilities"`
-}
-type MCPercentiles struct {
-	P5  []float64 `json:"p5"`
-	P10 []float64 `json:"p10"`
-	P25 []float64 `json:"p25"`
-	P50 []float64 `json:"p50"`
-	P75 []float64 `json:"p75"`
-	P90 []float64 `json:"p90"`
-	P95 []float64 `json:"p95"`
-}
-type MCStatistics struct {
-	MedianFinalValue float64 `json:"medianFinalValue"`
-	MeanFinalValue   float64 `json:"meanFinalValue"`
-	SuccessRate      float64 `json:"successRate"`
-}
-type PathMetrics struct {
-	FinalValue  float64 `json:"finalValue"`
-	CAGR        float64 `json:"cagr"`
-	MaxDrawdown float64 `json:"maxDrawdown"`
-	Volatility  float64 `json:"volatility"`
-	Sharpe      float64 `json:"sharpe"`
-	Sortino     float64 `json:"sortino"`
-}
-type MCRepresentativePaths struct {
-	Best   []float64 `json:"best"`
-	P25    []float64 `json:"p25"`
-	Median []float64 `json:"median"`
-	P75    []float64 `json:"p75"`
-	Worst  []float64 `json:"worst"`
-}
-type MCSuccessProbabilities struct {
-	Survival            []float64 `json:"survival"`
-	CapitalPreservation []float64 `json:"capitalPreservation"`
-	Profit              []float64 `json:"profit"`
 }
 
 func computePercentiles(paths [][]float64, totalDays int) MCPercentiles {
@@ -364,92 +284,4 @@ func downsampleMonthly(path []float64) []float64 {
 		result = append(result, path[len(path)-1])
 	}
 	return result
-}
-func runSimulations(ctx context.Context, historicalReturns []float64, totalDays int, numSims int, mcParams MCSimParams, startingValue float64) [][]float64 {
-	numCPU := runtime.NumCPU()
-	if numCPU > numSims {
-		numCPU = numSims
-	}
-	if numCPU < 1 {
-		numCPU = 1
-	}
-	paths := make([][]float64, numSims)
-	var wg sync.WaitGroup
-	simsPerWorker := numSims / numCPU
-	extra := numSims % numCPU
-	idx := 0
-	for w := 0; w < numCPU; w++ {
-		count := simsPerWorker
-		if w < extra {
-			count++
-		}
-		if count == 0 {
-			continue
-		}
-		startIdx := idx
-		idx += count
-		wg.Add(1)
-		go func(start, n int) {
-			defer wg.Done()
-			var seed int64
-			var seedBuf [8]byte
-			if _, err := rand.Read(seedBuf[:]); err == nil {
-				seed = int64(binary.LittleEndian.Uint64(seedBuf[:]))
-			} else {
-				seed = time.Now().UnixNano() + int64(start)
-			}
-			rng := mrand.New(mrand.NewSource(seed))
-			for i := start; i < start+n; i++ {
-				select {
-				case <-ctx.Done():
-					return
-				default:
-				}
-				path := make([]float64, totalDays)
-				generatePath(path, historicalReturns, totalDays, mcParams, startingValue, rng)
-				paths[i] = path
-			}
-		}(startIdx, count)
-	}
-	wg.Wait()
-	return paths
-}
-func generatePath(path []float64, historicalReturns []float64, totalDays int, mcParams MCSimParams, startingValue float64, rng *mrand.Rand) {
-	minBlockDays := mcParams.MinBlockYears * mcTradingDays
-	maxBlockDays := mcParams.MaxBlockYears * mcTradingDays
-	n := len(historicalReturns)
-	if minBlockDays > n {
-		minBlockDays = n
-	}
-	if maxBlockDays > n {
-		maxBlockDays = n
-	}
-	simReturns := blockBootstrapSample(historicalReturns, totalDays, minBlockDays, maxBlockDays, rng)
-	returnsToPath(path, simReturns, startingValue)
-}
-func blockBootstrapSample(historicalReturns []float64, totalDays int, minBlockDays, maxBlockDays int, rng *mrand.Rand) []float64 {
-	n := len(historicalReturns)
-	result := make([]float64, 0, totalDays)
-	for len(result) < totalDays {
-		blockLen := minBlockDays
-		if maxBlockDays > minBlockDays {
-			blockLen = minBlockDays + rng.Intn(maxBlockDays-minBlockDays+1)
-		}
-		startPos := rng.Intn(n)
-		end := startPos + blockLen
-		if end > n {
-			end = n
-		}
-		result = append(result, historicalReturns[startPos:end]...)
-	}
-	return result[:totalDays]
-}
-func returnsToPath(path []float64, returns []float64, startingValue float64) {
-	path[0] = startingValue
-	for i := 1; i < len(path); i++ {
-		path[i] = path[i-1] * (1.0 + returns[i-1])
-		if path[i] < 0 {
-			path[i] = 0
-		}
-	}
 }
