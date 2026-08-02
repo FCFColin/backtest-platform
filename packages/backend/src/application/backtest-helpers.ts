@@ -21,7 +21,6 @@ export function translateDomainError<T>(fn: () => T): T {
   }
 }
 
-// 请求/响应类型
 export interface BacktestExecutionParams {
   portfolios: Portfolio[];
   parameters: BacktestParameters;
@@ -50,7 +49,6 @@ interface PortfolioBacktestPrep {
   warnings: Warning[];
 }
 
-// DDD 领域映射：DTO → 聚合根（fromDTO 构造时校验 Ticker 格式 / Weight 范围 / 权重和≈100）
 function portfolioToDomain(raw: Portfolio): DomainPortfolio {
   return translateDomainError(() => DomainPortfolio.fromDTO(raw));
 }

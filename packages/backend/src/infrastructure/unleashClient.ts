@@ -60,8 +60,6 @@ const unleashClient: UnleashSingleton = {
 
 let client: Unleash | null = null;
 
-// ─── Redis 快照（冷启动 fallback，P1-03 T5/T6） ───
-
 /** Redis 快照缓存：从 Redis 加载的 flag 定义，用于 Unleash 不可用时的降级 */
 let flagSnapshot: FlagDefinition[] | null = null;
 let lastSnapshotWrite = 0;
@@ -87,7 +85,6 @@ async function loadFlagSnapshot(): Promise<void> {
       }
     }
   } catch (err) {
-    // Redis 不可用时静默跳过（开发环境可能未启动 Redis）
     logger.debug({ err: String(err), module: 'unleash' }, '[unleash] Redis 快照加载跳过');
   }
 }
@@ -135,36 +132,30 @@ try {
     url: UNLEASH_URL,
     appName: 'backtest-api',
     customHeaders: { Authorization: UNLEASH_API_TOKEN },
-    // <30s 同步：每 15s 拉取一次 flag 定义
     refreshInterval: 15,
   });
 
   client.on('initialized', () => {
     unleashClient.isInitialized = true;
     logger.info({ module: 'unleash' }, '[unleash] 客户端初始化成功');
-    // 初始化成功后立即保存快照
     saveFlagSnapshot();
   });
 
   client.on('changed', () => {
-    // flag 定义变更时保存快照到 Redis
     saveFlagSnapshot();
   });
 
   client.on('error', (err: unknown) => {
-    // 初始化或轮询失败时保持 isInitialized 当前值；SDK 会基于本地缓存继续决策
     logger.warn({ err: String(err), module: 'unleash' }, '[unleash] 客户端错误');
   });
 
   unleashClient.isEnabled = (flagName, context) => {
-    // 1. Unleash 已初始化 → SDK 内部缓存决策
     if (client && unleashClient.isInitialized) {
       return client.isEnabled(
         flagName,
         context as { userId?: string; properties?: Record<string, string> },
       );
     }
-    // 2. Unleash 未初始化 → Redis 快照 fallback
     if (flagSnapshot) {
       return isEnabledFromSnapshot(flagName);
     }

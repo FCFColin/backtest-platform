@@ -1,11 +1,4 @@
-/**
- * 计费路由（Stripe，ADR-036）
- *
- * 挂载于 /api/v1/billing（jwtAuth + resolveTenant 前置）。本路由内部对写操作追加
- * requireTenant + requirePermission(ADMIN_ACCESS)。webhook 不在此 router 内——它需要
- * 原始请求体与免鉴权，由 app.ts 用 express.raw 在全局 json 之前单独挂载
- * （见 billingWebhookHandler）。
- */
+// 计费路由（Stripe，ADR-036）。webhook 在 app.ts 单独挂载（需原始请求体 + 免鉴权）
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
@@ -217,7 +210,6 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
       return;
     }
   } catch (err) {
-    // Redis 不可用时fail-open（允许处理），因为 Stripe 会重试
     logger.warn(
       { err: String(err), eventId: event.id },
       '[billingRoutes] Event dedup check failed, processing anyway',
@@ -228,7 +220,6 @@ export async function billingWebhookHandler(req: Request, res: Response): Promis
     await handleWebhookEvent(event);
   } catch (err) {
     logger.error({ err: String(err), eventType: event.type }, '[billingRoutes] webhook 处理失败');
-    // 返回 500 让 Stripe 重试
     res.status(500).json({ received: false });
     return;
   }

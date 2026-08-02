@@ -11,7 +11,6 @@ const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
 const SSR_DIST = path.resolve(PROJECT_ROOT, 'dist-ssr');
 const FRONTEND_DIST = config.FRONTEND_DIST_DIR;
 
-// 预加载关键 CSS 内容 → 内联到 HTML 消除渲染阻塞
 let cssContent: string | null = null;
 try {
   const cssFiles = fs
@@ -25,9 +24,6 @@ try {
   /* 构建产物没有 CSS 文件时忽略 */
 }
 
-// 预加载关键 API 数据（服务端缓存热，避免客户端重复 fetch）
-// E5 修复：此前误用 GO_ENGINE_URL(15004)+5004 fallback——/api/v1/data/meta 是 Node API(15001) 的端点，
-// 改为自引用 API 端口（SSR 由 Node API 进程渲染，回环自取即可）。
 let metaCache: string | null = null;
 async function prefetchMeta(): Promise<void> {
   try {
@@ -43,7 +39,6 @@ async function prefetchMeta(): Promise<void> {
     logger.warn('[ssr] meta 数据预取失败（服务未就绪）');
   }
 }
-// 尝试预取但不等它完成（由渲染流程决定是否使用缓存值）
 prefetchMeta().catch(() => {});
 
 interface PipeableStream {
@@ -56,7 +51,6 @@ type RenderFn = (url: string) => PipeableStream | Promise<PipeableStream>;
 let renderFn: RenderFn | null = null;
 let htmlTemplate: { head: string; tail: string } | null = null;
 
-// SSR 输出缓存（5 秒 TTL，LRU 淘汰）
 const ssrCache = new Map<string, { html: string; ts: number }>();
 const CACHE_TTL = 5_000;
 const CACHE_MAX = 20;
@@ -107,11 +101,9 @@ async function loadSsrRenderFn(): Promise<RenderFn | null> {
   }
 }
 
-/** 构建 SSR HTML head：内联 CSS + entry script 优先级 + 页面预加载链接 + 预取数据注入。 */
 function buildSsrHead(templateHead: string): string {
   let head = templateHead;
 
-  // 替换 CSS link 为内联 style（消除渲染阻塞）
   if (cssContent) {
     head = head.replace(
       /<link rel="stylesheet"[^>]*\/assets\/style-[^"]*\.css[^>]*>/,
@@ -119,7 +111,6 @@ function buildSsrHead(templateHead: string): string {
     );
   }
 
-  // 主 entry script 加 fetchpriority=high，让浏览器优先下载关键 JS
   const entryScript = templateHead.match(/<script[^>]*src="\/assets\/index-[^"]*\.js"[^>]*>/);
   if (entryScript) {
     head = head.replace(
@@ -128,7 +119,6 @@ function buildSsrHead(templateHead: string): string {
     );
   }
 
-  // 按优先级预加载：导航栏页面用 modulepreload（高优先级，关键路径），其余用 prefetch（空闲时）
   const KEY_PAGES = [
     'MonteCarloPage',
     'OptimizerPage',
@@ -152,8 +142,6 @@ function buildSsrHead(templateHead: string): string {
         return `<link rel="${isKey ? 'modulepreload' : 'prefetch'}" href="/assets/${f}" crossorigin>`;
       })
       .join('\n    ');
-    // 共享 vendor chunk（recharts 依赖 YAxis 等，懒加载时按需下载拖慢导航）：
-    // 首页空闲时 prefetch，SPA 导航命中缓存、无需等待下载
     const vendorPrefetch = assets
       .filter((f) =>
         /^(YAxis|generateCategoricalChart|shared-utils|util-vendor|i18n-vendor|icon-vendor|ui-vendor|state-vendor|react-router|react-dom-client)-.*\.js$/.test(
@@ -167,7 +155,6 @@ function buildSsrHead(templateHead: string): string {
     /* 构建产物读取失败时跳过 */
   }
 
-  // 注入服务端预取数据（避免客户端重复 fetch）
   if (metaCache) {
     head = head.replace(
       '</head>',
@@ -183,7 +170,6 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
   const startTotal = performance.now();
   const url = req.originalUrl || req.url;
 
-  // SSR 输出缓存命中
   const cached = getCached(url);
   if (cached) {
     const cachedMs = Math.round(performance.now() - startTotal);
@@ -209,15 +195,12 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
 
     const head = buildSsrHead(htmlTemplate.head);
 
-    // 所有 header 须在 res.write 前设置：head 含内联 CSS，write 大 chunk 会
-    // flush headers，之后 setHeader 抛 ERR_HTTP_HEADERS_SENT
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Rendered-By', 'ssr');
-    res.setHeader('Server-Timing', `render;dur=${renderMs}, total;dur=${totalMs}`);
+    res.setHeader('Server-Timing', `render;dur=${renderMs}`);
     res.setHeader('X-Cache', 'MISS');
     res.write(head);
 
-    // 给主 entry script 加 fetchpriority="high" 提升关键 JS 下载优先级
     let tail = htmlTemplate.tail;
     tail = tail.replace(
       /(<script[^>]*src="[^"]*index-[^"]*\.js"[^>]*)>/g,
@@ -233,7 +216,6 @@ export async function ssrMiddleware(req: Request, res: Response): Promise<void> 
     passThrough.on('end', () => {
       body += tail;
       res.end(tail);
-      // 5 秒缓存，仅缓存匿名首页请求
       if (!req.headers.authorization && !req.headers.cookie?.includes('refreshToken')) {
         setCache(url, body);
       }

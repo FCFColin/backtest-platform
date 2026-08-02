@@ -102,8 +102,6 @@ export function extractBacktestSeries(
   });
 }
 
-// ── Backtest Result Cache ──────────────────────────────────────────────────
-
 const TTL_MS = 5 * 60 * 1000;
 const MAX_ENTRIES = 50;
 const BACKTEST_CACHE_REDIS_PREFIX = 'backtest_cache:';

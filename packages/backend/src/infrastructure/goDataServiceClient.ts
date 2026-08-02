@@ -78,6 +78,7 @@ function getTenantSemaphore(orgId?: string): Semaphore {
   return sem;
 }
 
+// eslint-disable-next-line max-lines-per-function
 export async function callGoDataService(path: string, orgId?: string): Promise<string> {
   const semaphore = getTenantSemaphore(orgId);
   await semaphore.acquire().catch(() => {
@@ -88,10 +89,19 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
     const url = `${baseUrl}${path}`;
 
     return await new Promise<string>((resolve, reject) => {
-      // D5-005: settled guard prevents multiple resolve/reject calls after stream destroy
       let settled = false;
-      const safeResolve = (v: string) => { if (!settled) { settled = true; resolve(v); } };
-      const safeReject = (e: Error) => { if (!settled) { settled = true; reject(e); } };
+      const safeResolve = (v: string) => {
+        if (!settled) {
+          settled = true;
+          resolve(v);
+        }
+      };
+      const safeReject = (e: Error) => {
+        if (!settled) {
+          settled = true;
+          reject(e);
+        }
+      };
       const req = http.request(
         url,
         {
@@ -100,7 +110,7 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
           agent: goDataServiceAgent,
           headers: {
             'X-Data-Service-Auth': config.DATA_SERVICE_AUTH_TOKEN,
-            'Connection': 'keep-alive',
+            Connection: 'keep-alive',
           },
         },
         (res) => {
@@ -142,7 +152,6 @@ export async function callGoDataService(path: string, orgId?: string): Promise<s
             }
           });
           // D5-005: response stream error handler — without this, res.destroy() or
-          // network errors on the response stream emit an unhandled 'error' event.
           res.on('error', (err: Error) => {
             safeReject(new Error(`Go data service response stream error: ${err.message}`));
           });

@@ -24,7 +24,6 @@ const wsConnectionsActive = new client.Gauge({
   registers: [getPrometheusRegister()],
 });
 
-// D3-002：进程级单例订阅 + Map<channel, Set<WebSocket>> 内存路由，同一 channel 复用一条 Redis 订阅（连接数 O(N)→O(1)+O(channels)）
 let sharedSubscriber: IORedis | null = null;
 let subscriberInitPromise: Promise<IORedis> | null = null;
 const channelClients = new Map<string, Set<WebSocket>>();
@@ -150,7 +149,6 @@ function handleConnection(ws: WebSocket, jobId: string, userId: string): void {
   });
   subscribeChannel(channel, ws)
     .then(() => {
-      // 握手确认（type=connected）便于客户端识别连接就绪，非进度消息
       if (ws.readyState === WebSocket.OPEN)
         ws.send(JSON.stringify({ type: 'connected', jobId, channel }));
     })

@@ -114,7 +114,6 @@ router.post(
         description?: string;
         subscribedEvents: string[];
       };
-      // C-024：入库前加密 secret，DB 仅存密文
       const created = await withTenant(orgId, (client) =>
         createWebhook(client, {
           orgId,
@@ -246,7 +245,6 @@ router.post(
         sendProblem(res, 404, 'WEBHOOK_NOT_FOUND');
         return;
       }
-      // C-024：从 DB 读出密文 secret 并 decrypt 用于 HMAC 签名
       const toBuf = (v: unknown): Buffer => (Buffer.isBuffer(v) ? v : Buffer.from(v as string));
       const plaintextSecret = await decrypt({
         ciphertext: toBuf(result.endpoint.secret),
@@ -291,7 +289,6 @@ router.get(
     async (req, res, orgId) => {
       if (!requireUuidParam(res, req.params.id)) return;
       const webhookId = req.params.id;
-      // 校验端点归属本组织（防跨租户读取投递历史）
       const deliveries = await withTenant(orgId, async (client) => {
         const { rows: own } = await client.query(
           `SELECT 1 FROM webhook_endpoints WHERE id = $1 AND org_id = $2`,

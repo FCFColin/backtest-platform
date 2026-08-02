@@ -1,6 +1,5 @@
 // DDD: Value Objects + Domain Errors — 不变性+校验+领域异常
 //
-// 合并 errors.ts（DomainValidationError）以集中领域层异常定义。
 
 export class DomainValidationError extends Error {
   readonly field?: string;

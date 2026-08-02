@@ -46,7 +46,6 @@ function createAndInstrumentPool(opts: CreatePoolOptions): pg.Pool {
     poolConfig.keepAliveInitialDelayMillis = 10000;
   }
   const newPool = new Pool(poolConfig);
-  // statement_timeout 在每个新连接上设置查询超时，防止连接池耗尽
   newPool.on('connect', (client: pg.PoolClient) => {
     client.query(`SET statement_timeout = ${config.DB_STATEMENT_TIMEOUT_MS}`);
   });
@@ -109,7 +108,6 @@ export async function getClient(): Promise<pg.PoolClient> {
 }
 
 // 租户上下文（RLS 强制点，ADR-032）：通过 SET LOCAL 注入 tenant_id 使 RLS 策略生效。
-// 事务级设置（is_local=true）随 COMMIT/ROLLBACK 自动复位，PgBouncer transaction-pooling 安全。
 async function withTenantContext<T>(
   tenantId: string,
   sourcePool: pg.Pool,

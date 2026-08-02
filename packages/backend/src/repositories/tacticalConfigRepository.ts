@@ -141,7 +141,6 @@ export async function update(
     }
 
     if (sets.length === 0) {
-      // 无字段更新，直接返回当前记录
       return findById(tenantId, id);
     }
 

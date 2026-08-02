@@ -4,13 +4,9 @@
  * 维护全局 OpenAPIRegistry 单例、注册通用安全方案/幂等键/RFC 7807 错误结构/成功信封、
  * 提供 reg() 路径注册辅助函数。各 openapi-paths-*.ts 模块通过调用 registerXxxPaths() 注册具体端点。
  */
-import {
-  OpenAPIRegistry,
-  extendZodWithOpenApi,
-} from '@asteasolutions/zod-to-openapi';
+import { OpenAPIRegistry, extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 
-// 必须在使用 .openapi() 之前调用一次，为所有 Zod 对象挂载 openapi 元数据方法。
 extendZodWithOpenApi(z);
 
 export const registry = new OpenAPIRegistry();
@@ -29,7 +25,6 @@ registry.registerComponent('securitySchemes', 'ApiKeyAuth', {
   description: '按组织 API Key（过渡兼容，不推荐生产长期依赖）。',
 });
 
-// 注册可复用幂等键参数（管理端点 POST 写操作引用）。
 registry.registerComponent('parameters', 'IdempotencyKey', {
   name: 'Idempotency-Key',
   in: 'header',
@@ -86,8 +81,6 @@ export const AcceptedEnvelope = registry.register(
     }),
   }),
 );
-
-// 路径注册辅助：压缩重复结构，确保每个 operation 含 summary + responses + 描述
 
 type Method = 'get' | 'post' | 'put' | 'patch' | 'delete';
 

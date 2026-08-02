@@ -110,7 +110,6 @@ router.post(
       const role = await createRole(tenantId, name, description ?? null);
       res.status(201).json({ success: true, data: role });
     } catch (err) {
-      // 唯一约束冲突（org_id, name）→ 409
       if (String(err).includes('uq_roles_org_name')) {
         sendProblem(res, 409, 'ROLE_NAME_CONFLICT');
         return;
@@ -175,7 +174,6 @@ router.put(
       sendProblem(res, 404, 'ROLE_NOT_FOUND');
       return;
     }
-    // 失效受影响用户的权限缓存 + 组织级角色权限缓存
     const userIds = await getUserIdsByRole(req.params.id);
     await Promise.all([
       ...userIds.map((uid) => invalidateUserPermissions(uid)),
@@ -198,9 +196,8 @@ router.post(
   async (req: AuthenticatedRequest, res: Response) => {
     if (!requireUuidParam(res, req.params.userId)) return;
     const { roleId } = req.body as { roleId: string };
-    // 验证目标角色属于当前租户（防止跨租户绑定系统外的角色）
     if (!(await guardRoleInOrg(req, res, roleId))) return;
-    await assignUserRole(req.params.userId, roleId, req.tenantId);
+    await assignUserRole(req.params.userId, roleId, req.tenantId ?? null);
     await invalidateUserPermissions(req.params.userId);
     res.status(201).json({ success: true, data: { assigned: true } });
   },

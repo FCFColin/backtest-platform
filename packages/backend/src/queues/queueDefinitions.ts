@@ -1,9 +1,3 @@
-/**
- * 队列定义：数据更新、审计导出、Webhook 重试。
- *
- * 合并 dataUpdateQueue / auditExportQueue / webhookQueue 消除重复的 Redis 连接配置与日志模式。
- */
-
 import { Queue, Worker } from 'bullmq';
 import type { RedisOptions } from 'ioredis';
 import { buildRedisBaseOptions, isSentinelMode } from '../infrastructure/redisClient.js';
@@ -28,8 +22,6 @@ logger.info(
   'BullMQ queue connection configured',
 );
 
-// ── Data Update Queue ──────────────────────────────────────────────────────
-
 export interface DataUpdateJobData {
   mode: 'full' | 'incremental';
   triggeredBy?: string;
@@ -44,7 +36,6 @@ export interface DataUpdateJobResult {
 }
 
 const DATA_UPDATE_QUEUE = 'data-update';
-
 export const dataUpdateQueue = new Queue<DataUpdateJobData, DataUpdateJobResult>(
   DATA_UPDATE_QUEUE,
   {
@@ -67,8 +58,6 @@ dataUpdateQueue.on('error', (err) => {
 export async function getActiveUpdateJobs() {
   return dataUpdateQueue.getJobs(['active', 'waiting', 'delayed'], 0, 10);
 }
-
-// ── Audit Export Queue ─────────────────────────────────────────────────────
 
 const AUDIT_EXPORT_QUEUE = 'audit-export';
 const AUDIT_EXPORT_JOB_ID = 'audit-export-cron';
@@ -123,8 +112,6 @@ export function createAuditExportWorker(): Worker {
   );
   return worker;
 }
-
-// ── Webhook Retry Queue ────────────────────────────────────────────────────
 
 const WEBHOOK_QUEUE = 'webhook-retry';
 const WEBHOOK_JOB_ID = 'webhook-retry-cron';

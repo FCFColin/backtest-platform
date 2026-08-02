@@ -95,7 +95,7 @@ async function queryPricesFromDb(
     if (validTickers.length === 0 && hasUnknownTickers)
       return { result: {}, missing: [], dbDegraded: false };
     const { rows } = await pgCircuitBreaker.fire(
-      'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3 ORDER BY date',
+      'SELECT ticker, date, close FROM prices WHERE ticker = ANY($1) AND date >= $2 AND date <= $3',
       [validTickers, effectiveStart, effectiveEnd],
     );
     const result: Record<string, Record<string, number>> = {};
@@ -204,7 +204,6 @@ async function searchTickersFromDb(
     sql += ' LIMIT 20';
     const { rows } = await pgCircuitBreaker.fire(sql, params);
     if (rows.length === 0) return [];
-    // JS 侧兜底：SQL LIMIT 20 已限制生产结果，30 为防御性上限（mock/降级绕过 SQL 时仍保证上限）
     return rows
       .map((r: { ticker: string; category: string; market: string }) => ({
         ticker: r.ticker,
@@ -289,8 +288,6 @@ export async function searchTickers(
     return [];
   }
 }
-
-// ── Ticker 元数据与价格查询（PostgreSQL，合并自 tickerDataService）──────────
 
 /** 获取引擎状态（PostgreSQL） */
 export async function getEngineStatus(): Promise<{

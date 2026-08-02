@@ -1,16 +1,9 @@
-/**
- * OpenAPI 路径注册共享辅助（BIG2 拆分产物）
- *
- * 从 openapi-paths.ts 拆出的高频复用项：错误码数组、params 结构、sec/pubReg/registerCrud。
- * 域文件（openapi-paths-{admin,auth,backtest,data}.ts）从本文件导入，保证各端点错误码一致。
- */
 import { z } from 'zod';
 import { reg, idParam } from './openapi-components.js';
 
 type RegOpts = Parameters<typeof reg>[0];
 export { idParam };
 
-// 高频重复的 errors 数组与 params 结构，注册时直接复用（保证各端点错误码一致）
 export const AUTH_ERR = [401, 403, 500];
 export const AUTH_500_ERR = [401, 500];
 export const PERM_ERR = [401, 403];
@@ -54,7 +47,6 @@ export function sec(
   reg({ method, path, tag, summary, errors, security: true, ...extra });
 }
 
-/** 公开（无认证）端点注册，okDescription 仅 get 探针类使用。 */
 // eslint-disable-next-line max-params -- OpenAPI 路径注册 DSL，参数为注册项字段
 export function pubReg(
   method: RegOpts['method'],

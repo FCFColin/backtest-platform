@@ -88,7 +88,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
     return result;
   }
 
-  // 3. 确保 bucket 存在
   await ensureBucketExists();
 
   const validLogs: AuditLogRow[] = [];
@@ -124,7 +123,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
     if (uploaded) {
       result.exported += groupLogs.length;
       result.objectKeys.push(objectKey);
-      // 回填 object_key + exported_at
       const ids = groupLogs.map((l) => l.id);
       await markExported(ids, objectKey);
       logger.info(
@@ -132,7 +130,6 @@ export async function exportPendingAuditLogs(): Promise<ExportResult> {
         '[auditExporter] 审计日志批次已导出至 MinIO WORM',
       );
     } else {
-      // 上传失败：不回填 exported_at，下次作业自动重试
       logger.error(
         { objectKey, count: groupLogs.length },
         '[auditExporter] 审计日志批次上传失败，下次作业将重试',

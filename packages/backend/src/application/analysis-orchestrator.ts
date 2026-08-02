@@ -1,13 +1,4 @@
-/**
- * 分析编排器（Orchestrator）— 纯 fetch data + call engine，无 domain 交互。
- *
- * 合并了原 analysis-service.ts（单资产分析）与 analytics-application-service.ts（PCA/LETF/GoalOptimizer）。
- * 所有计算逻辑已迁移到 Go 引擎（ADR-031），此编排器仅负责参数校验、数据获取编排与引擎调用。
- *
- * 命名约定（见 application/README.md）：纯透传到引擎、不涉及 domain 聚合根的编排器
- * 命名 *Orchestrator 并放在 application/，与涉及 domain 的 application service 区分。
- */
-import type {
+﻿import type {
   PCARequest,
   GoalOptimizerRequest,
   PCAResult,
@@ -15,7 +6,7 @@ import type {
 } from '@backtest/shared/types/index';
 import type { LETFRequest } from '@backtest/shared/types/letf';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
-import { callEngineStrict } from '../utils/engineClient.js';
+import { callEngineStrict, unwrapEngineData } from '../utils/engineClient.js';
 import { logger } from '../utils/logger.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { ValidationError } from '../utils/errors.js';
@@ -32,7 +23,6 @@ import {
 } from './backtest-helpers.js';
 import type { Warning, DateRangeInfo } from './backtest-helpers.js';
 
-/** 组装分析结果：提取引擎返回的 assets/correlations，附加 warnings 和 dateRange。 */
 function assembleAnalysisResult(
   result: Record<string, unknown>,
   warnings: Warning[],
@@ -57,11 +47,6 @@ function assembleAnalysisResult(
   };
 }
 
-/**
- * 运行单资产分析。
- *
- * @throws {EngineUnavailableError} Go 引擎不可用时
- */
 export async function runAnalysis(
   tickers: string[],
   parameters: BacktestParameters,
@@ -103,23 +88,19 @@ export async function runAnalysis(
   return assembleAnalysisResult(result, warnings, dateRange);
 }
 
-// PCA 主成分分析
-
-/**
- * 执行 PCA 分析。
- *
- * @throws Error 参数或数据无效
- */
 export function executePcaAnalyze(
   tickers: string[],
   priceData: Record<string, Record<string, number>>,
   numComponents?: number,
 ) {
   ensurePriceDataExists(tickers, priceData, 'PCA');
-  return callEngineStrict<PCAResult>('/api/engine/pca', { tickers, priceData, numComponents });
+  return callEngineStrict<PCAResult>('/api/engine/pca', {
+    tickers,
+    priceData,
+    numComponents,
+  }).then((r) => ((r as { data?: PCAResult })?.data ?? r) as PCAResult);
 }
 
-/** 运行分析（含数据获取）的共享模式。 */
 async function runAnalysisWithFetch<T>(
   tickers: string[],
   startDate: string,
@@ -130,11 +111,6 @@ async function runAnalysisWithFetch<T>(
   return run(priceData);
 }
 
-/**
- * 校验 PCA 请求。
- *
- * @throws Error 校验失败
- */
 export function validatePcaRequest(req: PCARequest): string[] {
   if (!Array.isArray(req.tickers) || req.tickers.length === 0) {
     throw new ValidationError('Missing or invalid field: tickers (must be a non-empty array)');
@@ -149,11 +125,6 @@ export function validatePcaRequest(req: PCARequest): string[] {
   return clean;
 }
 
-/**
- * 执行 PCA 分析（含数据获取）。
- *
- * @throws Error 参数或数据无效
- */
 export async function executePcaAnalyzeWithFetch(body: PCARequest) {
   const cleanTickers = validatePcaRequest(body);
   return runAnalysisWithFetch(cleanTickers, body.startDate, body.endDate, (priceData) =>
@@ -161,13 +132,6 @@ export async function executePcaAnalyzeWithFetch(body: PCARequest) {
   );
 }
 
-// LETF 滑点分析
-
-/**
- * 执行 LETF 滑点分析。
- *
- * @throws Error 数据缺失
- */
 export function executeLetfAnalyze(
   req: LETFRequest,
   priceData: Record<string, Record<string, number>>,
@@ -184,14 +148,9 @@ export function executeLetfAnalyze(
     benchmarkTicker: cleanBench,
     leverage: lev,
     priceData,
-  });
+  }).then((r) => unwrapEngineData(r));
 }
 
-/**
- * 执行 LETF 滑点分析（含数据获取）。
- *
- * @throws Error 数据缺失
- */
 export async function executeLetfAnalyzeWithFetch(req: LETFRequest) {
   return runAnalysisWithFetch(
     [String(req.letfTicker).trim().toUpperCase(), String(req.benchmarkTicker).trim().toUpperCase()],
@@ -209,11 +168,6 @@ export function validateGoalOptimizerAssets(request: GoalOptimizerRequest): stri
   return Array.from(new Set(validAssets.map((a) => a.ticker.trim().toUpperCase())));
 }
 
-/**
- * 执行目标优化。
- *
- * @throws Error 数据不足
- */
 export function executeGoalOptimize(
   request: GoalOptimizerRequest,
   priceData: Record<string, Record<string, number>>,
@@ -228,14 +182,9 @@ export function executeGoalOptimize(
     priceData,
     startDate,
     endDate,
-  });
+  }).then((r) => unwrapEngineData(r));
 }
 
-/**
- * 执行目标优化（含数据获取）。
- *
- * @throws Error 数据不足
- */
 export async function executeGoalOptimizeWithFetch(request: GoalOptimizerRequest) {
   const tickers = validateGoalOptimizerAssets(request);
   const endDateStr = todayStr();

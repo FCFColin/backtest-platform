@@ -108,7 +108,6 @@ export async function runBacktest(
   params: BacktestExecutionParams,
 ): Promise<BacktestExecutionResult> {
   const { portfolios, parameters, priceData, cpiData, exchangeRates } = params;
-  // DDD：DTO → 领域聚合根，构造时自动校验不变量（权重和、Ticker 格式、Weight 范围）
   const domainPortfolios = portfolios.map((p) =>
     translateDomainError(() => DomainPortfolio.fromDTO(p)),
   );

@@ -26,7 +26,6 @@ const logger = pino({
   level: isDev ? 'debug' : 'info',
   mixin: otelMixin,
   // Security: 日志脱敏，防止凭证泄露到日志系统。日志聚合系统（Loki/ES）的访问权限
-  // 通常低于数据库，凭证泄露风险更高。
   redact: {
     paths: [
       'req.headers.authorization',
@@ -68,7 +67,6 @@ const httpLogger = pinoHttp({
   genReqId: (req) => {
     const incoming = req.headers['x-request-id'];
     // Security: 仅允许 [a-zA-Z0-9-] 字符，防止日志注入——x-request-id 会被写入日志，
-    // 若包含换行符或控制字符，攻击者可伪造日志条目绕过日志分析或注入恶意内容
     if (
       typeof incoming === 'string' &&
       incoming.length > 0 &&

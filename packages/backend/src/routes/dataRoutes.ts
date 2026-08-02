@@ -28,7 +28,6 @@ const mapRecentUpdate = rowMapper<RecentUpdateRow>({
   updatedAt: (r) => toIso(r.updated_at),
 });
 
-// ticker-meta 服务端缓存（5min，跨 chunk MIN(date) 查询慢，缓存命中避免重复扫描）
 const tickerMetaCache = new Map<string, { data: unknown; at: number }>();
 const TICKER_META_CACHE_TTL = 300_000;
 function cachedTickerMeta(ticker: string): unknown | undefined {
@@ -270,14 +269,12 @@ router.get(
   ),
 );
 
-// 自定义 ticker（P2-6，原 customTickerRoutes.ts 并入）：per-user RLS 隔离，存储在 custom_tickers 表
 const requireDataManage = requirePermission(Permission.DATA_MANAGE);
 
-/** 共享守卫：认证用户 + DB 可用（三个端点同构守卫）。返回收窄后的 userId/pool。 */
 function requireUserAndDb(
   req: Request,
   res: Response,
-): { userId: string; pool: typeof pool } | null {
+): { userId: string; pool: NonNullable<typeof pool> } | null {
   const userId = (req as AuthenticatedRequest).user?.sub;
   if (!userId) {
     sendProblem(res, 401, 'UNAUTHORIZED');
@@ -331,7 +328,6 @@ router.post(
   ),
 );
 
-/** DELETE /api/v1/data/custom/:ticker — 删除自定义标的 */
 router.delete(
   '/custom/:ticker',
   requireDataManage,
@@ -351,12 +347,6 @@ router.delete(
   ),
 );
 
-// 定时预热 /data/meta 缓存（每 25 分钟），避免缓存过期后首次请求扫描大表
-setInterval(
-  () => {
-    void warmMetaCache();
-  },
-  META_CACHE_TTL_MS - 5 * 60 * 1000,
-);
+setInterval(() => void warmMetaCache(), META_CACHE_TTL_MS - 5 * 60 * 1000);
 
 export default router;

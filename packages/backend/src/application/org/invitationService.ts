@@ -54,7 +54,6 @@ export async function acceptInvitation(token: string, userId: string): Promise<A
       await client.query('ROLLBACK');
       return { ok: false, reason: 'expired' };
     }
-    // upsert membership：已是成员则不降级，保留较高角色由管理员另行调整
     await client.query(
       `INSERT INTO memberships (org_id, user_id, role) VALUES ($1, $2, $3)
        ON CONFLICT (org_id, user_id) DO NOTHING`,

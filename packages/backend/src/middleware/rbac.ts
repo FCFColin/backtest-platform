@@ -65,7 +65,6 @@ function hasPermission(role: Role | string, permission: Permission): boolean {
 }
 
 // 多租户下角色以"用户在当前活跃组织内的成员角色"为准（ADR-032），
-// owner 归并为 admin。无 org_role 时回退到 legacy 全局 role。
 function effectiveRole(user: NonNullable<AuthenticatedRequest['user']>): string {
   const orgRole = user.org_role;
   if (orgRole) return orgRole === 'owner' ? Role.ADMIN : orgRole;
@@ -144,7 +143,6 @@ export function requirePermission(permission: Permission) {
   };
 }
 
-// DB 优先，缓存加速，legacy 回退
 async function resolveUserPermissions(
   user: NonNullable<AuthenticatedRequest['user']>,
 ): Promise<string[]> {

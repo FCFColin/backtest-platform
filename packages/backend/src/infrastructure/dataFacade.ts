@@ -224,6 +224,5 @@ async function fetchHistoryDataImpl(
   return { data: result, degraded, degradedWarning };
 }
 
-// 直接暴露 dataQuery / dataCache 的函数（去除原包装层，削减重复实现）
 export { validateTickers, searchTickers } from './dataQuery.js';
 export { invalidateTickerCache, invalidateAllCache } from './dataCache.js';

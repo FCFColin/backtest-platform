@@ -1,7 +1,4 @@
-/**
- * 路由层共享工具 — HTTP 适配层关注点。
- * 错误翻译（应用错误 → HTTP 状态码）+ 统一异步路由包装 + 租户 CRUD 路由生成。
- */
+/** 路由层共享工具 — 错误翻译 + 异步路由包装 + 租户 CRUD 路由生成。 */
 import type { Request, Response, RequestHandler } from 'express';
 import { Router } from 'express';
 import type { ZodSchema } from 'zod';
@@ -141,7 +138,7 @@ export function jsonRoute(
   );
 }
 
-/** 租户作用域 CRUD 仓储最小接口：所有方法以 tenantId 为首参（RLS 隔离边界），update 可选。 */
+/** 租户作用域 CRUD 仓储最小接口（RLS 隔离边界） */
 interface TenantCrudRepo<T> {
   list(tenantId: string, limit?: number, offset?: number): Promise<T[]>;
   get(tenantId: string, id: string): Promise<T | null>;
@@ -151,13 +148,13 @@ interface TenantCrudRepo<T> {
 }
 
 interface TenantCrudConfig {
-  resource: string; // 日志前缀，如 'configs' → '[configs] 列表失败'
-  codePrefix: string; // 错误码前缀，如 'CONFIG' → CONFIG_LIST_FAILED
-  notFoundCode: string; // 404 错误码，如 'CONFIG_NOT_FOUND'
+  resource: string;
+  codePrefix: string;
+  notFoundCode: string;
   createSchema?: ZodSchema;
   updateSchema?: ZodSchema;
-  metricPrefix?: string; // 设置则用 asyncRouteHandler（映射领域错误 + 记录计算指标），否则 crudRouteHandler
-  beforeCreate?: (req: AuthenticatedRequest, res: Response) => Promise<boolean>; // 创建前钩子（如配额检查）；返回 false 表示已响应拒绝
+  metricPrefix?: string;
+  beforeCreate?: (req: AuthenticatedRequest, res: Response) => Promise<boolean>;
 }
 
 const CRUD_LABELS: Record<string, string> = {

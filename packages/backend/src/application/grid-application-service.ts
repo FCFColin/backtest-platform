@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 战术网格搜索应用服务。
  *
  * 计算逻辑已迁移到 Go 引擎 /api/engine/tactical-grid-search（ADR-031）。

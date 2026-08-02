@@ -1,13 +1,3 @@
-/**
- * 数据服务基础设施工具集。
- *
- * 合并 syntheticTickers / cpiLoader / minioClient / dataFetch：
- * - syntheticTickers: 合成标的元数据列表（与 Go data-fetcher simDefinitions 同步）
- * - cpiLoader: CPI 数据访问统一 facade（PG 主路径 → Go data-fetcher fallback）
- * - minioClient: MinIO S3 兼容客户端（WORM 审计存储）
- * - dataFetch: 数据更新任务（P1-2 起经 BullMQ 异步入队，不再 spawn Go 子进程）
- */
-
 import { Client } from 'minio';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
@@ -19,8 +9,6 @@ import {
   type DataUpdateJobData,
 } from '../queues/queueDefinitions.js';
 
-// ── Synthetic Tickers ──────────────────────────────────────────────────────
-
 interface SyntheticTicker {
   ticker: string;
   name: string;
@@ -29,7 +17,7 @@ interface SyntheticTicker {
   earliestDate: string;
   methodology: string;
 }
-
+// 全部 synthetic tickers 使用 splice_by_return 方法论，通过 map 统一注入
 export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
   {
     ticker: 'SPYSIM',
@@ -37,7 +25,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Index',
     description: 'S&P 500 total return index. Uses SPY adjusted close from 1993.',
     earliestDate: '1993-01-29',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'VTISIM',
@@ -45,7 +32,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Index',
     description: 'VTSMX (1992-2001) spliced with VTI (2001-).',
     earliestDate: '1992-11-03',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'QQQSIM',
@@ -53,7 +39,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Index',
     description: 'RYOCX (1994-1999) spliced with QQQ (1999-).',
     earliestDate: '1994-03-11',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'BNDSIM',
@@ -61,7 +46,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'VBMFX (1986-2007) spliced with BND (2007-).',
     earliestDate: '1986-12-18',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'GLDSIM',
@@ -69,7 +53,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Commodity',
     description: 'GLD adjusted close from 2004.',
     earliestDate: '2004-11-18',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'TLTSIM',
@@ -77,7 +60,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'TLT adjusted close from 2002.',
     earliestDate: '2002-07-22',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'IEFSIM',
@@ -85,7 +67,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'IEF adjusted close from 2002.',
     earliestDate: '2002-07-26',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'SHVSIM',
@@ -93,7 +74,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'SHV adjusted close from 2007.',
     earliestDate: '2007-01-11',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'VXUSSIM',
@@ -101,7 +81,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Equity',
     description: 'EFA (2001-2011) spliced with VXUS (2011-).',
     earliestDate: '2001-08-20',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'VNQSIM',
@@ -109,7 +88,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'RealEstate',
     description: 'VNQ adjusted close from 2004.',
     earliestDate: '2004-09-29',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'IWMSIM',
@@ -117,7 +95,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Equity',
     description: 'IWM adjusted close from 2000.',
     earliestDate: '2000-05-22',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'EFASIM',
@@ -125,7 +102,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Equity',
     description: 'EFA adjusted close from 2001.',
     earliestDate: '2001-08-20',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'EEMSIM',
@@ -133,7 +109,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Equity',
     description: 'EEM adjusted close from 2003.',
     earliestDate: '2003-04-11',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'TIPSIM',
@@ -141,7 +116,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'TIP adjusted close from 2003.',
     earliestDate: '2003-12-05',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'AGGSIM',
@@ -149,7 +123,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'AGG adjusted close from 2003.',
     earliestDate: '2003-09-29',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'SCHBSIM',
@@ -157,7 +130,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'SCHB adjusted close from 2010.',
     earliestDate: '2010-01-14',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'VTVOXSIM',
@@ -165,7 +137,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'BIV adjusted close from 2009.',
     earliestDate: '2009-04-06',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'BSVSIM',
@@ -173,7 +144,6 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'BSV adjusted close from 2007.',
     earliestDate: '2007-04-05',
-    methodology: 'splice_by_return',
   },
   {
     ticker: 'VTESIM',
@@ -181,11 +151,8 @@ export const SYNTHETIC_TICKERS: SyntheticTicker[] = [
     category: 'Bond',
     description: 'VTEB adjusted close from 2007.',
     earliestDate: '2007-12-07',
-    methodology: 'splice_by_return',
   },
-];
-
-// ── CPI Loader ─────────────────────────────────────────────────────────────
+].map((t) => ({ ...t, methodology: 'splice_by_return' }));
 
 interface CpiCacheEntry {
   map?: Record<string, number>;
@@ -260,8 +227,6 @@ export async function fetchCpiForRoute(country: string): Promise<CpiRouteResult>
   }
   return { data: null, degraded: false, notFound: true };
 }
-
-// ── MinIO Client ───────────────────────────────────────────────────────────
 
 const AUDIT_BUCKET = 'audit-logs';
 
@@ -349,8 +314,6 @@ export async function uploadAuditObject(key: string, data: string | Buffer): Pro
   }
 }
 
-// ── 数据更新任务（BullMQ，P1-2 重构替代 spawn/go run）─────────────────────
-
 interface UpdateStatus {
   running: boolean;
   mode: 'full' | 'incremental' | null;
@@ -369,11 +332,6 @@ const IDLE_STATUS: UpdateStatus = {
   lastError: null,
 };
 
-/**
- * 查询当前更新状态（从 BullMQ job 状态读取，无内存全局变量）。
- *
- * @returns 当前更新状态
- */
 export async function getUpdateStatus(): Promise<UpdateStatus> {
   const jobs = await getActiveUpdateJobs();
   if (jobs.length === 0) return { ...IDLE_STATUS };
@@ -393,12 +351,6 @@ export async function getUpdateStatus(): Promise<UpdateStatus> {
   };
 }
 
-/**
- * 启动数据更新任务（入队 BullMQ）。
- *
- * @param mode - 更新模式：全量或增量
- * @returns 操作结果
- */
 export async function startUpdate(
   mode: 'full' | 'incremental',
 ): Promise<{ success: boolean; message: string; jobId?: string }> {
@@ -422,11 +374,6 @@ export async function startUpdate(
   };
 }
 
-/**
- * 停止当前数据更新任务（取消 BullMQ job）。
- *
- * @returns 操作结果
- */
 export async function stopUpdate(): Promise<{ success: boolean; message: string }> {
   const activeJobs = await getActiveUpdateJobs();
   if (activeJobs.length === 0) {

@@ -22,17 +22,14 @@ import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
 validateConfig();
 
 // DDD: 注册领域事件处理器
-// BacktestCompleted：由 backtest-service 在引擎返回后分发，持久化运行摘要到 backtest_runs
 eventDispatcher.register(new BacktestCompletedHandler());
 // P1-07：RunCompletedHandler——Run 聚合根进入 completed 态时触发（worker 路径）。
 // 仅做观测日志（Run 本身已由 worker save() 持久化，不重复写库）。
 // RunStarted/RunFailed/RunCancelled 不需要独立 handler：
 // - RunStarted：worker 已在 job 开始时记录日志 + 更新 backtest_runs.status='running'
 // - RunFailed：worker 已在 catch 中更新 status='failed' + error_message + WebSocket 通知
-// - RunCancelled：worker 已在 cancel 检查中更新 status='cancelled'
 eventDispatcher.register(new RunCompletedHandler());
 
-// P3-05：变量重命名为 outboxConsumer，统一承载 LISTEN/NOTIFY 与 Kafka CDC 两种实现
 let outboxConsumer: OutboxConsumer | null = null;
 const PORT = config.API_PORT;
 
@@ -45,38 +42,43 @@ server.listen(PORT, async () => {
       const { rows } = await getReadPool().query(sql);
       return rows as Array<Record<string, unknown>>;
     });
-    // D9-H1：注册 BullMQ 队列深度指标（告警引用的 bullmq_queue_size）
     registerQueueMetrics([backtestQueue, dataUpdateQueue, webhookQueue]);
     // P0-04：initSchema 完成后，将环境变量 ADMIN_API_KEY 一次性迁移为 DB 平台 break-glass 密钥
     await bootstrapPlatformAdminKey();
     // P0-04/T5：启动陈旧密钥定时巡检（更新 Prometheus gauge + 告警）
     startApiKeyMonitoring();
 
-    // 预热连接：DB、Redis、Go 引擎，避免首次请求冷启动延迟
-    try {
-      const conn = await getPool().connect();
-      conn.release();
-      logger.info('[startup] DB 连接预热完成');
-    } catch {
-      /* 预热失败不影响启动 */
+    const preheats: Array<[string, () => Promise<unknown>]> = [
+      [
+        'DB 连接',
+        async () => {
+          const c = await getPool().connect();
+          c.release();
+        },
+      ],
+      ['appRedis', () => appRedis.ping()],
+      [
+        'Go 引擎',
+        () =>
+          fetch(`${config.GO_ENGINE_URL}/api/engine/health`, { signal: AbortSignal.timeout(3000) }),
+      ],
+    ];
+    for (const [name, fn] of preheats) {
+      try {
+        await fn();
+        logger.info(`[startup] ${name}预热完成`);
+      } catch {
+        /* 预热失败不影响启动 */
+      }
     }
-    try {
-      await appRedis.ping();
-      logger.info('[startup] appRedis 连接预热完成');
-    } catch {
-      /* 预热失败不影响启动 */
-    }
-    try {
-      await fetch(`${config.GO_ENGINE_URL}/api/engine/health`, {
-        signal: AbortSignal.timeout(3000),
-      });
-      logger.info('[startup] Go 引擎连接预热完成');
-    } catch {
-      /* 预热失败不影响启动 */
-    }
-    // 预热 /data/meta 缓存，使首次页面加载无需等待 14.5M 行聚合查询
     const { warmMetaCache } = await import('./routes/dataRoutes.js');
     await warmMetaCache();
+    const { fetchHistoryData } = await import('./infrastructure/dataFacade.js');
+    void fetchHistoryData(
+      ['VTI', 'BND', 'SPY', 'QQQ', 'GLD', 'TLT', 'AGG', 'VXUS'],
+      '2010-01-01',
+      '2024-12-31',
+    ).catch(() => {});
   } catch (err) {
     logger.warn({ err }, '[startup] 数据库初始化失败');
   }
@@ -87,7 +89,6 @@ server.listen(PORT, async () => {
     await outboxConsumer.start();
     // P2-02：注册 webhook 触发回调——outbox 事件处理完后触发匹配的 webhook 订阅。
     // 回调注入而非直接依赖，保持基础设施层 → 应用层单向依赖。
-    // outbox payload 为 JSONB（unknown），此处桥接为 triggerWebhooks 期望的对象类型。
     setWebhookHandler((orgId, eventType, payload) =>
       triggerWebhooks(orgId, eventType, payload as Record<string, unknown>),
     );
@@ -96,7 +97,6 @@ server.listen(PORT, async () => {
   }
   // P0-1：Webhook 投递重试 Worker 已移至独立 Worker 进程（workerEntrypoint.ts），
   // API 服务器不再管理 Worker 生命周期。Worker 崩溃/重启不影响 API 服务。
-  // Worker 进程通过 docker-compose worker 服务或 K8s backtest-worker Deployment 部署。
 });
 
 server.on('error', (error: NodeJS.ErrnoException) => {
@@ -110,16 +110,7 @@ server.on('error', (error: NodeJS.ErrnoException) => {
 
 let shuttingDown = false;
 
-/**
- * 触发优雅关闭流程。
- *
- * 关闭 HTTP server → 停止 outbox 消费器 → 关闭 webhook worker → 关闭 DB 连接池，
- * 然后以指定退出码终止进程。30s 超时强制退出兜底。
- *
- * @param signal - 触发关闭的信号名称（用于日志）
- * @param exitCode - 进程退出码（SIGTERM/SIGINT=0，uncaughtException=1）
- */
-function triggerShutdown(signal: string, exitCode: number = 0): void {
+function triggerShutdown(signal: string, exitCode = 0): void {
   if (shuttingDown) {
     logger.info({ signal }, '[shutdown] 已在关闭流程中，忽略重复信号');
     return;
@@ -150,11 +141,6 @@ function triggerShutdown(signal: string, exitCode: number = 0): void {
   });
 }
 
-/**
- * 注册 SIGTERM/SIGINT 信号处理器，触发优雅关闭后以 0 退出。
- *
- * @param _server - HTTP server 实例（保留参数兼容旧调用，实际使用模块级 server）
- */
 function setupGracefulShutdown(_server: Server): void {
   process.on('SIGTERM', () => triggerShutdown('SIGTERM', 0));
   process.on('SIGINT', () => triggerShutdown('SIGINT', 0));
@@ -163,14 +149,12 @@ function setupGracefulShutdown(_server: Server): void {
 setupGracefulShutdown(server);
 
 // P0-01：未捕获异常必须终止进程——不终止会导致状态不一致（连接池/事件循环可能已损坏）。
-// 日志记录后触发优雅关闭（复用 triggerShutdown），最终 process.exit(1) 让 K8s 重启 Pod。
 process.on('uncaughtException', (err) => {
   logger.error({ err }, '[server] 未捕获异常，启动优雅关闭后终止进程');
   triggerShutdown('uncaughtException', 1);
 });
 
 // P0-01：未处理 Promise 拒绝必须终止进程——Node 未来版本会将 unhandledRejection 直接 crash。
-// 提前适配：记录错误日志后立即退出，由 K8s restartPolicy: Always 自动恢复。
 process.on('unhandledRejection', (reason) => {
   logger.error({ err: reason }, '[server] 未处理 Promise 拒绝，终止进程');
   process.exit(1);

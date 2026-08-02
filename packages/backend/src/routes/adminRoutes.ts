@@ -15,7 +15,6 @@ import { paginationQuerySchema } from '../schemas/analysisSchemas.js';
 
 const router = Router();
 
-/** 默认空 ticker 统计兼底 */
 function defaultTickerStats(): DbMarketStats {
   return {
     total_cached: 0,
@@ -45,50 +44,41 @@ function defaultTickerStats(): DbMarketStats {
   };
 }
 
-/** 进程内存/运行时长快照（/stats 与 /system 共用，消除两处重复采集）。 */
-function collectSystemSnapshot(): {
-  memory: {
-    rss: number;
-    heapUsed: number;
-    heapTotal: number;
-    external: number;
-    arrayBuffers: number;
-    rssMb: number;
-    heapUsedMb: number;
-    heapTotalMb: number;
-    externalMb: number;
-  };
-  uptimeSeconds: number;
-  uptimeFormatted: string;
-} {
-  const memUsage = process.memoryUsage();
+function collectSystemSnapshot() {
+  const m = process.memoryUsage();
   const uptimeSeconds = process.uptime();
   return {
     memory: {
-      rss: memUsage.rss,
-      heapUsed: memUsage.heapUsed,
-      heapTotal: memUsage.heapTotal,
-      external: memUsage.external,
-      arrayBuffers: memUsage.arrayBuffers,
-      rssMb: toMB(memUsage.rss),
-      heapUsedMb: toMB(memUsage.heapUsed),
-      heapTotalMb: toMB(memUsage.heapTotal),
-      externalMb: toMB(memUsage.external),
+      rss: m.rss,
+      heapUsed: m.heapUsed,
+      heapTotal: m.heapTotal,
+      external: m.external,
+      arrayBuffers: m.arrayBuffers,
+      rssMb: toMB(m.rss),
+      heapUsedMb: toMB(m.heapUsed),
+      heapTotalMb: toMB(m.heapTotal),
+      externalMb: toMB(m.external),
     },
     uptimeSeconds,
     uptimeFormatted: formatUptime(uptimeSeconds),
   };
 }
 
-function buildStatsResponseData(args: {
+function buildStatsResponseData({
+  engineHealth,
+  goHealth,
+  tickerStats,
+  universeStats,
+  backtestHistory,
+  system,
+}: {
   engineHealth: Awaited<ReturnType<typeof checkServiceHealth>>;
   goHealth: Awaited<ReturnType<typeof checkServiceHealth>>;
-  tickerStats: ReturnType<typeof defaultTickerStats>;
+  tickerStats: DbMarketStats;
   universeStats: Awaited<ReturnType<typeof getUniverseStats>>;
   backtestHistory: BacktestRunRecord[];
   system: ReturnType<typeof collectSystemSnapshot>;
 }) {
-  const { engineHealth, goHealth, tickerStats, universeStats, backtestHistory, system } = args;
   return {
     services: { go_engine: engineHealth, go_data_service: goHealth },
     data_stats: {
@@ -124,7 +114,6 @@ function buildStatsResponseData(args: {
   };
 }
 
-/** 检查服务健康状态，失败时返回降级数据 */
 async function checkServiceHealth(
   baseUrl: string,
   endpoint: string,
@@ -169,14 +158,11 @@ router.get(
   ...adminMiddleware(),
   crudRouteHandler(
     async (req, res): Promise<void> => {
-      // 并行检查服务健康（Go 引擎为唯一计算引擎，ADR-008）
       const [engineHealth, goHealth] = await Promise.all([
         checkServiceHealth(config.GO_ENGINE_URL, '/api/engine/health', 'Go引擎'),
         checkServiceHealth(config.GO_DATA_SERVICE_URL, '/api/data/health', 'Go数据服务'),
       ]);
 
-      // 回测历史：当请求带有活跃租户时，返回该租户最近的运行记录（ADR-034）。
-      // 无租户上下文（如破窗平台密钥未选组织）时返回空数组，保持向后兼容。
       const tenantId = req.tenantId;
       let backtestHistory: BacktestRunRecord[] = [];
       if (tenantId) {
@@ -217,18 +203,7 @@ router.get(
   crudRouteHandler(
     async (_req: Request, res: Response): Promise<void> => {
       const system = collectSystemSnapshot();
-      const tickerStats =
-        (await scanTickersStats()) ??
-        ({
-          total_cached: 0,
-          data_quality: {
-            with_adj_close: 0,
-            with_dividends: 0,
-            with_splits: 0,
-            total_data_points: 0,
-            total_size_mb: 0,
-          },
-        } as DbMarketStats);
+      const tickerStats = (await scanTickersStats()) ?? defaultTickerStats();
 
       res.json({
         success: true,
@@ -262,8 +237,6 @@ router.get(
   ),
 );
 
-// ── 审计日志查询（P2-03 不可篡改审计存储，原 auditRoutes.ts 并入）──────────────
-
 const querySchema = z.object({
   org_id: z.string().uuid().optional(),
   event_type: z.string().trim().max(100).optional(),
@@ -271,22 +244,17 @@ const querySchema = z.object({
   action: z
     .enum(['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'READ', 'EXPORT', 'CONFIG'])
     .optional(),
-  // 接受 ISO 8601 日期或日期时间，由 PostgreSQL 自动解析（created_at >= / <=）
   start_date: z.string().min(1).optional(),
   end_date: z.string().min(1).optional(),
   ...paginationQuerySchema,
 });
 
-/** GET /api/v1/admin/audit-logs — 分页查询审计日志（支持 org_id/event_type/user_id/action/日期范围过滤） */
 router.get(
   '/audit-logs',
   ...adminMiddleware(),
   validateQuery(querySchema),
   crudRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
-      // validateQuery 中间件已用 zod coerce 将 page/limit 转为 number，
-      // 但 Express 的 req.query 类型仍是 ParsedQs（string 值），
-      // 需经 unknown 中转才能赋值到 zod 推断出的强类型。
       const q = req.query as unknown as z.infer<typeof querySchema>;
       const result = await queryAuditLogs(
         {
@@ -306,10 +274,6 @@ router.get(
   ),
 );
 
-/**
- * GET /api/v1/admin/audit-logs/:id/verify — HMAC 完整性校验（篡改检测）。
- * 重算 payload 的 HMAC-SHA256 并与存储的 hmac_signature 比对，不匹配即表明被篡改。
- */
 router.get(
   '/audit-logs/:id/verify',
   ...adminMiddleware(),
@@ -319,7 +283,6 @@ router.get(
       const logId = req.params.id;
       const result = await verifyAuditIntegrity(logId);
       if (!result.valid && result.expected === '' && result.actual === '') {
-        // 日志不存在
         sendProblem(res, 404, 'AUDIT_LOG_NOT_FOUND');
         return;
       }

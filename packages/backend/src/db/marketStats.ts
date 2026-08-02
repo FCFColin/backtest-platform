@@ -7,7 +7,6 @@
 import { getReadPool } from './pool.js';
 import { logger } from '../utils/logger.js';
 
-// 再导出拆分后的类型与纯辅助函数，保持原公共 API 不变
 export type {
   DbMarketStats,
   TickerAggRow,
@@ -31,8 +30,6 @@ export {
 import type { DbMarketStats, TickerAggRow, DbEngineStatusResult } from './marketStatsTypes.js';
 import { processTickerRow, buildMarketStatsResult } from './marketStatsHelpers.js';
 
-// 进程内 TTL 缓存（避免每次请求都执行昂贵的聚合查询）
-
 interface TtlCacheEntry<T> {
   data: T;
   expiresAt: number;
@@ -54,7 +51,6 @@ function makeTtlCache<T>(ttlMs: number) {
   };
 }
 
-// 表空间占用统计
 const MARKET_DATA_TABLES = ['tickers', 'prices', 'cpi_data', 'exchange_rates'] as const;
 
 /** 查询行情相关 PostgreSQL 表的实际磁盘占用（含 TOAST 与索引）。查询失败返回 0。 */
@@ -186,7 +182,6 @@ export async function getDbEngineStatus(): Promise<DbEngineStatusResult> {
   }
 }
 
-// 测试专用：清空所有 TTL 缓存（避免测试间缓存污染导致脏数据；生产代码不应调用）
 export function __clearCachesForTests(): void {
   marketStatsCache.clear();
   lastUpdatedCache.clear();

@@ -110,7 +110,6 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
   }
   const keyHash = sha256Hex(plaintext);
   const pool = getPool();
-  // revoked_at IS NULL + expires_at 校验在 DB 层完成（T4 生命周期检查）
   const { rows } = await pool.query<ApiKeyCandidate>(
     `SELECT id, org_id, is_platform_admin, key_hash_argon2
        FROM api_keys
@@ -124,13 +123,11 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
   const candidate = rows[0];
   const keyId = candidate.id;
 
-  // Redis 吊销缓存二次校验（立即生效层，跨 Pod 一致）
   if (await isApiKeyRevoked(keyId)) {
     logger.warn({ keyId }, '[apiKeyService] 密钥命中 Redis 吊销缓存，拒绝访问');
     return null;
   }
 
-  // 新密钥：argon2id 常量时间校验；旧密钥：sha256 等值命中即视为校验通过
   if (candidate.key_hash_argon2) {
     const ok = await verifyApiKeyArgon2id(candidate.key_hash_argon2, plaintext);
     if (!ok) {
@@ -140,7 +137,6 @@ export async function verifyApiKey(plaintext: string): Promise<VerifiedApiKey | 
   }
 
   // 异步更新 last_used_at，不阻塞鉴权热路径；失败仅记录不影响请求。
-  // RLS FORCE：写须带租户上下文（org 密钥用 withTenant；平台密钥 org_id 为 NULL 跳过）
   const touch = candidate.org_id
     ? withTenant(candidate.org_id, (client) =>
         client.query('UPDATE api_keys SET last_used_at = NOW() WHERE id = $1', [keyId]),

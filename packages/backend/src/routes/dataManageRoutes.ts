@@ -1,4 +1,4 @@
-import { Router, type Request } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { logger } from '../utils/logger.js';
 import { sendProblem } from '../utils/errors.js';
 import { validateQuery, validate } from '../middleware/miscMiddleware.js';

@@ -2,7 +2,6 @@
 // DB schema 仍保持 'pending'/'running'/'completed'/'failed'（不破坏迁移），
 // repo 层 save() 做 'queued'↔'pending' 映射。
 // BacktestCompleted 由 backtest-service 发布（基于结果摘要），
-// RunStarted/RunCompleted/RunFailed 由聚合根状态转换触发，更细粒度，两者并行存在。
 
 import { randomUUID } from 'crypto';
 import { DomainValidationError } from '../value-objects/index.js';

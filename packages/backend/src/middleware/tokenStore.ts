@@ -9,7 +9,6 @@ import { generateToken, hashUserId } from './jwtAuth.js';
 import type { Role, TenantContext } from './jwtAuth.js';
 import type { OrgRole } from '@backtest/shared/types/org';
 
-// 从 jwtAuth 移入（消除 jwtAuth↔tokenStore 循环依赖；本函数属 token 会话生命周期）
 const SYSTEM_USER_IDS = new Set(['dev-user', 'api-key-user']);
 export async function isUserSessionValid(userId: string): Promise<boolean> {
   if (SYSTEM_USER_IDS.has(userId)) return true;
@@ -41,14 +40,12 @@ export const REFRESH_TOKEN_EXPIRES_IN_SEC = config.JWT_REFRESH_TTL;
 export const REFRESH_TOKEN_PREFIX = 'refresh_token:';
 export const TOKEN_FAMILY_PREFIX = 'token_family:';
 
-/** 按角色取 access token TTL；admin 空闲不过期（TTL=0），兜底用全局配置。 */
 export const ROLE_TTL: Record<Role, number> = {
   readonly: config.SESSION_IDLE_TIMEOUT_READONLY_SEC,
   analyst: config.SESSION_IDLE_TIMEOUT_ANALYST_SEC,
   admin: 0,
 };
 
-/** Redis key 拼接统一入口，避免前缀散落各处。 */
 export const redisKeys = {
   refreshToken: (token: string) => `${REFRESH_TOKEN_PREFIX}${token}`,
   usedRefreshToken: (token: string) => `${REFRESH_TOKEN_PREFIX}used:${token}`,
@@ -103,7 +100,6 @@ export async function generateRefreshToken(
   return token;
 }
 
-/** 读取并解析 Redis JSON 条目，缺失返回 null。 */
 export async function readEntry<T>(key: string): Promise<T | null> {
   const raw = await appRedis.get(key);
   return raw ? (JSON.parse(raw) as T) : null;

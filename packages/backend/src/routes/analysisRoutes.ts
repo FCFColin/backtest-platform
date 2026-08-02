@@ -1,25 +1,4 @@
-/**
- * 分析类路由合并入口（ADR-042 路由整合）
- *
- * 合并以下薄路由文件，消除重复的 `Router()` 实例化与 `export default` 样板：
- *   - letfRoutes.ts        → POST /letf/analyze
- *   - calculatorRoutes.ts  → POST /calculators/:type
- *   - pcaRoutes.ts         → POST /pca/analyze
- *   - goalOptimizerRoutes  → POST /goal-optimizer/optimize
- *   - factorRegressionRoutes → POST /analysis/factor-regression
- *   - tacticalRoutes.ts    → POST /tactical/backtest、/tactical/what-if
- *   - signalRoutes.ts      → POST /signal/analyze、/signal/dual、/signal/multi
- *
- * 挂载方式：app.ts 中 `app.use('/api/v1', analysisRoutes)`，
- * 子路径前缀保持与原路由一致，URL 不变。
- *
- * 中间件编排：通过 `router.use(subPath, ...middleware, subRouter)` 模式按子路径
- * 应用不同中间件链（computeMiddleware / computeMiddlewareNoQuota + 不同 Permission），
- * 等价于原 `app.use('/api/v1/pca', ...computeMiddleware(...), pcaRoutes)` 写法。
- *
- * 中间件工厂（computeMiddleware / computeMiddlewareNoQuota）从
- * `middleware/middlewareChains.ts` 导入，与 app.ts 共享同一份定义。
- */
+// 分析类路由合并入口（ADR-042）：letf/calculators/pca/goal-optimizer/factor-regression/tactical/signal
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import type { LETFRequest, PCARequest, GoalOptimizerRequest } from '@backtest/shared/types';
@@ -77,7 +56,6 @@ function timedCompute(
   );
 }
 
-// --- PCA: BACKTEST_RUN + 配额 ------------------------------------------------
 analysisRouter.post(
   '/pca/analyze',
   ...computeMiddleware(Permission.BACKTEST_RUN),
@@ -95,7 +73,6 @@ analysisRouter.post(
   ),
 );
 
-// --- LETF: BACKTEST_RUN + 配额 ------------------------------------------------
 analysisRouter.post(
   '/letf/analyze',
   ...computeMiddleware(Permission.BACKTEST_RUN),
@@ -111,7 +88,6 @@ analysisRouter.post(
   ),
 );
 
-// --- 目标优化: STRATEGY_MANAGE + 配额 -----------------------------------------
 analysisRouter.post(
   '/goal-optimizer/optimize',
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
@@ -130,7 +106,6 @@ analysisRouter.post(
   ),
 );
 
-// --- 因子回归: BACKTEST_RUN 无配额 --------------------------------------------
 analysisRouter.post(
   '/analysis/factor-regression',
   ...computeMiddlewareNoQuota(Permission.BACKTEST_RUN),
@@ -157,7 +132,6 @@ analysisRouter.post(
   ),
 );
 
-// --- 计算器: BACKTEST_RUN 无配额 ----------------------------------------------
 const VALID_CALC_TYPES = ['cagr', 'swr', 'frontier'];
 analysisRouter.post(
   '/calculators/:type',
@@ -184,8 +158,6 @@ analysisRouter.post(
     },
   ),
 );
-
-// --- 战术分配（原 tacticalRoutes.ts 并入）：STRATEGY_MANAGE + 配额 ----------------
 
 analysisRouter.post(
   '/tactical/backtest',
@@ -225,8 +197,6 @@ analysisRouter.post(
     },
   ),
 );
-
-// --- 信号分析（原 signalRoutes.ts 并入）：SIGNAL_READ 无配额 ----------------------
 
 type SignalMode = 'analyze' | 'dual' | 'multi';
 

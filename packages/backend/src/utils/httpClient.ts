@@ -27,7 +27,7 @@ function parseUpstreamProblem(status: number, body: string): UpstreamProblemErro
       detail = parsed.error;
     }
   } catch {
-    // body 非 JSON，使用原始文本作为 detail
+    /* ignore parse error */
   }
   return new UpstreamProblemError(status, code, title, detail);
 }
@@ -76,7 +76,6 @@ export async function callService(
       const body = await resp.text().catch(() => '');
       // 4xx 客户端错误：解析上游 ProblemDetails 并抛出。4xx 是参数错误（如请求格式错误、
       // portfolios 为空），不应降级为 503 fail-closed。透传原始状态码让客户端正确区分
-      // "引擎宕机"与"参数错误"。
       if (resp.status >= 400 && resp.status < 500) {
         throw parseUpstreamProblem(resp.status, body);
       }
@@ -88,7 +87,6 @@ export async function callService(
     }
     return await resp.json();
   } catch (err: unknown) {
-    // 4xx 客户端错误透传（RO-045），不被外层降级逻辑吞没
     if (err instanceof UpstreamProblemError) {
       throw err;
     }

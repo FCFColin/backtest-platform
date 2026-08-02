@@ -95,7 +95,6 @@ export function updateMarketStats(
   else if (ttype === 'ETF') byMarket[market].etfs++;
   else if (ttype === 'INDEX') byMarket[market].indices++;
   byType[ttype] = (byType[ttype] || 0) + 1;
-  // 使用真实交易所代码替代原硬编码空键，修复"未知"分布（Task 4.3）
   byExchange[exchange] = (byExchange[exchange] || 0) + 1;
 }
 
@@ -127,7 +126,6 @@ export function processTickerRow(opts: ProcessTickerRowOpts): void {
   const { row, byMarket, byType, byExchange, byDecade, byYearCount, sampleTickers, state } = opts;
   const market = inferMarket(row.ticker, row.market);
   const ttype = inferType(row.category);
-  // 优先 DB 的 tickers.exchange 列；为空时由 ticker 后缀兜底推导（Task 4.3）
   const exchange = row.exchange || deriveExchangeFromTicker(row.ticker);
   const nPoints = row.n_points;
   const firstDate = row.first_date || '';

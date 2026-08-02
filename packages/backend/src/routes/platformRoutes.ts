@@ -1,16 +1,8 @@
-/**
- * 平台前端服务路由（公告 / 特性开关 / 错误上报）— 原 announcementRoutes /
- * featureFlagRoutes / errorReportRoutes 三文件按"前端消费的平台端点"主题合并。
- *
- * 挂载于 /api/v1（app.ts 裸挂载，各端点内联自身中间件链），全局限流由 apiLimiter 覆盖。
- */
-
 import { Router, type Request, type Response } from 'express';
 import { pool, getReadPool } from '../db/pool.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { type AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { jwtAuth } from '../middleware/jwtAuth.js';
+import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { adminMiddleware } from '../middleware/middlewareChains.js';
@@ -25,9 +17,6 @@ import {
 
 const router = Router();
 
-// ── 公告（P3-2）：管理员发布、所有用户查看 ────────────────────────────────────
-
-// 内存缓存：公告极少变动（仅管理员发布），60s TTL 足够避免重复查库
 let announcementCache: { data: object[]; expiry: number } | null = null;
 const ANNOUNCEMENT_CACHE_TTL_MS = 60 * 1000;
 
@@ -60,7 +49,6 @@ router.get(
   ),
 );
 
-// 写端点仅管理员（E4：此前 POST 免认证可任意发布，与"管理员发布"声明不符；GET 保持公开）
 router.post(
   '/announcements',
   ...adminMiddleware(),
@@ -91,9 +79,7 @@ router.post(
   ),
 );
 
-// ── 特性开关（ADR-P1-06）：当前用户可见的 flag 状态 ───────────────────────────
-
-// 仅暴露前端所需的开关，避免泄露内部运维 flag 名称
+// 特性开关（ADR-P1-06）
 const VISIBLE_FLAGS = [
   PLAN_LIMIT_FLAGS.enterpriseQuota,
   PLAN_LIMIT_FLAGS.proAnalytics,
@@ -117,8 +103,7 @@ router.get('/feature-flags', jwtAuth, (req: AuthenticatedRequest, res: Response)
   res.json({ success: true, data: { flags } });
 });
 
-// ── 前端错误/性能上报（P1-3）：无需认证，限流由全局 apiLimiter 覆盖 ──────────────
-
+// 前端错误/性能上报：无需认证
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity, max-lines-per-function
 router.post('/errors', validate(errorReportSchema), (req: Request, res: Response) => {
   const {
@@ -201,7 +186,6 @@ router.post('/errors', validate(errorReportSchema), (req: Request, res: Response
       break;
 
     default:
-      // type === 'error': 传统错误上报
       logger.warn(
         {
           ...logPayload,

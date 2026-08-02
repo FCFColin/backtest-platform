@@ -1,7 +1,4 @@
-/**
- * 认证路由（T-P1-8.3）：JWT 登录/刷新/登出/用户信息/组织切换 +
- * 注册与邮箱验证（ADR-035，原 authRegistrationRoutes.ts 并入）。
- */
+// 认证路由（T-P1-8.3）：JWT 登录/刷新/登出/用户信息/组织切换 + 注册与邮箱验证（ADR-035）
 import { Router, type Request, type Response } from 'express';
 import { randomBytes } from 'node:crypto';
 import { logger } from '../utils/logger.js';
@@ -183,7 +180,6 @@ router.post(
 router.post('/register', validate(registerSchema), async (req: Request, res: Response) => {
   const { username, password, email, orgName } = req.body;
 
-  // 预检邮箱占用（最终唯一性仍由 DB 唯一索引兜底）
   const existing = await getUserByEmail(email);
   if (existing) {
     sendProblem(res, 409, 'EMAIL_TAKEN');
@@ -210,7 +206,6 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
   } catch (err) {
     await client.query('ROLLBACK');
     const msg = String(err);
-    // 唯一约束冲突（用户名/邮箱/slug）
     if (msg.includes('duplicate key') || msg.includes('unique')) {
       sendProblem(res, 409, 'ACCOUNT_CONFLICT');
       return;
@@ -222,7 +217,6 @@ router.post('/register', validate(registerSchema), async (req: Request, res: Res
     client.release();
   }
 
-  // 事务外发送验证邮件（失败不影响注册成功，用户可重发）
   try {
     const token = await issueEmailVerificationToken(userId);
     await sendVerificationEmail(email, token);
@@ -309,7 +303,6 @@ router.delete(
   ),
 );
 
-// /me 显式挂 jwtAuth：此前未挂认证中间件导致 req.user 从不被填充
 router.get('/me', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
   if (!requireUser(req, res)) return;
   res.json({

@@ -100,7 +100,6 @@ export async function createApiKey(
 ): Promise<CreatedApiKey> {
   const plaintext = generatePlatformKeyPlaintext();
   const { keyHash, keyHashArgon2, keyPrefix } = await deriveKeyFields(plaintext);
-  // RLS FORCE：写必须带租户上下文（app.current_tenant_id）
   const { rows } = await withTenant(orgId, (client) =>
     client.query(
       `INSERT INTO api_keys (org_id, name, key_hash, key_hash_argon2, key_prefix, created_by, is_platform_admin) VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING ${PLATFORM_KEY_COLUMNS}`,
@@ -193,7 +192,6 @@ export async function rotatePlatformAdminKey(
   const client = await getPool().connect();
   try {
     await client.query('BEGIN');
-    // 仅当 oldKeyId 是有效平台密钥才允许轮换（防越权轮换租户密钥）
     const { rows } = await client.query(
       `SELECT id FROM api_keys WHERE id = $1 AND is_platform_admin = TRUE AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW()) FOR UPDATE`,
       [oldKeyId],

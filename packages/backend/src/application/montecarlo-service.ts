@@ -1,5 +1,5 @@
-import pLimit from 'p-limit';
-import { callEngineStrict } from '../utils/engineClient.js';
+﻿import pLimit from 'p-limit';
+import { callEngineStrict, unwrapEngineData } from '../utils/engineClient.js';
 import { buildEngineParams } from './backtest/backtestEngineUtils.js';
 import { Portfolio as DomainPortfolio } from '../domain/aggregates/portfolio.js';
 import {
@@ -64,7 +64,7 @@ export async function runMonteCarlo(
           cpiData,
           exchangeRates,
           mcParams: sanitizedMcParams,
-        }),
+        }).then((r) => unwrapEngineData(r)),
       ),
     ),
   );

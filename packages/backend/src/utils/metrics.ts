@@ -126,7 +126,6 @@ const authFailuresTotal = counter(
   'Authentication/authorization failures by endpoint and reason',
   ['endpoint', 'reason'],
 );
-// 标签 is_platform_admin 区分平台 break-glass 密钥（应触发告警）与租户密钥
 export const apiKeysStaleCount = gauge(
   'api_keys_stale_count',
   'Active API keys not used within the staleness threshold (by is_platform_admin)',
@@ -149,7 +148,6 @@ function sanitizeMetricLabel(value: string, maxLength = 64, allowSlash = false):
 }
 
 // 优先 `req.baseUrl + req.route.path`，避免高基数场景将 UUID 作为标签值；
-// 当 `req.route` 不可用时，对 `req.path` 做归一化（UUID → `:uuid`，数字 ID → `:id`）防标签爆炸（C-001）
 export function getRoutePattern(req: Pick<Request, 'baseUrl' | 'route' | 'path'>): string {
   if (req.route?.path) return (req.baseUrl + req.route.path).slice(0, 128);
   const normalized = (req.path || 'unknown')
@@ -204,7 +202,6 @@ export function resetMetrics(): void {
   register.resetMetrics();
 }
 
-// 等保三级 8.1.4 b) 入侵检测要求
 export const authIpLockoutCounter = counter(
   'auth_ip_lockout_total',
   'Total number of IP addresses blocked due to suspicious login activity (cross-account brute force)',
@@ -240,7 +237,6 @@ const timescaledbCaggRows = gauge(
   'Total rows in prices_monthly continuous aggregate',
 );
 
-// 注册 TimescaleDB 指标采集器。使用回调函数模式避免与 pool.ts 的循环依赖
 export function registerTimescaleMetrics(
   queryFn: (sql: string) => Promise<Array<Record<string, unknown>>>,
 ): void {
@@ -278,7 +274,7 @@ export function registerTimescaleMetrics(
       const caggRows = await queryFn(`SELECT COUNT(*) AS cnt FROM prices_monthly`);
       if (caggRows[0]?.cnt !== undefined) setNum(timescaledbCaggRows, caggRows[0].cnt);
     } catch {
-      // TimescaleDB 未安装或表不存在时静默跳过（开发环境可能未启用）
+      /* ignore query error */
     }
   };
   startSampler(sample, 60_000);
@@ -300,7 +296,7 @@ export function registerQueueMetrics(
         const depth = (counts.waiting ?? 0) + (counts.active ?? 0) + (counts.delayed ?? 0);
         bullmqQueueSize.set({ queue: q.name }, depth);
       } catch {
-        // 队列查询失败不阻断指标采集（Redis 瞬断时 gauge 保持上次值）
+        /* ignore query error */
       }
     }
   };

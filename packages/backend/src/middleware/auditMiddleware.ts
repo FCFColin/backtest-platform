@@ -6,8 +6,6 @@ import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
 import type { AuthenticatedRequest } from './jwtAuth.js';
 
-// ============ 审计日志中间件（合并自 middleware/auditLog.ts）============
-
 const auditLogger = logger.child({ audit: true, module: 'audit' });
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 function hashApiKey(apiKey: string | undefined): string {
@@ -49,7 +47,6 @@ export async function writeOutboxEvent(
       'INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload) VALUES ($1, $2, $3, $4)',
       ['audit', String(auditEntry.userId || 'unknown'), 'AuditEvent', { ...auditEntry, signature }],
     );
-    // 仅独立模式发送 NOTIFY；事务模式由调用方在 COMMIT 后发送，避免回滚产生无效通知
     if (!client) await conn.query('NOTIFY outbox_channel');
     logger.debug(
       { middleware: 'auditLog', transactional: !!client },

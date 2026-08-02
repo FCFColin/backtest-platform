@@ -209,13 +209,13 @@ async function verifyJwt(token: string): Promise<JwtPayload | null> {
       try {
         payload = await verifyWithAlgorithm(token, 'RS256', span);
       } catch {
-        /* try next algorithm */
+        /* RS256 failed */
       }
       if (!payload && JWT_ALGORITHM === 'HS256') {
         try {
           payload = await verifyWithAlgorithm(token, 'HS256', span);
         } catch {
-          /* try next algorithm */
+          /* HS256 failed */
         }
       }
       if (!payload) span.setAttribute('verify.result', 'failed');
@@ -339,24 +339,12 @@ async function authenticate(
     method: req.method,
   });
   if (!optional && tryDevBypass(req, next)) return;
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    if (optional) {
-      void authenticateWithBearer(req, res, next, true).catch((err) => {
-        authLog('error', middleware, req, 'handleOptionalBearer unhandled rejection', { err });
-        next(err);
-      });
-      return;
-    }
-    await authenticateWithBearer(req, res, next, false);
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    await authenticateWithBearer(req, res, next, optional);
     return;
   }
-  if (req.headers['x-api-key']) {
+  if (optional || req.headers['x-api-key']) {
     await authenticateWithApiKey(req, res, next, optional);
-    return;
-  }
-  if (optional) {
-    await authenticateWithApiKey(req, res, next, true);
     return;
   }
   authFail(middleware, req, '缺少认证凭证', 'missing_credentials');

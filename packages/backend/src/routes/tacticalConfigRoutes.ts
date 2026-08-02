@@ -12,10 +12,7 @@ import { tenantCrudRoutes, requireTenantId, ownerOf } from './routeUtils.js';
 import { sendProblem } from '../utils/errors.js';
 import type { Response } from 'express';
 import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import {
-  createTacticalConfigSchema,
-  updateTacticalConfigSchema,
-} from '../schemas/tactical.js';
+import { createTacticalConfigSchema, updateTacticalConfigSchema } from '../schemas/tactical.js';
 import * as tacticalConfigRepo from '../repositories/tacticalConfigRepository.js';
 import { getOrg } from '../application/org/membershipService.js';
 import { getPlanLimits } from '../application/billing/planLimitsService.js';

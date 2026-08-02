@@ -1,9 +1,7 @@
 // 充血模型：组合聚合根封装权重校验、持仓管理等业务逻辑。
 // application 层通过 fromDTO() 构造聚合根，通过 toEngineBody() 序列化为引擎请求体，
-// 整个流程中值对象（Ticker/Weight）始终保留，不再中途丢弃。
 
-import { Ticker, Weight } from '../value-objects/index.js';
-import { DomainValidationError } from '../value-objects/index.js';
+import { Ticker, Weight, DomainValidationError } from '../value-objects/index.js';
 import type {
   Portfolio as PortfolioDTO,
   RebalanceFrequency,

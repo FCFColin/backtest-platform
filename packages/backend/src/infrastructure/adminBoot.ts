@@ -1,10 +1,3 @@
-/**
- * 管理启动任务：API Key 监控 + 平台 break-glass 密钥 bootstrap。
- *
- * 合并 apiKeyMonitoring.ts 与 platformAdminBootstrap.ts：
- * 两者均为启动时一次性/定时任务，P0-04 平台密钥安全。
- */
-
 import { logger } from '../utils/logger.js';
 import {
   findStaleApiKeys,

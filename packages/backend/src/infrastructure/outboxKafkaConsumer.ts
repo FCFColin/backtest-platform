@@ -1,18 +1,15 @@
 // Architecture: Outbox Kafka 消费器（P3-05 CDC 替代通路，ADR-051）
 // 多 Pod 场景下 LISTEN/NOTIFY 会重复处理事件；CDC 经 Debezium 读 WAL → Kafka → 消费组实现跨 Pod 负载均衡。
 // 权衡：kafkajs 运行时动态 import，未安装时降级 no-op；不更新 outbox.processed_at（写回会被 Debezium 再捕获形成反馈环），
-// 进度由消费组 offset 跟踪；与 OutboxPublisher 互斥，由 CDC_KAFKA_ENABLED 决定通路。
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { eventDispatcher } from '../domain/events/events.js';
-// type-only import：避免运行时与 outboxPublisher.ts 形成循环依赖（factory 运行时 import 本模块，类型在编译期擦除）
 import type { OutboxConsumer, WebhookHandler } from './outbox.js';
 
 /** topic 名前缀，与 connector 的 route.topic.replacement `backtest.${routedByValue}` 对齐。 */
 const TOPIC_PREFIX = 'backtest.';
 
 // 消息形态（Outbox Event Router SMT 展平后）：topic=backtest.<aggregate_type>，key=aggregate_id，
-// value=payload 列 JSONB 内容（schemas.enable=false），headers=event_type / tenant_id（additional.placement 注入）
 interface KafkaLike {
   consumer(opts: { groupId: string }): KafkaConsumerLike;
 }
@@ -103,7 +100,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
         { module: 'outboxKafkaConsumer', err: (err as Error).message },
         'OutboxKafkaConsumer 启动失败（Kafka 不可用？），CDC 通路降级',
       );
-      // 尝试清理已建立的连接
       if (this.consumer) {
         try {
           await this.consumer.disconnect();

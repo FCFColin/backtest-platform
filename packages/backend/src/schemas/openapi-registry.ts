@@ -12,7 +12,6 @@ import { registerAdminPaths } from './openapi-paths-admin.js';
 import { registerBacktestPaths } from './openapi-paths-backtest.js';
 import { registerDataPaths } from './openapi-paths-data.js';
 
-// 模块加载时注册全部路径（保证 generateOpenApiDocument 调用时 definitions 已就绪）。
 registerAuthPaths();
 registerBacktestPaths();
 registerDataPaths();

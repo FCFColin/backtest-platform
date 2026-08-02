@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 战术分配回测应用服务（T-30 / CQRS Command）
  *
  * 计算逻辑已迁移到 Go 引擎 /api/engine/tactical-backtest（ADR-031）。
@@ -205,7 +205,9 @@ export async function executeTacticalWhatIf(
   if (!lastEntry) return [];
 
   return tickers.map((ticker) => {
-    const w = lastEntry.weights.find((wt) => wt.ticker === ticker);
+    const w = lastEntry.weights.find(
+      (wt: { ticker: string; weight: number }) => wt.ticker === ticker,
+    );
     return {
       ticker,
       weight: w?.weight ?? 0,

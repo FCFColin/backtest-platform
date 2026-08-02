@@ -1,7 +1,7 @@
 /**
  * 回测路由 — 纯 HTTP 适配层（薄路由模式）：请求解析 → application 层 → 响应格式化。
  */
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import type { Portfolio, BacktestParameters } from '@backtest/shared';
 import { runAnalysis } from '../application/analysis-orchestrator.js';
 import type { Warning } from '../application/backtest-helpers.js';
@@ -159,7 +159,6 @@ router.get(
         sendProblem(res, 404, 'JOB_NOT_FOUND');
         return;
       }
-      // 越权访问返回 404 不泄露任务存在：仅所有者本人 / admin / 同租户可见
       const requester = req.user;
       if (requester) {
         const ownerId = job.data?.userId;

@@ -42,7 +42,6 @@ interface MailMessage {
 async function sendMail(msg: MailMessage): Promise<void> {
   const t = getTransporter();
   if (!t) {
-    // 开发模式：将邮件内容（含链接）打印到日志，方便取用。
     logger.info(
       { module: 'mailService', to: msg.to, subject: msg.subject, body: msg.text },
       '[mailService] (console transport) 邮件未实际发送，内容见 body',

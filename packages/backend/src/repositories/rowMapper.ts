@@ -16,7 +16,7 @@ export function rowMapper<Out extends object>(spec: {
   return (row) => {
     const out: Record<string, unknown> = {};
     for (const [key, src] of Object.entries(spec)) {
-      out[key] = typeof src === 'function' ? src(row) : row[src];
+      out[key] = typeof src === 'function' ? src(row) : row[src as string];
     }
     return out as Out;
   };

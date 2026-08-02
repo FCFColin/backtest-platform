@@ -18,7 +18,6 @@ import {
   type GlobalRole,
 } from '../../repositories/membershipRepo.js';
 
-// 重新导出类型与 CRUD，保持调用方按需直接 import repo
 export { type Membership } from '../../repositories/membershipRepo.js';
 export {
   getUserMemberships,
@@ -65,7 +64,6 @@ export async function resolveDefaultOrg(userId: string): Promise<Membership | nu
   const active = memberships.filter((m) => m.orgStatus === 'active');
   const pool = active.length > 0 ? active : memberships;
 
-  // getUserMemberships 已按 created_at 升序；稳定排序后按角色优先级降序挑选
   const sorted = [...pool].sort((a, b) => ROLE_PRIORITY[b.role] - ROLE_PRIORITY[a.role]);
   return sorted[0];
 }

@@ -86,7 +86,6 @@ async function atomicQuotaIncrement(key: string, limit: number): Promise<[number
 export function enforceQuota(metric: string) {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     const tenantId = req.tenantId;
-    // 无租户上下文（匿名/本地开发）或平台管理员：放行
     if (!tenantId || req.user?.platform_admin === true) {
       next();
       return;
@@ -99,13 +98,18 @@ export function enforceQuota(metric: string) {
         plan = org?.plan ?? null;
       } catch (err) {
         // P0-04：组织查询失败时 fail-closed（不再 fail-open）
-        // 元数据查询失败可能是 DB 不可用，此时配额无法校验，不应放行
         logger.error({ err: String(err), tenantId }, '[quota] 组织查询失败，fail-closed');
         quotaEnforcementFailures.inc({ quota_key: metric, reason: 'org_query_failed' });
-        sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {
-          detail: 'Service temporarily unavailable. Please try again later.',
-          headers: { 'Retry-After': '30' },
-        });
+        sendProblem(
+          res,
+          503,
+          'SERVICE_TEMPORARILY_UNAVAILABLE',
+          'Service temporarily unavailable',
+          {
+            detail: 'Service temporarily unavailable. Please try again later.',
+            headers: { 'Retry-After': '30' },
+          },
+        );
         return;
       }
 
@@ -117,7 +121,6 @@ export function enforceQuota(metric: string) {
         return;
       }
 
-      // 3. Redis 原子配额计数（短期窗口限流，防并发竞态）
       const quotaKey = `quota:${tenantId}:${metric}`;
       const [current, effectiveLimit] = await atomicQuotaIncrement(
         quotaKey,
@@ -125,7 +128,6 @@ export function enforceQuota(metric: string) {
       );
 
       if (current > effectiveLimit) {
-        // 超限：返回 429 + Retry-After
         const ttl = await appRedis.ttl(quotaKey);
         quotaEnforcementFailures.inc({ quota_key: metric, reason: 'quota_exceeded' });
         sendProblem(res, 429, 'QUOTA_EXCEEDED', undefined, {
@@ -143,18 +145,15 @@ export function enforceQuota(metric: string) {
         }
       }
 
-      // 放行后计量（不阻断主流程）
       void recordUsage(tenantId, metric, 1, { path: req.path });
       next();
     } catch (err) {
       // P0-04：Redis 不可用时 fail-closed（返回 503，不是 next()）
-      // 配额校验失败时不应放行——免费用户可能绕过配额限制无限使用付费功能
       logger.error(
         { err: String(err), tenantId, metric },
         '[quota] 配额校验失败：Redis 不可用，fail-closed 返回 503',
       );
 
-      // 记录到 Prometheus，方便告警
       quotaEnforcementFailures.inc({ quota_key: metric, reason: 'redis_unavailable' });
 
       sendProblem(res, 503, 'SERVICE_TEMPORARILY_UNAVAILABLE', 'Service temporarily unavailable', {

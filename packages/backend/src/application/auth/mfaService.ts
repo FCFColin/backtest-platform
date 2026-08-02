@@ -119,7 +119,6 @@ export async function generateBackupCodes(): Promise<{ plaintext: string[]; hash
   const plaintext: string[] = [];
   const hashes: string[] = [];
   for (let i = 0; i < count; i++) {
-    // 8 bytes → base64url ~11 字符 → 截取 10 位确保固定长度
     const code = crypto.randomBytes(8).toString('base64url').slice(0, 10).toUpperCase();
     plaintext.push(code);
     hashes.push(await argon2.hash(code, { type: argon2.argon2id }));

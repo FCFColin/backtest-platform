@@ -161,7 +161,6 @@ export async function setRolePermissions(
     }
     await client.query('DELETE FROM role_permissions WHERE role_id = $1', [roleId]);
     if (permissions.length > 0) {
-      // 批量插入：unnest 展开数组，单次往返
       await client.query(
         `INSERT INTO role_permissions (role_id, permission) SELECT $1, perm FROM unnest($2::text[]) AS perm`,
         [roleId, permissions],

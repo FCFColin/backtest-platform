@@ -5,7 +5,6 @@ import { logger } from '../utils/logger.js';
 // Architecture: Redis Sentinel 高可用连接（ADR-045）
 // 单实例 Redis 是单点故障；Sentinel 模式下 ioredis 自动查询 master 地址，故障转移后自动重连新 master。
 // 权衡：1主+2从+3Sentinel 资源占用更高，但 100K MAU 无需分片，Sentinel 比 Cluster 运维更简单且 BullMQ 兼容性更好。
-// 解析逻辑：REDIS_SENTINELS 非空 → Sentinel（生产）；否则 REDIS_URL 单实例（开发回退）。BullMQ 与应用层共用，避免重复解析。
 
 interface SentinelNode {
   host: string;
@@ -66,7 +65,6 @@ export function buildRedisBaseOptions(): RedisOptions {
   if (sentinels) {
     const opts: RedisOptions = { sentinels, name: config.REDIS_SENTINEL_NAME };
     if (config.REDIS_PASSWORD) {
-      // Sentinel 模式 password 用于数据节点；sentinelPassword 单独配置（此处同密码，简化运维）
       opts.password = config.REDIS_PASSWORD;
       opts.sentinelPassword = config.REDIS_PASSWORD;
     }
@@ -86,14 +84,12 @@ logger.info(
   '[redis] 连接配置已初始化',
 );
 
-// BullMQ 专用连接：maxRetriesPerRequest=null 是硬性要求（队列阻塞读取需无限重试）；enableReadyCheck=false 避免启动竞态
 export const redisConnection = new IORedis({
   ...buildRedisBaseOptions(),
   maxRetriesPerRequest: null, // BullMQ requires this
   enableReadyCheck: false,
 });
 
-// 应用层通用客户端：与 BullMQ 分离以配置不同重连策略——有限重试（3）避免请求长时间挂起；lazyConnect 使 Redis 不可用时不阻止启动
 export const appRedis = new IORedis({
   ...buildRedisBaseOptions(),
   maxRetriesPerRequest: 3,
@@ -109,7 +105,6 @@ appRedis.on('connect', () => logger.info('[redis] appRedis 连接成功'));
 appRedis.on('reconnecting', () => logger.info('[redis] appRedis 重连中'));
 
 // Redis 健康检测：集中管理连接状态，取代各模块本地 boolean flag + listener + ping 实现。
-// 缓存最近 ping/事件结果（5s TTL）避免高频调用；监听 ready/reconnecting/end/error 立即更新；markRedisUnhealthy 供命令失败时立即标记。
 const REDIS_HEALTH_CACHE_TTL_MS = 5000;
 let redisHealthCached = false;
 let redisHealthLastCheck = 0;
@@ -142,7 +137,6 @@ export function markRedisUnhealthy(): void {
 // Sentinel master 健康检测（T6 / ADR-045）
 // ping 成功只能证明当前节点存活，无法证明"是 master"或"从节点拓扑健康"。
 // 通过 INFO replication 检查 role:master 与 connected_slaves>=1；非 Sentinel 模式返回 null（仅 ping 已足够）。
-// /api/ready 消费此结果：Sentinel 模式下 master 健康 false 即 503。
 interface SentinelMasterHealth {
   isMaster: boolean | null; // 当前节点是否为 master（非 Sentinel 模式为 null）
   connectedSlaves: number | null; // 已连接从节点数（非 Sentinel 模式为 null）

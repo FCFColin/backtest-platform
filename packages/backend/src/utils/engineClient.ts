@@ -104,6 +104,14 @@ export class EngineUnavailableError extends Error {
  * @throws {UpstreamProblemError} Go 引擎返回 4xx
  * @throws {Error} responseSchema 校验失败时
  */
+/**
+ * 解包引擎响应：go-shared 返回 {data: {...}}，路由再包一层会造成双重嵌套。
+ * 分析/优化类端点须解包（与 assembleAnalysisResult 一致）；worker 回测路径由前端轮询 result.data 解包，不适用。
+ */
+export function unwrapEngineData<T>(r: unknown): T {
+  return ((r as { data?: T })?.data ?? r) as T;
+}
+
 export async function callEngineStrict<T>(
   endpoint: string,
   body: unknown,

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 信号分析编排器（Orchestrator）— 纯 fetch data + call engine，无 domain 交互。
  *
  * 合并了原两层模式（WithFetch + 纯转发），每个函数直接完成数据获取 + 引擎调用。
@@ -13,7 +13,7 @@ import type {
   MultiSignalConfig,
 } from '@backtest/shared/types/signal';
 import { fetchHistoryData } from '../infrastructure/dataFacade.js';
-import { callEngineStrict } from '../utils/engineClient.js';
+import { callEngineStrict, unwrapEngineData } from '../utils/engineClient.js';
 import { ensurePriceDataExists, ensureTickerHasData } from './backtest/backtestEngineUtils.js';
 
 async function runSignalMode(
@@ -57,7 +57,10 @@ async function runSignalMode(
 
   const { data: history } = await fetchHistoryData(tickers, startDate, endDate);
   validation(history);
-  return callEngineStrict('/api/engine/signal-analyze', { ...engineBody, priceData: history });
+  return callEngineStrict('/api/engine/signal-analyze', {
+    ...engineBody,
+    priceData: history,
+  }).then((r) => unwrapEngineData(r));
 }
 
 /**

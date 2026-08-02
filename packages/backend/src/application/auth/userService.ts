@@ -34,7 +34,6 @@ export async function verifyUser(username: string, password: string): Promise<Us
   );
 
   if (rows.length === 0) {
-    // 用户不存在，仍执行 argon2.hash 防止时序攻击
     await argon2.hash('dummy-password', { type: argon2.argon2id });
     return null;
   }

@@ -6,7 +6,7 @@
  * 写操作（改名、改成员角色、移除成员、邀请增删）要求 ADMIN_ACCESS（owner/admin）。
  * 接受邀请 POST /invitations/accept 仅需登录（受邀者尚不属于该组织，不能要求 requireTenant）。
  */
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/miscMiddleware.js';
 import { sendProblem } from '../utils/errors.js';
@@ -36,7 +36,6 @@ const ROLE_ENUM = z.enum(['owner', 'admin', 'analyst', 'readonly']);
 
 const requireAdmin = requirePermission(Permission.ADMIN_ACCESS);
 
-// 接受邀请：仅需登录（不要求活跃租户，因受邀者尚未加入）。在 tenant 中间件之前注册。
 const acceptSchema = z.object({ token: z.string().min(1).max(256) });
 router.post(
   '/invitations/accept',
@@ -56,7 +55,6 @@ router.post(
   },
 );
 
-// 以下端点均需活跃租户上下文（jwtAuth/resolveTenant 已由 app.ts 前置）
 router.use(requireTenant);
 
 /** GET /api/v1/orgs/current - 当前组织信息（任意成员可见） */

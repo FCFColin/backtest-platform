@@ -63,7 +63,6 @@ function extractJwtIdentifier(authHeader: string): string | null {
 }
 
 function computeRateLimitKey(req: Request): string {
-  // 已认证（jwtAuth 已注入 req.user）优先按 userId:ip 组合键，避免 NAT/代理后多用户共享同一 IP 限流桶
   const user = (req as { user?: { sub?: string } }).user;
   if (user?.sub) return `${user.sub}:${req.ip ?? ''}`;
   const tenantId = (req as { tenantId?: string }).tenantId;
@@ -145,7 +144,6 @@ function createDenyAllLimiter(code: string, detail: string): RequestHandler {
 
 /** 创建限流器：统一 standardHeaders/legacyHeaders/store。Redis 不可用且非 admin 路由 → deny-all（P0-05，不降级内存存储）。 */
 function createLimiter(opts: LimiterOptions): RequestHandler {
-  // 开发期性能/契约测试豁免：DISABLE_RATE_LIMIT=true 且非生产环境时跳过限流
   if (process.env.NODE_ENV !== 'production' && process.env.DISABLE_RATE_LIMIT) {
     return (_req: Request, _res: Response, next: NextFunction) => next();
   }

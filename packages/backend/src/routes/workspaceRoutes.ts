@@ -1,11 +1,4 @@
-/**
- * 用户回测工作台资源 CRUD（原 runRoutes / configRoutes / portfolioRoutes 并入）：
- * 运行历史（backtest_runs）、命名配置（saved_configs）、组合（portfolios）。
- *
- * 挂载于 /api/v1（子路径 /runs、/configs、/portfolios），前置链 crudMiddleware(BACKTEST_RUN)
- * = jwtAuth → resolveTenant → requireTenant → requirePermission(BACKTEST_RUN)。
- * 所有操作经对应仓储（withTenant）按 req.tenantId 隔离（ADR-034 / RLS）。
- */
+// 用户回测工作台资源 CRUD（运行历史/命名配置/组合），按 req.tenantId 隔离（ADR-034 / RLS）
 import { Router } from 'express';
 import { crudMiddleware } from '../middleware/middlewareChains.js';
 import { Permission } from '../middleware/rbac.js';
@@ -33,7 +26,6 @@ import {
 
 const router = Router();
 
-// 运行记录是不可变的历史快照，无更新语义
 router.use(
   '/runs',
   ...crudMiddleware(Permission.BACKTEST_RUN),

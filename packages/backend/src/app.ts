@@ -50,14 +50,12 @@ app.set('trust proxy', config.TRUST_PROXY_HOPS); // 信任 X-Forwarded-For，使
 
 app.use(httpLogger);
 
-// 将 request_id 放入 AsyncLocalStorage，使下游 callService 能注入 x-request-id
 app.use((req: Request, _res: Response, next: NextFunction) => {
   const requestId = req.id !== undefined ? String(req.id) : undefined;
   if (requestId) requestContextStorage.run({ requestId }, () => next());
   else next();
 });
 
-// Prometheus HTTP 指标采集
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -79,10 +77,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // P3-5: 全局请求超时（30s 上限），超时返回 503 Problem Detail
 app.use(requestTimeout(30_000));
 
-// 103 Early Hints — 在静态文件中间件之前注册，确保 HTML 响应前推送关键资源链接
 app.use(createEarlyHintsMiddleware());
 
-// 安全头 + CORS
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -112,7 +108,6 @@ app.use(corsOptions);
 
 app.use(brotliCompress);
 
-// Stripe webhook 需原始请求体做签名校验，必须在 json 解析之前
 app.post('/api/v1/billing/webhook', express.raw({ type: 'application/json' }), (req, res) => {
   billingWebhookHandler(req, res).catch((err) => {
     logger.error({ err }, '[app] Stripe webhook handler unhandled rejection');
@@ -143,7 +138,6 @@ if (config.NODE_ENV !== 'production') {
   })();
 }
 
-// 限流：计算端点 10/min，管理端点 30/min，认证端点 10/15min
 app.use('/api/v1/backtest', (req, _res, next) => {
   if (req.method === 'GET') return next();
   computeLimiter(req, _res, next);
@@ -166,7 +160,6 @@ app.use('/api/v1/auth/refresh', refreshLimiter);
 app.use('/api', healthRoutes); // 健康检查在全局限流器之前，避免探活被 429 误杀
 app.use('/api/', apiLimiter);
 
-// 路由挂载（仅 v1，legacy 路径已废弃）
 app.use('/api/v1/data', ...readOnlyAuth, dataRoutes);
 app.use(
   '/api/v1/data/manage',
@@ -199,7 +192,6 @@ app.use('/api/v1', platformRoutes);
 setupOpenApiUi(app);
 
 // 静态文件 — 只匹配 /assets/ 等非 HTML 路径（HTML 由 SSR 或 SPA fallback 处理）
-// 须在 SSR 路由之前：registerSW.js/manifest 等若先被 SSR 拦截会返回 HTML（MIME 错误）
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   app.use((req, res, next) => {
     if (
@@ -219,7 +211,6 @@ if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   });
 }
 
-// SSR 渲染（生产/静态服务模式）— 在静态文件之前，HTML 请求走 SSR，失败降级 index.html
 if (config.NODE_ENV === 'production' || config.SERVE_STATIC) {
   const { ssrMiddleware } = await import('./ssrMiddleware.js');
   app.get(/^\/(?!api\/)(?!assets\/)(?!favicon)/, ssrMiddleware);

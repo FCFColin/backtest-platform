@@ -124,7 +124,6 @@ export async function recordIpFailure(ip: string): Promise<void> {
     if (count >= maxFailures) {
       await appRedis.set(lockKey, '1', 'EX', lockoutSec);
       await appRedis.del(failKey);
-      // Prometheus 指标：IP 封锁计数（供 AlertManager 规则触发告警）
       authIpLockoutCounter.inc();
       logger.warn({ hashedIp, count }, '[loginLockout] IP 因异常登录频率被封锁', {
         windowSec,

@@ -49,7 +49,6 @@ export async function recordUsage(
   } catch (err) {
     logger.error({ err: String(err), orgId, metric }, '[usageService] 记录用量失败');
   }
-  // Redis 快路径（失败不影响主流程）
   try {
     const key = counterKey(orgId, period, metric);
     const next = await appRedis.incrby(key, quantity);
@@ -84,7 +83,6 @@ export async function getMonthlyUsage(orgId: string, metric: string): Promise<nu
         [orgId, period, metric],
       );
       const count = rows.length > 0 ? Number(rows[0].count) : 0;
-      // 回填 Redis，降低后续读放大
       try {
         const key = counterKey(orgId, period, metric);
         await appRedis.set(key, String(count), 'EX', COUNTER_TTL_SEC);

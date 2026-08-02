@@ -4,11 +4,6 @@ import { TICKER_PATTERN } from '../utils/tickerValidation.js';
 import { assetSchema } from './analysisSchemas.js';
 import type { BacktestOptimizerRequest } from '../domain/services/optimizer-domain.js';
 
-// Validation: 回测路由请求体运行时校验，防止TypeScript类型断言绕过
-// 企业为何需要：TypeScript类型仅在编译时检查，运行时req.body可包含任意数据
-// 权衡：增加schema定义维护成本，但安全性远高于类型断言
-
-// Security (T-33): 权重为百分比幅度，必须非负；组合级 refine 约束权重和≈100。
 const portfolioSchema = z
   .object({
     id: z.string().optional(),
@@ -36,9 +31,6 @@ const portfolioSchema = z
     },
   );
 
-// Security (T-14 / A04 业务逻辑校验)：现金流金额为"幅度"，方向由 type 表达。
-// 允许 0（空 leg，前端默认值，等价 no-op）与负数（净流出 override，
-// 例如将 withdrawal 编码为负幅度）。type 字段仍承担主方向语义。
 const cashflowLegSchema = z.object({
   id: z.string(),
   amount: z.number(),
@@ -59,7 +51,6 @@ const backtestParametersSchema = z
   .object({
     startDate: z.string().date().or(z.literal('')),
     endDate: z.string().date().or(z.literal('')),
-    // 初始本金必须为正（负/零本金会导致收益率除零或无意义结果）。
     startingValue: z.number().positive().optional(),
     baseCurrency: z.enum(['usd', 'cny']).optional(),
     adjustForInflation: z.boolean().optional(),
@@ -69,34 +60,16 @@ const backtestParametersSchema = z
     cashflowLegs: z.array(cashflowLegSchema).optional(),
     oneTimeCashflows: z.array(oneTimeCashflowSchema).optional(),
   })
-  // Security (T-14)：日期区间必须 start <= end。否则下游产生空/倒序序列，
-  // 轻则空结果，重则数组越界或被用于构造异常输入。ISO YYYY-MM-DD 可直接字典序比较。
-  // 空字符串表示"全部历史"，跳过日期范围校验。
   .refine((data) => !data.startDate || !data.endDate || data.startDate <= data.endDate, {
     message: 'startDate must be before or equal to endDate',
     path: ['endDate'],
   });
 
-// POST /api/backtest/portfolio
 export const portfolioBacktestSchema = z.object({
   portfolios: z.array(portfolioSchema).min(1),
   parameters: backtestParametersSchema,
 });
 
-/**
- * Ticker 列表 schema：接受字符串数组或逗号/空白分隔的字符串。
- *
- * 自动 transform 为规范化数组（trim + 过滤空值），并 enforce：
- * 1. 至少 1 个 ticker（非空）
- * 2. 数量不超过 {@link MAX_TICKERS}
- * 3. 每个 ticker 符合安全净化格式（{@link TICKER_PATTERN}）
- *
- * 企业理由：3 处路由（/analysis、/optimize、/efficient-frontier）此前各自内联实现
- * `tickers.split(/[\s,]+/)` + `MAX_TICKERS` 检查 + `validateTickers()` 调用，
- * 行为差异容易导致不一致。统一在 schema 层 enforce 后路由只关心业务调用。
- *
- * 输出类型始终为 `string[]`（字符串输入会被 transform 拆分）。
- */
 const tickerListSchema = z
   .union([z.array(z.string()), z.string()])
   .transform((val) =>
@@ -121,13 +94,11 @@ const tickerListSchema = z
     }
   });
 
-// POST /api/backtest/analysis
 export const analysisSchema = z.object({
   tickers: tickerListSchema,
   parameters: backtestParametersSchema,
 });
 
-// POST /api/backtest/monte-carlo
 export const monteCarloSchema = z
   .object({
     portfolio: portfolioSchema.optional(),
@@ -148,7 +119,6 @@ export const monteCarloSchema = z
     message: 'Missing required fields: portfolio (or portfolios)',
   });
 
-// POST /api/backtest/optimize
 export const optimizeSchema = z.object({
   tickers: tickerListSchema,
   objective: z.enum(['maxSharpe', 'minVolatility', 'maxReturn']),
@@ -163,7 +133,6 @@ export const optimizeSchema = z.object({
   numIterations: z.number().optional(),
 });
 
-// POST /api/backtest/efficient-frontier
 export const efficientFrontierSchema = z.object({
   tickers: tickerListSchema,
   numPoints: z.number().optional(),
@@ -194,7 +163,6 @@ export const backtestRunBodySchema = z.object({
   status: z.enum(['pending', 'running', 'completed', 'failed']).optional(),
 });
 
-// POST /api/backtest-optimizer/optimize
 export const backtestOptimizerSchema = z.object({
   portfolio: z.object({
     name: z.string().optional(),
@@ -238,8 +206,6 @@ export const backtestOptimizerSchema = z.object({
     .optional(),
 });
 
-// Re-export for backward compat (tests / existing imports).
-// Domain owns the type contract; Zod schema here provides runtime validation only.
 export type { BacktestOptimizerRequest };
 
 export type PortfolioBody = z.infer<typeof portfolioBodySchema>;

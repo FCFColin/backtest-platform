@@ -64,7 +64,6 @@ export async function createInvitation(
   const tokenHash = sha256Hex(token);
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
   const pool = getPool();
-  // 清理同组织同邮箱的历史待处理邀请，规避唯一索引冲突
   await pool.query(
     `DELETE FROM invitations WHERE org_id = $1 AND lower(email) = lower($2) AND accepted_at IS NULL`,
     [orgId, email],

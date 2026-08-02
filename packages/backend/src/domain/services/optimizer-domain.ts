@@ -36,7 +36,6 @@ export interface BacktestOptimizerRequest {
   constraints?: { maxDrawdown?: number; minCagr?: number };
 }
 // OptimizeResultItem / BestResultItem 已上提到 shared/types/optimizer.ts，
-// 这里 re-export 以保持 application 层既有导入路径不变。
 export type { OptimizeResultItem, BestResultItem };
 
 export interface Combo {

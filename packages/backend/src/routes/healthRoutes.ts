@@ -144,14 +144,12 @@ router.get('/ready', async (req: Request, res: Response) => {
       return;
     }
 
-    // 数据库不可用视为 error（无法服务请求）
     if (!dbOk) {
       sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
       return;
     }
 
     // ADR-045 T6：Sentinel 模式下，master 角色缺失或无从节点 → 503
-    // （min-slaves-to-write=1 下 master 无从节点会拒绝写入，等同于不可用）
     const sentinelOk =
       sentinelHealth.isMaster === null
         ? true

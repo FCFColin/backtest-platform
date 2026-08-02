@@ -56,17 +56,11 @@ function isInvalidOctet(p: number): boolean {
  * - 240.0.0.0/4      保留
  */
 function isForbiddenIpv4Range(a: number, b: number): boolean {
-  // 0.0.0.0/8 未分配 / 10.0.0.0/8 私网 A / 127.0.0.0/8 回环
   if (a === 0 || a === 10 || a === 127) return true;
-  // 169.254.0.0/16 链路本地（云元数据）
   if (a === 169 && b === 254) return true;
-  // 172.16.0.0/12 私网 B
   if (a === 172 && b >= 16 && b <= 31) return true;
-  // 192.168.0.0/16 私网 C
   if (a === 192 && b === 168) return true;
-  // 100.64.0.0/10 CGNAT
   if (a === 100 && b >= 64 && b <= 127) return true;
-  // 224.0.0.0/4 多播 + 240.0.0.0/4 保留
   return a >= 224;
 }
 
@@ -98,7 +92,6 @@ function isPrivateIPv6(ip: string): boolean {
     return true; // fe80::/10 链路本地
   }
   if (lower.startsWith('ff')) return true; // ff00::/8 多播
-  // 仅允许 2000::/3 全球单播（第一位为 2 或 3）；其他保留段拒绝
   if (!lower.startsWith('2') && !lower.startsWith('3')) return true;
   return false;
 }
@@ -136,7 +129,6 @@ function validateUrlBasics(parsed: URL, allowedPorts: ReadonlySet<number>): void
 
 async function validateHostname(parsed: URL, resolveDns: boolean): Promise<void> {
   // IPv6 字面量在 URL 中带方括号（如 [::1]），WHATWG URL hostname 保留方括号，
-  // 而 isIP 无法识别带括号的形式，需先剥离方括号再校验
   const rawHostname = parsed.hostname;
   const hostname =
     rawHostname.startsWith('[') && rawHostname.endsWith(']')

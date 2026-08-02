@@ -1,5 +1,4 @@
 // Architecture: Outbox 发布器，使用 PostgreSQL LISTEN/NOTIFY 监听新事件。
-// LISTEN/NOTIFY 是零依赖推送方案；不支持跨进程负载均衡，当前单实例足够。
 import pg from 'pg';
 import client from 'prom-client';
 import { logger } from '../utils/logger.js';
@@ -37,7 +36,6 @@ export function setWebhookHandler(fn: WebhookHandler | null): void {
   logger.info({ module: 'outboxPublisher', registered: fn !== null }, 'Webhook handler registered');
 }
 
-// 带模块上下文的日志封装，消除各处重复的 { module: 'outboxPublisher' } 样板
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 function moduleLog(level: LogLevel, fields: Record<string, unknown>, msg: string): void {
   logger[level]({ module: 'outboxPublisher', ...fields }, msg);
@@ -68,7 +66,6 @@ export class OutboxPublisher {
   }
 
   async start(): Promise<void> {
-    // 专用 Client（非 Pool）建立持久连接：Pool 不转发 notification 事件
     moduleLog(
       'info',
       { connectionString: this.connectionString ? '[set]' : '[empty]' },
@@ -79,7 +76,6 @@ export class OutboxPublisher {
       await this.listener.connect();
       moduleLog('info', {}, 'OutboxPublisher pg.Client connected successfully');
       await this.listener.query('LISTEN outbox_channel');
-      // NOTIFY 不带 payload 仅作唤醒信号；收到后扫描 outbox 表，避免依赖 payload 内容
       this.listener.on('notification', (msg: { channel: string; payload?: string }) => {
         moduleLog(
           'debug',
@@ -103,7 +99,6 @@ export class OutboxPublisher {
       );
       moduleLog('info', {}, 'OutboxPublisher started, listening on outbox_channel');
     } catch (err) {
-      // DB 不可用时优雅降级：记录但不抛出，补偿扫描器仍会重试
       moduleLog(
         'error',
         { err: (err as Error).message },
@@ -118,7 +113,6 @@ export class OutboxPublisher {
         this.listener = null;
       }
     }
-    // 补偿扫描器用连接池而非 listener，DB 恢复后自动处理积压事件
     this.startCompensationScanner();
   }
 
@@ -306,7 +300,6 @@ export function createOutboxConsumer(pool: pg.Pool, mode?: 'listen' | 'kafka'): 
       { cdc: true },
       'createOutboxConsumer: 使用 CDC/Kafka 通路（OutboxKafkaConsumer）',
     );
-    // 注入 getter 而非 handler 值：server.ts 创建消费器后才 setWebhookHandler；getter 保证读到最新 handler，且避免反向依赖本模块
     return new OutboxKafkaConsumer(() => webhookHandler);
   }
   moduleLog(
