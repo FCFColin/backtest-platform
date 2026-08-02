@@ -22,8 +22,8 @@
 type VarLevel = 1 | 5 | 10;
 type HorizonStats = { daily: number; monthly: number; annual: number };
 type VaRByHorizon = { [H in 'daily' | 'monthly' | 'annual']: { [K in VarLevel]: number } };
-export interface Statistics {
-  // 核心收益
+
+export type Statistics = {
   cagr: number;
   mwrr: number;
   totalReturn: number;
@@ -34,7 +34,6 @@ export interface Statistics {
   avgMonthlyReturn: number;
   avgDailyReturn: number;
 
-  // 波动率
   stdev: number;
   stdevAnnual: number;
   stdevMonthly: number;
@@ -42,21 +41,18 @@ export interface Statistics {
   stdevDaily: number;
   stdevDailyRaw: number;
 
-  // 下行偏差（仅考虑负收益的标准差）
   downsideDeviation: number;
   downsideDeviationDailyRaw: number;
   downsideDeviationMonthly: number;
   downsideDeviationMonthlyRaw: number;
   downsideDeviationAnnual: number;
 
-  // 回撤
   maxDrawdown: number;
   maxDrawdownDuration: number;
   avgDrawdown: number;
   ulcerIndex: number;
   drawdownRecoveryFactor: number;
 
-  // 风险调整
   sharpe: number;
   sortino: number;
   calmar: number;
@@ -65,7 +61,6 @@ export interface Statistics {
   m2: number;
   treynor: number;
 
-  // 基准相关
   alpha: number;
   beta: number;
   rSquared: number;
@@ -77,7 +72,6 @@ export interface Statistics {
   alphaDaily: number;
   alphaAnnualized: number;
 
-  // 捕获率（组合收益 vs 基准收益的比例）
   upsideCapture: number;
   downsideCapture: number;
   upsideCaptureDaily: number;
@@ -88,34 +82,47 @@ export interface Statistics {
   captureSpreadDaily: number;
   captureSpreadAnnual: number;
 
-  // 主动管理
   activeReturn: number;
   trackingError: number;
   informationRatio: number;
 
-  // VaR / CVaR（不同时间维度 × 不同置信水平）
   var: VaRByHorizon;
   cvar: VaRByHorizon;
 
-  // 扁平 VaR/CVaR 字段（兼容表格访问）
   var5?: number;
   cvar5?: number;
-  [P in `var${'Daily' | 'Monthly' | 'Annual'}${VarLevel}`]?: number;
-  [P in `cvar${'Daily' | 'Monthly' | 'Annual'}${VarLevel}`]?: number;
-
-  // 分布特征（偏度和超额峰度）
+  varDaily1?: number;
+  varDaily5?: number;
+  varDaily10?: number;
+  varMonthly1?: number;
+  varMonthly5?: number;
+  varMonthly10?: number;
+  varAnnual1?: number;
+  varAnnual5?: number;
+  varAnnual10?: number;
+  cvarDaily1?: number;
+  cvarDaily5?: number;
+  cvarDaily10?: number;
+  cvarMonthly1?: number;
+  cvarMonthly5?: number;
+  cvarMonthly10?: number;
+  cvarAnnual1?: number;
+  cvarAnnual5?: number;
+  cvarAnnual10?: number;
   skewness: HorizonStats;
-  [P in `skewness${'Daily' | 'Monthly' | 'Annual'}`]?: number;
+  skewnessDaily?: number;
+  skewnessMonthly?: number;
+  skewnessAnnual?: number;
   excessKurtosis: HorizonStats;
-  [P in `excessKurtosis${'Daily' | 'Monthly' | 'Annual'}`]?: number;
+  excessKurtosisDaily?: number;
+  excessKurtosisMonthly?: number;
+  excessKurtosisAnnual?: number;
 
-  // 正收益比例（按时间维度）
   winRate: HorizonStats;
   pctPositiveDays: number;
   pctPositiveMonths: number;
   pctPositiveYears: number;
 
-  // 极值收益
   maxDailyReturn: number;
   minDailyReturn: number;
   maxMonthlyReturn: number;
@@ -123,7 +130,6 @@ export interface Statistics {
   maxAnnualReturn: number;
   minAnnualReturn: number;
 
-  // 平均盈亏 & 盈亏比
   avgDailyGain: number;
   avgDailyLoss: number;
   gainLossRatioDaily: number;
@@ -134,7 +140,6 @@ export interface Statistics {
   avgAnnualLoss: number;
   gainLossRatioAnnual: number;
 
-  // 提款率（SWR = 安全提款率，PWR = 永久提款率）
   swr: number;
   pwr: number;
   swr10y: number;
@@ -145,7 +150,7 @@ export interface Statistics {
   pwr30y: number;
   swr40y: number;
   pwr40y: number;
-}
+};
 
 /**
  * 提款统计
@@ -275,7 +280,6 @@ export function createEmptyStatistics(): Statistics {
  */
 export function toStatsRecord(stats: Statistics): Record<string, number> {
   const record = stats as unknown as Record<string, number>;
-  // 适配层：从嵌套结构填充扁平字段（兼容表格组件的字符串 key 访问）
   const HORIZON_CAPS = [
     ['daily', 'Daily'],
     ['monthly', 'Monthly'],

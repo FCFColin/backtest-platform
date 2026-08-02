@@ -1,5 +1,3 @@
-// 共享常量
-
 import type { RebalanceFrequency } from './types/portfolio.js';
 
 /**
@@ -60,14 +58,7 @@ export const ALL_REBALANCE_FREQUENCIES = [
 ] as const satisfies readonly RebalanceFrequency[];
 
 /** 技术指标枚举（供 Zod schema 运行时校验复用）。 */
-export const TECHNICAL_INDICATORS = [
-  'sma',
-  'ema',
-  'rsi',
-  'macd',
-  'bollinger',
-  'momentum',
-] as const;
+export const TECHNICAL_INDICATORS = ['sma', 'ema', 'rsi', 'macd', 'bollinger', 'momentum'] as const;
 
 /** 信号类型枚举（供 Zod schema 运行时校验复用）。 */
 export const SIGNAL_TYPES = ['entry', 'exit', 'both'] as const;

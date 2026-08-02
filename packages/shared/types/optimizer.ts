@@ -1,4 +1,3 @@
-// 组合优化与有效前沿类型定义
 import type { RebalanceFrequency } from './portfolio.js';
 
 /**

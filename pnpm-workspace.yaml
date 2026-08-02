@@ -8,6 +8,7 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: true
   protobufjs: true
+  puppeteer: set this to true or false
   ssh2: true
 
 # P3-4: 统一关键依赖版本，避免子包声明不一致导致构建产物差异

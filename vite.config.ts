@@ -14,29 +14,23 @@ const tailwindConfigPath = path.resolve(projectRoot, 'tailwind.config.cjs');
 /** E2E 覆盖率脚本会设 VITE_COVERAGE=true */
 const enableCoverage = process.env.VITE_COVERAGE === 'true';
 
-const frontendNodeModules = path.resolve(projectRoot, 'packages/frontend/node_modules');
-
-/**
- * pnpm 严格隔离：前端依赖仅安装在 packages/frontend/node_modules，
- * vite 从 monorepo 根运行时 rollup 无法向上查找到这些包。
- * 通过显式 alias 将裸导入映射到实际路径。
- * 子路径导出（react/jsx-*）须置于裸包名之前，确保精确匹配优先。
- */
+const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_modules', p);
+// pnpm 严格隔离：前端依赖仅安装在 packages/frontend/node_modules
+const FE_PACKAGES = [
+  'react',
+  'react-dom',
+  'react-router-dom',
+  'recharts',
+  'lucide-react',
+  'i18next',
+  'react-i18next',
+  'i18next-browser-languagedetector',
+];
 const frontendAlias: Record<string, string> = {
-  'react/jsx-dev-runtime': path.resolve(frontendNodeModules, 'react/jsx-dev-runtime.js'),
-  'react/jsx-runtime': path.resolve(frontendNodeModules, 'react/jsx-runtime.js'),
-  'react-dom/client': path.resolve(frontendNodeModules, 'react-dom/client.js'),
-  react: path.resolve(frontendNodeModules, 'react'),
-  'react-dom': path.resolve(frontendNodeModules, 'react-dom'),
-  'react-router-dom': path.resolve(frontendNodeModules, 'react-router-dom'),
-  recharts: path.resolve(frontendNodeModules, 'recharts'),
-  'lucide-react': path.resolve(frontendNodeModules, 'lucide-react'),
-  i18next: path.resolve(frontendNodeModules, 'i18next'),
-  'react-i18next': path.resolve(frontendNodeModules, 'react-i18next'),
-  'i18next-browser-languagedetector': path.resolve(
-    frontendNodeModules,
-    'i18next-browser-languagedetector',
-  ),
+  'react/jsx-dev-runtime': feNm('react/jsx-dev-runtime.js'),
+  'react/jsx-runtime': feNm('react/jsx-runtime.js'),
+  'react-dom/client': feNm('react-dom/client.js'),
+  ...Object.fromEntries(FE_PACKAGES.map((p) => [p, feNm(p)])),
 };
 
 /**
@@ -46,7 +40,7 @@ const frontendAlias: Record<string, string> = {
  * resolveId hook 拦截 zustand 全部裸导入，直接指向 ESM 入口。
  */
 function zustandEsmResolver(): Plugin {
-  const zustandEsm = path.resolve(frontendNodeModules, 'zustand/esm');
+  const zustandEsm = feNm('zustand/esm');
   const zustandMap: Record<string, string> = {
     zustand: 'index.mjs',
     'zustand/vanilla': 'vanilla.mjs',
@@ -170,22 +164,20 @@ export default defineConfig(async ({ command }) => {
                 'packages/shared/constants.ts',
               ),
               '@backtest/shared': path.resolve(projectRoot, 'packages/shared/types/index.ts'),
-              express: path.resolve(projectRoot, 'packages/backend/node_modules/express'),
-              opossum: path.resolve(projectRoot, 'packages/backend/node_modules/opossum'),
-              pg: path.resolve(projectRoot, 'packages/backend/node_modules/pg'),
-              jose: path.resolve(projectRoot, 'packages/backend/node_modules/jose'),
-              argon2: path.resolve(projectRoot, 'packages/backend/node_modules/argon2'),
-              bullmq: path.resolve(projectRoot, 'packages/backend/node_modules/bullmq'),
-              zod: path.resolve(projectRoot, 'packages/backend/node_modules/zod'),
-              stripe: path.resolve(projectRoot, 'packages/backend/node_modules/stripe'),
-              ioredis: path.resolve(projectRoot, 'packages/backend/node_modules/ioredis'),
-              'express-rate-limit': path.resolve(
-                projectRoot,
-                'packages/backend/node_modules/express-rate-limit',
-              ),
-              'rate-limit-redis': path.resolve(
-                projectRoot,
-                'packages/backend/node_modules/rate-limit-redis',
+              ...Object.fromEntries(
+                [
+                  'express',
+                  'opossum',
+                  'pg',
+                  'jose',
+                  'argon2',
+                  'bullmq',
+                  'zod',
+                  'stripe',
+                  'ioredis',
+                  'express-rate-limit',
+                  'rate-limit-redis',
+                ].map((p) => [p, path.resolve(projectRoot, 'packages/backend/node_modules', p)]),
               ),
             },
           },
@@ -211,39 +203,9 @@ export default defineConfig(async ({ command }) => {
           },
           resolve: {
             alias: {
-              'react/jsx-dev-runtime': path.resolve(
-                projectRoot,
-                'packages/frontend/node_modules/react/jsx-dev-runtime.js',
-              ),
-              'react/jsx-runtime': path.resolve(
-                projectRoot,
-                'packages/frontend/node_modules/react/jsx-runtime.js',
-              ),
-              'react-dom/client': path.resolve(
-                projectRoot,
-                'packages/frontend/node_modules/react-dom/client.js',
-              ),
-              react: path.resolve(projectRoot, 'packages/frontend/node_modules/react'),
-              'react-dom': path.resolve(projectRoot, 'packages/frontend/node_modules/react-dom'),
-              recharts: path.resolve(projectRoot, 'packages/frontend/node_modules/recharts'),
-              zustand: path.resolve(projectRoot, 'packages/frontend/node_modules/zustand'),
-              'lucide-react': path.resolve(
-                projectRoot,
-                'packages/frontend/node_modules/lucide-react',
-              ),
-              i18next: path.resolve(projectRoot, 'packages/frontend/node_modules/i18next'),
-              'react-i18next': path.resolve(
-                projectRoot,
-                'packages/frontend/node_modules/react-i18next',
-              ),
-              'i18next-browser-languagedetector': path.resolve(
-                projectRoot,
-                'packages/frontend/node_modules/i18next-browser-languagedetector',
-              ),
-              '@testing-library/react': path.resolve(
-                projectRoot,
-                'packages/frontend/node_modules/@testing-library/react',
-              ),
+              ...frontendAlias,
+              zustand: feNm('zustand'),
+              '@testing-library/react': feNm('@testing-library/react'),
               '@': path.resolve(projectRoot, './packages/frontend/src'),
               'react-router-dom': path.resolve(projectRoot, 'tests/mocks/react-router-dom.tsx'),
             },
@@ -279,18 +241,8 @@ export default defineConfig(async ({ command }) => {
         exclude: [
           'packages/frontend/src/**/*.d.ts',
           'packages/frontend/src/**/*.test.{ts,tsx}',
-          'packages/frontend/src/store/index.ts',
-          'packages/frontend/src/store/types.ts',
-          'packages/backend/src/utils/logger.ts',
-          'packages/backend/src/utils/metrics.ts',
-          'packages/backend/src/db/import.ts',
-          'packages/backend/src/app.ts',
-          'packages/backend/src/infrastructure/mailService.ts',
-          'packages/backend/src/schemas/goalOptimizer.ts',
-          'packages/backend/src/schemas/letf.ts',
-          'packages/backend/src/schemas/pca.ts',
-          'packages/backend/src/schemas/tacticalGrid.ts',
-          'packages/backend/src/schemas/dataManage.ts',
+          'packages/frontend/src/store/{index,types}.ts',
+          'packages/backend/src/{utils/{logger,metrics},db/import,app,infrastructure/mailService,schemas/{goalOptimizer,letf,pca,tacticalGrid,dataManage}}.ts',
         ],
         thresholds: {
           lines: 80,
@@ -388,17 +340,7 @@ export default defineConfig(async ({ command }) => {
       },
     },
     optimizeDeps: {
-      include: [
-        'react',
-        'react-dom',
-        'react/jsx-dev-runtime',
-        'react-router-dom',
-        'recharts',
-        'lucide-react',
-        'i18next',
-        'react-i18next',
-        'i18next-browser-languagedetector',
-      ],
+      include: FE_PACKAGES,
       exclude: ['zustand'],
     },
     build: {

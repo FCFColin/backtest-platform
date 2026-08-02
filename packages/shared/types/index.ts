@@ -1,5 +1,4 @@
 // 共享类型统一导出（barrel）
-// 新代码建议从具体模块导入，如：import { Portfolio } from './types/portfolio.js'
 
 export * from './portfolio.js';
 export * from './backtest.js';
