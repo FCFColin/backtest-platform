@@ -19,10 +19,6 @@ import {
 } from '../application/grid-application-service.js';
 import { asyncRouteHandler, crudRouteHandler, ownerOf } from './routeUtils.js';
 
-// Architecture: 任务状态查询 + 异步任务提交端点（BullMQ）
-// 企业为何需要：异步任务提交后，客户端需轮询获取结果
-// 权衡：轮询模式不如WebSocket实时，但实现简单且RESTful
-
 const router = Router();
 export const jobRoutes = router;
 
@@ -38,9 +34,10 @@ function buildJobResult(
     processedAt: job.processedOn,
     finishedAt: job.finishedOn,
   };
-
   if (state === 'completed' && job.returnvalue) {
-    result.result = job.returnvalue;
+    const rv = job.returnvalue as { status?: string; result?: unknown };
+    // worker 返回 {status, result}，解包使 result.data 可直接消费
+    result.result = rv.status ? rv.result : rv;
   } else if (state === 'failed') {
     logger.error(
       { middleware: 'jobRoutes', jobId: job.id, failedReason: job.failedReason },
@@ -48,15 +45,9 @@ function buildJobResult(
     );
     result.error = 'Job execution failed';
   }
-
   return result;
 }
 
-/**
- * 授权检查：构建上下文 + 验证所有权/租户隔离；不可访问时发送 404。
- *
- * @returns true 表示已拒绝（响应已发送），false 表示授权通过
- */
 function authorizeJob(
   res: Response,
   job: NonNullable<Awaited<ReturnType<typeof backtestQueue.getJob>>>,
@@ -89,12 +80,7 @@ function authorizeJob(
   return false;
 }
 
-/**
- * GET /api/v1/jobs/:id — 查询异步任务状态与结果。
- *
- * Security (ADR-019): 修复 IDOR（OWASP API1 / Broken Object Level Authorization）。
- * 要求认证，仅任务提交者本人或 admin 可读取；缺少 owner 信息的任务对非 admin 一律 404。
- */
+// GET /api/v1/jobs/:id — 仅任务提交者或 admin 可读取（ADR-019 IDOR 防护）
 router.get(
   '/jobs/:id',
   jwtAuth,
@@ -125,7 +111,7 @@ router.get(
   ),
 );
 
-/** POST /api/v1/backtest-optimizer/optimize — 异步优化任务（原 backtestOptimizerRoutes.ts 并入）。队列不可用时 fail-closed 503 per ADR-031。 */
+// POST /api/v1/backtest-optimizer/optimize — 队列不可用时 fail-closed 503 per ADR-031
 router.post(
   '/backtest-optimizer/optimize',
   ...computeMiddleware(Permission.OPTIMIZER_RUN),
@@ -135,7 +121,6 @@ router.post(
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user?.sub;
 
-      // 异步优先：尝试提交到 BullMQ 队列
       try {
         const job = await backtestQueue.add('optimizer', {
           type: 'optimizer',
@@ -172,13 +157,6 @@ router.post(
   ),
 );
 
-/**
- * POST /api/v1/tactical-grid/search — 战术网格搜索（原 tacticalGridRoutes.ts 并入）。
- *
- * E6 说明（与 ADR-031 的关系）：backtest/optimizer 对引擎不可用是 fail-closed 503，
- * 本端点的同步回退是显式豁免——网格搜索的计算在 Node 侧执行（Node-canonical，非引擎计算），
- * 同步回退不产生"与权威引擎不一致的数字"风险；组合数上限（MAX_GRID_COMBINATIONS）已限制最坏耗时。
- */
 router.post(
   '/tactical-grid/search',
   ...computeMiddleware(Permission.STRATEGY_MANAGE),
@@ -196,7 +174,6 @@ router.post(
       const authReq = req as AuthenticatedRequest;
       const userId = authReq.user?.sub;
 
-      // 异步优先：尝试提交到 BullMQ 队列
       try {
         const job = await backtestQueue.add('grid-search', {
           type: 'grid-search',
@@ -222,7 +199,6 @@ router.post(
         );
       }
 
-      // 同步降级：队列不可用时直接执行
       const result = await withTimeout(
         executeGridSearch(req.body as Record<string, unknown>),
         config.SYNC_COMPUTE_TIMEOUT_MS,

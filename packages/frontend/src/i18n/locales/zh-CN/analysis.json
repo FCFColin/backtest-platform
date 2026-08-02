@@ -221,6 +221,23 @@
   "tactical": {
     "defaultSignalName": "信号 {{index}}",
     "defaultStrategyName": "战术策略",
+    "indicators": {
+      "sma": "简单移动平均 (SMA)",
+      "ema": "指数移动平均 (EMA)",
+      "rsi": "相对强弱指数 (RSI)",
+      "macd": "MACD",
+      "bollinger": "布林带",
+      "bollingerDesc": "价格突破布林带上下轨时入场/离场",
+      "momentum": "动量"
+    },
+    "rebalanceOptions": {
+      "daily": "每日",
+      "weekly": "每周",
+      "monthly": "每月",
+      "quarterly": "每季度",
+      "annual": "每年",
+      "none": "不调仓"
+    },
     "validateErrors": {
       "missingConditions": "信号「{{name}}」缺少触发条件",
       "missingWeights": "信号「{{name}}」缺少有效目标权重"
@@ -286,6 +303,17 @@
   },
   "tacticalGrid": {
     "searchFailed": "网格搜索失败",
+    "objectives": {
+      "maxCAGR": "最大化 CAGR",
+      "minDrawdown": "最小化最大回撤",
+      "maxSharpe": "最大化夏普比率"
+    },
+    "paramLabels": {
+      "rsiPeriod": "RSI 周期",
+      "oversoldThreshold": "超卖阈值",
+      "period": "均线周期",
+      "breakoutThreshold": "突破阈值"
+    },
     "params": {
       "min": "最小",
       "max": "最大",
@@ -374,6 +402,9 @@
       "signal2Config": "信号 2 配置",
       "combinationSection": "组合方式",
       "combinationLogic": "组合逻辑",
+      "combinationAnd": "与（AND）",
+      "combinationOr": "或（OR）",
+      "combinationXor": "异或（XOR）",
       "indicator": "技术指标",
       "period": "周期",
       "threshold": "阈值",
@@ -387,7 +418,16 @@
       "combinedShort": "组合",
       "signalComparison": "信号对比（{{count}}）",
       "equityCurveComparison": "权益曲线对比",
-      "colDate": "日期"
+      "prevPage": "上一页",
+      "nextPage": "下一页",
+      "colDate": "日期",
+      "statTotalSignals": "总信号数",
+      "statWinRate": "胜率",
+      "statAvgReturn": "平均收益",
+      "statMaxDrawdown": "最大回撤",
+      "statSharpe": "夏普",
+      "paramsTitle": "双信号参数",
+      "title": "双信号分析"
     },
     "multi": {
       "signalList": "信号列表",
@@ -395,6 +435,12 @@
       "addSignal": "添加信号",
       "aggregationSection": "聚合配置",
       "aggregationMethod": "聚合方式",
+      "aggregationWeighted": "加权",
+      "aggregationVoting": "投票",
+      "aggregationRank": "排名",
+      "descWeighted": "按权重加权生成组合信号",
+      "descVoting": "多数信号投票决定组合信号",
+      "descRank": "按信号排名加权生成组合信号",
       "backtestParams": "回测参数",
       "errMinOneSignal": "请至少添加一个信号",
       "aggStatsTitle": "聚合信号统计",
@@ -410,7 +456,14 @@
       "period": "周期",
       "threshold": "阈值",
       "weight": "权重",
-      "delete": "删除"
+      "delete": "删除",
+      "statTotalSignals": "总信号数",
+      "statWinRate": "胜率",
+      "statAvgReturn": "平均收益",
+      "statMaxDrawdown": "最大回撤",
+      "statSharpe": "夏普",
+      "paramsTitle": "多信号参数",
+      "title": "多信号分析"
     },
     "title": "单信号分析"
   },

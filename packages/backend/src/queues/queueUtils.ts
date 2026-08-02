@@ -1,20 +1,10 @@
-/**
- * 队列共享工具：DLQ 配置 + 幂等守卫 + 健康检查。
- *
- * 合并 dlqConfig / jobIdempotency / healthCheck 消除三处重复的 Redis 连接与日志模式。
- */
-
 import { Queue } from 'bullmq';
 import type { RedisOptions } from 'ioredis';
-import { buildRedisBaseOptions } from '../infrastructure/redisClient.js';
-import { appRedis } from '../infrastructure/redisClient.js';
+import { buildRedisBaseOptions, appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { requireRedis } from '../utils/redisFallback.js';
 
-// ── Dead Letter Queue ──────────────────────────────────────────────────────
-
 export const SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS = 86400 * 7;
-
 const DLQ_COMPLETED_RETENTION_AGE_SECONDS = 86400 * 30;
 const DLQ_NAME_SUFFIX = '-dlq';
 
@@ -102,8 +92,6 @@ export async function transferToDlq<T>(
   }
 }
 
-// ── Job Idempotency ────────────────────────────────────────────────────────
-
 const PROCESSING_PREFIX = 'bullmq:processing:';
 const PROCESSED_PREFIX = 'bullmq:processed:';
 const RESULT_PREFIX = 'bullmq:result:';
@@ -112,9 +100,21 @@ const PROCESSED_TTL_SEC = 24 * 60 * 60;
 
 type JobClaimResult = 'claimed' | 'already_processed' | 'in_progress';
 
-export async function tryClaimJobProcessing(jobId: string): Promise<JobClaimResult> {
-  const processingKey = PROCESSING_PREFIX + jobId;
-  const processedKey = PROCESSED_PREFIX + jobId;
+// 幂等 key 带 job type：BullMQ 自增 jobId 在计数器重置后会复用（如 Redis 恢复），
+function idemKeys(
+  jobId: string,
+  type: string,
+): { processingKey: string; processedKey: string; resultKey: string } {
+  const scope = `${type}:${jobId}`;
+  return {
+    processingKey: PROCESSING_PREFIX + scope,
+    processedKey: PROCESSED_PREFIX + scope,
+    resultKey: RESULT_PREFIX + scope,
+  };
+}
+
+export async function tryClaimJobProcessing(jobId: string, type: string): Promise<JobClaimResult> {
+  const { processingKey, processedKey } = idemKeys(jobId, type);
   return requireRedis(processingKey, async () => {
     if ((await appRedis.exists(processedKey)) === 1) return 'already_processed';
     const ok = await appRedis.set(processingKey, '1', 'EX', PROCESSING_TTL_SEC, 'NX');
@@ -124,8 +124,9 @@ export async function tryClaimJobProcessing(jobId: string): Promise<JobClaimResu
 
 export async function getProcessedJobResult(
   jobId: string,
+  type: string,
 ): Promise<Record<string, unknown> | null> {
-  const resultKey = RESULT_PREFIX + jobId;
+  const { resultKey } = idemKeys(jobId, type);
   return requireRedis(resultKey, async () => {
     const raw = await appRedis.get(resultKey);
     if (!raw) return null;
@@ -135,11 +136,10 @@ export async function getProcessedJobResult(
 
 export async function markJobProcessed(
   jobId: string,
+  type: string,
   result: Record<string, unknown>,
 ): Promise<void> {
-  const processingKey = PROCESSING_PREFIX + jobId;
-  const processedKey = PROCESSED_PREFIX + jobId;
-  const resultKey = RESULT_PREFIX + jobId;
+  const { processingKey, processedKey, resultKey } = idemKeys(jobId, type);
   await requireRedis(processedKey, async () => {
     await appRedis
       .multi()
@@ -150,15 +150,13 @@ export async function markJobProcessed(
   });
 }
 
-export async function releaseJobClaim(jobId: string): Promise<void> {
-  const processingKey = PROCESSING_PREFIX + jobId;
+export async function releaseJobClaim(jobId: string, type: string): Promise<void> {
+  const { processingKey } = idemKeys(jobId, type);
   await requireRedis(processingKey, async () => {
     await appRedis.del(processingKey);
   });
-  logger.debug({ jobId }, '[jobIdempotency] 释放处理声明以供重试');
+  logger.debug({ jobId, type }, '[jobIdempotency] 释放处理声明以供重试');
 }
-
-// ── Health Check ───────────────────────────────────────────────────────────
 
 const HEARTBEAT_KEY = 'worker:heartbeat';
 const HEARTBEAT_INTERVAL_MS = 15_000;
@@ -166,9 +164,7 @@ const HEARTBEAT_TIMEOUT_MS = 45_000;
 
 export function startHeartbeat(): ReturnType<typeof setInterval> {
   void writeHeartbeat();
-  const timer = setInterval(() => {
-    void writeHeartbeat();
-  }, HEARTBEAT_INTERVAL_MS);
+  const timer = setInterval(() => void writeHeartbeat(), HEARTBEAT_INTERVAL_MS);
   if (timer.unref) timer.unref();
   logger.info(
     { intervalMs: HEARTBEAT_INTERVAL_MS, key: HEARTBEAT_KEY },
@@ -194,13 +190,11 @@ async function checkHeartbeat(): Promise<boolean> {
 }
 
 async function healthCheckMain(): Promise<void> {
-  if (await checkHeartbeat()) {
-    logger.info('[health-check] Worker is healthy');
-    process.exit(0);
-  } else {
-    logger.error('[health-check] Worker is unhealthy (heartbeat missing)');
-    process.exit(1);
-  }
+  const healthy = await checkHeartbeat();
+  logger[healthy ? 'info' : 'error'](
+    `[health-check] Worker is ${healthy ? 'healthy' : 'unhealthy (heartbeat missing)'}`,
+  );
+  process.exit(healthy ? 0 : 1);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

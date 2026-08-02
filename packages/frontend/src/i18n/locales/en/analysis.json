@@ -221,6 +221,23 @@
   "tactical": {
     "defaultSignalName": "Signal {{index}}",
     "defaultStrategyName": "Tactical Strategy",
+    "indicators": {
+      "sma": "Simple Moving Average (SMA)",
+      "ema": "Exponential Moving Average (EMA)",
+      "rsi": "Relative Strength Index (RSI)",
+      "macd": "MACD",
+      "bollinger": "Bollinger Bands",
+      "bollingerDesc": "Enter/exit when price crosses Bollinger band boundaries",
+      "momentum": "Momentum"
+    },
+    "rebalanceOptions": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "annual": "Annual",
+      "none": "None"
+    },
     "validateErrors": {
       "missingConditions": "Signal \"{{name}}\" is missing trigger conditions",
       "missingWeights": "Signal \"{{name}}\" is missing valid target weights"
@@ -286,6 +303,17 @@
   },
   "tacticalGrid": {
     "searchFailed": "Grid search failed",
+    "objectives": {
+      "maxCAGR": "Maximize CAGR",
+      "minDrawdown": "Minimize Max Drawdown",
+      "maxSharpe": "Maximize Sharpe Ratio"
+    },
+    "paramLabels": {
+      "rsiPeriod": "RSI Period",
+      "oversoldThreshold": "Oversold Threshold",
+      "period": "MA Period",
+      "breakoutThreshold": "Breakout Threshold"
+    },
     "params": {
       "min": "Min",
       "max": "Max",
@@ -374,6 +402,9 @@
       "signal2Config": "Signal 2 Configuration",
       "combinationSection": "Combination Method",
       "combinationLogic": "Combination Logic",
+      "combinationAnd": "AND",
+      "combinationOr": "OR",
+      "combinationXor": "XOR",
       "indicator": "Technical Indicator",
       "period": "Period",
       "threshold": "Threshold",
@@ -387,7 +418,16 @@
       "combinedShort": "Combined",
       "signalComparison": "Signal Comparison ({{count}})",
       "equityCurveComparison": "Equity Curve Comparison",
-      "colDate": "Date"
+      "prevPage": "Prev",
+      "nextPage": "Next",
+      "colDate": "Date",
+      "statTotalSignals": "Total Signals",
+      "statWinRate": "Win Rate",
+      "statAvgReturn": "Avg Return",
+      "statMaxDrawdown": "Max Drawdown",
+      "statSharpe": "Sharpe",
+      "paramsTitle": "Signal Parameters",
+      "title": "Dual Signal Analysis"
     },
     "multi": {
       "signalList": "Signal List",
@@ -395,6 +435,12 @@
       "addSignal": "Add Signal",
       "aggregationSection": "Aggregation Configuration",
       "aggregationMethod": "Aggregation Method",
+      "aggregationWeighted": "Weighted",
+      "aggregationVoting": "Voting",
+      "aggregationRank": "Ranking",
+      "descWeighted": "Combine signals weighted by assigned weights",
+      "descVoting": "Majority vote decides the combined signal",
+      "descRank": "Combine signals weighted by ranking",
       "backtestParams": "Backtest Parameters",
       "errMinOneSignal": "Please add at least one signal",
       "aggStatsTitle": "Aggregated Signal Statistics",
@@ -410,7 +456,14 @@
       "period": "Period",
       "threshold": "Threshold",
       "weight": "Weight",
-      "delete": "Remove"
+      "delete": "Remove",
+      "statTotalSignals": "Total Signals",
+      "statWinRate": "Win Rate",
+      "statAvgReturn": "Avg Return",
+      "statMaxDrawdown": "Max Drawdown",
+      "statSharpe": "Sharpe",
+      "paramsTitle": "Signal Parameters",
+      "title": "Multi-Signal Analysis"
     },
     "title": "Signal Analysis"
   },

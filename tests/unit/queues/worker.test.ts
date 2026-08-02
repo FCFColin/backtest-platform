@@ -154,7 +154,7 @@ describe('processBacktestJob - 任务分发', () => {
       expect(result.result).toEqual((mockResult as { data: unknown }).data);
     } else {
       expect(result.error).toContain(errorPart);
-      expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
+      expect(releaseJobClaim).toHaveBeenCalledWith('job-1', type);
       expect(markJobProcessed).not.toHaveBeenCalled();
     }
   });
@@ -166,7 +166,7 @@ describe('processBacktestJob - 任务分发', () => {
     expect(result.error).toContain('unknown-type');
     expect(executeGridSearch).not.toHaveBeenCalled();
     expect(executeOptimization).not.toHaveBeenCalled();
-    expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
+    expect(releaseJobClaim).toHaveBeenCalledWith('job-1', 'unknown-type');
   });
   it.each([
     [
@@ -207,7 +207,7 @@ describe('processBacktestJob - 任务分发', () => {
   ])('%s', async (_n, err, releaseExpected) => {
     vi.mocked(executeOptimization).mockRejectedValueOnce(err as never);
     await expect(processBacktestJob(makeJob({ type: 'optimizer', payload: {} }))).rejects.toBe(err);
-    if (releaseExpected) expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
+    if (releaseExpected) expect(releaseJobClaim).toHaveBeenCalledWith('job-1', 'optimizer');
     else expect(releaseJobClaim).not.toHaveBeenCalled();
   });
   it('UpstreamProblemError（4xx）应释放 claim 并返回 failed 而非重抛', async () => {
@@ -217,7 +217,7 @@ describe('processBacktestJob - 任务分发', () => {
     const result = await processBacktestJob(makeJob({ type: 'optimizer', payload: {} }));
     expect(result.status).toBe('failed');
     expect(result.error).toBe('参数组合无效');
-    expect(releaseJobClaim).toHaveBeenCalledWith('job-1');
+    expect(releaseJobClaim).toHaveBeenCalledWith('job-1', 'optimizer');
     expect(markJobProcessed).not.toHaveBeenCalled();
   });
 

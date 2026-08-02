@@ -46,7 +46,6 @@ async function acquireTenantSlot(tenantId: string, jobId: string): Promise<boole
     inflight = await appRedis.incr(key);
     if (inflight === 1) await appRedis.expire(key, 3600);
   } catch (err) {
-    // Redis 异常时不阻断处理，跳过 fairness 门控
     logger.warn(
       { err: String(err), tenantId, jobId },
       '[worker] 在途计数失败，跳过 tenant-fair 门控',
@@ -73,9 +72,13 @@ async function releaseTenantSlot(tenantId: string): Promise<void> {
   }
 }
 
-async function handleEngineError(err: unknown, jobId: string): Promise<BacktestJobResult> {
+async function handleEngineError(
+  err: unknown,
+  jobId: string,
+  type: string,
+): Promise<BacktestJobResult> {
   if (err instanceof EngineUnavailableError) {
-    await releaseJobClaim(jobId);
+    await releaseJobClaim(jobId, type);
     logger.warn(
       { jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds },
       '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）',
@@ -83,14 +86,14 @@ async function handleEngineError(err: unknown, jobId: string): Promise<BacktestJ
     throw err;
   }
   if (err instanceof UpstreamProblemError) {
-    await releaseJobClaim(jobId);
+    await releaseJobClaim(jobId, type);
     logger.warn(
       { jobId, status: err.status, code: err.code },
       '[worker] Go 引擎返回 4xx，任务标记为永久失败（参数错误不可重试）',
     );
     return { status: 'failed', error: err.detail };
   }
-  await releaseJobClaim(jobId);
+  await releaseJobClaim(jobId, type);
   const message = errorMessage(err);
   logger.error({ jobId, error: message }, '[worker] 任务执行失败');
   return { status: 'failed', error: message };
@@ -109,10 +112,9 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   const { type, payload } = job.data;
   const jobId = String(job.id);
 
-  // T-37：幂等守卫
-  const claim = await tryClaimJobProcessing(jobId);
+  const claim = await tryClaimJobProcessing(jobId, type);
   if (claim === 'already_processed') {
-    const cached = await getProcessedJobResult(jobId);
+    const cached = await getProcessedJobResult(jobId, type);
     if (cached) {
       logger.info({ jobId, type }, '[worker] 返回已缓存的幂等结果');
       return { status: 'completed', result: cached };
@@ -128,7 +130,6 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
   logger.info({ type, jobId }, '[worker] 开始处理任务');
 
   try {
-    // portfolio 回测异步执行分支（runPortfolioBacktest 内部已发布 BacktestCompleted 事件）
     if (type === 'portfolio') {
       const portfolioPayload = payload as {
         portfolios: unknown[];
@@ -148,7 +149,7 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
         },
       });
       const portfolioResult = { data: result, warnings, dateRange };
-      await markJobProcessed(jobId, portfolioResult as Record<string, unknown>);
+      await markJobProcessed(jobId, type, portfolioResult as Record<string, unknown>);
       return { status: 'completed', result: portfolioResult };
     }
 
@@ -156,25 +157,24 @@ async function dispatchJob(job: Job<BacktestJobData>): Promise<BacktestJobResult
     if (handler) {
       const result = await handler(payload);
       if (result.success && result.data) {
-        await markJobProcessed(jobId, result.data);
+        await markJobProcessed(jobId, type, result.data);
         await persistRunIfTenant(job, result.data);
         return { status: 'completed', result: result.data };
       }
-      await releaseJobClaim(jobId);
+      await releaseJobClaim(jobId, type);
       return { status: 'failed', error: result.error };
     }
 
-    await releaseJobClaim(jobId);
+    await releaseJobClaim(jobId, type);
     logger.warn({ type, jobId }, '[worker] 未知任务类型');
     return { status: 'failed', error: `Unknown job type: ${type}` };
   } catch (err) {
     if (err instanceof DelayedError) throw err;
-    return await handleEngineError(err, jobId);
+    return await handleEngineError(err, jobId, type);
   }
 }
 
 // 将成功的异步任务结果落库到 backtest_runs（租户隔离，ADR-034）。
-// 通过 Run 聚合根驱动状态机（queued→running→completed）。仅当任务携带 tenantId 时持久化。
 async function persistRunIfTenant(
   job: Job<BacktestJobData>,
   result: Record<string, unknown>,
@@ -222,7 +222,6 @@ const worker = createBacktestWorker(processBacktestJob);
 logger.info('[worker] Backtest worker started, waiting for jobs...');
 
 // 优雅关闭：等待当前任务完成，30s 强制退出兜底。
-// D9-H5：信号处理器由 workerEntrypoint.ts 注册，此处仅导出 shutdownWorker。
 let workerShuttingDown = false;
 
 export async function shutdownWorker(signal: string): Promise<void> {
