@@ -302,13 +302,8 @@ func computeSuccessProbabilities(paths [][]float64, startingValue float64, numYe
 	n := float64(len(paths))
 	pathLen := len(paths[0])
 	for year := 1; year <= numYears; year++ {
-		dayIdx := year*mcTradingDays - 1
-		if dayIdx >= pathLen {
-			dayIdx = pathLen - 1
-		}
-		survCount := 0
-		capPresCount := 0
-		profitCount := 0
+		dayIdx := min(year*mcTradingDays-1, pathLen-1)
+		var survCount, capPresCount, profitCount int
 		for _, path := range paths {
 			val := path[dayIdx]
 			if val > 0 {

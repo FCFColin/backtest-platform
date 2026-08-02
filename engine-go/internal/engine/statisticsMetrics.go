@@ -3,6 +3,7 @@ package engine
 import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
+	"maps"
 	"math"
 	"slices"
 	"sort"
@@ -188,31 +189,17 @@ func sortedReturnsPercentile(returns []float64) []float64 {
 	sort.Float64s(sorted)
 	return sorted
 }
-func clampIndex(index, size int) int {
-	if index < 0 {
-		index = 0
-	}
-	if index >= size {
-		index = size - 1
-	}
-	return index
-}
+func clampIndex(index, size int) int { return min(max(0, index), size-1) }
 func CalcVaR(dailyReturns []float64, confidence float64) float64 {
-	if confidence <= 0 || confidence >= 1 {
-		return 0
-	}
 	sorted := sortedReturnsPercentile(dailyReturns)
-	if sorted == nil {
+	if sorted == nil || confidence <= 0 || confidence >= 1 {
 		return 0
 	}
 	return -sorted[clampIndex(int((1-confidence)*float64(len(sorted))), len(sorted))]
 }
 func CalcCVaR(dailyReturns []float64, confidence float64) float64 {
-	if confidence <= 0 || confidence >= 1 {
-		return 0
-	}
 	sorted := sortedReturnsPercentile(dailyReturns)
-	if sorted == nil {
+	if sorted == nil || confidence <= 0 || confidence >= 1 {
 		return 0
 	}
 	cutoffIndex := int((1 - confidence) * float64(len(sorted)))
@@ -463,11 +450,7 @@ func CalcAnnualReturns(values []float64, dates []string) []AnnualReturn {
 	for i, v := range values {
 		yearLastValue[parseYear(dates[i])] = v
 	}
-	years := make([]int, 0, len(yearLastValue))
-	for y := range yearLastValue {
-		years = append(years, y)
-	}
-	sort.Ints(years)
+	years := slices.Sorted(maps.Keys(yearLastValue))
 	result := make([]AnnualReturn, 0, len(years))
 	for idx, y := range years {
 		startValue := values[0]
@@ -509,7 +492,7 @@ func CalcMonthlyReturns(values []float64, dates []string) []MonthlyReturn {
 	return result
 }
 func parseYear(dateStr string) int {
-	if len(dateStr) < 4 || len(dateStr) > 10 {
+	if len(dateStr) < 4 {
 		return 0
 	}
 	t, err := time.Parse("2006", dateStr[:4])

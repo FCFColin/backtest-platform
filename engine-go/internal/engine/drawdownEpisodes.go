@@ -19,38 +19,26 @@ func detectDrawdownEpisodes(curve []DataPoint) []DrawdownEpisode {
 	for i := 1; i < len(curve); i++ {
 		currentValue, currentDate := curve[i].Value, curve[i].Date
 		if currentValue >= peakValue {
-			if inDrawdown {
-				episodes = appendEpisode(episodes, curve, peakIdx, troughIdx, i, peakDate, troughDate, currentDate, peakValue, troughValue, currentValue)
+			if inDrawdown && (peakValue-troughValue)/peakValue >= drawdownThreshold {
+				episodes = append(episodes, buildDrawdownEpisode(curve, peakIdx, troughIdx, i, peakDate, troughDate, currentDate, peakValue, troughValue, currentValue))
 				inDrawdown = false
 			}
-			peakValue = currentValue
-			peakDate = currentDate
-			peakIdx = i
-			troughValue = currentValue
-			troughDate = currentDate
-			troughIdx = i
+			peakValue, peakDate, peakIdx = currentValue, currentDate, i
+			troughValue, troughDate, troughIdx = currentValue, currentDate, i
 		} else {
 			if currentValue < troughValue {
-				troughValue = currentValue
-				troughDate = currentDate
-				troughIdx = i
+				troughValue, troughDate, troughIdx = currentValue, currentDate, i
 			}
 			if (peakValue-currentValue)/peakValue >= drawdownThreshold {
 				inDrawdown = true
 			}
 		}
 	}
-	if inDrawdown {
+	if inDrawdown && (peakValue-troughValue)/peakValue >= drawdownThreshold {
 		lastIdx := len(curve) - 1
-		episodes = appendEpisode(episodes, curve, peakIdx, troughIdx, lastIdx, peakDate, troughDate, "", peakValue, troughValue, curve[lastIdx].Value)
+		episodes = append(episodes, buildDrawdownEpisode(curve, peakIdx, troughIdx, lastIdx, peakDate, troughDate, "", peakValue, troughValue, curve[lastIdx].Value))
 	}
 	return episodes
-}
-func appendEpisode(episodes []DrawdownEpisode, curve []DataPoint, peakIdx, troughIdx, recoveryIdx int, peakDate, troughDate, recoveryDate string, peakValue, troughValue, recoveryValue float64) []DrawdownEpisode {
-	if (peakValue-troughValue)/peakValue < drawdownThreshold {
-		return episodes
-	}
-	return append(episodes, buildDrawdownEpisode(curve, peakIdx, troughIdx, recoveryIdx, peakDate, troughDate, recoveryDate, peakValue, troughValue, recoveryValue))
 }
 func buildDrawdownEpisode(curve []DataPoint, peakIdx, troughIdx, recoveryIdx int, peakDate, troughDate, recoveryDate string, peakValue, troughValue, recoveryValue float64) DrawdownEpisode {
 	timeToTrough := daysBetween(peakDate, troughDate)
@@ -64,18 +52,18 @@ func buildDrawdownEpisode(curve []DataPoint, peakIdx, troughIdx, recoveryIdx int
 		recoveryTime = daysBetween(troughDate, recoveryDate)
 		recoveryFactor = float64(recoveryTime) / float64(timeToTrough)
 	}
-	cagrDuring := calcCagrBetween(peakValue, recoveryValue, totalDays)
-	ulcerDuring := calcUlcerDuring(curve, peakIdx, recoveryIdx, peakValue)
-	returnFromPeakToTrough := 0.0
-	if peakValue > 0 {
-		returnFromPeakToTrough = (troughValue - peakValue) / peakValue
-	}
-	ep := DrawdownEpisode{PeakDate: peakDate, TroughDate: troughDate, RecoveryDate: recoveryDate, Depth: (peakValue - troughValue) / peakValue, TimeToTrough: timeToTrough, RecoveryTime: recoveryTime, TotalTimeDurationDays: totalDays, RecoveryFactor: recoveryFactor, CagrDuring: cagrDuring, UlcerDuring: ulcerDuring, ReturnFromPeakToTrough: returnFromPeakToTrough}
+	ep := DrawdownEpisode{PeakDate: peakDate, TroughDate: troughDate, RecoveryDate: recoveryDate, Depth: (peakValue - troughValue) / peakValue, TimeToTrough: timeToTrough, RecoveryTime: recoveryTime, TotalTimeDurationDays: totalDays, RecoveryFactor: recoveryFactor, CagrDuring: calcCagrBetween(peakValue, recoveryValue, totalDays), UlcerDuring: calcUlcerDuring(curve, peakIdx, recoveryIdx, peakValue), ReturnFromPeakToTrough: safeReturnFromPeak(peakValue, troughValue)}
 	if recoveryDate != "" && troughValue > 0 {
 		retFromTrough := (recoveryValue - troughValue) / troughValue
 		ep.ReturnFromTroughToRecovery = &retFromTrough
 	}
 	return ep
+}
+func safeReturnFromPeak(peakValue, troughValue float64) float64 {
+	if peakValue <= 0 {
+		return 0
+	}
+	return (troughValue - peakValue) / peakValue
 }
 func calcCagrBetween(startValue, endValue float64, days int) float64 {
 	if days <= 0 || startValue <= 0 {

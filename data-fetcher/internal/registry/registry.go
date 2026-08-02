@@ -1,4 +1,3 @@
-// Package registry 提供默认数据源注册表构造（含优先级环境变量解析）。
 package registry
 
 import (
@@ -11,17 +10,12 @@ import (
 	"strings"
 )
 
-// New 按 DATA_PROVIDER_PRIORITY 环境变量（逗号分隔，缺省 yfinance,finnhub,twelvedata,akshare）
-// 构建并注册所有数据源 provider。
 func New() *provider.Registry {
 	prio := os.Getenv("DATA_PROVIDER_PRIORITY")
-	var priorities []string
-	if prio != "" {
-		priorities = strings.Split(prio, ",")
-	} else {
-		priorities = []string{"yfinance", "finnhub", "twelvedata", "akshare"}
+	if prio == "" {
+		prio = "yfinance,finnhub,twelvedata,akshare"
 	}
-	reg := provider.NewRegistry(priorities)
+	reg := provider.NewRegistry(strings.Split(prio, ","))
 	for _, p := range []provider.Provider{
 		yfinance.NewProvider(),
 		finnhub.NewProvider(),

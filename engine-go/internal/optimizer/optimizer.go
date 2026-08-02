@@ -446,11 +446,9 @@ func isPD(a [][]float64) bool {
 	return chol.Factorize(mat.NewSymDense(len(a), flatten(a)))
 }
 func cloneMatrix(a [][]float64) [][]float64 {
-	n := len(a)
-	result := make([][]float64, n)
-	for i := 0; i < n; i++ {
-		result[i] = make([]float64, len(a[i]))
-		copy(result[i], a[i])
+	result := make([][]float64, len(a))
+	for i := range a {
+		result[i] = slices.Clone(a[i])
 	}
 	return result
 }

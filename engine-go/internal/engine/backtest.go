@@ -231,11 +231,7 @@ func recalculateShares(holdings []float64, shares *[]float64, lastPrices []float
 func appendZeroDay(curve []DataPoint, vals []float64, date string) ([]DataPoint, []float64) {
 	return append(curve, DataPoint{Date: date, Value: 0}), append(vals, 0)
 }
-func zeroHoldings(holdings []float64) {
-	for i := range holdings {
-		holdings[i] = 0
-	}
-}
+func zeroHoldings(holdings []float64) { clear(holdings) }
 func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint) Statistics {
 	if len(curve) < 2 {
 		return Statistics{}
@@ -274,13 +270,12 @@ func CalcCorrelationMatrix(dailyReturnsList [][]float64) [][]float64 {
 		matrix[i] = make([]float64, n)
 	}
 	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
+		for j := i; j < n; j++ {
 			if i == j {
 				matrix[i][j] = 1
-			} else if j < i {
-				matrix[i][j] = matrix[j][i]
 			} else {
 				matrix[i][j] = CalcCorrelation(dailyReturnsList[i], dailyReturnsList[j])
+				matrix[j][i] = matrix[i][j]
 			}
 		}
 	}

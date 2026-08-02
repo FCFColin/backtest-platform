@@ -179,7 +179,7 @@ func parseBody(resp string) ([]string, bool) {
 	return bodyArr, true
 }
 
-// splitCsvRows 提取非 JSON 回退格式的 CSV 行（跳过空行与 CDATA 结尾标记）
+// splitCsvRows 提取非 JSON 回退格式的 CSV 行
 func splitCsvRows(bodyArr []string) [][]string {
 	var rows [][]string
 	for i := 2; i < len(bodyArr); i++ {

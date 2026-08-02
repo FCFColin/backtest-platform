@@ -1,8 +1,9 @@
-// Package engineutil 提供回测引擎的共享纯函数工具集（叶子包，不依赖 engine/tactical）。
 package engineutil
 
 import (
+	"maps"
 	"math"
+	"slices"
 	"sort"
 	"time"
 )
@@ -164,12 +165,7 @@ func GetSortedDates(priceData map[string]map[string]float64, tickers []string) [
 			}
 		}
 	}
-	dates := make([]string, 0, len(dateSet))
-	for d := range dateSet {
-		dates = append(dates, d)
-	}
-	sort.Strings(dates)
-	return dates
+	return slices.Sorted(maps.Keys(dateSet))
 }
 func FilterDates(dates []string, startDate, endDate string) []string {
 	if startDate == "" && endDate == "" {
@@ -191,19 +187,12 @@ func ParseTradingDates(priceData map[string]map[string]float64) ([]time.Time, er
 	dateSet := make(map[time.Time]bool)
 	for _, tickerData := range priceData {
 		for dateStr := range tickerData {
-			t, err := time.Parse("2006-01-02", dateStr)
-			if err != nil {
-				continue
+			if t, err := time.Parse("2006-01-02", dateStr); err == nil {
+				dateSet[t] = true
 			}
-			dateSet[t] = true
 		}
 	}
-	dates := make([]time.Time, 0, len(dateSet))
-	for d := range dateSet {
-		dates = append(dates, d)
-	}
-	sort.Slice(dates, func(i, j int) bool { return dates[i].Before(dates[j]) })
-	return dates, nil
+	return slices.SortedFunc(maps.Keys(dateSet), func(a, b time.Time) int { return a.Compare(b) }), nil
 }
 func FilterByDateRange(dates []time.Time, startDate, endDate string) []time.Time {
 	var start, end time.Time
@@ -240,8 +229,6 @@ func ExtractPrices(priceData map[string]map[string]float64, ticker string, dates
 	return prices
 }
 
-// WeightedDailyReturns 计算多资产加权组合的日收益率序列（dates 为对齐后的交易日，权重与 tickers 一一对应）。
-// requireBoth 为 true 时仅当前后两日价格均有效才计入该资产；normalize 为 true 时将结果除以有效资产权重之和。
 func WeightedDailyReturns(tickers []string, weights []float64, priceData map[string]map[string]float64, dates []string, requireBoth, normalize bool) []float64 {
 	returns := make([]float64, 0, len(dates)-1)
 	for i := 1; i < len(dates); i++ {

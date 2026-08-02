@@ -7,6 +7,7 @@ import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/indicators"
 	"engine-go/internal/mathutil"
+	"maps"
 	"math"
 	"slices"
 )
@@ -127,16 +128,14 @@ func evaluateCondition(cond SignalCondition, values []*float64) []bool {
 		if i > 0 {
 			prev = values[i-1]
 		}
-		switch cond.Operator {
-		case "gt":
-			result[i] = *val > cond.Threshold
-		case "lt":
-			result[i] = *val < cond.Threshold
-		case "cross_above":
-			result[i] = *val > cond.Threshold && prev != nil && *prev <= cond.Threshold
-		case "cross_below":
-			result[i] = *val < cond.Threshold && prev != nil && *prev >= cond.Threshold
-		}
+		crossAbove := *val > cond.Threshold && prev != nil && *prev <= cond.Threshold
+		crossBelow := *val < cond.Threshold && prev != nil && *prev >= cond.Threshold
+		result[i] = map[string]bool{
+			"gt":          *val > cond.Threshold,
+			"lt":          *val < cond.Threshold,
+			"cross_above": crossAbove,
+			"cross_below": crossBelow,
+		}[cond.Operator]
 	}
 	return result
 }
@@ -147,12 +146,7 @@ func collectTickers(strategy TacticalStrategy) []string {
 			set[w.Ticker] = true
 		}
 	}
-	result := make([]string, 0, len(set))
-	for t := range set {
-		result = append(result, t)
-	}
-	slices.Sort(result)
-	return result
+	return slices.Sorted(maps.Keys(set))
 }
 func normalizeWeights(weights []WeightEntry, tickers []string) []WeightEntry {
 	m := make(map[string]float64)

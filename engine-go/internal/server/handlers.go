@@ -69,6 +69,18 @@ func bindJSON[T any](c *gin.Context, code, msg string, req *T) bool {
 	}
 	return true
 }
+func bindAndCompute[T any, R any](c *gin.Context, code, bindMsg, errMsg, spanName string, fn func(context.Context, T) (R, error)) {
+	var req T
+	if !bindJSON(c, code, bindMsg, &req) {
+		return
+	}
+	run := func(ctx context.Context) (R, error) { return fn(ctx, req) }
+	if spanName != "" {
+		withSpannedCompute(c, errMsg, spanName, run)
+	} else {
+		withComputeHandler(c, errMsg, run)
+	}
+}
 
 var maxGoroutinesForHealth = 10000
 
@@ -175,67 +187,29 @@ func handleLETFAnalyze(c *gin.Context) {
 	})
 }
 func handleFactorRegression(c *gin.Context) {
-	var req factorregression.FactorRegressionRequest
-	if !bindJSON(c, "FR_BAD_REQUEST", "请求解析失败", &req) {
-		return
-	}
-	withComputeHandler(c, "因子回归计算失败", func(ctx context.Context) (*factorregression.RegressionResult, error) {
+	bindAndCompute(c, "FR_BAD_REQUEST", "请求解析失败", "因子回归计算失败", "", func(_ context.Context, req factorregression.FactorRegressionRequest) (*factorregression.RegressionResult, error) {
 		return factorregression.RunRegression(req)
 	})
 }
 func handleOptimize(c *gin.Context) {
-	var req optimizer.OptimizeRequest
-	if !bindJSON(c, "OPTIMIZE_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
-		return
-	}
-	withSpannedCompute(c, "优化计算失败", "optimizer.optimize", func(ctx context.Context) (*optimizer.OptimizeResponse, error) {
-		return optimizer.Optimize(ctx, req)
-	})
+	bindAndCompute(c, "OPTIMIZE_BAD_REQUEST", "请求解析失败，请检查请求格式", "优化计算失败", "optimizer.optimize", optimizer.Optimize)
 }
 func handleEfficientFrontier(c *gin.Context) {
-	var req optimizer.FrontierRequest
-	if !bindJSON(c, "FRONTIER_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
-		return
-	}
-	withComputeHandler(c, "有效前沿计算失败", func(ctx context.Context) (*optimizer.FrontierResponse, error) {
-		return optimizer.ComputeEfficientFrontier(ctx, req)
-	})
+	bindAndCompute(c, "FRONTIER_BAD_REQUEST", "请求解析失败，请检查请求格式", "有效前沿计算失败", "", optimizer.ComputeEfficientFrontier)
 }
 func handleMonteCarlo(c *gin.Context) {
-	var req montecarlo.MonteCarloRequest
-	if !bindJSON(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败，请检查请求格式", &req) {
-		return
-	}
-	withSpannedCompute(c, "蒙特卡洛模拟失败", "montecarlo.simulate", func(ctx context.Context) (*montecarlo.MonteCarloResult, error) {
-		return montecarlo.RunMonteCarlo(ctx, req)
-	})
+	bindAndCompute(c, "MONTE_CARLO_BAD_REQUEST", "请求解析失败，请检查请求格式", "蒙特卡洛模拟失败", "montecarlo.simulate", montecarlo.RunMonteCarlo)
 }
 func handleGoalOptimize(c *gin.Context) {
-	var req goaloptimizer.GoalOptimizerRequest
-	if !bindJSON(c, "GOAL_BAD_REQUEST", "请求解析失败", &req) {
-		return
-	}
-	withComputeHandler(c, "目标优化计算失败", func(ctx context.Context) (*goaloptimizer.GoalOptimizerResult, error) {
+	bindAndCompute(c, "GOAL_BAD_REQUEST", "请求解析失败", "目标优化计算失败", "", func(_ context.Context, req goaloptimizer.GoalOptimizerRequest) (*goaloptimizer.GoalOptimizerResult, error) {
 		return goaloptimizer.OptimizeGoals(req)
 	})
 }
 func handleTacticalBacktest(c *gin.Context) {
-	var req tactical.TacticalBacktestRequest
-	if !bindJSON(c, "TACTICAL_BAD_REQUEST", "请求解析失败", &req) {
-		return
-	}
-	withComputeHandler(c, "战术回测计算失败", func(ctx context.Context) (*tactical.TacticalBacktestResult, error) {
-		return tactical.RunTacticalBacktest(ctx, req)
-	})
+	bindAndCompute(c, "TACTICAL_BAD_REQUEST", "请求解析失败", "战术回测计算失败", "", tactical.RunTacticalBacktest)
 }
 func handleTacticalGridSearch(c *gin.Context) {
-	var req tactical.TacticalGridRequest
-	if !bindJSON(c, "GRID_BAD_REQUEST", "请求解析失败", &req) {
-		return
-	}
-	withComputeHandler(c, "网格搜索计算失败", func(ctx context.Context) (*tactical.TacticalGridResponse, error) {
-		return tactical.RunGridSearch(ctx, req)
-	})
+	bindAndCompute(c, "GRID_BAD_REQUEST", "请求解析失败", "网格搜索计算失败", "", tactical.RunGridSearch)
 }
 
 func requireParam(c *gin.Context, code, detail string, ok bool) bool {

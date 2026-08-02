@@ -181,7 +181,6 @@ func combineDir(s1, s2 *SignalDir, method string) *SignalDir {
 		if s2 != nil && s1 == nil {
 			return s2
 		}
-		return nil
 	}
 	return nil
 }
@@ -309,9 +308,7 @@ const (
 )
 
 func calcStatistics(signals []SignalPoint) SignalStats {
-	totalSignals := len(signals)
-	wins := 0
-	completedTrades := 0
+	totalSignals, wins, completedTrades := len(signals), 0, 0
 	returnSum := 0.0
 	var pendingBuy *float64
 	for _, s := range signals {
@@ -328,13 +325,12 @@ func calcStatistics(signals []SignalPoint) SignalStats {
 			pendingBuy = nil
 		}
 	}
-	winRate := 0.0
-	avgReturn := 0.0
+	winRate, avgReturn := 0.0, 0.0
 	if completedTrades > 0 {
 		winRate = float64(wins) / float64(completedTrades)
 		avgReturn = returnSum / float64(completedTrades)
 	}
-	return SignalStats{TotalSignals: totalSignals, WinRate: winRate, AvgReturn: avgReturn, MaxDrawdown: 0, Sharpe: 0}
+	return SignalStats{TotalSignals: totalSignals, WinRate: winRate, AvgReturn: avgReturn}
 }
 func calcEquityCurve(signals []SignalPoint, data []PricePoint) (equityCurve []EquityPoint, maxDrawdown, sharpe float64) {
 	signalMap := make(map[string]SignalDir)

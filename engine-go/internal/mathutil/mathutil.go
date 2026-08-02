@@ -1,4 +1,3 @@
-// Package mathutil 提供共享的统计与随机数工具函数。
 package mathutil
 
 import (
@@ -39,19 +38,8 @@ func Percentile(arr []float64, p float64) float64 {
 	sorted := make([]float64, len(arr))
 	copy(sorted, arr)
 	sort.Float64s(sorted)
-	if p < 0 {
-		p = 0
-	} else if p > 1 {
-		p = 1
-	}
-	idx := int(float64(len(sorted)) * p)
-	if idx >= len(sorted) {
-		idx = len(sorted) - 1
-	}
-	if idx < 0 {
-		idx = 0
-	}
-	return sorted[idx]
+	p = math.Max(0, math.Min(1, p))
+	return sorted[min(len(sorted)-1, int(float64(len(sorted))*p))]
 }
 func GaussianRandom(rnd *rand.Rand, mean, std float64) float64 {
 	u1 := rnd.Float64()
@@ -79,7 +67,6 @@ func Covariance(x, y []float64) float64 {
 	return cov / float64(n-1)
 }
 
-// DailyReturns 计算价格序列的日收益率；前一日价格非正时跳过该日。
 func DailyReturns(prices []float64) []float64 {
 	if len(prices) < 2 {
 		return nil
@@ -92,8 +79,6 @@ func DailyReturns(prices []float64) []float64 {
 	}
 	return rets
 }
-
-// DailyReturnsWithZeros 计算价格序列的日收益率；前一日价格非正时补 0（保持与输入等长）。
 func DailyReturnsWithZeros(prices []float64) []float64 {
 	if len(prices) < 2 {
 		return nil
@@ -107,7 +92,6 @@ func DailyReturnsWithZeros(prices []float64) []float64 {
 	return rets
 }
 
-// DownsideDeviation 计算下行偏差：低于目标收益率 mar 的超额收益平方均值开方。
 func DownsideDeviation(returns []float64, mar float64) float64 {
 	if len(returns) == 0 {
 		return 0
@@ -121,7 +105,6 @@ func DownsideDeviation(returns []float64, mar float64) float64 {
 	return math.Sqrt(sumSquared / float64(len(returns)))
 }
 
-// Histogram 将 values 等宽分箱（binCount 箱），返回各箱计数与区间端点。
 func Histogram(values []float64, binCount int) (counts []int, minVal, maxVal float64) {
 	if len(values) == 0 || binCount <= 0 {
 		return nil, 0, 0
