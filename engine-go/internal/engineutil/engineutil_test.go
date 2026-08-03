@@ -255,3 +255,35 @@ func TestNormalizeWeights(t *testing.T) {
 		}
 	})
 }
+
+func TestToPricePoints(t *testing.T) {
+	nan := math.NaN()
+	tests := []struct {
+		name string
+		in   map[string]float64
+		want []PricePoint
+	}{
+		{"empty map returns nil", map[string]float64{}, nil},
+		{"filters NaN/zero/negative", map[string]float64{"2024-01-01": nan, "2024-01-02": 0, "2024-01-04": -10}, nil},
+		{"sorts ascending", map[string]float64{"2024-03-01": 100, "2024-01-01": 90}, []PricePoint{{"2024-01-01", 90}, {"2024-03-01", 100}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ToPricePoints(tt.in)
+			if tt.want == nil {
+				if got != nil {
+					t.Errorf("want nil, got %v", got)
+				}
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("len = %d, want %d", len(got), len(tt.want))
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("[%d] = %v, want %v", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}

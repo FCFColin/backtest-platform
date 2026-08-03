@@ -8,7 +8,6 @@ interface TickLineConfig {
 }
 interface AxisLabelConfig {
   value: string;
-  position?: string;
 }
 interface SvgAxisProps {
   orientation: Orientation;
@@ -109,7 +108,7 @@ export interface TooltipDataItem {
   value: string | number;
   color: string;
 }
-export interface TooltipState {
+interface TooltipState {
   active: boolean;
   x: number;
   y: number;
@@ -148,7 +147,7 @@ const swatchStyle = (size: number, color: string): CSSProperties => ({
   flexShrink: 0,
   backgroundColor: color,
 });
-export function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipProps) {
+function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipProps) {
   if (!active || data.length === 0) return null;
   return (
     <div
@@ -181,7 +180,7 @@ interface SvgLegendProps {
   series: SvgLegendSeries[];
   onToggle?: (name: string) => void;
 }
-export function SvgLegend({ series, onToggle }: SvgLegendProps) {
+function SvgLegend({ series, onToggle }: SvgLegendProps) {
   return (
     <div
       style={{
@@ -223,7 +222,7 @@ export function SvgLegend({ series, onToggle }: SvgLegendProps) {
   );
 }
 
-export interface XTickPixel {
+interface XTickPixel {
   value: number;
   label: string;
   show?: boolean;
@@ -287,7 +286,7 @@ export const plotDims = (width: number, height: number, margin: ChartMargin) => 
     plotBottom: margin.top + plotHeight,
   };
 };
-export const toggleInSet = (prev: Set<string>, name: string) => {
+const toggleInSet = (prev: Set<string>, name: string) => {
   const next = new Set(prev);
   if (next.has(name)) next.delete(name);
   else next.add(name);
@@ -334,8 +333,8 @@ export const seriesColor = (idx: number) => CHART_COLORS[idx % CHART_COLORS.leng
 export const gradId = (name: string) => `svg-area-grad-${name.replace(/\s+/g, '-')}`;
 export const linearScale = (min: number, max: number, start: number, span: number) => (v: number) =>
   start + ((v - min) / (max - min)) * span;
-export const formatTooltipValue = (r: [string, string] | string) => (Array.isArray(r) ? r[0] : r);
-export const buildTooltipItems = (
+const formatTooltipValue = (r: [string, string] | string) => (Array.isArray(r) ? r[0] : r);
+const buildTooltipItems = (
   point: ChartPoint,
   visibleSeries: string[],
   seriesNames: string[],

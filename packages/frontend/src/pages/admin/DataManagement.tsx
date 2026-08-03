@@ -340,8 +340,8 @@ export default function DataManagement() {
   const refetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
-      if (actionTimerRef.current) clearTimeout(actionTimerRef.current);
-      if (refetchTimerRef.current) clearTimeout(refetchTimerRef.current);
+      for (const ref of [actionTimerRef, refetchTimerRef])
+        if (ref.current) clearTimeout(ref.current);
     },
     [],
   );
@@ -361,13 +361,12 @@ export default function DataManagement() {
     }
     try {
       const goRes = await apiFetch('/api/v1/data/health');
-      const goStatus: 'active' | 'inactive' = goRes.ok ? 'active' : 'inactive';
       setSources((prev) =>
         prev.map((s, i) =>
           i === 1
             ? {
                 ...s,
-                status: goStatus,
+                status: goRes.ok ? 'active' : 'inactive',
                 lastUpdated: goRes.ok ? new Date().toISOString().slice(0, 19) : s.lastUpdated,
               }
             : s,

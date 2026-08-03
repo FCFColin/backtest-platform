@@ -134,7 +134,7 @@ describe('getEngineStatus', () => {
     [
       'stats 缓存不存在时应返回零值状态',
       () => marketStatsMocks.getDbEngineStatus.mockRejectedValue(new Error('db down')),
-      { totalTickers: 0, cachedTickers: 0, lastUpdate: null, progress: null, universeAge: null },
+      { totalTickers: 0, cachedTickers: 0, lastUpdate: null },
     ],
     [
       '应从 PostgreSQL 获取引擎状态',
@@ -144,7 +144,7 @@ describe('getEngineStatus', () => {
           cachedTickers: 42,
           lastUpdate: '2024-06-01T00:00:00Z',
         }),
-      { totalTickers: 42, cachedTickers: 42, lastUpdate: '2024-06-01T00:00:00Z', progress: null },
+      { totalTickers: 42, cachedTickers: 42, lastUpdate: '2024-06-01T00:00:00Z' },
     ],
   ])('%s', async (_n, setup, expected) => {
     setup();

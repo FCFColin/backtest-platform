@@ -6,6 +6,7 @@ import (
 	"engine-go/internal/calculators"
 	"engine-go/internal/engine"
 	"engine-go/internal/engine/tactical"
+	"engine-go/internal/engineutil"
 	"engine-go/internal/factorregression"
 	"engine-go/internal/goaloptimizer"
 	"engine-go/internal/letf"
@@ -183,7 +184,7 @@ func handleLETFAnalyze(c *gin.Context) {
 		return
 	}
 	withComputeHandler(c, "LETF 滑点分析失败", func(ctx context.Context) (*letf.LETFResult, error) {
-		return letf.AnalyzeSlippage(letf.LETFRequest{LETFSeries: letf.ToPricePoints(letfData), BenchSeries: letf.ToPricePoints(benchData), Leverage: req.Leverage})
+		return letf.AnalyzeSlippage(letf.LETFRequest{LETFSeries: engineutil.ToPricePoints(letfData), BenchSeries: engineutil.ToPricePoints(benchData), Leverage: req.Leverage})
 	})
 }
 func handleFactorRegression(c *gin.Context) {
@@ -276,7 +277,7 @@ func handleSignalAnalyze(c *gin.Context) {
 			missingTicker()
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeSignal(*req.Single, signal.ToPricePoints(tickerData))})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeSignal(*req.Single, engineutil.ToPricePoints(tickerData))})
 	case "dual":
 		if req.Dual == nil {
 			newProblem(c, http.StatusBadRequest, "SIGNAL_MISSING_DUAL", "Bad Request", "dual 模式需要 dual 参数")
@@ -288,7 +289,7 @@ func handleSignalAnalyze(c *gin.Context) {
 			missingTicker()
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeDualSignal(req.Dual.Signal1, req.Dual.Signal2, signal.ToPricePoints(td1), signal.ToPricePoints(td2), req.Dual.CombinationMethod)})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeDualSignal(req.Dual.Signal1, req.Dual.Signal2, engineutil.ToPricePoints(td1), engineutil.ToPricePoints(td2), req.Dual.CombinationMethod)})
 	case "multi":
 		if req.Multi == nil || len(req.Multi.Signals) == 0 {
 			newProblem(c, http.StatusBadRequest, "SIGNAL_MISSING_MULTI", "Bad Request", "multi 模式需要 multi.signals 参数")
@@ -299,7 +300,7 @@ func handleSignalAnalyze(c *gin.Context) {
 			missingTicker()
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeMultiSignal(ctx, req.Multi.Signals, signal.ToPricePoints(td), req.Multi.AggregationMethod, req.Multi.Weights)})
+		c.JSON(http.StatusOK, gin.H{"success": true, "data": signal.AnalyzeMultiSignal(ctx, req.Multi.Signals, engineutil.ToPricePoints(td), req.Multi.AggregationMethod, req.Multi.Weights)})
 	default:
 		newProblem(c, http.StatusBadRequest, "SIGNAL_INVALID_MODE", "Bad Request", "mode 必须是 single/dual/multi")
 	}

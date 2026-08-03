@@ -11,23 +11,19 @@ test.describe('组合优化页面', () => {
     });
   });
 
-  async function waitForOptimizerResults(page: import('@playwright/test').Page) {
+  async function getCagrValue(page: import('@playwright/test').Page): Promise<number> {
     await expect(page.locator('tr').filter({ hasText: /CAGR/ }).first()).toBeVisible({
       timeout: 1_000,
     });
+    const text = await page.locator('tr').filter({ hasText: /CAGR/ }).first().textContent();
+    const match = text?.match(/([+-]?\d+\.?\d*)%/);
+    expect(match).toBeTruthy();
+    return parseFloat(match![1]);
   }
 
   test('T4: 默认 maxSharpe 优化 — VTI+VXUS+BND', async ({ page }) => {
     await page.getByRole('button', { name: /开始计算|Start Calculation/ }).click();
-    await waitForOptimizerResults(page);
-
-    const cagrRow = page.locator('tr').filter({ hasText: /CAGR/ }).first();
-    const cagrText = await cagrRow.textContent();
-    const cagrMatch = cagrText?.match(/([+-]?\d+\.?\d*)%/);
-    expect(cagrMatch).toBeTruthy();
-    const cagrValue = parseFloat(cagrMatch![1]);
-    expect(cagrValue).toBeGreaterThan(0);
-
+    expect(await getCagrValue(page)).toBeGreaterThan(0);
     await expect(page.getByText(/优化失败|Optimization Failed/)).toHaveCount(0);
   });
 
@@ -39,16 +35,9 @@ test.describe('组合优化页面', () => {
     await tickerInput.press('Enter');
 
     await page.getByRole('button', { name: /开始计算|Start Calculation/ }).click();
-    await waitForOptimizerResults(page);
-
-    const cagrRow = page.locator('tr').filter({ hasText: /CAGR/ }).first();
-    const cagrText = await cagrRow.textContent();
-    const cagrMatch = cagrText?.match(/([+-]?\d+\.?\d*)%/);
-    expect(cagrMatch).toBeTruthy();
-    const cagrValue = parseFloat(cagrMatch![1]);
+    const cagrValue = await getCagrValue(page);
     expect(cagrValue).toBeGreaterThan(0);
     expect(cagrValue).toBeLessThan(20);
-
     await expect(page.getByText('VTI').first()).toBeVisible();
   });
 
@@ -56,7 +45,6 @@ test.describe('组合优化页面', () => {
     await page.getByRole('switch', { name: /全部历史|All History/ }).check();
     await page.getByRole('button', { name: /开始计算|Start Calculation/ }).click();
 
-    // 全部历史模式计算量更大，且可能因连续测试触发 API 限流 (429)
     const resultRow = page.locator('tr').filter({ hasText: /CAGR/ }).first();
     const errorMsg = page.getByText(/优化失败|Optimization Failed|429/).first();
     await expect(resultRow.or(errorMsg)).toBeVisible({ timeout: 1_000 });

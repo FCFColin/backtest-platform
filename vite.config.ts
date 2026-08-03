@@ -15,7 +15,6 @@ const tailwindConfigPath = path.resolve(projectRoot, 'tailwind.config.cjs');
 const enableCoverage = process.env.VITE_COVERAGE === 'true';
 
 const feNm = (p: string) => path.resolve(projectRoot, 'packages/frontend/node_modules', p);
-// pnpm 严格隔离：前端依赖仅安装在 packages/frontend/node_modules
 const FE_PACKAGES = [
   'react',
   'react-dom',
@@ -33,12 +32,7 @@ const frontendAlias: Record<string, string> = {
   ...Object.fromEntries(FE_PACKAGES.map((p) => [p, feNm(p)])),
 };
 
-/**
- * esbuild 预编译 zustand v5 时，无法正确处理 ESM 子路径导出
- * （zustand/vanilla、zustand/react），导致生成的预编译模块缺失 export 语句。
- * resolve.alias 对 node_modules 内部导入不生效，因此使用 Vite 插件的
- * resolveId hook 拦截 zustand 全部裸导入，直接指向 ESM 入口。
- */
+// esbuild 预编译 zustand v5 时无法正确处理 ESM 子路径导出，用 resolveId hook 直接指向 ESM 入口
 function zustandEsmResolver(): Plugin {
   const zustandEsm = feNm('zustand/esm');
   const zustandMap: Record<string, string> = {
@@ -61,8 +55,7 @@ function zustandEsmResolver(): Plugin {
   };
 }
 
-// SSR 产物需自带 i18n locale 文件：客户端资源已内联打包，但 entry-server 按需
-// 从文件系统读取 ./locales/{lang}/{ns}.json（dev 由 vite 解析 src，生产缺此拷贝即 key 未翻译）
+// SSR 产物需自带 i18n locale 文件，entry-server 从文件系统读取 ./locales/{lang}/{ns}.json
 function ssrLocalesCopy(): Plugin {
   let outDir = '';
   return {
@@ -83,16 +76,14 @@ function ssrLocalesCopy(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(async ({ command }) => {
-  // Module Federation 插件（ADR-050）。
-  // 包未 pnpm install 前不可解析——以动态 import + 降级方式加载：
-  // 安装后 federation 插件正常启用；未安装时跳过，避免阻塞 vite/vitest 加载本配置。
+  // ADR-050: Module Federation，包未安装时降级跳过
   let federation: ((opts: unknown) => Plugin) | null = null;
   try {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- devDependency；安装前后均不报错（ADR-050）
     // @ts-ignore
     ({ federation } = await import('@originjs/vite-plugin-federation'));
   } catch {
-    // 包未安装：federation 能力暂不可用，不影响其余构建/测试能力
+    /* federation 包未安装，降级跳过 */
   }
 
   return {
@@ -104,7 +95,6 @@ export default defineConfig(async ({ command }) => {
     },
     test: {
       projects: [
-        // ── node：后端单元 + 集成 + contract + fuzz + shared ──
         {
           test: {
             name: 'node',
@@ -182,7 +172,7 @@ export default defineConfig(async ({ command }) => {
             },
           },
         },
-        // ── browser：前端单元 + 组件 + hooks + store ──
+        // browser: 前端单元/组件/hooks/store
         {
           plugins: [react()],
           test: {
@@ -211,7 +201,7 @@ export default defineConfig(async ({ command }) => {
             },
           },
         },
-        // ── chaos：Docker 依赖的混沌工程测试 ──
+        // chaos: Docker 依赖
         {
           test: {
             name: 'chaos',
@@ -259,7 +249,6 @@ export default defineConfig(async ({ command }) => {
     plugins: [
       zustandEsmResolver(),
       ssrLocalesCopy(),
-      // Module Federation 必须置于 react() 之前（ADR-050）；federation 为 null 时跳过
       ...(federation
         ? [
             federation({
@@ -283,8 +272,6 @@ export default defineConfig(async ({ command }) => {
         : []),
       react(),
       (await import('vite-tsconfig-paths')).default(),
-      // PWA / Service Worker — 预缓存 app shell 实现离线加载与秒开
-      // 仅在非 Vite 开发服务器（即 build 命令）时启用，避免 dev 模式下 SW 干扰 HMR
       ...(command === 'build'
         ? [
             (await import('vite-plugin-pwa')).VitePWA({
@@ -344,33 +331,27 @@ export default defineConfig(async ({ command }) => {
       exclude: ['zustand'],
     },
     build: {
-      // MF 不要求 modulePreload: false（经源码验证，1.4.1 不检查此配置）；开启后 Vite 自动注入 modulepreload，减少 waterfall
       target: 'esnext',
       modulePreload: true,
       cssCodeSplit: false,
-      // SSR 构建入口由 CLI --ssr 传递，确保 SSR 构建时输出 asset 文件
       ssrEmitAssets: true,
       rollupOptions: {
         output: {
           manualChunks(id: string) {
-            // SSR 构建不拆分 chunk（单一文件模块解析更可靠）
             if (process.env.VITE_SSR === 'true') return;
 
-            // 将 src/utils 和 src/hooks 下的小模块合并为 shared-utils，减少 < 5KB 碎片请求
             if (
               id.includes('packages/frontend/src/utils/') ||
               id.includes('packages/frontend/src/hooks/')
             ) {
               return 'shared-utils';
             }
-            // 解析包名：从 node_modules 路径中提取
             const nmIdx = id.lastIndexOf('node_modules');
             if (nmIdx === -1) return;
             const afterNm = id.slice(nmIdx + 13);
             const pkg = afterNm.startsWith('@')
               ? afterNm.slice(1).split('/')[0] + '/' + afterNm.slice(1).split('/')[1]
               : afterNm.split('/')[0];
-            // 特殊处理：react-dom/server 分离（客户端不需要服务端渲染代码）
             if (pkg === 'react-dom') {
               const subPath = afterNm.split('/').slice(1).join('/');
               if (subPath.startsWith('server')) return 'react-dom-server';
@@ -380,7 +361,6 @@ export default defineConfig(async ({ command }) => {
 
             const CHUNKS: Record<string, string[]> = {
               'react-router': ['react-router-dom'],
-              // react 为 CJS 包，拆出独立 chunk 会破坏 ESM interop（浏览器报 exports undefined），留在主 bundle
               'state-vendor': ['zustand'],
               'ui-vendor': [
                 '@radix-ui',
@@ -413,9 +393,7 @@ export default defineConfig(async ({ command }) => {
           changeOrigin: true,
           secure: false,
           configure: (proxy, _options) => {
-            proxy.on('error', (_err, _req, _res) => {
-              /* Dev proxy errors are expected when backend isn't started yet */
-            });
+            proxy.on('error', () => {});
           },
         },
       },

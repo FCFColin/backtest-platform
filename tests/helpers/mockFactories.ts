@@ -314,3 +314,33 @@ export function createMockClient(): PoolClient & { query: ReturnType<typeof vi.f
     release: vi.fn(),
   } as unknown as PoolClient & { query: ReturnType<typeof vi.fn> };
 }
+
+interface PoolDbMocks {
+  query: ReturnType<typeof vi.fn>;
+  withTenant?: ReturnType<typeof vi.fn>;
+}
+
+/**
+ * 构造 db/pool 模块 mock：withTenant/withTenantReadOnly 转发到 dbMocks（记录租户断言），
+ * getPool/getReadPool 返回带 query 的假池。用于 vi.mock('...db/pool.js') 工厂。
+ * @param dbMocks - vi.hoisted 创建的 query/withTenant mock 集合
+ * @returns pool 模块 mock 对象
+ */
+export function createPoolModuleMock(dbMocks: PoolDbMocks) {
+  const client = () => ({ query: dbMocks.query });
+  return {
+    getPool: () => client(),
+    getReadPool: () => client(),
+    withTenant: <T>(tenantId: string, fn: (c: ReturnType<typeof client>) => Promise<T> | T) => {
+      dbMocks.withTenant?.(tenantId);
+      return fn(client());
+    },
+    withTenantReadOnly: <T>(
+      tenantId: string,
+      fn: (c: ReturnType<typeof client>) => Promise<T> | T,
+    ) => {
+      dbMocks.withTenant?.(tenantId);
+      return fn(client());
+    },
+  };
+}

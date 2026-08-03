@@ -92,12 +92,11 @@ Go 引擎/PostgreSQL: opossum（fail-closed 503 / 降级）；BaoStock: gobreake
 数据兜底（PG 缺失 ticker 实时抓取）；多源: BaoStock(A股) / Yahoo(美股+港股) / 东方财富(ETF)；TTL 行情缓存；
 信号量并发控制（默认 10）；sony/gobreaker 熔断。
 
-## 12. 多架构 Docker 与配置
+## 12. 多架构与配置
 
-multi-stage build（scratch/alpine）+ amd64/arm64（buildx）；SBOM(syft) + cosign Keyless（ADR-052）。
-config/: env.ts（Zod 验证）、index.ts（导出）、limits.ts（计划配额, ADR-036）。
+multi-stage（scratch/alpine）+ amd64/arm64（buildx）；SBOM(syft)+cosign（ADR-052）。config/: env.ts（Zod）、limits.ts（ADR-036）。
 
 ## 13. 关键约束
 
-- 降级语义见 [ARCHITECTURE.md §3](../ARCHITECTURE.md#3-降级策略)（引擎 fail-closed 503 无 degraded；数据服务 degraded: true）
-- x-api-key 路径 /api/v1/keys（非 /api/v1/api-keys）；Worker 独立进程；Stripe Webhook 独立挂载（签名验证, 无 jwtAuth）
+- 引擎 fail-closed 503（无 degraded）；数据服务 degraded: true（见 [ARCHITECTURE.md §3](../ARCHITECTURE.md#3-降级策略)）
+- x-api-key 路径 /api/v1/keys；Stripe Webhook 独立挂载（签名验证, 无 jwtAuth）

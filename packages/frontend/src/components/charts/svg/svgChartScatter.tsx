@@ -165,7 +165,7 @@ export function SvgScatterChart({
         orientation="bottom"
         range={plotWidth}
         ticks={xTicks.map((t) => ({ value: xScale(t), label: t.toFixed(2) }))}
-        label={xLabel ? { value: xLabel, position: 'insideBottom' } : undefined}
+        label={xLabel ? { value: xLabel } : undefined}
         gridLines
         gridColor="hsl(var(--chart-grid))"
         tickLine={false}

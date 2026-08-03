@@ -1,10 +1,4 @@
-/**
- * OpenAPI 3.0 规范注册中心入口（P1-05）。
- * 本文件是 schema -> OpenAPI 的编排入口：通过 openapi-components.ts 提供共享 registry / reg / idParam，
- * 通过 openapi-paths-*.ts 各模块注册具体路由端点，generateOpenApiDocument() 生成完整 OpenAPI 3.0 文档。
- * 生成入口：scripts/generate-openapi.ts -> docs/openapi.yaml
- * Swagger UI：packages/backend/src/middleware/miscMiddleware.ts -> GET /api/docs（仅开发环境）
- */
+/** OpenAPI 3.0 注册中心（P1-05）。生成: scripts/generate-openapi.ts -> docs/openapi.yaml; Swagger UI: GET /api/docs（仅开发环境）。 */
 import { OpenApiGeneratorV3 } from '@asteasolutions/zod-to-openapi';
 import { registry } from './openapi-components.js';
 import { registerAuthPaths } from './openapi-paths-auth.js';

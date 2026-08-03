@@ -1,9 +1,8 @@
 package signal
 
-type PricePoint struct {
-	Date  string  `json:"date"`
-	Price float64 `json:"price"`
-}
+import "engine-go/internal/engineutil"
+
+type PricePoint = engineutil.PricePoint
 type SignalDir string
 
 const (

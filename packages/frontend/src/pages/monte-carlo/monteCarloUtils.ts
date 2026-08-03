@@ -17,7 +17,7 @@ import {
 } from '@/utils/constants';
 
 export type PortfolioMode = 1 | 2;
-export type SimMode = 'standard' | 'frontier';
+type SimMode = 'standard' | 'frontier';
 export interface PortfolioState {
   name: string;
   assets: { ticker: string; weight: number }[];
@@ -324,7 +324,6 @@ interface TerminalHistogramData {
 }
 export const monthFormatter = (v: number) => (Number.isInteger(v / 12) ? `${v / 12}y` : '');
 export const dollarKFormatter = (v: number) => `$${(v / 1000).toFixed(0)}k`;
-export const dollarFormatter = fmtDollar;
 export const yearLabelFormatter = (t: TFunction, l: number) =>
   `${(l / 12).toFixed(1)} ${t('monteCarlo.results.year')}`;
 function sampleMonths(len: number) {
@@ -364,13 +363,12 @@ function buildBinData(vals: number[], binCount: number, formatBin: (v: number) =
   }));
   return { bins, labelFor: labelForBin(min, binWidth, formatBin) };
 }
-const pct1 = (v: number) => `${(v * 100).toFixed(1)}%`;
 const binLabel = (metric: DistMetric) =>
   metric === 'finalValue'
     ? dollarKFormatter
     : metric === 'cagr' || metric === 'maxDrawdown' || metric === 'volatility'
-      ? pct1
-      : (v: number) => v.toFixed(2);
+      ? (v: number) => fmtPct(v, 1)
+      : (v: number) => fmtNum(v);
 const metricValues = (metrics: PerPathMetrics[], metric: DistMetric, startingValue: number) =>
   metric === 'finalValue'
     ? metrics.map((m) => m.finalValue * startingValue)

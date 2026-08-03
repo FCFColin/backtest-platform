@@ -1,14 +1,6 @@
 /**
- * 用户仓储（CRUD）
- *
- * 企业理由：共享 ADMIN_API_KEY 无法区分用户身份，不符合 SOC 2/ISO 27001 可追溯要求。
- * 用户表支持多用户注册、argon2id 密码哈希存储、角色分配。
- * argon2id 是 OWASP 推荐的密码哈希算法（抗 GPU/ASIC 破解），
- * 比 bcrypt 更安全（内存硬，抗并行攻击）。
- * 权衡：argon2 比 bcrypt 慢约 2x（验证约 100ms），但安全性更高。
- *
- * 本仓储只承载 CRUD（无业务流程）；邮箱验证令牌与凭证校验等流程见
- * services/userService.ts。
+ * 用户仓储（CRUD）。argon2id 密码哈希（OWASP 推荐，抗 GPU/ASIC，比 bcrypt 慢 ~2x 但更安全）。
+ * 业务流程见 services/userService.ts。
  */
 import argon2 from 'argon2';
 import type { PoolClient } from 'pg';
@@ -54,13 +46,8 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 /**
- * 创建用户
- *
- * 企业理由：密码使用 argon2id 哈希存储，即使数据库泄露也无法逆向获取明文。
- * argon2id 是 Argon2 系列的推荐变体（兼顾抗侧信道和抗 GPU 破解）。
- *
  * @param username - 用户名
- * @param password - 明文密码
+ * @param password - 明文密码（argon2id 哈希存储）
  * @param role - 全局角色（默认 analyst）
  * @param email - 邮箱（可空）
  * @returns 新建用户
@@ -147,11 +134,7 @@ export async function getUserById(id: string): Promise<User | null> {
 }
 
 /**
- * 停用用户（软删除 / 可逆）。
- *
- * 企业为何需要（GDPR/PIPL 数据生命周期）：账户停用是"撤回访问"的常规操作，
- * 区别于不可逆的"被遗忘权"。保留行记录以满足审计/财务留存义务，仅阻断登录。
- *
+ * 停用用户（软删除/可逆）。GDPR/PIPL：保留行记录满足审计义务，仅阻断登录。
  * @param id - 用户 ID
  * @returns 是否有记录被更新
  */
@@ -188,11 +171,7 @@ export async function anonymizeUser(id: string): Promise<boolean> {
 }
 
 /**
- * 物理删除用户（硬删除）。
- *
- * 企业为何需要：当无审计留存义务、且监管要求彻底删除时使用。多数企业场景应优先
- * 使用 anonymizeUser（保留引用完整性）。物理删除前调用方须确保已解除外键依赖。
- *
+ * 物理删除用户。优先使用 anonymizeUser（保留引用完整性）；调用方须确保已解除外键依赖。
  * @param id - 用户 ID
  * @returns 是否有记录被删除
  */

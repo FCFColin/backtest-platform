@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
 	"fmt"
@@ -68,6 +67,7 @@ func RunBacktest(ctx context.Context, req BacktestRequest) (*BacktestResult, err
 	}
 	return result, nil
 }
+
 func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, tradingDates []time.Time, params BacktestParams) []DataPoint {
 	startValue := params.StartingValue
 	if startValue <= 0 {
@@ -84,6 +84,7 @@ func computeBenchmarkGrowth(benchmarkTicker string, priceData PriceDataMap, trad
 	}
 	return curve
 }
+
 func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[string]float64, exchangeRates map[string]float64, tradingDates []time.Time, params BacktestParams) ([]DataPoint, []AllocationPoint, error) {
 	startValue := params.StartingValue
 	if startValue <= 0 {
@@ -208,6 +209,7 @@ func computeGrowthCurve(pf PortfolioInput, priceData PriceDataMap, cpiData map[s
 	adjustForInflation(curve, vals, dates, cpiData, params.AdjustForInflation)
 	return curve, allocHistory, nil
 }
+
 func updatePrices(pf PortfolioInput, gp func(string, string) float64, date string, lastPrices []float64) {
 	for i, a := range pf.Assets {
 		if pr := gp(a.Ticker, date); pr > 0 {
@@ -232,6 +234,7 @@ func appendZeroDay(curve []DataPoint, vals []float64, date string) ([]DataPoint,
 	return append(curve, DataPoint{Date: date, Value: 0}), append(vals, 0)
 }
 func zeroHoldings(holdings []float64) { clear(holdings) }
+
 func computeStatistics(curve []DataPoint, episodes []DrawdownEpisode, benchCurve []DataPoint) Statistics {
 	if len(curve) < 2 {
 		return Statistics{}
@@ -292,159 +295,4 @@ func monthlyReturnsFromCurve(curve []DataPoint) []MonthlyReturn {
 		return nil
 	}
 	return CalcMonthlyReturns(extractValues(curve), extractDates(curve))
-}
-func extractValues(curve []DataPoint) []float64 {
-	values := make([]float64, len(curve))
-	for i, dp := range curve {
-		values[i] = dp.Value
-	}
-	return values
-}
-func extractDates(curve []DataPoint) []string {
-	dates := make([]string, len(curve))
-	for i, dp := range curve {
-		dates[i] = dp.Date
-	}
-	return dates
-}
-func getPriceWithFX(ticker, date string, priceData PriceDataMap, exchangeRates map[string]float64) float64 {
-	raw := 0.0
-	if td, ok := priceData[ticker]; ok {
-		raw = td[date]
-	}
-	if raw <= 0 {
-		return 0
-	}
-	if len(exchangeRates) > 0 {
-		if rate, ok := lookupBackdated(date, exchangeRates, 10, func(t time.Time) string { return t.Format("2006-01-02") }); ok {
-			return raw * rate
-		}
-	}
-	return raw
-}
-func lookupBackdated(date string, data map[string]float64, maxDays int, key func(time.Time) string) (float64, bool) {
-	if v, ok := data[date]; ok {
-		return v, true
-	}
-	if d, err := time.Parse("2006-01-02", date); err == nil {
-		search := d
-		for k := 0; k < maxDays; k++ {
-			search = search.AddDate(0, 0, -1)
-			if v, ok := data[key(search)]; ok {
-				return v, true
-			}
-		}
-	}
-	return 0, false
-}
-func adjustForInflation(curve []DataPoint, vals []float64, dates []string, cpiData map[string]float64, enabled bool) {
-	if !enabled || len(cpiData) == 0 {
-		return
-	}
-	startCPI := findCPIForDate(dates[0], cpiData)
-	if startCPI <= 0 {
-		return
-	}
-	for i, date := range dates {
-		if dateCPI := findCPIForDate(date, cpiData); dateCPI > 0 {
-			curve[i].Value = vals[i] * (startCPI / dateCPI)
-		}
-	}
-}
-func glidepathWeights(initialWeights, targetWeights []float64, dayIndex int, glidepathYears float64) []float64 {
-	n := len(initialWeights)
-	result := make([]float64, n)
-	if targetWeights == nil {
-		copy(result, initialWeights)
-		return result
-	}
-	progress := (float64(dayIndex) / float64(tradingDays)) / glidepathYears
-	if progress > 1 {
-		progress = 1
-	}
-	for i := range result {
-		result[i] = initialWeights[i] + (targetWeights[i]-initialWeights[i])*progress
-	}
-	return result
-}
-func normalizeWeights(assets []AssetInput) []float64 {
-	raw := make([]float64, len(assets))
-	for i, a := range assets {
-		raw[i] = a.Weight / 100.0
-	}
-	return engineutil.NormalizeWeights(raw)
-}
-
-var cashflowFreqDays = map[string]int{"weekly": 5, "monthly": 21, "quarterly": 63, "yearly": 252}
-
-func buildPeriodicCashflowMap(legs []CashflowLeg, dates []string) (map[string]float64, error) {
-	m := make(map[string]float64)
-	for _, leg := range legs {
-		if leg.Amount == 0 {
-			continue
-		}
-		amt := leg.Amount
-		if leg.Type == "withdrawal" {
-			amt = -amt
-		}
-		freqDays, ok := cashflowFreqDays[leg.Frequency]
-		if !ok {
-			return nil, fmt.Errorf("不支持的现金流频率 %q（支持：weekly/monthly/quarterly/yearly）", leg.Frequency)
-		}
-		until := leg.Until
-		if until == "" {
-			until = "9999-99-99"
-		}
-		nextIdx := 0
-		for nextIdx < len(dates) {
-			idx := nextIdx
-			if idx+freqDays < len(dates) {
-				nextIdx = idx + freqDays
-			} else {
-				break
-			}
-			if dates[nextIdx] > until {
-				break
-			}
-			m[dates[nextIdx]] += amt
-		}
-	}
-	return m, nil
-}
-func findCPIForDate(date string, cpiData map[string]float64) float64 {
-	if len(date) < 7 {
-		return 0
-	}
-	if v, ok := lookupBackdated(date, cpiData, 24, func(t time.Time) string { return t.Format("2006-01") + "-01" }); ok {
-		return v
-	}
-	return 0
-}
-func ComputeFingerprint(result *PortfolioResult) (string, error) {
-	h := sha256.New()
-	encoder := json.NewEncoder(h)
-	encoder.SetEscapeHTML(false)
-	summary := map[string]any{"final_nav": result.Statistics.CAGR, "total_return": result.Statistics.TotalReturn, "sharpe": result.Statistics.Sharpe, "max_drawdown": result.Statistics.MaxDrawdown, "sortino": result.Statistics.Sortino, "stdev": result.Statistics.Stdev, "calmar": result.Statistics.Calmar}
-	if err := encoder.Encode(summary); err != nil {
-		return "", err
-	}
-	if err := encoder.Encode(map[string]any{"growth_sampled": sampleEvery(result.GrowthCurve, 20)}); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
-}
-func sampleEvery(curve []DataPoint, n int) []DataPoint {
-	if len(curve) <= n {
-		return curve
-	}
-	result := make([]DataPoint, n)
-	step := float64(len(curve)-1) / float64(n-1)
-	for i := 0; i < n; i++ {
-		idx := int(float64(i) * step)
-		if idx >= len(curve) {
-			idx = len(curve) - 1
-		}
-		result[i] = curve[idx]
-	}
-	return result
 }

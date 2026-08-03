@@ -12,18 +12,12 @@ import {
   wrapTooltipFormatter,
 } from '@/lib/chart-theme.js';
 import type { TooltipValueFormatter } from '@/lib/chart-theme.js';
-import { SvgBarChart, SvgAreaChart, SvgScatterChart } from './svg/svgCharts.js';
+import { SvgBarChart, SvgScatterChart } from './svg/svgCharts.js';
 import type { PortfolioResult } from '@backtest/shared';
 import ChartCard from '../ChartCard.js';
 
 type SeriesNames = string[];
 type ChartDataPoint = Record<string, number | string>;
-interface ReferenceDotConfig {
-  x: string | number;
-  y: number;
-  name: string;
-  value: number;
-}
 
 function ResponsiveContainer({
   width: propWidth,
@@ -110,73 +104,6 @@ export function BarChartContent({
   );
 }
 
-interface AreaChartContentProps {
-  data: ChartDataPoint[];
-  seriesNames: SeriesNames;
-  xDataKey?: string;
-  height?: number;
-  yTickFormatter?: (v: number) => string;
-  yDomain?: [number | 'auto', number | 'auto'];
-  tooltipValueFormatter?: TooltipValueFormatter;
-  tooltipLabelFormatter?: (label: string) => string;
-  fillOpacity?: number;
-  strokeWidth?: number;
-  showBrush?: boolean;
-  brushThreshold?: number;
-  showLegend?: boolean;
-  colorOffset?: number;
-  referenceDots?: ReferenceDotConfig[];
-  useGradient?: boolean;
-  customMargin?: { top?: number; right?: number; bottom?: number; left?: number };
-  yAxisWidth?: number;
-  hideAxisLines?: boolean;
-}
-export function AreaChartContent({
-  data,
-  seriesNames,
-  xDataKey = 'date',
-  height = 300,
-  yTickFormatter,
-  yDomain,
-  tooltipValueFormatter = (v) => [v.toFixed(2), ''],
-  tooltipLabelFormatter,
-  fillOpacity = 0.12,
-  strokeWidth = 1.5,
-  showLegend = true,
-  colorOffset = 0,
-  referenceDots,
-  useGradient = false,
-  customMargin,
-  hideAxisLines = false,
-}: AreaChartContentProps) {
-  const margin = customMargin ? { ...CHART_MARGIN, ...customMargin } : CHART_MARGIN;
-  return (
-    <ResponsiveContainer height={height}>
-      {({ width }) => (
-        <SvgAreaChart
-          data={data}
-          seriesNames={seriesNames}
-          xDataKey={xDataKey}
-          width={width}
-          height={height}
-          margin={margin}
-          yTickFormatter={yTickFormatter}
-          yDomain={yDomain}
-          fillOpacity={fillOpacity}
-          strokeWidth={strokeWidth}
-          showLegend={showLegend}
-          colorOffset={colorOffset}
-          referenceDots={referenceDots}
-          useGradient={useGradient}
-          hideAxisLines={hideAxisLines}
-          tooltipValueFormatter={tooltipValueFormatter}
-          tooltipLabelFormatter={tooltipLabelFormatter}
-        />
-      )}
-    </ResponsiveContainer>
-  );
-}
-
 interface ScatterChartContentProps {
   data: Array<Record<string, string | number>>;
   xDataKey: string;
@@ -190,7 +117,6 @@ interface ScatterChartContentProps {
   margin?: { top?: number; right?: number; bottom?: number; left?: number };
   tooltipFormatter?: (value: number | string, name: string) => [string, string];
   tooltipLabelFormatter?: (label: string) => string;
-  zRange?: [number, number];
 }
 export function ScatterChartContent({
   data,
@@ -364,9 +290,9 @@ export function ChartLegend() {
   return <Legend wrapperStyle={LEGEND_WRAPPER_STYLE} />;
 }
 ChartXAxis.displayName = 'XAxis';
-ChartXAxis.defaultProps = { xAxisId: 0, type: 'category', dataKey: 'date' };
+ChartXAxis.defaultProps = { type: 'category' };
 ChartYAxis.displayName = 'YAxis';
-ChartYAxis.defaultProps = { yAxisId: 0, type: 'number' };
+ChartYAxis.defaultProps = { type: 'number' };
 ChartTooltip.displayName = 'Tooltip';
 ChartLegend.displayName = 'Legend';
 

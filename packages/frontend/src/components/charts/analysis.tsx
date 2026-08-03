@@ -16,7 +16,7 @@ import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { DrawdownChart } from './drawdownCharts.js';
 import { CorrelationMatrixTable } from './tables.js';
 import ChartCard from '../ChartCard.js';
-export const GrowthChart = memo(function GrowthChart({
+const GrowthChart = memo(function GrowthChart({
   growthData,
   portfolioResults,
 }: {
@@ -86,7 +86,6 @@ export const OverviewCharts = memo(function OverviewCharts({
 interface TelltaleChartProps {
   portfolios?: PortfolioResult[];
   results?: AssetAnalysisResult;
-  embedded?: boolean;
 }
 interface GrowthPoint {
   date: string;
@@ -186,19 +185,17 @@ function ChartEmptyMessage({ message }: { message: string }) {
 function TelltaleChartView({
   chartData,
   labels,
-  embedded,
   t,
 }: {
   chartData: Array<Record<string, number | string>>;
   labels: string[];
-  embedded: boolean;
   t: ReturnType<typeof useTranslation>['t'];
 }) {
   return (
     <TimeSeriesLineChart
       data={chartData}
       series={labels.map((label) => ({ dataKey: label, legendName: label, strokeWidth: 2 }))}
-      height={embedded ? 450 : 400}
+      height={400}
       yTickFormatter={(v: number) => v.toFixed(3)}
       yLabel={t('analysis.relativeRatio')}
       tooltipValueFormatter={(value: number, name: string) => {
@@ -212,7 +209,7 @@ function TelltaleChartView({
     />
   );
 }
-export function TelltaleChart({ portfolios, results, embedded = false }: TelltaleChartProps) {
+export function TelltaleChart({ portfolios, results }: TelltaleChartProps) {
   const { t } = useTranslation();
   const { chartData, labels, title, emptyMessage } = useMemo(
     () => computeTelltaleData(portfolios, results, t),
@@ -225,15 +222,9 @@ export function TelltaleChart({ portfolios, results, embedded = false }: Telltal
       </ChartCard>
     );
   }
-  const chart = (
-    <TelltaleChartView chartData={chartData} labels={labels} embedded={embedded} t={t} />
-  );
-  if (embedded) {
-    return <ChartCard title={title}>{chart}</ChartCard>;
-  }
   return (
     <ChartCard title={title} data={chartData} csvFilename="telltale">
-      {chart}
+      <TelltaleChartView chartData={chartData} labels={labels} t={t} />
     </ChartCard>
   );
 }

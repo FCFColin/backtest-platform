@@ -6,7 +6,6 @@ import (
 	"engine-go/internal/mathutil"
 	"errors"
 	"math"
-	"sort"
 )
 
 const (
@@ -31,16 +30,12 @@ type LETFResult struct {
 	Stats             LETFStats       `json:"stats"`
 }
 type LETFRequest struct {
-	LETFSeries  []PricePoint `json:"letfSeries"`
-	BenchSeries []PricePoint `json:"benchSeries"`
-	Leverage    float64      `json:"leverage"`
-}
-type PricePoint struct {
-	Date  string  `json:"date"`
-	Price float64 `json:"price"`
+	LETFSeries  []engineutil.PricePoint `json:"letfSeries"`
+	BenchSeries []engineutil.PricePoint `json:"benchSeries"`
+	Leverage    float64                 `json:"leverage"`
 }
 
-func alignSeries(letfSeries, benchSeries []PricePoint) []alignedPoint {
+func alignSeries(letfSeries, benchSeries []engineutil.PricePoint) []alignedPoint {
 	benchMap := make(map[string]float64)
 	for _, p := range benchSeries {
 		benchMap[p.Date] = p.Price
@@ -134,14 +129,4 @@ func AnalyzeSlippage(req LETFRequest) (*LETFResult, error) {
 			ExpectedReturn: expectedReturn, Slippage: slippage,
 		},
 	}, nil
-}
-func ToPricePoints(tickerData map[string]float64) []PricePoint {
-	var result []PricePoint
-	for date, price := range tickerData {
-		if price > 0 && !math.IsNaN(price) {
-			result = append(result, PricePoint{Date: date, Price: price})
-		}
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Date < result[j].Date })
-	return result
 }

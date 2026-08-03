@@ -12,8 +12,7 @@ import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
 import type { Column } from '../../components/tables.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import { useListState, useOptimizerLikeState } from '../../hooks/miscHooks.js';
-export type { Objective, OptimizeResultItem, BestResultItem };
-export const FREQ_LABELS = REBALANCE_LABELS;
+export type { Objective };
 export const FREQ_OPTIONS = REBALANCE_FREQUENCY_OPTIONS;
 export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
   maxCagr: 'cagr',
@@ -169,7 +168,7 @@ export function buildBestMetrics(
       value:
         best.rebalanceFrequency === 'threshold'
           ? `阈值(${best.rebalanceThreshold}%)`
-          : (FREQ_LABELS[best.rebalanceFrequency] ?? best.rebalanceFrequency),
+          : (REBALANCE_LABELS[best.rebalanceFrequency] ?? best.rebalanceFrequency),
     },
     { label: '初始资金', value: fmtDollar(best.initialCapital) },
     { label: 'CAGR', value: fmtPct(best.cagr) },
@@ -224,7 +223,7 @@ export interface BacktestOptimizerState {
   runOptimize: () => Promise<void>;
 }
 function useAssetListState() {
-  const { items, setItems, addItem, removeItem, updateItem } = useListState<{
+  const { items, addItem, removeItem, updateItem } = useListState<{
     ticker: string;
     weight: string;
   }>(
@@ -239,7 +238,6 @@ function useAssetListState() {
     updateItem(i, (prev) => ({ ...prev, [field]: val }));
   return {
     assets: items,
-    setAssets: setItems,
     addAsset: addItem,
     removeAsset: removeItem,
     updateAsset,
@@ -251,7 +249,7 @@ function useFrequencyState() {
     setFrequencies((prev) =>
       prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
     );
-  return { frequencies, setFrequencies, toggleFreq };
+  return { frequencies, toggleFreq };
 }
 function useGridParams() {
   const [thrMin, setThrMin] = useState('5');
@@ -295,8 +293,8 @@ function useConstraintState() {
   };
 }
 function useBacktestOptSetters() {
-  const { assets, setAssets, addAsset, removeAsset, updateAsset } = useAssetListState();
-  const { frequencies, setFrequencies, toggleFreq } = useFrequencyState();
+  const { assets, addAsset, removeAsset, updateAsset } = useAssetListState();
+  const { frequencies, toggleFreq } = useFrequencyState();
   const grid = useGridParams();
   const constraints = useConstraintState();
   const {
@@ -332,8 +330,6 @@ function useBacktestOptSetters() {
     best,
     benchmarkGrowth,
     totalCombos,
-    setAssets,
-    setFrequencies,
     setStartDate,
     setEndDate,
     setBenchmarkTicker,

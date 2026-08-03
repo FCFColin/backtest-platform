@@ -134,11 +134,7 @@ P0-5 扩展：8 色组合配色、双向网格、backdrop-blur Tooltip、智能�
 - **状态**：`ErrorBanner`（RFC 7807 + degraded + 503 Retry-After）、`EmptyState`、`LoadingState`+`LoadingSpinner`、`CollapsibleSection`
 - **业务**：`PortfolioEditor`/`PortfolioCard`（组合编辑）、`WeightInput`/`TickerInput`、`ChartCard`、`cards.tsx`（SectionTitle/PrefRow/StatCard）
 
-## 12. 工具函数
-
-`cn()`（`src/lib/utils.ts`）：clsx + tailwind-merge，自动去重冲突类（`px-2 px-4` → `px-4`）。
-
-## 13. 禁用模式（Phase 5 验证通过，`src/` 中零出现）
+## 12. 禁用模式（Phase 5 验证通过，`src/` 中零出现）
 
 | 模式                          | 原因             | 替代                 |
 | ----------------------------- | ---------------- | -------------------- |
@@ -150,14 +146,7 @@ P0-5 扩展：8 色组合配色、双向网格、backdrop-blur Tooltip、智能�
 
 > **例外**：i18n 翻译文件与 JSDoc 中文注释保留 em-dash。
 
-## 14. 验证命令
-
-```powershell
-npx tsc --noEmit -p tsconfig.frontend.json; npx vite build --config vite.config.ts
-# 禁用模式 grep 验证：h-screen / bg-slate- / #000000 / Inter
-```
-
-## 15. 宽度约束系统（layout-widths.ts）
+## 13. 宽度约束系统（layout-widths.ts）
 
 所有 `<Input>` 必须显式宽度类，CI 用 `check-input-widths.mjs` 强制检查。
 
@@ -168,11 +157,8 @@ npx tsc --noEmit -p tsconfig.frontend.json; npx vite build --config vite.config.
 | `CARD_GRID_CLASSES`            | `grid-cols-[repeat(auto-fill,minmax(Npx,1fr))]`（hero 用 `grid-cols-1 md:grid-cols-3`）                                                                                                                                                                      |
 | `CONTAINER_WIDTHS`             | `page`→`max-w-[1440px] mx-auto px-6`、`content`→`max-w-[1280px]`、`narrow`→`max-w-[860px]`、`form`→`max-w-[720px]`                                                                                                                                           |
 
-## 16. 迁移指南
+## 14. 迁移指南
 
-1. **外壳**：工具页 `<ToolPageLayout params results />`，静态页加 `ToolSeoCard`
-2. **分节**：独立区块用 `<Card className="p-5">`
-3. **表单**：`<Field><FieldLabel/><Input/><FieldDescription/><FieldError/></Field>`
-4. **数字/状态**：`<span className="font-mono tabular-nums">`；ErrorBanner/LoadingState/EmptyState
-5. **响应式/i18n**：`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4`；全部文案走 `t()`
-6. **禁用**：`styles/*.css` 自定义类、`bg-slate-*`、`h-screen`、`#000000`、代码中 em-dash
+1. 工具页 `<ToolPageLayout params results />`，静态页加 `ToolSeoCard`；区块用 `<Card className="p-5">`
+2. 表单：`<Field><FieldLabel/><Input/><FieldDescription/><FieldError/></Field>`
+3. 响应式/i18n：`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4`；全部文案走 `t()`

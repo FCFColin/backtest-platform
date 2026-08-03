@@ -204,13 +204,11 @@ async function searchTickersFromDb(
     sql += ' LIMIT 20';
     const { rows } = await pgCircuitBreaker.fire(sql, params);
     if (rows.length === 0) return [];
-    return rows
-      .map((r: { ticker: string; category: string; market: string }) => ({
-        ticker: r.ticker,
-        name: r.category,
-        market: r.market,
-      }))
-      .slice(0, 30);
+    return rows.map((r: { ticker: string; category: string; market: string }) => ({
+      ticker: r.ticker,
+      name: r.category,
+      market: r.market,
+    }));
   } catch (err) {
     logger.warn(
       { err },
@@ -294,26 +292,11 @@ export async function getEngineStatus(): Promise<{
   totalTickers: number;
   cachedTickers: number;
   lastUpdate: string | null;
-  progress: Record<string, unknown> | null;
-  universeAge: string | null;
 }> {
   try {
-    const db = await getDbEngineStatus();
-    return {
-      totalTickers: db.totalTickers,
-      cachedTickers: db.cachedTickers,
-      lastUpdate: db.lastUpdate,
-      progress: null,
-      universeAge: null,
-    };
+    return await getDbEngineStatus();
   } catch {
-    return {
-      totalTickers: 0,
-      cachedTickers: 0,
-      lastUpdate: null,
-      progress: null,
-      universeAge: null,
-    };
+    return { totalTickers: 0, cachedTickers: 0, lastUpdate: null };
   }
 }
 

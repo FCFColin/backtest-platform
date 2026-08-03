@@ -250,3 +250,19 @@ func WeightedDailyReturns(tickers []string, weights []float64, priceData map[str
 	}
 	return returns
 }
+
+type PricePoint struct {
+	Date  string  `json:"date"`
+	Price float64 `json:"price"`
+}
+
+func ToPricePoints(tickerData map[string]float64) []PricePoint {
+	var result []PricePoint
+	for date, price := range tickerData {
+		if price > 0 && !math.IsNaN(price) {
+			result = append(result, PricePoint{Date: date, Price: price})
+		}
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Date < result[j].Date })
+	return result
+}

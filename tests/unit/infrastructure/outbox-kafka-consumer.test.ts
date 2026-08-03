@@ -1,13 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
+  logger: createLoggerMocks(),
 }));
 
 vi.mock('../../../packages/backend/src/config/index.js', () => ({

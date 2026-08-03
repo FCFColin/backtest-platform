@@ -61,6 +61,21 @@ function IndicatorSelect({
     </Select>
   );
 }
+interface DateFieldProps {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+  id: string;
+}
+export function DateField({ value, onChange, label, id }: DateFieldProps) {
+  const { t } = useTranslation();
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{t(label)}</FieldLabel>
+      <Input id={id} type="date" value={value} onChange={(e) => onChange(e.target.value)} />
+    </Field>
+  );
+}
 interface DateRangeFieldsProps {
   startDate: string;
   endDate: string;
@@ -73,29 +88,22 @@ export function DateRangeFields({
   onStartDateChange,
   onEndDateChange,
 }: DateRangeFieldsProps) {
-  const { t } = useTranslation();
   const startId = useId();
   const endId = useId();
   return (
     <div className="grid grid-cols-2 gap-4">
-      <Field>
-        <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
-        <Input
-          id={startId}
-          type="date"
-          value={startDate}
-          onChange={(e) => onStartDateChange(e.target.value)}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
-        <Input
-          id={endId}
-          type="date"
-          value={endDate}
-          onChange={(e) => onEndDateChange(e.target.value)}
-        />
-      </Field>
+      <DateField
+        value={startDate}
+        onChange={onStartDateChange}
+        label="signal.common.startDate"
+        id={startId}
+      />
+      <DateField
+        value={endDate}
+        onChange={onEndDateChange}
+        label="signal.common.endDate"
+        id={endId}
+      />
     </div>
   );
 }
@@ -191,7 +199,6 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
     setEndDate,
   } = state;
   const combId = useId();
-  const tickerId = useId();
   const startId = useId();
   const endId = useId();
   return (
@@ -214,34 +221,14 @@ function CombinationAndDateFields({ state }: { state: UseDualSignalStateResult }
           </SelectContent>
         </Select>
       </Field>
-      <Field>
-        <FieldLabel htmlFor={tickerId}>{t('signal.common.tickerLabel')}</FieldLabel>
-        <Input
-          id={tickerId}
-          type="text"
-          value={ticker}
-          onChange={(e) => setTicker(e.target.value)}
-          placeholder={t('signal.common.tickerPlaceholder')}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
-        <Input
-          id={startId}
-          type="date"
-          value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
-        <Input
-          id={endId}
-          type="date"
-          value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-        />
-      </Field>
+      <TickerField value={ticker} onChange={setTicker} />
+      <DateField
+        value={startDate}
+        onChange={setStartDate}
+        label="signal.common.startDate"
+        id={startId}
+      />
+      <DateField value={endDate} onChange={setEndDate} label="signal.common.endDate" id={endId} />
     </div>
   );
 }
@@ -351,24 +338,13 @@ function SignalConfigSection({ state }: { state: UseSignalAnalyzerStateResult })
             </SelectContent>
           </Select>
         </Field>
-        <Field>
-          <FieldLabel htmlFor={startId}>{t('signal.common.startDate')}</FieldLabel>
-          <Input
-            id={startId}
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={endId}>{t('signal.common.endDate')}</FieldLabel>
-          <Input
-            id={endId}
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </Field>
+        <DateField
+          value={startDate}
+          onChange={setStartDate}
+          label="signal.common.startDate"
+          id={startId}
+        />
+        <DateField value={endDate} onChange={setEndDate} label="signal.common.endDate" id={endId} />
       </div>
     </section>
   );

@@ -1,31 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { lazy, Suspense, useEffect, type ReactNode } from 'react';
-import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
-import { useShallow } from 'zustand/react/shallow';
-import { useAuthStore } from '@/store/authStore';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import { RouteErrorBoundary } from '@/components/errorBoundaries';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import { onNavEnd } from '../utils/performanceReporter.js';
 import { PlaceholderPage } from '@/pages/errors/ErrorPages';
 import NotFoundPage from '@/pages/errors/ErrorPages';
 import { loadNamespace } from '../i18n/index.js';
-interface ProtectedRouteProps {
-  children: ReactNode;
-  requireAdmin?: boolean;
-}
-function ProtectedRoute({ children, requireAdmin }: ProtectedRouteProps) {
-  const { user, initialized } = useAuthStore(
-    useShallow((s) => ({ user: s.user, initialized: s.initialized })),
-  );
-  const location = useLocation();
-  if (!initialized) return null;
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
-  }
-  if (requireAdmin && !user.platformAdmin && user.role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-  return <>{children}</>;
-}
 function NsBoundary({ ns, children }: { ns: string; children: ReactNode }) {
   useEffect(() => {
     loadNamespace(ns).catch(() => {});

@@ -253,14 +253,3 @@ func calcEquityCurve(signals []SignalPoint, data []PricePoint) (equityCurve []Eq
 	}
 	return
 }
-
-func ToPricePoints(tickerData map[string]float64) []PricePoint {
-	var result []PricePoint
-	for date, price := range tickerData {
-		if !math.IsNaN(price) && price > 0 {
-			result = append(result, PricePoint{Date: date, Price: price})
-		}
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Date < result[j].Date })
-	return result
-}

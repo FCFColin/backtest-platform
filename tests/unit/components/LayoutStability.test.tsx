@@ -18,7 +18,7 @@ describe('C-006 Layout Stability — lazy() + fallback 预留高度', () => {
 
   it('PromoBar 同步读取 dismiss 状态（不在渲染后消失导致 CLS）', () => {
     const promoSource = readFileSync(
-      resolve(process.cwd(), 'packages/frontend/src/components/layout/Navbar.tsx'),
+      resolve(process.cwd(), 'packages/frontend/src/components/layout/navbarParts.tsx'),
       'utf-8',
     );
     expect(promoSource).toMatch(/localStorage\.getItem/);

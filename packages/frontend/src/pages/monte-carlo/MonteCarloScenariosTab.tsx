@@ -16,11 +16,11 @@ import { Card } from '@/components/ui/uiComponents';
 import { CHART_COLORS, type MonteCarloResult } from '@backtest/shared';
 import { AXIS_TICK_STYLE, CHART_GRID_PROPS, CHART_TOOLTIP_STYLE } from '@/lib/chart-theme.js';
 import { cn } from '@/lib/utils';
+import { fmtDollar } from '@/utils/format';
 import {
   METRIC_FORMAT,
   buildDistHistogram,
   buildScenarioData,
-  dollarFormatter,
   dollarKFormatter,
   metricLabels,
   monthFormatter,
@@ -211,7 +211,7 @@ export function MonteCarloScenariosTab({
           />
           <YAxis tick={AXIS_TICK_STYLE} tickFormatter={dollarKFormatter} />
           <Tooltip
-            formatter={dollarFormatter}
+            formatter={fmtDollar}
             labelFormatter={(l: number) => yearLabelFormatter(t, l)}
             contentStyle={CHART_TOOLTIP_STYLE}
             isAnimationActive={!isLargeDataset}

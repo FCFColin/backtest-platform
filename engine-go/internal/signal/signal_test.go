@@ -3,7 +3,7 @@ package signal
 import (
 	"context"
 	"engine-go/internal/enginetest"
-	"math"
+	"engine-go/internal/engineutil"
 	"testing"
 )
 
@@ -11,36 +11,6 @@ func trendPrices() []float64 {
 	up := []float64{100, 102, 104, 106, 108, 110, 112, 114, 116, 118}
 	down := []float64{118, 116, 114, 112, 110, 108, 106, 104, 102, 100}
 	return append(append(up, down...), up...)
-}
-func TestToPricePoints(t *testing.T) {
-	t.Run("空map返回nil", func(t *testing.T) {
-		if r := ToPricePoints(map[string]float64{}); r != nil {
-			t.Errorf("空 map 应返回 nil, got %v", r)
-		}
-	})
-	t.Run("过滤NaN和零负价格", func(t *testing.T) {
-		data := map[string]float64{"2024-01-03": 130, "2024-01-01": math.NaN(), "2024-01-02": 0, "2024-01-04": -10, "2024-01-05": 140}
-		r := ToPricePoints(data)
-		if len(r) != 2 {
-			t.Fatalf("应只保留 2 个有效点, got %d", len(r))
-		}
-		if r[0].Date != "2024-01-03" || r[1].Date != "2024-01-05" {
-			t.Errorf("应按日期升序, got %v, %v", r[0].Date, r[1].Date)
-		}
-	})
-	t.Run("按日期升序排列", func(t *testing.T) {
-		data := map[string]float64{"2024-03-01": 100, "2024-01-01": 90, "2024-02-01": 95}
-		r := ToPricePoints(data)
-		if len(r) != 3 {
-			t.Fatalf("应有 3 个点, got %d", len(r))
-		}
-		expected := []string{"2024-01-01", "2024-02-01", "2024-03-01"}
-		for i, want := range expected {
-			if r[i].Date != want {
-				t.Errorf("点 %d 日期 %v, want %v", i, r[i].Date, want)
-			}
-		}
-	})
 }
 func TestAnalyzeSignal_EmptyData(t *testing.T) {
 	t.Run("空数据无信号", func(t *testing.T) {
@@ -62,7 +32,7 @@ func TestAnalyzeSignal_EmptyData(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_SMA(t *testing.T) {
-	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
+	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "sma", Period: 5, SignalType: ""}
 	r := AnalyzeSignal(req, data)
 	t.Run("产生信号", func(t *testing.T) {
@@ -107,7 +77,7 @@ func TestAnalyzeSignal_SMA(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_FilterByType(t *testing.T) {
-	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
+	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	t.Run("entry只保留买入", func(t *testing.T) {
 		req := SignalAnalysisRequest{Indicator: "sma", Period: 5, SignalType: "entry"}
 		r := AnalyzeSignal(req, data)
@@ -128,7 +98,7 @@ func TestAnalyzeSignal_FilterByType(t *testing.T) {
 	})
 }
 func TestAnalyzeSignal_PeriodTooSmall(t *testing.T) {
-	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
+	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "sma", Period: 1}
 	r := AnalyzeSignal(req, data)
 	if r.Statistics.TotalSignals < 0 {
@@ -136,7 +106,7 @@ func TestAnalyzeSignal_PeriodTooSmall(t *testing.T) {
 	}
 }
 func TestAnalyzeSignal_UnknownIndicator(t *testing.T) {
-	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
+	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	req := SignalAnalysisRequest{Indicator: "unknown_indicator", Period: 5}
 	r := AnalyzeSignal(req, data)
 	if len(r.Signals) != 0 {
@@ -144,7 +114,7 @@ func TestAnalyzeSignal_UnknownIndicator(t *testing.T) {
 	}
 }
 func TestAnalyzeDualSignal(t *testing.T) {
-	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
+	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	cfg1 := SignalAnalysisRequest{Indicator: "sma", Period: 5}
 	cfg2 := SignalAnalysisRequest{Indicator: "ema", Period: 5}
 	t.Run("and组合", func(t *testing.T) {
@@ -174,7 +144,7 @@ func TestAnalyzeDualSignal(t *testing.T) {
 	})
 }
 func TestAnalyzeMultiSignal(t *testing.T) {
-	data := ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
+	data := engineutil.ToPricePoints(enginetest.PriceMap("2024-01-01", trendPrices()))
 	configs := []SignalAnalysisRequest{{Indicator: "sma", Period: 5}, {Indicator: "ema", Period: 5}, {Indicator: "rsi", Period: 5}}
 	t.Run("weighted聚合", func(t *testing.T) {
 		r := AnalyzeMultiSignal(context.Background(), configs, data, "weighted", []float64{0.5, 0.3, 0.2})

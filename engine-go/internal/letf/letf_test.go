@@ -1,47 +1,14 @@
 package letf
 
 import (
+	"engine-go/internal/engineutil"
 	"math"
 	"testing"
 )
 
-func TestToPricePoints(t *testing.T) {
-	t.Run("空map返回nil", func(t *testing.T) {
-		r := ToPricePoints(map[string]float64{})
-		if r != nil {
-			t.Errorf("空 map 应返回 nil, got %v", r)
-		}
-	})
-	t.Run("过滤NaN和零价格", func(t *testing.T) {
-		data := map[string]float64{"2024-01-03": 130, "2024-01-01": math.NaN(), "2024-01-02": 0, "2024-01-04": -10, "2024-01-05": 140}
-		r := ToPricePoints(data)
-		if len(r) != 2 {
-			t.Fatalf("应只保留 2 个有效点, got %d", len(r))
-		}
-		if r[0].Date != "2024-01-03" || r[1].Date != "2024-01-05" {
-			t.Errorf("应按日期升序, got %v -> %v", r[0].Date, r[1].Date)
-		}
-		if r[0].Price != 130 || r[1].Price != 140 {
-			t.Errorf("价格不正确: %v, %v", r[0].Price, r[1].Price)
-		}
-	})
-	t.Run("按日期升序排列", func(t *testing.T) {
-		data := map[string]float64{"2024-03-01": 100, "2024-01-01": 90, "2024-02-01": 95}
-		r := ToPricePoints(data)
-		if len(r) != 3 {
-			t.Fatalf("应有 3 个点, got %d", len(r))
-		}
-		expected := []string{"2024-01-01", "2024-02-01", "2024-03-01"}
-		for i, want := range expected {
-			if r[i].Date != want {
-				t.Errorf("点 %d 日期 %v, want %v", i, r[i].Date, want)
-			}
-		}
-	})
-}
 func TestAnalyzeSlippage_InsufficientData(t *testing.T) {
 	t.Run("空序列返回错误", func(t *testing.T) {
-		req := LETFRequest{LETFSeries: []PricePoint{}, BenchSeries: []PricePoint{}, Leverage: 2}
+		req := LETFRequest{LETFSeries: []engineutil.PricePoint{}, BenchSeries: []engineutil.PricePoint{}, Leverage: 2}
 		r, err := AnalyzeSlippage(req)
 		if err == nil {
 			t.Errorf("应返回错误, got %+v", r)
@@ -51,15 +18,15 @@ func TestAnalyzeSlippage_InsufficientData(t *testing.T) {
 		}
 	})
 	t.Run("仅1个交易日返回错误", func(t *testing.T) {
-		req := LETFRequest{LETFSeries: []PricePoint{{Date: "2024-01-01", Price: 100}}, BenchSeries: []PricePoint{{Date: "2024-01-01", Price: 100}}, Leverage: 2}
+		req := LETFRequest{LETFSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}}, BenchSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}}, Leverage: 2}
 		if _, err := AnalyzeSlippage(req); err == nil {
 			t.Errorf("至少需要 2 个交易日, 应返回错误")
 		}
 	})
 	t.Run("日期不匹配返回错误", func(t *testing.T) {
 		req := LETFRequest{
-			LETFSeries:  []PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}},
-			BenchSeries: []PricePoint{{Date: "2024-02-01", Price: 100}, {Date: "2024-02-02", Price: 110}},
+			LETFSeries:  []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}},
+			BenchSeries: []engineutil.PricePoint{{Date: "2024-02-01", Price: 100}, {Date: "2024-02-02", Price: 110}},
 			Leverage:    2,
 		}
 		if _, err := AnalyzeSlippage(req); err == nil {
@@ -69,11 +36,11 @@ func TestAnalyzeSlippage_InsufficientData(t *testing.T) {
 }
 func TestAnalyzeSlippage_NoSlippage(t *testing.T) {
 	req := LETFRequest{
-		LETFSeries: []PricePoint{
+		LETFSeries: []engineutil.PricePoint{
 			{Date: "2024-01-01", Price: 100},
 			{Date: "2024-01-02", Price: 120}, // +20% = 2x benchmark +10%
 		},
-		BenchSeries: []PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}},
+		BenchSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}},
 		Leverage:    2,
 	}
 	r, err := AnalyzeSlippage(req)
@@ -111,8 +78,8 @@ func TestAnalyzeSlippage_NoSlippage(t *testing.T) {
 }
 func TestAnalyzeSlippage_WithSlippage(t *testing.T) {
 	req := LETFRequest{
-		LETFSeries:  []PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 115}},
-		BenchSeries: []PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}},
+		LETFSeries:  []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 115}},
+		BenchSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}},
 		Leverage:    2,
 	}
 	r, err := AnalyzeSlippage(req)
@@ -133,8 +100,8 @@ func TestAnalyzeSlippage_WithSlippage(t *testing.T) {
 }
 func TestAnalyzeSlippage_EffectiveLeverage(t *testing.T) {
 	req := LETFRequest{
-		LETFSeries:  []PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}, {Date: "2024-01-03", Price: 105}},
-		BenchSeries: []PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 105}, {Date: "2024-01-03", Price: 102}},
+		LETFSeries:  []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 110}, {Date: "2024-01-03", Price: 105}},
+		BenchSeries: []engineutil.PricePoint{{Date: "2024-01-01", Price: 100}, {Date: "2024-01-02", Price: 105}, {Date: "2024-01-03", Price: 102}},
 		Leverage:    2,
 	}
 	r, err := AnalyzeSlippage(req)

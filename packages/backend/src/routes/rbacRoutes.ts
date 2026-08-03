@@ -1,18 +1,7 @@
 /**
- * 可配置 RBAC 管理路由（P2-01）
- *
- * 挂载于 /api/v1/admin（app.ts 前置链：jwtAuth → resolveTenant → requireTenant
- * → requirePermission(ADMIN_ACCESS) → auditLog）。本路由提供角色 CRUD、
- * 角色权限管理、用户角色绑定的 Admin API。
- *
- * 企业理由：将 RBAC 配置从代码下沉到数据库后，需要一个管理接口供管理员
- * 动态创建自定义角色、分配权限、绑定用户。所有写操作在完成后主动失效
- * 受影响用户的权限缓存，保证变更即时生效。
- *
- * 安全约束：
- * - 所有端点要求 admin:access 权限（前置中间件链强制）
- * - 系统角色（is_system=TRUE）禁止修改/删除（repo 层 + 路由层双重校验）
- * - 角色 CRUD 操作验证目标角色属于当前租户（防跨租户越权）
+ * 可配置 RBAC 管理路由（P2-01）。挂载于 /api/v1/admin（前置 admin 链）。
+ * 安全约束：系统角色禁止修改/删除（双重校验）；角色 CRUD 验证租户归属（防跨租户越权）。
+ * 写操作后主动失效受影响用户权限缓存。
  */
 import { Router, type Response } from 'express';
 import { z } from 'zod';
@@ -40,7 +29,6 @@ import {
 
 const router = Router();
 
-/** 权限字符串校验：非空、长度 ≤60、冒号分隔的命名空间格式（如 backtest:run） */
 const permissionString = z
   .string()
   .min(1)
@@ -89,16 +77,12 @@ async function guardRoleInOrg(
   return tenantId;
 }
 
-// 角色 CRUD
-
-/** GET /api/v1/admin/roles — 列出租户角色 + 系统角色 */
 router.get('/roles', async (req: AuthenticatedRequest, res: Response) => {
   const tenantId = requireTenantId(req, res);
   if (!tenantId) return;
   res.json({ success: true, data: await getRolesByOrg(tenantId) });
 });
 
-/** POST /api/v1/admin/roles — 创建自定义角色 */
 router.post(
   '/roles',
   validate(createRoleSchema),
@@ -120,7 +104,6 @@ router.post(
   },
 );
 
-/** PUT /api/v1/admin/roles/:id — 更新角色（拒绝系统角色） */
 router.put(
   '/roles/:id',
   validate(updateRoleSchema),
@@ -140,7 +123,6 @@ router.put(
   },
 );
 
-/** DELETE /api/v1/admin/roles/:id — 删除角色（拒绝系统角色） */
 router.delete('/roles/:id', async (req: AuthenticatedRequest, res: Response) => {
   if (!(await guardRoleInOrg(req, res, req.params.id))) return;
   const result = await deleteRole(req.params.id);
@@ -155,13 +137,11 @@ router.delete('/roles/:id', async (req: AuthenticatedRequest, res: Response) => 
   res.json({ success: true, data: { deleted: true } });
 });
 
-/** GET /api/v1/admin/roles/:id/permissions — 列出角色权限 */
 router.get('/roles/:id/permissions', async (req: AuthenticatedRequest, res: Response) => {
   if (!(await guardRoleInOrg(req, res, req.params.id))) return;
   res.json({ success: true, data: await getRolePermissions(req.params.id) });
 });
 
-/** PUT /api/v1/admin/roles/:id/permissions — 替换角色权限 + 失效受影响用户缓存 */
 router.put(
   '/roles/:id/permissions',
   validate(setPermissionsSchema),
@@ -183,13 +163,11 @@ router.put(
   },
 );
 
-/** GET /api/v1/admin/users/:userId/roles — 列出用户角色 */
 router.get('/users/:userId/roles', async (req: AuthenticatedRequest, res: Response) => {
   if (!requireUuidParam(res, req.params.userId)) return;
   res.json({ success: true, data: await getUserRoles(req.params.userId) });
 });
 
-/** POST /api/v1/admin/users/:userId/roles — 分配角色 + 失效用户缓存 */
 router.post(
   '/users/:userId/roles',
   validate(assignRoleSchema),
@@ -203,7 +181,6 @@ router.post(
   },
 );
 
-/** DELETE /api/v1/admin/users/:userId/roles/:roleId — 移除角色 + 失效用户缓存 */
 router.delete('/users/:userId/roles/:roleId', async (req: AuthenticatedRequest, res: Response) => {
   if (!requireUuidParam(res, req.params.userId)) return;
   if (!requireUuidParam(res, req.params.roleId)) return;

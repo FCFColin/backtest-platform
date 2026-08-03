@@ -94,6 +94,28 @@ function SelectField<T extends string>({
   );
 }
 
+function SwitchField({
+  htmlFor,
+  labelKey,
+  checked,
+  onCheckedChange,
+}: {
+  htmlFor: string;
+  labelKey: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Field>
+      <div className="flex items-center justify-between">
+        <FieldLabel htmlFor={htmlFor}>{t(labelKey)}</FieldLabel>
+        <Switch id={htmlFor} checked={checked} onCheckedChange={onCheckedChange} />
+      </div>
+    </Field>
+  );
+}
+
 function TickerEditor({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const handleTagChange = (newTickers: string[]) => {
@@ -116,108 +138,141 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
   );
 }
 
+function GridField({
+  id,
+  labelKey,
+  value,
+  onChange,
+  type,
+  disabled,
+  step,
+  min,
+  max,
+}: {
+  id: string;
+  labelKey: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  type: 'date' | 'percent';
+  disabled?: boolean;
+  step?: number;
+  min?: number;
+  max?: number;
+}) {
+  const { t } = useTranslation();
+  return (
+    <LabeledField htmlFor={id} labelKey={t(labelKey)}>
+      {type === 'date' ? (
+        <Input
+          id={id}
+          type="date"
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <PercentInput
+          id={id}
+          step={step}
+          value={value}
+          min={min}
+          max={max}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </LabeledField>
+  );
+}
+
+function SolverSettingsGrid({ s, allHistory }: { s: EfficientFrontierState; allHistory: boolean }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <SwitchField
+        htmlFor="opt-all-history"
+        labelKey="optimizer.allHistory"
+        checked={allHistory}
+        onCheckedChange={(checked) => {
+          const [sd, ed] = checked ? ['', ''] : [DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE];
+          s.setStartDate(sd);
+          s.setEndDate(ed);
+        }}
+      />
+      <GridField
+        id="opt-start-date"
+        labelKey="optimizer.startDate"
+        value={s.startDate}
+        onChange={s.setStartDate}
+        type="date"
+        disabled={allHistory}
+      />
+      <GridField
+        id="opt-end-date"
+        labelKey="optimizer.endDate"
+        value={s.endDate}
+        onChange={s.setEndDate}
+        type="date"
+        disabled={allHistory}
+      />
+      <GridField
+        id="opt-min-weight"
+        labelKey="optimizer.minWeight"
+        value={s.minWeight}
+        onChange={(v) => s.setMinWeight(Number(v))}
+        type="percent"
+        min={0}
+        max={100}
+      />
+      <GridField
+        id="opt-max-weight"
+        labelKey="optimizer.maxWeight"
+        value={s.maxWeight}
+        onChange={(v) => s.setMaxWeight(Number(v))}
+        type="percent"
+        min={0}
+        max={100}
+      />
+      <SelectField
+        id="opt-objective"
+        labelKey="optimizer.objective"
+        value={s.objective}
+        onChange={s.setObjective}
+        options={OBJECTIVES}
+      />
+      <GridField
+        id="opt-tbill"
+        labelKey="optimizer.tbillRate"
+        value={s.tbillRate}
+        onChange={(v) => s.setTbillRate(Number(v))}
+        type="percent"
+        step={0.1}
+      />
+      <SelectField
+        id="opt-solver"
+        labelKey="optimizer.solver"
+        value={s.solver}
+        onChange={(v) => s.setSolver(v as SolverType)}
+        options={SOLVERS}
+      />
+      <SwitchField
+        htmlFor="opt-short"
+        labelKey="optimizer.allowShort"
+        checked={s.allowShort}
+        onCheckedChange={s.setAllowShort}
+      />
+    </div>
+  );
+}
+
 function SolverSettings({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
   const allHistory = s.startDate === '' && s.endDate === '';
-  const dateFields = [
-    {
-      id: 'opt-start-date',
-      labelKey: 'optimizer.startDate',
-      value: s.startDate,
-      setter: s.setStartDate,
-    },
-    { id: 'opt-end-date', labelKey: 'optimizer.endDate', value: s.endDate, setter: s.setEndDate },
-  ];
-  const weightFields = [
-    {
-      id: 'opt-min-weight',
-      labelKey: 'optimizer.minWeight',
-      value: s.minWeight,
-      setter: s.setMinWeight,
-    },
-    {
-      id: 'opt-max-weight',
-      labelKey: 'optimizer.maxWeight',
-      value: s.maxWeight,
-      setter: s.setMaxWeight,
-    },
-  ];
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader
         title={t('optimizer.solverSettings')}
         info={t('optimizer.solverSettingsInfo')}
       />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="opt-all-history">{t('optimizer.allHistory')}</FieldLabel>
-            <Switch
-              id="opt-all-history"
-              checked={allHistory}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  s.setStartDate('');
-                  s.setEndDate('');
-                } else {
-                  s.setStartDate(DEFAULT_BACKTEST_START_DATE);
-                  s.setEndDate(DEFAULT_END_DATE);
-                }
-              }}
-            />
-          </div>
-        </Field>
-        {dateFields.map((f) => (
-          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
-            <Input
-              id={f.id}
-              type="date"
-              value={f.value}
-              disabled={allHistory}
-              onChange={(e) => f.setter(e.target.value)}
-            />
-          </LabeledField>
-        ))}
-        <SelectField
-          id="opt-objective"
-          labelKey="optimizer.objective"
-          value={s.objective}
-          onChange={s.setObjective}
-          options={OBJECTIVES}
-        />
-        {weightFields.map((f) => (
-          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
-            <PercentInput
-              id={f.id}
-              value={f.value}
-              min={0}
-              max={100}
-              onChange={(e) => f.setter(Number(e.target.value))}
-            />
-          </LabeledField>
-        ))}
-        <LabeledField htmlFor="opt-tbill" labelKey={t('optimizer.tbillRate')}>
-          <PercentInput
-            id="opt-tbill"
-            step={0.1}
-            value={s.tbillRate}
-            onChange={(e) => s.setTbillRate(Number(e.target.value))}
-          />
-        </LabeledField>
-        <SelectField
-          id="opt-solver"
-          labelKey="optimizer.solver"
-          value={s.solver}
-          onChange={(v) => s.setSolver(v as SolverType)}
-          options={SOLVERS}
-        />
-        <Field>
-          <div className="flex items-center justify-between">
-            <FieldLabel htmlFor="opt-short">{t('optimizer.allowShort')}</FieldLabel>
-            <Switch id="opt-short" checked={s.allowShort} onCheckedChange={s.setAllowShort} />
-          </div>
-        </Field>
-      </div>
+      <SolverSettingsGrid s={s} allHistory={allHistory} />
     </section>
   );
 }
@@ -341,7 +396,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
                 step={f.step}
                 min={f.min}
                 max={f.max}
-                value={f.value as number}
+                value={f.value}
                 placeholder="-"
                 onChange={(e) => f.setter(e.target.value)}
               />
@@ -351,7 +406,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
                 step={f.step}
                 min={f.min}
                 max={f.max}
-                value={f.value as number}
+                value={f.value}
                 placeholder="-"
                 onChange={(e) => f.setter(e.target.value)}
               />

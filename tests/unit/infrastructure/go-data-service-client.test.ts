@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import http, { type Server } from 'http';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 vi.hoisted(() => {
   process.env.MAX_RESPONSE_BODY_SIZE = '100';
@@ -20,13 +21,7 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
+  logger: createLoggerMocks(),
 }));
 
 import { callGoDataService } from '../../../packages/backend/src/infrastructure/goDataServiceClient.js';

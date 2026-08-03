@@ -16,8 +16,6 @@ describe('dataManageRoutes - GET 读端点', () => {
       totalTickers: 500,
       cachedTickers: 100,
       lastUpdate: '2024-06-30',
-      progress: null,
-      universeAge: '1 day',
     });
     engineServiceMocks.scanMarketStatsFromDb.mockResolvedValue(createMockStats());
     engineServiceMocks.resolveUniverseFromCacheStats.mockReturnValue({

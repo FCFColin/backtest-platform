@@ -1,24 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
+import {
+  mockLogger,
+  createConfigMocks,
+  createPoolModuleMock,
+} from '../../helpers/mockFactories.js';
 
 const dbMocks = vi.hoisted(() => ({
   query: vi.fn(),
   withTenant: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  withTenant: (_tenantId: string, fn: (client: { query: typeof dbMocks.query }) => unknown) => {
-    dbMocks.withTenant(_tenantId);
-    return fn({ query: dbMocks.query });
-  },
-  withTenantReadOnly: (
-    _tenantId: string,
-    fn: (client: { query: typeof dbMocks.query }) => unknown,
-  ) => {
-    dbMocks.withTenant(_tenantId);
-    return fn({ query: dbMocks.query });
-  },
-}));
+vi.mock('../../../packages/backend/src/db/pool.js', () => createPoolModuleMock(dbMocks));
 
 const loggerMocks = vi.hoisted(() => ({
   info: vi.fn(),

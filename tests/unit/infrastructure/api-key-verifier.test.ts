@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const dbMocks = vi.hoisted(() => ({ query: vi.fn() }));
 const redisMocks = vi.hoisted(() => ({
@@ -17,13 +18,7 @@ vi.mock('../../../packages/backend/src/db/pool.js', () => ({
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
+  logger: createLoggerMocks(),
 }));
 
 vi.mock('../../../packages/backend/src/repositories/apiKeyRepo.js', () => ({

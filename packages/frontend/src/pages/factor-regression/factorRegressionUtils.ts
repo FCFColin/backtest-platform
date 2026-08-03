@@ -1,5 +1,5 @@
 import { CHART_COLORS } from '@backtest/shared';
-import { apiFetch } from '../../utils/apiClient.js';
+import { apiFetch, apiGetJSON } from '../../utils/apiClient.js';
 import i18n from '../../i18n/index.js';
 interface FFDataPoint {
   date: string;
@@ -59,10 +59,12 @@ export const FACTOR_COLORS = {
 let ffDataCache: FFDataPoint[] | null = null;
 async function loadFamaFrenchData(): Promise<FFDataPoint[]> {
   if (ffDataCache) return ffDataCache;
-  const res = await apiFetch('/api/v1/data/factors');
-  if (!res.success) throw new Error(i18n.t('factorRegression.errLoadFF'));
-  ffDataCache = (res.data as FFDataPoint[]).map((r) => ({
-    date: r.date as string,
+  const rows = await apiGetJSON<Array<Record<string, unknown>>>(
+    '/api/v1/data/factors',
+    i18n.t('factorRegression.errLoadFF'),
+  );
+  ffDataCache = rows.map((r) => ({
+    date: String(r.date ?? ''),
     mktRf: Number(r.mktRf ?? r.mkt_rf) || 0,
     smb: Number(r.smb) || 0,
     hml: Number(r.hml) || 0,
