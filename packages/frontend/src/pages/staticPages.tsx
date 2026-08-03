@@ -160,32 +160,40 @@ function UpgradeContent() {
     </div>
   );
 }
+const ABOUT_TABS = [
+  { key: 'about', labelKey: 'about.tabs.about', to: '/about', titleKey: 'about.title' },
+  { key: 'limits', labelKey: 'about.tabs.limits', to: '/limits', titleKey: 'about.limitsTitle' },
+  {
+    key: 'upgrade',
+    labelKey: 'about.tabs.upgrade',
+    to: '/upgrade',
+    titleKey: 'about.upgradeTitle',
+  },
+] as const;
+const ABOUT_SECTIONS: Record<string, ComponentType> = {
+  about: AboutContent,
+  limits: LimitsContent,
+  upgrade: UpgradeContent,
+};
 export function AboutPage({ section }: { section?: string }) {
   const { t } = useTranslation();
   const s = section || 'about';
-  const titleKey =
-    s === 'limits' ? 'about.limitsTitle' : s === 'upgrade' ? 'about.upgradeTitle' : 'about.title';
-  const tabs = [
-    { key: 'about', label: t('about.tabs.about'), to: '/about' },
-    { key: 'limits', label: t('about.tabs.limits'), to: '/limits' },
-    { key: 'upgrade', label: t('about.tabs.upgrade'), to: '/upgrade' },
-  ];
+  const tab = ABOUT_TABS.find((x) => x.key === s) ?? ABOUT_TABS[0];
+  const Content = ABOUT_SECTIONS[s] ?? AboutContent;
   return (
-    <StaticPageShell title={t(titleKey)}>
+    <StaticPageShell title={t(tab.titleKey)}>
       <div className="mb-6 flex gap-2 border-b-2 border-subtle pb-3">
-        {tabs.map((tab) => (
+        {ABOUT_TABS.map((tab) => (
           <Link
             key={tab.key}
             to={tab.to}
             className={`rounded-lg px-4 py-2 text-label font-semibold no-underline ${s === tab.key ? 'bg-brand/10 text-brand' : 'text-fg-tertiary hover:text-fg-secondary'}`}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </Link>
         ))}
       </div>
-      {s === 'about' && <AboutContent />}
-      {s === 'limits' && <LimitsContent />}
-      {s === 'upgrade' && <UpgradeContent />}
+      <Content />
     </StaticPageShell>
   );
 }

@@ -114,22 +114,22 @@ export function useComputeTool<TResult>(
 }
 
 export function useOptimizerLikeState<TResults>() {
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<TResults | null>(null);
+  const [state, setState] = useState({
+    startDate: DEFAULT_BACKTEST_START_DATE,
+    endDate: DEFAULT_END_DATE,
+    isLoading: false,
+    error: null as string | null,
+    results: null as TResults | null,
+  });
+  const patch = <K extends keyof typeof state>(key: K, value: (typeof state)[K]) =>
+    setState((prev) => ({ ...prev, [key]: value }));
   return {
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results,
-    setResults,
+    ...state,
+    setStartDate: (v: string) => patch('startDate', v),
+    setEndDate: (v: string) => patch('endDate', v),
+    setIsLoading: (v: boolean) => patch('isLoading', v),
+    setError: (v: string | null) => patch('error', v),
+    setResults: (v: TResults | null) => patch('results', v),
   };
 }
 
