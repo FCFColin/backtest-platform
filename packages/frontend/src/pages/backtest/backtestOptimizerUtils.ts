@@ -11,7 +11,8 @@ import {
 import { fmtPct, fmtNum, fmtDollar } from '@/utils/format';
 import type { Column } from '../../components/tables.js';
 import { apiPostJSON } from '@/utils/apiClient';
-import { useListState, useOptimizerLikeState } from '../../hooks/miscHooks.js';
+import { useListState } from '../../hooks/miscHooks.js';
+import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 export type { Objective };
 export const FREQ_OPTIONS = REBALANCE_FREQUENCY_OPTIONS;
 export const OBJECTIVE_SORT_KEY: Record<Objective, keyof OptimizeResultItem> = {
@@ -61,9 +62,41 @@ export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
   numCol('sortino', 'Sortino'),
   numCol('calmar', 'Calmar'),
 ];
-interface GrowthPoint {
-  date: string;
-  value: number;
+export interface OptimizerFormState {
+  thrMin: string;
+  thrMax: string;
+  thrStep: string;
+  capMin: string;
+  capMax: string;
+  capStep: string;
+  objective: Objective;
+  enableMaxDD: boolean;
+  maxDD: string;
+  enableMinCagr: boolean;
+  minCagr: string;
+  startDate: string;
+  endDate: string;
+  benchmarkTicker: string;
+}
+export interface OptimizerResultState {
+  isLoading: boolean;
+  error: string | null;
+  results: OptimizeResultItem[] | null;
+  best: BestResultItem | null;
+  benchmarkGrowth: Array<{ date: string; value: number }> | null;
+  totalCombos: number;
+}
+export interface BacktestOptimizerState {
+  assets: Array<{ ticker: string; weight: string }>;
+  frequencies: RebalanceFrequency[];
+  form: OptimizerFormState;
+  patchForm: (patch: Partial<OptimizerFormState>) => void;
+  result: OptimizerResultState;
+  addAsset: () => void;
+  removeAsset: (i: number) => void;
+  updateAsset: (i: number, field: 'ticker' | 'weight', val: string) => void;
+  toggleFreq: (freq: RebalanceFrequency) => void;
+  runOptimize: () => Promise<void>;
 }
 export interface OptimizerSectionProps {
   s: BacktestOptimizerState;
@@ -74,7 +107,7 @@ export interface BestMetricsCardProps {
 }
 export interface GrowthComparisonChartProps {
   best: BestResultItem | null;
-  benchmarkGrowth: GrowthPoint[] | null;
+  benchmarkGrowth: Array<{ date: string; value: number }> | null;
 }
 export interface ComparisonTableSectionProps {
   results: OptimizeResultItem[];
@@ -88,29 +121,38 @@ export interface ConstraintRowProps {
   setValue: (v: string) => void;
   placeholder: string;
 }
+const DEFAULT_FORM: OptimizerFormState = {
+  thrMin: '5',
+  thrMax: '20',
+  thrStep: '5',
+  capMin: '10000',
+  capMax: '10000',
+  capStep: '1000',
+  objective: 'maxSharpe',
+  enableMaxDD: false,
+  maxDD: '20',
+  enableMinCagr: false,
+  minCagr: '5',
+  startDate: DEFAULT_BACKTEST_START_DATE,
+  endDate: DEFAULT_END_DATE,
+  benchmarkTicker: 'VTI',
+};
+const EMPTY_RESULT: OptimizerResultState = {
+  isLoading: false,
+  error: null,
+  results: null,
+  best: null,
+  benchmarkGrowth: null,
+  totalCombos: 0,
+};
 function buildOptimizeBody(
   validAssets: Array<{ ticker: string; weight: string }>,
   frequencies: RebalanceFrequency[],
-  range: {
-    thrMin: string;
-    thrMax: string;
-    thrStep: string;
-    capMin: string;
-    capMax: string;
-    capStep: string;
-  },
-  dates: { startDate: string; endDate: string; benchmarkTicker: string },
-  config: {
-    objective: Objective;
-    enableMaxDD: boolean;
-    maxDD: string;
-    enableMinCagr: boolean;
-    minCagr: string;
-  },
+  form: OptimizerFormState,
 ): Record<string, unknown> {
   const c: Record<string, number> = {};
-  if (config.enableMaxDD && config.maxDD !== '') c.maxDrawdown = Number(config.maxDD);
-  if (config.enableMinCagr && config.minCagr !== '') c.minCagr = Number(config.minCagr);
+  if (form.enableMaxDD && form.maxDD !== '') c.maxDrawdown = Number(form.maxDD);
+  if (form.enableMinCagr && form.minCagr !== '') c.minCagr = Number(form.minCagr);
   return {
     portfolio: {
       assets: validAssets.map((a) => ({
@@ -121,24 +163,24 @@ function buildOptimizeBody(
     parameterSpace: {
       rebalanceFrequencies: frequencies,
       rebalanceThreshold: {
-        min: Number(range.thrMin),
-        max: Number(range.thrMax),
-        step: Number(range.thrStep),
+        min: Number(form.thrMin),
+        max: Number(form.thrMax),
+        step: Number(form.thrStep),
       },
       initialCapital: {
-        min: Number(range.capMin),
-        max: Number(range.capMax),
-        step: Number(range.capStep),
+        min: Number(form.capMin),
+        max: Number(form.capMax),
+        step: Number(form.capStep),
       },
     },
     parameters: {
-      startDate: dates.startDate,
-      endDate: dates.endDate,
-      benchmarkTicker: dates.benchmarkTicker.trim().toUpperCase(),
+      startDate: form.startDate,
+      endDate: form.endDate,
+      benchmarkTicker: form.benchmarkTicker.trim().toUpperCase(),
       baseCurrency: 'usd',
       adjustForInflation: false,
     },
-    objective: config.objective,
+    objective: form.objective,
     constraints: c,
   };
 }
@@ -158,6 +200,14 @@ export function buildChartData(
   }
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
+const BEST_METRIC_DEFS: Array<[keyof BestResultItem, string, (v: number) => string]> = [
+  ['cagr', 'CAGR', fmtPct],
+  ['maxDrawdown', '最大回撤', fmtPct],
+  ['stdev', '波动率', fmtPct],
+  ['sharpe', 'Sharpe', fmtNum],
+  ['sortino', 'Sortino', fmtNum],
+  ['calmar', 'Calmar', fmtNum],
+];
 export function buildBestMetrics(
   best: BestResultItem | null,
 ): Array<{ label: string; value: string }> {
@@ -171,62 +221,16 @@ export function buildBestMetrics(
           : (REBALANCE_LABELS[best.rebalanceFrequency] ?? best.rebalanceFrequency),
     },
     { label: '初始资金', value: fmtDollar(best.initialCapital) },
-    { label: 'CAGR', value: fmtPct(best.cagr) },
-    { label: '最大回撤', value: fmtPct(best.maxDrawdown) },
-    { label: '波动率', value: fmtPct(best.stdev) },
-    { label: 'Sharpe', value: fmtNum(best.sharpe) },
-    { label: 'Sortino', value: fmtNum(best.sortino) },
-    { label: 'Calmar', value: fmtNum(best.calmar) },
+    ...BEST_METRIC_DEFS.map(([key, label, fmt]) => ({ label, value: fmt(best[key] as number) })),
   ];
 }
-export interface BacktestOptimizerState {
-  assets: Array<{ ticker: string; weight: string }>;
-  frequencies: RebalanceFrequency[];
-  thrMin: string;
-  thrMax: string;
-  thrStep: string;
-  capMin: string;
-  capMax: string;
-  capStep: string;
-  objective: Objective;
-  enableMaxDD: boolean;
-  maxDD: string;
-  enableMinCagr: boolean;
-  minCagr: string;
-  startDate: string;
-  endDate: string;
-  benchmarkTicker: string;
-  isLoading: boolean;
-  error: string | null;
-  results: OptimizeResultItem[] | null;
-  best: BestResultItem | null;
-  benchmarkGrowth: Array<{ date: string; value: number }> | null;
-  totalCombos: number;
-  addAsset: () => void;
-  removeAsset: (i: number) => void;
-  updateAsset: (i: number, field: 'ticker' | 'weight', val: string) => void;
-  toggleFreq: (freq: RebalanceFrequency) => void;
-  setObjective: (v: Objective) => void;
-  setEnableMaxDD: (v: boolean) => void;
-  setMaxDD: (v: string) => void;
-  setEnableMinCagr: (v: boolean) => void;
-  setMinCagr: (v: string) => void;
-  setThrMin: (v: string) => void;
-  setThrMax: (v: string) => void;
-  setThrStep: (v: string) => void;
-  setCapMin: (v: string) => void;
-  setCapMax: (v: string) => void;
-  setCapStep: (v: string) => void;
-  setStartDate: (v: string) => void;
-  setEndDate: (v: string) => void;
-  setBenchmarkTicker: (v: string) => void;
-  runOptimize: () => Promise<void>;
-}
-function useAssetListState() {
-  const { items, addItem, removeItem, updateItem } = useListState<{
-    ticker: string;
-    weight: string;
-  }>(
+export function useOptimizerState(): BacktestOptimizerState {
+  const {
+    items: assets,
+    addItem: addAsset,
+    removeItem: removeAsset,
+    updateItem,
+  } = useListState<{ ticker: string; weight: string }>(
     [
       { ticker: 'VTI', weight: '60' },
       { ticker: 'BND', weight: '40' },
@@ -236,169 +240,61 @@ function useAssetListState() {
   );
   const updateAsset = (i: number, field: 'ticker' | 'weight', val: string) =>
     updateItem(i, (prev) => ({ ...prev, [field]: val }));
-  return {
-    assets: items,
-    addAsset: addItem,
-    removeAsset: removeItem,
-    updateAsset,
-  };
-}
-function useFrequencyState() {
   const [frequencies, setFrequencies] = useState<RebalanceFrequency[]>(['quarterly']);
   const toggleFreq = (freq: RebalanceFrequency) =>
     setFrequencies((prev) =>
       prev.includes(freq) ? prev.filter((f) => f !== freq) : [...prev, freq],
     );
-  return { frequencies, toggleFreq };
-}
-function useGridParams() {
-  const [thrMin, setThrMin] = useState('5');
-  const [thrMax, setThrMax] = useState('20');
-  const [thrStep, setThrStep] = useState('5');
-  const [capMin, setCapMin] = useState('10000');
-  const [capMax, setCapMax] = useState('10000');
-  const [capStep, setCapStep] = useState('1000');
-  return {
-    thrMin,
-    setThrMin,
-    thrMax,
-    setThrMax,
-    thrStep,
-    setThrStep,
-    capMin,
-    setCapMin,
-    capMax,
-    setCapMax,
-    capStep,
-    setCapStep,
+  const [form, setForm] = useState<OptimizerFormState>(DEFAULT_FORM);
+  const patchForm = (patch: Partial<OptimizerFormState>) =>
+    setForm((prev) => ({ ...prev, ...patch }));
+  const [result, setResult] = useState<OptimizerResultState>(EMPTY_RESULT);
+  const patchResult = (patch: Partial<OptimizerResultState>) =>
+    setResult((prev) => ({ ...prev, ...patch }));
+  const runOptimize = async () => {
+    const validAssets = assets.filter((a) => a.ticker.trim());
+    if (validAssets.length === 0) {
+      patchResult({ error: i18n.t('errors.atLeastOneTicker') });
+      return;
+    }
+    if (frequencies.length === 0) {
+      patchResult({ error: i18n.t('errors.atLeastOneRebalanceFreq') });
+      return;
+    }
+    patchResult({ isLoading: true, error: null, results: null, best: null, benchmarkGrowth: null });
+    try {
+      const data = await apiPostJSON<{
+        results?: OptimizeResultItem[];
+        best?: BestResultItem | null;
+        benchmarkGrowth?: { date: string; value: number }[] | null;
+        totalCombinations?: number;
+      }>(
+        '/api/v1/backtest-optimizer/optimize',
+        buildOptimizeBody(validAssets, frequencies, form),
+        i18n.t('errors.optimizerFailed'),
+      );
+      patchResult({
+        results: data.results ?? [],
+        best: data.best ?? null,
+        benchmarkGrowth: data.benchmarkGrowth ?? null,
+        totalCombos: data.totalCombinations ?? 0,
+      });
+    } catch (e) {
+      patchResult({ error: e instanceof Error ? e.message : i18n.t('errors.optimizerFailed') });
+    } finally {
+      patchResult({ isLoading: false });
+    }
   };
-}
-function useConstraintState() {
-  const [objective, setObjective] = useState<Objective>('maxSharpe');
-  const [enableMaxDD, setEnableMaxDD] = useState(false);
-  const [maxDD, setMaxDD] = useState('20');
-  const [enableMinCagr, setEnableMinCagr] = useState(false);
-  const [minCagr, setMinCagr] = useState('5');
   return {
-    objective,
-    setObjective,
-    enableMaxDD,
-    setEnableMaxDD,
-    maxDD,
-    setMaxDD,
-    enableMinCagr,
-    setEnableMinCagr,
-    minCagr,
-    setMinCagr,
-  };
-}
-function useBacktestOptSetters() {
-  const { assets, addAsset, removeAsset, updateAsset } = useAssetListState();
-  const { frequencies, toggleFreq } = useFrequencyState();
-  const grid = useGridParams();
-  const constraints = useConstraintState();
-  const {
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results,
-    setResults,
-  } = useOptimizerLikeState<OptimizeResultItem[]>();
-  const [benchmarkTicker, setBenchmarkTicker] = useState('VTI');
-  const [best, setBest] = useState<BestResultItem | null>(null);
-  const [benchmarkGrowth, setBenchmarkGrowth] = useState<Array<{
-    date: string;
-    value: number;
-  }> | null>(null);
-  const [totalCombos, setTotalCombos] = useState(0);
-  return {
-    ...grid,
-    ...constraints,
     assets,
     frequencies,
-    startDate,
-    endDate,
-    benchmarkTicker,
-    isLoading,
-    error,
-    results,
-    best,
-    benchmarkGrowth,
-    totalCombos,
-    setStartDate,
-    setEndDate,
-    setBenchmarkTicker,
-    setIsLoading,
-    setError,
-    setResults,
-    setBest,
-    setBenchmarkGrowth,
-    setTotalCombos,
+    form,
+    patchForm,
+    result,
     addAsset,
     removeAsset,
     updateAsset,
     toggleFreq,
+    runOptimize,
   };
-}
-async function runBacktestOptimize(s: ReturnType<typeof useBacktestOptSetters>) {
-  const validAssets = s.assets.filter((a) => a.ticker.trim());
-  if (validAssets.length === 0) {
-    s.setError(i18n.t('errors.atLeastOneTicker'));
-    return;
-  }
-  if (s.frequencies.length === 0) {
-    s.setError(i18n.t('errors.atLeastOneRebalanceFreq'));
-    return;
-  }
-  s.setIsLoading(true);
-  s.setError(null);
-  s.setResults(null);
-  s.setBest(null);
-  s.setBenchmarkGrowth(null);
-  try {
-    const body = buildOptimizeBody(
-      validAssets,
-      s.frequencies,
-      {
-        thrMin: s.thrMin,
-        thrMax: s.thrMax,
-        thrStep: s.thrStep,
-        capMin: s.capMin,
-        capMax: s.capMax,
-        capStep: s.capStep,
-      },
-      { startDate: s.startDate, endDate: s.endDate, benchmarkTicker: s.benchmarkTicker },
-      {
-        objective: s.objective,
-        enableMaxDD: s.enableMaxDD,
-        maxDD: s.maxDD,
-        enableMinCagr: s.enableMinCagr,
-        minCagr: s.minCagr,
-      },
-    );
-    const data = await apiPostJSON<{
-      results?: OptimizeResultItem[];
-      best?: BestResultItem | null;
-      benchmarkGrowth?: { date: string; value: number }[] | null;
-      totalCombinations?: number;
-    }>('/api/v1/backtest-optimizer/optimize', body, i18n.t('errors.optimizerFailed'));
-    s.setResults(data.results ?? []);
-    s.setBest(data.best ?? null);
-    s.setBenchmarkGrowth(data.benchmarkGrowth ?? null);
-    s.setTotalCombos(data.totalCombinations ?? 0);
-  } catch (e) {
-    s.setError(e instanceof Error ? e.message : i18n.t('errors.optimizerFailed'));
-  } finally {
-    s.setIsLoading(false);
-  }
-}
-export function useOptimizerState(): BacktestOptimizerState {
-  const s = useBacktestOptSetters();
-  const runOptimize = () => runBacktestOptimize(s);
-  return { ...s, runOptimize };
 }

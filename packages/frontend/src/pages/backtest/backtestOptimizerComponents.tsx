@@ -44,10 +44,79 @@ import type {
   ConstraintRowProps,
   GrowthComparisonChartProps,
   Objective,
+  OptimizerFormState,
   OptimizerSectionProps,
 } from './backtestOptimizerUtils.js';
 const INPUT_CLS =
   'flex h-10 w-full rounded-md bg-input-bg border border-border px-3 py-2 text-body text-fg hover:border-border-strong focus:outline-none focus:border-brand focus:ring-4 focus:ring-brand/15 transition-colors duration-150';
+const OBJECTIVE_OPTIONS: Array<{ value: Objective; labelKey: string }> = [
+  { value: 'maxCagr', labelKey: 'backtest.optimizer.maxCagr' },
+  { value: 'minMaxDrawdown', labelKey: 'backtest.optimizer.minMaxDrawdown' },
+  { value: 'maxSharpe', labelKey: 'backtest.optimizer.maxSharpe' },
+  { value: 'maxSortino', labelKey: 'backtest.optimizer.maxSortino' },
+];
+const CONSTRAINT_DEFS: Array<{
+  enabledKey: 'enableMaxDD' | 'enableMinCagr';
+  valueKey: 'maxDD' | 'minCagr';
+  labelKey: string;
+  placeholderKey: string;
+}> = [
+  {
+    enabledKey: 'enableMaxDD',
+    valueKey: 'maxDD',
+    labelKey: 'backtest.optimizer.maxDrawdownConstraint',
+    placeholderKey: 'backtest.optimizer.maxDrawdownPlaceholder',
+  },
+  {
+    enabledKey: 'enableMinCagr',
+    valueKey: 'minCagr',
+    labelKey: 'backtest.optimizer.cagrConstraint',
+    placeholderKey: 'backtest.optimizer.cagrPlaceholder',
+  },
+];
+const RANGE_DEFS: Array<{
+  titleKey: string;
+  prefix?: string;
+  suffix?: string;
+  step: string;
+  fields: Array<[string, keyof OptimizerFormState]>;
+}> = [
+  {
+    titleKey: 'backtest.optimizer.thresholdRange',
+    suffix: '%',
+    step: '0.5',
+    fields: [
+      ['backtest.optimizer.min', 'thrMin'],
+      ['backtest.optimizer.max', 'thrMax'],
+      ['backtest.optimizer.step', 'thrStep'],
+    ],
+  },
+  {
+    titleKey: 'backtest.optimizer.capitalRange',
+    prefix: '$',
+    step: '1000',
+    fields: [
+      ['backtest.optimizer.min', 'capMin'],
+      ['backtest.optimizer.max', 'capMax'],
+      ['backtest.optimizer.step', 'capStep'],
+    ],
+  },
+];
+const DATE_FIELDS: Array<{
+  key: keyof OptimizerFormState;
+  labelKey: string;
+  type: string;
+  placeholderKey?: string;
+}> = [
+  { key: 'startDate', labelKey: 'backtest.optimizer.startDate', type: 'date' },
+  { key: 'endDate', labelKey: 'backtest.optimizer.endDate', type: 'date' },
+  {
+    key: 'benchmarkTicker',
+    labelKey: 'backtest.optimizer.benchmarkTicker',
+    type: 'text',
+    placeholderKey: 'backtest.optimizer.benchmarkPlaceholder',
+  },
+];
 function BacktestRangeSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
   return (
@@ -56,31 +125,17 @@ function BacktestRangeSection({ s }: OptimizerSectionProps) {
       info={t('backtest.optimizer.backtestRangeInfo')}
     >
       <ParamRow>
-        <ParamCard label={t('backtest.optimizer.startDate')}>
-          <input
-            type="date"
-            className={INPUT_CLS}
-            value={s.startDate}
-            onChange={(e) => s.setStartDate(e.target.value)}
-          />
-        </ParamCard>
-        <ParamCard label={t('backtest.optimizer.endDate')}>
-          <input
-            type="date"
-            className={INPUT_CLS}
-            value={s.endDate}
-            onChange={(e) => s.setEndDate(e.target.value)}
-          />
-        </ParamCard>
-        <ParamCard label={t('backtest.optimizer.benchmarkTicker')}>
-          <input
-            type="text"
-            className={`${INPUT_CLS} placeholder:text-fg-tertiary`}
-            value={s.benchmarkTicker}
-            onChange={(e) => s.setBenchmarkTicker(e.target.value)}
-            placeholder={t('backtest.optimizer.benchmarkPlaceholder')}
-          />
-        </ParamCard>
+        {DATE_FIELDS.map((f) => (
+          <ParamCard key={f.key} label={t(f.labelKey)}>
+            <input
+              type={f.type}
+              className={f.placeholderKey ? `${INPUT_CLS} placeholder:text-fg-tertiary` : INPUT_CLS}
+              value={s.form[f.key]}
+              onChange={(e) => s.patchForm({ [f.key]: e.target.value })}
+              placeholder={f.placeholderKey ? t(f.placeholderKey) : undefined}
+            />
+          </ParamCard>
+        ))}
       </ParamRow>
     </ParamsSection>
   );
@@ -118,10 +173,12 @@ export function OptimizerParams({ s }: OptimizerSectionProps) {
           variant="primary"
           className="w-full"
           onClick={() => void s.runOptimize()}
-          disabled={s.isLoading}
+          disabled={s.result.isLoading}
         >
-          {s.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-          {s.isLoading ? t('backtest.optimizer.optimizing') : t('backtest.optimizer.startOptimize')}
+          {s.result.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
+          {s.result.isLoading
+            ? t('backtest.optimizer.optimizing')
+            : t('backtest.optimizer.startOptimize')}
         </Button>
       </div>
     </ParamsPanel>
@@ -129,15 +186,15 @@ export function OptimizerParams({ s }: OptimizerSectionProps) {
 }
 export function OptimizerResults({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
-  if (s.error) {
+  if (s.result.error) {
     return (
       <Card className="flex items-center justify-center p-6 text-center text-danger">
         {t('backtest.optimizer.optimizeFailed')}
-        {s.error}
+        {s.result.error}
       </Card>
     );
   }
-  if (!s.results) {
+  if (!s.result.results) {
     return (
       <Card className="flex items-center justify-center p-12 text-center text-fg-tertiary">
         {t('backtest.optimizer.configHint')}
@@ -146,9 +203,9 @@ export function OptimizerResults({ s }: OptimizerSectionProps) {
   }
   return (
     <div className="flex flex-col gap-4">
-      <BestMetricsCard best={s.best} totalCombos={s.totalCombos} />
-      <GrowthComparisonChart best={s.best} benchmarkGrowth={s.benchmarkGrowth} />
-      <ComparisonTableSection results={s.results} objective={s.objective} />
+      <BestMetricsCard best={s.result.best} totalCombos={s.result.totalCombos} />
+      <GrowthComparisonChart best={s.result.best} benchmarkGrowth={s.result.benchmarkGrowth} />
+      <ComparisonTableSection results={s.result.results} objective={s.form.objective} />
     </div>
   );
 }
@@ -270,16 +327,6 @@ function RangeInputs({
 }
 function ParameterSpaceSection({ s }: OptimizerSectionProps) {
   const { t } = useTranslation();
-  const thrFields: Array<[string, string, (v: string) => void]> = [
-    [t('backtest.optimizer.min'), s.thrMin, s.setThrMin],
-    [t('backtest.optimizer.max'), s.thrMax, s.setThrMax],
-    [t('backtest.optimizer.step'), s.thrStep, s.setThrStep],
-  ];
-  const capFields: Array<[string, string, (v: string) => void]> = [
-    [t('backtest.optimizer.min'), s.capMin, s.setCapMin],
-    [t('backtest.optimizer.max'), s.capMax, s.setCapMax],
-    [t('backtest.optimizer.step'), s.capStep, s.setCapStep],
-  ];
   return (
     <ParamsSection
       title={t('backtest.optimizer.paramSpace')}
@@ -287,18 +334,23 @@ function ParameterSpaceSection({ s }: OptimizerSectionProps) {
     >
       <div className="flex flex-col gap-3">
         <FreqMultiSelect s={s} />
-        <RangeInputs
-          titleKey="backtest.optimizer.thresholdRange"
-          suffix="%"
-          step="0.5"
-          fields={thrFields}
-        />
-        <RangeInputs
-          titleKey="backtest.optimizer.capitalRange"
-          prefix="$"
-          step="1000"
-          fields={capFields}
-        />
+        {RANGE_DEFS.map((r) => (
+          <RangeInputs
+            key={r.titleKey}
+            titleKey={r.titleKey}
+            prefix={r.prefix}
+            suffix={r.suffix}
+            step={r.step}
+            fields={r.fields.map(
+              ([labelKey, formKey]) =>
+                [t(labelKey), s.form[formKey], (v: string) => s.patchForm({ [formKey]: v })] as [
+                  string,
+                  string,
+                  (v: string) => void,
+                ],
+            )}
+          />
+        ))}
       </div>
     </ParamsSection>
   );
@@ -343,38 +395,35 @@ function ObjectiveSection({ s }: OptimizerSectionProps) {
     >
       <ParamRow>
         <ParamCard label={t('backtest.optimizer.target')}>
-          <Select value={s.objective} onValueChange={(v) => s.setObjective(v as Objective)}>
+          <Select
+            value={s.form.objective}
+            onValueChange={(v) => s.patchForm({ objective: v as Objective })}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="maxCagr">{t('backtest.optimizer.maxCagr')}</SelectItem>
-              <SelectItem value="minMaxDrawdown">
-                {t('backtest.optimizer.minMaxDrawdown')}
-              </SelectItem>
-              <SelectItem value="maxSharpe">{t('backtest.optimizer.maxSharpe')}</SelectItem>
-              <SelectItem value="maxSortino">{t('backtest.optimizer.maxSortino')}</SelectItem>
+              {OBJECTIVE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {t(o.labelKey)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </ParamCard>
       </ParamRow>
       <div className="mt-3 flex flex-col gap-3">
-        <ConstraintRow
-          enabled={s.enableMaxDD}
-          setEnabled={s.setEnableMaxDD}
-          label={t('backtest.optimizer.maxDrawdownConstraint')}
-          value={s.maxDD}
-          setValue={s.setMaxDD}
-          placeholder={t('backtest.optimizer.maxDrawdownPlaceholder')}
-        />
-        <ConstraintRow
-          enabled={s.enableMinCagr}
-          setEnabled={s.setEnableMinCagr}
-          label={t('backtest.optimizer.cagrConstraint')}
-          value={s.minCagr}
-          setValue={s.setMinCagr}
-          placeholder={t('backtest.optimizer.cagrPlaceholder')}
-        />
+        {CONSTRAINT_DEFS.map((c) => (
+          <ConstraintRow
+            key={c.enabledKey}
+            enabled={s.form[c.enabledKey]}
+            setEnabled={(v) => s.patchForm({ [c.enabledKey]: v })}
+            label={t(c.labelKey)}
+            value={s.form[c.valueKey]}
+            setValue={(v) => s.patchForm({ [c.valueKey]: v })}
+            placeholder={t(c.placeholderKey)}
+          />
+        ))}
       </div>
     </ParamsSection>
   );
