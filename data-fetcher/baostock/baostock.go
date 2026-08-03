@@ -179,6 +179,20 @@ func parseBody(resp string) ([]string, bool) {
 	return bodyArr, true
 }
 
+func parseRows(resp, errMsg string) ([][]string, error) {
+	bodyArr, ok := parseBody(resp)
+	if !ok {
+		if len(resp) <= HeaderLength {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("%s", errMsg)
+	}
+	if respData := findRecordResponse(bodyArr); respData != nil {
+		return respData.Record, nil
+	}
+	return splitCsvRows(bodyArr), nil
+}
+
 // splitCsvRows 提取非 JSON 回退格式的 CSV 行
 func splitCsvRows(bodyArr []string) [][]string {
 	var rows [][]string
@@ -236,59 +250,38 @@ func (c *Client) parseKDataResponseDynamic(resp string, fieldNames []string) ([]
 	return nil, true, nil
 }
 func (c *Client) parseAllStockResponse(resp string) ([]StockInfo, error) {
-	bodyArr, ok := parseBody(resp)
-	if !ok {
-		if len(resp) <= HeaderLength {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("查询股票列表失败")
+	rows, err := parseRows(resp, "查询股票列表失败")
+	if err != nil {
+		return nil, err
 	}
-	if respData := findRecordResponse(bodyArr); respData != nil {
-		stocks := make([]StockInfo, 0, len(respData.Record))
-		for _, row := range respData.Record {
-			si := StockInfo{}
-			if len(row) > 0 {
-				si.Code = row[0]
-			}
-			if len(row) > 1 {
-				si.TradeStatus = row[1]
-			}
-			if len(row) > 2 {
-				si.CodeName = row[2]
-			}
-			stocks = append(stocks, si)
-		}
-		return stocks, nil
+	if rows == nil {
+		return nil, nil
 	}
-	var stocks []StockInfo
-	for _, fields := range splitCsvRows(bodyArr) {
-		if len(fields) >= 3 {
-			stocks = append(stocks, StockInfo{Code: fields[0], TradeStatus: fields[1], CodeName: fields[2]})
+	stocks := make([]StockInfo, 0, len(rows))
+	for _, row := range rows {
+		si := StockInfo{}
+		if len(row) > 0 {
+			si.Code = row[0]
 		}
+		if len(row) > 1 {
+			si.TradeStatus = row[1]
+		}
+		if len(row) > 2 {
+			si.CodeName = row[2]
+		}
+		stocks = append(stocks, si)
 	}
 	return stocks, nil
 }
 func (c *Client) parseTradeDatesResponse(resp string) ([]string, error) {
-	bodyArr, ok := parseBody(resp)
-	if !ok {
-		if len(resp) <= HeaderLength {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("查询交易日历失败")
-	}
-	if respData := findRecordResponse(bodyArr); respData != nil {
-		dates := make([]string, 0, len(respData.Record))
-		for _, row := range respData.Record {
-			if len(row) >= 2 && row[1] == "1" {
-				dates = append(dates, row[0])
-			}
-		}
-		return dates, nil
+	rows, err := parseRows(resp, "查询交易日历失败")
+	if err != nil {
+		return nil, err
 	}
 	var dates []string
-	for _, fields := range splitCsvRows(bodyArr) {
-		if len(fields) >= 1 {
-			dates = append(dates, fields[0])
+	for _, row := range rows {
+		if len(row) == 1 || (len(row) >= 2 && row[1] == "1") {
+			dates = append(dates, row[0])
 		}
 	}
 	return dates, nil
