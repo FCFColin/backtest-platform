@@ -440,21 +440,12 @@ export function LoadingButton({
   type = 'button',
   variant = 'primary',
   disabled,
-  className,
-  style,
   children,
   ...rest
 }: LoadingButtonProps) {
   const { t } = useTranslation();
   return (
-    <Button
-      type={type}
-      variant={variant}
-      disabled={isLoading || disabled}
-      className={className}
-      style={style}
-      {...rest}
-    >
+    <Button type={type} variant={variant} disabled={isLoading || disabled} {...rest}>
       {isLoading && <Loader2 className="animate-spin" />}
       {isLoading ? (loadingText ?? t('common.loading')) : children}
     </Button>
