@@ -12,11 +12,12 @@ import {
   revokeRefreshToken,
   revokeAllUserSessions,
   jwtAuth,
+  hashUserId,
+  requireUser,
   type AuthenticatedRequest,
   type TenantContext,
   type Role,
 } from '../middleware/jwtAuth.js';
-import { hashUserId, requireUser } from '../middleware/jwtAuth.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import {
   loginPasswordSchema,
@@ -48,7 +49,7 @@ import {
   type Membership,
 } from '../application/org/membershipService.js';
 
-/** 空闲会话超时（P0-04）：analyst 60min，其他 30min（更严格）。 */
+/** 空闲会话超时（P0-04）：analyst 60min，其他 30min。 */
 function getIdleTimeoutMs(role: string): number {
   return (
     (role === 'analyst'

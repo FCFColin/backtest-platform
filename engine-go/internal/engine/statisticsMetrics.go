@@ -310,32 +310,33 @@ type MaxDrawdownResult struct {
 	MaxDrawdownDuration int
 }
 
-func CalcMaxDrawdown(values []float64) MaxDrawdownResult {
+func iterDrawdownValues(values []float64, fn func(dd float64, i, peakIdx int)) {
 	if len(values) < 2 {
-		return MaxDrawdownResult{}
+		return
 	}
-	maxDD := 0.0
-	maxDDDuration := 0
-	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
-		if dd := (peak - values[i]) / peak; dd > maxDD {
-			maxDD = dd
-			maxDDDuration = i - peakIdx
-		}
-	})
-	return MaxDrawdownResult{MaxDrawdown: maxDD, MaxDrawdownDuration: maxDDDuration}
-}
-func CalcAvgDrawdown(values []float64) float64 {
-	if len(values) < 2 {
-		return 0
-	}
-	var totalDD float64
-	count := 0
 	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
 		if peak > 0 {
-			if dd := (peak - values[i]) / peak; dd > 0 {
-				totalDD += dd
-				count++
-			}
+			fn((peak-values[i])/peak, i, peakIdx)
+		}
+	})
+}
+func CalcMaxDrawdown(values []float64) MaxDrawdownResult {
+	var r MaxDrawdownResult
+	iterDrawdownValues(values, func(dd float64, i, peakIdx int) {
+		if dd > r.MaxDrawdown {
+			r.MaxDrawdown = dd
+			r.MaxDrawdownDuration = i - peakIdx
+		}
+	})
+	return r
+}
+func CalcAvgDrawdown(values []float64) float64 {
+	var totalDD float64
+	count := 0
+	iterDrawdownValues(values, func(dd float64, _, _ int) {
+		if dd > 0 {
+			totalDD += dd
+			count++
 		}
 	})
 	if count == 0 {
@@ -344,17 +345,13 @@ func CalcAvgDrawdown(values []float64) float64 {
 	return totalDD / float64(count)
 }
 func CalcUlcerIndex(values []float64) float64 {
-	if len(values) < 2 {
+	var sumSquaredDD float64
+	n := len(values)
+	iterDrawdownValues(values, func(dd float64, _, _ int) { sumSquaredDD += dd * dd })
+	if n == 0 {
 		return 0
 	}
-	var sumSquaredDD float64
-	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
-		if peak > 0 {
-			dd := (peak - values[i]) / peak
-			sumSquaredDD += dd * dd
-		}
-	})
-	return math.Sqrt(sumSquaredDD / float64(len(values)))
+	return math.Sqrt(sumSquaredDD / float64(n))
 }
 func CalcCalmar(cagr, maxDrawdown float64) float64 {
 	if maxDrawdown == 0 {
@@ -373,7 +370,7 @@ func CalcDrawdownCurve(values []float64, dates []string) []DrawdownPoint {
 		return nil
 	}
 	result := make([]DrawdownPoint, len(values))
-	engineutil.IterDrawdowns(values, func(i, peakIdx int, peak float64) {
+	engineutil.IterDrawdowns(values, func(i, _ int, peak float64) {
 		dd := 0.0
 		if peak > 0 {
 			dd = (peak - values[i]) / peak
