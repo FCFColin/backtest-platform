@@ -14,13 +14,7 @@ import { MiniStatCard } from '../../components/cards.js';
 import { Loader2 } from '@/icons/icons.js';
 import { fmtDollar } from '@/utils/format';
 import { McParamsPanel } from './MonteCarloParams.js';
-import type {
-  DistMetric,
-  McState,
-  PortfolioMode,
-  PortfolioState,
-  ResultTab,
-} from './monteCarloUtils.js';
+import type { DistMetric, McState, PortfolioMode, ResultTab } from './monteCarloUtils.js';
 import {
   RESULT_TABS,
   SUMMARY_STATS,
@@ -223,31 +217,20 @@ function ResultsDisplay({
     </div>
   );
 }
-export function MonteCarloResultsPanel({
-  error,
-  results1,
-  results2,
-  portfolios,
-  portfolioMode,
-  activeTab,
-  setActiveTab,
-  startingValue,
-  numSimulations,
-  distMetric,
-  setDistMetric,
-}: {
-  error: string | null;
-  results1: MonteCarloResult | null;
-  results2: MonteCarloResult | null;
-  portfolios: PortfolioState[];
-  portfolioMode: PortfolioMode;
-  activeTab: ResultTab;
-  setActiveTab: (tab: ResultTab) => void;
-  startingValue: number;
-  numSimulations: number;
-  distMetric: DistMetric;
-  setDistMetric: (m: DistMetric) => void;
-}) {
+export function MonteCarloResultsPanel({ s }: { s: McState }) {
+  const {
+    error,
+    results1,
+    results2,
+    portfolios,
+    portfolioMode,
+    activeTab,
+    setActiveTab,
+    startingValue,
+    numSimulations,
+    distMetric,
+    setDistMetric,
+  } = s;
   if (error) return <McErrorState error={error} />;
   if (!results1 && !results2) return <McEmptyState />;
   return (
@@ -286,31 +269,11 @@ export function MonteCarloResultsPanel({
     </div>
   );
 }
-function McParamsWrapper({ state }: { state: McState }) {
-  return <McParamsPanel s={state} />;
-}
 const LazyFallback = () => (
   <div className="flex justify-center py-12">
     <Loader2 className="h-6 w-6 animate-spin text-brand" />
   </div>
 );
-function McResultsWrapper({ state }: { state: McState }) {
-  return (
-    <MonteCarloResultsPanel
-      error={state.error}
-      results1={state.results1}
-      results2={state.results2}
-      portfolios={state.portfolios}
-      portfolioMode={state.portfolioMode}
-      activeTab={state.activeTab}
-      setActiveTab={state.setActiveTab}
-      startingValue={state.startingValue}
-      numSimulations={state.numSimulations}
-      distMetric={state.distMetric}
-      setDistMetric={state.setDistMetric}
-    />
-  );
-}
 const config: ComputeToolConfig<McState> = {
   titleKey: 'monteCarlo.title',
   seoDescKey: 'monteCarlo.seoDesc',
@@ -325,8 +288,8 @@ const config: ComputeToolConfig<McState> = {
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
   ],
   presets: buildPresets,
-  params: McParamsWrapper,
-  results: McResultsWrapper,
+  params: McParamsPanel,
+  results: MonteCarloResultsPanel,
 };
 export default function MonteCarloPage() {
   const s = useMonteCarloState();

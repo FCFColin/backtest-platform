@@ -77,7 +77,6 @@ async function checkHttp(url: string, timeoutMs = 2000): Promise<boolean> {
   }
 }
 
-/** 探测 PostgreSQL：执行轻量 SELECT 1。 */
 async function checkDatabase(): Promise<boolean> {
   try {
     await getPool().query('SELECT 1');
@@ -87,7 +86,6 @@ async function checkDatabase(): Promise<boolean> {
   }
 }
 
-/** 探测 Redis：PING。 */
 async function checkRedis(): Promise<boolean> {
   try {
     return (await appRedis.ping()) === 'PONG';
