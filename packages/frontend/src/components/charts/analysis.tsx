@@ -110,26 +110,20 @@ function computeTelltaleData(
   results: AssetAnalysisResult | undefined,
   t: ReturnType<typeof useTranslation>['t'],
 ): TelltaleDataResult {
-  const benchmark = results
-    ? { name: results.tickers[0].ticker, growthCurve: results.tickers[0].growthCurve }
+  const isResults = !!results;
+  const source = isResults ? results!.tickers : (portfolios ?? []);
+  const benchmark = source[0]
+    ? { name: isResults ? source[0].ticker : source[0].name, growthCurve: source[0].growthCurve }
     : undefined;
-  const comparisons = results
-    ? results.tickers.slice(1).map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }))
-    : (portfolios?.slice(1) ?? []);
-  const labels = results
-    ? results.tickers.slice(1).map((tk) => tk.ticker)
-    : (portfolios?.slice(1).map((p) => p.name) ?? []);
-  const title = results
-    ? `${t('analysis.telltaleRelative')} ${results.tickers[0].ticker}`
+  const comparisons = source
+    .slice(1)
+    .map((s) => ({ name: isResults ? s.ticker : s.name, growthCurve: s.growthCurve }));
+  const labels = comparisons.map((c) => c.name);
+  const title = isResults
+    ? `${t('analysis.telltaleRelative')} ${results!.tickers[0].ticker}`
     : t('analysis.telltaleChart');
-  if (!benchmark || comparisons.length < 1) {
-    return {
-      chartData: [],
-      labels: [],
-      title,
-      emptyMessage: t('analysis.telltaleNeedTwo'),
-    };
-  }
+  if (!benchmark || comparisons.length < 1)
+    return { chartData: [], labels, title, emptyMessage: t('analysis.telltaleNeedTwo') };
   const merged = buildTelltaleData(benchmark, comparisons);
   return {
     chartData:
