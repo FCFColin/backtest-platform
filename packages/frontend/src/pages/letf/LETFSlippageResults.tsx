@@ -15,7 +15,7 @@ import {
 } from 'recharts';
 import { CHART_COLORS, type LETFResult } from '@backtest/shared';
 import { fmtPct } from '@/utils/format';
-import { AnalysisErrorAlert, EmptyResultsHint } from '@/components/resultsShell.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { Card } from '@/components/ui/uiComponents';
 import {
   AXIS_TICK_STYLE,
@@ -249,8 +249,13 @@ export function LETFResultsPanel({ results, error, isLoading, leverage }: LETFRe
     });
   }, [results, leverage]);
   return (
-    <div className="flex flex-col gap-4">
-      <AnalysisErrorAlert error={error} prefix={t('letf.analysisFailedPrefix')} />
+    <ResultsShell
+      error={error}
+      isLoading={isLoading}
+      hasResults={!!results}
+      errorPrefix={t('letf.analysisFailedPrefix')}
+      emptyTitle={t('letf.emptyHint')}
+    >
       {results && (
         <div className="flex flex-col gap-4">
           <LETFKpiCards results={results} />
@@ -259,7 +264,6 @@ export function LETFResultsPanel({ results, error, isLoading, leverage }: LETFRe
           <LETFStatsTable results={results} />
         </div>
       )}
-      {!results && !error && !isLoading && <EmptyResultsHint text={t('letf.emptyHint')} />}
-    </div>
+    </ResultsShell>
   );
 }

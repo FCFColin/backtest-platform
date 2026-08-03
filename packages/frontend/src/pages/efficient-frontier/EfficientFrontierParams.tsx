@@ -1,17 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
-import { Play, Loader2 } from 'lucide-react';
-import {
-  Button,
-  Checkbox,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/uiComponents';
+import { Checkbox, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
+import { SectionHeader, SelectField, RunButton } from '@/components/form/sharedFields';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
 import type { FrontierState } from './EfficientFrontierUtils.js';
@@ -39,43 +30,6 @@ const solverOptions = (t: TFunction): { value: FrontierSolver; label: string }[]
 ];
 interface FrontierParamsProps {
   state: FrontierState;
-}
-function SectionHeader({ title, info }: { title: string; info?: string }) {
-  return (
-    <div>
-      <h3 className="text-h3 font-semibold text-fg">{title}</h3>
-      {info && <p className="mt-0.5 text-caption text-fg-tertiary">{info}</p>}
-    </div>
-  );
-}
-function SelectField<T extends string>({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: T;
-  onChange: (v: T) => void;
-  options: { value: T; label: string }[];
-}) {
-  return (
-    <Field>
-      <FieldLabel>{label}</FieldLabel>
-      <Select value={value} onValueChange={(v) => onChange(v as T)}>
-        <SelectTrigger>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
 }
 function TickerListSection({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
@@ -159,7 +113,7 @@ function AdvancedParamsGrid({ s }: { s: FrontierState }) {
       <SelectField
         label={t('efficientFrontier.params.solveSpeed')}
         value={s.solveSpeed}
-        onChange={p.onSolveSpeedChange}
+        onChange={s.setSolveSpeed}
         options={solveSpeedOptions(t)}
       />
       <Field>
@@ -181,19 +135,19 @@ function AdvancedParamsGrid({ s }: { s: FrontierState }) {
       <SelectField
         label={t('efficientFrontier.params.rebalanceFreq')}
         value={s.rebalanceFrequency}
-        onChange={p.onRebalanceFrequencyChange}
+        onChange={s.setRebalanceFrequency}
         options={rebalanceFreqOptions(t)}
       />
       <SelectField
         label={t('efficientFrontier.params.returnObjective')}
         value={s.returnObjective}
-        onChange={p.onReturnObjectiveChange}
+        onChange={s.setReturnObjective}
         options={returnObjOptions(t)}
       />
       <SelectField
         label={t('efficientFrontier.params.solver')}
         value={s.solver}
-        onChange={p.onSolverChange}
+        onChange={s.setSolver}
         options={solverOptions(t)}
       />
       <Field>
@@ -222,21 +176,12 @@ function FrontierParams({ state }: FrontierParamsProps) {
     <div className="flex flex-col gap-5">
       <TickerListSection s={state} />
       <ParamsSection s={state} />
-      <Button
+      <RunButton
+        isLoading={state.isLoading}
         onClick={state.runFrontier}
-        disabled={state.isLoading}
-        variant="primary"
-        className="w-full"
-      >
-        {state.isLoading ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Play className="size-4" />
-        )}
-        {state.isLoading
-          ? t('efficientFrontier.params.calculating')
-          : t('efficientFrontier.params.calcFrontier')}
-      </Button>
+        label={t('efficientFrontier.params.calcFrontier')}
+        loadingLabel={t('efficientFrontier.params.calculating')}
+      />
     </div>
   );
 }

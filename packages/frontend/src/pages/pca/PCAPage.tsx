@@ -17,7 +17,7 @@ import {
 import { CHART_COLORS, type PCAResult } from '@backtest/shared';
 import { Card, buttonVariants, Input, LoadingButton } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards.js';
-import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
 import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
@@ -33,8 +33,34 @@ import {
 import { TimeSeriesLineChart } from '@/components/charts/TimeSeriesLineChart.js';
 import { MatrixHeatmap } from '@/components/charts/tables.js';
 import { Field, FieldLabel, FieldDescription } from '../../components/form/Field.js';
+import { LabeledField } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+
+/** Shared tag-change handler for TickerTagInput ↔ useListState bridge */
+function tagChangeHandler(
+  tickers: string[],
+  onAdd: () => void,
+  onRemove: (i: number) => void,
+  onUpdate: (i: number, v: string) => void,
+) {
+  return (newTickers: string[]) => {
+    const oldLen = tickers.length;
+    if (newTickers.length > oldLen) onAdd();
+    else if (newTickers.length < oldLen) {
+      for (let i = 0; i < oldLen; i++) {
+        if (!newTickers.includes(tickers[i])) {
+          onRemove(i);
+          break;
+        }
+      }
+    } else {
+      newTickers.forEach((tk, i) => {
+        if (tk !== tickers[i]) onUpdate(i, tk);
+      });
+    }
+  };
+}
 function usePcaPageState() {
   const { t } = useTranslation();
   const {
@@ -101,92 +127,39 @@ const DEFAULT_LOADING_COLOR = '#8b2020';
 function getLoadingColor(loading: number): string {
   return pickByThreshold(loading, LOADING_COLOR_BANDS, DEFAULT_LOADING_COLOR);
 }
-function PcaAssetSelection({
-  tickers,
-  onAddTicker,
-  onRemoveTicker,
-  onUpdateTicker,
-}: {
-  tickers: string[];
-  onAddTicker: () => void;
-  onRemoveTicker: (idx: number) => void;
-  onUpdateTicker: (idx: number, val: string) => void;
-}) {
-  const { t } = useTranslation();
-  const handleTagChange = (newTickers: string[]) => {
-    const oldLen = tickers.length;
-    if (newTickers.length > oldLen) {
-      onAddTicker();
-    } else if (newTickers.length < oldLen) {
-      for (let i = 0; i < oldLen; i++) {
-        if (!newTickers.includes(tickers[i])) {
-          onRemoveTicker(i);
-          break;
-        }
-      }
-    } else {
-      newTickers.forEach((tk, i) => {
-        if (tk !== tickers[i]) onUpdateTicker(i, tk);
-      });
-    }
-  };
-  return (
-    <Field>
-      <FieldLabel>{t('pca.asset.section')}</FieldLabel>
-      <TickerTagInput
-        tickers={tickers}
-        onChange={handleTagChange}
-        minCount={2}
-        placeholder={t('pca.asset.tickerPlaceholder')}
-      />
-      <FieldDescription>{t('pca.asset.sectionInfo')}</FieldDescription>
-    </Field>
-  );
-}
 function PCAParamsPanel({ state: s }: { state: PCAState }) {
   const { t } = useTranslation();
-  const {
-    tickers,
-    startDate,
-    endDate,
-    numComponents,
-    isLoading,
-    addTicker: onAddTicker,
-    removeTicker: onRemoveTicker,
-    updateTicker: onUpdateTicker,
-    setStartDate: onStartDateChange,
-    setEndDate: onEndDateChange,
-    setNumComponents: onNumComponentsChange,
-    runAnalysis: onRun,
-  } = s;
+  const handleTagChange = tagChangeHandler(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div className="col-span-full">
-        <PcaAssetSelection
-          tickers={tickers}
-          onAddTicker={onAddTicker}
-          onRemoveTicker={onRemoveTicker}
-          onUpdateTicker={onUpdateTicker}
-        />
+        <Field>
+          <FieldLabel>{t('pca.asset.section')}</FieldLabel>
+          <TickerTagInput
+            tickers={s.tickers}
+            onChange={handleTagChange}
+            minCount={2}
+            placeholder={t('pca.asset.tickerPlaceholder')}
+          />
+          <FieldDescription>{t('pca.asset.sectionInfo')}</FieldDescription>
+        </Field>
       </div>
-      <Field>
-        <FieldLabel htmlFor="pca-start-date">{t('pca.dateRange.startDate')}</FieldLabel>
+      <LabeledField htmlFor="pca-start-date" label={t('pca.dateRange.startDate')}>
         <Input
           id="pca-start-date"
           type="date"
-          value={startDate}
-          onChange={(e) => onStartDateChange(e.target.value)}
+          value={s.startDate}
+          onChange={(e) => s.setStartDate(e.target.value)}
         />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="pca-end-date">{t('pca.dateRange.endDate')}</FieldLabel>
+      </LabeledField>
+      <LabeledField htmlFor="pca-end-date" label={t('pca.dateRange.endDate')}>
         <Input
           id="pca-end-date"
           type="date"
-          value={endDate}
-          onChange={(e) => onEndDateChange(e.target.value)}
+          value={s.endDate}
+          onChange={(e) => s.setEndDate(e.target.value)}
         />
-      </Field>
+      </LabeledField>
       <Field>
         <FieldLabel htmlFor="pca-num-components">{t('pca.params.numComponents')}</FieldLabel>
         <div className="relative">
@@ -195,9 +168,9 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
             type="number"
             min={1}
             className="pr-12"
-            value={numComponents}
+            value={s.numComponents}
             onChange={(e) =>
-              onNumComponentsChange(e.target.value === '' ? '' : Number(e.target.value))
+              s.setNumComponents(e.target.value === '' ? '' : Number(e.target.value))
             }
             placeholder={t('pca.params.numComponentsPlaceholder')}
           />
@@ -209,8 +182,8 @@ function PCAParamsPanel({ state: s }: { state: PCAState }) {
       </Field>
       <div className="col-span-full">
         <LoadingButton
-          isLoading={isLoading}
-          onClick={onRun}
+          isLoading={s.isLoading}
+          onClick={s.runAnalysis}
           loadingText={t('pca.analyzing')}
           className={buttonVariants({ variant: 'primary', size: 'lg', className: 'w-full' })}
         >
@@ -351,11 +324,14 @@ function PCAResultsPanel({ state: s }: { state: PCAState }) {
       }));
   }, [results]);
   return (
-    <div className="flex flex-col gap-3">
-      {error && (
-        <ErrorBanner variant="error" message={`${t('pca.analysisFailedPrefix')}${error}`} />
-      )}
-      {isLoading && !results && <LoadingState label={t('pca.analyzing')} />}
+    <ResultsShell
+      error={error}
+      isLoading={isLoading}
+      hasResults={!!results}
+      errorPrefix={t('pca.analysisFailedPrefix')}
+      loadingLabel={t('pca.analyzing')}
+      emptyTitle={t('pca.emptyHint')}
+    >
       {results && (
         <div className="flex flex-col gap-3">
           <CollapsibleSection title={t('pca.results.eigenvalue')} defaultOpen>
@@ -374,8 +350,7 @@ function PCAResultsPanel({ state: s }: { state: PCAState }) {
           )}
         </div>
       )}
-      {!results && !error && !isLoading && <EmptyState title={t('pca.emptyHint')} />}
-    </div>
+    </ResultsShell>
   );
 }
 const config: ComputeToolConfig<PCAState> = {

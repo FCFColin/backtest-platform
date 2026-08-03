@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
+import { SectionHeader } from '@/components/form/sharedFields';
 import { SegmentedControl } from '../../components/form/SegmentedControl.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import type { McState, PortfolioMode, PortfolioState } from './monteCarloUtils.js';
@@ -34,14 +35,6 @@ const GOAL_LBL: Record<(typeof GOAL_KEYS)[number], string> = {
 };
 const buildGoalOptions = (t: TFunction) =>
   GOAL_KEYS.map((k) => ({ value: k, label: t(GOAL_LBL[k]) }));
-function SectionHeader({ title, info }: { title: string; info?: string }) {
-  return (
-    <div>
-      <h3 className="text-h3 font-semibold text-fg">{title}</h3>
-      {info && <p className="mt-0.5 text-caption text-fg-tertiary">{info}</p>}
-    </div>
-  );
-}
 function PortfolioHeader({
   p,
   onUpdate,

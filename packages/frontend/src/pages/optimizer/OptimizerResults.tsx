@@ -19,7 +19,7 @@ import { CHART_TOOLTIP_STYLE, CHART_GRID_PROPS, AXIS_TICK_STYLE } from '@/lib/ch
 import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Button } from '@/components/ui/uiComponents';
-import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { fmtPct, fmtNum } from '@/utils/format';
 const METRICS_ROWS: { key: keyof Statistics; label: string; fmt: 'pct' | 'num' }[] = [
   { key: 'cagr', label: 'CAGR', fmt: 'pct' },
@@ -205,46 +205,52 @@ function FrontierChart({
 }
 export function OptimizerResults({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
-  if (s.error) {
-    return <ErrorBanner message={`${t('optimizer.optFailed')}：${s.error}`} variant="error" />;
-  }
-  if (s.isLoading && !s.results) {
-    return <LoadingState label={t('optimizer.optimizing')} />;
-  }
-  if (!s.results) {
-    return <EmptyState title={t('optimizer.noResultsHint')} />;
-  }
-  const weightBarData = Object.entries(s.results.optimalWeights).map(([ticker, weight], i) => ({
-    ticker,
-    weight: Number((weight * 100).toFixed(1)),
-    fill: CHART_COLORS[i % CHART_COLORS.length],
-  }));
+  const weightBarData = Object.entries(s.results?.optimalWeights ?? {}).map(
+    ([ticker, weight], i) => ({
+      ticker,
+      weight: Number((weight * 100).toFixed(1)),
+      fill: CHART_COLORS[i % CHART_COLORS.length],
+    }),
+  );
   return (
-    <div className="flex flex-col gap-5">
-      <ChartCard
-        title={t('optimizer.optimalWeights')}
-        headerExtra={
-          <Button variant="ghost" size="sm" onClick={s.handleLoadInBacktester}>
-            <ArrowRight />
-            {t('optimizer.loadInBacktester')}
-          </Button>
-        }
-      >
-        <WeightBarChart data={weightBarData} />
-      </ChartCard>
-      <section>
-        <div className="mb-3 text-h3 font-semibold text-fg">{t('optimizer.optimalMetrics')}</div>
-        <MetricsTable backtestStats={s.backtestStats} results={s.results} />
-      </section>
-      <ChartCard title={t('optimizer.efficientFrontier')}>
-        <FrontierChart data={s.results.frontier ?? []} results={s.results} />
-      </ChartCard>
-      <section>
-        <div className="mb-3 text-h3 font-semibold text-fg">
-          {t('optimizer.constraintsSummary')}
+    <ResultsShell
+      error={s.error}
+      isLoading={s.isLoading}
+      hasResults={!!s.results}
+      errorPrefix={`${t('optimizer.optFailed')}：`}
+      loadingLabel={t('optimizer.optimizing')}
+      emptyTitle={t('optimizer.noResultsHint')}
+    >
+      {s.results && (
+        <div className="flex flex-col gap-5">
+          <ChartCard
+            title={t('optimizer.optimalWeights')}
+            headerExtra={
+              <Button variant="ghost" size="sm" onClick={s.handleLoadInBacktester}>
+                <ArrowRight />
+                {t('optimizer.loadInBacktester')}
+              </Button>
+            }
+          >
+            <WeightBarChart data={weightBarData} />
+          </ChartCard>
+          <section>
+            <div className="mb-3 text-h3 font-semibold text-fg">
+              {t('optimizer.optimalMetrics')}
+            </div>
+            <MetricsTable backtestStats={s.backtestStats} results={s.results} />
+          </section>
+          <ChartCard title={t('optimizer.efficientFrontier')}>
+            <FrontierChart data={s.results.frontier ?? []} results={s.results} />
+          </ChartCard>
+          <section>
+            <div className="mb-3 text-h3 font-semibold text-fg">
+              {t('optimizer.constraintsSummary')}
+            </div>
+            <ConstraintsSummary s={s} />
+          </section>
         </div>
-        <ConstraintsSummary s={s} />
-      </section>
-    </div>
+      )}
+    </ResultsShell>
   );
 }

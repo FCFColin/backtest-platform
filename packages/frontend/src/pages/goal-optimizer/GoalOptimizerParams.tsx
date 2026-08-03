@@ -1,8 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2, Plus, X } from 'lucide-react';
-import { Button, Input, type InputProps } from '@/components/ui/uiComponents';
+import { Button, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
+import { SectionHeader, PercentInput, DollarInput } from '@/components/form/sharedFields';
 import type { GoalAsset } from './goalOptimizerUtils.js';
 interface GoalParamsProps {
   targetAmount: number;
@@ -27,43 +28,6 @@ interface GoalParamsProps {
   onNumSimulationsChange: (v: number) => void;
   onRun: () => void;
 }
-function PercentInput(props: InputProps) {
-  return (
-    <div className="relative">
-      <Input type="number" className="pr-8" {...props} />
-      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-        %
-      </span>
-    </div>
-  );
-}
-function DollarInput(props: InputProps) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-        $
-      </span>
-      <Input type="number" className="pl-7" {...props} />
-    </div>
-  );
-}
-function SectionHeader({ title, info }: { title: string; info?: string }) {
-  return (
-    <div>
-      <div className="text-label font-semibold text-fg">{title}</div>
-      {info && <div className="text-caption text-fg-tertiary">{info}</div>}
-    </div>
-  );
-}
-type SettingsProps = Pick<
-  GoalParamsProps,
-  | 'targetAmount'
-  | 'initialAmount'
-  | 'years'
-  | 'onTargetAmountChange'
-  | 'onInitialAmountChange'
-  | 'onYearsChange'
->;
 function GoalSettingsSection({
   targetAmount,
   initialAmount,
@@ -71,7 +35,15 @@ function GoalSettingsSection({
   onTargetAmountChange,
   onInitialAmountChange,
   onYearsChange,
-}: SettingsProps) {
+}: Pick<
+  GoalParamsProps,
+  | 'targetAmount'
+  | 'initialAmount'
+  | 'years'
+  | 'onTargetAmountChange'
+  | 'onInitialAmountChange'
+  | 'onYearsChange'
+>) {
   const { t } = useTranslation();
   const dollarFields = [
     {
@@ -92,6 +64,7 @@ function GoalSettingsSection({
       <SectionHeader
         title={t('goalOptimizer.goal.section')}
         info={t('goalOptimizer.goal.sectionInfo')}
+        variant="label"
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {dollarFields.map((f) => (

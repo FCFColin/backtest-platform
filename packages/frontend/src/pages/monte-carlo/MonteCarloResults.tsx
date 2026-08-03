@@ -13,6 +13,7 @@ import { ComputeToolShell, type ComputeToolConfig } from '../../components/shell
 import { MiniStatCard } from '../../components/cards.js';
 import { Loader2 } from '@/icons/icons.js';
 import { fmtDollar } from '@/utils/format';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import { McParamsPanel } from './MonteCarloParams.js';
 import type { DistMetric, McState, PortfolioMode, ResultTab } from './monteCarloUtils.js';
 import {
@@ -107,44 +108,18 @@ export function MonteCarloSummaryTab({
       </Card>
     );
   }
+  const columns: SimpleTableColumn<(typeof rows)[number]>[] = [
+    { key: 'metric', label: t('monteCarlo.results.metric'), render: (row) => row.metric },
+    ...SUMMARY_STATS.map((s) => ({
+      key: s,
+      label: s,
+      align: 'right' as const,
+      render: (row: (typeof rows)[number]) => row.values[s],
+    })),
+  ];
   return (
     <Card className="p-5">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-body">
-          <thead>
-            <tr>
-              <th className="border-b-2 border-border-strong px-3 py-2 text-left text-caption font-semibold text-fg-tertiary">
-                {t('monteCarlo.results.metric')}
-              </th>
-              {SUMMARY_STATS.map((s) => (
-                <th
-                  key={s}
-                  className="border-b-2 border-border-strong px-3 py-2 text-right text-caption font-semibold text-fg-tertiary"
-                >
-                  {s}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key}>
-                <td className="border-b border-border-subtle px-3 py-2 text-label font-medium text-fg">
-                  {row.metric}
-                </td>
-                {SUMMARY_STATS.map((s) => (
-                  <td
-                    key={s}
-                    className="border-b border-border-subtle px-3 py-2 text-right font-mono tabular-nums text-fg-secondary"
-                  >
-                    {row.values[s]}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SimpleTable columns={columns} data={rows} rowKey={(row) => row.key} />
     </Card>
   );
 }

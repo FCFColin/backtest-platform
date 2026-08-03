@@ -1,8 +1,8 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { Button, Input } from '@/components/ui/uiComponents';
+import { LabeledField, RunButton } from '@/components/form/sharedFields';
 import { cn } from '@/lib/utils';
 import { LETFResultsPanel } from './LETFSlippageResults.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
@@ -11,6 +11,7 @@ import { apiPostJSON } from '@/utils/apiClient';
 import i18n from '../../i18n/index.js';
 import { DEFAULT_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import type { LETFResult } from '@backtest/shared';
+
 function useLETFSlippageState() {
   const { t } = useTranslation();
   const [letfTicker, setLetfTicker] = useState('TQQQ');
@@ -55,42 +56,16 @@ function useLETFSlippageState() {
     runAnalysis,
   };
 }
-interface LETFState {
-  letfTicker: string;
-  benchmarkTicker: string;
-  leverage: number;
-  startDate: string;
-  endDate: string;
-  isLoading: boolean;
-  error: string | null;
-  results: LETFResult | null;
-  setLetfTicker: (t: string) => void;
-  setBenchmarkTicker: (t: string) => void;
-  setLeverage: (n: number) => void;
-  setStartDate: (d: string) => void;
-  setEndDate: (d: string) => void;
-  runAnalysis: () => void;
-}
-interface LETFParamsProps {
-  letfTicker: string;
-  benchmarkTicker: string;
-  leverage: number;
-  startDate: string;
-  endDate: string;
-  isLoading: boolean;
-  onLetfTickerChange: (v: string) => void;
-  onBenchmarkTickerChange: (v: string) => void;
-  onLeverageChange: (v: number) => void;
-  onStartDateChange: (v: string) => void;
-  onEndDateChange: (v: string) => void;
-  onRun: () => void;
-}
+type LETFState = ReturnType<typeof useLETFSlippageState>;
+
 const LEVERAGE_OPTIONS = [2, 3] as const;
-interface LeverageSelectorProps {
+function LeverageSelector({
+  leverage,
+  onChange,
+}: {
   leverage: number;
   onChange: (v: number) => void;
-}
-function LeverageSelector({ leverage, onChange }: LeverageSelectorProps) {
+}) {
   return (
     <div className="flex h-10 gap-1.5">
       {LEVERAGE_OPTIONS.map((lev) => {
@@ -101,8 +76,7 @@ function LeverageSelector({ leverage, onChange }: LeverageSelectorProps) {
             type="button"
             onClick={() => onChange(lev)}
             className={cn(
-              'h-full rounded-md border px-5 text-body font-medium',
-              'transition-colors duration-150',
+              'h-full rounded-md border px-5 text-body font-medium transition-colors duration-150',
               active
                 ? 'border-brand bg-brand text-brand-fg'
                 : 'border-border bg-input-bg text-fg-secondary hover:bg-hover',
@@ -115,136 +89,79 @@ function LeverageSelector({ leverage, onChange }: LeverageSelectorProps) {
     </div>
   );
 }
-function LetfTickerGrid({
-  letfTicker,
-  benchmarkTicker,
-  leverage,
-  onLetfTickerChange,
-  onBenchmarkTickerChange,
-  onLeverageChange,
-}: Pick<
-  LETFParamsProps,
-  | 'letfTicker'
-  | 'benchmarkTicker'
-  | 'leverage'
-  | 'onLetfTickerChange'
-  | 'onBenchmarkTickerChange'
-  | 'onLeverageChange'
->) {
+
+function LETFParamsPanel({ state: s }: { state: LETFState }) {
   const { t } = useTranslation();
   const letfId = useId();
   const benchId = useId();
   const levId = useId();
-  return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <Field>
-        <FieldLabel htmlFor={letfId}>{t('letf.etf.letfTicker')}</FieldLabel>
-        <Input
-          id={letfId}
-          type="text"
-          value={letfTicker}
-          onChange={(e) => onLetfTickerChange(e.target.value)}
-          placeholder={t('letf.etf.letfTickerPlaceholder')}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor={benchId}>{t('letf.etf.benchmarkTicker')}</FieldLabel>
-        <Input
-          id={benchId}
-          type="text"
-          value={benchmarkTicker}
-          onChange={(e) => onBenchmarkTickerChange(e.target.value)}
-          placeholder={t('letf.etf.benchmarkTickerPlaceholder')}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor={levId}>{t('letf.etf.leverage')}</FieldLabel>
-        <LeverageSelector leverage={leverage} onChange={onLeverageChange} />
-      </Field>
-    </div>
-  );
-}
-function LETFParamsPanel({
-  startDate,
-  endDate,
-  isLoading,
-  onStartDateChange,
-  onEndDateChange,
-  onRun,
-  ...rest
-}: LETFParamsProps) {
-  const { t } = useTranslation();
   const startId = useId();
   const endId = useId();
   return (
     <div className="flex flex-col gap-4">
-      <LetfTickerGrid {...rest} />
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <LabeledField htmlFor={letfId} label={t('letf.etf.letfTicker')}>
+          <Input
+            id={letfId}
+            type="text"
+            value={s.letfTicker}
+            onChange={(e) => s.setLetfTicker(e.target.value)}
+            placeholder={t('letf.etf.letfTickerPlaceholder')}
+          />
+        </LabeledField>
+        <LabeledField htmlFor={benchId} label={t('letf.etf.benchmarkTicker')}>
+          <Input
+            id={benchId}
+            type="text"
+            value={s.benchmarkTicker}
+            onChange={(e) => s.setBenchmarkTicker(e.target.value)}
+            placeholder={t('letf.etf.benchmarkTickerPlaceholder')}
+          />
+        </LabeledField>
         <Field>
-          <FieldLabel htmlFor={startId}>{t('letf.dateRange.startDate')}</FieldLabel>
+          <FieldLabel htmlFor={levId}>{t('letf.etf.leverage')}</FieldLabel>
+          <LeverageSelector leverage={s.leverage} onChange={s.setLeverage} />
+        </Field>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <LabeledField htmlFor={startId} label={t('letf.dateRange.startDate')}>
           <Input
             id={startId}
             type="date"
-            value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
+            value={s.startDate}
+            onChange={(e) => s.setStartDate(e.target.value)}
           />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor={endId}>{t('letf.dateRange.endDate')}</FieldLabel>
+        </LabeledField>
+        <LabeledField htmlFor={endId} label={t('letf.dateRange.endDate')}>
           <Input
             id={endId}
             type="date"
-            value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
+            value={s.endDate}
+            onChange={(e) => s.setEndDate(e.target.value)}
           />
-        </Field>
+        </LabeledField>
       </div>
-      <div>
-        <Button variant="primary" onClick={onRun} disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="size-4 animate-spin" />
-              {t('letf.analyzing')}
-            </>
-          ) : (
-            <>
-              <Play className="size-4" />
-              {t('letf.startAnalysis')}
-            </>
-          )}
-        </Button>
-      </div>
+      <RunButton
+        isLoading={s.isLoading}
+        onClick={s.runAnalysis}
+        label={t('letf.startAnalysis')}
+        loadingLabel={t('letf.analyzing')}
+      />
     </div>
   );
 }
-function LETFParamsWrapper({ state }: { state: LETFState }) {
-  return (
-    <LETFParamsPanel
-      letfTicker={state.letfTicker}
-      benchmarkTicker={state.benchmarkTicker}
-      leverage={state.leverage}
-      startDate={state.startDate}
-      endDate={state.endDate}
-      isLoading={state.isLoading}
-      onLetfTickerChange={state.setLetfTicker}
-      onBenchmarkTickerChange={state.setBenchmarkTicker}
-      onLeverageChange={state.setLeverage}
-      onStartDateChange={state.setStartDate}
-      onEndDateChange={state.setEndDate}
-      onRun={state.runAnalysis}
-    />
-  );
-}
-function LETFResultsWrapper({ state }: { state: LETFState }) {
+
+function LETFResultsWrapper({ state: s }: { state: LETFState }) {
   return (
     <LETFResultsPanel
-      results={state.results}
-      error={state.error}
-      isLoading={state.isLoading}
-      leverage={state.leverage}
+      results={s.results}
+      error={s.error}
+      isLoading={s.isLoading}
+      leverage={s.leverage}
     />
   );
 }
+
 const config: ComputeToolConfig<LETFState> = {
   titleKey: 'letf.title',
   seoDescKey: 'letf.seo.desc',
@@ -257,7 +174,7 @@ const config: ComputeToolConfig<LETFState> = {
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
     { titleKey: 'nav.pca', href: '/pca' },
   ],
-  params: LETFParamsWrapper,
+  params: LETFParamsPanel,
   results: LETFResultsWrapper,
 };
 export default function LETFSlippagePage() {

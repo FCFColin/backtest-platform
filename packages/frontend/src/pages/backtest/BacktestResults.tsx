@@ -14,7 +14,7 @@ import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadFile, dateSuffixedFilename } from '@/utils/format';
 import { REBALANCE_LBL } from '@/utils/constants';
-import { cn } from '@/lib/utils';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 import ChartCard from '@/components/ChartCard.js';
 import {
   type Portfolio,
@@ -314,74 +314,6 @@ function RebalancingEmptyState() {
     </ChartCard>
   );
 }
-function RebalancingStatsHeader() {
-  const { t } = useTranslation();
-  const thBase =
-    'py-2.5 px-3 text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap';
-  return (
-    <tr className="bg-elevated">
-      <th className={cn(thBase, 'text-left')}>{t('backtest.portfolio')}</th>
-      <th className={cn(thBase, 'text-left')}>{t('efficientFrontier.params.rebalanceFreq')}</th>
-      <th className={cn(thBase, 'text-right')}>{t('components.rebalancingStats.offsetDays')}</th>
-      <th className={cn(thBase, 'text-right')}>
-        {t('components.rebalancingStats.deviationThreshold')}
-      </th>
-      <th className={cn(thBase, 'text-left')}>{t('components.rebalancingStats.rebalanceBands')}</th>
-    </tr>
-  );
-}
-function RebalancingStatsRow({
-  portfolio,
-  idx,
-}: {
-  portfolio: Pick<
-    Portfolio,
-    'name' | 'rebalanceFrequency' | 'rebalanceThreshold' | 'rebalanceOffset' | 'rebalanceBands'
-  >;
-  idx: number;
-}) {
-  const { t } = useTranslation();
-  const isAlt = idx % 2 === 1;
-  const bands = portfolio.rebalanceBands;
-  const bandsText = bands?.enabled
-    ? t('components.rebalancingStats.bandsText', {
-        absolute: bands.absoluteBand ?? '-',
-        relative: bands.relativeBand ?? '-',
-      })
-    : t('components.rebalancingStats.bandsDisabled');
-  const tdBase = 'py-2 px-3 text-body border-b border-border-subtle whitespace-nowrap';
-  return (
-    <tr key={portfolio.name} className={isAlt ? 'bg-elevated' : 'bg-transparent'}>
-      <td className={cn(tdBase, 'text-left text-fg')}>
-        <span
-          className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
-          style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
-        />
-        {portfolio.name}
-      </td>
-      <td className={cn(tdBase, 'text-left text-fg-secondary')}>
-        {t(REBALANCE_LBL[portfolio.rebalanceFrequency] || portfolio.rebalanceFrequency)}
-      </td>
-      <td className={cn(tdBase, 'text-right font-mono tabular-nums text-fg-secondary')}>
-        {portfolio.rebalanceOffset ?? 0}
-      </td>
-      <td className={cn(tdBase, 'text-right font-mono tabular-nums text-fg-secondary')}>
-        {portfolio.rebalanceFrequency === 'threshold'
-          ? `${portfolio.rebalanceThreshold ?? 5}%`
-          : '-'}
-      </td>
-      <td
-        className={cn(
-          tdBase,
-          'text-left',
-          bands?.enabled ? 'text-fg-secondary' : 'text-fg-tertiary',
-        )}
-      >
-        {bandsText}
-      </td>
-    </tr>
-  );
-}
 function RebalancingStats({ portfolios }: RebalancingStatsProps) {
   const { t } = useTranslation();
   if (portfolios.length === 0) return <RebalancingEmptyState />;
@@ -389,20 +321,52 @@ function RebalancingStats({ portfolios }: RebalancingStatsProps) {
     (p) => p.rebalanceFrequency && p.rebalanceFrequency !== 'none',
   );
   if (!hasRebalanceInfo) return <RebalancingEmptyState />;
+  const columns: SimpleTableColumn<Portfolio>[] = [
+    {
+      key: 'name',
+      label: t('backtest.portfolio'),
+      render: (p, i) => (
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-block size-2.5 rounded-full align-middle"
+            style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+          />
+          {p.name}
+        </span>
+      ),
+    },
+    {
+      key: 'rebalanceFrequency',
+      label: t('efficientFrontier.params.rebalanceFreq'),
+      render: (p) => t(REBALANCE_LBL[p.rebalanceFrequency] || p.rebalanceFrequency),
+    },
+    {
+      key: 'rebalanceOffset',
+      label: t('components.rebalancingStats.offsetDays'),
+      align: 'right',
+      render: (p) => String(p.rebalanceOffset ?? 0),
+    },
+    {
+      key: 'rebalanceThreshold',
+      label: t('components.rebalancingStats.deviationThreshold'),
+      align: 'right',
+      render: (p) => (p.rebalanceFrequency === 'threshold' ? `${p.rebalanceThreshold ?? 5}%` : '-'),
+    },
+    {
+      key: 'rebalanceBands',
+      label: t('components.rebalancingStats.rebalanceBands'),
+      render: (p) =>
+        p.rebalanceBands?.enabled
+          ? t('components.rebalancingStats.bandsText', {
+              absolute: p.rebalanceBands.absoluteBand ?? '-',
+              relative: p.rebalanceBands.relativeBand ?? '-',
+            })
+          : t('components.rebalancingStats.bandsDisabled'),
+    },
+  ];
   return (
     <ChartCard title={t('tabs.rebalancing')}>
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-body">
-          <thead>
-            <RebalancingStatsHeader />
-          </thead>
-          <tbody>
-            {portfolios.map((portfolio, idx) => (
-              <RebalancingStatsRow key={portfolio.name} portfolio={portfolio} idx={idx} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SimpleTable columns={columns} data={portfolios} rowKey={(p) => p.name} />
     </ChartCard>
   );
 }

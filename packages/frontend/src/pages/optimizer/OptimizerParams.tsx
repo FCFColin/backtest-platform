@@ -1,58 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { Play, Loader2 } from 'lucide-react';
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Switch,
-  type InputProps,
-} from '@/components/ui/uiComponents';
+import { Button, Input, Switch } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
 import { TickerTagInput } from '@/components/form/TickerTagInput.js';
+import {
+  SectionHeader,
+  LabeledField,
+  SelectField,
+  PercentInput,
+  SwitchField,
+} from '@/components/form/sharedFields';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
-
-function PercentInput({ showPercent = true, ...props }: InputProps & { showPercent?: boolean }) {
-  return (
-    <div className="relative">
-      <Input type="number" className={showPercent ? 'pr-8' : undefined} {...props} />
-      {showPercent && (
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-          %
-        </span>
-      )}
-    </div>
-  );
-}
-function LabeledField({
-  htmlFor,
-  labelKey,
-  children,
-}: {
-  htmlFor?: string;
-  labelKey: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Field>
-      <FieldLabel htmlFor={htmlFor}>{labelKey}</FieldLabel>
-      {children}
-    </Field>
-  );
-}
-function SectionHeader({ title, info }: { title: string; info?: string }) {
-  return (
-    <div>
-      <div className="text-label font-semibold text-fg">{title}</div>
-      {info && <div className="text-caption text-fg-tertiary">{info}</div>}
-    </div>
-  );
-}
 
 const OBJECTIVES = [
   { value: 'maxSharpe', labelKey: 'optimizer.maxSharpe' },
@@ -63,60 +23,6 @@ const SOLVERS = [
   { value: 'markowitz', labelKey: 'optimizer.solverMarkowitz' },
   { value: 'ga', labelKey: 'optimizer.solverGA' },
 ] as const;
-
-function SelectField<T extends string>({
-  id,
-  value,
-  onChange,
-  options,
-  labelKey,
-}: {
-  id?: string;
-  value: T;
-  onChange: (v: T) => void;
-  options: readonly { value: T; labelKey: string }[];
-  labelKey: string;
-}) {
-  const { t } = useTranslation();
-  return (
-    <LabeledField htmlFor={id} labelKey={t(labelKey)}>
-      <Select value={value} onValueChange={(v) => onChange(v as T)}>
-        <SelectTrigger id={id}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {t(o.labelKey)}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </LabeledField>
-  );
-}
-
-function SwitchField({
-  htmlFor,
-  labelKey,
-  checked,
-  onCheckedChange,
-}: {
-  htmlFor: string;
-  labelKey: string;
-  checked: boolean;
-  onCheckedChange: (v: boolean) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <Field>
-      <div className="flex items-center justify-between">
-        <FieldLabel htmlFor={htmlFor}>{t(labelKey)}</FieldLabel>
-        <Switch id={htmlFor} checked={checked} onCheckedChange={onCheckedChange} />
-      </div>
-    </Field>
-  );
-}
 
 function TickerEditor({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
@@ -180,8 +86,8 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <SwitchField
-          htmlFor="opt-all-history"
-          labelKey="optimizer.allHistory"
+          id="opt-all-history"
+          label={t('optimizer.allHistory')}
           checked={allHistory}
           onCheckedChange={(checked) => {
             s.setStartDate(checked ? '' : DEFAULT_BACKTEST_START_DATE);
@@ -189,7 +95,7 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
           }}
         />
         {DATE_FIELDS.map((f) => (
-          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
+          <LabeledField key={f.id} htmlFor={f.id} label={t(f.labelKey)}>
             <Input
               id={f.id}
               type="date"
@@ -201,13 +107,13 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
         ))}
         <SelectField
           id="opt-objective"
-          labelKey="optimizer.objective"
+          label={t('optimizer.objective')}
           value={s.objective}
           onChange={s.setObjective}
-          options={OBJECTIVES}
+          options={OBJECTIVES.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
         />
         {WEIGHT_FIELDS.map((f) => (
-          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
+          <LabeledField key={f.id} htmlFor={f.id} label={t(f.labelKey)}>
             <PercentInput
               id={f.id}
               value={f.get(s)}
@@ -217,7 +123,7 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
             />
           </LabeledField>
         ))}
-        <LabeledField htmlFor="opt-tbill" labelKey={t('optimizer.tbillRate')}>
+        <LabeledField htmlFor="opt-tbill" label={t('optimizer.tbillRate')}>
           <PercentInput
             step={0.1}
             value={s.tbillRate}
@@ -226,14 +132,14 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
         </LabeledField>
         <SelectField
           id="opt-solver"
-          labelKey="optimizer.solver"
+          label={t('optimizer.solver')}
           value={s.solver}
           onChange={(v) => s.setSolver(v as SolverType)}
-          options={SOLVERS}
+          options={SOLVERS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
         />
         <SwitchField
-          htmlFor="opt-short"
-          labelKey="optimizer.allowShort"
+          id="opt-short"
+          label={t('optimizer.allowShort')}
           checked={s.allowShort}
           onCheckedChange={s.setAllowShort}
         />
@@ -355,7 +261,7 @@ function AdvancedConstraints({ s }: { s: EfficientFrontierState }) {
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {fields.map((f) => (
-          <LabeledField key={f.labelKey} labelKey={t(f.labelKey)}>
+          <LabeledField key={f.labelKey} label={t(f.labelKey)}>
             {f.percent ? (
               <PercentInput
                 step={f.step}
