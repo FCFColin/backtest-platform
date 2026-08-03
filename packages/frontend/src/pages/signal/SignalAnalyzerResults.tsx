@@ -6,12 +6,8 @@ import type { MultiSignalResponse } from './signalTypes.js';
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/uiComponents';
 import { CollapsibleSection } from '@/components/cards';
 import { SortableTable, type Column } from '../../components/tables.js';
-import {
-  ResultsContainer,
-  AnalysisErrorAlert,
-  EmptyResultsHint,
-  EquityLineChart,
-} from './SignalResultsPanel.js';
+import { ResultsContainer, EquityLineChart } from './SignalResultsPanel.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 interface SignalRow {
   date: string;
   type: 'buy' | 'sell';
@@ -145,11 +141,17 @@ export function SignalAnalyzerResultsPanel({
   const { t } = useTranslation();
   const signalColumns = buildSignalColumns(t);
   return (
-    <ResultsContainer>
-      <AnalysisErrorAlert error={error} />
-      {results && <SignalResultsContent results={results} signalColumns={signalColumns} />}
-      {!results && !error && !isLoading && <EmptyResultsHint />}
-    </ResultsContainer>
+    <ResultsShell
+      error={error}
+      errorPrefix={t('signal.common.analysisFailedPrefix')}
+      isLoading={isLoading}
+      hasResults={!!results}
+      emptyTitle={t('signal.common.emptyHint')}
+    >
+      <ResultsContainer>
+        <SignalResultsContent results={results!} signalColumns={signalColumns} />
+      </ResultsContainer>
+    </ResultsShell>
   );
 }
 interface AggStatRow {
@@ -205,53 +207,55 @@ export function MultiSignalResultsPanel({
   const aggStatRows = results ? buildAggStatRows(results) : [];
   const contributionColumns = buildContributionColumns(t);
   return (
-    <ResultsContainer>
-      <AnalysisErrorAlert error={error} />
-      {results && (
-        <>
-          <CollapsibleSection
-            title={t('signal.multi.aggStatsTitle')}
-            defaultOpen
-            className="rounded-xl border border-border bg-surface"
-          >
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-              {aggStatRows.map((r) => (
-                <StatCard key={r.label} label={t(r.label)} value={r.value} />
-              ))}
-            </div>
-          </CollapsibleSection>
-          <CollapsibleSection
-            title={t('signal.multi.contributionTitle')}
-            defaultOpen
-            className="rounded-xl border border-border bg-surface"
-          >
-            {results.contributions.length > 0 ? (
-              <SortableTable
-                columns={contributionColumns}
-                data={results.contributions}
-                initialSortKey="contribution"
-                initialSortDir="desc"
-              />
-            ) : (
-              <div className="py-6 text-center text-body text-fg-tertiary">
-                {t('signal.multi.noContribution')}
-              </div>
-            )}
-          </CollapsibleSection>
-          <CollapsibleSection
-            title={t('signal.multi.equityCurve')}
-            defaultOpen
-            className="rounded-xl border border-border bg-surface"
-          >
-            <EquityLineChart
-              data={results.aggregated.equityCurve}
-              series={[{ dataKey: 'value', legendName: t('signal.multi.aggEquity') }]}
-              tooltipName={t('signal.common.equity')}
+    <ResultsShell
+      error={error}
+      errorPrefix={t('signal.common.analysisFailedPrefix')}
+      isLoading={isLoading}
+      hasResults={!!results}
+      emptyTitle={t('signal.common.emptyHint')}
+    >
+      <ResultsContainer>
+        <CollapsibleSection
+          title={t('signal.multi.aggStatsTitle')}
+          defaultOpen
+          className="rounded-xl border border-border bg-surface"
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            {aggStatRows.map((r) => (
+              <StatCard key={r.label} label={t(r.label)} value={r.value} />
+            ))}
+          </div>
+        </CollapsibleSection>
+        <CollapsibleSection
+          title={t('signal.multi.contributionTitle')}
+          defaultOpen
+          className="rounded-xl border border-border bg-surface"
+        >
+          {results!.contributions.length > 0 ? (
+            <SortableTable
+              columns={contributionColumns}
+              data={results!.contributions}
+              initialSortKey="contribution"
+              initialSortDir="desc"
             />
-          </CollapsibleSection>
-        </>
-      )}
-      {!results && !error && !isLoading && <EmptyResultsHint />}
-    </ResultsContainer>
+          ) : (
+            <div className="py-6 text-center text-body text-fg-tertiary">
+              {t('signal.multi.noContribution')}
+            </div>
+          )}
+        </CollapsibleSection>
+        <CollapsibleSection
+          title={t('signal.multi.equityCurve')}
+          defaultOpen
+          className="rounded-xl border border-border bg-surface"
+        >
+          <EquityLineChart
+            data={results!.aggregated.equityCurve}
+            series={[{ dataKey: 'value', legendName: t('signal.multi.aggEquity') }]}
+            tooltipName={t('signal.common.equity')}
+          />
+        </CollapsibleSection>
+      </ResultsContainer>
+    </ResultsShell>
   );
 }

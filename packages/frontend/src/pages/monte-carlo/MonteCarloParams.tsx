@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Play, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import {
-  Button,
   Checkbox,
   Input,
   Select,
@@ -13,7 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
-import { SectionHeader } from '@/components/form/sharedFields';
+import { SectionHeader, SelectField, RunButton } from '@/components/form/sharedFields';
 import { SegmentedControl } from '../../components/form/SegmentedControl.js';
 import PortfolioEditor from '../../components/PortfolioEditor.js';
 import type { McState, PortfolioMode, PortfolioState } from './monteCarloUtils.js';
@@ -295,35 +293,6 @@ function BuildModeSection({ s }: { s: McState }) {
     </section>
   );
 }
-function GoalSelectField({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-}) {
-  return (
-    <Field>
-      <FieldLabel>{label}</FieldLabel>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((g) => (
-            <SelectItem key={g.value} value={g.value}>
-              {g.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </Field>
-  );
-}
 function DualGoalSection({ s }: { s: McState }) {
   const { t } = useTranslation();
   const { goal1, setGoal1, goal2, setGoal2, goalWeight, setGoalWeight } = s;
@@ -335,13 +304,13 @@ function DualGoalSection({ s }: { s: McState }) {
         info={t('monteCarlo.params.dualGoalInfo')}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <GoalSelectField
+        <SelectField
           label={t('monteCarlo.params.goal1')}
           value={goal1}
           onChange={setGoal1}
           options={goalOptions}
         />
-        <GoalSelectField
+        <SelectField
           label={t('monteCarlo.params.goal2')}
           value={goal2}
           onChange={setGoal2}
@@ -386,10 +355,12 @@ function McParamsPanel({ s }: { s: McState }) {
           {simMode === 'frontier' && <DualGoalSection s={s} />}
         </>
       )}
-      <Button onClick={s.runSimulation} disabled={s.isLoading} variant="primary" className="w-full">
-        {s.isLoading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-        {s.isLoading ? t('monteCarlo.params.simulating') : t('monteCarlo.params.startSim')}
-      </Button>
+      <RunButton
+        isLoading={s.isLoading}
+        onClick={s.runSimulation}
+        label={t('monteCarlo.params.startSim')}
+        loadingLabel={t('monteCarlo.params.simulating')}
+      />
     </div>
   );
 }

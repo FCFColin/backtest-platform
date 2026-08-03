@@ -1,8 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2 } from 'lucide-react';
 import type { RebalanceFrequency } from '@backtest/shared';
 import {
-  Button,
   Input,
   Select,
   SelectContent,
@@ -11,6 +9,7 @@ import {
   SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel, FieldDescription } from '@/components/form/Field';
+import { LabeledField, RunButton } from '@/components/form/sharedFields';
 import { ParamSection } from './TacticalSignalEditor';
 import { INDICATOR_OPTIONS, OBJECTIVE_OPTIONS, REBALANCE_OPTIONS } from './tacticalGridUtils';
 import type { IndicatorType, ObjectiveType, GridParamRange } from './tacticalGridUtils';
@@ -119,8 +118,7 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
   return (
     <ParamSection title={t('tacticalGrid.params.backtestParams')}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field>
-          <FieldLabel htmlFor="grid-ticker">{t('tacticalGrid.params.ticker')}</FieldLabel>
+        <LabeledField htmlFor="grid-ticker" label={t('tacticalGrid.params.ticker')}>
           <Input
             id="grid-ticker"
             type="text"
@@ -128,29 +126,24 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
             onChange={(e) => setTicker(e.target.value)}
             placeholder={t('tacticalGrid.params.tickerPlaceholder')}
           />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="grid-start-date">{t('tacticalGrid.params.startDate')}</FieldLabel>
+        </LabeledField>
+        <LabeledField htmlFor="grid-start-date" label={t('tacticalGrid.params.startDate')}>
           <Input
             id="grid-start-date"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="grid-end-date">{t('tacticalGrid.params.endDate')}</FieldLabel>
+        </LabeledField>
+        <LabeledField htmlFor="grid-end-date" label={t('tacticalGrid.params.endDate')}>
           <Input
             id="grid-end-date"
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="grid-starting-value">
-            {t('tacticalGrid.params.startingValue')}
-          </FieldLabel>
+        </LabeledField>
+        <LabeledField htmlFor="grid-starting-value" label={t('tacticalGrid.params.startingValue')}>
           <Input
             id="grid-starting-value"
             type="number"
@@ -159,7 +152,7 @@ function BacktestParamsSection({ state }: { state: TacticalGridState }) {
             value={startingValue}
             onChange={(e) => setStartingValue(Number(e.target.value))}
           />
-        </Field>
+        </LabeledField>
         <Field>
           <FieldLabel htmlFor="grid-rebalance">{t('tacticalGrid.params.rebalanceFreq')}</FieldLabel>
           <Select
@@ -206,10 +199,12 @@ export function GridParamsPanel({ state }: { state: TacticalGridState }) {
           </Select>
         </Field>
       </ParamSection>
-      <Button variant="primary" onClick={runSearch} disabled={isLoading} className="w-full">
-        {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-        {isLoading ? t('tacticalGrid.params.searching') : t('tacticalGrid.params.startSearch')}
-      </Button>
+      <RunButton
+        isLoading={isLoading}
+        onClick={runSearch}
+        label={t('tacticalGrid.params.startSearch')}
+        loadingLabel={t('tacticalGrid.params.searching')}
+      />
     </div>
   );
 }

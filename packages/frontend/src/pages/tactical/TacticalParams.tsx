@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2, Save, FolderOpen, Trash2 } from 'lucide-react';
+import { Save, FolderOpen, Trash2 } from 'lucide-react';
 import {
   Button,
   Input,
@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
+import { LabeledField, DollarInput, RunButton } from '@/components/form/sharedFields';
 import {
   useTacticalPageState,
   REBALANCE_OPTIONS,
@@ -117,41 +118,31 @@ function BacktestParamsSection({ state }: { state: TacticalPageState }) {
   return (
     <ParamSection title={t('tactical.params.backtestParams')}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Field>
-          <FieldLabel htmlFor="tactical-start-date">{t('tactical.params.startDate')}</FieldLabel>
+        <LabeledField htmlFor="tactical-start-date" label={t('tactical.params.startDate')}>
           <Input
             id="tactical-start-date"
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="tactical-end-date">{t('tactical.params.endDate')}</FieldLabel>
+        </LabeledField>
+        <LabeledField htmlFor="tactical-end-date" label={t('tactical.params.endDate')}>
           <Input
             id="tactical-end-date"
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
           />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="tactical-starting-value">
-            {t('tactical.params.startingValue')}
-          </FieldLabel>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-body text-fg-tertiary">
-              $
-            </span>
-            <Input
-              id="tactical-starting-value"
-              type="number"
-              className="pl-6 font-mono tabular-nums"
-              value={startingValue}
-              onChange={(e) => setStartingValue(Number(e.target.value))}
-            />
-          </div>
-        </Field>
+        </LabeledField>
+        <LabeledField htmlFor="tactical-starting-value" label={t('tactical.params.startingValue')}>
+          <DollarInput
+            id="tactical-starting-value"
+            type="number"
+            className="font-mono tabular-nums"
+            value={startingValue}
+            onChange={(e) => setStartingValue(Number(e.target.value))}
+          />
+        </LabeledField>
         <Field>
           <FieldLabel htmlFor="tactical-rebalance">{t('tactical.params.rebalanceFreq')}</FieldLabel>
           <Select
@@ -265,10 +256,12 @@ function TacticalParamsPanel({ state }: { state: TacticalPageState }) {
       <SignalBuilderSection state={state} />
       <AggregationSection state={state} />
       <BacktestParamsSection state={state} />
-      <Button variant="primary" onClick={handleRunBacktest} disabled={isLoading} className="w-full">
-        {isLoading ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-        {isLoading ? t('tactical.params.running') : t('tactical.params.runBacktest')}
-      </Button>
+      <RunButton
+        isLoading={isLoading}
+        onClick={handleRunBacktest}
+        label={t('tactical.params.runBacktest')}
+        loadingLabel={t('tactical.params.running')}
+      />
     </div>
   );
 }

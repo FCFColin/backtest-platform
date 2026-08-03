@@ -128,25 +128,19 @@ interface ErrorBannerProps {
   onClose?: () => void;
 }
 const ERROR_TYPE_BASE = 'https://backtest.platform/errors';
+const VARIANT_META = {
+  error: { icon: <AlertCircle className="size-4" />, className: '' },
+  warning: {
+    icon: <AlertTriangle className="size-4" />,
+    className: 'bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning',
+  },
+  info: {
+    icon: <Info className="size-4" />,
+    className: 'bg-brand/10 border-brand/30 text-brand [&>svg]:text-brand',
+  },
+} as const;
 function getVariantMeta(variant: 'error' | 'warning' | 'info') {
-  switch (variant) {
-    case 'warning':
-      return {
-        icon: <AlertTriangle className="size-4" />,
-        className: 'bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning',
-      };
-    case 'info':
-      return {
-        icon: <Info className="size-4" />,
-        className: 'bg-brand/10 border-brand/30 text-brand [&>svg]:text-brand',
-      };
-    case 'error':
-    default:
-      return {
-        icon: <AlertCircle className="size-4" />,
-        className: '',
-      };
-  }
+  return VARIANT_META[variant] ?? VARIANT_META.error;
 }
 function ErrorBannerCloseButton({
   onClose,

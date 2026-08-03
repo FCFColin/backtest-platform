@@ -74,6 +74,14 @@ interface StatisticsTableProps {
   onExport?: () => void;
   extendedTable?: React.ReactNode;
 }
+const FORMAT_FN: Record<string, (v: number) => string> = {
+  currency: formatCurrency,
+  percent: formatPercent,
+  duration: formatDuration,
+  number: formatNumber,
+};
+const getColorClass = (value: number): string =>
+  value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
 // eslint-disable-next-line max-lines-per-function
 export function StatisticsTable({
   portfolios,
@@ -94,14 +102,6 @@ export function StatisticsTable({
     if (typeof av !== 'number' || typeof bv !== 'number') return 0;
     return sortDir === 'asc' ? av - bv : bv - av;
   });
-  const getColorClass = (value: number): string =>
-    value > 0 ? 'text-pos' : value < 0 ? 'text-neg' : 'text-fg';
-  const FORMAT_FN: Record<string, (v: number) => string> = {
-    currency: formatCurrency,
-    percent: formatPercent,
-    duration: formatDuration,
-    number: formatNumber,
-  };
   const renderCell = (portfolio: (typeof portfolios)[0], col: StatColumn, index: number) => {
     if (col.key === 'name') {
       return (

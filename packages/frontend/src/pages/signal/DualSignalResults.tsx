@@ -12,12 +12,8 @@ import {
   SimpleTable,
   type SimpleTableColumn,
 } from '../../components/tables.js';
-import {
-  ResultsContainer,
-  AnalysisErrorAlert,
-  EmptyResultsHint,
-  EquityLineChart,
-} from './SignalResultsPanel.js';
+import { ResultsContainer, EquityLineChart } from './SignalResultsPanel.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import type { DualSignalResponse, SignalDir } from './signalTypes.js';
 interface DualSignalResultsProps {
   results: DualSignalResponse | null;
@@ -220,21 +216,23 @@ export function DualSignalResultsPanel({ results, error, isLoading }: DualSignal
     : [];
   const equityData = results ? buildEquityData(results) : [];
   return (
-    <ResultsContainer>
-      <AnalysisErrorAlert error={error} />
-      {results && (
-        <DualSignalResultsBody
-          t={t}
-          comparisonColumns={comparisonColumns}
-          comparison={comparison}
-          comparisonPage={comparisonPage}
-          prevPage={prevPage}
-          nextPage={nextPage}
-          statRows={statRows}
-          equityData={equityData}
-        />
-      )}
-      {!results && !error && !isLoading && <EmptyResultsHint />}
-    </ResultsContainer>
+    <ResultsShell
+      error={error}
+      errorPrefix={t('signal.common.analysisFailedPrefix')}
+      isLoading={isLoading}
+      hasResults={!!results}
+      emptyTitle={t('signal.common.emptyHint')}
+    >
+      <DualSignalResultsBody
+        t={t}
+        comparisonColumns={comparisonColumns}
+        comparison={comparison}
+        comparisonPage={comparisonPage}
+        prevPage={prevPage}
+        nextPage={nextPage}
+        statRows={statRows}
+        equityData={equityData}
+      />
+    </ResultsShell>
   );
 }

@@ -2,8 +2,7 @@ import { useState, memo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LineChart } from 'lucide-react';
 import { CHART_COLORS, type AssetAnalysisResult, type Statistics } from '@backtest/shared';
-import { AnalysisErrorAlert } from '@/components/resultsShell.js';
-import { EmptyState } from '@/components/stateDisplay';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/uiComponents';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
 import { TABS, fetchAnalysisResult } from './analysisUtils.js';
@@ -11,6 +10,7 @@ import { AnalysisParamsPanel } from './AnalysisParams.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
 import { useComputeTool, useListState } from '../../hooks/miscHooks.js';
 import { fmtPct } from '@/utils/format';
+import { cn } from '@/lib/utils';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { Loader2 } from '@/icons/icons.js';
 function useAnalysisPageState() {
@@ -115,21 +115,7 @@ function TabFallback() {
     </div>
   );
 }
-const SummaryTab = memo(function SummaryTab({ results }: { results: AssetAnalysisResult }) {
-  return (
-    <Suspense fallback={<TabFallback />}>
-      <OverviewCharts results={results} StatsTable={StatsTable} />
-    </Suspense>
-  );
-});
-const TelltaleTab = memo(function TelltaleTab({ results }: { results: AssetAnalysisResult }) {
-  return (
-    <Suspense fallback={<TabFallback />}>
-      <TelltaleChart results={results} />
-    </Suspense>
-  );
-});
-const CorrelationsBetaTab = memo(function CorrelationsBetaTab({
+function CorrelationsBetaTab({
   results,
   correlationWindow,
 }: {
@@ -156,27 +142,7 @@ const CorrelationsBetaTab = memo(function CorrelationsBetaTab({
       )}
     </div>
   );
-});
-const RollingMetricsTab = memo(function RollingMetricsTab({
-  results,
-  rollingWindow,
-}: {
-  results: AssetAnalysisResult;
-  rollingWindow: number;
-}) {
-  return <RollingMetricsChart results={results} rollingWindow={rollingWindow} />;
-});
-const RiskReturnTab = memo(function RiskReturnTab({ results }: { results: AssetAnalysisResult }) {
-  return <RiskReturnChart results={results} />;
-});
-const ReturnsTab = memo(function ReturnsTab({ results }: { results: AssetAnalysisResult }) {
-  return (
-    <div className="space-y-6">
-      <AnnualReturnChart results={results} />
-      <MonthlyHeatmap results={results} />
-    </div>
-  );
-});
+}
 const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
   state: s,
 }: {
@@ -186,8 +152,15 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
     s;
   const { t } = useTranslation();
   return (
-    <div className="space-y-4">
-      <AnalysisErrorAlert error={error} prefix={`${t('analysis.analysisFailed')}：`} />
+    <ResultsShell
+      error={error}
+      isLoading={isLoading}
+      hasResults={!!results}
+      errorPrefix={`${t('analysis.analysisFailed')}：`}
+      loadingLabel={t('analysis.analyzing')}
+      emptyTitle={t('analysis.noResultsHint')}
+      emptyIcon={LineChart}
+    >
       {results && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="flex w-full justify-start overflow-x-auto">
@@ -199,12 +172,12 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
           </TabsList>
           <TabsContent value="summary" className="pt-4">
             <Suspense fallback={<TabFallback />}>
-              <SummaryTab results={results} />
+              <OverviewCharts results={results} StatsTable={StatsTable} />
             </Suspense>
           </TabsContent>
           <TabsContent value="telltale" className="pt-4">
             <Suspense fallback={<TabFallback />}>
-              <TelltaleTab results={results} />
+              <TelltaleChart results={results} />
             </Suspense>
           </TabsContent>
           <TabsContent value="correlations" className="pt-4">
@@ -214,25 +187,25 @@ const AnalysisResultsPanel = memo(function AnalysisResultsPanel({
           </TabsContent>
           <TabsContent value="rolling" className="pt-4">
             <Suspense fallback={<TabFallback />}>
-              <RollingMetricsTab results={results} rollingWindow={rollingWindow} />
+              <RollingMetricsChart results={results} rollingWindow={rollingWindow} />
             </Suspense>
           </TabsContent>
           <TabsContent value="risk-return" className="pt-4">
             <Suspense fallback={<TabFallback />}>
-              <RiskReturnTab results={results} />
+              <RiskReturnChart results={results} />
             </Suspense>
           </TabsContent>
           <TabsContent value="returns" className="pt-4">
             <Suspense fallback={<TabFallback />}>
-              <ReturnsTab results={results} />
+              <div className="space-y-6">
+                <AnnualReturnChart results={results} />
+                <MonthlyHeatmap results={results} />
+              </div>
             </Suspense>
           </TabsContent>
         </Tabs>
       )}
-      {!results && !error && !isLoading && (
-        <EmptyState icon={LineChart} title={t('analysis.noResultsHint')} />
-      )}
-    </div>
+    </ResultsShell>
   );
 });
 type AnalysisPageState = ReturnType<typeof useAnalysisPageState>;
@@ -295,6 +268,8 @@ const STATS_COLUMNS: {
   { key: 'ulcerPerformanceIndex', labelKey: 'UPI', fmt: 'ratio' },
   { key: 'beta', labelKey: 'Beta', fmt: 'ratio' },
 ];
+const TH_BASE =
+  'py-2 px-3 text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle';
 function StatsTableHeader({
   tickers,
   metricLabel,
@@ -305,14 +280,9 @@ function StatsTableHeader({
   return (
     <thead>
       <tr className="bg-elevated">
-        <th className="py-2 px-3 text-left text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle">
-          {metricLabel}
-        </th>
+        <th className={cn(TH_BASE, 'text-left')}>{metricLabel}</th>
         {tickers.map((tk, idx) => (
-          <th
-            key={tk.ticker}
-            className="py-2 px-3 text-right text-caption font-semibold uppercase tracking-wide text-fg-tertiary border-b border-border-subtle whitespace-nowrap"
-          >
+          <th key={tk.ticker} className={cn(TH_BASE, 'text-right whitespace-nowrap')}>
             <span
               className="mr-1.5 inline-block size-2.5 rounded-full align-middle"
               style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}

@@ -26,23 +26,14 @@ func CalcMWRR(cashflows []Cashflow) float64 {
 	if len(cashflows) == 0 {
 		return 0
 	}
-	low, high := -0.5, 1.0
-	for i := 0; i < 200; i++ {
-		mid := (low + high) / 2
-		npv := 0.0
+	npv := func(rate float64) float64 {
+		sum := 0.0
 		for _, cf := range cashflows {
-			npv += cf.Value / math.Pow(1+mid, cf.Time)
+			sum += cf.Value / math.Pow(1+rate, cf.Time)
 		}
-		if math.Abs(npv) < 1e-8 {
-			return mid
-		}
-		if npv > 0 {
-			low = mid
-		} else {
-			high = mid
-		}
+		return sum
 	}
-	return (low + high) / 2
+	return bisect(-0.5, 1.0, 200, func(rate float64) bool { return npv(rate) > 0 })
 }
 func CalcAnnualizedStdev(dailyReturns []float64) float64 {
 	if len(dailyReturns) < 2 {
@@ -462,15 +453,14 @@ func CalcAnnualReturns(values []float64, dates []string) []AnnualReturn {
 func CalcMonthlyReturns(values []float64, dates []string) []MonthlyReturn {
 	type monthKey struct{ year, month int }
 	type monthVal struct{ first, last float64 }
-	monthMap := make(map[monthKey]monthVal)
+	monthMap := make(map[monthKey]*monthVal)
 	for i, v := range values {
 		y, m := parseYearMonth(dates[i])
 		key := monthKey{y, m}
 		if mv, ok := monthMap[key]; ok {
 			mv.last = v
-			monthMap[key] = mv
 		} else {
-			monthMap[key] = monthVal{v, v}
+			monthMap[key] = &monthVal{v, v}
 		}
 	}
 	result := make([]MonthlyReturn, 0, len(monthMap))

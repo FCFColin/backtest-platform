@@ -21,24 +21,7 @@ import {
   LEGEND_WRAPPER_STYLE,
   DATE_TICK_FORMATTER,
 } from '@/lib/chart-theme';
-import { ErrorBanner, EmptyState } from '@/components/stateDisplay';
-interface EmptyResultsHintProps {
-  text?: string;
-}
-export function EmptyResultsHint({ text }: EmptyResultsHintProps) {
-  const { t } = useTranslation();
-  return <EmptyState title={text ?? t('signal.common.emptyHint')} />;
-}
-interface AnalysisErrorAlertProps {
-  error: string | null;
-  prefix?: string;
-}
-export function AnalysisErrorAlert({ error, prefix }: AnalysisErrorAlertProps) {
-  const { t } = useTranslation();
-  if (!error) return null;
-  const message = `${prefix ?? t('signal.common.analysisFailedPrefix')}${error}`;
-  return <ErrorBanner message={message} />;
-}
+
 interface ResultsContainerProps {
   children: ReactNode;
 }

@@ -25,7 +25,7 @@ import {
 } from '@/lib/chart-theme.js';
 import ChartCard from '@/components/ChartCard.js';
 import { Card, Progress } from '@/components/ui/uiComponents';
-import { ErrorBanner, EmptyState, LoadingState } from '@/components/stateDisplay.js';
+import { ResultsShell } from '@/components/resultsShell.js';
 import { getProbColor } from './goalOptimizerUtils.js';
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -201,39 +201,41 @@ export function GoalOptimizerResultsPanel({
   years: number;
 }) {
   const { t } = useTranslation();
-  if (error) {
-    return <ErrorBanner message={`${t('goalOptimizer.optFailed')}: ${error}`} variant="error" />;
-  }
-  if (isLoading && !results) {
-    return <LoadingState label={t('goalOptimizer.optimizing')} />;
-  }
-  if (!results) {
-    return <EmptyState title={t('goalOptimizer.results.emptyHint')} />;
-  }
-  const probColor = getProbColor(results.successProbability);
+  const r = results!;
+  const probColor = r ? getProbColor(r.successProbability) : '';
   return (
-    <div className="flex flex-col gap-5">
-      <Card className="flex flex-col items-center px-6 py-8 text-center">
-        <div className="text-label text-fg-secondary">{t('goalOptimizer.results.achieveProb')}</div>
-        <div
-          className="mt-2 font-mono tabular-nums text-display font-bold"
-          style={{ color: probColor }}
-        >
-          {(results.successProbability * 100).toFixed(1)}%
-        </div>
-        <Progress value={results.successProbability * 100} className="mt-4 h-2 w-full max-w-xs" />
-        <div className="mt-3 text-caption text-fg-tertiary">
-          {t('goalOptimizer.results.targetInitialYears', {
-            target: fmtDollar(targetAmount),
-            initial: fmtDollar(initialAmount),
-            years,
-          })}
-        </div>
-      </Card>
-      <ProbabilityDistributionChart data={results.probabilityCurve} targetAmount={targetAmount} />
-      <OptimalPathChart data={results.optimalPath} targetAmount={targetAmount} />
-      <RecommendationCards recommendation={results.recommendation} probColor={probColor} />
-    </div>
+    <ResultsShell
+      error={error ? `${t('goalOptimizer.optFailed')}: ${error}` : null}
+      isLoading={isLoading}
+      hasResults={!!results}
+      loadingLabel={t('goalOptimizer.optimizing')}
+      emptyTitle={t('goalOptimizer.results.emptyHint')}
+    >
+      <div className="flex flex-col gap-5">
+        <Card className="flex flex-col items-center px-6 py-8 text-center">
+          <div className="text-label text-fg-secondary">
+            {t('goalOptimizer.results.achieveProb')}
+          </div>
+          <div
+            className="mt-2 font-mono tabular-nums text-display font-bold"
+            style={{ color: probColor }}
+          >
+            {(r.successProbability * 100).toFixed(1)}%
+          </div>
+          <Progress value={r.successProbability * 100} className="mt-4 h-2 w-full max-w-xs" />
+          <div className="mt-3 text-caption text-fg-tertiary">
+            {t('goalOptimizer.results.targetInitialYears', {
+              target: fmtDollar(targetAmount),
+              initial: fmtDollar(initialAmount),
+              years,
+            })}
+          </div>
+        </Card>
+        <ProbabilityDistributionChart data={r.probabilityCurve} targetAmount={targetAmount} />
+        <OptimalPathChart data={r.optimalPath} targetAmount={targetAmount} />
+        <RecommendationCards recommendation={r.recommendation} probColor={probColor} />
+      </div>
+    </ResultsShell>
   );
 }
 type GOState = ReturnType<typeof useGoalOptimizerState>;

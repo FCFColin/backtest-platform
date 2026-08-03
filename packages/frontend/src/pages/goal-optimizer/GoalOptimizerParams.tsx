@@ -1,9 +1,14 @@
 import { useTranslation } from 'react-i18next';
-import { Play, Loader2, Plus, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { Button, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field.js';
 import { CollapsibleSection } from '@/components/cards.js';
-import { SectionHeader, PercentInput, DollarInput } from '@/components/form/sharedFields';
+import {
+  SectionHeader,
+  PercentInput,
+  DollarInput,
+  RunButton,
+} from '@/components/form/sharedFields';
 import type { GoalAsset } from './goalOptimizerUtils.js';
 interface GoalParamsProps {
   targetAmount: number;
@@ -268,12 +273,13 @@ export function GoalOptimizerParamsPanel(props: GoalParamsProps) {
       <GoalSettingsSection {...props} />
       <AssetConfigSection {...props} />
       <ConstraintsAndSimulation {...props} />
-      <div className="flex justify-end pt-1">
-        <Button variant="primary" size="lg" disabled={props.isLoading} onClick={props.onRun}>
-          {props.isLoading ? <Loader2 className="animate-spin" /> : <Play />}
-          {props.isLoading ? t('goalOptimizer.optimizing') : t('goalOptimizer.startOptimize')}
-        </Button>
-      </div>
+      <RunButton
+        isLoading={props.isLoading}
+        onClick={props.onRun}
+        label={t('goalOptimizer.startOptimize')}
+        loadingLabel={t('goalOptimizer.optimizing')}
+        size="lg"
+      />
     </div>
   );
 }

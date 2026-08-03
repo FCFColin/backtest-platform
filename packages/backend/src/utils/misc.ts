@@ -1,7 +1,16 @@
+const MAX_RANGE_SIZE = 100000;
+
 export function numericRange(min: number, max: number, step: number, decimals = 2): number[] {
   if (step <= 0 || min > max) return [min];
   if (min === -Infinity || max === Infinity) {
     throw new RangeError('numericRange: min cannot be -Infinity, max cannot be Infinity');
+  }
+  if (!Number.isFinite(step) || step > max - min) return [min];
+  if (min + step === min) {
+    throw new RangeError('numericRange: step too small relative to min (floating-point stall)');
+  }
+  if ((max - min) / step > MAX_RANGE_SIZE) {
+    throw new RangeError('numericRange: range too large');
   }
   const factor = 10 ** decimals;
   const arr: number[] = [];
