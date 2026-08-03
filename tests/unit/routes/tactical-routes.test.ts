@@ -35,30 +35,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   validateConfig: vi.fn(),
   USAGE_METRIC: { BACKTEST: 'backtest' },
 }));
-vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
-  jwtAuth: (_r: unknown, _s: unknown, next: () => void) => next(),
-  optionalJwtAuth: (_r: unknown, _s: unknown, next: () => void) => next(),
-  assignGuestReadonly: (_r: unknown, _s: unknown, next: () => void) => next(),
-  auditLog: (_r: unknown, _s: unknown, next: () => void) => next(),
-  idempotencyKey: (_r: unknown, _s: unknown, next: () => void) => next(),
-}));
-vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
-  resolveTenant: (_r: unknown, _s: unknown, next: () => void) => next(),
-  requireTenant: (_r: unknown, _s: unknown, next: () => void) => next(),
-  hasTenant: vi.fn(() => true),
-}));
-vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
-  requirePermission: () => (_r: unknown, _s: unknown, next: () => void) => next(),
-  Permission: {
-    BACKTEST_RUN: 'backtest:run',
-    STRATEGY_MANAGE: 'strategy:manage',
-    SIGNAL_READ: 'signal:read',
-    OPTIMIZER_RUN: 'optimizer:run',
-  },
-}));
-vi.mock('../../../packages/backend/src/middleware/quota.js', () => ({
-  enforceQuota: () => (_r: unknown, _s: unknown, next: () => void) => next(),
-}));
+import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
   logger: mockLogger(loggerMocks),
   sanitizeLog: (s: string) => s.replace(/[\n\r]/g, '').substring(0, 50),
