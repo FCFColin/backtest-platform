@@ -335,9 +335,6 @@ function SvgSeriesChart({
     </ChartShell>
   );
 }
-export function SvgAreaChart(props: SvgAreaChartProps) {
-  return <SvgSeriesChart kind="area" {...props} />;
-}
 export function SvgBarChart(props: SvgBarChartProps) {
   return <SvgSeriesChart kind="bar" {...props} />;
 }

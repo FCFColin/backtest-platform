@@ -20,12 +20,11 @@
 - ✅ `routes/workspaceRoutes.ts` 直接 import `repositories/portfolioRepo.ts` CRUD（合并自 portfolio/config/run 三文件）
 - ❌ `portfolio-application-service.ts`（已删除）仅 5 个纯转发函数
 
-### 3. 纯 fetch-and-call-engine 的编排器 → `services/*Orchestrator`
+### 3. 纯 fetch-and-call-engine 的编排器 → `application/*Orchestrator`
 
-只做"获取数据 + 调引擎"、不涉及 domain 的模块改名 `*Orchestrator` 放 `packages/backend/src/services/`。
+只做"获取数据 + 调引擎"、不涉及 domain 的模块命名 `*Orchestrator`，位于 `packages/backend/src/application/`。
 
-- ✅ `services/analysis-orchestrator.ts`（PCA/LETF/GoalOptimizer/单资产）、`signal-orchestrator.ts`（信号分析）
-- ❌ 上述曾命名 `application/*-service.ts`（Task 2.5 已迁移）
+- ✅ `application/analysis-orchestrator.ts`（PCA/LETF/GoalOptimizer/单资产）、`signal-orchestrator.ts`（信号分析）
 
 ### 4. domain 异常翻译
 

@@ -144,13 +144,6 @@ for (const [key, codes] of Object.entries(ERROR_I18N_GROUPS)) {
   for (const code of codes) ERROR_I18N_MAP[code] = key;
 }
 
-export interface ApiError {
-  code?: string;
-  message?: string;
-  detail?: string;
-  [key: string]: unknown;
-}
-
 export interface WarningInfo {
   code?: string;
   message?: string;

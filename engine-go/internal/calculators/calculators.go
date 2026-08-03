@@ -28,12 +28,6 @@ func CalcCAGR(req CAGRRequest) CAGRResult {
 	return CAGRResult{CAGR: cagr, TotalReturn: req.FinalAmount - req.InitialAmount, Multiplier: multiplier}
 }
 
-type LumpSumResult struct {
-	LumpSumFinal float64 `json:"lumpSumFinal"`
-	DCAFinal     float64 `json:"dcaFinal"`
-	LumpSumCAGR  float64 `json:"lumpSumCAGR"`
-	DCACAGR      float64 `json:"dcaCAGR"`
-}
 type SWRRequest struct {
 	InitialAmount    float64 `json:"initialAmount"`
 	AnnualWithdrawal float64 `json:"annualWithdrawal"`

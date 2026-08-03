@@ -10,7 +10,6 @@ import { useAuthStore } from '@/store/authStore';
 import { useIdleTimeout } from '@/hooks/miscHooks';
 import { AppRoutes } from '@/routes';
 import {
-  startPerformanceMonitoring,
   reportPageLoadTiming,
   onNavStart,
   initVitalsReporting,
@@ -34,7 +33,6 @@ export default function AppShell() {
     onNavStart();
   }, [location.pathname]);
   useEffect(() => {
-    startPerformanceMonitoring();
     initVitalsReporting();
     const timer = setTimeout(() => {
       reportPageLoadTiming();

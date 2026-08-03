@@ -280,12 +280,6 @@ func CalcTreynor(cagr, beta float64) float64 {
 	return (cagr - riskFreeRate) / beta
 }
 func CalcM2(sharpe, benchmarkStdev float64) float64 { return sharpe*benchmarkStdev + riskFreeRate }
-func CalcDiversificationRatio(weightedAssetStdev, portfolioStdev float64) float64 {
-	if portfolioStdev == 0 {
-		return 1
-	}
-	return weightedAssetStdev / portfolioStdev
-}
 func CalcAlphaDaily(dailyReturns, benchDailyReturns []float64, beta float64) float64 {
 	if len(dailyReturns) == 0 || len(benchDailyReturns) == 0 {
 		return 0

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components, complexity, sonarjs/cognitive-complexity, max-params -- SVG 图表共享工具库（工具函数与组件同文件，拆分独立文件则重复 import） */
 import { useCallback, useState, type CSSProperties, type ReactNode } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
+import { AXIS_TICK_STYLE } from '@/lib/chart-theme';
 
 type Orientation = 'bottom' | 'left';
 interface TickLineConfig {
@@ -21,11 +22,7 @@ interface SvgAxisProps {
   offset: number;
   hideLine?: boolean;
 }
-export const TICK_STYLE: CSSProperties = {
-  fill: 'hsl(var(--fg-tertiary))',
-  fontSize: 11,
-  fontFamily: 'Geist Mono Variable',
-};
+export const TICK_STYLE = AXIS_TICK_STYLE;
 const isAxisLabelConfig = (v: AxisLabelConfig | string | undefined): v is AxisLabelConfig =>
   typeof v === 'object' && v !== null && 'value' in v;
 type Line4 = [number, number, number, number];

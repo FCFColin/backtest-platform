@@ -4,7 +4,7 @@
 
 ## Node.js（API 服务）
 
-clinic.js 一站式（火焰图/事件循环/CPU/内存）: `pnpm profile:flame`（CPU 热点）、`pnpm profile:doctor`（事件循环延迟/GC 诊断）。运行中施压（`scripts/load/`），Ctrl-C 生成 HTML 报告。亦可 `node --prof`/`--cpu-prof` 或 `0x`。
+clinic.js 一站式（火焰图/事件循环/CPU/内存）: `pnpm profile:flame`（CPU 热点）、`pnpm profile:doctor`（事件循环延迟/GC 诊断）。运行中施压（`tests/load/`），Ctrl-C 生成 HTML 报告。亦可 `node --prof`/`--cpu-prof` 或 `0x`。
 
 ## Go（engine-go / data-fetcher）
 

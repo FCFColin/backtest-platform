@@ -2,10 +2,7 @@ package tactical
 
 import (
 	"engine-go/internal/engine"
-	"engine-go/internal/engineutil"
 )
-
-const tradingDaysPerYear = engineutil.TradingDaysPerYear
 
 type TechnicalIndicator string
 

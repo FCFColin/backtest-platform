@@ -48,19 +48,6 @@ export function reportPageLoadTiming(): void {
   }
 }
 
-const sampleBuffer: { type: string; value: number; metric?: string; timestamp: number }[] = [];
-let flushTimer: ReturnType<typeof setInterval> | null = null;
-
-export function addSample(type: string, value: number, metric?: string): void {
-  sampleBuffer.push({ type, value, metric, timestamp: Date.now() });
-  if (sampleBuffer.length > 100) sampleBuffer.splice(0, 50);
-}
-
-export function startPerformanceMonitoring(): void {
-  if (flushTimer) return;
-  flushTimer = window.setInterval(() => sampleBuffer.splice(0, sampleBuffer.length), 30_000);
-}
-
 export function initVitalsReporting(): void {
   for (const [metric, fn, round] of [
     ['lcp', onLCP, true],
@@ -72,7 +59,6 @@ export function initVitalsReporting(): void {
     fn((m) => {
       const value = round ? Math.round(m.value) : m.value;
       reportPerformance('vital', { metric, value });
-      addSample('vital', m.value, metric);
     });
   }
 }

@@ -25,14 +25,8 @@ vi.mock('@/utils/format', () => ({
 import {
   StatisticsTableHeader,
   MetricsRows,
-  StatisticsGroupRows,
-  HierarchicalMetricsRows,
-  MetricsToggle,
 } from '../../../packages/frontend/src/components/statistics-table/index.js';
-import type {
-  StatRow,
-  StatGroup,
-} from '../../../packages/frontend/src/components/statistics-table/types.js';
+import type { StatRow } from '../../../packages/frontend/src/components/statistics-table/types.js';
 
 function createPortfolio(name: string, stats: Record<string, number | undefined>) {
   return { name, statistics: stats };
@@ -127,101 +121,5 @@ describe('MetricsRows', () => {
 
     expect(screen.getByText('1.50')).toBeTruthy();
     expect(screen.getAllByText('—').length).toBe(1);
-  });
-});
-
-describe('StatisticsGroupRows', () => {
-  it('渲染分组标题与分组下指标行', () => {
-    const group: StatGroup = {
-      title: 'core.group',
-      rows: [{ key: 'cagr', label: 'CAGR', fmt: 'pct' }],
-    };
-    const portfolios = [createPortfolio('组合 A', { cagr: 0.08 })];
-
-    const { container } = render(
-      <table>
-        <tbody>
-          <StatisticsGroupRows group={group} portfolios={portfolios as never} colCount={3} />
-        </tbody>
-      </table>,
-    );
-
-    expect(screen.getByText('core.group')).toBeTruthy();
-    expect(screen.getByText('8.00%')).toBeTruthy();
-    const groupCell = container.querySelector('.stat-table-group-cell');
-    expect(groupCell?.getAttribute('colspan')).toBe('3');
-  });
-});
-
-describe('HierarchicalMetricsRows', () => {
-  it('expanded=false 时隐藏 detailed 指标', () => {
-    const portfolios = [createPortfolio('组合 A', { cagr: 0.08, ulcerIndex: 2.5 })];
-
-    render(
-      <table>
-        <tbody>
-          <HierarchicalMetricsRows rows={ROWS} portfolios={portfolios as never} expanded={false} />
-        </tbody>
-      </table>,
-    );
-
-    expect(screen.getByText('CAGR')).toBeTruthy();
-    expect(screen.queryByText('Ulcer')).toBeNull();
-  });
-
-  it('expanded=true 时显示 detailed 指标', () => {
-    const portfolios = [createPortfolio('组合 A', { cagr: 0.08, ulcerIndex: 2.5 })];
-
-    render(
-      <table>
-        <tbody>
-          <HierarchicalMetricsRows rows={ROWS} portfolios={portfolios as never} expanded={true} />
-        </tbody>
-      </table>,
-    );
-
-    expect(screen.getByText('CAGR')).toBeTruthy();
-    expect(screen.getByText('Ulcer')).toBeTruthy();
-    expect(screen.getByText('2.50')).toBeTruthy();
-  });
-});
-
-describe('MetricsToggle', () => {
-  it('collapsed 时显示展开按钮文案', () => {
-    render(
-      <table>
-        <tbody>
-          <MetricsToggle expanded={false} onToggle={() => {}} colCount={3} />
-        </tbody>
-      </table>,
-    );
-
-    expect(screen.getByText('results.showDetailedMetrics')).toBeTruthy();
-  });
-
-  it('expanded 时显示收起按钮文案', () => {
-    render(
-      <table>
-        <tbody>
-          <MetricsToggle expanded={true} onToggle={() => {}} colCount={3} />
-        </tbody>
-      </table>,
-    );
-
-    expect(screen.getByText('results.hideDetailedMetrics')).toBeTruthy();
-  });
-
-  it('点击按钮触发 onToggle 回调', () => {
-    const onToggle = vi.fn();
-    render(
-      <table>
-        <tbody>
-          <MetricsToggle expanded={false} onToggle={onToggle} colCount={3} />
-        </tbody>
-      </table>,
-    );
-
-    screen.getByRole('button').click();
-    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 });

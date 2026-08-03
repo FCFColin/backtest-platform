@@ -12,7 +12,6 @@ export const loginSchema = z.object({
   username: z.string().min(1, 'auth.login.usernameRequired'),
   password: z.string().min(1, 'auth.login.passwordRequired'),
 });
-export type LoginFormData = z.infer<typeof loginSchema>;
 export const signupSchema = z.object({
   username: z
     .string()
@@ -26,7 +25,6 @@ export const signupSchema = z.object({
     .max(100, 'auth.signup.orgNameMaxLength'),
   termsAccepted: z.boolean().refine((v) => v === true, 'auth.signup.termsError'),
 });
-export type SignupFormData = z.infer<typeof signupSchema>;
 export function firstZodErrorKey<T>(result: ReturnType<z.ZodType<T>['safeParse']>): string | null {
   if (result.success) return null;
   const firstIssue = result.error.issues[0];

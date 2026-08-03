@@ -204,7 +204,6 @@ function NavbarMobileMenu({
 
 export { PromoBar } from './navbarParts.js';
 export { PlanBadge } from './navbarParts.js';
-export type { PlanTier } from './navbarParts.js';
 
 export default function Navbar() {
   const location = useLocation();

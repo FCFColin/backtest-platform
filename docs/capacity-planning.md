@@ -1,6 +1,6 @@
 # 容量规划（T-07 补充）
 
-> 基于 USL 与当前架构参数的**估算模型**；实测见 `scripts/load/README.md`。
+> 基于 USL 与当前架构参数的**估算模型**；实测见 `tests/load/BASELINE.md`。
 
 ## 单实例基线
 
@@ -20,4 +20,4 @@ API 连接池 max=20（DB_POOL_MAX）；compute 限流 10 req/min/IP；同步回
 
 ## 目标容量（k6 / Node 实测）
 
-`GET /api/health` ×10 并发: P50 6ms / P95 21ms / P99 29ms（measure-baseline.mjs 2026-06-25）；全栈 docker-compose 预估 ~5/~15/~25ms。完整基线见 `scripts/load/README.md`。
+`GET /api/health` ×10 并发: P50 6ms / P95 21ms / P99 29ms（tests/load 2026-06-25）；全栈 docker-compose 预估 ~5/~15/~25ms。完整基线见 `tests/load/BASELINE.md`。

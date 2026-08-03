@@ -4,7 +4,7 @@
 
 ## 本地启动
 
-1. `docker compose -f docker-compose.cdc.yml up -d` → 等 Kafka Connect 健康（curl :8083/health）
+1. `docker compose up -d postgres-cdc zookeeper kafka`（默认关闭，见 docker-compose.yml）→ 等 Kafka Connect 健康（curl :8083/health）
 2. 对 postgres-cdc 执行迁移（创建 outbox 表）
 3. 注册 Debezium outbox connector（幂等）；启用 `CDC_KAFKA_ENABLED=true`
 
