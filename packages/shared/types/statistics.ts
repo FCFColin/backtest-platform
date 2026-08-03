@@ -152,19 +152,6 @@ export type Statistics = {
   pwr40y: number;
 };
 
-/**
- * 提款统计
- *
- * swr（Safe Withdrawal Rate）：在指定期限内不耗尽资金的最大初始提款率。
- * pwr（Perpetual Withdrawal Rate）：本金永不减少的最大提款率。
- * perpetualRate：理论上可永久持续的最高提款率（接近 pwr）。
- */
-export interface WithdrawalStats {
-  swr: number;
-  pwr: number;
-  perpetualRate: number;
-}
-
 const ZERO_VAR: { [K in VarLevel]: number } = { 1: 0, 5: 0, 10: 0 };
 const ZERO_SKEW: HorizonStats = { daily: 0, monthly: 0, annual: 0 };
 

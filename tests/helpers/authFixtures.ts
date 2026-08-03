@@ -11,10 +11,6 @@ export const validPasswordLoginPayload = {
   password: 'correct-pass',
 };
 
-export const validRefreshPayload = {
-  refreshToken: 'valid-refresh-token',
-};
-
 /**
  * Base64URL 编码（无填充）
  *

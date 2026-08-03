@@ -86,9 +86,3 @@ export const PLAN_LIMIT_FLAGS = {
   enterpriseQuota: 'plan.enterprise-quota',
   proAnalytics: 'plan.pro-analytics',
 } as const;
-
-export type PlanLimitFlag = (typeof PLAN_LIMIT_FLAGS)[keyof typeof PLAN_LIMIT_FLAGS];
-
-export function isPlanFeatureEnabled(flag: PlanLimitFlag, context?: FlagContext): boolean {
-  return isEnabled(flag, context);
-}

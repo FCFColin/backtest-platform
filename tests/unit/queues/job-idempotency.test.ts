@@ -34,6 +34,7 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
   getRedisHealth: redisMocks.getRedisHealth,
   markRedisUnhealthy: redisMocks.markRedisUnhealthy,
+  bullmqConnectionOptions: {},
 }));
 
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({

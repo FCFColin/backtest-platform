@@ -2,6 +2,7 @@ import { type Request, type Response, type NextFunction } from 'express';
 import zlib from 'node:zlib';
 import path from 'node:path';
 import fs from 'node:fs';
+import { config } from '../config/index.js';
 
 export function brotliCompress(req: Request, res: Response, next: NextFunction): void {
   const accept = req.headers['accept-encoding'] as string | undefined;
@@ -69,8 +70,7 @@ export function brotliCompress(req: Request, res: Response, next: NextFunction):
   next();
 }
 
-const PROJECT_ROOT = path.resolve(import.meta.dirname, '..', '..', '..');
-const FRONTEND_DIST = path.resolve(PROJECT_ROOT, 'dist', 'assets');
+const FRONTEND_DIST = path.resolve(config.FRONTEND_DIST_DIR, 'assets');
 
 let hintsLinks: string[] | null = null;
 function getHintsLinks(): string[] {

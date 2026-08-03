@@ -1,6 +1,5 @@
 import { Queue, Worker } from 'bullmq';
-import type { RedisOptions } from 'ioredis';
-import { buildRedisBaseOptions, isSentinelMode } from '../infrastructure/redisClient.js';
+import { bullmqConnectionOptions, isSentinelMode } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { exportPendingAuditLogs } from '../application/auditExporter.js';
 import { processPendingDeliveries } from '../application/webhookService.js';
@@ -10,12 +9,6 @@ import {
   isFinalFailure,
   transferToDlq,
 } from './queueUtils.js';
-
-const connectionOptions: RedisOptions = {
-  ...buildRedisBaseOptions(),
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
 
 logger.info(
   { module: 'queueDefinitions', mode: isSentinelMode ? 'sentinel' : 'standalone' },
@@ -35,11 +28,11 @@ export interface DataUpdateJobResult {
   error?: string;
 }
 
-const DATA_UPDATE_QUEUE = 'data-update';
+export const DATA_UPDATE_QUEUE = 'data-update';
 export const dataUpdateQueue = new Queue<DataUpdateJobData, DataUpdateJobResult>(
   DATA_UPDATE_QUEUE,
   {
-    connection: connectionOptions,
+    connection: bullmqConnectionOptions,
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: 'exponential', delay: 10_000 },
@@ -64,7 +57,7 @@ const AUDIT_EXPORT_JOB_ID = 'audit-export-cron';
 const AUDIT_REPEAT_INTERVAL_MS = 5 * 60_000;
 
 export const auditExportQueue = new Queue(AUDIT_EXPORT_QUEUE, {
-  connection: connectionOptions,
+  connection: bullmqConnectionOptions,
   defaultJobOptions: { removeOnComplete: { count: 100 }, removeOnFail: { count: 100 } },
 });
 
@@ -101,7 +94,7 @@ export function createAuditExportWorker(): Worker {
         );
       }
     },
-    { connection: connectionOptions, concurrency: 1 },
+    { connection: bullmqConnectionOptions, concurrency: 1 },
   );
   worker.on('error', (err) => {
     logger.error({ module: 'auditExportQueue', err: err.message }, 'Audit export worker error');
@@ -118,7 +111,7 @@ const WEBHOOK_JOB_ID = 'webhook-retry-cron';
 const WEBHOOK_REPEAT_INTERVAL_MS = 60_000;
 
 export const webhookQueue = new Queue(WEBHOOK_QUEUE, {
-  connection: connectionOptions,
+  connection: bullmqConnectionOptions,
   defaultJobOptions: {
     removeOnComplete: { count: 100 },
     removeOnFail: { age: SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS },
@@ -156,7 +149,7 @@ export function createWebhookRetryWorker(): Worker {
         );
       }
     },
-    { connection: connectionOptions, concurrency: 1 },
+    { connection: bullmqConnectionOptions, concurrency: 1 },
   );
   worker.on('error', (err) => {
     logger.error({ module: 'webhookQueue', err: err.message }, 'Webhook retry worker error');

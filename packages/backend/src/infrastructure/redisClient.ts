@@ -84,11 +84,13 @@ logger.info(
   '[redis] 连接配置已初始化',
 );
 
-export const redisConnection = new IORedis({
+export const bullmqConnectionOptions: RedisOptions = {
   ...buildRedisBaseOptions(),
   maxRetriesPerRequest: null, // BullMQ requires this
   enableReadyCheck: false,
-});
+};
+
+export const redisConnection = new IORedis(bullmqConnectionOptions);
 
 export const appRedis = new IORedis({
   ...buildRedisBaseOptions(),

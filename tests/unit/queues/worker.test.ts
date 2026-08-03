@@ -46,6 +46,7 @@ const redisMocks = vi.hoisted(() => ({
 vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
   appRedis: redisMocks,
   redisConnection: {},
+  bullmqConnectionOptions: {},
 }));
 const signalCapture = vi.hoisted(() => {
   const captured: { SIGTERM?: () => void; SIGINT?: () => void } = {};

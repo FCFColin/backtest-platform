@@ -13,25 +13,17 @@
  * - 可水平扩展（多 Worker 实例由 BullMQ 自动分配任务）
  */
 import { Worker, type Job } from 'bullmq';
-import type { RedisOptions } from 'ioredis';
-import { buildRedisBaseOptions, isSentinelMode } from '../infrastructure/redisClient.js';
+import { bullmqConnectionOptions, isSentinelMode } from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { getPool } from '../db/pool.js';
 import {
+  DATA_UPDATE_QUEUE,
   dataUpdateDlq,
   type DataUpdateJobData,
   type DataUpdateJobResult,
 } from './queueDefinitions.js';
 import { isFinalFailure, transferToDlq } from './queueUtils.js';
-
-const QUEUE_NAME = 'data-update';
-
-const connectionOptions: RedisOptions = {
-  ...buildRedisBaseOptions(),
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
 
 /** 每批处理的标的数量（避免单次 HTTP 请求过大） */
 const BATCH_SIZE = 50;
@@ -182,10 +174,10 @@ export function createDataUpdateWorker(): Worker<DataUpdateJobData, DataUpdateJo
   );
 
   const worker = new Worker<DataUpdateJobData, DataUpdateJobResult>(
-    QUEUE_NAME,
+    DATA_UPDATE_QUEUE,
     processDataUpdateJob,
     {
-      connection: connectionOptions,
+      connection: bullmqConnectionOptions,
       concurrency: 1,
     },
   );
@@ -201,7 +193,7 @@ export function createDataUpdateWorker(): Worker<DataUpdateJobData, DataUpdateJo
     logger.error({ jobId: job?.id, err: err.message }, '[dataUpdateWorker] Job failed');
     // C-021: 仅在"最终失败"（重试穷尽）时转移到 DLQ，避免每次重试都重复入队。
     if (job && isFinalFailure(job)) {
-      void transferToDlq(dataUpdateDlq, QUEUE_NAME, job, err);
+      void transferToDlq(dataUpdateDlq, DATA_UPDATE_QUEUE, job, err);
     }
   });
 

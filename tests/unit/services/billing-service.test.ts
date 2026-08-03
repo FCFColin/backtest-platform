@@ -164,28 +164,16 @@ describe('plan/price 映射', () => {
   });
 });
 describe('getPlanLimits', () => {
-  it('free 计划应返回 100/月, 10 标的, 1 并发, 10/分钟', () => {
-    const limits = getPlanLimits('free');
-    expect(limits.backtestsPerMonth).toBe(100);
-    expect(limits.maxTickers).toBe(10);
-    expect(limits.asyncConcurrency).toBe(1);
-    expect(limits.rateLimitPerMin).toBe(10);
-  });
-
-  it('pro 计划应返回 5000/月, 50 标的, 5 并发, 60/分钟', () => {
-    const limits = getPlanLimits('pro');
-    expect(limits.backtestsPerMonth).toBe(5000);
-    expect(limits.maxTickers).toBe(50);
-    expect(limits.asyncConcurrency).toBe(5);
-    expect(limits.rateLimitPerMin).toBe(60);
-  });
-
-  it('enterprise 计划应返回 Infinity/月, 200 标的, 20 并发, 300/分钟', () => {
-    const limits = getPlanLimits('enterprise');
-    expect(limits.backtestsPerMonth).toBe(Number.POSITIVE_INFINITY);
-    expect(limits.maxTickers).toBe(200);
-    expect(limits.asyncConcurrency).toBe(20);
-    expect(limits.rateLimitPerMin).toBe(300);
+  it.each<[string, number, number, number, number]>([
+    ['free', 100, 10, 1, 10],
+    ['pro', 5000, 50, 5, 60],
+    ['enterprise', Number.POSITIVE_INFINITY, 200, 20, 300],
+  ])('%s 计划应返回对应限额', (plan, backtests, tickers, concurrency, rateLimit) => {
+    const limits = getPlanLimits(plan);
+    expect(limits.backtestsPerMonth).toBe(backtests);
+    expect(limits.maxTickers).toBe(tickers);
+    expect(limits.asyncConcurrency).toBe(concurrency);
+    expect(limits.rateLimitPerMin).toBe(rateLimit);
   });
 
   it('未知计划应回到 free（fail-safe）', () => {

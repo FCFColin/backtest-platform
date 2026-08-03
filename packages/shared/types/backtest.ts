@@ -6,7 +6,7 @@
  */
 
 import type { BaseCurrency, CashflowLeg, OneTimeCashflow } from './portfolio.js';
-import type { Statistics, WithdrawalStats } from './statistics.js';
+import type { Statistics } from './statistics.js';
 
 /**
  * 价格数据映射
@@ -111,7 +111,6 @@ export interface PortfolioResult {
   annualReturns: Array<{ year: number; return: number }>;
   monthlyReturns: Array<{ year: number; month: number; return: number }>;
   statistics: Statistics;
-  withdrawalStats?: WithdrawalStats;
   drawdownEpisodes?: DrawdownEpisode[];
   allocationHistory?: Array<{ date: string; weights: number[] }>;
   /** Drag（拖累）近似计算结果，仅在降级模式且组合配置了 drag 时存在 */

@@ -1,6 +1,9 @@
 import { Queue, Worker, Job } from 'bullmq';
-import type { RedisOptions } from 'ioredis';
-import { buildRedisBaseOptions, isSentinelMode, appRedis } from '../infrastructure/redisClient.js';
+import {
+  bullmqConnectionOptions,
+  isSentinelMode,
+  appRedis,
+} from '../infrastructure/redisClient.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import {
@@ -31,15 +34,6 @@ export interface BacktestJobResult {
 
 const QUEUE_NAME = 'backtest-compute';
 
-// BullMQ 连接配置（ADR-045）：复用 redisClient.ts 的 buildRedisBaseOptions，
-// 自动支持 Sentinel 模式（生产）与 REDIS_URL 单实例回退（开发）。
-// maxRetriesPerRequest=null 是 BullMQ 硬性要求（队列阻塞读取需无限重试）。
-const connectionOptions: RedisOptions = {
-  ...buildRedisBaseOptions(),
-  maxRetriesPerRequest: null,
-  enableReadyCheck: false,
-};
-
 // Security (T-28 / 输出过滤)：不记录 Redis URL/Sentinel 主机任何片段，凭证绝不进日志。
 logger.info(
   { module: 'backtestQueue', mode: isSentinelMode ? 'sentinel' : 'standalone' },
@@ -47,7 +41,7 @@ logger.info(
 );
 
 export const backtestQueue = new Queue<BacktestJobData, BacktestJobResult>(QUEUE_NAME, {
-  connection: connectionOptions,
+  connection: bullmqConnectionOptions,
   defaultJobOptions: {
     removeOnComplete: { count: 100 },
     // C-021: 失败任务保留 7 天（按 age 而非 count），避免高吞吐场景过早剪枝丢失排障上下文。
@@ -90,7 +84,7 @@ export function createBacktestWorker(
   logger.info({ module: 'backtestQueue', concurrency }, 'Creating BullMQ worker...');
 
   const worker = new Worker<BacktestJobData, BacktestJobResult>(QUEUE_NAME, processFn, {
-    connection: connectionOptions,
+    connection: bullmqConnectionOptions,
     concurrency,
   });
 
@@ -104,6 +98,15 @@ export function createBacktestWorker(
       },
       'Backtest job completed',
     );
+    const jobId = String(job.id ?? '');
+    if (!jobId) return;
+    const rv = job.returnvalue as BacktestJobResult | undefined;
+    publishBacktestProgress(jobId, {
+      jobId,
+      status: 'completed',
+      progressPct: 100,
+      result: rv?.result,
+    });
   });
 
   worker.on('failed', (job, err) => {
@@ -121,6 +124,9 @@ export function createBacktestWorker(
     if (job && isFinalFailure(job)) {
       void transferToDlq(backtestDlq, QUEUE_NAME, job, err);
     }
+    const jobId = job?.id ? String(job.id) : '';
+    if (!jobId) return;
+    publishBacktestProgress(jobId, { jobId, status: 'failed', error: err.message });
   });
 
   worker.on('error', (err) => {
@@ -130,7 +136,6 @@ export function createBacktestWorker(
   logger.info({ module: 'backtestQueue' }, 'BullMQ worker created');
 
   // P1-04: Redis Pub/Sub 实时进度推送（多 Pod 广播，ADR-045）
-  // 仅添加 Redis publish，不修改现有 progress/completed/failed 处理逻辑。
   worker.on('progress', (job, progress) => {
     const jobId = String(job.id ?? '');
     if (!jobId) return;
@@ -138,22 +143,5 @@ export function createBacktestWorker(
     publishBacktestProgress(jobId, { jobId, status: 'running', progressPct });
   });
 
-  worker.on('completed', (job) => {
-    const jobId = String(job.id ?? '');
-    if (!jobId) return;
-    const rv = job.returnvalue as BacktestJobResult | undefined;
-    publishBacktestProgress(jobId, {
-      jobId,
-      status: 'completed',
-      progressPct: 100,
-      result: rv?.result,
-    });
-  });
-
-  worker.on('failed', (job, err) => {
-    const jobId = job?.id ? String(job.id) : '';
-    if (!jobId) return;
-    publishBacktestProgress(jobId, { jobId, status: 'failed', error: err.message });
-  });
   return worker;
 }

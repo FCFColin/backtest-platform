@@ -15,17 +15,7 @@ export type {
   MarketStatsAccumulators,
   DbEngineStatusResult,
 } from './marketStatsTypes.js';
-export {
-  bytesToMb,
-  inferMarket,
-  deriveExchangeFromTicker,
-  inferType,
-  decadeLabel,
-  accumulateYearStats,
-  updateMarketStats,
-  processTickerRow,
-  buildMarketStatsResult,
-} from './marketStatsHelpers.js';
+export { bytesToMb, inferMarket, deriveExchangeFromTicker } from './marketStatsHelpers.js';
 
 import type { DbMarketStats, TickerAggRow, DbEngineStatusResult } from './marketStatsTypes.js';
 import { processTickerRow, buildMarketStatsResult } from './marketStatsHelpers.js';

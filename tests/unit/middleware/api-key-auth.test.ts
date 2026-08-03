@@ -11,7 +11,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockMiddleware } from '../../helpers/expressMocks.js';
 import { createLoggerMocks } from '../../helpers/mockFactories.js';
-import type { AuthenticatedRequest } from '../../../packages/backend/src/middleware/authTypes.js';
 
 const mocks = vi.hoisted(() => ({
   verifyApiKey: vi.fn(),
@@ -26,11 +25,6 @@ vi.mock('../../../packages/backend/src/infrastructure/apiKeyVerifier.js', () => 
 }));
 vi.mock('../../../packages/backend/src/utils/errors.js', () => ({
   sendProblem: mocks.sendProblem,
-}));
-vi.mock('../../../packages/backend/src/middleware/authTypes.js', () => ({
-  ACCESS_TOKEN_EXPIRES_IN_SEC: 900,
-  attachAuthLogContext: mocks.attachAuthLogContext,
-  hashUserId: mocks.hashUserId,
 }));
 
 import {

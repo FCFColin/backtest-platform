@@ -47,6 +47,12 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
   })),
+  bullmqConnectionOptions: {
+    host: 'localhost',
+    port: 6379,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+  },
   isSentinelMode: false,
   appRedis: { on: vi.fn(), publish: vi.fn().mockResolvedValue(undefined) },
 }));

@@ -1,6 +1,5 @@
 import { Queue } from 'bullmq';
-import type { RedisOptions } from 'ioredis';
-import { buildRedisBaseOptions, appRedis } from '../infrastructure/redisClient.js';
+import { bullmqConnectionOptions, appRedis } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { requireRedis } from '../utils/redisFallback.js';
 
@@ -20,13 +19,8 @@ interface DlqJobData {
 
 export function createDeadLetterQueue(sourceQueueName: string): Queue<DlqJobData> {
   const dlqName = `${sourceQueueName}${DLQ_NAME_SUFFIX}`;
-  const connectionOptions: RedisOptions = {
-    ...buildRedisBaseOptions(),
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-  };
   const dlq = new Queue<DlqJobData>(dlqName, {
-    connection: connectionOptions,
+    connection: bullmqConnectionOptions,
     defaultJobOptions: {
       attempts: 1,
       removeOnComplete: { age: DLQ_COMPLETED_RETENTION_AGE_SECONDS },
