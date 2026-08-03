@@ -7,7 +7,10 @@ import { ErrorBanner } from '@/components/stateDisplay.js';
 import { FACTOR_COLORS } from './factorRegressionUtils.js';
 import type { FactorRegressionResult } from './factorRegressionUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
-import { useFactorRegressionState } from '@/hooks/useFactorRegressionState.js';
+import {
+  useFactorRegressionState,
+  type FactorRegressionState,
+} from '@/hooks/useFactorRegressionState.js';
 import { FactorRegressionParamsPanel } from './FactorRegressionParams.js';
 function StatCard({
   label,
@@ -196,7 +199,7 @@ function RegressionResultTable({
     </Card>
   );
 }
-function FactorRegressionResultsPanel({ state: s }: { state: State }) {
+function FactorRegressionResultsPanel({ state: s }: { state: FactorRegressionState }) {
   const { result, error, selectedFactors } = s;
   const { t } = useTranslation();
   return (
@@ -241,31 +244,7 @@ function FactorRegressionResultsPanel({ state: s }: { state: State }) {
     </div>
   );
 }
-type State = ReturnType<typeof useFactorRegressionState>;
-function ParamsWrapper({ state }: { state: State }) {
-  return (
-    <FactorRegressionParamsPanel
-      startDate={state.startDate}
-      endDate={state.endDate}
-      returnFrequency={state.returnFrequency}
-      rfSource={state.rfSource}
-      selectedFactors={state.selectedFactors}
-      assets={state.assets}
-      totalWeight={state.totalWeight}
-      isLoading={state.isLoading}
-      onStartDateChange={state.setStartDate}
-      onEndDateChange={state.setEndDate}
-      onReturnFrequencyChange={state.setReturnFrequency}
-      onRfSourceChange={state.setRfSource}
-      onToggleFactor={state.toggleFactor}
-      onAddAsset={state.addAsset}
-      onRemoveAsset={state.removeAsset}
-      onUpdateAsset={state.updateAsset}
-      onRun={state.runRegression}
-    />
-  );
-}
-const config: ComputeToolConfig<State> = {
+const config: ComputeToolConfig<FactorRegressionState> = {
   titleKey: 'factorRegression.title',
   seoDescKey: 'factorRegression.seo.desc',
   seoFeatures: [
@@ -283,7 +262,7 @@ const config: ComputeToolConfig<State> = {
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
     { titleKey: 'nav.rebalancingSensitivity', href: '/rebalancing-sensitivity' },
   ],
-  params: ParamsWrapper,
+  params: FactorRegressionParamsPanel,
   results: FactorRegressionResultsPanel,
 };
 export default function FactorRegressionPage() {

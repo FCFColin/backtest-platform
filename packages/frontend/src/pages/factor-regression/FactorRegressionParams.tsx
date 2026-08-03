@@ -5,7 +5,7 @@ import PortfolioEditor from '../../components/PortfolioEditor.js';
 import { Field, FieldLabel } from '../../components/form/Field.js';
 import { LabeledField, SelectField, RunButton } from '@/components/form/sharedFields';
 import { FACTOR_OPTIONS, RF_SOURCE_OPTIONS } from './factorRegressionUtils.js';
-import type { AssetItem, ReturnFrequency } from './factorRegressionUtils.js';
+import type { FactorRegressionState } from '@/hooks/useFactorRegressionState.js';
 
 function FactorSelector({
   selectedFactors,
@@ -40,36 +40,16 @@ function FactorSelector({
   );
 }
 
-interface FactorRegressionParamsPanelProps {
-  startDate: string;
-  endDate: string;
-  returnFrequency: ReturnFrequency;
-  rfSource: string;
-  selectedFactors: string[];
-  assets: AssetItem[];
-  totalWeight: number;
-  isLoading: boolean;
-  onStartDateChange: (v: string) => void;
-  onEndDateChange: (v: string) => void;
-  onReturnFrequencyChange: (v: ReturnFrequency) => void;
-  onRfSourceChange: (v: string) => void;
-  onToggleFactor: (key: string) => void;
-  onAddAsset: () => void;
-  onRemoveAsset: (i: number) => void;
-  onUpdateAsset: (i: number, field: 'ticker' | 'weight', val: string | number) => void;
-  onRun: () => void;
-}
-
-export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelProps) {
+export function FactorRegressionParamsPanel({ state: s }: { state: FactorRegressionState }) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <Field className="col-span-full">
         <AllHistoryCheckbox
-          startDate={props.startDate}
-          endDate={props.endDate}
-          onStartDateChange={props.onStartDateChange}
-          onEndDateChange={props.onEndDateChange}
+          startDate={s.startDate}
+          endDate={s.endDate}
+          onStartDateChange={s.setStartDate}
+          onEndDateChange={s.setEndDate}
           label={t('factorRegression.allHistory')}
         />
       </Field>
@@ -77,23 +57,23 @@ export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelPr
         <Input
           id="fr-start-date"
           type="date"
-          value={props.startDate}
-          onChange={(e) => props.onStartDateChange(e.target.value)}
+          value={s.startDate}
+          onChange={(e) => s.setStartDate(e.target.value)}
         />
       </LabeledField>
       <LabeledField htmlFor="fr-end-date" label={t('factorRegression.endDate')}>
         <Input
           id="fr-end-date"
           type="date"
-          value={props.endDate}
-          onChange={(e) => props.onEndDateChange(e.target.value)}
+          value={s.endDate}
+          onChange={(e) => s.setEndDate(e.target.value)}
         />
       </LabeledField>
       <SelectField
         id="fr-freq"
         label={t('factorRegression.returnFrequency')}
-        value={props.returnFrequency}
-        onChange={props.onReturnFrequencyChange}
+        value={s.returnFrequency}
+        onChange={s.setReturnFrequency}
         options={[
           { value: 'monthly', label: t('factorRegression.freqMonthly') },
           { value: 'daily', label: t('factorRegression.freqDaily') },
@@ -102,30 +82,30 @@ export function FactorRegressionParamsPanel(props: FactorRegressionParamsPanelPr
       <SelectField
         id="fr-rf"
         label={t('factorRegression.rfRate')}
-        value={props.rfSource}
-        onChange={props.onRfSourceChange}
+        value={s.rfSource}
+        onChange={s.setRfSource}
         options={RF_SOURCE_OPTIONS.map((o) => ({ value: o.value, label: t(o.label) }))}
       />
       <div className="col-span-full">
         <Field>
           <FieldLabel>{t('factorRegression.factorSelect')}</FieldLabel>
-          <FactorSelector selectedFactors={props.selectedFactors} onToggle={props.onToggleFactor} />
+          <FactorSelector selectedFactors={s.selectedFactors} onToggle={s.toggleFactor} />
         </Field>
       </div>
       <div className="col-span-full">
         <PortfolioEditor
           singleMode
-          assets={props.assets}
-          totalWeight={props.totalWeight}
-          onAdd={props.onAddAsset}
-          onRemove={props.onRemoveAsset}
-          onUpdate={props.onUpdateAsset}
+          assets={s.assets}
+          totalWeight={s.totalWeight}
+          onAdd={s.addAsset}
+          onRemove={s.removeAsset}
+          onUpdate={s.updateAsset}
         />
       </div>
       <div className="col-span-full">
         <RunButton
-          isLoading={props.isLoading}
-          onClick={props.onRun}
+          isLoading={s.isLoading}
+          onClick={s.runRegression}
           label={t('factorRegression.startAnalysis')}
           loadingLabel={t('factorRegression.analyzing')}
         />

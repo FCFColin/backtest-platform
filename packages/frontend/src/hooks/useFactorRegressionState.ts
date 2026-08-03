@@ -10,7 +10,7 @@ import type {
   FactorRegressionResult,
   ReturnFrequency,
 } from '../pages/factor-regression/factorRegressionUtils.js';
-interface FactorRegressionState {
+export interface FactorRegressionState {
   startDate: string;
   endDate: string;
   returnFrequency: ReturnFrequency;
