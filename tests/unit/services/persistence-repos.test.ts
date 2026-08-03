@@ -146,90 +146,6 @@ describe('portfolioRepo', () => {
 });
 
 describe('savedConfigRepo', () => {
-  const cfgRow = (overrides: Record<string, unknown> = {}) => ({
-    id: ID,
-    name: 'cfg',
-    config: { a: 1 },
-    owner_user_id: 'u1',
-    created_at: new Date(),
-    updated_at: new Date(),
-    ...overrides,
-  });
-  it('createConfig 应序列化 config 为 JSONB', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [cfgRow({ config: { a: 1 } })] });
-    await createConfig(TENANT, 'u1', { name: 'cfg', config: { a: 1 } });
-    expect(dbMocks.query.mock.calls[0][1][3]).toBe(JSON.stringify({ a: 1 }));
-  });
-  it('listConfigs 应经 withTenant', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listConfigs(TENANT);
-    expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-  });
-  it('getConfig 成功应返回映射后的记录', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [cfgRow({ name: 'cfg', config: { b: 2 } })] });
-    const r = await getConfig(TENANT, ID);
-    expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-    expect(r!.name).toBe('cfg');
-  });
-  it('getConfig 不存在应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getConfig(TENANT, ID)).toBeNull();
-  });
-  it('updateConfig 成功应返回更新后的记录', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [cfgRow({ name: 'cfg2', config: { c: 3 } })] });
-    const r = await updateConfig(TENANT, ID, { name: 'cfg2', config: { c: 3 } });
-    expect(r!.name).toBe('cfg2');
-  });
-  it('updateConfig 不存在应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await updateConfig(TENANT, ID, { name: 'x', config: {} })).toBeNull();
-  });
-  it.each([
-    [1, true],
-    [0, false],
-  ])('deleteConfig rowCount=%s 应返回 %s', async (count, expected) => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: count });
-    expect(await deleteConfig(TENANT, ID)).toBe(expected);
-  });
-});
-
-describe('savedConfigRepo LIMIT 行为', () => {
-  it('listConfigs 应钳制 limit 上限为 200', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listConfigs(TENANT, 9999);
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[0]).toBe(200);
-  });
-
-  it('listConfigs 默认 limit 应为 50', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listConfigs(TENANT);
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[0]).toBe(50);
-  });
-
-  it('listConfigs limit 为 0 应传 0（不返回结果）', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    await listConfigs(TENANT, 0);
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[0]).toBe(0);
-  });
-});
-
-describe('savedConfigRepo 空数据库', () => {
-  it('listConfigs 空数据库应返回空数组', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    const r = await listConfigs(TENANT);
-    expect(r).toEqual([]);
-  });
-
-  it('getConfig 不存在应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getConfig(TENANT, CONFIG_ID)).toBeNull();
-  });
-});
-
-describe('savedConfigRepo CRUD 返回', () => {
   const baseRow = {
     id: CONFIG_ID,
     name: 'test-cfg',
@@ -239,6 +155,11 @@ describe('savedConfigRepo CRUD 返回', () => {
     updated_at: new Date('2026-06-01T00:00:00.000Z'),
   };
 
+  it('createConfig 应序列化 config 为 JSONB', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [{ ...baseRow, config: { a: 1 } }] });
+    await createConfig(TENANT, 'u1', { name: 'cfg', config: { a: 1 } });
+    expect(dbMocks.query.mock.calls[0][1][3]).toBe(JSON.stringify({ a: 1 }));
+  });
   it('createConfig 应返回完整创建记录', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
     const r = await createConfig(TENANT, 'u1', {
@@ -246,53 +167,38 @@ describe('savedConfigRepo CRUD 返回', () => {
       config: { tickers: ['SPY', 'QQQ'], startDate: '2024-01-01' },
     });
     expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-    expect(r).toMatchObject({
-      id: CONFIG_ID,
-      name: 'test-cfg',
-      ownerUserId: 'u1',
-    });
+    expect(r).toMatchObject({ id: CONFIG_ID, name: 'test-cfg', ownerUserId: 'u1' });
     expect(r.createdAt).toBe('2026-06-01T00:00:00.000Z');
   });
-
   it('createConfig 空 ownerUserId 应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [{ ...baseRow, owner_user_id: null }],
-    });
-    const r = await createConfig(TENANT, null, {
-      name: 'test-cfg',
-      config: {},
-    });
+    dbMocks.query.mockResolvedValueOnce({ rows: [{ ...baseRow, owner_user_id: null }] });
+    const r = await createConfig(TENANT, null, { name: 'test-cfg', config: {} });
     expect(r.ownerUserId).toBeNull();
   });
-
-  it('updateConfig 应返回更新后的完整记录', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [{ ...baseRow, name: 'cfg-updated', config: { a: 2 } }],
-    });
-    const r = await updateConfig(TENANT, CONFIG_ID, {
-      name: 'cfg-updated',
-      config: { a: 2 },
-    });
-    expect(r).not.toBeNull();
-    expect(r!.name).toBe('cfg-updated');
-  });
-
-  it('updateConfig 不存在应返回 null', async () => {
+  it('listConfigs 应经 withTenant', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    const r = await updateConfig(TENANT, CONFIG_ID, { name: 'x', config: {} });
-    expect(r).toBeNull();
+    await listConfigs(TENANT);
+    expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
   });
-
-  it('deleteConfig 成功应返回 true', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
-    expect(await deleteConfig(TENANT, CONFIG_ID)).toBe(true);
+  it('listConfigs 空数据库应返回空数组', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    expect(await listConfigs(TENANT)).toEqual([]);
   });
-
-  it('deleteConfig 不存在应返回 false', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 0 });
-    expect(await deleteConfig(TENANT, CONFIG_ID)).toBe(false);
+  it('listConfigs 应钳制 limit 上限为 200', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    await listConfigs(TENANT, 9999);
+    expect(dbMocks.query.mock.calls[0][1][0]).toBe(200);
   });
-
+  it('listConfigs 默认 limit 应为 50', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    await listConfigs(TENANT);
+    expect(dbMocks.query.mock.calls[0][1][0]).toBe(50);
+  });
+  it('listConfigs limit 为 0 应传 0', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    await listConfigs(TENANT, 0);
+    expect(dbMocks.query.mock.calls[0][1][0]).toBe(0);
+  });
   it('getConfig 成功应返回映射后的记录', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [baseRow] });
     const r = await getConfig(TENANT, CONFIG_ID);
@@ -300,7 +206,43 @@ describe('savedConfigRepo CRUD 返回', () => {
     expect(r).not.toBeNull();
     expect(r!.name).toBe('test-cfg');
   });
+  it('getConfig 不存在应返回 null', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    expect(await getConfig(TENANT, CONFIG_ID)).toBeNull();
+  });
+  it('updateConfig 应返回更新后的完整记录', async () => {
+    dbMocks.query.mockResolvedValueOnce({
+      rows: [{ ...baseRow, name: 'cfg-updated', config: { a: 2 } }],
+    });
+    const r = await updateConfig(TENANT, CONFIG_ID, { name: 'cfg-updated', config: { a: 2 } });
+    expect(r).not.toBeNull();
+    expect(r!.name).toBe('cfg-updated');
+  });
+  it('updateConfig 不存在应返回 null', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [] });
+    expect(await updateConfig(TENANT, CONFIG_ID, { name: 'x', config: {} })).toBeNull();
+  });
+  it.each([
+    [1, true],
+    [0, false],
+  ])('deleteConfig rowCount=%s 应返回 %s', async (count, expected) => {
+    dbMocks.query.mockResolvedValueOnce({ rowCount: count });
+    expect(await deleteConfig(TENANT, CONFIG_ID)).toBe(expected);
+  });
 });
+
+function runRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: ID,
+    name: null,
+    request: { tickers: ['SPY'] },
+    result: null,
+    status: 'completed',
+    owner_user_id: null,
+    created_at: new Date('2026-01-15T10:00:00Z'),
+    ...overrides,
+  };
+}
 
 describe('backtestRunRepo', () => {
   it('createRun result 为空时应写入 null', async () => {
@@ -313,29 +255,75 @@ describe('backtestRunRepo', () => {
     expect(params[4]).toBeNull();
     expect(params[5]).toBe('completed');
   });
+  it('createRun 应使用传入的 result 并序列化', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [runRow({ result: { sharpe: 1.5 } })] });
+    const r = await createRun(TENANT, 'u1', {
+      request: { x: 1 },
+      result: { sharpe: 1.5 },
+      status: 'completed',
+    });
+    const [, params] = dbMocks.query.mock.calls[0];
+    expect(params[1]).toBe('u1');
+    expect(params[3]).toBe(JSON.stringify({ x: 1 }));
+    expect(params[4]).toBe(JSON.stringify({ sharpe: 1.5 }));
+    expect(params[5]).toBe('completed');
+    expect(r.result).toEqual({ sharpe: 1.5 });
+  });
+  it('createRun status 未指定时默认 completed', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
+    await createRun(TENANT, null, { request: {} });
+    expect(dbMocks.query.mock.calls[0][1][5]).toBe('completed');
+  });
+  it('createRun result 为 undefined 时应写入 null', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
+    await createRun(TENANT, null, { request: {} });
+    expect(dbMocks.query.mock.calls[0][1][4]).toBeNull();
+  });
   it('listRuns 应钳制 limit 上限为 200', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
     await listRuns(TENANT, 9999);
     expect(dbMocks.query.mock.calls[0][1][0]).toBe(200);
   });
-  it('getRun 成功应返回映射后的记录', async () => {
+  it('listRuns limit 下限钳制为 1', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
+    await listRuns(TENANT, -5);
+    expect(dbMocks.query.mock.calls[0][1][0]).toBe(1);
+  });
+  it('listRuns limit 0 应钳制为 1', async () => {
+    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
+    await listRuns(TENANT, 0);
+    expect(dbMocks.query.mock.calls[0][1][0]).toBe(1);
+  });
+  it('listRuns 应返回映射后的记录数组', async () => {
     dbMocks.query.mockResolvedValueOnce({
-      rows: [runRow({ name: 'run1', result: { y: 2 }, status: 'completed', owner_user_id: 'u1' })],
+      rows: [
+        runRow({ name: 'run-a', owner_user_id: 'u1' }),
+        runRow({ id: 'id-2', name: 'run-b', owner_user_id: 'u2', request: { y: 2 } }),
+      ],
+    });
+    const runs = await listRuns(TENANT, 10);
+    expect(runs).toHaveLength(2);
+    expect(runs[0].name).toBe('run-a');
+    expect(runs[0].ownerUserId).toBe('u1');
+    expect(runs[1].name).toBe('run-b');
+    expect(runs[1].ownerUserId).toBe('u2');
+  });
+  it('getRun 存在记录时应返回映射后的对象', async () => {
+    dbMocks.query.mockResolvedValueOnce({
+      rows: [runRow({ name: 'test run', status: 'running' })],
     });
     const r = await getRun(TENANT, ID);
+    expect(r).not.toBeNull();
+    expect(r!.id).toBe(ID);
+    expect(r!.name).toBe('test run');
+    expect(r!.status).toBe('running');
+    expect(r!.ownerUserId).toBeNull();
+    expect(r!.createdAt).toBe('2026-01-15T10:00:00.000Z');
     expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-    expect(r!.status).toBe('completed');
   });
   it('getRun 不存在应返回 null', async () => {
     dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getRun(TENANT, ID)).toBeNull();
-  });
-  it.each([
-    [1, true],
-    [0, false],
-  ])('deleteRun rowCount=%s 应返回 %s', async (count, expected) => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: count });
-    expect(await deleteRun(TENANT, ID)).toBe(expected);
+    expect(await getRun(TENANT, 'missing-id')).toBeNull();
   });
   it('mapRow 处理 null owner_user_id 和字符串日期', async () => {
     dbMocks.query.mockResolvedValueOnce({
@@ -355,116 +343,15 @@ describe('backtestRunRepo', () => {
     expect(r!.name).toBeNull();
     expect(r!.createdAt).toBe('2026-06-01T00:00:00.000Z');
   });
-});
-
-function runRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: ID,
-    name: null,
-    request: { tickers: ['SPY'] },
-    result: null,
-    status: 'completed',
-    owner_user_id: null,
-    created_at: new Date('2026-01-15T10:00:00Z'),
-    ...overrides,
-  };
-}
-
-describe('getRun', () => {
-  it('存在记录时应返回映射后的对象', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [runRow({ name: 'test run', status: 'running' })],
-    });
-    const r = await getRun(TENANT, ID);
-    expect(r).not.toBeNull();
-    expect(r!.id).toBe(ID);
-    expect(r!.name).toBe('test run');
-    expect(r!.status).toBe('running');
-    expect(r!.ownerUserId).toBeNull();
-    expect(r!.createdAt).toBe('2026-01-15T10:00:00.000Z');
-    expect(dbMocks.withTenant).toHaveBeenCalledWith(TENANT);
-  });
-
-  it('不存在记录时应返回 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [] });
-    expect(await getRun(TENANT, 'missing-id')).toBeNull();
-  });
-});
-
-describe('createRun', () => {
-  it('应使用传入的 result 并序列化', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [runRow({ result: { sharpe: 1.5 } })] });
-    const r = await createRun(TENANT, 'u1', {
-      request: { x: 1 },
-      result: { sharpe: 1.5 },
-      status: 'completed',
-    });
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[1]).toBe('u1');
-    expect(params[3]).toBe(JSON.stringify({ x: 1 }));
-    expect(params[4]).toBe(JSON.stringify({ sharpe: 1.5 }));
-    expect(params[5]).toBe('completed');
-    expect(r.result).toEqual({ sharpe: 1.5 });
-  });
-
-  it('status 未指定时默认 completed', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
-    await createRun(TENANT, null, { request: {} });
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[5]).toBe('completed');
-  });
-
-  it('result 为 undefined 时应写入 null', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
-    await createRun(TENANT, null, { request: {} });
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[4]).toBeNull();
-  });
-});
-
-describe('deleteRun', () => {
-  it('删除成功应返回 true', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 1 });
-    expect(await deleteRun(TENANT, ID)).toBe(true);
+  it.each([
+    [1, true],
+    [0, false],
+  ])('deleteRun rowCount=%s 应返回 %s', async (count, expected) => {
+    dbMocks.query.mockResolvedValueOnce({ rowCount: count });
+    expect(await deleteRun(TENANT, ID)).toBe(expected);
     expect(dbMocks.query).toHaveBeenCalledWith(
       expect.stringContaining('DELETE FROM backtest_runs'),
       [ID],
     );
-  });
-
-  it('无匹配记录应返回 false', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rowCount: 0 });
-    expect(await deleteRun(TENANT, ID)).toBe(false);
-  });
-});
-
-describe('listRuns', () => {
-  it('limit 下限钳制为 1', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
-    await listRuns(TENANT, -5);
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[0]).toBe(1);
-  });
-
-  it('limit 0 应钳制为 1', async () => {
-    dbMocks.query.mockResolvedValueOnce({ rows: [runRow()] });
-    await listRuns(TENANT, 0);
-    const [, params] = dbMocks.query.mock.calls[0];
-    expect(params[0]).toBe(1);
-  });
-
-  it('应返回映射后的记录数组', async () => {
-    dbMocks.query.mockResolvedValueOnce({
-      rows: [
-        runRow({ name: 'run-a', owner_user_id: 'u1' }),
-        runRow({ id: 'id-2', name: 'run-b', owner_user_id: 'u2', request: { y: 2 } }),
-      ],
-    });
-    const runs = await listRuns(TENANT, 10);
-    expect(runs).toHaveLength(2);
-    expect(runs[0].name).toBe('run-a');
-    expect(runs[0].ownerUserId).toBe('u1');
-    expect(runs[1].name).toBe('run-b');
-    expect(runs[1].ownerUserId).toBe('u2');
   });
 });
