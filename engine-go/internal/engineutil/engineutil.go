@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -168,20 +169,9 @@ func GetSortedDates(priceData map[string]map[string]float64, tickers []string) [
 	return slices.Sorted(maps.Keys(dateSet))
 }
 func FilterDates(dates []string, startDate, endDate string) []string {
-	if startDate == "" && endDate == "" {
-		return dates
-	}
-	result := make([]string, 0, len(dates))
-	for _, d := range dates {
-		if startDate != "" && d < startDate {
-			continue
-		}
-		if endDate != "" && d > endDate {
-			continue
-		}
-		result = append(result, d)
-	}
-	return result
+	return FilterByRange(dates, startDate, endDate, func(d, bound string) int {
+		return strings.Compare(d, bound)
+	})
 }
 func ParseTradingDates(priceData map[string]map[string]float64) ([]time.Time, error) {
 	dateSet := make(map[time.Time]bool)
@@ -195,24 +185,29 @@ func ParseTradingDates(priceData map[string]map[string]float64) ([]time.Time, er
 	return slices.SortedFunc(maps.Keys(dateSet), func(a, b time.Time) int { return a.Compare(b) }), nil
 }
 func FilterByDateRange(dates []time.Time, startDate, endDate string) []time.Time {
-	var start, end time.Time
-	if startDate != "" {
-		start, _ = time.Parse("2006-01-02", startDate)
+	return FilterByRange(dates, startDate, endDate, func(d time.Time, bound string) int {
+		bt, err := time.Parse("2006-01-02", bound)
+		if err != nil {
+			return 0 // 无法解析的边界不过滤（与旧实现一致）
+		}
+		return d.Compare(bt)
+	})
+}
+func FilterByRange[T any](dates []T, startDate, endDate string, compare func(d T, bound string) int) []T {
+	if startDate == "" && endDate == "" {
+		return dates
 	}
-	if endDate != "" {
-		end, _ = time.Parse("2006-01-02", endDate)
-	}
-	filtered := make([]time.Time, 0, len(dates))
+	result := make([]T, 0, len(dates))
 	for _, d := range dates {
-		if !start.IsZero() && d.Before(start) {
+		if startDate != "" && compare(d, startDate) < 0 {
 			continue
 		}
-		if !end.IsZero() && d.After(end) {
+		if endDate != "" && compare(d, endDate) > 0 {
 			continue
 		}
-		filtered = append(filtered, d)
+		result = append(result, d)
 	}
-	return filtered
+	return result
 }
 func ExtractPrices(priceData map[string]map[string]float64, ticker string, dates []time.Time) []float64 {
 	tickerData, ok := priceData[ticker]
