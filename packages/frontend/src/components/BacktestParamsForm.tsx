@@ -23,6 +23,55 @@ import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants
 import { CashflowLegsSection, OneTimeCashflowSection } from './BacktestParamsForm.CashflowLegs.js';
 import { cn } from '@/lib/utils';
 import type { TFunction } from 'i18next';
+
+export interface TFunctionProp {
+  t: TFunction;
+}
+
+const FIELD_SHELL =
+  'relative h-14 rounded-md border transition-colors duration-150 bg-input-bg group';
+const LABEL_CLS =
+  'absolute left-3 top-1.5 z-10 pointer-events-none text-label-tiny text-fg-tertiary transition-colors duration-150 group-focus-within:text-brand';
+
+function FloatingLabelField({
+  label,
+  error,
+  hint,
+  containerClassName,
+  htmlFor,
+  children,
+}: {
+  label: string;
+  error?: string;
+  hint?: string;
+  containerClassName?: string;
+  htmlFor?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn('relative', containerClassName)}>
+      <div
+        className={cn(
+          FIELD_SHELL,
+          error
+            ? 'border-danger focus-within:border-danger'
+            : 'border-border focus-within:border-brand hover:border-border-strong',
+        )}
+      >
+        <label htmlFor={htmlFor} className={LABEL_CLS}>
+          {label}
+        </label>
+        {children}
+      </div>
+      {error ? (
+        <p className="mt-1 text-caption text-danger">{error}</p>
+      ) : hint ? (
+        <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
 interface FloatingLabelInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
   label: string;
   prefix?: ReactNode;
@@ -36,58 +85,40 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
     const generatedId = useId();
     const inputId = id ?? generatedId;
     return (
-      <div className={cn('relative', containerClassName)}>
-        <div
+      <FloatingLabelField
+        label={label}
+        error={error}
+        hint={hint}
+        containerClassName={containerClassName}
+        htmlFor={inputId}
+      >
+        {prefix && (
+          <span className="absolute left-3 bottom-2 text-body text-fg-tertiary pointer-events-none">
+            {prefix}
+          </span>
+        )}
+        <input
+          ref={ref}
+          id={inputId}
           className={cn(
-            'relative h-14 rounded-md border transition-colors duration-150 bg-input-bg',
-            error
-              ? 'border-danger focus-within:border-danger'
-              : 'border-border focus-within:border-brand',
-            'group',
+            'w-full h-full pt-6 pb-2 bg-transparent text-body text-fg font-mono tabular-nums focus:outline-none placeholder:text-fg-tertiary',
+            prefix ? 'pl-7' : 'pl-3',
+            suffix ? 'pr-16' : 'pr-3',
+            className,
           )}
-        >
-          <label
-            htmlFor={inputId}
-            className={cn(
-              'absolute left-3 top-1.5 z-10 pointer-events-none',
-              'text-label-tiny text-fg-tertiary',
-              'transition-colors duration-150',
-              'group-focus-within:text-brand',
-            )}
-          >
-            {label}
-          </label>
-          {prefix && (
-            <span className="absolute left-3 bottom-2 text-body text-fg-tertiary pointer-events-none">
-              {prefix}
-            </span>
-          )}
-          <input
-            ref={ref}
-            id={inputId}
-            className={cn(
-              'w-full h-full pt-6 pb-2 bg-transparent',
-              'text-body text-fg font-mono tabular-nums',
-              'focus:outline-none placeholder:text-fg-tertiary',
-              prefix ? 'pl-7' : 'pl-3',
-              suffix ? 'pr-16' : 'pr-3',
-              className,
-            )}
-            {...props}
-          />
-          {suffix && (
-            <span className="absolute right-3 bottom-2 text-caption text-fg-tertiary pointer-events-none">
-              {suffix}
-            </span>
-          )}
-        </div>
-        {error && <p className="mt-1 text-caption text-danger">{error}</p>}
-        {!error && hint && <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>}
-      </div>
+          {...props}
+        />
+        {suffix && (
+          <span className="absolute right-3 bottom-2 text-caption text-fg-tertiary pointer-events-none">
+            {suffix}
+          </span>
+        )}
+      </FloatingLabelField>
     );
   },
 );
 FloatingLabelInput.displayName = 'FloatingLabelInput';
+
 interface FloatingLabelSelectProps {
   label: string;
   value?: string;
@@ -116,55 +147,36 @@ const FloatingLabelSelect = forwardRef<HTMLButtonElement, FloatingLabelSelectPro
   ) => {
     const inputId = useId();
     return (
-      <div className={cn('relative', containerClassName)}>
-        <div
-          className={cn(
-            'relative h-14 rounded-md border transition-colors duration-150',
-            'bg-input-bg',
-            error ? 'border-danger' : 'border-border hover:border-border-strong',
-            'group',
-          )}
-        >
-          <label
-            htmlFor={inputId}
-            className="absolute left-3 top-1.5 z-10 pointer-events-none text-label-tiny text-fg-tertiary"
+      <FloatingLabelField
+        label={label}
+        error={error}
+        hint={hint}
+        containerClassName={containerClassName}
+        htmlFor={inputId}
+      >
+        <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+          <SelectTrigger
+            ref={ref}
+            id={inputId}
+            aria-label={label}
+            className="w-full h-full pt-6 pb-2 px-3 pr-9 flex items-center justify-between text-body text-fg text-left border-0 bg-transparent focus:outline-none focus:ring-0 [&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100"
           >
-            {label}
-          </label>
-          <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-            <SelectTrigger
-              ref={ref}
-              id={inputId}
-              aria-label={label}
-              className={cn(
-                'w-full h-full pt-6 pb-2 px-3 pr-9',
-                'flex items-center justify-between',
-                'text-body text-fg text-left',
-                'border-0 bg-transparent focus:outline-none focus:ring-0',
-                '[&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100',
-              )}
-            >
-              <SelectValue placeholder={placeholder} />
-            </SelectTrigger>
-            <SelectContent position="popper" sideOffset={4}>
-              {options.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {error && <p className="mt-1 text-caption text-danger">{error}</p>}
-        {!error && hint && <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>}
-      </div>
+            <SelectValue placeholder={placeholder} />
+          </SelectTrigger>
+          <SelectContent position="popper" sideOffset={4}>
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FloatingLabelField>
     );
   },
 );
 FloatingLabelSelect.displayName = 'FloatingLabelSelect';
-export interface TFunctionProp {
-  t: TFunction;
-}
+
 function validateDateChange(
   field: 'startDate' | 'endDate',
   value: string,
@@ -178,6 +190,7 @@ function validateDateChange(
   if (field === 'endDate' && otherDate && value < otherDate) return t('params.endDateBeforeStart');
   return null;
 }
+
 type BasicParamsField =
   'startDate' | 'endDate' | 'startingValue' | 'baseCurrency' | 'adjustForInflation';
 interface BasicParamsRowProps {
@@ -257,12 +270,14 @@ export function BasicParamsRow({
     </div>
   );
 }
+
 function useParamField() {
   const { t } = useTranslation();
   const parameters = useBacktestStore(useShallow((s) => s.parameters));
   const updateParameter = useBacktestStore((s) => s.updateParameter);
   return { t, parameters, updateParameter };
 }
+
 function SwitchRow({
   label,
   description,
@@ -284,6 +299,7 @@ function SwitchRow({
     </div>
   );
 }
+
 const CURRENCY_OPTIONS = [
   { value: 'usd', label: 'USD ($)' },
   { value: 'cny', label: 'CNY (¥)' },
@@ -313,12 +329,27 @@ function useBasicParamFields() {
     key: 'startingValue' | 'rollingWindowMonths',
     e: ChangeEvent<HTMLInputElement>,
   ) => updateParameter(key, Math.max(1, Number(e.target.value) || 0));
-  return { t, parameters, dateRangeMode, handleDateRangeChange, handleDateChange, handleNum };
+  return {
+    t,
+    parameters,
+    updateParameter,
+    dateRangeMode,
+    handleDateRangeChange,
+    handleDateChange,
+    handleNum,
+  };
 }
 
 function BasicParamsGrid() {
-  const { t, parameters, dateRangeMode, handleDateRangeChange, handleDateChange, handleNum } =
-    useBasicParamFields();
+  const {
+    t,
+    parameters,
+    updateParameter,
+    dateRangeMode,
+    handleDateRangeChange,
+    handleDateChange,
+    handleNum,
+  } = useBasicParamFields();
   const dateFields = [
     ['startDate', t('params.startDate'), parameters.startDate || DEFAULT_BACKTEST_START_DATE],
     ['endDate', t('params.endDate'), parameters.endDate || DEFAULT_END_DATE],
@@ -373,6 +404,7 @@ function BasicParamsGrid() {
     </div>
   );
 }
+
 function AdvancedParamsSection({
   advancedOpen,
   setAdvancedOpen,
@@ -426,6 +458,7 @@ function AdvancedParamsSection({
     </Collapsible>
   );
 }
+
 function BasicParamsSection() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
@@ -435,6 +468,7 @@ function BasicParamsSection() {
     </div>
   );
 }
+
 const BacktestParamsForm = memo(function BacktestParamsForm() {
   return (
     <>

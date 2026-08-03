@@ -1,25 +1,12 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation, type UseTranslationOptions } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import i18n, { loadNamespace } from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 import { useAuthStore } from '@/store/authStore';
-interface UseAsyncActionResult {
-  isLoading: boolean;
-  error: string | null;
-  run: <T>(task: () => Promise<T>) => Promise<T | undefined>;
-  reset: () => void;
-  setError: (message: string | null) => void;
-}
-export function useAsyncAction(): UseAsyncActionResult {
+
+export function useAsyncAction() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = useCallback(async <T>(task: () => Promise<T>): Promise<T | undefined> => {
@@ -40,26 +27,17 @@ export function useAsyncAction(): UseAsyncActionResult {
   }, []);
   return { isLoading, error, run, reset, setError };
 }
-interface UseListStateResult<T> {
-  items: T[];
-  setItems: Dispatch<SetStateAction<T[]>>;
-  addItem: () => void;
-  removeItem: (index: number) => void;
-  updateItem: (index: number, updater: (prev: T) => T) => void;
-}
-export function useListState<T>(
-  initial: T[],
-  makeDefault: () => T,
-  minLength = 1,
-): UseListStateResult<T> {
+
+export function useListState<T>(initial: T[], makeDefault: () => T, minLength = 1) {
   const [items, setItems] = useState<T[]>(() => initial);
-  const addItem = () => setItems((prev) => [...prev, makeDefault()]);
-  const removeItem = (index: number) =>
-    setItems((prev) => (prev.length > minLength ? prev.filter((_, i) => i !== index) : prev));
-  const updateItem = (index: number, updater: (prev: T) => T) =>
-    setItems((prev) => prev.map((item, i) => (i === index ? updater(item) : item)));
+  const addItem = () => setItems((p) => [...p, makeDefault()]);
+  const removeItem = (i: number) =>
+    setItems((p) => (p.length > minLength ? p.filter((_, j) => j !== i) : p));
+  const updateItem = (i: number, u: (p: T) => T) =>
+    setItems((p) => p.map((item, j) => (j === i ? u(item) : item)));
   return { items, setItems, addItem, removeItem, updateItem };
 }
+
 export function useNsT(ns: string, options?: UseTranslationOptions<string>) {
   const ret = useTranslation(ns, options);
   useEffect(() => {
@@ -67,65 +45,54 @@ export function useNsT(ns: string, options?: UseTranslationOptions<string>) {
   }, [ns]);
   return ret;
 }
-type Theme = 'light' | 'dark';
-function getInitialTheme(): Theme {
-  if (typeof window === 'undefined') return 'dark';
-  const stored = localStorage.getItem('theme') as Theme | null;
-  if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
+
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') return 'dark';
+    const s = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    return s ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  });
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
-  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
   return {
     theme,
-    toggleTheme,
+    toggleTheme: () => setTheme((t) => (t === 'light' ? 'dark' : 'light')),
     isDark: theme === 'dark',
   };
 }
-interface UsePollingOptions {
-  enabled?: boolean;
-  deps?: unknown[];
-  immediate?: boolean;
-}
+
 export function usePolling(
   fetchFn: () => void | Promise<void>,
   intervalMs: number,
-  options: UsePollingOptions = {},
-): void {
-  const { enabled = true, deps = [], immediate = true } = options;
+  {
+    enabled = true,
+    deps = [],
+    immediate = true,
+  }: { enabled?: boolean; deps?: unknown[]; immediate?: boolean } = {},
+) {
   useEffect(() => {
     if (!enabled) return;
     if (immediate) fetchFn();
-    const interval = setInterval(fetchFn, intervalMs);
-    return () => clearInterval(interval);
+    const id = setInterval(fetchFn, intervalMs);
+    return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, intervalMs, immediate, ...deps]);
 }
-interface ComputeToolState<TResult> {
-  isLoading: boolean;
-  error: string | null;
-  results: TResult | null;
-  runCompute: () => void;
-  setResults: (r: TResult | null) => void;
-  reset: () => void;
-}
+
 export function useComputeTool<TResult>(
   computeFn: () => Promise<TResult>,
   validateFn?: () => string | null,
-): ComputeToolState<TResult> {
+) {
   const { isLoading, error, run, setError, reset: resetAction } = useAsyncAction();
   const [results, setResults] = useState<TResult | null>(null);
   const runCompute = useCallback(() => {
-    const validationError = validateFn?.();
-    if (validationError) {
-      setError(validationError);
+    const ve = validateFn?.();
+    if (ve) {
+      setError(ve);
       return;
     }
     setResults(null);
@@ -133,25 +100,20 @@ export function useComputeTool<TResult>(
       setResults(await computeFn());
     });
   }, [computeFn, validateFn, run, setError]);
-  const reset = useCallback(() => {
-    resetAction();
-    setResults(null);
-  }, [resetAction]);
-  return { isLoading, error, results, runCompute, setResults, reset };
+  return {
+    isLoading,
+    error,
+    results,
+    runCompute,
+    setResults,
+    reset: useCallback(() => {
+      resetAction();
+      setResults(null);
+    }, [resetAction]),
+  };
 }
-interface OptimizerLikeState<TResults> {
-  startDate: string;
-  setStartDate: (v: string) => void;
-  endDate: string;
-  setEndDate: (v: string) => void;
-  isLoading: boolean;
-  setIsLoading: (v: boolean) => void;
-  error: string | null;
-  setError: (v: string | null) => void;
-  results: TResults | null;
-  setResults: (v: TResults | null) => void;
-}
-export function useOptimizerLikeState<TResults>(): OptimizerLikeState<TResults> {
+
+export function useOptimizerLikeState<TResults>() {
   const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
   const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
   const [isLoading, setIsLoading] = useState(false);
@@ -170,6 +132,7 @@ export function useOptimizerLikeState<TResults>(): OptimizerLikeState<TResults> 
     setResults,
   };
 }
+
 interface TickerMeta {
   ticker: string;
   name: string;
@@ -178,7 +141,7 @@ interface TickerMeta {
   earliestDate?: string;
   isSynthetic?: boolean;
 }
-const cache = new Map<string, TickerMeta>();
+const tickerMetaCache = new Map<string, TickerMeta>();
 export function useTickerMeta(ticker: string): TickerMeta | null {
   const [meta, setMeta] = useState<TickerMeta | null>(null);
   useEffect(() => {
@@ -187,8 +150,8 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
       return;
     }
     const upper = ticker.toUpperCase();
-    if (cache.has(upper)) {
-      setMeta(cache.get(upper) ?? null);
+    if (tickerMetaCache.has(upper)) {
+      setMeta(tickerMetaCache.get(upper) ?? null);
       return;
     }
     const timer = setTimeout(async () => {
@@ -198,7 +161,7 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
         });
         if (!res.ok) return;
         const data = (await res.json()) as TickerMeta;
-        cache.set(upper, data);
+        tickerMetaCache.set(upper, data);
         setMeta(data);
       } catch {
         setMeta(null);
@@ -208,6 +171,7 @@ export function useTickerMeta(ticker: string): TickerMeta | null {
   }, [ticker]);
   return meta;
 }
+
 const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   'mousemove',
   'keydown',
@@ -215,13 +179,13 @@ const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
   'touchstart',
   'scroll',
 ];
-const HEARTBEAT_INTERVAL_MS = 60_000;
+const HEARTBEAT_MS = 60_000;
 export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
-  const lastActivityRef = useRef<number>(Date.now());
+  const lastActivityRef = useRef(Date.now());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const triggeredRef = useRef<boolean>(false);
+  const triggeredRef = useRef(false);
   const resetActivity = useCallback(() => {
     lastActivityRef.current = Date.now();
   }, []);
@@ -233,29 +197,20 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
   }, [logout, navigate]);
   const checkTimeout = useCallback(() => {
     if (!enabled || timeoutMs <= 0) return;
-    const elapsed = Date.now() - lastActivityRef.current;
-    if (elapsed >= timeoutMs) {
-      void triggerTimeout();
-    }
+    if (Date.now() - lastActivityRef.current >= timeoutMs) void triggerTimeout();
   }, [enabled, timeoutMs, triggerTimeout]);
   useEffect(() => {
     if (!enabled || timeoutMs <= 0) return;
     triggeredRef.current = false;
     lastActivityRef.current = Date.now();
-    ACTIVITY_EVENTS.forEach((event) => {
-      window.addEventListener(event, resetActivity, { passive: true });
-    });
+    ACTIVITY_EVENTS.forEach((e) => window.addEventListener(e, resetActivity, { passive: true }));
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        checkTimeout();
-      }
+      if (document.visibilityState === 'visible') checkTimeout();
     };
     document.addEventListener('visibilitychange', handleVisibility);
-    timerRef.current = setInterval(checkTimeout, HEARTBEAT_INTERVAL_MS);
+    timerRef.current = setInterval(checkTimeout, HEARTBEAT_MS);
     return () => {
-      ACTIVITY_EVENTS.forEach((event) => {
-        window.removeEventListener(event, resetActivity);
-      });
+      ACTIVITY_EVENTS.forEach((e) => window.removeEventListener(e, resetActivity));
       document.removeEventListener('visibilitychange', handleVisibility);
       if (timerRef.current) {
         clearInterval(timerRef.current);
@@ -264,6 +219,7 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
     };
   }, [enabled, timeoutMs, resetActivity, checkTimeout]);
 }
+
 interface Announcement {
   id: number;
   slug: string;
@@ -275,39 +231,40 @@ interface Announcement {
   publishedAt: string;
 }
 const READ_KEY = 'announcements-read';
-let pendingAnnouncementsPromise: Promise<Announcement[]> | null = null;
+let pendingAnnouncements: Promise<Announcement[]> | null = null;
 export function useAnnouncements() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(READ_KEY);
-      if (saved) setReadIds(new Set(JSON.parse(saved)));
+      const s = localStorage.getItem(READ_KEY);
+      if (s) setReadIds(new Set(JSON.parse(s)));
     } catch {
       /* noop */
     }
-    if (!pendingAnnouncementsPromise) {
-      pendingAnnouncementsPromise = apiFetch('/api/v1/announcements', { silent: true })
-        .then((res) => (res.ok ? res.json() : { data: [] }))
-        .then((json) => {
-          const data = json.data ?? json ?? [];
-          return Array.isArray(data) ? data : [];
+    if (!pendingAnnouncements) {
+      pendingAnnouncements = apiFetch('/api/v1/announcements', { silent: true })
+        .then((r) => (r.ok ? r.json() : { data: [] }))
+        .then((j) => {
+          const d = j.data ?? j ?? [];
+          return Array.isArray(d) ? d : [];
         })
         .catch(() => [])
         .finally(() => {
-          pendingAnnouncementsPromise = null;
+          pendingAnnouncements = null;
         });
     }
-    pendingAnnouncementsPromise.then(setAnnouncements);
+    pendingAnnouncements.then(setAnnouncements);
   }, []);
   const unreadCount = announcements.filter((a) => !readIds.has(a.id)).length;
   const markAllRead = useCallback(() => {
-    const allIds = new Set(announcements.map((a) => a.id));
-    setReadIds(allIds);
-    localStorage.setItem(READ_KEY, JSON.stringify([...allIds]));
+    const all = new Set(announcements.map((a) => a.id));
+    setReadIds(all);
+    localStorage.setItem(READ_KEY, JSON.stringify([...all]));
   }, [announcements]);
   return { announcements, unreadCount, markAllRead };
 }
+
 interface DataMeta {
   lastUpdated: string;
   tickerCount: number;
@@ -316,22 +273,21 @@ interface DataMeta {
 }
 let cachedMeta: DataMeta | null = null;
 let cacheTime = 0;
-let pendingMetaPromise: Promise<DataMeta | null> | null = null;
+let pendingMeta: Promise<DataMeta | null> | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
 function getPreloadedMeta(): DataMeta | null {
   try {
-    const global =
+    const g =
       typeof window !== 'undefined'
         ? (window as { __INITIAL_DATA__?: unknown }).__INITIAL_DATA__
         : null;
-    const data = (global &&
-      ((global as Record<string, unknown>).data ?? global)) as Partial<DataMeta>;
-    if (data?.tickerCount !== undefined && data?.lastUpdated) {
+    const d = (g && ((g as Record<string, unknown>).data ?? g)) as Partial<DataMeta>;
+    if (d?.tickerCount !== undefined && d?.lastUpdated) {
       return {
-        lastUpdated: data.lastUpdated,
-        tickerCount: data.tickerCount,
-        earliestDate: data.earliestDate || '',
-        dataPointCount: data.dataPointCount || 0,
+        lastUpdated: d.lastUpdated,
+        tickerCount: d.tickerCount,
+        earliestDate: d.earliestDate || '',
+        dataPointCount: d.dataPointCount || 0,
       };
     }
   } catch {
@@ -351,39 +307,36 @@ export function useDataMeta(): DataMeta | null {
       setMeta(cachedMeta);
       return;
     }
-    if (!pendingMetaPromise) {
-      pendingMetaPromise = apiFetch('/api/v1/data/meta', { silent: true })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((json) => {
-          const data = json?.data ?? json;
-          if (data?.lastUpdated) {
-            cachedMeta = data;
+    if (!pendingMeta) {
+      pendingMeta = apiFetch('/api/v1/data/meta', { silent: true })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => {
+          const d = j?.data ?? j;
+          if (d?.lastUpdated) {
+            cachedMeta = d;
             cacheTime = Date.now();
-            return data;
+            return d;
           }
           return null;
         })
         .catch(() => null)
         .finally(() => {
-          pendingMetaPromise = null;
+          pendingMeta = null;
         });
     }
-    pendingMetaPromise.then(setMeta);
+    pendingMeta.then(setMeta);
   }, []);
   return meta;
 }
+
 export type WorkerTask = { type: string; payload: unknown[] };
-export function useChartCalcWorker<T>(task: WorkerTask | null): {
-  data: T | null;
-  isPending: boolean;
-  error: string | null;
-} {
+export function useChartCalcWorker<T>(task: WorkerTask | null) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const idRef = useRef(0);
-  const lastTaskKeyRef = useRef('');
+  const lastKeyRef = useRef('');
   useEffect(() => {
     const w = new Worker(new URL('../workers/chartCalc.worker.ts', import.meta.url), {
       type: 'module',
@@ -409,11 +362,10 @@ export function useChartCalcWorker<T>(task: WorkerTask | null): {
   useEffect(() => {
     if (!task || !workerRef.current) return;
     const key = task.type + ':' + JSON.stringify(task.payload);
-    if (key === lastTaskKeyRef.current) return;
-    lastTaskKeyRef.current = key;
-    const id = idRef.current++;
+    if (key === lastKeyRef.current) return;
+    lastKeyRef.current = key;
     setIsPending(true);
-    workerRef.current.postMessage({ id, type: task.type, payload: task.payload });
+    workerRef.current.postMessage({ id: idRef.current++, type: task.type, payload: task.payload });
   }, [task]);
   return { data, isPending, error };
 }
