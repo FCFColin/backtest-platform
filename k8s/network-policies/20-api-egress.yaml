@@ -1,68 +1,24 @@
-# =============================================================================
-# P1-01: API 出站流量放行——api → engine-go/data-fetcher/pgbouncer/redis/SaaS-OTel
-# =============================================================================
-# 企业理由：API 后端需要连接以下服务：
-# - engine-go:5004 (Go 回测引擎)
-# - data-fetcher:5003 (Go 数据服务)
-# - pgbouncer:5432 (PostgreSQL 连接池)
-# - redis-sentinel:26379 (Redis Sentinel)
-# - SaaS OTel backend:443 (HTTPS, ADR-044: direct export, no self-hosted Collector)
-# 其他出站连接被默认拒绝。
-# ==============================================================================
+# API 出站: engine-go:5004 / data-fetcher:5003 / pgbouncer:5432 / redis-sentinel:26379 / SaaS OTel:443
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-api-egress
-  namespace: backtest-platform
 spec:
   podSelector:
-    matchLabels:
-      app: api
-  policyTypes:
-    - Egress
+    matchLabels: { app: api }
+  policyTypes: [Egress]
   egress:
-    # → engine-go:5004
-    - to:
-        - podSelector:
-            matchLabels:
-              app: engine-go
-      ports:
-        - protocol: TCP
-          port: 5004
-    # → data-fetcher:5003
-    - to:
-        - podSelector:
-            matchLabels:
-              app: data-fetcher
-      ports:
-        - protocol: TCP
-          port: 5003
-    # → pgbouncer:5432
-    - to:
-        - podSelector:
-            matchLabels:
-              app: pgbouncer
-      ports:
-        - protocol: TCP
-          port: 5432
-    # → redis-sentinel:26379
-    - to:
-        - podSelector:
-            matchLabels:
-              app: redis-sentinel
-      ports:
-        - protocol: TCP
-          port: 26379
-    # → SaaS OTel backend:443 (HTTPS, ADR-044)
-    # Services export traces directly to SaaS via OTEL_EXPORTER_OTLP_ENDPOINT.
-    # No self-hosted Collector needed (ADR-044 replaces ADR-015 Collector architecture).
+    - to: [{ podSelector: { matchLabels: { app: engine-go } } }]
+      ports: [{ protocol: TCP, port: 5004 }]
+    - to: [{ podSelector: { matchLabels: { app: data-fetcher } } }]
+      ports: [{ protocol: TCP, port: 5003 }]
+    - to: [{ podSelector: { matchLabels: { app: pgbouncer } } }]
+      ports: [{ protocol: TCP, port: 5432 }]
+    - to: [{ podSelector: { matchLabels: { app: redis-sentinel } } }]
+      ports: [{ protocol: TCP, port: 26379 }]
+    # SaaS OTel backend:443 (ADR-044, excludes private CIDRs)
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
-            except:
-              - 10.0.0.0/8
-              - 172.16.0.0/12
-              - 192.168.0.0/16
-      ports:
-        - protocol: TCP
-          port: 443
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16]
+      ports: [{ protocol: TCP, port: 443 }]

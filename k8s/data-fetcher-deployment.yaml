@@ -1,20 +1,10 @@
-# 企业理由：Go 数据服务负责数据获取与缓存，多副本确保高可用。
-# 单副本即单点故障——Pod 重启/迁移期间数据服务完全不可用。
-# 2 副本 + readinessProbe 确保滚动更新和节点故障时仍有实例可用。
-# 权衡：多副本增加资源消耗，但数据服务是回测平台核心依赖，
-# 不可用会导致所有数据请求降级，影响用户体验。
-#
-# 命名统一（R-17）：服务名 data-fetcher 与 docker-compose（services.data-fetcher）
-# 一致；原 k8s 清单为 go-data，现已统一。镜像名 backtest-platform/data-fetcher
-# 与 docker-compose 构建上下文 ./data-fetcher 对齐。
+# Go 数据服务 — 数据获取与缓存，不可用时数据请求降级
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: data-fetcher
-  namespace: backtest-platform
   labels:
     app: data-fetcher
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   replicas: 2
   selector:
@@ -24,7 +14,6 @@ spec:
     metadata:
       labels:
         app: data-fetcher
-        app.kubernetes.io/part-of: backtest-platform
     spec:
       terminationGracePeriodSeconds: 35
       securityContext:
@@ -34,7 +23,6 @@ spec:
         fsGroup: 1000
       containers:
         - name: data-fetcher
-          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
           image: backtest-platform/data-fetcher:v1.0.0
           securityContext:
             runAsNonRoot: true
@@ -42,35 +30,24 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
-              drop:
-                - ALL
+              drop: [ALL]
           ports:
             - containerPort: 5003
           resources:
-            requests:
-              memory: '256Mi'
-              cpu: '0.5'
-            limits:
-              memory: '512Mi'
-              cpu: '1'
+            requests: { memory: '256Mi', cpu: '0.5' }
+            limits: { memory: '512Mi', cpu: '1' }
           startupProbe:
-            httpGet:
-              path: /api/data/health
-              port: 5003
+            httpGet: { path: /api/data/health, port: 5003 }
             failureThreshold: 30
             periodSeconds: 2
           livenessProbe:
-            httpGet:
-              path: /api/data/health
-              port: 5003
+            httpGet: { path: /api/data/health, port: 5003 }
             initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /api/ready
-              port: 5003
+            httpGet: { path: /api/ready, port: 5003 }
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 3

@@ -1,21 +1,15 @@
-# =============================================================================
-# Prometheus 告警规则（含 Redis Sentinel 高可用告警，ADR-045 T7）
-# 与 ADR-045 对应：failover-timeout 30000 → 30s；min-slaves-to-write=1 → RefusedWrites；PDB minAvailable: 2 → SentinelQuorumLoss。
-# =============================================================================
+# Prometheus 告警规则 — Redis Sentinel HA (ADR-045) + 平台核心依赖与性能 SLO
+---
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: redis-sentinel-alerts
-  namespace: monitoring
   labels:
-    app.kubernetes.io/part-of: backtest-platform
     prometheus: k8s
 spec:
   groups:
-    # P0：Sentinel 故障转移与可用性（立即响应）
     - name: redis-sentinel-critical
       rules:
-        # Sentinel 检测到 master 不可用并触发故障转移（对应 o_down/s_down）
         - alert: RedisSentinelMasterDown
           expr: |
             max(redis_sentinel_master_status{state=~"s_down|o_down"} == 1) by (master, sentinel)
@@ -30,8 +24,6 @@ spec:
               Failover should complete within 30s (sentinel failover-timeout).
               If RedisSentinelFailoverInProgress persists > 1m, investigate Sentinel quorum.
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#master-down'
-
-        # 故障转移进行中——超过 30s 需人工介入
         - alert: RedisSentinelFailoverInProgress
           expr: |
             max(redis_sentinel_master_status{state="failover_in_progress"} == 1) by (master)
@@ -44,8 +36,6 @@ spec:
               failover-timeout (30000ms). Manual intervention may be required.
               Check: kubectl -n backtest-platform logs -l app=redis-sentinel
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#failover-stuck'
-
-        # Redis 实例不可达（redis_up 由 redis_exporter 提供；30s 容忍瞬时抖动）
         - alert: RedisDown
           expr: redis_up == 0
           for: 30s
@@ -58,8 +48,6 @@ spec:
               (Sentinel should have failed over within 30s).
               Check: kubectl -n backtest-platform get pods -l app=redis
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#redis-down'
-
-        # 写入被拒——min-slaves-to-write 触发（脑裂或全从节点失联）
         - alert: RedisRefusedWrites
           expr: |
             max(redis_rejected_connections_total) by (addr) > 0
@@ -74,11 +62,8 @@ spec:
               min-slaves-to-write=1 triggered (no slaves ACK within 10s lag).
               Check slave replication: redis-cli -h <master> INFO replication
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#rejected-writes'
-
-    # P1：Sentinel 仲裁与从节点拓扑（30 分钟内响应）
     - name: redis-sentinel-warning
       rules:
-        # Sentinel 仲裁丢失——可用 Sentinel < 2（quorum=2；PDB minAvailable: 2 防自愿驱逐）
         - alert: RedisSentinelQuorumLoss
           expr: |
             count(up{job="redis-sentinel"} == 1) < 2
@@ -94,8 +79,6 @@ spec:
               prevent voluntary eviction; check for involuntary node failures.
               Check: kubectl -n backtest-platform get pods -l app=redis-sentinel
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#quorum-loss'
-
-        # 从节点 < 1——min-slaves-to-write 即将触发
         - alert: RedisNoSlavesConnected
           expr: |
             max(redis_connected_slaves) by (addr) < 1
@@ -108,8 +91,6 @@ spec:
               min-slaves-to-write=1 will reject writes if lag > 10s.
               Check replica pods: kubectl -n backtest-platform get pods -l app=redis
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#no-slaves'
-
-        # 复制延迟过高——min-slaves-max-lag=10 即将触发
         - alert: RedisReplicationLagHigh
           expr: |
             max(redis_replication_offset_diff_lag_seconds) by (addr) > 5
@@ -122,8 +103,6 @@ spec:
               write rejection soon. Check replica load and network.
               redis-cli -h <master> INFO replication
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#replication-lag'
-
-        # Sentinel Pod 重启——可能丢失运行时状态（已重写 sentinel.conf）
         - alert: RedisSentinelPodRestart
           expr: |
             increase(kube_pod_container_status_restarts_total{container=~"sentinel"}[15m]) > 0
@@ -137,83 +116,53 @@ spec:
               Verify quorum is still healthy: kubectl exec redis-sentinel-0 --
               redis-cli -p 26379 SENTINEL masters
             runbook_url: 'https://backtest.platform/runbooks/redis-sentinel#pod-restart'
-
 ---
-# =============================================================================
-# P1-10 平台告警规则（backtest-platform-alerts）— 核心依赖与性能 SLO
-# 指标来源：应用层 prom-client（metrics.ts）+ 基础设施 exporter（pg/redis/node）；与 docker/prometheus/rules.yml 对齐。
-# =============================================================================
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: backtest-platform-alerts
-  namespace: monitoring
   labels:
-    app.kubernetes.io/part-of: backtest-platform
     prometheus: k8s
 spec:
   groups:
-    # P0：核心依赖与熔断（立即响应）
     - name: backtest-platform-critical
       interval: 15s
       rules:
-        # Go 引擎不可达（ADR-031：唯一引擎，不可用即 fail-closed 503）
         - alert: GoEngineDown
           expr: up{job="engine-go"} == 0
           for: 1m
-          labels:
-            severity: critical
-            service: engine-go
-            category: availability
+          labels: { severity: critical, service: engine-go, category: availability }
           annotations:
             summary: 'Go engine down ({{ $labels.instance }})'
-            description: 'Go 回测引擎 {{ $labels.instance }} 抓取失败已 1 分钟。ADR-031 下引擎不可用 → API fail-closed 返回 503 + Retry-After，回测/蒙特卡洛/优化全部不可用。检查 Pod 状态与 /api/engine/health。'
+            description: 'Go 回测引擎 {{ $labels.instance }} 抓取失败已 1 分钟。ADR-031 下引擎不可用 → API fail-closed 返回 503 + Retry-After。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#go-engine-down'
-
-        # 熔断器打开（ADR-016：0=closed, 1=open, 2=halfOpen）
         - alert: CircuitBreakerOpen
           expr: circuit_breaker_state == 1
           for: 0m
-          labels:
-            severity: critical
-            service: api
-            category: resilience
+          labels: { severity: critical, service: api, category: resilience }
           annotations:
             summary: 'Circuit breaker open ({{ $labels.name }})'
-            description: '熔断器 {{ $labels.name }} 处于 Open 状态，相关依赖（Go 引擎 / PostgreSQL）调用快速失败。依据 ADR-016，需立即排查后端依赖健康（state=1=open，0=closed，2=halfOpen）。'
+            description: '熔断器 {{ $labels.name }} 处于 Open 状态（ADR-016），需立即排查后端依赖健康。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#circuit-breaker-open'
-
-        # PostgreSQL 不可用（ADR-007：主数据存储，不可用即全线降级）
         - alert: PostgresDown
           expr: pg_up == 0
           for: 30s
-          labels:
-            severity: critical
-            service: postgres
-            category: availability
+          labels: { severity: critical, service: postgres, category: availability }
           annotations:
             summary: 'PostgreSQL down ({{ $labels.instance }})'
-            description: 'postgres_exporter 报告 pg_up == 0 已 30s。PostgreSQL 为主数据存储（ADR-007），不可用时认证/回测/审计均受影响。检查 PG 进程、PgBouncer、磁盘与复制状态。'
+            description: 'pg_up == 0 已 30s。PostgreSQL 为主数据存储（ADR-007），不可用时认证/回测/审计均受影响。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#postgres-down'
-
-        # 回测队列堆积（ADR-011：BullMQ 队列深度 >100 持续 5m）
         - alert: BacktestQueueDepth
           expr: bullmq_queue_size > 100
           for: 5m
-          labels:
-            severity: critical
-            service: api
-            category: capacity
+          labels: { severity: critical, service: api, category: capacity }
           annotations:
             summary: 'Backtest queue depth high ({{ $labels.queue }})'
-            description: 'BullMQ 队列 {{ $labels.queue }} 深度 > 100 已持续 5 分钟，回测任务积压。检查 Worker 副本数 / 引擎吞吐 / 是否有卡死任务，必要时 HPA 扩容。'
+            description: 'BullMQ 队列 {{ $labels.queue }} 深度 > 100 已持续 5 分钟。检查 Worker 副本数 / 引擎吞吐。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#backtest-queue-depth'
-
-    # P1：性能与容量（30 分钟内响应）
     - name: backtest-platform-warning
       interval: 30s
       rules:
-        # 5xx 错误率 > 5%（5 分钟窗口；标签为 status_code）
         - alert: HighErrorRate
           expr: |
             (
@@ -222,106 +171,69 @@ spec:
               sum(rate(http_requests_total[5m]))
             ) > 0.05
           for: 5m
-          labels:
-            severity: warning
-            service: api
-            category: errors
+          labels: { severity: warning, service: api, category: errors }
           annotations:
             summary: 'High 5xx error rate ({{ $value | humanizePercentage }})'
-            description: '5xx 错误率 > 5% 已持续 5 分钟。按 route 拆分：sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (route)。排查引擎 fail-closed 503、PG 异常、限流 429 误归 5xx。'
+            description: '5xx 错误率 > 5% 已持续 5 分钟。排查引擎 fail-closed 503、PG 异常、限流 429 误归 5xx。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-error-rate'
-
-        # PG 复制延迟 > 5s（P1-03 读写分离，从库滞后影响读一致性）
         - alert: ReplicationLag
           expr: pg_replication_lag > 5
           for: 2m
-          labels:
-            severity: warning
-            service: postgres
-            category: replication
+          labels: { severity: warning, service: postgres, category: replication }
           annotations:
             summary: 'PostgreSQL replication lag high ({{ $value }}s)'
-            description: 'PG 复制延迟 > 5s 已持续 2 分钟，读副本数据滞后影响只读查询一致性（P1-03 读写分离）。检查从库负载、网络、长事务。pg_stat_replication 查看具体滞后。'
+            description: 'PG 复制延迟 > 5s 已持续 2 分钟（P1-03 读写分离）。检查从库负载、网络、长事务。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#replication-lag'
-
-        # P99 延迟 > 1s（5 分钟窗口）
         - alert: HighLatency
           expr: |
             histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 1
           for: 5m
-          labels:
-            severity: warning
-            service: api
-            category: latency
+          labels: { severity: warning, service: api, category: latency }
           annotations:
             summary: 'High P99 latency ({{ $value }}s)'
-            description: 'HTTP 请求 P99 延迟 > 1s 已持续 5 分钟。按 route 拆分定位慢端点：histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, route))。排查 DB 慢查询、引擎计算、事件循环阻塞。'
+            description: 'HTTP 请求 P99 延迟 > 1s 已持续 5 分钟。排查 DB 慢查询、引擎计算、事件循环阻塞。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
-
-        # P90 延迟 > 100ms（5 分钟窗口）
         - alert: HighP90Latency
           expr: |
             histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.1
           for: 5m
-          labels:
-            severity: notice
-            service: api
-            category: latency
+          labels: { severity: notice, service: api, category: latency }
           annotations:
             summary: 'High P90 latency ({{ $value }}s)'
-            description: 'HTTP 请求 P90 延迟 > 100ms 已持续 5 分钟。按 route 拆分定位慢端点，优先排查缓存缺失和 DB 查询性能。'
+            description: 'HTTP 请求 P90 延迟 > 100ms 已持续 5 分钟。优先排查缓存缺失和 DB 查询性能。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#high-latency'
-
-        # 磁盘可用空间 < 10%（node_exporter，排除伪文件系统）
         - alert: DiskSpaceLow
           expr: |
             (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}
               / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|nsfs"}) < 0.10
           for: 5m
-          labels:
-            severity: warning
-            service: node
-            category: capacity
+          labels: { severity: warning, service: node, category: capacity }
           annotations:
             summary: 'Disk space low ({{ $labels.mountpoint }}: {{ $value | humanizePercentage }} free)'
-            description: '挂载点 {{ $labels.mountpoint }} 可用空间 < 10% 已持续 5 分钟。PG WAL / Redis AOF / 日志可能占满磁盘导致服务不可用。清理日志、扩容卷、检查 WAL 归档。'
+            description: '挂载点 {{ $labels.mountpoint }} 可用空间 < 10% 已持续 5 分钟。PG WAL / Redis AOF / 日志可能占满磁盘。'
             runbook_url: 'https://backtest.platform/runbooks/platform-alerts#disk-space-low'
-
-        # P0-05：异常登录检测——IP 封锁计数激增（等保三级 8.1.4 b) 入侵防范）
-        # auth_ip_lockout_total 由 loginLockout.ts 递增；5 分钟内 >3 个 IP 封锁表明撞库攻击
+        # P0-05：异常登录检测——IP 封锁计数激增（等保三级 8.1.4 入侵防范）
         - alert: SuspiciousLoginActivity
           expr: increase(auth_ip_lockout_total[5m]) > 3
           for: 0m
-          labels:
-            severity: critical
-            service: api
-            category: security
+          labels: { severity: critical, service: api, category: security }
           annotations:
             summary: '异常登录检测：{{ $value }} 个 IP 在 5 分钟内被封锁'
-            description: '5 分钟内超过 3 个 IP 因跨账号登录失败被封锁，可能正在进行撞库攻击。检查 auth 日志中的 SUSPICIOUS_LOGIN_IP 事件，确认是否需要手动扩大封锁范围或启用 WAF 规则。'
+            description: '5 分钟内超过 3 个 IP 因跨账号登录失败被封锁，可能撞库攻击。检查 auth 日志中 SUSPICIOUS_LOGIN_IP 事件。'
             runbook_url: 'https://backtest.platform/runbooks/suspicious-login'
-
-        # P0-06：WAL-G 备份过期（26h 无成功全量备份 = 每日备份 + 2h 容忍窗口）
+        # P0-06：WAL-G 备份过期（26h 无成功全量备份）
         - alert: WalgBackupStale
           expr: time() - walg_backup_last_success_timestamp > 93600
           for: 5m
-          labels:
-            severity: critical
-            service: postgres
-            category: backup
+          labels: { severity: critical, service: postgres, category: backup }
           annotations:
             summary: 'WAL-G backup is stale (no backup in >26h)'
-            description: '超过 26 小时没有成功的 WAL-G 全量备份。检查 ofelia 调度器状态与 MinIO 连接。等保三级 8.1.4 要求定期备份。'
+            description: '超过 26 小时没有成功的 WAL-G 全量备份。检查 ofelia 调度器状态与 MinIO 连接。'
             runbook_url: 'https://backtest.platform/docs/compliance/data-governance'
-
-        # P0-06：WAL 归档失败
         - alert: WalgArchiveFailure
           expr: increase(walg_backup_failed_total[5m]) > 0
           for: 0m
-          labels:
-            severity: warning
-            service: postgres
-            category: backup
+          labels: { severity: warning, service: postgres, category: backup }
           annotations:
             summary: 'WAL archive failures detected'
             description: 'PostgreSQL WAL 归档失败计数增加。检查 MinIO 连通性、磁盘空间与 WAL-G 配置。'

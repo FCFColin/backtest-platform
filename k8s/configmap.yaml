@@ -1,27 +1,17 @@
-# 企业理由：非敏感配置集中管理，避免在每个 Deployment 中硬编码环境变量。
-# 修改配置只需更新 ConfigMap + 滚动重启，无需重新构建镜像。
-# 权衡：ConfigMap 不适合敏感数据（需用 Secret），且更新后需手动触发 Pod 重启。
+# ConfigMap — 非敏感配置集中管理，修改后滚动重启即可
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: backtest-config
-  namespace: backtest-platform
-  labels:
-    app.kubernetes.io/part-of: backtest-platform
 data:
   NODE_ENV: 'production'
   API_PORT: '5001'
   GO_ENGINE_URL: 'http://engine-go:5004'
-  # R-17：服务名 data-fetcher 与 docker-compose（services.data-fetcher）一致
   GO_DATA_SERVICE_URL: 'http://data-fetcher:5003'
-  # Redis 连接串：单实例回退，仅当 REDIS_SENTINELS 未设置时生效（ADR-045 向后兼容）。
-  # 生产环境使用 Sentinel 高可用，应配置下方 REDIS_SENTINELS 而非此单实例 URL。
-  # 凭证应经 Secret 注入（REDIS_PASSWORD），不应在 ConfigMap 明文。
+  # Redis: 单实例回退，仅当 REDIS_SENTINELS 未设置时生效（ADR-045 向后兼容）
+  # 生产环境使用 Sentinel 高可用，凭证经 Secret 注入
   REDIS_URL: 'redis://redis:6379'
-  # Redis Sentinel 高可用（ADR-045）：3 节点 Sentinel 自动故障转移。
-  # 指向 k8s/redis.yaml 中 redis-sentinel Headless Service 的 3 个 Pod。
   REDIS_SENTINELS: 'redis-sentinel-0.redis-sentinel:26379,redis-sentinel-1.redis-sentinel:26379,redis-sentinel-2.redis-sentinel:26379'
-  # Sentinel 监控的 master 名称，须与 redis.yaml ConfigMap 中 sentinel monitor 一致。
   REDIS_SENTINEL_NAME: 'mymaster'
   CORS_ORIGINS: 'https://backtest.local'
   ENGINE_TIMEOUT_MS: '5000'

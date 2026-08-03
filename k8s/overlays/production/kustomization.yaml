@@ -1,148 +1,71 @@
-# =============================================================================
-# P2-08: Production 环境 overlay — 多副本、NetworkPolicy、PDB、HPA
-# =============================================================================
-# 企业理由：生产环境需要最大化可用性和安全性，所有特性全量启用。
-# 使用方式：
-#   kustomize build k8s/overlays/production | kubectl apply -f -
-#   # 或
-#   kubectl apply -k k8s/overlays/production
-# ==============================================================================
+# Production — 多副本 + podAntiAffinity + topologySpread + HPA
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 metadata:
   name: backtest-platform-production
-namespace: backtest-platform
 resources:
-  - ../../base # 引用 k8s/base/kustomization（避免 cycle：k8s/ 包含 overlays/，已含 network-policies/）
-
-# 生产环境：多副本
+  - ../../base
+replicas:
+  - name: api
+    count: 3
+  - name: engine-go
+    count: 2
+  - name: frontend
+    count: 2
+  - name: data-fetcher
+    count: 2
+  - name: backtest-worker
+    count: 1
 patches:
-  - target:
-      kind: Deployment
-      name: api
+  - target: { kind: Deployment, name: backtest-worker }
     patch: |-
       - op: replace
-        path: /spec/replicas
-        value: 3
-  - target:
-      kind: Deployment
-      name: engine-go
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-  - target:
-      kind: Deployment
-      name: frontend
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-  - target:
-      kind: Deployment
-      name: data-fetcher
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-  # Worker 生产环境：单副本（BullMQ 天然防并发重复），高资源配置
-  - target:
-      kind: Deployment
-      name: backtest-worker
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 1
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 1Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/cpu
-        value: 1
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 2Gi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/cpu
-        value: 2
-  # P2-2: engine-go podAntiAffinity — 多副本不在同一节点，提高可用性
-  - target:
-      kind: Deployment
-      name: engine-go
-    patch: |-
-      - op: add
-        path: /spec/template/spec/affinity
+        path: /spec/template/spec/containers/0/resources
         value:
-          podAntiAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                podAffinityTerm:
-                  topologyKey: kubernetes.io/hostname
-                  labelSelector:
-                    matchLabels:
-                      app: engine-go
-  # P2-2: engine-go topologySpreadConstraints — 跨 AZ 分散
-  - target:
-      kind: Deployment
-      name: engine-go
-    patch: |-
-      - op: add
-        path: /spec/template/spec/topologySpreadConstraints
-        value:
-          - maxSkew: 1
-            topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: ScheduleAnyway
-            labelSelector:
-              matchLabels:
-                app: engine-go
-  # P2-2: api podAntiAffinity — 多副本不在同一节点
-  - target:
-      kind: Deployment
-      name: api
-    patch: |-
-      - op: add
-        path: /spec/template/spec/affinity
-        value:
-          podAntiAffinity:
-            preferredDuringSchedulingIgnoredDuringExecution:
-              - weight: 100
-                podAffinityTerm:
-                  topologyKey: kubernetes.io/hostname
-                  labelSelector:
-                    matchLabels:
-                      app: api
-  # P2-2: api topologySpreadConstraints — 跨 AZ 分散
-  - target:
-      kind: Deployment
-      name: api
-    patch: |-
-      - op: add
-        path: /spec/template/spec/topologySpreadConstraints
-        value:
-          - maxSkew: 1
-            topologyKey: topology.kubernetes.io/zone
-            whenUnsatisfiable: ScheduleAnyway
-            labelSelector:
-              matchLabels:
-                app: api
-
-# 生产环境 HPA 配置
+          requests: { memory: 1Gi, cpu: 1 }
+          limits: { memory: 2Gi, cpu: 2 }
 patchesStrategicMerge:
   - |-
-    apiVersion: autoscaling/v2
-    kind: HorizontalPodAutoscaler
-    metadata:
-      name: engine-go-hpa
-      namespace: backtest-platform
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: engine-go }
     spec:
-      minReplicas: 2
-      maxReplicas: 10
+      template:
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm: { topologyKey: kubernetes.io/hostname, labelSelector: { matchLabels: { app: engine-go } } }
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: { matchLabels: { app: engine-go } }
+  - |-
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: api }
+    spec:
+      template:
+        spec:
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm: { topologyKey: kubernetes.io/hostname, labelSelector: { matchLabels: { app: api } } }
+          topologySpreadConstraints:
+            - maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+              labelSelector: { matchLabels: { app: api } }
   - |-
     apiVersion: autoscaling/v2
     kind: HorizontalPodAutoscaler
-    metadata:
-      name: api-hpa
-      namespace: backtest-platform
-    spec:
-      minReplicas: 3
-      maxReplicas: 10
+    metadata: { name: engine-go-hpa }
+    spec: { minReplicas: 2, maxReplicas: 10 }
+  - |-
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    metadata: { name: api-hpa }
+    spec: { minReplicas: 3, maxReplicas: 10 }

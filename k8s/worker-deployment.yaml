@@ -1,22 +1,11 @@
-# =============================================================================
-# Worker Deployment（P0-1）
-# =============================================================================
-# 企业理由：BullMQ Worker 独立部署，与 API 服务解耦。
-# - API 崩溃/重启不影响正在处理的回测任务
-# - Worker 可独立资源配置（CPU/内存按计算负载调优）
-# - BullMQ 天然防并发重复处理，单副本即可（多副本需配合并发控制）
-#
-# Worker 无 HTTP 端口，探针通过 exec 读取 Redis heartbeat。
-# terminationGracePeriodSeconds=60 给 Worker 足够时间完成当前任务。
-# =============================================================================
+# BullMQ Worker — 独立部署与 API 解耦，无 HTTP 端口，探针通过 Redis heartbeat
+# terminationGracePeriodSeconds=60 给 Worker 足够时间完成当前任务
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backtest-worker
-  namespace: backtest-platform
   labels:
     app: backtest-worker
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   replicas: 1
   selector:
@@ -26,7 +15,6 @@ spec:
     metadata:
       labels:
         app: backtest-worker
-        app.kubernetes.io/part-of: backtest-platform
     spec:
       terminationGracePeriodSeconds: 60
       securityContext:
@@ -36,7 +24,6 @@ spec:
         fsGroup: 1000
       containers:
         - name: worker
-          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
           image: backtest-platform/worker:v1.0.0
           securityContext:
             runAsNonRoot: true
@@ -44,15 +31,10 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
-              drop:
-                - ALL
+              drop: [ALL]
           resources:
-            requests:
-              memory: '512Mi'
-              cpu: '0.5'
-            limits:
-              memory: '1Gi'
-              cpu: '1'
+            requests: { memory: '512Mi', cpu: '0.5' }
+            limits: { memory: '1Gi', cpu: '1' }
           env:
             - name: WORKER_CONCURRENCY
               value: '3'
@@ -63,7 +45,6 @@ spec:
                 name: postgres-secret
             - secretRef:
                 name: auth-tokens
-          # 健康检查：读取 Redis heartbeat（Worker 无 HTTP 端口）
           livenessProbe:
             exec:
               command:

@@ -1,16 +1,9 @@
-# 企业理由：PostgreSQL 连接创建成本高（TLS 握手+认证约 50ms），
-# 100x 流量下 20 连接池快速耗尽。PgBouncer 是轻量级连接池，
-# 在应用和 PostgreSQL 之间复用连接，支持数千并发仅用少量 PostgreSQL 连接。
-# 权衡：引入 PgBouncer 增加一跳网络延迟（约 0.1ms），但解除连接池瓶颈。
-# 事务模式（pool_mode = transaction）确保事务内连接不切换。
+# PgBouncer — 轻量级 PG 连接池，事务模式（pool_mode=transaction），解除连接池瓶颈
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pgbouncer-config
-  namespace: backtest-platform
-  labels:
-    app.kubernetes.io/part-of: backtest-platform
 data:
   pgbouncer.ini: |
     [databases]
@@ -30,15 +23,11 @@ data:
     log_disconnections = 0
     stats_period = 60
     admin_users = backtest
-
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: pgbouncer-userlist
-  namespace: backtest-platform
-  labels:
-    app.kubernetes.io/part-of: backtest-platform
 type: Opaque
 stringData:
   userlist.txt: |
@@ -49,10 +38,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pgbouncer
-  namespace: backtest-platform
   labels:
     app: pgbouncer
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   replicas: 2
   selector:
@@ -75,18 +62,14 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
-              drop:
-                - ALL
+              drop: [ALL]
           ports:
             - containerPort: 5432
           env:
             - name: DB_USER
               value: backtest
             - name: DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secret
-                  key: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-secret, key: POSTGRES_PASSWORD } }
           volumeMounts:
             - name: config
               mountPath: /etc/pgbouncer
@@ -94,20 +77,14 @@ spec:
               mountPath: /etc/pgbouncer/userlist.txt
               subPath: userlist.txt
           resources:
-            requests:
-              memory: 32Mi
-              cpu: 0.1
-            limits:
-              memory: 64Mi
-              cpu: 0.25
+            requests: { memory: 32Mi, cpu: 0.1 }
+            limits: { memory: 64Mi, cpu: 0.25 }
           readinessProbe:
-            tcpSocket:
-              port: 5432
+            tcpSocket: { port: 5432 }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            tcpSocket:
-              port: 5432
+            tcpSocket: { port: 5432 }
             initialDelaySeconds: 10
             periodSeconds: 30
       volumes:
@@ -122,10 +99,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: pgbouncer
-  namespace: backtest-platform
   labels:
     app: pgbouncer
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   selector:
     app: pgbouncer

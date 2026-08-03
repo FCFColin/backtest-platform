@@ -1,14 +1,11 @@
 # PostgreSQL StatefulSet (ADR-007) — dev: 1 replica, 1Gi; prod: 3 replicas, 10Gi+ SSD
-# StatefulSet required for: stable PVC binding, stable DNS (postgres-0), ordered rolling updates
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
-  namespace: backtest-platform
   labels:
     app: postgres
-    app.kubernetes.io/part-of: backtest-platform
 type: Opaque
 stringData:
   DATABASE_URL: 'postgresql://backtest:<REPLACE_ME>@postgres:5432/backtest'
@@ -20,10 +17,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-init-scripts
-  namespace: backtest-platform
   labels:
     app: postgres
-    app.kubernetes.io/part-of: backtest-platform
 data:
   01-init.sql: |
     GRANT ALL PRIVILEGES ON DATABASE backtest TO backtest;
@@ -34,10 +29,8 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
-  namespace: backtest-platform
   labels:
     app: postgres
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   serviceName: postgres
   replicas: 1
@@ -48,7 +41,6 @@ spec:
     metadata:
       labels:
         app: postgres
-        app.kubernetes.io/part-of: backtest-platform
     spec:
       securityContext:
         runAsNonRoot: true
@@ -68,32 +60,21 @@ spec:
             limits: { memory: '256Mi', cpu: '0.5' }
           env:
             - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secret
-                  key: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: postgres-secret, key: POSTGRES_USER } }
             - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secret
-                  key: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres-secret, key: POSTGRES_PASSWORD } }
             - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-secret
-                  key: POSTGRES_DB
+              valueFrom: { secretKeyRef: { name: postgres-secret, key: POSTGRES_DB } }
             - name: POSTGRES_INITDB_ARGS
               value: '--encoding=UTF-8 --lc-collate=C --lc-ctype=C'
           livenessProbe:
-            exec:
-              command: [pg_isready, -U, backtest, -d, backtest]
+            exec: { command: [pg_isready, -U, backtest, -d, backtest] }
             initialDelaySeconds: 30
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command: [pg_isready, -U, backtest, -d, backtest]
+            exec: { command: [pg_isready, -U, backtest, -d, backtest] }
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
@@ -121,10 +102,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: backtest-platform
   labels:
     app: postgres
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   type: ClusterIP
   ports:

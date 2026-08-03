@@ -1,12 +1,9 @@
 # Redis 7 Sentinel HA (ADR-045: 1 master + 2 replicas + 3 sentinels, quorum=2)
-# Key params: min-slaves-to-write=1, min-slaves-max-lag=10, down-after=5000ms, failover-timeout=30s
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: redis-data
-  labels:
-    app.kubernetes.io/part-of: backtest-platform
 provisioner: rancher.io/local-path # dev/kind; prod: cloud provider
 reclaimPolicy: Retain # ADR-045: prevent PVC deletion
 volumeBindingMode: WaitForFirstConsumer
@@ -15,10 +12,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: redis-sentinel-config
-  namespace: backtest-platform
   labels:
     app: redis
-    app.kubernetes.io/part-of: backtest-platform
 data:
   entrypoint.sh: |
     #!/bin/sh
@@ -49,10 +44,8 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: redis
-  namespace: backtest-platform
   labels:
     app: redis
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   serviceName: redis
   replicas: 3
@@ -63,7 +56,6 @@ spec:
     metadata:
       labels:
         app: redis
-        app.kubernetes.io/part-of: backtest-platform
     spec:
       securityContext:
         runAsNonRoot: true
@@ -71,8 +63,7 @@ spec:
         fsGroup: 999
         allowPrivilegeEscalation: false
         capabilities:
-          drop:
-            - ALL
+          drop: [ALL]
       initContainers:
         - name: init-script
           image: redis:7-alpine
@@ -81,8 +72,8 @@ spec:
             runAsUser: 999
           command:
             [
-              'sh',
-              '-c',
+              sh,
+              -c,
               'cp /config/entrypoint.sh /scripts/entrypoint.sh && chmod +x /scripts/entrypoint.sh',
             ]
           volumeMounts:
@@ -104,10 +95,7 @@ spec:
             allowPrivilegeEscalation: false
           env:
             - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: auth-secret
-                  key: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: auth-secret, key: REDIS_PASSWORD } }
           command: ['/scripts/entrypoint.sh']
           volumeMounts:
             - name: data
@@ -119,13 +107,11 @@ spec:
             - name: sentinel-config
               mountPath: /sentinel-config
           readinessProbe:
-            exec:
-              command: ['sh', '-c', 'redis-cli -a $REDIS_PASSWORD ping | grep PONG']
+            exec: { command: [sh, -c, 'redis-cli -a $REDIS_PASSWORD ping | grep PONG'] }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            exec:
-              command: ['sh', '-c', 'redis-cli -a $REDIS_PASSWORD ping | grep PONG']
+            exec: { command: [sh, -c, 'redis-cli -a $REDIS_PASSWORD ping | grep PONG'] }
             initialDelaySeconds: 30
             periodSeconds: 30
       volumes:
@@ -147,17 +133,14 @@ spec:
         accessModes: ['ReadWriteOnce']
         storageClassName: redis-data
         resources:
-          requests:
-            storage: 10Gi
+          requests: { storage: 10Gi }
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: redis
-  namespace: backtest-platform
   labels:
     app: redis
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   clusterIP: None
   selector:
@@ -174,10 +157,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis-sentinel
-  namespace: backtest-platform
   labels:
     app: redis
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   selector:
     app: redis

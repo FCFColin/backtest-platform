@@ -1,16 +1,10 @@
-# 企业理由：Go 回测引擎是平台唯一的 CPU 密集型计算服务（ADR-008，Rust 已退役）。
-# 单副本即单点故障——Pod 重启/迁移期间回测请求 fail-closed 返回 503（ADR-031）。
-# 2 副本 + readinessProbe + PDB（engine-go-pdb）确保滚动更新和节点故障时仍有实例可用。
-# 权衡：引擎资源消耗大（每副本上限 2Gi/2CPU），多副本成本高；
-# 但回测是核心功能，不可用直接影响用户，高可用优先于资源节省。
+# Go 回测引擎 — 唯一 CPU 密集型计算服务（ADR-008），不可用时 fail-closed 503（ADR-031）
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: engine-go
-  namespace: backtest-platform
   labels:
     app: engine-go
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   replicas: 2
   selector:
@@ -20,7 +14,6 @@ spec:
     metadata:
       labels:
         app: engine-go
-        app.kubernetes.io/part-of: backtest-platform
     spec:
       terminationGracePeriodSeconds: 35
       securityContext:
@@ -30,7 +23,6 @@ spec:
         fsGroup: 1000
       containers:
         - name: engine-go
-          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
           image: backtest-platform/engine-go:v1.0.0
           securityContext:
             runAsNonRoot: true
@@ -38,42 +30,29 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
-              drop:
-                - ALL
+              drop: [ALL]
           ports:
             - containerPort: 5004
-          # ENGINE_AUTH_TOKEN 使用 auth-tokens Secret（见 k8s/auth-secret.yaml）
-          # 生产环境请通过 External Secrets Operator 注入强随机值（>=32 chars）
           envFrom:
             - configMapRef:
                 name: backtest-config
             - secretRef:
                 name: auth-tokens
           resources:
-            requests:
-              memory: '512Mi'
-              cpu: '1'
-            limits:
-              memory: '2Gi'
-              cpu: '2'
+            requests: { memory: '512Mi', cpu: '1' }
+            limits: { memory: '2Gi', cpu: '2' }
           startupProbe:
-            httpGet:
-              path: /api/engine/health
-              port: 5004
+            httpGet: { path: /api/engine/health, port: 5004 }
             failureThreshold: 30
             periodSeconds: 2
           livenessProbe:
-            httpGet:
-              path: /api/engine/health
-              port: 5004
+            httpGet: { path: /api/engine/health, port: 5004 }
             initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /api/ready
-              port: 5004
+            httpGet: { path: /api/ready, port: 5004 }
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 3

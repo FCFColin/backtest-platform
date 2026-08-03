@@ -1,27 +1,11 @@
-# =============================================================================
-# API 后端 Deployment（从原合并 Deployment 拆分而来，R-15）
-# =============================================================================
-#
-# 企业理由：原合并 Deployment 将 API 后端与前端静态托管合并为单 Pod，
-# 违反单一职责：前端（nginx 静态）与 API（Express 计算调度）独立伸缩/发布需求不同
-# （API CPU 密集需 HPA 弹性扩缩，前端 IO 密集只需少量副本）。拆分后各自独立
-# labels/selectors，可独立滚动更新、独立资源配额、独立 PDB/HPA 策略。
-#
-# 端口 5001 与 docker-compose（API_PORT=5001）、configmap（API_PORT）、
-# nginx 反代目标（http://api:5001）保持一致。
-# 镜像名 backtest-platform/api 与 docker-compose 服务名 api 对齐。
-#
-# env 指向 Go engine/data 服务（经 backtest-config ConfigMap 注入）：
-# GO_ENGINE_URL=http://engine-go:5004、GO_DATA_SERVICE_URL=http://data-fetcher:5003。
-# =============================================================================
+# API 后端 Deployment — 从原合并 Deployment 拆分（R-15），独立伸缩/发布
+# 端口 5001 与 docker-compose/configmap/nginx 反代目标对齐
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api
-  namespace: backtest-platform
   labels:
     app: api
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   replicas: 2
   selector:
@@ -31,7 +15,6 @@ spec:
     metadata:
       labels:
         app: api
-        app.kubernetes.io/part-of: backtest-platform
     spec:
       terminationGracePeriodSeconds: 35
       securityContext:
@@ -41,7 +24,6 @@ spec:
         fsGroup: 1000
       containers:
         - name: api
-          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
           image: backtest-platform/api:v1.0.0
           securityContext:
             runAsNonRoot: true
@@ -49,40 +31,24 @@ spec:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             capabilities:
-              drop:
-                - ALL
+              drop: [ALL]
           ports:
             - containerPort: 5001
           resources:
-            requests:
-              memory: '256Mi'
-              cpu: '0.5'
-            limits:
-              memory: '1Gi'
-              cpu: '1'
-          # 企业理由：三类探针覆盖不同故障场景——
-          # startupProbe：应用启动期间允许慢（避免慢启动被 liveness 杀死）；
-          # livenessProbe：运行时死锁/无响应时自动重启；
-          # readinessProbe：暂时过载时从 Service 摘除流量但不重启。
-          # 权衡：探针配置不当会导致频繁重启或流量摘除，需根据实际启动时间调参。
+            requests: { memory: '256Mi', cpu: '0.5' }
+            limits: { memory: '1Gi', cpu: '1' }
           startupProbe:
-            httpGet:
-              path: /api/health
-              port: 5001
+            httpGet: { path: /api/health, port: 5001 }
             failureThreshold: 30
             periodSeconds: 2
           livenessProbe:
-            httpGet:
-              path: /api/health
-              port: 5001
+            httpGet: { path: /api/health, port: 5001 }
             initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /api/ready
-              port: 5001
+            httpGet: { path: /api/ready, port: 5001 }
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 3

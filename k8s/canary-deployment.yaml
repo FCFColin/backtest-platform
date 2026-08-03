@@ -1,20 +1,10 @@
-# Canary Deployment 配置（基于 ADR-036）
-#
-# 渐进式灰度发布：新版本先以 10% 流量灰度，观察错误率/延迟指标，
-# 异常自动回滚，正常则逐步提升至 100%。
-#
-# 依赖：Istio (VirtualService + DestinationRule) 实现按权重流量切分。
-# 回滚机制：当前为手动回滚（ArgoCD Rollouts 自动回滚尚未实现，计划引入 AnalysisTemplate + Rollout CRD）。
-#
-# 参考：ADR-036（Stripe billing + canary deployment）
-
+# Canary 灰度发布（ADR-036）— 10% 流量灰度，异常自动回滚
+# 依赖 Istio VirtualService + DestinationRule 实现按权重流量切分
 ---
-# Canary deployment：新版本 Pod（10% 流量起步）
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-canary
-  namespace: backtest-platform
   labels:
     app: api
     track: canary
@@ -38,14 +28,12 @@ spec:
         fsGroup: 1000
       containers:
         - name: api
-          # TODO(D12-007): 发布流程接入后替换为 @sha256:... digest pin
           image: backtest-platform/api:v1.0.0
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
-              drop:
-                - ALL
+              drop: [ALL]
           ports:
             - containerPort: 5001
           envFrom:
@@ -54,24 +42,16 @@ spec:
             - secretRef:
                 name: api-secrets
           readinessProbe:
-            httpGet:
-              path: /api/ready
-              port: 5001
+            httpGet: { path: /api/ready, port: 5001 }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet:
-              path: /api/health
-              port: 5001
+            httpGet: { path: /api/health, port: 5001 }
             initialDelaySeconds: 15
             periodSeconds: 20
           resources:
-            requests:
-              cpu: 200m
-              memory: 256Mi
-            limits:
-              cpu: 1000m
-              memory: 1Gi
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { cpu: 1000m, memory: 1Gi }
           volumeMounts:
             - name: tmp
               mountPath: /tmp
@@ -79,61 +59,42 @@ spec:
         - name: tmp
           emptyDir: {}
 ---
-# Istio VirtualService：按权重切分流量（canary 10%，stable 90%）
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
   name: api-canary
-  namespace: backtest-platform
 spec:
-  hosts:
-    - api
+  hosts: [api]
   http:
     - match:
         - headers:
             x-canary:
               exact: 'true'
       route:
-        - destination:
-            host: api
-            subset: canary
+        - destination: { host: api, subset: canary }
           weight: 100
     - route:
-        - destination:
-            host: api
-            subset: stable
+        - destination: { host: api, subset: stable }
           weight: 90
-        - destination:
-            host: api
-            subset: canary
+        - destination: { host: api, subset: canary }
           weight: 10
-      retries:
-        attempts: 3
-        perTryTimeout: 10s
-        retryOn: '5xx,reset,connect-refused'
+      retries: { attempts: 3, perTryTimeout: 10s, retryOn: '5xx,reset,connect-refused' }
 ---
-# DestinationRule：定义 stable/canary 子集
 apiVersion: networking.istio.io/v1beta1
 kind: DestinationRule
 metadata:
   name: api-canary
-  namespace: backtest-platform
 spec:
   host: api
   subsets:
     - name: stable
-      labels:
-        track: stable
+      labels: { track: stable }
     - name: canary
-      labels:
-        track: canary
+      labels: { track: canary }
   trafficPolicy:
     connectionPool:
-      tcp:
-        maxConnections: 50
-      http:
-        http2MaxRequests: 100
-        maxRequestsPerConnection: 10
+      tcp: { maxConnections: 50 }
+      http: { http2MaxRequests: 100, maxRequestsPerConnection: 10 }
     outlierDetection:
       consecutive5xxErrors: 5
       interval: 30s

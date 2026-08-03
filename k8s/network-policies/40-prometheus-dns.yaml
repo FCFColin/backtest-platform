@@ -1,55 +1,36 @@
-# =============================================================================
-# P1-01: Prometheus 抓取 + DNS 解析放行
-# =============================================================================
-# 企业理由：
-# - Prometheus 需要抓取所有 Pod 的 /metrics 端口
-# - 所有 Pod 需要 kube-dns:53 解析服务名
-# ==============================================================================
+# Prometheus 抓取 + DNS 解析放行
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-prometheus-scrape
-  namespace: backtest-platform
 spec:
   podSelector: {}
-  policyTypes:
-    - Ingress
+  policyTypes: [Ingress]
   ingress:
     - from:
         - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: monitoring
+            matchLabels: { kubernetes.io/metadata.name: monitoring }
           podSelector:
-            matchLabels:
-              app.kubernetes.io/name: prometheus
+            matchLabels: { app.kubernetes.io/name: prometheus }
       ports:
-        - protocol: TCP
-          port: 5001
-        - protocol: TCP
-          port: 5003
-        - protocol: TCP
-          port: 5004
+        - { protocol: TCP, port: 5001 }
+        - { protocol: TCP, port: 5003 }
+        - { protocol: TCP, port: 5004 }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-dns-egress
-  namespace: backtest-platform
 spec:
   podSelector: {}
-  policyTypes:
-    - Egress
+  policyTypes: [Egress]
   egress:
     - to:
         - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
+            matchLabels: { kubernetes.io/metadata.name: kube-system }
           podSelector:
-            matchLabels:
-              k8s-app: kube-dns
+            matchLabels: { k8s-app: kube-dns }
       ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }

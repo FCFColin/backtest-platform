@@ -4,19 +4,15 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: otel-collector-config
-  namespace: backtest-platform
   labels:
     app: otel-collector
-    app.kubernetes.io/part-of: backtest-platform
 data:
   relay: |
     receivers:
       otlp:
         protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-          http:
-            endpoint: 0.0.0.0:4318
+          grpc: { endpoint: 0.0.0.0:4317 }
+          http: { endpoint: 0.0.0.0:4318 }
     processors:
       batch:
         send_batch_size: 1024
@@ -30,14 +26,8 @@ data:
     exporters:
       otlphttp:
         endpoint: ${OTLP_EXPORTER_ENDPOINT}
-        sending_queue:
-          enabled: true
-          queue_size: 1000
-        retry_on_failure:
-          enabled: true
-          initial_interval: 5s
-          max_interval: 30s
-          max_elapsed_time: 300s
+        sending_queue: { enabled: true, queue_size: 1000 }
+        retry_on_failure: { enabled: true, initial_interval: 5s, max_interval: 30s, max_elapsed_time: 300s }
       logging:
         loglevel: warn
     service:
@@ -51,10 +41,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: otel-collector
-  namespace: backtest-platform
   labels:
     app: otel-collector
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   replicas: 1
   selector:
@@ -64,7 +52,6 @@ spec:
     metadata:
       labels:
         app: otel-collector
-        app.kubernetes.io/part-of: backtest-platform
     spec:
       securityContext:
         runAsNonRoot: true
@@ -89,9 +76,7 @@ spec:
           env:
             - name: OTLP_EXPORTER_ENDPOINT
               valueFrom:
-                secretKeyRef:
-                  name: otel-exporter-secret
-                  key: OTLP_EXPORTER_ENDPOINT
+                { secretKeyRef: { name: otel-exporter-secret, key: OTLP_EXPORTER_ENDPOINT } }
           resources:
             requests: { memory: '64Mi', cpu: '0.1' }
             limits: { memory: '256Mi', cpu: '0.5' }
@@ -111,10 +96,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: otel-collector
-  namespace: backtest-platform
   labels:
     app: otel-collector
-    app.kubernetes.io/part-of: backtest-platform
 spec:
   type: ClusterIP
   ports:

@@ -1,34 +1,14 @@
-# =============================================================================
-# P2-08: Staging 环境 overlay — 双副本、标准资源
-# =============================================================================
+# Staging 环境 — 双副本
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 metadata:
   name: backtest-platform-staging
-namespace: backtest-platform
 resources:
-  - ../../base # 引用 k8s/base/kustomization（避免 cycle：k8s/ 包含 overlays/）
-
-# Staging 环境：双副本（与生产接近但资源减半）
-patches:
-  - target:
-      kind: Deployment
-      name: api
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-  - target:
-      kind: Deployment
-      name: engine-go
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-  - target:
-      kind: Deployment
-      name: frontend
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
+  - ../../base
+replicas:
+  - name: api
+    count: 2
+  - name: engine-go
+    count: 2
+  - name: frontend
+    count: 2

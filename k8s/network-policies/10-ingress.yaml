@@ -1,26 +1,17 @@
-# =============================================================================
-# P1-01: Ingress 流量放行——Nginx Ingress Controller -> frontend/api
-# =============================================================================
-# 企业理由：外部流量通过 Nginx Ingress Controller 进入集群，需要放行
-# 到 frontend(80) 和 api(5001) 的入站连接。其他 Pod 不接受外部流量。
-# ==============================================================================
+# Ingress: Nginx Ingress Controller -> frontend(80) / api(5001)
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-ingress-to-frontend
-  namespace: backtest-platform
 spec:
   podSelector:
-    matchLabels:
-      app: frontend
-  policyTypes:
-    - Ingress
+    matchLabels: { app: frontend }
+  policyTypes: [Ingress]
   ingress:
     - from:
         - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
       ports:
         - protocol: TCP
           port: 80
@@ -29,21 +20,16 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-ingress-to-api
-  namespace: backtest-platform
 spec:
   podSelector:
-    matchLabels:
-      app: api
-  policyTypes:
-    - Ingress
+    matchLabels: { app: api }
+  policyTypes: [Ingress]
   ingress:
     - from:
         - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: ingress-nginx
+            matchLabels: { kubernetes.io/metadata.name: ingress-nginx }
         - podSelector:
-            matchLabels:
-              app: frontend
+            matchLabels: { app: frontend }
       ports:
         - protocol: TCP
           port: 5001
