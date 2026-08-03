@@ -341,7 +341,7 @@ const RATE_ROWS = [
     keys: ['pwr10y', 'pwr20y', 'pwr30y', 'pwr40y'] as const,
   },
 ] as const;
-export interface WithdrawalRatesCardProps {
+interface WithdrawalRatesCardProps {
   portfolios: PortfolioResult[];
 }
 function hasWithdrawalData(portfolios: PortfolioResult[]): boolean {

@@ -96,7 +96,7 @@ export const buttonVariants = cva(
     defaultVariants: { variant: 'secondary', size: 'default' },
   },
 );
-export interface ButtonProps
+interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }

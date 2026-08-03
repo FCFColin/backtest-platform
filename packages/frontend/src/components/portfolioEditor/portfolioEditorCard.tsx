@@ -53,7 +53,6 @@ const DEEP_ANALYSIS_ITEMS: {
 ];
 interface PortfolioCardProps {
   portfolio: StorePortfolio;
-  index: number;
   color: string;
   rebalanceOptions: { value: RebalanceFrequency; label: string }[];
   nonGlidepathPortfolios: StorePortfolio[];

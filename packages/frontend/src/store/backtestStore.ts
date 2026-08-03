@@ -2,10 +2,9 @@ import { create } from 'zustand';
 import { startTransition } from 'react';
 import i18n from '@/i18n/index.js';
 import { apiFetch } from '@/utils/apiClient.js';
-import { reportError, processResponseWarnings, extractDateRange } from '@/utils/errorReporter.js';
+import { reportError, processResponseWarnings } from '@/utils/errorReporter.js';
 import type {
   Portfolio,
-  Asset,
   PortfolioResult,
   BacktestParameters,
   BacktestResult,
@@ -21,8 +20,7 @@ import {
   createEmptyPortfolio,
   createPortfolioFromPreset,
 } from './backtestHelpers.js';
-import type { BacktestState, SetFn, GetFn, BacktestSeriesField, DateRangeInfo } from './types.js';
-import type { WarningInfo } from '../utils/errorReporter.js';
+import type { BacktestState, SetFn, GetFn, BacktestSeriesField } from './types.js';
 let currentRequestId = 0;
 const PORTFOLIO_BODY_KEYS = [
   'name',
@@ -103,8 +101,6 @@ export async function pollJobStatus(
       return {
         success: true,
         data: jobData.result.data,
-        warnings: jobData.result.warnings,
-        dateRange: jobData.result.dateRange,
       } as Record<string, unknown>;
     }
     if (jobState === 'failed') throw new Error(jobData.error || i18n.t('backtest.runFailed'));
@@ -119,7 +115,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
   const prevController = get()._abortController;
   if (prevController) prevController.abort();
   const controller = new AbortController();
-  set({ _abortController: controller, isLoading: true, warnings: [], dateRange: null });
+  set({ _abortController: controller, isLoading: true });
   const { portfolios, parameters } = get();
   const abortEarly = (msg?: string) => {
     if (msg) useToastStore.getState().addToast('warning', msg);
@@ -146,7 +142,7 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     if (!response.ok) throw new Error(extractApiErrorDetail(json));
     if (json.success === false) {
       useToastStore.getState().addToast('error', extractApiErrorDetail(json));
-      set({ results: null, warnings: [], dateRange: null });
+      set({ results: null });
       return;
     }
     const resultJson =
@@ -154,18 +150,17 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
         ? await pollJobStatus(json.data.statusUrl as string, controller.signal, requestId)
         : json;
     const results = normalizeBacktestResult(resultJson.data ?? resultJson);
-    const warnings = processResponseWarnings(resultJson);
-    const dateRange = extractDateRange(resultJson, warnings);
+    processResponseWarnings(resultJson);
     if (requestId === currentRequestId) {
       set({ isLoading: false });
       startTransition(() => {
-        set({ results, warnings, dateRange, activeTab: 'summary' });
+        set({ results, activeTab: 'summary' });
       });
     }
   } catch (error) {
     if (requestId !== currentRequestId) return;
     handleBacktestError(error);
-    set({ results: null, warnings: [], dateRange: null });
+    set({ results: null });
   } finally {
     clearTimeout(timeoutId);
     setIfCurrent(set, requestId, { isLoading: false, _abortController: null });
@@ -261,8 +256,6 @@ export const useBacktestStore = create<BacktestState>()((set, get) => ({
   portfolios: [] as Portfolio[],
   portfolioCounter: 0,
   results: null as BacktestResult | null,
-  warnings: [] as WarningInfo[],
-  dateRange: null as DateRangeInfo | null,
   isLoading: false,
   activeTab: 'summary',
   hasLoadedFromShare: false,
@@ -294,36 +287,6 @@ export const useBacktestStore = create<BacktestState>()((set, get) => ({
       return { portfolioCounter: next, portfolios: [...state.portfolios, copy] };
     });
   },
-  addAsset: (portfolioId: string) =>
-    patchAssets(set, portfolioId, (p) => ({
-      ...p,
-      assets: [
-        ...p.assets,
-        {
-          id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          ticker: '',
-          weight: 0,
-        },
-      ],
-    })),
-  removeAsset: (portfolioId: string, ticker: string) =>
-    patchAssets(set, portfolioId, (p) => ({
-      ...p,
-      assets: p.assets.filter((a) => a.ticker !== ticker),
-    })),
-  updateAsset: (portfolioId: string, assetIndex: number, updates: Partial<Asset>) =>
-    patchAssets(set, portfolioId, (p) => ({
-      ...p,
-      assets: p.assets.map((a, i) => (i === assetIndex ? { ...a, ...updates } : a)),
-    })),
-  batchUpdateAssets: (portfolioId: string, updates: Array<{ index: number; weight: number }>) =>
-    patchAssets(set, portfolioId, (p) => ({
-      ...p,
-      assets: p.assets.map((a, i) => {
-        const u = updates.find((u) => u.index === i);
-        return u ? { ...a, weight: u.weight } : a;
-      }),
-    })),
   updatePortfolio: (
     id: string,
     updates: Partial<
@@ -404,7 +367,6 @@ export const useBacktestStore = create<BacktestState>()((set, get) => ({
     set((state) => ({ parameters: { ...state.parameters, [key]: value } })),
   runBacktest: () => runBacktestAction(set, get),
   enrichSeries: (series: BacktestSeriesField[]) => enrichSeriesAction(set, get, series),
-  setResults: (results: BacktestResult | null) => set({ results }),
   setActiveTab: (tab: string) => set({ activeTab: tab }),
   setHasLoadedFromShare: (val: boolean) => set({ hasLoadedFromShare: val }),
   loadFromShare: (data: { portfolios: Portfolio[]; parameters: BacktestParameters }) =>

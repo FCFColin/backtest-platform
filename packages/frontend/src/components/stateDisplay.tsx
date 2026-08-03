@@ -47,7 +47,7 @@ interface LoadingSpinnerProps {
   size?: number;
   className?: string;
 }
-export function LoadingSpinner({ size = 24, className }: LoadingSpinnerProps) {
+function LoadingSpinner({ size = 24, className }: LoadingSpinnerProps) {
   return <Loader2 size={size} className={cn('animate-spin text-fg-tertiary', className)} />;
 }
 interface LoadingStateProps {

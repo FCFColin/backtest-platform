@@ -21,6 +21,7 @@ export default tseslint.config(
       'data-fetcher/**',
       'playwright-report/**',
       'test-results/**',
+      'tests/e2e/ui/coverage/**',
       'scripts/**',
       'report/**',
     ],

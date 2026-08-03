@@ -78,10 +78,7 @@ export function setSinglePortfolioResult(overrides: Partial<PortfolioResult> = {
  * @param portfolios - portfolio 结果数组
  */
 export function setResultsWith(portfolios: PortfolioResult[]): void {
-  useBacktestStore.getState().setResults({
-    portfolios,
-    correlations: [],
-    benchmarkGrowth: [],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+  useBacktestStore.setState({
+    results: { portfolios, correlations: [], benchmarkGrowth: [] },
+  });
 }

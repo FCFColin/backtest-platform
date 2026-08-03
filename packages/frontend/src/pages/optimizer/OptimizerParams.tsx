@@ -138,130 +138,34 @@ function TickerEditor({ s }: { s: EfficientFrontierState }) {
   );
 }
 
-function GridField({
-  id,
-  labelKey,
-  value,
-  onChange,
-  type,
-  disabled,
-  step,
-  min,
-  max,
-}: {
-  id: string;
-  labelKey: string;
-  value: string | number;
-  onChange: (v: string) => void;
-  type: 'date' | 'percent';
-  disabled?: boolean;
-  step?: number;
-  min?: number;
-  max?: number;
-}) {
-  const { t } = useTranslation();
-  return (
-    <LabeledField htmlFor={id} labelKey={t(labelKey)}>
-      {type === 'date' ? (
-        <Input
-          id={id}
-          type="date"
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      ) : (
-        <PercentInput
-          id={id}
-          step={step}
-          value={value}
-          min={min}
-          max={max}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-    </LabeledField>
-  );
-}
-
-function SolverSettingsGrid({ s, allHistory }: { s: EfficientFrontierState; allHistory: boolean }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <SwitchField
-        htmlFor="opt-all-history"
-        labelKey="optimizer.allHistory"
-        checked={allHistory}
-        onCheckedChange={(checked) => {
-          const [sd, ed] = checked ? ['', ''] : [DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE];
-          s.setStartDate(sd);
-          s.setEndDate(ed);
-        }}
-      />
-      <GridField
-        id="opt-start-date"
-        labelKey="optimizer.startDate"
-        value={s.startDate}
-        onChange={s.setStartDate}
-        type="date"
-        disabled={allHistory}
-      />
-      <GridField
-        id="opt-end-date"
-        labelKey="optimizer.endDate"
-        value={s.endDate}
-        onChange={s.setEndDate}
-        type="date"
-        disabled={allHistory}
-      />
-      <GridField
-        id="opt-min-weight"
-        labelKey="optimizer.minWeight"
-        value={s.minWeight}
-        onChange={(v) => s.setMinWeight(Number(v))}
-        type="percent"
-        min={0}
-        max={100}
-      />
-      <GridField
-        id="opt-max-weight"
-        labelKey="optimizer.maxWeight"
-        value={s.maxWeight}
-        onChange={(v) => s.setMaxWeight(Number(v))}
-        type="percent"
-        min={0}
-        max={100}
-      />
-      <SelectField
-        id="opt-objective"
-        labelKey="optimizer.objective"
-        value={s.objective}
-        onChange={s.setObjective}
-        options={OBJECTIVES}
-      />
-      <GridField
-        id="opt-tbill"
-        labelKey="optimizer.tbillRate"
-        value={s.tbillRate}
-        onChange={(v) => s.setTbillRate(Number(v))}
-        type="percent"
-        step={0.1}
-      />
-      <SelectField
-        id="opt-solver"
-        labelKey="optimizer.solver"
-        value={s.solver}
-        onChange={(v) => s.setSolver(v as SolverType)}
-        options={SOLVERS}
-      />
-      <SwitchField
-        htmlFor="opt-short"
-        labelKey="optimizer.allowShort"
-        checked={s.allowShort}
-        onCheckedChange={s.setAllowShort}
-      />
-    </div>
-  );
-}
+const DATE_FIELDS = [
+  {
+    id: 'opt-start-date',
+    labelKey: 'optimizer.startDate',
+    get: (s: EfficientFrontierState) => s.startDate,
+    set: (s: EfficientFrontierState, v: string) => s.setStartDate(v),
+  },
+  {
+    id: 'opt-end-date',
+    labelKey: 'optimizer.endDate',
+    get: (s: EfficientFrontierState) => s.endDate,
+    set: (s: EfficientFrontierState, v: string) => s.setEndDate(v),
+  },
+];
+const WEIGHT_FIELDS = [
+  {
+    id: 'opt-min-weight',
+    labelKey: 'optimizer.minWeight',
+    get: (s: EfficientFrontierState) => s.minWeight,
+    set: (s: EfficientFrontierState, v: string) => s.setMinWeight(Number(v)),
+  },
+  {
+    id: 'opt-max-weight',
+    labelKey: 'optimizer.maxWeight',
+    get: (s: EfficientFrontierState) => s.maxWeight,
+    set: (s: EfficientFrontierState, v: string) => s.setMaxWeight(Number(v)),
+  },
+];
 
 function SolverSettings({ s }: { s: EfficientFrontierState }) {
   const { t } = useTranslation();
@@ -272,7 +176,66 @@ function SolverSettings({ s }: { s: EfficientFrontierState }) {
         title={t('optimizer.solverSettings')}
         info={t('optimizer.solverSettingsInfo')}
       />
-      <SolverSettingsGrid s={s} allHistory={allHistory} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <SwitchField
+          htmlFor="opt-all-history"
+          labelKey="optimizer.allHistory"
+          checked={allHistory}
+          onCheckedChange={(checked) => {
+            s.setStartDate(checked ? '' : DEFAULT_BACKTEST_START_DATE);
+            s.setEndDate(checked ? '' : DEFAULT_END_DATE);
+          }}
+        />
+        {DATE_FIELDS.map((f) => (
+          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
+            <Input
+              id={f.id}
+              type="date"
+              value={f.get(s)}
+              disabled={allHistory}
+              onChange={(e) => f.set(s, e.target.value)}
+            />
+          </LabeledField>
+        ))}
+        <SelectField
+          id="opt-objective"
+          labelKey="optimizer.objective"
+          value={s.objective}
+          onChange={s.setObjective}
+          options={OBJECTIVES}
+        />
+        {WEIGHT_FIELDS.map((f) => (
+          <LabeledField key={f.id} htmlFor={f.id} labelKey={t(f.labelKey)}>
+            <PercentInput
+              id={f.id}
+              value={f.get(s)}
+              min={0}
+              max={100}
+              onChange={(e) => f.set(s, Number(e.target.value))}
+            />
+          </LabeledField>
+        ))}
+        <LabeledField htmlFor="opt-tbill" labelKey={t('optimizer.tbillRate')}>
+          <PercentInput
+            step={0.1}
+            value={s.tbillRate}
+            onChange={(e) => s.setTbillRate(Number(e.target.value))}
+          />
+        </LabeledField>
+        <SelectField
+          id="opt-solver"
+          labelKey="optimizer.solver"
+          value={s.solver}
+          onChange={(v) => s.setSolver(v as SolverType)}
+          options={SOLVERS}
+        />
+        <SwitchField
+          htmlFor="opt-short"
+          labelKey="optimizer.allowShort"
+          checked={s.allowShort}
+          onCheckedChange={s.setAllowShort}
+        />
+      </div>
     </section>
   );
 }

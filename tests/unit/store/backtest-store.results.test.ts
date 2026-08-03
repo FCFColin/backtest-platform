@@ -72,20 +72,12 @@ describe('extractApiErrorDetail', () => {
     expect(result.length).toBeGreaterThan(0);
   });
 });
-describe('setHasLoadedFromShare / setResults / setActiveTab / getShareableState', () => {
+describe('setHasLoadedFromShare / setActiveTab / getShareableState', () => {
   it('sets the flag to true/false', () => {
     S().setHasLoadedFromShare(true);
     expect(S().hasLoadedFromShare).toBe(true);
     S().setHasLoadedFromShare(false);
     expect(S().hasLoadedFromShare).toBe(false);
-  });
-  it('设置和清除结果', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const r = { portfolios: [], correlations: [], benchmarkGrowth: [] } as any;
-    S().setResults(r);
-    expect(S().results).toEqual(r);
-    S().setResults(null);
-    expect(S().results).toBeNull();
   });
   it.each(['drawdown', 'rolling', 'growth'])('切换tab到%s', (tab) => {
     S().setActiveTab(tab);
@@ -148,8 +140,28 @@ describe('runBacktest', () => {
     expect(S().isLoading).toBe(false);
   });
   it.each<[string, () => void, boolean]>([
-    ['空ticker验证拦截请求', () => S().updateAsset('p1', 0, { ticker: '' }), true],
-    ['权重总和不等于100时前端拦截', () => S().updateAsset('p1', 0, { weight: 50 }), false],
+    [
+      '空ticker验证拦截请求',
+      () =>
+        S().updatePortfolio('p1', {
+          assets: [
+            { ticker: '', weight: 60 },
+            { ticker: 'BND', weight: 40 },
+          ],
+        }),
+      true,
+    ],
+    [
+      '权重总和不等于100时前端拦截',
+      () =>
+        S().updatePortfolio('p1', {
+          assets: [
+            { ticker: 'VTI', weight: 50 },
+            { ticker: 'BND', weight: 40 },
+          ],
+        }),
+      false,
+    ],
   ])('%s', async (_n, setup, skipLoadingCheck) => {
     setup();
     await S().runBacktest();

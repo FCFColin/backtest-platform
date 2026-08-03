@@ -16,6 +16,7 @@ import {
 } from './portfolioEditor/portfolioEditor.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadJSON } from '@/utils/format';
+import { REBALANCE_LBL } from '@/utils/constants';
 import { AffixInput, Badge, Button, Input } from '@/components/ui/uiComponents';
 interface PortfolioAsset {
   ticker: string;
@@ -36,7 +37,7 @@ interface SingleModeProps {
 interface MultiModeProps {
   singleMode?: false;
 }
-export type PortfolioEditorProps = SingleModeProps | MultiModeProps;
+type PortfolioEditorProps = SingleModeProps | MultiModeProps;
 function SinglePortfolioEditor({
   assets,
   totalWeight,
@@ -127,15 +128,6 @@ const REBALANCE_KEYS: RebalanceFrequency[] = [
   'daily',
   'threshold',
 ];
-const REBALANCE_LBL: Record<RebalanceFrequency, string> = {
-  none: 'portfolio.rebalanceNone',
-  annual: 'portfolio.rebalanceAnnual',
-  quarterly: 'portfolio.rebalanceQuarterly',
-  monthly: 'portfolio.rebalanceMonthly',
-  weekly: 'portfolio.rebalanceWeekly',
-  daily: 'portfolio.rebalanceDaily',
-  threshold: 'portfolio.rebalanceThreshold',
-};
 const buildRebalanceOptions = (t: TFunc) =>
   REBALANCE_KEYS.map((value) => ({ value, label: t(REBALANCE_LBL[value]) }));
 interface AddMenuActions {
@@ -402,7 +394,6 @@ function MultiPortfolioEditor() {
             <PortfolioCard
               key={portfolio.id}
               portfolio={portfolio}
-              index={idx}
               color={getPortfolioColor(idx)}
               rebalanceOptions={rebalanceOptions}
               nonGlidepathPortfolios={nonGlidepathPortfolios}

@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { useToastStore } from '../store/toastStore.js';
-import type { DateRangeInfo } from '../store/types.js';
 import i18n from '../i18n/index.js';
 
 export type ReportType =
@@ -192,20 +191,4 @@ export function processResponseWarnings(json: Record<string, unknown>): WarningI
     }
   }
   return warningsList;
-}
-
-export function extractDateRange(
-  json: Record<string, unknown>,
-  warnings: WarningInfo[],
-): DateRangeInfo | null {
-  const dr = json.dateRange as DateRangeInfo | undefined;
-  if (dr) return dr;
-  const clamped = warnings.find((w) => w.code === 'DATE_RANGE_CLAMPED');
-  if (!clamped) return null;
-  return {
-    requested: { start: clamped.requestedStart || '', end: clamped.requestedEnd || '' },
-    actual: { start: clamped.actualStart || '', end: clamped.actualEnd || '' },
-    clamped: true,
-    missingTickers: clamped.tickers,
-  };
 }

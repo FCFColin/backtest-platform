@@ -139,7 +139,7 @@ export function useComputeTool<TResult>(
   }, [resetAction]);
   return { isLoading, error, results, runCompute, setResults, reset };
 }
-export interface OptimizerLikeState<TResults> {
+interface OptimizerLikeState<TResults> {
   startDate: string;
   setStartDate: (v: string) => void;
   endDate: string;
@@ -170,7 +170,7 @@ export function useOptimizerLikeState<TResults>(): OptimizerLikeState<TResults> 
     setResults,
   };
 }
-export interface TickerMeta {
+interface TickerMeta {
   ticker: string;
   name: string;
   exchange: string;
@@ -270,7 +270,7 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
     };
   }, [enabled, timeoutMs, resetActivity, checkTimeout]);
 }
-export interface Announcement {
+interface Announcement {
   id: number;
   slug: string;
   title: string;
@@ -314,7 +314,7 @@ export function useAnnouncements() {
   }, [announcements]);
   return { announcements, unreadCount, markAllRead };
 }
-export interface DataMeta {
+interface DataMeta {
   lastUpdated: string;
   tickerCount: number;
   earliestDate: string;

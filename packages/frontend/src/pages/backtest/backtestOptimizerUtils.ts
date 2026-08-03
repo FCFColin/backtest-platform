@@ -61,7 +61,7 @@ export const TABLE_COLUMNS: Column<OptimizeResultItem>[] = [
   numCol('sortino', 'Sortino'),
   numCol('calmar', 'Calmar'),
 ];
-export interface GrowthPoint {
+interface GrowthPoint {
   date: string;
   value: number;
 }
@@ -88,7 +88,7 @@ export interface ConstraintRowProps {
   setValue: (v: string) => void;
   placeholder: string;
 }
-export function buildOptimizeBody(
+function buildOptimizeBody(
   validAssets: Array<{ ticker: string; weight: string }>,
   frequencies: RebalanceFrequency[],
   range: {

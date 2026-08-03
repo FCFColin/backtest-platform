@@ -13,6 +13,7 @@ import { ResultsActionBar } from '@/components/results/ResultsActionBar.js';
 import { SummarySidebar } from '@/components/results/SummarySidebar.js';
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadFile, dateSuffixedFilename } from '@/utils/format';
+import { REBALANCE_LBL } from '@/utils/constants';
 import { cn } from '@/lib/utils';
 import ChartCard from '@/components/ChartCard.js';
 import {
@@ -20,7 +21,6 @@ import {
   type PortfolioResult,
   type BacktestResult,
   type TimeSeriesPoint,
-  type RebalanceFrequency,
   CHART_COLORS,
   toStatsRecord,
   createEmptyStatistics,
@@ -70,46 +70,25 @@ const CorrelationWithBeta = lazy(() => import('@/components/charts/CorrelationHe
 const CustomMetricsTable = lazy(() => import('@/components/CustomMetricsTable'));
 const CashflowsLog = lazy(() => import('@/components/CashflowsLog'));
 const TurnoverTaxReport = lazy(() => import('@/components/TurnoverTaxReport'));
-const TAB_GROUPS = [
-  { groupKey: 'tabs.summary', tabs: [{ key: 'summary', labelKey: 'tabs.summary' }] },
-  {
-    groupKey: 'tabs.returns',
-    tabs: [
-      { key: 'metrics', labelKey: 'tabs.metrics' },
-      { key: 'myMetrics', labelKey: 'tabs.myMetrics' },
-      { key: 'returns', labelKey: 'tabs.returnsDist' },
-      { key: 'yearlyReturns', labelKey: 'tabs.yearlyReturns' },
-      { key: 'rolling', labelKey: 'tabs.rolling' },
-      { key: 'seasonality', labelKey: 'tabs.seasonality' },
-      { key: 'riskReturn', labelKey: 'tabs.riskReturn' },
-      { key: 'drawdown', labelKey: 'tabs.drawdown' },
-    ],
-  },
-  {
-    groupKey: 'tabs.events',
-    tabs: [
-      { key: 'cashflows', labelKey: 'tabs.cashflows' },
-      { key: 'rebalancing', labelKey: 'tabs.rebalancing' },
-      { key: 'turnover', labelKey: 'tabs.turnover' },
-    ],
-  },
-  {
-    groupKey: 'tabs.allocation',
-    tabs: [
-      { key: 'allocation', labelKey: 'tabs.portfolioAllocation' },
-      { key: 'pies', labelKey: 'tabs.pies' },
-      { key: 'correlation', labelKey: 'tabs.correlation' },
-    ],
-  },
-  {
-    groupKey: 'tabs.signalsStatus',
-    tabs: [
-      { key: 'telltale', labelKey: 'tabs.telltale' },
-      { key: 'regression', labelKey: 'tabs.regression' },
-    ],
-  },
+const ALL_TABS = [
+  { key: 'summary', labelKey: 'tabs.summary' },
+  { key: 'metrics', labelKey: 'tabs.metrics' },
+  { key: 'myMetrics', labelKey: 'tabs.myMetrics' },
+  { key: 'returns', labelKey: 'tabs.returnsDist' },
+  { key: 'yearlyReturns', labelKey: 'tabs.yearlyReturns' },
+  { key: 'rolling', labelKey: 'tabs.rolling' },
+  { key: 'seasonality', labelKey: 'tabs.seasonality' },
+  { key: 'riskReturn', labelKey: 'tabs.riskReturn' },
+  { key: 'drawdown', labelKey: 'tabs.drawdown' },
+  { key: 'cashflows', labelKey: 'tabs.cashflows' },
+  { key: 'rebalancing', labelKey: 'tabs.rebalancing' },
+  { key: 'turnover', labelKey: 'tabs.turnover' },
+  { key: 'allocation', labelKey: 'tabs.portfolioAllocation' },
+  { key: 'pies', labelKey: 'tabs.pies' },
+  { key: 'correlation', labelKey: 'tabs.correlation' },
+  { key: 'telltale', labelKey: 'tabs.telltale' },
+  { key: 'regression', labelKey: 'tabs.regression' },
 ];
-const ALL_TABS = TAB_GROUPS.flatMap((g) => g.tabs);
 const COMMON_STATS_PROPS = (pf: PortfolioResult[]) => ({
   portfolios: pf.map((p) => ({ id: p.name, name: p.name, stats: toStatsRecord(p.statistics) })),
   colors: pf.map((_, i) => getPortfolioColor(i)),
@@ -327,15 +306,6 @@ interface RebalancingStatsProps {
     >
   >;
 }
-const FREQ_LABELS: Record<RebalanceFrequency, string> = {
-  daily: 'portfolio.rebalanceDaily',
-  weekly: 'portfolio.rebalanceWeekly',
-  monthly: 'portfolio.rebalanceMonthly',
-  quarterly: 'portfolio.rebalanceQuarterly',
-  annual: 'portfolio.rebalanceAnnual',
-  none: 'portfolio.rebalanceNone',
-  threshold: 'portfolio.rebalanceThreshold',
-};
 function RebalancingEmptyState() {
   const { t } = useTranslation();
   return (
@@ -390,7 +360,7 @@ function RebalancingStatsRow({
         {portfolio.name}
       </td>
       <td className={cn(tdBase, 'text-left text-fg-secondary')}>
-        {t(FREQ_LABELS[portfolio.rebalanceFrequency] || portfolio.rebalanceFrequency)}
+        {t(REBALANCE_LBL[portfolio.rebalanceFrequency] || portfolio.rebalanceFrequency)}
       </td>
       <td className={cn(tdBase, 'text-right font-mono tabular-nums text-fg-secondary')}>
         {portfolio.rebalanceOffset ?? 0}

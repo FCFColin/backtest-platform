@@ -35,7 +35,9 @@ describe('duplicatePortfolio', () => {
     expect(after[1].name).toBe('Portfolio 1 (副本)');
     expect(after[1].assets).toEqual(after[0].assets);
     expect(after[1].id).not.toBe('p1');
-    S().updateAsset(after[1].id, 0, { weight: 80 });
+    S().updatePortfolio(after[1].id, {
+      assets: after[1].assets.map((a, i) => (i === 0 ? { ...a, weight: 80 } : a)),
+    });
     const updated = S().portfolios;
     expect(updated[0].assets[0].weight).toBe(60);
     expect(updated[1].assets[0].weight).toBe(80);
@@ -63,51 +65,7 @@ describe('removePortfolio', () => {
     if (len === 1) expect(S().portfolios[0].id).toBe('p1');
   });
 });
-describe('addAsset', () => {
-  it('添加空资产到存在的组合', () => {
-    S().addAsset('p1');
-    const a = S().portfolios[0].assets[2];
-    expect(S().portfolios[0].assets.length).toBe(3);
-    expect(a).toMatchObject({ ticker: '', weight: 0 });
-    expect(a.id).toBeTruthy();
-  });
-  it('添加到不存在的组合无影响', () => {
-    S().addAsset('not-exist');
-    expect(S().portfolios[0].assets.length).toBe(2);
-  });
-});
-describe('removeAsset', () => {
-  it.each<[string, string, string, number, string | null]>([
-    ['删除存在的资产', 'p1', 'VTI', 1, 'BND'],
-    ['删除不存在的ticker无影响', 'p1', 'NOTEXIST', 2, null],
-    ['从不存在的组合删除无影响', 'not-exist', 'VTI', 2, null],
-  ])('%s', (_n, pid, ticker, len, firstTicker) => {
-    S().removeAsset(pid, ticker);
-    const after = S().portfolios[0];
-    expect(after.assets.length).toBe(len);
-    if (firstTicker) expect(after.assets[0].ticker).toBe(firstTicker);
-  });
-});
-describe('updateAsset', () => {
-  it('更新存在的资产权重，其他资产不变', () => {
-    S().updateAsset('p1', 0, { weight: 70 });
-    const a = S().portfolios[0].assets;
-    expect(a[0].weight).toBe(70);
-    expect(a[1].weight).toBe(40);
-  });
-  it('更新存在的资产ticker', () => {
-    S().updateAsset('p1', 0, { ticker: 'SPY' });
-    expect(S().portfolios[0].assets[0].ticker).toBe('SPY');
-  });
-  it.each([
-    ['越界index', 'p1', 99],
-    ['不存在的组合', 'not-exist', 0],
-  ])('更新%s无影响', (_n, pid, idx) => {
-    S().updateAsset(pid, idx, { weight: 50 });
-    expect(S().portfolios[0].assets[0].weight).toBe(60);
-  });
-});
-describe('updatePortfolio', () => {
+describe('removePortfolio', () => {
   it.each([
     ['名称', { name: '我的组合' }, 'name', '我的组合'],
     ['调仓频率', { rebalanceFrequency: 'monthly' }, 'rebalanceFrequency', 'monthly'],
@@ -167,34 +125,6 @@ describe('addGlidepath', () => {
       glidepathYears: 10,
     });
     expect(gp.assets).toEqual(S().portfolios[0].assets);
-  });
-});
-describe('batchUpdateAssets', () => {
-  it.each([
-    [
-      'matching indices',
-      'p1',
-      [
-        { index: 0, weight: 50 },
-        { index: 1, weight: 50 },
-      ],
-      [50, 50],
-    ],
-    ['non-matching portfolioId', 'non-existent', [{ index: 0, weight: 100 }], [60, 40]],
-    [
-      'skip non-existent indices',
-      'p1',
-      [
-        { index: 0, weight: 80 },
-        { index: 99, weight: 20 },
-      ],
-      [80, 40],
-    ],
-  ])('updates %s', (_n, pid, updates, [w0, w1]) => {
-    S().batchUpdateAssets(pid, updates);
-    const a = S().portfolios[0].assets;
-    expect(a[0].weight).toBe(w0);
-    expect(a[1].weight).toBe(w1);
   });
 });
 describe('loadFromShare', () => {

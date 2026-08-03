@@ -3,6 +3,7 @@ import type {
   BaseCurrency,
   CashflowLeg,
   OneTimeCashflow,
+  RebalanceFrequency,
 } from '@backtest/shared';
 
 export const INPUT_WIDTHS = {
@@ -127,3 +128,13 @@ export function filterTickers(input: string, limit = 8): TickerPreset[] {
     (p) => p.ticker.startsWith(upper) || p.name.includes(input),
   ).slice(0, limit);
 }
+
+export const REBALANCE_LBL: Record<RebalanceFrequency, string> = {
+  none: 'portfolio.rebalanceNone',
+  annual: 'portfolio.rebalanceAnnual',
+  quarterly: 'portfolio.rebalanceQuarterly',
+  monthly: 'portfolio.rebalanceMonthly',
+  weekly: 'portfolio.rebalanceWeekly',
+  daily: 'portfolio.rebalanceDaily',
+  threshold: 'portfolio.rebalanceThreshold',
+};
