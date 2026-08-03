@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import { createServer } from 'node:http';
 import { config } from './config/index.js';
 import { jwtAuth, auditLog, idempotencyKey } from './middleware/jwtAuth.js';
-import { resolveTenant, requireTenant } from './middleware/tenantContext.js';
+import { resolveTenant } from './middleware/tenantContext.js';
 import { computeMiddleware, crudMiddleware, readOnlyAuth } from './middleware/middlewareChains.js';
 import { requirePermission, Permission } from './middleware/rbac.js';
 import { httpLogger, logger } from './utils/logger.js';
@@ -29,7 +29,6 @@ import backtestRoutes from './routes/backtestRoutes.js';
 import tacticalConfigRoutes from './routes/tacticalConfigRoutes.js';
 import analysisRoutes from './routes/analysisRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
-import rbacRoutes from './routes/rbacRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import orgRoutes from './routes/orgRoutes.js';
 import billingRoutes, { billingWebhookHandler } from './routes/billingRoutes.js';
@@ -178,7 +177,6 @@ app.use(
 // 分析/计算/密钥/工作台/平台端点合并挂载（ADR-042）：内部按子路径应用不同中间件链
 app.use('/api/v1', analysisRoutes);
 app.use('/api/v1/admin', adminRoutes);
-app.use('/api/v1/admin', requireTenant, rbacRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/orgs', jwtAuth, resolveTenant, orgRoutes);
 app.use('/api/v1/billing', jwtAuth, resolveTenant, billingRoutes);

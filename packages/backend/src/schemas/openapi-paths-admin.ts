@@ -8,15 +8,10 @@ import {
   sec,
   pubReg,
   AUTH_ERR,
-  AUTH_NOT_FOUND_ERR,
   PERM_ERR,
   VALIDATION_ERR,
-  VALIDATION_CONFLICT_ERR,
-  UPDATE_ERR,
   ID_ERR,
   WITH_ID_PARAM,
-  USER_ROLE_PARAM,
-  ROLE_BODY,
 } from './openapi-paths-shared.js';
 
 function registerAdminEndpoints(): void {
@@ -25,53 +20,6 @@ function registerAdminEndpoints(): void {
   sec('post', '/admin/keys/rotate', 'admin', '轮换 ADMIN_API_KEY', AUTH_ERR);
   sec('delete', '/admin/keys/{id}', 'admin', '吊销指定密钥', ID_ERR, WITH_ID_PARAM);
   sec('get', '/admin/keys', 'admin', '列出平台密钥', PERM_ERR);
-}
-
-function registerRbacRolePaths(): void {
-  sec('get', '/admin/roles', 'rbac', '查询当前租户可分配的全部角色列表', AUTH_ERR);
-  sec('post', '/admin/roles', 'rbac', '创建新角色', VALIDATION_CONFLICT_ERR, { body: ROLE_BODY });
-  sec('put', '/admin/roles/{id}', 'rbac', '更新角色名称或权限', UPDATE_ERR, {
-    ...WITH_ID_PARAM,
-    body: z.object({
-      name: z.string().min(1).max(100).optional(),
-      description: z.string().max(255).optional(),
-      permissions: z.array(z.string()).optional(),
-    }),
-  });
-  sec('delete', '/admin/roles/{id}', 'rbac', '删除自定义角色（软删除）', AUTH_NOT_FOUND_ERR, {
-    ...WITH_ID_PARAM,
-  });
-  sec(
-    'get',
-    '/admin/roles/{id}/permissions',
-    'rbac',
-    '查询角色拥有的权限列表',
-    AUTH_NOT_FOUND_ERR,
-    WITH_ID_PARAM,
-  );
-  sec('put', '/admin/roles/{id}/permissions', 'rbac', '替换角色的全部权限', UPDATE_ERR, {
-    ...WITH_ID_PARAM,
-    body: z.object({ permissions: z.array(z.string()) }),
-  });
-}
-
-function registerRbacUserPaths(): void {
-  const userIdParam = z.object({ userId: z.string() });
-  sec('get', '/admin/users/{userId}/roles', 'rbac', '查询用户被分配的角色列表', AUTH_ERR, {
-    params: userIdParam,
-  });
-  sec('post', '/admin/users/{userId}/roles', 'rbac', '为用户分配角色（幂等）', VALIDATION_ERR, {
-    params: userIdParam,
-    body: z.object({ roleIds: z.array(z.string()) }),
-  });
-  sec(
-    'delete',
-    '/admin/users/{userId}/roles/{roleId}',
-    'rbac',
-    '移除用户的某个角色分配',
-    AUTH_NOT_FOUND_ERR,
-    USER_ROLE_PARAM,
-  );
 }
 
 function registerHealthPaths(): void {
@@ -116,8 +64,6 @@ function registerMiscPaths(): void {
 
 export function registerAdminPaths(): void {
   registerAdminEndpoints();
-  registerRbacRolePaths();
-  registerRbacUserPaths();
   registerHealthPaths();
   registerMiscPaths();
 }
