@@ -88,59 +88,6 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
   },
 );
 FloatingLabelInput.displayName = 'FloatingLabelInput';
-interface FloatingLabelDateProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
-  error?: string;
-  hint?: string;
-  containerClassName?: string;
-}
-export const FloatingLabelDate = forwardRef<HTMLInputElement, FloatingLabelDateProps>(
-  ({ label, error, hint, className, containerClassName, id, ...props }, ref) => {
-    const generatedId = useId();
-    const inputId = id ?? generatedId;
-    return (
-      <div className={cn('relative', containerClassName)}>
-        <div
-          className={cn(
-            'relative h-14 rounded-md border transition-colors duration-150 bg-input-bg',
-            error
-              ? 'border-danger focus-within:border-danger'
-              : 'border-border focus-within:border-brand',
-            'group',
-          )}
-        >
-          <label
-            htmlFor={inputId}
-            className={cn(
-              'absolute left-3 top-1.5 z-10 pointer-events-none',
-              'text-label-tiny text-fg-tertiary',
-              'transition-colors duration-150',
-              'group-focus-within:text-brand',
-            )}
-          >
-            {label}
-          </label>
-          <input
-            ref={ref}
-            id={inputId}
-            type="date"
-            className={cn(
-              'w-full h-full pt-6 pb-2 pl-3 pr-10 bg-transparent',
-              'text-body text-fg font-mono tabular-nums',
-              'focus:outline-none',
-              className,
-            )}
-            {...props}
-          />
-          <Calendar className="absolute right-3 bottom-2 h-4 w-4 text-fg-tertiary pointer-events-none" />
-        </div>
-        {error && <p className="mt-1 text-caption text-danger">{error}</p>}
-        {!error && hint && <p className="mt-1 text-caption text-fg-tertiary">{hint}</p>}
-      </div>
-    );
-  },
-);
-FloatingLabelDate.displayName = 'FloatingLabelDate';
 interface FloatingLabelSelectProps {
   label: string;
   value?: string;
@@ -342,7 +289,7 @@ const CURRENCY_OPTIONS = [
   { value: 'cny', label: 'CNY (¥)' },
 ];
 
-function BasicParamsGrid() {
+function useBasicParamFields() {
   const { t, parameters, updateParameter } = useParamField();
   const dateRangeMode = parameters.startDate === '' && parameters.endDate === '' ? 'all' : 'custom';
   const handleDateRangeChange = (value: string) => {
@@ -366,23 +313,27 @@ function BasicParamsGrid() {
     key: 'startingValue' | 'rollingWindowMonths',
     e: ChangeEvent<HTMLInputElement>,
   ) => updateParameter(key, Math.max(1, Number(e.target.value) || 0));
+  return { t, parameters, dateRangeMode, handleDateRangeChange, handleDateChange, handleNum };
+}
+
+function BasicParamsGrid() {
+  const { t, parameters, dateRangeMode, handleDateRangeChange, handleDateChange, handleNum } =
+    useBasicParamFields();
   const dateFields = [
-    {
-      field: 'startDate',
-      label: t('params.startDate'),
-      value: parameters.startDate || DEFAULT_BACKTEST_START_DATE,
-    },
-    { field: 'endDate', label: t('params.endDate'), value: parameters.endDate || DEFAULT_END_DATE },
+    ['startDate', t('params.startDate'), parameters.startDate || DEFAULT_BACKTEST_START_DATE],
+    ['endDate', t('params.endDate'), parameters.endDate || DEFAULT_END_DATE],
   ] as const;
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-      {dateFields.map((f) => (
-        <FloatingLabelDate
-          key={f.field}
-          label={f.label}
-          value={f.value}
+      {dateFields.map(([field, label, value]) => (
+        <FloatingLabelInput
+          key={field}
+          label={label}
+          type="date"
+          value={value}
           disabled={dateRangeMode === 'all'}
-          onChange={(e) => handleDateChange(f.field, e)}
+          onChange={(e) => handleDateChange(field, e)}
+          suffix={<Calendar className="h-4 w-4" />}
         />
       ))}
       <FloatingLabelInput

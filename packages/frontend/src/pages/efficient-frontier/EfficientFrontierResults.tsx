@@ -107,6 +107,31 @@ const COLOR_WARNING = 'hsl(var(--warning))';
 const COLOR_BRAND = 'hsl(var(--brand))';
 const COLOR_FG_SECONDARY = 'hsl(var(--fg-secondary))';
 const COLOR_FG_TERTIARY = 'hsl(var(--fg-tertiary))';
+function PointStats({ p }: { p: EfficientFrontierPoint }) {
+  const { t } = useTranslation();
+  const stats = [
+    { key: 'expectedReturn', value: `${p.expectedReturn.toFixed(2)}%`, color: COLOR_SUCCESS },
+    {
+      key: 'expectedVolatility',
+      value: `${p.expectedVolatility.toFixed(2)}%`,
+      color: COLOR_WARNING,
+    },
+    { key: 'sharpeRatio', value: p.sharpeRatio.toFixed(2), color: COLOR_BRAND },
+  ];
+  return (
+    <div className="flex flex-col gap-2">
+      {stats.map((s) => (
+        <MiniStatCard
+          key={s.key}
+          className="bg-elevated p-2.5"
+          label={t(`efficientFrontier.results.${s.key}`)}
+          value={s.value}
+          color={s.color}
+        />
+      ))}
+    </div>
+  );
+}
 function SelectedPointDetail({
   selectedPoint,
   onLoadInBacktester,
@@ -166,40 +191,12 @@ function MaxSharpeSection({ maxSharpe }: { maxSharpe: EfficientFrontierPoint | u
         {t('efficientFrontier.results.maxSharpePortfolio')}
       </h3>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <div className="mb-2 text-caption text-fg-tertiary">
-            {t('efficientFrontier.results.weight')}
-          </div>
-          <div className="flex flex-col gap-2">
-            {Object.entries(maxSharpe.weights).map(([ticker, weight], i) => (
-              <WeightBar
-                key={ticker}
-                ticker={ticker}
-                weight={weight}
-                color={CHART_COLORS[i % CHART_COLORS.length]}
-              />
-            ))}
-          </div>
-        </div>
+        <WeightAllocation
+          weights={maxSharpe.weights}
+          title={t('efficientFrontier.results.weight')}
+        />
         <div className="flex flex-col gap-3">
-          <MiniStatCard
-            className="bg-elevated p-2.5"
-            label={t('efficientFrontier.results.expectedReturn')}
-            value={`${maxSharpe.expectedReturn.toFixed(2)}%`}
-            color={COLOR_SUCCESS}
-          />
-          <MiniStatCard
-            className="bg-elevated p-2.5"
-            label={t('efficientFrontier.results.expectedVolatility')}
-            value={`${maxSharpe.expectedVolatility.toFixed(2)}%`}
-            color={COLOR_WARNING}
-          />
-          <MiniStatCard
-            className="bg-elevated p-2.5"
-            label={t('efficientFrontier.results.sharpeRatio')}
-            value={maxSharpe.sharpeRatio.toFixed(2)}
-            color={COLOR_BRAND}
-          />
+          <PointStats p={maxSharpe} />
         </div>
       </div>
     </div>

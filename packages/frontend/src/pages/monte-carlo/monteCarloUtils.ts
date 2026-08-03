@@ -157,74 +157,59 @@ async function fetchMcResult(
   if (json.success === false) throw new Error(json.error || i18n.t('errors.simulationFailed'));
   return json.data ?? json;
 }
+const MC_INITIAL = {
+  portfolioMode: 1 as PortfolioMode,
+  numYears: 20,
+  numSimulations: 500,
+  startingValue: 100000,
+  minBlock: 1,
+  maxBlock: 5,
+  withReplacement: true,
+  startDate: DEFAULT_BACKTEST_START_DATE,
+  endDate: DEFAULT_END_DATE,
+  randomSeed: '',
+  isLoading: false,
+  error: null as string | null,
+  results1: null as MonteCarloResult | null,
+  results2: null as MonteCarloResult | null,
+  activeTab: 'summary' as ResultTab,
+  distMetric: 'finalValue' as DistMetric,
+  portfolios: [createDefaultPortfolio(1), createDefaultPortfolio(2)],
+  simMode: 'standard' as SimMode,
+  goal1: 'maxCagrPercentile',
+  goal2: 'minMaxDrawdown',
+  goalWeight: 50,
+};
+type McState = typeof MC_INITIAL;
 function useMcSetters() {
-  const [portfolioMode, setPortfolioMode] = useState<PortfolioMode>(1);
-  const [numYears, setNumYears] = useState(20);
-  const [numSimulations, setNumSimulations] = useState(500);
-  const [startingValue, setStartingValue] = useState(100000);
-  const [minBlock, setMinBlock] = useState(1);
-  const [maxBlock, setMaxBlock] = useState(5);
-  const [withReplacement, setWithReplacement] = useState(true);
-  const [startDate, setStartDate] = useState(DEFAULT_BACKTEST_START_DATE);
-  const [endDate, setEndDate] = useState(DEFAULT_END_DATE);
-  const [randomSeed, setRandomSeed] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [results1, setResults1] = useState<MonteCarloResult | null>(null);
-  const [results2, setResults2] = useState<MonteCarloResult | null>(null);
-  const [activeTab, setActiveTab] = useState<ResultTab>('summary');
-  const [distMetric, setDistMetric] = useState<DistMetric>('finalValue');
-  const [portfolios, setPortfolios] = useState([
-    createDefaultPortfolio(1),
-    createDefaultPortfolio(2),
-  ]);
-  const [simMode, setSimMode] = useState<SimMode>('standard');
-  const [goal1, setGoal1] = useState('maxCagrPercentile');
-  const [goal2, setGoal2] = useState('minMaxDrawdown');
-  const [goalWeight, setGoalWeight] = useState(50);
+  const [mc, setMc] = useState(MC_INITIAL);
+  const set =
+    <K extends keyof McState>(key: K) =>
+    (v: McState[K]) =>
+      setMc((prev) => ({ ...prev, [key]: v }));
   return {
-    portfolioMode,
-    setPortfolioMode,
-    numYears,
-    setNumYears,
-    numSimulations,
-    setNumSimulations,
-    startingValue,
-    setStartingValue,
-    minBlock,
-    setMinBlock,
-    maxBlock,
-    setMaxBlock,
-    withReplacement,
-    setWithReplacement,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    randomSeed,
-    setRandomSeed,
-    isLoading,
-    setIsLoading,
-    error,
-    setError,
-    results1,
-    setResults1,
-    results2,
-    setResults2,
-    activeTab,
-    setActiveTab,
-    distMetric,
-    setDistMetric,
-    portfolios,
-    setPortfolios,
-    simMode,
-    setSimMode,
-    goal1,
-    setGoal1,
-    goal2,
-    setGoal2,
-    goalWeight,
-    setGoalWeight,
+    ...mc,
+    setPortfolioMode: set('portfolioMode'),
+    setNumYears: set('numYears'),
+    setNumSimulations: set('numSimulations'),
+    setStartingValue: set('startingValue'),
+    setMinBlock: set('minBlock'),
+    setMaxBlock: set('maxBlock'),
+    setWithReplacement: set('withReplacement'),
+    setStartDate: set('startDate'),
+    setEndDate: set('endDate'),
+    setRandomSeed: set('randomSeed'),
+    setIsLoading: set('isLoading'),
+    setError: set('error'),
+    setResults1: set('results1'),
+    setResults2: set('results2'),
+    setActiveTab: set('activeTab'),
+    setDistMetric: set('distMetric'),
+    setPortfolios: set('portfolios'),
+    setSimMode: set('simMode'),
+    setGoal1: set('goal1'),
+    setGoal2: set('goal2'),
+    setGoalWeight: set('goalWeight'),
   };
 }
 type McSetters = ReturnType<typeof useMcSetters>;

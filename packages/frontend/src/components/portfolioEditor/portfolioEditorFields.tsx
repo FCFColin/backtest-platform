@@ -155,6 +155,45 @@ function GlidepathTargetWeights({
     </>
   );
 }
+function GlidepathFields({
+  from,
+  to,
+  years,
+  onFromChange,
+  onToChange,
+  onYearsChange,
+  portfolios,
+}: {
+  from: string;
+  to: string;
+  years: number;
+  onFromChange: (v: string) => void;
+  onToChange: (v: string) => void;
+  onYearsChange: (v: number) => void;
+  portfolios: StorePortfolio[];
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <FieldLabel label={t('portfolio.sourcePortfolio')}>
+        <PortfolioSelect value={from} onChange={onFromChange} portfolios={portfolios} t={t} />
+      </FieldLabel>
+      <FieldLabel label={t('portfolio.targetPortfolio')}>
+        <PortfolioSelect value={to} onChange={onToChange} portfolios={portfolios} t={t} />
+      </FieldLabel>
+      <FieldLabel label={t('portfolio.transitionYears')}>
+        <Input
+          type="number"
+          value={years}
+          onChange={(e) => onYearsChange(Number(e.target.value) || 1)}
+          min={1}
+          max={50}
+          className="h-8 w-[60px] font-mono tabular-nums"
+        />
+      </FieldLabel>
+    </>
+  );
+}
 export function GlidepathForm({
   nonGlidepathPortfolios,
   onConfirm,
@@ -182,32 +221,15 @@ export function GlidepathForm({
             className="h-8 w-[120px]"
           />
         </FieldLabel>
-        <FieldLabel label={t('portfolio.sourcePortfolio')}>
-          <PortfolioSelect
-            value={gpFrom}
-            onChange={setGpFrom}
-            portfolios={nonGlidepathPortfolios}
-            t={t}
-          />
-        </FieldLabel>
-        <FieldLabel label={t('portfolio.targetPortfolio')}>
-          <PortfolioSelect
-            value={gpTo}
-            onChange={setGpTo}
-            portfolios={nonGlidepathPortfolios}
-            t={t}
-          />
-        </FieldLabel>
-        <FieldLabel label={t('portfolio.transitionYears')}>
-          <Input
-            type="number"
-            value={gpYears}
-            onChange={(e) => setGpYears(Number(e.target.value) || 1)}
-            min={1}
-            max={50}
-            className="h-8 w-[60px] font-mono tabular-nums"
-          />
-        </FieldLabel>
+        <GlidepathFields
+          from={gpFrom}
+          to={gpTo}
+          years={gpYears}
+          onFromChange={setGpFrom}
+          onToChange={setGpTo}
+          onYearsChange={setGpYears}
+          portfolios={nonGlidepathPortfolios}
+        />
         <Button
           variant="primary"
           size="sm"
@@ -238,34 +260,15 @@ export function GlidepathConfig({
     <div style={GP_CONFIG_STYLE}>
       <div style={GP_CONFIG_TITLE_STYLE}>{t('portfolio.glidepathConfig')}</div>
       <div style={FIELDS_ROW_STYLE}>
-        <FieldLabel label={t('portfolio.sourcePortfolio')}>
-          <PortfolioSelect
-            value={portfolio.glidepathFrom ?? ''}
-            onChange={(v) => onUpdate(portfolio.id, { glidepathFrom: v })}
-            portfolios={nonGlidepathPortfolios}
-            t={t}
-          />
-        </FieldLabel>
-        <FieldLabel label={t('portfolio.targetPortfolio')}>
-          <PortfolioSelect
-            value={portfolio.glidepathTo ?? ''}
-            onChange={(v) => onUpdate(portfolio.id, { glidepathTo: v })}
-            portfolios={nonGlidepathPortfolios}
-            t={t}
-          />
-        </FieldLabel>
-        <FieldLabel label={t('portfolio.transitionYears')}>
-          <Input
-            type="number"
-            value={portfolio.glidepathYears ?? 10}
-            onChange={(e) =>
-              onUpdate(portfolio.id, { glidepathYears: Number(e.target.value) || 1 })
-            }
-            min={1}
-            max={50}
-            className="h-8 w-[60px] font-mono tabular-nums"
-          />
-        </FieldLabel>
+        <GlidepathFields
+          from={portfolio.glidepathFrom ?? ''}
+          to={portfolio.glidepathTo ?? ''}
+          years={portfolio.glidepathYears ?? 10}
+          onFromChange={(v) => onUpdate(portfolio.id, { glidepathFrom: v })}
+          onToChange={(v) => onUpdate(portfolio.id, { glidepathTo: v })}
+          onYearsChange={(v) => onUpdate(portfolio.id, { glidepathYears: v })}
+          portfolios={nonGlidepathPortfolios}
+        />
       </div>
       <GlidepathTargetWeights portfolio={portfolio} onUpdate={onUpdate} t={t} />
     </div>

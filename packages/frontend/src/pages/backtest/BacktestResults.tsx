@@ -25,47 +25,47 @@ import {
   toStatsRecord,
   createEmptyStatistics,
 } from '@backtest/shared';
-const GrowthChart = lazy(() =>
-  import('@/components/charts/GrowthChart').then((m) => ({ default: m.GrowthChart })),
+const lazyNamed = (importer: () => Promise<Record<string, unknown>>, name: string) =>
+  lazy(() => importer().then((m) => ({ default: m[name] })));
+const GrowthChart = lazyNamed(() => import('@/components/charts/GrowthChart'), 'GrowthChart');
+const DrawdownChart = lazyNamed(
+  () => import('@/components/charts/drawdownCharts'),
+  'DrawdownChart',
 );
-const DrawdownChart = lazy(() =>
-  import('@/components/charts/drawdownCharts').then((m) => ({ default: m.DrawdownChart })),
+const DrawdownEpisodes = lazyNamed(
+  () => import('@/components/results/DrawdownEpisodes'),
+  'DrawdownEpisodes',
 );
-const DrawdownEpisodes = lazy(() =>
-  import('@/components/results/DrawdownEpisodes').then((m) => ({ default: m.DrawdownEpisodes })),
+const YearlyReturnsTable = lazyNamed(
+  () => import('@/components/results/YearlyReturnsTable'),
+  'YearlyReturnsTable',
 );
-const YearlyReturnsTable = lazy(() =>
-  import('@/components/results/YearlyReturnsTable').then((m) => ({
-    default: m.YearlyReturnsTable,
-  })),
-);
-const UnderwaterCurve = lazy(() =>
-  import('@/components/charts/drawdownCharts').then((m) => ({ default: m.UnderwaterCurve })),
+const UnderwaterCurve = lazyNamed(
+  () => import('@/components/charts/drawdownCharts'),
+  'UnderwaterCurve',
 );
 const ReturnsTabDailyChart = lazy(() => import('@/components/charts/sharedChartContent'));
-const TelltaleChart = lazy(() =>
-  import('@/components/charts/analysis').then((m) => ({ default: m.TelltaleChart })),
+const TelltaleChart = lazyNamed(() => import('@/components/charts/analysis'), 'TelltaleChart');
+const RiskReturnScatter = lazyNamed(
+  () => import('@/components/charts/riskReturn'),
+  'RiskReturnScatter',
 );
-const RiskReturnScatter = lazy(() =>
-  import('@/components/charts/riskReturn').then((m) => ({ default: m.RiskReturnScatter })),
-);
-const SeasonalityChart = lazy(() =>
-  import('@/components/charts/analysis').then((m) => ({ default: m.SeasonalityChart })),
+const SeasonalityChart = lazyNamed(
+  () => import('@/components/charts/analysis'),
+  'SeasonalityChart',
 );
 const RegressionChart = lazy(() => import('@/components/charts/RegressionChart'));
-const PortfolioAllocationChart = lazy(() =>
-  import('@/components/charts/portfolioCharts').then((m) => ({
-    default: m.PortfolioAllocationChart,
-  })),
+const PortfolioAllocationChart = lazyNamed(
+  () => import('@/components/charts/portfolioCharts'),
+  'PortfolioAllocationChart',
 );
-const PortfolioPiesChart = lazy(() =>
-  import('@/components/charts/portfolioCharts').then((m) => ({ default: m.default })),
+const PortfolioPiesChart = lazyNamed(
+  () => import('@/components/charts/portfolioCharts'),
+  'default',
 );
 const RollingReturnChart = lazy(() => import('@/components/charts/rolling'));
 const AnnualReturnChart = lazy(() => import('@/components/charts/AnnualReturnChart'));
-const MonthlyHeatmap = lazy(() =>
-  import('@/components/charts/analysis').then((m) => ({ default: m.MonthlyHeatmap })),
-);
+const MonthlyHeatmap = lazyNamed(() => import('@/components/charts/analysis'), 'MonthlyHeatmap');
 const CorrelationWithBeta = lazy(() => import('@/components/charts/CorrelationHeatmapChart'));
 const CustomMetricsTable = lazy(() => import('@/components/CustomMetricsTable'));
 const CashflowsLog = lazy(() => import('@/components/CashflowsLog'));

@@ -35,29 +35,19 @@ interface DataStats {
   marketBreakdown: Record<string, number>;
 }
 
-const defaultDataSources: DataSource[] = [
-  {
-    name: 'adminPage.dataManagement.rustEngine',
-    type: 'api',
-    status: 'unknown',
-    recordCount: 0,
-    lastUpdated: '-',
-  },
-  {
-    name: 'adminPage.dataManagement.goDataService',
-    type: 'api',
-    status: 'unknown',
-    recordCount: 0,
-    lastUpdated: '-',
-  },
-  {
-    name: 'adminPage.dataManagement.localCache',
-    type: 'local',
-    status: 'unknown',
-    recordCount: 0,
-    lastUpdated: '-',
-  },
-];
+const defaultDataSources: DataSource[] = (
+  [
+    ['adminPage.dataManagement.rustEngine', 'api'],
+    ['adminPage.dataManagement.goDataService', 'api'],
+    ['adminPage.dataManagement.localCache', 'local'],
+  ] as const
+).map(([name, type]) => ({
+  name,
+  type,
+  status: 'unknown' as const,
+  recordCount: 0,
+  lastUpdated: '-',
+}));
 const defaultDataStats: DataStats = {
   totalTickers: 0,
   totalDataPoints: 0,

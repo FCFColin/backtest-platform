@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import {
-  FloatingLabelInput,
-  FloatingLabelDate,
-} from '../../../packages/frontend/src/components/BacktestParamsForm.js';
+import { FloatingLabelInput } from '../../../packages/frontend/src/components/BacktestParamsForm.js';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -74,28 +71,12 @@ describe('FloatingLabelInput', () => {
     const wrapper = container.querySelector('.w-\\[200px\\]');
     expect(wrapper).toBeTruthy();
   });
-});
 
-describe('FloatingLabelDate', () => {
-  it('渲染标签文本', () => {
-    render(<FloatingLabelDate label="START DATE" />);
-    expect(screen.getByText('START DATE')).toBeTruthy();
-  });
-
-  it('input type 为 date', () => {
-    render(<FloatingLabelDate label="DATE" />);
-    const input = screen.getByLabelText('DATE');
-    expect(input.getAttribute('type')).toBe('date');
-  });
-
-  it('渲染错误信息', () => {
-    render(<FloatingLabelDate label="DATE" error="Invalid date" />);
-    expect(screen.getByText('Invalid date')).toBeTruthy();
-  });
-
-  it('值正确传递', () => {
-    render(<FloatingLabelDate label="DATE" value="2024-01-15" onChange={() => {}} />);
+  it('type=date 时渲染日期输入框', () => {
+    render(
+      <FloatingLabelInput label="START DATE" type="date" value="2024-01-15" onChange={() => {}} />,
+    );
     const input = screen.getByDisplayValue('2024-01-15');
-    expect(input).toBeTruthy();
+    expect(input.getAttribute('type')).toBe('date');
   });
 });
