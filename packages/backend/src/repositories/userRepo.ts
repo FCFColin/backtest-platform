@@ -1,7 +1,4 @@
-/**
- * 用户仓储（CRUD）。argon2id 密码哈希（OWASP 推荐，抗 GPU/ASIC，比 bcrypt 慢 ~2x 但更安全）。
- * 业务流程见 services/userService.ts。
- */
+/** 用户仓储（CRUD）。argon2id 密码哈希（OWASP 推荐，抗 GPU/ASIC）。 */
 import argon2 from 'argon2';
 import type { PoolClient } from 'pg';
 import { getPool } from '../db/pool.js';
@@ -16,12 +13,7 @@ export interface User {
   isActive: boolean;
 }
 
-/**
- * 将数据库行映射为 User 实体。
- *
- * @param row - 数据库行（可包含额外字段如 password_hash，会被忽略）
- * @returns User 实体
- */
+/** 将数据库行映射为 User 实体。 */
 export const rowToUser = rowMapper<User>({
   id: 'id',
   username: 'username',
@@ -30,12 +22,7 @@ export const rowToUser = rowMapper<User>({
   isActive: 'is_active',
 });
 
-/**
- * 计算 argon2id 密码哈希（OWASP 推荐参数）。
- *
- * @param password - 明文密码
- * @returns argon2id 哈希串
- */
+/** argon2id 密码哈希（OWASP 推荐参数）。 */
 async function hashPassword(password: string): Promise<string> {
   return argon2.hash(password, {
     type: argon2.argon2id,
@@ -46,11 +33,11 @@ async function hashPassword(password: string): Promise<string> {
 }
 
 /**
- * @param username - 用户名
- * @param password - 明文密码（argon2id 哈希存储）
- * @param role - 全局角色（默认 analyst）
- * @param email - 邮箱（可空）
- * @returns 新建用户
+ * 创建用户。
+ * @param username 用户名
+ * @param password 明文密码（argon2id 哈希存储）
+ * @param role 全局角色（默认 analyst）
+ * @param email 邮箱（可空）
  */
 export async function createUser(
   username: string,

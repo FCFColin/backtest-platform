@@ -14,6 +14,7 @@ import {
 import { Field, FieldLabel } from '@/components/form/Field';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
+import type { FrontierState } from './EfficientFrontierUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
   { value: 'ultrafast', label: t('efficientFrontier.solveSpeed.ultrafast') },
@@ -37,30 +38,7 @@ const solverOptions = (t: TFunction): { value: FrontierSolver; label: string }[]
   { value: 'nsga2', label: t('efficientFrontier.solver.nsga2') },
 ];
 interface FrontierParamsProps {
-  tickers: string[];
-  startDate: string;
-  endDate: string;
-  numPoints: number;
-  solveSpeed: SolveSpeed;
-  minInclusionWeight: number;
-  rebalanceFrequency: string;
-  allowCash: boolean;
-  returnObjective: ReturnObjective;
-  solver: FrontierSolver;
-  onAddTicker: () => void;
-  onRemoveTicker: (i: number) => void;
-  onUpdateTicker: (i: number, val: string) => void;
-  onStartDateChange: (v: string) => void;
-  onEndDateChange: (v: string) => void;
-  onNumPointsChange: (v: number) => void;
-  onSolveSpeedChange: (v: SolveSpeed) => void;
-  onMinInclusionWeightChange: (v: number) => void;
-  onRebalanceFrequencyChange: (v: string) => void;
-  onAllowCashChange: (v: boolean) => void;
-  onReturnObjectiveChange: (v: ReturnObjective) => void;
-  onSolverChange: (v: FrontierSolver) => void;
-  isLoading: boolean;
-  onRun: () => void;
+  state: FrontierState;
 }
 function SectionHeader({ title, info }: { title: string; info?: string }) {
   return (
@@ -99,22 +77,22 @@ function SelectField<T extends string>({
     </Field>
   );
 }
-function TickerListSection({ p }: { p: FrontierParamsProps }) {
+function TickerListSection({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
   const handleTagChange = (newTickers: string[]) => {
-    const oldLen = p.tickers.length;
+    const oldLen = s.tickers.length;
     if (newTickers.length > oldLen) {
-      p.onAddTicker();
+      s.addTicker();
     } else if (newTickers.length < oldLen) {
       for (let i = 0; i < oldLen; i++) {
-        if (!newTickers.includes(p.tickers[i])) {
-          p.onRemoveTicker(i);
+        if (!newTickers.includes(s.tickers[i])) {
+          s.removeTicker(i);
           break;
         }
       }
     } else {
       newTickers.forEach((tk, i) => {
-        if (tk !== p.tickers[i]) p.onUpdateTicker(i, tk);
+        if (tk !== s.tickers[i]) s.updateTicker(i, tk);
       });
     }
   };
@@ -122,7 +100,7 @@ function TickerListSection({ p }: { p: FrontierParamsProps }) {
     <section className="flex flex-col gap-3">
       <SectionHeader title={t('efficientFrontier.params.tickerList')} />
       <TickerTagInput
-        tickers={p.tickers.filter(Boolean)}
+        tickers={s.tickers.filter(Boolean)}
         onChange={handleTagChange}
         minCount={2}
         placeholder={t('efficientFrontier.params.tickerPlaceholder')}
@@ -130,22 +108,18 @@ function TickerListSection({ p }: { p: FrontierParamsProps }) {
     </section>
   );
 }
-function DateAndPointsGrid({ p }: { p: FrontierParamsProps }) {
+function DateAndPointsGrid({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
-  const allHistoryChecked = p.startDate === '' && p.endDate === '';
+  const allHistoryChecked = s.startDate === '' && s.endDate === '';
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Field>
         <FieldLabel>{t('efficientFrontier.params.startDate')}</FieldLabel>
-        <Input
-          type="date"
-          value={p.startDate}
-          onChange={(e) => p.onStartDateChange(e.target.value)}
-        />
+        <Input type="date" value={s.startDate} onChange={(e) => s.setStartDate(e.target.value)} />
       </Field>
       <Field>
         <FieldLabel>{t('efficientFrontier.params.endDate')}</FieldLabel>
-        <Input type="date" value={p.endDate} onChange={(e) => p.onEndDateChange(e.target.value)} />
+        <Input type="date" value={s.endDate} onChange={(e) => s.setEndDate(e.target.value)} />
       </Field>
       <Field>
         <FieldLabel>{t('efficientFrontier.params.numPoints')}</FieldLabel>
@@ -153,8 +127,8 @@ function DateAndPointsGrid({ p }: { p: FrontierParamsProps }) {
           type="number"
           min={5}
           max={100}
-          value={p.numPoints}
-          onChange={(e) => p.onNumPointsChange(Number(e.target.value))}
+          value={s.numPoints}
+          onChange={(e) => s.setNumPoints(Number(e.target.value))}
         />
       </Field>
       <Field>
@@ -164,11 +138,11 @@ function DateAndPointsGrid({ p }: { p: FrontierParamsProps }) {
             checked={allHistoryChecked}
             onCheckedChange={(c) => {
               if (c === true) {
-                p.onStartDateChange('');
-                p.onEndDateChange('');
+                s.setStartDate('');
+                s.setEndDate('');
               } else {
-                p.onStartDateChange(DEFAULT_BACKTEST_START_DATE);
-                p.onEndDateChange(DEFAULT_END_DATE);
+                s.setStartDate(DEFAULT_BACKTEST_START_DATE);
+                s.setEndDate(DEFAULT_END_DATE);
               }
             }}
           />
@@ -178,13 +152,13 @@ function DateAndPointsGrid({ p }: { p: FrontierParamsProps }) {
     </div>
   );
 }
-function AdvancedParamsGrid({ p }: { p: FrontierParamsProps }) {
+function AdvancedParamsGrid({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <SelectField
         label={t('efficientFrontier.params.solveSpeed')}
-        value={p.solveSpeed}
+        value={s.solveSpeed}
         onChange={p.onSolveSpeedChange}
         options={solveSpeedOptions(t)}
       />
@@ -196,8 +170,8 @@ function AdvancedParamsGrid({ p }: { p: FrontierParamsProps }) {
             min={0}
             max={100}
             className="pr-9"
-            value={p.minInclusionWeight}
-            onChange={(e) => p.onMinInclusionWeightChange(Number(e.target.value))}
+            value={s.minInclusionWeight}
+            onChange={(e) => s.setMinInclusionWeight(Number(e.target.value))}
           />
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
             %
@@ -206,58 +180,60 @@ function AdvancedParamsGrid({ p }: { p: FrontierParamsProps }) {
       </Field>
       <SelectField
         label={t('efficientFrontier.params.rebalanceFreq')}
-        value={p.rebalanceFrequency}
+        value={s.rebalanceFrequency}
         onChange={p.onRebalanceFrequencyChange}
         options={rebalanceFreqOptions(t)}
       />
       <SelectField
         label={t('efficientFrontier.params.returnObjective')}
-        value={p.returnObjective}
+        value={s.returnObjective}
         onChange={p.onReturnObjectiveChange}
         options={returnObjOptions(t)}
       />
       <SelectField
         label={t('efficientFrontier.params.solver')}
-        value={p.solver}
+        value={s.solver}
         onChange={p.onSolverChange}
         options={solverOptions(t)}
       />
       <Field>
         <FieldLabel>{t('efficientFrontier.params.allowCash')}</FieldLabel>
         <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
-          <Checkbox
-            checked={p.allowCash}
-            onCheckedChange={(c) => p.onAllowCashChange(c === true)}
-          />
+          <Checkbox checked={s.allowCash} onCheckedChange={(c) => s.setAllowCash(c === true)} />
           <span>{t('efficientFrontier.params.allowCash')}</span>
         </label>
       </Field>
     </div>
   );
 }
-function ParamsSection({ p }: { p: FrontierParamsProps }) {
+function ParamsSection({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
   return (
     <section className="flex flex-col gap-4">
       <SectionHeader title={t('efficientFrontier.params.title')} />
-      <DateAndPointsGrid p={p} />
-      <AdvancedParamsGrid p={p} />
+      <DateAndPointsGrid s={s} />
+      <AdvancedParamsGrid s={s} />
     </section>
   );
 }
-function FrontierParams(props: FrontierParamsProps) {
+function FrontierParams({ state }: FrontierParamsProps) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-5">
-      <TickerListSection p={props} />
-      <ParamsSection p={props} />
-      <Button onClick={props.onRun} disabled={props.isLoading} variant="primary" className="w-full">
-        {props.isLoading ? (
+      <TickerListSection s={state} />
+      <ParamsSection s={state} />
+      <Button
+        onClick={state.runFrontier}
+        disabled={state.isLoading}
+        variant="primary"
+        className="w-full"
+      >
+        {state.isLoading ? (
           <Loader2 className="size-4 animate-spin" />
         ) : (
           <Play className="size-4" />
         )}
-        {props.isLoading
+        {state.isLoading
           ? t('efficientFrontier.params.calculating')
           : t('efficientFrontier.params.calcFrontier')}
       </Button>

@@ -251,7 +251,7 @@ function ParamsSummary({
     </div>
   );
 }
-export function FrontierResults(props: FrontierResultsProps) {
+export function FrontierResults({ state }: { state: FrontierState }) {
   const {
     results: r,
     scatterData,
@@ -265,9 +265,9 @@ export function FrontierResults(props: FrontierResultsProps) {
     allowCash,
     returnObjective,
     solver,
-    onSelectPoint,
-    onLoadInBacktester,
-  } = props;
+    onSelectPoint: setSelectedPoint,
+    onLoadInBacktester: handleLoadInBacktester,
+  } = state;
   return (
     <div className="flex flex-col gap-6">
       <FrontierScatterChart
@@ -275,12 +275,15 @@ export function FrontierResults(props: FrontierResultsProps) {
         sharpeRange={sharpeRange}
         maxSharpe={maxSharpe}
         frontier={r.frontier}
-        onSelectPoint={onSelectPoint}
-        onLoadInBacktester={() => onLoadInBacktester()}
+        onSelectPoint={setSelectedPoint}
+        onLoadInBacktester={() => handleLoadInBacktester()}
       />
       <FrontierAllocations allocationData={allocationData} allAssetTickers={allAssetTickers} />
       <CorrelationMatrixView correlations={correlations} />
-      <SelectedPointDetail selectedPoint={selectedPoint} onLoadInBacktester={onLoadInBacktester} />
+      <SelectedPointDetail
+        selectedPoint={selectedPoint}
+        onLoadInBacktester={handleLoadInBacktester}
+      />
       <MaxSharpeSection maxSharpe={maxSharpe} />
       <ParamsSummary
         rebalanceFrequency={rebalanceFrequency}
@@ -292,37 +295,7 @@ export function FrontierResults(props: FrontierResultsProps) {
   );
 }
 type FrontierState = ReturnType<typeof useEfficientFrontierState>;
-function FrontierParamsWrapper({ state }: { state: FrontierState }) {
-  return (
-    <FrontierParams
-      tickers={state.tickers}
-      startDate={state.startDate}
-      endDate={state.endDate}
-      numPoints={state.numPoints}
-      solveSpeed={state.solveSpeed}
-      minInclusionWeight={state.minInclusionWeight}
-      rebalanceFrequency={state.rebalanceFrequency}
-      allowCash={state.allowCash}
-      returnObjective={state.returnObjective}
-      solver={state.solver}
-      onAddTicker={state.addTicker}
-      onRemoveTicker={state.removeTicker}
-      onUpdateTicker={state.updateTicker}
-      onStartDateChange={state.setStartDate}
-      onEndDateChange={state.setEndDate}
-      onNumPointsChange={state.setNumPoints}
-      onSolveSpeedChange={state.setSolveSpeed}
-      onMinInclusionWeightChange={state.setMinInclusionWeight}
-      onRebalanceFrequencyChange={state.setRebalanceFrequency}
-      onAllowCashChange={state.setAllowCash}
-      onReturnObjectiveChange={state.setReturnObjective}
-      onSolverChange={state.setSolver}
-      isLoading={state.isLoading}
-      onRun={state.runFrontier}
-    />
-  );
-}
-function FrontierResultsWrapper({ state }: { state: FrontierState }) {
+function FrontierResultsView({ state }: { state: FrontierState }) {
   const { t } = useTranslation();
   return (
     <div className="flex flex-col gap-3">
@@ -335,25 +308,7 @@ function FrontierResultsWrapper({ state }: { state: FrontierState }) {
       {state.correlationError && !state.error && (
         <ErrorBanner message={state.correlationError} variant="warning" />
       )}
-      {state.results && state.results.frontier.length > 0 && (
-        <FrontierResults
-          results={state.results}
-          scatterData={state.scatterData}
-          sharpeRange={state.sharpeRange}
-          maxSharpe={state.maxSharpe}
-          allocationData={state.allocationData}
-          allAssetTickers={state.allAssetTickers}
-          correlations={state.correlations}
-          correlationError={state.correlationError}
-          selectedPoint={state.selectedPoint}
-          rebalanceFrequency={state.rebalanceFrequency}
-          allowCash={state.allowCash}
-          returnObjective={state.returnObjective}
-          solver={state.solver}
-          onSelectPoint={state.setSelectedPoint}
-          onLoadInBacktester={state.handleLoadInBacktester}
-        />
-      )}
+      {state.results && state.results.frontier.length > 0 && <FrontierResults state={state} />}
     </div>
   );
 }
@@ -375,8 +330,8 @@ const config: ComputeToolConfig<FrontierState> = {
     { titleKey: 'nav.portfolioOptimize', href: '/optimizer' },
     { titleKey: 'nav.assetAnalysis', href: '/analysis' },
   ],
-  params: FrontierParamsWrapper,
-  results: FrontierResultsWrapper,
+  params: FrontierParams,
+  results: FrontierResultsView,
 };
 export default function EfficientFrontierPage() {
   const s = useEfficientFrontierState();

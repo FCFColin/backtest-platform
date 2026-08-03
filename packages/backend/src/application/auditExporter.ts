@@ -1,29 +1,8 @@
 /**
- * 审计日志导出作业（P2-03 不可篡改审计存储）
- *
- * Architecture: 应用层 — 批量导出作业，将 DB 中未导出的审计日志按日期分组上传至
- * MinIO WORM bucket（Object Lock COMPLIANCE 模式）。设计为 BullMQ 重复任务，
- * 每 5 分钟执行一次（由 queues 层调度，本模块仅提供纯函数入口）。
- *
- * 企业为何需要：DB 中的 audit_logs 表虽含 HMAC 签名可检测篡改，但 DBA 仍可修改
- * 行数据。导出至 MinIO Object Lock COMPLIANCE 模式后，对象一旦写入即在保留期内
- * 不可删除/覆盖，从存储层根除篡改可能。定期导出（非实时）在合规与性能间取得
- * 平衡——审计日志写入不阻塞于 MinIO 上传，导出作业异步批量处理。
- *
- * 导出流程：
- * 1. 拉取未导出审计日志（exported_at IS NULL，按 created_at 正序）
- * 2. 上传前逐条校验 HMAC 完整性（防 DB 已被篡改的记录进入 WORM）
- * 3. 按日期分组（UTC），每组生成一个 JSONL 对象（key: audit/YYYY/MM/DD/<batch-id>.jsonl）
- * 4. 上传至 MinIO（COMPLIANCE WORM）
- * 5. 上传成功后回填 object_key + exported_at
- *
- * 权衡：
- * - 按日期分组而非单条上传：减少 MinIO 对象数量，便于按日期归档与检索；
- *   batch-id（随机 UUID）避免同日多次导出产生键冲突。
- * - 上传前 HMAC 校验：若 DB 记录已被篡改（签名不匹配），跳过该条并记录 warning，
- *   避免将已篡改数据固化到 WORM（WORM 不可改，写入即永久）。
- * - MinIO 未配置时静默跳过（fail-closed），审计日志仍留 DB，待配置就绪后补传。
- * - 单批 100 条上限避免长事务与超大对象；未导出记录积压时下次作业自动续传。
+ * 审计日志导出作业（P2-03 不可篡改审计存储）。
+ * 批量导出 DB 中未导出的审计日志至 MinIO WORM bucket（Object Lock COMPLIANCE）。
+ * BullMQ 重复任务，每 5 分钟执行。DBA 可篡改 DB 行，但 WORM 对象写入后不可删/覆盖。
+ * 上传前逐条 HMAC 校验防篡改记录进入 WORM；MinIO 未配置时静默跳过（fail-closed）。
  */
 import crypto from 'crypto';
 import { logger } from '../utils/logger.js';
