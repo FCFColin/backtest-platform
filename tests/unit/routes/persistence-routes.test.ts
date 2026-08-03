@@ -310,3 +310,63 @@ describe('runRoutes', () => {
     expect(mocks.backtestRunRepo.createRun).toHaveBeenCalledWith(ORG, null, expect.anything());
   });
 });
+
+describe('workspace 错误与参数场景', () => {
+  let server: TestServer;
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    server = await startApp();
+  });
+  afterEach(async () => await server.close());
+  const bases = {
+    portfolios: () => `${server.url}/api/v1/portfolios`,
+    configs: () => `${server.url}/api/v1/configs`,
+    runs: () => `${server.url}/api/v1/runs`,
+  } as const;
+  const listFns = {
+    portfolios: mocks.portfolioRepo.listPortfolios,
+    configs: mocks.savedConfigRepo.listConfigs,
+    runs: mocks.backtestRunRepo.listRuns,
+  } as const;
+  const getFns = {
+    portfolios: mocks.portfolioRepo.getPortfolio,
+    configs: mocks.savedConfigRepo.getConfig,
+    runs: mocks.backtestRunRepo.getRun,
+  } as const;
+
+  it.each(['portfolios', 'configs', 'runs'] as const)('GET /%s 服务错误返回 500', async (res) => {
+    listFns[res].mockRejectedValueOnce(new Error('db fail'));
+    const { res: r } = await reqJson(bases[res](), 'GET');
+    expect(r.status).toBe(500);
+  });
+  it.each(['portfolios', 'configs', 'runs'] as const)(
+    'GET /%s/:id 服务错误返回 500',
+    async (res) => {
+      getFns[res].mockRejectedValueOnce(new Error('db fail'));
+      const { res: r } = await reqJson(`${bases[res]()}/${ID}`, 'GET');
+      expect(r.status).toBe(500);
+    },
+  );
+  it('GET /runs 应支持 limit 查询参数与 NaN 回退', async () => {
+    mocks.backtestRunRepo.listRuns.mockResolvedValueOnce([]);
+    await reqJson(`${bases.runs()}?limit=10`, 'GET');
+    expect(mocks.backtestRunRepo.listRuns).toHaveBeenCalledWith(ORG, 10, 0);
+    mocks.backtestRunRepo.listRuns.mockResolvedValueOnce([]);
+    await reqJson(`${bases.runs()}?limit=abc`, 'GET');
+    expect(mocks.backtestRunRepo.listRuns).toHaveBeenCalledWith(ORG, 50, 0);
+  });
+  it.each(['portfolios', 'configs', 'runs'] as const)(
+    'DELETE /%s/:id 成功返回删除确认',
+    async (res) => {
+      const delFns = {
+        portfolios: mocks.portfolioRepo.deletePortfolio,
+        configs: mocks.savedConfigRepo.deleteConfig,
+        runs: mocks.backtestRunRepo.deleteRun,
+      } as const;
+      delFns[res].mockResolvedValueOnce(true);
+      const { res: r, body } = await reqJson(`${bases[res]()}/${ID}`, 'DELETE');
+      expect(r.status).toBe(200);
+      expect(body.data).toEqual({ id: ID, deleted: true });
+    },
+  );
+});

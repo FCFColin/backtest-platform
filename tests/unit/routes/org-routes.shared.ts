@@ -24,7 +24,6 @@ const internalMocks = vi.hoisted(() => ({
     acceptInvitation: vi.fn(),
   },
   mail: { sendInvitationEmail: vi.fn() },
-  repo: { listRuns: vi.fn(), getRun: vi.fn(), createRun: vi.fn(), deleteRun: vi.fn() },
 }));
 
 vi.mock(
@@ -40,7 +39,6 @@ vi.mock(
   () => internalMocks.invitation,
 );
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => internalMocks.mail);
-vi.mock('../../../packages/backend/src/repositories/backtestRunRepo.js', () => internalMocks.repo);
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({
   validate: (schema: unknown) => (req: TestRequest, res: unknown, next: () => void) => {
