@@ -157,11 +157,7 @@ export function PortfolioCard({
             checked={portfolio.rebalanceBands?.enabled ?? false}
             onCheckedChange={(v) =>
               onUpdate(portfolio.id, {
-                rebalanceBands: {
-                  enabled: v,
-                  absoluteBand: portfolio.rebalanceBands?.absoluteBand,
-                  relativeBand: portfolio.rebalanceBands?.relativeBand,
-                } as RebalanceBands,
+                rebalanceBands: { ...portfolio.rebalanceBands, enabled: v } as RebalanceBands,
               })
             }
           />

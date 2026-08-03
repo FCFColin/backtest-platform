@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Portfolio, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
 import { X } from 'lucide-react';
@@ -25,7 +24,7 @@ const GP_CONFIG = 'p-2 mb-1.5 bg-bg-elevated rounded-md border border-border-sof
 const GP_CONFIG_TITLE = 'text-[11px] font-semibold text-accent mb-1.5 tracking-tight';
 const FIELDS_ROW = 'flex flex-wrap gap-2 items-end';
 
-function FieldLabel({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldLabel({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
       <label className="text-[11px] text-text-muted">{label}</label>
@@ -89,11 +88,10 @@ function GlidepathTargetWeights({
                   step={1}
                   className="h-7 w-[70px] font-mono tabular-nums"
                   onChange={(e) => {
-                    const v = e.target.value === '' ? 0 : Number(e.target.value) / 100;
                     const next = [
                       ...(portfolio.glidepathToWeights ?? portfolio.assets.map(() => 0)),
                     ];
-                    next[ai] = v;
+                    next[ai] = e.target.value === '' ? 0 : Number(e.target.value) / 100;
                     onUpdate(portfolio.id, { glidepathToWeights: next });
                   }}
                 />
@@ -157,11 +155,8 @@ export function GlidepathForm({
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
-  const [gpName, setGpName] = useState('');
-  const [gpFrom, setGpFrom] = useState('');
-  const [gpTo, setGpTo] = useState('');
-  const [gpYears, setGpYears] = useState(10);
-  const canConfirm = gpFrom && gpTo && gpFrom !== gpTo;
+  const [gp, setGp] = useState({ name: '', from: '', to: '', years: 10 });
+  const canConfirm = gp.from && gp.to && gp.from !== gp.to;
   return (
     <div className={GP_FORM}>
       <div className={GP_TITLE}>{t('portfolio.newGlidepath')}</div>
@@ -169,18 +164,18 @@ export function GlidepathForm({
         <FieldLabel label={t('portfolio.name')}>
           <Input
             type="text"
-            value={gpName}
-            onChange={(e) => setGpName(e.target.value)}
+            value={gp.name}
+            onChange={(e) => setGp((p) => ({ ...p, name: e.target.value }))}
             className="h-8 w-[120px]"
           />
         </FieldLabel>
         <GlidepathFields
-          from={gpFrom}
-          to={gpTo}
-          years={gpYears}
-          onFromChange={setGpFrom}
-          onToChange={setGpTo}
-          onYearsChange={setGpYears}
+          from={gp.from}
+          to={gp.to}
+          years={gp.years}
+          onFromChange={(v) => setGp((p) => ({ ...p, from: v }))}
+          onToChange={(v) => setGp((p) => ({ ...p, to: v }))}
+          onYearsChange={(v) => setGp((p) => ({ ...p, years: v }))}
           portfolios={nonGlidepathPortfolios}
         />
         <Button
@@ -188,7 +183,7 @@ export function GlidepathForm({
           size="sm"
           className="text-caption"
           disabled={!canConfirm}
-          onClick={() => canConfirm && onConfirm(gpName, gpFrom, gpTo, gpYears)}
+          onClick={() => canConfirm && onConfirm(gp.name, gp.from, gp.to, gp.years)}
         >
           {t('common.confirm')}
         </Button>
@@ -375,6 +370,7 @@ export function RebalanceBandsRow({
   const { t } = useTranslation();
   const bands = portfolio.rebalanceBands;
   if (!bands?.enabled) return null;
+  const BAND_DEFS: Record<string, number> = { absoluteBand: 5, relativeBand: 20 };
   const items = [
     {
       labelKey: 'portfolio.absoluteDeviation',
@@ -401,7 +397,7 @@ export function RebalanceBandsRow({
         <NumField
           key={item.field}
           label={t(item.labelKey)}
-          value={item.value ?? (item.field === 'absoluteBand' ? 5 : 20)}
+          value={item.value ?? BAND_DEFS[item.field]}
           min={item.min}
           max={item.max}
           step={item.step}
@@ -410,9 +406,9 @@ export function RebalanceBandsRow({
           onChange={(v) =>
             onUpdate(portfolio.id, {
               rebalanceBands: {
+                ...bands,
                 enabled: true,
-                absoluteBand: item.field === 'absoluteBand' ? v || undefined : bands.absoluteBand,
-                relativeBand: item.field === 'relativeBand' ? v || undefined : bands.relativeBand,
+                [item.field]: v || undefined,
               } as RebalanceBands,
             })
           }
