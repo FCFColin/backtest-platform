@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   rbacRepo: {
@@ -23,12 +22,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../../packages/backend/src/repositories/rbacRepo.js', () => mocks.rbacRepo);
 vi.mock('../../../packages/backend/src/infrastructure/rbacCache.js', () => mocks.rbacCache);
+import { createLoggerMocks } from '../../helpers/mockFactories.js';
+import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
-vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
-  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  hasTenant: vi.fn(() => true),
-}));
 
 import rbacRoutes from '../../../packages/backend/src/routes/rbacRoutes.js';
 

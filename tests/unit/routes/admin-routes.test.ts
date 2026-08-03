@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
 
 const callServiceMock = vi.hoisted(() => vi.fn());
 
@@ -27,20 +27,7 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   validateConfig: vi.fn(),
 }));
 
-vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
-  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
-  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
-  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
-  AuthenticatedRequest: Object,
-}));
-
-vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
-  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-  Permission: { ADMIN_ACCESS: 'admin:access' },
-}));
-
+import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 
 const apiKeyServiceMocks = vi.hoisted(() => ({

@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { mockLogger, createConfigMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
 import {
   configureAnalysisMocks,
   configureMonteCarloMocks,
@@ -38,13 +38,6 @@ const internalMocks = vi.hoisted(() => ({
     portfolioToDomain: vi.fn(),
     sanitizeMcParams: vi.fn(),
   } as BacktestMockHandles,
-  logger: {
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    debug: vi.fn(),
-    child: vi.fn(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })),
-  },
   fs: {
     existsSync: vi.fn().mockReturnValue(false),
     readFileSync: vi.fn(),
@@ -60,10 +53,8 @@ const internalMocks = vi.hoisted(() => ({
   queue: { add: vi.fn(), getJob: vi.fn() },
 }));
 
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({
-  logger: mockLogger(internalMocks.logger),
-  httpLogger: vi.fn(),
-}));
+import '../../helpers/middlewareMocks.js';
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
 vi.mock('../../../packages/backend/src/application/backtest-service.js', () => ({
   runPortfolioBacktest: internalMocks.m.runPortfolioBacktest,
   runBacktest: internalMocks.m.runBacktest,
@@ -120,48 +111,6 @@ vi.mock('../../../packages/backend/src/config/index.js', () => ({
   validateConfig: vi.fn(),
   USAGE_METRIC: { BACKTEST: 'backtest' },
 }));
-vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
-  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
-  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
-  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
-  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  hasTenant: vi.fn(() => true),
-}));
-vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
-  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-  Permission: {
-    BACKTEST_RUN: 'backtest:run',
-    OPTIMIZER_RUN: 'optimizer:run',
-    STRATEGY_MANAGE: 'strategy:manage',
-    SIGNAL_READ: 'signal:read',
-  },
-}));
-vi.mock('../../../packages/backend/src/middleware/quota.js', () => ({
-  enforceQuota: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => {
-  const noop = () => {};
-  return {
-    redisConnection: { on: noop },
-    appRedis: {
-      on: noop,
-      ping: async () => 'PONG',
-      set: async () => 'OK',
-      get: async () => null,
-      scan: async () => ['0', []] as [string, string[]],
-      del: async () => 0,
-    },
-    getRedisHealth: vi.fn().mockResolvedValue(true),
-    markRedisUnhealthy: vi.fn(),
-    buildRedisBaseOptions: () => ({ host: 'localhost', port: 6379 }),
-    isSentinelMode: false,
-  };
-});
 vi.mock('fs', () => ({
   default: internalMocks.fs,
   existsSync: internalMocks.fs.existsSync,
@@ -175,7 +124,7 @@ configureOptimizationMocks(internalMocks.m);
 configureTickerHelpersMocks(internalMocks.m);
 
 export const m = internalMocks.m;
-export const loggerMocks = internalMocks.logger;
+export { loggerMocks } from '../../helpers/middlewareMocks.js';
 export const fsMocks = internalMocks.fs;
 export const MockEngineUnavailableError = internalMocks.engineUnavailable;
 export const queueMocks = internalMocks.queue;

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { createLoggerMocks } from '../../helpers/mockFactories.js';
 
 const mocks = vi.hoisted(() => ({
   pool: { withTenant: vi.fn() },
@@ -26,16 +25,7 @@ vi.mock('../../../packages/backend/src/application/webhookService.js', () => ({
   cleanupOldDeliveries: vi.fn(),
 }));
 vi.mock('../../../packages/backend/src/utils/crypto.js', () => ({ decrypt: mocks.crypto.decrypt }));
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
-vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
-  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  hasTenant: vi.fn(() => true),
-}));
-vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
-  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-  Permission: { ADMIN_ACCESS: 'admin:access' },
-}));
+import '../../helpers/middlewareMocks.js';
 
 import webhookRoutes from '../../../packages/backend/src/routes/webhookRoutes.js';
 

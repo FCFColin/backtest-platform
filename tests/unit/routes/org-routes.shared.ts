@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { createLoggerMocks, createConfigMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
 import type { Router } from 'express';
 
 const internalMocks = vi.hoisted(() => ({
@@ -40,6 +40,7 @@ vi.mock(
 );
 vi.mock('../../../packages/backend/src/infrastructure/mailService.js', () => internalMocks.mail);
 vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+import '../../helpers/middlewareMocks.js';
 vi.mock('../../../packages/backend/src/middleware/miscMiddleware.js', () => ({
   validate: (schema: unknown) => (req: TestRequest, res: unknown, next: () => void) => {
     const result = (
@@ -67,19 +68,6 @@ vi.mock('../../../packages/backend/src/schemas/backtest.js', () => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ STRIPE_PUBLISHABLE_KEY: 'pk_test_1' }),
 }));
-vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
-  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
-  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
-  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
-  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  hasTenant: vi.fn(() => true),
-}));
-
 export const mocks = internalMocks;
 export const ORG = '11111111-1111-1111-1111-111111111111';
 export const USER = '33333333-3333-3333-3333-333333333333';
