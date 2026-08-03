@@ -4,9 +4,9 @@ import { Checkbox, Input } from '@/components/ui/uiComponents';
 import { Field, FieldLabel } from '@/components/form/Field';
 import { SectionHeader, SelectField, RunButton } from '@/components/form/sharedFields';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
+import { useTagDiff, AllHistoryCheckbox } from '@/components/params/toolFields.js';
 import type { SolveSpeed, FrontierSolver, ReturnObjective } from './EfficientFrontierUtils.js';
 import type { FrontierState } from './EfficientFrontierUtils.js';
-import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 const solveSpeedOptions = (t: TFunction): { value: SolveSpeed; label: string }[] => [
   { value: 'ultrafast', label: t('efficientFrontier.solveSpeed.ultrafast') },
   { value: 'fast', label: t('efficientFrontier.solveSpeed.fast') },
@@ -33,23 +33,7 @@ interface FrontierParamsProps {
 }
 function TickerListSection({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
-  const handleTagChange = (newTickers: string[]) => {
-    const oldLen = s.tickers.length;
-    if (newTickers.length > oldLen) {
-      s.addTicker();
-    } else if (newTickers.length < oldLen) {
-      for (let i = 0; i < oldLen; i++) {
-        if (!newTickers.includes(s.tickers[i])) {
-          s.removeTicker(i);
-          break;
-        }
-      }
-    } else {
-      newTickers.forEach((tk, i) => {
-        if (tk !== s.tickers[i]) s.updateTicker(i, tk);
-      });
-    }
-  };
+  const handleTagChange = useTagDiff(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
   return (
     <section className="flex flex-col gap-3">
       <SectionHeader title={t('efficientFrontier.params.tickerList')} />
@@ -64,7 +48,6 @@ function TickerListSection({ s }: { s: FrontierState }) {
 }
 function DateAndPointsGrid({ s }: { s: FrontierState }) {
   const { t } = useTranslation();
-  const allHistoryChecked = s.startDate === '' && s.endDate === '';
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Field>
@@ -87,21 +70,13 @@ function DateAndPointsGrid({ s }: { s: FrontierState }) {
       </Field>
       <Field>
         <FieldLabel>{t('efficientFrontier.params.allHistory')}</FieldLabel>
-        <label className="flex h-10 cursor-pointer items-center gap-2 text-label text-fg-secondary">
-          <Checkbox
-            checked={allHistoryChecked}
-            onCheckedChange={(c) => {
-              if (c === true) {
-                s.setStartDate('');
-                s.setEndDate('');
-              } else {
-                s.setStartDate(DEFAULT_BACKTEST_START_DATE);
-                s.setEndDate(DEFAULT_END_DATE);
-              }
-            }}
-          />
-          <span>{t('efficientFrontier.params.allHistory')}</span>
-        </label>
+        <AllHistoryCheckbox
+          startDate={s.startDate}
+          endDate={s.endDate}
+          onStartDateChange={s.setStartDate}
+          onEndDateChange={s.setEndDate}
+          label={t('efficientFrontier.params.allHistory')}
+        />
       </Field>
     </div>
   );

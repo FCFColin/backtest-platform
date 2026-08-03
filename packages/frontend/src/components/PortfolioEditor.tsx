@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, X, ChevronDown, FolderOpen, GitCompare } from 'lucide-react';
@@ -17,7 +17,16 @@ import {
 import { getPortfolioColor } from '@/lib/chart-theme.js';
 import { downloadJSON } from '@/utils/format';
 import { REBALANCE_LBL } from '@/utils/constants';
-import { AffixInput, Badge, Button, Input } from '@/components/ui/uiComponents';
+import {
+  AffixInput,
+  Badge,
+  Button,
+  Input,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/uiComponents';
 interface PortfolioAsset {
   ticker: string;
   weight: number;
@@ -139,159 +148,40 @@ interface AddMenuActions {
   onLoadCompareExample: () => void;
   onComingSoon: () => void;
 }
-const MENU_ITEM_CLS =
-  'flex w-full px-3 py-2 text-left text-caption text-fg bg-transparent hover:bg-hover transition-colors border-0 cursor-pointer';
-function MenuButton({
-  label,
-  icon,
-  onClick,
-}: {
-  label: string;
-  icon?: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`${MENU_ITEM_CLS} items-center gap-2`}
-      role="menuitem"
-      onClick={onClick}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
-function AddMenuDropdown({
-  t,
-  onAdd,
-  onAddPreset,
-  onAddGlidepath,
-  onLoadExample,
-  onLoadCompareExample,
-  onComingSoon,
-  presetSubOpen,
-  setPresetSubOpen,
-  close,
-}: AddMenuActions & {
-  presetSubOpen: boolean;
-  setPresetSubOpen: (v: boolean) => void;
-  close: () => void;
-}) {
-  const wrap = (fn: () => void) => () => {
-    fn();
-    close();
-  };
-  return (
-    <div
-      className="absolute top-full right-0 mt-1 z-30 min-w-[200px] bg-surface border border-border rounded-lg shadow-lg py-1"
-      role="menu"
-    >
-      <MenuButton label={t('portfolio.addEmpty')} onClick={wrap(onAdd)} />
-      <PresetSubmenu
-        t={t}
-        onAddPreset={onAddPreset}
-        onSubOpen={presetSubOpen}
-        setSubOpen={setPresetSubOpen}
-        close={close}
-      />
-      <MenuButton label={t('portfolio.addSaved')} onClick={wrap(onComingSoon)} />
-      <MenuButton label={t('portfolio.addGlidepath')} onClick={wrap(onAddGlidepath)} />
-      <div className="h-px bg-border-subtle my-1" />
-      <MenuButton label={t('portfolio.loadExample')} onClick={wrap(onLoadExample)} />
-      <MenuButton
-        label={t('portfolio.loadCompareExample')}
-        icon={<GitCompare className="w-3.5 h-3.5 shrink-0" />}
-        onClick={wrap(onLoadCompareExample)}
-      />
-    </div>
-  );
-}
 function AddPortfolioMenu(props: AddMenuActions) {
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
-  const [presetSubOpen, setPresetSubOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const { t } = props;
-  useEffect(() => {
-    if (!addMenuOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setAddMenuOpen(false);
-        setPresetSubOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, [addMenuOpen]);
   return (
-    <div ref={menuRef} className="relative">
-      <Button
-        variant="secondary"
-        size="sm"
-        aria-expanded={addMenuOpen}
-        onClick={() => setAddMenuOpen((v) => !v)}
-      >
-        <Plus className="w-3.5 h-3.5" />
-        {t('portfolio.addPortfolio')}
-        <ChevronDown className="w-3.5 h-3.5" />
-      </Button>
-      {addMenuOpen && (
-        <AddMenuDropdown
-          {...props}
-          presetSubOpen={presetSubOpen}
-          setPresetSubOpen={setPresetSubOpen}
-          close={() => setAddMenuOpen(false)}
-        />
-      )}
-    </div>
-  );
-}
-function PresetSubmenu({
-  t,
-  onAddPreset,
-  onSubOpen,
-  setSubOpen,
-  close,
-}: {
-  t: TFunc;
-  onAddPreset: (presetId: string) => void;
-  onSubOpen: boolean;
-  setSubOpen: (v: boolean) => void;
-  close: () => void;
-}) {
-  return (
-    <div
-      className="relative"
-      onMouseEnter={() => setSubOpen(true)}
-      onMouseLeave={() => setSubOpen(false)}
-    >
-      <button type="button" className={MENU_ITEM_CLS} role="menuitem">
-        {t('portfolio.addPreset')}
-        <ChevronDown className="w-3 h-3 ml-auto rotate-[-90deg]" />
-      </button>
-      {onSubOpen && (
-        <div
-          className="absolute top-0 right-full mr-1 min-w-[240px] bg-surface border border-border rounded-lg shadow-lg py-1"
-          role="menu"
-        >
-          {PORTFOLIO_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              className={`${MENU_ITEM_CLS} flex-col gap-0.5`}
-              role="menuitem"
-              onClick={() => {
-                onAddPreset(preset.id);
-                close();
-              }}
-            >
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" size="sm">
+          <Plus className="w-3.5 h-3.5" />
+          {t('portfolio.addPortfolio')}
+          <ChevronDown className="w-3.5 h-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-[200px]">
+        <DropdownMenuItem onClick={props.onAdd}>{t('portfolio.addEmpty')}</DropdownMenuItem>
+        {PORTFOLIO_PRESETS.map((preset) => (
+          <DropdownMenuItem key={preset.id} onClick={() => props.onAddPreset(preset.id)}>
+            <div className="flex flex-col gap-0.5">
               <span className="text-caption font-medium text-fg">{t(preset.labelKey)}</span>
               <span className="text-caption text-fg-tertiary">{t(preset.descriptionKey)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+            </div>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuItem onClick={props.onComingSoon}>{t('portfolio.addSaved')}</DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onAddGlidepath}>
+          {t('portfolio.addGlidepath')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onLoadExample}>
+          {t('portfolio.loadExample')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={props.onLoadCompareExample}>
+          <GitCompare className="w-3.5 h-3.5 shrink-0" />
+          {t('portfolio.loadCompareExample')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 function PortfolioEditorHeader({

@@ -36,31 +36,7 @@ import { Field, FieldLabel, FieldDescription } from '../../components/form/Field
 import { LabeledField } from '../../components/form/sharedFields.js';
 import { TickerTagInput } from '../../components/form/TickerTagInput.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
-
-/** Shared tag-change handler for TickerTagInput ↔ useListState bridge */
-function tagChangeHandler(
-  tickers: string[],
-  onAdd: () => void,
-  onRemove: (i: number) => void,
-  onUpdate: (i: number, v: string) => void,
-) {
-  return (newTickers: string[]) => {
-    const oldLen = tickers.length;
-    if (newTickers.length > oldLen) onAdd();
-    else if (newTickers.length < oldLen) {
-      for (let i = 0; i < oldLen; i++) {
-        if (!newTickers.includes(tickers[i])) {
-          onRemove(i);
-          break;
-        }
-      }
-    } else {
-      newTickers.forEach((tk, i) => {
-        if (tk !== tickers[i]) onUpdate(i, tk);
-      });
-    }
-  };
-}
+import { useTagDiff } from '@/components/params/toolFields.js';
 function usePcaPageState() {
   const { t } = useTranslation();
   const {
@@ -129,7 +105,7 @@ function getLoadingColor(loading: number): string {
 }
 function PCAParamsPanel({ state: s }: { state: PCAState }) {
   const { t } = useTranslation();
-  const handleTagChange = tagChangeHandler(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
+  const handleTagChange = useTagDiff(s.tickers, s.addTicker, s.removeTicker, s.updateTicker);
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <div className="col-span-full">

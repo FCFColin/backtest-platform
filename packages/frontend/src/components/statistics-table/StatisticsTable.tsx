@@ -25,6 +25,7 @@ import {
   fmtPct,
 } from '@/utils/format.js';
 import { STAT_KEY_TO_TESTID } from './types.js';
+import { SimpleTable, type SimpleTableColumn } from '@/components/tables.js';
 interface StatColumn {
   key: string;
   label: string;
@@ -277,49 +278,35 @@ const EXTENDED_COLUMNS = [
 ];
 export function ExtendedMetricsTable({ portfolios }: ExtendedMetricsTableProps) {
   const { t } = useTranslation();
+  const columns: SimpleTableColumn<(typeof portfolios)[number]>[] = [
+    { key: 'name', label: t('results.extendedMetrics.portfolio'), render: (p) => p.name },
+    ...EXTENDED_COLUMNS.map((col) => ({
+      key: col.key,
+      label: col.label,
+      align: 'right' as const,
+      render: (p: (typeof portfolios)[number]) => {
+        const value = p.stats[col.key] ?? 0;
+        return (
+          <span
+            className={
+              col.format === 'percent'
+                ? value < 0
+                  ? 'text-neg'
+                  : value > 0
+                    ? 'text-pos'
+                    : undefined
+                : undefined
+            }
+          >
+            {col.format === 'percent' ? formatPercent(value) : formatNumber(value)}
+          </span>
+        );
+      },
+    })),
+  ];
   return (
     <div className="mt-4 border border-border rounded-lg overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-caption">
-          <thead>
-            <tr className="bg-surface-sunken border-b border-border">
-              <th className="h-10 px-3 text-left text-label-tiny text-fg-tertiary sticky left-0 bg-surface-sunken z-10">
-                {t('results.extendedMetrics.portfolio')}
-              </th>
-              {EXTENDED_COLUMNS.map((col) => (
-                <th key={col.key} className="h-10 px-3 text-right text-label-tiny text-fg-tertiary">
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {portfolios.map((p) => (
-              <tr
-                key={p.id}
-                className="h-12 border-b border-border-subtle last:border-b-0 hover:bg-hover/50"
-              >
-                <td className="px-3 text-left sticky left-0 bg-surface z-10">{p.name}</td>
-                {EXTENDED_COLUMNS.map((col) => {
-                  const value = p.stats[col.key] ?? 0;
-                  return (
-                    <td
-                      key={col.key}
-                      className={cn(
-                        'px-3 text-right font-mono tabular-nums',
-                        col.format === 'percent' && value < 0 && 'text-neg',
-                        col.format === 'percent' && value > 0 && 'text-pos',
-                      )}
-                    >
-                      {col.format === 'percent' ? formatPercent(value) : formatNumber(value)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SimpleTable columns={columns} data={portfolios} rowKey={(p) => p.id} />
     </div>
   );
 }
