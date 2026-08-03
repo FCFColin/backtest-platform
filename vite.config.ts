@@ -115,7 +115,7 @@ export default defineConfig(async ({ command }) => {
               'tests/unit/services/**/*.test.ts',
               'tests/unit/lib/**/*.test.ts',
               'tests/unit/styles/**/*.test.ts',
-              'tests/unit/utils/{crypto,date-utils,engine-body-builder,engine-client,envelope-encryption,errors,http-client,integrity,log-sanitizer,logger,metrics,numeric-range,rate-limiter,rate-limiter-fail-closed,request-context,ssrf-guard,ticker-validation}.test.ts',
+              'tests/unit/utils/{crypto,date-utils,engine-body-builder,engine-client,envelope-encryption,errors,http-client,integrity,log-sanitizer,logger,metrics,numeric-range,performanceReporter,rate-limiter,rate-limiter-fail-closed,request-context,ssrf-guard,ticker-validation}.test.ts',
               'tests/integration/**/*.test.ts',
               'tests/contract/**/*.test.ts',
               'tests/fuzz/**/*.test.ts',
@@ -127,7 +127,11 @@ export default defineConfig(async ({ command }) => {
             testTimeout: 30000,
             hookTimeout: 60000,
             deps: {
-              moduleDirectories: ['node_modules', 'packages/backend/node_modules'],
+              moduleDirectories: [
+                'node_modules',
+                'packages/backend/node_modules',
+                'packages/frontend/node_modules',
+              ],
             },
           },
           resolve: {
@@ -237,7 +241,7 @@ export default defineConfig(async ({ command }) => {
         thresholds: {
           lines: 80,
           functions: 80,
-          branches: 70,
+          branches: 80,
           statements: 80,
           'packages/backend/src/domain/**': { lines: 95 },
           'packages/backend/src/middleware/**': { lines: 90 },

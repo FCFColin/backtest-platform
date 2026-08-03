@@ -6,8 +6,8 @@
  * 写路径经 withTenant()（主库 + RLS）强制隔离。
  * config 以 JSONB 原样存储完整回测请求（组合 + 参数），加载时直接回填前端。
  */
-import { withTenant, withTenantReadOnly } from '../db/pool.js';
 import { rowMapper, iso } from './rowMapper.js';
+import { createTenantCrudRepo } from './tenantCrudRepo.js';
 
 interface SavedConfigRecord {
   id: string;
@@ -32,100 +32,25 @@ const mapRow = rowMapper<SavedConfigRecord>({
   updatedAt: (r) => iso(r.updated_at),
 });
 
-const SELECT_COLS = 'id, name, config, owner_user_id, created_at, updated_at';
+const repo = createTenantCrudRepo<SavedConfigRecord, SavedConfigInput>({
+  table: 'saved_configs',
+  selectCols: 'id, name, config, owner_user_id, created_at, updated_at',
+  orderBy: 'updated_at DESC',
+  sanitizeLimit: (limit) => Math.min(limit, 200),
+  insertCols: 'tenant_id, owner_user_id, name, config',
+  updateSet: 'name = $2, config = $3::jsonb, updated_at = NOW()',
+  mapRow,
+  toInsert: (tenantId, ownerUserId, input) => [
+    tenantId,
+    ownerUserId,
+    input.name,
+    JSON.stringify(input.config),
+  ],
+  toUpdate: (id, input) => [input.name, JSON.stringify(input.config)],
+});
 
-/**
- * 列出租户下全部命名配置（按更新时间倒序）。
- *
- * @param tenantId - 活跃组织 UUID
- */
-export async function listConfigs(
-  tenantId: string,
-  limit: number = 50,
-  offset: number = 0,
-): Promise<SavedConfigRecord[]> {
-  return withTenantReadOnly(tenantId, async (client) => {
-    const capped = Math.min(limit, 200);
-    const offsetSafe = Math.max(0, offset);
-    const { rows } = await client.query(
-      `SELECT ${SELECT_COLS} FROM saved_configs ORDER BY updated_at DESC LIMIT $1 OFFSET $2`,
-      [capped, offsetSafe],
-    );
-    return rows.map(mapRow);
-  });
-}
-
-/**
- * 按 ID 获取命名配置（不存在返回 null）。
- *
- * @param tenantId - 活跃组织 UUID
- * @param id - 配置 UUID
- */
-export async function getConfig(tenantId: string, id: string): Promise<SavedConfigRecord | null> {
-  return withTenantReadOnly(tenantId, async (client) => {
-    const { rows } = await client.query(`SELECT ${SELECT_COLS} FROM saved_configs WHERE id = $1`, [
-      id,
-    ]);
-    return rows.length > 0 ? mapRow(rows[0]) : null;
-  });
-}
-
-/**
- * 创建命名配置。若同名已存在则覆盖其内容（upsert 语义，贴合"保存为同名"的前端习惯）。
- *
- * @param tenantId - 活跃组织 UUID
- * @param ownerUserId - 创建者 UUID（可空）
- * @param input - 配置内容
- */
-export async function createConfig(
-  tenantId: string,
-  ownerUserId: string | null,
-  input: SavedConfigInput,
-): Promise<SavedConfigRecord> {
-  return withTenant(tenantId, async (client) => {
-    const { rows } = await client.query(
-      `INSERT INTO saved_configs (tenant_id, owner_user_id, name, config)
-       VALUES ($1, $2, $3, $4::jsonb)
-       RETURNING ${SELECT_COLS}`,
-      [tenantId, ownerUserId, input.name, JSON.stringify(input.config)],
-    );
-    return mapRow(rows[0]);
-  });
-}
-
-/**
- * 更新命名配置（全量覆盖）。不存在返回 null。
- *
- * @param tenantId - 活跃组织 UUID
- * @param id - 配置 UUID
- * @param input - 新内容
- */
-export async function updateConfig(
-  tenantId: string,
-  id: string,
-  input: SavedConfigInput,
-): Promise<SavedConfigRecord | null> {
-  return withTenant(tenantId, async (client) => {
-    const { rows } = await client.query(
-      `UPDATE saved_configs
-          SET name = $2, config = $3::jsonb, updated_at = NOW()
-        WHERE id = $1
-      RETURNING ${SELECT_COLS}`,
-      [id, input.name, JSON.stringify(input.config)],
-    );
-    return rows.length > 0 ? mapRow(rows[0]) : null;
-  });
-}
-
-/**
- * 删除命名配置。返回是否删除成功。
- *
- * @param tenantId - 活跃组织 UUID
- * @param id - 配置 UUID
- */
-export async function deleteConfig(tenantId: string, id: string): Promise<boolean> {
-  return withTenant(tenantId, async (client) => {
-    const { rowCount } = await client.query('DELETE FROM saved_configs WHERE id = $1', [id]);
-    return (rowCount ?? 0) > 0;
-  });
-}
+export const listConfigs = repo.list;
+export const getConfig = repo.get;
+export const createConfig = repo.create;
+export const updateConfig = repo.update;
+export const deleteConfig = repo.delete;

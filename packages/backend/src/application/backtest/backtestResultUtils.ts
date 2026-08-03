@@ -160,16 +160,8 @@ export async function getBacktestResultCache(key: string): Promise<BacktestResul
       return entry.result;
     }
   }
-  const redisOk = await getRedisHealth();
-  if (redisOk) {
+  if (await getRedisHealth()) {
     try {
-      const entryAfter = cache.get(key);
-      if (entryAfter && Date.now() <= entryAfter.expiresAt) {
-        cache.delete(key);
-        cache.set(key, entryAfter);
-        recordCacheHit('backtest_result_cache', true);
-        return entryAfter.result;
-      }
       const raw = await appRedis.get(`${BACKTEST_CACHE_REDIS_PREFIX}${key}`);
       if (raw) {
         const result = JSON.parse(raw) as BacktestResult;

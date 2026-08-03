@@ -5,11 +5,8 @@
  * 无法服务端复用。迁移到 Postgres 后由 RLS 强制租户隔离：读路径经 withTenantReadOnly()
  * （读副本 + RLS），写路径经 withTenant()（主库 + RLS），在事务内激活
  * app.current_tenant_id，即便忘记 WHERE tenant_id 也不会跨租户泄露。
- *
- * 所有方法都要求 tenantId（活跃组织 UUID）；owner_user_id 记录创建者用于审计/展示，
- * 但隔离边界是租户而非用户（同组织成员可见彼此组合，符合团队协作语义）。
  */
-import { withTenant, withTenantReadOnly } from '../db/pool.js';
+import crypto from 'node:crypto';
 import {
   Portfolio as DomainPortfolio,
   type PortfolioHolding,
@@ -18,6 +15,7 @@ import { DomainValidationError, Ticker, Weight } from '../domain/value-objects/i
 import { ValidationError } from '../utils/errors.js';
 import type { Asset, RebalanceFrequency } from '@backtest/shared';
 import { rowMapper, iso } from './rowMapper.js';
+import { createTenantCrudRepo } from './tenantCrudRepo.js';
 
 interface PortfolioRecord {
   id: string;
@@ -45,56 +43,12 @@ const mapRow = rowMapper<PortfolioRecord>({
   updatedAt: (r) => iso(r.updated_at),
 });
 
-const SELECT_COLS = 'id, name, assets, rebalance_frequency, owner_user_id, created_at, updated_at';
-
 /**
- * 列出租户下的全部组合（按更新时间倒序）。
+ * 领域校验：通过聚合根构造函数强制不变量，返回净化后的持久化 DTO。
  *
- * @param tenantId - 活跃组织（租户）UUID
- * @returns 组合记录数组
- */
-export async function listPortfolios(
-  tenantId: string,
-  limit: number = 50,
-  offset: number = 0,
-): Promise<PortfolioRecord[]> {
-  return withTenantReadOnly(tenantId, async (client) => {
-    const capped = Math.min(limit, 200);
-    const offsetSafe = Math.max(0, offset);
-    const { rows } = await client.query(
-      `SELECT ${SELECT_COLS} FROM portfolios ORDER BY updated_at DESC LIMIT $1 OFFSET $2`,
-      [capped, offsetSafe],
-    );
-    return rows.map(mapRow);
-  });
-}
-
-/**
- * 按 ID 获取组合（租户隔离，不存在返回 null）。
- *
- * @param tenantId - 活跃组织 UUID
- * @param id - 组合 UUID
- */
-export async function getPortfolio(tenantId: string, id: string): Promise<PortfolioRecord | null> {
-  return withTenantReadOnly(tenantId, async (client) => {
-    const { rows } = await client.query(`SELECT ${SELECT_COLS} FROM portfolios WHERE id = $1`, [
-      id,
-    ]);
-    return rows.length > 0 ? mapRow(rows[0]) : null;
-  });
-}
-
-/**
- * 领域校验：通过聚合根构造函数强制不变量，返回净化后的聚合根实例。
- *
- * @param input - 组合内容
- * @param id - 组合 UUID（创建时省略则自动生成）
  * @throws {ValidationError} 当权重和不为 ~100 或包含非法 ticker 时
  */
-function validateAndBuildPortfolio(
-  input: PortfolioInput,
-  id: string = crypto.randomUUID(),
-): DomainPortfolio {
+function validateAndBuild(input: PortfolioInput, id: string): unknown {
   const holdings: PortfolioHolding[] = input.assets.map((a) => ({
     ticker: Ticker.create(a.ticker),
     weight: Weight.create(a.weight),
@@ -102,7 +56,7 @@ function validateAndBuildPortfolio(
   try {
     return DomainPortfolio.create(id, input.name, holdings, {
       rebalanceFrequency: input.rebalanceFrequency,
-    });
+    }).toPersistenceDTO();
   } catch (err) {
     if (err instanceof DomainValidationError) {
       throw new ValidationError(err.message, 'VALIDATION_ERROR', 'Portfolio validation failed');
@@ -111,75 +65,35 @@ function validateAndBuildPortfolio(
   }
 }
 
-/**
- * 创建组合。在写入前通过 domain 聚合根强制校验权重和不变量（ADR-013）。
- *
- * @param tenantId - 活跃组织 UUID
- * @param ownerUserId - 创建者用户 UUID（可空）
- * @param input - 组合内容
- * @throws {Error} 当权重和不为 ~100 或包含非法 ticker 时
- */
-export async function createPortfolio(
-  tenantId: string,
-  ownerUserId: string | null,
-  input: PortfolioInput,
-): Promise<PortfolioRecord> {
-  const dto = validateAndBuildPortfolio(input).toPersistenceDTO();
+const repo = createTenantCrudRepo<PortfolioRecord, PortfolioInput>({
+  table: 'portfolios',
+  selectCols: 'id, name, assets, rebalance_frequency, owner_user_id, created_at, updated_at',
+  orderBy: 'updated_at DESC',
+  sanitizeLimit: (limit) => Math.min(limit, 200),
+  insertCols: 'tenant_id, owner_user_id, name, assets, rebalance_frequency',
+  updateSet: 'name = $2, assets = $3::jsonb, rebalance_frequency = $4, updated_at = NOW()',
+  mapRow,
+  toInsert: (tenantId, ownerUserId, input) => {
+    const dto = validateAndBuild(input, crypto.randomUUID()) as {
+      name: string;
+      assets: Asset[];
+    };
+    return [
+      tenantId,
+      ownerUserId,
+      dto.name,
+      JSON.stringify(dto.assets),
+      input.rebalanceFrequency ?? 'none',
+    ];
+  },
+  toUpdate: (id, input) => {
+    const dto = validateAndBuild(input, id) as { name: string; assets: Asset[] };
+    return [dto.name, JSON.stringify(dto.assets), input.rebalanceFrequency ?? 'none'];
+  },
+});
 
-  return withTenant(tenantId, async (client) => {
-    const { rows } = await client.query(
-      `INSERT INTO portfolios (tenant_id, owner_user_id, name, assets, rebalance_frequency)
-       VALUES ($1, $2, $3, $4::jsonb, $5)
-       RETURNING ${SELECT_COLS}`,
-      [
-        tenantId,
-        ownerUserId,
-        dto.name,
-        JSON.stringify(dto.assets),
-        input.rebalanceFrequency ?? 'none',
-      ],
-    );
-    return mapRow(rows[0]);
-  });
-}
-
-/**
- * 更新组合（全量覆盖）。在写入前通过 domain 聚合根强制校验不变量（ADR-013）。
- * 不存在返回 null。
- *
- * @param tenantId - 活跃组织 UUID
- * @param id - 组合 UUID
- * @param input - 新内容
- * @throws {Error} 当权重和不为 ~100 或包含非法 ticker 时
- */
-export async function updatePortfolio(
-  tenantId: string,
-  id: string,
-  input: PortfolioInput,
-): Promise<PortfolioRecord | null> {
-  const dto = validateAndBuildPortfolio(input, id).toPersistenceDTO();
-
-  return withTenant(tenantId, async (client) => {
-    const { rows } = await client.query(
-      `UPDATE portfolios
-          SET name = $2, assets = $3::jsonb, rebalance_frequency = $4, updated_at = NOW()
-        WHERE id = $1
-      RETURNING ${SELECT_COLS}`,
-      [id, dto.name, JSON.stringify(dto.assets), input.rebalanceFrequency ?? 'none'],
-    );
-    return rows.length > 0 ? mapRow(rows[0]) : null;
-  });
-}
-
-/**
- * 删除组合（租户隔离）。返回是否删除成功。
- *
- * @param tenantId - 活跃组织 UUID
- * @param id - 组合 UUID
- */
-export async function deletePortfolio(tenantId: string, id: string): Promise<boolean> {
-  return withTenant(tenantId, async (client) => {
-    const { rowCount } = await client.query('DELETE FROM portfolios WHERE id = $1', [id]);
-    return (rowCount ?? 0) > 0;
-  });
-}
+export const listPortfolios = repo.list;
+export const getPortfolio = repo.get;
+export const createPortfolio = repo.create;
+export const updatePortfolio = repo.update;
+export const deletePortfolio = repo.delete;

@@ -8,10 +8,10 @@ const projectRoot = resolve(__dirname, '..');
 
 // Phase 1 门禁（见文件头说明；上调时同步更新输出文案中的门槛值）
 const GLOBAL_THRESHOLDS = {
-  lines: 5,
-  functions: 55,
-  statements: 5,
-  branches: 70,
+  lines: 80,
+  functions: 80,
+  statements: 80,
+  branches: 80,
 };
 
 const candidatePaths = [
@@ -115,9 +115,8 @@ const CRITICAL_FILES = [
   'packages/backend/src/queues/backtestQueue.ts',
 ];
 
-// Phase 1: 逐文件门槛暂挂起（阈值 0），2026-08 基线 12+ 文件行覆盖 0%，先由全局门禁防回归
-const MIN_LINE_COVERAGE = 0;
-const CRITICAL_LINE_COVERAGE = 0;
+const MIN_LINE_COVERAGE = 60;
+const CRITICAL_LINE_COVERAGE = 60;
 /**
  * 分层门控：只检查这些路径下的文件（vitest workspace 模式下 include/exclude 不生效，
  * 通过白名单限制检查范围）。纯 UI 页面/组件由 E2E 覆盖，不强制单测。
@@ -166,6 +165,8 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   'packages/backend/src/queues/backtestQueue.ts',
   // P1-04: WebSocket service needs integration tests (Redis Pub/Sub + WS handshake)
   'packages/backend/src/services/backtestWs.ts',
+  // Kafka 未安装，仅 no-op 路径可测
+  'packages/backend/src/infrastructure/outboxKafkaConsumer.ts',
   // P0-02: 0% covered infra/config/route/repo files (need external services/DB, untestable in unit)
   'packages/backend/src/ssrMiddleware.ts',
   'packages/backend/src/db/marketStatsTypes.ts',

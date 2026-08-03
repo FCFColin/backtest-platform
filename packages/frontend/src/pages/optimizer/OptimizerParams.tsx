@@ -17,13 +17,15 @@ import { TickerTagInput } from '@/components/form/TickerTagInput.js';
 import type { EfficientFrontierState, SolverType } from './OptimizerUtils.js';
 import { DEFAULT_BACKTEST_START_DATE, DEFAULT_END_DATE } from '@/utils/constants';
 
-function PercentInput(props: InputProps) {
+function PercentInput({ showPercent = true, ...props }: InputProps & { showPercent?: boolean }) {
   return (
     <div className="relative">
-      <Input type="number" className="pr-8" {...props} />
-      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
-        %
-      </span>
+      <Input type="number" className={showPercent ? 'pr-8' : undefined} {...props} />
+      {showPercent && (
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-caption text-fg-tertiary">
+          %
+        </span>
+      )}
     </div>
   );
 }
