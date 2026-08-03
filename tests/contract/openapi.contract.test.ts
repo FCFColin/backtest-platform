@@ -1,12 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import SwaggerParser from '@apidevtools/swagger-parser';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const openapiPath = path.resolve(__dirname, '../../docs/openapi.yaml');
+import { generateOpenApiDocument } from '../../packages/backend/src/schemas/openapi-registry.js';
 
 interface OpenAPIV3Document {
   openapi: string;
@@ -16,12 +10,14 @@ interface OpenAPIV3Document {
   security?: Record<string, unknown>[];
 }
 
-/** 解析并验证 OpenAPI spec（全局共享，避免重复解析） */
+/** 解析并验证 OpenAPI spec（运行时从 registry 生成，避免重复生成） */
 let apiDoc: OpenAPIV3Document;
 
 async function getApiDoc(): Promise<OpenAPIV3Document> {
   if (!apiDoc) {
-    apiDoc = (await SwaggerParser.validate(openapiPath)) as OpenAPIV3Document;
+    apiDoc = (await SwaggerParser.validate(
+      generateOpenApiDocument() as never,
+    )) as OpenAPIV3Document;
   }
   return apiDoc;
 }
@@ -70,8 +66,8 @@ describe('OpenAPI 契约测试 — Spec 合法性', () => {
     expect(doc.openapi).toMatch(/^3\.0\.\d+$/);
   });
 
-  it('spec 应存在且可读取', () => {
-    expect(fs.existsSync(openapiPath)).toBe(true);
+  it('spec 应由 registry 生成且含 paths', () => {
+    expect(Object.keys(generateOpenApiDocument().paths).length).toBeGreaterThan(0);
   });
 });
 

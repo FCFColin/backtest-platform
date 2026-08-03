@@ -3,7 +3,7 @@ name: SDK Generation
 on:
   push:
     paths:
-      - 'docs/openapi.yaml'
+      - 'packages/backend/src/schemas/openapi-registry.ts'
       - 'packages/api-client/**'
     branches: [main]
 

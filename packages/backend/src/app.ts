@@ -124,9 +124,10 @@ if (config.NODE_ENV !== 'production') {
   void (async () => {
     try {
       const OpenApiValidator = (await import('express-openapi-validator')).default;
+      const { generateOpenApiDocument } = await import('./schemas/openapi-registry.js');
       app.use(
         OpenApiValidator.middleware({
-          apiSpec: './docs/openapi.yaml',
+          apiSpec: generateOpenApiDocument() as never,
           validateRequests: true,
           validateResponses: true,
           ignorePaths: /\/metrics|\/health|\/ready|\/api\/v1\/errors/,

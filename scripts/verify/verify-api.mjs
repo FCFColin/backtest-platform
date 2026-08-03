@@ -8,7 +8,6 @@ const results = {};
 // ── C-022: OpenAPI URL 验证 ────────────────────────────────────
 await runCheck(results, 'C-022', () => {
   const C022_FILES = [
-    'docs/openapi.yaml',
     'packages/backend/src/schemas/openapi-registry.ts',
   ];
   const C022_fileResults = {};

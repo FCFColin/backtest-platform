@@ -25,7 +25,9 @@ import { generateOpenApiDocument } from '../packages/backend/src/schemas/openapi
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const outputPath = path.resolve(__dirname, '..', 'docs', 'openapi.yaml');
+const outputPath = process.argv[2]
+  ? path.resolve(process.cwd(), process.argv[2])
+  : path.resolve(__dirname, '..', 'docs', 'openapi.yaml');
 
 const document = generateOpenApiDocument();
 anchorizeDuplicates(document as Record<string, unknown>);

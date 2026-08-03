@@ -3,10 +3,10 @@ import SwaggerParser from '@apidevtools/swagger-parser';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { generateOpenApiDocument } from '../../packages/backend/src/schemas/openapi-registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const openapiPath = path.resolve(__dirname, '../../docs/openapi.yaml');
 const appSrcPath = path.resolve(__dirname, '../../packages/backend/src/app.ts');
 const routesDir = path.resolve(__dirname, '../../packages/backend/src/routes');
 
@@ -18,7 +18,7 @@ function normalizePath(p: string): string {
 }
 
 async function extractSpecPaths(): Promise<SpecPaths> {
-  const doc = (await SwaggerParser.validate(openapiPath)) as {
+  const doc = (await SwaggerParser.validate(generateOpenApiDocument() as never)) as {
     paths: Record<string, Record<string, unknown> | undefined>;
   };
   const result: SpecPaths = new Map();
