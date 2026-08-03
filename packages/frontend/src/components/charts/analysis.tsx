@@ -73,31 +73,25 @@ interface TelltaleChartProps {
   portfolios?: PortfolioResult[];
   results?: AssetAnalysisResult;
 }
-interface GrowthPoint {
-  date: string;
-  value: number;
-}
 interface NamedGrowth {
   name: string;
-  growthCurve: GrowthPoint[];
+  growthCurve: Array<{ date: string; value: number }>;
 }
 function buildTelltaleData(benchmark: NamedGrowth, comparisons: NamedGrowth[]) {
   const benchMap = new Map<string, number>();
-  for (const point of benchmark.growthCurve) {
-    benchMap.set(point.date, point.value);
-  }
+  for (const { date, value } of benchmark.growthCurve) benchMap.set(date, value);
   const dateMap = new Map<string, Record<string, number | string>>();
-  for (const item of comparisons) {
-    for (const point of item.growthCurve) {
-      const benchVal = benchMap.get(point.date);
-      if (benchVal == null || benchVal === 0) continue;
-      if (!dateMap.has(point.date)) dateMap.set(point.date, { date: point.date });
-      dateMap.get(point.date)![item.name] = +(point.value / benchVal).toFixed(6);
+  for (const { name, growthCurve } of comparisons) {
+    for (const { date, value } of growthCurve) {
+      const benchVal = benchMap.get(date);
+      if (!benchVal) continue;
+      const ratio = +(value / benchVal).toFixed(6);
+      const row = dateMap.get(date);
+      if (row) row[name] = ratio;
+      else dateMap.set(date, { date, [name]: ratio });
     }
   }
-  return Array.from(dateMap.values()).sort((a, b) =>
-    (a.date as string).localeCompare(b.date as string),
-  );
+  return [...dateMap.values()].sort((a, b) => (a.date as string).localeCompare(b.date as string));
 }
 interface TelltaleDataResult {
   chartData: Array<Record<string, number | string>>;
@@ -112,12 +106,12 @@ function computeTelltaleData(
 ): TelltaleDataResult {
   const isResults = !!results;
   const source = isResults ? results!.tickers : (portfolios ?? []);
-  const benchmark = source[0]
-    ? { name: isResults ? source[0].ticker : source[0].name, growthCurve: source[0].growthCurve }
-    : undefined;
-  const comparisons = source
-    .slice(1)
-    .map((s) => ({ name: isResults ? s.ticker : s.name, growthCurve: s.growthCurve }));
+  const toNamed = (s: (typeof source)[0]) => ({
+    name: isResults ? s.ticker : s.name,
+    growthCurve: s.growthCurve,
+  });
+  const benchmark = source[0] ? toNamed(source[0]) : undefined;
+  const comparisons = source.slice(1).map(toNamed);
   const labels = comparisons.map((c) => c.name);
   const title = isResults
     ? `${t('analysis.telltaleRelative')} ${results!.tickers[0].ticker}`
@@ -382,26 +376,19 @@ export function SeasonalityChart({ portfolios }: SeasonalityChartProps) {
 }
 function computeSeasonalityData(portfolios: PortfolioResult[], monthLabels: string[]) {
   const monthData: Record<number, Record<string, { sum: number; count: number }>> = {};
-  for (let m = 1; m <= 12; m++) {
-    monthData[m] = {};
-  }
+  for (let m = 1; m <= 12; m++) monthData[m] = {};
   for (const p of portfolios) {
     for (const point of p.monthlyReturns || []) {
-      if (!monthData[point.month][p.name]) {
-        monthData[point.month][p.name] = { sum: 0, count: 0 };
-      }
-      monthData[point.month][p.name].sum += point.return;
-      monthData[point.month][p.name].count += 1;
+      const d = (monthData[point.month][p.name] ??= { sum: 0, count: 0 });
+      d.sum += point.return;
+      d.count++;
     }
   }
-  return Array.from({ length: 12 }, (_, i) => {
-    const m = i + 1;
-    const row: Record<string, number | string> = { month: monthLabels[i] };
+  return monthLabels.map((label, i) => {
+    const row: Record<string, number | string> = { month: label };
     for (const p of portfolios) {
-      const d = monthData[m][p.name];
-      if (d && d.count > 0) {
-        row[p.name] = +((d.sum / d.count) * 100).toFixed(2);
-      }
+      const d = monthData[i + 1][p.name];
+      if (d?.count) row[p.name] = +((d.sum / d.count) * 100).toFixed(2);
     }
     return row;
   });
