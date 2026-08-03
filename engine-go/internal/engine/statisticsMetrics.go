@@ -3,7 +3,6 @@ package engine
 import (
 	"engine-go/internal/engineutil"
 	"engine-go/internal/mathutil"
-	"maps"
 	"math"
 	"slices"
 	"sort"
@@ -432,49 +431,61 @@ func CalcRollingReturns(values []float64, dates []string, windowMonths int) []Ro
 	}
 	return result
 }
-func CalcAnnualReturns(values []float64, dates []string) []AnnualReturn {
-	yearLastValue := make(map[int]float64)
+
+type periodBucket struct {
+	year, month int
+	first, last float64
+}
+
+func resampleByPeriod(values []float64, dates []string, monthly bool) []periodBucket {
+	type key struct{ y, m int }
+	buckets := make(map[key]*periodBucket)
 	for i, v := range values {
-		yearLastValue[parseYear(dates[i])] = v
+		y, m := parseYearMonth(dates[i])
+		if !monthly {
+			m = 0
+		}
+		k := key{y, m}
+		if b, ok := buckets[k]; ok {
+			b.last = v
+		} else {
+			buckets[k] = &periodBucket{y, m, v, v}
+		}
 	}
-	years := slices.Sorted(maps.Keys(yearLastValue))
-	result := make([]AnnualReturn, 0, len(years))
-	for idx, y := range years {
+	out := make([]periodBucket, 0, len(buckets))
+	for _, b := range buckets {
+		out = append(out, *b)
+	}
+	slices.SortFunc(out, func(a, b periodBucket) int {
+		if a.year != b.year {
+			return a.year - b.year
+		}
+		return a.month - b.month
+	})
+	return out
+}
+func CalcAnnualReturns(values []float64, dates []string) []AnnualReturn {
+	buckets := resampleByPeriod(values, dates, false)
+	result := make([]AnnualReturn, 0, len(buckets))
+	for idx, b := range buckets {
 		startValue := values[0]
 		if idx > 0 {
-			startValue = yearLastValue[years[idx-1]]
+			startValue = buckets[idx-1].last
 		}
 		if startValue > 0 {
-			result = append(result, AnnualReturn{Year: y, Return: yearLastValue[y]/startValue - 1})
+			result = append(result, AnnualReturn{Year: b.year, Return: b.last/startValue - 1})
 		}
 	}
 	return result
 }
 func CalcMonthlyReturns(values []float64, dates []string) []MonthlyReturn {
-	type monthKey struct{ year, month int }
-	type monthVal struct{ first, last float64 }
-	monthMap := make(map[monthKey]*monthVal)
-	for i, v := range values {
-		y, m := parseYearMonth(dates[i])
-		key := monthKey{y, m}
-		if mv, ok := monthMap[key]; ok {
-			mv.last = v
-		} else {
-			monthMap[key] = &monthVal{v, v}
+	buckets := resampleByPeriod(values, dates, true)
+	result := make([]MonthlyReturn, 0, len(buckets))
+	for _, b := range buckets {
+		if b.first > 0 {
+			result = append(result, MonthlyReturn{Year: b.year, Month: b.month + 1, Return: b.last/b.first - 1})
 		}
 	}
-	result := make([]MonthlyReturn, 0, len(monthMap))
-	for key, mv := range monthMap {
-		if mv.first > 0 {
-			result = append(result, MonthlyReturn{Year: key.year, Month: key.month + 1, Return: mv.last/mv.first - 1})
-		}
-	}
-	sort.Slice(result, func(i, j int) bool {
-		if result[i].Year != result[j].Year {
-			return result[i].Year < result[j].Year
-		}
-		return result[i].Month < result[j].Month
-	})
 	return result
 }
 func parseYear(dateStr string) int {
