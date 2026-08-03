@@ -83,13 +83,12 @@ async function queryPricesFromDb(
     let effectiveStart = startDate;
     let effectiveEnd = endDate;
     if (startDate === '' && endDate === '') {
-      const range = await computeCommonDateRange(validTickers, hasUnknownTickers);
+      const range =
+        (await computeCommonDateRange(validTickers, hasUnknownTickers)) ??
+        (hasUnknownTickers ? { start: '2000-01-01', end: toDateStr(new Date()) } : null);
       if (range) {
         effectiveStart = range.start;
         effectiveEnd = range.end;
-      } else if (hasUnknownTickers) {
-        effectiveStart = '2000-01-01';
-        effectiveEnd = toDateStr(new Date());
       }
     }
     if (validTickers.length === 0 && hasUnknownTickers)

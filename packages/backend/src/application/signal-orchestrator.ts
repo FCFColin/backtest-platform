@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 信号分析编排器（Orchestrator）— 纯 fetch data + call engine，无 domain 交互。
  *
  * 合并了原两层模式（WithFetch + 纯转发），每个函数直接完成数据获取 + 引擎调用。
@@ -31,9 +31,7 @@ async function runSignalMode(
     tickers = [b.ticker];
     startDate = b.startDate;
     endDate = b.endDate;
-    validation = (history) => {
-      ensureTickerHasData(b.ticker, history);
-    };
+    validation = (history) => ensureTickerHasData(b.ticker, history);
     engineBody = { mode: 'single', single: b };
   } else if (mode === 'dual') {
     const b = body as DualSignalConfig;
@@ -49,9 +47,7 @@ async function runSignalMode(
     tickers = [b.signals[0].ticker];
     startDate = b.signals[0].startDate;
     endDate = b.signals[0].endDate;
-    validation = (history) => {
-      ensureTickerHasData(b.signals[0].ticker, history, 'signal/multi');
-    };
+    validation = (history) => ensureTickerHasData(b.signals[0].ticker, history, 'signal/multi');
     engineBody = { mode: 'multi', multi: b };
   }
 

@@ -20,9 +20,7 @@ export function extractApiErrorDetail(json: unknown): string {
     const e = err as Record<string, unknown>;
     if (typeof e.detail === 'string' && e.detail) return e.detail;
     const code = typeof e.code === 'string' ? e.code : undefined;
-    if (code) {
-      return i18n.t(getErrorI18nKey(code));
-    }
+    if (code) return i18n.t(getErrorI18nKey(code));
   }
   return i18n.t('backtest.runFailed');
 }

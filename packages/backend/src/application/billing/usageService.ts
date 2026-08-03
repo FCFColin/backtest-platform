@@ -67,8 +67,9 @@ export async function recordUsage(
  */
 export async function getMonthlyUsage(orgId: string, metric: string): Promise<number> {
   const period = currentPeriod();
+  const key = counterKey(orgId, period, metric);
   try {
-    const cached = await appRedis.get(counterKey(orgId, period, metric));
+    const cached = await appRedis.get(key);
     if (cached !== null) {
       const n = Number(cached);
       if (Number.isFinite(n)) return n;
@@ -84,7 +85,6 @@ export async function getMonthlyUsage(orgId: string, metric: string): Promise<nu
       );
       const count = rows.length > 0 ? Number(rows[0].count) : 0;
       try {
-        const key = counterKey(orgId, period, metric);
         await appRedis.set(key, String(count), 'EX', COUNTER_TTL_SEC);
       } catch {
         /* ignore */

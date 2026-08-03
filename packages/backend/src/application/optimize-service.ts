@@ -209,20 +209,22 @@ export async function executeOptimization(body: Record<string, unknown>): Promis
   const { items } = await runBacktestGroups(combos, portfolio, parameters, priceData);
   const filtered = filterByConstraints(items, constraints);
   filtered.sort((a, b) => objectiveValue(b, objective) - objectiveValue(a, objective));
-  let best: BestResultItem | null = null;
-  let benchmarkGrowth: Array<{ date: string; value: number }> | null = null;
-  if (filtered.length > 0) {
-    const result = await computeBestResult(filtered[0], portfolio, parameters, priceData);
-    best = result.best;
-    benchmarkGrowth = result.benchmarkGrowth;
-  }
+  const computed =
+    filtered.length > 0
+      ? await computeBestResult(filtered[0], portfolio, parameters, priceData)
+      : null;
   logger.info(
     `[backtest-optimizer] 优化完成：${combos.length} 组合，${filtered.length} 通过过滤，耗时 ${Date.now() - startTime}ms`,
   );
   const dateRange = calculateDateRange(parameters.startDate, parameters.endDate, priceData);
   return {
     success: true,
-    data: { results: filtered, best, benchmarkGrowth, totalCombinations: combos.length },
+    data: {
+      results: filtered,
+      best: computed?.best ?? null,
+      benchmarkGrowth: computed?.benchmarkGrowth ?? null,
+      totalCombinations: combos.length,
+    },
     warnings: warnings.length > 0 ? warnings : undefined,
     dateRange,
   };

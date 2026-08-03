@@ -76,8 +76,6 @@ export async function pollJobStatus(
 ): Promise<Record<string, unknown>> {
   let delay = 50;
   while (true) {
-    if (signal.aborted || (requestId !== null && requestId !== currentRequestId))
-      throw new DOMException('Aborted', 'AbortError');
     await cancellableSleep(delay, signal);
     if (signal.aborted || (requestId !== null && requestId !== currentRequestId))
       throw new DOMException('Aborted', 'AbortError');
@@ -152,7 +150,6 @@ async function runBacktestAction(set: SetFn, get: GetFn): Promise<void> {
     const results = normalizeBacktestResult(resultJson.data ?? resultJson);
     processResponseWarnings(resultJson);
     if (requestId === currentRequestId) {
-      set({ isLoading: false });
       startTransition(() => {
         set({ results, activeTab: 'summary' });
       });

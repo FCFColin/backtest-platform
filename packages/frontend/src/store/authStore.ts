@@ -198,10 +198,7 @@ async function initAction(set: SetFn, get: GetFn): Promise<void> {
   if (get().initialized) return;
   try {
     const ok = await refreshTokens();
-    if (!ok) {
-      set({ initialized: true });
-      return;
-    }
+    if (!ok) return;
     const user = await fetchMe();
     set({ user });
     if (user) await get().loadOrgs();

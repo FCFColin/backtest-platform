@@ -77,8 +77,8 @@ async function handleEngineError(
   jobId: string,
   type: string,
 ): Promise<BacktestJobResult> {
+  await releaseJobClaim(jobId, type);
   if (err instanceof EngineUnavailableError) {
-    await releaseJobClaim(jobId, type);
     logger.warn(
       { jobId, endpoint: '/api/engine/backtest', retryAfter: err.retryAfterSeconds },
       '[worker] Go 引擎不可用，重抛以触发 BullMQ 重试（fail-closed）',
@@ -86,14 +86,12 @@ async function handleEngineError(
     throw err;
   }
   if (err instanceof UpstreamProblemError) {
-    await releaseJobClaim(jobId, type);
     logger.warn(
       { jobId, status: err.status, code: err.code },
       '[worker] Go 引擎返回 4xx，任务标记为永久失败（参数错误不可重试）',
     );
     return { status: 'failed', error: err.detail };
   }
-  await releaseJobClaim(jobId, type);
   const message = errorMessage(err);
   logger.error({ jobId, error: message }, '[worker] 任务执行失败');
   return { status: 'failed', error: message };

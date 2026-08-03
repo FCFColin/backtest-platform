@@ -66,6 +66,7 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
   const [maxVolatility, setMaxVolatility] = useState<number | ''>('');
   const [numSimulations, setNumSimulations] = useState(1000);
   const totalWeight = assets.reduce((sum, a) => sum + (a.weight || 0), 0);
+  const validAssets = assets.filter((a) => a.ticker.trim());
   const {
     isLoading,
     error,
@@ -73,7 +74,6 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
     runCompute: runOptimize,
   } = useComputeTool<GoalOptimizerResult>(
     async () => {
-      const validAssets = assets.filter((a) => a.ticker.trim());
       const constraints = buildOptimizeConstraints(maxDrawdown, minSuccessRate, maxVolatility);
       const res = await apiFetch('/api/v1/goal-optimizer/optimize', {
         method: 'POST',
@@ -94,7 +94,6 @@ export function useGoalOptimizerState(t: TFunction): GoalOptimizerState {
       return json.data as GoalOptimizerResult;
     },
     () => {
-      const validAssets = assets.filter((a) => a.ticker.trim());
       return validateGoalInputs({
         validAssets,
         totalWeight,

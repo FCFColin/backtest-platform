@@ -64,8 +64,8 @@ export async function runAnalysis(
   if (validTickers.length === 0) {
     throw new ValidationError(`Price data unavailable for all tickers: ${tickers.join(', ')}`);
   }
-  if (validTickers.length < tickers.length) {
-    const missing = tickers.filter((t) => !validTickers.includes(t));
+  const missing = tickers.filter((t) => !validTickers.includes(t));
+  if (missing.length > 0) {
     logger.warn(`[analysis] 部分标的价格数据缺失，已忽略: ${missing.join(', ')}`);
     warnings.push({ code: 'TICKER_NOT_FOUND', tickers: missing });
   }
@@ -80,9 +80,7 @@ export async function runAnalysis(
     parameters.startDate,
     parameters.endDate,
     priceData,
-    validTickers.length < tickers.length
-      ? tickers.filter((t) => !validTickers.includes(t))
-      : undefined,
+    missing.length > 0 ? missing : undefined,
   );
 
   return assembleAnalysisResult(result, warnings, dateRange);

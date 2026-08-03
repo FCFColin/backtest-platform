@@ -16,10 +16,7 @@ import { PLAN_LIMITS, type PlanLimits } from '../../config/index.js';
  * @returns 计划配额
  */
 export function getPlanLimits(plan: string | null | undefined): PlanLimits {
-  if (plan === 'pro' || plan === 'enterprise' || plan === 'free') {
-    return PLAN_LIMITS[plan];
-  }
-  return PLAN_LIMITS.free;
+  return PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.free;
 }
 
 /**

@@ -239,13 +239,7 @@ export function useIdleTimeout(timeoutMs: number, enabled: boolean): void {
     }
   }, [enabled, timeoutMs, triggerTimeout]);
   useEffect(() => {
-    if (!enabled || timeoutMs <= 0) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      return;
-    }
+    if (!enabled || timeoutMs <= 0) return;
     triggeredRef.current = false;
     lastActivityRef.current = Date.now();
     ACTIVITY_EVENTS.forEach((event) => {

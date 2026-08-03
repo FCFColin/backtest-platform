@@ -64,14 +64,13 @@ const QUOTA_WINDOW_SECONDS = 60;
  * @throws 当 Redis 不可用时抛出异常（由调用方 fail-closed 处理）
  */
 async function atomicQuotaIncrement(key: string, limit: number): Promise<[number, number]> {
-  const result = (await appRedis.eval(
+  return (await appRedis.eval(
     QUOTA_ATOMIC_SCRIPT,
     1,
     key,
     String(limit),
     String(QUOTA_WINDOW_SECONDS),
   )) as [number, number];
-  return result;
 }
 
 /**

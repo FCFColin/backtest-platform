@@ -98,8 +98,7 @@ export function createBacktestWorker(
       },
       'Backtest job completed',
     );
-    const jobId = String(job.id ?? '');
-    if (!jobId) return;
+    const jobId = String(job.id);
     const rv = job.returnvalue as BacktestJobResult | undefined;
     publishBacktestProgress(jobId, {
       jobId,
@@ -137,8 +136,7 @@ export function createBacktestWorker(
 
   // P1-04: Redis Pub/Sub 实时进度推送（多 Pod 广播，ADR-045）
   worker.on('progress', (job, progress) => {
-    const jobId = String(job.id ?? '');
-    if (!jobId) return;
+    const jobId = String(job.id);
     const progressPct = typeof progress === 'number' ? progress : undefined;
     publishBacktestProgress(jobId, { jobId, status: 'running', progressPct });
   });

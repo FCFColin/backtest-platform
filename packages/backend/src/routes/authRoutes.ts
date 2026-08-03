@@ -296,7 +296,7 @@ router.delete(
         await revokeRefreshToken(refreshToken);
         logger.info('[auth] Refresh Token 已撤销');
       }
-      res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_OPTIONS); // 无论 RT 是否存在都清除，避免浏览器残留过期凭证
+      res.clearCookie(REFRESH_COOKIE_NAME, REFRESH_COOKIE_CLEAR_OPTIONS); // 无论 RT 是否存在都清除，避免浏览器残留过期凭证
       res.json({ success: true });
     },
     { logMsg: 'Logout error', code: 'LOGOUT_ERROR', endpoint: 'auth-logout' },

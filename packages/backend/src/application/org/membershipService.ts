@@ -62,9 +62,9 @@ export async function resolveDefaultOrg(userId: string): Promise<Membership | nu
   if (memberships.length === 0) return null;
 
   const active = memberships.filter((m) => m.orgStatus === 'active');
-  const pool = active.length > 0 ? active : memberships;
-
-  const sorted = [...pool].sort((a, b) => ROLE_PRIORITY[b.role] - ROLE_PRIORITY[a.role]);
+  const sorted = [...(active.length > 0 ? active : memberships)].sort(
+    (a, b) => ROLE_PRIORITY[b.role] - ROLE_PRIORITY[a.role],
+  );
   return sorted[0];
 }
 
