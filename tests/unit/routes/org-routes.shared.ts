@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { startExpressApp, type TestServer, type TestRequest } from '../../helpers/expressApp.js';
-import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
 import type { Router } from 'express';
 
 const internalMocks = vi.hoisted(() => ({

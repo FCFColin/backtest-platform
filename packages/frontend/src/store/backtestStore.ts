@@ -37,11 +37,9 @@ const PORTFOLIO_BODY_KEYS = [
 ] as const;
 function buildBacktestRequestBody(portfolios: Portfolio[], parameters: BacktestParameters) {
   return {
-    portfolios: portfolios.map((p) => {
-      const out: Record<string, unknown> = {};
-      for (const k of PORTFOLIO_BODY_KEYS) out[k] = p[k];
-      return out;
-    }),
+    portfolios: portfolios.map((p) =>
+      Object.fromEntries(PORTFOLIO_BODY_KEYS.map((k) => [k, p[k]])),
+    ),
     parameters,
   };
 }
@@ -248,128 +246,144 @@ const patchParams = <T extends CashflowLeg | OneTimeCashflow>(
   }));
 const patchAssets = (set: SetFn, id: string, fn: (p: Portfolio) => Portfolio) =>
   set((state) => ({ portfolios: mapPortfolio(state, id, fn) }));
+function crudActions<T extends CashflowLeg | OneTimeCashflow>(
+  set: SetFn,
+  key: 'cashflowLegs' | 'oneTimeCashflows',
+  make: (state: BacktestState) => T,
+) {
+  return {
+    add: () => patchParams<T>(set, key, (l, s) => [...l, make(s)]),
+    remove: (id: string) => patchParams<T>(set, key, (l) => l.filter((x) => x.id !== id)),
+    update: (id: string, u: Partial<T>) =>
+      patchParams<T>(set, key, (l) => l.map((x) => (x.id === id ? { ...x, ...u } : x))),
+  };
+}
 // eslint-disable-next-line max-lines-per-function
-export const useBacktestStore = create<BacktestState>()((set, get) => ({
-  portfolios: [] as Portfolio[],
-  portfolioCounter: 0,
-  results: null as BacktestResult | null,
-  isLoading: false,
-  activeTab: 'summary',
-  hasLoadedFromShare: false,
-  _abortController: null as AbortController | null,
-  parameters: defaultParameters as BacktestParameters,
-  addPortfolio: (presetId?: string) => {
-    const next = get().portfolioCounter + 1;
-    set((state) => ({
-      portfolioCounter: next,
-      portfolios: [
-        ...state.portfolios,
-        presetId ? createPortfolioFromPreset(presetId, next) : createEmptyPortfolio(next),
-      ],
-    }));
-  },
-  removePortfolio: (id: string) =>
-    set((state) => ({ portfolios: state.portfolios.filter((p) => p.id !== id) })),
-  duplicatePortfolio: (id: string) => {
-    const next = get().portfolioCounter + 1;
-    set((state) => {
-      const source = state.portfolios.find((p) => p.id === id);
-      if (!source) return state;
-      const copy: Portfolio = {
-        ...source,
-        id: `portfolio-${Date.now()}-${next}`,
-        name: `${source.name} (${i18n.t('common.copy')})`,
-        assets: source.assets.map((a) => ({ ...a })),
-      };
-      return { portfolioCounter: next, portfolios: [...state.portfolios, copy] };
-    });
-  },
-  updatePortfolio: (
-    id: string,
-    updates: Partial<
-      Pick<
-        Portfolio,
-        | 'name'
-        | 'assets'
-        | 'rebalanceFrequency'
-        | 'rebalanceThreshold'
-        | 'rebalanceOffset'
-        | 'rebalanceBands'
-        | 'drag'
-        | 'totalReturn'
-        | 'isGlidepath'
-        | 'glidepathFrom'
-        | 'glidepathTo'
-        | 'glidepathYears'
-        | 'glidepathToWeights'
-        | 'tags'
-      >
-    >,
-  ) => patchAssets(set, id, (p) => ({ ...p, ...updates })),
-  addGlidepath: (name: string, fromId: string, toId: string, years: number) => {
-    const next = get().portfolioCounter + 1;
-    set((state) => {
-      const from = state.portfolios.find((p) => p.id === fromId);
-      const to = state.portfolios.find((p) => p.id === toId);
-      if (!from || !to) return state;
-      const toWeights = from.assets.map((fa) => {
-        const ta = to.assets.find((a) => a.ticker === fa.ticker);
-        return ta ? ta.weight / 100 : 0;
-      });
-      const gp: Portfolio = {
-        id: `glidepath-${Date.now()}-${next}`,
-        name,
-        assets: from.assets.map((a) => ({ ...a })),
-        rebalanceFrequency: from.rebalanceFrequency,
-        rebalanceOffset: from.rebalanceOffset,
-        drag: from.drag ?? 0,
-        totalReturn: from.totalReturn ?? true,
-        isGlidepath: true,
-        glidepathFrom: fromId,
-        glidepathTo: toId,
-        glidepathYears: years,
-        glidepathToWeights: toWeights,
-      };
-      return { portfolioCounter: next, portfolios: [...state.portfolios, gp] };
-    });
-  },
-  addCashflowLeg: () =>
-    patchParams<CashflowLeg>(set, 'cashflowLegs', (l) => [
-      ...l,
-      { id: `cf-${Date.now()}`, amount: 0, type: 'contribution', frequency: 'yearly', offset: 0 },
-    ]),
-  removeCashflowLeg: (id: string) =>
-    patchParams<CashflowLeg>(set, 'cashflowLegs', (l) => l.filter((x) => x.id !== id)),
-  updateCashflowLeg: (id: string, updates: Partial<CashflowLeg>) =>
-    patchParams<CashflowLeg>(set, 'cashflowLegs', (l) =>
-      l.map((x) => (x.id === id ? { ...x, ...updates } : x)),
-    ),
-  addOneTimeCashflow: () =>
-    patchParams<OneTimeCashflow>(set, 'oneTimeCashflows', (l, state) => [
-      ...l,
-      {
+export const useBacktestStore = create<BacktestState>()((set, get) => {
+  const cf = crudActions(
+    set,
+    'cashflowLegs',
+    () =>
+      ({
+        id: `cf-${Date.now()}`,
+        amount: 0,
+        type: 'contribution',
+        frequency: 'yearly',
+        offset: 0,
+      }) as CashflowLeg,
+  );
+  const otc = crudActions(
+    set,
+    'oneTimeCashflows',
+    (s) =>
+      ({
         id: `otc-${Date.now()}`,
         amount: 0,
         type: 'contribution',
-        date: state.parameters.startDate,
-      },
-    ]),
-  removeOneTimeCashflow: (id: string) =>
-    patchParams<OneTimeCashflow>(set, 'oneTimeCashflows', (l) => l.filter((x) => x.id !== id)),
-  updateOneTimeCashflow: (id: string, updates: Partial<OneTimeCashflow>) =>
-    patchParams<OneTimeCashflow>(set, 'oneTimeCashflows', (l) =>
-      l.map((x) => (x.id === id ? { ...x, ...updates } : x)),
-    ),
-  updateParameter: <K extends keyof BacktestParameters>(key: K, value: BacktestParameters[K]) =>
-    set((state) => ({ parameters: { ...state.parameters, [key]: value } })),
-  runBacktest: () => runBacktestAction(set, get),
-  enrichSeries: (series: BacktestSeriesField[]) => enrichSeriesAction(set, get, series),
-  setActiveTab: (tab: string) => set({ activeTab: tab }),
-  setHasLoadedFromShare: (val: boolean) => set({ hasLoadedFromShare: val }),
-  loadFromShare: (data: { portfolios: Portfolio[]; parameters: BacktestParameters }) =>
-    loadFromShareAction(set, get, data),
-  getShareableState: () => {
-    const { portfolios, parameters } = get();
-    return { portfolios, parameters };
-  },
-}));
+        date: s.parameters.startDate,
+      }) as OneTimeCashflow,
+  );
+  return {
+    portfolios: [] as Portfolio[],
+    portfolioCounter: 0,
+    results: null as BacktestResult | null,
+    isLoading: false,
+    activeTab: 'summary',
+    hasLoadedFromShare: false,
+    _abortController: null as AbortController | null,
+    parameters: defaultParameters as BacktestParameters,
+    addPortfolio: (presetId?: string) => {
+      const next = get().portfolioCounter + 1;
+      set((state) => ({
+        portfolioCounter: next,
+        portfolios: [
+          ...state.portfolios,
+          presetId ? createPortfolioFromPreset(presetId, next) : createEmptyPortfolio(next),
+        ],
+      }));
+    },
+    removePortfolio: (id: string) =>
+      set((state) => ({ portfolios: state.portfolios.filter((p) => p.id !== id) })),
+    duplicatePortfolio: (id: string) => {
+      const next = get().portfolioCounter + 1;
+      set((state) => {
+        const source = state.portfolios.find((p) => p.id === id);
+        if (!source) return state;
+        const copy: Portfolio = {
+          ...source,
+          id: `portfolio-${Date.now()}-${next}`,
+          name: `${source.name} (${i18n.t('common.copy')})`,
+          assets: source.assets.map((a) => ({ ...a })),
+        };
+        return { portfolioCounter: next, portfolios: [...state.portfolios, copy] };
+      });
+    },
+    updatePortfolio: (
+      id: string,
+      updates: Partial<
+        Pick<
+          Portfolio,
+          | 'name'
+          | 'assets'
+          | 'rebalanceFrequency'
+          | 'rebalanceThreshold'
+          | 'rebalanceOffset'
+          | 'rebalanceBands'
+          | 'drag'
+          | 'totalReturn'
+          | 'isGlidepath'
+          | 'glidepathFrom'
+          | 'glidepathTo'
+          | 'glidepathYears'
+          | 'glidepathToWeights'
+          | 'tags'
+        >
+      >,
+    ) => patchAssets(set, id, (p) => ({ ...p, ...updates })),
+    addGlidepath: (name: string, fromId: string, toId: string, years: number) => {
+      const next = get().portfolioCounter + 1;
+      set((state) => {
+        const from = state.portfolios.find((p) => p.id === fromId);
+        const to = state.portfolios.find((p) => p.id === toId);
+        if (!from || !to) return state;
+        const toWeights = from.assets.map((fa) => {
+          const ta = to.assets.find((a) => a.ticker === fa.ticker);
+          return ta ? ta.weight / 100 : 0;
+        });
+        const gp: Portfolio = {
+          id: `glidepath-${Date.now()}-${next}`,
+          name,
+          assets: from.assets.map((a) => ({ ...a })),
+          rebalanceFrequency: from.rebalanceFrequency,
+          rebalanceOffset: from.rebalanceOffset,
+          drag: from.drag ?? 0,
+          totalReturn: from.totalReturn ?? true,
+          isGlidepath: true,
+          glidepathFrom: fromId,
+          glidepathTo: toId,
+          glidepathYears: years,
+          glidepathToWeights: toWeights,
+        };
+        return { portfolioCounter: next, portfolios: [...state.portfolios, gp] };
+      });
+    },
+    addCashflowLeg: cf.add,
+    removeCashflowLeg: cf.remove,
+    updateCashflowLeg: cf.update,
+    addOneTimeCashflow: otc.add,
+    removeOneTimeCashflow: otc.remove,
+    updateOneTimeCashflow: otc.update,
+    updateParameter: <K extends keyof BacktestParameters>(key: K, value: BacktestParameters[K]) =>
+      set((state) => ({ parameters: { ...state.parameters, [key]: value } })),
+    runBacktest: () => runBacktestAction(set, get),
+    enrichSeries: (series: BacktestSeriesField[]) => enrichSeriesAction(set, get, series),
+    setActiveTab: (tab: string) => set({ activeTab: tab }),
+    setHasLoadedFromShare: (val: boolean) => set({ hasLoadedFromShare: val }),
+    loadFromShare: (data: { portfolios: Portfolio[]; parameters: BacktestParameters }) =>
+      loadFromShareAction(set, get, data),
+    getShareableState: () => {
+      const { portfolios, parameters } = get();
+      return { portfolios, parameters };
+    },
+  };
+});

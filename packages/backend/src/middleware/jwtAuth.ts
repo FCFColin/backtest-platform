@@ -107,19 +107,20 @@ function readPemFile(filePath: string): string {
     throw new Error(`无法读取 PEM 文件: ${filePath} - ${errorMessage(err)}`);
   }
 }
-async function getPrivateKey(): Promise<JoseKey> {
-  if (config.JWT_PRIVATE_KEY) return importPKCS8(config.JWT_PRIVATE_KEY, 'RS256');
-  if (config.JWT_PRIVATE_KEY_FILE)
-    return importPKCS8(readPemFile(config.JWT_PRIVATE_KEY_FILE), 'RS256');
-  if (config.NODE_ENV !== 'production') return (await generateDevKeyPair()).privateKey;
-  throw new Error('RS256 模式下必须配置 JWT_PRIVATE_KEY 或 JWT_PRIVATE_KEY_FILE');
-}
-async function getPublicKey(): Promise<JoseKey> {
-  if (config.JWT_PUBLIC_KEY) return importSPKI(config.JWT_PUBLIC_KEY, 'RS256');
-  if (config.JWT_PUBLIC_KEY_FILE)
-    return importSPKI(readPemFile(config.JWT_PUBLIC_KEY_FILE), 'RS256');
-  if (config.NODE_ENV !== 'production') return (await generateDevKeyPair()).publicKey;
-  throw new Error('RS256 模式下必须配置 JWT_PUBLIC_KEY 或 JWT_PUBLIC_KEY_FILE');
+async function loadKey(type: 'private' | 'public'): Promise<JoseKey> {
+  const isPrivate = type === 'private';
+  const direct = isPrivate ? config.JWT_PRIVATE_KEY : config.JWT_PUBLIC_KEY;
+  const file = isPrivate ? config.JWT_PRIVATE_KEY_FILE : config.JWT_PUBLIC_KEY_FILE;
+  const importFn = isPrivate ? importPKCS8 : importSPKI;
+  if (direct) return importFn(direct, 'RS256');
+  if (file) return importFn(readPemFile(file), 'RS256');
+  if (config.NODE_ENV !== 'production') {
+    const pair = await generateDevKeyPair();
+    return isPrivate ? pair.privateKey : pair.publicKey;
+  }
+  throw new Error(
+    `RS256 模式下必须配置 JWT_${type.toUpperCase()}_KEY 或 JWT_${type.toUpperCase()}_KEY_FILE`,
+  );
 }
 function base64urlEncode(input: string | Buffer): string {
   const buf = typeof input === 'string' ? Buffer.from(input, 'utf-8') : input;
@@ -135,8 +136,8 @@ function memoizeKey<T>(loader: () => Promise<T>): () => Promise<T> {
     return cached;
   };
 }
-export const getOrCachePrivateKey = memoizeKey(getPrivateKey);
-export const getOrCachePublicKey = memoizeKey(getPublicKey);
+export const getOrCachePrivateKey = memoizeKey(() => loadKey('private'));
+export const getOrCachePublicKey = memoizeKey(() => loadKey('public'));
 export const getOrCacheHS256Key = memoizeKey(getHS256Key);
 
 async function signConfiguredJwt(payload: JwtPayload): Promise<string> {
@@ -272,19 +273,27 @@ async function denyIfRevokedOrDisabled(
   res: Response,
   middleware: string,
 ): Promise<boolean> {
-  if (await isAccessTokenRevokedForUser(payload.sub, payload.iat)) {
-    authLog('warn', middleware, req, '会话已全局撤销，拒绝访问', {
-      userId: hashUserId(payload.sub),
-    });
-    recordAuthFailure(getRoutePattern(req), 'session_revoked');
-    sendProblem(res, 401, 'SESSION_REVOKED');
-    return true;
-  }
-  if (!(await isUserSessionValid(payload.sub))) {
-    authLog('warn', middleware, req, '用户已停用，拒绝访问', { userId: hashUserId(payload.sub) });
-    recordAuthFailure(getRoutePattern(req), 'account_disabled');
-    sendProblem(res, 401, 'ACCOUNT_DISABLED');
-    return true;
+  const checks = [
+    {
+      ok: !(await isAccessTokenRevokedForUser(payload.sub, payload.iat)),
+      code: 'SESSION_REVOKED',
+      msg: '会话已全局撤销',
+      fail: 'session_revoked',
+    },
+    {
+      ok: await isUserSessionValid(payload.sub),
+      code: 'ACCOUNT_DISABLED',
+      msg: '用户已停用',
+      fail: 'account_disabled',
+    },
+  ];
+  for (const c of checks) {
+    if (!c.ok) {
+      authLog('warn', middleware, req, `${c.msg}，拒绝访问`, { userId: hashUserId(payload.sub) });
+      recordAuthFailure(getRoutePattern(req), c.fail);
+      sendProblem(res, 401, c.code);
+      return true;
+    }
   }
   return false;
 }

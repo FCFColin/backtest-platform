@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
-import { createConfigMocks, createLoggerMocks } from '../../helpers/mockFactories.js';
+import { createConfigMocks } from '../../helpers/mockFactories.js';
+import { loggerMocks } from '../../helpers/middlewareMocks.js';
 import {
   configureAnalysisMocks,
   configureMonteCarloMocks,
@@ -54,7 +55,7 @@ const internalMocks = vi.hoisted(() => ({
 }));
 
 import '../../helpers/middlewareMocks.js';
-vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: createLoggerMocks() }));
+vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: loggerMocks }));
 vi.mock('../../../packages/backend/src/application/backtest-service.js', () => ({
   runPortfolioBacktest: internalMocks.m.runPortfolioBacktest,
   runBacktest: internalMocks.m.runBacktest,

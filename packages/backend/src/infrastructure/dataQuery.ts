@@ -49,6 +49,17 @@ function isDbAvailable(): boolean {
   return !pgCircuitBreaker.opened;
 }
 
+async function dbQuery<T>(sql: string, params: unknown[], tag: string): Promise<T[] | null> {
+  if (!isDbAvailable()) return null;
+  try {
+    const { rows } = await pgCircuitBreaker.fire(sql, params);
+    return rows as T[];
+  } catch (err) {
+    logger.warn({ err }, `[dataService] ${tag}: PostgreSQL 查询失败`);
+    return null;
+  }
+}
+
 async function computeCommonDateRange(
   validTickers: string[],
   hasUnknownTickers: boolean,
@@ -160,21 +171,15 @@ async function fetchMissingFromGoService(
 }
 
 function validateSearchQuery(query: string, market?: string): boolean {
-  if (query.length > 100) {
-    logger.warn(`[dataService] searchTickers: query 超过 100 字符限制 (${query.length})`);
-    return false;
-  }
-  if (!/^[\w\s\-.,\u4e00-\u9fff]+$/.test(query)) {
-    logger.warn(`[dataService] searchTickers: query 包含非法字符: ${query.slice(0, 50)}`);
-    return false;
-  }
-  if (market) {
-    if (market.length > 10) {
-      logger.warn(`[dataService] searchTickers: market 超过 10 字符限制 (${market.length})`);
-      return false;
-    }
-    if (!/^[a-zA-Z\u4e00-\u9fff]+$/.test(market)) {
-      logger.warn(`[dataService] searchTickers: market 包含非法字符: ${market}`);
+  const rules = [
+    { val: query, maxLen: 100, regex: /^[\w\s\-.,\u4e00-\u9fff]+$/, tag: 'query' },
+    ...(market
+      ? [{ val: market, maxLen: 10, regex: /^[a-zA-Z\u4e00-\u9fff]+$/, tag: 'market' }]
+      : []),
+  ];
+  for (const r of rules) {
+    if (r.val.length > r.maxLen || !r.regex.test(r.val)) {
+      logger.warn(`[dataService] searchTickers: ${r.tag} 校验失败`);
       return false;
     }
   }
@@ -185,36 +190,27 @@ async function searchTickersFromDb(
   query: string,
   market?: string,
 ): Promise<TickerSearchResult[] | null> {
-  if (!isDbAvailable()) return null;
-  try {
-    const tsQueryStr = query
-      .split(/\s+/)
-      .filter((w) => w.length > 0)
-      .map((w) => w.replace(/'/g, "''"))
-      .join(' & ');
-    if (tsQueryStr.length === 0) return [];
-    let sql =
-      'SELECT ticker, category, market FROM tickers WHERE search_vector @@ to_tsquery($1, $2)';
-    const params: unknown[] = ['simple', tsQueryStr];
-    if (market) {
-      sql += ' AND market = $3';
-      params.push(market);
-    }
-    sql += ' LIMIT 20';
-    const { rows } = await pgCircuitBreaker.fire(sql, params);
-    if (rows.length === 0) return [];
-    return rows.map((r: { ticker: string; category: string; market: string }) => ({
-      ticker: r.ticker,
-      name: r.category,
-      market: r.market,
-    }));
-  } catch (err) {
-    logger.warn(
-      { err },
-      '[dataService] searchTickers: PostgreSQL 全文搜索失败，回退到 Go 数据服务',
-    );
-    return null;
+  const tsQueryStr = query
+    .split(/\s+/)
+    .filter((w) => w.length > 0)
+    .map((w) => w.replace(/'/g, "''"))
+    .join(' & ');
+  if (tsQueryStr.length === 0) return [];
+  let sql =
+    'SELECT ticker, category, market FROM tickers WHERE search_vector @@ to_tsquery($1, $2)';
+  const params: unknown[] = ['simple', tsQueryStr];
+  if (market) {
+    sql += ' AND market = $3';
+    params.push(market);
   }
+  sql += ' LIMIT 20';
+  const rows = await dbQuery<{ ticker: string; category: string; market: string }>(
+    sql,
+    params,
+    'searchTickers',
+  );
+  if (rows === null) return null;
+  return rows.map((r) => ({ ticker: r.ticker, name: r.category, market: r.market }));
 }
 
 /**
@@ -231,24 +227,18 @@ export async function validateTickers(
     else invalid.push(ticker);
   }
   if (!isDbAvailable()) return { valid: [], invalid, unknown: formatValid };
-  try {
-    const { rows } = await pgCircuitBreaker.fire(
-      'SELECT ticker FROM tickers WHERE ticker = ANY($1)',
-      [formatValid],
-    );
-    const dbValidSet = new Set(rows.map((r: { ticker: string }) => r.ticker));
-    return {
-      valid: formatValid.filter((t) => dbValidSet.has(t)),
-      invalid,
-      unknown: formatValid.filter((t) => !dbValidSet.has(t)),
-    };
-  } catch (err) {
-    logger.warn(
-      { err },
-      '[dataService] validateTickers: PostgreSQL 查询失败，将格式合法ticker标记为unknown',
-    );
-    return { valid: [], invalid, unknown: formatValid };
-  }
+  const rows = await dbQuery<{ ticker: string }>(
+    'SELECT ticker FROM tickers WHERE ticker = ANY($1)',
+    [formatValid],
+    'validateTickers',
+  );
+  if (rows === null) return { valid: [], invalid, unknown: formatValid };
+  const dbValidSet = new Set(rows.map((r) => r.ticker));
+  return {
+    valid: formatValid.filter((t) => dbValidSet.has(t)),
+    invalid,
+    unknown: formatValid.filter((t) => !dbValidSet.has(t)),
+  };
 }
 
 export async function searchTickers(
