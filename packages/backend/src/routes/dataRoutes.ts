@@ -1,18 +1,8 @@
 import { Router, type Request, type Response } from 'express';
-import { fetchHistoryData, searchTickers } from '../infrastructure/dataFacade.js';
 import { fetchCpiForRoute, SYNTHETIC_TICKERS } from '../infrastructure/dataServices.js';
 import { sendProblem } from '../utils/errors.js';
-import { MAX_TICKERS } from '@backtest/shared/constants';
-import { validateQuery, validate } from '../middleware/miscMiddleware.js';
-import {
-  historyQuerySchema,
-  searchQuerySchema,
-  customTickerCreateSchema,
-} from '../schemas/analysisSchemas.js';
 import { asyncRouteHandler } from './routeUtils.js';
-import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
-import { getReadPool, pool } from '../db/pool.js';
-import { requirePermission, Permission } from '../middleware/rbac.js';
+import { getReadPool } from '../db/pool.js';
 import { rowMapper, toIso } from '../repositories/rowMapper.js';
 
 interface RecentUpdateRow {
@@ -67,54 +57,6 @@ export async function warmMetaCache(): Promise<void> {
 const router = Router();
 
 router.get(
-  '/history',
-  validateQuery(historyQuerySchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const { tickers, startDate, endDate } = req.query as {
-        tickers: string;
-        startDate: string;
-        endDate: string;
-      };
-      const tickerList = tickers
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-      if (tickerList.length > MAX_TICKERS) {
-        sendProblem(res, 422, 'TICKER_LIMIT_EXCEEDED');
-        return;
-      }
-      const { data, degraded, degradedWarning } = await fetchHistoryData(
-        tickerList,
-        startDate,
-        endDate,
-        (req as AuthenticatedRequest).tenantId,
-      );
-      const response: Record<string, unknown> = { success: true, data };
-      if (degraded) {
-        response.degraded = true;
-        response.degradedWarning = degradedWarning || 'Data service degraded';
-      }
-      res.json(response);
-    },
-    { logMsg: 'History data fetch error', code: 'HISTORY_FETCH_ERROR', endpoint: 'data-history' },
-  ),
-);
-
-router.get(
-  '/search',
-  validateQuery(searchQuerySchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const { query, market } = req.query as { query: string; market?: string };
-      const results = await searchTickers(query, market, (req as AuthenticatedRequest).tenantId);
-      res.json({ success: true, data: results });
-    },
-    { logMsg: 'Ticker search error', code: 'SEARCH_ERROR', endpoint: 'data-search' },
-  ),
-);
-
-router.get(
   '/cpi/:country',
   asyncRouteHandler(
     async (req: Request, res: Response): Promise<void> => {
@@ -136,21 +78,6 @@ router.get(
       res.json(response);
     },
     { logMsg: 'CPI data fetch error', code: 'CPI_FETCH_ERROR', endpoint: 'data-cpi' },
-  ),
-);
-
-router.get(
-  '/synthetic',
-  asyncRouteHandler(
-    async (_req: Request, res: Response): Promise<void> => {
-      res.set('Cache-Control', 'public, max-age=300');
-      res.json({ success: true, data: SYNTHETIC_TICKERS });
-    },
-    {
-      logMsg: 'Synthetic tickers fetch error',
-      code: 'SYNTHETIC_FETCH_ERROR',
-      endpoint: 'data-synthetic',
-    },
   ),
 );
 
@@ -286,84 +213,6 @@ router.get(
       code: 'RECENT_UPDATES_ERROR',
       endpoint: 'data-recent-updates',
     },
-  ),
-);
-
-const requireDataManage = requirePermission(Permission.DATA_MANAGE);
-
-function requireUserAndDb(
-  req: Request,
-  res: Response,
-): { userId: string; pool: NonNullable<typeof pool> } | null {
-  const userId = (req as AuthenticatedRequest).user?.sub;
-  if (!userId) {
-    sendProblem(res, 401, 'UNAUTHORIZED');
-    return null;
-  }
-  if (!pool) {
-    sendProblem(res, 503, 'DATABASE_UNAVAILABLE');
-    return null;
-  }
-  return { userId, pool };
-}
-
-router.get(
-  '/custom',
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const ctx = requireUserAndDb(req, res);
-      if (!ctx) return;
-      const { userId, pool: dbPool } = ctx;
-      const result = await dbPool.query(
-        'SELECT ticker, name, data, created_at FROM custom_tickers WHERE user_id = $1 ORDER BY ticker',
-        [userId],
-      );
-      res.json({ success: true, data: result.rows });
-    },
-    { logMsg: 'Custom tickers fetch error', code: 'CUSTOM_FETCH_ERROR' },
-  ),
-);
-
-router.post(
-  '/custom',
-  requireDataManage,
-  validate(customTickerCreateSchema),
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const ctx = requireUserAndDb(req, res);
-      if (!ctx) return;
-      const { userId, pool: dbPool } = ctx;
-      const { ticker, name, data } = req.body;
-      const result = await dbPool.query(
-        `INSERT INTO custom_tickers (user_id, ticker, name, data)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (user_id, ticker) DO UPDATE
-         SET name = $3, data = $4, updated_at = NOW()
-         RETURNING ticker, name, created_at`,
-        [userId, ticker, name ?? '', JSON.stringify(data)],
-      );
-      res.json({ success: true, data: result.rows[0] });
-    },
-    { logMsg: 'Custom ticker upload error', code: 'CUSTOM_UPLOAD_ERROR' },
-  ),
-);
-
-router.delete(
-  '/custom/:ticker',
-  requireDataManage,
-  asyncRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const ctx = requireUserAndDb(req, res);
-      if (!ctx) return;
-      const { userId, pool: dbPool } = ctx;
-      const { ticker } = req.params;
-      await dbPool.query('DELETE FROM custom_tickers WHERE user_id = $1 AND ticker = $2', [
-        userId,
-        ticker,
-      ]);
-      res.json({ success: true, data: { deleted: true } });
-    },
-    { logMsg: 'Custom ticker delete error', code: 'CUSTOM_DELETE_ERROR' },
   ),
 );
 

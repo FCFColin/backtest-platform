@@ -11,41 +11,8 @@ beforeAll(async () => {
 });
 
 describe('Data Integration', () => {
-  it.skipIf(!serverAvailable)('GET /data/history 无认证应返回401', async () => {
-    const res = await fetch(
-      `${BASE}/data/history?ticker=VTI&startDate=2020-01-01&endDate=2020-12-31`,
-    );
-    expect(res.status === 401 || res.status === 403).toBe(true);
-  });
-
-  it.skipIf(!serverAvailable)('GET /data/search 返回正确格式', async () => {
-    const res = await fetch(`${BASE}/data/search?query=AAPL`);
-    // search端点可能允许匿名访问或需要认证，取决于配置
-    const contentType = res.headers.get('content-type') ?? '';
-    expect(contentType.includes('application/json')).toBe(true);
-    if (res.ok) {
-      const json = await res.json();
-      expect(json).toHaveProperty('success');
-      if (json.success && json.data) {
-        expect(Array.isArray(json.data)).toBe(true);
-      }
-    }
-  });
-
-  it.skipIf(!serverAvailable)('GET /data/history 返回格式正确（带认证）', async () => {
-    const res = await fetch(
-      `${BASE}/data/history?ticker=VTI&startDate=2020-01-01&endDate=2020-12-31`,
-    );
-    if (res.ok) {
-      const json = await res.json();
-      expect(json).toHaveProperty('success');
-      if (json.data) {
-        expect(Array.isArray(json.data.prices) || Array.isArray(json.data)).toBe(true);
-      }
-    } else {
-      const json = await res.json();
-      expect(json.success).toBe(false);
-      expect(json.error).toBeDefined();
-    }
+  it.skipIf(!serverAvailable)('GET /data/meta 返回 JSON', async () => {
+    const res = await fetch(`${BASE}/data/meta`);
+    expect(res.status).toBe(200);
   });
 });

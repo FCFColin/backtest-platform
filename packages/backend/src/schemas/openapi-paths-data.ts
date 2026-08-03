@@ -12,28 +12,16 @@ import {
   AUTH_500_ERR,
   AUTH_NOT_FOUND_ERR,
   VALIDATION_ERR,
-  VALIDATION_CONFLICT_ERR,
   UPDATE_ERR,
-  TACTICAL_ERR,
   WITH_ID_PARAM,
   PAGINATION_QUERY,
 } from './openapi-paths-shared.js';
-import {
-  searchQuerySchema,
-  historyQuerySchema,
-  tickerListQuerySchema,
-  tickerSearchQuerySchema,
-} from './analysisSchemas.js';
+import { tickerListQuerySchema, tickerSearchQuerySchema } from './analysisSchemas.js';
 
 function registerDataEndpoints(): void {
-  sec('get', '/data/history', 'data', '获取历史行情数据', TACTICAL_ERR, {
-    query: historyQuerySchema,
-  });
-  sec('get', '/data/search', 'data', '搜索资产代码', [400, 401, 422], { query: searchQuerySchema });
   sec('get', '/data/cpi/{country}', 'data', '获取 CPI 数据', [400, 401, 404, 503], {
     params: z.object({ country: z.enum(['us', 'cn']) }),
   });
-  sec('get', '/data/synthetic', 'data', '获取合成标的列表', AUTH_500_ERR);
   sec('get', '/data/meta', 'data', '获取数据元信息', AUTH_500_ERR);
   sec('get', '/data/ticker-meta', 'data', '查询单个 ticker 元数据', [400, 401], {
     query: z.object({ ticker: z.string() }),
@@ -65,21 +53,6 @@ function registerDataManageUpdatePaths(): void {
   sec('post', '/data/manage/update/stop', 'data-manage', '停止更新任务', [401, 403, 409]);
   sec('put', '/data/manage/universe', 'data-manage', '更新标的池', [401, 403, 422]);
   sec('put', '/data/manage/regenerate-meta', 'data-manage', '重生成标的元数据', [401, 403, 503]);
-}
-
-function registerDataCustomPaths(): void {
-  sec('get', '/data/custom', 'data-custom', '列出当前租户的自定义 ticker 数据', AUTH_ERR);
-  sec('post', '/data/custom', 'data-custom', '创建集群 ticker 数据', VALIDATION_CONFLICT_ERR, {
-    body: z.object({
-      symbol: z.string().min(1).max(50),
-      name: z.string().min(1).max(255),
-      exchange: z.string().optional(),
-      currency: z.string().optional(),
-    }),
-  });
-  sec('delete', '/data/custom/{id}', 'data-custom', '删除自定义 ticker 数据', AUTH_NOT_FOUND_ERR, {
-    ...WITH_ID_PARAM,
-  });
 }
 
 function registerTacticalConfigPaths(): void {
@@ -128,6 +101,5 @@ export function registerDataPaths(): void {
   registerDataEndpoints();
   registerDataManageQueryPaths();
   registerDataManageUpdatePaths();
-  registerDataCustomPaths();
   registerTacticalConfigPaths();
 }

@@ -88,8 +88,8 @@ describe('App 安全中间件', () => {
     expect(res.headers.get('x-content-type-options')).toBeTruthy();
   });
 
-  it('GET /api/v1/data/history 无参数应返回 4xx', async () => {
-    const res = await fetch(`${baseUrl}/api/v1/data/history`);
+  it('GET /api/v1/data/meta 无参数应返回 4xx', async () => {
+    const res = await fetch(`${baseUrl}/api/v1/data/meta`);
     expect(res.status).toBeGreaterThanOrEqual(400);
   });
 

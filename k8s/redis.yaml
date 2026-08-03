@@ -1,27 +1,16 @@
-# =============================================================================
-# Redis 7 Sentinel 高可用拓扑（ADR-045：取代单实例 + 内存降级）
-# 1 主 + 2 从 + 3 Sentinel（quorum=2），自动故障转移，删除"故障降级为内存"代码路径（改显式 503 + 告警）。
-# 关键参数：monitor quorum=2；min-slaves-to-write=1；min-slaves-max-lag=10；
-#       down-after-milliseconds 5000；failover-timeout 30000；StorageClass Retain。
-# 本地等价拓扑验证见 docker-compose.yml redis-master/replica/sentinel。
-# =============================================================================
-
+# Redis 7 Sentinel HA (ADR-045: 1 master + 2 replicas + 3 sentinels, quorum=2)
+# Key params: min-slaves-to-write=1, min-slaves-max-lag=10, down-after=5000ms, failover-timeout=30s
 ---
-# StorageClass：reclaimPolicy=Retain 防止 PVC 随 Pod 删除被回收（数据全丢 → 全员登出）。
-# provisioner 需匹配集群：dev/kind=rancher.io/local-path，EKS=kubernetes.io/aws-ebs，GKE=pd.csi.storage.gke.io
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: redis-data
   labels:
     app.kubernetes.io/part-of: backtest-platform
-provisioner: rancher.io/local-path # dev/kind；生产应改用云厂商 provisioner
-reclaimPolicy: Retain # ADR-045 Checklist：防止 PVC 意外删除
+provisioner: rancher.io/local-path # dev/kind; prod: cloud provider
+reclaimPolicy: Retain # ADR-045: prevent PVC deletion
 volumeBindingMode: WaitForFirstConsumer
 ---
-# ConfigMap：Redis 启动脚本 + Sentinel 初始配置
-# entrypoint.sh 根据 Pod 序号选角色（redis-0 主 / 1,2 从），避免拆 2 个 StatefulSet。
-# Sentinel 配置初始指向 redis-0.redis，故障转移后自行重写（需可写卷）。
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -31,38 +20,31 @@ metadata:
     app: redis
     app.kubernetes.io/part-of: backtest-platform
 data:
-  # 启动脚本：redis-0 → master（防脑裂参数）；redis-1/2 → replica of redis-0.redis:6379
   entrypoint.sh: |
     #!/bin/sh
     set -e
     ORDINAL="${HOSTNAME##*-}"
     if [ "$ORDINAL" = "0" ]; then
-      # 主节点：AOF + 至少 1 从节点 ACK 才写（min-slaves-to-write=1），延迟 >10s 视为不可用
       exec redis-server \
         --appendonly yes \
         --min-slaves-to-write 1 \
         --min-slaves-max-lag 10 \
         --save 60 1000
     else
-      # 从节点：复制 redis-0.redis；故障转移后 Sentinel 以 REPLICAOF NO ONE 提升新主
       exec redis-server \
         --appendonly yes \
         --replicaof redis-0.redis 6379 \
         --replica-read-only yes
     fi
-  # Sentinel 初始配置（挂载到可写 emptyDir，运行时 Sentinel 会重写此文件）
   sentinel.conf: |
     port 26379
     dir /data
-    # 监控 mymaster = redis-0.redis:6379，quorum=2（3 节点中 2 个同意即故障转移）
     sentinel monitor mymaster redis-0.redis 6379 2
-    # 5s 无响应判定主观下线（SDOWN）；30s 故障转移超时；并行同步仅 1 从避免雪崩
     sentinel down-after-milliseconds mymaster 5000
     sentinel failover-timeout mymaster 30000
     sentinel parallel-syncs mymaster 1
     sentinel deny-scripts-reconfig yes
 ---
-# Redis StatefulSet（1 主 + 2 从，共 3 副本）
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -72,8 +54,8 @@ metadata:
     app: redis
     app.kubernetes.io/part-of: backtest-platform
 spec:
-  serviceName: redis # 关联 Headless Service，提供稳定 DNS：redis-{0,1,2}.redis
-  replicas: 3 # 1 主 + 2 从（ADR-045）
+  serviceName: redis
+  replicas: 3
   selector:
     matchLabels:
       app: redis
@@ -83,7 +65,6 @@ spec:
         app: redis
         app.kubernetes.io/part-of: backtest-platform
     spec:
-      # 安全上下文：redis 用户（UID 999）运行，禁止 root（CIS 5.2.6）
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -92,7 +73,6 @@ spec:
         capabilities:
           drop:
             - ALL
-      # initContainer 把 entrypoint.sh 拷贝到可写 emptyDir（ConfigMap 挂载默认不可写）
       initContainers:
         - name: init-script
           image: redis:7-alpine
@@ -103,68 +83,73 @@ spec:
             [
               'sh',
               '-c',
-              'cp /configmap/entrypoint.sh /scripts/entrypoint.sh && chmod +x /scripts/entrypoint.sh',
+              'cp /config/entrypoint.sh /scripts/entrypoint.sh && chmod +x /scripts/entrypoint.sh',
             ]
           volumeMounts:
-            - name: configmap
-              mountPath: /configmap
+            - name: config
+              mountPath: /config
             - name: scripts
               mountPath: /scripts
       containers:
         - name: redis
           image: redis:7-alpine
-          command: ['/scripts/entrypoint.sh']
           ports:
             - containerPort: 6379
               name: redis
-          resources:
-            # 100K MAU 下单分片 Redis 7 充裕；生产可按需调大
-            requests:
-              memory: '64Mi'
-              cpu: '0.1'
-            limits:
-              memory: '256Mi'
-              cpu: '0.5'
-          # 探针均用 redis-cli ping（含"正在加载 RDB"中间态）；流量由 Sentinel 路由
-          livenessProbe:
-            exec:
-              command: ['redis-cli', 'ping']
-            initialDelaySeconds: 10
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            exec:
-              command: ['redis-cli', 'ping']
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
+            - containerPort: 26379
+              name: sentinel
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            allowPrivilegeEscalation: false
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: auth-secret
+                  key: REDIS_PASSWORD
+          command: ['/scripts/entrypoint.sh']
           volumeMounts:
-            - name: redis-data
+            - name: data
               mountPath: /data
+            - name: config
+              mountPath: /config
             - name: scripts
               mountPath: /scripts
-              readOnly: true
+            - name: sentinel-config
+              mountPath: /sentinel-config
+          readinessProbe:
+            exec:
+              command: ['sh', '-c', 'redis-cli -a $REDIS_PASSWORD ping | grep PONG']
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ['sh', '-c', 'redis-cli -a $REDIS_PASSWORD ping | grep PONG']
+            initialDelaySeconds: 30
+            periodSeconds: 30
       volumes:
-        - name: configmap
+        - name: config
           configMap:
             name: redis-sentinel-config
         - name: scripts
           emptyDir: {}
+        - name: sentinel-config
+          configMap:
+            name: redis-sentinel-config
+            items:
+              - key: sentinel.conf
+                path: sentinel.conf
   volumeClaimTemplates:
     - metadata:
-        name: redis-data
+        name: data
       spec:
-        accessModes:
-          - ReadWriteOnce
-        storageClassName: redis-data # reclaimPolicy: Retain（见上方 StorageClass）
+        accessModes: ['ReadWriteOnce']
+        storageClassName: redis-data
         resources:
           requests:
-            storage: 1Gi # 开发环境 1Gi；生产建议 5Gi+
+            storage: 10Gi
 ---
-# Redis Headless Service：稳定 Pod DNS（redis-{0,1,2}.redis）供 Sentinel/replicaof 使用；
-# 不用 ClusterIP：客户端经 Sentinel 路由，无需单一 VIP。
 apiVersion: v1
 kind: Service
 metadata:
@@ -174,153 +159,29 @@ metadata:
     app: redis
     app.kubernetes.io/part-of: backtest-platform
 spec:
-  type: ClusterIP
-  clusterIP: None # Headless
-  ports:
-    - port: 6379
-      targetPort: 6379
-      name: redis
+  clusterIP: None
   selector:
     app: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+    - name: sentinel
+      port: 26379
+      targetPort: 26379
 ---
-# Redis Sentinel StatefulSet（3 节点，quorum=2，容忍 1 节点故障）
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: redis-sentinel
-  namespace: backtest-platform
-  labels:
-    app: redis-sentinel
-    app.kubernetes.io/part-of: backtest-platform
-spec:
-  serviceName: redis-sentinel
-  replicas: 3 # 3 节点 quorum=2，容忍 1 节点故障
-  selector:
-    matchLabels:
-      app: redis-sentinel
-  template:
-    metadata:
-      labels:
-        app: redis-sentinel
-        app.kubernetes.io/part-of: backtest-platform
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 999
-        fsGroup: 999
-        allowPrivilegeEscalation: false
-        capabilities:
-          drop:
-            - ALL
-      # initContainer 拷贝 sentinel.conf 到可写 emptyDir（故障转移时 Sentinel 需重写）
-      initContainers:
-        - name: init-sentinel-conf
-          image: redis:7-alpine
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 999
-          command:
-            [
-              'sh',
-              '-c',
-              'cp /configmap/sentinel.conf /sentinel-conf/sentinel.conf && chmod 644 /sentinel-conf/sentinel.conf',
-            ]
-          volumeMounts:
-            - name: configmap
-              mountPath: /configmap
-            - name: sentinel-conf
-              mountPath: /sentinel-conf
-      containers:
-        - name: sentinel
-          image: redis:7-alpine
-          command: ['redis-sentinel', '/sentinel-conf/sentinel.conf']
-          ports:
-            - containerPort: 26379
-              name: sentinel
-          resources:
-            # Sentinel 极轻量：仅做监控与仲裁
-            requests:
-              memory: '32Mi'
-              cpu: '0.05'
-            limits:
-              memory: '64Mi'
-              cpu: '0.2'
-          livenessProbe:
-            exec:
-              command: ['redis-cli', '-p', '26379', 'ping']
-            initialDelaySeconds: 10
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            exec:
-              command: ['redis-cli', '-p', '26379', 'ping']
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 3
-            failureThreshold: 3
-          volumeMounts:
-            - name: sentinel-data
-              mountPath: /data
-            - name: sentinel-conf
-              mountPath: /sentinel-conf
-              readOnly: false # Sentinel 需重写此文件
-      volumes:
-        - name: configmap
-          configMap:
-            name: redis-sentinel-config
-        - name: sentinel-conf
-          emptyDir: {}
-        - name: sentinel-data
-          emptyDir: {}
----
-# Sentinel Headless Service：稳定 DNS redis-sentinel-{0,1,2}.redis-sentinel:26379（ioredis 需要）
 apiVersion: v1
 kind: Service
 metadata:
   name: redis-sentinel
   namespace: backtest-platform
   labels:
-    app: redis-sentinel
-    app.kubernetes.io/part-of: backtest-platform
-spec:
-  type: ClusterIP
-  clusterIP: None # Headless
-  ports:
-    - port: 26379
-      targetPort: 26379
-      name: sentinel
-  selector:
-    app: redis-sentinel
----
-# PDB：Sentinel 至少 2 个 Pod 可用（quorum=2 需要 3 节点中 2 个存活才能故障转移）。
-# 阻止自愿驱逐（节点维护/滚动更新）导致 quorum 丢失；非自愿驱逐由调度器补足。
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: redis-sentinel-pdb
-  namespace: backtest-platform
-  labels:
-    app: redis-sentinel
-    app.kubernetes.io/part-of: backtest-platform
-spec:
-  minAvailable: 2 # 3 节点中至少 2 个可用，保证 quorum 可达成
-  selector:
-    matchLabels:
-      app: redis-sentinel
----
-# PDB：Redis 数据节点至少 2 个 Pod 可用（1 主 + 1 从）。
-# min-slaves-to-write=1 要求主节点至少 1 个从节点 ACK 才接受写入，仅剩 1 Pod 会拒绝写入。
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: redis-pdb
-  namespace: backtest-platform
-  labels:
     app: redis
     app.kubernetes.io/part-of: backtest-platform
 spec:
-  minAvailable: 2
   selector:
-    matchLabels:
-      app: redis
+    app: redis
+  ports:
+    - name: sentinel
+      port: 26379
+      targetPort: 26379

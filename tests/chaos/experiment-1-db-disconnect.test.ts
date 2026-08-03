@@ -13,7 +13,7 @@ const API_URL = process.env.API_URL || 'http://127.0.0.1:15001';
 const HEALTH_URL = `${API_URL}/api/health`;
 const METRICS_URL = `${API_URL}/api/metrics`;
 
-const DB_ENDPOINT = `${API_URL}/api/v1/data/history?tickers=SPY&startDate=2020-01-01&endDate=2024-12-31`;
+const DB_ENDPOINT = `${API_URL}/api/v1/data/meta`;
 
 let fixture: ChaosFixture = {
   dockerAvailable: false,
