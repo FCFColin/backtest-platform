@@ -1,5 +1,12 @@
-import { memo, useState, type ChangeEvent, type ReactNode, forwardRef, useId } from 'react';
-import type { InputHTMLAttributes } from 'react';
+import {
+  memo,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+  forwardRef,
+  useId,
+  type InputHTMLAttributes,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useShallow } from 'zustand/react/shallow';
 import { ChevronDown, Calendar } from 'lucide-react';
@@ -130,52 +137,45 @@ interface FloatingLabelSelectProps {
   containerClassName?: string;
   disabled?: boolean;
 }
-const FloatingLabelSelect = forwardRef<HTMLButtonElement, FloatingLabelSelectProps>(
-  (
-    {
-      label,
-      value,
-      onValueChange,
-      options,
-      error,
-      hint,
-      placeholder,
-      containerClassName,
-      disabled,
-    },
-    ref,
-  ) => {
-    const inputId = useId();
-    return (
-      <FloatingLabelField
-        label={label}
-        error={error}
-        hint={hint}
-        containerClassName={containerClassName}
-        htmlFor={inputId}
-      >
-        <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-          <SelectTrigger
-            ref={ref}
-            id={inputId}
-            aria-label={label}
-            className="w-full h-full pt-6 pb-2 px-3 pr-9 flex items-center justify-between text-body text-fg text-left border-0 bg-transparent focus:outline-none focus:ring-0 [&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100"
-          >
-            <SelectValue placeholder={placeholder} />
-          </SelectTrigger>
-          <SelectContent position="popper" sideOffset={4}>
-            {options.map((o) => (
-              <SelectItem key={o.value} value={o.value}>
-                {o.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FloatingLabelField>
-    );
-  },
-);
-FloatingLabelSelect.displayName = 'FloatingLabelSelect';
+function FloatingLabelSelect({
+  label,
+  value,
+  onValueChange,
+  options,
+  error,
+  hint,
+  placeholder,
+  containerClassName,
+  disabled,
+}: FloatingLabelSelectProps) {
+  const inputId = useId();
+  return (
+    <FloatingLabelField
+      label={label}
+      error={error}
+      hint={hint}
+      containerClassName={containerClassName}
+      htmlFor={inputId}
+    >
+      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger
+          id={inputId}
+          aria-label={label}
+          className="w-full h-full pt-6 pb-2 px-3 pr-9 flex items-center justify-between text-body text-fg text-left border-0 bg-transparent focus:outline-none focus:ring-0 [&>svg]:absolute [&>svg]:right-3 [&>svg]:bottom-3.5 [&>svg]:opacity-100"
+        >
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent position="popper" sideOffset={4}>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </FloatingLabelField>
+  );
+}
 
 function validateDateChange(
   field: 'startDate' | 'endDate',
@@ -405,6 +405,14 @@ function BasicParamsGrid() {
   );
 }
 
+const ADVANCED_SWITCHES: Array<{
+  labelKey: string;
+  paramKey: 'adjustForInflation' | 'extendedWithdrawalStats';
+}> = [
+  { labelKey: 'params.adjustForInflation', paramKey: 'adjustForInflation' },
+  { labelKey: 'params.extendedWithdrawalStats', paramKey: 'extendedWithdrawalStats' },
+];
+
 function AdvancedParamsSection({
   advancedOpen,
   setAdvancedOpen,
@@ -424,16 +432,14 @@ function AdvancedParamsSection({
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4 border-t border-border-subtle">
-          <SwitchRow
-            label={t('params.adjustForInflation')}
-            checked={parameters.adjustForInflation}
-            onCheckedChange={(v) => updateParameter('adjustForInflation', v)}
-          />
-          <SwitchRow
-            label={t('params.extendedWithdrawalStats')}
-            checked={parameters.extendedWithdrawalStats}
-            onCheckedChange={(v) => updateParameter('extendedWithdrawalStats', v)}
-          />
+          {ADVANCED_SWITCHES.map(({ labelKey, paramKey }) => (
+            <SwitchRow
+              key={paramKey}
+              label={t(labelKey)}
+              checked={parameters[paramKey]}
+              onCheckedChange={(v) => updateParameter(paramKey, v)}
+            />
+          ))}
           <div className="flex items-start gap-3 py-2">
             <Switch
               checked={benchmarkEnabled}
