@@ -46,9 +46,6 @@ vi.mock('../../../packages/backend/src/utils/logger.js', () => ({ logger: logger
 vi.mock('../../../packages/backend/src/application/auditExporter.js', () => ({
   exportPendingAuditLogs: vi.fn().mockResolvedValue({ exported: 0 }),
 }));
-vi.mock('../../../packages/backend/src/application/webhookService.js', () => ({
-  processPendingDeliveries: vi.fn().mockResolvedValue(undefined),
-}));
 vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
   createDeadLetterQueue: vi.fn().mockReturnValue({ name: 'dlq', add: vi.fn() }),
   SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS: 86400,
@@ -60,12 +57,9 @@ vi.mock('../../../packages/backend/src/queues/queueUtils.js', () => ({
 import {
   dataUpdateQueue,
   auditExportQueue,
-  webhookQueue,
   getActiveUpdateJobs,
   scheduleAuditExportJob,
   createAuditExportWorker,
-  scheduleWebhookRetryJob,
-  createWebhookRetryWorker,
 } from '../../../packages/backend/src/queues/queueDefinitions.js';
 
 // NOTE: 不使用 vi.clearAllMocks()，因为 Queue/Worker 实例在模块加载时创建，
@@ -79,10 +73,6 @@ describe('Queue 实例创建', () => {
 
   it('auditExportQueue 应使用正确的名称', () => {
     expect(auditExportQueue.name).toBe('audit-export');
-  });
-
-  it('webhookQueue 应使用正确的名称', () => {
-    expect(webhookQueue.name).toBe('webhook-retry');
   });
 });
 
@@ -134,39 +124,5 @@ describe('createAuditExportWorker', () => {
     createAuditExportWorker();
     const fn = workerMocks.instances['audit-export'].fn as () => Promise<void>;
     await expect(fn()).resolves.toBeUndefined();
-  });
-});
-
-describe('scheduleWebhookRetryJob', () => {
-  it('应添加重复任务', async () => {
-    webhookQueue.add = vi.fn().mockResolvedValue({ id: 'job-wh' });
-    await scheduleWebhookRetryJob();
-    expect(webhookQueue.add).toHaveBeenCalledWith(
-      'webhook-retry',
-      {},
-      expect.objectContaining({ jobId: 'webhook-retry-cron', repeat: { every: 60000 } }),
-    );
-  });
-});
-
-describe('createWebhookRetryWorker', () => {
-  it('应创建 Worker 并注册 error/failed 事件', () => {
-    const worker = createWebhookRetryWorker();
-    expect(workerMocks.Worker).toHaveBeenCalledWith(
-      'webhook-retry',
-      expect.any(Function),
-      expect.objectContaining({ concurrency: 1 }),
-    );
-    expect(worker.on).toHaveBeenCalledWith('error', expect.any(Function));
-    expect(worker.on).toHaveBeenCalledWith('failed', expect.any(Function));
-  });
-
-  it('Worker 处理函数应调用 processPendingDeliveries', async () => {
-    const { processPendingDeliveries } =
-      await import('../../../packages/backend/src/application/webhookService.js');
-    createWebhookRetryWorker();
-    const fn = workerMocks.instances['webhook-retry'].fn as () => Promise<void>;
-    await fn();
-    expect(processPendingDeliveries).toHaveBeenCalled();
   });
 });

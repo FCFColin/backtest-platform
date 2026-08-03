@@ -1,42 +1,37 @@
-/* eslint-disable react-refresh/only-export-components, complexity, sonarjs/cognitive-complexity, max-params -- SVG 图表共享工具库（工具函数与组件同文件，拆分独立文件则重复 import） */
+/* eslint-disable react-refresh/only-export-components, complexity, sonarjs/cognitive-complexity, max-params -- SVG 图表共享工具库 */
 import { useCallback, useState, type CSSProperties, type ReactNode } from 'react';
 import { CHART_COLORS } from '@backtest/shared';
 import { AXIS_TICK_STYLE } from '@/lib/chart-theme';
 
 type Orientation = 'bottom' | 'left';
-interface TickLineConfig {
-  length: number;
-}
-interface AxisLabelConfig {
-  value: string;
-}
 interface SvgAxisProps {
   orientation: Orientation;
   range: number;
   ticks: Array<{ value: number; label: string }>;
-  label?: AxisLabelConfig | string;
+  label?: { value: string } | string;
   gridLines?: boolean;
   gridColor?: string;
-  tickLine?: TickLineConfig | boolean;
+  tickLine?: { length: number } | boolean;
   tickStyle?: CSSProperties;
   offset: number;
   hideLine?: boolean;
 }
 export const TICK_STYLE = AXIS_TICK_STYLE;
-const isAxisLabelConfig = (v: AxisLabelConfig | string | undefined): v is AxisLabelConfig =>
-  typeof v === 'object' && v !== null && 'value' in v;
 type Line4 = [number, number, number, number];
 const axisLine = (o: Orientation, range: number, offset: number): Line4 =>
   o === 'bottom' ? [0, offset, range, offset] : [offset, 0, offset, range];
-const gridLine = (o: Orientation, v: number, range: number, offset: number): Line4 =>
-  o === 'bottom' ? [v, 0, v, offset] : [0, v, range, v];
-const tickMark = (o: Orientation, v: number, offset: number, len: number): Line4 =>
-  o === 'bottom' ? [v, offset, v, offset + len] : [offset - len, v, offset, v];
-const tickTextPos = (o: Orientation, v: number, offset: number, len: number) =>
-  o === 'bottom'
-    ? { x: v, y: offset + len + 12, textAnchor: 'middle' as const }
-    : { x: offset - len - 6, y: v + 4, textAnchor: 'end' as const };
-const LABEL_STYLE: CSSProperties = { fill: 'var(--text-muted)', fontSize: 12 };
+const tickGeom = (o: Orientation, v: number, range: number, offset: number, len: number) => {
+  const b = o === 'bottom';
+  return {
+    grid: (b ? [v, 0, v, offset] : [0, v, range, v]) as Line4,
+    tick: (b ? [v, offset, v, offset + len] : [offset - len, v, offset, v]) as Line4,
+    text: b
+      ? { x: v, y: offset + len + 12, textAnchor: 'middle' as const }
+      : { x: offset - len - 6, y: v + 4, textAnchor: 'end' as const },
+  };
+};
+const isLabelCfg = (v: { value: string } | string | undefined): v is { value: string } =>
+  typeof v === 'object' && v !== null && 'value' in v;
 export function SvgAxis({
   orientation,
   range,
@@ -58,32 +53,35 @@ export function SvgAxis({
   return (
     <g className="svg-axis">
       {!hideLine && (
-        <line x1={axX1} y1={axY1} x2={axX2} y2={axY2} stroke="var(--border-soft)" strokeWidth={1} />
+        <line
+          {...{ x1: axX1, y1: axY1, x2: axX2, y2: axY2 }}
+          stroke="var(--border-soft)"
+          strokeWidth={1}
+        />
       )}
       {ticks.map((t, i) => {
-        const [gx1, gy1, gx2, gy2] = gridLine(orientation, t.value, range, offset);
-        const [x1, y1, x2, y2] = tickMark(orientation, t.value, offset, len);
-        const tp = tickTextPos(orientation, t.value, offset, len);
+        const g = tickGeom(orientation, t.value, range, offset, len);
         return (
           <g key={`tick-${i}`}>
             {gridLines && (
               <line
-                x1={gx1}
-                y1={gy1}
-                x2={gx2}
-                y2={gy2}
+                {...{ x1: g.grid[0], y1: g.grid[1], x2: g.grid[2], y2: g.grid[3] }}
                 stroke={gridColor}
                 strokeWidth={1}
                 strokeDasharray="3 3"
               />
             )}
             {len > 0 && (
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--border-soft)" strokeWidth={1} />
+              <line
+                {...{ x1: g.tick[0], y1: g.tick[1], x2: g.tick[2], y2: g.tick[3] }}
+                stroke="var(--border-soft)"
+                strokeWidth={1}
+              />
             )}
             <text
-              x={tp.x}
-              y={tp.y}
-              textAnchor={tp.textAnchor}
+              x={g.text.x}
+              y={g.text.y}
+              textAnchor={g.text.textAnchor}
               style={tickStyle as Record<string, string | number>}
             >
               {t.label}
@@ -92,8 +90,12 @@ export function SvgAxis({
         );
       })}
       {label && (
-        <text {...labelProps} textAnchor="middle" style={LABEL_STYLE}>
-          {isAxisLabelConfig(label) ? label.value : label}
+        <text
+          {...labelProps}
+          textAnchor="middle"
+          style={{ fill: 'var(--text-muted)', fontSize: 12 }}
+        >
+          {isLabelCfg(label) ? label.value : label}
         </text>
       )}
     </g>
@@ -120,89 +122,45 @@ interface SvgTooltipProps {
   label?: string;
   offset?: number;
 }
-const TOOLTIP_STYLE: CSSProperties = {
-  position: 'fixed',
-  backgroundColor: 'hsl(var(--chart-tooltip-bg) / 0.95)',
-  border: '1px solid hsl(var(--border-strong))',
-  borderRadius: '8px',
-  padding: '12px',
-  color: 'hsl(var(--fg))',
-  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)',
-  backdropFilter: 'blur(8px)',
-  WebkitBackdropFilter: 'blur(8px)',
-  zIndex: 1000,
-  pointerEvents: 'none',
-  fontSize: '12px',
-  lineHeight: '1.5',
-  whiteSpace: 'nowrap',
-};
-const swatchStyle = (size: number, color: string): CSSProperties => ({
-  display: 'inline-block',
-  width: size,
-  height: size,
-  borderRadius: '50%',
-  flexShrink: 0,
-  backgroundColor: color,
-});
+const TOOLTIP_CLS =
+  'fixed pointer-events-none z-[1000] rounded-lg p-3 text-xs leading-relaxed whitespace-nowrap backdrop-blur-md bg-chart-tooltip-bg/95 border border-border-strong text-fg shadow-[0_10px_25px_-5px_rgba(0,0,0,0.5),0_4px_6px_-2px_rgba(0,0,0,0.3)]';
 function SvgTooltip({ active, position, data, label, offset = 20 }: SvgTooltipProps) {
   if (!active || data.length === 0) return null;
   return (
     <div
-      style={{ ...TOOLTIP_STYLE, left: `${position.x + offset}px`, top: `${position.y - 10}px` }}
+      className={TOOLTIP_CLS}
+      style={{ left: `${position.x + offset}px`, top: `${position.y - 10}px` }}
     >
       {label != null && (
-        <div style={{ marginBottom: 6, fontWeight: 600, color: 'hsl(var(--fg-strong))' }}>
-          {label}
-        </div>
+        <div className="mb-1.5 font-semibold text-[hsl(var(--fg-strong))]">{label}</div>
       )}
       {data.map((item, idx) => (
-        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
-          <span style={swatchStyle(8, item.color)} />
-          <span style={{ color: 'hsl(var(--fg-tertiary))' }}>{item.name}</span>
-          <span style={{ fontWeight: 600, marginLeft: 'auto', fontFamily: 'Geist Mono Variable' }}>
-            {item.value}
-          </span>
+        <div key={idx} className="flex items-center gap-2 py-0.5">
+          <span
+            className="inline-block h-2 w-2 flex-shrink-0 rounded-full"
+            style={{ backgroundColor: item.color }}
+          />
+          <span className="text-fg-tertiary">{item.name}</span>
+          <span className="ml-auto font-semibold font-mono">{item.value}</span>
         </div>
       ))}
     </div>
   );
 }
 
-interface SvgLegendSeries {
-  name: string;
-  color: string;
-  visible?: boolean;
-}
 interface SvgLegendProps {
-  series: SvgLegendSeries[];
+  series: Array<{ name: string; color: string; visible?: boolean }>;
   onToggle?: (name: string) => void;
 }
 function SvgLegend({ series, onToggle }: SvgLegendProps) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: '12px',
-        padding: '8px 0',
-        fontSize: '12px',
-        color: 'var(--fg-tertiary)',
-      }}
-    >
+    <div className="flex flex-wrap justify-center gap-3 py-2 text-xs text-fg-tertiary">
       {series.map((s) => (
         <div
           role="button"
           tabIndex={0}
           key={s.name}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            cursor: onToggle ? 'pointer' : 'default',
-            opacity: s.visible === false ? 0.4 : 1,
-            transition: 'opacity 0.15s',
-          }}
+          className={`flex items-center gap-1.5 transition-opacity ${onToggle ? 'cursor-pointer' : 'cursor-default'} ${s.visible === false ? 'opacity-40' : 'opacity-100'}`}
           onClick={() => onToggle?.(s.name)}
           onKeyDown={(e) => {
             if (onToggle && (e.key === 'Enter' || e.key === ' ')) {
@@ -211,7 +169,10 @@ function SvgLegend({ series, onToggle }: SvgLegendProps) {
             }
           }}
         >
-          <span style={swatchStyle(10, s.color)} />
+          <span
+            className="inline-block h-2.5 w-2.5 flex-shrink-0 rounded-full"
+            style={{ backgroundColor: s.color }}
+          />
           <span>{s.name}</span>
         </div>
       ))}
@@ -219,18 +180,13 @@ function SvgLegend({ series, onToggle }: SvgLegendProps) {
   );
 }
 
-interface XTickPixel {
-  value: number;
-  label: string;
-  show?: boolean;
-}
 export function XAxisTicks({
   ticks,
   plotBottom,
   maxLabelLen,
   style = TICK_STYLE,
 }: {
-  ticks: XTickPixel[];
+  ticks: Array<{ value: number; label: string; show?: boolean }>;
   plotBottom: number;
   maxLabelLen?: number;
   style?: CSSProperties;
@@ -276,12 +232,7 @@ export type ChartPoint = Record<string, number | string>;
 export const plotDims = (width: number, height: number, margin: ChartMargin) => {
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  return {
-    plotWidth,
-    plotHeight,
-    plotLeft: margin.left,
-    plotBottom: margin.top + plotHeight,
-  };
+  return { plotWidth, plotHeight, plotLeft: margin.left, plotBottom: margin.top + plotHeight };
 };
 const toggleInSet = (prev: Set<string>, name: string) => {
   const next = new Set(prev);
@@ -348,19 +299,21 @@ const buildTooltipItems = (
       color: colorOf(seriesNames.indexOf(name), val),
     };
   });
-interface MouseMoveContext {
-  data: ChartPoint[];
-  xDataKey: string;
-  visibleSeries: string[];
-  seriesNames: string[];
-  colorOf: (idx: number, val: number) => string;
-  indexAt: (mx: number) => number;
-  fallbackValue: (v: number) => string;
-  tooltipValueFormatter?: (v: number, name: string) => [string, string] | string;
-  tooltipLabelFormatter?: (l: string) => string;
-}
 export const buildMouseMoveHandler =
-  (setTooltip: (t: TooltipState) => void, ctx: MouseMoveContext) =>
+  (
+    setTooltip: (t: TooltipState) => void,
+    ctx: {
+      data: ChartPoint[];
+      xDataKey: string;
+      visibleSeries: string[];
+      seriesNames: string[];
+      colorOf: (idx: number, val: number) => string;
+      indexAt: (mx: number) => number;
+      fallbackValue: (v: number) => string;
+      tooltipValueFormatter?: (v: number, name: string) => [string, string] | string;
+      tooltipLabelFormatter?: (l: string) => string;
+    },
+  ) =>
   (e: React.MouseEvent<SVGSVGElement>) => {
     const mx = e.clientX - e.currentTarget.getBoundingClientRect().left;
     const dataIdx = ctx.indexAt(mx);
@@ -385,21 +338,6 @@ export const buildMouseMoveHandler =
       ),
     });
   };
-interface ChartLegendConfig {
-  names: string[];
-  colorOf: (idx: number) => string;
-  hidden: Set<string>;
-  onToggle: (name: string) => void;
-}
-interface ChartShellProps {
-  width: number;
-  height: number;
-  tooltip: TooltipState;
-  onMouseMove: (e: React.MouseEvent<SVGSVGElement>) => void;
-  onMouseLeave: () => void;
-  legend?: ChartLegendConfig;
-  children: ReactNode;
-}
 export function ChartShell({
   width,
   height,
@@ -408,15 +346,28 @@ export function ChartShell({
   onMouseLeave,
   legend,
   children,
-}: ChartShellProps) {
+}: {
+  width: number;
+  height: number;
+  tooltip: TooltipState;
+  onMouseMove: (e: React.MouseEvent<SVGSVGElement>) => void;
+  onMouseLeave: () => void;
+  legend?: {
+    names: string[];
+    colorOf: (idx: number) => string;
+    hidden: Set<string>;
+    onToggle: (name: string) => void;
+  };
+  children: ReactNode;
+}) {
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div className="relative w-full">
       <svg
         width={width}
         height={height}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
-        style={{ display: 'block' }}
+        className="block"
       >
         {children}
       </svg>

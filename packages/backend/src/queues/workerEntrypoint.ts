@@ -7,12 +7,7 @@ import { initDb } from '../infrastructure/dataFacade.js';
 import { closeDb } from '../db/pool.js';
 import { eventDispatcher } from '../domain/events/events.js';
 import { BacktestCompletedHandler, RunCompletedHandler } from '../application/completedHandlers.js';
-import {
-  createWebhookRetryWorker,
-  scheduleWebhookRetryJob,
-  createAuditExportWorker,
-  scheduleAuditExportJob,
-} from './queueDefinitions.js';
+import { createAuditExportWorker, scheduleAuditExportJob } from './queueDefinitions.js';
 import { createDataUpdateWorker } from './dataUpdateWorker.js';
 import { startHeartbeat } from './queueUtils.js';
 import { shutdownWorker } from './worker.js'; // Backtest worker (module-level side effect: creates Worker at import time)
@@ -23,7 +18,6 @@ validateConfig();
 eventDispatcher.register(new BacktestCompletedHandler());
 eventDispatcher.register(new RunCompletedHandler());
 
-let webhookWorker: Worker | null = null;
 let auditExportWorker: Worker | null = null;
 let dataUpdateWorker: Worker | null = null;
 let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -47,10 +41,6 @@ async function shutdown(signal: string): Promise<void> {
     if (heartbeatTimer) {
       clearInterval(heartbeatTimer);
       heartbeatTimer = null;
-    }
-    if (webhookWorker) {
-      await webhookWorker.close();
-      webhookWorker = null;
     }
     if (auditExportWorker) {
       await auditExportWorker.close();
@@ -81,13 +71,6 @@ async function main(): Promise<void> {
   } catch (err) {
     logger.error({ err }, '[worker-entry] Database initialization failed');
     throw err;
-  }
-
-  try {
-    webhookWorker = createWebhookRetryWorker();
-    await scheduleWebhookRetryJob();
-  } catch (err) {
-    logger.warn({ err }, '[worker-entry] Webhook retry worker startup failed');
   }
 
   try {

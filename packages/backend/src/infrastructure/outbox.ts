@@ -1,8 +1,6 @@
 import type { PoolClient } from 'pg';
 import { logger } from '../utils/logger.js';
 
-export type WebhookHandler = (orgId: string, eventType: string, payload: unknown) => Promise<void>;
-
 export interface OutboxConsumer {
   start(): Promise<void>;
   stop(): Promise<void>;

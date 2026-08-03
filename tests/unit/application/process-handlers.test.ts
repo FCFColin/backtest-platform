@@ -96,15 +96,11 @@ vi.mock('../../../packages/backend/src/application/completedHandlers.js', () => 
   RunCompletedHandler: vi.fn().mockImplementation(() => ({})),
 }));
 
-vi.mock('../../../packages/backend/src/application/webhookService.js', () => ({
-  triggerWebhooks: vi.fn().mockResolvedValue(undefined),
-}));
-
 vi.mock('../../../packages/backend/src/queues/queueDefinitions.js', () => ({
-  createWebhookRetryWorker: vi.fn(() => ({
+  createAuditExportWorker: vi.fn(() => ({
     close: vi.fn().mockResolvedValue(undefined),
   })),
-  scheduleWebhookRetryJob: vi.fn().mockResolvedValue(undefined),
+  scheduleAuditExportJob: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe('P0-01: uncaughtException / unhandledRejection 必须终止进程', () => {

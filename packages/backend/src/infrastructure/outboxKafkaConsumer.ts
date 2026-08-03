@@ -4,7 +4,7 @@
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 import { eventDispatcher } from '../domain/events/events.js';
-import type { OutboxConsumer, WebhookHandler } from './outbox.js';
+import type { OutboxConsumer } from './outbox.js';
 
 /** topic 名前缀，与 connector 的 route.topic.replacement `backtest.${routedByValue}` 对齐。 */
 const TOPIC_PREFIX = 'backtest.';
@@ -36,8 +36,7 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
   private consumer: KafkaConsumerLike | null = null;
   private running = false;
 
-  /** @param getWebhookHandler webhook 回调 getter（factory 注入）：server.ts 创建消费器后才 setWebhookHandler，getter 保证读到最新值且避免循环依赖 */
-  constructor(private getWebhookHandler: () => WebhookHandler | null) {
+  constructor() {
     logger.info(
       { module: 'outboxKafkaConsumer', enabled: config.CDC_KAFKA_ENABLED },
       'OutboxKafkaConsumer constructed',
@@ -124,7 +123,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
       this.extractHeader(message, '__event_type') ??
       (typeof eventPayload.eventType === 'string' ? eventPayload.eventType : null) ??
       (typeof eventPayload.event_type === 'string' ? eventPayload.event_type : null);
-    const tenantId = this.extractHeader(message, 'tenant_id');
     const occurredAt = message.timestamp ? new Date(Number(message.timestamp)) : new Date();
     if (!eventType) {
       logger.warn(
@@ -140,18 +138,6 @@ export class OutboxKafkaConsumer implements OutboxConsumer {
       payload: eventPayload,
       occurredAt,
     });
-    // webhook 触发（与 OutboxPublisher.triggerWebhookSafely 等价：失败不阻断主流程）
-    const handler = this.getWebhookHandler();
-    if (handler && tenantId) {
-      try {
-        await handler(tenantId, eventType, eventPayload);
-      } catch (whErr) {
-        logger.error(
-          { module: 'outboxKafkaConsumer', err: (whErr as Error).message, eventType, tenantId },
-          'Webhook trigger failed (Kafka 消费继续)',
-        );
-      }
-    }
     logger.info(
       { module: 'outboxKafkaConsumer', topic, eventType, aggregateId },
       'Kafka outbox event consumed',

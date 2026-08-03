@@ -17,7 +17,6 @@ import {
   WITH_ID_PARAM,
   USER_ROLE_PARAM,
   ROLE_BODY,
-  TEST_EXTRA,
 } from './openapi-paths-shared.js';
 
 function registerAdminEndpoints(): void {
@@ -26,21 +25,6 @@ function registerAdminEndpoints(): void {
   sec('post', '/admin/keys/rotate', 'admin', '轮换 ADMIN_API_KEY', AUTH_ERR);
   sec('delete', '/admin/keys/{id}', 'admin', '吊销指定密钥', ID_ERR, WITH_ID_PARAM);
   sec('get', '/admin/keys', 'admin', '列出平台密钥', PERM_ERR);
-}
-
-function registerAuditLogsPaths(): void {
-  sec('get', '/admin/audit-logs', 'audit-logs', '查询审计日志列表', AUTH_ERR, {
-    query: z.object({
-      limit: z.number().optional(),
-      offset: z.number().optional(),
-      actor: z.string().optional(),
-      action: z.string().optional(),
-      resource: z.string().optional(),
-    }),
-  });
-  sec('get', '/admin/audit-logs/{id}', 'audit-logs', '查询单条审计日志详情', AUTH_NOT_FOUND_ERR, {
-    ...WITH_ID_PARAM,
-  });
 }
 
 function registerRbacRolePaths(): void {
@@ -96,34 +80,6 @@ function registerHealthPaths(): void {
   pubReg('get', '/metrics', 'health', 'Prometheus 指标', [], 'Prometheus 文本格式指标');
 }
 
-function registerWebhooksPaths(): void {
-  sec('get', '/webhooks', 'webhooks', '列出当前组织的 webhook 端点', AUTH_ERR);
-  sec('post', '/webhooks', 'webhooks', '创建 webhook 端点', VALIDATION_ERR, {
-    body: z.object({
-      url: z.string().url(),
-      secret: z.string().min(1).max(255),
-      description: z.string().optional(),
-      subscribedEvents: z.array(z.string()),
-    }),
-  });
-  sec('put', '/webhooks/{id}', 'webhooks', '更新 webhook 端点元数据', UPDATE_ERR, {
-    ...WITH_ID_PARAM,
-    body: z.object({
-      url: z.string().url().optional(),
-      description: z.string().optional(),
-      subscribedEvents: z.array(z.string()).optional(),
-      isActive: z.boolean().optional(),
-    }),
-  });
-  sec('delete', '/webhooks/{id}', 'webhooks', '删除 webhook 端点', AUTH_NOT_FOUND_ERR, {
-    ...WITH_ID_PARAM,
-  });
-  sec('post', '/webhooks/{id}/test', 'webhooks', '发送测试事件', AUTH_NOT_FOUND_ERR, TEST_EXTRA);
-  sec('get', '/webhooks/{id}/deliveries', 'webhooks', '查询投递历史', AUTH_NOT_FOUND_ERR, {
-    ...WITH_ID_PARAM,
-  });
-}
-
 function registerMiscPaths(): void {
   pubReg(
     'get',
@@ -160,10 +116,8 @@ function registerMiscPaths(): void {
 
 export function registerAdminPaths(): void {
   registerAdminEndpoints();
-  registerAuditLogsPaths();
   registerRbacRolePaths();
   registerRbacUserPaths();
   registerHealthPaths();
-  registerWebhooksPaths();
   registerMiscPaths();
 }

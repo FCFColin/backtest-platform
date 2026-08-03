@@ -8,13 +8,12 @@ import { initDb } from './infrastructure/dataFacade.js';
 import { bootstrapPlatformAdminKey, startApiKeyMonitoring } from './infrastructure/adminBoot.js';
 import { getPool, getReadPool, closeDb } from './db/pool.js';
 import { appRedis } from './infrastructure/redisClient.js';
-import { createOutboxConsumer, setWebhookHandler } from './infrastructure/outboxPublisher.js';
+import { createOutboxConsumer } from './infrastructure/outboxPublisher.js';
 import { registerTimescaleMetrics, registerQueueMetrics } from './utils/metrics.js';
 import { backtestQueue } from './queues/backtestQueue.js';
-import { dataUpdateQueue, webhookQueue } from './queues/queueDefinitions.js';
+import { dataUpdateQueue } from './queues/queueDefinitions.js';
 import { eventDispatcher } from './domain/events/events.js';
 import { BacktestCompletedHandler, RunCompletedHandler } from './application/completedHandlers.js';
-import { triggerWebhooks } from './application/webhookService.js';
 import type { Server } from 'http';
 // P3-05：OutboxConsumer 接口类型——由 createOutboxConsumer 工厂按 CDC_KAFKA_ENABLED 选择实现
 import type { OutboxConsumer } from './infrastructure/outboxPublisher.js';
@@ -42,7 +41,7 @@ server.listen(PORT, async () => {
       const { rows } = await getReadPool().query(sql);
       return rows as Array<Record<string, unknown>>;
     });
-    registerQueueMetrics([backtestQueue, dataUpdateQueue, webhookQueue]);
+    registerQueueMetrics([backtestQueue, dataUpdateQueue]);
     // P0-04：initSchema 完成后，将环境变量 ADMIN_API_KEY 一次性迁移为 DB 平台 break-glass 密钥
     await bootstrapPlatformAdminKey();
     // P0-04/T5：启动陈旧密钥定时巡检（更新 Prometheus gauge + 告警）
@@ -87,11 +86,6 @@ server.listen(PORT, async () => {
     // 否则走 LISTEN/NOTIFY（默认，零额外依赖）。详见 ADR-051。
     outboxConsumer = createOutboxConsumer(getPool());
     await outboxConsumer.start();
-    // P2-02：注册 webhook 触发回调——outbox 事件处理完后触发匹配的 webhook 订阅。
-    // 回调注入而非直接依赖，保持基础设施层 → 应用层单向依赖。
-    setWebhookHandler((orgId, eventType, payload) =>
-      triggerWebhooks(orgId, eventType, payload as Record<string, unknown>),
-    );
   } catch (err) {
     logger.warn({ err }, '[startup] Outbox 消费器启动失败');
   }

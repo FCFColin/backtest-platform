@@ -2,13 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import { bullmqConnectionOptions, isSentinelMode } from '../infrastructure/redisClient.js';
 import { logger } from '../utils/logger.js';
 import { exportPendingAuditLogs } from '../application/auditExporter.js';
-import { processPendingDeliveries } from '../application/webhookService.js';
-import {
-  createDeadLetterQueue,
-  SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS,
-  isFinalFailure,
-  transferToDlq,
-} from './queueUtils.js';
+import { createDeadLetterQueue, SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS } from './queueUtils.js';
 
 logger.info(
   { module: 'queueDefinitions', mode: isSentinelMode ? 'sentinel' : 'standalone' },
@@ -103,71 +97,5 @@ export function createAuditExportWorker(): Worker {
     { module: 'auditExportQueue', mode: isSentinelMode ? 'sentinel' : 'standalone' },
     'Audit export worker created',
   );
-  return worker;
-}
-
-const WEBHOOK_QUEUE = 'webhook-retry';
-const WEBHOOK_JOB_ID = 'webhook-retry-cron';
-const WEBHOOK_REPEAT_INTERVAL_MS = 60_000;
-
-export const webhookQueue = new Queue(WEBHOOK_QUEUE, {
-  connection: bullmqConnectionOptions,
-  defaultJobOptions: {
-    removeOnComplete: { count: 100 },
-    removeOnFail: { age: SOURCE_QUEUE_FAIL_RETENTION_AGE_SECONDS },
-  },
-});
-
-const webhookDlq = createDeadLetterQueue(WEBHOOK_QUEUE);
-
-webhookQueue.on('error', (err) => {
-  logger.error({ module: 'webhookQueue', err: err.message }, 'Webhook Queue connection error');
-});
-
-export async function scheduleWebhookRetryJob(): Promise<void> {
-  await webhookQueue.add(
-    'webhook-retry',
-    {},
-    { repeat: { every: WEBHOOK_REPEAT_INTERVAL_MS }, jobId: WEBHOOK_JOB_ID },
-  );
-  logger.info(
-    { module: 'webhookQueue', intervalMs: WEBHOOK_REPEAT_INTERVAL_MS },
-    'Webhook retry job scheduled (every 1 minute)',
-  );
-}
-
-export function createWebhookRetryWorker(): Worker {
-  const worker = new Worker(
-    WEBHOOK_QUEUE,
-    async () => {
-      try {
-        await processPendingDeliveries();
-      } catch (err) {
-        logger.error(
-          { module: 'webhookQueue', err: (err as Error).message },
-          'Webhook retry processing failed (will retry next tick)',
-        );
-      }
-    },
-    { connection: bullmqConnectionOptions, concurrency: 1 },
-  );
-  worker.on('error', (err) => {
-    logger.error({ module: 'webhookQueue', err: err.message }, 'Webhook retry worker error');
-  });
-  worker.on('failed', (job, err) => {
-    logger.error(
-      {
-        module: 'webhookQueue',
-        jobId: job?.id,
-        error: err.message,
-        attemptsMade: job?.attemptsMade,
-      },
-      'Webhook retry job failed',
-    );
-    if (job && isFinalFailure(job)) {
-      void transferToDlq(webhookDlq, WEBHOOK_QUEUE, job, err);
-    }
-  });
-  logger.info({ module: 'webhookQueue' }, 'Webhook retry worker created');
   return worker;
 }

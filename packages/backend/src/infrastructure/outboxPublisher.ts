@@ -7,9 +7,9 @@ import { eventDispatcher } from '../domain/events/events.js';
 import { config } from '../config/index.js';
 import pLimit from 'p-limit';
 import { OutboxKafkaConsumer } from './outboxKafkaConsumer.js';
-import type { WebhookHandler, OutboxConsumer } from './outbox.js';
+import type { OutboxConsumer } from './outbox.js';
 
-export type { WebhookHandler, OutboxConsumer } from './outbox.js';
+export type { OutboxConsumer } from './outbox.js';
 
 const reg = getPrometheusRegister();
 const mkGauge = (name: string, help: string): client.Gauge =>
@@ -27,14 +27,6 @@ const outboxTotalRows = mkGauge('outbox_total_rows', 'Total number of rows in th
 const OUTBOX_RETENTION_DAYS = parseInt(process.env.OUTBOX_RETENTION_DAYS || '7', 10);
 /** 事件发布并发上限（D3-003：批量并发处理，避免串行阻塞） */
 const OUTBOX_PUBLISH_CONCURRENCY = 10;
-
-let webhookHandler: WebhookHandler | null = null;
-
-/** 注册 webhook 触发回调。传 null 可清除注册（测试隔离用）。 */
-export function setWebhookHandler(fn: WebhookHandler | null): void {
-  webhookHandler = fn;
-  logger.info({ module: 'outboxPublisher', registered: fn !== null }, 'Webhook handler registered');
-}
 
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 function moduleLog(level: LogLevel, fields: Record<string, unknown>, msg: string): void {
@@ -131,7 +123,6 @@ export class OutboxPublisher {
         events.map((event) =>
           limit(async () => {
             await this.routeEvent(event);
-            this.triggerWebhookSafely(event); // P2-02：路由后触发匹配 webhook（回调由 server.ts 注入）
             return event.id;
           }),
         ),
@@ -160,20 +151,6 @@ export class OutboxPublisher {
         ]);
     } catch (err) {
       moduleLog('error', { err: (err as Error).message }, 'Error in handleNotification');
-    }
-  }
-
-  /** P2-02：安全触发 webhook handler（失败不阻断 outbox 处理）。仅当事件携带 tenant_id 且已注册 handler 时触发。 */
-  private async triggerWebhookSafely(event: OutboxEventRow): Promise<void> {
-    if (!webhookHandler || !event.tenant_id) return;
-    try {
-      await webhookHandler(event.tenant_id, event.event_type, event.payload);
-    } catch (whErr) {
-      moduleLog(
-        'error',
-        { err: (whErr as Error).message, eventId: event.id, eventType: event.event_type },
-        'Webhook trigger failed (outbox processing continues)',
-      );
     }
   }
 
@@ -300,7 +277,7 @@ export function createOutboxConsumer(pool: pg.Pool, mode?: 'listen' | 'kafka'): 
       { cdc: true },
       'createOutboxConsumer: 使用 CDC/Kafka 通路（OutboxKafkaConsumer）',
     );
-    return new OutboxKafkaConsumer(() => webhookHandler);
+    return new OutboxKafkaConsumer();
   }
   moduleLog(
     'info',
