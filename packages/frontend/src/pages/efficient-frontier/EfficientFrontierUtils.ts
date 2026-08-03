@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import type { CSSProperties } from 'react';
 import i18n from '@/i18n/index.js';
 import { useNavigate } from 'react-router-dom';
 import { useAsyncAction, useOptimizerLikeState } from '../../hooks/miscHooks.js';

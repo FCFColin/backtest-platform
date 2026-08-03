@@ -6,7 +6,7 @@
 //
 // 运行：
 //   k6 run tests/load/optimizer.js
-//   BASE_URL=http://localhost:8001 API_KEY=xxx k6 run tests/load/optimizer.js
+//   BASE_URL=http://localhost:15001 API_KEY=xxx k6 run tests/load/optimizer.js
 //
 // k6 使用自有模块系统（import from 'k6/http' 等），非 Node.js 模块。
 
@@ -36,7 +36,7 @@ export const options = {
   },
 };
 
-const BASE_URL = __ENV.BASE_URL || 'http://localhost:8001';
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:15001';
 const API_KEY = __ENV.API_KEY || '';
 
 // 认证：x-api-key header（若提供）

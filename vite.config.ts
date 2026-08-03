@@ -232,7 +232,7 @@ export default defineConfig(async ({ command }) => {
           'packages/frontend/src/**/*.d.ts',
           'packages/frontend/src/**/*.test.{ts,tsx}',
           'packages/frontend/src/store/{index,types}.ts',
-          'packages/backend/src/{utils/{logger,metrics},db/import,app,infrastructure/mailService,schemas/{goalOptimizer,letf,pca,tacticalGrid,dataManage}}.ts',
+          'packages/backend/src/{utils/{logger,metrics},db/{import,marketStatsTypes},app,ssrMiddleware,infrastructure/mailService,schemas/{goalOptimizer,letf,pca,tacticalGrid,dataManage},queues/{dataUpdateWorker,workerEntrypoint}}.ts',
         ],
         thresholds: {
           lines: 80,

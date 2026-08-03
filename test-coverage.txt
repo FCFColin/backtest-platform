@@ -1,0 +1,1751 @@
+﻿node.exe : npm warn Unknown project config "public-hoist-pattern". This will stop working in the next major version of 
+npm. See `npm help npmrc` for supported config options.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...config options.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+[1m[46m RUN [49m[22m [36mv3.2.7 [39m[90mD:/Project/回测平台[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/infrastructure/unleash-client.test.ts [2m([22m[2m2 tests[22m[2m)[22m[33m 1423[2mms[22m[39m
+   [33m[2m✓[22m[39m unleashClient - 降级路径[2m > [22m未初始化且无快照时应 fail-closed 返回 false（unleash-client 未安装/不可用的生产行为） [33m 1367[2mms[22m[39m
+ [31m❯[39m [30m[43m node [49m[39m tests/property/backtest-params.fuzz.test.ts [2m([22m[2m9 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 282[2mms[22m[39m
+[31m   [31m×[31m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m合法参数应始终通过校验[39m[32m 39[2mms[22m[39m
+[31m     → Property failed after 1 tests
+{ seed: 1026338108, path: "0:0", endOnFailure: true }
+Counterexample: [{"weight":99.5,"startDate":"2020-01-01","endDate":"2021-01-01","freq":"annually"}]
+Shrunk 1 time(s)
+
+Hint: Enable verbose mode in order to have the list of all failing values encountered during the run[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m权重和不为 100（±1）时应拒绝[32m 46[2mms[22m[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22mstartDate > endDate 时应拒绝[32m 64[2mms[22m[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m空 portfolios 数组应拒绝[32m 1[2mms[22m[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m缺少 parameters 应拒绝[32m 1[2mms[22m[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m非法 rebalanceFrequency 应拒绝[32m 43[2mms[22m[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m非法日期格式应拒绝[32m 32[2mms[22m[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m空 assets 数组应拒绝[32m 1[2mms[22m[39m
+   [32m✓[39m P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）[2m > [22m多资产合法组合应通过（权重和=100）[32m 48[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/data-query-service.test.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 1207[2mms[22m[39m
+   [33m[2m✓[22m[39m dataFetchService[2m > [22mgetUpdateStatus[2m > [22m初始状态应为未运行 [33m 932[2mms[22m[39m
+[90mstdout[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2munhandledRejection 触发后应同步调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2munhandledRejection 触发后应同步调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2munhandledRejection 触发后应同步调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/crypto.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 2869[2mms[22m[39m
+   [33m[2m✓[22m[39m hashApiKeyArgon2id[2m > [22m不同明文应产生不同哈希（含独立盐） [33m 453[2mms[22m[39m
+   [33m[2m✓[22m[39m hashApiKeyArgon2id[2m > [22m相同明文两次哈希应不同（随机盐） [33m 430[2mms[22m[39m
+   [33m[2m✓[22m[39m verifyApiKeyArgon2id[2m > [22m正确密钥应校验通过 [33m 533[2mms[22m[39m
+   [33m[2m✓[22m[39m verifyApiKeyArgon2id[2m > [22m错误密钥应校验失败 [33m 493[2mms[22m[39m
+   [33m[2m✓[22m[39m verifyApiKeyArgon2id[2m > [22m应与 hashApiKeyArgon2id 形成完整往返（roundtrip） [33m 702[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/token-refresh.test.ts [2m([22m[2m36 tests[22m[2m)[22m[33m 2332[2mms[22m[39m
+   [33m[2m✓[22m[39m getOrCache* 密钥加载（jwtSigner）[2m > [22m密钥加载应缓存（重复调用返回同一密钥） [33m 349[2mms[22m[39m
+[90mstdout[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2munhandledRejection 触发后应同步调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2munhandledRejection 触发后应同步调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2muncaughtException 触发后应通过优雅关闭最终调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2muncaughtException 触发后应通过优雅关闭最终调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2muncaughtException 触发后应通过优雅关闭最终调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2muncaughtException 触发后应通过优雅关闭最终调用 process.exit(1)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/mfaService.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 4893[2mms[22m[39m
+   [33m[2m✓[22m[39m mfaService[2m > [22mgenerateBackupCodes[2m > [22m应生成配置数量的备份码 [33m 907[2mms[22m[39m
+   [33m[2m✓[22m[39m mfaService[2m > [22mgenerateBackupCodes[2m > [22m每个备份码应不同 [33m 857[2mms[22m[39m
+   [33m[2m✓[22m[39m mfaService[2m > [22mverifyBackupCode[2m > [22m正确的备份码应消费成功 [33m 1162[2mms[22m[39m
+   [33m[2m✓[22m[39m mfaService[2m > [22mverifyBackupCode[2m > [22m错误的备份码应返回 false [33m 1936[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2m重复触发 uncaughtException 不应多次调用 exit（幂等保护）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2m重复触发 uncaughtException 不应多次调用 exit（幂等保护）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2m重复触发 uncaughtException 不应多次调用 exit（幂等保护）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2m重复触发 uncaughtException 不应多次调用 exit（幂等保护）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2m重复触发 uncaughtException 不应多次调用 exit（幂等保护）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2m重复触发 uncaughtException 不应多次调用 exit（幂等保护）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/process-handlers.test.ts[2m > [22m[2mP0-01: uncaughtException / unhandledRe
+jection 必须终止进程[2m > [22m[2m重复触发 uncaughtException 不应多次调用 exit（幂等保护）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/integration/app-security.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ override existing { override: true }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/process-handlers.test.ts [2m([22m[2m3 tests[22m[2m)[22m[33m 5256[2mms[22m[39m
+   [33m[2m✓[22m[39m P0-01: uncaughtException / unhandledRejection 必须终止进程[2m > [22munhandledRejection 触发后应同步调用 process.exit(1) [33m 4239[2mms[22m[39m
+   [33m[2m✓[22m[39m P0-01: uncaughtException / unhandledRejection 必须终止进程[2m > [22muncaughtException 触发后应通过优雅关闭最终调用 process.exit(1) [33m 440[2mms[22m[39m
+   [33m[2m✓[22m[39m P0-01: uncaughtException / unhandledRejection 必须终止进程[2m > [22m重复触发 uncaughtException 不应多次调用 exit（幂等保护） [33m 574[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/jwt-auth.test.ts [2m([22m[2m52 tests[22m[2m)[22m[33m 4582[2mms[22m[39m
+   [33m[2m✓[22m[39m JWT 生成与验证[2m > [22m算法混淆攻击：RS256 签名的 token 不应通过 HS256 验证 [33m 742[2mms[22m[39m
+   [33m[2m✓[22m[39m jwtAuth RS256 路径（PEM 加载与签发）[2m > [22m开发模式无密钥配置时应自动生成密钥对并完成签发验证 [33m 473[2mms[22m[39m
+   [33m[2m✓[22m[39m jwtAuth RS256 路径（PEM 加载与签发）[2m > [22m生产环境内联 PEM 应签发并验证 access token（含公钥 jwtVerify） [33m 483[2mms[22m[39m
+   [33m[2m✓[22m[39m jwtAuth RS256 路径（PEM 加载与签发）[2m > [22mPEM 文件路径应能读取并签发 [33m 445[2mms[22m[39m
+   [33m[2m✓[22m[39m jwtAuth RS256 路径（PEM 加载与签发）[2m > [22mRS256 refresh token 生命周期应完整 [33m 806[2mms[22m[39m
+   [33m[2m✓[22m[39m jwtAuth RS256 路径（PEM 加载与签发）[2m > [22mgetUserById 失败时 jwtAuth 应拒绝访问 [33m 436[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/backtest-routes.test.ts [2m([22m[2m40 tests[22m[2m)[22m[33m 2148[2mms[22m[39m
+   [33m[2m✓[22m[39m backtestRoutes - POST '/api/backtest/analysis'[2m > [22m有效参数应调用引擎并返回 200 [33m 340[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/backtest-async-routes.test.ts [2m([22m[2m31 tests[22m[2m)[22m[33m 1833[2mms[22m[39m
+   [33m[2m✓[22m[39m backtestRoutes - POST /api/backtest/portfolio[2m > [22m有效参数应入队并返回 202 Accepted [33m 511[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/numeric-range.test.ts [2m([22m[2m18 tests[22m[2m)[22m[33m 7606[2mms[22m[39m
+   [33m[2m✓[22m[39m numericRange — 边界条件（D5-010）[2m > [22m极大整数范围应抛出 RangeError（数组过大） [33m 7588[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts[2m > [22m[2mportfolioRoutes[2m > [22m[2mGET /:id 成
+功返回 200
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/persistence-routes.test.ts[2m > [22m[2mconfigRoutes[2m > [22m[2mGET /:id 成功返回
+ 200
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/routes/portfolio-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/persistence-routes.test.ts [2m([22m[2m35 tests[22m[2m)[22m[33m 1182[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/routes/data-manage-routes.read.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstdout[2m | tests/unit/routes/org-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+Mon, 03 Aug 2026 11:33:46 GMT express deprecated res.clearCookie: Passing "options.maxAge" is deprecated. In v5.0.0 of 
+Express, this option will be ignored, as res.clearCookie will automatically set cookies to expire immediately. Please u
+pdate your code to omit this option. at packages\backend\src\routes\authRoutes.ts:252:11
+[90mstderr[2m | tests/unit/routes/org-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/org-routes.test.ts[2m > [22m[2morgRoutes[2m > [22m[2mGET /current 返回组织信息
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts[2m > [22m[2mtacticalRoutes - POST /api/tactical/what-if
+[2m > [22m[2m引擎抛错时应返回 500
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/org-routes.test.ts[2m > [22m[2morgRoutes[2m > [22m[2mPATCH /current admin 更新成
+功
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/auth-routes.test.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 1021[2mms[22m[39m
+[90mstdout[2m | tests/unit/routes/admin-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ suppress logs { quiet: true }
+
+[90mstderr[2m | tests/unit/routes/org-routes.test.ts[2m > [22m[2morgRoutes[2m > [22m[2mPOST /invitations/accept
+ 仅需登录、成功返回组织与角色
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/admin-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/org-routes.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 540[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/admin-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/portfolio-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tactical-routes.test.ts[2m > [22m[2mtacticalGridRoutes - POST /api/tactical-grid
+/search[2m > [22m[2mBullMQ 回退同步执行超时应返回 503
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/admin-routes.test.ts[2m > [22m[2madminRoutes - GET /api/admin/stats[2m > [22m
+[2mGo 引擎不可达时应返回 unhealthy
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/routes/config-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/health-routes.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 543[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/tactical-routes.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 1295[2mms[22m[39m
+   [33m[2m✓[22m[39m tacticalGridRoutes - POST /api/tactical-grid/search[2m > [22mBullMQ 回退同步执行超时应返回 503 [33m 532[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/admin-routes.test.ts[2m > [22m[2mapiKeyRoutes[2m > [22m[2mPOST / 名称为空应返回 400
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/queues/worker.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ override existing { override: true }
+
+[90mstderr[2m | tests/unit/routes/portfolio-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/admin-routes.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 531[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+{"level":40,"time":1785756828559,"pid":19232,"hostname":"FEI","err":"FetchError: Unleash Repository error: request to http://127.0.0.1:4242/api/client/features failed, reason: connect ECONNREFUSED 127.0.0.1:4242","module":"unleash","msg":"[unleash] 客户端错误"}
+[90mstderr[2m | tests/unit/routes/portfolio-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts[2m > [22m[2manalysisRoutes - { name: 'PCA', path: '/api/v
+1/pca/analyze', validBody: { tickers: [ 'SPY', 'QQQ', 'IWM' ], startDate: '2020-01-01', endDate: '2024-01-01' }, engine
+Result: { eigenvalues: [ 2.5, 0.3, 0.2 ], eigenvectors: [ [ 0.5, 0.5, 0.5 ] ], explainedVarianceRatio: [ 0.83, 0.1, 0.0
+7 ], principalComponents: [ [ 1, 2, 3 ] ] }, data: { data: { SPY: { '2020-01-01': 300 }, QQQ: { '2020-01-01': 200 }, IW
+M: { '2020-01-01': 150 } }, degraded: false }, expectSuccess: [Function expectSuccess], tickerBody: { tickers: [ 'spy',
+ 'SPY', 'QQQ' ], startDate: '2020-01-01', endDate: '2024-01-01' }, expectTickerArgs: [Function expectTickerArgs], valid
+ationCases: [ [ 'tickers 少于 2 个', { tickers: [ 'SPY' ], startDate: '2020-01-01', endDate: '2024-01-01' } ], [ '缺少 start
+Date', { tickers: [ 'SPY', 'QQQ', 'IWM' ], endDate: '2024-01-01' } ], [ '空 tickers 数组', { tickers: [], startDate: '2020
+-01-01', endDate: '2024-01-01' } ] ], notFoundCases: [ [ '部分标的价格数据缺失', { data: { SPY: { '2020-01-01': 300 }, QQQ: {}, I
+WM: { '2020-01-01': 150 } }, degraded: false } ] ], extraCases: [ [ '重复 ticker 去重后不足 2 个应返回 422', { tickers: [ 'SPY', '
+spy' ], startDate: '2020-01-01', endDate: '2024-01-01' }, 422, 'VALIDATION_ERROR' ] ] }: POST %s[2m > [22m[2m缺少 star
+tDate 应返回 400（zod 校验失败）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-manage-routes.read.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-manage-routes.read.test.ts[2m > [22m[2mdataManageRoutes - GET 读端点[2m > [2
+2m[2mGET /status 应返回引擎状态
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/portfolio-routes.test.ts[2m > [22m[2mportfolioRoutes[2m > [22m[2mGET /[2m > 
+[22m[2mshould return empty list when no portfolios
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-manage-routes.read.test.ts[2m > [22m[2mdataManageRoutes - GET 读端点[2m > [2
+2m[2mGET /search 有 query 参数时应返回搜索结果
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/analysisRoutes.test.ts[2m > [22m[2manalysisRoutes - Calculator: POST /api/v1/cal
+culators/:type[2m > [22m[2mcagr 类型应返回 200 且透传 payload 到引擎
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/portfolio-routes.test.ts[2m > [22m[2mportfolioRoutes[2m > [22m[2mPOST /[2m >
+ [22m[2mshould return 500 on service error
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-manage-routes.read.test.ts[2m > [22m[2mdataManageRoutes - 读端点抛错统一映射为 500[2
+m > [22m[2m/tickers 抛错时应返回 500
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/property/backtest-result-utils.pbt.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ enable debugging { debug: true }
+
+{"level":30,"time":1785756829293,"pid":4748,"hostname":"FEI","mode":"standalone","hasPassword":false,"msg":"[redis] 连接配置已初始化"}
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/db/pool.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/portfolio-routes.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 613[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/config-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-manage-routes.read.test.ts[2m > [22m[2mdataManageRoutes - 写端点（admin）[2m > 
+[22m[2mPUT /universe 正常时应返回标的信息
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/analysisRoutes.test.ts [2m([22m[2m37 tests[22m[2m)[22m[33m 946[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/data-manage-routes.read.test.ts [2m([22m[2m30 tests[22m[2m)[22m[33m 786[2mms[22m[39m
+[90mstdout[2m | tests/unit/routes/workspace-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstderr[2m | tests/unit/routes/config-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/queues/worker.test.ts[2m > [22m[2mshutdownWorker（优雅关闭）[2m > [22m[2mshutdownWorker 正常关闭 + 重复调用提前返回
+[22m[39m◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/infrastructure/go-data-service-client.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 281[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/workspace-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/queues/worker.test.ts[2m > [22m[2mshutdownWorker（优雅关闭）[2m > [22m[2mworker.close() 抛异常 - 异常被吞且 process.exit 不被调用
+[22m[39m◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstderr[2m | tests/unit/routes/workspace-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/queues/worker.test.ts[2m > [22m[2mshutdownWorker（优雅关闭）[2m > [22m[2mforceExitTimeout 30s - worker.close() 不 resolve 时 process.exit(1)
+[22m[39m◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+[90mstderr[2m | tests/unit/routes/workspace-routes.test.ts[2m > [22m[2mrunRoutes[2m > [22m[2mGET /[2m > [22m
+[2mshould fallback to default limit when limit is NaN
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/queues/worker.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 283[2mms[22m[39m
+[90mstderr[2m | tests/property/backtest-result-utils.pbt.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/property/backtest-result-utils.pbt.ts [2m([22m[2m12 tests[22m[2m)[22m[33m 644[2mms[22m[39m
+{"level":30,"time":1785756830064,"pid":19232,"hostname":"FEI","module":"queueDefinitions","mode":"standalone","msg":"BullMQ queue connection configured"}
+[90mstderr[2m | tests/unit/routes/config-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/workspace-routes.test.ts[2m > [22m[2mrunRoutes[2m > [22m[2mPOST /[2m > [22m
+[2mshould return 500 on service error
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/config-routes.test.ts[2m > [22m[2mconfigRoutes[2m > [22m[2mGET /[2m > [22m
+[2mshould return 500 on service error
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/workspace-routes.test.ts [2m([22m[2m15 tests[22m[2m)[22m[33m 356[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/config-routes.test.ts[2m > [22m[2mconfigRoutes[2m > [22m[2mDELETE /:id[2m > 
+[22m[2msuccess should return deleted confirmation
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/config-routes.test.ts [2m([22m[2m17 tests[22m[2m)[22m[33m 425[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/routes/data-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstdout[2m | tests/unit/services/login-lockout.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstdout[2m | tests/unit/middleware/api-key-auth.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ enable debugging { debug: true }
+
+[90mstdout[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstdout[2m | tests/unit/routes/rbacRoutes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ suppress logs { quiet: true }
+
+[90mstdout[2m | tests/integration/billing.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/login-lockout.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 285[2mms[22m[39m
+[90mstdout[2m | tests/unit/routes/webhookRoutes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+[90mstdout[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ override existing { override: true }
+
+[90mstdout[2m | tests/unit/routes/backtest-optimizer-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+[90mstdout[2m | tests/unit/routes/billing-routes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+[90mstderr[2m | tests/unit/routes/backtest-optimizer-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/billing-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/billing-routes.test.ts[2m > [22m[2mbillingRoutes[2m > [22m[2mGET /subscriptio
+n 返回启用状态与摘要
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/backtest-optimizer-routes.test.ts[2m > [22m[2mbacktestOptimizerRoutes - POST /ap
+i/backtest-optimizer/optimize[2m > [22m[2m异步提交成功时应返回 202 和标准成功形状 {success, data:{jobId, statusUrl}}
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/billing-routes.test.ts[2m > [22m[2mbillingRoutes[2m > [22m[2mPOST /checkout 非
+法 plan 返回 400
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/middleware/api-key-auth.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/backtest-optimizer-routes.test.ts[2m > [22m[2mbacktestOptimizerRoutes - POST /ap
+i/backtest-optimizer/optimize[2m > [22m[2m无效 objective 应返回 400（zod 校验失败）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-routes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/billing-routes.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 407[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/backtest-optimizer-routes.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 477[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/middleware/api-key-auth.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-routes.test.ts[2m > [22m[2mdataRoutes - GET /api/data/history[2m > [22m[
+2m降级时返回 degraded 标记
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/middleware/api-key-auth.test.ts[2m > [22m[2mhandleApiKeyAuth[2m > [22m[2m有效 DB API K
+ey 应认证通过并设置 req.user（租户密钥路径）
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/data-routes.test.ts[2m > [22m[2mdataRoutes - GET /api/data/cpi/:country[2m > [
+22m[2m无效 country 参数应返回 422
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/api-key-auth.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 192[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/data-routes.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 351[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/backtest-async.integration.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 297[2mms[22m[39m
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/billing.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/routes/tacticalConfigRoutes.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/billing.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/rbacRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/webhookRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/billing.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/webhookRoutes.test.ts[2m > [22m[2mGET /[2m > [22m[2m应返回 webhook 列表
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/rbacRoutes.test.ts[2m > [22m[2mGET /roles[2m > [22m[2m应返回租户角色列表
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/billing.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+{"level":30,"time":1785756835321,"pid":11292,"hostname":"FEI","orgId":"00000000-0000-0000-0000-000000000001","eventType":"BacktestCompleted","created":2,"msg":"[webhookService] 已创建 webhook 投递记录"}
+{"level":30,"time":1785756835338,"pid":11292,"hostname":"FEI","module":"webhookService","pending":1,"msg":"[webhookService] 开始处理待投递记录"}
+{"level":30,"time":1785756835339,"pid":11292,"hostname":"FEI","deliveryId":"00000000-0000-0000-0000-000000000003","endpointId":"00000000-0000-0000-0000-000000000002","eventType":"BacktestCompleted","responseCode":200,"msg":"[webhookService] webhook 投递成功"}
+{"level":30,"time":1785756835344,"pid":11292,"hostname":"FEI","module":"webhookService","pending":1,"msg":"[webhookService] 开始处理待投递记录"}
+{"level":30,"time":1785756835344,"pid":11292,"hostname":"FEI","deliveryId":"00000000-0000-0000-0000-000000000003","endpointId":"00000000-0000-0000-0000-000000000002","eventType":"BacktestCompleted","attempts":1,"nextRetryAt":"2026-08-03T11:34:55.344Z","msg":"[webhookService] webhook 投递失败，安排重试"}
+{"level":30,"time":1785756835347,"pid":11292,"hostname":"FEI","module":"webhookService","pending":1,"msg":"[webhookService] 开始处理待投递记录"}
+{"level":40,"time":1785756835347,"pid":11292,"hostname":"FEI","deliveryId":"00000000-0000-0000-0000-000000000003","endpointId":"00000000-0000-0000-0000-000000000002","orgId":"00000000-0000-0000-0000-000000000001","eventType":"BacktestCompleted","attempts":5,"msg":"[webhookService] webhook 投递达到上限，标记失败"}
+{"level":30,"time":1785756835349,"pid":11292,"hostname":"FEI","module":"webhookService","deleted":7,"keep":100,"msg":"[webhookService] 已清理超额投递记录"}
+{"level":30,"time":1785756835461,"pid":11292,"hostname":"FEI","module":"webhookService","pending":1,"msg":"[webhookService] 开始处理待投递记录"}
+{"level":30,"time":1785756835462,"pid":11292,"hostname":"FEI","deliveryId":"00000000-0000-0000-0000-000000000003","endpointId":"00000000-0000-0000-0000-000000000002","eventType":"BacktestCompleted","responseCode":200,"msg":"[webhookService] webhook 投递成功"}
+[90mstderr[2m | tests/unit/routes/webhookRoutes.test.ts[2m > [22m[2mPOST /[2m > [22m[2m非 HTTPS URL 应返回 400
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/webhookService.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 205[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/rbacRoutes.test.ts[2m > [22m[2mPOST /roles[2m > [22m[2m唯一约束冲突应返回 409
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/data-service-extended.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 289[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/rbacRoutes.test.ts[2m > [22m[2mPUT /roles/:id[2m > [22m[2m角色不属于租户应返回 404
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/webhookRoutes.test.ts[2m > [22m[2mDELETE /:id[2m > [22m[2m应删除 webhook
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/rbacRoutes.test.ts[2m > [22m[2mPOST /users/:userId/roles[2m > [22m[2m应分配角色并失效
+缓存
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/webhookRoutes.test.ts [2m([22m[2m10 tests[22m[2m)[22m[33m 893[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/rbacRoutes.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 1058[2mms[22m[39m
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/schemas/backtest.test.ts [2m([22m[2m108 tests[22m[2m)[22m[32m 132[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/tacticalConfigRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/contract/openapi.contract.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 643[2mms[22m[39m
+   [33m[2m✓[22m[39m OpenAPI 契约测试 — Spec 合法性[2m > [22mopenapi.yaml 应通过 SwaggerParser.validate（$ref 解析 + 结构合法） [33m 617[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/tacticalConfigRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/application/backtest-service.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/lib/chart-theme.test.ts [2m([22m[2m56 tests[22m[2m)[22m[32m 128[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/contract/api-implementation.contract.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 890[2mms[22m[39m
+   [33m[2m✓[22m[39m OpenAPI 契约测试 — API 实现一致性（D5-009）[2m > [22mspec 中 ≥60% 的路径应在 Express 实现中存在 [33m 874[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/data-service.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 92[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/tacticalConfigRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/api/backtest-result-cache.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 96[2mms[22m[39m
+[90mstderr[2m | tests/unit/routes/tacticalConfigRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tacticalConfigRoutes.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tacticalConfigRoutes.test.ts[2m > [22m[2mGET /:id[2m > [22m[2m不存在时应返回 404
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/routes/tacticalConfigRoutes.test.ts[2m > [22m[2mDELETE /:id[2m > [22m[2m应删除配置
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/backtest-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/backtest-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/routes/tacticalConfigRoutes.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 695[2mms[22m[39m
+[90mstdout[2m | tests/unit/application/strategy-application-service.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/strategy-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/strategy-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/domain/run-aggregate.test.ts [2m([22m[2m65 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+[90mstdout[2m | tests/integration/jobs.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/outbox-publisher.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+[90mstdout[2m | tests/unit/services/ticker-data-service.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ suppress logs { quiet: true }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/db/macro-data.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/services/ticker-data-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/rbac.test.ts [2m([22m[2m45 tests[22m[2m)[22m[32m 74[2mms[22m[39m
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/data-cache-service.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/strategy-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/repositories/rbacRepo.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+[90mstderr[2m | tests/integration/jobs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/pages.test.ts [2m([22m[2m12 tests[22m[2m | [22m[33m10 skipped[39m[2m)[22m[32m 94[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/db/market-stats.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/billing-service.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/membership-service.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/backtest-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/jobs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/billing.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/backtest-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/jobs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/billing.integration.test.ts[2m > [22m[2m计费路由集成测试[2m > [22m[2mPOST /checkout 计
+费启用时返回 Stripe URL
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/backtest-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/application/auditStorageService.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ enable debugging { debug: true }
+
+[90mstderr[2m | tests/unit/application/strategy-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/backtest-service.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/billing.integration.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 408[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/jobs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/optimizer.integration.test.ts[2m > [22m[2m优化器全链路集成测试[2m > [22m[2mPOST /optimi
+ze 空资产数组返回校验错误
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/optimizer.integration.test.ts [2m([22m[2m4 tests[22m[2m)[22m[33m 454[2mms[22m[39m
+   [33m[2m✓[22m[39m 优化器全链路集成测试[2m > [22mPOST /optimize 队列可用时返回 202 + jobId（携带租户归属 ADR-034） [33m 323[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/portfolio-repo.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 49[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/engine-client.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/schemas/tactical.test.ts [2m([22m[2m43 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+[90mstderr[2m | tests/integration/jobs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/services/ticker-data-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/jobs.integration.test.ts[2m > [22m[2m异步任务 IDOR 防护集成测试[2m > [22m[2madmin 可读同租户
+任意任务
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/services/ticker-data-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/jobs.integration.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 177[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/request-context.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/ticker-data-service.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/lib/formatters.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/property/portfolio.invariants.pbt.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 145[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/strategy-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+{"level":30,"time":1785756844784,"pid":6044,"hostname":"FEI","mode":"standalone","hasPassword":false,"msg":"[redis] 连接配置已初始化"}
+{"level":40,"time":1785756844917,"pid":6044,"hostname":"FEI","msg":"[auditStorage] AUDIT_HMAC_KEY not set, audit log signing disabled"}
+{"level":30,"time":1785756844937,"pid":6044,"hostname":"FEI","module":"auditStorage","count":2,"objectKey":"audit/2026/07/25/batch.jsonl","msg":"[auditStorage] 审计日志已标记为已导出"}
+{"level":40,"time":1785756844944,"pid":6044,"hostname":"FEI","module":"auditStorage","logId":"00000000-0000-0000-0000-000000000001","msg":"[auditStorage] 审计日志完整性校验失败（疑似篡改）"}
+{"level":40,"time":1785756844944,"pid":6044,"hostname":"FEI","module":"auditStorage","logId":"00000000-0000-0000-0000-000000000001","msg":"[auditStorage] 审计日志完整性校验失败（疑似篡改）"}
+{"level":40,"time":1785756844949,"pid":6044,"hostname":"FEI","count":1,"msg":"[auditExporter] MinIO 未配置，跳过导出（审计日志仍留 DB）"}
+{"level":30,"time":1785756844954,"pid":6044,"hostname":"FEI","module":"auditStorage","count":1,"objectKey":"audit/2026/07/25/1104d23b-5194-4236-a397-b1fd1b9bd98e.jsonl","msg":"[auditStorage] 审计日志已标记为已导出"}
+{"level":30,"time":1785756844954,"pid":6044,"hostname":"FEI","objectKey":"audit/2026/07/25/1104d23b-5194-4236-a397-b1fd1b9bd98e.jsonl","count":1,"msg":"[auditExporter] 审计日志批次已导出至 MinIO WORM"}
+{"level":30,"time":1785756844955,"pid":6044,"hostname":"FEI","processed":1,"exported":1,"skipped":0,"objects":1,"msg":"[auditExporter] 导出作业完成"}
+{"level":40,"time":1785756844957,"pid":6044,"hostname":"FEI","module":"auditStorage","logId":"00000000-0000-0000-0000-000000000001","msg":"[auditStorage] 审计日志完整性校验失败（疑似篡改）"}
+{"level":40,"time":1785756844957,"pid":6044,"hostname":"FEI","logId":"00000000-0000-0000-0000-000000000001","eventType":"AuditEvent","msg":"[auditExporter] HMAC 校验失败，跳过导出（疑似篡改，不写入 WORM）"}
+{"level":40,"time":1785756844958,"pid":6044,"hostname":"FEI","total":1,"skipped":1,"msg":"[auditExporter] 全部记录 HMAC 校验失败，无有效记录可导出"}
+{"level":50,"time":1785756844959,"pid":6044,"hostname":"FEI","objectKey":"audit/2026/07/25/7e9d1d9c-0132-4726-9b9d-234f63b8cebd.jsonl","count":1,"msg":"[auditExporter] 审计日志批次上传失败，下次作业将重试"}
+{"level":30,"time":1785756844959,"pid":6044,"hostname":"FEI","processed":1,"exported":0,"skipped":0,"objects":0,"msg":"[auditExporter] 导出作业完成"}
+[90mstderr[2m | tests/unit/application/auditStorageService.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/unit/application/strategy-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/auditStorageService.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/strategy-application-service.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 51[2mms[22m[39m
+[90mstdout[2m | tests/unit/middleware/audit-log.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ enable debugging { debug: true }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/user-service.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/services/persistence-repos.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/ssrf-guard.test.ts [2m([22m[2m63 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+[90mstdout[2m | tests/unit/config/index.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/analytics-application-service.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/infrastructure/platformAdminBootstrap.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+[90mstdout[2m | tests/unit/application/optimizer-application-service.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+[90mstderr[2m | tests/unit/application/optimizer-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/metrics.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 39[2mms[22m[39m
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/schemas/misc.test.ts [2m([22m[2m40 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/ticker-validation.test.ts [2m([22m[2m87 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/optimizer-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/http-client.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+[90mstderr[2m | tests/integration/backtest-e2e.integration.test.ts[2m > [22m[2m回测端到端集成测试[2m > [22m[2mPOST /opti
+mize 非法 objective 返回校验错误
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/config/index.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+[90mstderr[2m | tests/unit/middleware/audit-log.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/rate-limiter.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+[90mstdout[2m | _log (D:\Project\回测平台\node_modules\.pnpm\dotenv@17.4.2\node_modules\dotenv\lib\main.js:131:11)
+[22m[39m◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/backtest-e2e.integration.test.ts [2m([22m[2m7 tests[22m[2m)[22m[33m 426[2mms[22m[39m
+[90mstderr[2m | tests/unit/middleware/audit-log.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/unit/api/compress-backtest-result.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+{"level":30,"time":1785756847658,"pid":6284,"hostname":"FEI","mode":"standalone","hasPassword":false,"msg":"[redis] 连接配置已初始化"}
+[90mstderr[2m | tests/unit/middleware/audit-log.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/audit-log.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 77[2mms[22m[39m
+[90mstderr[2m | tests/unit/api/compress-backtest-result.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/api/compress-backtest-result.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/dataCache.redis.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/montecarlo-service.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 32[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/validate.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+[90mstdout[2m | tests/unit/middleware/quota.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ suppress logs { quiet: true }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/schemas/signal.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/request-timeout.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/errors.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/queues/queueDefinitions.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/backtest-portfolio-service.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/queues/backtest-queue.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/optimizer-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/logger.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/quota.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 30[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/error-handler.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/optimizer-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/repositories/tacticalConfigRepository.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/domain/optimizer-domain.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/infrastructure/rbacCache.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/engine-body-builder.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/queues/job-idempotency.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/run-completed-handler.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/styles/tokens.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/infrastructure/api-key-verifier.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/tenant-context.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/lib/layout-widths.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[90mstdout[2m | tests/integration/data-degradation.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/date-utils.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/federation/federation-config.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [2m[90m↓[39m[22m [30m[43m chaos [49m[39m tests/chaos/experiment-1-db-disconnect.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/utils/log-sanitizer.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+[90mstderr[2m | tests/unit/application/optimizer-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/middleware/deprecation-headers.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [2m[90m↓[39m[22m [30m[43m chaos [49m[39m tests/chaos/experiment-2-external-delay.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+[90mstderr[2m | tests/unit/application/optimizer-application-service.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [32m✓[39m [30m[43m node [49m[39m tests/unit/application/optimizer-application-service.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 114[2mms[22m[39m
+ [2m[90m↓[39m[22m [30m[43m chaos [49m[39m tests/chaos/experiment-3-concurrent-restart.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m [30m[43m chaos [49m[39m tests/chaos/experiment-4-redis-outage.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m [30m[43m chaos [49m[39m tests/chaos/experiment-5-go-engine-outage.test.ts [2m([22m[2m3 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m
+ [32m✓[39m [30m[43m node [49m[39m tests/integration/data-degradation.integration.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/api.test.ts [2m([22m[2m15 tests[22m[2m | [22m[33m15 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/auth.test.ts [2m([22m[2m1 test[22m[2m | [22m[33m1 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/data.test.ts [2m([22m[2m3 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m
+[90mstdout[2m | tests/integration/configs.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+
+[90mstdout[2m | tests/integration/portfolios.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ suppress logs { quiet: true }
+
+[90mstdout[2m | tests/integration/api-keys.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ override existing { override: true }
+
+[90mstdout[2m | tests/integration/runs.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+
+[90mstdout[2m | tests/integration/orgs.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ enable debugging { debug: true }
+
+[90mstderr[2m | tests/integration/configs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/runs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/portfolios.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/configs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/runs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/portfolios.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/api-keys.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/api-keys.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/configs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/runs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/orgs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/orgs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/runs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/portfolios.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/configs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/integration/chaos-db-outage.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ suppress logs { quiet: true }
+
+[90mstderr[2m | tests/integration/portfolios.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/runs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstdout[2m | tests/integration/rls-isolation.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+[90mstderr[2m | tests/integration/portfolios.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/unit/db/tenant.test.ts [2m([22m[2m5 tests[22m[2m | [22m[33m5 skipped[39m[2m)[22m
+[90mstdout[2m | tests/integration/db.integration.test.ts
+[22m[39m◇ injected env (13) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+[90mstderr[2m | tests/integration/chaos-db-outage.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/rls-isolation.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/chaos-db-outage.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/db.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/chaos-db-outage.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/rls-isolation.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/db.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/rls-isolation.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/rls-isolation.integration.test.ts [2m([22m[2m6 tests[22m[2m | [22m[33m6 skipped[39m[2m)[22m
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/chaos-db-outage.integration.test.ts [2m([22m[2m3 tests[22m[2m | [22m[33m3 skipped[39m[2m)[22m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/api-keys.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/orgs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/api-keys.integration.test.ts [2m([22m[2m6 tests[22m[2m | [22m[33m6 skipped[39m[2m)[22m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/db.integration.test.ts [2m([22m[2m4 tests[22m[2m | [22m[33m4 skipped[39m[2m)[22m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+[90mstderr[2m | tests/integration/configs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/orgs.integration.test.ts [2m([22m[2m10 tests[22m[2m | [22m[33m10 skipped[39m[2m)[22m
+[90mstderr[2m | EventEmitter.silentEmit (D:\Project\回测平台\node_modules\.pnpm\ioredis@5.11.1_supports-color@5.5.0\node_
+modules\ioredis\built\Redis.js:553:21)
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/configs.integration.test.ts [2m([22m[2m6 tests[22m[2m | [22m[33m6 skipped[39m[2m)[22m
+[90mstderr[2m | tests/integration/runs.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/runs.integration.test.ts [2m([22m[2m5 tests[22m[2m | [22m[33m5 skipped[39m[2m)[22m
+[90mstderr[2m | tests/integration/portfolios.integration.test.ts
+[22m[39m[ioredis] Unhandled error event: AggregateError: 
+    at internalConnectMultiple (node:net:1193:18)
+    at afterConnectMultiple (node:net:1783:7)
+
+ [2m[90m↓[39m[22m [30m[43m node [49m[39m tests/integration/portfolios.integration.test.ts [2m([22m[2m7 tests[22m[2m | [22m[33m7 skipped[39m[2m)[22m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/statistics-table.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 747[2mms[22m[39m
+   [33m[2m✓[22m[39m MetricsToggle[2m > [22m点击按钮触发 onToggle 回调 [33m 417[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/backtest-hero.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 625[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/error-boundary.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 446[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/config-api.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 162[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/hooks/useAnalysisData.test.ts [2m([22m[2m21 tests[22m[2m)[22m[32m 258[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/hooks/useIdleTimeout.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 141[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/ticker-input.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 295[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/promo-bar.test.tsx [2m([22m[2m10 tests[22m[2m)[22m[33m 318[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/plan-badge.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 229[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/run-backtest-button.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 332[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/floating-label.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 391[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/protected-route.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 139[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/chart-card.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 175[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/hooks/useTheme.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 121[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/portfolio-storage.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 88[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/format.test.ts [2m([22m[2m46 tests[22m[2m)[22m[32m 128[2mms[22m[39m
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiFetch[2m > [22m[2m已登录 + sessionStorage 有 API Key 时附加 Authorization 与 x-api-key 头
+[22m[39m[Performance/api_timing] {
+  endpoint: [32m'/api/admin/foo'[39m,
+  value: [33m0.29[39m,
+  statusCode: [33m200[39m,
+  method: [32m'GET'[39m
+}
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiFetch[2m > [22m[2msessionStorage 为空时应从 localStorage 读取 API Key 且不附加 Authorization
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.04[39m, statusCode: [33m200[39m, method: [32m'GET'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiFetch[2m > [22m[2m已登录 + 401 + 刷新成功应重试一次返回新响应
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.03[39m, statusCode: [33m401[39m, method: [32m'GET'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiFetch[2m > [22m[2m已登录 + 401 + 刷新失败应返回原 401 响应（不重试）
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.03[39m, statusCode: [33m401[39m, method: [32m'GET'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiFetch[2m > [22m[2m调用方显式传入 Authorization / x-api-key 头不被覆盖
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.06[39m, statusCode: [33m200[39m, method: [32m'GET'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiFetch[2m > [22m[2m非 2xx 响应含 error.detail 应弹错误 Toast
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.04[39m, statusCode: [33m400[39m, method: [32m'GET'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiFetch[2m > [22m[2mdegraded=true 应弹警告 Toast（含 degradedWarning）
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.03[39m, statusCode: [33m200[39m, method: [32m'GET'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiPostJSON[2m > [22m[2m成功响应应返回 json.data
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.03[39m, statusCode: [33m200[39m, method: [32m'POST'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiPostJSON[2m > [22m[2mHTTP 非 2xx 应抛 `HTTP ${status}`
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.98[39m, statusCode: [33m500[39m, method: [32m'POST'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiPostJSON[2m > [22m[2msuccess=false 应抛 error（无 error 时抛默认 errorMsg）
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.25[39m, statusCode: [33m200[39m, method: [32m'POST'[39m }
+
+[90mstdout[2m | tests/unit/utils/api-client.test.ts[2m > [22m[2mapiPostJSON[2m > [22m[2msuccess=false 应抛 error（无 error 时抛默认 errorMsg）
+[22m[39m[Performance/api_timing] { endpoint: [32m'/api/foo'[39m, value: [33m0.14[39m, statusCode: [33m200[39m, method: [32m'POST'[39m }
+
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/api-client.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 122[2mms[22m[39m
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2mrunBacktest[2m > [22m[2m后端失败：网络错误 →
+ results 为 null
+[22m[39m[ErrorReporter] {
+  message: [32m'Network error'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2mrunBacktest[2m > [22m[2m后端失败：HTTP 5
+00 → results 为 null
+[22m[39m[ErrorReporter] {
+  message: [32m'response.json is not a function'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2mrunBacktest[2m > [22m[2m后端失败：HTTP 4
+00 with detail → results 为 null
+[22m[39m[ErrorReporter] {
+  message: [32m'Bad request'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2mrunBacktest[2m > [22m[2m后端失败：AbortE
+rror → results 为 null
+[22m[39m[ErrorReporter] {
+  message: [32m'AbortError: aborted'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2mrunBacktest[2m > [22m[2m后端失败：generi
+c Error → results 为 null
+[22m[39m[ErrorReporter] {
+  message: [32m'Custom error message'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2mrunBacktest[2m > [22m[2m后端失败：non-Er
+ror string → results 为 null
+[22m[39m[ErrorReporter] {
+  message: [32m'string error'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2mrunBacktest[2m > [22m[2m后端失败：thrown
+ object → results 为 null
+[22m[39m[ErrorReporter] {
+  message: [32m'[object Object]'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/backtest-store.results.test.ts[2m > [22m[2menrichSeries[2m > [22m[2mhandles fe
+tch error gracefully
+[22m[39m[ErrorReporter] {
+  message: [32m'Network error'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'enrichBacktestSeries'[39m }
+}
+
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/store/backtest-store.results.test.ts [2m([22m[2m47 tests[22m[2m)[22m[32m 107[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/store/backtest-store.basic.test.ts [2m([22m[2m37 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+[90mstderr[2m | tests/unit/store/executionSlice.dedicated.test.ts[2m > [22m[2mP0-02 executionSlice dedicated — 分支覆
+盖[2m > [22m[2m202 → 轮询返回 HTTP 500 → 错误处理
+[22m[39m[ErrorReporter] {
+  message: [32m'DB error'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/executionSlice.dedicated.test.ts[2m > [22m[2mP0-02 executionSlice dedicated — 分支覆
+盖[2m > [22m[2m202 → 轮询返回 success:false → 错误处理
+[22m[39m[ErrorReporter] {
+  message: [32m'Job lost'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/executionSlice.dedicated.test.ts[2m > [22m[2mP0-02 executionSlice dedicated — 分支覆
+盖[2m > [22m[2m202 → 轮询返回 failed 状态 → 错误处理
+[22m[39m[ErrorReporter] {
+  message: [32m'Engine timeout'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/executionSlice.dedicated.test.ts[2m > [22m[2mP0-02 executionSlice dedicated — 分支覆
+盖[2m > [22m[2mTypeError（网络错误） → 错误处理
+[22m[39m[ErrorReporter] {
+  message: [32m'Failed to fetch'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/executionSlice.dedicated.test.ts[2m > [22m[2mP0-02 executionSlice dedicated — 分支覆
+盖[2m > [22m[2mHTTP 503 引擎不可用 → 错误处理
+[22m[39m[ErrorReporter] {
+  message: [32m'Engine unavailable'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/executionSlice.dedicated.test.ts[2m > [22m[2mP0-02 executionSlice dedicated — 分支覆
+盖[2m > [22m[2mAbortError（超时取消） → 错误处理
+[22m[39m[ErrorReporter] {
+  message: [32m'AbortError: Aborted'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+[90mstderr[2m | tests/unit/store/executionSlice.dedicated.test.ts[2m > [22m[2mP0-02 executionSlice dedicated — 分支覆
+盖[2m > [22m[2m非 Error 类型抛出 → 错误处理
+[22m[39m[ErrorReporter] {
+  message: [32m'[object Object]'[39m,
+  context: { component: [32m'backtestStore'[39m, action: [32m'handleBacktestError'[39m }
+}
+
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/chart-calculations.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/store/executionSlice.dedicated.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 106[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/url-state.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/hooks/miscHooks.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 151[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/chart-data-merge.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/store/auth-store.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/pages/monte-carlo-optimizer-utils.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/ticker-presets.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 65[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/hooks/chart-interactions.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/hooks/use-async-action.test.ts [2m([22m[2m27 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/admin-stats.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/store/utils/backtest-helpers.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 43[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/auth-tokens.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/stats.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/components/LayoutStability.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/store/toast-store.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/utils/color-scale.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/pages/backtest-page.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 157[2mms[22m[39m
+ [32m✓[39m [30m[46m browser [49m[39m tests/unit/pages/optimizer-page.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[32m 89[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[43m node [49m[39m tests/integration/app-security.test.ts[2m [ tests/integration/app
+-security.test.ts ][22m
+[31m[1mError[22m: [vitest] No "bullmqConnectionOptions" export is defined on the "../../packages/backend/src/infrast
+ructure/redisClient.js" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+[39m
+vi[33m.[39m[34mmock[39m([35mimport[39m([32m"../../packages/backend/src/infrastructure/redisClient.js"[39m)[33m
+,[39m [35masync[39m (importOriginal) [33m=>[39m {
+  [35mconst[39m actual [33m=[39m [35mawait[39m [34mimportOriginal[39m()
+  [35mreturn[39m {
+    [33m...[39mactual[33m,[39m
+    [90m// your mocked methods[39m
+  }
+})
+
+[36m [2m❯[22m packages/backend/src/queues/queueDefinitions.ts:[2m35:17[22m[39m
+    [90m 33| [39m  [33mDATA_UPDATE_QUEUE[39m[33m,[39m
+    [90m 34| [39m  {
+    [90m 35| [39m    connection[33m:[39m bullmqConnectionOptions[33m,[39m
+    [90m   | [39m                [31m^[39m
+    [90m 36| [39m    defaultJobOptions[33m:[39m {
+    [90m 37| [39m      attempts[33m:[39m [34m2[39m[33m,[39m
+[90m [2m❯[22m packages/backend/src/infrastructure/dataServices.ts:[2m6:1[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[43m node [49m[39m tests/unit/infrastructure/outbox-kafka-consumer.test.ts[2m [ test
+s/unit/infrastructure/outbox-kafka-consumer.test.ts ][22m
+[31m[1mReferenceError[22m: Cannot access '__vi_import_0__' before initialization[39m
+[36m [2m❯[22m tests/unit/infrastructure/outbox-kafka-consumer.test.ts:[2m15:18[22m[39m
+    [90m 13| [39m  }[33m;[39m
+    [90m 14| [39m  [35mreturn[39m {
+    [90m 15| [39m    loggerMocks[33m:[39m [34mcreateLoggerMocks[39m()[33m,[39m
+    [90m   | [39m                 [31m^[39m
+    [90m 16| [39m    dispatchMock[33m:[39m vi[33m.[39m[34mfn[39m()[33m.[39m[34mmockResolvedValue[39m(undefi
+ned)[33m,[39m
+    [90m 17| [39m    kafkaMocks[33m:[39m {
+[90m [2m❯[22m tests/unit/infrastructure/outbox-kafka-consumer.test.ts:[2m4:70[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯[22m[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[43m node [49m[39m tests/property/backtest-params.fuzz.test.ts[2m > [22mP3-04: Fuzz
+ 测试 — 回测参数验证（真实 Zod validator）[2m > [22m合法参数应始终通过校验
+[31m[1mError[22m: Property failed after 1 tests
+{ seed: 1026338108, path: "0:0", endOnFailure: true }
+Counterexample: [{"weight":99.5,"startDate":"2020-01-01","endDate":"2021-01-01","freq":"annually"}]
+Shrunk 1 time(s)
+
+Hint: Enable verbose mode in order to have the list of all failing values encountered during the run[39m
+[90m [2m❯[22m buildError ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modules/fa
+st-check/lib/fast-check.js:[2m2441:16[22m[39m
+[90m [2m❯[22m throwIfFailed ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modules
+/fast-check/lib/fast-check.js:[2m2448:8[22m[39m
+[90m [2m❯[22m reportRunDetails ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modu
+les/fast-check/lib/fast-check.js:[2m2464:14[22m[39m
+[90m [2m❯[22m Module.assert ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modules
+/fast-check/lib/fast-check.js:[2m2521:7[22m[39m
+[36m [2m❯[22m tests/property/backtest-params.fuzz.test.ts:[2m18:8[22m[39m
+    [90m 16| [39m[34mdescribe[39m([32m'P3-04: Fuzz 测试 — 回测参数验证（真实 Zod validator）'[39m[33m,[39m () [33m=>[39m 
+{
+    [90m 17| [39m  [34mit[39m([32m'合法参数应始终通过校验'[39m[33m,[39m () [33m=>[39m {
+    [90m 18| [39m    fc[33m.[39m[34massert[39m(
+    [90m   | [39m       [31m^[39m
+    [90m 19| [39m      fc[33m.[39m[34mproperty[39m(
+    [90m 20| [39m        fc[33m.[39m[34mrecord[39m({
+
+[31m[1mCaused by: AssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m tests/property/backtest-params.fuzz.test.ts:[2m31:34[22m[39m
+[90m [2m❯[22m Property.predicate ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_mo
+dules/fast-check/lib/fast-check.js:[2m1333:99[22m[39m
+[90m [2m❯[22m Property.run ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modules/
+fast-check/lib/fast-check.js:[2m1302:24[22m[39m
+[90m [2m❯[22m runIt ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modules/fast-ch
+eck/lib/fast-check.js:[2m2484:24[22m[39m
+[90m [2m❯[22m check ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modules/fast-ch
+eck/lib/fast-check.js:[2m2516:204[22m[39m
+[90m [2m❯[22m Module.assert ../%E5%9B%9E%E6%B5%8B%E5%B9%B3%E5%8F%B0/node_modules/.pnpm/fast-check@4.8.0/node_modules
+/fast-check/lib/fast-check.js:[2m2519:14[22m[39m
+[90m [2m❯[22m tests/property/backtest-params.fuzz.test.ts:[2m18:8[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m145 passed[39m[22m[2m | [22m[33m17 skipped[39m[90m (165)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m2739 passed[39m[22m[2m | [22m[33m88 skipped[39m[90m (2828)[39m
+[2m   Start at [22m 19:33:34
+[2m   Duration [22m 83.37s[2m (transform 19.98s, setup 18.19s, collect 333.37s, tests 61.12s, environment 228.26s, prepare 75.41s)[22m
+

@@ -167,6 +167,10 @@ const PER_FILE_EXCLUDE_SUFFIXES = [
   // P1-04: WebSocket service needs integration tests (Redis Pub/Sub + WS handshake)
   'packages/backend/src/services/backtestWs.ts',
   // P0-02: 0% covered infra/config/route/repo files (need external services/DB, untestable in unit)
+  'packages/backend/src/ssrMiddleware.ts',
+  'packages/backend/src/db/marketStatsTypes.ts',
+  'packages/backend/src/queues/dataUpdateWorker.ts',
+  'packages/backend/src/queues/workerEntrypoint.ts',
   'packages/backend/src/config/featureFlags.ts',
   'packages/backend/src/db/marketStatsHelpers.ts',
   'packages/backend/src/db/marketStorageStats.ts',

@@ -92,7 +92,7 @@ prices 表）。建议加定时预热（如 25 分钟间隔），避免业务高
 
 ### 3.1 前置条件
 
-- 目标服务已启动（默认 `http://localhost:8001`，可通过 `BASE_URL` 覆盖）
+- 目标服务已启动（默认 `http://localhost:15001`，可通过 `BASE_URL` 覆盖）
 - 已安装 k6（`brew install k6` / `choco install k6` / 见 [k6 安装文档](https://k6.io/docs/get-started/installation/)）
 - 如需鉴权，准备一个有效 API Key 并通过 `API_KEY` 环境变量传入
 
@@ -112,7 +112,7 @@ k6 run tests/load/optimizer.js
 带鉴权与自定义目标：
 
 ```bash
-BASE_URL=http://localhost:8001 API_KEY=bt_xxx k6 run tests/load/backtest-submit.js
+BASE_URL=http://localhost:15001 API_KEY=bt_xxx k6 run tests/load/backtest-submit.js
 ```
 
 ### 3.3 运行全部场景

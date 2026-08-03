@@ -39,29 +39,9 @@
     "loading": "Loading..."
   },
   "errors": {
-    "401": {
-      "title": "Unauthorized",
-      "description": "Please sign in to access this page."
-    },
-    "403": {
-      "title": "Forbidden",
-      "description": "You do not have permission to access this resource. Contact your administrator if you need access."
-    },
     "404": {
       "title": "Page Not Found",
       "description": "The page you are looking for does not exist or has been moved."
-    },
-    "429": {
-      "title": "Too Many Requests",
-      "description": "You have sent too many requests in a short period. Please retry after {{seconds}} seconds."
-    },
-    "500": {
-      "title": "Internal Server Error",
-      "description": "The server encountered an internal error. Please reload the page. If the problem persists, contact your administrator."
-    },
-    "503": {
-      "title": "Service Unavailable",
-      "description": "The compute engine is temporarily unavailable. Please retry after {{seconds}} seconds."
     },
     "pageErrorTitle": "Something went wrong",
     "pageErrorMessage": "Sorry, the page encountered an error. Please refresh. If the problem persists, contact the administrator.",

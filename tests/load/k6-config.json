@@ -1,6 +1,6 @@
 {
-  "baseUrl": "http://localhost:8001",
-  "apiKey": "",
+  "baseUrl": "http://localhost:15001",
+  "apiKey": "${API_KEY}",
   "scenarios": {
     "backtest": { "vus": 100, "duration": "3m" },
     "price-history": { "vus": 500, "duration": "2m" },

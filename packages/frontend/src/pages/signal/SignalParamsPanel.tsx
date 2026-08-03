@@ -76,37 +76,6 @@ export function DateField({ value, onChange, label, id }: DateFieldProps) {
     </Field>
   );
 }
-interface DateRangeFieldsProps {
-  startDate: string;
-  endDate: string;
-  onStartDateChange: (v: string) => void;
-  onEndDateChange: (v: string) => void;
-}
-export function DateRangeFields({
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
-}: DateRangeFieldsProps) {
-  const startId = useId();
-  const endId = useId();
-  return (
-    <div className="grid grid-cols-2 gap-4">
-      <DateField
-        value={startDate}
-        onChange={onStartDateChange}
-        label="signal.common.startDate"
-        id={startId}
-      />
-      <DateField
-        value={endDate}
-        onChange={onEndDateChange}
-        label="signal.common.endDate"
-        id={endId}
-      />
-    </div>
-  );
-}
 interface RunAnalysisButtonProps {
   isLoading: boolean;
   onClick: () => void;
