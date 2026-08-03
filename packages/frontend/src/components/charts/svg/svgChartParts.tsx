@@ -450,30 +450,14 @@ export function useChartScaffold(seriesNames: string[]) {
   );
   return { tooltip, setTooltip, hiddenSeries, visibleSeries, handleMouseLeave, handleLegendToggle };
 }
-export function LeftAxis({
-  range,
-  ticks,
-  offset,
-  label,
-  hideLine = false,
-}: {
-  range: number;
-  ticks: Array<{ value: number; label: string }>;
-  offset: number;
-  label?: string;
-  hideLine?: boolean;
-}) {
-  return (
-    <SvgAxis
-      orientation="left"
-      range={range}
-      ticks={ticks}
-      gridLines
-      gridColor="hsl(var(--chart-grid))"
-      tickLine={false}
-      offset={offset}
-      label={label ? { value: label } : undefined}
-      hideLine={hideLine}
-    />
-  );
-}
+export const LeftAxis = (
+  p: Omit<SvgAxisProps, 'orientation' | 'gridLines' | 'gridColor' | 'tickLine'>,
+) => (
+  <SvgAxis
+    {...p}
+    orientation="left"
+    gridLines
+    gridColor="hsl(var(--chart-grid))"
+    tickLine={false}
+  />
+);

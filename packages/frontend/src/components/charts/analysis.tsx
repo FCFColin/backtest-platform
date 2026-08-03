@@ -124,47 +124,32 @@ function computeTelltaleData(
   results: AssetAnalysisResult | undefined,
   t: ReturnType<typeof useTranslation>['t'],
 ): TelltaleDataResult {
-  if (results) {
-    if (results.tickers.length < 2) {
-      return {
-        chartData: [],
-        labels: [],
-        title: t('analysis.telltaleChart'),
-        emptyMessage: t('analysis.telltaleNeedTwo'),
-      };
-    }
-    const benchmark = {
-      name: results.tickers[0].ticker,
-      growthCurve: results.tickers[0].growthCurve,
-    };
-    const comparisons = results.tickers
-      .slice(1)
-      .map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }));
-    const labels = results.tickers.slice(1).map((tk) => tk.ticker);
-    const merged = buildTelltaleData(benchmark, comparisons);
-    return {
-      chartData:
-        merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
-      labels,
-      title: `${t('analysis.telltaleRelative')} ${results.tickers[0].ticker}`,
-      emptyMessage: null,
-    };
-  }
-  const pf = portfolios ?? [];
-  if (pf.length < 2) {
+  const benchmark = results
+    ? { name: results.tickers[0].ticker, growthCurve: results.tickers[0].growthCurve }
+    : undefined;
+  const comparisons = results
+    ? results.tickers.slice(1).map((tk) => ({ name: tk.ticker, growthCurve: tk.growthCurve }))
+    : (portfolios?.slice(1) ?? []);
+  const labels = results
+    ? results.tickers.slice(1).map((tk) => tk.ticker)
+    : (portfolios?.slice(1).map((p) => p.name) ?? []);
+  const title = results
+    ? `${t('analysis.telltaleRelative')} ${results.tickers[0].ticker}`
+    : t('analysis.telltaleChart');
+  if (!benchmark || comparisons.length < 1) {
     return {
       chartData: [],
       labels: [],
-      title: t('analysis.telltaleChart'),
+      title,
       emptyMessage: t('analysis.telltaleNeedTwo'),
     };
   }
-  const merged = buildTelltaleData(pf[0], pf.slice(1));
+  const merged = buildTelltaleData(benchmark, comparisons);
   return {
     chartData:
       merged.length > DOWNSAMPLE_THRESHOLD ? downsample(merged, DOWNSAMPLE_TARGET) : merged,
-    labels: pf.slice(1).map((p) => p.name),
-    title: t('analysis.telltaleChart'),
+    labels,
+    title,
     emptyMessage: null,
   };
 }
