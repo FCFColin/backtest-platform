@@ -23,14 +23,19 @@ import {
   type WarningInfo,
 } from '../utils/errorReporter.js';
 
-interface EmptyStateProps {
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+  className,
+}: {
   icon?: LucideIcon;
   title: string;
   description?: string;
   action?: ReactNode;
   className?: string;
-}
-export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
+}) {
   return (
     <div
       className={cn('flex flex-col items-center justify-center text-center py-12 px-4', className)}
@@ -42,57 +47,47 @@ export function EmptyState({ icon: Icon, title, description, action, className }
     </div>
   );
 }
-
-interface LoadingSpinnerProps {
-  size?: number;
-  className?: string;
-}
-function LoadingSpinner({ size = 24, className }: LoadingSpinnerProps) {
-  return <Loader2 size={size} className={cn('animate-spin text-fg-tertiary', className)} />;
-}
-interface LoadingStateProps {
+export function LoadingState({
+  label,
+  size = 32,
+  className,
+}: {
   label?: ReactNode;
   size?: number;
   className?: string;
-}
-export function LoadingState({ label, size = 32, className }: LoadingStateProps) {
+}) {
   return (
     <div
       className={cn('flex flex-col items-center justify-center text-center py-12 px-4', className)}
     >
-      <LoadingSpinner size={size} className="mb-4" />
+      <Loader2 size={size} className="animate-spin text-fg-tertiary mb-4" />
       {label && <p className="text-body text-fg-secondary">{label}</p>}
     </div>
   );
 }
 
-const BACK_ONLINE_DURATION_MS = 3000;
+const BACK_ONLINE_MS = 3000;
 export function OfflineBanner() {
   const { t } = useTranslation();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [justCameBack, setJustCameBack] = useState(false);
   const timerRef = useRef<number | undefined>(undefined);
   useEffect(() => {
-    const handleOffline = () => {
+    const on = () => {
+      setIsOffline(false);
+      setJustCameBack(true);
+      timerRef.current = window.setTimeout(() => setJustCameBack(false), BACK_ONLINE_MS);
+    };
+    const off = () => {
       setIsOffline(true);
       setJustCameBack(false);
     };
-    const handleOnline = () => {
-      setIsOffline(false);
-      setJustCameBack(true);
-      if (timerRef.current !== undefined) {
-        window.clearTimeout(timerRef.current);
-      }
-      timerRef.current = window.setTimeout(() => setJustCameBack(false), BACK_ONLINE_DURATION_MS);
-    };
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', off);
+    window.addEventListener('online', on);
     return () => {
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('online', handleOnline);
-      if (timerRef.current !== undefined) {
-        window.clearTimeout(timerRef.current);
-      }
+      window.removeEventListener('offline', off);
+      window.removeEventListener('online', on);
+      if (timerRef.current !== undefined) window.clearTimeout(timerRef.current);
     };
   }, []);
   if (!isOffline && !justCameBack) return null;
@@ -101,11 +96,10 @@ export function OfflineBanner() {
     <div
       role="status"
       aria-live="polite"
-      className={
-        isBack
-          ? 'flex items-center justify-center gap-2 bg-success px-4 py-2 text-body text-white'
-          : 'flex items-center justify-center gap-2 bg-danger px-4 py-2 text-body text-white'
-      }
+      className={cn(
+        'flex items-center justify-center gap-2 px-4 py-2 text-body text-white',
+        isBack ? 'bg-success' : 'bg-danger',
+      )}
     >
       {isBack ? (
         <Wifi className="size-4" aria-hidden="true" />
@@ -117,38 +111,16 @@ export function OfflineBanner() {
   );
 }
 
-interface ErrorBannerProps {
-  message?: ReactNode;
-  errorCode?: string;
-  warning?: WarningInfo;
-  style?: CSSProperties;
-  variant?: 'error' | 'warning' | 'info';
-  isDegraded?: boolean;
-  retryAfter?: number;
-  onClose?: () => void;
-}
 const ERROR_TYPE_BASE = 'https://backtest.platform/errors';
 const VARIANT_META = {
-  error: { icon: <AlertCircle className="size-4" />, className: '' },
+  error: { icon: AlertCircle, cls: '' },
   warning: {
-    icon: <AlertTriangle className="size-4" />,
-    className: 'bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning',
+    icon: AlertTriangle,
+    cls: 'bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning',
   },
-  info: {
-    icon: <Info className="size-4" />,
-    className: 'bg-brand/10 border-brand/30 text-brand [&>svg]:text-brand',
-  },
+  info: { icon: Info, cls: 'bg-brand/10 border-brand/30 text-brand [&>svg]:text-brand' },
 } as const;
-function getVariantMeta(variant: 'error' | 'warning' | 'info') {
-  return VARIANT_META[variant] ?? VARIANT_META.error;
-}
-function ErrorBannerCloseButton({
-  onClose,
-  className,
-}: {
-  onClose: () => void;
-  className?: string;
-}) {
+function CloseBtn({ onClose, className }: { onClose: () => void; className?: string }) {
   const { t } = useTranslation();
   return (
     <Button
@@ -162,121 +134,66 @@ function ErrorBannerCloseButton({
     </Button>
   );
 }
-function DegradedBanner({
-  message,
-  style,
-  onClose,
-}: {
-  message?: ReactNode;
-  style?: CSSProperties;
-  onClose?: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <Alert
-      variant="default"
-      className="bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning relative"
-      style={style}
-    >
-      <AlertTriangle className="size-4" />
-      <AlertTitle className="text-warning">{t('errors.degradedMode')}</AlertTitle>
-      <AlertDescription className="text-warning/90">
-        {message ?? t('errors.degradedDefaultWarning')}
-      </AlertDescription>
-      {onClose && <ErrorBannerCloseButton onClose={onClose} />}
-    </Alert>
-  );
-}
-function WarningBanner({
+function WarningAlert({
   warning,
-  style,
   onClose,
+  style,
 }: {
   warning: WarningInfo;
-  style?: CSSProperties;
   onClose?: () => void;
+  style?: CSSProperties;
 }) {
   const { t } = useTranslation();
-  const key = getWarningI18nKey(warning.code);
-  const params = getWarningInterpolationParams(warning);
-  const meta = getVariantMeta(warning.code === 'DATE_RANGE_CLAMPED' ? 'info' : 'warning');
+  const meta = VARIANT_META[warning.code === 'DATE_RANGE_CLAMPED' ? 'info' : 'warning'];
   return (
-    <Alert variant="default" className={cn('relative', meta.className)} style={style}>
-      {meta.icon}
+    <Alert variant="default" className={cn('relative', meta.cls)} style={style}>
+      {meta.icon && <meta.icon className="size-4" />}
       <AlertDescription>
-        {t(key, params)}
+        {t(getWarningI18nKey(warning.code), getWarningInterpolationParams(warning))}
         {warning.message ? ` - ${warning.message}` : ''}
       </AlertDescription>
-      {onClose && <ErrorBannerCloseButton onClose={onClose} />}
+      {onClose && <CloseBtn onClose={onClose} />}
     </Alert>
   );
 }
-function ErrorCodeBanner({
+function ErrorCodeAlert({
   message,
   errorCode,
-  style,
   retryAfter,
   remaining,
   onClose,
+  style,
 }: {
   message?: ReactNode;
   errorCode: string;
-  style?: CSSProperties;
   retryAfter?: number;
   remaining: number;
   onClose?: () => void;
+  style?: CSSProperties;
 }) {
   const { t } = useTranslation();
-  const key = getErrorI18nKey(errorCode);
-  const errorUri = `${ERROR_TYPE_BASE}/${errorCode}`;
+  const uri = `${ERROR_TYPE_BASE}/${errorCode}`;
   return (
     <Alert variant="destructive" className="relative" style={style}>
       <AlertCircle className="size-4" />
-      <AlertTitle>{t(key)}</AlertTitle>
+      <AlertTitle>{t(getErrorI18nKey(errorCode))}</AlertTitle>
       <AlertDescription>
         {message && typeof message === 'string' ? ` - ${message}` : message}
         {retryAfter && retryAfter > 0 && (
           <span className="mt-1 flex items-center gap-1 text-danger">
-            {t('errors.retryIn', {
-              seconds: remaining,
-              defaultValue: 'Retry in {{seconds}}s',
-            })}
+            {t('errors.retryIn', { seconds: remaining, defaultValue: 'Retry in {{seconds}}s' })}
           </span>
         )}
         <a
-          href={errorUri}
+          href={uri}
           target="_blank"
           rel="noreferrer"
           className="mt-1 inline-flex items-center text-caption text-danger/80 underline-offset-2 hover:underline"
         >
-          {errorUri}
+          {uri}
         </a>
       </AlertDescription>
-      {onClose && <ErrorBannerCloseButton onClose={onClose} className="text-danger" />}
-    </Alert>
-  );
-}
-function MessageBanner({
-  message,
-  variant,
-  style,
-  onClose,
-}: {
-  message: ReactNode;
-  variant: 'error' | 'warning' | 'info';
-  style?: CSSProperties;
-  onClose?: () => void;
-}) {
-  const meta = getVariantMeta(variant);
-  return (
-    <Alert
-      variant={variant === 'error' ? 'destructive' : 'default'}
-      className={cn('relative', meta.className)}
-      style={style}
-    >
-      {meta.icon}
-      <AlertDescription>{message}</AlertDescription>
-      {onClose && <ErrorBannerCloseButton onClose={onClose} />}
+      {onClose && <CloseBtn onClose={onClose} className="text-danger" />}
     </Alert>
   );
 }
@@ -289,36 +206,67 @@ export function ErrorBanner({
   isDegraded,
   retryAfter,
   onClose,
-}: ErrorBannerProps) {
+}: {
+  message?: ReactNode;
+  errorCode?: string;
+  warning?: WarningInfo;
+  style?: CSSProperties;
+  variant?: 'error' | 'warning' | 'info';
+  isDegraded?: boolean;
+  retryAfter?: number;
+  onClose?: () => void;
+}) {
+  const { t } = useTranslation();
   const [remaining, setRemaining] = useState(retryAfter ?? 0);
   useEffect(() => {
     if (!retryAfter || retryAfter <= 0) return;
     setRemaining(retryAfter);
-    const id = window.setInterval(() => {
-      setRemaining((r) => (r > 0 ? r - 1 : 0));
-    }, 1000);
+    const id = window.setInterval(() => setRemaining((r) => (r > 0 ? r - 1 : 0)), 1000);
     return () => window.clearInterval(id);
   }, [retryAfter]);
-  if (isDegraded) {
-    return <DegradedBanner message={message} style={style} onClose={onClose} />;
-  }
+  if (isDegraded)
+    return (
+      <Alert
+        variant="default"
+        className="bg-warning/10 border-warning/30 text-warning [&>svg]:text-warning relative"
+        style={style}
+      >
+        <AlertTriangle className="size-4" />
+        <AlertTitle className="text-warning">{t('errors.degradedMode')}</AlertTitle>
+        <AlertDescription className="text-warning/90">
+          {message ?? t('errors.degradedDefaultWarning')}
+        </AlertDescription>
+        {onClose && <CloseBtn onClose={onClose} />}
+      </Alert>
+    );
   if (warning) {
-    return <WarningBanner warning={warning} style={style} onClose={onClose} />;
+    return <WarningAlert warning={warning} onClose={onClose} style={style} />;
   }
   if (errorCode) {
     return (
-      <ErrorCodeBanner
+      <ErrorCodeAlert
         message={message}
         errorCode={errorCode}
-        style={style}
         retryAfter={retryAfter}
         remaining={remaining}
         onClose={onClose}
+        style={style}
       />
     );
   }
   if (!message) return null;
-  return <MessageBanner message={message} variant={variant} style={style} onClose={onClose} />;
+  const meta = VARIANT_META[variant];
+  return (
+    <Alert
+      variant={variant === 'error' ? 'destructive' : 'default'}
+      className={cn('relative', meta.cls)}
+      style={style}
+    >
+      {meta.icon && <meta.icon className="size-4" />}
+      <AlertDescription>{message}</AlertDescription>
+      {onClose && <CloseBtn onClose={onClose} />}
+    </Alert>
+  );
 }
 
 const AUTO_DISMISS_MS: Record<ToastItem['type'], number> = {
@@ -327,7 +275,7 @@ const AUTO_DISMISS_MS: Record<ToastItem['type'], number> = {
   error: 6000,
 };
 const FADE_DURATION = 300;
-const typeMeta: Record<
+const TYPE_META: Record<
   ToastItem['type'],
   {
     icon: typeof CheckCircle2;
@@ -363,10 +311,10 @@ function ToastCard({ toast }: { toast: ToastItem }) {
     setTimeout(() => removeToast(toast.id), FADE_DURATION);
   }, [removeToast, toast.id]);
   useEffect(() => {
-    const timer = setTimeout(dismiss, AUTO_DISMISS_MS[toast.type]);
-    return () => clearTimeout(timer);
+    const t = setTimeout(dismiss, AUTO_DISMISS_MS[toast.type]);
+    return () => clearTimeout(t);
   }, [dismiss, toast.type]);
-  const meta = typeMeta[toast.type];
+  const meta = TYPE_META[toast.type];
   const Icon = meta.icon;
   return (
     <Alert
@@ -382,12 +330,9 @@ function ToastCard({ toast }: { toast: ToastItem }) {
       style={{ transitionDuration: `${FADE_DURATION}ms` }}
     >
       <Icon className="size-4" />
-      <AlertMessage>{toast.message}</AlertMessage>
+      <div className="text-body text-fg">{toast.message}</div>
     </Alert>
   );
-}
-function AlertMessage({ children }: { children: React.ReactNode }) {
-  return <div className="text-body text-fg">{children}</div>;
 }
 export function Toast() {
   const toasts = useToastStore((s) => s.toasts);

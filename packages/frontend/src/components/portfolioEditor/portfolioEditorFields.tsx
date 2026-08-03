@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Portfolio, RebalanceFrequency, RebalanceBands } from '@backtest/shared';
 import { X } from 'lucide-react';
@@ -17,52 +17,18 @@ import { cn } from '@/lib/utils';
 import { INPUT_WIDTHS } from '@/utils/constants';
 import type { StorePortfolio, TFunc } from './portfolioEditor.js';
 
-const FIELD_STYLE = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '2px',
-} satisfies CSSProperties;
-const LABEL_STYLE = { fontSize: '11px', color: 'var(--text-muted)' } satisfies CSSProperties;
-const GP_FORM_STYLE = {
-  padding: '12px 16px',
-  marginBottom: '8px',
-  backgroundColor: 'var(--bg-subtle)',
-  borderRadius: 'var(--radius-control)',
-  border: '1px solid var(--border-soft)',
-} satisfies CSSProperties;
-const GP_TITLE_STYLE = {
-  fontSize: '13px',
-  fontWeight: 600,
-  color: 'var(--text-strong)',
-  marginBottom: '8px',
-} satisfies CSSProperties;
-const GP_CONFIG_STYLE = {
-  padding: '8px 10px',
-  marginBottom: '6px',
-  backgroundColor: 'var(--bg-elevated)',
-  borderRadius: '6px',
-  border: '1px solid var(--border-soft)',
-} satisfies CSSProperties;
-const GP_CONFIG_TITLE_STYLE = {
-  fontSize: '11px',
-  fontWeight: 600,
-  color: 'var(--accent)',
-  marginBottom: '6px',
-  letterSpacing: '0.02em',
-} satisfies CSSProperties;
-const FIELDS_ROW_STYLE = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '8px',
-  alignItems: 'flex-end',
-} satisfies CSSProperties;
 const numCls = 'h-8 w-[70px] font-mono tabular-nums';
 const numCls80 = 'h-8 w-[80px] font-mono tabular-nums';
+const GP_FORM = 'p-3 mb-2 bg-bg-subtle rounded-[var(--radius-control)] border border-border-soft';
+const GP_TITLE = 'text-[13px] font-semibold text-text-strong mb-2';
+const GP_CONFIG = 'p-2 mb-1.5 bg-bg-elevated rounded-md border border-border-soft';
+const GP_CONFIG_TITLE = 'text-[11px] font-semibold text-accent mb-1.5 tracking-tight';
+const FIELDS_ROW = 'flex flex-wrap gap-2 items-end';
 
 function FieldLabel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={FIELD_STYLE}>
-      <label style={LABEL_STYLE}>{label}</label>
+    <div className="flex flex-col gap-0.5">
+      <label className="text-[11px] text-text-muted">{label}</label>
       {children}
     </div>
   );
@@ -74,7 +40,7 @@ function PortfolioSelect({
   t,
 }: {
   value: string;
-  onChange: (value: string) => void;
+  onChange: (v: string) => void;
   portfolios: StorePortfolio[];
   t: TFunc;
 }) {
@@ -84,15 +50,16 @@ function PortfolioSelect({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        {portfolios.map((p, idx) => (
+        {portfolios.map((p, i) => (
           <SelectItem key={p.id} value={p.id}>
-            {p.name || `${t('portfolio.portfolio')} ${idx + 1}`}
+            {p.name || `${t('portfolio.portfolio')} ${i + 1}`}
           </SelectItem>
         ))}
       </SelectContent>
     </Select>
   );
 }
+
 function GlidepathTargetWeights({
   portfolio,
   onUpdate,
@@ -102,34 +69,18 @@ function GlidepathTargetWeights({
   onUpdate: (id: string, patch: Partial<Portfolio>) => void;
   t: TFunc;
 }) {
-  const boxStyle = (minWidth: number): CSSProperties => ({
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-    minWidth: `${minWidth}px`,
-  });
   return (
     <>
-      <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-        {t('portfolio.targetWeights')}
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
+      <div className="mt-1.5 text-[11px] text-text-muted">{t('portfolio.targetWeights')}</div>
+      <div className="flex flex-wrap gap-1.5 mt-1">
         {portfolio.assets.map((asset, ai) => {
           const w = portfolio.glidepathToWeights?.[ai];
           return (
-            <div key={ai} style={boxStyle(90)}>
-              <label
-                style={{
-                  fontSize: '10px',
-                  color: 'var(--text-muted)',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
+            <div key={ai} className="flex flex-col gap-0.5 min-w-[90px]">
+              <label className="text-[10px] text-text-muted whitespace-nowrap overflow-hidden text-ellipsis">
                 {asset.ticker || `${t('portfolio.asset')} ${ai + 1}`}
               </label>
-              <div className="flex items-center gap-1" style={{ height: '28px' }}>
+              <div className="flex items-center gap-1 h-7">
                 <Input
                   type="number"
                   value={w != null ? +(w * 100).toFixed(2) : ''}
@@ -155,6 +106,7 @@ function GlidepathTargetWeights({
     </>
   );
 }
+
 function GlidepathFields({
   from,
   to,
@@ -194,6 +146,7 @@ function GlidepathFields({
     </>
   );
 }
+
 export function GlidepathForm({
   nonGlidepathPortfolios,
   onConfirm,
@@ -210,9 +163,9 @@ export function GlidepathForm({
   const [gpYears, setGpYears] = useState(10);
   const canConfirm = gpFrom && gpTo && gpFrom !== gpTo;
   return (
-    <div style={GP_FORM_STYLE}>
-      <div style={GP_TITLE_STYLE}>{t('portfolio.newGlidepath')}</div>
-      <div style={FIELDS_ROW_STYLE}>
+    <div className={GP_FORM}>
+      <div className={GP_TITLE}>{t('portfolio.newGlidepath')}</div>
+      <div className={FIELDS_ROW}>
         <FieldLabel label={t('portfolio.name')}>
           <Input
             type="text"
@@ -246,6 +199,7 @@ export function GlidepathForm({
     </div>
   );
 }
+
 export function GlidepathConfig({
   portfolio,
   nonGlidepathPortfolios,
@@ -257,9 +211,9 @@ export function GlidepathConfig({
 }) {
   const { t } = useTranslation();
   return (
-    <div style={GP_CONFIG_STYLE}>
-      <div style={GP_CONFIG_TITLE_STYLE}>{t('portfolio.glidepathConfig')}</div>
-      <div style={FIELDS_ROW_STYLE}>
+    <div className={GP_CONFIG}>
+      <div className={GP_CONFIG_TITLE}>{t('portfolio.glidepathConfig')}</div>
+      <div className={FIELDS_ROW}>
         <GlidepathFields
           from={portfolio.glidepathFrom ?? ''}
           to={portfolio.glidepathTo ?? ''}
@@ -274,13 +228,14 @@ export function GlidepathConfig({
     </div>
   );
 }
+
 export function AssetWeightRow({
   asset,
   onUpdate,
   onDelete,
 }: {
   asset: { ticker: string; weight: number };
-  onUpdate: (asset: { ticker: string; weight: number }) => void;
+  onUpdate: (a: { ticker: string; weight: number }) => void;
   onDelete: () => void;
 }) {
   const meta = useTickerMeta(asset.ticker);
@@ -318,6 +273,7 @@ export function AssetWeightRow({
     </div>
   );
 }
+
 export function NumField({
   label,
   value,
@@ -358,6 +314,7 @@ export function NumField({
     </div>
   );
 }
+
 export function RebalanceControls({
   portfolio,
   rebalanceOptions,
@@ -381,9 +338,9 @@ export function RebalanceControls({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {rebalanceOptions.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
+          {rebalanceOptions.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -407,6 +364,7 @@ export function RebalanceControls({
     </>
   );
 }
+
 export function RebalanceBandsRow({
   portfolio,
   onUpdate,
