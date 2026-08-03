@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { startExpressApp, type TestServer } from '../../helpers/expressApp.js';
 import { loggerMocks } from '../../helpers/loggerFixture.js';
 import { EngineUnavailableErrorStub } from '../../helpers/backtestRoutesFixtures.js';
+import '../../helpers/middlewareMocks.js';
 
 const dataServiceMocks = vi.hoisted(() => ({ fetchHistoryData: vi.fn() }));
 const engineMocks = vi.hoisted(() => ({ callEngineStrict: vi.fn() }));
@@ -22,29 +23,6 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', async (importOriginal)
     await importOriginal<typeof import('../../../packages/backend/src/utils/metrics.js')>();
   return { ...actual, recordBacktestRequest: vi.fn(), recordDegradedResponse: vi.fn() };
 });
-vi.mock('../../../packages/backend/src/middleware/jwtAuth.js', () => ({
-  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
-  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
-  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-vi.mock('../../../packages/backend/src/middleware/tenantContext.js', () => ({
-  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  hasTenant: vi.fn(() => true),
-}));
-vi.mock('../../../packages/backend/src/middleware/rbac.js', () => ({
-  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-  Permission: {
-    BACKTEST_RUN: 'backtest:run',
-    STRATEGY_MANAGE: 'strategy:manage',
-    SIGNAL_READ: 'signal:read',
-  },
-}));
-vi.mock('../../../packages/backend/src/middleware/quota.js', () => ({
-  enforceQuota: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
 
 import analysisRoutes from '../../../packages/backend/src/routes/analysisRoutes.js';
 

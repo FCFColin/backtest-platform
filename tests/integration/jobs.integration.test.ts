@@ -39,36 +39,7 @@ vi.mock('../../packages/backend/src/queues/backtestQueue.js', () => ({
   },
 }));
 
-vi.mock('../../packages/backend/src/middleware/jwtAuth.js', () => ({
-  jwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  optionalJwtAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
-  assignGuestReadonly: (_req: unknown, _res: unknown, next: () => void) => next(),
-  auditLog: (_req: unknown, _res: unknown, next: () => void) => next(),
-  idempotencyKey: (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-
-vi.mock('../../packages/backend/src/middleware/tenantContext.js', () => ({
-  resolveTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  requireTenant: (_req: unknown, _res: unknown, next: () => void) => next(),
-  hasTenant: vi.fn(() => true),
-}));
-
-vi.mock('../../packages/backend/src/middleware/rbac.js', () => ({
-  requirePermission: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-  Permission: {
-    BACKTEST_RUN: 'backtest:run',
-    ADMIN_ACCESS: 'admin:access',
-    OPTIMIZER_RUN: 'optimizer:run',
-    STRATEGY_MANAGE: 'strategy:manage',
-    SIGNAL_READ: 'signal:read',
-    DATA_READ: 'data:read',
-  },
-}));
-
-vi.mock('../../packages/backend/src/middleware/quota.js', () => ({
-  enforceQuota: () => (_req: unknown, _res: unknown, next: () => void) => next(),
-}));
-
+import '../helpers/middlewareMocks.js';
 import express from 'express';
 import { jobRoutes } from '../../packages/backend/src/routes/jobRoutes.js';
 
