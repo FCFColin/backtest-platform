@@ -99,7 +99,7 @@ interface FloatingLabelSelectProps {
   containerClassName?: string;
   disabled?: boolean;
 }
-export const FloatingLabelSelect = forwardRef<HTMLButtonElement, FloatingLabelSelectProps>(
+const FloatingLabelSelect = forwardRef<HTMLButtonElement, FloatingLabelSelectProps>(
   (
     {
       label,
