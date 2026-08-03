@@ -2,12 +2,11 @@ import { Router, type Request, type Response } from 'express';
 import { pool, getReadPool } from '../db/pool.js';
 import { sendProblem } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
-import { jwtAuth, type AuthenticatedRequest } from '../middleware/jwtAuth.js';
+import type { AuthenticatedRequest } from '../middleware/jwtAuth.js';
 import { asyncRouteHandler } from './routeUtils.js';
 import { validate } from '../middleware/miscMiddleware.js';
 import { adminMiddleware } from '../middleware/middlewareChains.js';
 import { createAnnouncementSchema, errorReportSchema } from '../schemas/tactical.js';
-import { isEnabled, logFlagAccess, PLAN_LIMIT_FLAGS, type FlagContext } from '../config/index.js';
 import {
   recordFrontendWebVital,
   recordFrontendApiCall,
@@ -78,30 +77,6 @@ router.post(
     { logMsg: 'Announcement create error', code: 'ANNOUNCEMENT_CREATE_ERROR' },
   ),
 );
-
-// 特性开关（ADR-P1-06）
-const VISIBLE_FLAGS = [
-  PLAN_LIMIT_FLAGS.enterpriseQuota,
-  PLAN_LIMIT_FLAGS.proAnalytics,
-  'ui.new-dashboard',
-] as const;
-
-/** GET /api/v1/feature-flags — 返回当前用户可见的所有 flag 状态 */
-router.get('/feature-flags', jwtAuth, (req: AuthenticatedRequest, res: Response) => {
-  const context: FlagContext = {
-    userId: req.user?.sub,
-    orgId: req.user?.tenant_id,
-  };
-
-  const flags: Record<string, boolean> = {};
-  for (const name of VISIBLE_FLAGS) {
-    const enabled = isEnabled(name, context);
-    flags[name] = enabled;
-    logFlagAccess(name, context, enabled);
-  }
-
-  res.json({ success: true, data: { flags } });
-});
 
 // 前端错误/性能上报：无需认证
 // eslint-disable-next-line complexity, sonarjs/cognitive-complexity, max-lines-per-function

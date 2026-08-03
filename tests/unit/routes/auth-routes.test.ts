@@ -374,7 +374,6 @@ describe('authRegistrationRoutes', () => {
     return { query, release: vi.fn(), ...overrides };
   }
   const EMAIL = 'new@example.com';
-  const TOKEN = 'token-abc';
   const validRegisterBody = {
     username: 'nu',
     email: EMAIL,
@@ -442,16 +441,16 @@ describe('authRegistrationRoutes', () => {
     expect(res.status).toBe(201);
     expect(mocks.logger.warn).toHaveBeenCalled();
   });
-  it.each([
-    ['verify-email 缺 token', 'verify-email'],
-    ['resend-verification 缺 email', 'resend-verification'],
-  ])('%s 应返回 400 VALIDATION_ERROR，不触发后续处理', async (_n, ep) => {
-    const { res, body } = await apiPost(regUrl(ep), {});
-    expect(res.status).toBe(400);
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-    expect(mocks.registration.verifyEmailToken).not.toHaveBeenCalled();
-    expect(mocks.registration.issueEmailVerificationToken).not.toHaveBeenCalled();
-  });
+  it.each([['verify-email 缺 token', 'verify-email']])(
+    '%s 应返回 400 VALIDATION_ERROR，不触发后续处理',
+    async (_n, ep) => {
+      const { res, body } = await apiPost(regUrl(ep), {});
+      expect(res.status).toBe(400);
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(mocks.registration.verifyEmailToken).not.toHaveBeenCalled();
+      expect(mocks.registration.issueEmailVerificationToken).not.toHaveBeenCalled();
+    },
+  );
   it.each([
     ['无效 token', null, 400, 'INVALID_OR_EXPIRED_TOKEN', false],
     ['有效 token', 'user-uuid-456', 200, null, true],
@@ -462,11 +461,5 @@ describe('authRegistrationRoutes', () => {
     if (code) expect(body.error.code).toBe(code);
     else expect(body.data).toEqual({ userId: 'user-uuid-456', verified: true });
     if (verifyCalled) expect(mocks.registration.verifyEmailToken).toHaveBeenCalledWith('a-token');
-  });
-  it('resend-verification 有 email 应签发 token 并发送验证邮件，返回成功', async () => {
-    const { res } = await apiPost(regUrl('resend-verification'), { email: 'me@example.com' });
-    expect(res.status).toBe(200);
-    expect(mocks.registration.issueEmailVerificationToken).toHaveBeenCalledWith('user-123');
-    expect(mocks.registration.sendVerificationEmail).toHaveBeenCalledWith('me@example.com', TOKEN);
   });
 });

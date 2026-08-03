@@ -17,7 +17,6 @@ import { requirePermission, Permission } from '../middleware/rbac.js';
 import { tenantHandler, requireTenantId, requireUuidParam } from './routeUtils.js';
 import {
   getOrg,
-  updateOrgName,
   listOrgMembers,
   updateMemberRole,
   removeMember,
@@ -56,35 +55,6 @@ router.post(
 );
 
 router.use(requireTenant);
-
-/** GET /api/v1/orgs/current - 当前组织信息（任意成员可见） */
-router.get('/current', async (req: AuthenticatedRequest, res: Response) => {
-  const tenantId = requireTenantId(req, res);
-  if (!tenantId) return;
-  const org = await getOrg(tenantId);
-  if (!org) {
-    sendProblem(res, 404, 'ORG_NOT_FOUND');
-    return;
-  }
-  res.json({ success: true, data: org });
-});
-
-const updateOrgSchema = z.object({ name: z.string().trim().min(1).max(120) });
-router.patch(
-  '/current',
-  requireAdmin,
-  validate(updateOrgSchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    const tenantId = requireTenantId(req, res);
-    if (!tenantId) return;
-    const ok = await updateOrgName(tenantId, (req.body as { name: string }).name);
-    if (!ok) {
-      sendProblem(res, 404, 'ORG_NOT_FOUND');
-      return;
-    }
-    res.json({ success: true, data: { updated: true } });
-  },
-);
 
 /** GET /api/v1/orgs/members - 成员列表（任意成员可见） */
 router.get('/members', async (req: AuthenticatedRequest, res: Response) => {

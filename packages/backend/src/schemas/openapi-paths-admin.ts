@@ -8,7 +8,6 @@ import {
   sec,
   pubReg,
   AUTH_ERR,
-  AUTH_500_ERR,
   AUTH_NOT_FOUND_ERR,
   PERM_ERR,
   VALIDATION_ERR,
@@ -157,7 +156,6 @@ function registerMiscPaths(): void {
       userId: z.string().optional(),
     }),
   );
-  sec('get', '/feature-flags', 'feature-flags', '查询全部功能开关的当前状态', AUTH_500_ERR);
 }
 
 export function registerAdminPaths(): void {

@@ -98,8 +98,6 @@ function registerSaasRunsPaths(): void {
 }
 
 function registerSaasOrgsPaths(): void {
-  sec('get', '/orgs/current', 'saas-orgs', '查询当前组织', [401]);
-  sec('patch', '/orgs/current', 'saas-orgs', '更新当前组织信息', [401, 403, 422]);
   sec('get', '/orgs/members', 'saas-orgs', '列出组织成员', [401]);
   sec('patch', '/orgs/members/{userId}', 'saas-orgs', '更新成员角色', ID_ERR, WITH_USER_ID_PARAM);
   sec('delete', '/orgs/members/{userId}', 'saas-orgs', '移除成员', ID_ERR, WITH_USER_ID_PARAM);

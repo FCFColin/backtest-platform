@@ -4,14 +4,9 @@ import { scanTickersStats, getUniverseStats } from '../infrastructure/dataQuery.
 import type { DbMarketStats } from '../db/marketStats.js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
-import { z } from 'zod';
-import { sendProblem } from '../utils/errors.js';
-import { validateQuery } from '../middleware/miscMiddleware.js';
 import { adminMiddleware } from '../middleware/middlewareChains.js';
 import { listRuns, type BacktestRunRecord } from '../repositories/backtestRunRepo.js';
-import { crudRouteHandler, requireUuidParam } from './routeUtils.js';
-import { queryAuditLogs, verifyAuditIntegrity } from '../application/auditStorageService.js';
-import { paginationQuerySchema } from '../schemas/analysisSchemas.js';
+import { crudRouteHandler } from './routeUtils.js';
 
 const router = Router();
 
@@ -234,61 +229,6 @@ router.get(
       logMsg: '[Admin System] 获取系统信息失败',
       code: 'ADMIN_SYSTEM_ERROR',
     },
-  ),
-);
-
-const querySchema = z.object({
-  org_id: z.string().uuid().optional(),
-  event_type: z.string().trim().max(100).optional(),
-  user_id: z.string().uuid().optional(),
-  action: z
-    .enum(['CREATE', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'READ', 'EXPORT', 'CONFIG'])
-    .optional(),
-  start_date: z.string().min(1).optional(),
-  end_date: z.string().min(1).optional(),
-  ...paginationQuerySchema,
-});
-
-router.get(
-  '/audit-logs',
-  ...adminMiddleware(),
-  validateQuery(querySchema),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      const q = req.query as unknown as z.infer<typeof querySchema>;
-      const result = await queryAuditLogs(
-        {
-          orgId: q.org_id,
-          eventType: q.event_type,
-          userId: q.user_id,
-          action: q.action,
-          startDate: q.start_date,
-          endDate: q.end_date,
-        },
-        q.page,
-        q.limit,
-      );
-      res.json({ success: true, data: result });
-    },
-    { logMsg: '[auditRoutes] 查询审计日志失败', code: 'AUDIT_LOG_QUERY_FAILED' },
-  ),
-);
-
-router.get(
-  '/audit-logs/:id/verify',
-  ...adminMiddleware(),
-  crudRouteHandler(
-    async (req: Request, res: Response): Promise<void> => {
-      if (!requireUuidParam(res, req.params.id)) return;
-      const logId = req.params.id;
-      const result = await verifyAuditIntegrity(logId);
-      if (!result.valid && result.expected === '' && result.actual === '') {
-        sendProblem(res, 404, 'AUDIT_LOG_NOT_FOUND');
-        return;
-      }
-      res.json({ success: true, data: result });
-    },
-    { logMsg: '[auditRoutes] 校验审计完整性失败', code: 'AUDIT_LOG_VERIFY_FAILED' },
   ),
 );
 

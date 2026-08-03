@@ -23,7 +23,6 @@ import {
   switchOrgSchema,
   registerSchema,
   verifyEmailSchema,
-  resendVerificationSchema,
 } from '../schemas/tactical.js';
 import {
   verifyUser,
@@ -241,27 +240,6 @@ router.post('/verify-email', validate(verifyEmailSchema), async (req: Request, r
   }
   res.json({ success: true, data: { userId, verified: true } });
 });
-
-/** POST /api/v1/auth/resend-verification — 重发验证邮件（需登录；不泄露邮箱是否存在/有效，统一返回成功） */
-router.post(
-  '/resend-verification',
-  jwtAuth,
-  validate(resendVerificationSchema),
-  async (req: AuthenticatedRequest, res: Response) => {
-    if (!requireUser(req, res)) return;
-    const { email } = req.body;
-    try {
-      const token = await issueEmailVerificationToken(req.user.sub);
-      await sendVerificationEmail(email, token);
-    } catch (err) {
-      logger.warn(
-        { err: String(err), userId: hashUserId(req.user.sub) },
-        '[auth] 重发验证邮件失败',
-      );
-    }
-    res.json({ success: true, data: { message: '若邮箱有效，验证邮件已发送' } });
-  },
-);
 
 /** POST /api/v1/auth/refresh — RT 从 httpOnly Cookie 读取，轮换后写回，旧 RT 失效。 */
 router.post(

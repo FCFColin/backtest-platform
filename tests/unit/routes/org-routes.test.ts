@@ -10,37 +10,6 @@ describe('orgRoutes', () => {
     if (server) await server.close();
   });
 
-  it('GET /current 返回组织信息', async () => {
-    mocks.membership.getOrg.mockResolvedValueOnce({
-      orgId: ORG,
-      name: 'Acme',
-      slug: 'acme',
-      plan: 'free',
-      status: 'active',
-    });
-    server = await startApp('/api/v1/orgs', orgRoutes);
-    const { res, json } = await jsonFetch(`${server.url}/api/v1/orgs/current`);
-    expect(res.status).toBe(200);
-    expect(json.data.name).toBe('Acme');
-  });
-
-  it('PATCH /current 非 admin 应被拒绝 403', async () => {
-    server = await startApp('/api/v1/orgs', orgRoutes, { role: 'readonly', orgRole: 'readonly' });
-    const { res } = await jsonFetch(`${server.url}/api/v1/orgs/current`, 'PATCH', { name: 'New' });
-    expect(res.status).toBe(403);
-    expect(mocks.membership.updateOrgName).not.toHaveBeenCalled();
-  });
-
-  it('PATCH /current admin 更新成功', async () => {
-    mocks.membership.updateOrgName.mockResolvedValueOnce(true);
-    server = await startApp('/api/v1/orgs', orgRoutes);
-    const { res } = await jsonFetch(`${server.url}/api/v1/orgs/current`, 'PATCH', {
-      name: 'New Name',
-    });
-    expect(res.status).toBe(200);
-    expect(mocks.membership.updateOrgName).toHaveBeenCalledWith(ORG, 'New Name');
-  });
-
   it('GET /members 返回成员列表', async () => {
     mocks.membership.listOrgMembers.mockResolvedValueOnce([
       { userId: USER, username: 'alice', email: null, role: 'owner', createdAt: 'x' },
