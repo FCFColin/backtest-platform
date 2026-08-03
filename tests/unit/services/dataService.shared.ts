@@ -96,8 +96,8 @@ vi.mock('../../../packages/backend/src/utils/metrics.js', () => ({
 vi.mock('../../../packages/backend/src/config/index.js', () => ({
   config: createConfigMocks({ GO_DATA_SERVICE_URL: 'http://127.0.0.1:15003' }),
 }));
-vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
-  createRedisModuleMock(
+vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () => ({
+  ...createRedisModuleMock(
     {
       withHandlers: true,
       methods: {
@@ -110,7 +110,9 @@ vi.mock('../../../packages/backend/src/infrastructure/redisClient.js', () =>
     },
     internalMocks.redis,
   ),
-);
+  isSentinelMode: false,
+  bullmqConnectionOptions: {},
+}));
 vi.mock('opossum', () => ({
   default: vi.fn(() => internalMocks.circuitBreaker.instance),
   CircuitBreaker: vi.fn(() => internalMocks.circuitBreaker.instance),

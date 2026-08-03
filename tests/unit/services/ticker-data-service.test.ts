@@ -1,20 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createLoggerMocks, mockLogger } from '../../helpers/mockFactories.js';
-
-const loggerMocks = vi.hoisted(() => ({}) as ReturnType<typeof createLoggerMocks>);
-
-const tickerValidationMocks = vi.hoisted(() => ({
-  isValidTicker: vi.fn(),
-}));
-
-const fsMocks = vi.hoisted(() => ({
-  existsSync: vi.fn().mockReturnValue(false),
-  readFileSync: vi.fn(),
-  statSync: vi.fn(),
-  readdirSync: vi.fn().mockReturnValue([]),
-  writeFileSync: vi.fn(),
-  mkdirSync: vi.fn(),
-}));
+import { dbMocks, tickerValidationMocks, loggerMocks, setupDefault } from './dataService.shared.js';
 
 const pgMocks = vi.hoisted(() => ({
   query: vi.fn(),
@@ -33,25 +18,7 @@ const macroDbMocks = vi.hoisted(() => ({
   loadCpiSeriesFromDb: vi.fn(),
 }));
 
-const fsPromisesMocks = vi.hoisted(() => ({
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
-  readdir: vi.fn().mockResolvedValue([]),
-  stat: vi.fn(),
-}));
-
-vi.mock('../../../packages/backend/src/utils/logger.js', () => {
-  Object.assign(loggerMocks, createLoggerMocks());
-  return { logger: mockLogger(loggerMocks) };
-});
-
-vi.mock('../../../packages/backend/src/utils/tickerValidation.js', () => ({
-  isValidTicker: tickerValidationMocks.isValidTicker,
-}));
-
-vi.mock('../../../packages/backend/src/db/pool.js', () => ({
-  getReadPool: () => ({ query: pgMocks.query }),
-}));
+dbMocks.getReadPool.mockReturnValue({ query: pgMocks.query } as never);
 
 vi.mock('../../../packages/backend/src/db/marketStats.js', () => ({
   scanMarketStatsFromDb: marketStatsMocks.scanMarketStatsFromDb,
@@ -64,24 +31,6 @@ vi.mock('../../../packages/backend/src/infrastructure/goDataServiceClient.js', (
 
 vi.mock('../../../packages/backend/src/db/macroData.js', () => ({
   loadCpiSeriesFromDb: macroDbMocks.loadCpiSeriesFromDb,
-}));
-
-vi.mock('fs', () => ({
-  default: {
-    existsSync: fsMocks.existsSync,
-    readFileSync: fsMocks.readFileSync,
-    statSync: fsMocks.statSync,
-    readdirSync: fsMocks.readdirSync,
-    writeFileSync: fsMocks.writeFileSync,
-    mkdirSync: fsMocks.mkdirSync,
-    promises: fsPromisesMocks,
-  },
-  existsSync: fsMocks.existsSync,
-  readFileSync: fsMocks.readFileSync,
-  statSync: fsMocks.statSync,
-  readdirSync: fsMocks.readdirSync,
-  writeFileSync: fsMocks.writeFileSync,
-  mkdirSync: fsMocks.mkdirSync,
 }));
 
 import {
@@ -97,7 +46,10 @@ import {
   fetchCpiForRoute,
 } from '../../../packages/backend/src/infrastructure/dataServices.js';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  setupDefault();
+});
 
 const DB_STATS = {
   generated_at: '2024-01-01T00:00:00Z',
