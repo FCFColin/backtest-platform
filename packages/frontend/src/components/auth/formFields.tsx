@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Field, FieldLabel } from '@/components/form/Field.js';
 interface AuthPageLayoutProps {
   icon?: ReactNode;
   title: ReactNode;
@@ -118,12 +119,6 @@ interface AuthFormFieldProps {
   minLength?: number;
   style?: CSSProperties;
 }
-const FIELD_LABEL_STYLE: CSSProperties = {
-  fontSize: 13,
-  fontWeight: 600,
-  color: 'var(--text-body)',
-};
-const FIELD_WRAP_STYLE: CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6 };
 export function AuthFormField({
   label,
   value,
@@ -135,8 +130,8 @@ export function AuthFormField({
   style,
 }: AuthFormFieldProps) {
   return (
-    <label style={FIELD_WRAP_STYLE}>
-      <span style={FIELD_LABEL_STYLE}>{label}</span>
+    <Field>
+      <FieldLabel>{label}</FieldLabel>
       <input
         type={type}
         value={value}
@@ -147,6 +142,6 @@ export function AuthFormField({
         className="bg-input-bg text-fg border border-border-subtle rounded font-medium"
         style={{ width: '100%', height: 40, ...style }}
       />
-    </label>
+    </Field>
   );
 }

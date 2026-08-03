@@ -16,6 +16,7 @@ import { FrontierParams } from './EfficientFrontierParams.js';
 import type { ReturnObjective, FrontierSolver } from './EfficientFrontierParams.js';
 import { useEfficientFrontierState } from './EfficientFrontierUtils.js';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { MiniStatCard } from '../../components/cards.js';
 export interface FrontierResultsProps {
   results: EfficientFrontierResult;
   scatterData: Array<{
@@ -62,24 +63,6 @@ export function WeightBar({
     </div>
   );
 }
-export function MetricCard({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: string;
-  color: string;
-}) {
-  return (
-    <div className="rounded-md bg-elevated p-2.5">
-      <div className="text-caption text-fg-tertiary">{label}</div>
-      <div className="font-mono text-h3 font-semibold tabular-nums" style={{ color }}>
-        {value}
-      </div>
-    </div>
-  );
-}
 export function WeightAllocation({
   weights,
   title,
@@ -99,16 +82,6 @@ export function WeightAllocation({
             color={CHART_COLORS[i % CHART_COLORS.length]}
           />
         ))}
-      </div>
-    </div>
-  );
-}
-export function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="rounded-md bg-input-bg p-3 text-center">
-      <div className="mb-1 text-caption text-fg-tertiary">{label}</div>
-      <div className="font-mono text-h3 font-semibold tabular-nums" style={{ color }}>
-        {value}
       </div>
     </div>
   );
@@ -161,17 +134,20 @@ function SelectedPointDetail({
           title={t('efficientFrontier.results.weightAllocation')}
         />
         <div className="flex flex-col gap-2">
-          <MetricCard
+          <MiniStatCard
+            className="bg-elevated p-2.5"
             label={t('efficientFrontier.results.expectedReturn')}
             value={`${selectedPoint.expectedReturn.toFixed(2)}%`}
             color={COLOR_SUCCESS}
           />
-          <MetricCard
+          <MiniStatCard
+            className="bg-elevated p-2.5"
             label={t('efficientFrontier.results.expectedVolatility')}
             value={`${selectedPoint.expectedVolatility.toFixed(2)}%`}
             color={COLOR_WARNING}
           />
-          <MetricCard
+          <MiniStatCard
+            className="bg-elevated p-2.5"
             label={t('efficientFrontier.results.sharpeRatio')}
             value={selectedPoint.sharpeRatio.toFixed(2)}
             color={COLOR_BRAND}
@@ -206,17 +182,20 @@ function MaxSharpeSection({ maxSharpe }: { maxSharpe: EfficientFrontierPoint | u
           </div>
         </div>
         <div className="flex flex-col gap-3">
-          <MetricCard
+          <MiniStatCard
+            className="bg-elevated p-2.5"
             label={t('efficientFrontier.results.expectedReturn')}
             value={`${maxSharpe.expectedReturn.toFixed(2)}%`}
             color={COLOR_SUCCESS}
           />
-          <MetricCard
+          <MiniStatCard
+            className="bg-elevated p-2.5"
             label={t('efficientFrontier.results.expectedVolatility')}
             value={`${maxSharpe.expectedVolatility.toFixed(2)}%`}
             color={COLOR_WARNING}
           />
-          <MetricCard
+          <MiniStatCard
+            className="bg-elevated p-2.5"
             label={t('efficientFrontier.results.sharpeRatio')}
             value={maxSharpe.sharpeRatio.toFixed(2)}
             color={COLOR_BRAND}

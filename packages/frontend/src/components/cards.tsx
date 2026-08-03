@@ -113,3 +113,23 @@ export function StatCard({ label, value, trend, trendValue, icon, children }: St
     </Card>
   );
 }
+
+interface MiniStatCardProps {
+  label: string;
+  value: string;
+  color?: string;
+  className?: string;
+}
+export function MiniStatCard({ label, value, color, className }: MiniStatCardProps) {
+  return (
+    <div className={cn('rounded-md bg-input-bg p-3.5 text-center', className)}>
+      <div className="mb-1 text-caption text-fg-tertiary">{label}</div>
+      <div
+        className="font-mono text-h3 font-semibold tabular-nums text-fg"
+        style={color ? { color } : undefined}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}

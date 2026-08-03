@@ -10,6 +10,7 @@ import {
   TabsTrigger,
 } from '@/components/ui/uiComponents';
 import { ComputeToolShell, type ComputeToolConfig } from '../../components/shells/index.js';
+import { MiniStatCard } from '../../components/cards.js';
 import { Loader2 } from '@/icons/icons.js';
 import { fmtDollar } from '@/utils/format';
 import { McParamsPanel } from './MonteCarloParams.js';
@@ -41,19 +42,6 @@ const MonteCarloDistributionsTab = lazy(() =>
 const MonteCarloScenariosTab = lazy(() =>
   import('./MonteCarloScenariosTab.js').then((m) => ({ default: m.MonteCarloScenariosTab })),
 );
-function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="rounded-md bg-input-bg p-3.5 text-center">
-      <div className="mb-1 text-caption text-fg-tertiary">{label}</div>
-      <div
-        className="font-mono text-h3 font-semibold tabular-nums text-fg"
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
 export function StatsGrid({
   r,
   startingValue,
@@ -66,20 +54,20 @@ export function StatsGrid({
   const { t } = useTranslation();
   return (
     <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <StatCard
+      <MiniStatCard
         label={t('monteCarlo.results.medianFinalValue')}
         value={fmtDollar(r.statistics.medianFinalValue * startingValue)}
       />
-      <StatCard
+      <MiniStatCard
         label={t('monteCarlo.results.meanFinalValue')}
         value={fmtDollar(r.statistics.meanFinalValue * startingValue)}
       />
-      <StatCard
+      <MiniStatCard
         label={t('monteCarlo.results.preservationRate')}
         value={`${(r.statistics.successRate * 100).toFixed(1)}%`}
         color="hsl(var(--success))"
       />
-      <StatCard
+      <MiniStatCard
         label={t('monteCarlo.results.numSimulations')}
         value={`${r.perPathMetrics?.length ?? numSimulations}`}
       />
