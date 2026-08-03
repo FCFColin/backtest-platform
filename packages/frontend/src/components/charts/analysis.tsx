@@ -1,15 +1,9 @@
 import { memo, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { LineChart, Line, CartesianGrid, ResponsiveContainer } from 'recharts';
+import { Line } from 'recharts';
 import { CHART_COLORS, type AssetAnalysisResult, type PortfolioResult } from '@backtest/shared';
-import { CHART_MARGIN, CHART_GRID_PROPS, getHeatColor } from '@/lib/chart-theme.js';
-import {
-  ChartXAxis,
-  ChartYAxis,
-  ChartTooltip,
-  ChartLegend,
-  BarChartContent,
-} from './sharedChartContent.js';
+import { getHeatColor } from '@/lib/chart-theme.js';
+import { BarChartContent, SimpleLineChart } from './sharedChartContent.js';
 import { TimeSeriesLineChart } from './TimeSeriesLineChart.js';
 import { downsample, DOWNSAMPLE_THRESHOLD, DOWNSAMPLE_TARGET } from '../../utils/format.js';
 import { useAnalysisData } from '../../hooks/useAnalysisData.js';
@@ -26,38 +20,30 @@ const GrowthChart = memo(function GrowthChart({
   const { t } = useTranslation();
   return (
     <ChartCard title={t('analysis.growthCurve')}>
-      <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={growthData} margin={CHART_MARGIN}>
-          <CartesianGrid {...CHART_GRID_PROPS} stroke="var(--bg-subtle)" />
-          <ChartXAxis />
-          <ChartYAxis
-            domain={['auto', 'auto']}
-            tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
+      <SimpleLineChart
+        data={growthData}
+        height={350}
+        yTickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v.toFixed(0))}
+        tooltipLabelFormatter={(label: string) => `${t('common.date')}: ${label}`}
+        tooltipFormatter={(value: number, name: string) => {
+          const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
+          return [`$${numValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, name];
+        }}
+      >
+        {portfolioResults.map((p, idx) => (
+          <Line
+            key={p.name}
+            type="monotone"
+            dataKey={p.name}
+            name={p.name}
+            stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
+            isAnimationActive={false}
           />
-          <ChartTooltip
-            labelFormatter={(label: string) => `${t('common.date')}: ${label}`}
-            formatter={(value: number, name: string) => {
-              const numValue = typeof value === 'number' && isFinite(value) ? value : 0;
-              return [`$${numValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, name];
-            }}
-            isLargeDataset={growthData.length >= 100}
-          />
-          <ChartLegend />
-          {portfolioResults.map((p, idx) => (
-            <Line
-              key={p.name}
-              type="monotone"
-              dataKey={p.name}
-              name={p.name}
-              stroke={CHART_COLORS[idx % CHART_COLORS.length]}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 5, stroke: 'var(--bg-elevated)', strokeWidth: 2 }}
-              isAnimationActive={false}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+        ))}
+      </SimpleLineChart>
     </ChartCard>
   );
 });
@@ -154,18 +140,7 @@ function computeTelltaleData(
   };
 }
 function ChartEmptyMessage({ message }: { message: string }) {
-  return (
-    <div
-      style={{
-        color: 'var(--text-muted)',
-        fontSize: '13px',
-        padding: '40px 0',
-        textAlign: 'center',
-      }}
-    >
-      {message}
-    </div>
-  );
+  return <div className="py-10 text-center text-[13px] text-[var(--text-muted)]">{message}</div>;
 }
 function TelltaleChartView({
   chartData,
