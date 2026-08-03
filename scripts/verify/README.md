@@ -31,7 +31,6 @@ scripts/verify/
 ├── verify-tests.mjs        # C-012 单测 + C-013 覆盖率门控 + C-014 Go覆盖率 + H-zod
 ├── verify-frontend.mjs     # C-004 路由 + C-005 默认值 + C-006 CLS + C-019 死代码（chrome-devtools）
 ├── C-025-trivy.mjs         # 容器安全扫描
-└── _cls-diagnose.mjs       # CLS 诊断（不在 run-all）
 ```
 
 ## 运行方式

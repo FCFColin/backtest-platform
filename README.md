@@ -178,4 +178,4 @@ pnpm test:e2e     # 仅 E2E 测试
 - [应用层契约](docs/application-layer-contract.md) - 应用层结构与依赖规则
 - [引擎架构](docs/engine-architecture.md) - Go 引擎端点与职责
 - [ADR 索引](docs/adr/README.md) - 全部架构决策记录
-- [运维手册](docs/runbook.md) - 缓存 / 降级 / 故障排查
+- [运维手册](docs/wiki/ops-guide.md) - 缓存 / 降级 / 故障排查

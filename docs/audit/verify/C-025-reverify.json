@@ -1,9 +1,0 @@
-{
-  "issueId": "C-025",
-  "timestamp": "2026-08-02T09:05:17.922Z",
-  "status": "FAIL",
-  "summary": ".github/workflows/ci.yml 中未找到 trivy 步骤",
-  "details": {
-    "trivyStepCount": 0
-  }
-}

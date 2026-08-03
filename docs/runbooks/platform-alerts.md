@@ -1,6 +1,6 @@
 # 平台告警 Runbook
 
-> 告警触发规则定义见 [docs/alerts/](../alerts/) 与 k8s/prometheus-rules.yaml。分级: P0 15min 响应/1h 恢复; P1 30min 响应/4h 恢复。
+> 告警触发规则定义见 [docker/prometheus/rules.yml](../../docker/prometheus/rules.yml) 与 k8s/prometheus-rules.yaml。分级: P0 15min 响应/1h 恢复; P1 30min 响应/4h 恢复。
 
 ## P0 告警
 

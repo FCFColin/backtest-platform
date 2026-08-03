@@ -155,3 +155,7 @@ pg-backup.sql
 .auth/
 
 pnpm-lock.yaml
+
+# Generated audit artifacts
+docs/audit/verify/
+docs/audit/reports/

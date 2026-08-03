@@ -312,7 +312,7 @@ spec:
           annotations:
             summary: 'WAL-G backup is stale (no backup in >26h)'
             description: '超过 26 小时没有成功的 WAL-G 全量备份。检查 ofelia 调度器状态与 MinIO 连接。等保三级 8.1.4 要求定期备份。'
-            runbook_url: 'https://backtest.platform/docs/compliance/backup-restore'
+            runbook_url: 'https://backtest.platform/docs/compliance/data-governance'
 
         # P0-06：WAL 归档失败
         - alert: WalgArchiveFailure
@@ -325,4 +325,4 @@ spec:
           annotations:
             summary: 'WAL archive failures detected'
             description: 'PostgreSQL WAL 归档失败计数增加。检查 MinIO 连通性、磁盘空间与 WAL-G 配置。'
-            runbook_url: 'https://backtest.platform/docs/compliance/backup-restore'
+            runbook_url: 'https://backtest.platform/docs/compliance/data-governance'
