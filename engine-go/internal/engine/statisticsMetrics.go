@@ -190,23 +190,25 @@ func sortedReturnsPercentile(returns []float64) []float64 {
 	return sorted
 }
 func clampIndex(index, size int) int { return min(max(0, index), size-1) }
-func CalcVaR(dailyReturns []float64, confidence float64) float64 {
+func tailMetric(dailyReturns []float64, confidence float64, fn func(sorted []float64, cutoff int) float64) float64 {
 	sorted := sortedReturnsPercentile(dailyReturns)
 	if sorted == nil || confidence <= 0 || confidence >= 1 {
 		return 0
 	}
-	return -sorted[clampIndex(int((1-confidence)*float64(len(sorted))), len(sorted))]
+	return fn(sorted, int((1-confidence)*float64(len(sorted))))
+}
+func CalcVaR(dailyReturns []float64, confidence float64) float64 {
+	return tailMetric(dailyReturns, confidence, func(sorted []float64, cutoff int) float64 {
+		return -sorted[clampIndex(cutoff, len(sorted))]
+	})
 }
 func CalcCVaR(dailyReturns []float64, confidence float64) float64 {
-	sorted := sortedReturnsPercentile(dailyReturns)
-	if sorted == nil || confidence <= 0 || confidence >= 1 {
-		return 0
-	}
-	cutoffIndex := int((1 - confidence) * float64(len(sorted)))
-	if cutoffIndex == 0 {
-		return -sorted[0]
-	}
-	return -mathutil.Mean(sorted[:cutoffIndex])
+	return tailMetric(dailyReturns, confidence, func(sorted []float64, cutoff int) float64 {
+		if cutoff == 0 {
+			return -sorted[0]
+		}
+		return -mathutil.Mean(sorted[:cutoff])
+	})
 }
 func standardizedMomentSum(returns []float64, power float64) (sum float64, n int, ok bool) {
 	n = len(returns)

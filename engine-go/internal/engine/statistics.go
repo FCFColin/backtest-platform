@@ -84,6 +84,9 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	pctPosDays := ratioPositive(req.DailyReturns)
 	pctPosMonths := ratioPositive(req.MonthlyReturnValues)
 	pctPosYears := ratioPositive(req.AnnualReturnValues)
+	avgAnnual := mathutil.Mean(req.AnnualReturnValues)
+	avgMonthly := mathutil.Mean(req.MonthlyReturnValues)
+	avgDaily := mathutil.Mean(req.DailyReturns)
 	maxDailyRet := MaxValue(req.DailyReturns)
 	minDailyRet := MinValue(req.DailyReturns)
 	maxAnnualRet := MaxValue(req.AnnualReturnValues)
@@ -106,15 +109,15 @@ func CalculateStatisticsFromRequest(req StatisticsRequest) Statistics {
 	captureSpread := upsideDaily - downsideDaily
 	return Statistics{
 		CAGR: cagr, MWRR: mwrr, Stdev: stdevDaily, Sharpe: sharpe, Sortino: sortino, MaxDrawdown: dd.MaxDrawdown, MaxDrawdownDuration: dd.MaxDrawdownDuration,
-		BestYear: maxAnnualRet, WorstYear: minAnnualRet, AvgYear: mathutil.Mean(req.AnnualReturnValues), TotalReturn: totalReturn,
+		BestYear: maxAnnualRet, WorstYear: minAnnualRet, AvgYear: avgAnnual, TotalReturn: totalReturn,
 		MaxMonthlyReturn: MaxValue(req.MonthlyReturnValues), MinMonthlyReturn: MinValue(req.MonthlyReturnValues), AvgDrawdown: CalcAvgDrawdown(req.Values), UlcerIndex: ulcerIdx,
 		Calmar: CalcCalmar(cagr, dd.MaxDrawdown), UlcerPerformanceIndex: CalcUPI(cagr, ulcerIdx), Beta: beta, Alpha: alpha, RSquared: rSq,
 		TrackingError: trackingErr, InformationRatio: infoRatio, UpsideCapture: upsideDaily, DownsideCapture: downsideDaily,
 		MaxDailyReturn: maxDailyRet, MinDailyReturn: minDailyRet, PWR: pwr,
 		Var: vaRByFrequency(freqs, CalcVaR), Cvar: vaRByFrequency(freqs, CalcCVaR),
 		Skewness: skewByFrequency(freqs, CalcSkewness), ExcessKurtosis: skewByFrequency(freqs, CalcExcessKurtosis),
-		WinRate: skewByFrequency(freqs, ratioPositive), PctPositiveDays: pctPosDays,
-		AvgAnnualReturn: mathutil.Mean(req.AnnualReturnValues), AvgMonthlyReturn: mathutil.Mean(req.MonthlyReturnValues), AvgDailyReturn: mathutil.Mean(req.DailyReturns),
+		WinRate: SkewnessByFrequency{Daily: pctPosDays, Monthly: pctPosMonths, Annual: pctPosYears}, PctPositiveDays: pctPosDays,
+		AvgAnnualReturn: avgAnnual, AvgMonthlyReturn: avgMonthly, AvgDailyReturn: avgDaily,
 		StdevAnnual: mathutil.Std(req.AnnualReturnValues), StdevMonthly: mathutil.Std(req.MonthlyReturnValues) * math.Sqrt(12), StdevMonthlyRaw: mathutil.Std(req.MonthlyReturnValues),
 		StdevDaily: stdevDaily, StdevDailyRaw: stdevDailyRaw,
 		DownsideDeviation: CalcDownsideDeviation(req.DailyReturns, rfDaily, tradingDaysPerYear), DownsideDeviationDailyRaw: CalcDownsideDeviationRaw(req.DailyReturns, rfDaily),
