@@ -58,39 +58,15 @@ type pathMetrics struct {
 }
 
 func calcPortfolioDailyReturns(assets []Asset, priceData map[string]map[string]float64, startDate, endDate string) []float64 {
-	var validAssets []Asset
+	var tickers []string
+	var weights []float64
 	for _, a := range assets {
 		if pd, ok := priceData[a.Ticker]; ok && len(pd) > 0 {
-			validAssets = append(validAssets, a)
+			tickers = append(tickers, a.Ticker)
+			weights = append(weights, a.Weight)
 		}
 	}
-	if len(validAssets) == 0 {
-		return nil
-	}
-	totalWeight := 0.0
-	for _, a := range validAssets {
-		totalWeight += math.Abs(a.Weight)
-	}
-	if totalWeight == 0 {
-		return nil
-	}
-	tickers := make([]string, len(validAssets))
-	weights := make([]float64, len(validAssets))
-	for i, a := range validAssets {
-		tickers[i] = a.Ticker
-		weights[i] = math.Abs(a.Weight) / totalWeight
-	}
-	allDates := engineutil.AlignDates(tickers, priceData)
-	var commonDates []string
-	for _, d := range allDates {
-		if d >= startDate && d <= endDate {
-			commonDates = append(commonDates, d)
-		}
-	}
-	if len(commonDates) < 2 {
-		return nil
-	}
-	return engineutil.WeightedDailyReturns(tickers, weights, priceData, commonDates, false, false)
+	return engineutil.PortfolioDailyReturns(tickers, weights, priceData, startDate, endDate, false, false)
 }
 func OptimizeGoals(req GoalOptimizerRequest) (*GoalOptimizerResult, error) {
 	validAssets := make([]Asset, 0, len(req.Assets))

@@ -251,6 +251,35 @@ func WeightedDailyReturns(tickers []string, weights []float64, priceData map[str
 	return returns
 }
 
+/**
+ * 组合日收益：对齐共有交易日 → 过滤日期区间 → 按绝对值权重归一化 → 加权日收益。
+ * 日期用字符串区间比较（交集语义）；并集语义的调用方自行实现（见 montecarlo）。
+ */
+func PortfolioDailyReturns(tickers []string, weights []float64, priceData map[string]map[string]float64, startDate, endDate string, requireBoth, normalize bool) []float64 {
+	dates := AlignDates(tickers, priceData)
+	var common []string
+	for _, d := range dates {
+		if d >= startDate && d <= endDate {
+			common = append(common, d)
+		}
+	}
+	if len(common) < 2 {
+		return nil
+	}
+	total := 0.0
+	for _, w := range weights {
+		total += math.Abs(w)
+	}
+	if total == 0 {
+		return nil
+	}
+	norm := make([]float64, len(weights))
+	for i, w := range weights {
+		norm[i] = math.Abs(w) / total
+	}
+	return WeightedDailyReturns(tickers, norm, priceData, common, requireBoth, normalize)
+}
+
 type PricePoint struct {
 	Date  string  `json:"date"`
 	Price float64 `json:"price"`
